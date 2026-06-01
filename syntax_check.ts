@@ -6,11 +6,11 @@ import { type DeviceInput } from "@cellsymphony/device-contracts";
 // This is a simplified version of what we're trying to add to inputRouter.ts
 // We'll validate the key logic parts for syntax correctness
 
-// Mock system state with thirdModifierHeld
+// Mock system state with combinedModifierHeld
 type MockSystemState = {
   shiftHeld: boolean;
   fnHeld: boolean;
-  thirdModifierHeld: boolean;
+  combinedModifierHeld: boolean;
 };
 
 // Mock function to simulate our logic
@@ -27,9 +27,9 @@ function testCombinedModifierLogic(state: MockSystemState, input: { type: string
       // Would send: events.push({ type: "device_input", input: { type: "button_combined_modifier", pressed: false } });
     }
     
-    // Reset third modifier flag if both modifiers are no longer held together
+    // Reset combined modifier flag if both modifiers are no longer held together
     if (wasHeld && !down && !state.fnHeld) {
-      state.thirdModifierHeld = false;
+      state.combinedModifierHeld = false;
     }
   }
   
@@ -43,16 +43,16 @@ function testCombinedModifierLogic(state: MockSystemState, input: { type: string
       // Would send: events.push({ type: "device_input", input: { type: "button_combined_modifier", pressed: false } });
     }
     
-    // Reset third modifier flag if both modifiers are no longer held together
+    // Reset combined modifier flag if both modifiers are no longer held together
     if (wasHeld && !down && !state.shiftHeld) {
-      state.thirdModifierHeld = false;
+      state.combinedModifierHeld = false;
     }
   }
   
   // Check for combined modifier press (both Shift and Fn held together)
-  if (state.shiftHeld && state.fnHeld && !state.thirdModifierHeld) {
+  if (state.shiftHeld && state.fnHeld && !state.combinedModifierHeld) {
     // Would send: events.push({ type: "device_input", input: { type: "button_combined_modifier", pressed: true } });
-    state.thirdModifierHeld = true;
+    state.combinedModifierHeld = true;
   }
 }
 

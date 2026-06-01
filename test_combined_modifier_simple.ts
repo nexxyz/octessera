@@ -7,15 +7,15 @@ const testState = {
   system: {
     shiftHeld: true,
     fnHeld: true,
-    thirdModifierHeld: false
+    combinedModifierHeld: false
   }
 };
 
 // Simulate logic from our implementation:
 // Check for combined modifier press (both Shift and Fn held together)
-if (testState.system.shiftHeld && testState.system.fnHeld && !testState.system.thirdModifierHeld) {
+if (testState.system.shiftHeld && testState.system.fnHeld && !testState.system.combinedModifierHeld) {
   console.log("Combined modifier press event sent");
-  testState.system.thirdModifierHeld = true;
+  testState.system.combinedModifierHeld = true;
 } else {
   console.log("Combined modifier not pressed or already active");
 }
@@ -29,8 +29,8 @@ if (testState.system.shiftHeld && !testState.system.fnHeld) {
 } else if (!testState.system.shiftHeld && testState.system.fnHeld) {
   console.log("Shift released, Fn still held - send combined release");
 } else if (!testState.system.shiftHeld && !testState.system.fnHeld) {
-  console.log("Both modifiers released - reset thirdModifierHeld");
-  testState.system.thirdModifierHeld = false;
+  console.log("Both modifiers released - reset combinedModifierHeld");
+  testState.system.combinedModifierHeld = false;
 }
 
 console.log("Test completed successfully");

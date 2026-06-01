@@ -4,13 +4,13 @@ function testLogic() {
   const state = {
     shiftHeld: true,
     fnHeld: true,
-    thirdModifierHeld: false
+    combinedModifierHeld: false
   };
 
   // Check for combined modifier press (both Shift and Fn held together)
-  if (state.shiftHeld && state.fnHeld && !state.thirdModifierHeld) {
+  if (state.shiftHeld && state.fnHeld && !state.combinedModifierHeld) {
     console.log("Combined modifier press event sent");
-    state.thirdModifierHeld = true;
+    state.combinedModifierHeld = true;
   } else {
     console.log("Combined modifier not pressed or already active");
   }
@@ -24,8 +24,8 @@ function testLogic() {
   } else if (!state.shiftHeld && state.fnHeld) {
     console.log("Shift released, Fn still held - send combined release");
   } else if (!state.shiftHeld && !state.fnHeld) {
-    console.log("Both modifiers released - reset thirdModifierHeld");
-    state.thirdModifierHeld = false;
+    console.log("Both modifiers released - reset combinedModifierHeld");
+    state.combinedModifierHeld = false;
   }
 
   console.log("Test completed successfully");

@@ -4,7 +4,7 @@
 const system = {
   shiftHeld: false,
   fnHeld: false,
-  thirdModifierHeld: false
+  combinedModifierHeld: false
 };
 
 console.log("Testing combined modifier logic...");
@@ -26,10 +26,10 @@ console.log(`   Should return null (prevent direct generation): ${result2}`);
 
 // Now simulate what inputRouter.ts would do
 console.log("\n2. InputRouter logic checks:");
-console.log("When both Shift and Fn are held, and thirdModifierHeld is false:");
-if (system.shiftHeld && system.fnHeld && !system.thirdModifierHeld) {
+console.log("When both Shift and Fn are held, and combinedModifierHeld is false:");
+if (system.shiftHeld && system.fnHeld && !system.combinedModifierHeld) {
   console.log("   Should send combined modifier press event");
-  system.thirdModifierHeld = true;
+  system.combinedModifierHeld = true;
 } else {
   console.log("   Combined modifier not pressed or already active");
 }
@@ -40,10 +40,10 @@ if (system.shiftHeld && !system.fnHeld) {
   console.log("   Shift released, but Fn still held - should not send combined release");
 } else if (!system.shiftHeld && system.fnHeld) {
   console.log("   Shift released, Fn still held - send combined release");
-  system.thirdModifierHeld = false;
+  system.combinedModifierHeld = false;
 } else if (!system.shiftHeld && !system.fnHeld) {
-  console.log("   Both modifiers released - reset thirdModifierHeld");
-  system.thirdModifierHeld = false;
+  console.log("   Both modifiers released - reset combinedModifierHeld");
+  system.combinedModifierHeld = false;
 }
 
 console.log("\n3. Overall verification:");
