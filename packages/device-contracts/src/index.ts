@@ -8,6 +8,7 @@ export type DeviceInput =
   | { type: "button_s"; pressed?: boolean }
   | { type: "button_shift"; pressed?: boolean }
   | { type: "button_fn"; pressed?: boolean }
+  | { type: "button_combined_modifier"; pressed?: boolean }
   | { type: "midi_clock"; pulses: number }
   | { type: "midi_start" }
   | { type: "midi_continue" }

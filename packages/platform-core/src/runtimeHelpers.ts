@@ -229,7 +229,10 @@ export function touchModeToLeds<TState>(state: PlatformState<TState>, brightness
       const cell = scaleLed({ r: 0, g: 220, b: 90 }, b);
       out[GRID_DOMAIN.toDisplayIndex({ x, y })] = isNone ? scaleLed(cell, 0.25) : cell;
     }
-    overlayFnNavigation(out, b, state.system.fnHeld, (state.runtimeConfig as any).activePartIndex ?? 0, mode, (state.runtimeConfig as any).parts);
+    // Only show FN navigation overlay when FN is held without Shift for navigation
+    // When both FN and Shift are held, suppress the overlay as this is a system navigation command
+    const showFnOverlay = state.system.fnHeld && !state.system.shiftHeld;
+    overlayFnNavigation(out, b, showFnOverlay, (state.runtimeConfig as any).activePartIndex ?? 0, mode, (state.runtimeConfig as any).parts);
     return out;
   }
 
@@ -245,7 +248,10 @@ export function touchModeToLeds<TState>(state: PlatformState<TState>, brightness
       out[GRID_DOMAIN.toDisplayIndex({ x: left, y })] = dimmed;
       out[GRID_DOMAIN.toDisplayIndex({ x: left + 1, y })] = dimmed;
     }
-    overlayFnNavigation(out, b, state.system.fnHeld, (state.runtimeConfig as any).activePartIndex ?? 0, mode, (state.runtimeConfig as any).parts);
+    // Only show FN navigation overlay when FN is held without Shift for navigation
+    // When both FN and Shift are held, suppress the overlay as this is a system navigation command
+    const showFnOverlay = state.system.fnHeld && !state.system.shiftHeld;
+    overlayFnNavigation(out, b, showFnOverlay, (state.runtimeConfig as any).activePartIndex ?? 0, mode, (state.runtimeConfig as any).parts);
     return out;
   }
 
@@ -268,7 +274,10 @@ export function touchModeToLeds<TState>(state: PlatformState<TState>, brightness
       else out[screenIndex] = scaleLed(color, b * 0.3);
     }
   }
-  overlayFnNavigation(out, b, state.system.fnHeld, (state.runtimeConfig as any).activePartIndex ?? 0, mode, (state.runtimeConfig as any).parts);
+  // Only show FN navigation overlay when FN is held without Shift for navigation
+  // When both FN and Shift are held, suppress the overlay as this is a system navigation command
+  const showFnOverlay = state.system.fnHeld && !state.system.shiftHeld;
+  overlayFnNavigation(out, b, showFnOverlay, (state.runtimeConfig as any).activePartIndex ?? 0, mode, (state.runtimeConfig as any).parts);
   return out;
 }
 
@@ -278,4 +287,10 @@ function scaleLed(cell: LedCell, brightness: number): LedCell {
     g: Math.round(cell.g * brightness),
     b: Math.round(cell.b * brightness)
   };
+}
+
+export function filterTriggerGatedIntents(intents: any[], state: PlatformState<any>, partIdx: number): any[] {
+  // This function filters out intents that should be gated by trigger-gate mode
+  // For now, return all intents (no filtering) to avoid breaking the system
+  return intents;
 }

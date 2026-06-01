@@ -43,7 +43,7 @@ Cell Symphony is a monorepo (pnpm workspaces) combining a TypeScript core engine
 - After editing package.json, always run `pnpm install`
 - Menu `enum` options for channel targets are strings (`"0"`, `"1"`, `"2"`, `"3"`), not numbers
 - `visibleChildren()` filters nodes using optional `visible` predicate on `RuntimeConfig`
-- If you see untracked changes in the repository that you did not make, always ask what to do with them.
+- If you see changes in the repository that you did not make, always ask what to do with them.
 
 ## AI Assistant Guidelines
 
@@ -57,7 +57,7 @@ Cell Symphony is a monorepo (pnpm workspaces) combining a TypeScript core engine
 ### Task Scope
 - When in Plan mode, break large tasks into explicit steps and confirm the plan before making changes
 - Complete one step fully before moving to the next
-- In Build mode, do not stop before you've reached a conclusion — either a finished task or a roadblock requiring user intervention. In case of a necessary intervention, explicitly tell the user what is required.
+- In Build mode, do not stop before you've reached definite end state — either a task completion or a roadblock requiring user intervention. In case of a necessary intervention, explicitly tell the user what is required.
 
 ### Output Discipline
 - Keep explanations brief; code changes speak for themselves
@@ -69,8 +69,11 @@ Cell Symphony is a monorepo (pnpm workspaces) combining a TypeScript core engine
 - The monorepo has many packages; use `pnpm --filter <package>` to scope commands and avoid cross-package side effects
 - When tracing behavior registration, start from the specific behavior package, not from `platform-core` entry point
 
-## Task execution
-- At the start of every task, write the original goal and a todo list verbatim to `TASK.md` in the project root.
+### Online Research
+- When you are facing a problem that you cannot reliably solve, utilize the tools at your disposal to find a solution online, in related resources or communities.
+
+### Task execution
+- At the start of every task, write the original goal verbatim, and a todo list to `TASK.md` in the project root.
 - Add instructions on the `TASK.md` lifecycle (as described here) to `TASK.md` itself.
 - Update `TASK.md` after each completed step
 - Re-read `TASK.md` before every tool call to verify the current action still serves the original goal

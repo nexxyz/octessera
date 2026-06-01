@@ -134,6 +134,28 @@ export function routeInputWithDeps<TState>(state: PlatformState<TState>, input: 
   }
   if (input.type === "button_fn") nextState.system = { ...nextState.system, fnHeld: pressed(input), pendingCloneSource: pressed(input) ? nextState.system.pendingCloneSource : null };
 
+  // Handle combined modifier: Shift+Fn (treated as a single modifier)
+  // This handles the case where Shift and Fn are pressed together and treated as a single modifier
+  if (nextState.system.shiftHeld && nextState.system.fnHeld && !nextState.system.thirdModifierHeld) {
+    // Send combined modifier press event (this represents the "third" modifier)
+    events.push({ type: "device_input", input: { type: "button_combined_modifier", pressed: true } });
+    nextState.system = { ...nextState.system, thirdModifierHeld: true };
+  }
+  
+  // Handle release of combined modifier (when either Shift or Fn is released)
+  if (nextState.system.shiftHeld && !nextState.system.fnHeld && nextState.system.thirdModifierHeld) {
+    // Shift is released, Fn still held - send combined modifier release
+    events.push({ type: "device_input", input: { type: "button_combined_modifier", pressed: false } });
+    nextState.system = { ...nextState.system, thirdModifierHeld: false };
+  } else if (!nextState.system.shiftHeld && nextState.system.fnHeld && nextState.system.thirdModifierHeld) {
+    // Fn is released, Shift still held - send combined modifier release
+    events.push({ type: "device_input", input: { type: "button_combined_modifier", pressed: false } });
+    nextState.system = { ...nextState.system, thirdModifierHeld: false };
+  } else if (!nextState.system.shiftHeld && !nextState.system.fnHeld && nextState.system.thirdModifierHeld) {
+    // Both modifiers released - reset thirdModifierHeld flag
+    nextState.system = { ...nextState.system, thirdModifierHeld: false };
+  }
+
   if (nextState.system.sampleAssign) {
     if (input.type === "button_a" && pressed(input)) {
       nextState.system = { ...nextState.system, sampleAssign: null, toast: makeToast("Assign mode off") };

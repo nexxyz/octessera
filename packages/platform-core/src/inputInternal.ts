@@ -9,7 +9,7 @@ import { activateMomentaryFx, applyFxAssignment, releaseMomentaryFx } from "./to
 import { visibleChildren } from "./menuView";
 import { makeToast } from "./toast";
 
-const TOUCH_PAGES: TouchMode[] = ["mix", "pan", "fx"];
+const TOUCH_PAGES: TouchMode[] = ["mix", "pan", "fx", "trigger-gate"];
 
 type TouchGridDeps = {
   writeAnyValue: (state: any, key: string, val: unknown) => any;
@@ -43,13 +43,76 @@ export function handleTouchGridPress<TState>(
   if (state.system.touchMode === "fx") {
     return activateMomentaryFx(state, input.x, input.y, effects);
   }
+  if (state.system.touchMode === "trigger-gate") {
+    // For trigger-gate mode, we're using logical coordinates directly from simulator
+    // which are already correctly mapped (no need to use toLogicalIndex)
+    const width = PLATFORM_CAPS.gridWidth;
+    const height = PLATFORM_CAPS.gridHeight;
+    
+    // Single gate press - toggle that specific gate
+    const activePartIndex = (state.runtimeConfig as any).activePartIndex ?? 0;
+    const parts = (state.runtimeConfig as any).parts ?? [];
+    const gates = parts?.[activePartIndex]?.l1?.triggerGates;
+    
+    if (gates) {
+      // Direct indexing using row * width + column - this fixes the coordinate inversion issue
+      const idx = input.y * width + input.x;
+      const newGates = [...gates];
+      newGates[idx] = !newGates[idx];
+      
+      const newParts = [...parts];
+      newParts[activePartIndex] = {
+        ...newParts[activePartIndex],
+        l1: {
+          ...newParts[activePartIndex]?.l1,
+          triggerGates: newGates
+        }
+      };
+      
+      return {
+        ...state,
+        runtimeConfig: {
+          ...state.runtimeConfig,
+          parts: newParts
+        }
+      };
+    }
+  }
   return state;
+}
+
+export function handleTriggerGateExit<TState>(
+  state: PlatformState<TState>,
+  effects: PlatformEffect[]
+): PlatformState<TState> {
+  // Exit trigger-gate mode by switching back to mix mode
+  if (state.system.touchMode === "trigger-gate") {
+    return {
+      ...state,
+      system: {
+        ...state.system,
+        touchMode: "mix"
+      }
+    };
+  }
+  return state;
+}
+
+export function filterTriggerGatedIntents<TState>(
+  intents: any[], 
+  state: PlatformState<TState>, 
+  partIdx: number
+): any[] {
+  // This function filters out intents that should be gated by trigger-gate mode
+  // For now, return all intents (no filtering) to avoid breaking the system
+  return intents;
 }
 
 
 
 export function touchPageFromRow(y: number, current: TouchMode): TouchMode {
-  const direct = TOUCH_PAGES[Math.floor(y)];
+  const index = Math.floor(y) % TOUCH_PAGES.length;
+  const direct = TOUCH_PAGES[index];
   if (direct) return direct;
   return current === "none" ? "mix" : current;
 }

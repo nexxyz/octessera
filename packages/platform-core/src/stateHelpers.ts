@@ -126,6 +126,7 @@ export function factoryPayload<TState>(behavior: BehaviorEngine<TState, unknown>
   parts[0].l2.eventEnabled = true;
   parts[0].name = "life";
   parts[0].autoName = true;
+  parts[0].l1.triggerGates = Array.from({ length: PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight }, () => true);
 
   // P2: sequencer with horizontal scan, scanned→I2, routed direct
   parts[1].l1.behaviorId = "sequencer";
@@ -142,6 +143,7 @@ export function factoryPayload<TState>(behavior: BehaviorEngine<TState, unknown>
   parts[1].l2.eventEnabled = true;
   parts[1].name = "sequencer";
   parts[1].autoName = true;
+  parts[1].l1.triggerGates = Array.from({ length: PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight }, () => true);
 
   // P3–P8: "none", no triggers
   for (let i = 2; i < PLATFORM_CAPS.partCount; i += 1) {
@@ -157,6 +159,7 @@ export function factoryPayload<TState>(behavior: BehaviorEngine<TState, unknown>
     parts[i].l2.eventEnabled = false;
     parts[i].name = "(none)";
     parts[i].autoName = true;
+    parts[i].l1.triggerGates = Array.from({ length: PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight }, () => true);
   }
 
   // I1: synth with soft pad preset, routed→FX Bus 1 (fx_bus_1 → bus index 0)

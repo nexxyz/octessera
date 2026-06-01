@@ -340,7 +340,8 @@ function sanitizePayload<TState>(payload: ConfigPayload, behavior: BehaviorEngin
       ...part,
       l1: {
         ...part.l1,
-        saveGridState: part.l1.saveGridState !== false
+        saveGridState: part.l1.saveGridState !== false,
+        triggerGates: Array.isArray(part.l1.triggerGates) ? part.l1.triggerGates : part.l1.triggerGates ?? Array.from({ length: PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight }, () => true)
       },
       l2: sanitizePartL2(part.l2, basePart.l2),
       autoName: typeof (part as any).autoName === "boolean" ? (part as any).autoName : true,

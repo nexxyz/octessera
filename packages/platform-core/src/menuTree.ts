@@ -359,7 +359,7 @@ export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTr
         kind: "group",
         label: "L4: Touch",
         children: [
-          { kind: "enum", label: "Touch Page", key: "system.touchMode", options: ["none", "mix", "pan", "fx"] },
+          { kind: "enum", label: "Touch Page", key: "system.touchMode", options: ["none", "mix", "pan", "fx", "trigger-gate"] },
           { kind: "number", label: "BPM", key: "transport.bpm", min: 40, max: 240, step: 1 },
           {
             kind: "group",

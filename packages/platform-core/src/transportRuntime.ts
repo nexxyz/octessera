@@ -3,7 +3,7 @@ import { interpretGrid, type AxisStrategy, type InterpretationProfile, type Tick
 import { mapIntentsToMusicalEvents } from "@cellsymphony/mapping-core";
 import type { MusicalEvent } from "@cellsymphony/musical-events";
 import { applyModulation, applyNoteBehavior, withScaleSteps } from "./musicTransforms";
-import { dedupeSimultaneousNotes, toGridSnapshot } from "./runtimeHelpers";
+import { dedupeSimultaneousNotes, filterTriggerGatedIntents, toGridSnapshot } from "./runtimeHelpers";
 import { mod, mergeMapping } from "./coreUtils";
 import type { BehaviorEngine } from "@cellsymphony/behavior-api";
 import type { PlatformState, RuntimeConfig, Direction, NoteUnit } from "./platformTypes";
@@ -113,7 +113,8 @@ function advanceEngineByPulses<TState>(state: PlatformState<TState>, behavior: B
     const profile = profileFromConfig(partCfg);
     const interpretationTick = partCfg.scanMode === "scanning" ? partScanIndex[partIdx] : next.transport.tick;
     const intents = interpretGrid(beforeGrid, afterGrid, interpretationTick, profile);
-    const mapped = mapIntentsToMusicalEvents(intents, withScaleSteps(partCfg.mappingConfig as any, partCfg));
+    const gated = filterTriggerGatedIntents(intents, next, partIdx);
+    const mapped = mapIntentsToMusicalEvents(gated, withScaleSteps(partCfg.mappingConfig as any, partCfg));
     const modulated = applyModulation(intents, mapped, partCfg);
     const instruments: any[] = Array.isArray((next.runtimeConfig as any).instruments) ? ((next.runtimeConfig as any).instruments as any[]) : [];
     const shaped = applyNoteBehavior(modulated, instruments, partIdx, heldNotes);

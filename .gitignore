@@ -13,3 +13,4 @@ apps/desktop/src-tauri/gen/
 hardware/KiCAD/.history/
 debug/
 *.zip
+.qwenignore

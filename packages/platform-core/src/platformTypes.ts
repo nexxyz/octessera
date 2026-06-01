@@ -9,7 +9,7 @@ export type SectionCount = "1" | "2" | "4" | "8";
 export type Curve = "linear" | "curve";
 export type VoiceStealingMode = "off" | "lenient" | "balanced" | "aggressive";
 export type NumericDisplayMode = "bar" | "numbers" | "bar+numbers";
-export type TouchMode = "none" | "mix" | "pan" | "fx";
+export type TouchMode = "none" | "mix" | "pan" | "fx" | "trigger-gate";
 export type MomentaryFxType = "none" | "stutter" | "freeze" | "filter_sweep" | "pitch_shift";
 export type MomentaryFxTarget =
   | { type: "global" }
@@ -147,6 +147,7 @@ export type PartConfig = {
     behaviorConfig: Record<string, unknown>;
     saveGridState: boolean;
     savedState?: unknown;
+    triggerGates?: boolean[];
   };
   l2: PartSenseConfig;
   autoName: boolean;
@@ -205,7 +206,7 @@ export type AuxPressBinding =
   | { kind: "menu_action"; action: ActionSpec; label?: string };
 export type AuxBinding = { turn: AuxTurnBinding | null; press: AuxPressBinding | null };
 export type SystemState = {
-  shiftHeld: boolean; fnHeld: boolean; presetNames: string[]; selectedPreset: string | null; currentPresetName: string | null; draftName: string; nameCursor: number;
+  shiftHeld: boolean; fnHeld: boolean; thirdModifierHeld: boolean; presetNames: string[]; selectedPreset: string | null; currentPresetName: string | null; draftName: string; nameCursor: number;
   pendingRename: { from: string; to: string } | null; confirm: ConfirmState | null; toast: ToastState | null; eventBlipUntilMs: number; stopLatched: boolean;
   transportFlash: "none" | "beat" | "measure"; transportFlashUntilMs: number; autoSaveFlash: "none" | "flash"; autoSaveFlashUntilMs: number; textEdit: TextEditSession | null;
   midiOutputs: MidiPortInfo[]; midiInputs: MidiPortInfo[]; midiStatus: string | null; externalPpqnPulse: number; pendingResync: boolean; pausedByUser: boolean;
