@@ -136,24 +136,24 @@ export function routeInputWithDeps<TState>(state: PlatformState<TState>, input: 
 
   // Handle combined modifier: Shift+Fn (treated as a single modifier)
   // This handles the case where Shift and Fn are pressed together and treated as a single modifier
-  if (nextState.system.shiftHeld && nextState.system.fnHeld && !nextState.system.thirdModifierHeld) {
+  if (nextState.system.shiftHeld && nextState.system.fnHeld && !nextState.system.combinedModifierHeld) {
     // Send combined modifier press event (this represents the "third" modifier)
     events.push({ type: "device_input", input: { type: "button_combined_modifier", pressed: true } });
-    nextState.system = { ...nextState.system, thirdModifierHeld: true };
+    nextState.system = { ...nextState.system, combinedModifierHeld: true };
   }
   
   // Handle release of combined modifier (when either Shift or Fn is released)
-  if (nextState.system.shiftHeld && !nextState.system.fnHeld && nextState.system.thirdModifierHeld) {
+  if (nextState.system.shiftHeld && !nextState.system.fnHeld && nextState.system.combinedModifierHeld) {
     // Shift is released, Fn still held - send combined modifier release
     events.push({ type: "device_input", input: { type: "button_combined_modifier", pressed: false } });
-    nextState.system = { ...nextState.system, thirdModifierHeld: false };
-  } else if (!nextState.system.shiftHeld && nextState.system.fnHeld && nextState.system.thirdModifierHeld) {
+    nextState.system = { ...nextState.system, combinedModifierHeld: false };
+  } else if (!nextState.system.shiftHeld && nextState.system.fnHeld && nextState.system.combinedModifierHeld) {
     // Fn is released, Shift still held - send combined modifier release
     events.push({ type: "device_input", input: { type: "button_combined_modifier", pressed: false } });
-    nextState.system = { ...nextState.system, thirdModifierHeld: false };
-  } else if (!nextState.system.shiftHeld && !nextState.system.fnHeld && nextState.system.thirdModifierHeld) {
-    // Both modifiers released - reset thirdModifierHeld flag
-    nextState.system = { ...nextState.system, thirdModifierHeld: false };
+    nextState.system = { ...nextState.system, combinedModifierHeld: false };
+  } else if (!nextState.system.shiftHeld && !nextState.system.fnHeld && nextState.system.combinedModifierHeld) {
+    // Both modifiers released - reset combinedModifierHeld flag
+    nextState.system = { ...nextState.system, combinedModifierHeld: false };
   }
 
   if (nextState.system.sampleAssign) {

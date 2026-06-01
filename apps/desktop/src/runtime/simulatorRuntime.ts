@@ -289,7 +289,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
       const fnPressed = input.type === "button_fn" ? (input.pressed ?? true) : state.system.fnHeld;
       
       // If both Shift and Fn are pressed, send the combined modifier event
-      if (shiftPressed && fnPressed && !state.system.thirdModifierHeld) {
+      if (shiftPressed && fnPressed && !state.system.combinedModifierHeld) {
         const combinedInput: DeviceInput = { type: "button_combined_modifier", pressed: true };
         const result = routeInput(state, combinedInput, activeBehavior());
         state = result.state;
@@ -300,9 +300,9 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
         flushDueMidi(performance.now());
         publishSnapshot();
         return;
-      } else if ((shiftPressed && !fnPressed && state.system.thirdModifierHeld) || 
-                 (!shiftPressed && fnPressed && state.system.thirdModifierHeld) ||
-                 (!shiftPressed && !fnPressed && state.system.thirdModifierHeld)) {
+      } else if ((shiftPressed && !fnPressed && state.system.combinedModifierHeld) || 
+                 (!shiftPressed && fnPressed && state.system.combinedModifierHeld) ||
+                 (!shiftPressed && !fnPressed && state.system.combinedModifierHeld)) {
         // If either Shift or Fn is released, and the combined modifier was active, send release event
         const combinedInput: DeviceInput = { type: "button_combined_modifier", pressed: false };
         const result = routeInput(state, combinedInput, activeBehavior());
