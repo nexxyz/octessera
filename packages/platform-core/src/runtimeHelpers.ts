@@ -1,5 +1,6 @@
 import { getBehavior } from "@cellsymphony/behavior-api";
 import { type LedCell } from "@cellsymphony/device-contracts";
+import type { CellTriggerIntent } from "@cellsymphony/interpretation-core";
 import type { MusicalEvent } from "@cellsymphony/musical-events";
 import { clamp, mod } from "./coreUtils";
 import { GRID_DOMAIN, PLATFORM_CAPS, sectionCount } from "./platformCaps";
@@ -336,8 +337,13 @@ function scaleLed(cell: LedCell, brightness: number): LedCell {
   };
 }
 
-export function filterTriggerGatedIntents(intents: any[], state: PlatformState<any>, partIdx: number): any[] {
-  // This function filters out intents that should be gated by trigger-gate mode
-  // For now, return all intents (no filtering) to avoid breaking the system
-  return intents;
+export function filterTriggerGatedIntents(intents: CellTriggerIntent[], state: PlatformState<any>, partIdx: number): CellTriggerIntent[] {
+  const activeIdx = ((state.runtimeConfig as any).activePartIndex ?? 0) as number;
+  if (state.system.triggerMuted && partIdx === activeIdx) return [];
+  const gates = (state.runtimeConfig as any)?.parts?.[partIdx]?.l1?.triggerGates as boolean[] | undefined;
+  if (!gates) return intents;
+  return intents.filter(intent => {
+    const idx = intent.y * PLATFORM_CAPS.gridWidth + intent.x;
+    return gates[idx] !== false;
+  });
 }

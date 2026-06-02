@@ -1,5 +1,5 @@
 import type { DeviceInput } from "@cellsymphony/device-contracts";
-import type { InterpretationProfile, AxisStrategy, TickStrategy } from "@cellsymphony/interpretation-core";
+import type { CellTriggerIntent, InterpretationProfile, AxisStrategy, TickStrategy } from "@cellsymphony/interpretation-core";
 import type { PlatformEffect, PlatformState, RuntimeConfig } from "./index";
 import type { TouchMode } from "./platformTypes";
 import { clamp } from "./coreUtils";
@@ -124,13 +124,18 @@ export function handleTriggerGateExit<TState>(
 }
 
 export function filterTriggerGatedIntents<TState>(
-  intents: any[], 
-  state: PlatformState<TState>, 
+  intents: CellTriggerIntent[],
+  state: PlatformState<TState>,
   partIdx: number
-): any[] {
-  // This function filters out intents that should be gated by trigger-gate mode
-  // For now, return all intents (no filtering) to avoid breaking the system
-  return intents;
+): CellTriggerIntent[] {
+  const activeIdx = ((state.runtimeConfig as any).activePartIndex ?? 0) as number;
+  if (state.system.triggerMuted && partIdx === activeIdx) return [];
+  const gates = (state.runtimeConfig as any)?.parts?.[partIdx]?.l1?.triggerGates as boolean[] | undefined;
+  if (!gates) return intents;
+  return intents.filter(intent => {
+    const idx = intent.y * PLATFORM_CAPS.gridWidth + intent.x;
+    return gates[idx] !== false;
+  });
 }
 
 

@@ -18,6 +18,7 @@ import {
 } from "../src/index";
 import { validatePlatformCapabilities } from "../src/platformCaps";
 import { writeAnyValue } from "../src/stateHelpers";
+import { filterTriggerGatedIntents } from "../src/runtimeHelpers";
 
 const CELL_COUNT = PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight;
 
@@ -561,4 +562,69 @@ test("sectioned scan wraps and reverses across lane steps", () => {
   state.runtimeConfig.parts[0].l2.scanDirection = "reverse";
   state = tick(state, lifeBehavior).state as any;
   assert.equal(state.scanIndex, 15);
+});
+
+// ─── Global Trigger Mute ──────────────────────────────────────────
+
+test("Fn+Play toggles triggerMuted flag", () => {
+  let state = makeState();
+
+  assert.equal(state.system.triggerMuted, false);
+
+  state = routeInput(state, { type: "button_fn", pressed: true } as DeviceInput, mockBehavior).state;
+  state = routeInput(state, { type: "button_s", pressed: true } as DeviceInput, mockBehavior).state;
+  state = routeInput(state, { type: "button_fn", pressed: false } as DeviceInput, mockBehavior).state;
+  assert.equal(state.system.triggerMuted, true);
+
+  state = routeInput(state, { type: "button_fn", pressed: true } as DeviceInput, mockBehavior).state;
+  state = routeInput(state, { type: "button_s", pressed: true } as DeviceInput, mockBehavior).state;
+  state = routeInput(state, { type: "button_fn", pressed: false } as DeviceInput, mockBehavior).state;
+  assert.equal(state.system.triggerMuted, false);
+});
+
+test("filterTriggerGatedIntents returns empty when triggerMuted is true for active part", () => {
+  const state = makeState();
+  state.system.triggerMuted = true;
+  const intents = [{ x: 0, y: 0, kind: "activate" as const, degree: 60 }];
+  const activeIdx = (state.runtimeConfig as any).activePartIndex ?? 0;
+  const filtered = filterTriggerGatedIntents(intents, state, activeIdx);
+  assert.equal(filtered.length, 0);
+});
+
+test("filterTriggerGatedIntents does not gate non-active parts when triggerMuted is true", () => {
+  const state = makeState();
+  state.system.triggerMuted = true;
+  state.runtimeConfig.activePartIndex = 0;
+  const intents = [{ x: 0, y: 0, kind: "activate" as const, degree: 60 }];
+  const filtered = filterTriggerGatedIntents(intents, state, 1);
+  assert.equal(filtered.length, 1);
+});
+
+test("filterTriggerGatedIntents respects per-cell trigger gates", () => {
+  const state = makeState();
+  state.system.triggerMuted = false;
+  const width = PLATFORM_CAPS.gridWidth;
+  state.runtimeConfig.parts[0].l1.triggerGates = Array.from({ length: width * PLATFORM_CAPS.gridHeight }, (_, i) => i !== 1);
+
+  const intents = [
+    { x: 0, y: 0, kind: "activate" as const, degree: 60 },
+    { x: 1, y: 0, kind: "activate" as const, degree: 64 },
+  ];
+  const filtered = filterTriggerGatedIntents(intents, state, 0);
+  assert.equal(filtered.length, 1);
+  assert.equal(filtered[0].x, 0);
+  assert.equal(filtered[0].y, 0);
+});
+
+test("global trigger mute suppresses tick events", () => {
+  let state = makeState();
+  state.transport.playing = true;
+  state.runtimeConfig.algorithmStepUnit = "1/16";
+
+  const r1 = tick(state, mockBehavior);
+  assert.ok(r1.events.length > 0, "should produce events when not muted");
+
+  r1.state.system.triggerMuted = true;
+  const r2 = tick(r1.state, mockBehavior);
+  assert.equal(r2.events.length, 0, "should produce no events when muted");
 });

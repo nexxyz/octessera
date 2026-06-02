@@ -227,6 +227,7 @@ export type SystemState = {
   } | null;
   touchMode: TouchMode;
   triggerGateTarget: "active" | "all" | string;
+  triggerMuted: boolean;
 };
 
 export type PlatformEffectBase =
@@ -257,7 +258,7 @@ export type StoreResult = StoreResultBase | MidiResult | SampleResult;
 export type PlatformState<TState> = {
   transport: TransportFrame; behaviorState: TState; activeBehavior: string; mappingConfig: MappingConfig; runtimeConfig: RuntimeConfig; menu: MenuState; system: SystemState;
   scanIndex: number; scanPulseAccumulator: number; algorithmPulseAccumulator: number; ppqnPulseRemainder: number;
-  partStates: unknown[]; partScanIndex: number[]; partScanPulseAccumulator: number[]; partAlgorithmPulseAccumulator: number[]; partPaused: boolean[];
+  partStates: unknown[]; partScanIndex: number[]; partScanPulseAccumulator: number[]; partAlgorithmPulseAccumulator: number[];
 };
 
 export type MenuNode =

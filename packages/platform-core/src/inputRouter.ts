@@ -6,7 +6,7 @@ import { mapIntentsToMusicalEvents } from "@cellsymphony/mapping-core";
 import { clamp } from "./coreUtils";
 import { clampInstrumentIndex, clampPartIndex, clampSampleSlotIndex, PLATFORM_CAPS } from "./platformCaps";
 import type { PlatformEffect, PlatformState } from "./index";
-import { applySampleAssignment, handleTouchGridPress, gridChanged, inputTransitionProfile, touchPageFromRow } from "./inputInternal";
+import { applySampleAssignment, filterTriggerGatedIntents, handleTouchGridPress, gridChanged, inputTransitionProfile, touchPageFromRow } from "./inputInternal";
 import { applyModulation, applyNoteBehavior, withScaleSteps } from "./musicTransforms";
 import { makeToast } from "./toast";
 import { activateMomentaryFx, applyFxAssignment, releaseMomentaryFx } from "./touchFxRuntime";
@@ -16,7 +16,6 @@ import { startMomentaryFxPreview, stopMomentaryFxPreview } from "./momentaryFxPr
 import { AUX_MAPPING_OVERLAY_DELAY_MS, EVENT_BLIP_MS, deadlineMs, heldForMs, nowMs } from "./timing";
 import { resolveTouchPanTarget, toGridSnapshot, touchPanPosFromGridX } from "./runtimeHelpers";
 import type { SystemState } from "./platformTypes";
-
 function applyModifierState(system: SystemState, input: DeviceInput, down: boolean, now: number): { system: SystemState; combinedPressed: boolean; combinedReleased: boolean; handled: boolean } {
   if (input.type !== "button_shift" && input.type !== "button_fn") return { system, combinedPressed: false, combinedReleased: false, handled: false };
   const physicalShiftHeld = input.type === "button_shift" ? down : system.physicalShiftHeld;
@@ -377,15 +376,10 @@ export function routeInputWithDeps<TState>(state: PlatformState<TState>, input: 
     }
     const wasPlaying = nextState.transport.playing;
 
-    // FN+Play = toggle active part pausing (before transport toggle, only in local sync)
     if (nextState.system.fnHeld && nextState.runtimeConfig.midi.syncMode !== "external") {
-      const activeIdx = clampPartIndex((nextState.runtimeConfig as any).activePartIndex ?? 0);
-      const partPaused = [...(nextState.partPaused ?? Array.from({ length: PLATFORM_CAPS.partCount }, () => false))];
-      partPaused[activeIdx] = !partPaused[activeIdx];
-      nextState = { ...nextState, partPaused, system: { ...nextState.system, stopLatched: false, toast: makeToast(partPaused[activeIdx] ? `Part ${activeIdx + 1} paused` : `Part ${activeIdx + 1} playing`) } };
+      nextState = { ...nextState, system: { ...nextState.system, triggerMuted: !nextState.system.triggerMuted, stopLatched: false, toast: makeToast(!nextState.system.triggerMuted ? "Triggers off" : "Triggers on") } };
       return { state: nextState, events, effects };
     }
-
     const now = nowMs();
     const playing = !wasPlaying;
     nextState.transport = { ...nextState.transport, playing };
@@ -408,8 +402,6 @@ export function routeInputWithDeps<TState>(state: PlatformState<TState>, input: 
       } else {
         nextState.system = { ...nextState.system, stopLatched: false };
       }
-    } else {
-      nextState.partPaused = Array.from({ length: PLATFORM_CAPS.partCount }, () => false);
     }
   } else if (input.type === "button_a" && pressed(input)) {
     const view = deps.locate(deps.menuTree(nextState), nextState, nextState.menu);
@@ -472,14 +464,13 @@ export function routeInputWithDeps<TState>(state: PlatformState<TState>, input: 
       ? deps.turnAuxEncoderMapped(nextState, input.id, slot.turn, input.delta, effects, auxDeps)
       : deps.turnAuxEncoder(nextState, input.id, input.delta, effects, auxDeps);
   }
-
   const beforeInputGrid = behavior.interpretInputTransitions ? toGridSnapshot(behavior.renderModel(nextState.behaviorState)) : null;
   nextState.behaviorState = behavior.onInput(nextState.behaviorState, input, { bpm: nextState.transport.bpm, emit: (event) => events.push(event) });
   if (beforeInputGrid) {
     const afterInputGrid = toGridSnapshot(behavior.renderModel(nextState.behaviorState));
     if (gridChanged(beforeInputGrid, afterInputGrid) && (nextState.transport.playing || nextState.runtimeConfig.inputEventsWhilePaused)) {
       const profile = inputTransitionProfile(nextState.runtimeConfig);
-      const intents = interpretGrid(beforeInputGrid, afterInputGrid, nextState.transport.tick, profile);
+      const intents = filterTriggerGatedIntents(interpretGrid(beforeInputGrid, afterInputGrid, nextState.transport.tick, profile), nextState, clampPartIndex((nextState.runtimeConfig as any).activePartIndex ?? 0));
       if (intents.length > 0) {
         const mapped = mapIntentsToMusicalEvents(intents, withScaleSteps(nextState.mappingConfig, nextState.runtimeConfig));
         const modulated = applyModulation(intents, mapped, nextState.runtimeConfig);

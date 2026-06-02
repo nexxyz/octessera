@@ -122,7 +122,6 @@ export function applyConfigPayload<TState>(
   next.partScanIndex = Array.from({ length: PLATFORM_CAPS.partCount }, () => 0);
   next.partScanPulseAccumulator = Array.from({ length: PLATFORM_CAPS.partCount }, () => 0);
   next.partAlgorithmPulseAccumulator = Array.from({ length: PLATFORM_CAPS.partCount }, () => 0);
-  next.partPaused = Array.from({ length: PLATFORM_CAPS.partCount }, () => false);
   next.scanPulseAccumulator = 0;
   next.algorithmPulseAccumulator = 0;
   next.ppqnPulseRemainder = 0;

@@ -200,7 +200,8 @@ export function createInitialPlatformState<TState>(behavior: BehaviorEngine<TSta
       pendingCloneSource: null,
             sampleBrowser: null,
       touchMode: "none",
-      triggerGateTarget: "active"
+      triggerGateTarget: "active",
+      triggerMuted: false
     },
     scanIndex: 0,
     scanPulseAccumulator: 0,
@@ -209,7 +210,6 @@ export function createInitialPlatformState<TState>(behavior: BehaviorEngine<TSta
     partStates,
     partScanIndex: Array.from({ length: PLATFORM_CAPS.partCount }, () => 0),
     partScanPulseAccumulator: Array.from({ length: PLATFORM_CAPS.partCount }, () => 0),
-    partAlgorithmPulseAccumulator: Array.from({ length: PLATFORM_CAPS.partCount }, () => 0),
-    partPaused: Array.from({ length: PLATFORM_CAPS.partCount }, () => false)
+    partAlgorithmPulseAccumulator: Array.from({ length: PLATFORM_CAPS.partCount }, () => 0)
   };
 }
