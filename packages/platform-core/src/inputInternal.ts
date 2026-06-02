@@ -111,7 +111,7 @@ export function filterTriggerGatedIntents<TState>(
 
 
 export function touchPageFromRow(y: number, current: TouchMode): TouchMode {
-  const index = Math.floor(y) % TOUCH_PAGES.length;
+  const index = Math.floor(y);
   const direct = TOUCH_PAGES[index];
   if (direct) return direct;
   return current === "none" ? "mix" : current;
