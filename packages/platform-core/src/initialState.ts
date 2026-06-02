@@ -114,7 +114,8 @@ export function createInitialPlatformState<TState>(behavior: BehaviorEngine<TSta
       stepRate: idx === 0 ? "1/8" : "1/4",
       behaviorId: idx === 0 ? behavior.id : "life",
       behaviorConfig: { ...((runtimeConfig.behaviorConfig as any)[idx === 0 ? behavior.id : "life"] ?? {}) },
-      saveGridState: true
+      saveGridState: true,
+      triggerGates: Array.from({ length: PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight }, () => true)
     },
     l2: {
       scanMode: "immediate",
@@ -198,7 +199,8 @@ export function createInitialPlatformState<TState>(behavior: BehaviorEngine<TSta
       activeFx: [],
       pendingCloneSource: null,
             sampleBrowser: null,
-      touchMode: "none"
+      touchMode: "none",
+      triggerGateTarget: "active"
     },
     scanIndex: 0,
     scanPulseAccumulator: 0,

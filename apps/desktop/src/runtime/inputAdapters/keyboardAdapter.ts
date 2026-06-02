@@ -11,7 +11,8 @@ export function mapKeyboardEventToInputAction(event: KeyboardEvent): InputAction
   if (key === "ArrowUp") return wrap({ type: "encoder_turn", delta: -1, id: "main" });
   if (key === "ArrowDown") return wrap({ type: "encoder_turn", delta: 1, id: "main" });
   if (key === "Enter") return wrap({ type: "encoder_press", id: "main" });
-  if (key === "Backspace" || key === "Escape") return wrap({ type: "button_a" });
+  if (key === "Backspace") return wrap({ type: "button_a" });
+  if (key === "Escape") return wrap({ type: "button_a" });
   if (key === " ") return wrap({ type: "button_s" });
   return null;
 }

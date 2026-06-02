@@ -44,6 +44,7 @@ Cell Symphony is a monorepo (pnpm workspaces) combining a TypeScript core engine
 - Menu `enum` options for channel targets are strings (`"0"`, `"1"`, `"2"`, `"3"`), not numbers
 - `visibleChildren()` filters nodes using optional `visible` predicate on `RuntimeConfig`
 - If you see changes in the repository that you did not make, always ask what to do with them.
+- When I tell you something, and later correct it, take my later instructions as my real intention, even if they contradict earlier statements.
 
 ## AI Assistant Guidelines
 

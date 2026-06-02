@@ -143,8 +143,33 @@ test("Fn+rightmost grid column selects Touch pages", () => {
   state = routeInput(state, { type: "grid_press", x: PLATFORM_CAPS.gridWidth - 1, y: 1 }, mockBehavior).state;
   assert.equal(state.system.touchMode, "pan");
 
+  state = routeInput(state, { type: "grid_press", x: PLATFORM_CAPS.gridWidth - 1, y: 3 }, mockBehavior).state;
+  assert.equal(state.system.touchMode, "trigger-gate");
+
   state = routeInput(state, { type: "grid_press", x: PLATFORM_CAPS.gridWidth - 1, y: PLATFORM_CAPS.gridHeight - 1 }, mockBehavior).state;
-  assert.equal(state.system.touchMode, "pan");
+  assert.equal(state.system.touchMode, "trigger-gate");
+});
+
+test("Touch Page menu can activate trigger-gate", () => {
+  let state = createInitialState(mockBehavior);
+  state.system.oledMode = "normal";
+
+  state = routeInput(state, { type: "encoder_turn", delta: 1 }, mockBehavior).state;
+  state = routeInput(state, { type: "encoder_turn", delta: 1 }, mockBehavior).state;
+  state = routeInput(state, { type: "encoder_turn", delta: 1 }, mockBehavior).state;
+  state = routeInput(state, { type: "encoder_press" }, mockBehavior).state;
+  state = routeInput(state, { type: "encoder_press" }, mockBehavior).state;
+  state = routeInput(state, { type: "encoder_turn", delta: 1 }, mockBehavior).state;
+  state = routeInput(state, { type: "encoder_turn", delta: 1 }, mockBehavior).state;
+  state = routeInput(state, { type: "encoder_turn", delta: 1 }, mockBehavior).state;
+  state = routeInput(state, { type: "encoder_turn", delta: 1 }, mockBehavior).state;
+
+  assert.equal(state.system.touchMode, "trigger-gate");
+
+  const activePart = (state.runtimeConfig as any).activePartIndex ?? 0;
+  const before = (state.runtimeConfig as any).parts[activePart].l1.triggerGates[0];
+  state = routeInput(state, { type: "grid_press", x: 0, y: 0 }, mockBehavior).state;
+  assert.equal((state.runtimeConfig as any).parts[activePart].l1.triggerGates[0], !before);
 });
 
 test("Fn+rightmost column FX page selects fx touch mode", () => {
@@ -167,7 +192,7 @@ test("Fn overlay dims FX grid cells when touchMode is fx", () => {
 
   const cells = toSimulatorFrame(state, mockBehavior).leds.cells;
   const midCell = cells[GRID_DOMAIN.toDisplayIndex({ x: 2, y: 2 })]!;
-  // middle cells dimmed: default FX blue (20,20,60) * 0.75 brightness * 0.25 dim = (4,4,11)
+  // middle cells dimmed: default FX dark (15,15,22) * 0.75 brightness * 0.25 dim = (3,3,4)
   assert.ok(midCell.r < 20 && midCell.g < 20 && midCell.b < 20);
 
   // right column FX page indicator should be cyan scaled by 0.75 brightness: g≈158
@@ -175,10 +200,26 @@ test("Fn overlay dims FX grid cells when touchMode is fx", () => {
   assert.ok(fxPage.g > 100 && fxPage.g < 200, `fx page green should be ~158, got ${fxPage.g}`);
   assert.ok(fxPage.r < 50);
   assert.ok(fxPage.b > 100);
+  const triggerGatePage = cells[GRID_DOMAIN.toDisplayIndex({ x: PLATFORM_CAPS.gridWidth - 1, y: 3 })]!;
+  assert.ok(triggerGatePage.r > 100 && triggerGatePage.g > 100 && triggerGatePage.b > 100);
 
   // left column part indicator should still be bright
   const partCell = cells[GRID_DOMAIN.toDisplayIndex({ x: 0, y: 0 })]!;
   assert.ok(partCell.g > 100);
+});
+
+test("Touch trigger-gate LEDs show gate state", () => {
+  const state = createInitialState(mockBehavior);
+  state.system.oledMode = "normal";
+  state.system.touchMode = "trigger-gate";
+  const activePart = (state.runtimeConfig as any).activePartIndex ?? 0;
+  (state.runtimeConfig as any).parts[activePart].l1.triggerGates[0] = false;
+
+  const cells = toSimulatorFrame(state, mockBehavior).leds.cells;
+  const offGate = cells[GRID_DOMAIN.toDisplayIndex({ x: 0, y: 0 })]!;
+  const onGate = cells[GRID_DOMAIN.toDisplayIndex({ x: 1, y: 0 })]!;
+  assert.ok(offGate.r > offGate.g);
+  assert.ok(onGate.g > onGate.r);
 });
 
 test("Fn grid overlay shows active parts and Touch page options", () => {
@@ -199,10 +240,12 @@ test("Fn grid overlay shows active parts and Touch page options", () => {
 
   // in Touch mode, no part is highlighted as selected; all available parts show green
   assert.ok(activePart.g > 0 && activePart.r < activePart.g);
-  assert.deepEqual(nonePart, { r: 0, g: 0, b: 0 });
+  // unused part slot shows dimmed underlying page background, not black
+  assert.deepEqual(nonePart, { r: 2, g: 2, b: 3 });
   assert.deepEqual(configuredPart, activePart);
   assert.ok(selectedPage.g > inactivePage.g && selectedPage.b > inactivePage.b);
-  assert.deepEqual(unusedPage, { r: 0, g: 0, b: 0 });
+  // unused right-column row shows dimmed underlying page background, not black
+  assert.deepEqual(unusedPage, { r: 2, g: 2, b: 3 });
 
   // non-navigation middle cells should be dimmed
   const middleCell = cells[GRID_DOMAIN.toDisplayIndex({ x: 3, y: 3 })]!;
@@ -227,7 +270,8 @@ test("Fn grid overlay highlights active part when not in Touch mode", () => {
 
   // active part shows blue/cyan
   assert.ok(activePart.g > 0 && activePart.b > 0 && activePart.g === activePart.b && activePart.r < activePart.g);
-  assert.deepEqual(nonePart, { r: 0, g: 0, b: 0 });
+  // unused part slot shows dimmed underlying behavior cell (mock has live cell at display 0,1)
+  assert.deepEqual(nonePart, { r: 0, g: 48, b: 23 });
   // available part shows green, dimmer than active blue
   assert.ok(configuredPart.g > 0 && configuredPart.g < activePart.g);
 });
@@ -886,6 +930,88 @@ test("sample assign mode cycles high-medium-low-off when velocity levels are on"
   press();
   const a4 = state.runtimeConfig.instruments[0].sample.assignments.find((a: any) => a.x === 1 && a.y === 1);
   assert.equal(a4, undefined);
+});
+
+test("trigger-gate mode supports shift row and fn+shift column", () => {
+  let state = createInitialState(mockBehavior) as any;
+  state.system.oledMode = "normal";
+  state.system.touchMode = "trigger-gate";
+  const activePart = state.runtimeConfig.activePartIndex ?? 0;
+  const total = PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight;
+  state.runtimeConfig.parts[activePart].l1.triggerGates = Array.from({ length: total }, (_, i) => i % 2 === 0);
+
+  // Shift alone → row toggle
+  state = routeInput(state, { type: "button_shift", pressed: true } as DeviceInput, mockBehavior).state;
+  state = routeInput(state, { type: "grid_press", x: 2, y: 1 } as DeviceInput, mockBehavior).state;
+  state = routeInput(state, { type: "button_shift", pressed: false } as DeviceInput, mockBehavior).state;
+  for (let cx = 0; cx < PLATFORM_CAPS.gridWidth; cx += 1) {
+    assert.equal(state.runtimeConfig.parts[activePart].l1.triggerGates[1 * PLATFORM_CAPS.gridWidth + cx], false, `row col ${cx} off after Shift+press on (2,1) where cell was on`);
+  }
+
+  // Fn+Shift (combinedModifierHeld) → column toggle
+  const colX = 3;
+  state = routeInput(state, { type: "button_fn", pressed: true } as DeviceInput, mockBehavior).state;
+  state = routeInput(state, { type: "button_shift", pressed: true } as DeviceInput, mockBehavior).state;
+  state = routeInput(state, { type: "grid_press", x: colX, y: 2 } as DeviceInput, mockBehavior).state;
+  state = routeInput(state, { type: "button_shift", pressed: false } as DeviceInput, mockBehavior).state;
+  state = routeInput(state, { type: "button_fn", pressed: false } as DeviceInput, mockBehavior).state;
+  for (let cy = 0; cy < PLATFORM_CAPS.gridHeight; cy += 1) {
+    assert.equal(state.runtimeConfig.parts[activePart].l1.triggerGates[cy * PLATFORM_CAPS.gridWidth + colX], true, `col row ${cy} on after Fn+Shift+press on (3,2) where cell was off`);
+  }
+});
+
+test("trigger-gate edit target menu parameter can be set", () => {
+  const state = createInitialState(mockBehavior) as any;
+  state.system.oledMode = "normal";
+  assert.equal(state.system.triggerGateTarget, "active");
+});
+
+test("trigger-gate specific part target edits only that part", () => {
+  let state = createInitialState(mockBehavior) as any;
+  state.system.oledMode = "normal";
+  state.system.touchMode = "trigger-gate";
+  state.system.triggerGateTarget = "1";
+  const total = PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight;
+  state.runtimeConfig.parts[0].l1.triggerGates = Array.from({ length: total }, () => true);
+  state.runtimeConfig.parts[1].l1.triggerGates = Array.from({ length: total }, () => true);
+
+  state = routeInput(state, { type: "grid_press", x: 0, y: 0 } as DeviceInput, mockBehavior).state;
+  assert.equal(state.runtimeConfig.parts[0].l1.triggerGates[0], true, "part 0 unchanged");
+  assert.equal(state.runtimeConfig.parts[1].l1.triggerGates[0], false, "part 1 gate 0 toggled off");
+});
+
+test("trigger-gate all target edits all parts", () => {
+  let state = createInitialState(mockBehavior) as any;
+  state.system.oledMode = "normal";
+  state.system.touchMode = "trigger-gate";
+  state.system.triggerGateTarget = "all";
+  const total = PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight;
+  for (let i = 0; i < PLATFORM_CAPS.partCount; i += 1) {
+    state.runtimeConfig.parts[i].l1.triggerGates = Array.from({ length: total }, () => true);
+  }
+
+  state = routeInput(state, { type: "grid_press", x: 0, y: 0 } as DeviceInput, mockBehavior).state;
+  for (let i = 0; i < PLATFORM_CAPS.partCount; i += 1) {
+    assert.equal(state.runtimeConfig.parts[i].l1.triggerGates[0], false, `part ${i} gate 0 toggled off`);
+  }
+});
+
+test("trigger-gate all target LED shows mixed state", () => {
+  const state = createInitialState(mockBehavior) as any;
+  state.system.oledMode = "normal";
+  state.system.touchMode = "trigger-gate";
+  state.system.triggerGateTarget = "all";
+  const total = PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight;
+  for (let i = 0; i < PLATFORM_CAPS.partCount; i += 1) {
+    state.runtimeConfig.parts[i].l1.triggerGates = Array.from({ length: total }, () => false);
+  }
+  state.runtimeConfig.parts[0].l1.triggerGates[0] = true;
+
+  const cells = toSimulatorFrame(state, mockBehavior).leds.cells;
+  const mixed = cells[GRID_DOMAIN.toDisplayIndex({ x: 0, y: 0 })]!;
+  assert.ok(mixed.r > 100 && mixed.g > 50 && mixed.b < 100, "mixed cell should be amber");
+  const allOff = cells[GRID_DOMAIN.toDisplayIndex({ x: 1, y: 0 })]!;
+  assert.ok(allOff.r > allOff.g && allOff.r > allOff.b, "all-off cell should be red");
 });
 
 test("sample assign mode supports shift row and fn+shift column", () => {

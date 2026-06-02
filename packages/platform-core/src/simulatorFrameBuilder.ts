@@ -78,7 +78,7 @@ export function buildSimulatorFrame<TState>(args: Args<TState>): SimulatorFrame 
     const levels = inst.sample?.velocityLevelsEnabled === true;
     return sampleAssignmentToLeds(assignments, sampleAssign.sampleSlot, levels, state.runtimeConfig.gridBrightness / 100);
   })();
-  const touchLeds = touchModeToLeds(state, state.runtimeConfig.gridBrightness / 100);
+  const touchLeds = touchModeToLeds(state, state.runtimeConfig.gridBrightness / 100, args.ghostCells);
   return {
     display: baseDisplay,
     oled,

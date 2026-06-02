@@ -642,3 +642,110 @@ test("factory reset defaults match REQ-14 specification", () => {
   }
 });
 
+// ─── Sample Browser Menu ──────────────────────────────────────────
+
+test("choose sample entry creates browser and shows dir navigation", () => {
+  let state = makeState();
+  (state.runtimeConfig as any).instruments[0].type = "sample";
+
+  state = selectLabel(state, "L3: Voice");
+  state = press(state).state;
+  state = selectLabel(state, "Instruments");
+  state = press(state).state;
+  state = selectLabel(state, "I1: synth");
+  state = press(state).state;
+  state = selectLabel(state, "> Sample");
+  state = press(state).state;
+  state = selectLabel(state, "Choose Sample");
+  state = press(state).state;
+
+  assert.ok(state.system.sampleBrowser != null, "browser should be created");
+  assert.equal(state.system.sampleBrowser.instrumentSlot, 0);
+  assert.equal(state.system.sampleBrowser.sampleSlot, 0);
+  assert.equal(state.system.sampleBrowser.dir, "");
+  assert.deepEqual(state.system.sampleBrowser.entries, []);
+
+  const frame = toSimulatorFrame(state, mockBehavior);
+  assert.ok(frame.display.lines.length > 0, "should not be empty");
+  assert.ok(frame.display.lines.some((l: string) => l.includes("..")), "should show ..");
+  assert.ok(frame.display.lines.some((l: string) => l.includes("(empty)")), "should show (empty)");
+});
+
+test("choose sample populates entries after sample_list_result", () => {
+  let state = makeState();
+  (state.runtimeConfig as any).instruments[0].type = "sample";
+
+  state = selectLabel(state, "L3: Voice");
+  state = press(state).state;
+  state = selectLabel(state, "Instruments");
+  state = press(state).state;
+  state = selectLabel(state, "I1: synth");
+  state = press(state).state;
+  state = selectLabel(state, "> Sample");
+  state = press(state).state;
+  state = selectLabel(state, "Choose Sample");
+  state = press(state).state;
+
+  state = applyStoreResult(
+    state,
+    {
+      type: "sample_list_result",
+      instrumentSlot: 0,
+      sampleSlot: 0,
+      dir: "/samples",
+      entries: [
+        { name: "kick.wav", path: "/samples/kick.wav", isDir: false },
+        { name: "snare.wav", path: "/samples/snare.wav", isDir: false },
+        { name: "drums", path: "/samples/drums", isDir: true }
+      ]
+    } as any,
+    mockBehavior
+  ).state;
+
+  assert.equal(state.system.sampleBrowser.entries.length, 3);
+
+  const frame = toSimulatorFrame(state, mockBehavior);
+  assert.ok(frame.display.lines.some((l: string) => l.includes("..")), "should show ..");
+  assert.ok(frame.display.lines.some((l: string) => l.includes("kick.wav")), "should show kick.wav");
+  assert.ok(frame.display.lines.some((l: string) => l.includes("snare.wav")), "should show snare.wav");
+  assert.ok(frame.display.lines.some((l: string) => l.includes("[drums]")), "should show [drums]");
+  assert.ok(!frame.display.lines.some((l: string) => l.includes("(empty)")), "no (empty) when files exist");
+});
+
+test("choose sample re-entry preserves browser entries", () => {
+  let state = makeState();
+  (state.runtimeConfig as any).instruments[0].type = "sample";
+
+  state = selectLabel(state, "L3: Voice");
+  state = press(state).state;
+  state = selectLabel(state, "Instruments");
+  state = press(state).state;
+  state = selectLabel(state, "I1: synth");
+  state = press(state).state;
+  state = selectLabel(state, "> Sample");
+  state = press(state).state;
+  state = selectLabel(state, "Choose Sample");
+  state = press(state).state;
+
+  state = applyStoreResult(
+    state,
+    {
+      type: "sample_list_result",
+      instrumentSlot: 0,
+      sampleSlot: 0,
+      dir: "/samples",
+      entries: [{ name: "kick.wav", path: "/samples/kick.wav", isDir: false }]
+    } as any,
+    mockBehavior
+  ).state;
+
+  // Go back to Sample group level, re-enter Choose Sample
+  state = routeInput(state, { type: "button_a", pressed: true } as DeviceInput, mockBehavior).state;
+  // Cursor is already at Choose Sample (its index was popped from stack)
+  state = press(state).state; // enter Choose Sample
+
+  assert.equal(state.system.sampleBrowser.entries.length, 1, "entries preserved");
+  const frame = toSimulatorFrame(state, mockBehavior);
+  assert.ok(frame.display.lines.some((l: string) => l.includes("kick.wav")), "kick.wav still visible");
+});
+

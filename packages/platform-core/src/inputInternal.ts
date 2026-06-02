@@ -19,7 +19,8 @@ export function handleTouchGridPress<TState>(
   state: PlatformState<TState>,
   input: Extract<DeviceInput, { type: "grid_press" }>,
   effects: PlatformEffect[],
-  deps: TouchGridDeps
+  deps: TouchGridDeps,
+  mode?: "single" | "row" | "column"
 ): PlatformState<TState> {
   if (state.system.touchMode === "mix") {
     const inst = clamp(Math.floor(input.x), 0, Math.min(PLATFORM_CAPS.instrumentCount, PLATFORM_CAPS.gridWidth) - 1);
@@ -44,39 +45,63 @@ export function handleTouchGridPress<TState>(
     return activateMomentaryFx(state, input.x, input.y, effects);
   }
   if (state.system.touchMode === "trigger-gate") {
-    // For trigger-gate mode, we're using logical coordinates directly from simulator
-    // which are already correctly mapped (no need to use toLogicalIndex)
     const width = PLATFORM_CAPS.gridWidth;
     const height = PLATFORM_CAPS.gridHeight;
-    
-    // Single gate press - toggle that specific gate
-    const activePartIndex = (state.runtimeConfig as any).activePartIndex ?? 0;
     const parts = (state.runtimeConfig as any).parts ?? [];
-    const gates = parts?.[activePartIndex]?.l1?.triggerGates;
-    
-    if (gates) {
-      // Direct indexing using row * width + column - this fixes the coordinate inversion issue
-      const idx = input.y * width + input.x;
+    const activeIdx = (state.runtimeConfig as any).activePartIndex ?? 0;
+    const partTarget = state.system.triggerGateTarget ?? "active";
+
+    const gx = clamp(Math.floor(input.x), 0, width - 1);
+    const gy = clamp(Math.floor(input.y), 0, height - 1);
+
+    let targetIndices: number[];
+    if (partTarget === "all") {
+      targetIndices = Array.from({ length: parts.length }, (_, i) => i);
+    } else if (partTarget === "active") {
+      targetIndices = [activeIdx];
+    } else {
+      const pi = parseInt(partTarget, 10);
+      targetIndices = [isFinite(pi) ? clamp(pi, 0, parts.length - 1) : activeIdx];
+    }
+
+    const newParts = [...parts];
+    for (const pi of targetIndices) {
+      const gates = parts?.[pi]?.l1?.triggerGates;
+      if (!gates) continue;
+
+      const pressedIdx = gy * width + gx;
+      const target = !gates[pressedIdx];
+      const points: Array<{ x: number; y: number }> = [];
+
+      if (mode === "row") {
+        for (let cx = 0; cx < width; cx += 1) points.push({ x: cx, y: gy });
+      } else if (mode === "column") {
+        for (let cy = 0; cy < height; cy += 1) points.push({ x: gx, y: cy });
+      } else {
+        points.push({ x: gx, y: gy });
+      }
+
       const newGates = [...gates];
-      newGates[idx] = !newGates[idx];
-      
-      const newParts = [...parts];
-      newParts[activePartIndex] = {
-        ...newParts[activePartIndex],
+      for (const pt of points) {
+        newGates[pt.y * width + pt.x] = target;
+      }
+
+      newParts[pi] = {
+        ...newParts[pi],
         l1: {
-          ...newParts[activePartIndex]?.l1,
+          ...newParts[pi]?.l1,
           triggerGates: newGates
         }
       };
-      
-      return {
-        ...state,
-        runtimeConfig: {
-          ...state.runtimeConfig,
-          parts: newParts
-        }
-      };
     }
+
+    return {
+      ...state,
+      runtimeConfig: {
+        ...state.runtimeConfig,
+        parts: newParts
+      }
+    };
   }
   return state;
 }

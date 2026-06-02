@@ -366,23 +366,48 @@ function useRuntimeBindings(setSnapshot: (snapshot: ReturnType<typeof runtime.ge
 
 function useKeyboardBindings(bumpDialPhase: (id: EncoderId | undefined, delta: -1 | 1) => void): void {
   useEffect(() => {
+    // Track which keys are currently pressed to handle key repeats
+    const pressedKeys = new Set<string>();
+
     const onKey = (event: KeyboardEvent) => {
       if (shouldPreventKeyboardDefault(event)) event.preventDefault();
       const action = mapKeyboardEventToInputAction(event);
       if (!action) return;
+
+      // Handle hardware-like button keys with edge-only behavior
+      const edgeOnlyKeys = new Set(["Shift", "Control", " ", "Enter", "Backspace", "Escape"]);
+      if (edgeOnlyKeys.has(event.key)) {
+        if (pressedKeys.has(event.key) || event.repeat) return;
+        pressedKeys.add(event.key);
+      }
+
+      // Handle arrow keys - make them repeat like encoder turns
+      if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
+        // Arrow keys should not use this suppression if you want encoder-repeat behavior
+        // They can use the browser's native repeat behavior instead
+      }
+
       if (action.type === "device_input" && action.input.type === "encoder_turn") {
         bumpDialPhase(action.input.id, action.input.delta);
       }
       runtime.dispatchAction(action);
     };
+
     const onKeyUp = (event: KeyboardEvent) => {
+      // Remove from pressed keys tracking
+      pressedKeys.delete(event.key);
+
       const action = mapKeyboardKeyupToInputAction(event);
       if (action) runtime.dispatchAction(action);
     };
+
     const onBlur = () => {
+      // Clear all held keys and timers on blur
+      pressedKeys.clear();
       runtime.dispatchAction({ type: "shift", active: false });
       runtime.dispatchAction({ type: "fn", active: false });
     };
+
     window.addEventListener("keydown", onKey);
     window.addEventListener("keyup", onKeyUp);
     window.addEventListener("blur", onBlur);

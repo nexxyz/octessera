@@ -59,6 +59,36 @@ export function visibleChildren<TState>(node: MenuNode, state: PlatformState<TSt
   return kids.filter((n) => ("visible" in n && typeof (n as any).visible === "function" ? (n as any).visible(state.runtimeConfig) : true));
 }
 
+function deriveGroupKey(group: any, groupPath: string): string | undefined {
+  const pathInstMatch = /I(\d+):/i.exec(groupPath);
+  if (!pathInstMatch) return undefined;
+  const instIdx = Number(pathInstMatch[1]) - 1;
+  const label = String(group.label ?? "").toLowerCase();
+  const segs = groupPath.split("/").map(s => s.toLowerCase());
+
+  const inSample = segs.some(s => s.includes("sample")) || label.includes("sample");
+  const inMixer = segs.some(s => s.includes("mixer")) || label.includes("mixer");
+
+  if (inSample) return `instruments.${instIdx}.sample.selectedSlot`;
+  if (inMixer) return `instruments.${instIdx}.mixer.volume`;
+
+  if (label.includes("envelope")) {
+    return segs.some(s => s.includes("filter"))
+      ? `instruments.${instIdx}.synth.filterEnv.attackMs`
+      : `instruments.${instIdx}.synth.ampEnv.attackMs`;
+  }
+  if (label.includes("filter")) return `instruments.${instIdx}.synth.filter.cutoffHz`;
+  if (label.includes("osc")) {
+    return label.includes("2")
+      ? `instruments.${instIdx}.synth.osc2.waveform`
+      : `instruments.${instIdx}.synth.osc1.waveform`;
+  }
+  if (label.includes("volume") || label.includes("amp")) return `instruments.${instIdx}.synth.amp.gainPct`;
+  if (label.includes("synth")) return `instruments.${instIdx}.synth.filter.cutoffHz`;
+
+  return `instruments.${instIdx}.synth.filter.cutoffHz`;
+}
+
 export function locate<TState>(root: MenuNode, state: PlatformState<TState>, menu: MenuState): { node: MenuNode; siblings: MenuNode[]; path: string } {
   let node = root;
   const labels: string[] = [];
@@ -110,8 +140,11 @@ export function currentMenuView<TState>(deps: CurrentMenuViewDeps<TState>): { pa
   if (state.system.shiftHeld && heldForMs(now, state.system.shiftHeldSinceMs, AUX_MAPPING_OVERLAY_DELAY_MS)) {
     const cursor = clamp(menu.cursor, 0, siblings.length - 1);
     const focused = siblings[cursor] as any;
-    const selectedKey = focused && (focused.kind === "number" || focused.kind === "enum" || focused.kind === "bool") ? String(focused.key ?? "") : undefined;
+    let selectedKey = focused && (focused.kind === "number" || focused.kind === "enum" || focused.kind === "bool") ? String(focused.key ?? "") : undefined;
     const selectedAction = focused && focused.kind === "action" ? (focused.action as any) : null;
+    if (!selectedKey && !selectedAction && focused?.kind === "group") {
+      selectedKey = deriveGroupKey(focused, path);
+    }
     const eff = resolveEffectiveAuxMap(state, { path, selectedKey, selectedAction }, resolveBehavior);
     const slots: Array<[string, typeof eff.aux1]> = [["A1", eff.aux1], ["A2", eff.aux2], ["A3", eff.aux3], ["A4", eff.aux4]];
     const anyAuto = slots.some(([, s]) => s.sourceTurn === "auto" || s.sourcePress === "auto");
@@ -172,8 +205,11 @@ export function currentMenuView<TState>(deps: CurrentMenuViewDeps<TState>): { pa
 
   const cursor = clamp(menu.cursor, 0, siblings.length - 1);
   const focused = siblings[cursor] as any;
-  const selectedKey = focused && (focused.kind === "number" || focused.kind === "enum" || focused.kind === "bool") ? String(focused.key ?? "") : undefined;
+  let selectedKey = focused && (focused.kind === "number" || focused.kind === "enum" || focused.kind === "bool") ? String(focused.key ?? "") : undefined;
   const selectedAction = focused && focused.kind === "action" ? (focused.action as any) : null;
+  if (!selectedKey && !selectedAction && focused?.kind === "group") {
+    selectedKey = deriveGroupKey(focused, path);
+  }
   const auto = resolveAuxAutoMap(state, { path, selectedKey, selectedAction }, resolveBehavior);
   const bodyBudget = Math.max(1, oledTextLines - 2);
   let start = cursor;

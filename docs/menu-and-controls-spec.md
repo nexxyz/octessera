@@ -260,32 +260,34 @@ Part runtime behavior:
 
 ```
 L4: Touch
-├── Touch Page: [none | mix | pan | fx]
+├── Touch Page: [none | mix | pan | fx | trigger-gate]
 ├── BPM: [40..240] step 1  default 120
-└── FX Page (group)
-    ├── FX Type: [none | stutter | freeze | filter_sweep | pitch_shift]
-    ├── Target: [master | fx_bus_1..N | instrument_1..N]
-    ├── Stutter params (visible when FX Type = stutter)
-    │   ├── Rate Hz: [1..32]
-    │   └── Depth: [0..100] (% wet mix)
-    ├── Freeze params (visible when FX Type = freeze)
-    │   ├── Release Ms: [10..5000]  (release fade duration)
-    │   └── Mix: [0..100] (% wet mix)
-    ├── Filter Sweep params (visible when FX Type = filter_sweep)
-    │   ├── Cutoff: [0..100]  (target cutoff amount)
-    │   ├── Res: [0..100]
-    │   ├── Sweep In: [10..3000] ms  (sweep to target on press)
-    │   └── Sweep Out: [10..3000] ms  (sweep back to open on release)
-    ├── Pitch Shift params (visible when FX Type = pitch_shift)
-    │   ├── Semitones: [-24..24]
-    │   ├── Cents: [-100..100] (fine detune, added to semitones)
-    │   └── Mix: [0..100] (% wet mix)
-    └── Map to Grid (action)
+├── FX Page (group)
+│   ├── FX Type: [none | stutter | freeze | filter_sweep | pitch_shift]
+│   ├── Target: [master | fx_bus_1..N | instrument_1..N]
+│   ├── Stutter params (visible when FX Type = stutter)
+│   │   ├── Rate Hz: [1..32]
+│   │   └── Depth: [0..100] (% wet mix)
+│   ├── Freeze params (visible when FX Type = freeze)
+│   │   ├── Release Ms: [10..5000]  (release fade duration)
+│   │   └── Mix: [0..100] (% wet mix)
+│   ├── Filter Sweep params (visible when FX Type = filter_sweep)
+│   │   ├── Cutoff: [0..100]  (target cutoff amount)
+│   │   ├── Res: [0..100]
+│   │   ├── Sweep In: [10..3000] ms  (sweep to target on press)
+│   │   └── Sweep Out: [10..3000] ms  (sweep back to open on release)
+│   ├── Pitch Shift params (visible when FX Type = pitch_shift)
+│   │   ├── Semitones: [-24..24]
+│   │   ├── Cents: [-100..100] (fine detune, added to semitones)
+│   │   └── Mix: [0..100] (% wet mix)
+│   └── Map to Grid (action)
+└── Trigger Gate (group)
+    └── Edit Target: [active | all | 0 | 1 | 2 | 3]
 ```
 
 Touch layer behavior:
 
-- Fn + rightmost grid column selects Touch pages by row: row 0 = mix, row 1 = pan, row 2 = fx. Lower rows are unused.
+- Fn + rightmost grid column selects Touch pages by row: row 0 = mix, row 1 = pan, row 2 = fx, row 3 = trigger-gate. Lower rows are unused.
 - Fn + leftmost grid column selects the active displayed part and exits Touch by setting Touch Page to `none`. Menu position is not changed by part selection.
 - When Fn is held, the left grid column shows part-selection options and the right grid column shows Touch page options. The active part and selected Touch page are highlighted; parts whose behavior is not `none` have a dim indicator; `none` parts stay dark. All other cells (columns 1 through 6) are dimmed to 25% brightness to make the navigation columns unambiguous.
 - `mix`: each column is an instrument; y=0 mutes, y=7 sets 100%, intermediate rows quantize per-slot `Mixer > Volume`.
@@ -294,6 +296,11 @@ Touch layer behavior:
 - `pan` writes the audible pan target: for `Route=direct` instruments it sets `Mixer > Pan Pos`; for bus-routed (`fx_bus_n`) instruments it sets the bus pan (`Mixer > Buses[n] > Pan Pos`) plus the per-instrument pan for state preservation. The marker color reflects the route: white for direct, bus color (purple/cyan/green/amber for bus 1-4) for bus-routed instruments. Multiple instruments on the same bus show synchronized markers at the bus pan position.
 - `pan` uses a **pressed-cell-plus-right-cell** mapping: pressing grid column X stores `panPos = X+1` (clamped to the right edge), and the LED marker lights cells `panPos-1` and `panPos`. Pressing column 3 (0-indexed) stores `panPos=4`, lighting display cells 4 and 5, which represents center.
 - `fx`: grid cells trigger mapped momentary effects. Press starts the mapped effect and release stops it.
+- `trigger-gate`: grid cells toggle whether each part cell can trigger musical output. Grid press toggles a single gate; Shift+grid press toggles the entire row (exclusive mode — all cells in the row are set to the pressed cell's opposite state); Shift+Fn (combined modifier) toggles the entire column.
+- `L4: Touch > Trigger Gate > Edit Target` controls which part the trigger-gate grid edits and displays:
+  - `active` (default): edit the currently active part.
+  - `all`: apply the same edit to every part simultaneously. LEDs show green when all parts are gated on, red when all are off, and amber when mixed.
+  - `0`, `1`, etc.: edit a specific part regardless of active part.
 - FX cells are mapped from `L4: Touch > FX Page`: select an `FX Type`, edit its visible parameters, then select `Map to Grid` and press a grid cell. The effect type and current parameter values are stored on that cell. Mapping `none` clears a cell.
 - FX assignments include a `Target` (default `master`). Targets are listed as `master` first, then FX buses, then instruments. Platform-core resolves grid semantics into audio commands; desktop forwards those commands without interpreting Touch/grid meaning; Rust applies the realtime DSP.
 - Target insertion points: `instrument_n` is applied on the instrument's outgoing signal before routing/pan; `fx_bus_n` is applied on the bus outgoing signal after bus slot FX; `master` is applied after the final mix.

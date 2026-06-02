@@ -2,7 +2,7 @@ import { listBehaviorIds, type BehaviorEngine } from "@cellsymphony/behavior-api
 import type { MenuNode, PlatformState } from "./index";
 import { instrumentLabel, partLabel } from "./coreUtils";
 import { SYNTH_PRESETS } from "./synthPresets";
-import { clampSampleSlotIndex, instrumentIndexOptions, PLATFORM_CAPS, sampleSlotOptions, scanSectionOptions } from "./platformCaps";
+import { clampSampleSlotIndex, instrumentIndexOptions, partIndexOptions, PLATFORM_CAPS, sampleSlotOptions, scanSectionOptions } from "./platformCaps";
 import { fxBusesMenuNode } from "./fxBusMenu";
 import { defaultMomentaryFxParams, MOMENTARY_FX_TYPES } from "./momentaryFx";
 
@@ -378,6 +378,13 @@ export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTr
               { kind: "number", label: "Semitones", key: "touchFx.selected.params.semitones", min: -24, max: 24, step: 1, visible: (c: any) => c.touchFx?.selected?.fxType === "pitch_shift" },
               { kind: "number", label: "Cents", key: "touchFx.selected.params.cents", min: -100, max: 100, step: 1, visible: (c: any) => c.touchFx?.selected?.fxType === "pitch_shift" },
               { kind: "action", label: "Map to Grid", action: { type: "fx_assign_enter", config: selectedFxConfig } }
+            ]
+          },
+          {
+            kind: "group",
+            label: "Trigger Gate",
+            children: [
+              { kind: "enum", label: "Edit Target", key: "system.triggerGateTarget", options: ["active", "all", ...partIndexOptions()] }
             ]
           }
         ]

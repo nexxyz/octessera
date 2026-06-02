@@ -658,3 +658,31 @@ test("shift+back with life behavior reinitializes cells", () => {
   assert.equal(aliveCount, 0, "all cells should be cleared");
   assert.ok(state.system.toast, "should show toast");
 });
+
+test("auto-map prefixes persist when cursor is on a subgroup", () => {
+  let state = createInitialState(mockBehavior);
+  state.system.oledMode = "normal";
+  state.system.auxAutoMapEnabled = true;
+  (state.runtimeConfig as any).instruments[0].type = "sample";
+  (state.runtimeConfig as any).instruments[0].sample.selectedSlot = 0;
+
+  state = selectLabel(state, "L3: Voice");
+  state = press(state).state;
+  state = selectLabel(state, "Instruments");
+  state = press(state).state;
+  state = selectLabel(state, "I1:");
+  state = press(state).state;
+  state = selectLabel(state, "> Sample");
+  state = press(state).state;
+
+  // Move cursor to "Choose Sample" group (subgroup under Sample)
+  state = selectLabel(state, "Choose Sample");
+
+  const frame = toSimulatorFrame(state, mockBehavior);
+  const lines = frame.display.lines.join("\n");
+  // Sibling items should still show auto-map prefixes
+  assert.ok(lines.includes("1-Sample Slot"), "Sample Slot shows aux1 turn prefix");
+  assert.ok(lines.includes("2-Base Velocity"), "Base Velocity shows aux2 turn prefix");
+  assert.ok(lines.includes("3-Tune Semis"), "Tune Semis shows aux3 turn prefix");
+  assert.ok(lines.includes("4-Velocity Levels"), "Velocity Levels shows aux4 turn prefix");
+});

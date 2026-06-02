@@ -155,18 +155,20 @@ function overlayFnNavigation(out: LedCell[], brightness: number, fnHeld: boolean
     const screenIndex = GRID_DOMAIN.toDisplayIndex({ x: 0, y: layer });
     const isActive = !inTouch && layer === activePartIndex;
     const hasBehavior = String((parts[layer] as any)?.l1?.behaviorId ?? "none") !== "none";
-    const color = isActive ? { r: 0, g: 210, b: 210 } : hasBehavior ? { r: 40, g: 180, b: 40 } : { r: 0, g: 0, b: 0 };
-    out[screenIndex] = scaleLed(color, brightness);
+    if (isActive) out[screenIndex] = scaleLed({ r: 0, g: 210, b: 210 }, brightness);
+    else if (hasBehavior) out[screenIndex] = scaleLed({ r: 40, g: 180, b: 40 }, brightness);
+    else out[screenIndex] = { r: Math.round(out[screenIndex].r * 0.25), g: Math.round(out[screenIndex].g * 0.25), b: Math.round(out[screenIndex].b * 0.25) };
   }
-  const pages: TouchMode[] = ["mix", "pan", "fx"];
+  const pages: TouchMode[] = ["mix", "pan", "fx", "trigger-gate"];
   for (let row = 0; row < PLATFORM_CAPS.gridHeight; row += 1) {
+    const screenIndex = GRID_DOMAIN.toDisplayIndex({ x: PLATFORM_CAPS.gridWidth - 1, y: row });
     const page = pages[row];
-    const color = page === undefined
-      ? { r: 0, g: 0, b: 0 }
-      : page === touchMode
-        ? { r: 0, g: 210, b: 210 }
-        : { r: 180, g: 180, b: 180 };
-    out[GRID_DOMAIN.toDisplayIndex({ x: PLATFORM_CAPS.gridWidth - 1, y: row })] = scaleLed(color, brightness);
+    if (page === undefined) {
+      out[screenIndex] = { r: Math.round(out[screenIndex].r * 0.25), g: Math.round(out[screenIndex].g * 0.25), b: Math.round(out[screenIndex].b * 0.25) };
+      continue;
+    }
+    const color = page === touchMode ? { r: 0, g: 210, b: 210 } : { r: 180, g: 180, b: 180 };
+    out[screenIndex] = scaleLed(color, brightness);
   }
 }
 
@@ -212,7 +214,7 @@ export function sampleAssignmentToLeds(
   return out;
 }
 
-export function touchModeToLeds<TState>(state: PlatformState<TState>, brightness: number): LedCell[] | null {
+export function touchModeToLeds<TState>(state: PlatformState<TState>, brightness: number, ghostCells?: boolean[]): LedCell[] | null {
   const mode = state.system.touchMode;
   if (mode === "none") return null;
   const b = clamp(brightness, 0.1, 1);
@@ -255,6 +257,46 @@ export function touchModeToLeds<TState>(state: PlatformState<TState>, brightness
     return out;
   }
 
+  if (mode === "trigger-gate") {
+    const parts = (state.runtimeConfig as any).parts ?? [];
+    const activePartIndex = (state.runtimeConfig as any).activePartIndex ?? 0;
+    const target = state.system.triggerGateTarget ?? "active";
+
+    let renderParts: number[];
+    if (target === "all") {
+      renderParts = Array.from({ length: parts.length }, (_, i) => i);
+    } else if (target === "active") {
+      renderParts = [activePartIndex];
+    } else {
+      const pi = parseInt(target, 10);
+      renderParts = [isFinite(pi) ? clamp(pi, 0, parts.length - 1) : activePartIndex];
+    }
+
+    for (let y = 0; y < PLATFORM_CAPS.gridHeight; y += 1) {
+      for (let x = 0; x < PLATFORM_CAPS.gridWidth; x += 1) {
+        const idx = y * PLATFORM_CAPS.gridWidth + x;
+        if (target === "all") {
+          let anyOn = false, anyOff = false;
+          for (const pi of renderParts) {
+            const g = (parts[pi] as any)?.l1?.triggerGates;
+            if (Array.isArray(g) ? g[idx] === false : false) anyOff = true;
+            else anyOn = true;
+          }
+          const color = anyOn && anyOff ? { r: 180, g: 120, b: 0 } : anyOn ? { r: 0, g: 190, b: 90 } : { r: 60, g: 20, b: 20 };
+          out[GRID_DOMAIN.toDisplayIndex({ x, y })] = scaleLed(color, b);
+        } else {
+          const pi = renderParts[0];
+          const gates = (parts[pi] as any)?.l1?.triggerGates;
+          const enabled = Array.isArray(gates) ? gates[idx] !== false : true;
+          out[GRID_DOMAIN.toDisplayIndex({ x, y })] = scaleLed(enabled ? { r: 0, g: 190, b: 90 } : { r: 60, g: 20, b: 20 }, b);
+        }
+      }
+    }
+    const showFnOverlay = state.system.fnHeld && !state.system.shiftHeld;
+    overlayFnNavigation(out, b, showFnOverlay, activePartIndex, mode, parts);
+    return out;
+  }
+
   const assignments = Array.isArray((state.runtimeConfig as any).touchFx?.assignments) ? ((state.runtimeConfig as any).touchFx.assignments as any[]) : [];
   const activeFx = Array.isArray(state.system.activeFx) ? state.system.activeFx : [];
   const activeKeys = new Set(activeFx.map((fx) => `${fx.cellX}:${fx.cellY}`));
@@ -264,14 +306,19 @@ export function touchModeToLeds<TState>(state: PlatformState<TState>, brightness
       const screenIndex = GRID_DOMAIN.toDisplayIndex({ x, y });
       const assignment = assignments.find((a) => a?.x === x && a?.y === y);
       if (!assignment || assignment.config?.fxType === "none") {
-        out[screenIndex] = scaleLed({ r: 20, g: 20, b: 60 }, b);
+        const worldIndex = GRID_DOMAIN.indexOf({ x, y });
+        if (ghostCells?.[worldIndex]) {
+          out[screenIndex] = scaleLed({ r: 0, g: 46, b: 25 }, b);
+        } else {
+          out[screenIndex] = scaleLed({ r: 15, g: 15, b: 22 }, b);
+        }
         continue;
       }
       const active = activeKeys.has(`${x}:${y}`);
       const color = momentaryFxColor(assignment.config.fxType);
       if (active) out[screenIndex] = scaleLed(color, b);
       else if (full) out[screenIndex] = scaleLed({ r: 40, g: 40, b: 40 }, b);
-      else out[screenIndex] = scaleLed(color, b * 0.3);
+      else out[screenIndex] = scaleLed(color, b);
     }
   }
   // Only show FN navigation overlay when FN is held without Shift for navigation

@@ -2148,7 +2148,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "",
     "kind": "group",
     "title": "Touch Layer",
-    "line1": "Performance grid layer for live mix, pan, and FX pages.",
+    "line1": "Performance grid layer for live mix, pan, FX, and trigger-gate pages.",
     "line2": "Fn plus the rightmost grid column selects Touch pages; Fn plus the leftmost column selects a part and exits Touch."
   },
   {
@@ -2157,8 +2157,8 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "key:system.touchMode",
     "kind": "enum",
     "title": "Touch Page",
-    "line1": "Options: none, mix, pan, fx. none returns the grid to the active behavior; mix edits instrument volume; pan edits pan position; fx triggers mapped momentary effects.",
-    "line2": "Fn plus rightmost rows select pages: row 0 mix, row 1 pan, row 2 fx."
+    "line1": "Options: none, mix, pan, fx, trigger-gate. none returns the grid to the active behavior; mix edits instrument volume; pan edits pan position; fx triggers mapped momentary effects; trigger-gate toggles per-cell output gates.",
+    "line2": "Fn plus rightmost rows select pages: row 0 mix, row 1 pan, row 2 fx, row 3 trigger-gate."
   },
   {
     "id": "touch_bpm",
@@ -2285,5 +2285,23 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "title": "Map to Grid",
     "line1": "Enters FX assignment mode using the current effect type and parameter values.",
     "line2": "Press a grid cell to store the config on that cell; press Back to exit assignment mode. Momentary FX concurrency is fixed by platform capability at 4."
+  },
+  {
+    "id": "touch_gate_section",
+    "path": "Menu > L4: Touch > Trigger Gate",
+    "key": "",
+    "kind": "group",
+    "title": "Trigger Gate",
+    "line1": "Trigger Gate edit target and grid settings.",
+    "line2": "Grid press toggles a single gate; Shift+grid press toggles the entire row; Shift+Fn+grid press toggles the entire column."
+  },
+  {
+    "id": "touch_gate_target",
+    "path": "Menu > L4: Touch > Trigger Gate > Edit Target",
+    "key": "key:system.triggerGateTarget",
+    "kind": "enum",
+    "title": "Edit Target",
+    "line1": "Options: active, all, 0, 1, 2, 3. active edits the currently active part; all applies each edit to every part simultaneously; 0-3 edit that specific part regardless of active part.",
+    "line2": "LEDs show all parts' gate state in aggregate when target is all: green=all on, red=all off, amber=mixed."
   }
 ];

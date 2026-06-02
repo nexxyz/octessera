@@ -42,23 +42,25 @@ export function pressMenuInput<TState>(state: PlatformState<TState>, effects: Pl
     }
     if (label === "Choose Sample") {
       const parts = view.path.split("/");
-      const instrumentLabel = parts.find((p) => p.startsWith("Instrument ")) ?? "";
-      const match = /^Instrument\s+(\d+)$/.exec(instrumentLabel.trim());
+      const instrumentLabel = parts.find((p) => /^I\d+:/i.test(p.trim())) ?? "";
+      const match = /^I(\d+):/i.exec(instrumentLabel.trim());
       if (match) {
         const instrumentSlot = clampInstrumentIndex(Number(match[1]) - 1);
         const selectedSlot = Number((nextState.runtimeConfig as any).instruments?.[instrumentSlot]?.sample?.selectedSlot ?? 0);
         const sampleSlot = clampSampleSlotIndex(selectedSlot);
         const browser = nextState.system.sampleBrowser;
-        const dir = browser && browser.instrumentSlot === instrumentSlot && browser.sampleSlot === sampleSlot ? browser.dir : "";
-        effects.push({ type: "sample_list_request", instrumentSlot, sampleSlot, dir } as any);
-        nextState = {
-          ...nextState,
-          system: {
-            ...nextState.system,
-            sampleBrowser: { instrumentSlot, sampleSlot, dir, entries: [] },
-            toast: makeToast("Loading samples...")
-          }
-        };
+        if (!browser || browser.instrumentSlot !== instrumentSlot || browser.sampleSlot !== sampleSlot) {
+          const dir = browser && browser.instrumentSlot === instrumentSlot && browser.sampleSlot === sampleSlot ? browser.dir : "";
+          effects.push({ type: "sample_list_request", instrumentSlot, sampleSlot, dir } as any);
+          nextState = {
+            ...nextState,
+            system: {
+              ...nextState.system,
+              sampleBrowser: { instrumentSlot, sampleSlot, dir, entries: [] },
+              toast: makeToast("Loading samples...")
+            }
+          };
+        }
       }
     }
     return nextState;

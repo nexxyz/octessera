@@ -226,6 +226,7 @@ export type SystemState = {
     entries: Array<{ name: string; path: string; isDir: boolean }>;
   } | null;
   touchMode: TouchMode;
+  triggerGateTarget: "active" | "all" | string;
 };
 
 export type PlatformEffectBase =
