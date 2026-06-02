@@ -573,7 +573,7 @@ test("FN+left column without pending clone source just selects part", () => {
   assert.equal(result.state.system.toast?.message, "Part 6");
 });
 
-test("FN+SHIFT+BACK clears grid without changing behavior", () => {
+test("FN+SHIFT+BACK does not trigger shift clear", () => {
   let state = makeState();
   const activeIdx = (state.runtimeConfig as any).activePartIndex;
   (state.runtimeConfig as any).parts[activeIdx].l1.behaviorId = "life";
@@ -584,7 +584,7 @@ test("FN+SHIFT+BACK clears grid without changing behavior", () => {
 
   assert.equal(((state.runtimeConfig as any).parts[activeIdx] as any).l1.behaviorId, "life");
   assert.equal(state.activeBehavior, "mock");
-  assert.ok(state.system.toast?.message.includes("Grid"));
+  assert.equal(state.system.toast?.message, undefined);
 });
 
 test("factory reset defaults match REQ-14 specification", () => {

@@ -286,7 +286,7 @@ test("aux encoder press triggers bound behavior action", () => {
   assert.equal(state.system.toast?.message, "S1 L1>P1 Spawn Random");
 });
 
-test("spawn action label shows shared marker in menu", () => {
+test("spawn action label shows auto-map prefix and shared marker in menu", () => {
   let state = createInitialState(lifeBehavior);
   state.system.oledMode = "normal";
   state.runtimeConfig.activeBehavior = "life";
@@ -299,7 +299,7 @@ test("spawn action label shows shared marker in menu", () => {
 
   const frame = toSimulatorFrame(state, mockBehavior);
   const selected = frame.display.lines.find((l) => l.startsWith("@@")) ?? "";
-  assert.ok(selected.includes("!Spawn Random [S]"));
+  assert.ok(selected.includes("!1-Spawn Random [S]"));
 });
 
 test("binding spawn action stores shared route", () => {

@@ -15,6 +15,30 @@ import { visibleChildren } from "./menuView";
 import { startMomentaryFxPreview, stopMomentaryFxPreview } from "./momentaryFxPreview";
 import { AUX_MAPPING_OVERLAY_DELAY_MS, EVENT_BLIP_MS, deadlineMs, heldForMs, nowMs } from "./timing";
 import { resolveTouchPanTarget, toGridSnapshot, touchPanPosFromGridX } from "./runtimeHelpers";
+import type { SystemState } from "./platformTypes";
+
+function applyModifierState(system: SystemState, input: DeviceInput, down: boolean, now: number): { system: SystemState; combinedPressed: boolean; combinedReleased: boolean; handled: boolean } {
+  if (input.type !== "button_shift" && input.type !== "button_fn") return { system, combinedPressed: false, combinedReleased: false, handled: false };
+  const physicalShiftHeld = input.type === "button_shift" ? down : system.physicalShiftHeld;
+  const physicalFnHeld = input.type === "button_fn" ? down : system.physicalFnHeld;
+  const combinedModifierHeld = physicalShiftHeld && physicalFnHeld;
+  const shiftHeld = combinedModifierHeld ? false : physicalShiftHeld;
+  const fnHeld = combinedModifierHeld ? false : physicalFnHeld;
+  return {
+    system: {
+      ...system,
+      physicalShiftHeld,
+      physicalFnHeld,
+      shiftHeld,
+      fnHeld,
+      combinedModifierHeld,
+      shiftHeldSinceMs: shiftHeld ? (system.shiftHeld ? system.shiftHeldSinceMs : now) : null
+    },
+    combinedPressed: combinedModifierHeld && !system.combinedModifierHeld,
+    combinedReleased: !combinedModifierHeld && system.combinedModifierHeld,
+    handled: true
+  };
+}
 
 function reinitBehaviorConfig<TState>(
   state: PlatformState<TState>,
@@ -89,11 +113,13 @@ export function routeInputWithDeps<TState>(state: PlatformState<TState>, input: 
 
   if (nextState.system.confirm) {
     const c = nextState.system.confirm;
-    if (input.type === "button_shift") {
-      const down = pressed(input);
-      nextState.system = { ...nextState.system, shiftHeld: down, shiftHeldSinceMs: down ? (nextState.system.shiftHeldSinceMs ?? nowMs()) : null };
+    const modifier = applyModifierState(nextState.system, input, pressed(input), nowMs());
+    if (modifier.handled) {
+      nextState.system = modifier.system;
+      if (modifier.combinedPressed) nextState.behaviorState = behavior.onInput(nextState.behaviorState, { type: "button_combined_modifier", pressed: true }, { bpm: nextState.transport.bpm, emit: (event) => events.push(event) });
+      if (modifier.combinedReleased) nextState.behaviorState = behavior.onInput(nextState.behaviorState, { type: "button_combined_modifier", pressed: false }, { bpm: nextState.transport.bpm, emit: (event) => events.push(event) });
+      return { state: nextState, events, effects };
     }
-    if (input.type === "button_fn") nextState.system = { ...nextState.system, fnHeld: pressed(input) };
     if (input.type === "encoder_turn" && deps.isMainEncoderInput(input.id)) {
       if (c.kind === "help_info" && c.action.kind === "help_info") {
         const contentSlots = Math.max(1, 8 - 2);
@@ -128,32 +154,17 @@ export function routeInputWithDeps<TState>(state: PlatformState<TState>, input: 
     return { state: nextState, events, effects };
   }
 
-  if (input.type === "button_shift") {
+  const modifier = applyModifierState(nextState.system, input, pressed(input), nowMs());
+  if (modifier.handled) {
     const down = pressed(input);
-    nextState.system = { ...nextState.system, shiftHeld: down, shiftHeldSinceMs: down ? (nextState.system.shiftHeldSinceMs ?? nowMs()) : null, auxOverlayScroll: 0, pendingCloneSource: down ? nextState.system.pendingCloneSource : null };
-  }
-  if (input.type === "button_fn") nextState.system = { ...nextState.system, fnHeld: pressed(input), pendingCloneSource: pressed(input) ? nextState.system.pendingCloneSource : null };
-
-  // Handle combined modifier: Shift+Fn (treated as a single modifier)
-  // This handles the case where Shift and Fn are pressed together and treated as a single modifier
-  if (nextState.system.shiftHeld && nextState.system.fnHeld && !nextState.system.combinedModifierHeld) {
-    // Send combined modifier press event (this represents the "third" modifier)
-    events.push({ type: "device_input", input: { type: "button_combined_modifier", pressed: true } });
-    nextState.system = { ...nextState.system, combinedModifierHeld: true };
-  }
-  
-  // Handle release of combined modifier (when either Shift or Fn is released)
-  if (nextState.system.shiftHeld && !nextState.system.fnHeld && nextState.system.combinedModifierHeld) {
-    // Shift is released, Fn still held - send combined modifier release
-    events.push({ type: "device_input", input: { type: "button_combined_modifier", pressed: false } });
-    nextState.system = { ...nextState.system, combinedModifierHeld: false };
-  } else if (!nextState.system.shiftHeld && nextState.system.fnHeld && nextState.system.combinedModifierHeld) {
-    // Fn is released, Shift still held - send combined modifier release
-    events.push({ type: "device_input", input: { type: "button_combined_modifier", pressed: false } });
-    nextState.system = { ...nextState.system, combinedModifierHeld: false };
-  } else if (!nextState.system.shiftHeld && !nextState.system.fnHeld && nextState.system.combinedModifierHeld) {
-    // Both modifiers released - reset combinedModifierHeld flag
-    nextState.system = { ...nextState.system, combinedModifierHeld: false };
+    nextState.system = {
+      ...modifier.system,
+      auxOverlayScroll: input.type === "button_shift" ? 0 : modifier.system.auxOverlayScroll,
+      pendingCloneSource: down ? modifier.system.pendingCloneSource : null
+    };
+    if (modifier.combinedPressed) nextState.behaviorState = behavior.onInput(nextState.behaviorState, { type: "button_combined_modifier", pressed: true }, { bpm: nextState.transport.bpm, emit: (event) => events.push(event) });
+    if (modifier.combinedReleased) nextState.behaviorState = behavior.onInput(nextState.behaviorState, { type: "button_combined_modifier", pressed: false }, { bpm: nextState.transport.bpm, emit: (event) => events.push(event) });
+    return { state: nextState, events, effects };
   }
 
   if (nextState.system.sampleAssign) {
@@ -162,8 +173,10 @@ export function routeInputWithDeps<TState>(state: PlatformState<TState>, input: 
       return { state: nextState, events, effects };
     }
     if (input.type === "grid_press") {
-      const mode = nextState.system.shiftHeld
-        ? (nextState.system.fnHeld ? "column" : "row")
+      const mode = nextState.system.combinedModifierHeld
+        ? "column"
+        : nextState.system.shiftHeld
+          ? "row"
         : "single";
       nextState = applySampleAssignment(nextState, nextState.system.sampleAssign.instrumentSlot, nextState.system.sampleAssign.sampleSlot, input.x, input.y, mode as "single" | "row" | "column");
       nextState.system = { ...nextState.system };
@@ -210,7 +223,7 @@ export function routeInputWithDeps<TState>(state: PlatformState<TState>, input: 
     return { state: nextState, events, effects };
   }
 
-  if (input.type === "grid_press" && nextState.system.fnHeld && nextState.system.shiftHeld && input.x === PLATFORM_CAPS.gridWidth - 1) {
+  if (input.type === "grid_press" && nextState.system.combinedModifierHeld && input.x === PLATFORM_CAPS.gridWidth - 1) {
     const srcIdx = clamp(Math.floor(input.y), 0, Math.min(PLATFORM_CAPS.partCount, PLATFORM_CAPS.gridHeight) - 1);
     nextState.system = { ...nextState.system, pendingCloneSource: srcIdx, toast: makeToast(`Clone P${srcIdx + 1} → select target`) };
     return { state: nextState, events, effects };
@@ -344,13 +357,6 @@ export function routeInputWithDeps<TState>(state: PlatformState<TState>, input: 
         const next = raw.slice(0, cursor - 1) + raw.slice(cursor);
         nextState = { ...nextState, system: { ...nextState.system, draftName: next, nameCursor: cursor - 1 } };
       }
-    } else if (nextState.system.fnHeld && nextState.system.shiftHeld) {
-      nextState = reinitBehaviorConfig(nextState, deps);
-      for (let channel = 0; channel < 16; channel += 1) {
-        events.push({ type: "cc", channel, controller: 120, value: 0 });
-        events.push({ type: "cc", channel, controller: 123, value: 0 });
-      }
-      nextState.system = { ...nextState.system, heldNotes: [], toast: makeToast("Grid cleared") };
     } else if (nextState.system.shiftHeld && !nextState.system.fnHeld) {
       nextState = reinitBehaviorConfig(nextState, deps);
       nextState.system = { ...nextState.system, toast: makeToast("Grid cleared") };
@@ -368,7 +374,7 @@ export function routeInputWithDeps<TState>(state: PlatformState<TState>, input: 
       } else nextState.menu = deps.backMenu(nextState.menu);
     }
   } else if (input.type === "encoder_press" && deps.isMainEncoderInput(input.id)) {
-    if (nextState.system.shiftHeld && nextState.system.fnHeld) return { state: deps.openContextHelp(nextState), events, effects };
+    if (nextState.system.combinedModifierHeld) return { state: deps.openContextHelp(nextState), events, effects };
     nextState = deps.pressMenu(nextState, effects);
   } else if (input.type === "encoder_turn" && deps.isMainEncoderInput(input.id)) {
     nextState = nextState.system.shiftHeld && heldForMs(nowMs(), nextState.system.shiftHeldSinceMs, AUX_MAPPING_OVERLAY_DELAY_MS)

@@ -206,7 +206,7 @@ export type AuxPressBinding =
   | { kind: "menu_action"; action: ActionSpec; label?: string };
 export type AuxBinding = { turn: AuxTurnBinding | null; press: AuxPressBinding | null };
 export type SystemState = {
-  shiftHeld: boolean; fnHeld: boolean; combinedModifierHeld: boolean; presetNames: string[]; selectedPreset: string | null; currentPresetName: string | null; draftName: string; nameCursor: number;
+  shiftHeld: boolean; fnHeld: boolean; physicalShiftHeld: boolean; physicalFnHeld: boolean; combinedModifierHeld: boolean; presetNames: string[]; selectedPreset: string | null; currentPresetName: string | null; draftName: string; nameCursor: number;
   pendingRename: { from: string; to: string } | null; confirm: ConfirmState | null; toast: ToastState | null; eventBlipUntilMs: number; stopLatched: boolean;
   transportFlash: "none" | "beat" | "measure"; transportFlashUntilMs: number; autoSaveFlash: "none" | "flash"; autoSaveFlashUntilMs: number; textEdit: TextEditSession | null;
   midiOutputs: MidiPortInfo[]; midiInputs: MidiPortInfo[]; midiStatus: string | null; externalPpqnPulse: number; pendingResync: boolean; pausedByUser: boolean;

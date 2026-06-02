@@ -160,6 +160,8 @@ export function createInitialPlatformState<TState>(behavior: BehaviorEngine<TSta
     system: {
       shiftHeld: false,
       fnHeld: false,
+      physicalShiftHeld: false,
+      physicalFnHeld: false,
       combinedModifierHeld: false,
       presetNames: [],
       selectedPreset: null,

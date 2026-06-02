@@ -281,42 +281,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
         return;
       }
     }
-    
-    // Handle combined modifier: Shift+Fn (treated as a single modifier)
-    // In the simulator, we need to simulate the combined modifier behavior when both are pressed
-    if (input.type === "button_shift" || input.type === "button_fn") {
-      const shiftPressed = input.type === "button_shift" ? (input.pressed ?? true) : shiftActive;
-      const fnPressed = input.type === "button_fn" ? (input.pressed ?? true) : state.system.fnHeld;
-      
-      // If both Shift and Fn are pressed, send the combined modifier event
-      if (shiftPressed && fnPressed && !state.system.combinedModifierHeld) {
-        const combinedInput: DeviceInput = { type: "button_combined_modifier", pressed: true };
-        const result = routeInput(state, combinedInput, activeBehavior());
-        state = result.state;
-        enqueueEvents(result.events, performance.now());
-        applyEffects(result.effects);
-        sendMidiTransportIfNeeded(performance.now());
-        flushDueEvents(performance.now());
-        flushDueMidi(performance.now());
-        publishSnapshot();
-        return;
-      } else if ((shiftPressed && !fnPressed && state.system.combinedModifierHeld) || 
-                 (!shiftPressed && fnPressed && state.system.combinedModifierHeld) ||
-                 (!shiftPressed && !fnPressed && state.system.combinedModifierHeld)) {
-        // If either Shift or Fn is released, and the combined modifier was active, send release event
-        const combinedInput: DeviceInput = { type: "button_combined_modifier", pressed: false };
-        const result = routeInput(state, combinedInput, activeBehavior());
-        state = result.state;
-        enqueueEvents(result.events, performance.now());
-        applyEffects(result.effects);
-        sendMidiTransportIfNeeded(performance.now());
-        flushDueEvents(performance.now());
-        flushDueMidi(performance.now());
-        publishSnapshot();
-        return;
-      }
-    }
-    
+
     const result = routeInput(state, input, activeBehavior());
     state = result.state;
     enqueueEvents(result.events, performance.now());

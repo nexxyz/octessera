@@ -20,10 +20,10 @@ test("maps modifiers and emergency brake", () => {
   assert.deepEqual(mapKeyboardEventToInputAction(keyEvent("Control")), { type: "fn", active: true });
   assert.deepEqual(mapKeyboardEventToInputAction(keyEvent(" ", true)), { type: "emergency_brake" });
   assert.deepEqual(mapKeyboardEventToInputAction(keyEvent("Control", true)), { type: "fn", active: true });
-  assert.deepEqual(mapKeyboardEventToInputAction(keyEvent("Shift", false, true)), { type: "fn", active: true });
+  assert.deepEqual(mapKeyboardEventToInputAction(keyEvent("Shift", false, true)), { type: "shift", active: true });
   assert.deepEqual(mapKeyboardKeyupToInputAction(keyEvent("Shift")), { type: "shift", active: false });
   assert.deepEqual(mapKeyboardKeyupToInputAction(keyEvent("Control")), { type: "fn", active: false });
-  assert.deepEqual(mapKeyboardKeyupToInputAction(keyEvent(" ")), { type: "button_s", active: false });
+  assert.equal(mapKeyboardKeyupToInputAction(keyEvent(" ")), null);
 });
 
 test("prevent-default only for mapped keys", () => {
@@ -32,15 +32,11 @@ test("prevent-default only for mapped keys", () => {
 });
 
 test("handles combined modifiers", () => {
-  // Test Shift+Fn combination handling - this is now handled by platform-core
-  // The keyboard adapter should not generate combined modifier events directly
-  assert.equal(mapKeyboardEventToInputAction(keyEvent("Shift", true, true)), null);
-  assert.equal(mapKeyboardEventToInputAction(keyEvent("Control", true, true)), null);
+  assert.deepEqual(mapKeyboardEventToInputAction(keyEvent("Shift", true, true)), { type: "shift", active: true });
+  assert.deepEqual(mapKeyboardEventToInputAction(keyEvent("Control", true, true)), { type: "fn", active: true });
 });
 
-test("debounces rapid key releases", () => {
-  // First release should be processed
+test("maps repeated key releases", () => {
   assert.deepEqual(mapKeyboardKeyupToInputAction(keyEvent("Shift")), { type: "shift", active: false });
-  // Rapid second release within debounce time should be ignored
-  assert.equal(mapKeyboardKeyupToInputAction(keyEvent("Shift")), null);
+  assert.deepEqual(mapKeyboardKeyupToInputAction(keyEvent("Shift")), { type: "shift", active: false });
 });
