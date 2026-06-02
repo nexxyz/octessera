@@ -10,8 +10,8 @@ export type InputAction =
 export type NeoKeyLeds = {
   back: "off" | "solid_red";
   space: "off" | "beat" | "measure";
-  shift: "off" | "solid_yellow";
-  fn: "off";
+  shift: "off" | "solid_yellow" | "solid_blue";
+  fn: "off" | "solid_yellow" | "solid_blue";
 };
 
 export type SimulatorSnapshot = {

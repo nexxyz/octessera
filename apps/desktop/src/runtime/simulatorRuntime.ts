@@ -123,13 +123,14 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
   function snapshotFromState(next: typeof state): SimulatorSnapshot {
     const frame = toSimulatorFrame(next, activeBehavior(), { audioLoad });
     const flash = next.system.transportFlash; // read from core state, same as OLED
+    const combined = next.system.combinedModifierHeld;
     return {
       frame,
       neoKeyLeds: {
         back: "solid_red",
         space: !frame.transport.playing ? "off" : flash === "measure" ? "measure" : flash === "beat" ? "beat" : "off",
-        shift: shiftActive ? "solid_yellow" : "off",
-        fn: "off"
+        shift: combined ? "solid_blue" : shiftActive ? "solid_yellow" : "off",
+        fn: combined ? "solid_blue" : next.system.fnHeld ? "solid_yellow" : "off"
       },
       displayBrightness: (next as any).runtimeConfig.displayBrightness ?? 75,
       buttonBrightness: (next as any).runtimeConfig.buttonBrightness ?? 75,

@@ -238,6 +238,12 @@ body {
   box-shadow: 0 0 12px rgba(245, 220, 106, 0.6);
 }
 
+.button-stack .solid_blue {
+  background: linear-gradient(180deg, #2f5f9f, #1b3d73);
+  border-color: #6fa3e8;
+  box-shadow: 0 0 12px rgba(90, 160, 255, 0.6);
+}
+
 .matrix-chassis {
   display: grid;
   place-items: start;
