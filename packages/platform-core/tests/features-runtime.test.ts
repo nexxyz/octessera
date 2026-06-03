@@ -296,8 +296,6 @@ test("loading synth preset from Voice menu requires confirm and applies to targe
   state = press(state).state;
   state = selectLabel(state, "I1: synth");
   state = press(state).state;
-  state = selectLabel(state, "Synth");
-  state = press(state).state;
   state = selectLabel(state, "Preset");
   state = press(state).state;
   state = selectLabel(state, "Load");

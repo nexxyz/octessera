@@ -267,7 +267,7 @@ export type PlatformState<TState> = {
 };
 
 export type MenuNode =
-  | { kind: "group"; label: string; children: MenuNode[] | ((state: PlatformState<any>) => MenuNode[]); visible?: (c: RuntimeConfig) => boolean }
+  | { kind: "group"; label: string; children: MenuNode[] | ((state: PlatformState<any>) => MenuNode[]); visible?: (c: RuntimeConfig) => boolean; flat?: boolean | ((config: RuntimeConfig) => boolean) }
   | { kind: "enum"; label: string; key: string; options: string[]; visible?: (c: RuntimeConfig) => boolean }
   | { kind: "number"; label: string; key: string; min: number; max: number; step: number; displayStyle?: "number" | "bar"; visible?: (c: RuntimeConfig) => boolean }
   | { kind: "bool"; label: string; key: string; visible?: (c: RuntimeConfig) => boolean }

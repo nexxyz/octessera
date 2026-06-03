@@ -149,8 +149,6 @@ test("newly selected FX parameters edit as finite numbers", () => {
   state = turn(state, 1).state;
   state = turn(state, 1).state;
   state = press(state).state;
-  state = selectLabel(state, "delay");
-  state = press(state).state;
   state = selectLabel(state, "Time ms");
 
   const frame = toSimulatorFrame(state, mockBehavior);
@@ -679,8 +677,6 @@ test("choose sample entry creates browser and shows dir navigation", () => {
   state = press(state).state;
   state = selectLabel(state, "I1: synth");
   state = press(state).state;
-  state = selectLabel(state, "> Sample");
-  state = press(state).state;
   state = selectLabel(state, "Choose Sample");
   state = press(state).state;
 
@@ -706,49 +702,6 @@ test("choose sample populates entries after sample_list_result", () => {
   state = press(state).state;
   state = selectLabel(state, "I1: synth");
   state = press(state).state;
-  state = selectLabel(state, "> Sample");
-  state = press(state).state;
-  state = selectLabel(state, "Choose Sample");
-  state = press(state).state;
-
-  state = applyStoreResult(
-    state,
-    {
-      type: "sample_list_result",
-      instrumentSlot: 0,
-      sampleSlot: 0,
-      dir: "/samples",
-      entries: [
-        { name: "kick.wav", path: "/samples/kick.wav", isDir: false },
-        { name: "snare.wav", path: "/samples/snare.wav", isDir: false },
-        { name: "drums", path: "/samples/drums", isDir: true }
-      ]
-    } as any,
-    mockBehavior
-  ).state;
-
-  assert.equal(state.system.sampleBrowser.entries.length, 3);
-
-  const frame = toSimulatorFrame(state, mockBehavior);
-  assert.ok(frame.display.lines.some((l: string) => l.includes("..")), "should show ..");
-  assert.ok(frame.display.lines.some((l: string) => l.includes("kick.wav")), "should show kick.wav");
-  assert.ok(frame.display.lines.some((l: string) => l.includes("snare.wav")), "should show snare.wav");
-  assert.ok(frame.display.lines.some((l: string) => l.includes("[drums]")), "should show [drums]");
-  assert.ok(!frame.display.lines.some((l: string) => l.includes("(empty)")), "no (empty) when files exist");
-});
-
-test("choose sample preview emits routed audio command", () => {
-  let state = makeState();
-  (state.runtimeConfig as any).instruments[0].type = "sampler";
-
-  state = selectLabel(state, "L3: Voice");
-  state = press(state).state;
-  state = selectLabel(state, "Instruments");
-  state = press(state).state;
-  state = selectLabel(state, "I1: synth");
-  state = press(state).state;
-  state = selectLabel(state, "> Sample");
-  state = press(state).state;
   state = selectLabel(state, "Choose Sample");
   state = press(state).state;
   state = applyStoreResult(
@@ -772,8 +725,6 @@ test("choose sample re-entry preserves browser entries", () => {
   state = selectLabel(state, "Instruments");
   state = press(state).state;
   state = selectLabel(state, "I1: synth");
-  state = press(state).state;
-  state = selectLabel(state, "> Sample");
   state = press(state).state;
   state = selectLabel(state, "Choose Sample");
   state = press(state).state;

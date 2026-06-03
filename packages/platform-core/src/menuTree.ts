@@ -149,6 +149,7 @@ export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTr
                   {
                     kind: "group",
                     label: "Synth",
+                    flat: true,
                     visible: (c: any) => (c.instruments?.[idx]?.type ?? "synth") === "synth",
                     children: [
                       {
@@ -244,6 +245,7 @@ export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTr
                   {
                     kind: "group",
                     label: "Sampler",
+                    flat: true,
                     visible: (c: any) => c.instruments?.[idx]?.type === "sampler",
                     children: [
                       { kind: "enum", label: "Sample Slot", key: `${prefix}.sample.selectedSlot`, options: sampleSlots },
@@ -320,6 +322,7 @@ export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTr
                   {
                     kind: "group",
                     label: "Note Settings",
+                    flat: true,
                     visible: (c: any) => c.instruments?.[idx]?.type === "midi",
                     children: [
                       { kind: "number", label: "Velocity", key: `${prefix}.midiEngine.velocity`, min: 1, max: 127, step: 1 },

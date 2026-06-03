@@ -56,17 +56,26 @@ export function compactSourcePathFromKey<TState>(state: PlatformState<TState>, k
 export function visibleChildren<TState>(node: MenuNode, state: PlatformState<TState>): MenuNode[] {
   if (node.kind !== "group") return [];
   const kids = typeof node.children === "function" ? node.children(state) : node.children;
-  return kids.filter((n) => ("visible" in n && typeof (n as any).visible === "function" ? (n as any).visible(state.runtimeConfig) : true));
+  const filtered = kids.filter((n) => ("visible" in n && typeof (n as any).visible === "function" ? (n as any).visible(state.runtimeConfig) : true));
+  return filtered.flatMap((n) => {
+    if (n.kind === "group" && "flat" in n) {
+      const isFlat = typeof n.flat === "function" ? n.flat(state.runtimeConfig) : Boolean(n.flat);
+      if (isFlat) return visibleChildren(n, state);
+    }
+    return [n];
+  });
 }
 
-function deriveGroupKey(group: any, groupPath: string): string | undefined {
+function deriveGroupKey(group: any, groupPath: string, state: PlatformState<any>): string | undefined {
   const pathInstMatch = /I(\d+):/i.exec(groupPath);
   if (!pathInstMatch) return undefined;
   const instIdx = Number(pathInstMatch[1]) - 1;
   const label = String(group.label ?? "").toLowerCase();
   const segs = groupPath.split("/").map(s => s.toLowerCase());
 
-   const inSample = segs.some(s => s.includes("sampler")) || label.includes("sampler");
+  const config = (state.runtimeConfig as any) ?? {};
+  const instType = config.instruments?.[instIdx]?.type;
+  const inSample = instType === "sampler" || segs.some(s => s.includes("sampler")) || label.includes("sampler");
   const inMixer = segs.some(s => s.includes("mixer")) || label.includes("mixer");
 
   if (inSample) return `instruments.${instIdx}.sample.selectedSlot`;
@@ -136,7 +145,7 @@ export function currentMenuView<TState>(deps: CurrentMenuViewDeps<TState>): { pa
     let selectedKey = focused && (focused.kind === "number" || focused.kind === "enum" || focused.kind === "bool") ? String(focused.key ?? "") : undefined;
     const selectedAction = focused && focused.kind === "action" ? (focused.action as any) : null;
     if (!selectedKey && !selectedAction && focused?.kind === "group") {
-      selectedKey = deriveGroupKey(focused, path);
+      selectedKey = deriveGroupKey(focused, path, state);
     }
     const eff = resolveEffectiveAuxMap(state, { path, selectedKey, selectedAction }, resolveBehavior);
     const slots: Array<[string, typeof eff.aux1]> = [["A1", eff.aux1], ["A2", eff.aux2], ["A3", eff.aux3], ["A4", eff.aux4]];
@@ -201,7 +210,7 @@ export function currentMenuView<TState>(deps: CurrentMenuViewDeps<TState>): { pa
   let selectedKey = focused && (focused.kind === "number" || focused.kind === "enum" || focused.kind === "bool") ? String(focused.key ?? "") : undefined;
   const selectedAction = focused && focused.kind === "action" ? (focused.action as any) : null;
   if (!selectedKey && !selectedAction && focused?.kind === "group") {
-    selectedKey = deriveGroupKey(focused, path);
+    selectedKey = deriveGroupKey(focused, path, state);
   }
   const auto = resolveAuxAutoMap(state, { path, selectedKey, selectedAction }, resolveBehavior);
   const bodyBudget = Math.max(1, oledTextLines - 2);

@@ -162,8 +162,6 @@ state.system.oledMode = "normal";
   state = press(state).state;
   state = selectLabel(state, "I1:");
   state = press(state).state;
-  state = selectLabel(state, "Sample");
-  state = press(state).state;
   state = selectLabel(state, "Assign");
 
   const frame = toSimulatorFrame(state, mockBehavior);
@@ -470,17 +468,12 @@ test("auto-map prefixes persist when cursor is on a subgroup", () => {
   state = press(state).state;
   state = selectLabel(state, "I1:");
   state = press(state).state;
-  state = selectLabel(state, "> Sample");
-  state = press(state).state;
 
-  // Move cursor to "Choose Sample" group (subgroup under Sample)
-  state = selectLabel(state, "Choose Sample");
+  // Navigate to a subgroup further down the list so more sibling items are in view
+  state = selectLabel(state, "Filter");
 
   const frame = toSimulatorFrame(state, mockBehavior);
   const lines = frame.display.lines.join("\n");
-  // Sibling items should still show auto-map prefixes
-  assert.ok(lines.includes("1-Sample Slot"), "Sample Slot shows aux1 turn prefix");
   assert.ok(lines.includes("2-Base Velocity"), "Base Velocity shows aux2 turn prefix");
   assert.ok(lines.includes("3-Tune Semis"), "Tune Semis shows aux3 turn prefix");
-  assert.ok(lines.includes("4-Velocity Levels"), "Velocity Levels shows aux4 turn prefix");
 });

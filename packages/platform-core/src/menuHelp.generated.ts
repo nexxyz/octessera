@@ -775,17 +775,8 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "line2": "Sense mappings route trigger actions into these slots."
   },
   {
-    "id": "inst_synth_group",
-    "path": "Menu > L3: Voice > Instruments > Instrument * > Synth",
-    "key": "",
-    "kind": "group",
-    "title": "Synth",
-    "line1": "Per-slot synth engine parameters.",
-    "line2": "Use Preset for fast starting points, then shape osc/amp/filter sections."
-  },
-  {
     "id": "inst_synth_osc_group",
-    "path": "Menu > L3: Voice > Instruments > Instrument * > Synth > Oscillator",
+    "path": "Menu > L3: Voice > Instruments > Instrument * > Oscillator",
     "key": "",
     "kind": "group",
     "title": "Oscillator",
@@ -794,7 +785,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "inst_synth_osc1_group",
-    "path": "Menu > L3: Voice > Instruments > Instrument * > Synth > Oscillator > Osc 1",
+    "path": "Menu > L3: Voice > Instruments > Instrument * > Oscillator > Osc 1",
     "key": "",
     "kind": "group",
     "title": "Oscillator 1",
@@ -803,7 +794,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "inst_synth_osc2_group",
-    "path": "Menu > L3: Voice > Instruments > Instrument * > Synth > Oscillator > Osc 2",
+    "path": "Menu > L3: Voice > Instruments > Instrument * > Oscillator > Osc 2",
     "key": "",
     "kind": "group",
     "title": "Oscillator 2",
@@ -812,7 +803,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "inst_synth_vol_group",
-    "path": "Menu > L3: Voice > Instruments > Instrument * > Synth > Volume",
+    "path": "Menu > L3: Voice > Instruments > Instrument * > Volume",
     "key": "",
     "kind": "group",
     "title": "Volume",
@@ -821,7 +812,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "inst_synth_amp_group",
-    "path": "Menu > L3: Voice > Instruments > Instrument * > Synth > Volume > Amp",
+    "path": "Menu > L3: Voice > Instruments > Instrument * > Volume > Amp",
     "key": "",
     "kind": "group",
     "title": "Amp",
@@ -830,7 +821,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "inst_synth_amp_env_group",
-    "path": "Menu > L3: Voice > Instruments > Instrument * > Synth > Volume > Envelope",
+    "path": "Menu > L3: Voice > Instruments > Instrument * > Volume > Envelope",
     "key": "",
     "kind": "group",
     "title": "Amp Envelope",
@@ -839,7 +830,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "inst_synth_filter_group",
-    "path": "Menu > L3: Voice > Instruments > Instrument * > Synth > Filter",
+    "path": "Menu > L3: Voice > Instruments > Instrument * > Filter",
     "key": "",
     "kind": "group",
     "title": "Filter",
@@ -848,7 +839,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "inst_synth_filter_core_group",
-    "path": "Menu > L3: Voice > Instruments > Instrument * > Synth > Filter > Filter",
+    "path": "Menu > L3: Voice > Instruments > Instrument * > Filter > Filter",
     "key": "",
     "kind": "group",
     "title": "Filter Core",
@@ -857,7 +848,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "inst_synth_filter_env_group",
-    "path": "Menu > L3: Voice > Instruments > Instrument * > Synth > Filter > Envelope",
+    "path": "Menu > L3: Voice > Instruments > Instrument * > Filter > Envelope",
     "key": "",
     "kind": "group",
     "title": "Filter Envelope",
@@ -1009,17 +1000,8 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "line2": "Select the engine family for this slot; the editable section below changes to match the selected type."
   },
   {
-    "id": "inst_sample_group",
-    "path": "Menu > L3: Voice > Instruments > Instrument * > Sample",
-    "key": "",
-    "kind": "group",
-    "title": "Sample",
-    "line1": "Sample playback setup for this instrument slot.",
-    "line2": "Choose slot/path, enter assignment mode, and tune per-slot dynamics/filtering."
-  },
-  {
     "id": "inst_sample_slot",
-    "path": "Menu > L3: Voice > Instruments > Instrument * > Sample > Sample Slot",
+    "path": "Menu > L3: Voice > Instruments > Instrument * > Sample Slot",
     "key": "key:instruments.*.sample.selectedSlot",
     "kind": "enum",
     "title": "Sample Slot",
@@ -1028,7 +1010,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "inst_sample_choose_group",
-    "path": "Menu > L3: Voice > Instruments > Instrument * > Sample > Choose Sample",
+    "path": "Menu > L3: Voice > Instruments > Instrument * > Choose Sample",
     "key": "",
     "kind": "group",
     "title": "Choose Sample",
@@ -1037,7 +1019,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "inst_sample_assign",
-    "path": "Menu > L3: Voice > Instruments > Instrument * > Sample > Assign",
+    "path": "Menu > L3: Voice > Instruments > Instrument * > Assign",
     "key": "action:sample_assign_enter",
     "kind": "action",
     "title": "Assign",
@@ -1046,7 +1028,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "inst_sample_velocity_levels",
-    "path": "Menu > L3: Voice > Instruments > Instrument * > Sample > Velocity Levels",
+    "path": "Menu > L3: Voice > Instruments > Instrument * > Velocity Levels",
     "key": "key:instruments.*.sample.velocityLevelsEnabled",
     "kind": "bool",
     "title": "Velocity Levels",
@@ -1055,7 +1037,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "inst_sample_level_high",
-    "path": "Menu > L3: Voice > Instruments > Instrument * > Sample > Level High",
+    "path": "Menu > L3: Voice > Instruments > Instrument * > Level High",
     "key": "key:instruments.*.sample.velocityLevels.high",
     "kind": "number",
     "title": "Level High",
@@ -1064,7 +1046,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "inst_sample_level_medium",
-    "path": "Menu > L3: Voice > Instruments > Instrument * > Sample > Level Medium",
+    "path": "Menu > L3: Voice > Instruments > Instrument * > Level Medium",
     "key": "key:instruments.*.sample.velocityLevels.medium",
     "kind": "number",
     "title": "Level Medium",
@@ -1073,7 +1055,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "inst_sample_level_low",
-    "path": "Menu > L3: Voice > Instruments > Instrument * > Sample > Level Low",
+    "path": "Menu > L3: Voice > Instruments > Instrument * > Level Low",
     "key": "key:instruments.*.sample.velocityLevels.low",
     "kind": "number",
     "title": "Level Low",
@@ -1082,7 +1064,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "inst_sample_base_velocity",
-    "path": "Menu > L3: Voice > Instruments > Instrument * > Sample > Base Velocity",
+    "path": "Menu > L3: Voice > Instruments > Instrument * > Base Velocity",
     "key": "key:instruments.*.sample.baseVelocity",
     "kind": "number",
     "title": "Base Velocity",
@@ -1091,7 +1073,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "inst_sample_browse_open",
-    "path": "Menu > L3: Voice > Instruments > Instrument * > Sample > Choose Sample > (loading...)",
+    "path": "Menu > L3: Voice > Instruments > Instrument * > Choose Sample > (loading...)",
     "key": "action:sample_browse_open",
     "kind": "action",
     "title": "Loading Samples",
@@ -1100,7 +1082,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "inst_sample_browse_up",
-    "path": "Menu > L3: Voice > Instruments > Instrument * > Sample > Choose Sample > ..",
+    "path": "Menu > L3: Voice > Instruments > Instrument * > Choose Sample > ..",
     "key": "action:sample_browse_up",
     "kind": "action",
     "title": "Browse Up",
@@ -1109,7 +1091,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "inst_sample_browse_enter",
-    "path": "Menu > L3: Voice > Instruments > Instrument * > Sample > Choose Sample > *",
+    "path": "Menu > L3: Voice > Instruments > Instrument * > Choose Sample > *",
     "key": "action:sample_browse_enter",
     "kind": "action",
     "title": "Enter Folder",
@@ -1118,7 +1100,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "inst_sample_pick",
-    "path": "Menu > L3: Voice > Instruments > Instrument * > Sample > Choose Sample > *",
+    "path": "Menu > L3: Voice > Instruments > Instrument * > Choose Sample > *",
     "key": "action:sample_pick",
     "kind": "action",
     "title": "Pick Sample",
@@ -1901,7 +1883,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "synth_preset_group",
-    "path": "Menu > L3: Voice > Instruments > Instrument * > Synth > Preset",
+    "path": "Menu > L3: Voice > Instruments > Instrument * > Preset",
     "key": "",
     "kind": "group",
     "title": "Synth Preset",
@@ -1910,7 +1892,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "synth_preset_load_group",
-    "path": "Menu > L3: Voice > Instruments > Instrument * > Synth > Preset > Load",
+    "path": "Menu > L3: Voice > Instruments > Instrument * > Preset > Load",
     "key": "",
     "kind": "group",
     "title": "Load Synth Preset",
@@ -1919,7 +1901,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "synth_preset_load_action",
-    "path": "Menu > L3: Voice > Instruments > Instrument * > Synth > Preset > Load > *",
+    "path": "Menu > L3: Voice > Instruments > Instrument * > Preset > Load > *",
     "key": "action:synth_preset_load",
     "kind": "action",
     "title": "Load Synth Preset",
