@@ -383,6 +383,58 @@ Also add per-section note mapping: restart note mapping from "First note" after 
 
 ---
 
+### REQ-20 - Position-Marker Bar Display Style
+
+| Field | Value |
+|-------|-------|
+| **Status** | open |
+| **Phase** | 4 |
+| **Priority** | low |
+| **Scope** | small |
+| **Depends on** | - |
+| **Source** | design discussion |
+
+Add a new `displayStyle: "marker"` for numeric parameters that are bipolar or positional (not 0->max filling). Renders a thin horizontal track with a vertical position indicator, replacing the misleading filled bar.
+
+**Marker rendering** (vs current filled bar):
+```
+Current filled bar:   [////////// ]  (Pan Pos = 20 looks 62% full, misleads)
+Marker bar:           [-----|-----]  (same value, actual position shown)
+```
+
+**Parameters to mark (by file):**
+
+`menuTree.ts`:
+- `*.mixer.panPos` (0-32, center=16)
+- `*.synth.osc{1,2}.detuneCents` (-50-50)
+- `*.synth.filter.envAmountPct` (-100-100)
+- `*.sample.tuneSemis` (-24-24)
+- `*.sample.filter.envAmountPct` (-100-100)
+- `touchFx.selected.params.semitones` (-24-24)
+- `touchFx.selected.params.cents` (-100-100)
+
+`fxBusMenu.ts`:
+- `mixer.buses.*.panPos` (0-32)
+- `mixer.buses.*.slot{1,2}.params.lowGainDb` (-12-12)
+- `mixer.buses.*.slot{1,2}.params.midGainDb` (-12-12)
+- `mixer.buses.*.slot{1,2}.params.highGainDb` (-12-12)
+- `mixer.buses.*.slot{1,2}.params.feedback` (mod delay, -0.95-0.95)
+
+**Implementation:**
+- `platformTypes.ts`: Add `"marker"` to `displayStyle` union on number variant; add optional `style?: "fill" | "marker"` to `BarValue`.
+- `menuPresentation.ts`: `shouldUseNumberBar` returns `true` for `"marker"` (same as `"bar"`).
+- `menuView.ts`: Propagate `item.displayStyle` into `barValues[i].style` as `"marker"`.
+- `oledRender.ts`: When `bar.style === "marker"`, draw 1px track + 2px vertical marker at `frac` position; else use current fill behavior.
+- `menuTree.ts`, `fxBusMenu.ts`: Add `displayStyle: "marker"` to ~12 bipolar/positional params listed above.
+
+**Acceptance:**
+- Pan Pos, Detune, Env Amt, Tune Semis, Semitones/Cents show a centered marker bar instead of a filled bar on OLED.
+- EQ gain dBs and mod delay Feedback show marker bars.
+- Volume, Brightness, Mix %, and other 0->max params remain as filled bars (unchanged).
+- All 179 tests pass, lint passes, typecheck passes.
+
+---
+
 ### REQ-07 — L4: Touch / Performance Layer
 
 | Field | Value |

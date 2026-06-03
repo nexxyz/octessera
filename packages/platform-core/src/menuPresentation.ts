@@ -162,7 +162,7 @@ export function formatMenuItemLines<TState>(
   if (item.kind === "text") {
     const value = String(readAnyValue(state, item.key) ?? "");
     const display = value.length === 0 ? "(empty)" : value;
-    if (selected) return [`${mark} ${item.label}:`, `${mark}${editing ? " *" : "  "}${fitText(display)}`];
+    if (selected) return [`${mark}  ${item.label}:`, `${mark} ${editing ? " *" : "  "}${fitText(display)}`];
     return [`  ${item.label}`];
   }
   if (item.kind === "number" && shouldUseNumberBar(item)) {
@@ -171,11 +171,11 @@ export function formatMenuItemLines<TState>(
       const val = Number(readAnyValue(state, item.key));
       const showNumeric = mode === "bar+numbers";
       const valueText = showNumeric ? barNumberText(item.key, val, item.min, item.max, formatDisplayValue, state.runtimeConfig as any) : "";
-      if (selected) return [`${mark} ${item.label}:`, `${mark}${editing ? " *" : "  "}${fitText(valueText)}`];
+      if (selected) return [`${mark}  ${item.label}:`, `${mark} ${editing ? " *" : "  "}${fitText(valueText)}`];
       return [`  ${item.label}`];
     }
   }
   const value = formatDisplayValue(item.key, readAnyValue(state, item.key), state.runtimeConfig as any);
-  if (selected) return [`${mark} ${item.label}:`, `${mark}${editing ? " *" : "  "}${fitText(value)}`];
+  if (selected) return [`${mark}  ${item.label}:`, `${mark} ${editing ? " *" : "  "}${fitText(value)}`];
   return [`  ${item.label}`];
 }
