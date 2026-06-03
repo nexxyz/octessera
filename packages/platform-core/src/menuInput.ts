@@ -151,7 +151,12 @@ export function turnMenuInput<TState>(state: PlatformState<TState>, delta: -1 | 
     deps.autoSaveEffect(finalState, effects);
     return finalState;
   }
-  const nextState = deps.writeAnyValue(state, selected.key, raw);
+  let nextState = deps.writeAnyValue(state, selected.key, raw);
   deps.autoSaveEffect(nextState, effects);
+  const nextView = locate(deps.menuTree(nextState), nextState, nextState.menu);
+  const newIdx = nextView.siblings.findIndex(s => s.kind === "enum" && "key" in s && s.key === selected.key);
+  if (newIdx >= 0 && newIdx !== nextState.menu.cursor) {
+    return { ...nextState, menu: { ...nextState.menu, cursor: newIdx } };
+  }
   return nextState;
 }

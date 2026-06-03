@@ -2270,10 +2270,10 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "touch_gate_target",
-    "path": "Menu > L4: Dance > Trigger Gate > Edit Target",
+    "path": "Menu > L4: Dance > Trigger Gate > Target Part",
     "key": "key:system.triggerGateTarget",
     "kind": "enum",
-    "title": "Edit Target",
+    "title": "Target Part",
     "line1": "Options: active, all, 0, 1, 2, 3. active edits the currently active part; all applies each edit to every part simultaneously; 0-3 edit that specific part regardless of active part.",
     "line2": "LEDs show all parts' gate state in aggregate when target is all: green=all on, red=all off, amber=mixed."
   }
