@@ -38,14 +38,9 @@ import { getSynthPreset } from "./synthPresets";
 export { GRID_DOMAIN, createGridDomain, type GridCell, type GridDomain } from "./gridDomain";
 export { PAN_CENTER_POS, PAN_POSITION_COUNT, PAN_POSITION_MAX, PLATFORM_CAPS } from "./platformCaps";
 export { cutoffDisplayToHz } from "./coreUtils";
-import {
-  factoryPayload,
-  formatTimestamp,
-  readAnyValue,
-  reinitBehaviorState,
-  textEditTurn,
-  writeAnyValue
-} from "./stateHelpers";
+import { readAnyValue, writeAnyValue } from "./paramAccess";
+import { reinitBehaviorState } from "./behaviorState";
+import { factoryPayload, formatTimestamp, textEditTurn } from "./stateHelpers";
 import { applyExternalClockPulses, tickTransport } from "./transportRuntime";
 import { buildMenuTree } from "./menuTree";
 import { routeInputWithDeps } from "./inputRouter";

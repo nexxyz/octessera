@@ -38,6 +38,12 @@ Cell Symphony is a monorepo (pnpm workspaces) combining a TypeScript core engine
 - Keep `packages/platform-core/resources/menu-help-texts.tsv` in sync; coverage enforced by lint
 - When any enum parameter changes, update its help text in the TSV in the same commit
 
+### Pre-Push Checks
+- A git pre-push hook is installed at `.githooks/pre-push` (`git config core.hooksPath .githooks`)
+- Before any push, the hook runs: `pnpm run lint`, `pnpm run typecheck`, `pnpm run format:check`, `cargo fmt --all --check`, `cargo clippy`
+- The hook runs all checks and reports results; push is blocked if any fail
+- To bypass temporarily: `git push --no-verify`
+
 ### Common Pitfalls
 - Multi-line edits spanning `scripts` and `devDependencies` in package.json may accidentally delete the `dependencies` block
 - After editing package.json, always run `pnpm install`
@@ -72,6 +78,7 @@ Cell Symphony is a monorepo (pnpm workspaces) combining a TypeScript core engine
 - `packages/platform-core/src/index.ts` is a barrel export; do not read it to understand scope — navigate directly to the relevant module instead
 - The monorepo has many packages; use `pnpm --filter <package>` to scope commands and avoid cross-package side effects
 - When tracing behavior registration, start from the specific behavior package, not from `platform-core` entry point
+- We have a hard file LoC limit of 500 lines. Consider this when planning implementations.
 
 ### Online Research
 - When you are facing a problem that you cannot reliably solve, utilize the tools at your disposal to find a solution online, in related resources or communities.

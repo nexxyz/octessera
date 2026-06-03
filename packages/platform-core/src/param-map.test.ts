@@ -1,6 +1,16 @@
 import type { RuntimeConfig } from "./platformTypes";
 import { getMappableParams } from "./menuParamList";
-import { applyParamModulation } from "./musicTransforms";
+import { applyModulation } from "./musicTransforms";
+
+declare function describe(name: string, fn: () => void): void;
+declare function test(name: string, fn: () => void): void;
+
+function eq<T>(actual: T, expected: T): void {
+  if (actual !== expected) throw new Error(`Expected ${expected}, got ${actual}`);
+}
+function ok(condition: boolean): void {
+  if (!condition) throw new Error("Assertion failed");
+}
 
 describe("ParamModConfig", () => {
   test("initializes with two empty slots", () => {
@@ -8,9 +18,9 @@ describe("ParamModConfig", () => {
       { key: "", label: "", kind: "number", mapping: { x: 0, y: 0, mode: "modulation" }, invert: false },
       { key: "", label: "", kind: "number", mapping: { x: 1, y: 1, mode: "modulation" }, invert: false }
     ]};
-    expect(config.slots.length).toBe(2);
-    expect(config.slots[0].key).toBe("");
-    expect(config.slots[1].key).toBe("");
+    eq(config.slots.length, 2);
+    eq(config.slots[0].key, "");
+    eq(config.slots[1].key, "");
   });
 
   test("stores parameter key and label", () => {
@@ -18,10 +28,10 @@ describe("ParamModConfig", () => {
       { key: "filterCutoff", label: "Filter Cutoff", kind: "number", mapping: { x: 0, y: 0, mode: "modulation" }, invert: false },
       { key: "filterResonance", label: "Filter Resonance", kind: "number", mapping: { x: 1, y: 1, mode: "modulation" }, invert: false }
     ]};
-    expect(config.slots[0].key).toBe("filterCutoff");
-    expect(config.slots[0].label).toBe("Filter Cutoff");
-    expect(config.slots[1].key).toBe("filterResonance");
-    expect(config.slots[1].label).toBe("Filter Resonance");
+    eq(config.slots[0].key, "filterCutoff");
+    eq(config.slots[0].label, "Filter Cutoff");
+    eq(config.slots[1].key, "filterResonance");
+    eq(config.slots[1].label, "Filter Resonance");
   });
 
   test("stores mapping coordinates", () => {
@@ -29,10 +39,10 @@ describe("ParamModConfig", () => {
       { key: "filterCutoff", label: "Filter Cutoff", kind: "number", mapping: { x: 2, y: 3, mode: "modulation" }, invert: false },
       { key: "filterResonance", label: "Filter Resonance", kind: "number", mapping: { x: 4, y: 5, mode: "modulation" }, invert: false }
     ]};
-    expect(config.slots[0].mapping.x).toBe(2);
-    expect(config.slots[0].mapping.y).toBe(3);
-    expect(config.slots[1].mapping.x).toBe(4);
-    expect(config.slots[1].mapping.y).toBe(5);
+    eq(config.slots[0].mapping.x, 2);
+    eq(config.slots[0].mapping.y, 3);
+    eq(config.slots[1].mapping.x, 4);
+    eq(config.slots[1].mapping.y, 5);
   });
 
   test("stores invert flag", () => {
@@ -40,158 +50,170 @@ describe("ParamModConfig", () => {
       { key: "filterCutoff", label: "Filter Cutoff", kind: "number", mapping: { x: 0, y: 0, mode: "modulation" }, invert: false },
       { key: "filterResonance", label: "Filter Resonance", kind: "number", mapping: { x: 1, y: 1, mode: "modulation" }, invert: true }
     ]};
-    expect(config.slots[0].invert).toBe(false);
-    expect(config.slots[1].invert).toBe(true);
+    eq(config.slots[0].invert, false);
+    eq(config.slots[1].invert, true);
   });
 });
 
 describe("applyModulation", () => {
+  function modCfg(x: number, y: number, invert?: boolean) {
+    return {
+      parts: [{ l2: {}, modSlots: { slots: [{ key: "filterCutoff", label: "Filter Cutoff", kind: "number", mapping: { x, y, mode: "modulation" }, invert: invert ?? false }] } }]
+    } as unknown as RuntimeConfig;
+  }
+
   test("applies modulation from Slot 1", () => {
-    const cfg: RuntimeConfig = { parts: [{ l2: {}, modSlots: { slots: [{ key: "filterCutoff", label: "Filter Cutoff", kind: "number", mapping: { x: 0, y: 0, mode: "modulation" }, invert: false }] } ] };
-    const events = [{ type: "note_on", channel: 0, note: 60, velocity: 64, x: 0, y: 0 }];
+    const cfg = modCfg(0, 0);
+    const events = [{ type: "note_on" as const, channel: 0, note: 60, velocity: 64 }];
     const intents = [{ x: 0, y: 0, degree: 0, kind: "activate" }];
-    const result = applyParamModulation(events, intents, cfg);
-    expect(result).toHaveLength(1);
-    expect(result[0].type).toBe("note_on");
-    expect(result[0].x).toBe(0);
-    expect(result[0].y).toBe(0);
+    const result = applyModulation(intents, events, cfg);
+    eq(result.length, 1);
+    eq(result[0].type, "note_on");
   });
 
   test("applies modulation from Slot 2", () => {
-    const cfg: RuntimeConfig = { parts: [{ l2: {}, modSlots: { slots: [{ key: "filterCutoff", label: "Filter Cutoff", kind: "number", mapping: { x: 1, y: 1, mode: "modulation" }, invert: false }] } ] };
-    const events = [{ type: "note_on", channel: 0, note: 60, velocity: 64, x: 1, y: 1 }];
+    const cfg = modCfg(1, 1);
+    const events = [{ type: "note_on" as const, channel: 0, note: 60, velocity: 64 }];
     const intents = [{ x: 1, y: 1, degree: 0, kind: "activate" }];
-    const result = applyParamModulation(events, intents, cfg);
-    expect(result).toHaveLength(1);
-    expect(result[0].type).toBe("note_on");
-    expect(result[0].x).toBe(1);
-    expect(result[0].y).toBe(1);
+    const result = applyModulation(intents, events, cfg);
+    eq(result.length, 1);
+    eq(result[0].type, "note_on");
   });
 
   test("handles invert mode", () => {
-    const cfg: RuntimeConfig = { parts: [{ l2: {}, modSlots: { slots: [{ key: "filterCutoff", label: "Filter Cutoff", kind: "number", mapping: { x: 0, y: 0, mode: "modulation" }, invert: true }] } ] };
-    const events = [{ type: "note_on", channel: 0, note: 60, velocity: 64, x: 0, y: 0 }];
+    const cfg = modCfg(0, 0, true);
+    const events = [{ type: "note_on" as const, channel: 0, note: 60, velocity: 64 }];
     const intents = [{ x: 0, y: 0, degree: 0, kind: "activate" }];
-    const result = applyParamModulation(events, intents, cfg);
-    expect(result).toHaveLength(1);
-    expect(result[0].type).toBe("note_on");
-    expect(result[0].x).toBe(0);
-    expect(result[0].y).toBe(0);
+    const result = applyModulation(intents, events, cfg);
+    eq(result.length, 1);
+    eq(result[0].type, "note_on");
   });
 
   test("ignores unmapped slots", () => {
-    const cfg: RuntimeConfig = { parts: [{ l2: {}, modSlots: { slots: [{ key: "filterCutoff", label: "Filter Cutoff", kind: "number", mapping: { x: 0, y: 0, mode: "modulation" }, invert: false }] } ] };
-    const events = [{ type: "note_on", channel: 0, note: 60, velocity: 64, x: 3, y: 3 }];
+    const cfg = modCfg(0, 0);
+    const events = [{ type: "note_on" as const, channel: 0, note: 60, velocity: 64 }];
     const intents = [{ x: 3, y: 3, degree: 0, kind: "activate" }];
-    const result = applyParamModulation(events, intents, cfg);
-    expect(result).toHaveLength(1);
-    expect(result[0].type).toBe("note_on");
-    expect(result[0].x).toBe(3);
-    expect(result[0].y).toBe(3);
+    const result = applyModulation(intents, events, cfg);
+    eq(result.length, 1);
+    eq(result[0].type, "note_on");
   });
 });
 
 describe("handleParamModAssign", () => {
+  function modCfg2(key: string, x: number, y: number) {
+    return {
+      parts: [{ l2: {}, modSlots: { slots: [{ key, label: key === "filterCutoff" ? "Filter Cutoff" : "Filter Resonance", kind: "number", mapping: { x, y, mode: "modulation" }, invert: false }] } }]
+    } as unknown as RuntimeConfig;
+  }
+
   test("assigns parameter to X axis", () => {
-    const cfg: RuntimeConfig = { parts: [{ l2: {}, modSlots: { slots: [{ key: "filterCutoff", label: "Filter Cutoff", kind: "number", mapping: { x: 0, y: 0, mode: "modulation" }, invert: false }] } ] };
-    const events = [{ type: "note_on", channel: 0, note: 60, velocity: 64, x: 2, y: 0 }];
+    const cfg = modCfg2("filterCutoff", 0, 0);
+    const events = [{ type: "note_on" as const, channel: 0, note: 60, velocity: 64 }];
     const intents = [{ x: 2, y: 0, degree: 0, kind: "activate" }];
-    const result = applyParamModulation(events, intents, cfg);
-    expect(result).toHaveLength(1);
-    expect(result[0].type).toBe("cc");
-    expect(result[0].channel).toBe(0);
-    expect(result[0].controller).toBe(74);
-    expect(result[0].value).toBeGreaterThan(0);
+    const result = applyModulation(intents, events, cfg);
+    eq(result.length, 1);
+    const cc = result[0];
+    if (cc.type === "cc") {
+      eq(cc.channel, 0);
+      eq(cc.controller, 74);
+      ok(cc.value > 0);
+    }
   });
 
   test("assigns parameter to Y axis", () => {
-    const cfg: RuntimeConfig = { parts: [{ l2: {}, modSlots: { slots: [{ key: "filterResonance", label: "Filter Resonance", kind: "number", mapping: { x: 1, y: 1, mode: "modulation" }, invert: false }] } ] };
-    const events = [{ type: "note_on", channel: 0, note: 60, velocity: 64, x: 1, y: 2 }];
+    const cfg = modCfg2("filterResonance", 1, 1);
+    const events = [{ type: "note_on" as const, channel: 0, note: 60, velocity: 64 }];
     const intents = [{ x: 1, y: 2, degree: 0, kind: "activate" }];
-    const result = applyParamModulation(events, intents, cfg);
-    expect(result).toHaveLength(1);
-    expect(result[0].type).toBe("cc");
-    expect(result[0].channel).toBe(0);
-    expect(result[0].controller).toBe(71);
-    expect(result[0].value).toBeGreaterThan(0);
+    const result = applyModulation(intents, events, cfg);
+    eq(result.length, 1);
+    const cc = result[0];
+    if (cc.type === "cc") {
+      eq(cc.channel, 0);
+      eq(cc.controller, 71);
+      ok(cc.value > 0);
+    }
   });
 
   test("assigns parameter to both axes (0,0 or 1,1)", () => {
-    const cfg: RuntimeConfig = { parts: [{ l2: {}, modSlots: { slots: [{ key: "filterCutoff", label: "Filter Cutoff", kind: "number", mapping: { x: 0, y: 0, mode: "modulation" }, invert: false }] } ] };
-    const events = [{ type: "note_on", channel: 0, note: 60, velocity: 64, x: 0, y: 0 }];
+    const cfg = modCfg2("filterCutoff", 0, 0);
+    const events = [{ type: "note_on" as const, channel: 0, note: 60, velocity: 64 }];
     const intents = [{ x: 0, y: 0, degree: 0, kind: "activate" }];
-    const result = applyParamModulation(events, intents, cfg);
-    expect(result).toHaveLength(1);
-    expect(result[0].type).toBe("cc");
-    expect(result[0].channel).toBe(0);
-    expect(result[0].controller).toBe(74);
-    expect(result[0].value).toBe(0);
+    const result = applyModulation(intents, events, cfg);
+    eq(result.length, 1);
+    const cc = result[0];
+    if (cc.type === "cc") {
+      eq(cc.channel, 0);
+      eq(cc.controller, 74);
+      eq(cc.value, 0);
+    }
   });
 
   test("toggles invert mode", () => {
-    const cfg: RuntimeConfig = { parts: [{ l2: {}, modSlots: { slots: [{ key: "filterCutoff", label: "Filter Cutoff", kind: "number", mapping: { x: 0, y: 0, mode: "modulation" }, invert: false }] } ] };
-    const events = [{ type: "note_on", channel: 0, note: 60, velocity: 64, x: 0, y: 0 }];
+    const cfg = modCfg2("filterCutoff", 0, 0);
+    const events = [{ type: "note_on" as const, channel: 0, note: 60, velocity: 64 }];
     const intents = [{ x: 0, y: 0, degree: 0, kind: "activate" }];
-    const result = applyParamModulation(events, intents, cfg);
-    expect(result).toHaveLength(1);
-    expect(result[0].type).toBe("cc");
-    expect(result[0].channel).toBe(0);
-    expect(result[0].controller).toBe(74);
-    expect(result[0].value).toBe(0);
+    const result = applyModulation(intents, events, cfg);
+    eq(result.length, 1);
+    const cc = result[0];
+    if (cc.type === "cc") {
+      eq(cc.channel, 0);
+      eq(cc.controller, 74);
+      eq(cc.value, 0);
+    }
   });
 });
 
 describe("getMappableParams", () => {
   test("returns list of mappable parameters", () => {
     const params = getMappableParams();
-    expect(params.length).toBeGreaterThan(0);
+    ok(params.length > 0);
   });
 
   test("includes filterCutoff parameter", () => {
     const params = getMappableParams();
     const cutoff = params.find((p) => p.key === "filterCutoff");
-    expect(cutoff).toBeDefined();
-    expect(cutoff?.key).toBe("filterCutoff");
-    expect(cutoff?.label).toBe("Filter Cutoff");
-    expect(cutoff?.kind).toBe("number");
-    expect(cutoff?.min).toBe(20);
-    expect(cutoff?.max).toBe(20000);
-    expect(cutoff?.step).toBe(1);
+    ok(cutoff !== undefined);
+    eq(cutoff!.key, "filterCutoff");
+    eq(cutoff!.label, "Filter Cutoff");
+    eq(cutoff!.kind, "number");
+    eq(cutoff!.min, 20);
+    eq(cutoff!.max, 20000);
+    eq(cutoff!.step, 1);
   });
 
   test("includes filterResonance parameter", () => {
     const params = getMappableParams();
     const resonance = params.find((p) => p.key === "filterResonance");
-    expect(resonance).toBeDefined();
-    expect(resonance?.key).toBe("filterResonance");
-    expect(resonance?.label).toBe("Filter Resonance");
-    expect(resonance?.kind).toBe("number");
-    expect(resonance?.min).toBe(0);
-    expect(resonance?.max).toBe(20);
-    expect(resonance?.step).toBe(0.1);
+    ok(resonance !== undefined);
+    eq(resonance!.key, "filterResonance");
+    eq(resonance!.label, "Filter Resonance");
+    eq(resonance!.kind, "number");
+    eq(resonance!.min, 0);
+    eq(resonance!.max, 20);
+    eq(resonance!.step, 0.1);
   });
 
   test("includes velocityScalePct parameter", () => {
     const params = getMappableParams();
     const velocity = params.find((p) => p.key === "velocityScalePct");
-    expect(velocity).toBeDefined();
-    expect(velocity?.key).toBe("velocityScalePct");
-    expect(velocity?.label).toBe("Velocity Scale %");
+    ok(velocity !== undefined);
+    eq(velocity!.key, "velocityScalePct");
+    eq(velocity!.label, "Velocity Scale %");
   });
 
   test("includes gainPct parameter", () => {
     const params = getMappableParams();
     const gain = params.find((p) => p.key === "gainPct");
-    expect(gain).toBeDefined();
-    expect(gain?.key).toBe("gainPct");
-    expect(gain?.label).toBe("Gain %");
+    ok(gain !== undefined);
+    eq(gain!.key, "gainPct");
+    eq(gain!.label, "Gain %");
   });
 
   test("includes noteLengthMs parameter", () => {
     const params = getMappableParams();
     const noteLen = params.find((p) => p.key === "noteLengthMs");
-    expect(noteLen).toBeDefined();
-    expect(noteLen?.key).toBe("noteLengthMs");
-    expect(noteLen?.label).toBe("Note Length ms");
+    ok(noteLen !== undefined);
+    eq(noteLen!.key, "noteLengthMs");
+    eq(noteLen!.label, "Note Length ms");
   });
 });

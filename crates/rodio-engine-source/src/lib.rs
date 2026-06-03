@@ -150,7 +150,9 @@ impl EngineSource {
                     instrument_slot,
                     buffer,
                     velocity,
-                } => self.engine.preview_sample(instrument_slot, buffer, velocity),
+                } => self
+                    .engine
+                    .preview_sample(instrument_slot, buffer, velocity),
                 EngineEvent::SetVoiceStealingMode(mode) => {
                     self.engine.set_voice_stealing_mode(mode)
                 }

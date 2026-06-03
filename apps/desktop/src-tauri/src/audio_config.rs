@@ -115,7 +115,9 @@ pub fn synth_payload(config: &AudioInstrumentsConfig) -> InstrumentsConfig {
         mixer: Some(MixerConfig {
             buses: mixer_buses(config),
         }),
-        pan_positions: config.pan_positions.unwrap_or(realtime_engine::synth::DEFAULT_PAN_POSITIONS),
+        pan_positions: config
+            .pan_positions
+            .unwrap_or(realtime_engine::synth::DEFAULT_PAN_POSITIONS),
         master_volume: config.master_volume.unwrap_or(100.0),
     }
 }
@@ -159,10 +161,10 @@ pub fn sample_banks(
         .instruments
         .iter()
         .take(INSTRUMENT_SLOT_COUNT)
-         .map(|slot| {
-             if slot.kind != "sampler" {
-                 return SampleBankConfig::default();
-             }
+        .map(|slot| {
+            if slot.kind != "sampler" {
+                return SampleBankConfig::default();
+            }
             let Some(sample) = &slot.sample else {
                 return SampleBankConfig::default();
             };
@@ -341,8 +343,8 @@ mod tests {
         assert_eq!(slots.len(), INSTRUMENT_SLOT_COUNT);
     }
 
-   #[test]
-     fn sample_banks_preserve_sample_playback_controls_without_decoding_in_audio_thread() {
+    #[test]
+    fn sample_banks_preserve_sample_playback_controls_without_decoding_in_audio_thread() {
         let config = AudioInstrumentsConfig {
             instruments: vec![AudioInstrumentSlotConfig {
                 kind: "sampler".to_string(),
@@ -408,7 +410,7 @@ mod tests {
         synth.filter.cutoff_hz = 120.0;
         let changed_synth = AudioInstrumentsConfig {
             instruments: vec![
-               AudioInstrumentSlotConfig {
+                AudioInstrumentSlotConfig {
                     kind: "synth".to_string(),
                     synth: Some(synth),
                     sample: None,
@@ -430,9 +432,9 @@ mod tests {
                     mixer: None,
                 },
             ],
-             mixer: None,
-             pan_positions: None,
-             master_volume: None,
+            mixer: None,
+            pan_positions: None,
+            master_volume: None,
         };
         assert_eq!(before, sample_bank_signature(&changed_synth));
     }

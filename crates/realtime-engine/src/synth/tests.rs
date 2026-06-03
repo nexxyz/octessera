@@ -293,7 +293,11 @@ fn sample_preview_routes_through_bus_fx_delay_tail() {
         pan_positions: DEFAULT_PAN_POSITIONS,
         master_volume: 100.0,
     });
-    let buffer = SampleBuffer { samples: vec![1.0, 0.0, 0.0, 0.0].into(), channels: 1, sample_rate: 48_000 };
+    let buffer = SampleBuffer {
+        samples: vec![1.0, 0.0, 0.0, 0.0].into(),
+        channels: 1,
+        sample_rate: 48_000,
+    };
     engine.preview_sample(0, buffer, 127);
 
     for _ in 0..47 {
@@ -303,7 +307,10 @@ fn sample_preview_routes_through_bus_fx_delay_tail() {
     let tail = engine.next_sample().abs();
 
     assert!(before_tail < 1.0e-6);
-    assert!(tail > 0.1, "sample preview should route through the delay bus");
+    assert!(
+        tail > 0.1,
+        "sample preview should route through the delay bus"
+    );
 }
 
 #[test]
@@ -313,7 +320,11 @@ fn master_volume_controls_final_output_gain() {
         instruments: vec![InstrumentSlotConfig {
             kind: "sampler".to_string(),
             synth: default_synth_config(),
-            mixer: Some(InstrumentMixerConfig { route: "direct".to_string(), pan_pos: DEFAULT_PAN_POSITIONS / 2, volume: 100.0 }),
+            mixer: Some(InstrumentMixerConfig {
+                route: "direct".to_string(),
+                pan_pos: DEFAULT_PAN_POSITIONS / 2,
+                volume: 100.0,
+            }),
         }],
         mixer: None,
         pan_positions: DEFAULT_PAN_POSITIONS,
@@ -324,7 +335,11 @@ fn master_volume_controls_final_output_gain() {
         instruments: vec![InstrumentSlotConfig {
             kind: "sampler".to_string(),
             synth: default_synth_config(),
-            mixer: Some(InstrumentMixerConfig { route: "direct".to_string(), pan_pos: DEFAULT_PAN_POSITIONS / 2, volume: 100.0 }),
+            mixer: Some(InstrumentMixerConfig {
+                route: "direct".to_string(),
+                pan_pos: DEFAULT_PAN_POSITIONS / 2,
+                volume: 100.0,
+            }),
         }],
         mixer: None,
         pan_positions: DEFAULT_PAN_POSITIONS,
@@ -342,7 +357,10 @@ fn master_volume_controls_final_output_gain() {
         half_sum += half.next_sample().abs();
     }
 
-    assert!(half_sum > full_sum * 0.45 && half_sum < full_sum * 0.55, "master volume should scale final output gain");
+    assert!(
+        half_sum > full_sum * 0.45 && half_sum < full_sum * 0.55,
+        "master volume should scale final output gain"
+    );
 }
 
 #[test]
@@ -391,7 +409,7 @@ fn all_filter_types_generate_finite_non_silent_audio() {
             }],
             mixer: None,
             pan_positions: DEFAULT_PAN_POSITIONS,
-        master_volume: 100.0,
+            master_volume: 100.0,
         });
 
         engine.note_on(0, 64, 110, 220);

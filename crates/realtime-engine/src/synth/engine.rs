@@ -427,7 +427,13 @@ impl SynthEngine {
         let gain = (bank.gain_pct / 100.0).clamp(0.0, 2.0) * ((1.0 - vel_sens) + vel_sens * vel);
         let pitch = 2.0_f32.powf(bank.tune_semis / 12.0);
         let step = pitch * buffer.sample_rate as f32 / self.sample_rate as f32;
-        self.preview_sample_voices.push(PreviewSampleVoice { slot, buffer, pos: 0.0, step, gain });
+        self.preview_sample_voices.push(PreviewSampleVoice {
+            slot,
+            buffer,
+            pos: 0.0,
+            step,
+            gain,
+        });
     }
 
     pub fn note_on(&mut self, instrument_slot: u8, midi_note: u8, velocity: u8, duration_ms: u32) {
@@ -696,7 +702,10 @@ impl SynthEngine {
         let (left, right) =
             self.process_momentary_fx_target(MomentaryFxTarget::Global, left, right);
         self.sample_clock = self.sample_clock.saturating_add(1);
-        ((left * self.master_volume).clamp(-1.0, 1.0), (right * self.master_volume).clamp(-1.0, 1.0))
+        (
+            (left * self.master_volume).clamp(-1.0, 1.0),
+            (right * self.master_volume).clamp(-1.0, 1.0),
+        )
     }
 
     fn process_momentary_fx_target(

@@ -347,20 +347,34 @@ fn audio_command(
             QueuedAudioEvent::MomentaryFxUpdate { id, params }
         }
         AudioCommandPayload::MomentaryFxStop { id } => QueuedAudioEvent::MomentaryFxStop { id },
-        AudioCommandPayload::SamplePreview { instrument_slot, sample_slot, path, velocity } => {
+        AudioCommandPayload::SamplePreview {
+            instrument_slot,
+            sample_slot,
+            path,
+            velocity,
+        } => {
             let _sample_slot = sample_slot.min(SAMPLE_SLOTS_PER_INSTRUMENT - 1);
-            let full_path = resolve_sample_file(&path).ok_or_else(|| "invalid sample path".to_string())?;
+            let full_path =
+                resolve_sample_file(&path).ok_or_else(|| "invalid sample path".to_string())?;
             let buffer = {
-                let mut cache = state.sample_cache.lock().map_err(|_| "sample cache poisoned".to_string())?;
+                let mut cache = state
+                    .sample_cache
+                    .lock()
+                    .map_err(|_| "sample cache poisoned".to_string())?;
                 if let Some(buffer) = cache.get(&full_path).cloned() {
                     buffer
                 } else {
-                    let buffer = decode_sample_file(&full_path).ok_or_else(|| "sample decode failed".to_string())?;
+                    let buffer = decode_sample_file(&full_path)
+                        .ok_or_else(|| "sample decode failed".to_string())?;
                     cache.insert(full_path, buffer.clone());
                     buffer
                 }
             };
-            QueuedAudioEvent::PreviewSample { instrument_slot: instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1) as u8, buffer, velocity }
+            QueuedAudioEvent::PreviewSample {
+                instrument_slot: instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1) as u8,
+                buffer,
+                velocity,
+            }
         }
     };
     state
@@ -419,8 +433,16 @@ pub fn run() {
                         note,
                     });
                 }
-                QueuedAudioEvent::PreviewSample { instrument_slot, buffer, velocity } => {
-                    let _ = engine_tx.send(EngineEvent::PreviewSample { instrument_slot, buffer, velocity });
+                QueuedAudioEvent::PreviewSample {
+                    instrument_slot,
+                    buffer,
+                    velocity,
+                } => {
+                    let _ = engine_tx.send(EngineEvent::PreviewSample {
+                        instrument_slot,
+                        buffer,
+                        velocity,
+                    });
                 }
                 QueuedAudioEvent::SetInstruments(config) => {
                     let _ = engine_tx.send(EngineEvent::SetInstruments(config));

@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Pre-push hook — runs all CI-like checks locally, reporting each result.
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+PASS=0
+FAIL=0
+
+run_check() {
+  local name="$1" cmd="$2"
+  printf "\n--- %s ---\n" "$name"
+  if eval "$cmd"; then
+    printf "✓ %s passed\n" "$name"
+    PASS=$((PASS + 1))
+  else
+    printf "✗ %s FAILED\n" "$name" >&2
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+run_check "pnpm lint"          "pnpm run lint 2>&1"
+run_check "pnpm typecheck"     "pnpm run typecheck 2>&1"
+run_check "pnpm format:check"  "pnpm run format:check 2>&1"
+run_check "cargo fmt"          "cargo fmt --all --check 2>&1"
+run_check "cargo clippy" \
+  "cargo clippy --workspace --exclude cellsymphony-pi --exclude cellsymphony-desktop --exclude midi-io-sidecar --exclude rodio-engine-source --all-targets -- -D warnings 2>&1"
+
+printf "\n====================\n"
+printf "  %d passed, %d failed\n" "$PASS" "$FAIL"
+printf "====================\n"
+
+if [ "$FAIL" -gt 0 ]; then
+  printf "\n⚠  Some checks failed. Fix before pushing.\n" >&2
+  exit 1
+fi

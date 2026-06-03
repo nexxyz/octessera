@@ -17,7 +17,7 @@ import {
   type PlatformState
 } from "../src/index";
 import { validatePlatformCapabilities } from "../src/platformCaps";
-import { writeAnyValue } from "../src/stateHelpers";
+import { writeAnyValue } from "../src/paramAccess";
 import { filterTriggerGatedIntents } from "../src/runtimeHelpers";
 
 const CELL_COUNT = PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight;
