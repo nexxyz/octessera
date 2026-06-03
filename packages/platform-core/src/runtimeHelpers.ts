@@ -3,11 +3,11 @@ import { type LedCell } from "@cellsymphony/device-contracts";
 import type { CellTriggerIntent } from "@cellsymphony/interpretation-core";
 import type { MusicalEvent } from "@cellsymphony/musical-events";
 import { clamp, mod } from "./coreUtils";
-import { GRID_DOMAIN, PLATFORM_CAPS, sectionCount } from "./platformCaps";
+import { clampPanPosition, clampPartIndex, PAN_CENTER_POS, PAN_POSITION_MAX, GRID_DOMAIN, PLATFORM_CAPS, scalePanPosition, sectionCount } from "./platformCaps";
 import { momentaryFxColor } from "./momentaryFx";
 import type { PlatformState, TouchMode } from "./platformTypes";
 
-export const TOUCH_PAN_COLORS: Record<string, LedCell> = {
+export const DANCE_PAN_COLORS: Record<string, LedCell> = {
   direct: { r: 255, g: 255, b: 255 },
   fx_bus_1: { r: 190, g: 80, b: 255 },
   fx_bus_2: { r: 0, g: 210, b: 255 },
@@ -17,23 +17,27 @@ export const TOUCH_PAN_COLORS: Record<string, LedCell> = {
 
 /** Convert a Touch grid X press coordinate to a stored panPos (right cell of the two-cell marker). */
 export function touchPanPosFromGridX(x: number, width: number = PLATFORM_CAPS.gridWidth): number {
-  return clamp(Math.floor(x) + 1, 0, width - 1);
+  const markerCount = Math.max(1, width - 1);
+  const cell = clamp(Math.floor(x), 0, width - 1);
+  const centerRight = Math.floor(width / 2);
+  const marker = cell === centerRight ? centerRight - 1 : cell > centerRight ? cell - 1 : cell;
+  return scalePanPosition(marker, markerCount);
 }
 
 /** Convert a stored panPos to the left cell X index for the two-cell LED marker. */
 export function touchPanMarkerLeftCell(panPos: number, width: number = PLATFORM_CAPS.gridWidth): number {
-  const pos = clamp(Math.round(panPos), 0, width - 1);
-  return pos === 0 ? 0 : pos === width - 1 ? width - 2 : pos - 1;
+  const markerCount = Math.max(1, width - 1);
+  return clamp(Math.round((clampPanPosition(panPos) / PAN_POSITION_MAX) * (markerCount - 1)), 0, markerCount - 1);
 }
 
-export type ResolvedTouchPan = {
+export type ResolvedDancePan = {
   route: "direct" | "bus";
   busIndex: number;
   panPos: number;
   color: LedCell;
 };
 
-export function resolveTouchPanTarget(state: PlatformState<unknown>, row: number): ResolvedTouchPan {
+export function resolveDancePanTarget(state: PlatformState<unknown>, row: number): ResolvedDancePan {
   const instruments = Array.isArray((state.runtimeConfig as any).instruments) ? (state.runtimeConfig as any).instruments as any[] : [];
   const inst = instruments[row] ?? {};
   const mixer = inst.mixer ?? {};
@@ -43,12 +47,12 @@ export function resolveTouchPanTarget(state: PlatformState<unknown>, row: number
     const busIdx = Number(busMatch[1]) - 1;
     const buses: any[] = Array.isArray((state.runtimeConfig as any).mixer?.buses) ? (state.runtimeConfig as any).mixer.buses as any[] : [];
     const bus = buses[busIdx];
-    const panPos = clamp(Math.round(Number(bus?.panPos ?? Math.floor(PLATFORM_CAPS.gridWidth / 2))), 0, PLATFORM_CAPS.gridWidth - 1);
-    const color = TOUCH_PAN_COLORS[`fx_bus_${busIdx + 1}`] ?? TOUCH_PAN_COLORS.direct;
+    const panPos = clampPanPosition(bus?.panPos ?? PAN_CENTER_POS);
+    const color = DANCE_PAN_COLORS[`fx_bus_${busIdx + 1}`] ?? DANCE_PAN_COLORS.direct;
     return { route: "bus", busIndex: busIdx, panPos, color };
   }
-  const panPos = clamp(Math.round(Number(mixer.panPos ?? Math.floor(PLATFORM_CAPS.gridWidth / 2))), 0, PLATFORM_CAPS.gridWidth - 1);
-  return { route: "direct", busIndex: -1, panPos, color: TOUCH_PAN_COLORS.direct };
+  const panPos = clampPanPosition(mixer.panPos ?? PAN_CENTER_POS);
+  return { route: "direct", busIndex: -1, panPos, color: DANCE_PAN_COLORS.direct };
 }
 
 export function dedupeSimultaneousNotes(events: MusicalEvent[]): MusicalEvent[] {
@@ -138,10 +142,54 @@ export function cellsToLeds(
     }
   }
   overlayFnNavigation(out, b, fnHeld, activePartIndex, touchMode, parts);
-  return out;
-}
+   return out;
+ }
 
-function overlayFnNavigation(out: LedCell[], brightness: number, fnHeld: boolean, activePartIndex: number, touchMode: TouchMode, parts: unknown[] = []): void {
+ export function paramModToLeds<TState>(state: PlatformState<TState>): LedCell[] {
+   const b = clamp(Number((state.runtimeConfig as any).gridBrightness ?? 75) / 100, 0.1, 1);
+   const OFF_BG: LedCell = { r: 15, g: 15, b: 22 };
+   const out = Array.from({ length: PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight }, () => scaleLed(OFF_BG, b));
+   const activePart = clampPartIndex((state.runtimeConfig as any).activePartIndex ?? 0);
+   const part = ((state.runtimeConfig as any).parts ?? [])[activePart] ?? {};
+   const modSlots = part.modSlots ?? { slots: [] };
+   for (let slotIdx = 0; slotIdx < modSlots.slots.length; slotIdx++) {
+     const slot = modSlots.slots[slotIdx];
+     const mapping = slot.mapping ?? { x: 0, y: 0, mode: "modulation" };
+     const isSlot1 = slotIdx === 0;
+     const isOrigin = isSlot1 ? (mapping.x === 0 && mapping.y === 0) : (mapping.x === 1 && mapping.y === 1);
+     const originCell = isSlot1 ? { x: 0, y: 0 } : { x: 1, y: 1 };
+     if (slot.key) {
+       for (let y = 0; y < PLATFORM_CAPS.gridHeight; y++) {
+         for (let x = 0; x < PLATFORM_CAPS.gridWidth; x++) {
+           const screenIndex = GRID_DOMAIN.toDisplayIndex({ x, y });
+           const isMapping = isSlot1 ? x === mapping.x && y === mapping.y : x === mapping.x && y === mapping.y;
+           const isAxis = isSlot1 ? (x === 0 || y === 0) : (x === 1 || y === 1);
+           const isOriginCell = x === originCell.x && y === originCell.y;
+           const isSlotArea = isSlot1 ? (x === 0 || y === 0) : (x === 1 || y === 1);
+           const isMappingArea = isSlot1 ? (x === mapping.x || y === mapping.y) : (x === mapping.x || y === mapping.y);
+           const isCurrentOrigin = isSlot1 ? (x === 0 && y === 0) : (x === 1 && y === 1);
+           const isMappingOrigin = isSlot1 ? (x === 0 && y === 0) : (x === 1 && y === 1);
+           if (isOriginCell) {
+             out[screenIndex] = scaleLed({ r: 255, g: 255, b: 255 }, b);
+           } else if (isSlot1 && isMappingArea && !isOriginCell) {
+             const invert = slot.invert ? "red" : "green";
+             out[screenIndex] = scaleLed({ r: invert === "red" ? 255 : 0, g: invert === "red" ? 0 : 255, b: 120 }, b);
+           } else if (isSlot1 && !isSlotArea && !isOriginCell) {
+             out[screenIndex] = scaleLed({ r: Math.round(out[screenIndex].r * 0.25), g: Math.round(out[screenIndex].g * 0.25), b: Math.round(out[screenIndex].b * 0.25) }, b);
+           } else if (!isSlot1 && isMappingArea && !isOriginCell) {
+             const invert = slot.invert ? "red" : "green";
+             out[screenIndex] = scaleLed({ r: invert === "red" ? 255 : 0, g: invert === "red" ? 0 : 255, b: 120 }, b);
+           } else if (!isSlot1 && !isSlotArea && !isOriginCell) {
+             out[screenIndex] = scaleLed({ r: Math.round(out[screenIndex].r * 0.25), g: Math.round(out[screenIndex].g * 0.25), b: Math.round(out[screenIndex].b * 0.25) }, b);
+           }
+         }
+       }
+     }
+   }
+   return out;
+ }
+
+ function overlayFnNavigation(out: LedCell[], brightness: number, fnHeld: boolean, activePartIndex: number, touchMode: TouchMode, parts: unknown[] = []): void {
   if (!fnHeld) return;
   // dim non-navigation cells (neither left column nor right column)
   for (let y = 0; y < PLATFORM_CAPS.gridHeight; y += 1) {
@@ -244,7 +292,7 @@ export function touchModeToLeds<TState>(state: PlatformState<TState>, brightness
     for (let y = 0; y < count; y += 1) {
       const inst = instruments[y] ?? {};
       const isNone = (inst as any)?.type === "none";
-      const { panPos, color } = resolveTouchPanTarget(state as PlatformState<unknown>, y);
+      const { panPos, color } = resolveDancePanTarget(state as PlatformState<unknown>, y);
       const left = touchPanMarkerLeftCell(panPos);
       const cell = scaleLed(color, b);
       const dimmed = isNone ? scaleLed(cell, 0.25) : cell;

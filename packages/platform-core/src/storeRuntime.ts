@@ -3,11 +3,12 @@ import { getBehavior } from "@cellsymphony/behavior-api";
 import type { MappingConfig } from "@cellsymphony/mapping-core";
 import type { ConfigPayload, PlatformEffect, PlatformState, RuntimeConfig, StoreResult } from "./index";
 import { isBusEffectType, sanitizeFxParams } from "./fxDefaults";
-import { clampPartIndex, isValidSectionValue, PLATFORM_CAPS } from "./platformCaps";
+import { clampPanPosition, clampPartIndex, isValidSectionValue, PAN_POSITION_COUNT, PLATFORM_CAPS, scalePanPosition } from "./platformCaps";
 import { cutoffHzToDisplay, overrideFromPart, preferMapping } from "./coreUtils";
 import { makeToast } from "./toast";
-import { DEFAULT_VELOCITY_LEVELS, DEFAULT_MIDI_ENGINE, DEFAULT_VELOCITY, DEFAULT_VOLUME } from "./runtimeDefaults";
+import { DEFAULT_VELOCITY_LEVELS, DEFAULT_MIDI_ENGINE, DEFAULT_PAN_POS, DEFAULT_VELOCITY, DEFAULT_VOLUME } from "./runtimeDefaults";
 import { cloneAuxBindings, sanitizeAuxBindings } from "./auxBindingsSerde";
+import { normalizeParamMods } from "./paramMod";
 
 type StoreDeps<TState> = {
   resolveBehavior: (id: string) => BehaviorEngine<any, any>;
@@ -140,24 +141,35 @@ export function applyConfigPayload<TState>(
   return next as PlatformState<TState>;
 }
 
-function sanitizeInstruments(incoming: any, factory: any): any[] {
+function sanitizePanPos(value: unknown, fallback: unknown, incomingPanPositions: unknown): number {
+  const raw = value ?? fallback ?? DEFAULT_PAN_POS;
+  const sourceCount = Number(incomingPanPositions);
+  const oldCenterLeft = Math.floor((PLATFORM_CAPS.gridWidth - 1) / 2);
+  const oldCenterRight = Math.floor(PLATFORM_CAPS.gridWidth / 2);
+  if ((sourceCount === PLATFORM_CAPS.gridWidth || incomingPanPositions === undefined) && (Number(raw) === oldCenterLeft || Number(raw) === oldCenterRight)) return DEFAULT_PAN_POS;
+  if (Number.isInteger(sourceCount) && sourceCount > 1 && sourceCount !== PAN_POSITION_COUNT) return scalePanPosition(raw, sourceCount);
+  if (incomingPanPositions === undefined && Number(raw) >= 0 && Number(raw) <= PLATFORM_CAPS.gridWidth - 1) return scalePanPosition(raw, PLATFORM_CAPS.gridWidth);
+  return clampPanPosition(raw);
+}
+
+function sanitizeInstruments(incoming: any, factory: any, incomingPanPositions: unknown): any[] {
   const factorySlots: any[] = Array.isArray((factory.runtimeConfig as any).instruments)
     ? (factory.runtimeConfig as any).instruments
     : [];
-  const baseSlots = factorySlots.length > 0 ? factorySlots : Array.from({ length: PLATFORM_CAPS.instrumentCount }, () => ({ type: "synth", midi: { enabled: false, channel: 0 }, synth: {}, sample: { baseVelocity: DEFAULT_VELOCITY, velocityLevelsEnabled: false, velocityLevels: { ...DEFAULT_VELOCITY_LEVELS }, selectedSlot: 0, slots: Array.from({ length: PLATFORM_CAPS.sampleSlotCount }, () => ({ path: null })), tuneSemis: 0, amp: {}, ampEnv: {}, filter: {}, filterEnv: {}, assignments: [] }, midiEngine: { ...DEFAULT_MIDI_ENGINE }, mixer: { route: "direct", panPos: Math.floor(PLATFORM_CAPS.gridWidth / 2), volume: DEFAULT_VOLUME } }));
+  const baseSlots = factorySlots.length > 0 ? factorySlots : Array.from({ length: PLATFORM_CAPS.instrumentCount }, () => ({ type: "synth", midi: { enabled: false, channel: 0 }, synth: {}, sample: { baseVelocity: DEFAULT_VELOCITY, velocityLevelsEnabled: false, velocityLevels: { ...DEFAULT_VELOCITY_LEVELS }, selectedSlot: 0, slots: Array.from({ length: PLATFORM_CAPS.sampleSlotCount }, () => ({ path: null })), tuneSemis: 0, amp: {}, ampEnv: {}, filter: {}, filterEnv: {}, assignments: [] }, midiEngine: { ...DEFAULT_MIDI_ENGINE }, mixer: { route: "direct", panPos: DEFAULT_PAN_POS, volume: DEFAULT_VOLUME } }));
   const src = Array.isArray(incoming) ? incoming : [];
   const out: any[] = [];
   for (let i = 0; i < PLATFORM_CAPS.instrumentCount; i += 1) {
-    const f = baseSlots[i] ?? baseSlots[0] ?? { type: "synth", midi: { enabled: false, channel: i }, synth: {}, sample: { baseVelocity: DEFAULT_VELOCITY, velocityLevelsEnabled: false, velocityLevels: { ...DEFAULT_VELOCITY_LEVELS }, selectedSlot: 0, slots: Array.from({ length: PLATFORM_CAPS.sampleSlotCount }, () => ({ path: null })), tuneSemis: 0, amp: {}, ampEnv: {}, filter: {}, filterEnv: {}, assignments: [] }, midiEngine: { ...DEFAULT_MIDI_ENGINE }, mixer: { route: "direct", panPos: Math.floor(PLATFORM_CAPS.gridWidth / 2), volume: DEFAULT_VOLUME } };
+    const f = baseSlots[i] ?? baseSlots[0] ?? { type: "synth", midi: { enabled: false, channel: i }, synth: {}, sample: { baseVelocity: DEFAULT_VELOCITY, velocityLevelsEnabled: false, velocityLevels: { ...DEFAULT_VELOCITY_LEVELS }, selectedSlot: 0, slots: Array.from({ length: PLATFORM_CAPS.sampleSlotCount }, () => ({ path: null })), tuneSemis: 0, amp: {}, ampEnv: {}, filter: {}, filterEnv: {}, assignments: [] }, midiEngine: { ...DEFAULT_MIDI_ENGINE }, mixer: { route: "direct", panPos: DEFAULT_PAN_POS, volume: DEFAULT_VOLUME } };
     const s = src[i] ?? {};
     const incomingAutoName = typeof (s as any).autoName === "boolean" ? (s as any).autoName : true;
     const incomingName = typeof (s as any).name === "string" && (s as any).name.trim().length > 0 ? (s as any).name.trim() : "";
     const fallbackAutoName = typeof (f as any).autoName === "boolean" ? (f as any).autoName : true;
     const fallbackName = typeof (f as any).name === "string" && (f as any).name.trim().length > 0 ? (f as any).name.trim() : "";
     out.push({
-      ...(f as any),
-      ...(s as any),
-      type: (s as any).type === "sample" || (s as any).type === "midi" || (s as any).type === "synth" || (s as any).type === "none" ? (s as any).type : (f as any).type,
+    ...(f as any),
+     ...(s as any),
+     type: (s as any).type === "sampler" || (s as any).type === "midi" || (s as any).type === "synth" || (s as any).type === "none" ? (s as any).type : (f as any).type,
       autoName: incomingAutoName,
       name: incomingName || fallbackName || (f as any).name || "synth",
       midi: { ...(f as any).midi, ...((s as any).midi ?? {}) },
@@ -202,12 +214,12 @@ function sanitizeInstruments(incoming: any, factory: any): any[] {
           if (!Number.isFinite(idx) || idx < 1 || idx > PLATFORM_CAPS.busCount) return "direct";
           return `fx_bus_${idx}`;
         })(),
-        panPos: Math.max(0, Math.min(PLATFORM_CAPS.gridWidth - 1, Number((s as any).mixer?.panPos ?? (f as any).mixer?.panPos ?? Math.floor(PLATFORM_CAPS.gridWidth / 2)))),
+        panPos: sanitizePanPos((s as any).mixer?.panPos, (f as any).mixer?.panPos, incomingPanPositions),
         volume: Math.max(0, Math.min(100, Number((s as any).mixer?.volume ?? (f as any).mixer?.volume ?? DEFAULT_VOLUME)))
       }
     });
-    const inst = out[i] as Record<string, any>;
-    for (const prefix of ["synth", "sample"]) {
+     const inst = out[i] as Record<string, any>;
+     for (const prefix of ["synth", "sampler"]) {
       const section = inst[prefix] as Record<string, any> | undefined;
       const filter = section?.filter;
       if (filter && typeof filter.cutoffHz === "number" && filter.cutoffHz > 255) {
@@ -235,7 +247,7 @@ function normalizeSlot(raw: any): any {
   return { type, params };
 }
 
-function sanitizeMixer(incoming: any, factory: any): any {
+function sanitizeMixer(incoming: any, factory: any, incomingPanPositions: unknown): any {
   const factoryMixer = (factory.runtimeConfig as any).mixer;
   const sourceBuses = Array.isArray(incoming?.buses) ? incoming.buses : (Array.isArray(factoryMixer?.buses) ? factoryMixer.buses : []);
   const buses: any[] = [];
@@ -246,7 +258,7 @@ function sanitizeMixer(incoming: any, factory: any): any {
     buses.push({
       slot1: normalizeSlot(src.slot1),
       slot2: normalizeSlot(src.slot2),
-      panPos: Math.max(0, Math.min(PLATFORM_CAPS.gridWidth - 1, Number(src.panPos ?? Math.floor(PLATFORM_CAPS.gridWidth / 2)))),
+      panPos: sanitizePanPos(src.panPos, DEFAULT_PAN_POS, incomingPanPositions),
       autoName,
       name: srcName
     });
@@ -285,9 +297,10 @@ function sanitizePayload<TState>(payload: ConfigPayload, behavior: BehaviorEngin
       ? rt.numericDisplayMode
       : typeof rt.showNumericValueWithBars === "boolean" ? (rt.showNumericValueWithBars ? "bar+numbers" : "bar") : "bar+numbers",
     activePartIndex: clampPartIndex(rt.activePartIndex ?? (factory.runtimeConfig as any).activePartIndex ?? 0),
+    panPositions: PAN_POSITION_COUNT,
     parts: Array.isArray(rt.parts) ? rt.parts : Array.isArray((factory.runtimeConfig as any).parts) ? (factory.runtimeConfig as any).parts : [],
-    instruments: sanitizeInstruments(rt.instruments, factory),
-    mixer: sanitizeMixer(rt.mixer, factory),
+    instruments: sanitizeInstruments(rt.instruments, factory, rt.panPositions),
+    mixer: sanitizeMixer(rt.mixer, factory, rt.panPositions),
     auxBindings: sanitizeAuxBindings(rt.auxBindings)
   };
 
@@ -343,6 +356,7 @@ function sanitizePayload<TState>(payload: ConfigPayload, behavior: BehaviorEngin
         triggerGates: Array.isArray(part.l1.triggerGates) ? part.l1.triggerGates : part.l1.triggerGates ?? Array.from({ length: PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight }, () => true)
       },
       l2: sanitizePartL2(part.l2, basePart.l2),
+      paramMods: normalizeParamMods((part as any).paramMods),
       autoName: typeof (part as any).autoName === "boolean" ? (part as any).autoName : true,
       name: typeof (part as any).name === "string" && (part as any).name.trim().length > 0 ? (part as any).name.trim() : (part as any).l1?.behaviorId ?? "life"
     };

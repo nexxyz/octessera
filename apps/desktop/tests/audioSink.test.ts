@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { sendEventsToAudio } from "../src/runtime/outputAdapters/audioSink";
 import { nativeAudioBridge } from "../src/audio/nativeAudioBridge";
 
-test("scales and clamps note_on velocity by master volume", async () => {
+test("forwards note_on velocity without applying master volume", async () => {
   const calls: any[] = [];
   const original = nativeAudioBridge.trigger;
   nativeAudioBridge.trigger = async (event: any) => {
@@ -12,13 +12,13 @@ test("scales and clamps note_on velocity by master volume", async () => {
   try {
     await sendEventsToAudio([{ type: "note_on", channel: 0, note: 60, velocity: 120, durationMs: 100 } as any], 50);
     assert.equal(calls.length, 1);
-    assert.equal(calls[0].velocity, 60);
+    assert.equal(calls[0].velocity, 120);
   } finally {
     nativeAudioBridge.trigger = original;
   }
 });
 
-test("master volume clamp preserves lower bound on note_on velocity", async () => {
+test("forwards low note_on velocity unchanged", async () => {
   const calls: any[] = [];
   const original = nativeAudioBridge.trigger;
   nativeAudioBridge.trigger = async (event: any) => {

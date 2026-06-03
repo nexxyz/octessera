@@ -181,6 +181,21 @@ test("behavior onTick is called when accumulator reaches step threshold", () => 
   assert.equal(result.state.behaviorState.tickCount, 1, "onTick should be called once per step");
 });
 
+test("X/Y param modulation updates runtime mixer config on transport tick", () => {
+  let state = createInitialState(mockBehavior) as any;
+  state.transport.playing = true;
+  state.runtimeConfig.algorithmStepUnit = "1/16";
+  state.runtimeConfig.mixer.buses[0].slot1 = { type: "reverb", params: { decay: 0.5, damp: 0.35, mixPct: 30 } };
+  state.runtimeConfig.parts[0].paramMods = {
+    x: [{ key: "mixer.buses.0.slot1.params.decay", label: "Decay", kind: "number", min: 0, max: 0.995, step: 0.005, invert: false }, null],
+    y: [null, null]
+  };
+
+  const result = tick(state, mockBehavior);
+
+  assert.notEqual(result.state.runtimeConfig.mixer.buses[0].slot1.params.decay, 0.5);
+});
+
 // ─── Sense Menu Instrument Targets ────────────────────────────────
 
 test("L2: Sense has event instrument targets accessible via menu", () => {
@@ -411,10 +426,10 @@ test("MIDI instruments do not expose the audio Mixer group", () => {
 });
 
 test("instrument auto name follows type, manual name sets autoName false", () => {
-  let state = makeState() as any;
-  state.runtimeConfig.instruments[0].type = "sample";
-  state.runtimeConfig.instruments[0].autoName = true;
-  state.runtimeConfig.instruments[0].name = "sample";
+   let state = makeState() as any;
+   state.runtimeConfig.instruments[0].type = "sampler";
+   state.runtimeConfig.instruments[0].autoName = true;
+   state.runtimeConfig.instruments[0].name = "sampler";
   state = selectLabel(state, "L3: Voice");
   state = press(state).state;
   state = selectLabel(state, "Instruments");

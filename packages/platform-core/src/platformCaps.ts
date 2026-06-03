@@ -39,6 +39,22 @@ export function validatePlatformCapabilities(raw: unknown): PlatformCapabilities
 }
 
 export const PLATFORM_CAPS: PlatformCapabilities = validatePlatformCapabilities(capsJson);
+export const PAN_POSITION_COUNT = 33;
+export const PAN_POSITION_MAX = PAN_POSITION_COUNT - 1;
+export const PAN_CENTER_POS = Math.floor(PAN_POSITION_MAX / 2);
+
+export function clampPanPosition(value: unknown): number {
+  const n = Math.round(Number(value));
+  return Math.max(0, Math.min(PAN_POSITION_MAX, Number.isFinite(n) ? n : PAN_CENTER_POS));
+}
+
+export function scalePanPosition(value: unknown, sourceCount: number): number {
+  const count = Math.max(1, Math.floor(Number(sourceCount)));
+  const pos = Math.max(0, Math.min(count - 1, Math.round(Number(value))));
+  if (!Number.isFinite(pos)) return PAN_CENTER_POS;
+  if (count <= 1) return PAN_CENTER_POS;
+  return Math.max(0, Math.min(PAN_POSITION_MAX, Math.round((pos / (count - 1)) * PAN_POSITION_MAX)));
+}
 
 export function clampPartIndex(value: unknown): number {
   return Math.max(0, Math.min(PLATFORM_CAPS.partCount - 1, Number(value) | 0));

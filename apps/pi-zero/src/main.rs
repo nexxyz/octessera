@@ -93,6 +93,7 @@ fn default_pi_instruments() -> InstrumentsConfig {
             .collect(),
         mixer: None,
         pan_positions: DEFAULT_PAN_POSITIONS,
+        master_volume: 100.0,
     }
 }
 

@@ -144,7 +144,7 @@ test("auto-save default debounces repeated config edits", async () => {
   runtime.start();
   selectLabel("System");
   press();
-  selectLabel("Presets");
+  selectLabel("Saves");
   press();
   selectLabel("Default");
   press();
@@ -207,7 +207,7 @@ test("deferred auto-save flashes for ~500ms after save", async () => {
   runtime.start();
   selectLabel("System");
   press();
-  selectLabel("Presets");
+  selectLabel("Saves");
   press();
   selectLabel("Default");
   press();
@@ -279,7 +279,7 @@ test("manual Save Default also triggers flash", async () => {
   runtime.start();
   selectLabel("System");
   press();
-  selectLabel("Presets");
+  selectLabel("Saves");
   press();
   selectLabel("Default");
   press();
@@ -335,7 +335,7 @@ test("deferred auto-save triggers flash", async () => {
   runtime.start();
   selectLabel("System");
   press();
-  selectLabel("Presets");
+  selectLabel("Saves");
   press();
   selectLabel("Default");
   press();

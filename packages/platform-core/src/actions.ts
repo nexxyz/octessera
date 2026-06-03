@@ -1,6 +1,7 @@
 import type { DeviceInput } from "@cellsymphony/device-contracts";
 import type { PlatformEffect, PlatformState } from "./index";
 import { PLATFORM_CAPS } from "./platformCaps";
+import { DEFAULT_PAN_POS } from "./runtimeDefaults";
 import { makeToast } from "./toast";
 
 type ActionDeps<TState> = {
@@ -155,7 +156,7 @@ export function handleMenuAction<TState>(state: PlatformState<TState>, action: a
   if (action.type === "instrument_reset") {
     const instruments = Array.isArray((state.runtimeConfig as any).instruments) ? [...((state.runtimeConfig as any).instruments as any[])] : [];
     if (!instruments[action.slot]) return state;
-    instruments[action.slot] = { type: "none", autoName: true, name: "none", midi: { enabled: false, channel: action.slot }, synth: {}, sample: { baseVelocity: 100, velocityLevelsEnabled: false, velocityLevels: { high: 120, medium: 85, low: 45 }, selectedSlot: 0, slots: Array.from({ length: PLATFORM_CAPS.sampleSlotCount }, () => ({ path: null })), tuneSemis: 0, amp: {}, ampEnv: {}, filter: {}, filterEnv: {}, assignments: [] }, midiEngine: { velocity: 100, durationMs: 120 }, mixer: { route: "direct", panPos: Math.floor(PLATFORM_CAPS.gridWidth / 2), volume: 100 } };
+    instruments[action.slot] = { type: "none", autoName: true, name: "none", midi: { enabled: false, channel: action.slot }, synth: {}, sample: { baseVelocity: 100, velocityLevelsEnabled: false, velocityLevels: { high: 120, medium: 85, low: 45 }, selectedSlot: 0, slots: Array.from({ length: PLATFORM_CAPS.sampleSlotCount }, () => ({ path: null })), tuneSemis: 0, amp: {}, ampEnv: {}, filter: {}, filterEnv: {}, assignments: [] }, midiEngine: { velocity: 100, durationMs: 120 }, mixer: { route: "direct", panPos: DEFAULT_PAN_POS, volume: 100 } };
     return { ...state, runtimeConfig: { ...state.runtimeConfig, instruments } as any };
   }
   if (action.type === "behavior_action") {

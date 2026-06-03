@@ -34,6 +34,7 @@ fn applies_instrument_config() {
         }],
         mixer: None,
         pan_positions: DEFAULT_PAN_POSITIONS,
+        master_volume: 100.0,
     });
     engine.note_on(0, 60, 100, 120);
     let s = engine.next_sample();
@@ -55,6 +56,7 @@ fn mixer_volume_controls_synth_output() {
         }],
         mixer: None,
         pan_positions: DEFAULT_PAN_POSITIONS,
+        master_volume: 100.0,
     });
     let mut full = SynthEngine::new(48_000);
     full.set_instruments(InstrumentsConfig {
@@ -69,6 +71,7 @@ fn mixer_volume_controls_synth_output() {
         }],
         mixer: None,
         pan_positions: DEFAULT_PAN_POSITIONS,
+        master_volume: 100.0,
     });
     muted.note_on(0, 60, 127, 500);
     full.note_on(0, 60, 127, 500);
@@ -97,6 +100,7 @@ fn mixer_pan_controls_synth_output() {
         }],
         mixer: None,
         pan_positions: DEFAULT_PAN_POSITIONS,
+        master_volume: 100.0,
     });
     engine.note_on(0, 60, 127, 500);
     let mut left_sum = 0.0_f32;
@@ -136,6 +140,7 @@ fn routes_through_dynamic_bus_count_without_allocating_bus_vec() {
             ],
         }),
         pan_positions: DEFAULT_PAN_POSITIONS,
+        master_volume: 100.0,
     });
     engine.note_on(0, 60, 100, 120);
     for _ in 0..1024 {
@@ -190,6 +195,7 @@ fn set_instruments_preserves_unchanged_fx_state() {
         instruments: instruments(cfg),
         mixer: mixer.clone(),
         pan_positions: DEFAULT_PAN_POSITIONS,
+        master_volume: 100.0,
     });
     engine.note_on(0, 60, 100, 500);
     for _ in 0..128 {
@@ -204,6 +210,7 @@ fn set_instruments_preserves_unchanged_fx_state() {
         instruments: instruments(changed),
         mixer,
         pan_positions: DEFAULT_PAN_POSITIONS,
+        master_volume: 100.0,
     });
     let after = engine
         .delay_state_probe(0, 0)
@@ -217,7 +224,7 @@ fn sample_instrument_routes_through_bus_fx_delay_tail() {
     let mut engine = SynthEngine::new(48_000);
     engine.set_instruments(InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
-            kind: "sample".to_string(),
+            kind: "sampler".to_string(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
                 route: "fx_bus_1".to_string(),
@@ -239,6 +246,7 @@ fn sample_instrument_routes_through_bus_fx_delay_tail() {
             }],
         }),
         pan_positions: DEFAULT_PAN_POSITIONS,
+        master_volume: 100.0,
     });
     engine.set_sample_banks(vec![sample_bank(vec![1.0, 0.0, 0.0, 0.0])]);
     engine.note_on(0, 36, 127, 1_000);
@@ -254,6 +262,87 @@ fn sample_instrument_routes_through_bus_fx_delay_tail() {
         tail > 0.1,
         "sample routed through delay bus should produce a delayed tail"
     );
+}
+
+#[test]
+fn sample_preview_routes_through_bus_fx_delay_tail() {
+    let mut engine = SynthEngine::new(48_000);
+    engine.set_instruments(InstrumentsConfig {
+        instruments: vec![InstrumentSlotConfig {
+            kind: "sampler".to_string(),
+            synth: default_synth_config(),
+            mixer: Some(InstrumentMixerConfig {
+                route: "fx_bus_1".to_string(),
+                pan_pos: DEFAULT_PAN_POSITIONS / 2,
+                volume: 100.0,
+            }),
+        }],
+        mixer: Some(MixerConfig {
+            buses: vec![FxBusConfig {
+                slots: vec![FxBusSlotConfig::Config {
+                    kind: "delay".to_string(),
+                    params: BTreeMap::from([
+                        ("timeMs".to_string(), serde_json::json!(1.0)),
+                        ("feedback".to_string(), serde_json::json!(0.0)),
+                        ("mixPct".to_string(), serde_json::json!(100.0)),
+                    ]),
+                }],
+                pan_pos: DEFAULT_PAN_POSITIONS / 2,
+            }],
+        }),
+        pan_positions: DEFAULT_PAN_POSITIONS,
+        master_volume: 100.0,
+    });
+    let buffer = SampleBuffer { samples: vec![1.0, 0.0, 0.0, 0.0].into(), channels: 1, sample_rate: 48_000 };
+    engine.preview_sample(0, buffer, 127);
+
+    for _ in 0..47 {
+        let _ = engine.next_stereo_sample();
+    }
+    let before_tail = engine.next_sample().abs();
+    let tail = engine.next_sample().abs();
+
+    assert!(before_tail < 1.0e-6);
+    assert!(tail > 0.1, "sample preview should route through the delay bus");
+}
+
+#[test]
+fn master_volume_controls_final_output_gain() {
+    let mut full = SynthEngine::new(48_000);
+    full.set_instruments(InstrumentsConfig {
+        instruments: vec![InstrumentSlotConfig {
+            kind: "sampler".to_string(),
+            synth: default_synth_config(),
+            mixer: Some(InstrumentMixerConfig { route: "direct".to_string(), pan_pos: DEFAULT_PAN_POSITIONS / 2, volume: 100.0 }),
+        }],
+        mixer: None,
+        pan_positions: DEFAULT_PAN_POSITIONS,
+        master_volume: 100.0,
+    });
+    let mut half = SynthEngine::new(48_000);
+    half.set_instruments(InstrumentsConfig {
+        instruments: vec![InstrumentSlotConfig {
+            kind: "sampler".to_string(),
+            synth: default_synth_config(),
+            mixer: Some(InstrumentMixerConfig { route: "direct".to_string(), pan_pos: DEFAULT_PAN_POSITIONS / 2, volume: 100.0 }),
+        }],
+        mixer: None,
+        pan_positions: DEFAULT_PAN_POSITIONS,
+        master_volume: 50.0,
+    });
+    full.set_sample_banks(vec![sample_bank(vec![1.0, 1.0, 1.0, 1.0])]);
+    half.set_sample_banks(vec![sample_bank(vec![1.0, 1.0, 1.0, 1.0])]);
+    full.note_on(0, 36, 127, 1_000);
+    half.note_on(0, 36, 127, 1_000);
+
+    let mut full_sum = 0.0_f32;
+    let mut half_sum = 0.0_f32;
+    for _ in 0..4 {
+        full_sum += full.next_sample().abs();
+        half_sum += half.next_sample().abs();
+    }
+
+    assert!(half_sum > full_sum * 0.45 && half_sum < full_sum * 0.55, "master volume should scale final output gain");
 }
 
 #[test]
@@ -302,6 +391,7 @@ fn all_filter_types_generate_finite_non_silent_audio() {
             }],
             mixer: None,
             pan_positions: DEFAULT_PAN_POSITIONS,
+        master_volume: 100.0,
         });
 
         engine.note_on(0, 64, 110, 220);
@@ -971,6 +1061,7 @@ fn compressor_quieter_when_above_threshold() {
         ],
         mixer: None,
         pan_positions: 8,
+        master_volume: 100.0,
     });
 
     let mut engine = SynthEngine::new(48_000);
@@ -1007,6 +1098,7 @@ fn compressor_quieter_when_above_threshold() {
             }],
         }),
         pan_positions: 8,
+        master_volume: 100.0,
     });
 
     dry.note_on(0, 60, 127, 500);
@@ -1045,6 +1137,7 @@ fn compressor_makeup_restores_gain() {
         ],
         mixer: None,
         pan_positions: 8,
+        master_volume: 100.0,
     });
 
     let mut engine = SynthEngine::new(48_000);
@@ -1081,6 +1174,7 @@ fn compressor_makeup_restores_gain() {
             }],
         }),
         pan_positions: 8,
+        master_volume: 100.0,
     });
 
     dry.note_on(0, 60, 127, 500);
@@ -1115,6 +1209,7 @@ fn eq_boosts_and_cuts_band_energy() {
         ],
         mixer: None,
         pan_positions: 8,
+        master_volume: 100.0,
     });
 
     let mut engine = SynthEngine::new(48_000);
@@ -1151,6 +1246,7 @@ fn eq_boosts_and_cuts_band_energy() {
             }],
         }),
         pan_positions: 8,
+        master_volume: 100.0,
     });
 
     flat.note_on(0, 60, 127, 1000);
@@ -1190,7 +1286,7 @@ fn duck_test_engine(with_duck: bool) -> SynthEngine {
     engine.set_instruments(InstrumentsConfig {
         instruments: vec![
             InstrumentSlotConfig {
-                kind: "sample".to_string(),
+                kind: "sampler".to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
                     route: "fx_bus_2".to_string(),
@@ -1199,7 +1295,7 @@ fn duck_test_engine(with_duck: bool) -> SynthEngine {
                 }),
             },
             InstrumentSlotConfig {
-                kind: "sample".to_string(),
+                kind: "sampler".to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
                     route: "fx_bus_1".to_string(),
@@ -1221,6 +1317,7 @@ fn duck_test_engine(with_duck: bool) -> SynthEngine {
             ],
         }),
         pan_positions: DEFAULT_PAN_POSITIONS,
+        master_volume: 100.0,
     });
     engine.set_sample_banks(vec![
         sample_bank(vec![1.0; 512]),

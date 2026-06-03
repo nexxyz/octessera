@@ -2,7 +2,7 @@ import { type BehaviorEngine, getBehavior, listBehaviorIds } from "@cellsymphony
 import { loadDefaultMappingConfig } from "@cellsymphony/mapping-core";
 import type { PartConfig, PlatformState, RuntimeConfig } from "./platformTypes";
 import { SYNTH_PRESETS } from "./synthPresets";
-import { PLATFORM_CAPS } from "./platformCaps";
+import { PAN_POSITION_COUNT, PLATFORM_CAPS } from "./platformCaps";
 import {
   DEFAULT_VELOCITY_LEVELS,
   DEFAULT_MIDI_ENGINE,
@@ -22,6 +22,7 @@ import {
 } from "./runtimeDefaults";
 import { defaultMomentaryFxParams } from "./momentaryFx";
 import { deadlineMs, nowMs, STARTUP_SPLASH_MS } from "./timing";
+import { emptyParamModAxisSlots } from "./paramMod";
 
 export function createInitialPlatformState<TState>(behavior: BehaviorEngine<TState, unknown>): PlatformState<TState> {
   const now = nowMs();
@@ -93,6 +94,7 @@ export function createInitialPlatformState<TState>(behavior: BehaviorEngine<TSta
     },
     activePartIndex: 0,
     ghostCells: false,
+    panPositions: PAN_POSITION_COUNT,
     parts: [],
     instruments,
     mixer: {
@@ -135,6 +137,7 @@ export function createInitialPlatformState<TState>(behavior: BehaviorEngine<TSta
         scanned_empty: { action: defaultMapping.scanned_empty.action, slot: defaultMapping.scanned_empty.channel }
       }
     },
+    paramMods: emptyParamModAxisSlots(),
     autoName: true,
     name: idx === 0 ? "mock" : "life"
   });

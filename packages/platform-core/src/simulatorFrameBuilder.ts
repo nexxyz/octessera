@@ -1,9 +1,10 @@
 import type { BehaviorEngine } from "@cellsymphony/behavior-api";
 import { type DisplayFrame, type SimulatorFrame } from "@cellsymphony/device-contracts";
-import type { BarValue, PlatformState } from "./platformTypes";
+import type { AuxTurnBinding, BarValue, PlatformState } from "./platformTypes";
 import { OLED_TEXT_LINES } from "./platformTypes";
 import { nowMs } from "./timing";
 import { cellsToLeds, sampleAssignmentToLeds, touchModeToLeds } from "./runtimeHelpers";
+import { paramModOverlayToLeds } from "./paramMod";
 import { renderOledFrame } from "./oledRender";
 import { logoSepia128Rgb565be } from "./oledAssets/logoSepia128_rgb565be";
 import { logo128Rgb565be } from "./oledAssets/logo128_rgb565be";
@@ -21,6 +22,7 @@ type Args<TState> = {
   toOledLines: (display: DisplayFrame) => OledLines;
   audioLoad?: { ratio: number; voiceSteal: boolean };
   ghostCells?: boolean[];
+  paramModBinding?: AuxTurnBinding | null;
 };
 
 function audioLoadIndicator(status: { ratio: number; voiceSteal: boolean } | undefined): "yellow" | "red" | undefined {
@@ -71,21 +73,22 @@ export function buildSimulatorFrame<TState>(args: Args<TState>): SimulatorFrame 
   });
   const sampleAssign = state.system.sampleAssign;
   const assignLeds = (() => {
-    if (!sampleAssign) return null;
-    const inst = (state.runtimeConfig as any).instruments?.[sampleAssign.instrumentSlot];
-    if (!inst || inst.type !== "sample") return null;
+   if (!sampleAssign) return null;
+     const inst = (state.runtimeConfig as any).instruments?.[sampleAssign.instrumentSlot];
+     if (!inst || inst.type !== "sampler") return null;
     const assignments = Array.isArray(inst.sample?.assignments) ? inst.sample.assignments : [];
     const levels = inst.sample?.velocityLevelsEnabled === true;
     return sampleAssignmentToLeds(assignments, sampleAssign.sampleSlot, levels, state.runtimeConfig.gridBrightness / 100);
   })();
   const touchLeds = touchModeToLeds(state, state.runtimeConfig.gridBrightness / 100, args.ghostCells);
+  const paramModLeds = paramModOverlayToLeds(state, args.paramModBinding ?? null, state.runtimeConfig.gridBrightness / 100);
   return {
     display: baseDisplay,
     oled,
     leds: {
       width: PLATFORM_CAPS.gridWidth,
       height: PLATFORM_CAPS.gridHeight,
-      cells: assignLeds ?? touchLeds ?? cellsToLeds(model.cells, model.triggerTypes, scanCursor, state.runtimeConfig.gridBrightness / 100, state.system.fnHeld, activePart, args.ghostCells, state.system.touchMode, (state.runtimeConfig as any).parts)
+      cells: assignLeds ?? touchLeds ?? paramModLeds ?? cellsToLeds(model.cells, model.triggerTypes, scanCursor, state.runtimeConfig.gridBrightness / 100, state.system.fnHeld, activePart, args.ghostCells, state.system.touchMode, (state.runtimeConfig as any).parts)
     },
     transport: state.transport,
     activeBehavior: model.name,

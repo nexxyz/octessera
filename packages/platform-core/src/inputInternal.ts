@@ -4,7 +4,7 @@ import type { PlatformEffect, PlatformState, RuntimeConfig } from "./index";
 import type { TouchMode } from "./platformTypes";
 import { clamp } from "./coreUtils";
 import { clampInstrumentIndex, clampPartIndex, clampSampleSlotIndex, PLATFORM_CAPS } from "./platformCaps";
-import { resolveTouchPanTarget, toGridSnapshot, touchPanPosFromGridX } from "./runtimeHelpers";
+import { resolveDancePanTarget, toGridSnapshot, touchPanPosFromGridX } from "./runtimeHelpers";
 import { activateMomentaryFx, applyFxAssignment, releaseMomentaryFx } from "./touchFxRuntime";
 import { visibleChildren } from "./menuView";
 import { makeToast } from "./toast";
@@ -34,7 +34,7 @@ export function handleTouchGridPress<TState>(
     const instruments = Array.isArray((state.runtimeConfig as any).instruments) ? ((state.runtimeConfig as any).instruments as any[]) : [];
     if ((instruments[inst] as any)?.type === "none") return state;
     const panPos = touchPanPosFromGridX(input.x);
-    const target = resolveTouchPanTarget(state as PlatformState<unknown>, inst);
+    const target = resolveDancePanTarget(state as PlatformState<unknown>, inst);
     if (target.route === "bus") {
       const afterBus = deps.writeAnyValue(state, `mixer.buses.${target.busIndex}.panPos`, panPos);
       return deps.writeAnyValue(afterBus, `instruments.${inst}.mixer.panPos`, panPos);
@@ -102,11 +102,11 @@ export function handleTouchGridPress<TState>(
         parts: newParts
       }
     };
-  }
+ }
   return state;
-}
+ }
 
-export function handleTriggerGateExit<TState>(
+ export function handleTriggerGateExit<TState>(
   state: PlatformState<TState>,
   effects: PlatformEffect[]
 ): PlatformState<TState> {
@@ -160,8 +160,8 @@ export function applySampleAssignment<TState>(
   const gx = clamp(Math.floor(x), 0, PLATFORM_CAPS.gridWidth - 1);
   const gy = clamp(Math.floor(y), 0, PLATFORM_CAPS.gridHeight - 1);
   const instruments = Array.isArray((state.runtimeConfig as any).instruments) ? (state.runtimeConfig.instruments as any[]) : [];
-  const inst = instruments[slot];
-  if (!inst || inst.type !== "sample") return state;
+   const inst = instruments[slot];
+   if (!inst || inst.type !== "sampler") return state;
   const sample = { ...(inst.sample ?? {}) };
   const levelsEnabled = sample.velocityLevelsEnabled === true;
   const assignments = Array.isArray(sample.assignments) ? ([...sample.assignments] as any[]) : [];

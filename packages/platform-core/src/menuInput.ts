@@ -33,7 +33,7 @@ export function pressMenuInput<TState>(state: PlatformState<TState>, effects: Pl
     }
     const nextMenu = { ...state.menu, stack: [...state.menu.stack, state.menu.cursor], cursor: 0 };
     let nextState: PlatformState<TState> = { ...state, menu: nextMenu };
-    if (label === "Presets" || label === "Load" || label === "Delete" || label === "Rename") effects.push({ type: "store_list_presets" });
+    if (label === "Saves" || label === "Load" || label === "Delete" || label === "Rename") effects.push({ type: "store_list_presets" });
     if (label === "MIDI Out") effects.push({ type: "midi_list_outputs_request" });
     if (label === "MIDI In") effects.push({ type: "midi_list_inputs_request" });
     if (label === "Save As") {
@@ -67,7 +67,7 @@ export function pressMenuInput<TState>(state: PlatformState<TState>, effects: Pl
   }
 
   if (selected.kind === "action") return deps.handleAction(state, selected.action, effects);
-  if (selected.kind === "enum" && selected.key === "transport.playing") return { ...state, transport: { ...state.transport, playing: !state.transport.playing } };
+   if (selected.kind === "enum" && selected.key === "transport.playing") return { ...state, transport: { ...state.transport, playing: !state.transport.playing } };
 
   if (selected.kind === "text") {
     const current = String(deps.readAnyValue(state, selected.key) ?? "");

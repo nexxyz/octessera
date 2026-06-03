@@ -1,6 +1,6 @@
 import type { MenuNode } from "./index";
 import { FX_SLOT_TYPES } from "./fxDefaults";
-import { PLATFORM_CAPS } from "./platformCaps";
+import { PAN_POSITION_MAX, PLATFORM_CAPS } from "./platformCaps";
 import { fxBusLabel } from "./coreUtils";
 
 function duckSourceOptions(busIdx: number): string[] {
@@ -108,7 +108,7 @@ function fxSlotNode(busIdx: number, slotIdx: 1 | 2): MenuNode {
         label: "reverb",
         visible: effectVisible(busIdx, slotKey, "reverb"),
         children: [
-          { kind: "number", label: "Decay", key: `mixer.buses.${busIdx}.${slotKey}.params.decay`, min: 0, max: 0.95, step: 0.01 },
+          { kind: "number", label: "Decay", key: `mixer.buses.${busIdx}.${slotKey}.params.decay`, min: 0, max: 0.995, step: 0.005 },
           { kind: "number", label: "Damp", key: `mixer.buses.${busIdx}.${slotKey}.params.damp`, min: 0, max: 0.98, step: 0.01 },
           { kind: "number", label: "Mix %", key: `mixer.buses.${busIdx}.${slotKey}.params.mixPct`, min: 0, max: 100, step: 1 }
         ]
@@ -176,7 +176,7 @@ export function fxBusesMenuNode(state?: any): MenuNode {
       children: [
         fxSlotNode(busIdx, 1),
         fxSlotNode(busIdx, 2),
-        { kind: "number", label: "Pan Pos", key: `mixer.buses.${busIdx}.panPos`, min: 0, max: PLATFORM_CAPS.gridWidth - 1, step: 1 },
+        { kind: "number", label: "Pan Pos", key: `mixer.buses.${busIdx}.panPos`, min: 0, max: PAN_POSITION_MAX, step: 1 },
         { kind: "bool", label: "Auto Name", key: `mixer.buses.${busIdx}.autoName` },
         { kind: "text", label: "Name", key: `mixer.buses.${busIdx}.name`, maxLen: 32 }
       ]

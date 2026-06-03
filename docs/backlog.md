@@ -188,7 +188,7 @@ Consistent, well-ordered menus.
 - Instrument children: Type → Note Behavior → engine → Mixer → Clone/Reset → MIDI → Auto Name → Name
 - Synth internal: Oscillator → Filter (flattened) → Volume; Osc params: Wave→Octave→Level→Detune→PW
 - Sample: Filter group before Volume
-- Audio+Sound merged into Sound; system groups: Presets → Sound → MIDI → UI Settings
+- Audio+Sound merged into Sound; system groups: Saves → Sound → MIDI → UI
 - FX bus config: Slot 1 → Slot 2 → Pan Pos → Auto Name → Name
 - FX_SLOT_TYPES reordered by category: reverb/delay→time, tremolo→modulation, eq→compressor→dynamics, saturator→drive, bitcrusher→glitch
 - Docs updated (`menu-and-controls-spec.md`, `menu-help-texts.tsv`)
@@ -337,7 +337,7 @@ Show dimmed/ghosted cells from inactive parts on the grid, toggleable.
 - Off by default (clarity first).
 
 **Implementation:**
-- Added `runtimeConfig.ghostCells`, default `false`, with `System > UI Settings > Ghost Cells` toggle.
+- Added `runtimeConfig.ghostCells`, default `false`, with `System > UI > Ghost Cells` toggle.
 - `toSimulatorFrame()` collects inactive part cells from each part's behavior state and passes a ghost overlay to LED rendering.
 - Active part cells, scan cursor, Fn indicators, and sample assignment overlays retain priority over ghost cells.
 - Tests cover default-off behavior and active-cell override.

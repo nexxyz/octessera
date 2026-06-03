@@ -1,4 +1,3 @@
-use crate::{AppState, QueuedAudioEvent};
 use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -15,19 +14,6 @@ pub struct SampleEntry {
 pub fn sample_list(dir: String) -> Result<Vec<SampleEntry>, String> {
     let root = resolve_samples_root()?;
     sample_list_from_root(&root, &dir)
-}
-
-#[tauri::command]
-pub fn sample_preview(path: String, state: tauri::State<AppState>) -> Result<(), String> {
-    let full_path = resolve_sample_file(&path).ok_or_else(|| "invalid sample path".to_string())?;
-    state
-        .trigger_tx
-        .send(QueuedAudioEvent::PreviewSample {
-            path: full_path,
-            gain: 1.0,
-            rate: 1.0,
-        })
-        .map_err(|e| format!("audio queue send failed: {e}"))
 }
 
 pub(crate) fn resolve_sample_file(path: &str) -> Option<String> {

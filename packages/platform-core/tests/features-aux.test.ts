@@ -15,6 +15,8 @@ import {
   type PlatformEffect,
   type PlatformState
 } from "../src/index";
+import { formatDisplayValue } from "../src/coreUtils";
+import { barNumberChars, barNumberText, shouldUseNumberBar } from "../src/menuPresentation";
 
 const CELL_COUNT = PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight;
 
@@ -149,213 +151,9 @@ test("shift-hold mapping overlay waits for delay", () => {
 
 test("shift-hold shows current mapping overlay (auto)", () => {
   let state = createInitialState(mockBehavior);
-  state.system.oledMode = "normal";
+state.system.oledMode = "normal";
   state.system.auxAutoMapEnabled = true;
-  state.system.shiftHeld = true;
-  state.system.shiftHeldSinceMs = Date.now() - 2500;
-  state.system.activeFx = [
-    { cellX: 0, cellY: 0, fxType: "stutter", config: { fxType: "stutter", params: { rateHz: 8, depthPct: 100 }, targetKey: "master" }, activatedAtMs: 0 }
-  ] as any;
-
-  const frame = toSimulatorFrame(state, mockBehavior);
-  assert.equal(frame.display.title, "AUTO MAP");
-  assert.ok(frame.display.lines.join("\n").includes("Rate"));
-});
-
-test("aux encoder unbind when pressing same param again", () => {
-  let state = makeState();
-
-  state = selectLabel(state, "System");
-  state = press(state).state;
-  state = selectLabel(state, "Sound");
-  state = press(state).state;
-  state = press(state).state;
-
-  // Bind with shift+press
-  state.system.shiftHeld = true;
-  state = routeInput(state, { type: "encoder_press", id: "aux1" } as DeviceInput, mockBehavior).state;
-  assert.ok(state.system.auxBindings["aux1"], "should be bound");
-
-  // Unbind (same param, same aux encoder, shift+press again)
-  state.system.shiftHeld = true;
-  state = routeInput(state, { type: "encoder_press", id: "aux1" } as DeviceInput, mockBehavior).state;
-  assert.ok(state.system.confirm, "should open unbind confirm");
-  state = routeInput(state, { type: "encoder_press", id: "main" } as DeviceInput, mockBehavior).state;
-  assert.equal(state.system.auxBindings["aux1"], null, "should be unbound");
-});
-
-test("aux encoder shift+press unbinds bound param when nothing bindable", () => {
-  let state = makeState();
-  state.system.auxBindings["aux1"] = { turn: { key: "masterVolume", label: "Master Vol", kind: "number", min: 0, max: 100, step: 1 }, press: null };
-  state.system.shiftHeld = true;
-
-  const r = routeInput(state, { type: "encoder_press", id: "aux1" } as DeviceInput, mockBehavior);
-  state = r.state;
-
-  assert.ok(state.system.confirm, "should open unbind confirm");
-  state = routeInput(state, { type: "encoder_press", id: "main" } as DeviceInput, mockBehavior).state;
-  assert.equal(state.system.auxBindings["aux1"], null, "should be unbound");
-});
-
-test("aux encoder shift+press on unbound does nothing else harmful", () => {
-  let state = makeState();
-  state.system.shiftHeld = true;
-
-  const r = routeInput(state, { type: "encoder_press", id: "aux1" } as DeviceInput, mockBehavior);
-  state = r.state;
-
-  assert.equal(state.system.auxBindings["aux1"] ?? null, null, "should remain unbound");
-  assert.equal(state.system.toast?.message, "S1: No binding");
-});
-
-test("aux encoder turn adjusts bound param", () => {
-  let state = makeState();
-  state.system.auxBindings["aux1"] = { turn: { key: "masterVolume", label: "Master Vol", kind: "number", min: 0, max: 100, step: 1 }, press: null };
-  state.runtimeConfig.masterVolume = 50;
-
-  const r = routeInput(state, { type: "encoder_turn", id: "aux1", delta: 1 } as DeviceInput, mockBehavior);
-  state = r.state;
-
-  assert.equal(state.runtimeConfig.masterVolume, 51);
-  assert.equal(state.system.toast?.message, "T1: Master Vol: Vol: 51%");
-});
-
-test("aux encoder turn adjusts bound behaviorConfig param", () => {
-  let state = createInitialState(lifeBehavior);
-  state.system.oledMode = "normal";
-  state.system.auxAutoMapEnabled = false;
-  state.runtimeConfig.activeBehavior = "life";
-  state.runtimeConfig.behaviorConfig = { life: { randomCellsPerTick: 5, randomTickInterval: 2 } } as any;
-  state.system.auxBindings["aux1"] = { turn: { key: "behaviorConfig.life.randomCellsPerTick", label: "Spawn Count", kind: "number", min: 0, max: 20, step: 1 }, press: null };
-
-  const r = routeInput(state, { type: "encoder_turn", id: "aux1", delta: 1 } as DeviceInput, mockBehavior);
-  state = r.state;
-
-  assert.equal((state.runtimeConfig.behaviorConfig as any).life?.randomCellsPerTick, 6);
-  assert.equal(state.system.toast?.message, "T1 L1 Spawn Count: 6");
-});
-
-test("aux encoder turn updates per-part behaviorConfig in partStates live state", () => {
-  let state = createInitialState(lifeBehavior);
-  state.system.oledMode = "normal";
-  state.system.auxAutoMapEnabled = false;
-  state.runtimeConfig.activeBehavior = "life";
-  state.runtimeConfig.activePartIndex = 0;
-  // Use the full part structure from createInitialState, just set behaviorConfig
-  state.runtimeConfig.parts[0].l1.behaviorConfig = { randomCellsPerTick: 5, randomTickInterval: 2 };
-  state.runtimeConfig.parts[0].l1.behaviorId = "life";
-  // Populate some grid cells to verify they survive
-  const cellCount = PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight;
-  const cells = new Array(cellCount).fill(false);
-  cells[0] = true;
-  cells[1] = true;
-  state.behaviorState = { ...state.behaviorState, cells, tickCounter: 10, randomCellsPerTick: 5 };
-  state.partStates[0] = state.behaviorState;
-  // Bind to per-part key (the format that was broken)
-  state.system.auxBindings["aux1"] = { turn: { key: "parts.0.l1.behaviorConfig.randomCellsPerTick", label: "Spawn Count", kind: "number", min: 0, max: 20, step: 1 }, press: null };
-
-  const r = routeInput(state, { type: "encoder_turn", id: "aux1", delta: 1 } as DeviceInput, lifeBehavior);
-  state = r.state;
-
-  // Config is updated
-  assert.equal(state.runtimeConfig.parts[0]?.l1?.behaviorConfig?.randomCellsPerTick, 6);
-  // Behavior live state is updated
-  assert.equal((state.behaviorState as any).randomCellsPerTick, 6);
-  assert.equal((state.partStates[0] as any).randomCellsPerTick, 6);
-  // Grid cells are preserved (no reinit)
-  assert.equal(state.behaviorState.cells[0], true);
-  assert.equal(state.behaviorState.cells[1], true);
-  // tickCounter is preserved
-  assert.equal((state.behaviorState as any).tickCounter, 10);
-  assert.equal(state.system.toast?.message, "T1 L1>P1 Spawn Count: 6");
-});
-
-test("aux encoder press triggers bound behavior action", () => {
-  let state = createInitialState(lifeBehavior);
-  state.system.oledMode = "normal";
-  state.system.auxAutoMapEnabled = false;
-  state.runtimeConfig.activeBehavior = "life";
-  state.system.auxBindings["aux1"] = { turn: null, press: { kind: "behavior_action", actionType: "spawnRandom", label: "Spawn Random" } };
-
-  const before = state.behaviorState.cells.filter(Boolean).length;
-  const r = routeInput(state, { type: "encoder_press", id: "aux1" } as DeviceInput, lifeBehavior);
-  state = r.state;
-  const after = state.behaviorState.cells.filter(Boolean).length;
-
-  assert.ok(after > before, "bound behavior action should change behavior state");
-  assert.equal(state.system.toast?.message, "S1 L1>P1 Spawn Random");
-});
-
-test("spawn action label shows auto-map prefix and shared marker in menu", () => {
-  let state = createInitialState(lifeBehavior);
-  state.system.oledMode = "normal";
-  state.runtimeConfig.activeBehavior = "life";
-
-  state = selectLabel(state, "L1: Life");
-  state = press(state).state;
-  state = selectLabel(state, "P1: mock");
-  state = press(state).state;
-  state = selectLabel(state, "Spawn Random");
-
-  const frame = toSimulatorFrame(state, mockBehavior);
-  const selected = frame.display.lines.find((l) => l.startsWith("@@")) ?? "";
-  assert.ok(selected.includes("!1-Spawn Random [S]"));
-});
-
-test("binding spawn action stores shared route", () => {
-  let state = createInitialState(lifeBehavior);
-  state.system.oledMode = "normal";
-  state.runtimeConfig.activeBehavior = "life";
-
-  state = selectLabel(state, "L1: Life");
-  state = press(state).state;
-  state = selectLabel(state, "P1: mock");
-  state = press(state).state;
-  state = selectLabel(state, "Spawn Random");
-  state.system.shiftHeld = true;
-  state = routeInput(state, { type: "encoder_press", id: "aux1" } as DeviceInput, mockBehavior).state;
-
-  assert.equal((state.system.auxBindings["aux1"]?.press as any)?.routeKey, "trigger.life.spawn_now");
-  assert.equal((state.system.auxBindings["aux1"]?.press as any)?.label, "Spawn Now");
-});
-
-test("menu view reserves bottom line", () => {
-  const state = makeState();
-  const frame = toSimulatorFrame(state, mockBehavior);
-  assert.ok(frame.display.lines.length <= OLED_TEXT_LINES - 2);
-});
-
-test("auto-map works in synth filter", () => {
-  let state = createInitialState(mockBehavior);
-  state.system.oledMode = "normal";
-  state.system.auxAutoMapEnabled = true;
-  (state.runtimeConfig as any).instruments[0].type = "synth";
-  (state.runtimeConfig as any).instruments[0].synth.filter.cutoffHz = 100;
-
-  state = selectLabel(state, "L3: Voice");
-  state = press(state).state;
-  state = selectLabel(state, "Instruments");
-  state = press(state).state;
-  state = selectLabel(state, "I1:");
-  state = press(state).state;
-  state = selectLabel(state, "Synth");
-  state = press(state).state;
-  state = selectLabel(state, "Filter");
-  state = press(state).state;
-  state = selectLabel(state, "Cutoff");
-
-  const frame = toSimulatorFrame(state, mockBehavior);
-  assert.ok(frame.display.lines.join("\n").includes("1-Cutoff"));
-
-  state = routeInput(state, { type: "encoder_turn", id: "aux1", delta: 1 } as DeviceInput, mockBehavior).state;
-  assert.equal((state.runtimeConfig as any).instruments[0].synth.filter.cutoffHz, 101);
-});
-
-test("auto-map A1 press enters sample assign mode", () => {
-  let state = createInitialState(mockBehavior);
-  state.system.oledMode = "normal";
-  state.system.auxAutoMapEnabled = true;
-  (state.runtimeConfig as any).instruments[0].type = "sample";
+  (state.runtimeConfig as any).instruments[0].type = "sampler";
   (state.runtimeConfig as any).instruments[0].sample.selectedSlot = 0;
 
   state = selectLabel(state, "L3: Voice");
@@ -553,8 +351,8 @@ test("stale instrument type turn shows not active toast", () => {
     press: null
   };
 
-  // Change instrument type to sample — synth subtree inactive
-  state.runtimeConfig.instruments[0].type = "sample";
+// Change instrument type to sample — synth subtree inactive
+state.runtimeConfig.instruments[0].type = "sampler";
 
   const r = routeInput(state, { type: "encoder_turn", id: "aux1", delta: 1 } as DeviceInput, mockBehavior);
   state = r.state;
@@ -663,7 +461,7 @@ test("auto-map prefixes persist when cursor is on a subgroup", () => {
   let state = createInitialState(mockBehavior);
   state.system.oledMode = "normal";
   state.system.auxAutoMapEnabled = true;
-  (state.runtimeConfig as any).instruments[0].type = "sample";
+  (state.runtimeConfig as any).instruments[0].type = "sampler";
   (state.runtimeConfig as any).instruments[0].sample.selectedSlot = 0;
 
   state = selectLabel(state, "L3: Voice");

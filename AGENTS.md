@@ -45,6 +45,8 @@ Cell Symphony is a monorepo (pnpm workspaces) combining a TypeScript core engine
 - `visibleChildren()` filters nodes using optional `visible` predicate on `RuntimeConfig`
 - If you see changes in the repository that you did not make, always ask what to do with them.
 - When I tell you something, and later correct it, take my later instructions as my real intention, even if they contradict earlier statements.
+- Ensure that any bridging elements between TS and Rust are mapping correctly, e.g. when renaming or changing instrument type names, parameters or other shared structures.
+- You might be running on Windows, Mac or Linux. Take this into account, especially on tool-use (e.g. some tooling might not be available or work differently, depending on the OS).
 
 ## AI Assistant Guidelines
 
@@ -54,6 +56,7 @@ Cell Symphony is a monorepo (pnpm workspaces) combining a TypeScript core engine
 - Work on one package at a time; do not span multiple packages in a single task unless explicitly asked
 - When modifying a file, read only the relevant section first, not the whole file
 - When in "Planning" mode, do not output full code passages, but output enough detail so that implementation in "Build" mode is straightforward.
+- You're likely running on a local model. Execute subagent tasks sequentially.
 
 ### Task Scope
 - When in Plan mode, break large tasks into explicit steps and confirm the plan before making changes
@@ -72,11 +75,3 @@ Cell Symphony is a monorepo (pnpm workspaces) combining a TypeScript core engine
 
 ### Online Research
 - When you are facing a problem that you cannot reliably solve, utilize the tools at your disposal to find a solution online, in related resources or communities.
-
-### Task execution
-- At the start of every task, write the original goal verbatim, and a todo list to `TASK.md` in the project root.
-- Add instructions on the `TASK.md` lifecycle (as described here) to `TASK.md` itself.
-- Update `TASK.md` after each completed step
-- Re-read `TASK.md` before every tool call to verify the current action still serves the original goal
-- If the current action cannot be directly traced back to the goal in `TASK.md`, stop and re-read before proceeding
-- Delete `TASK.md` only when the task is fully complete and all tests pass

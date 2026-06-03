@@ -2,7 +2,7 @@ import { listBehaviorIds, type BehaviorEngine } from "@cellsymphony/behavior-api
 import type { MenuNode, PlatformState } from "./index";
 import { instrumentLabel, partLabel } from "./coreUtils";
 import { SYNTH_PRESETS } from "./synthPresets";
-import { clampSampleSlotIndex, instrumentIndexOptions, partIndexOptions, PLATFORM_CAPS, sampleSlotOptions, scanSectionOptions } from "./platformCaps";
+import { clampSampleSlotIndex, instrumentIndexOptions, PAN_POSITION_MAX, partIndexOptions, PLATFORM_CAPS, sampleSlotOptions, scanSectionOptions } from "./platformCaps";
 import { fxBusesMenuNode } from "./fxBusMenu";
 import { defaultMomentaryFxParams, MOMENTARY_FX_TYPES } from "./momentaryFx";
 
@@ -105,9 +105,9 @@ function l2PartGroup<TState>(state: PlatformState<TState>, deps: MenuTreeDeps<TS
       },
       deps.axisGroup("X Axis", `${prefix}.l2.x`, 1),
       deps.axisGroup("Y Axis", `${prefix}.l2.y`, 8)
-    ]
-  } satisfies MenuNode;
-}
+      ]
+   } satisfies MenuNode;
+ }
 
 export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTreeDeps<TState>): MenuNode {
   const instrumentSlotOptions = instrumentIndexOptions();
@@ -144,7 +144,7 @@ export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTr
                 kind: "group",
                 label: instLabel(idx),
                 children: [
-                  { kind: "enum", label: "Type", key: `${prefix}.type`, options: ["none", "synth", "sample", "midi"] },
+                  { kind: "enum", label: "Type", key: `${prefix}.type`, options: ["none", "synth", "sampler", "midi"] },
                   { kind: "enum", label: "Note Behavior", key: `${prefix}.noteBehavior`, options: ["oneshot", "hold"] },
                   {
                     kind: "group",
@@ -243,8 +243,8 @@ export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTr
                   },
                   {
                     kind: "group",
-                    label: "Sample",
-                    visible: (c: any) => c.instruments?.[idx]?.type === "sample",
+                    label: "Sampler",
+                    visible: (c: any) => c.instruments?.[idx]?.type === "sampler",
                     children: [
                       { kind: "enum", label: "Sample Slot", key: `${prefix}.sample.selectedSlot`, options: sampleSlots },
                       {
@@ -333,7 +333,7 @@ export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTr
                     children: [
                       { kind: "enum", label: "Route", key: `${prefix}.mixer.route`, options: ["direct", ...Array.from({ length: PLATFORM_CAPS.busCount }, (_, i) => `fx_bus_${i + 1}`)] },
                       { kind: "number", label: "Volume", key: `${prefix}.mixer.volume`, min: 0, max: 100, step: 1, displayStyle: "bar" },
-                      { kind: "number", label: "Pan Pos", key: `${prefix}.mixer.panPos`, min: 0, max: PLATFORM_CAPS.gridWidth - 1, step: 1 }
+                      { kind: "number", label: "Pan Pos", key: `${prefix}.mixer.panPos`, min: 0, max: PAN_POSITION_MAX, step: 1 }
                     ]
                   },
                   { kind: "action", label: "Clone", action: { type: "instrument_clone", slot: idx } },
@@ -357,9 +357,9 @@ export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTr
       },
       {
         kind: "group",
-        label: "L4: Touch",
+        label: "L4: Dance",
         children: [
-          { kind: "enum", label: "Touch Page", key: "system.touchMode", options: ["none", "mix", "pan", "fx", "trigger-gate"] },
+          { kind: "enum", label: "Dance Page", key: "system.touchMode", options: ["none", "mix", "pan", "fx", "trigger-gate"] },
           { kind: "number", label: "BPM", key: "transport.bpm", min: 40, max: 240, step: 1 },
           {
             kind: "group",
@@ -396,7 +396,7 @@ export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTr
         children: [
           {
             kind: "group",
-            label: "Presets",
+            label: "Saves",
             children: [
               {
                 kind: "group",
@@ -436,7 +436,7 @@ export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTr
               { kind: "group", label: "Sync & Clock", children: [{ kind: "enum", label: "Sync Mode", key: "midi.syncMode", options: ["internal", "external"] }, { kind: "bool", label: "Clock Out", key: "midi.clockOutEnabled" }, { kind: "bool", label: "Clock In", key: "midi.clockInEnabled" }, { kind: "bool", label: "Respond Start/Stop", key: "midi.respondToStartStop" }] }
             ]
           },
-          { kind: "group", label: "UI Settings", children: [{ kind: "bool", label: "Ghost Cells", key: "ghostCells" }, { kind: "bool", label: "Input Events While Paused", key: "inputEventsWhilePaused" }, { kind: "enum", label: "Numeric Display", key: "numericDisplayMode", options: ["bar", "numbers", "bar+numbers"] }, { kind: "number", label: "Screen Sleep", key: "screenSleepSeconds", min: 0, max: 600, step: 10 }, { kind: "number", label: "Display Brightness", key: "displayBrightness", min: 10, max: 100, step: 5, displayStyle: "bar" }, { kind: "number", label: "Grid Brightness", key: "gridBrightness", min: 10, max: 100, step: 5, displayStyle: "bar" }, { kind: "number", label: "Button Brightness", key: "buttonBrightness", min: 10, max: 100, step: 5, displayStyle: "bar" }] }
+          { kind: "group", label: "UI", children: [{ kind: "bool", label: "Ghost Cells", key: "ghostCells" }, { kind: "bool", label: "Input Events While Paused", key: "inputEventsWhilePaused" }, { kind: "enum", label: "Numeric Display", key: "numericDisplayMode", options: ["bar", "numbers", "bar+numbers"] }, { kind: "number", label: "Screen Sleep", key: "screenSleepSeconds", min: 0, max: 600, step: 10 }, { kind: "number", label: "Display Brightness", key: "displayBrightness", min: 10, max: 100, step: 5, displayStyle: "bar" }, { kind: "number", label: "Grid Brightness", key: "gridBrightness", min: 10, max: 100, step: 5, displayStyle: "bar" }, { kind: "number", label: "Button Brightness", key: "buttonBrightness", min: 10, max: 100, step: 5, displayStyle: "bar" }] }
         ]
       }
     ]

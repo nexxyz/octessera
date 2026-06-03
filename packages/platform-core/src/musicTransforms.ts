@@ -2,51 +2,92 @@ import type { MusicalEvent } from "@cellsymphony/musical-events";
 import type { RootName, RuntimeConfig, ScaleId, ValueLaneConfig } from "./platformTypes";
 import { DEFAULT_VELOCITY_HIGH, DEFAULT_VELOCITY_MEDIUM, DEFAULT_VELOCITY_LOW, DEFAULT_NOTE_LENGTH_MS } from "./runtimeDefaults";
 import { clampSampleSlotIndex, PLATFORM_CAPS, sectionCount } from "./platformCaps";
+import { writeValue } from "./coreUtils";
+import { paramModsForPart, scaledParamModValue } from "./paramMod";
 
-export function applyModulation(intents: { x: number; y: number; degree: number; kind: any }[], events: MusicalEvent[], cfg: RuntimeConfig): MusicalEvent[] {
-  const out: MusicalEvent[] = [];
-  for (let i = 0; i < events.length; i += 1) {
-    const event = events[i];
-    const intent = intents[i] ?? intents[intents.length - 1];
-    if (!intent) {
+export function applyModulation(intents: { x: number; y: number; degree: number; kind: any }[], events: MusicalEvent[], cfg: RuntimeConfig, partIndex: number = Number((cfg as any).activePartIndex ?? 0)): MusicalEvent[] {
+  return applyModulationResult(intents, events, cfg, cfg, partIndex).events;
+}
+
+export function applyModulationResult(
+  intents: { x: number; y: number; degree: number; kind: any }[],
+  events: MusicalEvent[],
+  eventCfg: RuntimeConfig,
+  runtimeCfg: RuntimeConfig,
+  partIndex: number = Number((runtimeCfg as any).activePartIndex ?? 0)
+): { events: MusicalEvent[]; runtimeConfig: RuntimeConfig } {
+    const out: MusicalEvent[] = [];
+    for (let i = 0; i < events.length; i += 1) {
+      const event = events[i];
+     const intent = intents[i] ?? intents[intents.length - 1];
+     if (!intent) {
+       out.push(event);
+       continue;
+      }
+      const targetChannel = event.type === "note_on" ? event.channel : 0;
+      const ccs = ccFromIntent(intent, eventCfg, targetChannel);
+      out.push(...ccs);
+      if (event.type === "note_on") {
+        const sampleResolved = resolveSampleAssignedNote(intent, eventCfg, event.channel, event.velocity, velocityFromIntent(intent, eventCfg));
+        if (sampleResolved) {
+          out.push({ ...event, note: sampleResolved.note, velocity: sampleResolved.velocity });
+          continue;
+        }
+        if (isSampleInstrument(eventCfg, event.channel)) {
+          continue;
+        }
+        const note = pitchFromIntent(intent, eventCfg, event.note);
+        const vel = velocityFromIntent(intent, eventCfg);
+        if (vel !== null) {
+          out.push({ ...event, note, velocity: vel });
+         continue;
+       }
+       out.push({ ...event, note });
+        continue;
+      }
+      if (event.type === "note_off" && isSampleInstrument(eventCfg, event.channel)) {
+        const assigned = resolveSampleAssignedNote(intent, eventCfg, event.channel, 100, null);
+        if (!assigned) continue;
+        out.push({ ...event, note: assigned.note });
+        continue;
+      }
+      if (event.type === "note_off") {
+        const note = pitchFromIntent(intent, eventCfg, event.note);
+        out.push({ ...event, note });
+        continue;
+      }
       out.push(event);
-      continue;
     }
-    const targetChannel = event.type === "note_on" ? event.channel : 0;
-    const ccs = ccFromIntent(intent, cfg, targetChannel);
-    out.push(...ccs);
-    if (event.type === "note_on") {
-      const sampleResolved = resolveSampleAssignedNote(intent, cfg, event.channel, event.velocity, velocityFromIntent(intent, cfg));
-      if (sampleResolved) {
-        out.push({ ...event, note: sampleResolved.note, velocity: sampleResolved.velocity });
-        continue;
-      }
-      if (isSampleInstrument(cfg, event.channel)) {
-        continue;
-      }
-      const note = pitchFromIntent(intent, cfg, event.note);
-      const vel = velocityFromIntent(intent, cfg);
-      if (vel !== null) {
-        out.push({ ...event, note, velocity: vel });
-        continue;
-      }
-      out.push({ ...event, note });
-      continue;
-    }
-    if (event.type === "note_off" && isSampleInstrument(cfg, event.channel)) {
-      const assigned = resolveSampleAssignedNote(intent, cfg, event.channel, 100, null);
-      if (!assigned) continue;
-      out.push({ ...event, note: assigned.note });
-      continue;
-    }
-    if (event.type === "note_off") {
-      const note = pitchFromIntent(intent, cfg, event.note);
-      out.push({ ...event, note });
-      continue;
-    }
-    out.push(event);
+     const runtimeConfig = applyParamModulation(intents, runtimeCfg, partIndex);
+     return { events: applyGlobalSound(out, runtimeConfig), runtimeConfig };
+   }
+
+export function applyParamModulation(intents: any[], cfg: RuntimeConfig, partIndex: number = Number((cfg as any).activePartIndex ?? 0)): RuntimeConfig {
+   const intent = intents.find((i) => i && (i.kind === "activate" || i.kind === "scanned" || i.kind === "stable")) ?? intents[intents.length - 1];
+   if (!intent) return cfg;
+   const paramMods = paramModsForPart(cfg, partIndex);
+   let next: RuntimeConfig = cfg;
+   for (const axis of ["x", "y"] as const) {
+     for (const slot of paramMods[axis]) {
+       if (!slot) continue;
+       next = writeParamModValue(next, slot.key, scaledParamModValue(slot, axis, intent), partIndex);
+     }
+   }
+    return next;
   }
-  return applyGlobalSound(out, cfg);
+
+function writeParamModValue(cfg: RuntimeConfig, key: string, value: unknown, partIndex: number): RuntimeConfig {
+   let next = writeValue(cfg, key, value);
+   const partBehaviorConfigMatch = /^parts\.(\d+)\.l1\.behaviorConfig\.([^.]+)$/.exec(key);
+   if (partBehaviorConfigMatch) {
+     const idx = Number(partBehaviorConfigMatch[1]);
+     const behaviorId = String((next as any).parts?.[idx]?.l1?.behaviorId ?? (next as any).activeBehavior);
+     next = writeValue(next, `behaviorConfig.${behaviorId}.${partBehaviorConfigMatch[2]}`, value);
+     if (idx === partIndex) {
+       next = writeValue(next, "activeBehavior", behaviorId);
+     }
+   }
+   return next;
 }
 
 function resolveSampleAssignedNote(
@@ -56,9 +97,9 @@ function resolveSampleAssignedNote(
   sourceVelocity: number,
   senseVelocity: number | null
 ): { note: number; velocity: number } | null {
-  const instruments: any[] = Array.isArray((cfg as any).instruments) ? ((cfg as any).instruments as any[]) : [];
-  const inst = instruments[channel];
-  if (!inst || inst.type !== "sample") return null;
+ const instruments: any[] = Array.isArray((cfg as any).instruments) ? ((cfg as any).instruments as any[]) : [];
+   const inst = instruments[channel];
+   if (!inst || inst.type !== "sampler") return null;
   const assignments: any[] = Array.isArray(inst.sample?.assignments) ? inst.sample.assignments : [];
   const a = assignments.find((x) => x.x === intent.x && x.y === intent.y);
   if (!a) return null;
@@ -80,8 +121,8 @@ function sampleBaseVelocity(inst: any, level: "high" | "medium" | "low" | undefi
 }
 
 function isSampleInstrument(cfg: RuntimeConfig, channel: number): boolean {
-  const instruments: any[] = Array.isArray((cfg as any).instruments) ? ((cfg as any).instruments as any[]) : [];
-  return instruments[channel]?.type === "sample";
+   const instruments: any[] = Array.isArray((cfg as any).instruments) ? ((cfg as any).instruments as any[]) : [];
+   return instruments[channel]?.type === "sampler";
 }
 
 export function applyGlobalSound(events: MusicalEvent[], cfg: RuntimeConfig): MusicalEvent[] {

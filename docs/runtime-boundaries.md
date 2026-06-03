@@ -38,7 +38,7 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
 - UI must not call `tick`, `routeInput`, or native audio/MIDI bridges directly.
 - Runtime may import core and output/input adapters.
 - Core packages must stay platform-agnostic.
-- Platform adapters must not create independent musical audio sinks that bypass the realtime engine mixer. Direct audio playback is allowed only for explicitly documented preview/audition paths.
+- Platform adapters must not create independent musical audio sinks that bypass the realtime engine mixer.
 
 ## Data Flow
 
@@ -54,7 +54,9 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
 - Instrument `Route=direct` bypasses FX bus processing and pans directly into the main mix.
 - Instrument `Route=fx_bus_n` enters the selected FX bus, runs its slot FX in order, then pans into the main mix.
 - MIDI instruments emit external MIDI/control data and are not an internal audio source unless a future audio return path is added.
-- Sample browser preview is an audition path only and may bypass the mixer; grid/musical sample playback must not.
+- Sample browser preview is musical audio and must route through the selected instrument slot, pan, volume, FX bus, and master output path.
+- Host adapters must forward `sound.voiceStealingMode` to the realtime audio policy.
+- `gridBrightness` is applied by core LED frame rendering; `displayBrightness` and `buttonBrightness` are applied by the host display/button LED adapters.
 
 ## Grid Coordinate Contract
 

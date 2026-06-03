@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { GRID_WIDTH, type DeviceInput } from "@cellsymphony/device-contracts";
-import { GRID_DOMAIN, OLED_HEIGHT, OLED_WIDTH, PLATFORM_CAPS } from "@cellsymphony/platform-core";
+import { GRID_DOMAIN, OLED_HEIGHT, OLED_WIDTH, PAN_POSITION_COUNT, PLATFORM_CAPS } from "@cellsymphony/platform-core";
 import { mapKeyboardEventToInputAction, mapKeyboardKeyupToInputAction, shouldPreventKeyboardDefault } from "../runtime/inputAdapters/keyboardAdapter";
 import { sendEventsToAudio } from "../runtime/outputAdapters/audioSink";
 import { createSimulatorRuntime } from "../runtime/simulatorRuntime";
@@ -111,9 +111,9 @@ export function App() {
   const audioConfig = useMemo(() => {
     const instruments = (snapshot as any).instruments ?? [];
     const mixer = (snapshot as any).mixer ?? { buses: [] };
-    const panPositions = PLATFORM_CAPS.gridWidth;
-    return { instruments, mixer, panPositions };
-  }, [snapshot.instruments, snapshot.mixer]);
+    const panPositions = Number((snapshot as any).panPositions ?? PAN_POSITION_COUNT);
+    return { instruments, mixer, panPositions, masterVolume: snapshot.masterVolume };
+  }, [snapshot.instruments, snapshot.mixer, snapshot.panPositions, snapshot.masterVolume]);
 
   useEffect(() => {
     audioConfigSender.current?.schedule(audioConfig);

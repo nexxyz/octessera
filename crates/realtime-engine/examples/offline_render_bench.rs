@@ -69,6 +69,7 @@ fn bench_config() -> InstrumentsConfig {
             ],
         }),
         pan_positions: DEFAULT_PAN_POSITIONS,
+        master_volume: 100.0,
     }
 }
 

@@ -109,7 +109,7 @@ pub(super) fn compile_fx_bus_params(cfg: &FxBusSlotConfig) -> FxBusParams {
         "wah" => filter_lfo(cfg, FilterLfoKind::Wah, 1.2, 900.0, 6.0),
         "reverb" => FxBusParams::Reverb {
             mix: pct(cfg, "mixPct", 30.0),
-            decay: param_f32(cfg, "decay", 0.72).clamp(0.0, 0.95),
+            decay: param_f32(cfg, "decay", 0.72).clamp(0.0, 0.995),
             damp: param_f32(cfg, "damp", 0.35).clamp(0.0, 0.98),
         },
         "glitch" => FxBusParams::Glitch {

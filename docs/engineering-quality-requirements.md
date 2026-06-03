@@ -150,7 +150,7 @@ Recommended PR hygiene:
 - Define and track max CPU budget for reference dense CA pattern.
 - Detect xrun/dropout risk indicators where possible.
 - Keep realtime thread work minimal and avoid blocking disk I/O on audio path.
-- Any feature that produces internal musical audio must include engine-boundary tests proving the signal reaches the canonical route/pan/bus-FX mixer, or document the path as preview/audition-only.
+- Any feature that produces internal musical audio must include engine-boundary tests proving the signal reaches the canonical route/pan/bus-FX mixer.
 
 ## 9) Definition of Done (Engineering)
 

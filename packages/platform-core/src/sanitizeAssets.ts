@@ -1,7 +1,7 @@
 import { isBusEffectType, sanitizeFxParams } from "./fxDefaults";
 import { cutoffHzToDisplay } from "./coreUtils";
-import { PLATFORM_CAPS } from "./platformCaps";
-import { DEFAULT_VELOCITY_LEVELS, DEFAULT_MIDI_ENGINE, DEFAULT_VOLUME } from "./runtimeDefaults";
+import { clampPanPosition, PLATFORM_CAPS } from "./platformCaps";
+import { DEFAULT_VELOCITY_LEVELS, DEFAULT_MIDI_ENGINE, DEFAULT_PAN_POS, DEFAULT_VOLUME } from "./runtimeDefaults";
 
 const BUS_EFFECT_TYPES = new Set([
   "none", "reverb", "delay", "tremolo", "vibrato", "auto_pan",
@@ -30,7 +30,7 @@ export function sanitizeMixer(incoming: any, factory: any): { buses: any[] } {
     buses.push({
       slot1: normalizeSlot(src.slot1),
       slot2: normalizeSlot(src.slot2),
-      panPos: Math.max(0, Math.min(PLATFORM_CAPS.gridWidth - 1, Number(src.panPos ?? Math.floor(PLATFORM_CAPS.gridWidth / 2)))),
+      panPos: clampPanPosition(src.panPos ?? DEFAULT_PAN_POS),
       autoName,
       name: srcName
     });
@@ -42,7 +42,7 @@ export function sanitizeInstruments(incoming: unknown, factory: any): any[] {
   const factorySlots: any[] = Array.isArray((factory.runtimeConfig as any).instruments)
     ? (factory.runtimeConfig as any).instruments
     : [];
-  const fallbackSlot = { type: "synth", midi: { enabled: false, channel: 0 }, synth: {}, sample: { baseVelocity: 100, velocityLevelsEnabled: false, velocityLevels: { ...DEFAULT_VELOCITY_LEVELS }, selectedSlot: 0, slots: Array.from({ length: PLATFORM_CAPS.sampleSlotCount }, () => ({ path: null })), tuneSemis: 0, amp: {}, ampEnv: {}, filter: {}, filterEnv: {}, assignments: [] }, midiEngine: { ...DEFAULT_MIDI_ENGINE }, mixer: { route: "direct", panPos: Math.floor(PLATFORM_CAPS.gridWidth / 2), volume: DEFAULT_VOLUME } };
+  const fallbackSlot = { type: "synth", midi: { enabled: false, channel: 0 }, synth: {}, sample: { baseVelocity: 100, velocityLevelsEnabled: false, velocityLevels: { ...DEFAULT_VELOCITY_LEVELS }, selectedSlot: 0, slots: Array.from({ length: PLATFORM_CAPS.sampleSlotCount }, () => ({ path: null })), tuneSemis: 0, amp: {}, ampEnv: {}, filter: {}, filterEnv: {}, assignments: [] }, midiEngine: { ...DEFAULT_MIDI_ENGINE }, mixer: { route: "direct", panPos: DEFAULT_PAN_POS, volume: DEFAULT_VOLUME } };
   const baseSlots = factorySlots.length > 0 ? factorySlots : Array.from({ length: PLATFORM_CAPS.instrumentCount }, () => fallbackSlot);
   const src = Array.isArray(incoming) ? incoming : [];
   const out: any[] = [];
@@ -54,9 +54,9 @@ export function sanitizeInstruments(incoming: unknown, factory: any): any[] {
     const fallbackAutoName = typeof (f as any).autoName === "boolean" ? (f as any).autoName : true;
     const fallbackName = typeof (f as any).name === "string" && (f as any).name.trim().length > 0 ? (f as any).name.trim() : "";
     out.push({
-      ...(f as any),
-      ...(s as any),
-      type: (s as any).type === "sample" || (s as any).type === "midi" || (s as any).type === "synth" || (s as any).type === "none" ? (s as any).type : (f as any).type,
+    ...(f as any),
+     ...(s as any),
+     type: (s as any).type === "sampler" || (s as any).type === "midi" || (s as any).type === "synth" || (s as any).type === "none" ? (s as any).type : (f as any).type,
       autoName: incomingAutoName,
       name: incomingName || fallbackName || (f as any).name || "synth",
       midi: { ...(f as any).midi, ...((s as any).midi ?? {}) },
@@ -101,12 +101,12 @@ export function sanitizeInstruments(incoming: unknown, factory: any): any[] {
           if (!Number.isFinite(idx) || idx < 1 || idx > PLATFORM_CAPS.busCount) return "direct";
           return `fx_bus_${idx}`;
         })(),
-        panPos: Math.max(0, Math.min(PLATFORM_CAPS.gridWidth - 1, Number((s as any).mixer?.panPos ?? (f as any).mixer?.panPos ?? Math.floor(PLATFORM_CAPS.gridWidth / 2)))),
+        panPos: clampPanPosition((s as any).mixer?.panPos ?? (f as any).mixer?.panPos ?? DEFAULT_PAN_POS),
         volume: Math.max(0, Math.min(100, Number((s as any).mixer?.volume ?? (f as any).mixer?.volume ?? DEFAULT_VOLUME)))
       }
-    });
-    const inst = out[i] as Record<string, any>;
-    for (const prefix of ["synth", "sample"]) {
+   });
+     const inst = out[i] as Record<string, any>;
+     for (const prefix of ["synth", "sampler"]) {
       const section = inst[prefix] as Record<string, any> | undefined;
       const filter = section?.filter;
       if (filter && typeof filter.cutoffHz === "number" && filter.cutoffHz > 255) {

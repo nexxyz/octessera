@@ -6,7 +6,7 @@ import {
   applyConfigPayload,
   applyStoreResult,
   createInitialState,
-  emergencyBrake,
+  PAN_POSITION_COUNT,
   routeInput,
   tick,
   toSimulatorFrame,
@@ -139,6 +139,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
       audioLoad,
       instruments: Array.isArray((next as any).runtimeConfig.instruments) ? ((next as any).runtimeConfig.instruments as unknown[]) : [],
       mixer: (next as any).runtimeConfig.mixer ?? { buses: [] },
+      panPositions: (next as any).runtimeConfig.panPositions ?? PAN_POSITION_COUNT,
       autoSaveFlash: (next.system as any).autoSaveFlash ?? "none"
     };
   }
@@ -185,14 +186,6 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
 
   function scheduleMidi(bytes: Uint8Array, dueMs: number) {
     midiQueue.push({ bytes, dueMs });
-  }
-
-  function midiStopOnly(nowMs: number) {
-    const cfg = state.runtimeConfig.midi;
-    if (!cfg.enabled || cfg.syncMode !== "internal") return;
-    if (!cfg.outId) return;
-    scheduleMidi(new Uint8Array([0xfc]), nowMs);
-    midiQueue.length = 0; // drop pending note-offs
   }
 
   function sendMidiForEvents(events: MusicalEvent[], nowMs: number) {
@@ -267,22 +260,6 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
   }
 
   function applyInput(input: DeviceInput) {
-    if (input.type === "button_s" && shiftActive) {
-      if (state.runtimeConfig.midi.syncMode === "external") {
-        // In external sync mode, Shift+S is reserved for resync (handled in core).
-      } else {
-        const result = emergencyBrake(state);
-        state = result.state;
-        midiStopOnly(performance.now());
-        prevPlaying = state.transport.playing;
-        prevStopLatched = state.system.stopLatched;
-        prevPpqnPulse = state.transport.ppqnPulse;
-        publishEvents(result.events);
-        publishSnapshot();
-        return;
-      }
-    }
-
     const result = routeInput(state, input, activeBehavior());
     state = result.state;
     enqueueEvents(result.events, performance.now());
@@ -490,8 +467,9 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
           entries: []
         } as any;
       }
-      if (effect.type === "sample_preview_request") {
-        void invokeBridge("sample_preview", { path: effect.path }).catch((err) => {
+      if (effect.type === "audio_command") {
+        void invokeBridge("audio_command", { command: effect.command }).catch((err) => {
+          if (effect.command.type !== "sample_preview") return;
           const applied = applyStoreResult(
             state,
             {
@@ -503,10 +481,6 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
           state = applied.state;
           publishSnapshot();
         });
-        return { type: "save_default_result", ok: true } as any;
-      }
-      if (effect.type === "audio_command") {
-        void invokeBridge("audio_command", { command: effect.command }).catch(() => {});
         return null;
       }
       return { type: "store_error", message: "Unknown effect" };
@@ -534,11 +508,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
     },
     dispatchAction(action) {
       if (action.type === "emergency_brake") {
-        const result = emergencyBrake(state);
-        state = result.state;
-        enqueueEvents(result.events, performance.now());
-        flushDueEvents(performance.now());
-        publishSnapshot();
+        applyInput({ type: "button_s", pressed: true });
         return;
       }
       if (action.type === "shift") {

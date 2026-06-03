@@ -7,15 +7,17 @@ import { clamp } from "./coreUtils";
 import { clampInstrumentIndex, clampPartIndex, clampSampleSlotIndex, PLATFORM_CAPS } from "./platformCaps";
 import type { PlatformEffect, PlatformState } from "./index";
 import { applySampleAssignment, filterTriggerGatedIntents, handleTouchGridPress, gridChanged, inputTransitionProfile, touchPageFromRow } from "./inputInternal";
-import { applyModulation, applyNoteBehavior, withScaleSteps } from "./musicTransforms";
+import { applyModulationResult, applyNoteBehavior, withScaleSteps } from "./musicTransforms";
 import { makeToast } from "./toast";
 import { activateMomentaryFx, applyFxAssignment, releaseMomentaryFx } from "./touchFxRuntime";
 import { resolveAuxAutoMap } from "./auxAutoMap";
 import { visibleChildren } from "./menuView";
 import { startMomentaryFxPreview, stopMomentaryFxPreview } from "./momentaryFxPreview";
 import { AUX_MAPPING_OVERLAY_DELAY_MS, EVENT_BLIP_MS, deadlineMs, heldForMs, nowMs } from "./timing";
-import { resolveTouchPanTarget, toGridSnapshot, touchPanPosFromGridX } from "./runtimeHelpers";
+import { toGridSnapshot } from "./runtimeHelpers";
+import { emergencyBrakeState } from "./transportSafety";
 import type { SystemState } from "./platformTypes";
+import { applyParamModMapping, paramBindingFromMenuNode } from "./paramMod";
 function applyModifierState(system: SystemState, input: DeviceInput, down: boolean, now: number): { system: SystemState; combinedPressed: boolean; combinedReleased: boolean; handled: boolean } {
   if (input.type !== "button_shift" && input.type !== "button_fn") return { system, combinedPressed: false, combinedReleased: false, handled: false };
   const physicalShiftHeld = input.type === "button_shift" ? down : system.physicalShiftHeld;
@@ -312,10 +314,24 @@ export function routeInputWithDeps<TState>(state: PlatformState<TState>, input: 
   }
 
   if (nextState.system.touchMode !== "none" && !nextState.system.fnHeld && !nextState.system.shiftHeld && input.type === "grid_press") {
-    nextState = handleTouchGridPress(nextState, input, effects, deps);
-    if (state.system.touchMode === "mix" || state.system.touchMode === "pan") deps.autoSaveEffect(nextState, effects);
-    return { state: nextState, events, effects };
-  }
+     nextState = handleTouchGridPress(nextState, input, effects, deps);
+     if (state.system.touchMode === "mix" || state.system.touchMode === "pan") deps.autoSaveEffect(nextState, effects);
+     return { state: nextState, events, effects };
+   }
+
+   if (input.type === "grid_press" && nextState.system.shiftHeld && !nextState.system.fnHeld && nextState.system.touchMode === "none") {
+      const view = deps.locate(deps.menuTree(nextState), nextState, nextState.menu);
+      const selected = view.siblings[nextState.menu.cursor] as any;
+      const binding = paramBindingFromMenuNode(selected);
+      if (binding) {
+        const mapped = applyParamModMapping(nextState, binding, input.x, input.y);
+        if (mapped) {
+          nextState = { ...mapped.state, system: { ...mapped.state.system, toast: makeToast(mapped.message) } };
+          deps.autoSaveEffect(nextState, effects);
+          return { state: nextState, events, effects };
+        }
+      }
+    }
 
   if (nextState.system.touchMode !== "none" && !nextState.system.fnHeld && !nextState.system.shiftHeld && input.type === "grid_release") {
     nextState = releaseMomentaryFx(nextState, input.x, input.y, effects);
@@ -349,6 +365,16 @@ export function routeInputWithDeps<TState>(state: PlatformState<TState>, input: 
   }
 
   if (input.type === "button_s" && pressed(input)) {
+    if (nextState.system.shiftHeld && nextState.runtimeConfig.midi.syncMode !== "external") {
+      const result = emergencyBrakeState(nextState);
+      nextState = result.state;
+      events.push(...result.events);
+      return { state: nextState, events, effects };
+    }
+    if (nextState.runtimeConfig.midi.syncMode === "external" && nextState.system.shiftHeld) {
+      nextState.system = { ...nextState.system, pendingResync: true };
+      return { state: nextState, events, effects };
+    }
     const view = deps.locate(deps.menuTree(nextState), nextState, nextState.menu);
     if (view.path.endsWith("/FX Page") || view.path.includes("L4: Touch/FX Page")) {
       nextState = startMomentaryFxPreview(nextState, effects);
@@ -357,7 +383,10 @@ export function routeInputWithDeps<TState>(state: PlatformState<TState>, input: 
     if (view.path.endsWith("/Choose Sample")) {
       const selected = view.siblings[nextState.menu.cursor] as any;
       if (selected?.kind === "action" && selected.action?.type === "sample_pick" && typeof selected.action.path === "string") {
-        effects.push({ type: "sample_preview_request", path: selected.action.path } as any);
+        const browser = nextState.system.sampleBrowser;
+        if (browser) {
+          effects.push({ type: "audio_command", command: { type: "sample_preview", instrumentSlot: browser.instrumentSlot, sampleSlot: browser.sampleSlot, path: selected.action.path, velocity: 100 } });
+        }
       }
       return { state: nextState, events, effects };
     }
@@ -370,10 +399,6 @@ export function routeInputWithDeps<TState>(state: PlatformState<TState>, input: 
   }
 
   if (input.type === "button_s" && pressed(input)) {
-    if (nextState.runtimeConfig.midi.syncMode === "external" && nextState.system.shiftHeld) {
-      nextState.system = { ...nextState.system, pendingResync: true };
-      return { state: nextState, events, effects };
-    }
     const wasPlaying = nextState.transport.playing;
 
     if (nextState.system.fnHeld && nextState.runtimeConfig.midi.syncMode !== "external") {
@@ -473,7 +498,10 @@ export function routeInputWithDeps<TState>(state: PlatformState<TState>, input: 
       const intents = filterTriggerGatedIntents(interpretGrid(beforeInputGrid, afterInputGrid, nextState.transport.tick, profile), nextState, clampPartIndex((nextState.runtimeConfig as any).activePartIndex ?? 0));
       if (intents.length > 0) {
         const mapped = mapIntentsToMusicalEvents(intents, withScaleSteps(nextState.mappingConfig, nextState.runtimeConfig));
-        const modulated = applyModulation(intents, mapped, nextState.runtimeConfig);
+        const activePart = clampPartIndex((nextState.runtimeConfig as any).activePartIndex ?? 0);
+        const modulation = applyModulationResult(intents, mapped, nextState.runtimeConfig, nextState.runtimeConfig, activePart);
+        nextState = { ...nextState, runtimeConfig: modulation.runtimeConfig };
+        const modulated = modulation.events;
         const instruments: any[] = Array.isArray((nextState.runtimeConfig as any).instruments) ? ((nextState.runtimeConfig as any).instruments as any[]) : [];
         const shaped = applyNoteBehavior(modulated, instruments, 0, nextState.system.heldNotes);
         nextState.system = { ...nextState.system, heldNotes: shaped.heldNotes };

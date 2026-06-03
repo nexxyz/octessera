@@ -182,7 +182,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "preset_save_current",
-    "path": "System > Presets > Library > Save Current",
+    "path": "System > Saves > Library > Save Current",
     "key": "action:preset_save_current",
     "kind": "action",
     "title": "Save Current",
@@ -191,7 +191,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "preset_refresh",
-    "path": "System > Presets > Library > Refresh List",
+    "path": "System > Saves > Library > Refresh List",
     "key": "action:refresh_presets",
     "kind": "action",
     "title": "Refresh List",
@@ -200,7 +200,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "preset_save",
-    "path": "System > Presets > Library > Save As > Save",
+    "path": "System > Saves > Library > Save As > Save",
     "key": "action:preset_save",
     "kind": "action",
     "title": "Save As",
@@ -209,7 +209,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "preset_load_dynamic",
-    "path": "System > Presets > Library > Load > *",
+    "path": "System > Saves > Library > Load > *",
     "key": "action:preset_load:*",
     "kind": "action",
     "title": "Load Preset",
@@ -218,7 +218,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "preset_delete_dynamic",
-    "path": "System > Presets > Library > Delete > *",
+    "path": "System > Saves > Library > Delete > *",
     "key": "action:preset_delete:*",
     "kind": "action",
     "title": "Delete Preset",
@@ -227,7 +227,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "preset_rename_pick",
-    "path": "System > Presets > Library > Rename > *",
+    "path": "System > Saves > Library > Rename > *",
     "key": "action:preset_rename_pick:*",
     "kind": "action",
     "title": "Rename Preset",
@@ -870,7 +870,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "key:instruments.0.type",
     "kind": "enum",
     "title": "Instrument Type",
-    "line1": "Options: none, synth, sample, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sample is assignment-driven playback; midi is external MIDI event output.",
+    "line1": "Options: none, synth, sampler, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sampler is assignment-driven playback; midi is external MIDI event output.",
     "line2": "Select the engine family for this slot; the editable section below changes to match the selected type."
   },
   {
@@ -879,7 +879,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "key:instruments.1.type",
     "kind": "enum",
     "title": "Instrument Type",
-    "line1": "Options: none, synth, sample, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sample is assignment-driven playback; midi is external MIDI event output.",
+    "line1": "Options: none, synth, sampler, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sampler is assignment-driven playback; midi is external MIDI event output.",
     "line2": "Select the engine family for this slot; the editable section below changes to match the selected type."
   },
   {
@@ -888,7 +888,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "key:instruments.2.type",
     "kind": "enum",
     "title": "Instrument Type",
-    "line1": "Options: none, synth, sample, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sample is assignment-driven playback; midi is external MIDI event output.",
+    "line1": "Options: none, synth, sampler, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sampler is assignment-driven playback; midi is external MIDI event output.",
     "line2": "Select the engine family for this slot; the editable section below changes to match the selected type."
   },
   {
@@ -897,7 +897,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "key:instruments.3.type",
     "kind": "enum",
     "title": "Instrument Type",
-    "line1": "Options: none, synth, sample, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sample is assignment-driven playback; midi is external MIDI event output.",
+    "line1": "Options: none, synth, sampler, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sampler is assignment-driven playback; midi is external MIDI event output.",
     "line2": "Select the engine family for this slot; the editable section below changes to match the selected type."
   },
   {
@@ -906,7 +906,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "key:instruments.4.type",
     "kind": "enum",
     "title": "Instrument Type",
-    "line1": "Options: none, synth, sample, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sample is assignment-driven playback; midi is external MIDI event output.",
+    "line1": "Options: none, synth, sampler, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sampler is assignment-driven playback; midi is external MIDI event output.",
     "line2": "Select the engine family for this slot; the editable section below changes to match the selected type."
   },
   {
@@ -915,7 +915,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "key:instruments.5.type",
     "kind": "enum",
     "title": "Instrument Type",
-    "line1": "Options: none, synth, sample, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sample is assignment-driven playback; midi is external MIDI event output.",
+    "line1": "Options: none, synth, sampler, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sampler is assignment-driven playback; midi is external MIDI event output.",
     "line2": "Select the engine family for this slot; the editable section below changes to match the selected type."
   },
   {
@@ -924,7 +924,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "key:instruments.6.type",
     "kind": "enum",
     "title": "Instrument Type",
-    "line1": "Options: none, synth, sample, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sample is assignment-driven playback; midi is external MIDI event output.",
+    "line1": "Options: none, synth, sampler, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sampler is assignment-driven playback; midi is external MIDI event output.",
     "line2": "Select the engine family for this slot; the editable section below changes to match the selected type."
   },
   {
@@ -933,7 +933,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "key:instruments.7.type",
     "kind": "enum",
     "title": "Instrument Type",
-    "line1": "Options: none, synth, sample, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sample is assignment-driven playback; midi is external MIDI event output.",
+    "line1": "Options: none, synth, sampler, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sampler is assignment-driven playback; midi is external MIDI event output.",
     "line2": "Select the engine family for this slot; the editable section below changes to match the selected type."
   },
   {
@@ -942,7 +942,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "key:instruments.8.type",
     "kind": "enum",
     "title": "Instrument Type",
-    "line1": "Options: none, synth, sample, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sample is assignment-driven playback; midi is external MIDI event output.",
+    "line1": "Options: none, synth, sampler, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sampler is assignment-driven playback; midi is external MIDI event output.",
     "line2": "Select the engine family for this slot; the editable section below changes to match the selected type."
   },
   {
@@ -951,7 +951,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "key:instruments.9.type",
     "kind": "enum",
     "title": "Instrument Type",
-    "line1": "Options: none, synth, sample, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sample is assignment-driven playback; midi is external MIDI event output.",
+    "line1": "Options: none, synth, sampler, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sampler is assignment-driven playback; midi is external MIDI event output.",
     "line2": "Select the engine family for this slot; the editable section below changes to match the selected type."
   },
   {
@@ -960,7 +960,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "key:instruments.10.type",
     "kind": "enum",
     "title": "Instrument Type",
-    "line1": "Options: none, synth, sample, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sample is assignment-driven playback; midi is external MIDI event output.",
+    "line1": "Options: none, synth, sampler, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sampler is assignment-driven playback; midi is external MIDI event output.",
     "line2": "Select the engine family for this slot; the editable section below changes to match the selected type."
   },
   {
@@ -969,7 +969,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "key:instruments.11.type",
     "kind": "enum",
     "title": "Instrument Type",
-    "line1": "Options: none, synth, sample, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sample is assignment-driven playback; midi is external MIDI event output.",
+    "line1": "Options: none, synth, sampler, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sampler is assignment-driven playback; midi is external MIDI event output.",
     "line2": "Select the engine family for this slot; the editable section below changes to match the selected type."
   },
   {
@@ -978,7 +978,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "key:instruments.12.type",
     "kind": "enum",
     "title": "Instrument Type",
-    "line1": "Options: none, synth, sample, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sample is assignment-driven playback; midi is external MIDI event output.",
+    "line1": "Options: none, synth, sampler, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sampler is assignment-driven playback; midi is external MIDI event output.",
     "line2": "Select the engine family for this slot; the editable section below changes to match the selected type."
   },
   {
@@ -987,7 +987,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "key:instruments.13.type",
     "kind": "enum",
     "title": "Instrument Type",
-    "line1": "Options: none, synth, sample, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sample is assignment-driven playback; midi is external MIDI event output.",
+    "line1": "Options: none, synth, sampler, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sampler is assignment-driven playback; midi is external MIDI event output.",
     "line2": "Select the engine family for this slot; the editable section below changes to match the selected type."
   },
   {
@@ -996,7 +996,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "key:instruments.14.type",
     "kind": "enum",
     "title": "Instrument Type",
-    "line1": "Options: none, synth, sample, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sample is assignment-driven playback; midi is external MIDI event output.",
+    "line1": "Options: none, synth, sampler, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sampler is assignment-driven playback; midi is external MIDI event output.",
     "line2": "Select the engine family for this slot; the editable section below changes to match the selected type."
   },
   {
@@ -1005,7 +1005,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "key:instruments.15.type",
     "kind": "enum",
     "title": "Instrument Type",
-    "line1": "Options: none, synth, sample, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sample is assignment-driven playback; midi is external MIDI event output.",
+    "line1": "Options: none, synth, sampler, midi. none is a silent placeholder; synth is a two-oscillator subtractive engine; sampler is assignment-driven playback; midi is external MIDI event output.",
     "line2": "Select the engine family for this slot; the editable section below changes to match the selected type."
   },
   {
@@ -1033,7 +1033,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "kind": "group",
     "title": "Choose Sample",
     "line1": "Browse files inside the `samples/` folder tree (wav only).",
-    "line2": "Press Space to preview directly; assigned playback follows instrument routing and bus FX."
+    "line2": "Press Space to preview through the selected instrument routing, pan, volume, bus FX, and master output."
   },
   {
     "id": "inst_sample_assign",
@@ -1352,7 +1352,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "presets_group",
-    "path": "Menu > System > Presets",
+    "path": "Menu > System > Saves",
     "key": "",
     "kind": "group",
     "title": "Presets",
@@ -1361,7 +1361,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "default_save",
-    "path": "System > Presets > Default > Save Default",
+    "path": "System > Saves > Default > Save Default",
     "key": "action:default_save",
     "kind": "action",
     "title": "Save Default",
@@ -1370,7 +1370,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "default_load",
-    "path": "System > Presets > Default > Load Default",
+    "path": "System > Saves > Default > Load Default",
     "key": "action:default_load",
     "kind": "action",
     "title": "Load Default",
@@ -1405,20 +1405,11 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "line2": "Use to tame or boost overall dynamic output."
   },
   {
-    "id": "velocity_curve",
-    "path": "*",
-    "key": "key:sound.velocityCurve",
-    "kind": "enum",
-    "title": "Velocity Curve",
-    "line1": "Applies response curve to velocity scaling.",
-    "line2": "Soft raises low velocities; hard emphasizes stronger hits."
-  },
-  {
     "id": "ui_group",
-    "path": "Menu > System > UI Settings",
+    "path": "Menu > System > UI",
     "key": "",
     "kind": "group",
-    "title": "UI Settings",
+    "title": "UI",
     "line1": "Display and lighting behavior for the device/simulator UI.",
     "line2": "These do not change musical generation."
   },
@@ -1676,7 +1667,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "presets_library_group",
-    "path": "Menu > System > Presets > Library",
+    "path": "Menu > System > Saves > Library",
     "key": "",
     "kind": "group",
     "title": "Preset Library",
@@ -1685,7 +1676,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "save_as_group",
-    "path": "Menu > System > Presets > Library > Save As",
+    "path": "Menu > System > Saves > Library > Save As",
     "key": "",
     "kind": "group",
     "title": "Save As",
@@ -1694,7 +1685,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "load_group",
-    "path": "Menu > System > Presets > Library > Load",
+    "path": "Menu > System > Saves > Library > Load",
     "key": "",
     "kind": "group",
     "title": "Load Preset",
@@ -1703,7 +1694,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "rename_group",
-    "path": "Menu > System > Presets > Library > Rename",
+    "path": "Menu > System > Saves > Library > Rename",
     "key": "",
     "kind": "group",
     "title": "Rename Preset",
@@ -1712,7 +1703,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "delete_group",
-    "path": "Menu > System > Presets > Library > Delete",
+    "path": "Menu > System > Saves > Library > Delete",
     "key": "",
     "kind": "group",
     "title": "Delete Preset",
@@ -1721,7 +1712,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "default_group_specific",
-    "path": "Menu > System > Presets > Default",
+    "path": "Menu > System > Saves > Default",
     "key": "",
     "kind": "group",
     "title": "Default Preset",
@@ -1730,7 +1721,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "factory_group",
-    "path": "Menu > System > Presets > Factory",
+    "path": "Menu > System > Saves > Factory",
     "key": "",
     "kind": "group",
     "title": "Factory Preset",
@@ -1892,7 +1883,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "preset_rename_apply",
-    "path": "Menu > System > Presets > Library > Rename > Apply",
+    "path": "Menu > System > Saves > Library > Rename > Apply",
     "key": "action:preset_rename_apply",
     "kind": "action",
     "title": "Apply Rename",
@@ -1901,7 +1892,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "factory_load_action",
-    "path": "Menu > System > Presets > Factory > Load Fact. Default",
+    "path": "Menu > System > Saves > Factory > Load Fact. Default",
     "key": "action:factory_load",
     "kind": "action",
     "title": "Load Factory Default",
@@ -1959,8 +1950,8 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "key:instruments.*.mixer.panPos",
     "kind": "number",
     "title": "Pan Position",
-    "line1": "Sets quantized pan position for direct output sends.",
-    "line2": "0 is left, max is right, midpoint is centered."
+    "line1": "Sets the 33-position pan value for direct output sends.",
+    "line2": "0 is left, 16 is center, 32 is right."
   },
   {
     "id": "fx_buses_group",
@@ -2022,8 +2013,8 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "key:mixer.buses.*.panPos",
     "kind": "number",
     "title": "FX Bus Pan Position",
-    "line1": "Sets quantized output pan position for this bus.",
-    "line2": "0 is left, max is right, midpoint is centered."
+    "line1": "Sets the 33-position output pan value for this bus.",
+    "line2": "0 is left, 16 is center, 32 is right."
   },
   {
     "id": "fx_bus_slot1_group",
@@ -2144,43 +2135,43 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "touch_section",
-    "path": "Menu > L4: Touch",
+    "path": "Menu > L4: Dance",
     "key": "",
     "kind": "group",
-    "title": "Touch Layer",
+    "title": "Dance Layer",
     "line1": "Performance grid layer for live mix, pan, FX, and trigger-gate pages.",
-    "line2": "Fn plus the rightmost grid column selects Touch pages; Fn plus the leftmost column selects a part and exits Touch."
+    "line2": "Fn plus the rightmost grid column selects Dance pages; Fn plus the leftmost column selects a part and exits Dance."
   },
   {
     "id": "touch_page",
-    "path": "Menu > L4: Touch > Touch Page",
+    "path": "Menu > L4: Dance > Dance Page",
     "key": "key:system.touchMode",
     "kind": "enum",
-    "title": "Touch Page",
+    "title": "Dance Page",
     "line1": "Options: none, mix, pan, fx, trigger-gate. none returns the grid to the active behavior; mix edits instrument volume; pan edits pan position; fx triggers mapped momentary effects; trigger-gate toggles per-cell output gates.",
     "line2": "Fn plus rightmost rows select pages: row 0 mix, row 1 pan, row 2 fx, row 3 trigger-gate."
   },
   {
     "id": "touch_bpm",
-    "path": "Menu > L4: Touch > BPM",
+    "path": "Menu > L4: Dance > BPM",
     "key": "",
     "kind": "number",
     "title": "BPM",
-    "line1": "Sets master tempo in beats per minute from the Touch layer.",
+    "line1": "Sets master tempo in beats per minute from the Dance layer.",
     "line2": "This is the main tempo control."
   },
   {
     "id": "touch_fx_section",
-    "path": "Menu > L4: Touch > FX Page",
+    "path": "Menu > L4: Dance > FX Page",
     "key": "",
     "kind": "group",
     "title": "FX Page",
-    "line1": "Configures momentary effects for the Touch FX grid page.",
+    "line1": "Configures momentary effects for the Dance FX grid page.",
     "line2": "Select an effect type and parameters, then use Map to Grid and press a cell to store that config."
   },
   {
     "id": "touch_fx_type",
-    "path": "Menu > L4: Touch > FX Page > FX Type",
+    "path": "Menu > L4: Dance > FX Page > FX Type",
     "key": "key:touchFx.selected.fxType",
     "kind": "enum",
     "title": "FX Type",
@@ -2189,7 +2180,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "touch_fx_rate",
-    "path": "Menu > L4: Touch > FX Page > Rate Hz",
+    "path": "Menu > L4: Dance > FX Page > Rate Hz",
     "key": "key:touchFx.selected.params.rateHz",
     "kind": "number",
     "title": "Rate Hz",
@@ -2198,7 +2189,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "touch_fx_depth",
-    "path": "Menu > L4: Touch > FX Page > Depth",
+    "path": "Menu > L4: Dance > FX Page > Depth",
     "key": "key:touchFx.selected.params.depthPct",
     "kind": "number",
     "title": "Depth",
@@ -2207,7 +2198,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "touch_fx_release_ms",
-    "path": "Menu > L4: Touch > FX Page > Release Ms",
+    "path": "Menu > L4: Dance > FX Page > Release Ms",
     "key": "key:touchFx.selected.params.releaseMs",
     "kind": "number",
     "title": "Release Ms",
@@ -2216,7 +2207,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "touch_fx_mix",
-    "path": "Menu > L4: Touch > FX Page > Mix",
+    "path": "Menu > L4: Dance > FX Page > Mix",
     "key": "key:touchFx.selected.params.mixPct",
     "kind": "number",
     "title": "Mix",
@@ -2225,7 +2216,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "touch_fx_cutoff",
-    "path": "Menu > L4: Touch > FX Page > Cutoff",
+    "path": "Menu > L4: Dance > FX Page > Cutoff",
     "key": "key:touchFx.selected.params.cutoffPct",
     "kind": "number",
     "title": "Cutoff",
@@ -2234,7 +2225,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "touch_fx_res",
-    "path": "Menu > L4: Touch > FX Page > Res",
+    "path": "Menu > L4: Dance > FX Page > Res",
     "key": "key:touchFx.selected.params.resonancePct",
     "kind": "number",
     "title": "Res",
@@ -2243,7 +2234,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "touch_fx_sweep_in",
-    "path": "Menu > L4: Touch > FX Page > Sweep In",
+    "path": "Menu > L4: Dance > FX Page > Sweep In",
     "key": "key:touchFx.selected.params.sweepInMs",
     "kind": "number",
     "title": "Sweep In",
@@ -2252,7 +2243,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "touch_fx_sweep_out",
-    "path": "Menu > L4: Touch > FX Page > Sweep Out",
+    "path": "Menu > L4: Dance > FX Page > Sweep Out",
     "key": "key:touchFx.selected.params.sweepOutMs",
     "kind": "number",
     "title": "Sweep Out",
@@ -2261,7 +2252,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "touch_fx_semitones",
-    "path": "Menu > L4: Touch > FX Page > Semitones",
+    "path": "Menu > L4: Dance > FX Page > Semitones",
     "key": "key:touchFx.selected.params.semitones",
     "kind": "number",
     "title": "Semitones",
@@ -2270,7 +2261,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "touch_fx_cents",
-    "path": "Menu > L4: Touch > FX Page > Cents",
+    "path": "Menu > L4: Dance > FX Page > Cents",
     "key": "key:touchFx.selected.params.cents",
     "kind": "number",
     "title": "Cents",
@@ -2279,7 +2270,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "touch_fx_map",
-    "path": "Menu > L4: Touch > FX Page > Map to Grid",
+    "path": "Menu > L4: Dance > FX Page > Map to Grid",
     "key": "",
     "kind": "action",
     "title": "Map to Grid",
@@ -2288,7 +2279,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "touch_gate_section",
-    "path": "Menu > L4: Touch > Trigger Gate",
+    "path": "Menu > L4: Dance > Trigger Gate",
     "key": "",
     "kind": "group",
     "title": "Trigger Gate",
@@ -2297,7 +2288,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "touch_gate_target",
-    "path": "Menu > L4: Touch > Trigger Gate > Edit Target",
+    "path": "Menu > L4: Dance > Trigger Gate > Edit Target",
     "key": "key:system.triggerGateTarget",
     "kind": "enum",
     "title": "Edit Target",

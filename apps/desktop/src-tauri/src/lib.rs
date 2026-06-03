@@ -8,13 +8,13 @@ use audio_config::{
 };
 use midi::{midi_list_inputs, midi_list_outputs, midi_select_input, midi_select_output, midi_send};
 use rodio_engine_source::{EngineEvent, EngineSource};
-use samples::{resolve_sample_file, sample_list, sample_preview};
+use samples::{resolve_sample_file, sample_list};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::Mutex;
 use std::thread;
 
 use midir::MidiInputConnection;
-use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
+use realtime_engine::synth::{INSTRUMENT_SLOT_COUNT, SAMPLE_SLOTS_PER_INSTRUMENT};
 use rodio::{OutputStream, OutputStreamHandle, Sink};
 use serde::Deserialize;
 use serde_json::Value;
@@ -65,6 +65,15 @@ enum AudioCommandPayload {
     },
     #[serde(rename = "momentary_fx_stop")]
     MomentaryFxStop { id: String },
+    #[serde(rename = "sample_preview")]
+    SamplePreview {
+        #[serde(rename = "instrumentSlot")]
+        instrument_slot: usize,
+        #[serde(rename = "sampleSlot")]
+        sample_slot: usize,
+        path: String,
+        velocity: u8,
+    },
 }
 
 #[derive(Clone, Deserialize)]
@@ -117,9 +126,9 @@ pub(crate) enum QueuedAudioEvent {
         value: u8,
     },
     PreviewSample {
-        path: String,
-        gain: f32,
-        rate: f32,
+        instrument_slot: u8,
+        buffer: realtime_engine::synth::SampleBuffer,
+        velocity: u8,
     },
     SetInstruments(realtime_engine::synth::InstrumentsConfig),
     SetSampleBanks(Vec<realtime_engine::synth::SampleBankConfig>),
@@ -338,6 +347,21 @@ fn audio_command(
             QueuedAudioEvent::MomentaryFxUpdate { id, params }
         }
         AudioCommandPayload::MomentaryFxStop { id } => QueuedAudioEvent::MomentaryFxStop { id },
+        AudioCommandPayload::SamplePreview { instrument_slot, sample_slot, path, velocity } => {
+            let _sample_slot = sample_slot.min(SAMPLE_SLOTS_PER_INSTRUMENT - 1);
+            let full_path = resolve_sample_file(&path).ok_or_else(|| "invalid sample path".to_string())?;
+            let buffer = {
+                let mut cache = state.sample_cache.lock().map_err(|_| "sample cache poisoned".to_string())?;
+                if let Some(buffer) = cache.get(&full_path).cloned() {
+                    buffer
+                } else {
+                    let buffer = decode_sample_file(&full_path).ok_or_else(|| "sample decode failed".to_string())?;
+                    cache.insert(full_path, buffer.clone());
+                    buffer
+                }
+            };
+            QueuedAudioEvent::PreviewSample { instrument_slot: instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1) as u8, buffer, velocity }
+        }
     };
     state
         .trigger_tx
@@ -395,17 +419,8 @@ pub fn run() {
                         note,
                     });
                 }
-                QueuedAudioEvent::PreviewSample { path, gain, rate } => {
-                    if let Ok(file) = std::fs::File::open(&path) {
-                        let reader = std::io::BufReader::new(file);
-                        if let Ok(decoder) = rodio::Decoder::new(reader) {
-                            if let Ok(sink) = Sink::try_new(&audio.handle) {
-                                use rodio::Source;
-                                sink.append(decoder.speed(rate).amplify(gain));
-                                sink.detach();
-                            }
-                        }
-                    }
+                QueuedAudioEvent::PreviewSample { instrument_slot, buffer, velocity } => {
+                    let _ = engine_tx.send(EngineEvent::PreviewSample { instrument_slot, buffer, velocity });
                 }
                 QueuedAudioEvent::SetInstruments(config) => {
                     let _ = engine_tx.send(EngineEvent::SetInstruments(config));
@@ -482,7 +497,6 @@ pub fn run() {
             midi_select_input,
             midi_send,
             sample_list,
-            sample_preview,
             audio_set_runtime_policy,
             audio_command
         ])

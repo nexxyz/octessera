@@ -22,6 +22,7 @@ export type SimulatorSnapshot = {
   audioLoad: { ratio: number; voiceSteal: boolean };
   instruments: unknown[];
   mixer: unknown;
+  panPositions: number;
   autoSaveFlash: "none" | "flash";
   displayBrightness: number;
   buttonBrightness: number;

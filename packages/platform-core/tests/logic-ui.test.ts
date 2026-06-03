@@ -4,9 +4,10 @@ import assert from "node:assert/strict";
 import type { BehaviorEngine } from "@cellsymphony/behavior-api";
 import type { DeviceInput } from "@cellsymphony/device-contracts";
 import { keysBehavior } from "@cellsymphony/behaviors-keys";
-import { createInitialState, GRID_DOMAIN, OLED_TEXT_COLUMNS, PLATFORM_CAPS, routeInput, tick, toOledLines, toSimulatorFrame } from "../src/index";
+import { createInitialState, GRID_DOMAIN, OLED_TEXT_COLUMNS, PAN_CENTER_POS, PAN_POSITION_COUNT, PAN_POSITION_MAX, PLATFORM_CAPS, routeInput, tick, toOledLines, toSimulatorFrame } from "../src/index";
+import { formatDisplayValue } from "../src/coreUtils";
 import { pitchFromIntent } from "../src/musicTransforms";
-import { cellsToLeds, resolveTouchPanTarget, TOUCH_PAN_COLORS } from "../src/runtimeHelpers";
+import { cellsToLeds, resolveDancePanTarget, DANCE_PAN_COLORS } from "../src/runtimeHelpers";
 
 type MockState = {
   cells: boolean[];
@@ -54,11 +55,11 @@ test("OLED formatter does not truncate selected marker lines that fit visually",
     page: "System/MIDI",
     title: "System/MIDI",
     editing: false,
-    lines: ["@@> Respond Start/Stop", "@@> !Spawn Random [S]"]
+    lines: ["@@> Respond Start/Stop", "@@> !Spawn Random"]
   });
 
   assert.equal(result.lines[1], "@@> Respond Start/Stop");
-  assert.equal(result.lines[2], "@@> !Spawn Random [S]");
+  assert.equal(result.lines[2], "@@> !Spawn Random");
 });
 
 test("OLED formatter still truncates truly long selected lines", () => {
@@ -103,8 +104,20 @@ test("edit marker uses compact star prefix", () => {
   // Master Vol
   press();
   const frame = toSimulatorFrame(state, mockBehavior);
-  const hasStarEdit = frame.display.lines.some((line) => line.includes("*Vol:"));
+  const hasStarEdit = frame.display.lines.some((line) => /\*\s*Vol:/.test(line));
   assert.equal(hasStarEdit, true);
+});
+
+test("pan menu display shows direct distance from center", () => {
+  const key = "instruments.0.mixer.panPos";
+
+  assert.equal(formatDisplayValue(key, 0), "L16");
+  assert.equal(formatDisplayValue(key, 1), "L15");
+  assert.equal(formatDisplayValue(key, 15), "L1");
+  assert.equal(formatDisplayValue(key, PAN_CENTER_POS), "C");
+  assert.equal(formatDisplayValue(key, 17), "R1");
+  assert.equal(formatDisplayValue(key, 31), "R15");
+  assert.equal(formatDisplayValue(key, PAN_POSITION_MAX), "R16");
 });
 
 test("OLED renders audio load indicator colors", () => {
@@ -129,16 +142,16 @@ test("simulator frame exposes behavior grid interaction semantics", () => {
   assert.equal(toSimulatorFrame(keysState, keysBehavior).gridInteraction, "momentary");
 });
 
-test("Fn+rightmost grid column selects Touch pages", () => {
+test("Fn+rightmost grid column selects Dance pages", () => {
   let state = createInitialState(mockBehavior);
   state.system.oledMode = "normal";
 
   state = routeInput(state, { type: "button_fn", pressed: true }, mockBehavior).state;
   state = routeInput(state, { type: "grid_press", x: PLATFORM_CAPS.gridWidth - 1, y: 0 }, mockBehavior).state;
 
-  assert.equal(state.system.touchMode, "mix");
+ assert.equal(state.system.touchMode, "mix");
   assert.deepEqual(state.menu.stack, [3]);
-  assert.equal(toSimulatorFrame(state, mockBehavior).display.page, "L4: Touch");
+  assert.equal(toSimulatorFrame(state, mockBehavior).display.page, "L4: Dance");
 
   state = routeInput(state, { type: "grid_press", x: PLATFORM_CAPS.gridWidth - 1, y: 1 }, mockBehavior).state;
   assert.equal(state.system.touchMode, "pan");
@@ -150,7 +163,7 @@ test("Fn+rightmost grid column selects Touch pages", () => {
   assert.equal(state.system.touchMode, "trigger-gate");
 });
 
-test("Touch Page menu can activate trigger-gate", () => {
+test("Dance Page menu can activate trigger-gate", () => {
   let state = createInitialState(mockBehavior);
   state.system.oledMode = "normal";
 
@@ -181,7 +194,7 @@ test("Fn+rightmost column FX page selects fx touch mode", () => {
 
   assert.equal(state.system.touchMode, "fx");
   assert.deepEqual(state.menu.stack, [3]);
-  assert.equal(toSimulatorFrame(state, mockBehavior).display.page, "L4: Touch");
+  assert.equal(toSimulatorFrame(state, mockBehavior).display.page, "L4: Dance");
 });
 
 test("Fn overlay dims FX grid cells when touchMode is fx", () => {
@@ -208,7 +221,7 @@ test("Fn overlay dims FX grid cells when touchMode is fx", () => {
   assert.ok(partCell.g > 100);
 });
 
-test("Touch trigger-gate LEDs show gate state", () => {
+test("Dance trigger-gate LEDs show gate state", () => {
   const state = createInitialState(mockBehavior);
   state.system.oledMode = "normal";
   state.system.touchMode = "trigger-gate";
@@ -222,7 +235,7 @@ test("Touch trigger-gate LEDs show gate state", () => {
   assert.ok(onGate.g > onGate.r);
 });
 
-test("Fn grid overlay shows active parts and Touch page options", () => {
+test("Fn grid overlay shows active parts and Dance page options", () => {
   const state = createInitialState(mockBehavior);
   state.system.oledMode = "normal";
   state.system.fnHeld = true;
@@ -238,7 +251,7 @@ test("Fn grid overlay shows active parts and Touch page options", () => {
   const inactivePage = cells[GRID_DOMAIN.toDisplayIndex({ x: PLATFORM_CAPS.gridWidth - 1, y: 0 })]!;
   const unusedPage = cells[GRID_DOMAIN.toDisplayIndex({ x: PLATFORM_CAPS.gridWidth - 1, y: PLATFORM_CAPS.gridHeight - 1 })]!;
 
-  // in Touch mode, no part is highlighted as selected; all available parts show green
+  // in Dance mode, no part is highlighted as selected; all available parts show green
   assert.ok(activePart.g > 0 && activePart.r < activePart.g);
   // unused part slot shows dimmed underlying page background, not black
   assert.deepEqual(nonePart, { r: 2, g: 2, b: 3 });
@@ -255,7 +268,7 @@ test("Fn grid overlay shows active parts and Touch page options", () => {
   assert.ok(activePart.g > 100);
 });
 
-test("Fn grid overlay highlights active part when not in Touch mode", () => {
+test("Fn grid overlay highlights active part when not in Dance mode", () => {
   const state = createInitialState(mockBehavior);
   state.system.oledMode = "normal";
   state.system.fnHeld = true;
@@ -276,7 +289,7 @@ test("Fn grid overlay highlights active part when not in Touch mode", () => {
   assert.ok(configuredPart.g > 0 && configuredPart.g < activePart.g);
 });
 
-test("Touch grid updates mixer volume and pan", () => {
+test("Dance grid updates mixer volume and pan", () => {
   let state = createInitialState(mockBehavior);
   state.system.oledMode = "normal";
   state.system.touchMode = "mix";
@@ -291,10 +304,10 @@ test("Touch grid updates mixer volume and pan", () => {
   state.system.touchMode = "pan";
 
   state = routeInput(state, { type: "grid_press", x: 2, y: 1 }, mockBehavior).state;
-  assert.equal(state.runtimeConfig.instruments[1]?.mixer?.panPos, 3);
+  assert.equal(state.runtimeConfig.instruments[1]?.mixer?.panPos, 11);
 });
 
-test("Fn+leftmost part selection exits Touch grid mode", () => {
+test("Fn+leftmost part selection exits Dance grid mode", () => {
   let state = createInitialState(mockBehavior);
   state.system.oledMode = "normal";
   state.system.touchMode = "fx";
@@ -304,12 +317,12 @@ test("Fn+leftmost part selection exits Touch grid mode", () => {
   assert.equal(state.system.touchMode, "none");
 });
 
-test("Touch mix LEDs show volume markers", () => {
+test("Dance mix LEDs show volume markers", () => {
   const state = createInitialState(mockBehavior);
   state.system.oledMode = "normal";
   state.system.touchMode = "mix";
-  state.runtimeConfig.instruments[0]!.mixer = { route: "direct", volume: 100, panPos: 4 };
-  state.runtimeConfig.instruments[1]!.mixer = { route: "fx_bus_1", volume: 0, panPos: 4 };
+  state.runtimeConfig.instruments[0]!.mixer = { route: "direct", volume: 100, panPos: PAN_CENTER_POS };
+  state.runtimeConfig.instruments[1]!.mixer = { route: "fx_bus_1", volume: 0, panPos: PAN_CENTER_POS };
 
   const cells = toSimulatorFrame(state, mockBehavior).leds.cells;
   const direct = cells[GRID_DOMAIN.toDisplayIndex({ x: 0, y: PLATFORM_CAPS.gridHeight - 1 })]!;
@@ -319,11 +332,12 @@ test("Touch mix LEDs show volume markers", () => {
   assert.ok(fx.g > fx.r && fx.g > fx.b);
 });
 
-test("Touch pan LEDs show a two-cell white marker for direct route", () => {
+test("Dance pan LEDs show a two-cell white marker for direct route", () => {
   const state = createInitialState(mockBehavior);
   state.system.oledMode = "normal";
   state.system.touchMode = "pan";
-  state.runtimeConfig.instruments[0]!.mixer = { route: "direct", volume: 100, panPos: 4 };
+  state.runtimeConfig.instruments[0]!.mixer = { route: "direct", volume: 100, panPos: PAN_CENTER_POS };
+  assert.equal(state.runtimeConfig.panPositions, PAN_POSITION_COUNT);
 
   const cells = toSimulatorFrame(state, mockBehavior).leds.cells;
   const leftCenter = cells[GRID_DOMAIN.toDisplayIndex({ x: 3, y: 0 })]!;
@@ -334,77 +348,91 @@ test("Touch pan LEDs show a two-cell white marker for direct route", () => {
   assert.ok(rightCenter.r > 120 && rightCenter.g > 120 && rightCenter.b > 120);
 });
 
-test("Touch pan writes bus pan for bus-routed instrument", () => {
+test("Dance pan writes bus pan for bus-routed instrument", () => {
   let state = createInitialState(mockBehavior);
   state.system.oledMode = "normal";
   state.system.touchMode = "pan";
-  state.runtimeConfig.instruments[0]!.mixer = { route: "fx_bus_1", volume: 100, panPos: 4 };
-  state.runtimeConfig.mixer = state.runtimeConfig.mixer ?? { buses: Array.from({ length: PLATFORM_CAPS.busCount }, () => ({ slot1: { type: "none", params: {} }, slot2: { type: "none", params: {} }, panPos: 4, autoName: true, name: "(none)" })) };
+  state.runtimeConfig.instruments[0]!.mixer = { route: "fx_bus_1", volume: 100, panPos: PAN_CENTER_POS };
+  state.runtimeConfig.mixer = state.runtimeConfig.mixer ?? { buses: Array.from({ length: PLATFORM_CAPS.busCount }, () => ({ slot1: { type: "none", params: {} }, slot2: { type: "none", params: {} }, panPos: PAN_CENTER_POS, autoName: true, name: "(none)" })) };
 
-  // press row 0 (instrument 0) at x=2 → panPos = 2+1 = 3
+  // press row 0 (instrument 0) at x=2 maps to the third coarse pan marker.
   state = routeInput(state, { type: "grid_press", x: 2, y: 0 }, mockBehavior).state;
 
   // bus 0 panPos should update, instrument panPos should also be set for state preservation
-  assert.equal(state.runtimeConfig.mixer!.buses[0].panPos, 3);
-  assert.equal(state.runtimeConfig.instruments[0]!.mixer?.panPos, 3);
+  assert.equal(state.runtimeConfig.mixer!.buses[0].panPos, 11);
+  assert.equal(state.runtimeConfig.instruments[0]!.mixer?.panPos, 11);
 });
 
-test("Touch pan writes instrument pan for direct-routed instrument", () => {
+test("Dance pan writes instrument pan for direct-routed instrument", () => {
   let state = createInitialState(mockBehavior);
   state.system.oledMode = "normal";
   state.system.touchMode = "pan";
-  state.runtimeConfig.instruments[0]!.mixer = { route: "direct", volume: 100, panPos: 4 };
+  state.runtimeConfig.instruments[0]!.mixer = { route: "direct", volume: 100, panPos: PAN_CENTER_POS };
 
   state = routeInput(state, { type: "grid_press", x: 6, y: 0 }, mockBehavior).state;
 
-  assert.equal(state.runtimeConfig.instruments[0]!.mixer?.panPos, 7);
+  assert.equal(state.runtimeConfig.instruments[0]!.mixer?.panPos, 27);
 
-  // edge: leftmost press (x=0) should set panPos=1
-  state.runtimeConfig.instruments[0]!.mixer!.panPos = 4;
+  // edge: leftmost press (x=0) should set hard-left pan.
+  state.runtimeConfig.instruments[0]!.mixer!.panPos = PAN_CENTER_POS;
   state = routeInput(state, { type: "grid_press", x: 0, y: 0 }, mockBehavior).state;
-  assert.equal(state.runtimeConfig.instruments[0]!.mixer?.panPos, 1);
+  assert.equal(state.runtimeConfig.instruments[0]!.mixer?.panPos, 0);
 
-  // edge: rightmost press (x=7) should clamp to panPos=7
-  state.runtimeConfig.instruments[0]!.mixer!.panPos = 4;
+  // edge: rightmost press (x=7) should set hard-right pan.
+  state.runtimeConfig.instruments[0]!.mixer!.panPos = PAN_CENTER_POS;
   state = routeInput(state, { type: "grid_press", x: 7, y: 0 }, mockBehavior).state;
-  assert.equal(state.runtimeConfig.instruments[0]!.mixer?.panPos, 7);
+  assert.equal(state.runtimeConfig.instruments[0]!.mixer?.panPos, PAN_POSITION_MAX);
 });
 
-test("Touch pan LEDs show bus color for bus-routed instrument and synchronized markers", () => {
+test("Dance pan grid presses map to seven coarse stereo positions", () => {
+  let state = createInitialState(mockBehavior);
+  state.system.oledMode = "normal";
+  state.system.touchMode = "pan";
+  state.runtimeConfig.instruments[0]!.mixer = { route: "direct", volume: 100, panPos: PAN_CENTER_POS };
+
+  const expected = [0, 5, 11, PAN_CENTER_POS, PAN_CENTER_POS, 21, 27, PAN_POSITION_MAX];
+  for (let x = 0; x < expected.length; x += 1) {
+    state.runtimeConfig.instruments[0]!.mixer!.panPos = PAN_CENTER_POS;
+    state = routeInput(state, { type: "grid_press", x, y: 0 }, mockBehavior).state;
+    assert.equal(state.runtimeConfig.instruments[0]!.mixer?.panPos, expected[x]);
+  }
+});
+
+test("Dance pan LEDs show bus color for bus-routed instrument and synchronized markers", () => {
   const state = createInitialState(mockBehavior);
   state.system.oledMode = "normal";
   state.system.touchMode = "pan";
-  state.runtimeConfig.instruments[0]!.mixer = { route: "fx_bus_1", volume: 100, panPos: 4 };
-  state.runtimeConfig.instruments[1]!.mixer = { route: "fx_bus_1", volume: 100, panPos: 4 };
-  state.runtimeConfig.instruments[2]!.mixer = { route: "fx_bus_2", volume: 100, panPos: 4 };
-  state.runtimeConfig.mixer!.buses[0].panPos = 2;
-  state.runtimeConfig.mixer!.buses[1].panPos = 6;
+  state.runtimeConfig.instruments[0]!.mixer = { route: "fx_bus_1", volume: 100, panPos: PAN_CENTER_POS };
+  state.runtimeConfig.instruments[1]!.mixer = { route: "fx_bus_1", volume: 100, panPos: PAN_CENTER_POS };
+  state.runtimeConfig.instruments[2]!.mixer = { route: "fx_bus_2", volume: 100, panPos: PAN_CENTER_POS };
+  state.runtimeConfig.mixer!.buses[0].panPos = 5;
+  state.runtimeConfig.mixer!.buses[1].panPos = 27;
 
-  const t0 = resolveTouchPanTarget(state, 0);
-  const t1 = resolveTouchPanTarget(state, 1);
-  const t2 = resolveTouchPanTarget(state, 2);
+  const t0 = resolveDancePanTarget(state, 0);
+  const t1 = resolveDancePanTarget(state, 1);
+  const t2 = resolveDancePanTarget(state, 2);
 
   // both rows on bus 0 target bus pan
   assert.equal(t0.route, "bus");
   assert.equal(t1.route, "bus");
-  assert.equal(t0.panPos, 2);
-  assert.equal(t1.panPos, 2);
+  assert.equal(t0.panPos, 5);
+  assert.equal(t1.panPos, 5);
   // same bus index 0
   assert.equal(t0.busIndex, 0);
   assert.equal(t1.busIndex, 0);
   // bus 1 color = purple
-  assert.deepEqual(t0.color, TOUCH_PAN_COLORS.fx_bus_1);
-  assert.deepEqual(t1.color, TOUCH_PAN_COLORS.fx_bus_1);
+   assert.deepEqual(t0.color, DANCE_PAN_COLORS.fx_bus_1);
+   assert.deepEqual(t1.color, DANCE_PAN_COLORS.fx_bus_1);
 
   // row 2 on bus 2 targets bus 1 pan
   assert.equal(t2.route, "bus");
-  assert.equal(t2.panPos, 6);
+  assert.equal(t2.panPos, 27);
   assert.equal(t2.busIndex, 1);
   // bus 2 color = cyan
-  assert.deepEqual(t2.color, TOUCH_PAN_COLORS.fx_bus_2);
+   assert.deepEqual(t2.color, DANCE_PAN_COLORS.fx_bus_2);
 });
 
-test("Touch FX assignment stores selected effect config on grid cell", () => {
+test("Dance FX assignment stores selected effect config on grid cell", () => {
   let state = createInitialState(mockBehavior);
   state.system.oledMode = "normal";
   state.system.fxAssignMode = { config: { fxType: "filter_sweep", params: { cutoffPct: 25, resonancePct: 80 }, targetKey: "master" } };
@@ -418,7 +446,7 @@ test("Touch FX assignment stores selected effect config on grid cell", () => {
   assert.equal(result.effects.length, 0);
 });
 
-test("Touch FX press and release emit momentary effects", () => {
+test("Dance FX press and release emit momentary effects", () => {
   let state = createInitialState(mockBehavior);
   state.system.oledMode = "normal";
   state.system.touchMode = "fx";
@@ -437,7 +465,7 @@ test("Touch FX press and release emit momentary effects", () => {
   assert.deepEqual(release.effects, [{ type: "audio_command", command: { type: "momentary_fx_stop", id: "momentary-fx:1:2" } }]);
 });
 
-test("Touch FX targets route into audio commands", () => {
+test("Dance FX targets route into audio commands", () => {
   let state = createInitialState(mockBehavior);
   state.system.oledMode = "normal";
   state.system.touchMode = "fx";
@@ -457,7 +485,7 @@ test("Touch FX targets route into audio commands", () => {
   ]);
 });
 
-test("Touch FX enforces fixed capability limit and same-type replacement", () => {
+test("Dance FX enforces fixed capability limit and same-type replacement", () => {
   let state = createInitialState(mockBehavior);
   state.system.oledMode = "normal";
   state.system.touchMode = "fx";
@@ -482,7 +510,7 @@ test("Touch FX enforces fixed capability limit and same-type replacement", () =>
   ]);
 });
 
-test("Touch FX LEDs show assigned, active, and limit states", () => {
+test("Dance FX LEDs show assigned, active, and limit states", () => {
   let state = createInitialState(mockBehavior);
   state.system.oledMode = "normal";
   state.system.touchMode = "fx";
@@ -505,7 +533,7 @@ test("Touch FX LEDs show assigned, active, and limit states", () => {
   assert.ok(empty.b > empty.r && empty.b > empty.g);
 });
 
-test("Touch FX momentary presses do not auto-save but mix and pan do", () => {
+test("Dance FX momentary presses do not auto-save but mix and pan do", () => {
   let state = createInitialState(mockBehavior);
   state.system.oledMode = "normal";
   state.runtimeConfig.autoSaveDefault = true;
@@ -634,7 +662,7 @@ test("config save default requires confirmation before emitting effect", () => {
 
   selectLabel("System");
   press();
-  selectLabel("Presets");
+  selectLabel("Saves");
   press();
   selectLabel("Default");
   press();
@@ -716,7 +744,7 @@ test("shift+back deletes character when editing draft name", () => {
 
   selectLabel("System");
   press();
-  selectLabel("Presets");
+  selectLabel("Saves");
   press();
   selectLabel("Library");
   press();
@@ -911,7 +939,7 @@ test("startup splash close shows help hint toast", () => {
 test("sample assign mode cycles high-medium-low-off when velocity levels are on", () => {
   let state = createInitialState(mockBehavior) as any;
   state.system.oledMode = "normal";
-  state.runtimeConfig.instruments[0].type = "sample";
+  state.runtimeConfig.instruments[0].type = "sampler";
   state.runtimeConfig.instruments[0].sample.selectedSlot = 2;
   state.runtimeConfig.instruments[0].sample.velocityLevelsEnabled = true;
   state.system.sampleAssign = { instrumentSlot: 0, sampleSlot: 2 };
@@ -1018,7 +1046,7 @@ test("sample assign mode supports shift row and fn+shift column", () => {
   let state = createInitialState(mockBehavior) as any;
   state.system.oledMode = "normal";
   state.system.fnHeld = false;
-  state.runtimeConfig.instruments[0].type = "sample";
+  state.runtimeConfig.instruments[0].type = "sampler";
   state.runtimeConfig.instruments[0].sample.selectedSlot = 1;
   state.runtimeConfig.instruments[0].sample.velocityLevelsEnabled = false;
   state.system.sampleAssign = { instrumentSlot: 0, sampleSlot: 1 };

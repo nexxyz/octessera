@@ -315,7 +315,7 @@ function inactiveTurnMessage<TState>(state: PlatformState<TState>, key: string, 
   const instMatch = /^instruments\.(\d+)\.(synth|sample|midiEngine)\./.exec(key);
   if (instMatch) {
     const instType = readValue(state.runtimeConfig, `instruments.${instMatch[1]}.type`);
-    const typeMap: Record<string, string> = { synth: "synth", sample: "sample", midiEngine: "midi" };
+    const typeMap: Record<string, string> = { synth: "synth", sample: "sampler", midiEngine: "midi" };
     if (instType !== typeMap[instMatch[2]]) {
       return `${scope} ${label} not active`;
     }
@@ -366,9 +366,9 @@ function inactivePressMessage<TState>(state: PlatformState<TState>, bindingPress
   const scope = `P${activePart + 1}`;
 
   if (bindingPress.kind === "menu_action") {
-    if (bindingPress.action?.type === "sample_assign_enter") {
-      const inst = (state.runtimeConfig as any).instruments?.[bindingPress.action.instrumentSlot];
-      if (!inst || inst.type !== "sample") return `${scope} ${bindingPress.label ?? "Assign"} not active`;
+   if (bindingPress.action?.type === "sample_assign_enter") {
+       const inst = (state.runtimeConfig as any).instruments?.[bindingPress.action.instrumentSlot];
+       if (!inst || inst.type !== "sampler") return `${scope} ${bindingPress.label ?? "Assign"} not active`;
     }
     return null;
   }

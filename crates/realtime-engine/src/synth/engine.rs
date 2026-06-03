@@ -19,6 +19,7 @@ pub struct SynthEngine {
     mods: [InstrumentMod; INSTRUMENT_SLOT_COUNT],
     voices: [[Voice; VOICES_PER_SLOT]; INSTRUMENT_SLOT_COUNT],
     sample_voices: [[SampleVoice; VOICES_PER_SLOT]; INSTRUMENT_SLOT_COUNT],
+    preview_sample_voices: Vec<PreviewSampleVoice>,
     slot_route: [usize; INSTRUMENT_SLOT_COUNT],
     slot_pan_pos: [usize; INSTRUMENT_SLOT_COUNT],
     slot_volume: [f32; INSTRUMENT_SLOT_COUNT],
@@ -28,6 +29,7 @@ pub struct SynthEngine {
     bus_slot_params: Vec<[FxBusParams; BUS_SLOTS_PER_BUS]>,
     bus_slot_state: Vec<[FxBusState; BUS_SLOTS_PER_BUS]>,
     pan_positions: usize,
+    master_volume: f32,
     voice_stealing_mode: VoiceStealingMode,
     smoothed_load_ratio: f32,
     voice_steal_since_status: bool,
@@ -48,6 +50,15 @@ enum InstrumentKind {
 struct SampleVoice {
     active: bool,
     sample_slot: usize,
+    pos: f32,
+    step: f32,
+    gain: f32,
+}
+
+#[derive(Clone, Debug)]
+struct PreviewSampleVoice {
+    slot: usize,
+    buffer: SampleBuffer,
     pos: f32,
     step: f32,
     gain: f32,
@@ -237,6 +248,7 @@ impl SynthEngine {
             mods: [InstrumentMod::new(); INSTRUMENT_SLOT_COUNT],
             voices: [[Voice::off(); VOICES_PER_SLOT]; INSTRUMENT_SLOT_COUNT],
             sample_voices: [[SampleVoice::off(); VOICES_PER_SLOT]; INSTRUMENT_SLOT_COUNT],
+            preview_sample_voices: Vec::new(),
             slot_route: [0; INSTRUMENT_SLOT_COUNT],
             slot_pan_pos: [DEFAULT_PAN_POSITIONS / 2; INSTRUMENT_SLOT_COUNT],
             slot_volume: [1.0; INSTRUMENT_SLOT_COUNT],
@@ -246,6 +258,7 @@ impl SynthEngine {
             bus_slot_params: Vec::new(),
             bus_slot_state: Vec::new(),
             pan_positions: DEFAULT_PAN_POSITIONS,
+            master_volume: 1.0,
             voice_stealing_mode: VoiceStealingMode::Balanced,
             smoothed_load_ratio: 0.0,
             voice_steal_since_status: false,
@@ -340,6 +353,7 @@ impl SynthEngine {
 
     pub fn set_instruments(&mut self, cfg: InstrumentsConfig) {
         self.pan_positions = cfg.pan_positions.max(1);
+        self.master_volume = (cfg.master_volume / 100.0).clamp(0.0, 1.0);
         for (idx, slot) in cfg.instruments.into_iter().enumerate() {
             if idx >= INSTRUMENT_SLOT_COUNT {
                 break;
@@ -400,6 +414,20 @@ impl SynthEngine {
                 voice.active = false;
             }
         }
+    }
+
+    pub fn preview_sample(&mut self, instrument_slot: u8, buffer: SampleBuffer, velocity: u8) {
+        let slot = (instrument_slot as usize).min(INSTRUMENT_SLOT_COUNT - 1);
+        if buffer.samples.is_empty() || buffer.channels == 0 || buffer.sample_rate == 0 {
+            return;
+        }
+        let bank = self.sample_banks.get(slot).cloned().unwrap_or_default();
+        let vel = (velocity.max(1) as f32 / 127.0).clamp(0.0, 1.0);
+        let vel_sens = (bank.velocity_sensitivity_pct / 100.0).clamp(0.0, 1.0);
+        let gain = (bank.gain_pct / 100.0).clamp(0.0, 2.0) * ((1.0 - vel_sens) + vel_sens * vel);
+        let pitch = 2.0_f32.powf(bank.tune_semis / 12.0);
+        let step = pitch * buffer.sample_rate as f32 / self.sample_rate as f32;
+        self.preview_sample_voices.push(PreviewSampleVoice { slot, buffer, pos: 0.0, step, gain });
     }
 
     pub fn note_on(&mut self, instrument_slot: u8, midi_note: u8, velocity: u8, duration_ms: u32) {
@@ -498,6 +526,7 @@ impl SynthEngine {
     }
 
     pub fn all_notes_off(&mut self) {
+        self.preview_sample_voices.clear();
         for pool in self.sample_voices.iter_mut() {
             for voice in pool.iter_mut() {
                 voice.active = false;
@@ -526,6 +555,7 @@ impl SynthEngine {
     pub fn next_stereo_sample(&mut self) -> (f32, f32) {
         let mut slot_out = [0.0_f32; INSTRUMENT_SLOT_COUNT];
         self.render_sample_voices(&mut slot_out);
+        self.render_preview_sample_voices(&mut slot_out);
         for pool in self.voices.iter_mut() {
             for v in pool.iter_mut() {
                 if !v.active {
@@ -666,7 +696,7 @@ impl SynthEngine {
         let (left, right) =
             self.process_momentary_fx_target(MomentaryFxTarget::Global, left, right);
         self.sample_clock = self.sample_clock.saturating_add(1);
-        (left.clamp(-1.0, 1.0), right.clamp(-1.0, 1.0))
+        ((left * self.master_volume).clamp(-1.0, 1.0), (right * self.master_volume).clamp(-1.0, 1.0))
     }
 
     fn process_momentary_fx_target(
@@ -929,6 +959,27 @@ impl SynthEngine {
         }
     }
 
+    fn render_preview_sample_voices(&mut self, slot_out: &mut [f32; INSTRUMENT_SLOT_COUNT]) {
+        for voice in self.preview_sample_voices.iter_mut() {
+            let frames = voice.buffer.samples.len() / voice.buffer.channels as usize;
+            if frames == 0 || voice.pos >= frames as f32 {
+                voice.pos = frames as f32;
+                continue;
+            }
+            let frame = voice.pos.floor() as usize;
+            let frac = voice.pos - frame as f32;
+            let next_frame = (frame + 1).min(frames - 1);
+            let sample = mono_frame(&voice.buffer, frame) * (1.0 - frac)
+                + mono_frame(&voice.buffer, next_frame) * frac;
+            slot_out[voice.slot] += sample * voice.gain;
+            voice.pos += voice.step;
+        }
+        self.preview_sample_voices.retain(|voice| {
+            let frames = voice.buffer.samples.len() / voice.buffer.channels as usize;
+            frames > 0 && voice.pos < frames as f32
+        });
+    }
+
     fn steal_voice_index(pool: &[Voice; VOICES_PER_SLOT]) -> usize {
         let mut best_i = 0;
         let mut best_score = f32::MAX;
@@ -1080,7 +1131,7 @@ fn parse_route(route: &str) -> usize {
 
 fn parse_instrument_kind(kind: &str) -> InstrumentKind {
     match kind {
-        "sample" => InstrumentKind::Sample,
+        "sampler" => InstrumentKind::Sample,
         "midi" => InstrumentKind::Midi,
         "none" => InstrumentKind::None,
         _ => InstrumentKind::Synth,

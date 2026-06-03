@@ -1,4 +1,4 @@
-import { PLATFORM_CAPS } from "./platformCaps";
+import { PAN_CENTER_POS } from "./platformCaps";
 
 export const DEFAULT_VELOCITY_HIGH = 120;
 export const DEFAULT_VELOCITY_MEDIUM = 85;
@@ -18,7 +18,7 @@ export const DEFAULT_PITCH_STARTING_NOTE = 60;
 export const DEFAULT_PITCH_LOWEST_NOTE = 36;
 export const DEFAULT_PITCH_HIGHEST_NOTE = 74;
 
-export const DEFAULT_PAN_POS = Math.floor(PLATFORM_CAPS.gridWidth / 2);
+export const DEFAULT_PAN_POS = PAN_CENTER_POS;
 export const DEFAULT_VOLUME = 100;
 
 export const DEFAULT_VELOCITY_LEVELS = { high: DEFAULT_VELOCITY_HIGH, medium: DEFAULT_VELOCITY_MEDIUM, low: DEFAULT_VELOCITY_LOW };

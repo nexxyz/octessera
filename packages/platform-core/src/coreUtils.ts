@@ -1,4 +1,4 @@
-import { PLATFORM_CAPS } from "./platformCaps";
+import { PAN_CENTER_POS, PLATFORM_CAPS, clampPanPosition } from "./platformCaps";
 import type { FxBusConfig, FxBusEffectType, PartConfig } from "./platformTypes";
 import type { RuntimeConfig } from "./platformTypes";
 
@@ -154,8 +154,8 @@ export function derivePartAutoName(part: PartConfig): string {
 }
 
 export function deriveInstAutoName(instrument: { type: string }): string {
-  if (instrument.type === "midi") return "MIDI";
-  if (instrument.type === "sample") return "sample";
+   if (instrument.type === "midi") return "MIDI";
+   if (instrument.type === "sampler") return "sampler";
   if (instrument.type === "none") return "none";
   return "synth";
 }
@@ -188,12 +188,22 @@ const SCAN_DIR_RE = /^(?:scanDirection|.+\.l2\.scanDirection)$/;
 const PITCH_OUT_RE = /^(?:pitch\.outOfRange|.+\.l2\.pitch\.outOfRange)$/;
 const PITCH_SCALE_RE = /^(?:pitch\.scale|.+\.l2\.pitch\.scale)$/;
 const PITCH_ROOT_RE = /^(?:pitch\.root|.+\.l2\.pitch\.root)$/;
+const REVERB_DECAY_RE = /^mixer\.buses\.\d+\.slot[12]\.params\.decay$/;
+const PAN_POS_RE = /(?:^|\.)panPos$/;
+const BPM_RE = /^transport\.bpm$/;
+const PCT_RE = /(?:Pct|Percent)$/;
+const MS_RE = /(?:Ms|Milliseconds)$/;
+const HZ_RE = /Hz$/;
+const DB_RE = /Db$/;
+const SEMIS_RE = /(?:Semis|semitones)$/;
+const CENTS_RE = /(?:Cents|cents)$/;
+const NORMALIZED_255_RE = /(?:filter\.(?:cutoffHz|resonance)|\.filterCutoff\.(?:from|to)$|\.filterResonance\.(?:from|to)$)$/;
 
 const FORMAT_MAP: Array<[RegExp | string, FormatFn]> = [
   [MAPPING_CHANNEL_RE, (v, cfg) => routeOptionLabel(Number(v), cfg)],
   [MAPPING_SLOT_RE, (v, cfg) => routeOptionLabel(Number(v), cfg)],
-  [CHANNEL_RE, (v) => String(clamp(Math.floor(Number(v)), 0, 15) + 1)],
-  [INSTR_TYPE_RE, (v) => v === "midi" ? "MIDI only" : v === "sample" ? "sample" : v === "none" ? "none" : "synth"],
+   [CHANNEL_RE, (v) => String(clamp(Math.floor(Number(v)), 0, 15) + 1)],
+   [INSTR_TYPE_RE, (v) => v === "midi" ? "MIDI only" : v === "sampler" ? "sampler" : v === "none" ? "none" : "synth"],
   [SLOT_RE, (v) => String(clamp(Math.floor(Number(v)), 0, PLATFORM_CAPS.sampleSlotCount - 1) + 1)],
   [ROUTE_RE, (v, cfg) => routeLabel(String(v), cfg)],
   [SCAN_MODE_RE, (v) => v === "immediate" ? "none" : "scanning"],
@@ -203,6 +213,16 @@ const FORMAT_MAP: Array<[RegExp | string, FormatFn]> = [
   [PITCH_OUT_RE, (v) => v === "wrap" ? "wrap" : "clamp"],
   [PITCH_SCALE_RE, (v) => formatScaleName(String(v))],
   [PITCH_ROOT_RE, (v) => String(v)],
+  [REVERB_DECAY_RE, (v) => formatReverbDecaySeconds(Number(v))],
+  [PAN_POS_RE, (v) => formatPanPosition(Number(v))],
+  [BPM_RE, (v) => `${Math.round(Number(v))}bpm`],
+  [PCT_RE, (v) => `${Math.round(Number(v))}%`],
+  [MS_RE, (v) => formatMilliseconds(Number(v))],
+  [NORMALIZED_255_RE, (v) => String(clamp(Math.round((Number(v) / 255) * 100), 0, 100))],
+  [HZ_RE, (v) => `${formatFixed(Number(v), 2)}Hz`],
+  [DB_RE, (v) => `${formatSigned(Number(v), 1)}dB`],
+  [SEMIS_RE, (v) => `${formatSigned(Number(v), 0)}st`],
+  [CENTS_RE, (v) => `${formatSigned(Number(v), 0)}c`],
   ["masterVolume", (v) => `Vol: ${v}%`],
   ["displayBrightness", (v) => `OLED ${v}%`],
   ["gridBrightness", (v) => `Grid ${v}%`],
@@ -236,6 +256,39 @@ function routeLabel(raw: string, cfg?: RuntimeConfig): string {
     if (bus) return fxBusLabel(busIdx, bus);
   }
   return raw;
+}
+
+function formatReverbDecaySeconds(value: number): string {
+  const feedback = clamp(Number.isFinite(value) ? value : 0, 0, 0.995);
+  if (feedback <= 0) return "0.0s";
+  const averageDelaySeconds = ((1557 + 1617 + 1491 + 1422) / 4) / 44_100;
+  const seconds = (-3 * averageDelaySeconds) / Math.log10(feedback);
+  return `${seconds.toFixed(1)}s`;
+}
+
+function formatPanPosition(value: number): string {
+  const pos = clampPanPosition(value);
+  const distance = pos - PAN_CENTER_POS;
+  if (distance === 0) return "C";
+  return `${distance < 0 ? "L" : "R"}${Math.abs(distance)}`;
+}
+
+function formatMilliseconds(value: number): string {
+  const ms = Number.isFinite(value) ? value : 0;
+  if (Math.abs(ms) >= 1000) return `${formatFixed(ms / 1000, 1)}s`;
+  return `${formatFixed(ms, ms % 1 === 0 ? 0 : 1)}ms`;
+}
+
+function formatSigned(value: number, digits: number): string {
+  const n = Number.isFinite(value) ? value : 0;
+  const text = digits > 0 ? n.toFixed(digits) : String(Math.round(n));
+  return n > 0 ? `+${text}` : text;
+}
+
+function formatFixed(value: number, maxDigits: number): string {
+  const n = Number.isFinite(value) ? value : 0;
+  if (maxDigits <= 0) return String(Math.round(n));
+  return n.toFixed(maxDigits).replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
 }
 
 export function formatDisplayValue(key: string, value: unknown, runtimeConfig?: RuntimeConfig): string {

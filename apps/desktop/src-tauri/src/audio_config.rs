@@ -17,6 +17,8 @@ pub struct AudioInstrumentsConfig {
     mixer: Option<AudioMixerConfig>,
     #[serde(default, rename = "panPositions")]
     pan_positions: Option<usize>,
+    #[serde(default, rename = "masterVolume")]
+    master_volume: Option<f32>,
 }
 
 #[derive(Deserialize)]
@@ -105,7 +107,7 @@ pub fn synth_payload(config: &AudioInstrumentsConfig) -> InstrumentsConfig {
                         .as_ref()
                         .and_then(|m| m.route.clone())
                         .unwrap_or_else(|| "direct".to_string()),
-                    pan_pos: slot.mixer.as_ref().and_then(|m| m.pan_pos).unwrap_or(4),
+                    pan_pos: slot.mixer.as_ref().and_then(|m| m.pan_pos).unwrap_or(16),
                     volume: slot.mixer.as_ref().and_then(|m| m.volume).unwrap_or(100.0),
                 }),
             })
@@ -113,7 +115,8 @@ pub fn synth_payload(config: &AudioInstrumentsConfig) -> InstrumentsConfig {
         mixer: Some(MixerConfig {
             buses: mixer_buses(config),
         }),
-        pan_positions: config.pan_positions.unwrap_or(8),
+        pan_positions: config.pan_positions.unwrap_or(realtime_engine::synth::DEFAULT_PAN_POSITIONS),
+        master_volume: config.master_volume.unwrap_or(100.0),
     }
 }
 
@@ -139,7 +142,7 @@ pub fn build_audio_slot_configs(
             break;
         }
         synth_slots[idx] = slot.kind == "synth";
-        if slot.kind != "sample" {
+        if slot.kind != "sampler" {
             continue;
         }
         sample_cfgs[idx] = sample_slot_config(slot);
@@ -156,10 +159,10 @@ pub fn sample_banks(
         .instruments
         .iter()
         .take(INSTRUMENT_SLOT_COUNT)
-        .map(|slot| {
-            if slot.kind != "sample" {
-                return SampleBankConfig::default();
-            }
+         .map(|slot| {
+             if slot.kind != "sampler" {
+                 return SampleBankConfig::default();
+             }
             let Some(sample) = &slot.sample else {
                 return SampleBankConfig::default();
             };
@@ -199,7 +202,7 @@ pub fn sample_banks(
 pub fn sample_bank_signature(config: &AudioInstrumentsConfig) -> String {
     let mut out = String::new();
     for slot in config.instruments.iter().take(INSTRUMENT_SLOT_COUNT) {
-        if slot.kind != "sample" {
+        if slot.kind != "sampler" {
             out.push_str("-|;");
             continue;
         }
@@ -240,7 +243,7 @@ fn mixer_buses(config: &AudioInstrumentsConfig) -> Vec<FxBusConfig> {
                 .iter()
                 .map(|b| FxBusConfig {
                     slots: vec![bus_slot(&b.slot1), bus_slot(&b.slot2)],
-                    pan_pos: b.pan_pos.unwrap_or(4),
+                    pan_pos: b.pan_pos.unwrap_or(16),
                 })
                 .collect::<Vec<_>>()
         })
@@ -293,7 +296,7 @@ mod tests {
     fn build_audio_slot_configs_applies_defaults_and_limits() {
         let mut many: Vec<AudioInstrumentSlotConfig> = Vec::new();
         many.push(AudioInstrumentSlotConfig {
-            kind: "sample".to_string(),
+            kind: "sampler".to_string(),
             synth: None,
             sample: Some(AudioSampleConfig {
                 slots: vec![
@@ -320,7 +323,7 @@ mod tests {
         });
         for _ in 0..20 {
             many.push(AudioInstrumentSlotConfig {
-                kind: "sample".to_string(),
+                kind: "sampler".to_string(),
                 synth: None,
                 sample: None,
                 mixer: None,
@@ -338,11 +341,11 @@ mod tests {
         assert_eq!(slots.len(), INSTRUMENT_SLOT_COUNT);
     }
 
-    #[test]
-    fn sample_banks_preserve_sample_playback_controls_without_decoding_in_audio_thread() {
+   #[test]
+     fn sample_banks_preserve_sample_playback_controls_without_decoding_in_audio_thread() {
         let config = AudioInstrumentsConfig {
             instruments: vec![AudioInstrumentSlotConfig {
-                kind: "sample".to_string(),
+                kind: "sampler".to_string(),
                 synth: None,
                 sample: Some(AudioSampleConfig {
                     slots: vec![AudioSampleSlotEntry {
@@ -358,6 +361,7 @@ mod tests {
             }],
             mixer: None,
             pan_positions: None,
+            master_volume: None,
         };
 
         let banks = sample_banks(&config, |_| None, |_| None);
@@ -381,7 +385,7 @@ mod tests {
                     mixer: None,
                 },
                 AudioInstrumentSlotConfig {
-                    kind: "sample".to_string(),
+                    kind: "sampler".to_string(),
                     synth: None,
                     sample: Some(AudioSampleConfig {
                         slots: vec![AudioSampleSlotEntry {
@@ -398,9 +402,73 @@ mod tests {
             ],
             mixer: None,
             pan_positions: None,
+            master_volume: None,
         };
         let before = sample_bank_signature(&config);
         synth.filter.cutoff_hz = 120.0;
+        let changed_synth = AudioInstrumentsConfig {
+            instruments: vec![
+               AudioInstrumentSlotConfig {
+                    kind: "synth".to_string(),
+                    synth: Some(synth),
+                    sample: None,
+                    mixer: None,
+                },
+                AudioInstrumentSlotConfig {
+                    kind: "sampler".to_string(),
+                    synth: None,
+                    sample: Some(AudioSampleConfig {
+                        slots: vec![AudioSampleSlotEntry {
+                            path: Some("kick.wav".to_string()),
+                        }],
+                        tune_semis: Some(0.0),
+                        amp: Some(AudioAmpConfig {
+                            gain_pct: Some(100.0),
+                            velocity_sensitivity_pct: Some(100.0),
+                        }),
+                    }),
+                    mixer: None,
+                },
+            ],
+             mixer: None,
+             pan_positions: None,
+             master_volume: None,
+        };
+        assert_eq!(before, sample_bank_signature(&changed_synth));
+    }
+
+    #[test]
+    fn sample_bank_signature_ignores_synth_only_changes_2() {
+        let config = AudioInstrumentsConfig {
+            instruments: vec![
+                AudioInstrumentSlotConfig {
+                    kind: "synth".to_string(),
+                    synth: Some(realtime_engine::synth::default_synth_config()),
+                    sample: None,
+                    mixer: None,
+                },
+                AudioInstrumentSlotConfig {
+                    kind: "sampler".to_string(),
+                    synth: None,
+                    sample: Some(AudioSampleConfig {
+                        slots: vec![AudioSampleSlotEntry {
+                            path: Some("kick.wav".to_string()),
+                        }],
+                        tune_semis: Some(0.0),
+                        amp: Some(AudioAmpConfig {
+                            gain_pct: Some(100.0),
+                            velocity_sensitivity_pct: Some(100.0),
+                        }),
+                    }),
+                    mixer: None,
+                },
+            ],
+            mixer: None,
+            pan_positions: None,
+            master_volume: None,
+        };
+        let before = sample_bank_signature(&config);
+        let synth = realtime_engine::synth::default_synth_config();
         let changed_synth = AudioInstrumentsConfig {
             instruments: vec![
                 AudioInstrumentSlotConfig {
@@ -410,7 +478,7 @@ mod tests {
                     mixer: None,
                 },
                 AudioInstrumentSlotConfig {
-                    kind: "sample".to_string(),
+                    kind: "sampler".to_string(),
                     synth: None,
                     sample: Some(AudioSampleConfig {
                         slots: vec![AudioSampleSlotEntry {
@@ -427,6 +495,7 @@ mod tests {
             ],
             mixer: None,
             pan_positions: None,
+            master_volume: None,
         };
 
         assert_eq!(before, sample_bank_signature(&changed_synth));

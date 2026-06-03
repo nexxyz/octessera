@@ -352,7 +352,7 @@ test("enabling autoSaveDefault emits immediate save when exiting edit", () => {
 
   state = selectLabel(state, "System");
   state = press(state).state;
-  state = selectLabel(state, "Presets");
+  state = selectLabel(state, "Saves");
   state = press(state).state;
   state = selectLabel(state, "Default");
   state = press(state).state;
@@ -418,7 +418,7 @@ test("save current preset triggers overwrite flow for loaded preset", () => {
 
   state = selectLabel(state, "System");
   state = press(state).state;
-  state = selectLabel(state, "Presets");
+  state = selectLabel(state, "Saves");
   state = press(state).state;
   state = selectLabel(state, "Library");
   state = press(state).state;
@@ -439,7 +439,7 @@ test("save current shows loaded preset name under action", () => {
 
   state = selectLabel(state, "System");
   state = press(state).state;
-  state = selectLabel(state, "Presets");
+  state = selectLabel(state, "Saves");
   state = press(state).state;
   state = selectLabel(state, "Library");
   state = press(state).state;
@@ -457,7 +457,7 @@ test("save current preset shows toast when none loaded", () => {
 
   state = selectLabel(state, "System");
   state = press(state).state;
-  state = selectLabel(state, "Presets");
+  state = selectLabel(state, "Saves");
   state = press(state).state;
   state = selectLabel(state, "Library");
   state = press(state).state;
@@ -529,6 +529,31 @@ test("sample list/preview errors set user toast", () => {
     mockBehavior
   );
   assert.ok(previewErr.state.system.toast?.message.includes("Sample preview error"));
+});
+
+test("shift space emergency brake is handled by core input routing", () => {
+  let state = makeState();
+  state.transport.playing = true;
+  state.transport.ppqnPulse = 24;
+  state = routeInput(state, { type: "button_shift", pressed: true } as DeviceInput, mockBehavior).state;
+
+  const result = routeInput(state, { type: "button_s", pressed: true } as DeviceInput, mockBehavior);
+
+  assert.equal(result.state.transport.playing, false);
+  assert.equal(result.state.transport.ppqnPulse, 0);
+  assert.equal(result.state.system.stopLatched, true);
+  assert.ok(result.events.some((event) => event.type === "cc" && event.controller === 123));
+});
+
+test("shift space keeps external sync resync behavior", () => {
+  let state = makeState();
+  state.runtimeConfig.midi.syncMode = "external";
+  state = routeInput(state, { type: "button_shift", pressed: true } as DeviceInput, mockBehavior).state;
+
+  const result = routeInput(state, { type: "button_s", pressed: true } as DeviceInput, mockBehavior);
+
+  assert.equal(result.state.system.pendingResync, true);
+  assert.equal(result.events.length, 0);
 });
 
 test("midi_status updates system midi status", () => {
@@ -645,8 +670,8 @@ test("factory reset defaults match REQ-14 specification", () => {
 // ─── Sample Browser Menu ──────────────────────────────────────────
 
 test("choose sample entry creates browser and shows dir navigation", () => {
-  let state = makeState();
-  (state.runtimeConfig as any).instruments[0].type = "sample";
+   let state = makeState();
+   (state.runtimeConfig as any).instruments[0].type = "sampler";
 
   state = selectLabel(state, "L3: Voice");
   state = press(state).state;
@@ -672,8 +697,8 @@ test("choose sample entry creates browser and shows dir navigation", () => {
 });
 
 test("choose sample populates entries after sample_list_result", () => {
-  let state = makeState();
-  (state.runtimeConfig as any).instruments[0].type = "sample";
+   let state = makeState();
+   (state.runtimeConfig as any).instruments[0].type = "sampler";
 
   state = selectLabel(state, "L3: Voice");
   state = press(state).state;
@@ -712,9 +737,35 @@ test("choose sample populates entries after sample_list_result", () => {
   assert.ok(!frame.display.lines.some((l: string) => l.includes("(empty)")), "no (empty) when files exist");
 });
 
-test("choose sample re-entry preserves browser entries", () => {
+test("choose sample preview emits routed audio command", () => {
   let state = makeState();
-  (state.runtimeConfig as any).instruments[0].type = "sample";
+  (state.runtimeConfig as any).instruments[0].type = "sampler";
+
+  state = selectLabel(state, "L3: Voice");
+  state = press(state).state;
+  state = selectLabel(state, "Instruments");
+  state = press(state).state;
+  state = selectLabel(state, "I1: synth");
+  state = press(state).state;
+  state = selectLabel(state, "> Sample");
+  state = press(state).state;
+  state = selectLabel(state, "Choose Sample");
+  state = press(state).state;
+  state = applyStoreResult(
+    state,
+    { type: "sample_list_result", instrumentSlot: 0, sampleSlot: 0, dir: "", entries: [{ name: "kick.wav", path: "kick.wav", isDir: false }] } as any,
+    mockBehavior
+  ).state;
+  state = selectLabel(state, "kick.wav");
+
+  const result = routeInput(state, { type: "button_s", pressed: true } as DeviceInput, mockBehavior);
+
+  assert.deepEqual(result.effects, [{ type: "audio_command", command: { type: "sample_preview", instrumentSlot: 0, sampleSlot: 0, path: "kick.wav", velocity: 100 } }]);
+});
+
+test("choose sample re-entry preserves browser entries", () => {
+   let state = makeState();
+   (state.runtimeConfig as any).instruments[0].type = "sampler";
 
   state = selectLabel(state, "L3: Voice");
   state = press(state).state;

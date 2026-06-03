@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createCoalescedAudioConfigSender } from "../src/audio/coalescedAudioConfig";
 
-const baseConfig = (value: number) => ({ instruments: [{ type: "synth", value }], mixer: { buses: [] }, panPositions: 8 });
+const baseConfig = (value: number) => ({ instruments: [{ type: "synth", value }], mixer: { buses: [] }, panPositions: 33, masterVolume: 100 });
 
 test("coalesced audio config sender sends only latest pending config", async () => {
   const sent: unknown[] = [];

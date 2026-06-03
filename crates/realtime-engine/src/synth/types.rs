@@ -24,7 +24,7 @@ pub enum FilterType {
 pub const INSTRUMENT_SLOT_COUNT: usize = 8;
 pub const VOICES_PER_SLOT: usize = 8;
 pub const BUS_SLOTS_PER_BUS: usize = 2;
-pub const DEFAULT_PAN_POSITIONS: usize = 8;
+pub const DEFAULT_PAN_POSITIONS: usize = 33;
 pub const SAMPLE_SLOTS_PER_INSTRUMENT: usize = 8;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -213,10 +213,16 @@ pub struct InstrumentsConfig {
     pub mixer: Option<MixerConfig>,
     #[serde(default = "default_pan_positions", rename = "panPositions")]
     pub pan_positions: usize,
+    #[serde(default = "default_master_volume", rename = "masterVolume")]
+    pub master_volume: f32,
 }
 
 fn default_pan_positions() -> usize {
     DEFAULT_PAN_POSITIONS
+}
+
+fn default_master_volume() -> f32 {
+    100.0
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

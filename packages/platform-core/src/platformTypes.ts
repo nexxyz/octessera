@@ -18,6 +18,9 @@ export type MomentaryFxTarget =
 export type BarValue = { frac: number; numChars: number };
 export type ScaleId = "chromatic" | "major" | "natural_minor" | "dorian" | "mixolydian" | "major_pentatonic" | "minor_pentatonic" | "harmonic_minor";
 export type RootName = "C" | "C#" | "D" | "D#" | "E" | "F" | "F#" | "G" | "G#" | "A" | "A#" | "B";
+export type ParamModAxis = "x" | "y";
+export type ParamModSlotBinding = AuxTurnBinding & { invert: boolean };
+export type ParamModAxisSlots = { x: [ParamModSlotBinding | null, ParamModSlotBinding | null]; y: [ParamModSlotBinding | null, ParamModSlotBinding | null] };
 type OutOfRangeMode = "clamp" | "wrap";
 type PitchSettings = { startingNote: number; lowestNote: number; highestNote: number; outOfRange: OutOfRangeMode; scale: ScaleId; root: RootName };
 type PitchLaneConfig = { enabled: boolean; steps: number; restartEachSection: boolean };
@@ -55,7 +58,7 @@ export type SynthConfig = {
 };
 
 export type InstrumentSlotConfig = {
-  type: "synth" | "sample" | "midi" | "none";
+  type: "synth" | "sampler" | "midi" | "none";
   autoName: boolean;
   name: string;
   noteBehavior: "oneshot" | "hold";
@@ -119,7 +122,8 @@ export type ActiveFx = { cellX: number; cellY: number; fxType: MomentaryFxType; 
 export type AudioCommand =
   | { type: "momentary_fx_start"; id: string; fxType: MomentaryFxType; params: Record<string, unknown>; target: MomentaryFxTarget }
   | { type: "momentary_fx_update"; id: string; params: Record<string, unknown> }
-  | { type: "momentary_fx_stop"; id: string };
+  | { type: "momentary_fx_stop"; id: string }
+  | { type: "sample_preview"; instrumentSlot: number; sampleSlot: number; path: string; velocity: number };
 
 export type PartSenseConfig = {
   scanMode: ScanMode;
@@ -150,6 +154,7 @@ export type PartConfig = {
     triggerGates?: boolean[];
   };
   l2: PartSenseConfig;
+  paramMods?: ParamModAxisSlots;
   autoName: boolean;
   name: string;
 };
@@ -162,6 +167,7 @@ export type RuntimeConfig = {
   activeBehavior: string; autoSaveDefault: boolean; behaviorConfig: Record<string, unknown>; eventEnabled: boolean; inputEventsWhilePaused: boolean;
   pitch: PitchSettings; x: AxisModConfig; y: AxisModConfig;
   activePartIndex: number; parts: PartConfig[]; numericDisplayMode: NumericDisplayMode; ghostCells: boolean;
+  panPositions: number;
   instruments: InstrumentSlotConfig[];
   mixer?: { buses: FxBusConfig[] };
   touchFx?: { selected: MomentaryFxConfig; assignments: FxCellConfig[] };
@@ -237,8 +243,7 @@ export type MidiEffect =
   | { type: "midi_list_outputs_request" } | { type: "midi_list_inputs_request" }
   | { type: "midi_select_output"; id: string | null } | { type: "midi_select_input"; id: string | null } | { type: "midi_panic" };
 export type SampleEffect =
-  | { type: "sample_list_request"; instrumentSlot: number; sampleSlot: number; dir: string }
-  | { type: "sample_preview_request"; path: string };
+  | { type: "sample_list_request"; instrumentSlot: number; sampleSlot: number; dir: string };
 export type AudioCommandEffect = { type: "audio_command"; command: AudioCommand };
 export type PlatformEffect = PlatformEffectBase | MidiEffect | SampleEffect | AudioCommandEffect;
 export type StoreResultBase =

@@ -36,7 +36,7 @@ import { pressAuxEncoder, pressAuxEncoderMapped, turnAuxEncoder, turnAuxEncoderM
 import { handleMenuAction } from "./actions";
 import { getSynthPreset } from "./synthPresets";
 export { GRID_DOMAIN, createGridDomain, type GridCell, type GridDomain } from "./gridDomain";
-export { PLATFORM_CAPS } from "./platformCaps";
+export { PAN_CENTER_POS, PAN_POSITION_COUNT, PAN_POSITION_MAX, PLATFORM_CAPS } from "./platformCaps";
 export { cutoffDisplayToHz } from "./coreUtils";
 import {
   factoryPayload,
@@ -78,6 +78,7 @@ function resolveBehavior(activeId: string): BehaviorEngine<any, any> {
 }
 import { buildSimulatorFrame } from "./simulatorFrameBuilder";
 import { ghostCellsForInactiveParts } from "./runtimeHelpers";
+import { paramBindingFromMenuNode } from "./paramMod";
 import { emergencyBrakeState } from "./transportSafety";
 import {
   OLED_HEIGHT,
@@ -325,13 +326,15 @@ export function toSimulatorFrame<TState>(state: PlatformState<TState>, behavior:
   const partStates = Array.isArray((state as any).partStates) ? ((state as any).partStates as any[]) : [];
   const model = engine.renderModel((partStates[activePart] ?? state.behaviorState) as any);
   const menuView = currentMenuView(state);
+  const rawView = locate(menuTree(state), state, state.menu);
+  const paramModBinding = state.system.shiftHeld ? paramBindingFromMenuNode(rawView.siblings[state.menu.cursor] as any) : null;
   const scanMode = part?.l2?.scanMode ?? state.runtimeConfig.scanMode;
   const scanAxis = part?.l2?.scanAxis ?? state.runtimeConfig.scanAxis;
   const scanSections = part?.l2?.scanSections ?? state.runtimeConfig.scanSections;
   const scanIndex = ((state as any).partScanIndex?.[activePart] ?? state.scanIndex) as number;
   const scanCursor = scanMode === "scanning" ? { axis: scanAxis, index: scanIndex, sections: scanSections } : null;
   const ghostCells = state.runtimeConfig.ghostCells === true ? ghostCellsForInactiveParts(state, activePart, model.cells.length) : undefined;
-  return buildSimulatorFrame({ state, activePart, engine, model, menuView, scanCursor, toOledLines, audioLoad: options.audioLoad, ghostCells });
+  return buildSimulatorFrame({ state, activePart, engine, model, menuView, scanCursor, toOledLines, audioLoad: options.audioLoad, ghostCells, paramModBinding });
 }
 
 function menuTree<TState>(state: PlatformState<TState>): MenuNode {

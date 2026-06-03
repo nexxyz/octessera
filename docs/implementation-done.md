@@ -59,18 +59,18 @@ Root
 │   └── BPM: 40-240
 └── System
     ├── Audio → Master Vol: 0-100
-    ├── Presets
+    ├── Saves
     │   ├── Library (Save As / Load / Rename / Delete / Refresh)
     │   ├── Default (Save Default / Load Default / Auto Save)
     │   └── Factory (Revert Factory)
     ├── MIDI (Enabled / Sync Mode / MIDI Out / MIDI In / Clock Out/In / Respond Start-Stop / Panic)
     ├── Sound (Note Length / Velocity Scale / Velocity Curve)
-    └── UI Settings (Screen Sleep / Display / Grid / Button Brightness)
+    └── UI (Screen Sleep / Display / Grid / Button Brightness)
 ```
 
 ## Key Features
 
-- **Auto-save**: Toggle in System > Presets > Default > Auto Save. When on, config changes schedule a deferred `store_save_default`; storage writes the latest settled config after a short cooldown.
+- **Auto-save**: Toggle in System > Saves > Default > Auto Save. When on, config changes schedule a deferred `store_save_default`; storage writes the latest settled config after a short cooldown.
 - **Aux encoder binding**: Each aux encoder has independent turn/press slots. Shift+aux press binds current item (turn while editing value, press while selecting action). Unbind now requires confirmation (`Both`/`Click`/`Turn`/`Cancel`).
 - **Shared spawn route**: Spawn actions are marked `!...[S]` and bind to `trigger.life.spawn_now`, resolving per active behavior. Unsupported contexts show `S#: N/A (Spawn Now)`.
 - **Shift+Backspace (button_a + shiftHeld)**: Clears the grid by re-initializing the current behavior.

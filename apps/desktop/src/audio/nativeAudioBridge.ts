@@ -1,4 +1,5 @@
 import type { MusicalEvent } from "@cellsymphony/musical-events";
+import { PAN_POSITION_COUNT } from "@cellsymphony/platform-core";
 import { invoke } from "@tauri-apps/api/core";
 
 export interface NativeAudioBridge {
@@ -17,7 +18,7 @@ class TauriNativeAudioBridge implements NativeAudioBridge {
   async setInstruments(config: { instruments: unknown[]; mixer: unknown; panPositions: number }): Promise<void> {
     const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
     if (!isTauri) return;
-    const payload = config ?? { instruments: [], mixer: { buses: [] }, panPositions: 8 };
+    const payload = config ?? { instruments: [], mixer: { buses: [] }, panPositions: PAN_POSITION_COUNT, masterVolume: 100 };
     await invoke("audio_set_instruments", { config: payload });
   }
 

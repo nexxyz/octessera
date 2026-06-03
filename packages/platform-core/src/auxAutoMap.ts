@@ -2,7 +2,7 @@ import type { PlatformState } from "./index";
 import type { ActionSpec, AuxBinding, AuxPressBinding, AuxTurnBinding, MomentaryFxType } from "./platformTypes";
 import { defaultFxParam } from "./fxDefaults";
 import type { BehaviorEngine } from "@cellsymphony/behavior-api";
-import { PLATFORM_CAPS, clampSampleSlotIndex } from "./platformCaps";
+import { PAN_POSITION_MAX, PLATFORM_CAPS, clampSampleSlotIndex } from "./platformCaps";
 
 export type AuxAutoMap = {
   aux1: AuxBinding | null;
@@ -97,7 +97,7 @@ function instrumentMixerAutoMap(instIdx: number): AuxAutoMap {
   const p = `instruments.${instIdx}.mixer`;
   return {
     aux1: { turn: turn(`${p}.volume`, "Vol", { kind: "number", min: 0, max: 100, step: 1 }), press: null },
-    aux2: { turn: turn(`${p}.panPos`, "Pan", { kind: "number", min: 0, max: PLATFORM_CAPS.gridWidth - 1, step: 1 }), press: null },
+    aux2: { turn: turn(`${p}.panPos`, "Pan", { kind: "number", min: 0, max: PAN_POSITION_MAX, step: 1 }), press: null },
     aux3: { turn: turn(`${p}.route`, "Route", { kind: "enum", options: ["direct", ...Array.from({ length: PLATFORM_CAPS.busCount }, (_, i) => `fx_bus_${i + 1}`)] }), press: null },
     aux4: null
   };
@@ -328,7 +328,7 @@ export function resolveAuxAutoMap<TState>(
       (map as any)[slot] = { turn: { key: `${base}.${keySuffix}`, label, kind, ...(min !== undefined ? { min } : {}), ...(max !== undefined ? { max } : {}), ...(step !== undefined ? { step } : {}) }, press: null };
     };
     // Curated per FX type.
-    if (type === "reverb") { put("aux1", "decay", "Decay", "number", 0, 1, 0.01); put("aux2", "damp", "Damp", "number", 0, 1, 0.01); put("aux4", "mixPct", "Mix", "number", 0, 100, 1); return map; }
+    if (type === "reverb") { put("aux1", "decay", "Decay", "number", 0, 0.995, 0.005); put("aux2", "damp", "Damp", "number", 0, 1, 0.01); put("aux4", "mixPct", "Mix", "number", 0, 100, 1); return map; }
     if (type === "delay") { put("aux1", "timeMs", "Time", "number", 1, 2000, 1); put("aux2", "feedback", "FB", "number", 0, 0.95, 0.01); put("aux4", "mixPct", "Mix", "number", 0, 100, 1); return map; }
     if (type === "tremolo") { put("aux1", "rateHz", "Rate", "number", 0, 20, 0.1); put("aux2", "depthPct", "Depth", "number", 0, 100, 1); return map; }
     if (type === "auto_pan") { put("aux1", "rateHz", "Rate", "number", 0, 20, 0.1); put("aux2", "depthPct", "Depth", "number", 0, 100, 1); return map; }

@@ -40,6 +40,11 @@ pub enum EngineEvent {
     },
     SetInstruments(InstrumentsConfig),
     SetSampleBanks(Vec<SampleBankConfig>),
+    PreviewSample {
+        instrument_slot: u8,
+        buffer: realtime_engine::synth::SampleBuffer,
+        velocity: u8,
+    },
     SetVoiceStealingMode(VoiceStealingMode),
     MomentaryFxStart {
         id: String,
@@ -141,6 +146,11 @@ impl EngineSource {
                 }
                 EngineEvent::SetInstruments(config) => self.engine.set_instruments(config),
                 EngineEvent::SetSampleBanks(banks) => self.engine.set_sample_banks(banks),
+                EngineEvent::PreviewSample {
+                    instrument_slot,
+                    buffer,
+                    velocity,
+                } => self.engine.preview_sample(instrument_slot, buffer, velocity),
                 EngineEvent::SetVoiceStealingMode(mode) => {
                     self.engine.set_voice_stealing_mode(mode)
                 }

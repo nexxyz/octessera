@@ -1,4 +1,4 @@
-import { abbreviatePath, formatMenuItemLines, getSectionColor, getSectionColorFromPath } from "./menuPresentation";
+import { abbreviatePath, barNumberChars, formatMenuItemLines, getSectionColor, getSectionColorFromPath, shouldUseNumberBar } from "./menuPresentation";
 import { clamp } from "./coreUtils";
 import type { BarValue, ConfirmState, MenuNode, MenuState, NumericDisplayMode, PlatformState } from "./platformTypes";
 import { resolveAuxAutoMap, resolveEffectiveAuxMap } from "./auxAutoMap";
@@ -20,8 +20,8 @@ export function compactSourcePathFromKey<TState>(state: PlatformState<TState>, k
   }
   const inst = /^instruments\.(\d+)\.(synth|sample)\.(.+)$/.exec(key);
   if (inst) {
-    const idx = Number(inst[1]) + 1;
-    const kind = inst[2] === "synth" ? "Synth" : "Sample";
+     const idx = Number(inst[1]) + 1;
+     const kind = inst[2] === "synth" ? "Synth" : "Sampler";
     const rest = inst[3];
     if (rest.startsWith("filterEnv.")) return `L3>I${idx}>${kind}>FEnv`;
     if (rest.startsWith("ampEnv.")) return `L3>I${idx}>${kind}>AEnv`;
@@ -66,7 +66,7 @@ function deriveGroupKey(group: any, groupPath: string): string | undefined {
   const label = String(group.label ?? "").toLowerCase();
   const segs = groupPath.split("/").map(s => s.toLowerCase());
 
-  const inSample = segs.some(s => s.includes("sample")) || label.includes("sample");
+   const inSample = segs.some(s => s.includes("sampler")) || label.includes("sampler");
   const inMixer = segs.some(s => s.includes("mixer")) || label.includes("mixer");
 
   if (inSample) return `instruments.${instIdx}.sample.selectedSlot`;
@@ -115,13 +115,6 @@ type CurrentMenuViewDeps<TState> = {
 function barFraction(val: number, min: number, max: number): number {
   const range = max - min || 1;
   return Math.max(0, Math.min(1, (val - min) / range));
-}
-
-function barNumChars(min: number, max: number): number {
-  const mn = Math.round(min);
-  const mx = Math.round(max);
-  const digits = Math.max(String(mn).length, String(mx).length);
-  return (mn < 0 || mx < 0) ? digits + 1 : digits;
 }
 
 export function currentMenuView<TState>(deps: CurrentMenuViewDeps<TState>): { path: string; lines: string[]; colors: number[]; barValues: (BarValue | null)[] } {
@@ -300,12 +293,12 @@ export function currentMenuView<TState>(deps: CurrentMenuViewDeps<TState>): { pa
     }
     colors.push(...Array(itemLines.length).fill(itemColor));
 
-    if (item.kind === "number" && (item.displayStyle === "bar" || /\.params\./.test(item.key))) {
+    if (item.kind === "number" && shouldUseNumberBar(item)) {
       const mode = (state.runtimeConfig as any).numericDisplayMode as NumericDisplayMode;
       if (mode !== "numbers") {
         const val = Number(readAnyValue(state, item.key));
         const frac = barFraction(val, item.min, item.max);
-        const numChars = mode === "bar+numbers" ? barNumChars(item.min, item.max) : 0;
+        const numChars = mode === "bar+numbers" ? barNumberChars(item.key, item.min, item.max, formatDisplayValue, state.runtimeConfig as any) : 0;
         if (itemLines.length > 1) {
           barValues.push(null); // label line
           barValues.push({ frac, numChars }); // value line
