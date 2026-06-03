@@ -174,6 +174,12 @@ export function routeInputWithDeps<TState>(state: PlatformState<TState>, input: 
       : deps.turnMenu(nextState, input.delta, effects);
   }
 
+  // Shift+aux press → bind/unbind current menu parameter
+  if (input.type === "encoder_press" && input.id?.startsWith("aux") && nextState.system.shiftHeld) {
+    nextState = deps.assignAuxEncoder(nextState, input.id, effects, deps);
+    return { state: nextState, events, effects };
+  }
+
   // Aux encoder input
   const auxResult = handleAuxEncoderInput(state, input, deps, auxDeps, nextState, events, effects);
   nextState = auxResult.state;

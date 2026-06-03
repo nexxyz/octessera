@@ -23,6 +23,7 @@ run_check() {
 run_check "pnpm lint"          "pnpm run lint 2>&1"
 run_check "pnpm typecheck"     "pnpm run typecheck 2>&1"
 run_check "pnpm format:check"  "pnpm run format:check 2>&1"
+run_check "pnpm test"          "pnpm run test 2>&1"
 run_check "cargo fmt"          "cargo fmt --all --check 2>&1"
 run_check "cargo clippy" \
   "cargo clippy --workspace --exclude cellsymphony-pi --exclude cellsymphony-desktop --exclude midi-io-sidecar --exclude rodio-engine-source --all-targets -- -D warnings 2>&1"
