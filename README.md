@@ -31,13 +31,17 @@ Implemented and functional:
 - Dance FX mapping: select effect type/params, Map to Grid, press cells for momentary activate/release effects.
 - Preset/default storage, factory/default load/save, auto-save, contextual help, OLED rendering, toast feedback, and aux encoder bindings.
 
+Implemented and functional:
+
+- Phase 1: Quality & consistency improvements (duck prevention, "none" type, range standardization, quality pass)
+- Phase 2: Menu cleanup, part/instrument clone/reset, factory defaults
+- Phase 3: Ghost cells, sectioned scan modes
+- Phase 4: Touch layer, momentary FX grid, marker bar display style (REQ-20 in progress)
+
 Planned/follow-up:
 
 Phase 4 (Performance & Effects):
-- REQ-05 — Global FX (Master Bus): Vinyl simulator, EQ, compressor post-instrument/pre-output.
-- REQ-08 — Aux Encoder Mapping in Performance: Auto-map important params per context, OLED indicators.
-- REQ-15 — Signal Path Visualization: OLED routing diagram (parts → instruments → FX buses → output).
-- REQ-20 — Position-Marker Bar Display Style: Bipolar/positional params (Pan, Detune, Env Amt, Tune Semis) use marker style instead of filled bar.
+- REQ-20 — Position-Marker Bar Display Style: Bipolar/positional params (Pan, Detune, Env Amt, Tune Semis) use marker style instead of filled bar. (In progress)
 
 Phase 5 (Advanced / Hardware):
 - REQ-16 — Rust-Owned Realtime Playback Runtime: Move transport/MIDI/audio scheduling from TS to Rust.
