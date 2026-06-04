@@ -96,7 +96,7 @@ function fxSlotNode(busIdx: number, slotIdx: 1 | 2): MenuNode {
           { kind: "number", label: "Rate Hz", key: `mixer.buses.${busIdx}.${slotKey}.params.rateHz`, min: 0.02, max: 20, step: 0.05 },
           { kind: "number", label: "Depth ms", key: `mixer.buses.${busIdx}.${slotKey}.params.depthMs`, min: 0, max: 40, step: 0.1 },
           { kind: "number", label: "Base ms", key: `mixer.buses.${busIdx}.${slotKey}.params.baseMs`, min: 0.1, max: 80, step: 0.1 },
-          { kind: "number", label: "Feedback", key: `mixer.buses.${busIdx}.${slotKey}.params.feedback`, min: -0.95, max: 0.95, step: 0.01 }
+          { kind: "number", label: "Feedback", key: `mixer.buses.${busIdx}.${slotKey}.params.feedback`, min: -0.95, max: 0.95, step: 0.01, displayStyle: "marker" }
         ]
       },
       {
@@ -163,9 +163,9 @@ function fxSlotNode(busIdx: number, slotIdx: 1 | 2): MenuNode {
         flat: true,
         visible: effectVisible(busIdx, slotKey, "eq"),
         children: [
-          { kind: "number", label: "Low Gain dB", key: `mixer.buses.${busIdx}.${slotKey}.params.lowGainDb`, min: -12, max: 12, step: 0.5 },
-          { kind: "number", label: "Mid Gain dB", key: `mixer.buses.${busIdx}.${slotKey}.params.midGainDb`, min: -12, max: 12, step: 0.5 },
-          { kind: "number", label: "High Gain dB", key: `mixer.buses.${busIdx}.${slotKey}.params.highGainDb`, min: -12, max: 12, step: 0.5 },
+          { kind: "number", label: "Low Gain dB", key: `mixer.buses.${busIdx}.${slotKey}.params.lowGainDb`, min: -12, max: 12, step: 0.5, displayStyle: "marker" },
+          { kind: "number", label: "Mid Gain dB", key: `mixer.buses.${busIdx}.${slotKey}.params.midGainDb`, min: -12, max: 12, step: 0.5, displayStyle: "marker" },
+          { kind: "number", label: "High Gain dB", key: `mixer.buses.${busIdx}.${slotKey}.params.highGainDb`, min: -12, max: 12, step: 0.5, displayStyle: "marker" },
           { kind: "number", label: "Mid Freq Hz", key: `mixer.buses.${busIdx}.${slotKey}.params.midFreqHz`, min: 40, max: 8000, step: 10 },
           { kind: "number", label: "Mid Q", key: `mixer.buses.${busIdx}.${slotKey}.params.midQ`, min: 0.25, max: 20, step: 0.25 },
           { kind: "number", label: "Mix %", key: `mixer.buses.${busIdx}.${slotKey}.params.mixPct`, min: 0, max: 100, step: 1 }
@@ -189,7 +189,7 @@ export function fxBusesMenuNode(state?: any): MenuNode {
       children: [
         fxSlotNode(busIdx, 1),
         fxSlotNode(busIdx, 2),
-        { kind: "number", label: "Pan Pos", key: `mixer.buses.${busIdx}.panPos`, min: 0, max: PAN_POSITION_MAX, step: 1 },
+        { kind: "number", label: "Pan Pos", key: `mixer.buses.${busIdx}.panPos`, min: 0, max: PAN_POSITION_MAX, step: 1, displayStyle: "marker" },
         { kind: "bool", label: "Auto Name", key: `mixer.buses.${busIdx}.autoName` },
         { kind: "text", label: "Name", key: `mixer.buses.${busIdx}.name`, maxLen: 32 }
       ]

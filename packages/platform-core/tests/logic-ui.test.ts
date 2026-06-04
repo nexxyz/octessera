@@ -5,7 +5,13 @@ import type { BehaviorEngine } from "@cellsymphony/behavior-api";
 import type { DeviceInput } from "@cellsymphony/device-contracts";
 import { keysBehavior } from "@cellsymphony/behaviors-keys";
 import { createInitialState, GRID_DOMAIN, OLED_TEXT_COLUMNS, PAN_CENTER_POS, PAN_POSITION_COUNT, PAN_POSITION_MAX, PLATFORM_CAPS, routeInput, tick, toOledLines, toSimulatorFrame } from "../src/index";
-import { formatDisplayValue } from "../src/coreUtils";
+import { fitOledText, formatDisplayValue } from "../src/coreUtils";
+import { shouldUseNumberBar } from "../src/menuPresentation";
+import { currentMenuView } from "../src/menuView";
+import { axisGroup } from "../src/menuNodes";
+import { buildMenuTree } from "../src/menuTree";
+import { readAnyValue } from "../src/paramAccess";
+import { renderOledFrame } from "../src/oledRender";
 import { pitchFromIntent } from "../src/musicTransforms";
 import { cellsToLeds, resolveDancePanTarget, DANCE_PAN_COLORS } from "../src/runtimeHelpers";
 
@@ -120,6 +126,63 @@ test("pan menu display shows direct distance from center", () => {
   assert.equal(formatDisplayValue(key, PAN_POSITION_MAX), "R16");
 });
 
+test("marker display style still opts into number bar rendering", () => {
+  assert.equal(shouldUseNumberBar({ kind: "number", label: "Pan Pos", key: "instruments.0.mixer.panPos", min: 0, max: PAN_POSITION_MAX, step: 1, displayStyle: "marker" }), true);
+});
+
+test("current menu view propagates marker and fill bar styles", () => {
+  let state = createInitialState(mockBehavior);
+  state.system.oledMode = "normal";
+
+  const turn = (delta: number) => {
+    state = routeInput(state, { type: "encoder_turn", delta }, mockBehavior).state;
+  };
+
+  const press = () => {
+    state = routeInput(state, { type: "encoder_press" }, mockBehavior).state;
+  };
+
+  const selectLabel = (label: string) => {
+    for (let i = 0; i < 120; i += 1) {
+      const frame = toSimulatorFrame(state, mockBehavior);
+      const selected = frame.display.lines.find((l) => l.startsWith("@@")) ?? "";
+      if (selected.includes(label)) return;
+      turn(1);
+    }
+    assert.fail(`failed to select label: ${label}`);
+  };
+
+  selectLabel("L3: Voice");
+  press();
+  selectLabel("Instruments");
+  press();
+  selectLabel("I1:");
+  press();
+  selectLabel("Mixer");
+  press();
+  selectLabel("Pan Pos");
+
+  const view = currentMenuView({
+    state,
+    menuTree: (nextState) => buildMenuTree(nextState, {
+      resolveBehavior: () => mockBehavior,
+      axisGroup,
+      presetListNodes: () => [],
+      presetRenameNodes: () => [],
+      midiOutputNodes: () => [],
+      midiInputNodes: () => [],
+      sampleBrowserNodes: () => []
+    }),
+    resolveBehavior: () => mockBehavior,
+    fitOledText: (text: string) => fitOledText(text, OLED_TEXT_COLUMNS),
+    readAnyValue,
+    formatDisplayValue,
+    oledTextLines: 8
+  });
+
+  assert.ok(view.barValues.some((bar) => bar?.style === "marker"), "Pan Pos should use marker style");
+});
+
 test("OLED renders audio load indicator colors", () => {
   const state = createInitialState(mockBehavior);
   state.system.oledMode = "normal";
@@ -132,6 +195,21 @@ test("OLED renders audio load indicator colors", () => {
   assert.equal(pixel565(red.pixels, 123, 5), 0xf800);
   assert.notEqual(pixel565(idle.pixels, 123, 5), 0xffe0);
   assert.notEqual(pixel565(idle.pixels, 123, 5), 0xf800);
+});
+
+test("OLED marker bars render a position marker instead of a filled region", () => {
+  const marker = renderOledFrame({
+    lines: ["@@  Pan: C"],
+    barValues: [{ frac: 0.5, numChars: 0, style: "marker" }]
+  });
+  const fill = renderOledFrame({
+    lines: ["@@  Pan: C"],
+    barValues: [{ frac: 0.5, numChars: 0 }]
+  });
+
+  assert.equal(pixel565(marker.pixels, 30, 5), 0xffff);
+  assert.equal(pixel565(fill.pixels, 30, 5), 0x39c7);
+  assert.equal(pixel565(marker.pixels, 57, 5), 0x39c7);
 });
 
 test("simulator frame exposes behavior grid interaction semantics", () => {

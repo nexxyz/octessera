@@ -9,7 +9,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Status** | open |
+| **Status** | closed |
 | **Phase** | 4 |
 | **Priority** | low |
 | **Scope** | small |

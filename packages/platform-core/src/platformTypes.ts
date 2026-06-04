@@ -15,7 +15,7 @@ export type MomentaryFxTarget =
   | { type: "global" }
   | { type: "fx_bus"; index: number }
   | { type: "instrument"; index: number };
-export type BarValue = { frac: number; numChars: number };
+export type BarValue = { frac: number; numChars: number; style?: "fill" | "marker" };
 export type ScaleId = "chromatic" | "major" | "natural_minor" | "dorian" | "mixolydian" | "major_pentatonic" | "minor_pentatonic" | "harmonic_minor";
 export type RootName = "C" | "C#" | "D" | "D#" | "E" | "F" | "F#" | "G" | "G#" | "A" | "A#" | "B";
 export type ParamModAxis = "x" | "y";
@@ -269,7 +269,7 @@ export type PlatformState<TState> = {
 export type MenuNode =
   | { kind: "group"; label: string; children: MenuNode[] | ((state: PlatformState<any>) => MenuNode[]); visible?: (c: RuntimeConfig) => boolean; flat?: boolean | ((config: RuntimeConfig) => boolean) }
   | { kind: "enum"; label: string; key: string; options: string[]; visible?: (c: RuntimeConfig) => boolean }
-  | { kind: "number"; label: string; key: string; min: number; max: number; step: number; displayStyle?: "number" | "bar"; visible?: (c: RuntimeConfig) => boolean }
+  | { kind: "number"; label: string; key: string; min: number; max: number; step: number; displayStyle?: "number" | "bar" | "marker"; visible?: (c: RuntimeConfig) => boolean }
   | { kind: "bool"; label: string; key: string; visible?: (c: RuntimeConfig) => boolean }
   | { kind: "action"; label: string; action: ActionSpec }
   | { kind: "text"; label: string; key: string; maxLen: number; onExitSaveAction?: ActionSpec }

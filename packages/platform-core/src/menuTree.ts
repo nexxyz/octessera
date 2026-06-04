@@ -178,7 +178,7 @@ export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTr
                               { kind: "enum", label: "Wave", key: `${prefix}.synth.osc1.waveform`, options: ["sine", "triangle", "saw", "square", "pulse"] },
                               { kind: "number", label: "Octave", key: `${prefix}.synth.osc1.octave`, min: -2, max: 2, step: 1 },
                               { kind: "number", label: "Level", key: `${prefix}.synth.osc1.levelPct`, min: 0, max: 100, step: 1 },
-                              { kind: "number", label: "Detune", key: `${prefix}.synth.osc1.detuneCents`, min: -50, max: 50, step: 1 },
+                              { kind: "number", label: "Detune", key: `${prefix}.synth.osc1.detuneCents`, min: -50, max: 50, step: 1, displayStyle: "marker" },
                               { kind: "number", label: "Pulse Width", key: `${prefix}.synth.osc1.pulseWidthPct`, min: 5, max: 95, step: 1 }
                             ]
                           },
@@ -189,7 +189,7 @@ export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTr
                               { kind: "enum", label: "Wave", key: `${prefix}.synth.osc2.waveform`, options: ["sine", "triangle", "saw", "square", "pulse"] },
                               { kind: "number", label: "Octave", key: `${prefix}.synth.osc2.octave`, min: -2, max: 2, step: 1 },
                               { kind: "number", label: "Level", key: `${prefix}.synth.osc2.levelPct`, min: 0, max: 100, step: 1 },
-                              { kind: "number", label: "Detune", key: `${prefix}.synth.osc2.detuneCents`, min: -50, max: 50, step: 1 },
+                              { kind: "number", label: "Detune", key: `${prefix}.synth.osc2.detuneCents`, min: -50, max: 50, step: 1, displayStyle: "marker" },
                               { kind: "number", label: "Pulse Width", key: `${prefix}.synth.osc2.pulseWidthPct`, min: 5, max: 95, step: 1 }
                             ]
                           }
@@ -202,7 +202,7 @@ export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTr
                           { kind: "enum", label: "Type", key: `${prefix}.synth.filter.type`, options: ["lowpass", "highpass", "bandpass", "notch"] },
                           { kind: "number", label: "Cutoff", key: `${prefix}.synth.filter.cutoffHz`, min: 0, max: 255, step: 1 },
                           { kind: "number", label: "Res", key: `${prefix}.synth.filter.resonance`, min: 0, max: 255, step: 1 },
-                          { kind: "number", label: "Env Amt", key: `${prefix}.synth.filter.envAmountPct`, min: -100, max: 100, step: 1 },
+                          { kind: "number", label: "Env Amt", key: `${prefix}.synth.filter.envAmountPct`, min: -100, max: 100, step: 1, displayStyle: "marker" },
                           { kind: "number", label: "Key Track", key: `${prefix}.synth.filter.keyTrackingPct`, min: 0, max: 100, step: 1 },
                           {
                             kind: "group",
@@ -271,7 +271,7 @@ export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTr
                       { kind: "number", label: "Level Medium", key: `${prefix}.sample.velocityLevels.medium`, min: 1, max: 127, step: 1, visible: (c: any) => c.instruments?.[idx]?.sample?.velocityLevelsEnabled === true },
                       { kind: "number", label: "Level Low", key: `${prefix}.sample.velocityLevels.low`, min: 1, max: 127, step: 1, visible: (c: any) => c.instruments?.[idx]?.sample?.velocityLevelsEnabled === true },
                       { kind: "number", label: "Base Velocity", key: `${prefix}.sample.baseVelocity`, min: 1, max: 127, step: 1 },
-                      { kind: "number", label: "Tune Semis", key: `${prefix}.sample.tuneSemis`, min: -24, max: 24, step: 1 },
+                      { kind: "number", label: "Tune Semis", key: `${prefix}.sample.tuneSemis`, min: -24, max: 24, step: 1, displayStyle: "marker" },
                       {
                         kind: "group",
                         label: "Filter",
@@ -279,7 +279,7 @@ export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTr
                           { kind: "enum", label: "Type", key: `${prefix}.sample.filter.type`, options: ["lowpass", "highpass", "bandpass", "notch"] },
                           { kind: "number", label: "Cutoff", key: `${prefix}.sample.filter.cutoffHz`, min: 0, max: 255, step: 1 },
                           { kind: "number", label: "Res", key: `${prefix}.sample.filter.resonance`, min: 0, max: 255, step: 1 },
-                          { kind: "number", label: "Env Amt", key: `${prefix}.sample.filter.envAmountPct`, min: -100, max: 100, step: 1 },
+                          { kind: "number", label: "Env Amt", key: `${prefix}.sample.filter.envAmountPct`, min: -100, max: 100, step: 1, displayStyle: "marker" },
                           { kind: "number", label: "Key Track", key: `${prefix}.sample.filter.keyTrackingPct`, min: 0, max: 100, step: 1 },
                           {
                             kind: "group",
@@ -336,7 +336,7 @@ export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTr
                     children: [
                       { kind: "enum", label: "Route", key: `${prefix}.mixer.route`, options: ["direct", ...Array.from({ length: PLATFORM_CAPS.busCount }, (_, i) => `fx_bus_${i + 1}`)] },
                       { kind: "number", label: "Volume", key: `${prefix}.mixer.volume`, min: 0, max: 100, step: 1, displayStyle: "bar" },
-                      { kind: "number", label: "Pan Pos", key: `${prefix}.mixer.panPos`, min: 0, max: PAN_POSITION_MAX, step: 1 }
+                      { kind: "number", label: "Pan Pos", key: `${prefix}.mixer.panPos`, min: 0, max: PAN_POSITION_MAX, step: 1, displayStyle: "marker" }
                     ]
                   },
                   { kind: "action", label: "Clone", action: { type: "instrument_clone", slot: idx } },
@@ -380,8 +380,8 @@ export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTr
                 { kind: "number", label: "Res", key: "touchFx.selected.params.resonancePct", min: 0, max: 100, step: 1, visible: (c: any) => c.touchFx?.selected?.fxType === "filter_sweep" },
                 { kind: "number", label: "Sweep In", key: "touchFx.selected.params.sweepInMs", min: 10, max: 3000, step: 10, visible: (c: any) => c.touchFx?.selected?.fxType === "filter_sweep" },
                 { kind: "number", label: "Sweep Out", key: "touchFx.selected.params.sweepOutMs", min: 10, max: 3000, step: 10, visible: (c: any) => c.touchFx?.selected?.fxType === "filter_sweep" },
-                { kind: "number", label: "Semitones", key: "touchFx.selected.params.semitones", min: -24, max: 24, step: 1, visible: (c: any) => c.touchFx?.selected?.fxType === "pitch_shift" },
-                { kind: "number", label: "Cents", key: "touchFx.selected.params.cents", min: -100, max: 100, step: 1, visible: (c: any) => c.touchFx?.selected?.fxType === "pitch_shift" },
+                { kind: "number", label: "Semitones", key: "touchFx.selected.params.semitones", min: -24, max: 24, step: 1, displayStyle: "marker", visible: (c: any) => c.touchFx?.selected?.fxType === "pitch_shift" },
+                { kind: "number", label: "Cents", key: "touchFx.selected.params.cents", min: -100, max: 100, step: 1, displayStyle: "marker", visible: (c: any) => c.touchFx?.selected?.fxType === "pitch_shift" },
                 { kind: "action", label: "Map to Grid", action: { type: "fx_assign_enter", config: selectedFxConfig } }
               ]
             });

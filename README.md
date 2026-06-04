@@ -36,14 +36,13 @@ Implemented and functional:
 - Phase 1: Quality & consistency improvements (duck prevention, "none" type, range standardization, quality pass)
 - Phase 2: Menu cleanup, part/instrument clone/reset, factory defaults
 - Phase 3: Ghost cells, sectioned scan modes
-- Phase 4: Touch layer, momentary FX grid, marker bar display style (REQ-20 in progress)
+- Phase 4: Touch layer, momentary FX grid, marker bar display style
 
 Planned/follow-up:
 
 Phase 4 (Performance & Effects):
 - REQ-05 — Global FX (Master Bus): Post-instrument/pre-output section with vinyl simulator, EQ, and compressor.
 - REQ-15 — Signal Path Visualization: OLED routing diagram showing parts → instruments → FX buses → output.
-- REQ-20 — Position-Marker Bar Display Style: Bipolar/positional params (Pan, Detune, Env Amt, Tune Semis) use marker style instead of filled bar. (In progress)
 
 Phase 5 (Advanced / Hardware):
 - REQ-16 — Rust-Owned Realtime Playback Runtime: Move transport/MIDI/audio scheduling from TS to Rust.

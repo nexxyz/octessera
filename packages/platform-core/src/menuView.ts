@@ -308,9 +308,10 @@ export function currentMenuView<TState>(deps: CurrentMenuViewDeps<TState>): { pa
         const val = Number(readAnyValue(state, item.key));
         const frac = barFraction(val, item.min, item.max);
         const numChars = mode === "bar+numbers" ? barNumberChars(item.key, item.min, item.max, formatDisplayValue, state.runtimeConfig as any) : 0;
+        const style = item.displayStyle === "marker" ? "marker" : undefined;
         if (itemLines.length > 1) {
           barValues.push(null); // label line
-          barValues.push({ frac, numChars }); // value line
+          barValues.push({ frac, numChars, style }); // value line
         } else {
           barValues.push(null);
         }

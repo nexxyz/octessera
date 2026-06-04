@@ -82,7 +82,7 @@ export function isReverbDecayKey(key: string): boolean {
 
 export function shouldUseNumberBar(item: Extract<MenuNode, { kind: "number" }>): boolean {
   if (item.displayStyle === "number") return false;
-  if (item.displayStyle === "bar") return true;
+  if (item.displayStyle === "bar" || item.displayStyle === "marker") return true;
   if (NO_BAR_KEY_RE.test(item.key)) return false;
   return BAR_KEY_RE.test(item.key);
 }

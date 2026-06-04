@@ -291,9 +291,15 @@ export function renderOledFrame(state: OledRenderState): OledFrame {
         const numChars = Math.max(0, Math.min(OLED_TEXT_COLUMNS - prefixChars, bar.numChars));
         const barX = xStart + (prefixChars + numChars) * 6;
         const barW = Math.min(barCharWidth, OLED_TEXT_COLUMNS - prefixChars - numChars) * 6;
-        const fillW = Math.round(frac * barW);
-        if (fillW > 0) fillRect(buf, { x: barX, y, w: fillW, h: 7 }, barDim);
-        if (fillW < barW) fillRect(buf, { x: barX + fillW, y: y + 6, w: barW - fillW, h: 1 }, barDim);
+        if (bar.style === "marker") {
+          fillRect(buf, { x: barX, y: y + 3, w: barW, h: 1 }, barDim);
+          const markerX = Math.max(barX, Math.min(barX + Math.max(0, barW - 2), barX + Math.round(frac * Math.max(0, barW - 1)) - 1));
+          fillRect(buf, { x: markerX, y, w: 2, h: 7 }, barDim);
+        } else {
+          const fillW = Math.round(frac * barW);
+          if (fillW > 0) fillRect(buf, { x: barX, y, w: fillW, h: 7 }, barDim);
+          if (fillW < barW) fillRect(buf, { x: barX + fillW, y: y + 6, w: barW - fillW, h: 1 }, barDim);
+        }
       }
       drawText(buf, { pos: { x: xStart, y }, text: clipped, style: selectedStyle }); // Black text
     } else {
