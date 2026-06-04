@@ -30,11 +30,20 @@ Implemented and functional:
 - L4 Dance performance layer with Mix, Pan, Trigger Gate, and FX pages.
 - Dance FX mapping: select effect type/params, Map to Grid, press cells for momentary activate/release effects.
 - Preset/default storage, factory/default load/save, auto-save, contextual help, OLED rendering, toast feedback, and aux encoder bindings.
+
 Planned/follow-up:
 
-- Global/master FX workflow refinements.
-- Aux mapping enhancements for the Dance context.
-- Hardware prototype on Raspberry Pi Zero 2 W with NeoTrellis/NeoKeys/OLED/audio DAC.
+Phase 4 (Performance & Effects):
+- REQ-05 — Global FX (Master Bus): Vinyl simulator, EQ, compressor post-instrument/pre-output.
+- REQ-08 — Aux Encoder Mapping in Performance: Auto-map important params per context, OLED indicators.
+- REQ-15 — Signal Path Visualization: OLED routing diagram (parts → instruments → FX buses → output).
+- REQ-20 — Position-Marker Bar Display Style: Bipolar/positional params (Pan, Detune, Env Amt, Tune Semis) use marker style instead of filled bar.
+
+Phase 5 (Advanced / Hardware):
+- REQ-16 — Rust-Owned Realtime Playback Runtime: Move transport/MIDI/audio scheduling from TS to Rust.
+- REQ-19 — Migrate Platform Core to Rust: Replace TS core with Rust impl for desktop + Pi Zero device.
+- REQ-17 — Hardware Test Harness: Guided button/encoder/audio tests for PCB verification.
+- REQ-18 — Over-the-Air Updates: GitHub-based firmware update on hardware with rollback support.
 
 ---
 
