@@ -30,8 +30,6 @@ Implemented and functional:
 - L4 Dance performance layer with Mix, Pan, Trigger Gate, and FX pages.
 - Dance FX mapping: select effect type/params, Map to Grid, press cells for momentary activate/release effects.
 - Preset/default storage, factory/default load/save, auto-save, contextual help, OLED rendering, toast feedback, and aux encoder bindings.
-- CI-style TypeScript/Rust lint, typecheck, test, and build scripts.
-
 Planned/follow-up:
 
 - Global/master FX workflow refinements.
@@ -173,6 +171,8 @@ cellSymphony.bat
 ```
 
 ### Verify
+
+CI-style TypeScript/Rust lint, typecheck, test, and build scripts:
 
 ```bash
 pnpm run build
