@@ -10,10 +10,10 @@ Cell Symphony is a desktop-first hardware-instrument prototype that turns cellul
 
 Cell Symphony combines a pluggable cellular-behavior engine, a hardware-parity menu/control layer, and a realtime synth/sample backend:
 
-- An **8x8 grid** runs one of 10 pluggable algorithms via the shared `BehaviorEngine` API.
+- An **8x8 grid** runs one of 11 pluggable algorithms via the shared `BehaviorEngine` API.
 - A **sense/mapping layer** turns cell transitions (`activate`, `stable`, `deactivate`, `scanned`) into musical events.
 - A **voice layer** manages instruments, synth/sample/MIDI slots, mixer routing, FX buses, and sample-grid assignments.
-- A **Touch performance layer** provides grid pages for mix, pan, and mapped momentary FX.
+- A **Touch performance layer** provides grid pages for mix, pan, trigger-gate, and mapped momentary FX.
 - A **desktop simulator** mirrors the hardware interface, including OLED, grid LEDs, encoders, buttons, transport, MIDI, and audio bridge behavior.
 
 ---
@@ -22,12 +22,12 @@ Cell Symphony combines a pluggable cellular-behavior engine, a hardware-parity m
 
 Implemented and functional:
 
-- 10 behaviors: none, sequencer, keys, Conway Life, Brian's Brain, Langton's Ant, Bounce, Shapes, Raindrops, DLA, and Glider.
+- 11 behaviors: none, sequencer, keys, Conway Life, Brian's Brain, Langton's Ant, Bounce, Shapes, Raindrops, DLA, and Glider.
 - Multi-part L1/L2 architecture with per-part behavior, scan/sense settings, mapping, names, and saved grid state.
 - Scanning modes, sectioned scanning, scan direction, state/event triggers, and pitch/velocity/filter modulation lanes.
 - Internal synth, sample slots, MIDI output/input, external sync, voice stealing policy, and audio load indicators.
 - L3 Voice instruments with synth/sample/MIDI types, mixer volume/pan/route, FX buses, and sample assignment mode.
-- L4 Touch performance layer with Mix, Pan, and FX pages.
+- L4 Touch performance layer with Mix, Pan, Trigger Gate, and FX pages.
 - Touch FX mapping: select effect type/params, Map to Grid, press cells for momentary activate/release effects.
 - Preset/default storage, factory/default load/save, auto-save, contextual help, OLED rendering, toast feedback, and aux encoder bindings.
 - CI-style TypeScript/Rust lint, typecheck, test, and build scripts.
@@ -52,7 +52,7 @@ Planned/follow-up:
 | Shift + Back | Shift + Backspace / Shift + Esc | Clear active part grid |
 | Fn + left grid column | Ctrl/Fn + left column | Select active part |
 | Fn + right grid column | Ctrl/Fn + right column | Toggle Touch layer on/off |
-| Touch right grid column | right column, no Fn | Select Touch page: mix, pan, fx |
+| Touch right grid column | right column, no Fn | Select Touch page: mix, pan, trigger-gate, fx |
 | Aux encoder press | simulator aux control | Bind/unbind current menu item |
 | Aux encoder turn | simulator aux control | Adjust bound parameter |
 
@@ -67,7 +67,7 @@ The authoritative menu/control spec lives in `docs/menu-and-controls-spec.md`.
 - **L1: Life** — per-part behavior, step rate, behavior config, saved grid state, part naming.
 - **L2: Sense** — per-part scan mode, scan axis/unit/direction/sections, trigger routing, note mapping, modulation lanes.
 - **L3: Voice** — instruments, synth/sample/MIDI settings, sample assignment, mixer volume/pan/route, FX buses.
-- **L4: Touch** — Touch Page, BPM, Touch FX type/params, Map to Grid.
+- **L4: Touch** — Touch Page, BPM, Trigger Gate controls, Touch FX type/params, Map to Grid.
 - **Playback** — BPM.
 - **System** — presets/defaults/factory, sound settings, MIDI, UI settings, contextual help.
 
@@ -90,6 +90,8 @@ Touch FX maps cells to global-output momentary DSP in the Rust realtime engine:
 
 To map FX, go to `L4: Touch > FX Page`, select an effect type and parameters, choose `Map to Grid`, then press a grid cell. The platform capability limit is 4 simultaneous held effects; same effect type presses replace the existing active cell.
 
+- **trigger-gate**: columns are parts, rows enable/disable gate per cell. `Fn+Shift` column clears part gates, `Shift` row toggles cell gate. `L4: Touch > Target Part` controls which part(s) the gate applies to.
+
 ---
 
 ## Algorithms
@@ -107,6 +109,39 @@ To map FX, go to `L4: Touch > FX Page`, select an effect type and parameters, ch
 | raindrops | `@cellsymphony/behaviors-raindrops` | Falling drops and splash rings |
 | dla | `@cellsymphony/behaviors-dla` | Diffusion-limited aggregation |
 | glider | `@cellsymphony/behaviors-glider` | Conway glider spawning |
+
+---
+
+## Documentation
+
+- `docs/menu-and-controls-spec.md` — source of truth for menu/control behavior.
+- `docs/backlog.md` — requirement status and phase planning.
+- `docs/runtime-boundaries.md` — layer responsibilities.
+- `docs/engineering-quality-requirements.md` — CI, coverage, and quality gates.
+- `docs/implementation-done.md` — implementation summary for the initial 11-algorithm phase.
+
+---
+
+## Sample Library Attribution
+
+The repository `samples/` content is sourced from the Stargate sample pack:
+
+`https://github.com/stargatedaw/stargate-sample-pack`
+
+---
+
+## Hardware Plan
+
+The long-term goal is a standalone hardware device:
+
+- Raspberry Pi Zero 2 W
+- 128x128 OLED display
+- 5 clickable rotary encoders
+- 4 NeoKey buttons
+- 8x8 NeoTrellis grid
+- PCM5102 I2S audio DAC
+- USB-C power
+- MIDI in/out where practical
 
 ---
 
@@ -157,11 +192,9 @@ pnpm --filter @cellsymphony/platform-core test
 pnpm --filter @cellsymphony/desktop test
 ```
 
-The current platform-core suite has 144 tests after the Touch FX and section-order coverage additions.
+The current platform-core suite has 179+ tests.
 
----
-
-## Project Structure
+### Project Structure
 
 ```text
 cellSymphony/
@@ -184,39 +217,6 @@ cellSymphony/
 ├── hardware/                      # Hardware prototype resources
 └── tools/                         # Auxiliary tools
 ```
-
----
-
-## Documentation
-
-- `docs/menu-and-controls-spec.md` — source of truth for menu/control behavior.
-- `docs/backlog.md` — requirement status and phase planning.
-- `docs/runtime-boundaries.md` — layer responsibilities.
-- `docs/engineering-quality-requirements.md` — CI, coverage, and quality gates.
-- `docs/implementation-done.md` — implementation summary for the initial 10-algorithm phase.
-
----
-
-## Sample Library Attribution
-
-The repository `samples/` content is sourced from the Stargate sample pack:
-
-`https://github.com/stargatedaw/stargate-sample-pack`
-
----
-
-## Hardware Plan
-
-The long-term goal is a standalone hardware device:
-
-- Raspberry Pi Zero 2 W
-- 128x128 OLED display
-- 5 clickable rotary encoders
-- 4 NeoKey buttons
-- 8x8 NeoTrellis grid
-- PCM5102 I2S audio DAC
-- USB-C power
-- MIDI in/out where practical
 
 ---
 
