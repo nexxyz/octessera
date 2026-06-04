@@ -24,3 +24,5 @@ hardware/Mouser Cart with Components.pdf
 *.orig
 .cargo-ok
 .cargo_vcs_info.json
+apps/desktop/src-tauri/samples/
+tools/pi-image/stage4-cellsymphony/files/root/usr/
