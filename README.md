@@ -13,7 +13,7 @@ Cell Symphony combines a pluggable cellular-behavior engine, a hardware-parity m
 - An **8x8 grid** runs one of 11 pluggable algorithms via the shared `BehaviorEngine` API.
 - A **sense/mapping layer** turns cell transitions (`activate`, `stable`, `deactivate`, `scanned`) into musical events.
 - A **voice layer** manages instruments, synth/sample/MIDI slots, mixer routing, FX buses, and sample-grid assignments.
-- A **Touch performance layer** provides grid pages for mix, pan, trigger-gate, and mapped momentary FX.
+- A **Dance performance layer** provides grid pages for mix, pan, trigger-gate, and mapped momentary FX.
 - A **desktop simulator** mirrors the hardware interface, including OLED, grid LEDs, encoders, buttons, transport, MIDI, and audio bridge behavior.
 
 ---
@@ -27,15 +27,15 @@ Implemented and functional:
 - Scanning modes, sectioned scanning, scan direction, state/event triggers, and pitch/velocity/filter modulation lanes.
 - Internal synth, sample slots, MIDI output/input, external sync, voice stealing policy, and audio load indicators.
 - L3 Voice instruments with synth/sample/MIDI types, mixer volume/pan/route, FX buses, and sample assignment mode.
-- L4 Touch performance layer with Mix, Pan, Trigger Gate, and FX pages.
-- Touch FX mapping: select effect type/params, Map to Grid, press cells for momentary activate/release effects.
+- L4 Dance performance layer with Mix, Pan, Trigger Gate, and FX pages.
+- Dance FX mapping: select effect type/params, Map to Grid, press cells for momentary activate/release effects.
 - Preset/default storage, factory/default load/save, auto-save, contextual help, OLED rendering, toast feedback, and aux encoder bindings.
 - CI-style TypeScript/Rust lint, typecheck, test, and build scripts.
 
 Planned/follow-up:
 
 - Global/master FX workflow refinements.
-- Aux mapping enhancements for the Touch context.
+- Aux mapping enhancements for the Dance context.
 - Hardware prototype on Raspberry Pi Zero 2 W with NeoTrellis/NeoKeys/OLED/audio DAC.
 
 ---
@@ -51,12 +51,12 @@ Planned/follow-up:
 | Shift + Space | Shift + Space | Emergency stop / panic |
 | Shift + Back | Shift + Backspace / Shift + Esc | Clear active part grid |
 | Fn + left grid column | Ctrl/Fn + left column | Select active part |
-| Fn + right grid column | Ctrl/Fn + right column | Toggle Touch layer on/off |
-| Touch right grid column | right column, no Fn | Select Touch page: mix, pan, trigger-gate, fx |
+| Fn + right grid column | Ctrl/Fn + right column | Toggle Dance layer on/off |
+| Touch right grid column | right column, no Fn | Select Dance page: mix, pan, trigger-gate, fx |
 | Aux encoder press | simulator aux control | Bind/unbind current menu item |
 | Aux encoder turn | simulator aux control | Adjust bound parameter |
 
-When Fn is held, the left grid column shows part options and the right grid column shows Touch page options. The active part/page is highlighted.
+When Fn is held, the left grid column shows part options and the right grid column shows Dance page options. The active part/page is highlighted.
 
 ---
 
@@ -67,30 +67,30 @@ The authoritative menu/control spec lives in `docs/menu-and-controls-spec.md`.
 - **L1: Life** — per-part behavior, step rate, behavior config, saved grid state, part naming.
 - **L2: Sense** — per-part scan mode, scan axis/unit/direction/sections, trigger routing, note mapping, modulation lanes.
 - **L3: Voice** — instruments, synth/sample/MIDI settings, sample assignment, mixer volume/pan/route, FX buses.
-- **L4: Touch** — Touch Page, BPM, Trigger Gate controls, Touch FX type/params, Map to Grid.
+- **L4: Dance** — Dance Page, BPM, Trigger Gate controls, Dance FX type/params, Map to Grid.
 - **Playback** — BPM.
 - **System** — presets/defaults/factory, sound settings, MIDI, UI settings, contextual help.
 
 ---
 
-## Touch Layer
+## Dance Layer
 
-`Fn + rightmost grid column` selects Touch pages. `Fn + leftmost grid column` selects a part to display and exits Touch.
+`Fn + rightmost grid column` selects Dance pages. `Fn + leftmost grid column` selects a part to display and exits Dance.
 
 - **mix**: columns are instruments, y=0 mutes and y=7 sets 100% volume.
 - **pan**: rows are instruments, x=0 is hard left and x=7 is hard right.
 - **fx**: assigned cells trigger momentary effects while held.
 
-Touch FX maps cells to global-output momentary DSP in the Rust realtime engine:
+Dance FX maps cells to global-output momentary DSP in the Rust realtime engine:
 
 - `stutter`
 - `freeze`
 - `filter_sweep`
 - `pitch_shift`
 
-To map FX, go to `L4: Touch > FX Page`, select an effect type and parameters, choose `Map to Grid`, then press a grid cell. The platform capability limit is 4 simultaneous held effects; same effect type presses replace the existing active cell.
+To map FX, go to `L4: Dance > FX Page`, select an effect type and parameters, choose `Map to Grid`, then press a grid cell. The platform capability limit is 4 simultaneous held effects; same effect type presses replace the existing active cell.
 
-- **trigger-gate**: columns are parts, rows enable/disable gate per cell. `Fn+Shift` column clears part gates, `Shift` row toggles cell gate. `L4: Touch > Target Part` controls which part(s) the gate applies to.
+- **trigger-gate**: columns are parts, rows enable/disable gate per cell. `Fn+Shift` column clears part gates, `Shift` row toggles cell gate. `L4: Dance > Target Part` controls which part(s) the gate applies to.
 
 ---
 
