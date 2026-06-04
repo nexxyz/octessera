@@ -15,3 +15,11 @@ hardware/KiCAD/cellSymphony-backups/
 debug/
 *.zip
 .qwenignore
+.opencode/
+.qwen/skills/
+hardware/KiCAD/PCB.stl
+hardware/Mouser Cart with Components.pdf
+*.bak
+*.orig
+.cargo-ok
+.cargo_vcs_info.json
