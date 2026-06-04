@@ -41,6 +41,8 @@ Implemented and functional:
 Planned/follow-up:
 
 Phase 4 (Performance & Effects):
+- REQ-05 — Global FX (Master Bus): Post-instrument/pre-output section with vinyl simulator, EQ, and compressor.
+- REQ-15 — Signal Path Visualization: OLED routing diagram showing parts → instruments → FX buses → output.
 - REQ-20 — Position-Marker Bar Display Style: Bipolar/positional params (Pan, Detune, Env Amt, Tune Semis) use marker style instead of filled bar. (In progress)
 
 Phase 5 (Advanced / Hardware):
