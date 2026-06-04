@@ -16,7 +16,8 @@ debug/
 *.zip
 .qwenignore
 .opencode/
-.qwen/skills/
+.qwen/
+QWEN.md
 hardware/KiCAD/PCB.stl
 hardware/Mouser Cart with Components.pdf
 *.bak
