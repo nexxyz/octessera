@@ -11,7 +11,7 @@
     "typecheck": "corepack pnpm -r typecheck",
     "test": "corepack pnpm -r test",
     "test:coverage": "corepack pnpm -r test:coverage",
-    "quality:audit": "node scripts/quality-audit.mjs",
+    "quality:audit": "node tools/quality-audit.mjs",
     "tauri:build": "corepack pnpm --filter @cellsymphony/desktop tauri:build",
     "tauri:build:ci": "corepack pnpm --filter @cellsymphony/desktop tauri:build:ci",
     "test:fixtures": "corepack pnpm --filter @cellsymphony/platform-core test:fixtures"
