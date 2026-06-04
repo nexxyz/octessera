@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Pre-commit hook — run optional machine-local checks.
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+LOCAL_HOOK="$ROOT/.git/local-hooks/pre-commit"
+
+if [ -f "$LOCAL_HOOK" ]; then
+  "$LOCAL_HOOK"
+fi

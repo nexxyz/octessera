@@ -5,6 +5,12 @@ set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
+LOCAL_HOOK="$ROOT/.git/local-hooks/pre-push"
+
+if [ -f "$LOCAL_HOOK" ]; then
+  "$LOCAL_HOOK"
+fi
+
 PASS=0
 FAIL=0
 
