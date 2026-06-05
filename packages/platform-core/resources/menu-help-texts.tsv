@@ -263,6 +263,6 @@ touch_gate_target	Menu > L4: Dance > Trigger Gate > Target Part	key:system.trigg
 xy_section	Menu > L4: Dance > X/Y Pad		group	X/Y Pad	Full 8×8 modulation surface. Touch position selects X and Y values (0-1 over full grid) which modulate the assigned targets.	Modulation beats all other sources — applied last after Sense X/Y and Shift+grid param modulation.
 xy_target_x	Menu > L4: Dance > X/Y Pad > X Axis		group	X Axis	Selects which parameter the X axis modulates. Options include the same mappable parameters available for aux encoders and X/Y Sense modulation.	Choose (none) to disable X axis modulation.
 xy_target_y	Menu > L4: Dance > X/Y Pad > Y Axis		group	Y Axis	Selects which parameter the Y axis modulates. Options include the same mappable parameters available for aux encoders and X/Y Sense modulation.	Choose (none) to disable Y axis modulation.
-xy_release	Menu > L4: Dance > X/Y Pad > Release	key:xyRelease	enum	Release Behavior	Controls what happens when the grid finger is lifted. sample-hold keeps the last modulation value; reset-center returns X and Y to center (0.5, 0.5).
-xy_invert_x	Menu > L4: Dance > X/Y Pad > Invert X	key:parts.*.xy.xInvert	bool	Invert X	When on, the X axis value is flipped (left = max, right = min).
-xy_invert_y	Menu > L4: Dance > X/Y Pad > Invert Y	key:parts.*.xy.yInvert	bool	Invert Y	When on, the Y axis value is flipped (bottom = max, top = min).
+xy_release	Menu > L4: Dance > X/Y Pad > Release	key:xyRelease	enum	Release Behavior	Controls what happens when the grid finger is lifted. sample-hold keeps the last modulation value; reset-center returns X and Y to center (0.5, 0.5).	
+xy_invert_x	Menu > L4: Dance > X/Y Pad > Invert X	key:parts.*.xy.xInvert	bool	Invert X	When on, the X axis value is flipped (left = max, right = min).	
+xy_invert_y	Menu > L4: Dance > X/Y Pad > Invert Y	key:parts.*.xy.yInvert	bool	Invert Y	When on, the Y axis value is flipped (bottom = max, top = min).	
