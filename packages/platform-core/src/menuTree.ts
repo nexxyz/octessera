@@ -3,7 +3,7 @@ import type { MenuNode, PlatformState } from "./index";
 import { instrumentLabel, partLabel } from "./coreUtils";
 import { SYNTH_PRESETS } from "./synthPresets";
 import { clampSampleSlotIndex, instrumentIndexOptions, PAN_POSITION_MAX, partIndexOptions, PLATFORM_CAPS, sampleSlotOptions, scanSectionOptions } from "./platformCaps";
-import { fxBusesMenuNode } from "./fxBusMenu";
+import { fxBusesMenuNode, globalFxMenuNode } from "./fxBusMenu";
 import { defaultMomentaryFxParams, MOMENTARY_FX_TYPES } from "./momentaryFx";
 
 type MenuTreeDeps<TState> = {
@@ -355,7 +355,8 @@ export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTr
               } satisfies MenuNode;
             })
           },
-          fxBusesMenuNode(state)
+          fxBusesMenuNode(state),
+          globalFxMenuNode()
         ]
       },
       {

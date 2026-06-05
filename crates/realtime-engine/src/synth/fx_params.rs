@@ -89,6 +89,12 @@ pub(super) enum FxBusParams {
         high_gain_db: f32,
         mix: f32,
     },
+    Vinyl {
+        saturation: f32,
+        crackle: f32,
+        warp_depth: f32,
+        mix: f32,
+    },
 }
 
 pub(super) fn compile_fx_bus_params(cfg: &FxBusSlotConfig) -> FxBusParams {
@@ -156,6 +162,12 @@ pub(super) fn compile_fx_bus_params(cfg: &FxBusSlotConfig) -> FxBusParams {
             mid_freq_hz: param_f32(cfg, "midFreqHz", 1000.0).clamp(40.0, 8000.0),
             mid_q: param_f32(cfg, "midQ", 1.0).clamp(0.25, 20.0),
             high_gain_db: param_f32(cfg, "highGainDb", 0.0).clamp(-12.0, 12.0),
+            mix: pct(cfg, "mixPct", 100.0),
+        },
+        "vinyl" => FxBusParams::Vinyl {
+            saturation: pct(cfg, "saturationPct", 15.0),
+            crackle: pct(cfg, "cracklePct", 8.0),
+            warp_depth: pct(cfg, "warpDepthPct", 5.0),
             mix: pct(cfg, "mixPct", 100.0),
         },
         _ => FxBusParams::None,

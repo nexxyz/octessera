@@ -2107,6 +2107,78 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "line2": "Boosts or cuts each band independently; gain range ±12 dB."
   },
   {
+    "id": "global_fx_group",
+    "path": "Menu > L3: Voice > Global FX",
+    "key": "",
+    "kind": "group",
+    "title": "Global FX",
+    "line1": "Stereo post-mix effect chain applied before global momentary FX and Master Vol.",
+    "line2": "Current desktop/Pi Zero target uses two capability-sized slots."
+  },
+  {
+    "id": "global_fx_slot_group",
+    "path": "Menu > L3: Voice > Global FX > Slot *",
+    "key": "",
+    "kind": "group",
+    "title": "Global FX Slot",
+    "line1": "Configures one stereo master effect slot.",
+    "line2": "Choose Type, then edit the parameters shown below."
+  },
+  {
+    "id": "global_fx_slot_type",
+    "path": "Menu > L3: Voice > Global FX > Slot * > Type",
+    "key": "key:mixer.master.slots.*.type",
+    "kind": "enum",
+    "title": "Slot Type",
+    "line1": "Options: none, vinyl, eq, compressor, saturator, distortion.",
+    "line2": "Selecting an effect initializes its editable parameter defaults; none is passthrough."
+  },
+  {
+    "id": "global_fx_slot_vinyl_group",
+    "path": "Menu > L3: Voice > Global FX > Slot * > vinyl",
+    "key": "",
+    "kind": "group",
+    "title": "vinyl",
+    "line1": "Lo-fi stereo master effect with warm saturation, crackle, and shared warp movement.",
+    "line2": "Designed as a lighter-weight master color effect for current Pi Zero targets."
+  },
+  {
+    "id": "global_fx_slot_compressor_group",
+    "path": "Menu > L3: Voice > Global FX > Slot * > compressor",
+    "key": "",
+    "kind": "group",
+    "title": "compressor",
+    "line1": "Stereo-linked dynamics processor for the summed main mix.",
+    "line2": "Threshold, ratio, attack, release, makeup gain, and dry/wet mix affect both channels together."
+  },
+  {
+    "id": "global_fx_slot_eq_group",
+    "path": "Menu > L3: Voice > Global FX > Slot * > eq",
+    "key": "",
+    "kind": "group",
+    "title": "eq",
+    "line1": "Stereo three-band equalizer for the summed main mix.",
+    "line2": "Use it for broad tonal shaping after instrument and bus routing."
+  },
+  {
+    "id": "global_fx_slot_saturator_group",
+    "path": "Menu > L3: Voice > Global FX > Slot * > saturator",
+    "key": "",
+    "kind": "group",
+    "title": "saturator",
+    "line1": "Soft-clipping saturation applied to the stereo main mix.",
+    "line2": "Useful for gentle density and warmth without adding extra routing."
+  },
+  {
+    "id": "global_fx_slot_distortion_group",
+    "path": "Menu > L3: Voice > Global FX > Slot * > distortion",
+    "key": "",
+    "kind": "group",
+    "title": "distortion",
+    "line1": "Harder clipping/shaping applied to the stereo main mix.",
+    "line2": "Use sparingly; aggressive settings can dominate the full output."
+  },
+  {
     "id": "inst_mixer_volume",
     "path": "Menu > L3: Voice > Instruments > Instrument * > Mixer > Volume",
     "key": "key:instruments.*.mixer.volume",

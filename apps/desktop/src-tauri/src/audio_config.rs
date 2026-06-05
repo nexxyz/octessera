@@ -1,8 +1,9 @@
 use crate::SampleSlotConfig;
 use realtime_engine::synth::{
     FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig,
-    MixerConfig, SampleBankConfig, SampleBuffer, SampleSlotConfig as EngineSampleSlotConfig,
-    SynthConfig, VoiceStealingMode, INSTRUMENT_SLOT_COUNT, SAMPLE_SLOTS_PER_INSTRUMENT,
+    MasterFxConfig, MixerConfig, SampleBankConfig, SampleBuffer,
+    SampleSlotConfig as EngineSampleSlotConfig, SynthConfig, VoiceStealingMode,
+    INSTRUMENT_SLOT_COUNT, SAMPLE_SLOTS_PER_INSTRUMENT,
 };
 use rodio::Source;
 use serde::Deserialize;
@@ -25,6 +26,14 @@ pub struct AudioInstrumentsConfig {
 struct AudioMixerConfig {
     #[serde(default)]
     buses: Vec<AudioBusConfig>,
+    #[serde(default)]
+    master: Option<AudioMasterConfig>,
+}
+
+#[derive(Deserialize)]
+struct AudioMasterConfig {
+    #[serde(default)]
+    slots: Vec<serde_json::Value>,
 }
 
 #[derive(Deserialize)]
@@ -114,6 +123,9 @@ pub fn synth_payload(config: &AudioInstrumentsConfig) -> InstrumentsConfig {
             .collect(),
         mixer: Some(MixerConfig {
             buses: mixer_buses(config),
+            master: Some(MasterFxConfig {
+                slots: master_slots(config),
+            }),
         }),
         pan_positions: config
             .pan_positions
@@ -247,6 +259,21 @@ fn mixer_buses(config: &AudioInstrumentsConfig) -> Vec<FxBusConfig> {
                     slots: vec![bus_slot(&b.slot1), bus_slot(&b.slot2)],
                     pan_pos: b.pan_pos.unwrap_or(16),
                 })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
+fn master_slots(config: &AudioInstrumentsConfig) -> Vec<FxBusSlotConfig> {
+    config
+        .mixer
+        .as_ref()
+        .and_then(|m| m.master.as_ref())
+        .map(|master| {
+            master
+                .slots
+                .iter()
+                .map(|slot| bus_slot(&Some(slot.clone())))
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default()
@@ -501,5 +528,46 @@ mod tests {
         };
 
         assert_eq!(before, sample_bank_signature(&changed_synth));
+    }
+
+    #[test]
+    fn synth_payload_includes_master_fx_slots() {
+        let config = AudioInstrumentsConfig {
+            instruments: vec![AudioInstrumentSlotConfig {
+                kind: "synth".to_string(),
+                synth: None,
+                sample: None,
+                mixer: None,
+            }],
+            mixer: Some(AudioMixerConfig {
+                buses: vec![],
+                master: Some(AudioMasterConfig {
+                    slots: vec![serde_json::json!({
+                        "type": "eq",
+                        "params": {
+                            "lowGainDb": 3.0,
+                            "midGainDb": 0.0,
+                            "midFreqHz": 1200.0,
+                            "midQ": 1.0,
+                            "highGainDb": -2.0,
+                            "mixPct": 100.0
+                        }
+                    })],
+                }),
+            }),
+            pan_positions: None,
+            master_volume: None,
+        };
+
+        let payload = synth_payload(&config);
+        let master = payload
+            .mixer
+            .and_then(|m| m.master)
+            .expect("expected master FX config");
+        assert_eq!(master.slots.len(), 1);
+        match &master.slots[0] {
+            FxBusSlotConfig::Config { kind, .. } => assert_eq!(kind, "eq"),
+            slot => panic!("unexpected slot: {slot:?}"),
+        }
     }
 }

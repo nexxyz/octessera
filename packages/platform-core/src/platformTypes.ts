@@ -103,10 +103,21 @@ export type FxBusEffectType =
   | "compressor"
   | "eq";
 
-export type FxBusSlotConfig = {
-  type: FxBusEffectType;
+export type GlobalFxEffectType =
+  | "none"
+  | "vinyl"
+  | "eq"
+  | "compressor"
+  | "saturator"
+  | "distortion";
+
+export type FxSlotConfig<TType extends string> = {
+  type: TType;
   params: Record<string, unknown>;
 };
+
+export type FxBusSlotConfig = FxSlotConfig<FxBusEffectType>;
+export type GlobalFxSlotConfig = FxSlotConfig<GlobalFxEffectType>;
 
 export type FxBusConfig = {
   slot1: FxBusSlotConfig;
@@ -114,6 +125,15 @@ export type FxBusConfig = {
   panPos: number;
   autoName: boolean;
   name: string;
+};
+
+export type MasterFxConfig = {
+  slots: GlobalFxSlotConfig[];
+};
+
+export type MixerConfig = {
+  buses: FxBusConfig[];
+  master: MasterFxConfig;
 };
 
 export type MomentaryFxConfig = { fxType: MomentaryFxType; params: Record<string, unknown>; targetKey: string };
@@ -169,7 +189,7 @@ export type RuntimeConfig = {
   activePartIndex: number; parts: PartConfig[]; numericDisplayMode: NumericDisplayMode; ghostCells: boolean;
   panPositions: number;
   instruments: InstrumentSlotConfig[];
-  mixer?: { buses: FxBusConfig[] };
+  mixer?: MixerConfig;
   touchFx?: { selected: MomentaryFxConfig; assignments: FxCellConfig[] };
   auxBindings?: Record<string, AuxBinding | null>;
 };

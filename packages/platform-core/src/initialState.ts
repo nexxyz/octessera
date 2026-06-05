@@ -104,7 +104,10 @@ export function createInitialPlatformState<TState>(behavior: BehaviorEngine<TSta
         panPos: DEFAULT_PAN_POS,
         autoName: true,
         name: "(none)"
-      }))
+      })),
+      master: {
+        slots: Array.from({ length: PLATFORM_CAPS.globalFxSlotCount }, () => ({ type: "none" as const, params: {} }))
+      }
     },
     touchFx: {
       selected: { fxType: "stutter", params: defaultMomentaryFxParams("stutter"), targetKey: "master" },

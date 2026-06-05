@@ -174,53 +174,58 @@ L2: Sense
 
 ```
 L3: Voice
-└── Instruments (group)
-    ├── Instrument 1..8 (group)                ← compact label e.g. `I1: synth`, `I2: drums` via instrumentLabel()
-    │   ├── Type: [none | synth | sample | midi]
-    │   ├── Note Behavior: [oneshot | hold] default oneshot
-    │   ├── Synth (group, visible when type=synth)
-    │   │   ├── Preset > Load (group)      ← per-slot synth preset load with confirm
-    │   │   ├── Oscillator (group)
-    │   │   │   ├── Osc 1 (group)          ← Wave, Octave, Level, Detune, Pulse Width
-    │   │   │   └── Osc 2 (group)          ← same sub-items
-    │   │   ├── Filter (group)             ← flat: Type, Cutoff, Res, Env Amt, Key Track, Envelope
-    │   │   └── Volume (group)             ← Amp (Gain, Vel Sens) + Envelope (ADSR)
-    │   ├── Sample (group, visible when type=sample)
-    │   │   ├── Sample Slot: [1..8]
-    │   │   ├── Choose Sample (group)      ← browses `samples/` tree (wav only)
-     │   │   ├── !1-Assign (action)           ← enters grid assignment mode for selected sample slot
-    │   │   ├── Velocity Levels: [on | off]
-    │   │   ├── Level High / Medium / Low: [1..127] (visible when Velocity Levels=on)
-    │   │   ├── Base Velocity: [1..127]    ← used when Velocity Levels=off
-    │   │   ├── Tune Semis: [-24..24]
-    │   │   ├── Filter (group)             ← sample filter + filter envelope (before Volume)
-    │   │   └── Volume (group)             ← sample amp + amp envelope
-    │   ├── Note Settings (group, visible when type=midi)
-    │   │   ├── Velocity: [1..127]
-    │   │   └── Duration: [10..2000] ms
-    │   ├── Mixer (group)
-    │   │   ├── Route: [direct | fx_bus_1..fx_bus_N] default direct (N from platform capabilities)
-    │   │   ├── Volume: [0..100] default 100
-    │   │   └── Pan Pos: [0..32] quantized (33-position stereo scale; 16=center)
-    │   ├── !Clone (action)               ← duplicates instrument config to next free slot
-    │   ├── !Reset (action)               ← resets instrument to factory defaults
-    │   ├── MIDI (group)
-    │   │   ├── Enabled: [on | off]       default off
-    │   │   └── Channel: [1..16]
-    │   ├── Auto Name: [on | off]         ← on: name auto-derives from Type; off: name is manual text
-    │   └── Name: (text, max 32)          ← display name; editing sets Auto Name off
-    └── FX Buses (group)
-        ├── Bus 1..4 (group)
-        │   ├── Slot 1 (group)
-        │   │   ├── Type: [none | reverb | delay | tremolo | chorus | flanger | vibrato | auto_pan | filter_lfo | wah | eq | compressor | duck | saturator | distortion | bitcrusher | glitch] default none
-        │   │   └── (effect params, visible per Type)
-        │   ├── Slot 2 (group)
-        │   │   ├── Type: [same options] default none
-        │   │   └── (effect params, visible per Type)
-        │   ├── Pan Pos: [0..32] quantized (33-position stereo scale; 16=center)
-        │   ├── Auto Name: [on | off]     ← on: name auto-derives from FX slot types; off: name is manual text
-        │   └── Name: (text, max 32)      ← display name; editing sets Auto Name off
-        └── ... (per bus)
+├── Instruments (group)
+│   ├── Instrument 1..8 (group)                ← compact label e.g. `I1: synth`, `I2: drums` via instrumentLabel()
+│   │   ├── Type: [none | synth | sample | midi]
+│   │   ├── Note Behavior: [oneshot | hold] default oneshot
+│   │   ├── Synth (group, visible when type=synth)
+│   │   │   ├── Preset > Load (group)      ← per-slot synth preset load with confirm
+│   │   │   ├── Oscillator (group)
+│   │   │   │   ├── Osc 1 (group)          ← Wave, Octave, Level, Detune, Pulse Width
+│   │   │   │   └── Osc 2 (group)          ← same sub-items
+│   │   │   ├── Filter (group)             ← flat: Type, Cutoff, Res, Env Amt, Key Track, Envelope
+│   │   │   └── Volume (group)             ← Amp (Gain, Vel Sens) + Envelope (ADSR)
+│   │   ├── Sample (group, visible when type=sample)
+│   │   │   ├── Sample Slot: [1..8]
+│   │   │   ├── Choose Sample (group)      ← browses `samples/` tree (wav only)
+│   │   │   ├── !1-Assign (action)         ← enters grid assignment mode for selected sample slot
+│   │   │   ├── Velocity Levels: [on | off]
+│   │   │   ├── Level High / Medium / Low: [1..127] (visible when Velocity Levels=on)
+│   │   │   ├── Base Velocity: [1..127]    ← used when Velocity Levels=off
+│   │   │   ├── Tune Semis: [-24..24]
+│   │   │   ├── Filter (group)             ← sample filter + filter envelope (before Volume)
+│   │   │   └── Volume (group)             ← sample amp + amp envelope
+│   │   ├── Note Settings (group, visible when type=midi)
+│   │   │   ├── Velocity: [1..127]
+│   │   │   └── Duration: [10..2000] ms
+│   │   ├── Mixer (group)
+│   │   │   ├── Route: [direct | fx_bus_1..fx_bus_N] default direct (N from platform capabilities)
+│   │   │   ├── Volume: [0..100] default 100
+│   │   │   └── Pan Pos: [0..32] quantized (33-position stereo scale; 16=center)
+│   │   ├── !Clone (action)               ← duplicates instrument config to next free slot
+│   │   ├── !Reset (action)               ← resets instrument to factory defaults
+│   │   ├── MIDI (group)
+│   │   │   ├── Enabled: [on | off]       default off
+│   │   │   └── Channel: [1..16]
+│   │   ├── Auto Name: [on | off]         ← on: name auto-derives from Type; off: name is manual text
+│   │   └── Name: (text, max 32)          ← display name; editing sets Auto Name off
+├── FX Buses (group)
+│   ├── Bus 1..4 (group)
+│   │   ├── Slot 1 (group)
+│   │   │   ├── Type: [none | reverb | delay | tremolo | chorus | flanger | vibrato | auto_pan | filter_lfo | wah | eq | compressor | duck | saturator | distortion | bitcrusher | glitch] default none
+│   │   │   └── (effect params, visible per Type)
+│   │   ├── Slot 2 (group)
+│   │   │   ├── Type: [same options] default none
+│   │   │   └── (effect params, visible per Type)
+│   │   ├── Pan Pos: [0..32] quantized (33-position stereo scale; 16=center)
+│   │   ├── Auto Name: [on | off]     ← on: name auto-derives from FX slot types; off: name is manual text
+│   │   └── Name: (text, max 32)      ← display name; editing sets Auto Name off
+│   └── ... (per bus)
+└── Global FX (group)
+    ├── Slot 1..N (group, N from platform capability `globalFxSlotCount`; current desktop/Pi Zero target = 2)
+    │   ├── Type: [none | vinyl | eq | compressor | saturator | distortion] default none
+    │   └── (effect params, visible per Type)
+    └── ...
 ```
 
 Routing semantics:
@@ -230,6 +235,8 @@ Routing semantics:
 - Instrument `Route=fx_bus_n` sends post-fader output to the selected FX bus (exclusive send).
 - Internal synth and sample instruments use the same route/pan/bus-FX mixer path; MIDI instruments emit external MIDI and are not processed by audio FX.
 - Each bus runs `Slot 1` then `Slot 2` in order; with `none` selected this is passthrough.
+- Global FX runs `Slot 1..N` in order on the stereo main mix after direct and bus outputs are summed, before global momentary FX and `Master Vol`.
+- Global FX is intentionally limited to `none | vinyl | eq | compressor | saturator | distortion` for current Pi Zero 2 W performance targets.
 - Selecting a slot `Type` initializes that effect's editable parameter defaults immediately; loaded presets/defaults with missing or invalid effect params are repaired to those defaults.
 - Reverb `Decay` is stored as a feedback coefficient (`0..0.995`) but displayed as approximate tail time in seconds (for example `3.1s`) in menu rows and aux encoder toasts.
 - Bus output is then panned by bus `Pan Pos` and summed to main mix.

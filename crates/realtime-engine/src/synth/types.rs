@@ -201,9 +201,17 @@ pub struct FxBusConfig {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct MasterFxConfig {
+    #[serde(default)]
+    pub slots: Vec<FxBusSlotConfig>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MixerConfig {
     #[serde(default)]
     pub buses: Vec<FxBusConfig>,
+    #[serde(default)]
+    pub master: Option<MasterFxConfig>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

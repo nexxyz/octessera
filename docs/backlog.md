@@ -61,7 +61,7 @@ Marker bar:           [-----|-----]  (same value, actual position shown)
 
 | Field | Value |
 |-------|-------|
-| **Status** | open |
+| **Status** | closed |
 | **Phase** | 4 |
 | **Priority** | medium |
 | **Scope** | medium |

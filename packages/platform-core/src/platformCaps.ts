@@ -8,6 +8,7 @@ export type PlatformCapabilities = {
   instrumentCount: number;
   sampleSlotCount: number;
   busCount: number;
+  globalFxSlotCount: number;
   touchFxMaxConcurrent: number;
   scanSectionCounts: number[];
 };
@@ -33,6 +34,7 @@ export function validatePlatformCapabilities(raw: unknown): PlatformCapabilities
     instrumentCount: toPositiveInt(source.instrumentCount, "instrumentCount"),
     sampleSlotCount: toPositiveInt(source.sampleSlotCount, "sampleSlotCount"),
     busCount: toPositiveInt(source.busCount, "busCount"),
+    globalFxSlotCount: toPositiveInt(source.globalFxSlotCount, "globalFxSlotCount"),
     touchFxMaxConcurrent: toPositiveInt(source.touchFxMaxConcurrent, "touchFxMaxConcurrent"),
     scanSectionCounts
   };

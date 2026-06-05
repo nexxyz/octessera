@@ -235,6 +235,54 @@ test("FX eq type selection seeds editable default parameters", () => {
   assert.equal(slot.params.mixPct, 100);
 });
 
+test("Global FX slot count follows platform capabilities", () => {
+  const state = makeState();
+  assert.equal((state.runtimeConfig as any).mixer.master.slots.length, PLATFORM_CAPS.globalFxSlotCount);
+});
+
+test("Global FX vinyl type selection seeds editable default parameters", () => {
+  let state = makeState();
+  state = selectLabel(state, "L3: Voice");
+  state = press(state).state;
+  state = selectLabel(state, "Global FX");
+  state = press(state).state;
+  state = selectLabel(state, "Slot 1");
+  state = press(state).state;
+  state = selectLabel(state, "Type");
+  state = press(state).state;
+  state = turn(state, 1).state;
+  state = press(state).state;
+
+  const slot = (state.runtimeConfig as any).mixer.master.slots[0];
+  assert.equal(slot.type, "vinyl");
+  assert.equal(slot.params.saturationPct, 15);
+  assert.equal(slot.params.cracklePct, 8);
+  assert.equal(slot.params.warpDepthPct, 5);
+  assert.equal(slot.params.mixPct, 100);
+});
+
+test("loading saved Global FX repairs missing and invalid parameters", () => {
+  let state = makeState();
+  const payload = extractConfigPayload(state) as any;
+  payload.runtimeConfig.mixer.master.slots = [
+    { type: "vinyl", params: {} },
+    { type: "compressor", params: { thresholdDb: "bad", ratio: 9 } }
+  ];
+
+  state = applyConfigPayload(state, payload, mockBehavior);
+
+  const slot1 = (state.runtimeConfig as any).mixer.master.slots[0];
+  const slot2 = (state.runtimeConfig as any).mixer.master.slots[1];
+  assert.deepEqual(slot1, { type: "vinyl", params: { saturationPct: 15, cracklePct: 8, warpDepthPct: 5, mixPct: 100 } });
+  assert.equal(slot2.type, "compressor");
+  assert.equal(slot2.params.thresholdDb, -24);
+  assert.equal(slot2.params.ratio, 9);
+  assert.equal(slot2.params.attackMs, 10);
+  assert.equal(slot2.params.releaseMs, 100);
+  assert.equal(slot2.params.makeupDb, 0);
+  assert.equal(slot2.params.mixPct, 100);
+});
+
 test("old bus_N route normalizes to fx_bus_N on load", () => {
   let state = makeState();
   const payload = extractConfigPayload(state) as any;

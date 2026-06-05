@@ -5,6 +5,7 @@
   "instrumentCount": 8,
   "sampleSlotCount": 8,
   "busCount": 4,
+  "globalFxSlotCount": 2,
   "touchFxMaxConcurrent": 4,
   "scanSectionCounts": [1, 2, 4, 8]
 }

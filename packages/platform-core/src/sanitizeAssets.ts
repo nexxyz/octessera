@@ -1,4 +1,4 @@
-import { isBusEffectType, sanitizeFxParams } from "./fxDefaults";
+import { defaultGlobalFxParams, isBusEffectType, isGlobalFxEffectType, sanitizeFxParams, sanitizeGlobalFxParams } from "./fxDefaults";
 import { cutoffHzToDisplay } from "./coreUtils";
 import { clampPanPosition, PLATFORM_CAPS } from "./platformCaps";
 import { DEFAULT_VELOCITY_LEVELS, DEFAULT_MIDI_ENGINE, DEFAULT_PAN_POS, DEFAULT_VOLUME } from "./runtimeDefaults";
@@ -8,6 +8,8 @@ const BUS_EFFECT_TYPES = new Set([
   "chorus", "flanger", "wah", "filter_lfo", "duck", "bitcrusher",
   "saturator", "distortion", "glitch", "compressor", "eq"
 ]);
+
+const GLOBAL_EFFECT_TYPES = new Set(["none", "vinyl", "eq", "compressor", "saturator", "distortion"]);
 
 export function normalizeSlot(raw: unknown): { type: string; params: Record<string, unknown> } {
   if (typeof raw === "string") {
@@ -19,9 +21,12 @@ export function normalizeSlot(raw: unknown): { type: string; params: Record<stri
   return { type, params: sanitizeFxParams(type, (raw as any)?.params) };
 }
 
-export function sanitizeMixer(incoming: any, factory: any): { buses: any[] } {
+export function sanitizeMixer(incoming: any, factory: any): { buses: any[]; master: { slots: any[] } } {
   const factoryMixer = (factory.runtimeConfig as any).mixer;
   const sourceBuses = Array.isArray(incoming?.buses) ? incoming.buses : (Array.isArray(factoryMixer?.buses) ? factoryMixer.buses : []);
+  const sourceMasterSlots = Array.isArray(incoming?.master?.slots)
+    ? incoming.master.slots
+    : (Array.isArray(factoryMixer?.master?.slots) ? factoryMixer.master.slots : []);
   const buses: any[] = [];
   for (let i = 0; i < PLATFORM_CAPS.busCount; i += 1) {
     const src = sourceBuses[i] ?? {};
@@ -35,7 +40,22 @@ export function sanitizeMixer(incoming: any, factory: any): { buses: any[] } {
       name: srcName
     });
   }
-  return { buses };
+  return {
+    buses,
+    master: {
+      slots: Array.from({ length: PLATFORM_CAPS.globalFxSlotCount }, (_, i) => normalizeGlobalSlot(sourceMasterSlots[i]))
+    }
+  };
+}
+
+function normalizeGlobalSlot(raw: unknown): { type: string; params: Record<string, unknown> } {
+  if (typeof raw === "string") {
+    const type = GLOBAL_EFFECT_TYPES.has(raw) ? raw : "none";
+    return { type, params: defaultGlobalFxParams(type) };
+  }
+  const typeRaw = typeof (raw as any)?.type === "string" ? (raw as any).type : "none";
+  const type = isGlobalFxEffectType(typeRaw) && GLOBAL_EFFECT_TYPES.has(typeRaw) ? typeRaw : "none";
+  return { type, params: sanitizeGlobalFxParams(type, (raw as any)?.params) };
 }
 
 export function sanitizeInstruments(incoming: unknown, factory: any): any[] {

@@ -1,7 +1,7 @@
 import type { MappingConfig } from "@cellsymphony/mapping-core";
 import type { TransportFrame } from "@cellsymphony/device-contracts";
 import { readNestedValue, readValue, writeNestedValue, writeValue, deriveBusAutoName, derivePartAutoName, deriveInstAutoName, overrideFromPart, preferMapping } from "./coreUtils";
-import { defaultFxParam, defaultFxParams, isBusEffectType } from "./fxDefaults";
+import { defaultFxParam, defaultFxParams, defaultGlobalFxParam, defaultGlobalFxParams, isBusEffectType, isGlobalFxEffectType } from "./fxDefaults";
 import { defaultMomentaryFxParams, isMomentaryFxType } from "./momentaryFx";
 import type { PlatformState, SystemState } from "./platformTypes";
 import { clampPartIndex } from "./platformCaps";
@@ -134,6 +134,14 @@ export function readAnyValue<TState>(state: PlatformState<TState>, key: string):
     if (fallback !== undefined && (value === undefined || (typeof fallback === "number" && !Number.isFinite(Number(value))))) return fallback;
     return value;
   }
+  const globalFxParamMatch = /^mixer\.master\.slots\.(\d+)\.params\.([^.]+)$/.exec(key);
+  if (globalFxParamMatch) {
+    const value = readValue(state.runtimeConfig, key);
+    const type = readValue(state.runtimeConfig, `mixer.master.slots.${globalFxParamMatch[1]}.type`);
+    const fallback = defaultGlobalFxParam(type, globalFxParamMatch[2]);
+    if (fallback !== undefined && (value === undefined || (typeof fallback === "number" && !Number.isFinite(Number(value))))) return fallback;
+    return value;
+  }
   return readValue(state.runtimeConfig, key);
 }
 
@@ -150,6 +158,14 @@ export function writeAnyValue<TState>(state: PlatformState<TState>, key: string,
     let nextState = { ...state, runtimeConfig: writeValue(state.runtimeConfig, `mixer.buses.${busIdx}.${fxTypeMatch[2]}`, { type, params: defaultFxParams(type) }) };
     nextState = syncActivePartFromLegacy(nextState);
     return applyAutoName(nextState, nextState.runtimeConfig as any, key, value);
+  }
+  const globalFxTypeMatch = /^mixer\.master\.slots\.(\d+)\.type$/.exec(key);
+  if (globalFxTypeMatch) {
+    const type = isGlobalFxEffectType(value) ? value : "none";
+    return syncActivePartFromLegacy({
+      ...state,
+      runtimeConfig: writeValue(state.runtimeConfig, `mixer.master.slots.${globalFxTypeMatch[1]}`, { type, params: defaultGlobalFxParams(type) })
+    });
   }
   if (key.startsWith("transport.")) {
     const transport = writeNestedValue(state.transport, key.slice("transport.".length), value) as TransportFrame;

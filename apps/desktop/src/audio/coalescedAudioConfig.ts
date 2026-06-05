@@ -1,6 +1,6 @@
 import { cutoffDisplayToHz } from "@cellsymphony/platform-core";
 
-export type AudioConfigPayload = { instruments: unknown[]; mixer: unknown; panPositions: number };
+export type AudioConfigPayload = { instruments: unknown[]; mixer: unknown; panPositions: number; masterVolume: number };
 
 function convertInstrumentForEngine(inst: unknown): unknown {
   if (typeof inst !== "object" || inst === null) return inst;

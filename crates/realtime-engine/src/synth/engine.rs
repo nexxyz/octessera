@@ -1,5 +1,7 @@
 use super::fx::{
-    fx_bus_state_from_params, fx_bus_state_matches_params, process_fx_bus_slot, FxBusState,
+    fx_bus_state_from_params, fx_bus_state_matches_params, master_fx_state_from_params,
+    master_fx_state_matches_params, process_fx_bus_slot, process_master_fx_slot, FxBusState,
+    MasterFxState,
 };
 use super::fx_params::{compile_fx_bus_params, FxBusParams};
 use super::types::*;
@@ -28,6 +30,8 @@ pub struct SynthEngine {
     bus_mono_snapshot: Vec<f32>,
     bus_slot_params: Vec<[FxBusParams; BUS_SLOTS_PER_BUS]>,
     bus_slot_state: Vec<[FxBusState; BUS_SLOTS_PER_BUS]>,
+    master_slot_params: Vec<FxBusParams>,
+    master_slot_state: Vec<MasterFxState>,
     pan_positions: usize,
     master_volume: f32,
     voice_stealing_mode: VoiceStealingMode,
@@ -257,6 +261,8 @@ impl SynthEngine {
             bus_mono_snapshot: Vec::new(),
             bus_slot_params: Vec::new(),
             bus_slot_state: Vec::new(),
+            master_slot_params: Vec::new(),
+            master_slot_state: Vec::new(),
             pan_positions: DEFAULT_PAN_POSITIONS,
             master_volume: 1.0,
             voice_stealing_mode: VoiceStealingMode::Balanced,
@@ -377,6 +383,8 @@ impl SynthEngine {
         let mut next_bus_pan_pos = Vec::new();
         let mut next_bus_slot_params = Vec::new();
         let mut next_bus_slot_state = Vec::new();
+        let mut next_master_slot_params = Vec::new();
+        let mut next_master_slot_state = Vec::new();
         if let Some(mixer) = cfg.mixer {
             for (bus_idx, bus) in mixer.buses.into_iter().enumerate() {
                 next_bus_pan_pos.push(bus.pan_pos.min(self.pan_positions - 1));
@@ -398,10 +406,25 @@ impl SynthEngine {
                 next_bus_slot_params.push(params);
                 next_bus_slot_state.push(states);
             }
+            if let Some(master) = mixer.master {
+                for (slot_idx, slot) in master.slots.into_iter().enumerate() {
+                    let params = compile_fx_bus_params(&slot);
+                    let state = self
+                        .master_slot_state
+                        .get(slot_idx)
+                        .filter(|state| master_fx_state_matches_params(state, &params))
+                        .cloned()
+                        .unwrap_or_else(|| master_fx_state_from_params(&params));
+                    next_master_slot_params.push(params);
+                    next_master_slot_state.push(state);
+                }
+            }
         }
         self.bus_pan_pos = next_bus_pan_pos;
         self.bus_slot_params = next_bus_slot_params;
         self.bus_slot_state = next_bus_slot_state;
+        self.master_slot_params = next_master_slot_params;
+        self.master_slot_state = next_master_slot_state;
         self.bus_mono_scratch.resize(self.bus_pan_pos.len(), 0.0);
     }
 
@@ -697,6 +720,13 @@ impl SynthEngine {
         self.dry_history_pos += 2;
         if self.dry_history_pos >= self.dry_history.len() {
             self.dry_history_pos = 0;
+        }
+
+        for slot_idx in 0..self.master_slot_params.len() {
+            let params = self.master_slot_params[slot_idx];
+            if let Some(state) = self.master_slot_state.get_mut(slot_idx) {
+                (left, right) = process_master_fx_slot(&params, state, left, right, self.sample_rate);
+            }
         }
 
         let (left, right) =
@@ -1086,6 +1116,14 @@ impl SynthEngine {
     pub(super) fn delay_state_probe(&self, bus: usize, slot: usize) -> Option<(usize, f32)> {
         match self.bus_slot_state.get(bus)?.get(slot)? {
             FxBusState::Delay { buf, idx } => Some((*idx, buf.iter().map(|v| v.abs()).sum())),
+            _ => None,
+        }
+    }
+
+    #[cfg(test)]
+    pub(super) fn master_compressor_env_probe(&self, slot: usize) -> Option<f32> {
+        match self.master_slot_state.get(slot)? {
+            MasterFxState::Compressor { env } => Some(*env),
             _ => None,
         }
     }

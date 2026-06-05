@@ -1,5 +1,5 @@
 import { PLATFORM_CAPS } from "./platformCaps";
-import type { FxBusEffectType } from "./platformTypes";
+import type { FxBusEffectType, GlobalFxEffectType } from "./platformTypes";
 
 export const FX_SLOT_TYPES: FxBusEffectType[] = [
   "none",
@@ -19,6 +19,15 @@ export const FX_SLOT_TYPES: FxBusEffectType[] = [
   "distortion",
   "bitcrusher",
   "glitch"
+];
+
+export const GLOBAL_FX_SLOT_TYPES: GlobalFxEffectType[] = [
+  "none",
+  "vinyl",
+  "eq",
+  "compressor",
+  "saturator",
+  "distortion"
 ];
 
 const FX_DEFAULT_PARAMS: Record<FxBusEffectType, Record<string, string | number>> = {
@@ -41,8 +50,21 @@ const FX_DEFAULT_PARAMS: Record<FxBusEffectType, Record<string, string | number>
   eq: { lowGainDb: 0, midGainDb: 0, midFreqHz: 1000, midQ: 1, highGainDb: 0, mixPct: 100 }
 };
 
+const GLOBAL_FX_DEFAULT_PARAMS: Record<GlobalFxEffectType, Record<string, string | number>> = {
+  none: {},
+  vinyl: { saturationPct: 15, cracklePct: 8, warpDepthPct: 5, mixPct: 100 },
+  eq: structuredClone(FX_DEFAULT_PARAMS.eq),
+  compressor: structuredClone(FX_DEFAULT_PARAMS.compressor),
+  saturator: { drive: 1.8, mixPct: 100 },
+  distortion: { drive: 2.5, clip: 0.6, mixPct: 100 }
+};
+
 export function isBusEffectType(value: unknown): value is FxBusEffectType {
   return typeof value === "string" && (FX_SLOT_TYPES as string[]).includes(value);
+}
+
+export function isGlobalFxEffectType(value: unknown): value is GlobalFxEffectType {
+  return typeof value === "string" && (GLOBAL_FX_SLOT_TYPES as string[]).includes(value);
 }
 
 export function defaultFxParams(type: unknown): Record<string, string | number> {
@@ -53,6 +75,16 @@ export function defaultFxParams(type: unknown): Record<string, string | number> 
 export function defaultFxParam(type: unknown, paramKey: string): string | number | undefined {
   const safeType = isBusEffectType(type) ? type : "none";
   return FX_DEFAULT_PARAMS[safeType][paramKey];
+}
+
+export function defaultGlobalFxParams(type: unknown): Record<string, string | number> {
+  const safeType = isGlobalFxEffectType(type) ? type : "none";
+  return structuredClone(GLOBAL_FX_DEFAULT_PARAMS[safeType]);
+}
+
+export function defaultGlobalFxParam(type: unknown, paramKey: string): string | number | undefined {
+  const safeType = isGlobalFxEffectType(type) ? type : "none";
+  return GLOBAL_FX_DEFAULT_PARAMS[safeType][paramKey];
 }
 
 export function sanitizeFxParams(type: unknown, raw: unknown): Record<string, string | number> {
@@ -71,6 +103,26 @@ export function sanitizeFxParams(type: unknown, raw: unknown): Record<string, st
     if (key === "source") {
       out[key] = sanitizeDuckSource(value);
     } else if (typeof value === "string") {
+      out[key] = value;
+    }
+  }
+  return out;
+}
+
+export function sanitizeGlobalFxParams(type: unknown, raw: unknown): Record<string, string | number> {
+  const defaults = defaultGlobalFxParams(type);
+  if (!raw || typeof raw !== "object") return defaults;
+  const incoming = raw as Record<string, unknown>;
+  const out: Record<string, string | number> = { ...defaults };
+  for (const key of Object.keys(defaults)) {
+    const fallback = defaults[key];
+    const value = incoming[key];
+    if (typeof fallback === "number") {
+      const numeric = Number(value);
+      out[key] = Number.isFinite(numeric) ? numeric : fallback;
+      continue;
+    }
+    if (typeof value === "string") {
       out[key] = value;
     }
   }

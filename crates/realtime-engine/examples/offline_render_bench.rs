@@ -67,6 +67,7 @@ fn bench_config() -> InstrumentsConfig {
                     [("drive", json!(1.8)), ("mixPct", json!(45.0))],
                 ),
             ],
+            master: None,
         }),
         pan_positions: DEFAULT_PAN_POSITIONS,
         master_volume: 100.0,

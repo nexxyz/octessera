@@ -2,7 +2,7 @@
 import { getBehavior } from "@cellsymphony/behavior-api";
 import type { MappingConfig } from "@cellsymphony/mapping-core";
 import type { ConfigPayload, PlatformEffect, PlatformState, RuntimeConfig, StoreResult } from "./index";
-import { isBusEffectType, sanitizeFxParams } from "./fxDefaults";
+import { defaultGlobalFxParams, isBusEffectType, isGlobalFxEffectType, sanitizeFxParams, sanitizeGlobalFxParams } from "./fxDefaults";
 import { clampPanPosition, clampPartIndex, isValidSectionValue, PAN_POSITION_COUNT, PLATFORM_CAPS, scalePanPosition } from "./platformCaps";
 import { cutoffHzToDisplay, overrideFromPart, preferMapping } from "./coreUtils";
 import { makeToast } from "./toast";
@@ -236,6 +236,10 @@ const BUS_EFFECT_TYPES = new Set([
   "saturator", "distortion", "glitch", "compressor", "eq"
 ]);
 
+const GLOBAL_EFFECT_TYPES = new Set([
+  "none", "vinyl", "eq", "compressor", "saturator", "distortion"
+]);
+
 function normalizeSlot(raw: any): any {
   if (typeof raw === "string") {
     const type = BUS_EFFECT_TYPES.has(raw) ? raw : "none";
@@ -247,9 +251,23 @@ function normalizeSlot(raw: any): any {
   return { type, params };
 }
 
+function normalizeGlobalSlot(raw: any): any {
+  if (typeof raw === "string") {
+    const type = GLOBAL_EFFECT_TYPES.has(raw) ? raw : "none";
+    return { type, params: defaultGlobalFxParams(type) };
+  }
+  const typeRaw = typeof raw?.type === "string" ? raw.type : "none";
+  const type = isGlobalFxEffectType(typeRaw) && GLOBAL_EFFECT_TYPES.has(typeRaw) ? typeRaw : "none";
+  const params = sanitizeGlobalFxParams(type, raw?.params);
+  return { type, params };
+}
+
 function sanitizeMixer(incoming: any, factory: any, incomingPanPositions: unknown): any {
   const factoryMixer = (factory.runtimeConfig as any).mixer;
   const sourceBuses = Array.isArray(incoming?.buses) ? incoming.buses : (Array.isArray(factoryMixer?.buses) ? factoryMixer.buses : []);
+  const sourceMasterSlots = Array.isArray(incoming?.master?.slots)
+    ? incoming.master.slots
+    : (Array.isArray(factoryMixer?.master?.slots) ? factoryMixer.master.slots : []);
   const buses: any[] = [];
   for (let i = 0; i < PLATFORM_CAPS.busCount; i += 1) {
     const src = sourceBuses[i] ?? {};
@@ -263,7 +281,12 @@ function sanitizeMixer(incoming: any, factory: any, incomingPanPositions: unknow
       name: srcName
     });
   }
-  return { buses };
+  return {
+    buses,
+    master: {
+      slots: Array.from({ length: PLATFORM_CAPS.globalFxSlotCount }, (_, i) => normalizeGlobalSlot(sourceMasterSlots[i]))
+    }
+  };
 }
 
 function sanitizePayload<TState>(payload: ConfigPayload, behavior: BehaviorEngine<TState, unknown>, deps: StoreDeps<TState>): ConfigPayload {
