@@ -236,7 +236,7 @@ cellSymphony/
 
 ## License
 
-Copyright (c) 2026 nexxyz (Thomas Steirer).
+Copyright (c) 2026 nexxyz.
 
 **Free for personal/non-commercial use**: you may use, copy, modify, and build this software for personal purposes.
 

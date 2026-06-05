@@ -14,10 +14,7 @@ hardware/KiCAD/.history/
 hardware/KiCAD/cellSymphony-backups/
 debug/
 *.zip
-.qwenignore
 .opencode/
-.qwen/
-QWEN.md
 hardware/KiCAD/PCB.stl
 hardware/Mouser Cart with Components.pdf
 *.bak
