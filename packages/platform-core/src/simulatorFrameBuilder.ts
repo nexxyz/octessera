@@ -3,7 +3,7 @@ import { type DisplayFrame, type SimulatorFrame } from "@cellsymphony/device-con
 import type { AuxTurnBinding, BarValue, PlatformState } from "./platformTypes";
 import { OLED_TEXT_LINES } from "./platformTypes";
 import { nowMs } from "./timing";
-import { cellsToLeds, sampleAssignmentToLeds, touchModeToLeds } from "./runtimeHelpers";
+import { cellsToLeds, danceModeToLeds, sampleAssignmentToLeds } from "./runtimeHelpers";
 import { paramModOverlayToLeds } from "./paramMod";
 import { renderOledFrame } from "./oledRender";
 import { logoSepia128Rgb565be } from "./oledAssets/logoSepia128_rgb565be";
@@ -80,15 +80,18 @@ export function buildSimulatorFrame<TState>(args: Args<TState>): SimulatorFrame 
     const levels = inst.sample?.velocityLevelsEnabled === true;
     return sampleAssignmentToLeds(assignments, sampleAssign.sampleSlot, levels, state.runtimeConfig.gridBrightness / 100);
   })();
-  const touchLeds = touchModeToLeds(state, state.runtimeConfig.gridBrightness / 100, args.ghostCells);
+  const danceLeds = danceModeToLeds(state, state.runtimeConfig.gridBrightness / 100, args.ghostCells);
   const paramModLeds = paramModOverlayToLeds(state, args.paramModBinding ?? null, state.runtimeConfig.gridBrightness / 100);
+  const selectedDanceMode = (state.runtimeConfig as any).danceMode && (state.runtimeConfig as any).danceMode !== "none"
+    ? (state.runtimeConfig as any).danceMode
+    : state.system.danceMode;
   return {
     display: baseDisplay,
     oled,
     leds: {
       width: PLATFORM_CAPS.gridWidth,
       height: PLATFORM_CAPS.gridHeight,
-      cells: assignLeds ?? touchLeds ?? paramModLeds ?? cellsToLeds(model.cells, model.triggerTypes, scanCursor, state.runtimeConfig.gridBrightness / 100, state.system.fnHeld, activePart, args.ghostCells, state.system.touchMode, (state.runtimeConfig as any).parts)
+      cells: assignLeds ?? danceLeds ?? paramModLeds ?? cellsToLeds(model.cells, model.triggerTypes, scanCursor, state.runtimeConfig.gridBrightness / 100, state.system.fnHeld, activePart, args.ghostCells, state.system.danceMode, selectedDanceMode, (state.runtimeConfig as any).parts)
     },
     transport: state.transport,
     activeBehavior: model.name,

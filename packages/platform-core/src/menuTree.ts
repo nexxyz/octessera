@@ -1,10 +1,12 @@
 import { listBehaviorIds, type BehaviorEngine } from "@cellsymphony/behavior-api";
-import type { MenuNode, PlatformState } from "./index";
+import type { AuxTurnBinding, MenuNode, PlatformState } from "./index";
 import { instrumentLabel, partLabel } from "./coreUtils";
 import { SYNTH_PRESETS } from "./synthPresets";
 import { clampSampleSlotIndex, instrumentIndexOptions, PAN_POSITION_MAX, partIndexOptions, PLATFORM_CAPS, sampleSlotOptions, scanSectionOptions } from "./platformCaps";
 import { fxBusesMenuNode, globalFxMenuNode } from "./fxBusMenu";
 import { defaultMomentaryFxParams, MOMENTARY_FX_TYPES } from "./momentaryFx";
+import { buildParamSkeleton, withParamActions } from "./menuParamTree";
+import { compactSourcePathFromKey } from "./menuView";
 
 type MenuTreeDeps<TState> = {
   resolveBehavior: (id: string) => BehaviorEngine<any, any>;
@@ -125,10 +127,7 @@ export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTr
     ...Array.from({ length: PLATFORM_CAPS.instrumentCount }, (_, i) => `instrument_${i + 1}`)
   ];
 
-  return {
-    kind: "group",
-    label: "Root",
-    children: [
+  const rootChildren: MenuNode[] = [
       { kind: "group", label: "L1: Life", children: Array.from({ length: partCount }, (_, idx) => l1PartGroup(state, deps, idx)) },
       { kind: "group", label: "L2: Sense", children: Array.from({ length: partCount }, (_, idx) => l2PartGroup(state, deps, idx, instrumentSlotOptions)) },
       {
@@ -363,9 +362,9 @@ export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTr
         kind: "group",
         label: "L4: Dance",
         children: (state) => {
-          const tm = state.system.touchMode;
+          const dm = (state.runtimeConfig as any).danceMode ?? state.system.danceMode;
           const page: MenuNode[] = [];
-          if (tm === "fx") {
+          if (dm === "fx") {
             page.push({
               kind: "group",
               label: "FX Page",
@@ -386,7 +385,7 @@ export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTr
                 { kind: "action", label: "Map to Grid", action: { type: "fx_assign_enter", config: selectedFxConfig } }
               ]
             });
-          } else if (tm === "trigger-gate") {
+          } else if (dm === "trigger-gate") {
             page.push({
               kind: "group",
               label: "Trigger Gate",
@@ -395,9 +394,37 @@ export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTr
                 { kind: "enum", label: "Target Part", key: "system.triggerGateTarget", options: ["active", "all", ...partIndexOptions()] }
               ]
             });
+          } else if (dm === "xy") {
+            const activeIdx = (state.runtimeConfig as any).activePartIndex ?? 0;
+            const skeleton = buildParamSkeleton();
+            const xyTargetGroup = (axis: "x" | "y") => ({
+              kind: "group" as const,
+              label: axis === "x" ? "X Axis" : "Y Axis",
+              children: (s: PlatformState<any>) => {
+                const xy = ((s.runtimeConfig as any).parts?.[(s.runtimeConfig as any).activePartIndex ?? 0]?.xy ?? {}) as any;
+                return [
+                  { kind: "action" as const, label: "(none)", action: { type: "xy_set_target" as const, axis, binding: null as any } },
+                  ...withParamActions(skeleton, (b: AuxTurnBinding) => ({ type: "xy_set_target" as const, axis, binding: b }))
+                ];
+              },
+              detail: (s: PlatformState<any>) => {
+                const xy = ((s.runtimeConfig as any).parts?.[(s.runtimeConfig as any).activePartIndex ?? 0]?.xy ?? {}) as any;
+                const binding = xy[axis];
+                if (!binding?.key) return null;
+                const path = compactSourcePathFromKey(s, binding.key);
+                return path ?? binding.label ?? binding.key;
+              }
+            });
+            page.push(
+              xyTargetGroup("x"),
+              { kind: "bool", label: "Invert X", key: `parts.${activeIdx}.xy.xInvert` },
+              xyTargetGroup("y"),
+              { kind: "bool", label: "Invert Y", key: `parts.${activeIdx}.xy.yInvert` },
+              { kind: "enum", label: "Release", key: "xyRelease", options: ["sample-hold", "reset-center"] }
+            );
           }
           return [
-            { kind: "enum", label: "Dance Page", key: "system.touchMode", options: ["none", "mix", "pan", "fx", "trigger-gate"] },
+            { kind: "enum", label: "Dance Page", key: "danceMode", options: ["none", "mix", "pan", "fx", "trigger-gate", "xy"] },
             { kind: "number", label: "BPM", key: "transport.bpm", min: 40, max: 240, step: 1 },
             ...page
           ];
@@ -453,6 +480,7 @@ export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTr
           { kind: "group", label: "UI", children: [{ kind: "bool", label: "Ghost Cells", key: "ghostCells" }, { kind: "bool", label: "Input Events While Paused", key: "inputEventsWhilePaused" }, { kind: "enum", label: "Numeric Display", key: "numericDisplayMode", options: ["bar", "numbers", "bar+numbers"] }, { kind: "number", label: "Screen Sleep", key: "screenSleepSeconds", min: 0, max: 600, step: 10 }, { kind: "number", label: "Display Brightness", key: "displayBrightness", min: 10, max: 100, step: 5, displayStyle: "bar" }, { kind: "number", label: "Grid Brightness", key: "gridBrightness", min: 10, max: 100, step: 5, displayStyle: "bar" }, { kind: "number", label: "Button Brightness", key: "buttonBrightness", min: 10, max: 100, step: 5, displayStyle: "bar" }] }
         ]
       }
-    ]
-  };
+    ];
+  buildParamSkeleton(rootChildren);
+  return { kind: "group", label: "Root", children: rootChildren };
 }

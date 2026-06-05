@@ -29,7 +29,7 @@ export function activateMomentaryFx<TState>(state: PlatformState<TState>, x: num
 }
 
 export function releaseMomentaryFx<TState>(state: PlatformState<TState>, x: number, y: number, effects: PlatformEffect[]): PlatformState<TState> {
-  if (state.system.touchMode !== "fx") return state;
+  if (state.system.danceMode !== "fx") return state;
   const cellX = clamp(Math.floor(x), 0, PLATFORM_CAPS.gridWidth - 1);
   const cellY = clamp(Math.floor(y), 0, PLATFORM_CAPS.gridHeight - 1);
   const nextActive = state.system.activeFx.filter((fx) => fx.cellX !== cellX || fx.cellY !== cellY);

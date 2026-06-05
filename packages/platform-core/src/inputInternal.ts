@@ -1,7 +1,7 @@
 import type { DeviceInput } from "@cellsymphony/device-contracts";
 import type { CellTriggerIntent, InterpretationProfile, AxisStrategy, TickStrategy } from "@cellsymphony/interpretation-core";
 import type { PlatformEffect, PlatformState, RuntimeConfig } from "./index";
-import type { TouchMode } from "./platformTypes";
+import type { DanceMode } from "./platformTypes";
 import { clamp } from "./coreUtils";
 import { clampInstrumentIndex, clampPartIndex, clampSampleSlotIndex, PLATFORM_CAPS } from "./platformCaps";
 import { resolveDancePanTarget, toGridSnapshot, touchPanPosFromGridX } from "./runtimeHelpers";
@@ -9,7 +9,7 @@ import { activateMomentaryFx, applyFxAssignment, releaseMomentaryFx } from "./to
 import { visibleChildren } from "./menuView";
 import { makeToast } from "./toast";
 
-const TOUCH_PAGES: TouchMode[] = ["mix", "pan", "fx", "trigger-gate"];
+const DANCE_PAGES: DanceMode[] = ["mix", "pan", "fx", "trigger-gate", "xy"];
 
 type TouchGridDeps = {
   writeAnyValue: (state: any, key: string, val: unknown) => any;
@@ -22,14 +22,14 @@ export function handleTouchGridPress<TState>(
   deps: TouchGridDeps,
   mode?: "single" | "row" | "column"
 ): PlatformState<TState> {
-  if (state.system.touchMode === "mix") {
+  if (state.system.danceMode === "mix") {
     const inst = clamp(Math.floor(input.x), 0, Math.min(PLATFORM_CAPS.instrumentCount, PLATFORM_CAPS.gridWidth) - 1);
     const instruments = Array.isArray((state.runtimeConfig as any).instruments) ? ((state.runtimeConfig as any).instruments as any[]) : [];
     if ((instruments[inst] as any)?.type === "none") return state;
     const volume = Math.round(clamp(Math.floor(input.y), 0, PLATFORM_CAPS.gridHeight - 1) / (PLATFORM_CAPS.gridHeight - 1) * 100);
     return deps.writeAnyValue(state, `instruments.${inst}.mixer.volume`, volume);
   }
-  if (state.system.touchMode === "pan") {
+  if (state.system.danceMode === "pan") {
     const inst = clamp(Math.floor(input.y), 0, Math.min(PLATFORM_CAPS.instrumentCount, PLATFORM_CAPS.gridHeight) - 1);
     const instruments = Array.isArray((state.runtimeConfig as any).instruments) ? ((state.runtimeConfig as any).instruments as any[]) : [];
     if ((instruments[inst] as any)?.type === "none") return state;
@@ -41,10 +41,10 @@ export function handleTouchGridPress<TState>(
     }
     return deps.writeAnyValue(state, `instruments.${inst}.mixer.panPos`, panPos);
   }
-  if (state.system.touchMode === "fx") {
+  if (state.system.danceMode === "fx") {
     return activateMomentaryFx(state, input.x, input.y, effects);
   }
-  if (state.system.touchMode === "trigger-gate") {
+  if (state.system.danceMode === "trigger-gate") {
     const width = PLATFORM_CAPS.gridWidth;
     const height = PLATFORM_CAPS.gridHeight;
     const parts = (state.runtimeConfig as any).parts ?? [];
@@ -102,7 +102,20 @@ export function handleTouchGridPress<TState>(
         parts: newParts
       }
     };
- }
+  }
+  if (state.system.danceMode === "xy") {
+    const gx = clamp(Math.floor(input.x), 0, PLATFORM_CAPS.gridWidth - 1);
+    const gy = clamp(Math.floor(input.y), 0, PLATFORM_CAPS.gridHeight - 1);
+    const x = gx / (PLATFORM_CAPS.gridWidth - 1);
+    const y = gy / (PLATFORM_CAPS.gridHeight - 1);
+    return {
+      ...state,
+      runtimeConfig: {
+        ...state.runtimeConfig,
+        xyTouch: { x, y, active: true }
+      }
+    };
+  }
   return state;
  }
 
@@ -110,20 +123,19 @@ export function handleTouchGridPress<TState>(
   state: PlatformState<TState>,
   effects: PlatformEffect[]
 ): PlatformState<TState> {
-  // Exit trigger-gate mode by switching back to mix mode
-  if (state.system.touchMode === "trigger-gate") {
+  if (state.system.danceMode === "trigger-gate") {
     return {
       ...state,
       system: {
         ...state.system,
-        touchMode: "mix"
+        danceMode: "mix"
       }
     };
   }
   return state;
-}
+ }
 
-export function filterTriggerGatedIntents<TState>(
+ export function filterTriggerGatedIntents<TState>(
   intents: CellTriggerIntent[],
   state: PlatformState<TState>,
   partIdx: number
@@ -140,9 +152,9 @@ export function filterTriggerGatedIntents<TState>(
 
 
 
-export function touchPageFromRow(y: number, current: TouchMode): TouchMode {
+export function danceModeFromRow(y: number, current: DanceMode): DanceMode {
   const index = Math.floor(y);
-  const direct = TOUCH_PAGES[index];
+  const direct = DANCE_PAGES[index];
   if (direct) return direct;
   return current === "none" ? "mix" : current;
 }

@@ -94,6 +94,7 @@ export function createInitialPlatformState<TState>(behavior: BehaviorEngine<TSta
     },
     activePartIndex: 0,
     ghostCells: false,
+    danceMode: "none",
     panPositions: PAN_POSITION_COUNT,
     parts: [],
     instruments,
@@ -112,7 +113,9 @@ export function createInitialPlatformState<TState>(behavior: BehaviorEngine<TSta
     touchFx: {
       selected: { fxType: "stutter", params: defaultMomentaryFxParams("stutter"), targetKey: "master" },
       assignments: []
-    }
+    },
+    xyTouch: { x: 0.5, y: 0.5, active: false },
+    xyRelease: "sample-hold"
   };
   const makePart = (idx: number): PartConfig => ({
     l1: {
@@ -141,6 +144,7 @@ export function createInitialPlatformState<TState>(behavior: BehaviorEngine<TSta
       }
     },
     paramMods: emptyParamModAxisSlots(),
+    xy: { x: null, y: null, xInvert: false, yInvert: false },
     autoName: true,
     name: idx === 0 ? "mock" : "life"
   });
@@ -205,7 +209,7 @@ export function createInitialPlatformState<TState>(behavior: BehaviorEngine<TSta
       activeFx: [],
       pendingCloneSource: null,
             sampleBrowser: null,
-      touchMode: "none",
+      danceMode: "none",
       triggerGateTarget: "active",
       triggerMuted: false
     },

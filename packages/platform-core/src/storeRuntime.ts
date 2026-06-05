@@ -1,7 +1,7 @@
 ﻿import type { BehaviorEngine } from "@cellsymphony/behavior-api";
 import { getBehavior } from "@cellsymphony/behavior-api";
 import type { MappingConfig } from "@cellsymphony/mapping-core";
-import type { ConfigPayload, PlatformEffect, PlatformState, RuntimeConfig, StoreResult } from "./index";
+import type { AuxTurnBinding, ConfigPayload, PlatformEffect, PlatformState, RuntimeConfig, StoreResult } from "./index";
 import { defaultGlobalFxParams, isBusEffectType, isGlobalFxEffectType, sanitizeFxParams, sanitizeGlobalFxParams } from "./fxDefaults";
 import { clampPanPosition, clampPartIndex, isValidSectionValue, PAN_POSITION_COUNT, PLATFORM_CAPS, scalePanPosition } from "./platformCaps";
 import { cutoffHzToDisplay, overrideFromPart, preferMapping } from "./coreUtils";
@@ -75,7 +75,10 @@ export function extractConfigPayload<TState>(state: PlatformState<TState>): Conf
   return {
     activeBehavior: runtimeAny.activeBehavior ?? state.activeBehavior,
     runtimeConfig,
-    mappingConfig: state.mappingConfig
+    mappingConfig: state.mappingConfig,
+    system: {
+      triggerGateTarget: state.system.triggerGateTarget
+    }
   };
 }
 
@@ -136,8 +139,11 @@ export function applyConfigPayload<TState>(
     sampleBrowser: null,
     fxAssignMode: null,
     activeFx: [],
-    touchMode: "none"
+    danceMode: "none",
+    triggerGateTarget: safe.system?.triggerGateTarget ?? "active"
   };
+  next.menu = { stack: [], cursor: 0, editing: false };
+  (next.runtimeConfig as any).xyTouch = { x: 0.5, y: 0.5, active: false };
   return next as PlatformState<TState>;
 }
 
@@ -320,7 +326,16 @@ function sanitizePayload<TState>(payload: ConfigPayload, behavior: BehaviorEngin
       ? rt.numericDisplayMode
       : typeof rt.showNumericValueWithBars === "boolean" ? (rt.showNumericValueWithBars ? "bar+numbers" : "bar") : "bar+numbers",
     activePartIndex: clampPartIndex(rt.activePartIndex ?? (factory.runtimeConfig as any).activePartIndex ?? 0),
+    danceMode: rt.danceMode === "none" || rt.danceMode === "mix" || rt.danceMode === "pan" || rt.danceMode === "fx" || rt.danceMode === "trigger-gate" || rt.danceMode === "xy"
+      ? rt.danceMode
+      : p.system?.danceMode === "none" || p.system?.danceMode === "mix" || p.system?.danceMode === "pan" || p.system?.danceMode === "fx" || p.system?.danceMode === "trigger-gate" || p.system?.danceMode === "xy"
+        ? p.system.danceMode
+        : p.system?.touchMode === "none" || p.system?.touchMode === "mix" || p.system?.touchMode === "pan" || p.system?.touchMode === "fx" || p.system?.touchMode === "trigger-gate" || p.system?.touchMode === "xy"
+          ? p.system.touchMode
+          : (factory.runtimeConfig as any).danceMode ?? "none",
     panPositions: PAN_POSITION_COUNT,
+    xyTouch: { ...((factory.runtimeConfig as any).xyTouch ?? { x: 0.5, y: 0.5, active: false }) },
+    xyRelease: rt.xyRelease === "sample-hold" || rt.xyRelease === "reset-center" ? rt.xyRelease : "sample-hold",
     parts: Array.isArray(rt.parts) ? rt.parts : Array.isArray((factory.runtimeConfig as any).parts) ? (factory.runtimeConfig as any).parts : [],
     instruments: sanitizeInstruments(rt.instruments, factory, rt.panPositions),
     mixer: sanitizeMixer(rt.mixer, factory, rt.panPositions),
@@ -380,6 +395,7 @@ function sanitizePayload<TState>(payload: ConfigPayload, behavior: BehaviorEngin
       },
       l2: sanitizePartL2(part.l2, basePart.l2),
       paramMods: normalizeParamMods((part as any).paramMods),
+      xy: sanitizeXy((part as any).xy),
       autoName: typeof (part as any).autoName === "boolean" ? (part as any).autoName : true,
       name: typeof (part as any).name === "string" && (part as any).name.trim().length > 0 ? (part as any).name.trim() : (part as any).l1?.behaviorId ?? "life"
     };
@@ -395,8 +411,17 @@ function sanitizePayload<TState>(payload: ConfigPayload, behavior: BehaviorEngin
   return {
     activeBehavior: typeof p.activeBehavior === "string" ? p.activeBehavior : factory.activeBehavior,
     runtimeConfig: mergedRuntime,
-    mappingConfig: mergedMapping
+    mappingConfig: mergedMapping,
+    system: sanitizeSavedSystem(p.system)
   };
+}
+
+function sanitizeSavedSystem(system: any): ConfigPayload["system"] {
+  const src = system ?? {};
+  const triggerGateTarget = src.triggerGateTarget === "active" || src.triggerGateTarget === "all" || typeof src.triggerGateTarget === "string"
+    ? src.triggerGateTarget
+    : "active";
+  return { triggerGateTarget };
 }
 
 
@@ -417,6 +442,22 @@ function sanitizeAxis(axis: any, baseAxis: any): any {
   const base = baseAxis ?? {};
   const src = axis ?? {};
   return { ...base, ...src, pitch: { ...(base.pitch ?? {}), ...(src.pitch ?? {}), restartEachSection: src.pitch?.restartEachSection === true } };
+}
+
+function sanitizeXy(xy: any): { x: AuxTurnBinding | null; y: AuxTurnBinding | null; xInvert: boolean; yInvert: boolean } {
+  if (!xy || typeof xy !== "object") return { x: null, y: null, xInvert: false, yInvert: false };
+  const sanitizeBinding = (b: any): AuxTurnBinding | null => {
+    if (!b || typeof b !== "object" || typeof b.key !== "string") return null;
+    if (b.kind !== "number" && b.kind !== "enum" && b.kind !== "bool") return null;
+    return {
+      key: b.key,
+      label: typeof b.label === "string" ? b.label : b.key,
+      kind: b.kind,
+      ...(b.kind === "number" ? { min: Number(b.min ?? 0), max: Number(b.max ?? 1), step: Number(b.step ?? 1) } : {}),
+      ...(b.kind === "enum" && Array.isArray(b.options) ? { options: [...b.options] } : {})
+    };
+  };
+  return { x: sanitizeBinding(xy.x), y: sanitizeBinding(xy.y), xInvert: xy.xInvert === true, yInvert: xy.yInvert === true };
 }
 
 import { applyStoreResult } from "./storeResultHandlers";

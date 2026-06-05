@@ -2199,11 +2199,11 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   {
     "id": "touch_page",
     "path": "Menu > L4: Dance > Dance Page",
-    "key": "key:system.touchMode",
+    "key": "key:danceMode",
     "kind": "enum",
     "title": "Dance Page",
-    "line1": "Options: none, mix, pan, fx, trigger-gate. none returns the grid to the active behavior; mix edits instrument volume; pan edits pan position; fx triggers mapped momentary effects; trigger-gate toggles per-cell output gates.",
-    "line2": "Fn plus rightmost rows select pages: row 0 mix, row 1 pan, row 2 fx, row 3 trigger-gate."
+    "line1": "Options: none, mix, pan, fx, trigger-gate, xy. This selects the saved Dance page; activating Dance from the grid uses this selection.",
+    "line2": "Fn plus rightmost rows select and activate pages: row 0 mix, row 1 pan, row 2 fx, row 3 trigger-gate, row 4 xy."
   },
   {
     "id": "touch_bpm",

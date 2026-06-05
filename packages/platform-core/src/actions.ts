@@ -167,5 +167,31 @@ export function handleMenuAction<TState>(state: PlatformState<TState>, action: a
     });
     return { ...state, behaviorState: newState };
   }
+  if (action.type === "xy_set_target") {
+    const activeIndex = (state.runtimeConfig as any).activePartIndex ?? 0;
+    const key = `parts.${activeIndex}.xy.${action.axis}`;
+    const label = action.binding?.label ?? "(none)";
+    const nextState = { ...state, runtimeConfig: deps.writeValue(state.runtimeConfig, key, action.binding) };
+    const menu = state.menu;
+    const newStack = menu.stack.length >= 2 ? [menu.stack[0]] : [];
+    const cursor = menu.stack.length >= 2 ? menu.stack[1] : 0;
+    const finalState = {
+      ...nextState,
+      menu: { ...menu, stack: newStack, cursor },
+      system: { ...nextState.system, toast: makeToast(`X/Y ${action.axis.toUpperCase()}: ${label}`) }
+    };
+    if (finalState.runtimeConfig.autoSaveDefault) {
+      effects.push({ type: "store_save_default", payload: deps.extractConfigPayload(finalState), mode: "deferred" });
+    }
+    return finalState;
+  }
+  if (action.type === "noop") return state;
+  if (action.type === "menu_back") {
+    const menu = state.menu;
+    if (menu.editing) return { ...state, menu: { ...menu, editing: false } };
+    if (menu.stack.length === 0) return state;
+    const parentCursor = menu.stack[menu.stack.length - 1];
+    return { ...state, menu: { ...menu, stack: menu.stack.slice(0, -1), cursor: parentCursor } };
+  }
   return state;
 }

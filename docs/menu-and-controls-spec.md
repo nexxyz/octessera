@@ -268,7 +268,7 @@ Part runtime behavior:
 
 ```
 L4: Dance
-├── Dance Page: [none | mix | pan | fx | trigger-gate]
+├── Dance Page: [none | mix | pan | fx | trigger-gate | xy]
 ├── BPM: [40..240] step 1  default 120
 ├── FX Page (group)
 │   ├── FX Type: [none | stutter | freeze | filter_sweep | pitch_shift]
@@ -289,15 +289,25 @@ L4: Dance
 │   │   ├── Cents: [-100..100] (fine detune, added to semitones)
 │   │   └── Mix: [0..100] (% wet mix)
 │   └── Map to Grid (action)
-└── Trigger Gate (group)
-    └── Edit Target: [active | all | 0 | 1 | 2 | 3]
+├── Trigger Gate (group)
+│   └── Edit Target: [active | all | 0 | 1 | 2 | 3]
+└── X/Y Pad (group)
+    ├── X Axis (group)
+    │   ├── (none) (action)
+    │   └── (dynamic parameter tree) (actions/groups)
+    ├── Y Axis (group)
+    │   ├── (none) (action)
+    │   └── (dynamic parameter tree) (actions/groups)
+    ├── Invert X: [Off | On]
+    ├── Invert Y: [Off | On]
+    └── Release: [sample-hold | reset-center]
 ```
 
 Dance layer behavior:
 
-- Fn + rightmost grid column selects Dance pages by row: row 0 = mix, row 1 = pan, row 2 = fx, row 3 = trigger-gate. Lower rows are unused.
-- Fn + leftmost grid column selects the active displayed part and exits Dance by setting Dance Page to `none`. Menu position is not changed by part selection.
-- When Fn is held, the left grid column shows part-selection options and the right grid column shows Dance page options. The active part and selected Dance page are highlighted; parts whose behavior is not `none` have a dim indicator; `none` parts stay dark. All other cells (columns 1 through 6) are dimmed to 25% brightness to make the navigation columns unambiguous.
+- Fn + rightmost grid column selects and activates Dance pages by row: row 0 = mix, row 1 = pan, row 2 = fx, row 3 = trigger-gate, row 4 = xy. Lower rows are unused.
+- Fn + leftmost grid column selects the active displayed part and exits the current Dance overlay without changing the saved Dance Page selection. Menu position is not changed by part selection.
+- When Fn is held, the left grid column shows part-selection options and the right grid column shows Dance page options. The active part and saved Dance page are highlighted; parts whose behavior is not `none` have a dim indicator; `none` parts stay dark. All other cells (columns 1 through 6) are dimmed to 25% brightness to make the navigation columns unambiguous.
 - `mix`: each column is an instrument; y=0 mutes, y=7 sets 100%, intermediate rows quantize per-slot `Mixer > Volume`.
 - `mix` LEDs show the current volume marker in green.
 - `pan`: each row is an instrument; x=0 is hard left and x=7 is hard right. The marker is two cells wide so center positions are visible as the middle pair. Stored pan is a 33-position stereo scale (`0..32`, center `16`) shared with the menu and audio engine.
@@ -320,6 +330,14 @@ Dance layer behavior:
 - FX LED colours are yellow for stutter, cyan for freeze, orange for filter_sweep, and magenta for pitch_shift. Assigned inactive cells are dim, active cells are bright, and limit-blocked cells are gray.
 - Grid releases in Dance mode are consumed by the Dance layer and do not reach the active behavior engine.
 - Aux encoder bindings continue to target whichever menu item they were bound to; Dance page switching does not alter bindings.
+- `xy`: the full 8×8 grid acts as a continuous two-axis modulation surface. Pressing a grid cell normalizes its X,Y coordinates over 0–1 (full width/height, no margin). The normalized position modulates the per-part targets assigned in `L4: Dance > X/Y Pad > X/Y Axis`.
+- `xy` target selection walks the menu tree to present all mappable parameters (same set used by aux encoder binding and Sense X/Y axis modulation). Selecting a target stores the parameter key and value metadata per part (`parts[N].xy`).
+- `xy` modulation beats all other modulation sources: it is applied last in `applyModulationResult()`, after `applyParamModulation()`, overwriting the same runtime config keys.
+- `xy` grid LEDs: bright white on the touched cell while finger is down; dim gray on sample-hold (when `Release = sample-hold` and finger is lifted); rest of grid is dark.
+- `Release: sample-hold` keeps the last modulation values active after lifting the finger. `Release: reset-center` returns X and Y to 0.5 (center) on release.
+- `Invert X` / `Invert Y` flip the respective axis: `value = 1 - norm` when enabled, so left becomes max and right becomes min (X axis), or bottom becomes max and top becomes min (Y axis).
+- Saved with presets/defaults: selected Dance Page, Trigger Gate edit target, FX page config and assignments, instrument mix volumes, pan positions, trigger-gate cell state, X/Y bindings, X/Y invert flags, and X/Y release behavior.
+- Not saved: transient performance state such as the currently active Dance overlay on load/startup, the live X/Y touch position (`xyTouch`), active momentary FX instances, assign modes, held modifiers, and other temporary overlays.
 
 ### System
 
@@ -410,7 +428,7 @@ Overrides:
 
 - While Fn is held: leftmost column shows part selectors (gray) and active part (green).
 - While sample assignment mode is active: grid shows assignment overlay (selected-slot colors, other-slot dim white, unassigned dark).
-- While Dance Page is `mix`, `pan`, or `fx`: grid shows the Dance performance overlay instead of active behavior cells.
+- While any Dance Page (`mix`, `pan`, `fx`, `trigger-gate`, `xy`) is active: grid shows the Dance performance overlay instead of active behavior cells.
 - When Ghost Cells is on, inactive parts' active cells render as very dim green behind the active part. Active part cells and sample assignment overlays take priority.
 
 ## Sectioned Scanning

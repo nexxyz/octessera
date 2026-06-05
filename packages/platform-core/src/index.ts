@@ -81,6 +81,7 @@ import {
   OLED_TEXT_LINES,
   OLED_WIDTH,
   type ActionSpec,
+  type AuxTurnBinding,
   type BarValue,
   type ConfigPayload,
   type MenuNode,
@@ -102,7 +103,7 @@ export {
   OLED_TEXT_LINES,
   OLED_WIDTH
 } from "./platformTypes";
-export type { ActionSpec, ActiveFx, AudioCommand, BarValue, ConfigPayload, FxCellConfig, MenuNode, MomentaryFxConfig, MomentaryFxType, NumericDisplayMode, PlatformEffect, PlatformState, RuntimeConfig, StoreResult, TouchMode } from "./platformTypes";
+export type { ActionSpec, ActiveFx, AudioCommand, AuxTurnBinding, BarValue, ConfigPayload, DanceMode, FxCellConfig, MenuNode, MomentaryFxConfig, MomentaryFxType, NumericDisplayMode, PlatformEffect, PlatformState, RuntimeConfig, StoreResult } from "./platformTypes";
 
 export function createInitialState<TState>(behavior: BehaviorEngine<TState, unknown>): PlatformState<TState> {
   return createInitialPlatformState(behavior);

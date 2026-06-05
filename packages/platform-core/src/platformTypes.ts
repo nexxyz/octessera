@@ -9,7 +9,7 @@ export type SectionCount = "1" | "2" | "4" | "8";
 export type Curve = "linear" | "curve";
 export type VoiceStealingMode = "off" | "lenient" | "balanced" | "aggressive";
 export type NumericDisplayMode = "bar" | "numbers" | "bar+numbers";
-export type TouchMode = "none" | "mix" | "pan" | "fx" | "trigger-gate";
+export type DanceMode = "none" | "mix" | "pan" | "fx" | "trigger-gate" | "xy";
 export type MomentaryFxType = "none" | "stutter" | "freeze" | "filter_sweep" | "pitch_shift";
 export type MomentaryFxTarget =
   | { type: "global" }
@@ -175,6 +175,7 @@ export type PartConfig = {
   };
   l2: PartSenseConfig;
   paramMods?: ParamModAxisSlots;
+  xy?: { x: AuxTurnBinding | null; y: AuxTurnBinding | null; xInvert?: boolean; yInvert?: boolean };
   autoName: boolean;
   name: string;
 };
@@ -190,8 +191,11 @@ export type RuntimeConfig = {
   panPositions: number;
   instruments: InstrumentSlotConfig[];
   mixer?: MixerConfig;
+  danceMode: DanceMode;
   touchFx?: { selected: MomentaryFxConfig; assignments: FxCellConfig[] };
   auxBindings?: Record<string, AuxBinding | null>;
+  xyTouch: { x: number; y: number; active: boolean };
+  xyRelease: "sample-hold" | "reset-center";
 };
 
 export type ActionSpec =
@@ -210,10 +214,14 @@ export type ActionSpec =
   | { type: "fx_assign_exit" }
   | { type: "midi_select_output"; id: string | null } | { type: "midi_select_input"; id: string | null }
   | { type: "midi_panic" } | { type: "behavior_action"; behaviorId: string; actionType: string }
-  | { type: "instrument_clone"; slot: number } | { type: "instrument_reset"; slot: number };
+  | { type: "instrument_clone"; slot: number } | { type: "instrument_reset"; slot: number }
+  | { type: "xy_set_target"; axis: "x" | "y"; binding: AuxTurnBinding | null }
+  | { type: "noop" }
+  | { type: "menu_back" };
 
 export type MenuState = { stack: number[]; cursor: number; editing: boolean };
-export type ConfigPayload = { activeBehavior: string; runtimeConfig: RuntimeConfig; mappingConfig: MappingConfig };
+export type SavedSystemConfig = { danceMode?: DanceMode; touchMode?: DanceMode; triggerGateTarget?: "active" | "all" | string };
+export type ConfigPayload = { activeBehavior: string; runtimeConfig: RuntimeConfig; mappingConfig: MappingConfig; system?: SavedSystemConfig };
 export type ConfirmKind = "overwrite_preset" | "delete_preset" | "rename_preset" | "load_preset" | "load_default" | "load_factory" | "save_default" | "load_synth_preset" | "text_dirty_exit" | "midi_panic" | "aux_unbind" | "help_info";
 type TextConfirmMode = "save" | "discard";
 export type PendingAction =
@@ -251,7 +259,7 @@ export type SystemState = {
     dir: string;
     entries: Array<{ name: string; path: string; isDir: boolean }>;
   } | null;
-  touchMode: TouchMode;
+  danceMode: DanceMode;
   triggerGateTarget: "active" | "all" | string;
   triggerMuted: boolean;
 };
@@ -287,7 +295,7 @@ export type PlatformState<TState> = {
 };
 
 export type MenuNode =
-  | { kind: "group"; label: string; children: MenuNode[] | ((state: PlatformState<any>) => MenuNode[]); visible?: (c: RuntimeConfig) => boolean; flat?: boolean | ((config: RuntimeConfig) => boolean) }
+  | { kind: "group"; label: string; children: MenuNode[] | ((state: PlatformState<any>) => MenuNode[]); visible?: (c: RuntimeConfig) => boolean; flat?: boolean | ((config: RuntimeConfig) => boolean); detail?: (state: PlatformState<any>) => string | null }
   | { kind: "enum"; label: string; key: string; options: string[]; visible?: (c: RuntimeConfig) => boolean }
   | { kind: "number"; label: string; key: string; min: number; max: number; step: number; displayStyle?: "number" | "bar" | "marker"; visible?: (c: RuntimeConfig) => boolean }
   | { kind: "bool"; label: string; key: string; visible?: (c: RuntimeConfig) => boolean }

@@ -5,7 +5,7 @@ import type { MusicalEvent } from "@cellsymphony/musical-events";
 import { clamp, mod } from "./coreUtils";
 import { clampPanPosition, clampPartIndex, PAN_CENTER_POS, PAN_POSITION_MAX, GRID_DOMAIN, PLATFORM_CAPS, scalePanPosition, sectionCount } from "./platformCaps";
 import { momentaryFxColor } from "./momentaryFx";
-import type { PlatformState, TouchMode } from "./platformTypes";
+import type { DanceMode, PlatformState } from "./platformTypes";
 
 export const DANCE_PAN_COLORS: Record<string, LedCell> = {
   direct: { r: 255, g: 255, b: 255 },
@@ -104,7 +104,8 @@ export function cellsToLeds(
   fnHeld: boolean = false,
   activePartIndex: number = 0,
   ghostCells?: boolean[],
-  touchMode: TouchMode = "none",
+  activeDanceMode: DanceMode = "none",
+  selectedDanceMode: DanceMode = "none",
   parts: unknown[] = []
 ): LedCell[] {
   const b = clamp(brightness, 0.1, 1);
@@ -141,7 +142,7 @@ export function cellsToLeds(
       }
     }
   }
-  overlayFnNavigation(out, b, fnHeld, activePartIndex, touchMode, parts);
+  overlayFnNavigation(out, b, fnHeld, activePartIndex, activeDanceMode, selectedDanceMode, parts);
    return out;
  }
 
@@ -189,7 +190,7 @@ export function cellsToLeds(
    return out;
  }
 
- function overlayFnNavigation(out: LedCell[], brightness: number, fnHeld: boolean, activePartIndex: number, touchMode: TouchMode, parts: unknown[] = []): void {
+ function overlayFnNavigation(out: LedCell[], brightness: number, fnHeld: boolean, activePartIndex: number, activeDanceMode: DanceMode, selectedDanceMode: DanceMode, parts: unknown[] = []): void {
   if (!fnHeld) return;
   // dim non-navigation cells (neither left column nor right column)
   for (let y = 0; y < PLATFORM_CAPS.gridHeight; y += 1) {
@@ -199,16 +200,16 @@ export function cellsToLeds(
     }
   }
   const layerCount = Math.min(PLATFORM_CAPS.partCount, PLATFORM_CAPS.gridHeight);
-  const inTouch = touchMode !== "none";
+  const inDance = activeDanceMode !== "none";
   for (let layer = 0; layer < layerCount; layer += 1) {
     const screenIndex = GRID_DOMAIN.toDisplayIndex({ x: 0, y: layer });
-    const isActive = !inTouch && layer === activePartIndex;
+    const isActive = !inDance && layer === activePartIndex;
     const hasBehavior = String((parts[layer] as any)?.l1?.behaviorId ?? "none") !== "none";
     if (isActive) out[screenIndex] = scaleLed({ r: 0, g: 210, b: 210 }, brightness);
     else if (hasBehavior) out[screenIndex] = scaleLed({ r: 40, g: 180, b: 40 }, brightness);
     else out[screenIndex] = { r: Math.round(out[screenIndex].r * 0.25), g: Math.round(out[screenIndex].g * 0.25), b: Math.round(out[screenIndex].b * 0.25) };
   }
-  const pages: TouchMode[] = ["mix", "pan", "fx", "trigger-gate"];
+  const pages: DanceMode[] = ["mix", "pan", "fx", "trigger-gate", "xy"];
   for (let row = 0; row < PLATFORM_CAPS.gridHeight; row += 1) {
     const screenIndex = GRID_DOMAIN.toDisplayIndex({ x: PLATFORM_CAPS.gridWidth - 1, y: row });
     const page = pages[row];
@@ -216,7 +217,7 @@ export function cellsToLeds(
       out[screenIndex] = { r: Math.round(out[screenIndex].r * 0.25), g: Math.round(out[screenIndex].g * 0.25), b: Math.round(out[screenIndex].b * 0.25) };
       continue;
     }
-    const color = page === touchMode ? { r: 0, g: 210, b: 210 } : { r: 180, g: 180, b: 180 };
+    const color = page === selectedDanceMode ? { r: 0, g: 210, b: 210 } : { r: 180, g: 180, b: 180 };
     out[screenIndex] = scaleLed(color, brightness);
   }
 }
@@ -263,8 +264,8 @@ export function sampleAssignmentToLeds(
   return out;
 }
 
-export function touchModeToLeds<TState>(state: PlatformState<TState>, brightness: number, ghostCells?: boolean[]): LedCell[] | null {
-  const mode = state.system.touchMode;
+export function danceModeToLeds<TState>(state: PlatformState<TState>, brightness: number, ghostCells?: boolean[]): LedCell[] | null {
+  const mode = state.system.danceMode;
   if (mode === "none") return null;
   const b = clamp(brightness, 0.1, 1);
   const out: LedCell[] = Array.from({ length: PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight }, () => scaleLed({ r: 8, g: 8, b: 14 }, b));
@@ -283,7 +284,10 @@ export function touchModeToLeds<TState>(state: PlatformState<TState>, brightness
     // Only show FN navigation overlay when FN is held without Shift for navigation
     // When both FN and Shift are held, suppress the overlay as this is a system navigation command
     const showFnOverlay = state.system.fnHeld && !state.system.shiftHeld;
-    overlayFnNavigation(out, b, showFnOverlay, (state.runtimeConfig as any).activePartIndex ?? 0, mode, (state.runtimeConfig as any).parts);
+    const selectedDanceMode = (state.runtimeConfig as any).danceMode && (state.runtimeConfig as any).danceMode !== "none"
+      ? (state.runtimeConfig as any).danceMode
+      : mode;
+    overlayFnNavigation(out, b, showFnOverlay, (state.runtimeConfig as any).activePartIndex ?? 0, mode, selectedDanceMode, (state.runtimeConfig as any).parts);
     return out;
   }
 
@@ -343,6 +347,23 @@ export function touchModeToLeds<TState>(state: PlatformState<TState>, brightness
     }
     const showFnOverlay = state.system.fnHeld && !state.system.shiftHeld;
     overlayFnNavigation(out, b, showFnOverlay, activePartIndex, mode, parts);
+    return out;
+  }
+
+  if (mode === "xy") {
+    const touch = (state.runtimeConfig as any).xyTouch as { x: number; y: number; active: boolean } | undefined;
+    if (touch) {
+      const tx = clamp(Math.round(touch.x * (PLATFORM_CAPS.gridWidth - 1)), 0, PLATFORM_CAPS.gridWidth - 1);
+      const ty = clamp(Math.round(touch.y * (PLATFORM_CAPS.gridHeight - 1)), 0, PLATFORM_CAPS.gridHeight - 1);
+      const ci = GRID_DOMAIN.toDisplayIndex({ x: tx, y: ty });
+      if (touch.active) {
+        out[ci] = scaleLed({ r: 255, g: 255, b: 255 }, b);
+      } else {
+        out[ci] = scaleLed({ r: 100, g: 100, b: 100 }, b);
+      }
+    }
+    const showFnOverlay = state.system.fnHeld && !state.system.shiftHeld;
+    overlayFnNavigation(out, b, showFnOverlay, (state.runtimeConfig as any).activePartIndex ?? 0, mode, (state.runtimeConfig as any).parts);
     return out;
   }
 

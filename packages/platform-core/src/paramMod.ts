@@ -83,7 +83,7 @@ function nextToggleMode(current: ParamModSlotBinding | null, key: string): "regu
 }
 
 export function paramModOverlayToLeds<TState>(state: PlatformState<TState>, highlighted: AuxTurnBinding | null, brightness: number): LedCell[] | null {
-  if (!state.system.shiftHeld || !highlighted || state.system.touchMode !== "none") return null;
+  if (!state.system.shiftHeld || !highlighted || state.system.danceMode !== "none") return null;
   const b = clamp(brightness, 0.1, 1);
   const out = Array.from({ length: PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight }, () => ({ r: 0, g: 0, b: 0 }));
   const activePart = clampPartIndex((state.runtimeConfig as any).activePartIndex ?? 0);
@@ -132,21 +132,27 @@ export function normalizedAxis(index: number, size: number, gridOffset: number):
   return shifted / Math.max(1, size - 1);
 }
 
+export function quantizeBindingValue(
+  norm: number,
+  binding: { kind: string; min?: number; max?: number; step?: number; options?: string[] }
+): unknown {
+  if (binding.kind === "enum" && binding.options?.length) {
+    return binding.options[Math.round(norm * (binding.options.length - 1))];
+  }
+  if (binding.kind === "bool") return norm >= 0.5;
+  const min = binding.min ?? 0;
+  const max = binding.max ?? 127;
+  const step = binding.step ?? 1;
+  const raw = min + norm * (max - min);
+  const stepped = step > 0 ? Math.round(raw / step) * step : raw;
+  return clamp(Number((stepped as number).toFixed(6)), min, max);
+}
+
 export function scaledParamModValue(binding: ParamModSlotBinding, axis: ParamModAxis, intent: { x: number; y: number }): unknown {
   const size = axis === "x" ? PLATFORM_CAPS.gridWidth : PLATFORM_CAPS.gridHeight;
   const index = axis === "x" ? intent.x : intent.y;
   const source = binding.invert ? 1 - normalizedAxis(index, size, 0) : normalizedAxis(index, size, 0);
-  if (binding.kind === "enum" && binding.options?.length) {
-    const idx = clamp(Math.round(source * (binding.options.length - 1)), 0, binding.options.length - 1);
-    return binding.options[idx];
-  }
-  if (binding.kind === "bool") return source >= 0.5;
-  const min = binding.min ?? 0;
-  const max = binding.max ?? 127;
-  const step = binding.step ?? 1;
-  const raw = min + source * (max - min);
-  const stepped = step > 0 ? Math.round(raw / step) * step : raw;
-  return clamp(Number(stepped.toFixed(6)), min, max);
+  return quantizeBindingValue(source, binding);
 }
 
 export function paramModsForPart(cfg: RuntimeConfig, partIndex: number): ParamModAxisSlots {

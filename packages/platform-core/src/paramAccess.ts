@@ -146,6 +146,16 @@ export function readAnyValue<TState>(state: PlatformState<TState>, key: string):
 }
 
 export function writeAnyValue<TState>(state: PlatformState<TState>, key: string, value: unknown): PlatformState<TState> {
+  if (key === "danceMode") {
+    const danceMode = value === "none" || value === "mix" || value === "pan" || value === "fx" || value === "trigger-gate" || value === "xy"
+      ? value
+      : "none";
+    return {
+      ...state,
+      runtimeConfig: writeValue(state.runtimeConfig, "danceMode", danceMode),
+      system: { ...state.system, danceMode }
+    };
+  }
   if (key === "touchFx.selected.fxType") {
     const fxType = isMomentaryFxType(value) ? value : "none";
     const prevTargetKey = (state.runtimeConfig as any).touchFx?.selected?.targetKey ?? "master";

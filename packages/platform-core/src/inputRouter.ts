@@ -7,7 +7,7 @@ import { applyParamModMapping, paramBindingFromMenuNode } from "./paramMod";
 import { clamp } from "./coreUtils";
 import { clampPartIndex, clampInstrumentIndex, PLATFORM_CAPS } from "./platformCaps";
 import type { PlatformEffect, PlatformState } from "./index";
-import { applySampleAssignment, filterTriggerGatedIntents, handleTouchGridPress, gridChanged, inputTransitionProfile, touchPageFromRow } from "./inputInternal";
+import { applySampleAssignment, filterTriggerGatedIntents, handleTouchGridPress, gridChanged, inputTransitionProfile } from "./inputInternal";
 import { applyModulationResult, applyNoteBehavior, withScaleSteps } from "./musicTransforms";
 import { makeToast } from "./toast";
 import { activateMomentaryFx, applyFxAssignment, releaseMomentaryFx } from "./touchFxRuntime";

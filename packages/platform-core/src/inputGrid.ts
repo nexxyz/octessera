@@ -4,7 +4,7 @@ import type { MusicalEvent } from "@cellsymphony/musical-events";
 import type { Deps } from "./inputModifier";
 import type { PlatformEffect, PlatformState } from "./index";
 import { clamp } from "./coreUtils";
-import { applySampleAssignment, handleTouchGridPress, touchPageFromRow } from "./inputInternal";
+import { applySampleAssignment, danceModeFromRow, handleTouchGridPress } from "./inputInternal";
 import { applyParamModMapping, paramBindingFromMenuNode } from "./paramMod";
 import { visibleChildren } from "./menuView";
 import { makeToast } from "./toast";
@@ -50,9 +50,11 @@ export function handleGridInput<TState>(
     }
 
     if (input.type === "grid_press" && nextState.system.fnHeld && !nextState.system.shiftHeld && input.x === PLATFORM_CAPS.gridWidth - 1) {
-      const touchMode = touchPageFromRow(input.y, nextState.system.touchMode);
-      nextState.system = { ...nextState.system, touchMode, toast: makeToast(`Touch: ${touchMode}`) };
+      const danceMode = danceModeFromRow(input.y, (nextState.runtimeConfig as any).danceMode ?? nextState.system.danceMode);
+      nextState = deps.writeAnyValue(nextState, "danceMode", danceMode);
+      nextState.system = { ...nextState.system, toast: makeToast(`Dance: ${danceMode}`) };
       nextState.menu = { stack: [3], cursor: 0, editing: false };
+      deps.autoSaveEffect(nextState, effects);
       return { state: nextState, events, effects };
     }
 
@@ -69,7 +71,7 @@ export function handleGridInput<TState>(
       }
       nextState = deps.writeAnyValue(nextState, "activePartIndex", idx);
       nextState = deps.reinitBehaviorState(nextState, "activePartIndex");
-      nextState.system = { ...nextState.system, touchMode: "none", pendingCloneSource: null, toast: makeToast(pending !== null && pending !== idx ? `Cloned P${pending + 1} → P${idx + 1}` : `Part ${idx + 1}`) };
+      nextState.system = { ...nextState.system, danceMode: "none", pendingCloneSource: null, toast: makeToast(pending !== null && pending !== idx ? `Cloned P${pending + 1} → P${idx + 1}` : `Part ${idx + 1}`) };
       const ms = nextState.menu.stack;
       if (ms.length >= 2 && ms[0] <= 1) {
         const partGroups = visibleChildren((deps.menuTree(nextState) as any).children?.[ms[0]], nextState);
@@ -79,6 +81,7 @@ export function handleGridInput<TState>(
           nextState = { ...nextState, menu: { ...nextState.menu, stack: [ms[0], newPartIdx, ...ms.slice(2)], cursor: Math.min(nextState.menu.cursor, Math.max(0, partKids.length - 1)), editing: false } };
         }
       }
+      deps.autoSaveEffect(nextState, effects);
       return { state: nextState, events, effects };
     }
 
@@ -113,16 +116,18 @@ export function handleGridInput<TState>(
     return { state: nextState, events, effects };
   }
 
-  // Fn+rightmost column → touch page
+  // Fn+rightmost column → Dance page
   if (input.type === "grid_press" && nextState.system.fnHeld && !nextState.system.shiftHeld && input.x === PLATFORM_CAPS.gridWidth - 1) {
-    const touchMode = touchPageFromRow(input.y, nextState.system.touchMode);
-    nextState.system = { ...nextState.system, touchMode, toast: makeToast(`Touch: ${touchMode}`) };
+    const danceMode = danceModeFromRow(input.y, (nextState.runtimeConfig as any).danceMode ?? nextState.system.danceMode);
+    nextState = deps.writeAnyValue(nextState, "danceMode", danceMode);
+    nextState.system = { ...nextState.system, toast: makeToast(`Dance: ${danceMode}`) };
     nextState.menu = { stack: [3], cursor: 0, editing: false };
+    deps.autoSaveEffect(nextState, effects);
     return { state: nextState, events, effects };
   }
 
-  // Trigger-gate touch mode
-  if (nextState.system.touchMode === "trigger-gate" && input.type === "grid_press") {
+  // Trigger-gate Dance mode
+  if (nextState.system.danceMode === "trigger-gate" && input.type === "grid_press") {
     const fnOnly = nextState.system.fnHeld && !nextState.system.shiftHeld;
     if (!fnOnly) {
       const mode = nextState.system.combinedModifierHeld
@@ -131,19 +136,20 @@ export function handleGridInput<TState>(
           ? "row"
         : "single";
       nextState = handleTouchGridPress(nextState, input, effects, deps, mode as "single" | "row" | "column");
+      deps.autoSaveEffect(nextState, effects);
       return { state: nextState, events, effects };
     }
   }
 
-  // Other touch modes (mix, pan)
-  if (nextState.system.touchMode !== "none" && !nextState.system.fnHeld && !nextState.system.shiftHeld && input.type === "grid_press") {
+  // Other Dance modes (mix, pan)
+  if (nextState.system.danceMode !== "none" && !nextState.system.fnHeld && !nextState.system.shiftHeld && input.type === "grid_press") {
     nextState = handleTouchGridPress(nextState, input, effects, deps);
-    if (state.system.touchMode === "mix" || state.system.touchMode === "pan") deps.autoSaveEffect(nextState, effects);
+    if (state.system.danceMode === "mix" || state.system.danceMode === "pan") deps.autoSaveEffect(nextState, effects);
     return { state: nextState, events, effects };
   }
 
   // Shift+grid param modulation
-  if (input.type === "grid_press" && nextState.system.shiftHeld && !nextState.system.fnHeld && nextState.system.touchMode === "none") {
+  if (input.type === "grid_press" && nextState.system.shiftHeld && !nextState.system.fnHeld && nextState.system.danceMode === "none") {
     const view = deps.locate(deps.menuTree(nextState), nextState, nextState.menu);
     const selected = view.siblings[nextState.menu.cursor] as any;
     const binding = paramBindingFromMenuNode(selected);
@@ -157,8 +163,29 @@ export function handleGridInput<TState>(
     }
   }
 
-  // Grid release → momentary FX release
-  if (nextState.system.touchMode !== "none" && !nextState.system.fnHeld && !nextState.system.shiftHeld && input.type === "grid_release") {
+  // Grid release → xy release or momentary FX release
+  if (nextState.system.danceMode !== "none" && !nextState.system.fnHeld && !nextState.system.shiftHeld && input.type === "grid_release") {
+    if (nextState.system.danceMode === "xy") {
+      const xyRelease = (nextState.runtimeConfig as any)?.xyRelease ?? "sample-hold";
+      if (xyRelease === "reset-center") {
+        nextState = {
+          ...nextState,
+          runtimeConfig: {
+            ...nextState.runtimeConfig,
+            xyTouch: { x: 0.5, y: 0.5, active: false }
+          }
+        } as any;
+      } else {
+        nextState = {
+          ...nextState,
+          runtimeConfig: {
+            ...nextState.runtimeConfig,
+            xyTouch: { ...(nextState.runtimeConfig as any).xyTouch, active: false }
+          }
+        } as any;
+      }
+      return { state: nextState, events, effects };
+    }
     nextState = releaseMomentaryFx(nextState, input.x, input.y, effects);
     return { state: nextState, events, effects };
   }
@@ -177,7 +204,7 @@ export function handleGridInput<TState>(
     }
     nextState = deps.writeAnyValue(nextState, "activePartIndex", idx);
     nextState = deps.reinitBehaviorState(nextState, "activePartIndex");
-    nextState.system = { ...nextState.system, touchMode: "none", pendingCloneSource: null, toast: makeToast(pending !== null && pending !== idx ? `Cloned P${pending + 1} → P${idx + 1}` : `Part ${idx + 1}`) };
+    nextState.system = { ...nextState.system, danceMode: "none", pendingCloneSource: null, toast: makeToast(pending !== null && pending !== idx ? `Cloned P${pending + 1} → P${idx + 1}` : `Part ${idx + 1}`) };
     const ms = nextState.menu.stack;
     if (ms.length >= 2 && ms[0] <= 1) {
       const partGroups = visibleChildren((deps.menuTree(nextState) as any).children?.[ms[0]], nextState);
@@ -187,6 +214,7 @@ export function handleGridInput<TState>(
         nextState = { ...nextState, menu: { ...nextState.menu, stack: [ms[0], newPartIdx, ...ms.slice(2)], cursor: Math.min(nextState.menu.cursor, Math.max(0, partKids.length - 1)), editing: false } };
       }
     }
+    deps.autoSaveEffect(nextState, effects);
     return { state: nextState, events, effects };
   }
 

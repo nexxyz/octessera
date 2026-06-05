@@ -1,9 +1,9 @@
-import type { MusicalEvent } from "@cellsymphony/musical-events";
+﻿import type { MusicalEvent } from "@cellsymphony/musical-events";
 import type { RootName, RuntimeConfig, ScaleId, ValueLaneConfig } from "./platformTypes";
 import { DEFAULT_VELOCITY_HIGH, DEFAULT_VELOCITY_MEDIUM, DEFAULT_VELOCITY_LOW, DEFAULT_NOTE_LENGTH_MS } from "./runtimeDefaults";
 import { clampSampleSlotIndex, PLATFORM_CAPS, sectionCount } from "./platformCaps";
 import { writeValue } from "./coreUtils";
-import { paramModsForPart, scaledParamModValue } from "./paramMod";
+import { paramModsForPart, quantizeBindingValue, scaledParamModValue } from "./paramMod";
 
 export function applyModulation(intents: { x: number; y: number; degree: number; kind: any }[], events: MusicalEvent[], cfg: RuntimeConfig, partIndex: number = Number((cfg as any).activePartIndex ?? 0)): MusicalEvent[] {
   return applyModulationResult(intents, events, cfg, cfg, partIndex).events;
@@ -59,8 +59,26 @@ export function applyModulationResult(
       out.push(event);
     }
      const runtimeConfig = applyParamModulation(intents, runtimeCfg, partIndex);
-     return { events: applyGlobalSound(out, runtimeConfig), runtimeConfig };
+     return { events: applyGlobalSound(out, runtimeConfig), runtimeConfig: applyXyModulation(runtimeConfig, partIndex) };
    }
+
+export function applyXyModulation(cfg: RuntimeConfig, partIndex: number = Number((cfg as any).activePartIndex ?? 0)): RuntimeConfig {
+   const touch = (cfg as any).xyTouch as { x: number; y: number; active: boolean } | undefined;
+   if (!touch) return cfg;
+   if (!touch.active && (cfg as any).xyRelease !== "sample-hold") return cfg;
+   const xy = (cfg as any).parts?.[partIndex]?.xy;
+   if (!xy?.x && !xy?.y) return cfg;
+   let next: RuntimeConfig = cfg;
+   for (const axis of ["x", "y"] as const) {
+     const binding = xy[axis];
+     if (!binding) continue;
+     const norm = axis === "x" ? touch.x : touch.y;
+     const invert = axis === "x" ? xy.xInvert : xy.yInvert;
+     const value = quantizeBindingValue(invert ? 1 - norm : norm, binding);
+     if (value !== undefined) next = writeValue(next, binding.key, value);
+   }
+   return next;
+ }
 
 export function applyParamModulation(intents: any[], cfg: RuntimeConfig, partIndex: number = Number((cfg as any).activePartIndex ?? 0)): RuntimeConfig {
    const intent = intents.find((i) => i && (i.kind === "activate" || i.kind === "scanned" || i.kind === "stable")) ?? intents[intents.length - 1];

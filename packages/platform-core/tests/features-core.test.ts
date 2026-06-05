@@ -16,6 +16,8 @@ import {
   type PlatformState,
   type PlatformEffect
 } from "../src/index";
+import { handleMenuAction } from "../src/actions";
+import { writeValue } from "../src/coreUtils";
 
 const CELL_COUNT = PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight;
 
@@ -518,6 +520,84 @@ test("loading preset tracks current preset name", () => {
   const payload = extractConfigPayload(state);
   state = applyStoreResult(state, { type: "load_preset_result", name: "Jam B", payload }, mockBehavior).state;
   assert.equal(state.system.currentPresetName, "Jam B");
+});
+
+test("Dance config and active page persist through config payload", () => {
+  let state = makeState();
+  state.runtimeConfig.danceMode = "xy";
+  state.system.danceMode = "xy";
+  state.system.triggerGateTarget = "all";
+  state.runtimeConfig.xyRelease = "reset-center";
+  (state.runtimeConfig as any).parts[0].xy = {
+    x: { key: "instruments.0.synth.filter.cutoffHz", label: "Cutoff", kind: "number", min: 20, max: 20000, step: 1 },
+    y: { key: "eventEnabled", label: "Events", kind: "bool" },
+    xInvert: true,
+    yInvert: true
+  };
+  (state.runtimeConfig as any).xyTouch = { x: 0.8, y: 0.2, active: true };
+  (state.runtimeConfig as any).touchFx.selected = { fxType: "freeze", params: { releaseMs: 900, mixPct: 45 }, targetKey: "master" };
+  (state.runtimeConfig as any).touchFx.assignments = [{ x: 1, y: 2, config: { fxType: "stutter", params: { rateHz: 9, depthPct: 60 }, targetKey: "master" } }];
+  (state.runtimeConfig as any).instruments[0].mixer.volume = 34;
+  (state.runtimeConfig as any).instruments[0].mixer.panPos = 5;
+  (state.runtimeConfig as any).parts[0].l1.triggerGates[3] = false;
+
+  const payload = extractConfigPayload(state) as any;
+  const restored = applyConfigPayload(createInitialState(mockBehavior), payload, mockBehavior) as any;
+
+  assert.deepEqual(payload.system, { triggerGateTarget: "all" });
+  assert.equal(restored.runtimeConfig.danceMode, "xy");
+  assert.equal(restored.system.danceMode, "none");
+  assert.equal(restored.system.triggerGateTarget, "all");
+  assert.equal(restored.runtimeConfig.xyRelease, "reset-center");
+  assert.equal(restored.runtimeConfig.parts[0].xy.x.key, "instruments.0.synth.filter.cutoffHz");
+  assert.equal(restored.runtimeConfig.parts[0].xy.y.key, "eventEnabled");
+  assert.equal(restored.runtimeConfig.parts[0].xy.xInvert, true);
+  assert.equal(restored.runtimeConfig.parts[0].xy.yInvert, true);
+  assert.equal(restored.runtimeConfig.xyTouch.x, 0.5);
+  assert.equal(restored.runtimeConfig.xyTouch.y, 0.5);
+  assert.equal(restored.runtimeConfig.xyTouch.active, false);
+  assert.equal(restored.runtimeConfig.touchFx.selected.fxType, "freeze");
+  assert.equal(restored.runtimeConfig.touchFx.assignments.length, 1);
+  assert.equal(restored.runtimeConfig.touchFx.assignments[0].config.fxType, "stutter");
+  assert.equal(restored.runtimeConfig.instruments[0].mixer.volume, 34);
+  assert.equal(restored.runtimeConfig.instruments[0].mixer.panPos, 5);
+  assert.equal(restored.runtimeConfig.parts[0].l1.triggerGates[3], false);
+});
+
+test("X/Y target assignment auto-saves when autoSaveDefault is enabled", () => {
+  const state = makeState();
+  state.runtimeConfig.autoSaveDefault = true;
+  const effects: PlatformEffect[] = [];
+
+  const next = handleMenuAction(state, {
+    type: "xy_set_target",
+    axis: "x",
+    binding: { key: "masterVolume", label: "Master Vol", kind: "number", min: 0, max: 100, step: 1 }
+  }, effects, {
+    writeValue,
+    extractConfigPayload,
+    resolveBehavior: () => mockBehavior
+  }) as any;
+
+  assert.equal(next.runtimeConfig.parts[0].xy.x.key, "masterVolume");
+  assert.equal(effects.some((e) => e.type === "store_save_default"), true);
+});
+
+test("Dance page selection and trigger-gate edits auto-save when enabled", () => {
+  let state = makeState();
+  state.runtimeConfig.autoSaveDefault = true;
+
+  state = routeInput(state, { type: "button_fn", pressed: true } as DeviceInput, mockBehavior).state;
+  const pageSelect = routeInput(state, { type: "grid_press", x: PLATFORM_CAPS.gridWidth - 1, y: 4 } as DeviceInput, mockBehavior);
+  assert.equal(pageSelect.state.system.danceMode, "xy");
+  assert.equal(pageSelect.state.runtimeConfig.danceMode, "xy");
+  assert.equal(pageSelect.effects.some((e) => e.type === "store_save_default"), true);
+
+  let gateState = makeState();
+  gateState.runtimeConfig.autoSaveDefault = true;
+  gateState.system.danceMode = "trigger-gate";
+  const gateEdit = routeInput(gateState, { type: "grid_press", x: 1, y: 1 } as DeviceInput, mockBehavior);
+  assert.equal(gateEdit.effects.some((e) => e.type === "store_save_default"), true);
 });
 
 test("factory reset restores default behavior to life", () => {

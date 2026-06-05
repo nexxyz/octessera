@@ -14,18 +14,23 @@ export function abbreviatePath(path: string): string {
     System: "SYS"
   };
   if (!path || path === "Menu") return "MENU";
-  return path
-    .split("/")
+  const segments = path.split("/");
+  const targetIdx = segments.findIndex(s => s === "X Axis" || s === "Y Axis");
+  if (targetIdx >= 0) {
+    return "X/Y:" + segments.slice(targetIdx).join("/");
+  }
+  return segments
     .map((part) => map[part] ?? part)
     .join("/");
 }
 
 export function getSectionColorFromPath(path: string): number {
-  if (path.startsWith("L1") || path.includes("L1:")) return COLOR_LIFE;
-  if (path.startsWith("L2") || path.includes("L2:")) return COLOR_SENSE;
-  if (path.startsWith("L3") || path.includes("L3:")) return COLOR_VOICE;
-  if (path.includes("System") || path.includes("SYS")) return COLOR_SEPIA;
-  if (path.includes("Menu") || path.includes("MENU")) return COLOR_SEPIA;
+  const firstSeg = path.split("/")[0];
+  if (firstSeg.startsWith("L1") || firstSeg.includes("L1:")) return COLOR_LIFE;
+  if (firstSeg.startsWith("L2") || firstSeg.includes("L2:")) return COLOR_SENSE;
+  if (firstSeg.startsWith("L3") || firstSeg.includes("L3:")) return COLOR_VOICE;
+  if (firstSeg.includes("System") || firstSeg.includes("SYS")) return COLOR_SEPIA;
+  if (firstSeg.includes("Menu") || firstSeg.includes("MENU")) return COLOR_SEPIA;
   return 0xffff;
 }
 
@@ -151,7 +156,13 @@ export function formatMenuItemLines<TState>(
 ): string[] {
   if (item.kind === "spacer") return [""];
   const mark = selected ? "@@" : "";
-  if (item.kind === "group") return [`${mark}> ${item.label}`];
+  if (item.kind === "group") {
+    if (selected && typeof (item as any).detail === "function") {
+      const detail = (item as any).detail(state);
+      if (detail) return [`${mark}> ${item.label}`, `${mark}  ${fitText(detail)}`];
+    }
+    return [`${mark}> ${item.label}`];
+  }
   if (item.kind === "action") {
     if (selected) {
       const detail = actionDetailLine(state, item);
