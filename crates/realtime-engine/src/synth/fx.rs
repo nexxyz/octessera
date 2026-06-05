@@ -209,7 +209,10 @@ pub(super) fn master_fx_state_matches_params(state: &MasterFxState, params: &FxB
         (MasterFxState::None, FxBusParams::None)
             | (MasterFxState::None, FxBusParams::Saturator { .. })
             | (MasterFxState::None, FxBusParams::Distortion { .. })
-            | (MasterFxState::Compressor { .. }, FxBusParams::Compressor { .. })
+            | (
+                MasterFxState::Compressor { .. },
+                FxBusParams::Compressor { .. }
+            )
             | (MasterFxState::Eq { .. }, FxBusParams::Eq { .. })
             | (MasterFxState::Vinyl(..), FxBusParams::Vinyl { .. })
     )
@@ -327,12 +330,8 @@ pub(super) fn process_fx_bus_slot(
             bus_in,
             sample_rate,
         ),
-        FxBusParams::Saturator { drive, mix } => {
-            process_saturator(input, drive, mix)
-        }
-        FxBusParams::Distortion { drive, clip, mix } => {
-            process_distortion(input, drive, clip, mix)
-        }
+        FxBusParams::Saturator { drive, mix } => process_saturator(input, drive, mix),
+        FxBusParams::Distortion { drive, clip, mix } => process_distortion(input, drive, clip, mix),
         FxBusParams::Bitcrusher {
             rate_div,
             bits,
@@ -444,7 +443,10 @@ pub(super) fn process_master_fx_slot(
             };
             let detector = left.abs().max(right.abs()).min(1.0);
             let gain = compressor_gain(env, detector, &params, sample_rate);
-            (mix_sample(left, left * gain, mix), mix_sample(right, right * gain, mix))
+            (
+                mix_sample(left, left * gain, mix),
+                mix_sample(right, right * gain, mix),
+            )
         }
         FxBusParams::Eq {
             low_gain_db,
@@ -770,7 +772,11 @@ fn compressor_gain(
 ) -> f32 {
     let atk = (params.attack_ms / 1000.0 * sample_rate as f32).max(1.0);
     let rel = (params.release_ms / 1000.0 * sample_rate as f32).max(1.0);
-    let coef = if detector > *env { 1.0 / atk } else { 1.0 / rel };
+    let coef = if detector > *env {
+        1.0 / atk
+    } else {
+        1.0 / rel
+    };
     *env += (detector - *env) * coef;
 
     let env_db = 20.0 * (*env).max(1.0e-10).log10();
@@ -838,8 +844,8 @@ fn process_vinyl_stereo(
     }
     state.crackle_amp *= 0.94;
     state.rng = state.rng.wrapping_mul(1664525).wrapping_add(1013904223);
-    let noise = ((((state.rng >> 8) as f32) / ((u32::MAX >> 8) as f32)) * 2.0 - 1.0)
-        * state.crackle_amp;
+    let noise =
+        ((((state.rng >> 8) as f32) / ((u32::MAX >> 8) as f32)) * 2.0 - 1.0) * state.crackle_amp;
     let crackle_l = noise * (1.0 - state.crackle_pan).clamp(0.0, 1.5);
     let crackle_r = noise * (1.0 + state.crackle_pan).clamp(0.0, 1.5);
 

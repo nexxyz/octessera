@@ -725,7 +725,8 @@ impl SynthEngine {
         for slot_idx in 0..self.master_slot_params.len() {
             let params = self.master_slot_params[slot_idx];
             if let Some(state) = self.master_slot_state.get_mut(slot_idx) {
-                (left, right) = process_master_fx_slot(&params, state, left, right, self.sample_rate);
+                (left, right) =
+                    process_master_fx_slot(&params, state, left, right, self.sample_rate);
             }
         }
 
