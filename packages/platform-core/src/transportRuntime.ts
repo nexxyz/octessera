@@ -9,6 +9,7 @@ import type { BehaviorEngine } from "@cellsymphony/behavior-api";
 import type { PlatformState, RuntimeConfig, Direction, NoteUnit } from "./platformTypes";
 import { clampPartIndex, PLATFORM_CAPS, sectionCount } from "./platformCaps";
 import { TRANSPORT_FLASH_MS, deadlineMs, nowMs } from "./timing";
+import { resetScanState } from "./transportSafety";
 
 const PPQN = 24;
 
@@ -49,14 +50,15 @@ export function applyExternalClockPulses<TState>(state: PlatformState<TState>, b
   if (next.system.pendingResync) {
     const target = prevExt + (96 - (prevExt % 96 || 96));
     if (nextExt >= target) {
+      const scanReset = resetScanState(next);
       next.transport = { ...next.transport, ppqnPulse: target, tick: 0 };
-      next.partScanPulseAccumulator = next.partScanPulseAccumulator.map(() => 0);
-      next.partAlgorithmPulseAccumulator = next.partAlgorithmPulseAccumulator.map(() => 0);
-      next.ppqnPulseRemainder = 0;
-      next.partScanIndex = next.partScanIndex.map(() => 0);
-      next.scanIndex = 0;
-      next.scanPulseAccumulator = 0;
-      next.algorithmPulseAccumulator = 0;
+      next.partScanPulseAccumulator = scanReset.partScanPulseAccumulator;
+      next.partAlgorithmPulseAccumulator = scanReset.partAlgorithmPulseAccumulator;
+      next.ppqnPulseRemainder = scanReset.ppqnPulseRemainder;
+      next.partScanIndex = scanReset.partScanIndex;
+      next.scanIndex = scanReset.scanIndex;
+      next.scanPulseAccumulator = scanReset.scanPulseAccumulator;
+      next.algorithmPulseAccumulator = scanReset.algorithmPulseAccumulator;
       next.system = { ...next.system, pendingResync: false };
     }
   }
@@ -94,7 +96,6 @@ function advanceEngineByPulses<TState>(state: PlatformState<TState>, behavior: B
       const scanStepPulses = noteUnitToPulses(partCfg.scanUnit);
       while (partScanPulseAccumulator[partIdx] >= scanStepPulses) {
         partScanPulseAccumulator[partIdx] -= scanStepPulses;
-        partScanIndex[partIdx] = advanceScanIndex(partScanIndex[partIdx], partCfg.scanDirection, scanIndexSpan(partCfg));
         scanAdvanced = true;
       }
     }
@@ -122,6 +123,9 @@ function advanceEngineByPulses<TState>(state: PlatformState<TState>, behavior: B
     const shaped = applyNoteBehavior(modulated, instruments, partIdx, heldNotes);
     heldNotes = shaped.heldNotes;
     events.push(...shaped.events);
+    if (scanAdvanced && partCfg.scanMode === "scanning") {
+      partScanIndex[partIdx] = advanceScanIndex(partScanIndex[partIdx], partCfg.scanDirection, scanIndexSpan(partCfg));
+    }
   }
 
   next.system = { ...next.system, heldNotes };

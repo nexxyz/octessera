@@ -35,6 +35,23 @@ const mockBehavior: BehaviorEngine<MockState, unknown> = {
   deserialize: (data) => data as MockState
 };
 
+const staticBehavior: BehaviorEngine<MockState, unknown> = {
+  id: "static",
+  init: () => ({
+    cells: Array.from({ length: CELL_COUNT }, (_, i) => i === 0 || i === PLATFORM_CAPS.gridWidth - 1),
+    tickCount: 0
+  }),
+  onInput: (state) => state,
+  onTick: (state) => ({ ...state, tickCount: state.tickCount + 1 }),
+  renderModel: (state) => ({
+    name: "Static",
+    statusLine: "ok",
+    cells: state.cells
+  }),
+  serialize: (state) => state,
+  deserialize: (data) => data as MockState
+};
+
 test("interpretation supports event and state trigger paths", () => {
   const previous: GridSnapshot = { width: 2, height: 2, cells: [false, false, false, true] };
   const next: GridSnapshot = { width: 2, height: 2, cells: [true, false, false, false] };
@@ -180,6 +197,71 @@ test("scanning mode emits notes only when scan index advances", () => {
   const second = tick(first.state, mockBehavior);
   assert.equal(second.state.scanIndex, 0);
   assert.equal(second.events.some((e) => e.type === "note_on"), false);
+});
+
+test("startup play scans the first forward column on the first step", () => {
+  let state = createInitialState(staticBehavior);
+  state.system.oledMode = "normal";
+  state.runtimeConfig.scanMode = "scanning";
+  state.runtimeConfig.scanAxis = "columns";
+  state.runtimeConfig.scanDirection = "forward";
+  state.runtimeConfig.scanUnit = "1/16";
+  state.runtimeConfig.eventEnabled = false;
+  state.mappingConfig.scanned.action = "note_on";
+  state.mappingConfig.scanned_empty.action = "none";
+
+  state = routeInput(state, { type: "button_s", pressed: true } as DeviceInput, staticBehavior).state;
+  assert.equal(state.scanIndex, 0);
+  assert.equal(state.partScanIndex[0], 0);
+  const first = tick(state, staticBehavior, 0.2);
+
+  assert.equal(first.state.scanIndex, 1);
+  assert.equal(first.events.some((e) => e.type === "note_on"), true);
+});
+
+test("stop-to-play rescans the first forward column on restart", () => {
+  let state = createInitialState(staticBehavior);
+  state.system.oledMode = "normal";
+  state.runtimeConfig.scanMode = "scanning";
+  state.runtimeConfig.scanAxis = "columns";
+  state.runtimeConfig.scanDirection = "forward";
+  state.runtimeConfig.scanUnit = "1/16";
+  state.runtimeConfig.eventEnabled = false;
+  state.mappingConfig.scanned.action = "note_on";
+  state.mappingConfig.scanned_empty.action = "none";
+
+  state = routeInput(state, { type: "button_s", pressed: true } as DeviceInput, staticBehavior).state;
+  state = tick(state, staticBehavior, 0.2).state;
+  state = routeInput(state, { type: "button_shift", pressed: true } as DeviceInput, staticBehavior).state;
+  state = routeInput(state, { type: "button_s", pressed: true } as DeviceInput, staticBehavior).state;
+  state = routeInput(state, { type: "button_shift", pressed: false } as DeviceInput, staticBehavior).state;
+  state = routeInput(state, { type: "button_s", pressed: true } as DeviceInput, staticBehavior).state;
+  assert.equal(state.scanIndex, 0);
+  assert.equal(state.partScanIndex[0], 0);
+  const restarted = tick(state, staticBehavior, 0.2);
+
+  assert.equal(restarted.state.scanIndex, 1);
+  assert.equal(restarted.events.some((e) => e.type === "note_on"), true);
+});
+
+test("startup play scans the first reverse column on the first step", () => {
+  let state = createInitialState(staticBehavior);
+  state.system.oledMode = "normal";
+  state.runtimeConfig.scanMode = "scanning";
+  state.runtimeConfig.scanAxis = "columns";
+  state.runtimeConfig.scanDirection = "reverse";
+  state.runtimeConfig.scanUnit = "1/16";
+  state.runtimeConfig.eventEnabled = false;
+  state.mappingConfig.scanned.action = "note_on";
+  state.mappingConfig.scanned_empty.action = "none";
+
+  state = routeInput(state, { type: "button_s", pressed: true } as DeviceInput, staticBehavior).state;
+  assert.equal(state.scanIndex, PLATFORM_CAPS.gridWidth - 1);
+  assert.equal(state.partScanIndex[0], PLATFORM_CAPS.gridWidth - 1);
+  const first = tick(state, staticBehavior, 0.2);
+
+  assert.equal(first.state.scanIndex, PLATFORM_CAPS.gridWidth - 2);
+  assert.equal(first.events.some((e) => e.type === "note_on"), true);
 });
 
 test("grid brightness scales rendered LED intensity", () => {

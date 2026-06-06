@@ -9,6 +9,7 @@ import { makeToast } from "./toast";
 import { DEFAULT_VELOCITY_LEVELS, DEFAULT_MIDI_ENGINE, DEFAULT_PAN_POS, DEFAULT_VELOCITY, DEFAULT_VOLUME } from "./runtimeDefaults";
 import { cloneAuxBindings, sanitizeAuxBindings } from "./auxBindingsSerde";
 import { normalizeParamMods } from "./paramMod";
+import { resetScanState } from "./transportSafety";
 
 type StoreDeps<TState> = {
   resolveBehavior: (id: string) => BehaviorEngine<any, any>;
@@ -123,13 +124,14 @@ export function applyConfigPayload<TState>(
   if (shouldUseRestoredActiveState) {
     next.behaviorState = (next.partStates[activePartIndex] ?? next.behaviorState) as TState;
   }
-  next.partScanIndex = Array.from({ length: PLATFORM_CAPS.partCount }, () => 0);
-  next.partScanPulseAccumulator = Array.from({ length: PLATFORM_CAPS.partCount }, () => 0);
-  next.partAlgorithmPulseAccumulator = Array.from({ length: PLATFORM_CAPS.partCount }, () => 0);
-  next.scanPulseAccumulator = 0;
-  next.algorithmPulseAccumulator = 0;
-  next.ppqnPulseRemainder = 0;
-  next.scanIndex = 0;
+  const scanReset = resetScanState(next);
+  next.partScanIndex = scanReset.partScanIndex;
+  next.partScanPulseAccumulator = scanReset.partScanPulseAccumulator;
+  next.partAlgorithmPulseAccumulator = scanReset.partAlgorithmPulseAccumulator;
+  next.scanPulseAccumulator = scanReset.scanPulseAccumulator;
+  next.algorithmPulseAccumulator = scanReset.algorithmPulseAccumulator;
+  next.ppqnPulseRemainder = scanReset.ppqnPulseRemainder;
+  next.scanIndex = scanReset.scanIndex;
   next.system = {
     ...next.system,
     heldNotes: [],

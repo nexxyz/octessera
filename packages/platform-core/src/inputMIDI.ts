@@ -4,6 +4,7 @@ import { type DeviceInput } from "@cellsymphony/device-contracts";
 import type { MusicalEvent } from "@cellsymphony/musical-events";
 import type { BehaviorEngine } from "@cellsymphony/behavior-api";
 import { EVENT_BLIP_MS, deadlineMs, nowMs } from "./timing";
+import { resetScanState } from "./transportSafety";
 
 export function handleMIDIClock<TState>(
   state: PlatformState<TState>,
@@ -39,14 +40,15 @@ export function handleMIDIStartStop<TState>(
       nextState.system = { ...nextState.system, stopLatched: true };
     } else if (!nextState.system.pausedByUser) {
       if (input.type === "midi_start") {
+        const scanReset = resetScanState(nextState);
         nextState.transport = { ...nextState.transport, playing: true, ppqnPulse: 0, tick: 0 };
-        nextState.partScanIndex = nextState.partScanIndex.map(() => 0);
-        nextState.partScanPulseAccumulator = nextState.partScanPulseAccumulator.map(() => 0);
-        nextState.partAlgorithmPulseAccumulator = nextState.partAlgorithmPulseAccumulator.map(() => 0);
-        nextState.scanIndex = 0;
-        nextState.scanPulseAccumulator = 0;
-        nextState.algorithmPulseAccumulator = 0;
-        nextState.ppqnPulseRemainder = 0;
+        nextState.partScanIndex = scanReset.partScanIndex;
+        nextState.partScanPulseAccumulator = scanReset.partScanPulseAccumulator;
+        nextState.partAlgorithmPulseAccumulator = scanReset.partAlgorithmPulseAccumulator;
+        nextState.scanIndex = scanReset.scanIndex;
+        nextState.scanPulseAccumulator = scanReset.scanPulseAccumulator;
+        nextState.algorithmPulseAccumulator = scanReset.algorithmPulseAccumulator;
+        nextState.ppqnPulseRemainder = scanReset.ppqnPulseRemainder;
         nextState.system = { ...nextState.system, stopLatched: false, pendingResync: false, externalPpqnPulse: 0 };
       } else {
         nextState.transport = { ...nextState.transport, playing: true };

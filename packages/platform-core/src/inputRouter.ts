@@ -16,7 +16,7 @@ import { visibleChildren } from "./menuView";
 import { startMomentaryFxPreview, stopMomentaryFxPreview } from "./momentaryFxPreview";
 import { AUX_MAPPING_OVERLAY_DELAY_MS, EVENT_BLIP_MS, deadlineMs, heldForMs, nowMs } from "./timing";
 import { toGridSnapshot } from "./runtimeHelpers";
-import { emergencyBrakeState } from "./transportSafety";
+import { emergencyBrakeState, resetScanState } from "./transportSafety";
 import { applyModifierState, reinitBehaviorConfig, type Deps } from "./inputModifier";
 import { handleConfirmInput } from "./inputConfirm";
 import { handleMIDIClock, handleMIDIStartStop } from "./inputMIDI";
@@ -126,14 +126,15 @@ export function routeInputWithDeps<TState>(state: PlatformState<TState>, input: 
     if (playing) {
       const isStopToPlay = nextState.system.stopLatched || (nextState.transport.ppqnPulse === 0 && nextState.transport.tick === 0);
       if (isStopToPlay) {
+        const scanReset = resetScanState(nextState);
         nextState.transport = { ...nextState.transport, ppqnPulse: 0, tick: 0 };
-        nextState.partScanIndex = nextState.partScanIndex.map(() => 0);
-        nextState.partScanPulseAccumulator = nextState.partScanPulseAccumulator.map(() => 0);
-        nextState.partAlgorithmPulseAccumulator = nextState.partAlgorithmPulseAccumulator.map(() => 0);
-        nextState.scanPulseAccumulator = 0;
-        nextState.algorithmPulseAccumulator = 0;
-        nextState.ppqnPulseRemainder = 0;
-        nextState.scanIndex = 0;
+        nextState.partScanIndex = scanReset.partScanIndex;
+        nextState.partScanPulseAccumulator = scanReset.partScanPulseAccumulator;
+        nextState.partAlgorithmPulseAccumulator = scanReset.partAlgorithmPulseAccumulator;
+        nextState.scanPulseAccumulator = scanReset.scanPulseAccumulator;
+        nextState.algorithmPulseAccumulator = scanReset.algorithmPulseAccumulator;
+        nextState.ppqnPulseRemainder = scanReset.ppqnPulseRemainder;
+        nextState.scanIndex = scanReset.scanIndex;
         nextState.system = { ...nextState.system, stopLatched: false, transportFlash: "measure", transportFlashUntilMs: nowMsVal + 220 };
       } else {
         nextState.system = { ...nextState.system, stopLatched: false };
