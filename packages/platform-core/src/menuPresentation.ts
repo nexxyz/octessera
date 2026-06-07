@@ -3,6 +3,7 @@ import type { ActionSpec, MenuNode, NumericDisplayMode, PlatformState } from "./
 export const COLOR_LIFE = 0x8ED1;
 export const COLOR_SENSE = 0x8D5C;
 export const COLOR_VOICE = 0xC59B;
+export const COLOR_DANCE = 0xffff;
 export const COLOR_SEPIA = 0xB50D;
 
 export function abbreviatePath(path: string): string {
@@ -29,6 +30,7 @@ export function getSectionColorFromPath(path: string): number {
   if (firstSeg.startsWith("L1") || firstSeg.includes("L1:")) return COLOR_LIFE;
   if (firstSeg.startsWith("L2") || firstSeg.includes("L2:")) return COLOR_SENSE;
   if (firstSeg.startsWith("L3") || firstSeg.includes("L3:")) return COLOR_VOICE;
+  if (firstSeg.startsWith("L4") || firstSeg.includes("L4:")) return COLOR_DANCE;
   if (firstSeg.includes("System") || firstSeg.includes("SYS")) return COLOR_SEPIA;
   if (firstSeg.includes("Menu") || firstSeg.includes("MENU")) return COLOR_SEPIA;
   return 0xffff;
@@ -38,6 +40,7 @@ export function getSectionColor(nodeLabel: string): number {
   if (nodeLabel.startsWith("L1:") || nodeLabel === "L1: Life") return COLOR_LIFE;
   if (nodeLabel.startsWith("L2:") || nodeLabel === "L2: Sense") return COLOR_SENSE;
   if (nodeLabel.startsWith("L3:") || nodeLabel === "L3: Voice") return COLOR_VOICE;
+  if (nodeLabel.startsWith("L4:") || nodeLabel === "L4: Dance") return COLOR_DANCE;
   if (nodeLabel === "System") return COLOR_SEPIA;
   return 0xffff;
 }

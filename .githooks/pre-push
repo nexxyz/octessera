@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Pre-push hook — runs all CI-like checks locally, reporting each result.
+# Validates the committed tree only (not dirty worktree) so CI and local match.
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
@@ -11,8 +12,23 @@ if [ -f "$LOCAL_HOOK" ]; then
   "$LOCAL_HOOK"
 fi
 
+# Stash dirty worktree so tests run against committed tree like CI does
+STASHED=0
+if ! git diff --quiet HEAD; then
+  printf "\n⚠  Dirty worktree detected — stashing so tests validate the committed tree (CI parity).\n" >&2
+  git stash push --include-untracked -m "pre-push-auto-stash-$(date +%s)"
+  STASHED=1
+fi
+
 PASS=0
 FAIL=0
+
+cleanup() {
+  if [ "$STASHED" -eq 1 ]; then
+    git stash pop || true
+  fi
+}
+trap cleanup EXIT
 
 run_check() {
   local name="$1" cmd="$2"

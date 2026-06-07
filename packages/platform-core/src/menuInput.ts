@@ -1,5 +1,5 @@
 import { clamp } from "./coreUtils";
-import { locate } from "./menuView";
+import { locate, visibleChildren } from "./menuView";
 import type { MenuNode, PlatformEffect, PlatformState } from "./index";
 import { clampInstrumentIndex, clampSampleSlotIndex } from "./platformCaps";
 import { makeToast } from "./toast";
@@ -31,11 +31,20 @@ export function pressMenuInput<TState>(state: PlatformState<TState>, effects: Pl
       const nextMenu = { ...nextState.menu, stack: [...nextState.menu.stack, nextState.menu.cursor], cursor: 0 };
       return { ...nextState, menu: nextMenu };
     }
-    const nextMenu = { ...state.menu, stack: [...state.menu.stack, state.menu.cursor], cursor: 0 };
+    let childCursor = 0;
+    if (label === "L1: Life" || label === "L2: Sense") {
+      const activePartIndex = clamp(Number((state.runtimeConfig as any).activePartIndex ?? 0), 0, Number.MAX_SAFE_INTEGER);
+      const childCount = visibleChildren(selected, state).length;
+      const baseCursor = label === "L2: Sense" ? activePartIndex + 1 : activePartIndex;
+      childCursor = clamp(baseCursor, 0, Math.max(0, childCount - 1));
+    }
+    const nextMenu = { ...state.menu, stack: [...state.menu.stack, state.menu.cursor], cursor: childCursor };
     let nextState: PlatformState<TState> = { ...state, menu: nextMenu };
     if (label === "L4: Dance") {
       const danceMode = ((state.runtimeConfig as any).danceMode ?? state.system.danceMode) as any;
       nextState = deps.writeAnyValue(nextState, "danceMode", danceMode);
+    } else if (label === "L1: Life" || label === "L2: Sense") {
+      nextState = { ...nextState, system: { ...nextState.system, danceMode: "none" } };
     }
     if (label === "Saves" || label === "Load" || label === "Delete" || label === "Rename") effects.push({ type: "store_list_presets" });
     if (label === "MIDI Out") effects.push({ type: "midi_list_outputs_request" });

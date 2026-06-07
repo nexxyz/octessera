@@ -5,6 +5,7 @@ import { type DeviceInput } from "@cellsymphony/device-contracts";
 import type { MusicalEvent } from "@cellsymphony/musical-events";
 import type { BehaviorEngine } from "@cellsymphony/behavior-api";
 import { applyModifierState } from "./inputModifier";
+import { OLED_TEXT_LINES } from "./platformTypes";
 import { nowMs } from "./timing";
 
 export function handleConfirmInput<TState>(
@@ -26,7 +27,7 @@ export function handleConfirmInput<TState>(
   }
   if (input.type === "encoder_turn" && deps.isMainEncoderInput(input.id)) {
     if (c.kind === "help_info" && c.action.kind === "help_info") {
-      const contentSlots = Math.max(1, 8 - 2);
+      const contentSlots = Math.max(1, OLED_TEXT_LINES - 3);
       const maxScroll = Math.max(0, c.action.lines.length - contentSlots);
       nextState.system = { ...nextState.system, confirm: { ...c, scroll: clamp(c.scroll + input.delta, 0, maxScroll) } };
     } else {
