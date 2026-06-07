@@ -36,7 +36,7 @@ OLED graphical display of signal/routing paths: parts → instruments → FX bus
 
 | Field | Value |
 |-------|-------|
-| **Status** | open |
+| **Status** | closed |
 | **Phase** | 4 |
 | **Priority** | medium |
 | **Scope** | medium |
@@ -96,7 +96,7 @@ Replace the current binary trigger-gate workflow with a probability-driven trigg
 
 | Field | Value |
 |-------|-------|
-| **Status** | open |
+| **Status** | closed |
 | **Phase** | 4 |
 | **Priority** | medium |
 | **Scope** | medium |
@@ -156,6 +156,68 @@ Tighten menu-help coverage so every concrete menu node resolves to descriptive h
 - Enum help lint fails when current enum options are missing from descriptive help.
 - Strict descriptive checking becomes the default lint mode once coverage is complete.
 - Contributor workflow/docs make the expectation explicit for future menu additions.
+
+---
+
+### REQ-22 — Sense Mapping Menus
+
+| Field | Value |
+|-------|-------|
+| **Status** | closed |
+| **Phase** | 4 |
+| **Priority** | medium |
+| **Scope** | medium |
+| **Depends on** | existing Dance X/Y parameter picker, existing param-mod state, existing aux binding persistence |
+| **Source** | design follow-up |
+
+Add explicit menu-based editing for Sense mappings so users can assign X/Y axis targets and aux encoder bindings from `L2: Sense` without relying only on hardware shortcut gestures.
+
+**Goal:**
+- Reuse the existing parameter-selection browser currently used by `L4: Dance > X/Y Pad`.
+- Do not duplicate the parameter-tree/menu-generation logic.
+- Roll out in two stages: aux `turn` first, aux `click` second.
+
+**Stage 1: Turn mappings**
+- Add `L2: Sense > Pn > Mappings`.
+- Under `Mappings`, add explicit menu-based target selection for:
+- `X Axis` param-mod slots 1 and 2.
+- `Y Axis` param-mod slots 1 and 2.
+- invert toggles for each X/Y slot.
+- `Aux Turns` for available aux encoders.
+- Use the same shared parameter-browser code path as Dance X/Y target selection.
+- Add dedicated setter actions for:
+- per-part param-mod slot assignment/clear.
+- aux encoder turn binding assignment/clear.
+- Preserve existing hardware shortcuts:
+- Shift+grid assignment overlay for part param-mod mapping.
+- Shift+aux press binding for highlighted menu parameters.
+
+**Stage 2: Click mappings**
+- Extend `L2: Sense > Pn > Mappings` with explicit `Aux Clicks` entries.
+- Use a shared action picker for click bindings rather than the numeric/enum/bool parameter picker.
+- Initial click-picker scope should match the bindable actions already supported by current aux-click assignment behavior.
+- Add dedicated setter actions for aux click binding assignment/clear.
+- Preserve existing Shift+aux click shortcut behavior.
+
+**Menu shape target:**
+- `L2: Sense > Pn > Mappings > X Axis > Slot 1 / Slot 2`
+- `L2: Sense > Pn > Mappings > Y Axis > Slot 1 / Slot 2`
+- `L2: Sense > Pn > Mappings > Aux Turns > Aux 1..N`
+- `L2: Sense > Pn > Mappings > Aux Clicks > Aux 1..N` (Stage 2)
+
+**Implementation notes:**
+- Extract or reuse a shared helper around the current Dance X/Y target group builder.
+- Use `compactSourcePathFromKey()` for menu detail text so current assignments display as concise source paths.
+- Updating aux bindings must keep `runtimeConfig.auxBindings` and `system.auxBindings` in sync.
+- Clearing one side of an aux binding must preserve the other side.
+
+**Acceptance:**
+- `L2: Sense > Pn > Mappings` exists for each part.
+- Stage 1: X/Y slot targets and aux turn targets can be assigned and cleared from menus using the shared parameter browser.
+- Stage 1: existing Dance X/Y parameter browser still uses the same code path and behavior.
+- Stage 1: existing hardware shortcut workflows still work.
+- Stage 2: aux click bindings can be assigned and cleared from menus using a shared action picker.
+- Docs/help text/tests are updated for both stages as they land.
 
 ---
 

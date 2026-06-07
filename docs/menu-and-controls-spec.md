@@ -134,11 +134,34 @@ L2: Sense
 │   │   ├── Scanned Instrument: [1..8]
 │   │   ├── Scanned Empty Action: [none | note_on | note_off]
 │   │   └── Scanned Empty Instrument: [1..8]
+│   ├── Aux Mappings (group)
+│   │   ├── Aux 1 (group)
+│   │   │   ├── Turn (group)
+│   │   │   │   ├── (none) (action)
+│   │   │   │   └── parameter tree...            ← same shared browser as Dance X/Y target selection
+│   │   │   └── Click (group)
+│   │   │       ├── (none) (action)
+│   │   │       └── action tree...               ← behavior actions, sample assign, selected FX map-to-grid
+│   │   ├── Aux 2 (group)
+│   │   ├── Aux 3 (group)
+│   │   └── Aux 4 (group)
 │   ├── Trigger Prob. (group)
 │   │   ├── Mode: [zero | custom | full]
 │   │   ├── Low Prob: [0..100] step 1
 │   │   ├── High Prob: [0..100] step 1
 │   │   └── Map Probability Grid (action)
+│   ├── Mappings (group)
+│   │   ├── X Axis (group)
+│   │   │   ├── Slot 1 (group)
+│   │   │   │   ├── (none) (action)
+│   │   │   │   └── parameter tree...                ← same shared browser as Dance X/Y target selection
+│   │   │   ├── Slot 1 Invert: [on | off]
+│   │   │   ├── Slot 2 (group)
+│   │   │   │   ├── (none) (action)
+│   │   │   │   └── parameter tree...
+│   │   │   └── Slot 2 Invert: [on | off]
+│   │   ├── Y Axis (group)
+│   │   │   └── (same sub-structure as X Axis)
 │   ├── Note Mapping (group)
 │   │   ├── Lowest Note: [0..127] step 1
 │   │   ├── Highest Note: [0..127] step 1
@@ -323,6 +346,11 @@ Dance layer behavior:
 - Stored per-part trigger probability data lives in `L2: Sense > Pn > Trigger Prob.`.
 - `Map Probability Grid` enters a four-state grid editor for the selected part. Cell cycle is `zero -> low -> high -> full -> zero`; `Shift+grid` applies to a row; `Shift+Fn+grid` applies to a column.
 - Probability-map editor LEDs: black = `0%`, red = `low`, yellow = `high`, green = `100%`.
+- `L2: Sense > Aux Mappings` exposes root-level menu-based assignment for aux encoder turn and click bindings.
+- `L2: Sense > Pn > Mappings` exposes explicit per-part assignment for X/Y param-mod slots.
+- The `Slot` and aux `Turn` target pickers use the same shared parameter browser as `L4: Dance > X/Y Pad`; no separate parameter tree should diverge from that browser.
+- Aux `Click` uses a dedicated action browser for click-bindable actions.
+- Existing hardware shortcuts remain valid: Shift+grid still assigns X/Y param-mod slots and Shift+aux press still binds the currently highlighted menu parameter to aux turn.
 - Trigger-gate Dance layout uses rows as parts with the same orientation as Fn part navigation: bottom row = part 0, top row = highest part.
 - Dance columns `0..2` set that row's part mode: `0%` (red), `custom` (yellow), `100%` (green). Selected mode is bright; the other two are dim.
 - Dance columns `3..4` are an unassigned dark gap.

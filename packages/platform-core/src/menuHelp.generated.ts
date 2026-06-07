@@ -1216,6 +1216,186 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "line2": "Grid presses cycle zero, low, high, full; editor LEDs are black, red, yellow, green; Shift applies to a row; Shift+Fn applies to a column."
   },
   {
+    "id": "sense_mappings_group",
+    "path": "Menu > L2: Sense > P*: * > Mappings",
+    "key": "",
+    "kind": "group",
+    "title": "Mappings",
+    "line1": "Explicit menu-based assignment for Sense X/Y param-mod slots and aux encoder turn targets.",
+    "line2": "These pickers reuse the same parameter browser as Dance X/Y target selection."
+  },
+  {
+    "id": "sense_mappings_x_group",
+    "path": "Menu > L2: Sense > P*: * > Mappings > X Axis",
+    "key": "",
+    "kind": "group",
+    "title": "X Axis Targets",
+    "line1": "Holds the two explicit X-axis param-mod slot assignments for this part.",
+    "line2": "Use Slot 1 and Slot 2 to pick targets, then use the invert toggles to reverse each lane."
+  },
+  {
+    "id": "sense_mappings_y_group",
+    "path": "Menu > L2: Sense > P*: * > Mappings > Y Axis",
+    "key": "",
+    "kind": "group",
+    "title": "Y Axis Targets",
+    "line1": "Holds the two explicit Y-axis param-mod slot assignments for this part.",
+    "line2": "Use Slot 1 and Slot 2 to pick targets, then use the invert toggles to reverse each lane."
+  },
+  {
+    "id": "sense_aux_mappings_group",
+    "path": "Menu > L2: Sense > Aux Mappings",
+    "key": "",
+    "kind": "group",
+    "title": "Aux Mappings",
+    "line1": "Root-level menu-based assignment for aux encoder turn and click bindings.",
+    "line2": "These settings are global Sense controls rather than per-part mappings."
+  },
+  {
+    "id": "sense_aux_mapping_group",
+    "path": "Menu > L2: Sense > Aux Mappings > Aux *",
+    "key": "",
+    "kind": "group",
+    "title": "Aux Mapping",
+    "line1": "Per-encoder binding submenu for one aux encoder.",
+    "line2": "Use Turn for parameter control and Click for bindable actions."
+  },
+  {
+    "id": "sense_aux_turn_group",
+    "path": "Menu > L2: Sense > Aux Mappings > Aux * > Turn",
+    "key": "",
+    "kind": "group",
+    "title": "Aux Turn",
+    "line1": "Selects which parameter this aux encoder turn controls.",
+    "line2": "Changing the binding here updates the same custom aux turn map used by the hardware shortcut workflow."
+  },
+  {
+    "id": "sense_aux_click_group",
+    "path": "Menu > L2: Sense > Aux Mappings > Aux * > Click",
+    "key": "",
+    "kind": "group",
+    "title": "Aux Click",
+    "line1": "Selects which click-bindable action this aux encoder press triggers.",
+    "line2": "This browser covers supported behavior actions, sample assignment entry, and the selected FX map-to-grid action."
+  },
+  {
+    "id": "sense_aux_click_parts_group",
+    "path": "Menu > L2: Sense > Aux Mappings > Aux * > Click > Parts",
+    "key": "",
+    "kind": "group",
+    "title": "Parts",
+    "line1": "Lists parts whose current behavior exposes bindable click actions.",
+    "line2": "Open a part to bind one of its current behavior actions to the selected aux click."
+  },
+  {
+    "id": "sense_aux_click_part_group",
+    "path": "Menu > L2: Sense > Aux Mappings > Aux * > Click > Parts > P*",
+    "key": "",
+    "kind": "group",
+    "title": "Part Actions",
+    "line1": "Lists the currently bindable behavior actions for this part's active behavior.",
+    "line2": "These are the same actions available through the current behavior's menu actions."
+  },
+  {
+    "id": "sense_aux_click_sample_group",
+    "path": "Menu > L2: Sense > Aux Mappings > Aux * > Click > Sample Assign",
+    "key": "",
+    "kind": "group",
+    "title": "Sample Assign",
+    "line1": "Binds aux click to open sample-slot grid assignment for a sampler instrument.",
+    "line2": "Only sampler instruments appear here."
+  },
+  {
+    "id": "sense_aux_click_fx_group",
+    "path": "Menu > L2: Sense > Aux Mappings > Aux * > Click > FX Map",
+    "key": "",
+    "kind": "group",
+    "title": "FX Map",
+    "line1": "Binds aux click to enter FX map-to-grid assignment using the current selected FX config.",
+    "line2": "This stores the selected FX snapshot at bind time."
+  },
+  {
+    "id": "sense_mappings_x_slot_group",
+    "path": "Menu > L2: Sense > P*: * > Mappings > X Axis > Slot *",
+    "key": "",
+    "kind": "group",
+    "title": "X Slot",
+    "line1": "Selects which parameter this X-axis modulation slot controls.",
+    "line2": "The browser is shared with Dance X/Y target selection so available targets stay consistent."
+  },
+  {
+    "id": "sense_mappings_y_slot_group",
+    "path": "Menu > L2: Sense > P*: * > Mappings > Y Axis > Slot *",
+    "key": "",
+    "kind": "group",
+    "title": "Y Slot",
+    "line1": "Selects which parameter this Y-axis modulation slot controls.",
+    "line2": "The browser is shared with Dance X/Y target selection so available targets stay consistent."
+  },
+  {
+    "id": "sense_mappings_param_none",
+    "path": "*",
+    "key": "action:param_mod_set_target",
+    "kind": "action",
+    "title": "Clear Slot Target",
+    "line1": "Clears the selected Sense param-mod slot so that lane no longer writes any parameter.",
+    "line2": "Existing invert state is preserved if you later assign a new target."
+  },
+  {
+    "id": "sense_mappings_aux_turn_none",
+    "path": "*",
+    "key": "action:aux_turn_set_target",
+    "kind": "action",
+    "title": "Clear Aux Turn",
+    "line1": "Clears the selected aux encoder turn binding.",
+    "line2": "Any existing aux click binding for that encoder is preserved."
+  },
+  {
+    "id": "sense_mappings_aux_click_none",
+    "path": "*",
+    "key": "action:aux_click_set_target",
+    "kind": "action",
+    "title": "Clear Aux Click",
+    "line1": "Clears the selected aux encoder click binding.",
+    "line2": "Any existing aux turn binding for that encoder is preserved."
+  },
+  {
+    "id": "sense_mappings_x_invert_1",
+    "path": "*",
+    "key": "key:parts.*.paramMods.x.0.invert",
+    "kind": "bool",
+    "title": "Slot 1 Invert",
+    "line1": "When On, X Slot 1 writes the selected parameter using an inverted lane direction.",
+    "line2": "Low positions become high values and vice versa."
+  },
+  {
+    "id": "sense_mappings_x_invert_2",
+    "path": "*",
+    "key": "key:parts.*.paramMods.x.1.invert",
+    "kind": "bool",
+    "title": "Slot 2 Invert",
+    "line1": "When On, X Slot 2 writes the selected parameter using an inverted lane direction.",
+    "line2": "Low positions become high values and vice versa."
+  },
+  {
+    "id": "sense_mappings_y_invert_1",
+    "path": "*",
+    "key": "key:parts.*.paramMods.y.0.invert",
+    "kind": "bool",
+    "title": "Slot 1 Invert",
+    "line1": "When On, Y Slot 1 writes the selected parameter using an inverted lane direction.",
+    "line2": "Low positions become high values and vice versa."
+  },
+  {
+    "id": "sense_mappings_y_invert_2",
+    "path": "*",
+    "key": "key:parts.*.paramMods.y.1.invert",
+    "kind": "bool",
+    "title": "Slot 2 Invert",
+    "line1": "When On, Y Slot 2 writes the selected parameter using an inverted lane direction.",
+    "line2": "Low positions become high values and vice versa."
+  },
+  {
     "id": "inst_note_behavior",
     "path": "*",
     "key": "key:instruments.*.noteBehavior",

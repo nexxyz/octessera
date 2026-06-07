@@ -277,6 +277,97 @@ test("X/Y Axis parameter browser keeps Dance color", () => {
   assert.ok(view.colors.every((color) => color === 0xffff));
 });
 
+test("Sense mappings slot picker opens to none and parameter tree", () => {
+  const state = createInitialState(mockBehavior);
+  state.system.oledMode = "normal";
+  state.menu = { stack: [1, 0, 3, 0, 0], cursor: 0, editing: false };
+
+  const view = currentMenuView({
+    state,
+    menuTree: (nextState) => buildMenuTree(nextState, {
+      resolveBehavior: () => mockBehavior,
+      axisGroup,
+      presetListNodes: () => [],
+      presetRenameNodes: () => [],
+      midiOutputNodes: () => [],
+      midiInputNodes: () => [],
+      sampleBrowserNodes: () => []
+    }),
+    resolveBehavior: () => mockBehavior,
+    fitOledText: (text: string) => fitOledText(text, OLED_TEXT_COLUMNS),
+    readAnyValue,
+    formatDisplayValue,
+    oledTextLines: 8
+  });
+
+  assert.ok(view.lines.some((line) => line.includes("!(none)")));
+  assert.ok(view.lines.some((line) => line.includes("L3: Voice")));
+});
+
+test("Sense Aux Turn menu item shows mapped parameter path", () => {
+  const state = createInitialState(mockBehavior);
+  state.system.oledMode = "normal";
+  state.system.auxBindings.aux1 = {
+    turn: {
+      key: "instruments.0.synth.filter.cutoffHz",
+      label: "Cutoff",
+      kind: "number",
+      min: 20,
+      max: 20000,
+      step: 1
+    },
+    press: null
+  };
+  state.menu = { stack: [1, 0, 0], cursor: 0, editing: false };
+
+  const view = currentMenuView({
+    state,
+    menuTree: (nextState) => buildMenuTree(nextState, {
+      resolveBehavior: () => mockBehavior,
+      axisGroup,
+      presetListNodes: () => [],
+      presetRenameNodes: () => [],
+      midiOutputNodes: () => [],
+      midiInputNodes: () => [],
+      sampleBrowserNodes: () => []
+    }),
+    resolveBehavior: () => mockBehavior,
+    fitOledText: (text: string) => fitOledText(text, OLED_TEXT_COLUMNS),
+    readAnyValue,
+    formatDisplayValue,
+    oledTextLines: 8
+  });
+
+  assert.ok(view.lines.some((line) => line.includes("> Turn")));
+  assert.ok(view.lines.some((line) => line.includes("L3>I1>Synth>Filter")));
+});
+
+test("Sense Aux Click menu opens to none and click action groups", () => {
+  const state = createInitialState(mockBehavior);
+  state.system.oledMode = "normal";
+  state.menu = { stack: [1, 0, 0, 1], cursor: 0, editing: false };
+
+  const view = currentMenuView({
+    state,
+    menuTree: (nextState) => buildMenuTree(nextState, {
+      resolveBehavior: () => mockBehavior,
+      axisGroup,
+      presetListNodes: () => [],
+      presetRenameNodes: () => [],
+      midiOutputNodes: () => [],
+      midiInputNodes: () => [],
+      sampleBrowserNodes: () => []
+    }),
+    resolveBehavior: () => mockBehavior,
+    fitOledText: (text: string) => fitOledText(text, OLED_TEXT_COLUMNS),
+    readAnyValue,
+    formatDisplayValue,
+    oledTextLines: 8
+  });
+
+  assert.ok(view.lines.some((line) => line.includes("!(none)")));
+});
+
 test("OLED renders audio load indicator colors", () => {
   const state = createInitialState(mockBehavior);
   state.system.oledMode = "normal";

@@ -1,5 +1,6 @@
 import { listBehaviorIds, type BehaviorEngine } from "@cellsymphony/behavior-api";
 import type { AuxTurnBinding, MenuNode, PlatformState } from "./index";
+import type { AuxPressBinding } from "./platformTypes";
 import { instrumentLabel, partLabel } from "./coreUtils";
 import { SYNTH_PRESETS } from "./synthPresets";
 import { clampSampleSlotIndex, instrumentIndexOptions, PAN_POSITION_MAX, PLATFORM_CAPS, sampleSlotOptions, scanSectionOptions } from "./platformCaps";
@@ -7,6 +8,7 @@ import { fxBusesMenuNode, globalFxMenuNode } from "./fxBusMenu";
 import { defaultMomentaryFxParams, MOMENTARY_FX_TYPES } from "./momentaryFx";
 import { buildParamSkeleton, withParamActions } from "./menuParamTree";
 import { compactSourcePathFromKey } from "./menuView";
+import { auxPathFromPress } from "./auxBindings";
 
 type MenuTreeDeps<TState> = {
   resolveBehavior: (id: string) => BehaviorEngine<any, any>;
@@ -17,6 +19,111 @@ type MenuTreeDeps<TState> = {
   midiInputNodes: (state: PlatformState<TState>) => MenuNode[];
   sampleBrowserNodes: (state: PlatformState<TState>, instrumentSlot: number, sampleSlot: number) => MenuNode[];
 };
+
+function bindingDetail<TState>(state: PlatformState<TState>, binding: AuxTurnBinding | null | undefined): string | null {
+  if (!binding?.key) return null;
+  const path = compactSourcePathFromKey(state, binding.key);
+  return path ?? binding.label ?? binding.key;
+}
+
+function paramTargetGroup<TState>(
+  label: string,
+  detailBinding: (state: PlatformState<TState>) => AuxTurnBinding | null | undefined,
+  onSelect: (binding: AuxTurnBinding | null) => any
+): MenuNode {
+  return {
+    kind: "group",
+    label,
+    children: () => [
+      { kind: "action", label: "(none)", action: onSelect(null) },
+      ...withParamActions(buildParamSkeleton(), (binding) => onSelect(binding))
+    ],
+    detail: (state) => bindingDetail(state, detailBinding(state as PlatformState<TState>))
+  } satisfies MenuNode;
+}
+
+function clickBindingDetail<TState>(state: PlatformState<TState>, binding: AuxPressBinding | null | undefined): string | null {
+  if (!binding) return null;
+  return auxPathFromPress(state, binding) ?? binding.label ?? null;
+}
+
+function clickActionGroup<TState>(
+  label: string,
+  detailBinding: (state: PlatformState<TState>) => AuxPressBinding | null | undefined,
+  onSelect: (binding: AuxPressBinding | null) => any,
+  actions: MenuNode[]
+): MenuNode {
+  return {
+    kind: "group",
+    label,
+    children: [
+      { kind: "action", label: "(none)", action: onSelect(null) },
+      ...actions
+    ],
+    detail: (state) => clickBindingDetail(state, detailBinding(state as PlatformState<TState>))
+  } satisfies MenuNode;
+}
+
+function bindableClickActions<TState>(
+  state: PlatformState<TState>,
+  onSelect: (binding: AuxPressBinding) => any,
+  selectedFxConfig: { fxType: any; params: any; targetKey: string },
+  sampleSlots: string[],
+  resolveBehavior: (id: string) => any
+): MenuNode[] {
+  const partActions: MenuNode[] = Array.from({ length: PLATFORM_CAPS.partCount }, (_, idx) => {
+    const part = ((state.runtimeConfig as any).parts ?? [])[idx] ?? {};
+    const behaviorId = String(part?.l1?.behaviorId ?? "life");
+    const behavior = resolveBehavior(behaviorId);
+    const items = behavior.configMenu ? behavior.configMenu(behavior.init({})) : [];
+    const actionNodes = items
+      .filter((item: any) => item.type === "action")
+      .map((item: any) => ({
+        kind: "action" as const,
+        label: item.label,
+        action: onSelect({ kind: "behavior_action", actionType: item.key, label: item.label })
+      }));
+    return {
+      kind: "group" as const,
+      label: `P${idx + 1}`,
+      children: actionNodes
+    };
+  }).filter((node) => Array.isArray(node.children) && node.children.length > 0);
+
+  const sampleActionGroups: MenuNode[] = Array.from({ length: PLATFORM_CAPS.instrumentCount }, (_, instrumentSlot) => {
+    const inst = ((state.runtimeConfig as any).instruments ?? [])[instrumentSlot];
+    if (inst?.type !== "sampler") return null;
+    return {
+      kind: "group" as const,
+      label: `I${instrumentSlot + 1}`,
+      children: sampleSlots.map((_, sampleSlot) => ({
+        kind: "action" as const,
+        label: `Sample ${sampleSlot + 1}`,
+        action: onSelect({
+          kind: "menu_action",
+          action: { type: "sample_assign_enter", instrumentSlot, sampleSlot },
+          label: `Sample ${sampleSlot + 1}`
+        })
+      }))
+    };
+  }).filter(Boolean) as MenuNode[];
+
+  return [
+    { kind: "group", label: "Parts", children: partActions },
+    { kind: "group", label: "Sample Assign", children: sampleActionGroups },
+    {
+      kind: "group",
+      label: "FX Map",
+      children: [
+        {
+          kind: "action",
+          label: "Selected FX",
+          action: onSelect({ kind: "menu_action", action: { type: "fx_assign_enter", config: selectedFxConfig }, label: "Selected FX" })
+        }
+      ]
+    }
+  ];
+}
 
 function partLabelFn<TState>(state: PlatformState<TState>, idx: number): string {
   const part = ((state.runtimeConfig as any).parts ?? [])[idx] ?? {};
@@ -60,7 +167,6 @@ function l1PartGroup<TState>(state: PlatformState<TState>, deps: MenuTreeDeps<TS
 
 function l2PartGroup<TState>(state: PlatformState<TState>, deps: MenuTreeDeps<TState>, idx: number, instrumentSlotOptions: string[]): MenuNode {
   const prefix = `parts.${idx}`;
-  const part: any = ((state.runtimeConfig as any).parts ?? [])[idx] ?? {};
   return {
     kind: "group",
     label: partLabelFn(state, idx),
@@ -105,6 +211,49 @@ function l2PartGroup<TState>(state: PlatformState<TState>, deps: MenuTreeDeps<TS
       },
       {
         kind: "group",
+        label: "Mappings",
+        excludeFromParamTree: true,
+        children: [
+          {
+            kind: "group",
+            label: "X Axis",
+            children: [
+              paramTargetGroup(
+                "Slot 1",
+                (s) => (((s.runtimeConfig as any).parts?.[idx]?.paramMods?.x?.[0] ?? null) as AuxTurnBinding | null),
+                (binding) => ({ type: "param_mod_set_target", partIndex: idx, axis: "x", slot: 0 as const, binding })
+              ),
+              { kind: "bool", label: "Slot 1 Invert", key: `${prefix}.paramMods.x.0.invert` },
+              paramTargetGroup(
+                "Slot 2",
+                (s) => (((s.runtimeConfig as any).parts?.[idx]?.paramMods?.x?.[1] ?? null) as AuxTurnBinding | null),
+                (binding) => ({ type: "param_mod_set_target", partIndex: idx, axis: "x", slot: 1 as const, binding })
+              ),
+              { kind: "bool", label: "Slot 2 Invert", key: `${prefix}.paramMods.x.1.invert` }
+            ]
+          },
+          {
+            kind: "group",
+            label: "Y Axis",
+            children: [
+              paramTargetGroup(
+                "Slot 1",
+                (s) => (((s.runtimeConfig as any).parts?.[idx]?.paramMods?.y?.[0] ?? null) as AuxTurnBinding | null),
+                (binding) => ({ type: "param_mod_set_target", partIndex: idx, axis: "y", slot: 0 as const, binding })
+              ),
+              { kind: "bool", label: "Slot 1 Invert", key: `${prefix}.paramMods.y.0.invert` },
+              paramTargetGroup(
+                "Slot 2",
+                (s) => (((s.runtimeConfig as any).parts?.[idx]?.paramMods?.y?.[1] ?? null) as AuxTurnBinding | null),
+                (binding) => ({ type: "param_mod_set_target", partIndex: idx, axis: "y", slot: 1 as const, binding })
+              ),
+              { kind: "bool", label: "Slot 2 Invert", key: `${prefix}.paramMods.y.1.invert` }
+            ]
+          },
+        ]
+      },
+      {
+        kind: "group",
         label: "Note Mapping",
         children: [
           { kind: "number", label: "Lowest Note", key: `${prefix}.l2.pitch.lowestNote`, min: 0, max: 127, step: 1 },
@@ -139,7 +288,38 @@ export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTr
 
   const rootChildren: MenuNode[] = [
       { kind: "group", label: "L1: Life", children: Array.from({ length: partCount }, (_, idx) => l1PartGroup(state, deps, idx)) },
-      { kind: "group", label: "L2: Sense", children: Array.from({ length: partCount }, (_, idx) => l2PartGroup(state, deps, idx, instrumentSlotOptions)) },
+      {
+        kind: "group",
+        label: "L2: Sense",
+        children: [
+          {
+            kind: "group",
+            label: "Aux Mappings",
+            excludeFromParamTree: true,
+            children: Array.from({ length: 4 }, (_, i) => {
+              const encoderId = `aux${i + 1}` as const;
+              return {
+                kind: "group",
+                label: `Aux ${i + 1}`,
+                children: [
+                  paramTargetGroup(
+                    "Turn",
+                    (s) => ((s.system.auxBindings?.[encoderId]?.turn ?? null) as AuxTurnBinding | null),
+                    (binding) => ({ type: "aux_turn_set_target", encoderId, binding })
+                  ),
+                  clickActionGroup(
+                    "Click",
+                    (s) => ((s.system.auxBindings?.[encoderId]?.press ?? null) as AuxPressBinding | null),
+                    (press) => ({ type: "aux_click_set_target", encoderId, press }),
+                    bindableClickActions(state, (binding) => ({ type: "aux_click_set_target", encoderId, press: binding }), selectedFxConfig, sampleSlots, deps.resolveBehavior)
+                  )
+                ]
+              } satisfies MenuNode;
+            })
+          },
+          ...Array.from({ length: partCount }, (_, idx) => l2PartGroup(state, deps, idx, instrumentSlotOptions))
+        ]
+      },
       {
         kind: "group",
         label: "L3: Voice",
@@ -406,29 +586,18 @@ export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTr
             });
           } else if (dm === "xy") {
             const activeIdx = (state.runtimeConfig as any).activePartIndex ?? 0;
-            const skeleton = buildParamSkeleton();
-            const xyTargetGroup = (axis: "x" | "y") => ({
-              kind: "group" as const,
-              label: axis === "x" ? "X Axis" : "Y Axis",
-              children: (s: PlatformState<any>) => {
-                const xy = ((s.runtimeConfig as any).parts?.[(s.runtimeConfig as any).activePartIndex ?? 0]?.xy ?? {}) as any;
-                return [
-                  { kind: "action" as const, label: "(none)", action: { type: "xy_set_target" as const, axis, binding: null as any } },
-                  ...withParamActions(skeleton, (b: AuxTurnBinding) => ({ type: "xy_set_target" as const, axis, binding: b }))
-                ];
-              },
-              detail: (s: PlatformState<any>) => {
-                const xy = ((s.runtimeConfig as any).parts?.[(s.runtimeConfig as any).activePartIndex ?? 0]?.xy ?? {}) as any;
-                const binding = xy[axis];
-                if (!binding?.key) return null;
-                const path = compactSourcePathFromKey(s, binding.key);
-                return path ?? binding.label ?? binding.key;
-              }
-            });
             page.push(
-              xyTargetGroup("x"),
+              paramTargetGroup(
+                "X Axis",
+                (s) => (((s.runtimeConfig as any).parts?.[(s.runtimeConfig as any).activePartIndex ?? 0]?.xy?.x ?? null) as AuxTurnBinding | null),
+                (binding) => ({ type: "xy_set_target", axis: "x", binding })
+              ),
               { kind: "bool", label: "Invert X", key: `parts.${activeIdx}.xy.xInvert` },
-              xyTargetGroup("y"),
+              paramTargetGroup(
+                "Y Axis",
+                (s) => (((s.runtimeConfig as any).parts?.[(s.runtimeConfig as any).activePartIndex ?? 0]?.xy?.y ?? null) as AuxTurnBinding | null),
+                (binding) => ({ type: "xy_set_target", axis: "y", binding })
+              ),
               { kind: "bool", label: "Invert Y", key: `parts.${activeIdx}.xy.yInvert` },
               { kind: "enum", label: "Release", key: "xyRelease", options: ["sample-hold", "reset-center"] }
             );

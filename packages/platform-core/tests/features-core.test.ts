@@ -585,6 +585,85 @@ test("X/Y target assignment auto-saves when autoSaveDefault is enabled", () => {
   assert.equal(effects.some((e) => e.type === "store_save_default"), true);
 });
 
+test("Sense param-mod target assignment auto-saves when autoSaveDefault is enabled", () => {
+  const state = makeState();
+  state.runtimeConfig.autoSaveDefault = true;
+  const effects: PlatformEffect[] = [];
+
+  const next = handleMenuAction(state, {
+    type: "param_mod_set_target",
+    partIndex: 0,
+    axis: "x",
+    slot: 0,
+    binding: { key: "masterVolume", label: "Master Vol", kind: "number", min: 0, max: 100, step: 1 }
+  }, effects, {
+    writeValue,
+    extractConfigPayload,
+    resolveBehavior: () => mockBehavior
+  }) as any;
+
+  assert.equal(next.runtimeConfig.parts[0].paramMods.x[0].key, "masterVolume");
+  assert.equal(effects.some((e) => e.type === "store_save_default"), true);
+});
+
+test("Aux turn target assignment auto-saves and preserves click binding", () => {
+  const state = makeState();
+  state.runtimeConfig.autoSaveDefault = true;
+  state.system.auxBindings.aux1 = {
+    turn: null,
+    press: { kind: "behavior_action", actionType: "spawnRandom", label: "Spawn" }
+  };
+  state.runtimeConfig.auxBindings = {
+    ...state.runtimeConfig.auxBindings,
+    aux1: state.system.auxBindings.aux1
+  };
+  const effects: PlatformEffect[] = [];
+
+  const next = handleMenuAction(state, {
+    type: "aux_turn_set_target",
+    encoderId: "aux1",
+    binding: { key: "masterVolume", label: "Master Vol", kind: "number", min: 0, max: 100, step: 1 }
+  }, effects, {
+    writeValue,
+    extractConfigPayload,
+    resolveBehavior: () => mockBehavior
+  }) as any;
+
+  assert.equal(next.system.auxBindings.aux1.turn.key, "masterVolume");
+  assert.equal(next.system.auxBindings.aux1.press?.kind, "behavior_action");
+  assert.equal(next.runtimeConfig.auxBindings.aux1.press?.kind, "behavior_action");
+  assert.equal(effects.some((e) => e.type === "store_save_default"), true);
+});
+
+test("Aux click target assignment auto-saves and preserves turn binding", () => {
+  const state = makeState();
+  state.runtimeConfig.autoSaveDefault = true;
+  state.system.auxBindings.aux1 = {
+    turn: { key: "masterVolume", label: "Master Vol", kind: "number", min: 0, max: 100, step: 1 },
+    press: null
+  };
+  state.runtimeConfig.auxBindings = {
+    ...state.runtimeConfig.auxBindings,
+    aux1: state.system.auxBindings.aux1
+  };
+  const effects: PlatformEffect[] = [];
+
+  const next = handleMenuAction(state, {
+    type: "aux_click_set_target",
+    encoderId: "aux1",
+    press: { kind: "behavior_action", actionType: "spawnRandom", label: "Spawn" }
+  }, effects, {
+    writeValue,
+    extractConfigPayload,
+    resolveBehavior: () => mockBehavior
+  }) as any;
+
+  assert.equal(next.system.auxBindings.aux1.turn.key, "masterVolume");
+  assert.equal(next.system.auxBindings.aux1.press?.kind, "behavior_action");
+  assert.equal(next.runtimeConfig.auxBindings.aux1.turn.key, "masterVolume");
+  assert.equal(effects.some((e) => e.type === "store_save_default"), true);
+});
+
 test("Dance page selection and trigger-gate edits auto-save when enabled", () => {
   let state = makeState();
   state.runtimeConfig.autoSaveDefault = true;

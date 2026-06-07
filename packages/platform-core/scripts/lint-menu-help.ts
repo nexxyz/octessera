@@ -32,11 +32,22 @@ function globMatch(pattern: string, value: string): boolean {
   return new RegExp(`^${escaped}$`).test(value);
 }
 
+function pathMatch(pattern: string, value: string): boolean {
+  if (globMatch(pattern, value)) return true;
+  const normalizedPattern = pattern.replace(/^Menu > /, "");
+  const normalizedValue = value.replace(/^Menu > /, "");
+  const segments = normalizedValue.split(" > ");
+  for (let i = 1; i < segments.length; i += 1) {
+    if (globMatch(normalizedPattern, segments.slice(i).join(" > "))) return true;
+  }
+  return false;
+}
+
 function matches(entry: Entry, target: { path: string; key: string; kind: string }): boolean {
   if (entry.kind && entry.kind !== "*" && entry.kind !== target.kind) return false;
   if (entry.key) {
     if (!globMatch(entry.key, target.key)) return false;
-  } else if (entry.path && !globMatch(entry.path, target.path)) {
+  } else if (entry.path && !pathMatch(entry.path, target.path)) {
     return false;
   }
   return true;

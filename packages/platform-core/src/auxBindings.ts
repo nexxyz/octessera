@@ -1,4 +1,5 @@
 import type { PlatformEffect, PlatformState } from "./index";
+import type { AuxPressBinding } from "./platformTypes";
 import { compactSourcePathFromKey, fxTypeShort, locate } from "./menuView";
 import { makeToast } from "./toast";
 
@@ -6,7 +7,7 @@ function auxPathFromKey<TState>(state: PlatformState<TState>, key: string): stri
   return compactSourcePathFromKey(state, key);
 }
 
-function auxPathFromPress<TState>(state: PlatformState<TState>, press: any): string | null {
+export function auxPathFromPress<TState>(state: PlatformState<TState>, press: any): string | null {
   if (!press) return null;
   if (press.kind === "behavior_action" || press.actionType) {
     const activePart = Number((state.runtimeConfig as any).activePartIndex ?? 0) + 1;
@@ -71,6 +72,38 @@ export function applyAuxUnbindChoice<TState>(state: PlatformState<TState>, encod
     }
   };
   return setAuxToast(nextState, "Unbound");
+}
+
+export function setAuxTurnBinding<TState>(state: PlatformState<TState>, encoderId: string, turn: any): PlatformState<TState> {
+  const existing = state.system.auxBindings[encoderId] ?? null;
+  const nextBinding = turn || existing?.press ? { turn: turn ?? null, press: existing?.press ?? null } : null;
+  return {
+    ...state,
+    runtimeConfig: { ...(state.runtimeConfig as any), auxBindings: { ...((state.runtimeConfig as any).auxBindings ?? {}), [encoderId]: nextBinding } } as any,
+    system: {
+      ...state.system,
+      auxBindings: {
+        ...state.system.auxBindings,
+        [encoderId]: nextBinding
+      }
+    }
+  };
+}
+
+export function setAuxPressBinding<TState>(state: PlatformState<TState>, encoderId: string, press: AuxPressBinding | null): PlatformState<TState> {
+  const existing = state.system.auxBindings[encoderId] ?? null;
+  const nextBinding = press || existing?.turn ? { turn: existing?.turn ?? null, press: press ?? null } : null;
+  return {
+    ...state,
+    runtimeConfig: { ...(state.runtimeConfig as any), auxBindings: { ...((state.runtimeConfig as any).auxBindings ?? {}), [encoderId]: nextBinding } } as any,
+    system: {
+      ...state.system,
+      auxBindings: {
+        ...state.system.auxBindings,
+        [encoderId]: nextBinding
+      }
+    }
+  };
 }
 
 export function assignAuxEncoder<TState>(state: PlatformState<TState>, encoderId: string, _effects: PlatformEffect[], deps: any): PlatformState<TState> {

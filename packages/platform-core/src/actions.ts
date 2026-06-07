@@ -3,6 +3,8 @@ import type { PlatformEffect, PlatformState } from "./index";
 import { PLATFORM_CAPS } from "./platformCaps";
 import { DEFAULT_PAN_POS } from "./runtimeDefaults";
 import { makeToast } from "./toast";
+import { setParamModTarget } from "./paramMod";
+import { setAuxPressBinding, setAuxTurnBinding } from "./auxBindings";
 
 type ActionDeps<TState> = {
   writeValue: <TConfig extends object>(cfg: TConfig, key: string, value: unknown) => TConfig;
@@ -195,6 +197,44 @@ export function handleMenuAction<TState>(state: PlatformState<TState>, action: a
       ...nextState,
       menu: { ...menu, stack: newStack, cursor },
       system: { ...nextState.system, toast: makeToast(`X/Y ${action.axis.toUpperCase()}: ${label}`) }
+    };
+    if (finalState.runtimeConfig.autoSaveDefault) {
+      effects.push({ type: "store_save_default", payload: deps.extractConfigPayload(finalState), mode: "deferred" });
+    }
+    return finalState;
+  }
+  if (action.type === "param_mod_set_target") {
+    const nextState = setParamModTarget(state, action.partIndex, action.axis, action.slot, action.binding);
+    const label = action.binding?.label ?? "(none)";
+    const finalState = {
+      ...nextState,
+      system: { ...nextState.system, toast: makeToast(`${action.axis.toUpperCase()}${action.slot + 1}: ${label}`) }
+    };
+    if (finalState.runtimeConfig.autoSaveDefault) {
+      effects.push({ type: "store_save_default", payload: deps.extractConfigPayload(finalState), mode: "deferred" });
+    }
+    return finalState;
+  }
+  if (action.type === "aux_turn_set_target") {
+    const nextState = setAuxTurnBinding(state, action.encoderId, action.binding);
+    const encoderLabel = action.encoderId.startsWith("aux") ? `A${action.encoderId.slice(3)}` : action.encoderId;
+    const label = action.binding?.label ?? "(none)";
+    const finalState = {
+      ...nextState,
+      system: { ...nextState.system, toast: makeToast(`${encoderLabel} Turn: ${label}`) }
+    };
+    if (finalState.runtimeConfig.autoSaveDefault) {
+      effects.push({ type: "store_save_default", payload: deps.extractConfigPayload(finalState), mode: "deferred" });
+    }
+    return finalState;
+  }
+  if (action.type === "aux_click_set_target") {
+    const nextState = setAuxPressBinding(state, action.encoderId, action.press);
+    const encoderLabel = action.encoderId.startsWith("aux") ? `A${action.encoderId.slice(3)}` : action.encoderId;
+    const label = action.press?.label ?? "(none)";
+    const finalState = {
+      ...nextState,
+      system: { ...nextState.system, toast: makeToast(`${encoderLabel} Click: ${label}`) }
     };
     if (finalState.runtimeConfig.autoSaveDefault) {
       effects.push({ type: "store_save_default", payload: deps.extractConfigPayload(finalState), mode: "deferred" });

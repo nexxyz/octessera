@@ -159,3 +159,25 @@ export function paramModsForPart(cfg: RuntimeConfig, partIndex: number): ParamMo
   const part = ((cfg as any).parts ?? [])[partIndex] ?? {};
   return normalizeParamMods(part.paramMods);
 }
+
+export function setParamModTarget<TState>(
+  state: PlatformState<TState>,
+  partIndex: number,
+  axis: ParamModAxis,
+  slot: 0 | 1,
+  binding: AuxTurnBinding | null
+): PlatformState<TState> {
+  const parts = Array.isArray((state.runtimeConfig as any).parts) ? [...((state.runtimeConfig as any).parts as any[])] : [];
+  const part = parts[clampPartIndex(partIndex)];
+  if (!part) return state;
+  const paramMods = normalizeParamMods(part.paramMods);
+  const current = paramMods[axis][slot];
+  paramMods[axis][slot] = binding
+    ? { ...binding, invert: current?.invert === true }
+    : null;
+  parts[clampPartIndex(partIndex)] = { ...part, paramMods };
+  return {
+    ...state,
+    runtimeConfig: { ...(state.runtimeConfig as any), parts } as any
+  };
+}

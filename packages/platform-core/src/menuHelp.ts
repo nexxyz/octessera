@@ -23,7 +23,7 @@ function matchTier(entry: MenuHelpEntry, target: HelpTarget): MatchTier {
   if (kind && kind !== "*" && kind !== target.kind) return -1;
   if (key) {
     if (!globMatch(key, target.key)) return -1;
-  } else if (path && !globMatch(path, target.path)) {
+  } else if (path && !pathMatch(path, target.path)) {
     return -1;
   }
 
@@ -42,6 +42,17 @@ function globMatch(pattern: string, value: string): boolean {
   if (!pattern.includes("*")) return pattern === value;
   const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, "[^>]*");
   return new RegExp(`^${escaped}$`).test(value);
+}
+
+function pathMatch(pattern: string, value: string): boolean {
+  if (globMatch(pattern, value)) return true;
+  const normalizedPattern = pattern.replace(/^Menu > /, "");
+  const normalizedValue = value.replace(/^Menu > /, "");
+  const segments = normalizedValue.split(" > ");
+  for (let i = 1; i < segments.length; i += 1) {
+    if (globMatch(normalizedPattern, segments.slice(i).join(" > "))) return true;
+  }
+  return false;
 }
 
 function score(entry: MenuHelpEntry, target: HelpTarget): number {

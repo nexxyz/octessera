@@ -224,6 +224,9 @@ export type ActionSpec =
   | { type: "midi_panic" } | { type: "behavior_action"; behaviorId: string; actionType: string }
   | { type: "instrument_clone"; slot: number } | { type: "instrument_reset"; slot: number }
   | { type: "xy_set_target"; axis: "x" | "y"; binding: AuxTurnBinding | null }
+  | { type: "param_mod_set_target"; partIndex: number; axis: "x" | "y"; slot: 0 | 1; binding: AuxTurnBinding | null }
+  | { type: "aux_turn_set_target"; encoderId: string; binding: AuxTurnBinding | null }
+  | { type: "aux_click_set_target"; encoderId: string; press: AuxPressBinding | null }
   | { type: "noop" }
   | { type: "menu_back" };
 
@@ -305,7 +308,7 @@ export type PlatformState<TState> = {
 };
 
 export type MenuNode =
-  | { kind: "group"; label: string; children: MenuNode[] | ((state: PlatformState<any>) => MenuNode[]); visible?: (c: RuntimeConfig) => boolean; flat?: boolean | ((config: RuntimeConfig) => boolean); detail?: (state: PlatformState<any>) => string | null }
+  | { kind: "group"; label: string; children: MenuNode[] | ((state: PlatformState<any>) => MenuNode[]); visible?: (c: RuntimeConfig) => boolean; flat?: boolean | ((config: RuntimeConfig) => boolean); detail?: (state: PlatformState<any>) => string | null; excludeFromParamTree?: boolean }
   | { kind: "enum"; label: string; key: string; options: string[]; visible?: (c: RuntimeConfig) => boolean }
   | { kind: "number"; label: string; key: string; min: number; max: number; step: number; displayStyle?: "number" | "bar" | "marker"; visible?: (c: RuntimeConfig) => boolean }
   | { kind: "bool"; label: string; key: string; visible?: (c: RuntimeConfig) => boolean }

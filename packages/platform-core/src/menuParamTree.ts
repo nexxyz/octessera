@@ -11,6 +11,7 @@ function extractLeaves(nodes: MenuNode[]): MenuNode[] {
   const result: MenuNode[] = [];
   for (const node of nodes) {
     if (node.kind === "group") {
+      if (node.excludeFromParamTree) continue;
       if (typeof node.children === "function") {
         const origFn = node.children;
         result.push({
