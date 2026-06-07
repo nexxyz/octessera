@@ -10,60 +10,6 @@ export type MenuHelpEntry = {
 
 export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   {
-    "id": "default_group",
-    "path": "*",
-    "key": "",
-    "kind": "group",
-    "title": "Section",
-    "line1": "Opens this submenu and shows related settings.",
-    "line2": "Use Enter to open and Back to return."
-  },
-  {
-    "id": "default_action",
-    "path": "*",
-    "key": "",
-    "kind": "action",
-    "title": "Action",
-    "line1": "Runs this command.",
-    "line2": "Use this when you want to execute the highlighted action."
-  },
-  {
-    "id": "default_number",
-    "path": "*",
-    "key": "",
-    "kind": "number",
-    "title": "Number Setting",
-    "line1": "Adjusts a numeric value.",
-    "line2": "Enter edit mode, then turn encoder to change it."
-  },
-  {
-    "id": "default_enum",
-    "path": "*",
-    "key": "",
-    "kind": "enum",
-    "title": "Option Setting",
-    "line1": "Selects one option from a list.",
-    "line2": "Enter edit mode, then turn encoder to choose."
-  },
-  {
-    "id": "default_bool",
-    "path": "*",
-    "key": "",
-    "kind": "bool",
-    "title": "Toggle Setting",
-    "line1": "Selects Off or On.",
-    "line2": "Enter edit mode, then turn encoder to choose."
-  },
-  {
-    "id": "default_text",
-    "path": "*",
-    "key": "",
-    "kind": "text",
-    "title": "Text Setting",
-    "line1": "Edits text for this field.",
-    "line2": "Use the encoder to move cursor and adjust characters."
-  },
-  {
     "id": "life_spawn_shared",
     "path": "*",
     "key": "action:behavior_action:spawnRandom",
@@ -645,8 +591,8 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "",
     "kind": "group",
     "title": "Instruments",
-    "line1": "Contains the platform-defined instrument slots used by Sense routing.",
-    "line2": "Each slot has independent MIDI and synth parameters."
+    "line1": "Holds the destination instrument slots that Sense trigger mappings play into.",
+    "line2": "Each slot can run synth, sampler, or MIDI settings with its own mixer and naming controls."
   },
   {
     "id": "inst_midi_group",
@@ -1248,8 +1194,8 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "",
     "kind": "group",
     "title": "Aux Mappings",
-    "line1": "Root-level menu-based assignment for aux encoder turn and click bindings.",
-    "line2": "These settings are global Sense controls rather than per-part mappings."
+    "line1": "Assigns what each aux encoder turn changes and what each aux click triggers.",
+    "line2": "These bindings are global controls shared across parts, unlike per-part Sense mappings."
   },
   {
     "id": "sense_aux_mapping_group",
@@ -1421,6 +1367,24 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "title": "MIDI Channel",
     "line1": "Selects outgoing MIDI channel for this instrument slot.",
     "line2": "Shown as 1..16 while stored internally as 0..15."
+  },
+  {
+    "id": "inst_midi_engine_velocity",
+    "path": "*",
+    "key": "key:instruments.*.midiEngine.velocity",
+    "kind": "number",
+    "title": "MIDI Velocity",
+    "line1": "Sets the fixed outgoing note velocity used by this MIDI instrument slot.",
+    "line2": "Use this when Sense should drive pitch and timing but not per-event velocity dynamics."
+  },
+  {
+    "id": "inst_midi_engine_duration",
+    "path": "*",
+    "key": "key:instruments.*.midiEngine.durationMs",
+    "kind": "number",
+    "title": "MIDI Duration",
+    "line1": "Sets the default note length in milliseconds for this MIDI instrument slot.",
+    "line2": "Useful for shaping staccato versus sustained external MIDI phrases when note behavior is oneshot."
   },
   {
     "id": "osc_wave",
@@ -2364,8 +2328,8 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "",
     "kind": "group",
     "title": "FX Buses",
-    "line1": "Configures four shared buses used by instrument bus routing.",
-    "line2": "Each bus has two effect slots and output pan."
+    "line1": "Configures the shared send buses that instrument Mixer > Route can feed instead of direct output.",
+    "line2": "Each bus processes Slot 1 then Slot 2, then pans and sums its result into the main mix."
   },
   {
     "id": "fx_bus_names_group",
@@ -2391,8 +2355,8 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "",
     "kind": "group",
     "title": "FX Bus",
-    "line1": "Settings for this FX bus.",
-    "line2": "Use Slot 1 and Slot 2 to build a bus chain."
+    "line1": "Builds one shared bus chain for any instruments routed to this bus.",
+    "line2": "Slot 1 feeds Slot 2, then Pan Pos places the bus in the stereo main mix."
   },
   {
     "id": "fx_bus_slot1",
@@ -2535,8 +2499,8 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "",
     "kind": "group",
     "title": "Global FX",
-    "line1": "Stereo post-mix effect chain applied before global momentary FX and Master Vol.",
-    "line2": "Current desktop/Pi Zero target uses two capability-sized slots."
+    "line1": "Processes the full stereo main mix after instruments and FX buses are summed together.",
+    "line2": "These slots run before momentary Dance FX and Master Vol, so they color the whole output."
   },
   {
     "id": "global_fx_slot_group",
@@ -2769,8 +2733,8 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "",
     "kind": "group",
     "title": "Mode Grid",
-    "line1": "Rows follow Fn part-selection order: bottom row is part 0, top row is the highest part.",
-    "line2": "Columns 0..2 set the row's part to red=0%, yellow=custom, green=100%; bottom-row columns 5..7 apply the same three modes to all parts."
+    "line1": "Each row is a part trigger gate: choose 0%, custom probability-map mode, or 100% live pass-through.",
+    "line2": "Bottom-row columns 5..7 are global shortcuts that set all parts to those same three trigger modes at once."
   },
   {
     "id": "xy_section",

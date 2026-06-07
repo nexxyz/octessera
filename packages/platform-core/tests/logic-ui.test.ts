@@ -426,6 +426,48 @@ test("Fn+rightmost grid column selects Dance pages", () => {
   assert.equal(state.system.danceMode, "trigger-gate");
 });
 
+test("entering L1: Life selects the active part", () => {
+  let state = createInitialState(mockBehavior);
+  state.system.oledMode = "normal";
+  (state.runtimeConfig as any).activePartIndex = 2;
+
+  state = routeInput(state, { type: "encoder_press" }, mockBehavior).state;
+
+  assert.deepEqual(state.menu.stack, [0]);
+  assert.equal(state.menu.cursor, 2);
+  assert.equal(toSimulatorFrame(state, mockBehavior).display.page, "L1: Life");
+});
+
+test("entering L2: Sense selects the active part", () => {
+  let state = createInitialState(mockBehavior);
+  state.system.oledMode = "normal";
+  (state.runtimeConfig as any).activePartIndex = 2;
+
+  state = routeInput(state, { type: "encoder_turn", delta: 1 }, mockBehavior).state;
+  state = routeInput(state, { type: "encoder_press" }, mockBehavior).state;
+
+  assert.deepEqual(state.menu.stack, [1]);
+  assert.equal(state.menu.cursor, 3);
+  assert.equal(toSimulatorFrame(state, mockBehavior).display.page, "L2: Sense");
+});
+
+test("entering L1 or L2 clears the active Dance overlay", () => {
+  let state = createInitialState(mockBehavior);
+  state.system.oledMode = "normal";
+  state.runtimeConfig.danceMode = "pan";
+  state.system.danceMode = "pan";
+
+  state = routeInput(state, { type: "encoder_press" }, mockBehavior).state;
+  assert.equal(state.system.danceMode, "none");
+  assert.equal((state.runtimeConfig as any).danceMode, "pan");
+
+  state.system.danceMode = "pan";
+  state.menu = { stack: [], cursor: 1, editing: false };
+  state = routeInput(state, { type: "encoder_press" }, mockBehavior).state;
+  assert.equal(state.system.danceMode, "none");
+  assert.equal((state.runtimeConfig as any).danceMode, "pan");
+});
+
 test("Dance Page menu can activate trigger-gate", () => {
   let state = createInitialState(mockBehavior);
   state.system.oledMode = "normal";
@@ -1196,6 +1238,44 @@ test("Fn+Shift+Enter opens contextual help popup", () => {
   assert.equal(state.system.confirm?.scroll, 0);
 });
 
+test("contextual help uses specific text for submenu entries", () => {
+  let state = createInitialState(mockBehavior);
+  state.system.oledMode = "normal";
+
+  const turn = (delta: number) => {
+    state = routeInput(state, { type: "encoder_turn", delta }, mockBehavior).state;
+  };
+
+  const press = () => {
+    state = routeInput(state, { type: "encoder_press", id: "main" }, mockBehavior).state;
+  };
+
+  const selectLabel = (label: string) => {
+    for (let i = 0; i < 120; i += 1) {
+      const frame = toSimulatorFrame(state, mockBehavior);
+      const selected = frame.display.lines.find((line) => line.startsWith("@@")) ?? "";
+      if (selected.includes(label)) return;
+      turn(1);
+    }
+    assert.fail(`failed to select label: ${label}`);
+  };
+
+  selectLabel("L3: Voice");
+  press();
+  selectLabel("Instruments");
+
+  state = routeInput(state, { type: "button_shift", pressed: true }, mockBehavior).state;
+  state = routeInput(state, { type: "button_fn", pressed: true }, mockBehavior).state;
+  press();
+
+  assert.equal(state.system.confirm?.kind, "help_info");
+  if (state.system.confirm?.action.kind === "help_info") {
+    const text = state.system.confirm.action.lines.join(" ");
+    assert.match(text, /destination instrument slots that Sense trigger mappings play into/i);
+    assert.doesNotMatch(text, /opens this submenu and shows related settings/i);
+  }
+});
+
 test("help popup turn scrolls and enter closes without executing menu action", () => {
   let state = createInitialState(mockBehavior);
   state.system.oledMode = "normal";
@@ -1223,7 +1303,27 @@ test("help popup turn scrolls and enter closes without executing menu action", (
   for (let i = 0; i < 20; i += 1) {
     state = routeInput(state, { type: "encoder_turn", id: "main", delta: 1 }, mockBehavior).state;
   }
-  assert.ok((state.system.confirm?.scroll ?? 0) > 0, "scroll should advance with turns");
+  assert.equal(state.system.confirm?.scroll, 3, "scroll should advance far enough to reveal the last help line");
+
+  const helpView = currentMenuView({
+    state,
+    menuTree: (nextState) => buildMenuTree(nextState, {
+      resolveBehavior: () => mockBehavior,
+      axisGroup,
+      presetListNodes: () => [],
+      presetRenameNodes: () => [],
+      midiOutputNodes: () => [],
+      midiInputNodes: () => [],
+      sampleBrowserNodes: () => []
+    }),
+    resolveBehavior: () => mockBehavior,
+    fitOledText: (text: string) => fitOledText(text, OLED_TEXT_COLUMNS),
+    readAnyValue,
+    formatDisplayValue,
+    oledTextLines: 8
+  });
+
+  assert.deepEqual(helpView.lines, ["l4", "l5", "l6", "l7", "l8", "@@> Close"]);
 
   for (let i = 0; i < 20; i += 1) {
     state = routeInput(state, { type: "encoder_turn", id: "main", delta: -1 }, mockBehavior).state;

@@ -26,6 +26,10 @@ export function menuHelpTargetFromNode(path: string, node: MenuNode): HelpTarget
 
 function canonicalizeMenuPath(path: string): string {
   return path
+    .replace(/\bP\d+:\s[^>]+$/g, "P*: *")
+    .replace(/\bP\d+:\s[^>]+(?=\s>)/g, "P*: *")
     .replace(/\bI\d+:\s[^>]+$/g, "Instrument 1")
-    .replace(/\bI\d+:\s[^>]+(?=\s>)/g, "Instrument *");
+    .replace(/\bI\d+:\s[^>]+(?=\s>)/g, "Instrument *")
+    .replace(/\bB\d+:\s[^>]+$/g, "B*: *")
+    .replace(/\bB\d+:\s[^>]+(?=\s>)/g, "B*: *");
 }

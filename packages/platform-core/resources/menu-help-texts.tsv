@@ -1,10 +1,4 @@
 id	path	key	kind	title	line1	line2
-default_group	*		group	Section	Opens this submenu and shows related settings.	Use Enter to open and Back to return.
-default_action	*		action	Action	Runs this command.	Use this when you want to execute the highlighted action.
-default_number	*		number	Number Setting	Adjusts a numeric value.	Enter edit mode, then turn encoder to change it.
-default_enum	*		enum	Option Setting	Selects one option from a list.	Enter edit mode, then turn encoder to choose.
-default_bool	*		bool	Toggle Setting	Selects Off or On.	Enter edit mode, then turn encoder to choose.
-default_text	*		text	Text Setting	Edits text for this field.	Use the encoder to move cursor and adjust characters.
 life_spawn_shared	*	action:behavior_action:spawnRandom	action	Spawn Now	Spawns new cells or entities for the active Life behavior.	This is mapped as a shared action across compatible behaviors.
 life_spawn_shared_brain	*	action:behavior_action:seedRandom	action	Spawn Now	Seeds random active cells for Brian's Brain.	This shares the same Spawn Now intent across behaviors.
 life_spawn_shared_ant	*	action:behavior_action:spawnAnt	action	Spawn Now	Adds an ant to the current grid.	This shares the same Spawn Now intent across behaviors.
@@ -69,7 +63,7 @@ pitch_high	*	key:parts.*.l2.pitch.highestNote	number	Highest Note	Sets the upper
 pitch_oor	*	key:parts.*.l2.pitch.outOfRange	enum	Out of Range	Chooses how pitch indices beyond bounds are handled.	Clamp pins to edges; wrap folds back through the range.
 pitch_scale	*	key:parts.*.l2.pitch.scale	enum	Scale	Selects scale intervals used for pitch quantization.	Use this to set harmonic language for the part.
 pitch_root	*	key:parts.*.l2.pitch.root	enum	Root	Sets the tonic/root for selected scale quantization.	Changing root transposes quantized output harmonically.
-inst_group	Menu > L3: Voice > Instruments		group	Instruments	Contains the platform-defined instrument slots used by Sense routing.	Each slot has independent MIDI and synth parameters.
+inst_group	Menu > L3: Voice > Instruments		group	Instruments	Holds the destination instrument slots that Sense trigger mappings play into.	Each slot can run synth, sampler, or MIDI settings with its own mixer and naming controls.
 inst_midi_group	Menu > L3: Voice > Instruments > Instrument * > MIDI		group	Instrument MIDI	Per-slot external MIDI routing controls.	Enable and select channel when this slot should transmit MIDI out.
 inst_slot_1	Menu > L3: Voice > Instruments > Instrument 1		group	Instrument Slot	Configures one destination instrument slot.	Sense mappings route trigger actions into these slots.
 inst_slot_2	Menu > L3: Voice > Instruments > Instrument 2		group	Instrument Slot	Configures one destination instrument slot.	Sense mappings route trigger actions into these slots.
@@ -136,7 +130,7 @@ sense_trigger_probability_map	Menu > L2: Sense > P*: * > Trigger Prob. > Map Pro
 sense_mappings_group	Menu > L2: Sense > P*: * > Mappings		group	Mappings	Explicit menu-based assignment for Sense X/Y param-mod slots and aux encoder turn targets.	These pickers reuse the same parameter browser as Dance X/Y target selection.
 sense_mappings_x_group	Menu > L2: Sense > P*: * > Mappings > X Axis		group	X Axis Targets	Holds the two explicit X-axis param-mod slot assignments for this part.	Use Slot 1 and Slot 2 to pick targets, then use the invert toggles to reverse each lane.
 sense_mappings_y_group	Menu > L2: Sense > P*: * > Mappings > Y Axis		group	Y Axis Targets	Holds the two explicit Y-axis param-mod slot assignments for this part.	Use Slot 1 and Slot 2 to pick targets, then use the invert toggles to reverse each lane.
-sense_aux_mappings_group	Menu > L2: Sense > Aux Mappings		group	Aux Mappings	Root-level menu-based assignment for aux encoder turn and click bindings.	These settings are global Sense controls rather than per-part mappings.
+sense_aux_mappings_group	Menu > L2: Sense > Aux Mappings		group	Aux Mappings	Assigns what each aux encoder turn changes and what each aux click triggers.	These bindings are global controls shared across parts, unlike per-part Sense mappings.
 sense_aux_mapping_group	Menu > L2: Sense > Aux Mappings > Aux *		group	Aux Mapping	Per-encoder binding submenu for one aux encoder.	Use Turn for parameter control and Click for bindable actions.
 sense_aux_turn_group	Menu > L2: Sense > Aux Mappings > Aux * > Turn		group	Aux Turn	Selects which parameter this aux encoder turn controls.	Changing the binding here updates the same custom aux turn map used by the hardware shortcut workflow.
 sense_aux_click_group	Menu > L2: Sense > Aux Mappings > Aux * > Click		group	Aux Click	Selects which click-bindable action this aux encoder press triggers.	This browser covers supported behavior actions, sample assignment entry, and the selected FX map-to-grid action.
@@ -156,6 +150,8 @@ sense_mappings_y_invert_2	*	key:parts.*.paramMods.y.1.invert	bool	Slot 2 Invert	
 inst_note_behavior	*	key:instruments.*.noteBehavior	enum	Note Behavior	Controls retrigger versus hold behavior for this instrument slot.	Use hold for lifecycle note_off workflows and scanned-empty release.
 inst_midi_enabled	*	key:instruments.*.midi.enabled	bool	MIDI Enabled	Enables external MIDI output for this instrument slot.	Global MIDI must also be enabled in System > MIDI.
 inst_midi_channel	*	key:instruments.*.midi.channel	number	MIDI Channel	Selects outgoing MIDI channel for this instrument slot.	Shown as 1..16 while stored internally as 0..15.
+inst_midi_engine_velocity	*	key:instruments.*.midiEngine.velocity	number	MIDI Velocity	Sets the fixed outgoing note velocity used by this MIDI instrument slot.	Use this when Sense should drive pitch and timing but not per-event velocity dynamics.
+inst_midi_engine_duration	*	key:instruments.*.midiEngine.durationMs	number	MIDI Duration	Sets the default note length in milliseconds for this MIDI instrument slot.	Useful for shaping staccato versus sustained external MIDI phrases when note behavior is oneshot.
 osc_wave	*	key:instruments.*.synth.osc*.waveform	enum	Oscillator Wave	Selects the oscillator waveform shape.	Use different waves per osc for richer timbre blends.
 osc_level	*	key:instruments.*.synth.osc*.levelPct	number	Oscillator Level	Sets this oscillator's contribution to the voice mix.	Balance osc1/osc2 levels to shape tone body.
 osc_octave	*	key:instruments.*.synth.osc*.octave	number	Oscillator Octave	Offsets oscillator pitch in octave steps.	Useful for layered bass/body/air intervals.
@@ -260,10 +256,10 @@ synth_preset_load_action	Menu > L3: Voice > Instruments > Instrument * > Preset 
 inst_mixer_group	Menu > L3: Voice > Instruments > Instrument * > Mixer		group	Instrument Mixer	Sets this instrument output route and pan position.	Route to direct output or to one of the four FX buses.
 inst_mixer_route	Menu > L3: Voice > Instruments > Instrument * > Mixer > Route	key:instruments.*.mixer.route	enum	Route	Options: direct, fx_bus_1, fx_bus_2, fx_bus_3, fx_bus_4.	Synth and sample audio follow this route; MIDI emits external events and is not processed by audio FX.
 inst_mixer_pan	Menu > L3: Voice > Instruments > Instrument * > Mixer > Pan Pos	key:instruments.*.mixer.panPos	number	Pan Position	Sets the 33-position pan value for direct output sends.	0 is left, 16 is center, 32 is right.
-fx_buses_group	Menu > L3: Voice > FX Buses		group	FX Buses	Configures four shared buses used by instrument bus routing.	Each bus has two effect slots and output pan.
+fx_buses_group	Menu > L3: Voice > FX Buses		group	FX Buses	Configures the shared send buses that instrument Mixer > Route can feed instead of direct output.	Each bus processes Slot 1 then Slot 2, then pans and sums its result into the main mix.
 fx_bus_names_group	Menu > L3: Voice > FX Buses > Names		group	Bus Names	Sets auto-naming and custom name for each bus.	Auto name is computed from the assigned FX slot types; turning off auto lets you edit the name freely.
 fx_bus_name_group	Menu > L3: Voice > FX Buses > Names > Bus *		group	Bus Name	Configures naming for this bus.	Auto Name on derives a label from FX slot types; Name lets you type any text when Auto is off.
-fx_bus_wild	Menu > L3: Voice > FX Buses > B*: *		group	FX Bus	Settings for this FX bus.	Use Slot 1 and Slot 2 to build a bus chain.
+fx_bus_wild	Menu > L3: Voice > FX Buses > B*: *		group	FX Bus	Builds one shared bus chain for any instruments routed to this bus.	Slot 1 feeds Slot 2, then Pan Pos places the bus in the stereo main mix.
 
 fx_bus_slot1	Menu > L3: Voice > FX Buses > B*: * > Slot 1	key:mixer.buses.*.slot1	enum	FX Slot 1	First effect slot in the bus chain.	Default None means passthrough.
 fx_bus_slot2	Menu > L3: Voice > FX Buses > B*: * > Slot 2	key:mixer.buses.*.slot2	enum	FX Slot 2	Second effect slot in the bus chain.	Default None means passthrough.
@@ -280,7 +276,7 @@ fx_bus_slot1_compressor_group	Menu > L3: Voice > FX Buses > B*: * > Slot 1 > com
 fx_bus_slot2_compressor_group	Menu > L3: Voice > FX Buses > B*: * > Slot 2 > compressor		group	compressor	Dynamics processor that reduces gain when signal exceeds a threshold.	Adjust threshold, ratio, attack, release, makeup gain, and dry/wet mix.
 fx_bus_slot1_eq_group	Menu > L3: Voice > FX Buses > B*: * > Slot 1 > eq		group	eq	Three-band equalizer with low shelf, peaking mid, and high shelf bands.	Boosts or cuts each band independently; gain range ±12 dB.
 fx_bus_slot2_eq_group	Menu > L3: Voice > FX Buses > B*: * > Slot 2 > eq		group	eq	Three-band equalizer with low shelf, peaking mid, and high shelf bands.	Boosts or cuts each band independently; gain range ±12 dB.
-global_fx_group	Menu > L3: Voice > Global FX		group	Global FX	Stereo post-mix effect chain applied before global momentary FX and Master Vol.	Current desktop/Pi Zero target uses two capability-sized slots.
+global_fx_group	Menu > L3: Voice > Global FX		group	Global FX	Processes the full stereo main mix after instruments and FX buses are summed together.	These slots run before momentary Dance FX and Master Vol, so they color the whole output.
 global_fx_slot_group	Menu > L3: Voice > Global FX > Slot *		group	Global FX Slot	Configures one stereo master effect slot.	Choose Type, then edit the parameters shown below.
 global_fx_slot_type	Menu > L3: Voice > Global FX > Slot * > Type	key:mixer.master.slots.*.type	enum	Slot Type	Options: none, vinyl, eq, compressor, saturator, distortion.	Selecting an effect initializes its editable parameter defaults; none is passthrough.
 global_fx_slot_vinyl_group	Menu > L3: Voice > Global FX > Slot * > vinyl		group	vinyl	Lo-fi stereo master effect with warm saturation, crackle, and shared warp movement.	Designed as a lighter-weight master color effect for current Pi Zero targets.
@@ -306,7 +302,7 @@ touch_fx_semitones	Menu > L4: Dance > FX Page > Semitones	key:touchFx.selected.p
 touch_fx_cents	Menu > L4: Dance > FX Page > Cents	key:touchFx.selected.params.cents	number	Cents	Sets pitch_shift cents offset (-100..100) for fine detuning the config being mapped. Added to Semitones for the total shift.	Stored per grid cell when Map to Grid is used.
 touch_fx_map	Menu > L4: Dance > FX Page > Map to Grid		action	Map to Grid	Enters FX assignment mode using the current effect type and parameter values.	Press a grid cell to store the config on that cell; press Back to exit assignment mode. Momentary FX concurrency is fixed by platform capability at 4.
 touch_gate_section	Menu > L4: Dance > Trigger Gate		group	Trigger Gate	Performance trigger-mode page for switching parts between 0%, custom probability, and 100% trigger behavior.	Stored probability maps live in Sense; this page only switches the active mode per part or for all parts.
-touch_gate_mode_grid	Menu > L4: Dance > Trigger Gate > Mode Grid		group	Mode Grid	Rows follow Fn part-selection order: bottom row is part 0, top row is the highest part.	Columns 0..2 set the row's part to red=0%, yellow=custom, green=100%; bottom-row columns 5..7 apply the same three modes to all parts.
+touch_gate_mode_grid	Menu > L4: Dance > Trigger Gate > Mode Grid		group	Mode Grid	Each row is a part trigger gate: choose 0%, custom probability-map mode, or 100% live pass-through.	Bottom-row columns 5..7 are global shortcuts that set all parts to those same three trigger modes at once.
 xy_section	Menu > L4: Dance > X/Y Pad		group	X/Y Pad	Full 8×8 modulation surface. Touch position selects X and Y values (0-1 over full grid) which modulate the assigned targets.	Modulation beats all other sources — applied last after Sense X/Y and Shift+grid param modulation.
 xy_target_x	Menu > L4: Dance > X/Y Pad > X Axis		group	X Axis	Selects which parameter the X axis modulates. Options include the same mappable parameters available for aux encoders and X/Y Sense modulation.	Choose (none) to disable X axis modulation.
 xy_target_y	Menu > L4: Dance > X/Y Pad > Y Axis		group	Y Axis	Selects which parameter the Y axis modulates. Options include the same mappable parameters available for aux encoders and X/Y Sense modulation.	Choose (none) to disable Y axis modulation.

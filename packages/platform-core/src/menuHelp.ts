@@ -15,6 +15,8 @@ export type ResolvedHelp = {
 
 type MatchTier = 0 | 1 | 2 | 3 | 4 | -1;
 
+const GENERIC_PHRASE_RE = /opens this submenu|shows related settings|runs this command|adjusts a numeric value|selects one option from a list|edits text for this field|no help text is available/i;
+
 function matchTier(entry: MenuHelpEntry, target: HelpTarget): MatchTier {
   const key = entry.key.trim();
   const path = entry.path.trim();
@@ -48,6 +50,7 @@ function pathMatch(pattern: string, value: string): boolean {
   if (globMatch(pattern, value)) return true;
   const normalizedPattern = pattern.replace(/^Menu > /, "");
   const normalizedValue = value.replace(/^Menu > /, "");
+  if (globMatch(normalizedPattern, normalizedValue)) return true;
   const segments = normalizedValue.split(" > ");
   for (let i = 1; i < segments.length; i += 1) {
     if (globMatch(normalizedPattern, segments.slice(i).join(" > "))) return true;
@@ -84,10 +87,21 @@ export function listMenuHelpEntries(): MenuHelpEntry[] {
   return MENU_HELP_ENTRIES.slice();
 }
 
+export function isSpecificMenuHelpEntry(entry: MenuHelpEntry): boolean {
+  const key = entry.key.trim();
+  const path = entry.path.trim();
+  const text = `${entry.title} ${entry.line1} ${entry.line2}`.trim();
+  if (path === "*" && key.length === 0) return false;
+  if (key === "action:*" || key === "key:*") return false;
+  if (GENERIC_PHRASE_RE.test(text)) return false;
+  return text.length > 0;
+}
+
 export function resolveMenuHelpEntry(target: HelpTarget): MenuHelpEntry | null {
   let best: MenuHelpEntry | null = null;
   let bestScore = -1;
   for (const entry of MENU_HELP_ENTRIES) {
+    if (!isSpecificMenuHelpEntry(entry)) continue;
     const s = score(entry, target);
     if (s > bestScore) {
       best = entry;

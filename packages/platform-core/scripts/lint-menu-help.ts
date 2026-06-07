@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createInitialState, enumerateEnumHelpTargets, enumerateMenuHelpTargets } from "../src/index";
 import { lifeBehavior } from "@cellsymphony/behaviors-life";
+import { isSpecificMenuHelpEntry, resolveMenuHelpEntry } from "../src/menuHelp";
 
 type Entry = { id: string; path: string; key: string; kind: string; title: string; line1: string; line2: string };
 
@@ -36,6 +37,7 @@ function pathMatch(pattern: string, value: string): boolean {
   if (globMatch(pattern, value)) return true;
   const normalizedPattern = pattern.replace(/^Menu > /, "");
   const normalizedValue = value.replace(/^Menu > /, "");
+  if (globMatch(normalizedPattern, normalizedValue)) return true;
   const segments = normalizedValue.split(" > ");
   for (let i = 1; i < segments.length; i += 1) {
     if (globMatch(normalizedPattern, segments.slice(i).join(" > "))) return true;
@@ -71,34 +73,75 @@ function isExplicit(entry: Entry): boolean {
   return key.length > 0 || (path.length > 0 && path !== "*");
 }
 
-const state = createInitialState(lifeBehavior);
-state.system.oledMode = "normal";
-state.system.presetNames = ["Preset A"];
-state.system.selectedPreset = "Preset A";
-state.system.currentPresetName = "Preset A";
-state.system.midiOutputs = [{ id: "out-1", name: "Out Port" }];
-state.system.midiInputs = [{ id: "in-1", name: "In Port" }];
+const weakRows: Entry[] = entries.filter((entry) => !isSpecificMenuHelpEntry(entry as any));
 
-const targets = enumerateMenuHelpTargets(state);
-const enumTargets = enumerateEnumHelpTargets(state);
-const misses: typeof targets = [];
-const ambiguities: Array<{ target: (typeof targets)[number]; ids: string[] }> = [];
+function buildState(variant: "base" | "sampler" | "midi" | "dance-fx" | "dance-trigger-gate" | "dance-xy"): any {
+  const state = createInitialState(lifeBehavior);
+  state.system.oledMode = "normal";
+  state.system.presetNames = ["Preset A"];
+  state.system.selectedPreset = "Preset A";
+  state.system.currentPresetName = "Preset A";
+  state.system.midiOutputs = [{ id: "out-1", name: "Out Port" }];
+  state.system.midiInputs = [{ id: "in-1", name: "In Port" }];
+  state.runtimeConfig.mixer.buses[0].name = "fx";
+  state.runtimeConfig.instruments[0].name = "synth";
+  if (variant === "sampler") state.runtimeConfig.instruments[0].type = "sampler";
+  if (variant === "midi") state.runtimeConfig.instruments[0].type = "midi";
+  if (variant === "dance-fx") state.runtimeConfig.danceMode = "fx";
+  if (variant === "dance-trigger-gate") state.runtimeConfig.danceMode = "trigger-gate";
+  if (variant === "dance-xy") state.runtimeConfig.danceMode = "xy";
+  return state;
+}
+
+const misses: Array<{ path: string; key: string; kind: string }> = [];
+const ambiguities: Array<{ target: { path: string; key: string; kind: string }; ids: string[] }> = [];
 const buckets = { exactKey: 0, wildcardKey: 0, exactPath: 0, wildcardPath: 0, kindFallback: 0 };
+const seenTargets = new Set<string>();
+let targetCount = 0;
+const baseState = buildState("base");
 
-for (const t of targets) {
+const extraTargets = [
+  { path: "Menu > L3: Voice > Instruments > Instrument * > Choose Sample", key: "", kind: "group" },
+  { path: "Menu > L3: Voice > Instruments > Instrument * > Assign", key: "action:sample_assign_enter", kind: "action" },
+  { path: "Menu > L3: Voice > Instruments > Instrument * > Velocity", key: "key:instruments.0.midiEngine.velocity", kind: "number" },
+  { path: "Menu > L3: Voice > Instruments > Instrument * > Duration", key: "key:instruments.0.midiEngine.durationMs", kind: "number" },
+  { path: "Menu > L4: Dance > Trigger Gate", key: "", kind: "group" },
+  { path: "Menu > L4: Dance > Trigger Gate > Mode Grid", key: "", kind: "group" },
+  { path: "Menu > L4: Dance > X/Y Pad", key: "", kind: "group" },
+  { path: "Menu > L4: Dance > X/Y Pad > X Axis", key: "", kind: "group" },
+  { path: "Menu > L4: Dance > X/Y Pad > Y Axis", key: "", kind: "group" },
+  { path: "Menu > L4: Dance > FX Page", key: "", kind: "group" },
+  { path: "Menu > L4: Dance > FX Page > FX Type", key: "key:touchFx.selected.fxType", kind: "enum" },
+  { path: "Menu > L4: Dance > FX Page > Map to Grid", key: "action:fx_assign_enter", kind: "action" }
+] as const;
+
+function inspectTarget(t: { path: string; key: string; kind: string }): void {
+  const uniqueId = `${t.kind}|${t.key}|${t.path}`;
+  if (seenTargets.has(uniqueId)) return;
+  seenTargets.add(uniqueId);
+  targetCount += 1;
   const matched = entries.filter((e) => isExplicit(e) && matches(e, t));
-  if (matched.length === 0) {
+  const best = resolveMenuHelpEntry(t);
+  if (!best) {
     misses.push(t);
-    continue;
+    return;
+  }
+  const matchedSpecific = matched.filter((entry) => isSpecificMenuHelpEntry(entry as any));
+  if (matchedSpecific.length === 0) {
+    misses.push(t);
+    return;
   }
   let bestTier = 99;
-  for (const m of matched) {
+  for (const m of matchedSpecific) {
     const x = tier(m, t);
     if (x >= 0 && x < bestTier) bestTier = x;
   }
-  const best = matched.filter((m) => tier(m, t) === bestTier);
-  if (best.length > 1) {
-    ambiguities.push({ target: t, ids: best.map((b) => b.id) });
+  const bestMatches = matchedSpecific.filter((m) => tier(m, t) === bestTier);
+  if (bestMatches.length > 1) {
+    ambiguities.push({ target: t, ids: bestMatches.map((b) => b.id) });
+  }
+  if (!bestMatches.some((entry) => entry.id === best.id)) {
+    ambiguities.push({ target: t, ids: [best.id, ...bestMatches.map((entry) => entry.id)] });
   }
   if (bestTier === 0) buckets.exactKey += 1;
   else if (bestTier === 1) buckets.wildcardKey += 1;
@@ -106,6 +149,9 @@ for (const t of targets) {
   else if (bestTier === 3) buckets.wildcardPath += 1;
   else buckets.kindFallback += 1;
 }
+
+for (const target of enumerateMenuHelpTargets(baseState)) inspectTarget(target);
+for (const target of extraTargets) inspectTarget(target);
 
 const enumHelpErrors: string[] = [];
 const seenEnumCanonical = new Set<string>();
@@ -122,19 +168,16 @@ function shouldEnforceEnumHelp(target: { key: string; options: string[] }): bool
   return false;
 }
 
-for (const t of enumTargets) {
+const seenEnumTargets = new Set<string>();
+for (const t of enumerateEnumHelpTargets(baseState)) {
+  const enumId = `${t.key}|${t.path}`;
+  if (seenEnumTargets.has(enumId)) continue;
+  seenEnumTargets.add(enumId);
   const canonicalKey = enumCanonicalKey(t.key);
   if (seenEnumCanonical.has(canonicalKey)) continue;
   seenEnumCanonical.add(canonicalKey);
   if (!shouldEnforceEnumHelp(t)) continue;
-  const matched = entries.filter((e) => isExplicit(e) && matches(e, t));
-  if (matched.length === 0) continue;
-  let bestTier = 99;
-  for (const m of matched) {
-    const x = tier(m, t);
-    if (x >= 0 && x < bestTier) bestTier = x;
-  }
-  const best = matched.filter((m) => tier(m, t) === bestTier)[0];
+  const best = resolveMenuHelpEntry(t);
   if (!best) continue;
   const text = `${best.line1} ${best.line2}`.toLowerCase();
   const missing: string[] = [];
@@ -155,6 +198,14 @@ for (const t of enumTargets) {
   if (missing.length > 0) {
     enumHelpErrors.push(`- key=${t.key} path=${t.path} missing options=${missing.join(",")}`);
   }
+}
+
+if (weakRows.length > 0) {
+  console.error("Generic or fallback-style menu help rows are not allowed:");
+  for (const row of weakRows) {
+    console.error(`- id=${row.id} kind=${row.kind} path=${row.path || "(none)"} key=${row.key || "(none)"}`);
+  }
+  process.exit(1);
 }
 
 if (enumHelpErrors.length > 0) {
@@ -180,10 +231,10 @@ if (ambiguities.length > 0) {
 }
 
 console.log(
-  `menu-help lint passed (${targets.length} covered: exactKey=${buckets.exactKey}, wildcardKey=${buckets.wildcardKey}, exactPath=${buckets.exactPath}, wildcardPath=${buckets.wildcardPath}, kindFallback=${buckets.kindFallback})`
+  `menu-help lint passed (${targetCount} covered: exactKey=${buckets.exactKey}, wildcardKey=${buckets.wildcardKey}, exactPath=${buckets.exactPath}, wildcardPath=${buckets.wildcardPath}, kindFallback=${buckets.kindFallback})`
 );
 
-const fallbackRatio = targets.length === 0 ? 0 : buckets.kindFallback / targets.length;
+const fallbackRatio = targetCount === 0 ? 0 : buckets.kindFallback / targetCount;
 if (fallbackRatio > 0.4) {
   console.warn(
     `menu-help lint warning: ${Math.round(fallbackRatio * 100)}% of entries resolve via kind fallback. Consider adding more specific key/path rows.`
