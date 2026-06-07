@@ -134,6 +134,11 @@ L2: Sense
 │   │   ├── Scanned Instrument: [1..8]
 │   │   ├── Scanned Empty Action: [none | note_on | note_off]
 │   │   └── Scanned Empty Instrument: [1..8]
+│   ├── Trigger Prob. (group)
+│   │   ├── Mode: [zero | custom | full]
+│   │   ├── Low Prob: [0..100] step 1
+│   │   ├── High Prob: [0..100] step 1
+│   │   └── Map Probability Grid (action)
 │   ├── Note Mapping (group)
 │   │   ├── Lowest Note: [0..127] step 1
 │   │   ├── Highest Note: [0..127] step 1
@@ -290,7 +295,7 @@ L4: Dance
 │   │   └── Mix: [0..100] (% wet mix)
 │   └── Map to Grid (action)
 ├── Trigger Gate (group)
-│   └── Edit Target: [active | all | 0 | 1 | 2 | 3]
+│   └── Mode Grid (group)
 └── X/Y Pad (group)
     ├── X Axis (group)
     │   ├── (none) (action)
@@ -314,11 +319,16 @@ Dance layer behavior:
 - `pan` writes the audible pan target: for `Route=direct` instruments it sets `Mixer > Pan Pos`; for bus-routed (`fx_bus_n`) instruments it sets the bus pan (`Mixer > Buses[n] > Pan Pos`) plus the per-instrument pan for state preservation. The marker color reflects the route: white for direct, bus color (purple/cyan/green/amber for bus 1-4) for bus-routed instruments. Multiple instruments on the same bus show synchronized markers at the bus pan position.
 - `pan` maps the 8 grid columns onto 7 two-cell marker positions: column 0 stores `0` and lights 0+1; column 1 stores `5` and lights 1+2; column 2 stores `11` and lights 2+3; columns 3 and 4 both store center `16` and light 3+4; column 5 stores `21` and lights 4+5; column 6 stores `27` and lights 5+6; column 7 stores `32` and lights 6+7.
 - `fx`: grid cells trigger mapped momentary effects. Press starts the mapped effect and release stops it.
-- `trigger-gate`: grid cells toggle whether each part cell can trigger musical output. Grid press toggles a single gate; Shift+grid press toggles the entire row (exclusive mode — all cells in the row are set to the pressed cell's opposite state); Shift+Fn (combined modifier) toggles the entire column.
-- `L4: Dance > Trigger Gate > Edit Target` controls which part the trigger-gate grid edits and displays:
-  - `active` (default): edit the currently active part.
-  - `all`: apply the same edit to every part simultaneously. LEDs show green when all parts are gated on, red when all are off, and amber when mixed.
-  - `0`, `1`, etc.: edit a specific part regardless of active part.
+- `trigger-gate`: this page switches each part's live trigger mode instead of editing per-cell gates directly.
+- Stored per-part trigger probability data lives in `L2: Sense > Pn > Trigger Prob.`.
+- `Map Probability Grid` enters a four-state grid editor for the selected part. Cell cycle is `zero -> low -> high -> full -> zero`; `Shift+grid` applies to a row; `Shift+Fn+grid` applies to a column.
+- Probability-map editor LEDs: black = `0%`, red = `low`, yellow = `high`, green = `100%`.
+- Trigger-gate Dance layout uses rows as parts with the same orientation as Fn part navigation: bottom row = part 0, top row = highest part.
+- Dance columns `0..2` set that row's part mode: `0%` (red), `custom` (yellow), `100%` (green). Selected mode is bright; the other two are dim.
+- Dance columns `3..4` are an unassigned dark gap.
+- Bottom-row columns `5..7` are always-bright all-parts actions: set all parts to `0%`, `custom`, or `100%`.
+- Trigger filtering resolves per-part mode as follows: `zero` blocks all triggers, `full` passes all triggers, `custom` uses the stored per-cell probability map with that part's `Low Prob` and `High Prob` thresholds.
+- `Fn+Play` toggles the active part between `0%` and its previously active trigger mode without rewriting the stored probability map.
 - FX cells are mapped from `L4: Dance > FX Page`: select an `FX Type`, edit its visible parameters, then select `Map to Grid` and press a grid cell. The effect type and current parameter values are stored on that cell. Mapping `none` clears a cell.
 - FX assignments include a `Target` (default `master`). Targets are listed as `master` first, then FX buses, then instruments. Platform-core resolves grid semantics into audio commands; desktop forwards those commands without interpreting Dance/grid meaning; Rust applies the realtime DSP.
 - Target insertion points: `instrument_n` is applied on the instrument's outgoing signal before routing/pan; `fx_bus_n` is applied on the bus outgoing signal after bus slot FX; `master` is applied after the final mix.
@@ -336,7 +346,7 @@ Dance layer behavior:
 - `xy` grid LEDs: bright white on the touched cell while finger is down; dim gray on sample-hold (when `Release = sample-hold` and finger is lifted); rest of grid is dark.
 - `Release: sample-hold` keeps the last modulation values active after lifting the finger. `Release: reset-center` returns X and Y to 0.5 (center) on release.
 - `Invert X` / `Invert Y` flip the respective axis: `value = 1 - norm` when enabled, so left becomes max and right becomes min (X axis), or bottom becomes max and top becomes min (Y axis).
-- Saved with presets/defaults: selected Dance Page, Trigger Gate edit target, FX page config and assignments, instrument mix volumes, pan positions, trigger-gate cell state, X/Y bindings, X/Y invert flags, and X/Y release behavior.
+- Saved with presets/defaults: selected Dance Page, FX page config and assignments, instrument mix volumes, pan positions, per-part trigger probability mode, low/high thresholds, trigger probability map cell state, X/Y bindings, X/Y invert flags, and X/Y release behavior.
 - Not saved: transient performance state such as the currently active Dance overlay on load/startup, the live X/Y touch position (`xyTouch`), active momentary FX instances, assign modes, held modifiers, and other temporary overlays.
 
 ### System

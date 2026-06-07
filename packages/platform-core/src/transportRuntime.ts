@@ -116,7 +116,7 @@ function advanceEngineByPulses<TState>(state: PlatformState<TState>, behavior: B
     const intents = interpretGrid(beforeGrid, afterGrid, interpretationTick, profile);
     const gated = filterTriggerGatedIntents(intents, next, partIdx);
     const mapped = mapIntentsToMusicalEvents(gated, withScaleSteps(partCfg.mappingConfig as any, partCfg));
-    const modulation = applyModulationResult(intents, mapped, partCfg, next.runtimeConfig, partIdx);
+    const modulation = applyModulationResult(gated, mapped, partCfg, next.runtimeConfig, partIdx);
     next.runtimeConfig = modulation.runtimeConfig;
     const modulated = modulation.events;
     const instruments: any[] = Array.isArray((next.runtimeConfig as any).instruments) ? ((next.runtimeConfig as any).instruments as any[]) : [];

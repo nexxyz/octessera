@@ -10,6 +10,14 @@ import { DEFAULT_VELOCITY_LEVELS, DEFAULT_MIDI_ENGINE, DEFAULT_PAN_POS, DEFAULT_
 import { cloneAuxBindings, sanitizeAuxBindings } from "./auxBindingsSerde";
 import { normalizeParamMods } from "./paramMod";
 import { resetScanState } from "./transportSafety";
+import {
+  createDefaultTriggerProbabilityMap,
+  DEFAULT_TRIGGER_PROBABILITY_HIGH_PCT,
+  DEFAULT_TRIGGER_PROBABILITY_LOW_PCT,
+  normalizeTriggerProbabilityCellState,
+  normalizeTriggerProbabilityMode,
+  normalizeTriggerProbabilityThreshold
+} from "./triggerProbability";
 
 type StoreDeps<TState> = {
   resolveBehavior: (id: string) => BehaviorEngine<any, any>;
@@ -138,11 +146,13 @@ export function applyConfigPayload<TState>(
     pendingResync: false,
     externalPpqnPulse: 0,
     sampleAssign: null,
+    triggerProbabilityAssign: null,
     sampleBrowser: null,
     fxAssignMode: null,
     activeFx: [],
     danceMode: "none",
-    triggerGateTarget: safe.system?.triggerGateTarget ?? "active"
+    triggerGateTarget: safe.system?.triggerGateTarget ?? "active",
+    triggerGateRestoreModes: Array.from({ length: PLATFORM_CAPS.partCount }, () => null)
   };
   next.menu = { stack: [], cursor: 0, editing: false };
   (next.runtimeConfig as any).xyTouch = { x: 0.5, y: 0.5, active: false };
@@ -395,7 +405,7 @@ function sanitizePayload<TState>(payload: ConfigPayload, behavior: BehaviorEngin
         saveGridState: part.l1.saveGridState !== false,
         triggerGates: Array.isArray(part.l1.triggerGates) ? part.l1.triggerGates : part.l1.triggerGates ?? Array.from({ length: PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight }, () => true)
       },
-      l2: sanitizePartL2(part.l2, basePart.l2),
+      l2: sanitizePartL2(part.l2, basePart.l2, part.l1?.triggerGates),
       paramMods: normalizeParamMods((part as any).paramMods),
       xy: sanitizeXy((part as any).xy),
       autoName: typeof (part as any).autoName === "boolean" ? (part as any).autoName : true,
@@ -427,17 +437,37 @@ function sanitizeSavedSystem(system: any): ConfigPayload["system"] {
 }
 
 
-function sanitizePartL2(partL2: any, baseL2: any): any {
+function sanitizePartL2(partL2: any, baseL2: any, legacyTriggerGates?: unknown): any {
   const base = baseL2 ?? {};
   const l2 = partL2 ?? {};
+  const triggerProbabilityMap = sanitizeTriggerProbabilityMap(l2.triggerProbabilityMap, legacyTriggerGates);
+  const lowPctRaw = normalizeTriggerProbabilityThreshold(l2.triggerProbabilityLowPct, base.triggerProbabilityLowPct ?? DEFAULT_TRIGGER_PROBABILITY_LOW_PCT);
+  const highPctRaw = normalizeTriggerProbabilityThreshold(l2.triggerProbabilityHighPct, base.triggerProbabilityHighPct ?? DEFAULT_TRIGGER_PROBABILITY_HIGH_PCT);
+  const highPct = Math.max(lowPctRaw, highPctRaw);
   return {
     ...base,
     ...l2,
     scanSections: isValidSectionValue(l2.scanSections) ? String(Number(l2.scanSections)) : base.scanSections ?? "1",
+    triggerProbabilityMode: normalizeTriggerProbabilityMode(l2.triggerProbabilityMode ?? (Array.isArray(legacyTriggerGates) ? "custom" : base.triggerProbabilityMode)),
+    triggerProbabilityLowPct: Math.min(lowPctRaw, highPct),
+    triggerProbabilityHighPct: highPct,
+    triggerProbabilityMap,
     pitch: { ...(base.pitch ?? {}), ...(l2.pitch ?? {}) },
     x: sanitizeAxis(l2.x, base.x),
     y: sanitizeAxis(l2.y, base.y)
   };
+}
+
+function sanitizeTriggerProbabilityMap(incoming: unknown, legacyTriggerGates?: unknown): any[] {
+  const out = createDefaultTriggerProbabilityMap();
+  if (Array.isArray(incoming)) {
+    for (let i = 0; i < out.length; i += 1) out[i] = normalizeTriggerProbabilityCellState(incoming[i]);
+    return out;
+  }
+  if (Array.isArray(legacyTriggerGates)) {
+    for (let i = 0; i < out.length; i += 1) out[i] = legacyTriggerGates[i] === false ? "zero" : "full";
+  }
+  return out;
 }
 
 function sanitizeAxis(axis: any, baseAxis: any): any {

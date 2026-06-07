@@ -3,81 +3,6 @@
 > Central requirement backlog. Status: `open` | `in-progress` | `closed`.
 > Each phase must be completed and manually tested before moving to the next.
 
----
-
-### REQ-20 - Position-Marker Bar Display Style
-
-| Field | Value |
-|-------|-------|
-| **Status** | closed |
-| **Phase** | 4 |
-| **Priority** | low |
-| **Scope** | small |
-| **Depends on** | - |
-| **Source** | design discussion |
-
-Add a new `displayStyle: "marker"` for numeric parameters that are bipolar or positional (not 0->max filling). Renders a thin horizontal track with a vertical position indicator, replacing the misleading filled bar.
-
-**Marker rendering** (vs current filled bar):
-```
-Current filled bar:   [////////// ]  (Pan Pos = 20 looks 62% full, misleads)
-Marker bar:           [-----|-----]  (same value, actual position shown)
-```
-
-**Parameters to mark (by file):**
-
-`menuTree.ts`:
-- `*.mixer.panPos` (0-32, center=16)
-- `*.synth.osc{1,2}.detuneCents` (-50-50)
-- `*.synth.filter.envAmountPct` (-100-100)
-- `*.sample.tuneSemis` (-24-24)
-- `*.sample.filter.envAmountPct` (-100-100)
-- `touchFx.selected.params.semitones` (-24-24)
-- `touchFx.selected.params.cents` (-100-100)
-
-`fxBusMenu.ts`:
-- `mixer.buses.*.panPos` (0-32)
-- `mixer.buses.*.slot{1,2}.params.lowGainDb` (-12-12)
-- `mixer.buses.*.slot{1,2}.params.midGainDb` (-12-12)
-- `mixer.buses.*.slot{1,2}.params.highGainDb` (-12-12)
-- `mixer.buses.*.slot{1,2}.params.feedback` (mod delay, -0.95-0.95)
-
-**Implementation:**
-- `platformTypes.ts`: Add `"marker"` to `displayStyle` union on number variant; add optional `style?: "fill" | "marker"` to `BarValue`.
-- `menuPresentation.ts`: `shouldUseNumberBar` returns `true` for `"marker"` (same as `"bar"`).
-- `menuView.ts`: Propagate `item.displayStyle` into `barValues[i].style` as `"marker"`.
-- `oledRender.ts`: When `bar.style === "marker"`, draw 1px track + 2px vertical marker at `frac` position; else use current fill behavior.
-- `menuTree.ts`, `fxBusMenu.ts`: Add `displayStyle: "marker"` to ~12 bipolar/positional params listed above.
-
-**Acceptance:**
-- Pan Pos, Detune, Env Amt, Tune Semis, Semitones/Cents show a centered marker bar instead of a filled bar on OLED.
-- EQ gain dBs and mod delay Feedback show marker bars.
-- Volume, Brightness, Mix %, and other 0->max params remain as filled bars (unchanged).
-- All 179 tests pass, lint passes, typecheck passes.
-
----
-
-### REQ-05 — Global FX (Master Bus)
-
-| Field | Value |
-|-------|-------|
-| **Status** | closed |
-| **Phase** | 4 |
-| **Priority** | medium |
-| **Scope** | medium |
-| **Depends on** | REQ-07 (L3 Voice area as parent) |
-| **Source** | lines 19–23 |
-
-Add master/global FX section in L3:Voice parallel to Instruments. Post-instrument/pre-output. Effects: vinyl simulator (warm saturation, crackling, uneven/warped pitch), EQ, compressor.
-
-**Acceptance:**
-- Global FX section in L3:Voice, operates post-instrument/pre-output.
-- Vinyl simulator: saturation amount, crackle level, warp depth.
-- EQ: low/mid/high bands or parametric.
-- Compressor: threshold, ratio, attack, release, gain makeup.
-- Reuse existing FX infrastructure, refactor where overlapping (no separate filter implementations).
-
----
 
 ### REQ-15 — Signal Path Visualization
 
@@ -104,6 +29,133 @@ OLED graphical display of signal/routing paths: parts → instruments → FX bus
 - Crowded diagrams use abbreviated IDs instead of full names.
 - Navigable: highlight and click to enter entity config.
 - Fits on OLED at readable scale for typical use-cases (2–4 parts, 2–4 instruments, 1–2 buses).
+
+---
+
+### REQ-20 — Probabilistic Trigger Gate
+
+| Field | Value |
+|-------|-------|
+| **Status** | open |
+| **Phase** | 4 |
+| **Priority** | medium |
+| **Scope** | medium |
+| **Depends on** | existing Dance trigger-gate page, Sense per-part config, preset/config persistence |
+| **Source** | design follow-up |
+
+Replace the current binary trigger-gate workflow with a probability-driven trigger gate that separates stored per-cell probability editing from live playback mode switching.
+
+**Design:**
+- Keep the existing Dance enum/page identity as `trigger-gate`; it remains a trigger gate, but probability-driven.
+- Add per-part trigger probability state in Sense: `triggerProbabilityMode = zero | custom | full`, `triggerProbabilityMap` (64 cells), `low` threshold, and `high` threshold.
+- Probability map cells are four-state: `zero`, `low`, `high`, `full`.
+- The Sense probability map editor owns cell editing; the Dance page only switches each part's active trigger mode.
+
+**Sense editor:**
+- Add a per-part `Trigger Probability` group under `L2: Sense`.
+- Menu items: current mode, `Low Prob`, `High Prob`, and `Map Probability Grid`.
+- Grid editing cycles cell states `zero -> low -> high -> full -> zero`.
+- LED colours in the editor: red = `0%`, yellow-family states for custom values, green = `100%`.
+- `Shift + cell` applies to row; `Fn + Shift + cell` applies to column.
+
+**Dance page:**
+- Replace the current trigger-gate cell editor behavior with per-part mode selection.
+- Rows follow existing Fn part-navigation orientation: bottom row is part 0, top row is highest part.
+- Columns `0..2` select the row's part mode: `0%` (red), `custom` (yellow), `100%` (green).
+- Columns `3..4` stay dark as a safety gap.
+- Bottom-row columns `5..7` are always-bright all-parts actions: set all parts to `0%`, `custom`, or `100%`.
+- Individual part mode LEDs are bright when selected and dim when not selected.
+
+**Transport behavior:**
+- Runtime trigger filtering uses the selected mode per part:
+- `full`: always pass.
+- `zero`: always block.
+- `custom`: resolve the cell state to `0%`, `low`, `high`, or `100%` and probabilistically pass/block the trigger.
+
+**Fn+Play:**
+- `Fn+Play` no longer fills or clears the stored gate grid.
+- It toggles the active part between `0%` and its previously active mode.
+- Restoring must return to the previous mode without modifying the stored probability map.
+
+**Persistence / migration:**
+- Update saved config/state defaults for the new mode/map fields.
+- Migrate persisted boolean `triggerGates` to the new probability-map format (`true -> full`, `false -> zero`) and restore migrated parts in `custom` mode.
+
+**Acceptance:**
+- Each part has a stored 8x8 probability map and configurable low/high thresholds.
+- Sense can edit four-state probability cells with row/column gestures.
+- Dance `trigger-gate` page switches per-part trigger mode using the 3-column layout and bottom-row all-parts actions.
+- Part LEDs use red/yellow/green with bright selected state and dim unselected state; all-parts buttons remain bright.
+- `Fn+Play` toggles the active part between `0%` and its previous trigger mode.
+- Existing presets/defaults with boolean `triggerGates` load into the new model without data loss.
+- Docs/help text/tests are updated to match the new Trigger Probability workflow.
+
+---
+
+### REQ-21 — Strict Descriptive Menu Help Lint
+
+| Field | Value |
+|-------|-------|
+| **Status** | open |
+| **Phase** | 4 |
+| **Priority** | medium |
+| **Scope** | medium |
+| **Depends on** | existing `menu-help` generation/lint flow in `platform-core` |
+| **Source** | design follow-up |
+
+Tighten menu-help coverage so every concrete menu node resolves to descriptive help text for its actual functionality, not generic fallback copy.
+
+**Problem:**
+- The current menu-help linter allows broad fallback rows such as `default_*`, `action:*`, and `key:*` to count as covered.
+- This means many menu entries still pass lint while resolving to generic help like "Adjusts a numeric value" instead of function-specific guidance.
+- Strict descriptive help should be enforced across `platform-core` menus, while still keeping runtime fallback behavior as a safety net.
+
+**Stage 1: Remove Broad Catch-Alls**
+- Remove the broad TSV fallback rows that currently satisfy lint without providing descriptive functionality-specific help:
+- `action_any`
+- `number_any`
+- `enum_any`
+- `bool_any`
+- `text_any`
+- Keep runtime-safe fallback behavior via `resolveMenuHelp()` and existing non-explicit defaults, but stop allowing broad `action:*` / `key:*` rows to satisfy lint coverage.
+- Regenerate `menuHelp.generated.ts` and use the existing linter failures as the source of truth for missing descriptive help.
+
+**Stage 2: Canonicalization**
+- Canonicalize repeated dynamic keys/paths in lint reporting so repeated part/instrument targets collapse into one actionable class.
+- Normalize representative patterns such as `parts.*`, `instruments.*`, `mixer.buses.*`, and `globalFx.slots.*`.
+
+**Stage 3: Specificity Rules**
+- Define broad generic rows as runtime fallback only, not acceptable lint coverage for concrete menu nodes.
+- Continue allowing semantic wildcard rows such as `key:parts.*.l2.pitch.lowestNote` or `action:preset_load:*`.
+- Add checks for obviously generic copy so placeholder prose cannot satisfy strict mode.
+
+**Stage 4: Fill Core Help**
+- Add descriptive TSV help rows for currently generic-covered platform-core menus, starting with:
+- `L1: Life` part controls and behavior config.
+- `L2: Sense` scanning, events, trigger probability, note mapping, and axis modulation.
+- Part naming and auto-name behavior.
+
+**Stage 5: Fill Remaining Help**
+- Add descriptive TSV help rows for instruments, mixer, FX, Dance, MIDI, saves, defaults, and other remaining menus still covered by generic fallback.
+
+**Stage 6: Strengthen Enum Coverage**
+- Expand enum-option lint beyond the small current allowlist so help text must describe the actual current options for enum settings.
+- Permit only narrow documented exceptions for dynamic labels where necessary.
+
+**Stage 7: Make Strict Mode Default**
+- After generic fallback usage is driven to zero, make strict descriptive checking the default behavior of `lint:menu-help`.
+- Keep an explicit temporary local escape hatch only if necessary for development, not for CI.
+
+**Stage 8: Contributor Guidance**
+- Document the policy near the TSV/linter workflow: new menu nodes must add descriptive help in the same change; generic catch-alls are fallback only; enum changes must update help text.
+
+**Acceptance:**
+- Removing the broad catch-all rows causes `lint:menu-help` to fail on every concrete menu target that still lacks descriptive help.
+- Canonicalized lint output is actionable rather than flooded with duplicate part/instrument instances.
+- All concrete `platform-core` menu nodes resolve to descriptive TSV help rows rather than broad `action:*` or `key:*` generic catch-alls.
+- Enum help lint fails when current enum options are missing from descriptive help.
+- Strict descriptive checking becomes the default lint mode once coverage is complete.
+- Contributor workflow/docs make the expectation explicit for future menu additions.
 
 ---
 

@@ -4,7 +4,7 @@ import type { MusicalEvent } from "@cellsymphony/musical-events";
 import type { Deps } from "./inputModifier";
 import type { PlatformEffect, PlatformState } from "./index";
 import { clamp } from "./coreUtils";
-import { applySampleAssignment, danceModeFromRow, handleTouchGridPress } from "./inputInternal";
+import { applySampleAssignment, applyTriggerProbabilityAssignment, danceModeFromRow, handleTouchGridPress } from "./inputInternal";
 import { applyParamModMapping, paramBindingFromMenuNode } from "./paramMod";
 import { visibleChildren } from "./menuView";
 import { makeToast } from "./toast";
@@ -116,6 +116,26 @@ export function handleGridInput<TState>(
     return { state: nextState, events, effects };
   }
 
+  if (nextState.system.triggerProbabilityAssign) {
+    if (input.type === "button_a" && pressed(input)) {
+      nextState.system = { ...nextState.system, triggerProbabilityAssign: null, toast: makeToast("Assign mode off") };
+      return { state: nextState, events, effects };
+    }
+
+    if (input.type === "grid_press") {
+      const mode = nextState.system.combinedModifierHeld
+        ? "column"
+        : nextState.system.shiftHeld
+          ? "row"
+          : "single";
+      nextState = applyTriggerProbabilityAssignment(nextState, nextState.system.triggerProbabilityAssign.partIndex, input.x, input.y, mode as "single" | "row" | "column");
+      deps.autoSaveEffect(nextState, effects);
+      return { state: nextState, events, effects };
+    }
+
+    return { state: nextState, events, effects };
+  }
+
   // Fn+rightmost column → Dance page
   if (input.type === "grid_press" && nextState.system.fnHeld && !nextState.system.shiftHeld && input.x === PLATFORM_CAPS.gridWidth - 1) {
     const danceMode = danceModeFromRow(input.y, (nextState.runtimeConfig as any).danceMode ?? nextState.system.danceMode);
@@ -130,12 +150,7 @@ export function handleGridInput<TState>(
   if (nextState.system.danceMode === "trigger-gate" && input.type === "grid_press") {
     const fnOnly = nextState.system.fnHeld && !nextState.system.shiftHeld;
     if (!fnOnly) {
-      const mode = nextState.system.combinedModifierHeld
-        ? "column"
-        : nextState.system.shiftHeld
-          ? "row"
-        : "single";
-      nextState = handleTouchGridPress(nextState, input, effects, deps, mode as "single" | "row" | "column");
+      nextState = handleTouchGridPress(nextState, input, effects, deps);
       deps.autoSaveEffect(nextState, effects);
       return { state: nextState, events, effects };
     }

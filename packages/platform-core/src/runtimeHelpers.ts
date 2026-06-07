@@ -6,6 +6,10 @@ import { clamp, mod } from "./coreUtils";
 import { clampPanPosition, clampPartIndex, PAN_CENTER_POS, PAN_POSITION_MAX, GRID_DOMAIN, PLATFORM_CAPS, scalePanPosition, sectionCount } from "./platformCaps";
 import { momentaryFxColor } from "./momentaryFx";
 import type { DanceMode, PlatformState } from "./platformTypes";
+import {
+  resolveTriggerProbabilityMode,
+  shouldAllowTrigger
+} from "./triggerProbability";
 
 export const DANCE_PAN_COLORS: Record<string, LedCell> = {
   direct: { r: 255, g: 255, b: 255 },
@@ -264,6 +268,26 @@ export function sampleAssignmentToLeds(
   return out;
 }
 
+export function triggerProbabilityAssignmentToLeds(states: string[], brightness: number): LedCell[] {
+  const b = Math.max(0, Math.min(1, brightness));
+  const out: LedCell[] = Array.from({ length: PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight }, () => ({ r: 0, g: 0, b: 0 }));
+  for (let y = 0; y < PLATFORM_CAPS.gridHeight; y += 1) {
+    for (let x = 0; x < PLATFORM_CAPS.gridWidth; x += 1) {
+      const idx = y * PLATFORM_CAPS.gridWidth + x;
+      const cell = states[idx] ?? "full";
+      const color = cell === "zero"
+        ? { r: 0, g: 0, b: 0 }
+        : cell === "low"
+          ? { r: 220, g: 0, b: 0 }
+          : cell === "high"
+            ? { r: 220, g: 180, b: 0 }
+            : { r: 0, g: 220, b: 0 };
+      out[GRID_DOMAIN.toDisplayIndex({ x, y })] = scaleLed(color, b);
+    }
+  }
+  return out;
+}
+
 export function danceModeToLeds<TState>(state: PlatformState<TState>, brightness: number, ghostCells?: boolean[]): LedCell[] | null {
   const mode = state.system.danceMode;
   if (mode === "none") return null;
@@ -306,47 +330,46 @@ export function danceModeToLeds<TState>(state: PlatformState<TState>, brightness
     // Only show FN navigation overlay when FN is held without Shift for navigation
     // When both FN and Shift are held, suppress the overlay as this is a system navigation command
     const showFnOverlay = state.system.fnHeld && !state.system.shiftHeld;
-    overlayFnNavigation(out, b, showFnOverlay, (state.runtimeConfig as any).activePartIndex ?? 0, mode, (state.runtimeConfig as any).parts);
+    const selectedDanceMode = (state.runtimeConfig as any).danceMode && (state.runtimeConfig as any).danceMode !== "none"
+      ? (state.runtimeConfig as any).danceMode
+      : mode;
+    overlayFnNavigation(out, b, showFnOverlay, (state.runtimeConfig as any).activePartIndex ?? 0, mode, selectedDanceMode, (state.runtimeConfig as any).parts);
     return out;
   }
 
   if (mode === "trigger-gate") {
     const parts = (state.runtimeConfig as any).parts ?? [];
     const activePartIndex = (state.runtimeConfig as any).activePartIndex ?? 0;
-    const target = state.system.triggerGateTarget ?? "active";
-
-    let renderParts: number[];
-    if (target === "all") {
-      renderParts = Array.from({ length: parts.length }, (_, i) => i);
-    } else if (target === "active") {
-      renderParts = [activePartIndex];
-    } else {
-      const pi = parseInt(target, 10);
-      renderParts = [isFinite(pi) ? clamp(pi, 0, parts.length - 1) : activePartIndex];
-    }
-
-    for (let y = 0; y < PLATFORM_CAPS.gridHeight; y += 1) {
-      for (let x = 0; x < PLATFORM_CAPS.gridWidth; x += 1) {
-        const idx = y * PLATFORM_CAPS.gridWidth + x;
-        if (target === "all") {
-          let anyOn = false, anyOff = false;
-          for (const pi of renderParts) {
-            const g = (parts[pi] as any)?.l1?.triggerGates;
-            if (Array.isArray(g) ? g[idx] === false : false) anyOff = true;
-            else anyOn = true;
-          }
-          const color = anyOn && anyOff ? { r: 180, g: 120, b: 0 } : anyOn ? { r: 0, g: 190, b: 90 } : { r: 60, g: 20, b: 20 };
-          out[GRID_DOMAIN.toDisplayIndex({ x, y })] = scaleLed(color, b);
-        } else {
-          const pi = renderParts[0];
-          const gates = (parts[pi] as any)?.l1?.triggerGates;
-          const enabled = Array.isArray(gates) ? gates[idx] !== false : true;
-          out[GRID_DOMAIN.toDisplayIndex({ x, y })] = scaleLed(enabled ? { r: 0, g: 190, b: 90 } : { r: 60, g: 20, b: 20 }, b);
-        }
+    const modeToColor = (triggerMode: string): LedCell => triggerMode === "zero"
+      ? { r: 220, g: 0, b: 0 }
+      : triggerMode === "custom"
+        ? { r: 220, g: 180, b: 0 }
+        : { r: 0, g: 220, b: 0 };
+    const modeCells: Array<{ x: number; mode: "zero" | "custom" | "full" }> = [
+      { x: 0, mode: "zero" },
+      { x: 1, mode: "custom" },
+      { x: 2, mode: "full" }
+    ];
+    for (let partIdx = 0; partIdx < Math.min(parts.length, PLATFORM_CAPS.gridHeight); partIdx += 1) {
+      const y = partIdx;
+      const selectedMode = resolveTriggerProbabilityMode(parts[partIdx]);
+      for (const cell of modeCells) {
+        out[GRID_DOMAIN.toDisplayIndex({ x: cell.x, y })] = scaleLed(modeToColor(cell.mode), cell.mode === selectedMode ? b : b * 0.25);
       }
     }
+    const allModes: Array<{ x: number; mode: "zero" | "custom" | "full" }> = [
+      { x: 5, mode: "zero" },
+      { x: 6, mode: "custom" },
+      { x: 7, mode: "full" }
+    ];
+    for (const cell of allModes) {
+      out[GRID_DOMAIN.toDisplayIndex({ x: cell.x, y: 0 })] = scaleLed(modeToColor(cell.mode), b);
+    }
     const showFnOverlay = state.system.fnHeld && !state.system.shiftHeld;
-    overlayFnNavigation(out, b, showFnOverlay, activePartIndex, mode, parts);
+    const selectedDanceMode = (state.runtimeConfig as any).danceMode && (state.runtimeConfig as any).danceMode !== "none"
+      ? (state.runtimeConfig as any).danceMode
+      : mode;
+    overlayFnNavigation(out, b, showFnOverlay, activePartIndex, mode, selectedDanceMode, parts);
     return out;
   }
 
@@ -363,7 +386,10 @@ export function danceModeToLeds<TState>(state: PlatformState<TState>, brightness
       }
     }
     const showFnOverlay = state.system.fnHeld && !state.system.shiftHeld;
-    overlayFnNavigation(out, b, showFnOverlay, (state.runtimeConfig as any).activePartIndex ?? 0, mode, (state.runtimeConfig as any).parts);
+    const selectedDanceMode = (state.runtimeConfig as any).danceMode && (state.runtimeConfig as any).danceMode !== "none"
+      ? (state.runtimeConfig as any).danceMode
+      : mode;
+    overlayFnNavigation(out, b, showFnOverlay, (state.runtimeConfig as any).activePartIndex ?? 0, mode, selectedDanceMode, (state.runtimeConfig as any).parts);
     return out;
   }
 
@@ -394,7 +420,10 @@ export function danceModeToLeds<TState>(state: PlatformState<TState>, brightness
   // Only show FN navigation overlay when FN is held without Shift for navigation
   // When both FN and Shift are held, suppress the overlay as this is a system navigation command
   const showFnOverlay = state.system.fnHeld && !state.system.shiftHeld;
-  overlayFnNavigation(out, b, showFnOverlay, (state.runtimeConfig as any).activePartIndex ?? 0, mode, (state.runtimeConfig as any).parts);
+  const selectedDanceMode = (state.runtimeConfig as any).danceMode && (state.runtimeConfig as any).danceMode !== "none"
+    ? (state.runtimeConfig as any).danceMode
+    : mode;
+  overlayFnNavigation(out, b, showFnOverlay, (state.runtimeConfig as any).activePartIndex ?? 0, mode, selectedDanceMode, (state.runtimeConfig as any).parts);
   return out;
 }
 
@@ -407,12 +436,9 @@ function scaleLed(cell: LedCell, brightness: number): LedCell {
 }
 
 export function filterTriggerGatedIntents(intents: CellTriggerIntent[], state: PlatformState<any>, partIdx: number): CellTriggerIntent[] {
-  const activeIdx = ((state.runtimeConfig as any).activePartIndex ?? 0) as number;
-  if (state.system.triggerMuted && partIdx === activeIdx) return [];
-  const gates = (state.runtimeConfig as any)?.parts?.[partIdx]?.l1?.triggerGates as boolean[] | undefined;
-  if (!gates) return intents;
+  const part = (state.runtimeConfig as any)?.parts?.[partIdx];
   return intents.filter(intent => {
-    const idx = intent.y * PLATFORM_CAPS.gridWidth + intent.x;
-    return gates[idx] !== false;
+    const idx = GRID_DOMAIN.indexOf({ x: intent.x, y: intent.y });
+    return shouldAllowTrigger(part, idx, Math.random());
   });
 }

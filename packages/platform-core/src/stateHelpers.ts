@@ -5,6 +5,7 @@ import { clampPartIndex, PLATFORM_CAPS } from "./platformCaps";
 import { SYNTH_PRESETS } from "./synthPresets";
 import { clamp, mod } from "./coreUtils";
 import { readAnyValue } from "./paramAccess";
+import { createDefaultTriggerProbabilityMap } from "./triggerProbability";
 
 export function textEditTurn<TState>(state: PlatformState<TState>, node: Extract<MenuNode, { kind: "text" }>, delta: -1 | 1): PlatformState<TState> {
   const raw = String(readAnyValue(state, node.key) ?? "");
@@ -55,7 +56,8 @@ export function factoryPayload<TState>(behavior: BehaviorEngine<TState, unknown>
   parts[0].l2.eventEnabled = true;
   parts[0].name = "life";
   parts[0].autoName = true;
-  parts[0].l1.triggerGates = Array.from({ length: PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight }, () => true);
+  parts[0].l2.triggerProbabilityMode = "full";
+  parts[0].l2.triggerProbabilityMap = createDefaultTriggerProbabilityMap();
 
   parts[1].l1.behaviorId = "sequencer";
   parts[1].l1.behaviorConfig = {};
@@ -71,7 +73,8 @@ export function factoryPayload<TState>(behavior: BehaviorEngine<TState, unknown>
   parts[1].l2.eventEnabled = true;
   parts[1].name = "sequencer";
   parts[1].autoName = true;
-  parts[1].l1.triggerGates = Array.from({ length: PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight }, () => true);
+  parts[1].l2.triggerProbabilityMode = "full";
+  parts[1].l2.triggerProbabilityMap = createDefaultTriggerProbabilityMap();
 
   for (let i = 2; i < PLATFORM_CAPS.partCount; i += 1) {
     parts[i].l1.behaviorId = "none";
@@ -86,7 +89,8 @@ export function factoryPayload<TState>(behavior: BehaviorEngine<TState, unknown>
     parts[i].l2.eventEnabled = false;
     parts[i].name = "(none)";
     parts[i].autoName = true;
-    parts[i].l1.triggerGates = Array.from({ length: PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight }, () => true);
+    parts[i].l2.triggerProbabilityMode = "full";
+    parts[i].l2.triggerProbabilityMap = createDefaultTriggerProbabilityMap();
   }
 
   instruments[0].type = "synth";

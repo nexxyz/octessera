@@ -64,51 +64,6 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "line2": "Use the encoder to move cursor and adjust characters."
   },
   {
-    "id": "action_any",
-    "path": "*",
-    "key": "action:*",
-    "kind": "action",
-    "title": "Action",
-    "line1": "Runs this command.",
-    "line2": "Use this when you want to execute the highlighted action."
-  },
-  {
-    "id": "number_any",
-    "path": "*",
-    "key": "key:*",
-    "kind": "number",
-    "title": "Number Setting",
-    "line1": "Adjusts a numeric value.",
-    "line2": "Enter edit mode, then turn encoder to change it."
-  },
-  {
-    "id": "enum_any",
-    "path": "*",
-    "key": "key:*",
-    "kind": "enum",
-    "title": "Option Setting",
-    "line1": "Selects one option from a list.",
-    "line2": "Enter edit mode, then turn encoder to choose."
-  },
-  {
-    "id": "bool_any",
-    "path": "*",
-    "key": "key:*",
-    "kind": "bool",
-    "title": "Toggle Setting",
-    "line1": "Selects Off or On.",
-    "line2": "Enter edit mode, then turn encoder to choose."
-  },
-  {
-    "id": "text_any",
-    "path": "*",
-    "key": "key:*",
-    "kind": "text",
-    "title": "Text Setting",
-    "line1": "Edits text for this field.",
-    "line2": "Use the encoder to move cursor and adjust characters."
-  },
-  {
     "id": "life_spawn_shared",
     "path": "*",
     "key": "action:behavior_action:spawnRandom",
@@ -376,7 +331,79 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "kind": "group",
     "title": "Part",
     "line1": "Per-part Sense interpretation, scanning, and trigger routing settings.",
-    "line2": "Organized into Scanning and Events subgroups; also includes Note Mapping, X/Y axis modulation."
+    "line2": "Organized into submenus including Instrument Targets, Trigger Prob., Note Mapping, and X/Y axis modulation."
+  },
+  {
+    "id": "part_behavior",
+    "path": "*",
+    "key": "key:parts.*.l1.behaviorId",
+    "kind": "enum",
+    "title": "Behavior",
+    "line1": "Selects which behavior engine owns this part's grid and runtime state.",
+    "line2": "Switching behavior replaces the part's current behavior state with that behavior's defaults."
+  },
+  {
+    "id": "part_step_rate",
+    "path": "*",
+    "key": "key:parts.*.l1.stepRate",
+    "kind": "enum",
+    "title": "Step Rate",
+    "line1": "Sets how often this part's behavior advances relative to transport time.",
+    "line2": "Use faster rates for dense motion and slower rates for long-form pattern change."
+  },
+  {
+    "id": "part_spawn_count",
+    "path": "*",
+    "key": "key:parts.*.l1.behaviorConfig.randomCellsPerTick",
+    "kind": "number",
+    "title": "Spawn Count",
+    "line1": "Sets how many random cells are injected by this part's spawn-style behavior action.",
+    "line2": "Higher values create denser bursts and faster pattern disruption."
+  },
+  {
+    "id": "part_spawn_interval",
+    "path": "*",
+    "key": "key:parts.*.l1.behaviorConfig.randomTickInterval",
+    "kind": "number",
+    "title": "Spawn Interval",
+    "line1": "Sets how many behavior ticks pass between automatic random spawn bursts.",
+    "line2": "Lower values create more frequent injections."
+  },
+  {
+    "id": "part_spawn_step",
+    "path": "*",
+    "key": "key:parts.*.l1.behaviorConfig.spawnStep",
+    "kind": "number",
+    "title": "Spawn Step",
+    "line1": "Sets the sequenced position or interval used by behaviors that step their own spawn source.",
+    "line2": "Increase it to spread spawned changes farther apart in time or space."
+  },
+  {
+    "id": "part_save_grid_state",
+    "path": "*",
+    "key": "key:parts.*.l1.saveGridState",
+    "kind": "bool",
+    "title": "Save Grid State",
+    "line1": "When On, this part's runtime/grid snapshot is stored in preset and default saves.",
+    "line2": "Turn it Off if you want to keep configuration but not the current live cell state."
+  },
+  {
+    "id": "part_auto_name",
+    "path": "*",
+    "key": "key:parts.*.autoName",
+    "kind": "bool",
+    "title": "Auto Name",
+    "line1": "When On, the part name follows the active behavior or generated default label.",
+    "line2": "Turn it Off before typing a custom part name you want to keep."
+  },
+  {
+    "id": "part_name",
+    "path": "*",
+    "key": "key:parts.*.name",
+    "kind": "text",
+    "title": "Part Name",
+    "line1": "Sets the user-visible label for this part.",
+    "line2": "Used across menus and overlays when Auto Name is off."
   },
   {
     "id": "life_save_grid_state",
@@ -390,16 +417,16 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   {
     "id": "scan_mode",
     "path": "*",
-    "key": "key:scanMode",
+    "key": "key:parts.*.l2.scanMode",
     "kind": "enum",
     "title": "Scan Mode",
     "line1": "Options: none, scanning. none uses whole-grid interpretation without a scan cursor.",
-    "line2": "scanning moves a cursor by scan unit/axis/direction and emits scanned/scanned-empty triggers."
+    "line2": "scanning moves a cursor by scan unit, axis, and direction and emits scanned/scanned-empty triggers."
   },
   {
     "id": "scan_axis",
     "path": "*",
-    "key": "key:scanAxis",
+    "key": "key:parts.*.l2.scanAxis",
     "kind": "enum",
     "title": "Scan Axis",
     "line1": "Sets whether scanning traverses rows or columns.",
@@ -408,7 +435,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   {
     "id": "scan_unit",
     "path": "*",
-    "key": "key:scanUnit",
+    "key": "key:parts.*.l2.scanUnit",
     "kind": "enum",
     "title": "Scan Unit",
     "line1": "Sets scan cursor advance rate in musical units.",
@@ -417,7 +444,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   {
     "id": "scan_direction",
     "path": "*",
-    "key": "key:scanDirection",
+    "key": "key:parts.*.l2.scanDirection",
     "kind": "enum",
     "title": "Scan Direction",
     "line1": "Sets scan travel direction along the selected axis.",
@@ -435,11 +462,11 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   {
     "id": "event_enabled",
     "path": "*",
-    "key": "key:eventEnabled",
+    "key": "key:parts.*.l2.eventEnabled",
     "kind": "bool",
     "title": "Event Triggers",
-    "line1": "Enables transition triggers (activate, deactivate, stable).",
-    "line2": "Disable to suppress transition events."
+    "line1": "Enables transition triggers such as activate, deactivate, and stable for this part.",
+    "line2": "Turn it Off to suppress event-based note generation while keeping other Sense settings intact."
   },
   {
     "id": "targets_group",
@@ -453,34 +480,34 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   {
     "id": "map_activate_action",
     "path": "*",
-    "key": "key:mapping.activate.action",
+    "key": "key:parts.*.l2.mapping.activate.action",
     "kind": "enum",
     "title": "Activate Action",
     "line1": "Defines what happens when a cell becomes active.",
-    "line2": "Default note_on starts notes on birth/spawn transitions."
+    "line2": "Default note_on starts notes on birth, spawn, or press transitions."
   },
   {
-    "id": "map_activate_channel",
+    "id": "map_activate_slot",
     "path": "*",
-    "key": "key:mapping.activate.channel",
+    "key": "key:parts.*.l2.mapping.activate.slot",
     "kind": "enum",
     "title": "Activate Instrument",
     "line1": "Selects which instrument slot receives activate events.",
-    "line2": "Displayed as 1..N in UI and stored as slots 0..N-1 (N from platform capabilities)."
+    "line2": "Point this at the slot that should sound when a cell turns on."
   },
   {
     "id": "map_stable_action",
     "path": "*",
-    "key": "key:mapping.stable.action",
+    "key": "key:parts.*.l2.mapping.stable.action",
     "kind": "enum",
     "title": "Stable Action",
     "line1": "Defines behavior for cells that stay active across updates.",
     "line2": "Default none avoids constant retriggering from unchanged active cells."
   },
   {
-    "id": "map_stable_channel",
+    "id": "map_stable_slot",
     "path": "*",
-    "key": "key:mapping.stable.channel",
+    "key": "key:parts.*.l2.mapping.stable.slot",
     "kind": "enum",
     "title": "Stable Instrument",
     "line1": "Selects destination instrument slot for stable triggers.",
@@ -489,16 +516,16 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   {
     "id": "map_deactivate_action",
     "path": "*",
-    "key": "key:mapping.deactivate.action",
+    "key": "key:parts.*.l2.mapping.deactivate.action",
     "kind": "enum",
     "title": "Deactivate Action",
     "line1": "Defines what happens when a cell turns inactive.",
     "line2": "Default note_off releases matching notes in lifecycle workflows."
   },
   {
-    "id": "map_deactivate_channel",
+    "id": "map_deactivate_slot",
     "path": "*",
-    "key": "key:mapping.deactivate.channel",
+    "key": "key:parts.*.l2.mapping.deactivate.slot",
     "kind": "enum",
     "title": "Deactivate Instrument",
     "line1": "Selects destination instrument slot for deactivate triggers.",
@@ -507,38 +534,38 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   {
     "id": "map_scanned_action",
     "path": "*",
-    "key": "key:mapping.scanned.action",
+    "key": "key:parts.*.l2.mapping.scanned.action",
     "kind": "enum",
     "title": "Scanned Action",
     "line1": "Defines behavior when scan encounters a filled cell.",
     "line2": "Default note_on makes scanning immediately audible."
   },
   {
-    "id": "map_scanned_channel",
+    "id": "map_scanned_slot",
     "path": "*",
-    "key": "key:mapping.scanned.channel",
+    "key": "key:parts.*.l2.mapping.scanned.slot",
     "kind": "enum",
     "title": "Scanned Instrument",
     "line1": "Selects destination instrument slot for scanned-filled triggers.",
-    "line2": "Use different slots for layered scan/event voicing."
+    "line2": "Use different slots for layered scan and event voicing."
   },
   {
     "id": "map_scanned_empty_action",
     "path": "*",
-    "key": "key:mapping.scanned_empty.action",
+    "key": "key:parts.*.l2.mapping.scanned_empty.action",
     "kind": "enum",
     "title": "Scanned Empty Action",
     "line1": "Defines behavior when scan encounters an empty cell.",
     "line2": "Default note_off can release held scan notes."
   },
   {
-    "id": "map_scanned_empty_channel",
+    "id": "map_scanned_empty_slot",
     "path": "*",
-    "key": "key:mapping.scanned_empty.channel",
+    "key": "key:parts.*.l2.mapping.scanned_empty.slot",
     "kind": "enum",
     "title": "Scanned Empty Instrument",
     "line1": "Selects destination instrument slot for scanned-empty triggers.",
-    "line2": "Pair with scanned slot for directional hold-and-release patterns."
+    "line2": "Pair with the scanned slot for directional hold-and-release patterns."
   },
   {
     "id": "voice_section",
@@ -561,16 +588,16 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   {
     "id": "pitch_start",
     "path": "*",
-    "key": "key:pitch.startingNote",
+    "key": "key:parts.*.l2.pitch.startingNote",
     "kind": "number",
     "title": "Starting Note",
-    "line1": "Sets the reference note before X/Y pitch step offsets are applied.",
+    "line1": "Sets the reference note before X/Y pitch step offsets are applied for this part.",
     "line2": "Use this as the tonal center anchor."
   },
   {
     "id": "pitch_low",
     "path": "*",
-    "key": "key:pitch.lowestNote",
+    "key": "key:parts.*.l2.pitch.lowestNote",
     "kind": "number",
     "title": "Lowest Note",
     "line1": "Sets the lower bound for generated notes.",
@@ -579,16 +606,16 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   {
     "id": "pitch_high",
     "path": "*",
-    "key": "key:pitch.highestNote",
+    "key": "key:parts.*.l2.pitch.highestNote",
     "kind": "number",
     "title": "Highest Note",
     "line1": "Sets the upper bound for generated notes.",
-    "line2": "Together with Lowest Note this defines playable range."
+    "line2": "Together with Lowest Note this defines the playable range."
   },
   {
     "id": "pitch_oor",
     "path": "*",
-    "key": "key:pitch.outOfRange",
+    "key": "key:parts.*.l2.pitch.outOfRange",
     "kind": "enum",
     "title": "Out of Range",
     "line1": "Chooses how pitch indices beyond bounds are handled.",
@@ -597,16 +624,16 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   {
     "id": "pitch_scale",
     "path": "*",
-    "key": "key:pitch.scale",
+    "key": "key:parts.*.l2.pitch.scale",
     "kind": "enum",
     "title": "Scale",
     "line1": "Selects scale intervals used for pitch quantization.",
-    "line2": "Use this to set harmonic language globally."
+    "line2": "Use this to set harmonic language for the part."
   },
   {
     "id": "pitch_root",
     "path": "*",
-    "key": "key:pitch.root",
+    "key": "key:parts.*.l2.pitch.root",
     "kind": "enum",
     "title": "Root",
     "line1": "Sets the tonic/root for selected scale quantization.",
@@ -1144,6 +1171,51 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "line2": "Defines starting note, range, scale, and root before events reach instrument slots."
   },
   {
+    "id": "sense_trigger_probability_group",
+    "path": "Menu > L2: Sense > P*: * > Trigger Prob.",
+    "key": "",
+    "kind": "group",
+    "title": "Trigger Prob.",
+    "line1": "Stores the per-part trigger probability mode, thresholds, and grid map.",
+    "line2": "Use Map Probability Grid to edit four-state cell probabilities for the selected part."
+  },
+  {
+    "id": "sense_trigger_probability_mode",
+    "path": "Menu > L2: Sense > P*: * > Trigger Prob. > Mode",
+    "key": "key:parts.*.l2.triggerProbabilityMode",
+    "kind": "enum",
+    "title": "Trigger Probability Mode",
+    "line1": "Options: zero, custom, full. zero blocks every trigger for the part; custom uses the stored probability map; full passes every trigger.",
+    "line2": "The Dance trigger-gate page can switch this live per part or for all parts."
+  },
+  {
+    "id": "sense_trigger_probability_low",
+    "path": "Menu > L2: Sense > P*: * > Trigger Prob. > Low Prob",
+    "key": "key:parts.*.l2.triggerProbabilityLowPct",
+    "kind": "number",
+    "title": "Low Probability",
+    "line1": "Sets the low custom trigger probability percentage from 0 to 100.",
+    "line2": "Clamped so it never exceeds High Prob."
+  },
+  {
+    "id": "sense_trigger_probability_high",
+    "path": "Menu > L2: Sense > P*: * > Trigger Prob. > High Prob",
+    "key": "key:parts.*.l2.triggerProbabilityHighPct",
+    "kind": "number",
+    "title": "High Probability",
+    "line1": "Sets the high custom trigger probability percentage from 0 to 100.",
+    "line2": "Clamped so it is never below Low Prob."
+  },
+  {
+    "id": "sense_trigger_probability_map",
+    "path": "Menu > L2: Sense > P*: * > Trigger Prob. > Map Probability Grid",
+    "key": "action:trigger_probability_assign_enter",
+    "kind": "action",
+    "title": "Map Probability Grid",
+    "line1": "Enters the trigger probability grid editor for the selected part.",
+    "line2": "Grid presses cycle zero, low, high, full; editor LEDs are black, red, yellow, green; Shift applies to a row; Shift+Fn applies to a column."
+  },
+  {
     "id": "inst_note_behavior",
     "path": "*",
     "key": "key:instruments.*.noteBehavior",
@@ -1549,6 +1621,114 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "line2": "Lower ranges are usually easier to control musically."
   },
   {
+    "id": "axis_pitch_enabled_x_part",
+    "path": "*",
+    "key": "key:parts.*.l2.x.pitch.enabled",
+    "kind": "bool",
+    "title": "X Pitch Enabled",
+    "line1": "Enables pitch stepping derived from X position.",
+    "line2": "Disable to remove horizontal pitch influence for this part."
+  },
+  {
+    "id": "axis_pitch_steps_x_part",
+    "path": "*",
+    "key": "key:parts.*.l2.x.pitch.steps",
+    "kind": "number",
+    "title": "X Pitch Steps",
+    "line1": "Sets semitone-step influence per X grid step.",
+    "line2": "Larger values create wider horizontal intervals."
+  },
+  {
+    "id": "axis_pitch_restart_x_part",
+    "path": "*",
+    "key": "key:parts.*.l2.x.pitch.restartEachSection",
+    "kind": "bool",
+    "title": "Restart Section",
+    "line1": "When On, X pitch stepping restarts from the lane origin in each scan section.",
+    "line2": "Turn it Off to keep pitch indexing continuous across section boundaries."
+  },
+  {
+    "id": "axis_vel_enabled_x_part",
+    "path": "*",
+    "key": "key:parts.*.l2.x.velocity.enabled",
+    "kind": "bool",
+    "title": "X Velocity Enabled",
+    "line1": "Enables velocity modulation from X position.",
+    "line2": "Disable for fixed mapped velocity from the trigger target."
+  },
+  {
+    "id": "axis_cut_enabled_x_part",
+    "path": "*",
+    "key": "key:parts.*.l2.x.filterCutoff.enabled",
+    "kind": "bool",
+    "title": "X Cutoff Enabled",
+    "line1": "Enables cutoff CC modulation from X position.",
+    "line2": "Outputs CC74 when this lane is active."
+  },
+  {
+    "id": "axis_res_enabled_x_part",
+    "path": "*",
+    "key": "key:parts.*.l2.x.filterResonance.enabled",
+    "kind": "bool",
+    "title": "X Resonance Enabled",
+    "line1": "Enables resonance CC modulation from X position.",
+    "line2": "Outputs CC71 when this lane is active."
+  },
+  {
+    "id": "axis_pitch_enabled_y_part",
+    "path": "*",
+    "key": "key:parts.*.l2.y.pitch.enabled",
+    "kind": "bool",
+    "title": "Y Pitch Enabled",
+    "line1": "Enables pitch stepping derived from Y position.",
+    "line2": "Disable to remove vertical pitch influence for this part."
+  },
+  {
+    "id": "axis_pitch_steps_y_part",
+    "path": "*",
+    "key": "key:parts.*.l2.y.pitch.steps",
+    "kind": "number",
+    "title": "Y Pitch Steps",
+    "line1": "Sets semitone-step influence per Y grid step.",
+    "line2": "Larger values create wider vertical intervals."
+  },
+  {
+    "id": "axis_pitch_restart_y_part",
+    "path": "*",
+    "key": "key:parts.*.l2.y.pitch.restartEachSection",
+    "kind": "bool",
+    "title": "Restart Section",
+    "line1": "When On, Y pitch stepping restarts from the lane origin in each scan section.",
+    "line2": "Turn it Off to keep pitch indexing continuous across section boundaries."
+  },
+  {
+    "id": "axis_vel_enabled_y_part",
+    "path": "*",
+    "key": "key:parts.*.l2.y.velocity.enabled",
+    "kind": "bool",
+    "title": "Y Velocity Enabled",
+    "line1": "Enables velocity modulation from Y position.",
+    "line2": "Disable for fixed mapped velocity from the trigger target."
+  },
+  {
+    "id": "axis_cut_enabled_y_part",
+    "path": "*",
+    "key": "key:parts.*.l2.y.filterCutoff.enabled",
+    "kind": "bool",
+    "title": "Y Cutoff Enabled",
+    "line1": "Enables cutoff CC modulation from Y position.",
+    "line2": "Outputs CC74 when this lane is active."
+  },
+  {
+    "id": "axis_res_enabled_y_part",
+    "path": "*",
+    "key": "key:parts.*.l2.y.filterResonance.enabled",
+    "kind": "bool",
+    "title": "Y Resonance Enabled",
+    "line1": "Enables resonance CC modulation from Y position.",
+    "line2": "Outputs CC71 when this lane is active."
+  },
+  {
     "id": "voice_x_axis_group",
     "path": "Menu > L3: Voice > X Axis",
     "key": "",
@@ -1873,6 +2053,69 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "line2": "Requires a valid selected source preset."
   },
   {
+    "id": "instrument_clone",
+    "path": "Menu > L3: Voice > Instruments > Instrument * > Clone",
+    "key": "action:instrument_clone",
+    "kind": "action",
+    "title": "Clone",
+    "line1": "Copies this instrument slot's configuration into another instrument slot.",
+    "line2": "Use this to duplicate a sound before making variations."
+  },
+  {
+    "id": "instrument_reset",
+    "path": "Menu > L3: Voice > Instruments > Instrument * > Reset",
+    "key": "action:instrument_reset",
+    "kind": "action",
+    "title": "Reset",
+    "line1": "Restores this instrument slot to its default state for the current type.",
+    "line2": "Useful when you want to clear experimental edits on one slot only."
+  },
+  {
+    "id": "instrument_auto_name",
+    "path": "*",
+    "key": "key:instruments.*.autoName",
+    "kind": "bool",
+    "title": "Auto Name",
+    "line1": "When On, the instrument name follows its current type or generated label.",
+    "line2": "Turn it Off before typing a custom instrument name you want to keep."
+  },
+  {
+    "id": "instrument_name",
+    "path": "*",
+    "key": "key:instruments.*.name",
+    "kind": "text",
+    "title": "Instrument Name",
+    "line1": "Sets the user-visible label for this instrument slot.",
+    "line2": "Shown in menus, routing targets, and overlays when Auto Name is off."
+  },
+  {
+    "id": "bus_auto_name",
+    "path": "*",
+    "key": "key:mixer.buses.*.autoName",
+    "kind": "bool",
+    "title": "Auto Name",
+    "line1": "When On, the FX bus name follows its generated default label.",
+    "line2": "Turn it Off before typing a custom bus name you want to keep."
+  },
+  {
+    "id": "bus_name",
+    "path": "*",
+    "key": "key:mixer.buses.*.name",
+    "kind": "text",
+    "title": "Bus Name",
+    "line1": "Sets the user-visible label for this FX bus.",
+    "line2": "Shown in routing menus and bus-related overlays when Auto Name is off."
+  },
+  {
+    "id": "velocity_curve",
+    "path": "*",
+    "key": "key:sound.velocityCurve",
+    "kind": "enum",
+    "title": "Velocity Curve",
+    "line1": "Selects the global curve used to remap velocity response after scaling.",
+    "line2": "Use gentler curves for flatter dynamics or steeper curves for more accent contrast."
+  },
+  {
     "id": "factory_load_action",
     "path": "Menu > System > Saves > Factory > Load Fact. Default",
     "key": "action:factory_load",
@@ -2193,7 +2436,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "",
     "kind": "group",
     "title": "Dance Layer",
-    "line1": "Performance grid layer for live mix, pan, FX, and trigger-gate pages.",
+    "line1": "Performance grid layer for live mix, pan, FX, trigger-gate, and X/Y Pad pages.",
     "line2": "Fn plus the rightmost grid column selects Dance pages; Fn plus the leftmost column selects a part and exits Dance."
   },
   {
@@ -2202,7 +2445,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "key:danceMode",
     "kind": "enum",
     "title": "Dance Page",
-    "line1": "Options: none, mix, pan, fx, trigger-gate, xy. This selects the saved Dance page; activating Dance from the grid uses this selection.",
+    "line1": "Options: none, mix, pan, fx, trigger-gate, xy. This selects the saved Dance page; activating Dance from the grid uses this selection. none returns the grid to the active behavior; mix edits instrument volume; pan edits pan position; fx triggers mapped momentary effects; trigger-gate switches live trigger probability modes; xy is a 2-axis modulation surface.",
     "line2": "Fn plus rightmost rows select and activate pages: row 0 mix, row 1 pan, row 2 fx, row 3 trigger-gate, row 4 xy."
   },
   {
@@ -2337,16 +2580,70 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "key": "",
     "kind": "group",
     "title": "Trigger Gate",
-    "line1": "Trigger Gate edit target and grid settings.",
-    "line2": "Grid press toggles a single gate; Shift+grid press toggles the entire row; Shift+Fn+grid press toggles the entire column."
+    "line1": "Performance trigger-mode page for switching parts between 0%, custom probability, and 100% trigger behavior.",
+    "line2": "Stored probability maps live in Sense; this page only switches the active mode per part or for all parts."
   },
   {
-    "id": "touch_gate_target",
-    "path": "Menu > L4: Dance > Trigger Gate > Target Part",
-    "key": "key:system.triggerGateTarget",
+    "id": "touch_gate_mode_grid",
+    "path": "Menu > L4: Dance > Trigger Gate > Mode Grid",
+    "key": "",
+    "kind": "group",
+    "title": "Mode Grid",
+    "line1": "Rows follow Fn part-selection order: bottom row is part 0, top row is the highest part.",
+    "line2": "Columns 0..2 set the row's part to red=0%, yellow=custom, green=100%; bottom-row columns 5..7 apply the same three modes to all parts."
+  },
+  {
+    "id": "xy_section",
+    "path": "Menu > L4: Dance > X/Y Pad",
+    "key": "",
+    "kind": "group",
+    "title": "X/Y Pad",
+    "line1": "Full 8×8 modulation surface. Touch position selects X and Y values (0-1 over full grid) which modulate the assigned targets.",
+    "line2": "Modulation beats all other sources — applied last after Sense X/Y and Shift+grid param modulation."
+  },
+  {
+    "id": "xy_target_x",
+    "path": "Menu > L4: Dance > X/Y Pad > X Axis",
+    "key": "",
+    "kind": "group",
+    "title": "X Axis",
+    "line1": "Selects which parameter the X axis modulates. Options include the same mappable parameters available for aux encoders and X/Y Sense modulation.",
+    "line2": "Choose (none) to disable X axis modulation."
+  },
+  {
+    "id": "xy_target_y",
+    "path": "Menu > L4: Dance > X/Y Pad > Y Axis",
+    "key": "",
+    "kind": "group",
+    "title": "Y Axis",
+    "line1": "Selects which parameter the Y axis modulates. Options include the same mappable parameters available for aux encoders and X/Y Sense modulation.",
+    "line2": "Choose (none) to disable Y axis modulation."
+  },
+  {
+    "id": "xy_release",
+    "path": "Menu > L4: Dance > X/Y Pad > Release",
+    "key": "key:xyRelease",
     "kind": "enum",
-    "title": "Target Part",
-    "line1": "Options: active, all, 0, 1, 2, 3. active edits the currently active part; all applies each edit to every part simultaneously; 0-3 edit that specific part regardless of active part.",
-    "line2": "LEDs show all parts' gate state in aggregate when target is all: green=all on, red=all off, amber=mixed."
+    "title": "Release Behavior",
+    "line1": "Controls what happens when the grid finger is lifted. sample-hold keeps the last modulation value; reset-center returns X and Y to center (0.5, 0.5).",
+    "line2": ""
+  },
+  {
+    "id": "xy_invert_x",
+    "path": "Menu > L4: Dance > X/Y Pad > Invert X",
+    "key": "key:parts.*.xy.xInvert",
+    "kind": "bool",
+    "title": "Invert X",
+    "line1": "When on, the X axis value is flipped (left = max, right = min).",
+    "line2": ""
+  },
+  {
+    "id": "xy_invert_y",
+    "path": "Menu > L4: Dance > X/Y Pad > Invert Y",
+    "key": "key:parts.*.xy.yInvert",
+    "kind": "bool",
+    "title": "Invert Y",
+    "line1": "When on, the Y axis value is flipped (bottom = max, top = min).",
+    "line2": ""
   }
 ];

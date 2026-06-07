@@ -3,11 +3,12 @@ import type { CellTriggerIntent, InterpretationProfile, AxisStrategy, TickStrate
 import type { PlatformEffect, PlatformState, RuntimeConfig } from "./index";
 import type { DanceMode } from "./platformTypes";
 import { clamp } from "./coreUtils";
-import { clampInstrumentIndex, clampPartIndex, clampSampleSlotIndex, PLATFORM_CAPS } from "./platformCaps";
+import { clampInstrumentIndex, clampPartIndex, clampSampleSlotIndex, GRID_DOMAIN, PLATFORM_CAPS } from "./platformCaps";
 import { resolveDancePanTarget, toGridSnapshot, touchPanPosFromGridX } from "./runtimeHelpers";
 import { activateMomentaryFx, applyFxAssignment, releaseMomentaryFx } from "./touchFxRuntime";
 import { visibleChildren } from "./menuView";
 import { makeToast } from "./toast";
+import { cycleTriggerProbabilityCellState, shouldAllowTrigger } from "./triggerProbability";
 
 const DANCE_PAGES: DanceMode[] = ["mix", "pan", "fx", "trigger-gate", "xy"];
 
@@ -45,52 +46,21 @@ export function handleTouchGridPress<TState>(
     return activateMomentaryFx(state, input.x, input.y, effects);
   }
   if (state.system.danceMode === "trigger-gate") {
-    const width = PLATFORM_CAPS.gridWidth;
-    const height = PLATFORM_CAPS.gridHeight;
     const parts = (state.runtimeConfig as any).parts ?? [];
-    const activeIdx = (state.runtimeConfig as any).activePartIndex ?? 0;
-    const partTarget = state.system.triggerGateTarget ?? "active";
-
-    const gx = clamp(Math.floor(input.x), 0, width - 1);
-    const gy = clamp(Math.floor(input.y), 0, height - 1);
-
-    let targetIndices: number[];
-    if (partTarget === "all") {
-      targetIndices = Array.from({ length: parts.length }, (_, i) => i);
-    } else if (partTarget === "active") {
-      targetIndices = [activeIdx];
-    } else {
-      const pi = parseInt(partTarget, 10);
-      targetIndices = [isFinite(pi) ? clamp(pi, 0, parts.length - 1) : activeIdx];
-    }
-
+    const gx = clamp(Math.floor(input.x), 0, PLATFORM_CAPS.gridWidth - 1);
+    const gy = clamp(Math.floor(input.y), 0, PLATFORM_CAPS.gridHeight - 1);
+    const mode = gx === 0 ? "zero" : gx === 1 ? "custom" : gx === 2 ? "full" : gx === 5 && gy === 0 ? "zero" : gx === 6 && gy === 0 ? "custom" : gx === 7 && gy === 0 ? "full" : null;
+    if (!mode) return state;
+    const targetIndices = gy === 0 && gx >= 5
+      ? Array.from({ length: parts.length }, (_, i) => i)
+      : [gy].filter((pi) => pi >= 0 && pi < parts.length);
     const newParts = [...parts];
     for (const pi of targetIndices) {
-      const gates = parts?.[pi]?.l1?.triggerGates;
-      if (!gates) continue;
-
-      const pressedIdx = gy * width + gx;
-      const target = !gates[pressedIdx];
-      const points: Array<{ x: number; y: number }> = [];
-
-      if (mode === "row") {
-        for (let cx = 0; cx < width; cx += 1) points.push({ x: cx, y: gy });
-      } else if (mode === "column") {
-        for (let cy = 0; cy < height; cy += 1) points.push({ x: gx, y: cy });
-      } else {
-        points.push({ x: gx, y: gy });
-      }
-
-      const newGates = [...gates];
-      for (const pt of points) {
-        newGates[pt.y * width + pt.x] = target;
-      }
-
       newParts[pi] = {
         ...newParts[pi],
-        l1: {
-          ...newParts[pi]?.l1,
-          triggerGates: newGates
+        l2: {
+          ...newParts[pi]?.l2,
+          triggerProbabilityMode: mode
         }
       };
     }
@@ -135,18 +105,15 @@ export function handleTouchGridPress<TState>(
   return state;
  }
 
- export function filterTriggerGatedIntents<TState>(
+export function filterTriggerGatedIntents<TState>(
   intents: CellTriggerIntent[],
   state: PlatformState<TState>,
   partIdx: number
 ): CellTriggerIntent[] {
-  const activeIdx = ((state.runtimeConfig as any).activePartIndex ?? 0) as number;
-  if (state.system.triggerMuted && partIdx === activeIdx) return [];
-  const gates = (state.runtimeConfig as any)?.parts?.[partIdx]?.l1?.triggerGates as boolean[] | undefined;
-  if (!gates) return intents;
+  const part = (state.runtimeConfig as any)?.parts?.[partIdx];
   return intents.filter(intent => {
-    const idx = intent.y * PLATFORM_CAPS.gridWidth + intent.x;
-    return gates[idx] !== false;
+    const idx = GRID_DOMAIN.indexOf({ x: intent.x, y: intent.y });
+    return shouldAllowTrigger(part, idx, Math.random());
   });
 }
 
@@ -157,6 +124,47 @@ export function danceModeFromRow(y: number, current: DanceMode): DanceMode {
   const direct = DANCE_PAGES[index];
   if (direct) return direct;
   return current === "none" ? "mix" : current;
+}
+
+export function applyTriggerProbabilityAssignment<TState>(
+  state: PlatformState<TState>,
+  partIndex: number,
+  x: number,
+  y: number,
+  mode: "single" | "row" | "column"
+): PlatformState<TState> {
+  const parts = Array.isArray((state.runtimeConfig as any).parts) ? [...((state.runtimeConfig as any).parts as any[])] : [];
+  const part = parts[partIndex];
+  if (!part) return state;
+  const gx = clamp(Math.floor(x), 0, PLATFORM_CAPS.gridWidth - 1);
+  const gy = clamp(Math.floor(y), 0, PLATFORM_CAPS.gridHeight - 1);
+  const currentMap = Array.isArray(part?.l2?.triggerProbabilityMap) ? [...part.l2.triggerProbabilityMap] : [];
+  while (currentMap.length < PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight) currentMap.push("full");
+  const targetIndex = GRID_DOMAIN.indexOf({ x: gx, y: gy });
+  const target = cycleTriggerProbabilityCellState(currentMap[targetIndex] ?? "full");
+  const points: Array<{ x: number; y: number }> = [];
+  if (mode === "row") {
+    for (let cx = 0; cx < PLATFORM_CAPS.gridWidth; cx += 1) points.push({ x: cx, y: gy });
+  } else if (mode === "column") {
+    for (let cy = 0; cy < PLATFORM_CAPS.gridHeight; cy += 1) points.push({ x: gx, y: cy });
+  } else {
+    points.push({ x: gx, y: gy });
+  }
+  for (const pt of points) currentMap[GRID_DOMAIN.indexOf(pt)] = target;
+  parts[partIndex] = {
+    ...part,
+    l2: {
+      ...part.l2,
+      triggerProbabilityMap: currentMap
+    }
+  };
+  return {
+    ...state,
+    runtimeConfig: {
+      ...state.runtimeConfig,
+      parts
+    }
+  };
 }
 
 export function applySampleAssignment<TState>(

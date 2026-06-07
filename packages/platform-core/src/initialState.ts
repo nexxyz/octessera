@@ -23,6 +23,11 @@ import {
 import { defaultMomentaryFxParams } from "./momentaryFx";
 import { deadlineMs, nowMs, STARTUP_SPLASH_MS } from "./timing";
 import { emptyParamModAxisSlots } from "./paramMod";
+import {
+  createDefaultTriggerProbabilityMap,
+  DEFAULT_TRIGGER_PROBABILITY_HIGH_PCT,
+  DEFAULT_TRIGGER_PROBABILITY_LOW_PCT
+} from "./triggerProbability";
 
 export function createInitialPlatformState<TState>(behavior: BehaviorEngine<TState, unknown>): PlatformState<TState> {
   const now = nowMs();
@@ -132,6 +137,10 @@ export function createInitialPlatformState<TState>(behavior: BehaviorEngine<TSta
       scanDirection: "forward",
       scanSections: "1",
       eventEnabled: idx === 0,
+      triggerProbabilityMode: "full",
+      triggerProbabilityLowPct: DEFAULT_TRIGGER_PROBABILITY_LOW_PCT,
+      triggerProbabilityHighPct: DEFAULT_TRIGGER_PROBABILITY_HIGH_PCT,
+      triggerProbabilityMap: createDefaultTriggerProbabilityMap(),
       pitch: structuredClone(runtimeConfig.pitch),
       x: structuredClone(runtimeConfig.x),
       y: structuredClone(runtimeConfig.y),
@@ -205,13 +214,15 @@ export function createInitialPlatformState<TState>(behavior: BehaviorEngine<TSta
       auxAutoMapEnabled: true,
       heldNotes: [],
       sampleAssign: null,
+      triggerProbabilityAssign: null,
       fxAssignMode: null,
       activeFx: [],
       pendingCloneSource: null,
             sampleBrowser: null,
       danceMode: "none",
       triggerGateTarget: "active",
-      triggerMuted: false
+      triggerMuted: false,
+      triggerGateRestoreModes: Array.from({ length: PLATFORM_CAPS.partCount }, () => null)
     },
     scanIndex: 0,
     scanPulseAccumulator: 0,

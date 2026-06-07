@@ -2,7 +2,7 @@ import { listBehaviorIds, type BehaviorEngine } from "@cellsymphony/behavior-api
 import type { AuxTurnBinding, MenuNode, PlatformState } from "./index";
 import { instrumentLabel, partLabel } from "./coreUtils";
 import { SYNTH_PRESETS } from "./synthPresets";
-import { clampSampleSlotIndex, instrumentIndexOptions, PAN_POSITION_MAX, partIndexOptions, PLATFORM_CAPS, sampleSlotOptions, scanSectionOptions } from "./platformCaps";
+import { clampSampleSlotIndex, instrumentIndexOptions, PAN_POSITION_MAX, PLATFORM_CAPS, sampleSlotOptions, scanSectionOptions } from "./platformCaps";
 import { fxBusesMenuNode, globalFxMenuNode } from "./fxBusMenu";
 import { defaultMomentaryFxParams, MOMENTARY_FX_TYPES } from "./momentaryFx";
 import { buildParamSkeleton, withParamActions } from "./menuParamTree";
@@ -91,6 +91,16 @@ function l2PartGroup<TState>(state: PlatformState<TState>, deps: MenuTreeDeps<TS
           { kind: "enum", label: "Stable Instrument", key: `${prefix}.l2.mapping.stable.slot`, options: instrumentSlotOptions, visible: (c: any) => c.parts?.[idx]?.l2?.eventEnabled },
           { kind: "enum", label: "Deactivate Action", key: `${prefix}.l2.mapping.deactivate.action`, options: ["none", "note_on", "note_off"], visible: (c: any) => c.parts?.[idx]?.l2?.eventEnabled },
           { kind: "enum", label: "Deactivate Instrument", key: `${prefix}.l2.mapping.deactivate.slot`, options: instrumentSlotOptions, visible: (c: any) => c.parts?.[idx]?.l2?.eventEnabled }
+        ]
+      },
+      {
+        kind: "group",
+        label: "Trigger Prob.",
+        children: [
+          { kind: "enum", label: "Mode", key: `${prefix}.l2.triggerProbabilityMode`, options: ["zero", "custom", "full"] },
+          { kind: "number", label: "Low Prob", key: `${prefix}.l2.triggerProbabilityLowPct`, min: 0, max: 100, step: 1 },
+          { kind: "number", label: "High Prob", key: `${prefix}.l2.triggerProbabilityHighPct`, min: 0, max: 100, step: 1 },
+          { kind: "action", label: "Map Probability Grid", action: { type: "trigger_probability_assign_enter", partIndex: idx } }
         ]
       },
       {
@@ -391,7 +401,7 @@ export function buildMenuTree<TState>(state: PlatformState<TState>, deps: MenuTr
               label: "Trigger Gate",
               flat: true,
               children: [
-                { kind: "enum", label: "Target Part", key: "system.triggerGateTarget", options: ["active", "all", ...partIndexOptions()] }
+                { kind: "group", label: "Mode Grid", children: [] }
               ]
             });
           } else if (dm === "xy") {

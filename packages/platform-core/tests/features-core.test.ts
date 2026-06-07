@@ -539,7 +539,8 @@ test("Dance config and active page persist through config payload", () => {
   (state.runtimeConfig as any).touchFx.assignments = [{ x: 1, y: 2, config: { fxType: "stutter", params: { rateHz: 9, depthPct: 60 }, targetKey: "master" } }];
   (state.runtimeConfig as any).instruments[0].mixer.volume = 34;
   (state.runtimeConfig as any).instruments[0].mixer.panPos = 5;
-  (state.runtimeConfig as any).parts[0].l1.triggerGates[3] = false;
+  (state.runtimeConfig as any).parts[0].l2.triggerProbabilityMode = "custom";
+  (state.runtimeConfig as any).parts[0].l2.triggerProbabilityMap[3] = "zero";
 
   const payload = extractConfigPayload(state) as any;
   const restored = applyConfigPayload(createInitialState(mockBehavior), payload, mockBehavior) as any;
@@ -561,7 +562,8 @@ test("Dance config and active page persist through config payload", () => {
   assert.equal(restored.runtimeConfig.touchFx.assignments[0].config.fxType, "stutter");
   assert.equal(restored.runtimeConfig.instruments[0].mixer.volume, 34);
   assert.equal(restored.runtimeConfig.instruments[0].mixer.panPos, 5);
-  assert.equal(restored.runtimeConfig.parts[0].l1.triggerGates[3], false);
+  assert.equal(restored.runtimeConfig.parts[0].l2.triggerProbabilityMode, "custom");
+  assert.equal(restored.runtimeConfig.parts[0].l2.triggerProbabilityMap[3], "zero");
 });
 
 test("X/Y target assignment auto-saves when autoSaveDefault is enabled", () => {
@@ -596,8 +598,21 @@ test("Dance page selection and trigger-gate edits auto-save when enabled", () =>
   let gateState = makeState();
   gateState.runtimeConfig.autoSaveDefault = true;
   gateState.system.danceMode = "trigger-gate";
-  const gateEdit = routeInput(gateState, { type: "grid_press", x: 1, y: 1 } as DeviceInput, mockBehavior);
+  const gateEdit = routeInput(gateState, { type: "grid_press", x: 1, y: PLATFORM_CAPS.gridHeight - 1 } as DeviceInput, mockBehavior);
   assert.equal(gateEdit.effects.some((e) => e.type === "store_save_default"), true);
+});
+
+test("legacy trigger gates migrate into probability map custom mode", () => {
+  const state = makeState();
+  const payload = extractConfigPayload(state) as any;
+  delete payload.runtimeConfig.parts[0].l2.triggerProbabilityMap;
+  delete payload.runtimeConfig.parts[0].l2.triggerProbabilityMode;
+  payload.runtimeConfig.parts[0].l1.triggerGates = Array.from({ length: PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight }, (_, i) => i !== 3);
+
+  const restored = applyConfigPayload(createInitialState(mockBehavior), payload, mockBehavior) as any;
+  assert.equal(restored.runtimeConfig.parts[0].l2.triggerProbabilityMode, "custom");
+  assert.equal(restored.runtimeConfig.parts[0].l2.triggerProbabilityMap[3], "zero");
+  assert.equal(restored.runtimeConfig.parts[0].l2.triggerProbabilityMap[2], "full");
 });
 
 test("factory reset restores default behavior to life", () => {

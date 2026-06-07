@@ -113,7 +113,33 @@ export function routeInputWithDeps<TState>(state: PlatformState<TState>, input: 
     const wasPlaying = nextState.transport.playing;
 
     if (nextState.system.fnHeld && nextState.runtimeConfig.midi.syncMode !== "external") {
-      nextState = { ...nextState, system: { ...nextState.system, triggerMuted: !nextState.system.triggerMuted, stopLatched: false, toast: makeToast(!nextState.system.triggerMuted ? "Triggers off" : "Triggers on") } };
+      const activeIdx = (nextState.runtimeConfig as any).activePartIndex ?? 0;
+      const parts = Array.isArray((nextState.runtimeConfig as any).parts) ? [...((nextState.runtimeConfig as any).parts as any[])] : [];
+      const currentPart = parts[activeIdx];
+      if (!currentPart) return { state: nextState, events, effects };
+      const restores = Array.isArray(nextState.system.triggerGateRestoreModes) ? [...nextState.system.triggerGateRestoreModes] : [];
+      while (restores.length < parts.length) restores.push(null);
+      const currentMode = currentPart?.l2?.triggerProbabilityMode === "zero" || currentPart?.l2?.triggerProbabilityMode === "custom" || currentPart?.l2?.triggerProbabilityMode === "full"
+        ? currentPart.l2.triggerProbabilityMode
+        : "full";
+      const restoreMode = restores[activeIdx];
+      if (currentMode === "zero" && restoreMode) {
+        parts[activeIdx] = { ...currentPart, l2: { ...currentPart.l2, triggerProbabilityMode: restoreMode } };
+        restores[activeIdx] = null;
+        nextState = {
+          ...nextState,
+          runtimeConfig: { ...nextState.runtimeConfig, parts },
+          system: { ...nextState.system, triggerGateRestoreModes: restores, triggerMuted: false, stopLatched: false, toast: makeToast("Triggers restored") }
+        };
+      } else {
+        parts[activeIdx] = { ...currentPart, l2: { ...currentPart.l2, triggerProbabilityMode: "zero" } };
+        restores[activeIdx] = currentMode === "zero" ? (restoreMode ?? "custom") : currentMode;
+        nextState = {
+          ...nextState,
+          runtimeConfig: { ...nextState.runtimeConfig, parts },
+          system: { ...nextState.system, triggerGateRestoreModes: restores, triggerMuted: false, stopLatched: false, toast: makeToast("Triggers off") }
+        };
+      }
       return { state: nextState, events, effects };
     }
     const nowMsVal = nowMs();

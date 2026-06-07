@@ -73,6 +73,22 @@ export function handleMenuAction<TState>(state: PlatformState<TState>, action: a
       system: { ...state.system, sampleAssign: null }
     };
   }
+  if (action.type === "trigger_probability_assign_enter") {
+    return {
+      ...state,
+      system: {
+        ...state.system,
+        triggerProbabilityAssign: { partIndex: action.partIndex },
+        toast: makeToast(`Trig Prob: P${action.partIndex + 1}`)
+      }
+    };
+  }
+  if (action.type === "trigger_probability_assign_exit") {
+    return {
+      ...state,
+      system: { ...state.system, triggerProbabilityAssign: null }
+    };
+  }
   if (action.type === "fx_assign_enter") {
     return {
       ...state,

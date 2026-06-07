@@ -577,47 +577,50 @@ test("sectioned scan wraps and reverses across lane steps", () => {
   assert.equal(state.scanIndex, 15);
 });
 
-// ─── Global Trigger Mute ──────────────────────────────────────────
+// ─── Trigger Mode Toggle ──────────────────────────────────────────
 
-test("Fn+Play toggles triggerMuted flag", () => {
+test("Fn+Play toggles active part trigger mode", () => {
   let state = makeState();
 
-  assert.equal(state.system.triggerMuted, false);
+  assert.equal(state.runtimeConfig.parts[0].l2.triggerProbabilityMode, "full");
+
+  state = routeInput(state, { type: "button_fn", pressed: true } as DeviceInput, mockBehavior).state;
+  state.runtimeConfig.parts[0].l2.triggerProbabilityMode = "custom";
+  state = routeInput(state, { type: "button_s", pressed: true } as DeviceInput, mockBehavior).state;
+  state = routeInput(state, { type: "button_fn", pressed: false } as DeviceInput, mockBehavior).state;
+  assert.equal(state.runtimeConfig.parts[0].l2.triggerProbabilityMode, "zero");
 
   state = routeInput(state, { type: "button_fn", pressed: true } as DeviceInput, mockBehavior).state;
   state = routeInput(state, { type: "button_s", pressed: true } as DeviceInput, mockBehavior).state;
   state = routeInput(state, { type: "button_fn", pressed: false } as DeviceInput, mockBehavior).state;
-  assert.equal(state.system.triggerMuted, true);
-
-  state = routeInput(state, { type: "button_fn", pressed: true } as DeviceInput, mockBehavior).state;
-  state = routeInput(state, { type: "button_s", pressed: true } as DeviceInput, mockBehavior).state;
-  state = routeInput(state, { type: "button_fn", pressed: false } as DeviceInput, mockBehavior).state;
-  assert.equal(state.system.triggerMuted, false);
+  assert.equal(state.runtimeConfig.parts[0].l2.triggerProbabilityMode, "custom");
 });
 
-test("filterTriggerGatedIntents returns empty when triggerMuted is true for active part", () => {
+test("filterTriggerGatedIntents returns empty when active part mode is zero", () => {
   const state = makeState();
-  state.system.triggerMuted = true;
+  state.runtimeConfig.parts[0].l2.triggerProbabilityMode = "zero";
   const intents = [{ x: 0, y: 0, kind: "activate" as const, degree: 60 }];
   const activeIdx = (state.runtimeConfig as any).activePartIndex ?? 0;
   const filtered = filterTriggerGatedIntents(intents, state, activeIdx);
   assert.equal(filtered.length, 0);
 });
 
-test("filterTriggerGatedIntents does not gate non-active parts when triggerMuted is true", () => {
+test("filterTriggerGatedIntents does not gate full-mode non-active parts", () => {
   const state = makeState();
-  state.system.triggerMuted = true;
   state.runtimeConfig.activePartIndex = 0;
+  state.runtimeConfig.parts[0].l2.triggerProbabilityMode = "zero";
+  state.runtimeConfig.parts[1].l2.triggerProbabilityMode = "full";
   const intents = [{ x: 0, y: 0, kind: "activate" as const, degree: 60 }];
   const filtered = filterTriggerGatedIntents(intents, state, 1);
   assert.equal(filtered.length, 1);
 });
 
-test("filterTriggerGatedIntents respects per-cell trigger gates", () => {
+test("filterTriggerGatedIntents respects per-cell probability map", () => {
   const state = makeState();
-  state.system.triggerMuted = false;
   const width = PLATFORM_CAPS.gridWidth;
-  state.runtimeConfig.parts[0].l1.triggerGates = Array.from({ length: width * PLATFORM_CAPS.gridHeight }, (_, i) => i !== 1);
+  state.runtimeConfig.parts[0].l2.triggerProbabilityMode = "custom";
+  state.runtimeConfig.parts[0].l2.triggerProbabilityMap = Array.from({ length: width * PLATFORM_CAPS.gridHeight }, () => "full");
+  state.runtimeConfig.parts[0].l2.triggerProbabilityMap[1] = "zero";
 
   const intents = [
     { x: 0, y: 0, kind: "activate" as const, degree: 60 },
@@ -629,7 +632,112 @@ test("filterTriggerGatedIntents respects per-cell trigger gates", () => {
   assert.equal(filtered[0].y, 0);
 });
 
-test("global trigger mute suppresses tick events", () => {
+test("probability gating keeps sampler row assignments aligned", () => {
+  type RowState = { cells: boolean[]; triggerTypes: import("@cellsymphony/behavior-api").CellTriggerType[] };
+  const rowBehavior: BehaviorEngine<RowState, unknown> = {
+    id: "row-probability-test",
+    interpretInputTransitions: true,
+    init: () => ({
+      cells: Array.from({ length: CELL_COUNT }, () => false),
+      triggerTypes: Array.from({ length: CELL_COUNT }, () => "none")
+    }),
+    onInput: (state, input) => {
+      if (input.type !== "grid_press" && input.type !== "grid_release") return state;
+      const cells = state.cells.slice();
+      const triggerTypes = Array.from({ length: CELL_COUNT }, () => "none" as const);
+      const idx = GRID_DOMAIN.indexOf({ x: input.x, y: input.y });
+      if (input.type === "grid_press") {
+        cells[idx] = true;
+        triggerTypes[idx] = "activate";
+      } else {
+        cells[idx] = false;
+        triggerTypes[idx] = "deactivate";
+      }
+      return { cells, triggerTypes };
+    },
+    onTick: (state) => state,
+    renderModel: (state) => ({ name: "Rows", statusLine: "Rows", cells: state.cells, triggerTypes: state.triggerTypes }),
+    serialize: (state) => state,
+    deserialize: (data) => data as RowState
+  };
+
+  let state = createInitialState(rowBehavior);
+  state.system.oledMode = "normal";
+  state.runtimeConfig.instruments[0].type = "sampler";
+  state.runtimeConfig.instruments[0].sample.assignments = [
+    { x: 0, y: 0, sampleSlot: 0 },
+    { x: 0, y: 1, sampleSlot: 1 },
+    { x: 0, y: 2, sampleSlot: 2 }
+  ];
+  state.runtimeConfig.parts[0].l2.triggerProbabilityMode = "custom";
+  state.runtimeConfig.parts[0].l2.triggerProbabilityMap = Array.from({ length: CELL_COUNT }, () => "full");
+  for (let x = 0; x < PLATFORM_CAPS.gridWidth; x += 1) {
+    state.runtimeConfig.parts[0].l2.triggerProbabilityMap[GRID_DOMAIN.indexOf({ x, y: 0 })] = "zero";
+  }
+
+  const bottom = routeInput(state, { type: "grid_press", x: 0, y: 0 } as DeviceInput, rowBehavior);
+  assert.equal(bottom.events.some((event) => event.type === "note_on"), false, "bottom row should be blocked");
+
+  const second = routeInput(bottom.state, { type: "grid_press", x: 0, y: 1 } as DeviceInput, rowBehavior);
+  const secondNote = second.events.find((event) => event.type === "note_on");
+  assert.ok(secondNote && secondNote.type === "note_on");
+  if (secondNote && secondNote.type === "note_on") assert.equal(secondNote.note, 37, "second row should trigger clap slot");
+
+  const third = routeInput(second.state, { type: "grid_press", x: 0, y: 2 } as DeviceInput, rowBehavior);
+  const thirdNote = third.events.find((event) => event.type === "note_on");
+  assert.ok(thirdNote && thirdNote.type === "note_on");
+  if (thirdNote && thirdNote.type === "note_on") assert.equal(thirdNote.note, 38, "third row should trigger hihat slot");
+});
+
+test("transport probability gating does not shift sampler rows upward", () => {
+  type TickRowState = { cells: boolean[]; triggerTypes: import("@cellsymphony/behavior-api").CellTriggerType[]; fired: boolean };
+  const tickRowBehavior: BehaviorEngine<TickRowState, unknown> = {
+    id: "tick-row-probability-test",
+    init: () => ({
+      cells: Array.from({ length: CELL_COUNT }, () => false),
+      triggerTypes: Array.from({ length: CELL_COUNT }, () => "none"),
+      fired: false
+    }),
+    onInput: (state) => state,
+    onTick: (state) => {
+      if (state.fired) return { ...state, triggerTypes: Array.from({ length: CELL_COUNT }, () => "none") };
+      const cells = Array.from({ length: CELL_COUNT }, () => false);
+      const triggerTypes = Array.from({ length: CELL_COUNT }, () => "none" as const);
+      for (const y of [0, 1, 2]) {
+        const idx = GRID_DOMAIN.indexOf({ x: 0, y });
+        cells[idx] = true;
+        triggerTypes[idx] = "activate";
+      }
+      return { cells, triggerTypes, fired: true };
+    },
+    renderModel: (state) => ({ name: "TickRows", statusLine: "TickRows", cells: state.cells, triggerTypes: state.triggerTypes }),
+    serialize: (state) => state,
+    deserialize: (data) => data as TickRowState
+  };
+
+  let state = createInitialState(tickRowBehavior);
+  state.system.oledMode = "normal";
+  state.transport.playing = true;
+  state.runtimeConfig.algorithmStepUnit = "1/16";
+  state.runtimeConfig.eventEnabled = true;
+  state.runtimeConfig.instruments[0].type = "sampler";
+  state.runtimeConfig.instruments[0].sample.assignments = [
+    { x: 0, y: 0, sampleSlot: 0 },
+    { x: 0, y: 1, sampleSlot: 1 },
+    { x: 0, y: 2, sampleSlot: 2 }
+  ];
+  state.runtimeConfig.parts[0].l2.triggerProbabilityMode = "custom";
+  state.runtimeConfig.parts[0].l2.triggerProbabilityMap = Array.from({ length: CELL_COUNT }, () => "full");
+  for (let x = 0; x < PLATFORM_CAPS.gridWidth; x += 1) {
+    state.runtimeConfig.parts[0].l2.triggerProbabilityMap[GRID_DOMAIN.indexOf({ x, y: 0 })] = "zero";
+  }
+
+  const result = tick(state, tickRowBehavior, 0.6);
+  const notes = result.events.filter((event) => event.type === "note_on").map((event) => event.note).sort((a, b) => a - b);
+  assert.deepEqual(notes, [37, 38]);
+});
+
+test("zero trigger mode suppresses tick events", () => {
   let state = makeState();
   state.transport.playing = true;
   state.runtimeConfig.algorithmStepUnit = "1/16";
@@ -637,7 +745,7 @@ test("global trigger mute suppresses tick events", () => {
   const r1 = tick(state, mockBehavior);
   assert.ok(r1.events.length > 0, "should produce events when not muted");
 
-  r1.state.system.triggerMuted = true;
+  r1.state.runtimeConfig.parts[0].l2.triggerProbabilityMode = "zero";
   const r2 = tick(r1.state, mockBehavior);
   assert.equal(r2.events.length, 0, "should produce no events when muted");
 });

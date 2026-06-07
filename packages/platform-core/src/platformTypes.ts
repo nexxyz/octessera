@@ -27,6 +27,8 @@ type PitchLaneConfig = { enabled: boolean; steps: number; restartEachSection: bo
 export type ValueLaneConfig = { enabled: boolean; from: number; to: number; gridOffset: number; curve: Curve };
 type AxisModConfig = { pitch: PitchLaneConfig; velocity: ValueLaneConfig; filterCutoff: ValueLaneConfig; filterResonance: ValueLaneConfig };
 type TriggerAction = "none" | "note_on" | "note_off";
+export type TriggerProbabilityMode = "zero" | "custom" | "full";
+export type TriggerProbabilityCellState = "zero" | "low" | "high" | "full";
 
 export type EnvConfig = { attackMs: number; decayMs: number; sustainPct: number; releaseMs: number };
 
@@ -152,6 +154,10 @@ export type PartSenseConfig = {
   scanDirection: Direction;
   scanSections: SectionCount;
   eventEnabled: boolean;
+  triggerProbabilityMode: TriggerProbabilityMode;
+  triggerProbabilityLowPct: number;
+  triggerProbabilityHighPct: number;
+  triggerProbabilityMap: TriggerProbabilityCellState[];
   pitch: PitchSettings;
   x: AxisModConfig;
   y: AxisModConfig;
@@ -210,6 +216,8 @@ export type ActionSpec =
   | { type: "sample_pick"; path: string }
   | { type: "sample_assign_enter"; instrumentSlot: number; sampleSlot: number }
   | { type: "sample_assign_exit" }
+  | { type: "trigger_probability_assign_enter"; partIndex: number }
+  | { type: "trigger_probability_assign_exit" }
   | { type: "fx_assign_enter"; config: MomentaryFxConfig }
   | { type: "fx_assign_exit" }
   | { type: "midi_select_output"; id: string | null } | { type: "midi_select_input"; id: string | null }
@@ -251,6 +259,7 @@ export type SystemState = {
   heldNotes: string[];
   pendingCloneSource: number | null;
   sampleAssign: { instrumentSlot: number; sampleSlot: number } | null;
+  triggerProbabilityAssign: { partIndex: number } | null;
   fxAssignMode: { config: MomentaryFxConfig } | null;
   activeFx: ActiveFx[];
   sampleBrowser: {
@@ -262,6 +271,7 @@ export type SystemState = {
   danceMode: DanceMode;
   triggerGateTarget: "active" | "all" | string;
   triggerMuted: boolean;
+  triggerGateRestoreModes: Array<TriggerProbabilityMode | null>;
 };
 
 export type PlatformEffectBase =

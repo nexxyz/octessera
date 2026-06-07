@@ -3,7 +3,7 @@ import { type DisplayFrame, type SimulatorFrame } from "@cellsymphony/device-con
 import type { AuxTurnBinding, BarValue, PlatformState } from "./platformTypes";
 import { OLED_TEXT_LINES } from "./platformTypes";
 import { nowMs } from "./timing";
-import { cellsToLeds, danceModeToLeds, sampleAssignmentToLeds } from "./runtimeHelpers";
+import { cellsToLeds, danceModeToLeds, sampleAssignmentToLeds, triggerProbabilityAssignmentToLeds } from "./runtimeHelpers";
 import { paramModOverlayToLeds } from "./paramMod";
 import { renderOledFrame } from "./oledRender";
 import { logoSepia128Rgb565be } from "./oledAssets/logoSepia128_rgb565be";
@@ -77,8 +77,16 @@ export function buildSimulatorFrame<TState>(args: Args<TState>): SimulatorFrame 
      const inst = (state.runtimeConfig as any).instruments?.[sampleAssign.instrumentSlot];
      if (!inst || inst.type !== "sampler") return null;
     const assignments = Array.isArray(inst.sample?.assignments) ? inst.sample.assignments : [];
-    const levels = inst.sample?.velocityLevelsEnabled === true;
-    return sampleAssignmentToLeds(assignments, sampleAssign.sampleSlot, levels, state.runtimeConfig.gridBrightness / 100);
+     const levels = inst.sample?.velocityLevelsEnabled === true;
+     return sampleAssignmentToLeds(assignments, sampleAssign.sampleSlot, levels, state.runtimeConfig.gridBrightness / 100);
+  })();
+  const triggerProbabilityAssignLeds = (() => {
+    const assign = state.system.triggerProbabilityAssign;
+    if (!assign) return null;
+    const part = (state.runtimeConfig as any).parts?.[assign.partIndex];
+    const map = Array.isArray(part?.l2?.triggerProbabilityMap) ? part.l2.triggerProbabilityMap : null;
+    if (!map) return null;
+    return triggerProbabilityAssignmentToLeds(map, state.runtimeConfig.gridBrightness / 100);
   })();
   const danceLeds = danceModeToLeds(state, state.runtimeConfig.gridBrightness / 100, args.ghostCells);
   const paramModLeds = paramModOverlayToLeds(state, args.paramModBinding ?? null, state.runtimeConfig.gridBrightness / 100);
@@ -91,7 +99,7 @@ export function buildSimulatorFrame<TState>(args: Args<TState>): SimulatorFrame 
     leds: {
       width: PLATFORM_CAPS.gridWidth,
       height: PLATFORM_CAPS.gridHeight,
-      cells: assignLeds ?? danceLeds ?? paramModLeds ?? cellsToLeds(model.cells, model.triggerTypes, scanCursor, state.runtimeConfig.gridBrightness / 100, state.system.fnHeld, activePart, args.ghostCells, state.system.danceMode, selectedDanceMode, (state.runtimeConfig as any).parts)
+      cells: assignLeds ?? triggerProbabilityAssignLeds ?? danceLeds ?? paramModLeds ?? cellsToLeds(model.cells, model.triggerTypes, scanCursor, state.runtimeConfig.gridBrightness / 100, state.system.fnHeld, activePart, args.ghostCells, state.system.danceMode, selectedDanceMode, (state.runtimeConfig as any).parts)
     },
     transport: state.transport,
     activeBehavior: model.name,

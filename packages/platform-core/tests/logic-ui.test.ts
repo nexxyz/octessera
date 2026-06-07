@@ -351,10 +351,8 @@ test("Dance Page menu can activate trigger-gate", () => {
 
   assert.equal(state.system.danceMode, "trigger-gate");
 
-  const activePart = (state.runtimeConfig as any).activePartIndex ?? 0;
-  const before = (state.runtimeConfig as any).parts[activePart].l1.triggerGates[0];
   state = routeInput(state, { type: "grid_press", x: 0, y: 0 }, mockBehavior).state;
-  assert.equal((state.runtimeConfig as any).parts[activePart].l1.triggerGates[0], !before);
+  assert.equal((state.runtimeConfig as any).parts[0].l2.triggerProbabilityMode, "zero");
 });
 
 test("Fn+rightmost column FX page selects fx dance mode", () => {
@@ -391,18 +389,22 @@ test("Fn overlay dims FX grid cells when danceMode is fx", () => {
   assert.ok(partCell.g > 0);
 });
 
-test("Dance trigger-gate LEDs show gate state", () => {
+test("Dance trigger-gate LEDs show per-part mode and all-parts actions", () => {
   const state = createInitialState(mockBehavior);
   state.system.oledMode = "normal";
   state.system.danceMode = "trigger-gate";
-  const activePart = (state.runtimeConfig as any).activePartIndex ?? 0;
-  (state.runtimeConfig as any).parts[activePart].l1.triggerGates[0] = false;
+  (state.runtimeConfig as any).parts[0].l2.triggerProbabilityMode = "custom";
+  (state.runtimeConfig as any).parts[1].l2.triggerProbabilityMode = "full";
 
   const cells = toSimulatorFrame(state, mockBehavior).leds.cells;
-  const offGate = cells[GRID_DOMAIN.toDisplayIndex({ x: 0, y: 0 })]!;
-  const onGate = cells[GRID_DOMAIN.toDisplayIndex({ x: 1, y: 0 })]!;
-  assert.ok(offGate.r > offGate.g);
-  assert.ok(onGate.g > onGate.r);
+  const part0Custom = cells[GRID_DOMAIN.toDisplayIndex({ x: 1, y: 0 })]!;
+  const part0Zero = cells[GRID_DOMAIN.toDisplayIndex({ x: 0, y: 0 })]!;
+  const part1Full = cells[GRID_DOMAIN.toDisplayIndex({ x: 2, y: 1 })]!;
+  const allCustom = cells[GRID_DOMAIN.toDisplayIndex({ x: 6, y: 0 })]!;
+  assert.ok(part0Custom.r > 100 && part0Custom.g > 80);
+  assert.ok(part0Zero.r > 0 && part0Zero.r > part0Zero.g);
+  assert.ok(part1Full.g > part1Full.r);
+  assert.ok(allCustom.r > 100 && allCustom.g > 80);
 });
 
 test("Fn grid overlay shows active parts and Dance page options", () => {
@@ -1128,23 +1130,21 @@ test("sample assign mode cycles high-medium-low-off when velocity levels are on"
   assert.equal(a4, undefined);
 });
 
-test("trigger-gate mode supports shift row and fn+shift column", () => {
+test("trigger probability assign mode supports shift row and fn+shift column", () => {
   let state = createInitialState(mockBehavior) as any;
   state.system.oledMode = "normal";
-  state.system.danceMode = "trigger-gate";
+  state.system.triggerProbabilityAssign = { partIndex: 0 };
   const activePart = state.runtimeConfig.activePartIndex ?? 0;
   const total = PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight;
-  state.runtimeConfig.parts[activePart].l1.triggerGates = Array.from({ length: total }, (_, i) => i % 2 === 0);
+  state.runtimeConfig.parts[activePart].l2.triggerProbabilityMap = Array.from({ length: total }, () => "zero");
 
-  // Shift alone → row toggle
   state = routeInput(state, { type: "button_shift", pressed: true } as DeviceInput, mockBehavior).state;
   state = routeInput(state, { type: "grid_press", x: 2, y: 1 } as DeviceInput, mockBehavior).state;
   state = routeInput(state, { type: "button_shift", pressed: false } as DeviceInput, mockBehavior).state;
   for (let cx = 0; cx < PLATFORM_CAPS.gridWidth; cx += 1) {
-    assert.equal(state.runtimeConfig.parts[activePart].l1.triggerGates[1 * PLATFORM_CAPS.gridWidth + cx], false, `row col ${cx} off after Shift+press on (2,1) where cell was on`);
+    assert.equal(state.runtimeConfig.parts[activePart].l2.triggerProbabilityMap[1 * PLATFORM_CAPS.gridWidth + cx], "low");
   }
 
-  // Fn+Shift (combinedModifierHeld) → column toggle
   const colX = 3;
   state = routeInput(state, { type: "button_fn", pressed: true } as DeviceInput, mockBehavior).state;
   state = routeInput(state, { type: "button_shift", pressed: true } as DeviceInput, mockBehavior).state;
@@ -1152,62 +1152,48 @@ test("trigger-gate mode supports shift row and fn+shift column", () => {
   state = routeInput(state, { type: "button_shift", pressed: false } as DeviceInput, mockBehavior).state;
   state = routeInput(state, { type: "button_fn", pressed: false } as DeviceInput, mockBehavior).state;
   for (let cy = 0; cy < PLATFORM_CAPS.gridHeight; cy += 1) {
-    assert.equal(state.runtimeConfig.parts[activePart].l1.triggerGates[cy * PLATFORM_CAPS.gridWidth + colX], true, `col row ${cy} on after Fn+Shift+press on (3,2) where cell was off`);
+    assert.equal(state.runtimeConfig.parts[activePart].l2.triggerProbabilityMap[cy * PLATFORM_CAPS.gridWidth + colX], "low");
   }
 });
 
-test("trigger-gate edit target menu parameter can be set", () => {
-  const state = createInitialState(mockBehavior) as any;
-  state.system.oledMode = "normal";
-  assert.equal(state.system.triggerGateTarget, "active");
-});
-
-test("trigger-gate specific part target edits only that part", () => {
+test("trigger-gate page edits only the selected part row", () => {
   let state = createInitialState(mockBehavior) as any;
   state.system.oledMode = "normal";
   state.system.danceMode = "trigger-gate";
-  state.system.triggerGateTarget = "1";
-  const total = PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight;
-  state.runtimeConfig.parts[0].l1.triggerGates = Array.from({ length: total }, () => true);
-  state.runtimeConfig.parts[1].l1.triggerGates = Array.from({ length: total }, () => true);
+  state.runtimeConfig.parts[0].l2.triggerProbabilityMode = "full";
+  state.runtimeConfig.parts[1].l2.triggerProbabilityMode = "full";
 
-  state = routeInput(state, { type: "grid_press", x: 0, y: 0 } as DeviceInput, mockBehavior).state;
-  assert.equal(state.runtimeConfig.parts[0].l1.triggerGates[0], true, "part 0 unchanged");
-  assert.equal(state.runtimeConfig.parts[1].l1.triggerGates[0], false, "part 1 gate 0 toggled off");
+  state = routeInput(state, { type: "grid_press", x: 0, y: 1 } as DeviceInput, mockBehavior).state;
+  assert.equal(state.runtimeConfig.parts[0].l2.triggerProbabilityMode, "full", "part 0 unchanged");
+  assert.equal(state.runtimeConfig.parts[1].l2.triggerProbabilityMode, "zero", "part 1 mode set to zero");
 });
 
-test("trigger-gate all target edits all parts", () => {
+test("trigger-gate all-parts buttons edit all parts", () => {
   let state = createInitialState(mockBehavior) as any;
   state.system.oledMode = "normal";
   state.system.danceMode = "trigger-gate";
-  state.system.triggerGateTarget = "all";
-  const total = PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight;
   for (let i = 0; i < PLATFORM_CAPS.partCount; i += 1) {
-    state.runtimeConfig.parts[i].l1.triggerGates = Array.from({ length: total }, () => true);
+    state.runtimeConfig.parts[i].l2.triggerProbabilityMode = "full";
   }
 
-  state = routeInput(state, { type: "grid_press", x: 0, y: 0 } as DeviceInput, mockBehavior).state;
+  state = routeInput(state, { type: "grid_press", x: 6, y: 0 } as DeviceInput, mockBehavior).state;
   for (let i = 0; i < PLATFORM_CAPS.partCount; i += 1) {
-    assert.equal(state.runtimeConfig.parts[i].l1.triggerGates[0], false, `part ${i} gate 0 toggled off`);
+    assert.equal(state.runtimeConfig.parts[i].l2.triggerProbabilityMode, "custom", `part ${i} mode set to custom`);
   }
 });
 
-test("trigger-gate all target LED shows mixed state", () => {
-  const state = createInitialState(mockBehavior) as any;
+test("Fn+Play toggles active part trigger mode to zero and restores it", () => {
+  let state = createInitialState(mockBehavior) as any;
   state.system.oledMode = "normal";
-  state.system.danceMode = "trigger-gate";
-  state.system.triggerGateTarget = "all";
-  const total = PLATFORM_CAPS.gridWidth * PLATFORM_CAPS.gridHeight;
-  for (let i = 0; i < PLATFORM_CAPS.partCount; i += 1) {
-    state.runtimeConfig.parts[i].l1.triggerGates = Array.from({ length: total }, () => false);
-  }
-  state.runtimeConfig.parts[0].l1.triggerGates[0] = true;
+  state.runtimeConfig.parts[0].l2.triggerProbabilityMode = "custom";
 
-  const cells = toSimulatorFrame(state, mockBehavior).leds.cells;
-  const mixed = cells[GRID_DOMAIN.toDisplayIndex({ x: 0, y: 0 })]!;
-  assert.ok(mixed.r > 100 && mixed.g > 50 && mixed.b < 100, "mixed cell should be amber");
-  const allOff = cells[GRID_DOMAIN.toDisplayIndex({ x: 1, y: 0 })]!;
-  assert.ok(allOff.r > allOff.g && allOff.r > allOff.b, "all-off cell should be red");
+  state = routeInput(state, { type: "button_fn", pressed: true } as DeviceInput, mockBehavior).state;
+  state = routeInput(state, { type: "button_s", pressed: true } as DeviceInput, mockBehavior).state;
+  assert.equal(state.runtimeConfig.parts[0].l2.triggerProbabilityMode, "zero");
+
+  state = routeInput(state, { type: "button_s", pressed: true } as DeviceInput, mockBehavior).state;
+  assert.equal(state.runtimeConfig.parts[0].l2.triggerProbabilityMode, "custom");
+  state = routeInput(state, { type: "button_fn", pressed: false } as DeviceInput, mockBehavior).state;
 });
 
 test("sample assign mode supports shift row and fn+shift column", () => {
