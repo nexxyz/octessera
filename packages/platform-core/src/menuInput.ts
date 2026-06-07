@@ -33,6 +33,10 @@ export function pressMenuInput<TState>(state: PlatformState<TState>, effects: Pl
     }
     const nextMenu = { ...state.menu, stack: [...state.menu.stack, state.menu.cursor], cursor: 0 };
     let nextState: PlatformState<TState> = { ...state, menu: nextMenu };
+    if (label === "L4: Dance") {
+      const danceMode = ((state.runtimeConfig as any).danceMode ?? state.system.danceMode) as any;
+      nextState = deps.writeAnyValue(nextState, "danceMode", danceMode);
+    }
     if (label === "Saves" || label === "Load" || label === "Delete" || label === "Rename") effects.push({ type: "store_list_presets" });
     if (label === "MIDI Out") effects.push({ type: "midi_list_outputs_request" });
     if (label === "MIDI In") effects.push({ type: "midi_list_inputs_request" });

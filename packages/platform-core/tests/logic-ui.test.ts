@@ -446,6 +446,76 @@ test("Dance Page menu can activate trigger-gate", () => {
   assert.equal((state.runtimeConfig as any).parts[0].l2.triggerProbabilityMode, "zero");
 });
 
+test("Dance Page menu activates the corresponding grid page", () => {
+  let state = createInitialState(mockBehavior);
+  state.system.oledMode = "normal";
+  state.menu = { stack: [3], cursor: 0, editing: true };
+
+  const turnDancePageTo = (mode: "none" | "mix" | "pan" | "fx" | "trigger-gate" | "xy") => {
+    const options = ["none", "mix", "pan", "fx", "trigger-gate", "xy"];
+    const current = options.indexOf(String((state.runtimeConfig as any).danceMode ?? "none"));
+    const target = options.indexOf(mode);
+    assert.notEqual(target, -1);
+    for (let i = current; i < target; i += 1) {
+      state = routeInput(state, { type: "encoder_turn", delta: 1 }, mockBehavior).state;
+    }
+    for (let i = current; i > target; i -= 1) {
+      state = routeInput(state, { type: "encoder_turn", delta: -1 }, mockBehavior).state;
+    }
+    assert.equal(state.system.danceMode, mode);
+    assert.equal((state.runtimeConfig as any).danceMode, mode);
+  };
+
+  turnDancePageTo("mix");
+  let cells = toSimulatorFrame(state, mockBehavior).leds.cells;
+  let mixMarker = cells[GRID_DOMAIN.toDisplayIndex({ x: 0, y: PLATFORM_CAPS.gridHeight - 1 })]!;
+  assert.ok(mixMarker.g > 100, `mix page should light top-row volume marker, got ${mixMarker.g}`);
+
+  turnDancePageTo("pan");
+  cells = toSimulatorFrame(state, mockBehavior).leds.cells;
+  const panMarkerLeft = cells[GRID_DOMAIN.toDisplayIndex({ x: 3, y: 0 })]!;
+  const panMarkerRight = cells[GRID_DOMAIN.toDisplayIndex({ x: 4, y: 0 })]!;
+  assert.ok(panMarkerLeft.r > 100 && panMarkerLeft.g > 100, "pan page should light the left pan marker");
+  assert.ok(panMarkerRight.r > 100 && panMarkerRight.g > 100, "pan page should light the right pan marker");
+
+  turnDancePageTo("fx");
+  assert.equal(state.system.danceMode, "fx");
+
+  turnDancePageTo("trigger-gate");
+  cells = toSimulatorFrame(state, mockBehavior).leds.cells;
+  const triggerGateCell = cells[GRID_DOMAIN.toDisplayIndex({ x: 2, y: 0 })]!;
+  assert.ok(triggerGateCell.g > 100, "trigger-gate page should light trigger mode cells");
+
+  turnDancePageTo("xy");
+  cells = toSimulatorFrame(state, mockBehavior).leds.cells;
+  const xyCell = cells[GRID_DOMAIN.toDisplayIndex({ x: 4, y: 4 })]!;
+  assert.ok(xyCell.r > 50 && xyCell.g > 50 && xyCell.b > 50, "xy page should light the XY touch position");
+
+  turnDancePageTo("none");
+  assert.equal(state.system.danceMode, "none");
+});
+
+test("entering Dance menu loads the selected Dance page into the grid", () => {
+  let state = createInitialState(mockBehavior);
+  state.system.oledMode = "normal";
+  state.runtimeConfig.danceMode = "pan";
+  state.system.danceMode = "none";
+
+  state = routeInput(state, { type: "encoder_turn", delta: 1 }, mockBehavior).state;
+  state = routeInput(state, { type: "encoder_turn", delta: 1 }, mockBehavior).state;
+  state = routeInput(state, { type: "encoder_turn", delta: 1 }, mockBehavior).state;
+  state = routeInput(state, { type: "encoder_press" }, mockBehavior).state;
+
+  assert.equal(state.system.danceMode, "pan");
+  assert.deepEqual(state.menu.stack, [3]);
+
+  const cells = toSimulatorFrame(state, mockBehavior).leds.cells;
+  const panMarkerLeft = cells[GRID_DOMAIN.toDisplayIndex({ x: 3, y: 0 })]!;
+  const panMarkerRight = cells[GRID_DOMAIN.toDisplayIndex({ x: 4, y: 0 })]!;
+  assert.ok(panMarkerLeft.r > 100 && panMarkerLeft.g > 100, "entering Dance should light the left pan marker");
+  assert.ok(panMarkerRight.r > 100 && panMarkerRight.g > 100, "entering Dance should light the right pan marker");
+});
+
 test("Fn+rightmost column FX page selects fx dance mode", () => {
   let state = createInitialState(mockBehavior);
   state.system.oledMode = "normal";
