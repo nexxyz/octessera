@@ -125,9 +125,11 @@ OLED graphical display of the active configuration and musical signal path: `L1:
 | **Depends on** | REQ-06, REQ-05, stable platform-core engine-event boundary |
 | **Source** | architecture follow-up |
 
-Migrate realtime execution ownership from the desktop JavaScript runtime toward Rust. `platform-core` remains the canonical control/state machine for menu, grid semantics, behavior transitions, a[...]
+Migrate realtime execution ownership from the desktop JavaScript runtime toward Rust. `platform-core` remains the canonical control/state machine for menu, grid semantics, behavior transitions, and resolved musical event generation until REQ-19 migrates the core itself.
 
 This runtime must be designed for hardware parity, not as a desktop-only optimization. Desktop is only a stand-in for the Raspberry Pi-based hardware target, so any realtime playback ownership moved into Rust should be implemented once in a shared runtime layer that both hosts use wherever reasonably possible.
+
+Pi is the first-class target for this requirement. Desktop integration must follow the same runtime boundary and behavior as Pi, not the other way around. Do not accept temporary desktop-only runtime ownership changes that leave Pi behind, even briefly.
 
 **Target ownership:**
 - Rust owns transport clock timing, BPM timing, PPQN/MIDI clock timing, audio callback timing, MIDI output scheduling, and block/sample-accurate engine event dispatch.
@@ -139,19 +141,233 @@ This runtime must be designed for hardware parity, not as a desktop-only optimiz
 - Keep `realtime-engine` focused on DSP/audio primitives unless expanding it is clearly simpler than introducing a separate shared runtime crate.
 - Do not create separate desktop and Pi timing implementations unless a concrete hardware or API limitation makes that unavoidable.
 
+**Parity constraints:**
+- No desktop-only scheduling path, fallback clock, or browser-timer-driven transport logic may be introduced as part of this migration.
+- No merge should switch desktop to a Rust-owned playback path unless Pi is using the same shared runtime contract in the same change set or series.
+- Any host-specific differences must stay below the shared playback-runtime boundary and be limited to adapters for UI, storage, MIDI/audio device handles, and physical I/O.
+- Any behavior change in transport, panic, MIDI clock, or event timing must be validated through a shared host/runtime contract rather than separate desktop and Pi semantics.
+
+**Shared core-runner requirement before REQ-19:**
+- Because `platform-core` is still TypeScript, REQ-16 must preserve parity by running the same core state machine boundary for both hosts.
+- Before moving realtime ownership fully into Rust, introduce a shared headless core-runner boundary that both Pi and desktop use.
+- The Rust playback runtime owns clocking and scheduling, then drives the core runner through deterministic step/input messages.
+- The core runner returns snapshots, resolved `MusicalEvent[]`, and `PlatformEffect[]`; Rust schedules the resulting audio/MIDI work without browser timers.
+- Do not create a desktop-only direct-core path in React/Tauri while Pi uses a different control-plane shape.
+
 **Migration path:**
+- Define a shared host/runtime parity contract first: device inputs in, deterministic transport-step requests in, snapshots/effects/resolved musical events out.
+- Introduce a shared headless core runner used by both `apps/desktop` and `apps/pi-zero` before cutting over playback ownership.
+- Establish generic engine/audio command boundary for resolved platform effects.
+- Add a shared Rust playback runtime crate that owns internal clock timing, external MIDI clock parsing, MIDI scheduling, audio-event scheduling, and panic behavior.
+- Integrate Pi against the shared runtime boundary first, or in lockstep with desktop, so parity is preserved during the migration.
 - Establish generic engine/audio command boundary for resolved platform effects.
 - Move momentary FX DSP and command handling into Rust.
 - Move MIDI output scheduling from desktop JS into Rust.
 - Move transport clock / PPQN tick ownership into Rust while keeping platform-core deterministic and externally stepped.
+- Replace desktop `setInterval`/`performance.now()`-driven playback scheduling with Rust-driven transport advancement.
+- Move external MIDI clock pulse aggregation/parsing out of desktop JS and into the shared Rust runtime.
 - Revisit behavior/scan tick scheduling once the Rust clock boundary is stable.
 - Route both desktop and Pi through the same Rust realtime runtime boundary before adding host-specific fallback paths.
+
+**Execution order:**
+- Lock the parity contract and update runtime-boundary docs before code migration.
+- Build the shared runtime/core-runner seam.
+- Prove Pi can use the seam.
+- Switch desktop to the same seam.
+- Remove obsolete desktop-owned realtime queues and timer code only after both hosts are on the shared path.
+
+**Core-runner decision:**
+- Before REQ-19, the shared TypeScript core runner will run as a shared headless Node sidecar/service for both Pi and desktop.
+- Do not introduce an embedded JS runtime in REQ-16.
+- Do not pull partial `platform-core` ownership into Rust as part of REQ-16.
+- Treat the Node sidecar as transitional architecture that should be easy to remove once REQ-19 migrates `platform-core` to Rust.
+
+**Phased implementation plan:**
+- Phase 0: Lock the parity contract. Define the shared host/runtime message schema, update runtime-boundary docs, and capture acceptance fixtures that both Pi and desktop must satisfy.
+- Phase 1: Build the shared headless core runner. Extract a host-agnostic runner around `platform-core` that accepts deterministic inputs and pulse-step requests, and returns snapshots, `PlatformEffect[]`, and resolved `MusicalEvent[]`.
+- Phase 2: Make transport advancement deterministic in `platform-core`. Add or expose a pulse-step path so internal and external transport advancement can both be driven by Rust-owned PPQN pulses rather than host wall-clock time.
+- Phase 3: Add the shared Rust playback runtime crate. This runtime owns BPM clock timing, PPQN, external MIDI realtime parsing, transport start/continue/stop timing, panic, MIDI scheduling, and audio event scheduling.
+- Phase 4: Add sample/block-accurate audio scheduling. Extend the shared Rust audio path so engine events are applied at precise frame offsets instead of only at coarse block boundaries.
+- Phase 5: Move generated MIDI scheduling into Rust. Rust becomes the sole owner of note duration scheduling, MIDI clock out, transport realtime bytes, panic cleanup, and external realtime pulse aggregation.
+- Phase 6: Integrate Pi first, or in lockstep with desktop. Replace the Pi prototype direct note/audio flow with the shared playback runtime and shared Node core runner while keeping hardware display/input code as adapters only.
+- Phase 7: Integrate desktop through the same seam. Replace React/Tauri-owned playback scheduling, browser timers, and direct event-to-audio forwarding with the shared Node core runner plus shared Rust playback runtime.
+- Phase 8: Verify parity explicitly. Run shared contract fixtures and regression tests for start/stop/continue, emergency brake, external clock, pending resync, note durations, panic, and momentary FX routing against both hosts.
+- Phase 9: Clean up and document the final boundary. Remove obsolete desktop-only scheduling code and update backlog, runtime-boundary docs, and architecture docs to reflect the Pi-first shared runtime.
+
+**Sub-requirements:**
+- `REQ-16A` defines the shared parity contract.
+- `REQ-16B` delivers the shared Node core runner.
+- `REQ-16C` makes `platform-core` transport stepping deterministic by explicit pulses.
+- `REQ-16D` adds the shared Rust playback runtime.
+- `REQ-16E` adds sample-accurate audio scheduling.
+- `REQ-16F` moves MIDI scheduling ownership into Rust.
+- `REQ-16G` integrates the Pi host against the shared seam.
+- `REQ-16H` integrates the desktop host against the same seam after Pi.
+- `REQ-16I` verifies parity and adds regression guards.
+- `REQ-16J` removes obsolete paths and updates documentation.
 
 **Acceptance:**
 - Desktop no longer owns realtime MIDI/audio scheduling semantics.
 - Rust runtime can run transport/MIDI/audio timing without browser timers.
 - Hardware host can reuse the same platform-core state machine and Rust realtime runtime without desktop-specific logic.
 - Desktop and Pi share one realtime playback implementation in Rust wherever reasonably possible, with differences isolated to host adapters.
+- Pi and desktop both use the same playback-runtime boundary and the same core-runner contract during REQ-16.
+- No parity-breaking transitional architecture is introduced along the way.
+
+#### REQ-16A - Shared Parity Contract
+
+| Field | Value |
+|-------|-------|
+| **Status** | open |
+| **Scope** | medium |
+| **Depends on** | REQ-16 |
+| **Blocks** | REQ-16B, REQ-16C, REQ-16F, REQ-16G |
+
+**Acceptance:**
+- Define one host/runtime protocol for Pi and desktop.
+- Define message schemas for device input, transport pulse steps, MIDI realtime input, snapshots, platform effects, musical events, audio commands, and runtime status.
+- Add shared contract fixtures for both hosts.
+- Update `docs/runtime-boundaries.md`.
+
+#### REQ-16B - Shared Node Core Runner
+
+| Field | Value |
+|-------|-------|
+| **Status** | open |
+| **Scope** | large |
+| **Depends on** | REQ-16A |
+| **Blocks** | REQ-16F, REQ-16G |
+
+**Acceptance:**
+- Extract host-agnostic headless runner around `platform-core`.
+- Runner runs as Node sidecar/service for both Pi and desktop.
+- Runner accepts deterministic device/store/runtime messages.
+- Runner returns snapshots, `PlatformEffect[]`, and `MusicalEvent[]`.
+- Desktop React no longer directly owns the core runtime loop.
+- Pi can communicate with the same runner protocol.
+
+#### REQ-16C - Deterministic Pulse-Step Core
+
+| Field | Value |
+|-------|-------|
+| **Status** | open |
+| **Scope** | medium |
+| **Depends on** | REQ-16A |
+| **Blocks** | REQ-16D |
+
+**Acceptance:**
+- Add or expose a `platform-core` path for advancing by explicit PPQN pulses.
+- Internal and external clock advancement can use the same deterministic pulse-step mechanism.
+- Existing external MIDI start/continue/stop semantics remain unchanged.
+- Existing scan, algorithm accumulator, pending resync, stop-latched, and transport flash behavior remain covered by tests.
+
+#### REQ-16D - Shared Rust Playback Runtime
+
+| Field | Value |
+|-------|-------|
+| **Status** | open |
+| **Scope** | large |
+| **Depends on** | REQ-16C |
+| **Blocks** | REQ-16E, REQ-16F, REQ-16G |
+
+**Acceptance:**
+- Add shared Rust runtime crate used by Pi and desktop.
+- Runtime owns BPM clock, PPQN, transport start/continue/stop timing, external MIDI realtime parsing, panic, MIDI scheduling, and audio scheduling orchestration.
+- Runtime drives the Node core runner through deterministic pulse-step messages.
+- Runtime receives resolved events/effects from the runner and schedules them.
+- Runtime has fake-host tests.
+
+#### REQ-16E - Sample-Accurate Audio Scheduling
+
+| Field | Value |
+|-------|-------|
+| **Status** | open |
+| **Scope** | medium |
+| **Depends on** | REQ-16D |
+
+**Acceptance:**
+- Extend Rust audio source/runtime path to schedule engine events by due sample/frame.
+- Note-on/note-off can be applied inside a block at precise offsets.
+- Immediate event behavior remains supported through `due now` scheduling.
+- Config updates remain safe outside the realtime hot path.
+- Rust tests prove scheduled frame accuracy.
+
+#### REQ-16F - Rust-Owned MIDI Scheduling
+
+| Field | Value |
+|-------|-------|
+| **Status** | open |
+| **Scope** | medium |
+| **Depends on** | REQ-16B, REQ-16D |
+
+**Acceptance:**
+- Rust schedules generated note-on, note-off, CC, and duration-based note-off output.
+- Rust owns MIDI clock out bytes.
+- Rust owns start/continue/stop realtime bytes.
+- Rust owns external MIDI realtime pulse aggregation.
+- Rust panic clears pending notes and emits appropriate all-notes-off/all-sound-off messages.
+- Desktop JS no longer owns musical MIDI timing.
+
+#### REQ-16G - Pi Runtime Integration
+
+| Field | Value |
+|-------|-------|
+| **Status** | open |
+| **Scope** | large |
+| **Depends on** | REQ-16B, REQ-16D, REQ-16E, REQ-16F |
+| **Blocks** | REQ-16H |
+
+**Acceptance:**
+- Pi uses shared Rust playback runtime.
+- Pi uses shared Node core runner.
+- Pi prototype direct note/audio flow is replaced by shared runtime semantics.
+- Pi hardware input/display/audio/MIDI code is adapter-only.
+- Pi validates internal clock, external MIDI clock, audio event output, MIDI output, and panic through the shared contract.
+
+#### REQ-16H - Desktop Runtime Integration
+
+| Field | Value |
+|-------|-------|
+| **Status** | open |
+| **Scope** | large |
+| **Depends on** | REQ-16G |
+
+**Acceptance:**
+- Desktop uses the same shared Rust playback runtime and Node core runner as Pi.
+- React simulator is only an input/display adapter.
+- Remove browser-timer-driven musical transport scheduling.
+- Remove direct `subscribeEvents` to audio trigger forwarding.
+- Remove desktop JS MIDI event scheduling queues.
+- Desktop behavior matches shared contract fixtures.
+
+#### REQ-16I - Parity Verification And Guards
+
+| Field | Value |
+|-------|-------|
+| **Status** | open |
+| **Scope** | medium |
+| **Depends on** | REQ-16G, REQ-16H |
+
+**Acceptance:**
+- Shared fixtures validate Pi and desktop behavior at the runtime contract.
+- Regression coverage includes start, stop, continue, emergency brake, external clock, pending resync, note duration, panic, momentary FX, and config updates.
+- Add a guard against reintroducing desktop-only playback timer/scheduling paths.
+- Full relevant TS and Rust checks pass.
+
+#### REQ-16J - Cleanup And Documentation
+
+| Field | Value |
+|-------|-------|
+| **Status** | open |
+| **Scope** | medium |
+| **Depends on** | REQ-16I |
+
+**Acceptance:**
+- Remove obsolete desktop scheduler/audio/MIDI bridge paths that no longer own realtime semantics.
+- Update `docs/runtime-boundaries.md`.
+- Update REQ-16 backlog status and child item statuses.
+- Update README architecture notes.
+- Update menu/control docs only if user-visible transport semantics changed.
 
 ---
 
