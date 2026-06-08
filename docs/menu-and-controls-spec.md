@@ -427,6 +427,7 @@ System
 - 128×128 pixel, simulated in desktop app
 - 20 characters × 8 lines of text (5×7 font, 16px line height)
 - Top line: title bar (colored by section)
+- Canonical section colors: `L1: Life` = life color, `L2: Sense` = sense color, `L3: Voice` = voice color, `L4: Dance` = white, `System` = sepia.
 - Body lines 2-8: menu items with `@@` prefix on selected line, `*` prefix when editing
 - Bottom-right corner: transport icon (`▶` / `⏸` / `■`)
 - Transport flash: green (beat) or red (measure) border on play icon

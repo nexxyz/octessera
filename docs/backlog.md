@@ -12,214 +12,101 @@
 | **Phase** | 4 |
 | **Priority** | low |
 | **Scope** | medium |
-| **Depends on** | REQ-07 + REQ-06 + REQ-05 (routing fully defined) |
+| **Depends on** | stable L2 Sense trigger mappings, L3 instrument mixer routing, FX bus routing, Global FX routing |
 | **Source** | lines 109–118 |
 
-OLED graphical display of signal/routing paths: parts → instruments → FX buses → output.
+OLED graphical display of the active configuration and musical signal path: `L1: Life` behavior -> `L2: Sense` interpretation/mapping -> `L3: Voice` instrument/audio routing -> `L4: Dance` live performance overlays -> master output.
+
+**Configuration flow:**
+- `L1: Life` defines the active part behavior, step rate, behavior-specific config, and part identity.
+- Behavior output is the upstream source for the visualization: the diagram starts from each active part's selected behavior, not from raw audio.
+- `L2: Sense` defines how behavior/grid state is interpreted into trigger intents, including scanning, event triggers, trigger probability, note mapping, and X/Y axis modulation.
+- `L3: Voice` defines the destination instruments, their type and note behavior, instrument mixer routing, FX buses, and Global FX.
+- `L4: Dance` defines live performance controls layered on top of the configured path, including mix, pan, trigger-gate, X/Y modulation, and momentary FX targets inserted into the audio path.
+- The visualization must make it clear which parts of the graph come from stored configuration versus live performance overlay state.
+
+**Signal path logic:**
+- Parts do not output audio directly. Each active part interprets behavior grid activity through `L2: Sense` into trigger intents.
+- Part nodes should identify the active `L1: Life` behavior driving that part.
+- Sense mappings route trigger intents into instrument slots by trigger kind:
+- `activate`, `stable`, and `deactivate` mappings when `Event Triggers` is enabled.
+- `scanned` and `scanned_empty` mappings when `Scan Mode=scanning`.
+- `L2: Sense` note mapping and axis modulation affect the musical events sent into the destination instrument slot and should be represented as Sense-stage transformation between part behavior and instrument target.
+- Mappings with `Action=none` do not create a visible route.
+- Mappings targeting an instrument whose `Type=none` are hidden.
+- Synth and sampler instruments are internal audio sources:
+- `Route=direct`: instrument post-fader output is panned by instrument `Pan Pos` and summed into the main mix.
+- `Route=fx_bus_n`: instrument post-fader output is sent exclusively to FX Bus N.
+- FX buses run `Slot 1` then `Slot 2`; slots with `Type=none` are passthrough.
+- FX bus output is panned by bus `Pan Pos` and summed into the main mix.
+- Global FX runs after direct and bus outputs are summed, in `Slot 1..N` order.
+- Global momentary FX is applied after Global FX.
+- Master output applies after the full main mix/global FX/momentary FX chain.
+- MIDI instruments emit external MIDI/control data and are shown as terminal external-MIDI routes, not as internal audio routes.
 
 **Layout rules:**
-- Always show only active routes — entities with "none" or no mappings are hidden.
-- When diagram becomes too crowded for the 128×64 OLED, abbreviate names to compact IDs (e.g. "I1" instead of "I1: Drums", "P1" instead of "P1: Atmosphere", "dk" for duck, "rv" for reverb). No s[...]
-- Auto-layout from top to bottom: Parts → Instruments → FX Buses → Output.
-- Navigable: highlight a box via encoder, press to enter that entity's menu.
+- Display is for the 128x128 OLED.
+- Show only active routes.
+- Use the existing `L1`/`L2`/`L3`/`L4` section color scheme consistently across boxes, highlights, and connector accents.
+- `L1: Life` color identifies part/behavior source nodes.
+- `L2: Sense` color identifies interpretation, mapping, trigger-probability, note-mapping, and modulation nodes.
+- `L3: Voice` color identifies instruments, mixer routing, FX buses, Global FX, and output nodes.
+- `L4: Dance` color is white and identifies live overlay nodes such as trigger-gate state, X/Y modulation, mix/pan performance control, and momentary FX targets.
+- When a node reflects both stored config and live overlay state, use the owning stage color for the box and the currently active overlay stage color as the highlight/accent.
+- Hide parts with no enabled non-`none` Sense mappings.
+- Hide instruments with `Type=none`.
+- Hide FX buses that have no routed instruments.
+- Hide FX slots with `Type=none`, but still show the bus if routed instruments pass through it.
+- Always show Global FX only when at least one global slot has `Type != none`; otherwise show the summed main mix flowing directly to output.
+- Auto-layout from top to bottom:
+- `L1: Life` part/behavior source
+- `L2: Sense` interpretation and mapping stage
+- Parts
+- Instrument slots
+- Direct main mix or FX buses
+- Global FX, when active
+- Momentary FX, when active
+- Output
+- `L4: Dance` overlay indicators should be shown adjacent to the stage they affect rather than as a separate disconnected graph.
+- Use boxes for entities and arrows for signal/event flow.
+- When the diagram becomes crowded, abbreviate labels to compact IDs:
+- `P1`, `P2`, etc. for parts
+- `I1`, `I2`, etc. for instruments
+- `B1`, `B2`, etc. for FX buses
+- short FX IDs such as `rv`, `dl`, `dk`, `eq`, `cmp`, `sat`, `dst`
+- `GFX` for Global FX
+- `OUT` for master output
+- Prefer hiding inactive entities before abbreviating active entities.
+- If the full active graph still cannot fit at readable scale, collapse repeated parallel routes into grouped edges where possible.
+
+**Navigation:**
+- The diagram is navigable with the main encoder.
+- Encoder turn moves highlight between visible boxes.
+- Encoder press enters the highlighted entity's canonical menu:
+- Behavior source -> `L1: Life > Pn`
+- Part -> `L2: Sense > Pn`
+- Sense transform node -> the relevant `L2: Sense > Pn` subgroup
+- Instrument -> `L3: Voice > Instruments > Instrument n`
+- FX Bus -> `L3: Voice > FX Buses > Bus n`
+- FX Bus slot -> that bus slot's FX menu
+- Global FX -> `L3: Voice > Global FX`
+- Global FX slot -> that global slot's FX menu
+- Dance overlay node -> relevant `L4: Dance` submenu or mapped target context
+- Output -> relevant master/sound output menu
+- Back exits the diagram view to the previous menu context.
 
 **Acceptance:**
-- Shows active part→instrument→FX routing as boxes/arrows on OLED.
-- "None" entities hidden.
-- Crowded diagrams use abbreviated IDs instead of full names.
-- Navigable: highlight and click to enter entity config.
-- Fits on OLED at readable scale for typical use-cases (2–4 parts, 2–4 instruments, 1–2 buses).
-
----
-
-### REQ-20 — Probabilistic Trigger Gate
-
-| Field | Value |
-|-------|-------|
-| **Status** | closed |
-| **Phase** | 4 |
-| **Priority** | medium |
-| **Scope** | medium |
-| **Depends on** | existing Dance trigger-gate page, Sense per-part config, preset/config persistence |
-| **Source** | design follow-up |
-
-Replace the current binary trigger-gate workflow with a probability-driven trigger gate that separates stored per-cell probability editing from live playback mode switching.
-
-**Design:**
-- Keep the existing Dance enum/page identity as `trigger-gate`; it remains a trigger gate, but probability-driven.
-- Add per-part trigger probability state in Sense: `triggerProbabilityMode = zero | custom | full`, `triggerProbabilityMap` (64 cells), `low` threshold, and `high` threshold.
-- Probability map cells are four-state: `zero`, `low`, `high`, `full`.
-- The Sense probability map editor owns cell editing; the Dance page only switches each part's active trigger mode.
-
-**Sense editor:**
-- Add a per-part `Trigger Probability` group under `L2: Sense`.
-- Menu items: current mode, `Low Prob`, `High Prob`, and `Map Probability Grid`.
-- Grid editing cycles cell states `zero -> low -> high -> full -> zero`.
-- LED colours in the editor: red = `0%`, yellow-family states for custom values, green = `100%`.
-- `Shift + cell` applies to row; `Fn + Shift + cell` applies to column.
-
-**Dance page:**
-- Replace the current trigger-gate cell editor behavior with per-part mode selection.
-- Rows follow existing Fn part-navigation orientation: bottom row is part 0, top row is highest part.
-- Columns `0..2` select the row's part mode: `0%` (red), `custom` (yellow), `100%` (green).
-- Columns `3..4` stay dark as a safety gap.
-- Bottom-row columns `5..7` are always-bright all-parts actions: set all parts to `0%`, `custom`, or `100%`.
-- Individual part mode LEDs are bright when selected and dim when not selected.
-
-**Transport behavior:**
-- Runtime trigger filtering uses the selected mode per part:
-- `full`: always pass.
-- `zero`: always block.
-- `custom`: resolve the cell state to `0%`, `low`, `high`, or `100%` and probabilistically pass/block the trigger.
-
-**Fn+Play:**
-- `Fn+Play` no longer fills or clears the stored gate grid.
-- It toggles the active part between `0%` and its previously active mode.
-- Restoring must return to the previous mode without modifying the stored probability map.
-
-**Persistence / migration:**
-- Update saved config/state defaults for the new mode/map fields.
-- Migrate persisted boolean `triggerGates` to the new probability-map format (`true -> full`, `false -> zero`) and restore migrated parts in `custom` mode.
-
-**Acceptance:**
-- Each part has a stored 8x8 probability map and configurable low/high thresholds.
-- Sense can edit four-state probability cells with row/column gestures.
-- Dance `trigger-gate` page switches per-part trigger mode using the 3-column layout and bottom-row all-parts actions.
-- Part LEDs use red/yellow/green with bright selected state and dim unselected state; all-parts buttons remain bright.
-- `Fn+Play` toggles the active part between `0%` and its previous trigger mode.
-- Existing presets/defaults with boolean `triggerGates` load into the new model without data loss.
-- Docs/help text/tests are updated to match the new Trigger Probability workflow.
-
----
-
-### REQ-21 — Strict Descriptive Menu Help Lint
-
-| Field | Value |
-|-------|-------|
-| **Status** | closed |
-| **Phase** | 4 |
-| **Priority** | medium |
-| **Scope** | medium |
-| **Depends on** | existing `menu-help` generation/lint flow in `platform-core` |
-| **Source** | design follow-up |
-
-Tighten menu-help coverage so every concrete menu node resolves to descriptive help text for its actual functionality, not generic fallback copy.
-
-**Problem:**
-- The current menu-help linter allows broad fallback rows such as `default_*`, `action:*`, and `key:*` to count as covered.
-- This means many menu entries still pass lint while resolving to generic help like "Adjusts a numeric value" instead of function-specific guidance.
-- Strict descriptive help should be enforced across `platform-core` menus, while still keeping runtime fallback behavior as a safety net.
-
-**Stage 1: Remove Broad Catch-Alls**
-- Remove the broad TSV fallback rows that currently satisfy lint without providing descriptive functionality-specific help:
-- `action_any`
-- `number_any`
-- `enum_any`
-- `bool_any`
-- `text_any`
-- Keep runtime-safe fallback behavior via `resolveMenuHelp()` and existing non-explicit defaults, but stop allowing broad `action:*` / `key:*` rows to satisfy lint coverage.
-- Regenerate `menuHelp.generated.ts` and use the existing linter failures as the source of truth for missing descriptive help.
-
-**Stage 2: Canonicalization**
-- Canonicalize repeated dynamic keys/paths in lint reporting so repeated part/instrument targets collapse into one actionable class.
-- Normalize representative patterns such as `parts.*`, `instruments.*`, `mixer.buses.*`, and `globalFx.slots.*`.
-
-**Stage 3: Specificity Rules**
-- Define broad generic rows as runtime fallback only, not acceptable lint coverage for concrete menu nodes.
-- Continue allowing semantic wildcard rows such as `key:parts.*.l2.pitch.lowestNote` or `action:preset_load:*`.
-- Add checks for obviously generic copy so placeholder prose cannot satisfy strict mode.
-
-**Stage 4: Fill Core Help**
-- Add descriptive TSV help rows for currently generic-covered platform-core menus, starting with:
-- `L1: Life` part controls and behavior config.
-- `L2: Sense` scanning, events, trigger probability, note mapping, and axis modulation.
-- Part naming and auto-name behavior.
-
-**Stage 5: Fill Remaining Help**
-- Add descriptive TSV help rows for instruments, mixer, FX, Dance, MIDI, saves, defaults, and other remaining menus still covered by generic fallback.
-
-**Stage 6: Strengthen Enum Coverage**
-- Expand enum-option lint beyond the small current allowlist so help text must describe the actual current options for enum settings.
-- Permit only narrow documented exceptions for dynamic labels where necessary.
-
-**Stage 7: Make Strict Mode Default**
-- After generic fallback usage is driven to zero, make strict descriptive checking the default behavior of `lint:menu-help`.
-- Keep an explicit temporary local escape hatch only if necessary for development, not for CI.
-
-**Stage 8: Contributor Guidance**
-- Document the policy near the TSV/linter workflow: new menu nodes must add descriptive help in the same change; generic catch-alls are fallback only; enum changes must update help text.
-
-**Acceptance:**
-- Removing the broad catch-all rows causes `lint:menu-help` to fail on every concrete menu target that still lacks descriptive help.
-- Canonicalized lint output is actionable rather than flooded with duplicate part/instrument instances.
-- All concrete `platform-core` menu nodes resolve to descriptive TSV help rows rather than broad `action:*` or `key:*` generic catch-alls.
-- Enum help lint fails when current enum options are missing from descriptive help.
-- Strict descriptive checking becomes the default lint mode once coverage is complete.
-- Contributor workflow/docs make the expectation explicit for future menu additions.
-
----
-
-### REQ-22 — Sense Mapping Menus
-
-| Field | Value |
-|-------|-------|
-| **Status** | closed |
-| **Phase** | 4 |
-| **Priority** | medium |
-| **Scope** | medium |
-| **Depends on** | existing Dance X/Y parameter picker, existing param-mod state, existing aux binding persistence |
-| **Source** | design follow-up |
-
-Add explicit menu-based editing for Sense mappings so users can assign X/Y axis targets and aux encoder bindings from `L2: Sense` without relying only on hardware shortcut gestures.
-
-**Goal:**
-- Reuse the existing parameter-selection browser currently used by `L4: Dance > X/Y Pad`.
-- Do not duplicate the parameter-tree/menu-generation logic.
-- Roll out in two stages: aux `turn` first, aux `click` second.
-
-**Stage 1: Turn mappings**
-- Add `L2: Sense > Pn > Mappings`.
-- Under `Mappings`, add explicit menu-based target selection for:
-- `X Axis` param-mod slots 1 and 2.
-- `Y Axis` param-mod slots 1 and 2.
-- invert toggles for each X/Y slot.
-- `Aux Turns` for available aux encoders.
-- Use the same shared parameter-browser code path as Dance X/Y target selection.
-- Add dedicated setter actions for:
-- per-part param-mod slot assignment/clear.
-- aux encoder turn binding assignment/clear.
-- Preserve existing hardware shortcuts:
-- Shift+grid assignment overlay for part param-mod mapping.
-- Shift+aux press binding for highlighted menu parameters.
-
-**Stage 2: Click mappings**
-- Extend `L2: Sense > Pn > Mappings` with explicit `Aux Clicks` entries.
-- Use a shared action picker for click bindings rather than the numeric/enum/bool parameter picker.
-- Initial click-picker scope should match the bindable actions already supported by current aux-click assignment behavior.
-- Add dedicated setter actions for aux click binding assignment/clear.
-- Preserve existing Shift+aux click shortcut behavior.
-
-**Menu shape target:**
-- `L2: Sense > Pn > Mappings > X Axis > Slot 1 / Slot 2`
-- `L2: Sense > Pn > Mappings > Y Axis > Slot 1 / Slot 2`
-- `L2: Sense > Pn > Mappings > Aux Turns > Aux 1..N`
-- `L2: Sense > Pn > Mappings > Aux Clicks > Aux 1..N` (Stage 2)
-
-**Implementation notes:**
-- Extract or reuse a shared helper around the current Dance X/Y target group builder.
-- Use `compactSourcePathFromKey()` for menu detail text so current assignments display as concise source paths.
-- Updating aux bindings must keep `runtimeConfig.auxBindings` and `system.auxBindings` in sync.
-- Clearing one side of an aux binding must preserve the other side.
-
-**Acceptance:**
-- `L2: Sense > Pn > Mappings` exists for each part.
-- Stage 1: X/Y slot targets and aux turn targets can be assigned and cleared from menus using the shared parameter browser.
-- Stage 1: existing Dance X/Y parameter browser still uses the same code path and behavior.
-- Stage 1: existing hardware shortcut workflows still work.
-- Stage 2: aux click bindings can be assigned and cleared from menus using a shared action picker.
-- Docs/help text/tests are updated for both stages as they land.
-
----
+- Shows the full configuration flow from `L1: Life` behavior selection through `L2: Sense`, `L3: Voice`, and `L4: Dance` overlays.
+- Shows active part-to-instrument event routes from L2 Sense mappings.
+- Shows where `L2: Sense` note mapping, trigger probability, scanning/events, and modulation affect the route.
+- Shows internal audio routes from synth/sampler instruments through direct output or FX buses.
+- Shows FX bus slot order, bus pan/output, Global FX order, momentary FX position, and master output.
+- Uses the established `L1`/`L2`/`L3`/`L4` section colors to visually distinguish source, interpretation, voice, and performance-overlay stages.
+- MIDI instruments are represented as external MIDI terminal routes, not routed through internal audio FX.
+- `none` mappings, `Type=none` instruments, unused buses, and `Type=none` FX slots are hidden.
+- Crowded diagrams use compact IDs and grouping while remaining readable.
+- Navigation can enter each visible entity's canonical config menu.
+- Fits on the 128x128 OLED at readable scale for typical use-cases: 2-4 active parts, 2-4 active instruments, 1-2 active buses, and 0-2 active Global FX slots.
 
 ## Phase 5: Advanced / Hardware
 
@@ -240,10 +127,17 @@ Add explicit menu-based editing for Sense mappings so users can assign X/Y axis 
 
 Migrate realtime execution ownership from the desktop JavaScript runtime toward Rust. `platform-core` remains the canonical control/state machine for menu, grid semantics, behavior transitions, a[...]
 
+This runtime must be designed for hardware parity, not as a desktop-only optimization. Desktop is only a stand-in for the Raspberry Pi-based hardware target, so any realtime playback ownership moved into Rust should be implemented once in a shared runtime layer that both hosts use wherever reasonably possible.
+
 **Target ownership:**
 - Rust owns transport clock timing, BPM timing, PPQN/MIDI clock timing, audio callback timing, MIDI output scheduling, and block/sample-accurate engine event dispatch.
 - `platform-core` emits resolved engine/audio events and config updates, not backend-specific scheduling instructions.
-- Desktop remains a dumb host: render simulator frames, collect hardware-like input, and forward platform effects to storage/MIDI/audio backends.
+- Desktop and Pi hosts remain dumb adapters: render simulator frames or hardware displays, collect hardware-like input, and forward platform effects to storage/MIDI/audio backends.
+
+**Shared runtime shape:**
+- Prefer a shared Rust realtime runtime crate used by both `apps/desktop` and `apps/pi-zero`, with host-specific code limited to transport adapters, device I/O, and UI/display integration.
+- Keep `realtime-engine` focused on DSP/audio primitives unless expanding it is clearly simpler than introducing a separate shared runtime crate.
+- Do not create separate desktop and Pi timing implementations unless a concrete hardware or API limitation makes that unavoidable.
 
 **Migration path:**
 - Establish generic engine/audio command boundary for resolved platform effects.
@@ -251,11 +145,13 @@ Migrate realtime execution ownership from the desktop JavaScript runtime toward 
 - Move MIDI output scheduling from desktop JS into Rust.
 - Move transport clock / PPQN tick ownership into Rust while keeping platform-core deterministic and externally stepped.
 - Revisit behavior/scan tick scheduling once the Rust clock boundary is stable.
+- Route both desktop and Pi through the same Rust realtime runtime boundary before adding host-specific fallback paths.
 
 **Acceptance:**
 - Desktop no longer owns realtime MIDI/audio scheduling semantics.
 - Rust runtime can run transport/MIDI/audio timing without browser timers.
 - Hardware host can reuse the same platform-core state machine and Rust realtime runtime without desktop-specific logic.
+- Desktop and Pi share one realtime playback implementation in Rust wherever reasonably possible, with differences isolated to host adapters.
 
 ---
 
