@@ -13,7 +13,7 @@
     "test:coverage": "c8 --check-coverage --lines 55 --functions 65 --branches 55 --reporter=text --reporter=lcov tsx --test tests/*.test.ts",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
-    "tauri:build:ci": "tauri build --debug"
+    "tauri:build:ci": "tauri build --debug --ci --no-bundle"
   },
   "dependencies": {
     "@cellsymphony/behavior-api": "workspace:*",
