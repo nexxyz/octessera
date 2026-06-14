@@ -1910,6 +1910,32 @@ fn system_sound_master_volume_edit_via_menu() {
 }
 
 #[test]
+fn screen_sleep_splashes_then_turns_oled_off_and_input_wakes() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.ui.screen_sleep_seconds = 1;
+    runner.last_interaction_at = Instant::now() - Duration::from_secs(2);
+
+    let messages = runner.messages_with_snapshot().unwrap();
+    let display = &snapshot_from(&messages)["display"];
+    assert_eq!(display["splash"], "Going to sleep");
+    assert_eq!(display["off"], false);
+
+    runner.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
+    let messages = runner.messages_with_snapshot().unwrap();
+    let display = &snapshot_from(&messages)["display"];
+    assert_eq!(display["off"], true);
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+        })
+        .unwrap();
+    let display = &snapshot_from(&messages)["display"];
+    assert_eq!(display["off"], false);
+    assert_eq!(display["splash"], "");
+}
+
+#[test]
 fn fn_aux_binds_selected_param_and_aux_turn_edits_it() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![5, 1];

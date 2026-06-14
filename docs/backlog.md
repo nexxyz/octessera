@@ -139,11 +139,11 @@ No basic-functionality fallbacks are allowed during this migration. Missing menu
 - OPEN [high]: FX bus/global FX params are not stateful in native; native stores only slot types, writes default params, omits parameter menu rows, and loses custom params from presets/defaults.
 - FIXED: Instrument Clone and Reset actions are exposed in native Voice, update native instrument slots, and round-trip through aux action serialization.
 - OPEN [medium]: Native runtime snapshot/audio config shape is less complete than saved config payload; verify desktop audio receives all editable synth/sample/mixer/FX fields once menu controls are added.
-- OPEN [medium]: Native `screenSleepSeconds` persists but has no OLED sleep / last-interaction behavior equivalent to old `oledMode`.
+- FIXED: Native `screenSleepSeconds` now tracks last interaction, exposes splash/off display state, and wakes on device input.
 - FIXED: Fresh in-memory native defaults now match old `createInitialState()` for `masterVolume` (`73`), `autoSaveDefault` (`false`), and default note length (`120ms`).
 - FIXED: Native text field OLED formatting no longer appends `@cursor`; cursor state remains internal while editing.
 - FIXED: Native L1 part name row label now matches the legacy/spec `Part Name` label.
-- PARTIAL [medium]: Resolve `docs/native-test-parity.md` partial rows for `ant`, `bounce`, `shapes`, and `behavior-api` by adding native tests or explicitly classifying remaining random/dynamic-registration cases as legacy-only.
+- FIXED: `docs/native-test-parity.md` partial rows for `ant`, `bounce`, `shapes`, and `behavior-api` are resolved by existing native deterministic coverage plus explicit legacy-only classification for random placement and TS registration side-effect cases.
 - FIXED: Stale Life behavior help/help-popup backlog BUG markers were rechecked with targeted native regressions.
 - VERIFY [high]: Run Pi/Linux target build/clippy and hardware smoke; current verification was desktop/Windows-scoped and does not prove Pi runtime parity.
 

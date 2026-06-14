@@ -18,6 +18,7 @@ use platform_core::{
 };
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
+use std::time::{Duration, Instant};
 
 const GRID_WIDTH: usize = 8;
 const GRID_HEIGHT: usize = 8;
@@ -25,6 +26,14 @@ const INSTRUMENT_SLOT_COUNT: usize = 8;
 const PAN_POSITION_COUNT: u8 = 33;
 const DEFAULT_ALGORITHM_STEP_PULSES: u32 = 12;
 const OLED_BODY_ROWS: usize = 7;
+const OLED_SLEEP_SPLASH_MS: u64 = 1_500;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum NativeOledMode {
+    Normal,
+    Splash,
+    Off,
+}
 
 #[derive(Clone, Debug)]
 pub struct NativeRunnerConfig {
@@ -435,6 +444,10 @@ pub struct NativeRunner {
     pending_resync: bool,
     bpm: f64,
     ui: NativeUiState,
+    oled_mode: NativeOledMode,
+    oled_splash_text: String,
+    oled_splash_until: Option<Instant>,
+    last_interaction_at: Instant,
     midi_enabled: bool,
     preset_names: Vec<String>,
     current_preset_name: Option<String>,
@@ -508,6 +521,7 @@ impl NativeRunner {
             0,
         )?;
         let ui = NativeUiState::default();
+        let now = Instant::now();
         let instruments = default_instruments();
         let sense_parts = default_sense_parts();
         let fx_buses = default_fx_buses();
@@ -627,6 +641,10 @@ impl NativeRunner {
             pending_resync: false,
             bpm: config.bpm,
             ui,
+            oled_mode: NativeOledMode::Normal,
+            oled_splash_text: String::new(),
+            oled_splash_until: None,
+            last_interaction_at: now,
             midi_enabled: false,
             preset_names: Vec::new(),
             current_preset_name: None,
@@ -772,6 +790,44 @@ impl NativeRunner {
         for engine in self.part_engines.iter_mut().flatten() {
             engine.set_global_sound(self.global_sound.clone());
             engine.set_note_behaviors(self.note_behaviors.clone());
+        }
+    }
+
+    fn record_display_interaction(&mut self) {
+        self.last_interaction_at = Instant::now();
+        if self.oled_mode != NativeOledMode::Normal {
+            self.oled_mode = NativeOledMode::Normal;
+            self.oled_splash_text.clear();
+            self.oled_splash_until = None;
+        }
+    }
+
+    fn advance_oled_sleep_state(&mut self) {
+        let now = Instant::now();
+        if self.ui.screen_sleep_seconds == 0 {
+            if self.oled_mode != NativeOledMode::Normal {
+                self.oled_mode = NativeOledMode::Normal;
+                self.oled_splash_text.clear();
+                self.oled_splash_until = None;
+            }
+            return;
+        }
+        if self.oled_mode == NativeOledMode::Normal
+            && now.duration_since(self.last_interaction_at)
+                >= Duration::from_secs(u64::from(self.ui.screen_sleep_seconds))
+        {
+            self.oled_mode = NativeOledMode::Splash;
+            self.oled_splash_text = "Going to sleep".into();
+            self.oled_splash_until = Some(now + Duration::from_millis(OLED_SLEEP_SPLASH_MS));
+            return;
+        }
+        if self.oled_mode == NativeOledMode::Splash
+            && self
+                .oled_splash_until
+                .is_some_and(|deadline| now >= deadline)
+        {
+            self.oled_mode = NativeOledMode::Off;
+            self.oled_splash_until = None;
         }
     }
 
@@ -2486,6 +2542,8 @@ impl NativeRunner {
                 "colors": display_colors,
                 "barValues": display_bar_values,
                 "toast": toast,
+                "off": self.oled_mode == NativeOledMode::Off,
+                "splash": if self.oled_mode == NativeOledMode::Splash { self.oled_splash_text.clone() } else { String::new() },
                 "editing": self.menu.state.editing && self.help_popup.is_none()
             },
             "leds": {
@@ -2571,6 +2629,7 @@ impl NativeRunner {
     }
 
     fn messages_with_snapshot(&mut self) -> Result<Vec<RunnerMessage>, String> {
+        self.advance_oled_sleep_state();
         let snapshot = self.snapshot()?;
         let mut messages = Vec::new();
         if !self.queued_platform_effects.is_empty() {
@@ -4074,6 +4133,7 @@ impl NativeRunner {
     }
 
     fn handle_device_input(&mut self, input: DeviceInput) -> Result<Vec<RunnerMessage>, String> {
+        self.record_display_interaction();
         match input {
             DeviceInput::GridPress { x, y } => {
                 if self.dance_fx_assign.is_some() {

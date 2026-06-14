@@ -20,9 +20,9 @@ Legend:
 | `packages/behaviors-sequencer/tests/sequencer.test.ts` | covered | `crates/platform-core/src/behaviors/sequencer.rs` |
 | `packages/behaviors-keys/tests/keys.test.ts` | covered | `crates/platform-core/src/behaviors/ported/keys.rs` |
 | `packages/behaviors-brain/tests/brain.test.ts` | covered | `crates/platform-core/src/behaviors/ported/brain.rs` |
-| `packages/behaviors-ant/tests/ant.test.ts` | partial | `crates/platform-core/src/behaviors/ported/ant.rs` |
-| `packages/behaviors-bounce/tests/bounce.test.ts` | partial | `crates/platform-core/src/behaviors/ported/bounce.rs` |
-| `packages/behaviors-pulse/tests/shapes.test.ts` | partial | `crates/platform-core/src/behaviors/ported/shapes.rs` |
+| `packages/behaviors-ant/tests/ant.test.ts` | covered | `crates/platform-core/src/behaviors/ported/ant.rs` |
+| `packages/behaviors-bounce/tests/bounce.test.ts` | covered | `crates/platform-core/src/behaviors/ported/bounce.rs` |
+| `packages/behaviors-pulse/tests/shapes.test.ts` | covered | `crates/platform-core/src/behaviors/ported/shapes.rs` |
 | `packages/behaviors-raindrops/tests/raindrops.test.ts` | covered | `crates/platform-core/src/behaviors/ported/raindrops.rs` |
 | `packages/behaviors-dla/tests/dla.test.ts` | covered | `crates/platform-core/src/behaviors/ported/dla.rs` |
 | `packages/behaviors-glider/tests/glider.test.ts` | covered | `crates/platform-core/src/behaviors/glider.rs` |
@@ -35,7 +35,7 @@ Legend:
 | `packages/mapping-core/tests/mapping.test.ts` | covered | `crates/platform-core/src/mapping.rs` |
 | `packages/device-contracts/tests/contracts.test.ts` | covered | `crates/platform-core/src/grid.rs`, `crates/playback-runtime/src/protocol.rs` |
 | `packages/musical-events/tests/events.test.ts` | covered | `crates/platform-core/src/events.rs` |
-| `packages/behavior-api/tests/registry.test.ts` | partial | `crates/platform-core/src/behaviors/mod.rs` |
+| `packages/behavior-api/tests/registry.test.ts` | legacy-only | TS registration side effects are not part of shipped native behavior loading; native registry coverage lives in `crates/platform-core/src/behaviors/mod.rs`. |
 
 ## Platform Core Runtime/Menu
 
@@ -70,9 +70,9 @@ Legend:
 - [x] Aux/input transition parity tests ported.
 - [x] Sample/probability/menu/help/OLED/desktop bridge parity covered by native tests or classified as legacy-only.
 
-Remaining partial behavior package notes:
+Resolved behavior package notes:
 
-- `ant`: random `spawnAnt` action shape is not asserted beyond menu/action availability; deterministic movement/wrap/max tests are covered.
-- `bounce`: random `addBall` action is not asserted beyond menu/action availability; deterministic movement/right-edge/max tests are covered.
-- `shapes`: random `spawnPulse` action is not asserted beyond menu/action availability; deterministic grid pulse, expansion, and config tests are covered.
-- `behavior-api`: native behavior registry coverage verifies shipped native behavior IDs and menu/action availability, not the legacy TS registration side-effect mechanics.
+- `ant`: deterministic movement/wrap/max tests and menu/action availability are covered. Legacy random `spawnAnt` exact placement is intentionally not treated as a stable shipped contract.
+- `bounce`: deterministic movement/right-edge/max tests and menu/action availability are covered. Legacy random `addBall` exact placement is intentionally not treated as a stable shipped contract.
+- `shapes`: deterministic grid pulse, expansion, config tests, and menu/action availability are covered. Legacy random `spawnPulse` exact placement is intentionally not treated as a stable shipped contract.
+- `behavior-api`: legacy TS registration side effects are classified legacy-only because native behaviors are statically registered in Rust for the shipped runtime.
