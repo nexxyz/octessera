@@ -57,7 +57,7 @@ impl Default for NativeRunnerConfig {
             global_sound: GlobalSoundConfig {
                 velocity_scale_pct: 100,
                 velocity_curve: VelocityCurve::Linear,
-                note_length_ms: 150,
+                note_length_ms: 120,
             },
             note_behaviors: vec![NoteBehavior::Oneshot; 16],
             sync_source: SyncSource::Internal,
@@ -105,6 +105,7 @@ struct NativeInstrumentSlot {
     sample_velocity_medium: u8,
     sample_velocity_low: u8,
     midi_enabled: bool,
+    midi_channel: u8,
     midi_velocity: u8,
     midi_duration_ms: u16,
 }
@@ -272,9 +273,20 @@ impl NativeInstrumentSlot {
             sample_velocity_medium: 85,
             sample_velocity_low: 45,
             midi_enabled: false,
+            midi_channel: 1,
             midi_velocity: 100,
             midi_duration_ms: 120,
         }
+    }
+
+    fn reset(index: usize) -> Self {
+        let mut slot = Self::new(index);
+        slot.kind = "none".into();
+        slot.name = "none".into();
+        slot.auto_name = true;
+        slot.midi_enabled = false;
+        slot.midi_channel = (index + 1).min(16) as u8;
+        slot
     }
 }
 
@@ -390,7 +402,7 @@ impl Default for NativeUiState {
             display_brightness: 75,
             grid_brightness: 75,
             button_brightness: 75,
-            master_volume: 100,
+            master_volume: 73,
             ghost_cells: false,
             numeric_display_mode: "bar+numbers".into(),
             screen_sleep_seconds: 60,
@@ -426,6 +438,9 @@ pub struct NativeRunner {
     midi_enabled: bool,
     preset_names: Vec<String>,
     current_preset_name: Option<String>,
+    preset_draft_name: String,
+    preset_rename_source: Option<String>,
+    queued_platform_effects: Vec<RuntimePlatformEffect>,
     midi_outputs: Vec<MidiPort>,
     midi_inputs: Vec<MidiPort>,
     midi_status: Option<String>,
@@ -519,15 +534,21 @@ impl NativeRunner {
             instrument_names: instrument_names(&instruments),
             instrument_types: instrument_types(&instruments),
             instrument_auto_names: instrument_auto_names(&instruments),
+            instrument_note_behaviors: instrument_note_behaviors(&instruments),
             instrument_routes: instrument_routes(&instruments),
             instrument_volumes: instrument_volumes(&instruments),
             instrument_pan_positions: instrument_pan_positions(&instruments),
             instrument_sample_slots: instrument_sample_slots(&instruments),
+            instrument_synth_osc1_waveforms: instrument_synth_osc1_waveforms(&instruments),
+            instrument_synth_osc2_waveforms: instrument_synth_osc2_waveforms(&instruments),
+            instrument_synth_filter_types: instrument_synth_filter_types(&instruments),
+            instrument_synth_filter_cutoffs: instrument_synth_filter_cutoffs(&instruments),
             instrument_synth_gain_pct: instrument_synth_gain_pct(&instruments),
             instrument_synth_filter_resonance: instrument_synth_filter_resonance(&instruments),
             instrument_sample_tune_semis: instrument_sample_tune_semis(&instruments),
             instrument_sample_gain_pct: instrument_sample_gain_pct(&instruments),
             instrument_midi_enabled: instrument_midi_enabled(&instruments),
+            instrument_midi_channels: instrument_midi_channels(&instruments),
             instrument_midi_velocity: instrument_midi_velocity(&instruments),
             instrument_midi_duration_ms: instrument_midi_duration_ms(&instruments),
             fx_buses: fx_bus_configs(&fx_buses),
@@ -539,7 +560,7 @@ impl NativeRunner {
             velocity_scale_pct: config.global_sound.velocity_scale_pct,
             velocity_curve: velocity_curve_id(config.global_sound.velocity_curve).into(),
             voice_stealing_mode: "balanced".into(),
-            auto_save_default: true,
+            auto_save_default: false,
             ghost_cells: ui.ghost_cells,
             input_events_while_paused: true,
             numeric_display_mode: ui.numeric_display_mode.clone(),
@@ -552,6 +573,8 @@ impl NativeRunner {
             midi_clock_in_enabled: false,
             midi_respond_to_start_stop: true,
             preset_names: Vec::new(),
+            preset_draft_name: "New Preset".into(),
+            preset_rename_source: None,
             midi_outputs: Vec::new(),
             midi_inputs: Vec::new(),
             dance_mode: "none".into(),
@@ -607,6 +630,9 @@ impl NativeRunner {
             midi_enabled: false,
             preset_names: Vec::new(),
             current_preset_name: None,
+            preset_draft_name: "New Preset".into(),
+            preset_rename_source: None,
+            queued_platform_effects: Vec::new(),
             midi_outputs: Vec::new(),
             midi_inputs: Vec::new(),
             midi_status: None,
@@ -659,7 +685,7 @@ impl NativeRunner {
             event_dot_pulses_remaining: 0,
             transport_flash: "none",
             transport_flash_pulses_remaining: 0,
-            auto_save_default: true,
+            auto_save_default: false,
             config_dirty: false,
             auto_save_flash_serial: 0,
             auto_save_flash_pulses_remaining: 0,
@@ -739,6 +765,16 @@ impl NativeRunner {
         Ok(())
     }
 
+    fn sync_engine_runtime_config(&mut self) {
+        self.note_behaviors = note_behaviors_from_instruments(&self.instruments);
+        self.engine.set_global_sound(self.global_sound.clone());
+        self.engine.set_note_behaviors(self.note_behaviors.clone());
+        for engine in self.part_engines.iter_mut().flatten() {
+            engine.set_global_sound(self.global_sound.clone());
+            engine.set_note_behaviors(self.note_behaviors.clone());
+        }
+    }
+
     fn menu_config(&self) -> NativeMenuConfig {
         NativeMenuConfig {
             behavior_id: self.behavior.id().into(),
@@ -766,15 +802,21 @@ impl NativeRunner {
             instrument_names: instrument_names(&self.instruments),
             instrument_types: instrument_types(&self.instruments),
             instrument_auto_names: instrument_auto_names(&self.instruments),
+            instrument_note_behaviors: instrument_note_behaviors(&self.instruments),
             instrument_routes: instrument_routes(&self.instruments),
             instrument_volumes: instrument_volumes(&self.instruments),
             instrument_pan_positions: instrument_pan_positions(&self.instruments),
             instrument_sample_slots: instrument_sample_slots(&self.instruments),
+            instrument_synth_osc1_waveforms: instrument_synth_osc1_waveforms(&self.instruments),
+            instrument_synth_osc2_waveforms: instrument_synth_osc2_waveforms(&self.instruments),
+            instrument_synth_filter_types: instrument_synth_filter_types(&self.instruments),
+            instrument_synth_filter_cutoffs: instrument_synth_filter_cutoffs(&self.instruments),
             instrument_synth_gain_pct: instrument_synth_gain_pct(&self.instruments),
             instrument_synth_filter_resonance: instrument_synth_filter_resonance(&self.instruments),
             instrument_sample_tune_semis: instrument_sample_tune_semis(&self.instruments),
             instrument_sample_gain_pct: instrument_sample_gain_pct(&self.instruments),
             instrument_midi_enabled: instrument_midi_enabled(&self.instruments),
+            instrument_midi_channels: instrument_midi_channels(&self.instruments),
             instrument_midi_velocity: instrument_midi_velocity(&self.instruments),
             instrument_midi_duration_ms: instrument_midi_duration_ms(&self.instruments),
             fx_buses: fx_bus_configs(&self.fx_buses),
@@ -815,6 +857,8 @@ impl NativeRunner {
             midi_clock_in_enabled: self.midi_clock_in_enabled,
             midi_respond_to_start_stop: self.midi_respond_to_start_stop,
             preset_names: self.preset_names.clone(),
+            preset_draft_name: self.preset_draft_name.clone(),
+            preset_rename_source: self.preset_rename_source.clone(),
             midi_outputs: self
                 .midi_outputs
                 .iter()
@@ -853,6 +897,9 @@ impl NativeRunner {
         }
         if let Some(master_volume) = self.menu.selected_master_volume() {
             self.ui.master_volume = master_volume;
+        }
+        if let Some(draft_name) = self.menu.value_for_key("system.draftName") {
+            self.preset_draft_name = draft_name;
         }
         if let Some(midi_enabled) = self
             .menu
@@ -945,6 +992,7 @@ impl NativeRunner {
         let instrument_changed = self.apply_instrument_menu_state();
         let sense_changed = self.apply_sense_menu_state();
         let fx_changed = self.apply_fx_menu_state();
+        self.sync_engine_runtime_config();
         if part_changed || instrument_changed || sense_changed || fx_changed || dance_fx_changed {
             self.menu.rebuild(self.menu_config());
         }
@@ -1474,6 +1522,59 @@ impl NativeRunner {
                     changed = true;
                 }
             }
+            if let Some(waveform) = self
+                .menu
+                .value_for_key(&format!("instruments.{index}.synth.osc1.waveform"))
+            {
+                if synth_string_at(instrument, &["osc1", "waveform"], "saw") != waveform {
+                    set_json_path_string(
+                        &mut instrument.synth_config,
+                        &["osc1", "waveform"],
+                        &waveform,
+                    );
+                    changed = true;
+                }
+            }
+            if let Some(waveform) = self
+                .menu
+                .value_for_key(&format!("instruments.{index}.synth.osc2.waveform"))
+            {
+                if synth_string_at(instrument, &["osc2", "waveform"], "square") != waveform {
+                    set_json_path_string(
+                        &mut instrument.synth_config,
+                        &["osc2", "waveform"],
+                        &waveform,
+                    );
+                    changed = true;
+                }
+            }
+            if let Some(filter_type) = self
+                .menu
+                .value_for_key(&format!("instruments.{index}.synth.filter.type"))
+            {
+                if synth_string_at(instrument, &["filter", "type"], "lowpass") != filter_type {
+                    set_json_path_string(
+                        &mut instrument.synth_config,
+                        &["filter", "type"],
+                        &filter_type,
+                    );
+                    changed = true;
+                }
+            }
+            if let Some(cutoff) = self
+                .menu
+                .number_for_key(&format!("instruments.{index}.synth.filter.cutoffHz"))
+            {
+                let cutoff = cutoff.clamp(20, 20000) as u16;
+                if synth_filter_cutoff(instrument) != cutoff {
+                    set_json_path_number(
+                        &mut instrument.synth_config,
+                        &["filter", "cutoffHz"],
+                        f64::from(cutoff),
+                    );
+                    changed = true;
+                }
+            }
             if let Some(resonance) = self
                 .menu
                 .number_for_key(&format!("instruments.{index}.synth.filter.resonance"))
@@ -1515,6 +1616,16 @@ impl NativeRunner {
             {
                 if instrument.midi_enabled != enabled {
                     instrument.midi_enabled = enabled;
+                    changed = true;
+                }
+            }
+            if let Some(channel) = self
+                .menu
+                .number_for_key(&format!("instruments.{index}.midi.channel"))
+            {
+                let channel = channel.clamp(1, 16) as u8;
+                if instrument.midi_channel != channel {
+                    instrument.midi_channel = channel;
                     changed = true;
                 }
             }
@@ -1875,7 +1986,7 @@ impl NativeRunner {
                 children: vec![],
             },
             crate::native_menu::NativeMenuItem {
-                label: "Name".into(),
+                label: "Part Name".into(),
                 key: Some(format!("parts.{}.name", self.active_part_index)),
                 value: crate::native_menu::NativeMenuValue::Text {
                     value: self
@@ -1938,7 +2049,10 @@ impl NativeRunner {
         &self,
         item: BehaviorConfigItem,
     ) -> Option<crate::native_menu::NativeMenuItem> {
-        let key = format!("behavior.{}", item.key);
+        let key = format!(
+            "parts.{}.l1.behaviorConfig.{}",
+            self.active_part_index, item.key
+        );
         match item.item_type {
             BehaviorConfigItemType::Number => Some(crate::native_menu::NativeMenuItem {
                 label: item.label,
@@ -2010,7 +2124,10 @@ impl NativeRunner {
 
         if let Ok(Some(config_items)) = self.behavior.config_menu(&self.engine_state()) {
             for item in config_items {
-                let key = format!("behavior.{}", item.key);
+                let key = format!(
+                    "parts.{}.l1.behaviorConfig.{}",
+                    self.active_part_index, item.key
+                );
                 match item.item_type {
                     BehaviorConfigItemType::Number => {
                         if let Some(value) = self.menu.number_for_key(&key) {
@@ -2253,6 +2370,7 @@ impl NativeRunner {
                     },
                     "midi": {
                         "enabled": instrument.midi_enabled,
+                        "channel": instrument.midi_channel,
                         "velocity": instrument.midi_velocity,
                         "durationMs": instrument.midi_duration_ms
                     },
@@ -2454,12 +2572,18 @@ impl NativeRunner {
 
     fn messages_with_snapshot(&mut self) -> Result<Vec<RunnerMessage>, String> {
         let snapshot = self.snapshot()?;
-        let mut messages = vec![
+        let mut messages = Vec::new();
+        if !self.queued_platform_effects.is_empty() {
+            messages.push(RunnerMessage::PlatformEffects {
+                effects: std::mem::take(&mut self.queued_platform_effects),
+            });
+        }
+        messages.extend([
             RunnerMessage::Snapshot { snapshot },
             RunnerMessage::RuntimeStatus {
                 status: self.status(),
             },
-        ];
+        ]);
         if self.auto_save_default && self.config_dirty {
             self.config_dirty = false;
             self.auto_save_flash_serial = self.auto_save_flash_serial.wrapping_add(1);
@@ -2626,10 +2750,12 @@ impl NativeRunner {
                         },
                         "midi": {
                             "enabled": instrument.midi_enabled,
+                            "channel": instrument.midi_channel,
                             "velocity": instrument.midi_velocity,
                             "durationMs": instrument.midi_duration_ms
                         },
                         "midiEngine": {
+                            "channel": instrument.midi_channel,
                             "velocity": instrument.midi_velocity,
                             "durationMs": instrument.midi_duration_ms
                         },
@@ -2716,6 +2842,16 @@ impl NativeRunner {
             "preset.refresh" => Some(RuntimePlatformEffect::StoreListPresets),
             "default.load" => Some(RuntimePlatformEffect::StoreLoadDefault),
             "default.save" => Some(RuntimePlatformEffect::StoreSaveDefault {
+                payload: self.config_payload(),
+                mode: None,
+            }),
+            "preset.saveAs" => Some(RuntimePlatformEffect::StoreSavePreset {
+                name: clean_preset_name(&self.preset_draft_name),
+                payload: self.config_payload(),
+                mode: None,
+            }),
+            "preset.renameApply" => Some(RuntimePlatformEffect::StoreSavePreset {
+                name: clean_preset_name(&self.preset_draft_name),
                 payload: self.config_payload(),
                 mode: None,
             }),
@@ -2885,6 +3021,10 @@ impl NativeRunner {
         }
         instrument.synth_config = synth_config;
         instrument.synth_gain_pct = gain;
+        self.toast = Some(NativeToast {
+            message: format!("Loaded synth {preset}"),
+            offset: 0,
+        });
         self.menu.rebuild(self.menu_config());
     }
 
@@ -2955,7 +3095,25 @@ impl NativeRunner {
                 Ok(None)
             }
             NativeMenuAction::PlatformEffect(action_type) => {
-                if let Some(effect) = self.handle_sample_action(&action_type)? {
+                if let Some(name) = action_type.strip_prefix("preset.renamePick:") {
+                    self.preset_rename_source = Some(name.into());
+                    self.preset_draft_name = name.into();
+                    self.menu.rebuild(self.menu_config());
+                    Ok(None)
+                } else if action_type == "preset.saveCurrent" && self.current_preset_name.is_none()
+                {
+                    self.toast = Some(NativeToast {
+                        message: "No preset loaded".into(),
+                        offset: 0,
+                    });
+                    Ok(None)
+                } else if action_type == "midi.panic" {
+                    self.toast = Some(NativeToast {
+                        message: "MIDI panic sent".into(),
+                        offset: 0,
+                    });
+                    Ok(self.platform_effect_for_action(&action_type))
+                } else if let Some(effect) = self.handle_sample_action(&action_type)? {
                     Ok(Some(effect))
                 } else {
                     Ok(self.platform_effect_for_action(&action_type))
@@ -2973,11 +3131,53 @@ impl NativeRunner {
                 self.set_aux_click_target(index, action.map(|action| *action));
                 Ok(None)
             }
+            NativeMenuAction::CloneInstrument { index } => {
+                self.clone_instrument(index);
+                Ok(None)
+            }
+            NativeMenuAction::ResetInstrument { index } => {
+                self.reset_instrument(index);
+                Ok(None)
+            }
             NativeMenuAction::ResetBehavior => {
                 self.seed_visible_state()?;
                 Ok(None)
             }
         }
+    }
+
+    fn clone_instrument(&mut self, index: usize) {
+        let Some(source) = self.instruments.get(index).cloned() else {
+            return;
+        };
+        let Some(target_index) = self
+            .instruments
+            .iter()
+            .position(|instrument| instrument.kind == "none")
+        else {
+            self.toast = Some(NativeToast {
+                message: "All slots in use".into(),
+                offset: 0,
+            });
+            return;
+        };
+        let mut clone = source;
+        clone.auto_name = true;
+        clone.name = derive_instrument_name(target_index, &clone.kind);
+        clone.midi_enabled = false;
+        clone.midi_channel = (target_index + 1).min(16) as u8;
+        self.instruments[target_index] = clone;
+        self.config_dirty = true;
+        self.menu.rebuild(self.menu_config());
+    }
+
+    fn reset_instrument(&mut self, index: usize) {
+        if index >= self.instruments.len() {
+            return;
+        }
+        self.instruments[index] = NativeInstrumentSlot::reset(index);
+        self.config_dirty = true;
+        self.menu.rebuild(self.menu_config());
     }
 
     fn set_aux_click_target(&mut self, index: usize, action: Option<NativeMenuAction>) {
@@ -3214,15 +3414,43 @@ impl NativeRunner {
                 payload: Some(payload),
             } => {
                 self.apply_config_payload(payload)?;
+                self.toast = Some(NativeToast {
+                    message: "Default loaded".into(),
+                    offset: 0,
+                });
             }
             RuntimeStoreResult::LoadPresetResult { name, payload } => {
                 if let Some(payload) = payload {
                     self.apply_config_payload(payload)?;
                 }
+                self.toast = Some(NativeToast {
+                    message: format!("Loaded {name}"),
+                    offset: 0,
+                });
                 self.current_preset_name = Some(name);
             }
             RuntimeStoreResult::SavePresetResult { name, .. } => {
+                if let Some(source) = self.preset_rename_source.take() {
+                    if source != name {
+                        self.queued_platform_effects
+                            .push(RuntimePlatformEffect::StoreDeletePreset { name: source });
+                    }
+                }
+                self.toast = Some(NativeToast {
+                    message: format!("Saved {name}"),
+                    offset: 0,
+                });
                 self.current_preset_name = Some(name);
+                self.menu.rebuild(self.menu_config());
+            }
+            RuntimeStoreResult::DeletePresetResult { name, ok } if ok => {
+                if self.current_preset_name.as_deref() == Some(name.as_str()) {
+                    self.current_preset_name = None;
+                }
+                self.toast = Some(NativeToast {
+                    message: format!("Deleted {name}"),
+                    offset: 0,
+                });
             }
             RuntimeStoreResult::SaveDefaultResult { ok, is_auto: _ } if ok => {
                 self.auto_save_flash_serial = self.auto_save_flash_serial.wrapping_add(1);
@@ -3559,6 +3787,9 @@ impl NativeRunner {
                         if let Some(enabled) = midi.get("enabled").and_then(Value::as_bool) {
                             instrument.midi_enabled = enabled;
                         }
+                        if let Some(channel) = midi.get("channel").and_then(Value::as_u64) {
+                            instrument.midi_channel = (channel as u8).clamp(1, 16);
+                        }
                         if let Some(velocity) = midi.get("velocity").and_then(Value::as_u64) {
                             instrument.midi_velocity = (velocity as u8).clamp(1, 127);
                         }
@@ -3567,6 +3798,9 @@ impl NativeRunner {
                         }
                     }
                     if let Some(midi_engine) = slot.get("midiEngine") {
+                        if let Some(channel) = midi_engine.get("channel").and_then(Value::as_u64) {
+                            instrument.midi_channel = (channel as u8).clamp(1, 16);
+                        }
                         if let Some(velocity) = midi_engine.get("velocity").and_then(Value::as_u64)
                         {
                             instrument.midi_velocity = (velocity as u8).clamp(1, 127);
@@ -3765,6 +3999,7 @@ impl NativeRunner {
         self.refresh_active_interpretation_profile();
         self.engine
             .set_interpretation_profile(self.interpretation_profile.clone());
+        self.sync_engine_runtime_config();
         self.menu.state = Default::default();
         self.menu.rebuild(self.menu_config());
         Ok(())
@@ -5171,7 +5406,11 @@ fn apply_sampler_assignments_for_instruments(
             MusicalEvent::Cc { channel, .. } => *channel,
         };
         if let Some(sense) = sense {
-            out.extend(cc_events_from_intent(intent, sense, channel));
+            out.extend(cc_events_from_intent(
+                intent,
+                sense,
+                midi_event_channel(instruments, channel),
+            ));
         }
         let mut event = event.clone();
         let mut suppress = false;
@@ -5188,6 +5427,9 @@ fn apply_sampler_assignments_for_instruments(
                     *velocity = sense_velocity;
                 }
                 if let Some(instrument) = instruments.get(*channel as usize) {
+                    if instrument.kind == "midi" {
+                        *channel = instrument.midi_channel.saturating_sub(1).min(15);
+                    }
                     if instrument.kind == "sampler" {
                         if let Some(assignment) = instrument
                             .sample_assignments
@@ -5205,6 +5447,9 @@ fn apply_sampler_assignments_for_instruments(
             }
             MusicalEvent::NoteOff { channel, note } => {
                 if let Some(instrument) = instruments.get(*channel as usize) {
+                    if instrument.kind == "midi" {
+                        *channel = instrument.midi_channel.saturating_sub(1).min(15);
+                    }
                     if instrument.kind == "sampler" {
                         if let Some(assignment) = instrument
                             .sample_assignments
@@ -5218,13 +5463,23 @@ fn apply_sampler_assignments_for_instruments(
                     }
                 }
             }
-            MusicalEvent::Cc { .. } => {}
+            MusicalEvent::Cc { channel, .. } => {
+                *channel = midi_event_channel(instruments, *channel);
+            }
         }
         if !suppress {
             out.push(event);
         }
     }
     out
+}
+
+fn midi_event_channel(instruments: &[NativeInstrumentSlot], slot_channel: u8) -> u8 {
+    instruments
+        .get(slot_channel as usize)
+        .filter(|instrument| instrument.kind == "midi")
+        .map(|instrument| instrument.midi_channel.saturating_sub(1).min(15))
+        .unwrap_or(slot_channel)
 }
 
 fn cc_events_from_intent(
@@ -5417,6 +5672,7 @@ fn apply_instrument_binding_value(
                 "sample.baseVelocity" => {
                     instrument.sample_base_velocity = value.round().clamp(1.0, 127.0) as u8
                 }
+                "midi.channel" => instrument.midi_channel = value.round().clamp(1.0, 16.0) as u8,
                 "midi.velocity" => instrument.midi_velocity = value.round().clamp(1.0, 127.0) as u8,
                 "midi.durationMs" => {
                     instrument.midi_duration_ms = value.round().clamp(10.0, 5000.0) as u16
@@ -6156,6 +6412,7 @@ fn supported_param_binding_key(key: &str) -> bool {
             | "sample.amp.gainPct"
             | "sample.baseVelocity"
             | "midi.enabled"
+            | "midi.channel"
             | "midi.velocity"
             | "midi.durationMs"
     )
@@ -6313,6 +6570,8 @@ fn aux_bindings_payload(bindings: &[Option<NativeAuxBinding>]) -> Value {
                 "pressAction": match &binding.press_action {
                     Some(NativeMenuAction::BehaviorAction(action)) => json!({ "kind": "behavior_action", "actionType": action.clone() }),
                     Some(NativeMenuAction::PlatformEffect(action)) => json!({ "kind": "platform_effect", "action": action.clone() }),
+                    Some(NativeMenuAction::CloneInstrument { index }) => json!({ "kind": "instrument_clone", "slot": index }),
+                    Some(NativeMenuAction::ResetInstrument { index }) => json!({ "kind": "instrument_reset", "slot": index }),
                     Some(NativeMenuAction::ResetBehavior) => json!({ "kind": "reset_behavior" }),
                     _ => Value::Null,
                 }
@@ -6345,6 +6604,34 @@ fn instrument_auto_names(instruments: &[NativeInstrumentSlot]) -> Vec<bool> {
         .iter()
         .map(|instrument| instrument.auto_name)
         .collect()
+}
+
+fn instrument_note_behaviors(instruments: &[NativeInstrumentSlot]) -> Vec<String> {
+    instruments
+        .iter()
+        .map(|instrument| instrument.note_behavior.clone())
+        .collect()
+}
+
+fn note_behaviors_from_instruments(instruments: &[NativeInstrumentSlot]) -> Vec<NoteBehavior> {
+    let mut note_behaviors = vec![NoteBehavior::Oneshot; 16];
+    for (index, instrument) in instruments.iter().enumerate().take(note_behaviors.len()) {
+        note_behaviors[index] = if instrument.note_behavior == "hold" {
+            NoteBehavior::Hold
+        } else {
+            NoteBehavior::Oneshot
+        };
+    }
+    note_behaviors
+}
+
+fn clean_preset_name(name: &str) -> String {
+    let trimmed = name.trim();
+    if trimmed.is_empty() {
+        "New Preset".into()
+    } else {
+        trimmed.into()
+    }
 }
 
 fn instrument_types(instruments: &[NativeInstrumentSlot]) -> Vec<String> {
@@ -6415,6 +6702,31 @@ fn instrument_sample_slots(instruments: &[NativeInstrumentSlot]) -> Vec<usize> {
         .collect()
 }
 
+fn instrument_synth_osc1_waveforms(instruments: &[NativeInstrumentSlot]) -> Vec<String> {
+    instruments
+        .iter()
+        .map(|instrument| synth_string_at(instrument, &["osc1", "waveform"], "saw"))
+        .collect()
+}
+
+fn instrument_synth_osc2_waveforms(instruments: &[NativeInstrumentSlot]) -> Vec<String> {
+    instruments
+        .iter()
+        .map(|instrument| synth_string_at(instrument, &["osc2", "waveform"], "square"))
+        .collect()
+}
+
+fn instrument_synth_filter_types(instruments: &[NativeInstrumentSlot]) -> Vec<String> {
+    instruments
+        .iter()
+        .map(|instrument| synth_string_at(instrument, &["filter", "type"], "lowpass"))
+        .collect()
+}
+
+fn instrument_synth_filter_cutoffs(instruments: &[NativeInstrumentSlot]) -> Vec<u16> {
+    instruments.iter().map(synth_filter_cutoff).collect()
+}
+
 fn instrument_synth_gain_pct(instruments: &[NativeInstrumentSlot]) -> Vec<u8> {
     instruments
         .iter()
@@ -6434,6 +6746,46 @@ fn synth_filter_resonance(instrument: &NativeInstrumentSlot) -> u8 {
         .and_then(Value::as_u64)
         .unwrap_or(20)
         .min(255) as u8
+}
+
+fn synth_filter_cutoff(instrument: &NativeInstrumentSlot) -> u16 {
+    instrument
+        .synth_config
+        .get("filter")
+        .and_then(|filter| filter.get("cutoffHz"))
+        .and_then(Value::as_u64)
+        .unwrap_or(8000)
+        .clamp(20, 20000) as u16
+}
+
+fn synth_string_at(instrument: &NativeInstrumentSlot, path: &[&str], fallback: &str) -> String {
+    let mut current = &instrument.synth_config;
+    for key in path {
+        let Some(next) = current.get(*key) else {
+            return fallback.into();
+        };
+        current = next;
+    }
+    current.as_str().unwrap_or(fallback).into()
+}
+
+fn set_json_path_string(value: &mut Value, path: &[&str], text: &str) {
+    let Some((last, parents)) = path.split_last() else {
+        return;
+    };
+    let mut current = value;
+    for key in parents {
+        let Some(object) = current.as_object_mut() else {
+            return;
+        };
+        let Some(next) = object.get_mut(*key) else {
+            return;
+        };
+        current = next;
+    }
+    if let Some(object) = current.as_object_mut() {
+        object.insert((*last).to_string(), json!(text));
+    }
 }
 
 fn set_json_path_number(value: &mut Value, path: &[&str], number: f64) {
@@ -6548,6 +6900,13 @@ fn instrument_midi_enabled(instruments: &[NativeInstrumentSlot]) -> Vec<bool> {
     instruments
         .iter()
         .map(|instrument| instrument.midi_enabled)
+        .collect()
+}
+
+fn instrument_midi_channels(instruments: &[NativeInstrumentSlot]) -> Vec<u8> {
+    instruments
+        .iter()
+        .map(|instrument| instrument.midi_channel)
         .collect()
 }
 
@@ -6903,6 +7262,16 @@ fn parse_aux_press_action(value: &Value) -> Option<NativeMenuAction> {
             .get("action")
             .and_then(Value::as_str)
             .map(|action| NativeMenuAction::PlatformEffect(action.into())),
+        "instrument_clone" => value.get("slot").and_then(Value::as_u64).map(|slot| {
+            NativeMenuAction::CloneInstrument {
+                index: slot as usize,
+            }
+        }),
+        "instrument_reset" => value.get("slot").and_then(Value::as_u64).map(|slot| {
+            NativeMenuAction::ResetInstrument {
+                index: slot as usize,
+            }
+        }),
         "reset_behavior" => Some(NativeMenuAction::ResetBehavior),
         _ => None,
     }

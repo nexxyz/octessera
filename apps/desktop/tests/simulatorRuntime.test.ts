@@ -43,12 +43,46 @@ function waitMicrotask(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+function fakeRunner(
+  handle?: (message: any, state: any, frame: any) => any[]
+) {
+  const state = {
+    runtimeConfig: {
+      midi: { enabled: false, outId: null, inId: null, syncMode: "internal", clockInEnabled: false, clockOutEnabled: false },
+      displayBrightness: 75,
+      buttonBrightness: 75,
+      masterVolume: 73,
+      sound: { voiceStealingMode: "balanced" },
+      instruments: [],
+      mixer: { buses: [] },
+      panPositions: 33
+    },
+    transport: { playing: false, ppqnPulse: 0 },
+    system: { transportFlash: "none", combinedModifierHeld: false, fnHeld: false, stopLatched: false, autoSaveFlash: "none" }
+  };
+  const frame = {
+    oled: { width: 128, height: 128, format: "rgb565be" as const, pixels: new Uint8Array(32768) },
+    leds: { width: 8, height: 8, cells: Array.from({ length: 64 }, () => ({ r: 0, g: 0, b: 0 })) },
+    transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
+    display: { page: "boot", title: "Boot", lines: [], editing: false },
+    activeBehavior: "life",
+    gridInteraction: "paint",
+    settings: state.runtimeConfig
+  };
+  return {
+    dispatch: (message: any) => handle?.(message, state, frame) ?? [],
+    getState: () => state,
+    getFrame: () => frame
+  };
+}
+
 test("runtime boots, dispatches, and publishes snapshots", async () => {
   const scheduler = new FakeScheduler();
   let outputsListed = 0;
   let inputsListed = 0;
   let snapshots = 0;
   const runtime = createSimulatorRuntime(scheduler, {
+    runner: fakeRunner(),
     store: memoryStore(),
     midiService: {
       listOutputs: async () => {
@@ -86,6 +120,7 @@ test("runtime tick path executes without tauri bridge", async () => {
   const scheduler = new FakeScheduler();
   let sentCount = 0;
   const runtime = createSimulatorRuntime(scheduler, {
+    runner: fakeRunner(),
     store: memoryStore(),
     midiService: {
       listOutputs: async () => [],
@@ -415,8 +450,20 @@ test("tauri mode bypasses local runner for encoder menu input", async () => {
 test("auto-save default debounces repeated config edits", async () => {
   const scheduler = new FakeScheduler();
   const store = memoryStore();
-  let snapshot: ReturnType<ReturnType<typeof createSimulatorRuntime>["getSnapshot"]> | null = null;
+  let masterVolume = 73;
   const runtime = createSimulatorRuntime(scheduler, {
+    runner: fakeRunner((message) => {
+      if (message.type !== "device_input" || message.input?.type !== "encoder_turn") return [];
+      masterVolume += message.input.delta;
+      return [{
+        type: "platform_effects",
+        effects: [{
+          type: "store_save_default",
+          mode: "deferred",
+          payload: { runtimeConfig: { masterVolume } }
+        }]
+      }];
+    }),
     store,
     autoSaveCooldownMs: 10,
     midiService: {
@@ -429,50 +476,15 @@ test("auto-save default debounces repeated config edits", async () => {
     },
     invoke: async () => []
   });
-  runtime.subscribe((next) => {
-    snapshot = next;
-  });
-
-  const press = () => runtime.dispatch({ type: "encoder_press" });
-  const turn = (delta: -1 | 1) => runtime.dispatch({ type: "encoder_turn", delta });
-  const back = () => runtime.dispatch({ type: "button_a" });
-  const selectLabel = (label: string) => {
-    for (let i = 0; i < 80; i += 1) {
-      const selected = snapshot?.frame.display.lines.find((line) => line.startsWith("@@")) ?? "";
-      if (selected.includes(label)) return;
-      turn(1);
-    }
-    assert.fail(`failed to select label: ${label}`);
-  };
 
   runtime.start();
-  selectLabel("System");
-  press();
-  selectLabel("Saves");
-  press();
-  selectLabel("Default");
-  press();
-  selectLabel("Auto Save");
-  press();
-  turn(1);
-  press();
-  assert.equal(store.defaultSaveCount(), 1, "enabling auto-save saves immediately");
-
-  back();
-  back();
-  back();
-  selectLabel("System");
-  press();
-  selectLabel("Sound");
-  press();
-  press();
-  turn(1);
-  turn(1);
-  turn(1);
-  assert.equal(store.defaultSaveCount(), 1, "sweep edits should not save immediately");
+  runtime.dispatch({ type: "encoder_turn", delta: 1 });
+  runtime.dispatch({ type: "encoder_turn", delta: 1 });
+  runtime.dispatch({ type: "encoder_turn", delta: 1 });
+  assert.equal(store.defaultSaveCount(), 0, "sweep edits should not save immediately");
 
   await new Promise((resolve) => setTimeout(resolve, 30));
-  assert.equal(store.defaultSaveCount(), 2, "cooldown writes once");
+  assert.equal(store.defaultSaveCount(), 1, "cooldown writes once");
   assert.equal(store.defaultPayload()?.runtimeConfig.masterVolume, 76, "cooldown saves latest value");
 });
 
@@ -481,6 +493,17 @@ test("deferred auto-save flashes for ~500ms after save", async () => {
   const store = memoryStore();
   let snapshot: ReturnType<ReturnType<typeof createSimulatorRuntime>["getSnapshot"]> | null = null;
   const runtime = createSimulatorRuntime(scheduler, {
+    runner: fakeRunner((message, state, frame) => {
+      if (message.type === "device_input" && message.input?.type === "encoder_turn") {
+        return [{ type: "platform_effects", effects: [{ type: "store_save_default", mode: "deferred", payload: { runtimeConfig: { masterVolume: 74 } } }] }];
+      }
+      if (message.type === "runtime_result" && message.result?.type === "save_default_result") {
+        state.system.autoSaveFlash = "flash";
+        frame.settings = { ...frame.settings, autoSaveFlash: "flash" };
+        return [{ type: "snapshot", snapshot: frame }];
+      }
+      return [];
+    }),
     store,
     autoSaveCooldownMs: 10,
     midiService: {
@@ -497,45 +520,12 @@ test("deferred auto-save flashes for ~500ms after save", async () => {
     snapshot = next;
   });
 
-  const press = () => runtime.dispatch({ type: "encoder_press" });
-  const turn = (delta: -1 | 1) => runtime.dispatch({ type: "encoder_turn", delta });
-  const back = () => runtime.dispatch({ type: "button_a" });
-  const selectLabel = (label: string) => {
-    for (let i = 0; i < 80; i += 1) {
-      const selected = snapshot?.frame.display.lines.find(line => line.startsWith("@@")) ?? "";
-      if (selected.includes(label)) return;
-      turn(1);
-    }
-  };
-
   runtime.start();
-  selectLabel("System");
-  press();
-  selectLabel("Saves");
-  press();
-  selectLabel("Default");
-  press();
-  selectLabel("Auto Save");
-  press();
-  turn(1);
-  press();
-  await waitMicrotask();
-  assert.equal(store.defaultSaveCount(), 1, "enabling auto-save saves immediately");
-
-  back();
-  back();
-  back();
-  selectLabel("System");
-  press();
-  selectLabel("Sound");
-  press();
-  press();
-  turn(1);
-  turn(1);
+  runtime.dispatch({ type: "encoder_turn", delta: 1 });
   // Wait for deferred save (10ms) + one tick to process the effect → applyStoreResult → flash
   await new Promise(resolve => setTimeout(resolve, 100));
 
-  assert.equal(store.defaultSaveCount(), 2, "cooldown triggers save");
+  assert.equal(store.defaultSaveCount(), 1, "cooldown triggers save");
   assert.ok(snapshot, "should have a snapshot after save");
   assert.equal(snapshot?.autoSaveFlash, "flash", "flash should be active after save");
 
@@ -545,7 +535,7 @@ test("deferred auto-save flashes for ~500ms after save", async () => {
   await waitMicrotask();
 
   // Core decay has cleared the flash
-  assert.equal(store.defaultSaveCount(), 2, "save count unchanged during flash");
+  assert.equal(store.defaultSaveCount(), 1, "save count unchanged during flash");
 });
 
 test("manual Save Default also triggers flash", async () => {
@@ -553,6 +543,17 @@ test("manual Save Default also triggers flash", async () => {
   const store = memoryStore();
   let snapshot: ReturnType<ReturnType<typeof createSimulatorRuntime>["getSnapshot"]> | null = null;
   const runtime = createSimulatorRuntime(scheduler, {
+    runner: fakeRunner((message, state, frame) => {
+      if (message.type === "device_input" && message.input?.type === "encoder_press") {
+        return [{ type: "platform_effects", effects: [{ type: "store_save_default", mode: "immediate", payload: { runtimeConfig: { masterVolume: 73 } } }] }];
+      }
+      if (message.type === "runtime_result" && message.result?.type === "save_default_result") {
+        state.system.autoSaveFlash = "flash";
+        frame.settings = { ...frame.settings, autoSaveFlash: "flash" };
+        return [{ type: "snapshot", snapshot: frame }];
+      }
+      return [];
+    }),
     store,
     autoSaveCooldownMs: 2000,
     midiService: {
@@ -569,29 +570,8 @@ test("manual Save Default also triggers flash", async () => {
     snapshot = next;
   });
 
-  const press = () => runtime.dispatch({ type: "encoder_press" });
-  const turn = (delta: -1 | 1) => runtime.dispatch({ type: "encoder_turn", delta });
-  const back = () => runtime.dispatch({ type: "button_a" });
-  const selectLabel = (label: string) => {
-    for (let i = 0; i < 80; i += 1) {
-      const selected = snapshot?.frame.display.lines.find((line) => line.startsWith("@@")) ?? "";
-      if (selected.includes(label)) return;
-      turn(1);
-    }
-  };
-
   runtime.start();
-  selectLabel("System");
-  press();
-  selectLabel("Saves");
-  press();
-  selectLabel("Default");
-  press();
-  selectLabel("Save Default");
-  press();
-  // Now in confirmation dialog - turn to select "Yes" and press
-  turn(1);
-  press();
+  runtime.dispatch({ type: "encoder_press" });
   scheduler.tick(Date.now(), 125);
   await waitMicrotask();
 
@@ -608,9 +588,19 @@ test("deferred auto-save triggers flash", async () => {
   const store = memoryStore();
   let snapshot: ReturnType<ReturnType<typeof createSimulatorRuntime>["getSnapshot"]> | null = null;
   const runtime = createSimulatorRuntime(scheduler, {
+    runner: fakeRunner((message, state, frame) => {
+      if (message.type === "device_input" && message.input?.type === "encoder_turn") {
+        return [{ type: "platform_effects", effects: [{ type: "store_save_default", mode: "deferred", payload: { runtimeConfig: { masterVolume: 75 } } }] }];
+      }
+      if (message.type === "runtime_result" && message.result?.type === "save_default_result") {
+        state.system.autoSaveFlash = "flash";
+        frame.settings = { ...frame.settings, autoSaveFlash: "flash" };
+        return [{ type: "snapshot", snapshot: frame }];
+      }
+      return [];
+    }),
     store,
     autoSaveCooldownMs: 50,
-    autoSaveDefault: true,
     midiService: {
       listOutputs: async () => [],
       listInputs: async () => [],
@@ -625,47 +615,14 @@ test("deferred auto-save triggers flash", async () => {
     snapshot = next;
   });
 
-  const press = () => runtime.dispatch({ type: "encoder_press" });
-  const turn = (delta: -1 | 1) => runtime.dispatch({ type: "encoder_turn", delta });
-  const back = () => runtime.dispatch({ type: "button_a" });
-  const selectLabel = (label: string) => {
-    for (let i = 0; i < 80; i += 1) {
-      const selected = snapshot?.frame.display.lines.find((line) => line.startsWith("@@")) ?? "";
-      if (selected.includes(label)) return;
-      turn(1);
-    }
-  };
-
   runtime.start();
-  selectLabel("System");
-  press();
-  selectLabel("Saves");
-  press();
-  selectLabel("Default");
-  press();
-  selectLabel("Auto Save");
-  press();
-  turn(1);
-  press();
-  await waitMicrotask();
-  assert.equal(store.defaultSaveCount(), 1, "enabling auto-save saves immediately");
-
-  back();
-  back();
-  back();
-  selectLabel("System");
-  press();
-  selectLabel("Sound");
-  press();
-  press();
-  turn(1);
-  turn(1);
+  runtime.dispatch({ type: "encoder_turn", delta: 1 });
   // Wait for deferred save + tick
   await new Promise((resolve) => setTimeout(resolve, 150));
   scheduler.tick(Date.now(), 125);
   await waitMicrotask();
 
-  assert.equal(store.defaultSaveCount(), 2, "cooldown triggers save");
+  assert.equal(store.defaultSaveCount(), 1, "cooldown triggers save");
   assert.ok(snapshot, "should have a snapshot after save");
   assert.equal(snapshot?.autoSaveFlash, "flash", "flash should be active after save");
   assert.ok(snapshot?.autoSaveFlash !== undefined, "autoSaveFlash field should exist");
@@ -675,7 +632,7 @@ test("deferred auto-save triggers flash", async () => {
   scheduler.tick(Date.now(), 125);
   await waitMicrotask();
 
-  assert.equal(store.defaultSaveCount(), 2, "save count unchanged during flash");
+  assert.equal(store.defaultSaveCount(), 1, "save count unchanged during flash");
 });
 
 test("deferred auto-save default field exists", async () => {
@@ -683,6 +640,7 @@ test("deferred auto-save default field exists", async () => {
   const store = memoryStore();
   let snapshot: ReturnType<ReturnType<typeof createSimulatorRuntime>["getSnapshot"]> | null = null;
   const runtime = createSimulatorRuntime(scheduler, {
+    runner: fakeRunner(),
     store,
     autoSaveCooldownMs: 2000,
     midiService: {

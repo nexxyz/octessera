@@ -70,6 +70,9 @@ fn fresh_native_runner_uses_old_initial_sense_defaults() {
     assert_eq!(runner.sense_parts[0].out_of_range, "clamp");
     assert_eq!(runner.sense_parts[0].x_pitch_steps, 0);
     assert_eq!(runner.sense_parts[0].y_pitch_steps, 1);
+    assert_eq!(runner.ui.master_volume, 73);
+    assert_eq!(runner.global_sound.note_length_ms, 120);
+    assert!(!runner.auto_save_default);
     assert!(runner.trigger_probability_maps[0]
         .iter()
         .all(|cell| cell == "full"));
@@ -302,6 +305,7 @@ fn grid_state_edit_emits_deferred_auto_save_when_enabled() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
+    runner.auto_save_default = true;
 
     let messages = runner
         .send(HostMessage::DeviceInput {
@@ -448,26 +452,56 @@ fn synth_preset_load_changes_full_synth_payload_and_filter_resonance_is_editable
 
     assert_ne!(changed, initial);
     assert_eq!(changed["filter"]["resonance"], 34);
+    assert_eq!(changed["filter"]["type"], "lowpass");
+    assert_eq!(changed["filter"]["cutoffHz"], 7200);
     assert_eq!(changed["osc1"]["waveform"], "saw");
+    assert_eq!(
+        runner
+            .menu
+            .value_for_key("instruments.0.synth.osc1.waveform"),
+        Some("saw".into())
+    );
+    assert_eq!(
+        runner.menu.value_for_key("instruments.0.synth.filter.type"),
+        Some("lowpass".into())
+    );
+
+    runner.menu.state.stack = vec![2, 0, 0, 2, 1, 0];
+    runner.menu.state.cursor = 0;
+    runner.menu.state.editing = true;
+    runner.menu.turn(1);
+    runner.apply_menu_state().unwrap();
+
+    runner.menu.state.stack = vec![2, 0, 0, 2, 2];
+    runner.menu.state.cursor = 0;
+    runner.menu.state.editing = true;
+    runner.menu.turn(1);
+    runner.apply_menu_state().unwrap();
+
+    runner.menu.state.stack = vec![2, 0, 0, 2, 2];
+    runner.menu.state.cursor = 1;
+    runner.menu.state.editing = true;
+    runner.menu.turn(-2);
+    runner.apply_menu_state().unwrap();
 
     runner.menu.state.stack = vec![2, 0, 0, 2, 2];
     runner.menu.state.cursor = 2;
-    let _ = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_press", "id": "main" }),
-        })
-        .unwrap();
-    let _ = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": 5, "id": "main" }),
-        })
-        .unwrap();
-    let _ = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_press", "id": "main" }),
-        })
-        .unwrap();
+    runner.menu.state.editing = true;
+    runner.menu.turn(5);
+    runner.apply_menu_state().unwrap();
 
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["instruments"][0]["synth"]["osc1"]["waveform"],
+        "square"
+    );
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["instruments"][0]["synth"]["filter"]["type"],
+        "highpass"
+    );
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["instruments"][0]["synth"]["filter"]["cutoffHz"],
+        7000
+    );
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["instruments"][0]["synth"]["filter"]["resonance"],
         39
@@ -737,6 +771,50 @@ fn sense_velocity_and_filter_lanes_modulate_mapped_events() {
 }
 
 #[test]
+fn midi_instrument_channel_remaps_note_and_cc_events() {
+    let mut instrument = NativeInstrumentSlot {
+        kind: "midi".into(),
+        midi_channel: 10,
+        ..NativeInstrumentSlot::new(0)
+    };
+    instrument.midi_enabled = true;
+    let mut sense = NativeSensePart::default();
+    sense.y_filter_cutoff = NativeValueLane {
+        enabled: true,
+        from: 20,
+        to: 120,
+        grid_offset: 0,
+    };
+    let intent = CellTriggerIntent {
+        x: 0,
+        y: 7,
+        degree: 0,
+        kind: platform_core::CellTriggerKind::Activate,
+    };
+
+    let out = apply_sampler_assignments_for_instruments(
+        vec![MusicalEvent::NoteOn {
+            channel: 0,
+            note: 60,
+            velocity: 100,
+            duration_ms: Some(120),
+        }],
+        &[intent],
+        0,
+        &[instrument],
+        Some(&sense),
+    );
+
+    assert!(matches!(
+        out.as_slice(),
+        [
+            MusicalEvent::Cc { channel: 9, .. },
+            MusicalEvent::NoteOn { channel: 9, .. }
+        ]
+    ));
+}
+
+#[test]
 fn sampler_assignment_remaps_note_off_and_suppresses_unmapped_notes() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].kind = "sampler".into();
@@ -834,6 +912,7 @@ fn sense_value_lanes_round_trip_in_payload() {
 #[test]
 fn assignment_mode_wins_over_fn_part_navigation_and_autosaves() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.auto_save_default = true;
     runner.instruments[0].kind = "sampler".into();
     runner.sample_assign = Some((0, 1));
     runner.ui.fn_held = true;
@@ -863,6 +942,7 @@ fn assignment_mode_wins_over_fn_part_navigation_and_autosaves() {
 #[test]
 fn dance_mix_grid_edit_autosaves_persistent_volume_change() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.auto_save_default = true;
     runner.active_dance_mode = "mix".into();
 
     let messages = runner
@@ -1230,6 +1310,10 @@ fn config_payload_includes_complete_sample_and_fx_param_shapes() {
         payload["runtimeConfig"]["instruments"][0]["midiEngine"]["velocity"],
         100
     );
+    assert_eq!(
+        payload["runtimeConfig"]["instruments"][0]["midiEngine"]["channel"],
+        1
+    );
     assert!(payload["runtimeConfig"]["instruments"][0]["sample"]["ampEnv"].is_object());
     assert!(payload["runtimeConfig"]["instruments"][0]["sample"]["filter"].is_object());
     assert!(payload["runtimeConfig"]["instruments"][0]["sample"]["filterEnv"].is_object());
@@ -1242,6 +1326,7 @@ fn config_payload_includes_complete_sample_and_fx_param_shapes() {
         json!({ "type": "highpass", "cutoffHz": 1200 });
     payload["runtimeConfig"]["instruments"][0]["sample"]["filterEnv"] = json!({ "releaseMs": 222 });
     payload["runtimeConfig"]["instruments"][0]["midiEngine"] = json!({
+        "channel": 7,
         "velocity": 66,
         "durationMs": 444
     });
@@ -1251,6 +1336,7 @@ fn config_payload_includes_complete_sample_and_fx_param_shapes() {
     assert_eq!(runner.instruments[0].sample_filter["type"], "highpass");
     assert_eq!(runner.instruments[0].sample_filter_env["releaseMs"], 222);
     assert_eq!(runner.instruments[0].midi_velocity, 66);
+    assert_eq!(runner.instruments[0].midi_channel, 7);
     assert_eq!(runner.instruments[0].midi_duration_ms, 444);
 }
 
@@ -1419,6 +1505,7 @@ fn inactive_part_transport_tick_applies_param_modulation() {
 #[test]
 fn native_menu_edit_emits_deferred_auto_save_when_enabled() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.auto_save_default = true;
     runner.menu.state.stack = vec![3];
     runner.menu.state.cursor = 1;
     runner
@@ -1809,7 +1896,7 @@ fn system_sound_master_volume_edit_via_menu() {
     assert_eq!(snapshot_from(&edit)["display"]["editing"], true);
 
     let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_turn", "delta": -1, "id": "main" }),
+        input: json!({ "type": "encoder_turn", "delta": 26, "id": "main" }),
     });
     assert_eq!(runner.ui.master_volume, 99);
 
@@ -1849,7 +1936,7 @@ fn fn_aux_binds_selected_param_and_aux_turn_edits_it() {
         })
         .unwrap();
 
-    assert_eq!(snapshot_from(&messages)["settings"]["masterVolume"], 90);
+    assert_eq!(snapshot_from(&messages)["settings"]["masterVolume"], 63);
     assert!(snapshot_from(&messages)["display"]["toast"]
         .as_str()
         .unwrap_or("")
@@ -2077,6 +2164,7 @@ fn load_default_result_applies_native_config_payload() {
     assert_eq!(runner.behavior.id(), "sequencer");
     assert_eq!(runner.instruments[0].kind, "sampler");
     assert_eq!(runner.instruments[0].note_behavior, "hold");
+    assert_eq!(runner.note_behaviors[0], NoteBehavior::Hold);
     assert_eq!(runner.ui.master_volume, 88);
     assert_eq!(runner.sync_source, SyncSource::External);
     assert_eq!(snapshot_from(&messages)["activeBehavior"], "sequencer");
@@ -2244,6 +2332,145 @@ fn save_current_uses_loaded_preset_name() {
 }
 
 #[test]
+fn native_store_and_action_toasts_cover_common_confirmation_results() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+
+    runner.menu.state.stack = vec![5, 0, 0];
+    runner.menu.state.cursor = 1;
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })
+        .unwrap();
+    assert!(!messages
+        .iter()
+        .any(|message| matches!(message, RunnerMessage::PlatformEffects { .. })));
+    assert_eq!(runner.toast.as_ref().unwrap().message, "No preset loaded");
+
+    let _ = runner
+        .send(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::LoadPresetResult {
+                name: "Alpha".into(),
+                payload: Some(json!({ "runtimeConfig": { "activeBehavior": "sequencer" } })),
+            },
+        })
+        .unwrap();
+    assert_eq!(runner.toast.as_ref().unwrap().message, "Loaded Alpha");
+
+    let _ = runner
+        .send(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::SavePresetResult {
+                name: "Alpha".into(),
+                outcome: "overwritten".into(),
+            },
+        })
+        .unwrap();
+    assert_eq!(runner.toast.as_ref().unwrap().message, "Saved Alpha");
+
+    let _ = runner
+        .send(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::DeletePresetResult {
+                name: "Alpha".into(),
+                ok: true,
+            },
+        })
+        .unwrap();
+    assert_eq!(runner.toast.as_ref().unwrap().message, "Deleted Alpha");
+}
+
+#[test]
+fn midi_panic_and_synth_preset_actions_show_toasts() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let effect = runner
+        .execute_menu_action(NativeMenuAction::PlatformEffect("midi.panic".into()))
+        .unwrap();
+    assert_eq!(effect, Some(RuntimePlatformEffect::MidiPanic));
+    assert_eq!(runner.toast.as_ref().unwrap().message, "MIDI panic sent");
+
+    runner.load_synth_preset(0, "lead");
+    assert_eq!(runner.toast.as_ref().unwrap().message, "Loaded synth lead");
+}
+
+#[test]
+fn preset_save_as_uses_text_draft_name() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.preset_draft_name = "Jam A".into();
+    runner.menu.rebuild(runner.menu_config());
+    runner.menu.state.stack = vec![5, 0, 0, 0];
+    runner.menu.state.cursor = 1;
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })
+        .unwrap();
+
+    assert_eq!(runner.preset_draft_name, "Jam A");
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if matches!(
+                effects.as_slice(),
+                [RuntimePlatformEffect::StoreSavePreset { name, mode, .. }]
+                    if name == "Jam A" && mode.is_none()
+            )
+    )));
+}
+
+#[test]
+fn preset_rename_pick_sets_new_name_and_apply_saves() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.preset_names = vec!["Alpha".into()];
+    runner.menu.rebuild(runner.menu_config());
+    runner.menu.state.stack = vec![5, 0, 0, 3];
+    runner.menu.state.cursor = 0;
+
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })
+        .unwrap();
+
+    assert_eq!(runner.preset_rename_source.as_deref(), Some("Alpha"));
+    assert_eq!(runner.preset_draft_name, "Alpha");
+    runner.preset_draft_name = "Alpha A".into();
+    runner.menu.rebuild(runner.menu_config());
+    runner.menu.state.stack = vec![5, 0, 0, 3];
+    runner.menu.state.cursor = 2;
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })
+        .unwrap();
+
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if matches!(
+                effects.as_slice(),
+                [RuntimePlatformEffect::StoreSavePreset { name, .. }]
+                    if name == "Alpha A"
+            )
+    )));
+
+    let messages = runner
+        .send(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::SavePresetResult {
+                name: "Alpha A".into(),
+                outcome: "created".into(),
+            },
+        })
+        .unwrap();
+
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects == &vec![RuntimePlatformEffect::StoreDeletePreset { name: "Alpha".into() }]
+    )));
+}
+
+#[test]
 fn sample_browser_opens_lists_and_picks_sample() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].kind = "sampler".into();
@@ -2322,16 +2549,8 @@ fn sample_browser_opens_lists_and_picks_sample() {
 #[test]
 fn fn_shift_enter_opens_contextual_help_and_enter_closes_it() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let _ = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
-        })
-        .unwrap();
-    let _ = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_press", "id": "main" }),
-        })
-        .unwrap();
+    runner.menu.state.stack = vec![2];
+    runner.menu.state.cursor = 0;
 
     let _ = runner
         .send(HostMessage::DeviceInput {
@@ -2428,6 +2647,7 @@ fn active_part_trigger_toggle_suppresses_and_restores_with_toast() {
 #[test]
 fn repeated_autosaves_increment_flash_serial() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.auto_save_default = true;
     let first = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
@@ -2470,6 +2690,44 @@ fn contextual_help_includes_midi_output_guidance() {
         .join(" ");
 
     assert!(lines.contains("output"));
+}
+
+#[test]
+fn contextual_help_resolves_life_params_and_scrolls_to_bottom() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        behavior_id: "life".into(),
+        behavior_config: json!({ "randomCellsPerTick": 12, "randomTickInterval": 1 }),
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    runner.menu.state.stack = vec![0, 0];
+    runner.menu.state.cursor = 4;
+    runner.ui.fn_held = true;
+    runner.ui.shift_held = true;
+
+    let opened = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })
+        .unwrap();
+    let lines = snapshot_from(&opened)["display"]["lines"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|line| line.as_str().unwrap_or_default())
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    assert!(lines.contains("random cells"));
+    runner.ui.fn_held = false;
+    runner.ui.shift_held = false;
+
+    runner.turn_help_popup(2);
+    let help = runner.help_popup.as_ref().unwrap();
+    assert_eq!(
+        help.scroll,
+        help.lines.len().saturating_sub(OLED_BODY_ROWS - 1)
+    );
 }
 
 #[test]
@@ -2844,12 +3102,30 @@ fn voice_menu_visibility_follows_instrument_type() {
 }
 
 #[test]
-fn midi_instrument_velocity_edits_through_menu() {
+fn midi_instrument_params_edit_through_menu() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].kind = "midi".into();
     runner.instruments[0].name = "midi".into();
     runner.menu.rebuild(runner.menu_config());
     runner.menu.state.stack = vec![2, 0, 0, 2];
+    runner.menu.state.cursor = 1;
+
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })
+        .unwrap();
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 4, "id": "main" }),
+        })
+        .unwrap();
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })
+        .unwrap();
+
     runner.menu.state.cursor = 2;
 
     let _ = runner
@@ -2869,8 +3145,42 @@ fn midi_instrument_velocity_edits_through_menu() {
         .unwrap();
 
     assert_eq!(
+        snapshot_from(&messages)["settings"]["instruments"][0]["midi"]["channel"],
+        5
+    );
+    assert_eq!(
         snapshot_from(&messages)["settings"]["instruments"][0]["midi"]["velocity"],
         90
+    );
+}
+
+#[test]
+fn instrument_clone_and_reset_actions_update_slots() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].name = "kit".into();
+    runner.instruments[0].auto_name = false;
+
+    runner
+        .execute_menu_action(NativeMenuAction::ResetInstrument { index: 1 })
+        .unwrap();
+
+    assert_eq!(runner.instruments[1].kind, "none");
+    assert_eq!(runner.instruments[1].name, "none");
+    assert_eq!(runner.instruments[1].midi_channel, 2);
+
+    runner
+        .execute_menu_action(NativeMenuAction::CloneInstrument { index: 0 })
+        .unwrap();
+
+    assert_eq!(runner.instruments[1].kind, "sampler");
+    assert_eq!(runner.instruments[1].name, "sampler");
+    assert!(runner.instruments[1].auto_name);
+    assert!(!runner.instruments[1].midi_enabled);
+    assert_eq!(runner.instruments[1].midi_channel, 2);
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["instruments"][1]["type"],
+        "sampler"
     );
 }
 
@@ -3016,6 +3326,12 @@ fn l1_part_config_always_exposes_auto_name() {
         assert!(
             lines
                 .iter()
+                .any(|line| line.as_str().unwrap_or("").contains("Part Name")),
+            "{behavior_id} should show Part Name"
+        );
+        assert!(
+            lines
+                .iter()
                 .any(|line| line.as_str().unwrap_or("").contains("Auto Name")),
             "{behavior_id} should show Auto Name"
         );
@@ -3100,8 +3416,11 @@ fn native_text_row_edits_part_name_and_clears_auto_name() {
 
     runner.menu.press();
     runner.menu.turn(1);
+    let snapshot = runner.menu.snapshot();
     runner.apply_menu_state().unwrap();
 
+    assert!(snapshot.lines.iter().any(|line| line == " *lifeA"));
+    assert!(snapshot.lines.iter().all(|line| !line.contains('@')));
     assert_eq!(runner.part_names[0], "lifeA");
     assert!(!runner.part_auto_names[0]);
     assert_eq!(
@@ -3534,6 +3853,7 @@ fn deferred_autosave_payload_restores_active_sequencer_grid_on_startup() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
+    runner.auto_save_default = true;
 
     let messages = runner
         .send(HostMessage::DeviceInput {
@@ -3681,7 +4001,7 @@ fn system_sound_menu_updates_global_sound_config() {
             input: json!({ "type": "encoder_turn", "delta": 3, "id": "main" }),
         })
         .unwrap();
-    assert_eq!(runner.global_sound.note_length_ms, 180);
+    assert_eq!(runner.global_sound.note_length_ms, 150);
 
     runner.menu.state.cursor = 2;
     runner.menu.state.editing = true;

@@ -670,10 +670,13 @@ fn menu_action_help_key(action: &NativeMenuAction) -> String {
         NativeMenuAction::SetParamBinding { .. } => "action:param_bind".into(),
         NativeMenuAction::ClearParamBinding { .. } => "action:param_clear".into(),
         NativeMenuAction::SetAuxClick { .. } => "action:aux_click_set_target".into(),
+        NativeMenuAction::CloneInstrument { .. } => "action:instrument_clone".into(),
+        NativeMenuAction::ResetInstrument { .. } => "action:instrument_reset".into(),
         NativeMenuAction::PlatformEffect(effect) => match effect.as_str() {
             "preset.saveAs" => "action:preset_save".into(),
             "preset.saveCurrent" => "action:preset_save_current".into(),
             "preset.refresh" => "action:refresh_presets".into(),
+            "preset.renameApply" => "action:preset_rename_apply".into(),
             "default.save" => "action:store_save_default".into(),
             "default.load" => "action:store_load_default".into(),
             "factory.load" => "action:factory_load".into(),
@@ -681,7 +684,9 @@ fn menu_action_help_key(action: &NativeMenuAction) -> String {
             "dance.fx.map" => "action:fx_assign_enter".into(),
             value if value.starts_with("preset.load:") => "action:preset_load:*".into(),
             value if value.starts_with("preset.delete:") => "action:preset_delete:*".into(),
-            value if value.starts_with("preset.rename:") => "action:preset_rename_pick:*".into(),
+            value if value.starts_with("preset.renamePick:") => {
+                "action:preset_rename_pick:*".into()
+            }
             value if value.starts_with("midi.out:") || value.starts_with("midi.output:") => {
                 if value == "midi.out:" || value == "midi.output:" {
                     "action:midi_select_output:null".into()
@@ -1029,21 +1034,16 @@ fn format_param_lines(
 fn format_text_lines(
     label: &str,
     value: &str,
-    cursor: usize,
+    _cursor: usize,
     selected: bool,
     editing: bool,
 ) -> Vec<String> {
     let display = if value.is_empty() { "(empty)" } else { value };
     if selected {
         let marker = if editing { "*" } else { " " };
-        let suffix = if editing {
-            format!(" @{cursor}")
-        } else {
-            String::new()
-        };
         vec![
             format!("  {label}:"),
-            format!(" {marker}{}{suffix}", clip_menu_value(display, 22)),
+            format!(" {marker}{}", clip_menu_value(display, 22)),
         ]
     } else {
         vec![format!("  {label}")]
@@ -1183,6 +1183,11 @@ fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
                                         .get(index)
                                         .copied()
                                         .unwrap_or(true),
+                                    note_behavior: config
+                                        .instrument_note_behaviors
+                                        .get(index)
+                                        .map(String::as_str)
+                                        .unwrap_or("oneshot"),
                                     route: config
                                         .instrument_routes
                                         .get(index)
@@ -1203,6 +1208,26 @@ fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
                                         .get(index)
                                         .copied()
                                         .unwrap_or(0),
+                                    synth_osc1_waveform: config
+                                        .instrument_synth_osc1_waveforms
+                                        .get(index)
+                                        .map(String::as_str)
+                                        .unwrap_or("saw"),
+                                    synth_osc2_waveform: config
+                                        .instrument_synth_osc2_waveforms
+                                        .get(index)
+                                        .map(String::as_str)
+                                        .unwrap_or("square"),
+                                    synth_filter_type: config
+                                        .instrument_synth_filter_types
+                                        .get(index)
+                                        .map(String::as_str)
+                                        .unwrap_or("lowpass"),
+                                    synth_filter_cutoff: config
+                                        .instrument_synth_filter_cutoffs
+                                        .get(index)
+                                        .copied()
+                                        .unwrap_or(8000),
                                     synth_gain_pct: config
                                         .instrument_synth_gain_pct
                                         .get(index)
@@ -1228,6 +1253,11 @@ fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
                                         .get(index)
                                         .copied()
                                         .unwrap_or(false),
+                                    midi_channel: config
+                                        .instrument_midi_channels
+                                        .get(index)
+                                        .copied()
+                                        .unwrap_or(1),
                                     midi_velocity: config
                                         .instrument_midi_velocity
                                         .get(index)
@@ -1855,7 +1885,12 @@ fn system_group(config: &NativeMenuConfig, sync_index: usize) -> NativeMenuItem 
                             group(
                                 "Save As",
                                 vec![
-                                    number_item("Name", "preset.saveAs.name", 0, 0, 0, 1),
+                                    text_item(
+                                        "Name",
+                                        "system.draftName",
+                                        config.preset_draft_name.clone(),
+                                        32,
+                                    ),
                                     action_item(
                                         "Save",
                                         "preset.saveAs.save",
@@ -1869,7 +1904,7 @@ fn system_group(config: &NativeMenuConfig, sync_index: usize) -> NativeMenuItem 
                                 NativeMenuAction::PlatformEffect("preset.saveCurrent".into()),
                             ),
                             preset_action_group("Load", "preset.load", &config.preset_names),
-                            preset_action_group("Rename", "preset.rename", &config.preset_names),
+                            preset_rename_group(config),
                             preset_action_group("Delete", "preset.delete", &config.preset_names),
                             action_item(
                                 "Refresh List",
@@ -2044,8 +2079,13 @@ fn system_group(config: &NativeMenuConfig, sync_index: usize) -> NativeMenuItem 
 }
 
 fn preset_action_group(label: &str, action_prefix: &str, names: &[String]) -> NativeMenuItem {
-    group(
-        label,
+    let children = if names.is_empty() {
+        vec![action_item(
+            "(none)",
+            format!("{action_prefix}.none"),
+            NativeMenuAction::PlatformEffect("preset.refresh".into()),
+        )]
+    } else {
         names
             .iter()
             .map(|name| {
@@ -2055,8 +2095,45 @@ fn preset_action_group(label: &str, action_prefix: &str, names: &[String]) -> Na
                     NativeMenuAction::PlatformEffect(format!("{action_prefix}:{name}")),
                 )
             })
-            .collect(),
-    )
+            .collect()
+    };
+    group(label, children)
+}
+
+fn preset_rename_group(config: &NativeMenuConfig) -> NativeMenuItem {
+    let mut children = if config.preset_names.is_empty() {
+        vec![action_item(
+            "(none)",
+            "preset.rename.none",
+            NativeMenuAction::PlatformEffect("preset.refresh".into()),
+        )]
+    } else {
+        config
+            .preset_names
+            .iter()
+            .map(|name| {
+                action_item(
+                    name.clone(),
+                    format!("preset.renamePick.{name}"),
+                    NativeMenuAction::PlatformEffect(format!("preset.renamePick:{name}")),
+                )
+            })
+            .collect()
+    };
+    if config.preset_rename_source.is_some() {
+        children.push(text_item(
+            "New Name",
+            "system.draftName",
+            config.preset_draft_name.clone(),
+            32,
+        ));
+        children.push(action_item(
+            "Apply",
+            "preset.rename.apply",
+            NativeMenuAction::PlatformEffect("preset.renameApply".into()),
+        ));
+    }
+    group("Rename", children)
 }
 
 fn midi_ports_group(
@@ -2707,15 +2784,21 @@ struct InstrumentMenuConfig<'a> {
     name: &'a str,
     kind: &'a str,
     auto_name: bool,
+    note_behavior: &'a str,
     route: &'a str,
     volume: u8,
     pan_pos: u8,
     sample_slot: usize,
+    synth_osc1_waveform: &'a str,
+    synth_osc2_waveform: &'a str,
+    synth_filter_type: &'a str,
+    synth_filter_cutoff: u16,
     synth_gain_pct: u8,
     synth_filter_resonance: u8,
     sample_tune_semis: i8,
     sample_gain_pct: u8,
     midi_enabled: bool,
+    midi_channel: u8,
     midi_velocity: u8,
     midi_duration_ms: u16,
     sample_browser: Option<&'a NativeSampleBrowserConfig>,
@@ -2728,15 +2811,21 @@ fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuItem {
         name,
         kind,
         auto_name,
+        note_behavior,
         route,
         volume,
         pan_pos,
         sample_slot,
+        synth_osc1_waveform,
+        synth_osc2_waveform,
+        synth_filter_type,
+        synth_filter_cutoff,
         synth_gain_pct,
         synth_filter_resonance,
         sample_tune_semis,
         sample_gain_pct,
         midi_enabled,
+        midi_channel,
         midi_velocity,
         midi_duration_ms,
         sample_browser,
@@ -2759,7 +2848,7 @@ fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuItem {
             "Note Behavior",
             format!("{prefix}.noteBehavior"),
             vec!["oneshot", "hold"],
-            0,
+            selected_index(&["oneshot", "hold"], note_behavior),
         ),
     ];
     if kind == "synth" {
@@ -2776,7 +2865,10 @@ fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuItem {
                                 "Wave",
                                 format!("{prefix}.synth.osc1.waveform"),
                                 vec!["sine", "triangle", "saw", "square", "pulse"],
-                                0,
+                                selected_index(
+                                    &["sine", "triangle", "saw", "square", "pulse"],
+                                    synth_osc1_waveform,
+                                ),
                             )],
                         ),
                         group(
@@ -2785,7 +2877,10 @@ fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuItem {
                                 "Wave",
                                 format!("{prefix}.synth.osc2.waveform"),
                                 vec!["sine", "triangle", "saw", "square", "pulse"],
-                                0,
+                                selected_index(
+                                    &["sine", "triangle", "saw", "square", "pulse"],
+                                    synth_osc2_waveform,
+                                ),
                             )],
                         ),
                     ],
@@ -2797,15 +2892,18 @@ fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuItem {
                             "Type",
                             format!("{prefix}.synth.filter.type"),
                             vec!["lowpass", "highpass", "bandpass", "notch"],
-                            0,
+                            selected_index(
+                                &["lowpass", "highpass", "bandpass", "notch"],
+                                synth_filter_type,
+                            ),
                         ),
                         number_item(
                             "Cutoff",
                             format!("{prefix}.synth.filter.cutoffHz"),
-                            120,
-                            0,
-                            255,
-                            1,
+                            i32::from(synth_filter_cutoff),
+                            20,
+                            20000,
+                            100,
                         ),
                         number_item(
                             "Res",
@@ -2874,7 +2972,14 @@ fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuItem {
             "MIDI",
             vec![
                 bool_item("Enabled", format!("{prefix}.midi.enabled"), midi_enabled),
-                number_item("Channel", format!("{prefix}.midi.channel"), 1, 1, 16, 1),
+                number_item(
+                    "Channel",
+                    format!("{prefix}.midi.channel"),
+                    i32::from(midi_channel),
+                    1,
+                    16,
+                    1,
+                ),
                 number_item(
                     "Velocity",
                     format!("{prefix}.midi.velocity"),
@@ -2932,6 +3037,16 @@ fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuItem {
         auto_name,
     ));
     children.push(text_item("Name", format!("{prefix}.name"), name, 32));
+    children.push(action_item(
+        "Clone",
+        format!("instruments.{index}.clone"),
+        NativeMenuAction::CloneInstrument { index },
+    ));
+    children.push(action_item(
+        "Reset",
+        format!("instruments.{index}.reset"),
+        NativeMenuAction::ResetInstrument { index },
+    ));
     group(label, children)
 }
 

@@ -10,7 +10,6 @@ import type {
 } from "@cellsymphony/device-contracts";
 import type { MusicalEvent } from "@cellsymphony/musical-events";
 import { PAN_POSITION_COUNT, type ConfigPayload } from "@cellsymphony/platform-core";
-import { createCoreRunner } from "@cellsymphony/platform-core-runner";
 import { createIntervalRuntimeScheduler, type RuntimeScheduler } from "./runtimeScheduler";
 import type { EventsListener, InputAction, RuntimeListener, SimulatorSnapshot } from "./types";
 import { createLocalStorageConfigStore } from "./configStore";
@@ -48,8 +47,14 @@ type RuntimeMidiService = {
   listenMidiIn(handler: (bytes: Uint8Array) => void): Promise<() => void>;
 };
 
+type LocalRuntimeRunner = {
+  dispatch(message: RuntimeHostMessage): RuntimeRunnerMessage[];
+  getState(): unknown;
+  getFrame(): SimulatorFrame;
+};
+
 type RuntimeDeps = {
-  runner?: ReturnType<typeof createCoreRunner>;
+  runner?: LocalRuntimeRunner;
   store?: RuntimeStore;
   midiService?: RuntimeMidiService;
   audioLoadService?: AudioLoadService;
@@ -73,7 +78,10 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
   const tauriRealtimeMode = deps.runtimeDispatch
     ? true
     : typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
-  let runner = deps.runner ?? (!tauriRealtimeMode ? createCoreRunner() : null);
+  const runner = deps.runner ?? null;
+  if (!tauriRealtimeMode && !runner) {
+    throw new Error("Desktop runtime requires Tauri native runtime or an injected test runner");
+  }
   let coreState = () => runner?.getState() ?? null;
   const blankOled: OledFrame = { width: 128, height: 128, format: "rgb565be", pixels: new Uint8Array(32768) };
   let latestFrame: SimulatorFrame = {

@@ -21,7 +21,6 @@
     "@cellsymphony/interpretation-core": "workspace:*",
     "@cellsymphony/musical-events": "workspace:*",
     "@cellsymphony/platform-core": "workspace:*",
-    "@cellsymphony/platform-core-runner": "workspace:*",
     "@tauri-apps/api": "^2.11.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

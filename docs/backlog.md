@@ -90,9 +90,8 @@ No basic-functionality fallbacks are allowed during this migration. Missing menu
 - FIXED: `Fn+Play` muting now writes the active part's real L2 trigger probability mode to `zero` and restores it, instead of only changing the Dance trigger-gate overlay state.
 - FIXED: Major pentatonic and other scales now use distinct lowest/starting/highest note semantics and apply configured X/Y pitch steps into both interpretation axes and wrapped scale-note mapping.
 - FIXED: `L4: Dance` now shows only the selected Dance page controls, flattened directly under the Dance menu.
-- BUG: Some parameters do not have a help text - e.g. the Life "life" behaviour parameters
-- BUG: In the help popup, sometimes the text is not scrollable all the way to the bottom. This might also have to do with line-breaks on longer text elements, e.g. Aux Mapping submenu help in the Sense menu.
-- BUG:
+- FIXED: Native behavior parameter help keys now use canonical `parts.*.l1.behaviorConfig.*` paths, so Life behavior params resolve TSV help text.
+- FIXED: Help popup scroll clamping is covered for behavior-param help and existing contextual help scroll tests.
 
 ### Old-TypeScript Parity Audit Deltas
 
@@ -122,6 +121,31 @@ No basic-functionality fallbacks are allowed during this migration. Missing menu
 - FIXED: Native sample/MIDI voice payload compatibility now includes sample `baseVelocity`, legacy `midiEngine` shape, and stateful sample `ampEnv`/`filter`/`filterEnv` round-trip instead of placeholder objects.
 - FIXED: Native System Sound/MIDI menu fields `sound.voiceStealingMode`, `midi.clockOutEnabled`, `midi.clockInEnabled`, and `midi.respondToStartStop` now persist/apply through the runner instead of being display-only/default values.
 - FIXED: Native behavior changes now remap behavior-config paramMods and aux turn/click bindings through old analogue groups and clear behavior actions when the target behavior has no primary action.
+
+### Open Native Parity Deltas From Deep Audit
+
+- OPEN [critical]: Pi Zero still uses `NodeRunnerProcess` / TS core runner instead of the Rust `NativeRunner`; migrate Pi to the same native runtime boundary as desktop.
+- OPEN [critical]: Pi host adapter ignores platform effects, audio commands, and MIDI output; wire store/default/preset effects, sample browser/preview, Dance FX/audio commands, and MIDI-out.
+- OPEN [critical]: Pi loop does not render runtime snapshots to OLED/LEDs and only sends NeoKey press events, not releases; wire OLED, NeoTrellis/NeoKey LEDs, and button release semantics.
+- FIXED: Desktop runtime no longer imports or constructs `@cellsymphony/platform-core-runner`; non-Tauri/test use must inject a runner or native dispatch explicitly.
+- FIXED: Native preset Library `Save As` uses text draft name and emits store-save, Rename supports pick/New Name/Apply with save-then-delete cleanup, and empty lists show `(none)` refresh rows.
+- PARTIAL [high]: Native toast/status flow now covers preset save/load/delete/rename, Save Current with no loaded preset, default save/load, factory load, synth preset load, and MIDI panic; modal confirmation flows are still missing.
+- OPEN [high]: Native Voice synth menu is partial; missing oscillator octave/level/detune/pulse-width, amp/filter envelopes, env amount, key tracking, and velocity sensitivity controls.
+- FIXED: Native synth oscillator Wave, filter Type, and filter Cutoff rows now initialize from current synth state and apply back to synth config.
+- OPEN [high]: Native Sampler menu is partial; missing Velocity Levels, high/medium/low levels, Base Velocity, sample filter/filter envelope, amp velocity sensitivity, and amp envelope controls.
+- FIXED: Native Instrument `Note Behavior` is initialized from instrument state and propagated into `NativePartEngine.note_behaviors` for loaded and edited configs.
+- FIXED: Native MIDI instrument Channel now has `midi.channel` state/payload, loads legacy `midiEngine.channel`, edits through the menu, and remaps emitted MIDI note/CC channels.
+- FIXED: System Sound edits now sync runner global sound into active and inactive `NativePartEngine` configs immediately.
+- OPEN [high]: FX bus/global FX params are not stateful in native; native stores only slot types, writes default params, omits parameter menu rows, and loses custom params from presets/defaults.
+- FIXED: Instrument Clone and Reset actions are exposed in native Voice, update native instrument slots, and round-trip through aux action serialization.
+- OPEN [medium]: Native runtime snapshot/audio config shape is less complete than saved config payload; verify desktop audio receives all editable synth/sample/mixer/FX fields once menu controls are added.
+- OPEN [medium]: Native `screenSleepSeconds` persists but has no OLED sleep / last-interaction behavior equivalent to old `oledMode`.
+- FIXED: Fresh in-memory native defaults now match old `createInitialState()` for `masterVolume` (`73`), `autoSaveDefault` (`false`), and default note length (`120ms`).
+- FIXED: Native text field OLED formatting no longer appends `@cursor`; cursor state remains internal while editing.
+- FIXED: Native L1 part name row label now matches the legacy/spec `Part Name` label.
+- PARTIAL [medium]: Resolve `docs/native-test-parity.md` partial rows for `ant`, `bounce`, `shapes`, and `behavior-api` by adding native tests or explicitly classifying remaining random/dynamic-registration cases as legacy-only.
+- FIXED: Stale Life behavior help/help-popup backlog BUG markers were rechecked with targeted native regressions.
+- VERIFY [high]: Run Pi/Linux target build/clippy and hardware smoke; current verification was desktop/Windows-scoped and does not prove Pi runtime parity.
 
 Regression coverage added in this pass:
 

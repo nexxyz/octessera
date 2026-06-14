@@ -85,15 +85,21 @@ fn config() -> NativeMenuConfig {
         instrument_names: vec!["synth".into()],
         instrument_types: vec!["synth".into()],
         instrument_auto_names: vec![true],
+        instrument_note_behaviors: vec!["oneshot".into()],
         instrument_routes: vec!["direct".into()],
         instrument_volumes: vec![100],
         instrument_pan_positions: vec![16],
         instrument_sample_slots: vec![0],
+        instrument_synth_osc1_waveforms: vec!["saw".into()],
+        instrument_synth_osc2_waveforms: vec!["square".into()],
+        instrument_synth_filter_types: vec!["lowpass".into()],
+        instrument_synth_filter_cutoffs: vec![8000],
         instrument_synth_gain_pct: vec![80],
         instrument_synth_filter_resonance: vec![20],
         instrument_sample_tune_semis: vec![0],
         instrument_sample_gain_pct: vec![100],
         instrument_midi_enabled: vec![false],
+        instrument_midi_channels: vec![1],
         instrument_midi_velocity: vec![100],
         instrument_midi_duration_ms: vec![120],
         fx_buses: vec![default_fx_bus_config(); FX_BUS_COUNT],
@@ -118,6 +124,8 @@ fn config() -> NativeMenuConfig {
         midi_clock_in_enabled: false,
         midi_respond_to_start_stop: true,
         preset_names: vec![],
+        preset_draft_name: "New Preset".into(),
+        preset_rename_source: None,
         midi_outputs: vec![],
         midi_inputs: vec![],
         dance_mode: "none".into(),
@@ -291,6 +299,14 @@ fn voice_instrument_rows_expose_configuration_groups() {
         .any(|pair| { pair[0] == "  Type:" && pair[1].trim() == "synth" }));
     assert!(snapshot.lines.iter().any(|line| line == "> Synth"));
     assert!(!snapshot.lines.iter().any(|line| line == "> Sampler"));
+    assert!(menu
+        .current_siblings()
+        .iter()
+        .any(|item| item.label == "Clone"));
+    assert!(menu
+        .current_siblings()
+        .iter()
+        .any(|item| item.label == "Reset"));
     assert!(snapshot.lines.iter().any(|line| line == "  Name"));
 }
 

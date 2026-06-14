@@ -211,6 +211,14 @@ impl NativePartEngine {
         self.interpretation_profile = interpretation_profile;
     }
 
+    pub fn set_global_sound(&mut self, global_sound: GlobalSoundConfig) {
+        self.global_sound = global_sound;
+    }
+
+    pub fn set_note_behaviors(&mut self, note_behaviors: Vec<NoteBehavior>) {
+        self.note_behaviors = note_behaviors;
+    }
+
     pub fn state(&self) -> &NativeBehaviorState {
         &self.state
     }
