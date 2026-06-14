@@ -230,16 +230,17 @@ function isInScanCursor(x: number, y: number, cursor: { axis: "rows" | "columns"
   const sections = sectionCount(cursor.sections);
   if (sections <= 1) return (cursor.axis === "columns" && x === cursor.index) || (cursor.axis === "rows" && y === cursor.index);
   if (cursor.axis === "rows") {
-    const sectionHeight = Math.max(1, Math.floor(PLATFORM_CAPS.gridHeight / sections));
-    const step = mod(cursor.index, PLATFORM_CAPS.gridWidth * sections);
-    const section = Math.floor(step / PLATFORM_CAPS.gridWidth);
-    const firstY = PLATFORM_CAPS.gridHeight - (section + 1) * sectionHeight;
-    return x === step % PLATFORM_CAPS.gridWidth && y >= firstY && y < firstY + sectionHeight;
+    const sectionWidth = Math.max(1, Math.floor(PLATFORM_CAPS.gridWidth / sections));
+    const step = mod(cursor.index, PLATFORM_CAPS.gridHeight * sections);
+    const section = Math.floor(step / PLATFORM_CAPS.gridHeight);
+    const rowY = step % PLATFORM_CAPS.gridHeight;
+    return y === rowY && x >= section * sectionWidth && x < (section + 1) * sectionWidth;
   }
-  const sectionWidth = Math.max(1, Math.floor(PLATFORM_CAPS.gridWidth / sections));
-  const step = mod(cursor.index, PLATFORM_CAPS.gridHeight * sections);
-  const section = Math.floor(step / PLATFORM_CAPS.gridHeight);
-  return y === step % PLATFORM_CAPS.gridHeight && x >= section * sectionWidth && x < (section + 1) * sectionWidth;
+  const sectionHeight = Math.max(1, Math.floor(PLATFORM_CAPS.gridHeight / sections));
+  const step = mod(cursor.index, PLATFORM_CAPS.gridWidth * sections);
+  const section = Math.floor(step / PLATFORM_CAPS.gridWidth);
+  const colX = step % PLATFORM_CAPS.gridWidth;
+  return x === colX && y >= section * sectionHeight && y < (section + 1) * sectionHeight;
 }
 
 export function sampleAssignmentToLeds(

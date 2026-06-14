@@ -11,6 +11,7 @@ import {
   emergencyBrake,
   extractConfigPayload,
   routeInput,
+  stepTransportByPulses,
   tick,
   toSimulatorFrame,
   type PlatformEffect,
@@ -179,6 +180,27 @@ test("behavior onTick is called when accumulator reaches step threshold", () => 
 
   const result = tick(state, mockBehavior);
   assert.equal(result.state.behaviorState.tickCount, 1, "onTick should be called once per step");
+});
+
+test("explicit internal pulse step advances PPQN deterministically", () => {
+  let state = createInitialState(mockBehavior);
+  state.transport.playing = true;
+
+  const result = stepTransportByPulses(state, mockBehavior, 6, "internal");
+
+  assert.equal(result.state.transport.ppqnPulse, 6);
+});
+
+test("explicit external pulse step preserves resync semantics", () => {
+  let state = createInitialState(mockBehavior);
+  state.transport.playing = true;
+  state.system.pendingResync = true;
+  state.system.externalPpqnPulse = 90;
+
+  const result = stepTransportByPulses(state, mockBehavior, 6, "external");
+
+  assert.equal(result.state.system.pendingResync, false);
+  assert.equal(result.state.transport.ppqnPulse, 102);
 });
 
 test("X/Y param modulation updates runtime mixer config on transport tick", () => {

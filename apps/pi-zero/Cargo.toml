@@ -9,8 +9,10 @@ path = "src/main.rs"
 
 [dependencies]
 cellsymphony-hal = { path = "../../crates/hal", features = ["pi-zero"] }
+playback-runtime = { path = "../../crates/playback-runtime" }
 realtime-engine = { path = "../../crates/realtime-engine" }
 rodio-engine-source = { path = "../../crates/rodio-engine-source" }
 rodio = "0.20"
 midir = "0.10"
+serde_json = "1"
 simple_logger = "1.16"

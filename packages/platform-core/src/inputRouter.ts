@@ -220,9 +220,9 @@ export function routeInputWithDeps<TState>(state: PlatformState<TState>, input: 
       const profile = inputTransitionProfile(nextState.runtimeConfig);
       const intents = filterTriggerGatedIntents(interpretGrid(beforeInputGrid, afterInputGrid, nextState.transport.tick, profile), nextState, clampPartIndex((nextState.runtimeConfig as any).activePartIndex ?? 0));
       if (intents.length > 0) {
-        const mapped = mapIntentsToMusicalEvents(intents, withScaleSteps(nextState.mappingConfig, nextState.runtimeConfig));
+        const { events: mapped, intents: mappedIntents } = mapIntentsToMusicalEvents(intents, withScaleSteps(nextState.mappingConfig, nextState.runtimeConfig));
         const activePart = clampPartIndex((nextState.runtimeConfig as any).activePartIndex ?? 0);
-        const modulation = applyModulationResult(intents, mapped, nextState.runtimeConfig, nextState.runtimeConfig, activePart);
+        const modulation = applyModulationResult(mappedIntents, mapped, nextState.runtimeConfig, nextState.runtimeConfig, activePart, intents);
         nextState = { ...nextState, runtimeConfig: modulation.runtimeConfig };
         const modulated = modulation.events;
         const instruments: any[] = Array.isArray((nextState.runtimeConfig as any).instruments) ? ((nextState.runtimeConfig as any).instruments as any[]) : [];

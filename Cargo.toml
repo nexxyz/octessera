@@ -1,5 +1,7 @@
 [workspace]
 members = [
+    "crates/platform-core",
+    "crates/playback-runtime",
     "crates/realtime-engine",
     "crates/rodio-engine-source",
     "crates/hal",

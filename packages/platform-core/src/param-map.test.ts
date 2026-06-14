@@ -1,4 +1,5 @@
 import type { RuntimeConfig } from "./platformTypes";
+import type { CellTriggerIntent } from "@cellsymphony/interpretation-core";
 import { getMappableParams } from "./menuParamList";
 import { applyModulation } from "./musicTransforms";
 
@@ -65,7 +66,7 @@ describe("applyModulation", () => {
   test("applies modulation from Slot 1", () => {
     const cfg = modCfg(0, 0);
     const events = [{ type: "note_on" as const, channel: 0, note: 60, velocity: 64 }];
-    const intents = [{ x: 0, y: 0, degree: 0, kind: "activate" }];
+    const intents: CellTriggerIntent[] = [{ x: 0, y: 0, degree: 0, kind: "activate" }];
     const result = applyModulation(intents, events, cfg);
     eq(result.length, 1);
     eq(result[0].type, "note_on");
@@ -74,7 +75,7 @@ describe("applyModulation", () => {
   test("applies modulation from Slot 2", () => {
     const cfg = modCfg(1, 1);
     const events = [{ type: "note_on" as const, channel: 0, note: 60, velocity: 64 }];
-    const intents = [{ x: 1, y: 1, degree: 0, kind: "activate" }];
+    const intents: CellTriggerIntent[] = [{ x: 1, y: 1, degree: 0, kind: "activate" }];
     const result = applyModulation(intents, events, cfg);
     eq(result.length, 1);
     eq(result[0].type, "note_on");
@@ -83,7 +84,7 @@ describe("applyModulation", () => {
   test("handles invert mode", () => {
     const cfg = modCfg(0, 0, true);
     const events = [{ type: "note_on" as const, channel: 0, note: 60, velocity: 64 }];
-    const intents = [{ x: 0, y: 0, degree: 0, kind: "activate" }];
+    const intents: CellTriggerIntent[] = [{ x: 0, y: 0, degree: 0, kind: "activate" }];
     const result = applyModulation(intents, events, cfg);
     eq(result.length, 1);
     eq(result[0].type, "note_on");
@@ -92,7 +93,7 @@ describe("applyModulation", () => {
   test("ignores unmapped slots", () => {
     const cfg = modCfg(0, 0);
     const events = [{ type: "note_on" as const, channel: 0, note: 60, velocity: 64 }];
-    const intents = [{ x: 3, y: 3, degree: 0, kind: "activate" }];
+    const intents: CellTriggerIntent[] = [{ x: 3, y: 3, degree: 0, kind: "activate" }];
     const result = applyModulation(intents, events, cfg);
     eq(result.length, 1);
     eq(result[0].type, "note_on");
@@ -109,7 +110,7 @@ describe("handleParamModAssign", () => {
   test("assigns parameter to X axis", () => {
     const cfg = modCfg2("filterCutoff", 0, 0);
     const events = [{ type: "note_on" as const, channel: 0, note: 60, velocity: 64 }];
-    const intents = [{ x: 2, y: 0, degree: 0, kind: "activate" }];
+    const intents: CellTriggerIntent[] = [{ x: 2, y: 0, degree: 0, kind: "activate" }];
     const result = applyModulation(intents, events, cfg);
     eq(result.length, 1);
     const cc = result[0];
@@ -123,7 +124,7 @@ describe("handleParamModAssign", () => {
   test("assigns parameter to Y axis", () => {
     const cfg = modCfg2("filterResonance", 1, 1);
     const events = [{ type: "note_on" as const, channel: 0, note: 60, velocity: 64 }];
-    const intents = [{ x: 1, y: 2, degree: 0, kind: "activate" }];
+    const intents: CellTriggerIntent[] = [{ x: 1, y: 2, degree: 0, kind: "activate" }];
     const result = applyModulation(intents, events, cfg);
     eq(result.length, 1);
     const cc = result[0];
@@ -137,7 +138,7 @@ describe("handleParamModAssign", () => {
   test("assigns parameter to both axes (0,0 or 1,1)", () => {
     const cfg = modCfg2("filterCutoff", 0, 0);
     const events = [{ type: "note_on" as const, channel: 0, note: 60, velocity: 64 }];
-    const intents = [{ x: 0, y: 0, degree: 0, kind: "activate" }];
+    const intents: CellTriggerIntent[] = [{ x: 0, y: 0, degree: 0, kind: "activate" }];
     const result = applyModulation(intents, events, cfg);
     eq(result.length, 1);
     const cc = result[0];
@@ -151,7 +152,7 @@ describe("handleParamModAssign", () => {
   test("toggles invert mode", () => {
     const cfg = modCfg2("filterCutoff", 0, 0);
     const events = [{ type: "note_on" as const, channel: 0, note: 60, velocity: 64 }];
-    const intents = [{ x: 0, y: 0, degree: 0, kind: "activate" }];
+    const intents: CellTriggerIntent[] = [{ x: 0, y: 0, degree: 0, kind: "activate" }];
     const result = applyModulation(intents, events, cfg);
     eq(result.length, 1);
     const cc = result[0];

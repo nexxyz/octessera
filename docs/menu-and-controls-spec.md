@@ -64,7 +64,6 @@ Root (group)
 ├── L3: Voice (group)
 ├── L4: Dance (group)
 ├── [spacer] (visual separator)
-├── Playback (group)
 └── System (group)
 ```
 
@@ -115,8 +114,19 @@ Behavior-specific config items (from `configMenu()`):
 
 ```
 L2: Sense
+├── Aux Mappings (group)
+│   ├── Aux 1 (group)
+│   │   ├── Turn (group)
+│   │   │   ├── (none) (action)
+│   │   │   └── parameter tree...            ← same shared browser as Dance X/Y target selection
+│   │   └── Click (group)
+│   │       ├── (none) (action)
+│   │       └── action tree...               ← behavior actions, sample assign, selected FX map-to-grid
+│   ├── Aux 2 (group)
+│   ├── Aux 3 (group)
+│   └── Aux 4 (group)
 ├── P1: ... (group)                              ← one group per part
-│   ├── Scan Mode: [none | scanning]
+│   ├── Scan Mode: [immediate | scanning]
 │   ├── Scan Axis: [rows | columns]           ← visible when scanning
 │   ├── Scan Unit: [1/16, 1/8, 1/4, 1/2, 1/1] ← visible when scanning
 │   ├── Scan Direction: [forward | reverse]    ← visible when scanning
@@ -134,17 +144,6 @@ L2: Sense
 │   │   ├── Scanned Instrument: [1..8]
 │   │   ├── Scanned Empty Action: [none | note_on | note_off]
 │   │   └── Scanned Empty Instrument: [1..8]
-│   ├── Aux Mappings (group)
-│   │   ├── Aux 1 (group)
-│   │   │   ├── Turn (group)
-│   │   │   │   ├── (none) (action)
-│   │   │   │   └── parameter tree...            ← same shared browser as Dance X/Y target selection
-│   │   │   └── Click (group)
-│   │   │       ├── (none) (action)
-│   │   │       └── action tree...               ← behavior actions, sample assign, selected FX map-to-grid
-│   │   ├── Aux 2 (group)
-│   │   ├── Aux 3 (group)
-│   │   └── Aux 4 (group)
 │   ├── Trigger Prob. (group)
 │   │   ├── Mode: [zero | custom | full]
 │   │   ├── Low Prob: [0..100] step 1
@@ -163,9 +162,9 @@ L2: Sense
 │   │   ├── Y Axis (group)
 │   │   │   └── (same sub-structure as X Axis)
 │   ├── Note Mapping (group)
-│   │   ├── Lowest Note: [0..127] step 1
-│   │   ├── Highest Note: [0..127] step 1
-│   │   ├── Starting Note: [0..127] step 1
+│   │   ├── Lowest Note: [0..127] step 1       ← lower bound, displayed as note name + MIDI number, e.g. C2 (36)
+│   │   ├── Highest Note: [0..127] step 1      ← upper bound, displayed as note name + MIDI number, e.g. D5 (74)
+│   │   ├── Starting Note: [0..127] step 1     ← nearest scale start index, displayed as note name + MIDI number, e.g. C4 (60)
 │   │   ├── Scale: [chromatic | major | natural_minor | dorian | mixolydian | major_pentatonic | minor_pentatonic | harmonic_minor]
 │   │   ├── Root: [C | C# | D | D# | E | F | F# | G | G# | A | A# | B]
 │   │   └── Out of Range: [clamp | wrap]
@@ -193,7 +192,7 @@ L2: Sense
 │   │       ├── Grid Offset: [-7..7] step 1
 │   │       └── Curve: [linear | curve]
 │   └── Y Axis (group)
-│       └── (same sub-structure as X Axis, keys use y.* prefix, defaults: Pitch Steps steps=1; Restart Section affects row sections)
+│       └── (same sub-structure as X Axis, keys use y.* prefix, defaults: Pitch Steps steps=3; Restart Section affects row sections)
 ├── P2: ... (group)
 └── P3: ... (group)
 ```
@@ -204,7 +203,7 @@ L2: Sense
 L3: Voice
 ├── Instruments (group)
 │   ├── Instrument 1..8 (group)                ← compact label e.g. `I1: synth`, `I2: drums` via instrumentLabel()
-│   │   ├── Type: [none | synth | sample | midi]
+│   │   ├── Type: [none | synth | sampler | midi]
 │   │   ├── Note Behavior: [oneshot | hold] default oneshot
 │   │   ├── Synth (group, visible when type=synth)
 │   │   │   ├── Preset > Load (group)      ← per-slot synth preset load with confirm
@@ -270,7 +269,7 @@ Routing semantics:
 - Bus output is then panned by bus `Pan Pos` and summed to main mix.
 - `duck` source options are stable and capability-sized: `I1..I{instrumentCount}` and `B1..B{busCount}`.
 - `auto-pan` modulates the bus stereo output position after the slot chain.
-- FX bus naming mode: `auto` builds from assigned slot types (e.g. `delay+reverb`, or `fx` when all slots are empty); `custom` allows free text; other modes set a fixed name (`rhythm`, `melody`, `texture`, `fx`).
+- FX bus naming mode: `auto` builds from assigned slot types (e.g. `delay+reverb`, or `(none)` when all slots are empty); `custom` allows free text; other modes set a fixed name (`rhythm`, `melody`, `texture`, `fx`).
 
 Sample assignment mode semantics:
 
@@ -291,6 +290,8 @@ Part runtime behavior:
 - Switching active part never clears/reset any part state automatically.
 - Switching part shows the selected part's current state immediately.
 - `Save Grid State` affects preset/default save payload persistence only.
+- `Step Rate`, behavior selection/config, Sense mapping, trigger probabilities, instruments, mixer, system settings, selected Dance page, Dance FX assignments, X/Y bindings, and aux bindings are persistent and must round-trip through preset/default/autosave payloads.
+- Active overlays, assignment modes, held modifiers, active momentary FX instances, live X/Y touch, help popups, and toast state are transient and are not restored from preset/default/autosave payloads.
 
 ### L4: Dance
 
@@ -298,43 +299,16 @@ Part runtime behavior:
 L4: Dance
 ├── Dance Page: [none | mix | pan | fx | trigger-gate | xy]
 ├── BPM: [40..240] step 1  default 120
-├── FX Page (group)
-│   ├── FX Type: [none | stutter | freeze | filter_sweep | pitch_shift]
-│   ├── Target: [master | fx_bus_1..N | instrument_1..N]
-│   ├── Stutter params (visible when FX Type = stutter)
-│   │   ├── Rate Hz: [1..32]
-│   │   └── Depth: [0..100] (% wet mix)
-│   ├── Freeze params (visible when FX Type = freeze)
-│   │   ├── Release Ms: [10..5000]  (release fade duration)
-│   │   └── Mix: [0..100] (% wet mix)
-│   ├── Filter Sweep params (visible when FX Type = filter_sweep)
-│   │   ├── Cutoff: [0..100]  (target cutoff amount)
-│   │   ├── Res: [0..100]
-│   │   ├── Sweep In: [10..3000] ms  (sweep to target on press)
-│   │   └── Sweep Out: [10..3000] ms  (sweep back to open on release)
-│   ├── Pitch Shift params (visible when FX Type = pitch_shift)
-│   │   ├── Semitones: [-24..24]
-│   │   ├── Cents: [-100..100] (fine detune, added to semitones)
-│   │   └── Mix: [0..100] (% wet mix)
-│   └── Map to Grid (action)
-├── Trigger Gate (group)
-│   └── Mode Grid (group)
-└── X/Y Pad (group)
-    ├── X Axis (group)
-    │   ├── (none) (action)
-    │   └── (dynamic parameter tree) (actions/groups)
-    ├── Y Axis (group)
-    │   ├── (none) (action)
-    │   └── (dynamic parameter tree) (actions/groups)
-    ├── Invert X: [Off | On]
-    ├── Invert Y: [Off | On]
-    └── Release: [sample-hold | reset-center]
+├── selected page controls only, flattened here:
+│   ├── fx: FX Type, Target, visible params for selected FX Type, Map to Grid
+│   ├── trigger-gate: Mode Grid
+│   └── xy: X Axis, Y Axis, Invert X, Invert Y, Release
 ```
 
 Dance layer behavior:
 
 - Fn + rightmost grid column selects and activates Dance pages by row: row 0 = mix, row 1 = pan, row 2 = fx, row 3 = trigger-gate, row 4 = xy. Lower rows are unused.
-- Fn + leftmost grid column selects the active displayed part and exits the current Dance overlay without changing the saved Dance Page selection. Menu position is not changed by part selection.
+- Fn + leftmost grid column selects the active part using grid Y directly (`y=0` = part 0) and exits the current Dance overlay without changing the saved Dance Page selection. Menu position is not changed by part selection.
 - When Fn is held, the left grid column shows part-selection options and the right grid column shows Dance page options. The active part and saved Dance page are highlighted; parts whose behavior is not `none` have a dim indicator; `none` parts stay dark. All other cells (columns 1 through 6) are dimmed to 25% brightness to make the navigation columns unambiguous.
 - `mix`: each column is an instrument; y=0 mutes, y=7 sets 100%, intermediate rows quantize per-slot `Mixer > Volume`.
 - `mix` LEDs show the current volume marker in green.
@@ -356,8 +330,8 @@ Dance layer behavior:
 - Dance columns `3..4` are an unassigned dark gap.
 - Bottom-row columns `5..7` are always-bright all-parts actions: set all parts to `0%`, `custom`, or `100%`.
 - Trigger filtering resolves per-part mode as follows: `zero` blocks all triggers, `full` passes all triggers, `custom` uses the stored per-cell probability map with that part's `Low Prob` and `High Prob` thresholds.
-- `Fn+Play` toggles the active part between `0%` and its previously active trigger mode without rewriting the stored probability map.
-- FX cells are mapped from `L4: Dance > FX Page`: select an `FX Type`, edit its visible parameters, then select `Map to Grid` and press a grid cell. The effect type and current parameter values are stored on that cell. Mapping `none` clears a cell.
+- `Fn+Play` toggles the active part between `0%` and its previously active trigger mode without rewriting the stored probability map. On desktop this is `Fn+Space`.
+- FX cells are mapped from the flattened `L4: Dance` FX page controls: select an `FX Type`, edit its visible parameters, then select `Map to Grid` and press a grid cell. The effect type, target, and current parameter values are stored on that cell. Mapping `none` clears a cell.
 - FX assignments include a `Target` (default `master`). Targets are listed as `master` first, then FX buses, then instruments. Platform-core resolves grid semantics into audio commands; desktop forwards those commands without interpreting Dance/grid meaning; Rust applies the realtime DSP.
 - Target insertion points: `instrument_n` is applied on the instrument's outgoing signal before routing/pan; `fx_bus_n` is applied on the bus outgoing signal after bus slot FX; `master` is applied after the final mix.
 - FX concurrency is fixed by platform capability at 4. When all slots are active, additional assigned cells gray out and do not respond until a slot frees.
@@ -413,7 +387,7 @@ System
 │   │   ├── Clock Out: [on | off]
 │   │   ├── Clock In: [on | off]
 │   │   └── Respond Start/Stop: [on | off]
-└── UI Settings (group)
+└── UI (group)
     ├── Ghost Cells: [on | off]  default off  ← shows dim cells from inactive parts behind active part
     ├── Numeric Display: [bar | numbers | bar+numbers]  ← controls rendering of bar-style numeric params, default bar+numbers
     ├── Screen Sleep: [0..600] step 10 s    default 60 (0=off)
@@ -429,6 +403,7 @@ System
 - Top line: title bar (colored by section)
 - Canonical section colors: `L1: Life` = life color, `L2: Sense` = sense color, `L3: Voice` = voice color, `L4: Dance` = white, `System` = sepia.
 - Body lines 2-8: menu items with `@@` prefix on selected line, `*` prefix when editing
+- Context help for every submenu, parameter, and action must resolve to a specific row from `packages/platform-core/resources/menu-help-texts.tsv`; generic fallback help is not allowed and lint/build checks must fail on missing coverage.
 - Bottom-right corner: transport icon (`▶` / `⏸` / `■`)
 - Transport flash: green (beat) or red (measure) border on play icon
 - Yellow event dot: briefly shown when notes fire
@@ -443,7 +418,7 @@ Value editing semantics:
 - When `Numeric Display` is `bar` or `bar+numbers`, bounded sound/control/behavior number items render with a smooth geometric bar (filled rectangle) alongside the numeric value
 - Bar display applies automatically to FX params, synth/sample shaping controls, mixer volume/pan, touch FX controls, system sound/UI controls, L2 axis controls, and behavior controls such as spawn interval/count, threshold, lifespan, and radius
 - Selector-like numeric rows stay plain text, including MIDI channels, instrument/sample slots, part selectors, and MIDI note ranges
-- Bar value text uses compact units where useful: `%`, `ms`/`s`, `Hz`, `bpm`, `dB`, semitones/cents, and pan as `L7`/`C`/`R7`; ambiguous internal `0..1` ranges display as `0..100`
+- Bar value text uses compact units where useful: `%`, `ms`/`s`, `Hz`, `bpm`, `dB`, semitones/cents, and pan as `L15`/`C`/`R15`; ambiguous internal `0..1` ranges display as `0..100`
 
 Action row markers:
 
@@ -478,6 +453,7 @@ Overrides:
 - For `columns` with `Sections=2`, each lane is 4 columns wide; the scan ray moves bottom-to-top/top-to-bottom by row across each lane. Total steps: `gridHeight * sections`.
 - Stop/emergency reset scan index to origin.
 - `Restart Section` on Pitch Steps makes pitch stepping local to the lane for the matching scan orientation: X restart applies to column sections; Y restart applies to row sections.
+- Note mapping builds the concrete notes in `Lowest Note..Highest Note` that match `Scale` and `Root`, chooses the nearest scale note to `Starting Note` as the zero-degree index, and applies X/Y pitch steps before clamp/wrap. `wrap` wraps within that concrete scale-note list, so wrapped notes must remain in scale.
 
 ## Auto-Save
 

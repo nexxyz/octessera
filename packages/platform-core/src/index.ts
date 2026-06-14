@@ -41,7 +41,7 @@ export { cutoffDisplayToHz } from "./coreUtils";
 import { readAnyValue, writeAnyValue } from "./paramAccess";
 import { reinitBehaviorState } from "./behaviorState";
 import { factoryPayload, formatTimestamp, textEditTurn } from "./stateHelpers";
-import { applyExternalClockPulses, tickTransport } from "./transportRuntime";
+import { applyExternalClockPulses, stepTransportByPulses as stepTransportByPulsesRuntime, tickTransport } from "./transportRuntime";
 import { buildMenuTree } from "./menuTree";
 import { routeInputWithDeps } from "./inputRouter";
 import { createInitialPlatformState } from "./initialState";
@@ -71,7 +71,7 @@ registerBehavior(dlaBehavior); registerBehavior(gliderBehavior);
 function resolveBehavior(activeId: string): BehaviorEngine<any, any> {
   return getBehavior(activeId) ?? sequencerBehavior;
 }
-import { buildSimulatorFrame } from "./simulatorFrameBuilder";
+import { buildSimulatorFrame, toOledLines } from "./simulatorFrameBuilder";
 import { ghostCellsForInactiveParts } from "./runtimeHelpers";
 import { paramBindingFromMenuNode } from "./paramMod";
 import { emergencyBrakeState } from "./transportSafety";
@@ -241,10 +241,39 @@ export function tick<TState>(
 ): { state: PlatformState<TState>; events: MusicalEvent[]; effects: PlatformEffect[] } {
   const events: MusicalEvent[] = [];
   const effects: PlatformEffect[] = [];
-  let next = { ...state };
+  let next = advanceRuntimeUiState(state, runtimeNowMs());
   const nowMs = runtimeNowMs();
 
-  // OLED sleep/splash timing.
+  const advanced = tickTransport(next, behavior, elapsedSeconds);
+  next = advanced.state;
+  events.push(...advanced.events);
+
+  if (events.some((e) => e.type === "note_on")) {
+    next.system = { ...next.system, eventBlipUntilMs: deadlineMs(nowMs, EVENT_BLIP_MS) };
+  }
+  return { state: next, events, effects };
+}
+
+export function stepTransportByPulses<TState>(
+  state: PlatformState<TState>,
+  behavior: BehaviorEngine<TState, unknown>,
+  pulses: number,
+  source: "internal" | "external"
+): { state: PlatformState<TState>; events: MusicalEvent[] } {
+  const next = advanceRuntimeUiState(state, runtimeNowMs());
+  const stepped = stepTransportByPulsesRuntime(next, behavior, pulses, source);
+  if (stepped.events.some((event) => event.type === "note_on")) {
+    stepped.state = {
+      ...stepped.state,
+      system: { ...stepped.state.system, eventBlipUntilMs: deadlineMs(runtimeNowMs(), EVENT_BLIP_MS) }
+    };
+  }
+  return stepped;
+}
+
+function advanceRuntimeUiState<TState>(state: PlatformState<TState>, nowMs: number): PlatformState<TState> {
+  let next = { ...state };
+
   {
     const sleepMs = Math.max(0, Math.floor(next.runtimeConfig.screenSleepSeconds * 1000));
     if (next.system.oledMode === "normal" && sleepMs > 0 && nowMs - next.system.lastInteractionMs >= sleepMs) {
@@ -255,7 +284,6 @@ export function tick<TState>(
         oledSplashUntilMs: deadlineMs(nowMs, SLEEP_SPLASH_MS)
       };
     } else if (next.system.oledMode === "splash" && nowMs >= next.system.oledSplashUntilMs) {
-      // Startup splash returns to normal; sleep splash turns OLED off.
       const nextMode = next.system.oledSplashText === "Starting up" ? "normal" : "off";
       next.system = {
         ...next.system,
@@ -268,24 +296,15 @@ export function tick<TState>(
     }
   }
 
-  // Transport flash decay.
   if (next.system.transportFlashUntilMs > 0 && nowMs > next.system.transportFlashUntilMs) {
     next.system = { ...next.system, transportFlashUntilMs: 0, transportFlash: "none" };
   }
 
-  // Auto-save flash decay.
   if (next.system.autoSaveFlashUntilMs > 0 && nowMs > next.system.autoSaveFlashUntilMs) {
     next.system = { ...next.system, autoSaveFlashUntilMs: 0, autoSaveFlash: "none" };
   }
 
-  const advanced = tickTransport(next, behavior, elapsedSeconds);
-  next = advanced.state;
-  events.push(...advanced.events);
-
-  if (events.some((e) => e.type === "note_on")) {
-    next.system = { ...next.system, eventBlipUntilMs: deadlineMs(nowMs, EVENT_BLIP_MS) };
-  }
-  return { state: next, events, effects };
+  return next;
 }
 
 export function extractConfigPayload<TState>(state: PlatformState<TState>): ConfigPayload {
@@ -330,7 +349,7 @@ export function toSimulatorFrame<TState>(state: PlatformState<TState>, behavior:
   const scanIndex = ((state as any).partScanIndex?.[activePart] ?? state.scanIndex) as number;
   const scanCursor = scanMode === "scanning" ? { axis: scanAxis, index: scanIndex, sections: scanSections } : null;
   const ghostCells = state.runtimeConfig.ghostCells === true ? ghostCellsForInactiveParts(state, activePart, model.cells.length) : undefined;
-  return buildSimulatorFrame({ state, activePart, engine, model, menuView, scanCursor, toOledLines, audioLoad: options.audioLoad, ghostCells, paramModBinding });
+  return buildSimulatorFrame({ state, activePart, engine, model, menuView, scanCursor, audioLoad: options.audioLoad, ghostCells, paramModBinding });
 }
 
 function menuTree<TState>(state: PlatformState<TState>): MenuNode {
@@ -426,25 +445,9 @@ function autoSaveEffect<TState>(state: PlatformState<TState>, effects: PlatformE
     effects.push({ type: "store_save_default", payload: extractConfigPayload(state), mode: "deferred" });
   }
 }
-
-
 const FRAME_SECONDS = 0.15;
 
-export function toOledLines(display: DisplayFrame): { lines: string[]; colors: number[] } {
-  const title = fitOledTextToColumns(display.title, OLED_TEXT_COLUMNS);
-  const titleColor = getSectionColorFromPath(display.title);
-  const body = display.lines
-    .slice(0, OLED_TEXT_LINES - 2)
-    .map((line, idx) => ({
-      line: line.trim().length === 0 ? "" : fitOledMenuLineToColumns(line, OLED_TEXT_COLUMNS),
-      color: display.colors?.[idx] ?? 0xffff
-    }));
-  // Keep empty lines - they render as blank spacer lines
-  return {
-    lines: [title, ...body.map(b => b.line)].slice(0, OLED_TEXT_LINES - 1),
-    colors: [titleColor, ...body.map(b => b.color)].slice(0, OLED_TEXT_LINES - 1)
-  };
-}
+export { toOledLines } from "./simulatorFrameBuilder";
 
 export function enumerateMenuHelpTargets<TState>(state: PlatformState<TState>): HelpTarget[] {
   const out: HelpTarget[] = [];

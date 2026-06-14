@@ -1,16 +1,33 @@
 import type { BehaviorEngine } from "@cellsymphony/behavior-api";
 import { type DisplayFrame, type SimulatorFrame } from "@cellsymphony/device-contracts";
 import type { AuxTurnBinding, BarValue, PlatformState } from "./platformTypes";
-import { OLED_TEXT_LINES } from "./platformTypes";
+import { OLED_TEXT_COLUMNS, OLED_TEXT_LINES } from "./platformTypes";
 import { nowMs } from "./timing";
 import { cellsToLeds, danceModeToLeds, sampleAssignmentToLeds, triggerProbabilityAssignmentToLeds } from "./runtimeHelpers";
 import { paramModOverlayToLeds } from "./paramMod";
+import { fitOledMenuLine as fitOledMenuLineToColumns, fitOledText as fitOledTextToColumns } from "./coreUtils";
+import { getSectionColorFromPath } from "./menuPresentation";
 import { renderOledFrame } from "./oledRender";
 import { logoSepia128Rgb565be } from "./oledAssets/logoSepia128_rgb565be";
 import { logo128Rgb565be } from "./oledAssets/logo128_rgb565be";
 import { PLATFORM_CAPS } from "./platformCaps";
 
 type OledLines = { lines: string[]; colors: number[] };
+
+export function toOledLines(display: DisplayFrame): OledLines {
+  const title = fitOledTextToColumns(display.title, OLED_TEXT_COLUMNS);
+  const titleColor = getSectionColorFromPath(display.title);
+  const body = display.lines
+    .slice(0, OLED_TEXT_LINES - 2)
+    .map((line, idx) => ({
+      line: line.trim().length === 0 ? "" : fitOledMenuLineToColumns(line, OLED_TEXT_COLUMNS),
+      color: display.colors?.[idx] ?? 0xffff
+    }));
+  return {
+    lines: [title, ...body.map(b => b.line)].slice(0, OLED_TEXT_LINES - 1),
+    colors: [titleColor, ...body.map(b => b.color)].slice(0, OLED_TEXT_LINES - 1)
+  };
+}
 
 type Args<TState> = {
   state: PlatformState<TState>;
@@ -19,7 +36,6 @@ type Args<TState> = {
   model: { name: string; cells: boolean[]; triggerTypes?: import("@cellsymphony/behavior-api").CellTriggerType[] };
   menuView: { path: string; lines: string[]; colors: number[]; barValues: (BarValue | null)[] };
   scanCursor: { axis: "rows" | "columns"; index: number; sections?: unknown } | null;
-  toOledLines: (display: DisplayFrame) => OledLines;
   audioLoad?: { ratio: number; voiceSteal: boolean };
   ghostCells?: boolean[];
   paramModBinding?: AuxTurnBinding | null;
@@ -33,7 +49,7 @@ function audioLoadIndicator(status: { ratio: number; voiceSteal: boolean } | und
 }
 
 export function buildSimulatorFrame<TState>(args: Args<TState>): SimulatorFrame {
-  const { state, activePart, model, menuView, scanCursor, toOledLines } = args;
+  const { state, activePart, model, menuView, scanCursor } = args;
   const baseDisplay: DisplayFrame = {
     page: menuView.path,
     title: menuView.path,
@@ -103,6 +119,28 @@ export function buildSimulatorFrame<TState>(args: Args<TState>): SimulatorFrame 
     },
     transport: state.transport,
     activeBehavior: model.name,
-    gridInteraction: args.engine.gridInteraction ?? "paint"
+    gridInteraction: args.engine.gridInteraction ?? "paint",
+    settings: {
+      displayBrightness: state.runtimeConfig.displayBrightness ?? 75,
+      buttonBrightness: state.runtimeConfig.buttonBrightness ?? 75,
+      masterVolume: state.runtimeConfig.masterVolume ?? 100,
+      voiceStealingMode: (state.runtimeConfig.sound?.voiceStealingMode ?? "balanced") as "off" | "lenient" | "balanced" | "aggressive",
+      instruments: Array.isArray(state.runtimeConfig.instruments) ? (state.runtimeConfig.instruments as unknown[]) : [],
+      mixer: state.runtimeConfig.mixer ?? { buses: [] },
+      panPositions: state.runtimeConfig.panPositions ?? 7,
+      autoSaveFlash: ((state.system as any).autoSaveFlash ?? "none") as "none" | "flash",
+      transportFlash: state.system.transportFlash,
+      stopLatched: state.system.stopLatched,
+      fnHeld: state.system.fnHeld,
+      combinedModifierHeld: state.system.combinedModifierHeld,
+      midi: {
+        enabled: state.runtimeConfig.midi.enabled,
+        outId: state.runtimeConfig.midi.outId,
+        inId: state.runtimeConfig.midi.inId,
+        syncMode: state.runtimeConfig.midi.syncMode,
+        clockOutEnabled: state.runtimeConfig.midi.clockOutEnabled,
+        clockInEnabled: state.runtimeConfig.midi.clockInEnabled
+      }
+    }
   };
 }

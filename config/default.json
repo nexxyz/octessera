@@ -1,0 +1,2868 @@
+{
+  "activeBehavior": "life",
+  "mappingConfig": {
+    "activate": {
+      "action": "note_on",
+      "channel": 0,
+      "durationMs": 150,
+      "velocity": 96
+    },
+    "baseMidiNote": 36,
+    "columnStepDegrees": 1,
+    "deactivate": {
+      "action": "note_off",
+      "channel": 0,
+      "durationMs": 90,
+      "velocity": 68
+    },
+    "maxMidiNote": 74,
+    "rangeMode": "wrap",
+    "rowStepDegrees": 3,
+    "scale": [
+      2,
+      4,
+      6,
+      9,
+      11
+    ],
+    "scanned": {
+      "action": "note_on",
+      "channel": 0,
+      "durationMs": 130,
+      "velocity": 88
+    },
+    "scanned_empty": {
+      "action": "none",
+      "channel": 0,
+      "durationMs": 90,
+      "velocity": 68
+    },
+    "stable": {
+      "action": "none",
+      "channel": 0,
+      "durationMs": 130,
+      "velocity": 88
+    },
+    "startingMidiNote": 60
+  },
+  "runtimeConfig": {
+    "activeBehavior": "life",
+    "activePartIndex": 0,
+    "autoSaveDefault": true,
+    "auxBindings": {
+      "aux1": null,
+      "aux2": null,
+      "aux3": null,
+      "aux4": null
+    },
+    "bpm": 120,
+    "buttonBrightness": 75,
+    "danceMode": "fx",
+    "displayBrightness": 75,
+    "ghostCells": false,
+    "gridBrightness": 75,
+    "instruments": [
+      {
+        "autoName": true,
+        "midi": {
+          "durationMs": 120,
+          "enabled": false,
+          "velocity": 100
+        },
+        "mixer": {
+          "panPos": 16,
+          "route": "fx_bus_1",
+          "volume": 100
+        },
+        "name": "synth",
+        "noteBehavior": "oneshot",
+        "sample": {
+          "amp": {
+            "gainPct": 80
+          },
+          "assignments": [],
+          "selectedSlot": 0,
+          "slots": [
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            }
+          ],
+          "tuneSemis": 0
+        },
+        "synth": {
+          "amp": {
+            "gainPct": 80,
+            "velocitySensitivityPct": 100
+          },
+          "ampEnv": {
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
+          },
+          "filter": {
+            "cutoffHz": 222,
+            "envAmountPct": 0,
+            "keyTrackingPct": 0,
+            "resonance": 20,
+            "type": "lowpass"
+          },
+          "filterEnv": {
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
+          },
+          "osc1": {
+            "detuneCents": 0,
+            "levelPct": 80,
+            "octave": 0,
+            "pulseWidthPct": 50,
+            "waveform": "saw"
+          },
+          "osc2": {
+            "detuneCents": 0,
+            "levelPct": 72,
+            "octave": 0,
+            "pulseWidthPct": 50,
+            "waveform": "square"
+          }
+        },
+        "type": "synth"
+      },
+      {
+        "autoName": true,
+        "midi": {
+          "durationMs": 120,
+          "enabled": false,
+          "velocity": 100
+        },
+        "mixer": {
+          "panPos": 16,
+          "route": "direct",
+          "volume": 100
+        },
+        "name": "sampler",
+        "noteBehavior": "oneshot",
+        "sample": {
+          "amp": {
+            "gainPct": 100
+          },
+          "assignments": [
+            {
+              "level": null,
+              "sampleSlot": 2,
+              "x": 0,
+              "y": 2
+            },
+            {
+              "level": null,
+              "sampleSlot": 2,
+              "x": 1,
+              "y": 2
+            },
+            {
+              "level": null,
+              "sampleSlot": 2,
+              "x": 2,
+              "y": 2
+            },
+            {
+              "level": null,
+              "sampleSlot": 2,
+              "x": 3,
+              "y": 2
+            },
+            {
+              "level": null,
+              "sampleSlot": 2,
+              "x": 4,
+              "y": 2
+            },
+            {
+              "level": null,
+              "sampleSlot": 2,
+              "x": 5,
+              "y": 2
+            },
+            {
+              "level": null,
+              "sampleSlot": 2,
+              "x": 6,
+              "y": 2
+            },
+            {
+              "level": null,
+              "sampleSlot": 2,
+              "x": 7,
+              "y": 2
+            },
+            {
+              "level": null,
+              "sampleSlot": 1,
+              "x": 0,
+              "y": 1
+            },
+            {
+              "level": null,
+              "sampleSlot": 1,
+              "x": 1,
+              "y": 1
+            },
+            {
+              "level": null,
+              "sampleSlot": 1,
+              "x": 2,
+              "y": 1
+            },
+            {
+              "level": null,
+              "sampleSlot": 1,
+              "x": 3,
+              "y": 1
+            },
+            {
+              "level": null,
+              "sampleSlot": 1,
+              "x": 4,
+              "y": 1
+            },
+            {
+              "level": null,
+              "sampleSlot": 1,
+              "x": 5,
+              "y": 1
+            },
+            {
+              "level": null,
+              "sampleSlot": 1,
+              "x": 6,
+              "y": 1
+            },
+            {
+              "level": null,
+              "sampleSlot": 1,
+              "x": 7,
+              "y": 1
+            },
+            {
+              "level": null,
+              "sampleSlot": 0,
+              "x": 0,
+              "y": 0
+            },
+            {
+              "level": null,
+              "sampleSlot": 0,
+              "x": 1,
+              "y": 0
+            },
+            {
+              "level": null,
+              "sampleSlot": 0,
+              "x": 2,
+              "y": 0
+            },
+            {
+              "level": null,
+              "sampleSlot": 0,
+              "x": 3,
+              "y": 0
+            },
+            {
+              "level": null,
+              "sampleSlot": 0,
+              "x": 4,
+              "y": 0
+            },
+            {
+              "level": null,
+              "sampleSlot": 0,
+              "x": 5,
+              "y": 0
+            },
+            {
+              "level": null,
+              "sampleSlot": 0,
+              "x": 6,
+              "y": 0
+            },
+            {
+              "level": null,
+              "sampleSlot": 0,
+              "x": 7,
+              "y": 0
+            }
+          ],
+          "selectedSlot": 0,
+          "slots": [
+            {
+              "path": "Drum/kick/Kick2.wav"
+            },
+            {
+              "path": "Drum/clap/448221__toxicfilmzsrsounds__hip-hop-clap.wav"
+            },
+            {
+              "path": "Drum/hihat open/439820__twentytwentymusic__electronic-open-hat-7.wav"
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            }
+          ],
+          "tuneSemis": 0
+        },
+        "synth": {
+          "amp": {
+            "gainPct": 72,
+            "velocitySensitivityPct": 85
+          },
+          "ampEnv": {
+            "attackMs": 240,
+            "decayMs": 360,
+            "releaseMs": 460,
+            "sustainPct": 78
+          },
+          "filter": {
+            "cutoffHz": 186,
+            "envAmountPct": 28,
+            "keyTrackingPct": 20,
+            "resonance": 18,
+            "type": "lowpass"
+          },
+          "filterEnv": {
+            "attackMs": 190,
+            "decayMs": 420,
+            "releaseMs": 500,
+            "sustainPct": 72
+          },
+          "osc1": {
+            "detuneCents": -3,
+            "levelPct": 78,
+            "octave": 0,
+            "pulseWidthPct": 50,
+            "waveform": "triangle"
+          },
+          "osc2": {
+            "detuneCents": 3,
+            "levelPct": 64,
+            "octave": 0,
+            "pulseWidthPct": 42,
+            "waveform": "pulse"
+          }
+        },
+        "type": "sampler"
+      },
+      {
+        "autoName": true,
+        "midi": {
+          "durationMs": 120,
+          "enabled": false,
+          "velocity": 100
+        },
+        "mixer": {
+          "panPos": 16,
+          "route": "direct",
+          "volume": 100
+        },
+        "name": "synth",
+        "noteBehavior": "oneshot",
+        "sample": {
+          "amp": {
+            "gainPct": 84
+          },
+          "assignments": [],
+          "selectedSlot": 0,
+          "slots": [
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            }
+          ],
+          "tuneSemis": 0
+        },
+        "synth": {
+          "amp": {
+            "gainPct": 72,
+            "velocitySensitivityPct": 85
+          },
+          "ampEnv": {
+            "attackMs": 240,
+            "decayMs": 360,
+            "releaseMs": 460,
+            "sustainPct": 78
+          },
+          "filter": {
+            "cutoffHz": 186,
+            "envAmountPct": 28,
+            "keyTrackingPct": 20,
+            "resonance": 18,
+            "type": "lowpass"
+          },
+          "filterEnv": {
+            "attackMs": 190,
+            "decayMs": 420,
+            "releaseMs": 500,
+            "sustainPct": 72
+          },
+          "osc1": {
+            "detuneCents": -3,
+            "levelPct": 78,
+            "octave": 0,
+            "pulseWidthPct": 50,
+            "waveform": "triangle"
+          },
+          "osc2": {
+            "detuneCents": 3,
+            "levelPct": 64,
+            "octave": 0,
+            "pulseWidthPct": 42,
+            "waveform": "pulse"
+          }
+        },
+        "type": "synth"
+      },
+      {
+        "autoName": true,
+        "midi": {
+          "durationMs": 120,
+          "enabled": false,
+          "velocity": 100
+        },
+        "mixer": {
+          "panPos": 16,
+          "route": "fx_bus_2",
+          "volume": 100
+        },
+        "name": "synth",
+        "noteBehavior": "oneshot",
+        "sample": {
+          "amp": {
+            "gainPct": 88
+          },
+          "assignments": [],
+          "selectedSlot": 0,
+          "slots": [
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            }
+          ],
+          "tuneSemis": 0
+        },
+        "synth": {
+          "amp": {
+            "gainPct": 88,
+            "velocitySensitivityPct": 72
+          },
+          "ampEnv": {
+            "attackMs": 5,
+            "decayMs": 160,
+            "releaseMs": 120,
+            "sustainPct": 56
+          },
+          "filter": {
+            "cutoffHz": 157,
+            "envAmountPct": 22,
+            "keyTrackingPct": 24,
+            "resonance": 30,
+            "type": "lowpass"
+          },
+          "filterEnv": {
+            "attackMs": 7,
+            "decayMs": 170,
+            "releaseMs": 150,
+            "sustainPct": 44
+          },
+          "osc1": {
+            "detuneCents": 0,
+            "levelPct": 84,
+            "octave": -1,
+            "pulseWidthPct": 50,
+            "waveform": "saw"
+          },
+          "osc2": {
+            "detuneCents": -4,
+            "levelPct": 68,
+            "octave": -1,
+            "pulseWidthPct": 50,
+            "waveform": "square"
+          }
+        },
+        "type": "synth"
+      },
+      {
+        "autoName": true,
+        "midi": {
+          "durationMs": 120,
+          "enabled": false,
+          "velocity": 100
+        },
+        "mixer": {
+          "panPos": 16,
+          "route": "direct",
+          "volume": 100
+        },
+        "name": "synth",
+        "noteBehavior": "oneshot",
+        "sample": {
+          "amp": {
+            "gainPct": 82
+          },
+          "assignments": [],
+          "selectedSlot": 0,
+          "slots": [
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            }
+          ],
+          "tuneSemis": 0
+        },
+        "synth": {
+          "amp": {
+            "gainPct": 82,
+            "velocitySensitivityPct": 96
+          },
+          "ampEnv": {
+            "attackMs": 9,
+            "decayMs": 260,
+            "releaseMs": 180,
+            "sustainPct": 60
+          },
+          "filter": {
+            "cutoffHz": 166,
+            "envAmountPct": 30,
+            "keyTrackingPct": 28,
+            "resonance": 48,
+            "type": "bandpass"
+          },
+          "filterEnv": {
+            "attackMs": 5,
+            "decayMs": 220,
+            "releaseMs": 180,
+            "sustainPct": 40
+          },
+          "osc1": {
+            "detuneCents": -6,
+            "levelPct": 74,
+            "octave": 0,
+            "pulseWidthPct": 34,
+            "waveform": "pulse"
+          },
+          "osc2": {
+            "detuneCents": 6,
+            "levelPct": 74,
+            "octave": 0,
+            "pulseWidthPct": 66,
+            "waveform": "pulse"
+          }
+        },
+        "type": "synth"
+      },
+      {
+        "autoName": true,
+        "midi": {
+          "durationMs": 120,
+          "enabled": false,
+          "velocity": 100
+        },
+        "mixer": {
+          "panPos": 16,
+          "route": "direct",
+          "volume": 100
+        },
+        "name": "synth",
+        "noteBehavior": "oneshot",
+        "sample": {
+          "amp": {
+            "gainPct": 85
+          },
+          "assignments": [],
+          "selectedSlot": 0,
+          "slots": [
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            }
+          ],
+          "tuneSemis": 0
+        },
+        "synth": {
+          "amp": {
+            "gainPct": 85,
+            "velocitySensitivityPct": 100
+          },
+          "ampEnv": {
+            "attackMs": 2,
+            "decayMs": 130,
+            "releaseMs": 110,
+            "sustainPct": 26
+          },
+          "filter": {
+            "cutoffHz": 101,
+            "envAmountPct": 46,
+            "keyTrackingPct": 30,
+            "resonance": 24,
+            "type": "highpass"
+          },
+          "filterEnv": {
+            "attackMs": 3,
+            "decayMs": 140,
+            "releaseMs": 130,
+            "sustainPct": 24
+          },
+          "osc1": {
+            "detuneCents": 5,
+            "levelPct": 88,
+            "octave": 0,
+            "pulseWidthPct": 50,
+            "waveform": "saw"
+          },
+          "osc2": {
+            "detuneCents": -2,
+            "levelPct": 64,
+            "octave": 1,
+            "pulseWidthPct": 50,
+            "waveform": "triangle"
+          }
+        },
+        "type": "synth"
+      },
+      {
+        "autoName": true,
+        "midi": {
+          "durationMs": 120,
+          "enabled": false,
+          "velocity": 100
+        },
+        "mixer": {
+          "panPos": 16,
+          "route": "direct",
+          "volume": 100
+        },
+        "name": "synth",
+        "noteBehavior": "oneshot",
+        "sample": {
+          "amp": {
+            "gainPct": 76
+          },
+          "assignments": [],
+          "selectedSlot": 0,
+          "slots": [
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            }
+          ],
+          "tuneSemis": 0
+        },
+        "synth": {
+          "amp": {
+            "gainPct": 76,
+            "velocitySensitivityPct": 100
+          },
+          "ampEnv": {
+            "attackMs": 1,
+            "decayMs": 540,
+            "releaseMs": 360,
+            "sustainPct": 0
+          },
+          "filter": {
+            "cutoffHz": 174,
+            "envAmountPct": 34,
+            "keyTrackingPct": 12,
+            "resonance": 52,
+            "type": "notch"
+          },
+          "filterEnv": {
+            "attackMs": 1,
+            "decayMs": 380,
+            "releaseMs": 280,
+            "sustainPct": 0
+          },
+          "osc1": {
+            "detuneCents": 0,
+            "levelPct": 76,
+            "octave": 0,
+            "pulseWidthPct": 50,
+            "waveform": "sine"
+          },
+          "osc2": {
+            "detuneCents": 12,
+            "levelPct": 60,
+            "octave": 1,
+            "pulseWidthPct": 50,
+            "waveform": "triangle"
+          }
+        },
+        "type": "synth"
+      },
+      {
+        "autoName": true,
+        "midi": {
+          "durationMs": 120,
+          "enabled": false,
+          "velocity": 100
+        },
+        "mixer": {
+          "panPos": 16,
+          "route": "direct",
+          "volume": 100
+        },
+        "name": "synth",
+        "noteBehavior": "oneshot",
+        "sample": {
+          "amp": {
+            "gainPct": 88
+          },
+          "assignments": [],
+          "selectedSlot": 0,
+          "slots": [
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            }
+          ],
+          "tuneSemis": 0
+        },
+        "synth": {
+          "amp": {
+            "gainPct": 88,
+            "velocitySensitivityPct": 100
+          },
+          "ampEnv": {
+            "attackMs": 0,
+            "decayMs": 90,
+            "releaseMs": 120,
+            "sustainPct": 0
+          },
+          "filter": {
+            "cutoffHz": 191,
+            "envAmountPct": 72,
+            "keyTrackingPct": 8,
+            "resonance": 26,
+            "type": "lowpass"
+          },
+          "filterEnv": {
+            "attackMs": 0,
+            "decayMs": 120,
+            "releaseMs": 140,
+            "sustainPct": 0
+          },
+          "osc1": {
+            "detuneCents": 0,
+            "levelPct": 84,
+            "octave": 0,
+            "pulseWidthPct": 50,
+            "waveform": "square"
+          },
+          "osc2": {
+            "detuneCents": 0,
+            "levelPct": 48,
+            "octave": 1,
+            "pulseWidthPct": 20,
+            "waveform": "pulse"
+          }
+        },
+        "type": "synth"
+      }
+    ],
+    "masterVolume": 73,
+    "midi": {
+      "enabled": false,
+      "inId": null,
+      "outId": null,
+      "syncMode": "internal"
+    },
+    "mixer": {
+      "buses": [
+        {
+          "autoName": true,
+          "panPos": 16,
+          "slot1": {
+            "type": "delay"
+          },
+          "slot2": {
+            "type": "duck"
+          }
+        },
+        {
+          "autoName": true,
+          "panPos": 16,
+          "slot1": {
+            "type": "duck"
+          },
+          "slot2": {
+            "type": "none"
+          }
+        },
+        {
+          "autoName": true,
+          "panPos": 16,
+          "slot1": {
+            "type": "none"
+          },
+          "slot2": {
+            "type": "none"
+          }
+        },
+        {
+          "autoName": true,
+          "panPos": 16,
+          "slot1": {
+            "type": "none"
+          },
+          "slot2": {
+            "type": "none"
+          }
+        }
+      ],
+      "master": {
+        "slots": [
+          {
+            "type": "none"
+          },
+          {
+            "type": "none"
+          }
+        ]
+      }
+    },
+    "noteLengthMs": 150,
+    "numericDisplayMode": "bar+numbers",
+    "parts": [
+      {
+        "autoName": true,
+        "l1": {
+          "behaviorConfig": {
+            "randomCellsPerTick": 0,
+            "randomTickInterval": 1,
+            "spawnStep": 0
+          },
+          "behaviorId": "life",
+          "behaviorState": {
+            "cells": [
+              false,
+              false,
+              false,
+              true,
+              true,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              true,
+              true,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              true,
+              true,
+              false,
+              false,
+              false,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              false,
+              false,
+              false,
+              true,
+              true,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              true,
+              true,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              true,
+              true,
+              false,
+              false,
+              false
+            ],
+            "generation": 154,
+            "height": 8,
+            "randomCellsPerTick": 0,
+            "randomTickInterval": 1,
+            "spawnStep": 0,
+            "tickCounter": 154,
+            "triggerTypes": [
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none"
+            ],
+            "width": 8
+          },
+          "saveGridState": false,
+          "stepRate": "1/16"
+        },
+        "l2": {
+          "eventEnabled": true,
+          "mapping": {
+            "activate": {
+              "action": "note_on",
+              "slot": "0"
+            },
+            "deactivate": {
+              "action": "note_off",
+              "slot": "0"
+            },
+            "scanned": {
+              "action": "note_on",
+              "slot": "0"
+            },
+            "scanned_empty": {
+              "action": "none",
+              "slot": "0"
+            },
+            "stable": {
+              "action": "none",
+              "slot": "0"
+            }
+          },
+          "pitch": {
+            "highestNote": 74,
+            "lowestNote": 36,
+            "outOfRange": "wrap",
+            "root": "D",
+            "scale": "major_pentatonic",
+            "startingNote": 60
+          },
+          "scanAxis": "columns",
+          "scanDirection": "forward",
+          "scanMode": "immediate",
+          "scanSections": 1,
+          "scanUnit": "1/8",
+          "stateNotesEnabled": true,
+          "triggerProbabilityHighPct": 75,
+          "triggerProbabilityLowPct": 25,
+          "triggerProbabilityMap": [
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero"
+          ],
+          "triggerProbabilityMode": "full",
+          "x": {
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 1
+            },
+            "to": 7
+          },
+          "y": {
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 3
+            },
+            "to": 7
+          }
+        },
+        "name": "life"
+      },
+      {
+        "autoName": true,
+        "l1": {
+          "behaviorConfig": {},
+          "behaviorId": "sequencer",
+          "behaviorState": {
+            "cells": [
+              true,
+              false,
+              true,
+              false,
+              true,
+              false,
+              true,
+              false,
+              false,
+              false,
+              true,
+              false,
+              false,
+              false,
+              true,
+              false,
+              false,
+              true,
+              false,
+              true,
+              false,
+              true,
+              false,
+              true,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false
+            ],
+            "height": 8,
+            "width": 8
+          },
+          "saveGridState": false,
+          "stepRate": "1/16"
+        },
+        "l2": {
+          "eventEnabled": false,
+          "mapping": {
+            "activate": {
+              "action": "note_on",
+              "slot": "0"
+            },
+            "deactivate": {
+              "action": "note_off",
+              "slot": "0"
+            },
+            "scanned": {
+              "action": "note_on",
+              "slot": "1"
+            },
+            "scanned_empty": {
+              "action": "none",
+              "slot": "none"
+            },
+            "stable": {
+              "action": "none",
+              "slot": "0"
+            }
+          },
+          "pitch": {
+            "highestNote": 74,
+            "lowestNote": 36,
+            "outOfRange": "wrap",
+            "root": "D",
+            "scale": "chromatic",
+            "startingNote": 60
+          },
+          "scanAxis": "columns",
+          "scanDirection": "forward",
+          "scanMode": "scanning",
+          "scanSections": 1,
+          "scanUnit": "1/8",
+          "stateNotesEnabled": true,
+          "triggerProbabilityHighPct": 75,
+          "triggerProbabilityLowPct": 25,
+          "triggerProbabilityMap": [
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero"
+          ],
+          "triggerProbabilityMode": "full",
+          "x": {
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 1
+            },
+            "to": 7
+          },
+          "y": {
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 3
+            },
+            "to": 7
+          }
+        },
+        "name": "sequencer"
+      },
+      {
+        "autoName": true,
+        "l1": {
+          "behaviorConfig": {
+            "quantize": "immediate"
+          },
+          "behaviorId": "keys",
+          "behaviorState": {
+            "cells": [
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false
+            ],
+            "heldCells": [
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false
+            ],
+            "quantize": "immediate",
+            "triggerTypes": [
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none"
+            ]
+          },
+          "saveGridState": false,
+          "stepRate": "1/16"
+        },
+        "l2": {
+          "eventEnabled": true,
+          "mapping": {
+            "activate": {
+              "action": "note_on",
+              "slot": "2"
+            },
+            "deactivate": {
+              "action": "note_off",
+              "slot": "2"
+            },
+            "scanned": {
+              "action": "note_on",
+              "slot": "0"
+            },
+            "scanned_empty": {
+              "action": "none",
+              "slot": "0"
+            },
+            "stable": {
+              "action": "none",
+              "slot": "0"
+            }
+          },
+          "pitch": {
+            "highestNote": 74,
+            "lowestNote": 36,
+            "outOfRange": "wrap",
+            "root": "D",
+            "scale": "chromatic",
+            "startingNote": 60
+          },
+          "scanAxis": "columns",
+          "scanDirection": "forward",
+          "scanMode": "immediate",
+          "scanSections": 1,
+          "scanUnit": "1/8",
+          "stateNotesEnabled": true,
+          "triggerProbabilityHighPct": 75,
+          "triggerProbabilityLowPct": 25,
+          "triggerProbabilityMap": [
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero"
+          ],
+          "triggerProbabilityMode": "full",
+          "x": {
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 1
+            },
+            "to": 7
+          },
+          "y": {
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 3
+            },
+            "to": 7
+          }
+        },
+        "name": "keys"
+      },
+      {
+        "autoName": true,
+        "l1": {
+          "behaviorConfig": null,
+          "behaviorId": "sequencer",
+          "behaviorState": {
+            "cells": [
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false
+            ],
+            "height": 8,
+            "width": 8
+          },
+          "saveGridState": false,
+          "stepRate": "1/16"
+        },
+        "l2": {
+          "eventEnabled": false,
+          "mapping": {
+            "activate": {
+              "action": "note_on",
+              "slot": "0"
+            },
+            "deactivate": {
+              "action": "note_off",
+              "slot": "0"
+            },
+            "scanned": {
+              "action": "note_on",
+              "slot": "3"
+            },
+            "scanned_empty": {
+              "action": "none",
+              "slot": "3"
+            },
+            "stable": {
+              "action": "none",
+              "slot": "0"
+            }
+          },
+          "pitch": {
+            "highestNote": 74,
+            "lowestNote": 36,
+            "outOfRange": "wrap",
+            "root": "D",
+            "scale": "chromatic",
+            "startingNote": 60
+          },
+          "scanAxis": "rows",
+          "scanDirection": "reverse",
+          "scanMode": "scanning",
+          "scanSections": 1,
+          "scanUnit": "1/8",
+          "stateNotesEnabled": true,
+          "triggerProbabilityHighPct": 75,
+          "triggerProbabilityLowPct": 25,
+          "triggerProbabilityMap": [
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero"
+          ],
+          "triggerProbabilityMode": "full",
+          "x": {
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 1
+            },
+            "to": 7
+          },
+          "y": {
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 3
+            },
+            "to": 7
+          }
+        },
+        "name": "sequencer"
+      },
+      {
+        "autoName": true,
+        "l1": {
+          "behaviorConfig": null,
+          "behaviorId": "none",
+          "behaviorState": {
+            "cells": [
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          "saveGridState": false,
+          "stepRate": "1/16"
+        },
+        "l2": {
+          "eventEnabled": false,
+          "mapping": {
+            "activate": {
+              "action": "note_on",
+              "slot": "0"
+            },
+            "deactivate": {
+              "action": "note_off",
+              "slot": "0"
+            },
+            "scanned": {
+              "action": "note_on",
+              "slot": "0"
+            },
+            "scanned_empty": {
+              "action": "none",
+              "slot": "0"
+            },
+            "stable": {
+              "action": "none",
+              "slot": "0"
+            }
+          },
+          "pitch": {
+            "highestNote": 74,
+            "lowestNote": 36,
+            "outOfRange": "wrap",
+            "root": "D",
+            "scale": "chromatic",
+            "startingNote": 60
+          },
+          "scanAxis": "columns",
+          "scanDirection": "forward",
+          "scanMode": "immediate",
+          "scanSections": 1,
+          "scanUnit": "1/8",
+          "stateNotesEnabled": true,
+          "triggerProbabilityHighPct": 75,
+          "triggerProbabilityLowPct": 25,
+          "triggerProbabilityMap": [
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero"
+          ],
+          "triggerProbabilityMode": "full",
+          "x": {
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 1
+            },
+            "to": 7
+          },
+          "y": {
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 3
+            },
+            "to": 7
+          }
+        },
+        "name": "none"
+      },
+      {
+        "autoName": true,
+        "l1": {
+          "behaviorConfig": null,
+          "behaviorId": "none",
+          "behaviorState": {
+            "cells": [
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          "saveGridState": false,
+          "stepRate": "1/16"
+        },
+        "l2": {
+          "eventEnabled": false,
+          "mapping": {
+            "activate": {
+              "action": "note_on",
+              "slot": "0"
+            },
+            "deactivate": {
+              "action": "note_off",
+              "slot": "0"
+            },
+            "scanned": {
+              "action": "note_on",
+              "slot": "0"
+            },
+            "scanned_empty": {
+              "action": "none",
+              "slot": "0"
+            },
+            "stable": {
+              "action": "none",
+              "slot": "0"
+            }
+          },
+          "pitch": {
+            "highestNote": 74,
+            "lowestNote": 36,
+            "outOfRange": "wrap",
+            "root": "D",
+            "scale": "chromatic",
+            "startingNote": 60
+          },
+          "scanAxis": "columns",
+          "scanDirection": "forward",
+          "scanMode": "immediate",
+          "scanSections": 1,
+          "scanUnit": "1/8",
+          "stateNotesEnabled": true,
+          "triggerProbabilityHighPct": 75,
+          "triggerProbabilityLowPct": 25,
+          "triggerProbabilityMap": [
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero"
+          ],
+          "triggerProbabilityMode": "full",
+          "x": {
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 1
+            },
+            "to": 7
+          },
+          "y": {
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 3
+            },
+            "to": 7
+          }
+        },
+        "name": "none"
+      },
+      {
+        "autoName": true,
+        "l1": {
+          "behaviorConfig": null,
+          "behaviorId": "none",
+          "behaviorState": {
+            "cells": [
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          "saveGridState": false,
+          "stepRate": "1/16"
+        },
+        "l2": {
+          "eventEnabled": false,
+          "mapping": {
+            "activate": {
+              "action": "note_on",
+              "slot": "0"
+            },
+            "deactivate": {
+              "action": "note_off",
+              "slot": "0"
+            },
+            "scanned": {
+              "action": "note_on",
+              "slot": "0"
+            },
+            "scanned_empty": {
+              "action": "none",
+              "slot": "0"
+            },
+            "stable": {
+              "action": "none",
+              "slot": "0"
+            }
+          },
+          "pitch": {
+            "highestNote": 74,
+            "lowestNote": 36,
+            "outOfRange": "wrap",
+            "root": "D",
+            "scale": "chromatic",
+            "startingNote": 60
+          },
+          "scanAxis": "columns",
+          "scanDirection": "forward",
+          "scanMode": "immediate",
+          "scanSections": 1,
+          "scanUnit": "1/8",
+          "stateNotesEnabled": true,
+          "triggerProbabilityHighPct": 75,
+          "triggerProbabilityLowPct": 25,
+          "triggerProbabilityMap": [
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero"
+          ],
+          "triggerProbabilityMode": "full",
+          "x": {
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 1
+            },
+            "to": 7
+          },
+          "y": {
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 3
+            },
+            "to": 7
+          }
+        },
+        "name": "none"
+      },
+      {
+        "autoName": true,
+        "l1": {
+          "behaviorConfig": null,
+          "behaviorId": "none",
+          "behaviorState": {
+            "cells": [
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          "saveGridState": false,
+          "stepRate": "1/16"
+        },
+        "l2": {
+          "eventEnabled": false,
+          "mapping": {
+            "activate": {
+              "action": "note_on",
+              "slot": "0"
+            },
+            "deactivate": {
+              "action": "note_off",
+              "slot": "0"
+            },
+            "scanned": {
+              "action": "note_on",
+              "slot": "0"
+            },
+            "scanned_empty": {
+              "action": "none",
+              "slot": "0"
+            },
+            "stable": {
+              "action": "none",
+              "slot": "0"
+            }
+          },
+          "pitch": {
+            "highestNote": 74,
+            "lowestNote": 36,
+            "outOfRange": "wrap",
+            "root": "D",
+            "scale": "chromatic",
+            "startingNote": 60
+          },
+          "scanAxis": "columns",
+          "scanDirection": "forward",
+          "scanMode": "immediate",
+          "scanSections": 1,
+          "scanUnit": "1/8",
+          "stateNotesEnabled": true,
+          "triggerProbabilityHighPct": 75,
+          "triggerProbabilityLowPct": 25,
+          "triggerProbabilityMap": [
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero",
+            "zero"
+          ],
+          "triggerProbabilityMode": "full",
+          "x": {
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 1
+            },
+            "to": 7
+          },
+          "y": {
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 3
+            },
+            "to": 7
+          }
+        },
+        "name": "none"
+      }
+    ],
+    "screenSleepSeconds": 60,
+    "touchFx": {
+      "assignments": [
+        {
+          "config": {
+            "fxType": "stutter",
+            "params": {
+              "depthPct": 100,
+              "rateHz": 8
+            },
+            "targetKey": "master"
+          },
+          "x": 0,
+          "y": 6
+        }
+      ],
+      "selected": {
+        "fxType": "stutter",
+        "params": {
+          "depthPct": 100,
+          "rateHz": 8
+        },
+        "targetKey": "master"
+      }
+    },
+    "velocityCurve": "linear",
+    "velocityScalePct": 100,
+    "voiceStealingMode": "balanced"
+  },
+  "system": {
+    "danceMode": "fx"
+  }
+}

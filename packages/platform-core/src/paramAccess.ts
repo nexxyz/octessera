@@ -60,11 +60,11 @@ function syncActivePartFromLegacy<TState>(state: PlatformState<TState>): Platfor
       x: structuredClone((state.runtimeConfig as any).x),
       y: structuredClone((state.runtimeConfig as any).y),
       mapping: {
-        activate: { action: merged.activate.action, slot: Number(merged.activate.channel) },
-        stable: { action: merged.stable.action, slot: Number(merged.stable.channel) },
-        deactivate: { action: merged.deactivate.action, slot: Number(merged.deactivate.channel) },
-        scanned: { action: merged.scanned.action, slot: Number(merged.scanned.channel) },
-        scanned_empty: { action: merged.scanned_empty.action, slot: Number(merged.scanned_empty.channel) }
+        activate: { action: merged.activate.action, slot: current.l2.mapping.activate.slot === "none" ? "none" : Number(merged.activate.channel) },
+        stable: { action: merged.stable.action, slot: current.l2.mapping.stable.slot === "none" ? "none" : Number(merged.stable.channel) },
+        deactivate: { action: merged.deactivate.action, slot: current.l2.mapping.deactivate.slot === "none" ? "none" : Number(merged.deactivate.channel) },
+        scanned: { action: merged.scanned.action, slot: current.l2.mapping.scanned.slot === "none" ? "none" : Number(merged.scanned.channel) },
+        scanned_empty: { action: merged.scanned_empty.action, slot: current.l2.mapping.scanned_empty.slot === "none" ? "none" : Number(merged.scanned_empty.channel) }
       }
     }
   };
@@ -190,7 +190,7 @@ export function writeAnyValue<TState>(state: PlatformState<TState>, key: string,
     return { ...state, system };
   }
   if (key.startsWith("parts.")) {
-    const normalized = key.endsWith(".slot") || key.endsWith(".sample.selectedSlot") ? Number(value) : value;
+    const normalized = key.endsWith(".slot") ? (value === "none" ? "none" : Number(value)) : (key.endsWith(".sample.selectedSlot") ? Number(value) : value);
     let nextState = { ...state, runtimeConfig: writeValue(state.runtimeConfig, key, normalized) };
     const behMatch = key.endsWith(".l1.behaviorId");
     const autoNameMatch = /^parts\.\d+\.(name|autoName)$/.test(key);

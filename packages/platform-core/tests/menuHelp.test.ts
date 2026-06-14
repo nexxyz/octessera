@@ -9,7 +9,7 @@ test("menu help resolves specific submenu groups", () => {
     { path: "Menu > L3: Voice > FX Buses", key: "", kind: "group", label: "FX Buses", id: "fx_buses_group" },
     { path: "Menu > L3: Voice > Global FX", key: "", kind: "group", label: "Global FX", id: "global_fx_group" },
     { path: "Menu > L2: Sense > Aux Mappings", key: "", kind: "group", label: "Aux Mappings", id: "sense_aux_mappings_group" },
-    { path: "Menu > L4: Dance > Trigger Gate > Mode Grid", key: "", kind: "group", label: "Mode Grid", id: "touch_gate_mode_grid" },
+    { path: "Menu > L4: Dance > Mode Grid", key: "", kind: "group", label: "Mode Grid", id: "touch_gate_mode_grid" },
     { path: "Menu > L2: Sense > P1: life", key: "", kind: "group", label: "P1: life", id: "sense_part_group" }
   ] as const;
 

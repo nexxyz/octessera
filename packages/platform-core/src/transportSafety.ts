@@ -66,5 +66,5 @@ function scanIndexSpan(runtimeConfig: any, partIdx: number, activePart: number):
   const { scanAxis, scanSections } = effectiveScanConfig(runtimeConfig, partIdx, activePart);
   const sections = sectionCount(scanSections);
   if (sections <= 1) return scanAxis === "columns" ? PLATFORM_CAPS.gridWidth : PLATFORM_CAPS.gridHeight;
-  return scanAxis === "columns" ? PLATFORM_CAPS.gridHeight * sections : PLATFORM_CAPS.gridWidth * sections;
+  return scanAxis === "columns" ? PLATFORM_CAPS.gridWidth * sections : PLATFORM_CAPS.gridHeight * sections;
 }

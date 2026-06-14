@@ -75,7 +75,7 @@ export function partIndexOptions(): string[] {
 }
 
 export function instrumentIndexOptions(): string[] {
-  return Array.from({ length: PLATFORM_CAPS.instrumentCount }, (_, i) => String(i));
+  return ["none", ...Array.from({ length: PLATFORM_CAPS.instrumentCount }, (_, i) => String(i))];
 }
 
 export function sampleSlotOptions(): string[] {

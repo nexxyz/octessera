@@ -20,10 +20,12 @@ export type SimulatorSnapshot = {
   masterVolume: number;
   voiceStealingMode: "off" | "lenient" | "balanced" | "aggressive";
   audioLoad: { ratio: number; voiceSteal: boolean };
+  audioError: string | null;
   instruments: unknown[];
   mixer: unknown;
   panPositions: number;
   autoSaveFlash: "none" | "flash";
+  autoSaveFlashSerial?: number;
   displayBrightness: number;
   buttonBrightness: number;
 };

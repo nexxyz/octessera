@@ -9,11 +9,15 @@ export function mergeMapping(mapping: any, part: any, preferBase: boolean, slotF
   for (const key of TRIGGER_KEYS) {
     const m = mapping[key] ?? {};
     const p = part?.l2?.mapping?.[key] ?? {};
-    next[key] = {
-      ...m,
-      action: preferBase ? (m.action ?? p.action) : (p.action ?? m.action),
-      channel: Number(preferBase ? (m.channel ?? p[slotField] ?? 0) : (p[slotField] ?? m.channel ?? 0))
-    };
+    if (p[slotField] === "none") {
+      next[key] = { ...m, action: "none" };
+    } else {
+      next[key] = {
+        ...m,
+        action: preferBase ? (m.action ?? p.action) : (p.action ?? m.action),
+        channel: Number(preferBase ? (m.channel ?? p[slotField] ?? 0) : (p[slotField] ?? m.channel ?? 0))
+      };
+    }
   }
   return next;
 }
@@ -22,7 +26,11 @@ export function overrideFromPart(mapping: any, part: any): any {
   const next: any = { ...mapping };
   for (const key of TRIGGER_KEYS) {
     const p = part?.l2?.mapping?.[key] ?? {};
-    next[key] = { ...next[key], action: p.action, channel: Number(p.slot ?? next[key]?.channel ?? 0) };
+    if (p.slot === "none") {
+      next[key] = { ...next[key], action: "none" };
+    } else {
+      next[key] = { ...next[key], action: p.action, channel: Number(p.slot ?? next[key]?.channel ?? 0) };
+    }
   }
   return next;
 }
@@ -31,7 +39,11 @@ export function preferMapping(mapping: any, part: any): any {
   const next: any = { ...mapping };
   for (const key of TRIGGER_KEYS) {
     const p = part?.l2?.mapping?.[key] ?? {};
-    next[key] = { ...next[key], action: mapping[key]?.action ?? p.action, channel: Number(mapping[key]?.channel ?? p.slot ?? 0) };
+    if (p.slot === "none") {
+      next[key] = { ...next[key], action: "none" };
+    } else {
+      next[key] = { ...next[key], action: mapping[key]?.action ?? p.action, channel: Number(mapping[key]?.channel ?? p.slot ?? 0) };
+    }
   }
   return next;
 }
@@ -128,7 +140,10 @@ export function writeNestedValue(root: unknown, key: string, value: unknown): un
 export function readValue<TConfig extends object>(cfg: TConfig, key: string): unknown {
   const parts = key.split(".");
   let cur: any = cfg;
-  for (const p of parts) cur = cur[p];
+  for (const p of parts) {
+    if (cur == null) return undefined;
+    cur = cur[p];
+  }
   return cur;
 }
 

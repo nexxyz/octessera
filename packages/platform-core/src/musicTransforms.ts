@@ -1,20 +1,22 @@
-﻿import type { MusicalEvent } from "@cellsymphony/musical-events";
+﻿import type { CellTriggerIntent } from "@cellsymphony/interpretation-core";
+import type { MusicalEvent } from "@cellsymphony/musical-events";
 import type { RootName, RuntimeConfig, ScaleId, ValueLaneConfig } from "./platformTypes";
 import { DEFAULT_VELOCITY_HIGH, DEFAULT_VELOCITY_MEDIUM, DEFAULT_VELOCITY_LOW, DEFAULT_NOTE_LENGTH_MS } from "./runtimeDefaults";
 import { clampSampleSlotIndex, PLATFORM_CAPS, sectionCount } from "./platformCaps";
 import { writeValue } from "./coreUtils";
 import { paramModsForPart, quantizeBindingValue, scaledParamModValue } from "./paramMod";
 
-export function applyModulation(intents: { x: number; y: number; degree: number; kind: any }[], events: MusicalEvent[], cfg: RuntimeConfig, partIndex: number = Number((cfg as any).activePartIndex ?? 0)): MusicalEvent[] {
+export function applyModulation(intents: CellTriggerIntent[], events: MusicalEvent[], cfg: RuntimeConfig, partIndex: number = Number((cfg as any).activePartIndex ?? 0)): MusicalEvent[] {
   return applyModulationResult(intents, events, cfg, cfg, partIndex).events;
 }
 
 export function applyModulationResult(
-  intents: { x: number; y: number; degree: number; kind: any }[],
+  intents: CellTriggerIntent[],
   events: MusicalEvent[],
   eventCfg: RuntimeConfig,
   runtimeCfg: RuntimeConfig,
-  partIndex: number = Number((runtimeCfg as any).activePartIndex ?? 0)
+  partIndex: number = Number((runtimeCfg as any).activePartIndex ?? 0),
+  allIntents?: CellTriggerIntent[]
 ): { events: MusicalEvent[]; runtimeConfig: RuntimeConfig } {
     const out: MusicalEvent[] = [];
     for (let i = 0; i < events.length; i += 1) {
@@ -41,7 +43,7 @@ export function applyModulationResult(
         if (vel !== null) {
           out.push({ ...event, note, velocity: vel });
          continue;
-       }
+        }
        out.push({ ...event, note });
         continue;
       }
@@ -58,7 +60,7 @@ export function applyModulationResult(
       }
       out.push(event);
     }
-     const runtimeConfig = applyParamModulation(intents, runtimeCfg, partIndex);
+     const runtimeConfig = applyParamModulation(allIntents ?? intents, runtimeCfg, partIndex);
      return { events: applyGlobalSound(out, runtimeConfig), runtimeConfig: applyXyModulation(runtimeConfig, partIndex) };
    }
 
@@ -185,13 +187,13 @@ export function pitchFromIntent(intent: { x: number; y: number }, cfg: RuntimeCo
 function sectionPitchPosition(intent: { x: number; y: number }, cfg: RuntimeConfig): { x: number; y: number } {
   const sections = sectionCount(cfg.scanSections);
   if (cfg.scanMode !== "scanning" || sections <= 1) return intent;
-  if (cfg.scanAxis === "rows" && cfg.y.pitch.restartEachSection) {
-    const sectionHeight = Math.max(1, Math.floor(PLATFORM_CAPS.gridHeight / sections));
-    return { x: intent.x, y: intent.y % sectionHeight };
-  }
-  if (cfg.scanAxis === "columns" && cfg.x.pitch.restartEachSection) {
+  if (cfg.scanAxis === "rows" && (cfg as any).x?.pitch?.restartEachSection) {
     const sectionWidth = Math.max(1, Math.floor(PLATFORM_CAPS.gridWidth / sections));
     return { x: intent.x % sectionWidth, y: intent.y };
+  }
+  if (cfg.scanAxis === "columns" && (cfg as any).y?.pitch?.restartEachSection) {
+    const sectionHeight = Math.max(1, Math.floor(PLATFORM_CAPS.gridHeight / sections));
+    return { x: intent.x, y: intent.y % sectionHeight };
   }
   return intent;
 }

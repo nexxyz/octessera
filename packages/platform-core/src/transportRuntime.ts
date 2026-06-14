@@ -67,6 +67,20 @@ export function applyExternalClockPulses<TState>(state: PlatformState<TState>, b
   return advanceEngineByPulses(next, behavior, pulses);
 }
 
+export function stepTransportByPulses<TState>(
+  state: PlatformState<TState>,
+  behavior: BehaviorEngine<TState, unknown>,
+  pulses: number,
+  source: "internal" | "external"
+): { state: PlatformState<TState>; events: MusicalEvent[] } {
+  if (pulses <= 0) return { state, events: [] };
+  if (source === "external") return applyExternalClockPulses(state, behavior, pulses);
+  if (state.runtimeConfig.midi.syncMode === "external" || !state.transport.playing) return { state, events: [] };
+  const prevPulse = state.transport.ppqnPulse;
+  const advanced = advanceEngineByPulses(state, behavior, pulses);
+  return { state: applyBeatFlash(advanced.state, prevPulse), events: advanced.events };
+}
+
 function advanceEngineByPulses<TState>(state: PlatformState<TState>, behavior: BehaviorEngine<TState, unknown>, pulses: number): { state: PlatformState<TState>; events: MusicalEvent[] } {
   const events: MusicalEvent[] = [];
   let next = { ...state };
@@ -115,8 +129,8 @@ function advanceEngineByPulses<TState>(state: PlatformState<TState>, behavior: B
     const interpretationTick = partCfg.scanMode === "scanning" ? partScanIndex[partIdx] : next.transport.tick;
     const intents = interpretGrid(beforeGrid, afterGrid, interpretationTick, profile);
     const gated = filterTriggerGatedIntents(intents, next, partIdx);
-    const mapped = mapIntentsToMusicalEvents(gated, withScaleSteps(partCfg.mappingConfig as any, partCfg));
-    const modulation = applyModulationResult(gated, mapped, partCfg, next.runtimeConfig, partIdx);
+    const { events: mapped, intents: mappedIntents } = mapIntentsToMusicalEvents(gated, withScaleSteps(partCfg.mappingConfig as any, partCfg));
+    const modulation = applyModulationResult(mappedIntents, mapped, partCfg, next.runtimeConfig, partIdx, gated);
     next.runtimeConfig = modulation.runtimeConfig;
     const modulated = modulation.events;
     const instruments: any[] = Array.isArray((next.runtimeConfig as any).instruments) ? ((next.runtimeConfig as any).instruments as any[]) : [];
@@ -186,7 +200,7 @@ function advanceScanIndex(current: number, direction: Direction, size: number): 
 function scanIndexSpan(cfg: RuntimeConfig): number {
   const sections = sectionCount(cfg.scanSections);
   if (sections <= 1) return cfg.scanAxis === "columns" ? PLATFORM_CAPS.gridWidth : PLATFORM_CAPS.gridHeight;
-  return cfg.scanAxis === "columns" ? PLATFORM_CAPS.gridHeight * sections : PLATFORM_CAPS.gridWidth * sections;
+  return cfg.scanAxis === "columns" ? PLATFORM_CAPS.gridWidth * sections : PLATFORM_CAPS.gridHeight * sections;
 }
 
 function profileFromConfig(cfg: RuntimeConfig): InterpretationProfile {

@@ -86,6 +86,6 @@ test("sectioned row scan sweeps horizontal lanes", () => {
   const firstLane = interpretGrid(grid, grid, 1, { id: "sections", event: { enabled: false }, state: { enabled: true, tick: { mode: "scan_row_active", sections: 2 } }, x: { mode: "ignore" }, y: { mode: "ignore" } });
   const secondLane = interpretGrid(grid, grid, 9, { id: "sections", event: { enabled: false }, state: { enabled: true, tick: { mode: "scan_row_active", sections: 2 } }, x: { mode: "ignore" }, y: { mode: "ignore" } });
 
-  assert.deepEqual(firstLane.map((i) => [i.x, i.y]), [[1, 4], [1, 5], [1, 6], [1, 7]]);
-  assert.deepEqual(secondLane.map((i) => [i.x, i.y]), [[1, 0], [1, 1], [1, 2], [1, 3]]);
+  assert.deepEqual(firstLane.map((i) => [i.x, i.y]), [[0, 1], [1, 1], [2, 1], [3, 1]]);
+  assert.deepEqual(secondLane.map((i) => [i.x, i.y]), [[4, 1], [5, 1], [6, 1], [7, 1]]);
 });

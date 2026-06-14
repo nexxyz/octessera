@@ -1,0 +1,8 @@
+# Files exceeding 500-line limit that need refactoring.
+# One file path per line, relative to repo root.
+crates/realtime-engine/src/synth/engine.rs
+crates/realtime-engine/src/synth/fx.rs
+crates/realtime-engine/src/synth/tests.rs
+crates/playback-runtime/src/native_menu.rs
+crates/playback-runtime/src/native_runner.rs
+crates/playback-runtime/src/native_runner/tests.rs

@@ -137,10 +137,10 @@ function l2PartGroup<TState>(
           { kind: "enum", label: "Scan Unit", key: `${prefix}.l2.scanUnit`, options: ["1/16", "1/8", "1/4", "1/2", "1/1"], visible: (c: any) => c.parts?.[idx]?.l2?.scanMode === "scanning" },
           { kind: "enum", label: "Scan Direction", key: `${prefix}.l2.scanDirection`, options: ["forward", "reverse"], visible: (c: any) => c.parts?.[idx]?.l2?.scanMode === "scanning" },
           { kind: "enum", label: "Sections", key: `${prefix}.l2.scanSections`, options: scanSectionOptions(), visible: (c: any) => c.parts?.[idx]?.l2?.scanMode === "scanning" },
-          { kind: "enum", label: "Action", key: `${prefix}.l2.mapping.scanned.action`, options: ["none", "note_on", "note_off"], visible: (c: any) => c.parts?.[idx]?.l2?.scanMode === "scanning" },
           { kind: "enum", label: "Instrument", key: `${prefix}.l2.mapping.scanned.slot`, options: instrumentSlotOptions, visible: (c: any) => c.parts?.[idx]?.l2?.scanMode === "scanning" },
-          { kind: "enum", label: "Empty Action", key: `${prefix}.l2.mapping.scanned_empty.action`, options: ["none", "note_on", "note_off"], visible: (c: any) => c.parts?.[idx]?.l2?.scanMode === "scanning" },
-          { kind: "enum", label: "Empty Instrument", key: `${prefix}.l2.mapping.scanned_empty.slot`, options: instrumentSlotOptions, visible: (c: any) => c.parts?.[idx]?.l2?.scanMode === "scanning" }
+          { kind: "enum", label: "Action", key: `${prefix}.l2.mapping.scanned.action`, options: ["none", "note_on", "note_off"], visible: (c: any) => c.parts?.[idx]?.l2?.scanMode === "scanning" },
+          { kind: "enum", label: "Empty Instrument", key: `${prefix}.l2.mapping.scanned_empty.slot`, options: instrumentSlotOptions, visible: (c: any) => c.parts?.[idx]?.l2?.scanMode === "scanning" },
+          { kind: "enum", label: "Empty Action", key: `${prefix}.l2.mapping.scanned_empty.action`, options: ["none", "note_on", "note_off"], visible: (c: any) => c.parts?.[idx]?.l2?.scanMode === "scanning" }
         ]
       },
       {
@@ -148,12 +148,12 @@ function l2PartGroup<TState>(
         label: "Events",
         children: [
           { kind: "bool", label: "Event Triggers", key: `${prefix}.l2.eventEnabled` },
-          { kind: "enum", label: "Activate Action", key: `${prefix}.l2.mapping.activate.action`, options: ["none", "note_on", "note_off"], visible: (c: any) => c.parts?.[idx]?.l2?.eventEnabled },
           { kind: "enum", label: "Activate Instrument", key: `${prefix}.l2.mapping.activate.slot`, options: instrumentSlotOptions, visible: (c: any) => c.parts?.[idx]?.l2?.eventEnabled },
-          { kind: "enum", label: "Stable Action", key: `${prefix}.l2.mapping.stable.action`, options: ["none", "note_on", "note_off"], visible: (c: any) => c.parts?.[idx]?.l2?.eventEnabled },
+          { kind: "enum", label: "Activate Action", key: `${prefix}.l2.mapping.activate.action`, options: ["none", "note_on", "note_off"], visible: (c: any) => c.parts?.[idx]?.l2?.eventEnabled },
           { kind: "enum", label: "Stable Instrument", key: `${prefix}.l2.mapping.stable.slot`, options: instrumentSlotOptions, visible: (c: any) => c.parts?.[idx]?.l2?.eventEnabled },
-          { kind: "enum", label: "Deactivate Action", key: `${prefix}.l2.mapping.deactivate.action`, options: ["none", "note_on", "note_off"], visible: (c: any) => c.parts?.[idx]?.l2?.eventEnabled },
-          { kind: "enum", label: "Deactivate Instrument", key: `${prefix}.l2.mapping.deactivate.slot`, options: instrumentSlotOptions, visible: (c: any) => c.parts?.[idx]?.l2?.eventEnabled }
+          { kind: "enum", label: "Stable Action", key: `${prefix}.l2.mapping.stable.action`, options: ["none", "note_on", "note_off"], visible: (c: any) => c.parts?.[idx]?.l2?.eventEnabled },
+          { kind: "enum", label: "Deactivate Instrument", key: `${prefix}.l2.mapping.deactivate.slot`, options: instrumentSlotOptions, visible: (c: any) => c.parts?.[idx]?.l2?.eventEnabled },
+          { kind: "enum", label: "Deactivate Action", key: `${prefix}.l2.mapping.deactivate.action`, options: ["none", "note_on", "note_off"], visible: (c: any) => c.parts?.[idx]?.l2?.eventEnabled }
         ]
       },
       {

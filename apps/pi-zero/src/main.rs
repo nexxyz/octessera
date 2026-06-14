@@ -6,12 +6,20 @@ use cellsymphony_hal::{
     pinmap::*,
 };
 use midir::MidiInput;
+use playback_runtime::{
+    workspace_root_from, CoreRunner, HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent,
+    NodeRunnerProcess, PlaybackRuntime, RunnerMessage, RuntimeAudioCommand, RuntimeConfig,
+    RuntimePlatformEffect, SyncSource,
+};
 use realtime_engine::synth::{
     default_synth_config, InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig,
     DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
 };
 use rodio::{OutputStream, Sink};
 use rodio_engine_source::{EngineEvent, EngineSource};
+use serde_json::json;
+use std::collections::VecDeque;
+use std::path::Path;
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -75,6 +83,7 @@ enum MidiMessage {
     NoteOn { channel: u8, note: u8, velocity: u8 },
     NoteOff { channel: u8, note: u8 },
     CC { channel: u8, cc: u8, value: u8 },
+    Realtime { bytes: Vec<u8> },
 }
 
 fn default_pi_instruments() -> InstrumentsConfig {
@@ -94,6 +103,95 @@ fn default_pi_instruments() -> InstrumentsConfig {
         mixer: None,
         pan_positions: DEFAULT_PAN_POSITIONS,
         master_volume: 100.0,
+    }
+}
+
+struct PiPlaybackHostAdapter<'a> {
+    audio: Option<&'a AudioManager>,
+}
+
+impl HostAdapter for PiPlaybackHostAdapter<'_> {
+    fn handle_musical_event(&mut self, event: &RuntimeMusicalEvent) -> Result<(), String> {
+        let Some(audio) = self.audio else {
+            return Ok(());
+        };
+        match event {
+            RuntimeMusicalEvent::NoteOn {
+                channel,
+                note,
+                velocity,
+                duration_ms,
+            } => audio.note_on(
+                (*channel).min((INSTRUMENT_SLOT_COUNT - 1) as u8),
+                (*note).min(127),
+                (*velocity).clamp(1, 127),
+                duration_ms.unwrap_or(86_400_000).clamp(10, 86_400_000),
+            ),
+            RuntimeMusicalEvent::NoteOff { channel, note } => audio.note_off(
+                (*channel).min((INSTRUMENT_SLOT_COUNT - 1) as u8),
+                (*note).min(127),
+            ),
+            RuntimeMusicalEvent::Cc {
+                channel,
+                controller,
+                value,
+            } => audio.cc(
+                (*channel).min((INSTRUMENT_SLOT_COUNT - 1) as u8),
+                (*controller).min(127),
+                (*value).min(127),
+            ),
+        }
+    }
+
+    fn handle_platform_effect(
+        &mut self,
+        _effect: &RuntimePlatformEffect,
+    ) -> Result<Vec<HostMessage>, String> {
+        Ok(vec![])
+    }
+
+    fn handle_audio_command(&mut self, _command: &RuntimeAudioCommand) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn handle_midi_message(&mut self, _bytes: &[u8]) -> Result<(), String> {
+        Ok(())
+    }
+}
+
+fn pi_workspace_root() -> std::path::PathBuf {
+    workspace_root_from(Path::new(env!("CARGO_MANIFEST_DIR")))
+}
+
+fn dispatch_runtime_message(
+    playback: &mut PlaybackRuntime,
+    runner: &mut NodeRunnerProcess,
+    audio: Option<&AudioManager>,
+    host_message: HostMessage,
+) {
+    let mut adapter = PiPlaybackHostAdapter { audio };
+    let mut queue = VecDeque::from([host_message]);
+    while let Some(message) = queue.pop_front() {
+        match runner.send(message) {
+            Ok(responses) => match playback.ingest_runner_messages(responses, &mut adapter) {
+                Ok(follow_ups) => queue.extend(follow_ups),
+                Err(error) => eprintln!("pi playback ingest failed: {error}"),
+            },
+            Err(error) => {
+                eprintln!("pi core runner dispatch failed: {error}");
+                break;
+            }
+        }
+    }
+}
+
+fn encoder_input_id(index: usize) -> &'static str {
+    match index {
+        0 => "main",
+        1 => "aux1",
+        2 => "aux2",
+        3 => "aux3",
+        _ => "aux4",
     }
 }
 
@@ -148,6 +246,17 @@ fn main() {
                     port,
                     "cellsymphony-midi",
                     move |_timestamp, message, _| {
+                        if !message.is_empty()
+                            && (message[0] == 0xF8
+                                || message[0] == 0xFA
+                                || message[0] == 0xFB
+                                || message[0] == 0xFC)
+                        {
+                            let _ = tx.send(MidiMessage::Realtime {
+                                bytes: message.to_vec(),
+                            });
+                            return;
+                        }
                         if message.len() >= 3 {
                             let status = message[0] & 0xF0;
                             let channel = message[0] & 0x0F;
@@ -182,11 +291,14 @@ fn main() {
         None
     };
 
-    // Test tone on startup
-    if let Some(ref audio) = audio {
-        let _ = audio.note_on(0, 60, 100, 500);
-        println!("Synth test note played (C4)");
-    }
+    let mut playback = PlaybackRuntime::new(RuntimeConfig {
+        bpm: 120.0,
+        sync_source: SyncSource::Internal,
+        midi_clock_out_enabled: false,
+        midi_out_enabled: false,
+    });
+    let mut runner = NodeRunnerProcess::spawn_default(pi_workspace_root())
+        .expect("Failed to spawn shared core runner");
 
     // Event channel for encoder interrupts
     let (event_tx, event_rx) = mpsc::channel::<HardwareEvent>();
@@ -227,20 +339,60 @@ fn main() {
                         "MIDI Note On: ch {} note {} vel {}",
                         channel, note, velocity
                     );
-                    if let Some(ref audio) = audio {
-                        let _ = audio.note_on(channel, note, velocity, 1000);
-                    }
+                    dispatch_runtime_message(
+                        &mut playback,
+                        &mut runner,
+                        audio.as_ref(),
+                        HostMessage::DeviceInput {
+                            input: json!({
+                                "type": "midi_note_on",
+                                "channel": channel,
+                                "note": note,
+                                "velocity": velocity,
+                                "durationMs": 1000
+                            }),
+                        },
+                    );
                 }
                 MidiMessage::NoteOff { channel, note } => {
                     println!("MIDI Note Off: ch {} note {}", channel, note);
-                    if let Some(ref audio) = audio {
-                        let _ = audio.note_off(channel, note);
-                    }
+                    dispatch_runtime_message(
+                        &mut playback,
+                        &mut runner,
+                        audio.as_ref(),
+                        HostMessage::DeviceInput {
+                            input: json!({
+                                "type": "midi_note_off",
+                                "channel": channel,
+                                "note": note
+                            }),
+                        },
+                    );
                 }
                 MidiMessage::CC { channel, cc, value } => {
                     println!("MIDI CC: ch {} cc {} = {}", channel, cc, value);
-                    if let Some(ref audio) = audio {
-                        let _ = audio.cc(channel, cc, value);
+                    dispatch_runtime_message(
+                        &mut playback,
+                        &mut runner,
+                        audio.as_ref(),
+                        HostMessage::DeviceInput {
+                            input: json!({
+                                "type": "midi_cc",
+                                "channel": channel,
+                                "controller": cc,
+                                "value": value
+                            }),
+                        },
+                    );
+                }
+                MidiMessage::Realtime { bytes } => {
+                    let mut adapter = PiPlaybackHostAdapter {
+                        audio: audio.as_ref(),
+                    };
+                    if let Err(error) =
+                        playback.handle_midi_realtime_bytes(&bytes, &mut runner, &mut adapter)
+                    {
+                        eprintln!("pi realtime MIDI handling failed: {error}");
                     }
                 }
             }
@@ -251,11 +403,42 @@ fn main() {
             match event {
                 HardwareEvent::EncoderTurn { id, delta } => {
                     println!("Encoder {} turn: {}", id, delta);
-                    // TODO: route to menu/parameter control
+                    let index = id
+                        .strip_prefix("encoder_aux_")
+                        .and_then(|v| v.parse::<usize>().ok())
+                        .map(|v| v)
+                        .unwrap_or(if id == "encoder_main" { 0 } else { 4 });
+                    dispatch_runtime_message(
+                        &mut playback,
+                        &mut runner,
+                        audio.as_ref(),
+                        HostMessage::DeviceInput {
+                            input: json!({
+                                "type": "encoder_turn",
+                                "delta": if delta < 0 { -1 } else { 1 },
+                                "id": encoder_input_id(index)
+                            }),
+                        },
+                    );
                 }
                 HardwareEvent::EncoderPress { id } => {
                     println!("Encoder {} pressed", id);
-                    // TODO: route to menu selection
+                    let index = id
+                        .strip_prefix("encoder_aux_")
+                        .and_then(|v| v.parse::<usize>().ok())
+                        .map(|v| v)
+                        .unwrap_or(if id == "encoder_main" { 0 } else { 4 });
+                    dispatch_runtime_message(
+                        &mut playback,
+                        &mut runner,
+                        audio.as_ref(),
+                        HostMessage::DeviceInput {
+                            input: json!({
+                                "type": "encoder_press",
+                                "id": encoder_input_id(index)
+                            }),
+                        },
+                    );
                 }
             }
         }
@@ -263,14 +446,17 @@ fn main() {
         // Scan NeoTrellis grid (8x8)
         if let Ok(presses) = trellis.scan_keys() {
             for (x, y, pressed) in presses {
-                if pressed {
-                    // Map grid position to MIDI note and trigger
-                    let note = (y * 8 + x) as u8 + 60; // C4 + position
-                    println!("Grid ({}, {}) pressed -> Note {}", x, y, note);
-                    if let Some(ref audio) = audio {
-                        let _ = audio.note_on(0, note, 100, 500);
-                    }
-                }
+                let input = if pressed {
+                    json!({ "type": "grid_press", "x": x, "y": y })
+                } else {
+                    json!({ "type": "grid_release", "x": x, "y": y })
+                };
+                dispatch_runtime_message(
+                    &mut playback,
+                    &mut runner,
+                    audio.as_ref(),
+                    HostMessage::DeviceInput { input },
+                );
             }
         }
 
@@ -279,15 +465,35 @@ fn main() {
             for (key, pressed) in keys {
                 if pressed {
                     println!("NeoKey {} pressed", key);
-                    // TODO: Map to transport controls or shortcuts
+                    let input = match key {
+                        0 => Some(json!({ "type": "button_back", "pressed": true })),
+                        1 => Some(json!({ "type": "button_s", "pressed": true })),
+                        2 => Some(json!({ "type": "button_shift", "pressed": true })),
+                        3 => Some(json!({ "type": "button_fn", "pressed": true })),
+                        _ => None,
+                    };
+                    if let Some(input) = input {
+                        dispatch_runtime_message(
+                            &mut playback,
+                            &mut runner,
+                            audio.as_ref(),
+                            HostMessage::DeviceInput { input },
+                        );
+                    }
                 }
             }
         }
 
         // 8ms tick for timing (125Hz)
         if last_tick.elapsed() >= tick_duration {
+            let elapsed_ms = last_tick.elapsed().as_millis() as u64;
             last_tick = Instant::now();
-            // TODO: Advance sequencer, update display, etc.
+            let mut adapter = PiPlaybackHostAdapter {
+                audio: audio.as_ref(),
+            };
+            if let Err(error) = playback.advance(elapsed_ms, &mut runner, &mut adapter) {
+                eprintln!("pi playback advance failed: {error}");
+            }
         }
 
         thread::sleep(Duration::from_millis(1));

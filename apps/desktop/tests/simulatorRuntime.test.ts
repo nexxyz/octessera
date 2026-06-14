@@ -108,6 +108,310 @@ test("runtime tick path executes without tauri bridge", async () => {
   assert.ok(sentCount >= 0);
 });
 
+test("runtime owns audio event forwarding without React subscribeEvents bridge", async () => {
+  const scheduler = new FakeScheduler();
+  const forwarded: any[] = [];
+  const runtime = createSimulatorRuntime(scheduler, {
+    runner: {
+      dispatch(message: any) {
+        return message.type === "device_input"
+          ? [{ type: "musical_events", events: [{ type: "note_on", channel: 0, note: 60, velocity: 100, durationMs: 120 }] }]
+          : [];
+      },
+      getState() {
+        return {
+          runtimeConfig: {
+            midi: { enabled: false, outId: null, syncMode: "internal", clockOutEnabled: false },
+            displayBrightness: 75,
+            buttonBrightness: 75,
+            masterVolume: 100,
+            sound: { voiceStealingMode: "balanced" },
+            instruments: [],
+            mixer: { buses: [] },
+            panPositions: 7
+          },
+          transport: { playing: false, bpm: 120, ppqnPulse: 0 },
+          system: { stopLatched: false, transportFlash: "none", fnHeld: false, combinedModifierHeld: false, autoSaveFlash: "none" }
+        } as any;
+      },
+      getFrame() {
+        return {
+          oled: null,
+          leds: { width: 8, height: 8, cells: Array.from({ length: 64 }, () => ({ r: 0, g: 0, b: 0 })) },
+          transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
+          display: { page: "test", title: "Test", lines: [], editing: false },
+          activeBehavior: "life",
+          gridInteraction: "paint"
+        } as any;
+      }
+    } as any,
+    store: memoryStore(),
+    audioEventSink: async (events) => {
+      forwarded.push(...events);
+    },
+    midiService: {
+      listOutputs: async () => [],
+      listInputs: async () => [],
+      selectOutput: async () => ({ ok: true }),
+      selectInput: async () => ({ ok: true }),
+      send: async () => {},
+      listenMidiIn: async () => () => {}
+    },
+    invoke: async () => []
+  });
+
+  runtime.start();
+  runtime.dispatch({ type: "grid_press", x: 0, y: 0 });
+
+  assert.equal(forwarded.length, 1);
+});
+
+test("tauri mode bypasses local runner for transport play button", async () => {
+  const scheduler = new FakeScheduler();
+  const seen: any[] = [];
+  const runtime = createSimulatorRuntime(scheduler, {
+    runner: {
+      dispatch(message: any) {
+        seen.push(message);
+        return [];
+      },
+      getState() {
+        return {
+          runtimeConfig: {
+            midi: { enabled: false, outId: null, syncMode: "internal", clockOutEnabled: false },
+            displayBrightness: 75,
+            buttonBrightness: 75,
+            masterVolume: 100,
+            sound: { voiceStealingMode: "balanced" },
+            instruments: [],
+            mixer: { buses: [] },
+            panPositions: 7
+          },
+          transport: { playing: false, bpm: 120, ppqnPulse: 0 },
+          system: { stopLatched: false, transportFlash: "none", fnHeld: false, combinedModifierHeld: false, autoSaveFlash: "none" }
+        } as any;
+      },
+      getFrame() {
+        return {
+          oled: null,
+          leds: { width: 8, height: 8, cells: Array.from({ length: 64 }, () => ({ r: 0, g: 0, b: 0 })) },
+          transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
+          display: { page: "test", title: "Test", lines: [], editing: false },
+          activeBehavior: "life",
+          gridInteraction: "paint"
+        } as any;
+      }
+    } as any,
+    runtimeDispatch: async () => {
+      return [
+        {
+          type: "snapshot",
+          snapshot: {
+            oled: null,
+            leds: { width: 8, height: 8, cells: Array.from({ length: 64 }, () => ({ r: 0, g: 0, b: 0 })) },
+            transport: { playing: true, bpm: 120, tick: 0, ppqnPulse: 0 },
+            display: { page: "test", title: "Test", lines: [], editing: false },
+            activeBehavior: "life",
+            gridInteraction: "paint"
+          }
+        },
+        {
+          type: "runtime_status",
+          status: { state: "running", transport: "playing", currentPpqnPulse: 0, pendingResync: false, syncSource: "internal" }
+        }
+      ] as any;
+    },
+    store: memoryStore(),
+    midiService: {
+      listOutputs: async () => [],
+      listInputs: async () => [],
+      selectOutput: async () => ({ ok: true }),
+      selectInput: async () => ({ ok: true }),
+      send: async () => {},
+      listenMidiIn: async () => () => {}
+    },
+    invoke: async () => []
+  });
+
+  runtime.start();
+  await waitMicrotask();
+  runtime.dispatch({ type: "button_s" } as any);
+  await waitMicrotask();
+  await waitMicrotask();
+
+  assert.equal(seen.some((message) => message.type === "device_input" && message.input?.type === "button_s"), false);
+  assert.equal(runtime.getSnapshot().frame.transport.playing, true);
+});
+
+test("tauri mode bypasses local runner for grid performance input", async () => {
+  const scheduler = new FakeScheduler();
+  const seen: any[] = [];
+  const runtime = createSimulatorRuntime(scheduler, {
+    runner: {
+      dispatch(message: any) {
+        seen.push(message);
+        return [];
+      },
+      getState() {
+        return {
+          runtimeConfig: {
+            midi: { enabled: false, outId: null, syncMode: "internal", clockOutEnabled: false },
+            displayBrightness: 75,
+            buttonBrightness: 75,
+            masterVolume: 100,
+            sound: { voiceStealingMode: "balanced" },
+            instruments: [],
+            mixer: { buses: [] },
+            panPositions: 7
+          },
+          transport: { playing: false, bpm: 120, ppqnPulse: 0 },
+          system: { stopLatched: false, transportFlash: "none", fnHeld: false, combinedModifierHeld: false, autoSaveFlash: "none" }
+        } as any;
+      },
+      getFrame() {
+        return {
+          oled: null,
+          leds: { width: 8, height: 8, cells: Array.from({ length: 64 }, () => ({ r: 0, g: 0, b: 0 })) },
+          transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
+          display: { page: "test", title: "Test", lines: [], editing: false },
+          activeBehavior: "life",
+          gridInteraction: "paint"
+        } as any;
+      }
+    } as any,
+    runtimeDispatch: async () => {
+      const cells = Array.from({ length: 64 }, (_, index) => (index === 0 ? { r: 0, g: 255, b: 0 } : { r: 0, g: 0, b: 0 }));
+      return [
+        {
+          type: "snapshot",
+          snapshot: {
+            oled: null,
+            leds: { width: 8, height: 8, cells },
+            transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
+            display: { page: "test", title: "Test", lines: [], editing: false },
+            activeBehavior: "life",
+            gridInteraction: "paint"
+          }
+        },
+        {
+          type: "runtime_status",
+          status: { state: "idle", transport: "stopped", currentPpqnPulse: 0, pendingResync: false, syncSource: "internal" }
+        }
+      ] as any;
+    },
+    store: memoryStore(),
+    midiService: {
+      listOutputs: async () => [],
+      listInputs: async () => [],
+      selectOutput: async () => ({ ok: true }),
+      selectInput: async () => ({ ok: true }),
+      send: async () => {},
+      listenMidiIn: async () => () => {}
+    },
+    invoke: async () => []
+  });
+
+  runtime.start();
+  await waitMicrotask();
+  runtime.dispatch({ type: "grid_press", x: 0, y: 0 } as any);
+  await waitMicrotask();
+  await waitMicrotask();
+
+  assert.equal(seen.some((message) => message.type === "device_input" && message.input?.type === "grid_press"), false);
+  assert.equal(runtime.getSnapshot().frame.leds.cells[0]?.g, 255);
+});
+
+test("tauri mode bypasses local runner for encoder menu input", async () => {
+  const scheduler = new FakeScheduler();
+  const seen: any[] = [];
+  const runtime = createSimulatorRuntime(scheduler, {
+    runner: {
+      dispatch(message: any) {
+        seen.push(message);
+        return [];
+      },
+      getState() {
+        return {
+          runtimeConfig: {
+            midi: { enabled: false, outId: null, syncMode: "internal", clockOutEnabled: false },
+            displayBrightness: 75,
+            buttonBrightness: 75,
+            masterVolume: 100,
+            sound: { voiceStealingMode: "balanced" },
+            instruments: [],
+            mixer: { buses: [] },
+            panPositions: 7
+          },
+          transport: { playing: false, bpm: 120, ppqnPulse: 0 },
+          system: { stopLatched: false, transportFlash: "none", fnHeld: false, combinedModifierHeld: false, autoSaveFlash: "none" }
+        } as any;
+      },
+      getFrame() {
+        return {
+          oled: null,
+          leds: { width: 8, height: 8, cells: Array.from({ length: 64 }, () => ({ r: 0, g: 0, b: 0 })) },
+          transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
+          display: { page: "before", title: "Before", lines: [], editing: false },
+          activeBehavior: "life",
+          gridInteraction: "paint"
+        } as any;
+      }
+    } as any,
+    runtimeDispatch: async () => {
+      return [
+        {
+          type: "snapshot",
+          snapshot: {
+            oled: null,
+            leds: { width: 8, height: 8, cells: Array.from({ length: 64 }, () => ({ r: 0, g: 0, b: 0 })) },
+            transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
+            display: { page: "after", title: "After", lines: [], editing: false },
+            activeBehavior: "life",
+            gridInteraction: "paint",
+            settings: {
+              displayBrightness: 75,
+              buttonBrightness: 75,
+              masterVolume: 100,
+              voiceStealingMode: "balanced",
+              instruments: [],
+              mixer: { buses: [] },
+              panPositions: 7,
+              autoSaveFlash: "none",
+              transportFlash: "none",
+              fnHeld: false,
+              combinedModifierHeld: false,
+              midi: { enabled: false, outId: null, inId: null, syncMode: "internal", clockOutEnabled: false, clockInEnabled: false }
+            }
+          }
+        },
+        {
+          type: "runtime_status",
+          status: { state: "idle", transport: "stopped", currentPpqnPulse: 0, pendingResync: false, syncSource: "internal" }
+        }
+      ] as any;
+    },
+    store: memoryStore(),
+    midiService: {
+      listOutputs: async () => [],
+      listInputs: async () => [],
+      selectOutput: async () => ({ ok: true }),
+      selectInput: async () => ({ ok: true }),
+      send: async () => {},
+      listenMidiIn: async () => () => {}
+    },
+    invoke: async () => []
+  });
+
+  runtime.start();
+  await waitMicrotask();
+  runtime.dispatch({ type: "encoder_turn", delta: 1 } as any);
+  await waitMicrotask();
+  await waitMicrotask();
+
+  assert.equal(seen.some((message) => message.type === "device_input" && message.input?.type === "encoder_turn"), false);
+  assert.equal(runtime.getSnapshot().frame.display.page, "after");
+});
+
 test("auto-save default debounces repeated config edits", async () => {
   const scheduler = new FakeScheduler();
   const store = memoryStore();

@@ -105,14 +105,11 @@ const extraTargets = [
   { path: "Menu > L3: Voice > Instruments > Instrument * > Assign", key: "action:sample_assign_enter", kind: "action" },
   { path: "Menu > L3: Voice > Instruments > Instrument * > Velocity", key: "key:instruments.0.midiEngine.velocity", kind: "number" },
   { path: "Menu > L3: Voice > Instruments > Instrument * > Duration", key: "key:instruments.0.midiEngine.durationMs", kind: "number" },
-  { path: "Menu > L4: Dance > Trigger Gate", key: "", kind: "group" },
-  { path: "Menu > L4: Dance > Trigger Gate > Mode Grid", key: "", kind: "group" },
-  { path: "Menu > L4: Dance > X/Y Pad", key: "", kind: "group" },
-  { path: "Menu > L4: Dance > X/Y Pad > X Axis", key: "", kind: "group" },
-  { path: "Menu > L4: Dance > X/Y Pad > Y Axis", key: "", kind: "group" },
-  { path: "Menu > L4: Dance > FX Page", key: "", kind: "group" },
-  { path: "Menu > L4: Dance > FX Page > FX Type", key: "key:touchFx.selected.fxType", kind: "enum" },
-  { path: "Menu > L4: Dance > FX Page > Map to Grid", key: "action:fx_assign_enter", kind: "action" }
+  { path: "Menu > L4: Dance > Mode Grid", key: "", kind: "group" },
+  { path: "Menu > L4: Dance > X Axis", key: "", kind: "group" },
+  { path: "Menu > L4: Dance > Y Axis", key: "", kind: "group" },
+  { path: "Menu > L4: Dance > FX Type", key: "key:dance.fx.type", kind: "enum" },
+  { path: "Menu > L4: Dance > Map to Grid", key: "action:fx_assign_enter", kind: "action" }
 ] as const;
 
 function inspectTarget(t: { path: string; key: string; kind: string }): void {
@@ -235,8 +232,9 @@ console.log(
 );
 
 const fallbackRatio = targetCount === 0 ? 0 : buckets.kindFallback / targetCount;
-if (fallbackRatio > 0.4) {
-  console.warn(
-    `menu-help lint warning: ${Math.round(fallbackRatio * 100)}% of entries resolve via kind fallback. Consider adding more specific key/path rows.`
+if (buckets.kindFallback > 0) {
+  console.error(
+    `menu-help lint failed: ${buckets.kindFallback} entries resolve via kind fallback (${Math.round(fallbackRatio * 100)}%). Add specific key/path rows.`
   );
+  process.exit(1);
 }

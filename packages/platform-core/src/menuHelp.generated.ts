@@ -2602,18 +2602,9 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "line2": "This is the main tempo control."
   },
   {
-    "id": "touch_fx_section",
-    "path": "Menu > L4: Dance > FX Page",
-    "key": "",
-    "kind": "group",
-    "title": "FX Page",
-    "line1": "Configures momentary effects for the Dance FX grid page.",
-    "line2": "Select an effect type and parameters, then use Map to Grid and press a cell to store that config."
-  },
-  {
     "id": "touch_fx_type",
-    "path": "Menu > L4: Dance > FX Page > FX Type",
-    "key": "key:touchFx.selected.fxType",
+    "path": "Menu > L4: Dance > FX Type",
+    "key": "key:dance.fx.type",
     "kind": "enum",
     "title": "FX Type",
     "line1": "Options: none, stutter, freeze, filter_sweep, pitch_shift. none clears mapped cells; stutter captures and loops a segment; freeze captures early audio into an infinite reverb tail, release fades and removes; filter_sweep sweeps cutoff from open to target on press and back on release; pitch_shift shifts pitch.",
@@ -2621,8 +2612,8 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "touch_fx_rate",
-    "path": "Menu > L4: Dance > FX Page > Rate Hz",
-    "key": "key:touchFx.selected.params.rateHz",
+    "path": "Menu > L4: Dance > Rate Hz",
+    "key": "key:dance.fx.params.rateHz",
     "kind": "number",
     "title": "Rate Hz",
     "line1": "Sets the captured segment repeat rate (1-32 Hz). Higher rate = shorter captured segment.",
@@ -2630,8 +2621,8 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "touch_fx_depth",
-    "path": "Menu > L4: Dance > FX Page > Depth",
-    "key": "key:touchFx.selected.params.depthPct",
+    "path": "Menu > L4: Dance > Depth",
+    "key": "key:dance.fx.params.depthPct",
     "kind": "number",
     "title": "Depth",
     "line1": "Sets stutter wet mix from 0 (dry) to 100 (fully wet repeat) for the config being mapped.",
@@ -2639,8 +2630,8 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "touch_fx_release_ms",
-    "path": "Menu > L4: Dance > FX Page > Release Ms",
-    "key": "key:touchFx.selected.params.releaseMs",
+    "path": "Menu > L4: Dance > Release Ms",
+    "key": "key:dance.fx.params.releaseMs",
     "kind": "number",
     "title": "Release Ms",
     "line1": "Sets freeze release fade time in milliseconds (10-5000). Controls how long the reverb tail fades out after releasing the grid cell.",
@@ -2648,8 +2639,8 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "touch_fx_mix",
-    "path": "Menu > L4: Dance > FX Page > Mix",
-    "key": "key:touchFx.selected.params.mixPct",
+    "path": "Menu > L4: Dance > Mix",
+    "key": "key:dance.fx.params.mixPct",
     "kind": "number",
     "title": "Mix",
     "line1": "Sets wet mix from 0 to 100 for freeze or pitch_shift configs being mapped.",
@@ -2657,8 +2648,8 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "touch_fx_cutoff",
-    "path": "Menu > L4: Dance > FX Page > Cutoff",
-    "key": "key:touchFx.selected.params.cutoffPct",
+    "path": "Menu > L4: Dance > Cutoff",
+    "key": "key:dance.fx.params.cutoffPct",
     "kind": "number",
     "title": "Cutoff",
     "line1": "Sets filter_sweep target cutoff amount from 0 (higher cutoff) to 100 (lower cutoff). Sweeps from fully open on press toward this target.",
@@ -2666,8 +2657,8 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "touch_fx_res",
-    "path": "Menu > L4: Dance > FX Page > Res",
-    "key": "key:touchFx.selected.params.resonancePct",
+    "path": "Menu > L4: Dance > Res",
+    "key": "key:dance.fx.params.resonancePct",
     "kind": "number",
     "title": "Res",
     "line1": "Sets filter_sweep resonance amount from 0 to 100 for the config being mapped.",
@@ -2675,8 +2666,8 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "touch_fx_sweep_in",
-    "path": "Menu > L4: Dance > FX Page > Sweep In",
-    "key": "key:touchFx.selected.params.sweepInMs",
+    "path": "Menu > L4: Dance > Sweep In",
+    "key": "key:dance.fx.params.sweepInMs",
     "kind": "number",
     "title": "Sweep In",
     "line1": "Sets filter_sweep sweep-in time in milliseconds (10-3000). Duration to sweep from open filter toward the target cutoff on press.",
@@ -2684,8 +2675,8 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "touch_fx_sweep_out",
-    "path": "Menu > L4: Dance > FX Page > Sweep Out",
-    "key": "key:touchFx.selected.params.sweepOutMs",
+    "path": "Menu > L4: Dance > Sweep Out",
+    "key": "key:dance.fx.params.sweepOutMs",
     "kind": "number",
     "title": "Sweep Out",
     "line1": "Sets filter_sweep sweep-out time in milliseconds (10-3000). Duration to sweep from target back to fully open filter on release.",
@@ -2693,8 +2684,8 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "touch_fx_semitones",
-    "path": "Menu > L4: Dance > FX Page > Semitones",
-    "key": "key:touchFx.selected.params.semitones",
+    "path": "Menu > L4: Dance > Semitones",
+    "key": "key:dance.fx.params.semitones",
     "kind": "number",
     "title": "Semitones",
     "line1": "Sets pitch_shift semitone offset (-24..24) for the config being mapped. Combined with Cents for fine tuning.",
@@ -2702,8 +2693,8 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "touch_fx_cents",
-    "path": "Menu > L4: Dance > FX Page > Cents",
-    "key": "key:touchFx.selected.params.cents",
+    "path": "Menu > L4: Dance > Cents",
+    "key": "key:dance.fx.params.cents",
     "kind": "number",
     "title": "Cents",
     "line1": "Sets pitch_shift cents offset (-100..100) for fine detuning the config being mapped. Added to Semitones for the total shift.",
@@ -2711,7 +2702,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "touch_fx_map",
-    "path": "Menu > L4: Dance > FX Page > Map to Grid",
+    "path": "Menu > L4: Dance > Map to Grid",
     "key": "",
     "kind": "action",
     "title": "Map to Grid",
@@ -2719,17 +2710,8 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "line2": "Press a grid cell to store the config on that cell; press Back to exit assignment mode. Momentary FX concurrency is fixed by platform capability at 4."
   },
   {
-    "id": "touch_gate_section",
-    "path": "Menu > L4: Dance > Trigger Gate",
-    "key": "",
-    "kind": "group",
-    "title": "Trigger Gate",
-    "line1": "Performance trigger-mode page for switching parts between 0%, custom probability, and 100% trigger behavior.",
-    "line2": "Stored probability maps live in Sense; this page only switches the active mode per part or for all parts."
-  },
-  {
     "id": "touch_gate_mode_grid",
-    "path": "Menu > L4: Dance > Trigger Gate > Mode Grid",
+    "path": "Menu > L4: Dance > Mode Grid",
     "key": "",
     "kind": "group",
     "title": "Mode Grid",
@@ -2737,17 +2719,8 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
     "line2": "Bottom-row columns 5..7 are global shortcuts that set all parts to those same three trigger modes at once."
   },
   {
-    "id": "xy_section",
-    "path": "Menu > L4: Dance > X/Y Pad",
-    "key": "",
-    "kind": "group",
-    "title": "X/Y Pad",
-    "line1": "Full 8×8 modulation surface. Touch position selects X and Y values (0-1 over full grid) which modulate the assigned targets.",
-    "line2": "Modulation beats all other sources — applied last after Sense X/Y and Shift+grid param modulation."
-  },
-  {
     "id": "xy_target_x",
-    "path": "Menu > L4: Dance > X/Y Pad > X Axis",
+    "path": "Menu > L4: Dance > X Axis",
     "key": "",
     "kind": "group",
     "title": "X Axis",
@@ -2756,7 +2729,7 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "xy_target_y",
-    "path": "Menu > L4: Dance > X/Y Pad > Y Axis",
+    "path": "Menu > L4: Dance > Y Axis",
     "key": "",
     "kind": "group",
     "title": "Y Axis",
@@ -2765,8 +2738,8 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "xy_release",
-    "path": "Menu > L4: Dance > X/Y Pad > Release",
-    "key": "key:xyRelease",
+    "path": "Menu > L4: Dance > Release",
+    "key": "key:dance.xy.release",
     "kind": "enum",
     "title": "Release Behavior",
     "line1": "Controls what happens when the grid finger is lifted. sample-hold keeps the last modulation value; reset-center returns X and Y to center (0.5, 0.5).",
@@ -2774,8 +2747,8 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "xy_invert_x",
-    "path": "Menu > L4: Dance > X/Y Pad > Invert X",
-    "key": "key:parts.*.xy.xInvert",
+    "path": "Menu > L4: Dance > Invert X",
+    "key": "key:dance.xy.invertX",
     "kind": "bool",
     "title": "Invert X",
     "line1": "When on, the X axis value is flipped (left = max, right = min).",
@@ -2783,8 +2756,8 @@ export const MENU_HELP_ENTRIES: MenuHelpEntry[] = [
   },
   {
     "id": "xy_invert_y",
-    "path": "Menu > L4: Dance > X/Y Pad > Invert Y",
-    "key": "key:parts.*.xy.yInvert",
+    "path": "Menu > L4: Dance > Invert Y",
+    "key": "key:dance.xy.invertY",
     "kind": "bool",
     "title": "Invert Y",
     "line1": "When on, the Y axis value is flipped (bottom = max, top = min).",

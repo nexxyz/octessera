@@ -938,7 +938,7 @@ test("sectioned row scan cursor starts from the top section", () => {
   const top = leds[GRID_DOMAIN.toDisplayIndex({ x: 0, y: PLATFORM_CAPS.gridHeight - 1 })]!;
   const bottom = leds[GRID_DOMAIN.toDisplayIndex({ x: 0, y: 0 })]!;
 
-  assert.ok(top.r > bottom.r);
+  assert.ok(bottom.r > top.r);
 });
 
 function pixel565(pixels: Uint8Array, x: number, y: number): number {
@@ -995,15 +995,15 @@ test("section restart makes pitch mapping local to scan section", () => {
   cfg.scanMode = "scanning";
   cfg.scanAxis = "rows";
   cfg.scanSections = "2";
-  cfg.x.pitch.enabled = false;
-  cfg.y.pitch.enabled = true;
-  cfg.y.pitch.steps = 1;
-  cfg.y.pitch.restartEachSection = false;
+  cfg.x.pitch.enabled = true;
+  cfg.x.pitch.steps = 1;
+  cfg.x.pitch.restartEachSection = false;
+  cfg.y.pitch.enabled = false;
 
-  const absolute = pitchFromIntent({ x: 0, y: 4 }, cfg, 60);
-  cfg.y.pitch.restartEachSection = true;
+  const absolute = pitchFromIntent({ x: 4, y: 0 }, cfg, 60);
+  cfg.x.pitch.restartEachSection = true;
   const firstSection = pitchFromIntent({ x: 0, y: 0 }, cfg, 60);
-  const secondSection = pitchFromIntent({ x: 0, y: 4 }, cfg, 60);
+  const secondSection = pitchFromIntent({ x: 4, y: 0 }, cfg, 60);
 
   assert.notEqual(absolute, firstSection);
   assert.equal(secondSection, firstSection);

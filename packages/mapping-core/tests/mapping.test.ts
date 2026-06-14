@@ -5,7 +5,7 @@ import { loadDefaultMappingConfig, mapIntentsToMusicalEvents, type MappingConfig
 
 test("mapIntentsToMusicalEvents maps scanned intents to scanned target", () => {
   const config = loadDefaultMappingConfig();
-  const events = mapIntentsToMusicalEvents([{ x: 2, y: 3, degree: 5, kind: "scanned" }], config);
+  const { events } = mapIntentsToMusicalEvents([{ x: 2, y: 3, degree: 5, kind: "scanned" }], config);
 
   assert.equal(events.length, 1);
   assert.equal(events[0].type, "note_on");
@@ -18,10 +18,11 @@ test("mapIntentsToMusicalEvents maps scanned intents to scanned target", () => {
 test("mapIntentsToMusicalEvents supports note_off and none actions", () => {
   const config = loadDefaultMappingConfig();
   const offEvents = mapIntentsToMusicalEvents([{ x: 0, y: 0, degree: 0, kind: "deactivate" }], config);
-  assert.equal(offEvents.length, 1);
-  assert.equal(offEvents[0].type, "note_off");
-  const noneEvents = mapIntentsToMusicalEvents([{ x: 0, y: 0, degree: 0, kind: "stable" }], config);
-  assert.equal(noneEvents.length, 0);
+  assert.equal(offEvents.events.length, 1);
+  assert.equal(offEvents.events[0].type, "note_off");
+  const noneResult = mapIntentsToMusicalEvents([{ x: 0, y: 0, degree: 0, kind: "stable" }], config);
+  assert.equal(noneResult.events.length, 0);
+  assert.equal(noneResult.intents.length, 0);
 });
 
 test("mapping config sanitizes out-of-range values", () => {
@@ -39,7 +40,7 @@ test("mapping config sanitizes out-of-range values", () => {
     scanned_empty: { action: "note_off", channel: 99, velocity: 80, durationMs: 120 }
   };
 
-  const events = mapIntentsToMusicalEvents([{ x: 0, y: 0, degree: 300, kind: "activate" }], unsafe);
+  const { events } = mapIntentsToMusicalEvents([{ x: 0, y: 0, degree: 300, kind: "activate" }], unsafe);
   assert.equal(events.length, 1);
   if (events[0].type === "note_on") {
     assert.ok(events[0].note >= 0 && events[0].note <= 127);
@@ -54,8 +55,8 @@ test("range mode clamp and wrap behave differently for high degree", () => {
   const clampCfg: MappingConfig = { ...base, rangeMode: "clamp", maxMidiNote: base.baseMidiNote + 12 };
   const wrapCfg: MappingConfig = { ...base, rangeMode: "wrap", maxMidiNote: base.baseMidiNote + 12 };
   const degree = 400;
-  const clampEvents = mapIntentsToMusicalEvents([{ x: 0, y: 0, degree, kind: "activate" }], clampCfg);
-  const wrapEvents = mapIntentsToMusicalEvents([{ x: 0, y: 0, degree, kind: "activate" }], wrapCfg);
+  const { events: clampEvents } = mapIntentsToMusicalEvents([{ x: 0, y: 0, degree, kind: "activate" }], clampCfg);
+  const { events: wrapEvents } = mapIntentsToMusicalEvents([{ x: 0, y: 0, degree, kind: "activate" }], wrapCfg);
   assert.equal(clampEvents.length, 1);
   assert.equal(wrapEvents.length, 1);
   if (clampEvents[0].type === "note_on" && wrapEvents[0].type === "note_on") {
@@ -66,5 +67,5 @@ test("range mode clamp and wrap behave differently for high degree", () => {
 
 test("empty scale throws validation error", () => {
   const bad = { ...loadDefaultMappingConfig(), scale: [] } as MappingConfig;
-  assert.throws(() => mapIntentsToMusicalEvents([{ x: 0, y: 0, degree: 0, kind: "activate" }], bad));
+  assert.throws(() => mapIntentsToMusicalEvents([{ x: 0, y: 0, degree: 0, kind: "activate" }], bad).events);
 });

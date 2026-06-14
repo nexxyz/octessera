@@ -1,5 +1,36 @@
 import { createGridDomain, type GridCell, type GridDomain } from "./gridDomain";
 export { createGridDomain } from "./gridDomain";
+export {
+  MIDI_REALTIME_MESSAGE_TYPES,
+  RUNTIME_MOMENTARY_FX_TYPES,
+  RUNTIME_STATUS_STATES,
+  RUNTIME_TRANSPORT_STATES,
+  SHARED_RUNTIME_CONTRACT_FIXTURES
+} from "./runtimeProtocol";
+export type {
+  MidiRealtimeMessageType,
+  RuntimeAudioCommand,
+  RuntimeAudioCommandsMessage,
+  RuntimeContractFixture,
+  RuntimeDeviceInputMessage,
+  RuntimeHostMessage,
+  RuntimeMidiRealtimeMessage,
+  RuntimeMomentaryFxTarget,
+  RuntimeMomentaryFxType,
+  RuntimeMusicalEventsMessage,
+  RuntimePlatformEffect,
+  RuntimePlatformEffectsMessage,
+  RuntimeResultMessage,
+  RuntimeRunnerMessage,
+  RuntimeSnapshot,
+  RuntimeSnapshotMessage,
+  RuntimeStoreResult,
+  RuntimeStatus,
+  RuntimeStatusMessage,
+  RuntimeStatusState,
+  RuntimeTransportPulseStepMessage,
+  RuntimeTransportState
+} from "./runtimeProtocol";
 
 export type DeviceInput =
   | { type: "encoder_turn"; delta: -1 | 1; id?: "main" | "aux1" | "aux2" | "aux3" | "aux4" }
@@ -25,6 +56,7 @@ export type DisplayFrame = {
   lines: string[];
   editing: boolean;
   colors?: number[]; // RGB565 colors per line (optional, for OLED rendering)
+  barValues?: Array<{ frac: number; numChars: number; style?: "marker" | string } | null>;
 };
 
 export type OledFrame = {
@@ -54,6 +86,30 @@ export type TransportFrame = {
   ppqnPulse: number;
 };
 
+export type SimulatorFrameSettings = {
+  displayBrightness: number;
+  buttonBrightness: number;
+  masterVolume: number;
+  voiceStealingMode: "off" | "lenient" | "balanced" | "aggressive";
+  instruments: unknown[];
+  mixer: unknown;
+  panPositions: number;
+  autoSaveFlash: "none" | "flash";
+  autoSaveFlashSerial?: number;
+  transportFlash: "none" | "beat" | "measure";
+  stopLatched: boolean;
+  fnHeld: boolean;
+  combinedModifierHeld: boolean;
+  midi: {
+    enabled: boolean;
+    outId: string | null;
+    inId: string | null;
+    syncMode: "internal" | "external";
+    clockOutEnabled: boolean;
+    clockInEnabled: boolean;
+  };
+};
+
 export type SimulatorFrame = {
   display: DisplayFrame;
   oled?: OledFrame;
@@ -61,4 +117,5 @@ export type SimulatorFrame = {
   transport: TransportFrame;
   activeBehavior: string;
   gridInteraction: GridInteraction;
+  settings?: SimulatorFrameSettings;
 };

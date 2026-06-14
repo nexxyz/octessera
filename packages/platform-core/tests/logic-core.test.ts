@@ -69,7 +69,7 @@ test("interpretation supports event and state trigger paths", () => {
 
 test("mapping routes trigger kinds to configured targets", () => {
   const mapping = loadDefaultMappingConfig();
-  const events = mapIntentsToMusicalEvents(
+  const { events } = mapIntentsToMusicalEvents(
     [
       { x: 0, y: 0, degree: 0, kind: "activate" },
       { x: 1, y: 0, degree: 1, kind: "deactivate" },

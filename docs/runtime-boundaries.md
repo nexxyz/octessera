@@ -11,21 +11,21 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
   - captures user interaction and emits `DeviceInput`
   - contains no transport/menu/audio/interpretation logic
 
-- Runtime orchestration layer (`apps/desktop/src/runtime`)
+- Runtime orchestration layer (`crates/playback-runtime`, `apps/desktop/src-tauri/src/runtime_worker.rs`)
   - owns lifecycle (`start`/`stop`)
-  - schedules ticks through `runtimeScheduler`
-  - applies core state transitions (`routeInput`, `tick`)
-  - publishes snapshots and musical events
-  - owns MIDI input/output via Tauri bridges only (no Web MIDI)
+  - schedules transport pulses and realtime status through Rust runtime code
+  - applies native core/menu/behavior state transitions through `NativeRunner`
+  - publishes snapshots, platform effects, audio commands, MIDI events, and runtime status
+  - owns MIDI input/output via Tauri/midir host adapters only (no Web MIDI)
 
-- Core logic layer (`packages/platform-core`, `packages/interpretation-core`, `packages/mapping-core`, `packages/behavior-api`, all behavior packages)
-  - deterministic simulation, menu/control state, interpretation, mapping
+- Core logic layer (`crates/platform-core`)
+  - deterministic behavior execution, menu/control state, interpretation, mapping
   - no UI framework code
   - no platform-specific I/O
 
-- Output adapters (`apps/desktop/src/runtime/outputAdapters/`)
-  - desktop audio sink maps musical events to native Tauri/rodio
-  - MIDI output via `tauriMidi.ts` (Tauri→midir)
+- Output adapters (`apps/desktop/src-tauri/src/`)
+  - desktop audio sink maps native events/audio commands to the realtime engine and rodio source
+  - MIDI input/output uses Tauri-side midir adapters
 
 - Realtime audio engine (`crates/realtime-engine`, `crates/rodio-engine-source`)
   - owns all internal musical audio rendering, instrument route/pan, FX bus sends, FX bus processing, sidechain ducking, and final stereo mix
@@ -34,19 +34,30 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
 
 ## Dependency Rules
 
-- UI may import runtime modules and type contracts only.
-- UI must not call `tick`, `routeInput`, or native audio/MIDI bridges directly.
-- Runtime may import core and output/input adapters.
-- Core packages must stay platform-agnostic.
+- UI may import type contracts and render snapshots only.
+- UI must not call native core, transport, audio, MIDI, or storage bridges directly.
+- Runtime may import native core and output/input adapters.
+- Core crates must stay platform-agnostic.
 - Platform adapters must not create independent musical audio sinks that bypass the realtime engine mixer.
 
 ## Data Flow
 
 1. UI interaction -> `DeviceInput`
-2. Runtime receives input -> `platform-core` transition
-3. Runtime scheduler triggers tick -> `platform-core` processing
+2. Runtime receives input -> native `platform-core` transition through `NativeRunner`
+3. Rust runtime advances transport pulses -> native behavior/menu processing
 4. Runtime publishes snapshot -> UI render (OLED + NeoKey LEDs)
-5. Runtime publishes musical events -> output adapters (audio/MIDI)
+5. Runtime publishes musical events/audio commands/platform effects -> host adapters (audio/MIDI/storage)
+
+## Shared Runtime Contract
+
+- The shared Pi/desktop playback seam is defined by `crates/playback-runtime/src/protocol.rs` and mirrored by the UI/device contract types where needed.
+- Host -> runner messages are limited to `device_input`, `transport_pulse_step`, `midi_realtime`, and `runtime_result`.
+- Runner -> host messages are limited to `snapshot`, `platform_effects`, `musical_events`, `audio_commands`, and `runtime_status`.
+- Shared fixtures for this seam live in `SHARED_RUNTIME_CONTRACT_FIXTURES` so both hosts can validate the same contract examples.
+- `transport_pulse_step` is the deterministic PPQN advancement boundary; hosts must not substitute wall-clock timer semantics above this seam.
+- External MIDI realtime (`clock`, `start`, `continue`, `stop`) remains explicit at the boundary and is not inferred from UI/runtime scheduling code.
+- `runtime_result` carries host-side outcomes for storage, MIDI port enumeration/selection, and sample-browser operations back into the shared runner.
+- `snapshot` remains the display/input-facing state payload; `musical_events`, `platform_effects`, and `audio_commands` are the resolved outputs that Rust schedules or dispatches.
 
 ## Audio Routing Contract
 

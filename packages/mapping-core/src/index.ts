@@ -29,20 +29,22 @@ export function loadDefaultMappingConfig(): MappingConfig {
   return validateConfig(defaults as MappingConfig);
 }
 
-export function mapIntentsToMusicalEvents(intents: CellTriggerIntent[], config: MappingConfig): MusicalEvent[] {
+export function mapIntentsToMusicalEvents(intents: CellTriggerIntent[], config: MappingConfig): { events: MusicalEvent[]; intents: CellTriggerIntent[] } {
   const safe = validateConfig(config);
-  const out: MusicalEvent[] = [];
+  const events: MusicalEvent[] = [];
+  const matched: CellTriggerIntent[] = [];
   for (const intent of intents) {
     const note = noteFromDegree(intent.degree, safe);
     const target = targetForKind(intent.kind, safe);
     if (target.action === "none") continue;
     if (target.action === "note_off") {
-      out.push({ type: "note_off", channel: target.channel, note });
+      events.push({ type: "note_off", channel: target.channel, note });
       continue;
     }
-    out.push({ type: "note_on", channel: target.channel, note, velocity: target.velocity, durationMs: target.durationMs });
+    events.push({ type: "note_on", channel: target.channel, note, velocity: target.velocity, durationMs: target.durationMs });
+    matched.push(intent);
   }
-  return out;
+  return { events, intents: matched };
 }
 
 function targetForKind(kind: CellTriggerKind, config: MappingConfig): TriggerTarget {
