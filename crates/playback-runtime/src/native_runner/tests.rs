@@ -10,6 +10,15 @@ fn snapshot_from(messages: &[RunnerMessage]) -> Value {
         .expect("snapshot message")
 }
 
+fn confirm_current_dialog(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
+    runner.confirm_dialog.as_mut().unwrap().cursor = 1;
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })
+        .unwrap()
+}
+
 #[test]
 fn unsupported_behavior_errors() {
     let error = NativeRunner::new(NativeRunnerConfig {
@@ -426,7 +435,9 @@ fn scan_sections_limit_overlay_to_current_section_lane() {
 
 #[test]
 fn sense_scan_menu_exposes_none_and_scanned_empty_targets() {
-    let runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.sense_parts[0].scan_mode = "scanning".into();
+    runner.menu.rebuild(runner.menu_config());
     let scan_group = &runner.menu.root.children[1].children[1].children[0];
     let labels = scan_group
         .children
@@ -472,6 +483,18 @@ fn synth_preset_load_changes_full_synth_payload_and_filter_resonance_is_editable
     runner.menu.turn(1);
     runner.apply_menu_state().unwrap();
 
+    runner.menu.state.cursor = 1;
+    runner.menu.turn(1);
+    runner.apply_menu_state().unwrap();
+
+    runner.menu.state.cursor = 2;
+    runner.menu.turn(5);
+    runner.apply_menu_state().unwrap();
+
+    runner.menu.state.cursor = 3;
+    runner.menu.turn(10);
+    runner.apply_menu_state().unwrap();
+
     runner.menu.state.stack = vec![2, 0, 0, 2, 2];
     runner.menu.state.cursor = 0;
     runner.menu.state.editing = true;
@@ -490,9 +513,33 @@ fn synth_preset_load_changes_full_synth_payload_and_filter_resonance_is_editable
     runner.menu.turn(5);
     runner.apply_menu_state().unwrap();
 
+    runner.menu.state.stack = vec![2, 0, 0, 2, 3];
+    runner.menu.state.cursor = 1;
+    runner.menu.state.editing = true;
+    runner.menu.turn(-20);
+    runner.apply_menu_state().unwrap();
+
+    runner.menu.state.stack = vec![2, 0, 0, 2, 4];
+    runner.menu.state.cursor = 0;
+    runner.menu.state.editing = true;
+    runner.menu.turn(5);
+    runner.apply_menu_state().unwrap();
+
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["instruments"][0]["synth"]["osc1"]["waveform"],
         "square"
+    );
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["instruments"][0]["synth"]["osc1"]["octave"],
+        1
+    );
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["instruments"][0]["synth"]["osc1"]["levelPct"],
+        91
+    );
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["instruments"][0]["synth"]["osc1"]["detuneCents"],
+        10
     );
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["instruments"][0]["synth"]["filter"]["type"],
@@ -500,11 +547,20 @@ fn synth_preset_load_changes_full_synth_payload_and_filter_resonance_is_editable
     );
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["instruments"][0]["synth"]["filter"]["cutoffHz"],
-        7000
+        6969
     );
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["instruments"][0]["synth"]["filter"]["resonance"],
         39
+    );
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["instruments"][0]["synth"]["amp"]
+            ["velocitySensitivityPct"],
+        80
+    );
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["instruments"][0]["synth"]["ampEnv"]["attackMs"],
+        28
     );
 }
 
@@ -735,12 +791,14 @@ fn sense_velocity_and_filter_lanes_modulate_mapped_events() {
         from: 10,
         to: 110,
         grid_offset: 0,
+        curve: "linear".into(),
     };
     sense.y_filter_cutoff = NativeValueLane {
         enabled: true,
         from: 20,
         to: 120,
         grid_offset: 0,
+        curve: "linear".into(),
     };
     let events = vec![MusicalEvent::NoteOn {
         channel: 2,
@@ -784,6 +842,7 @@ fn midi_instrument_channel_remaps_note_and_cc_events() {
         from: 20,
         to: 120,
         grid_offset: 0,
+        curve: "linear".into(),
     };
     let intent = CellTriggerIntent {
         x: 0,
@@ -886,7 +945,7 @@ fn sense_value_lanes_round_trip_in_payload() {
         "from": 12,
         "to": 99,
         "gridOffset": 2,
-        "curve": "linear"
+        "curve": "curve"
     });
     payload["runtimeConfig"]["parts"][0]["l2"]["y"]["filterResonance"] = json!({
         "enabled": true,
@@ -902,11 +961,21 @@ fn sense_value_lanes_round_trip_in_payload() {
     assert_eq!(runner.sense_parts[0].x_velocity.from, 12);
     assert_eq!(runner.sense_parts[0].x_velocity.to, 99);
     assert_eq!(runner.sense_parts[0].x_velocity.grid_offset, 2);
+    assert_eq!(runner.sense_parts[0].x_velocity.curve, "curve");
     assert!(runner.sense_parts[0].y_filter_resonance.enabled);
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["parts"][0]["l2"]["x"]["velocity"]["to"],
         99
     );
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["parts"][0]["l2"]["x"]["velocity"]["curve"],
+        "curve"
+    );
+
+    runner.menu.rebuild(runner.menu_config());
+    runner.menu.turn_key("parts.0.l2.x.velocity.curve", -1);
+    runner.apply_menu_state().unwrap();
+    assert_eq!(runner.sense_parts[0].x_velocity.curve, "linear");
 }
 
 #[test]
@@ -1330,6 +1399,10 @@ fn config_payload_includes_complete_sample_and_fx_param_shapes() {
         "velocity": 66,
         "durationMs": 444
     });
+    payload["runtimeConfig"]["mixer"]["buses"][0]["slot1"] =
+        json!({ "type": "delay", "params": { "timeMs": 333, "feedback": 0.42, "mixPct": 44 } });
+    payload["runtimeConfig"]["mixer"]["master"]["slots"][0] =
+        json!({ "type": "distortion", "params": { "drive": 3.5, "clip": 0.75, "mixPct": 88 } });
     runner.apply_config_payload(payload).unwrap();
     assert_eq!(runner.instruments[0].sample_base_velocity, 72);
     assert_eq!(runner.instruments[0].sample_amp_env["attackMs"], 11);
@@ -1338,6 +1411,57 @@ fn config_payload_includes_complete_sample_and_fx_param_shapes() {
     assert_eq!(runner.instruments[0].midi_velocity, 66);
     assert_eq!(runner.instruments[0].midi_channel, 7);
     assert_eq!(runner.instruments[0].midi_duration_ms, 444);
+    assert_eq!(runner.fx_buses[0].slot1_params["feedback"], 0.42);
+    assert_eq!(runner.global_fx_params[0]["drive"], 3.5);
+    let round_trip = runner.config_payload();
+    assert_eq!(
+        round_trip["runtimeConfig"]["mixer"]["buses"][0]["slot1"]["params"]["timeMs"],
+        333
+    );
+    assert_eq!(
+        round_trip["runtimeConfig"]["mixer"]["master"]["slots"][0]["params"]["clip"],
+        0.75
+    );
+}
+
+#[test]
+fn snapshot_settings_include_complete_audio_config_shapes() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.instruments[0].sample_base_velocity = 72;
+    runner.instruments[0].sample_amp_env = json!({ "attackMs": 11 });
+    runner.instruments[0].sample_filter = json!({ "type": "highpass", "cutoffHz": 1200 });
+    runner.instruments[0].sample_filter_env = json!({ "releaseMs": 222 });
+    runner.fx_buses[0].slot1_type = "delay".into();
+    runner.fx_buses[0].slot1_params = json!({ "timeMs": 333, "feedback": 0.42, "mixPct": 44 });
+    runner.global_fx_slots[0] = "distortion".into();
+    runner.global_fx_params[0] = json!({ "drive": 3.5, "clip": 0.75, "mixPct": 88 });
+
+    let snapshot = runner.snapshot().unwrap();
+
+    assert_eq!(
+        snapshot["settings"]["instruments"][0]["sample"]["baseVelocity"],
+        72
+    );
+    assert_eq!(
+        snapshot["settings"]["instruments"][0]["sample"]["ampEnv"]["attackMs"],
+        11
+    );
+    assert_eq!(
+        snapshot["settings"]["instruments"][0]["sample"]["filter"]["type"],
+        "highpass"
+    );
+    assert_eq!(
+        snapshot["settings"]["instruments"][0]["sample"]["filterEnv"]["releaseMs"],
+        222
+    );
+    assert_eq!(
+        snapshot["settings"]["mixer"]["buses"][0]["slot1"]["params"]["feedback"],
+        0.42
+    );
+    assert_eq!(
+        snapshot["settings"]["mixer"]["master"]["slots"][0]["params"]["clip"],
+        0.75
+    );
 }
 
 #[test]
@@ -1994,11 +2118,13 @@ fn fn_aux_binds_selected_action_and_aux_press_executes_it() {
             input: json!({ "type": "button_fn", "pressed": false }),
         })
         .unwrap();
-    let messages = runner
+    let opened = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "aux1" }),
         })
         .unwrap();
+    assert_eq!(snapshot_from(&opened)["display"]["title"], "Confirm MIDI");
+    let messages = confirm_current_dialog(&mut runner);
 
     assert!(messages.iter().any(|message| matches!(
         message,
@@ -2107,11 +2233,13 @@ fn system_menu_midi_panic_emits_panic_effect() {
     runner.menu.state.stack = vec![5, 2];
     runner.menu.state.cursor = 1;
 
-    let messages = runner
+    let opened = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
         })
         .unwrap();
+    assert_eq!(snapshot_from(&opened)["display"]["title"], "Confirm MIDI");
+    let messages = confirm_current_dialog(&mut runner);
 
     assert!(messages.iter().any(|message| matches!(
         message,
@@ -2126,11 +2254,16 @@ fn system_menu_save_default_emits_native_config_payload() {
     runner.menu.state.stack = vec![5, 0, 1];
     runner.menu.state.cursor = 0;
 
-    let messages = runner
+    let opened = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
         })
         .unwrap();
+    assert_eq!(
+        snapshot_from(&opened)["display"]["title"],
+        "Confirm Default"
+    );
+    let messages = confirm_current_dialog(&mut runner);
 
     let payload = messages
         .iter()
@@ -2313,11 +2446,13 @@ fn preset_load_menu_selects_dynamic_preset() {
     runner.menu.state.stack = vec![5, 0, 0, 2];
     runner.menu.state.cursor = 1;
 
-    let messages = runner
+    let opened = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
         })
         .unwrap();
+    assert_eq!(snapshot_from(&opened)["display"]["title"], "Confirm Load");
+    let messages = confirm_current_dialog(&mut runner);
 
     assert!(messages.iter().any(|message| matches!(
         message,
@@ -2340,11 +2475,13 @@ fn save_current_uses_loaded_preset_name() {
     runner.menu.state.stack = vec![5, 0, 0];
     runner.menu.state.cursor = 1;
 
-    let messages = runner
+    let opened = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
         })
         .unwrap();
+    assert_eq!(snapshot_from(&opened)["display"]["title"], "Confirm Save");
+    let messages = confirm_current_dialog(&mut runner);
 
     assert!(messages.iter().any(|message| matches!(
         message,
@@ -2408,7 +2545,7 @@ fn native_store_and_action_toasts_cover_common_confirmation_results() {
 fn midi_panic_and_synth_preset_actions_show_toasts() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let effect = runner
-        .execute_menu_action(NativeMenuAction::PlatformEffect("midi.panic".into()))
+        .execute_confirmed_action(NativeMenuAction::PlatformEffect("midi.panic".into()))
         .unwrap();
     assert_eq!(effect, Some(RuntimePlatformEffect::MidiPanic));
     assert_eq!(runner.toast.as_ref().unwrap().message, "MIDI panic sent");
@@ -2425,11 +2562,13 @@ fn preset_save_as_uses_text_draft_name() {
     runner.menu.state.stack = vec![5, 0, 0, 0];
     runner.menu.state.cursor = 1;
 
-    let messages = runner
+    let opened = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
         })
         .unwrap();
+    assert_eq!(snapshot_from(&opened)["display"]["title"], "Confirm Save");
+    let messages = confirm_current_dialog(&mut runner);
 
     assert_eq!(runner.preset_draft_name, "Jam A");
     assert!(messages.iter().any(|message| matches!(
@@ -2464,11 +2603,13 @@ fn preset_rename_pick_sets_new_name_and_apply_saves() {
     runner.menu.state.stack = vec![5, 0, 0, 3];
     runner.menu.state.cursor = 2;
 
-    let messages = runner
+    let opened = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
         })
         .unwrap();
+    assert_eq!(snapshot_from(&opened)["display"]["title"], "Confirm Rename");
+    let messages = confirm_current_dialog(&mut runner);
 
     assert!(messages.iter().any(|message| matches!(
         message,
@@ -3270,58 +3411,121 @@ fn sampler_tune_edits_into_config_payload() {
 }
 
 #[test]
+fn sampler_extended_params_edit_into_config_payload() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].name = "sampler".into();
+    runner.menu.rebuild(runner.menu_config());
+
+    runner.menu.state.stack = vec![2, 0, 0, 2];
+    runner.menu.state.cursor = 5;
+    runner.menu.state.editing = true;
+    runner.menu.turn(-20);
+    runner.apply_menu_state().unwrap();
+
+    runner.menu.state.cursor = 6;
+    runner.menu.turn(1);
+    runner.apply_menu_state().unwrap();
+
+    runner.menu.state.stack = vec![2, 0, 0, 2, 7];
+    runner.menu.state.cursor = 0;
+    runner.menu.state.editing = true;
+    runner.menu.turn(-10);
+    runner.apply_menu_state().unwrap();
+
+    runner.menu.state.stack = vec![2, 0, 0, 2, 8];
+    runner.menu.state.cursor = 0;
+    runner.menu.state.editing = true;
+    runner.menu.turn(1);
+    runner.apply_menu_state().unwrap();
+    runner.menu.state.cursor = 1;
+    runner.menu.turn(-10);
+    runner.apply_menu_state().unwrap();
+
+    runner.menu.state.stack = vec![2, 0, 0, 2];
+    runner.menu.state.cursor = 9;
+    runner.menu.state.editing = true;
+    runner.menu.turn(-25);
+    runner.apply_menu_state().unwrap();
+
+    runner.menu.state.stack = vec![2, 0, 0, 2, 10];
+    runner.menu.state.cursor = 0;
+    runner.menu.state.editing = true;
+    runner.menu.turn(4);
+    runner.apply_menu_state().unwrap();
+
+    let sample = &runner.config_payload()["runtimeConfig"]["instruments"][0]["sample"];
+    assert_eq!(sample["baseVelocity"], 80);
+    assert_eq!(sample["velocityLevelsEnabled"], true);
+    assert_eq!(sample["velocityLevels"]["high"], 110);
+    assert_eq!(sample["filter"]["type"], "highpass");
+    assert_eq!(sample["filter"]["cutoffHz"], 6548);
+    assert_eq!(sample["amp"]["velocitySensitivityPct"], 75);
+    assert_eq!(sample["ampEnv"]["attackMs"], 25);
+}
+
+#[test]
 fn fx_bus_slot_type_edits_into_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![2, 1, 0];
-    runner.menu.state.cursor = 0;
-
-    let _ = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_press", "id": "main" }),
-        })
-        .unwrap();
-    let _ = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
-        })
-        .unwrap();
-    let _ = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_press", "id": "main" }),
-        })
-        .unwrap();
+    runner.menu.turn_key("mixer.buses.0.slot1.type", 1);
+    runner.apply_menu_state().unwrap();
 
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["mixer"]["buses"][0]["slot1"]["type"],
         "tremolo"
+    );
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["mixer"]["buses"][0]["slot1"]["params"]["rateHz"],
+        4.0
     );
 }
 
 #[test]
 fn global_fx_slot_type_edits_into_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![2, 2, 0];
-    runner.menu.state.cursor = 0;
-
-    let _ = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_press", "id": "main" }),
-        })
-        .unwrap();
-    let _ = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
-        })
-        .unwrap();
-    let _ = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_press", "id": "main" }),
-        })
-        .unwrap();
+    runner.menu.turn_key("mixer.master.slots.0.type", 1);
+    runner.apply_menu_state().unwrap();
 
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["mixer"]["master"]["slots"][0]["type"],
         "vinyl"
+    );
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["mixer"]["master"]["slots"][0]["params"]
+            ["cracklePct"],
+        8
+    );
+}
+
+#[test]
+fn fx_params_edit_into_config_payload() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner
+        .apply_config_payload(json!({
+            "runtimeConfig": {
+                "mixer": {
+                    "buses": [{ "slot1": { "type": "delay", "params": { "timeMs": 250, "feedback": 0.35, "mixPct": 35 } } }],
+                    "master": { "slots": [{ "type": "distortion", "params": { "drive": 2.5, "clip": 0.6, "mixPct": 100 } }] }
+                }
+            }
+        }))
+        .unwrap();
+    runner.menu.rebuild(runner.menu_config());
+
+    runner
+        .menu
+        .turn_key("mixer.buses.0.slot1.params.feedback", 1);
+    runner.menu.turn_key("mixer.master.slots.0.params.clip", 1);
+    runner.apply_menu_state().unwrap();
+
+    let payload = runner.config_payload();
+    assert_eq!(
+        payload["runtimeConfig"]["mixer"]["buses"][0]["slot1"]["params"]["feedback"],
+        0.36
+    );
+    assert_eq!(
+        payload["runtimeConfig"]["mixer"]["master"]["slots"][0]["params"]["clip"],
+        0.65
     );
 }
 
@@ -3726,7 +3930,7 @@ fn dance_trigger_gate_leds_show_part_modes_and_all_parts_actions() {
 fn factory_load_applies_native_factory_without_loading_user_default() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let effect = runner
-        .execute_menu_action(NativeMenuAction::PlatformEffect("factory.load".into()))
+        .execute_confirmed_action(NativeMenuAction::PlatformEffect("factory.load".into()))
         .unwrap();
 
     assert!(effect.is_none());

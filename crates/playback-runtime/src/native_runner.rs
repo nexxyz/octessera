@@ -109,6 +109,7 @@ struct NativeInstrumentSlot {
     sample_filter: Value,
     sample_filter_env: Value,
     sample_base_velocity: u8,
+    sample_amp_velocity_sensitivity_pct: u8,
     sample_velocity_levels_enabled: bool,
     sample_velocity_high: u8,
     sample_velocity_medium: u8,
@@ -191,7 +192,9 @@ struct NativeAuxBinding {
 struct NativeFxBus {
     name: String,
     slot1_type: String,
+    slot1_params: Value,
     slot2_type: String,
+    slot2_params: Value,
     pan_pos: u8,
     auto_name: bool,
 }
@@ -201,6 +204,15 @@ struct NativeHelpPopup {
     title: String,
     lines: Vec<String>,
     scroll: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct NativeConfirmDialog {
+    title: String,
+    lines: Vec<String>,
+    options: Vec<String>,
+    cursor: usize,
+    action: NativeMenuAction,
 }
 
 #[derive(Clone, Debug)]
@@ -222,6 +234,7 @@ struct NativeValueLane {
     from: u8,
     to: u8,
     grid_offset: i32,
+    curve: String,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -277,6 +290,7 @@ impl NativeInstrumentSlot {
             sample_filter,
             sample_filter_env,
             sample_base_velocity: 100,
+            sample_amp_velocity_sensitivity_pct: 100,
             sample_velocity_levels_enabled: false,
             sample_velocity_high: 120,
             sample_velocity_medium: 85,
@@ -355,6 +369,7 @@ impl NativeValueLane {
             from: 1,
             to: 127,
             grid_offset: 0,
+            curve: "linear".into(),
         }
     }
 
@@ -364,6 +379,7 @@ impl NativeValueLane {
             from: 20,
             to: 127,
             grid_offset: 0,
+            curve: "linear".into(),
         }
     }
 
@@ -373,6 +389,7 @@ impl NativeValueLane {
             from: 10,
             to: 90,
             grid_offset: 0,
+            curve: "linear".into(),
         }
     }
 }
@@ -391,7 +408,9 @@ impl Default for NativeFxBus {
         Self {
             name: "(none)".into(),
             slot1_type: "none".into(),
+            slot1_params: json!({}),
             slot2_type: "none".into(),
+            slot2_params: json!({}),
             pan_pos: 16,
             auto_name: true,
         }
@@ -492,8 +511,10 @@ pub struct NativeRunner {
     sample_assign: Option<(usize, usize)>,
     fx_buses: Vec<NativeFxBus>,
     global_fx_slots: Vec<String>,
+    global_fx_params: Vec<Value>,
     sample_browser: Option<NativeSampleBrowser>,
     help_popup: Option<NativeHelpPopup>,
+    confirm_dialog: Option<NativeConfirmDialog>,
     menu: NativeMenuModel,
     event_dot_on: bool,
     event_dot_pulses_remaining: u8,
@@ -526,6 +547,7 @@ impl NativeRunner {
         let sense_parts = default_sense_parts();
         let fx_buses = default_fx_buses();
         let global_fx_slots = default_global_fx_slots();
+        let global_fx_params = default_global_fx_params();
         let menu = NativeMenuModel::new(NativeMenuConfig {
             behavior_id: behavior.id().into(),
             behavior_ids: platform_core::list_native_behavior_ids()
@@ -553,6 +575,7 @@ impl NativeRunner {
             instrument_volumes: instrument_volumes(&instruments),
             instrument_pan_positions: instrument_pan_positions(&instruments),
             instrument_sample_slots: instrument_sample_slots(&instruments),
+            instrument_synth_configs: instrument_synth_configs(&instruments),
             instrument_synth_osc1_waveforms: instrument_synth_osc1_waveforms(&instruments),
             instrument_synth_osc2_waveforms: instrument_synth_osc2_waveforms(&instruments),
             instrument_synth_filter_types: instrument_synth_filter_types(&instruments),
@@ -561,12 +584,25 @@ impl NativeRunner {
             instrument_synth_filter_resonance: instrument_synth_filter_resonance(&instruments),
             instrument_sample_tune_semis: instrument_sample_tune_semis(&instruments),
             instrument_sample_gain_pct: instrument_sample_gain_pct(&instruments),
+            instrument_sample_base_velocity: instrument_sample_base_velocity(&instruments),
+            instrument_sample_amp_velocity_sensitivity_pct:
+                instrument_sample_amp_velocity_sensitivity_pct(&instruments),
+            instrument_sample_velocity_levels_enabled: instrument_sample_velocity_levels_enabled(
+                &instruments,
+            ),
+            instrument_sample_velocity_high: instrument_sample_velocity_high(&instruments),
+            instrument_sample_velocity_medium: instrument_sample_velocity_medium(&instruments),
+            instrument_sample_velocity_low: instrument_sample_velocity_low(&instruments),
+            instrument_sample_amp_envs: instrument_sample_amp_envs(&instruments),
+            instrument_sample_filters: instrument_sample_filters(&instruments),
+            instrument_sample_filter_envs: instrument_sample_filter_envs(&instruments),
             instrument_midi_enabled: instrument_midi_enabled(&instruments),
             instrument_midi_channels: instrument_midi_channels(&instruments),
             instrument_midi_velocity: instrument_midi_velocity(&instruments),
             instrument_midi_duration_ms: instrument_midi_duration_ms(&instruments),
             fx_buses: fx_bus_configs(&fx_buses),
             global_fx_slots: global_fx_slots.clone(),
+            global_fx_params: global_fx_params.clone(),
             sample_browser: None,
             algorithm_step_pulses: DEFAULT_ALGORITHM_STEP_PULSES,
             master_volume: ui.master_volume,
@@ -696,8 +732,10 @@ impl NativeRunner {
             sample_assign: None,
             fx_buses,
             global_fx_slots,
+            global_fx_params,
             sample_browser: None,
             help_popup: None,
+            confirm_dialog: None,
             menu,
             event_dot_on: false,
             event_dot_pulses_remaining: 0,
@@ -863,6 +901,7 @@ impl NativeRunner {
             instrument_volumes: instrument_volumes(&self.instruments),
             instrument_pan_positions: instrument_pan_positions(&self.instruments),
             instrument_sample_slots: instrument_sample_slots(&self.instruments),
+            instrument_synth_configs: instrument_synth_configs(&self.instruments),
             instrument_synth_osc1_waveforms: instrument_synth_osc1_waveforms(&self.instruments),
             instrument_synth_osc2_waveforms: instrument_synth_osc2_waveforms(&self.instruments),
             instrument_synth_filter_types: instrument_synth_filter_types(&self.instruments),
@@ -871,12 +910,25 @@ impl NativeRunner {
             instrument_synth_filter_resonance: instrument_synth_filter_resonance(&self.instruments),
             instrument_sample_tune_semis: instrument_sample_tune_semis(&self.instruments),
             instrument_sample_gain_pct: instrument_sample_gain_pct(&self.instruments),
+            instrument_sample_base_velocity: instrument_sample_base_velocity(&self.instruments),
+            instrument_sample_amp_velocity_sensitivity_pct:
+                instrument_sample_amp_velocity_sensitivity_pct(&self.instruments),
+            instrument_sample_velocity_levels_enabled: instrument_sample_velocity_levels_enabled(
+                &self.instruments,
+            ),
+            instrument_sample_velocity_high: instrument_sample_velocity_high(&self.instruments),
+            instrument_sample_velocity_medium: instrument_sample_velocity_medium(&self.instruments),
+            instrument_sample_velocity_low: instrument_sample_velocity_low(&self.instruments),
+            instrument_sample_amp_envs: instrument_sample_amp_envs(&self.instruments),
+            instrument_sample_filters: instrument_sample_filters(&self.instruments),
+            instrument_sample_filter_envs: instrument_sample_filter_envs(&self.instruments),
             instrument_midi_enabled: instrument_midi_enabled(&self.instruments),
             instrument_midi_channels: instrument_midi_channels(&self.instruments),
             instrument_midi_velocity: instrument_midi_velocity(&self.instruments),
             instrument_midi_duration_ms: instrument_midi_duration_ms(&self.instruments),
             fx_buses: fx_bus_configs(&self.fx_buses),
             global_fx_slots: self.global_fx_slots.clone(),
+            global_fx_params: self.global_fx_params.clone(),
             sample_browser: self
                 .sample_browser
                 .as_ref()
@@ -1621,8 +1673,11 @@ impl NativeRunner {
                 .menu
                 .number_for_key(&format!("instruments.{index}.synth.filter.cutoffHz"))
             {
-                let cutoff = cutoff.clamp(20, 20000) as u16;
-                if synth_filter_cutoff(instrument) != cutoff {
+                let cutoff_display = cutoff.clamp(0, 255);
+                let cutoff = cutoff_display_to_hz(cutoff_display) as u16;
+                if cutoff_hz_to_display(i32::from(synth_filter_cutoff(instrument)))
+                    != cutoff_display
+                {
                     set_json_path_number(
                         &mut instrument.synth_config,
                         &["filter", "cutoffHz"],
@@ -1645,6 +1700,48 @@ impl NativeRunner {
                     changed = true;
                 }
             }
+            for (suffix, path, min, max) in [
+                ("osc1.octave", ["osc1", "octave"], -2, 2),
+                ("osc1.levelPct", ["osc1", "levelPct"], 0, 100),
+                ("osc1.detuneCents", ["osc1", "detuneCents"], -50, 50),
+                ("osc1.pulseWidthPct", ["osc1", "pulseWidthPct"], 5, 95),
+                ("osc2.octave", ["osc2", "octave"], -2, 2),
+                ("osc2.levelPct", ["osc2", "levelPct"], 0, 100),
+                ("osc2.detuneCents", ["osc2", "detuneCents"], -50, 50),
+                ("osc2.pulseWidthPct", ["osc2", "pulseWidthPct"], 5, 95),
+                ("filter.envAmountPct", ["filter", "envAmountPct"], -100, 100),
+                (
+                    "filter.keyTrackingPct",
+                    ["filter", "keyTrackingPct"],
+                    0,
+                    100,
+                ),
+                (
+                    "amp.velocitySensitivityPct",
+                    ["amp", "velocitySensitivityPct"],
+                    0,
+                    100,
+                ),
+                ("ampEnv.attackMs", ["ampEnv", "attackMs"], 0, 5000),
+                ("ampEnv.decayMs", ["ampEnv", "decayMs"], 0, 5000),
+                ("ampEnv.sustainPct", ["ampEnv", "sustainPct"], 0, 100),
+                ("ampEnv.releaseMs", ["ampEnv", "releaseMs"], 0, 10000),
+                ("filterEnv.attackMs", ["filterEnv", "attackMs"], 0, 5000),
+                ("filterEnv.decayMs", ["filterEnv", "decayMs"], 0, 5000),
+                ("filterEnv.sustainPct", ["filterEnv", "sustainPct"], 0, 100),
+                ("filterEnv.releaseMs", ["filterEnv", "releaseMs"], 0, 10000),
+            ] {
+                if let Some(value) = self
+                    .menu
+                    .number_for_key(&format!("instruments.{index}.synth.{suffix}"))
+                {
+                    let value = value.clamp(min, max);
+                    if synth_i32_at(instrument, &path, i32::MIN) != value {
+                        set_json_path_number(&mut instrument.synth_config, &path, f64::from(value));
+                        changed = true;
+                    }
+                }
+            }
             if let Some(tune) = self
                 .menu
                 .number_for_key(&format!("instruments.{index}.sample.tuneSemis"))
@@ -1663,6 +1760,124 @@ impl NativeRunner {
                 if instrument.sample_gain_pct != gain {
                     instrument.sample_gain_pct = gain;
                     changed = true;
+                }
+            }
+            if let Some(base_velocity) = self
+                .menu
+                .number_for_key(&format!("instruments.{index}.sample.baseVelocity"))
+            {
+                let base_velocity = base_velocity.clamp(1, 127) as u8;
+                if instrument.sample_base_velocity != base_velocity {
+                    instrument.sample_base_velocity = base_velocity;
+                    changed = true;
+                }
+            }
+            if let Some(velocity_sens) = self.menu.number_for_key(&format!(
+                "instruments.{index}.sample.amp.velocitySensitivityPct"
+            )) {
+                let velocity_sens = velocity_sens.clamp(0, 100) as u8;
+                if instrument.sample_amp_velocity_sensitivity_pct != velocity_sens {
+                    instrument.sample_amp_velocity_sensitivity_pct = velocity_sens;
+                    changed = true;
+                }
+            }
+            if let Some(enabled) = self
+                .menu
+                .value_for_key(&format!("instruments.{index}.sample.velocityLevelsEnabled"))
+                .map(|value| value == "true")
+            {
+                if instrument.sample_velocity_levels_enabled != enabled {
+                    instrument.sample_velocity_levels_enabled = enabled;
+                    changed = true;
+                }
+            }
+            for (suffix, target, min, max) in [
+                ("velocityLevels.high", "high", 1, 127),
+                ("velocityLevels.medium", "medium", 1, 127),
+                ("velocityLevels.low", "low", 1, 127),
+            ] {
+                if let Some(value) = self
+                    .menu
+                    .number_for_key(&format!("instruments.{index}.sample.{suffix}"))
+                {
+                    let value = value.clamp(min, max) as u8;
+                    let current = match target {
+                        "high" => &mut instrument.sample_velocity_high,
+                        "medium" => &mut instrument.sample_velocity_medium,
+                        _ => &mut instrument.sample_velocity_low,
+                    };
+                    if *current != value {
+                        *current = value;
+                        changed = true;
+                    }
+                }
+            }
+            if let Some(filter_type) = self
+                .menu
+                .value_for_key(&format!("instruments.{index}.sample.filter.type"))
+            {
+                if value_string_at(&instrument.sample_filter, &["type"], "lowpass") != filter_type {
+                    set_json_path_string(&mut instrument.sample_filter, &["type"], &filter_type);
+                    changed = true;
+                }
+            }
+            for (suffix, path, min, max) in [
+                ("filter.cutoffHz", ["cutoffHz"], 0, 255),
+                ("filter.resonance", ["resonance"], 0, 255),
+                ("filter.envAmountPct", ["envAmountPct"], -100, 100),
+                ("filter.keyTrackingPct", ["keyTrackingPct"], 0, 100),
+            ] {
+                if let Some(value) = self
+                    .menu
+                    .number_for_key(&format!("instruments.{index}.sample.{suffix}"))
+                {
+                    let value = value.clamp(min, max);
+                    let stored_value = if suffix == "filter.cutoffHz" {
+                        cutoff_display_to_hz(value)
+                    } else {
+                        value
+                    };
+                    let current = value_i32_at(&instrument.sample_filter, &path, i32::MIN);
+                    let unchanged = if suffix == "filter.cutoffHz" {
+                        cutoff_hz_to_display(current) == value
+                    } else {
+                        current == stored_value
+                    };
+                    if !unchanged {
+                        set_json_path_number(
+                            &mut instrument.sample_filter,
+                            &path,
+                            f64::from(stored_value),
+                        );
+                        changed = true;
+                    }
+                }
+            }
+            for (prefix_key, target, path, min, max) in [
+                ("ampEnv", "amp", ["attackMs"], 0, 5000),
+                ("ampEnv", "amp", ["decayMs"], 0, 5000),
+                ("ampEnv", "amp", ["sustainPct"], 0, 100),
+                ("ampEnv", "amp", ["releaseMs"], 0, 10000),
+                ("filterEnv", "filter", ["attackMs"], 0, 5000),
+                ("filterEnv", "filter", ["decayMs"], 0, 5000),
+                ("filterEnv", "filter", ["sustainPct"], 0, 100),
+                ("filterEnv", "filter", ["releaseMs"], 0, 10000),
+            ] {
+                let field = path[0];
+                if let Some(value) = self
+                    .menu
+                    .number_for_key(&format!("instruments.{index}.sample.{prefix_key}.{field}"))
+                {
+                    let value = value.clamp(min, max);
+                    let config = if target == "amp" {
+                        &mut instrument.sample_amp_env
+                    } else {
+                        &mut instrument.sample_filter_env
+                    };
+                    if value_i32_at(config, &path, i32::MIN) != value {
+                        set_json_path_number(config, &path, f64::from(value));
+                        changed = true;
+                    }
                 }
             }
             if let Some(enabled) = self
@@ -1935,10 +2150,26 @@ impl NativeRunner {
                 &mut bus.slot1_type,
                 &format!("{prefix}.slot1.type"),
             );
+            if bus.slot1_type != before.0 {
+                bus.slot1_params = fx_default_params(&bus.slot1_type);
+            }
             changed |= set_string_from_menu(
                 &self.menu,
                 &mut bus.slot2_type,
                 &format!("{prefix}.slot2.type"),
+            );
+            if bus.slot2_type != before.1 {
+                bus.slot2_params = fx_default_params(&bus.slot2_type);
+            }
+            changed |= apply_fx_param_menu_state(
+                &self.menu,
+                &mut bus.slot1_params,
+                &format!("{prefix}.slot1.params"),
+            );
+            changed |= apply_fx_param_menu_state(
+                &self.menu,
+                &mut bus.slot2_params,
+                &format!("{prefix}.slot2.params"),
             );
             changed |= set_u8_from_menu(
                 &self.menu,
@@ -1969,11 +2200,24 @@ impl NativeRunner {
             let Some(slot) = self.global_fx_slots.get_mut(index) else {
                 continue;
             };
+            let before = slot.clone();
             changed |= set_string_from_menu(
                 &self.menu,
                 slot,
                 &format!("mixer.master.slots.{index}.type"),
             );
+            if *slot != before {
+                if let Some(params) = self.global_fx_params.get_mut(index) {
+                    *params = fx_default_params(slot);
+                }
+            }
+            if let Some(params) = self.global_fx_params.get_mut(index) {
+                changed |= apply_fx_param_menu_state(
+                    &self.menu,
+                    params,
+                    &format!("mixer.master.slots.{index}.params"),
+                );
+            }
         }
         changed
     }
@@ -2419,13 +2663,31 @@ impl NativeRunner {
                     "synth": instrument.synth_config,
                     "sample": {
                         "selectedSlot": instrument.selected_sample_slot,
+                        "baseVelocity": instrument.sample_base_velocity,
                         "slots": sample_slots,
                         "assignments": sample_assignments_payload(&instrument.sample_assignments),
                         "tuneSemis": instrument.sample_tune_semis,
-                        "amp": { "gainPct": instrument.sample_gain_pct }
+                        "amp": {
+                            "gainPct": instrument.sample_gain_pct,
+                            "velocitySensitivityPct": instrument.sample_amp_velocity_sensitivity_pct
+                        },
+                        "ampEnv": instrument.sample_amp_env,
+                        "filter": instrument.sample_filter,
+                        "filterEnv": instrument.sample_filter_env,
+                        "velocityLevelsEnabled": instrument.sample_velocity_levels_enabled,
+                        "velocityLevels": {
+                            "high": instrument.sample_velocity_high,
+                            "medium": instrument.sample_velocity_medium,
+                            "low": instrument.sample_velocity_low
+                        }
                     },
                     "midi": {
                         "enabled": instrument.midi_enabled,
+                        "channel": instrument.midi_channel,
+                        "velocity": instrument.midi_velocity,
+                        "durationMs": instrument.midi_duration_ms
+                    },
+                    "midiEngine": {
                         "channel": instrument.midi_channel,
                         "velocity": instrument.midi_velocity,
                         "durationMs": instrument.midi_duration_ms
@@ -2478,7 +2740,28 @@ impl NativeRunner {
             mut display_bar_values,
             selected_row,
             display_title,
-        ) = if let Some(help) = &self.help_popup {
+        ) = if let Some(confirm) = &self.confirm_dialog {
+            let mut lines = confirm.lines.clone();
+            for (index, option) in confirm.options.iter().enumerate() {
+                let marker = if index == confirm.cursor { ">" } else { " " };
+                lines.push(format!("{marker} {option}"));
+            }
+            lines.truncate(OLED_BODY_ROWS);
+            let selected_row = confirm
+                .lines
+                .len()
+                .saturating_add(confirm.cursor)
+                .min(OLED_BODY_ROWS.saturating_sub(1));
+            let colors = vec![0xFFFF; lines.len()];
+            let bar_values = vec![Value::Null; lines.len()];
+            (
+                lines,
+                colors,
+                bar_values,
+                Some(selected_row),
+                confirm.title.clone(),
+            )
+        } else if let Some(help) = &self.help_popup {
             let mut lines = help
                 .lines
                 .iter()
@@ -2796,7 +3079,10 @@ impl NativeRunner {
                             "slots": sample_slots,
                             "assignments": sample_assignments_payload(&instrument.sample_assignments),
                             "tuneSemis": instrument.sample_tune_semis,
-                            "amp": { "gainPct": instrument.sample_gain_pct },
+                            "amp": {
+                                "gainPct": instrument.sample_gain_pct,
+                                "velocitySensitivityPct": instrument.sample_amp_velocity_sensitivity_pct
+                            },
                             "ampEnv": instrument.sample_amp_env,
                             "filter": instrument.sample_filter,
                             "filterEnv": instrument.sample_filter_env,
@@ -2873,15 +3159,16 @@ impl NativeRunner {
             "buses": self.fx_buses.iter().map(|bus| {
                 json!({
                     "name": bus.name,
-                    "slot1": fx_slot_payload(&bus.slot1_type),
-                    "slot2": fx_slot_payload(&bus.slot2_type),
+                    "slot1": fx_slot_payload_with_params(&bus.slot1_type, &bus.slot1_params),
+                    "slot2": fx_slot_payload_with_params(&bus.slot2_type, &bus.slot2_params),
                     "panPos": bus.pan_pos,
                     "autoName": bus.auto_name
                 })
             }).collect::<Vec<_>>(),
             "master": {
-                "slots": self.global_fx_slots.iter().map(|slot_type| {
-                    fx_slot_payload(slot_type)
+                "slots": self.global_fx_slots.iter().enumerate().map(|(index, slot_type)| {
+                    let params = self.global_fx_params.get(index).unwrap_or(&Value::Null);
+                    fx_slot_payload_with_params(slot_type, params)
                 }).collect::<Vec<_>>()
             }
         })
@@ -3143,10 +3430,82 @@ impl NativeRunner {
         }))
     }
 
+    fn confirmation_for_action(&self, action: &NativeMenuAction) -> Option<NativeConfirmDialog> {
+        let NativeMenuAction::PlatformEffect(action_type) = action else {
+            return None;
+        };
+        let (title, detail) = if action_type == "preset.saveAs" {
+            (
+                "Confirm Save",
+                format!(
+                    "Save preset {}?",
+                    clean_preset_name(&self.preset_draft_name)
+                ),
+            )
+        } else if action_type == "preset.saveCurrent" {
+            let name = self.current_preset_name.as_ref()?;
+            ("Confirm Save", format!("Overwrite preset {name}?"))
+        } else if action_type == "preset.renameApply" {
+            let from = self.preset_rename_source.as_ref()?;
+            (
+                "Confirm Rename",
+                format!(
+                    "Rename {from} to {}?",
+                    clean_preset_name(&self.preset_draft_name)
+                ),
+            )
+        } else if let Some(name) = action_type.strip_prefix("preset.load:") {
+            ("Confirm Load", format!("Load preset {name}?"))
+        } else if let Some(name) = action_type.strip_prefix("preset.delete:") {
+            ("Confirm Delete", format!("Delete preset {name}?"))
+        } else if action_type == "default.save" {
+            ("Confirm Default", "Save current default?".into())
+        } else if action_type == "default.load" {
+            ("Confirm Default", "Load saved default?".into())
+        } else if action_type == "factory.load" {
+            ("Confirm Factory", "Load factory settings?".into())
+        } else if action_type == "midi.panic" {
+            ("Confirm MIDI", "Send MIDI panic?".into())
+        } else if let Some(rest) = action_type.strip_prefix("synth.preset:") {
+            let preset = rest.split(':').nth(1).unwrap_or("preset");
+            ("Confirm Synth", format!("Load synth preset {preset}?"))
+        } else {
+            return None;
+        };
+        Some(NativeConfirmDialog {
+            title: title.into(),
+            lines: wrap_help_text(&detail, 28),
+            options: vec!["Cancel".into(), "Confirm".into()],
+            cursor: 0,
+            action: action.clone(),
+        })
+    }
+
+    fn execute_confirmed_action(
+        &mut self,
+        action: NativeMenuAction,
+    ) -> Result<Option<RuntimePlatformEffect>, String> {
+        self.execute_menu_action_inner(action, true)
+    }
+
     fn execute_menu_action(
         &mut self,
         action: NativeMenuAction,
     ) -> Result<Option<RuntimePlatformEffect>, String> {
+        self.execute_menu_action_inner(action, false)
+    }
+
+    fn execute_menu_action_inner(
+        &mut self,
+        action: NativeMenuAction,
+        confirmed: bool,
+    ) -> Result<Option<RuntimePlatformEffect>, String> {
+        if !confirmed {
+            if let Some(confirm) = self.confirmation_for_action(&action) {
+                self.confirm_dialog = Some(confirm);
+                return Ok(None);
+            }
+        }
         match action {
             NativeMenuAction::Noop => Ok(None),
             NativeMenuAction::BehaviorAction(action_type) => {
@@ -3801,6 +4160,14 @@ impl NativeRunner {
                         {
                             instrument.sample_gain_pct = (gain as u8).min(100);
                         }
+                        if let Some(velocity_sens) = sample
+                            .get("amp")
+                            .and_then(|amp| amp.get("velocitySensitivityPct"))
+                            .and_then(Value::as_u64)
+                        {
+                            instrument.sample_amp_velocity_sensitivity_pct =
+                                (velocity_sens as u8).min(100);
+                        }
                         if let Some(amp_env) =
                             sample.get("ampEnv").filter(|value| value.is_object())
                         {
@@ -3884,12 +4251,26 @@ impl NativeRunner {
                         {
                             bus.slot1_type = slot1.into();
                         }
+                        if let Some(params) = payload
+                            .get("slot1")
+                            .and_then(|slot| slot.get("params"))
+                            .filter(|params| params.is_object())
+                        {
+                            bus.slot1_params = params.clone();
+                        }
                         if let Some(slot2) = payload
                             .get("slot2")
                             .and_then(|slot| slot.get("type"))
                             .and_then(Value::as_str)
                         {
                             bus.slot2_type = slot2.into();
+                        }
+                        if let Some(params) = payload
+                            .get("slot2")
+                            .and_then(|slot| slot.get("params"))
+                            .filter(|params| params.is_object())
+                        {
+                            bus.slot2_params = params.clone();
                         }
                         if let Some(pan_pos) = payload.get("panPos").and_then(Value::as_u64) {
                             bus.pan_pos = (pan_pos as u8).min(32);
@@ -3913,6 +4294,12 @@ impl NativeRunner {
                 for (index, payload) in slots.iter().take(self.global_fx_slots.len()).enumerate() {
                     if let Some(slot_type) = payload.get("type").and_then(Value::as_str) {
                         self.global_fx_slots[index] = slot_type.into();
+                    }
+                    if let Some(params) = payload.get("params").filter(|params| params.is_object())
+                    {
+                        if let Some(target) = self.global_fx_params.get_mut(index) {
+                            *target = params.clone();
+                        }
                     }
                 }
             }
@@ -4132,8 +4519,53 @@ impl NativeRunner {
         help.scroll = next;
     }
 
+    fn turn_confirm_dialog(&mut self, delta: i8) {
+        let Some(confirm) = &mut self.confirm_dialog else {
+            return;
+        };
+        let max = confirm.options.len().saturating_sub(1);
+        confirm.cursor = (confirm.cursor as isize + delta as isize).clamp(0, max as isize) as usize;
+    }
+
+    fn confirm_dialog_selection(&mut self) -> Result<Option<RuntimePlatformEffect>, String> {
+        let Some(confirm) = self.confirm_dialog.take() else {
+            return Ok(None);
+        };
+        if confirm.cursor == 0 {
+            self.toast = Some(NativeToast {
+                message: "Cancelled".into(),
+                offset: 0,
+            });
+            return Ok(None);
+        }
+        self.execute_confirmed_action(confirm.action)
+    }
+
     fn handle_device_input(&mut self, input: DeviceInput) -> Result<Vec<RunnerMessage>, String> {
         self.record_display_interaction();
+        if self.confirm_dialog.is_some() {
+            match input {
+                DeviceInput::EncoderTurn { delta, id }
+                    if id.as_deref().unwrap_or("main") == "main" =>
+                {
+                    self.turn_confirm_dialog(delta);
+                }
+                DeviceInput::EncoderPress { id } if id.as_deref().unwrap_or("main") == "main" => {
+                    if let Some(effect) = self.confirm_dialog_selection()? {
+                        return self.messages_with_effects(vec![effect]);
+                    }
+                }
+                DeviceInput::ButtonA { pressed } if pressed.unwrap_or(true) => {
+                    self.confirm_dialog = None;
+                    self.toast = Some(NativeToast {
+                        message: "Cancelled".into(),
+                        offset: 0,
+                    });
+                }
+                _ => {}
+            }
+            return self.messages_with_snapshot();
+        }
         match input {
             DeviceInput::GridPress { x, y } => {
                 if self.dance_fx_assign.is_some() {
@@ -5312,18 +5744,47 @@ fn default_global_fx_slots() -> Vec<String> {
     vec!["none".into(); 2]
 }
 
-fn fx_slot_payload(slot_type: &str) -> Value {
-    json!({ "type": slot_type, "params": fx_default_params(slot_type) })
+fn default_global_fx_params() -> Vec<Value> {
+    vec![json!({}); 2]
+}
+
+fn fx_slot_payload_with_params(slot_type: &str, params: &Value) -> Value {
+    json!({ "type": slot_type, "params": params })
 }
 
 fn fx_default_params(slot_type: &str) -> Value {
     match slot_type {
-        "delay" => json!({ "timeMs": 250, "feedbackPct": 25, "mixPct": 20 }),
-        "duck" => json!({ "amountPct": 50, "releaseMs": 180, "source": "kick" }),
-        "reverb" => json!({ "roomPct": 45, "mixPct": 20 }),
-        "chorus" => json!({ "rateHz": 1, "depthPct": 35, "mixPct": 25 }),
-        "compressor" => json!({ "thresholdDb": -12, "ratio": 3, "makeupDb": 0 }),
-        "limiter" => json!({ "ceilingDb": -1, "releaseMs": 100 }),
+        "reverb" => json!({ "mixPct": 30, "decay": 0.72, "damp": 0.35 }),
+        "delay" => json!({ "timeMs": 250, "feedback": 0.35, "mixPct": 35 }),
+        "tremolo" => json!({ "rateHz": 4, "depthPct": 60 }),
+        "vibrato" => {
+            json!({ "rateHz": 0.8, "depthMs": 6, "baseMs": 8, "feedback": 0, "mixPct": 100 })
+        }
+        "auto_pan" => json!({ "rateHz": 0.5, "depthPct": 100 }),
+        "chorus" => {
+            json!({ "rateHz": 0.8, "depthMs": 14, "baseMs": 22, "feedback": 0, "mixPct": 45 })
+        }
+        "flanger" => {
+            json!({ "rateHz": 0.8, "depthMs": 2, "baseMs": 3, "feedback": 0.35, "mixPct": 45 })
+        }
+        "wah" => json!({ "rateHz": 1.2, "centerHz": 900, "depthPct": 70, "q": 6 }),
+        "filter_lfo" => json!({ "rateHz": 0.5, "centerHz": 1600, "depthPct": 70, "q": 1 }),
+        "duck" => {
+            json!({ "source": "I1", "threshold": 0.08, "amountPct": 60, "attackMs": 8, "releaseMs": 160 })
+        }
+        "bitcrusher" => json!({ "rateDiv": 4, "bits": 6, "mixPct": 100 }),
+        "saturator" => json!({ "drive": 1.8, "mixPct": 100 }),
+        "distortion" => json!({ "drive": 2.5, "clip": 0.6, "mixPct": 100 }),
+        "glitch" => json!({ "chancePct": 8, "sliceMs": 80, "mixPct": 100 }),
+        "compressor" => {
+            json!({ "thresholdDb": -24, "ratio": 4, "attackMs": 10, "releaseMs": 100, "makeupDb": 0, "mixPct": 100 })
+        }
+        "eq" => {
+            json!({ "lowGainDb": 0, "midGainDb": 0, "midFreqHz": 1000, "midQ": 1, "highGainDb": 0, "mixPct": 100 })
+        }
+        "vinyl" => {
+            json!({ "saturationPct": 15, "cracklePct": 8, "warpDepthPct": 5, "mixPct": 100 })
+        }
         _ => json!({}),
     }
 }
@@ -5729,6 +6190,10 @@ fn apply_instrument_binding_value(
                 "sample.amp.gainPct" => {
                     instrument.sample_gain_pct = value.round().clamp(0.0, 100.0) as u8
                 }
+                "sample.amp.velocitySensitivityPct" => {
+                    instrument.sample_amp_velocity_sensitivity_pct =
+                        value.round().clamp(0.0, 100.0) as u8
+                }
                 "sample.baseVelocity" => {
                     instrument.sample_base_velocity = value.round().clamp(1.0, 127.0) as u8
                 }
@@ -6031,7 +6496,9 @@ fn fx_bus_configs(buses: &[NativeFxBus]) -> Vec<NativeFxBusConfig> {
         .map(|bus| NativeFxBusConfig {
             name: bus.name.clone(),
             slot1_type: bus.slot1_type.clone(),
+            slot1_params: bus.slot1_params.clone(),
             slot2_type: bus.slot2_type.clone(),
+            slot2_params: bus.slot2_params.clone(),
             pan_pos: bus.pan_pos,
             auto_name: bus.auto_name,
         })
@@ -6094,6 +6561,7 @@ fn value_lane_config(lane: &NativeValueLane) -> NativeValueLaneConfig {
         from: lane.from,
         to: lane.to,
         grid_offset: lane.grid_offset,
+        curve: lane.curve.clone(),
     }
 }
 
@@ -6158,7 +6626,7 @@ fn value_lane_payload(lane: &NativeValueLane) -> Value {
         "from": lane.from,
         "to": lane.to,
         "gridOffset": lane.grid_offset,
-        "curve": "linear"
+        "curve": lane.curve
     })
 }
 
@@ -6470,6 +6938,7 @@ fn supported_param_binding_key(key: &str) -> bool {
             | "synth.amp.gainPct"
             | "sample.tuneSemis"
             | "sample.amp.gainPct"
+            | "sample.amp.velocitySensitivityPct"
             | "sample.baseVelocity"
             | "midi.enabled"
             | "midi.channel"
@@ -6762,6 +7231,13 @@ fn instrument_sample_slots(instruments: &[NativeInstrumentSlot]) -> Vec<usize> {
         .collect()
 }
 
+fn instrument_synth_configs(instruments: &[NativeInstrumentSlot]) -> Vec<Value> {
+    instruments
+        .iter()
+        .map(|instrument| instrument.synth_config.clone())
+        .collect()
+}
+
 fn instrument_synth_osc1_waveforms(instruments: &[NativeInstrumentSlot]) -> Vec<String> {
     instruments
         .iter()
@@ -6818,8 +7294,37 @@ fn synth_filter_cutoff(instrument: &NativeInstrumentSlot) -> u16 {
         .clamp(20, 20000) as u16
 }
 
+fn synth_i32_at(instrument: &NativeInstrumentSlot, path: &[&str], fallback: i32) -> i32 {
+    value_i32_at(&instrument.synth_config, path, fallback)
+}
+
 fn synth_string_at(instrument: &NativeInstrumentSlot, path: &[&str], fallback: &str) -> String {
-    let mut current = &instrument.synth_config;
+    value_string_at(&instrument.synth_config, path, fallback)
+}
+
+fn cutoff_display_to_hz(display: i32) -> i32 {
+    let t = f64::from(display.clamp(0, 255)) / 255.0;
+    (80.0 * (16_000.0_f64 / 80.0).ln().mul_add(t, 0.0).exp()).round() as i32
+}
+
+fn cutoff_hz_to_display(hz: i32) -> i32 {
+    let h = hz.clamp(80, 16_000) as f64;
+    ((h / 80.0).ln() / (16_000.0_f64 / 80.0).ln() * 255.0).round() as i32
+}
+
+fn value_i32_at(value: &Value, path: &[&str], fallback: i32) -> i32 {
+    let mut current = value;
+    for key in path {
+        let Some(next) = current.get(*key) else {
+            return fallback;
+        };
+        current = next;
+    }
+    current.as_i64().unwrap_or(i64::from(fallback)) as i32
+}
+
+fn value_string_at(value: &Value, path: &[&str], fallback: &str) -> String {
+    let mut current = value;
     for key in path {
         let Some(next) = current.get(*key) else {
             return fallback.into();
@@ -6953,6 +7458,69 @@ fn instrument_sample_gain_pct(instruments: &[NativeInstrumentSlot]) -> Vec<u8> {
     instruments
         .iter()
         .map(|instrument| instrument.sample_gain_pct)
+        .collect()
+}
+
+fn instrument_sample_base_velocity(instruments: &[NativeInstrumentSlot]) -> Vec<u8> {
+    instruments
+        .iter()
+        .map(|instrument| instrument.sample_base_velocity)
+        .collect()
+}
+
+fn instrument_sample_amp_velocity_sensitivity_pct(instruments: &[NativeInstrumentSlot]) -> Vec<u8> {
+    instruments
+        .iter()
+        .map(|instrument| instrument.sample_amp_velocity_sensitivity_pct)
+        .collect()
+}
+
+fn instrument_sample_velocity_levels_enabled(instruments: &[NativeInstrumentSlot]) -> Vec<bool> {
+    instruments
+        .iter()
+        .map(|instrument| instrument.sample_velocity_levels_enabled)
+        .collect()
+}
+
+fn instrument_sample_velocity_high(instruments: &[NativeInstrumentSlot]) -> Vec<u8> {
+    instruments
+        .iter()
+        .map(|instrument| instrument.sample_velocity_high)
+        .collect()
+}
+
+fn instrument_sample_velocity_medium(instruments: &[NativeInstrumentSlot]) -> Vec<u8> {
+    instruments
+        .iter()
+        .map(|instrument| instrument.sample_velocity_medium)
+        .collect()
+}
+
+fn instrument_sample_velocity_low(instruments: &[NativeInstrumentSlot]) -> Vec<u8> {
+    instruments
+        .iter()
+        .map(|instrument| instrument.sample_velocity_low)
+        .collect()
+}
+
+fn instrument_sample_amp_envs(instruments: &[NativeInstrumentSlot]) -> Vec<Value> {
+    instruments
+        .iter()
+        .map(|instrument| instrument.sample_amp_env.clone())
+        .collect()
+}
+
+fn instrument_sample_filters(instruments: &[NativeInstrumentSlot]) -> Vec<Value> {
+    instruments
+        .iter()
+        .map(|instrument| instrument.sample_filter.clone())
+        .collect()
+}
+
+fn instrument_sample_filter_envs(instruments: &[NativeInstrumentSlot]) -> Vec<Value> {
+    instruments
+        .iter()
+        .map(|instrument| instrument.sample_filter_env.clone())
         .collect()
 }
 
@@ -7102,7 +7670,60 @@ fn apply_value_lane_menu_state(
         -7,
         7,
     );
+    changed |= set_string_from_menu(menu, &mut lane.curve, &format!("{prefix}.curve"));
     changed
+}
+
+fn apply_fx_param_menu_state(menu: &NativeMenuModel, params: &mut Value, prefix: &str) -> bool {
+    let before = params.clone();
+    let mut map = params.as_object().cloned().unwrap_or_default();
+    if let Some(source) = menu.value_for_key(&format!("{prefix}.source")) {
+        map.insert("source".into(), json!(source));
+    }
+    for (key, scale) in [
+        ("threshold", 100.0),
+        ("amountPct", 1.0),
+        ("attackMs", 1.0),
+        ("releaseMs", 1.0),
+        ("mixPct", 1.0),
+        ("timeMs", 1.0),
+        ("feedback", 100.0),
+        ("rateHz", 100.0),
+        ("depthPct", 1.0),
+        ("drive", 10.0),
+        ("clip", 100.0),
+        ("bits", 1.0),
+        ("rateDiv", 1.0),
+        ("depthMs", 10.0),
+        ("baseMs", 10.0),
+        ("centerHz", 1.0),
+        ("q", 100.0),
+        ("decay", 1000.0),
+        ("damp", 100.0),
+        ("chancePct", 1.0),
+        ("sliceMs", 1.0),
+        ("thresholdDb", 2.0),
+        ("ratio", 2.0),
+        ("makeupDb", 2.0),
+        ("lowGainDb", 2.0),
+        ("midGainDb", 2.0),
+        ("highGainDb", 2.0),
+        ("midFreqHz", 1.0),
+        ("midQ", 100.0),
+        ("saturationPct", 1.0),
+        ("cracklePct", 1.0),
+        ("warpDepthPct", 1.0),
+    ] {
+        if let Some(value) = menu.number_for_key(&format!("{prefix}.{key}")) {
+            if scale == 1.0 {
+                map.insert(key.into(), json!(value));
+            } else {
+                map.insert(key.into(), json!(f64::from(value) / scale));
+            }
+        }
+    }
+    *params = Value::Object(map);
+    *params != before
 }
 
 fn set_u8_enum_from_menu(menu: &NativeMenuModel, target: &mut u8, key: &str, max: u8) -> bool {
@@ -7239,6 +7860,11 @@ fn apply_value_lane_payload(target: &mut NativeValueLane, payload: &Value) {
     assign_u8(payload, "from", &mut target.from, 127);
     assign_u8(payload, "to", &mut target.to, 127);
     assign_i32(payload, "gridOffset", &mut target.grid_offset, -7, 7);
+    if let Some(curve) = payload.get("curve").and_then(Value::as_str) {
+        if matches!(curve, "linear" | "curve") {
+            target.curve = curve.into();
+        }
+    }
 }
 
 fn assign_string(payload: &Value, key: &str, target: &mut String) {

@@ -121,6 +121,11 @@ No basic-functionality fallbacks are allowed during this migration. Missing menu
 - FIXED: Native sample/MIDI voice payload compatibility now includes sample `baseVelocity`, legacy `midiEngine` shape, and stateful sample `ampEnv`/`filter`/`filterEnv` round-trip instead of placeholder objects.
 - FIXED: Native System Sound/MIDI menu fields `sound.voiceStealingMode`, `midi.clockOutEnabled`, `midi.clockInEnabled`, and `midi.respondToStartStop` now persist/apply through the runner instead of being display-only/default values.
 - FIXED: Native behavior changes now remap behavior-config paramMods and aux turn/click bindings through old analogue groups and clear behavior actions when the target behavior has no primary action.
+- FIXED: Native help coverage now walks representative native menu configurations and requires every exposed target to resolve to a specific TSV row; the TSV lint also passes without fallback-style or ambiguous rows.
+- FIXED: Native L2 value-lane `Curve` now persists, loads, applies through menu edits, and round-trips in config payloads.
+- FIXED: Native scanning/detail rows, pitch/value-lane detail rows, and sampler velocity-level rows now follow the old conditional visibility rules.
+- FIXED: Native synth and sampler cutoff menus now display/edit the old compact `0..255` scale while preserving runtime Hz storage, and synth oscillator detune is restored to the old `-50..50` menu range.
+- FIXED: Native FX parameter menu display now shows human units for frequency, time, dB, percent, normalized values, and reverb decay instead of raw internal scaled values.
 
 ### Open Native Parity Deltas From Deep Audit
 
@@ -129,16 +134,16 @@ No basic-functionality fallbacks are allowed during this migration. Missing menu
 - OPEN [critical]: Pi loop does not render runtime snapshots to OLED/LEDs and only sends NeoKey press events, not releases; wire OLED, NeoTrellis/NeoKey LEDs, and button release semantics.
 - FIXED: Desktop runtime no longer imports or constructs `@cellsymphony/platform-core-runner`; non-Tauri/test use must inject a runner or native dispatch explicitly.
 - FIXED: Native preset Library `Save As` uses text draft name and emits store-save, Rename supports pick/New Name/Apply with save-then-delete cleanup, and empty lists show `(none)` refresh rows.
-- PARTIAL [high]: Native toast/status flow now covers preset save/load/delete/rename, Save Current with no loaded preset, default save/load, factory load, synth preset load, and MIDI panic; modal confirmation flows are still missing.
-- OPEN [high]: Native Voice synth menu is partial; missing oscillator octave/level/detune/pulse-width, amp/filter envelopes, env amount, key tracking, and velocity sensitivity controls.
+- FIXED: Native toast/status flow now covers preset save/load/delete/rename, Save Current with no loaded preset, default save/load, factory load, synth preset load, and MIDI panic; destructive/load/save/panic actions now use native modal confirmations.
+- FIXED: Native Voice synth menu exposes oscillator octave/level/detune/pulse-width, amp/filter envelopes, env amount, key tracking, velocity sensitivity controls, and applies them to synth config payloads.
 - FIXED: Native synth oscillator Wave, filter Type, and filter Cutoff rows now initialize from current synth state and apply back to synth config.
-- OPEN [high]: Native Sampler menu is partial; missing Velocity Levels, high/medium/low levels, Base Velocity, sample filter/filter envelope, amp velocity sensitivity, and amp envelope controls.
+- FIXED: Native Sampler menu exposes Velocity Levels, high/medium/low levels, Base Velocity, sample filter/filter envelope, amp velocity sensitivity, and amp envelope controls, and applies them to sample config payloads.
 - FIXED: Native Instrument `Note Behavior` is initialized from instrument state and propagated into `NativePartEngine.note_behaviors` for loaded and edited configs.
 - FIXED: Native MIDI instrument Channel now has `midi.channel` state/payload, loads legacy `midiEngine.channel`, edits through the menu, and remaps emitted MIDI note/CC channels.
 - FIXED: System Sound edits now sync runner global sound into active and inactive `NativePartEngine` configs immediately.
-- OPEN [high]: FX bus/global FX params are not stateful in native; native stores only slot types, writes default params, omits parameter menu rows, and loses custom params from presets/defaults.
+- FIXED: FX bus/global FX params are stateful in native; native preserves custom params from presets/defaults, exposes parameter menu rows, resets params on type changes, and serializes edited params.
 - FIXED: Instrument Clone and Reset actions are exposed in native Voice, update native instrument slots, and round-trip through aux action serialization.
-- OPEN [medium]: Native runtime snapshot/audio config shape is less complete than saved config payload; verify desktop audio receives all editable synth/sample/mixer/FX fields once menu controls are added.
+- FIXED: Native runtime snapshot/audio config shape now includes the editable synth/sample/mixer/FX fields needed by desktop, and desktop audio conversion preserves FX slot params.
 - FIXED: Native `screenSleepSeconds` now tracks last interaction, exposes splash/off display state, and wakes on device input.
 - FIXED: Fresh in-memory native defaults now match old `createInitialState()` for `masterVolume` (`73`), `autoSaveDefault` (`false`), and default note length (`120ms`).
 - FIXED: Native text field OLED formatting no longer appends `@cursor`; cursor state remains internal while editing.
@@ -202,6 +207,10 @@ Regression coverage added in this pass:
 - `sample_assignment_velocity_level_uses_configured_values`
 - `sampler_assignment_remaps_note_off_and_suppresses_unmapped_notes`
 - `config_payload_includes_complete_sample_and_fx_param_shapes`
+- `fx_slot_groups_show_selected_effect_params`
+- `fx_params_edit_into_config_payload`
+- `snapshot_settings_include_complete_audio_config_shapes`
+- `synth_payload_includes_master_fx_slots`
 - `legacy_nested_sound_and_ui_fields_rehydrate_from_payload`
 - `input_events_while_paused_false_suppresses_paused_grid_events`
 - `external_midi_realtime_respects_clock_in_and_start_stop_settings`
@@ -228,19 +237,16 @@ Regression coverage added in this pass:
 - `invalid_aux_and_xy_bindings_are_dropped_on_load`
 - `config_payload_includes_complete_sample_and_fx_param_shapes`
 - `save_grid_state_controls_saved_state_payload_and_restore`
+- `conditional_rows_follow_scan_lane_and_sampler_state`
 
-Verification after this bug-fix pass:
+Latest Rust verification after this pass:
 
 - `cargo fmt --all --check`: passed
 - `cargo test -p platform-core`: passed, 54 tests
-- `cargo test -p playback-runtime`: passed, 163 tests
+- `cargo test -p playback-runtime`: passed, 176 tests
 - `cargo test -p cellsymphony-desktop`: passed, 10 tests
 - `cargo clippy -p platform-core -p playback-runtime -p cellsymphony-desktop`: passed
-- `corepack pnpm run lint`: passed
-- `corepack pnpm run typecheck`: passed
-- `corepack pnpm run format:check`: passed
-- `corepack pnpm -r test`: passed
-- `corepack pnpm --filter @cellsymphony/desktop tauri:build`: passed
+- `corepack pnpm --filter @cellsymphony/platform-core lint:menu-help`: passed
 
 ### Execution Order
 

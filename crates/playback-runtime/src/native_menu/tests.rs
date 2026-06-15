@@ -90,6 +90,7 @@ fn config() -> NativeMenuConfig {
         instrument_volumes: vec![100],
         instrument_pan_positions: vec![16],
         instrument_sample_slots: vec![0],
+        instrument_synth_configs: vec![serde_json::json!({})],
         instrument_synth_osc1_waveforms: vec!["saw".into()],
         instrument_synth_osc2_waveforms: vec!["square".into()],
         instrument_synth_filter_types: vec!["lowpass".into()],
@@ -98,12 +99,22 @@ fn config() -> NativeMenuConfig {
         instrument_synth_filter_resonance: vec![20],
         instrument_sample_tune_semis: vec![0],
         instrument_sample_gain_pct: vec![100],
+        instrument_sample_base_velocity: vec![100],
+        instrument_sample_amp_velocity_sensitivity_pct: vec![100],
+        instrument_sample_velocity_levels_enabled: vec![false],
+        instrument_sample_velocity_high: vec![120],
+        instrument_sample_velocity_medium: vec![85],
+        instrument_sample_velocity_low: vec![45],
+        instrument_sample_amp_envs: vec![serde_json::json!({})],
+        instrument_sample_filters: vec![serde_json::json!({})],
+        instrument_sample_filter_envs: vec![serde_json::json!({})],
         instrument_midi_enabled: vec![false],
         instrument_midi_channels: vec![1],
         instrument_midi_velocity: vec![100],
         instrument_midi_duration_ms: vec![120],
         fx_buses: vec![default_fx_bus_config(); FX_BUS_COUNT],
         global_fx_slots: vec!["none".into(); GLOBAL_FX_SLOT_COUNT],
+        global_fx_params: vec![serde_json::json!({}); GLOBAL_FX_SLOT_COUNT],
         sample_browser: None,
         algorithm_step_pulses: 12,
         master_volume: 100,
@@ -406,6 +417,69 @@ fn l2_spec_rows_include_probability_mapping_and_axis_controls() {
 }
 
 #[test]
+fn conditional_rows_follow_scan_lane_and_sampler_state() {
+    let menu = NativeMenuModel::new(config());
+    let part = &menu.root.children[1].children[1];
+    let scanning = part
+        .children
+        .iter()
+        .find(|item| item.label == "Scanning")
+        .expect("scanning group");
+    assert_eq!(scanning.children.len(), 1);
+    assert_eq!(scanning.children[0].label, "Scan Mode");
+    let x_axis = part
+        .children
+        .iter()
+        .find(|item| item.label == "X Axis")
+        .expect("x axis group");
+    let velocity = x_axis
+        .children
+        .iter()
+        .find(|item| item.label == "Velocity")
+        .expect("velocity group");
+    assert_eq!(velocity.children.len(), 1);
+    assert_eq!(velocity.children[0].label, "Enabled");
+
+    let mut cfg = config();
+    cfg.sense_parts[0].scan_mode = "scanning".into();
+    cfg.sense_parts[0].x_velocity.enabled = true;
+    cfg.instrument_types[0] = "sampler".into();
+    cfg.instrument_sample_velocity_levels_enabled[0] = false;
+    let menu = NativeMenuModel::new(cfg);
+    let part = &menu.root.children[1].children[1];
+    let scanning = part
+        .children
+        .iter()
+        .find(|item| item.label == "Scanning")
+        .expect("scanning group");
+    assert!(scanning
+        .children
+        .iter()
+        .any(|item| item.label == "Scan Axis"));
+    let x_axis = part
+        .children
+        .iter()
+        .find(|item| item.label == "X Axis")
+        .expect("x axis group");
+    let velocity = x_axis
+        .children
+        .iter()
+        .find(|item| item.label == "Velocity")
+        .expect("velocity group");
+    assert!(velocity.children.iter().any(|item| item.label == "Curve"));
+    let sampler = menu.root.children[2].children[0].children[0]
+        .children
+        .iter()
+        .find(|item| item.label == "Sampler")
+        .expect("sampler group");
+    assert!(!sampler
+        .children
+        .iter()
+        .any(|item| item.label == "Velocity Levels"
+            && !matches!(item.value, NativeMenuValue::Bool { .. })));
+}
+
+#[test]
 fn l4_spec_rows_show_only_selected_dance_page_controls() {
     let menu = NativeMenuModel::new(config());
     let dance = &menu.root.children[3];
@@ -576,6 +650,32 @@ fn dance_fx_page_is_flat_and_shows_selected_type_params() {
 }
 
 #[test]
+fn fx_slot_groups_show_selected_effect_params() {
+    let mut config = config();
+    config.fx_buses[0].slot1_type = "delay".into();
+    config.fx_buses[0].slot1_params =
+        serde_json::json!({ "timeMs": 333, "feedback": 0.42, "mixPct": 44 });
+    config.global_fx_slots[0] = "vinyl".into();
+    config.global_fx_params[0] =
+        serde_json::json!({ "cracklePct": 9, "warpDepthPct": 6, "mixPct": 80 });
+
+    let mut menu = NativeMenuModel::new(config);
+    menu.state.stack = vec![2, 1, 0, 0];
+    assert!(menu
+        .current_siblings()
+        .iter()
+        .any(|item| item.label == "Feedback"
+            && matches!(item.value, NativeMenuValue::Number { value: 42, .. })));
+
+    menu.state.stack = vec![2, 2, 0];
+    assert!(menu
+        .current_siblings()
+        .iter()
+        .any(|item| item.label == "Crackle %"
+            && matches!(item.value, NativeMenuValue::Number { value: 9, .. })));
+}
+
+#[test]
 fn parameter_picker_exposes_binding_actions_for_aux_param_and_xy_targets() {
     let menu = NativeMenuModel::new(config());
     assert!(contains_set_binding(
@@ -614,20 +714,105 @@ fn aux_click_picker_exposes_assignable_actions() {
 
 #[test]
 fn native_menu_help_targets_resolve_to_specific_tsv_rows() {
-    let menu = NativeMenuModel::new(config());
-    let missing = menu
-        .help_targets()
-        .into_iter()
-        .filter(|target| target.kind != "action" || !target.key.is_empty())
-        .filter(|target| {
-            target.path == "Menu > L3: Voice > Instruments"
-                || target.path == "Menu > L3: Voice > Instruments > Instrument 1"
-                || target.key == "key:instruments.*.mixer.volume"
-        })
-        .filter(|target| crate::native_help::resolve_native_help_entry(target).is_none())
-        .map(|target| format!("{} {} {}", target.kind, target.key, target.path))
-        .collect::<Vec<_>>();
+    let mut targets = Vec::new();
+    let mut missing = Vec::new();
+    for config in representative_help_configs() {
+        let menu = NativeMenuModel::new(config);
+        targets.extend(
+            menu.help_targets()
+                .into_iter()
+                .filter(|target| target.kind != "action" || !target.key.is_empty()),
+        );
+    }
+    targets.sort_by(|a, b| (&a.kind, &a.key, &a.path).cmp(&(&b.kind, &b.key, &b.path)));
+    targets.dedup_by(|a, b| a.kind == b.kind && a.key == b.key && a.path == b.path);
+    missing.extend(
+        targets
+            .into_iter()
+            .filter(|target| crate::native_help::resolve_native_help_entry(target).is_none())
+            .map(|target| format!("{} {} {}", target.kind, target.key, target.path)),
+    );
+    missing.sort();
+    missing.dedup();
     assert!(missing.is_empty(), "missing help entries: {missing:#?}");
+}
+
+fn representative_help_configs() -> Vec<NativeMenuConfig> {
+    let mut configs = vec![config()];
+
+    let mut dynamic = config();
+    dynamic.preset_names = vec!["One".into()];
+    dynamic.preset_rename_source = Some("One".into());
+    dynamic.midi_outputs = vec![("0".into(), "Out".into())];
+    dynamic.midi_inputs = vec![("0".into(), "In".into())];
+    dynamic.sample_browser = Some(NativeSampleBrowserConfig {
+        instrument_slot: 0,
+        sample_slot: 0,
+        dir: String::new(),
+        entries: vec![
+            NativeSampleEntryConfig {
+                name: "Drums".into(),
+                path: "Drums".into(),
+                is_dir: true,
+            },
+            NativeSampleEntryConfig {
+                name: "kick.wav".into(),
+                path: "kick.wav".into(),
+                is_dir: false,
+            },
+        ],
+    });
+    configs.push(dynamic);
+
+    let mut scanning = config();
+    scanning.sense_parts[0].scan_mode = "scanning".into();
+    scanning.sense_parts[0].x_velocity.enabled = true;
+    scanning.sense_parts[0].x_filter_cutoff.enabled = true;
+    scanning.sense_parts[0].x_filter_resonance.enabled = true;
+    scanning.sense_parts[0].y_pitch_enabled = true;
+    scanning.sense_parts[0].y_velocity.enabled = true;
+    scanning.sense_parts[0].y_filter_cutoff.enabled = true;
+    scanning.sense_parts[0].y_filter_resonance.enabled = true;
+    configs.push(scanning);
+
+    for instrument_type in ["none", "synth", "sampler", "midi"] {
+        let mut cfg = config();
+        cfg.instrument_types[0] = instrument_type.into();
+        cfg.instrument_sample_velocity_levels_enabled[0] = true;
+        configs.push(cfg);
+    }
+
+    for fx_type in FX_BUS_SLOT_OPTIONS {
+        let mut cfg = config();
+        cfg.fx_buses[0].slot1_type = (*fx_type).into();
+        cfg.fx_buses[0].slot1_params = serde_json::json!({});
+        configs.push(cfg);
+    }
+
+    for fx_type in GLOBAL_FX_SLOT_OPTIONS {
+        let mut cfg = config();
+        cfg.global_fx_slots[0] = (*fx_type).into();
+        cfg.global_fx_params[0] = serde_json::json!({});
+        configs.push(cfg);
+    }
+
+    for dance_mode in ["mix", "pan", "fx", "trigger-gate", "xy"] {
+        let mut cfg = config();
+        cfg.dance_mode = dance_mode.into();
+        cfg.dance_fx_type = "stutter".into();
+        cfg.dance_fx_params
+            .insert("rateHz".into(), serde_json::json!(8));
+        configs.push(cfg);
+    }
+
+    for fx_type in ["stutter", "freeze", "filter_sweep", "pitch_shift"] {
+        let mut cfg = config();
+        cfg.dance_mode = "fx".into();
+        cfg.dance_fx_type = fx_type.into();
+        configs.push(cfg);
+    }
+
+    configs
 }
 
 #[test]

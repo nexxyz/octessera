@@ -1,4 +1,5 @@
 use crate::native_menu::NativeMenuHelpTarget;
+use std::sync::OnceLock;
 
 const MENU_HELP_TSV: &str =
     include_str!("../../../packages/platform-core/resources/menu-help-texts.tsv");
@@ -41,13 +42,13 @@ pub fn resolve_native_help(target: &NativeMenuHelpTarget) -> Option<NativeResolv
 pub fn resolve_native_help_entry(target: &NativeMenuHelpTarget) -> Option<NativeHelpEntry> {
     let mut best = None;
     let mut best_score = -1;
-    for entry in menu_help_entries() {
-        if !is_specific_entry(&entry) {
+    for entry in menu_help_entries_cached() {
+        if !is_specific_entry(entry) {
             continue;
         }
-        let score = entry_score(&entry, target);
+        let score = entry_score(entry, target);
         if score > best_score {
-            best = Some(entry);
+            best = Some(entry.clone());
             best_score = score;
         }
     }
@@ -58,7 +59,17 @@ pub fn resolve_native_help_entry(target: &NativeMenuHelpTarget) -> Option<Native
     }
 }
 
+#[allow(dead_code)]
 pub fn menu_help_entries() -> Vec<NativeHelpEntry> {
+    menu_help_entries_cached().to_vec()
+}
+
+fn menu_help_entries_cached() -> &'static Vec<NativeHelpEntry> {
+    static ENTRIES: OnceLock<Vec<NativeHelpEntry>> = OnceLock::new();
+    ENTRIES.get_or_init(parse_menu_help_entries)
+}
+
+fn parse_menu_help_entries() -> Vec<NativeHelpEntry> {
     MENU_HELP_TSV
         .lines()
         .filter(|line| {

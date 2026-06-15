@@ -648,9 +648,16 @@ fn canonicalize_help_path(path: &str) -> String {
 }
 
 fn canonicalize_help_key(key: &str) -> String {
-    key.split('.')
-        .map(|part| {
-            if part.chars().all(|ch| ch.is_ascii_digit()) {
+    let parts = key.split('.').collect::<Vec<_>>();
+    parts
+        .iter()
+        .enumerate()
+        .map(|(index, part)| {
+            if part.chars().all(|ch| ch.is_ascii_digit())
+                && !(index >= 4
+                    && parts.get(index - 2) == Some(&"paramMods")
+                    && matches!(parts.get(index - 1), Some(&"x") | Some(&"y")))
+            {
                 "*"
             } else {
                 part
@@ -677,8 +684,8 @@ fn menu_action_help_key(action: &NativeMenuAction) -> String {
             "preset.saveCurrent" => "action:preset_save_current".into(),
             "preset.refresh" => "action:refresh_presets".into(),
             "preset.renameApply" => "action:preset_rename_apply".into(),
-            "default.save" => "action:store_save_default".into(),
-            "default.load" => "action:store_load_default".into(),
+            "default.save" => "action:default_save".into(),
+            "default.load" => "action:default_load".into(),
             "factory.load" => "action:factory_load".into(),
             "midi.panic" => "action:midi_panic".into(),
             "dance.fx.map" => "action:fx_assign_enter".into(),
@@ -707,6 +714,9 @@ fn menu_action_help_key(action: &NativeMenuAction) -> String {
             value if value.starts_with("sample.preview:") => "action:sample_preview".into(),
             value if value.starts_with("sample.assign:") => "action:sample_assign_enter".into(),
             value if value.starts_with("synth.preset:") => "action:synth_preset_load".into(),
+            value if value.starts_with("trigger.probability.assign:") => {
+                "action:trigger_probability_assign_enter".into()
+            }
             value => format!("action:{value}"),
         },
     }
@@ -955,6 +965,9 @@ fn format_display_value(key: Option<&str>, value: impl ToString) -> String {
     if key.ends_with("pitch.scale") {
         return format_scale_name(&raw);
     }
+    if key.contains(".params.") {
+        return format_fx_param_display(key, raw.parse::<i32>().unwrap_or(0));
+    }
     if key.ends_with("Pct") || key.ends_with("Percent") {
         return format!("{}%", raw.parse::<i32>().unwrap_or(0));
     }
@@ -966,6 +979,61 @@ fn format_display_value(key: Option<&str>, value: impl ToString) -> String {
         return format!("{ms}ms");
     }
     raw
+}
+
+fn format_fx_param_display(key: &str, value: i32) -> String {
+    if key.ends_with(".decay") {
+        return format_reverb_decay_seconds(value as f64 / 1000.0);
+    }
+    if key.ends_with("Hz") {
+        return format_fixed_unit(value as f64 / 100.0, "Hz");
+    }
+    if key.ends_with("Db") || key.ends_with("GainDb") || key.ends_with("thresholdDb") {
+        return format!("{:+.1}dB", value as f64 / 2.0);
+    }
+    if key.ends_with("feedback")
+        || key.ends_with("threshold")
+        || key.ends_with("clip")
+        || key.ends_with("q")
+        || key.ends_with("midQ")
+    {
+        return format_fixed(value as f64 / 100.0, 2);
+    }
+    if key.ends_with("drive") || key.ends_with("depthMs") || key.ends_with("baseMs") {
+        return format_fixed(value as f64 / 10.0, 1);
+    }
+    if key.ends_with("ratio") {
+        return format_fixed(value as f64 / 2.0, 1);
+    }
+    if key.ends_with("Pct") {
+        return format!("{value}%");
+    }
+    if key.ends_with("Ms") {
+        if value.abs() >= 1000 {
+            return format!("{:.1}s", value as f32 / 1000.0);
+        }
+        return format!("{value}ms");
+    }
+    value.to_string()
+}
+
+fn format_fixed_unit(value: f64, unit: &str) -> String {
+    format!("{}{unit}", format_fixed(value, 2))
+}
+
+fn format_fixed(value: f64, digits: usize) -> String {
+    let text = format!("{value:.digits$}");
+    text.trim_end_matches('0').trim_end_matches('.').to_string()
+}
+
+fn format_reverb_decay_seconds(value: f64) -> String {
+    let feedback = value.clamp(0.0, 0.995);
+    if feedback <= 0.0 {
+        return "0.0s".into();
+    }
+    let average_delay_seconds = ((1557.0 + 1617.0 + 1491.0 + 1422.0) / 4.0) / 44_100.0;
+    let seconds = (-3.0 * average_delay_seconds) / feedback.log10();
+    format!("{seconds:.1}s")
 }
 
 fn is_marker_bar_key(key: &str) -> bool {
@@ -1208,6 +1276,7 @@ fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
                                         .get(index)
                                         .copied()
                                         .unwrap_or(0),
+                                    synth_config: config.instrument_synth_configs.get(index),
                                     synth_osc1_waveform: config
                                         .instrument_synth_osc1_waveforms
                                         .get(index)
@@ -1248,6 +1317,41 @@ fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
                                         .get(index)
                                         .copied()
                                         .unwrap_or(100),
+                                    sample_base_velocity: config
+                                        .instrument_sample_base_velocity
+                                        .get(index)
+                                        .copied()
+                                        .unwrap_or(100),
+                                    sample_amp_velocity_sensitivity_pct: config
+                                        .instrument_sample_amp_velocity_sensitivity_pct
+                                        .get(index)
+                                        .copied()
+                                        .unwrap_or(100),
+                                    sample_velocity_levels_enabled: config
+                                        .instrument_sample_velocity_levels_enabled
+                                        .get(index)
+                                        .copied()
+                                        .unwrap_or(false),
+                                    sample_velocity_high: config
+                                        .instrument_sample_velocity_high
+                                        .get(index)
+                                        .copied()
+                                        .unwrap_or(120),
+                                    sample_velocity_medium: config
+                                        .instrument_sample_velocity_medium
+                                        .get(index)
+                                        .copied()
+                                        .unwrap_or(85),
+                                    sample_velocity_low: config
+                                        .instrument_sample_velocity_low
+                                        .get(index)
+                                        .copied()
+                                        .unwrap_or(45),
+                                    sample_amp_env: config.instrument_sample_amp_envs.get(index),
+                                    sample_filter: config.instrument_sample_filters.get(index),
+                                    sample_filter_env: config
+                                        .instrument_sample_filter_envs
+                                        .get(index),
                                     midi_enabled: config
                                         .instrument_midi_enabled
                                         .get(index)
@@ -1274,7 +1378,7 @@ fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
                             .collect(),
                     },
                     fx_buses_group(&config.fx_buses),
-                    global_fx_group(&config.global_fx_slots),
+                    global_fx_group(&config.global_fx_slots, &config.global_fx_params),
                 ],
             },
             dance_group(&config),
@@ -2337,6 +2441,7 @@ fn value_lane_config(from: u8, to: u8) -> NativeValueLaneConfig {
         from,
         to,
         grid_offset: 0,
+        curve: "linear".into(),
     }
 }
 
@@ -2357,71 +2462,71 @@ fn l2_part_group(
     };
     let default_sense = default_sense_part_config();
     let sense = sense.unwrap_or(&default_sense);
+    let mut scanning_children = vec![enum_item(
+        "Scan Mode",
+        format!("{prefix}.scanMode"),
+        vec!["immediate", "scanning"],
+        selected_index(&["immediate", "scanning"], &sense.scan_mode),
+    )];
+    if sense.scan_mode == "scanning" {
+        scanning_children.extend(vec![
+            enum_item(
+                "Scan Axis",
+                format!("{prefix}.scanAxis"),
+                vec!["rows", "columns"],
+                selected_index(&["rows", "columns"], &sense.scan_axis),
+            ),
+            enum_item(
+                "Scan Unit",
+                format!("{prefix}.scanUnit"),
+                vec!["1/16", "1/8", "1/4", "1/2", "1/1"],
+                selected_index(&["1/16", "1/8", "1/4", "1/2", "1/1"], &sense.scan_unit),
+            ),
+            enum_item(
+                "Scan Direction",
+                format!("{prefix}.scanDirection"),
+                vec!["forward", "reverse"],
+                selected_index(&["forward", "reverse"], &sense.scan_direction),
+            ),
+            enum_item(
+                "Sections",
+                format!("{prefix}.scanSections"),
+                vec!["1", "2", "4", "8"],
+                selected_index(&["1", "2", "4", "8"], &sense.scan_sections.to_string()),
+            ),
+            enum_item_from_strings(
+                "Instrument",
+                format!("{prefix}.mapping.scanned.slot"),
+                instrument_options.clone(),
+                slot_option_selected(sense.scanned_slot, instrument_options.len()),
+            ),
+            enum_item(
+                "Action",
+                format!("{prefix}.mapping.scanned.action"),
+                vec!["none", "note_on", "note_off"],
+                selected_index(&["none", "note_on", "note_off"], &sense.scanned_action),
+            ),
+            enum_item_from_strings(
+                "Empty Instrument",
+                format!("{prefix}.mapping.scanned_empty.slot"),
+                instrument_options.clone(),
+                slot_option_selected(sense.scanned_empty_slot, instrument_options.len()),
+            ),
+            enum_item(
+                "Empty Action",
+                format!("{prefix}.mapping.scanned_empty.action"),
+                vec!["none", "note_on", "note_off"],
+                selected_index(
+                    &["none", "note_on", "note_off"],
+                    &sense.scanned_empty_action,
+                ),
+            ),
+        ]);
+    }
     group(
         label,
         vec![
-            group(
-                "Scanning",
-                vec![
-                    enum_item(
-                        "Scan Mode",
-                        format!("{prefix}.scanMode"),
-                        vec!["immediate", "scanning"],
-                        selected_index(&["immediate", "scanning"], &sense.scan_mode),
-                    ),
-                    enum_item(
-                        "Scan Axis",
-                        format!("{prefix}.scanAxis"),
-                        vec!["rows", "columns"],
-                        selected_index(&["rows", "columns"], &sense.scan_axis),
-                    ),
-                    enum_item(
-                        "Scan Unit",
-                        format!("{prefix}.scanUnit"),
-                        vec!["1/16", "1/8", "1/4", "1/2", "1/1"],
-                        selected_index(&["1/16", "1/8", "1/4", "1/2", "1/1"], &sense.scan_unit),
-                    ),
-                    enum_item(
-                        "Scan Direction",
-                        format!("{prefix}.scanDirection"),
-                        vec!["forward", "reverse"],
-                        selected_index(&["forward", "reverse"], &sense.scan_direction),
-                    ),
-                    enum_item(
-                        "Sections",
-                        format!("{prefix}.scanSections"),
-                        vec!["1", "2", "4", "8"],
-                        selected_index(&["1", "2", "4", "8"], &sense.scan_sections.to_string()),
-                    ),
-                    enum_item_from_strings(
-                        "Instrument",
-                        format!("{prefix}.mapping.scanned.slot"),
-                        instrument_options.clone(),
-                        slot_option_selected(sense.scanned_slot, instrument_options.len()),
-                    ),
-                    enum_item(
-                        "Action",
-                        format!("{prefix}.mapping.scanned.action"),
-                        vec!["none", "note_on", "note_off"],
-                        selected_index(&["none", "note_on", "note_off"], &sense.scanned_action),
-                    ),
-                    enum_item_from_strings(
-                        "Empty Instrument",
-                        format!("{prefix}.mapping.scanned_empty.slot"),
-                        instrument_options.clone(),
-                        slot_option_selected(sense.scanned_empty_slot, instrument_options.len()),
-                    ),
-                    enum_item(
-                        "Empty Action",
-                        format!("{prefix}.mapping.scanned_empty.action"),
-                        vec!["none", "note_on", "note_off"],
-                        selected_index(
-                            &["none", "note_on", "note_off"],
-                            &sense.scanned_empty_action,
-                        ),
-                    ),
-                ],
-            ),
+            group("Scanning", scanning_children),
             group(
                 "Events",
                 vec![
@@ -2679,32 +2784,32 @@ struct AxisMenuConfig<'a> {
 }
 
 fn axis_group(prefix: &str, label: &str, config: AxisMenuConfig<'_>) -> NativeMenuItem {
+    let mut pitch_children = vec![bool_item(
+        "Enabled",
+        format!("{prefix}.pitch.enabled"),
+        config.pitch_enabled,
+    )];
+    if config.pitch_enabled {
+        pitch_children.extend(vec![
+            number_item(
+                "Steps",
+                format!("{prefix}.pitch.steps"),
+                config.pitch_steps,
+                -16,
+                16,
+                1,
+            ),
+            bool_item(
+                "Restart Section",
+                format!("{prefix}.pitch.restartEachSection"),
+                config.restart_each_section,
+            ),
+        ]);
+    }
     group(
         label,
         vec![
-            group(
-                "Pitch Steps",
-                vec![
-                    bool_item(
-                        "Enabled",
-                        format!("{prefix}.pitch.enabled"),
-                        config.pitch_enabled,
-                    ),
-                    number_item(
-                        "Steps",
-                        format!("{prefix}.pitch.steps"),
-                        config.pitch_steps,
-                        -16,
-                        16,
-                        1,
-                    ),
-                    bool_item(
-                        "Restart Section",
-                        format!("{prefix}.pitch.restartEachSection"),
-                        config.restart_each_section,
-                    ),
-                ],
-            ),
+            group("Pitch Steps", pitch_children),
             lane_group(
                 "Velocity",
                 &format!("{prefix}.velocity"),
@@ -2733,10 +2838,13 @@ fn lane_group(
     lane: &NativeValueLaneConfig,
     offset_limit: i32,
 ) -> NativeMenuItem {
-    group(
-        label,
-        vec![
-            bool_item("Enabled", format!("{prefix}.enabled"), lane.enabled),
+    let mut children = vec![bool_item(
+        "Enabled",
+        format!("{prefix}.enabled"),
+        lane.enabled,
+    )];
+    if lane.enabled {
+        children.extend(vec![
             number_item(
                 "From",
                 format!("{prefix}.from"),
@@ -2758,10 +2866,11 @@ fn lane_group(
                 "Curve",
                 format!("{prefix}.curve"),
                 vec!["linear", "curve"],
-                0,
+                selected_index(&["linear", "curve"], &lane.curve),
             ),
-        ],
-    )
+        ]);
+    }
+    group(label, children)
 }
 
 fn enum_item_from_strings(
@@ -2789,6 +2898,7 @@ struct InstrumentMenuConfig<'a> {
     volume: u8,
     pan_pos: u8,
     sample_slot: usize,
+    synth_config: Option<&'a serde_json::Value>,
     synth_osc1_waveform: &'a str,
     synth_osc2_waveform: &'a str,
     synth_filter_type: &'a str,
@@ -2797,6 +2907,15 @@ struct InstrumentMenuConfig<'a> {
     synth_filter_resonance: u8,
     sample_tune_semis: i8,
     sample_gain_pct: u8,
+    sample_base_velocity: u8,
+    sample_amp_velocity_sensitivity_pct: u8,
+    sample_velocity_levels_enabled: bool,
+    sample_velocity_high: u8,
+    sample_velocity_medium: u8,
+    sample_velocity_low: u8,
+    sample_amp_env: Option<&'a serde_json::Value>,
+    sample_filter: Option<&'a serde_json::Value>,
+    sample_filter_env: Option<&'a serde_json::Value>,
     midi_enabled: bool,
     midi_channel: u8,
     midi_velocity: u8,
@@ -2816,6 +2935,7 @@ fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuItem {
         volume,
         pan_pos,
         sample_slot,
+        synth_config,
         synth_osc1_waveform,
         synth_osc2_waveform,
         synth_filter_type,
@@ -2824,6 +2944,15 @@ fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuItem {
         synth_filter_resonance,
         sample_tune_semis,
         sample_gain_pct,
+        sample_base_velocity,
+        sample_amp_velocity_sensitivity_pct,
+        sample_velocity_levels_enabled,
+        sample_velocity_high,
+        sample_velocity_medium,
+        sample_velocity_low,
+        sample_amp_env,
+        sample_filter,
+        sample_filter_env,
         midi_enabled,
         midi_channel,
         midi_velocity,
@@ -2861,27 +2990,95 @@ fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuItem {
                     vec![
                         group(
                             "Osc 1",
-                            vec![enum_item(
-                                "Wave",
-                                format!("{prefix}.synth.osc1.waveform"),
-                                vec!["sine", "triangle", "saw", "square", "pulse"],
-                                selected_index(
-                                    &["sine", "triangle", "saw", "square", "pulse"],
-                                    synth_osc1_waveform,
+                            vec![
+                                enum_item(
+                                    "Wave",
+                                    format!("{prefix}.synth.osc1.waveform"),
+                                    vec!["sine", "triangle", "saw", "square", "pulse"],
+                                    selected_index(
+                                        &["sine", "triangle", "saw", "square", "pulse"],
+                                        synth_osc1_waveform,
+                                    ),
                                 ),
-                            )],
+                                number_item(
+                                    "Octave",
+                                    format!("{prefix}.synth.osc1.octave"),
+                                    synth_number(synth_config, &["osc1", "octave"], 0),
+                                    -2,
+                                    2,
+                                    1,
+                                ),
+                                number_item(
+                                    "Level",
+                                    format!("{prefix}.synth.osc1.levelPct"),
+                                    synth_number(synth_config, &["osc1", "levelPct"], 80),
+                                    0,
+                                    100,
+                                    1,
+                                ),
+                                number_item(
+                                    "Detune",
+                                    format!("{prefix}.synth.osc1.detuneCents"),
+                                    synth_number(synth_config, &["osc1", "detuneCents"], 0),
+                                    -50,
+                                    50,
+                                    1,
+                                ),
+                                number_item(
+                                    "Pulse Width",
+                                    format!("{prefix}.synth.osc1.pulseWidthPct"),
+                                    synth_number(synth_config, &["osc1", "pulseWidthPct"], 50),
+                                    5,
+                                    95,
+                                    1,
+                                ),
+                            ],
                         ),
                         group(
                             "Osc 2",
-                            vec![enum_item(
-                                "Wave",
-                                format!("{prefix}.synth.osc2.waveform"),
-                                vec!["sine", "triangle", "saw", "square", "pulse"],
-                                selected_index(
-                                    &["sine", "triangle", "saw", "square", "pulse"],
-                                    synth_osc2_waveform,
+                            vec![
+                                enum_item(
+                                    "Wave",
+                                    format!("{prefix}.synth.osc2.waveform"),
+                                    vec!["sine", "triangle", "saw", "square", "pulse"],
+                                    selected_index(
+                                        &["sine", "triangle", "saw", "square", "pulse"],
+                                        synth_osc2_waveform,
+                                    ),
                                 ),
-                            )],
+                                number_item(
+                                    "Octave",
+                                    format!("{prefix}.synth.osc2.octave"),
+                                    synth_number(synth_config, &["osc2", "octave"], 0),
+                                    -2,
+                                    2,
+                                    1,
+                                ),
+                                number_item(
+                                    "Level",
+                                    format!("{prefix}.synth.osc2.levelPct"),
+                                    synth_number(synth_config, &["osc2", "levelPct"], 72),
+                                    0,
+                                    100,
+                                    1,
+                                ),
+                                number_item(
+                                    "Detune",
+                                    format!("{prefix}.synth.osc2.detuneCents"),
+                                    synth_number(synth_config, &["osc2", "detuneCents"], 0),
+                                    -50,
+                                    50,
+                                    1,
+                                ),
+                                number_item(
+                                    "Pulse Width",
+                                    format!("{prefix}.synth.osc2.pulseWidthPct"),
+                                    synth_number(synth_config, &["osc2", "pulseWidthPct"], 50),
+                                    5,
+                                    95,
+                                    1,
+                                ),
+                            ],
                         ),
                     ],
                 ),
@@ -2900,10 +3097,10 @@ fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuItem {
                         number_item(
                             "Cutoff",
                             format!("{prefix}.synth.filter.cutoffHz"),
-                            i32::from(synth_filter_cutoff),
-                            20,
-                            20000,
-                            100,
+                            cutoff_hz_to_display(i32::from(synth_filter_cutoff)),
+                            0,
+                            255,
+                            1,
                         ),
                         number_item(
                             "Res",
@@ -2913,59 +3110,188 @@ fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuItem {
                             255,
                             1,
                         ),
+                        number_item(
+                            "Env Amount",
+                            format!("{prefix}.synth.filter.envAmountPct"),
+                            synth_number(synth_config, &["filter", "envAmountPct"], 0),
+                            -100,
+                            100,
+                            1,
+                        ),
+                        number_item(
+                            "Key Tracking",
+                            format!("{prefix}.synth.filter.keyTrackingPct"),
+                            synth_number(synth_config, &["filter", "keyTrackingPct"], 0),
+                            0,
+                            100,
+                            1,
+                        ),
                     ],
                 ),
                 group(
                     "Volume",
-                    vec![number_item(
-                        "Gain",
-                        format!("{prefix}.synth.amp.gainPct"),
-                        i32::from(synth_gain_pct),
-                        0,
-                        100,
-                        1,
-                    )],
+                    vec![
+                        number_item(
+                            "Gain",
+                            format!("{prefix}.synth.amp.gainPct"),
+                            i32::from(synth_gain_pct),
+                            0,
+                            100,
+                            1,
+                        ),
+                        number_item(
+                            "Velocity Sens",
+                            format!("{prefix}.synth.amp.velocitySensitivityPct"),
+                            synth_number(synth_config, &["amp", "velocitySensitivityPct"], 100),
+                            0,
+                            100,
+                            1,
+                        ),
+                    ],
                 ),
+                synth_env_group("Amp Env", &prefix, "ampEnv", synth_config),
+                synth_env_group("Filter Env", &prefix, "filterEnv", synth_config),
             ],
         ));
     }
     if kind == "sampler" {
-        children.push(group(
-            "Sampler",
-            vec![
-                enum_item(
-                    "Sample Slot",
-                    format!("{prefix}.sample.selectedSlot"),
-                    vec!["1", "2", "3", "4", "5", "6", "7", "8"],
-                    sample_slot.min(7),
+        let mut sampler_children = vec![
+            enum_item(
+                "Sample Slot",
+                format!("{prefix}.sample.selectedSlot"),
+                vec!["1", "2", "3", "4", "5", "6", "7", "8"],
+                sample_slot.min(7),
+            ),
+            sample_browser_group(index, sample_slot.min(7), sample_browser),
+            action_item(
+                "Assign",
+                format!("sample.assign.{index}.{}", sample_slot.min(7)),
+                NativeMenuAction::PlatformEffect(format!(
+                    "sample.assign:{index}:{}",
+                    sample_slot.min(7)
+                )),
+            ),
+            number_item(
+                "Tune",
+                format!("{prefix}.sample.tuneSemis"),
+                i32::from(sample_tune_semis),
+                -24,
+                24,
+                1,
+            ),
+            number_item(
+                "Gain",
+                format!("{prefix}.sample.amp.gainPct"),
+                i32::from(sample_gain_pct),
+                0,
+                100,
+                1,
+            ),
+            number_item(
+                "Base Velocity",
+                format!("{prefix}.sample.baseVelocity"),
+                i32::from(sample_base_velocity),
+                1,
+                127,
+                1,
+            ),
+            bool_item(
+                "Velocity Levels",
+                format!("{prefix}.sample.velocityLevelsEnabled"),
+                sample_velocity_levels_enabled,
+            ),
+            group(
+                "Filter",
+                vec![
+                    enum_item(
+                        "Type",
+                        format!("{prefix}.sample.filter.type"),
+                        vec!["lowpass", "highpass", "bandpass", "notch"],
+                        selected_index(
+                            &["lowpass", "highpass", "bandpass", "notch"],
+                            sample_string(sample_filter, &["type"], "lowpass").as_str(),
+                        ),
+                    ),
+                    number_item(
+                        "Cutoff",
+                        format!("{prefix}.sample.filter.cutoffHz"),
+                        cutoff_hz_to_display(sample_number(sample_filter, &["cutoffHz"], 8000)),
+                        0,
+                        255,
+                        1,
+                    ),
+                    number_item(
+                        "Res",
+                        format!("{prefix}.sample.filter.resonance"),
+                        sample_number(sample_filter, &["resonance"], 20),
+                        0,
+                        255,
+                        1,
+                    ),
+                    number_item(
+                        "Env Amount",
+                        format!("{prefix}.sample.filter.envAmountPct"),
+                        sample_number(sample_filter, &["envAmountPct"], 0),
+                        -100,
+                        100,
+                        1,
+                    ),
+                    number_item(
+                        "Key Tracking",
+                        format!("{prefix}.sample.filter.keyTrackingPct"),
+                        sample_number(sample_filter, &["keyTrackingPct"], 0),
+                        0,
+                        100,
+                        1,
+                    ),
+                ],
+            ),
+            number_item(
+                "Velocity Sens",
+                format!("{prefix}.sample.amp.velocitySensitivityPct"),
+                i32::from(sample_amp_velocity_sensitivity_pct),
+                0,
+                100,
+                1,
+            ),
+            sample_env_group("Amp Env", &prefix, "ampEnv", sample_amp_env),
+            sample_env_group("Filter Env", &prefix, "filterEnv", sample_filter_env),
+        ];
+        if sample_velocity_levels_enabled {
+            sampler_children.insert(
+                7,
+                group(
+                    "Velocity Levels",
+                    vec![
+                        number_item(
+                            "High",
+                            format!("{prefix}.sample.velocityLevels.high"),
+                            i32::from(sample_velocity_high),
+                            1,
+                            127,
+                            1,
+                        ),
+                        number_item(
+                            "Medium",
+                            format!("{prefix}.sample.velocityLevels.medium"),
+                            i32::from(sample_velocity_medium),
+                            1,
+                            127,
+                            1,
+                        ),
+                        number_item(
+                            "Low",
+                            format!("{prefix}.sample.velocityLevels.low"),
+                            i32::from(sample_velocity_low),
+                            1,
+                            127,
+                            1,
+                        ),
+                    ],
                 ),
-                sample_browser_group(index, sample_slot.min(7), sample_browser),
-                action_item(
-                    "Assign",
-                    format!("sample.assign.{index}.{}", sample_slot.min(7)),
-                    NativeMenuAction::PlatformEffect(format!(
-                        "sample.assign:{index}:{}",
-                        sample_slot.min(7)
-                    )),
-                ),
-                number_item(
-                    "Tune",
-                    format!("{prefix}.sample.tuneSemis"),
-                    i32::from(sample_tune_semis),
-                    -24,
-                    24,
-                    1,
-                ),
-                number_item(
-                    "Gain",
-                    format!("{prefix}.sample.amp.gainPct"),
-                    i32::from(sample_gain_pct),
-                    0,
-                    100,
-                    1,
-                ),
-            ],
-        ));
+            );
+        }
+        children.push(group("Sampler", sampler_children));
     }
     if kind == "midi" {
         children.push(group(
@@ -3048,6 +3374,140 @@ fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuItem {
         NativeMenuAction::ResetInstrument { index },
     ));
     group(label, children)
+}
+
+fn synth_env_group(
+    label: &str,
+    prefix: &str,
+    env_key: &str,
+    synth_config: Option<&serde_json::Value>,
+) -> NativeMenuItem {
+    group(
+        label,
+        vec![
+            number_item(
+                "Attack",
+                format!("{prefix}.synth.{env_key}.attackMs"),
+                synth_number(synth_config, &[env_key, "attackMs"], 5),
+                0,
+                5000,
+                5,
+            ),
+            number_item(
+                "Decay",
+                format!("{prefix}.synth.{env_key}.decayMs"),
+                synth_number(synth_config, &[env_key, "decayMs"], 120),
+                0,
+                5000,
+                5,
+            ),
+            number_item(
+                "Sustain",
+                format!("{prefix}.synth.{env_key}.sustainPct"),
+                synth_number(synth_config, &[env_key, "sustainPct"], 70),
+                0,
+                100,
+                1,
+            ),
+            number_item(
+                "Release",
+                format!("{prefix}.synth.{env_key}.releaseMs"),
+                synth_number(synth_config, &[env_key, "releaseMs"], 180),
+                0,
+                10000,
+                5,
+            ),
+        ],
+    )
+}
+
+fn synth_number(config: Option<&serde_json::Value>, path: &[&str], fallback: i32) -> i32 {
+    let Some(mut current) = config else {
+        return fallback;
+    };
+    for key in path {
+        let Some(next) = current.get(*key) else {
+            return fallback;
+        };
+        current = next;
+    }
+    current.as_i64().unwrap_or(i64::from(fallback)) as i32
+}
+
+fn sample_env_group(
+    label: &str,
+    prefix: &str,
+    env_key: &str,
+    config: Option<&serde_json::Value>,
+) -> NativeMenuItem {
+    group(
+        label,
+        vec![
+            number_item(
+                "Attack",
+                format!("{prefix}.sample.{env_key}.attackMs"),
+                sample_number(config, &["attackMs"], 5),
+                0,
+                5000,
+                5,
+            ),
+            number_item(
+                "Decay",
+                format!("{prefix}.sample.{env_key}.decayMs"),
+                sample_number(config, &["decayMs"], 120),
+                0,
+                5000,
+                5,
+            ),
+            number_item(
+                "Sustain",
+                format!("{prefix}.sample.{env_key}.sustainPct"),
+                sample_number(config, &["sustainPct"], 70),
+                0,
+                100,
+                1,
+            ),
+            number_item(
+                "Release",
+                format!("{prefix}.sample.{env_key}.releaseMs"),
+                sample_number(config, &["releaseMs"], 180),
+                0,
+                10000,
+                5,
+            ),
+        ],
+    )
+}
+
+fn sample_number(config: Option<&serde_json::Value>, path: &[&str], fallback: i32) -> i32 {
+    let Some(mut current) = config else {
+        return fallback;
+    };
+    for key in path {
+        let Some(next) = current.get(*key) else {
+            return fallback;
+        };
+        current = next;
+    }
+    current.as_i64().unwrap_or(i64::from(fallback)) as i32
+}
+
+fn cutoff_hz_to_display(hz: i32) -> i32 {
+    let h = hz.clamp(80, 16_000) as f64;
+    ((h / 80.0).ln() / (16_000.0_f64 / 80.0).ln() * 255.0).round() as i32
+}
+
+fn sample_string(config: Option<&serde_json::Value>, path: &[&str], fallback: &str) -> String {
+    let Some(mut current) = config else {
+        return fallback.into();
+    };
+    for key in path {
+        let Some(next) = current.get(*key) else {
+            return fallback.into();
+        };
+        current = next;
+    }
+    current.as_str().unwrap_or(fallback).into()
 }
 
 fn synth_preset_items(index: usize) -> Vec<NativeMenuItem> {
@@ -3139,17 +3599,21 @@ fn fx_buses_group(config: &[NativeFxBusConfig]) -> NativeMenuItem {
                 group(
                     format!("B{}: {}", bus_index + 1, bus.name),
                     vec![
-                        enum_item(
+                        fx_slot_group(
                             "Slot 1",
-                            format!("{prefix}.slot1.type"),
-                            FX_BUS_SLOT_OPTIONS.to_vec(),
-                            selected_index(FX_BUS_SLOT_OPTIONS, &bus.slot1_type),
+                            &format!("{prefix}.slot1"),
+                            &bus.slot1_type,
+                            &bus.slot1_params,
+                            FX_BUS_SLOT_OPTIONS,
+                            Some(bus_index),
                         ),
-                        enum_item(
+                        fx_slot_group(
                             "Slot 2",
-                            format!("{prefix}.slot2.type"),
-                            FX_BUS_SLOT_OPTIONS.to_vec(),
-                            selected_index(FX_BUS_SLOT_OPTIONS, &bus.slot2_type),
+                            &format!("{prefix}.slot2"),
+                            &bus.slot2_type,
+                            &bus.slot2_params,
+                            FX_BUS_SLOT_OPTIONS,
+                            Some(bus_index),
                         ),
                         number_item(
                             "Pan Pos",
@@ -3168,32 +3632,364 @@ fn fx_buses_group(config: &[NativeFxBusConfig]) -> NativeMenuItem {
     )
 }
 
-fn global_fx_group(config: &[String]) -> NativeMenuItem {
+fn global_fx_group(config: &[String], params: &[serde_json::Value]) -> NativeMenuItem {
     group(
         "Global FX",
         (0..GLOBAL_FX_SLOT_COUNT)
             .map(|slot_index| {
                 let prefix = format!("mixer.master.slots.{slot_index}");
                 let slot_type = config.get(slot_index).map(String::as_str).unwrap_or("none");
+                let slot_params = params.get(slot_index).unwrap_or(&serde_json::Value::Null);
                 group(
                     format!("Slot {}", slot_index + 1),
-                    vec![enum_item(
-                        "Type",
-                        format!("{prefix}.type"),
-                        GLOBAL_FX_SLOT_OPTIONS.to_vec(),
-                        selected_index(GLOBAL_FX_SLOT_OPTIONS, slot_type),
-                    )],
+                    fx_slot_children(
+                        &prefix,
+                        slot_type,
+                        slot_params,
+                        GLOBAL_FX_SLOT_OPTIONS,
+                        None,
+                    ),
                 )
             })
             .collect(),
     )
 }
 
+fn fx_slot_group(
+    label: impl Into<String>,
+    prefix: &str,
+    slot_type: &str,
+    params: &serde_json::Value,
+    options: &[&str],
+    bus_index: Option<usize>,
+) -> NativeMenuItem {
+    group(
+        label,
+        fx_slot_children(prefix, slot_type, params, options, bus_index),
+    )
+}
+
+fn fx_slot_children(
+    prefix: &str,
+    slot_type: &str,
+    params: &serde_json::Value,
+    options: &[&str],
+    bus_index: Option<usize>,
+) -> Vec<NativeMenuItem> {
+    let mut children = vec![enum_item(
+        "Type",
+        format!("{prefix}.type"),
+        options.to_vec(),
+        selected_index(options, slot_type),
+    )];
+    children.extend(fx_param_items(
+        slot_type,
+        &format!("{prefix}.params"),
+        params,
+        bus_index,
+    ));
+    children
+}
+
+fn fx_param_items(
+    slot_type: &str,
+    prefix: &str,
+    params: &serde_json::Value,
+    bus_index: Option<usize>,
+) -> Vec<NativeMenuItem> {
+    match slot_type {
+        "duck" => {
+            let options = duck_source_options(bus_index.unwrap_or(usize::MAX));
+            vec![
+                enum_item_from_strings(
+                    "Source",
+                    format!("{prefix}.source"),
+                    options.clone(),
+                    options
+                        .iter()
+                        .position(|option| option == &fx_param_string(params, "source", "I1"))
+                        .unwrap_or(0),
+                ),
+                fx_number_item(
+                    "Threshold",
+                    prefix,
+                    params,
+                    "threshold",
+                    0,
+                    100,
+                    1,
+                    100.0,
+                    0.08,
+                ),
+                fx_number_item(
+                    "Amount %",
+                    prefix,
+                    params,
+                    "amountPct",
+                    0,
+                    100,
+                    1,
+                    1.0,
+                    60.0,
+                ),
+                fx_number_item("Attack ms", prefix, params, "attackMs", 1, 500, 1, 1.0, 8.0),
+                fx_number_item(
+                    "Release ms",
+                    prefix,
+                    params,
+                    "releaseMs",
+                    1,
+                    5000,
+                    5,
+                    1.0,
+                    160.0,
+                ),
+            ]
+        }
+        "delay" => vec![
+            fx_number_item("Mix %", prefix, params, "mixPct", 0, 100, 1, 1.0, 35.0),
+            fx_number_item("Time ms", prefix, params, "timeMs", 1, 2000, 5, 1.0, 250.0),
+            fx_number_item(
+                "Feedback", prefix, params, "feedback", 0, 98, 1, 100.0, 0.35,
+            ),
+        ],
+        "tremolo" => vec![
+            fx_number_item("Rate Hz", prefix, params, "rateHz", 5, 4000, 5, 100.0, 4.0),
+            fx_number_item("Depth %", prefix, params, "depthPct", 0, 100, 1, 1.0, 60.0),
+        ],
+        "saturator" => vec![
+            fx_number_item("Drive", prefix, params, "drive", 0, 200, 1, 10.0, 1.8),
+            fx_number_item("Mix %", prefix, params, "mixPct", 0, 100, 1, 1.0, 100.0),
+        ],
+        "distortion" => vec![
+            fx_number_item("Drive", prefix, params, "drive", 0, 500, 5, 10.0, 2.5),
+            fx_number_item("Clip", prefix, params, "clip", 5, 200, 5, 100.0, 0.6),
+            fx_number_item("Mix %", prefix, params, "mixPct", 0, 100, 1, 1.0, 100.0),
+        ],
+        "bitcrusher" => vec![
+            fx_number_item("Bits", prefix, params, "bits", 1, 16, 1, 1.0, 6.0),
+            fx_number_item("Rate Div", prefix, params, "rateDiv", 1, 128, 1, 1.0, 4.0),
+            fx_number_item("Mix %", prefix, params, "mixPct", 0, 100, 1, 1.0, 100.0),
+        ],
+        "vibrato" | "chorus" | "flanger" => vec![
+            fx_number_item("Mix %", prefix, params, "mixPct", 0, 100, 1, 1.0, 100.0),
+            fx_number_item("Rate Hz", prefix, params, "rateHz", 2, 2000, 5, 100.0, 0.8),
+            fx_number_item("Depth ms", prefix, params, "depthMs", 0, 400, 1, 10.0, 6.0),
+            fx_number_item("Base ms", prefix, params, "baseMs", 1, 800, 1, 10.0, 8.0),
+            fx_number_item(
+                "Feedback", prefix, params, "feedback", -95, 95, 1, 100.0, 0.0,
+            ),
+        ],
+        "filter_lfo" | "wah" => vec![
+            fx_number_item("Rate Hz", prefix, params, "rateHz", 2, 2000, 5, 100.0, 0.5),
+            fx_number_item(
+                "Center Hz",
+                prefix,
+                params,
+                "centerHz",
+                40,
+                12000,
+                20,
+                1.0,
+                1600.0,
+            ),
+            fx_number_item("Depth %", prefix, params, "depthPct", 0, 100, 1, 1.0, 70.0),
+            fx_number_item("Q", prefix, params, "q", 25, 2000, 25, 100.0, 1.0),
+        ],
+        "reverb" => vec![
+            fx_number_item("Decay", prefix, params, "decay", 0, 995, 5, 1000.0, 0.72),
+            fx_number_item("Damp", prefix, params, "damp", 0, 98, 1, 100.0, 0.35),
+            fx_number_item("Mix %", prefix, params, "mixPct", 0, 100, 1, 1.0, 30.0),
+        ],
+        "auto_pan" => vec![
+            fx_number_item("Rate Hz", prefix, params, "rateHz", 2, 2000, 5, 100.0, 0.5),
+            fx_number_item("Depth %", prefix, params, "depthPct", 0, 100, 1, 1.0, 100.0),
+        ],
+        "glitch" => vec![
+            fx_number_item("Chance %", prefix, params, "chancePct", 0, 100, 1, 1.0, 8.0),
+            fx_number_item("Slice ms", prefix, params, "sliceMs", 5, 500, 5, 1.0, 80.0),
+            fx_number_item("Mix %", prefix, params, "mixPct", 0, 100, 1, 1.0, 100.0),
+        ],
+        "compressor" => vec![
+            fx_number_item(
+                "Threshold dB",
+                prefix,
+                params,
+                "thresholdDb",
+                -120,
+                0,
+                1,
+                2.0,
+                -24.0,
+            ),
+            fx_number_item("Ratio", prefix, params, "ratio", 2, 40, 1, 2.0, 4.0),
+            fx_number_item(
+                "Attack ms",
+                prefix,
+                params,
+                "attackMs",
+                1,
+                200,
+                1,
+                1.0,
+                10.0,
+            ),
+            fx_number_item(
+                "Release ms",
+                prefix,
+                params,
+                "releaseMs",
+                5,
+                2000,
+                5,
+                1.0,
+                100.0,
+            ),
+            fx_number_item("Makeup dB", prefix, params, "makeupDb", 0, 48, 1, 2.0, 0.0),
+            fx_number_item("Mix %", prefix, params, "mixPct", 0, 100, 1, 1.0, 100.0),
+        ],
+        "eq" => vec![
+            fx_number_item(
+                "Low Gain dB",
+                prefix,
+                params,
+                "lowGainDb",
+                -24,
+                24,
+                1,
+                2.0,
+                0.0,
+            ),
+            fx_number_item(
+                "Mid Gain dB",
+                prefix,
+                params,
+                "midGainDb",
+                -24,
+                24,
+                1,
+                2.0,
+                0.0,
+            ),
+            fx_number_item(
+                "High Gain dB",
+                prefix,
+                params,
+                "highGainDb",
+                -24,
+                24,
+                1,
+                2.0,
+                0.0,
+            ),
+            fx_number_item(
+                "Mid Freq Hz",
+                prefix,
+                params,
+                "midFreqHz",
+                40,
+                8000,
+                10,
+                1.0,
+                1000.0,
+            ),
+            fx_number_item("Mid Q", prefix, params, "midQ", 25, 2000, 25, 100.0, 1.0),
+            fx_number_item("Mix %", prefix, params, "mixPct", 0, 100, 1, 1.0, 100.0),
+        ],
+        "vinyl" => vec![
+            fx_number_item(
+                "Saturation %",
+                prefix,
+                params,
+                "saturationPct",
+                0,
+                100,
+                1,
+                1.0,
+                15.0,
+            ),
+            fx_number_item(
+                "Crackle %",
+                prefix,
+                params,
+                "cracklePct",
+                0,
+                100,
+                1,
+                1.0,
+                8.0,
+            ),
+            fx_number_item(
+                "Warp Depth %",
+                prefix,
+                params,
+                "warpDepthPct",
+                0,
+                100,
+                1,
+                1.0,
+                5.0,
+            ),
+            fx_number_item("Mix %", prefix, params, "mixPct", 0, 100, 1, 1.0, 100.0),
+        ],
+        _ => vec![],
+    }
+}
+
+#[expect(clippy::too_many_arguments, reason = "FX menu specs are data rows")]
+fn fx_number_item(
+    label: impl Into<String>,
+    prefix: &str,
+    params: &serde_json::Value,
+    key: &str,
+    min: i32,
+    max: i32,
+    step: i32,
+    scale: f64,
+    default: f64,
+) -> NativeMenuItem {
+    number_item(
+        label,
+        format!("{prefix}.{key}"),
+        ((fx_param_number(params, key, default) * scale).round() as i32).clamp(min, max),
+        min,
+        max,
+        step,
+    )
+}
+
+fn fx_param_number(params: &serde_json::Value, key: &str, default: f64) -> f64 {
+    params
+        .get(key)
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(default)
+}
+
+fn fx_param_string(params: &serde_json::Value, key: &str, default: &str) -> String {
+    params
+        .get(key)
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or(default)
+        .into()
+}
+
+fn duck_source_options(bus_index: usize) -> Vec<String> {
+    let mut options: Vec<String> = (0..8).map(|index| format!("I{}", index + 1)).collect();
+    options.extend(
+        (0..FX_BUS_COUNT)
+            .filter(|index| *index != bus_index)
+            .map(|index| format!("B{}", index + 1)),
+    );
+    options
+}
+
 fn default_fx_bus_config() -> NativeFxBusConfig {
     NativeFxBusConfig {
         name: "(none)".into(),
         slot1_type: "none".into(),
+        slot1_params: serde_json::json!({}),
         slot2_type: "none".into(),
+        slot2_params: serde_json::json!({}),
         pan_pos: 16,
         auto_name: true,
     }

@@ -219,7 +219,14 @@ fn synth_payload_includes_master_fx_slots() {
             mixer: None,
         }],
         mixer: Some(AudioMixerConfig {
-            buses: vec![],
+            buses: vec![AudioBusConfig {
+                slot1: Some(serde_json::json!({
+                    "type": "delay",
+                    "params": { "timeMs": 333.0, "feedback": 0.42, "mixPct": 44.0 }
+                })),
+                slot2: None,
+                pan_pos: Some(18),
+            }],
             master: Some(AudioMasterConfig {
                 slots: vec![serde_json::json!({
                     "type": "eq",
@@ -239,13 +246,23 @@ fn synth_payload_includes_master_fx_slots() {
     };
 
     let payload = synth_payload(&config);
-    let master = payload
-        .mixer
-        .and_then(|m| m.master)
-        .expect("expected master FX config");
+    let mixer = payload.mixer.expect("expected mixer config");
+    assert_eq!(mixer.buses.len(), 1);
+    assert_eq!(mixer.buses[0].pan_pos, 18);
+    match &mixer.buses[0].slots[0] {
+        FxBusSlotConfig::Config { kind, params } => {
+            assert_eq!(kind, "delay");
+            assert_eq!(params["feedback"], serde_json::json!(0.42));
+        }
+        slot => panic!("unexpected bus slot: {slot:?}"),
+    }
+    let master = mixer.master.expect("expected master FX config");
     assert_eq!(master.slots.len(), 1);
     match &master.slots[0] {
-        FxBusSlotConfig::Config { kind, .. } => assert_eq!(kind, "eq"),
+        FxBusSlotConfig::Config { kind, params } => {
+            assert_eq!(kind, "eq");
+            assert_eq!(params["lowGainDb"], serde_json::json!(3.0));
+        }
         slot => panic!("unexpected slot: {slot:?}"),
     }
 }

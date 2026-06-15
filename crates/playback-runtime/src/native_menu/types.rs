@@ -132,6 +132,7 @@ pub struct NativeMenuConfig {
     pub instrument_volumes: Vec<u8>,
     pub instrument_pan_positions: Vec<u8>,
     pub instrument_sample_slots: Vec<usize>,
+    pub instrument_synth_configs: Vec<serde_json::Value>,
     pub instrument_synth_osc1_waveforms: Vec<String>,
     pub instrument_synth_osc2_waveforms: Vec<String>,
     pub instrument_synth_filter_types: Vec<String>,
@@ -140,12 +141,22 @@ pub struct NativeMenuConfig {
     pub instrument_synth_filter_resonance: Vec<u8>,
     pub instrument_sample_tune_semis: Vec<i8>,
     pub instrument_sample_gain_pct: Vec<u8>,
+    pub instrument_sample_base_velocity: Vec<u8>,
+    pub instrument_sample_amp_velocity_sensitivity_pct: Vec<u8>,
+    pub instrument_sample_velocity_levels_enabled: Vec<bool>,
+    pub instrument_sample_velocity_high: Vec<u8>,
+    pub instrument_sample_velocity_medium: Vec<u8>,
+    pub instrument_sample_velocity_low: Vec<u8>,
+    pub instrument_sample_amp_envs: Vec<serde_json::Value>,
+    pub instrument_sample_filters: Vec<serde_json::Value>,
+    pub instrument_sample_filter_envs: Vec<serde_json::Value>,
     pub instrument_midi_enabled: Vec<bool>,
     pub instrument_midi_channels: Vec<u8>,
     pub instrument_midi_velocity: Vec<u8>,
     pub instrument_midi_duration_ms: Vec<u16>,
     pub fx_buses: Vec<NativeFxBusConfig>,
     pub global_fx_slots: Vec<String>,
+    pub global_fx_params: Vec<serde_json::Value>,
     pub sample_browser: Option<NativeSampleBrowserConfig>,
     pub algorithm_step_pulses: u32,
     pub master_volume: u8,
@@ -245,6 +256,7 @@ pub struct NativeValueLaneConfig {
     pub from: u8,
     pub to: u8,
     pub grid_offset: i32,
+    pub curve: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -266,7 +278,9 @@ pub struct NativeSampleEntryConfig {
 pub struct NativeFxBusConfig {
     pub name: String,
     pub slot1_type: String,
+    pub slot1_params: serde_json::Value,
     pub slot2_type: String,
+    pub slot2_params: serde_json::Value,
     pub pan_pos: u8,
     pub auto_name: bool,
 }
