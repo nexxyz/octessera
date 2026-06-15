@@ -21,11 +21,12 @@ pub enum FilterType {
     Notch,
 }
 
-pub const INSTRUMENT_SLOT_COUNT: usize = 8;
 pub const VOICES_PER_SLOT: usize = 8;
 pub const BUS_SLOTS_PER_BUS: usize = 2;
-pub const DEFAULT_PAN_POSITIONS: usize = 33;
-pub const SAMPLE_SLOTS_PER_INSTRUMENT: usize = 8;
+include!(concat!(
+    env!("OUT_DIR"),
+    "/synth_platform_capabilities.generated.rs"
+));
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case")]

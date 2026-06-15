@@ -5,8 +5,6 @@ const MENU_HELP_TSV: &str = include_str!("../../../resources/menu-help-texts.tsv
 
 #[derive(Clone, Debug)]
 pub struct NativeHelpEntry {
-    #[allow(dead_code)]
-    pub id: String,
     pub path: String,
     pub key: String,
     pub kind: String,
@@ -58,11 +56,6 @@ pub fn resolve_native_help_entry(target: &NativeMenuHelpTarget) -> Option<Native
     }
 }
 
-#[allow(dead_code)]
-pub fn menu_help_entries() -> Vec<NativeHelpEntry> {
-    menu_help_entries_cached().to_vec()
-}
-
 fn menu_help_entries_cached() -> &'static Vec<NativeHelpEntry> {
     static ENTRIES: OnceLock<Vec<NativeHelpEntry>> = OnceLock::new();
     ENTRIES.get_or_init(parse_menu_help_entries)
@@ -81,7 +74,6 @@ fn parse_menu_help_entries() -> Vec<NativeHelpEntry> {
                 return None;
             }
             Some(NativeHelpEntry {
-                id: cols[0].into(),
                 path: cols[1].into(),
                 key: cols[2].into(),
                 kind: cols[3].into(),

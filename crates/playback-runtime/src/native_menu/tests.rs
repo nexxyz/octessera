@@ -1,4 +1,5 @@
 use super::*;
+use platform_core::PART_COUNT;
 
 fn config() -> NativeMenuConfig {
     NativeMenuConfig {
@@ -63,21 +64,14 @@ fn config() -> NativeMenuConfig {
                 children: vec![],
             },
         ],
-        part_labels: vec![
-            "P1: life".into(),
-            "P2: life".into(),
-            "P3: life".into(),
-            "P4: life".into(),
-            "P5: life".into(),
-            "P6: life".into(),
-            "P7: life".into(),
-            "P8: life".into(),
-        ],
-        part_names: vec!["life".into(); 8],
-        part_auto_names: vec![true; 8],
-        sense_parts: vec![default_sense_part_config(); 8],
+        part_labels: (0..PART_COUNT)
+            .map(|index| format!("P{}: life", index + 1))
+            .collect(),
+        part_names: vec!["life".into(); PART_COUNT],
+        part_auto_names: vec![true; PART_COUNT],
+        sense_parts: vec![default_sense_part_config(); PART_COUNT],
         active_part_index: 0,
-        param_mods: vec![NativeParamModsConfig::default(); 8],
+        param_mods: vec![NativeParamModsConfig::default(); PART_COUNT],
         xy_x_binding: None,
         xy_y_binding: None,
         aux_bindings: vec![NativeAuxBindingConfig::default(); 4],
@@ -813,30 +807,6 @@ fn representative_help_configs() -> Vec<NativeMenuConfig> {
     }
 
     configs
-}
-
-#[test]
-fn action_rows_are_wired_or_explicit_none_placeholders() {
-    let menu = NativeMenuModel::new(config());
-    let mut unresolved = Vec::new();
-    collect_unresolved_actions(&menu.root, "MENU".into(), &mut unresolved);
-    assert_eq!(unresolved, Vec::<String>::new());
-}
-
-fn collect_unresolved_actions(item: &NativeMenuItem, path: String, unresolved: &mut Vec<String>) {
-    let path = if path == "MENU" {
-        item.label.clone()
-    } else {
-        format!("{path} > {}", item.label)
-    };
-    if matches!(item.value, NativeMenuValue::Action(NativeMenuAction::Noop))
-        && item.label != "(none)"
-    {
-        unresolved.push(path.clone());
-    }
-    for child in &item.children {
-        collect_unresolved_actions(child, path.clone(), unresolved);
-    }
 }
 
 fn contains_set_binding(item: &NativeMenuItem, target: &str, key: &str) -> bool {

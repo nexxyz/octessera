@@ -2,8 +2,6 @@ use crate::protocol::SyncSource;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NativeMenuAction {
-    #[allow(dead_code)]
-    Noop,
     BehaviorAction(String),
     PlatformEffect(String),
     SetParamBinding {

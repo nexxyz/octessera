@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-pub const GRID_WIDTH: usize = 8;
-pub const GRID_HEIGHT: usize = 8;
+pub use crate::platform_capabilities::{GRID_HEIGHT, GRID_WIDTH};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GridDimensions {

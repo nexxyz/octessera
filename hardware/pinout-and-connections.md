@@ -96,7 +96,7 @@ Target platform: Raspberry Pi Zero 2W
 - SW4 -> `encoder_aux_3`
 - SW5 -> `encoder_aux_4`
 
-- NeoKey key1 -> `A`
-- NeoKey key2 -> `S`
-- NeoKey key3 -> `Shift` (reserved)
-- NeoKey key4 -> `Fn` (reserved)
+- NeoKey key1 -> `button_a` / Back
+- NeoKey key2 -> `button_s` / Space
+- NeoKey key3 -> `button_shift`
+- NeoKey key4 -> `button_fn`

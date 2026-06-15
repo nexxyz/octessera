@@ -3248,7 +3248,7 @@ fn snapshot_exposes_platform_sized_instrument_slots() {
     let snapshot = runner.snapshot().unwrap();
     let instruments = snapshot["settings"]["instruments"].as_array().unwrap();
 
-    assert_eq!(instruments.len(), INSTRUMENT_SLOT_COUNT);
+    assert_eq!(instruments.len(), INSTRUMENT_COUNT);
     assert!(instruments
         .iter()
         .all(|instrument| instrument["type"] == "synth"));

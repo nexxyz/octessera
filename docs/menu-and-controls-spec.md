@@ -3,6 +3,7 @@
 This is the single source of truth for menu structure, control mappings, and parameter behavior.
 
 Context-help copy source: `resources/menu-help-texts.tsv` (required header row).
+Platform capability source: `resources/platform-capabilities.json`; generated TypeScript and Rust constants must stay in sync with it.
 
 ## Cheat Sheet
 
@@ -275,7 +276,7 @@ Sample assignment mode semantics:
 
 - Enter via `L3: Voice > Instruments > Instrument N > Sample > Assign`
 - Back exits assignment mode
-- One sample assignment per cell (new assignment replaces old cell assignment)
+- One sample assignment per cell (new assignment replaces the existing cell assignment)
 - With Velocity Levels ON, selected-slot cell presses cycle: `Off -> High(red) -> Medium(yellow) -> Low(green) -> Off`
 - With Velocity Levels OFF, selected-slot cell presses toggle: `Off <-> Assigned(white)`
 - Cells assigned to other sample slots are shown as dim white during assignment editing
@@ -404,6 +405,7 @@ System
 - Canonical section colors: `L1: Life` = life color, `L2: Sense` = sense color, `L3: Voice` = voice color, `L4: Dance` = white, `System` = sepia.
 - Body lines 2-8: menu items with `@@` prefix on selected line, `*` prefix when editing
 - Context help for every submenu, parameter, and action must resolve to a specific row from `resources/menu-help-texts.tsv`; generic fallback help is not allowed and native tests must fail on missing coverage.
+- Platform-sized menu/runtime limits such as part count, instrument count, sample slots, bus count, global FX slots, touch-FX concurrency, scan section counts, OLED size, and pan position count come from `resources/platform-capabilities.json`.
 - Bottom-right corner: transport icon (`▶` / `⏸` / `■`)
 - Transport flash: green (beat) or red (measure) border on play icon
 - Yellow event dot: briefly shown when notes fire
@@ -458,7 +460,7 @@ Overrides:
 ## Auto-Save
 
 - Location: System > Saves > Default > Auto Save
-- When enabled: config changes (via turnMenu, pressMenu, or turnAuxEncoder) emit deferred `store_save_default` effects; storage writes the latest pending `ConfigPayload` after a short cooldown instead of saving every intermediate encoder step
+- When enabled: native menu edits and aux-bound value changes emit deferred `store_save_default` effects; storage writes the latest pending `ConfigPayload` after a short cooldown instead of saving every intermediate encoder step
 - Disabled by default
 - Toggling Auto Save on triggers an immediate save when you exit that menu row
 - Explicit Save Default is always immediate and cancels any pending deferred default save
@@ -516,24 +518,15 @@ Overrides:
 
 ## Config Persistence (ConfigPayload)
 
-Structured as:
-```typescript
-type ConfigPayload = {
-  activeBehavior: string;
-  runtimeConfig: RuntimeConfig;   // all menu-settable parameters
-  mappingConfig: MappingConfig;   // activate/stable/deactivate/scanned targets + MIDI note params
-};
-```
-
-On restore (`applyConfigPayload`), the payload is deep-merged with factory defaults via `sanitizePayload`, then:
-- `activeBehavior` and `runtimeConfig` are applied
-- `mappingConfig` is applied
-- If behavior engine changed, behavior state is re-initialized via `behavior.init({})`
-- All timing accumulators are reset to 0
+- Native `ConfigPayload` is produced and consumed by `crates/playback-runtime/src/native_runner.rs`.
+- It stores active behavior, per-part behavior/config/state, Sense settings, mapping, instruments, mixer, FX, Dance settings, MIDI settings, UI settings, and persistence flags.
+- Restore accepts current payloads and supported older saved shapes, sanitizes external compatibility data, then applies only native-owned runtime/core fields.
+- Behavior state is restored when saved and compatible; behavior changes initialize the new behavior state through the native behavior engine.
+- Transport timing accumulators are reset on restore so loaded configs start from a deterministic runtime position.
 
 ## Brightness Behavior
 
-- Display Brightness scales OLED display intensity in simulator.
+- Display Brightness scales OLED display intensity in host display adapters.
 - Grid Brightness scales matrix LED RGB intensity.
 - Button Brightness scales NeoKey button LED intensity.
 
@@ -545,7 +538,6 @@ On restore (`applyConfigPayload`), the payload is deep-merged with factory defau
 - `Velocity` lane modulates outgoing `note_on` velocity.
 - `Filter Cutoff` lane emits CC74 (mapped to lowpass cutoff).
 - `Filter Resonance` lane emits CC71 (mapped to lowpass resonance).
-- Lowpass is currently the active filter type.
 - `Grid Offset` rotates axis indexing (offset=5 => cell 5 treated as first, then wraps).
 - `Grid Offset` bounds are derived: `-(GRID_SIZE-1) .. +(GRID_SIZE-1)` → `-7..7`.
 
@@ -554,29 +546,28 @@ On restore (`applyConfigPayload`), the payload is deep-merged with factory defau
 - Selected editable value line uses compact marker: `*Value`.
 - In text edit mode: `*` prefix and cursor shown within the text.
 
-## Behavior Engine Interface
+## Native Behavior Contract
 
-```typescript
-interface BehaviorEngine<TState, TConfig> {
-  id: string;
-  init: (config?: TConfig) => TState;
-  onInput: (state: TState, input: DeviceInput) => TState;
-  onTick: (state: TState, ctx: { bpm: number; emit: () => void }) => TState;
-  renderModel: (state: TState) => BehaviorRenderModel;
-  serialize: (state: TState) => unknown;
-  deserialize: (data: unknown) => TState;
-   interpretInputTransitions?: boolean;
-   configMenu?: () => BehaviorConfigItem[];
- }
-```
+Native behaviors implement the Rust `BehaviorEngine` trait in `crates/platform-core/src/behavior.rs` and are registered from `crates/platform-core/src/behaviors/`.
 
-All behaviors use `CellTriggerType`: `"activate" | "stable" | "deactivate" | "scanned" | "none"`.
+Behavior engines provide:
+
+- stable behavior id
+- initial state from config
+- input and tick transitions
+- render model for the grid
+- serialization/deserialization for saved state
+- optional behavior config menu rows
+- optional immediate input-transition interpretation
+- optional grid interaction mode such as paint or momentary
+
+All behaviors use `CellTriggerType`: `activate`, `stable`, `deactivate`, `scanned`, or `none`.
 
 ### Input Events
 
 `DeviceInput` supports `grid_press` and `grid_release` events. Behaviors that do not handle `grid_release` (all except `keys`) simply ignore it. The `keys` behavior uses press→activate and release→deactivate semantics.
 
-When a behavior sets `interpretInputTransitions: true`, the platform-core interprets grid changes from `onInput` through the same Sense/mapping pipeline used during tick, producing immediate musical events. The `keys` behavior uses this to provide immediate finger-drumming response.
+When a behavior enables immediate input-transition interpretation, `platform-core` interprets grid changes from input through the same Sense/mapping pipeline used during tick, producing immediate musical events. The `keys` behavior uses this to provide immediate finger-drumming response.
 
 ## 4 Trigger Types
 

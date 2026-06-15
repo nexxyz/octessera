@@ -6,6 +6,10 @@ import {
   GRID_HEIGHT,
   GRID_WIDTH,
   MIDI_REALTIME_MESSAGE_TYPES,
+  OLED_HEIGHT,
+  OLED_WIDTH,
+  PAN_POSITION_COUNT,
+  PLATFORM_CAPS,
   RUNTIME_STATUS_STATES,
   RUNTIME_TRANSPORT_STATES,
   SHARED_RUNTIME_CONTRACT_FIXTURES,
@@ -17,8 +21,28 @@ test("grid constants are 8x8", () => {
   assert.equal(GRID_HEIGHT, 8);
 });
 
+test("platform capabilities match the hardware profile", () => {
+  assert.deepEqual(PLATFORM_CAPS, {
+    gridWidth: 8,
+    gridHeight: 8,
+    partCount: 8,
+    instrumentCount: 8,
+    sampleSlotCount: 8,
+    busCount: 4,
+    globalFxSlotCount: 2,
+    touchFxMaxConcurrent: 4,
+    scanSectionCounts: [1, 2, 4, 8],
+    panPositionCount: 33,
+    oledWidth: 128,
+    oledHeight: 128
+  });
+  assert.equal(PAN_POSITION_COUNT, PLATFORM_CAPS.panPositionCount);
+  assert.equal(OLED_WIDTH, PLATFORM_CAPS.oledWidth);
+  assert.equal(OLED_HEIGHT, PLATFORM_CAPS.oledHeight);
+});
+
 test("OLED framebuffer uses 128x128 rgb565be", () => {
-  const frame: OledFrame = { width: 128, height: 128, format: "rgb565be", pixels: new Uint8Array(128 * 128 * 2) };
+  const frame: OledFrame = { width: OLED_WIDTH, height: OLED_HEIGHT, format: "rgb565be", pixels: new Uint8Array(OLED_WIDTH * OLED_HEIGHT * 2) };
   assert.equal(frame.pixels.length, 32768);
 });
 

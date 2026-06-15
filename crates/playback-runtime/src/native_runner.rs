@@ -14,16 +14,14 @@ use platform_core::{
     BehaviorConfigItemType, CellTriggerIntent, DeviceInput, GlobalSoundConfig, GridInteraction,
     InterpretationEventProfile, InterpretationProfile, InterpretationStateProfile, MusicalEvent,
     NativeBehavior, NativePartEngine, NativePartEngineConfig, NoteBehavior, RangeMode,
-    TickStrategy, TriggerAction, TriggerTarget, VelocityCurve,
+    TickStrategy, TriggerAction, TriggerTarget, VelocityCurve, BUS_COUNT, GLOBAL_FX_SLOT_COUNT,
+    GRID_HEIGHT, GRID_WIDTH, INSTRUMENT_COUNT, PAN_POSITION_COUNT, PART_COUNT, SAMPLE_SLOT_COUNT,
+    TOUCH_FX_MAX_CONCURRENT,
 };
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 
-const GRID_WIDTH: usize = 8;
-const GRID_HEIGHT: usize = 8;
-const INSTRUMENT_SLOT_COUNT: usize = 8;
-const PAN_POSITION_COUNT: u8 = 33;
 const DEFAULT_ALGORITHM_STEP_PULSES: u32 = 12;
 const OLED_BODY_ROWS: usize = 7;
 const OLED_SLEEP_SPLASH_MS: u64 = 1_500;
@@ -280,7 +278,7 @@ impl NativeInstrumentSlot {
             pan_pos: PAN_POSITION_COUNT / 2,
             route: "direct".into(),
             selected_sample_slot: 0,
-            sample_paths: vec![None; 8],
+            sample_paths: vec![None; SAMPLE_SLOT_COUNT],
             sample_assignments: Vec::new(),
             synth_config,
             synth_gain_pct: 80,
@@ -555,14 +553,14 @@ impl NativeRunner {
                 .map(|id| (*id).to_string())
                 .collect(),
             l1_items: vec![],
-            part_labels: (0..GRID_HEIGHT)
+            part_labels: (0..PART_COUNT)
                 .map(|index| format!("P{}: life", index + 1))
                 .collect(),
-            part_names: vec![behavior.id().into(); GRID_HEIGHT],
-            part_auto_names: vec![true; GRID_HEIGHT],
+            part_names: vec![behavior.id().into(); PART_COUNT],
+            part_auto_names: vec![true; PART_COUNT],
             sense_parts: sense_part_configs(&sense_parts),
             active_part_index: 0,
-            param_mods: vec![NativeParamModsConfig::default(); GRID_HEIGHT],
+            param_mods: vec![NativeParamModsConfig::default(); PART_COUNT],
             xy_x_binding: None,
             xy_y_binding: None,
             aux_bindings: vec![NativeAuxBindingConfig::default(); 4],
@@ -638,7 +636,7 @@ impl NativeRunner {
             sync_source: config.sync_source.clone(),
         });
         let mut part_engines = Vec::new();
-        part_engines.resize_with(GRID_HEIGHT, || None);
+        part_engines.resize_with(PART_COUNT, || None);
         for (index, slot) in part_engines.iter_mut().enumerate().skip(1) {
             let part_behavior = platform_core::get_native_behavior(config.behavior_id.as_str())
                 .ok_or_else(|| format!("unsupported native behavior `{}`", config.behavior_id))?;
@@ -661,7 +659,7 @@ impl NativeRunner {
                 behavior.id().to_string(),
                 config.behavior_config.clone(),
             )]),
-            part_behavior_configs: vec![config.behavior_config; GRID_HEIGHT],
+            part_behavior_configs: vec![config.behavior_config; PART_COUNT],
             interpretation_profile: config.interpretation_profile,
             mapping_config: config.mapping_config,
             global_sound: config.global_sound,
@@ -670,8 +668,8 @@ impl NativeRunner {
             tick: 0,
             algorithm_step_pulses: DEFAULT_ALGORITHM_STEP_PULSES,
             algorithm_pulse_accumulator: 0,
-            part_algorithm_step_pulses: vec![DEFAULT_ALGORITHM_STEP_PULSES; GRID_HEIGHT],
-            part_pulse_accumulators: vec![0; GRID_HEIGHT],
+            part_algorithm_step_pulses: vec![DEFAULT_ALGORITHM_STEP_PULSES; PART_COUNT],
+            part_pulse_accumulators: vec![0; PART_COUNT],
             transport: RuntimeTransportState::Stopped,
             sync_source: config.sync_source,
             pending_resync: false,
@@ -713,18 +711,18 @@ impl NativeRunner {
             xy_invert_y: false,
             xy_x_binding: None,
             xy_y_binding: None,
-            param_mods: vec![NativeParamMods::default(); GRID_HEIGHT],
-            trigger_gate_modes: vec!["full".into(); GRID_HEIGHT],
-            trigger_gate_restore_modes: vec![None; GRID_HEIGHT],
+            param_mods: vec![NativeParamMods::default(); PART_COUNT],
+            trigger_gate_modes: vec!["full".into(); PART_COUNT],
+            trigger_gate_restore_modes: vec![None; PART_COUNT],
             trigger_probability_assign: None,
             trigger_probability_maps: vec![
                 vec!["full".into(); GRID_WIDTH * GRID_HEIGHT];
-                GRID_HEIGHT
+                PART_COUNT
             ],
-            part_behavior_ids: vec![behavior.id().into(); GRID_HEIGHT],
-            part_names: vec![behavior.id().into(); GRID_HEIGHT],
-            part_auto_names: vec![true; GRID_HEIGHT],
-            save_grid_states: vec![true; GRID_HEIGHT],
+            part_behavior_ids: vec![behavior.id().into(); PART_COUNT],
+            part_names: vec![behavior.id().into(); PART_COUNT],
+            part_auto_names: vec![true; PART_COUNT],
+            save_grid_states: vec![true; PART_COUNT],
             sense_parts,
             aux_bindings: vec![None; 4],
             active_part_index: 0,
@@ -3509,7 +3507,6 @@ impl NativeRunner {
             }
         }
         match action {
-            NativeMenuAction::Noop => Ok(None),
             NativeMenuAction::BehaviorAction(action_type) => {
                 self.trigger_behavior_action(action_type)?;
                 Ok(None)
@@ -4129,7 +4126,8 @@ impl NativeRunner {
                         if let Some(selected_slot) =
                             sample.get("selectedSlot").and_then(Value::as_u64)
                         {
-                            instrument.selected_sample_slot = (selected_slot as usize).min(7);
+                            instrument.selected_sample_slot =
+                                (selected_slot as usize).min(SAMPLE_SLOT_COUNT - 1);
                         }
                         if let Some(base_velocity) =
                             sample.get("baseVelocity").and_then(Value::as_u64)
@@ -4137,7 +4135,9 @@ impl NativeRunner {
                             instrument.sample_base_velocity = (base_velocity as u8).clamp(1, 127);
                         }
                         if let Some(slots) = sample.get("slots").and_then(Value::as_array) {
-                            for (sample_index, sample_slot) in slots.iter().take(8).enumerate() {
+                            for (sample_index, sample_slot) in
+                                slots.iter().take(SAMPLE_SLOT_COUNT).enumerate()
+                            {
                                 instrument.sample_paths[sample_index] = sample_slot
                                     .get("path")
                                     .and_then(Value::as_str)
@@ -4932,7 +4932,7 @@ impl NativeRunner {
         match self.active_dance_mode.as_str() {
             "mix" => {
                 self.dim_leds(leds, 4);
-                for x in 0..INSTRUMENT_SLOT_COUNT.min(GRID_WIDTH) {
+                for x in 0..INSTRUMENT_COUNT.min(GRID_WIDTH) {
                     let instrument = self.instruments.get(x);
                     let volume = instrument.map(|inst| inst.volume).unwrap_or(0).min(100);
                     let y =
@@ -4953,7 +4953,7 @@ impl NativeRunner {
             }
             "pan" => {
                 self.dim_leds(leds, 4);
-                for y in 0..INSTRUMENT_SLOT_COUNT.min(GRID_HEIGHT) {
+                for y in 0..INSTRUMENT_COUNT.min(GRID_HEIGHT) {
                     let Some(instrument) = self.instruments.get(y) else {
                         continue;
                     };
@@ -4976,7 +4976,7 @@ impl NativeRunner {
                         .active_dance_fx
                         .iter()
                         .any(|(active_id, _)| active_id == &id);
-                    let limited = !active && self.active_dance_fx.len() >= 4;
+                    let limited = !active && self.active_dance_fx.len() >= TOUCH_FX_MAX_CONCURRENT;
                     let color = momentary_fx_color(dance_fx_type(&assignment.config));
                     self.set_display_led(
                         leds,
@@ -5291,7 +5291,7 @@ impl NativeRunner {
             effects.push(RuntimePlatformEffect::AudioCommand {
                 command: RuntimeAudioCommand::MomentaryFxStop { id: old_id },
             });
-        } else if self.active_dance_fx.len() >= 4 {
+        } else if self.active_dance_fx.len() >= TOUCH_FX_MAX_CONCURRENT {
             return Vec::new();
         }
         if let Some(start) = self.dance_fx_start_effect_for_assignment(&assignment) {
@@ -5741,13 +5741,13 @@ fn derive_bus_name(bus: &NativeFxBus) -> String {
 }
 
 fn default_instruments() -> Vec<NativeInstrumentSlot> {
-    (0..INSTRUMENT_SLOT_COUNT)
+    (0..INSTRUMENT_COUNT)
         .map(NativeInstrumentSlot::new)
         .collect()
 }
 
 fn default_sense_parts() -> Vec<NativeSensePart> {
-    let mut parts = vec![NativeSensePart::default(); GRID_HEIGHT];
+    let mut parts = vec![NativeSensePart::default(); PART_COUNT];
     for part in parts.iter_mut().skip(1) {
         part.event_enabled = false;
     }
@@ -5755,15 +5755,15 @@ fn default_sense_parts() -> Vec<NativeSensePart> {
 }
 
 fn default_fx_buses() -> Vec<NativeFxBus> {
-    vec![NativeFxBus::default(); 4]
+    vec![NativeFxBus::default(); BUS_COUNT]
 }
 
 fn default_global_fx_slots() -> Vec<String> {
-    vec!["none".into(); 2]
+    vec!["none".into(); GLOBAL_FX_SLOT_COUNT]
 }
 
 fn default_global_fx_params() -> Vec<Value> {
-    vec![json!({}); 2]
+    vec![json!({}); GLOBAL_FX_SLOT_COUNT]
 }
 
 fn fx_slot_payload_with_params(slot_type: &str, params: &Value) -> Value {
@@ -7217,7 +7217,7 @@ fn normalize_route(route: &str) -> String {
 }
 
 fn trigger_target(slot: usize, action: &str, velocity: u8, duration_ms: u32) -> TriggerTarget {
-    let action = if slot >= INSTRUMENT_SLOT_COUNT {
+    let action = if slot >= INSTRUMENT_COUNT {
         TriggerAction::None
     } else {
         match action {
@@ -7235,7 +7235,7 @@ fn trigger_target(slot: usize, action: &str, velocity: u8, duration_ms: u32) -> 
 }
 
 fn slot_payload(slot: usize) -> Value {
-    if slot >= INSTRUMENT_SLOT_COUNT {
+    if slot >= INSTRUMENT_COUNT {
         Value::String("none".into())
     } else {
         Value::String(slot.to_string())
@@ -7621,7 +7621,7 @@ fn set_target_slot_from_menu(menu: &NativeMenuModel, target: &mut usize, key: &s
         let parsed = if value == "none" {
             Some(usize::MAX)
         } else {
-            parse_slot_index(&value).map(|value| value.min(INSTRUMENT_SLOT_COUNT - 1))
+            parse_slot_index(&value).map(|value| value.min(INSTRUMENT_COUNT - 1))
         };
         if let Some(value) = parsed {
             if *target != value {
@@ -7921,7 +7921,7 @@ fn assign_mapping(payload: &Value, key: &str, slot: &mut usize, action: &mut Str
             .and_then(parse_slot_index)
             .or_else(|| value.as_u64().map(|value| value as usize))
         {
-            *slot = parsed.min(INSTRUMENT_SLOT_COUNT - 1);
+            *slot = parsed.min(INSTRUMENT_COUNT - 1);
         }
     }
     if let Some(value) = mapping.get("action").and_then(Value::as_str) {

@@ -1,5 +1,7 @@
 # Enclosure Frontplate RevA Dimensions (Tightened Margins v2)
 
+Status: current RevA reference dimensions for the prototype frontplate.
+
 Files:
 - `hardware/enclosure-frontplate-revA-cut.svg`
 - `hardware/enclosure-frontplate-revA-dimensioned.svg`

@@ -6,9 +6,11 @@
   "packageManager": "pnpm@9.12.0",
   "scripts": {
     "build": "corepack pnpm -r build",
+    "capabilities:generate": "node tools/generate-platform-capabilities.mjs",
+    "capabilities:check": "node tools/generate-platform-capabilities.mjs --check",
     "lint": "corepack pnpm -r lint",
     "format:check": "corepack pnpm -r format:check",
-    "typecheck": "corepack pnpm -r typecheck",
+    "typecheck": "corepack pnpm run capabilities:check && corepack pnpm -r typecheck",
     "test": "corepack pnpm -r test",
     "test:coverage": "corepack pnpm -r test:coverage",
     "quality:audit": "node tools/quality-audit.mjs",

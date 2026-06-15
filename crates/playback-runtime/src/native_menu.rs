@@ -1,11 +1,10 @@
 use crate::protocol::SyncSource;
+use platform_core::{BUS_COUNT as FX_BUS_COUNT, GLOBAL_FX_SLOT_COUNT, INSTRUMENT_COUNT};
 
 mod types;
 
 pub use types::*;
 
-const FX_BUS_COUNT: usize = 4;
-const GLOBAL_FX_SLOT_COUNT: usize = 2;
 const FX_BUS_SLOT_OPTIONS: &[&str] = &[
     "none",
     "tremolo",
@@ -669,7 +668,6 @@ fn canonicalize_help_key(key: &str) -> String {
 
 fn menu_action_help_key(action: &NativeMenuAction) -> String {
     match action {
-        NativeMenuAction::Noop => String::new(),
         NativeMenuAction::ResetBehavior => "action:reset_behavior".into(),
         NativeMenuAction::BehaviorAction(action_type) => {
             format!("action:behavior_action:{action_type}")
@@ -3974,7 +3972,9 @@ fn fx_param_string(params: &serde_json::Value, key: &str, default: &str) -> Stri
 }
 
 fn duck_source_options(bus_index: usize) -> Vec<String> {
-    let mut options: Vec<String> = (0..8).map(|index| format!("I{}", index + 1)).collect();
+    let mut options: Vec<String> = (0..INSTRUMENT_COUNT)
+        .map(|index| format!("I{}", index + 1))
+        .collect();
     options.extend(
         (0..FX_BUS_COUNT)
             .filter(|index| *index != bus_index)

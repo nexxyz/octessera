@@ -1,0 +1,14 @@
+{
+  "gridWidth": 8,
+  "gridHeight": 8,
+  "partCount": 8,
+  "instrumentCount": 8,
+  "sampleSlotCount": 8,
+  "busCount": 4,
+  "globalFxSlotCount": 2,
+  "touchFxMaxConcurrent": 4,
+  "scanSectionCounts": [1, 2, 4, 8],
+  "panPositionCount": 33,
+  "oledWidth": 128,
+  "oledHeight": 128
+}

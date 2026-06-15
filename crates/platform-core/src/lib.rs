@@ -5,6 +5,7 @@ mod events;
 mod grid;
 mod interpretation;
 mod mapping;
+mod platform_capabilities;
 mod transforms;
 
 pub use behavior::{
@@ -25,6 +26,11 @@ pub use interpretation::{
 pub use mapping::{
     default_mapping_config, map_intents_to_musical_events, MappingConfig, MappingResult, RangeMode,
     TriggerAction, TriggerTarget,
+};
+pub use platform_capabilities::{
+    PlatformCapabilities, BUS_COUNT, GLOBAL_FX_SLOT_COUNT, INSTRUMENT_COUNT, OLED_HEIGHT,
+    OLED_WIDTH, PAN_POSITION_COUNT, PART_COUNT, PLATFORM_CAPABILITIES, SAMPLE_SLOT_COUNT,
+    SCAN_SECTION_COUNTS, TOUCH_FX_MAX_CONCURRENT,
 };
 pub use transforms::{
     apply_global_sound, apply_note_behavior, dedupe_simultaneous_notes, GlobalSoundConfig,

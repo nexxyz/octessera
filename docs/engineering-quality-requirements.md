@@ -1,159 +1,100 @@
-# Engineering Quality, CI, and Test Requirements
+# Engineering Quality Requirements
 
-## 1) Quality Goals
+This document describes the current quality baseline. It should match the checks that are actually wired in this repository.
 
-This document defines the minimum engineering quality baseline for Cell Symphony.
+## Goals
 
-Primary goals:
+- Deterministic native behavior, interpretation, mapping, and runtime state transitions.
+- Stable audio routing through the realtime-engine mixer for all internal synth/sample paths.
+- Host adapters that expose platform errors instead of hiding source bugs behind fallbacks.
+- Reproducible desktop and Pi builds.
+- Documentation that describes current behavior, not completed-work history.
 
-- Deterministic core behavior for automata and mapping logic
-- Stable realtime timing under normal load
-- Reliable cross-platform desktop builds
-- Reproducible project portability
+## Required Checks
 
-## 2) Repository and Tooling Baseline
+TypeScript and generated contract checks:
 
-- Monorepo using `pnpm` workspaces
-- TypeScript for shared/UI packages
-- Rust for realtime engine and import backend
-- Tauri for desktop packaging
+```bash
+corepack pnpm run typecheck
+corepack pnpm -r test
+corepack pnpm -r lint
+corepack pnpm -r format:check
+```
 
-Recommended baseline tools:
+Rust checks:
 
-- JS/TS formatting: Prettier
-- JS/TS linting: ESLint with TypeScript rules
-- Rust formatting: rustfmt
-- Rust linting: clippy (`-D warnings` in CI)
+```bash
+cargo fmt --all --check
+cargo test -p platform-core -p playback-runtime -p realtime-engine -p cellsymphony-desktop
+cargo clippy -p platform-core -p playback-runtime -p realtime-engine -p cellsymphony-desktop --all-targets -- -D warnings
+```
 
-## 3) Test Strategy
+Build checks:
 
-### 3.1 Test layers
+```bash
+corepack pnpm --filter @cellsymphony/desktop tauri:build:ci
+cargo build -p cellsymphony-pi
+cargo check --target aarch64-unknown-linux-gnu -p cellsymphony-hal --features pi-zero
+```
 
-- Unit tests
-  - CA state transitions
-  - Mapping rules and quantization
-  - Project serialization/deserialization
-- Integration tests
-  - Device-contract event flow (UI -> core/backend -> render models)
-  - Sample import conversion (FLAC -> WAV metadata and file output)
-  - MIDI event sequencing behavior
-- End-to-end desktop smoke tests
-  - App launch
-  - Control mapping correctness (keyboard + clickable matrix)
-  - Minimal audio/MIDI path sanity checks
+Release builds use:
 
-### 3.2 Determinism requirements
+```bash
+corepack pnpm --filter @cellsymphony/desktop tauri:build
+```
 
-- Core CA + mapping tests must validate repeatable output for fixed seeds/settings.
-- Golden tests are recommended for representative CA-to-music scenarios.
+Quality audit:
 
-### 3.3 Audio/timing requirements
+```bash
+corepack pnpm run quality:audit
+```
 
-- Scheduler drift/jitter must remain within defined thresholds during test runs.
-- Add benchmark checks for dense-pattern scenarios.
+The audit reports file length, function length, simple complexity, wide signatures, and behavior/behaviour naming drift. It is informational, but newly touched files should not make the report worse.
 
-## 4) Coverage and Quality Gates
+## TypeScript Baseline
 
-Minimum CI gate requirements:
+- TypeScript is limited to desktop UI and shared bridge/runtime contracts.
+- `strict`, `noUnusedLocals`, and `noUnusedParameters` are enabled through `tsconfig.base.json`.
+- Tests use Node `node:test` through `tsx --test`; do not add Jest or Vitest.
+- Package `lint` and `format:check` scripts are currently placeholders; do not claim ESLint or Prettier coverage until those tools are wired.
 
-- All lint/format checks pass.
-- All unit/integration tests pass.
-- No TypeScript compile errors.
-- Rust clippy and test suite pass.
+## Rust Baseline
 
-Coverage targets (initial):
+- `platform-core` owns behavior/grid/interpretation/mapping logic and generated platform capability constants.
+- `playback-runtime` owns native runtime protocol, runner, menu, snapshots, platform effects, audio commands, and runtime status.
+- `realtime-engine` owns synth/sample audio rendering, route/pan, FX buses, global FX, and final stereo mix.
+- `apps/desktop/src-tauri` and `apps/pi-zero` are host adapters.
+- `cargo clippy` warnings are errors for checked crates.
 
-- `packages/device-contracts`: >= 95% line coverage
-- `crates/platform-core` and `crates/playback-runtime`: native behavior/runtime regression coverage for shipped behavior
-- UI and Rust coverage tracked and improved incrementally, with hard gate added after baseline maturity
+## Capability And Help Resources
 
-Static quality requirements:
+- `resources/platform-capabilities.json` is the source of truth for grid size, part count, instrument count, sample slots, bus count, global FX slots, touch-FX concurrency, scan sections, OLED size, and pan positions.
+- Run `corepack pnpm run capabilities:generate` after editing platform capabilities.
+- Run `corepack pnpm run capabilities:check` to verify generated TypeScript exports are current.
+- Rust capability constants are generated at build time for `platform-core` and `realtime-engine`.
+- `resources/menu-help-texts.tsv` must cover every native menu/help target with specific rows; generic fallback help is not allowed.
 
-- No TODO/FIXME introduced without issue reference.
-- No dead exported APIs in shared packages.
-- No unchecked panics in non-test Rust paths without rationale.
+## File Size And Refactoring
 
-## 5) GitHub Actions CI Pipeline Requirements
+- The hard source-file limit is 500 lines.
+- Temporary exceptions are listed in `.file-length-exceptions`.
+- Do not expand exception files unless a focused split would be riskier than the immediate change.
+- Prefer focused extraction when working near large functions or oversized files.
 
-## 5.1 Trigger policy
+## Fallback Policy
 
-- On pull requests to main branches
-- On pushes to protected branches
-- Optional nightly workflow for heavier integration/perf runs
+- Do not add fallbacks for bugs in native runtime wiring, menu layout, platform capabilities, desktop bridge mapping, or core behavior.
+- Acceptable fallbacks are limited to external/compatibility conditions such as older saved configs, disconnected MIDI devices, unavailable files, missing saved resources, and host-device availability.
+- External fallbacks should surface a toast/status/result where practical.
 
-### 5.2 Required jobs (parallel where possible)
+## Definition Of Done
 
-1. `lint_ts`
-   - Install deps
-   - Run ESLint for TS/JS
-2. `format_check_ts`
-   - Run Prettier check
-3. `typecheck_ts`
-   - Run TypeScript project checks
-4. `test_ts`
-   - Run unit/integration tests for TS packages with coverage
-5. `rust_fmt`
-   - `cargo fmt --check`
-6. `rust_lint`
-   - `cargo clippy -- -D warnings`
-7. `rust_test`
-   - `cargo test --workspace`
-8. `desktop_build_smoke`
-   - Build Tauri app in CI mode (no release signing)
-9. `artifact_validation`
-   - Verify sample import outputs and project fixture portability checks
+A code or behavior change is done when:
 
-### 5.3 Matrix requirements
-
-- Primary CI target OS: Windows and Linux
-- Optional macOS build verification once packaging is enabled
-
-### 5.4 Caching requirements
-
-- pnpm cache
-- cargo registry and target cache
-- Node modules cache strategy compatible with lockfile changes
-
-### 5.5 Artifact requirements
-
-- Upload test reports (JUnit or equivalent)
-- Upload coverage reports
-- Upload build logs for failed desktop packaging jobs
-
-## 6) Code Review and Merge Requirements
-
-- PR must reference requirement or issue intent.
-- At least one reviewer approval required.
-- CI status checks required before merge.
-- No direct pushes to protected main branch.
-
-Recommended PR hygiene:
-
-- Keep PRs scoped to one milestone concern when possible.
-- Include test evidence and risk notes.
-- Include screenshots/video for simulator UI behavior changes.
-
-## 7) Security and Supply Chain Requirements
-
-- Pin dependency versions through lockfiles.
-- Enable dependency vulnerability scanning in GitHub.
-- Block known-critical vulnerabilities in CI.
-- Restrict workflow permissions to least privilege.
-
-## 8) Performance and Reliability Requirements
-
-- Define and track startup time budget for desktop app.
-- Define and track max CPU budget for reference dense CA pattern.
-- Detect xrun/dropout risk indicators where possible.
-- Keep realtime thread work minimal and avoid blocking disk I/O on audio path.
-- Any feature that produces internal musical audio must include engine-boundary tests proving the signal reaches the canonical route/pan/bus-FX mixer.
-
-## 9) Definition of Done (Engineering)
-
-A feature is done when:
-
-- Requirements/spec references are updated.
-- Tests are present and passing at appropriate layers.
-- CI quality gates pass.
-- Observability/diagnostic impact is considered.
-- User-visible behavior is documented where relevant.
+- Current docs and resource files are updated in the same change.
+- Generated capability outputs are current.
+- Relevant TypeScript and Rust tests pass.
+- Runtime/core boundary rules remain intact.
+- Internal audio paths route through `realtime-engine`.
+- Hardware/software input semantics remain aligned.
+- Any unverified hardware behavior is recorded in `docs/open-work.md`.

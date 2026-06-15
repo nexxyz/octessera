@@ -1,243 +1,145 @@
 # Cell Symphony
 
-Cell Symphony is a desktop-first hardware-instrument prototype that turns cellular automata into music. The Tauri desktop app is a 1:1 simulator for the planned hardware control surface, not a separate product UX.
+Cell Symphony is a native Rust music platform that turns cellular automata into musical events. It ships as a Tauri desktop hardware simulator and as a native Raspberry Pi app target using the same Rust runtime/core behavior path.
 
-> **Work in progress.** This is an active hobby project. Interfaces and behavior can change quickly, but the README should reflect the current implemented state.
+## Current State
 
----
+- Native Rust runtime, menu, transport, behavior, interpretation, mapping, and config logic are canonical.
+- TypeScript is limited to desktop UI and shared bridge/display/runtime contracts.
+- Desktop uses Tauri as the host adapter for windowing, storage, MIDI, sample browsing, sample decoding, and audio output.
+- Pi Zero uses a native Rust app with HAL stubs for host builds and `hardware-pi` for real hardware builds.
+- Internal synth/sample audio routes through `crates/realtime-engine` and `crates/rodio-engine-source`; MIDI instruments emit external MIDI instead of entering the internal audio mixer.
 
-## What It Is
+## What It Does
 
-Cell Symphony combines a pluggable cellular-behavior engine, a hardware-parity menu/control layer, and a realtime synth/sample backend:
+- Runs an 8x8 cellular grid with native behaviors: none, sequencer, keys, Life, Brain, Ant, Bounce, Shapes, Raindrops, DLA, and Glider.
+- Interprets cell changes and scan positions into trigger intents.
+- Maps trigger intents into notes, CC values, sample playback, MIDI output, and parameter modulation.
+- Provides eight instrument slots with synth, sampler, MIDI, and silent `none` modes.
+- Provides mixer routing, FX buses, global FX, pan, volume, sample assignment, voice stealing policy, MIDI clock, preset/default storage, contextual help, and OLED/grid/NeoKey snapshots.
+- Provides a Dance layer for live mix, pan, trigger probability/gate control, XY modulation, and mapped momentary FX.
 
-- An **8x8 grid** runs one of 11 pluggable algorithms via the shared `BehaviorEngine` API.
-- A **sense/mapping layer** turns cell transitions (`activate`, `stable`, `deactivate`, `scanned`) into musical events.
-- A **voice layer** manages instruments, synth/sample/MIDI slots, mixer routing, FX buses, and sample-grid assignments.
-- A **Dance performance layer** provides grid pages for mix, pan, trigger-gate, and mapped momentary FX.
-- A **desktop simulator** mirrors the hardware interface, including OLED, grid LEDs, encoders, buttons, transport, MIDI, and audio bridge behavior.
-
----
-
-## Current Status
-
-Implemented and functional:
-
-- 11 behaviors: none, sequencer, keys, Conway Life, Brian's Brain, Langton's Ant, Bounce, Shapes, Raindrops, DLA, and Glider.
-- Multi-part L1/L2 architecture with per-part behavior, scan/sense settings, mapping, names, and saved grid state.
-- Scanning modes, sectioned scanning, scan direction, state/event triggers, and pitch/velocity/filter modulation lanes.
-- Internal synth, sample slots, MIDI output/input, external sync, voice stealing policy, and audio load indicators.
-- L3 Voice instruments with synth/sample/MIDI types, mixer volume/pan/route, FX buses, and sample assignment mode.
-- L4 Dance performance layer with Mix, Pan, Trigger Gate, and FX pages.
-- Dance FX mapping: select effect type/params, Map to Grid, press cells for momentary activate/release effects.
-- Preset/default storage, factory/default load/save, auto-save, contextual help, OLED rendering, toast feedback, and aux encoder bindings.
-
-Implemented and functional:
-
-- Phase 1: Quality & consistency improvements (duck prevention, "none" type, range standardization, quality pass)
-- Phase 2: Menu cleanup, part/instrument clone/reset, factory defaults
-- Phase 3: Ghost cells, sectioned scan modes
-- Phase 4: Touch layer, momentary FX grid, marker bar display style
-
-Planned/follow-up:
-
-Phase 4 (Performance & Effects):
-- REQ-05 — Global FX (Master Bus): Post-instrument/pre-output section with vinyl simulator, EQ, and compressor.
-- REQ-15 — Signal Path Visualization: OLED routing diagram showing parts → instruments → FX buses → output.
-
-Phase 5 (Advanced / Hardware):
-- REQ-16 — Rust-Owned Realtime Playback Runtime: Move transport/MIDI/audio scheduling from TS to Rust.
-- REQ-19 — Migrate Platform Core to Rust: Replace TS core with Rust impl for desktop + Pi Zero device.
-- REQ-17 — Hardware Test Harness: Guided button/encoder/audio tests for PCB verification.
-- REQ-18 — Over-the-Air Updates: GitHub-based firmware update on hardware with rollback support.
-
----
+Platform dimensions and limits are defined in `resources/platform-capabilities.json`. Generated TypeScript and Rust constants must stay in sync with that file.
 
 ## Controls
 
-| Hardware Control | Simulator Key | Function |
-|---|---|---|
-| Main encoder turn | Left / Right | Move cursor or adjust edited value |
-| Main encoder press | Enter | Enter group, toggle/edit value, confirm action |
-| Back | Backspace / Esc | Back/exit edit/exit assignment mode |
-| Space | Space | Play / pause |
-| Shift + Space | Shift + Space | Emergency stop / panic |
-| Shift + Back | Shift + Backspace / Shift + Esc | Clear active part grid |
-| Fn + left grid column | Ctrl/Fn + left column | Select active part |
-| Fn + right grid column | Ctrl/Fn + right column | Toggle Dance layer on/off |
-| Touch right grid column | right column, no Fn | Select Dance page: mix, pan, trigger-gate, fx |
-| Aux encoder press | simulator aux control | Bind/unbind current menu item |
-| Aux encoder turn | simulator aux control | Adjust bound parameter |
+| Control | Desktop Key | Runtime Input | Function |
+|---|---|---|---|
+| Main encoder turn | Left / Right / Up / Down | `encoder_turn:main` | Move cursor or adjust edited value |
+| Main encoder press | Enter | `encoder_press:main` | Enter group, toggle/edit value, confirm action |
+| Back button | Backspace / Esc | `button_a` | Back, exit edit, exit assignment mode |
+| Space button | Space | `button_s` | Play / pause |
+| Shift | Shift | `button_shift` | Modifier for destructive and layer actions |
+| Fn | Control | `button_fn` | Modifier for part/page overlays |
+| Shift + Space | Shift + Space | `button_shift` + `button_s` | Emergency stop / panic |
+| Shift + Back | Shift + Backspace / Shift + Esc | `button_shift` + `button_a` | Clear active part grid |
+| Aux encoders | UI controls | `encoder_*:aux1..aux4` | Bound parameter/action control |
 
-When Fn is held, the left grid column shows part options and the right grid column shows Dance page options. The active part/page is highlighted.
+Fn overlays:
 
----
+- Left grid column selects the active part.
+- Right grid column toggles or selects the Dance page.
+- Combined Shift + Fn activates combined-modifier behavior described in `docs/menu-and-controls-spec.md`.
 
 ## Menu Overview
 
-The authoritative menu/control spec lives in `docs/menu-and-controls-spec.md`.
+The authoritative menu/control spec is `docs/menu-and-controls-spec.md`.
 
-- **L1: Life** — per-part behavior, step rate, behavior config, saved grid state, part naming.
-- **L2: Sense** — per-part scan mode, scan axis/unit/direction/sections, trigger routing, note mapping, modulation lanes.
-- **L3: Voice** — instruments, synth/sample/MIDI settings, sample assignment, mixer volume/pan/route, FX buses.
-- **L4: Dance** — Dance Page, BPM, Trigger Gate controls, Dance FX type/params, Map to Grid.
-- **Playback** — BPM.
-- **System** — presets/defaults/factory, sound settings, MIDI, UI settings, contextual help.
+- `L1`: active part behavior, step rate, behavior parameters, saved grid state, and part naming.
+- `L2`: per-part scan/sense settings, trigger mapping, pitch, velocity, filter lanes, probability maps, and param modulation.
+- `L3`: instruments, synth/sample/MIDI settings, sample assignment, mixer routing, FX buses, and global FX.
+- `L4`: Dance page selection, BPM, trigger mode grid, XY controls, momentary FX setup, and grid mapping.
+- `System`: presets, default/factory actions, sound, MIDI, UI brightness/sleep, and context help.
 
----
-
-## Dance Layer
-
-`Fn + rightmost grid column` selects Dance pages. `Fn + leftmost grid column` selects a part to display and exits Dance.
-
-- **mix**: columns are instruments, y=0 mutes and y=7 sets 100% volume.
-- **pan**: rows are instruments, x=0 is hard left and x=7 is hard right.
-- **fx**: assigned cells trigger momentary effects while held.
-
-Dance FX maps cells to global-output momentary DSP in the Rust realtime engine:
-
-- `stutter`
-- `freeze`
-- `filter_sweep`
-- `pitch_shift`
-
-To map FX, go to `L4: Dance > FX Page`, select an effect type and parameters, choose `Map to Grid`, then press a grid cell. The platform capability limit is 4 simultaneous held effects; same effect type presses replace the existing active cell.
-
-- **trigger-gate**: columns are parts, rows enable/disable gate per cell. `Fn+Shift` column clears part gates, `Shift` row toggles cell gate. `L4: Dance > Target Part` controls which part(s) the gate applies to.
-
----
-
-## Algorithms
-
-| Algorithm | Native Module | Description |
-|---|---|---|
-| none | `crates/platform-core/src/behaviors/none.rs` | Empty/no-op behavior |
-| sequencer | `crates/platform-core/src/behaviors/sequencer.rs` | Manual grid toggle |
-| keys | `crates/platform-core/src/behaviors/ported/keys.rs` | Momentary key grid |
-| life | `crates/platform-core/src/behaviors/life.rs` | Conway's Game of Life with optional spawning |
-| brain | `crates/platform-core/src/behaviors/ported/brain.rs` | Brian's Brain 3-state automaton |
-| ant | `crates/platform-core/src/behaviors/ported/ant.rs` | Langton's Ant |
-| bounce | `crates/platform-core/src/behaviors/ported/bounce.rs` | Bouncing particles |
-| shapes | `crates/platform-core/src/behaviors/ported/shapes.rs` | Expanding ring/shape pulses |
-| raindrops | `crates/platform-core/src/behaviors/ported/raindrops.rs` | Falling drops and splash rings |
-| dla | `crates/platform-core/src/behaviors/ported/dla.rs` | Diffusion-limited aggregation |
-| glider | `crates/platform-core/src/behaviors/glider.rs` | Conway glider spawning |
-
----
-
-## Documentation
-
-- `docs/menu-and-controls-spec.md` — source of truth for menu/control behavior.
-- `docs/backlog.md` — requirement status and phase planning.
-- `docs/runtime-boundaries.md` — layer responsibilities.
-- `docs/engineering-quality-requirements.md` — CI, coverage, and quality gates.
-- `docs/implementation-done.md` — implementation summary for the initial 11-algorithm phase.
-
----
-
-## Sample Library Attribution
-
-The repository `samples/` content is sourced from the Stargate sample pack:
-
-`https://github.com/stargatedaw/stargate-sample-pack`
-
----
-
-## Hardware Plan
-
-The long-term goal is a standalone hardware device:
-
-- Raspberry Pi Zero 2 W
-- 128x128 OLED display
-- 5 clickable rotary encoders
-- 4 NeoKey buttons
-- 8x8 NeoTrellis grid
-- PCM5102 I2S audio DAC
-- USB-C power
-- MIDI in/out where practical
-
----
-
-## Development
-
-### Prerequisites
-
-- Node.js 20+
-- pnpm 9.12.0 (`corepack enable` recommended)
-- Rust stable
-- Tauri v2 prerequisites for desktop development
-
-### Install
-
-```bash
-pnpm install
-```
-
-### Run Desktop Simulator
-
-```bash
-pnpm --filter @cellsymphony/desktop tauri:dev
-```
-
-On Windows you can also use:
-
-```bash
-cellSymphony.bat
-```
-
-### Verify
-
-CI-style TypeScript/Rust lint, typecheck, test, and build scripts:
-
-```bash
-pnpm run build
-pnpm run lint
-pnpm run typecheck
-pnpm run test
-pnpm run test:coverage
-cargo fmt --all --check
-cargo clippy --workspace --exclude cellsymphony-desktop --exclude rodio-engine-source --all-targets -- -D warnings
-cargo test --workspace --exclude cellsymphony-desktop --exclude rodio-engine-source
-```
-
-Run focused package tests with:
-
-```bash
-pnpm --filter @cellsymphony/desktop test
-cargo test -p platform-core
-cargo test -p playback-runtime
-```
-
-Native runtime correctness is enforced by the Rust `platform-core` and `playback-runtime` suites.
-
-### Project Structure
+## Repository Layout
 
 ```text
 cellSymphony/
-├── apps/desktop/                  # Tauri desktop simulator and audio bridge
-├── packages/
-│   └── device-contracts/          # Shared TypeScript bridge/display/runtime contracts
+├── apps/
+│   ├── desktop/                  # Tauri desktop host and UI
+│   └── pi-zero/                  # Native Pi app target
 ├── crates/
-│   ├── platform-core/             # Native behavior/grid/interpretation/mapping core
-│   ├── playback-runtime/          # Native runner/runtime protocol and menu host boundary
-│   ├── realtime-engine/           # Rust realtime synth/sample/FX engine
-│   ├── rodio-engine-source/       # Rodio source wrapper
-│   ├── cellsymphony-hal/          # Hardware abstraction layer
-│   └── cellsymphony-pi/           # Raspberry Pi app target
-├── docs/                          # Specs, backlog, architecture, quality docs
-├── hardware/                      # Hardware prototype resources
-└── tools/                         # Auxiliary tools
+│   ├── platform-core/            # Native behavior/grid/interpretation/mapping core
+│   ├── playback-runtime/         # Native runner, protocol, snapshots, menu, platform effects
+│   ├── realtime-engine/          # Rust synth/sample/FX mixer
+│   ├── rodio-engine-source/      # Rodio source wrapper for desktop/Pi audio output
+│   └── hal/                      # Pi hardware abstraction layer and host stubs
+├── packages/
+│   └── device-contracts/         # Shared TypeScript bridge/display/runtime contracts
+├── resources/                    # Menu help text and platform capabilities
+├── docs/                         # Current architecture, workflow, menu, and quality docs
+├── hardware/                     # Pi pinout, enclosure, and bring-up docs
+└── tools/                        # Repository maintenance tools
 ```
 
----
+## Development
+
+Install dependencies:
+
+```bash
+corepack pnpm install
+```
+
+Run the desktop app:
+
+```bash
+corepack pnpm --filter @cellsymphony/desktop tauri:dev
+```
+
+Run the standard checks:
+
+```bash
+corepack pnpm run typecheck
+corepack pnpm -r test
+corepack pnpm -r lint
+corepack pnpm -r format:check
+cargo fmt --all --check
+cargo test -p platform-core -p playback-runtime -p realtime-engine -p cellsymphony-desktop
+cargo clippy -p platform-core -p playback-runtime -p realtime-engine -p cellsymphony-desktop --all-targets -- -D warnings
+```
+
+Build desktop release artifacts:
+
+```bash
+corepack pnpm --filter @cellsymphony/desktop tauri:build
+```
+
+Build the Pi app with host stubs:
+
+```bash
+cargo build -p cellsymphony-pi
+```
+
+See `docs/development-workflows.md` for complete build, verification, capability-generation, and Pi hardware build notes.
+
+## Documentation
+
+- `docs/menu-and-controls-spec.md`: authoritative controls, menu structure, overlays, persistence, and display behavior.
+- `docs/runtime-boundaries.md`: crate/host responsibilities and dependency boundaries.
+- `docs/development-workflows.md`: current development, build, verification, and capability-generation commands.
+- `docs/engineering-quality-requirements.md`: current quality gates and definition of done.
+- `docs/open-work.md`: current actionable work only.
+- `hardware/pinout-and-connections.md`: Pi wiring and logical input mapping.
+- `hardware/pin-conflict-matrix.md`: GPIO/bus allocation audit.
+- `hardware/hardware-integration-plan.md`: current Pi integration status and bring-up checklist.
+- `hardware/enclosure-frontplate-revA-dimensions.md`: frontplate dimensions.
+
+## Samples
+
+Repository sample content is sourced from the Stargate sample pack:
+
+```text
+https://github.com/stargatedaw/stargate-sample-pack
+```
 
 ## License
 
 Copyright (c) 2026 nexxyz.
 
-**Free for personal/non-commercial use**: you may use, copy, modify, and build this software for personal purposes.
+Free for personal/non-commercial use: you may use, copy, modify, and build this software for personal purposes.
 
-**Commercial use or selling hardware devices** requires prior written permission.
+Commercial use or selling hardware devices requires prior written permission.
 
 To request permission, contact: https://github.com/nexxyz
 
-See the [LICENSE](LICENSE) file for full terms.
+See `LICENSE` for full terms.

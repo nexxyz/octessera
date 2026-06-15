@@ -1,9 +1,9 @@
-import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { resolve, extname, join } from "node:path";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { extname, join, relative, resolve } from "node:path";
 
 const ROOT = resolve(process.cwd());
-const INCLUDE_EXT = new Set([".ts", ".tsx"]);
-const IGNORE_DIRS = new Set(["node_modules", "dist", "build", ".git", ".turbo", ".pnpm-store", "coverage"]);
+const INCLUDE_EXT = new Set([".mjs", ".rs", ".ts", ".tsx"]);
+const IGNORE_DIRS = new Set(["node_modules", "dist", "build", "target", ".git", ".turbo", ".pnpm-store", "coverage"]);
 
 const thresholds = {
   fileLocWarn: 500,
@@ -36,15 +36,17 @@ function lineCount(text) {
   return text.split(/\r?\n/).length;
 }
 
-function scanFunctions(text) {
+function scanFunctions(text, ext) {
   const lines = text.split(/\r?\n/);
   const fns = [];
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i];
-    const m = line.match(/^\s*(export\s+)?function\s+([A-Za-z0-9_]+)\s*\(([^)]*)\)\s*\{/);
+    const m = ext === ".rs"
+      ? line.match(/^\s*(pub(\([^)]*\))?\s+)?fn\s+([A-Za-z0-9_]+)\s*\(([^)]*)\)/)
+      : line.match(/^\s*(export\s+)?function\s+([A-Za-z0-9_]+)\s*\(([^)]*)\)\s*\{/);
     if (!m) continue;
-    const name = m[2];
-    const params = m[3].trim();
+    const name = ext === ".rs" ? m[3] : m[2];
+    const params = (ext === ".rs" ? m[4] : m[3]).trim();
     const paramCount = params.length === 0 ? 0 : params.split(",").length;
     let depth = 0;
     let end = i;
@@ -69,20 +71,22 @@ function scanFunctions(text) {
 }
 
 const files = listFiles(ROOT);
+const britishSpellingToken = "behavio" + "ur";
 const fileStats = [];
 const fnStats = [];
 const namingHits = [];
 
 for (const file of files) {
-  const rel = file.replace(`${ROOT}\\`, "").replace(/\\/g, "/");
+  const rel = relative(ROOT, file).replace(/\\/g, "/");
   const text = readFileSync(file, "utf8");
+  const ext = extname(file);
   const loc = lineCount(text);
   fileStats.push({ file: rel, loc });
-  const fns = scanFunctions(text).map((f) => ({ ...f, file: rel }));
+  const fns = scanFunctions(text, ext).map((f) => ({ ...f, file: rel }));
   fnStats.push(...fns);
 
-  const behaviour = (text.match(/\bbehaviour\b/gi) || []).length;
-  if (behaviour > 0) namingHits.push({ file: rel, token: "behaviour", count: behaviour });
+  const spellingHits = (text.match(new RegExp(`\\b${britishSpellingToken}\\b`, "gi")) || []).length;
+  if (spellingHits > 0) namingHits.push({ file: rel, token: britishSpellingToken, count: spellingHits });
 }
 
 const largeFiles = fileStats.filter((f) => f.loc > thresholds.fileLocWarn).sort((a, b) => b.loc - a.loc);
@@ -120,14 +124,12 @@ report.push("## Top Long Functions");
 for (const f of longFns.slice(0, 20)) report.push(`- ${f.file}:${f.start} ${f.name}() loc=${f.loc}, complexity=${f.complexity}`);
 report.push("");
 
-report.push("## Naming Consistency (behavior vs behaviour)");
+report.push(`## Naming Consistency (behavior vs ${britishSpellingToken})`);
 if (namingHits.length === 0) {
-  report.push("- No `behaviour` identifier tokens found.");
+  report.push(`- No \`${britishSpellingToken}\` identifier tokens found.`);
 } else {
-  for (const n of namingHits) report.push(`- ${n.file}: ${n.count} occurrences of 'behaviour'`);
+  for (const n of namingHits) report.push(`- ${n.file}: ${n.count} occurrences of '${britishSpellingToken}'`);
 }
 report.push("");
 
-const outPath = resolve(ROOT, "docs", "code-quality-baseline.md");
-writeFileSync(outPath, `${report.join("\n")}\n`, "utf8");
-console.log(`Wrote baseline report: ${outPath}`);
+console.log(report.join("\n"));

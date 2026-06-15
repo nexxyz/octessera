@@ -1,89 +1,87 @@
-# Cell Symphony Hardware Integration Plan
+# Pi Zero Integration
 
-This plan captures the current hardware integration direction for the Pi Zero 2W build and aligns it with software architecture.
+This document describes the current Raspberry Pi Zero 2 W hardware target and native app integration status.
 
-## Locked Hardware Summary
+## Hardware Target
 
-- Compute: Raspberry Pi Zero 2W
-- Matrix/buttons: NeoTrellis (4x4 x4 chain) + NeoKey 1x4 over I2C bus 1
-- Display: SSD1351 OLED breakout over SPI
-- Audio DAC: ADA6250 connector for PCM5102-class DAC module over I2S
-- Encoders: 5 direct-GPIO clickable rotary encoders
+- Compute: Raspberry Pi Zero 2 W
+- Grid: four NeoTrellis 4x4 boards chained as an 8x8 matrix over I2C bus 1
+- Buttons: NeoKey 1x4 over I2C bus 1
+- Display: SSD1351 128x128 RGB OLED over SPI
+- Audio: PCM5102-class DAC through the ADA6250 connector over I2S
+- Controls: five clickable direct-GPIO rotary encoders
 
-## Architecture Alignment
+## Software Path
 
-The runtime keeps this flow:
+- App: `apps/pi-zero`
+- HAL crate: `crates/hal`
+- Runtime: `crates/playback-runtime::NativeRunner`
+- Core behavior logic: `crates/platform-core`
+- Audio engine: `crates/realtime-engine` through `crates/rodio-engine-source`
 
-1. Matrix Population Logic
-2. Matrix Interpretation Logic
-3. Cell Trigger Mapping
-4. Cell Trigger Execution
+The Pi app is native Rust. It does not start a Node or TypeScript runtime.
 
-Hardware abstraction (HAL) feeds control inputs and consumes display/LED outputs without coupling to musical logic internals.
+## Implemented Host Integration
 
-## HAL Module Plan
+- Pi app instantiates `NativeRunner` directly.
+- Host builds use HAL stubs by default.
+- Real hardware builds use the `hardware-pi` feature.
+- NeoTrellis input maps to native grid press/release messages.
+- NeoTrellis LED output consumes runtime LED snapshots.
+- NeoKey keys map to `button_a`, `button_s`, `button_shift`, and `button_fn`.
+- NeoKey LEDs consume runtime modifier/transport/display state.
+- Encoders map to `main`, `aux1`, `aux2`, `aux3`, and `aux4`.
+- Encoder GPIO uses stateful quadrature decoding.
+- Host adapter handles default/preset storage effects, MIDI list/select/panic/output, sample listing, musical events, Dance FX audio commands, and playback/MIDI status updates.
 
-- `hal/pinmap`
-  - single source of truth for GPIO/SPI/I2C assignments
-- `hal/encoder_gpio`
-  - 5 encoders (quadrature + push), pull-ups, debounce
-- `hal/i2c_bus`
-  - shared I2C bus scheduler/owner
-- `hal/neotrellis`
-  - 8x8 key scan + LED frame batching over seesaw
-- `hal/neokey`
-  - 1x4 key scan over seesaw
-- `hal/oled_ssd1351`
-  - SPI menu/status rendering
-- `hal/i2s_dac`
-  - ALSA/I2S output path targeting PCM5102-class DAC
+## Hardware Validation Still Required
 
-## Timing Model
+- Physical Pi app boot and runtime smoke test.
+- OLED orientation, color order, clipping, and brightness validation.
+- NeoTrellis coordinate orientation and LED priority validation.
+- NeoKey physical key order and LED color validation.
+- Encoder direction and push debounce validation.
+- I2S DAC/ALSA output validation.
+- Sample preview and sample-bank sync validation on the Pi audio path.
 
-- MIDI-clock style PPQN = 24
-- Scan progression uses note units (`1/16`, `1/8`, `1/4`, `1/2`, `1/1`)
-- Conway evolution uses independent note-unit setting
-- Scan cursor remains visible in scanning modes while running and stopped
+Tracked current work lives in `docs/open-work.md`.
 
-## Bus and Pin Resource Notes
+## Build Commands
 
-- SPI in use: OLED write path (MOSI/SCLK/CE0, plus DC/RST GPIO)
-- I2C in use: NeoTrellis + NeoKey seesaw devices on bus 1
-- I2S in use: ADA6250/PCM5102 (`GPIO18` BCK, `GPIO19` LRCK, `GPIO21` DIN)
-- GPIO9 reused for SW5 channel B is valid because OLED is write-only and SPI MISO is unused
+Host-stub build:
 
-## Input Role Mapping
+```bash
+cargo build -p cellsymphony-pi
+```
 
-- `encoder_main` (SW1): menu navigation and value editing
-- `encoder_aux_1..4` (SW2..SW5): reserved for future assignments
-- NeoKey:
-  - key1 = A
-  - key2 = S
-  - key3 = Shift (reserved)
-  - key4 = Fn (reserved)
+Real hardware build on Pi or configured cross environment:
+
+```bash
+cargo build -p cellsymphony-pi --features hardware-pi
+```
+
+On non-Pi cross hosts, the hardware build requires an ARM Linux sysroot and cross `pkg-config` setup for ALSA.
+
+## Bus And Pin Resource Notes
+
+- SPI: OLED write path on MOSI/SCLK/CE0 plus DC/RST GPIO.
+- I2C: NeoTrellis and NeoKey seesaw devices on bus 1.
+- I2S: PCM5102-class DAC using BCK/LRCK/DIN.
+- GPIO9 is reused for SW5 channel B because the OLED path is write-only and SPI MISO is unused.
+- GPIO14 can be claimed by UART TX if serial console is enabled; disable serial console for encoder reliability.
 
 ## Bring-Up Checklist
 
-1. Power rails verified under load (+5V stable)
-2. I2C detection:
-   - all NeoTrellis devices present
-   - NeoKey present
-3. OLED initializes and renders status frame
-4. I2S DAC initializes and outputs test tone
-5. Encoders read correctly:
-    - turn direction
-    - push switch debounce
-6. Matrix input/output test:
-    - all key coordinates map correctly
-    - LED frame updates stable
-7. Transport timing test:
-    - scan progression follows selected note unit
-    - Conway step follows independent note unit
+1. Verify +5V and +3.3V rails under load.
+2. Detect all NeoTrellis and NeoKey I2C devices.
+3. Initialize OLED and render a runtime snapshot frame.
+4. Initialize DAC and produce audio output through the realtime engine path.
+5. Verify each encoder direction and push switch.
+6. Verify all grid coordinates and LED colors.
+7. Verify transport timing and MIDI clock behavior.
+8. Verify preset/default storage and sample browser paths.
 
-## Mechanical/Enclosure Note
+## Mechanical Notes
 
 - KiCAD source remains in `hardware/KiCAD`.
-- Next phase includes enclosure design with:
-  - encoder spacing/clearance
-  - matrix + display line-of-sight
-  - service access for USB-C and debug ports
+- Frontplate dimensions are documented in `hardware/enclosure-frontplate-revA-dimensions.md`.

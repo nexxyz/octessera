@@ -41,13 +41,14 @@ Cell Symphony is a monorepo (pnpm workspaces plus Cargo workspace) centered on a
 ### Documentation
 - `docs/menu-and-controls-spec.md` is the single source of truth for menu structure and controls — update in the same commit as any control/menu change
 - Keep `resources/menu-help-texts.tsv` in sync; coverage is enforced by native tests
+- Keep `resources/platform-capabilities.json` as the single source of truth for platform dimensions and limits; regenerate TypeScript capability exports after edits
 - When any enum parameter changes, update its help text in the TSV in the same commit
 - Keep `docs/runtime-boundaries.md` aligned with the native Rust runtime/core boundary.
-- `docs/backlog.md` tracks current native migration regression work; remove/update obsolete TS-migration assumptions rather than adding new work under old migration requirements.
+- `docs/open-work.md` tracks current actionable follow-up work only; do not add completed-work history there.
 
 ### Pre-Push Checks
 - A git pre-push hook is installed at `.githooks/pre-push` (`git config core.hooksPath .githooks`)
-- Before any push, the hook runs: `pnpm run lint`, `pnpm run typecheck`, `pnpm run format:check`, `cargo fmt --all --check`, `cargo clippy`
+- Before any push, the hook runs: `pnpm run lint`, `pnpm run typecheck`, `pnpm run format:check`, `pnpm run test`, `cargo fmt --all --check`, source file-length checks, and `cargo clippy`
 - The hook runs all checks and reports results; push is blocked if any fail
 - To bypass temporarily: `git push --no-verify`
 
@@ -55,11 +56,11 @@ Cell Symphony is a monorepo (pnpm workspaces plus Cargo workspace) centered on a
 - Multi-line edits spanning `scripts` and `devDependencies` in package.json may accidentally delete the `dependencies` block
 - After editing package.json, always run `pnpm install`
 - Menu `enum` options for channel targets are strings (`"0"`, `"1"`, `"2"`, `"3"`), not numbers
-- Native menu display values must preserve old UI semantics: named selectors should show labels like `I1: synth`, not raw numeric IDs.
-- Grid coordinate conversion is parity-critical. Old core uses world-space lower-left coordinates and display-space conversion through `GRID_DOMAIN.toDisplayIndex`; native LED overlays/Dance/Fn/sample assignment code must preserve that orientation.
+- Native menu display values must preserve current UI semantics: named selectors should show labels like `I1: synth`, not raw numeric IDs.
+- Grid coordinate conversion is parity-critical. Core logic uses world-space lower-left coordinates and display-space conversion through `GRID_DOMAIN.toDisplayIndex`; native LED overlays/Dance/Fn/sample assignment code must preserve that orientation.
 - Dance/Fn overlays, sample assignment overlays, trigger-probability overlays, and ghost cells have explicit priority/coordinate behavior in `docs/menu-and-controls-spec.md`.
 - Internal synth/sample instruments must route through realtime-engine mixer path; MIDI instruments emit external MIDI and should not be routed through internal audio FX.
-- Sample browser behavior should match old menu nodes: `..`, `[folder]`, file rows, `(empty)`, preview via preview input, and long names clipped/scrolled without OLED overlap.
+- Sample browser behavior should use `..`, `[folder]`, file rows, `(empty)`, preview via preview input, and long names clipped/scrolled without OLED overlap.
 - If you see changes in the repository that you did not make, always ask what to do with them.
 - When I tell you something, and later correct it, take my later instructions as my real intention, even if they contradict earlier statements.
 - Ensure that any bridging elements between TS and Rust are mapping correctly, e.g. when renaming or changing instrument type names, parameters or other shared structures.
@@ -91,7 +92,7 @@ Cell Symphony is a monorepo (pnpm workspaces plus Cargo workspace) centered on a
 - The monorepo has many packages; use `pnpm --filter <package>` to scope commands and avoid cross-package side effects
 - When tracing native behavior registration, start in `crates/platform-core/src/behaviors/`.
 - We have a hard file LoC limit of 500 lines. Consider this when planning implementations.
-- Current temporary file-length exceptions include native migration files; prefer further focused splits instead of expanding those files.
+- Current temporary file-length exceptions are listed in `.file-length-exceptions`; prefer focused splits instead of expanding those files.
 
 ### Online Research
 - When you are facing a problem that you cannot reliably solve, utilize the tools at your disposal to find a solution online, in related resources or communities.
