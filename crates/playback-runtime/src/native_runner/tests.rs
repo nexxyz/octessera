@@ -2836,6 +2836,33 @@ fn repeated_autosaves_increment_flash_serial() {
 }
 
 #[test]
+fn config_load_queues_midi_port_selection_effects() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+
+    runner
+        .apply_config_payload(json!({
+            "runtimeConfig": {
+                "midi": {
+                    "enabled": true,
+                    "outId": "out1",
+                    "inId": "in1"
+                }
+            }
+        }))
+        .unwrap();
+
+    let messages = runner.messages_with_snapshot().unwrap();
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects == &vec![
+                RuntimePlatformEffect::MidiSelectOutput { id: Some("out1".into()) },
+                RuntimePlatformEffect::MidiSelectInput { id: Some("in1".into()) },
+            ]
+    )));
+}
+
+#[test]
 fn contextual_help_includes_midi_output_guidance() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![5, 2];

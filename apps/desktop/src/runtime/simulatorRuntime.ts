@@ -172,16 +172,6 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
     const payload = pendingDefaultSave;
     pendingDefaultSave = null;
     if (tauriRealtimeMode) {
-      void invokeBridge("store_save_default", { payload })
-        .then(() => {
-          applyRuntimeResult({ type: "save_default_result", ok: true, isAuto: true }, performance.now(), performance.now());
-          publishSnapshot();
-        })
-        .catch((err) => {
-          console.error("[Runtime] store_save_default failed:", err);
-          audioError = `store_save_default failed: ${err instanceof Error ? err.message : String(err)}`;
-          publishSnapshot();
-        });
       return;
     }
     store.saveDefault(payload);
@@ -419,6 +409,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
         continue;
       }
       if (message.type === "platform_effects") {
+        if (tauriRealtimeMode) continue;
         applyEffects(message.effects.filter((effect) => effect.type !== "audio_command"), dueMs, nowMs);
         continue;
       }
@@ -575,15 +566,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
     publishSnapshot();
   }
 
-  if (tauriRealtimeMode) {
-    void invoke("store_load_default").then((payload: any) => {
-      if (payload) {
-        applyRuntimeResult({ type: "load_default_result", payload: payload as ConfigPayload }, performance.now(), performance.now());
-      }
-    }).catch((err) => {
-      console.error("[Runtime] store_load_default failed:", err);
-    });
-  } else {
+  if (!tauriRealtimeMode) {
     const defaultPayload = store.loadDefault();
     if (defaultPayload) {
       applyRuntimeResult({ type: "load_default_result", payload: defaultPayload }, performance.now(), performance.now());
@@ -617,14 +600,16 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
     publishSnapshot();
   });
 
-  void midi.listOutputs().then((outputs) => {
-    applyRuntimeResult({ type: "midi_list_outputs_result", outputs }, performance.now(), performance.now());
-    publishSnapshot();
-  });
-  void midi.listInputs().then((inputs) => {
-    applyRuntimeResult({ type: "midi_list_inputs_result", inputs }, performance.now(), performance.now());
-    publishSnapshot();
-  });
+  if (!tauriRealtimeMode) {
+    void midi.listOutputs().then((outputs) => {
+      applyRuntimeResult({ type: "midi_list_outputs_result", outputs }, performance.now(), performance.now());
+      publishSnapshot();
+    });
+    void midi.listInputs().then((inputs) => {
+      applyRuntimeResult({ type: "midi_list_inputs_result", inputs }, performance.now(), performance.now());
+      publishSnapshot();
+    });
+  }
 
   return {
     dispatch(input) {
@@ -668,10 +653,10 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
       scheduler.start((nowMs, elapsedMs) => {
         syncPlaybackConfigIfNeeded();
         const cfg = frameSettings()?.midi ?? ((coreState() as any).runtimeConfig.midi as any);
-        if (cfg.enabled) {
+        if (!tauriRealtimeMode && cfg.enabled) {
           if (cfg.outId !== midi.getSelectedOutputId()) void midi.selectOutput(cfg.outId);
           if (cfg.inId !== midi.getSelectedInputId()) void midi.selectInput(cfg.inId);
-        } else {
+        } else if (!tauriRealtimeMode) {
           if (midi.getSelectedOutputId() !== null) void midi.selectOutput(null);
           if (midi.getSelectedInputId() !== null) void midi.selectInput(null);
         }

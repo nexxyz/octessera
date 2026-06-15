@@ -1,20 +1,26 @@
 use crate::AppState;
+use midir::MidiInputConnection;
 use midir::{Ignore, MidiInput, MidiOutput};
+use std::sync::{Arc, Mutex};
 use tauri::Emitter;
 
-#[derive(serde::Serialize)]
+#[derive(Clone, serde::Serialize)]
 pub struct MidiPortInfo {
-    id: String,
-    name: String,
+    pub(crate) id: String,
+    pub(crate) name: String,
 }
 
 #[derive(serde::Serialize, Clone)]
-struct MidiInMessage {
-    bytes: Vec<u8>,
+pub(crate) struct MidiInMessage {
+    pub(crate) bytes: Vec<u8>,
 }
 
 #[tauri::command]
 pub fn midi_list_outputs() -> Result<Vec<MidiPortInfo>, String> {
+    list_outputs()
+}
+
+pub(crate) fn list_outputs() -> Result<Vec<MidiPortInfo>, String> {
     let out = MidiOutput::new("cellsymphony-midi-out").map_err(|e| e.to_string())?;
     let ports = out.ports();
     let mut res = Vec::new();
@@ -32,6 +38,10 @@ pub fn midi_list_outputs() -> Result<Vec<MidiPortInfo>, String> {
 
 #[tauri::command]
 pub fn midi_list_inputs() -> Result<Vec<MidiPortInfo>, String> {
+    list_inputs()
+}
+
+pub(crate) fn list_inputs() -> Result<Vec<MidiPortInfo>, String> {
     let mut input = MidiInput::new("cellsymphony-midi-in").map_err(|e| e.to_string())?;
     input.ignore(Ignore::None);
     let ports = input.ports();
@@ -50,8 +60,14 @@ pub fn midi_list_inputs() -> Result<Vec<MidiPortInfo>, String> {
 
 #[tauri::command]
 pub fn midi_select_output(id: Option<String>, state: tauri::State<AppState>) -> Result<(), String> {
-    let mut guard = state
-        .midi_out
+    select_output(id, &state.midi_out)
+}
+
+pub(crate) fn select_output(
+    id: Option<String>,
+    midi_out: &Arc<Mutex<Option<midir::MidiOutputConnection>>>,
+) -> Result<(), String> {
+    let mut guard = midi_out
         .lock()
         .map_err(|_| "midi mutex poisoned".to_string())?;
     *guard = None;
@@ -79,8 +95,28 @@ pub fn midi_select_input(
     state: tauri::State<AppState>,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
-    let mut guard = state
-        .midi_in
+    select_input(id, &state.midi_in, app)
+}
+
+pub(crate) fn select_input(
+    id: Option<String>,
+    midi_in: &Arc<Mutex<Option<MidiInputConnection<()>>>>,
+    app: tauri::AppHandle,
+) -> Result<(), String> {
+    select_input_with_handler(id, midi_in, move |bytes| {
+        let _ = app.emit("midi_in", MidiInMessage { bytes });
+    })
+}
+
+pub(crate) fn select_input_with_handler<F>(
+    id: Option<String>,
+    midi_in: &Arc<Mutex<Option<MidiInputConnection<()>>>>,
+    mut handler: F,
+) -> Result<(), String>
+where
+    F: FnMut(Vec<u8>) + Send + 'static,
+{
+    let mut guard = midi_in
         .lock()
         .map_err(|_| "midi mutex poisoned".to_string())?;
     *guard = None;
@@ -96,18 +132,12 @@ pub fn midi_select_input(
     let port = ports
         .get(idx)
         .ok_or_else(|| "midi input id out of range".to_string())?;
-    let app2 = app.clone();
     let conn = input
         .connect(
             port,
             "cellsymphony-midi-in-conn",
             move |_stamp, msg, _| {
-                let _ = app2.emit(
-                    "midi_in",
-                    MidiInMessage {
-                        bytes: msg.to_vec(),
-                    },
-                );
+                handler(msg.to_vec());
             },
             (),
         )

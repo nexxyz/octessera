@@ -4411,6 +4411,22 @@ impl NativeRunner {
             {
                 self.midi_respond_to_start_stop = respond_to_start_stop;
             }
+            self.queued_platform_effects
+                .push(RuntimePlatformEffect::MidiSelectOutput {
+                    id: if self.midi_enabled {
+                        self.selected_midi_output_id.clone()
+                    } else {
+                        None
+                    },
+                });
+            self.queued_platform_effects
+                .push(RuntimePlatformEffect::MidiSelectInput {
+                    id: if self.midi_enabled {
+                        self.selected_midi_input_id.clone()
+                    } else {
+                        None
+                    },
+                });
         }
         if let Some(mapping_config) = payload.get("mappingConfig") {
             self.mapping_config = serde_json::from_value(mapping_config.clone())

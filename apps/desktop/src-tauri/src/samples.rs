@@ -4,10 +4,10 @@ use std::path::{Path, PathBuf};
 
 #[derive(Serialize)]
 pub struct SampleEntry {
-    name: String,
-    path: String,
+    pub(crate) name: String,
+    pub(crate) path: String,
     #[serde(rename = "isDir")]
-    is_dir: bool,
+    pub(crate) is_dir: bool,
 }
 
 #[tauri::command]

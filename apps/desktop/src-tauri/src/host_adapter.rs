@@ -1,24 +1,75 @@
 use crate::audio_config::decode_sample_file;
+use crate::midi;
+use crate::samples;
 use crate::samples::resolve_sample_file;
 use crate::types::{MomentaryFxTargetPayload, QueuedAudioEvent, QueuedNote};
+use midir::MidiInputConnection;
 use playback_runtime::{
-    HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent, RuntimeAudioCommand,
-    RuntimePlatformEffect, RuntimeStoreResult,
+    HostAdapter, HostMessage, MidiPort, MusicalEvent as RuntimeMusicalEvent, RuntimeAudioCommand,
+    RuntimePlatformEffect, RuntimeStoreResult, SampleEntry,
 };
 use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+
+const DEFERRED_DEFAULT_SAVE_MS: u64 = 2_000;
 
 pub(crate) struct DesktopPlaybackHostAdapter {
     pub(crate) trigger_tx: Sender<QueuedAudioEvent>,
     pub(crate) sample_cache: Arc<Mutex<HashMap<String, realtime_engine::synth::SampleBuffer>>>,
     pub(crate) midi_out: Arc<Mutex<Option<midir::MidiOutputConnection>>>,
+    pub(crate) midi_in: Arc<Mutex<Option<MidiInputConnection<()>>>>,
+    pub(crate) midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
     pub(crate) store_dir: PathBuf,
+    pending_default_save: Option<(serde_json::Value, Instant)>,
+    selected_midi_output_id: Option<String>,
+    selected_midi_input_id: Option<String>,
 }
 
 impl DesktopPlaybackHostAdapter {
+    pub(crate) fn new(
+        trigger_tx: Sender<QueuedAudioEvent>,
+        sample_cache: Arc<Mutex<HashMap<String, realtime_engine::synth::SampleBuffer>>>,
+        midi_out: Arc<Mutex<Option<midir::MidiOutputConnection>>>,
+        midi_in: Arc<Mutex<Option<MidiInputConnection<()>>>>,
+        midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
+        store_dir: PathBuf,
+    ) -> Self {
+        Self {
+            trigger_tx,
+            sample_cache,
+            midi_out,
+            midi_in,
+            midi_in_handler,
+            store_dir,
+            pending_default_save: None,
+            selected_midi_output_id: None,
+            selected_midi_input_id: None,
+        }
+    }
+
+    pub(crate) fn flush_due_default_save(&mut self) -> Result<Vec<HostMessage>, String> {
+        let Some((_, due_at)) = self.pending_default_save.as_ref() else {
+            return Ok(Vec::new());
+        };
+        if Instant::now() < *due_at {
+            return Ok(Vec::new());
+        }
+        let Some((payload, _)) = self.pending_default_save.take() else {
+            return Ok(Vec::new());
+        };
+        self.save_default_payload(&payload)?;
+        Ok(vec![HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::SaveDefaultResult {
+                ok: true,
+                is_auto: Some(true),
+            },
+        }])
+    }
+
     fn queued_note(
         channel: &u8,
         note: &u8,
@@ -31,6 +82,32 @@ impl DesktopPlaybackHostAdapter {
             velocity: (*velocity).clamp(1, 127),
             duration_ms: duration_ms.unwrap_or(86_400_000).clamp(10, 86_400_000),
         })
+    }
+
+    fn save_default_payload(&self, payload: &serde_json::Value) -> Result<(), String> {
+        let content = serde_json::to_string_pretty(payload).map_err(|e| e.to_string())?;
+        std::fs::write(self.store_dir.join("default.json"), content).map_err(|e| e.to_string())
+    }
+
+    fn midi_ports(ports: Vec<midi::MidiPortInfo>) -> Vec<MidiPort> {
+        ports
+            .into_iter()
+            .map(|port| MidiPort {
+                id: port.id,
+                name: port.name,
+            })
+            .collect()
+    }
+
+    fn sample_entries(entries: Vec<samples::SampleEntry>) -> Vec<SampleEntry> {
+        entries
+            .into_iter()
+            .map(|entry| SampleEntry {
+                name: entry.name,
+                path: entry.path,
+                is_dir: entry.is_dir,
+            })
+            .collect()
     }
 }
 
@@ -128,6 +205,7 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                 }])
             }
             RuntimePlatformEffect::StoreLoadDefault => {
+                self.pending_default_save = None;
                 let path = self.store_dir.join("default.json");
                 let payload = if path.is_file() {
                     let content = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
@@ -141,11 +219,14 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
             }
             RuntimePlatformEffect::StoreSaveDefault { payload, mode } => {
                 if mode.as_deref() == Some("deferred") {
+                    self.pending_default_save = Some((
+                        payload.clone(),
+                        Instant::now() + Duration::from_millis(DEFERRED_DEFAULT_SAVE_MS),
+                    ));
                     return Ok(vec![]);
                 }
-                let content = serde_json::to_string_pretty(payload).map_err(|e| e.to_string())?;
-                std::fs::write(self.store_dir.join("default.json"), content)
-                    .map_err(|e| e.to_string())?;
+                self.pending_default_save = None;
+                self.save_default_payload(payload)?;
                 Ok(vec![HostMessage::RuntimeResult {
                     result: RuntimeStoreResult::SaveDefaultResult {
                         ok: true,
@@ -157,7 +238,85 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                 self.handle_audio_command(command)?;
                 Ok(vec![])
             }
-            _ => Ok(vec![]),
+            RuntimePlatformEffect::MidiListOutputsRequest => Ok(vec![HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::MidiListOutputsResult {
+                    outputs: Self::midi_ports(midi::list_outputs()?),
+                },
+            }]),
+            RuntimePlatformEffect::MidiListInputsRequest => Ok(vec![HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::MidiListInputsResult {
+                    inputs: Self::midi_ports(midi::list_inputs()?),
+                },
+            }]),
+            RuntimePlatformEffect::MidiSelectOutput { id } => {
+                let result = midi::select_output(id.clone(), &self.midi_out);
+                if result.is_ok() {
+                    self.selected_midi_output_id = id.clone();
+                }
+                Ok(vec![HostMessage::RuntimeResult {
+                    result: RuntimeStoreResult::MidiStatus {
+                        ok: result.is_ok(),
+                        message: result.err(),
+                        selected_out_id: self.selected_midi_output_id.clone(),
+                        selected_in_id: self.selected_midi_input_id.clone(),
+                    },
+                }])
+            }
+            RuntimePlatformEffect::MidiSelectInput { id } => {
+                let handler = self.midi_in_handler.clone();
+                let result =
+                    midi::select_input_with_handler(id.clone(), &self.midi_in, move |bytes| {
+                        handler(bytes);
+                    });
+                if result.is_ok() {
+                    self.selected_midi_input_id = id.clone();
+                }
+                Ok(vec![HostMessage::RuntimeResult {
+                    result: RuntimeStoreResult::MidiStatus {
+                        ok: result.is_ok(),
+                        message: result.err(),
+                        selected_out_id: self.selected_midi_output_id.clone(),
+                        selected_in_id: self.selected_midi_input_id.clone(),
+                    },
+                }])
+            }
+            RuntimePlatformEffect::MidiPanic => {
+                self.handle_midi_message(&[0xFC])?;
+                for channel in 0..16_u8 {
+                    self.handle_midi_message(&[0xB0 | channel, 120, 0])?;
+                    self.handle_midi_message(&[0xB0 | channel, 123, 0])?;
+                }
+                Ok(vec![HostMessage::RuntimeResult {
+                    result: RuntimeStoreResult::MidiStatus {
+                        ok: true,
+                        message: Some("Panic sent".into()),
+                        selected_out_id: self.selected_midi_output_id.clone(),
+                        selected_in_id: self.selected_midi_input_id.clone(),
+                    },
+                }])
+            }
+            RuntimePlatformEffect::SampleListRequest {
+                instrument_slot,
+                sample_slot,
+                dir,
+            } => match samples::sample_list(dir.clone()) {
+                Ok(entries) => Ok(vec![HostMessage::RuntimeResult {
+                    result: RuntimeStoreResult::SampleListResult {
+                        instrument_slot: *instrument_slot,
+                        sample_slot: *sample_slot,
+                        dir: dir.clone(),
+                        entries: Self::sample_entries(entries),
+                    },
+                }]),
+                Err(message) => Ok(vec![HostMessage::RuntimeResult {
+                    result: RuntimeStoreResult::SampleListError {
+                        instrument_slot: *instrument_slot,
+                        sample_slot: *sample_slot,
+                        dir: dir.clone(),
+                        message,
+                    },
+                }]),
+            },
         }
     }
 
@@ -245,15 +404,25 @@ mod tests {
     use playback_runtime::RuntimePlatformEffect;
     use std::sync::mpsc;
 
-    #[test]
-    fn platform_effect_audio_command_reaches_audio_queue() {
+    fn test_adapter() -> (DesktopPlaybackHostAdapter, mpsc::Receiver<QueuedAudioEvent>) {
         let (tx, rx) = mpsc::channel();
-        let mut adapter = DesktopPlaybackHostAdapter {
+        let adapter = DesktopPlaybackHostAdapter {
             trigger_tx: tx,
             sample_cache: Arc::new(Mutex::new(HashMap::new())),
             midi_out: Arc::new(Mutex::new(None)),
+            midi_in: Arc::new(Mutex::new(None)),
+            midi_in_handler: Arc::new(|_| {}),
             store_dir: PathBuf::new(),
+            pending_default_save: None,
+            selected_midi_output_id: None,
+            selected_midi_input_id: None,
         };
+        (adapter, rx)
+    }
+
+    #[test]
+    fn platform_effect_audio_command_reaches_audio_queue() {
+        let (mut adapter, rx) = test_adapter();
 
         let follow_ups = adapter
             .handle_platform_effect(&RuntimePlatformEffect::AudioCommand {
@@ -268,5 +437,66 @@ mod tests {
             rx.try_recv().unwrap(),
             QueuedAudioEvent::MomentaryFxStop { id } if id == "preview"
         ));
+    }
+
+    #[test]
+    fn deferred_default_save_flushes_runtime_result() {
+        let (mut adapter, _) = test_adapter();
+        let temp_dir = std::env::temp_dir().join(format!(
+            "cellsymphony-host-adapter-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        adapter.store_dir = temp_dir.clone();
+        let payload = serde_json::json!({ "runtimeConfig": { "masterVolume": 73 } });
+
+        let follow_ups = adapter
+            .handle_platform_effect(&RuntimePlatformEffect::StoreSaveDefault {
+                payload: payload.clone(),
+                mode: Some("deferred".into()),
+            })
+            .unwrap();
+
+        assert!(follow_ups.is_empty());
+        adapter.pending_default_save = adapter
+            .pending_default_save
+            .take()
+            .map(|(payload, _)| (payload, Instant::now()));
+        let follow_ups = adapter.flush_due_default_save().unwrap();
+        assert_eq!(
+            follow_ups,
+            vec![HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::SaveDefaultResult {
+                    ok: true,
+                    is_auto: Some(true),
+                },
+            }]
+        );
+        assert!(temp_dir.join("default.json").is_file());
+        let _ = std::fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn midi_panic_returns_native_status_result() {
+        let (mut adapter, _) = test_adapter();
+
+        let follow_ups = adapter
+            .handle_platform_effect(&RuntimePlatformEffect::MidiPanic)
+            .unwrap();
+
+        assert_eq!(
+            follow_ups,
+            vec![HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::MidiStatus {
+                    ok: true,
+                    message: Some("Panic sent".into()),
+                    selected_out_id: None,
+                    selected_in_id: None,
+                },
+            }]
+        );
     }
 }

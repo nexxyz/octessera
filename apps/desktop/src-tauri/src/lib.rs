@@ -18,7 +18,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 pub(crate) struct AppState {
     pub(crate) trigger_tx: mpsc::Sender<crate::types::QueuedAudioEvent>,
@@ -53,16 +53,21 @@ pub fn run() {
     tauri::Builder::default()
         .setup(move |app| {
             let app_handle = app.handle().clone();
+            let midi_in_app_handle = app_handle.clone();
             let worker_tx = RuntimeWorker::spawn(
                 app_handle.clone(),
                 audio_error.clone(),
                 runtime_outbox.clone(),
-                DesktopPlaybackHostAdapter {
-                    trigger_tx: trigger_tx.clone(),
-                    sample_cache: sample_cache.clone(),
-                    midi_out: midi_out.clone(),
-                    store_dir: store_dir.clone(),
-                },
+                DesktopPlaybackHostAdapter::new(
+                    trigger_tx.clone(),
+                    sample_cache.clone(),
+                    midi_out.clone(),
+                    midi_in.clone(),
+                    Arc::new(move |bytes| {
+                        let _ = midi_in_app_handle.emit("midi_in", midi::MidiInMessage { bytes });
+                    }),
+                    store_dir.clone(),
+                ),
             );
             spawn_load_listener(load_rx, app_handle);
 

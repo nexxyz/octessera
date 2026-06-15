@@ -120,7 +120,13 @@ impl RuntimeWorker {
     }
 
     fn run(&mut self, rx: Receiver<WorkerCommand>) {
+        if let Err(err) = self.initialize_host_state() {
+            self.handle_error(err);
+        }
         loop {
+            if let Err(err) = self.flush_deferred_host_work() {
+                self.handle_error(err);
+            }
             if let Err(err) = self.maybe_advance() {
                 self.handle_error(err);
             }
@@ -249,11 +255,48 @@ impl RuntimeWorker {
         Ok(capturing_runner.captured)
     }
 
+    fn initialize_host_state(&mut self) -> Result<(), String> {
+        let mut returned = Vec::new();
+        for effect in [
+            playback_runtime::RuntimePlatformEffect::StoreLoadDefault,
+            playback_runtime::RuntimePlatformEffect::MidiListOutputsRequest,
+            playback_runtime::RuntimePlatformEffect::MidiListInputsRequest,
+        ] {
+            let follow_ups = self.adapter.handle_platform_effect(&effect)?;
+            returned.extend(self.dispatch_follow_ups(follow_ups)?);
+        }
+        self.emit_runner_messages(returned)
+    }
+
+    fn flush_deferred_host_work(&mut self) -> Result<(), String> {
+        let follow_ups = self.adapter.flush_due_default_save()?;
+        if follow_ups.is_empty() {
+            return Ok(());
+        }
+        let returned = self.dispatch_follow_ups(follow_ups)?;
+        self.emit_runner_messages(returned)
+    }
+
     fn dispatch_host_message(
         &mut self,
         host_message: HostMessage,
     ) -> Result<Vec<RunnerMessage>, String> {
         let mut queue = std::collections::VecDeque::from([host_message]);
+        self.dispatch_queue(&mut queue)
+    }
+
+    fn dispatch_follow_ups(
+        &mut self,
+        follow_ups: Vec<HostMessage>,
+    ) -> Result<Vec<RunnerMessage>, String> {
+        let mut queue = std::collections::VecDeque::from(follow_ups);
+        self.dispatch_queue(&mut queue)
+    }
+
+    fn dispatch_queue(
+        &mut self,
+        queue: &mut std::collections::VecDeque<HostMessage>,
+    ) -> Result<Vec<RunnerMessage>, String> {
         let mut returned = Vec::new();
 
         while let Some(message) = queue.pop_front() {

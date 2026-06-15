@@ -126,6 +126,7 @@ No basic-functionality fallbacks are allowed during this migration. Missing menu
 - FIXED: Native scanning/detail rows, pitch/value-lane detail rows, and sampler velocity-level rows now follow the old conditional visibility rules.
 - FIXED: Native synth and sampler cutoff menus now display/edit the old compact `0..255` scale while preserving runtime Hz storage, and synth oscillator detune is restored to the old `-50..50` menu range.
 - FIXED: Native FX parameter menu display now shows human units for frequency, time, dB, percent, normalized values, and reverb decay instead of raw internal scaled values.
+- FIXED: Desktop Tauri runtime platform effects now stay on the native Rust host boundary: store/default startup and deferred autosave, MIDI list/select/panic, sample browser listing, sample preview/audio commands, and MIDI-out are handled by the Rust worker/host adapter instead of the TS wrapper.
 
 ### Open Native Parity Deltas From Deep Audit
 
@@ -238,15 +239,19 @@ Regression coverage added in this pass:
 - `config_payload_includes_complete_sample_and_fx_param_shapes`
 - `save_grid_state_controls_saved_state_payload_and_restore`
 - `conditional_rows_follow_scan_lane_and_sampler_state`
+- `config_load_queues_midi_port_selection_effects`
+- `deferred_default_save_flushes_runtime_result`
+- `midi_panic_returns_native_status_result`
 
 Latest Rust verification after this pass:
 
 - `cargo fmt --all --check`: passed
 - `cargo test -p platform-core`: passed, 54 tests
-- `cargo test -p playback-runtime`: passed, 176 tests
-- `cargo test -p cellsymphony-desktop`: passed, 10 tests
+- `cargo test -p playback-runtime`: passed, 177 tests
+- `cargo test -p cellsymphony-desktop`: passed, 12 tests
 - `cargo clippy -p platform-core -p playback-runtime -p cellsymphony-desktop`: passed
 - `corepack pnpm --filter @cellsymphony/platform-core lint:menu-help`: passed
+- `corepack pnpm --filter @cellsymphony/desktop typecheck`: passed
 
 ### Execution Order
 
