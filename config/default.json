@@ -1134,7 +1134,7 @@
             ],
             "width": 8
           },
-          "saveGridState": false,
+          "saveGridState": true,
           "stepRate": "1/16"
         },
         "l2": {
@@ -1340,7 +1340,7 @@
             "height": 8,
             "width": 8
           },
-          "saveGridState": false,
+          "saveGridState": true,
           "stepRate": "1/16"
         },
         "l2": {

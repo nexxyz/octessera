@@ -31,6 +31,39 @@ fn unsupported_behavior_errors() {
 }
 
 #[test]
+fn checked_in_default_restores_life_grid_and_emits_input_note() {
+    let payload: Value =
+        serde_json::from_str(include_str!("../../../../config/default.json")).unwrap();
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+
+    runner.apply_config_payload(payload).unwrap();
+
+    assert_eq!(runner.behavior.id(), "life");
+    assert_eq!(runner.active_part_index, 0);
+    assert!(runner
+        .engine
+        .model()
+        .unwrap()
+        .cells
+        .iter()
+        .any(|cell| *cell));
+    assert_eq!(runner.instruments[0].kind, "synth");
+    assert_eq!(runner.sense_parts[0].activate_slot, 0);
+    assert_eq!(runner.sense_parts[0].activate_action, "note_on");
+    assert!(runner.input_events_while_paused);
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
+        })
+        .unwrap();
+
+    assert!(musical_note_ons(&messages)
+        .iter()
+        .any(|(channel, _)| *channel == 0));
+}
+
+#[test]
 fn sequencer_behavior_is_native_and_paintable() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
@@ -2584,6 +2617,53 @@ fn preset_save_as_uses_text_draft_name() {
                     if name == "Jam A" && mode.is_none()
             )
     )));
+}
+
+#[test]
+fn fresh_save_as_preset_name_uses_timestamp_format() {
+    let runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+
+    assert!(is_timestamp_preset_name(&runner.preset_draft_name));
+    assert!(is_timestamp_preset_name(&clean_preset_name("   ")));
+}
+
+#[test]
+fn preset_save_as_uses_fresh_timestamp_draft_name() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let draft_name = runner.preset_draft_name.clone();
+    assert!(is_timestamp_preset_name(&draft_name));
+    runner.menu.state.stack = vec![5, 0, 0, 0];
+    runner.menu.state.cursor = 1;
+
+    let opened = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })
+        .unwrap();
+    assert_eq!(snapshot_from(&opened)["display"]["title"], "Confirm Save");
+    let messages = confirm_current_dialog(&mut runner);
+
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if matches!(
+                effects.as_slice(),
+                [RuntimePlatformEffect::StoreSavePreset { name, mode, .. }]
+                    if name == &draft_name && mode.is_none()
+            )
+    )));
+}
+
+fn is_timestamp_preset_name(name: &str) -> bool {
+    let bytes = name.as_bytes();
+    bytes.len() == 17
+        && bytes[4] == b'-'
+        && bytes[7] == b'-'
+        && bytes[10] == b'-'
+        && bytes
+            .iter()
+            .enumerate()
+            .all(|(index, byte)| matches!(index, 4 | 7 | 10) || byte.is_ascii_digit())
 }
 
 #[test]

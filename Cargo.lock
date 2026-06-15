@@ -2706,6 +2706,7 @@ dependencies = [
 name = "playback-runtime"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "platform-core",
  "serde",
  "serde_json",

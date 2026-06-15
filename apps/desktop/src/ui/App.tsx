@@ -115,6 +115,7 @@ export function App() {
   }, [snapshot.instruments, snapshot.mixer, snapshot.panPositions, snapshot.masterVolume]);
 
   useEffect(() => {
+    if (audioConfig.instruments.length === 0) return;
     audioConfigSender.current?.schedule(audioConfig);
   }, [audioConfig]);
 

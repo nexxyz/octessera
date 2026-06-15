@@ -9,6 +9,7 @@ use crate::protocol::{
     RuntimeTransportState, SampleEntry, SyncSource,
 };
 use crate::runtime::{CoreRunner, RuntimeConfig};
+use chrono::{Datelike, Local, Timelike};
 use platform_core::{
     default_mapping_config, AxisStrategy, BehaviorActionInput, BehaviorConfigItem,
     BehaviorConfigItemType, CellTriggerIntent, DeviceInput, GlobalSoundConfig, GridInteraction,
@@ -621,7 +622,7 @@ impl NativeRunner {
             midi_clock_in_enabled: false,
             midi_respond_to_start_stop: true,
             preset_names: Vec::new(),
-            preset_draft_name: "New Preset".into(),
+            preset_draft_name: fresh_preset_name(),
             preset_rename_source: None,
             midi_outputs: Vec::new(),
             midi_inputs: Vec::new(),
@@ -682,7 +683,7 @@ impl NativeRunner {
             midi_enabled: false,
             preset_names: Vec::new(),
             current_preset_name: None,
-            preset_draft_name: "New Preset".into(),
+            preset_draft_name: fresh_preset_name(),
             preset_rename_source: None,
             queued_platform_effects: Vec::new(),
             midi_outputs: Vec::new(),
@@ -7175,10 +7176,23 @@ fn note_behaviors_from_instruments(instruments: &[NativeInstrumentSlot]) -> Vec<
 fn clean_preset_name(name: &str) -> String {
     let trimmed = name.trim();
     if trimmed.is_empty() {
-        "New Preset".into()
+        fresh_preset_name()
     } else {
         trimmed.into()
     }
+}
+
+fn fresh_preset_name() -> String {
+    let now = Local::now();
+    format!(
+        "{:04}-{:02}-{:02}-{:02}{:02}{:02}",
+        now.year(),
+        now.month(),
+        now.day(),
+        now.hour(),
+        now.minute(),
+        now.second()
+    )
 }
 
 fn instrument_types(instruments: &[NativeInstrumentSlot]) -> Vec<String> {
