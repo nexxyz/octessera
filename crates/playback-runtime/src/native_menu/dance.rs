@@ -1,0 +1,176 @@
+use super::{
+    action_item, enum_item, enum_item_from_strings, group, number_item, selected_index,
+    xy_pad_items, NativeMenuAction, NativeMenuConfig, NativeMenuItem, NativeMenuValue,
+};
+use crate::native_menu::bindings::dance_fx_targets;
+
+pub(super) fn dance_group(config: &NativeMenuConfig) -> NativeMenuItem {
+    let mut children = vec![
+        NativeMenuItem {
+            label: "Dance Page".into(),
+            key: Some("danceMode".into()),
+            value: NativeMenuValue::Enum {
+                options: vec![
+                    "none".into(),
+                    "mix".into(),
+                    "pan".into(),
+                    "fx".into(),
+                    "trigger-gate".into(),
+                    "xy".into(),
+                ],
+                selected: ["none", "mix", "pan", "fx", "trigger-gate", "xy"]
+                    .iter()
+                    .position(|mode| *mode == config.dance_mode)
+                    .unwrap_or(0),
+            },
+            children: vec![],
+        },
+        number_item("BPM", "transport.bpm", i32::from(config.bpm), 40, 240, 1),
+    ];
+    match config.dance_mode.as_str() {
+        "fx" => children.extend(dance_fx_page_items(config)),
+        "trigger-gate" => children.push(group("Mode Grid", vec![])),
+        "xy" => children.extend(xy_pad_items(config)),
+        _ => {}
+    }
+    group("L4: Dance", children)
+}
+
+fn dance_fx_page_items(config: &NativeMenuConfig) -> Vec<NativeMenuItem> {
+    let fx_types = vec!["none", "stutter", "freeze", "filter_sweep", "pitch_shift"];
+    let targets = dance_fx_targets();
+    let mut children = vec![
+        enum_item(
+            "FX Type",
+            "dance.fx.type",
+            fx_types.clone(),
+            selected_index(&fx_types, &config.dance_fx_type),
+        ),
+        enum_item_from_strings(
+            "Target",
+            "dance.fx.target",
+            targets.clone(),
+            targets
+                .iter()
+                .position(|target| target == &config.dance_fx_target)
+                .unwrap_or(0),
+        ),
+    ];
+    match config.dance_fx_type.as_str() {
+        "stutter" => {
+            children.push(number_item(
+                "Rate Hz",
+                "dance.fx.params.rateHz",
+                number_param(&config.dance_fx_params, "rateHz", 8),
+                1,
+                32,
+                1,
+            ));
+            children.push(number_item(
+                "Depth",
+                "dance.fx.params.depthPct",
+                number_param(&config.dance_fx_params, "depthPct", 100),
+                0,
+                100,
+                1,
+            ));
+        }
+        "freeze" => {
+            children.push(number_item(
+                "Release Ms",
+                "dance.fx.params.releaseMs",
+                number_param(&config.dance_fx_params, "releaseMs", 500),
+                10,
+                5000,
+                10,
+            ));
+            children.push(number_item(
+                "Mix",
+                "dance.fx.params.mixPct",
+                number_param(&config.dance_fx_params, "mixPct", 100),
+                0,
+                100,
+                1,
+            ));
+        }
+        "filter_sweep" => {
+            children.push(number_item(
+                "Cutoff",
+                "dance.fx.params.cutoffPct",
+                number_param(&config.dance_fx_params, "cutoffPct", 50),
+                0,
+                100,
+                1,
+            ));
+            children.push(number_item(
+                "Res",
+                "dance.fx.params.resonancePct",
+                number_param(&config.dance_fx_params, "resonancePct", 0),
+                0,
+                100,
+                1,
+            ));
+            children.push(number_item(
+                "Sweep In",
+                "dance.fx.params.sweepInMs",
+                number_param(&config.dance_fx_params, "sweepInMs", 120),
+                10,
+                3000,
+                10,
+            ));
+            children.push(number_item(
+                "Sweep Out",
+                "dance.fx.params.sweepOutMs",
+                number_param(&config.dance_fx_params, "sweepOutMs", 180),
+                10,
+                3000,
+                10,
+            ));
+        }
+        "pitch_shift" => {
+            children.push(number_item(
+                "Semitones",
+                "dance.fx.params.semitones",
+                number_param(&config.dance_fx_params, "semitones", 0),
+                -24,
+                24,
+                1,
+            ));
+            children.push(number_item(
+                "Cents",
+                "dance.fx.params.cents",
+                number_param(&config.dance_fx_params, "cents", 0),
+                -100,
+                100,
+                1,
+            ));
+            children.push(number_item(
+                "Mix",
+                "dance.fx.params.mixPct",
+                number_param(&config.dance_fx_params, "mixPct", 100),
+                0,
+                100,
+                1,
+            ));
+        }
+        _ => {}
+    }
+    children.push(action_item(
+        "Map to Grid",
+        "dance.fx.map",
+        NativeMenuAction::PlatformEffect("dance.fx.map".into()),
+    ));
+    children
+}
+
+fn number_param(
+    params: &serde_json::Map<String, serde_json::Value>,
+    key: &str,
+    default: i32,
+) -> i32 {
+    params
+        .get(key)
+        .and_then(serde_json::Value::as_i64)
+        .map(|value| value as i32)
+        .unwrap_or(default)
+}
