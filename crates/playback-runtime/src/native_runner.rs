@@ -9,7 +9,6 @@ use crate::protocol::{
     RuntimeTransportState, SampleEntry, SyncSource,
 };
 use crate::runtime::{CoreRunner, RuntimeConfig};
-use chrono::{Datelike, Local, Timelike};
 use platform_core::{
     default_mapping_config, AxisStrategy, BehaviorActionInput, BehaviorConfigItem,
     BehaviorConfigItemType, CellTriggerIntent, DeviceInput, GlobalSoundConfig, GridInteraction,
@@ -22,6 +21,11 @@ use platform_core::{
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
+
+mod preset_names;
+mod sample_browser;
+
+use preset_names::{clean_preset_name, fresh_preset_name};
 
 const DEFAULT_ALGORITHM_STEP_PULSES: u32 = 12;
 const OLED_BODY_ROWS: usize = 7;
@@ -3250,71 +3254,6 @@ impl NativeRunner {
             });
             return Ok(None);
         }
-        if let Some(rest) = action.strip_prefix("sample.open:") {
-            let (instrument_slot, sample_slot, dir) = parse_sample_action(rest)?;
-            let dir = dir.unwrap_or_default();
-            self.sample_browser = Some(NativeSampleBrowser {
-                instrument_slot,
-                sample_slot,
-                dir: dir.clone(),
-                entries: vec![],
-            });
-            self.menu.rebuild(self.menu_config());
-            return Ok(Some(RuntimePlatformEffect::SampleListRequest {
-                instrument_slot,
-                sample_slot,
-                dir,
-            }));
-        }
-        if let Some(rest) = action.strip_prefix("sample.enter:") {
-            let (instrument_slot, sample_slot, dir) = parse_sample_action(rest)?;
-            let dir = dir.unwrap_or_default();
-            self.sample_browser = Some(NativeSampleBrowser {
-                instrument_slot,
-                sample_slot,
-                dir: dir.clone(),
-                entries: vec![],
-            });
-            self.menu.rebuild(self.menu_config());
-            return Ok(Some(RuntimePlatformEffect::SampleListRequest {
-                instrument_slot,
-                sample_slot,
-                dir,
-            }));
-        }
-        if let Some(rest) = action.strip_prefix("sample.up:") {
-            let (instrument_slot, sample_slot, _) = parse_sample_action(rest)?;
-            let dir = self
-                .sample_browser
-                .as_ref()
-                .map(|browser| parent_dir(&browser.dir))
-                .unwrap_or_default();
-            self.sample_browser = Some(NativeSampleBrowser {
-                instrument_slot,
-                sample_slot,
-                dir: dir.clone(),
-                entries: vec![],
-            });
-            self.menu.rebuild(self.menu_config());
-            return Ok(Some(RuntimePlatformEffect::SampleListRequest {
-                instrument_slot,
-                sample_slot,
-                dir,
-            }));
-        }
-        if let Some(rest) = action.strip_prefix("sample.pick:") {
-            let (instrument_slot, sample_slot, path) = parse_sample_action(rest)?;
-            let Some(path) = path else {
-                return Ok(None);
-            };
-            if let Some(instrument) = self.instruments.get_mut(instrument_slot) {
-                if sample_slot < instrument.sample_paths.len() {
-                    instrument.sample_paths[sample_slot] = Some(path);
-                    self.menu.rebuild(self.menu_config());
-                }
-            }
-            return Ok(None);
-        }
         if let Some(rest) = action.strip_prefix("sample.assign:") {
             let (instrument_slot, sample_slot, _) = parse_sample_action(rest)?;
             self.sample_assign = Some((instrument_slot, sample_slot));
@@ -3335,21 +3274,7 @@ impl NativeRunner {
             }
             return Ok(None);
         }
-        if let Some(rest) = action.strip_prefix("sample.preview:") {
-            let (instrument_slot, sample_slot, path) = parse_sample_action(rest)?;
-            if let Some(path) = path {
-                return Ok(Some(RuntimePlatformEffect::AudioCommand {
-                    command: RuntimeAudioCommand::SamplePreview {
-                        instrument_slot,
-                        sample_slot,
-                        path,
-                        velocity: 100,
-                    },
-                }));
-            }
-            return Ok(None);
-        }
-        Ok(None)
+        self.handle_sample_browser_action(action)
     }
 
     fn load_synth_preset(&mut self, slot: usize, preset: &str) {
@@ -3373,62 +3298,6 @@ impl NativeRunner {
             offset: 0,
         });
         self.menu.rebuild(self.menu_config());
-    }
-
-    fn sample_open_effect_for_current_group(&mut self) -> Option<RuntimePlatformEffect> {
-        let key = self
-            .menu
-            .current_key()?
-            .strip_prefix("sample.choose:")?
-            .to_string();
-        self.sample_open_effect_for_key(&key)
-    }
-
-    fn sample_open_effect_for_key(&mut self, key: &str) -> Option<RuntimePlatformEffect> {
-        let key = key.strip_prefix("sample.choose:").unwrap_or(key);
-        let (instrument_slot, sample_slot, _) = parse_sample_action(key).ok()?;
-        let dir = self
-            .sample_browser
-            .as_ref()
-            .filter(|browser| {
-                browser.instrument_slot == instrument_slot && browser.sample_slot == sample_slot
-            })
-            .map(|browser| browser.dir.clone())
-            .unwrap_or_default();
-        self.sample_browser = Some(NativeSampleBrowser {
-            instrument_slot,
-            sample_slot,
-            dir: dir.clone(),
-            entries: vec![],
-        });
-        self.menu.rebuild(self.menu_config());
-        Some(RuntimePlatformEffect::SampleListRequest {
-            instrument_slot,
-            sample_slot,
-            dir,
-        })
-    }
-
-    fn preview_selected_sample(&self) -> Result<Option<RuntimePlatformEffect>, String> {
-        let Some(NativeMenuAction::PlatformEffect(action)) = self.menu.snapshot().selected_action
-        else {
-            return Ok(None);
-        };
-        let Some(rest) = action.strip_prefix("sample.pick:") else {
-            return Ok(None);
-        };
-        let (instrument_slot, sample_slot, path) = parse_sample_action(rest)?;
-        let Some(path) = path else {
-            return Ok(None);
-        };
-        Ok(Some(RuntimePlatformEffect::AudioCommand {
-            command: RuntimeAudioCommand::SamplePreview {
-                instrument_slot,
-                sample_slot,
-                path,
-                velocity: 100,
-            },
-        }))
     }
 
     fn confirmation_for_action(&self, action: &NativeMenuAction) -> Option<NativeConfirmDialog> {
@@ -7171,28 +7040,6 @@ fn note_behaviors_from_instruments(instruments: &[NativeInstrumentSlot]) -> Vec<
         };
     }
     note_behaviors
-}
-
-fn clean_preset_name(name: &str) -> String {
-    let trimmed = name.trim();
-    if trimmed.is_empty() {
-        fresh_preset_name()
-    } else {
-        trimmed.into()
-    }
-}
-
-fn fresh_preset_name() -> String {
-    let now = Local::now();
-    format!(
-        "{:04}-{:02}-{:02}-{:02}{:02}{:02}",
-        now.year(),
-        now.month(),
-        now.day(),
-        now.hour(),
-        now.minute(),
-        now.second()
-    )
 }
 
 fn instrument_types(instruments: &[NativeInstrumentSlot]) -> Vec<String> {
