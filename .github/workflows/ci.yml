@@ -117,7 +117,7 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@v2.9.1
       - name: Run clippy (exclude platform audio apps)
-        run: cargo clippy --workspace --exclude cellsymphony-pi --exclude cellsymphony-desktop --exclude midi-io-sidecar --exclude rodio-engine-source --all-targets -- -D warnings
+        run: cargo clippy --workspace --exclude cellsymphony-desktop --exclude midi-io-sidecar --exclude rodio-engine-source --all-targets -- -D warnings
 
   rust_test:
     name: Rust tests
@@ -130,7 +130,7 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@v2.9.1
       - name: Run Rust tests (exclude platform audio apps)
-        run: cargo test --workspace --exclude cellsymphony-pi --exclude cellsymphony-desktop --exclude midi-io-sidecar --exclude rodio-engine-source
+        run: cargo test --workspace --exclude cellsymphony-desktop --exclude midi-io-sidecar --exclude rodio-engine-source
 
   pi_zero_hal_build:
     name: Pi Zero HAL Build Check
@@ -166,7 +166,7 @@ jobs:
           curl -sSL https://github.com/cross-rs/cross/releases/download/v0.2.5/cross-x86_64-unknown-linux-gnu.tar.gz | tar xz -C /usr/local/bin
           cross --version
       - name: Build Pi app with cross
-        run: cross build --target aarch64-unknown-linux-gnu -p cellsymphony-pi
+        run: cross build --target aarch64-unknown-linux-gnu -p cellsymphony-pi --features hardware-pi
 
   desktop_build_smoke:
     name: Desktop Build Smoke

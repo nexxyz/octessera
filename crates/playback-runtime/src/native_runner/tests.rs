@@ -785,20 +785,22 @@ fn sample_assignment_velocity_level_uses_configured_values() {
 
 #[test]
 fn sense_velocity_and_filter_lanes_modulate_mapped_events() {
-    let mut sense = NativeSensePart::default();
-    sense.x_velocity = NativeValueLane {
-        enabled: true,
-        from: 10,
-        to: 110,
-        grid_offset: 0,
-        curve: "linear".into(),
-    };
-    sense.y_filter_cutoff = NativeValueLane {
-        enabled: true,
-        from: 20,
-        to: 120,
-        grid_offset: 0,
-        curve: "linear".into(),
+    let sense = NativeSensePart {
+        x_velocity: NativeValueLane {
+            enabled: true,
+            from: 10,
+            to: 110,
+            grid_offset: 0,
+            curve: "linear".into(),
+        },
+        y_filter_cutoff: NativeValueLane {
+            enabled: true,
+            from: 20,
+            to: 120,
+            grid_offset: 0,
+            curve: "linear".into(),
+        },
+        ..NativeSensePart::default()
     };
     let events = vec![MusicalEvent::NoteOn {
         channel: 2,
@@ -836,13 +838,15 @@ fn midi_instrument_channel_remaps_note_and_cc_events() {
         ..NativeInstrumentSlot::new(0)
     };
     instrument.midi_enabled = true;
-    let mut sense = NativeSensePart::default();
-    sense.y_filter_cutoff = NativeValueLane {
-        enabled: true,
-        from: 20,
-        to: 120,
-        grid_offset: 0,
-        curve: "linear".into(),
+    let sense = NativeSensePart {
+        y_filter_cutoff: NativeValueLane {
+            enabled: true,
+            from: 20,
+            to: 120,
+            grid_offset: 0,
+            curve: "linear".into(),
+        },
+        ..NativeSensePart::default()
     };
     let intent = CellTriggerIntent {
         x: 0,

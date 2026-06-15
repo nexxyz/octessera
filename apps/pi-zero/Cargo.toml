@@ -8,7 +8,7 @@ name = "cellsymphony-pi"
 path = "src/main.rs"
 
 [dependencies]
-cellsymphony-hal = { path = "../../crates/hal", features = ["pi-zero"] }
+cellsymphony-hal = { path = "../../crates/hal" }
 playback-runtime = { path = "../../crates/playback-runtime" }
 realtime-engine = { path = "../../crates/realtime-engine" }
 rodio-engine-source = { path = "../../crates/rodio-engine-source" }
@@ -16,3 +16,7 @@ rodio = "0.20"
 midir = "0.10"
 serde_json = "1"
 simple_logger = "1.16"
+
+[features]
+default = []
+hardware-pi = ["cellsymphony-hal/pi-zero"]

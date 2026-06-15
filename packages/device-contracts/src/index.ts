@@ -97,6 +97,7 @@ export type RuntimeSnapshotSettings = {
   autoSaveFlashSerial?: number;
   transportFlash: "none" | "beat" | "measure";
   stopLatched: boolean;
+  shiftHeld: boolean;
   fnHeld: boolean;
   combinedModifierHeld: boolean;
   midi: {

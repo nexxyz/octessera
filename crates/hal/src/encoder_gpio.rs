@@ -3,8 +3,9 @@
 
 #[cfg(feature = "pi-zero")]
 use rppal::gpio::{Gpio, InputPin, Level, Trigger};
-#[cfg(feature = "pi-zero")]
 use std::sync::mpsc::Sender;
+#[cfg(feature = "pi-zero")]
+use std::sync::{Arc, Mutex};
 
 #[cfg(not(feature = "pi-zero"))]
 use std::fmt;
@@ -23,8 +24,48 @@ pub struct EncoderGpio {
     _a: InputPin,
     _b: InputPin,
     _sw: InputPin,
-    _last_ab: (Level, Level),
+    _state: Arc<Mutex<QuadratureState>>,
     _tx: Sender<HardwareEvent>,
+}
+
+#[cfg(feature = "pi-zero")]
+struct QuadratureState {
+    last: u8,
+    accum: i8,
+}
+
+#[cfg(feature = "pi-zero")]
+impl QuadratureState {
+    fn new(a: Level, b: Level) -> Self {
+        Self {
+            last: levels_to_bits(a, b),
+            accum: 0,
+        }
+    }
+
+    fn update(&mut self, next: u8) -> Option<i8> {
+        let transition = (self.last << 2) | next;
+        self.last = next;
+        let step = match transition {
+            0b0001 | 0b0111 | 0b1110 | 0b1000 => 1,
+            0b0010 | 0b1011 | 0b1101 | 0b0100 => -1,
+            0b0011 | 0b1100 => {
+                self.accum = 0;
+                return None;
+            }
+            _ => 0,
+        };
+        self.accum += step;
+        if self.accum >= 4 {
+            self.accum = 0;
+            Some(1)
+        } else if self.accum <= -4 {
+            self.accum = 0;
+            Some(-1)
+        } else {
+            None
+        }
+    }
 }
 
 #[cfg(feature = "pi-zero")]
@@ -50,23 +91,33 @@ impl EncoderGpio {
             .map_err(|e| e.to_string())?
             .into_input_pullup();
 
-        let last_ab = (a.read(), b.read());
+        let state = Arc::new(Mutex::new(QuadratureState::new(a.read(), b.read())));
 
-        // Quadrature decoding on A/B edges
+        let state_a = state.clone();
         let tx_a = tx.clone();
         let id_a = id;
-        a.set_async_interrupt(Trigger::Both, move |_level_a| {
-            let _ = tx_a.send(HardwareEvent::EncoderTurn { id: id_a, delta: 1 });
+        a.set_async_interrupt(Trigger::Both, move |level_a| {
+            if let Ok(mut state) = state_a.lock() {
+                let b = state.last & 0b01;
+                let next = (level_bit(level_a) << 1) | b;
+                if let Some(delta) = state.update(next) {
+                    let _ = tx_a.send(HardwareEvent::EncoderTurn { id: id_a, delta });
+                }
+            }
         })
         .map_err(|e| e.to_string())?;
 
+        let state_b = state.clone();
         let tx_b = tx.clone();
         let id_b = id;
-        b.set_async_interrupt(Trigger::Both, move |_level_b| {
-            let _ = tx_b.send(HardwareEvent::EncoderTurn {
-                id: id_b,
-                delta: -1,
-            });
+        b.set_async_interrupt(Trigger::Both, move |level_b| {
+            if let Ok(mut state) = state_b.lock() {
+                let a = state.last & 0b10;
+                let next = a | level_bit(level_b);
+                if let Some(delta) = state.update(next) {
+                    let _ = tx_b.send(HardwareEvent::EncoderTurn { id: id_b, delta });
+                }
+            }
         })
         .map_err(|e| e.to_string())?;
 
@@ -83,9 +134,22 @@ impl EncoderGpio {
             _a: a,
             _b: b,
             _sw: sw,
-            _last_ab: last_ab,
+            _state: state,
             _tx: tx,
         })
+    }
+}
+
+#[cfg(feature = "pi-zero")]
+fn levels_to_bits(a: Level, b: Level) -> u8 {
+    (level_bit(a) << 1) | level_bit(b)
+}
+
+#[cfg(feature = "pi-zero")]
+fn level_bit(level: Level) -> u8 {
+    match level {
+        Level::Low => 0,
+        Level::High => 1,
     }
 }
 

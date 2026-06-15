@@ -131,6 +131,7 @@ export function buildRuntimeSnapshot<TState>(args: Args<TState>): RuntimeSnapsho
       autoSaveFlash: ((state.system as any).autoSaveFlash ?? "none") as "none" | "flash",
       transportFlash: state.system.transportFlash,
       stopLatched: state.system.stopLatched,
+      shiftHeld: state.system.shiftHeld,
       fnHeld: state.system.fnHeld,
       combinedModifierHeld: state.system.combinedModifierHeld,
       midi: {

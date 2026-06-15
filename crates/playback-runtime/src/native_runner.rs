@@ -2817,7 +2817,7 @@ impl NativeRunner {
         display_bar_values.truncate(display_lines.len());
         let toast = self.toast.as_ref().map(scrolled_toast).unwrap_or_default();
 
-        Ok(json!({
+        let mut snapshot = json!({
             "display": {
                 "page": self.behavior.id(),
                 "title": display_title,
@@ -2897,7 +2897,9 @@ impl NativeRunner {
             "transportIcon": if self.transport == RuntimeTransportState::Playing { "play" } else { "stop" },
             "transportFlash": self.transport_flash,
             "cpuLoadRatio": 0.0
-        }))
+        });
+        snapshot["settings"]["shiftHeld"] = json!(self.ui.shift_held);
+        Ok(snapshot)
     }
 
     fn status(&self) -> RuntimeStatus {

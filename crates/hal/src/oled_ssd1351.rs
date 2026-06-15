@@ -12,22 +12,39 @@ use std::io::Write;
 use std::fmt;
 
 /// SSD1351 commands
+#[cfg(feature = "pi-zero")]
 const CMD_SET_COLUMN_ADDR: u8 = 0x15;
+#[cfg(feature = "pi-zero")]
 const CMD_SET_ROW_ADDR: u8 = 0x75;
+#[cfg(feature = "pi-zero")]
 const CMD_WRITE_RAM: u8 = 0x5C;
+#[cfg(feature = "pi-zero")]
 const CMD_DISPLAY_ON: u8 = 0xAF;
+#[cfg(feature = "pi-zero")]
 const CMD_DISPLAY_OFF: u8 = 0xAE;
+#[cfg(feature = "pi-zero")]
 const CMD_SET_REMAP: u8 = 0xA0;
+#[cfg(feature = "pi-zero")]
 const CMD_SET_START_LINE: u8 = 0xA1;
+#[cfg(feature = "pi-zero")]
 const CMD_SET_DISPLAY_OFFSET: u8 = 0xA2;
+#[cfg(feature = "pi-zero")]
 const CMD_SET_GPIO: u8 = 0xB5;
+#[cfg(feature = "pi-zero")]
 const CMD_FUNCTION_SELECTION: u8 = 0xAB;
+#[cfg(feature = "pi-zero")]
 const CMD_SET_PRECHARGE1: u8 = 0xB1;
+#[cfg(feature = "pi-zero")]
 const CMD_SET_PRECHARGE2: u8 = 0xB3;
+#[cfg(feature = "pi-zero")]
 const CMD_SET_VCOMH: u8 = 0xBE;
+#[cfg(feature = "pi-zero")]
 const CMD_SET_CONTRAST: u8 = 0xC1;
+#[cfg(feature = "pi-zero")]
 const CMD_MASTER_CONTRAST: u8 = 0xC7;
+#[cfg(feature = "pi-zero")]
 const CMD_SET_MUX_RATIO: u8 = 0xCA;
+#[cfg(feature = "pi-zero")]
 const CMD_SET_COMMAND_LOCK: u8 = 0xFD;
 
 /// OLED display driver

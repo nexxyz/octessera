@@ -207,7 +207,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
       neoKeyLeds: {
         back: "solid_red",
         space: !frame.transport.playing ? "off" : flash === "measure" ? "measure" : flash === "beat" ? "beat" : "off",
-        shift: combined ? "solid_blue" : shiftActive ? "solid_yellow" : "off",
+        shift: combined ? "solid_blue" : (settings?.shiftHeld ?? shiftActive) ? "solid_yellow" : "off",
         fn: combined ? "solid_blue" : (settings?.fnHeld ?? state?.system?.fnHeld ?? false) ? "solid_yellow" : "off"
       },
       displayBrightness: settings?.displayBrightness ?? state?.runtimeConfig?.displayBrightness ?? 75,

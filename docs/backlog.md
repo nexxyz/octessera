@@ -130,11 +130,11 @@ No basic-functionality fallbacks are allowed during this migration. Missing menu
 
 ### Open Native Parity Deltas From Deep Audit
 
-- OPEN [critical]: Pi Zero still uses `NodeRunnerProcess` / TS core runner instead of the Rust `NativeRunner`; migrate Pi to the same native runtime boundary as desktop.
-- OPEN [critical]: Pi host adapter ignores platform effects, audio commands, and MIDI output; wire store/default/preset effects, sample browser/preview, Dance FX/audio commands, and MIDI-out.
-- OPEN [critical]: Pi loop does not render runtime snapshots to OLED/LEDs and only sends NeoKey press events, not releases; wire OLED, NeoTrellis/NeoKey LEDs, and button release semantics.
+- FIXED: Pi Zero now instantiates Rust `NativeRunner` directly, no longer uses `NodeRunnerProcess` / `@cellsymphony/platform-core-runner`, and has host-buildable HAL stubs plus a `hardware-pi` feature for real hardware builds.
+- PARTIAL [critical]: Pi host adapter now handles store/default/preset effects, deferred default save, MIDI list/select/panic/output, sample listing, musical events, Dance FX audio commands, and snapshot-driven playback BPM/MIDI sync; sample preview decode and full audio config/sample-bank sync still need hardware/pass-through validation.
+- PARTIAL [critical]: Pi loop now renders native LED snapshots to NeoTrellis, drives all four NeoKey LEDs/buttons (`button_a`, `button_s`, `button_shift`, `button_fn`) with press/release semantics, maps five hardware encoders to `main` plus `aux1..aux4`, and uses stateful quadrature decoding for turns; OLED rendering is currently a minimal placeholder until hardware display layout is validated.
 - FIXED: Runtime contracts and TS reference code now use runtime-snapshot naming exclusively, with no compatibility aliases for the removed simulator-frame API names.
-- FIXED: The legacy Node/TS runner adapter moved out of `crates/playback-runtime` into the Pi app while Pi native migration remains pending; `playback-runtime` now exposes only host-agnostic runtime/core traits, protocol types, and `NativeRunner`.
+- FIXED: The legacy Node/TS runner adapter was removed from the Pi app; `playback-runtime` exposes only host-agnostic runtime/core traits, protocol types, and `NativeRunner`.
 - FIXED: Desktop wrapper runtime mode naming no longer uses Tauri-specific runtime semantics; Tauri names remain confined to Tauri adapter modules.
 - FIXED: Boundary enforcement tests prevent canonical Rust crates from regaining Tauri, hardware/HAL, Node runner, simulator-frame, or adapter-path dependencies/names.
 - FIXED: Desktop runtime no longer imports or constructs `@cellsymphony/platform-core-runner`; non-Tauri/test use must inject a runner or native dispatch explicitly.
@@ -191,6 +191,13 @@ Regression coverage added in this pass:
 - `repeated_autosaves_increment_flash_serial`
 - `native_menu_help_targets_resolve_to_specific_tsv_rows`
 - `contextual_help_includes_midi_output_guidance`
+- `neokey_maps_to_native_button_inputs`
+- `non_realtime_midi_is_ignored`
+- `encoders_map_to_main_and_four_aux_inputs`
+- `led_frame_clamps_native_snapshot_values`
+- `neokey_colors_cover_shift_fn_and_combined_modifier`
+- `preset_path_sanitizes_separators`
+- `playback_config_from_snapshot_tracks_midi_runtime_settings`
 - `saved_step_rate_rehydrates_from_default_payload`
 - `pitch_note_params_use_legacy_note_name_display`
 - `back_exits_active_dance_overlay_and_menu_context`
