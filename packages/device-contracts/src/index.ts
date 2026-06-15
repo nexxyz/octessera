@@ -22,7 +22,6 @@ export type {
   RuntimePlatformEffectsMessage,
   RuntimeResultMessage,
   RuntimeRunnerMessage,
-  RuntimeSnapshot,
   RuntimeSnapshotMessage,
   RuntimeStoreResult,
   RuntimeStatus,
@@ -86,7 +85,7 @@ export type TransportFrame = {
   ppqnPulse: number;
 };
 
-export type SimulatorFrameSettings = {
+export type RuntimeSnapshotSettings = {
   displayBrightness: number;
   buttonBrightness: number;
   masterVolume: number;
@@ -110,12 +109,12 @@ export type SimulatorFrameSettings = {
   };
 };
 
-export type SimulatorFrame = {
+export type RuntimeSnapshot = {
   display: DisplayFrame;
   oled?: OledFrame;
   leds: LedMatrixFrame;
   transport: TransportFrame;
   activeBehavior: string;
   gridInteraction: GridInteraction;
-  settings?: SimulatorFrameSettings;
+  settings?: RuntimeSnapshotSettings;
 };

@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import type { BehaviorEngine } from "@cellsymphony/behavior-api";
 import type { DeviceInput } from "@cellsymphony/device-contracts";
 import { keysBehavior } from "@cellsymphony/behaviors-keys";
-import { createInitialState, GRID_DOMAIN, OLED_TEXT_COLUMNS, PAN_CENTER_POS, PAN_POSITION_COUNT, PAN_POSITION_MAX, PLATFORM_CAPS, routeInput, tick, toOledLines, toSimulatorFrame } from "../src/index";
+import { createInitialState, GRID_DOMAIN, OLED_TEXT_COLUMNS, PAN_CENTER_POS, PAN_POSITION_COUNT, PAN_POSITION_MAX, PLATFORM_CAPS, routeInput, tick, toOledLines, toRuntimeSnapshot } from "../src/index";
 import { fitOledText, formatDisplayValue } from "../src/coreUtils";
 import { shouldUseNumberBar } from "../src/menuPresentation";
 import { currentMenuView } from "../src/menuView";
@@ -95,7 +95,7 @@ test("edit marker uses compact star prefix", () => {
 
   const selectLabel = (label: string) => {
     for (let i = 0; i < 80; i += 1) {
-      const frame = toSimulatorFrame(state, mockBehavior);
+      const frame = toRuntimeSnapshot(state, mockBehavior);
       const selected = frame.display.lines.find((l) => l.startsWith("@@")) ?? "";
       if (selected.includes(label)) return;
       turn(1);
@@ -109,7 +109,7 @@ test("edit marker uses compact star prefix", () => {
   press();
   // Master Vol
   press();
-  const frame = toSimulatorFrame(state, mockBehavior);
+  const frame = toRuntimeSnapshot(state, mockBehavior);
   const hasStarEdit = frame.display.lines.some((line) => /\*\s*Vol:/.test(line));
   assert.equal(hasStarEdit, true);
 });
@@ -144,7 +144,7 @@ test("current menu view propagates marker and fill bar styles", () => {
 
   const selectLabel = (label: string) => {
     for (let i = 0; i < 120; i += 1) {
-      const frame = toSimulatorFrame(state, mockBehavior);
+      const frame = toRuntimeSnapshot(state, mockBehavior);
       const selected = frame.display.lines.find((l) => l.startsWith("@@")) ?? "";
       if (selected.includes(label)) return;
       turn(1);
@@ -372,9 +372,9 @@ test("OLED renders audio load indicator colors", () => {
   const state = createInitialState(mockBehavior);
   state.system.oledMode = "normal";
 
-  const yellow = toSimulatorFrame(state, mockBehavior, { audioLoad: { ratio: 0.7, voiceSteal: false } }).oled!;
-  const red = toSimulatorFrame(state, mockBehavior, { audioLoad: { ratio: 0.9, voiceSteal: false } }).oled!;
-  const idle = toSimulatorFrame(state, mockBehavior, { audioLoad: { ratio: 0.1, voiceSteal: false } }).oled!;
+  const yellow = toRuntimeSnapshot(state, mockBehavior, { audioLoad: { ratio: 0.7, voiceSteal: false } }).oled!;
+  const red = toRuntimeSnapshot(state, mockBehavior, { audioLoad: { ratio: 0.9, voiceSteal: false } }).oled!;
+  const idle = toRuntimeSnapshot(state, mockBehavior, { audioLoad: { ratio: 0.1, voiceSteal: false } }).oled!;
 
   assert.equal(pixel565(yellow.pixels, 123, 5), 0xffe0);
   assert.equal(pixel565(red.pixels, 123, 5), 0xf800);
@@ -401,8 +401,8 @@ test("simulator frame exposes behavior grid interaction semantics", () => {
   const paintState = createInitialState(mockBehavior);
   const keysState = createInitialState(keysBehavior);
 
-  assert.equal(toSimulatorFrame(paintState, mockBehavior).gridInteraction, "paint");
-  assert.equal(toSimulatorFrame(keysState, keysBehavior).gridInteraction, "momentary");
+  assert.equal(toRuntimeSnapshot(paintState, mockBehavior).gridInteraction, "paint");
+  assert.equal(toRuntimeSnapshot(keysState, keysBehavior).gridInteraction, "momentary");
 });
 
 test("Fn+rightmost grid column selects Dance pages", () => {
@@ -414,7 +414,7 @@ test("Fn+rightmost grid column selects Dance pages", () => {
 
  assert.equal(state.system.danceMode, "mix");
   assert.deepEqual(state.menu.stack, [3]);
-  assert.equal(toSimulatorFrame(state, mockBehavior).display.page, "L4: Dance");
+  assert.equal(toRuntimeSnapshot(state, mockBehavior).display.page, "L4: Dance");
 
   state = routeInput(state, { type: "grid_press", x: PLATFORM_CAPS.gridWidth - 1, y: 1 }, mockBehavior).state;
   assert.equal(state.system.danceMode, "pan");
@@ -435,7 +435,7 @@ test("entering L1: Life selects the active part", () => {
 
   assert.deepEqual(state.menu.stack, [0]);
   assert.equal(state.menu.cursor, 2);
-  assert.equal(toSimulatorFrame(state, mockBehavior).display.page, "L1: Life");
+  assert.equal(toRuntimeSnapshot(state, mockBehavior).display.page, "L1: Life");
 });
 
 test("entering L2: Sense selects the active part", () => {
@@ -448,7 +448,7 @@ test("entering L2: Sense selects the active part", () => {
 
   assert.deepEqual(state.menu.stack, [1]);
   assert.equal(state.menu.cursor, 3);
-  assert.equal(toSimulatorFrame(state, mockBehavior).display.page, "L2: Sense");
+  assert.equal(toRuntimeSnapshot(state, mockBehavior).display.page, "L2: Sense");
 });
 
 test("entering L1 or L2 clears the active Dance overlay", () => {
@@ -509,12 +509,12 @@ test("Dance Page menu activates the corresponding grid page", () => {
   };
 
   turnDancePageTo("mix");
-  let cells = toSimulatorFrame(state, mockBehavior).leds.cells;
+  let cells = toRuntimeSnapshot(state, mockBehavior).leds.cells;
   let mixMarker = cells[GRID_DOMAIN.toDisplayIndex({ x: 0, y: PLATFORM_CAPS.gridHeight - 1 })]!;
   assert.ok(mixMarker.g > 100, `mix page should light top-row volume marker, got ${mixMarker.g}`);
 
   turnDancePageTo("pan");
-  cells = toSimulatorFrame(state, mockBehavior).leds.cells;
+  cells = toRuntimeSnapshot(state, mockBehavior).leds.cells;
   const panMarkerLeft = cells[GRID_DOMAIN.toDisplayIndex({ x: 3, y: 0 })]!;
   const panMarkerRight = cells[GRID_DOMAIN.toDisplayIndex({ x: 4, y: 0 })]!;
   assert.ok(panMarkerLeft.r > 100 && panMarkerLeft.g > 100, "pan page should light the left pan marker");
@@ -524,12 +524,12 @@ test("Dance Page menu activates the corresponding grid page", () => {
   assert.equal(state.system.danceMode, "fx");
 
   turnDancePageTo("trigger-gate");
-  cells = toSimulatorFrame(state, mockBehavior).leds.cells;
+  cells = toRuntimeSnapshot(state, mockBehavior).leds.cells;
   const triggerGateCell = cells[GRID_DOMAIN.toDisplayIndex({ x: 2, y: 0 })]!;
   assert.ok(triggerGateCell.g > 100, "trigger-gate page should light trigger mode cells");
 
   turnDancePageTo("xy");
-  cells = toSimulatorFrame(state, mockBehavior).leds.cells;
+  cells = toRuntimeSnapshot(state, mockBehavior).leds.cells;
   const xyCell = cells[GRID_DOMAIN.toDisplayIndex({ x: 4, y: 4 })]!;
   assert.ok(xyCell.r > 50 && xyCell.g > 50 && xyCell.b > 50, "xy page should light the XY touch position");
 
@@ -551,7 +551,7 @@ test("entering Dance menu loads the selected Dance page into the grid", () => {
   assert.equal(state.system.danceMode, "pan");
   assert.deepEqual(state.menu.stack, [3]);
 
-  const cells = toSimulatorFrame(state, mockBehavior).leds.cells;
+  const cells = toRuntimeSnapshot(state, mockBehavior).leds.cells;
   const panMarkerLeft = cells[GRID_DOMAIN.toDisplayIndex({ x: 3, y: 0 })]!;
   const panMarkerRight = cells[GRID_DOMAIN.toDisplayIndex({ x: 4, y: 0 })]!;
   assert.ok(panMarkerLeft.r > 100 && panMarkerLeft.g > 100, "entering Dance should light the left pan marker");
@@ -567,7 +567,7 @@ test("Fn+rightmost column FX page selects fx dance mode", () => {
 
   assert.equal(state.system.danceMode, "fx");
   assert.deepEqual(state.menu.stack, [3]);
-  assert.equal(toSimulatorFrame(state, mockBehavior).display.page, "L4: Dance");
+  assert.equal(toRuntimeSnapshot(state, mockBehavior).display.page, "L4: Dance");
 });
 
 test("Fn overlay dims FX grid cells when danceMode is fx", () => {
@@ -577,7 +577,7 @@ test("Fn overlay dims FX grid cells when danceMode is fx", () => {
   state.system.danceMode = "fx";
   state.runtimeConfig.danceMode = "fx";
 
-  const cells = toSimulatorFrame(state, mockBehavior).leds.cells;
+  const cells = toRuntimeSnapshot(state, mockBehavior).leds.cells;
   const midCell = cells[GRID_DOMAIN.toDisplayIndex({ x: 2, y: 2 })]!;
   // middle cells dimmed: default FX dark (15,15,22) * 0.75 brightness * 0.25 dim = (3,3,4)
   assert.ok(midCell.r < 20 && midCell.g < 20 && midCell.b < 20);
@@ -599,7 +599,7 @@ test("Dance trigger-gate LEDs show per-part mode and all-parts actions", () => {
   (state.runtimeConfig as any).parts[0].l2.triggerProbabilityMode = "custom";
   (state.runtimeConfig as any).parts[1].l2.triggerProbabilityMode = "full";
 
-  const cells = toSimulatorFrame(state, mockBehavior).leds.cells;
+  const cells = toRuntimeSnapshot(state, mockBehavior).leds.cells;
   const part0Custom = cells[GRID_DOMAIN.toDisplayIndex({ x: 1, y: 0 })]!;
   const part0Zero = cells[GRID_DOMAIN.toDisplayIndex({ x: 0, y: 0 })]!;
   const part1Full = cells[GRID_DOMAIN.toDisplayIndex({ x: 2, y: 1 })]!;
@@ -619,7 +619,7 @@ test("Fn grid overlay shows active parts and Dance page options", () => {
   state.runtimeConfig.parts[1]!.l1.behaviorId = "none";
   state.runtimeConfig.parts[2]!.l1.behaviorId = "life";
 
-  const cells = toSimulatorFrame(state, mockBehavior).leds.cells;
+  const cells = toRuntimeSnapshot(state, mockBehavior).leds.cells;
   const activePart = cells[GRID_DOMAIN.toDisplayIndex({ x: 0, y: 0 })]!;
   const nonePart = cells[GRID_DOMAIN.toDisplayIndex({ x: 0, y: 1 })]!;
   const configuredPart = cells[GRID_DOMAIN.toDisplayIndex({ x: 0, y: 2 })]!;
@@ -649,7 +649,7 @@ test("Fn grid overlay highlights active part when not in Dance mode", () => {
   state.runtimeConfig.parts[1]!.l1.behaviorId = "none";
   state.runtimeConfig.parts[2]!.l1.behaviorId = "life";
 
-  const cells = toSimulatorFrame(state, mockBehavior).leds.cells;
+  const cells = toRuntimeSnapshot(state, mockBehavior).leds.cells;
   const activePart = cells[GRID_DOMAIN.toDisplayIndex({ x: 0, y: 0 })]!;
   const nonePart = cells[GRID_DOMAIN.toDisplayIndex({ x: 0, y: 1 })]!;
   const configuredPart = cells[GRID_DOMAIN.toDisplayIndex({ x: 0, y: 2 })]!;
@@ -697,7 +697,7 @@ test("Dance mix LEDs show volume markers", () => {
   state.runtimeConfig.instruments[0]!.mixer = { route: "direct", volume: 100, panPos: PAN_CENTER_POS };
   state.runtimeConfig.instruments[1]!.mixer = { route: "fx_bus_1", volume: 0, panPos: PAN_CENTER_POS };
 
-  const cells = toSimulatorFrame(state, mockBehavior).leds.cells;
+  const cells = toRuntimeSnapshot(state, mockBehavior).leds.cells;
   const direct = cells[GRID_DOMAIN.toDisplayIndex({ x: 0, y: PLATFORM_CAPS.gridHeight - 1 })]!;
   const fx = cells[GRID_DOMAIN.toDisplayIndex({ x: 1, y: 0 })]!;
 
@@ -712,7 +712,7 @@ test("Dance pan LEDs show a two-cell white marker for direct route", () => {
   state.runtimeConfig.instruments[0]!.mixer = { route: "direct", volume: 100, panPos: PAN_CENTER_POS };
   assert.equal(state.runtimeConfig.panPositions, PAN_POSITION_COUNT);
 
-  const cells = toSimulatorFrame(state, mockBehavior).leds.cells;
+  const cells = toRuntimeSnapshot(state, mockBehavior).leds.cells;
   const leftCenter = cells[GRID_DOMAIN.toDisplayIndex({ x: 3, y: 0 })]!;
   const rightCenter = cells[GRID_DOMAIN.toDisplayIndex({ x: 4, y: 0 })]!;
 
@@ -896,7 +896,7 @@ test("Dance FX LEDs show assigned, active, and limit states", () => {
   ];
   for (let x = 0; x < PLATFORM_CAPS.touchFxMaxConcurrent; x += 1) state = routeInput(state, { type: "grid_press", x, y: 0 }, mockBehavior).state;
 
-  const cells = toSimulatorFrame(state, mockBehavior).leds.cells;
+  const cells = toRuntimeSnapshot(state, mockBehavior).leds.cells;
   const active = cells[GRID_DOMAIN.toDisplayIndex({ x: 0, y: 0 })]!;
   const limited = cells[GRID_DOMAIN.toDisplayIndex({ x: 4, y: 0 })]!;
   const empty = cells[GRID_DOMAIN.toDisplayIndex({ x: 5, y: 0 })]!;
@@ -949,7 +949,7 @@ function pixel565(pixels: Uint8Array, x: number, y: number): number {
 test("modulation mode labels are user-facing", () => {
   let state = createInitialState(mockBehavior);
   state.runtimeConfig.x.filterCutoff.enabled = true;
-  const frame = toSimulatorFrame(state, mockBehavior);
+  const frame = toRuntimeSnapshot(state, mockBehavior);
   const rendered = frame.display.lines.join(" ");
   assert.equal(rendered.includes("filter_cutoff"), false);
 });
@@ -1025,7 +1025,7 @@ test("config save default requires confirmation before emitting effect", () => {
 
   const selectLabel = (label: string) => {
     for (let i = 0; i < 80; i += 1) {
-      const frame = toSimulatorFrame(state, mockBehavior);
+      const frame = toRuntimeSnapshot(state, mockBehavior);
       const selected = frame.display.lines.find((l) => l.startsWith("@@")) ?? "";
       if (selected.includes(label)) return;
       turn(1);
@@ -1069,7 +1069,7 @@ test("entering MIDI Out/In menu requests port lists", () => {
 
   const selectLabel = (label: string) => {
     for (let i = 0; i < 80; i += 1) {
-      const frame = toSimulatorFrame(state, mockBehavior);
+      const frame = toRuntimeSnapshot(state, mockBehavior);
       const selected = frame.display.lines.find((l) => l.startsWith("@@")) ?? "";
       if (selected.includes(label)) return;
       turn(1);
@@ -1107,7 +1107,7 @@ test("shift+back deletes character when editing draft name", () => {
 
   const selectLabel = (label: string) => {
     for (let i = 0; i < 80; i += 1) {
-      const frame = toSimulatorFrame(state, mockBehavior);
+      const frame = toRuntimeSnapshot(state, mockBehavior);
       const selected = frame.display.lines.find((l) => l.startsWith("@@")) ?? "";
       if (selected.includes(label)) return;
       turn(1);
@@ -1252,7 +1252,7 @@ test("contextual help uses specific text for submenu entries", () => {
 
   const selectLabel = (label: string) => {
     for (let i = 0; i < 120; i += 1) {
-      const frame = toSimulatorFrame(state, mockBehavior);
+      const frame = toRuntimeSnapshot(state, mockBehavior);
       const selected = frame.display.lines.find((line) => line.startsWith("@@")) ?? "";
       if (selected.includes(label)) return;
       turn(1);

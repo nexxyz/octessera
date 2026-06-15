@@ -5,7 +5,7 @@ import type { BehaviorEngine } from "@cellsymphony/behavior-api";
 import type { DeviceInput } from "@cellsymphony/device-contracts";
 import { interpretGrid, type GridSnapshot } from "@cellsymphony/interpretation-core";
 import { loadDefaultMappingConfig, mapIntentsToMusicalEvents } from "@cellsymphony/mapping-core";
-import { createInitialState, OLED_TEXT_COLUMNS, PLATFORM_CAPS, routeInput, tick, toOledLines, toSimulatorFrame } from "../src/index";
+import { createInitialState, OLED_TEXT_COLUMNS, PLATFORM_CAPS, routeInput, tick, toOledLines, toRuntimeSnapshot } from "../src/index";
 
 type MockState = {
   cells: boolean[];
@@ -103,7 +103,7 @@ test("menu navigation edits runtime config through hardware-parity inputs", () =
 
   const selectLabel = (label: string) => {
     for (let i = 0; i < 80; i += 1) {
-      const frame = toSimulatorFrame(state, mockBehavior);
+      const frame = toRuntimeSnapshot(state, mockBehavior);
       const selected = frame.display.lines.find((l) => l.startsWith("@@")) ?? "";
       if (selected.includes(label)) return;
       turn(1);
@@ -121,7 +121,7 @@ test("menu navigation edits runtime config through hardware-parity inputs", () =
   press();
 
   assert.equal(state.runtimeConfig.masterVolume, 72);
-  const frame = toSimulatorFrame(state, mockBehavior);
+  const frame = toRuntimeSnapshot(state, mockBehavior);
   assert.equal(frame.display.editing, false);
 });
 
@@ -139,7 +139,7 @@ test("bool menu items edit like 2-option enums", () => {
 
   const selectLabel = (label: string) => {
     for (let i = 0; i < 80; i += 1) {
-      const frame = toSimulatorFrame(state, mockBehavior);
+      const frame = toRuntimeSnapshot(state, mockBehavior);
       const selected = frame.display.lines.find((l) => l.startsWith("@@")) ?? "";
       if (selected.includes(label)) return;
       turn(1);
@@ -267,9 +267,9 @@ test("startup play scans the first reverse column on the first step", () => {
 test("grid brightness scales rendered LED intensity", () => {
   let state = createInitialState(mockBehavior);
   state.runtimeConfig.gridBrightness = 20;
-  const dim = toSimulatorFrame(state, mockBehavior);
+  const dim = toRuntimeSnapshot(state, mockBehavior);
   state.runtimeConfig.gridBrightness = 100;
-  const bright = toSimulatorFrame(state, mockBehavior);
+  const bright = toRuntimeSnapshot(state, mockBehavior);
   const dimTotal = dim.leds.cells.reduce((sum, c) => sum + c.r + c.g + c.b, 0);
   const brightTotal = bright.leds.cells.reduce((sum, c) => sum + c.r + c.g + c.b, 0);
   assert.ok(brightTotal > dimTotal);

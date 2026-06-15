@@ -1,6 +1,6 @@
 import type { MusicalEvent } from "@cellsymphony/musical-events";
 
-import type { DeviceInput, SimulatorFrame } from "./index";
+import type { DeviceInput, RuntimeSnapshot } from "./index";
 
 export const RUNTIME_STATUS_STATES = ["idle", "running", "paused", "error"] as const;
 export type RuntimeStatusState = (typeof RUNTIME_STATUS_STATES)[number];
@@ -54,8 +54,6 @@ export type RuntimeStoreResult =
   | { type: "sample_list_result"; instrumentSlot: number; sampleSlot: number; dir: string; entries: Array<{ name: string; path: string; isDir: boolean }> }
   | { type: "sample_list_error"; instrumentSlot: number; sampleSlot: number; dir: string; message: string }
   | { type: "sample_preview_error"; message: string };
-
-export type RuntimeSnapshot = SimulatorFrame;
 
 export type RuntimeStatus = {
   state: RuntimeStatusState;

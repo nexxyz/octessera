@@ -1,13 +1,11 @@
 mod native_help;
 mod native_menu;
 mod native_runner;
-mod process_runner;
 mod protocol;
 mod runtime;
 
 pub use native_runner::{NativeRunner, NativeRunnerConfig};
 pub use platform_core::MusicalEvent;
-pub use process_runner::{workspace_root_from, NodeRunnerProcess};
 pub use protocol::{
     HostMessage, MidiPort, RunnerMessage, RuntimeAudioCommand, RuntimeMomentaryFxTarget,
     RuntimePlatformEffect, RuntimeStatus, RuntimeStatusState, RuntimeStoreResult,
@@ -18,16 +16,11 @@ pub use runtime::{CoreRunner, HostAdapter, PlaybackRuntime, RuntimeConfig};
 #[cfg(test)]
 mod tests {
     use super::{
-        workspace_root_from, CoreRunner, HostAdapter, HostMessage, MusicalEvent, NativeRunner,
-        NativeRunnerConfig, NodeRunnerProcess, PlaybackRuntime, RunnerMessage, RuntimeAudioCommand,
-        RuntimeConfig, RuntimePlatformEffect, RuntimeStatus, RuntimeStatusState,
-        RuntimeStoreResult, RuntimeTransportState, SyncSource,
+        CoreRunner, HostAdapter, HostMessage, MusicalEvent, NativeRunner, NativeRunnerConfig,
+        PlaybackRuntime, RunnerMessage, RuntimeAudioCommand, RuntimeConfig, RuntimePlatformEffect,
+        RuntimeStatus, RuntimeStatusState, RuntimeStoreResult, RuntimeTransportState, SyncSource,
     };
     use serde_json::json;
-    use std::fs;
-    use std::path::Path;
-    use std::process::Command;
-    use tempfile::tempdir;
 
     #[derive(Default)]
     struct FakeRunner {
@@ -268,65 +261,6 @@ mod tests {
         assert!(messages
             .iter()
             .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
-    }
-
-    #[test]
-    fn workspace_root_resolves_repo_from_crate_dir() {
-        let root = workspace_root_from(Path::new(env!("CARGO_MANIFEST_DIR")));
-        assert!(root.join("pnpm-workspace.yaml").is_file());
-        assert!(root.join("packages").is_dir());
-    }
-
-    #[test]
-    fn workspace_root_resolves_repo_from_desktop_tauri_dir() {
-        let root = workspace_root_from(
-            Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("..")
-                .join("..")
-                .join("apps")
-                .join("desktop")
-                .join("src-tauri"),
-        );
-        assert!(root.join("pnpm-workspace.yaml").is_file());
-    }
-
-    #[test]
-    fn process_runner_round_trips_json_lines() {
-        let dir = tempdir().unwrap();
-        let runner_path = dir.path().join("runner.js");
-        fs::write(
-            &runner_path,
-            r#"
-const readline = require('node:readline');
-const rl = readline.createInterface({ input: process.stdin });
-rl.on('line', (line) => {
-  const msg = JSON.parse(line);
-  if (msg.type === 'transport_pulse_step') {
-    process.stdout.write(JSON.stringify({ type: 'runtime_status', status: { state: 'running', transport: 'playing', currentPpqnPulse: msg.pulses, pendingResync: false, syncSource: 'internal', message: null } }) + '\n');
-  }
-});
-"#,
-        )
-        .unwrap();
-
-        let mut command = Command::new("node");
-        command.arg(&runner_path).current_dir(dir.path());
-        let mut runner = NodeRunnerProcess::spawn(command).unwrap();
-        let responses = runner
-            .send(HostMessage::TransportPulseStep {
-                pulses: 7,
-                source: SyncSource::Internal,
-                at_ppqn_pulse: None,
-                request_snapshot: None,
-            })
-            .unwrap();
-        assert_eq!(responses.len(), 1);
-        assert!(matches!(
-            &responses[0],
-            RunnerMessage::RuntimeStatus { status }
-                if status.current_ppqn_pulse == 7
-                    && status.transport == RuntimeTransportState::Playing
-        ));
     }
 
     #[test]

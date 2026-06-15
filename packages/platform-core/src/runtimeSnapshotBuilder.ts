@@ -1,5 +1,5 @@
 import type { BehaviorEngine } from "@cellsymphony/behavior-api";
-import { type DisplayFrame, type SimulatorFrame } from "@cellsymphony/device-contracts";
+import { type DisplayFrame, type RuntimeSnapshot } from "@cellsymphony/device-contracts";
 import type { AuxTurnBinding, BarValue, PlatformState } from "./platformTypes";
 import { OLED_TEXT_COLUMNS, OLED_TEXT_LINES } from "./platformTypes";
 import { nowMs } from "./timing";
@@ -48,7 +48,7 @@ function audioLoadIndicator(status: { ratio: number; voiceSteal: boolean } | und
   return undefined;
 }
 
-export function buildSimulatorFrame<TState>(args: Args<TState>): SimulatorFrame {
+export function buildRuntimeSnapshot<TState>(args: Args<TState>): RuntimeSnapshot {
   const { state, activePart, model, menuView, scanCursor } = args;
   const baseDisplay: DisplayFrame = {
     page: menuView.path,

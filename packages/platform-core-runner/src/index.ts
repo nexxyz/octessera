@@ -13,7 +13,7 @@ import {
   applyStoreResult,
   routeInput,
   stepTransportByPulses,
-  toSimulatorFrame,
+  toRuntimeSnapshot,
   type PlatformEffect,
   type PlatformState,
   type StoreResult
@@ -21,7 +21,7 @@ import {
 
 export type CoreRunner = {
   dispatch(message: RuntimeHostMessage): RuntimeRunnerMessage[];
-  getFrame(): ReturnType<typeof toSimulatorFrame>;
+  getFrame(): ReturnType<typeof toRuntimeSnapshot>;
   getState(): PlatformState<any>;
   getStatus(): RuntimeStatus;
 };
@@ -41,7 +41,7 @@ export function createCoreRunner(options: CoreRunnerOptions = {}): CoreRunner {
 
   const snapshotMessage = (): RuntimeRunnerMessage => ({
     type: "snapshot",
-    snapshot: toSimulatorFrame(state, activeBehavior())
+    snapshot: toRuntimeSnapshot(state, activeBehavior())
   });
 
   const statusMessage = (): RuntimeRunnerMessage => ({
@@ -94,7 +94,7 @@ export function createCoreRunner(options: CoreRunnerOptions = {}): CoreRunner {
       return out;
     },
     getFrame() {
-      return toSimulatorFrame(state, activeBehavior());
+      return toRuntimeSnapshot(state, activeBehavior());
     },
     getState() {
       return state;

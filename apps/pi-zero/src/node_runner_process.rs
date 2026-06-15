@@ -1,5 +1,4 @@
-use crate::protocol::{HostMessage, RunnerMessage};
-use crate::runtime::CoreRunner;
+use playback_runtime::{CoreRunner, HostMessage, RunnerMessage};
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};

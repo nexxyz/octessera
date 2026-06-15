@@ -1,4 +1,4 @@
-import type { SimulatorFrame } from "@cellsymphony/device-contracts";
+import type { RuntimeSnapshot } from "@cellsymphony/device-contracts";
 import type { MusicalEvent } from "@cellsymphony/musical-events";
 
 export type InputAction =
@@ -15,7 +15,7 @@ export type NeoKeyLeds = {
 };
 
 export type SimulatorSnapshot = {
-  frame: SimulatorFrame;
+  frame: RuntimeSnapshot;
   neoKeyLeds: NeoKeyLeds;
   masterVolume: number;
   voiceStealingMode: "off" | "lenient" | "balanced" | "aggressive";

@@ -6,7 +6,7 @@ import type {
   RuntimePlatformEffect,
   RuntimeRunnerMessage,
   RuntimeStoreResult,
-  SimulatorFrame
+  RuntimeSnapshot
 } from "@cellsymphony/device-contracts";
 import type { MusicalEvent } from "@cellsymphony/musical-events";
 import { PAN_POSITION_COUNT, type ConfigPayload } from "@cellsymphony/platform-core";
@@ -50,7 +50,7 @@ type RuntimeMidiService = {
 type LocalRuntimeRunner = {
   dispatch(message: RuntimeHostMessage): RuntimeRunnerMessage[];
   getState(): unknown;
-  getFrame(): SimulatorFrame;
+  getFrame(): RuntimeSnapshot;
 };
 
 type RuntimeDeps = {
@@ -75,16 +75,16 @@ type ScheduledEvents = { dueMs: number; events: MusicalEvent[] };
 type ScheduledMidi = { dueMs: number; bytes: Uint8Array };
 
 export function createSimulatorRuntime(scheduler: RuntimeScheduler = createIntervalRuntimeScheduler(8), deps: RuntimeDeps = {}): SimulatorRuntime {
-  const tauriRealtimeMode = deps.runtimeDispatch
+  const nativeRuntimeMode = deps.runtimeDispatch
     ? true
     : typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
   const runner = deps.runner ?? null;
-  if (!tauriRealtimeMode && !runner) {
+  if (!nativeRuntimeMode && !runner) {
     throw new Error("Desktop runtime requires Tauri native runtime or an injected test runner");
   }
   let coreState = () => runner?.getState() ?? null;
   const blankOled: OledFrame = { width: 128, height: 128, format: "rgb565be", pixels: new Uint8Array(32768) };
-  let latestFrame: SimulatorFrame = {
+  let latestFrame: RuntimeSnapshot = {
     oled: blankOled,
     leds: { width: 8, height: 8, cells: Array.from({ length: 64 }, () => ({ r: 0, g: 0, b: 0 })) },
     transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
@@ -117,9 +117,9 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
   const tauriMidi: RuntimeMidiService = deps.midiService ?? new TauriMidiService();
   const audioLoadService: AudioLoadService = deps.audioLoadService ?? new TauriAudioLoadService();
   const audioEventSink = deps.audioEventSink ?? sendEventsToAudio;
-  const runtimeDispatch = deps.runtimeDispatch ?? (tauriRealtimeMode ? (message: RuntimeHostMessage) => tauriCoreRunner.dispatchRuntime(message) : null);
+  const runtimeDispatch = deps.runtimeDispatch ?? (nativeRuntimeMode ? (message: RuntimeHostMessage) => tauriCoreRunner.dispatchRuntime(message) : null);
   const invokeBridge = deps.invoke ?? invoke;
-  const runtimeMessagesReady = tauriRealtimeMode && !deps.runtimeDispatch
+  const runtimeMessagesReady = nativeRuntimeMode && !deps.runtimeDispatch
     ? tauriCoreRunner.listenRuntimeMessages((batch) => {
         applyAsyncRuntimeBatch(batch.seq, batch.messages, performance.now());
       }).catch((err) => {
@@ -171,7 +171,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
     if (!pendingDefaultSave) return;
     const payload = pendingDefaultSave;
     pendingDefaultSave = null;
-    if (tauriRealtimeMode) {
+    if (nativeRuntimeMode) {
       return;
     }
     store.saveDefault(payload);
@@ -197,7 +197,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
     }, autoSaveCooldownMs);
   }
 
-  function snapshotFromCore(frame: SimulatorFrame): SimulatorSnapshot {
+  function snapshotFromCore(frame: RuntimeSnapshot): SimulatorSnapshot {
     const state = coreState() as any;
     const settings = frame.settings;
     const flash = settings?.transportFlash ?? state?.system?.transportFlash ?? "none";
@@ -230,18 +230,18 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
 
   function publishEvents(events: MusicalEvent[]) {
     if (events.length === 0) return;
-    if (!tauriRealtimeMode) sendMidiForEvents(events, performance.now());
-    if (!tauriRealtimeMode) void audioEventSink(events, snapshotFromCore(latestFrame).masterVolume);
+    if (!nativeRuntimeMode) sendMidiForEvents(events, performance.now());
+    if (!nativeRuntimeMode) void audioEventSink(events, snapshotFromCore(latestFrame).masterVolume);
     for (const listener of eventListeners) listener(events);
   }
 
   function shouldBypassLocalRunner(input: DeviceInput) {
     void input;
-    return tauriRealtimeMode;
+    return nativeRuntimeMode;
   }
 
   function syncPlaybackConfigIfNeeded() {
-    if (!tauriRealtimeMode) return;
+    if (!nativeRuntimeMode) return;
     const settings = frameSettings();
     if (!settings) return;
     const midi = settings.midi;
@@ -289,7 +289,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
   }
 
   function maybeDrainTauriRuntimeMessages(nowMs: number) {
-    if (!tauriRealtimeMode || tauriDrainInFlight) return;
+    if (!nativeRuntimeMode || tauriDrainInFlight) return;
     if (nowMs - lastTauriDrainAt < TAURI_DISPLAY_DRAIN_MS) return;
     tauriDrainInFlight = true;
     lastTauriDrainAt = nowMs;
@@ -363,7 +363,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
   }
 
   function sendMidiTransportIfNeeded(nowMs: number) {
-    if (tauriRealtimeMode) {
+    if (nativeRuntimeMode) {
       prevPlaying = latestFrame.transport.playing;
       prevStopLatched = latestFrame.settings?.stopLatched ?? prevStopLatched;
       prevPpqnPulse = latestFrame.transport.ppqnPulse;
@@ -404,17 +404,17 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
         continue;
       }
       if (message.type === "musical_events") {
-        if (tauriRealtimeMode) continue;
+        if (nativeRuntimeMode) continue;
         enqueueEvents(message.events, dueMs);
         continue;
       }
       if (message.type === "platform_effects") {
-        if (tauriRealtimeMode) continue;
+        if (nativeRuntimeMode) continue;
         applyEffects(message.effects.filter((effect) => effect.type !== "audio_command"), dueMs, nowMs);
         continue;
       }
       if (message.type === "audio_commands") {
-        if (tauriRealtimeMode) continue;
+        if (nativeRuntimeMode) continue;
         for (const command of message.commands) execAudioCommand(command);
         continue;
       }
@@ -423,7 +423,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
         if (audioError) console.warn("[Runtime] audio error:", audioError);
       }
     }
-    if (!snapshotSeen && !tauriRealtimeMode && runner) latestFrame = runner.getFrame();
+    if (!snapshotSeen && !nativeRuntimeMode && runner) latestFrame = runner.getFrame();
   }
 
   function applyRuntimeResult(result: RuntimeStoreResult, dueMs: number, nowMs: number) {
@@ -458,10 +458,6 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
 
   function execEffect(effect: RuntimePlatformEffect): RuntimeStoreResult | null {
     try {
-      if (tauriRealtimeMode && effect.type.startsWith("store_")) {
-        if (effect.type !== "store_save_default" && effect.type !== "store_save_preset") return null;
-        if (effect.mode !== "deferred") return null;
-      }
       if (effect.type === "store_list_presets") return { type: "list_presets_result", names: store.listPresets() };
       if (effect.type === "store_load_preset") {
         cancelPendingDefaultSave();
@@ -566,7 +562,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
     publishSnapshot();
   }
 
-  if (!tauriRealtimeMode) {
+  if (!nativeRuntimeMode) {
     const defaultPayload = store.loadDefault();
     if (defaultPayload) {
       applyRuntimeResult({ type: "load_default_result", payload: defaultPayload }, performance.now(), performance.now());
@@ -576,7 +572,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
   syncPlaybackConfigIfNeeded();
 
   void tauriMidi.listenMidiIn((data: Uint8Array) => {
-    if (tauriRealtimeMode) {
+    if (nativeRuntimeMode) {
       void tauriCoreRunner
         .handleMidiRealtime(data)
         .then((messages) => {
@@ -600,7 +596,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
     publishSnapshot();
   });
 
-  if (!tauriRealtimeMode) {
+  if (!nativeRuntimeMode) {
     void midi.listOutputs().then((outputs) => {
       applyRuntimeResult({ type: "midi_list_outputs_result", outputs }, performance.now(), performance.now());
       publishSnapshot();
@@ -632,7 +628,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
       dispatchToRunner(action.input);
     },
     start() {
-      if (tauriRealtimeMode && runtimeDispatch) {
+      if (nativeRuntimeMode && runtimeDispatch) {
         runtimeUpdateEpoch += 1;
         ignoreAsyncUntilMs = performance.now() + ASYNC_RUNTIME_SUPPRESS_MS;
         void runtimeDispatch({ type: "transport_pulse_step", pulses: 0, source: "internal" })
@@ -653,10 +649,10 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
       scheduler.start((nowMs, elapsedMs) => {
         syncPlaybackConfigIfNeeded();
         const cfg = frameSettings()?.midi ?? ((coreState() as any).runtimeConfig.midi as any);
-        if (!tauriRealtimeMode && cfg.enabled) {
+        if (!nativeRuntimeMode && cfg.enabled) {
           if (cfg.outId !== midi.getSelectedOutputId()) void midi.selectOutput(cfg.outId);
           if (cfg.inId !== midi.getSelectedInputId()) void midi.selectInput(cfg.inId);
-        } else if (!tauriRealtimeMode) {
+        } else if (!nativeRuntimeMode) {
           if (midi.getSelectedOutputId() !== null) void midi.selectOutput(null);
           if (midi.getSelectedInputId() !== null) void midi.selectInput(null);
         }
@@ -664,7 +660,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
         const safeElapsedMs = Math.min(elapsedMs, MAX_CATCHUP_MS);
         const externalClock = cfg.syncMode === "external" && cfg.clockInEnabled;
 
-        if (tauriRealtimeMode) {
+        if (nativeRuntimeMode) {
           void safeElapsedMs;
           void externalClock;
           maybeDrainTauriRuntimeMessages(nowMs);

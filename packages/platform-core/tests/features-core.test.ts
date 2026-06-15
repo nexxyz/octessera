@@ -9,7 +9,7 @@ import {
   createInitialState,
   routeInput,
   tick,
-  toSimulatorFrame,
+  toRuntimeSnapshot,
   extractConfigPayload,
   applyConfigPayload,
   applyStoreResult,
@@ -60,7 +60,7 @@ function press(state: PlatformState<MockState>): { state: PlatformState<MockStat
 
 function selectLabel(state: PlatformState<MockState>, label: string): PlatformState<MockState> {
   for (let i = 0; i < 80; i += 1) {
-    const frame = toSimulatorFrame(state, mockBehavior);
+    const frame = toRuntimeSnapshot(state, mockBehavior);
     const selected = frame.display.lines.find((l) => l.startsWith("@@")) ?? "";
     if (selected.includes(label)) return state;
     const r = turn(state, 1);
@@ -153,7 +153,7 @@ test("newly selected FX parameters edit as finite numbers", () => {
   state = press(state).state;
   state = selectLabel(state, "Time ms");
 
-  const frame = toSimulatorFrame(state, mockBehavior);
+  const frame = toRuntimeSnapshot(state, mockBehavior);
   assert.equal(frame.display.lines.some((line) => line.includes("undefined") || line.includes("NaN")), false);
 
   state = press(state).state;
@@ -493,7 +493,7 @@ test("save current shows loaded preset name under action", () => {
   state = press(state).state;
   state = selectLabel(state, "Save Current");
 
-  const frame = toSimulatorFrame(state, mockBehavior);
+  const frame = toRuntimeSnapshot(state, mockBehavior);
   const selectedIndex = frame.display.lines.findIndex((l) => l.startsWith("@@") && l.includes("Save Current"));
   assert.ok(selectedIndex >= 0, "save current row should be selected");
   assert.equal(frame.display.lines[selectedIndex + 1], "@@  Jam A");
@@ -908,7 +908,7 @@ test("choose sample entry creates browser and shows dir navigation", () => {
   assert.equal(state.system.sampleBrowser.dir, "");
   assert.deepEqual(state.system.sampleBrowser.entries, []);
 
-  const frame = toSimulatorFrame(state, mockBehavior);
+  const frame = toRuntimeSnapshot(state, mockBehavior);
   assert.ok(frame.display.lines.length > 0, "should not be empty");
   assert.ok(frame.display.lines.some((l: string) => l.includes("..")), "should show ..");
   assert.ok(frame.display.lines.some((l: string) => l.includes("(empty)")), "should show (empty)");
@@ -969,7 +969,7 @@ test("choose sample re-entry preserves browser entries", () => {
   state = press(state).state; // enter Choose Sample
 
   assert.equal(state.system.sampleBrowser.entries.length, 1, "entries preserved");
-  const frame = toSimulatorFrame(state, mockBehavior);
+  const frame = toRuntimeSnapshot(state, mockBehavior);
   assert.ok(frame.display.lines.some((l: string) => l.includes("kick.wav")), "kick.wav still visible");
 });
 

@@ -13,7 +13,7 @@ import {
   routeInput,
   stepTransportByPulses,
   tick,
-  toSimulatorFrame,
+  toRuntimeSnapshot,
   type PlatformEffect,
   type PlatformState
 } from "../src/index";
@@ -63,7 +63,7 @@ function press(state: PlatformState<MockState>): { state: PlatformState<MockStat
 
 function selectLabel(state: PlatformState<MockState>, label: string): PlatformState<MockState> {
   for (let i = 0; i < 80; i += 1) {
-    const frame = toSimulatorFrame(state, mockBehavior);
+    const frame = toRuntimeSnapshot(state, mockBehavior);
     const selected = frame.display.lines.find((l) => l.startsWith("@@")) ?? "";
     if (selected.includes(label)) return state;
     const r = turn(state, 1);
@@ -347,7 +347,7 @@ test("menu navigation skips spacers when turning", () => {
     state = r.state;
   }
   // Should never land on a spacer
-  const frame = toSimulatorFrame(state, mockBehavior);
+  const frame = toRuntimeSnapshot(state, mockBehavior);
   const selected = frame.display.lines.find((l) => l.startsWith("@@")) ?? "";
   assert.ok(!selected.includes("─"), "should not select spacer");
 });
@@ -399,7 +399,7 @@ test("L2 Sense lists parts", () => {
   let state = makeState();
   state = selectLabel(state, "L2: Sense");
   state = press(state).state;
-  const frame = toSimulatorFrame(state, mockBehavior);
+  const frame = toRuntimeSnapshot(state, mockBehavior);
   assert.ok(frame.display.lines.some((line) => line.includes("P1:")));
 });
 
@@ -423,7 +423,7 @@ test("instrument list shows compact name labels", () => {
   state = press(state).state;
   state = selectLabel(state, "Instruments");
   state = press(state).state;
-  const frame = toSimulatorFrame(state, mockBehavior);
+  const frame = toRuntimeSnapshot(state, mockBehavior);
   assert.ok(frame.display.lines.some((line) => line.includes("I1: synth")));
 });
 
@@ -437,7 +437,7 @@ test("MIDI instruments do not expose the audio Mixer group", () => {
   state = press(state).state;
   const seen = new Set<string>();
   for (let i = 0; i < 20; i += 1) {
-    const frame = toSimulatorFrame(state, mockBehavior);
+    const frame = toRuntimeSnapshot(state, mockBehavior);
     const selected = frame.display.lines.find((line) => line.startsWith("@@")) ?? "";
     seen.add(selected);
     state = turn(state, 1).state;
@@ -454,16 +454,16 @@ test("instrument auto name follows type, manual name sets autoName false", () =>
   state = press(state).state;
   state = selectLabel(state, "Instruments");
   state = press(state).state;
-  let frame = toSimulatorFrame(state, mockBehavior);
+  let frame = toRuntimeSnapshot(state, mockBehavior);
   assert.ok(frame.display.lines.some((line) => line.includes("I1: sample")));
 
   state.runtimeConfig.instruments[0].autoName = false;
   state.runtimeConfig.instruments[0].name = "Drums";
-  frame = toSimulatorFrame(state, mockBehavior);
+  frame = toRuntimeSnapshot(state, mockBehavior);
   assert.ok(frame.display.lines.some((line) => line.includes("I1: Drums")));
 
   state.runtimeConfig.instruments[0].name = "MyKick";
-  frame = toSimulatorFrame(state, mockBehavior);
+  frame = toRuntimeSnapshot(state, mockBehavior);
   assert.ok(frame.display.lines.some((line) => line.includes("I1: MyKick")));
 });
 
@@ -566,11 +566,11 @@ test("ghost cells show inactive part cells only when enabled", () => {
   state.partStates[1].cells = Array.from({ length: CELL_COUNT }, (_, i) => i === ghostIndex);
 
   state.runtimeConfig.ghostCells = false;
-  const off = toSimulatorFrame(state, lifeBehavior).leds.cells[screenIndex];
+  const off = toRuntimeSnapshot(state, lifeBehavior).leds.cells[screenIndex];
   state.runtimeConfig.ghostCells = true;
-  const ghost = toSimulatorFrame(state, lifeBehavior).leds.cells[screenIndex];
+  const ghost = toRuntimeSnapshot(state, lifeBehavior).leds.cells[screenIndex];
   state.partStates[0].cells[ghostIndex] = true;
-  const active = toSimulatorFrame(state, lifeBehavior).leds.cells[screenIndex];
+  const active = toRuntimeSnapshot(state, lifeBehavior).leds.cells[screenIndex];
 
   assert.ok(ghost.g > off.g);
   assert.ok(active.g > ghost.g);

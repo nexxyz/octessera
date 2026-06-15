@@ -7,7 +7,7 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
 ## Layer Responsibilities
 
 - UI layer (`apps/desktop/src/`)
-  - renders simulator snapshot data
+  - renders runtime snapshot data
   - captures user interaction and emits `DeviceInput`
   - contains no transport/menu/audio/interpretation logic
 
@@ -16,16 +16,18 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
   - schedules transport pulses and realtime status through Rust runtime code
   - applies native core/menu/behavior state transitions through `NativeRunner`
   - publishes snapshots, platform effects, audio commands, MIDI events, and runtime status
-  - owns MIDI input/output via Tauri/midir host adapters only (no Web MIDI)
+  - owns MIDI input/output through host adapters only; Tauri/midir and Pi MIDI device access stay outside canonical runtime crates
 
 - Core logic layer (`crates/platform-core`)
   - deterministic behavior execution, menu/control state, interpretation, mapping
   - no UI framework code
   - no platform-specific I/O
+  - no desktop, Pi, Tauri, Node runner, storage, MIDI-device, filesystem, or hardware adapter code
 
 - Output adapters (`apps/desktop/src-tauri/src/`)
   - desktop audio sink maps native events/audio commands to the realtime engine and rodio source
   - MIDI input/output uses Tauri-side midir adapters
+  - storage, sample-browser filesystem access, and sample decoding are host adapter responsibilities
 
 - Realtime audio engine (`crates/realtime-engine`, `crates/rodio-engine-source`)
   - owns all internal musical audio rendering, instrument route/pan, FX bus sends, FX bus processing, sidechain ducking, and final stereo mix
@@ -38,6 +40,7 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
 - UI must not call native core, transport, audio, MIDI, or storage bridges directly.
 - Runtime may import native core and output/input adapters.
 - Core crates must stay platform-agnostic.
+- `crates/platform-core` and `crates/playback-runtime` must not depend on Tauri, HAL, Pi hardware crates, Node runner processes, storage implementations, or host filesystem/sample-browser adapters.
 - Platform adapters must not create independent musical audio sinks that bypass the realtime engine mixer.
 
 ## Data Flow
@@ -57,7 +60,7 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
 - `transport_pulse_step` is the deterministic PPQN advancement boundary; hosts must not substitute wall-clock timer semantics above this seam.
 - External MIDI realtime (`clock`, `start`, `continue`, `stop`) remains explicit at the boundary and is not inferred from UI/runtime scheduling code.
 - `runtime_result` carries host-side outcomes for storage, MIDI port enumeration/selection, and sample-browser operations back into the shared runner.
-- `snapshot` remains the display/input-facing state payload; `musical_events`, `platform_effects`, and `audio_commands` are the resolved outputs that Rust schedules or dispatches.
+- `snapshot` is the runtime display/input-facing state payload; `musical_events`, `platform_effects`, and `audio_commands` are the resolved outputs that Rust schedules or dispatches.
 
 ## Audio Routing Contract
 

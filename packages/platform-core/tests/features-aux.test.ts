@@ -11,7 +11,7 @@ import {
   PLATFORM_CAPS,
   routeInput,
   tick,
-  toSimulatorFrame,
+  toRuntimeSnapshot,
   type PlatformEffect,
   type PlatformState
 } from "../src/index";
@@ -60,7 +60,7 @@ function press(state: PlatformState<MockState>): { state: PlatformState<MockStat
 
 function selectLabel(state: PlatformState<MockState>, label: string): PlatformState<MockState> {
   for (let i = 0; i < 80; i += 1) {
-    const frame = toSimulatorFrame(state, mockBehavior);
+    const frame = toRuntimeSnapshot(state, mockBehavior);
     const selected = frame.display.lines.find((l) => l.startsWith("@@")) ?? "";
     if (selected.includes(label)) return state;
     const r = turn(state, 1);
@@ -134,7 +134,7 @@ test("shift-hold shows current mapping overlay (custom)", () => {
   state.system.shiftHeld = true;
   state.system.shiftHeldSinceMs = Date.now() - 2500;
 
-  const frame = toSimulatorFrame(state, mockBehavior);
+  const frame = toRuntimeSnapshot(state, mockBehavior);
   assert.equal(frame.display.title, "CUSTOM MAP");
   assert.ok(frame.display.lines.some((l) => l.startsWith("A1")), "overlay should list aux slots");
 });
@@ -145,7 +145,7 @@ test("shift-hold mapping overlay waits for delay", () => {
   state.system.shiftHeld = true;
   state.system.shiftHeldSinceMs = Date.now() - 1400;
 
-  const frame = toSimulatorFrame(state, mockBehavior);
+  const frame = toRuntimeSnapshot(state, mockBehavior);
   assert.notEqual(frame.display.title, "CUSTOM MAP");
 });
 
@@ -164,7 +164,7 @@ state.system.oledMode = "normal";
   state = press(state).state;
   state = selectLabel(state, "Assign");
 
-  const frame = toSimulatorFrame(state, mockBehavior);
+  const frame = toRuntimeSnapshot(state, mockBehavior);
   const selected = frame.display.lines.find((l) => l.startsWith("@@")) ?? "";
   assert.ok(selected.includes("!1-Assign"), "action row should render as !1-Assign");
 
@@ -472,7 +472,7 @@ test("auto-map prefixes persist when cursor is on a subgroup", () => {
   // Navigate to a subgroup further down the list so more sibling items are in view
   state = selectLabel(state, "Filter");
 
-  const frame = toSimulatorFrame(state, mockBehavior);
+  const frame = toRuntimeSnapshot(state, mockBehavior);
   const lines = frame.display.lines.join("\n");
   assert.ok(lines.includes("2-Base Velocity"), "Base Velocity shows aux2 turn prefix");
   assert.ok(lines.includes("3-Tune Semis"), "Tune Semis shows aux3 turn prefix");

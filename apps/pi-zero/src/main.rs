@@ -5,11 +5,12 @@ use cellsymphony_hal::{
     encoder_gpio::*, i2c_bus::*, i2s_dac::I2sDac, neokey::*, neotrellis::*, oled_ssd1351::*,
     pinmap::*,
 };
+mod node_runner_process;
 use midir::MidiInput;
+use node_runner_process::{workspace_root_from, NodeRunnerProcess};
 use playback_runtime::{
-    workspace_root_from, CoreRunner, HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent,
-    NodeRunnerProcess, PlaybackRuntime, RunnerMessage, RuntimeAudioCommand, RuntimeConfig,
-    RuntimePlatformEffect, SyncSource,
+    CoreRunner, HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent, PlaybackRuntime,
+    RunnerMessage, RuntimeAudioCommand, RuntimeConfig, RuntimePlatformEffect, SyncSource,
 };
 use realtime_engine::synth::{
     default_synth_config, InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig,

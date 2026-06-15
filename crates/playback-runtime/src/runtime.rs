@@ -180,7 +180,7 @@ impl PlaybackRuntime {
         messages: Vec<RunnerMessage>,
         host: &mut H,
     ) -> Result<Vec<HostMessage>, String> {
-        let follow_ups = self.process_runner_messages(messages, host)?;
+        let follow_ups = self.ingest_core_messages(messages, host)?;
         self.flush_scheduled_midi(host)?;
         Ok(follow_ups)
     }
@@ -194,14 +194,14 @@ impl PlaybackRuntime {
         let mut queue = std::collections::VecDeque::from([message]);
         while let Some(next) = queue.pop_front() {
             let responses = runner.send(next)?;
-            for follow_up in self.process_runner_messages(responses, host)? {
+            for follow_up in self.ingest_core_messages(responses, host)? {
                 queue.push_back(follow_up);
             }
         }
         self.flush_scheduled_midi(host)
     }
 
-    fn process_runner_messages<H: HostAdapter>(
+    fn ingest_core_messages<H: HostAdapter>(
         &mut self,
         messages: Vec<RunnerMessage>,
         host: &mut H,

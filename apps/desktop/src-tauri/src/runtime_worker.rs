@@ -7,7 +7,7 @@ use playback_runtime::{
     CoreRunner, HostAdapter, HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime,
     RunnerMessage, SyncSource,
 };
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -17,7 +17,28 @@ use tauri::Emitter;
 const SNAPSHOT_INTERVAL_MS: u64 = 100;
 
 pub(crate) fn desktop_workspace_root() -> PathBuf {
-    playback_runtime::workspace_root_from(std::path::Path::new(env!("CARGO_MANIFEST_DIR")))
+    workspace_root_from(Path::new(env!("CARGO_MANIFEST_DIR")))
+}
+
+fn workspace_root_from(crate_dir: impl AsRef<Path>) -> PathBuf {
+    let start = crate_dir.as_ref();
+    for ancestor in start.ancestors() {
+        if ancestor.join("pnpm-workspace.yaml").is_file()
+            && ancestor.join("packages").is_dir()
+            && ancestor.join("Cargo.toml").is_file()
+        {
+            return ancestor.to_path_buf();
+        }
+        if ancestor
+            .file_name()
+            .is_some_and(|name| name == "crates" || name == "apps")
+        {
+            if let Some(parent) = ancestor.parent() {
+                return parent.to_path_buf();
+            }
+        }
+    }
+    start.to_path_buf()
 }
 
 pub(crate) fn ensure_store_dir() -> PathBuf {

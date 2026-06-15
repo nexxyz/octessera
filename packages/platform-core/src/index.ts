@@ -14,7 +14,7 @@ import {
   type DeviceInput,
   type DisplayFrame,
   type PageId,
-  type SimulatorFrame,
+  type RuntimeSnapshot,
   type TransportFrame
 } from "@cellsymphony/device-contracts";
 import { type MappingConfig } from "@cellsymphony/mapping-core";
@@ -71,7 +71,7 @@ registerBehavior(dlaBehavior); registerBehavior(gliderBehavior);
 function resolveBehavior(activeId: string): BehaviorEngine<any, any> {
   return getBehavior(activeId) ?? sequencerBehavior;
 }
-import { buildSimulatorFrame, toOledLines } from "./simulatorFrameBuilder";
+import { buildRuntimeSnapshot, toOledLines } from "./runtimeSnapshotBuilder";
 import { ghostCellsForInactiveParts } from "./runtimeHelpers";
 import { paramBindingFromMenuNode } from "./paramMod";
 import { emergencyBrakeState } from "./transportSafety";
@@ -333,7 +333,7 @@ export function applyStoreResult<TState>(
   });
 }
 
-export function toSimulatorFrame<TState>(state: PlatformState<TState>, behavior: BehaviorEngine<TState, unknown>, options: { audioLoad?: { ratio: number; voiceSteal: boolean } } = {}): SimulatorFrame {
+export function toRuntimeSnapshot<TState>(state: PlatformState<TState>, behavior: BehaviorEngine<TState, unknown>, options: { audioLoad?: { ratio: number; voiceSteal: boolean } } = {}): RuntimeSnapshot {
   const activePart = clampPartIndex((state.runtimeConfig as any).activePartIndex ?? 0);
   const part = (state.runtimeConfig as any).parts?.[activePart];
   const activeBehaviorId = String(part?.l1?.behaviorId ?? state.runtimeConfig.activeBehavior);
@@ -349,7 +349,7 @@ export function toSimulatorFrame<TState>(state: PlatformState<TState>, behavior:
   const scanIndex = ((state as any).partScanIndex?.[activePart] ?? state.scanIndex) as number;
   const scanCursor = scanMode === "scanning" ? { axis: scanAxis, index: scanIndex, sections: scanSections } : null;
   const ghostCells = state.runtimeConfig.ghostCells === true ? ghostCellsForInactiveParts(state, activePart, model.cells.length) : undefined;
-  return buildSimulatorFrame({ state, activePart, engine, model, menuView, scanCursor, audioLoad: options.audioLoad, ghostCells, paramModBinding });
+  return buildRuntimeSnapshot({ state, activePart, engine, model, menuView, scanCursor, audioLoad: options.audioLoad, ghostCells, paramModBinding });
 }
 
 function menuTree<TState>(state: PlatformState<TState>): MenuNode {
@@ -447,7 +447,7 @@ function autoSaveEffect<TState>(state: PlatformState<TState>, effects: PlatformE
 }
 const FRAME_SECONDS = 0.15;
 
-export { toOledLines } from "./simulatorFrameBuilder";
+export { toOledLines } from "./runtimeSnapshotBuilder";
 
 export function enumerateMenuHelpTargets<TState>(state: PlatformState<TState>): HelpTarget[] {
   const out: HelpTarget[] = [];

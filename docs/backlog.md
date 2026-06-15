@@ -133,6 +133,10 @@ No basic-functionality fallbacks are allowed during this migration. Missing menu
 - OPEN [critical]: Pi Zero still uses `NodeRunnerProcess` / TS core runner instead of the Rust `NativeRunner`; migrate Pi to the same native runtime boundary as desktop.
 - OPEN [critical]: Pi host adapter ignores platform effects, audio commands, and MIDI output; wire store/default/preset effects, sample browser/preview, Dance FX/audio commands, and MIDI-out.
 - OPEN [critical]: Pi loop does not render runtime snapshots to OLED/LEDs and only sends NeoKey press events, not releases; wire OLED, NeoTrellis/NeoKey LEDs, and button release semantics.
+- FIXED: Runtime contracts and TS reference code now use runtime-snapshot naming exclusively, with no compatibility aliases for the removed simulator-frame API names.
+- FIXED: The legacy Node/TS runner adapter moved out of `crates/playback-runtime` into the Pi app while Pi native migration remains pending; `playback-runtime` now exposes only host-agnostic runtime/core traits, protocol types, and `NativeRunner`.
+- FIXED: Desktop wrapper runtime mode naming no longer uses Tauri-specific runtime semantics; Tauri names remain confined to Tauri adapter modules.
+- FIXED: Boundary enforcement tests prevent canonical Rust crates from regaining Tauri, hardware/HAL, Node runner, simulator-frame, or adapter-path dependencies/names.
 - FIXED: Desktop runtime no longer imports or constructs `@cellsymphony/platform-core-runner`; non-Tauri/test use must inject a runner or native dispatch explicitly.
 - FIXED: Native preset Library `Save As` uses text draft name and emits store-save, Rename supports pick/New Name/Apply with save-then-delete cleanup, and empty lists show `(none)` refresh rows.
 - FIXED: Native toast/status flow now covers preset save/load/delete/rename, Save Current with no loaded preset, default save/load, factory load, synth preset load, and MIDI panic; destructive/load/save/panic actions now use native modal confirmations.
@@ -242,14 +246,20 @@ Regression coverage added in this pass:
 - `config_load_queues_midi_port_selection_effects`
 - `deferred_default_save_flushes_runtime_result`
 - `midi_panic_returns_native_status_result`
+- `core_stays_free_of_host_adapter_terms`
+- `runtime_stays_free_of_host_adapter_terms`
 
-Latest Rust verification after this pass:
+Latest verification after this pass:
 
 - `cargo fmt --all --check`: passed
-- `cargo test -p platform-core`: passed, 54 tests
-- `cargo test -p playback-runtime`: passed, 177 tests
+- `cargo test -p platform-core`: passed, 54 unit tests plus 1 boundary test
+- `cargo test -p playback-runtime`: passed, 174 unit tests plus 1 boundary test
 - `cargo test -p cellsymphony-desktop`: passed, 12 tests
 - `cargo clippy -p platform-core -p playback-runtime -p cellsymphony-desktop`: passed
+- `corepack pnpm --filter @cellsymphony/device-contracts typecheck`: passed
+- `corepack pnpm --filter @cellsymphony/platform-core-runner typecheck`: passed
+- `corepack pnpm --filter @cellsymphony/platform-core typecheck`: passed
+- `corepack pnpm --filter @cellsymphony/platform-core test`: passed, 223 tests
 - `corepack pnpm --filter @cellsymphony/platform-core lint:menu-help`: passed
 - `corepack pnpm --filter @cellsymphony/desktop typecheck`: passed
 
