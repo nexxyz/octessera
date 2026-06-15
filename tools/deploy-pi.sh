@@ -37,7 +37,7 @@ fi
 # Build natively on Pi (simpler than cross-compilation)
 echo "Building Cell Symphony for Pi..."
 cd /home/pi/cellsymphony
-cargo build --release -p cellsymphony-pi
+cargo build --release -p cellsymphony-pi --features hardware-pi
 
 # Create systemd service
 echo "Creating systemd service..."

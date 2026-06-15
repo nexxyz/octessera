@@ -1,4 +1,4 @@
-import { PAN_POSITION_COUNT } from "@cellsymphony/platform-core";
+import { PAN_POSITION_COUNT } from "@cellsymphony/device-contracts";
 import { invoke } from "@tauri-apps/api/core";
 
 export interface NativeAudioBridge {

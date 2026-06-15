@@ -31,6 +31,18 @@ export type {
   RuntimeTransportState
 } from "./runtimeProtocol";
 
+export type MusicalEvent =
+  | { type: "note_on"; channel: number; note: number; velocity: number; durationMs?: number }
+  | { type: "note_off"; channel: number; note: number }
+  | { type: "cc"; channel: number; controller: number; value: number };
+
+export const MUSICAL_EVENT_KINDS = ["note_on", "note_off", "cc"] as const;
+export type MusicalEventKind = (typeof MUSICAL_EVENT_KINDS)[number];
+
+export function isMusicalEventKind(value: string): value is MusicalEventKind {
+  return (MUSICAL_EVENT_KINDS as readonly string[]).includes(value);
+}
+
 export type DeviceInput =
   | { type: "encoder_turn"; delta: -1 | 1; id?: "main" | "aux1" | "aux2" | "aux3" | "aux4" }
   | { type: "encoder_press"; id?: "main" | "aux1" | "aux2" | "aux3" | "aux4" }
@@ -69,6 +81,20 @@ export type LedCell = { r: number; g: number; b: number };
 export const GRID_WIDTH = 8 as const;
 export const GRID_HEIGHT = 8 as const;
 export const GRID_DOMAIN = createGridDomain(GRID_WIDTH, GRID_HEIGHT);
+export const OLED_WIDTH = 128 as const;
+export const OLED_HEIGHT = 128 as const;
+export const PAN_POSITION_COUNT = 33 as const;
+export const PLATFORM_CAPS = {
+  gridWidth: GRID_WIDTH,
+  gridHeight: GRID_HEIGHT,
+  partCount: 8,
+  instrumentCount: 8,
+  sampleSlotCount: 8,
+  busCount: 4,
+  globalFxSlotCount: 2,
+  touchFxMaxConcurrent: 4,
+  scanSectionCounts: [1, 2, 4, 8]
+} as const;
 export type { GridCell, GridDomain };
 export type LedMatrixFrame = {
   width: number;
@@ -119,3 +145,15 @@ export type RuntimeSnapshot = {
   gridInteraction: GridInteraction;
   settings?: RuntimeSnapshotSettings;
 };
+
+const CUTOFF_MIN_HZ = 80;
+const CUTOFF_MAX_HZ = 16000;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+export function cutoffDisplayToHz(display: number): number {
+  const t = clamp(display, 0, 255) / 255;
+  return Math.round(CUTOFF_MIN_HZ * Math.exp(t * Math.log(CUTOFF_MAX_HZ / CUTOFF_MIN_HZ)));
+}

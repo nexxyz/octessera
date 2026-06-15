@@ -108,19 +108,19 @@ To map FX, go to `L4: Dance > FX Page`, select an effect type and parameters, ch
 
 ## Algorithms
 
-| Algorithm | Package | Description |
+| Algorithm | Native Module | Description |
 |---|---|---|
-| none | `@cellsymphony/behaviors-none` | Empty/no-op behavior |
-| sequencer | `@cellsymphony/behaviors-sequencer` | Manual grid toggle |
-| keys | `@cellsymphony/behaviors-keys` | Momentary key grid |
-| life | `@cellsymphony/behaviors-life` | Conway's Game of Life with optional spawning |
-| brain | `@cellsymphony/behaviors-brain` | Brian's Brain 3-state automaton |
-| ant | `@cellsymphony/behaviors-ant` | Langton's Ant |
-| bounce | `@cellsymphony/behaviors-bounce` | Bouncing particles |
-| shapes | `@cellsymphony/behaviors-pulse` | Expanding ring/shape pulses |
-| raindrops | `@cellsymphony/behaviors-raindrops` | Falling drops and splash rings |
-| dla | `@cellsymphony/behaviors-dla` | Diffusion-limited aggregation |
-| glider | `@cellsymphony/behaviors-glider` | Conway glider spawning |
+| none | `crates/platform-core/src/behaviors/none.rs` | Empty/no-op behavior |
+| sequencer | `crates/platform-core/src/behaviors/sequencer.rs` | Manual grid toggle |
+| keys | `crates/platform-core/src/behaviors/ported/keys.rs` | Momentary key grid |
+| life | `crates/platform-core/src/behaviors/life.rs` | Conway's Game of Life with optional spawning |
+| brain | `crates/platform-core/src/behaviors/ported/brain.rs` | Brian's Brain 3-state automaton |
+| ant | `crates/platform-core/src/behaviors/ported/ant.rs` | Langton's Ant |
+| bounce | `crates/platform-core/src/behaviors/ported/bounce.rs` | Bouncing particles |
+| shapes | `crates/platform-core/src/behaviors/ported/shapes.rs` | Expanding ring/shape pulses |
+| raindrops | `crates/platform-core/src/behaviors/ported/raindrops.rs` | Falling drops and splash rings |
+| dla | `crates/platform-core/src/behaviors/ported/dla.rs` | Diffusion-limited aggregation |
+| glider | `crates/platform-core/src/behaviors/glider.rs` | Conway glider spawning |
 
 ---
 
@@ -195,18 +195,19 @@ pnpm run typecheck
 pnpm run test
 pnpm run test:coverage
 cargo fmt --all --check
-cargo clippy --workspace --exclude cellsymphony-pi --exclude cellsymphony-desktop --exclude midi-io-sidecar --exclude rodio-engine-source --all-targets -- -D warnings
-cargo test --workspace --exclude cellsymphony-pi --exclude cellsymphony-desktop --exclude midi-io-sidecar --exclude rodio-engine-source
+cargo clippy --workspace --exclude cellsymphony-desktop --exclude rodio-engine-source --all-targets -- -D warnings
+cargo test --workspace --exclude cellsymphony-desktop --exclude rodio-engine-source
 ```
 
 Run focused package tests with:
 
 ```bash
-pnpm --filter @cellsymphony/platform-core test
 pnpm --filter @cellsymphony/desktop test
+cargo test -p platform-core
+cargo test -p playback-runtime
 ```
 
-The current platform-core suite has 179+ tests.
+Native runtime correctness is enforced by the Rust `platform-core` and `playback-runtime` suites.
 
 ### Project Structure
 
@@ -214,15 +215,10 @@ The current platform-core suite has 179+ tests.
 cellSymphony/
 ├── apps/desktop/                  # Tauri desktop simulator and audio bridge
 ├── packages/
-│   ├── platform-core/             # Core runtime, menu, transport, input routing, simulator frames
-│   ├── behavior-api/              # BehaviorEngine interface and registry
-│   ├── device-contracts/          # Shared device/display/grid contracts
-│   ├── interpretation-core/       # Grid transitions and scan interpretation
-│   ├── mapping-core/              # Musical intent to event mapping
-│   ├── musical-events/            # Musical event contracts
-│   ├── behaviors-*/               # Pluggable behavior packages
-│   └── midi-headless-runner/      # Headless MIDI integration support
+│   └── device-contracts/          # Shared TypeScript bridge/display/runtime contracts
 ├── crates/
+│   ├── platform-core/             # Native behavior/grid/interpretation/mapping core
+│   ├── playback-runtime/          # Native runner/runtime protocol and menu host boundary
 │   ├── realtime-engine/           # Rust realtime synth/sample/FX engine
 │   ├── rodio-engine-source/       # Rodio source wrapper
 │   ├── cellsymphony-hal/          # Hardware abstraction layer

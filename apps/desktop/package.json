@@ -16,11 +16,7 @@
     "tauri:build:ci": "tauri build --debug --ci --no-bundle"
   },
   "dependencies": {
-    "@cellsymphony/behavior-api": "workspace:*",
     "@cellsymphony/device-contracts": "workspace:*",
-    "@cellsymphony/interpretation-core": "workspace:*",
-    "@cellsymphony/musical-events": "workspace:*",
-    "@cellsymphony/platform-core": "workspace:*",
     "@tauri-apps/api": "^2.11.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

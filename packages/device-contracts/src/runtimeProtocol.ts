@@ -1,6 +1,4 @@
-import type { MusicalEvent } from "@cellsymphony/musical-events";
-
-import type { DeviceInput, RuntimeSnapshot } from "./index";
+import type { DeviceInput, MusicalEvent, RuntimeSnapshot } from "./index";
 
 export const RUNTIME_STATUS_STATES = ["idle", "running", "paused", "error"] as const;
 export type RuntimeStatusState = (typeof RUNTIME_STATUS_STATES)[number];

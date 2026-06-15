@@ -1,8 +1,7 @@
 use crate::native_menu::NativeMenuHelpTarget;
 use std::sync::OnceLock;
 
-const MENU_HELP_TSV: &str =
-    include_str!("../../../packages/platform-core/resources/menu-help-texts.tsv");
+const MENU_HELP_TSV: &str = include_str!("../../../resources/menu-help-texts.tsv");
 
 #[derive(Clone, Debug)]
 pub struct NativeHelpEntry {

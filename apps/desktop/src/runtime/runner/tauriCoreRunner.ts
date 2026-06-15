@@ -24,14 +24,6 @@ function withTimeout<R>(promise: Promise<R>, ms: number): Promise<R> {
 }
 
 export class TauriCoreRunnerClient {
-  async dispatch(message: RuntimeHostMessage): Promise<RuntimeRunnerMessage[]> {
-    return (await withTimeout(invoke("core_runner_dispatch", { message }), IPC_TIMEOUT)) as RuntimeRunnerMessage[];
-  }
-
-  async reset(): Promise<void> {
-    await withTimeout(invoke("core_runner_reset"), IPC_TIMEOUT);
-  }
-
   async dispatchRuntime(message: RuntimeHostMessage): Promise<RuntimeRunnerMessage[]> {
     return (await withTimeout(invoke("runtime_dispatch", { message }), IPC_TIMEOUT)) as RuntimeRunnerMessage[];
   }
@@ -42,11 +34,6 @@ export class TauriCoreRunnerClient {
 
   async handleMidiRealtime(bytes: Uint8Array): Promise<RuntimeRunnerMessage[]> {
     return (await withTimeout(invoke("runtime_handle_midi_realtime", { bytes: Array.from(bytes) }), IPC_TIMEOUT)) as RuntimeRunnerMessage[];
-  }
-
-  async advance(elapsedMs: number): Promise<RuntimeRunnerMessage[]> {
-    await withTimeout(invoke("runtime_advance", { elapsedMs }), IPC_TIMEOUT);
-    return [];
   }
 
   async drainRuntimeMessages(): Promise<RuntimeMessagesBatch[]> {

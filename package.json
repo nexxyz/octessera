@@ -13,7 +13,6 @@
     "test:coverage": "corepack pnpm -r test:coverage",
     "quality:audit": "node tools/quality-audit.mjs",
     "tauri:build": "corepack pnpm --filter @cellsymphony/desktop tauri:build",
-    "tauri:build:ci": "corepack pnpm --filter @cellsymphony/desktop tauri:build:ci",
-    "test:fixtures": "corepack pnpm --filter @cellsymphony/platform-core test:fixtures"
+    "tauri:build:ci": "corepack pnpm --filter @cellsymphony/desktop tauri:build:ci"
   }
 }

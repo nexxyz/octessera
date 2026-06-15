@@ -66,7 +66,7 @@ run_check "file length" "
 "
 
 run_check "cargo clippy" \
-  "cargo clippy --workspace --exclude midi-io-sidecar --exclude rodio-engine-source --all-targets -- -D warnings 2>&1"
+  "cargo clippy --workspace --exclude rodio-engine-source --all-targets -- -D warnings 2>&1"
 
 printf "\n====================\n"
 printf "  %d passed, %d failed\n" "$PASS" "$FAIL"

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { GRID_WIDTH, type DeviceInput } from "@cellsymphony/device-contracts";
-import { GRID_DOMAIN, OLED_HEIGHT, OLED_WIDTH, PAN_POSITION_COUNT, PLATFORM_CAPS } from "@cellsymphony/platform-core";
+import { GRID_DOMAIN, GRID_WIDTH, OLED_HEIGHT, OLED_WIDTH, PAN_POSITION_COUNT, PLATFORM_CAPS, type DeviceInput } from "@cellsymphony/device-contracts";
 import { mapKeyboardEventToInputAction, mapKeyboardKeyupToInputAction, shouldPreventKeyboardDefault } from "../runtime/inputAdapters/keyboardAdapter";
 import { createSimulatorRuntime } from "../runtime/simulatorRuntime";
 import { nativeAudioBridge } from "../audio/nativeAudioBridge";

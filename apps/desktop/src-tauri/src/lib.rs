@@ -15,7 +15,6 @@ use midir::MidiInputConnection;
 use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
 use runtime_worker::{ensure_store_dir, RuntimeWorker};
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager};
@@ -30,7 +29,6 @@ pub(crate) struct AppState {
     pub(crate) midi_out: Arc<Mutex<Option<midir::MidiOutputConnection>>>,
     pub(crate) midi_in: Arc<Mutex<Option<MidiInputConnection<()>>>>,
     audio_error: Arc<Mutex<Option<String>>>,
-    store_dir: PathBuf,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -81,7 +79,6 @@ pub fn run() {
                 midi_out,
                 midi_in,
                 audio_error,
-                store_dir,
             });
             Ok(())
         })
@@ -89,15 +86,10 @@ pub fn run() {
             commands::audio_set_instruments,
             commands::audio_set_runtime_policy,
             commands::audio_command,
-            commands::core_runner_dispatch,
             commands::runtime_dispatch,
             commands::runtime_handle_midi_realtime,
-            commands::runtime_advance,
             commands::runtime_sync_config,
             commands::runtime_drain_messages,
-            commands::core_runner_reset,
-            commands::store_save_default,
-            commands::store_load_default,
             midi::midi_list_outputs,
             midi::midi_list_inputs,
             midi::midi_select_output,

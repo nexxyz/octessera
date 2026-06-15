@@ -83,7 +83,6 @@ pub(crate) enum WorkerCommand {
         playback_runtime::RuntimeAudioCommand,
         Sender<Result<(), String>>,
     ),
-    Reset(Sender<Result<(), String>>),
 }
 
 pub(crate) struct RuntimeWorker {
@@ -197,12 +196,6 @@ impl RuntimeWorker {
                     let _ = reply.send(Err(err.clone()));
                     return Err(err.clone());
                 }
-                let _ = reply.send(Ok(()));
-            }
-            WorkerCommand::Reset(reply) => {
-                self.clear_runtime_outbox();
-                self.runner = NativeRunner::new(desktop_native_runner_config())?;
-                self.runner.apply_runtime_config(self.playback.config());
                 let _ = reply.send(Ok(()));
             }
         }
@@ -419,17 +412,6 @@ pub(crate) fn request_worker_audio_command(
     state
         .worker_tx
         .send(WorkerCommand::DirectAudio(command, reply_tx))
-        .map_err(|e| format!("runtime worker unavailable: {e}"))?;
-    reply_rx
-        .recv()
-        .map_err(|e| format!("runtime worker reply unavailable: {e}"))?
-}
-
-pub(crate) fn request_worker_reset(state: &crate::AppState) -> Result<(), String> {
-    let (reply_tx, reply_rx) = mpsc::channel();
-    state
-        .worker_tx
-        .send(WorkerCommand::Reset(reply_tx))
         .map_err(|e| format!("runtime worker unavailable: {e}"))?;
     reply_rx
         .recv()

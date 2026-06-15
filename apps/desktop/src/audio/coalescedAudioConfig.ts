@@ -1,4 +1,4 @@
-import { cutoffDisplayToHz } from "@cellsymphony/platform-core";
+import { cutoffDisplayToHz } from "@cellsymphony/device-contracts";
 
 export type AudioConfigPayload = { instruments: unknown[]; mixer: unknown; panPositions: number; masterVolume: number };
 

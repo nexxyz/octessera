@@ -2,20 +2,20 @@
 
 ## Project Overview
 
-Cell Symphony is a monorepo (pnpm workspaces plus Cargo workspace) centered on a native Rust platform core/runtime, a Rust realtime synth, and a Tauri desktop app. The app turns cellular automata algorithms into music through a native behavior engine system. The remaining TypeScript packages are legacy/reference code, tests, generated resources, and desktop UI support; do not treat the TypeScript platform core as the live desktop runtime.
+Cell Symphony is a monorepo (pnpm workspaces plus Cargo workspace) centered on a native Rust platform core/runtime, a Rust realtime synth, a Tauri desktop app, and a native Pi app. The app turns cellular automata algorithms into music through a native behavior engine system. TypeScript is limited to desktop UI and bridge/runtime contracts.
 
 ## Key Conventions
 
 ### Package Management
 - Uses **pnpm** workspaces (not npm or yarn)
 - After editing any `package.json`, run `pnpm install` to regenerate workspace symlinks
-- Legacy TypeScript behavior packages still depend on `@cellsymphony/behavior-api` and `@cellsymphony/device-contracts`; native runtime behavior changes belong in `crates/platform-core` unless explicitly working on legacy TS references/tests.
+- Native runtime behavior changes belong in `crates/platform-core`; desktop TypeScript should not reintroduce behavior/runtime execution paths.
 
 ### Testing
 - Node.js `node:test` + `tsx --test`, no Jest/Vitest
 - Run: `pnpm --filter <package> test` or `pnpm -r test`
 - Rust checks are package-scoped with Cargo, e.g. `cargo test -p platform-core`, `cargo test -p playback-runtime`, and `cargo test -p cellsymphony-desktop`
-- On Windows, unscoped `cargo clippy` can fail when it reaches Pi-only `rppal`; use `cargo clippy -p platform-core -p playback-runtime -p cellsymphony-desktop` for host-supported checks unless working on Pi crates.
+- On Windows, the default Pi build uses HAL stubs; real Pi builds use `-p cellsymphony-pi --features hardware-pi` or the cross-build workflow.
 
 ### Code Style
 - No comments unless absolutely necessary; TypeScript strict mode
@@ -30,8 +30,7 @@ Cell Symphony is a monorepo (pnpm workspaces plus Cargo workspace) centered on a
 - `crates/playback-runtime/` owns the native runner/runtime protocol, native menu model, transport/runtime status, snapshots, platform effects, audio commands, MIDI/store/sample-browser result handling, and desktop-facing runner contract.
 - `apps/desktop/src-tauri/src/runtime_worker.rs` instantiates `NativeRunner`; desktop should not reintroduce Node/TypeScript runtime fallbacks for playback/control behavior.
 - `crates/realtime-engine/` and `crates/rodio-engine-source/` own internal synth/sample audio rendering, instrument route/pan, FX buses, global FX, and final stereo mix.
-- `packages/platform-core/` and related TS packages remain useful as old-behavior references, regression-test sources, generated help/resource sources, and UI-facing type/resource support, but are not the canonical native runtime path.
-- Legacy TS behaviors are registered at import time via `registerBehavior()`; native behaviors are registered in `crates/platform-core/src/behaviors/` and must cover desktop runtime behavior.
+- Native behaviors are registered in `crates/platform-core/src/behaviors/` and must cover desktop/Pi runtime behavior.
 
 ### Hardware/Software Parity
 - Hardware behavior is canonical; software controls must mirror hardware input semantics
@@ -41,7 +40,7 @@ Cell Symphony is a monorepo (pnpm workspaces plus Cargo workspace) centered on a
 
 ### Documentation
 - `docs/menu-and-controls-spec.md` is the single source of truth for menu structure and controls — update in the same commit as any control/menu change
-- Keep `packages/platform-core/resources/menu-help-texts.tsv` in sync; coverage enforced by lint
+- Keep `resources/menu-help-texts.tsv` in sync; coverage is enforced by native tests
 - When any enum parameter changes, update its help text in the TSV in the same commit
 - Keep `docs/runtime-boundaries.md` aligned with the native Rust runtime/core boundary.
 - `docs/backlog.md` tracks current native migration regression work; remove/update obsolete TS-migration assumptions rather than adding new work under old migration requirements.
@@ -56,10 +55,9 @@ Cell Symphony is a monorepo (pnpm workspaces plus Cargo workspace) centered on a
 - Multi-line edits spanning `scripts` and `devDependencies` in package.json may accidentally delete the `dependencies` block
 - After editing package.json, always run `pnpm install`
 - Menu `enum` options for channel targets are strings (`"0"`, `"1"`, `"2"`, `"3"`), not numbers
-- Old TS `visibleChildren()` filters nodes using optional `visible` predicate on `RuntimeConfig`; use it only when checking legacy behavior/reference tests.
 - Native menu display values must preserve old UI semantics: named selectors should show labels like `I1: synth`, not raw numeric IDs.
 - Grid coordinate conversion is parity-critical. Old core uses world-space lower-left coordinates and display-space conversion through `GRID_DOMAIN.toDisplayIndex`; native LED overlays/Dance/Fn/sample assignment code must preserve that orientation.
-- Dance/Fn overlays, sample assignment overlays, trigger-probability overlays, and ghost cells have explicit priority/coordinate behavior in `docs/menu-and-controls-spec.md`; check old `runtimeHelpers.ts` before changing native LED rendering.
+- Dance/Fn overlays, sample assignment overlays, trigger-probability overlays, and ghost cells have explicit priority/coordinate behavior in `docs/menu-and-controls-spec.md`.
 - Internal synth/sample instruments must route through realtime-engine mixer path; MIDI instruments emit external MIDI and should not be routed through internal audio FX.
 - Sample browser behavior should match old menu nodes: `..`, `[folder]`, file rows, `(empty)`, preview via preview input, and long names clipped/scrolled without OLED overlap.
 - If you see changes in the repository that you did not make, always ask what to do with them.
@@ -90,9 +88,8 @@ Cell Symphony is a monorepo (pnpm workspaces plus Cargo workspace) centered on a
 - Do not add comments to source code (see Code Style)
 
 ### Structure Specifics
-- `packages/platform-core/src/index.ts` is a legacy barrel export; do not read it to understand native runtime scope — navigate directly to the relevant Rust module or old TS reference file.
 - The monorepo has many packages; use `pnpm --filter <package>` to scope commands and avoid cross-package side effects
-- When tracing native behavior registration, start in `crates/platform-core/src/behaviors/`; when tracing old TS parity references, start from the specific legacy behavior package, not from the TS `platform-core` entry point.
+- When tracing native behavior registration, start in `crates/platform-core/src/behaviors/`.
 - We have a hard file LoC limit of 500 lines. Consider this when planning implementations.
 - Current temporary file-length exceptions include native migration files; prefer further focused splits instead of expanding those files.
 

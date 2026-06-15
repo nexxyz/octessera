@@ -117,7 +117,7 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@v2.9.1
       - name: Run clippy (exclude platform audio apps)
-        run: cargo clippy --workspace --exclude cellsymphony-desktop --exclude midi-io-sidecar --exclude rodio-engine-source --all-targets -- -D warnings
+        run: cargo clippy --workspace --exclude cellsymphony-desktop --exclude rodio-engine-source --all-targets -- -D warnings
 
   rust_test:
     name: Rust tests
@@ -130,7 +130,7 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@v2.9.1
       - name: Run Rust tests (exclude platform audio apps)
-        run: cargo test --workspace --exclude cellsymphony-desktop --exclude midi-io-sidecar --exclude rodio-engine-source
+        run: cargo test --workspace --exclude cellsymphony-desktop --exclude rodio-engine-source
 
   pi_zero_hal_build:
     name: Pi Zero HAL Build Check

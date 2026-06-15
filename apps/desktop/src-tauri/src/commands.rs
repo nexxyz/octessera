@@ -4,7 +4,7 @@ use crate::audio_config::{
 };
 use crate::runtime_worker::{
     request_worker_audio_command, request_worker_dispatch, request_worker_midi_realtime,
-    request_worker_reset, WorkerCommand,
+    WorkerCommand,
 };
 use crate::samples::resolve_sample_file;
 use crate::types::{
@@ -165,19 +165,6 @@ pub(crate) fn runtime_sync_config(
 }
 
 #[tauri::command]
-pub(crate) fn core_runner_dispatch(
-    message: Value,
-    state: tauri::State<crate::AppState>,
-) -> Result<Vec<Value>, String> {
-    let host_message = serde_json::from_value::<playback_runtime::HostMessage>(message)
-        .map_err(|e| format!("invalid core runner host message: {e}"))?;
-    Ok(append_audio_error_values(
-        encode_runtime_responses(request_worker_dispatch(&state, host_message)?)?,
-        &state.audio_error,
-    ))
-}
-
-#[tauri::command]
 pub(crate) fn runtime_dispatch(
     message: Value,
     state: tauri::State<crate::AppState>,
@@ -199,40 +186,4 @@ pub(crate) fn runtime_handle_midi_realtime(
         encode_runtime_responses(request_worker_midi_realtime(&state, bytes)?)?,
         &state.audio_error,
     ))
-}
-
-#[tauri::command]
-pub(crate) fn runtime_advance(
-    _elapsed_ms: u64,
-    _state: tauri::State<crate::AppState>,
-) -> Result<Vec<Value>, String> {
-    Ok(Vec::new())
-}
-
-#[tauri::command]
-pub(crate) fn core_runner_reset(state: tauri::State<crate::AppState>) -> Result<(), String> {
-    request_worker_reset(&state)
-}
-
-#[tauri::command]
-pub(crate) fn store_save_default(
-    payload: Value,
-    state: tauri::State<crate::AppState>,
-) -> Result<(), String> {
-    let content = serde_json::to_string_pretty(&payload).map_err(|e| e.to_string())?;
-    std::fs::write(state.store_dir.join("default.json"), content).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub(crate) fn store_load_default(
-    state: tauri::State<crate::AppState>,
-) -> Result<Option<Value>, String> {
-    let path = state.store_dir.join("default.json");
-    if path.is_file() {
-        let content = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-        let value: Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
-        Ok(Some(value))
-    } else {
-        Ok(None)
-    }
 }

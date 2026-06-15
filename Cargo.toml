@@ -6,8 +6,7 @@ members = [
     "crates/rodio-engine-source",
     "crates/hal",
     "apps/desktop/src-tauri",
-    "apps/pi-zero",
-    "tools/midi-io-sidecar"
+    "apps/pi-zero"
 ]
 resolver = "2"
 

@@ -63,12 +63,8 @@ Minimum CI gate requirements:
 
 Coverage targets (initial):
 
-- `packages/platform-core`: >= 90% line coverage
-- `packages/mapping-core`: >= 90% line coverage
 - `packages/device-contracts`: >= 95% line coverage
-- `packages/interpretation-core`: >= 90% line coverage
-- `packages/behavior-api`: >= 90% line coverage
-- Each behavior package (`packages/behaviors-*`): >= 85% line coverage
+- `crates/platform-core` and `crates/playback-runtime`: native behavior/runtime regression coverage for shipped behavior
 - UI and Rust coverage tracked and improved incrementally, with hard gate added after baseline maturity
 
 Static quality requirements:

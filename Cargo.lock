@@ -2062,16 +2062,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "midi-io-sidecar"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "midir",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "midir"
 version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"

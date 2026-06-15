@@ -2,7 +2,7 @@
 
 This is the single source of truth for menu structure, control mappings, and parameter behavior.
 
-Context-help copy source: `packages/platform-core/resources/menu-help-texts.tsv` (required header row).
+Context-help copy source: `resources/menu-help-texts.tsv` (required header row).
 
 ## Cheat Sheet
 
@@ -403,7 +403,7 @@ System
 - Top line: title bar (colored by section)
 - Canonical section colors: `L1: Life` = life color, `L2: Sense` = sense color, `L3: Voice` = voice color, `L4: Dance` = white, `System` = sepia.
 - Body lines 2-8: menu items with `@@` prefix on selected line, `*` prefix when editing
-- Context help for every submenu, parameter, and action must resolve to a specific row from `packages/platform-core/resources/menu-help-texts.tsv`; generic fallback help is not allowed and lint/build checks must fail on missing coverage.
+- Context help for every submenu, parameter, and action must resolve to a specific row from `resources/menu-help-texts.tsv`; generic fallback help is not allowed and native tests must fail on missing coverage.
 - Bottom-right corner: transport icon (`▶` / `⏸` / `■`)
 - Transport flash: green (beat) or red (measure) border on play icon
 - Yellow event dot: briefly shown when notes fire

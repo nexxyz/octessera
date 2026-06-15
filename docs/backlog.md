@@ -7,22 +7,15 @@
 
 Status: `in-progress`
 
-The native Rust runtime/menu migration must be checked against documentation, auxiliary resources, and the old TypeScript implementation before it is considered parity-complete. Canonical references:
+The native Rust runtime/menu migration must be checked against documentation and auxiliary resources before it is considered parity-complete. Canonical references:
 
 - `docs/menu-and-controls-spec.md`
 - `docs/runtime-boundaries.md`
-- `packages/platform-core/resources/menu-help-texts.tsv`
-- `packages/platform-core/src/menuTree.ts`
-- `packages/platform-core/src/menuNodes.ts`
-- `packages/platform-core/src/menuView.ts`
-- `packages/platform-core/src/menuInput.ts`
-- `packages/platform-core/src/inputGrid.ts`
-- `packages/platform-core/src/inputInternal.ts`
-- `packages/platform-core/src/runtimeHelpers.ts`
-- `packages/platform-core/src/actions.ts`
-- `packages/platform-core/src/storeResultHandlers.ts`
-- `packages/platform-core/src/synthPresets.ts`
-- `packages/platform-core/tests/*`
+- `resources/menu-help-texts.tsv`
+- `crates/platform-core/src/behaviors/`
+- `crates/platform-core/src/engine.rs`
+- `crates/platform-core/src/interpretation.rs`
+- `crates/platform-core/src/mapping.rs`
 - `crates/playback-runtime/src/native_runner.rs`
 - `crates/playback-runtime/src/native_menu.rs`
 - `apps/desktop/src-tauri/src/audio_config.rs`
@@ -78,7 +71,7 @@ No basic-functionality fallbacks are allowed during this migration. Missing menu
 - FIXED: Repeated autosaves increment a flash serial so the desktop save indicator restarts for later saves even when the flash flag remains active.
 - FIXED: Native numeric bar metadata now follows the legacy bar/marker classification for volume, pan, FX, synth/sample, system, L2 axis, and behavior parameters.
 - FIXED: Instrument mixer pan/volume menu rows are initialized from current runtime state, so pan edits no longer bounce between stale default values and center.
-- FIXED: Native contextual help resolves specific entries from `packages/platform-core/resources/menu-help-texts.tsv`; generic fallback help was removed and menu-help lint now fails on kind fallback coverage.
+- FIXED: Native contextual help resolves specific entries from `resources/menu-help-texts.tsv`; generic fallback help was removed and native tests fail on kind fallback coverage.
 - FIXED: Saved/default payload apply now restores the active part `L1 > Step Rate`, so autosaved `1/16` survives restart/load.
 - FIXED: Pitch note parameters display with the legacy note-name format such as `C4 (60)` while storing MIDI numbers.
 - FIXED: Back/menu navigation exits live Dance overlays cleanly, and Fn/menu navigation no longer traps the user on a Dance page.
@@ -130,14 +123,14 @@ No basic-functionality fallbacks are allowed during this migration. Missing menu
 
 ### Open Native Parity Deltas From Deep Audit
 
-- FIXED: Pi Zero now instantiates Rust `NativeRunner` directly, no longer uses `NodeRunnerProcess` / `@cellsymphony/platform-core-runner`, and has host-buildable HAL stubs plus a `hardware-pi` feature for real hardware builds.
+- FIXED: Pi Zero now instantiates Rust `NativeRunner` directly and has host-buildable HAL stubs plus a `hardware-pi` feature for real hardware builds.
 - PARTIAL [critical]: Pi host adapter now handles store/default/preset effects, deferred default save, MIDI list/select/panic/output, sample listing, musical events, Dance FX audio commands, and snapshot-driven playback BPM/MIDI sync; sample preview decode and full audio config/sample-bank sync still need hardware/pass-through validation.
 - PARTIAL [critical]: Pi loop now renders native LED snapshots to NeoTrellis, drives all four NeoKey LEDs/buttons (`button_a`, `button_s`, `button_shift`, `button_fn`) with press/release semantics, maps five hardware encoders to `main` plus `aux1..aux4`, and uses stateful quadrature decoding for turns; OLED rendering is currently a minimal placeholder until hardware display layout is validated.
 - FIXED: Runtime contracts and TS reference code now use runtime-snapshot naming exclusively, with no compatibility aliases for the removed simulator-frame API names.
-- FIXED: The legacy Node/TS runner adapter was removed from the Pi app; `playback-runtime` exposes only host-agnostic runtime/core traits, protocol types, and `NativeRunner`.
+- FIXED: The former external runner adapter was removed from the Pi app; `playback-runtime` exposes only host-agnostic runtime/core traits, protocol types, and `NativeRunner`.
 - FIXED: Desktop wrapper runtime mode naming no longer uses Tauri-specific runtime semantics; Tauri names remain confined to Tauri adapter modules.
 - FIXED: Boundary enforcement tests prevent canonical Rust crates from regaining Tauri, hardware/HAL, Node runner, simulator-frame, or adapter-path dependencies/names.
-- FIXED: Desktop runtime no longer imports or constructs `@cellsymphony/platform-core-runner`; non-Tauri/test use must inject a runner or native dispatch explicitly.
+- FIXED: Desktop runtime no longer imports or constructs an external runner; non-Tauri/test use must inject native dispatch explicitly.
 - FIXED: Native preset Library `Save As` uses text draft name and emits store-save, Rename supports pick/New Name/Apply with save-then-delete cleanup, and empty lists show `(none)` refresh rows.
 - FIXED: Native toast/status flow now covers preset save/load/delete/rename, Save Current with no loaded preset, default save/load, factory load, synth preset load, and MIDI panic; destructive/load/save/panic actions now use native modal confirmations.
 - FIXED: Native Voice synth menu exposes oscillator octave/level/detune/pulse-width, amp/filter envelopes, env amount, key tracking, velocity sensitivity controls, and applies them to synth config payloads.
@@ -153,7 +146,7 @@ No basic-functionality fallbacks are allowed during this migration. Missing menu
 - FIXED: Fresh in-memory native defaults now match old `createInitialState()` for `masterVolume` (`73`), `autoSaveDefault` (`false`), and default note length (`120ms`).
 - FIXED: Native text field OLED formatting no longer appends `@cursor`; cursor state remains internal while editing.
 - FIXED: Native L1 part name row label now matches the legacy/spec `Part Name` label.
-- FIXED: `docs/native-test-parity.md` partial rows for `ant`, `bounce`, `shapes`, and `behavior-api` are resolved by existing native deterministic coverage plus explicit legacy-only classification for random placement and TS registration side-effect cases.
+- FIXED: Old TypeScript parity references were removed after native behavior/runtime coverage became canonical.
 - FIXED: Stale Life behavior help/help-popup backlog BUG markers were rechecked with targeted native regressions.
 - VERIFY [high]: Run Pi/Linux target build/clippy and hardware smoke; current verification was desktop/Windows-scoped and does not prove Pi runtime parity.
 
@@ -264,10 +257,8 @@ Latest verification after this pass:
 - `cargo test -p cellsymphony-desktop`: passed, 12 tests
 - `cargo clippy -p platform-core -p playback-runtime -p cellsymphony-desktop`: passed
 - `corepack pnpm --filter @cellsymphony/device-contracts typecheck`: passed
-- `corepack pnpm --filter @cellsymphony/platform-core-runner typecheck`: passed
-- `corepack pnpm --filter @cellsymphony/platform-core typecheck`: passed
-- `corepack pnpm --filter @cellsymphony/platform-core test`: passed, 223 tests
-- `corepack pnpm --filter @cellsymphony/platform-core lint:menu-help`: passed
+- `cargo test -p platform-core`: passed
+- `cargo test -p playback-runtime`: passed
 - `corepack pnpm --filter @cellsymphony/desktop typecheck`: passed
 
 ### Execution Order
@@ -285,9 +276,7 @@ Latest verification after this pass:
 
 Status: `in-progress`
 
-Goal: every legacy TypeScript test that still represents live native runtime behavior must have a Rust/native counterpart. TypeScript packages remain references, but native correctness must be enforced in `crates/platform-core`, `crates/playback-runtime`, and `apps/desktop/src-tauri`.
-
-Tracking document: `docs/native-test-parity.md`.
+Goal: native correctness must be enforced in `crates/platform-core`, `crates/playback-runtime`, and adapter-level desktop/Pi tests. Old TypeScript parity packages have been removed.
 
 Rules:
 
@@ -508,7 +497,7 @@ Regression tests:
 
 - Update `docs/menu-and-controls-spec.md` if any current spec is stale.
 - Update `docs/runtime-boundaries.md` if runtime/audio routing behavior changes.
-- Keep `packages/platform-core/resources/menu-help-texts.tsv` in sync if menu/help targets change.
+- Keep `resources/menu-help-texts.tsv` in sync if menu/help targets change.
 - Keep native contextual help aligned with new native menu rows.
 - Re-run menu-help lint after any help/menu changes.
 

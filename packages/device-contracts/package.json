@@ -13,9 +13,6 @@
     "test": "tsx --test tests/*.test.ts",
     "test:coverage": "c8 --check-coverage --lines 80 --functions 80 --branches 70 --reporter=text --reporter=lcov tsx --test tests/*.test.ts"
   },
-  "dependencies": {
-    "@cellsymphony/musical-events": "workspace:*"
-  },
   "devDependencies": {
     "c8": "^11.0.0",
     "tsx": "^4.22.0",
