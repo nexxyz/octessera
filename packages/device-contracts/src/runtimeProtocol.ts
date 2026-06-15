@@ -1,4 +1,4 @@
-import type { DeviceInput, MusicalEvent, RuntimeSnapshot } from "./index";
+import type { DeviceInput, MusicalEvent, RuntimeSnapshot } from "./coreTypes";
 
 export const RUNTIME_STATUS_STATES = ["idle", "running", "paused", "error"] as const;
 export type RuntimeStatusState = (typeof RUNTIME_STATUS_STATES)[number];

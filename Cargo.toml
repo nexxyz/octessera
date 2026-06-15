@@ -10,9 +10,6 @@ members = [
 ]
 resolver = "2"
 
-[patch.crates-io]
-signalsmith-stretch = { path = "crates/signalsmith-stretch" }
-
 [profile.release]
 lto = "thin"
 codegen-units = 1

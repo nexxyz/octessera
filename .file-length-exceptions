@@ -9,5 +9,4 @@ crates/playback-runtime/src/native_menu.rs
 crates/playback-runtime/src/native_menu/tests.rs
 crates/playback-runtime/src/native_runner.rs
 crates/playback-runtime/src/native_runner/tests.rs
-apps/desktop/src/ui/App.tsx
 apps/desktop/src-tauri/src/host_adapter.rs

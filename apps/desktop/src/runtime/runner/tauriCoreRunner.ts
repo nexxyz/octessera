@@ -9,7 +9,7 @@ type PlaybackRuntimeConfig = {
   midiOutEnabled: boolean;
 };
 
-export type RuntimeMessagesBatch = {
+type RuntimeMessagesBatch = {
   seq: number;
   messages: RuntimeRunnerMessage[];
 };
@@ -23,7 +23,7 @@ function withTimeout<R>(promise: Promise<R>, ms: number): Promise<R> {
   ]);
 }
 
-export class TauriCoreRunnerClient {
+class TauriCoreRunnerClient {
   async dispatchRuntime(message: RuntimeHostMessage): Promise<RuntimeRunnerMessage[]> {
     return (await withTimeout(invoke("runtime_dispatch", { message }), IPC_TIMEOUT)) as RuntimeRunnerMessage[];
   }

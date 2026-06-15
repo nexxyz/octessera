@@ -3,7 +3,7 @@ import { extname, join, relative, resolve } from "node:path";
 
 const ROOT = resolve(process.cwd());
 const INCLUDE_EXT = new Set([".mjs", ".rs", ".ts", ".tsx"]);
-const IGNORE_DIRS = new Set(["node_modules", "dist", "build", "target", ".git", ".turbo", ".pnpm-store", "coverage"]);
+const IGNORE_DIRS = new Set(["node_modules", "dist", "build", "target", ".git", ".turbo", ".pnpm-store", "coverage", "signalsmith-stretch"]);
 
 const thresholds = {
   fileLocWarn: 500,

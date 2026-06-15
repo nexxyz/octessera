@@ -353,7 +353,6 @@ version = "0.1.0"
 dependencies = [
  "i2cdev",
  "libc",
- "nix 0.27.1",
  "rppal",
  "spidev",
 ]
@@ -2216,17 +2215,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nix"
-version = "0.27.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2eb04e9c688eff1c89d72b407f168cf79bb9e867a9d3323ed6c01519eb9cc053"
-dependencies = [
- "bitflags 2.11.1",
- "cfg-if",
- "libc",
-]
-
-[[package]]
 name = "nom"
 version = "7.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2925,7 +2913,6 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
- "signalsmith-stretch",
 ]
 
 [[package]]
@@ -3351,13 +3338,6 @@ name = "shlex"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
-
-[[package]]
-name = "signalsmith-stretch"
-version = "0.1.3"
-dependencies = [
- "cc",
-]
 
 [[package]]
 name = "simd-adler32"

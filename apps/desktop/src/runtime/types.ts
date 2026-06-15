@@ -6,16 +6,14 @@ export type InputAction =
   | { type: "shift"; active: boolean }
   | { type: "fn"; active: boolean };
 
-export type NeoKeyLeds = {
-  back: "off" | "solid_red";
-  space: "off" | "beat" | "measure";
-  shift: "off" | "solid_yellow" | "solid_blue";
-  fn: "off" | "solid_yellow" | "solid_blue";
-};
-
 export type SimulatorSnapshot = {
   frame: RuntimeSnapshot;
-  neoKeyLeds: NeoKeyLeds;
+  neoKeyLeds: {
+    back: "off" | "solid_red";
+    space: "off" | "beat" | "measure";
+    shift: "off" | "solid_yellow" | "solid_blue";
+    fn: "off" | "solid_yellow" | "solid_blue";
+  };
   masterVolume: number;
   voiceStealingMode: "off" | "lenient" | "balanced" | "aggressive";
   audioLoad: { ratio: number; voiceSteal: boolean };

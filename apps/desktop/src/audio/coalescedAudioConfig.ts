@@ -26,7 +26,7 @@ function normalizeForEngine(config: AudioConfigPayload): AudioConfigPayload {
   };
 }
 
-export function audioConfigSignature(config: AudioConfigPayload): string {
+function audioConfigSignature(config: AudioConfigPayload): string {
   return JSON.stringify(config);
 }
 
