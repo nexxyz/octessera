@@ -1,0 +1,313 @@
+use super::*;
+
+#[test]
+fn synth_gain_edits_into_config_payload() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.menu.state.stack = vec![2, 0, 0, 2, 3];
+    runner.menu.state.cursor = 0;
+
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })
+        .unwrap();
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": -10, "id": "main" }),
+        })
+        .unwrap();
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })
+        .unwrap();
+
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["instruments"][0]["synth"]["amp"]["gainPct"],
+        70
+    );
+}
+
+#[test]
+fn sampler_tune_edits_into_config_payload() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].name = "sampler".into();
+    runner.menu.rebuild(runner.menu_config());
+    runner.menu.state.stack = vec![2, 0, 0, 2];
+    runner.menu.state.cursor = 3;
+
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })
+        .unwrap();
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 7, "id": "main" }),
+        })
+        .unwrap();
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })
+        .unwrap();
+
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["instruments"][0]["sample"]["tuneSemis"],
+        7
+    );
+}
+
+#[test]
+fn sampler_extended_params_edit_into_config_payload() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].name = "sampler".into();
+    runner.menu.rebuild(runner.menu_config());
+
+    runner.menu.state.stack = vec![2, 0, 0, 2];
+    runner.menu.state.cursor = 5;
+    runner.menu.state.editing = true;
+    runner.menu.turn(-20);
+    runner.apply_menu_state().unwrap();
+
+    runner.menu.state.cursor = 6;
+    runner.menu.turn(1);
+    runner.apply_menu_state().unwrap();
+
+    runner.menu.state.stack = vec![2, 0, 0, 2, 7];
+    runner.menu.state.cursor = 0;
+    runner.menu.state.editing = true;
+    runner.menu.turn(-10);
+    runner.apply_menu_state().unwrap();
+
+    runner.menu.state.stack = vec![2, 0, 0, 2, 8];
+    runner.menu.state.cursor = 0;
+    runner.menu.state.editing = true;
+    runner.menu.turn(1);
+    runner.apply_menu_state().unwrap();
+    runner.menu.state.cursor = 1;
+    runner.menu.turn(-10);
+    runner.apply_menu_state().unwrap();
+
+    runner.menu.state.stack = vec![2, 0, 0, 2];
+    runner.menu.state.cursor = 9;
+    runner.menu.state.editing = true;
+    runner.menu.turn(-25);
+    runner.apply_menu_state().unwrap();
+
+    runner.menu.state.stack = vec![2, 0, 0, 2, 10];
+    runner.menu.state.cursor = 0;
+    runner.menu.state.editing = true;
+    runner.menu.turn(4);
+    runner.apply_menu_state().unwrap();
+
+    let sample = &runner.config_payload()["runtimeConfig"]["instruments"][0]["sample"];
+    assert_eq!(sample["baseVelocity"], 80);
+    assert_eq!(sample["velocityLevelsEnabled"], true);
+    assert_eq!(sample["velocityLevels"]["high"], 110);
+    assert_eq!(sample["filter"]["type"], "highpass");
+    assert_eq!(sample["filter"]["cutoffHz"], 6548);
+    assert_eq!(sample["amp"]["velocitySensitivityPct"], 75);
+    assert_eq!(sample["ampEnv"]["attackMs"], 25);
+}
+
+#[test]
+fn fx_bus_slot_type_edits_into_config_payload() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.menu.turn_key("mixer.buses.0.slot1.type", 1);
+    runner.apply_menu_state().unwrap();
+
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["mixer"]["buses"][0]["slot1"]["type"],
+        "tremolo"
+    );
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["mixer"]["buses"][0]["slot1"]["params"]["rateHz"],
+        4.0
+    );
+}
+
+#[test]
+fn global_fx_slot_type_edits_into_config_payload() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.menu.turn_key("mixer.master.slots.0.type", 1);
+    runner.apply_menu_state().unwrap();
+
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["mixer"]["master"]["slots"][0]["type"],
+        "vinyl"
+    );
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["mixer"]["master"]["slots"][0]["params"]
+            ["cracklePct"],
+        8
+    );
+}
+
+#[test]
+fn fx_params_edit_into_config_payload() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner
+        .apply_config_payload(json!({
+            "runtimeConfig": {
+                "mixer": {
+                    "buses": [{ "slot1": { "type": "delay", "params": { "timeMs": 250, "feedback": 0.35, "mixPct": 35 } } }],
+                    "master": { "slots": [{ "type": "distortion", "params": { "drive": 2.5, "clip": 0.6, "mixPct": 100 } }] }
+                }
+            }
+        }))
+        .unwrap();
+    runner.menu.rebuild(runner.menu_config());
+
+    runner
+        .menu
+        .turn_key("mixer.buses.0.slot1.params.feedback", 1);
+    runner.menu.turn_key("mixer.master.slots.0.params.clip", 1);
+    runner.apply_menu_state().unwrap();
+
+    let payload = runner.config_payload();
+    assert_eq!(
+        payload["runtimeConfig"]["mixer"]["buses"][0]["slot1"]["params"]["feedback"],
+        0.36
+    );
+    assert_eq!(
+        payload["runtimeConfig"]["mixer"]["master"]["slots"][0]["params"]["clip"],
+        0.65
+    );
+}
+
+#[test]
+fn l1_part_config_always_exposes_auto_name() {
+    for behavior_id in ["life", "none", "glider"] {
+        let mut runner = NativeRunner::new(NativeRunnerConfig {
+            behavior_id: behavior_id.into(),
+            ..NativeRunnerConfig::default()
+        })
+        .unwrap();
+
+        let _ = runner
+            .send(HostMessage::DeviceInput {
+                input: json!({ "type": "encoder_press", "id": "main" }),
+            })
+            .unwrap();
+        let entered = runner
+            .send(HostMessage::DeviceInput {
+                input: json!({ "type": "encoder_press", "id": "main" }),
+            })
+            .unwrap();
+
+        let lines = snapshot_from(&entered)["display"]["lines"]
+            .as_array()
+            .unwrap()
+            .clone();
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.as_str().unwrap_or("").contains("Part Name")),
+            "{behavior_id} should show Part Name"
+        );
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.as_str().unwrap_or("").contains("Auto Name")),
+            "{behavior_id} should show Auto Name"
+        );
+    }
+}
+
+#[test]
+fn behavior_change_updates_active_part_auto_name_label() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })
+        .unwrap();
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })
+        .unwrap();
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })
+        .unwrap();
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
+        })
+        .unwrap();
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })
+        .unwrap();
+
+    assert_eq!(runner.part_behavior_ids[0], "keys");
+    runner.menu.back();
+    runner.menu.rebuild(runner.menu_config());
+    let snapshot = runner.snapshot().unwrap();
+    let lines = snapshot["display"]["lines"].as_array().unwrap();
+    assert!(lines
+        .iter()
+        .any(|line| line.as_str().unwrap_or("") == "> P1: keys"));
+}
+
+#[test]
+fn part_and_bus_names_round_trip_with_auto_name_flags() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.part_names[0] = "lead".into();
+    runner.part_auto_names[0] = false;
+    runner.fx_buses[0].name = "space".into();
+    runner.fx_buses[0].auto_name = false;
+    runner.fx_buses[0].slot1_type = "delay".into();
+    let payload = runner.config_payload();
+
+    let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    restored.apply_config_payload(payload).unwrap();
+
+    assert_eq!(restored.part_names[0], "lead");
+    assert!(!restored.part_auto_names[0]);
+    assert_eq!(restored.fx_buses[0].name, "space");
+    assert!(!restored.fx_buses[0].auto_name);
+
+    restored
+        .apply_config_payload(json!({
+            "runtimeConfig": {
+                "mixer": {
+                    "buses": [{ "slot1": { "type": "delay" }, "slot2": { "type": "duck" }, "autoName": true }]
+                }
+            }
+        }))
+        .unwrap();
+    assert_eq!(restored.fx_buses[0].name, "delay+duck");
+}
+
+#[test]
+fn native_text_row_edits_part_name_and_clears_auto_name() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.menu.state.stack = vec![0, 0];
+    runner.menu.state.cursor = 2;
+
+    runner.menu.press();
+    runner.menu.turn(1);
+    let snapshot = runner.menu.snapshot();
+    runner.apply_menu_state().unwrap();
+
+    assert!(snapshot.lines.iter().any(|line| line == " *lifeA"));
+    assert!(snapshot.lines.iter().all(|line| !line.contains('@')));
+    assert_eq!(runner.part_names[0], "lifeA");
+    assert!(!runner.part_auto_names[0]);
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["parts"][0]["name"],
+        "lifeA"
+    );
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["parts"][0]["autoName"],
+        false
+    );
+}

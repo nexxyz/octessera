@@ -4,26 +4,74 @@ use super::*;
 fn l2_spec_rows_include_probability_mapping_and_axis_controls() {
     let menu = NativeMenuModel::new(config());
     let part = &menu.root.children[1].children[1];
-    let trigger_prob = part.children.iter().find(|item| item.label == "Trigger Prob.").expect("trigger probability group");
-    assert!(trigger_prob.children.iter().any(|item| item.label == "Map Probability Grid"));
-    let note_mapping = part.children.iter().find(|item| item.label == "Note Mapping").expect("note mapping group");
-    let scale = note_mapping.children.iter().find(|item| item.label == "Scale").expect("scale row");
-    assert!(matches!(&scale.value, NativeMenuValue::Enum { options, .. } if options.contains(&"harmonic_minor".to_string()) && options.contains(&"major_pentatonic".to_string())));
-    assert!(note_mapping.children.iter().any(|item| item.label == "Out of Range"));
-    let x_axis = part.children.iter().find(|item| item.label == "X Axis").expect("x axis group");
-    let labels = x_axis.children.iter().map(|item| item.label.as_str()).collect::<Vec<_>>();
-    assert_eq!(labels, vec!["Pitch Steps", "Velocity", "Filter Cutoff", "Filter Resonance"]);
+    let trigger_prob = part
+        .children
+        .iter()
+        .find(|item| item.label == "Trigger Prob.")
+        .expect("trigger probability group");
+    assert!(trigger_prob
+        .children
+        .iter()
+        .any(|item| item.label == "Map Probability Grid"));
+    let note_mapping = part
+        .children
+        .iter()
+        .find(|item| item.label == "Note Mapping")
+        .expect("note mapping group");
+    let scale = note_mapping
+        .children
+        .iter()
+        .find(|item| item.label == "Scale")
+        .expect("scale row");
+    assert!(
+        matches!(&scale.value, NativeMenuValue::Enum { options, .. } if options.contains(&"harmonic_minor".to_string()) && options.contains(&"major_pentatonic".to_string()))
+    );
+    assert!(note_mapping
+        .children
+        .iter()
+        .any(|item| item.label == "Out of Range"));
+    let x_axis = part
+        .children
+        .iter()
+        .find(|item| item.label == "X Axis")
+        .expect("x axis group");
+    let labels = x_axis
+        .children
+        .iter()
+        .map(|item| item.label.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        labels,
+        vec![
+            "Pitch Steps",
+            "Velocity",
+            "Filter Cutoff",
+            "Filter Resonance"
+        ]
+    );
 }
 
 #[test]
 fn conditional_rows_follow_scan_lane_and_sampler_state() {
     let menu = NativeMenuModel::new(config());
     let part = &menu.root.children[1].children[1];
-    let scanning = part.children.iter().find(|item| item.label == "Scanning").expect("scanning group");
+    let scanning = part
+        .children
+        .iter()
+        .find(|item| item.label == "Scanning")
+        .expect("scanning group");
     assert_eq!(scanning.children.len(), 1);
     assert_eq!(scanning.children[0].label, "Scan Mode");
-    let x_axis = part.children.iter().find(|item| item.label == "X Axis").expect("x axis group");
-    let velocity = x_axis.children.iter().find(|item| item.label == "Velocity").expect("velocity group");
+    let x_axis = part
+        .children
+        .iter()
+        .find(|item| item.label == "X Axis")
+        .expect("x axis group");
+    let velocity = x_axis
+        .children
+        .iter()
+        .find(|item| item.label == "Velocity")
+        .expect("velocity group");
     assert_eq!(velocity.children.len(), 1);
     assert_eq!(velocity.children[0].label, "Enabled");
 
@@ -34,13 +82,36 @@ fn conditional_rows_follow_scan_lane_and_sampler_state() {
     cfg.instrument_sample_velocity_levels_enabled[0] = false;
     let menu = NativeMenuModel::new(cfg);
     let part = &menu.root.children[1].children[1];
-    let scanning = part.children.iter().find(|item| item.label == "Scanning").expect("scanning group");
-    assert!(scanning.children.iter().any(|item| item.label == "Scan Axis"));
-    let x_axis = part.children.iter().find(|item| item.label == "X Axis").expect("x axis group");
-    let velocity = x_axis.children.iter().find(|item| item.label == "Velocity").expect("velocity group");
+    let scanning = part
+        .children
+        .iter()
+        .find(|item| item.label == "Scanning")
+        .expect("scanning group");
+    assert!(scanning
+        .children
+        .iter()
+        .any(|item| item.label == "Scan Axis"));
+    let x_axis = part
+        .children
+        .iter()
+        .find(|item| item.label == "X Axis")
+        .expect("x axis group");
+    let velocity = x_axis
+        .children
+        .iter()
+        .find(|item| item.label == "Velocity")
+        .expect("velocity group");
     assert!(velocity.children.iter().any(|item| item.label == "Curve"));
-    let sampler = menu.root.children[2].children[0].children[0].children.iter().find(|item| item.label == "Sampler").expect("sampler group");
-    assert!(!sampler.children.iter().any(|item| item.label == "Velocity Levels" && !matches!(item.value, NativeMenuValue::Bool { .. })));
+    let sampler = menu.root.children[2].children[0].children[0]
+        .children
+        .iter()
+        .find(|item| item.label == "Sampler")
+        .expect("sampler group");
+    assert!(!sampler
+        .children
+        .iter()
+        .any(|item| item.label == "Velocity Levels"
+            && !matches!(item.value, NativeMenuValue::Bool { .. })));
 }
 
 #[test]
@@ -51,11 +122,16 @@ fn scale_menu_uses_legacy_scale_ids_and_display_labels() {
     menu.state.stack = vec![1, 1, 4];
     menu.state.cursor = 3;
     let scale = menu.current_siblings()[3].clone();
-    let NativeMenuValue::Enum { options, .. } = scale.value else { panic!("scale should be enum"); };
+    let NativeMenuValue::Enum { options, .. } = scale.value else {
+        panic!("scale should be enum");
+    };
     assert!(options.contains(&"major_pentatonic".to_string()));
     assert!(options.contains(&"minor_pentatonic".to_string()));
     let snapshot = menu.snapshot();
-    assert!(snapshot.lines.iter().any(|line| line.contains("Maj Pentatonic")));
+    assert!(snapshot
+        .lines
+        .iter()
+        .any(|line| line.contains("Maj Pentatonic")));
 }
 
 #[test]

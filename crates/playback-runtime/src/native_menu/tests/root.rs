@@ -5,9 +5,22 @@ fn root_snapshot_includes_l4_separator_and_system() {
     let menu = NativeMenuModel::new(config());
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "MENU");
-    assert_eq!(snapshot.lines, vec!["> L1: Life", "> L2: Sense", "> L3: Voice", "> L4: Dance", "", "> System"]);
+    assert_eq!(
+        snapshot.lines,
+        vec![
+            "> L1: Life",
+            "> L2: Sense",
+            "> L3: Voice",
+            "> L4: Dance",
+            "",
+            "> System"
+        ]
+    );
     assert_eq!(snapshot.selected_row, Some(0));
-    assert_eq!(snapshot.colors, vec![0x8ED1, 0x8D5C, 0xC59B, 0xFFFF, 0xFFFF, 0xB50D]);
+    assert_eq!(
+        snapshot.colors,
+        vec![0x8ED1, 0x8D5C, 0xC59B, 0xFFFF, 0xFFFF, 0xB50D]
+    );
 }
 
 #[test]
@@ -19,7 +32,10 @@ fn rebuild_preserves_navigation_state() {
     menu.turn(1);
     let mut next = config();
     next.behavior_id = "glider".into();
-    next.l1_items[0].value = NativeMenuValue::Enum { options: vec!["life".into(), "glider".into(), "none".into()], selected: 1 };
+    next.l1_items[0].value = NativeMenuValue::Enum {
+        options: vec!["life".into(), "glider".into(), "none".into()],
+        selected: 1,
+    };
     menu.rebuild(next);
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "L1: Life/P1: life");
@@ -44,7 +60,9 @@ fn navigation_skips_separator_rows_when_turning() {
 #[test]
 fn system_submenu_uses_abbreviated_path_and_section_colors() {
     let mut menu = NativeMenuModel::new(config());
-    for _ in 0..5 { menu.turn(1); }
+    for _ in 0..5 {
+        menu.turn(1);
+    }
     let _ = menu.press();
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "SYS");
@@ -55,7 +73,10 @@ fn system_submenu_uses_abbreviated_path_and_section_colors() {
 
 #[test]
 fn entering_l1_selects_active_part_row() {
-    let mut menu = NativeMenuModel::new(NativeMenuConfig { active_part_index: 2, ..config() });
+    let mut menu = NativeMenuModel::new(NativeMenuConfig {
+        active_part_index: 2,
+        ..config()
+    });
     let _ = menu.press();
     menu.state.cursor = 2;
     let snapshot = menu.snapshot();
@@ -66,7 +87,10 @@ fn entering_l1_selects_active_part_row() {
 
 #[test]
 fn entering_l2_selects_active_part_row_after_aux_mappings_group() {
-    let mut menu = NativeMenuModel::new(NativeMenuConfig { active_part_index: 2, ..config() });
+    let mut menu = NativeMenuModel::new(NativeMenuConfig {
+        active_part_index: 2,
+        ..config()
+    });
     menu.turn(1);
     let _ = menu.press();
     menu.state.cursor = 3;
@@ -91,7 +115,10 @@ fn l2_starts_with_aux_mappings_and_part_rows_are_enterable() {
     assert_eq!(part_snapshot.path, "L2: Sense/P1: life");
     assert!(part_snapshot.lines.iter().any(|line| line == "> Scanning"));
     assert!(part_snapshot.lines.iter().any(|line| line == "> Events"));
-    assert!(part_snapshot.lines.iter().any(|line| line == "> Note Mapping"));
+    assert!(part_snapshot
+        .lines
+        .iter()
+        .any(|line| line == "> Note Mapping"));
 }
 
 #[test]
@@ -109,6 +136,15 @@ fn snapshot_scrolls_to_keep_selected_row_visible() {
 #[test]
 fn root_matches_current_canonical_menu_without_playback_group() {
     let menu = NativeMenuModel::new(config());
-    let labels = menu.root.children.iter().filter(|item| !item.label.is_empty()).map(|item| item.label.as_str()).collect::<Vec<_>>();
-    assert_eq!(labels, vec!["L1: Life", "L2: Sense", "L3: Voice", "L4: Dance", "System"]);
+    let labels = menu
+        .root
+        .children
+        .iter()
+        .filter(|item| !item.label.is_empty())
+        .map(|item| item.label.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        labels,
+        vec!["L1: Life", "L2: Sense", "L3: Voice", "L4: Dance", "System"]
+    );
 }

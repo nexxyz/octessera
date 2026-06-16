@@ -3,11 +3,11 @@ use crate::native_menu::{
     NativeParamBindingSpec, NativeParamModsConfig, NativeSensePartConfig, NativeValueLaneConfig,
 };
 #[cfg(test)]
-use crate::protocol::{HostMessage, RunnerMessage};
-#[cfg(test)]
 use crate::protocol::RuntimeAudioCommand;
 #[cfg(test)]
 use crate::protocol::RuntimeStoreResult;
+#[cfg(test)]
+use crate::protocol::{HostMessage, RunnerMessage};
 use crate::protocol::{
     MidiPort, RuntimeMomentaryFxTarget, RuntimePlatformEffect, RuntimeTransportState, SampleEntry,
     SyncSource,

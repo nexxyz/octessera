@@ -164,8 +164,16 @@ fn representative_help_configs() -> Vec<NativeMenuConfig> {
         sample_slot: 0,
         dir: String::new(),
         entries: vec![
-            NativeSampleEntryConfig { name: "Drums".into(), path: "Drums".into(), is_dir: true },
-            NativeSampleEntryConfig { name: "kick.wav".into(), path: "kick.wav".into(), is_dir: false },
+            NativeSampleEntryConfig {
+                name: "Drums".into(),
+                path: "Drums".into(),
+                is_dir: true,
+            },
+            NativeSampleEntryConfig {
+                name: "kick.wav".into(),
+                path: "kick.wav".into(),
+                is_dir: false,
+            },
         ],
     });
     configs.push(dynamic);
@@ -206,7 +214,8 @@ fn representative_help_configs() -> Vec<NativeMenuConfig> {
         let mut cfg = config();
         cfg.dance_mode = dance_mode.into();
         cfg.dance_fx_type = "stutter".into();
-        cfg.dance_fx_params.insert("rateHz".into(), serde_json::json!(8));
+        cfg.dance_fx_params
+            .insert("rateHz".into(), serde_json::json!(8));
         configs.push(cfg);
     }
 
@@ -221,16 +230,24 @@ fn representative_help_configs() -> Vec<NativeMenuConfig> {
 }
 
 fn contains_set_binding(item: &NativeMenuItem, target: &str, key: &str) -> bool {
-    if let NativeMenuValue::Action(NativeMenuAction::SetParamBinding { target: t, binding }) = &item.value {
+    if let NativeMenuValue::Action(NativeMenuAction::SetParamBinding { target: t, binding }) =
+        &item.value
+    {
         if t == target && binding.key == key {
             return true;
         }
     }
-    item.children.iter().any(|child| contains_set_binding(child, target, key))
+    item.children
+        .iter()
+        .any(|child| contains_set_binding(child, target, key))
 }
 
 fn contains_aux_click_action(item: &NativeMenuItem, index: usize, action_key: &str) -> bool {
-    if let NativeMenuValue::Action(NativeMenuAction::SetAuxClick { index: action_index, action: Some(action) }) = &item.value {
+    if let NativeMenuValue::Action(NativeMenuAction::SetAuxClick {
+        index: action_index,
+        action: Some(action),
+    }) = &item.value
+    {
         if *action_index == index {
             if let NativeMenuAction::PlatformEffect(effect) = action.as_ref() {
                 if effect == action_key {
@@ -239,14 +256,22 @@ fn contains_aux_click_action(item: &NativeMenuItem, index: usize, action_key: &s
             }
         }
     }
-    item.children.iter().any(|child| contains_aux_click_action(child, index, action_key))
+    item.children
+        .iter()
+        .any(|child| contains_aux_click_action(child, index, action_key))
 }
 
 fn contains_aux_click_reset(item: &NativeMenuItem, index: usize) -> bool {
-    if let NativeMenuValue::Action(NativeMenuAction::SetAuxClick { index: action_index, action: Some(action) }) = &item.value {
+    if let NativeMenuValue::Action(NativeMenuAction::SetAuxClick {
+        index: action_index,
+        action: Some(action),
+    }) = &item.value
+    {
         if *action_index == index && matches!(action.as_ref(), NativeMenuAction::ResetBehavior) {
             return true;
         }
     }
-    item.children.iter().any(|child| contains_aux_click_reset(child, index))
+    item.children
+        .iter()
+        .any(|child| contains_aux_click_reset(child, index))
 }
