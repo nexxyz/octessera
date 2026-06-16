@@ -1,10 +1,11 @@
 use crate::native_menu::NativeMenuAction;
 use crate::protocol::RuntimePlatformEffect;
 
+use super::modulation::{param_mod_grid_targets, param_mod_next_toggle_mode};
 use super::{
-    derive_instrument_name, native_binding_from_spec, param_mod_grid_targets,
-    param_mod_next_toggle_mode, parse_sample_action, synth_preset_config, NativeAuxBinding,
-    NativeInstrumentSlot, NativeParamBinding, NativeRunner, NativeToast, Value, GRID_HEIGHT,
+    derive_instrument_name, native_binding_from_spec, parse_sample_action, synth_preset_config,
+    NativeAuxBinding, NativeInstrumentSlot, NativeParamBinding, NativeRunner, NativeToast, Value,
+    GRID_HEIGHT,
 };
 
 impl NativeRunner {
