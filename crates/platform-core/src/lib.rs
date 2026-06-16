@@ -4,6 +4,7 @@ mod engine;
 mod events;
 mod grid;
 mod interpretation;
+mod interpretation_scan;
 mod mapping;
 mod platform_capabilities;
 mod transforms;
