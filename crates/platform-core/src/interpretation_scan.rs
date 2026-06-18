@@ -1,4 +1,6 @@
-use crate::interpretation::{AxisStrategy, CellTriggerKind, GridSnapshot, InterpretationProfile, TickStrategy};
+use crate::interpretation::{
+    AxisStrategy, CellTriggerKind, GridSnapshot, InterpretationProfile, TickStrategy,
+};
 
 pub(crate) fn select_state_candidates(
     next: &GridSnapshot,
@@ -126,7 +128,11 @@ fn scan_index(tick: usize, span: usize, reverse: bool) -> usize {
         return 0;
     }
     let index = tick % span;
-    if reverse { span - 1 - index } else { index }
+    if reverse {
+        span - 1 - index
+    } else {
+        index
+    }
 }
 
 fn section_count(value: Option<usize>, size: usize) -> usize {

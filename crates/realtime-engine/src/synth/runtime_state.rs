@@ -25,13 +25,26 @@ impl EnvState {
         let a = ms_to_samples(cfg.attack_ms, sample_rate);
         let d = ms_to_samples(cfg.decay_ms, sample_rate);
         let sustain = (cfg.sustain_pct / 100.0).clamp(0.0, 1.0);
-        let stage = if a == 0 { EnvStage::Decay } else { EnvStage::Attack };
+        let stage = if a == 0 {
+            EnvStage::Decay
+        } else {
+            EnvStage::Attack
+        };
         let stage_len = if stage == EnvStage::Attack { a } else { d };
-        Self { stage, level: if stage == EnvStage::Attack { 0.0 } else { 1.0 }, stage_pos: 0, stage_len, sustain, release_start: 0.0 }
+        Self {
+            stage,
+            level: if stage == EnvStage::Attack { 0.0 } else { 1.0 },
+            stage_pos: 0,
+            stage_len,
+            sustain,
+            release_start: 0.0,
+        }
     }
 
     pub(super) fn begin_release(&mut self, cfg: EnvConfig, sample_rate: u32) {
-        if self.stage == EnvStage::Release || self.stage == EnvStage::Off { return; }
+        if self.stage == EnvStage::Release || self.stage == EnvStage::Off {
+            return;
+        }
         self.stage = EnvStage::Release;
         self.stage_pos = 0;
         self.stage_len = ms_to_samples(cfg.release_ms, sample_rate).max(1);
@@ -89,8 +102,12 @@ impl EnvState {
         }
     }
 
-    pub(super) fn is_off(&self) -> bool { self.stage == EnvStage::Off }
-    pub(super) fn is_releasing(&self) -> bool { self.stage == EnvStage::Release }
+    pub(super) fn is_off(&self) -> bool {
+        self.stage == EnvStage::Off
+    }
+    pub(super) fn is_releasing(&self) -> bool {
+        self.stage == EnvStage::Release
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -102,9 +119,23 @@ pub(super) struct BiquadState {
 }
 
 impl BiquadState {
-    pub(super) fn new() -> Self { Self { x1: 0.0, x2: 0.0, y1: 0.0, y2: 0.0 } }
+    pub(super) fn new() -> Self {
+        Self {
+            x1: 0.0,
+            x2: 0.0,
+            y1: 0.0,
+            y2: 0.0,
+        }
+    }
 
-    pub(super) fn process(&mut self, x: f32, mode: FilterType, cutoff_hz: f32, q: f32, sample_rate: u32) -> f32 {
+    pub(super) fn process(
+        &mut self,
+        x: f32,
+        mode: FilterType,
+        cutoff_hz: f32,
+        q: f32,
+        sample_rate: u32,
+    ) -> f32 {
         let cutoff = cutoff_hz.clamp(20.0, 20_000.0);
         let qv = q.clamp(0.25, 20.0);
         let w0 = 2.0 * PI * cutoff / (sample_rate as f32);
@@ -113,10 +144,31 @@ impl BiquadState {
         let alpha = sin_w0 / (2.0 * qv);
 
         let (b0, b1, b2, a0, a1, a2) = match mode {
-            FilterType::Lowpass => ((1.0 - cos_w0) * 0.5, 1.0 - cos_w0, (1.0 - cos_w0) * 0.5, 1.0 + alpha, -2.0 * cos_w0, 1.0 - alpha),
-            FilterType::Highpass => ((1.0 + cos_w0) * 0.5, -(1.0 + cos_w0), (1.0 + cos_w0) * 0.5, 1.0 + alpha, -2.0 * cos_w0, 1.0 - alpha),
+            FilterType::Lowpass => (
+                (1.0 - cos_w0) * 0.5,
+                1.0 - cos_w0,
+                (1.0 - cos_w0) * 0.5,
+                1.0 + alpha,
+                -2.0 * cos_w0,
+                1.0 - alpha,
+            ),
+            FilterType::Highpass => (
+                (1.0 + cos_w0) * 0.5,
+                -(1.0 + cos_w0),
+                (1.0 + cos_w0) * 0.5,
+                1.0 + alpha,
+                -2.0 * cos_w0,
+                1.0 - alpha,
+            ),
             FilterType::Bandpass => (alpha, 0.0, -alpha, 1.0 + alpha, -2.0 * cos_w0, 1.0 - alpha),
-            FilterType::Notch => (1.0, -2.0 * cos_w0, 1.0, 1.0 + alpha, -2.0 * cos_w0, 1.0 - alpha),
+            FilterType::Notch => (
+                1.0,
+                -2.0 * cos_w0,
+                1.0,
+                1.0 + alpha,
+                -2.0 * cos_w0,
+                1.0 - alpha,
+            ),
         };
 
         let nb0 = b0 / a0;
@@ -161,8 +213,22 @@ impl Voice {
             freq_hz: 440.0,
             phase1: 0.0,
             phase2: 0.0,
-            amp_env: EnvState { stage: EnvStage::Off, level: 0.0, stage_pos: 0, stage_len: 0, sustain: 0.0, release_start: 0.0 },
-            filt_env: EnvState { stage: EnvStage::Off, level: 0.0, stage_pos: 0, stage_len: 0, sustain: 0.0, release_start: 0.0 },
+            amp_env: EnvState {
+                stage: EnvStage::Off,
+                level: 0.0,
+                stage_pos: 0,
+                stage_len: 0,
+                sustain: 0.0,
+                release_start: 0.0,
+            },
+            filt_env: EnvState {
+                stage: EnvStage::Off,
+                level: 0.0,
+                stage_pos: 0,
+                stage_len: 0,
+                sustain: 0.0,
+                release_start: 0.0,
+            },
             filt: BiquadState::new(),
         }
     }
@@ -175,10 +241,17 @@ pub(super) struct InstrumentMod {
 }
 
 impl InstrumentMod {
-    pub(super) fn new() -> Self { Self { cutoff_cc: 0.0, resonance_cc: 0.0 } }
+    pub(super) fn new() -> Self {
+        Self {
+            cutoff_cc: 0.0,
+            resonance_cc: 0.0,
+        }
+    }
 }
 
 pub(super) fn ms_to_samples(ms: f32, sample_rate: u32) -> u32 {
-    if ms <= 0.0 { return 0; }
+    if ms <= 0.0 {
+        return 0;
+    }
     ((ms / 1000.0) * (sample_rate as f32)).round().max(0.0) as u32
 }
