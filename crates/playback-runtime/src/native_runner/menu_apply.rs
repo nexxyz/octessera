@@ -3,7 +3,66 @@ use super::{
 };
 
 impl NativeRunner {
+    pub(super) fn apply_or_schedule_menu_key(&mut self, key: &str) -> Result<(), String> {
+        if self.apply_menu_key_fast(key) {
+            return Ok(());
+        }
+        if self.should_defer_menu_key(key) {
+            self.schedule_deferred_menu_apply(key);
+            return Ok(());
+        }
+        self.apply_menu_state()
+    }
+
+    fn should_defer_menu_key(&self, key: &str) -> bool {
+        key == "behaviorId"
+            || key == "danceMode"
+            || key == "dance.fx.type"
+            || key.ends_with(".slot1.type")
+            || key.ends_with(".slot2.type")
+            || key.starts_with("mixer.master.slots.") && key.ends_with(".type")
+            || key.starts_with("instruments.") && key.ends_with(".type")
+    }
+
     pub(super) fn apply_menu_key_fast(&mut self, key: &str) -> bool {
+        if key == "danceMode" {
+            let Some(dance_mode) = self.menu.selected_dance_mode() else {
+                return false;
+            };
+            let changed = self.dance_mode != dance_mode;
+            if changed {
+                self.dance_mode = dance_mode.clone();
+                if self.menu.state.stack.first() == Some(&3) {
+                    self.active_dance_mode = dance_mode;
+                }
+                self.config_dirty = true;
+                self.menu.rebuild(self.menu_config());
+            }
+            return true;
+        }
+        if key == "algorithmStep" {
+            let Some(step_pulses) = self.menu.selected_algorithm_step_pulses() else {
+                return false;
+            };
+            let changed = self.algorithm_step_pulses != step_pulses
+                || self
+                    .part_algorithm_step_pulses
+                    .get(self.active_part_index)
+                    .copied()
+                    .unwrap_or(self.algorithm_step_pulses)
+                    != step_pulses;
+            if changed {
+                self.algorithm_step_pulses = step_pulses;
+                if let Some(part_step) = self
+                    .part_algorithm_step_pulses
+                    .get_mut(self.active_part_index)
+                {
+                    *part_step = step_pulses;
+                }
+                self.config_dirty = true;
+            }
+            return true;
+        }
         if key == "masterVolume" {
             let Some(master_volume) = self.menu.selected_master_volume() else {
                 return false;
@@ -114,6 +173,7 @@ impl NativeRunner {
     }
 
     pub(super) fn apply_menu_state(&mut self) -> Result<(), String> {
+        self.clear_deferred_menu_apply();
         let before_payload = self.config_payload();
         let mut dance_mode_changed = false;
         if let Some(sync_source) = self.menu.selected_sync_source() {

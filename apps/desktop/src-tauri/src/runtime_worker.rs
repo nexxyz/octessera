@@ -13,7 +13,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 use tauri::Emitter;
 
-const SNAPSHOT_INTERVAL_MS: u64 = 100;
+const SNAPSHOT_INTERVAL_MS: u64 = 16;
 #[cfg(debug_assertions)]
 const PERF_LOG_INTERVAL: Duration = Duration::from_secs(2);
 
@@ -33,10 +33,7 @@ impl<R: CoreRunner> CoreRunner for CapturingCoreRunner<'_, R> {
     fn send(&mut self, message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
         let responses = self.inner.send(message)?;
         for response in responses.iter().cloned() {
-            if !matches!(
-                response,
-                RunnerMessage::MusicalEvents { .. } | RunnerMessage::AudioCommands { .. }
-            ) {
+            if !matches!(response, RunnerMessage::AudioCommands { .. }) {
                 self.captured.push(response);
             }
         }
@@ -320,6 +317,20 @@ impl RuntimeWorker {
     }
 
     fn flush_deferred_host_work(&mut self) -> Result<(), String> {
+        let runner_messages = self.runner.flush_deferred_menu_apply()?;
+        if !runner_messages.is_empty() {
+            let follow_ups = self
+                .playback
+                .ingest_runner_messages(runner_messages.clone(), &mut self.adapter)?;
+            let mut returned = Vec::new();
+            returned.extend(
+                runner_messages
+                    .into_iter()
+                    .filter(|message| !matches!(message, RunnerMessage::AudioCommands { .. })),
+            );
+            returned.extend(self.dispatch_follow_ups(follow_ups)?);
+            self.emit_runner_messages(returned)?;
+        }
         let follow_ups = self.adapter.flush_due_default_save()?;
         if follow_ups.is_empty() {
             return Ok(());
@@ -353,10 +364,7 @@ impl RuntimeWorker {
         while let Some(message) = queue.pop_front() {
             let responses = self.runner.send(message)?;
             for response in responses.iter().cloned() {
-                if !matches!(
-                    response,
-                    RunnerMessage::MusicalEvents { .. } | RunnerMessage::AudioCommands { .. }
-                ) {
+                if !matches!(response, RunnerMessage::AudioCommands { .. }) {
                     returned.push(response);
                 }
             }

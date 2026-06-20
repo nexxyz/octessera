@@ -395,9 +395,7 @@ impl NativeRunner {
             return Ok(());
         };
         if self.menu.turn_key(&turn.key, delta) {
-            if !self.apply_menu_key_fast(&turn.key) {
-                self.apply_menu_state()?;
-            }
+            self.apply_or_schedule_menu_key(&turn.key)?;
             let value = self
                 .menu
                 .value_for_key(&turn.key)

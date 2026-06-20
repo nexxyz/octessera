@@ -17,8 +17,50 @@ fn cursor_only_navigation_does_not_apply_menu_values() {
 }
 
 #[test]
+fn cursor_only_navigation_does_not_apply_group_browsing_side_effects() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.menu.state.stack = vec![5];
+    runner.menu.state.cursor = 0;
+    runner.sync_source = SyncSource::External;
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+        })
+        .unwrap();
+
+    assert_eq!(runner.sync_source, SyncSource::External);
+    assert_eq!(
+        snapshot_from(&messages)["settings"]["midi"]["syncMode"],
+        "external"
+    );
+}
+
+#[test]
+fn entering_group_does_not_apply_group_side_effects() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.menu.state.stack = vec![5];
+    runner.menu.state.cursor = 2;
+    runner.sync_source = SyncSource::External;
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })
+        .unwrap();
+
+    assert_eq!(runner.menu.state.stack, vec![5, 2]);
+    assert_eq!(runner.sync_source, SyncSource::External);
+    assert_eq!(
+        snapshot_from(&messages)["settings"]["midi"]["syncMode"],
+        "external"
+    );
+}
+
+#[test]
 fn transport_pulse_snapshot_is_explicit() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let _ = runner.messages_with_snapshot().unwrap();
 
     let without_snapshot = runner
         .send(HostMessage::TransportPulseStep {
@@ -43,6 +85,28 @@ fn transport_pulse_snapshot_is_explicit() {
     assert!(with_snapshot
         .iter()
         .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
+    assert!(snapshot_from(&with_snapshot)["settings"]["instruments"].is_array());
+}
+
+#[test]
+fn transport_pulse_snapshot_clears_startup_splash_after_timeout() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.oled_mode = NativeOledMode::Splash;
+    runner.oled_splash_text = super::OLED_STARTUP_SPLASH_KEY.into();
+    runner.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
+
+    let messages = runner
+        .send(HostMessage::TransportPulseStep {
+            pulses: 0,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: Some(true),
+        })
+        .unwrap();
+
+    let display = &snapshot_from(&messages)["display"];
+    assert_eq!(display["splash"], "");
+    assert_eq!(display["toast"], "Help=Sh+Fn+Enter");
 }
 
 #[test]
@@ -82,7 +146,14 @@ fn changing_behavior_keeps_menu_location() {
             input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
         })
         .unwrap();
-    let snapshot = snapshot_from(&changed);
+    let changed_snapshot = snapshot_from(&changed);
+    assert_eq!(changed_snapshot["display"]["title"], "L1: Life/P1: life");
+    assert_eq!(changed_snapshot["display"]["editing"], true);
+    assert_eq!(changed_snapshot["activeBehavior"], "life");
+
+    runner.make_deferred_menu_apply_due_for_test();
+    let flushed = runner.flush_deferred_menu_apply().unwrap();
+    let snapshot = snapshot_from(&flushed);
     assert_eq!(snapshot["display"]["title"], "L1: Life/P1: keys");
     assert_eq!(snapshot["display"]["editing"], true);
     assert_eq!(snapshot["activeBehavior"], "keys");
@@ -245,6 +316,9 @@ fn system_sound_master_volume_edit_via_menu() {
 #[test]
 fn startup_splash_closes_into_help_toast() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.oled_mode = NativeOledMode::Splash;
+    runner.oled_splash_text = super::OLED_STARTUP_SPLASH_KEY.into();
+    runner.oled_splash_until = Some(Instant::now() + Duration::from_secs(1));
 
     let messages = runner.messages_with_snapshot().unwrap();
     let display = &snapshot_from(&messages)["display"];
@@ -256,6 +330,34 @@ fn startup_splash_closes_into_help_toast() {
     assert_eq!(display["splash"], "");
     assert_eq!(display["off"], false);
     assert_eq!(display["toast"], "Help=Sh+Fn+Enter");
+}
+
+#[test]
+fn startup_splash_blocks_input_until_timeout() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.oled_mode = NativeOledMode::Splash;
+    runner.oled_splash_text = super::OLED_STARTUP_SPLASH_KEY.into();
+    runner.oled_splash_until = Some(Instant::now() + Duration::from_secs(1));
+    let _ = runner.messages_with_snapshot().unwrap();
+
+    let blocked = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+        })
+        .unwrap();
+
+    assert_eq!(runner.menu.state.cursor, 0);
+    assert_eq!(snapshot_from(&blocked)["display"]["splash"], "startup");
+
+    runner.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
+    let unblocked = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+        })
+        .unwrap();
+
+    assert_eq!(runner.menu.state.cursor, 1);
+    assert_eq!(snapshot_from(&unblocked)["display"]["splash"], "");
 }
 
 #[test]
@@ -284,13 +386,18 @@ fn screen_sleep_splashes_then_turns_oled_off_and_wake_input_shows_wakeup_screen(
         .unwrap();
     let display = &snapshot_from(&messages)["display"];
     assert_eq!(display["off"], false);
-    assert_eq!(display["splash"], "wakeup");
+    assert_eq!(display["splash"], "");
+    assert_eq!(runner.menu.state.cursor, 0);
 
-    runner.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
-    let messages = runner.messages_with_snapshot().unwrap();
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+        })
+        .unwrap();
     let display = &snapshot_from(&messages)["display"];
     assert_eq!(display["off"], false);
     assert_eq!(display["splash"], "");
+    assert_eq!(runner.menu.state.cursor, 1);
 }
 
 #[test]

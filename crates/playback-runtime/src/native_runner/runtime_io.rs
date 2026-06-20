@@ -65,7 +65,7 @@ impl NativeRunner {
 
 impl super::CoreRunner for NativeRunner {
     fn send(&mut self, message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
-        match message {
+        let mut messages = match message {
             HostMessage::TransportPulseStep {
                 pulses,
                 request_snapshot,
@@ -75,9 +75,15 @@ impl super::CoreRunner for NativeRunner {
                 let mut out = Vec::new();
                 let events = self.advance_algorithm(pulses)?;
                 if !events.is_empty() {
+                    out.push(self.trigger_ui_pulse_message());
                     out.push(RunnerMessage::MusicalEvents { events });
                 }
+                if let Some(pulse) = self.transport_ui_pulse_message() {
+                    out.push(pulse);
+                }
                 if request_snapshot.unwrap_or(false) {
+                    self.advance_oled_sleep_state();
+                    self.advance_toast_state();
                     out.push(RunnerMessage::Snapshot {
                         snapshot: self.snapshot()?,
                     });
@@ -99,11 +105,15 @@ impl super::CoreRunner for NativeRunner {
                     return self.messages_with_snapshot();
                 }
                 self.transport = RuntimeTransportState::Playing;
-                self.current_ppqn_pulse = 0;
-                self.algorithm_pulse_accumulator = 0;
+                self.reset_transport_position();
                 self.transport_flash = "measure";
                 self.transport_flash_pulses_remaining = 6;
-                self.messages_with_snapshot()
+                let mut messages = Vec::new();
+                if let Some(pulse) = self.transport_ui_pulse_message() {
+                    messages.push(pulse);
+                }
+                messages.extend(self.messages_with_snapshot()?);
+                Ok(messages)
             }
             HostMessage::MidiRealtimeContinue => {
                 if self.sync_source == SyncSource::External
@@ -121,10 +131,7 @@ impl super::CoreRunner for NativeRunner {
                     return self.messages_with_snapshot();
                 }
                 self.transport = RuntimeTransportState::Stopped;
-                self.transport_flash = "none";
-                self.transport_flash_pulses_remaining = 0;
-                self.event_dot_on = false;
-                self.event_dot_pulses_remaining = 0;
+                self.reset_transport_position();
                 self.messages_with_snapshot()
             }
             HostMessage::MidiRealtimeClock { pulses } => {
@@ -138,7 +145,11 @@ impl super::CoreRunner for NativeRunner {
                     let events = self.advance_algorithm(pulses)?;
                     let mut out = Vec::new();
                     if !events.is_empty() {
+                        out.push(self.trigger_ui_pulse_message());
                         out.push(RunnerMessage::MusicalEvents { events });
+                    }
+                    if let Some(pulse) = self.transport_ui_pulse_message() {
+                        out.push(pulse);
                     }
                     out.extend(self.messages_with_snapshot()?);
                     return Ok(out);
@@ -149,6 +160,8 @@ impl super::CoreRunner for NativeRunner {
                 self.apply_store_result(result)?;
                 self.messages_with_snapshot()
             }
-        }
+        }?;
+        messages.extend(self.flush_deferred_menu_apply()?);
+        Ok(messages)
     }
 }

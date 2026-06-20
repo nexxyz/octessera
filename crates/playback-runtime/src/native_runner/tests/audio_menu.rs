@@ -147,6 +147,85 @@ fn global_fx_slot_type_edits_into_config_payload() {
 }
 
 #[test]
+fn dynamic_fx_type_turn_is_deferred_until_flush() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert!(runner.menu.focus_item_key("mixer.buses.0.slot1.type"));
+    runner.menu.state.editing = true;
+
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+        })
+        .unwrap();
+
+    assert_eq!(
+        runner
+            .menu
+            .value_for_key("mixer.buses.0.slot1.type")
+            .as_deref(),
+        Some("tremolo")
+    );
+    assert_eq!(runner.fx_buses[0].slot1_type, "none");
+    assert_eq!(runner.audio_config_revision, 0);
+
+    runner.make_deferred_menu_apply_due_for_test();
+    let flushed = runner.flush_deferred_menu_apply().unwrap();
+
+    assert!(!flushed.is_empty());
+    assert_eq!(runner.fx_buses[0].slot1_type, "tremolo");
+    assert_eq!(runner.audio_config_revision, 1);
+}
+
+#[test]
+fn fast_path_audio_param_still_applies_immediately() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert!(runner
+        .menu
+        .focus_item_key("instruments.0.synth.amp.gainPct"));
+    runner.menu.state.editing = true;
+
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": -10, "id": "main" }),
+        })
+        .unwrap();
+
+    assert_eq!(runner.instruments[0].synth_gain_pct, 70);
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["instruments"][0]["synth"]["amp"]["gainPct"],
+        70
+    );
+    assert_eq!(runner.audio_config_revision, 1);
+}
+
+#[test]
+fn behavior_turns_coalesce_until_flush() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert!(runner.menu.focus_item_key("behaviorId"));
+    runner.menu.state.editing = true;
+
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+        })
+        .unwrap();
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+        })
+        .unwrap();
+
+    let selected = runner.menu.selected_behavior().unwrap();
+    assert_ne!(selected, runner.behavior.id());
+    assert_eq!(runner.behavior.id(), "life");
+
+    runner.make_deferred_menu_apply_due_for_test();
+    let _ = runner.flush_deferred_menu_apply().unwrap();
+
+    assert_eq!(runner.behavior.id(), selected);
+}
+
+#[test]
 fn fx_params_edit_into_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner

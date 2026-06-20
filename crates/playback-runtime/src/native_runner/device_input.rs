@@ -1,3 +1,4 @@
+use crate::native_menu::NativeMenuPressResult;
 use crate::protocol::{RunnerMessage, RuntimePlatformEffect};
 use std::time::Instant;
 
@@ -24,6 +25,13 @@ impl NativeRunner {
         &mut self,
         input: DeviceInput,
     ) -> Result<Vec<RunnerMessage>, String> {
+        self.advance_oled_sleep_state();
+        if self.startup_splash_presented
+            && self.oled_mode == super::NativeOledMode::Splash
+            && self.oled_splash_text == super::OLED_STARTUP_SPLASH_KEY
+        {
+            return self.messages_with_snapshot();
+        }
         if self.record_display_interaction() {
             return self.messages_with_snapshot();
         }
@@ -68,11 +76,7 @@ impl NativeRunner {
                         };
                         self.menu.turn(delta);
                         if let Some(key) = editing_key {
-                            if !self.apply_menu_key_fast(&key) {
-                                self.apply_menu_state()?;
-                            }
-                        } else if self.menu.current_browse_requires_apply() {
-                            self.apply_menu_state()?;
+                            self.apply_or_schedule_menu_key(&key)?;
                         }
                     }
                 }
@@ -181,18 +185,16 @@ impl NativeRunner {
                 self.pending_resync = true;
             } else if self.ui.shift_held {
                 self.transport = RuntimeTransportState::Stopped;
-                self.current_ppqn_pulse = 0;
-                self.tick = 0;
-                self.transport_flash = "none";
-                self.transport_flash_pulses_remaining = 0;
-                self.event_dot_on = false;
-                self.event_dot_pulses_remaining = 0;
+                self.reset_transport_position();
                 return self.messages_with_effects(vec![RuntimePlatformEffect::MidiPanic]);
             } else if self.ui.fn_held {
                 self.toggle_active_part_trigger_gate();
             } else {
+                if self.transport == RuntimeTransportState::Stopped {
+                    self.reset_transport_position();
+                }
                 self.transport = if self.transport == RuntimeTransportState::Playing {
-                    RuntimeTransportState::Stopped
+                    RuntimeTransportState::Paused
                 } else {
                     RuntimeTransportState::Playing
                 };
@@ -231,33 +233,45 @@ impl NativeRunner {
             };
             let selected_group_label = self.menu.current_label().map(str::to_string);
             let selected_group_key = self.menu.current_key().map(str::to_string);
-            let entering_group = !self.menu.state.editing
-                && self.menu.current_label().is_some()
-                && self.menu.snapshot().selected_action.is_none();
-            let mut action_executed = false;
+            let mut should_apply = false;
             let mut effects = Vec::new();
-            if let Some(action) = self.menu.press() {
-                if let Some(effect) = self.execute_menu_action(action)? {
-                    effects.push(effect);
-                }
-                action_executed = true;
-            } else if entering_group {
-                self.enter_root_group(selected_root_label.as_deref());
-                self.enter_nested_group(stack_depth_before, selected_nested_label.as_deref())?;
-                match selected_group_label.as_deref() {
-                    Some("MIDI Out") => effects.push(RuntimePlatformEffect::MidiListOutputsRequest),
-                    Some("MIDI In") => effects.push(RuntimePlatformEffect::MidiListInputsRequest),
-                    _ => {}
-                }
-                if let Some(key) = selected_group_key.as_deref() {
-                    if let Some(effect) = self.sample_open_effect_for_key(key) {
-                        effects.push(effect);
+            if let Some(result) = self.menu.press() {
+                match result {
+                    NativeMenuPressResult::Action(action) => {
+                        if let Some(effect) = self.execute_menu_action(action)? {
+                            effects.push(effect);
+                        }
                     }
-                } else if let Some(effect) = self.sample_open_effect_for_current_group() {
-                    effects.push(effect);
+                    NativeMenuPressResult::EnteredGroup => {
+                        self.enter_root_group(selected_root_label.as_deref());
+                        self.enter_nested_group(
+                            stack_depth_before,
+                            selected_nested_label.as_deref(),
+                        )?;
+                        match selected_group_label.as_deref() {
+                            Some("MIDI Out") => {
+                                effects.push(RuntimePlatformEffect::MidiListOutputsRequest)
+                            }
+                            Some("MIDI In") => {
+                                effects.push(RuntimePlatformEffect::MidiListInputsRequest)
+                            }
+                            _ => {}
+                        }
+                        if let Some(key) = selected_group_key.as_deref() {
+                            if let Some(effect) = self.sample_open_effect_for_key(key) {
+                                effects.push(effect);
+                            }
+                        } else if let Some(effect) = self.sample_open_effect_for_current_group() {
+                            effects.push(effect);
+                        }
+                    }
+                    NativeMenuPressResult::EditingToggled { editing } => {
+                        should_apply = !editing;
+                    }
+                    NativeMenuPressResult::TextCursorAdvanced => {}
                 }
             }
-            if !action_executed {
+            if should_apply {
                 self.apply_menu_state()?;
             }
             if !effects.is_empty() {

@@ -127,13 +127,18 @@ use velocity_curve::*;
 
 const DEFAULT_ALGORITHM_STEP_PULSES: u32 = 12;
 const OLED_BODY_ROWS: usize = 7;
-const OLED_STARTUP_SPLASH_MS: u64 = 1_000;
+#[cfg(not(test))]
+const OLED_STARTUP_SPLASH_MS: u64 = 1_500;
+#[cfg(test)]
+const OLED_STARTUP_SPLASH_MS: u64 = 0;
 const OLED_SLEEP_SPLASH_MS: u64 = 3_000;
-const OLED_WAKE_SPLASH_MS: u64 = 1_000;
 const OLED_STARTUP_SPLASH_KEY: &str = "startup";
 const OLED_SLEEP_SPLASH_KEY: &str = "sleep";
-const OLED_WAKE_SPLASH_KEY: &str = "wakeup";
 const OLED_SHUTDOWN_SPLASH_KEY: &str = "shutdown";
+#[cfg(not(test))]
+const DEFERRED_MENU_APPLY_MS: u64 = 24;
+#[cfg(test)]
+const DEFERRED_MENU_APPLY_MS: u64 = 24;
 
 #[derive(Clone, Debug)]
 pub struct NativeRunnerConfig {
@@ -175,6 +180,11 @@ impl Default for NativeRunnerConfig {
     }
 }
 
+struct PendingMenuApply {
+    due_at: Instant,
+    key: String,
+}
+
 pub struct NativeRunner {
     engine: NativePartEngine,
     part_engines: Vec<Option<NativePartEngine>>,
@@ -184,6 +194,7 @@ pub struct NativeRunner {
     part_behavior_configs: Vec<Value>,
     interpretation_profile: InterpretationProfile,
     mapping_config: platform_core::MappingConfig,
+    base_mapping_config: platform_core::MappingConfig,
     global_sound: GlobalSoundConfig,
     note_behaviors: Vec<NoteBehavior>,
     current_ppqn_pulse: u64,
@@ -200,6 +211,7 @@ pub struct NativeRunner {
     oled_mode: NativeOledMode,
     oled_splash_text: String,
     oled_splash_until: Option<Instant>,
+    startup_splash_presented: bool,
     last_interaction_at: Instant,
     fn_hold_started_at: Option<Instant>,
     midi_enabled: bool,
@@ -261,11 +273,13 @@ pub struct NativeRunner {
     auto_save_flash_serial: u64,
     auto_save_flash_pulses_remaining: u8,
     audio_config_revision: u64,
+    last_snapshot_audio_config_revision: Option<u64>,
     trigger_probability_rng: u64,
     toast: Option<NativeToast>,
     toast_expires_at: Option<Instant>,
     aux_turn_toast_cooldown_until: Option<Instant>,
     pending_aux_turn_toast: Option<PendingNativeToast>,
+    pending_menu_apply: Option<PendingMenuApply>,
 }
 
 #[cfg(test)]

@@ -13,7 +13,7 @@ pub fn dispatch_runtime_message(
     host_message: HostMessage,
 ) -> Result<(), String> {
     let responses = dispatch_and_ingest(playback, runner, adapter, host_message)?;
-    ingest_responses(playback, adapter, responses)
+    ingest_responses(playback, runner, adapter, responses)
 }
 
 pub fn handle_deferred_host_work(
@@ -21,6 +21,10 @@ pub fn handle_deferred_host_work(
     runner: &mut NativeRunner,
     adapter: &mut PiPlaybackHostAdapter<'_>,
 ) -> Result<(), String> {
+    let responses = runner.flush_deferred_menu_apply()?;
+    if !responses.is_empty() {
+        ingest_responses(playback, runner, adapter, responses)?;
+    }
     let follow_ups = adapter.flush_due_default_save()?;
     for follow_up in follow_ups {
         dispatch_runtime_message(playback, runner, adapter, follow_up)?;
@@ -109,10 +113,15 @@ fn dispatch_and_ingest(
 }
 
 fn ingest_responses(
-    _playback: &mut PlaybackRuntime,
-    _adapter: &mut PiPlaybackHostAdapter<'_>,
-    _responses: Vec<RunnerMessage>,
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    adapter: &mut PiPlaybackHostAdapter<'_>,
+    responses: Vec<RunnerMessage>,
 ) -> Result<(), String> {
+    let mut queue = VecDeque::from(playback.ingest_runner_messages(responses, adapter)?);
+    while let Some(message) = queue.pop_front() {
+        dispatch_and_ingest(playback, runner, adapter, message)?;
+    }
     Ok(())
 }
 

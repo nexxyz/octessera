@@ -136,7 +136,8 @@ impl NativeRunner {
             )]),
             part_behavior_configs: vec![config.behavior_config; PART_COUNT],
             interpretation_profile: config.interpretation_profile,
-            mapping_config: config.mapping_config,
+            mapping_config: config.mapping_config.clone(),
+            base_mapping_config: config.mapping_config,
             global_sound: config.global_sound,
             note_behaviors: config.note_behaviors,
             current_ppqn_pulse: 0,
@@ -153,6 +154,7 @@ impl NativeRunner {
             oled_mode: NativeOledMode::Splash,
             oled_splash_text: OLED_STARTUP_SPLASH_KEY.into(),
             oled_splash_until: Some(now + Duration::from_millis(OLED_STARTUP_SPLASH_MS)),
+            startup_splash_presented: false,
             last_interaction_at: now,
             fn_hold_started_at: None,
             midi_enabled: false,
@@ -221,11 +223,13 @@ impl NativeRunner {
             auto_save_flash_serial: 0,
             auto_save_flash_pulses_remaining: 0,
             audio_config_revision: 0,
+            last_snapshot_audio_config_revision: None,
             trigger_probability_rng: 0xC311_5A7E_2024_0001,
             toast: None,
             toast_expires_at: None,
             aux_turn_toast_cooldown_until: None,
             pending_aux_turn_toast: None,
+            pending_menu_apply: None,
         };
         runner.seed_visible_state()?;
         runner.refresh_active_mapping_config();
@@ -241,6 +245,46 @@ impl NativeRunner {
         self.sync_source = config.sync_source.clone();
         self.bpm = config.bpm;
         self.menu.rebuild(self.menu_config());
+    }
+
+    pub fn flush_deferred_menu_apply(
+        &mut self,
+    ) -> Result<Vec<crate::protocol::RunnerMessage>, String> {
+        self.flush_deferred_menu_apply_at(Instant::now())
+    }
+
+    pub(super) fn schedule_deferred_menu_apply(&mut self, key: &str) {
+        self.pending_menu_apply = Some(PendingMenuApply {
+            due_at: Instant::now() + Duration::from_millis(DEFERRED_MENU_APPLY_MS),
+            key: key.into(),
+        });
+    }
+
+    pub(super) fn clear_deferred_menu_apply(&mut self) {
+        self.pending_menu_apply = None;
+    }
+
+    fn flush_deferred_menu_apply_at(
+        &mut self,
+        now: Instant,
+    ) -> Result<Vec<crate::protocol::RunnerMessage>, String> {
+        let Some(pending) = &self.pending_menu_apply else {
+            return Ok(Vec::new());
+        };
+        if pending.due_at > now {
+            return Ok(Vec::new());
+        }
+        let _ = pending.key.as_str();
+        self.pending_menu_apply = None;
+        self.apply_menu_state()?;
+        self.messages_with_snapshot()
+    }
+
+    #[cfg(test)]
+    pub(super) fn make_deferred_menu_apply_due_for_test(&mut self) {
+        if let Some(pending) = &mut self.pending_menu_apply {
+            pending.due_at = Instant::now();
+        }
     }
 
     #[cfg(test)]
@@ -347,6 +391,12 @@ impl NativeRunner {
             self.active_part_index,
         )?;
         self.behavior = behavior;
+        self.reset_transport_position();
+        self.menu.rebuild(self.menu_config());
+        Ok(())
+    }
+
+    pub(super) fn reset_transport_position(&mut self) {
         self.tick = 0;
         self.current_ppqn_pulse = 0;
         self.algorithm_pulse_accumulator = 0;
@@ -354,8 +404,13 @@ impl NativeRunner {
         self.transport_flash_pulses_remaining = 0;
         self.event_dot_on = false;
         self.event_dot_pulses_remaining = 0;
-        self.menu.rebuild(self.menu_config());
-        Ok(())
+        self.engine.reset_transport_phase();
+        for engine in self.part_engines.iter_mut().flatten() {
+            engine.reset_transport_phase();
+        }
+        for accumulator in &mut self.part_pulse_accumulators {
+            *accumulator = 0;
+        }
     }
 
     pub(super) fn sync_engine_runtime_config(&mut self) {
@@ -370,20 +425,23 @@ impl NativeRunner {
 
     pub(super) fn record_display_interaction(&mut self) -> bool {
         let now = Instant::now();
-        let woke_display = self.oled_mode != NativeOledMode::Normal;
         self.last_interaction_at = now;
         if self.oled_splash_text == OLED_STARTUP_SPLASH_KEY {
+            return false;
+        }
+        if self.oled_mode == NativeOledMode::Off {
             self.oled_mode = NativeOledMode::Normal;
             self.oled_splash_text.clear();
             self.oled_splash_until = None;
-            return false;
+            return true;
         }
-        if woke_display {
-            self.oled_mode = NativeOledMode::Splash;
-            self.oled_splash_text = OLED_WAKE_SPLASH_KEY.into();
-            self.oled_splash_until = Some(now + Duration::from_millis(OLED_WAKE_SPLASH_MS));
+        if self.oled_mode == NativeOledMode::Splash {
+            self.oled_mode = NativeOledMode::Normal;
+            self.oled_splash_text.clear();
+            self.oled_splash_until = None;
+            return true;
         }
-        woke_display
+        false
     }
 
     pub(super) fn advance_oled_sleep_state(&mut self) {
@@ -400,7 +458,7 @@ impl NativeRunner {
                 self.show_toast("Help=Sh+Fn+Enter");
                 return;
             }
-            if self.oled_splash_text == OLED_WAKE_SPLASH_KEY || self.ui.screen_sleep_seconds == 0 {
+            if self.ui.screen_sleep_seconds == 0 {
                 self.oled_mode = NativeOledMode::Normal;
                 self.oled_splash_text.clear();
                 self.oled_splash_until = None;
