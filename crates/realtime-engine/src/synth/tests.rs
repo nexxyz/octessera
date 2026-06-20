@@ -9,7 +9,8 @@ use serde_json::json;
 use std::collections::BTreeMap;
 
 mod basics;
-mod coverage;
+mod coverage_compile;
+mod coverage_process;
 mod dynamics;
 mod momentary_buffers;
 mod momentary_pitch_filter;
