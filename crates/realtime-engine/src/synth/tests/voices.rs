@@ -1,4 +1,5 @@
 use super::*;
+use crate::synth::{VoiceStealingMode, VOICES_PER_SLOT};
 
 #[test]
 fn maintains_eight_voices_per_instrument_slot() {
@@ -112,4 +113,50 @@ fn long_running_event_stream_stays_finite() {
             assert!((-1.0..=1.0).contains(&s));
         }
     }
+}
+
+#[test]
+fn aggressive_global_voice_budget_reduces_polyphony_under_load() {
+    let mut engine = SynthEngine::new(48_000);
+    engine.set_voice_stealing_mode(VoiceStealingMode::Aggressive);
+    for _ in 0..20 {
+        engine.set_runtime_load_ratio(2.0);
+    }
+
+    for slot in 0..INSTRUMENT_SLOT_COUNT {
+        for note in 0..VOICES_PER_SLOT {
+            engine.note_on(slot as u8, 36 + note as u8, 100, 5_000);
+        }
+    }
+
+    let active: usize = (0..INSTRUMENT_SLOT_COUNT)
+        .map(|slot| engine.active_voice_count_for_slot(slot))
+        .sum();
+    let status = engine.audio_load_status();
+
+    assert!(active < INSTRUMENT_SLOT_COUNT * VOICES_PER_SLOT);
+    assert!(status.voice_steal);
+    assert!(status.ratio > 1.0);
+    assert!(!engine.audio_load_status().voice_steal);
+}
+
+#[test]
+fn disabled_global_voice_budget_preserves_full_polyphony() {
+    let mut engine = SynthEngine::new(48_000);
+    engine.set_voice_stealing_mode(VoiceStealingMode::Off);
+    for _ in 0..20 {
+        engine.set_runtime_load_ratio(2.0);
+    }
+
+    for slot in 0..INSTRUMENT_SLOT_COUNT {
+        for note in 0..VOICES_PER_SLOT {
+            engine.note_on(slot as u8, 48 + note as u8, 100, 5_000);
+        }
+    }
+
+    let active: usize = (0..INSTRUMENT_SLOT_COUNT)
+        .map(|slot| engine.active_voice_count_for_slot(slot))
+        .sum();
+
+    assert_eq!(active, INSTRUMENT_SLOT_COUNT * VOICES_PER_SLOT);
 }
