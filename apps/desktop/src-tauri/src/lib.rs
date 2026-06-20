@@ -13,8 +13,9 @@ use audio_thread::{spawn_audio_engine_thread, spawn_load_listener};
 use host_adapter::DesktopPlaybackHostAdapter;
 use midir::MidiInputConnection;
 use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
-use runtime_worker::{ensure_store_dir, RuntimeWorker};
+use runtime_worker::RuntimeWorker;
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager};
@@ -29,6 +30,38 @@ pub(crate) struct AppState {
     pub(crate) midi_out: Arc<Mutex<Option<midir::MidiOutputConnection>>>,
     pub(crate) midi_in: Arc<Mutex<Option<MidiInputConnection<()>>>>,
     audio_error: Arc<Mutex<Option<String>>>,
+}
+
+fn desktop_workspace_root() -> PathBuf {
+    workspace_root_from(Path::new(env!("CARGO_MANIFEST_DIR")))
+}
+
+fn workspace_root_from(crate_dir: impl AsRef<Path>) -> PathBuf {
+    let start = crate_dir.as_ref();
+    for ancestor in start.ancestors() {
+        if ancestor.join("pnpm-workspace.yaml").is_file()
+            && ancestor.join("packages").is_dir()
+            && ancestor.join("Cargo.toml").is_file()
+        {
+            return ancestor.to_path_buf();
+        }
+        if ancestor
+            .file_name()
+            .is_some_and(|name| name == "crates" || name == "apps")
+        {
+            if let Some(parent) = ancestor.parent() {
+                return parent.to_path_buf();
+            }
+        }
+    }
+    start.to_path_buf()
+}
+
+fn ensure_store_dir() -> PathBuf {
+    let dir = desktop_workspace_root().join("config");
+    let _ = std::fs::create_dir_all(&dir);
+    let _ = std::fs::create_dir_all(dir.join("presets"));
+    dir
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

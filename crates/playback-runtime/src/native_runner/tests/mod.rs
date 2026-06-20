@@ -12,6 +12,7 @@ mod menu_navigation;
 mod modulation;
 mod runtime_control;
 mod sense_and_voice_menu;
+mod shutdown;
 mod snapshot_runtime;
 mod step_rates;
 mod store;

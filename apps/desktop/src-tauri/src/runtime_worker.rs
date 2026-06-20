@@ -7,7 +7,6 @@ use playback_runtime::{
     CoreRunner, HostAdapter, HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime,
     RunnerMessage, SyncSource,
 };
-use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -17,38 +16,6 @@ use tauri::Emitter;
 const SNAPSHOT_INTERVAL_MS: u64 = 100;
 #[cfg(debug_assertions)]
 const PERF_LOG_INTERVAL: Duration = Duration::from_secs(2);
-
-pub(crate) fn desktop_workspace_root() -> PathBuf {
-    workspace_root_from(Path::new(env!("CARGO_MANIFEST_DIR")))
-}
-
-fn workspace_root_from(crate_dir: impl AsRef<Path>) -> PathBuf {
-    let start = crate_dir.as_ref();
-    for ancestor in start.ancestors() {
-        if ancestor.join("pnpm-workspace.yaml").is_file()
-            && ancestor.join("packages").is_dir()
-            && ancestor.join("Cargo.toml").is_file()
-        {
-            return ancestor.to_path_buf();
-        }
-        if ancestor
-            .file_name()
-            .is_some_and(|name| name == "crates" || name == "apps")
-        {
-            if let Some(parent) = ancestor.parent() {
-                return parent.to_path_buf();
-            }
-        }
-    }
-    start.to_path_buf()
-}
-
-pub(crate) fn ensure_store_dir() -> PathBuf {
-    let dir = desktop_workspace_root().join("config");
-    let _ = std::fs::create_dir_all(&dir);
-    let _ = std::fs::create_dir_all(dir.join("presets"));
-    dir
-}
 
 fn desktop_native_runner_config() -> NativeRunnerConfig {
     NativeRunnerConfig {
