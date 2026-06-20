@@ -24,7 +24,8 @@ fn checked_in_default_restores_sequencer_grid_state() {
         .and_then(|part| part.get("l1"))
         .and_then(|l1| l1.get("behaviorId"))
         .and_then(Value::as_str)
-        .unwrap_or("life");
+        .unwrap_or("life")
+        .to_string();
 
     runner.apply_config_payload(payload).unwrap();
 
