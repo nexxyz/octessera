@@ -6,37 +6,35 @@ use crate::native_menu::bindings::dance_fx_targets;
 
 pub(super) fn dance_group(config: &NativeMenuConfig) -> NativeMenuItem {
     let mut children = vec![
+        number_item("BPM", "transport.bpm", i32::from(config.bpm), 40, 240, 1),
         NativeMenuItem {
             label: "Dance Page".into(),
             key: Some("danceMode".into()),
             value: NativeMenuValue::Enum {
                 options: vec![
-                    "none".into(),
                     "mix".into(),
                     "pan".into(),
                     "fx".into(),
                     "trigger-gate".into(),
                     "xy".into(),
                 ],
-                selected: ["none", "mix", "pan", "fx", "trigger-gate", "xy"]
+                selected: ["mix", "pan", "fx", "trigger-gate", "xy"]
                     .iter()
                     .position(|mode| *mode == config.dance_mode)
                     .unwrap_or(0),
             },
             children: vec![],
         },
-        number_item("BPM", "transport.bpm", i32::from(config.bpm), 40, 240, 1),
     ];
     match config.dance_mode.as_str() {
         "fx" => children.extend(dance_fx_page_items(config)),
-        "trigger-gate" => children.push(group("Mode Grid", vec![])),
         "xy" => children.extend(xy_pad_items(config)),
         _ => {}
     }
     group("L4: Dance", children)
 }
 
-fn dance_fx_page_items(config: &NativeMenuConfig) -> Vec<NativeMenuItem> {
+pub(super) fn dance_fx_page_items(config: &NativeMenuConfig) -> Vec<NativeMenuItem> {
     let fx_types = vec!["none", "stutter", "freeze", "filter_sweep", "pitch_shift"];
     let targets = dance_fx_targets();
     let mut children = vec![

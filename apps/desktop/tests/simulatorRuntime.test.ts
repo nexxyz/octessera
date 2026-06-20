@@ -20,7 +20,7 @@ function waitMicrotask(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-function snapshotMessage() {
+function snapshotMessage(options: { audioConfigRevision?: number; instruments?: unknown[]; mixer?: unknown; masterVolume?: number } = {}) {
   return {
     type: "snapshot" as const,
     snapshot: {
@@ -33,11 +33,12 @@ function snapshotMessage() {
       settings: {
         displayBrightness: 75,
         buttonBrightness: 75,
-        masterVolume: 73,
+        masterVolume: options.masterVolume ?? 73,
         voiceStealingMode: "balanced" as const,
-        instruments: [],
-        mixer: { buses: [] },
+        instruments: options.instruments ?? [],
+        mixer: options.mixer ?? { buses: [] },
         panPositions: 33,
+        audioConfigRevision: options.audioConfigRevision,
         autoSaveFlash: "none" as const,
         transportFlash: "none" as const,
         stopLatched: false,
@@ -83,4 +84,40 @@ test("runtime start requests an initial native snapshot", async () => {
 
   assert.equal(seen[0].type, "transport_pulse_step");
   assert.ok(snapshots >= 2);
+});
+
+test("runtime coalesces encoder turn bursts", async () => {
+  const seen: any[] = [];
+  const runtime = createSimulatorRuntime(new FakeScheduler(), {
+    runtimeDispatch: async (message) => {
+      seen.push(message);
+      return [snapshotMessage()];
+    }
+  });
+
+  runtime.dispatch({ type: "encoder_turn", id: "main", delta: 1 });
+  runtime.dispatch({ type: "encoder_turn", id: "main", delta: 1 });
+  runtime.dispatch({ type: "encoder_turn", id: "main", delta: -1 });
+  await new Promise((resolve) => setTimeout(resolve, 12));
+
+  assert.deepEqual(seen, [{ type: "device_input", input: { type: "encoder_turn", id: "main", delta: 1 } }]);
+});
+
+test("runtime preserves audio config refs while revision is unchanged", async () => {
+  const instruments = [{ type: "synth", value: 1 }];
+  const mixer = { buses: [{ name: "bus" }] };
+  const runtime = createSimulatorRuntime(new FakeScheduler(), {
+    runtimeDispatch: async () => [snapshotMessage({ audioConfigRevision: 1, instruments, mixer, masterVolume: 80 })]
+  });
+
+  runtime.dispatch({ type: "grid_press", x: 1, y: 2 });
+  await waitMicrotask();
+  const first = runtime.getSnapshot();
+  runtime.dispatch({ type: "grid_press", x: 2, y: 3 });
+  await waitMicrotask();
+  const second = runtime.getSnapshot();
+
+  assert.equal(second.instruments, first.instruments);
+  assert.equal(second.mixer, first.mixer);
+  assert.equal(second.masterVolume, 80);
 });

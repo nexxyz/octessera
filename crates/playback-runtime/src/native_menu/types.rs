@@ -81,6 +81,8 @@ pub struct NativeMenuSnapshot {
     pub lines: Vec<String>,
     pub colors: Vec<u16>,
     pub bar_values: Vec<Option<NativeMenuBarValue>>,
+    pub line_keys: Vec<Option<String>>,
+    pub line_actions: Vec<Option<NativeMenuAction>>,
     pub selected_row: Option<usize>,
     pub selected_action: Option<NativeMenuAction>,
 }
@@ -120,6 +122,7 @@ pub struct NativeMenuConfig {
     pub param_mods: Vec<NativeParamModsConfig>,
     pub xy_x_binding: Option<NativeParamBindingSpec>,
     pub xy_y_binding: Option<NativeParamBindingSpec>,
+    pub aux_auto_map_enabled: bool,
     pub aux_bindings: Vec<NativeAuxBindingConfig>,
     pub instrument_labels: Vec<String>,
     pub instrument_names: Vec<String>,

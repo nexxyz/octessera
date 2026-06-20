@@ -43,6 +43,7 @@ impl NativeRunner {
                 .xy_y_binding
                 .as_ref()
                 .map(param_binding_spec_from_native),
+            aux_auto_map_enabled: self.aux_auto_map_enabled,
             aux_bindings: aux_binding_configs(&self.aux_bindings),
             instrument_labels: instrument_labels(&self.instruments),
             instrument_names: instrument_names(&self.instruments),
@@ -246,6 +247,7 @@ impl NativeRunner {
                 "gridBrightness": self.ui.grid_brightness,
                 "buttonBrightness": self.ui.button_brightness,
                 "autoSaveDefault": self.auto_save_default,
+                "auxAutoMapEnabled": self.aux_auto_map_enabled,
                 "bpm": self.bpm,
                 "danceMode": self.dance_mode,
                 "auxBindings": aux_bindings_payload(&self.aux_bindings),

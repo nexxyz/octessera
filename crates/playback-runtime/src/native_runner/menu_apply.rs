@@ -1,8 +1,121 @@
-use super::{velocity_curve_from_id, NativeRunner, Value};
+use super::{
+    cutoff_display_to_hz, set_json_path_number, velocity_curve_from_id, NativeRunner, Value,
+};
 
 impl NativeRunner {
+    pub(super) fn apply_menu_key_fast(&mut self, key: &str) -> bool {
+        if key == "masterVolume" {
+            let Some(master_volume) = self.menu.selected_master_volume() else {
+                return false;
+            };
+            if self.ui.master_volume != master_volume {
+                self.ui.master_volume = master_volume;
+                self.config_dirty = true;
+                self.audio_config_revision = self.audio_config_revision.wrapping_add(1);
+            }
+            return true;
+        }
+        let Some(rest) = key.strip_prefix("instruments.") else {
+            return false;
+        };
+        let Some((index, suffix)) = parse_indexed_key(rest) else {
+            return false;
+        };
+        let Some(instrument) = self.instruments.get_mut(index) else {
+            return false;
+        };
+        let changed = match suffix {
+            "mixer.volume" => self
+                .menu
+                .number_for_key(key)
+                .map(|value| {
+                    let value = value.clamp(0, 100) as u8;
+                    if instrument.volume == value {
+                        false
+                    } else {
+                        instrument.volume = value;
+                        true
+                    }
+                })
+                .unwrap_or(false),
+            "mixer.panPos" => self
+                .menu
+                .number_for_key(key)
+                .map(|value| {
+                    let value = value.clamp(0, i32::from(super::PAN_POSITION_COUNT - 1)) as u8;
+                    if instrument.pan_pos == value {
+                        false
+                    } else {
+                        instrument.pan_pos = value;
+                        true
+                    }
+                })
+                .unwrap_or(false),
+            "synth.amp.gainPct" => self
+                .menu
+                .number_for_key(key)
+                .map(|value| {
+                    let value = value.clamp(0, 100) as u8;
+                    if instrument.synth_gain_pct == value {
+                        false
+                    } else {
+                        instrument.synth_gain_pct = value;
+                        set_json_path_number(
+                            &mut instrument.synth_config,
+                            &["amp", "gainPct"],
+                            f64::from(value),
+                        );
+                        true
+                    }
+                })
+                .unwrap_or(false),
+            "synth.filter.cutoffHz" => self
+                .menu
+                .number_for_key(key)
+                .map(|value| {
+                    let display = value.clamp(0, 255);
+                    let cutoff = cutoff_display_to_hz(display) as u16;
+                    if super::synth_filter_cutoff(instrument) == cutoff {
+                        false
+                    } else {
+                        set_json_path_number(
+                            &mut instrument.synth_config,
+                            &["filter", "cutoffHz"],
+                            f64::from(cutoff),
+                        );
+                        true
+                    }
+                })
+                .unwrap_or(false),
+            "synth.filter.resonance" => self
+                .menu
+                .number_for_key(key)
+                .map(|value| {
+                    let value = value.clamp(0, 255) as u8;
+                    if super::synth_filter_resonance(instrument) == value {
+                        false
+                    } else {
+                        set_json_path_number(
+                            &mut instrument.synth_config,
+                            &["filter", "resonance"],
+                            f64::from(value),
+                        );
+                        true
+                    }
+                })
+                .unwrap_or(false),
+            _ => return false,
+        };
+        if changed {
+            self.config_dirty = true;
+            self.audio_config_revision = self.audio_config_revision.wrapping_add(1);
+        }
+        true
+    }
+
     pub(super) fn apply_menu_state(&mut self) -> Result<(), String> {
         let before_payload = self.config_payload();
+        let mut dance_mode_changed = false;
         if let Some(sync_source) = self.menu.selected_sync_source() {
             self.sync_source = sync_source;
         }
@@ -52,6 +165,7 @@ impl NativeRunner {
         if let Some(dance_mode) = self.menu.selected_dance_mode() {
             let changed = self.dance_mode != dance_mode;
             self.dance_mode = dance_mode.clone();
+            dance_mode_changed = changed;
             if changed && self.menu.state.stack.first() == Some(&3) {
                 self.active_dance_mode = dance_mode;
             }
@@ -104,6 +218,9 @@ impl NativeRunner {
         if let Some(screen_sleep_seconds) = self.menu.number_for_key("screenSleepSeconds") {
             self.ui.screen_sleep_seconds = screen_sleep_seconds.clamp(0, 600) as u16;
         }
+        if let Some(aux_auto_map_enabled) = self.menu.value_for_key("auxAutoMapEnabled") {
+            self.aux_auto_map_enabled = aux_auto_map_enabled == "true";
+        }
         if let Some(grid_brightness) = self.menu.number_for_key("gridBrightness") {
             self.ui.grid_brightness = grid_brightness.clamp(10, 100) as u8;
         }
@@ -113,7 +230,13 @@ impl NativeRunner {
         let sense_changed = self.apply_sense_menu_state();
         let fx_changed = self.apply_fx_menu_state();
         self.sync_engine_runtime_config();
-        if part_changed || instrument_changed || sense_changed || fx_changed || dance_fx_changed {
+        if part_changed
+            || instrument_changed
+            || sense_changed
+            || fx_changed
+            || dance_fx_changed
+            || dance_mode_changed
+        {
             self.menu.rebuild(self.menu_config());
         }
         if sense_changed {
@@ -185,7 +308,11 @@ impl NativeRunner {
             .value_for_key("autoSaveDefault")
             .map(|value| value == "true")
             .unwrap_or(self.auto_save_default);
-        if self.config_payload() != before_payload {
+        let after_payload = self.config_payload();
+        if audio_config_changed(&before_payload, &after_payload) {
+            self.audio_config_revision = self.audio_config_revision.wrapping_add(1);
+        }
+        if after_payload != before_payload {
             self.config_dirty = true;
         }
         Ok(())
@@ -265,4 +392,17 @@ impl NativeRunner {
         }
         changed
     }
+}
+
+fn audio_config_changed(before: &Value, after: &Value) -> bool {
+    let before = before.get("runtimeConfig").unwrap_or(before);
+    let after = after.get("runtimeConfig").unwrap_or(after);
+    ["instruments", "mixer", "masterVolume"]
+        .into_iter()
+        .any(|key| before.get(key) != after.get(key))
+}
+
+fn parse_indexed_key(value: &str) -> Option<(usize, &str)> {
+    let (index, suffix) = value.split_once('.')?;
+    Some((index.parse().ok()?, suffix))
 }

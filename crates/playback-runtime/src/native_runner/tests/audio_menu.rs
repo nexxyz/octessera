@@ -179,6 +179,21 @@ fn fx_params_edit_into_config_payload() {
 }
 
 #[test]
+fn invalid_bus_and_global_fx_types_are_sanitized_on_load() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut payload = runner.config_payload();
+    payload["runtimeConfig"]["mixer"]["buses"][0]["slot1"] =
+        json!({ "type": "vinyl", "params": {} });
+    payload["runtimeConfig"]["mixer"]["master"]["slots"][0] =
+        json!({ "type": "delay", "params": {} });
+
+    runner.apply_config_payload(payload).unwrap();
+
+    assert_eq!(runner.fx_buses[0].slot1_type, "none");
+    assert_eq!(runner.global_fx_slots[0], "none");
+}
+
+#[test]
 fn l1_part_config_always_exposes_auto_name() {
     for behavior_id in ["life", "none", "glider"] {
         let mut runner = NativeRunner::new(NativeRunnerConfig {
@@ -298,7 +313,7 @@ fn native_text_row_edits_part_name_and_clears_auto_name() {
     let snapshot = runner.menu.snapshot();
     runner.apply_menu_state().unwrap();
 
-    assert!(snapshot.lines.iter().any(|line| line == " *lifeA"));
+    assert!(snapshot.lines.iter().any(|line| line == "    * lifeA"));
     assert!(snapshot.lines.iter().all(|line| !line.contains('@')));
     assert_eq!(runner.part_names[0], "lifeA");
     assert!(!runner.part_auto_names[0]);

@@ -80,6 +80,7 @@ fn config() -> NativeMenuConfig {
         param_mods: vec![NativeParamModsConfig::default(); PART_COUNT],
         xy_x_binding: None,
         xy_y_binding: None,
+        aux_auto_map_enabled: true,
         aux_bindings: vec![NativeAuxBindingConfig::default(); 4],
         instrument_labels: vec!["I1: synth".into()],
         instrument_names: vec!["synth".into()],
@@ -139,7 +140,7 @@ fn config() -> NativeMenuConfig {
         preset_rename_source: None,
         midi_outputs: vec![],
         midi_inputs: vec![],
-        dance_mode: "none".into(),
+        dance_mode: "mix".into(),
         dance_fx_type: "none".into(),
         dance_fx_target: "master".into(),
         dance_fx_params: serde_json::Map::new(),
@@ -148,6 +149,30 @@ fn config() -> NativeMenuConfig {
         xy_invert_y: false,
         bpm: 120,
         sync_source: SyncSource::Internal,
+    }
+}
+
+#[test]
+fn fx_bus_and_global_fx_option_sets_do_not_overlap_except_none() {
+    for fx_type in FX_BUS_SLOT_OPTIONS {
+        if *fx_type == "none" {
+            continue;
+        }
+        assert!(is_valid_fx_bus_slot_type(fx_type));
+        assert!(
+            !is_valid_global_fx_slot_type(fx_type),
+            "{fx_type} should not be global"
+        );
+    }
+    for fx_type in GLOBAL_FX_SLOT_OPTIONS {
+        if *fx_type == "none" {
+            continue;
+        }
+        assert!(is_valid_global_fx_slot_type(fx_type));
+        assert!(
+            !is_valid_fx_bus_slot_type(fx_type),
+            "{fx_type} should not be a bus FX"
+        );
     }
 }
 

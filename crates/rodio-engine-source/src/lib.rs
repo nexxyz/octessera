@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 const DEFAULT_BLOCK_FRAMES: usize = 128;
 const MIN_BLOCK_FRAMES: usize = 32;
 const MAX_BLOCK_FRAMES: usize = 2048;
+const MAX_CONTROL_EVENTS_PER_BLOCK: usize = 256;
 const LOAD_REPORT_INTERVAL: Duration = Duration::from_millis(100);
 
 pub struct EngineSource {
@@ -120,7 +121,10 @@ impl EngineSource {
     }
 
     fn drain_control_events(&mut self) {
-        while let Ok(event) = self.control_rx.try_recv() {
+        for _ in 0..MAX_CONTROL_EVENTS_PER_BLOCK {
+            let Ok(event) = self.control_rx.try_recv() else {
+                break;
+            };
             match event {
                 EngineEvent::NoteOn {
                     instrument_slot,

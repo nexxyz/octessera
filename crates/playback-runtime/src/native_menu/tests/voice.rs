@@ -13,8 +13,8 @@ fn voice_instrument_rows_expose_configuration_groups() {
     assert!(snapshot
         .lines
         .windows(2)
-        .any(|pair| pair[0] == "  Type:" && pair[1].trim() == "synth"));
-    assert!(snapshot.lines.iter().any(|line| line == "> Synth"));
+        .any(|pair| pair[0] == "> Type:" && pair[1].trim() == "synth"));
+    assert!(snapshot.lines.iter().any(|line| line == "  Synth"));
     assert!(!snapshot.lines.iter().any(|line| line == "> Sampler"));
     assert!(menu
         .current_siblings()
@@ -35,8 +35,8 @@ fn voice_menu_exposes_fx_bus_and_global_fx_groups() {
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "L3: Voice");
     assert!(snapshot.lines.iter().any(|line| line == "> Instruments"));
-    assert!(snapshot.lines.iter().any(|line| line == "> FX Buses"));
-    assert!(snapshot.lines.iter().any(|line| line == "> Global FX"));
+    assert!(snapshot.lines.iter().any(|line| line == "  FX Buses"));
+    assert!(snapshot.lines.iter().any(|line| line == "  Global FX"));
     menu.turn(1);
     let _ = menu.press();
     let buses = menu.snapshot();
@@ -56,7 +56,7 @@ fn number_params_emit_bar_values_and_pan_uses_marker_format() {
     assert!(pan
         .lines
         .windows(2)
-        .any(|pair| pair[0] == "  Pan Pos:" && pair[1] == "  C"));
+        .any(|pair| pair[0] == "> Pan Pos:" && pair[1] == "    C"));
     let pan_value_row = pan.selected_row.unwrap() + 1;
     assert!(
         matches!(pan.bar_values.get(pan_value_row), Some(Some(NativeMenuBarValue { style: Some(style), .. })) if style == "marker")
@@ -69,7 +69,7 @@ fn number_params_emit_bar_values_and_pan_uses_marker_format() {
     assert!(volume
         .lines
         .windows(2)
-        .any(|pair| pair[0] == "  Master Vol:"));
+        .any(|pair| pair[0] == "> Master Vol:"));
     assert!(matches!(
         volume.bar_values.get(volume.selected_row.unwrap() + 1),
         Some(Some(NativeMenuBarValue {
@@ -106,7 +106,7 @@ fn mixer_menu_uses_current_volume_and_pan_values() {
     assert!(pan
         .lines
         .windows(2)
-        .any(|pair| pair[0] == "  Pan Pos:" && pair[1] == "  L6"));
+        .any(|pair| pair[0] == "> Pan Pos:" && pair[1] == "    L6"));
 }
 
 #[test]

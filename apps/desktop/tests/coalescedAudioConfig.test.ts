@@ -30,4 +30,5 @@ test("coalesced audio config sender ignores unchanged signatures", () => {
   assert.equal(sender.schedule(baseConfig(1)), false);
   sender.flush();
   assert.equal(sent.length, 1);
+  assert.equal(sender.schedule(baseConfig(1)), false);
 });

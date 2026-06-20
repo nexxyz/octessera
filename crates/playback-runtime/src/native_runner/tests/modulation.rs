@@ -397,6 +397,112 @@ fn dance_xy_binding_updates_native_runtime_config() {
 }
 
 #[test]
+fn xy_mapping_execute_action_keeps_menu_on_xy_axis_picker() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.dance_mode = "xy".into();
+    runner.menu.rebuild(runner.menu_config());
+    assert!(runner.menu.focus_item_key("xy:x"));
+
+    runner
+        .execute_menu_action(NativeMenuAction::SetParamBinding {
+            target: "xy:x".into(),
+            binding: NativeParamBindingSpec {
+                key: "instruments.0.synth.filter.cutoffHz".into(),
+                label: Some("Cutoff".into()),
+                kind: "number".into(),
+                min: Some(0),
+                max: Some(255),
+                step: Some(1),
+                options: vec![],
+                invert: false,
+            },
+        })
+        .unwrap();
+
+    assert_eq!(
+        runner.xy_x_binding.as_ref().unwrap().key,
+        "instruments.0.synth.filter.cutoffHz"
+    );
+    assert_eq!(
+        runner.menu.current_focus_path(),
+        "Menu > L4: Dance > X Axis: Cutoff"
+    );
+    let snapshot = runner.snapshot().unwrap();
+    assert_eq!(snapshot["display"]["title"], "L4: Dance");
+}
+
+#[test]
+fn xy_binding_can_drive_sense_fx_bus_and_global_fx_params() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.xy_touch = NativeXyTouch {
+        x: 1.0,
+        y: 1.0,
+        active: true,
+    };
+    runner.fx_buses[0].slot1_type = "delay".into();
+    runner.fx_buses[0].slot1_params = json!({ "feedback": 0.35, "timeMs": 250, "mixPct": 35 });
+    runner.global_fx_slots[0] = "vinyl".into();
+    runner.global_fx_params[0] =
+        json!({ "cracklePct": 8, "saturationPct": 15, "warpDepthPct": 5, "mixPct": 100 });
+    runner.xy_x_binding = Some(NativeParamBinding {
+        key: "parts.0.l2.x.pitch.steps".into(),
+        label: Some("Steps".into()),
+        kind: "number".into(),
+        min: Some(-16.0),
+        max: Some(16.0),
+        step: Some(1.0),
+        options: vec![],
+        invert: false,
+    });
+    runner.xy_y_binding = Some(NativeParamBinding {
+        key: "mixer.buses.0.slot1.params.feedback".into(),
+        label: Some("Feedback".into()),
+        kind: "number".into(),
+        min: Some(0.0),
+        max: Some(98.0),
+        step: Some(1.0),
+        options: vec![],
+        invert: false,
+    });
+
+    runner.apply_runtime_modulation(&[], 0);
+
+    assert_eq!(runner.sense_parts[0].x_pitch_steps, 16);
+    assert_eq!(runner.fx_buses[0].slot1_params["feedback"], json!(0.98));
+
+    runner.xy_x_binding = Some(NativeParamBinding {
+        key: "mixer.master.slots.0.params.cracklePct".into(),
+        label: Some("Crackle".into()),
+        kind: "number".into(),
+        min: Some(0.0),
+        max: Some(100.0),
+        step: Some(1.0),
+        options: vec![],
+        invert: false,
+    });
+    runner.xy_y_binding = Some(NativeParamBinding {
+        key: "dance.fx.params.rateHz".into(),
+        label: Some("Rate Hz".into()),
+        kind: "number".into(),
+        min: Some(1.0),
+        max: Some(32.0),
+        step: Some(1.0),
+        options: vec![],
+        invert: false,
+    });
+    runner.dance_fx_selected = json!({
+        "fxType": "stutter",
+        "targetKey": "master",
+        "params": { "rateHz": 8, "depthPct": 100 }
+    });
+
+    runner.apply_runtime_modulation(&[], 0);
+
+    assert_eq!(runner.global_fx_params[0]["cracklePct"], json!(100));
+    assert_eq!(runner.dance_fx_selected["params"]["rateHz"], json!(32.0));
+}
+
+#[test]
 fn invalid_aux_and_xy_bindings_are_dropped_on_load() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let mut payload = runner.config_payload();

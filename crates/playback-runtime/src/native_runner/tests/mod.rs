@@ -1,6 +1,7 @@
 use super::*;
 
 mod audio_menu;
+mod aux_auto_map;
 mod basics;
 mod browser_and_help;
 mod dance_fx;

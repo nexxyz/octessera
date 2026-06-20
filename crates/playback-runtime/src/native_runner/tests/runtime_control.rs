@@ -280,7 +280,8 @@ fn trigger_probability_grid_editor_cycles_cell_row_and_column() {
             .all(|value| value == "low")
     );
 
-    runner.ui.fn_held = true;
+    runner.ui.shift_held = false;
+    runner.ui.combined_modifier_held = true;
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 6, "y": 1 }),

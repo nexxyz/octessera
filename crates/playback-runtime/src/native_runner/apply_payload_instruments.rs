@@ -175,7 +175,12 @@ impl NativeRunner {
                             .and_then(|slot| slot.get("type"))
                             .and_then(Value::as_str)
                         {
-                            bus.slot1_type = slot1.into();
+                            bus.slot1_type = if crate::native_menu::is_valid_fx_bus_slot_type(slot1)
+                            {
+                                slot1.into()
+                            } else {
+                                "none".into()
+                            };
                         }
                         if let Some(params) = payload
                             .get("slot1")
@@ -189,7 +194,12 @@ impl NativeRunner {
                             .and_then(|slot| slot.get("type"))
                             .and_then(Value::as_str)
                         {
-                            bus.slot2_type = slot2.into();
+                            bus.slot2_type = if crate::native_menu::is_valid_fx_bus_slot_type(slot2)
+                            {
+                                slot2.into()
+                            } else {
+                                "none".into()
+                            };
                         }
                         if let Some(params) = payload
                             .get("slot2")
@@ -219,7 +229,12 @@ impl NativeRunner {
             {
                 for (index, payload) in slots.iter().take(self.global_fx_slots.len()).enumerate() {
                     if let Some(slot_type) = payload.get("type").and_then(Value::as_str) {
-                        self.global_fx_slots[index] = slot_type.into();
+                        self.global_fx_slots[index] =
+                            if crate::native_menu::is_valid_global_fx_slot_type(slot_type) {
+                                slot_type.into()
+                            } else {
+                                "none".into()
+                            };
                     }
                     if let Some(params) = payload.get("params").filter(|params| params.is_object())
                     {
@@ -294,6 +309,11 @@ impl NativeRunner {
         {
             self.ui.screen_sleep_seconds = (screen_sleep_seconds as u16).min(600);
         }
+        if let Some(aux_auto_map_enabled) =
+            runtime.get("auxAutoMapEnabled").and_then(Value::as_bool)
+        {
+            self.aux_auto_map_enabled = aux_auto_map_enabled;
+        }
         if let Some(aux_bindings) = runtime.get("auxBindings") {
             apply_aux_bindings_payload(&mut self.aux_bindings, aux_bindings);
         }
@@ -301,10 +321,12 @@ impl NativeRunner {
             self.bpm = bpm.clamp(20.0, 300.0);
         }
         if let Some(dance_mode) = runtime.get("danceMode").and_then(Value::as_str) {
-            if matches!(
-                dance_mode,
-                "none" | "mix" | "pan" | "fx" | "trigger-gate" | "xy"
-            ) {
+            let normalized = match dance_mode {
+                "mix" | "pan" | "fx" | "trigger-gate" | "xy" => Some(dance_mode),
+                "none" => Some("mix"),
+                _ => None,
+            };
+            if let Some(dance_mode) = normalized {
                 self.dance_mode = dance_mode.into();
                 self.active_dance_mode = "none".into();
             }

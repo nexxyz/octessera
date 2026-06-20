@@ -12,14 +12,14 @@ Platform capability source: `resources/platform-capabilities.json`; generated Ty
 | Shift + Space | Emergency Stop | Internal sync: panic + stop/reset.
 | Shift + Space (external sync) | Resync arm | External sync: does not emergency-stop transport.
 | Shift + Back | Clear active layer | Re-initializes current active layer behavior state.
-| Shift + Fn | Combined modifier | Makes Fn and Shift inactive while both physical buttons are held.
+| Shift + Fn | Combined modifier | Acts as its own logical button; Fn and Shift are inactive while both physical buttons are held.
 | Combined modifier + Main press | Context help | Opens help for highlighted menu entry.
 | Fn + leftmost grid column | Select active part (1..8) | Mirrors `L1: Life > Part`.
 | Fn held + leftmost column LEDs | Layer indicators | Gray = available layers, green = current active layer.
 | Fn + rightmost grid column | Toggle Dance | Opens `L4: Dance` and enables Dance page if currently off; exits Dance if already active.
 | Sample assign + Shift + cell | Row assign step | Applies current selected-cell assign step to the whole row.
 | Sample assign + combined modifier + cell | Column assign step | Applies current selected-cell assign step to the whole column.
-| Shift + Aux press | Bind/unbind aux mapping | Opens bind/unbind flow for focused item.
+| Fn + Aux press | Bind aux mapping | Binds the focused bindable item as a custom aux mapping.
 
 ## Control Mapping
 
@@ -33,8 +33,8 @@ Platform capability source: `resources/platform-capabilities.json`; generated Ty
 | Shift + Back | Shift+Backspace / Shift+Esc | Clear grid (re-initialize behavior) |
 | Aux encoder 1-4 turn | (simulated) | Adjust bound turn mapping |
 | Aux encoder 1-4 press | (simulated) | Trigger bound press mapping |
-| Shift + Aux encoder press | Shift + (simulated) | Bind current item / open unbind confirm |
-| Shift + Fn | Shift+Ctrl | Combined modifier; Fn and Shift functions are inactive while both are held |
+| Fn + Aux encoder press | Fn + (simulated) | Bind current item as a custom aux mapping |
+| Shift + Fn | Shift+Ctrl | Combined modifier; acts as its own logical button and disables Fn/Shift functions while both are held |
 | Combined modifier + Main press | Shift+Ctrl+Enter | Context help for highlighted entry |
 | Fn + leftmost grid column | Ctrl + leftmost grid column | Select active part (1..8); indicators show only while Fn is held (gray=available, green=active) |
 | Fn + rightmost grid column | Ctrl + rightmost grid column | Toggle L4 Dance performance layer |
@@ -302,7 +302,6 @@ L4: Dance
 ├── BPM: [40..240] step 1  default 120
 ├── selected page controls only, flattened here:
 │   ├── fx: FX Type, Target, visible params for selected FX Type, Map to Grid
-│   ├── trigger-gate: Mode Grid
 │   └── xy: X Axis, Y Axis, Invert X, Invert Y, Release
 ```
 
@@ -321,11 +320,11 @@ Dance layer behavior:
 - Stored per-part trigger probability data lives in `L2: Sense > Pn > Trigger Prob.`.
 - `Map Probability Grid` enters a four-state grid editor for the selected part. Cell cycle is `zero -> low -> high -> full -> zero`; `Shift+grid` applies to a row; `Shift+Fn+grid` applies to a column.
 - Probability-map editor LEDs: black = `0%`, red = `low`, yellow = `high`, green = `100%`.
-- `L2: Sense > Aux Mappings` exposes root-level menu-based assignment for aux encoder turn and click bindings.
+- `L2: Sense > Aux Mappings` exposes root-level menu-based assignment for aux encoder turn and click bindings plus an `Auto Map` toggle.
 - `L2: Sense > Pn > Mappings` exposes explicit per-part assignment for X/Y param-mod slots.
 - The `Slot` and aux `Turn` target pickers use the same shared parameter browser as `L4: Dance > X/Y Pad`; no separate parameter tree should diverge from that browser.
 - Aux `Click` uses a dedicated action browser for click-bindable actions.
-- Existing hardware shortcuts remain valid: Shift+grid still assigns X/Y param-mod slots and Shift+aux press still binds the currently highlighted menu parameter to aux turn.
+- Existing hardware shortcuts remain valid: Shift+grid still assigns X/Y param-mod slots and Fn+aux press binds the currently highlighted menu parameter or action as a custom aux mapping.
 - Trigger-gate Dance layout uses rows as parts with the same orientation as Fn part navigation: bottom row = part 0, top row = highest part.
 - Dance columns `0..2` set that row's part mode: `0%` (red), `custom` (yellow), `100%` (green). Selected mode is bright; the other two are dim.
 - Dance columns `3..4` are an unassigned dark gap.
@@ -467,15 +466,16 @@ Overrides:
 
 ## Aux Encoder Binding
 
-- Each aux encoder has two independent slots:
+- Each aux encoder has two independent custom slots:
   - turn slot: bound to value parameters (number/enum/bool)
   - press slot: bound to actions
-- Shift + aux press on a bindable item binds/overwrites the slot:
+- Fn + aux press on a bindable item binds/overwrites the relevant custom slot:
   - while editing a value item: binds turn slot
   - while selecting an action item: binds press slot
-- Shift + aux press when unbinding would occur opens confirmation with: `Both`, `Click`, `Turn`, `Cancel`
 - Regular aux press triggers the press slot action (if any)
 - Regular aux turn adjusts the turn slot value (if any)
+- When `Auto Map` is enabled, context-sensitive auto mappings take precedence over custom aux mappings for the active menu context.
+- In supported contexts, focused menu rows show auto-map indicators like `1-Cutoff` and `1!Assign`.
 - If no slot is bound, toast shows `S#: No binding` or `T#: No binding`
 - Turn toasts show current value, e.g. `T1: Spawn Count: 3`
 - Shared route currently implemented:

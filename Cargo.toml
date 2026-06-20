@@ -14,3 +14,15 @@ resolver = "2"
 lto = "thin"
 codegen-units = 1
 strip = true
+
+[profile.dev.package.platform-core]
+opt-level = 2
+
+[profile.dev.package.playback-runtime]
+opt-level = 2
+
+[profile.dev.package.realtime-engine]
+opt-level = 3
+
+[profile.dev.package.rodio-engine-source]
+opt-level = 3

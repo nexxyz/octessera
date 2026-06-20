@@ -10,8 +10,8 @@ pub(super) fn format_item_lines(
         return vec![String::new()];
     }
     match &item.value {
-        NativeMenuValue::Group => vec![format!("> {}", item.label)],
-        NativeMenuValue::Action(_) => vec![format!("!{}", item.label)],
+        NativeMenuValue::Group => vec![format_menu_line(&item.label, selected)],
+        NativeMenuValue::Action(_) => vec![format_menu_line(&format!("!{}", item.label), selected)],
         NativeMenuValue::Enum {
             options,
             selected: current,
@@ -306,13 +306,12 @@ fn format_param_lines(
     selected: bool,
     editing: bool,
 ) -> Vec<String> {
+    let value = value.into();
     if selected {
-        vec![
-            format!("  {label}:"),
-            format!(" {}{}", if editing { "*" } else { " " }, value.into()),
-        ]
+        let marker = if editing { "* " } else { "" };
+        vec![format_menu_line(&format!("{label}:"), true), format!("    {marker}{value}")]
     } else {
-        vec![format!("  {label}")]
+        vec![format_menu_line(label, false)]
     }
 }
 
@@ -325,13 +324,21 @@ fn format_text_lines(
 ) -> Vec<String> {
     let display = if value.is_empty() { "(empty)" } else { value };
     if selected {
-        let marker = if editing { "*" } else { " " };
+        let marker = if editing { "* " } else { "" };
         vec![
-            format!("  {label}:"),
-            format!(" {marker}{}", clip_menu_value(display, 22)),
+            format_menu_line(&format!("{label}:"), true),
+            format!("    {marker}{}", clip_menu_value(display, 22)),
         ]
     } else {
-        vec![format!("  {label}")]
+        vec![format_menu_line(label, false)]
+    }
+}
+
+fn format_menu_line(text: &str, selected: bool) -> String {
+    if selected {
+        format!("> {text}")
+    } else {
+        format!("  {text}")
     }
 }
 

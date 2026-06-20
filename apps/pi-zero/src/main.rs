@@ -16,7 +16,7 @@ use input::{
 use playback_runtime::{
     HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig, SyncSource,
 };
-use render::{render_snapshot, HardwareRenderTargets};
+use render::{render_snapshot_cached, HardwareRenderCache, HardwareRenderTargets};
 use runtime_loop::{
     dispatch_runtime_message, handle_deferred_host_work, initialize_host_state, latest_snapshot,
     sync_playback_config_from_snapshot,
@@ -26,6 +26,10 @@ use std::sync::mpsc;
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
+
+const PLAYBACK_TICK_MS: u64 = 8;
+const SNAPSHOT_INTERVAL_MS: u64 = 100;
+const RENDER_INTERVAL_MS: u64 = 33;
 
 fn main() {
     let _ = simple_logger::init();
@@ -93,7 +97,12 @@ fn main() {
     let _ = oled.write_frame(&vec![0_u8; 128 * 128 * 2]);
     let mut previous_neokey = [false; 4];
     let mut last_tick = Instant::now();
-    let tick_duration = Duration::from_millis(8);
+    let mut last_snapshot_request = Instant::now();
+    let mut last_render = Instant::now() - Duration::from_millis(RENDER_INTERVAL_MS);
+    let mut render_cache = HardwareRenderCache::default();
+    let tick_duration = Duration::from_millis(PLAYBACK_TICK_MS);
+    let snapshot_interval = Duration::from_millis(SNAPSHOT_INTERVAL_MS);
+    let render_interval = Duration::from_millis(RENDER_INTERVAL_MS);
 
     loop {
         while let Ok(message) = midi_rx.try_recv() {
@@ -141,8 +150,13 @@ fn main() {
         }
 
         if last_tick.elapsed() >= tick_duration {
-            let elapsed_ms = last_tick.elapsed().as_millis() as u64;
-            last_tick = Instant::now();
+            let now = Instant::now();
+            let elapsed_ms = now.duration_since(last_tick).as_millis() as u64;
+            last_tick = now;
+            if now.duration_since(last_snapshot_request) >= snapshot_interval {
+                playback.request_next_snapshot();
+                last_snapshot_request = now;
+            }
             if let Err(error) = playback.advance(elapsed_ms, &mut runner, &mut adapter) {
                 eprintln!("pi playback advance failed: {error}");
             }
@@ -150,16 +164,20 @@ fn main() {
             {
                 eprintln!("pi deferred host work failed: {error}");
             }
-            if let Some(snapshot) = latest_snapshot(&playback).cloned() {
-                sync_playback_config_from_snapshot(&mut playback, &mut runner, &snapshot);
-                render_snapshot(
-                    &mut HardwareRenderTargets {
-                        oled: &mut oled,
-                        trellis: &mut trellis,
-                        neokey: &mut neokey,
-                    },
-                    &snapshot,
-                );
+            if now.duration_since(last_render) >= render_interval {
+                last_render = now;
+                if let Some(snapshot) = latest_snapshot(&playback).cloned() {
+                    sync_playback_config_from_snapshot(&mut playback, &mut runner, &snapshot);
+                    render_snapshot_cached(
+                        &mut HardwareRenderTargets {
+                            oled: &mut oled,
+                            trellis: &mut trellis,
+                            neokey: &mut neokey,
+                        },
+                        &snapshot,
+                        &mut render_cache,
+                    );
+                }
             }
         }
 

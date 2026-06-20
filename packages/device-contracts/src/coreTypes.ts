@@ -66,6 +66,7 @@ export type RuntimeSnapshotSettings = {
   instruments: unknown[];
   mixer: unknown;
   panPositions: number;
+  audioConfigRevision?: number;
   autoSaveFlash: "none" | "flash";
   autoSaveFlashSerial?: number;
   transportFlash: "none" | "beat" | "measure";

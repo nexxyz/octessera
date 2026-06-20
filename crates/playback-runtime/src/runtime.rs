@@ -51,6 +51,7 @@ pub struct PlaybackRuntime {
     last_status: Option<RuntimeStatus>,
     last_snapshot: Option<Value>,
     scheduled_note_offs: Vec<ScheduledMidiMessage>,
+    scheduled_note_offs_dirty: bool,
     request_next_snapshot: bool,
 }
 
@@ -69,6 +70,7 @@ impl PlaybackRuntime {
             last_status: None,
             last_snapshot: None,
             scheduled_note_offs: Vec::new(),
+            scheduled_note_offs_dirty: false,
             request_next_snapshot: false,
         }
     }
@@ -167,6 +169,7 @@ impl PlaybackRuntime {
 
     pub fn panic<H: HostAdapter>(&mut self, host: &mut H) -> Result<(), String> {
         self.scheduled_note_offs.clear();
+        self.scheduled_note_offs_dirty = false;
         host.handle_midi_message(&[0xFC])?;
         for channel in 0..16_u8 {
             host.handle_midi_message(&[0xB0 | channel, 120, 0])?;
@@ -262,6 +265,7 @@ impl PlaybackRuntime {
                             due_at_ms: self.now_ms.saturating_add(duration_ms as u64),
                             bytes: vec![0x80 | (channel & 0x0F), note.min(127), 0],
                         });
+                        self.scheduled_note_offs_dirty = true;
                     }
                 }
                 MusicalEvent::NoteOff { channel, note } => {
@@ -330,7 +334,10 @@ impl PlaybackRuntime {
     }
 
     fn flush_scheduled_midi<H: HostAdapter>(&mut self, host: &mut H) -> Result<(), String> {
-        self.scheduled_note_offs.sort_by_key(|msg| msg.due_at_ms);
+        if self.scheduled_note_offs_dirty {
+            self.scheduled_note_offs.sort_by_key(|msg| msg.due_at_ms);
+            self.scheduled_note_offs_dirty = false;
+        }
         while self
             .scheduled_note_offs
             .first()

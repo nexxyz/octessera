@@ -1,6 +1,51 @@
 use super::*;
 
 #[test]
+fn cursor_only_navigation_does_not_apply_menu_values() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.menu.state.stack = vec![5, 1];
+    runner.ui.master_volume = 12;
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+        })
+        .unwrap();
+
+    assert_eq!(runner.ui.master_volume, 12);
+    assert_eq!(snapshot_from(&messages)["settings"]["masterVolume"], 12);
+}
+
+#[test]
+fn transport_pulse_snapshot_is_explicit() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+
+    let without_snapshot = runner
+        .send(HostMessage::TransportPulseStep {
+            pulses: 0,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: None,
+        })
+        .unwrap();
+    assert!(!without_snapshot
+        .iter()
+        .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
+
+    let with_snapshot = runner
+        .send(HostMessage::TransportPulseStep {
+            pulses: 0,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: Some(true),
+        })
+        .unwrap();
+    assert!(with_snapshot
+        .iter()
+        .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
+}
+
+#[test]
 fn changing_behavior_keeps_menu_location() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
 
@@ -198,8 +243,27 @@ fn system_sound_master_volume_edit_via_menu() {
 }
 
 #[test]
-fn screen_sleep_splashes_then_turns_oled_off_and_input_wakes() {
+fn startup_splash_closes_into_help_toast() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+
+    let messages = runner.messages_with_snapshot().unwrap();
+    let display = &snapshot_from(&messages)["display"];
+    assert_eq!(display["splash"], "Starting up");
+
+    runner.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
+    let messages = runner.messages_with_snapshot().unwrap();
+    let display = &snapshot_from(&messages)["display"];
+    assert_eq!(display["splash"], "");
+    assert_eq!(display["off"], false);
+    assert_eq!(display["toast"], "Help=Sh+Fn+Enter");
+}
+
+#[test]
+fn screen_sleep_splashes_then_turns_oled_off_and_wake_input_shows_wakeup_screen() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.oled_mode = NativeOledMode::Normal;
+    runner.oled_splash_text.clear();
+    runner.oled_splash_until = None;
     runner.ui.screen_sleep_seconds = 1;
     runner.last_interaction_at = Instant::now() - Duration::from_secs(2);
 
@@ -218,6 +282,12 @@ fn screen_sleep_splashes_then_turns_oled_off_and_input_wakes() {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
         })
         .unwrap();
+    let display = &snapshot_from(&messages)["display"];
+    assert_eq!(display["off"], false);
+    assert_eq!(display["splash"], "Waking up");
+
+    runner.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
+    let messages = runner.messages_with_snapshot().unwrap();
     let display = &snapshot_from(&messages)["display"];
     assert_eq!(display["off"], false);
     assert_eq!(display["splash"], "");
@@ -254,7 +324,7 @@ fn fn_aux_binds_selected_param_and_aux_turn_edits_it() {
     assert!(snapshot_from(&messages)["display"]["toast"]
         .as_str()
         .unwrap_or("")
-        .contains("Aux 1"));
+        .contains("T1:"));
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["auxBindings"]["aux1"]["turnKey"],
         "masterVolume"
@@ -324,8 +394,8 @@ fn edit_marker_uses_compact_star_prefix() {
     let snapshot = snapshot_from(&edit);
     let lines = snapshot["display"]["lines"].as_array().unwrap();
     assert!(lines.windows(2).any(|pair| {
-        pair[0].as_str().unwrap_or("") == "  Master Vol:"
-            && pair[1].as_str().unwrap_or("").starts_with(" *")
+        pair[0].as_str().unwrap_or("") == "> Master Vol:"
+            && pair[1].as_str().unwrap_or("").starts_with("    * ")
     }));
 }
 

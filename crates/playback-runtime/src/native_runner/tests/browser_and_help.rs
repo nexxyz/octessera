@@ -92,6 +92,16 @@ fn fn_shift_enter_opens_contextual_help_and_enter_closes_it() {
             input: json!({ "type": "button_fn", "pressed": true }),
         })
         .unwrap();
+    let modifiers = snapshot_from(
+        &runner
+            .send(HostMessage::DeviceInput {
+                input: json!({ "type": "button_combined_modifier", "pressed": true }),
+            })
+            .unwrap(),
+    );
+    assert_eq!(modifiers["settings"]["shiftHeld"], false);
+    assert_eq!(modifiers["settings"]["fnHeld"], false);
+    assert_eq!(modifiers["settings"]["combinedModifierHeld"], true);
     let opened = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
@@ -230,8 +240,7 @@ fn contextual_help_includes_midi_output_guidance() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![5, 2];
     runner.menu.state.cursor = 2;
-    runner.ui.fn_held = true;
-    runner.ui.shift_held = true;
+    runner.ui.combined_modifier_held = true;
 
     let opened = runner
         .send(HostMessage::DeviceInput {
@@ -259,8 +268,7 @@ fn contextual_help_resolves_life_params_and_scrolls_to_bottom() {
     .unwrap();
     runner.menu.state.stack = vec![0, 0];
     runner.menu.state.cursor = 4;
-    runner.ui.fn_held = true;
-    runner.ui.shift_held = true;
+    runner.ui.combined_modifier_held = true;
 
     let opened = runner
         .send(HostMessage::DeviceInput {
@@ -276,8 +284,7 @@ fn contextual_help_resolves_life_params_and_scrolls_to_bottom() {
         .join(" ");
 
     assert!(lines.contains("random cells"));
-    runner.ui.fn_held = false;
-    runner.ui.shift_held = false;
+    runner.ui.combined_modifier_held = false;
 
     runner.turn_help_popup(2);
     let help = runner.help_popup.as_ref().unwrap();

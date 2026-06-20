@@ -1,5 +1,8 @@
 use platform_core::BUS_COUNT as FX_BUS_COUNT;
 
+use super::dance::dance_fx_page_items;
+use super::fx::{fx_buses_group, global_fx_group};
+use super::voice::{instrument_group, InstrumentMenuConfig};
 use super::{
     action_item, bool_item, enum_item, group, selected_index, NativeMenuAction, NativeMenuConfig,
     NativeMenuItem, NativeMenuValue, NativeParamBindingSpec,
@@ -49,7 +52,12 @@ pub(super) fn parameter_picker_group(
             ),
         );
     }
-    group(label, children)
+    NativeMenuItem {
+        label,
+        key: Some(target),
+        value: NativeMenuValue::Group,
+        children,
+    }
 }
 
 pub(super) fn parameter_tree_groups(
@@ -92,142 +100,183 @@ pub(super) fn parameter_tree_groups(
         ],
     )];
 
-    let behavior_params = config
-        .l1_items
+    if let Some(behavior_group) = behavior_binding_groups(config, target) {
+        groups.push(behavior_group);
+    }
+
+    let sense_groups = config
+        .part_labels
         .iter()
-        .filter_map(|item| {
-            binding_from_menu_item(
-                item,
-                &format!("parts.{}.l1.behaviorConfig", config.active_part_index),
-            )
-        })
-        .map(|binding| binding_action_from_spec(binding, target))
+        .enumerate()
+        .filter_map(|(index, label)| sense_binding_group(index, label, config, target))
         .collect::<Vec<_>>();
-    if !behavior_params.is_empty() {
-        groups.push(group("Behavior", behavior_params));
+    if !sense_groups.is_empty() {
+        groups.push(group("Sense", sense_groups));
     }
 
     let instrument_groups = config
         .instrument_labels
         .iter()
         .enumerate()
-        .map(|(index, label)| {
-            group(
-                label.clone(),
-                vec![
-                    group(
-                        "Mixer",
-                        vec![
-                            binding_action(
-                                "Volume",
-                                &format!("instruments.{index}.mixer.volume"),
-                                "number",
-                                Some(0),
-                                Some(127),
-                                Some(1),
-                                vec![],
-                                target,
-                            ),
-                            binding_action(
-                                "Pan",
-                                &format!("instruments.{index}.mixer.panPos"),
-                                "number",
-                                Some(0),
-                                Some(32),
-                                Some(1),
-                                vec![],
-                                target,
-                            ),
-                        ],
-                    ),
-                    group(
-                        "Synth",
-                        vec![binding_action(
-                            "Gain",
-                            &format!("instruments.{index}.synth.amp.gainPct"),
-                            "number",
-                            Some(0),
-                            Some(100),
-                            Some(1),
-                            vec![],
-                            target,
-                        )],
-                    ),
-                    group(
-                        "Sample",
-                        vec![
-                            binding_action(
-                                "Base Velocity",
-                                &format!("instruments.{index}.sample.baseVelocity"),
-                                "number",
-                                Some(1),
-                                Some(127),
-                                Some(1),
-                                vec![],
-                                target,
-                            ),
-                            binding_action(
-                                "Tune",
-                                &format!("instruments.{index}.sample.tuneSemis"),
-                                "number",
-                                Some(-24),
-                                Some(24),
-                                Some(1),
-                                vec![],
-                                target,
-                            ),
-                            binding_action(
-                                "Gain",
-                                &format!("instruments.{index}.sample.amp.gainPct"),
-                                "number",
-                                Some(0),
-                                Some(100),
-                                Some(1),
-                                vec![],
-                                target,
-                            ),
-                        ],
-                    ),
-                    group(
-                        "MIDI",
-                        vec![
-                            binding_action(
-                                "Enabled",
-                                &format!("instruments.{index}.midi.enabled"),
-                                "bool",
-                                None,
-                                None,
-                                None,
-                                vec![],
-                                target,
-                            ),
-                            binding_action(
-                                "Velocity",
-                                &format!("instruments.{index}.midi.velocity"),
-                                "number",
-                                Some(1),
-                                Some(127),
-                                Some(1),
-                                vec![],
-                                target,
-                            ),
-                            binding_action(
-                                "Duration",
-                                &format!("instruments.{index}.midi.durationMs"),
-                                "number",
-                                Some(10),
-                                Some(5000),
-                                Some(10),
-                                vec![],
-                                target,
-                            ),
-                        ],
-                    ),
-                ],
-            )
+        .filter_map(|(index, label)| {
+            let item = instrument_group(InstrumentMenuConfig {
+                index,
+                label: label.clone(),
+                name: config
+                    .instrument_names
+                    .get(index)
+                    .map(String::as_str)
+                    .unwrap_or(label),
+                kind: config
+                    .instrument_types
+                    .get(index)
+                    .map(String::as_str)
+                    .unwrap_or("none"),
+                auto_name: config
+                    .instrument_auto_names
+                    .get(index)
+                    .copied()
+                    .unwrap_or(true),
+                note_behavior: config
+                    .instrument_note_behaviors
+                    .get(index)
+                    .map(String::as_str)
+                    .unwrap_or("oneshot"),
+                route: config
+                    .instrument_routes
+                    .get(index)
+                    .map(String::as_str)
+                    .unwrap_or("direct"),
+                volume: config.instrument_volumes.get(index).copied().unwrap_or(100),
+                pan_pos: config
+                    .instrument_pan_positions
+                    .get(index)
+                    .copied()
+                    .unwrap_or(16),
+                sample_slot: config
+                    .instrument_sample_slots
+                    .get(index)
+                    .copied()
+                    .unwrap_or(0),
+                synth_config: config.instrument_synth_configs.get(index),
+                synth_osc1_waveform: config
+                    .instrument_synth_osc1_waveforms
+                    .get(index)
+                    .map(String::as_str)
+                    .unwrap_or("saw"),
+                synth_osc2_waveform: config
+                    .instrument_synth_osc2_waveforms
+                    .get(index)
+                    .map(String::as_str)
+                    .unwrap_or("square"),
+                synth_filter_type: config
+                    .instrument_synth_filter_types
+                    .get(index)
+                    .map(String::as_str)
+                    .unwrap_or("lowpass"),
+                synth_filter_cutoff: config
+                    .instrument_synth_filter_cutoffs
+                    .get(index)
+                    .copied()
+                    .unwrap_or(8000),
+                synth_gain_pct: config
+                    .instrument_synth_gain_pct
+                    .get(index)
+                    .copied()
+                    .unwrap_or(70),
+                synth_filter_resonance: config
+                    .instrument_synth_filter_resonance
+                    .get(index)
+                    .copied()
+                    .unwrap_or(20),
+                sample_tune_semis: config
+                    .instrument_sample_tune_semis
+                    .get(index)
+                    .copied()
+                    .unwrap_or(0),
+                sample_gain_pct: config
+                    .instrument_sample_gain_pct
+                    .get(index)
+                    .copied()
+                    .unwrap_or(100),
+                sample_base_velocity: config
+                    .instrument_sample_base_velocity
+                    .get(index)
+                    .copied()
+                    .unwrap_or(100),
+                sample_amp_velocity_sensitivity_pct: config
+                    .instrument_sample_amp_velocity_sensitivity_pct
+                    .get(index)
+                    .copied()
+                    .unwrap_or(100),
+                sample_velocity_levels_enabled: config
+                    .instrument_sample_velocity_levels_enabled
+                    .get(index)
+                    .copied()
+                    .unwrap_or(false),
+                sample_velocity_high: config
+                    .instrument_sample_velocity_high
+                    .get(index)
+                    .copied()
+                    .unwrap_or(127),
+                sample_velocity_medium: config
+                    .instrument_sample_velocity_medium
+                    .get(index)
+                    .copied()
+                    .unwrap_or(96),
+                sample_velocity_low: config
+                    .instrument_sample_velocity_low
+                    .get(index)
+                    .copied()
+                    .unwrap_or(64),
+                sample_amp_env: config.instrument_sample_amp_envs.get(index),
+                sample_filter: config.instrument_sample_filters.get(index),
+                sample_filter_env: config.instrument_sample_filter_envs.get(index),
+                midi_enabled: config
+                    .instrument_midi_enabled
+                    .get(index)
+                    .copied()
+                    .unwrap_or(false),
+                midi_channel: config
+                    .instrument_midi_channels
+                    .get(index)
+                    .copied()
+                    .unwrap_or(1),
+                midi_velocity: config
+                    .instrument_midi_velocity
+                    .get(index)
+                    .copied()
+                    .unwrap_or(100),
+                midi_duration_ms: config
+                    .instrument_midi_duration_ms
+                    .get(index)
+                    .copied()
+                    .unwrap_or(250),
+                sample_browser: config
+                    .sample_browser
+                    .as_ref()
+                    .filter(|browser| browser.instrument_slot == index),
+            });
+            binding_tree_from_menu_item(&item, target)
         })
         .collect::<Vec<_>>();
-    groups.push(group("Instruments", instrument_groups));
+    if !instrument_groups.is_empty() {
+        groups.push(group("Instruments", instrument_groups));
+    }
+
+    if let Some(item) = binding_tree_from_menu_item(&fx_buses_group(&config.fx_buses), target) {
+        groups.push(item);
+    }
+    if let Some(item) = binding_tree_from_menu_item(
+        &global_fx_group(&config.global_fx_slots, &config.global_fx_params),
+        target,
+    ) {
+        groups.push(item);
+    }
+    if let Some(item) = binding_group_from_items("Dance FX", &dance_fx_page_items(config), target) {
+        groups.push(item);
+    }
+
     groups
 }
 
@@ -256,14 +305,107 @@ pub(super) fn xy_pad_items(config: &NativeMenuConfig) -> Vec<NativeMenuItem> {
     ]
 }
 
-fn binding_from_menu_item(
+fn binding_group_from_items(
+    label: &str,
+    items: &[NativeMenuItem],
+    target: &str,
+) -> Option<NativeMenuItem> {
+    let children = items
+        .iter()
+        .filter_map(|item| binding_tree_from_menu_item(item, target))
+        .collect::<Vec<_>>();
+    if children.is_empty() {
+        None
+    } else {
+        Some(group(label, children))
+    }
+}
+
+fn behavior_binding_groups(config: &NativeMenuConfig, target: &str) -> Option<NativeMenuItem> {
+    let children = config
+        .part_labels
+        .iter()
+        .enumerate()
+        .filter_map(|(part_index, label)| {
+            binding_group_from_behavior_items(label, &config.l1_items, target, config.active_part_index, part_index)
+        })
+        .collect::<Vec<_>>();
+    if children.is_empty() {
+        None
+    } else {
+        Some(group("Behavior", children))
+    }
+}
+
+fn binding_group_from_behavior_items(
+    label: &str,
+    items: &[NativeMenuItem],
+    target: &str,
+    active_part_index: usize,
+    target_part_index: usize,
+) -> Option<NativeMenuItem> {
+    let children = items
+        .iter()
+        .filter_map(|item| {
+            binding_tree_from_behavior_item(item, target, active_part_index, target_part_index)
+        })
+        .collect::<Vec<_>>();
+    if children.is_empty() {
+        None
+    } else {
+        Some(group(label, children))
+    }
+}
+
+fn binding_tree_from_behavior_item(
     item: &NativeMenuItem,
-    behavior_prefix: &str,
-) -> Option<NativeParamBindingSpec> {
-    let key = item.key.as_ref()?.strip_prefix("behavior.")?;
+    target: &str,
+    active_part_index: usize,
+    target_part_index: usize,
+) -> Option<NativeMenuItem> {
+    if let Some(binding) =
+        binding_spec_from_behavior_item(item, active_part_index, target_part_index)
+    {
+        return Some(binding_action_from_spec(binding, target));
+    }
+    let children = item
+        .children
+        .iter()
+        .filter_map(|child| {
+            binding_tree_from_behavior_item(child, target, active_part_index, target_part_index)
+        })
+        .collect::<Vec<_>>();
+    if children.is_empty() {
+        None
+    } else {
+        Some(group(item.label.clone(), children))
+    }
+}
+
+fn binding_tree_from_menu_item(item: &NativeMenuItem, target: &str) -> Option<NativeMenuItem> {
+    if let Some(binding) = binding_spec_from_item(item) {
+        return Some(binding_action_from_spec(binding, target));
+    }
+    let children = item
+        .children
+        .iter()
+        .filter_map(|child| binding_tree_from_menu_item(child, target))
+        .collect::<Vec<_>>();
+    if children.is_empty() {
+        None
+    } else {
+        Some(group(item.label.clone(), children))
+    }
+}
+
+fn binding_spec_from_item(item: &NativeMenuItem) -> Option<NativeParamBindingSpec> {
+    let key = item.key.as_ref()?.clone();
+    if is_excluded_binding_key(&key) {
+        return None;
+    }
     match &item.value {
         NativeMenuValue::Number { min, max, step, .. } => Some(NativeParamBindingSpec {
-            key: format!("{behavior_prefix}.{key}"),
+            key,
             label: Some(item.label.clone()),
             kind: "number".into(),
             min: Some(*min),
@@ -273,7 +415,7 @@ fn binding_from_menu_item(
             invert: false,
         }),
         NativeMenuValue::Enum { options, .. } => Some(NativeParamBindingSpec {
-            key: format!("{behavior_prefix}.{key}"),
+            key,
             label: Some(item.label.clone()),
             kind: "enum".into(),
             min: None,
@@ -283,7 +425,7 @@ fn binding_from_menu_item(
             invert: false,
         }),
         NativeMenuValue::Bool { .. } => Some(NativeParamBindingSpec {
-            key: format!("{behavior_prefix}.{key}"),
+            key,
             label: Some(item.label.clone()),
             kind: "bool".into(),
             min: None,
@@ -294,6 +436,443 @@ fn binding_from_menu_item(
         }),
         _ => None,
     }
+}
+
+fn binding_spec_from_behavior_item(
+    item: &NativeMenuItem,
+    active_part_index: usize,
+    target_part_index: usize,
+) -> Option<NativeParamBindingSpec> {
+    let key = item.key.as_ref()?;
+    if let Some(field) = key.strip_prefix("behavior.") {
+        let rewritten = format!("parts.{target_part_index}.l1.behaviorConfig.{field}");
+        return binding_spec_from_leaf(item, rewritten);
+    }
+    if let Some(field) = key.strip_prefix(&format!("parts.{active_part_index}.l1.behaviorConfig.")) {
+        let rewritten = format!("parts.{target_part_index}.l1.behaviorConfig.{field}");
+        return binding_spec_from_leaf(item, rewritten);
+    }
+    binding_spec_from_item(item)
+}
+
+fn binding_spec_from_leaf(item: &NativeMenuItem, key: String) -> Option<NativeParamBindingSpec> {
+    if is_excluded_binding_key(&key) {
+        return None;
+    }
+    match &item.value {
+        NativeMenuValue::Number { min, max, step, .. } => Some(NativeParamBindingSpec {
+            key,
+            label: Some(item.label.clone()),
+            kind: "number".into(),
+            min: Some(*min),
+            max: Some(*max),
+            step: Some(*step),
+            options: vec![],
+            invert: false,
+        }),
+        NativeMenuValue::Enum { options, .. } => Some(NativeParamBindingSpec {
+            key,
+            label: Some(item.label.clone()),
+            kind: "enum".into(),
+            min: None,
+            max: None,
+            step: None,
+            options: options.clone(),
+            invert: false,
+        }),
+        NativeMenuValue::Bool { .. } => Some(NativeParamBindingSpec {
+            key,
+            label: Some(item.label.clone()),
+            kind: "bool".into(),
+            min: None,
+            max: None,
+            step: None,
+            options: vec![],
+            invert: false,
+        }),
+        _ => None,
+    }
+}
+
+fn is_excluded_binding_key(key: &str) -> bool {
+    key == "behaviorId"
+        || key == "danceMode"
+        || key.ends_with(".name")
+        || key.ends_with(".autoName")
+        || key.ends_with(".clone")
+        || key.ends_with(".reset")
+        || key.contains(".mapping.")
+        || key.ends_with(".triggerProbability.map")
+}
+
+fn sense_binding_group(
+    index: usize,
+    label: &str,
+    config: &NativeMenuConfig,
+    target: &str,
+) -> Option<NativeMenuItem> {
+    let sense = config.sense_parts.get(index)?;
+    let prefix = format!("parts.{index}.l2");
+    Some(group(
+        label,
+        vec![
+            group(
+                "Scanning",
+                vec![
+                    binding_action(
+                        "Scan Mode",
+                        &format!("{prefix}.scanMode"),
+                        "enum",
+                        None,
+                        None,
+                        None,
+                        vec!["immediate", "scanning"],
+                        target,
+                    ),
+                    binding_action(
+                        "Scan Axis",
+                        &format!("{prefix}.scanAxis"),
+                        "enum",
+                        None,
+                        None,
+                        None,
+                        vec!["rows", "columns"],
+                        target,
+                    ),
+                    binding_action(
+                        "Scan Unit",
+                        &format!("{prefix}.scanUnit"),
+                        "enum",
+                        None,
+                        None,
+                        None,
+                        vec!["1/16", "1/8", "1/4", "1/2", "1/1"],
+                        target,
+                    ),
+                    binding_action(
+                        "Scan Direction",
+                        &format!("{prefix}.scanDirection"),
+                        "enum",
+                        None,
+                        None,
+                        None,
+                        vec!["forward", "reverse"],
+                        target,
+                    ),
+                    binding_action(
+                        "Sections",
+                        &format!("{prefix}.scanSections"),
+                        "enum",
+                        None,
+                        None,
+                        None,
+                        vec!["1", "2", "4", "8"],
+                        target,
+                    ),
+                ],
+            ),
+            group(
+                "Events",
+                vec![
+                    binding_action(
+                        "Event Triggers",
+                        &format!("{prefix}.eventEnabled"),
+                        "bool",
+                        None,
+                        None,
+                        None,
+                        vec![],
+                        target,
+                    ),
+                    binding_action(
+                        "State Notes",
+                        &format!("{prefix}.stateNotesEnabled"),
+                        "bool",
+                        None,
+                        None,
+                        None,
+                        vec![],
+                        target,
+                    ),
+                ],
+            ),
+            group(
+                "Trigger Prob.",
+                vec![
+                    binding_action(
+                        "Mode",
+                        &format!("{prefix}.triggerProbabilityMode"),
+                        "enum",
+                        None,
+                        None,
+                        None,
+                        vec!["zero", "custom", "full"],
+                        target,
+                    ),
+                    binding_action(
+                        "Low Prob",
+                        &format!("{prefix}.triggerProbabilityLowPct"),
+                        "number",
+                        Some(0),
+                        Some(100),
+                        Some(1),
+                        vec![],
+                        target,
+                    ),
+                    binding_action(
+                        "High Prob",
+                        &format!("{prefix}.triggerProbabilityHighPct"),
+                        "number",
+                        Some(0),
+                        Some(100),
+                        Some(1),
+                        vec![],
+                        target,
+                    ),
+                ],
+            ),
+            group(
+                "Note Mapping",
+                vec![
+                    binding_action(
+                        "Lowest Note",
+                        &format!("{prefix}.pitch.lowestNote"),
+                        "number",
+                        Some(0),
+                        Some(127),
+                        Some(1),
+                        vec![],
+                        target,
+                    ),
+                    binding_action(
+                        "Highest Note",
+                        &format!("{prefix}.pitch.highestNote"),
+                        "number",
+                        Some(0),
+                        Some(127),
+                        Some(1),
+                        vec![],
+                        target,
+                    ),
+                    binding_action(
+                        "Starting Note",
+                        &format!("{prefix}.pitch.startingNote"),
+                        "number",
+                        Some(0),
+                        Some(127),
+                        Some(1),
+                        vec![],
+                        target,
+                    ),
+                    binding_action(
+                        "Scale",
+                        &format!("{prefix}.pitch.scale"),
+                        "enum",
+                        None,
+                        None,
+                        None,
+                        vec![
+                            "chromatic",
+                            "major",
+                            "natural_minor",
+                            "dorian",
+                            "mixolydian",
+                            "major_pentatonic",
+                            "minor_pentatonic",
+                            "harmonic_minor",
+                        ],
+                        target,
+                    ),
+                    binding_action(
+                        "Root",
+                        &format!("{prefix}.pitch.root"),
+                        "enum",
+                        None,
+                        None,
+                        None,
+                        vec![
+                            "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
+                        ],
+                        target,
+                    ),
+                    binding_action(
+                        "Out of Range",
+                        &format!("{prefix}.pitch.outOfRange"),
+                        "enum",
+                        None,
+                        None,
+                        None,
+                        vec!["clamp", "wrap"],
+                        target,
+                    ),
+                ],
+            ),
+            sense_axis_binding_group(
+                &format!("{prefix}.x"),
+                "X Axis",
+                sense.x_pitch_enabled,
+                sense.x_pitch_steps,
+                sense.x_pitch_restart_each_section,
+                target,
+            ),
+            sense_axis_lane_binding_group(
+                &format!("{prefix}.x.velocity"),
+                "Velocity",
+                &sense.x_velocity,
+                target,
+            ),
+            sense_axis_lane_binding_group(
+                &format!("{prefix}.x.filterCutoff"),
+                "Filter Cutoff",
+                &sense.x_filter_cutoff,
+                target,
+            ),
+            sense_axis_lane_binding_group(
+                &format!("{prefix}.x.filterResonance"),
+                "Filter Resonance",
+                &sense.x_filter_resonance,
+                target,
+            ),
+            sense_axis_binding_group(
+                &format!("{prefix}.y"),
+                "Y Axis",
+                sense.y_pitch_enabled,
+                sense.y_pitch_steps,
+                sense.y_pitch_restart_each_section,
+                target,
+            ),
+            sense_axis_lane_binding_group(
+                &format!("{prefix}.y.velocity"),
+                "Velocity",
+                &sense.y_velocity,
+                target,
+            ),
+            sense_axis_lane_binding_group(
+                &format!("{prefix}.y.filterCutoff"),
+                "Filter Cutoff",
+                &sense.y_filter_cutoff,
+                target,
+            ),
+            sense_axis_lane_binding_group(
+                &format!("{prefix}.y.filterResonance"),
+                "Filter Resonance",
+                &sense.y_filter_resonance,
+                target,
+            ),
+        ],
+    ))
+}
+
+fn sense_axis_binding_group(
+    prefix: &str,
+    label: &str,
+    _enabled: bool,
+    _steps: i32,
+    _restart_each_section: bool,
+    target: &str,
+) -> NativeMenuItem {
+    group(
+        label,
+        vec![group(
+            "Pitch Steps",
+            vec![
+                binding_action(
+                    "Enabled",
+                    &format!("{prefix}.pitch.enabled"),
+                    "bool",
+                    None,
+                    None,
+                    None,
+                    vec![],
+                    target,
+                ),
+                binding_action(
+                    "Steps",
+                    &format!("{prefix}.pitch.steps"),
+                    "number",
+                    Some(-16),
+                    Some(16),
+                    Some(1),
+                    vec![],
+                    target,
+                ),
+                binding_action(
+                    "Restart Section",
+                    &format!("{prefix}.pitch.restartEachSection"),
+                    "bool",
+                    None,
+                    None,
+                    None,
+                    vec![],
+                    target,
+                ),
+            ],
+        )],
+    )
+}
+
+fn sense_axis_lane_binding_group(
+    prefix: &str,
+    label: &str,
+    lane: &super::NativeValueLaneConfig,
+    target: &str,
+) -> NativeMenuItem {
+    let _ = lane;
+    group(
+        label,
+        vec![
+            binding_action(
+                "Enabled",
+                &format!("{prefix}.enabled"),
+                "bool",
+                None,
+                None,
+                None,
+                vec![],
+                target,
+            ),
+            binding_action(
+                "From",
+                &format!("{prefix}.from"),
+                "number",
+                Some(0),
+                Some(127),
+                Some(1),
+                vec![],
+                target,
+            ),
+            binding_action(
+                "To",
+                &format!("{prefix}.to"),
+                "number",
+                Some(0),
+                Some(127),
+                Some(1),
+                vec![],
+                target,
+            ),
+            binding_action(
+                "Grid Offset",
+                &format!("{prefix}.gridOffset"),
+                "number",
+                Some(-7),
+                Some(7),
+                Some(1),
+                vec![],
+                target,
+            ),
+            binding_action(
+                "Curve",
+                &format!("{prefix}.curve"),
+                "enum",
+                None,
+                None,
+                None,
+                vec!["linear", "exp", "log"],
+                target,
+            ),
+        ],
+    )
 }
 
 #[allow(clippy::too_many_arguments)]

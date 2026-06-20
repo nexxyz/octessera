@@ -57,7 +57,10 @@ fn l2_sense_exposes_aux_mappings_and_enterable_part_rows() {
         .clone();
     assert!(lines
         .iter()
-        .any(|line| line.as_str().unwrap_or("") == "> Aux Mappings"));
+        .any(|line| line.as_str().unwrap_or("") == "  Aux Mappings"));
+    assert!(lines
+        .iter()
+        .any(|line| line.as_str().unwrap_or("") == "> P1: life"));
     assert!(lines
         .iter()
         .any(|line| line.as_str().unwrap_or("").contains("P1:")));
@@ -75,7 +78,7 @@ fn l2_sense_exposes_aux_mappings_and_enterable_part_rows() {
         .any(|line| line.as_str().unwrap_or("") == "> Scanning"));
     assert!(part_lines
         .iter()
-        .any(|line| line.as_str().unwrap_or("") == "> Events"));
+        .any(|line| line.as_str().unwrap_or("").trim() == "Events"));
 }
 
 #[test]
@@ -203,10 +206,10 @@ fn voice_menu_visibility_follows_instrument_type() {
         .clone();
     assert!(sampler_lines
         .iter()
-        .any(|line| line.as_str().unwrap_or("") == "> Sampler"));
+        .any(|line| line.as_str().unwrap_or("").trim() == "Sampler"));
     assert!(!sampler_lines
         .iter()
-        .any(|line| line.as_str().unwrap_or("") == "> Synth"));
+        .any(|line| line.as_str().unwrap_or("").trim() == "Synth"));
 
     runner.instruments[0].kind = "midi".into();
     runner.instruments[0].name = "midi".into();
@@ -215,10 +218,10 @@ fn voice_menu_visibility_follows_instrument_type() {
     let midi_lines = midi["display"]["lines"].as_array().unwrap();
     assert!(midi_lines
         .iter()
-        .any(|line| line.as_str().unwrap_or("") == "> MIDI"));
+        .any(|line| line.as_str().unwrap_or("").trim() == "MIDI"));
     assert!(!midi_lines
         .iter()
-        .any(|line| line.as_str().unwrap_or("") == "> Mixer"));
+        .any(|line| line.as_str().unwrap_or("").trim() == "Mixer"));
 }
 
 #[test]

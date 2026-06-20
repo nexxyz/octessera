@@ -53,6 +53,13 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
   let lastTauriDrainAt = 0;
   let tauriDrainInFlight = false;
   let ignoreAsyncUntilMs = 0;
+  let cachedAudioRevision: number | undefined;
+  let cachedInstruments: unknown[] = [];
+  let cachedMixer: unknown = { buses: [] };
+  let cachedPanPositions: number = PAN_POSITION_COUNT;
+  let cachedMasterVolume: number = 100;
+  const pendingEncoderTurns = new Map<string, number>();
+  let pendingEncoderTimer: ReturnType<typeof setTimeout> | null = null;
   const listeners = new Set<RuntimeListener>();
   const tauriMidi = deps.midiService ?? (isTauri && !deps.runtimeDispatch ? new TauriMidiService() : null);
   const audioLoadService = deps.audioLoadService ?? new TauriAudioLoadService();
@@ -90,6 +97,14 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
 
   function snapshotFromCore(frame: RuntimeSnapshot): SimulatorSnapshot {
     const settings = frame.settings;
+    const audioRevision = settings?.audioConfigRevision;
+    if (settings && (cachedAudioRevision === undefined || audioRevision === undefined || audioRevision !== cachedAudioRevision)) {
+      cachedAudioRevision = audioRevision;
+      cachedInstruments = settings.instruments ?? [];
+      cachedMixer = settings.mixer ?? { buses: [] };
+      cachedPanPositions = settings.panPositions ?? PAN_POSITION_COUNT;
+      cachedMasterVolume = settings.masterVolume ?? 100;
+    }
     const flash = settings?.transportFlash ?? "none";
     const combined = settings?.combinedModifierHeld ?? false;
     return {
@@ -102,13 +117,14 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
       },
       displayBrightness: settings?.displayBrightness ?? 75,
       buttonBrightness: settings?.buttonBrightness ?? 75,
-      masterVolume: settings?.masterVolume ?? 100,
+      masterVolume: cachedMasterVolume,
       voiceStealingMode: settings?.voiceStealingMode ?? "balanced",
       audioLoad,
       audioError,
-      instruments: settings?.instruments ?? [],
-      mixer: settings?.mixer ?? { buses: [] },
-      panPositions: settings?.panPositions ?? PAN_POSITION_COUNT,
+      instruments: cachedInstruments,
+      mixer: cachedMixer,
+      panPositions: cachedPanPositions,
+      audioConfigRevision: cachedAudioRevision,
       autoSaveFlash: settings?.autoSaveFlash ?? "none",
       autoSaveFlashSerial: settings?.autoSaveFlashSerial
     };
@@ -120,6 +136,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
   }
 
   function syncPlaybackConfigIfNeeded() {
+    if (deps.runtimeDispatch) return;
     const settings = frameSettings();
     const midi = settings?.midi;
     if (!midi) return;
@@ -197,15 +214,40 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
   }
 
   function dispatchToRunner(input: DeviceInput) {
+    flushPendingEncoderTurns();
     syncPlaybackConfigIfNeeded();
     mirrorRuntimeMessage({ type: "device_input", input });
+  }
+
+  function flushPendingEncoderTurns() {
+    if (pendingEncoderTimer !== null) {
+      clearTimeout(pendingEncoderTimer);
+      pendingEncoderTimer = null;
+    }
+    for (const [id, delta] of pendingEncoderTurns) {
+      pendingEncoderTurns.delete(id);
+      if (delta === 0) continue;
+      syncPlaybackConfigIfNeeded();
+      mirrorRuntimeMessage({ type: "device_input", input: { type: "encoder_turn", id: id as any, delta } as DeviceInput });
+    }
+  }
+
+  function dispatchEncoderTurn(input: Extract<DeviceInput, { type: "encoder_turn" }>) {
+    const id = input.id ?? "main";
+    pendingEncoderTurns.set(id, Math.max(-127, Math.min(127, (pendingEncoderTurns.get(id) ?? 0) + input.delta)));
+    if (pendingEncoderTimer !== null) return;
+    pendingEncoderTimer = setTimeout(flushPendingEncoderTurns, 8);
   }
 
   syncPlaybackConfigIfNeeded();
 
   return {
     dispatch(input) {
-      dispatchToRunner(input);
+      if (input.type === "encoder_turn") {
+        dispatchEncoderTurn(input);
+      } else {
+        dispatchToRunner(input);
+      }
     },
     dispatchAction(action) {
       if (action.type === "emergency_brake") {
@@ -221,12 +263,16 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
         dispatchToRunner({ type: "button_fn", pressed: action.active });
         return;
       }
-      dispatchToRunner(action.input);
+      if (action.input.type === "encoder_turn") {
+        dispatchEncoderTurn(action.input);
+      } else {
+        dispatchToRunner(action.input);
+      }
     },
     start() {
       runtimeUpdateEpoch += 1;
       ignoreAsyncUntilMs = performance.now() + ASYNC_RUNTIME_SUPPRESS_MS;
-      void dispatchRuntime({ type: "transport_pulse_step", pulses: 0, source: "internal" })
+      void dispatchRuntime({ type: "transport_pulse_step", pulses: 0, source: "internal", requestSnapshot: true })
         .then((messages) => {
           processRunnerMessages(messages);
           publishSnapshot();
@@ -239,11 +285,11 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
       scheduler.start((nowMs) => {
         syncPlaybackConfigIfNeeded();
         maybeDrainTauriRuntimeMessages(nowMs);
-        publishSnapshot();
       });
       publishSnapshot();
     },
     stop() {
+      flushPendingEncoderTurns();
       publishSnapshot();
       scheduler.stop();
     },

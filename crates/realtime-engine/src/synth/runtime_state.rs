@@ -111,11 +111,25 @@ impl EnvState {
 }
 
 #[derive(Clone, Copy, Debug)]
+pub(super) struct BiquadCoeffs {
+    b0: f32,
+    b1: f32,
+    b2: f32,
+    a1: f32,
+    a2: f32,
+}
+
+#[derive(Clone, Copy, Debug)]
 pub(super) struct BiquadState {
     pub(super) x1: f32,
     pub(super) x2: f32,
     pub(super) y1: f32,
     pub(super) y2: f32,
+    mode: FilterType,
+    cutoff_hz: f32,
+    q: f32,
+    sample_rate: u32,
+    coeffs: BiquadCoeffs,
 }
 
 impl BiquadState {
@@ -125,6 +139,17 @@ impl BiquadState {
             x2: 0.0,
             y1: 0.0,
             y2: 0.0,
+            mode: FilterType::Lowpass,
+            cutoff_hz: 0.0,
+            q: 0.0,
+            sample_rate: 0,
+            coeffs: BiquadCoeffs {
+                b0: 1.0,
+                b1: 0.0,
+                b2: 0.0,
+                a1: 0.0,
+                a2: 0.0,
+            },
         }
     }
 
@@ -138,50 +163,75 @@ impl BiquadState {
     ) -> f32 {
         let cutoff = cutoff_hz.clamp(20.0, 20_000.0);
         let qv = q.clamp(0.25, 20.0);
-        let w0 = 2.0 * PI * cutoff / (sample_rate as f32);
-        let cos_w0 = w0.cos();
-        let sin_w0 = w0.sin();
-        let alpha = sin_w0 / (2.0 * qv);
+        if self.mode != mode
+            || self.cutoff_hz != cutoff
+            || self.q != qv
+            || self.sample_rate != sample_rate
+        {
+            self.mode = mode;
+            self.cutoff_hz = cutoff;
+            self.q = qv;
+            self.sample_rate = sample_rate;
+            self.coeffs = biquad_coeffs(mode, cutoff, qv, sample_rate);
+        }
 
-        let (b0, b1, b2, a0, a1, a2) = match mode {
-            FilterType::Lowpass => (
-                (1.0 - cos_w0) * 0.5,
-                1.0 - cos_w0,
-                (1.0 - cos_w0) * 0.5,
-                1.0 + alpha,
-                -2.0 * cos_w0,
-                1.0 - alpha,
-            ),
-            FilterType::Highpass => (
-                (1.0 + cos_w0) * 0.5,
-                -(1.0 + cos_w0),
-                (1.0 + cos_w0) * 0.5,
-                1.0 + alpha,
-                -2.0 * cos_w0,
-                1.0 - alpha,
-            ),
-            FilterType::Bandpass => (alpha, 0.0, -alpha, 1.0 + alpha, -2.0 * cos_w0, 1.0 - alpha),
-            FilterType::Notch => (
-                1.0,
-                -2.0 * cos_w0,
-                1.0,
-                1.0 + alpha,
-                -2.0 * cos_w0,
-                1.0 - alpha,
-            ),
-        };
-
-        let nb0 = b0 / a0;
-        let nb1 = b1 / a0;
-        let nb2 = b2 / a0;
-        let na1 = a1 / a0;
-        let na2 = a2 / a0;
-        let y = nb0 * x + nb1 * self.x1 + nb2 * self.x2 - na1 * self.y1 - na2 * self.y2;
+        let y = self.coeffs.b0 * x + self.coeffs.b1 * self.x1 + self.coeffs.b2 * self.x2
+            - self.coeffs.a1 * self.y1
+            - self.coeffs.a2 * self.y2;
         self.x2 = self.x1;
         self.x1 = x;
         self.y2 = self.y1;
         self.y1 = y;
         y
+    }
+}
+
+fn biquad_coeffs(mode: FilterType, cutoff: f32, qv: f32, sample_rate: u32) -> BiquadCoeffs {
+    let w0 = 2.0 * PI * cutoff / (sample_rate as f32);
+    let cos_w0 = w0.cos();
+    let sin_w0 = w0.sin();
+    let alpha = sin_w0 / (2.0 * qv);
+
+    let (b0, b1, b2, a0, a1, a2) = match mode {
+        FilterType::Lowpass => (
+            (1.0 - cos_w0) * 0.5,
+            1.0 - cos_w0,
+            (1.0 - cos_w0) * 0.5,
+            1.0 + alpha,
+            -2.0 * cos_w0,
+            1.0 - alpha,
+        ),
+        FilterType::Highpass => (
+            (1.0 + cos_w0) * 0.5,
+            -(1.0 + cos_w0),
+            (1.0 + cos_w0) * 0.5,
+            1.0 + alpha,
+            -2.0 * cos_w0,
+            1.0 - alpha,
+        ),
+        FilterType::Bandpass => (alpha, 0.0, -alpha, 1.0 + alpha, -2.0 * cos_w0, 1.0 - alpha),
+        FilterType::Notch => (
+            1.0,
+            -2.0 * cos_w0,
+            1.0,
+            1.0 + alpha,
+            -2.0 * cos_w0,
+            1.0 - alpha,
+        ),
+    };
+
+    let nb0 = b0 / a0;
+    let nb1 = b1 / a0;
+    let nb2 = b2 / a0;
+    let na1 = a1 / a0;
+    let na2 = a2 / a0;
+
+    BiquadCoeffs {
+        b0: nb0,
+        b1: nb1,
+        b2: nb2,
+        a1: na1,
+        a2: na2,
     }
 }
 

@@ -43,6 +43,7 @@ fn snapshot_settings_include_complete_audio_config_shapes() {
 #[test]
 fn unbound_aux_inputs_show_toast_without_navigating_menu() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.aux_auto_map_enabled = false;
     let original_stack = runner.menu.state.stack.clone();
     let original_cursor = runner.menu.state.cursor;
 
@@ -55,10 +56,59 @@ fn unbound_aux_inputs_show_toast_without_navigating_menu() {
 
     assert_eq!(runner.menu.state.stack, original_stack);
     assert_eq!(runner.menu.state.cursor, original_cursor);
-    assert!(snapshot["display"]["toast"]
-        .as_str()
-        .unwrap()
-        .contains("Aux 1"));
+    assert_eq!(snapshot["display"]["toast"], "T1: No binding");
+}
+
+#[test]
+fn toasts_expire_after_timeout() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.set_toast_for_test("Temporary toast");
+
+    assert_eq!(
+        runner.snapshot().unwrap()["display"]["toast"],
+        "Temporary toast"
+    );
+
+    runner.age_toast_state_for_test(2500);
+    let _ = runner.messages_with_snapshot().unwrap();
+
+    assert_eq!(runner.snapshot().unwrap()["display"]["toast"], "");
+}
+
+#[test]
+fn aux_turn_toast_cooldown_keeps_first_then_shows_latest() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.menu.state.stack = vec![2, 0, 0, 2, 2];
+    runner.menu.state.cursor = 1;
+
+    let first = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "id": "aux1", "delta": 1 }),
+        })
+        .unwrap();
+    assert_eq!(snapshot_from(&first)["display"]["toast"], "T1: Cutoff: 223");
+
+    let second = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "id": "aux1", "delta": 1 }),
+        })
+        .unwrap();
+    assert_eq!(
+        snapshot_from(&second)["display"]["toast"],
+        "T1: Cutoff: 223"
+    );
+
+    let third = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "id": "aux1", "delta": 1 }),
+        })
+        .unwrap();
+    assert_eq!(snapshot_from(&third)["display"]["toast"], "T1: Cutoff: 223");
+
+    runner.age_toast_state_for_test(600);
+    let after = runner.messages_with_snapshot().unwrap();
+
+    assert_eq!(snapshot_from(&after)["display"]["toast"], "T1: Cutoff: 225");
 }
 
 #[test]

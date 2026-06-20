@@ -291,23 +291,27 @@ fn midi_ports_group(
 pub(super) fn aux_mappings_group(config: &NativeMenuConfig) -> NativeMenuItem {
     group(
         "Aux Mappings",
-        (0..4)
-            .map(|index| {
-                let binding = config.aux_bindings.get(index).cloned().unwrap_or_default();
-                group(
-                    format!("Aux {}", index + 1),
-                    vec![
-                        parameter_picker_group(
-                            axis_binding_label("Turn", binding.turn.as_ref()),
-                            format!("aux:{index}:turn"),
-                            binding.turn.as_ref(),
-                            config,
-                        ),
-                        aux_click_picker_group(index, binding.click.as_ref(), config),
-                    ],
-                )
-            })
-            .collect(),
+        std::iter::once(bool_item(
+            "Auto Map",
+            "auxAutoMapEnabled",
+            config.aux_auto_map_enabled,
+        ))
+        .chain((0..4).map(|index| {
+            let binding = config.aux_bindings.get(index).cloned().unwrap_or_default();
+            group(
+                format!("Aux {}", index + 1),
+                vec![
+                    parameter_picker_group(
+                        axis_binding_label("Turn", binding.turn.as_ref()),
+                        format!("aux:{index}:turn"),
+                        binding.turn.as_ref(),
+                        config,
+                    ),
+                    aux_click_picker_group(index, binding.click.as_ref(), config),
+                ],
+            )
+        }))
+        .collect(),
     )
 }
 

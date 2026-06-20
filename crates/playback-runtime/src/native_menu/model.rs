@@ -8,7 +8,8 @@ use super::format::{
 use super::help::collect_help_targets;
 use super::help::{canonicalize_help_path, menu_help_target};
 use super::model_helpers::{
-    find_item, find_item_by_key, param_binding_from_item_key, turn_key_in_item, turn_text_value,
+    find_item, find_item_by_key, find_item_path_by_key, param_binding_from_item_key,
+    turn_key_in_item, turn_text_value,
 };
 use super::{
     build_root, NativeMenuAction, NativeMenuConfig, NativeMenuHelpTarget, NativeMenuItem,
@@ -36,6 +37,17 @@ impl NativeMenuModel {
         } else if self.state.cursor >= siblings_len {
             self.state.cursor = siblings_len - 1;
         }
+    }
+
+    pub fn focus_item_key(&mut self, key: &str) -> bool {
+        let mut path = Vec::new();
+        if !find_item_path_by_key(&self.root, key, &mut path) || path.is_empty() {
+            return false;
+        }
+        self.state.cursor = *path.last().unwrap_or(&0);
+        self.state.stack = path[..path.len().saturating_sub(1)].to_vec();
+        self.state.editing = false;
+        true
     }
 
     pub fn turn(&mut self, delta: i8) {
@@ -166,6 +178,8 @@ impl NativeMenuModel {
         let mut lines = Vec::new();
         let mut colors = Vec::new();
         let mut bar_values = Vec::new();
+        let mut line_keys = Vec::new();
+        let mut line_actions = Vec::new();
         let section_color = section_color_from_path(&self.path_label());
         let root_level = self.state.stack.is_empty();
         let mut selected_row = None;
@@ -176,6 +190,8 @@ impl NativeMenuModel {
                 lines: vec!["(empty)".into()],
                 colors: vec![section_color],
                 bar_values: vec![None],
+                line_keys: vec![None],
+                line_actions: vec![None],
                 selected_row: Some(0),
                 selected_action: None,
             };
@@ -235,7 +251,24 @@ impl NativeMenuModel {
                 &self.numeric_display_mode,
             );
             let item_line_count = item_lines.len();
+            let line_key = item.key.clone();
+            let line_action = match &item.value {
+                NativeMenuValue::Action(action) => Some(action.clone()),
+                _ => None,
+            };
             lines.extend(item_lines);
+            for line_index in 0..item_line_count {
+                line_keys.push(if line_index == 0 {
+                    line_key.clone()
+                } else {
+                    None
+                });
+                line_actions.push(if line_index == 0 {
+                    line_action.clone()
+                } else {
+                    None
+                });
+            }
             bar_values.extend(format_item_bar_values(
                 item,
                 item_line_count,
@@ -257,16 +290,22 @@ impl NativeMenuModel {
         lines.truncate(body_rows);
         colors.truncate(body_rows);
         bar_values.truncate(body_rows);
+        line_keys.truncate(body_rows);
+        line_actions.truncate(body_rows);
         if lines.is_empty() {
             lines.push("(empty)".into());
             colors.push(section_color);
             bar_values.push(None);
+            line_keys.push(None);
+            line_actions.push(None);
         }
         NativeMenuSnapshot {
             path: self.path_label(),
             lines,
             colors,
             bar_values,
+            line_keys,
+            line_actions,
             selected_row,
             selected_action: match &self.current_item().value {
                 NativeMenuValue::Action(action) => Some(action.clone()),
@@ -341,6 +380,15 @@ impl NativeMenuModel {
             .and_then(|item| item.key.as_deref())
     }
 
+    pub fn current_browse_requires_apply(&self) -> bool {
+        let siblings = self.current_siblings();
+        let Some(item) = siblings.get(self.state.cursor.min(siblings.len().saturating_sub(1)))
+        else {
+            return false;
+        };
+        matches!(item.value, NativeMenuValue::Group | NativeMenuValue::Action(_))
+    }
+
     pub fn current_help_target(&self) -> Option<NativeMenuHelpTarget> {
         let siblings = self.current_siblings();
         let item = siblings.get(self.state.cursor.min(siblings.len().saturating_sub(1)))?;
@@ -368,6 +416,15 @@ impl NativeMenuModel {
             (_, NativeMenuValue::Action(action)) => (None, Some(action.clone())),
             _ => (None, None),
         }
+    }
+
+    pub fn binding_spec_for_key(&self, key: &str) -> Option<NativeParamBindingSpec> {
+        let item = find_item_by_key(&self.root, key)?;
+        param_binding_from_item_key(item, key.to_string())
+    }
+
+    pub fn current_focus_path(&self) -> String {
+        self.current_item_path()
     }
 
     pub fn current_param_binding(&self) -> Option<NativeParamBindingSpec> {

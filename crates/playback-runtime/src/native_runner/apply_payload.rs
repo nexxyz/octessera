@@ -5,6 +5,7 @@ use super::{
 
 impl NativeRunner {
     pub(super) fn apply_config_payload(&mut self, payload: Value) -> Result<(), String> {
+        let before_payload = self.config_payload();
         let runtime = payload.get("runtimeConfig").unwrap_or(&payload);
         let desired_active_part_index = runtime
             .get("activePartIndex")
@@ -52,6 +53,10 @@ impl NativeRunner {
         self.sync_engine_runtime_config();
         self.menu.state = Default::default();
         self.menu.rebuild(self.menu_config());
+        let after_payload = self.config_payload();
+        if audio_config_changed(&before_payload, &after_payload) {
+            self.audio_config_revision = self.audio_config_revision.wrapping_add(1);
+        }
         Ok(())
     }
 
@@ -96,4 +101,12 @@ impl NativeRunner {
             .copied()
             .unwrap_or(DEFAULT_ALGORITHM_STEP_PULSES);
     }
+}
+
+fn audio_config_changed(before: &Value, after: &Value) -> bool {
+    let before = before.get("runtimeConfig").unwrap_or(before);
+    let after = after.get("runtimeConfig").unwrap_or(after);
+    ["instruments", "mixer", "masterVolume"]
+        .into_iter()
+        .any(|key| before.get(key) != after.get(key))
 }

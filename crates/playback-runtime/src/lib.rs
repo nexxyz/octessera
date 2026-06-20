@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 mod native_help;
 mod native_menu;
 mod native_runner;

@@ -1,4 +1,4 @@
-use crate::native_menu::NativeMenuAction;
+use crate::native_menu::{NativeMenuAction, NativeMenuValue};
 use crate::protocol::RuntimePlatformEffect;
 
 use super::modulation::{param_mod_grid_targets, param_mod_next_toggle_mode};
@@ -263,12 +263,10 @@ impl NativeRunner {
             .as_ref()
             .and_then(|binding| binding.label.as_deref())
             .unwrap_or("none");
-        self.toast = Some(NativeToast {
-            message: format!("Mapped {label}"),
-            offset: 0,
-        });
+        self.show_toast(format!("Mapped {label}"));
         self.config_dirty = true;
         self.menu.rebuild(self.menu_config());
+        let _ = self.menu.focus_item_key(target);
     }
 
     pub(super) fn aux_index(id: Option<&str>) -> Option<usize> {
@@ -284,13 +282,32 @@ impl NativeRunner {
     fn bind_aux_from_current(&mut self, index: usize) -> bool {
         let (turn_key, press_action) = self.menu.current_binding_target();
         if turn_key.is_none() && press_action.is_none() {
+            self.show_toast(format!("S{}: No binding", index + 1));
             return false;
         }
+        let message = if let Some(key) = turn_key.as_deref() {
+            format!(
+                "S{}: Bound turn: {}",
+                index + 1,
+                self.aux_binding_key_label(key)
+            )
+        } else if let Some(action) = press_action.as_ref() {
+            format!(
+                "S{}: Bound click: {}",
+                index + 1,
+                self.aux_binding_action_label(action)
+            )
+        } else {
+            format!("S{}: Bound", index + 1)
+        };
         if let Some(slot) = self.aux_bindings.get_mut(index) {
             *slot = Some(NativeAuxBinding {
                 turn_key,
                 press_action,
             });
+            self.show_toast(message);
+            self.config_dirty = true;
+            self.menu.rebuild(self.menu_config());
             return true;
         }
         false
@@ -367,35 +384,27 @@ impl NativeRunner {
         if delta == 0 {
             return Ok(());
         }
-        let Some(Some(binding)) = self.aux_bindings.get(index) else {
-            self.toast = Some(NativeToast {
-                message: format!("Aux {} turn not bound", index + 1),
-                offset: 0,
-            });
+        let binding = self.effective_aux_slot(index);
+        let Some(turn) = binding.turn else {
+            self.show_toast(format!("T{}: No binding", index + 1));
             return Ok(());
         };
-        let Some(key) = binding.turn_key.clone() else {
-            self.toast = Some(NativeToast {
-                message: format!("Aux {} turn not bound", index + 1),
-                offset: 0,
-            });
-            return Ok(());
-        };
-        if self.menu.turn_key(&key, delta) {
-            self.apply_menu_state()?;
+        if self.menu.turn_key(&turn.key, delta) {
+            if !self.apply_menu_key_fast(&turn.key) {
+                self.apply_menu_state()?;
+            }
             let value = self
                 .menu
-                .value_for_key(&key)
+                .value_for_key(&turn.key)
                 .or_else(|| {
                     self.menu
-                        .number_for_key(&key)
+                        .number_for_key(&turn.key)
                         .map(|value| value.to_string())
                 })
                 .unwrap_or_else(|| "changed".into());
-            self.toast = Some(NativeToast {
-                message: format!("Aux {} {value}", index + 1),
-                offset: 0,
-            });
+            self.show_or_queue_aux_turn_toast(format!("T{}: {}: {value}", index + 1, turn.label));
+        } else {
+            self.show_toast(format!("T{}: {} not active", index + 1, turn.label));
         }
         Ok(())
     }
@@ -408,20 +417,42 @@ impl NativeRunner {
             self.bind_aux_from_current(index);
             return Ok(None);
         }
-        let Some(Some(binding)) = self.aux_bindings.get(index) else {
-            self.toast = Some(NativeToast {
-                message: format!("Aux {} click not bound", index + 1),
-                offset: 0,
-            });
+        let binding = self.effective_aux_slot(index);
+        let Some(press) = binding.press else {
+            self.show_toast(format!("S{}: No binding", index + 1));
             return Ok(None);
         };
-        let Some(action) = binding.press_action.clone() else {
-            self.toast = Some(NativeToast {
-                message: format!("Aux {} click not bound", index + 1),
-                offset: 0,
+        if let NativeMenuAction::BehaviorAction(action_type) = &press.action {
+            let valid = self.l1_menu_items().into_iter().any(|item| {
+                matches!(
+                    item.value,
+                    NativeMenuValue::Action(NativeMenuAction::BehaviorAction(ref current)) if current == action_type
+                )
             });
-            return Ok(None);
-        };
-        self.execute_menu_action(action)
+            if !valid {
+                self.show_toast(format!("S{}: {} not active", index + 1, press.label));
+                return Ok(None);
+            }
+        }
+        if matches!(&press.action, NativeMenuAction::PlatformEffect(action) if action.starts_with("sample.assign:"))
+        {
+            let NativeMenuAction::PlatformEffect(action) = &press.action else {
+                unreachable!();
+            };
+            if let Ok((instrument_slot, _, _)) = parse_sample_action(&action[14..]) {
+                if self
+                    .instruments
+                    .get(instrument_slot)
+                    .map(|instrument| instrument.kind.as_str() != "sampler")
+                    .unwrap_or(true)
+                {
+                    self.show_toast(format!("S{}: {} not active", index + 1, press.label));
+                    return Ok(None);
+                }
+            }
+        }
+        let result = self.execute_menu_action(press.action.clone())?;
+        self.show_toast(format!("S{}: {}", index + 1, press.label));
+        Ok(result)
     }
 }

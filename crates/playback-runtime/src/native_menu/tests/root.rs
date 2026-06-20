@@ -9,11 +9,11 @@ fn root_snapshot_includes_l4_separator_and_system() {
         snapshot.lines,
         vec![
             "> L1: Life",
-            "> L2: Sense",
-            "> L3: Voice",
-            "> L4: Dance",
+            "  L2: Sense",
+            "  L3: Voice",
+            "  L4: Dance",
             "",
-            "> System"
+            "  System"
         ]
     );
     assert_eq!(snapshot.selected_row, Some(0));
@@ -66,7 +66,7 @@ fn system_submenu_uses_abbreviated_path_and_section_colors() {
     let _ = menu.press();
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "SYS");
-    assert_eq!(snapshot.lines, vec!["> Saves", "> Sound", "> MIDI", "> UI"]);
+    assert_eq!(snapshot.lines, vec!["> Saves", "  Sound", "  MIDI", "  UI"]);
     assert_eq!(snapshot.colors, vec![0xB50D, 0xB50D, 0xB50D, 0xB50D]);
     assert_eq!(snapshot.selected_row, Some(0));
 }
@@ -108,17 +108,17 @@ fn l2_starts_with_aux_mappings_and_part_rows_are_enterable() {
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "L2: Sense");
     assert_eq!(snapshot.lines[0], "> Aux Mappings");
-    assert_eq!(snapshot.lines[1], "> P1: life");
+    assert_eq!(snapshot.lines[1], "  P1: life");
     menu.turn(1);
     let _ = menu.press();
     let part_snapshot = menu.snapshot();
     assert_eq!(part_snapshot.path, "L2: Sense/P1: life");
     assert!(part_snapshot.lines.iter().any(|line| line == "> Scanning"));
-    assert!(part_snapshot.lines.iter().any(|line| line == "> Events"));
+    assert!(part_snapshot.lines.iter().any(|line| line == "  Events"));
     assert!(part_snapshot
         .lines
         .iter()
-        .any(|line| line == "> Note Mapping"));
+        .any(|line| line == "  Note Mapping"));
 }
 
 #[test]
@@ -130,7 +130,7 @@ fn snapshot_scrolls_to_keep_selected_row_visible() {
     assert_eq!(snapshot.path, "L1: Life");
     assert_eq!(snapshot.selected_row, Some(6));
     assert_eq!(snapshot.lines[6], "> P8: life");
-    assert!(!snapshot.lines.iter().any(|line| line == "> P1: life"));
+    assert!(!snapshot.lines.iter().any(|line| line == "  P1: life"));
 }
 
 #[test]

@@ -73,12 +73,13 @@ pub fn raindrops_on_input(
             let mut rng = rand::thread_rng();
             next.drops.push(DropCell {
                 x: rng.gen_range(0..GRID_WIDTH),
-                y: 0,
+                y: GRID_HEIGHT - 1,
             });
         }
-        DeviceInput::GridPress { x, y } if x < GRID_WIDTH && y == 0 => {
-            next.drops.push(DropCell { x, y: 0 })
-        }
+        DeviceInput::GridPress { x, y } if x < GRID_WIDTH && y == 0 => next.drops.push(DropCell {
+            x,
+            y: GRID_HEIGHT - 1,
+        }),
         DeviceInput::GridPress { x, y } if x < GRID_WIDTH && y < GRID_HEIGHT => {
             next.rings.push(Ring {
                 ox: x,
@@ -110,18 +111,18 @@ pub fn raindrops_on_tick(state: RaindropsState, _context: &mut BehaviorContext) 
         .collect::<Vec<_>>();
     let mut drops = Vec::new();
     for drop in &state.drops {
-        if drop.y + 1 >= GRID_HEIGHT - 1 {
+        if drop.y == 0 {
             if state.splash_radius > 0 {
                 rings.push(Ring {
                     ox: drop.x,
-                    oy: GRID_HEIGHT - 1,
+                    oy: 0,
                     radius: 0,
                 });
             }
         } else {
             drops.push(DropCell {
                 x: drop.x,
-                y: drop.y + 1,
+                y: drop.y - 1,
             });
         }
     }
@@ -132,7 +133,7 @@ pub fn raindrops_on_tick(state: RaindropsState, _context: &mut BehaviorContext) 
         let mut rng = rand::thread_rng();
         drops.push(DropCell {
             x: rng.gen_range(0..GRID_WIDTH),
-            y: 0,
+            y: GRID_HEIGHT - 1,
         });
     }
     let mut cells = vec![false; CELL_COUNT];
@@ -188,28 +189,48 @@ mod tests {
             .unwrap();
         let state = raindrops_on_input(state, DeviceInput::GridPress { x: 2, y: 0 }, &mut context);
         let ticked = raindrops_on_tick(state, &mut context);
-        assert_eq!(ticked.drops[0], DropCell { x: 2, y: 1 });
-        assert!(ticked.cells[grid_index(2, 1)]);
+        assert_eq!(
+            ticked.drops[0],
+            DropCell {
+                x: 2,
+                y: GRID_HEIGHT - 2
+            }
+        );
+        assert!(ticked.cells[grid_index(2, GRID_HEIGHT - 2)]);
 
         let mut landing =
             raindrops_init(serde_json::json!({ "autoDropInterval": 0, "splashRadius": 2 }))
                 .unwrap();
-        landing.drops.push(DropCell {
-            x: 2,
-            y: GRID_HEIGHT - 2,
-        });
+        landing.drops.push(DropCell { x: 2, y: 0 });
         let landed = raindrops_on_tick(landing, &mut context);
         assert!(landed.drops.is_empty());
         assert_eq!(landed.rings.len(), 1);
+        assert_eq!(landed.rings[0].oy, 0);
 
         let mut no_ring =
             raindrops_init(serde_json::json!({ "autoDropInterval": 0, "splashRadius": 0 }))
                 .unwrap();
-        no_ring.drops.push(DropCell {
-            x: 2,
-            y: GRID_HEIGHT - 2,
-        });
+        no_ring.drops.push(DropCell { x: 2, y: 0 });
         assert!(raindrops_on_tick(no_ring, &mut context).rings.is_empty());
+    }
+
+    #[test]
+    fn auto_spawn_starts_at_top_and_falls_downward() {
+        let mut context = BehaviorContext::new(120.0);
+        let state = raindrops_init(serde_json::json!({ "autoDropInterval": 1, "splashRadius": 0 }))
+            .unwrap();
+
+        let first = raindrops_on_tick(state, &mut context);
+        assert_eq!(
+            first.drops[0],
+            DropCell {
+                x: first.drops[0].x,
+                y: GRID_HEIGHT - 1
+            }
+        );
+
+        let second = raindrops_on_tick(first, &mut context);
+        assert_eq!(second.drops[0].y, GRID_HEIGHT - 2);
     }
 
     #[test]

@@ -15,6 +15,8 @@ use std::time::{Duration, Instant};
 use tauri::Emitter;
 
 const SNAPSHOT_INTERVAL_MS: u64 = 100;
+#[cfg(debug_assertions)]
+const PERF_LOG_INTERVAL: Duration = Duration::from_secs(2);
 
 pub(crate) fn desktop_workspace_root() -> PathBuf {
     workspace_root_from(Path::new(env!("CARGO_MANIFEST_DIR")))
@@ -75,6 +77,57 @@ impl<R: CoreRunner> CoreRunner for CapturingCoreRunner<'_, R> {
     }
 }
 
+#[cfg(debug_assertions)]
+struct RuntimePerfCounters {
+    last_log_at: Instant,
+    max_command_ms: u128,
+    max_advance_ms: u128,
+    max_emit_ms: u128,
+}
+
+#[cfg(debug_assertions)]
+impl RuntimePerfCounters {
+    fn new() -> Self {
+        Self {
+            last_log_at: Instant::now(),
+            max_command_ms: 0,
+            max_advance_ms: 0,
+            max_emit_ms: 0,
+        }
+    }
+
+    fn record_command(&mut self, elapsed: Duration) {
+        self.max_command_ms = self.max_command_ms.max(elapsed.as_millis());
+        self.maybe_log();
+    }
+
+    fn record_advance(&mut self, elapsed: Duration) {
+        self.max_advance_ms = self.max_advance_ms.max(elapsed.as_millis());
+        self.maybe_log();
+    }
+
+    fn record_emit(&mut self, elapsed: Duration) {
+        self.max_emit_ms = self.max_emit_ms.max(elapsed.as_millis());
+        self.maybe_log();
+    }
+
+    fn maybe_log(&mut self) {
+        if self.last_log_at.elapsed() < PERF_LOG_INTERVAL {
+            return;
+        }
+        if self.max_command_ms > 0 || self.max_advance_ms > 0 || self.max_emit_ms > 0 {
+            eprintln!(
+                "[runtime-perf] max command={}ms advance={}ms emit={}ms",
+                self.max_command_ms, self.max_advance_ms, self.max_emit_ms
+            );
+        }
+        self.last_log_at = Instant::now();
+        self.max_command_ms = 0;
+        self.max_advance_ms = 0;
+        self.max_emit_ms = 0;
+    }
+}
+
 pub(crate) enum WorkerCommand {
     Dispatch(HostMessage, Sender<Result<Vec<RunnerMessage>, String>>),
     SyncConfig(playback_runtime::RuntimeConfig),
@@ -96,6 +149,8 @@ pub(crate) struct RuntimeWorker {
     last_advance_at: Instant,
     last_ui_refresh_at: Instant,
     last_snapshot_at: Instant,
+    #[cfg(debug_assertions)]
+    perf: RuntimePerfCounters,
 }
 
 impl RuntimeWorker {
@@ -122,6 +177,8 @@ impl RuntimeWorker {
             last_advance_at: Instant::now(),
             last_ui_refresh_at: Instant::now(),
             last_snapshot_at: Instant::now(),
+            #[cfg(debug_assertions)]
+            perf: RuntimePerfCounters::new(),
         }
     }
 
@@ -153,7 +210,12 @@ impl RuntimeWorker {
             if let Err(err) = self.maybe_refresh_ui() {
                 self.handle_error(err);
             }
-            match rx.recv_timeout(Duration::from_millis(4)) {
+            let wait = if self.is_internal_playing() {
+                Duration::from_millis(1)
+            } else {
+                Duration::from_millis(4)
+            };
+            match rx.recv_timeout(wait) {
                 Ok(command) => {
                     if let Err(err) = self.handle_command(command) {
                         self.handle_error(err);
@@ -166,6 +228,8 @@ impl RuntimeWorker {
     }
 
     fn handle_command(&mut self, command: WorkerCommand) -> Result<(), String> {
+        #[cfg(debug_assertions)]
+        let started_at = Instant::now();
         let was_internal_playing = self.is_internal_playing();
         match command {
             WorkerCommand::Dispatch(message, reply) => {
@@ -204,6 +268,8 @@ impl RuntimeWorker {
             self.last_advance_at = Instant::now();
         }
         self.last_ui_refresh_at = Instant::now();
+        #[cfg(debug_assertions)]
+        self.perf.record_command(started_at.elapsed());
         Ok(())
     }
 
@@ -223,12 +289,16 @@ impl RuntimeWorker {
             self.last_snapshot_at = now;
         }
         let captured = {
+            #[cfg(debug_assertions)]
+            let started_at = Instant::now();
             let mut capturing_runner = CapturingCoreRunner {
                 inner: &mut self.runner,
                 captured: Vec::new(),
             };
             self.playback
                 .advance(elapsed_ms, &mut capturing_runner, &mut self.adapter)?;
+            #[cfg(debug_assertions)]
+            self.perf.record_advance(started_at.elapsed());
             capturing_runner.captured
         };
         self.emit_runner_messages(captured)
@@ -351,9 +421,13 @@ impl RuntimeWorker {
     }
 
     fn emit_runner_messages(&mut self, responses: Vec<RunnerMessage>) -> Result<(), String> {
+        #[cfg(debug_assertions)]
+        let started_at = Instant::now();
         let values =
             append_audio_error_values(encode_runtime_responses(responses)?, &self.audio_error);
         if values.is_empty() {
+            #[cfg(debug_assertions)]
+            self.perf.record_emit(started_at.elapsed());
             return Ok(());
         }
         self.next_runtime_seq = self.next_runtime_seq.saturating_add(1);
@@ -366,7 +440,10 @@ impl RuntimeWorker {
         }
         self.app_handle
             .emit(RUNTIME_MESSAGES_EVENT, payload)
-            .map_err(|e| format!("failed to emit runtime messages: {e}"))
+            .map_err(|e| format!("failed to emit runtime messages: {e}"))?;
+        #[cfg(debug_assertions)]
+        self.perf.record_emit(started_at.elapsed());
+        Ok(())
     }
 
     fn clear_runtime_outbox(&self) {

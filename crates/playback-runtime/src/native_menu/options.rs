@@ -13,11 +13,7 @@ pub(super) const FX_BUS_SLOT_OPTIONS: &[&str] = &[
     "glitch",
     "auto_pan",
     "duck",
-    "saturator",
-    "distortion",
     "bitcrusher",
-    "compressor",
-    "eq",
 ];
 
 pub(super) const GLOBAL_FX_SLOT_OPTIONS: &[&str] = &[
@@ -28,6 +24,14 @@ pub(super) const GLOBAL_FX_SLOT_OPTIONS: &[&str] = &[
     "saturator",
     "distortion",
 ];
+
+pub(crate) fn is_valid_fx_bus_slot_type(slot_type: &str) -> bool {
+    FX_BUS_SLOT_OPTIONS.contains(&slot_type)
+}
+
+pub(crate) fn is_valid_global_fx_slot_type(slot_type: &str) -> bool {
+    GLOBAL_FX_SLOT_OPTIONS.contains(&slot_type)
+}
 
 pub(super) fn duck_source_options(bus_index: usize) -> Vec<String> {
     let mut options: Vec<String> = (0..INSTRUMENT_COUNT)

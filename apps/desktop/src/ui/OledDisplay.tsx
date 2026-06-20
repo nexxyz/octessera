@@ -20,6 +20,8 @@ export function OledDisplay({ frame, displayBrightness }: { frame: RuntimeSnapsh
 }
 
 function OledTextFallback({ frame }: { frame: RuntimeSnapshot }) {
+  const displayOff = Boolean((frame.display as any).off ?? false);
+  const splashText = String((frame.display as any).splash ?? "");
   const selectedRow = Number((frame as any).selectedRow ?? -1);
   const lineColors = Array.isArray(frame.display.colors) ? frame.display.colors : [];
   const barValues = Array.isArray((frame.display as any).barValues) ? (frame.display as any).barValues : [];
@@ -28,8 +30,10 @@ function OledTextFallback({ frame }: { frame: RuntimeSnapshot }) {
   const transportFlash = String((frame as any).transportFlash ?? "none");
   const autoSaveFlash = String(frame.settings?.autoSaveFlash ?? "none");
   const autoSaveFlashSerial = Number((frame.settings as any)?.autoSaveFlashSerial ?? 0);
+  const footerToast = String((frame.display as any).toast ?? "");
   const [saveFlashStartedAt, setSaveFlashStartedAt] = useState<number | null>(autoSaveFlash === "flash" ? Date.now() : null);
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const [visibleFooterToast, setVisibleFooterToast] = useState(footerToast);
   const cpuLoad = Number((frame as any).cpuLoadRatio ?? 0);
   const transportColor = transportFlash === "measure" ? "#ff3333" : transportFlash === "beat" ? "#33ff66" : "#d7ffe8";
 
@@ -52,7 +56,54 @@ function OledTextFallback({ frame }: { frame: RuntimeSnapshot }) {
     };
   }, [autoSaveFlash, autoSaveFlashSerial]);
 
+  useEffect(() => {
+    if (!footerToast) {
+      setVisibleFooterToast("");
+      return;
+    }
+    setVisibleFooterToast(footerToast);
+    const timeout = window.setTimeout(() => {
+      setVisibleFooterToast((current) => (current === footerToast ? "" : current));
+    }, 1800);
+    return () => window.clearTimeout(timeout);
+  }, [footerToast]);
+
   const showSaveFlash = saveFlashVisible(saveFlashStartedAt, nowMs);
+
+  if (displayOff) {
+    return <div style={{ position: "absolute", inset: 0, background: "#000000" }} />;
+  }
+
+  if (splashText) {
+    return (
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 14,
+          boxSizing: "border-box",
+          textAlign: "center",
+          color: "#f2f5df",
+          fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace",
+          fontSize: 14,
+          letterSpacing: 1.1,
+          lineHeight: 1.35,
+          background: splashText === "Going to sleep"
+            ? "linear-gradient(180deg, rgba(84,55,19,0.92), rgba(6,5,3,0.98))"
+            : splashText === "Starting up"
+              ? "linear-gradient(180deg, rgba(24,64,88,0.92), rgba(2,7,10,0.98))"
+              : "linear-gradient(180deg, rgba(30,72,56,0.92), rgba(3,8,6,0.98))"
+        }}
+      >
+        <div style={{ whiteSpace: "pre-line" }}>
+          {splashText === "Going to sleep" ? "GOING TO\nSLEEP" : splashText === "Starting up" ? "STARTING\nUP" : "WAKING\nUP"}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -109,7 +160,19 @@ function OledTextFallback({ frame }: { frame: RuntimeSnapshot }) {
           );
         })}
       </div>
-      <div style={{ marginTop: "auto", display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 5, minHeight: 10 }}>
+      <div style={{ marginTop: "auto", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 5, minHeight: 10 }}>
+        <span
+          style={{
+            minWidth: 0,
+            flex: 1,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            color: visibleFooterToast ? "#d7ffe8" : "#334433"
+          }}
+        >
+          {visibleFooterToast || " "}
+        </span>
         <span style={{ color: transportColor }}>{transportIcon === "play" ? "▶" : transportIcon === "stop" ? "■" : "❚❚"}</span>
         <span style={{ color: eventDotOn ? "#ffffff" : "#334433" }}>●</span>
       </div>

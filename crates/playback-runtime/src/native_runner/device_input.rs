@@ -1,4 +1,5 @@
 use crate::protocol::{RunnerMessage, RuntimePlatformEffect};
+use std::time::Instant;
 
 use super::{
     display_part_index_from_y, DeviceInput, NativeRunner, NativeToast, RuntimeTransportState,
@@ -6,11 +7,26 @@ use super::{
 };
 
 impl NativeRunner {
+    fn refresh_modifier_state(&mut self) {
+        let was_fn_held = self.ui.fn_held;
+        self.ui.combined_modifier_held = self.ui.combined_button_pressed
+            || (self.ui.fn_button_pressed && self.ui.shift_button_pressed);
+        self.ui.fn_held = self.ui.fn_button_pressed && !self.ui.combined_modifier_held;
+        self.ui.shift_held = self.ui.shift_button_pressed && !self.ui.combined_modifier_held;
+        if self.ui.fn_held && !was_fn_held {
+            self.fn_hold_started_at = Some(Instant::now());
+        } else if !self.ui.fn_held {
+            self.fn_hold_started_at = None;
+        }
+    }
+
     pub(super) fn handle_device_input(
         &mut self,
         input: DeviceInput,
     ) -> Result<Vec<RunnerMessage>, String> {
-        self.record_display_interaction();
+        if self.record_display_interaction() {
+            return self.messages_with_snapshot();
+        }
         if self.confirm_dialog.is_some() {
             return self.handle_confirm_device_input(input);
         }
@@ -23,17 +39,18 @@ impl NativeRunner {
             }
             DeviceInput::ButtonS { pressed } => self.handle_button_s_input(pressed),
             DeviceInput::ButtonShift { pressed } => {
-                self.ui.shift_held = pressed.unwrap_or(false);
-                self.ui.combined_modifier_held = self.ui.shift_held && self.ui.fn_held;
+                self.ui.shift_button_pressed = pressed.unwrap_or(false);
+                self.refresh_modifier_state();
                 self.messages_with_snapshot()
             }
             DeviceInput::ButtonFn { pressed } => {
-                self.ui.fn_held = pressed.unwrap_or(false);
-                self.ui.combined_modifier_held = self.ui.shift_held && self.ui.fn_held;
+                self.ui.fn_button_pressed = pressed.unwrap_or(false);
+                self.refresh_modifier_state();
                 self.messages_with_snapshot()
             }
             DeviceInput::ButtonCombinedModifier { pressed } => {
-                self.ui.combined_modifier_held = pressed.unwrap_or(false);
+                self.ui.combined_button_pressed = pressed.unwrap_or(false);
+                self.refresh_modifier_state();
                 self.messages_with_snapshot()
             }
             DeviceInput::EncoderTurn { delta, id } => {
@@ -43,8 +60,20 @@ impl NativeRunner {
                     if self.help_popup.is_some() {
                         self.turn_help_popup(delta);
                     } else {
+                        let editing = self.menu.state.editing;
+                        let editing_key = if editing {
+                            self.menu.current_key().map(str::to_owned)
+                        } else {
+                            None
+                        };
                         self.menu.turn(delta);
-                        self.apply_menu_state()?;
+                        if let Some(key) = editing_key {
+                            if !self.apply_menu_key_fast(&key) {
+                                self.apply_menu_state()?;
+                            }
+                        } else if self.menu.current_browse_requires_apply() {
+                            self.apply_menu_state()?;
+                        }
                     }
                 }
                 self.messages_with_snapshot()
@@ -185,7 +214,7 @@ impl NativeRunner {
                 self.help_popup = None;
                 return self.messages_with_snapshot();
             }
-            if self.ui.fn_held && self.ui.shift_held {
+            if self.ui.combined_modifier_held {
                 self.open_contextual_help();
                 return self.messages_with_snapshot();
             }

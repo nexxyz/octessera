@@ -12,6 +12,9 @@ fn dance_page_menu_edits_selected_and_active_mode() {
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
     });
+    let _ = runner.send(HostMessage::DeviceInput {
+        input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+    });
     let edit = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
@@ -20,7 +23,7 @@ fn dance_page_menu_edits_selected_and_active_mode() {
     assert_eq!(snapshot_from(&edit)["display"]["title"], "L4: Dance");
     assert_eq!(snapshot_from(&edit)["display"]["editing"], true);
 
-    for mode in ["mix", "pan", "fx", "trigger-gate", "xy"] {
+    for mode in ["pan", "fx", "trigger-gate", "xy", "xy"] {
         let changed = runner
             .send(HostMessage::DeviceInput {
                 input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
@@ -30,7 +33,7 @@ fn dance_page_menu_edits_selected_and_active_mode() {
         assert_eq!(snapshot_from(&changed)["activeDanceMode"], mode);
     }
 
-    for mode in ["trigger-gate", "fx", "pan", "mix", "none"] {
+    for mode in ["trigger-gate", "fx", "pan", "mix", "mix"] {
         let changed = runner
             .send(HostMessage::DeviceInput {
                 input: json!({ "type": "encoder_turn", "delta": -1, "id": "main" }),
@@ -39,6 +42,56 @@ fn dance_page_menu_edits_selected_and_active_mode() {
         assert_eq!(snapshot_from(&changed)["danceMode"], mode);
         assert_eq!(snapshot_from(&changed)["activeDanceMode"], mode);
     }
+}
+
+#[test]
+fn changing_dance_page_rebuilds_visible_menu_rows_for_selected_page() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+
+    for _ in 0..3 {
+        let _ = runner.send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+        });
+    }
+    let _ = runner.send(HostMessage::DeviceInput {
+        input: json!({ "type": "encoder_press", "id": "main" }),
+    });
+    let _ = runner.send(HostMessage::DeviceInput {
+        input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+    });
+    let _ = runner.send(HostMessage::DeviceInput {
+        input: json!({ "type": "encoder_press", "id": "main" }),
+    });
+
+    let fx = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
+        })
+        .unwrap();
+    let fx_snapshot = snapshot_from(&fx);
+    let fx_lines = fx_snapshot["display"]["lines"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|line| line.as_str())
+        .collect::<Vec<_>>();
+    assert!(fx_lines.iter().any(|line| line.contains("FX Type")));
+    assert!(fx_lines.iter().any(|line| line.contains("Target")));
+
+    let xy = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
+        })
+        .unwrap();
+    let xy_snapshot = snapshot_from(&xy);
+    let xy_lines = xy_snapshot["display"]["lines"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|line| line.as_str())
+        .collect::<Vec<_>>();
+    assert!(!xy_lines.iter().any(|line| line.contains("FX Type")));
+    assert!(xy_lines.iter().any(|line| line.contains("X Axis")));
 }
 
 #[test]
@@ -299,7 +352,7 @@ fn fn_overlay_shows_active_parts_and_dance_page_options() {
 fn fn_overlay_highlights_active_part_when_not_in_dance_mode() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_dance_mode = "none".into();
-    runner.dance_mode = "none".into();
+    runner.dance_mode = "mix".into();
     runner.part_behavior_ids[1] = "none".into();
     runner.part_behavior_ids[2] = "life".into();
     runner.ui.fn_held = true;

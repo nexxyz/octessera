@@ -145,6 +145,15 @@ impl NativeRunner {
                 ),
                 help.title.clone(),
             )
+        } else if let Some((title, lines)) = self.aux_mapping_overlay() {
+            let line_count = lines.len();
+            (
+                lines,
+                vec![0xFFFF; line_count],
+                vec![Value::Null; line_count],
+                None,
+                title,
+            )
         } else {
             let bar_values = menu
                 .bar_values
@@ -160,13 +169,36 @@ impl NativeRunner {
                     .unwrap_or(Value::Null)
                 })
                 .collect::<Vec<_>>();
-            (
-                menu.lines,
-                menu.colors,
-                bar_values,
-                menu.selected_row,
-                menu.path,
-            )
+            let mut lines = menu.lines;
+            for row in 0..lines.len() {
+                let prefix = self.auto_map_prefix_for_line(
+                    menu.line_keys.get(row).and_then(|key| key.as_deref()),
+                    menu.line_actions
+                        .get(row)
+                        .and_then(|action| action.as_ref()),
+                );
+                let Some(prefix) = prefix else {
+                    continue;
+                };
+                if let Some(line) = lines.get_mut(row) {
+                    if let Some(stripped) = line.strip_prefix('!') {
+                        *line = format!("{prefix}{stripped}");
+                    } else {
+                        let indent = line.chars().take_while(|ch| *ch == ' ').count();
+                        let body = &line[indent..];
+                        if prefix.ends_with('!') {
+                            let stripped = body.strip_prefix("> ").unwrap_or(body);
+                            let stripped = stripped.strip_prefix('!').unwrap_or(stripped);
+                            *line = format!("{prefix}{stripped}");
+                        } else if let Some(stripped) = body.strip_prefix("> ") {
+                            *line = format!("{}> {}{}", " ".repeat(indent), prefix, stripped);
+                        } else {
+                            *line = format!("{}{}{}", " ".repeat(indent), prefix, body);
+                        }
+                    }
+                }
+            }
+            (lines, menu.colors, bar_values, menu.selected_row, menu.path)
         };
         let display_title = clip_display_line(&display_title, 28);
         let display_lines = display_lines
@@ -227,9 +259,11 @@ impl NativeRunner {
                 "inputEventsWhilePaused": self.input_events_while_paused,
                 "numericDisplayMode": self.ui.numeric_display_mode,
                 "screenSleepSeconds": self.ui.screen_sleep_seconds,
+                "auxAutoMapEnabled": self.aux_auto_map_enabled,
                 "instruments": instruments,
                 "mixer": self.mixer_payload(),
                 "panPositions": PAN_POSITION_COUNT,
+                "audioConfigRevision": self.audio_config_revision,
                 "autoSaveFlash": if self.auto_save_flash_pulses_remaining > 0 { "flash" } else { "none" },
                 "autoSaveFlashSerial": self.auto_save_flash_serial,
                 "transportFlash": "none",
@@ -276,6 +310,7 @@ impl NativeRunner {
 
     pub(super) fn messages_with_snapshot(&mut self) -> Result<Vec<RunnerMessage>, String> {
         self.advance_oled_sleep_state();
+        self.advance_toast_state();
         let snapshot = self.snapshot()?;
         let mut messages = Vec::new();
         if !self.queued_platform_effects.is_empty() {

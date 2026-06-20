@@ -35,6 +35,8 @@ export function createCoalescedAudioConfigSender(
   delayMs = 16
 ) {
   let pending: AudioConfigPayload | null = null;
+  let pendingSignature = "";
+  let lastSentSignature = "";
   let timer: ReturnType<typeof setTimeout> | null = null;
 
   function flush() {
@@ -44,15 +46,19 @@ export function createCoalescedAudioConfigSender(
     }
     if (!pending) return;
     const next = pending;
+    const signature = pendingSignature;
     pending = null;
+    pendingSignature = "";
+    lastSentSignature = signature;
     void send(next);
   }
 
   function schedule(config: AudioConfigPayload): boolean {
     const normalized = normalizeForEngine(config);
     const newSignature = audioConfigSignature(normalized);
-    if (pending && audioConfigSignature(pending) === newSignature) return false;
+    if (pendingSignature === newSignature || lastSentSignature === newSignature) return false;
     pending = normalized;
+    pendingSignature = newSignature;
     if (timer !== null) clearTimeout(timer);
     timer = setTimeout(flush, delayMs);
     return true;
@@ -62,6 +68,7 @@ export function createCoalescedAudioConfigSender(
     if (timer !== null) clearTimeout(timer);
     timer = null;
     pending = null;
+    pendingSignature = "";
   }
 
   return { schedule, flush, cancel };

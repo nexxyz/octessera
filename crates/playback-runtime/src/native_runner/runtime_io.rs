@@ -77,7 +77,7 @@ impl super::CoreRunner for NativeRunner {
                 if !events.is_empty() {
                     out.push(RunnerMessage::MusicalEvents { events });
                 }
-                if request_snapshot.unwrap_or(true) {
+                if request_snapshot.unwrap_or(false) {
                     out.push(RunnerMessage::Snapshot {
                         snapshot: self.snapshot()?,
                     });
