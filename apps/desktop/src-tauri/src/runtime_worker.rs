@@ -426,6 +426,7 @@ impl RuntimeWorker {
         let values =
             append_audio_error_values(encode_runtime_responses(responses)?, &self.audio_error);
         if values.is_empty() {
+            self.maybe_exit_after_shutdown_request();
             #[cfg(debug_assertions)]
             self.perf.record_emit(started_at.elapsed());
             return Ok(());
@@ -441,9 +442,21 @@ impl RuntimeWorker {
         self.app_handle
             .emit(RUNTIME_MESSAGES_EVENT, payload)
             .map_err(|e| format!("failed to emit runtime messages: {e}"))?;
+        self.maybe_exit_after_shutdown_request();
         #[cfg(debug_assertions)]
         self.perf.record_emit(started_at.elapsed());
         Ok(())
+    }
+
+    fn maybe_exit_after_shutdown_request(&mut self) {
+        if !self.adapter.take_shutdown_request() {
+            return;
+        }
+        let app_handle = self.app_handle.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(150));
+            app_handle.exit(0);
+        });
     }
 
     fn clear_runtime_outbox(&self) {

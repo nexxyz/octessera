@@ -7,8 +7,8 @@ export type MusicalEvent =
   | { type: "cc"; channel: number; controller: number; value: number };
 
 export type DeviceInput =
-  | { type: "encoder_turn"; delta: -1 | 1; id?: "main" | "aux1" | "aux2" | "aux3" | "aux4" }
-  | { type: "encoder_press"; id?: "main" | "aux1" | "aux2" | "aux3" | "aux4" }
+  | { type: "encoder_turn"; delta: -1 | 1; id?: "main" | `aux${number}` }
+  | { type: "encoder_press"; id?: "main" | `aux${number}` }
   | { type: "button_a"; pressed?: boolean }
   | { type: "button_s"; pressed?: boolean }
   | { type: "button_shift"; pressed?: boolean }
@@ -29,6 +29,8 @@ export type DisplayFrame = {
   title: string;
   lines: string[];
   editing: boolean;
+  splash?: "startup" | "sleep" | "wakeup" | "shutdown" | string;
+  toast?: string;
   colors?: number[];
   barValues?: Array<{ frac: number; numChars: number; style?: "marker" | string } | null>;
 };

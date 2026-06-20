@@ -69,6 +69,11 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                             NativeMenuAction::PlatformEffect("factory.load".into()),
                         )],
                     ),
+                    action_item(
+                        "Shutdown",
+                        "system.shutdown",
+                        NativeMenuAction::PlatformEffect("system.shutdown".into()),
+                    ),
                 ],
             ),
             group(
@@ -296,7 +301,7 @@ pub(super) fn aux_mappings_group(config: &NativeMenuConfig) -> NativeMenuItem {
             "auxAutoMapEnabled",
             config.aux_auto_map_enabled,
         ))
-        .chain((0..4).map(|index| {
+        .chain((0..platform_core::AUX_ENCODER_COUNT).map(|index| {
             let binding = config.aux_bindings.get(index).cloned().unwrap_or_default();
             group(
                 format!("Aux {}", index + 1),

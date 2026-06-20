@@ -95,9 +95,10 @@ const OLED_BODY_ROWS: usize = 7;
 const OLED_STARTUP_SPLASH_MS: u64 = 1_000;
 const OLED_SLEEP_SPLASH_MS: u64 = 3_000;
 const OLED_WAKE_SPLASH_MS: u64 = 1_000;
-const OLED_STARTUP_SPLASH_TEXT: &str = "Starting up";
-const OLED_SLEEP_SPLASH_TEXT: &str = "Going to sleep";
-const OLED_WAKE_SPLASH_TEXT: &str = "Waking up";
+const OLED_STARTUP_SPLASH_KEY: &str = "startup";
+const OLED_SLEEP_SPLASH_KEY: &str = "sleep";
+const OLED_WAKE_SPLASH_KEY: &str = "wakeup";
+const OLED_SHUTDOWN_SPLASH_KEY: &str = "shutdown";
 
 #[derive(Clone, Debug)]
 pub struct NativeRunnerConfig {

@@ -122,6 +122,20 @@ fn l2_starts_with_aux_mappings_and_part_rows_are_enterable() {
 }
 
 #[test]
+fn aux_mappings_follow_platform_aux_encoder_count() {
+    let mut menu = NativeMenuModel::new(config());
+    menu.turn(1);
+    let _ = menu.press();
+    let _ = menu.press();
+    let snapshot = menu.snapshot();
+
+    assert!(snapshot.lines.iter().any(|line| line.trim() == "Aux 1"));
+    assert!(snapshot.lines.iter().any(|line| line.trim() == "Aux 2"));
+    assert!(snapshot.lines.iter().any(|line| line.trim() == "Aux 3"));
+    assert!(!snapshot.lines.iter().any(|line| line.trim() == "Aux 4"));
+}
+
+#[test]
 fn snapshot_scrolls_to_keep_selected_row_visible() {
     let mut menu = NativeMenuModel::new(config());
     let _ = menu.press();

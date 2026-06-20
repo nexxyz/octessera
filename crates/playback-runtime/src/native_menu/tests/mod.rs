@@ -1,4 +1,5 @@
 use super::*;
+use platform_core::AUX_ENCODER_COUNT;
 use platform_core::PART_COUNT;
 
 mod dance;
@@ -81,7 +82,7 @@ fn config() -> NativeMenuConfig {
         xy_x_binding: None,
         xy_y_binding: None,
         aux_auto_map_enabled: true,
-        aux_bindings: vec![NativeAuxBindingConfig::default(); 4],
+        aux_bindings: vec![NativeAuxBindingConfig::default(); AUX_ENCODER_COUNT],
         instrument_labels: vec!["I1: synth".into()],
         instrument_names: vec!["synth".into()],
         instrument_types: vec!["synth".into()],

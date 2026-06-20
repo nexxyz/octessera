@@ -38,7 +38,7 @@ impl NativeRunner {
             xy_x_binding: None,
             xy_y_binding: None,
             aux_auto_map_enabled: true,
-            aux_bindings: vec![NativeAuxBindingConfig::default(); 4],
+            aux_bindings: vec![NativeAuxBindingConfig::default(); platform_core::AUX_ENCODER_COUNT],
             instrument_labels: instrument_labels(&instruments),
             instrument_names: instrument_names(&instruments),
             instrument_types: instrument_types(&instruments),
@@ -151,7 +151,7 @@ impl NativeRunner {
             bpm: config.bpm,
             ui,
             oled_mode: NativeOledMode::Splash,
-            oled_splash_text: OLED_STARTUP_SPLASH_TEXT.into(),
+            oled_splash_text: OLED_STARTUP_SPLASH_KEY.into(),
             oled_splash_until: Some(now + Duration::from_millis(OLED_STARTUP_SPLASH_MS)),
             last_interaction_at: now,
             fn_hold_started_at: None,
@@ -201,7 +201,7 @@ impl NativeRunner {
             part_auto_names: vec![true; PART_COUNT],
             save_grid_states: vec![true; PART_COUNT],
             sense_parts,
-            aux_bindings: vec![None; 4],
+            aux_bindings: vec![None; platform_core::AUX_ENCODER_COUNT],
             active_part_index: 0,
             instruments,
             sample_assign: None,
@@ -372,7 +372,7 @@ impl NativeRunner {
         let now = Instant::now();
         let woke_display = self.oled_mode != NativeOledMode::Normal;
         self.last_interaction_at = now;
-        if self.oled_splash_text == OLED_STARTUP_SPLASH_TEXT {
+        if self.oled_splash_text == OLED_STARTUP_SPLASH_KEY {
             self.oled_mode = NativeOledMode::Normal;
             self.oled_splash_text.clear();
             self.oled_splash_until = None;
@@ -380,7 +380,7 @@ impl NativeRunner {
         }
         if woke_display {
             self.oled_mode = NativeOledMode::Splash;
-            self.oled_splash_text = OLED_WAKE_SPLASH_TEXT.into();
+            self.oled_splash_text = OLED_WAKE_SPLASH_KEY.into();
             self.oled_splash_until = Some(now + Duration::from_millis(OLED_WAKE_SPLASH_MS));
         }
         woke_display
@@ -393,14 +393,14 @@ impl NativeRunner {
                 .oled_splash_until
                 .is_some_and(|deadline| now >= deadline)
         {
-            if self.oled_splash_text == OLED_STARTUP_SPLASH_TEXT {
+            if self.oled_splash_text == OLED_STARTUP_SPLASH_KEY {
                 self.oled_mode = NativeOledMode::Normal;
                 self.oled_splash_text.clear();
                 self.oled_splash_until = None;
                 self.show_toast("Help=Sh+Fn+Enter");
                 return;
             }
-            if self.oled_splash_text == OLED_WAKE_SPLASH_TEXT || self.ui.screen_sleep_seconds == 0 {
+            if self.oled_splash_text == OLED_WAKE_SPLASH_KEY || self.ui.screen_sleep_seconds == 0 {
                 self.oled_mode = NativeOledMode::Normal;
                 self.oled_splash_text.clear();
                 self.oled_splash_until = None;
@@ -422,7 +422,7 @@ impl NativeRunner {
                 >= Duration::from_secs(u64::from(self.ui.screen_sleep_seconds))
         {
             self.oled_mode = NativeOledMode::Splash;
-            self.oled_splash_text = OLED_SLEEP_SPLASH_TEXT.into();
+            self.oled_splash_text = OLED_SLEEP_SPLASH_KEY.into();
             self.oled_splash_until = Some(now + Duration::from_millis(OLED_SLEEP_SPLASH_MS));
         }
     }

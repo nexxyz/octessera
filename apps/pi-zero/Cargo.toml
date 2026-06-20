@@ -9,6 +9,7 @@ path = "src/main.rs"
 
 [dependencies]
 cellsymphony-hal = { path = "../../crates/hal" }
+platform-core = { path = "../../crates/platform-core" }
 playback-runtime = { path = "../../crates/playback-runtime" }
 realtime-engine = { path = "../../crates/realtime-engine" }
 rodio-engine-source = { path = "../../crates/rodio-engine-source" }
@@ -20,3 +21,6 @@ simple_logger = "1.16"
 [features]
 default = []
 hardware-pi = ["cellsymphony-hal/pi-zero"]
+
+[build-dependencies]
+image = { version = "0.25", default-features = false, features = ["png"] }

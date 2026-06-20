@@ -9,6 +9,7 @@ export const PLATFORM_CAPS = {
   "sampleSlotCount": 8,
   "busCount": 4,
   "globalFxSlotCount": 2,
+  "auxEncoderCount": 3,
   "touchFxMaxConcurrent": 4,
   "scanSectionCounts": [
     1,
@@ -24,5 +25,6 @@ export const PLATFORM_CAPS = {
 export const GRID_WIDTH = PLATFORM_CAPS.gridWidth;
 export const GRID_HEIGHT = PLATFORM_CAPS.gridHeight;
 export const PAN_POSITION_COUNT = PLATFORM_CAPS.panPositionCount;
+export const AUX_ENCODER_COUNT = PLATFORM_CAPS.auxEncoderCount;
 export const OLED_WIDTH = PLATFORM_CAPS.oledWidth;
 export const OLED_HEIGHT = PLATFORM_CAPS.oledHeight;

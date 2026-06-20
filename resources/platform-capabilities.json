@@ -6,6 +6,7 @@
   "sampleSlotCount": 8,
   "busCount": 4,
   "globalFxSlotCount": 2,
+  "auxEncoderCount": 3,
   "touchFxMaxConcurrent": 4,
   "scanSectionCounts": [1, 2, 4, 8],
   "panPositionCount": 33,

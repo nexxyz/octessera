@@ -22,6 +22,7 @@ pub struct PiPlaybackHostAdapter<'a> {
     midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
     selected_midi_output_id: Option<String>,
     selected_midi_input_id: Option<String>,
+    shutdown_requested: bool,
 }
 
 impl<'a> PiPlaybackHostAdapter<'a> {
@@ -41,7 +42,14 @@ impl<'a> PiPlaybackHostAdapter<'a> {
             midi_in_handler,
             selected_midi_output_id: None,
             selected_midi_input_id: None,
+            shutdown_requested: false,
         }
+    }
+
+    pub fn take_shutdown_request(&mut self) -> bool {
+        let requested = self.shutdown_requested;
+        self.shutdown_requested = false;
+        requested
     }
 
     pub fn flush_due_default_save(&mut self) -> Result<Vec<HostMessage>, String> {
@@ -367,6 +375,10 @@ impl HostAdapter for PiPlaybackHostAdapter<'_> {
                     selected_out_id: self.selected_midi_output_id.clone(),
                     selected_in_id: self.selected_midi_input_id.clone(),
                 }
+            }
+            RuntimePlatformEffect::Shutdown => {
+                self.shutdown_requested = true;
+                return Ok(Vec::new());
             }
             RuntimePlatformEffect::SampleListRequest {
                 instrument_slot,

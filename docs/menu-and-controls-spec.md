@@ -31,8 +31,8 @@ Platform capability source: `resources/platform-capabilities.json`; generated Ty
 | Space button | Space | Play / Pause |
 | Shift + Space | Shift+Space | Emergency stop (panic + reset scan origin) |
 | Shift + Back | Shift+Backspace / Shift+Esc | Clear grid (re-initialize behavior) |
-| Aux encoder 1-4 turn | (simulated) | Adjust bound turn mapping |
-| Aux encoder 1-4 press | (simulated) | Trigger bound press mapping |
+| Aux encoder 1-3 turn | (simulated) | Adjust bound turn mapping |
+| Aux encoder 1-3 press | (simulated) | Trigger bound press mapping |
 | Fn + Aux encoder press | Fn + (simulated) | Bind current item as a custom aux mapping |
 | Shift + Fn | Shift+Ctrl | Combined modifier; acts as its own logical button and disables Fn/Shift functions while both are held |
 | Combined modifier + Main press | Shift+Ctrl+Enter | Context help for highlighted entry |
@@ -124,8 +124,7 @@ L2: Sense
 │   │       ├── (none) (action)
 │   │       └── action tree...               ← behavior actions, sample assign, selected FX map-to-grid
 │   ├── Aux 2 (group)
-│   ├── Aux 3 (group)
-│   └── Aux 4 (group)
+│   └── Aux 3 (group)
 ├── P1: ... (group)                              ← one group per part
 │   ├── Scan Mode: [immediate | scanning]
 │   ├── Scan Axis: [rows | columns]           ← visible when scanning
@@ -369,8 +368,9 @@ System
 │   │   ├── Save Default: (action)
 │   │   ├── Load Default: (action)
 │   │   └── Auto Save: [on | off]    ← auto-persists settled config after cooldown
-│   └── Factory (group)
-│       └── Load Fact. Default: (action)
+│   ├── Factory (group)
+│   │   └── Load Fact. Default: (action)
+│   └── Shutdown: (action)          ← confirm, then show shutdown splash and exit/poweroff
 ├── Sound (group)                     ← merged: Audio + Sound controls
 │   ├── Master Vol: [0..100] step 1  default 73
 │   ├── Note Length: [30..2000] step 10 ms  default 120
@@ -405,6 +405,7 @@ System
 - Body lines 2-8: menu items with `@@` prefix on selected line, `*` prefix when editing
 - Context help for every submenu, parameter, and action must resolve to a specific row from `resources/menu-help-texts.tsv`; generic fallback help is not allowed and native tests must fail on missing coverage.
 - Platform-sized menu/runtime limits such as part count, instrument count, sample slots, bus count, global FX slots, touch-FX concurrency, scan section counts, OLED size, and pan position count come from `resources/platform-capabilities.json`.
+- Splash graphics use provided logo assets: regular logo for startup/wakeup, sepia logo for sleep/shutdown.
 - Bottom-right corner: transport icon (`▶` / `⏸` / `■`)
 - Transport flash: green (beat) or red (measure) border on play icon
 - Yellow event dot: briefly shown when notes fire

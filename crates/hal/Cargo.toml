@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+platform-core = { path = "../platform-core" }
 # Pi Zero 2W specific dependencies (feature-gated)
 rppal = { version = "0.14", optional = true }
 spidev = { version = "0.5", optional = true }

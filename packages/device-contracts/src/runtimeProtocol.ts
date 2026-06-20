@@ -35,6 +35,7 @@ export type RuntimePlatformEffect =
   | { type: "midi_select_output"; id: string | null }
   | { type: "midi_select_input"; id: string | null }
   | { type: "midi_panic" }
+  | { type: "shutdown" }
   | { type: "sample_list_request"; instrumentSlot: number; sampleSlot: number; dir: string }
   | { type: "audio_command"; command: RuntimeAudioCommand };
 

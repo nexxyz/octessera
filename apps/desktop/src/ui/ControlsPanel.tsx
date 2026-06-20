@@ -1,16 +1,15 @@
 import type { DeviceInput } from "@cellsymphony/device-contracts";
+import { AUX_ENCODER_COUNT } from "@cellsymphony/device-contracts";
 import type { SimulatorSnapshot } from "../runtime/types";
 import { OledDisplay } from "./OledDisplay";
 
-type EncoderId = "main" | "aux1" | "aux2" | "aux3" | "aux4";
+type EncoderId = "main" | `aux${number}`;
 
-const ENCODERS = [
-  { id: "main", label: "SW1", active: true },
-  { id: "aux1", label: "SW2", active: false },
-  { id: "aux2", label: "SW3", active: false },
-  { id: "aux3", label: "SW4", active: false },
-  { id: "aux4", label: "SW5", active: false }
-] as const;
+const AUX_ENCODERS = Array.from({ length: AUX_ENCODER_COUNT }, (_, index) => ({
+  id: `aux${index + 1}` as const,
+  label: `SW${index + 2}`,
+  className: `aux-${index + 1}`
+}));
 
 const NEOKEY_BUTTONS = [
   { input: { type: "button_a" } as DeviceInput, label: "Back", key: "back" as const },
@@ -39,39 +38,28 @@ export function ControlsPanel({
   return (
     <section className="control-grid">
       <article className="encoder-card sw1">
-        <h3>{ENCODERS[0].label}</h3>
+        <h3>SW1</h3>
         <Dial id="main" phase={dialPhase.main ?? 0} dispatch={dispatch} setDialDrag={setDialDrag} turnWithAcceleration={turnWithAcceleration} />
         <small>Menu Control</small>
       </article>
 
       <OledDisplay frame={frame} displayBrightness={snapshot.displayBrightness} />
 
-      <article className="encoder-card sw2">
-        <h3>{ENCODERS[1].label}</h3>
-        <Dial id="aux1" phase={dialPhase.aux1 ?? 0} dispatch={dispatch} setDialDrag={setDialDrag} turnWithAcceleration={turnWithAcceleration} />
-        <small>Aux Control</small>
-      </article>
-      <article className="encoder-card sw3">
-        <h3>{ENCODERS[2].label}</h3>
-        <Dial id="aux2" phase={dialPhase.aux2 ?? 0} dispatch={dispatch} setDialDrag={setDialDrag} turnWithAcceleration={turnWithAcceleration} />
-        <small>Aux Control</small>
-      </article>
+      <section className="aux-triangle" aria-label="Aux encoders">
+        {AUX_ENCODERS.map((encoder) => (
+          <article key={encoder.id} className={`encoder-card ${encoder.className}`}>
+            <h3>{encoder.label}</h3>
+            <Dial id={encoder.id} phase={dialPhase[encoder.id] ?? 0} dispatch={dispatch} setDialDrag={setDialDrag} turnWithAcceleration={turnWithAcceleration} />
+            <small>Aux Control</small>
+          </article>
+        ))}
+      </section>
       <section className="button-stack stack-a">
         {NEOKEY_BUTTONS.slice(0, 2).map((button) => (
           <NeoKey key={button.key} button={button} dispatch={dispatch} setModifier={setModifier} snapshot={snapshot} />
         ))}
       </section>
 
-      <article className="encoder-card sw4">
-        <h3>{ENCODERS[3].label}</h3>
-        <Dial id="aux3" phase={dialPhase.aux3 ?? 0} dispatch={dispatch} setDialDrag={setDialDrag} turnWithAcceleration={turnWithAcceleration} />
-        <small>Aux Control</small>
-      </article>
-      <article className="encoder-card sw5">
-        <h3>{ENCODERS[4].label}</h3>
-        <Dial id="aux4" phase={dialPhase.aux4 ?? 0} dispatch={dispatch} setDialDrag={setDialDrag} turnWithAcceleration={turnWithAcceleration} />
-        <small>Aux Control</small>
-      </article>
       <section className="button-stack stack-b">
         {NEOKEY_BUTTONS.slice(2).map((button) => (
           <NeoKey key={button.key} button={button} dispatch={dispatch} setModifier={setModifier} snapshot={snapshot} />

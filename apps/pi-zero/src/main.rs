@@ -89,7 +89,7 @@ fn main() {
             1 => "encoder_aux_1",
             2 => "encoder_aux_2",
             3 => "encoder_aux_3",
-            _ => "encoder_aux_4",
+            _ => unreachable!("encoder pin count follows platform capabilities"),
         };
         EncoderGpio::new(id, pins, event_tx.clone()).expect("Encoder init failed");
     }
@@ -179,6 +179,13 @@ fn main() {
                     );
                 }
             }
+            if adapter.take_shutdown_request() {
+                if let Err(error) = shutdown_pi_system() {
+                    eprintln!("pi shutdown failed: {error}");
+                } else {
+                    break;
+                }
+            }
         }
 
         thread::sleep(Duration::from_millis(1));
@@ -206,6 +213,20 @@ fn default_store_dir() -> PathBuf {
                 PathBuf::from("config")
             }
         })
+}
+
+fn shutdown_pi_system() -> Result<(), String> {
+    #[cfg(feature = "hardware-pi")]
+    {
+        let status = std::process::Command::new("systemctl")
+            .arg("poweroff")
+            .status()
+            .map_err(|e| format!("failed to launch systemctl poweroff: {e}"))?;
+        if !status.success() {
+            return Err(format!("systemctl poweroff exited with status {status}"));
+        }
+    }
+    Ok(())
 }
 
 fn default_samples_dir() -> PathBuf {

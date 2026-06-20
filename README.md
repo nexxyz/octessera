@@ -33,7 +33,7 @@ Platform dimensions and limits are defined in `resources/platform-capabilities.j
 | Fn | Control | `button_fn` | Modifier for part/page overlays |
 | Shift + Space | Shift + Space | `button_shift` + `button_s` | Emergency stop / panic |
 | Shift + Back | Shift + Backspace / Shift + Esc | `button_shift` + `button_a` | Clear active part grid |
-| Aux encoders | UI controls | `encoder_*:aux1..aux4` | Bound parameter/action control |
+| Aux encoders | UI controls | `encoder_*:aux1..aux3` | Bound parameter/action control |
 
 Fn overlays:
 

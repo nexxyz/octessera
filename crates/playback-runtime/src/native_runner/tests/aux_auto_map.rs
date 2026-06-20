@@ -34,6 +34,18 @@ fn system_aux_auto_map_toggle_round_trips_in_payload() {
 }
 
 #[test]
+fn aux_binding_payload_follows_platform_aux_encoder_count() {
+    let runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let payload = runner.config_payload();
+    let bindings = payload["runtimeConfig"]["auxBindings"].as_object().unwrap();
+
+    assert!(bindings.contains_key("aux1"));
+    assert!(bindings.contains_key("aux2"));
+    assert!(bindings.contains_key("aux3"));
+    assert!(!bindings.contains_key("aux4"));
+}
+
+#[test]
 fn auto_map_updates_synth_filter_and_prefixes_selected_row() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![2, 0, 0, 2, 2];
@@ -249,14 +261,14 @@ fn auto_map_env_and_osc_pages_drive_expected_slots() {
 
     let _ = runner
         .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "id": "aux4", "delta": 1 }),
+            input: json!({ "type": "encoder_turn", "id": "aux3", "delta": 1 }),
         })
         .unwrap();
     assert_eq!(
         runner
             .menu
-            .number_for_key("instruments.0.synth.ampEnv.releaseMs"),
-        Some(185)
+            .number_for_key("instruments.0.synth.ampEnv.sustainPct"),
+        Some(71)
     );
 
     runner.menu.state.stack = vec![2, 0, 0, synth_group, oscillator_group, osc1_group];
@@ -360,7 +372,7 @@ fn fn_held_shows_auto_aux_mapping_overlay() {
     assert_eq!(lines[1], "A1 Cutoff");
     assert_eq!(lines[2], "A2 Res");
     assert_eq!(lines[3], "A3 Env");
-    assert_eq!(lines[4], "A4 Key");
+    assert_eq!(lines.len(), 4);
     assert_eq!(runner.menu.state.stack, vec![2, 0, 0, 2, 2]);
     assert_eq!(runner.menu.state.cursor, 1);
 }

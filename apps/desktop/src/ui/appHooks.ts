@@ -6,7 +6,7 @@ import { mapKeyboardEventToInputAction, mapKeyboardKeyupToInputAction, shouldPre
 import type { createSimulatorRuntime } from "../runtime/simulatorRuntime";
 
 type AppRuntime = ReturnType<typeof createSimulatorRuntime>;
-type EncoderId = "main" | "aux1" | "aux2" | "aux3" | "aux4";
+type EncoderId = "main" | `aux${number}`;
 type AppSnapshot = ReturnType<AppRuntime["getSnapshot"]>;
 
 export function useRuntimeBindings(runtime: AppRuntime, setSnapshot: (snapshot: AppSnapshot) => void): void {

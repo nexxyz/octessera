@@ -158,6 +158,7 @@ voice_stealing_mode	*	key:sound.voiceStealingMode	enum	Voice Stealing	Controls g
 presets_group	Menu > System > Saves		group	Presets	Save, load, and manage configuration snapshots.	Use defaults for boot state and library for named variants.
 default_save	System > Saves > Default > Save Default	action:default_save	action	Save Default	Stores current state as startup default payload.	Use with Auto Save when you want edits to persist automatically.
 default_load	System > Saves > Default > Load Default	action:default_load	action	Load Default	Loads the saved default payload into current state.	Replaces current runtime settings immediately.
+system_shutdown	System	action:system_shutdown	action	Shutdown	Shows the shutdown splash, then closes the simulator or powers off the Pi gracefully.	Requires confirmation before shutting down.
 autosave_default	*	key:autoSaveDefault	bool	Auto Save Default	When enabled, config edits update default storage after a short cooldown so sweeps save only the latest settled value.	Turning this on and exiting the row saves the current config immediately. An "S" flashes in the top-right OLED corner on each save.
 note_length	*	key:sound.noteLengthMs	number	Note Length	Default note duration when note_on has no explicit length.	Hold-mode notes may bypass duration and wait for note_off.
 velocity_scale	*	key:sound.velocityScalePct	number	Velocity Scale	Scales velocity values globally after mapping.	Use to tame or boost overall dynamic output.

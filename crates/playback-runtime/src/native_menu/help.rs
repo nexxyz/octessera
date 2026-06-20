@@ -125,6 +125,7 @@ fn menu_action_help_key(action: &NativeMenuAction) -> String {
             "default.save" => "action:default_save".into(),
             "default.load" => "action:default_load".into(),
             "factory.load" => "action:factory_load".into(),
+            "system.shutdown" => "action:system_shutdown".into(),
             "midi.panic" => "action:midi_panic".into(),
             "dance.fx.map" => "action:fx_assign_enter".into(),
             value if value.starts_with("preset.load:") => "action:preset_load:*".into(),

@@ -1,3 +1,4 @@
+use platform_core::AUX_ENCODER_COUNT;
 use playback_runtime::HostMessage;
 use serde_json::json;
 
@@ -11,14 +12,21 @@ pub fn encoder_input_id(index: usize) -> &'static str {
         1 => "aux1",
         2 => "aux2",
         3 => "aux3",
-        _ => "aux4",
+        _ => "main",
     }
 }
 
 pub fn encoder_index(id: &str) -> usize {
-    id.strip_prefix("encoder_aux_")
+    let index = id
+        .strip_prefix("encoder_aux_")
         .and_then(|value| value.parse::<usize>().ok())
-        .unwrap_or(if id == "encoder_main" { 0 } else { 4 })
+        .filter(|index| (1..=AUX_ENCODER_COUNT).contains(index))
+        .unwrap_or(if id == "encoder_main" { 0 } else { usize::MAX });
+    if index == usize::MAX {
+        0
+    } else {
+        index
+    }
 }
 
 pub fn encoder_turn_message(id: &str, delta: i8) -> HostMessage {
@@ -95,13 +103,12 @@ mod tests {
     }
 
     #[test]
-    fn encoders_map_to_main_and_four_aux_inputs() {
+    fn encoders_map_to_main_and_three_aux_inputs() {
         let ids = [
             ("encoder_main", "main"),
             ("encoder_aux_1", "aux1"),
             ("encoder_aux_2", "aux2"),
             ("encoder_aux_3", "aux3"),
-            ("encoder_aux_4", "aux4"),
         ];
         for (hardware_id, input_id) in ids {
             let HostMessage::DeviceInput { input } = encoder_turn_message(hardware_id, 1) else {

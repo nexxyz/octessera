@@ -27,6 +27,7 @@ pub(crate) struct DesktopPlaybackHostAdapter {
     pending_default_save: Option<(serde_json::Value, Instant)>,
     selected_midi_output_id: Option<String>,
     selected_midi_input_id: Option<String>,
+    shutdown_requested: bool,
 }
 
 impl DesktopPlaybackHostAdapter {
@@ -48,7 +49,14 @@ impl DesktopPlaybackHostAdapter {
             pending_default_save: None,
             selected_midi_output_id: None,
             selected_midi_input_id: None,
+            shutdown_requested: false,
         }
+    }
+
+    pub(crate) fn take_shutdown_request(&mut self) -> bool {
+        let requested = self.shutdown_requested;
+        self.shutdown_requested = false;
+        requested
     }
 
     pub(crate) fn flush_due_default_save(&mut self) -> Result<Vec<HostMessage>, String> {
@@ -303,6 +311,10 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                         selected_in_id: self.selected_midi_input_id.clone(),
                     },
                 }])
+            }
+            RuntimePlatformEffect::Shutdown => {
+                self.shutdown_requested = true;
+                Ok(vec![])
             }
             RuntimePlatformEffect::SampleListRequest {
                 instrument_slot,

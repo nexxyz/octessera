@@ -48,6 +48,7 @@ impl NativeRunner {
                 .strip_prefix("preset.delete:")
                 .map(|name| RuntimePlatformEffect::StoreDeletePreset { name: name.into() }),
             "midi.panic" => Some(RuntimePlatformEffect::MidiPanic),
+            "system.shutdown" => Some(RuntimePlatformEffect::Shutdown),
             action if action.starts_with("midi.output:") => {
                 let id = action.strip_prefix("midi.output:").unwrap_or_default();
                 Some(RuntimePlatformEffect::MidiSelectOutput {
@@ -103,6 +104,8 @@ impl NativeRunner {
             ("Confirm Factory", "Load factory settings?".into())
         } else if action_type == "midi.panic" {
             ("Confirm MIDI", "Send MIDI panic?".into())
+        } else if action_type == "system.shutdown" {
+            ("Confirm Shutdown", "Shut down cellSymphony?".into())
         } else if let Some(rest) = action_type.strip_prefix("synth.preset:") {
             let preset = rest.split(':').nth(1).unwrap_or("preset");
             ("Confirm Synth", format!("Load synth preset {preset}?"))

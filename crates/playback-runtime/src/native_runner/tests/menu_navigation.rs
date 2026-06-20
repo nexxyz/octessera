@@ -248,7 +248,7 @@ fn startup_splash_closes_into_help_toast() {
 
     let messages = runner.messages_with_snapshot().unwrap();
     let display = &snapshot_from(&messages)["display"];
-    assert_eq!(display["splash"], "Starting up");
+    assert_eq!(display["splash"], "startup");
 
     runner.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
     let messages = runner.messages_with_snapshot().unwrap();
@@ -269,7 +269,7 @@ fn screen_sleep_splashes_then_turns_oled_off_and_wake_input_shows_wakeup_screen(
 
     let messages = runner.messages_with_snapshot().unwrap();
     let display = &snapshot_from(&messages)["display"];
-    assert_eq!(display["splash"], "Going to sleep");
+    assert_eq!(display["splash"], "sleep");
     assert_eq!(display["off"], false);
 
     runner.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
@@ -284,7 +284,7 @@ fn screen_sleep_splashes_then_turns_oled_off_and_wake_input_shows_wakeup_screen(
         .unwrap();
     let display = &snapshot_from(&messages)["display"];
     assert_eq!(display["off"], false);
-    assert_eq!(display["splash"], "Waking up");
+    assert_eq!(display["splash"], "wakeup");
 
     runner.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
     let messages = runner.messages_with_snapshot().unwrap();
@@ -479,5 +479,34 @@ fn system_menu_midi_panic_emits_panic_effect() {
         message,
         RunnerMessage::PlatformEffects { effects }
             if effects == &vec![RuntimePlatformEffect::MidiPanic]
+    )));
+}
+
+#[test]
+fn system_menu_shutdown_emits_shutdown_effect_and_splash() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.menu.state.stack = vec![5, 0];
+    runner.menu.state.cursor = 3;
+
+    let opened = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })
+        .unwrap();
+    assert_eq!(
+        snapshot_from(&opened)["display"]["title"],
+        "Confirm Shutdown"
+    );
+
+    let messages = confirm_current_dialog(&mut runner);
+    let display = &snapshot_from(&messages)["display"];
+    assert_eq!(display["splash"], "shutdown");
+    assert!(display["toast"]
+        .as_str()
+        .is_some_and(|toast| toast.contains("shutting down")));
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects == &vec![RuntimePlatformEffect::Shutdown]
     )));
 }

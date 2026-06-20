@@ -42,7 +42,7 @@ impl NativeRunner {
         }) {
             return None;
         }
-        let slots = (0..4)
+        let slots = (0..platform_core::AUX_ENCODER_COUNT)
             .map(|index| self.effective_aux_slot(index))
             .collect::<Vec<_>>();
         if slots

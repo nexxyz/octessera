@@ -12,6 +12,7 @@ apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/
 hardware/KiCAD/.history/
 hardware/KiCAD/cellSymphony-backups/
+hardware/KiCAD/*.lck
 debug/
 *.zip
 .opencode/

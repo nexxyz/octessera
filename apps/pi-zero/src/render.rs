@@ -1,6 +1,9 @@
 use cellsymphony_hal::{NeoKey, NeoTrellis, OledSsd1351};
 use serde_json::Value;
 
+const SPLASH_REGULAR: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/splash_regular.rgb565"));
+const SPLASH_SEPIA: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/splash_sepia.rgb565"));
+
 pub struct HardwareRenderTargets<'a> {
     pub oled: &'a mut OledSsd1351,
     pub trellis: &'a mut NeoTrellis,
@@ -127,6 +130,7 @@ fn oled_signature(snapshot: &Value) -> u64 {
     hash_value(&mut hash, settings.get("displayBrightness"));
     hash_value(&mut hash, display.get("off"));
     hash_value(&mut hash, display.get("splash"));
+    hash_value(&mut hash, display.get("toast"));
     hash_value(&mut hash, display.get("title"));
     hash_value(&mut hash, display.get("lines"));
     hash_value(&mut hash, display.get("editing"));
@@ -168,6 +172,10 @@ fn oled_frame(snapshot: &Value) -> Vec<u8> {
     let settings = snapshot.get("settings").unwrap_or(&Value::Null);
     let display = snapshot.get("display").unwrap_or(&Value::Null);
     let brightness = brightness_scale(settings.get("displayBrightness"));
+    let toast = display
+        .get("toast")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     let mut frame = vec![0_u8; 128 * 128 * 2];
     if display.get("off").and_then(Value::as_bool).unwrap_or(false) {
         return frame;
@@ -175,6 +183,7 @@ fn oled_frame(snapshot: &Value) -> Vec<u8> {
     if let Some(splash) = display.get("splash").and_then(Value::as_str) {
         if !splash.is_empty() {
             render_splash_frame(&mut frame, splash, brightness);
+            overlay_toast(&mut frame, toast, brightness);
             return frame;
         }
     }
@@ -192,45 +201,48 @@ fn oled_frame(snapshot: &Value) -> Vec<u8> {
 }
 
 fn render_splash_frame(frame: &mut [u8], splash: &str, brightness: f32) {
-    let accent = match splash {
-        "Starting up" => scale([70, 125, 190], brightness),
-        "Going to sleep" => scale([160, 108, 42], brightness),
-        _ => scale([95, 155, 120], brightness),
+    let source = match splash {
+        "sleep" | "shutdown" => SPLASH_SEPIA,
+        _ => SPLASH_REGULAR,
     };
-    fill_rect(frame, 0, 0, 128, 128, rgb565(scale([3, 7, 10], brightness)));
-    fill_rect(frame, 0, 0, 128, 10, rgb565(accent));
-    fill_rect(frame, 0, 118, 128, 10, rgb565(accent));
-    fill_rect(
-        frame,
-        12,
-        18,
-        104,
-        92,
-        rgb565(scale([10, 16, 20], brightness)),
-    );
+    copy_rgb565_scaled(frame, source, brightness);
+}
 
-    let lines = match splash {
-        "Starting up" => ["STARTING", "UP"].as_slice(),
-        "Going to sleep" => ["GOING TO", "SLEEP"].as_slice(),
-        "Waking up" => ["WAKING", "UP"].as_slice(),
-        _ => ["CELL", "SYMPHONY"].as_slice(),
-    };
-    let line_height = 24_i32;
-    let total_height = (lines.len() as i32 * line_height) - 6;
-    let start_y = ((128 - total_height) / 2).max(16);
-    for (index, line) in lines.iter().enumerate() {
-        let width = text_width(line, 3);
-        let x = ((128_i32 - width) / 2).max(8);
-        let y = start_y + (index as i32 * line_height);
-        draw_text(
-            frame,
-            line,
-            x,
-            y,
-            3,
-            rgb565(scale([240, 244, 228], brightness)),
-        );
+fn copy_rgb565_scaled(frame: &mut [u8], source: &[u8], brightness: f32) {
+    if brightness >= 0.999 {
+        frame.copy_from_slice(source);
+        return;
     }
+    for (index, chunk) in source.chunks_exact(2).enumerate() {
+        let color = u16::from_be_bytes([chunk[0], chunk[1]]);
+        let scaled = rgb565(scale(rgb565_to_rgb(color), brightness));
+        let offset = index * 2;
+        frame[offset] = (scaled >> 8) as u8;
+        frame[offset + 1] = scaled as u8;
+    }
+}
+
+fn overlay_toast(frame: &mut [u8], toast: &str, brightness: f32) {
+    if toast.is_empty() {
+        return;
+    }
+    fill_rect(frame, 8, 100, 112, 18, rgb565(scale([6, 6, 6], brightness)));
+    draw_text(
+        frame,
+        &toast.to_uppercase(),
+        12,
+        105,
+        1,
+        rgb565(scale([240, 244, 228], brightness)),
+    );
+}
+
+fn rgb565_to_rgb(value: u16) -> [u8; 3] {
+    [
+        (((value >> 11) & 0x1f) as u8 * 255) / 31,
+        (((value >> 5) & 0x3f) as u8 * 255) / 63,
+        ((value & 0x1f) as u8 * 255) / 31,
+    ]
 }
 
 fn fill_rect(frame: &mut [u8], x: usize, y: usize, width: usize, height: usize, color: u16) {
@@ -266,15 +278,6 @@ fn draw_text(frame: &mut [u8], text: &str, x: i32, y: i32, scale: usize, color: 
             }
         }
         cursor_x += (6 * scale) as i32;
-    }
-}
-
-fn text_width(text: &str, scale: usize) -> i32 {
-    let chars = text.chars().count() as i32;
-    if chars == 0 {
-        0
-    } else {
-        chars * (6 * scale) as i32 - scale as i32
     }
 }
 
@@ -358,9 +361,9 @@ mod tests {
     }
 
     #[test]
-    fn oled_frame_renders_splash_text() {
+    fn oled_frame_renders_splash_assets() {
         let snapshot = json!({
-            "display": { "off": false, "splash": "Starting up" },
+            "display": { "off": false, "splash": "startup", "toast": "cellSymphony is shutting down" },
             "settings": { "displayBrightness": 100 }
         });
 

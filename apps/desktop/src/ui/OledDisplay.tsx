@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { OLED_HEIGHT, OLED_WIDTH, type OledFrame, type RuntimeSnapshot } from "@cellsymphony/device-contracts";
 import { saveFlashVisible } from "./saveFlash";
 
+const REGULAR_SPLASH_LOGO = new URL("../../../../assets/cellSymphonyLogo128.png", import.meta.url).href;
+const SEPIA_SPLASH_LOGO = new URL("../../../../assets/cellSymphonyLogoSepia128.png", import.meta.url).href;
+
 export function OledDisplay({ frame, displayBrightness }: { frame: RuntimeSnapshot; displayBrightness: number }) {
   const oledImage = useMemo(() => toOledImage(frame.oled), [frame.oled]);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -75,32 +78,40 @@ function OledTextFallback({ frame }: { frame: RuntimeSnapshot }) {
   }
 
   if (splashText) {
+    const splashLogo = splashText === "sleep" || splashText === "shutdown" ? SEPIA_SPLASH_LOGO : REGULAR_SPLASH_LOGO;
     return (
       <div
         style={{
           position: "absolute",
           inset: 0,
           display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 14,
-          boxSizing: "border-box",
-          textAlign: "center",
-          color: "#f2f5df",
-          fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace",
-          fontSize: 14,
-          letterSpacing: 1.1,
-          lineHeight: 1.35,
-          background: splashText === "Going to sleep"
-            ? "linear-gradient(180deg, rgba(84,55,19,0.92), rgba(6,5,3,0.98))"
-            : splashText === "Starting up"
-              ? "linear-gradient(180deg, rgba(24,64,88,0.92), rgba(2,7,10,0.98))"
-              : "linear-gradient(180deg, rgba(30,72,56,0.92), rgba(3,8,6,0.98))"
+          alignItems: "stretch",
+          justifyContent: "stretch",
+          background: "#000000"
         }}
       >
-        <div style={{ whiteSpace: "pre-line" }}>
-          {splashText === "Going to sleep" ? "GOING TO\nSLEEP" : splashText === "Starting up" ? "STARTING\nUP" : "WAKING\nUP"}
-        </div>
+        <img src={splashLogo} alt="cellSymphony splash" style={{ width: "100%", height: "100%", objectFit: "cover", imageRendering: "pixelated" }} />
+        {visibleFooterToast ? (
+          <div
+            style={{
+              position: "absolute",
+              left: 10,
+              right: 10,
+              bottom: 10,
+              padding: "4px 6px",
+              borderRadius: 4,
+              background: "rgba(0,0,0,0.72)",
+              color: "#f2f5df",
+              fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace",
+              fontSize: 9,
+              lineHeight: 1.25,
+              textAlign: "center",
+              textTransform: "uppercase"
+            }}
+          >
+            {visibleFooterToast}
+          </div>
+        ) : null}
       </div>
     );
   }

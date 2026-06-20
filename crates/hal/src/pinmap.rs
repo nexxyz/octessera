@@ -22,8 +22,8 @@ pub struct EncoderPins {
     pub sw: u8,
 }
 
-/// 5 rotary encoders on Pi Zero 2W
-pub const ENCODERS: [EncoderPins; 5] = [
+/// Rotary encoders on Pi Zero 2W: main plus aux controls.
+pub const ENCODERS: [EncoderPins; 1 + platform_core::AUX_ENCODER_COUNT] = [
     EncoderPins { a: 5, b: 6, sw: 12 }, // SW1 (main)
     EncoderPins {
         a: 13,
@@ -40,7 +40,6 @@ pub const ENCODERS: [EncoderPins; 5] = [
         b: 23,
         sw: 22,
     }, // SW4 (aux3)
-    EncoderPins { a: 14, b: 9, sw: 7 }, // SW5 (aux4) - B=GPIO9 reused from SPI MISO
 ];
 
 /// NeoKey I2C address (typically 0x30)

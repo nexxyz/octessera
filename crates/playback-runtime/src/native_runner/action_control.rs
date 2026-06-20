@@ -122,6 +122,12 @@ impl NativeRunner {
                         offset: 0,
                     });
                     Ok(self.platform_effect_for_action(&action_type))
+                } else if action_type == "system.shutdown" {
+                    self.oled_mode = super::NativeOledMode::Splash;
+                    self.oled_splash_text = super::OLED_SHUTDOWN_SPLASH_KEY.into();
+                    self.oled_splash_until = None;
+                    self.show_toast("cellSymphony is shutting down");
+                    Ok(self.platform_effect_for_action(&action_type))
                 } else if let Some(effect) = self.handle_sample_action(&action_type)? {
                     Ok(Some(effect))
                 } else {
@@ -270,13 +276,12 @@ impl NativeRunner {
     }
 
     pub(super) fn aux_index(id: Option<&str>) -> Option<usize> {
-        match id {
-            Some("aux1") => Some(0),
-            Some("aux2") => Some(1),
-            Some("aux3") => Some(2),
-            Some("aux4") => Some(3),
-            _ => None,
-        }
+        let index = id?
+            .strip_prefix("aux")?
+            .parse::<usize>()
+            .ok()?
+            .checked_sub(1)?;
+        (index < platform_core::AUX_ENCODER_COUNT).then_some(index)
     }
 
     fn bind_aux_from_current(&mut self, index: usize) -> bool {

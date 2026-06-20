@@ -20,6 +20,7 @@ fn test_adapter() -> (DesktopPlaybackHostAdapter, mpsc::Receiver<QueuedAudioEven
         pending_default_save: None,
         selected_midi_output_id: None,
         selected_midi_input_id: None,
+        shutdown_requested: false,
     };
     (adapter, rx)
 }
@@ -117,4 +118,15 @@ fn midi_panic_returns_native_status_result() {
             }
         }]
     );
+}
+
+#[test]
+fn shutdown_effect_sets_pending_shutdown_request() {
+    let (mut adapter, _) = test_adapter();
+    let follow_ups = adapter
+        .handle_platform_effect(&RuntimePlatformEffect::Shutdown)
+        .unwrap();
+    assert!(follow_ups.is_empty());
+    assert!(adapter.take_shutdown_request());
+    assert!(!adapter.take_shutdown_request());
 }

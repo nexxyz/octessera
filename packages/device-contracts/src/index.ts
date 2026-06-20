@@ -14,7 +14,7 @@ export type {
 } from "./coreTypes";
 export { createGridDomain } from "./gridDomain";
 export type { GridCell, GridDomain } from "./gridDomain";
-export { GRID_HEIGHT, GRID_WIDTH, OLED_HEIGHT, OLED_WIDTH, PAN_POSITION_COUNT, PLATFORM_CAPS } from "./platformCapabilities.generated";
+export { AUX_ENCODER_COUNT, GRID_HEIGHT, GRID_WIDTH, OLED_HEIGHT, OLED_WIDTH, PAN_POSITION_COUNT, PLATFORM_CAPS } from "./platformCapabilities.generated";
 export {
   MIDI_REALTIME_MESSAGE_TYPES,
   RUNTIME_MOMENTARY_FX_TYPES,

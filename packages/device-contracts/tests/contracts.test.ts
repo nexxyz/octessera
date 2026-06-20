@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   GRID_DOMAIN,
+  AUX_ENCODER_COUNT,
   GRID_HEIGHT,
   GRID_WIDTH,
   MIDI_REALTIME_MESSAGE_TYPES,
@@ -30,12 +31,14 @@ test("platform capabilities match the hardware profile", () => {
     sampleSlotCount: 8,
     busCount: 4,
     globalFxSlotCount: 2,
+    auxEncoderCount: 3,
     touchFxMaxConcurrent: 4,
     scanSectionCounts: [1, 2, 4, 8],
     panPositionCount: 33,
     oledWidth: 128,
     oledHeight: 128
   });
+  assert.equal(AUX_ENCODER_COUNT, PLATFORM_CAPS.auxEncoderCount);
   assert.equal(PAN_POSITION_COUNT, PLATFORM_CAPS.panPositionCount);
   assert.equal(OLED_WIDTH, PLATFORM_CAPS.oledWidth);
   assert.equal(OLED_HEIGHT, PLATFORM_CAPS.oledHeight);

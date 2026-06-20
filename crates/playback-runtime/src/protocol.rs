@@ -109,6 +109,7 @@ pub enum RuntimePlatformEffect {
         id: Option<String>,
     },
     MidiPanic,
+    Shutdown,
     SampleListRequest {
         #[serde(rename = "instrumentSlot")]
         instrument_slot: usize,

@@ -1,19 +1,23 @@
 import { useRef, useState } from "react";
-import { GRID_DOMAIN, type DeviceInput } from "@cellsymphony/device-contracts";
+import { AUX_ENCODER_COUNT, GRID_DOMAIN, type DeviceInput } from "@cellsymphony/device-contracts";
 import { createSimulatorRuntime } from "../runtime/simulatorRuntime";
 import { ControlsPanel } from "./ControlsPanel";
 import { GridMatrix } from "./GridMatrix";
 import { useAudioConfigSync, useDialDragBindings, useKeyboardBindings, useRuntimeBindings } from "./appHooks";
 
 const runtime = createSimulatorRuntime();
-type EncoderId = "main" | "aux1" | "aux2" | "aux3" | "aux4";
+type EncoderId = "main" | `aux${number}`;
+const INITIAL_DIAL_PHASE = Object.fromEntries([
+  ["main", 0],
+  ...Array.from({ length: AUX_ENCODER_COUNT }, (_, index) => [`aux${index + 1}`, 0] as const)
+]);
 
 export function App() {
   const [snapshot, setSnapshot] = useState(() => runtime.getSnapshot());
   const [paintMode, setPaintMode] = useState<boolean | null>(null);
   const [painted, setPainted] = useState<Set<string>>(new Set());
   const [dialDrag, setDialDrag] = useState<{ id: EncoderId; y: number; acc: number } | null>(null);
-  const [dialPhase, setDialPhase] = useState<Record<string, number>>({ main: 0, aux1: 0, aux2: 0, aux3: 0, aux4: 0 });
+  const [dialPhase, setDialPhase] = useState<Record<string, number>>(INITIAL_DIAL_PHASE);
   const lastPressedCell = useRef<{ x: number; y: number } | null>(null);
   const frame = snapshot.frame;
   function dispatch(input: DeviceInput) {

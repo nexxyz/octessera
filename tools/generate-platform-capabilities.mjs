@@ -35,6 +35,7 @@ function capabilitiesFrom(source) {
     sampleSlotCount: positiveInteger(source, "sampleSlotCount"),
     busCount: positiveInteger(source, "busCount"),
     globalFxSlotCount: positiveInteger(source, "globalFxSlotCount"),
+    auxEncoderCount: positiveInteger(source, "auxEncoderCount"),
     touchFxMaxConcurrent: positiveInteger(source, "touchFxMaxConcurrent"),
     scanSectionCounts: parsedScanSectionCounts,
     panPositionCount: positiveInteger(source, "panPositionCount"),
@@ -52,6 +53,7 @@ export const PLATFORM_CAPS = ${JSON.stringify(caps, null, 2)} as const;
 export const GRID_WIDTH = PLATFORM_CAPS.gridWidth;
 export const GRID_HEIGHT = PLATFORM_CAPS.gridHeight;
 export const PAN_POSITION_COUNT = PLATFORM_CAPS.panPositionCount;
+export const AUX_ENCODER_COUNT = PLATFORM_CAPS.auxEncoderCount;
 export const OLED_WIDTH = PLATFORM_CAPS.oledWidth;
 export const OLED_HEIGHT = PLATFORM_CAPS.oledHeight;
 `;

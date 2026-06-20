@@ -9,7 +9,7 @@ This document describes the current Raspberry Pi Zero 2 W hardware target and na
 - Buttons: NeoKey 1x4 over I2C bus 1
 - Display: SSD1351 128x128 RGB OLED over SPI
 - Audio: PCM5102-class DAC through the ADA6250 connector over I2S
-- Controls: four clickable direct-GPIO rotary encoders
+- Controls: four clickable direct-GPIO rotary encoders: one main and three aux controls
 
 ## Software Path
 
@@ -30,7 +30,7 @@ The Pi app is native Rust. It does not start a Node or TypeScript runtime.
 - NeoTrellis LED output consumes runtime LED snapshots.
 - NeoKey keys map to `button_a`, `button_s`, `button_shift`, and `button_fn`.
 - NeoKey LEDs consume runtime modifier/transport/display state.
-- Encoders map to `main`, `aux1`, `aux2`, `aux3`, and `aux4`.
+- Encoders map to `main`, `aux1`, `aux2`, and `aux3`.
 - Encoder GPIO uses stateful quadrature decoding.
 - Host adapter handles default/preset storage effects, MIDI list/select/panic/output, sample listing, musical events, Dance FX audio commands, and playback/MIDI status updates.
 
@@ -67,7 +67,7 @@ On non-Pi cross hosts, the hardware build requires an ARM Linux sysroot and cros
 - SPI: OLED write path on MOSI/SCLK/CE0 plus DC/RST GPIO.
 - I2C: NeoTrellis and NeoKey seesaw devices on bus 1.
 - I2S: PCM5102-class DAC using BCK/LRCK/DIN.
-- GPIO9 is reused for SW5 channel B because the OLED path is write-only and SPI MISO is unused.
+- GPIO9/SPI MISO is now free because the current hardware profile uses three aux encoders.
 - GPIO14 can be claimed by UART TX if serial console is enabled; disable serial console for encoder reliability.
 
 ## Bring-Up Checklist
