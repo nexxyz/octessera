@@ -72,8 +72,8 @@ pub(super) enum MasterFxState {
         env: f32,
     },
     Eq {
-        left: EqChannelState,
-        right: EqChannelState,
+        left: Box<EqChannelState>,
+        right: Box<EqChannelState>,
     },
     Vinyl(VinylState),
 }
@@ -137,8 +137,8 @@ pub(super) fn master_fx_state_from_params(params: &FxBusParams) -> MasterFxState
     match params {
         FxBusParams::Compressor { .. } => MasterFxState::Compressor { env: 0.0 },
         FxBusParams::Eq { .. } => MasterFxState::Eq {
-            left: EqChannelState::new(),
-            right: EqChannelState::new(),
+            left: Box::new(EqChannelState::new()),
+            right: Box::new(EqChannelState::new()),
         },
         FxBusParams::Vinyl { .. } => MasterFxState::Vinyl(VinylState::new()),
         _ => MasterFxState::None,
@@ -437,8 +437,8 @@ pub(super) fn process_master_fx_slot(
                 high_gain_db,
                 mix,
             };
-            let wet_l = process_eq_channel(l, left, &eq_params, sample_rate);
-            let wet_r = process_eq_channel(r, right, &eq_params, sample_rate);
+            let wet_l = process_eq_channel(l.as_mut(), left, &eq_params, sample_rate);
+            let wet_r = process_eq_channel(r.as_mut(), right, &eq_params, sample_rate);
             (mix_sample(left, wet_l, mix), mix_sample(right, wet_r, mix))
         }
         FxBusParams::Vinyl {

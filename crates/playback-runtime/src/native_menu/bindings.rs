@@ -327,7 +327,13 @@ fn behavior_binding_groups(config: &NativeMenuConfig, target: &str) -> Option<Na
         .iter()
         .enumerate()
         .filter_map(|(part_index, label)| {
-            binding_group_from_behavior_items(label, &config.l1_items, target, config.active_part_index, part_index)
+            binding_group_from_behavior_items(
+                label,
+                &config.l1_items,
+                target,
+                config.active_part_index,
+                part_index,
+            )
         })
         .collect::<Vec<_>>();
     if children.is_empty() {
@@ -448,7 +454,8 @@ fn binding_spec_from_behavior_item(
         let rewritten = format!("parts.{target_part_index}.l1.behaviorConfig.{field}");
         return binding_spec_from_leaf(item, rewritten);
     }
-    if let Some(field) = key.strip_prefix(&format!("parts.{active_part_index}.l1.behaviorConfig.")) {
+    if let Some(field) = key.strip_prefix(&format!("parts.{active_part_index}.l1.behaviorConfig."))
+    {
         let rewritten = format!("parts.{target_part_index}.l1.behaviorConfig.{field}");
         return binding_spec_from_leaf(item, rewritten);
     }

@@ -309,7 +309,10 @@ fn format_param_lines(
     let value = value.into();
     if selected {
         let marker = if editing { "* " } else { "" };
-        vec![format_menu_line(&format!("{label}:"), true), format!("    {marker}{value}")]
+        vec![
+            format_menu_line(&format!("{label}:"), true),
+            format!("    {marker}{value}"),
+        ]
     } else {
         vec![format_menu_line(label, false)]
     }

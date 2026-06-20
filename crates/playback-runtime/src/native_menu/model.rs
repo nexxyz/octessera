@@ -386,7 +386,10 @@ impl NativeMenuModel {
         else {
             return false;
         };
-        matches!(item.value, NativeMenuValue::Group | NativeMenuValue::Action(_))
+        matches!(
+            item.value,
+            NativeMenuValue::Group | NativeMenuValue::Action(_)
+        )
     }
 
     pub fn current_help_target(&self) -> Option<NativeMenuHelpTarget> {

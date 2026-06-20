@@ -200,7 +200,14 @@ fn render_splash_frame(frame: &mut [u8], splash: &str, brightness: f32) {
     fill_rect(frame, 0, 0, 128, 128, rgb565(scale([3, 7, 10], brightness)));
     fill_rect(frame, 0, 0, 128, 10, rgb565(accent));
     fill_rect(frame, 0, 118, 128, 10, rgb565(accent));
-    fill_rect(frame, 12, 18, 104, 92, rgb565(scale([10, 16, 20], brightness)));
+    fill_rect(
+        frame,
+        12,
+        18,
+        104,
+        92,
+        rgb565(scale([10, 16, 20], brightness)),
+    );
 
     let lines = match splash {
         "Starting up" => ["STARTING", "UP"].as_slice(),
@@ -215,7 +222,14 @@ fn render_splash_frame(frame: &mut [u8], splash: &str, brightness: f32) {
         let width = text_width(line, 3);
         let x = ((128_i32 - width) / 2).max(8);
         let y = start_y + (index as i32 * line_height);
-        draw_text(frame, line, x, y, 3, rgb565(scale([240, 244, 228], brightness)));
+        draw_text(
+            frame,
+            line,
+            x,
+            y,
+            3,
+            rgb565(scale([240, 244, 228], brightness)),
+        );
     }
 }
 

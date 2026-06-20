@@ -82,7 +82,6 @@ fn dance_fx_page_is_flat_and_shows_selected_type_params() {
         .any(|item| item.label == "Stutter"));
 }
 
-
 #[test]
 fn parameter_picker_exposes_binding_actions_for_aux_param_and_xy_targets() {
     let menu = NativeMenuModel::new(config());
