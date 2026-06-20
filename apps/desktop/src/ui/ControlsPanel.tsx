@@ -54,14 +54,8 @@ export function ControlsPanel({
           </article>
         ))}
       </section>
-      <section className="button-stack stack-a">
-        {NEOKEY_BUTTONS.slice(0, 2).map((button) => (
-          <NeoKey key={button.key} button={button} dispatch={dispatch} setModifier={setModifier} snapshot={snapshot} />
-        ))}
-      </section>
-
-      <section className="button-stack stack-b">
-        {NEOKEY_BUTTONS.slice(2).map((button) => (
+      <section className="button-stack button-block">
+        {NEOKEY_BUTTONS.map((button) => (
           <NeoKey key={button.key} button={button} dispatch={dispatch} setModifier={setModifier} snapshot={snapshot} />
         ))}
       </section>

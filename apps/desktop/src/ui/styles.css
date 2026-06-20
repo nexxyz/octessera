@@ -49,10 +49,10 @@ body {
 
 .control-grid {
   display: grid;
-  grid-template-columns: 120px auto 260px 98px;
+  grid-template-columns: 120px auto 98px;
   grid-template-areas:
-    "sw1 oled aux stacka"
-    ". oled aux stackb";
+    "sw1 oled ."
+    "aux aux buttons";
   gap: 10px;
   align-items: start;
 }
@@ -70,8 +70,7 @@ body {
 .sw1 { grid-area: sw1; }
 .oled-wrap { grid-area: oled; justify-self: start; }
 .aux-triangle { grid-area: aux; }
-.stack-a { grid-area: stacka; }
-.stack-b { grid-area: stackb; }
+.button-block { grid-area: buttons; }
 
 .aux-triangle {
   display: grid;
@@ -81,6 +80,7 @@ body {
     "left right";
   gap: 12px 14px;
   align-items: start;
+  justify-self: center;
 }
 
 .aux-1 { grid-area: left; }
@@ -207,13 +207,12 @@ body {
 
 
 .button-stack {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 22px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
   width: 98px;
   justify-self: start;
-  align-self: stretch;
+  align-self: start;
 }
 
 .button-stack button {
@@ -293,8 +292,7 @@ body {
       "sw1"
       "oled"
       "aux"
-      "stacka"
-      "stackb";
+      "buttons";
   }
   .aux-triangle {
     justify-self: center;
