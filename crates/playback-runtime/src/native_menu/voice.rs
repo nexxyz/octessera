@@ -1,7 +1,7 @@
-use super::voice_helpers::{
-    cutoff_hz_to_display, sample_browser_group, sample_env_group, sample_number, sample_string,
-    synth_env_group, synth_number, synth_preset_items,
-};
+use super::sample_browser_menu::sample_browser_group;
+use super::synth_preset_items::synth_preset_items;
+use super::voice_config_read::{cutoff_hz_to_display, sample_number, sample_string, synth_number};
+use super::voice_env_groups::{sample_env_group, synth_env_group};
 use super::{
     action_item, bool_item, enum_item, group, number_item, selected_index, text_item,
     NativeMenuAction, NativeMenuItem, NativeSampleBrowserConfig,

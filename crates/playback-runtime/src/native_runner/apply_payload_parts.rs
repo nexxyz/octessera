@@ -1,4 +1,4 @@
-use super::apply_payload_helpers::apply_sense_payload;
+use super::sense_payload_apply::apply_sense_payload;
 use super::{
     apply_legacy_trigger_gates_payload, apply_trigger_probability_map_payload, note_unit_to_pulses,
     param_binding_from_payload, param_mods_from_payload, NativeRunner, Value,

@@ -63,6 +63,30 @@ pub(super) fn aux_binding_configs(
         .collect()
 }
 
+pub(super) fn aux_bindings_payload(bindings: &[Option<NativeAuxBinding>]) -> Value {
+    let mut object = serde_json::Map::new();
+    for (index, binding) in bindings.iter().enumerate() {
+        let key = format!("aux{}", index + 1);
+        let value = if let Some(binding) = binding {
+            json!({
+                "turnKey": binding.turn_key.clone(),
+                "pressAction": match &binding.press_action {
+                    Some(NativeMenuAction::BehaviorAction(action)) => json!({ "kind": "behavior_action", "actionType": action.clone() }),
+                    Some(NativeMenuAction::PlatformEffect(action)) => json!({ "kind": "platform_effect", "action": action.clone() }),
+                    Some(NativeMenuAction::CloneInstrument { index }) => json!({ "kind": "instrument_clone", "slot": index }),
+                    Some(NativeMenuAction::ResetInstrument { index }) => json!({ "kind": "instrument_reset", "slot": index }),
+                    Some(NativeMenuAction::ResetBehavior) => json!({ "kind": "reset_behavior" }),
+                    _ => Value::Null,
+                }
+            })
+        } else {
+            Value::Null
+        };
+        object.insert(key, value);
+    }
+    Value::Object(object)
+}
+
 pub(super) fn param_binding_spec_from_native(
     binding: &NativeParamBinding,
 ) -> NativeParamBindingSpec {

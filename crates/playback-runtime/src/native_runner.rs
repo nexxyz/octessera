@@ -23,9 +23,9 @@ use defaults::{
     default_sense_parts, derive_bus_name, derive_instrument_name, fx_default_params,
     fx_slot_payload_with_params, note_unit_from_pulses, note_unit_to_pulses,
 };
+use modulation_keys::{parse_instrument_binding_key, parse_part_behavior_config_binding_key};
 #[cfg(test)]
-use modulation::{apply_sampler_assignments_for_instruments, sampler_assignment_velocity};
-use modulation::{parse_instrument_binding_key, parse_part_behavior_config_binding_key};
+use modulation_sampler::{apply_sampler_assignments_for_instruments, sampler_assignment_velocity};
 #[cfg(test)]
 use platform_core::CellTriggerIntent;
 #[cfg(test)]
@@ -50,45 +50,80 @@ use visual_utils::{
 mod action_control;
 mod algorithm;
 mod apply_payload;
-mod apply_payload_helpers;
 mod apply_payload_instruments;
 mod apply_payload_parts;
 mod aux_auto_map;
+mod aux_auto_map_layouts;
+mod aux_binding_payload_apply;
 mod behavior_menu;
+mod binding_specs;
 mod config;
 mod construction;
 mod dance_control;
 mod dance_fx_utils;
 mod defaults;
 mod device_input;
+mod factory_payload;
+mod fx_bus_config;
+mod fx_targets;
 mod grid_assign;
-mod helper_bindings;
-mod helper_instruments;
-mod helper_menu;
-mod helper_misc;
-mod helper_sense;
+mod grid_coords;
+mod help_text;
+mod instrument_collections;
+mod instrument_runtime;
+mod json_path;
 mod menu_apply;
 mod menu_apply_instrument;
 mod menu_apply_sense_fx;
+mod menu_value_apply;
 mod modulation;
+mod modulation_fx;
+mod modulation_instrument;
+mod modulation_keys;
+mod modulation_sampler;
+mod modulation_sense;
+mod modulation_value;
 mod overlays;
+mod pan_position;
 mod part_state;
+mod payload_assign;
 mod preset_names;
 mod runtime_io;
+mod sample_assignment_payload;
 mod sample_browser;
+mod sample_paths;
+mod sense_config;
+mod sense_payload;
+mod sense_payload_apply;
 mod snapshot;
 mod state_types;
 mod store;
+mod synth_config;
+mod trigger_probability_payload;
+mod velocity_curve;
 mod visual_utils;
 
 use preset_names::{clean_preset_name, fresh_preset_name};
 
-use helper_bindings::*;
-use helper_instruments::*;
-use helper_menu::*;
-use helper_misc::*;
-use helper_sense::*;
+use binding_specs::*;
+use factory_payload::*;
+use fx_bus_config::*;
+use fx_targets::*;
+use grid_coords::*;
+use help_text::*;
+use instrument_collections::*;
+use instrument_runtime::*;
+use json_path::*;
+use menu_value_apply::*;
+use pan_position::*;
+use sample_assignment_payload::*;
+use sample_paths::*;
+use sense_config::*;
+use sense_payload::*;
 use state_types::*;
+use synth_config::*;
+use trigger_probability_payload::*;
+use velocity_curve::*;
 
 const DEFAULT_ALGORITHM_STEP_PULSES: u32 = 12;
 const OLED_BODY_ROWS: usize = 7;

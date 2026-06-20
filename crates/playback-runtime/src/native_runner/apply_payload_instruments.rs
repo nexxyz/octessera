@@ -1,6 +1,6 @@
 use crate::protocol::RuntimePlatformEffect;
 
-use super::apply_payload_helpers::apply_aux_bindings_payload;
+use super::aux_binding_payload_apply::apply_aux_bindings_payload;
 use super::{
     default_mapping_config, derive_bus_name, derive_instrument_name,
     sample_assignment_from_payload, sanitize_pan_position_payload, velocity_curve_from_id,

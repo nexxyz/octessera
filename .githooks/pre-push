@@ -49,13 +49,9 @@ run_check "pnpm test"          "pnpm run test 2>&1"
 run_check "cargo fmt"          "cargo fmt --all --check 2>&1"
 run_check "file length" "
   MAX=500
-  EXCEPTIONS=\"\$ROOT/.file-length-exceptions\"
   FAILED=0
   while IFS= read -r -d '' file; do
     rel=\"\${file#\$ROOT/}\"
-    if [ -f \"\$EXCEPTIONS\" ] && grep -s -q -F \"\$rel\" \"\$EXCEPTIONS\"; then
-      continue
-    fi
     lines=\$(wc -l < \"\$file\")
     if [ \"\$lines\" -gt \"\$MAX\" ]; then
       printf '  ✗ %s (%d lines, max %d)\n' \"\$rel\" \"\$lines\" \"\$MAX\" >&2

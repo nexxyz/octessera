@@ -10,6 +10,7 @@ mod input_events;
 mod instruments;
 mod menu_navigation;
 mod modulation;
+mod modulation_bindings;
 mod runtime_control;
 mod sense_and_voice_menu;
 mod shutdown;
