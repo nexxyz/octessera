@@ -112,6 +112,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+      - name: Install Linux audio build deps
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libasound2-dev
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Rust cache
@@ -125,6 +127,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+      - name: Install Linux audio build deps
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libasound2-dev
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Rust cache
