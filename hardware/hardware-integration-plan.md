@@ -9,7 +9,7 @@ This document describes the current Raspberry Pi Zero 2 W hardware target and na
 - Buttons: NeoKey 1x4 over I2C bus 1
 - Display: SSD1351 128x128 RGB OLED over SPI
 - Audio: PCM5102-class DAC through the ADA6250 connector over I2S
-- Controls: five clickable direct-GPIO rotary encoders
+- Controls: four clickable direct-GPIO rotary encoders
 
 ## Software Path
 

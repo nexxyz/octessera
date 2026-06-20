@@ -1,0 +1,700 @@
+{
+  "pcb_size": [
+    107.25,
+    127.0
+  ],
+  "wall": 2.6,
+  "floor_thick": 3.0,
+  "bottom_wall_h": 22.0,
+  "top_thick": 3.0,
+  "lip_h": 3.0,
+  "corner_r": 8.0,
+  "margin": 8.0,
+  "pcb_clearance": 0.22,
+  "neotrellis_clearance": 0.25,
+  "neotrellis_connector_gap": 1.5,
+  "insert_hole_d": 4.2,
+  "insert_boss_od": 7.2,
+  "insert_boss_h": 10.0,
+  "top_screw_clearance_d": 3.4,
+  "encoder_hole_d": 7.2,
+  "screen_cutout": [
+    33.0,
+    33.0
+  ],
+  "screen_cutout_r": 1.5,
+  "oled_sd_face_cutout": [
+    25.0,
+    9.0
+  ],
+  "oled_sd_face_r": 1.0,
+  "key_cutout": [
+    16.2,
+    16.2
+  ],
+  "key_cutout_r": 2.0,
+  "neotrellis_pitch": 15.0,
+  "neotrellis_button_cutout": 11.2,
+  "neotrellis_button_r": 1.6,
+  "foot_recess_depth": 1.0,
+  "foot_strip": [
+    210.0,
+    12.0
+  ],
+  "foot_strip_r": 3.0,
+  "board_origin_gerber": [
+    14.25,
+    14.75
+  ],
+  "board_size_gerber": [
+    107.25,
+    127.0
+  ],
+  "case_size": [
+    266.0,
+    158.0
+  ],
+  "offset": [
+    8.0,
+    8.0
+  ],
+  "features_local": {
+    "encoders": {
+      "SW1": [
+        15.549999999999999,
+        42.25
+      ],
+      "SW2": [
+        45.85,
+        61.05
+      ],
+      "SW3": [
+        28.85,
+        84.15
+      ],
+      "SW4": [
+        62.85,
+        84.15
+      ]
+    },
+    "oled_board_bbox": [
+      42.38,
+      0.9099999999999993,
+      84.29,
+      44.089999999999996
+    ],
+    "oled_screen_center": [
+      63.33500000000001,
+      22.499999999999996
+    ],
+    "oled_sd_face_center": [
+      63.33500000000001,
+      42.29
+    ],
+    "neokey_bbox": [
+      86.16,
+      68.15,
+      103.94000000000001,
+      125.3
+    ],
+    "neokey_key_centers": [
+      [
+        95.05000000000001,
+        58.625
+      ],
+      [
+        95.05000000000001,
+        77.675
+      ],
+      [
+        95.05000000000001,
+        96.725
+      ],
+      [
+        95.05000000000001,
+        115.775
+      ]
+    ],
+    "j1_center": [
+      95.55,
+      34.17
+    ],
+    "j1_pins": {
+      "1": [
+        95.55,
+        39.25
+      ],
+      "2": [
+        95.55,
+        36.71
+      ],
+      "3": [
+        95.55,
+        34.17
+      ],
+      "4": [
+        95.55,
+        31.630000000000003
+      ],
+      "5": [
+        95.55,
+        29.090000000000003
+      ]
+    },
+    "neotrellis_origin": [
+      108.75,
+      4.170000000000002
+    ],
+    "neotrellis_left_pad_centers": {
+      "SDA": [
+        111.346,
+        39.25
+      ],
+      "SCL": [
+        111.346,
+        36.71
+      ],
+      "GND": [
+        111.346,
+        34.17
+      ],
+      "VIN": [
+        111.346,
+        31.630000000000003
+      ],
+      "INT": [
+        111.346,
+        29.090000000000003
+      ]
+    }
+  },
+  "port_defs_case": {
+    "left": [
+      {
+        "a": 17.0,
+        "b": 30.0,
+        "z0": 8.5,
+        "z1": 19.0,
+        "label": "audio 3.5mm"
+      },
+      {
+        "a": 74.5,
+        "b": 88.5,
+        "z0": 8.5,
+        "z1": 19.0,
+        "label": "USB-C power"
+      },
+      {
+        "a": 112.0,
+        "b": 128.0,
+        "z0": 8.5,
+        "z1": 18.0,
+        "label": "Pi microSD"
+      }
+    ],
+    "top": [],
+    "bottom": [
+      {
+        "a": 15.07,
+        "b": 28.67,
+        "z0": 8.5,
+        "z1": 19.5,
+        "label": "Pi mini-HDMI"
+      },
+      {
+        "a": 44.37,
+        "b": 57.37,
+        "z0": 8.5,
+        "z1": 19.5,
+        "label": "Pi USB data"
+      }
+    ],
+    "right": []
+  },
+  "note_ports": "Pi power micro-USB is intentionally not exposed; power is via the USB-C breakout. OLED microSD uses top-face access slot, not a bogus case-edge port.",
+  "insert_positions_case": [
+    [
+      18.0,
+      40.0
+    ],
+    [
+      232.75,
+      12.0
+    ],
+    [
+      86.0,
+      131.0
+    ],
+    [
+      232.75,
+      131.0
+    ],
+    [
+      116.0,
+      24.0
+    ],
+    [
+      116.0,
+      119.0
+    ],
+    [
+      232.75,
+      71.5
+    ]
+  ],
+  "orientation": "XY matches KiCad PCB screenshot: X right, Y down. No mirroring relative to PCB top view.",
+  "ports_v16": [
+    {
+      "side": "left",
+      "a": 23.0,
+      "b": 36.0,
+      "z0": 8.5,
+      "z1": 19.0,
+      "label": "audio 3.5mm"
+    },
+    {
+      "side": "left",
+      "a": 80.5,
+      "b": 94.5,
+      "z0": 8.5,
+      "z1": 19.0,
+      "label": "USB-C power"
+    },
+    {
+      "side": "left",
+      "a": 118.0,
+      "b": 134.0,
+      "z0": 8.5,
+      "z1": 18.0,
+      "label": "Pi microSD"
+    },
+    {
+      "side": "bottom",
+      "a": 21.5,
+      "b": 35.5,
+      "z0": 8.5,
+      "z1": 19.5,
+      "label": "Pi mini-HDMI"
+    },
+    {
+      "side": "bottom",
+      "a": 50.0,
+      "b": 64.0,
+      "z0": 8.5,
+      "z1": 19.5,
+      "label": "Pi USB data"
+    },
+    {
+      "side": "top_notch",
+      "a": 64.5,
+      "b": 84.5,
+      "depth": 18.5,
+      "z0": 8.5,
+      "z1": 19.0,
+      "label": "OLED microSD"
+    }
+  ],
+  "case_screw_bosses_v16": [
+    [
+      7.0,
+      7.0
+    ],
+    [
+      7.0,
+      151.0
+    ],
+    [
+      132.0,
+      7.0
+    ],
+    [
+      132.0,
+      151.0
+    ],
+    [
+      259.0,
+      7.0
+    ],
+    [
+      259.0,
+      151.0
+    ]
+  ],
+  "boss_keepout_check_v16": [
+    {
+      "boss": 1,
+      "x": 7.0,
+      "y": 7.0,
+      "status": "OK"
+    },
+    {
+      "boss": 2,
+      "x": 7.0,
+      "y": 151.0,
+      "status": "OK"
+    },
+    {
+      "boss": 3,
+      "x": 132.0,
+      "y": 7.0,
+      "status": "OK"
+    },
+    {
+      "boss": 4,
+      "x": 132.0,
+      "y": 151.0,
+      "status": "OK"
+    },
+    {
+      "boss": 5,
+      "x": 259.0,
+      "y": 7.0,
+      "status": "OK"
+    },
+    {
+      "boss": 6,
+      "x": 259.0,
+      "y": 151.0,
+      "status": "OK"
+    }
+  ],
+  "rail_policy_v16": [
+    "Case screw bosses are only in case margins and do not overlap main PCB, NeoTrellis active area, OLED, NeoKey, or encoder keepouts.",
+    "Main PCB is located by low rails/nubs around its outline; these are not screw posts.",
+    "NeoTrellis is located by perimeter rails only; left rail is broken around the J1/NeoTrellis pad region.",
+    "No standoff/screw feature is placed through any PCB or active button field."
+  ],
+  "orientation_v17": "STLs exported in normal CAD orientation (X right, Y up). This fixes the mirrored-bottom issue seen when viewing/printing the bottom.",
+  "rail_height_v17": 3.0,
+  "connector_channel_v17": [
+    104.55,
+    96.75,
+    132.346,
+    122.91
+  ],
+  "ports_v17": [
+    {
+      "side": "left",
+      "a": 122.0,
+      "b": 135.0,
+      "z0": 8.5,
+      "z1": 19.0,
+      "label": "audio 3.5mm"
+    },
+    {
+      "side": "left",
+      "a": 63.5,
+      "b": 77.5,
+      "z0": 8.5,
+      "z1": 19.0,
+      "label": "USB-C power"
+    },
+    {
+      "side": "left",
+      "a": 24.0,
+      "b": 40.0,
+      "z0": 8.5,
+      "z1": 18.0,
+      "label": "Pi microSD"
+    },
+    {
+      "side": "bottom",
+      "a": 21.5,
+      "b": 35.5,
+      "z0": 8.5,
+      "z1": 19.5,
+      "label": "Pi mini-HDMI"
+    },
+    {
+      "side": "bottom",
+      "a": 50.0,
+      "b": 64.0,
+      "z0": 8.5,
+      "z1": 19.5,
+      "label": "Pi USB data"
+    },
+    {
+      "side": "top_notch",
+      "a": 62.0,
+      "b": 86.0,
+      "depth": 16.0,
+      "z0": 8.5,
+      "z1": 19.0,
+      "label": "OLED microSD"
+    }
+  ],
+  "case_screw_bosses_v17": [
+    [
+      7.0,
+      151.0
+    ],
+    [
+      7.0,
+      7.0
+    ],
+    [
+      132.0,
+      151.0
+    ],
+    [
+      132.0,
+      7.0
+    ],
+    [
+      259.0,
+      151.0
+    ],
+    [
+      259.0,
+      7.0
+    ]
+  ],
+  "boss_keepout_check_v17": [
+    {
+      "boss": 1,
+      "x": 7.0,
+      "y": 151.0,
+      "status": "OK"
+    },
+    {
+      "boss": 2,
+      "x": 7.0,
+      "y": 7.0,
+      "status": "OK"
+    },
+    {
+      "boss": 3,
+      "x": 132.0,
+      "y": 151.0,
+      "status": "OK"
+    },
+    {
+      "boss": 4,
+      "x": 132.0,
+      "y": 7.0,
+      "status": "OK"
+    },
+    {
+      "boss": 5,
+      "x": 259.0,
+      "y": 151.0,
+      "status": "OK"
+    },
+    {
+      "boss": 6,
+      "x": 259.0,
+      "y": 7.0,
+      "status": "OK"
+    }
+  ],
+  "notes_v17": [
+    "Locator rails increased to 3.0 mm high.",
+    "NeoTrellis left locator rail and main PCB right-side nubs are broken/omitted around the J1-to-NeoTrellis connector path.",
+    "No case screw boss intersects the main PCB, NeoTrellis cluster, OLED, NeoKey, encoders, or connector channel keepouts.",
+    "Pi power micro-USB is not exposed; device power remains via USB-C breakout."
+  ],
+  "corner_insert_boss_od": 6.8,
+  "case_size_v21": [
+    247.0,
+    140.0
+  ],
+  "offset_v21": [
+    8.5,
+    6.5
+  ],
+  "main_rail_height_v21": 3.2,
+  "neotrellis_rail_height_v21": 8.0,
+  "connector_channel_v21": [
+    98.05,
+    84.25,
+    128.846,
+    114.41
+  ],
+  "ports_v21": [
+    {
+      "side": "left",
+      "a": 111.5,
+      "b": 124.5,
+      "z0": 8.5,
+      "z1": 19.0,
+      "label": "audio 3.5mm"
+    },
+    {
+      "side": "left",
+      "a": 53.0,
+      "b": 67.0,
+      "z0": 8.5,
+      "z1": 19.0,
+      "label": "USB-C power"
+    },
+    {
+      "side": "left",
+      "a": 13.5,
+      "b": 29.5,
+      "z0": 8.5,
+      "z1": 18.0,
+      "label": "Pi microSD"
+    },
+    {
+      "side": "bottom",
+      "a": 16.0,
+      "b": 30.0,
+      "z0": 8.5,
+      "z1": 19.5,
+      "label": "Pi mini-HDMI"
+    },
+    {
+      "side": "bottom",
+      "a": 44.5,
+      "b": 58.5,
+      "z0": 8.5,
+      "z1": 19.5,
+      "label": "Pi USB data"
+    }
+  ],
+  "case_screw_bosses_v21": [
+    [
+      4.75,
+      135.25
+    ],
+    [
+      4.15,
+      93.0
+    ],
+    [
+      4.75,
+      4.75
+    ],
+    [
+      242.25,
+      135.25
+    ],
+    [
+      241.6,
+      70.0
+    ],
+    [
+      242.25,
+      4.75
+    ]
+  ],
+  "case_screw_boss_specs_v21": [
+    {
+      "pos": [
+        4.75,
+        135.25
+      ],
+      "r": 3.4,
+      "kind": "corner TL"
+    },
+    {
+      "pos": [
+        4.15,
+        93.0
+      ],
+      "r": 3.6,
+      "kind": "side L"
+    },
+    {
+      "pos": [
+        4.75,
+        4.75
+      ],
+      "r": 3.4,
+      "kind": "corner BL"
+    },
+    {
+      "pos": [
+        242.25,
+        135.25
+      ],
+      "r": 3.4,
+      "kind": "corner TR"
+    },
+    {
+      "pos": [
+        241.6,
+        70.0
+      ],
+      "r": 3.6,
+      "kind": "side R"
+    },
+    {
+      "pos": [
+        242.25,
+        4.75
+      ],
+      "r": 3.4,
+      "kind": "corner BR"
+    }
+  ],
+  "boss_keepout_check_v21": [
+    {
+      "boss": 1,
+      "kind": "corner TL",
+      "x": 4.75,
+      "y": 135.25,
+      "radius": 3.4,
+      "corner_arc_distance": 4.596194077712559,
+      "status": "OK"
+    },
+    {
+      "boss": 2,
+      "kind": "side L",
+      "x": 4.15,
+      "y": 93.0,
+      "radius": 3.6,
+      "corner_arc_distance": null,
+      "status": "OK"
+    },
+    {
+      "boss": 3,
+      "kind": "corner BL",
+      "x": 4.75,
+      "y": 4.75,
+      "radius": 3.4,
+      "corner_arc_distance": 4.596194077712559,
+      "status": "OK"
+    },
+    {
+      "boss": 4,
+      "kind": "corner TR",
+      "x": 242.25,
+      "y": 135.25,
+      "radius": 3.4,
+      "corner_arc_distance": 4.596194077712559,
+      "status": "OK"
+    },
+    {
+      "boss": 5,
+      "kind": "side R",
+      "x": 241.6,
+      "y": 70.0,
+      "radius": 3.6,
+      "corner_arc_distance": null,
+      "status": "OK"
+    },
+    {
+      "boss": 6,
+      "kind": "corner BR",
+      "x": 242.25,
+      "y": 4.75,
+      "radius": 3.4,
+      "corner_arc_distance": 4.596194077712559,
+      "status": "OK"
+    }
+  ],
+  "board_capture_strategy_v21": [
+    "Case screws do not pass through PCBs/components.",
+    "Heat-set insert bosses are integrated into outer locator rail regions to keep port openings close to their components.",
+    "Main PCB is laterally located by tight rails/nubs; lid capture ribs limit upward movement at safe edge regions.",
+    "NeoTrellis is laterally located by 6 mm tall perimeter rails; left rail is broken for J1/socket connector clearance.",
+    "NeoTrellis vertical retention is by the screwed-down top faceplate and edge capture ribs, not screws through the active button field."
+  ],
+  "v21_final_notes": [
+    "No OLED top-edge / top-plate hole above display.",
+    "Case H reduced to 140 mm; W remains 247 mm.",
+    "Use case_top_v21_PRINT_FACE_DOWN_use_this_for_printing.stl for printing the lid.",
+    "Use case_top_v21_ASSEMBLY_CHECK_catch_rims_on_underside.stl for alignment inspection."
+  ]
+}
