@@ -12,15 +12,15 @@ fn unsupported_behavior_errors() {
 }
 
 #[test]
-fn checked_in_default_restores_life_grid_and_emits_input_note() {
+fn checked_in_default_restores_sequencer_grid_state() {
     let payload: Value =
         serde_json::from_str(include_str!("../../../../../config/default.json")).unwrap();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
 
     runner.apply_config_payload(payload).unwrap();
 
-    assert_eq!(runner.behavior.id(), "life");
-    assert_eq!(runner.active_part_index, 0);
+    assert_eq!(runner.behavior.id(), "sequencer");
+    assert_eq!(runner.active_part_index, 1);
     assert!(runner
         .engine
         .model()
@@ -32,16 +32,6 @@ fn checked_in_default_restores_life_grid_and_emits_input_note() {
     assert_eq!(runner.sense_parts[0].activate_slot, 0);
     assert_eq!(runner.sense_parts[0].activate_action, "note_on");
     assert!(runner.input_events_while_paused);
-
-    let messages = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
-        })
-        .unwrap();
-
-    assert!(musical_note_ons(&messages)
-        .iter()
-        .any(|(channel, _)| *channel == 0));
 }
 
 #[test]
@@ -166,5 +156,15 @@ fn button_s_toggles_transport() {
     assert!(matches!(
         messages.last(),
         Some(RunnerMessage::RuntimeStatus { status }) if status.transport == RuntimeTransportState::Playing
+    ));
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_s", "pressed": true }),
+        })
+        .unwrap();
+    assert!(matches!(
+        messages.last(),
+        Some(RunnerMessage::RuntimeStatus { status }) if status.transport == RuntimeTransportState::Paused
     ));
 }

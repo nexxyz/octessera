@@ -23,11 +23,22 @@ pub(super) fn default_instruments() -> Vec<NativeInstrumentSlot> {
 }
 
 pub(super) fn default_sense_parts() -> Vec<NativeSensePart> {
-    let mut parts = vec![NativeSensePart::default(); PART_COUNT];
+    let mut parts = (0..PART_COUNT).map(default_sense_part).collect::<Vec<_>>();
     for part in parts.iter_mut().skip(1) {
         part.event_enabled = false;
     }
     parts
+}
+
+pub(super) fn default_sense_part(index: usize) -> NativeSensePart {
+    let mut part = NativeSensePart::default();
+    let slot = index.min(INSTRUMENT_COUNT.saturating_sub(1));
+    part.scanned_slot = slot;
+    part.scanned_empty_slot = slot;
+    part.activate_slot = slot;
+    part.stable_slot = slot;
+    part.deactivate_slot = slot;
+    part
 }
 
 pub(super) fn default_fx_buses() -> Vec<NativeFxBus> {

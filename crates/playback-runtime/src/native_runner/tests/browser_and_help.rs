@@ -68,7 +68,10 @@ fn sample_browser_opens_lists_and_picks_sample() {
             input: json!({ "type": "encoder_press", "id": "main" }),
         })
         .unwrap();
-    let snapshot = snapshot_from(&messages);
+    assert!(messages
+        .iter()
+        .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
+    let snapshot = runner.snapshot().unwrap();
 
     assert_eq!(
         snapshot["settings"]["instruments"][0]["sample"]["slots"][0]["path"],

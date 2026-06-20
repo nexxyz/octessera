@@ -6,9 +6,9 @@ impl NativeRunner {
         part_index: usize,
     ) -> platform_core::MappingConfig {
         let Some(sense) = self.sense_parts.get(part_index) else {
-            return self.mapping_config.clone();
+            return self.base_mapping_config.clone();
         };
-        let mut mapping = self.mapping_config.clone();
+        let mut mapping = self.base_mapping_config.clone();
         mapping.base_midi_note = i32::from(sense.lowest_note.min(sense.highest_note));
         mapping.starting_midi_note = i32::from(sense.starting_note);
         mapping.max_midi_note = i32::from(sense.lowest_note.max(sense.highest_note));
@@ -93,7 +93,7 @@ impl NativeRunner {
                 self.behavior,
                 self.behavior_config.clone(),
                 self.interpretation_profile.clone(),
-                self.mapping_config.clone(),
+                self.base_mapping_config.clone(),
                 self.global_sound.clone(),
                 self.note_behaviors.clone(),
                 self.active_part_index,

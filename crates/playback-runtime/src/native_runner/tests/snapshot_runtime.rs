@@ -62,6 +62,9 @@ fn unbound_aux_inputs_show_toast_without_navigating_menu() {
 #[test]
 fn toasts_expire_after_timeout() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.oled_mode = NativeOledMode::Normal;
+    runner.oled_splash_text.clear();
+    runner.oled_splash_until = None;
     runner.set_toast_for_test("Temporary toast");
 
     assert_eq!(
@@ -424,6 +427,9 @@ fn save_grid_state_controls_saved_state_payload_and_restore() {
 #[test]
 fn save_default_result_lights_auto_save_indicator_and_toast_scrolls() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.oled_mode = NativeOledMode::Normal;
+    runner.oled_splash_text.clear();
+    runner.oled_splash_until = None;
     runner
         .send(HostMessage::RuntimeResult {
             result: RuntimeStoreResult::SaveDefaultResult {

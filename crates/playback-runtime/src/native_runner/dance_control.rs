@@ -309,12 +309,6 @@ impl NativeRunner {
                 offset: 0,
             });
         }
-        if let Err(error) = self.activate_engine(self.active_part_index) {
-            self.toast = Some(NativeToast {
-                message: error,
-                offset: 0,
-            });
-        }
         self.menu.rebuild(self.menu_config());
     }
 

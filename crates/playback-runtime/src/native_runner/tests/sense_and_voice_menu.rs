@@ -266,13 +266,14 @@ fn midi_instrument_params_edit_through_menu() {
             input: json!({ "type": "encoder_press", "id": "main" }),
         })
         .unwrap();
+    assert!(messages
+        .iter()
+        .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
+    let snapshot = runner.snapshot().unwrap();
 
+    assert_eq!(snapshot["settings"]["instruments"][0]["midi"]["channel"], 5);
     assert_eq!(
-        snapshot_from(&messages)["settings"]["instruments"][0]["midi"]["channel"],
-        5
-    );
-    assert_eq!(
-        snapshot_from(&messages)["settings"]["instruments"][0]["midi"]["velocity"],
+        snapshot["settings"]["instruments"][0]["midi"]["velocity"],
         90
     );
 }

@@ -26,7 +26,7 @@ pub(super) fn parent_dir(dir: &str) -> String {
 
 pub(super) fn parse_slot_index(value: &str) -> Option<usize> {
     if let Ok(index) = value.parse::<usize>() {
-        return Some(index);
+        return Some(if index == 0 { 0 } else { index - 1 });
     }
     value
         .strip_prefix('I')

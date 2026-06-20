@@ -264,7 +264,7 @@ impl NativeRunner {
                     "respondToStartStop": self.midi_respond_to_start_stop
                 }
             },
-            "mappingConfig": self.mapping_config,
+            "mappingConfig": self.base_mapping_config,
             "system": {
                 "danceMode": self.dance_mode
             }
