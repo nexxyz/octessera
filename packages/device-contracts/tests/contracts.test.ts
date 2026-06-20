@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   GRID_DOMAIN,
   AUX_ENCODER_COUNT,
+  cutoffDisplayToHz,
   GRID_HEIGHT,
   GRID_WIDTH,
   MIDI_REALTIME_MESSAGE_TYPES,
@@ -101,4 +102,13 @@ test("runtime contract fixtures cover each host and runner message class", () =>
 
   assert.deepEqual([...hostTypes].sort(), ["device_input", "midi_realtime", "runtime_result", "transport_pulse_step"]);
   assert.deepEqual([...runnerTypes].sort(), ["audio_commands", "musical_events", "platform_effects", "runtime_status", "snapshot"]);
+});
+
+test("cutoff display clamps and scales into synth Hz range", () => {
+  assert.equal(cutoffDisplayToHz(-50), 80);
+  assert.equal(cutoffDisplayToHz(0), 80);
+  assert.equal(cutoffDisplayToHz(255), 16000);
+  const midpoint = cutoffDisplayToHz(128);
+  assert.ok(midpoint > 80);
+  assert.ok(midpoint < 16000);
 });

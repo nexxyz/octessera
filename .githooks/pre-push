@@ -46,6 +46,7 @@ run_check "pnpm lint"          "pnpm run lint 2>&1"
 run_check "pnpm typecheck"     "pnpm run typecheck 2>&1"
 run_check "pnpm format:check"  "pnpm run format:check 2>&1"
 run_check "pnpm test"          "pnpm run test 2>&1"
+run_check "pnpm test:coverage" "pnpm run test:coverage 2>&1"
 run_check "cargo fmt"          "cargo fmt --all --check 2>&1"
 run_check "file length" "
   MAX=500
@@ -60,9 +61,16 @@ run_check "file length" "
   done < <(find \"\$ROOT\" \( -name '*.rs' -o -name '*.ts' -o -name '*.tsx' -o -name '*.mjs' \) -not -path '*/target/*' -not -path '*/node_modules/*' -not -path '*/dist/*' -not -path '*/.git/*' -print0)
   [ \"\$FAILED\" -eq 0 ]
 "
-
+run_check "cargo test" \
+  "cargo test --workspace --exclude cellsymphony-desktop --exclude rodio-engine-source 2>&1"
+run_check "cargo check desktop" \
+  "cargo check -p cellsymphony-desktop 2>&1"
+run_check "cargo check pi" \
+  "cargo check -p cellsymphony-pi 2>&1"
+run_check "tauri build smoke" \
+  "pnpm run tauri:build:ci 2>&1"
 run_check "cargo clippy" \
-  "cargo clippy --workspace --exclude rodio-engine-source --all-targets -- -D warnings 2>&1"
+  "cargo clippy --workspace --exclude cellsymphony-desktop --exclude rodio-engine-source --all-targets -- -D warnings 2>&1"
 
 printf "\n====================\n"
 printf "  %d passed, %d failed\n" "$PASS" "$FAIL"
