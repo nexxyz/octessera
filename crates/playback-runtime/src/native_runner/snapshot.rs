@@ -1,4 +1,6 @@
-use crate::protocol::{RunnerMessage, RuntimePlatformEffect, RuntimeStatus, RuntimeStatusState};
+use crate::protocol::{
+    RunnerMessage, RuntimePlatformEffect, RuntimeStatus, RuntimeStatusState, RuntimeUiPulse,
+};
 
 use super::{
     clip_display_line, display_index, json, sample_assignments_payload, scrolled_toast,
@@ -8,13 +10,34 @@ use super::{
 };
 
 impl NativeRunner {
+    pub(super) fn trigger_ui_pulse_message(&self) -> RunnerMessage {
+        RunnerMessage::UiPulse {
+            pulse: RuntimeUiPulse::TriggerPulse { duration_ms: 45 },
+        }
+    }
+
+    pub(super) fn transport_ui_pulse_message(&self) -> Option<RunnerMessage> {
+        if self.transport_flash_pulses_remaining != 6 {
+            return None;
+        }
+        match self.transport_flash {
+            "measure" | "beat" => Some(RunnerMessage::UiPulse {
+                pulse: RuntimeUiPulse::TransportFlash {
+                    flash: self.transport_flash.into(),
+                    duration_ms: 90,
+                },
+            }),
+            _ => None,
+        }
+    }
+
     pub(super) fn snapshot(&self) -> Result<Value, String> {
-        let model = self.engine.model()?;
-        let menu = self.menu.snapshot();
-        let instruments = self
-            .instruments
-            .iter()
-            .map(|instrument| {
+        self.snapshot_with_audio_config(true)
+    }
+
+    fn audio_snapshot_payload(&self) -> Value {
+        json!({
+            "instruments": self.instruments.iter().map(|instrument| {
                 let sample_slots = instrument
                     .sample_paths
                     .iter()
@@ -63,8 +86,15 @@ impl NativeRunner {
                         "route": instrument.route
                     }
                 })
-            })
-            .collect::<Vec<_>>();
+            }).collect::<Vec<_>>(),
+            "mixer": self.mixer_payload(),
+            "panPositions": PAN_POSITION_COUNT,
+        })
+    }
+
+    fn snapshot_with_audio_config(&self, include_audio_config: bool) -> Result<Value, String> {
+        let model = self.engine.model()?;
+        let menu = self.menu.snapshot();
         let mut leds = vec![json!({ "r": 15, "g": 15, "b": 22 }); GRID_WIDTH * GRID_HEIGHT];
         for (logical_index, alive) in model.cells.iter().enumerate() {
             let x = logical_index % GRID_WIDTH;
@@ -260,9 +290,6 @@ impl NativeRunner {
                 "numericDisplayMode": self.ui.numeric_display_mode,
                 "screenSleepSeconds": self.ui.screen_sleep_seconds,
                 "auxAutoMapEnabled": self.aux_auto_map_enabled,
-                "instruments": instruments,
-                "mixer": self.mixer_payload(),
-                "panPositions": PAN_POSITION_COUNT,
                 "audioConfigRevision": self.audio_config_revision,
                 "autoSaveFlash": if self.auto_save_flash_pulses_remaining > 0 { "flash" } else { "none" },
                 "autoSaveFlashSerial": self.auto_save_flash_serial,
@@ -289,11 +316,33 @@ impl NativeRunner {
             "selectedRow": selected_row,
             "voiceStealingMode": self.voice_stealing_mode.clone(),
             "eventDotOn": self.event_dot_on || self.event_dot_pulses_remaining > 0,
-            "transportIcon": if self.transport == RuntimeTransportState::Playing { "play" } else { "stop" },
+            "transportIcon": match self.transport {
+                RuntimeTransportState::Playing => "play",
+                RuntimeTransportState::Paused => "pause",
+                RuntimeTransportState::Stopped => "stop",
+            },
             "transportFlash": self.transport_flash,
             "cpuLoadRatio": 0.0
         });
+        if include_audio_config {
+            if let Some(settings) = snapshot.get_mut("settings").and_then(Value::as_object_mut) {
+                let Value::Object(audio) = self.audio_snapshot_payload() else {
+                    unreachable!("audio snapshot payload is an object");
+                };
+                settings.extend(audio);
+            }
+        }
         snapshot["settings"]["shiftHeld"] = json!(self.ui.shift_held);
+        Ok(snapshot)
+    }
+
+    pub(super) fn next_snapshot(&mut self) -> Result<Value, String> {
+        let include_audio_config =
+            self.last_snapshot_audio_config_revision != Some(self.audio_config_revision);
+        let snapshot = self.snapshot_with_audio_config(include_audio_config)?;
+        if include_audio_config {
+            self.last_snapshot_audio_config_revision = Some(self.audio_config_revision);
+        }
         Ok(snapshot)
     }
 
@@ -310,8 +359,13 @@ impl NativeRunner {
 
     pub(super) fn messages_with_snapshot(&mut self) -> Result<Vec<RunnerMessage>, String> {
         self.advance_oled_sleep_state();
+        if self.oled_mode == NativeOledMode::Splash
+            && self.oled_splash_text == super::OLED_STARTUP_SPLASH_KEY
+        {
+            self.startup_splash_presented = true;
+        }
         self.advance_toast_state();
-        let snapshot = self.snapshot()?;
+        let snapshot = self.next_snapshot()?;
         let mut messages = Vec::new();
         if !self.queued_platform_effects.is_empty() {
             messages.push(RunnerMessage::PlatformEffects {
@@ -371,7 +425,8 @@ impl NativeRunner {
         );
         if !events.is_empty() {
             self.event_dot_on = true;
-            self.event_dot_pulses_remaining = 6;
+            self.event_dot_pulses_remaining = 1;
+            messages.push(self.trigger_ui_pulse_message());
             messages.push(RunnerMessage::MusicalEvents { events });
         }
         messages.extend(self.messages_with_snapshot()?);

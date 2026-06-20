@@ -219,6 +219,10 @@ impl NativePartEngine {
         self.note_behaviors = note_behaviors;
     }
 
+    pub fn reset_transport_phase(&mut self) {
+        self.tick = 0;
+    }
+
     pub fn state(&self) -> &NativeBehaviorState {
         &self.state
     }

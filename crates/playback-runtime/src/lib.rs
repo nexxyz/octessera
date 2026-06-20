@@ -11,7 +11,7 @@ pub use platform_core::MusicalEvent;
 pub use protocol::{
     HostMessage, MidiPort, RunnerMessage, RuntimeAudioCommand, RuntimeMomentaryFxTarget,
     RuntimePlatformEffect, RuntimeStatus, RuntimeStatusState, RuntimeStoreResult,
-    RuntimeTransportState, SampleEntry, SyncSource,
+    RuntimeTransportState, RuntimeUiPulse, SampleEntry, SyncSource,
 };
 pub use runtime::{CoreRunner, HostAdapter, PlaybackRuntime, RuntimeConfig};
 

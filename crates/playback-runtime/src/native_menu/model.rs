@@ -12,6 +12,14 @@ use super::{
     NativeMenuModel, NativeMenuState, NativeMenuValue, NativeParamBindingSpec,
 };
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum NativeMenuPressResult {
+    EnteredGroup,
+    Action(NativeMenuAction),
+    EditingToggled { editing: bool },
+    TextCursorAdvanced,
+}
+
 impl NativeMenuModel {
     pub fn new(config: NativeMenuConfig) -> Self {
         let numeric_display_mode = config.numeric_display_mode.clone();
@@ -94,7 +102,7 @@ impl NativeMenuModel {
         }
     }
 
-    pub fn press(&mut self) -> Option<NativeMenuAction> {
+    pub fn press(&mut self) -> Option<NativeMenuPressResult> {
         if self.current_siblings().is_empty() {
             return None;
         }
@@ -103,14 +111,16 @@ impl NativeMenuModel {
             NativeMenuValue::Group => {
                 self.state.stack.push(self.state.cursor);
                 self.state.cursor = 0;
-                None
+                Some(NativeMenuPressResult::EnteredGroup)
             }
-            NativeMenuValue::Action(action) => Some(action),
+            NativeMenuValue::Action(action) => Some(NativeMenuPressResult::Action(action)),
             NativeMenuValue::Enum { .. }
             | NativeMenuValue::Number { .. }
             | NativeMenuValue::Bool { .. } => {
                 self.state.editing = !self.state.editing;
-                None
+                Some(NativeMenuPressResult::EditingToggled {
+                    editing: self.state.editing,
+                })
             }
             NativeMenuValue::Text {
                 value,
@@ -119,6 +129,7 @@ impl NativeMenuModel {
             } => {
                 if self.state.editing {
                     self.advance_text_cursor(max_len);
+                    Some(NativeMenuPressResult::TextCursorAdvanced)
                 } else {
                     let cursor = value.len().min(max_len);
                     if let NativeMenuValue::Text { cursor: target, .. } =
@@ -127,8 +138,8 @@ impl NativeMenuModel {
                         *target = cursor;
                     }
                     self.state.editing = true;
+                    Some(NativeMenuPressResult::EditingToggled { editing: true })
                 }
-                None
             }
         }
     }
@@ -231,18 +242,6 @@ impl NativeMenuModel {
         siblings
             .get(self.state.cursor.min(siblings.len().saturating_sub(1)))
             .and_then(|item| item.key.as_deref())
-    }
-
-    pub fn current_browse_requires_apply(&self) -> bool {
-        let siblings = self.current_siblings();
-        let Some(item) = siblings.get(self.state.cursor.min(siblings.len().saturating_sub(1)))
-        else {
-            return false;
-        };
-        matches!(
-            item.value,
-            NativeMenuValue::Group | NativeMenuValue::Action(_)
-        )
     }
 
     pub fn current_help_target(&self) -> Option<NativeMenuHelpTarget> {

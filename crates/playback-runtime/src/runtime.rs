@@ -228,6 +228,7 @@ impl PlaybackRuntime {
                         host.handle_audio_command(&command)?;
                     }
                 }
+                RunnerMessage::UiPulse { .. } => {}
                 RunnerMessage::RuntimeStatus { status } => {
                     self.apply_runtime_status(status, host)?;
                 }

@@ -37,6 +37,7 @@ mod voice;
 mod voice_config_read;
 mod voice_env_groups;
 
+pub use model::NativeMenuPressResult;
 pub(crate) use options::{is_valid_fx_bus_slot_type, is_valid_global_fx_slot_type};
 pub use types::*;
 
