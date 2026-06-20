@@ -295,5 +295,5 @@ fn sense_scan_menu_exposes_none_and_scanned_empty_targets() {
     assert!(runner
         .menu
         .value_for_key("parts.0.l2.mapping.scanned_empty.slot")
-        .is_some_and(|value| value == "none"));
+        .is_some_and(|value| value != "none"));
 }

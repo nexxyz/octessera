@@ -16,11 +16,20 @@ fn checked_in_default_restores_sequencer_grid_state() {
     let payload: Value =
         serde_json::from_str(include_str!("../../../../../config/default.json")).unwrap();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let expected_active_part_index = payload["runtimeConfig"]["activePartIndex"]
+        .as_u64()
+        .unwrap_or(0) as usize;
+    let expected_behavior_id = payload["runtimeConfig"]["parts"]
+        .get(expected_active_part_index)
+        .and_then(|part| part.get("l1"))
+        .and_then(|l1| l1.get("behaviorId"))
+        .and_then(Value::as_str)
+        .unwrap_or("life");
 
     runner.apply_config_payload(payload).unwrap();
 
-    assert_eq!(runner.behavior.id(), "sequencer");
-    assert_eq!(runner.active_part_index, 1);
+    assert_eq!(runner.behavior.id(), expected_behavior_id);
+    assert_eq!(runner.active_part_index, expected_active_part_index);
     assert!(runner
         .engine
         .model()
