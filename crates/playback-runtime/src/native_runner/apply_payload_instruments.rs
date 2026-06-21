@@ -91,7 +91,10 @@ impl NativeRunner {
     }
 
     fn apply_runtime_input_payload(&mut self, runtime: &Value) {
-        if let Some(value) = runtime.get("inputEventsWhilePaused").and_then(Value::as_bool) {
+        if let Some(value) = runtime
+            .get("inputEventsWhilePaused")
+            .and_then(Value::as_bool)
+        {
             self.input_events_while_paused = value;
         }
     }
@@ -167,20 +170,22 @@ impl NativeRunner {
     }
 
     fn queue_midi_selection_effects(&mut self) {
-        self.queued_platform_effects.push(RuntimePlatformEffect::MidiSelectOutput {
-            id: if self.midi_enabled {
-                self.selected_midi_output_id.clone()
-            } else {
-                None
-            },
-        });
-        self.queued_platform_effects.push(RuntimePlatformEffect::MidiSelectInput {
-            id: if self.midi_enabled {
-                self.selected_midi_input_id.clone()
-            } else {
-                None
-            },
-        });
+        self.queued_platform_effects
+            .push(RuntimePlatformEffect::MidiSelectOutput {
+                id: if self.midi_enabled {
+                    self.selected_midi_output_id.clone()
+                } else {
+                    None
+                },
+            });
+        self.queued_platform_effects
+            .push(RuntimePlatformEffect::MidiSelectInput {
+                id: if self.midi_enabled {
+                    self.selected_midi_input_id.clone()
+                } else {
+                    None
+                },
+            });
     }
 }
 

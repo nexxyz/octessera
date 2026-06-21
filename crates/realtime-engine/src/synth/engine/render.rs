@@ -62,7 +62,8 @@ impl SynthEngine {
             self.bus_mono_scratch.fill(0.0);
         }
         if self.bus_mono_snapshot.len() != self.bus_mono_scratch.len() {
-            self.bus_mono_snapshot.resize(self.bus_mono_scratch.len(), 0.0);
+            self.bus_mono_snapshot
+                .resize(self.bus_mono_scratch.len(), 0.0);
         }
     }
 
@@ -102,7 +103,8 @@ impl SynthEngine {
         mut left: f32,
         mut right: f32,
     ) -> (f32, f32) {
-        self.bus_mono_snapshot.copy_from_slice(&self.bus_mono_scratch);
+        self.bus_mono_snapshot
+            .copy_from_slice(&self.bus_mono_scratch);
         for bus_idx in 0..self.bus_mono_scratch.len() {
             let (processed, pan_override) = self.process_fx_bus(bus_idx, slot_out);
             let (fx_l, fx_r) = self.process_momentary_fx_target(

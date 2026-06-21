@@ -65,20 +65,14 @@ pub(super) fn instrument_amp_auto_map(
     if field.starts_with("synth.amp.") {
         Some([
             Some(runner.turn_slot(format!("{prefix}.synth.amp.gainPct"), "Gain")),
-            Some(runner.turn_slot(
-                format!("{prefix}.synth.amp.velocitySensitivityPct"),
-                "Vel",
-            )),
+            Some(runner.turn_slot(format!("{prefix}.synth.amp.velocitySensitivityPct"), "Vel")),
             None,
             None,
         ])
     } else if field.starts_with("sample.amp.") {
         Some([
             Some(runner.turn_slot(format!("{prefix}.sample.amp.gainPct"), "Gain")),
-            Some(runner.turn_slot(
-                format!("{prefix}.sample.amp.velocitySensitivityPct"),
-                "Vel",
-            )),
+            Some(runner.turn_slot(format!("{prefix}.sample.amp.velocitySensitivityPct"), "Vel")),
             None,
             None,
         ])

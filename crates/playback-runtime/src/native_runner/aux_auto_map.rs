@@ -44,7 +44,8 @@ impl NativeRunner {
         let title = overlay_title(&slots);
         let mut lines = vec![self.aux_overlay_context_label()];
         lines.extend(
-            slots.iter()
+            slots
+                .iter()
                 .enumerate()
                 .map(|(index, slot)| format!("A{} {}", index + 1, aux_slot_body(slot))),
         );

@@ -283,7 +283,10 @@ impl NativeRunner {
         self.dim_leds(leds, 4);
         for assignment in &self.dance_fx_assignments {
             let id = dance_fx_cell_id(assignment.x, assignment.y);
-            let active = self.active_dance_fx.iter().any(|(active_id, _)| active_id == &id);
+            let active = self
+                .active_dance_fx
+                .iter()
+                .any(|(active_id, _)| active_id == &id);
             let limited = !active && self.active_dance_fx.len() >= TOUCH_FX_MAX_CONCURRENT;
             let color = momentary_fx_color(dance_fx_type(&assignment.config));
             self.set_display_led(
@@ -357,7 +360,11 @@ impl NativeRunner {
                 .get(row)
                 .map(|id| id != "none")
                 .unwrap_or(false);
-            let color = fn_part_color(configured, row == self.active_part_index, self.active_dance_mode != "none");
+            let color = fn_part_color(
+                configured,
+                row == self.active_part_index,
+                self.active_dance_mode != "none",
+            );
             self.set_display_led(leds, 0, row, color);
         }
     }

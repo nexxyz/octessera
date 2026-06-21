@@ -311,10 +311,7 @@ impl NativeRunner {
         if parts.get(1) == Some(&"buses") && parts.len() >= 6 {
             return self.fx_bus_slot_auto_map_context(&parts);
         }
-        if parts.get(1) == Some(&"master")
-            && parts.get(2) == Some(&"slots")
-            && parts.len() >= 5
-        {
+        if parts.get(1) == Some(&"master") && parts.get(2) == Some(&"slots") && parts.len() >= 5 {
             return self.global_fx_slot_auto_map_context(&parts);
         }
         None
@@ -337,10 +334,7 @@ impl NativeRunner {
     fn global_fx_slot_auto_map_context(&self, parts: &[&str]) -> Option<(&str, String)> {
         let slot_index = parts.get(3)?.parse::<usize>().ok()?;
         let slot_type = self.global_fx_slots.get(slot_index)?.as_str();
-        Some((
-            slot_type,
-            format!("mixer.master.slots.{slot_index}.params"),
-        ))
+        Some((slot_type, format!("mixer.master.slots.{slot_index}.params")))
     }
 
     fn dance_fx_auto_map(&self) -> [Option<ResolvedAuxSlot>; 4] {

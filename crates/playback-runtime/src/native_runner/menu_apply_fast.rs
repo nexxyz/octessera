@@ -1,6 +1,4 @@
-use super::{
-    cutoff_display_to_hz, set_json_path_number, NativeRunner, PAN_POSITION_COUNT,
-};
+use super::{cutoff_display_to_hz, set_json_path_number, NativeRunner, PAN_POSITION_COUNT};
 
 impl NativeRunner {
     pub(super) fn apply_or_schedule_menu_key(&mut self, key: &str) -> Result<(), String> {
@@ -150,10 +148,7 @@ fn fast_instrument_pan(value: i32, instrument: &mut super::NativeInstrumentSlot)
     }
 }
 
-fn fast_instrument_synth_gain(
-    value: i32,
-    instrument: &mut super::NativeInstrumentSlot,
-) -> bool {
+fn fast_instrument_synth_gain(value: i32, instrument: &mut super::NativeInstrumentSlot) -> bool {
     let value = value.clamp(0, 100) as u8;
     if instrument.synth_gain_pct == value {
         false
@@ -168,10 +163,7 @@ fn fast_instrument_synth_gain(
     }
 }
 
-fn fast_instrument_filter_cutoff(
-    value: i32,
-    instrument: &mut super::NativeInstrumentSlot,
-) -> bool {
+fn fast_instrument_filter_cutoff(value: i32, instrument: &mut super::NativeInstrumentSlot) -> bool {
     let display = value.clamp(0, 255);
     let cutoff = cutoff_display_to_hz(display) as u16;
     if super::synth_filter_cutoff(instrument) == cutoff {

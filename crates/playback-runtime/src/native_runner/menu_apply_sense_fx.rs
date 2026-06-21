@@ -87,9 +87,22 @@ fn apply_sense_scan_and_mapping_menu_state(
         &mut part.scan_direction,
         &format!("{prefix}.scanDirection"),
     );
-    changed |= set_u8_enum_from_menu(menu, &mut part.scan_sections, &format!("{prefix}.scanSections"), 8);
-    changed |= set_target_slot_from_menu(menu, &mut part.scanned_slot, &format!("{prefix}.mapping.scanned.slot"));
-    changed |= set_string_from_menu(menu, &mut part.scanned_action, &format!("{prefix}.mapping.scanned.action"));
+    changed |= set_u8_enum_from_menu(
+        menu,
+        &mut part.scan_sections,
+        &format!("{prefix}.scanSections"),
+        8,
+    );
+    changed |= set_target_slot_from_menu(
+        menu,
+        &mut part.scanned_slot,
+        &format!("{prefix}.mapping.scanned.slot"),
+    );
+    changed |= set_string_from_menu(
+        menu,
+        &mut part.scanned_action,
+        &format!("{prefix}.mapping.scanned.action"),
+    );
     changed |= set_target_slot_from_menu(
         menu,
         &mut part.scanned_empty_slot,
@@ -100,18 +113,46 @@ fn apply_sense_scan_and_mapping_menu_state(
         &mut part.scanned_empty_action,
         &format!("{prefix}.mapping.scanned_empty.action"),
     );
-    changed |= set_bool_from_menu(menu, &mut part.event_enabled, &format!("{prefix}.eventEnabled"));
+    changed |= set_bool_from_menu(
+        menu,
+        &mut part.event_enabled,
+        &format!("{prefix}.eventEnabled"),
+    );
     changed |= set_bool_from_menu(
         menu,
         &mut part.state_notes_enabled,
         &format!("{prefix}.stateNotesEnabled"),
     );
-    changed |= set_target_slot_from_menu(menu, &mut part.activate_slot, &format!("{prefix}.mapping.activate.slot"));
-    changed |= set_string_from_menu(menu, &mut part.activate_action, &format!("{prefix}.mapping.activate.action"));
-    changed |= set_target_slot_from_menu(menu, &mut part.stable_slot, &format!("{prefix}.mapping.stable.slot"));
-    changed |= set_string_from_menu(menu, &mut part.stable_action, &format!("{prefix}.mapping.stable.action"));
-    changed |= set_target_slot_from_menu(menu, &mut part.deactivate_slot, &format!("{prefix}.mapping.deactivate.slot"));
-    changed |= set_string_from_menu(menu, &mut part.deactivate_action, &format!("{prefix}.mapping.deactivate.action"));
+    changed |= set_target_slot_from_menu(
+        menu,
+        &mut part.activate_slot,
+        &format!("{prefix}.mapping.activate.slot"),
+    );
+    changed |= set_string_from_menu(
+        menu,
+        &mut part.activate_action,
+        &format!("{prefix}.mapping.activate.action"),
+    );
+    changed |= set_target_slot_from_menu(
+        menu,
+        &mut part.stable_slot,
+        &format!("{prefix}.mapping.stable.slot"),
+    );
+    changed |= set_string_from_menu(
+        menu,
+        &mut part.stable_action,
+        &format!("{prefix}.mapping.stable.action"),
+    );
+    changed |= set_target_slot_from_menu(
+        menu,
+        &mut part.deactivate_slot,
+        &format!("{prefix}.mapping.deactivate.slot"),
+    );
+    changed |= set_string_from_menu(
+        menu,
+        &mut part.deactivate_action,
+        &format!("{prefix}.mapping.deactivate.action"),
+    );
     changed
 }
 
@@ -138,12 +179,31 @@ fn apply_sense_probability_and_pitch_menu_state(
         &format!("{prefix}.triggerProbabilityHighPct"),
         100,
     );
-    changed |= set_u8_from_menu(menu, &mut part.lowest_note, &format!("{prefix}.pitch.lowestNote"), 127);
-    changed |= set_u8_from_menu(menu, &mut part.highest_note, &format!("{prefix}.pitch.highestNote"), 127);
-    changed |= set_u8_from_menu(menu, &mut part.starting_note, &format!("{prefix}.pitch.startingNote"), 127);
+    changed |= set_u8_from_menu(
+        menu,
+        &mut part.lowest_note,
+        &format!("{prefix}.pitch.lowestNote"),
+        127,
+    );
+    changed |= set_u8_from_menu(
+        menu,
+        &mut part.highest_note,
+        &format!("{prefix}.pitch.highestNote"),
+        127,
+    );
+    changed |= set_u8_from_menu(
+        menu,
+        &mut part.starting_note,
+        &format!("{prefix}.pitch.startingNote"),
+        127,
+    );
     changed |= set_string_from_menu(menu, &mut part.scale, &format!("{prefix}.pitch.scale"));
     changed |= set_string_from_menu(menu, &mut part.root, &format!("{prefix}.pitch.root"));
-    changed |= set_string_from_menu(menu, &mut part.out_of_range, &format!("{prefix}.pitch.outOfRange"));
+    changed |= set_string_from_menu(
+        menu,
+        &mut part.out_of_range,
+        &format!("{prefix}.pitch.outOfRange"),
+    );
     changed
 }
 
@@ -155,30 +215,66 @@ fn apply_sense_axis_menu_state(
 ) -> bool {
     let mut changed = false;
     if axis == "x" {
-        changed |= set_bool_from_menu(menu, &mut part.x_pitch_enabled, &format!("{prefix}.x.pitch.enabled"));
-        changed |= set_i32_from_menu(menu, &mut part.x_pitch_steps, &format!("{prefix}.x.pitch.steps"), -16, 16);
+        changed |= set_bool_from_menu(
+            menu,
+            &mut part.x_pitch_enabled,
+            &format!("{prefix}.x.pitch.enabled"),
+        );
+        changed |= set_i32_from_menu(
+            menu,
+            &mut part.x_pitch_steps,
+            &format!("{prefix}.x.pitch.steps"),
+            -16,
+            16,
+        );
         changed |= set_bool_from_menu(
             menu,
             &mut part.x_pitch_restart_each_section,
             &format!("{prefix}.x.pitch.restartEachSection"),
         );
-        changed |= apply_value_lane_menu_state(menu, &mut part.x_velocity, &format!("{prefix}.x.velocity"));
-        changed |= apply_value_lane_menu_state(menu, &mut part.x_filter_cutoff, &format!("{prefix}.x.filterCutoff"));
+        changed |= apply_value_lane_menu_state(
+            menu,
+            &mut part.x_velocity,
+            &format!("{prefix}.x.velocity"),
+        );
+        changed |= apply_value_lane_menu_state(
+            menu,
+            &mut part.x_filter_cutoff,
+            &format!("{prefix}.x.filterCutoff"),
+        );
         changed |= apply_value_lane_menu_state(
             menu,
             &mut part.x_filter_resonance,
             &format!("{prefix}.x.filterResonance"),
         );
     } else {
-        changed |= set_bool_from_menu(menu, &mut part.y_pitch_enabled, &format!("{prefix}.y.pitch.enabled"));
-        changed |= set_i32_from_menu(menu, &mut part.y_pitch_steps, &format!("{prefix}.y.pitch.steps"), -16, 16);
+        changed |= set_bool_from_menu(
+            menu,
+            &mut part.y_pitch_enabled,
+            &format!("{prefix}.y.pitch.enabled"),
+        );
+        changed |= set_i32_from_menu(
+            menu,
+            &mut part.y_pitch_steps,
+            &format!("{prefix}.y.pitch.steps"),
+            -16,
+            16,
+        );
         changed |= set_bool_from_menu(
             menu,
             &mut part.y_pitch_restart_each_section,
             &format!("{prefix}.y.pitch.restartEachSection"),
         );
-        changed |= apply_value_lane_menu_state(menu, &mut part.y_velocity, &format!("{prefix}.y.velocity"));
-        changed |= apply_value_lane_menu_state(menu, &mut part.y_filter_cutoff, &format!("{prefix}.y.filterCutoff"));
+        changed |= apply_value_lane_menu_state(
+            menu,
+            &mut part.y_velocity,
+            &format!("{prefix}.y.velocity"),
+        );
+        changed |= apply_value_lane_menu_state(
+            menu,
+            &mut part.y_filter_cutoff,
+            &format!("{prefix}.y.filterCutoff"),
+        );
         changed |= apply_value_lane_menu_state(
             menu,
             &mut part.y_filter_resonance,
@@ -208,8 +304,16 @@ fn apply_fx_bus_menu_state(
     if bus.slot2_type != before.1 {
         bus.slot2_params = fx_default_params(&bus.slot2_type);
     }
-    changed |= apply_fx_param_menu_state(menu, &mut bus.slot1_params, &format!("{prefix}.slot1.params"));
-    changed |= apply_fx_param_menu_state(menu, &mut bus.slot2_params, &format!("{prefix}.slot2.params"));
+    changed |= apply_fx_param_menu_state(
+        menu,
+        &mut bus.slot1_params,
+        &format!("{prefix}.slot1.params"),
+    );
+    changed |= apply_fx_param_menu_state(
+        menu,
+        &mut bus.slot2_params,
+        &format!("{prefix}.slot2.params"),
+    );
     changed |= set_u8_from_menu(menu, &mut bus.pan_pos, &format!("{prefix}.panPos"), 32);
     changed |= set_bool_from_menu(menu, &mut bus.auto_name, &format!("{prefix}.autoName"));
     if bus.auto_name && (bus.slot1_type != before.0 || bus.slot2_type != before.1 || !before.2) {
@@ -244,7 +348,8 @@ fn apply_global_fx_slot_menu_state(
         }
     }
     if let Some(params) = global_fx_params.get_mut(index) {
-        changed |= apply_fx_param_menu_state(menu, params, &format!("mixer.master.slots.{index}.params"));
+        changed |=
+            apply_fx_param_menu_state(menu, params, &format!("mixer.master.slots.{index}.params"));
     }
     changed
 }

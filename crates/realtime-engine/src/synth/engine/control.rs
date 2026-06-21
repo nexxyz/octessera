@@ -129,7 +129,11 @@ impl SynthEngine {
     fn compile_bus_mixer_state(
         &self,
         mixer: Option<&MixerConfig>,
-    ) -> (Vec<usize>, Vec<[FxBusParams; BUS_SLOTS_PER_BUS]>, Vec<[FxBusState; BUS_SLOTS_PER_BUS]>) {
+    ) -> (
+        Vec<usize>,
+        Vec<[FxBusParams; BUS_SLOTS_PER_BUS]>,
+        Vec<[FxBusState; BUS_SLOTS_PER_BUS]>,
+    ) {
         let mut next_bus_pan_pos = Vec::new();
         let mut next_bus_slot_params = Vec::new();
         let mut next_bus_slot_state = Vec::new();
