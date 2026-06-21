@@ -27,37 +27,123 @@ impl NativeRunner {
 
     pub(super) fn apply_runtime_ui_and_sound_payload(&mut self, runtime: &Value, payload: &Value) {
         apply_mixer_payload(runtime, &mut self.fx_buses, &mut self.global_fx_slots, &mut self.global_fx_params);
-        apply_sound_payload(runtime, &mut self.ui.master_volume, &mut self.global_sound.note_length_ms, &mut self.global_sound.velocity_scale_pct, &mut self.global_sound.velocity_curve, &mut self.voice_stealing_mode);
-        apply_ui_payload(
-            runtime,
-            &mut self.ui.display_brightness,
-            &mut self.ui.grid_brightness,
-            &mut self.ui.button_brightness,
-            &mut self.input_events_while_paused,
-            &mut self.ui.numeric_display_mode,
-            &mut self.ui.screen_sleep_seconds,
-            &mut self.aux_auto_map_enabled,
-            &mut self.aux_bindings,
-            &mut self.bpm,
-            &mut self.dance_mode,
-            &mut self.active_dance_mode,
-        );
-        apply_midi_payload(
-            runtime,
-            &mut self.midi_enabled,
-            &mut self.selected_midi_output_id,
-            &mut self.selected_midi_input_id,
-            &mut self.sync_source,
-            &mut self.midi_clock_out_enabled,
-            &mut self.midi_clock_in_enabled,
-            &mut self.midi_respond_to_start_stop,
-            &mut self.queued_platform_effects,
-        );
+        self.apply_sound_payload(runtime);
+        self.apply_ui_payload(runtime);
+        self.apply_midi_payload(runtime);
         if let Some(mapping_config) = payload.get("mappingConfig") {
             self.base_mapping_config = serde_json::from_value(mapping_config.clone())
                 .unwrap_or_else(|_| default_mapping_config());
             self.mapping_config = self.base_mapping_config.clone();
         }
+    }
+
+    fn apply_sound_payload(&mut self, runtime: &Value) {
+        if let Some(master) = runtime.get("masterVolume").and_then(Value::as_u64) {
+            self.ui.master_volume = (master as u8).min(100);
+        }
+        let sound = runtime.get("sound");
+        if let Some(value) = sound_or_runtime_u64(sound, runtime, "noteLengthMs") {
+            self.global_sound.note_length_ms = (value as u32).clamp(30, 2000);
+        }
+        if let Some(value) = sound_or_runtime_u64(sound, runtime, "velocityScalePct") {
+            self.global_sound.velocity_scale_pct = (value as u16).min(200);
+        }
+        if let Some(value) = sound_or_runtime_str(sound, runtime, "velocityCurve") {
+            self.global_sound.velocity_curve = velocity_curve_from_id(value);
+        }
+        if let Some(value) = sound_or_runtime_str(sound, runtime, "voiceStealingMode") {
+            if matches!(value, "off" | "lenient" | "balanced" | "aggressive") {
+                self.voice_stealing_mode = value.into();
+            }
+        }
+    }
+
+    fn apply_ui_payload(&mut self, runtime: &Value) {
+        if let Some(value) = runtime.get("displayBrightness").and_then(Value::as_u64) {
+            self.ui.display_brightness = (value as u8).min(100);
+        }
+        if let Some(value) = runtime.get("gridBrightness").and_then(Value::as_u64) {
+            self.ui.grid_brightness = (value as u8).min(100);
+        }
+        if let Some(value) = runtime.get("buttonBrightness").and_then(Value::as_u64) {
+            self.ui.button_brightness = (value as u8).min(100);
+        }
+        if let Some(value) = runtime.get("inputEventsWhilePaused").and_then(Value::as_bool) {
+            self.input_events_while_paused = value;
+        }
+        if let Some(value) = runtime.get("numericDisplayMode").and_then(Value::as_str) {
+            if matches!(value, "bar" | "numbers" | "bar+numbers") {
+                self.ui.numeric_display_mode = value.into();
+            }
+        }
+        if let Some(value) = runtime.get("screenSleepSeconds").and_then(Value::as_u64) {
+            self.ui.screen_sleep_seconds = (value as u16).min(600);
+        }
+        if let Some(value) = runtime.get("auxAutoMapEnabled").and_then(Value::as_bool) {
+            self.aux_auto_map_enabled = value;
+        }
+        if let Some(value) = runtime.get("auxBindings") {
+            apply_aux_bindings_payload(&mut self.aux_bindings, value);
+        }
+        if let Some(value) = runtime.get("bpm").and_then(Value::as_f64) {
+            self.bpm = value.clamp(20.0, 300.0);
+        }
+        if let Some(value) = runtime.get("danceMode").and_then(Value::as_str) {
+            let normalized = match value {
+                "mix" | "pan" | "fx" | "trigger-gate" | "xy" => Some(value),
+                "none" => Some("mix"),
+                _ => None,
+            };
+            if let Some(value) = normalized {
+                self.dance_mode = value.into();
+                self.active_dance_mode = "none".into();
+            }
+        }
+    }
+
+    fn apply_midi_payload(&mut self, runtime: &Value) {
+        let Some(midi) = runtime.get("midi") else {
+            return;
+        };
+        if let Some(enabled) = midi.get("enabled").and_then(Value::as_bool) {
+            self.midi_enabled = enabled;
+        }
+        if let Some(out_id) = midi.get("outId") {
+            self.selected_midi_output_id = out_id.as_str().map(str::to_string);
+        }
+        if let Some(in_id) = midi.get("inId") {
+            self.selected_midi_input_id = in_id.as_str().map(str::to_string);
+        }
+        if let Some(sync_mode) = midi.get("syncMode").and_then(Value::as_str) {
+            self.sync_source = if sync_mode == "external" {
+                SyncSource::External
+            } else {
+                SyncSource::Internal
+            };
+        }
+        if let Some(value) = midi.get("clockOutEnabled").and_then(Value::as_bool) {
+            self.midi_clock_out_enabled = value;
+        }
+        if let Some(value) = midi.get("clockInEnabled").and_then(Value::as_bool) {
+            self.midi_clock_in_enabled = value;
+        }
+        if let Some(value) = midi.get("respondToStartStop").and_then(Value::as_bool) {
+            self.midi_respond_to_start_stop = value;
+        }
+        self.queued_platform_effects.push(RuntimePlatformEffect::MidiSelectOutput {
+            id: if self.midi_enabled {
+                self.selected_midi_output_id.clone()
+            } else {
+                None
+            },
+        });
+        self.queued_platform_effects.push(RuntimePlatformEffect::MidiSelectInput {
+            id: if self.midi_enabled {
+                self.selected_midi_input_id.clone()
+            } else {
+                None
+            },
+        });
     }
 }
 
@@ -282,146 +368,7 @@ fn apply_global_fx_payload(
     }
 }
 
-fn apply_sound_payload(
-    runtime: &Value,
-    master_volume: &mut u8,
-    note_length_ms: &mut u32,
-    velocity_scale_pct: &mut u16,
-    velocity_curve: &mut platform_core::VelocityCurve,
-    voice_stealing_mode: &mut String,
-) {
-    if let Some(master) = runtime.get("masterVolume").and_then(Value::as_u64) {
-        *master_volume = (master as u8).min(100);
-    }
-    let sound = runtime.get("sound");
-    if let Some(value) = sound_or_runtime_u64(sound, runtime, "noteLengthMs") {
-        *note_length_ms = (value as u32).clamp(30, 2000);
-    }
-    if let Some(value) = sound_or_runtime_u64(sound, runtime, "velocityScalePct") {
-        *velocity_scale_pct = (value as u16).min(200);
-    }
-    if let Some(value) = sound_or_runtime_str(sound, runtime, "velocityCurve") {
-        *velocity_curve = velocity_curve_from_id(value);
-    }
-    if let Some(value) = sound_or_runtime_str(sound, runtime, "voiceStealingMode") {
-        if matches!(value, "off" | "lenient" | "balanced" | "aggressive") {
-            *voice_stealing_mode = value.into();
-        }
-    }
-}
-
-fn apply_ui_payload(
-    runtime: &Value,
-    display_brightness: &mut u8,
-    grid_brightness: &mut u8,
-    button_brightness: &mut u8,
-    input_events_while_paused: &mut bool,
-    numeric_display_mode: &mut String,
-    screen_sleep_seconds: &mut u16,
-    aux_auto_map_enabled: &mut bool,
-    aux_bindings: &mut [Option<super::NativeAuxBinding>],
-    bpm: &mut f64,
-    dance_mode: &mut String,
-    active_dance_mode: &mut String,
-) {
-    if let Some(value) = runtime.get("displayBrightness").and_then(Value::as_u64) {
-        *display_brightness = (value as u8).min(100);
-    }
-    if let Some(value) = runtime.get("gridBrightness").and_then(Value::as_u64) {
-        *grid_brightness = (value as u8).min(100);
-    }
-    if let Some(value) = runtime.get("buttonBrightness").and_then(Value::as_u64) {
-        *button_brightness = (value as u8).min(100);
-    }
-    if let Some(value) = runtime.get("inputEventsWhilePaused").and_then(Value::as_bool) {
-        *input_events_while_paused = value;
-    }
-    if let Some(value) = runtime.get("numericDisplayMode").and_then(Value::as_str) {
-        if matches!(value, "bar" | "numbers" | "bar+numbers") {
-            *numeric_display_mode = value.into();
-        }
-    }
-    if let Some(value) = runtime.get("screenSleepSeconds").and_then(Value::as_u64) {
-        *screen_sleep_seconds = (value as u16).min(600);
-    }
-    if let Some(value) = runtime.get("auxAutoMapEnabled").and_then(Value::as_bool) {
-        *aux_auto_map_enabled = value;
-    }
-    if let Some(value) = runtime.get("auxBindings") {
-        apply_aux_bindings_payload(aux_bindings, value);
-    }
-    if let Some(value) = runtime.get("bpm").and_then(Value::as_f64) {
-        *bpm = value.clamp(20.0, 300.0);
-    }
-    if let Some(value) = runtime.get("danceMode").and_then(Value::as_str) {
-        let normalized = match value {
-            "mix" | "pan" | "fx" | "trigger-gate" | "xy" => Some(value),
-            "none" => Some("mix"),
-            _ => None,
-        };
-        if let Some(value) = normalized {
-            *dance_mode = value.into();
-            *active_dance_mode = "none".into();
-        }
-    }
-}
-
-fn apply_midi_payload(
-    runtime: &Value,
-    midi_enabled: &mut bool,
-    selected_midi_output_id: &mut Option<String>,
-    selected_midi_input_id: &mut Option<String>,
-    sync_source: &mut SyncSource,
-    midi_clock_out_enabled: &mut bool,
-    midi_clock_in_enabled: &mut bool,
-    midi_respond_to_start_stop: &mut bool,
-    queued_platform_effects: &mut Vec<RuntimePlatformEffect>,
-) {
-    let Some(midi) = runtime.get("midi") else {
-        return;
-    };
-    if let Some(enabled) = midi.get("enabled").and_then(Value::as_bool) {
-        *midi_enabled = enabled;
-    }
-    if let Some(out_id) = midi.get("outId") {
-        *selected_midi_output_id = out_id.as_str().map(str::to_string);
-    }
-    if let Some(in_id) = midi.get("inId") {
-        *selected_midi_input_id = in_id.as_str().map(str::to_string);
-    }
-    if let Some(sync_mode) = midi.get("syncMode").and_then(Value::as_str) {
-        *sync_source = if sync_mode == "external" {
-            SyncSource::External
-        } else {
-            SyncSource::Internal
-        };
-    }
-    if let Some(value) = midi.get("clockOutEnabled").and_then(Value::as_bool) {
-        *midi_clock_out_enabled = value;
-    }
-    if let Some(value) = midi.get("clockInEnabled").and_then(Value::as_bool) {
-        *midi_clock_in_enabled = value;
-    }
-    if let Some(value) = midi.get("respondToStartStop").and_then(Value::as_bool) {
-        *midi_respond_to_start_stop = value;
-    }
-    queued_platform_effects.push(RuntimePlatformEffect::MidiSelectOutput {
-        id: if *midi_enabled {
-            selected_midi_output_id.clone()
-        } else {
-            None
-        },
-    });
-    queued_platform_effects.push(RuntimePlatformEffect::MidiSelectInput {
-        id: if *midi_enabled {
-            selected_midi_input_id.clone()
-        } else {
-            None
-        },
-    });
-}
-
-fn nested_u64<'a>(value: &'a Value, path: &[&str]) -> Option<u64> {
+fn nested_u64(value: &Value, path: &[&str]) -> Option<u64> {
     let mut current = value;
     for key in path {
         current = current.get(*key)?;
