@@ -8,93 +8,11 @@ use super::{
 impl NativeRunner {
     pub(super) fn apply_dance_overlay(&self, leds: &mut [Value]) {
         match self.active_dance_mode.as_str() {
-            "mix" => {
-                self.dim_leds(leds, 4);
-                for x in 0..INSTRUMENT_COUNT.min(GRID_WIDTH) {
-                    let instrument = self.instruments.get(x);
-                    let volume = instrument.map(|inst| inst.volume).unwrap_or(0).min(100);
-                    let y =
-                        ((f32::from(volume) / 100.0) * (GRID_HEIGHT - 1) as f32).round() as usize;
-                    let bright = json!({ "r": 0, "g": 220, "b": 90 });
-                    let dim = json!({ "r": 0, "g": 55, "b": 22 });
-                    self.set_display_led(
-                        leds,
-                        x,
-                        y,
-                        if instrument.map(|inst| inst.kind.as_str()) == Some("none") {
-                            dim
-                        } else {
-                            bright
-                        },
-                    );
-                }
-            }
-            "pan" => {
-                self.dim_leds(leds, 4);
-                for y in 0..INSTRUMENT_COUNT.min(GRID_HEIGHT) {
-                    let Some(instrument) = self.instruments.get(y) else {
-                        continue;
-                    };
-                    let (pan_pos, color) = self.dance_pan_target(instrument);
-                    let left = pan_marker_left_cell(pan_pos);
-                    let value = if instrument.kind == "none" {
-                        dim_color(color, 4)
-                    } else {
-                        color
-                    };
-                    self.set_display_led(leds, left, y, value.clone());
-                    self.set_display_led(leds, left + 1, y, value);
-                }
-            }
-            "fx" => {
-                self.dim_leds(leds, 4);
-                for assignment in &self.dance_fx_assignments {
-                    let id = dance_fx_cell_id(assignment.x, assignment.y);
-                    let active = self
-                        .active_dance_fx
-                        .iter()
-                        .any(|(active_id, _)| active_id == &id);
-                    let limited = !active && self.active_dance_fx.len() >= TOUCH_FX_MAX_CONCURRENT;
-                    let color = momentary_fx_color(dance_fx_type(&assignment.config));
-                    self.set_display_led(
-                        leds,
-                        assignment.x,
-                        assignment.y,
-                        if active {
-                            add_dim_white_overlay(&color, 70)
-                        } else if limited {
-                            dim_color(color, 5)
-                        } else {
-                            color
-                        },
-                    );
-                }
-            }
-            "trigger-gate" => {
-                self.dim_leds(leds, 4);
-                for (row, mode) in self.trigger_gate_modes.iter().enumerate().take(GRID_HEIGHT) {
-                    for (x, candidate) in [(0, "zero"), (1, "custom"), (2, "full")] {
-                        let color = trigger_gate_color(candidate);
-                        self.set_display_led(
-                            leds,
-                            x,
-                            row,
-                            if mode == candidate {
-                                color
-                            } else {
-                                dim_color(color, 4)
-                            },
-                        );
-                    }
-                }
-                self.set_display_led(leds, 5, 0, trigger_gate_color("zero"));
-                self.set_display_led(leds, 6, 0, trigger_gate_color("custom"));
-                self.set_display_led(leds, 7, 0, trigger_gate_color("full"));
-            }
-            "xy" => {
-                self.dim_leds(leds, 4);
-                self.set_display_led(leds, 4, 4, json!({ "r": 180, "g": 180, "b": 180 }));
-            }
+            "mix" => self.apply_dance_mix_overlay(leds),
+            "pan" => self.apply_dance_pan_overlay(leds),
+            "fx" => self.apply_dance_fx_overlay(leds),
+            "trigger-gate" => self.apply_dance_trigger_gate_overlay(leds),
+            "xy" => self.apply_dance_xy_overlay(leds),
             _ => {}
         }
     }
@@ -144,13 +62,7 @@ impl NativeRunner {
     }
 
     pub(super) fn apply_param_mod_overlay(&self, leds: &mut [Value]) {
-        if !self.ui.shift_held
-            || self.ui.fn_held
-            || self.active_dance_mode != "none"
-            || self.sample_assign.is_some()
-            || self.trigger_probability_assign.is_some()
-            || self.dance_fx_assign.is_some()
-        {
+        if !self.param_mod_overlay_ready() {
             return;
         }
         let Some(mut highlighted) = self
@@ -328,38 +240,129 @@ impl NativeRunner {
             return;
         }
         if self.active_dance_mode != "none" {
-            for cell in leds.iter_mut() {
-                if let Some(object) = cell.as_object_mut() {
-                    let r = object.get("r").and_then(|v| v.as_i64()).unwrap_or(0);
-                    let g = object.get("g").and_then(|v| v.as_i64()).unwrap_or(0);
-                    let b = object.get("b").and_then(|v| v.as_i64()).unwrap_or(0);
-                    object.insert("r".into(), Value::from(r / 4));
-                    object.insert("g".into(), Value::from(g / 4));
-                    object.insert("b".into(), Value::from(b / 4));
-                }
+            self.dim_dance_fn_overlay(leds);
+        }
+        self.paint_fn_part_column(leds);
+        self.paint_fn_page_column(leds);
+    }
+
+    fn apply_dance_mix_overlay(&self, leds: &mut [Value]) {
+        self.dim_leds(leds, 4);
+        for x in 0..INSTRUMENT_COUNT.min(GRID_WIDTH) {
+            let instrument = self.instruments.get(x);
+            let volume = instrument.map(|inst| inst.volume).unwrap_or(0).min(100);
+            let y = ((f32::from(volume) / 100.0) * (GRID_HEIGHT - 1) as f32).round() as usize;
+            let color = if instrument.map(|inst| inst.kind.as_str()) == Some("none") {
+                json!({ "r": 0, "g": 55, "b": 22 })
+            } else {
+                json!({ "r": 0, "g": 220, "b": 90 })
+            };
+            self.set_display_led(leds, x, y, color);
+        }
+    }
+
+    fn apply_dance_pan_overlay(&self, leds: &mut [Value]) {
+        self.dim_leds(leds, 4);
+        for y in 0..INSTRUMENT_COUNT.min(GRID_HEIGHT) {
+            let Some(instrument) = self.instruments.get(y) else {
+                continue;
+            };
+            let (pan_pos, color) = self.dance_pan_target(instrument);
+            let left = pan_marker_left_cell(pan_pos);
+            let value = if instrument.kind == "none" {
+                dim_color(color, 4)
+            } else {
+                color
+            };
+            self.set_display_led(leds, left, y, value.clone());
+            self.set_display_led(leds, left + 1, y, value);
+        }
+    }
+
+    fn apply_dance_fx_overlay(&self, leds: &mut [Value]) {
+        self.dim_leds(leds, 4);
+        for assignment in &self.dance_fx_assignments {
+            let id = dance_fx_cell_id(assignment.x, assignment.y);
+            let active = self.active_dance_fx.iter().any(|(active_id, _)| active_id == &id);
+            let limited = !active && self.active_dance_fx.len() >= TOUCH_FX_MAX_CONCURRENT;
+            let color = momentary_fx_color(dance_fx_type(&assignment.config));
+            self.set_display_led(
+                leds,
+                assignment.x,
+                assignment.y,
+                if active {
+                    add_dim_white_overlay(&color, 70)
+                } else if limited {
+                    dim_color(color, 5)
+                } else {
+                    color
+                },
+            );
+        }
+    }
+
+    fn apply_dance_trigger_gate_overlay(&self, leds: &mut [Value]) {
+        self.dim_leds(leds, 4);
+        for (row, mode) in self.trigger_gate_modes.iter().enumerate().take(GRID_HEIGHT) {
+            for (x, candidate) in [(0, "zero"), (1, "custom"), (2, "full")] {
+                let color = trigger_gate_color(candidate);
+                self.set_display_led(
+                    leds,
+                    x,
+                    row,
+                    if mode == candidate {
+                        color
+                    } else {
+                        dim_color(color, 4)
+                    },
+                );
             }
         }
+        self.set_display_led(leds, 5, 0, trigger_gate_color("zero"));
+        self.set_display_led(leds, 6, 0, trigger_gate_color("custom"));
+        self.set_display_led(leds, 7, 0, trigger_gate_color("full"));
+    }
+
+    fn apply_dance_xy_overlay(&self, leds: &mut [Value]) {
+        self.dim_leds(leds, 4);
+        self.set_display_led(leds, 4, 4, json!({ "r": 180, "g": 180, "b": 180 }));
+    }
+
+    fn param_mod_overlay_ready(&self) -> bool {
+        self.ui.shift_held
+            && !self.ui.fn_held
+            && self.active_dance_mode == "none"
+            && self.sample_assign.is_none()
+            && self.trigger_probability_assign.is_none()
+            && self.dance_fx_assign.is_none()
+    }
+
+    fn dim_dance_fn_overlay(&self, leds: &mut [Value]) {
+        for cell in leds.iter_mut() {
+            if let Some(object) = cell.as_object_mut() {
+                let r = object.get("r").and_then(|v| v.as_i64()).unwrap_or(0);
+                let g = object.get("g").and_then(|v| v.as_i64()).unwrap_or(0);
+                let b = object.get("b").and_then(|v| v.as_i64()).unwrap_or(0);
+                object.insert("r".into(), Value::from(r / 4));
+                object.insert("g".into(), Value::from(g / 4));
+                object.insert("b".into(), Value::from(b / 4));
+            }
+        }
+    }
+
+    fn paint_fn_part_column(&self, leds: &mut [Value]) {
         for row in 0..GRID_HEIGHT {
             let configured = self
                 .part_behavior_ids
                 .get(row)
                 .map(|id| id != "none")
                 .unwrap_or(false);
-            let color = if self.active_dance_mode != "none" {
-                if configured {
-                    json!({ "r": 0, "g": 120, "b": 0 })
-                } else {
-                    json!({ "r": 0, "g": 48, "b": 23 })
-                }
-            } else if row == self.active_part_index {
-                json!({ "r": 0, "g": 191, "b": 191 })
-            } else if configured {
-                json!({ "r": 0, "g": 120, "b": 0 })
-            } else {
-                json!({ "r": 0, "g": 48, "b": 23 })
-            };
+            let color = fn_part_color(configured, row == self.active_part_index, self.active_dance_mode != "none");
             self.set_display_led(leds, 0, row, color);
         }
+    }
+
+    fn paint_fn_page_column(&self, leds: &mut [Value]) {
         let page_options = ["mix", "pan", "fx", "trigger-gate", "xy"];
         for (row, mode) in page_options.iter().enumerate() {
             let selected = self.active_dance_mode != "none" && self.active_dance_mode == *mode;
@@ -370,5 +373,21 @@ impl NativeRunner {
             };
             self.set_display_led(leds, GRID_WIDTH - 1, row, color);
         }
+    }
+}
+
+fn fn_part_color(configured: bool, active: bool, dance_active: bool) -> Value {
+    if dance_active {
+        if configured {
+            json!({ "r": 0, "g": 120, "b": 0 })
+        } else {
+            json!({ "r": 0, "g": 48, "b": 23 })
+        }
+    } else if active {
+        json!({ "r": 0, "g": 191, "b": 191 })
+    } else if configured {
+        json!({ "r": 0, "g": 120, "b": 0 })
+    } else {
+        json!({ "r": 0, "g": 48, "b": 23 })
     }
 }

@@ -1,177 +1,6 @@
-use super::{
-    cutoff_display_to_hz, set_json_path_number, velocity_curve_from_id, NativeRunner, Value,
-};
+use super::{velocity_curve_from_id, NativeRunner, Value};
 
 impl NativeRunner {
-    pub(super) fn apply_or_schedule_menu_key(&mut self, key: &str) -> Result<(), String> {
-        if self.apply_menu_key_fast(key) {
-            return Ok(());
-        }
-        if self.should_defer_menu_key(key) {
-            self.schedule_deferred_menu_apply(key);
-            return Ok(());
-        }
-        self.apply_menu_state()
-    }
-
-    fn should_defer_menu_key(&self, key: &str) -> bool {
-        key == "behaviorId"
-            || key == "danceMode"
-            || key == "dance.fx.type"
-            || key.ends_with(".slot1.type")
-            || key.ends_with(".slot2.type")
-            || key.starts_with("mixer.master.slots.") && key.ends_with(".type")
-            || key.starts_with("instruments.") && key.ends_with(".type")
-    }
-
-    pub(super) fn apply_menu_key_fast(&mut self, key: &str) -> bool {
-        if key == "danceMode" {
-            let Some(dance_mode) = self.menu.selected_dance_mode() else {
-                return false;
-            };
-            let changed = self.dance_mode != dance_mode;
-            if changed {
-                self.dance_mode = dance_mode.clone();
-                if self.menu.state.stack.first() == Some(&3) {
-                    self.active_dance_mode = dance_mode;
-                }
-                self.config_dirty = true;
-                self.menu.rebuild(self.menu_config());
-            }
-            return true;
-        }
-        if key == "algorithmStep" {
-            let Some(step_pulses) = self.menu.selected_algorithm_step_pulses() else {
-                return false;
-            };
-            let changed = self.algorithm_step_pulses != step_pulses
-                || self
-                    .part_algorithm_step_pulses
-                    .get(self.active_part_index)
-                    .copied()
-                    .unwrap_or(self.algorithm_step_pulses)
-                    != step_pulses;
-            if changed {
-                self.algorithm_step_pulses = step_pulses;
-                if let Some(part_step) = self
-                    .part_algorithm_step_pulses
-                    .get_mut(self.active_part_index)
-                {
-                    *part_step = step_pulses;
-                }
-                self.config_dirty = true;
-            }
-            return true;
-        }
-        if key == "masterVolume" {
-            let Some(master_volume) = self.menu.selected_master_volume() else {
-                return false;
-            };
-            if self.ui.master_volume != master_volume {
-                self.ui.master_volume = master_volume;
-                self.config_dirty = true;
-                self.audio_config_revision = self.audio_config_revision.wrapping_add(1);
-            }
-            return true;
-        }
-        let Some(rest) = key.strip_prefix("instruments.") else {
-            return false;
-        };
-        let Some((index, suffix)) = parse_indexed_key(rest) else {
-            return false;
-        };
-        let Some(instrument) = self.instruments.get_mut(index) else {
-            return false;
-        };
-        let changed = match suffix {
-            "mixer.volume" => self
-                .menu
-                .number_for_key(key)
-                .map(|value| {
-                    let value = value.clamp(0, 100) as u8;
-                    if instrument.volume == value {
-                        false
-                    } else {
-                        instrument.volume = value;
-                        true
-                    }
-                })
-                .unwrap_or(false),
-            "mixer.panPos" => self
-                .menu
-                .number_for_key(key)
-                .map(|value| {
-                    let value = value.clamp(0, i32::from(super::PAN_POSITION_COUNT - 1)) as u8;
-                    if instrument.pan_pos == value {
-                        false
-                    } else {
-                        instrument.pan_pos = value;
-                        true
-                    }
-                })
-                .unwrap_or(false),
-            "synth.amp.gainPct" => self
-                .menu
-                .number_for_key(key)
-                .map(|value| {
-                    let value = value.clamp(0, 100) as u8;
-                    if instrument.synth_gain_pct == value {
-                        false
-                    } else {
-                        instrument.synth_gain_pct = value;
-                        set_json_path_number(
-                            &mut instrument.synth_config,
-                            &["amp", "gainPct"],
-                            f64::from(value),
-                        );
-                        true
-                    }
-                })
-                .unwrap_or(false),
-            "synth.filter.cutoffHz" => self
-                .menu
-                .number_for_key(key)
-                .map(|value| {
-                    let display = value.clamp(0, 255);
-                    let cutoff = cutoff_display_to_hz(display) as u16;
-                    if super::synth_filter_cutoff(instrument) == cutoff {
-                        false
-                    } else {
-                        set_json_path_number(
-                            &mut instrument.synth_config,
-                            &["filter", "cutoffHz"],
-                            f64::from(cutoff),
-                        );
-                        true
-                    }
-                })
-                .unwrap_or(false),
-            "synth.filter.resonance" => self
-                .menu
-                .number_for_key(key)
-                .map(|value| {
-                    let value = value.clamp(0, 255) as u8;
-                    if super::synth_filter_resonance(instrument) == value {
-                        false
-                    } else {
-                        set_json_path_number(
-                            &mut instrument.synth_config,
-                            &["filter", "resonance"],
-                            f64::from(value),
-                        );
-                        true
-                    }
-                })
-                .unwrap_or(false),
-            _ => return false,
-        };
-        if changed {
-            self.config_dirty = true;
-            self.audio_config_revision = self.audio_config_revision.wrapping_add(1);
-        }
-        true
-    }
-
     pub(super) fn apply_menu_state(&mut self) -> Result<(), String> {
         self.clear_deferred_menu_apply();
         let before_payload = self.config_payload();
@@ -296,6 +125,13 @@ impl NativeRunner {
     }
 
     fn apply_ui_sound_transport_menu_state(&mut self) {
+        self.apply_display_menu_state();
+        self.apply_transport_menu_state();
+        self.apply_sound_menu_state();
+        self.apply_ui_behavior_menu_state();
+    }
+
+    fn apply_display_menu_state(&mut self) {
         if let Some(display_brightness) = self.menu.selected_display_brightness() {
             self.ui.display_brightness = display_brightness;
         }
@@ -305,9 +141,21 @@ impl NativeRunner {
         if let Some(grid_brightness) = self.menu.number_for_key("gridBrightness") {
             self.ui.grid_brightness = grid_brightness.clamp(10, 100) as u8;
         }
+        if let Some(numeric_display_mode) = self.menu.value_for_key("numericDisplayMode") {
+            self.ui.numeric_display_mode = numeric_display_mode;
+        }
+        if let Some(screen_sleep_seconds) = self.menu.number_for_key("screenSleepSeconds") {
+            self.ui.screen_sleep_seconds = screen_sleep_seconds.clamp(0, 600) as u16;
+        }
+    }
+
+    fn apply_transport_menu_state(&mut self) {
         if let Some(bpm) = self.menu.number_for_key("transport.bpm") {
             self.bpm = f64::from(bpm.clamp(40, 240));
         }
+    }
+
+    fn apply_sound_menu_state(&mut self) {
         if let Some(note_length_ms) = self.menu.number_for_key("sound.noteLengthMs") {
             self.global_sound.note_length_ms = note_length_ms.clamp(30, 2000) as u32;
         }
@@ -318,24 +166,18 @@ impl NativeRunner {
             self.global_sound.velocity_curve = velocity_curve_from_id(&velocity_curve);
         }
         if let Some(voice_stealing_mode) = self.menu.value_for_key("sound.voiceStealingMode") {
-            if matches!(
-                voice_stealing_mode.as_str(),
-                "off" | "lenient" | "balanced" | "aggressive"
-            ) {
+            if matches!(voice_stealing_mode.as_str(), "off" | "lenient" | "balanced" | "aggressive") {
                 self.voice_stealing_mode = voice_stealing_mode;
             }
         }
+    }
+
+    fn apply_ui_behavior_menu_state(&mut self) {
         if let Some(ghost_cells) = self.menu.value_for_key("ghostCells") {
             self.ui.ghost_cells = ghost_cells == "true";
         }
         if let Some(input_events_while_paused) = self.menu.value_for_key("inputEventsWhilePaused") {
             self.input_events_while_paused = input_events_while_paused == "true";
-        }
-        if let Some(numeric_display_mode) = self.menu.value_for_key("numericDisplayMode") {
-            self.ui.numeric_display_mode = numeric_display_mode;
-        }
-        if let Some(screen_sleep_seconds) = self.menu.number_for_key("screenSleepSeconds") {
-            self.ui.screen_sleep_seconds = screen_sleep_seconds.clamp(0, 600) as u16;
         }
         if let Some(aux_auto_map_enabled) = self.menu.value_for_key("auxAutoMapEnabled") {
             self.aux_auto_map_enabled = aux_auto_map_enabled == "true";
@@ -486,9 +328,4 @@ fn audio_config_changed(before: &Value, after: &Value) -> bool {
     ["instruments", "mixer", "masterVolume"]
         .into_iter()
         .any(|key| before.get(key) != after.get(key))
-}
-
-fn parse_indexed_key(value: &str) -> Option<(usize, &str)> {
-    let (index, suffix) = value.split_once('.')?;
-    Some((index.parse().ok()?, suffix))
 }

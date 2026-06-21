@@ -197,52 +197,15 @@ impl NativeRunner {
     }
 
     pub(super) fn handle_trigger_gate_grid_press(&mut self, x: usize, y: usize) {
-        let mode = match x {
-            0 => Some("zero"),
-            1 => Some("custom"),
-            2 => Some("full"),
-            6 => Some("custom"),
-            7 => Some("full"),
-            _ => None,
-        };
+        let mode = trigger_gate_mode_for_column(x);
         let Some(mode) = mode else {
             return;
         };
         if x == 6 && y == 0 {
-            for part_mode in &mut self.trigger_gate_modes {
-                *part_mode = mode.into();
-            }
-            for part in &mut self.sense_parts {
-                part.trigger_probability_mode = mode.into();
-            }
-            for restore in &mut self.trigger_gate_restore_modes {
-                *restore = None;
-            }
-            if let Err(error) = self.activate_engine(self.active_part_index) {
-                self.toast = Some(NativeToast {
-                    message: error,
-                    offset: 0,
-                });
-            }
+            self.apply_trigger_gate_mode_to_all_parts(mode);
             return;
         }
-        if let Some(part_mode) = self.trigger_gate_modes.get_mut(y) {
-            *part_mode = mode.into();
-        }
-        if let Some(part) = self.sense_parts.get_mut(y) {
-            part.trigger_probability_mode = mode.into();
-        }
-        if let Some(restore) = self.trigger_gate_restore_modes.get_mut(y) {
-            *restore = None;
-        }
-        if y == self.active_part_index {
-            if let Err(error) = self.activate_engine(y) {
-                self.toast = Some(NativeToast {
-                    message: error,
-                    offset: 0,
-                });
-            }
-        }
+        self.apply_trigger_gate_mode_to_part(y, mode);
     }
 
     pub(super) fn select_active_part(&mut self, index: usize) -> Result<(), String> {
@@ -330,5 +293,53 @@ impl NativeRunner {
         self.menu.state.cursor = 0;
         self.menu.state.editing = false;
         self.menu.rebuild(self.menu_config());
+    }
+
+    fn apply_trigger_gate_mode_to_all_parts(&mut self, mode: &str) {
+        for part_mode in &mut self.trigger_gate_modes {
+            *part_mode = mode.into();
+        }
+        for part in &mut self.sense_parts {
+            part.trigger_probability_mode = mode.into();
+        }
+        for restore in &mut self.trigger_gate_restore_modes {
+            *restore = None;
+        }
+        self.activate_trigger_gate_part_with_toast(self.active_part_index);
+    }
+
+    fn apply_trigger_gate_mode_to_part(&mut self, part_index: usize, mode: &str) {
+        if let Some(part_mode) = self.trigger_gate_modes.get_mut(part_index) {
+            *part_mode = mode.into();
+        }
+        if let Some(part) = self.sense_parts.get_mut(part_index) {
+            part.trigger_probability_mode = mode.into();
+        }
+        if let Some(restore) = self.trigger_gate_restore_modes.get_mut(part_index) {
+            *restore = None;
+        }
+        if part_index == self.active_part_index {
+            self.activate_trigger_gate_part_with_toast(part_index);
+        }
+    }
+
+    fn activate_trigger_gate_part_with_toast(&mut self, part_index: usize) {
+        if let Err(error) = self.activate_engine(part_index) {
+            self.toast = Some(NativeToast {
+                message: error,
+                offset: 0,
+            });
+        }
+    }
+}
+
+fn trigger_gate_mode_for_column(x: usize) -> Option<&'static str> {
+    match x {
+        0 => Some("zero"),
+        1 => Some("custom"),
+        2 => Some("full"),
+        6 => Some("custom"),
+        7 => Some("full"),
+        _ => None,
     }
 }

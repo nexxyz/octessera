@@ -87,72 +87,95 @@ impl SynthEngine {
     pub fn set_instruments(&mut self, cfg: InstrumentsConfig) {
         self.pan_positions = cfg.pan_positions.max(1);
         self.master_volume = (cfg.master_volume / 100.0).clamp(0.0, 1.0);
-        for (idx, slot) in cfg.instruments.into_iter().enumerate() {
-            if idx >= INSTRUMENT_SLOT_COUNT {
-                break;
-            }
-            self.slot_kind[idx] = parse_instrument_kind(&slot.kind);
-            if self.slot_kind[idx] != InstrumentKind::Synth {
-                if let Some(m) = slot.mixer {
-                    self.slot_route[idx] = parse_route(&m.route);
-                    self.slot_pan_pos[idx] = m.pan_pos.min(self.pan_positions - 1);
-                    self.slot_volume[idx] = (m.volume / 100.0).clamp(0.0, 1.0);
-                }
-                continue;
-            }
-            self.instruments[idx] = slot.synth;
-            if let Some(m) = slot.mixer {
-                self.slot_route[idx] = parse_route(&m.route);
-                self.slot_pan_pos[idx] = m.pan_pos.min(self.pan_positions - 1);
-                self.slot_volume[idx] = (m.volume / 100.0).clamp(0.0, 1.0);
-            }
-        }
-        let mut next_bus_pan_pos = Vec::new();
-        let mut next_bus_slot_params = Vec::new();
-        let mut next_bus_slot_state = Vec::new();
-        let mut next_master_slot_params = Vec::new();
-        let mut next_master_slot_state = Vec::new();
-        if let Some(mixer) = cfg.mixer {
-            for (bus_idx, bus) in mixer.buses.into_iter().enumerate() {
-                next_bus_pan_pos.push(bus.pan_pos.min(self.pan_positions - 1));
-                let mut cfgs: [FxBusSlotConfig; BUS_SLOTS_PER_BUS] =
-                    std::array::from_fn(|_| FxBusSlotConfig::Kind("none".to_string()));
-                for (j, slot) in bus.slots.into_iter().enumerate().take(BUS_SLOTS_PER_BUS) {
-                    cfgs[j] = slot;
-                }
-                let params: [FxBusParams; BUS_SLOTS_PER_BUS] =
-                    std::array::from_fn(|j| compile_fx_bus_params(&cfgs[j]));
-                let states: [FxBusState; BUS_SLOTS_PER_BUS] = std::array::from_fn(|j| {
-                    self.bus_slot_state
-                        .get(bus_idx)
-                        .and_then(|states| states.get(j))
-                        .filter(|state| fx_bus_state_matches_params(state, &params[j]))
-                        .cloned()
-                        .unwrap_or_else(|| fx_bus_state_from_params(&params[j], self.sample_rate))
-                });
-                next_bus_slot_params.push(params);
-                next_bus_slot_state.push(states);
-            }
-            if let Some(master) = mixer.master {
-                for (slot_idx, slot) in master.slots.into_iter().enumerate() {
-                    let params = compile_fx_bus_params(&slot);
-                    let state = self
-                        .master_slot_state
-                        .get(slot_idx)
-                        .filter(|state| master_fx_state_matches_params(state, &params))
-                        .cloned()
-                        .unwrap_or_else(|| master_fx_state_from_params(&params));
-                    next_master_slot_params.push(params);
-                    next_master_slot_state.push(state);
-                }
-            }
-        }
+        self.apply_instrument_slots_config(cfg.instruments);
+        let (next_bus_pan_pos, next_bus_slot_params, next_bus_slot_state) =
+            self.compile_bus_mixer_state(cfg.mixer.as_ref());
+        let (next_master_slot_params, next_master_slot_state) =
+            self.compile_master_mixer_state(cfg.mixer.as_ref());
         self.bus_pan_pos = next_bus_pan_pos;
         self.bus_slot_params = next_bus_slot_params;
         self.bus_slot_state = next_bus_slot_state;
         self.master_slot_params = next_master_slot_params;
         self.master_slot_state = next_master_slot_state;
         self.bus_mono_scratch.resize(self.bus_pan_pos.len(), 0.0);
+    }
+
+    fn apply_instrument_slots_config(&mut self, instruments: Vec<InstrumentSlotConfig>) {
+        for (idx, slot) in instruments.into_iter().enumerate() {
+            if idx >= INSTRUMENT_SLOT_COUNT {
+                break;
+            }
+            self.slot_kind[idx] = parse_instrument_kind(&slot.kind);
+            self.apply_instrument_slot_config(idx, slot);
+        }
+    }
+
+    fn apply_instrument_slot_config(&mut self, idx: usize, slot: InstrumentSlotConfig) {
+        let mixer = slot.mixer.clone();
+        if self.slot_kind[idx] == InstrumentKind::Synth {
+            self.instruments[idx] = slot.synth;
+        }
+        if let Some(mixer) = mixer {
+            self.apply_instrument_mixer_config(idx, &mixer);
+        }
+    }
+
+    fn apply_instrument_mixer_config(&mut self, idx: usize, mixer: &InstrumentMixerConfig) {
+        self.slot_route[idx] = parse_route(&mixer.route);
+        self.slot_pan_pos[idx] = mixer.pan_pos.min(self.pan_positions - 1);
+        self.slot_volume[idx] = (mixer.volume / 100.0).clamp(0.0, 1.0);
+    }
+
+    fn compile_bus_mixer_state(
+        &self,
+        mixer: Option<&MixerConfig>,
+    ) -> (Vec<usize>, Vec<[FxBusParams; BUS_SLOTS_PER_BUS]>, Vec<[FxBusState; BUS_SLOTS_PER_BUS]>) {
+        let mut next_bus_pan_pos = Vec::new();
+        let mut next_bus_slot_params = Vec::new();
+        let mut next_bus_slot_state = Vec::new();
+        let Some(mixer) = mixer else {
+            return (next_bus_pan_pos, next_bus_slot_params, next_bus_slot_state);
+        };
+        for (bus_idx, bus) in mixer.buses.iter().cloned().enumerate() {
+            next_bus_pan_pos.push(bus.pan_pos.min(self.pan_positions - 1));
+            let cfgs = compile_bus_slot_configs(bus);
+            let params: [FxBusParams; BUS_SLOTS_PER_BUS] =
+                std::array::from_fn(|j| compile_fx_bus_params(&cfgs[j]));
+            let states: [FxBusState; BUS_SLOTS_PER_BUS] = std::array::from_fn(|j| {
+                self.bus_slot_state
+                    .get(bus_idx)
+                    .and_then(|states| states.get(j))
+                    .filter(|state| fx_bus_state_matches_params(state, &params[j]))
+                    .cloned()
+                    .unwrap_or_else(|| fx_bus_state_from_params(&params[j], self.sample_rate))
+            });
+            next_bus_slot_params.push(params);
+            next_bus_slot_state.push(states);
+        }
+        (next_bus_pan_pos, next_bus_slot_params, next_bus_slot_state)
+    }
+
+    fn compile_master_mixer_state(
+        &self,
+        mixer: Option<&MixerConfig>,
+    ) -> (Vec<FxBusParams>, Vec<MasterFxState>) {
+        let mut next_master_slot_params = Vec::new();
+        let mut next_master_slot_state = Vec::new();
+        let Some(master) = mixer.and_then(|mixer| mixer.master.as_ref()) else {
+            return (next_master_slot_params, next_master_slot_state);
+        };
+        for (slot_idx, slot) in master.slots.iter().cloned().enumerate() {
+            let params = compile_fx_bus_params(&slot);
+            let state = self
+                .master_slot_state
+                .get(slot_idx)
+                .filter(|state| master_fx_state_matches_params(state, &params))
+                .cloned()
+                .unwrap_or_else(|| master_fx_state_from_params(&params));
+            next_master_slot_params.push(params);
+            next_master_slot_state.push(state);
+        }
+        (next_master_slot_params, next_master_slot_state)
     }
 
     pub fn set_sample_banks(&mut self, banks: Vec<SampleBankConfig>) {
@@ -293,4 +316,13 @@ impl SynthEngine {
             }
         }
     }
+}
+
+fn compile_bus_slot_configs(bus: FxBusConfig) -> [FxBusSlotConfig; BUS_SLOTS_PER_BUS] {
+    let mut cfgs: [FxBusSlotConfig; BUS_SLOTS_PER_BUS] =
+        std::array::from_fn(|_| FxBusSlotConfig::Kind("none".to_string()));
+    for (j, slot) in bus.slots.into_iter().enumerate().take(BUS_SLOTS_PER_BUS) {
+        cfgs[j] = slot;
+    }
+    cfgs
 }

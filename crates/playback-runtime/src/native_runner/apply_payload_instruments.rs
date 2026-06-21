@@ -64,6 +64,13 @@ impl NativeRunner {
     }
 
     fn apply_ui_payload(&mut self, runtime: &Value) {
+        self.apply_display_payload(runtime);
+        self.apply_runtime_input_payload(runtime);
+        self.apply_aux_mapping_payload(runtime);
+        self.apply_runtime_transport_payload(runtime);
+    }
+
+    fn apply_display_payload(&mut self, runtime: &Value) {
         if let Some(value) = runtime.get("displayBrightness").and_then(Value::as_u64) {
             self.ui.display_brightness = (value as u8).min(100);
         }
@@ -73,12 +80,6 @@ impl NativeRunner {
         if let Some(value) = runtime.get("buttonBrightness").and_then(Value::as_u64) {
             self.ui.button_brightness = (value as u8).min(100);
         }
-        if let Some(value) = runtime
-            .get("inputEventsWhilePaused")
-            .and_then(Value::as_bool)
-        {
-            self.input_events_while_paused = value;
-        }
         if let Some(value) = runtime.get("numericDisplayMode").and_then(Value::as_str) {
             if matches!(value, "bar" | "numbers" | "bar+numbers") {
                 self.ui.numeric_display_mode = value.into();
@@ -87,12 +88,24 @@ impl NativeRunner {
         if let Some(value) = runtime.get("screenSleepSeconds").and_then(Value::as_u64) {
             self.ui.screen_sleep_seconds = (value as u16).min(600);
         }
+    }
+
+    fn apply_runtime_input_payload(&mut self, runtime: &Value) {
+        if let Some(value) = runtime.get("inputEventsWhilePaused").and_then(Value::as_bool) {
+            self.input_events_while_paused = value;
+        }
+    }
+
+    fn apply_aux_mapping_payload(&mut self, runtime: &Value) {
         if let Some(value) = runtime.get("auxAutoMapEnabled").and_then(Value::as_bool) {
             self.aux_auto_map_enabled = value;
         }
         if let Some(value) = runtime.get("auxBindings") {
             apply_aux_bindings_payload(&mut self.aux_bindings, value);
         }
+    }
+
+    fn apply_runtime_transport_payload(&mut self, runtime: &Value) {
         if let Some(value) = runtime.get("bpm").and_then(Value::as_f64) {
             self.bpm = value.clamp(20.0, 300.0);
         }
@@ -113,15 +126,28 @@ impl NativeRunner {
         let Some(midi) = runtime.get("midi") else {
             return;
         };
+        self.apply_midi_enabled_payload(midi);
+        self.apply_midi_port_payload(midi);
+        self.apply_midi_sync_payload(midi);
+        self.queue_midi_selection_effects();
+    }
+
+    fn apply_midi_enabled_payload(&mut self, midi: &Value) {
         if let Some(enabled) = midi.get("enabled").and_then(Value::as_bool) {
             self.midi_enabled = enabled;
         }
+    }
+
+    fn apply_midi_port_payload(&mut self, midi: &Value) {
         if let Some(out_id) = midi.get("outId") {
             self.selected_midi_output_id = out_id.as_str().map(str::to_string);
         }
         if let Some(in_id) = midi.get("inId") {
             self.selected_midi_input_id = in_id.as_str().map(str::to_string);
         }
+    }
+
+    fn apply_midi_sync_payload(&mut self, midi: &Value) {
         if let Some(sync_mode) = midi.get("syncMode").and_then(Value::as_str) {
             self.sync_source = if sync_mode == "external" {
                 SyncSource::External
@@ -138,22 +164,23 @@ impl NativeRunner {
         if let Some(value) = midi.get("respondToStartStop").and_then(Value::as_bool) {
             self.midi_respond_to_start_stop = value;
         }
-        self.queued_platform_effects
-            .push(RuntimePlatformEffect::MidiSelectOutput {
-                id: if self.midi_enabled {
-                    self.selected_midi_output_id.clone()
-                } else {
-                    None
-                },
-            });
-        self.queued_platform_effects
-            .push(RuntimePlatformEffect::MidiSelectInput {
-                id: if self.midi_enabled {
-                    self.selected_midi_input_id.clone()
-                } else {
-                    None
-                },
-            });
+    }
+
+    fn queue_midi_selection_effects(&mut self) {
+        self.queued_platform_effects.push(RuntimePlatformEffect::MidiSelectOutput {
+            id: if self.midi_enabled {
+                self.selected_midi_output_id.clone()
+            } else {
+                None
+            },
+        });
+        self.queued_platform_effects.push(RuntimePlatformEffect::MidiSelectInput {
+            id: if self.midi_enabled {
+                self.selected_midi_input_id.clone()
+            } else {
+                None
+            },
+        });
     }
 }
 
@@ -205,6 +232,14 @@ fn apply_instrument_sample_payload(slot: &Value, instrument: &mut NativeInstrume
     let Some(sample) = slot.get("sample") else {
         return;
     };
+    apply_sample_slot_selection(sample, instrument);
+    apply_sample_assignments_payload(sample, instrument);
+    apply_sample_amp_payload(sample, instrument);
+    apply_sample_filter_payload(sample, instrument);
+    apply_sample_velocity_payload(sample, instrument);
+}
+
+fn apply_sample_slot_selection(sample: &Value, instrument: &mut NativeInstrumentSlot) {
     if let Some(selected_slot) = sample.get("selectedSlot").and_then(Value::as_u64) {
         instrument.selected_sample_slot = (selected_slot as usize).min(SAMPLE_SLOT_COUNT - 1);
     }
@@ -219,6 +254,9 @@ fn apply_instrument_sample_payload(slot: &Value, instrument: &mut NativeInstrume
                 .map(str::to_string);
         }
     }
+}
+
+fn apply_sample_assignments_payload(sample: &Value, instrument: &mut NativeInstrumentSlot) {
     if let Some(assignments) = sample.get("assignments").and_then(Value::as_array) {
         instrument.sample_assignments = assignments
             .iter()
@@ -228,6 +266,9 @@ fn apply_instrument_sample_payload(slot: &Value, instrument: &mut NativeInstrume
     if let Some(tune) = sample.get("tuneSemis").and_then(Value::as_i64) {
         instrument.sample_tune_semis = (tune as i8).clamp(-24, 24);
     }
+}
+
+fn apply_sample_amp_payload(sample: &Value, instrument: &mut NativeInstrumentSlot) {
     if let Some(gain) = nested_u64(sample, &["amp", "gainPct"]) {
         instrument.sample_gain_pct = (gain as u8).min(100);
     }
@@ -237,12 +278,18 @@ fn apply_instrument_sample_payload(slot: &Value, instrument: &mut NativeInstrume
     if let Some(amp_env) = sample.get("ampEnv").filter(|value| value.is_object()) {
         instrument.sample_amp_env = amp_env.clone();
     }
+}
+
+fn apply_sample_filter_payload(sample: &Value, instrument: &mut NativeInstrumentSlot) {
     if let Some(filter) = sample.get("filter").filter(|value| value.is_object()) {
         instrument.sample_filter = filter.clone();
     }
     if let Some(filter_env) = sample.get("filterEnv").filter(|value| value.is_object()) {
         instrument.sample_filter_env = filter_env.clone();
     }
+}
+
+fn apply_sample_velocity_payload(sample: &Value, instrument: &mut NativeInstrumentSlot) {
     if let Some(enabled) = sample.get("velocityLevelsEnabled").and_then(Value::as_bool) {
         instrument.sample_velocity_levels_enabled = enabled;
     }
@@ -312,21 +359,35 @@ fn apply_mixer_payload(
     let Some(mixer) = runtime.get("mixer") else {
         return;
     };
-    if let Some(buses) = mixer.get("buses").and_then(Value::as_array) {
-        for (index, payload) in buses.iter().take(fx_buses.len()).enumerate() {
-            if let Some(bus) = fx_buses.get_mut(index) {
-                apply_fx_bus_payload(payload, bus);
-            }
+    apply_fx_bus_mixer_payload(mixer, fx_buses);
+    apply_global_fx_mixer_payload(mixer, global_fx_slots, global_fx_params);
+}
+
+fn apply_fx_bus_mixer_payload(mixer: &Value, fx_buses: &mut [NativeFxBus]) {
+    let Some(buses) = mixer.get("buses").and_then(Value::as_array) else {
+        return;
+    };
+    for (index, payload) in buses.iter().take(fx_buses.len()).enumerate() {
+        if let Some(bus) = fx_buses.get_mut(index) {
+            apply_fx_bus_payload(payload, bus);
         }
     }
-    if let Some(slots) = mixer
+}
+
+fn apply_global_fx_mixer_payload(
+    mixer: &Value,
+    global_fx_slots: &mut [String],
+    global_fx_params: &mut [Value],
+) {
+    let Some(slots) = mixer
         .get("master")
         .and_then(|master| master.get("slots"))
         .and_then(Value::as_array)
-    {
-        for (index, payload) in slots.iter().take(global_fx_slots.len()).enumerate() {
-            apply_global_fx_payload(payload, index, global_fx_slots, global_fx_params);
-        }
+    else {
+        return;
+    };
+    for (index, payload) in slots.iter().take(global_fx_slots.len()).enumerate() {
+        apply_global_fx_payload(payload, index, global_fx_slots, global_fx_params);
     }
 }
 

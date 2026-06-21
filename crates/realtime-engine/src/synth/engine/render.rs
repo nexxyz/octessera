@@ -10,6 +10,22 @@ impl SynthEngine {
         let mut slot_out = [0.0_f32; INSTRUMENT_SLOT_COUNT];
         self.render_sample_voices(&mut slot_out);
         self.render_preview_sample_voices(&mut slot_out);
+        self.render_synth_voices(&mut slot_out);
+        self.prepare_bus_buffers();
+        let (mut left, mut right) = self.mix_instrument_slots(&slot_out);
+        (left, right) = self.mix_fx_buses(&slot_out, left, right);
+        self.push_dry_history(left, right);
+        (left, right) = self.apply_master_fx_slots(left, right);
+        let (left, right) =
+            self.process_momentary_fx_target(MomentaryFxTarget::Global, left, right);
+        self.sample_clock = self.sample_clock.saturating_add(1);
+        (
+            (left * self.master_volume).clamp(-1.0, 1.0),
+            (right * self.master_volume).clamp(-1.0, 1.0),
+        )
+    }
+
+    fn render_synth_voices(&mut self, slot_out: &mut [f32; INSTRUMENT_SLOT_COUNT]) {
         for pool in self.voices.iter_mut() {
             for v in pool.iter_mut() {
                 if !v.active {
@@ -17,62 +33,40 @@ impl SynthEngine {
                 }
                 let slot = (v.instrument_slot as usize).min(INSTRUMENT_SLOT_COUNT - 1);
                 let cfg = self.instruments[slot];
-
                 if self.sample_clock >= v.note_off_sample {
                     v.amp_env.begin_release(cfg.amp_env, self.sample_rate);
                     v.filt_env.begin_release(cfg.filter_env, self.sample_rate);
                 }
-
                 let amp_env = v.amp_env.next();
                 let filt_env = v.filt_env.next();
                 if v.amp_env.is_off() {
                     v.active = false;
                     continue;
                 }
-
-                let vel = (v.velocity as f32 / 127.0).clamp(0.0, 1.0);
-                let vel_sens = (cfg.amp.velocity_sensitivity_pct / 100.0).clamp(0.0, 1.0);
-                let vel_gain = (1.0 - vel_sens) + vel_sens * vel;
-                let gain = (cfg.amp.gain_pct / 100.0).clamp(0.0, 1.0);
-
-                let osc1 = osc_sample(cfg.osc1, v.freq_hz, &mut v.phase1, self.sample_rate);
-                let osc2 = osc_sample(cfg.osc2, v.freq_hz, &mut v.phase2, self.sample_rate);
-                let dry = (osc1 + osc2) * 0.5;
-
-                let cutoff_base = cfg.filter.cutoff_hz;
-                let env_amt = (cfg.filter.env_amount_pct / 100.0).clamp(-1.0, 1.0);
-                let cutoff_env = cutoff_base * (1.0 + env_amt * filt_env).max(0.0);
-                let cutoff_cc = self.mods[slot].cutoff_cc;
-                let cutoff = if cutoff_cc > 0.0 {
-                    120.0 + cutoff_cc * 15_880.0
-                } else {
-                    cutoff_env
-                };
-                let res_mod = self.mods[slot].resonance_cc;
-                let resonance = if res_mod > 0.0 {
-                    res_mod * 100.0
-                } else {
-                    cfg.filter.resonance
-                };
-                let q = 0.5 + (resonance.clamp(0.0, 100.0) / 100.0) * 11.5;
-                let filtered = v
-                    .filt
-                    .process(dry, cfg.filter.kind, cutoff, q, self.sample_rate);
-
-                let sample = filtered * amp_env * vel_gain * gain * 0.35;
+                let sample = render_synth_voice_sample(
+                    self.sample_rate,
+                    self.mods[slot],
+                    cfg,
+                    v,
+                    amp_env,
+                    filt_env,
+                );
                 slot_out[slot] += sample;
             }
         }
-
+    }
+    fn prepare_bus_buffers(&mut self) {
         if self.bus_mono_scratch.len() != self.bus_pan_pos.len() {
             self.bus_mono_scratch.resize(self.bus_pan_pos.len(), 0.0);
         } else {
             self.bus_mono_scratch.fill(0.0);
         }
         if self.bus_mono_snapshot.len() != self.bus_mono_scratch.len() {
-            self.bus_mono_snapshot
-                .resize(self.bus_mono_scratch.len(), 0.0);
+            self.bus_mono_snapshot.resize(self.bus_mono_scratch.len(), 0.0);
         }
+    }
+
+    fn mix_instrument_slots(&mut self, slot_out: &[f32; INSTRUMENT_SLOT_COUNT]) -> (f32, f32) {
         let mut left = 0.0_f32;
         let mut right = 0.0_f32;
         for (slot, sample) in slot_out.iter().enumerate() {
@@ -99,53 +93,78 @@ impl SynthEngine {
                 }
             }
         }
-        self.bus_mono_snapshot
-            .copy_from_slice(&self.bus_mono_scratch);
-        for bus_idx in 0..self.bus_mono_scratch.len() {
-            let mut processed = self.bus_mono_scratch[bus_idx];
-            let mut pan_override: Option<f32> = None;
-            if let (Some(params), Some(states)) = (
-                self.bus_slot_params.get(bus_idx),
-                self.bus_slot_state.get_mut(bus_idx),
-            ) {
-                for j in 0..BUS_SLOTS_PER_BUS {
-                    processed = process_fx_bus_slot(
-                        &params[j],
-                        &mut states[j],
-                        processed,
-                        &slot_out,
-                        &self.bus_mono_snapshot,
-                        self.sample_rate,
-                    );
-                    if let FxBusState::AutoPan { pos, .. } = states[j] {
-                        pan_override = Some(pos.clamp(0.0, 1.0));
-                    }
-                }
-            }
+        (left, right)
+    }
 
+    fn mix_fx_buses(
+        &mut self,
+        slot_out: &[f32; INSTRUMENT_SLOT_COUNT],
+        mut left: f32,
+        mut right: f32,
+    ) -> (f32, f32) {
+        self.bus_mono_snapshot.copy_from_slice(&self.bus_mono_scratch);
+        for bus_idx in 0..self.bus_mono_scratch.len() {
+            let (processed, pan_override) = self.process_fx_bus(bus_idx, slot_out);
             let (fx_l, fx_r) = self.process_momentary_fx_target(
                 MomentaryFxTarget::FxBus { index: bus_idx },
                 processed,
                 processed,
             );
-            processed = (fx_l + fx_r) * 0.5;
-            let (gl, gr) = if let Some(pos) = pan_override {
-                pan_gains_float(pos)
-            } else {
-                let pan = self.bus_pan_pos.get(bus_idx).copied().unwrap_or(0);
-                pan_gains(pan, self.pan_positions)
-            };
+            let processed = (fx_l + fx_r) * 0.5;
+            let (gl, gr) = self.bus_pan_gains(bus_idx, pan_override);
             left += processed * gl;
             right += processed * gr;
         }
+        (left, right)
+    }
 
+    fn process_fx_bus(
+        &mut self,
+        bus_idx: usize,
+        slot_out: &[f32; INSTRUMENT_SLOT_COUNT],
+    ) -> (f32, Option<f32>) {
+        let mut processed = self.bus_mono_scratch[bus_idx];
+        let mut pan_override = None;
+        if let (Some(params), Some(states)) = (
+            self.bus_slot_params.get(bus_idx),
+            self.bus_slot_state.get_mut(bus_idx),
+        ) {
+            for j in 0..BUS_SLOTS_PER_BUS {
+                processed = process_fx_bus_slot(
+                    &params[j],
+                    &mut states[j],
+                    processed,
+                    slot_out,
+                    &self.bus_mono_snapshot,
+                    self.sample_rate,
+                );
+                if let FxBusState::AutoPan { pos, .. } = states[j] {
+                    pan_override = Some(pos.clamp(0.0, 1.0));
+                }
+            }
+        }
+        (processed, pan_override)
+    }
+
+    fn bus_pan_gains(&self, bus_idx: usize, pan_override: Option<f32>) -> (f32, f32) {
+        if let Some(pos) = pan_override {
+            pan_gains_float(pos)
+        } else {
+            let pan = self.bus_pan_pos.get(bus_idx).copied().unwrap_or(0);
+            pan_gains(pan, self.pan_positions)
+        }
+    }
+
+    fn push_dry_history(&mut self, left: f32, right: f32) {
         self.dry_history[self.dry_history_pos] = left;
         self.dry_history[self.dry_history_pos + 1] = right;
         self.dry_history_pos += 2;
         if self.dry_history_pos >= self.dry_history.len() {
             self.dry_history_pos = 0;
         }
+    }
 
+    fn apply_master_fx_slots(&mut self, mut left: f32, mut right: f32) -> (f32, f32) {
         for slot_idx in 0..self.master_slot_params.len() {
             let params = self.master_slot_params[slot_idx];
             if let Some(state) = self.master_slot_state.get_mut(slot_idx) {
@@ -153,14 +172,7 @@ impl SynthEngine {
                     process_master_fx_slot(&params, state, left, right, self.sample_rate);
             }
         }
-
-        let (left, right) =
-            self.process_momentary_fx_target(MomentaryFxTarget::Global, left, right);
-        self.sample_clock = self.sample_clock.saturating_add(1);
-        (
-            (left * self.master_volume).clamp(-1.0, 1.0),
-            (right * self.master_volume).clamp(-1.0, 1.0),
-        )
+        (left, right)
     }
 
     fn process_momentary_fx_target(
@@ -443,4 +455,45 @@ impl SynthEngine {
             frames > 0 && voice.pos < frames as f32
         });
     }
+}
+
+fn render_synth_voice_sample(
+    sample_rate: u32,
+    mods: InstrumentMod,
+    cfg: SynthConfig,
+    v: &mut Voice,
+    amp_env: f32,
+    filt_env: f32,
+) -> f32 {
+    let vel = (v.velocity as f32 / 127.0).clamp(0.0, 1.0);
+    let vel_sens = (cfg.amp.velocity_sensitivity_pct / 100.0).clamp(0.0, 1.0);
+    let vel_gain = (1.0 - vel_sens) + vel_sens * vel;
+    let gain = (cfg.amp.gain_pct / 100.0).clamp(0.0, 1.0);
+    let osc1 = osc_sample(cfg.osc1, v.freq_hz, &mut v.phase1, sample_rate);
+    let osc2 = osc_sample(cfg.osc2, v.freq_hz, &mut v.phase2, sample_rate);
+    let dry = (osc1 + osc2) * 0.5;
+    let cutoff = synth_voice_cutoff(&cfg, mods.cutoff_cc, filt_env);
+    let q = synth_voice_q(&cfg, mods.resonance_cc);
+    let filtered = v.filt.process(dry, cfg.filter.kind, cutoff, q, sample_rate);
+    filtered * amp_env * vel_gain * gain * 0.35
+}
+
+fn synth_voice_cutoff(cfg: &SynthConfig, cutoff_cc: f32, filt_env: f32) -> f32 {
+    let cutoff_base = cfg.filter.cutoff_hz;
+    let env_amt = (cfg.filter.env_amount_pct / 100.0).clamp(-1.0, 1.0);
+    let cutoff_env = cutoff_base * (1.0 + env_amt * filt_env).max(0.0);
+    if cutoff_cc > 0.0 {
+        120.0 + cutoff_cc * 15_880.0
+    } else {
+        cutoff_env
+    }
+}
+
+fn synth_voice_q(cfg: &SynthConfig, resonance_cc: f32) -> f32 {
+    let resonance = if resonance_cc > 0.0 {
+        resonance_cc * 100.0
+    } else {
+        cfg.filter.resonance
+    };
+    0.5 + (resonance.clamp(0.0, 100.0) / 100.0) * 11.5
 }

@@ -1,4 +1,8 @@
 use super::aux_auto_map::{AuxBindingSource, ResolvedAuxPress, ResolvedAuxSlot, ResolvedAuxTurn};
+use super::aux_auto_map_instrument_layouts::{
+    instrument_amp_auto_map, instrument_envelope_auto_map, instrument_filter_auto_map,
+    instrument_mixer_auto_map, instrument_oscillator_auto_map, instrument_sample_auto_map,
+};
 use super::*;
 
 impl NativeRunner {
@@ -171,85 +175,12 @@ impl NativeRunner {
     fn instrument_auto_map(&self, key: &str) -> Option<[Option<ResolvedAuxSlot>; 4]> {
         let (index, field) = parse_instrument_binding_key(key)?;
         let prefix = format!("instruments.{index}");
-        if field.starts_with("synth.filter.") {
-            return Some([
-                Some(self.turn_slot(format!("{prefix}.synth.filter.cutoffHz"), "Cutoff")),
-                Some(self.turn_slot(format!("{prefix}.synth.filter.resonance"), "Res")),
-                Some(self.turn_slot(format!("{prefix}.synth.filter.envAmountPct"), "Env")),
-                Some(self.turn_slot(format!("{prefix}.synth.filter.keyTrackingPct"), "Key")),
-            ]);
-        }
-        if field.starts_with("sample.filter.") {
-            return Some([
-                Some(self.turn_slot(format!("{prefix}.sample.filter.cutoffHz"), "Cutoff")),
-                Some(self.turn_slot(format!("{prefix}.sample.filter.resonance"), "Res")),
-                Some(self.turn_slot(format!("{prefix}.sample.filter.envAmountPct"), "Env")),
-                Some(self.turn_slot(format!("{prefix}.sample.filter.keyTrackingPct"), "Key")),
-            ]);
-        }
-        if field.starts_with("synth.ampEnv.") {
-            return Some(self.env_auto_map(&format!("{prefix}.synth.ampEnv")));
-        }
-        if field.starts_with("synth.filterEnv.") {
-            return Some(self.env_auto_map(&format!("{prefix}.synth.filterEnv")));
-        }
-        if field.starts_with("sample.ampEnv.") {
-            return Some(self.env_auto_map(&format!("{prefix}.sample.ampEnv")));
-        }
-        if field.starts_with("sample.filterEnv.") {
-            return Some(self.env_auto_map(&format!("{prefix}.sample.filterEnv")));
-        }
-        if field.starts_with("synth.osc1.") {
-            return Some(self.osc_auto_map(&format!("{prefix}.synth.osc1")));
-        }
-        if field.starts_with("synth.osc2.") {
-            return Some(self.osc_auto_map(&format!("{prefix}.synth.osc2")));
-        }
-        if field.starts_with("synth.amp.") {
-            return Some([
-                Some(self.turn_slot(format!("{prefix}.synth.amp.gainPct"), "Gain")),
-                Some(self.turn_slot(format!("{prefix}.synth.amp.velocitySensitivityPct"), "Vel")),
-                None,
-                None,
-            ]);
-        }
-        if field.starts_with("sample.amp.") {
-            return Some([
-                Some(self.turn_slot(format!("{prefix}.sample.amp.gainPct"), "Gain")),
-                Some(self.turn_slot(format!("{prefix}.sample.amp.velocitySensitivityPct"), "Vel")),
-                None,
-                None,
-            ]);
-        }
-        if field.starts_with("sample.") {
-            let sample_slot = self
-                .instruments
-                .get(index)
-                .map(|instrument| instrument.selected_sample_slot.min(SAMPLE_SLOT_COUNT - 1))
-                .unwrap_or(0);
-            return Some([
-                Some(self.turn_press_slot(
-                    format!("{prefix}.sample.selectedSlot"),
-                    "Slot",
-                    NativeMenuAction::PlatformEffect(format!(
-                        "sample.assign:{index}:{sample_slot}"
-                    )),
-                    "Assign",
-                )),
-                Some(self.turn_slot(format!("{prefix}.sample.baseVelocity"), "Base")),
-                Some(self.turn_slot(format!("{prefix}.sample.tuneSemis"), "Tune")),
-                Some(self.turn_slot(format!("{prefix}.sample.velocityLevelsEnabled"), "Levels")),
-            ]);
-        }
-        if field.starts_with("mixer.") {
-            return Some([
-                Some(self.turn_slot(format!("{prefix}.mixer.volume"), "Vol")),
-                Some(self.turn_slot(format!("{prefix}.mixer.panPos"), "Pan")),
-                Some(self.turn_slot(format!("{prefix}.mixer.route"), "Route")),
-                None,
-            ]);
-        }
-        None
+        instrument_filter_auto_map(self, field, &prefix)
+            .or_else(|| instrument_envelope_auto_map(self, field, &prefix))
+            .or_else(|| instrument_oscillator_auto_map(self, field, &prefix))
+            .or_else(|| instrument_amp_auto_map(self, field, &prefix))
+            .or_else(|| instrument_sample_auto_map(self, index, field, &prefix))
+            .or_else(|| instrument_mixer_auto_map(self, field, &prefix))
     }
 
     fn sample_action_auto_map(&self, action: &str) -> Option<[Option<ResolvedAuxSlot>; 4]> {
@@ -273,32 +204,7 @@ impl NativeRunner {
     }
 
     fn fx_slot_auto_map(&self, key: &str) -> Option<[Option<ResolvedAuxSlot>; 4]> {
-        let parts = key.split('.').collect::<Vec<_>>();
-        if parts.first() != Some(&"mixer") {
-            return None;
-        }
-        let (slot_type, base) = if parts.get(1) == Some(&"buses") && parts.len() >= 6 {
-            let bus_index = parts.get(2)?.parse::<usize>().ok()?;
-            let slot_name = *parts.get(3)?;
-            let slot_type = match slot_name {
-                "slot1" => self.fx_buses.get(bus_index)?.slot1_type.as_str(),
-                "slot2" => self.fx_buses.get(bus_index)?.slot2_type.as_str(),
-                _ => return None,
-            };
-            (
-                slot_type,
-                format!("mixer.buses.{bus_index}.{slot_name}.params"),
-            )
-        } else if parts.get(1) == Some(&"master")
-            && parts.get(2) == Some(&"slots")
-            && parts.len() >= 5
-        {
-            let slot_index = parts.get(3)?.parse::<usize>().ok()?;
-            let slot_type = self.global_fx_slots.get(slot_index)?.as_str();
-            (slot_type, format!("mixer.master.slots.{slot_index}.params"))
-        } else {
-            return None;
-        };
+        let (slot_type, base) = self.fx_slot_auto_map_context(key)?;
         let params = fx_default_params(slot_type);
         let has = |name: &str| params.get(name).is_some();
         let key_for = |name: &str| format!("{base}.{name}");
@@ -397,6 +303,46 @@ impl NativeRunner {
         })
     }
 
+    fn fx_slot_auto_map_context(&self, key: &str) -> Option<(&str, String)> {
+        let parts = key.split('.').collect::<Vec<_>>();
+        if parts.first() != Some(&"mixer") {
+            return None;
+        }
+        if parts.get(1) == Some(&"buses") && parts.len() >= 6 {
+            return self.fx_bus_slot_auto_map_context(&parts);
+        }
+        if parts.get(1) == Some(&"master")
+            && parts.get(2) == Some(&"slots")
+            && parts.len() >= 5
+        {
+            return self.global_fx_slot_auto_map_context(&parts);
+        }
+        None
+    }
+
+    fn fx_bus_slot_auto_map_context(&self, parts: &[&str]) -> Option<(&str, String)> {
+        let bus_index = parts.get(2)?.parse::<usize>().ok()?;
+        let slot_name = *parts.get(3)?;
+        let slot_type = match slot_name {
+            "slot1" => self.fx_buses.get(bus_index)?.slot1_type.as_str(),
+            "slot2" => self.fx_buses.get(bus_index)?.slot2_type.as_str(),
+            _ => return None,
+        };
+        Some((
+            slot_type,
+            format!("mixer.buses.{bus_index}.{slot_name}.params"),
+        ))
+    }
+
+    fn global_fx_slot_auto_map_context(&self, parts: &[&str]) -> Option<(&str, String)> {
+        let slot_index = parts.get(3)?.parse::<usize>().ok()?;
+        let slot_type = self.global_fx_slots.get(slot_index)?.as_str();
+        Some((
+            slot_type,
+            format!("mixer.master.slots.{slot_index}.params"),
+        ))
+    }
+
     fn dance_fx_auto_map(&self) -> [Option<ResolvedAuxSlot>; 4] {
         let fx_type = dance_fx_type(&self.dance_fx_selected);
         let key_for = |name: &str| format!("dance.fx.params.{name}");
@@ -446,7 +392,7 @@ impl NativeRunner {
         ]
     }
 
-    fn env_auto_map(&self, prefix: &str) -> [Option<ResolvedAuxSlot>; 4] {
+    pub(super) fn env_auto_map(&self, prefix: &str) -> [Option<ResolvedAuxSlot>; 4] {
         [
             Some(self.turn_slot(format!("{prefix}.attackMs"), "Atk")),
             Some(self.turn_slot(format!("{prefix}.decayMs"), "Dec")),
@@ -455,7 +401,7 @@ impl NativeRunner {
         ]
     }
 
-    fn osc_auto_map(&self, prefix: &str) -> [Option<ResolvedAuxSlot>; 4] {
+    pub(super) fn osc_auto_map(&self, prefix: &str) -> [Option<ResolvedAuxSlot>; 4] {
         [
             Some(self.turn_slot(format!("{prefix}.waveform"), "Wave")),
             Some(self.turn_slot(format!("{prefix}.levelPct"), "Level")),
@@ -464,7 +410,7 @@ impl NativeRunner {
         ]
     }
 
-    fn turn_slot(&self, key: String, label: &str) -> ResolvedAuxSlot {
+    pub(super) fn turn_slot(&self, key: String, label: &str) -> ResolvedAuxSlot {
         ResolvedAuxSlot {
             turn: Some(ResolvedAuxTurn {
                 key,
@@ -476,7 +422,7 @@ impl NativeRunner {
         }
     }
 
-    fn turn_press_slot(
+    pub(super) fn turn_press_slot(
         &self,
         key: String,
         turn_label: &str,

@@ -177,31 +177,49 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
 
   function processRunnerMessages(messages: RuntimeRunnerMessage[]) {
     for (const message of messages) {
-      if (message.type === "snapshot") {
-        const snapshot = message.snapshot;
-        if (snapshot.oled && !(snapshot.oled.pixels instanceof Uint8Array)) {
-          snapshot.oled = { ...snapshot.oled, pixels: new Uint8Array(Object.values(snapshot.oled.pixels as any)) };
-        }
-        const previousSettings = latestFrame.settings;
-        const nextSettings = snapshot.settings;
-        if (previousSettings && nextSettings) {
-          if (!("instruments" in nextSettings)) nextSettings.instruments = previousSettings.instruments;
-          if (!("mixer" in nextSettings)) nextSettings.mixer = previousSettings.mixer;
-          if (!("panPositions" in nextSettings)) nextSettings.panPositions = previousSettings.panPositions;
-        }
-        latestFrame = snapshot;
-        scheduleStartupSplashRefresh(snapshot);
-        continue;
-      }
-      if (message.type === "ui_pulse") {
-        applyUiPulse(message.pulse);
-        continue;
-      }
-      if ((message as any).type === "audio_error") {
-        audioError = (message as any).error ?? null;
-        if (audioError) console.warn("[Runtime] audio error:", audioError);
-      }
+      processRunnerMessage(message);
     }
+  }
+
+  function processRunnerMessage(message: RuntimeRunnerMessage) {
+    if (message.type === "snapshot") {
+      applySnapshotMessage(message.snapshot);
+      return;
+    }
+    if (message.type === "ui_pulse") {
+      applyUiPulse(message.pulse);
+      return;
+    }
+    if ((message as any).type === "audio_error") {
+      applyAudioErrorMessage((message as any).error ?? null);
+    }
+  }
+
+  function applySnapshotMessage(snapshot: RuntimeSnapshot) {
+    normalizeSnapshotPixels(snapshot);
+    mergeSnapshotSettings(snapshot);
+    latestFrame = snapshot;
+    scheduleStartupSplashRefresh(snapshot);
+  }
+
+  function normalizeSnapshotPixels(snapshot: RuntimeSnapshot) {
+    if (snapshot.oled && !(snapshot.oled.pixels instanceof Uint8Array)) {
+      snapshot.oled = { ...snapshot.oled, pixels: new Uint8Array(Object.values(snapshot.oled.pixels as any)) };
+    }
+  }
+
+  function mergeSnapshotSettings(snapshot: RuntimeSnapshot) {
+    const previousSettings = latestFrame.settings;
+    const nextSettings = snapshot.settings;
+    if (!previousSettings || !nextSettings) return;
+    if (!("instruments" in nextSettings)) nextSettings.instruments = previousSettings.instruments;
+    if (!("mixer" in nextSettings)) nextSettings.mixer = previousSettings.mixer;
+    if (!("panPositions" in nextSettings)) nextSettings.panPositions = previousSettings.panPositions;
+  }
+
+  function applyAudioErrorMessage(error: string | null) {
+    audioError = error;
+    if (audioError) console.warn("[Runtime] audio error:", audioError);
   }
 
   function applyUiPulse(pulse: Extract<RuntimeRunnerMessage, { type: "ui_pulse" }>['pulse']) {
@@ -342,24 +360,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
       }
     },
     dispatchAction(action) {
-      if (action.type === "emergency_brake") {
-        dispatchToRunner({ type: "button_s", pressed: true });
-        return;
-      }
-      if (action.type === "shift") {
-        shiftActive = action.active;
-        dispatchToRunner({ type: "button_shift", pressed: action.active });
-        return;
-      }
-      if (action.type === "fn") {
-        dispatchToRunner({ type: "button_fn", pressed: action.active });
-        return;
-      }
-      if (action.input.type === "encoder_turn") {
-        dispatchEncoderTurn(action.input);
-      } else {
-        dispatchToRunner(action.input);
-      }
+      dispatchInputAction(action);
     },
     start() {
       runtimeUpdateEpoch += 1;
@@ -405,4 +406,25 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
       return snapshotFromCore(latestFrame);
     }
   };
+
+  function dispatchInputAction(action: InputAction) {
+    if (action.type === "emergency_brake") {
+      dispatchToRunner({ type: "button_s", pressed: true });
+      return;
+    }
+    if (action.type === "shift") {
+      shiftActive = action.active;
+      dispatchToRunner({ type: "button_shift", pressed: action.active });
+      return;
+    }
+    if (action.type === "fn") {
+      dispatchToRunner({ type: "button_fn", pressed: action.active });
+      return;
+    }
+    if (action.input.type === "encoder_turn") {
+      dispatchEncoderTurn(action.input);
+    } else {
+      dispatchToRunner(action.input);
+    }
+  }
 }
