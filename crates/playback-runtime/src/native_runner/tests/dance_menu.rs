@@ -50,13 +50,11 @@ fn dance_page_fast_path_applies_immediately_without_deferred_flush() {
     assert!(runner.menu.focus_item_key("danceMode"));
     runner.menu.state.stack = vec![3];
     runner.menu.state.editing = true;
-
     let changed = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
         })
         .unwrap();
-
     assert_eq!(snapshot_from(&changed)["danceMode"], "pan");
     assert_eq!(snapshot_from(&changed)["activeDanceMode"], "pan");
     assert_eq!(runner.dance_mode, "pan");
@@ -85,10 +83,8 @@ fn dance_fx_type_turn_is_deferred_until_flush() {
         Some("stutter")
     );
     assert_eq!(runner.dance_fx_selected["fxType"], "none");
-
     runner.make_deferred_menu_apply_due_for_test();
     let flushed = runner.flush_deferred_menu_apply().unwrap();
-
     assert!(!flushed.is_empty());
     assert_eq!(runner.dance_fx_selected["fxType"], "stutter");
 }
