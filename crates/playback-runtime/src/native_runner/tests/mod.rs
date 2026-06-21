@@ -5,6 +5,7 @@ mod aux_auto_map;
 mod basics;
 mod browser_and_help;
 mod dance_fx;
+mod dance_overlay;
 mod dance_menu;
 mod input_events;
 mod instruments;

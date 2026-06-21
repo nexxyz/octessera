@@ -76,89 +76,115 @@ impl NativeRunner {
 
     fn apply_param_binding_value(&mut self, key: &str, value: Value) {
         match key {
-            "algorithmStep" => {
-                if let Some(value) = value.as_str() {
-                    let pulses = match value {
-                        "1/16" => Some(6),
-                        "1/8" => Some(12),
-                        "1/4" => Some(24),
-                        "1/2" => Some(48),
-                        "1/1" => Some(96),
-                        _ => None,
-                    };
-                    if let Some(pulses) = pulses {
-                        self.algorithm_step_pulses = pulses;
-                        self.config_dirty = true;
-                    }
-                }
-            }
-            "sound.noteLengthMs" => {
-                if let Some(value) = value.as_f64() {
-                    self.global_sound.note_length_ms = value.round().clamp(30.0, 2000.0) as u32;
-                    self.config_dirty = true;
-                }
-            }
-            "sound.velocityScalePct" => {
-                if let Some(value) = value.as_f64() {
-                    self.global_sound.velocity_scale_pct = value.round().clamp(0.0, 200.0) as u16;
-                    self.config_dirty = true;
-                }
-            }
-            "sound.voiceStealingMode" => {
-                if let Some(value) = value.as_str() {
-                    if matches!(value, "off" | "lenient" | "balanced" | "aggressive") {
-                        self.voice_stealing_mode = value.into();
-                        self.config_dirty = true;
-                    }
-                }
-            }
-            _ => {
-                if let Some((index, field)) = parse_part_behavior_config_binding_key(key) {
-                    if let Some(config) = self.part_behavior_configs.get_mut(index) {
-                        let mut object = config.as_object().cloned().unwrap_or_default();
-                        object.insert(field.into(), value.clone());
-                        *config = Value::Object(object.clone());
-                        if index == self.active_part_index {
-                            self.behavior_config = Value::Object(object);
-                        }
-                        self.config_dirty = true;
-                    }
-                } else if let Some((index, field)) = parse_sense_binding_key(key) {
-                    if let Some(part) = self.sense_parts.get_mut(index) {
-                        apply_sense_binding_value(part, field, value, &mut self.config_dirty);
-                    }
-                } else if let Some((index, field)) = parse_instrument_binding_key(key) {
-                    if let Some(instrument) = self.instruments.get_mut(index) {
-                        apply_instrument_binding_value(
-                            instrument,
-                            field,
-                            value,
-                            &mut self.config_dirty,
-                        );
-                    }
-                } else if let Some((index, slot, field)) = parse_fx_bus_binding_key(key) {
-                    if let Some(bus) = self.fx_buses.get_mut(index) {
-                        apply_fx_bus_binding_value(bus, slot, field, value, &mut self.config_dirty);
-                    }
-                } else if let Some((index, field)) = parse_global_fx_binding_key(key) {
-                    apply_global_fx_binding_value(
-                        &mut self.global_fx_slots,
-                        &mut self.global_fx_params,
-                        index,
-                        field,
-                        value,
-                        &mut self.config_dirty,
-                    );
-                } else if let Some(field) = key.strip_prefix("dance.fx.") {
-                    apply_dance_fx_binding_value(
-                        &mut self.dance_fx_selected,
-                        field,
-                        value,
-                        &mut self.config_dirty,
-                    );
-                }
+            "algorithmStep" => self.apply_algorithm_step_binding(value),
+            "sound.noteLengthMs" => self.apply_note_length_binding(value),
+            "sound.velocityScalePct" => self.apply_velocity_scale_binding(value),
+            "sound.voiceStealingMode" => self.apply_voice_stealing_binding(value),
+            _ => self.apply_routed_param_binding_value(key, value),
+        }
+    }
+
+    fn apply_algorithm_step_binding(&mut self, value: Value) {
+        let Some(value) = value.as_str() else {
+            return;
+        };
+        let pulses = match value {
+            "1/16" => Some(6),
+            "1/8" => Some(12),
+            "1/4" => Some(24),
+            "1/2" => Some(48),
+            "1/1" => Some(96),
+            _ => None,
+        };
+        if let Some(pulses) = pulses {
+            self.algorithm_step_pulses = pulses;
+            self.config_dirty = true;
+        }
+    }
+
+    fn apply_note_length_binding(&mut self, value: Value) {
+        if let Some(value) = value.as_f64() {
+            self.global_sound.note_length_ms = value.round().clamp(30.0, 2000.0) as u32;
+            self.config_dirty = true;
+        }
+    }
+
+    fn apply_velocity_scale_binding(&mut self, value: Value) {
+        if let Some(value) = value.as_f64() {
+            self.global_sound.velocity_scale_pct = value.round().clamp(0.0, 200.0) as u16;
+            self.config_dirty = true;
+        }
+    }
+
+    fn apply_voice_stealing_binding(&mut self, value: Value) {
+        if let Some(value) = value.as_str() {
+            if matches!(value, "off" | "lenient" | "balanced" | "aggressive") {
+                self.voice_stealing_mode = value.into();
+                self.config_dirty = true;
             }
         }
+    }
+
+    fn apply_routed_param_binding_value(&mut self, key: &str, value: Value) {
+        if let Some((index, field)) = parse_part_behavior_config_binding_key(key) {
+            self.apply_behavior_param_binding(index, field, value);
+        } else if let Some((index, field)) = parse_sense_binding_key(key) {
+            self.apply_sense_param_binding(index, field, value);
+        } else if let Some((index, field)) = parse_instrument_binding_key(key) {
+            self.apply_instrument_param_binding(index, field, value);
+        } else if let Some((index, slot, field)) = parse_fx_bus_binding_key(key) {
+            self.apply_fx_bus_param_binding(index, slot, field, value);
+        } else if let Some((index, field)) = parse_global_fx_binding_key(key) {
+            self.apply_global_fx_param_binding(index, field, value);
+        } else if let Some(field) = key.strip_prefix("dance.fx.") {
+            apply_dance_fx_binding_value(
+                &mut self.dance_fx_selected,
+                field,
+                value,
+                &mut self.config_dirty,
+            );
+        }
+    }
+
+    fn apply_behavior_param_binding(&mut self, index: usize, field: &str, value: Value) {
+        if let Some(config) = self.part_behavior_configs.get_mut(index) {
+            let mut object = config.as_object().cloned().unwrap_or_default();
+            object.insert(field.into(), value);
+            *config = Value::Object(object.clone());
+            if index == self.active_part_index {
+                self.behavior_config = Value::Object(object);
+            }
+            self.config_dirty = true;
+        }
+    }
+
+    fn apply_sense_param_binding(&mut self, index: usize, field: &str, value: Value) {
+        if let Some(part) = self.sense_parts.get_mut(index) {
+            apply_sense_binding_value(part, field, value, &mut self.config_dirty);
+        }
+    }
+
+    fn apply_instrument_param_binding(&mut self, index: usize, field: &str, value: Value) {
+        if let Some(instrument) = self.instruments.get_mut(index) {
+            apply_instrument_binding_value(instrument, field, value, &mut self.config_dirty);
+        }
+    }
+
+    fn apply_fx_bus_param_binding(&mut self, index: usize, slot: &str, field: &str, value: Value) {
+        if let Some(bus) = self.fx_buses.get_mut(index) {
+            apply_fx_bus_binding_value(bus, slot, field, value, &mut self.config_dirty);
+        }
+    }
+
+    fn apply_global_fx_param_binding(&mut self, index: usize, field: &str, value: Value) {
+        apply_global_fx_binding_value(
+            &mut self.global_fx_slots,
+            &mut self.global_fx_params,
+            index,
+            field,
+            value,
+            &mut self.config_dirty,
+        );
     }
 }
 

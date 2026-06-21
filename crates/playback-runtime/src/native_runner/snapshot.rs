@@ -95,158 +95,23 @@ impl NativeRunner {
     fn snapshot_with_audio_config(&self, include_audio_config: bool) -> Result<Value, String> {
         let model = self.engine.model()?;
         let menu = self.menu.snapshot();
-        let mut leds = vec![json!({ "r": 15, "g": 15, "b": 22 }); GRID_WIDTH * GRID_HEIGHT];
-        for (logical_index, alive) in model.cells.iter().enumerate() {
-            let x = logical_index % GRID_WIDTH;
-            let y = logical_index / GRID_WIDTH;
-            let display_index = display_index(x, y);
-            let trigger = model
-                .trigger_types
-                .as_ref()
-                .and_then(|types| types.get(logical_index))
-                .copied();
-            leds[display_index] = if !alive {
-                json!({ "r": 15, "g": 15, "b": 22 })
-            } else {
-                match trigger.unwrap_or(platform_core::CellTriggerType::Stable) {
-                    platform_core::CellTriggerType::Activate => {
-                        json!({ "r": 255, "g": 255, "b": 255 })
-                    }
-                    platform_core::CellTriggerType::Deactivate => {
-                        json!({ "r": 128, "g": 128, "b": 128 })
-                    }
-                    platform_core::CellTriggerType::Scanned => json!({ "r": 255, "g": 0, "b": 0 }),
-                    _ => json!({ "r": 0, "g": 255, "b": 120 }),
-                }
-            };
-        }
+        let mut leds = self.base_led_snapshot(&model);
         self.apply_scan_progress_overlay(&mut leds);
         self.apply_sample_assignment_overlay(&mut leds);
         self.apply_trigger_probability_overlay(&mut leds);
         self.apply_dance_overlay(&mut leds);
         self.apply_param_mod_overlay(&mut leds);
         self.apply_fn_overlay(&mut leds);
-
-        let (
-            display_lines,
-            mut display_colors,
-            mut display_bar_values,
-            selected_row,
-            display_title,
-        ) = if let Some(confirm) = &self.confirm_dialog {
-            let mut lines = confirm.lines.clone();
-            for (index, option) in confirm.options.iter().enumerate() {
-                let marker = if index == confirm.cursor { ">" } else { " " };
-                lines.push(format!("{marker} {option}"));
-            }
-            lines.truncate(OLED_BODY_ROWS);
-            let selected_row = confirm
-                .lines
-                .len()
-                .saturating_add(confirm.cursor)
-                .min(OLED_BODY_ROWS.saturating_sub(1));
-            let line_count = lines.len();
-            (
-                lines,
-                vec![0xFFFF; line_count],
-                vec![Value::Null; line_count],
-                Some(selected_row),
-                confirm.title.clone(),
-            )
-        } else if let Some(help) = &self.help_popup {
-            let mut lines = help
-                .lines
-                .iter()
-                .skip(help.scroll)
-                .take(OLED_BODY_ROWS - 1)
-                .cloned()
-                .collect::<Vec<_>>();
-            lines.push("> Close".into());
-            let line_count = lines.len();
-            (
-                lines,
-                vec![0xFFFF; line_count],
-                vec![Value::Null; line_count],
-                Some(
-                    help.lines
-                        .len()
-                        .saturating_sub(help.scroll)
-                        .min(OLED_BODY_ROWS - 1),
-                ),
-                help.title.clone(),
-            )
-        } else if let Some((title, lines)) = self.aux_mapping_overlay() {
-            let line_count = lines.len();
-            (
-                lines,
-                vec![0xFFFF; line_count],
-                vec![Value::Null; line_count],
-                None,
-                title,
-            )
-        } else {
-            let bar_values = menu
-                .bar_values
-                .into_iter()
-                .map(|bar| {
-                    bar.map(|bar| {
-                        json!({
-                            "frac": f32::from(bar.frac_pct) / 100.0,
-                            "numChars": bar.num_chars,
-                            "style": bar.style,
-                        })
-                    })
-                    .unwrap_or(Value::Null)
-                })
-                .collect::<Vec<_>>();
-            let mut lines = menu.lines;
-            for row in 0..lines.len() {
-                let prefix = self.auto_map_prefix_for_line(
-                    menu.line_keys.get(row).and_then(|key| key.as_deref()),
-                    menu.line_actions
-                        .get(row)
-                        .and_then(|action| action.as_ref()),
-                );
-                let Some(prefix) = prefix else {
-                    continue;
-                };
-                if let Some(line) = lines.get_mut(row) {
-                    if let Some(stripped) = line.strip_prefix('!') {
-                        *line = format!("{prefix}{stripped}");
-                    } else {
-                        let indent = line.chars().take_while(|ch| *ch == ' ').count();
-                        let body = &line[indent..];
-                        if prefix.ends_with('!') {
-                            let stripped = body.strip_prefix("> ").unwrap_or(body);
-                            let stripped = stripped.strip_prefix('!').unwrap_or(stripped);
-                            *line = format!("{prefix}{stripped}");
-                        } else if let Some(stripped) = body.strip_prefix("> ") {
-                            *line = format!("{}> {}{}", " ".repeat(indent), prefix, stripped);
-                        } else {
-                            *line = format!("{}{}{}", " ".repeat(indent), prefix, body);
-                        }
-                    }
-                }
-            }
-            (lines, menu.colors, bar_values, menu.selected_row, menu.path)
-        };
-        let display_title = clip_display_line(&display_title, 28);
-        let display_lines = display_lines
-            .into_iter()
-            .take(OLED_BODY_ROWS)
-            .map(|line| clip_display_line(&line, 28))
-            .collect::<Vec<_>>();
-        display_colors.truncate(display_lines.len());
-        display_bar_values.truncate(display_lines.len());
+        let display = self.display_snapshot(menu);
         let toast = self.toast.as_ref().map(scrolled_toast).unwrap_or_default();
 
         let mut snapshot = json!({
             "display": {
                 "page": self.behavior.id(),
-                "title": display_title,
-                "lines": display_lines,
-                "colors": display_colors,
-                "barValues": display_bar_values,
+                "title": display.title,
+                "lines": display.lines,
+                "colors": display.colors,
+                "barValues": display.bar_values,
                 "toast": toast,
                 "off": self.oled_mode == NativeOledMode::Off,
                 "splash": if self.oled_mode == NativeOledMode::Splash { self.oled_splash_text.clone() } else { String::new() },
@@ -313,7 +178,7 @@ impl NativeRunner {
                     "respondToStartStop": self.midi_respond_to_start_stop
                 }
             },
-            "selectedRow": selected_row,
+            "selectedRow": display.selected_row,
             "voiceStealingMode": self.voice_stealing_mode.clone(),
             "eventDotOn": self.event_dot_on || self.event_dot_pulses_remaining > 0,
             "transportIcon": match self.transport {
@@ -334,6 +199,44 @@ impl NativeRunner {
         }
         snapshot["settings"]["shiftHeld"] = json!(self.ui.shift_held);
         Ok(snapshot)
+    }
+
+    fn base_led_snapshot(&self, model: &platform_core::BehaviorRenderModel) -> Vec<Value> {
+        let mut leds = vec![json!({ "r": 15, "g": 15, "b": 22 }); GRID_WIDTH * GRID_HEIGHT];
+        for (logical_index, alive) in model.cells.iter().enumerate() {
+            let x = logical_index % GRID_WIDTH;
+            let y = logical_index / GRID_WIDTH;
+            let display_index = display_index(x, y);
+            let trigger = model
+                .trigger_types
+                .as_ref()
+                .and_then(|types| types.get(logical_index))
+                .copied();
+            leds[display_index] = base_led_color(*alive, trigger);
+        }
+        leds
+    }
+
+    fn display_snapshot(&self, menu: crate::native_menu::NativeMenuSnapshot) -> DisplaySnapshot {
+        let mut display = if let Some(confirm) = &self.confirm_dialog {
+            confirm_dialog_display(confirm)
+        } else if let Some(help) = &self.help_popup {
+            help_popup_display(help)
+        } else if let Some((title, lines)) = self.aux_mapping_overlay() {
+            overlay_display(title, lines)
+        } else {
+            menu_display(self, menu)
+        };
+        display.title = clip_display_line(&display.title, 28);
+        display.lines = display
+            .lines
+            .into_iter()
+            .take(OLED_BODY_ROWS)
+            .map(|line| clip_display_line(&line, 28))
+            .collect();
+        display.colors.truncate(display.lines.len());
+        display.bar_values.truncate(display.lines.len());
+        display
     }
 
     pub(super) fn next_snapshot(&mut self) -> Result<Value, String> {
@@ -432,4 +335,141 @@ impl NativeRunner {
         messages.extend(self.messages_with_snapshot()?);
         Ok(messages)
     }
+}
+
+struct DisplaySnapshot {
+    title: String,
+    lines: Vec<String>,
+    colors: Vec<u16>,
+    bar_values: Vec<Value>,
+    selected_row: Option<usize>,
+}
+
+fn base_led_color(
+    alive: bool,
+    trigger: Option<platform_core::CellTriggerType>,
+) -> Value {
+    if !alive {
+        return json!({ "r": 15, "g": 15, "b": 22 });
+    }
+    match trigger.unwrap_or(platform_core::CellTriggerType::Stable) {
+        platform_core::CellTriggerType::Activate => json!({ "r": 255, "g": 255, "b": 255 }),
+        platform_core::CellTriggerType::Deactivate => json!({ "r": 128, "g": 128, "b": 128 }),
+        platform_core::CellTriggerType::Scanned => json!({ "r": 255, "g": 0, "b": 0 }),
+        _ => json!({ "r": 0, "g": 255, "b": 120 }),
+    }
+}
+
+fn confirm_dialog_display(confirm: &super::NativeConfirmDialog) -> DisplaySnapshot {
+    let mut lines = confirm.lines.clone();
+    for (index, option) in confirm.options.iter().enumerate() {
+        let marker = if index == confirm.cursor { ">" } else { " " };
+        lines.push(format!("{marker} {option}"));
+    }
+    lines.truncate(OLED_BODY_ROWS);
+    let line_count = lines.len();
+    DisplaySnapshot {
+        title: confirm.title.clone(),
+        lines,
+        colors: vec![0xFFFF; line_count],
+        bar_values: vec![Value::Null; line_count],
+        selected_row: Some(
+            confirm
+                .lines
+                .len()
+                .saturating_add(confirm.cursor)
+                .min(OLED_BODY_ROWS.saturating_sub(1)),
+        ),
+    }
+}
+
+fn help_popup_display(help: &super::NativeHelpPopup) -> DisplaySnapshot {
+    let mut lines = help
+        .lines
+        .iter()
+        .skip(help.scroll)
+        .take(OLED_BODY_ROWS - 1)
+        .cloned()
+        .collect::<Vec<_>>();
+    lines.push("> Close".into());
+    let line_count = lines.len();
+    DisplaySnapshot {
+        title: help.title.clone(),
+        lines,
+        colors: vec![0xFFFF; line_count],
+        bar_values: vec![Value::Null; line_count],
+        selected_row: Some(
+            help.lines
+                .len()
+                .saturating_sub(help.scroll)
+                .min(OLED_BODY_ROWS - 1),
+        ),
+    }
+}
+
+fn overlay_display(title: String, lines: Vec<String>) -> DisplaySnapshot {
+    let line_count = lines.len();
+    DisplaySnapshot {
+        title,
+        lines,
+        colors: vec![0xFFFF; line_count],
+        bar_values: vec![Value::Null; line_count],
+        selected_row: None,
+    }
+}
+
+fn menu_display(runner: &NativeRunner, menu: crate::native_menu::NativeMenuSnapshot) -> DisplaySnapshot {
+    let bar_values = menu
+        .bar_values
+        .into_iter()
+        .map(|bar| {
+            bar.map(|bar| {
+                json!({
+                    "frac": f32::from(bar.frac_pct) / 100.0,
+                    "numChars": bar.num_chars,
+                    "style": bar.style,
+                })
+            })
+            .unwrap_or(Value::Null)
+        })
+        .collect::<Vec<_>>();
+    let lines = menu
+        .lines
+        .into_iter()
+        .enumerate()
+        .map(|(row, line)| {
+            let prefix = runner.auto_map_prefix_for_line(
+                menu.line_keys.get(row).and_then(|key| key.as_deref()),
+                menu.line_actions.get(row).and_then(|action| action.as_ref()),
+            );
+            prefix_line(line, prefix)
+        })
+        .collect();
+    DisplaySnapshot {
+        title: menu.path,
+        lines,
+        colors: menu.colors,
+        bar_values,
+        selected_row: menu.selected_row,
+    }
+}
+
+fn prefix_line(line: String, prefix: Option<String>) -> String {
+    let Some(prefix) = prefix else {
+        return line;
+    };
+    if let Some(stripped) = line.strip_prefix('!') {
+        return format!("{prefix}{stripped}");
+    }
+    let indent = line.chars().take_while(|ch| *ch == ' ').count();
+    let body = &line[indent..];
+    if prefix.ends_with('!') {
+        let stripped = body.strip_prefix("> ").unwrap_or(body);
+        let stripped = stripped.strip_prefix('!').unwrap_or(stripped);
+        return format!("{prefix}{stripped}");
+    }
+    if let Some(stripped) = body.strip_prefix("> ") {
+        return format!("{}> {}{}", " ".repeat(indent), prefix, stripped);
+    }
+    format!("{}{}{}", " ".repeat(indent), prefix, body)
 }

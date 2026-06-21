@@ -61,6 +61,108 @@ impl NativeRunner {
         }
         self.execute_confirmed_action(confirm.action)
     }
+
+    fn send_transport_pulse_step(
+        &mut self,
+        pulses: u32,
+        request_snapshot: Option<bool>,
+    ) -> Result<Vec<RunnerMessage>, String> {
+        self.current_ppqn_pulse = self.current_ppqn_pulse.saturating_add(pulses as u64);
+        let mut out = Vec::new();
+        let events = self.advance_algorithm(pulses)?;
+        if !events.is_empty() {
+            out.push(self.trigger_ui_pulse_message());
+            out.push(RunnerMessage::MusicalEvents { events });
+        }
+        if let Some(pulse) = self.transport_ui_pulse_message() {
+            out.push(pulse);
+        }
+        if request_snapshot.unwrap_or(false) {
+            self.advance_oled_sleep_state();
+            self.advance_toast_state();
+            out.push(RunnerMessage::Snapshot {
+                snapshot: self.snapshot()?,
+            });
+        }
+        out.push(RunnerMessage::RuntimeStatus {
+            status: self.status(),
+        });
+        Ok(out)
+    }
+
+    fn send_device_input(&mut self, input: serde_json::Value) -> Result<Vec<RunnerMessage>, String> {
+        let input = serde_json::from_value::<DeviceInput>(input).unwrap_or(DeviceInput::Other);
+        self.handle_device_input(input)
+    }
+
+    fn send_midi_realtime_start(&mut self) -> Result<Vec<RunnerMessage>, String> {
+        if self.should_ignore_external_start_stop() {
+            return self.messages_with_snapshot();
+        }
+        self.transport = RuntimeTransportState::Playing;
+        self.reset_transport_position();
+        self.transport_flash = "measure";
+        self.transport_flash_pulses_remaining = 6;
+        let mut messages = Vec::new();
+        if let Some(pulse) = self.transport_ui_pulse_message() {
+            messages.push(pulse);
+        }
+        messages.extend(self.messages_with_snapshot()?);
+        Ok(messages)
+    }
+
+    fn send_midi_realtime_continue(&mut self) -> Result<Vec<RunnerMessage>, String> {
+        if self.should_ignore_external_start_stop() {
+            return self.messages_with_snapshot();
+        }
+        self.transport = RuntimeTransportState::Playing;
+        self.messages_with_snapshot()
+    }
+
+    fn send_midi_realtime_stop(&mut self) -> Result<Vec<RunnerMessage>, String> {
+        if self.should_ignore_external_start_stop() {
+            return self.messages_with_snapshot();
+        }
+        self.transport = RuntimeTransportState::Stopped;
+        self.reset_transport_position();
+        self.messages_with_snapshot()
+    }
+
+    fn send_midi_realtime_clock(&mut self, pulses: u32) -> Result<Vec<RunnerMessage>, String> {
+        if self.sync_source == SyncSource::External && !self.midi_clock_in_enabled {
+            return self.messages_with_snapshot();
+        }
+        self.current_ppqn_pulse = self.current_ppqn_pulse.saturating_add(pulses as u64);
+        if self.sync_source == SyncSource::External
+            && self.transport == RuntimeTransportState::Playing
+        {
+            let mut out = Vec::new();
+            let events = self.advance_algorithm(pulses)?;
+            if !events.is_empty() {
+                out.push(self.trigger_ui_pulse_message());
+                out.push(RunnerMessage::MusicalEvents { events });
+            }
+            if let Some(pulse) = self.transport_ui_pulse_message() {
+                out.push(pulse);
+            }
+            out.extend(self.messages_with_snapshot()?);
+            return Ok(out);
+        }
+        self.messages_with_snapshot()
+    }
+
+    fn send_runtime_result(
+        &mut self,
+        result: crate::protocol::RuntimeStoreResult,
+    ) -> Result<Vec<RunnerMessage>, String> {
+        self.apply_store_result(result)?;
+        self.messages_with_snapshot()
+    }
+
+    fn should_ignore_external_start_stop(&self) -> bool {
+        self.sync_source == SyncSource::External
+            && (!self.midi_clock_in_enabled || !self.midi_respond_to_start_stop)
+    }
 }
 
 impl super::CoreRunner for NativeRunner {
@@ -70,96 +172,13 @@ impl super::CoreRunner for NativeRunner {
                 pulses,
                 request_snapshot,
                 ..
-            } => {
-                self.current_ppqn_pulse = self.current_ppqn_pulse.saturating_add(pulses as u64);
-                let mut out = Vec::new();
-                let events = self.advance_algorithm(pulses)?;
-                if !events.is_empty() {
-                    out.push(self.trigger_ui_pulse_message());
-                    out.push(RunnerMessage::MusicalEvents { events });
-                }
-                if let Some(pulse) = self.transport_ui_pulse_message() {
-                    out.push(pulse);
-                }
-                if request_snapshot.unwrap_or(false) {
-                    self.advance_oled_sleep_state();
-                    self.advance_toast_state();
-                    out.push(RunnerMessage::Snapshot {
-                        snapshot: self.snapshot()?,
-                    });
-                }
-                out.push(RunnerMessage::RuntimeStatus {
-                    status: self.status(),
-                });
-                Ok(out)
-            }
-            HostMessage::DeviceInput { input } => {
-                let input =
-                    serde_json::from_value::<DeviceInput>(input).unwrap_or(DeviceInput::Other);
-                self.handle_device_input(input)
-            }
-            HostMessage::MidiRealtimeStart => {
-                if self.sync_source == SyncSource::External
-                    && (!self.midi_clock_in_enabled || !self.midi_respond_to_start_stop)
-                {
-                    return self.messages_with_snapshot();
-                }
-                self.transport = RuntimeTransportState::Playing;
-                self.reset_transport_position();
-                self.transport_flash = "measure";
-                self.transport_flash_pulses_remaining = 6;
-                let mut messages = Vec::new();
-                if let Some(pulse) = self.transport_ui_pulse_message() {
-                    messages.push(pulse);
-                }
-                messages.extend(self.messages_with_snapshot()?);
-                Ok(messages)
-            }
-            HostMessage::MidiRealtimeContinue => {
-                if self.sync_source == SyncSource::External
-                    && (!self.midi_clock_in_enabled || !self.midi_respond_to_start_stop)
-                {
-                    return self.messages_with_snapshot();
-                }
-                self.transport = RuntimeTransportState::Playing;
-                self.messages_with_snapshot()
-            }
-            HostMessage::MidiRealtimeStop => {
-                if self.sync_source == SyncSource::External
-                    && (!self.midi_clock_in_enabled || !self.midi_respond_to_start_stop)
-                {
-                    return self.messages_with_snapshot();
-                }
-                self.transport = RuntimeTransportState::Stopped;
-                self.reset_transport_position();
-                self.messages_with_snapshot()
-            }
-            HostMessage::MidiRealtimeClock { pulses } => {
-                if self.sync_source == SyncSource::External && !self.midi_clock_in_enabled {
-                    return self.messages_with_snapshot();
-                }
-                self.current_ppqn_pulse = self.current_ppqn_pulse.saturating_add(pulses as u64);
-                if self.sync_source == SyncSource::External
-                    && self.transport == RuntimeTransportState::Playing
-                {
-                    let events = self.advance_algorithm(pulses)?;
-                    let mut out = Vec::new();
-                    if !events.is_empty() {
-                        out.push(self.trigger_ui_pulse_message());
-                        out.push(RunnerMessage::MusicalEvents { events });
-                    }
-                    if let Some(pulse) = self.transport_ui_pulse_message() {
-                        out.push(pulse);
-                    }
-                    out.extend(self.messages_with_snapshot()?);
-                    return Ok(out);
-                }
-                self.messages_with_snapshot()
-            }
-            HostMessage::RuntimeResult { result } => {
-                self.apply_store_result(result)?;
-                self.messages_with_snapshot()
-            }
+            } => self.send_transport_pulse_step(pulses, request_snapshot),
+            HostMessage::DeviceInput { input } => self.send_device_input(input),
+            HostMessage::MidiRealtimeStart => self.send_midi_realtime_start(),
+            HostMessage::MidiRealtimeContinue => self.send_midi_realtime_continue(),
+            HostMessage::MidiRealtimeStop => self.send_midi_realtime_stop(),
+            HostMessage::MidiRealtimeClock { pulses } => self.send_midi_realtime_clock(pulses),
+            HostMessage::RuntimeResult { result } => self.send_runtime_result(result),
         }?;
         messages.extend(self.flush_deferred_menu_apply()?);
         Ok(messages)

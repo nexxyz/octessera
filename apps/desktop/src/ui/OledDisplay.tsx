@@ -26,6 +26,22 @@ export function OledDisplay({ frame, displayBrightness }: { frame: RuntimeSnapsh
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const regularSplashImage = useImageAsset(REGULAR_SPLASH_LOGO);
   const sepiaSplashImage = useImageAsset(SEPIA_SPLASH_LOGO);
+  const semantic = useSemanticOledState(frame);
+
+  useOledCanvas(canvasRef, oledImage, semantic, regularSplashImage, sepiaSplashImage);
+
+  return (
+    <section className="oled-wrap">
+      <div className="oled-bezel">
+        <div className="oled-panel" style={{ width: OLED_WIDTH, height: OLED_HEIGHT, opacity: Math.max(0.2, displayBrightness / 100) }}>
+          <canvas ref={canvasRef} className="oled-canvas" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function useSemanticOledState(frame: RuntimeSnapshot): SemanticOledState {
   const displayOff = Boolean((frame.display as any).off ?? false);
   const splashText = String((frame.display as any).splash ?? "");
   const selectedRow = Number((frame as any).selectedRow ?? -1);
@@ -73,7 +89,7 @@ export function OledDisplay({ frame, displayBrightness }: { frame: RuntimeSnapsh
     return () => window.clearTimeout(timeout);
   }, [footerToast]);
 
-  const semantic = useMemo<SemanticOledState>(
+  return useMemo<SemanticOledState>(
     () => ({
       displayOff,
       splashText,
@@ -105,18 +121,6 @@ export function OledDisplay({ frame, displayBrightness }: { frame: RuntimeSnapsh
       barValues,
       visibleFooterToast,
     ],
-  );
-
-  useOledCanvas(canvasRef, oledImage, semantic, regularSplashImage, sepiaSplashImage);
-
-  return (
-    <section className="oled-wrap">
-      <div className="oled-bezel">
-        <div className="oled-panel" style={{ width: OLED_WIDTH, height: OLED_HEIGHT, opacity: Math.max(0.2, displayBrightness / 100) }}>
-          <canvas ref={canvasRef} className="oled-canvas" />
-        </div>
-      </div>
-    </section>
   );
 }
 

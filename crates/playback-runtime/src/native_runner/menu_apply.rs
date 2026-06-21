@@ -175,15 +175,57 @@ impl NativeRunner {
     pub(super) fn apply_menu_state(&mut self) -> Result<(), String> {
         self.clear_deferred_menu_apply();
         let before_payload = self.config_payload();
+        let dance_mode_changed = self.apply_global_runtime_menu_state();
+        let dance_fx_changed = self.apply_dance_fx_menu_state();
+        self.apply_param_mod_invert_menu_state();
+        let part_changed = self.apply_part_menu_state();
+        let instrument_changed = self.apply_instrument_menu_state();
+        let sense_changed = self.apply_sense_menu_state();
+        let fx_changed = self.apply_fx_menu_state();
+        self.sync_engine_runtime_config();
+        if part_changed
+            || instrument_changed
+            || sense_changed
+            || fx_changed
+            || dance_fx_changed
+            || dance_mode_changed
+        {
+            self.menu.rebuild(self.menu_config());
+        }
+        if sense_changed {
+            self.refresh_active_interpretation_profile();
+            self.engine
+                .set_interpretation_profile(self.interpretation_profile.clone());
+        }
+        self.apply_selected_behavior_menu_state()?;
+        self.apply_behavior_config_menu_state()?;
+        self.refresh_active_mapping_config();
+        self.refresh_active_interpretation_profile();
+        self.engine
+            .set_interpretation_profile(self.interpretation_profile.clone());
+        self.auto_save_default = self
+            .menu
+            .value_for_key("autoSaveDefault")
+            .map(|value| value == "true")
+            .unwrap_or(self.auto_save_default);
+        let after_payload = self.config_payload();
+        if audio_config_changed(&before_payload, &after_payload) {
+            self.audio_config_revision = self.audio_config_revision.wrapping_add(1);
+        }
+        if after_payload != before_payload {
+            self.config_dirty = true;
+        }
+        Ok(())
+    }
+
+    fn apply_global_runtime_menu_state(&mut self) -> bool {
         let mut dance_mode_changed = false;
         if let Some(sync_source) = self.menu.selected_sync_source() {
             self.sync_source = sync_source;
         }
         if let Some(step_pulses) = self.menu.selected_algorithm_step_pulses() {
             self.algorithm_step_pulses = step_pulses;
-            if let Some(part_step) = self
-                .part_algorithm_step_pulses
-                .get_mut(self.active_part_index)
+            if let Some(part_step) = self.part_algorithm_step_pulses.get_mut(self.active_part_index)
             {
                 *part_step = step_pulses;
             }
@@ -194,11 +236,22 @@ impl NativeRunner {
         if let Some(draft_name) = self.menu.value_for_key("system.draftName") {
             self.preset_draft_name = draft_name;
         }
-        if let Some(midi_enabled) = self
-            .menu
-            .value_for_key("midiEnabled")
-            .map(|value| value == "true")
-        {
+        self.apply_midi_menu_flags();
+        if let Some(dance_mode) = self.menu.selected_dance_mode() {
+            let changed = self.dance_mode != dance_mode;
+            self.dance_mode = dance_mode.clone();
+            dance_mode_changed = changed;
+            if changed && self.menu.state.stack.first() == Some(&3) {
+                self.active_dance_mode = dance_mode;
+            }
+        }
+        self.apply_xy_menu_state();
+        self.apply_ui_sound_transport_menu_state();
+        dance_mode_changed
+    }
+
+    fn apply_midi_menu_flags(&mut self) {
+        if let Some(midi_enabled) = self.menu.value_for_key("midiEnabled").map(|value| value == "true") {
             self.midi_enabled = midi_enabled;
         }
         if let Some(clock_out_enabled) = self
@@ -222,15 +275,9 @@ impl NativeRunner {
         {
             self.midi_respond_to_start_stop = respond_to_start_stop;
         }
-        if let Some(dance_mode) = self.menu.selected_dance_mode() {
-            let changed = self.dance_mode != dance_mode;
-            self.dance_mode = dance_mode.clone();
-            dance_mode_changed = changed;
-            if changed && self.menu.state.stack.first() == Some(&3) {
-                self.active_dance_mode = dance_mode;
-            }
-        }
-        let dance_fx_changed = self.apply_dance_fx_menu_state();
+    }
+
+    fn apply_xy_menu_state(&mut self) {
         if let Some(xy_release) = self.menu.value_for_key("dance.xy.release") {
             self.xy_release = xy_release;
         }
@@ -240,11 +287,17 @@ impl NativeRunner {
         if let Some(invert_y) = self.menu.value_for_key("dance.xy.invertY") {
             self.xy_invert_y = invert_y == "true";
         }
+    }
+
+    fn apply_ui_sound_transport_menu_state(&mut self) {
         if let Some(display_brightness) = self.menu.selected_display_brightness() {
             self.ui.display_brightness = display_brightness;
         }
         if let Some(button_brightness) = self.menu.selected_button_brightness() {
             self.ui.button_brightness = button_brightness;
+        }
+        if let Some(grid_brightness) = self.menu.number_for_key("gridBrightness") {
+            self.ui.grid_brightness = grid_brightness.clamp(10, 100) as u8;
         }
         if let Some(bpm) = self.menu.number_for_key("transport.bpm") {
             self.bpm = f64::from(bpm.clamp(40, 240));
@@ -259,10 +312,7 @@ impl NativeRunner {
             self.global_sound.velocity_curve = velocity_curve_from_id(&velocity_curve);
         }
         if let Some(voice_stealing_mode) = self.menu.value_for_key("sound.voiceStealingMode") {
-            if matches!(
-                voice_stealing_mode.as_str(),
-                "off" | "lenient" | "balanced" | "aggressive"
-            ) {
+            if matches!(voice_stealing_mode.as_str(), "off" | "lenient" | "balanced" | "aggressive") {
                 self.voice_stealing_mode = voice_stealing_mode;
             }
         }
@@ -281,101 +331,63 @@ impl NativeRunner {
         if let Some(aux_auto_map_enabled) = self.menu.value_for_key("auxAutoMapEnabled") {
             self.aux_auto_map_enabled = aux_auto_map_enabled == "true";
         }
-        if let Some(grid_brightness) = self.menu.number_for_key("gridBrightness") {
-            self.ui.grid_brightness = grid_brightness.clamp(10, 100) as u8;
+    }
+
+    fn apply_selected_behavior_menu_state(&mut self) -> Result<(), String> {
+        let Some(behavior_id) = self.menu.selected_behavior().map(|value| value.to_string()) else {
+            return Ok(());
+        };
+        if behavior_id.as_str() == self.behavior.id() {
+            return Ok(());
         }
-        self.apply_param_mod_invert_menu_state();
-        let part_changed = self.apply_part_menu_state();
-        let instrument_changed = self.apply_instrument_menu_state();
-        let sense_changed = self.apply_sense_menu_state();
-        let fx_changed = self.apply_fx_menu_state();
-        self.sync_engine_runtime_config();
-        if part_changed
-            || instrument_changed
-            || sense_changed
-            || fx_changed
-            || dance_fx_changed
-            || dance_mode_changed
-        {
-            self.menu.rebuild(self.menu_config());
+        let previous_behavior_id = self.behavior.id().to_string();
+        self.behavior_configs
+            .insert(self.behavior.id().to_string(), self.behavior_config.clone());
+        if let Some(config) = self.part_behavior_configs.get_mut(self.active_part_index) {
+            *config = self.behavior_config.clone();
         }
-        if sense_changed {
-            self.refresh_active_interpretation_profile();
-            self.engine
-                .set_interpretation_profile(self.interpretation_profile.clone());
+        let behavior = platform_core::get_native_behavior(&behavior_id)
+            .ok_or_else(|| format!("unsupported native behavior `{behavior_id}`"))?;
+        self.behavior_config = self
+            .part_behavior_configs
+            .get(self.active_part_index)
+            .filter(|config| !config.is_null())
+            .cloned()
+            .or_else(|| self.behavior_configs.get(&behavior_id).cloned())
+            .unwrap_or(Value::Null);
+        self.behavior_configs
+            .insert(behavior_id.clone(), self.behavior_config.clone());
+        if let Some(config) = self.part_behavior_configs.get_mut(self.active_part_index) {
+            *config = self.behavior_config.clone();
         }
-        if let Some(behavior_id) = self.menu.selected_behavior().map(|value| value.to_string()) {
-            if behavior_id.as_str() != self.behavior.id() {
-                let previous_behavior_id = self.behavior.id().to_string();
-                self.behavior_configs
-                    .insert(self.behavior.id().to_string(), self.behavior_config.clone());
-                if let Some(config) = self.part_behavior_configs.get_mut(self.active_part_index) {
-                    *config = self.behavior_config.clone();
-                }
-                let behavior = platform_core::get_native_behavior(&behavior_id)
-                    .ok_or_else(|| format!("unsupported native behavior `{behavior_id}`"))?;
-                self.behavior_config = self
-                    .part_behavior_configs
-                    .get(self.active_part_index)
-                    .filter(|config| !config.is_null())
-                    .cloned()
-                    .or_else(|| self.behavior_configs.get(&behavior_id).cloned())
-                    .unwrap_or(Value::Null);
-                self.behavior_configs
-                    .insert(behavior_id.clone(), self.behavior_config.clone());
-                if let Some(config) = self.part_behavior_configs.get_mut(self.active_part_index) {
-                    *config = self.behavior_config.clone();
-                }
-                if let Some(part_behavior_id) =
-                    self.part_behavior_ids.get_mut(self.active_part_index)
-                {
-                    *part_behavior_id = behavior_id.clone();
-                }
-                if self
-                    .part_auto_names
-                    .get(self.active_part_index)
-                    .copied()
-                    .unwrap_or(true)
-                {
-                    if let Some(name) = self.part_names.get_mut(self.active_part_index) {
-                        *name = behavior_id.clone();
-                    }
-                }
-                self.remap_bindings_for_behavior_change(
-                    &previous_behavior_id,
-                    &behavior_id,
-                    self.active_part_index,
-                );
-                self.rebuild_engine(behavior)?;
+        if let Some(part_behavior_id) = self.part_behavior_ids.get_mut(self.active_part_index) {
+            *part_behavior_id = behavior_id.clone();
+        }
+        if self.part_auto_names.get(self.active_part_index).copied().unwrap_or(true) {
+            if let Some(name) = self.part_names.get_mut(self.active_part_index) {
+                *name = behavior_id.clone();
             }
         }
+        self.remap_bindings_for_behavior_change(
+            &previous_behavior_id,
+            &behavior_id,
+            self.active_part_index,
+        );
+        self.rebuild_engine(behavior)
+    }
+
+    fn apply_behavior_config_menu_state(&mut self) -> Result<(), String> {
         let next_behavior_config = self.behavior_config_from_menu()?;
-        if next_behavior_config != self.behavior_config {
-            self.behavior_config = next_behavior_config;
-            if let Some(config) = self.part_behavior_configs.get_mut(self.active_part_index) {
-                *config = self.behavior_config.clone();
-            }
-            self.behavior_configs
-                .insert(self.behavior.id().to_string(), self.behavior_config.clone());
-            self.rebuild_engine(self.behavior)?;
+        if next_behavior_config == self.behavior_config {
+            return Ok(());
         }
-        self.refresh_active_mapping_config();
-        self.refresh_active_interpretation_profile();
-        self.engine
-            .set_interpretation_profile(self.interpretation_profile.clone());
-        self.auto_save_default = self
-            .menu
-            .value_for_key("autoSaveDefault")
-            .map(|value| value == "true")
-            .unwrap_or(self.auto_save_default);
-        let after_payload = self.config_payload();
-        if audio_config_changed(&before_payload, &after_payload) {
-            self.audio_config_revision = self.audio_config_revision.wrapping_add(1);
+        self.behavior_config = next_behavior_config;
+        if let Some(config) = self.part_behavior_configs.get_mut(self.active_part_index) {
+            *config = self.behavior_config.clone();
         }
-        if after_payload != before_payload {
-            self.config_dirty = true;
-        }
-        Ok(())
+        self.behavior_configs
+            .insert(self.behavior.id().to_string(), self.behavior_config.clone());
+        self.rebuild_engine(self.behavior)
     }
 
     fn apply_param_mod_invert_menu_state(&mut self) {

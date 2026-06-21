@@ -31,7 +31,7 @@ This file tracks current actionable work only. Completed-work history does not b
 
 ## Quality Targets
 
-- Reduce `apps/desktop/src/ui/App.tsx` below the 500-line limit.
+- Keep touched source files comfortably below the 500-line limit; avoid hovering at 499-500 LOC.
 - Split high-complexity native runtime functions when making adjacent changes, especially config load/apply and input dispatch paths.
 - Keep `resources/platform-capabilities.json`, generated TypeScript exports, and generated Rust constants in sync through `pnpm run capabilities:check`.
 - Keep `resources/menu-help-texts.tsv` aligned with native menu coverage tests.

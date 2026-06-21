@@ -4,6 +4,14 @@ use super::payload_assign::{
 use super::{NativeSensePart, Value};
 
 pub(super) fn apply_sense_payload(part: &mut NativeSensePart, payload: &Value) {
+    apply_scan_and_trigger_payload(part, payload);
+    apply_mapping_payload(part, payload);
+    apply_pitch_payload(part, payload);
+    apply_axis_payload(part, payload, "x");
+    apply_axis_payload(part, payload, "y");
+}
+
+fn apply_scan_and_trigger_payload(part: &mut NativeSensePart, payload: &Value) {
     assign_string(payload, "scanMode", &mut part.scan_mode);
     assign_string(payload, "scanAxis", &mut part.scan_axis);
     assign_string(payload, "scanUnit", &mut part.scan_unit);
@@ -32,88 +40,83 @@ pub(super) fn apply_sense_payload(part: &mut NativeSensePart, payload: &Value) {
         &mut part.trigger_probability_high_pct,
         100,
     );
-    if let Some(mapping) = payload.get("mapping") {
-        assign_mapping(
-            mapping,
-            "scanned",
-            &mut part.scanned_slot,
-            &mut part.scanned_action,
-        );
-        assign_mapping(
-            mapping,
-            "scanned_empty",
-            &mut part.scanned_empty_slot,
-            &mut part.scanned_empty_action,
-        );
-        assign_mapping(
-            mapping,
-            "activate",
-            &mut part.activate_slot,
-            &mut part.activate_action,
-        );
-        assign_mapping(
-            mapping,
-            "stable",
-            &mut part.stable_slot,
-            &mut part.stable_action,
-        );
-        assign_mapping(
-            mapping,
-            "deactivate",
-            &mut part.deactivate_slot,
-            &mut part.deactivate_action,
-        );
-    }
-    if let Some(pitch) = payload.get("pitch") {
-        assign_u8(pitch, "lowestNote", &mut part.lowest_note, 127);
-        assign_u8(pitch, "highestNote", &mut part.highest_note, 127);
-        assign_u8(pitch, "startingNote", &mut part.starting_note, 127);
-        assign_string(pitch, "scale", &mut part.scale);
-        assign_string(pitch, "root", &mut part.root);
-        assign_string(pitch, "outOfRange", &mut part.out_of_range);
-    }
-    if let Some(x) = payload.get("x") {
-        assign_u8(x, "from", &mut part.x_from, 7);
-        assign_u8(x, "to", &mut part.x_to, 7);
-        if let Some(pitch) = x.get("pitch") {
-            assign_bool(pitch, "enabled", &mut part.x_pitch_enabled);
-            assign_i32(pitch, "steps", &mut part.x_pitch_steps, -16, 16);
-            assign_bool(
-                pitch,
-                "restartEachSection",
+}
+
+fn apply_mapping_payload(part: &mut NativeSensePart, payload: &Value) {
+    let Some(mapping) = payload.get("mapping") else {
+        return;
+    };
+    assign_mapping(mapping, "scanned", &mut part.scanned_slot, &mut part.scanned_action);
+    assign_mapping(
+        mapping,
+        "scanned_empty",
+        &mut part.scanned_empty_slot,
+        &mut part.scanned_empty_action,
+    );
+    assign_mapping(mapping, "activate", &mut part.activate_slot, &mut part.activate_action);
+    assign_mapping(mapping, "stable", &mut part.stable_slot, &mut part.stable_action);
+    assign_mapping(
+        mapping,
+        "deactivate",
+        &mut part.deactivate_slot,
+        &mut part.deactivate_action,
+    );
+}
+
+fn apply_pitch_payload(part: &mut NativeSensePart, payload: &Value) {
+    let Some(pitch) = payload.get("pitch") else {
+        return;
+    };
+    assign_u8(pitch, "lowestNote", &mut part.lowest_note, 127);
+    assign_u8(pitch, "highestNote", &mut part.highest_note, 127);
+    assign_u8(pitch, "startingNote", &mut part.starting_note, 127);
+    assign_string(pitch, "scale", &mut part.scale);
+    assign_string(pitch, "root", &mut part.root);
+    assign_string(pitch, "outOfRange", &mut part.out_of_range);
+}
+
+fn apply_axis_payload(part: &mut NativeSensePart, payload: &Value, axis: &str) {
+    let Some(axis_payload) = payload.get(axis) else {
+        return;
+    };
+    let (from, to, pitch_enabled, pitch_steps, pitch_restart_each_section, velocity, filter_cutoff, filter_resonance) =
+        if axis == "x" {
+            (
+                &mut part.x_from,
+                &mut part.x_to,
+                &mut part.x_pitch_enabled,
+                &mut part.x_pitch_steps,
                 &mut part.x_pitch_restart_each_section,
-            );
-        }
-        if let Some(lane) = x.get("velocity") {
-            apply_value_lane_payload(&mut part.x_velocity, lane);
-        }
-        if let Some(lane) = x.get("filterCutoff") {
-            apply_value_lane_payload(&mut part.x_filter_cutoff, lane);
-        }
-        if let Some(lane) = x.get("filterResonance") {
-            apply_value_lane_payload(&mut part.x_filter_resonance, lane);
-        }
-    }
-    if let Some(y) = payload.get("y") {
-        assign_u8(y, "from", &mut part.y_from, 7);
-        assign_u8(y, "to", &mut part.y_to, 7);
-        if let Some(pitch) = y.get("pitch") {
-            assign_bool(pitch, "enabled", &mut part.y_pitch_enabled);
-            assign_i32(pitch, "steps", &mut part.y_pitch_steps, -16, 16);
-            assign_bool(
-                pitch,
-                "restartEachSection",
+                &mut part.x_velocity,
+                &mut part.x_filter_cutoff,
+                &mut part.x_filter_resonance,
+            )
+        } else {
+            (
+                &mut part.y_from,
+                &mut part.y_to,
+                &mut part.y_pitch_enabled,
+                &mut part.y_pitch_steps,
                 &mut part.y_pitch_restart_each_section,
-            );
-        }
-        if let Some(lane) = y.get("velocity") {
-            apply_value_lane_payload(&mut part.y_velocity, lane);
-        }
-        if let Some(lane) = y.get("filterCutoff") {
-            apply_value_lane_payload(&mut part.y_filter_cutoff, lane);
-        }
-        if let Some(lane) = y.get("filterResonance") {
-            apply_value_lane_payload(&mut part.y_filter_resonance, lane);
-        }
+                &mut part.y_velocity,
+                &mut part.y_filter_cutoff,
+                &mut part.y_filter_resonance,
+            )
+        };
+    assign_u8(axis_payload, "from", from, 7);
+    assign_u8(axis_payload, "to", to, 7);
+    if let Some(pitch) = axis_payload.get("pitch") {
+        assign_bool(pitch, "enabled", pitch_enabled);
+        assign_i32(pitch, "steps", pitch_steps, -16, 16);
+        assign_bool(pitch, "restartEachSection", pitch_restart_each_section);
+    }
+    if let Some(lane) = axis_payload.get("velocity") {
+        apply_value_lane_payload(velocity, lane);
+    }
+    if let Some(lane) = axis_payload.get("filterCutoff") {
+        apply_value_lane_payload(filter_cutoff, lane);
+    }
+    if let Some(lane) = axis_payload.get("filterResonance") {
+        apply_value_lane_payload(filter_resonance, lane);
     }
 }

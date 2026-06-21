@@ -77,8 +77,7 @@ The audit reports file length, function length, simple complexity, wide signatur
 ## File Size And Refactoring
 
 - The hard source-file limit is 500 lines.
-- Temporary exceptions are listed in `.file-length-exceptions`.
-- Do not expand exception files unless a focused split would be riskier than the immediate change.
+- There are currently no active file-length exceptions checked into this repository.
 - Prefer focused extraction when working near large functions or oversized files.
 
 ## Fallback Policy

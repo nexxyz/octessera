@@ -1,8 +1,9 @@
-import { useRef, useState } from "react";
-import { AUX_ENCODER_COUNT, GRID_DOMAIN, type DeviceInput } from "@cellsymphony/device-contracts";
+import { useState } from "react";
+import { AUX_ENCODER_COUNT, type DeviceInput } from "@cellsymphony/device-contracts";
 import { createSimulatorRuntime } from "../runtime/simulatorRuntime";
 import { ControlsPanel } from "./ControlsPanel";
 import { GridMatrix } from "./GridMatrix";
+import { useGridInteraction } from "./appGridInteraction";
 import { useAudioConfigSync, useDialDragBindings, useKeyboardBindings, useRuntimeBindings } from "./appHooks";
 
 const runtime = createSimulatorRuntime();
@@ -14,12 +15,10 @@ const INITIAL_DIAL_PHASE = Object.fromEntries([
 
 export function App() {
   const [snapshot, setSnapshot] = useState(() => runtime.getSnapshot());
-  const [paintMode, setPaintMode] = useState<boolean | null>(null);
-  const [painted, setPainted] = useState<Set<string>>(new Set());
   const [dialDrag, setDialDrag] = useState<{ id: EncoderId; y: number; acc: number } | null>(null);
   const [dialPhase, setDialPhase] = useState<Record<string, number>>(INITIAL_DIAL_PHASE);
-  const lastPressedCell = useRef<{ x: number; y: number } | null>(null);
   const frame = snapshot.frame;
+
   function dispatch(input: DeviceInput) {
     if (input.type === "encoder_turn") {
       bumpDialPhase(input.id, input.delta);
@@ -37,75 +36,10 @@ export function App() {
     for (let i = 0; i < turns; i += 1) dispatch({ type: "encoder_turn", delta, id });
   }
 
-  function cellAlive(index: number): boolean {
-    const c = frame.leds.cells[index];
-    return c.g > 100;
-  }
-
-  function logicalCellFromDisplay(x: number, y: number) {
-    return GRID_DOMAIN.toLogicalCell({ x, y });
-  }
-
-  function applyPaint(x: number, y: number, desired: boolean) {
-    const key = `${x}-${y}`;
-    if (painted.has(key)) return;
-    const index = GRID_DOMAIN.toDisplayIndex(GRID_DOMAIN.toLogicalCell({ x, y }));
-    if (cellAlive(index) !== desired) {
-      const world = logicalCellFromDisplay(x, y);
-      dispatch({ type: "grid_press", x: world.x, y: world.y });
-    }
-    setPainted((prev) => new Set(prev).add(key));
-  }
-
-  function pressMomentaryCell(x: number, y: number) {
-    const world = logicalCellFromDisplay(x, y);
-    const previous = lastPressedCell.current;
-    const sameCell = previous?.x === world.x && previous.y === world.y;
-    if (sameCell) return;
-    if (previous) dispatch({ type: "grid_release", x: previous.x, y: previous.y });
-    dispatch({ type: "grid_press", x: world.x, y: world.y });
-    lastPressedCell.current = world;
-  }
-
-  function endPaint() {
-    setPaintMode(null);
-    setPainted(new Set());
-  }
-
-  function handleMouseUp() {
-    if (lastPressedCell.current) {
-      dispatch({ type: "grid_release", x: lastPressedCell.current.x, y: lastPressedCell.current.y });
-      lastPressedCell.current = null;
-    }
-    endPaint();
-  }
-
   function setModifier(kind: "shift" | "fn", active: boolean) {
     runtime.dispatchAction({ type: kind, active });
   }
-
-  function handleCellMouseDown(index: number, x: number, y: number) {
-    if (frame.gridInteraction === "momentary") {
-      setPaintMode(null);
-      setPainted(new Set());
-      pressMomentaryCell(x, y);
-      return;
-    }
-    const desired = !cellAlive(index);
-    setPaintMode(desired);
-    setPainted(new Set());
-    lastPressedCell.current = logicalCellFromDisplay(x, y);
-    applyPaint(x, y, desired);
-  }
-
-  function handleCellDrag(x: number, y: number) {
-    if (frame.gridInteraction === "momentary") {
-      pressMomentaryCell(x, y);
-      return;
-    }
-    if (paintMode === null) return;
-    applyPaint(x, y, paintMode);
-  }
+  const { handleMouseUp, handleCellMouseDown, handleCellDrag } = useGridInteraction(frame, dispatch);
 
   useRuntimeBindings(runtime, setSnapshot);
   useKeyboardBindings(runtime, bumpDialPhase);
