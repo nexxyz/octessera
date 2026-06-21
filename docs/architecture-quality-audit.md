@@ -4,7 +4,7 @@ Audit date: 2026-06-15
 
 This audit covers the current native Rust runtime architecture, desktop TypeScript UI/bridge layer, Pi app, realtime audio engine, hardware abstraction, and shared resources. It focuses on dependency shape, architecture compliance, file size, complexity, duplication, unused code/dependencies, and design smells.
 
-Update status: the first hygiene pass after this audit fixed the TypeScript contract cycle, removed unused Rust dependencies, removed the unused vendored `signalsmith-stretch` tree, privatized unused TypeScript exports, split OLED/grid/controls rendering and runtime/audio/keyboard hooks out of `App.tsx`, and moved native menu option tables into `native_menu/options.rs`.
+This document is a point-in-time audit snapshot. Keep it focused on current architecture findings and current follow-up work, not ongoing completed-work history.
 
 ## Tooling Used
 
@@ -121,16 +121,9 @@ Observed high-level Rust dependencies:
 
 No Rust crate cycle was found.
 
-`cargo machete` post-cleanup result:
+`cargo machete` current result at audit time:
 
 - No unused Rust dependencies found.
-
-Completed cleanup:
-
-- Removed unused `nix` from `crates/hal`.
-- Removed unused `signalsmith-stretch` from `crates/realtime-engine`.
-- Removed the root `[patch.crates-io]` override for `signalsmith-stretch`.
-- Removed the unreferenced vendored `crates/signalsmith-stretch` tree.
 
 ### TypeScript Workspace
 
@@ -140,14 +133,9 @@ Observed TypeScript dependencies:
 - `apps/desktop/src/runtime` and `apps/desktop/src/audio` own direct Tauri API calls.
 - `packages/device-contracts` has no runtime dependencies.
 
-`madge` post-cleanup result:
+`madge` current result at audit time:
 
 - No TypeScript import cycles found.
-
-Completed cleanup:
-
-- Moved shared runtime/display core types into `packages/device-contracts/src/coreTypes.ts`.
-- Made `runtimeProtocol.ts` import from `coreTypes.ts` instead of `index.ts`.
 
 ## Size And Complexity Findings
 
@@ -207,16 +195,9 @@ Production duplication worth reviewing:
 
 ## Unused Code And Dependency Findings
 
-`knip` post-cleanup result:
+`knip` current result at audit time:
 
 - No unused TypeScript exports reported.
-
-Completed cleanup:
-
-- Made `audioConfigSignature` private.
-- Made `TauriCoreRunnerClient` private.
-- Made `RuntimeMessagesBatch` private.
-- Inlined `NeoKeyLeds` into `SimulatorSnapshot`.
 
 Suppression scan:
 
@@ -299,16 +280,6 @@ Concerns:
 
 ## Recommended Cleanup Plan
 
-### Completed Hygiene Pass
-
-1. Broke the `device-contracts` import cycle.
-2. Made unused TS exports private or inlined.
-3. Removed unused `nix` from `crates/hal`.
-4. Removed unused `signalsmith-stretch` dependency, root patch, and vendored source tree.
-5. Updated `tools/quality-audit.mjs` to ignore vendored `signalsmith-stretch` directories if they reappear.
-6. Split OLED/grid/controls rendering and runtime/audio/keyboard hooks out of `apps/desktop/src/ui/App.tsx`.
-7. Moved native FX option tables and duck-source option construction into `crates/playback-runtime/src/native_menu/options.rs`.
-
 ### Do Next
 
 1. Split `NativeRunner` by responsibility:
@@ -348,10 +319,9 @@ Concerns:
 
 ## Suggested Follow-Up Sequence
 
-1. Commit and verify the completed hygiene pass.
-2. Split `native_menu.rs` first; it is large but lower-risk than runner state mutation.
-3. Split `NativeRunner` config apply/payload code next, preserving existing tests.
-4. Split realtime FX internals only after audio regression tests are stable and fast enough to run frequently.
+1. Split `native_menu.rs` first; it is large but lower-risk than runner state mutation.
+2. Split `NativeRunner` config apply/payload code next, preserving existing tests.
+3. Split realtime FX internals only after audio regression tests are stable and fast enough to run frequently.
 
 ## Appendix: Commands
 

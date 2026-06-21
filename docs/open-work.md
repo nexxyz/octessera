@@ -7,7 +7,7 @@ This file tracks current actionable work only. Completed-work history does not b
 - Run the first physical Pi smoke test with the native Rust Pi app.
 - Validate NeoTrellis coordinate orientation, LED color priority, and full-frame stability on hardware.
 - Validate NeoKey button mapping and LED colors for Back, Space, Shift, Fn, and combined modifiers.
-- Validate all five encoder directions and push switches with direct GPIO quadrature decoding.
+- Validate all four encoder directions and push switches with direct GPIO quadrature decoding.
 - Validate SSD1351 OLED orientation, clipping, brightness, and text layout on the physical display.
 - Validate PCM5102-class I2S output through the target DAC and ALSA device configuration.
 - Validate sample preview, loaded sample banks, and runtime audio config sync through the Pi host adapter.

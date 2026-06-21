@@ -45,6 +45,55 @@ fn dance_page_menu_edits_selected_and_active_mode() {
 }
 
 #[test]
+fn dance_page_fast_path_applies_immediately_without_deferred_flush() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert!(runner.menu.focus_item_key("danceMode"));
+    runner.menu.state.stack = vec![3];
+    runner.menu.state.editing = true;
+
+    let changed = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+        })
+        .unwrap();
+
+    assert_eq!(snapshot_from(&changed)["danceMode"], "pan");
+    assert_eq!(snapshot_from(&changed)["activeDanceMode"], "pan");
+    assert_eq!(runner.dance_mode, "pan");
+    assert_eq!(runner.active_dance_mode, "pan");
+    assert!(runner.flush_deferred_menu_apply().unwrap().is_empty());
+}
+
+#[test]
+fn dance_fx_type_turn_is_deferred_until_flush() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.dance_mode = "fx".into();
+    runner.active_dance_mode = "fx".into();
+    runner.menu.rebuild(runner.menu_config());
+    assert!(runner.menu.focus_item_key("dance.fx.type"));
+    runner.menu.state.stack = vec![3];
+    runner.menu.state.editing = true;
+
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+        })
+        .unwrap();
+
+    assert_eq!(
+        runner.menu.value_for_key("dance.fx.type").as_deref(),
+        Some("stutter")
+    );
+    assert_eq!(runner.dance_fx_selected["fxType"], "none");
+
+    runner.make_deferred_menu_apply_due_for_test();
+    let flushed = runner.flush_deferred_menu_apply().unwrap();
+
+    assert!(!flushed.is_empty());
+    assert_eq!(runner.dance_fx_selected["fxType"], "stutter");
+}
+
+#[test]
 fn changing_dance_page_rebuilds_visible_menu_rows_for_selected_page() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
 

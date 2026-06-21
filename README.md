@@ -119,10 +119,9 @@ See `docs/development-workflows.md` for complete build, verification, capability
 - `docs/development-workflows.md`: current development, build, verification, and capability-generation commands.
 - `docs/engineering-quality-requirements.md`: current quality gates and definition of done.
 - `docs/open-work.md`: current actionable work only.
-- `hardware/pinout-and-connections.md`: Pi wiring and logical input mapping.
-- `hardware/pin-conflict-matrix.md`: GPIO/bus allocation audit.
+- `hardware/pinout-and-connections.md`: Pi wiring, bus allocation, and logical input mapping.
 - `hardware/hardware-integration-plan.md`: current Pi integration status and bring-up checklist.
-- `hardware/enclosure-frontplate-revA-dimensions.md`: frontplate dimensions.
+- `hardware/enclosure/README.md`: current enclosure ports, power rule, and mechanical notes.
 
 ## Samples
 

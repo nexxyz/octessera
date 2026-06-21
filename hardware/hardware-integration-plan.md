@@ -10,6 +10,13 @@ This document describes the current Raspberry Pi Zero 2 W hardware target and na
 - Display: SSD1351 128x128 RGB OLED over SPI
 - Audio: PCM5102-class DAC through the ADA6250 connector over I2S
 - Controls: four clickable direct-GPIO rotary encoders: one main and three aux controls
+- Power input: USB-C breakout to the shared +5V rail
+- Bulk power smoothing: `C1` `470uf` polarized capacitor across `+5V` and `GND`
+
+Reference docs:
+
+- `hardware/pinout-and-connections.md`
+- `hardware/enclosure/README.md`
 
 ## Software Path
 
@@ -67,7 +74,7 @@ On non-Pi cross hosts, the hardware build requires an ARM Linux sysroot and cros
 - SPI: OLED write path on MOSI/SCLK/CE0 plus DC/RST GPIO.
 - I2C: NeoTrellis and NeoKey seesaw devices on bus 1.
 - I2S: PCM5102-class DAC using BCK/LRCK/DIN.
-- GPIO9/SPI MISO is now free because the current hardware profile uses three aux encoders.
+- GPIO9/SPI MISO is available for the OLED module SD/MISO path rather than for encoder input in the current schematic.
 - GPIO14 can be claimed by UART TX if serial console is enabled; disable serial console for encoder reliability.
 
 ## Bring-Up Checklist
@@ -84,4 +91,5 @@ On non-Pi cross hosts, the hardware build requires an ARM Linux sysroot and cros
 ## Mechanical Notes
 
 - KiCAD source remains in `hardware/KiCAD`.
-- Frontplate dimensions are documented in `hardware/enclosure-frontplate-revA-dimensions.md`.
+- The enclosure intentionally exposes the USB-C breakout power input and covers the Pi micro-USB power connector.
+- Power the device through the enclosure USB-C opening only; do not power the Pi through its own micro-USB port.

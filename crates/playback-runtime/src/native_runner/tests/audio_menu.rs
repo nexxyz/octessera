@@ -177,6 +177,90 @@ fn dynamic_fx_type_turn_is_deferred_until_flush() {
 }
 
 #[test]
+fn dynamic_fx_slot2_type_turn_is_deferred_until_flush() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert!(runner.menu.focus_item_key("mixer.buses.0.slot2.type"));
+    runner.menu.state.editing = true;
+
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+        })
+        .unwrap();
+
+    assert_eq!(
+        runner
+            .menu
+            .value_for_key("mixer.buses.0.slot2.type")
+            .as_deref(),
+        Some("tremolo")
+    );
+    assert_eq!(runner.fx_buses[0].slot2_type, "none");
+    assert_eq!(runner.audio_config_revision, 0);
+
+    runner.make_deferred_menu_apply_due_for_test();
+    let _ = runner.flush_deferred_menu_apply().unwrap();
+
+    assert_eq!(runner.fx_buses[0].slot2_type, "tremolo");
+    assert_eq!(runner.audio_config_revision, 1);
+}
+
+#[test]
+fn dynamic_global_fx_type_turn_is_deferred_until_flush() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert!(runner.menu.focus_item_key("mixer.master.slots.0.type"));
+    runner.menu.state.editing = true;
+
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+        })
+        .unwrap();
+
+    assert_eq!(
+        runner
+            .menu
+            .value_for_key("mixer.master.slots.0.type")
+            .as_deref(),
+        Some("vinyl")
+    );
+    assert_eq!(runner.global_fx_slots[0], "none");
+    assert_eq!(runner.audio_config_revision, 0);
+
+    runner.make_deferred_menu_apply_due_for_test();
+    let _ = runner.flush_deferred_menu_apply().unwrap();
+
+    assert_eq!(runner.global_fx_slots[0], "vinyl");
+    assert_eq!(runner.audio_config_revision, 1);
+}
+
+#[test]
+fn dynamic_instrument_type_turn_is_deferred_until_flush() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert!(runner.menu.focus_item_key("instruments.0.type"));
+    runner.menu.state.editing = true;
+
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+        })
+        .unwrap();
+
+    assert_eq!(
+        runner.menu.value_for_key("instruments.0.type").as_deref(),
+        Some("sampler")
+    );
+    assert_eq!(runner.instruments[0].kind, "synth");
+    assert_eq!(runner.audio_config_revision, 0);
+
+    runner.make_deferred_menu_apply_due_for_test();
+    let _ = runner.flush_deferred_menu_apply().unwrap();
+
+    assert_eq!(runner.instruments[0].kind, "sampler");
+    assert_eq!(runner.audio_config_revision, 1);
+}
+
+#[test]
 fn fast_path_audio_param_still_applies_immediately() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     assert!(runner

@@ -387,13 +387,13 @@ System
 │   │   ├── Clock In: [on | off]
 │   │   └── Respond Start/Stop: [on | off]
 ├── UI (group)
+│   ├── Ghost Cells: [on | off]  default off  ← shows dim cells from inactive parts behind active part
+│   ├── Numeric Display: [bar | numbers | bar+numbers]  ← controls rendering of bar-style numeric params, default bar+numbers
+│   ├── Screen Sleep: [0..600] step 10 s    default 60 (0=off)
+│   ├── Display Brightness: [10..100] step 5  default 75 (bar display when Numeric Display is bar or bar+numbers)
+│   ├── Grid Brightness: [10..100] step 5     default 75 (bar display when Numeric Display is bar or bar+numbers)
+│   └── Button Brightness: [10..100] step 5   default 75 (bar display when Numeric Display is bar or bar+numbers)
 └── Shutdown: (action)                ← confirm, then show shutdown splash and exit/poweroff
-    ├── Ghost Cells: [on | off]  default off  ← shows dim cells from inactive parts behind active part
-    ├── Numeric Display: [bar | numbers | bar+numbers]  ← controls rendering of bar-style numeric params, default bar+numbers
-    ├── Screen Sleep: [0..600] step 10 s    default 60 (0=off)
-    ├── Display Brightness: [10..100] step 5  default 75 (bar display when Numeric Display is bar or bar+numbers)
-    ├── Grid Brightness: [10..100] step 5     default 75 (bar display when Numeric Display is bar or bar+numbers)
-    └── Button Brightness: [10..100] step 5   default 75 (bar display when Numeric Display is bar or bar+numbers)
 ```
 
 ## OLED Display
