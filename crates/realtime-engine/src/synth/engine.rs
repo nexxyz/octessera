@@ -11,6 +11,7 @@ use std::collections::BTreeMap;
 
 mod control;
 mod render;
+mod render_voice;
 mod support;
 #[cfg(test)]
 mod test_support;
