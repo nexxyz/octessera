@@ -145,8 +145,20 @@ fn materialize_item_rows(
     let line_key = item.key.clone();
     let line_action = selected_action(item);
     lines.extend(item_lines);
-    append_item_metadata(item_line_count, item_color, line_key, line_action, colors, line_keys, line_actions);
-    bar_values.extend(format_item_bar_values(item, item_line_count, &model.numeric_display_mode));
+    append_item_metadata(
+        item_line_count,
+        item_color,
+        line_key,
+        line_action,
+        colors,
+        line_keys,
+        line_actions,
+    );
+    bar_values.extend(format_item_bar_values(
+        item,
+        item_line_count,
+        &model.numeric_display_mode,
+    ));
 }
 
 fn item_section_color(root_level: bool, section_color: u16, label: &str) -> u16 {
@@ -175,7 +187,11 @@ fn append_item_metadata(
 ) {
     for line_index in 0..item_line_count {
         colors.push(item_color);
-        line_keys.push(if line_index == 0 { line_key.clone() } else { None });
+        line_keys.push(if line_index == 0 {
+            line_key.clone()
+        } else {
+            None
+        });
         line_actions.push(if line_index == 0 {
             line_action.clone()
         } else {

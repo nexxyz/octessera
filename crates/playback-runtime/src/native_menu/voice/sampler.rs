@@ -19,7 +19,10 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
         action_item(
             "Assign",
             format!("sample.assign.{}.{}", config.index, sample_slot),
-            NativeMenuAction::PlatformEffect(format!("sample.assign:{}:{sample_slot}", config.index)),
+            NativeMenuAction::PlatformEffect(format!(
+                "sample.assign:{}:{sample_slot}",
+                config.index
+            )),
         ),
         number_item(
             "Tune",

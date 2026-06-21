@@ -92,12 +92,16 @@ pub(super) fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuIt
     children.push(action_item(
         "Clone",
         format!("instruments.{}.clone", config.index),
-        NativeMenuAction::CloneInstrument { index: config.index },
+        NativeMenuAction::CloneInstrument {
+            index: config.index,
+        },
     ));
     children.push(action_item(
         "Reset",
         format!("instruments.{}.reset", config.index),
-        NativeMenuAction::ResetInstrument { index: config.index },
+        NativeMenuAction::ResetInstrument {
+            index: config.index,
+        },
     ));
     group(config.label.clone(), children)
 }

@@ -7,12 +7,29 @@ pub(super) fn synth_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Na
     group(
         "Synth",
         vec![
-            group("Preset", vec![group("Load", synth_preset_items(config.index))]),
+            group(
+                "Preset",
+                vec![group("Load", synth_preset_items(config.index))],
+            ),
             group(
                 "Oscillator",
                 vec![
-                    oscillator_group(config, prefix, "Osc 1", "osc1", config.synth_osc1_waveform, 80),
-                    oscillator_group(config, prefix, "Osc 2", "osc2", config.synth_osc2_waveform, 72),
+                    oscillator_group(
+                        config,
+                        prefix,
+                        "Osc 1",
+                        "osc1",
+                        config.synth_osc1_waveform,
+                        80,
+                    ),
+                    oscillator_group(
+                        config,
+                        prefix,
+                        "Osc 2",
+                        "osc2",
+                        config.synth_osc2_waveform,
+                        72,
+                    ),
                 ],
             ),
             filter_group(config, prefix),

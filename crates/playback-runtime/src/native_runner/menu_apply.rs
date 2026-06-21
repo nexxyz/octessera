@@ -225,7 +225,9 @@ impl NativeRunner {
         }
         if let Some(step_pulses) = self.menu.selected_algorithm_step_pulses() {
             self.algorithm_step_pulses = step_pulses;
-            if let Some(part_step) = self.part_algorithm_step_pulses.get_mut(self.active_part_index)
+            if let Some(part_step) = self
+                .part_algorithm_step_pulses
+                .get_mut(self.active_part_index)
             {
                 *part_step = step_pulses;
             }
@@ -251,7 +253,11 @@ impl NativeRunner {
     }
 
     fn apply_midi_menu_flags(&mut self) {
-        if let Some(midi_enabled) = self.menu.value_for_key("midiEnabled").map(|value| value == "true") {
+        if let Some(midi_enabled) = self
+            .menu
+            .value_for_key("midiEnabled")
+            .map(|value| value == "true")
+        {
             self.midi_enabled = midi_enabled;
         }
         if let Some(clock_out_enabled) = self
@@ -312,7 +318,10 @@ impl NativeRunner {
             self.global_sound.velocity_curve = velocity_curve_from_id(&velocity_curve);
         }
         if let Some(voice_stealing_mode) = self.menu.value_for_key("sound.voiceStealingMode") {
-            if matches!(voice_stealing_mode.as_str(), "off" | "lenient" | "balanced" | "aggressive") {
+            if matches!(
+                voice_stealing_mode.as_str(),
+                "off" | "lenient" | "balanced" | "aggressive"
+            ) {
                 self.voice_stealing_mode = voice_stealing_mode;
             }
         }
@@ -363,7 +372,12 @@ impl NativeRunner {
         if let Some(part_behavior_id) = self.part_behavior_ids.get_mut(self.active_part_index) {
             *part_behavior_id = behavior_id.clone();
         }
-        if self.part_auto_names.get(self.active_part_index).copied().unwrap_or(true) {
+        if self
+            .part_auto_names
+            .get(self.active_part_index)
+            .copied()
+            .unwrap_or(true)
+        {
             if let Some(name) = self.part_names.get_mut(self.active_part_index) {
                 *name = behavior_id.clone();
             }

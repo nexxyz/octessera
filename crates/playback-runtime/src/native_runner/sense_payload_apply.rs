@@ -46,15 +46,30 @@ fn apply_mapping_payload(part: &mut NativeSensePart, payload: &Value) {
     let Some(mapping) = payload.get("mapping") else {
         return;
     };
-    assign_mapping(mapping, "scanned", &mut part.scanned_slot, &mut part.scanned_action);
+    assign_mapping(
+        mapping,
+        "scanned",
+        &mut part.scanned_slot,
+        &mut part.scanned_action,
+    );
     assign_mapping(
         mapping,
         "scanned_empty",
         &mut part.scanned_empty_slot,
         &mut part.scanned_empty_action,
     );
-    assign_mapping(mapping, "activate", &mut part.activate_slot, &mut part.activate_action);
-    assign_mapping(mapping, "stable", &mut part.stable_slot, &mut part.stable_action);
+    assign_mapping(
+        mapping,
+        "activate",
+        &mut part.activate_slot,
+        &mut part.activate_action,
+    );
+    assign_mapping(
+        mapping,
+        "stable",
+        &mut part.stable_slot,
+        &mut part.stable_action,
+    );
     assign_mapping(
         mapping,
         "deactivate",
@@ -79,30 +94,38 @@ fn apply_axis_payload(part: &mut NativeSensePart, payload: &Value, axis: &str) {
     let Some(axis_payload) = payload.get(axis) else {
         return;
     };
-    let (from, to, pitch_enabled, pitch_steps, pitch_restart_each_section, velocity, filter_cutoff, filter_resonance) =
-        if axis == "x" {
-            (
-                &mut part.x_from,
-                &mut part.x_to,
-                &mut part.x_pitch_enabled,
-                &mut part.x_pitch_steps,
-                &mut part.x_pitch_restart_each_section,
-                &mut part.x_velocity,
-                &mut part.x_filter_cutoff,
-                &mut part.x_filter_resonance,
-            )
-        } else {
-            (
-                &mut part.y_from,
-                &mut part.y_to,
-                &mut part.y_pitch_enabled,
-                &mut part.y_pitch_steps,
-                &mut part.y_pitch_restart_each_section,
-                &mut part.y_velocity,
-                &mut part.y_filter_cutoff,
-                &mut part.y_filter_resonance,
-            )
-        };
+    let (
+        from,
+        to,
+        pitch_enabled,
+        pitch_steps,
+        pitch_restart_each_section,
+        velocity,
+        filter_cutoff,
+        filter_resonance,
+    ) = if axis == "x" {
+        (
+            &mut part.x_from,
+            &mut part.x_to,
+            &mut part.x_pitch_enabled,
+            &mut part.x_pitch_steps,
+            &mut part.x_pitch_restart_each_section,
+            &mut part.x_velocity,
+            &mut part.x_filter_cutoff,
+            &mut part.x_filter_resonance,
+        )
+    } else {
+        (
+            &mut part.y_from,
+            &mut part.y_to,
+            &mut part.y_pitch_enabled,
+            &mut part.y_pitch_steps,
+            &mut part.y_pitch_restart_each_section,
+            &mut part.y_velocity,
+            &mut part.y_filter_cutoff,
+            &mut part.y_filter_resonance,
+        )
+    };
     assign_u8(axis_payload, "from", from, 7);
     assign_u8(axis_payload, "to", to, 7);
     if let Some(pitch) = axis_payload.get("pitch") {

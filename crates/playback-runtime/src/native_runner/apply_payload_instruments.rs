@@ -2,9 +2,9 @@ use crate::protocol::RuntimePlatformEffect;
 
 use super::aux_binding_payload_apply::apply_aux_bindings_payload;
 use super::{
-    default_mapping_config, derive_bus_name, derive_instrument_name, sample_assignment_from_payload,
-    sanitize_pan_position_payload, velocity_curve_from_id, NativeFxBus, NativeInstrumentSlot,
-    NativeRunner, SyncSource, Value, SAMPLE_SLOT_COUNT,
+    default_mapping_config, derive_bus_name, derive_instrument_name,
+    sample_assignment_from_payload, sanitize_pan_position_payload, velocity_curve_from_id,
+    NativeFxBus, NativeInstrumentSlot, NativeRunner, SyncSource, Value, SAMPLE_SLOT_COUNT,
 };
 
 impl NativeRunner {
@@ -26,7 +26,12 @@ impl NativeRunner {
     }
 
     pub(super) fn apply_runtime_ui_and_sound_payload(&mut self, runtime: &Value, payload: &Value) {
-        apply_mixer_payload(runtime, &mut self.fx_buses, &mut self.global_fx_slots, &mut self.global_fx_params);
+        apply_mixer_payload(
+            runtime,
+            &mut self.fx_buses,
+            &mut self.global_fx_slots,
+            &mut self.global_fx_params,
+        );
         self.apply_sound_payload(runtime);
         self.apply_ui_payload(runtime);
         self.apply_midi_payload(runtime);
@@ -68,7 +73,10 @@ impl NativeRunner {
         if let Some(value) = runtime.get("buttonBrightness").and_then(Value::as_u64) {
             self.ui.button_brightness = (value as u8).min(100);
         }
-        if let Some(value) = runtime.get("inputEventsWhilePaused").and_then(Value::as_bool) {
+        if let Some(value) = runtime
+            .get("inputEventsWhilePaused")
+            .and_then(Value::as_bool)
+        {
             self.input_events_while_paused = value;
         }
         if let Some(value) = runtime.get("numericDisplayMode").and_then(Value::as_str) {
@@ -130,20 +138,22 @@ impl NativeRunner {
         if let Some(value) = midi.get("respondToStartStop").and_then(Value::as_bool) {
             self.midi_respond_to_start_stop = value;
         }
-        self.queued_platform_effects.push(RuntimePlatformEffect::MidiSelectOutput {
-            id: if self.midi_enabled {
-                self.selected_midi_output_id.clone()
-            } else {
-                None
-            },
-        });
-        self.queued_platform_effects.push(RuntimePlatformEffect::MidiSelectInput {
-            id: if self.midi_enabled {
-                self.selected_midi_input_id.clone()
-            } else {
-                None
-            },
-        });
+        self.queued_platform_effects
+            .push(RuntimePlatformEffect::MidiSelectOutput {
+                id: if self.midi_enabled {
+                    self.selected_midi_output_id.clone()
+                } else {
+                    None
+                },
+            });
+        self.queued_platform_effects
+            .push(RuntimePlatformEffect::MidiSelectInput {
+                id: if self.midi_enabled {
+                    self.selected_midi_input_id.clone()
+                } else {
+                    None
+                },
+            });
     }
 }
 
@@ -272,7 +282,11 @@ fn apply_instrument_midi_payload(slot: &Value, instrument: &mut NativeInstrument
     }
 }
 
-fn apply_midi_value_block(value: &Value, allow_enabled: bool, instrument: &mut NativeInstrumentSlot) {
+fn apply_midi_value_block(
+    value: &Value,
+    allow_enabled: bool,
+    instrument: &mut NativeInstrumentSlot,
+) {
     if allow_enabled {
         if let Some(enabled) = value.get("enabled").and_then(Value::as_bool) {
             instrument.midi_enabled = enabled;
@@ -317,8 +331,16 @@ fn apply_mixer_payload(
 }
 
 fn apply_fx_bus_payload(payload: &Value, bus: &mut NativeFxBus) {
-    apply_fx_bus_slot_payload(payload.get("slot1"), &mut bus.slot1_type, &mut bus.slot1_params);
-    apply_fx_bus_slot_payload(payload.get("slot2"), &mut bus.slot2_type, &mut bus.slot2_params);
+    apply_fx_bus_slot_payload(
+        payload.get("slot1"),
+        &mut bus.slot1_type,
+        &mut bus.slot1_params,
+    );
+    apply_fx_bus_slot_payload(
+        payload.get("slot2"),
+        &mut bus.slot2_type,
+        &mut bus.slot2_params,
+    );
     if let Some(pan_pos) = payload.get("panPos").and_then(Value::as_u64) {
         bus.pan_pos = (pan_pos as u8).min(32);
     }
@@ -332,7 +354,11 @@ fn apply_fx_bus_payload(payload: &Value, bus: &mut NativeFxBus) {
     }
 }
 
-fn apply_fx_bus_slot_payload(slot: Option<&Value>, slot_type: &mut String, slot_params: &mut Value) {
+fn apply_fx_bus_slot_payload(
+    slot: Option<&Value>,
+    slot_type: &mut String,
+    slot_params: &mut Value,
+) {
     let Some(slot) = slot else {
         return;
     };
@@ -383,7 +409,11 @@ fn sound_or_runtime_u64(sound: Option<&Value>, runtime: &Value, key: &str) -> Op
         .and_then(Value::as_u64)
 }
 
-fn sound_or_runtime_str<'a>(sound: Option<&'a Value>, runtime: &'a Value, key: &str) -> Option<&'a str> {
+fn sound_or_runtime_str<'a>(
+    sound: Option<&'a Value>,
+    runtime: &'a Value,
+    key: &str,
+) -> Option<&'a str> {
     sound
         .and_then(|sound| sound.get(key))
         .or_else(|| runtime.get(key))

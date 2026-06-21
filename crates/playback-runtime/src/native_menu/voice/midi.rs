@@ -1,10 +1,14 @@
-use super::{group, number_item, bool_item, InstrumentMenuConfig, NativeMenuItem};
+use super::{bool_item, group, number_item, InstrumentMenuConfig, NativeMenuItem};
 
 pub(super) fn midi_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> NativeMenuItem {
     group(
         "MIDI",
         vec![
-            bool_item("Enabled", format!("{prefix}.midi.enabled"), config.midi_enabled),
+            bool_item(
+                "Enabled",
+                format!("{prefix}.midi.enabled"),
+                config.midi_enabled,
+            ),
             number_item(
                 "Channel",
                 format!("{prefix}.midi.channel"),

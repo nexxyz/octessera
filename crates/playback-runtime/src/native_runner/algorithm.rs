@@ -141,7 +141,10 @@ impl NativeRunner {
         }
     }
 
-    fn probability_context(&self, part_index: usize) -> (Option<super::NativeSensePart>, Vec<String>) {
+    fn probability_context(
+        &self,
+        part_index: usize,
+    ) -> (Option<super::NativeSensePart>, Vec<String>) {
         (
             self.sense_parts.get(part_index).cloned(),
             self.trigger_probability_maps

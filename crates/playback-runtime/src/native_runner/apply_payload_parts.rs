@@ -91,7 +91,12 @@ fn apply_part_identity_payload(runner: &mut NativeRunner, index: usize, part: &V
     }
 }
 
-fn apply_part_l2_payload(runner: &mut NativeRunner, index: usize, part: &Value, l1: Option<&Value>) {
+fn apply_part_l2_payload(
+    runner: &mut NativeRunner,
+    index: usize,
+    part: &Value,
+    l1: Option<&Value>,
+) {
     let Some(l2) = part.get("l2") else {
         return;
     };

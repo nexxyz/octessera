@@ -90,7 +90,10 @@ impl NativeRunner {
         Ok(out)
     }
 
-    fn send_device_input(&mut self, input: serde_json::Value) -> Result<Vec<RunnerMessage>, String> {
+    fn send_device_input(
+        &mut self,
+        input: serde_json::Value,
+    ) -> Result<Vec<RunnerMessage>, String> {
         let input = serde_json::from_value::<DeviceInput>(input).unwrap_or(DeviceInput::Other);
         self.handle_device_input(input)
     }

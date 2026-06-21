@@ -106,7 +106,11 @@ fn apply_synth_menu_fields(
         let gain = gain.clamp(0, 100) as u8;
         if instrument.synth_gain_pct != gain {
             instrument.synth_gain_pct = gain;
-            set_json_path_number(&mut instrument.synth_config, &["amp", "gainPct"], f64::from(gain));
+            set_json_path_number(
+                &mut instrument.synth_config,
+                &["amp", "gainPct"],
+                f64::from(gain),
+            );
             changed = true;
         }
     }
@@ -142,13 +146,18 @@ fn apply_synth_filter_type_field(
     index: usize,
     instrument: &mut NativeInstrumentSlot,
 ) -> bool {
-    let Some(filter_type) = menu.value_for_key(&format!("instruments.{index}.synth.filter.type")) else {
+    let Some(filter_type) = menu.value_for_key(&format!("instruments.{index}.synth.filter.type"))
+    else {
         return false;
     };
     if synth_string_at(instrument, &["filter", "type"], "lowpass") == filter_type {
         return false;
     }
-    set_json_path_string(&mut instrument.synth_config, &["filter", "type"], &filter_type);
+    set_json_path_string(
+        &mut instrument.synth_config,
+        &["filter", "type"],
+        &filter_type,
+    );
     true
 }
 
@@ -157,7 +166,8 @@ fn apply_synth_cutoff_field(
     index: usize,
     instrument: &mut NativeInstrumentSlot,
 ) -> bool {
-    let Some(cutoff) = menu.number_for_key(&format!("instruments.{index}.synth.filter.cutoffHz")) else {
+    let Some(cutoff) = menu.number_for_key(&format!("instruments.{index}.synth.filter.cutoffHz"))
+    else {
         return false;
     };
     let cutoff_display = cutoff.clamp(0, 255);
@@ -178,7 +188,9 @@ fn apply_synth_resonance_field(
     index: usize,
     instrument: &mut NativeInstrumentSlot,
 ) -> bool {
-    let Some(resonance) = menu.number_for_key(&format!("instruments.{index}.synth.filter.resonance")) else {
+    let Some(resonance) =
+        menu.number_for_key(&format!("instruments.{index}.synth.filter.resonance"))
+    else {
         return false;
     };
     let resonance = resonance.clamp(0, 255) as u8;
@@ -221,8 +233,18 @@ fn synth_numeric_field_specs() -> &'static [(&'static str, &'static [&'static st
         ("osc2.levelPct", &["osc2", "levelPct"], 0, 100),
         ("osc2.detuneCents", &["osc2", "detuneCents"], -50, 50),
         ("osc2.pulseWidthPct", &["osc2", "pulseWidthPct"], 5, 95),
-        ("filter.envAmountPct", &["filter", "envAmountPct"], -100, 100),
-        ("filter.keyTrackingPct", &["filter", "keyTrackingPct"], 0, 100),
+        (
+            "filter.envAmountPct",
+            &["filter", "envAmountPct"],
+            -100,
+            100,
+        ),
+        (
+            "filter.keyTrackingPct",
+            &["filter", "keyTrackingPct"],
+            0,
+            100,
+        ),
         (
             "amp.velocitySensitivityPct",
             &["amp", "velocitySensitivityPct"],
@@ -284,7 +306,9 @@ fn apply_sampler_scalar_fields(
             changed = true;
         }
     }
-    if let Some(base_velocity) = menu.number_for_key(&format!("instruments.{index}.sample.baseVelocity")) {
+    if let Some(base_velocity) =
+        menu.number_for_key(&format!("instruments.{index}.sample.baseVelocity"))
+    {
         let base_velocity = base_velocity.clamp(1, 127) as u8;
         if instrument.sample_base_velocity != base_velocity {
             instrument.sample_base_velocity = base_velocity;
@@ -319,10 +343,7 @@ fn apply_sampler_velocity_level_fields(
 ) -> bool {
     let mut changed = false;
     for (suffix, current) in [
-        (
-            "velocityLevels.high",
-            &mut instrument.sample_velocity_high,
-        ),
+        ("velocityLevels.high", &mut instrument.sample_velocity_high),
         (
             "velocityLevels.medium",
             &mut instrument.sample_velocity_medium,
@@ -346,7 +367,9 @@ fn apply_sampler_filter_fields(
     instrument: &mut NativeInstrumentSlot,
 ) -> bool {
     let mut changed = false;
-    if let Some(filter_type) = menu.value_for_key(&format!("instruments.{index}.sample.filter.type")) {
+    if let Some(filter_type) =
+        menu.value_for_key(&format!("instruments.{index}.sample.filter.type"))
+    {
         if value_string_at(&instrument.sample_filter, &["type"], "lowpass") != filter_type {
             set_json_path_string(&mut instrument.sample_filter, &["type"], &filter_type);
             changed = true;
@@ -391,9 +414,9 @@ fn apply_sampler_env_fields(
 ) -> bool {
     let mut changed = false;
     for (prefix_key, target, field, min, max) in sampler_env_field_specs() {
-        if let Some(value) = menu.number_for_key(&format!(
-            "instruments.{index}.sample.{prefix_key}.{field}"
-        )) {
+        if let Some(value) =
+            menu.number_for_key(&format!("instruments.{index}.sample.{prefix_key}.{field}"))
+        {
             let value = value.clamp(*min, *max);
             let config = if *target == "amp" {
                 &mut instrument.sample_amp_env
@@ -451,7 +474,8 @@ fn apply_midi_menu_fields(
             changed = true;
         }
     }
-    if let Some(duration_ms) = menu.number_for_key(&format!("instruments.{index}.midi.durationMs")) {
+    if let Some(duration_ms) = menu.number_for_key(&format!("instruments.{index}.midi.durationMs"))
+    {
         let duration_ms = duration_ms.clamp(10, 2000) as u16;
         if instrument.midi_duration_ms != duration_ms {
             instrument.midi_duration_ms = duration_ms;

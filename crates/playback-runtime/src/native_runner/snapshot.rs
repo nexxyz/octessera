@@ -345,10 +345,7 @@ struct DisplaySnapshot {
     selected_row: Option<usize>,
 }
 
-fn base_led_color(
-    alive: bool,
-    trigger: Option<platform_core::CellTriggerType>,
-) -> Value {
+fn base_led_color(alive: bool, trigger: Option<platform_core::CellTriggerType>) -> Value {
     if !alive {
         return json!({ "r": 15, "g": 15, "b": 22 });
     }
@@ -418,7 +415,10 @@ fn overlay_display(title: String, lines: Vec<String>) -> DisplaySnapshot {
     }
 }
 
-fn menu_display(runner: &NativeRunner, menu: crate::native_menu::NativeMenuSnapshot) -> DisplaySnapshot {
+fn menu_display(
+    runner: &NativeRunner,
+    menu: crate::native_menu::NativeMenuSnapshot,
+) -> DisplaySnapshot {
     let bar_values = menu
         .bar_values
         .into_iter()
@@ -440,7 +440,9 @@ fn menu_display(runner: &NativeRunner, menu: crate::native_menu::NativeMenuSnaps
         .map(|(row, line)| {
             let prefix = runner.auto_map_prefix_for_line(
                 menu.line_keys.get(row).and_then(|key| key.as_deref()),
-                menu.line_actions.get(row).and_then(|action| action.as_ref()),
+                menu.line_actions
+                    .get(row)
+                    .and_then(|action| action.as_ref()),
             );
             prefix_line(line, prefix)
         })
