@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createSimulatorRuntime } from "../src/runtime/simulatorRuntime";
+import type { RuntimeRunnerMessage } from "@cellsymphony/device-contracts";
 import type { RuntimeScheduler } from "../src/runtime/runtimeScheduler";
 
 class FakeScheduler implements RuntimeScheduler {
@@ -38,6 +39,34 @@ function snapshotMessage(options: { audioConfigRevision?: number; instruments?: 
         instruments: options.instruments ?? [],
         mixer: options.mixer ?? { buses: [] },
         panPositions: 33,
+        audioConfigRevision: options.audioConfigRevision,
+        autoSaveFlash: "none" as const,
+        transportFlash: "none" as const,
+        stopLatched: false,
+        shiftHeld: false,
+        fnHeld: false,
+        combinedModifierHeld: false,
+        midi: { enabled: false, outId: null, inId: null, syncMode: "internal" as const, clockOutEnabled: false, clockInEnabled: false }
+      }
+    }
+  };
+}
+
+function sparseAudioSnapshotMessage(options: { audioConfigRevision?: number; masterVolume?: number } = {}) {
+  return {
+    type: "snapshot" as const,
+    snapshot: {
+      oled: { width: 128, height: 128, format: "rgb565be" as const, pixels: new Uint8Array(32768) },
+      leds: { width: 8, height: 8, cells: Array.from({ length: 64 }, () => ({ r: 0, g: 0, b: 0 })) },
+      transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
+      display: { page: "boot", title: "Boot", lines: [], editing: false },
+      activeBehavior: "life",
+      gridInteraction: "paint" as const,
+      settings: {
+        displayBrightness: 75,
+        buttonBrightness: 75,
+        masterVolume: options.masterVolume ?? 73,
+        voiceStealingMode: "balanced" as const,
         audioConfigRevision: options.audioConfigRevision,
         autoSaveFlash: "none" as const,
         transportFlash: "none" as const,
@@ -103,6 +132,39 @@ test("runtime coalesces encoder turn bursts", async () => {
   assert.deepEqual(seen, [{ type: "device_input", input: { type: "encoder_turn", id: "main", delta: 1 } }]);
 });
 
+test("runtime coalesces encoder turns while a dispatch is in flight", async () => {
+  const seen: any[] = [];
+  const releaseFirst: Array<() => void> = [];
+  const runtime = createSimulatorRuntime(new FakeScheduler(), {
+    runtimeDispatch: (message) => new Promise((resolve) => {
+      seen.push(message);
+      if (seen.length === 1) {
+        releaseFirst.push(() => resolve([snapshotMessage()]));
+        return;
+      }
+      resolve([snapshotMessage()]);
+    })
+  });
+
+  runtime.dispatch({ type: "encoder_turn", id: "main", delta: 1 });
+  await new Promise((resolve) => setTimeout(resolve, 12));
+  runtime.dispatch({ type: "encoder_turn", id: "main", delta: 1 });
+  runtime.dispatch({ type: "encoder_turn", id: "main", delta: 1 });
+  await new Promise((resolve) => setTimeout(resolve, 12));
+
+  assert.deepEqual(seen, [{ type: "device_input", input: { type: "encoder_turn", id: "main", delta: 1 } }]);
+
+  releaseFirst[0]!();
+  await waitMicrotask();
+  await waitMicrotask();
+  await new Promise((resolve) => setTimeout(resolve, 12));
+
+  assert.deepEqual(seen, [
+    { type: "device_input", input: { type: "encoder_turn", id: "main", delta: 1 } },
+    { type: "device_input", input: { type: "encoder_turn", id: "main", delta: 2 } }
+  ]);
+});
+
 test("runtime preserves audio config refs while revision is unchanged", async () => {
   const instruments = [{ type: "synth", value: 1 }];
   const mixer = { buses: [{ name: "bus" }] };
@@ -120,4 +182,50 @@ test("runtime preserves audio config refs while revision is unchanged", async ()
   assert.equal(second.instruments, first.instruments);
   assert.equal(second.mixer, first.mixer);
   assert.equal(second.masterVolume, 80);
+});
+
+test("runtime preserves cached audio config when snapshots omit unchanged audio payloads", async () => {
+  let dispatchCount = 0;
+  const instruments = [{ type: "synth", value: 1 }];
+  const mixer = { buses: [{ name: "bus" }] };
+  const runtime = createSimulatorRuntime(new FakeScheduler(), {
+    runtimeDispatch: async () => {
+      dispatchCount += 1;
+      return [dispatchCount === 1
+        ? snapshotMessage({ audioConfigRevision: 1, instruments, mixer, masterVolume: 80 })
+        : sparseAudioSnapshotMessage({ audioConfigRevision: 1, masterVolume: 80 })];
+    }
+  });
+
+  runtime.dispatch({ type: "grid_press", x: 1, y: 2 });
+  await waitMicrotask();
+  const first = runtime.getSnapshot();
+  runtime.dispatch({ type: "grid_press", x: 2, y: 3 });
+  await waitMicrotask();
+  const second = runtime.getSnapshot();
+
+  assert.equal(second.instruments, first.instruments);
+  assert.equal(second.mixer, first.mixer);
+  assert.equal(second.panPositions, first.panPositions);
+});
+
+test("runtime applies native ui pulses for indicators", async () => {
+  const runtime = createSimulatorRuntime(new FakeScheduler(), {
+    runtimeDispatch: async (): Promise<RuntimeRunnerMessage[]> => [
+      snapshotMessage(),
+      { type: "ui_pulse", pulse: { type: "trigger_pulse", durationMs: 40 } },
+      { type: "ui_pulse", pulse: { type: "transport_flash", flash: "measure", durationMs: 40 } }
+    ]
+  });
+
+  runtime.dispatch({ type: "grid_press", x: 1, y: 2 });
+  await waitMicrotask();
+
+  const snapshot = runtime.getSnapshot();
+  assert.equal((snapshot.frame as any).eventDotOn, true);
+  assert.equal((snapshot.frame as any).transportFlash, "measure");
+
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  const after = runtime.getSnapshot();
+  assert.notEqual((after.frame as any).eventDotOn, true);
 });

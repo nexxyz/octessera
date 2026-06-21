@@ -1,3 +1,4 @@
+use super::defaults::default_sense_part;
 use super::*;
 
 pub(super) fn native_factory_payload() -> Value {
@@ -8,7 +9,7 @@ pub(super) fn native_factory_payload() -> Value {
             1 => "sequencer",
             _ => "none",
         };
-        let mut sense = NativeSensePart::default();
+        let mut sense = default_sense_part(index);
         if index == 0 {
             sense.scan_axis = "columns".into();
             sense.event_enabled = true;

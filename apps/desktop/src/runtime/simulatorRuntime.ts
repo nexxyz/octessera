@@ -60,6 +60,13 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
   let cachedMasterVolume: number = 100;
   const pendingEncoderTurns = new Map<string, number>();
   let pendingEncoderTimer: ReturnType<typeof setTimeout> | null = null;
+  let startupSplashTimer: ReturnType<typeof setTimeout> | null = null;
+  let indicatorTimer: ReturnType<typeof setTimeout> | null = null;
+  let eventDotUntilMs = 0;
+  let transportFlashUntilMs = 0;
+  let transientTransportFlash: "measure" | "beat" | "none" = "none";
+  const queuedRuntimeMessages: RuntimeHostMessage[] = [];
+  let runtimeDispatchInFlight = false;
   const listeners = new Set<RuntimeListener>();
   const tauriMidi = deps.midiService ?? (isTauri && !deps.runtimeDispatch ? new TauriMidiService() : null);
   const audioLoadService = deps.audioLoadService ?? new TauriAudioLoadService();
@@ -105,10 +112,12 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
       cachedPanPositions = settings.panPositions ?? PAN_POSITION_COUNT;
       cachedMasterVolume = settings.masterVolume ?? 100;
     }
-    const flash = settings?.transportFlash ?? "none";
+    const flash = performance.now() < transportFlashUntilMs
+      ? transientTransportFlash
+      : String((frame as any).transportFlash ?? "none");
     const combined = settings?.combinedModifierHeld ?? false;
     return {
-      frame,
+      frame: withTransientIndicators(frame),
       neoKeyLeds: {
         back: "solid_red",
         space: !frame.transport.playing ? "off" : flash === "measure" ? "measure" : flash === "beat" ? "beat" : "off",
@@ -128,6 +137,17 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
       autoSaveFlash: settings?.autoSaveFlash ?? "none",
       autoSaveFlashSerial: settings?.autoSaveFlashSerial
     };
+  }
+
+  function withTransientIndicators(frame: RuntimeSnapshot): RuntimeSnapshot {
+    const transientEventDotOn = performance.now() < eventDotUntilMs;
+    const transientTransport = performance.now() < transportFlashUntilMs ? transientTransportFlash : null;
+    if (!transientEventDotOn && transientTransport === null) return frame;
+    return {
+      ...(frame as any),
+      ...(transientEventDotOn ? { eventDotOn: true } : {}),
+      ...(transientTransport ? { transportFlash: transientTransport } : {}),
+    } as RuntimeSnapshot;
   }
 
   function publishSnapshot() {
@@ -162,7 +182,19 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
         if (snapshot.oled && !(snapshot.oled.pixels instanceof Uint8Array)) {
           snapshot.oled = { ...snapshot.oled, pixels: new Uint8Array(Object.values(snapshot.oled.pixels as any)) };
         }
+        const previousSettings = latestFrame.settings;
+        const nextSettings = snapshot.settings;
+        if (previousSettings && nextSettings) {
+          if (!("instruments" in nextSettings)) nextSettings.instruments = previousSettings.instruments;
+          if (!("mixer" in nextSettings)) nextSettings.mixer = previousSettings.mixer;
+          if (!("panPositions" in nextSettings)) nextSettings.panPositions = previousSettings.panPositions;
+        }
         latestFrame = snapshot;
+        scheduleStartupSplashRefresh(snapshot);
+        continue;
+      }
+      if (message.type === "ui_pulse") {
+        applyUiPulse(message.pulse);
         continue;
       }
       if ((message as any).type === "audio_error") {
@@ -172,9 +204,56 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
     }
   }
 
-  function mirrorRuntimeMessage(message: RuntimeHostMessage) {
+  function applyUiPulse(pulse: Extract<RuntimeRunnerMessage, { type: "ui_pulse" }>['pulse']) {
+    const now = performance.now();
+    if (pulse.type === "trigger_pulse") {
+      eventDotUntilMs = now + pulse.durationMs;
+    } else if (pulse.type === "transport_flash") {
+      transientTransportFlash = pulse.flash;
+      transportFlashUntilMs = now + pulse.durationMs;
+    }
+    if (indicatorTimer !== null) clearTimeout(indicatorTimer);
+    publishSnapshot();
+    const nextUntil = Math.max(eventDotUntilMs, transportFlashUntilMs);
+    indicatorTimer = setTimeout(() => {
+      indicatorTimer = null;
+      publishSnapshot();
+    }, Math.max(0, nextUntil - now) + 5);
+  }
+
+  function scheduleStartupSplashRefresh(snapshot: RuntimeSnapshot) {
+    const splash = String((snapshot.display as any)?.splash ?? "");
+    if (splash !== "startup") {
+      if (startupSplashTimer !== null) {
+        clearTimeout(startupSplashTimer);
+        startupSplashTimer = null;
+      }
+      return;
+    }
+    if (startupSplashTimer !== null) return;
+    startupSplashTimer = setTimeout(() => {
+      startupSplashTimer = null;
+      mirrorRuntimeMessage({
+        type: "transport_pulse_step",
+        pulses: 0,
+        source: "internal",
+        requestSnapshot: true,
+      });
+    }, 1600);
+  }
+
+  function drainQueuedRuntimeMessages() {
+    if (runtimeDispatchInFlight) return;
+    const message = queuedRuntimeMessages.shift();
+    if (!message) {
+      if (pendingEncoderTurns.size > 0 && pendingEncoderTimer === null) {
+        flushPendingEncoderTurns();
+      }
+      return;
+    }
     runtimeUpdateEpoch += 1;
     ignoreAsyncUntilMs = performance.now() + ASYNC_RUNTIME_SUPPRESS_MS;
+    runtimeDispatchInFlight = true;
     void dispatchRuntime(message)
       .then((messages) => {
         processRunnerMessages(messages);
@@ -187,7 +266,16 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
           latestFrame = { ...latestFrame, transport: { ...latestFrame.transport, playing: false } };
         }
         publishSnapshot();
+      })
+      .finally(() => {
+        runtimeDispatchInFlight = false;
+        drainQueuedRuntimeMessages();
       });
+  }
+
+  function mirrorRuntimeMessage(message: RuntimeHostMessage) {
+    queuedRuntimeMessages.push(message);
+    drainQueuedRuntimeMessages();
   }
 
   function applyAsyncRuntimeBatch(seq: number, messages: RuntimeRunnerMessage[], nowMs: number) {
@@ -214,15 +302,19 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
   }
 
   function dispatchToRunner(input: DeviceInput) {
-    flushPendingEncoderTurns();
+    flushPendingEncoderTurns(true);
     syncPlaybackConfigIfNeeded();
     mirrorRuntimeMessage({ type: "device_input", input });
   }
 
-  function flushPendingEncoderTurns() {
+  function flushPendingEncoderTurns(forceQueue = false) {
     if (pendingEncoderTimer !== null) {
       clearTimeout(pendingEncoderTimer);
       pendingEncoderTimer = null;
+    }
+    if (!forceQueue && (runtimeDispatchInFlight || queuedRuntimeMessages.length > 0)) {
+      pendingEncoderTimer = setTimeout(() => flushPendingEncoderTurns(), 8);
+      return;
     }
     for (const [id, delta] of pendingEncoderTurns) {
       pendingEncoderTurns.delete(id);
@@ -289,7 +381,18 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
       publishSnapshot();
     },
     stop() {
-      flushPendingEncoderTurns();
+      flushPendingEncoderTurns(true);
+      if (startupSplashTimer !== null) {
+        clearTimeout(startupSplashTimer);
+        startupSplashTimer = null;
+      }
+      if (indicatorTimer !== null) {
+        clearTimeout(indicatorTimer);
+        indicatorTimer = null;
+      }
+      eventDotUntilMs = 0;
+      transportFlashUntilMs = 0;
+      transientTransportFlash = "none";
       publishSnapshot();
       scheduler.stop();
     },

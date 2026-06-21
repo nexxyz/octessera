@@ -370,7 +370,6 @@ System
 │   │   └── Auto Save: [on | off]    ← auto-persists settled config after cooldown
 │   ├── Factory (group)
 │   │   └── Load Fact. Default: (action)
-│   └── Shutdown: (action)          ← confirm, then show shutdown splash and exit/poweroff
 ├── Sound (group)                     ← merged: Audio + Sound controls
 │   ├── Master Vol: [0..100] step 1  default 73
 │   ├── Note Length: [30..2000] step 10 ms  default 120
@@ -387,7 +386,8 @@ System
 │   │   ├── Clock Out: [on | off]
 │   │   ├── Clock In: [on | off]
 │   │   └── Respond Start/Stop: [on | off]
-└── UI (group)
+├── UI (group)
+└── Shutdown: (action)                ← confirm, then show shutdown splash and exit/poweroff
     ├── Ghost Cells: [on | off]  default off  ← shows dim cells from inactive parts behind active part
     ├── Numeric Display: [bar | numbers | bar+numbers]  ← controls rendering of bar-style numeric params, default bar+numbers
     ├── Screen Sleep: [0..600] step 10 s    default 60 (0=off)

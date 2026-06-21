@@ -34,7 +34,7 @@ pub fn encoder_turn_message(id: &str, delta: i8) -> HostMessage {
     HostMessage::DeviceInput {
         input: json!({
             "type": "encoder_turn",
-            "delta": if delta < 0 { -1 } else { 1 },
+            "delta": delta.clamp(-127, 127),
             "id": encoder_input_id(index)
         }),
     }

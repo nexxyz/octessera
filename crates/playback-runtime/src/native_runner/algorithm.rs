@@ -100,7 +100,7 @@ impl NativeRunner {
             );
             if !tick_events.is_empty() {
                 self.event_dot_on = true;
-                self.event_dot_pulses_remaining = 6;
+                self.event_dot_pulses_remaining = 1;
             }
             events.extend(tick_events);
         }
@@ -147,7 +147,7 @@ impl NativeRunner {
                 );
                 if !tick_events.is_empty() {
                     self.event_dot_on = true;
-                    self.event_dot_pulses_remaining = 6;
+                    self.event_dot_pulses_remaining = 1;
                 }
                 events.extend(tick_events);
             }

@@ -1,4 +1,5 @@
 mod audio;
+mod encoder_queue;
 mod host_adapter;
 mod input;
 mod render;
@@ -8,10 +9,10 @@ use audio::AudioManager;
 use cellsymphony_hal::{
     encoder_gpio::HardwareEvent, EncoderGpio, I2CBus, I2sDac, NeoKey, NeoTrellis, OledSsd1351,
 };
+use encoder_queue::PendingEncoderTurns;
 use host_adapter::PiPlaybackHostAdapter;
 use input::{
-    encoder_press_message, encoder_turn_message, grid_message, midi_realtime_message,
-    neokey_message, MidiMessage,
+    encoder_press_message, grid_message, midi_realtime_message, neokey_message, MidiMessage,
 };
 use playback_runtime::{
     HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig, SyncSource,
@@ -30,6 +31,7 @@ use std::time::{Duration, Instant};
 const PLAYBACK_TICK_MS: u64 = 8;
 const SNAPSHOT_INTERVAL_MS: u64 = 100;
 const RENDER_INTERVAL_MS: u64 = 33;
+const HARDWARE_EVENT_BUDGET: usize = 16;
 
 fn main() {
     let _ = simple_logger::init();
@@ -100,6 +102,7 @@ fn main() {
     let mut last_snapshot_request = Instant::now();
     let mut last_render = Instant::now() - Duration::from_millis(RENDER_INTERVAL_MS);
     let mut render_cache = HardwareRenderCache::default();
+    let mut pending_encoder_turns = PendingEncoderTurns::default();
     let tick_duration = Duration::from_millis(PLAYBACK_TICK_MS);
     let snapshot_interval = Duration::from_millis(SNAPSHOT_INTERVAL_MS);
     let render_interval = Duration::from_millis(RENDER_INTERVAL_MS);
@@ -117,13 +120,34 @@ fn main() {
             }
         }
 
-        while let Ok(event) = event_rx.try_recv() {
+        for _ in 0..HARDWARE_EVENT_BUDGET {
+            let Ok(event) = event_rx.try_recv() else {
+                break;
+            };
             let message = match event {
-                HardwareEvent::EncoderTurn { id, delta } => encoder_turn_message(id, delta),
-                HardwareEvent::EncoderPress { id } => encoder_press_message(id),
+                HardwareEvent::EncoderTurn { id, delta } => {
+                    pending_encoder_turns.enqueue(id, delta);
+                    continue;
+                }
+                HardwareEvent::EncoderPress { id } => {
+                    flush_pending_encoder_turns(
+                        &mut pending_encoder_turns,
+                        &mut playback,
+                        &mut runner,
+                        &mut adapter,
+                    );
+                    encoder_press_message(id)
+                }
             };
             dispatch_or_log(&mut playback, &mut runner, &mut adapter, message);
         }
+
+        flush_pending_encoder_turns(
+            &mut pending_encoder_turns,
+            &mut playback,
+            &mut runner,
+            &mut adapter,
+        );
 
         if let Ok(presses) = trellis.scan_keys() {
             for (x, y, pressed) in presses {
@@ -153,6 +177,12 @@ fn main() {
             let now = Instant::now();
             let elapsed_ms = now.duration_since(last_tick).as_millis() as u64;
             last_tick = now;
+            flush_pending_encoder_turns(
+                &mut pending_encoder_turns,
+                &mut playback,
+                &mut runner,
+                &mut adapter,
+            );
             if now.duration_since(last_snapshot_request) >= snapshot_interval {
                 playback.request_next_snapshot();
                 last_snapshot_request = now;
@@ -200,6 +230,17 @@ fn dispatch_or_log(
 ) {
     if let Err(error) = dispatch_runtime_message(playback, runner, adapter, message) {
         eprintln!("pi runtime dispatch failed: {error}");
+    }
+}
+
+fn flush_pending_encoder_turns(
+    pending: &mut PendingEncoderTurns,
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    adapter: &mut PiPlaybackHostAdapter<'_>,
+) {
+    for message in pending.take_messages() {
+        dispatch_or_log(playback, runner, adapter, message);
     }
 }
 

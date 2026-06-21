@@ -3,8 +3,11 @@ use super::*;
 #[test]
 fn system_menu_shutdown_emits_shutdown_effect_and_splash() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 0];
-    runner.menu.state.cursor = 3;
+    runner.oled_mode = NativeOledMode::Normal;
+    runner.oled_splash_text.clear();
+    runner.oled_splash_until = None;
+    runner.menu.state.stack = vec![5];
+    runner.menu.state.cursor = 4;
 
     let opened = runner
         .send(HostMessage::DeviceInput {

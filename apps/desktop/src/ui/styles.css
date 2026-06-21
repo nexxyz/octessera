@@ -100,6 +100,7 @@ body {
 .oled-panel {
   position: relative;
   image-rendering: pixelated;
+  user-select: none;
   border-radius: 6px;
   border: 0;
   color: #78f7ab;
@@ -231,14 +232,15 @@ body {
 }
 
 .button-stack .beat {
-  background: linear-gradient(180deg, #2f8446, #1f5d32);
-  box-shadow: 0 0 14px rgba(120, 242, 160, 0.5);
+  background: linear-gradient(180deg, #33ff66, #17913a);
+  border-color: #8effa9;
+  box-shadow: 0 0 14px rgba(51, 255, 102, 0.55);
 }
 
 .button-stack .measure {
-  background: linear-gradient(180deg, #8a2f2f, #5e1f1f);
-  box-shadow: 0 0 18px rgba(255, 92, 92, 0.55);
-  border-color: #d68686;
+  background: linear-gradient(180deg, #ff3333, #a91c1c);
+  box-shadow: 0 0 18px rgba(255, 51, 51, 0.6);
+  border-color: #ff8b8b;
 }
 
 .button-stack .solid_yellow {

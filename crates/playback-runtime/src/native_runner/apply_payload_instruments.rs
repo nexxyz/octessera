@@ -377,8 +377,9 @@ impl NativeRunner {
                 });
         }
         if let Some(mapping_config) = payload.get("mappingConfig") {
-            self.mapping_config = serde_json::from_value(mapping_config.clone())
+            self.base_mapping_config = serde_json::from_value(mapping_config.clone())
                 .unwrap_or_else(|_| default_mapping_config());
+            self.mapping_config = self.base_mapping_config.clone();
         }
     }
 }

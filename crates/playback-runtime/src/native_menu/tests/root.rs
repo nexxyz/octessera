@@ -66,8 +66,14 @@ fn system_submenu_uses_abbreviated_path_and_section_colors() {
     let _ = menu.press();
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "SYS");
-    assert_eq!(snapshot.lines, vec!["> Saves", "  Sound", "  MIDI", "  UI"]);
-    assert_eq!(snapshot.colors, vec![0xB50D, 0xB50D, 0xB50D, 0xB50D]);
+    assert_eq!(
+        snapshot.lines,
+        vec!["> Saves", "  Sound", "  MIDI", "  UI", "  !Shutdown"]
+    );
+    assert_eq!(
+        snapshot.colors,
+        vec![0xB50D, 0xB50D, 0xB50D, 0xB50D, 0xB50D]
+    );
     assert_eq!(snapshot.selected_row, Some(0));
 }
 

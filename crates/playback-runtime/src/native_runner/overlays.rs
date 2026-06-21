@@ -327,14 +327,16 @@ impl NativeRunner {
         if !self.ui.fn_held {
             return;
         }
-        for cell in leds.iter_mut() {
-            if let Some(object) = cell.as_object_mut() {
-                let r = object.get("r").and_then(|v| v.as_i64()).unwrap_or(0);
-                let g = object.get("g").and_then(|v| v.as_i64()).unwrap_or(0);
-                let b = object.get("b").and_then(|v| v.as_i64()).unwrap_or(0);
-                object.insert("r".into(), Value::from(r / 4));
-                object.insert("g".into(), Value::from(g / 4));
-                object.insert("b".into(), Value::from(b / 4));
+        if self.active_dance_mode != "none" {
+            for cell in leds.iter_mut() {
+                if let Some(object) = cell.as_object_mut() {
+                    let r = object.get("r").and_then(|v| v.as_i64()).unwrap_or(0);
+                    let g = object.get("g").and_then(|v| v.as_i64()).unwrap_or(0);
+                    let b = object.get("b").and_then(|v| v.as_i64()).unwrap_or(0);
+                    object.insert("r".into(), Value::from(r / 4));
+                    object.insert("g".into(), Value::from(g / 4));
+                    object.insert("b".into(), Value::from(b / 4));
+                }
             }
         }
         for row in 0..GRID_HEIGHT {
@@ -345,9 +347,9 @@ impl NativeRunner {
                 .unwrap_or(false);
             let color = if self.active_dance_mode != "none" {
                 if configured {
-                    json!({ "r": 0, "g": 191, "b": 95 })
+                    json!({ "r": 0, "g": 120, "b": 0 })
                 } else {
-                    json!({ "r": 2, "g": 2, "b": 3 })
+                    json!({ "r": 0, "g": 48, "b": 23 })
                 }
             } else if row == self.active_part_index {
                 json!({ "r": 0, "g": 191, "b": 191 })
@@ -360,7 +362,7 @@ impl NativeRunner {
         }
         let page_options = ["mix", "pan", "fx", "trigger-gate", "xy"];
         for (row, mode) in page_options.iter().enumerate() {
-            let selected = self.active_dance_mode == *mode || self.dance_mode == *mode;
+            let selected = self.active_dance_mode != "none" && self.active_dance_mode == *mode;
             let color = if selected {
                 json!({ "r": 0, "g": 158, "b": 158 })
             } else {

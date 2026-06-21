@@ -85,6 +85,10 @@ export type RuntimeSnapshotMessage = { type: "snapshot"; snapshot: RuntimeSnapsh
 export type RuntimePlatformEffectsMessage = { type: "platform_effects"; effects: RuntimePlatformEffect[] };
 export type RuntimeMusicalEventsMessage = { type: "musical_events"; events: MusicalEvent[] };
 export type RuntimeAudioCommandsMessage = { type: "audio_commands"; commands: RuntimeAudioCommand[] };
+export type RuntimeUiPulse =
+  | { type: "transport_flash"; flash: "measure" | "beat"; durationMs: number }
+  | { type: "trigger_pulse"; durationMs: number };
+export type RuntimeUiPulseMessage = { type: "ui_pulse"; pulse: RuntimeUiPulse };
 export type RuntimeStatusMessage = { type: "runtime_status"; status: RuntimeStatus };
 
 export type RuntimeRunnerMessage =
@@ -92,6 +96,7 @@ export type RuntimeRunnerMessage =
   | RuntimePlatformEffectsMessage
   | RuntimeMusicalEventsMessage
   | RuntimeAudioCommandsMessage
+  | RuntimeUiPulseMessage
   | RuntimeStatusMessage;
 
 export type RuntimeContractFixture = {

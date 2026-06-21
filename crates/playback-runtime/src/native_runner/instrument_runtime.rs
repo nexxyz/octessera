@@ -34,6 +34,6 @@ pub(super) fn slot_payload(slot: usize) -> Value {
     if slot >= INSTRUMENT_COUNT {
         Value::String("none".into())
     } else {
-        Value::String(slot.to_string())
+        Value::from(slot as u64)
     }
 }

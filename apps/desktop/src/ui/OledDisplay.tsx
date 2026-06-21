@@ -5,24 +5,27 @@ import { saveFlashVisible } from "./saveFlash";
 const REGULAR_SPLASH_LOGO = new URL("../../../../assets/cellSymphonyLogo128.png", import.meta.url).href;
 const SEPIA_SPLASH_LOGO = new URL("../../../../assets/cellSymphonyLogoSepia128.png", import.meta.url).href;
 
+type SemanticOledState = {
+  displayOff: boolean;
+  splashText: string;
+  title: string;
+  lines: string[];
+  selectedRow: number;
+  lineColors: number[];
+  barValues: Array<{ frac?: number; style?: string } | null>;
+  transportIcon: string;
+  eventDotOn: boolean;
+  transportFlash: string;
+  visibleFooterToast: string;
+  showSaveFlash: boolean;
+  cpuLoad: number;
+};
+
 export function OledDisplay({ frame, displayBrightness }: { frame: RuntimeSnapshot; displayBrightness: number }) {
   const oledImage = useMemo(() => toOledImage(frame.oled), [frame.oled]);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  useOledCanvas(canvasRef, oledImage);
-
-  return (
-    <section className="oled-wrap">
-      <div className="oled-bezel">
-        <div className="oled-panel" style={{ width: OLED_WIDTH, height: OLED_HEIGHT, opacity: Math.max(0.2, displayBrightness / 100) }}>
-          <canvas ref={canvasRef} className="oled-canvas" />
-          {!oledImage ? <OledTextFallback frame={frame} /> : null}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function OledTextFallback({ frame }: { frame: RuntimeSnapshot }) {
+  const regularSplashImage = useImageAsset(REGULAR_SPLASH_LOGO);
+  const sepiaSplashImage = useImageAsset(SEPIA_SPLASH_LOGO);
   const displayOff = Boolean((frame.display as any).off ?? false);
   const splashText = String((frame.display as any).splash ?? "");
   const selectedRow = Number((frame as any).selectedRow ?? -1);
@@ -38,7 +41,6 @@ function OledTextFallback({ frame }: { frame: RuntimeSnapshot }) {
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [visibleFooterToast, setVisibleFooterToast] = useState(footerToast);
   const cpuLoad = Number((frame as any).cpuLoadRatio ?? 0);
-  const transportColor = transportFlash === "measure" ? "#ff3333" : transportFlash === "beat" ? "#33ff66" : "#d7ffe8";
 
   useEffect(() => {
     if (autoSaveFlash !== "flash") {
@@ -71,123 +73,50 @@ function OledTextFallback({ frame }: { frame: RuntimeSnapshot }) {
     return () => window.clearTimeout(timeout);
   }, [footerToast]);
 
-  const showSaveFlash = saveFlashVisible(saveFlashStartedAt, nowMs);
+  const semantic = useMemo<SemanticOledState>(
+    () => ({
+      displayOff,
+      splashText,
+      title: frame.display.title,
+      lines: frame.display.lines,
+      selectedRow,
+      lineColors,
+      barValues,
+      transportIcon,
+      eventDotOn,
+      transportFlash,
+      visibleFooterToast: splashText === "startup" ? "Starting up, loading defaults" : visibleFooterToast,
+      showSaveFlash: saveFlashVisible(saveFlashStartedAt, nowMs),
+      cpuLoad,
+    }),
+    [
+      cpuLoad,
+      displayOff,
+      eventDotOn,
+      frame.display.lines,
+      frame.display.title,
+      lineColors,
+      nowMs,
+      saveFlashStartedAt,
+      selectedRow,
+      splashText,
+      transportFlash,
+      transportIcon,
+      barValues,
+      visibleFooterToast,
+    ],
+  );
 
-  if (displayOff) {
-    return <div style={{ position: "absolute", inset: 0, background: "#000000" }} />;
-  }
-
-  if (splashText) {
-    const splashLogo = splashText === "sleep" || splashText === "shutdown" ? SEPIA_SPLASH_LOGO : REGULAR_SPLASH_LOGO;
-    return (
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          display: "flex",
-          alignItems: "stretch",
-          justifyContent: "stretch",
-          background: "#000000"
-        }}
-      >
-        <img src={splashLogo} alt="cellSymphony splash" style={{ width: "100%", height: "100%", objectFit: "cover", imageRendering: "pixelated" }} />
-        {visibleFooterToast ? (
-          <div
-            style={{
-              position: "absolute",
-              left: 10,
-              right: 10,
-              bottom: 10,
-              padding: "4px 6px",
-              borderRadius: 4,
-              background: "rgba(0,0,0,0.72)",
-              color: "#f2f5df",
-              fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace",
-              fontSize: 9,
-              lineHeight: 1.25,
-              textAlign: "center",
-              textTransform: "uppercase"
-            }}
-          >
-            {visibleFooterToast}
-          </div>
-        ) : null}
-      </div>
-    );
-  }
+  useOledCanvas(canvasRef, oledImage, semantic, regularSplashImage, sepiaSplashImage);
 
   return (
-    <div
-      style={{
-        position: "absolute",
-        inset: 0,
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "flex-start",
-        padding: 5,
-        boxSizing: "border-box",
-        color: "#d7ffe8",
-        fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace",
-        fontSize: 9,
-        lineHeight: 1.12,
-        letterSpacing: 0.25,
-        background: "radial-gradient(circle at top, rgba(26,65,52,0.35), rgba(0,0,0,0.85))"
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2, color: "#ffffff", minHeight: 10, gap: 6 }}>
-        <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{frame.display.title}</span>
-        <span style={{ display: "flex", gap: 4, alignItems: "center" }}>
-          <span style={{ color: showSaveFlash ? "#fff3b0" : "#334433" }}>S</span>
-          <span style={{ color: cpuLoad >= 0.85 ? "#ff6666" : cpuLoad >= 0.6 ? "#ffd166" : "#335544" }}>C</span>
-        </span>
+    <section className="oled-wrap">
+      <div className="oled-bezel">
+        <div className="oled-panel" style={{ width: OLED_WIDTH, height: OLED_HEIGHT, opacity: Math.max(0.2, displayBrightness / 100) }}>
+          <canvas ref={canvasRef} className="oled-canvas" />
+        </div>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 1, flex: 1, minHeight: 0, overflow: "hidden" }}>
-        {frame.display.lines.map((line, index) => {
-          const color = rgb565ToCss(typeof lineColors[index] === "number" ? lineColors[index] : 0xffff);
-          const selected = index === selectedRow;
-          const bar = barValues[index] && typeof barValues[index] === "object" ? (barValues[index] as { frac?: number; style?: string }) : null;
-          const markerPct = Math.max(0, Math.min(100, Number(bar?.frac ?? 0) * 100));
-          const barBackground = bar
-            ? bar.style === "marker"
-              ? `linear-gradient(90deg, transparent ${Math.max(0, markerPct - 1)}%, rgba(215,255,232,0.72) ${Math.max(0, markerPct - 1)}%, rgba(215,255,232,0.72) ${Math.min(100, markerPct + 1)}%, transparent ${Math.min(100, markerPct + 1)}%)`
-              : `linear-gradient(90deg, rgba(215,255,232,0.28) ${markerPct}%, transparent ${markerPct}%)`
-            : undefined;
-          return (
-            <div
-              key={`oled-line-${index}`}
-              style={{
-                background: selected ? color : barBackground ?? "transparent",
-                color: selected ? "#04120d" : color,
-                padding: selected && line.startsWith("  ") ? "1px 5px 2px 3px" : "1px 3px",
-                margin: "0 -2px",
-                minHeight: 10,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap"
-              }}
-            >
-              {line || " "}
-            </div>
-          );
-        })}
-      </div>
-      <div style={{ marginTop: "auto", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 5, minHeight: 10 }}>
-        <span
-          style={{
-            minWidth: 0,
-            flex: 1,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            color: visibleFooterToast ? "#d7ffe8" : "#334433"
-          }}
-        >
-          {visibleFooterToast || " "}
-        </span>
-        <span style={{ color: transportColor }}>{transportIcon === "play" ? "▶" : transportIcon === "stop" ? "■" : "❚❚"}</span>
-        <span style={{ color: eventDotOn ? "#ffffff" : "#334433" }}>●</span>
-      </div>
-    </div>
+    </section>
   );
 }
 
@@ -220,15 +149,169 @@ function toOledImage(oledFrame: OledFrame | undefined): ImageData | null {
   return new ImageData(data, w, h);
 }
 
-function useOledCanvas(ref: { current: HTMLCanvasElement | null }, image: ImageData | null): void {
+function useOledCanvas(
+  ref: { current: HTMLCanvasElement | null },
+  image: ImageData | null,
+  semantic: SemanticOledState,
+  regularSplashImage: HTMLImageElement | null,
+  sepiaSplashImage: HTMLImageElement | null,
+): void {
   useEffect(() => {
-    if (!image) return;
     const canvas = ref.current;
     if (!canvas) return;
-    canvas.width = image.width;
-    canvas.height = image.height;
+    canvas.width = OLED_WIDTH;
+    canvas.height = OLED_HEIGHT;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.putImageData(image, 0, 0);
-  }, [image, ref]);
+    ctx.imageSmoothingEnabled = false;
+    if (image) {
+      ctx.putImageData(image, 0, 0);
+      return;
+    }
+    drawSemanticOled(ctx, semantic, regularSplashImage, sepiaSplashImage);
+  }, [image, ref, regularSplashImage, semantic, sepiaSplashImage]);
+}
+
+function drawSemanticOled(
+  ctx: CanvasRenderingContext2D,
+  semantic: SemanticOledState,
+  regularSplashImage: HTMLImageElement | null,
+  sepiaSplashImage: HTMLImageElement | null,
+) {
+  ctx.clearRect(0, 0, OLED_WIDTH, OLED_HEIGHT);
+  ctx.fillStyle = "#000000";
+  ctx.fillRect(0, 0, OLED_WIDTH, OLED_HEIGHT);
+
+  if (semantic.displayOff) {
+    return;
+  }
+
+  if (semantic.splashText) {
+    drawSplash(ctx, semantic.splashText, semantic.visibleFooterToast, regularSplashImage, sepiaSplashImage);
+    return;
+  }
+
+  drawBackground(ctx);
+  ctx.font = "8px monospace";
+  ctx.textBaseline = "top";
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(semantic.title, 5, 5, 94);
+
+  ctx.fillStyle = semantic.showSaveFlash ? "#fff3b0" : "#334433";
+  ctx.fillText("S", 108, 5);
+  ctx.fillStyle = semantic.cpuLoad >= 0.85 ? "#ff6666" : semantic.cpuLoad >= 0.6 ? "#ffd166" : "#335544";
+  ctx.fillText("C", 117, 5);
+
+  semantic.lines.forEach((line, index) => {
+    const y = 18 + index * 13;
+    const color = rgb565ToCss(typeof semantic.lineColors[index] === "number" ? semantic.lineColors[index]! : 0xffff);
+    const selected = index === semantic.selectedRow;
+    const bar = semantic.barValues[index] && typeof semantic.barValues[index] === "object"
+      ? semantic.barValues[index] as { frac?: number; style?: string }
+      : null;
+    if (bar) drawBar(ctx, y, Number(bar.frac ?? 0), bar.style);
+    if (selected) {
+      ctx.fillStyle = color;
+      ctx.fillRect(3, y - 1, 122, 11);
+    }
+    ctx.fillStyle = selected ? "#04120d" : color;
+    ctx.fillText(line || " ", line.startsWith("  ") ? 4 : 6, y, 118);
+  });
+
+  const footerY = 117;
+  ctx.fillStyle = semantic.visibleFooterToast ? "#d7ffe8" : "#334433";
+  ctx.fillText(semantic.visibleFooterToast || " ", 5, footerY, 90);
+
+  ctx.fillStyle = semantic.transportFlash === "measure" ? "#ff3333" : semantic.transportFlash === "beat" ? "#33ff66" : "#d7ffe8";
+  drawTransportIcon(ctx, semantic.transportIcon, 101, footerY + 1);
+  if (semantic.eventDotOn) {
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(121, footerY + 4, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawBackground(ctx: CanvasRenderingContext2D) {
+  const gradient = ctx.createRadialGradient(50, 10, 8, 64, 64, 110);
+  gradient.addColorStop(0, "rgba(26,65,52,0.35)");
+  gradient.addColorStop(1, "rgba(0,0,0,0.95)");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, OLED_WIDTH, OLED_HEIGHT);
+  ctx.fillStyle = "rgba(120,247,171,0.04)";
+  for (let y = 0; y < OLED_HEIGHT; y += 3) {
+    ctx.fillRect(0, y, OLED_WIDTH, 1);
+  }
+}
+
+function drawBar(ctx: CanvasRenderingContext2D, y: number, frac: number, style?: string) {
+  const markerPct = Math.max(0, Math.min(1, frac));
+  if (style === "marker") {
+    const x = 3 + Math.round(markerPct * 122);
+    ctx.fillStyle = "rgba(215,255,232,0.72)";
+    ctx.fillRect(Math.max(3, x - 1), y - 1, 2, 11);
+    return;
+  }
+  ctx.fillStyle = "rgba(215,255,232,0.28)";
+  ctx.fillRect(3, y - 1, Math.round(markerPct * 122), 11);
+}
+
+function drawSplash(
+  ctx: CanvasRenderingContext2D,
+  splashText: string,
+  toast: string,
+  regularSplashImage: HTMLImageElement | null,
+  sepiaSplashImage: HTMLImageElement | null,
+) {
+  const sepia = splashText === "sleep" || splashText === "shutdown";
+  ctx.fillStyle = "#000000";
+  ctx.fillRect(0, 0, OLED_WIDTH, OLED_HEIGHT);
+  const logo = sepia ? sepiaSplashImage : regularSplashImage;
+  if (logo) {
+    ctx.drawImage(logo, 0, 0, OLED_WIDTH, OLED_HEIGHT);
+  }
+  ctx.font = "8px monospace";
+  ctx.textBaseline = "top";
+  if (toast) {
+    ctx.fillStyle = "rgba(0,0,0,0.72)";
+    ctx.fillRect(10, 104, 108, 14);
+    ctx.fillStyle = "#f2f5df";
+    ctx.fillText(toast.toUpperCase(), 13, 107, 102);
+  }
+}
+
+function drawTransportIcon(ctx: CanvasRenderingContext2D, icon: string, x: number, y: number): void {
+  if (icon === "play") {
+    ctx.beginPath();
+    ctx.moveTo(x, y - 1);
+    ctx.lineTo(x, y + 9);
+    ctx.lineTo(x + 8, y + 4);
+    ctx.closePath();
+    ctx.fill();
+    return;
+  }
+  if (icon === "stop") {
+    ctx.fillRect(x, y, 8, 8);
+    return;
+  }
+  ctx.fillRect(x, y, 2, 8);
+  ctx.fillRect(x + 6, y, 2, 8);
+}
+
+function useImageAsset(src: string): HTMLImageElement | null {
+  const [image, setImage] = useState<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    const next = new Image();
+    next.src = src;
+    const handleLoad = () => setImage(next);
+    next.addEventListener("load", handleLoad);
+    if (next.complete) setImage(next);
+    return () => {
+      next.removeEventListener("load", handleLoad);
+    };
+  }, [src]);
+
+  return image;
 }

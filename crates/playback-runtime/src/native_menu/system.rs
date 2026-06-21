@@ -69,11 +69,6 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                             NativeMenuAction::PlatformEffect("factory.load".into()),
                         )],
                     ),
-                    action_item(
-                        "Shutdown",
-                        "system.shutdown",
-                        NativeMenuAction::PlatformEffect("system.shutdown".into()),
-                    ),
                 ],
             ),
             group(
@@ -210,6 +205,11 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                         5,
                     ),
                 ],
+            ),
+            action_item(
+                "Shutdown",
+                "system.shutdown",
+                NativeMenuAction::PlatformEffect("system.shutdown".into()),
             ),
         ],
     )

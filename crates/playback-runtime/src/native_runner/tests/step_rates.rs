@@ -114,3 +114,22 @@ fn sense_pitch_mapping_uses_lowest_starting_highest_and_both_axis_steps() {
         platform_core::AxisStrategy::ScaleStep { step: 5 }
     ));
 }
+
+#[test]
+fn part_mapping_derives_from_stable_base_config_and_part_slot_defaults() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.base_mapping_config.base_midi_note = 40;
+    runner.base_mapping_config.starting_midi_note = 43;
+    runner.base_mapping_config.max_midi_note = 88;
+    runner.base_mapping_config.activate.channel = 9;
+    runner.sense_parts[1].x_pitch_enabled = false;
+    runner.sense_parts[1].y_pitch_enabled = false;
+
+    let part_two_mapping = runner.mapping_config_for_part(1);
+
+    assert_eq!(part_two_mapping.base_midi_note, 36);
+    assert_eq!(part_two_mapping.starting_midi_note, 60);
+    assert_eq!(part_two_mapping.max_midi_note, 74);
+    assert_eq!(part_two_mapping.activate.channel, 1);
+    assert_eq!(part_two_mapping.scanned.channel, 1);
+}

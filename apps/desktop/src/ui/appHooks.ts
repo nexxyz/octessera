@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { PAN_POSITION_COUNT } from "@cellsymphony/device-contracts";
 import { nativeAudioBridge } from "../audio/nativeAudioBridge";
 import { createCoalescedAudioConfigSender } from "../audio/coalescedAudioConfig";
@@ -12,7 +12,7 @@ type AppSnapshot = ReturnType<AppRuntime["getSnapshot"]>;
 export function useRuntimeBindings(runtime: AppRuntime, setSnapshot: (snapshot: AppSnapshot) => void): void {
   useEffect(() => {
     const unsubscribeState = runtime.subscribe((snapshot) => {
-      startTransition(() => setSnapshot(snapshot));
+      setSnapshot(snapshot);
     });
     runtime.start();
     return () => {

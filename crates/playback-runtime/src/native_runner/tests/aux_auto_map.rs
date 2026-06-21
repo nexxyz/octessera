@@ -244,6 +244,32 @@ fn auto_map_l1_life_turn_and_press_follow_behavior_context() {
 }
 
 #[test]
+fn auto_map_context_updates_after_navigation_only_group_enter() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let life_items = &runner.menu.root.children[0].children[0].children;
+    let interval_cursor =
+        child_index_by_key(life_items, "parts.0.l1.behaviorConfig.randomTickInterval");
+
+    runner.menu.state.stack = vec![0, 0];
+    runner.menu.state.cursor = interval_cursor;
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })
+        .unwrap();
+
+    let slot = runner.effective_aux_slot(0);
+    assert_eq!(
+        slot.turn.as_ref().map(|turn| turn.key.as_str()),
+        Some("algorithmStep")
+    );
+    assert_eq!(
+        slot.turn.as_ref().map(|turn| turn.label.as_str()),
+        Some("Step")
+    );
+}
+
+#[test]
 fn auto_map_env_and_osc_pages_drive_expected_slots() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
 
