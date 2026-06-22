@@ -47,6 +47,17 @@ try {
   Require-Command "rustup" "rustup is required to install the Pi target"
   Require-Command "pkg-config" "pkg-config is required for ALSA cross-builds; install it or build on a Pi"
 
+  $sccache = Get-Command "sccache" -ErrorAction SilentlyContinue
+  if ($sccache) {
+    $env:RUSTC_WRAPPER = Join-Path $PSScriptRoot "sccache-rustc.cmd"
+    if (-not $env:SCCACHE_DIR) {
+      $env:SCCACHE_DIR = Join-Path $env:LOCALAPPDATA "Mozilla\sccache"
+    }
+    Remove-Item Env:CARGO_INCREMENTAL -ErrorAction SilentlyContinue
+    [Environment]::SetEnvironmentVariable("CARGO_INCREMENTAL", $null, "Process")
+    Write-Output "Using sccache: $($sccache.Source)"
+  }
+
   $haveCrossInputs = $Sysroot -ne "" -or $PkgConfigPath -ne ""
   if ($Sysroot -ne "") {
     $env:PKG_CONFIG_SYSROOT_DIR = Resolve-ExistingPath $Sysroot
@@ -71,7 +82,15 @@ try {
 
   Write-Output "Building cellsymphony-pi for $Target ($Profile)"
   Invoke-CheckedCommand "rustup target add" { & rustup target add $Target }
-  Invoke-CheckedCommand "cargo build" { & cargo build --target $Target --profile $Profile -p cellsymphony-pi --features hardware-pi }
+  $cargoPrefix = @()
+  if ($sccache) {
+    $cargoPrefix = @(
+      "--config", "profile.dev.incremental=false",
+      "--config", "profile.test.incremental=false",
+      "--config", "profile.pi-dev.incremental=false"
+    )
+  }
+  Invoke-CheckedCommand "cargo build" { & cargo @cargoPrefix build --target $Target --profile $Profile -p cellsymphony-pi --features hardware-pi }
 
   $binaryPath = Join-Path (Join-Path (Join-Path $RepoRoot "target") $Target) $Profile
   $binaryPath = Join-Path $binaryPath "cellsymphony-pi"

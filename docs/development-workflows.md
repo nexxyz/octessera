@@ -36,6 +36,12 @@ corepack pnpm --filter @cellsymphony/desktop tauri:build:exe
 
 The portable executable is copied to `apps/desktop/dist-desktop/CellSymphony.exe`.
 
+On Windows, use the cached wrapper for the same portable build when iterating:
+
+```powershell
+./tools/desktop-exe-fast.ps1
+```
+
 Rebuild it after significant changes that affect desktop-visible behavior, native runtime behavior, audio behavior, config/default payloads, Tauri host integration, or runtime contracts. Do not rebuild it for Rust-only changes that are clearly internal and not desktop/runtime/audio observable, such as isolated tests, docs, formatting, refactors with no behavior change, or Pi/HAL-only work. When unsure whether a change is observable through the desktop app, rebuild the portable exe.
 
 Release executable and NSIS installer:
@@ -82,6 +88,19 @@ cargo clippy -p platform-core -p playback-runtime -p realtime-engine -p cellsymp
 ```
 
 The root `typecheck` runs `capabilities:check` before package typechecks.
+
+On Windows, use the cached Cargo wrapper while iterating. It enables `sccache` when installed, uses a local rustc-wrapper shim to strip Cargo's incremental env var before invoking `sccache`, and passes temporary profile overrides that disable incremental for that command so more crates can be cached. Without `sccache`, Cargo uses its normal `target/` cache:
+
+```powershell
+./tools/cargo-fast.ps1 check -p cellsymphony-pi
+./tools/cargo-fast.ps1 test -p playback-runtime
+```
+
+Install `sccache` once with:
+
+```powershell
+cargo install sccache --locked
+```
 
 ## Pi Builds Without Hardware
 
