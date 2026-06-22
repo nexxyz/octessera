@@ -117,46 +117,98 @@ fn menu_action_help_key(action: &NativeMenuAction) -> String {
         NativeMenuAction::SetAuxClick { .. } => "action:aux_click_set_target".into(),
         NativeMenuAction::CloneInstrument { .. } => "action:instrument_clone".into(),
         NativeMenuAction::ResetInstrument { .. } => "action:instrument_reset".into(),
-        NativeMenuAction::PlatformEffect(effect) => match effect.as_str() {
-            "preset.saveAs" => "action:preset_save".into(),
-            "preset.saveCurrent" => "action:preset_save_current".into(),
-            "preset.refresh" => "action:refresh_presets".into(),
-            "preset.renameApply" => "action:preset_rename_apply".into(),
-            "default.save" => "action:default_save".into(),
-            "default.load" => "action:default_load".into(),
-            "factory.load" => "action:factory_load".into(),
-            "system.shutdown" => "action:system_shutdown".into(),
-            "midi.panic" => "action:midi_panic".into(),
-            "dance.fx.map" => "action:fx_assign_enter".into(),
-            value if value.starts_with("preset.load:") => "action:preset_load:*".into(),
-            value if value.starts_with("preset.delete:") => "action:preset_delete:*".into(),
-            value if value.starts_with("preset.renamePick:") => {
-                "action:preset_rename_pick:*".into()
-            }
-            value if value.starts_with("midi.out:") || value.starts_with("midi.output:") => {
-                if value == "midi.out:" || value == "midi.output:" {
-                    "action:midi_select_output:null".into()
-                } else {
-                    "action:midi_select_output:*".into()
-                }
-            }
-            value if value.starts_with("midi.in:") || value.starts_with("midi.input:") => {
-                if value == "midi.in:" || value == "midi.input:" {
-                    "action:midi_select_input:null".into()
-                } else {
-                    "action:midi_select_input:*".into()
-                }
-            }
-            value if value.starts_with("sample.open:") => "action:sample_browser_open".into(),
-            value if value.starts_with("sample.up:") => "action:sample_browser_up".into(),
-            value if value.starts_with("sample.pick:") => "action:sample_browser_pick".into(),
-            value if value.starts_with("sample.preview:") => "action:sample_preview".into(),
-            value if value.starts_with("sample.assign:") => "action:sample_assign_enter".into(),
-            value if value.starts_with("synth.preset:") => "action:synth_preset_load".into(),
-            value if value.starts_with("trigger.probability.assign:") => {
-                "action:trigger_probability_assign_enter".into()
-            }
-            value => format!("action:{value}"),
-        },
+        NativeMenuAction::PlatformEffect(effect) => platform_effect_help_key(effect),
+    }
+}
+
+fn platform_effect_help_key(effect: &str) -> String {
+    preset_effect_help_key(effect)
+        .or_else(|| default_system_effect_help_key(effect))
+        .or_else(|| midi_effect_help_key(effect))
+        .or_else(|| sample_effect_help_key(effect))
+        .or_else(|| synth_effect_help_key(effect))
+        .or_else(|| trigger_probability_effect_help_key(effect))
+        .unwrap_or_else(|| format!("action:{effect}"))
+}
+
+fn preset_effect_help_key(effect: &str) -> Option<String> {
+    match effect {
+        "preset.saveAs" => Some("action:preset_save".into()),
+        "preset.saveCurrent" => Some("action:preset_save_current".into()),
+        "preset.refresh" => Some("action:refresh_presets".into()),
+        "preset.renameApply" => Some("action:preset_rename_apply".into()),
+        value if value.starts_with("preset.load:") => Some("action:preset_load:*".into()),
+        value if value.starts_with("preset.delete:") => Some("action:preset_delete:*".into()),
+        value if value.starts_with("preset.renamePick:") => {
+            Some("action:preset_rename_pick:*".into())
+        }
+        _ => None,
+    }
+}
+
+fn default_system_effect_help_key(effect: &str) -> Option<String> {
+    match effect {
+        "default.save" => Some("action:default_save".into()),
+        "default.load" => Some("action:default_load".into()),
+        "factory.load" => Some("action:factory_load".into()),
+        "system.shutdown" => Some("action:system_shutdown".into()),
+        "dance.fx.map" => Some("action:fx_assign_enter".into()),
+        _ => None,
+    }
+}
+
+fn midi_effect_help_key(effect: &str) -> Option<String> {
+    match effect {
+        "midi.panic" => Some("action:midi_panic".into()),
+        value if value.starts_with("midi.out:") || value.starts_with("midi.output:") => {
+            Some(midi_output_effect_help_key(value))
+        }
+        value if value.starts_with("midi.in:") || value.starts_with("midi.input:") => {
+            Some(midi_input_effect_help_key(value))
+        }
+        _ => None,
+    }
+}
+
+fn midi_output_effect_help_key(effect: &str) -> String {
+    if effect == "midi.out:" || effect == "midi.output:" {
+        "action:midi_select_output:null".into()
+    } else {
+        "action:midi_select_output:*".into()
+    }
+}
+
+fn midi_input_effect_help_key(effect: &str) -> String {
+    if effect == "midi.in:" || effect == "midi.input:" {
+        "action:midi_select_input:null".into()
+    } else {
+        "action:midi_select_input:*".into()
+    }
+}
+
+fn sample_effect_help_key(effect: &str) -> Option<String> {
+    match effect {
+        value if value.starts_with("sample.open:") => Some("action:sample_browser_open".into()),
+        value if value.starts_with("sample.up:") => Some("action:sample_browser_up".into()),
+        value if value.starts_with("sample.pick:") => Some("action:sample_browser_pick".into()),
+        value if value.starts_with("sample.preview:") => Some("action:sample_preview".into()),
+        value if value.starts_with("sample.assign:") => Some("action:sample_assign_enter".into()),
+        _ => None,
+    }
+}
+
+fn synth_effect_help_key(effect: &str) -> Option<String> {
+    match effect {
+        value if value.starts_with("synth.preset:") => Some("action:synth_preset_load".into()),
+        _ => None,
+    }
+}
+
+fn trigger_probability_effect_help_key(effect: &str) -> Option<String> {
+    match effect {
+        value if value.starts_with("trigger.probability.assign:") => {
+            Some("action:trigger_probability_assign_enter".into())
+        }
+        _ => None,
     }
 }

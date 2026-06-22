@@ -23,45 +23,64 @@ pub(crate) fn resolve_sample_file(path: &str) -> Option<String> {
 
 fn sample_list_from_root(root: &PathBuf, dir: &str) -> Result<Vec<SampleEntry>, String> {
     let rel = sanitize_relative_dir(dir)?;
-    let target = root.join(&rel);
     let canon_root =
         fs::canonicalize(root).map_err(|e| format!("samples root resolve failed: {e}"))?;
-    let canon_target =
-        fs::canonicalize(&target).map_err(|e| format!("directory not found: {e}"))?;
-    if !canon_target.starts_with(&canon_root) {
+    let canon_target = canonical_sample_dir(root, &rel, &canon_root)?;
+    let mut out = read_sample_entries(&canon_target, &rel)?;
+    sort_sample_entries(&mut out);
+    Ok(out)
+}
+
+fn canonical_sample_dir(root: &Path, rel: &str, canon_root: &Path) -> Result<PathBuf, String> {
+    let target = root.join(rel);
+    let canon_target = fs::canonicalize(&target).map_err(|e| format!("directory not found: {e}"))?;
+    if !canon_target.starts_with(canon_root) {
         return Err("path outside samples root".to_string());
     }
-    let mut out: Vec<SampleEntry> = Vec::new();
-    for entry in fs::read_dir(&canon_target).map_err(|e| format!("read dir failed: {e}"))? {
-        let e = entry.map_err(|err| format!("read dir entry failed: {err}"))?;
-        let meta = e
-            .metadata()
-            .map_err(|err| format!("read metadata failed: {err}"))?;
-        let is_dir = meta.is_dir();
-        let file_name = e.file_name().to_string_lossy().to_string();
-        if !is_dir {
-            let ext = e
-                .path()
-                .extension()
-                .map(|x| x.to_string_lossy().to_ascii_lowercase())
-                .unwrap_or_default();
-            if ext != "wav" {
-                continue;
-            }
+    Ok(canon_target)
+}
+
+fn read_sample_entries(canon_target: &Path, rel: &str) -> Result<Vec<SampleEntry>, String> {
+    let mut out = Vec::new();
+    for entry in fs::read_dir(canon_target).map_err(|e| format!("read dir failed: {e}"))? {
+        let entry = entry.map_err(|err| format!("read dir entry failed: {err}"))?;
+        if let Some(sample_entry) = sample_entry_from_dir_entry(&entry, rel)? {
+            out.push(sample_entry);
         }
-        out.push(SampleEntry {
-            name: file_name.clone(),
-            path: rel_join(&rel, &file_name),
-            is_dir,
-        });
     }
-    out.sort_by(|a, b| {
+    Ok(out)
+}
+
+fn sample_entry_from_dir_entry(entry: &fs::DirEntry, rel: &str) -> Result<Option<SampleEntry>, String> {
+    let meta = entry
+        .metadata()
+        .map_err(|err| format!("read metadata failed: {err}"))?;
+    let is_dir = meta.is_dir();
+    let file_name = entry.file_name().to_string_lossy().to_string();
+    if !is_dir && !supported_sample_file(&entry.path()) {
+        return Ok(None);
+    }
+    Ok(Some(SampleEntry {
+        name: file_name.clone(),
+        path: rel_join(rel, &file_name),
+        is_dir,
+    }))
+}
+
+fn supported_sample_file(path: &Path) -> bool {
+    path.extension()
+        .map(|x| x.to_string_lossy().to_ascii_lowercase())
+        .unwrap_or_default()
+        == "wav"
+}
+
+fn sort_sample_entries(entries: &mut [SampleEntry]) {
+    entries.sort_by(|a, b| {
         if a.is_dir != b.is_dir {
             return b.is_dir.cmp(&a.is_dir);
         }
         a.name.to_lowercase().cmp(&b.name.to_lowercase())
     });
-    Ok(out)
 }
 
 fn resolve_samples_root() -> Result<PathBuf, String> {
