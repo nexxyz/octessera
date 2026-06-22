@@ -30,6 +30,7 @@ mod model_snapshot;
 mod options;
 mod sample_browser_menu;
 mod sense;
+mod sense_axis;
 mod synth_preset_items;
 mod system;
 mod types;
