@@ -410,14 +410,14 @@ System
 - 20 characters × 8 lines of text (5×7 font, 16px line height)
 - Top line: title bar (colored by section)
 - Canonical section colors: `L1: Life` = life color, `L2: Sense` = sense color, `L3: Voice` = voice color, `L4: Dance` = white, `System` = sepia.
-- Body lines 2-8: menu items with `@@` prefix on selected line, `*` prefix when editing; while browsing, selected value rows stay compact on one row (for example `@@ Cutoff 127`) instead of adding a separate value row
+- Body lines 2-8: menu items use a `> ` marker and inverted highlight on the selected row, and `* ` when editing; while browsing, selected value rows stay compact on one row (for example `> Cutoff 127`) instead of adding a separate value row
 - Native menu snapshots include rendered-row scroll metadata (`scrollOffset`, `totalRows`, `visibleRows`) for the current body window. Desktop renders this as a 1-2 px scrollbar inside the OLED body only when total rendered rows exceed visible body rows; it does not consume text columns and is omitted for splash/help/confirm overlays unless menu metadata is present.
 - Context help for every submenu, parameter, and action must resolve to a specific row from `resources/menu-help-texts.tsv`; generic fallback help is not allowed and native tests must fail on missing coverage.
 - Platform-sized menu/runtime limits such as part count, instrument count, sample slots, bus count, global FX slots, touch-FX concurrency, scan section counts, OLED size, and pan position count come from `resources/platform-capabilities.json`.
 - Splash graphics use provided logo assets: regular logo for startup/wakeup, sepia logo for sleep/shutdown.
-- Bottom-right corner: transport icon (`▶` / `⏸` / `■`)
+- Bottom-right corner: transport icon (`▶` / `⏸` / `■`), hidden while a footer toast is active
 - Transport flash: green (beat) or red (measure) border on play icon
-- Yellow event dot: briefly shown when notes fire
+- Yellow event dot: briefly shown when notes fire, hidden while a footer toast is active
 - Top-right audio load indicator: hidden when idle, yellow when DSP load is moderate or recent voice stealing occurred, red when DSP load is heavy
 - Toast text: displayed at bottom for feedback messages
 

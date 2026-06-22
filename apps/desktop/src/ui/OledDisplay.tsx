@@ -234,8 +234,14 @@ function drawSemanticOled(
   if (semantic.scroll) drawScrollbar(ctx, semantic.scroll);
 
   const footerY = 117;
-  ctx.fillStyle = semantic.visibleFooterToast ? "#d7ffe8" : "#334433";
-  ctx.fillText(semantic.visibleFooterToast || " ", 5, footerY, 90);
+  if (semantic.visibleFooterToast) {
+    ctx.fillStyle = "#d7ffe8";
+    ctx.fillText(semantic.visibleFooterToast, 5, footerY, 90);
+    return;
+  }
+
+  ctx.fillStyle = "#334433";
+  ctx.fillText(" ", 5, footerY, 90);
 
   ctx.fillStyle = semantic.transportFlash === "measure" ? "#ff3333" : semantic.transportFlash === "beat" ? "#33ff66" : "#d7ffe8";
   drawTransportIcon(ctx, semantic.transportIcon, 101, footerY + 1);

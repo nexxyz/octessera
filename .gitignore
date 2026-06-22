@@ -18,7 +18,6 @@ debug/
 .opencode/*
 !.opencode/agent/
 .opencode/agent/*
-!.opencode/agent/qa.md
 hardware/KiCAD/PCB.stl
 hardware/Mouser Cart with Components.pdf
 *.bak
