@@ -152,6 +152,10 @@ fn default_system_effect_help_key(effect: &str) -> Option<String> {
         "default.load" => Some("action:default_load".into()),
         "factory.load" => Some("action:factory_load".into()),
         "system.shutdown" => Some("action:system_shutdown".into()),
+        "system.hardwareTest" => Some("action:system_hardware_test".into()),
+        "system.updateCheck" => Some("action:system_update_check".into()),
+        "system.updateApply" => Some("action:system_update_apply".into()),
+        "system.rollback" => Some("action:system_rollback".into()),
         "dance.fx.map" => Some("action:fx_assign_enter".into()),
         _ => None,
     }

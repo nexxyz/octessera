@@ -103,6 +103,21 @@ Expected ownership:
 - `GPIO18`, `GPIO19`, and `GPIO21`: PCM/I2S alternate function.
 - `GPIO20`: GPIO input for OLED microSD card detect.
 
+## Verified Development Pi State
+
+The current development Pi at `pi@192.168.0.211` has been verified with `tools/pi-preflight.ps1`:
+
+- Raspberry Pi OS Lite aarch64, kernel `6.18.34+rpt-rpi-v8`.
+- Persistent journald enabled through `/var/log/journal`.
+- `dtparam=i2c_arm=on`, `dtparam=spi=on`, `dtparam=audio=off`, `enable_uart=0`, and `dtoverlay=i2s-dac-no20` active.
+- `/dev/i2c-1` and `/dev/spidev0.0` exist and are accessible to user `pi`.
+- GPIO14 and GPIO15 are GPIO inputs, not UART.
+- GPIO18/19/21 are PCM/I2S and GPIO20 remains input for card detect.
+- ALSA exposes the PCM5102/HifiBerry-style DAC.
+- `rppal` `0.22.1` is required for this OS/kernel; older `0.14.1` failed model detection.
+- On-Pi fallback builds with `CARGO_BUILD_JOBS=1 cargo build --profile pi-dev -p cellsymphony-pi --features hardware-pi` succeed but take about 24 minutes on first build.
+- With no PCB/components attached, the normal app gets past OLED/model initialization and then fails clearly at Trellis I2C initialization. Use diagnostic mode for pre-hardware checks.
+
 ## What Can Be Tested Before The PCB Exists
 
 On this PC:
@@ -139,10 +154,11 @@ The fast path should not edit boot config on every run. Treat boot config as ima
 Development fast deploy from Windows:
 
 ```powershell
+./tools/build-pi-cross.ps1
 ./tools/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -LocalBinary <path-to-linux-arm-cellsymphony-pi> -NoTail
 ```
 
-Prefer a cross-built Linux ARM binary for fast iteration. With `-LocalBinary <path>`, the script uploads that binary, installs it under `/opt/cellsymphony/releases/dev`, restarts `cellsymphony.service`, and optionally tails logs.
+Prefer a cross-built Linux ARM binary from `tools/build-pi-cross.ps1` for fast iteration. With `-LocalBinary <path>`, `tools/deploy-pi-fast.ps1` uploads that binary, installs it under `/opt/cellsymphony/releases/dev`, restarts `cellsymphony.service`, and optionally tails logs.
 
 The fallback on-Pi path syncs the current working tree to `/home/pi/cellsymphony-dev`. Use `-BuildOnPi` to build there with the real `hardware-pi` feature. Pi Zero 2 W builds are memory constrained, so the script forces `CARGO_BUILD_JOBS=1` and defaults to `-BuildProfile pi-dev`, which avoids release LTO and single-codegen-unit pressure. Use `-BuildProfile release` only for production-like performance checks. Without `-LocalBinary` or `-BuildOnPi`, the script only syncs source and exits.
 
@@ -169,7 +185,7 @@ Use a simple A/B binary swap rather than a package manager at first:
 5. Restart `cellsymphony.service`.
 6. Keep the previous symlink target for rollback.
 
-Menu integration should be a native System action that emits a Pi-only platform effect, for example `system.updateCheck`, `system.updateApply`, and `system.rollback`. The Pi host adapter owns network/download/systemd behavior. The native runtime only owns menu state, confirmation, progress/status text, and platform-effect requests.
+Menu integration should be native System actions that emit Pi-only platform effects: `system.hardwareTest`, `system.updateCheck`, `system.updateApply`, and `system.rollback`. The Pi host adapter owns network/download/systemd behavior. The native runtime only owns menu state, confirmation, progress/status text, and platform-effect requests.
 
 ## Hardware Test Harness Plan
 

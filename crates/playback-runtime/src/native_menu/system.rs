@@ -72,6 +72,34 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                 ],
             ),
             group(
+                "Diagnostics",
+                vec![action_item(
+                    "Hardware Test",
+                    "system.hardwareTest",
+                    NativeMenuAction::PlatformEffect("system.hardwareTest".into()),
+                )],
+            ),
+            group(
+                "Updates",
+                vec![
+                    action_item(
+                        "Check",
+                        "system.updateCheck",
+                        NativeMenuAction::PlatformEffect("system.updateCheck".into()),
+                    ),
+                    action_item(
+                        "Apply",
+                        "system.updateApply",
+                        NativeMenuAction::PlatformEffect("system.updateApply".into()),
+                    ),
+                    action_item(
+                        "Rollback",
+                        "system.rollback",
+                        NativeMenuAction::PlatformEffect("system.rollback".into()),
+                    ),
+                ],
+            ),
+            group(
                 "Sound",
                 vec![
                     number_item(

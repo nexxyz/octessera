@@ -1433,7 +1433,7 @@
             ],
             "width": 8
           },
-          "stepRate": "1/16"
+          "stepRate": "1/8"
         },
         "l2": {
           "eventEnabled": true,

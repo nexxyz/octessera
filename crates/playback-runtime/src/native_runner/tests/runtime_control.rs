@@ -309,7 +309,7 @@ fn trigger_probability_grid_editor_cycles_cell_row_and_column() {
 #[test]
 fn system_sound_menu_updates_global_sound_config() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 1];
+    runner.menu.state.stack = vec![5, 3];
     runner.menu.state.cursor = 1;
     runner.menu.state.editing = true;
     runner

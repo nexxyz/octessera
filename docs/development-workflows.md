@@ -99,7 +99,7 @@ cargo check --target aarch64-unknown-linux-gnu -p cellsymphony-hal --features pi
 
 ## Pi Hardware Build
 
-Preferred fast deploy path: cross-build a Linux ARM binary, then upload it with `tools/deploy-pi-fast.ps1 -LocalBinary <path>`. Cross-building the hardware Pi app from Windows requires an ARM Linux sysroot and cross `pkg-config` setup for ALSA. Without that, `alsa-sys` will fail before linking.
+Preferred fast path: run `./tools/build-pi-cross.ps1` to produce a Linux ARM binary, then upload it with `./tools/deploy-pi-fast.ps1 -LocalBinary <path>`. Cross-building from Windows still requires an ARM Linux sysroot and cross `pkg-config` setup for ALSA; if that is missing, the helper fails with a direct setup error.
 
 On a Pi or properly configured cross environment:
 

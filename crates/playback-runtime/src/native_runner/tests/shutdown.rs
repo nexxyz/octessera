@@ -7,7 +7,7 @@ fn system_menu_shutdown_emits_shutdown_effect_and_splash() {
     runner.oled_splash_text.clear();
     runner.oled_splash_until = None;
     runner.menu.state.stack = vec![5];
-    runner.menu.state.cursor = 4;
+    runner.menu.state.cursor = 6;
 
     let opened = runner
         .send(HostMessage::DeviceInput {

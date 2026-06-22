@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn cursor_only_navigation_does_not_apply_menu_values() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 1];
+    runner.menu.state.stack = vec![5, 3];
     runner.ui.master_volume = 12;
 
     let messages = runner
@@ -40,7 +40,7 @@ fn cursor_only_navigation_does_not_apply_group_browsing_side_effects() {
 fn entering_group_does_not_apply_group_side_effects() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![5];
-    runner.menu.state.cursor = 2;
+    runner.menu.state.cursor = 4;
     runner.sync_source = SyncSource::External;
 
     let messages = runner
@@ -49,7 +49,7 @@ fn entering_group_does_not_apply_group_side_effects() {
         })
         .unwrap();
 
-    assert_eq!(runner.menu.state.stack, vec![5, 2]);
+    assert_eq!(runner.menu.state.stack, vec![5, 4]);
     assert_eq!(runner.sync_source, SyncSource::External);
     assert_eq!(
         snapshot_from(&messages)["settings"]["midi"]["syncMode"],
@@ -182,14 +182,14 @@ fn bool_menu_items_edit_like_two_option_enums() {
 
     for _ in 0..5 {
         let _ = runner.send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
+            input: json!({ "type": "encoder_turn", "delta": 4, "id": "main" }),
         });
     }
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
     });
     let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
+        input: json!({ "type": "encoder_turn", "delta": 4, "id": "main" }),
     });
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
@@ -206,7 +206,7 @@ fn bool_menu_items_edit_like_two_option_enums() {
     assert!(!runner.midi_enabled);
 
     let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+        input: json!({ "type": "encoder_turn", "delta": 3, "id": "main" }),
     });
     assert!(runner.midi_enabled);
 
@@ -236,7 +236,7 @@ fn system_sound_master_volume_edit_via_menu() {
         input: json!({ "type": "encoder_press", "id": "main" }),
     });
     let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+        input: json!({ "type": "encoder_turn", "delta": 3, "id": "main" }),
     });
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
@@ -266,7 +266,7 @@ fn system_sound_master_volume_edit_via_menu() {
 #[test]
 fn fn_aux_binds_selected_param_and_aux_turn_edits_it() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 1];
+    runner.menu.state.stack = vec![5, 3];
     runner.menu.state.cursor = 0;
 
     let _ = runner
@@ -304,7 +304,7 @@ fn fn_aux_binds_selected_param_and_aux_turn_edits_it() {
 #[test]
 fn fn_aux_binds_selected_action_and_aux_press_executes_it() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 2];
+    runner.menu.state.stack = vec![5, 4];
     runner.menu.state.cursor = 1;
 
     let _ = runner
@@ -350,7 +350,7 @@ fn edit_marker_uses_compact_star_prefix() {
         input: json!({ "type": "encoder_press", "id": "main" }),
     });
     let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+        input: json!({ "type": "encoder_turn", "delta": 3, "id": "main" }),
     });
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
@@ -375,14 +375,14 @@ fn midi_sync_mode_edits_through_menu() {
 
     for _ in 0..5 {
         let _ = runner.send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
+            input: json!({ "type": "encoder_turn", "delta": 4, "id": "main" }),
         });
     }
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
     });
     let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
+        input: json!({ "type": "encoder_turn", "delta": 4, "id": "main" }),
     });
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
@@ -434,7 +434,7 @@ fn system_menu_refresh_list_emits_store_list_effect() {
 #[test]
 fn system_menu_midi_panic_emits_panic_effect() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 2];
+    runner.menu.state.stack = vec![5, 4];
     runner.menu.state.cursor = 1;
 
     let opened = runner

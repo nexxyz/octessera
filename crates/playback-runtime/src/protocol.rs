@@ -110,6 +110,10 @@ pub enum RuntimePlatformEffect {
     },
     MidiPanic,
     Shutdown,
+    HardwareTest,
+    UpdateCheck,
+    UpdateApply,
+    Rollback,
     SampleListRequest {
         #[serde(rename = "instrumentSlot")]
         instrument_slot: usize,

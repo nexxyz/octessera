@@ -380,6 +380,22 @@ impl HostAdapter for PiPlaybackHostAdapter<'_> {
                 self.shutdown_requested = true;
                 return Ok(Vec::new());
             }
+            RuntimePlatformEffect::HardwareTest => {
+                println!("system.hardwareTest requested (planned guided hardware diagnostic)");
+                return Ok(Vec::new());
+            }
+            RuntimePlatformEffect::UpdateCheck => {
+                println!("system.updateCheck requested (placeholder)");
+                return Ok(Vec::new());
+            }
+            RuntimePlatformEffect::UpdateApply => {
+                println!("system.updateApply requested (placeholder)");
+                return Ok(Vec::new());
+            }
+            RuntimePlatformEffect::Rollback => {
+                println!("system.rollback requested (placeholder)");
+                return Ok(Vec::new());
+            }
             RuntimePlatformEffect::SampleListRequest {
                 instrument_slot,
                 sample_slot,

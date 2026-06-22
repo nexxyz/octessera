@@ -49,6 +49,10 @@ impl NativeRunner {
                 .map(|name| RuntimePlatformEffect::StoreDeletePreset { name: name.into() }),
             "midi.panic" => Some(RuntimePlatformEffect::MidiPanic),
             "system.shutdown" => Some(RuntimePlatformEffect::Shutdown),
+            "system.hardwareTest" => Some(RuntimePlatformEffect::HardwareTest),
+            "system.updateCheck" => Some(RuntimePlatformEffect::UpdateCheck),
+            "system.updateApply" => Some(RuntimePlatformEffect::UpdateApply),
+            "system.rollback" => Some(RuntimePlatformEffect::Rollback),
             action if action.starts_with("midi.output:") => {
                 let id = action.strip_prefix("midi.output:").unwrap_or_default();
                 Some(RuntimePlatformEffect::MidiSelectOutput {
@@ -106,6 +110,15 @@ impl NativeRunner {
             ("Confirm MIDI", "Send MIDI panic?".into())
         } else if action_type == "system.shutdown" {
             ("Confirm Shutdown", "Shut down cellSymphony?".into())
+        } else if action_type == "system.hardwareTest" {
+            ("Confirm Hardware Test", "Run the hardware test?".into())
+        } else if action_type == "system.updateApply" {
+            ("Confirm Update", "Apply the update now?".into())
+        } else if action_type == "system.rollback" {
+            (
+                "Confirm Rollback",
+                "Rollback to the previous release?".into(),
+            )
         } else if let Some(rest) = action_type.strip_prefix("synth.preset:") {
             let preset = rest.split(':').nth(1).unwrap_or("preset");
             ("Confirm Synth", format!("Load synth preset {preset}?"))

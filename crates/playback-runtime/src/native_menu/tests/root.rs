@@ -68,11 +68,19 @@ fn system_submenu_uses_abbreviated_path_and_section_colors() {
     assert_eq!(snapshot.path, "SYS");
     assert_eq!(
         snapshot.lines,
-        vec!["> Saves", "  Sound", "  MIDI", "  UI", "  !Shutdown"]
+        vec![
+            "> Saves",
+            "  Diagnostics",
+            "  Updates",
+            "  Sound",
+            "  MIDI",
+            "  UI",
+            "  !Shutdown"
+        ]
     );
     assert_eq!(
         snapshot.colors,
-        vec![0xB50D, 0xB50D, 0xB50D, 0xB50D, 0xB50D]
+        vec![0xB50D, 0xB50D, 0xB50D, 0xB50D, 0xB50D, 0xB50D, 0xB50D]
     );
     assert_eq!(snapshot.selected_row, Some(0));
 }

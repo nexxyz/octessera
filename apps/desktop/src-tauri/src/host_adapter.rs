@@ -316,6 +316,10 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                 self.shutdown_requested = true;
                 Ok(vec![])
             }
+            RuntimePlatformEffect::HardwareTest
+            | RuntimePlatformEffect::UpdateCheck
+            | RuntimePlatformEffect::UpdateApply
+            | RuntimePlatformEffect::Rollback => Ok(vec![]),
             RuntimePlatformEffect::SampleListRequest {
                 instrument_slot,
                 sample_slot,

@@ -136,7 +136,7 @@ fn midi_output_menu_selects_dynamic_port() {
             },
         })
         .unwrap();
-    runner.menu.state.stack = vec![5, 2, 2];
+    runner.menu.state.stack = vec![5, 4, 2];
     runner.menu.state.cursor = 1;
 
     let messages = runner
@@ -155,7 +155,7 @@ fn midi_output_menu_selects_dynamic_port() {
 #[test]
 fn entering_midi_port_groups_requests_port_lists() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 2];
+    runner.menu.state.stack = vec![5, 4];
     runner.menu.state.cursor = 2;
 
     let messages = runner
@@ -170,7 +170,7 @@ fn entering_midi_port_groups_requests_port_lists() {
             if effects == &vec![RuntimePlatformEffect::MidiListOutputsRequest]
     )));
 
-    runner.menu.state.stack = vec![5, 2];
+    runner.menu.state.stack = vec![5, 4];
     runner.menu.state.cursor = 3;
     let messages = runner
         .send(HostMessage::DeviceInput {

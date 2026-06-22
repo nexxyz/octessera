@@ -378,6 +378,12 @@ System
 │   │   └── Auto Save: [on | off]    ← auto-persists settled config after cooldown
 │   ├── Factory (group)
 │   │   └── Load Fact. Default: (action)
+├── Diagnostics (group)
+│   └── Hardware Test: (action)       ← confirms, then runs pre-hardware Pi checks
+├── Updates (group)
+│   ├── Check: (action)               ← read-only update status request
+│   ├── Apply: (action)               ← confirms before applying the staged update
+│   └── Rollback: (action)            ← confirms before switching back to the previous release
 ├── Sound (group)                     ← merged: Audio + Sound controls
 │   ├── Master Vol: [0..100] step 1  default 73
 │   ├── Note Length: [30..2000] step 10 ms  default 120
@@ -403,6 +409,8 @@ System
 │   └── Button Brightness: [10..100] step 5   default 75 (bar display when Numeric Display is bar or bar+numbers)
 └── Shutdown: (action)                ← confirm, then show shutdown splash and exit/poweroff
 ```
+
+Diagnostics is a pre-hardware Pi check, and the update actions are native placeholders for OTA flow control: `Check` is unconfirmed, while `Apply` and `Rollback` confirm before handing off to the Pi host adapter.
 
 ## OLED Display
 

@@ -1,4 +1,5 @@
 mod audio;
+mod diagnostics;
 mod encoder_queue;
 mod host_adapter;
 mod input;
@@ -36,6 +37,14 @@ const HARDWARE_EVENT_BUDGET: usize = 16;
 fn main() {
     let _ = simple_logger::init();
     println!("Cell Symphony - Pi native runtime");
+
+    if diagnostics::diagnostic_requested() {
+        std::process::exit(if diagnostics::run_pre_hardware_diagnostics() {
+            0
+        } else {
+            1
+        });
+    }
 
     let (_i2c_bus, mut oled, mut trellis, mut neokey, _dac) = init_hardware();
     let audio = init_audio();
