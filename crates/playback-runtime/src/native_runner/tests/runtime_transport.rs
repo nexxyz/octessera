@@ -94,6 +94,43 @@ fn startup_playback_resets_scan_accumulators() {
 }
 
 #[test]
+fn scanning_sequencer_emits_scanned_notes_with_state_notes_disabled() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        behavior_id: "sequencer".into(),
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    runner.transport = RuntimeTransportState::Playing;
+    runner.sense_parts[0].scan_mode = "scanning".into();
+    runner.sense_parts[0].scan_axis = "rows".into();
+    runner.sense_parts[0].scan_unit = "1/16".into();
+    runner.sense_parts[0].state_notes_enabled = false;
+    runner.sense_parts[0].scanned_slot = 0;
+    runner.sense_parts[0].scanned_action = "note_on".into();
+    runner.refresh_active_mapping_config();
+    runner.refresh_active_interpretation_profile();
+    runner
+        .engine
+        .set_interpretation_profile(runner.interpretation_profile.clone());
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
+        })
+        .unwrap();
+
+    let messages = runner
+        .send(HostMessage::TransportPulseStep {
+            pulses: 6,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+
+    assert!(!musical_note_ons(&messages).is_empty());
+}
+
+#[test]
 fn stop_then_start_restarts_scanning_from_zero_accumulator() {
     let mut runner = configured_scanning_sequencer_runner();
 

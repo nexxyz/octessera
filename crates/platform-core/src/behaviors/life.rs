@@ -2,7 +2,6 @@ use crate::behavior::{
     BehaviorActionInput, BehaviorConfigItem, BehaviorConfigItemType, BehaviorContext,
     BehaviorRenderModel, CellTriggerType, DeviceInput,
 };
-use crate::events::MusicalEvent;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -79,7 +78,7 @@ pub fn on_input(state: LifeState, input: DeviceInput, _context: &mut BehaviorCon
     }
 }
 
-pub fn on_tick(state: LifeState, context: &mut BehaviorContext) -> LifeState {
+pub fn on_tick(state: LifeState, _context: &mut BehaviorContext) -> LifeState {
     let mut next_cells = state.cells.clone();
     let mut trigger_types = vec![CellTriggerType::None; CELL_COUNT];
 
@@ -101,16 +100,6 @@ pub fn on_tick(state: LifeState, context: &mut BehaviorContext) -> LifeState {
                 (false, false) => CellTriggerType::None,
             };
         }
-    }
-
-    let alive_count = next_cells.iter().filter(|cell| **cell).count();
-    if alive_count > 0 && alive_count % 12 == 0 {
-        context.emit(MusicalEvent::NoteOn {
-            channel: 0,
-            note: (60 + (alive_count % 12)) as u8,
-            velocity: 90,
-            duration_ms: Some(120),
-        });
     }
 
     let next_tick_counter = state.tick_counter + 1;
@@ -242,6 +231,33 @@ mod tests {
         assert!(next.cells[grid_index(3, 3)]);
         assert!(next.cells[grid_index(3, 4)]);
         assert!(!next.cells[grid_index(2, 3)]);
+        assert!(context.emitted_events.is_empty());
+    }
+
+    #[test]
+    fn twelve_live_cells_do_not_emit_direct_notes() {
+        let mut state = init(Value::Null).unwrap();
+        for (x, y) in [
+            (1, 1),
+            (2, 1),
+            (1, 2),
+            (2, 2),
+            (5, 1),
+            (6, 1),
+            (5, 2),
+            (6, 2),
+            (1, 5),
+            (2, 5),
+            (1, 6),
+            (2, 6),
+        ] {
+            state.cells[grid_index(x, y)] = true;
+        }
+        let mut context = BehaviorContext::new(120.0);
+
+        let next = on_tick(state, &mut context);
+
+        assert_eq!(next.cells.iter().filter(|cell| **cell).count(), 12);
         assert!(context.emitted_events.is_empty());
     }
 

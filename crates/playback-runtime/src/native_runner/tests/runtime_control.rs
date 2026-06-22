@@ -11,9 +11,42 @@ fn factory_load_applies_native_factory_without_loading_user_default() {
     assert_eq!(runner.part_behavior_ids[1], "sequencer");
     assert_eq!(runner.part_behavior_ids[2], "none");
     assert_eq!(runner.part_algorithm_step_pulses[1], 24);
+    assert_eq!(runner.sense_parts[1].scan_unit, "1/8");
     assert_eq!(runner.instruments[0].route, "fx_bus_1");
     assert_eq!(runner.instruments[1].name, "drums");
     assert_eq!(runner.toast.as_ref().unwrap().message, "Factory loaded");
+
+    runner.sense_parts[1].scan_mode = "scanning".into();
+    runner.select_active_part(1).unwrap();
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
+        })
+        .unwrap();
+    runner.select_active_part(0).unwrap();
+    runner.send(HostMessage::MidiRealtimeStart).unwrap();
+
+    let first = runner
+        .send(HostMessage::TransportPulseStep {
+            pulses: 6,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+    assert!(musical_note_ons(&first).is_empty());
+
+    let second = runner
+        .send(HostMessage::TransportPulseStep {
+            pulses: 6,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+    assert!(musical_note_ons(&second)
+        .iter()
+        .any(|(channel, _)| *channel == 1));
 }
 
 #[test]

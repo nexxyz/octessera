@@ -1,5 +1,5 @@
 {
-  "activeBehavior": "sequencer",
+  "activeBehavior": "life",
   "mappingConfig": {
     "activate": {
       "action": "note_on",
@@ -46,8 +46,8 @@
     "startingMidiNote": 60
   },
   "runtimeConfig": {
-    "activeBehavior": "sequencer",
-    "activePartIndex": 1,
+    "activeBehavior": "life",
+    "activePartIndex": 0,
     "autoSaveDefault": false,
     "auxAutoMapEnabled": true,
     "auxBindings": {
@@ -1359,12 +1359,12 @@
               false,
               false
             ],
-            "generation": 345,
+            "generation": 545,
             "height": 8,
             "randomCellsPerTick": 0,
             "randomTickInterval": 1,
             "spawnStep": 0,
-            "tickCounter": 345,
+            "tickCounter": 545,
             "triggerTypes": [
               "none",
               "none",

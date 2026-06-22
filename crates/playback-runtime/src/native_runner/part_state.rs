@@ -51,7 +51,7 @@ impl NativeRunner {
         };
         let mut profile = self.interpretation_profile.clone();
         profile.event.enabled = sense.event_enabled;
-        profile.state.enabled = sense.state_notes_enabled;
+        profile.state.enabled = sense.state_notes_enabled || sense.scan_mode == "scanning";
         let sections = if sense.scan_sections <= 1 {
             None
         } else {

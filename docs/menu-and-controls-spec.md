@@ -593,6 +593,7 @@ When a behavior enables immediate input-transition interpretation, `platform-cor
 | `scanned` | Scanning layer | Cell found active during scan (only in "scanning" mode) |
 
 Scan mode "none" generates NO `scanned` triggers. Only "scanning" mode (column/row) generates `scanned` triggers.
+`State Notes` only controls non-scan state-note events; `scanned` triggers remain active while scanning.
 
 ## Maintenance Rule
 

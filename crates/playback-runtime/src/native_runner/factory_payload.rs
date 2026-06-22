@@ -26,6 +26,7 @@ pub(super) fn native_factory_payload() -> Value {
             sense.scanned_action = "note_on".into();
             sense.scanned_empty_slot = 1;
             sense.scanned_empty_action = "note_off".into();
+            sense.scan_unit = "1/8".into();
         } else {
             sense.event_enabled = false;
             sense.activate_action = "none".into();

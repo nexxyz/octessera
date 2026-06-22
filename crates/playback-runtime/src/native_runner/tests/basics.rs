@@ -45,6 +45,38 @@ fn checked_in_default_restores_sequencer_grid_state() {
 }
 
 #[test]
+fn checked_in_default_aligns_life_and_scanned_drum_first_beat() {
+    let payload: Value =
+        serde_json::from_str(include_str!("../../../../../config/default.json")).unwrap();
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+
+    runner.apply_config_payload(payload).unwrap();
+    runner.send(HostMessage::MidiRealtimeStart).unwrap();
+
+    let first = runner
+        .send(HostMessage::TransportPulseStep {
+            pulses: 6,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+    assert!(musical_note_ons(&first).is_empty());
+
+    let second = runner
+        .send(HostMessage::TransportPulseStep {
+            pulses: 6,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+    let notes = musical_note_ons(&second);
+    assert!(notes.iter().any(|(channel, _)| *channel == 0));
+    assert!(notes.iter().any(|(channel, _)| *channel == 1));
+}
+
+#[test]
 fn sequencer_behavior_is_native_and_paintable() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
