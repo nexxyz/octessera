@@ -20,6 +20,7 @@ mod shutdown;
 mod snapshot_runtime;
 mod step_rates;
 mod store;
+mod trigger_gates;
 
 fn snapshot_from(messages: &[RunnerMessage]) -> Value {
     messages
