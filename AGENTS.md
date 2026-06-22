@@ -57,6 +57,7 @@ Cell Symphony is a pnpm workspace plus Cargo workspace built around a native Rus
 - Fallbacks are acceptable only for real external compatibility cases such as old configs, disconnected MIDI devices, or missing files/resources, and should preserve safety with a user-visible status when practical.
 - Account for the current OS when choosing commands or tooling.
 - If the user corrects an earlier instruction, follow the latest instruction.
+- Rebuild the portable desktop exe after significant changes that affect desktop-visible behavior, native runtime behavior, audio behavior, config/default payloads, Tauri host integration, or runtime contracts. Do not rebuild it for Rust-only changes that are clearly internal and not desktop/runtime/audio observable, such as isolated tests, docs, formatting, refactors with no behavior change, or Pi/HAL-only work. When unsure whether a change is observable through the desktop app, rebuild the portable exe.
 
 ## Working Style
 
@@ -73,6 +74,7 @@ Cell Symphony is a pnpm workspace plus Cargo workspace built around a native Rus
 - Verification: `corepack pnpm run typecheck`, `corepack pnpm -r test`, `corepack pnpm -r lint`, `corepack pnpm -r format:check`, `corepack pnpm run quality:audit`
 - Rust checks: `cargo fmt --all --check`, `cargo test -p platform-core -p playback-runtime -p realtime-engine -p cellsymphony-desktop`, `cargo clippy -p platform-core -p playback-runtime -p realtime-engine -p cellsymphony-desktop --all-targets -- -D warnings`
 - Desktop build smoke check: `corepack pnpm --filter @cellsymphony/desktop tauri:build:ci`
+- Portable desktop exe: `corepack pnpm --filter @cellsymphony/desktop tauri:build:exe` writes `apps/desktop/dist-desktop/CellSymphony.exe`
 - Capabilities: `corepack pnpm run capabilities:generate`, `corepack pnpm run capabilities:check`
 - Windows Pi builds use HAL stubs by default; real Pi builds use `-p cellsymphony-pi --features hardware-pi` or the cross-build workflow.
 - Pre-push hook: `.githooks/pre-push` runs lint, typecheck, format checks, tests, file-length checks, and `cargo clippy`.

@@ -28,6 +28,16 @@ CI smoke build without bundling:
 corepack pnpm --filter @cellsymphony/desktop tauri:build:ci
 ```
 
+Portable desktop executable:
+
+```bash
+corepack pnpm --filter @cellsymphony/desktop tauri:build:exe
+```
+
+The portable executable is copied to `apps/desktop/dist-desktop/CellSymphony.exe`.
+
+Rebuild it after significant changes that affect desktop-visible behavior, native runtime behavior, audio behavior, config/default payloads, Tauri host integration, or runtime contracts. Do not rebuild it for Rust-only changes that are clearly internal and not desktop/runtime/audio observable, such as isolated tests, docs, formatting, refactors with no behavior change, or Pi/HAL-only work. When unsure whether a change is observable through the desktop app, rebuild the portable exe.
+
 Release executable and NSIS installer:
 
 ```bash
