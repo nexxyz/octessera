@@ -267,7 +267,7 @@ impl NativeRunner {
         self.pending_menu_apply = None;
     }
 
-    fn flush_deferred_menu_apply_at(
+    pub(super) fn flush_deferred_menu_apply_at(
         &mut self,
         now: Instant,
     ) -> Result<Vec<crate::protocol::RunnerMessage>, String> {

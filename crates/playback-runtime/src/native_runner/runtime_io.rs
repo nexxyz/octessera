@@ -1,4 +1,5 @@
 use crate::protocol::{HostMessage, RunnerMessage};
+use std::time::Instant;
 
 use super::{
     wrap_help_text, DeviceInput, NativeHelpPopup, NativeRunner, NativeToast, RuntimeTransportState,
@@ -170,6 +171,7 @@ impl NativeRunner {
 
 impl super::CoreRunner for NativeRunner {
     fn send(&mut self, message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
+        let flush_time = Instant::now();
         let mut messages = match message {
             HostMessage::TransportPulseStep {
                 pulses,
@@ -183,7 +185,7 @@ impl super::CoreRunner for NativeRunner {
             HostMessage::MidiRealtimeClock { pulses } => self.send_midi_realtime_clock(pulses),
             HostMessage::RuntimeResult { result } => self.send_runtime_result(result),
         }?;
-        messages.extend(self.flush_deferred_menu_apply()?);
+        messages.extend(self.flush_deferred_menu_apply_at(flush_time)?);
         Ok(messages)
     }
 }
