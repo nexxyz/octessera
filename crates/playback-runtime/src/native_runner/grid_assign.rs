@@ -142,7 +142,7 @@ impl NativeRunner {
                 self.active_dance_mode = "none".into();
             }
             Some("L2: Sense") => {
-                self.menu.state.cursor = (self.active_part_index + 1).min(GRID_HEIGHT);
+                self.menu.state.cursor = (self.active_part_index + 2).min(GRID_HEIGHT + 1);
                 self.active_dance_mode = "none".into();
             }
             Some("L3: Voice") | Some("System") => {

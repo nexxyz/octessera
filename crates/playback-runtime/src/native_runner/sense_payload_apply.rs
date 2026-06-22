@@ -12,7 +12,7 @@ pub(super) fn apply_sense_payload(part: &mut NativeSensePart, payload: &Value) {
 }
 
 fn apply_scan_and_trigger_payload(part: &mut NativeSensePart, payload: &Value) {
-    assign_string(payload, "scanMode", &mut part.scan_mode);
+    assign_scan_mode(payload, &mut part.scan_mode);
     assign_string(payload, "scanAxis", &mut part.scan_axis);
     assign_string(payload, "scanUnit", &mut part.scan_unit);
     assign_string(payload, "scanDirection", &mut part.scan_direction);
@@ -40,6 +40,12 @@ fn apply_scan_and_trigger_payload(part: &mut NativeSensePart, payload: &Value) {
         &mut part.trigger_probability_high_pct,
         100,
     );
+}
+
+fn assign_scan_mode(payload: &Value, target: &mut String) {
+    if let Some(value) = payload.get("scanMode").and_then(Value::as_str) {
+        *target = if value == "immediate" { "none" } else { value }.into();
+    }
 }
 
 fn apply_mapping_payload(part: &mut NativeSensePart, payload: &Value) {

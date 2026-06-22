@@ -13,6 +13,7 @@ type SemanticOledState = {
   selectedRow: number;
   lineColors: number[];
   barValues: Array<{ frac?: number; style?: string } | null>;
+  scroll: { offset: number; totalRows: number; visibleRows: number } | null;
   transportIcon: string;
   eventDotOn: boolean;
   transportFlash: string;
@@ -47,6 +48,12 @@ function useSemanticOledState(frame: RuntimeSnapshot): SemanticOledState {
   const selectedRow = Number((frame as any).selectedRow ?? -1);
   const lineColors = Array.isArray(frame.display.colors) ? frame.display.colors : [];
   const barValues = Array.isArray((frame.display as any).barValues) ? (frame.display as any).barValues : [];
+  const scrollOffset = Number((frame.display as any).scrollOffset ?? 0);
+  const totalRows = Number((frame.display as any).totalRows ?? 0);
+  const visibleRows = Number((frame.display as any).visibleRows ?? 0);
+  const scroll = totalRows > visibleRows && visibleRows > 0
+    ? { offset: Math.max(0, scrollOffset), totalRows, visibleRows }
+    : null;
   const transportIcon = String((frame as any).transportIcon ?? (frame.transport.playing ? "play" : "pause"));
   const eventDotOn = Boolean((frame as any).eventDotOn ?? false);
   const transportFlash = String((frame as any).transportFlash ?? "none");
@@ -98,6 +105,7 @@ function useSemanticOledState(frame: RuntimeSnapshot): SemanticOledState {
       selectedRow,
       lineColors,
       barValues,
+      scroll,
       transportIcon,
       eventDotOn,
       transportFlash,
@@ -119,6 +127,7 @@ function useSemanticOledState(frame: RuntimeSnapshot): SemanticOledState {
       transportFlash,
       transportIcon,
       barValues,
+      scroll,
       visibleFooterToast,
     ],
   );
@@ -214,14 +223,15 @@ function drawSemanticOled(
     const bar = semantic.barValues[index] && typeof semantic.barValues[index] === "object"
       ? semantic.barValues[index] as { frac?: number; style?: string }
       : null;
-    if (bar) drawBar(ctx, y, Number(bar.frac ?? 0), bar.style);
     if (selected) {
       ctx.fillStyle = color;
       ctx.fillRect(3, y - 1, 122, 11);
     }
+    if (bar) drawBar(ctx, y, Number(bar.frac ?? 0), bar.style);
     ctx.fillStyle = selected ? "#04120d" : color;
     ctx.fillText(line || " ", line.startsWith("  ") ? 4 : 6, y, 118);
   });
+  if (semantic.scroll) drawScrollbar(ctx, semantic.scroll);
 
   const footerY = 117;
   ctx.fillStyle = semantic.visibleFooterToast ? "#d7ffe8" : "#334433";
@@ -235,6 +245,21 @@ function drawSemanticOled(
     ctx.arc(121, footerY + 4, 3, 0, Math.PI * 2);
     ctx.fill();
   }
+}
+
+function drawScrollbar(ctx: CanvasRenderingContext2D, scroll: { offset: number; totalRows: number; visibleRows: number }) {
+  const bodyTop = 18;
+  const bodyHeight = 7 * 13 - 3;
+  const width = 2;
+  const x = OLED_WIDTH - width - 1;
+  const thumbHeight = Math.max(6, Math.round((scroll.visibleRows / scroll.totalRows) * bodyHeight));
+  const maxOffset = Math.max(1, scroll.totalRows - scroll.visibleRows);
+  const maxThumbY = bodyTop + bodyHeight - thumbHeight;
+  const y = bodyTop + Math.round((Math.min(scroll.offset, maxOffset) / maxOffset) * (maxThumbY - bodyTop));
+  ctx.fillStyle = "#1c3328";
+  ctx.fillRect(x, bodyTop, width, bodyHeight);
+  ctx.fillStyle = "#d7ffe8";
+  ctx.fillRect(x, y, width, thumbHeight);
 }
 
 function drawBackground(ctx: CanvasRenderingContext2D) {

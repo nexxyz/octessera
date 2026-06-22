@@ -46,10 +46,26 @@ pub(super) fn sample_browser_group(
                     )),
                 ));
             }
+        } else {
+            children.push(action_item(
+                "(loading...)",
+                format!("sample.open.{instrument_slot}.{sample_slot}"),
+                NativeMenuAction::PlatformEffect(format!(
+                    "sample.open:{instrument_slot}:{sample_slot}:"
+                )),
+            ));
         }
+    } else {
+        children.push(action_item(
+            "(loading...)",
+            format!("sample.open.{instrument_slot}.{sample_slot}"),
+            NativeMenuAction::PlatformEffect(format!(
+                "sample.open:{instrument_slot}:{sample_slot}:"
+            )),
+        ));
     }
     NativeMenuItem {
-        label: "Choose Sample".into(),
+        label: format!("S{} Browse", sample_slot + 1),
         key: Some(format!("sample.choose:{instrument_slot}:{sample_slot}")),
         value: NativeMenuValue::Group,
         children,

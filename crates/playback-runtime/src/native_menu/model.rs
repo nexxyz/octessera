@@ -331,6 +331,9 @@ impl NativeMenuModel {
     fn current_node(&self) -> &NativeMenuItem {
         let mut node = &self.root;
         for idx in &self.state.stack {
+            if node.children.is_empty() {
+                break;
+            }
             node = &node.children[*idx.min(&node.children.len().saturating_sub(1))];
         }
         node
@@ -344,6 +347,9 @@ impl NativeMenuModel {
     fn current_item_mut(&mut self) -> &mut NativeMenuItem {
         let mut node = &mut self.root;
         for idx in self.state.stack.clone() {
+            if node.children.is_empty() {
+                break;
+            }
             let bounded = idx.min(node.children.len().saturating_sub(1));
             node = &mut node.children[bounded];
         }

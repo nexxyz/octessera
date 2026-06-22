@@ -19,7 +19,7 @@ Platform capability source: `resources/platform-capabilities.json`; generated Ty
 | Fn + rightmost grid column | Toggle Dance | Opens `L4: Dance` and enables Dance page if currently off; exits Dance if already active.
 | Sample assign + Shift + cell | Row assign step | Applies current selected-cell assign step to the whole row.
 | Sample assign + combined modifier + cell | Column assign step | Applies current selected-cell assign step to the whole column.
-| Fn + Aux press | Bind aux mapping | Binds the focused bindable item as a custom aux mapping.
+| Fn + Aux press | Bind aux mapping | Binds the focused bindable value as that aux Turn target, or focused action as its `!` press target.
 
 ## Control Mapping
 
@@ -33,11 +33,11 @@ Platform capability source: `resources/platform-capabilities.json`; generated Ty
 | Shift + Back | Shift+Backspace / Shift+Esc | Clear grid (re-initialize behavior) |
 | Aux encoder 1-3 turn | (simulated) | Adjust bound turn mapping |
 | Aux encoder 1-3 press | (simulated) | Trigger bound press mapping |
-| Fn + Aux encoder press | Fn + (simulated) | Bind current item as a custom aux mapping |
+| Fn + Aux encoder press | Fn + (simulated) | Bind current value as Turn target or current action as `!` press target |
 | Shift + Fn | Shift+Ctrl | Combined modifier; acts as its own logical button and disables Fn/Shift functions while both are held |
 | Combined modifier + Main press | Shift+Ctrl+Enter | Context help for highlighted entry |
-| Fn + leftmost grid column | Ctrl + leftmost grid column | Select active part (1..8); indicators show only while Fn is held (gray=available, green=active) |
-| Fn + rightmost grid column | Ctrl + rightmost grid column | Toggle L4 Dance performance layer |
+| Fn + leftmost grid column | Ctrl + leftmost grid column | Select active part (1..8); hold Fn to see part indicators |
+| Fn + rightmost grid column | Ctrl + rightmost grid column | Select/activate L4 Dance page; hold Fn to see page indicators |
 | Sample assign mode + Shift + cell press | Shift + cell | Apply current assign toggle/level step to entire row |
 | Sample assign mode + combined modifier + cell press | Shift+Ctrl + cell | Apply current assign toggle/level step to entire column |
 
@@ -125,8 +125,9 @@ L2: Sense
 │   │       └── action tree...               ← behavior actions, sample assign, selected FX map-to-grid
 │   ├── Aux 2 (group)
 │   └── Aux 3 (group)
+├── Events when paused: [on | off]         default on; when on, grid input may still emit events while transport is stopped/paused
 ├── P1: ... (group)                              ← one group per part
-│   ├── Scan Mode: [immediate | scanning]
+│   ├── Scan Mode: [none | scanning]
 │   ├── Scan Axis: [rows | columns]           ← visible when scanning
 │   ├── Scan Unit: [1/16, 1/8, 1/4, 1/2, 1/1] ← visible when scanning
 │   ├── Scan Direction: [forward | reverse]    ← visible when scanning
@@ -202,20 +203,21 @@ L2: Sense
 ```
 L3: Voice
 ├── Instruments (group)
-│   ├── Instrument 1..8 (group)                ← compact label e.g. `I1: synth`, `I2: drums` via instrumentLabel()
+│   ├── Instrument 1..8 (group)                ← compact overview label e.g. `I1: synth direct`, `I2: samp B1`, `I3: midi ch1`
 │   │   ├── Type: [none | synth | sampler | midi]
 │   │   ├── Note Behavior: [oneshot | hold] default oneshot
 │   │   ├── Synth (group, visible when type=synth)
 │   │   │   ├── Preset > Load (group)      ← per-slot synth preset load with confirm
-│   │   │   ├── Oscillator (group)
-│   │   │   │   ├── Osc 1 (group)          ← Wave, Octave, Level, Detune, Pulse Width
-│   │   │   │   └── Osc 2 (group)          ← same sub-items
-│   │   │   ├── Filter (group)             ← flat: Type, Cutoff, Res, Env Amt, Key Track, Envelope
-│   │   │   └── Volume (group)             ← Amp (Gain, Vel Sens) + Envelope (ADSR)
-│   │   ├── Sample (group, visible when type=sample)
+│   │   │   ├── Osc 1 (group)              ← Wave, Octave, Level, Detune, Pulse Width
+│   │   │   ├── Osc 2 (group)              ← same sub-items
+│   │   │   ├── Filter (group)             ← Type, Cutoff, Res, Env Amt, Key Track
+│   │   │   ├── Volume (group)             ← Gain, Vel Sens
+│   │   │   ├── Amp Env (group)            ← ADSR loudness contour
+│   │   │   └── Filter Env (group)         ← ADSR filter contour
+│   │   ├── Sampler (group, visible when type=sampler)
 │   │   │   ├── Sample Slot: [1..8]
-│   │   │   ├── Choose Sample (group)      ← browses `samples/` tree (wav only)
-│   │   │   ├── !1-Assign (action)         ← enters grid assignment mode for selected sample slot
+│   │   │   ├── S* Browse (group)          ← browses `samples/` tree (wav only)
+│   │   │   ├── Assign (action)            ← enters grid assignment mode for selected sample slot
 │   │   │   ├── Velocity Levels: [on | off]
 │   │   │   ├── Level High / Medium / Low: [1..127] (visible when Velocity Levels=on)
 │   │   │   ├── Base Velocity: [1..127]    ← used when Velocity Levels=off
@@ -229,13 +231,14 @@ L3: Voice
 │   │   │   ├── Route: [direct | fx_bus_1..fx_bus_N] default direct (N from platform capabilities)
 │   │   │   ├── Volume: [0..100] default 100
 │   │   │   └── Pan Pos: [0..32] quantized (33-position stereo scale; 16=center)
-│   │   ├── !Clone (action)               ← duplicates instrument config to next free slot
-│   │   ├── !Reset (action)               ← resets instrument to factory defaults
 │   │   ├── MIDI (group)
 │   │   │   ├── Enabled: [on | off]       default off
 │   │   │   └── Channel: [1..16]
 │   │   ├── Auto Name: [on | off]         ← on: name auto-derives from Type; off: name is manual text
-│   │   └── Name: (text, max 32)          ← display name; editing sets Auto Name off
+│   │   ├── Name: (text, max 32)          ← display name; editing sets Auto Name off
+│   │   └── Actions (group)
+│   │       ├── !Clone (action)           ← duplicates instrument config to next free slot, with confirmation
+│   │       └── !Reset (action)           ← resets instrument to factory defaults, with confirmation
 ├── FX Buses (group)
 │   ├── Bus 1..4 (group)
 │   │   ├── Slot 1 (group)
@@ -273,15 +276,18 @@ Routing semantics:
 
 Sample assignment mode semantics:
 
-- Enter via `L3: Voice > Instruments > Instrument N > Sample > Assign`
+- Enter via `L3: Voice > Instruments > Instrument N > Sampler > Assign`
 - Back exits assignment mode
+- Entering assignment mode shows a concise OLED toast (for example `Assign S1: grid`); Back continues to exit without changing mappings.
 - One sample assignment per cell (new assignment replaces the existing cell assignment)
 - With Velocity Levels ON, selected-slot cell presses cycle: `Off -> High(red) -> Medium(yellow) -> Low(green) -> Off`
 - With Velocity Levels OFF, selected-slot cell presses toggle: `Off <-> Assigned(white)`
 - Cells assigned to other sample slots are shown as dim white during assignment editing
 - Shift + cell applies the same toggle/step to the whole row
 - Combined modifier + cell applies the same toggle/step to the whole column
-- In `Choose Sample`, Space previews the highlighted wav file through the selected instrument slot (folders and `..` are no-op)
+- The sample browser menu is labeled with selected slot context (for example `S1 Browse`) and preserves the body rows as browser entries: `..`, `[folder]`, file rows, or `(empty)`.
+- Before directory entries arrive, the browser shows `(loading...)` instead of `(empty)`. Long highlighted names are clipped to the OLED row width rather than overlapping adjacent display areas.
+- In `S1 Browse`/sample browser menus, Space previews the highlighted wav file through the selected instrument slot (folders and `..` are no-op)
 - Sample preview and assigned sample playback both follow instrument route, pan, volume, bus FX, and master output gain.
 
 Part runtime behavior:
@@ -306,8 +312,8 @@ L4: Dance
 
 Dance layer behavior:
 
-- Fn + rightmost grid column selects and activates Dance pages by row: row 0 = mix, row 1 = pan, row 2 = fx, row 3 = trigger-gate, row 4 = xy. Lower rows are unused.
-- Fn + leftmost grid column selects the active part using grid Y directly (`y=0` = part 0) and exits the current Dance overlay without changing the saved Dance Page selection. Menu position is not changed by part selection.
+- Hold Fn to reveal navigation columns: the leftmost grid column selects the active part using grid Y directly (`y=0` = part 0), and the rightmost grid column selects and activates Dance pages by row: row 0 = mix, row 1 = pan, row 2 = fx, row 3 = trigger-gate, row 4 = xy. Lower rows are unused.
+- Fn + leftmost grid selection exits the current Dance overlay without changing the saved Dance Page selection. Menu position is not changed by part selection.
 - When Fn is held, the left grid column shows part-selection options and the right grid column shows Dance page options. The active part and saved Dance page are highlighted; parts whose behavior is not `none` have a dim indicator; `none` parts stay dark. All other cells (columns 1 through 6) are dimmed to 25% brightness to make the navigation columns unambiguous.
 - `mix`: each column is an instrument; y=0 mutes, y=7 sets 100%, intermediate rows quantize per-slot `Mixer > Volume`.
 - `mix` LEDs show the current volume marker in green.
@@ -315,15 +321,16 @@ Dance layer behavior:
 - `pan` writes the audible pan target: for `Route=direct` instruments it sets `Mixer > Pan Pos`; for bus-routed (`fx_bus_n`) instruments it sets the bus pan (`Mixer > Buses[n] > Pan Pos`) plus the per-instrument pan for state preservation. The marker color reflects the route: white for direct, bus color (purple/cyan/green/amber for bus 1-4) for bus-routed instruments. Multiple instruments on the same bus show synchronized markers at the bus pan position.
 - `pan` maps the 8 grid columns onto 7 two-cell marker positions: column 0 stores `0` and lights 0+1; column 1 stores `5` and lights 1+2; column 2 stores `11` and lights 2+3; columns 3 and 4 both store center `16` and light 3+4; column 5 stores `21` and lights 4+5; column 6 stores `27` and lights 5+6; column 7 stores `32` and lights 6+7.
 - `fx`: grid cells trigger mapped momentary effects. Press starts the mapped effect and release stops it.
-- `trigger-gate`: this page switches each part's live trigger mode instead of editing per-cell gates directly.
+- `trigger-gate`: this Dance page performs live trigger mode overrides for each part; it does not edit the saved per-cell probability map.
 - Stored per-part trigger probability data lives in `L2: Sense > Pn > Trigger Prob.`.
-- `Map Probability Grid` enters a four-state grid editor for the selected part. Cell cycle is `zero -> low -> high -> full -> zero`; `Shift+grid` applies to a row; `Shift+Fn+grid` applies to a column.
+- `Map Probability Grid` edits the saved four-state probability map for the selected part. Cell cycle is `zero -> low -> high -> full -> zero`; `Shift+grid` applies to a row; `Shift+Fn+grid` applies to a column.
 - Probability-map editor LEDs: black = `0%`, red = `low`, yellow = `high`, green = `100%`.
 - `L2: Sense > Aux Mappings` exposes root-level menu-based assignment for aux encoder turn and click bindings plus an `Auto Map` toggle.
+- `L2: Sense > Events when paused` controls whether direct grid input can emit musical events while the transport is stopped/paused. Algorithm tick/evolution remains stopped either way.
 - `L2: Sense > Pn > Mappings` exposes explicit per-part assignment for X/Y param-mod slots.
 - The `Slot` and aux `Turn` target pickers use the same shared parameter browser as `L4: Dance > X/Y Pad`; no separate parameter tree should diverge from that browser.
 - Aux `Click` uses a dedicated action browser for click-bindable actions.
-- Existing hardware shortcuts remain valid: Shift+grid still assigns X/Y param-mod slots and Fn+aux press binds the currently highlighted menu parameter or action as a custom aux mapping.
+- Existing hardware shortcuts remain valid: Shift+grid still assigns X/Y param-mod slots and Fn+aux press binds the currently highlighted menu parameter as a Turn target or action as a `!` press target.
 - Trigger-gate Dance layout uses rows as parts with the same orientation as Fn part navigation: bottom row = part 0, top row = highest part.
 - Dance columns `0..2` set that row's part mode: `0%` (red), `custom` (yellow), `100%` (green). Selected mode is bright; the other two are dim.
 - Dance columns `3..4` are an unassigned dark gap.
@@ -331,6 +338,7 @@ Dance layer behavior:
 - Trigger filtering resolves per-part mode as follows: `zero` blocks all triggers, `full` passes all triggers, `custom` uses the stored per-cell probability map with that part's `Low Prob` and `High Prob` thresholds.
 - `Fn+Play` toggles the active part between `0%` and its previously active trigger mode without rewriting the stored probability map. On desktop this is `Fn+Space`.
 - FX cells are mapped from the flattened `L4: Dance` FX page controls: select an `FX Type`, edit its visible parameters, then select `Map to Grid` and press a grid cell. The effect type, target, and current parameter values are stored on that cell. Mapping `none` clears a cell.
+- Entering FX grid assignment shows a concise `Map FX: ...` toast; Back exits assignment without changing stored cells.
 - FX assignments include a `Target` (default `master`). Targets are listed as `master` first, then FX buses, then instruments. Platform-core resolves grid semantics into audio commands; desktop forwards those commands without interpreting Dance/grid meaning; Rust applies the realtime DSP.
 - Target insertion points: `instrument_n` is applied on the instrument's outgoing signal before routing/pan; `fx_bus_n` is applied on the bus outgoing signal after bus slot FX; `master` is applied after the final mix.
 - FX concurrency is fixed by platform capability at 4. When all slots are active, additional assigned cells gray out and do not respond until a slot frees.
@@ -341,7 +349,7 @@ Dance layer behavior:
 - FX LED colours are yellow for stutter, cyan for freeze, orange for filter_sweep, and magenta for pitch_shift. Assigned inactive cells are dim, active cells are bright, and limit-blocked cells are gray.
 - Grid releases in Dance mode are consumed by the Dance layer and do not reach the active behavior engine.
 - Aux encoder bindings continue to target whichever menu item they were bound to; Dance page switching does not alter bindings.
-- `xy`: the full 8×8 grid acts as a continuous two-axis modulation surface. Pressing a grid cell normalizes its X,Y coordinates over 0–1 (full width/height, no margin). The normalized position modulates the per-part targets assigned in `L4: Dance > X/Y Pad > X/Y Axis`.
+- `xy`: the full 8×8 grid acts as a continuous two-axis modulation surface. Pressing a grid cell normalizes its X,Y coordinates over 0–1 (full width/height, no margin). The normalized position modulates the per-part targets assigned in `L4: Dance > X/Y Pad > X/Y Axis`. While pressed, the current touch cell is bright white; after release, `sample-hold` leaves a dim gray marker at the held value and `reset-center` returns the dim marker to center.
 - `xy` target selection walks the menu tree to present all mappable parameters (same set used by aux encoder binding and Sense X/Y axis modulation). Selecting a target stores the parameter key and value metadata per part (`parts[N].xy`).
 - `xy` modulation beats all other modulation sources: it is applied last in `applyModulationResult()`, after `applyParamModulation()`, overwriting the same runtime config keys.
 - `xy` grid LEDs: bright white on the touched cell while finger is down; dim gray on sample-hold (when `Release = sample-hold` and finger is lifted); rest of grid is dark.
@@ -402,7 +410,8 @@ System
 - 20 characters × 8 lines of text (5×7 font, 16px line height)
 - Top line: title bar (colored by section)
 - Canonical section colors: `L1: Life` = life color, `L2: Sense` = sense color, `L3: Voice` = voice color, `L4: Dance` = white, `System` = sepia.
-- Body lines 2-8: menu items with `@@` prefix on selected line, `*` prefix when editing
+- Body lines 2-8: menu items with `@@` prefix on selected line, `*` prefix when editing; while browsing, selected value rows stay compact on one row (for example `@@ Cutoff 127`) instead of adding a separate value row
+- Native menu snapshots include rendered-row scroll metadata (`scrollOffset`, `totalRows`, `visibleRows`) for the current body window. Desktop renders this as a 1-2 px scrollbar inside the OLED body only when total rendered rows exceed visible body rows; it does not consume text columns and is omitted for splash/help/confirm overlays unless menu metadata is present.
 - Context help for every submenu, parameter, and action must resolve to a specific row from `resources/menu-help-texts.tsv`; generic fallback help is not allowed and native tests must fail on missing coverage.
 - Platform-sized menu/runtime limits such as part count, instrument count, sample slots, bus count, global FX slots, touch-FX concurrency, scan section counts, OLED size, and pan position count come from `resources/platform-capabilities.json`.
 - Splash graphics use provided logo assets: regular logo for startup/wakeup, sepia logo for sleep/shutdown.
@@ -415,6 +424,7 @@ System
 Value editing semantics:
 
 - Number/enum/bool rows enter edit mode on main press
+- Browsing selected values are shown on the selected label row; edit mode uses a separate value-focused row for clarity.
 - Bool behaves like a 2-option enum (`off`/`on`) and changes on encoder turn, not immediate row press
 - Named target selectors (instrument slot, part index, mixer route) display their computed names via `formatDisplayValue()` (e.g. `I1: synth`, `P3: rain`, `fx_bus_2`)
 - When `Numeric Display` is `bar` or `bar+numbers`, bounded sound/control/behavior number items render with a smooth geometric bar (filled rectangle) alongside the numeric value
@@ -446,6 +456,8 @@ Overrides:
 - While sample assignment mode is active: grid shows assignment overlay (selected-slot colors, other-slot dim white, unassigned dark).
 - While any Dance Page (`mix`, `pan`, `fx`, `trigger-gate`, `xy`) is active: grid shows the Dance performance overlay instead of active behavior cells.
 - When Ghost Cells is on, inactive parts' active cells render as very dim green behind the active part. Active part cells and sample assignment overlays take priority.
+- Active context changes use OLED toast/status feedback, for example `Part: P3 rain` or `Dance: fx`; these toasts do not change LED overlay priority. Modal help/confirm displays keep display priority over context feedback.
+- Holding Shift, Fn, or Shift+Fn for more than one second without another mapped action shows a concise hint toast (`Shift: map/edit`, `Fn: parts/pages`, or `Help: Sh+Fn+Enter`). Startup uses the same chord wording: `Help: Sh+Fn+Enter`. Existing toasts, help/confirm dialogs, assignment overlays, and consumed mappings suppress the hint.
 
 ## Sectioned Scanning
 
@@ -471,8 +483,9 @@ Overrides:
   - turn slot: bound to value parameters (number/enum/bool)
   - press slot: bound to actions
 - Fn + aux press on a bindable item binds/overwrites the relevant custom slot:
-  - while editing a value item: binds turn slot
-  - while selecting an action item: binds press slot
+  - while editing a value item: binds Turn slot
+  - while selecting an action item: binds `!` press slot
+- In the Fn-held aux overlay, plain labels are turn targets and `!Label` entries are press actions; `/` means both slots are present for that encoder.
 - Regular aux press triggers the press slot action (if any)
 - Regular aux turn adjusts the turn slot value (if any)
 - When `Auto Map` is enabled, context-sensitive auto mappings take precedence over custom aux mappings for the active menu context.

@@ -178,6 +178,8 @@ impl NativeRunner {
         self.xy_touch = NativeXyTouch {
             x: x_value,
             y: y_value,
+            display_x: x.min(GRID_WIDTH - 1) as f32 / (GRID_WIDTH - 1) as f32,
+            display_y: y.min(GRID_HEIGHT - 1) as f32 / (GRID_HEIGHT - 1) as f32,
             active: true,
         };
         self.config_dirty = true;
@@ -188,6 +190,8 @@ impl NativeRunner {
             self.xy_touch = NativeXyTouch {
                 x: 0.5,
                 y: 0.5,
+                display_x: 0.5,
+                display_y: 0.5,
                 active: false,
             };
         } else {
@@ -222,6 +226,7 @@ impl NativeRunner {
             .unwrap_or(super::DEFAULT_ALGORITHM_STEP_PULSES);
         self.activate_engine(index)?;
         self.menu.rebuild(self.menu_config());
+        self.show_toast(self.active_part_context_toast(index));
         Ok(())
     }
 
@@ -293,6 +298,16 @@ impl NativeRunner {
         self.menu.state.cursor = 0;
         self.menu.state.editing = false;
         self.menu.rebuild(self.menu_config());
+        self.show_toast(format!("Dance: {}", dance_mode_label(next_mode)));
+    }
+
+    fn active_part_context_toast(&self, index: usize) -> String {
+        let label = self
+            .part_labels()
+            .get(index)
+            .cloned()
+            .unwrap_or_else(|| format!("P{}", index + 1));
+        format!("Part: {}", label.replace(": ", " "))
     }
 
     fn apply_trigger_gate_mode_to_all_parts(&mut self, mode: &str) {
@@ -330,6 +345,13 @@ impl NativeRunner {
                 offset: 0,
             });
         }
+    }
+}
+
+fn dance_mode_label(mode: &str) -> &str {
+    match mode {
+        "trigger-gate" => "trig",
+        other => other,
     }
 }
 

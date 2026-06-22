@@ -1,7 +1,9 @@
 use super::format::{
     format_item_bar_values, format_item_lines, section_color_for_label, section_color_from_path,
 };
-use super::{NativeMenuItem, NativeMenuModel, NativeMenuSnapshot, NativeMenuValue};
+use super::{
+    NativeMenuItem, NativeMenuModel, NativeMenuScrollMetadata, NativeMenuSnapshot, NativeMenuValue,
+};
 
 const MENU_BODY_ROWS: usize = 7;
 
@@ -14,7 +16,7 @@ impl NativeMenuModel {
             return empty_snapshot(path, section_color);
         }
         let root_level = self.state.stack.is_empty();
-        let (start, end) = snapshot_window(self, siblings);
+        let (start, end, scroll_offset, total_rows) = snapshot_window(self, siblings);
         let mut lines = Vec::new();
         let mut colors = Vec::new();
         let mut bar_values = Vec::new();
@@ -48,11 +50,17 @@ impl NativeMenuModel {
         if lines.is_empty() {
             return empty_snapshot(path, section_color);
         }
+        let visible_rows = lines.len();
         NativeMenuSnapshot {
             path,
             lines,
             colors,
             bar_values,
+            scroll: Some(NativeMenuScrollMetadata {
+                scroll_offset,
+                total_rows,
+                visible_rows,
+            }),
             line_keys,
             line_actions,
             selected_row,
@@ -67,6 +75,11 @@ fn empty_snapshot(path: String, section_color: u16) -> NativeMenuSnapshot {
         lines: vec!["(empty)".into()],
         colors: vec![section_color],
         bar_values: vec![None],
+        scroll: Some(NativeMenuScrollMetadata {
+            scroll_offset: 0,
+            total_rows: 1,
+            visible_rows: 1,
+        }),
         line_keys: vec![None],
         line_actions: vec![None],
         selected_row: Some(0),
@@ -74,7 +87,10 @@ fn empty_snapshot(path: String, section_color: u16) -> NativeMenuSnapshot {
     }
 }
 
-fn snapshot_window(model: &NativeMenuModel, siblings: &[NativeMenuItem]) -> (usize, usize) {
+fn snapshot_window(
+    model: &NativeMenuModel,
+    siblings: &[NativeMenuItem],
+) -> (usize, usize, usize, usize) {
     let cursor = model.state.cursor.min(siblings.len().saturating_sub(1));
     let mut start = cursor;
     let mut end = cursor + 1;
@@ -104,7 +120,29 @@ fn snapshot_window(model: &NativeMenuModel, siblings: &[NativeMenuItem]) -> (usi
             break;
         }
     }
-    (start, end)
+    let scroll_offset = rendered_row_count_before(model, siblings, start);
+    let total_rows = rendered_row_count_before(model, siblings, siblings.len());
+    (start, end, scroll_offset, total_rows)
+}
+
+fn rendered_row_count_before(
+    model: &NativeMenuModel,
+    siblings: &[NativeMenuItem],
+    end: usize,
+) -> usize {
+    siblings
+        .iter()
+        .enumerate()
+        .take(end)
+        .map(|(index, item)| {
+            item_row_count(
+                model,
+                item,
+                index == model.state.cursor,
+                index == model.state.cursor && model.state.editing,
+            )
+        })
+        .sum()
 }
 
 fn item_row_count(
@@ -157,6 +195,8 @@ fn materialize_item_rows(
     bar_values.extend(format_item_bar_values(
         item,
         item_line_count,
+        selected,
+        selected && model.state.editing,
         &model.numeric_display_mode,
     ));
 }

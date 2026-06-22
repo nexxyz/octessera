@@ -162,9 +162,11 @@ fn apply_xy_touch_payload(runner: &mut NativeRunner, runtime: &Value) {
     };
     if let Some(x) = xy_touch.get("x").and_then(Value::as_f64) {
         runner.xy_touch.x = (x as f32).clamp(0.0, 1.0);
+        runner.xy_touch.display_x = runner.xy_touch.x;
     }
     if let Some(y) = xy_touch.get("y").and_then(Value::as_f64) {
         runner.xy_touch.y = (y as f32).clamp(0.0, 1.0);
+        runner.xy_touch.display_y = runner.xy_touch.y;
     }
     if let Some(active) = xy_touch.get("active").and_then(Value::as_bool) {
         runner.xy_touch.active = active;

@@ -24,7 +24,7 @@ fn synth_preset_load_changes_full_synth_payload_and_filter_resonance_is_editable
         Some("lowpass".into())
     );
 
-    runner.menu.state.stack = vec![2, 0, 0, 2, 1, 0];
+    runner.menu.state.stack = vec![2, 0, 0, 2, 1];
     runner.menu.state.cursor = 0;
     runner.menu.state.editing = true;
     runner.menu.turn(1);
@@ -42,31 +42,31 @@ fn synth_preset_load_changes_full_synth_payload_and_filter_resonance_is_editable
     runner.menu.turn(10);
     runner.apply_menu_state().unwrap();
 
-    runner.menu.state.stack = vec![2, 0, 0, 2, 2];
+    runner.menu.state.stack = vec![2, 0, 0, 2, 3];
     runner.menu.state.cursor = 0;
     runner.menu.state.editing = true;
     runner.menu.turn(1);
     runner.apply_menu_state().unwrap();
 
-    runner.menu.state.stack = vec![2, 0, 0, 2, 2];
+    runner.menu.state.stack = vec![2, 0, 0, 2, 3];
     runner.menu.state.cursor = 1;
     runner.menu.state.editing = true;
     runner.menu.turn(-2);
     runner.apply_menu_state().unwrap();
 
-    runner.menu.state.stack = vec![2, 0, 0, 2, 2];
+    runner.menu.state.stack = vec![2, 0, 0, 2, 3];
     runner.menu.state.cursor = 2;
     runner.menu.state.editing = true;
     runner.menu.turn(5);
     runner.apply_menu_state().unwrap();
 
-    runner.menu.state.stack = vec![2, 0, 0, 2, 3];
+    runner.menu.state.stack = vec![2, 0, 0, 2, 4];
     runner.menu.state.cursor = 1;
     runner.menu.state.editing = true;
     runner.menu.turn(-20);
     runner.apply_menu_state().unwrap();
 
-    runner.menu.state.stack = vec![2, 0, 0, 2, 4];
+    runner.menu.state.stack = vec![2, 0, 0, 2, 5];
     runner.menu.state.cursor = 0;
     runner.menu.state.editing = true;
     runner.menu.turn(5);

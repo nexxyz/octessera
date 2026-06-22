@@ -132,6 +132,69 @@ fn dance_xy_touch_persists_and_release_behavior_matches_config() {
 }
 
 #[test]
+fn dance_xy_overlay_marks_physical_touch_with_inverted_modulation() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.active_dance_mode = "xy".into();
+    runner.xy_invert_x = true;
+    runner.xy_invert_y = true;
+    runner.xy_release = "sample-hold".into();
+
+    let pressed = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 1, "y": 6 }),
+        })
+        .unwrap();
+    assert!((runner.xy_touch.x - 6.0 / 7.0).abs() < 0.0001);
+    assert!((runner.xy_touch.y - 1.0 / 7.0).abs() < 0.0001);
+    let snapshot = snapshot_from(&pressed);
+    let cells = snapshot["leds"]["cells"].as_array().unwrap();
+    assert_eq!(
+        cells[display_index(1, 6)],
+        json!({ "r": 255, "g": 255, "b": 255 })
+    );
+
+    let released = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_release", "x": 1, "y": 6 }),
+        })
+        .unwrap();
+    assert!(!runner.xy_touch.active);
+    let snapshot = snapshot_from(&released);
+    let cells = snapshot["leds"]["cells"].as_array().unwrap();
+    assert_eq!(
+        cells[display_index(1, 6)],
+        json!({ "r": 80, "g": 80, "b": 80 })
+    );
+}
+
+#[test]
+fn dance_xy_reset_center_overlay_returns_to_center() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.active_dance_mode = "xy".into();
+    runner.xy_release = "reset-center".into();
+
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 7, "y": 0 }),
+        })
+        .unwrap();
+    let released = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_release", "x": 7, "y": 0 }),
+        })
+        .unwrap();
+    let snapshot = snapshot_from(&released);
+    let cells = snapshot["leds"]["cells"].as_array().unwrap();
+
+    assert_eq!(runner.xy_touch.x, 0.5);
+    assert_eq!(runner.xy_touch.y, 0.5);
+    assert_eq!(
+        cells[display_index(4, 4)],
+        json!({ "r": 48, "g": 48, "b": 48 })
+    );
+}
+
+#[test]
 fn param_mod_binding_updates_native_runtime_config() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.param_mods[0].x[0] = Some(NativeParamBinding {

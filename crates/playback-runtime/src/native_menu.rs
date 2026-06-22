@@ -10,8 +10,8 @@ use options::{FX_BUS_SLOT_OPTIONS, GLOBAL_FX_SLOT_OPTIONS};
 use platform_core::{BUS_COUNT as FX_BUS_COUNT, GLOBAL_FX_SLOT_COUNT};
 #[cfg(test)]
 use sense::default_sense_part_config;
-use sense::l2_part_group;
-use system::{aux_mappings_group, system_group};
+use sense::{l2_part_group, l2_root_items};
+use system::system_group;
 use voice::{instrument_group, InstrumentMenuConfig};
 
 mod binding_behavior;
@@ -72,7 +72,8 @@ fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
                 label: "L2: Sense".into(),
                 key: None,
                 value: NativeMenuValue::Group,
-                children: std::iter::once(aux_mappings_group(&config))
+                children: l2_root_items(&config)
+                    .into_iter()
                     .chain(config.part_labels.iter().enumerate().map(|(index, label)| {
                         l2_part_group(
                             index,
@@ -103,9 +104,30 @@ fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
                                     .get(index)
                                     .map(String::as_str)
                                     .unwrap_or("synth");
+                                let route = config
+                                    .instrument_routes
+                                    .get(index)
+                                    .map(String::as_str)
+                                    .unwrap_or("direct");
+                                let sample_slot = config
+                                    .instrument_sample_slots
+                                    .get(index)
+                                    .copied()
+                                    .unwrap_or(0);
+                                let midi_channel = config
+                                    .instrument_midi_channels
+                                    .get(index)
+                                    .copied()
+                                    .unwrap_or(1);
                                 instrument_group(InstrumentMenuConfig {
                                     index,
-                                    label: label.clone(),
+                                    label: instrument_overview_label(
+                                        label,
+                                        kind,
+                                        route,
+                                        sample_slot,
+                                        midi_channel,
+                                    ),
                                     name: config
                                         .instrument_names
                                         .get(index)
@@ -122,11 +144,7 @@ fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
                                         .get(index)
                                         .map(String::as_str)
                                         .unwrap_or("oneshot"),
-                                    route: config
-                                        .instrument_routes
-                                        .get(index)
-                                        .map(String::as_str)
-                                        .unwrap_or("direct"),
+                                    route,
                                     volume: config
                                         .instrument_volumes
                                         .get(index)
@@ -137,11 +155,7 @@ fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
                                         .get(index)
                                         .copied()
                                         .unwrap_or(16),
-                                    sample_slot: config
-                                        .instrument_sample_slots
-                                        .get(index)
-                                        .copied()
-                                        .unwrap_or(0),
+                                    sample_slot,
                                     synth_config: config.instrument_synth_configs.get(index),
                                     synth_osc1_waveform: config
                                         .instrument_synth_osc1_waveforms
@@ -223,11 +237,7 @@ fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
                                         .get(index)
                                         .copied()
                                         .unwrap_or(false),
-                                    midi_channel: config
-                                        .instrument_midi_channels
-                                        .get(index)
-                                        .copied()
-                                        .unwrap_or(1),
+                                    midi_channel,
                                     midi_velocity: config
                                         .instrument_midi_velocity
                                         .get(index)
@@ -256,6 +266,22 @@ fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
             },
             system_group(&config, sync_index),
         ],
+    }
+}
+
+fn instrument_overview_label(
+    base_label: &str,
+    kind: &str,
+    route: &str,
+    sample_slot: usize,
+    midi_channel: u8,
+) -> String {
+    let prefix = base_label.split_whitespace().next().unwrap_or(base_label);
+    match kind {
+        "sampler" => format!("{prefix} samp B{}", sample_slot + 1),
+        "midi" => format!("{prefix} midi ch{midi_channel}"),
+        "none" => format!("{prefix} none"),
+        _ => format!("{prefix} synth {route}"),
     }
 }
 

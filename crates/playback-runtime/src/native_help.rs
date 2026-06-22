@@ -61,6 +61,11 @@ fn menu_help_entries_cached() -> &'static Vec<NativeHelpEntry> {
     ENTRIES.get_or_init(parse_menu_help_entries)
 }
 
+#[cfg(test)]
+pub(crate) fn native_help_entries_for_tests() -> &'static Vec<NativeHelpEntry> {
+    menu_help_entries_cached()
+}
+
 fn parse_menu_help_entries() -> Vec<NativeHelpEntry> {
     MENU_HELP_TSV
         .lines()

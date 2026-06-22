@@ -118,6 +118,8 @@ fn dance_xy_binding_updates_native_runtime_config() {
     runner.xy_touch = NativeXyTouch {
         x: 1.0,
         y: 0.5,
+        display_x: 1.0,
+        display_y: 0.5,
         active: true,
     };
     runner.xy_x_binding = Some(NativeParamBinding {
@@ -181,6 +183,8 @@ fn xy_binding_can_drive_sense_fx_bus_and_global_fx_params() {
     runner.xy_touch = NativeXyTouch {
         x: 1.0,
         y: 1.0,
+        display_x: 1.0,
+        display_y: 1.0,
         active: true,
     };
     runner.fx_buses[0].slot1_type = "delay".into();

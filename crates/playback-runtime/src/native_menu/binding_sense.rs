@@ -22,7 +22,7 @@ pub(super) fn sense_binding_group(
                         None,
                         None,
                         None,
-                        vec!["immediate", "scanning"],
+                        vec!["none", "scanning"],
                         target,
                     ),
                     binding_action(

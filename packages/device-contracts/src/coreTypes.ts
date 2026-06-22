@@ -33,6 +33,9 @@ export type DisplayFrame = {
   toast?: string;
   colors?: number[];
   barValues?: Array<{ frac: number; numChars: number; style?: "marker" | string } | null>;
+  scrollOffset?: number | null;
+  totalRows?: number | null;
+  visibleRows?: number | null;
 };
 
 export type OledFrame = {

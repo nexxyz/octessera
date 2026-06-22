@@ -9,7 +9,7 @@ pub(super) fn format_item_lines(
     if item.label.is_empty() {
         return vec![String::new()];
     }
-    match &item.value {
+    let lines = match &item.value {
         NativeMenuValue::Group => vec![format_menu_line(&item.label, selected)],
         NativeMenuValue::Action(_) => vec![format_menu_line(&format!("!{}", item.label), selected)],
         NativeMenuValue::Enum {
@@ -45,12 +45,18 @@ pub(super) fn format_item_lines(
         NativeMenuValue::Text { value, cursor, .. } => {
             format_text_lines(&item.label, value, *cursor, selected, editing)
         }
-    }
+    };
+    lines
+        .into_iter()
+        .map(|line| clip_menu_value(&line, 20))
+        .collect()
 }
 
 pub(super) fn format_item_bar_values(
     item: &NativeMenuItem,
     item_line_count: usize,
+    selected: bool,
+    editing: bool,
     numeric_display_mode: &str,
 ) -> Vec<Option<NativeMenuBarValue>> {
     if numeric_display_mode == "numbers" {
@@ -68,6 +74,9 @@ pub(super) fn format_item_bar_values(
     if !should_use_number_bar(key) {
         return vec![None; item_line_count];
     }
+    if !selected {
+        return vec![None; item_line_count];
+    }
     let range = (max - min).max(1);
     let frac_pct = ((((value - min).clamp(0, range) as f32 / range as f32) * 100.0).round()) as u8;
     let bar = Some(NativeMenuBarValue {
@@ -83,10 +92,10 @@ pub(super) fn format_item_bar_values(
             None
         },
     });
-    if item_line_count > 1 {
+    if editing && item_line_count > 1 {
         vec![None, bar]
     } else {
-        vec![None]
+        vec![bar]
     }
 }
 
@@ -308,6 +317,9 @@ fn format_param_lines(
 ) -> Vec<String> {
     let value = value.into();
     if selected {
+        if !editing {
+            return vec![format_selected_param_line(label, &value)];
+        }
         let marker = if editing { "* " } else { "" };
         vec![
             format_menu_line(&format!("{label}:"), true),
@@ -316,6 +328,22 @@ fn format_param_lines(
     } else {
         vec![format_menu_line(label, false)]
     }
+}
+
+fn format_selected_param_line(label: &str, value: &str) -> String {
+    if value.is_empty() {
+        return format_menu_line(label, true);
+    }
+    let width = 18;
+    let value_len = value.chars().count();
+    if value_len + 1 >= width {
+        return format_menu_line(&clip_menu_value(value, width), true);
+    }
+    let label_width = width - value_len - 1;
+    format_menu_line(
+        &format!("{} {value}", clip_menu_value(label, label_width)),
+        true,
+    )
 }
 
 fn format_text_lines(
@@ -327,6 +355,12 @@ fn format_text_lines(
 ) -> Vec<String> {
     let display = if value.is_empty() { "(empty)" } else { value };
     if selected {
+        if !editing {
+            return vec![format_menu_line(
+                &format!("{label} {}", clip_menu_value(display, 22)),
+                true,
+            )];
+        }
         let marker = if editing { "* " } else { "" };
         vec![
             format_menu_line(&format!("{label}:"), true),

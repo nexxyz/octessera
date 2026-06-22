@@ -10,14 +10,28 @@ use super::{
 impl NativeRunner {
     fn refresh_modifier_state(&mut self) {
         let was_fn_held = self.ui.fn_held;
+        let was_modifier_held =
+            self.ui.fn_held || self.ui.shift_held || self.ui.combined_modifier_held;
         self.ui.combined_modifier_held = self.ui.combined_button_pressed
             || (self.ui.fn_button_pressed && self.ui.shift_button_pressed);
         self.ui.fn_held = self.ui.fn_button_pressed && !self.ui.combined_modifier_held;
         self.ui.shift_held = self.ui.shift_button_pressed && !self.ui.combined_modifier_held;
+        let modifier_held = self.ui.fn_held || self.ui.shift_held || self.ui.combined_modifier_held;
         if self.ui.fn_held && !was_fn_held {
             self.fn_hold_started_at = Some(Instant::now());
         } else if !self.ui.fn_held {
             self.fn_hold_started_at = None;
+        }
+        if modifier_held && !was_modifier_held {
+            self.modifier_hint_started_at = Some(Instant::now());
+        } else if !modifier_held {
+            self.modifier_hint_started_at = None;
+        }
+    }
+
+    fn mark_modifier_consumed(&mut self) {
+        if self.ui.fn_held || self.ui.shift_held || self.ui.combined_modifier_held {
+            self.modifier_hint_started_at = None;
         }
     }
 
@@ -38,7 +52,13 @@ impl NativeRunner {
         if self.confirm_dialog.is_some() {
             return self.handle_confirm_device_input(input);
         }
-        match input {
+        let is_modifier_input = matches!(
+            input,
+            DeviceInput::ButtonShift { .. }
+                | DeviceInput::ButtonFn { .. }
+                | DeviceInput::ButtonCombinedModifier { .. }
+        );
+        let result = match input {
             DeviceInput::GridPress { x, y } => self.handle_grid_press_input(x, y),
             DeviceInput::GridRelease { x, y } => self.handle_grid_release_input(x, y),
             DeviceInput::BehaviorAction(_) => {
@@ -85,7 +105,11 @@ impl NativeRunner {
             DeviceInput::EncoderPress { id } => self.handle_encoder_press_input(id.as_deref()),
             DeviceInput::ButtonA { .. } => self.handle_button_a_input(),
             DeviceInput::Other => self.messages_with_snapshot(),
+        };
+        if !is_modifier_input {
+            self.mark_modifier_consumed();
         }
+        result
     }
 
     fn handle_confirm_device_input(

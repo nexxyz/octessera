@@ -157,6 +157,7 @@ impl NativeRunner {
             startup_splash_presented: false,
             last_interaction_at: now,
             fn_hold_started_at: None,
+            modifier_hint_started_at: None,
             midi_enabled: false,
             preset_names: Vec::new(),
             current_preset_name: None,
@@ -182,6 +183,8 @@ impl NativeRunner {
             xy_touch: NativeXyTouch {
                 x: 0.5,
                 y: 0.5,
+                display_x: 0.5,
+                display_y: 0.5,
                 active: false,
             },
             xy_release: "sample-hold".into(),
@@ -334,32 +337,6 @@ impl NativeRunner {
         self.pending_aux_turn_toast = None;
     }
 
-    pub(super) fn advance_toast_state(&mut self) {
-        let now = Instant::now();
-        if self.toast.is_some() && self.toast_expires_at.is_none() {
-            self.toast_expires_at = Some(now + Duration::from_millis(1800));
-        }
-        if self
-            .aux_turn_toast_cooldown_until
-            .is_some_and(|cooldown_until| now >= cooldown_until)
-        {
-            self.aux_turn_toast_cooldown_until = None;
-            if let Some(pending) = self.pending_aux_turn_toast.take() {
-                self.show_or_queue_aux_turn_toast(pending.message);
-            }
-        }
-        if self
-            .toast_expires_at
-            .is_some_and(|expires_at| now >= expires_at)
-        {
-            self.toast = None;
-            self.toast_expires_at = None;
-        }
-        if let Some(toast) = &mut self.toast {
-            toast.offset = toast.offset.saturating_add(1);
-        }
-    }
-
     pub(super) fn build_engine(
         behavior: NativeBehavior,
         behavior_config: Value,
@@ -455,7 +432,7 @@ impl NativeRunner {
                 self.oled_mode = NativeOledMode::Normal;
                 self.oled_splash_text.clear();
                 self.oled_splash_until = None;
-                self.show_toast("Help=Sh+Fn+Enter");
+                self.show_toast("Help: Sh+Fn+Enter");
                 return;
             }
             if self.ui.screen_sleep_seconds == 0 {

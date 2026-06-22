@@ -10,7 +10,7 @@ pub(super) fn apply_sense_binding_value(
     config_dirty: &mut bool,
 ) {
     let changed = match field {
-        "scanMode" => apply_string_value(&mut part.scan_mode, value, &["immediate", "scanning"]),
+        "scanMode" => apply_scan_mode_value(&mut part.scan_mode, value),
         "scanAxis" => apply_string_value(&mut part.scan_axis, value, &["rows", "columns"]),
         "scanUnit" => apply_string_value(
             &mut part.scan_unit,
@@ -90,6 +90,14 @@ pub(super) fn apply_sense_binding_value(
         _ => false,
     };
     *config_dirty |= changed;
+}
+
+fn apply_scan_mode_value(target: &mut String, value: Value) -> bool {
+    let Some(value) = value.as_str() else {
+        return false;
+    };
+    let value = if value == "immediate" { "none" } else { value };
+    apply_string_value(target, Value::String(value.into()), &["none", "scanning"])
 }
 
 fn apply_value_lane_binding_value(lane: &mut NativeValueLane, field: &str, value: Value) -> bool {

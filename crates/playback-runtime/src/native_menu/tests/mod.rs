@@ -177,6 +177,20 @@ fn fx_bus_and_global_fx_option_sets_do_not_overlap_except_none() {
     }
 }
 
+#[test]
+fn native_menu_snapshot_rows_fit_oled_width() {
+    for config in representative_help_configs() {
+        let mut menu = NativeMenuModel::new(config);
+        for cursor in 0..menu.root.children.len() {
+            menu.state.stack.clear();
+            menu.state.cursor = cursor;
+            for line in menu.snapshot().lines {
+                assert!(line.chars().count() <= 20, "row too wide: {line:?}");
+            }
+        }
+    }
+}
+
 fn representative_help_configs() -> Vec<NativeMenuConfig> {
     let mut configs = vec![config()];
 
@@ -185,6 +199,9 @@ fn representative_help_configs() -> Vec<NativeMenuConfig> {
     dynamic.preset_rename_source = Some("One".into());
     dynamic.midi_outputs = vec![("0".into(), "Out".into())];
     dynamic.midi_inputs = vec![("0".into(), "In".into())];
+    dynamic.instrument_labels = vec!["I1: sampler".into()];
+    dynamic.instrument_names = vec!["sampler".into()];
+    dynamic.instrument_types = vec!["sampler".into()];
     dynamic.sample_browser = Some(NativeSampleBrowserConfig {
         instrument_slot: 0,
         sample_slot: 0,
@@ -285,6 +302,39 @@ fn contains_aux_click_action(item: &NativeMenuItem, index: usize, action_key: &s
     item.children
         .iter()
         .any(|child| contains_aux_click_action(child, index, action_key))
+}
+
+fn find_item_by_key<'a>(item: &'a NativeMenuItem, key: &str) -> Option<&'a NativeMenuItem> {
+    if item.key.as_deref() == Some(key) {
+        return Some(item);
+    }
+    item.children
+        .iter()
+        .find_map(|child| find_item_by_key(child, key))
+}
+
+#[test]
+fn sample_browser_label_includes_selected_slot_context_without_body_rows() {
+    let mut cfg = config();
+    cfg.instrument_types[0] = "sampler".into();
+    cfg.instrument_sample_slots[0] = 2;
+    cfg.sample_browser = Some(NativeSampleBrowserConfig {
+        instrument_slot: 0,
+        sample_slot: 2,
+        dir: String::new(),
+        entries: vec![NativeSampleEntryConfig {
+            name: "Long Folder Name".into(),
+            path: "Long Folder Name".into(),
+            is_dir: true,
+        }],
+    });
+
+    let root = build_root(cfg);
+    let browser = find_item_by_key(&root, "sample.choose:0:2").unwrap();
+
+    assert_eq!(browser.label, "S3 Browse");
+    assert_eq!(browser.children[0].label, "..");
+    assert_eq!(browser.children[1].label, "[Long Folder Name]");
 }
 
 fn contains_aux_click_reset(item: &NativeMenuItem, index: usize) -> bool {

@@ -15,7 +15,7 @@ fn saved_step_rate_rehydrates_from_default_payload() {
 }
 
 #[test]
-fn per_part_step_rates_round_trip_and_drive_immediate_parts() {
+fn per_part_step_rates_round_trip_and_drive_non_scanning_parts() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         ..NativeRunnerConfig::default()
@@ -25,8 +25,8 @@ fn per_part_step_rates_round_trip_and_drive_immediate_parts() {
     runner.part_algorithm_step_pulses[0] = 6;
     runner.part_algorithm_step_pulses[1] = 24;
     runner.algorithm_step_pulses = 6;
-    runner.sense_parts[0].scan_mode = "immediate".into();
-    runner.sense_parts[1].scan_mode = "immediate".into();
+    runner.sense_parts[0].scan_mode = "none".into();
+    runner.sense_parts[1].scan_mode = "none".into();
     runner.sense_parts[0].stable_action = "note_on".into();
     runner.sense_parts[1].stable_action = "note_on".into();
     runner.refresh_active_mapping_config();

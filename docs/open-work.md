@@ -5,10 +5,11 @@ This file tracks current actionable work only. Completed-work history does not b
 ## Hardware Validation
 
 - Run the first physical Pi smoke test with the native Rust Pi app.
-- Validate NeoTrellis coordinate orientation, LED color priority, and full-frame stability on hardware.
-- Validate NeoKey button mapping and LED colors for Back, Space, Shift, Fn, and combined modifiers.
-- Validate all four encoder directions and push switches with direct GPIO quadrature decoding.
-- Validate SSD1351 OLED orientation, clipping, brightness, and text layout on the physical display.
+- OLED checklist: validate SSD1351 orientation, clipping, brightness, text layout, startup/help toast wording, help dialogs, confirm dialogs, and long sample-browser rows on the physical display.
+- NeoTrellis checklist: validate coordinate orientation, lower-left grid semantics, Dance Fn columns, overlay priority, XY marker position, sample/probability assignment colors, and full-frame stability on hardware.
+- NeoKey checklist: validate Back, Space, Shift, Fn, combined Shift+Fn, modifier-held hints, button LED colors, and help chord entry.
+- Encoders checklist: validate main encoder turn/press, all aux encoder directions, aux push switches, Fn+Aux binding, turn/press overlay indicators, and no-binding/not-active toasts.
+- Audio-adjacent UX checklist: validate audio-device startup status, sample preview feedback, sampler assignment feedback, Dance FX assignment feedback, MIDI panic/status, and user-visible errors without requiring full audio quality sign-off.
 - Validate PCM5102-class I2S output through the target DAC and ALSA device configuration.
 - Validate sample preview, loaded sample banks, and runtime audio config sync through the Pi host adapter.
 
@@ -26,7 +27,6 @@ This file tracks current actionable work only. Completed-work history does not b
 ## Product Follow-Ups
 
 - Signal path visualization is on hold due to other priorities.
-- Replace the Pi OLED placeholder renderer with the production snapshot renderer once hardware display orientation and spacing are verified.
 - Continue splitting oversized native runtime files when working in those areas instead of expanding them further.
 
 ## Quality Targets

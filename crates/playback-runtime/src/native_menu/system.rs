@@ -158,11 +158,6 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                 "UI",
                 vec![
                     bool_item("Ghost Cells", "ghostCells", config.ghost_cells),
-                    bool_item(
-                        "Input Events While Paused",
-                        "inputEventsWhilePaused",
-                        config.input_events_while_paused,
-                    ),
                     enum_item(
                         "Numeric Display",
                         "numericDisplayMode",

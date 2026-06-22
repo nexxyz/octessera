@@ -165,6 +165,8 @@ pub(super) struct PendingNativeToast {
 pub(super) struct NativeXyTouch {
     pub(super) x: f32,
     pub(super) y: f32,
+    pub(super) display_x: f32,
+    pub(super) display_y: f32,
     pub(super) active: bool,
 }
 
@@ -263,7 +265,7 @@ impl NativeInstrumentSlot {
 impl Default for NativeSensePart {
     fn default() -> Self {
         Self {
-            scan_mode: "immediate".into(),
+            scan_mode: "none".into(),
             scan_axis: "columns".into(),
             scan_unit: "1/16".into(),
             scan_direction: "forward".into(),

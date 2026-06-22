@@ -188,9 +188,10 @@ fn midi_input_effect_help_key(effect: &str) -> String {
 
 fn sample_effect_help_key(effect: &str) -> Option<String> {
     match effect {
-        value if value.starts_with("sample.open:") => Some("action:sample_browser_open".into()),
-        value if value.starts_with("sample.up:") => Some("action:sample_browser_up".into()),
-        value if value.starts_with("sample.pick:") => Some("action:sample_browser_pick".into()),
+        value if value.starts_with("sample.open:") => Some("action:sample.open".into()),
+        value if value.starts_with("sample.up:") => Some("action:sample.up".into()),
+        value if value.starts_with("sample.enter:") => Some("action:sample.enter".into()),
+        value if value.starts_with("sample.pick:") => Some("action:sample.pick".into()),
         value if value.starts_with("sample.preview:") => Some("action:sample_preview".into()),
         value if value.starts_with("sample.assign:") => Some("action:sample_assign_enter".into()),
         _ => None,

@@ -101,6 +101,7 @@ mod snapshot;
 mod state_types;
 mod store;
 mod synth_config;
+mod toast_state;
 mod trigger_probability_payload;
 mod velocity_curve;
 mod visual_utils;
@@ -216,6 +217,7 @@ pub struct NativeRunner {
     startup_splash_presented: bool,
     last_interaction_at: Instant,
     fn_hold_started_at: Option<Instant>,
+    modifier_hint_started_at: Option<Instant>,
     midi_enabled: bool,
     preset_names: Vec<String>,
     current_preset_name: Option<String>,

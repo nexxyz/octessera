@@ -41,6 +41,19 @@ fn snapshot_settings_include_complete_audio_config_shapes() {
 }
 
 #[test]
+fn runtime_snapshot_serializes_menu_scroll_metadata() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let _ = runner.menu.press();
+    runner.menu.state.cursor = 7;
+
+    let snapshot = runner.snapshot().unwrap();
+
+    assert_eq!(snapshot["display"]["scrollOffset"], 1);
+    assert_eq!(snapshot["display"]["totalRows"], 8);
+    assert_eq!(snapshot["display"]["visibleRows"], 7);
+}
+
+#[test]
 fn unbound_aux_inputs_show_toast_without_navigating_menu() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.aux_auto_map_enabled = false;
@@ -81,7 +94,7 @@ fn toasts_expire_after_timeout() {
 #[test]
 fn aux_turn_toast_cooldown_keeps_first_then_shows_latest() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![2, 0, 0, 2, 2];
+    runner.menu.state.stack = vec![2, 0, 0, 2, 3];
     runner.menu.state.cursor = 1;
 
     let first = runner

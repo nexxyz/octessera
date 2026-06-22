@@ -15,12 +15,16 @@ hardware/KiCAD/cellSymphony-backups/
 hardware/KiCAD/*.lck
 debug/
 *.zip
-.opencode/
+.opencode/*
+!.opencode/agent/
+.opencode/agent/*
+!.opencode/agent/qa.md
 hardware/KiCAD/PCB.stl
 hardware/Mouser Cart with Components.pdf
 *.bak
 *.orig
 .cargo-ok
 .cargo_vcs_info.json
+.slim/deepwork/
 apps/desktop/src-tauri/samples/
 tools/pi-image/stage4-cellsymphony/files/root/usr/

@@ -328,7 +328,18 @@ impl NativeRunner {
 
     fn apply_dance_xy_overlay(&self, leds: &mut [Value]) {
         self.dim_leds(leds, 4);
-        self.set_display_led(leds, 4, 4, json!({ "r": 180, "g": 180, "b": 180 }));
+        let x =
+            (self.xy_touch.display_x.clamp(0.0, 1.0) * (GRID_WIDTH - 1) as f32).round() as usize;
+        let y =
+            (self.xy_touch.display_y.clamp(0.0, 1.0) * (GRID_HEIGHT - 1) as f32).round() as usize;
+        let color = if self.xy_touch.active {
+            json!({ "r": 255, "g": 255, "b": 255 })
+        } else if self.xy_release == "sample-hold" {
+            json!({ "r": 80, "g": 80, "b": 80 })
+        } else {
+            json!({ "r": 48, "g": 48, "b": 48 })
+        };
+        self.set_display_led(leds, x, y, color);
     }
 
     fn param_mod_overlay_ready(&self) -> bool {

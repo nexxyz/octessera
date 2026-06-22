@@ -6,7 +6,7 @@ use super::{
 
 pub(super) fn default_sense_part_config() -> NativeSensePartConfig {
     NativeSensePartConfig {
-        scan_mode: "immediate".into(),
+        scan_mode: "none".into(),
         scan_axis: "rows".into(),
         scan_unit: "1/8".into(),
         scan_direction: "forward".into(),
@@ -81,8 +81,8 @@ pub(super) fn l2_part_group(
     let mut scanning_children = vec![enum_item(
         "Scan Mode",
         format!("{prefix}.scanMode"),
-        vec!["immediate", "scanning"],
-        selected_index(&["immediate", "scanning"], &sense.scan_mode),
+        vec!["none", "scanning"],
+        selected_index(&["none", "scanning"], &sense.scan_mode),
     )];
     if sense.scan_mode == "scanning" {
         scanning_children.extend(vec![
@@ -341,6 +341,17 @@ pub(super) fn l2_part_group(
             ),
         ],
     )
+}
+
+pub(super) fn l2_root_items(config: &NativeMenuConfig) -> Vec<NativeMenuItem> {
+    vec![
+        super::system::aux_mappings_group(config),
+        bool_item(
+            "Events when paused",
+            "inputEventsWhilePaused",
+            config.input_events_while_paused,
+        ),
+    ]
 }
 
 fn param_mod_axis_group(

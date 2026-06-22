@@ -77,10 +77,10 @@ fn keys_behavior_reports_momentary_grid_interaction() {
 }
 
 #[test]
-fn fresh_native_runner_uses_old_initial_sense_defaults() {
+fn fresh_native_runner_uses_initial_sense_defaults() {
     let runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
 
-    assert_eq!(runner.sense_parts[0].scan_mode, "immediate");
+    assert_eq!(runner.sense_parts[0].scan_mode, "none");
     assert_eq!(runner.sense_parts[0].scan_axis, "columns");
     assert_eq!(runner.sense_parts[0].scan_unit, "1/16");
     assert!(runner.sense_parts[0].event_enabled);

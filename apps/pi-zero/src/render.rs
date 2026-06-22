@@ -133,7 +133,19 @@ fn oled_signature(snapshot: &Value) -> u64 {
     hash_value(&mut hash, display.get("toast"));
     hash_value(&mut hash, display.get("title"));
     hash_value(&mut hash, display.get("lines"));
+    hash_value(&mut hash, display.get("colors"));
+    hash_value(&mut hash, display.get("barValues"));
+    hash_value(&mut hash, display.get("scrollOffset"));
+    hash_value(&mut hash, display.get("totalRows"));
+    hash_value(&mut hash, display.get("visibleRows"));
     hash_value(&mut hash, display.get("editing"));
+    hash_value(&mut hash, settings.get("autoSaveFlash"));
+    hash_value(&mut hash, settings.get("autoSaveFlashSerial"));
+    hash_value(&mut hash, snapshot.get("selectedRow"));
+    hash_value(&mut hash, snapshot.get("transportIcon"));
+    hash_value(&mut hash, snapshot.get("transportFlash"));
+    hash_value(&mut hash, snapshot.get("eventDotOn"));
+    hash_value(&mut hash, snapshot.get("cpuLoadRatio"));
     hash
 }
 
@@ -141,7 +153,11 @@ fn hash_value(hash: &mut u64, value: Option<&Value>) {
     match value.unwrap_or(&Value::Null) {
         Value::Null => mix_hash(hash, 0),
         Value::Bool(value) => mix_hash(hash, u64::from(*value)),
-        Value::Number(value) => mix_hash(hash, value.as_u64().unwrap_or(0)),
+        Value::Number(value) => {
+            for byte in value.to_string().as_bytes() {
+                mix_hash(hash, u64::from(*byte));
+            }
+        }
         Value::String(value) => {
             for byte in value.as_bytes() {
                 mix_hash(hash, u64::from(*byte));
@@ -187,17 +203,146 @@ fn oled_frame(snapshot: &Value) -> Vec<u8> {
             return frame;
         }
     }
-    let color = rgb565(scale([40, 80, 120], brightness));
-    for y in 0..128_usize {
-        for x in 0..128_usize {
-            if y < 8 || (x + y) % 31 == 0 {
-                let idx = (y * 128 + x) * 2;
-                frame[idx] = (color >> 8) as u8;
-                frame[idx + 1] = color as u8;
+    render_menu_frame(&mut frame, snapshot, brightness);
+    frame
+}
+
+#[rustfmt::skip]
+fn render_menu_frame(frame: &mut [u8], snapshot: &Value, brightness: f32) {
+    let display = snapshot.get("display").unwrap_or(&Value::Null);
+    let title = display.get("title").and_then(Value::as_str).unwrap_or_default();
+    let title_color = rgb565(scale([215, 255, 232], brightness));
+    let dim_color = rgb565(scale([28, 51, 40], brightness));
+    let text_color = rgb565(scale([215, 255, 232], brightness));
+    fill_rect(frame, 0, 0, 128, 16, rgb565(scale([6, 18, 13], brightness)));
+    draw_text_clipped(frame, title, 5, 5, 15, title_color);
+    draw_status_indicators(frame, snapshot, brightness);
+
+    let selected_row = snapshot.get("selectedRow").and_then(Value::as_u64).map(|value| value as usize);
+    if let Some(lines) = display.get("lines").and_then(Value::as_array) {
+        for (index, line) in lines.iter().take(7).enumerate() {
+            let line = line.as_str().unwrap_or_default();
+            let y = 18 + index * 13;
+            let color = display_color(display, index).unwrap_or(text_color);
+            let selected = selected_row == Some(index);
+            let bar = bar_frac(display, index);
+            if selected {
+                fill_rect(frame, 3, y - 1, 122, 11, color);
             }
+            if let Some(frac) = bar {
+                draw_bar(frame, 88, y + 2, frac, color, dim_color);
+            }
+            let text = if selected { rgb565(scale([4, 18, 13], brightness)) } else { color };
+            draw_text_clipped(frame, line, if line.starts_with("  ") { 4 } else { 6 }, y as i32, if bar.is_some() { 13 } else { 19 }, text);
         }
     }
-    frame
+    draw_scrollbar(frame, display, dim_color, text_color);
+    draw_footer(frame, snapshot, brightness);
+}
+
+fn bar_frac(display: &Value, index: usize) -> Option<f32> {
+    Some(
+        display
+            .get("barValues")?
+            .as_array()?
+            .get(index)?
+            .get("frac")?
+            .as_f64()?
+            .clamp(0.0, 1.0) as f32,
+    )
+}
+
+fn draw_bar(frame: &mut [u8], x: usize, y: usize, frac: f32, fill: u16, track: u16) {
+    let width = 34;
+    fill_rect(frame, x, y, width, 5, track);
+    fill_rect(
+        frame,
+        x,
+        y,
+        ((width as f32) * frac).round() as usize,
+        5,
+        fill,
+    );
+}
+
+fn display_color(display: &Value, index: usize) -> Option<u16> {
+    Some(
+        display
+            .get("colors")?
+            .as_array()?
+            .get(index)?
+            .as_u64()?
+            .min(u64::from(u16::MAX)) as u16,
+    )
+}
+
+#[rustfmt::skip]
+fn draw_status_indicators(frame: &mut [u8], snapshot: &Value, brightness: f32) {
+    let settings = snapshot.get("settings").unwrap_or(&Value::Null);
+    let save = settings.get("autoSaveFlash").and_then(Value::as_str).unwrap_or("none") == "flash";
+    let cpu = snapshot.get("cpuLoadRatio").and_then(Value::as_f64).unwrap_or(0.0);
+    let save_color = if save { [255, 243, 176] } else { [51, 68, 51] };
+    let cpu_color = if cpu >= 0.85 {
+        [255, 102, 102]
+    } else if cpu >= 0.6 {
+        [255, 209, 102]
+    } else {
+        [51, 85, 68]
+    };
+    draw_text(frame, "S", 108, 5, 1, rgb565(scale(save_color, brightness)));
+    draw_text(frame, "C", 117, 5, 1, rgb565(scale(cpu_color, brightness)));
+}
+
+#[rustfmt::skip]
+fn draw_scrollbar(frame: &mut [u8], display: &Value, track: u16, thumb: u16) {
+    let offset = display.get("scrollOffset").and_then(Value::as_u64).unwrap_or(0) as usize;
+    let total = display.get("totalRows").and_then(Value::as_u64).unwrap_or(0) as usize;
+    let visible = display.get("visibleRows").and_then(Value::as_u64).unwrap_or(0) as usize;
+    if total <= visible || visible == 0 {
+        return;
+    }
+    let body_top = 18;
+    let body_height = 88;
+    let thumb_height = ((visible * body_height) / total).max(6);
+    let max_offset = total.saturating_sub(visible).max(1);
+    let max_y = body_top + body_height - thumb_height;
+    let y = body_top + (offset.min(max_offset) * (max_y - body_top)) / max_offset;
+    fill_rect(frame, 125, body_top, 2, body_height, track);
+    fill_rect(frame, 125, y, 2, thumb_height, thumb);
+}
+
+#[rustfmt::skip]
+fn draw_footer(frame: &mut [u8], snapshot: &Value, brightness: f32) {
+    let display = snapshot.get("display").unwrap_or(&Value::Null);
+    let toast = display.get("toast").and_then(Value::as_str).unwrap_or_default();
+    let text = rgb565(scale([215, 255, 232], brightness));
+    if !toast.is_empty() {
+        let background = rgb565(scale([6, 18, 13], brightness));
+        fill_rect(frame, 0, 114, 128, 14, background);
+        draw_text_clipped(frame, toast, 5, 118, 17, text);
+        return;
+    }
+    draw_transport_icon(frame, snapshot, brightness);
+    if snapshot.get("eventDotOn").and_then(Value::as_bool).unwrap_or(false) {
+        let dot = rgb565(scale([255, 220, 70], brightness));
+        fill_rect(frame, 119, 119, 5, 5, dot);
+    }
+}
+
+#[rustfmt::skip]
+fn draw_transport_icon(frame: &mut [u8], snapshot: &Value, brightness: f32) {
+    let icon = match snapshot.get("transportIcon").and_then(Value::as_str).unwrap_or("stop") {
+        "play" => ">",
+        "pause" => "||",
+        _ => "[]",
+    };
+    let flash = snapshot.get("transportFlash").and_then(Value::as_str).unwrap_or("none");
+    let rgb = match flash {
+        "measure" => [255, 51, 51],
+        "beat" => [51, 255, 102],
+        _ => [215, 255, 232],
+    };
+    draw_text(frame, icon, 101, 118, 1, rgb565(scale(rgb, brightness)));
 }
 
 fn render_splash_frame(frame: &mut [u8], splash: &str, brightness: f32) {
@@ -281,26 +426,49 @@ fn draw_text(frame: &mut [u8], text: &str, x: i32, y: i32, scale: usize, color: 
     }
 }
 
+fn draw_text_clipped(frame: &mut [u8], text: &str, x: i32, y: i32, max_chars: usize, color: u16) {
+    let clipped = text.chars().take(max_chars).collect::<String>();
+    draw_text(frame, &clipped.to_uppercase(), x, y, 1, color);
+}
+
+#[rustfmt::skip]
 fn glyph_rows(ch: char) -> [u8; 7] {
     match ch {
+        '0' => [0x0E, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0E], '1' => [0x04, 0x0C, 0x04, 0x04, 0x04, 0x04, 0x0E],
+        '2' => [0x0E, 0x11, 0x01, 0x02, 0x04, 0x08, 0x1F], '3' => [0x1E, 0x01, 0x01, 0x0E, 0x01, 0x01, 0x1E],
+        '4' => [0x02, 0x06, 0x0A, 0x12, 0x1F, 0x02, 0x02], '5' => [0x1F, 0x10, 0x10, 0x1E, 0x01, 0x01, 0x1E],
+        '6' => [0x0E, 0x10, 0x10, 0x1E, 0x11, 0x11, 0x0E], '7' => [0x1F, 0x01, 0x02, 0x04, 0x08, 0x08, 0x08],
+        '8' => [0x0E, 0x11, 0x11, 0x0E, 0x11, 0x11, 0x0E], '9' => [0x0E, 0x11, 0x11, 0x0F, 0x01, 0x01, 0x0E],
         'A' => [0x0E, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11],
+        'B' => [0x1E, 0x11, 0x11, 0x1E, 0x11, 0x11, 0x1E],
         'C' => [0x0E, 0x11, 0x10, 0x10, 0x10, 0x11, 0x0E],
+        'D' => [0x1E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x1E],
         'E' => [0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x1F],
+        'F' => [0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x10],
         'G' => [0x0F, 0x10, 0x10, 0x13, 0x11, 0x11, 0x0F],
         'H' => [0x11, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11],
         'I' => [0x1F, 0x04, 0x04, 0x04, 0x04, 0x04, 0x1F],
-        'K' => [0x11, 0x12, 0x14, 0x18, 0x14, 0x12, 0x11],
+        'J' => [0x01, 0x01, 0x01, 0x01, 0x11, 0x11, 0x0E], 'K' => [0x11, 0x12, 0x14, 0x18, 0x14, 0x12, 0x11],
         'L' => [0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x1F],
         'M' => [0x11, 0x1B, 0x15, 0x15, 0x11, 0x11, 0x11],
         'N' => [0x11, 0x19, 0x15, 0x13, 0x11, 0x11, 0x11],
         'O' => [0x0E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E],
-        'P' => [0x1E, 0x11, 0x11, 0x1E, 0x10, 0x10, 0x10],
+        'P' => [0x1E, 0x11, 0x11, 0x1E, 0x10, 0x10, 0x10], 'Q' => [0x0E, 0x11, 0x11, 0x11, 0x15, 0x12, 0x0D],
         'R' => [0x1E, 0x11, 0x11, 0x1E, 0x14, 0x12, 0x11],
         'S' => [0x0F, 0x10, 0x10, 0x0E, 0x01, 0x01, 0x1E],
         'T' => [0x1F, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04],
-        'U' => [0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E],
-        'W' => [0x11, 0x11, 0x11, 0x15, 0x15, 0x15, 0x0A],
+        'U' => [0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E], 'V' => [0x11, 0x11, 0x11, 0x11, 0x11, 0x0A, 0x04],
+        'W' => [0x11, 0x11, 0x11, 0x15, 0x15, 0x15, 0x0A], 'X' => [0x11, 0x11, 0x0A, 0x04, 0x0A, 0x11, 0x11],
         'Y' => [0x11, 0x11, 0x0A, 0x04, 0x04, 0x04, 0x04],
+        'Z' => [0x1F, 0x01, 0x02, 0x04, 0x08, 0x10, 0x1F],
+        ':' => [0x00, 0x04, 0x04, 0x00, 0x04, 0x04, 0x00], '.' => [0x00, 0x00, 0x00, 0x00, 0x00, 0x0C, 0x0C],
+        '-' => [0x00, 0x00, 0x00, 0x1F, 0x00, 0x00, 0x00], '*' => [0x00, 0x15, 0x0E, 0x1F, 0x0E, 0x15, 0x00],
+        '+' => [0x00, 0x04, 0x04, 0x1F, 0x04, 0x04, 0x00], '/' => [0x01, 0x02, 0x02, 0x04, 0x08, 0x08, 0x10],
+        '(' => [0x02, 0x04, 0x08, 0x08, 0x08, 0x04, 0x02], ')' => [0x08, 0x04, 0x02, 0x02, 0x02, 0x04, 0x08],
+        '_' => [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1F], '#' => [0x0A, 0x1F, 0x0A, 0x0A, 0x1F, 0x0A, 0x00],
+        '@' => [0x0E, 0x11, 0x17, 0x15, 0x17, 0x10, 0x0E], '>' => [0x08, 0x04, 0x02, 0x01, 0x02, 0x04, 0x08],
+        '[' => [0x0E, 0x08, 0x08, 0x08, 0x08, 0x08, 0x0E], ']' => [0x0E, 0x02, 0x02, 0x02, 0x02, 0x02, 0x0E],
+        '|' => [0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04],
         _ => [0; 7],
     }
 }
@@ -316,58 +484,16 @@ fn brightness_scale(value: Option<&Value>) -> f32 {
         .unwrap_or(1.0)
 }
 
-fn scale(rgb: [u8; 3], factor: f32) -> [u8; 3] {
-    [
-        ((rgb[0] as f32) * factor).round().clamp(0.0, 255.0) as u8,
-        ((rgb[1] as f32) * factor).round().clamp(0.0, 255.0) as u8,
-        ((rgb[2] as f32) * factor).round().clamp(0.0, 255.0) as u8,
-    ]
-}
+#[rustfmt::skip]
+fn scale(rgb: [u8; 3], factor: f32) -> [u8; 3] { [
+    ((rgb[0] as f32) * factor).round().clamp(0.0, 255.0) as u8,
+    ((rgb[1] as f32) * factor).round().clamp(0.0, 255.0) as u8,
+    ((rgb[2] as f32) * factor).round().clamp(0.0, 255.0) as u8,
+] }
 
 fn rgb565(rgb: [u8; 3]) -> u16 {
     ((u16::from(rgb[0]) & 0xF8) << 8) | ((u16::from(rgb[1]) & 0xFC) << 3) | (u16::from(rgb[2]) >> 3)
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn led_frame_clamps_native_snapshot_values() {
-        let snapshot = json!({
-            "leds": { "cells": [{ "r": 300, "g": 7, "b": 8 }] }
-        });
-        let frame = led_frame(&snapshot).unwrap();
-        assert_eq!(frame[0], [255, 7, 8]);
-    }
-
-    #[test]
-    fn neokey_colors_cover_shift_fn_and_combined_modifier() {
-        let shifted = json!({
-            "display": { "off": false },
-            "transport": { "playing": false },
-            "settings": { "buttonBrightness": 100, "shiftHeld": true, "fnHeld": false, "combinedModifierHeld": false }
-        });
-        let combined = json!({
-            "display": { "off": false },
-            "transport": { "playing": false },
-            "settings": { "buttonBrightness": 100, "shiftHeld": false, "fnHeld": false, "combinedModifierHeld": true }
-        });
-
-        assert_eq!(neokey_colors(&shifted)[2], [180, 140, 0]);
-        assert_eq!(neokey_colors(&combined)[2], [0, 0, 180]);
-        assert_eq!(neokey_colors(&combined)[3], [0, 0, 180]);
-    }
-
-    #[test]
-    fn oled_frame_renders_splash_assets() {
-        let snapshot = json!({
-            "display": { "off": false, "splash": "startup", "toast": "cellSymphony is shutting down" },
-            "settings": { "displayBrightness": 100 }
-        });
-
-        let frame = oled_frame(&snapshot);
-        assert!(frame.iter().any(|byte| *byte != 0));
-    }
-}
+mod tests;

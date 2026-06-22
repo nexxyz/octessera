@@ -63,6 +63,31 @@ fn dance_page_fast_path_applies_immediately_without_deferred_flush() {
 }
 
 #[test]
+fn fn_grid_context_changes_show_oled_toasts() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.part_names[2] = "rain".into();
+
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+        })
+        .unwrap();
+    let part = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 0, "y": 2 }),
+        })
+        .unwrap();
+    assert_eq!(snapshot_from(&part)["display"]["toast"], "Part: P3 rain");
+
+    let dance = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 7, "y": 2 }),
+        })
+        .unwrap();
+    assert_eq!(snapshot_from(&dance)["display"]["toast"], "Dance: fx");
+}
+
+#[test]
 fn dance_fx_type_turn_is_deferred_until_flush() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.dance_mode = "fx".into();

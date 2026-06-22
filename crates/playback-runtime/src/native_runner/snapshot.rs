@@ -112,6 +112,9 @@ impl NativeRunner {
                 "lines": display.lines,
                 "colors": display.colors,
                 "barValues": display.bar_values,
+                "scrollOffset": display.scroll.as_ref().map(|scroll| scroll.scroll_offset),
+                "totalRows": display.scroll.as_ref().map(|scroll| scroll.total_rows),
+                "visibleRows": display.scroll.as_ref().map(|scroll| scroll.visible_rows),
                 "toast": toast,
                 "off": self.oled_mode == NativeOledMode::Off,
                 "splash": if self.oled_mode == NativeOledMode::Splash { self.oled_splash_text.clone() } else { String::new() },
@@ -342,7 +345,14 @@ struct DisplaySnapshot {
     lines: Vec<String>,
     colors: Vec<u16>,
     bar_values: Vec<Value>,
+    scroll: Option<DisplayScrollMetadata>,
     selected_row: Option<usize>,
+}
+
+struct DisplayScrollMetadata {
+    scroll_offset: usize,
+    total_rows: usize,
+    visible_rows: usize,
 }
 
 fn base_led_color(alive: bool, trigger: Option<platform_core::CellTriggerType>) -> Value {
@@ -370,6 +380,7 @@ fn confirm_dialog_display(confirm: &super::NativeConfirmDialog) -> DisplaySnapsh
         lines,
         colors: vec![0xFFFF; line_count],
         bar_values: vec![Value::Null; line_count],
+        scroll: None,
         selected_row: Some(
             confirm
                 .lines
@@ -395,6 +406,7 @@ fn help_popup_display(help: &super::NativeHelpPopup) -> DisplaySnapshot {
         lines,
         colors: vec![0xFFFF; line_count],
         bar_values: vec![Value::Null; line_count],
+        scroll: None,
         selected_row: Some(
             help.lines
                 .len()
@@ -411,6 +423,7 @@ fn overlay_display(title: String, lines: Vec<String>) -> DisplaySnapshot {
         lines,
         colors: vec![0xFFFF; line_count],
         bar_values: vec![Value::Null; line_count],
+        scroll: None,
         selected_row: None,
     }
 }
@@ -452,6 +465,11 @@ fn menu_display(
         lines,
         colors: menu.colors,
         bar_values,
+        scroll: menu.scroll.map(|scroll| DisplayScrollMetadata {
+            scroll_offset: scroll.scroll_offset,
+            total_rows: scroll.total_rows,
+            visible_rows: scroll.visible_rows,
+        }),
         selected_row: menu.selected_row,
     }
 }

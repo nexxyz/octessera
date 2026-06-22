@@ -30,11 +30,13 @@ impl NativeRunner {
         if let Some(rest) = action.strip_prefix("sample.assign:") {
             let (instrument_slot, sample_slot, _) = parse_sample_action(rest)?;
             self.sample_assign = Some((instrument_slot, sample_slot));
+            self.show_toast(format!("Assign S{}: grid", sample_slot + 1));
             return Ok(None);
         }
         if let Some(rest) = action.strip_prefix("trigger.probability.assign:") {
             if let Ok(part_index) = rest.parse::<usize>() {
                 self.trigger_probability_assign = Some(part_index.min(GRID_HEIGHT - 1));
+                self.show_toast(format!("Trig P{}: grid", part_index + 1));
             }
             return Ok(None);
         }

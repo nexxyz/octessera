@@ -81,10 +81,18 @@ pub struct NativeMenuSnapshot {
     pub lines: Vec<String>,
     pub colors: Vec<u16>,
     pub bar_values: Vec<Option<NativeMenuBarValue>>,
+    pub scroll: Option<NativeMenuScrollMetadata>,
     pub line_keys: Vec<Option<String>>,
     pub line_actions: Vec<Option<NativeMenuAction>>,
     pub selected_row: Option<usize>,
     pub selected_action: Option<NativeMenuAction>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NativeMenuScrollMetadata {
+    pub scroll_offset: usize,
+    pub total_rows: usize,
+    pub visible_rows: usize,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

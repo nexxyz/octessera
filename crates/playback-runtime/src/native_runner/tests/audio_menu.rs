@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn synth_gain_edits_into_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![2, 0, 0, 2, 3];
+    runner.menu.state.stack = vec![2, 0, 0, 2, 4];
     runner.menu.state.cursor = 0;
 
     let _ = runner

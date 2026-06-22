@@ -92,14 +92,14 @@ fn entering_l1_selects_active_part_row() {
 }
 
 #[test]
-fn entering_l2_selects_active_part_row_after_aux_mappings_group() {
+fn entering_l2_selects_active_part_row_after_global_rows() {
     let mut menu = NativeMenuModel::new(NativeMenuConfig {
         active_part_index: 2,
         ..config()
     });
     menu.turn(1);
     let _ = menu.press();
-    menu.state.cursor = 3;
+    menu.state.cursor = 4;
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "L2: Sense");
     assert_eq!(snapshot.selected_row, Some(3));
@@ -107,14 +107,16 @@ fn entering_l2_selects_active_part_row_after_aux_mappings_group() {
 }
 
 #[test]
-fn l2_starts_with_aux_mappings_and_part_rows_are_enterable() {
+fn l2_starts_with_global_rows_and_part_rows_are_enterable() {
     let mut menu = NativeMenuModel::new(config());
     menu.turn(1);
     let _ = menu.press();
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "L2: Sense");
     assert_eq!(snapshot.lines[0], "> Aux Mappings");
-    assert_eq!(snapshot.lines[1], "  P1: life");
+    assert_eq!(snapshot.lines[1], "  Events when paused");
+    assert_eq!(snapshot.lines[2], "  P1: life");
+    menu.turn(1);
     menu.turn(1);
     let _ = menu.press();
     let part_snapshot = menu.snapshot();
@@ -149,6 +151,18 @@ fn snapshot_scrolls_to_keep_selected_row_visible() {
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "L1: Life");
     assert_eq!(snapshot.selected_row, Some(6));
+    assert_eq!(
+        snapshot.scroll.as_ref().map(|scroll| scroll.scroll_offset),
+        Some(1)
+    );
+    assert_eq!(
+        snapshot.scroll.as_ref().map(|scroll| scroll.total_rows),
+        Some(8)
+    );
+    assert_eq!(
+        snapshot.scroll.as_ref().map(|scroll| scroll.visible_rows),
+        Some(7)
+    );
     assert_eq!(snapshot.lines[6], "> P8: life");
     assert!(!snapshot.lines.iter().any(|line| line == "  P1: life"));
 }

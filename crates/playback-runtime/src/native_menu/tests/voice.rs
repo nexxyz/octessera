@@ -9,21 +9,24 @@ fn voice_instrument_rows_expose_configuration_groups() {
     let _ = menu.press();
     let _ = menu.press();
     let snapshot = menu.snapshot();
-    assert_eq!(snapshot.path, "L3: Voice/Instruments/I1: synth");
-    assert!(snapshot
-        .lines
-        .windows(2)
-        .any(|pair| pair[0] == "> Type:" && pair[1].trim() == "synth"));
+    assert_eq!(snapshot.path, "L3: Voice/Instruments/I1: synth direct");
+    assert!(snapshot.lines.iter().any(|line| line == "> Type synth"));
     assert!(snapshot.lines.iter().any(|line| line == "  Synth"));
     assert!(!snapshot.lines.iter().any(|line| line == "> Sampler"));
     assert!(menu
         .current_siblings()
         .iter()
-        .any(|item| item.label == "Clone"));
+        .any(|item| item.label == "Actions"));
     assert!(menu
         .current_siblings()
         .iter()
-        .any(|item| item.label == "Reset"));
+        .find(|item| item.label == "Actions")
+        .is_some_and(|item| item.children.iter().any(|child| child.label == "Clone")));
+    assert!(menu
+        .current_siblings()
+        .iter()
+        .find(|item| item.label == "Actions")
+        .is_some_and(|item| item.children.iter().any(|child| child.label == "Reset")));
     assert!(snapshot.lines.iter().any(|line| line == "  Name"));
 }
 
@@ -53,11 +56,8 @@ fn number_params_emit_bar_values_and_pan_uses_marker_format() {
     menu.state.stack = vec![2, 0, 0, 3];
     menu.state.cursor = 2;
     let pan = menu.snapshot();
-    assert!(pan
-        .lines
-        .windows(2)
-        .any(|pair| pair[0] == "> Pan Pos:" && pair[1] == "    C"));
-    let pan_value_row = pan.selected_row.unwrap() + 1;
+    assert!(pan.lines.iter().any(|line| line == "> Pan Pos C"));
+    let pan_value_row = pan.selected_row.unwrap();
     assert!(
         matches!(pan.bar_values.get(pan_value_row), Some(Some(NativeMenuBarValue { style: Some(style), .. })) if style == "marker")
     );
@@ -66,12 +66,9 @@ fn number_params_emit_bar_values_and_pan_uses_marker_format() {
     menu.state.stack = vec![5, 1];
     menu.state.cursor = 0;
     let volume = menu.snapshot();
-    assert!(volume
-        .lines
-        .windows(2)
-        .any(|pair| pair[0] == "> Master Vol:"));
+    assert!(volume.lines.iter().any(|line| line == "> Master Vol 100"));
     assert!(matches!(
-        volume.bar_values.get(volume.selected_row.unwrap() + 1),
+        volume.bar_values.get(volume.selected_row.unwrap()),
         Some(Some(NativeMenuBarValue {
             frac_pct: 100,
             style: None,
@@ -103,10 +100,7 @@ fn mixer_menu_uses_current_volume_and_pan_values() {
     assert_eq!(value, 70);
     menu.state.cursor = 2;
     let pan = menu.snapshot();
-    assert!(pan
-        .lines
-        .windows(2)
-        .any(|pair| pair[0] == "> Pan Pos:" && pair[1] == "    L6"));
+    assert!(pan.lines.iter().any(|line| line == "> Pan Pos L6"));
 }
 
 #[test]
