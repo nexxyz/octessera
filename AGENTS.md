@@ -64,7 +64,6 @@ Cell Symphony is a pnpm workspace plus Cargo workspace built around a native Rus
 - Work in one package at a time unless the task clearly spans packages.
 - In planning mode, outline concrete steps before editing.
 - In build mode, continue until the task is completed or blocked by a real user decision.
-- For any significant non-cosmetic change, run the QA subagent before final commit, amend, push, or PR. This includes code, documentation, pipeline, workflow, and configuration changes. Let QA decide which risks to inspect. Treat QA blockers as release blockers and re-run QA after fixes.
 - Keep explanations brief and avoid post-change recap unless it is useful.
 - If you encounter repository changes you did not make and they conflict with the current task, stop and ask the user how to proceed.
 
