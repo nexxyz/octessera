@@ -33,7 +33,8 @@ fn sample_list_from_root(root: &PathBuf, dir: &str) -> Result<Vec<SampleEntry>, 
 
 fn canonical_sample_dir(root: &Path, rel: &str, canon_root: &Path) -> Result<PathBuf, String> {
     let target = root.join(rel);
-    let canon_target = fs::canonicalize(&target).map_err(|e| format!("directory not found: {e}"))?;
+    let canon_target =
+        fs::canonicalize(&target).map_err(|e| format!("directory not found: {e}"))?;
     if !canon_target.starts_with(canon_root) {
         return Err("path outside samples root".to_string());
     }
@@ -51,7 +52,10 @@ fn read_sample_entries(canon_target: &Path, rel: &str) -> Result<Vec<SampleEntry
     Ok(out)
 }
 
-fn sample_entry_from_dir_entry(entry: &fs::DirEntry, rel: &str) -> Result<Option<SampleEntry>, String> {
+fn sample_entry_from_dir_entry(
+    entry: &fs::DirEntry,
+    rel: &str,
+) -> Result<Option<SampleEntry>, String> {
     let meta = entry
         .metadata()
         .map_err(|err| format!("read metadata failed: {err}"))?;

@@ -102,7 +102,9 @@ impl NativeBehavior {
             NativeBehavior::None => Ok(NativeBehaviorState::None(none::init(config)?)),
             NativeBehavior::Life => Ok(NativeBehaviorState::Life(life::init(config)?)),
             NativeBehavior::Glider => Ok(NativeBehaviorState::Glider(glider::init(config)?)),
-            NativeBehavior::Sequencer => Ok(NativeBehaviorState::Sequencer(sequencer::init(config)?)),
+            NativeBehavior::Sequencer => {
+                Ok(NativeBehaviorState::Sequencer(sequencer::init(config)?))
+            }
             _ => self.init_ported(config),
         }
     }
@@ -265,7 +267,9 @@ impl NativeBehavior {
             NativeBehavior::None => Ok(NativeBehaviorState::None(none::deserialize(data)?)),
             NativeBehavior::Life => Ok(NativeBehaviorState::Life(life::deserialize(data)?)),
             NativeBehavior::Glider => Ok(NativeBehaviorState::Glider(glider::deserialize(data)?)),
-            NativeBehavior::Sequencer => Ok(NativeBehaviorState::Sequencer(sequencer::deserialize(data)?)),
+            NativeBehavior::Sequencer => Ok(NativeBehaviorState::Sequencer(
+                sequencer::deserialize(data)?,
+            )),
             _ => self.deserialize_ported(data),
         }
     }
@@ -277,9 +281,14 @@ impl NativeBehavior {
             NativeBehavior::Ant => Ok(NativeBehaviorState::Ant(ported::ant_init(config)?)),
             NativeBehavior::Bounce => Ok(NativeBehaviorState::Bounce(ported::bounce_init(config)?)),
             NativeBehavior::Shapes => Ok(NativeBehaviorState::Shapes(ported::shapes_init(config)?)),
-            NativeBehavior::Raindrops => Ok(NativeBehaviorState::Raindrops(ported::raindrops_init(config)?)),
+            NativeBehavior::Raindrops => Ok(NativeBehaviorState::Raindrops(
+                ported::raindrops_init(config)?,
+            )),
             NativeBehavior::Dla => Ok(NativeBehaviorState::Dla(ported::dla_init(config)?)),
-            _ => Err(format!("unsupported ported init for behavior {}", self.id())),
+            _ => Err(format!(
+                "unsupported ported init for behavior {}",
+                self.id()
+            )),
         }
     }
 
@@ -290,9 +299,14 @@ impl NativeBehavior {
             NativeBehavior::Ant => Ok(NativeBehaviorState::Ant(ported::deserialize(data)?)),
             NativeBehavior::Bounce => Ok(NativeBehaviorState::Bounce(ported::deserialize(data)?)),
             NativeBehavior::Shapes => Ok(NativeBehaviorState::Shapes(ported::deserialize(data)?)),
-            NativeBehavior::Raindrops => Ok(NativeBehaviorState::Raindrops(ported::deserialize(data)?)),
+            NativeBehavior::Raindrops => {
+                Ok(NativeBehaviorState::Raindrops(ported::deserialize(data)?))
+            }
             NativeBehavior::Dla => Ok(NativeBehaviorState::Dla(ported::deserialize(data)?)),
-            _ => Err(format!("unsupported ported deserialize for behavior {}", self.id())),
+            _ => Err(format!(
+                "unsupported ported deserialize for behavior {}",
+                self.id()
+            )),
         }
     }
 
