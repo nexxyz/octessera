@@ -3,7 +3,6 @@ use super::{
     number_item, parameter_picker_group, selected_index, slot_option_selected, NativeMenuAction,
     NativeMenuConfig, NativeMenuItem, NativeSensePartConfig, NativeValueLaneConfig,
 };
-
 pub(super) fn default_sense_part_config() -> NativeSensePartConfig {
     NativeSensePartConfig {
         scan_mode: "none".into(),
