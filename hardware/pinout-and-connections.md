@@ -35,7 +35,7 @@ This document describes the current Cell Symphony hardware wiring for the Raspbe
 - `GPIO10` / physical pin 19: OLED MOSI
 - `GPIO11` / physical pin 23: OLED SCLK
 - `GPIO8` / physical pin 24: OLED CS
-- `GPIO24` / physical pin 18: OLED D/C
+- `GPIO23` / physical pin 16: OLED D/C
 - `GPIO16` / physical pin 36: OLED reset
 - `GPIO9` / physical pin 21: wired to OLED MISO / SD path on the module footprint
 - `GPIO7` / physical pin 26: OLED microSD chip select on the module footprint
@@ -60,7 +60,7 @@ The runtime and HAL agree on four physical encoders total.
 Notes:
 
 - `SW3` switch uses `GPIO14`, so disable the serial console on UART TX for reliable encoder input.
-- `GPIO24` is shared as `SW4` encoder B in the current netlist while the OLED D/C signal is also assigned there; treat that overlap as a hardware review point until it is physically validated or revised.
+- `GPIO20` is reserved for OLED microSD card detect; keep it free from I2S overlays and encoder inputs.
 
 ## Other Connections
 

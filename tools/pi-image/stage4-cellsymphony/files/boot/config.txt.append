@@ -1,9 +1,10 @@
 # Cell Symphony hardware configuration
-# Enable I2C, SPI, and I2S for PCM5102 DAC
+# Enable I2C, SPI, and playback-only I2S for PCM5102 DAC
 dtparam=i2c_arm=on
 dtparam=spi=on
-dtparam=i2s=on
-dtoverlay=hifiberry-dac
+dtparam=audio=off
+enable_uart=0
+dtoverlay=i2s-dac-no20
 
 # Increase GPU memory for display (if using OLED via SPI)
 gpu_mem=32

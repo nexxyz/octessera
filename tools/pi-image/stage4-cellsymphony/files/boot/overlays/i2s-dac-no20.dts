@@ -1,0 +1,45 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+    compatible = "brcm,bcm2835";
+
+    fragment@0 {
+        target = <&gpio>;
+        __overlay__ {
+            i2s_nodin_pins: i2s_nodin_pins {
+                brcm,pins = <18 19 21>;
+                brcm,function = <4>;
+            };
+        };
+    };
+
+    fragment@1 {
+        target = <&i2s>;
+        __overlay__ {
+            pinctrl-names = "default";
+            pinctrl-0 = <&i2s_nodin_pins>;
+            status = "okay";
+        };
+    };
+
+    fragment@2 {
+        target-path = "/";
+        __overlay__ {
+            pcm5102a-codec {
+                #sound-dai-cells = <0>;
+                compatible = "ti,pcm5102a";
+                status = "okay";
+            };
+        };
+    };
+
+    fragment@3 {
+        target = <&sound>;
+        __overlay__ {
+            compatible = "hifiberry,hifiberry-dac";
+            i2s-controller = <&i2s>;
+            status = "okay";
+        };
+    };
+};

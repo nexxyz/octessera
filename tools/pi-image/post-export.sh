@@ -30,6 +30,14 @@ if [ -f "stage4-cellsymphony/files/boot/config.txt.append" ]; then
     echo "Updated /boot/config.txt"
 fi
 
+if [ -f "stage4-cellsymphony/files/boot/overlays/i2s-dac-no20.dts" ]; then
+    mkdir -p /mnt/boot/overlays
+    dtc -@ -I dts -O dtb \
+        -o /mnt/boot/overlays/i2s-dac-no20.dtbo \
+        "stage4-cellsymphony/files/boot/overlays/i2s-dac-no20.dts"
+    echo "Installed i2s-dac-no20 overlay"
+fi
+
 # Enable SSH by creating ssh file
 touch /mnt/boot/ssh
 echo "Enabled SSH"

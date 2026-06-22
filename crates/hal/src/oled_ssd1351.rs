@@ -51,8 +51,8 @@ const CMD_SET_COMMAND_LOCK: u8 = 0xFD;
 #[cfg(feature = "pi-zero")]
 pub struct OledSsd1351 {
     spi: Spidev,
-    dc: OutputPin,   // GPIO24 for Data/Command
-    _rst: OutputPin, // GPIO25 for Reset
+    dc: OutputPin,
+    _rst: OutputPin,
 }
 
 #[cfg(feature = "pi-zero")]
@@ -73,8 +73,14 @@ impl OledSsd1351 {
 
         // Get GPIO handles
         let gpio = Gpio::new().map_err(|e| e.to_string())?;
-        let mut dc = gpio.get(24).map_err(|e| e.to_string())?.into_output(); // GPIO24 = DC
-        let mut rst = gpio.get(25).map_err(|e| e.to_string())?.into_output(); // GPIO25 = RST
+        let mut dc = gpio
+            .get(crate::pinmap::OLED_DC)
+            .map_err(|e| e.to_string())?
+            .into_output();
+        let mut rst = gpio
+            .get(crate::pinmap::OLED_RST)
+            .map_err(|e| e.to_string())?
+            .into_output();
 
         // Hardware reset pulse
         rst.set_low();

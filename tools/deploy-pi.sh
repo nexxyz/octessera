@@ -13,6 +13,9 @@ sudo apt-get install -y \
     libasound2-dev \
     pkg-config \
     alsa-utils \
+    device-tree-compiler \
+    i2c-tools \
+    spi-tools \
     git \
     curl \
     build-essential
@@ -24,15 +27,77 @@ if ! command -v cargo &> /dev/null; then
     source $HOME/.cargo/env
 fi
 
-# Enable I2S audio
-echo "Enabling I2S audio..."
-if ! grep -q "dtparam=i2s=on" /boot/config.txt; then
-    echo "dtparam=i2s=on" | sudo tee -a /boot/config.txt
+# Configure Pi buses and pin muxes
+echo "Configuring Pi buses and pin muxes..."
+BOOT_CONFIG="/boot/firmware/config.txt"
+if [ ! -f "$BOOT_CONFIG" ]; then
+    BOOT_CONFIG="/boot/config.txt"
 fi
 
-if ! grep -q "dtoverlay=hifiberry-dac" /boot/config.txt; then
-    echo "dtoverlay=hifiberry-dac" | sudo tee -a /boot/config.txt
-fi
+ensure_boot_config_line() {
+    local line="$1"
+    if ! grep -qxF "$line" "$BOOT_CONFIG"; then
+        echo "$line" | sudo tee -a "$BOOT_CONFIG" > /dev/null
+    fi
+}
+
+ensure_boot_config_line "dtparam=audio=off"
+sudo tee /boot/firmware/overlays/i2s-dac-no20.dts > /dev/null <<'EOL'
+/dts-v1/;
+/plugin/;
+
+/ {
+    compatible = "brcm,bcm2835";
+
+    fragment@0 {
+        target = <&gpio>;
+        __overlay__ {
+            i2s_nodin_pins: i2s_nodin_pins {
+                brcm,pins = <18 19 21>;
+                brcm,function = <4>;
+            };
+        };
+    };
+
+    fragment@1 {
+        target = <&i2s>;
+        __overlay__ {
+            pinctrl-names = "default";
+            pinctrl-0 = <&i2s_nodin_pins>;
+            status = "okay";
+        };
+    };
+
+    fragment@2 {
+        target-path = "/";
+        __overlay__ {
+            pcm5102a-codec {
+                #sound-dai-cells = <0>;
+                compatible = "ti,pcm5102a";
+                status = "okay";
+            };
+        };
+    };
+
+    fragment@3 {
+        target = <&sound>;
+        __overlay__ {
+            compatible = "hifiberry,hifiberry-dac";
+            i2s-controller = <&i2s>;
+            status = "okay";
+        };
+    };
+};
+EOL
+sudo dtc -@ -I dts -O dtb \
+    -o /boot/firmware/overlays/i2s-dac-no20.dtbo \
+    /boot/firmware/overlays/i2s-dac-no20.dts
+sudo sed -i -E 's/^dtoverlay=hifiberry-dac/#dtoverlay=hifiberry-dac/; s/^dtoverlay=i2s-no-gpio20/#dtoverlay=i2s-no-gpio20/' "$BOOT_CONFIG"
+ensure_boot_config_line "dtoverlay=i2s-dac-no20"
+ensure_boot_config_line "dtparam=spi=on"
+ensure_boot_config_line "dtparam=i2c_arm=on"
+ensure_boot_config_line "enable_uart=0"
+grep -qxF "i2c-dev" /etc/modules || echo "i2c-dev" | sudo tee -a /etc/modules > /dev/null
 
 # Build natively on Pi (simpler than cross-compilation)
 echo "Building Cell Symphony for Pi..."

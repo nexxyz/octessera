@@ -6,8 +6,10 @@ pub const I2C_BUS: u8 = 1;
 /// SPI Bus 0
 pub const SPI_BUS: &str = "/dev/spidev0.0";
 pub const OLED_CS: u8 = 8; // GPIO8/CE0
-pub const OLED_DC: u8 = 24; // GPIO24
-pub const OLED_RST: u8 = 25; // GPIO25
+pub const OLED_DC: u8 = 23; // GPIO23
+pub const OLED_RST: u8 = 16; // GPIO16
+pub const OLED_SD_CS: u8 = 7; // GPIO7/CE1
+pub const OLED_SD_CD: u8 = 20; // GPIO20/card detect
 
 /// I2S Pins
 pub const I2S_BCK: u8 = 18; // GPIO18
@@ -27,17 +29,17 @@ pub const ENCODERS: [EncoderPins; 1 + platform_core::AUX_ENCODER_COUNT] = [
     EncoderPins { a: 5, b: 6, sw: 12 }, // SW1 (main)
     EncoderPins {
         a: 13,
-        b: 16,
+        b: 25,
         sw: 17,
     }, // SW2 (aux1)
     EncoderPins {
         a: 27,
         b: 4,
-        sw: 20,
+        sw: 14,
     }, // SW3 (aux2)
     EncoderPins {
         a: 26,
-        b: 23,
+        b: 24,
         sw: 22,
     }, // SW4 (aux3)
 ];
