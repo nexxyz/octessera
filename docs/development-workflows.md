@@ -99,13 +99,19 @@ cargo check --target aarch64-unknown-linux-gnu -p cellsymphony-hal --features pi
 
 ## Pi Hardware Build
 
+Preferred fast deploy path: cross-build a Linux ARM binary, then upload it with `tools/deploy-pi-fast.ps1 -LocalBinary <path>`. Cross-building the hardware Pi app from Windows requires an ARM Linux sysroot and cross `pkg-config` setup for ALSA. Without that, `alsa-sys` will fail before linking.
+
 On a Pi or properly configured cross environment:
 
 ```bash
 cargo build -p cellsymphony-pi --features hardware-pi
 ```
 
-Cross-building the hardware Pi app from Windows requires an ARM Linux sysroot and cross `pkg-config` setup for ALSA. Without that, `alsa-sys` will fail before linking.
+Low-resource on-Pi fallback:
+
+```bash
+CARGO_BUILD_JOBS=1 cargo build --profile pi-dev -p cellsymphony-pi --features hardware-pi
+```
 
 ## Documentation Checks
 

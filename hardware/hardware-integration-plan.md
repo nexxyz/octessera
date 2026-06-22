@@ -118,7 +118,7 @@ On a Pi with Raspberry Pi OS Lite, over SSH, before the PCB/components exist:
 - Confirm interfaces are present: `ls /dev/i2c-1 /dev/spidev0.0`.
 - Confirm pin muxes with `pinctrl get 2 3 7 8 9 10 11 14 15 18 19 20 21 23 16`.
 - Confirm ALSA sees the DAC overlay after reboot: `aplay -l`.
-- Build the hardware binary on-device if dependencies are installed: `cargo build --release -p cellsymphony-pi --features hardware-pi`.
+- Build the hardware binary on-device if dependencies are installed: `CARGO_BUILD_JOBS=1 cargo build --profile pi-dev -p cellsymphony-pi --features hardware-pi`.
 - Run the app only as a negative smoke test until hardware is attached; missing I2C/OLED devices should fail clearly rather than silently falling back.
 
 From this Windows development PC, run the SSH preflight check with:
@@ -139,12 +139,18 @@ The fast path should not edit boot config on every run. Treat boot config as ima
 Development fast deploy from Windows:
 
 ```powershell
-./tools/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -NoTail
+./tools/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -LocalBinary <path-to-linux-arm-cellsymphony-pi> -NoTail
 ```
 
-By default the script syncs the current working tree to `/home/pi/cellsymphony-dev`, builds on the Pi with the real `hardware-pi` feature, installs the binary under `/opt/cellsymphony/releases/dev`, restarts `cellsymphony.service`, and optionally tails logs. Use `-LocalBinary <path>` only when you already have a Linux ARM binary built elsewhere.
+Prefer a cross-built Linux ARM binary for fast iteration. With `-LocalBinary <path>`, the script uploads that binary, installs it under `/opt/cellsymphony/releases/dev`, restarts `cellsymphony.service`, and optionally tails logs.
 
-Pi Zero 2 W builds are memory constrained. The script forces `CARGO_BUILD_JOBS=1`, but the first release build can still be slow. Use `-SyncOnly` to validate SSH/source sync without building, or use `-LocalBinary` once a cross-built Linux ARM binary is available.
+The fallback on-Pi path syncs the current working tree to `/home/pi/cellsymphony-dev`. Use `-BuildOnPi` to build there with the real `hardware-pi` feature. Pi Zero 2 W builds are memory constrained, so the script forces `CARGO_BUILD_JOBS=1` and defaults to `-BuildProfile pi-dev`, which avoids release LTO and single-codegen-unit pressure. Use `-BuildProfile release` only for production-like performance checks. Without `-LocalBinary` or `-BuildOnPi`, the script only syncs source and exits.
+
+Fallback on-Pi build:
+
+```powershell
+./tools/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -BuildOnPi -NoTail -AllowServiceFailure
+```
 
 Before the PCB and components are attached, use `-AllowServiceFailure` so a missing OLED/I2C device can fail clearly without failing the deploy script itself:
 

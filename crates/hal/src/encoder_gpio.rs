@@ -2,7 +2,7 @@
 //! Uses rppal for interrupt-driven decoding on Pi Zero 2W
 
 #[cfg(feature = "pi-zero")]
-use rppal::gpio::{Gpio, InputPin, Level, Trigger};
+use rppal::gpio::{Event, Gpio, InputPin, Level, Trigger};
 use std::sync::mpsc::Sender;
 #[cfg(feature = "pi-zero")]
 use std::sync::{Arc, Mutex};
@@ -96,10 +96,10 @@ impl EncoderGpio {
         let state_a = state.clone();
         let tx_a = tx.clone();
         let id_a = id;
-        a.set_async_interrupt(Trigger::Both, move |level_a| {
+        a.set_async_interrupt(Trigger::Both, None, move |event_a| {
             if let Ok(mut state) = state_a.lock() {
                 let b = state.last & 0b01;
-                let next = (level_bit(level_a) << 1) | b;
+                let next = (event_bit(event_a) << 1) | b;
                 if let Some(delta) = state.update(next) {
                     let _ = tx_a.send(HardwareEvent::EncoderTurn { id: id_a, delta });
                 }
@@ -110,10 +110,10 @@ impl EncoderGpio {
         let state_b = state.clone();
         let tx_b = tx.clone();
         let id_b = id;
-        b.set_async_interrupt(Trigger::Both, move |level_b| {
+        b.set_async_interrupt(Trigger::Both, None, move |event_b| {
             if let Ok(mut state) = state_b.lock() {
                 let a = state.last & 0b10;
-                let next = a | level_bit(level_b);
+                let next = a | event_bit(event_b);
                 if let Some(delta) = state.update(next) {
                     let _ = tx_b.send(HardwareEvent::EncoderTurn { id: id_b, delta });
                 }
@@ -124,7 +124,7 @@ impl EncoderGpio {
         // Switch press (active low)
         let tx_sw = tx.clone();
         let id_sw = id;
-        sw.set_async_interrupt(Trigger::FallingEdge, move |_| {
+        sw.set_async_interrupt(Trigger::FallingEdge, None, move |_| {
             let _ = tx_sw.send(HardwareEvent::EncoderPress { id: id_sw });
         })
         .map_err(|e| e.to_string())?;
@@ -150,6 +150,15 @@ fn level_bit(level: Level) -> u8 {
     match level {
         Level::Low => 0,
         Level::High => 1,
+    }
+}
+
+#[cfg(feature = "pi-zero")]
+fn event_bit(event: Event) -> u8 {
+    match event.trigger {
+        Trigger::RisingEdge => 1,
+        Trigger::FallingEdge => 0,
+        _ => 0,
     }
 }
 

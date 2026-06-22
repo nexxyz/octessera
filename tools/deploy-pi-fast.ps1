@@ -5,6 +5,8 @@ param(
   [string]$InstallDir = "/opt/cellsymphony",
   [string]$Service = "cellsymphony.service",
   [string]$LocalBinary = "",
+  [string]$BuildProfile = "pi-dev",
+  [switch]$BuildOnPi,
   [switch]$SyncOnly,
   [switch]$SkipBuild,
   [switch]$AllowServiceFailure,
@@ -52,12 +54,12 @@ if ($LocalBinary -ne "") {
   Copy-ToPi $archive "/tmp/cellsymphony-pi-source.tar.gz"
   Invoke-PiSsh "set -e; rm -rf '$RemoteRepo'; mkdir -p '$RemoteRepo'; tar -xzf /tmp/cellsymphony-pi-source.tar.gz -C '$RemoteRepo'; rm -f /tmp/cellsymphony-pi-source.tar.gz"
 
-  if ($SyncOnly) {
+  if ($SyncOnly -or -not $BuildOnPi) {
     exit 0
   }
 
   if (-not $SkipBuild) {
-    Invoke-PiSsh "set -e; . `$HOME/.cargo/env; cd '$RemoteRepo'; CARGO_BUILD_JOBS=1 cargo build --release -p cellsymphony-pi --features hardware-pi; sudo install -d '$InstallDir/releases/dev'; sudo install -m 755 target/release/cellsymphony-pi '$InstallDir/releases/dev/cellsymphony-pi'"
+    Invoke-PiSsh "set -e; . `$HOME/.cargo/env; cd '$RemoteRepo'; CARGO_BUILD_JOBS=1 cargo build --profile '$BuildProfile' -p cellsymphony-pi --features hardware-pi; sudo install -d '$InstallDir/releases/dev'; sudo install -m 755 target/$BuildProfile/cellsymphony-pi '$InstallDir/releases/dev/cellsymphony-pi'"
   }
 }
 
