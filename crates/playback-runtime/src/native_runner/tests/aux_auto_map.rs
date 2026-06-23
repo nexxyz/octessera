@@ -53,7 +53,10 @@ fn aux_auto_map_config_load_disables_automatic_bindings() {
         })
         .unwrap();
 
-    assert_eq!(runner.snapshot().unwrap()["settings"]["auxAutoMapEnabled"], false);
+    assert_eq!(
+        runner.snapshot().unwrap()["settings"]["auxAutoMapEnabled"],
+        false
+    );
     assert_eq!(
         runner
             .menu
