@@ -11,7 +11,7 @@ export const PLATFORM_CAPS = {
   "audioBlockFrames": 128,
   "maxSynthVoices": 12,
   "maxSampleVoices": 64,
-  "maxSynthVoicesPerSlot": 4,
+  "maxSynthVoicesPerSlot": 8,
   "maxSampleVoicesPerSlot": 8,
   "maxActiveBusFxSlots": 4,
   "maxActiveGlobalFxSlots": 1,

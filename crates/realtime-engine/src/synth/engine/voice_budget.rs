@@ -90,7 +90,14 @@ impl SynthEngine {
     pub(super) fn enforce_global_voice_budget(&mut self) {
         let budget = self.global_voice_budget().min(MAX_SYNTH_VOICES);
         while self.active_synth_voice_total() > budget {
-            let Some((slot, idx)) = self.find_global_steal_candidate() else {
+            let active_slot_count = self.active_synth_slot_count();
+            let fair_share =
+                (budget + active_slot_count.saturating_sub(1)) / active_slot_count.max(1);
+            let preserve_final_voice = budget >= active_slot_count;
+            let candidate = self
+                .find_over_share_steal_candidate(fair_share, preserve_final_voice)
+                .or_else(|| self.find_global_steal_candidate_scored(preserve_final_voice));
+            let Some((slot, idx)) = candidate else {
                 break;
             };
             self.voices[slot][idx].active = false;
@@ -108,9 +115,16 @@ impl SynthEngine {
         }
     }
 
-    fn find_global_steal_candidate(&self) -> Option<(usize, usize)> {
+    fn find_global_steal_candidate_scored(
+        &self,
+        preserve_final_voice: bool,
+    ) -> Option<(usize, usize)> {
         let mut best: Option<(usize, usize, f32)> = None;
         for (slot_idx, pool) in self.voices.iter().enumerate() {
+            let active_count = pool.iter().filter(|voice| voice.active).count();
+            if preserve_final_voice && active_count <= 1 {
+                continue;
+            }
             for (voice_idx, voice) in pool.iter().enumerate() {
                 if !voice.active {
                     continue;
@@ -132,6 +146,58 @@ impl SynthEngine {
             }
         }
         best.map(|(s, i, _)| (s, i))
+    }
+
+    fn find_over_share_steal_candidate(
+        &self,
+        fair_share: usize,
+        preserve_final_voice: bool,
+    ) -> Option<(usize, usize)> {
+        let mut best_slot: Option<(usize, usize)> = None;
+        for slot_idx in 0..INSTRUMENT_SLOT_COUNT {
+            let active_count = self.active_synth_voice_count(slot_idx);
+            if active_count <= fair_share || (preserve_final_voice && active_count <= 1) {
+                continue;
+            }
+            let excess = active_count - fair_share;
+            match best_slot {
+                Some((_, best_excess)) if excess <= best_excess => {}
+                _ => best_slot = Some((slot_idx, excess)),
+            }
+        }
+        best_slot.and_then(|(slot_idx, _)| self.find_slot_steal_candidate(slot_idx))
+    }
+
+    fn find_slot_steal_candidate(&self, slot_idx: usize) -> Option<(usize, usize)> {
+        let pool = self.voices.get(slot_idx)?;
+        let mut best: Option<(usize, f32)> = None;
+        for (voice_idx, voice) in pool.iter().enumerate() {
+            if !voice.active {
+                continue;
+            }
+            let age_samples = self.sample_clock.saturating_sub(voice.started_sample);
+            let age_ms = (age_samples as f32) * 1000.0 / (self.sample_rate as f32);
+            let mut score = voice.amp_env.level;
+            if voice.amp_env.is_releasing() {
+                score -= 0.5;
+            }
+            score += (voice.velocity as f32 / 127.0) * 0.2;
+            if age_ms < 30.0 {
+                score += 1.0;
+            }
+            match best {
+                Some((_, best_score)) if score >= best_score => {}
+                _ => best = Some((voice_idx, score)),
+            }
+        }
+        best.map(|(voice_idx, _)| (slot_idx, voice_idx))
+    }
+
+    fn active_synth_slot_count(&self) -> usize {
+        self.voices
+            .iter()
+            .filter(|pool| pool.iter().any(|voice| voice.active))
+            .count()
     }
 
     fn find_global_sample_steal_candidate(&self) -> Option<(usize, usize)> {
