@@ -1,4 +1,5 @@
 mod report;
+mod samples;
 mod scenarios;
 mod telemetry;
 mod timing;
