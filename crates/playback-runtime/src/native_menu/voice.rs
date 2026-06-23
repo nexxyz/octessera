@@ -42,6 +42,7 @@ pub(super) struct InstrumentMenuConfig<'a> {
     pub(super) sample_amp_env: Option<&'a serde_json::Value>,
     pub(super) sample_filter: Option<&'a serde_json::Value>,
     pub(super) sample_filter_env: Option<&'a serde_json::Value>,
+    pub(super) sample_favourite_dirs: &'a [String],
     pub(super) midi_enabled: bool,
     pub(super) midi_channel: u8,
     pub(super) midi_velocity: u8,

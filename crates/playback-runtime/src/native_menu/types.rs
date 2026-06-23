@@ -167,6 +167,7 @@ pub struct NativeMenuConfig {
     pub global_fx_slots: Vec<String>,
     pub global_fx_params: Vec<serde_json::Value>,
     pub sample_browser: Option<NativeSampleBrowserConfig>,
+    pub sample_favourite_dirs: Vec<String>,
     pub algorithm_step_pulses: u32,
     pub master_volume: u8,
     pub note_length_ms: u16,

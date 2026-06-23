@@ -198,6 +198,12 @@ fn sample_effect_help_key(effect: &str) -> Option<String> {
         value if value.starts_with("sample.pick:") => Some("action:sample.pick".into()),
         value if value.starts_with("sample.preview:") => Some("action:sample_preview".into()),
         value if value.starts_with("sample.assign:") => Some("action:sample_assign_enter".into()),
+        value if value.starts_with("sample.favorite.set:") => {
+            Some("action:sample_favourite_set".into())
+        }
+        value if value.starts_with("sample.favorite.remove:") => {
+            Some("action:sample_favourite_remove".into())
+        }
         _ => None,
     }
 }

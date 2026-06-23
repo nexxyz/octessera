@@ -80,6 +80,66 @@ fn sample_browser_opens_lists_and_picks_sample() {
 }
 
 #[test]
+fn sample_browser_shows_favourite_toggle_and_updates_runtime_config() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].name = "sampler".into();
+    runner.sample_browser = Some(NativeSampleBrowser {
+        instrument_slot: 0,
+        sample_slot: 0,
+        dir: "Samples".into(),
+        entries: vec![SampleEntry {
+            name: "kick.wav".into(),
+            path: "Samples/kick.wav".into(),
+            is_dir: false,
+        }],
+    });
+    runner.menu.state.stack = vec![2, 0, 0, 2, 1];
+    runner.menu.state.cursor = 3;
+    runner.menu.rebuild(runner.menu_config());
+
+    let snapshot = runner.menu.snapshot();
+    assert_eq!(
+        snapshot.lines,
+        vec!["  !..", "  !kick.wav", "", "> !Set favourite"]
+    );
+
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })
+        .unwrap();
+    assert_eq!(runner.toast.as_ref().unwrap().message, "Favourite set");
+    assert_eq!(runner.sample_favourite_dirs, vec![String::from("Samples")]);
+
+    let snapshot = runner.menu.snapshot();
+    assert_eq!(snapshot.lines[3], "> !Remove favourite");
+
+    let payload = runner.config_payload();
+    assert_eq!(
+        payload["runtimeConfig"]["sampleFavouriteDirs"],
+        json!(["Samples"])
+    );
+
+    let mut loaded = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    loaded.sample_browser = runner.sample_browser.clone();
+    loaded.apply_config_payload(payload).unwrap();
+    assert_eq!(loaded.sample_favourite_dirs, vec![String::from("Samples")]);
+
+    loaded.menu.state.stack = vec![2, 0, 0, 2, 1];
+    loaded.menu.state.cursor = 3;
+    assert_eq!(loaded.menu.snapshot().lines[3], "> !Remove favourite");
+
+    let _ = loaded
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })
+        .unwrap();
+    assert_eq!(loaded.toast.as_ref().unwrap().message, "Favourite removed");
+    assert!(loaded.sample_favourite_dirs.is_empty());
+}
+
+#[test]
 fn fn_shift_enter_opens_contextual_help_and_enter_closes_it() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![2];

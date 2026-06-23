@@ -286,9 +286,9 @@ Sample assignment mode semantics:
 - Cells assigned to other sample slots are shown as dim white during assignment editing
 - Shift + cell applies the same toggle/step to the whole row
 - Combined modifier + cell applies the same toggle/step to the whole column
-- The sample browser menu is labeled with selected slot context (for example `S1 Browse`) and preserves the body rows as browser entries: `..`, `[folder]`, file rows, or `(empty)`.
+- The sample browser menu is labeled with selected slot context (for example `S1 Browse`) and preserves the body rows as browser entries: `..`, `[folder]`, file rows, or `(empty)`, followed by a blank separator row and a current-folder favourite action.
 - Before directory entries arrive, the browser shows `(loading...)` instead of `(empty)`. Long highlighted names are clipped to the OLED row width rather than overlapping adjacent display areas.
-- In `S1 Browse`/sample browser menus, Space previews the highlighted wav file through the selected instrument slot (folders and `..` are no-op)
+- In `S1 Browse`/sample browser menus, Space previews the highlighted wav file through the selected instrument slot (folders and `..` are no-op); the favourite action toggles the current folder's entry in `runtimeConfig.sampleFavouriteDirs`.
 - Sample preview and assigned sample playback both follow instrument route, pan, volume, bus FX, and master output gain.
 
 Part runtime behavior:

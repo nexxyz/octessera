@@ -235,6 +235,7 @@ pub(super) fn parameter_tree_groups(
                 sample_amp_env: config.instrument_sample_amp_envs.get(index),
                 sample_filter: config.instrument_sample_filters.get(index),
                 sample_filter_env: config.instrument_sample_filter_envs.get(index),
+                sample_favourite_dirs: &config.sample_favourite_dirs,
                 midi_enabled: config
                     .instrument_midi_enabled
                     .get(index)

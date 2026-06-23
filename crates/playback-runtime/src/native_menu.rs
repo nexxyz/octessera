@@ -233,6 +233,7 @@ fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
                                     sample_filter_env: config
                                         .instrument_sample_filter_envs
                                         .get(index),
+                                    sample_favourite_dirs: &config.sample_favourite_dirs,
                                     midi_enabled: config
                                         .instrument_midi_enabled
                                         .get(index)

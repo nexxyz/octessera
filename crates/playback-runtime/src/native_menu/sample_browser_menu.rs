@@ -6,6 +6,7 @@ pub(super) fn sample_browser_group(
     instrument_slot: usize,
     sample_slot: usize,
     sample_browser: Option<&NativeSampleBrowserConfig>,
+    sample_favourite_dirs: &[String],
 ) -> NativeMenuItem {
     let mut children = Vec::new();
     if let Some(browser) = sample_browser {
@@ -46,6 +47,29 @@ pub(super) fn sample_browser_group(
                     )),
                 ));
             }
+            children.push(NativeMenuItem {
+                label: String::new(),
+                key: None,
+                value: NativeMenuValue::Group,
+                children: vec![],
+            });
+            let favorite_action = if sample_favourite_dirs.iter().any(|dir| dir == &browser.dir) {
+                "sample.favorite.remove"
+            } else {
+                "sample.favorite.set"
+            };
+            let favorite_label = if favorite_action.ends_with("remove") {
+                "Remove favourite"
+            } else {
+                "Set favourite"
+            };
+            children.push(action_item(
+                favorite_label,
+                format!("{favorite_action}.{instrument_slot}.{sample_slot}"),
+                NativeMenuAction::PlatformEffect(format!(
+                    "{favorite_action}:{instrument_slot}:{sample_slot}"
+                )),
+            ));
         } else {
             children.push(action_item(
                 "(loading...)",

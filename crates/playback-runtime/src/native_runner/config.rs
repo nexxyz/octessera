@@ -99,6 +99,7 @@ impl NativeRunner {
                         })
                         .collect(),
                 }),
+            sample_favourite_dirs: self.sample_favourite_dirs.clone(),
             algorithm_step_pulses: self.algorithm_step_pulses,
             master_volume: self.ui.master_volume,
             note_length_ms: self.global_sound.note_length_ms as u16,
@@ -177,6 +178,7 @@ impl NativeRunner {
                 },
                 "xyTouch": { "x": self.xy_touch.x, "y": self.xy_touch.y, "active": self.xy_touch.active },
                 "xyRelease": self.xy_release,
+                "sampleFavouriteDirs": self.sample_favourite_dirs,
                 "instruments": self.instruments.iter().map(|instrument| {
                     let sample_slots = instrument
                         .sample_paths

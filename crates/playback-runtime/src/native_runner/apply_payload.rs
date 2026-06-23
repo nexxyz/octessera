@@ -21,6 +21,7 @@ impl NativeRunner {
         self.swap_active_engine_from_part(desired_active_part_index)?;
         self.apply_instruments_payload(runtime);
         self.apply_runtime_ui_and_sound_payload(runtime, &payload);
+        self.apply_sample_browser_favourites_payload(runtime);
         let active_behavior_id = self
             .part_behavior_ids
             .get(self.active_part_index)
@@ -100,6 +101,19 @@ impl NativeRunner {
             .get(self.active_part_index)
             .copied()
             .unwrap_or(DEFAULT_ALGORITHM_STEP_PULSES);
+    }
+
+    pub(super) fn apply_sample_browser_favourites_payload(&mut self, runtime: &Value) {
+        self.sample_favourite_dirs = runtime
+            .get("sampleFavouriteDirs")
+            .and_then(Value::as_array)
+            .map(|dirs| {
+                dirs.iter()
+                    .filter_map(Value::as_str)
+                    .map(str::to_string)
+                    .collect()
+            })
+            .unwrap_or_default();
     }
 }
 

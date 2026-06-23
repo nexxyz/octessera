@@ -265,6 +265,7 @@ pub struct NativeRunner {
     global_fx_slots: Vec<String>,
     global_fx_params: Vec<Value>,
     sample_browser: Option<NativeSampleBrowser>,
+    sample_favourite_dirs: Vec<String>,
     help_popup: Option<NativeHelpPopup>,
     confirm_dialog: Option<NativeConfirmDialog>,
     menu: NativeMenuModel,

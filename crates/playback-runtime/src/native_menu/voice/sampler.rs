@@ -15,7 +15,12 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
             vec!["1", "2", "3", "4", "5", "6", "7", "8"],
             sample_slot,
         ),
-        sample_browser_group(config.index, sample_slot, config.sample_browser),
+        sample_browser_group(
+            config.index,
+            sample_slot,
+            config.sample_browser,
+            &config.sample_favourite_dirs,
+        ),
         action_item(
             "Assign",
             format!("sample.assign.{}.{}", config.index, sample_slot),

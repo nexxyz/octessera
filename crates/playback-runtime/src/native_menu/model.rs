@@ -108,6 +108,9 @@ impl NativeMenuModel {
         }
         let current = self.current_item().clone();
         match current.value {
+            NativeMenuValue::Group if current.label.is_empty() && current.children.is_empty() => {
+                None
+            }
             NativeMenuValue::Group => {
                 self.state.stack.push(self.state.cursor);
                 self.state.cursor = 0;

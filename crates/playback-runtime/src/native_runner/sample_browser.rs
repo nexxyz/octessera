@@ -73,6 +73,14 @@ impl NativeRunner {
             }
             return Ok(None);
         }
+        if let Some(rest) = action.strip_prefix("sample.favorite.set:") {
+            let (instrument_slot, sample_slot, _) = parse_sample_action(rest)?;
+            return self.toggle_sample_favourite(instrument_slot, sample_slot, true);
+        }
+        if let Some(rest) = action.strip_prefix("sample.favorite.remove:") {
+            let (instrument_slot, sample_slot, _) = parse_sample_action(rest)?;
+            return self.toggle_sample_favourite(instrument_slot, sample_slot, false);
+        }
         if let Some(rest) = action.strip_prefix("sample.preview:") {
             let (instrument_slot, sample_slot, path) = parse_sample_action(rest)?;
             if let Some(path) = path {
@@ -87,6 +95,40 @@ impl NativeRunner {
             }
             return Ok(None);
         }
+        Ok(None)
+    }
+
+    fn toggle_sample_favourite(
+        &mut self,
+        instrument_slot: usize,
+        sample_slot: usize,
+        set: bool,
+    ) -> Result<Option<RuntimePlatformEffect>, String> {
+        let Some(browser) = self.sample_browser.as_ref() else {
+            return Ok(None);
+        };
+        if browser.instrument_slot != instrument_slot || browser.sample_slot != sample_slot {
+            return Ok(None);
+        }
+        let dir = browser.dir.clone();
+        if set {
+            if !self.sample_favourite_dirs.iter().any(|entry| entry == &dir) {
+                self.sample_favourite_dirs.push(dir);
+                self.config_dirty = true;
+            }
+            self.show_toast("Favourite set");
+        } else if let Some(index) = self
+            .sample_favourite_dirs
+            .iter()
+            .position(|entry| entry == &dir)
+        {
+            self.sample_favourite_dirs.remove(index);
+            self.config_dirty = true;
+            self.show_toast("Favourite removed");
+        } else {
+            return Ok(None);
+        }
+        self.menu.rebuild(self.menu_config());
         Ok(None)
     }
 

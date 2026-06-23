@@ -118,6 +118,7 @@ fn config() -> NativeMenuConfig {
         global_fx_slots: vec!["none".into(); GLOBAL_FX_SLOT_COUNT],
         global_fx_params: vec![serde_json::json!({}); GLOBAL_FX_SLOT_COUNT],
         sample_browser: None,
+        sample_favourite_dirs: vec![],
         algorithm_step_pulses: 12,
         master_volume: 100,
         note_length_ms: 150,
@@ -219,6 +220,7 @@ fn representative_help_configs() -> Vec<NativeMenuConfig> {
             },
         ],
     });
+    dynamic.sample_favourite_dirs = vec![String::new()];
     configs.push(dynamic);
 
     let mut scanning = config();
