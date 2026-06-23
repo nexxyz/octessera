@@ -432,7 +432,7 @@ fn route_name(route: usize) -> String {
 fn fx_routes(mode: usize) -> [usize; INSTRUMENT_SLOT_COUNT] {
     match mode {
         1 => [1; INSTRUMENT_SLOT_COUNT],
-        2 | 3 | 4 => std::array::from_fn(|slot| (slot % 4) + 1),
+        2..=4 => std::array::from_fn(|slot| (slot % 4) + 1),
         _ => [0; INSTRUMENT_SLOT_COUNT],
     }
 }

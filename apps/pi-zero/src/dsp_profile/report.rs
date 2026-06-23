@@ -16,20 +16,22 @@ pub fn emit_system_row(phase: &str) {
     }
 }
 
-pub fn emit_timed_row(
-    kind: &str,
-    scenario: &str,
-    metric: &str,
-    samples: &[f64],
-    block_frames: usize,
-    sample_rate: u32,
-    blocks: usize,
-    notes: &str,
-) {
-    if samples.is_empty() {
+pub struct TimedRow<'a> {
+    pub kind: &'a str,
+    pub scenario: &'a str,
+    pub metric: &'a str,
+    pub samples: &'a [f64],
+    pub block_frames: usize,
+    pub sample_rate: u32,
+    pub blocks: usize,
+    pub notes: &'a str,
+}
+
+pub fn emit_timed_row(row: TimedRow<'_>) {
+    if row.samples.is_empty() {
         return;
     }
-    let mut values = samples.to_vec();
+    let mut values = row.samples.to_vec();
     values.sort_by(|a, b| a.total_cmp(b));
     let avg = values.iter().sum::<f64>() / values.len() as f64;
     let p95 = percentile(&values, 0.95);
@@ -37,18 +39,18 @@ pub fn emit_timed_row(
     let max = *values.last().unwrap_or(&0.0);
     println!(
         "{},{},{},{},{},{},{},{:.6},{:.6},{:.6},{:.6},{}",
-        csv(kind),
-        csv(scenario),
-        csv(metric),
+        csv(row.kind),
+        csv(row.scenario),
+        csv(row.metric),
         csv(""),
-        block_frames,
-        sample_rate,
-        blocks,
+        row.block_frames,
+        row.sample_rate,
+        row.blocks,
         avg,
         p95,
         p99,
         max,
-        csv(notes),
+        csv(row.notes),
     );
 }
 

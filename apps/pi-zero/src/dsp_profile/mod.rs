@@ -3,7 +3,7 @@ mod scenarios;
 mod telemetry;
 mod timing;
 
-use report::{emit_system_row, emit_timed_row, print_csv_header};
+use report::{emit_system_row, emit_timed_row, print_csv_header, TimedRow};
 use scenarios::{profile_scenarios, runtime_step_scenario, ProfileMode};
 use timing::{profile_block_frames, profile_sample_rate};
 
@@ -41,30 +41,30 @@ pub fn run_dsp_profile() -> Result<(), String> {
         let timing = timing::measure_engine_source(&scenario, sample_rate, block_frames, blocks)?;
         let telemetry =
             telemetry::collect_synth_telemetry(&scenario, sample_rate, block_frames, blocks);
-        emit_timed_row(
-            "engine_source",
-            &scenario.name,
-            "raw_ratio",
-            &timing,
+        emit_timed_row(TimedRow {
+            kind: "engine_source",
+            scenario: &scenario.name,
+            metric: "raw_ratio",
+            samples: &timing,
             block_frames,
             sample_rate,
             blocks,
-            &report::notes_for(&telemetry),
-        );
+            notes: &report::notes_for(&telemetry),
+        });
     }
 
     let runtime = runtime_step_scenario();
     let runtime_timing = timing::measure_runtime_step(sample_rate, block_frames, PROFILE_BLOCKS)?;
-    emit_timed_row(
-        "runtime_step",
-        &runtime.name,
-        "wall_ms",
-        &runtime_timing,
+    emit_timed_row(TimedRow {
+        kind: "runtime_step",
+        scenario: &runtime.name,
+        metric: "wall_ms",
+        samples: &runtime_timing,
         block_frames,
         sample_rate,
-        PROFILE_BLOCKS,
-        "synth=na;sample=na;preview=na;momentary=na;steals=na;runner=native_runner",
-    );
+        blocks: PROFILE_BLOCKS,
+        notes: "synth=na;sample=na;preview=na;momentary=na;steals=na;runner=native_runner",
+    });
 
     emit_system_row("after");
     Ok(())
