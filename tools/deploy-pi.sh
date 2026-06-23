@@ -41,7 +41,15 @@ ensure_boot_config_line() {
     fi
 }
 
+disable_service_if_present() {
+    local service="$1"
+    sudo systemctl disable --now "$service" >/dev/null 2>&1 || true
+}
+
 ensure_boot_config_line "dtparam=audio=off"
+ensure_boot_config_line "camera_auto_detect=0"
+ensure_boot_config_line "display_auto_detect=0"
+ensure_boot_config_line "dtoverlay=disable-bt"
 sudo tee /boot/firmware/overlays/i2s-dac-no20.dts > /dev/null <<'EOL'
 /dts-v1/;
 /plugin/;
@@ -99,6 +107,20 @@ ensure_boot_config_line "dtparam=i2c_arm=on"
 ensure_boot_config_line "enable_uart=0"
 grep -qxF "i2c-dev" /etc/modules || echo "i2c-dev" | sudo tee -a /etc/modules > /dev/null
 
+# Install journald config for volatile capped logs
+sudo install -d -m 0755 /etc/systemd/journald.conf.d
+sudo tee /etc/systemd/journald.conf.d/10-cellsymphony.conf > /dev/null <<'EOL'
+[Journal]
+Storage=volatile
+RuntimeMaxUse=32M
+RuntimeMaxFileSize=4M
+EOL
+sudo systemctl restart systemd-journald
+
+# Disable Bluetooth services when present
+disable_service_if_present bluetooth.service
+disable_service_if_present hciuart.service
+
 # Build natively on Pi (simpler than cross-compilation)
 echo "Building Cell Symphony for Pi..."
 cd /home/pi/cellsymphony
@@ -109,7 +131,7 @@ echo "Creating systemd service..."
 sudo tee /etc/systemd/system/cellsymphony.service > /dev/null <<EOL
 [Unit]
 Description=Cell Symphony Pi Zero 2W
-After=sound.target network.target
+After=sound.target
 
 [Service]
 Type=simple
@@ -126,9 +148,25 @@ StandardError=journal
 WantedBy=multi-user.target
 EOL
 
+sudo tee /etc/systemd/system/cellsymphony-performance-governor.service > /dev/null <<'EOL'
+[Unit]
+Description=Cell Symphony Performance CPU Governor
+Before=cellsymphony.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'for gov in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do [ -e "$gov" ] || continue; printf performance > "$gov" || true; done'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOL
+
 # Enable service
-sudo systemctl enable cellsymphony
 sudo systemctl daemon-reload
+sudo systemctl enable cellsymphony
+sudo systemctl enable cellsymphony-performance-governor.service
+sudo systemctl start cellsymphony-performance-governor.service
 
 echo ""
 echo "=== Deployment complete! ==="

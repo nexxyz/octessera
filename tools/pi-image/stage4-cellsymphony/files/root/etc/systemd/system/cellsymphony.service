@@ -1,6 +1,6 @@
 [Unit]
 Description=Cell Symphony Pi Zero 2W Headless Music System
-After=sound.target network.target
+After=sound.target
 
 [Service]
 Type=simple

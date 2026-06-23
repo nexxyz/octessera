@@ -3,6 +3,9 @@
 dtparam=i2c_arm=on
 dtparam=spi=on
 dtparam=audio=off
+camera_auto_detect=0
+display_auto_detect=0
+dtoverlay=disable-bt
 enable_uart=0
 dtoverlay=i2s-dac-no20
 

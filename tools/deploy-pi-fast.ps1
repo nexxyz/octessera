@@ -68,10 +68,59 @@ if ($LocalBinary -ne "") {
   }
 }
 
+$osConfigCommand = @'
+set -e
+BOOT_CONFIG="/boot/firmware/config.txt"
+if [ ! -f "$BOOT_CONFIG" ]; then
+  BOOT_CONFIG="/boot/config.txt"
+fi
+ensure_boot_config_line() {
+  line="$1"
+  if ! grep -qxF "$line" "$BOOT_CONFIG"; then
+    echo "$line" | sudo tee -a "$BOOT_CONFIG" >/dev/null
+  fi
+}
+disable_service_if_present() {
+  service="$1"
+  sudo systemctl disable --now "$service" >/dev/null 2>&1 || true
+}
+ensure_boot_config_line "camera_auto_detect=0"
+ensure_boot_config_line "display_auto_detect=0"
+ensure_boot_config_line "dtoverlay=disable-bt"
+sudo install -d -m 0755 /etc/systemd/journald.conf.d
+sudo tee /etc/systemd/journald.conf.d/10-cellsymphony.conf >/dev/null <<'EOF'
+[Journal]
+Storage=volatile
+RuntimeMaxUse=32M
+RuntimeMaxFileSize=4M
+EOF
+sudo systemctl restart systemd-journald
+disable_service_if_present bluetooth.service
+disable_service_if_present hciuart.service
+sudo tee /etc/systemd/system/cellsymphony-performance-governor.service >/dev/null <<'EOF'
+[Unit]
+Description=Cell Symphony Performance CPU Governor
+Before=cellsymphony.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'for gov in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do [ -e "$gov" ] || continue; printf performance > "$gov" || true; done'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl daemon-reload
+sudo systemctl enable cellsymphony-performance-governor.service
+sudo systemctl start cellsymphony-performance-governor.service
+'@
+
+Invoke-PiSsh $osConfigCommand
+
 $serviceCommand = "set -e; sudo install -d '$InstallDir'; sudo ln -sfn '$InstallDir/releases/dev' '$InstallDir/current'; sudo ln -sfn '$InstallDir/current/cellsymphony-pi' /usr/local/bin/cellsymphony-pi; sudo tee /etc/systemd/system/$Service >/dev/null <<'EOF'
 [Unit]
 Description=Cell Symphony Pi Zero 2W Headless Music System
-After=sound.target network.target
+After=sound.target
 
 [Service]
 Type=simple
