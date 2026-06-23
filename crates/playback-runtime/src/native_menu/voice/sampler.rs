@@ -19,7 +19,7 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
             config.index,
             sample_slot,
             config.sample_browser,
-            &config.sample_favourite_dirs,
+            config.sample_favourite_dirs,
         ),
         action_item(
             "Assign",
