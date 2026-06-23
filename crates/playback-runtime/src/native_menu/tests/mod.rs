@@ -119,6 +119,7 @@ fn config() -> NativeMenuConfig {
         global_fx_params: vec![serde_json::json!({}); GLOBAL_FX_SLOT_COUNT],
         sample_browser: None,
         sample_favourite_dirs: vec![],
+        sample_builtin_favourite_dirs: vec![],
         algorithm_step_pulses: 12,
         master_volume: 100,
         note_length_ms: 150,

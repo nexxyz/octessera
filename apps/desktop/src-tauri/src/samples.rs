@@ -18,15 +18,26 @@ pub fn sample_list(dir: String) -> Result<Vec<SampleEntry>, String> {
 
 pub(crate) fn resolve_sample_file(path: &str) -> Option<String> {
     let root = resolve_samples_root().ok()?;
-    resolve_sample_file_from_root(&root, path)
+    let user_root = resolve_user_samples_root().ok()?;
+    resolve_sample_file_from_roots(&root, &user_root, path)
 }
 
 fn sample_list_from_root(root: &PathBuf, dir: &str) -> Result<Vec<SampleEntry>, String> {
     let rel = sanitize_relative_dir(dir)?;
+    let user_root = resolve_user_samples_root()?;
+    if rel == "userdata" || rel.starts_with("userdata/") {
+        let user_rel = rel.strip_prefix("userdata/").unwrap_or("");
+        let canon_user_root = fs::canonicalize(&user_root)
+            .map_err(|e| format!("user samples root resolve failed: {e}"))?;
+        let canon_target = canonical_sample_dir(&user_root, user_rel, &canon_user_root)?;
+        let mut out = read_sample_entries(&canon_target, user_rel, "userdata")?;
+        sort_sample_entries(&mut out);
+        return Ok(out);
+    }
     let canon_root =
         fs::canonicalize(root).map_err(|e| format!("samples root resolve failed: {e}"))?;
     let canon_target = canonical_sample_dir(root, &rel, &canon_root)?;
-    let mut out = read_sample_entries(&canon_target, &rel)?;
+    let mut out = read_sample_entries(&canon_target, &rel, "")?;
     sort_sample_entries(&mut out);
     Ok(out)
 }
@@ -41,12 +52,23 @@ fn canonical_sample_dir(root: &Path, rel: &str, canon_root: &Path) -> Result<Pat
     Ok(canon_target)
 }
 
-fn read_sample_entries(canon_target: &Path, rel: &str) -> Result<Vec<SampleEntry>, String> {
+fn read_sample_entries(
+    canon_target: &Path,
+    rel: &str,
+    virtual_prefix: &str,
+) -> Result<Vec<SampleEntry>, String> {
     let mut out = Vec::new();
     for entry in fs::read_dir(canon_target).map_err(|e| format!("read dir failed: {e}"))? {
         let entry = entry.map_err(|err| format!("read dir entry failed: {err}"))?;
         if let Some(sample_entry) = sample_entry_from_dir_entry(&entry, rel)? {
-            out.push(sample_entry);
+            out.push(if virtual_prefix.is_empty() {
+                sample_entry
+            } else {
+                SampleEntry {
+                    path: rel_join(virtual_prefix, &sample_entry.path),
+                    ..sample_entry
+                }
+            });
         }
     }
     Ok(out)
@@ -110,6 +132,26 @@ fn resolve_samples_root() -> Result<PathBuf, String> {
     Ok(create_at)
 }
 
+fn resolve_user_samples_root() -> Result<PathBuf, String> {
+    let dir = user_data_dir()?.join("samples");
+    fs::create_dir_all(&dir).map_err(|e| format!("create user samples dir failed: {e}"))?;
+    Ok(dir)
+}
+
+fn user_data_dir() -> Result<PathBuf, String> {
+    if let Some(appdata) = std::env::var_os("APPDATA") {
+        return Ok(PathBuf::from(appdata).join("Cell Symphony"));
+    }
+    if let Some(home) = std::env::var_os("HOME") {
+        return Ok(PathBuf::from(home)
+            .join(".local")
+            .join("share")
+            .join("cellsymphony"));
+    }
+    let cwd = std::env::current_dir().map_err(|e| format!("cwd failed: {e}"))?;
+    Ok(cwd.join("userdata"))
+}
+
 fn sample_root_candidates(cwd: &Path, manifest_dir: &Path) -> Vec<PathBuf> {
     let mut candidates = parent_sample_dirs(cwd);
     candidates.extend(parent_sample_dirs(manifest_dir));
@@ -156,12 +198,26 @@ fn rel_join(base: &str, name: &str) -> String {
     }
 }
 
-fn resolve_sample_file_from_root(root: &PathBuf, path: &str) -> Option<String> {
+fn resolve_sample_file_from_roots(
+    root: &PathBuf,
+    user_root: &PathBuf,
+    path: &str,
+) -> Option<String> {
     let rel = sanitize_relative_dir(path).ok()?;
     if rel.is_empty() {
         return None;
     }
-    let target = root.join(&rel);
+    if let Some(user_rel) = rel.strip_prefix("userdata/") {
+        return resolve_sample_file_in_root(user_root, user_rel);
+    }
+    if rel == "userdata" {
+        return None;
+    }
+    resolve_sample_file_in_root(root, &rel)
+}
+
+fn resolve_sample_file_in_root(root: &PathBuf, rel: &str) -> Option<String> {
+    let target = root.join(rel);
     let canon_root = fs::canonicalize(root).ok()?;
     let canon_target = fs::canonicalize(&target).ok()?;
     if !canon_target.starts_with(&canon_root) || !canon_target.is_file() {
@@ -220,10 +276,10 @@ mod tests {
         let txt = sub.join("readme.txt");
         touch(&wav);
         touch(&txt);
-        assert!(resolve_sample_file_from_root(&root, "drums/kick.wav").is_some());
-        assert!(resolve_sample_file_from_root(&root, "drums/readme.txt").is_none());
-        assert!(resolve_sample_file_from_root(&root, "drums").is_none());
-        assert!(resolve_sample_file_from_root(&root, "../outside.wav").is_none());
+        assert!(resolve_sample_file_from_roots(&root, &root, "drums/kick.wav").is_some());
+        assert!(resolve_sample_file_from_roots(&root, &root, "drums/readme.txt").is_none());
+        assert!(resolve_sample_file_from_roots(&root, &root, "drums").is_none());
+        assert!(resolve_sample_file_from_roots(&root, &root, "../outside.wav").is_none());
         let _ = fs::remove_dir_all(&root);
     }
 

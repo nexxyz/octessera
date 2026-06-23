@@ -233,7 +233,7 @@ impl NativeRunner {
                 instrument_slot,
                 sample_slot,
                 dir,
-                ..
+                message,
             } => {
                 self.sample_browser = Some(NativeSampleBrowser {
                     instrument_slot,
@@ -241,6 +241,7 @@ impl NativeRunner {
                     dir,
                     entries: vec![],
                 });
+                self.toast = Some(NativeToast { message, offset: 0 });
                 self.menu.rebuild(self.menu_config());
             }
             _ => {}

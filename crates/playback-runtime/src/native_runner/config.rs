@@ -100,6 +100,7 @@ impl NativeRunner {
                         .collect(),
                 }),
             sample_favourite_dirs: self.sample_favourite_dirs.clone(),
+            sample_builtin_favourite_dirs: self.sample_builtin_favourite_dirs.clone(),
             algorithm_step_pulses: self.algorithm_step_pulses,
             master_volume: self.ui.master_volume,
             note_length_ms: self.global_sound.note_length_ms as u16,

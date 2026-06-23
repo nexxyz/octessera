@@ -140,6 +140,65 @@ fn sample_browser_shows_favourite_toggle_and_updates_runtime_config() {
 }
 
 #[test]
+fn sample_browser_shows_non_deletable_builtin_favourites() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        sample_builtin_favourite_dirs: vec![String::new(), "sd-card".into()],
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    runner.instruments[0].kind = "sampler".into();
+    runner.sample_browser = Some(NativeSampleBrowser {
+        instrument_slot: 0,
+        sample_slot: 0,
+        dir: String::new(),
+        entries: vec![],
+    });
+    runner.menu.state.stack = vec![2, 0, 0, 2, 1];
+    runner.menu.rebuild(runner.menu_config());
+
+    let snapshot = runner.menu.snapshot();
+    assert!(snapshot.lines.contains(&"  ![★ Samples]".into()));
+    assert!(snapshot.lines.contains(&"  ![★ SD card]".into()));
+
+    runner.sample_browser = Some(NativeSampleBrowser {
+        instrument_slot: 0,
+        sample_slot: 0,
+        dir: "sd-card".into(),
+        entries: vec![],
+    });
+    runner.menu.rebuild(runner.menu_config());
+    let snapshot = runner.menu.snapshot();
+    assert!(snapshot
+        .lines
+        .iter()
+        .any(|line| line.contains("Built-in favourite")));
+    assert!(!snapshot
+        .lines
+        .iter()
+        .any(|line| line.contains("Remove favourite")));
+}
+
+#[test]
+fn sample_browser_error_shows_host_message() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.startup_splash_presented = true;
+    runner.toast = None;
+    runner
+        .apply_store_result(RuntimeStoreResult::SampleListError {
+            instrument_slot: 0,
+            sample_slot: 0,
+            dir: "sd-card".into(),
+            message: "SD card is not available. Insert the OLED SD card and try again.".into(),
+        })
+        .unwrap();
+
+    assert_eq!(
+        runner.toast.as_ref().unwrap().message,
+        "SD card is not available. Insert the OLED SD card and try again."
+    );
+}
+
+#[test]
 fn fn_shift_enter_opens_contextual_help_and_enter_closes_it() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![2];

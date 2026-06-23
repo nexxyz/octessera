@@ -17,3 +17,7 @@ done
 
 # Create log directory
 mkdir -p /var/log/cellsymphony
+
+# Create user storage locations used by the Pi app.
+install -d -o pi -g pi -m 0755 /home/pi/samples /home/pi/presets
+install -d -o pi -g pi -m 0755 /home/pi/samples/sd-card

@@ -1,4 +1,5 @@
 use crate::audio::AudioManager;
+use crate::sample_browser::sample_entries;
 use midir::{MidiInputConnection, MidiOutputConnection};
 use playback_runtime::{
     HostAdapter, HostMessage, MidiPort, MusicalEvent as RuntimeMusicalEvent, RuntimeAudioCommand,
@@ -78,13 +79,19 @@ impl<'a> PiPlaybackHostAdapter<'a> {
     }
 
     fn list_presets(&self) -> Result<Vec<String>, String> {
-        let presets_dir = self.store_dir.join("presets");
         let mut names = Vec::new();
-        if !presets_dir.is_dir() {
+        if !self.store_dir.is_dir() {
             return Ok(names);
         }
-        for entry in std::fs::read_dir(&presets_dir).map_err(|e| e.to_string())? {
+        for entry in std::fs::read_dir(&self.store_dir).map_err(|e| e.to_string())? {
             let entry = entry.map_err(|e| e.to_string())?;
+            if entry
+                .path()
+                .file_name()
+                .is_some_and(|name| name == "default.json")
+            {
+                continue;
+            }
             if entry.path().extension().is_some_and(|ext| ext == "json") {
                 if let Some(stem) = entry.path().file_stem().and_then(|stem| stem.to_str()) {
                     names.push(stem.to_string());
@@ -97,7 +104,7 @@ impl<'a> PiPlaybackHostAdapter<'a> {
 
     fn preset_path(&self, name: &str) -> PathBuf {
         let safe = name.replace(['/', '\\'], "_");
-        self.store_dir.join("presets").join(format!("{safe}.json"))
+        self.store_dir.join(format!("{safe}.json"))
     }
 
     fn load_json(path: &Path) -> Result<Option<serde_json::Value>, String> {
@@ -203,52 +210,7 @@ impl<'a> PiPlaybackHostAdapter<'a> {
     }
 
     fn sample_entries(&self, dir: &str) -> Result<Vec<SampleEntry>, String> {
-        let root = self
-            .samples_dir
-            .canonicalize()
-            .unwrap_or(self.samples_dir.clone());
-        let requested = root
-            .join(dir)
-            .canonicalize()
-            .unwrap_or_else(|_| root.join(dir));
-        if !requested.starts_with(&root) {
-            return Err("sample directory outside sample root".into());
-        }
-        if !requested.is_dir() {
-            return Ok(Vec::new());
-        }
-        let mut entries = Vec::new();
-        if requested != root {
-            entries.push(SampleEntry {
-                name: "..".into(),
-                path: parent_relative(&root, &requested),
-                is_dir: true,
-            });
-        }
-        for entry in std::fs::read_dir(&requested).map_err(|e| e.to_string())? {
-            let entry = entry.map_err(|e| e.to_string())?;
-            let path = entry.path();
-            let is_dir = path.is_dir();
-            if !is_dir && path.extension().is_none_or(|ext| ext != "wav") {
-                continue;
-            }
-            let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
-                continue;
-            };
-            let relative = path
-                .strip_prefix(&root)
-                .ok()
-                .and_then(|path| path.to_str())
-                .unwrap_or(name)
-                .replace('\\', "/");
-            entries.push(SampleEntry {
-                name: name.to_string(),
-                path: relative,
-                is_dir,
-            });
-        }
-        entries.sort_by(|a, b| b.is_dir.cmp(&a.is_dir).then_with(|| a.name.cmp(&b.name)));
-        Ok(entries)
+        sample_entries(&self.samples_dir, dir)
     }
 }
 
@@ -465,17 +427,6 @@ impl HostAdapter for PiPlaybackHostAdapter<'_> {
         };
         conn.send(bytes).map_err(|e| e.to_string())
     }
-}
-
-fn parent_relative(root: &Path, requested: &Path) -> String {
-    requested
-        .parent()
-        .unwrap_or(root)
-        .strip_prefix(root)
-        .ok()
-        .and_then(|path| path.to_str())
-        .unwrap_or("")
-        .replace('\\', "/")
 }
 
 #[cfg(test)]

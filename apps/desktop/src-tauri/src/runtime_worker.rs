@@ -20,6 +20,7 @@ const PERF_LOG_INTERVAL: Duration = Duration::from_secs(2);
 fn desktop_native_runner_config() -> NativeRunnerConfig {
     NativeRunnerConfig {
         behavior_id: "sequencer".into(),
+        sample_builtin_favourite_dirs: vec!["userdata".into()],
         ..NativeRunnerConfig::default()
     }
 }

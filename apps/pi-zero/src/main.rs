@@ -6,6 +6,7 @@ mod host_adapter;
 mod input;
 mod render;
 mod runtime_loop;
+mod sample_browser;
 
 use audio::AudioManager;
 use cellsymphony_hal::{
@@ -34,6 +35,7 @@ const PLAYBACK_TICK_MS: u64 = 8;
 const SNAPSHOT_INTERVAL_MS: u64 = 100;
 const RENDER_INTERVAL_MS: u64 = 33;
 const HARDWARE_EVENT_BUDGET: usize = 16;
+const PI_SD_CARD_SAMPLE_DIR: &str = "sd-card";
 
 fn main() {
     let _ = simple_logger::init();
@@ -68,12 +70,12 @@ fn main() {
 
     let (mut playback, mut runner) = init_runtime();
 
-    let mut adapter = PiPlaybackHostAdapter::new(
-        audio.as_ref(),
-        default_store_dir(),
-        default_samples_dir(),
-        midi_handler,
-    );
+    let store_dir = default_store_dir();
+    let samples_dir = default_samples_dir();
+    ensure_runtime_dirs(&store_dir, &samples_dir);
+
+    let mut adapter =
+        PiPlaybackHostAdapter::new(audio.as_ref(), store_dir, samples_dir, midi_handler);
     if let Err(error) = initialize_host_state(&mut playback, &mut runner, &mut adapter) {
         eprintln!("pi host state initialization failed: {error}");
     }
@@ -181,6 +183,7 @@ fn init_runtime() -> (PlaybackRuntime, NativeRunner) {
     });
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
+        sample_builtin_favourite_dirs: vec![String::new(), PI_SD_CARD_SAMPLE_DIR.into()],
         ..NativeRunnerConfig::default()
     })
     .expect("native runner should initialize");
@@ -364,12 +367,15 @@ fn default_store_dir() -> PathBuf {
     std::env::var_os("CELLSYMPHONY_PI_STORE_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|| {
-            if cfg!(feature = "hardware-pi") {
-                PathBuf::from("/var/lib/cellsymphony")
-            } else {
-                PathBuf::from("config")
-            }
+            home_dir()
+                .map(|home| home.join("presets"))
+                .unwrap_or_else(|| PathBuf::from("presets"))
         })
+}
+
+fn ensure_runtime_dirs(store_dir: &std::path::Path, samples_dir: &std::path::Path) {
+    let _ = std::fs::create_dir_all(samples_dir);
+    let _ = std::fs::create_dir_all(store_dir);
 }
 
 fn shutdown_pi_system() -> Result<(), String> {
@@ -389,5 +395,13 @@ fn shutdown_pi_system() -> Result<(), String> {
 fn default_samples_dir() -> PathBuf {
     std::env::var_os("CELLSYMPHONY_PI_SAMPLES_DIR")
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("samples"))
+        .unwrap_or_else(|| {
+            home_dir()
+                .map(|home| home.join("samples"))
+                .unwrap_or_else(|| PathBuf::from("samples"))
+        })
+}
+
+fn home_dir() -> Option<PathBuf> {
+    std::env::var_os("HOME").map(PathBuf::from)
 }

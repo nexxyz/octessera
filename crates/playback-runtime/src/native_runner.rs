@@ -153,6 +153,7 @@ pub struct NativeRunnerConfig {
     pub note_behaviors: Vec<NoteBehavior>,
     pub sync_source: SyncSource,
     pub bpm: f64,
+    pub sample_builtin_favourite_dirs: Vec<String>,
 }
 
 impl Default for NativeRunnerConfig {
@@ -179,6 +180,7 @@ impl Default for NativeRunnerConfig {
             note_behaviors: vec![NoteBehavior::Oneshot; 16],
             sync_source: SyncSource::Internal,
             bpm: 120.0,
+            sample_builtin_favourite_dirs: Vec::new(),
         }
     }
 }
@@ -265,6 +267,7 @@ pub struct NativeRunner {
     global_fx_slots: Vec<String>,
     global_fx_params: Vec<Value>,
     sample_browser: Option<NativeSampleBrowser>,
+    sample_builtin_favourite_dirs: Vec<String>,
     sample_favourite_dirs: Vec<String>,
     help_popup: Option<NativeHelpPopup>,
     confirm_dialog: Option<NativeConfirmDialog>,
