@@ -7,6 +7,7 @@ param(
   [string]$LocalBinary = "",
   [string]$BuildProfile = "pi-dev",
   [switch]$BuildOnPi,
+  [switch]$CleanRemote,
   [switch]$SyncOnly,
   [switch]$SkipBuild,
   [switch]$AllowServiceFailure,
@@ -52,7 +53,11 @@ if ($LocalBinary -ne "") {
     -C (Resolve-Path ".") .
 
   Copy-ToPi $archive "/tmp/cellsymphony-pi-source.tar.gz"
-  Invoke-PiSsh "set -e; rm -rf '$RemoteRepo'; mkdir -p '$RemoteRepo'; tar -xzf /tmp/cellsymphony-pi-source.tar.gz -C '$RemoteRepo'; rm -f /tmp/cellsymphony-pi-source.tar.gz"
+  if ($CleanRemote) {
+    Invoke-PiSsh "set -e; rm -rf '$RemoteRepo'; mkdir -p '$RemoteRepo'; tar -xzf /tmp/cellsymphony-pi-source.tar.gz -C '$RemoteRepo'; rm -f /tmp/cellsymphony-pi-source.tar.gz"
+  } else {
+    Invoke-PiSsh "set -e; mkdir -p '$RemoteRepo'; tar -xzf /tmp/cellsymphony-pi-source.tar.gz -C '$RemoteRepo'; rm -f /tmp/cellsymphony-pi-source.tar.gz"
+  }
 
   if ($SyncOnly -or -not $BuildOnPi) {
     exit 0

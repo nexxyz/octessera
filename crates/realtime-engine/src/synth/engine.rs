@@ -45,8 +45,10 @@ pub struct SynthEngine {
     bus_mono_snapshot: Vec<f32>,
     bus_slot_params: Vec<[FxBusParams; BUS_SLOTS_PER_BUS]>,
     bus_slot_state: Vec<[FxBusState; BUS_SLOTS_PER_BUS]>,
+    bus_activity_frames: Vec<u32>,
     master_slot_params: Vec<FxBusParams>,
     master_slot_state: Vec<MasterFxState>,
+    master_activity_frames: u32,
     pan_positions: usize,
     master_volume: f32,
     voice_stealing_mode: VoiceStealingMode,
@@ -56,6 +58,7 @@ pub struct SynthEngine {
     momentary_fx: Vec<MomentaryFxState>,
     dry_history: Vec<f32>,
     dry_history_pos: usize,
+    fx_activity_hold_frames: u32,
 }
 
 impl SynthEngine {
@@ -79,8 +82,10 @@ impl SynthEngine {
             bus_mono_snapshot: Vec::new(),
             bus_slot_params: Vec::new(),
             bus_slot_state: Vec::new(),
+            bus_activity_frames: Vec::new(),
             master_slot_params: Vec::new(),
             master_slot_state: Vec::new(),
+            master_activity_frames: 0,
             pan_positions: DEFAULT_PAN_POSITIONS,
             master_volume: 1.0,
             voice_stealing_mode: VoiceStealingMode::Balanced,
@@ -90,6 +95,7 @@ impl SynthEngine {
             momentary_fx: Vec::new(),
             dry_history: vec![0.0; DRY_HISTORY_FRAMES * 2],
             dry_history_pos: 0,
+            fx_activity_hold_frames: (sample_rate.saturating_mul(150) / 1000).max(1),
         }
     }
 

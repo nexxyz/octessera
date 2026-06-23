@@ -15,6 +15,7 @@ mod dynamics;
 mod momentary_buffers;
 mod momentary_pitch_filter;
 mod routing;
+mod routing_gating;
 mod voices;
 
 fn sample_bank(samples: Vec<f32>) -> SampleBankConfig {

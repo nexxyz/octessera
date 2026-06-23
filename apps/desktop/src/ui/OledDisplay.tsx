@@ -22,12 +22,20 @@ type SemanticOledState = {
   cpuLoad: number;
 };
 
-export function OledDisplay({ frame, displayBrightness }: { frame: RuntimeSnapshot; displayBrightness: number }) {
+export function OledDisplay({
+  audioLoad,
+  displayBrightness,
+  frame
+}: {
+  audioLoad?: { ratio: number; voiceSteal: boolean };
+  displayBrightness: number;
+  frame: RuntimeSnapshot;
+}) {
   const oledImage = useMemo(() => toOledImage(frame.oled), [frame.oled]);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const regularSplashImage = useImageAsset(REGULAR_SPLASH_LOGO);
   const sepiaSplashImage = useImageAsset(SEPIA_SPLASH_LOGO);
-  const semantic = useSemanticOledState(frame);
+  const semantic = useSemanticOledState(frame, audioLoad);
 
   useOledCanvas(canvasRef, oledImage, semantic, regularSplashImage, sepiaSplashImage);
 
@@ -42,7 +50,10 @@ export function OledDisplay({ frame, displayBrightness }: { frame: RuntimeSnapsh
   );
 }
 
-function useSemanticOledState(frame: RuntimeSnapshot): SemanticOledState {
+function useSemanticOledState(
+  frame: RuntimeSnapshot,
+  audioLoad?: { ratio: number; voiceSteal: boolean }
+): SemanticOledState {
   const displayOff = Boolean((frame.display as any).off ?? false);
   const splashText = String((frame.display as any).splash ?? "");
   const selectedRow = Number((frame as any).selectedRow ?? -1);
@@ -63,7 +74,11 @@ function useSemanticOledState(frame: RuntimeSnapshot): SemanticOledState {
   const [saveFlashStartedAt, setSaveFlashStartedAt] = useState<number | null>(autoSaveFlash === "flash" ? Date.now() : null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [visibleFooterToast, setVisibleFooterToast] = useState(footerToast);
-  const cpuLoad = Number((frame as any).cpuLoadRatio ?? 0);
+  const frameCpuLoad = Number((frame as any).cpuLoadRatio ?? 0);
+  const audioCpuLoad = audioLoad?.voiceSteal
+    ? Math.max(audioLoad.ratio, 0.85)
+    : (audioLoad?.ratio ?? 0);
+  const cpuLoad = Math.max(frameCpuLoad, audioCpuLoad);
 
   useEffect(() => {
     if (autoSaveFlash !== "flash") {

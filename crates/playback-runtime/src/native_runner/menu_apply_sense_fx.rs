@@ -4,6 +4,7 @@ use super::{
     json, set_bool_from_menu, set_i32_from_menu, set_string_from_menu, set_target_slot_from_menu,
     set_u8_enum_from_menu, set_u8_from_menu, NativeRunner, Value,
 };
+use platform_core::MAX_ACTIVE_BUS_FX_SLOTS;
 
 impl NativeRunner {
     pub(super) fn apply_sense_menu_state(&mut self) -> bool {
@@ -38,6 +39,13 @@ impl NativeRunner {
                 index,
             );
         }
+        if self.active_fx_bus_count() > MAX_ACTIVE_BUS_FX_SLOTS {
+            self.show_toast(format!(
+                "FX bus budget exceeded ({}/{})",
+                self.active_fx_bus_count(),
+                MAX_ACTIVE_BUS_FX_SLOTS
+            ));
+        }
         changed
     }
 
@@ -70,6 +78,15 @@ impl NativeRunner {
         self.dance_fx_selected =
             json!({ "fxType": fx_type, "targetKey": target, "params": params });
         self.dance_fx_selected != before
+    }
+}
+
+impl NativeRunner {
+    fn active_fx_bus_count(&self) -> usize {
+        self.fx_buses
+            .iter()
+            .filter(|bus| bus.slot1_type != "none" || bus.slot2_type != "none")
+            .count()
     }
 }
 

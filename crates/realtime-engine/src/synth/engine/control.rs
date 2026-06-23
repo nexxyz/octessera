@@ -94,8 +94,11 @@ impl SynthEngine {
         self.bus_pan_pos = next_bus_pan_pos;
         self.bus_slot_params = next_bus_slot_params;
         self.bus_slot_state = next_bus_slot_state;
+        self.bus_activity_frames
+            .resize(self.bus_slot_params.len(), 0);
         self.master_slot_params = next_master_slot_params;
         self.master_slot_state = next_master_slot_state;
+        self.master_activity_frames = 0;
         self.bus_mono_scratch.resize(self.bus_pan_pos.len(), 0.0);
     }
 

@@ -162,6 +162,8 @@ Prefer a cross-built Linux ARM binary from `tools/build-pi-cross.ps1` for fast i
 
 The fallback on-Pi path syncs the current working tree to `/home/pi/cellsymphony-dev`. Use `-BuildOnPi` to build there with the real `hardware-pi` feature. Pi Zero 2 W builds are memory constrained, so the script forces `CARGO_BUILD_JOBS=1` and defaults to `-BuildProfile pi-dev`, which avoids release LTO and single-codegen-unit pressure. Use `-BuildProfile release` only for production-like performance checks. Without `-LocalBinary` or `-BuildOnPi`, the script only syncs source and exits.
 
+The source sync preserves the Pi's remote `target/` cache by default. Use `-CleanRemote` only when stale deleted files or generated artifacts need a clean checkout.
+
 Fallback on-Pi build:
 
 ```powershell

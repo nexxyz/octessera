@@ -9,6 +9,8 @@ pub struct PlatformCapabilities {
     pub global_fx_slot_count: usize,
     pub aux_encoder_count: usize,
     pub touch_fx_max_concurrent: usize,
+    pub max_active_bus_fx_slots: usize,
+    pub max_active_global_fx_slots: usize,
     pub scan_section_counts: &'static [usize],
     pub pan_position_count: u8,
     pub oled_width: usize,
@@ -35,6 +37,8 @@ mod tests {
         assert_eq!(GLOBAL_FX_SLOT_COUNT, 2);
         assert_eq!(AUX_ENCODER_COUNT, 3);
         assert_eq!(TOUCH_FX_MAX_CONCURRENT, 4);
+        assert_eq!(MAX_ACTIVE_BUS_FX_SLOTS, 4);
+        assert_eq!(MAX_ACTIVE_GLOBAL_FX_SLOTS, 1);
         assert_eq!(SCAN_SECTION_COUNTS, &[1, 2, 4, 8]);
         assert_eq!(PAN_POSITION_COUNT, 33);
         assert_eq!(OLED_WIDTH, 128);

@@ -16,9 +16,23 @@ impl SynthEngine {
         let (mut left, mut right) = self.mix_instrument_slots(&slot_out);
         (left, right) = self.mix_fx_buses(&slot_out, left, right);
         self.push_dry_history(left, right);
-        (left, right) = self.apply_master_fx_slots(left, right);
-        let (left, right) =
-            self.process_momentary_fx_target(MomentaryFxTarget::Global, left, right);
+        let master_signal = self.signal_present(left, right)
+            || self.active_synth_voice_total() > 0
+            || self.active_sample_voice_total() > 0
+            || !self.preview_sample_voices.is_empty()
+            || !self.momentary_fx.is_empty()
+            || self.bus_activity_frames.iter().any(|frames| *frames > 0);
+        let master_active = master_signal || self.master_activity_frames > 0;
+        if master_active {
+            (left, right) = self.apply_master_fx_slots(left, right);
+            (left, right) =
+                self.process_momentary_fx_target(MomentaryFxTarget::Global, left, right);
+            self.master_activity_frames = if master_signal || self.signal_present(left, right) {
+                self.fx_activity_hold_frames
+            } else {
+                self.master_activity_frames.saturating_sub(1)
+            };
+        }
         self.sample_clock = self.sample_clock.saturating_add(1);
         (
             (left * self.master_volume).clamp(-1.0, 1.0),
@@ -107,6 +121,12 @@ impl SynthEngine {
         self.bus_mono_snapshot
             .copy_from_slice(&self.bus_mono_scratch);
         for bus_idx in 0..self.bus_mono_scratch.len() {
+            let bus_input = self.bus_mono_scratch[bus_idx];
+            let bus_active = self.signal_present_mono(bus_input)
+                || self.bus_activity_frames.get(bus_idx).copied().unwrap_or(0) > 0;
+            if !bus_active {
+                continue;
+            }
             let (processed, pan_override) = self.process_fx_bus(bus_idx, slot_out);
             let (fx_l, fx_r) = self.process_momentary_fx_target(
                 MomentaryFxTarget::FxBus { index: bus_idx },
@@ -114,6 +134,13 @@ impl SynthEngine {
                 processed,
             );
             let processed = (fx_l + fx_r) * 0.5;
+            if self.signal_present_mono(processed) || self.signal_present_mono(bus_input) {
+                if let Some(counter) = self.bus_activity_frames.get_mut(bus_idx) {
+                    *counter = self.fx_activity_hold_frames;
+                }
+            } else if let Some(counter) = self.bus_activity_frames.get_mut(bus_idx) {
+                *counter = counter.saturating_sub(1);
+            }
             let (gl, gr) = self.bus_pan_gains(bus_idx, pan_override);
             left += processed * gl;
             right += processed * gr;
@@ -457,5 +484,13 @@ impl SynthEngine {
             let frames = voice.buffer.samples.len() / voice.buffer.channels as usize;
             frames > 0 && voice.pos < frames as f32
         });
+    }
+
+    fn signal_present_mono(&self, sample: f32) -> bool {
+        sample.abs() > 1.0e-5
+    }
+
+    fn signal_present(&self, left: f32, right: f32) -> bool {
+        self.signal_present_mono(left) || self.signal_present_mono(right)
     }
 }

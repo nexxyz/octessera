@@ -58,6 +58,9 @@ impl NativeRunner {
                 command: RuntimeAudioCommand::MomentaryFxStop { id: old_id },
             });
         } else if self.active_dance_fx.len() >= TOUCH_FX_MAX_CONCURRENT {
+            self.show_toast(format!(
+                "Momentary FX limit reached ({TOUCH_FX_MAX_CONCURRENT})"
+            ));
             return Vec::new();
         }
         if let Some(start) = self.dance_fx_start_effect_for_assignment(&assignment) {
