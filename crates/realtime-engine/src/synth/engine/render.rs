@@ -390,14 +390,17 @@ impl SynthEngine {
         let gain = (bank.gain_pct / 100.0).clamp(0.0, 2.0) * ((1.0 - vel_sens) + vel_sens * vel);
         let pitch = 2.0_f32.powf(bank.tune_semis / 12.0);
         let step = pitch * buffer.sample_rate as f32 / self.sample_rate as f32;
-        let pool = &mut self.sample_voices[slot];
-        let voice_index = match pool.iter().position(|voice| !voice.active) {
-            Some(i) => i,
-            None => {
-                self.voice_steal_since_status = true;
-                0
+        let (voice_index, stole_voice) = {
+            let pool = &mut self.sample_voices[slot];
+            match pool.iter().position(|voice| !voice.active) {
+                Some(i) => (i, false),
+                None => (0, true),
             }
         };
+        if stole_voice {
+            self.record_voice_steal();
+        }
+        let pool = &mut self.sample_voices[slot];
         pool[voice_index] = SampleVoice {
             active: true,
             sample_slot,

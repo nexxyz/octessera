@@ -50,6 +50,15 @@ pub struct AudioLoadStatus {
     pub voice_steal: bool,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct SynthProfileSnapshot {
+    pub active_synth_voices: usize,
+    pub active_sample_voices: usize,
+    pub active_preview_sample_voices: usize,
+    pub active_momentary_fx: usize,
+    pub cumulative_voice_steals: u64,
+}
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct EnvConfig {
     #[serde(rename = "attackMs")]

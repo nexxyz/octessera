@@ -53,7 +53,7 @@ impl SynthEngine {
                 break;
             };
             self.voices[slot][idx].active = false;
-            self.voice_steal_since_status = true;
+            self.record_voice_steal();
         }
     }
 

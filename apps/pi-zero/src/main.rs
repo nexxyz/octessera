@@ -1,5 +1,6 @@
 mod audio;
 mod diagnostics;
+mod dsp_profile;
 mod encoder_queue;
 mod host_adapter;
 mod input;
@@ -36,6 +37,15 @@ const HARDWARE_EVENT_BUDGET: usize = 16;
 
 fn main() {
     let _ = simple_logger::init();
+
+    if dsp_profile::profile_requested() {
+        std::process::exit(if dsp_profile::run_dsp_profile().is_ok() {
+            0
+        } else {
+            1
+        });
+    }
+
     println!("Cell Symphony - Pi native runtime");
 
     if diagnostics::diagnostic_requested() {

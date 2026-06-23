@@ -52,6 +52,7 @@ pub struct SynthEngine {
     voice_stealing_mode: VoiceStealingMode,
     smoothed_load_ratio: f32,
     voice_steal_since_status: bool,
+    cumulative_voice_steals: u64,
     momentary_fx: Vec<MomentaryFxState>,
     dry_history: Vec<f32>,
     dry_history_pos: usize,
@@ -85,9 +86,35 @@ impl SynthEngine {
             voice_stealing_mode: VoiceStealingMode::Balanced,
             smoothed_load_ratio: 0.0,
             voice_steal_since_status: false,
+            cumulative_voice_steals: 0,
             momentary_fx: Vec::new(),
             dry_history: vec![0.0; DRY_HISTORY_FRAMES * 2],
             dry_history_pos: 0,
+        }
+    }
+
+    pub(in crate::synth::engine) fn record_voice_steal(&mut self) {
+        self.voice_steal_since_status = true;
+        self.cumulative_voice_steals = self.cumulative_voice_steals.saturating_add(1);
+    }
+
+    pub fn profile_snapshot(&self) -> SynthProfileSnapshot {
+        let active_synth_voices = self
+            .voices
+            .iter()
+            .map(|pool| pool.iter().filter(|voice| voice.active).count())
+            .sum();
+        let active_sample_voices = self
+            .sample_voices
+            .iter()
+            .map(|pool| pool.iter().filter(|voice| voice.active).count())
+            .sum();
+        SynthProfileSnapshot {
+            active_synth_voices,
+            active_sample_voices,
+            active_preview_sample_voices: self.preview_sample_voices.len(),
+            active_momentary_fx: self.momentary_fx.len(),
+            cumulative_voice_steals: self.cumulative_voice_steals,
         }
     }
 }

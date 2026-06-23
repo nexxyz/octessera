@@ -226,16 +226,17 @@ impl SynthEngine {
         let duration_samples = ms_to_samples(duration_ms as f32, self.sample_rate).max(1) as u64;
         let note_off_sample = self.sample_clock.saturating_add(duration_samples);
         let freq = midi_note_to_hz(midi_note);
-
-        let pool = &mut self.voices[slot];
-        let voice_index = pool.iter().position(|voice| !voice.active);
-        let i = match voice_index {
-            Some(i) => i,
-            None => {
-                self.voice_steal_since_status = true;
-                Self::steal_voice_index(pool)
+        let (i, stole_voice) = {
+            let pool = &mut self.voices[slot];
+            match pool.iter().position(|voice| !voice.active) {
+                Some(i) => (i, false),
+                None => (Self::steal_voice_index(pool), true),
             }
         };
+        if stole_voice {
+            self.record_voice_steal();
+        }
+        let pool = &mut self.voices[slot];
 
         let cfg = self.instruments[slot];
         let amp_env = EnvState::note_on(cfg.amp_env, self.sample_rate);
