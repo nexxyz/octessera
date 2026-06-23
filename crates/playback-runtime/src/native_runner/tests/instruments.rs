@@ -139,7 +139,7 @@ fn sample_slot_menu_is_one_based_but_payload_remains_zero_based_and_back_exits_a
 }
 
 #[test]
-fn legacy_bus_route_normalizes_on_config_load_and_round_trip() {
+fn legacy_bus_route_normalizes_on_config_load_and_persists_canonical_route() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let mut payload = runner.config_payload();
     payload["runtimeConfig"]["instruments"][0]["mixer"]["route"] = json!("bus_2");

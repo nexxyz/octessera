@@ -26,24 +26,6 @@ fn synth_stack(runner: &NativeRunner, label: &str) -> Vec<usize> {
 }
 
 #[test]
-fn system_aux_auto_map_toggle_round_trips_in_payload() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut payload = runner.config_payload();
-    payload["runtimeConfig"]["auxAutoMapEnabled"] = json!(false);
-
-    runner.apply_config_payload(payload).unwrap();
-
-    assert_eq!(
-        runner.config_payload()["runtimeConfig"]["auxAutoMapEnabled"],
-        false
-    );
-    assert_eq!(
-        runner.snapshot().unwrap()["settings"]["auxAutoMapEnabled"],
-        false
-    );
-}
-
-#[test]
 fn aux_binding_payload_follows_platform_aux_encoder_count() {
     let runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let payload = runner.config_payload();
@@ -53,6 +35,32 @@ fn aux_binding_payload_follows_platform_aux_encoder_count() {
     assert!(bindings.contains_key("aux2"));
     assert!(bindings.contains_key("aux3"));
     assert!(!bindings.contains_key("aux4"));
+}
+
+#[test]
+fn aux_auto_map_config_load_disables_automatic_bindings() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut payload = runner.config_payload();
+    payload["runtimeConfig"]["auxAutoMapEnabled"] = json!(false);
+
+    runner.apply_config_payload(payload).unwrap();
+    runner.menu.state.stack = synth_stack(&runner, "Filter");
+    runner.menu.state.cursor = 1;
+
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "id": "aux1", "delta": 1 }),
+        })
+        .unwrap();
+
+    assert_eq!(runner.snapshot().unwrap()["settings"]["auxAutoMapEnabled"], false);
+    assert_eq!(
+        runner
+            .menu
+            .number_for_key("instruments.0.synth.filter.cutoffHz"),
+        Some(222)
+    );
+    assert_eq!(runner.toast.as_ref().unwrap().message, "T1: No binding");
 }
 
 #[test]

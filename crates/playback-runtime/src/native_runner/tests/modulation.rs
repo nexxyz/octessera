@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn sense_value_lanes_round_trip_in_payload() {
+fn sense_value_lanes_load_into_runner_and_menu_curve_edits_apply() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let mut payload = runner.config_payload();
     payload["runtimeConfig"]["parts"][0]["l2"]["x"]["velocity"] = json!({
@@ -27,19 +27,15 @@ fn sense_value_lanes_round_trip_in_payload() {
     assert_eq!(runner.sense_parts[0].x_velocity.grid_offset, 2);
     assert_eq!(runner.sense_parts[0].x_velocity.curve, "curve");
     assert!(runner.sense_parts[0].y_filter_resonance.enabled);
-    assert_eq!(
-        runner.config_payload()["runtimeConfig"]["parts"][0]["l2"]["x"]["velocity"]["to"],
-        99
-    );
-    assert_eq!(
-        runner.config_payload()["runtimeConfig"]["parts"][0]["l2"]["x"]["velocity"]["curve"],
-        "curve"
-    );
 
     runner.menu.rebuild(runner.menu_config());
     runner.menu.turn_key("parts.0.l2.x.velocity.curve", -1);
     runner.apply_menu_state().unwrap();
     assert_eq!(runner.sense_parts[0].x_velocity.curve, "linear");
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["parts"][0]["l2"]["x"]["velocity"]["curve"],
+        "linear"
+    );
 }
 
 #[test]

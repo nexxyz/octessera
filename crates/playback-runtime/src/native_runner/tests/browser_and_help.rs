@@ -179,23 +179,28 @@ fn sample_browser_shows_non_deletable_builtin_favourites() {
 }
 
 #[test]
-fn sample_browser_error_shows_host_message() {
+fn sample_browser_error_surfaces_host_message_and_empty_browser() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.startup_splash_presented = true;
     runner.toast = None;
+    let host_message = "SD card missing";
+
     runner
         .apply_store_result(RuntimeStoreResult::SampleListError {
             instrument_slot: 0,
             sample_slot: 0,
             dir: "sd-card".into(),
-            message: "SD card is not available. Insert the OLED SD card and try again.".into(),
+            message: host_message.into(),
         })
         .unwrap();
 
-    assert_eq!(
-        runner.toast.as_ref().unwrap().message,
-        "SD card is not available. Insert the OLED SD card and try again."
-    );
+    let browser = runner.sample_browser.as_ref().unwrap();
+    assert_eq!(browser.instrument_slot, 0);
+    assert_eq!(browser.sample_slot, 0);
+    assert_eq!(browser.dir, "sd-card");
+    assert!(browser.entries.is_empty());
+    assert_eq!(runner.toast.as_ref().unwrap().message, host_message);
+    assert_eq!(runner.snapshot().unwrap()["display"]["toast"], host_message);
 }
 
 #[test]
