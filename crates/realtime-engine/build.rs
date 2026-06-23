@@ -14,9 +14,25 @@ fn main() {
         .unwrap_or_else(|error| panic!("failed to parse {}: {}", source_path.display(), error));
 
     let generated = format!(
-        "pub const INSTRUMENT_SLOT_COUNT: usize = {};\n\
+        "pub const DEFAULT_AUDIO_SAMPLE_RATE: u32 = {};\n\
+         pub const DEFAULT_AUDIO_BLOCK_FRAMES: usize = {};\n\
+         pub const MAX_SYNTH_VOICES: usize = {};\n\
+         pub const MAX_SAMPLE_VOICES: usize = {};\n\
+         pub const MAX_SYNTH_VOICES_PER_SLOT: usize = {};\n\
+         pub const MAX_SAMPLE_VOICES_PER_SLOT: usize = {};\n\
+         pub const MAX_ACTIVE_BUS_FX_SLOTS: usize = {};\n\
+         pub const MAX_ACTIVE_GLOBAL_FX_SLOTS: usize = {};\n\
+         pub const INSTRUMENT_SLOT_COUNT: usize = {};\n\
          pub const DEFAULT_PAN_POSITIONS: usize = {};\n\
          pub const SAMPLE_SLOTS_PER_INSTRUMENT: usize = {};\n",
+        positive_usize(&value, "audioSampleRate"),
+        positive_usize(&value, "audioBlockFrames"),
+        positive_usize(&value, "maxSynthVoices"),
+        positive_usize(&value, "maxSampleVoices"),
+        positive_usize(&value, "maxSynthVoicesPerSlot"),
+        positive_usize(&value, "maxSampleVoicesPerSlot"),
+        positive_usize(&value, "maxActiveBusFxSlots"),
+        positive_usize(&value, "maxActiveGlobalFxSlots"),
         positive_usize(&value, "instrumentCount"),
         positive_usize(&value, "panPositionCount"),
         positive_usize(&value, "sampleSlotCount")

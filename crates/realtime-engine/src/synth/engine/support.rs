@@ -71,6 +71,7 @@ pub(super) struct MomentaryFxState {
     pub(super) stutter_r: Vec<f32>,
     pub(super) stutter_write: usize,
     pub(super) stutter_ready: bool,
+    pub(super) stutter_segment_len: usize,
     pub(super) stutter_ramp_len: usize,
     pub(super) stutter_ramp_pos: usize,
     pub(super) freeze_bufs: [Vec<f32>; 4],
@@ -90,6 +91,7 @@ impl MomentaryFxState {
     ) -> Self {
         let ramp_samples = ((sample_rate as f32 * 0.002) as usize).max(1);
         let pitch_ramp_len = ((sample_rate as f32 * 0.002) as u32).max(1);
+        let stutter_segment_len = stutter_segment_len(sample_rate, &params);
         const DELAY_LENS: [usize; 4] = [1557, 1617, 1491, 1422];
         let freeze_bufs: [Vec<f32>; 4] =
             DELAY_LENS.map(|n| vec![0.0; (n * sample_rate as usize / 44_100).max(1)]);
@@ -108,10 +110,11 @@ impl MomentaryFxState {
             pitch_shifter: LivePitchShift::new(sample_rate),
             pitch_ramp_pos: 0,
             pitch_ramp_len,
-            stutter_l: Vec::new(),
-            stutter_r: Vec::new(),
+            stutter_l: vec![0.0; sample_rate as usize],
+            stutter_r: vec![0.0; sample_rate as usize],
             stutter_write: 0,
             stutter_ready: false,
+            stutter_segment_len,
             stutter_ramp_len: ramp_samples,
             stutter_ramp_pos: 0,
             freeze_bufs,
@@ -145,15 +148,25 @@ impl LivePitchShift {
         }
     }
 
-    pub(super) fn prefill(&mut self, data: &[f32]) {
-        let frames = data.len().min(self.buf.len()) / 2;
+    pub(super) fn prefill_from_ring(&mut self, ring: &[f32], write_pos: usize) {
+        let frames = ring.len().min(self.buf.len()) / 2;
         let offset = self.buf_len.saturating_sub(frames);
-        for i in 0..frames {
-            let src = i * 2;
+        let tail_frames = frames.min(ring.len().saturating_sub(write_pos) / 2);
+        for i in 0..tail_frames {
+            let src = (write_pos + i) * 2;
             let dst = (offset + i) * 2;
-            if src + 1 < data.len() && dst + 1 < self.buf.len() {
-                self.buf[dst] = data[src];
-                self.buf[dst + 1] = data[src + 1];
+            if src + 1 < ring.len() && dst + 1 < self.buf.len() {
+                self.buf[dst] = ring[src];
+                self.buf[dst + 1] = ring[src + 1];
+            }
+        }
+        let head_frames = frames.saturating_sub(tail_frames);
+        for i in 0..head_frames {
+            let src = i * 2;
+            let dst = (offset + tail_frames + i) * 2;
+            if src + 1 < ring.len() && dst + 1 < self.buf.len() {
+                self.buf[dst] = ring[src];
+                self.buf[dst + 1] = ring[src + 1];
             }
         }
         self.write_pos = self.buf_len - 1;
@@ -199,6 +212,11 @@ impl LivePitchShift {
         let b = buf.get(idx + 2).copied().unwrap_or(0.0);
         a + frac * (b - a)
     }
+}
+
+pub(super) fn stutter_segment_len(sample_rate: u32, params: &BTreeMap<String, Value>) -> usize {
+    let rate = param_f32(params, "rateHz", 8.0).clamp(1.0, 32.0);
+    ((sample_rate as f32 / rate) as usize).clamp(48, sample_rate as usize)
 }
 
 pub(super) fn parse_route(route: &str) -> usize {

@@ -1,31 +1,44 @@
 use super::*;
-use crate::synth::{MomentaryFxTarget, VoiceStealingMode, VOICES_PER_SLOT};
+use crate::synth::{
+    MomentaryFxTarget, VoiceStealingMode, MAX_SAMPLE_VOICES_PER_SLOT, MAX_SYNTH_VOICES,
+    MAX_SYNTH_VOICES_PER_SLOT, VOICES_PER_SLOT,
+};
 use serde_json::json;
 use std::collections::BTreeMap;
 
 #[test]
-fn maintains_eight_voices_per_instrument_slot() {
+fn synth_voice_cap_limits_per_slot_to_four() {
     let mut engine = SynthEngine::new(48_000);
-    for i in 0..8 {
-        engine.note_on(0, 60 + i, 100, 2_000);
-        engine.note_on(1, 72 + i, 100, 2_000);
+    for i in 0..(MAX_SYNTH_VOICES_PER_SLOT + 1) {
+        engine.note_on(0, (60 + i) as u8, 100, 2_000);
     }
 
-    assert_eq!(engine.active_voice_count_for_slot(0), 8);
-    assert_eq!(engine.active_voice_count_for_slot(1), 8);
+    assert_eq!(
+        engine.active_voice_count_for_slot(0),
+        MAX_SYNTH_VOICES_PER_SLOT
+    );
+    assert_eq!(engine.profile_snapshot().cumulative_voice_steals, 1);
 }
 
 #[test]
 fn voice_steal_is_scoped_to_instrument_slot() {
     let mut engine = SynthEngine::new(48_000);
-    for i in 0..8 {
-        engine.note_on(0, 60 + i, 100, 2_000);
-        engine.note_on(1, 72 + i, 100, 2_000);
+    for i in 0..(MAX_SYNTH_VOICES_PER_SLOT + 2) {
+        engine.note_on(0, (60 + i) as u8, 100, 2_000);
+    }
+    for i in 0..(MAX_SYNTH_VOICES_PER_SLOT + 2) {
+        engine.note_on(1, (72 + i) as u8, 100, 2_000);
     }
     engine.note_on(0, 90, 100, 2_000);
 
-    assert_eq!(engine.active_voice_count_for_slot(0), 8);
-    assert_eq!(engine.active_voice_count_for_slot(1), 8);
+    assert_eq!(
+        engine.active_voice_count_for_slot(0),
+        MAX_SYNTH_VOICES_PER_SLOT
+    );
+    assert_eq!(
+        engine.active_voice_count_for_slot(1),
+        MAX_SYNTH_VOICES_PER_SLOT
+    );
 }
 
 #[test]
@@ -136,14 +149,14 @@ fn aggressive_global_voice_budget_reduces_polyphony_under_load() {
         .sum();
     let status = engine.audio_load_status();
 
-    assert!(active < INSTRUMENT_SLOT_COUNT * VOICES_PER_SLOT);
+    assert!(active <= MAX_SYNTH_VOICES);
     assert!(status.voice_steal);
     assert!(status.ratio > 1.0);
     assert!(!engine.audio_load_status().voice_steal);
 }
 
 #[test]
-fn disabled_global_voice_budget_preserves_full_polyphony() {
+fn disabled_global_voice_budget_preserves_per_slot_cap() {
     let mut engine = SynthEngine::new(48_000);
     engine.set_voice_stealing_mode(VoiceStealingMode::Off);
     for _ in 0..20 {
@@ -160,7 +173,37 @@ fn disabled_global_voice_budget_preserves_full_polyphony() {
         .map(|slot| engine.active_voice_count_for_slot(slot))
         .sum();
 
-    assert_eq!(active, INSTRUMENT_SLOT_COUNT * VOICES_PER_SLOT);
+    assert_eq!(active, INSTRUMENT_SLOT_COUNT * MAX_SYNTH_VOICES_PER_SLOT);
+}
+
+#[test]
+fn sample_voice_cap_limits_per_slot_to_eight() {
+    let mut engine = SynthEngine::new(48_000);
+    engine.set_instruments(InstrumentsConfig {
+        instruments: vec![InstrumentSlotConfig {
+            kind: "sampler".into(),
+            synth: default_synth_config(),
+            mixer: Some(InstrumentMixerConfig {
+                route: "direct".into(),
+                pan_pos: 0,
+                volume: 100.0,
+            }),
+        }],
+        mixer: None,
+        pan_positions: DEFAULT_PAN_POSITIONS,
+        master_volume: 100.0,
+    });
+    engine.set_sample_banks(vec![sample_bank(vec![1.0; 16_384]); INSTRUMENT_SLOT_COUNT]);
+
+    for _ in 0..(MAX_SAMPLE_VOICES_PER_SLOT + 1) {
+        engine.note_on(0, 36, 100, 2_000);
+    }
+
+    assert_eq!(
+        engine.profile_snapshot().active_sample_voices,
+        MAX_SAMPLE_VOICES_PER_SLOT
+    );
+    assert_eq!(engine.profile_snapshot().cumulative_voice_steals, 1);
 }
 
 #[test]
@@ -196,10 +239,6 @@ fn profile_snapshot_reports_active_counts_and_steals() {
     engine.note_on(0, 62, 100, 2_000);
     engine.note_on(0, 63, 100, 2_000);
     engine.note_on(0, 64, 100, 2_000);
-    engine.note_on(0, 65, 100, 2_000);
-    engine.note_on(0, 66, 100, 2_000);
-    engine.note_on(0, 67, 100, 2_000);
-    engine.note_on(0, 68, 100, 2_000);
 
     engine.set_sample_banks(vec![sample_bank(vec![1.0; 16_384]); INSTRUMENT_SLOT_COUNT]);
     engine.note_on(1, 36, 100, 1_000);
@@ -221,7 +260,7 @@ fn profile_snapshot_reports_active_counts_and_steals() {
 
     let snapshot = engine.profile_snapshot();
 
-    assert_eq!(snapshot.active_synth_voices, 8);
+    assert_eq!(snapshot.active_synth_voices, MAX_SYNTH_VOICES_PER_SLOT);
     assert_eq!(snapshot.active_sample_voices, 1);
     assert_eq!(snapshot.active_preview_sample_voices, 1);
     assert_eq!(snapshot.active_momentary_fx, 1);

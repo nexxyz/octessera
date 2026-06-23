@@ -117,7 +117,7 @@ fn overload_scenarios(sample_rate: u32) -> Vec<ScenarioSpec> {
         },
         ScenarioSpec {
             name: "mixed_cross_slot_48_48_steal".into(),
-            events: mixed_ramp_events(48, sample_rate),
+            events: mixed_overload_events(48, sample_rate),
         },
     ]
 }
@@ -201,7 +201,10 @@ fn mixed_ramp_events(voices: usize, sample_rate: u32) -> Vec<EngineEvent> {
 }
 
 fn synth_overload_events(voices: usize, slots: usize) -> Vec<EngineEvent> {
-    let mut events = baseline_events();
+    let mut events = vec![
+        EngineEvent::SetVoiceStealingMode(VoiceStealingMode::Balanced),
+        EngineEvent::SetInstruments(all_synth_instruments([0; INSTRUMENT_SLOT_COUNT], None)),
+    ];
     for (slot, count) in distribute(voices, 0, slots).iter().enumerate() {
         push_synth_voices(&mut events, slot, *count);
     }
@@ -215,6 +218,27 @@ fn sample_overload_events(voices: usize, slots: usize, sample_rate: u32) -> Vec<
         EngineEvent::SetSampleBanks(all_sample_banks(sample_rate)),
     ];
     for (slot, count) in distribute(voices, 0, slots).iter().enumerate() {
+        push_sample_voices(&mut events, slot, *count);
+    }
+    events
+}
+
+fn mixed_overload_events(voices: usize, sample_rate: u32) -> Vec<EngineEvent> {
+    let mut events = vec![
+        EngineEvent::SetVoiceStealingMode(VoiceStealingMode::Balanced),
+        EngineEvent::SetInstruments(mixed_instruments([0; INSTRUMENT_SLOT_COUNT], None)),
+        EngineEvent::SetSampleBanks(all_sample_banks(sample_rate)),
+    ];
+    for (slot, count) in distribute(voices, 0, INSTRUMENT_SLOT_COUNT / 2)
+        .iter()
+        .enumerate()
+    {
+        push_synth_voices(&mut events, slot, *count);
+    }
+    for (slot, count) in distribute(voices, INSTRUMENT_SLOT_COUNT / 2, INSTRUMENT_SLOT_COUNT / 2)
+        .iter()
+        .enumerate()
+    {
         push_sample_voices(&mut events, slot, *count);
     }
     events

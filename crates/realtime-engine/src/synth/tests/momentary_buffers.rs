@@ -80,6 +80,38 @@ fn momentary_stutter_stop_restores_normal_output() {
 }
 
 #[test]
+fn momentary_stutter_update_resets_segment_state() {
+    let mut engine = SynthEngine::new(48_000);
+    engine.note_on(0, 60, 120, 1_000);
+    engine.momentary_fx_start(
+        "a".to_string(),
+        "stutter".to_string(),
+        BTreeMap::from([
+            ("rateHz".to_string(), json!(30.0)),
+            ("depthPct".to_string(), json!(100.0)),
+        ]),
+        MomentaryFxTarget::Global,
+    );
+
+    for _ in 0..256 {
+        let _ = engine.next_sample();
+    }
+
+    engine.momentary_fx_update(
+        "a",
+        BTreeMap::from([
+            ("rateHz".to_string(), json!(12.0)),
+            ("depthPct".to_string(), json!(100.0)),
+        ]),
+    );
+
+    let (_, _, write, ready, ramp_pos) = engine.stutter_buf_for_id("a").unwrap();
+    assert_eq!(write, 0);
+    assert!(!ready);
+    assert_eq!(ramp_pos, 0);
+}
+
+#[test]
 fn momentary_freeze_injection_creates_sustained_tail() {
     let mut engine = SynthEngine::new(48_000);
     engine.note_on(0, 60, 127, 10_000);

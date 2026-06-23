@@ -1,4 +1,5 @@
 use playback_runtime::RunnerMessage;
+use realtime_engine::synth::DEFAULT_AUDIO_SAMPLE_RATE;
 use rodio::{OutputStream, OutputStreamHandle, Sink};
 use rodio_engine_source::{EngineEvent, EngineSource};
 use serde::Deserialize;
@@ -71,7 +72,8 @@ impl AudioRuntime {
         control_rx: Receiver<EngineEvent>,
         load_tx: Sender<realtime_engine::synth::AudioLoadStatus>,
     ) -> Result<(), String> {
-        let source = EngineSource::with_load_status_tx(control_rx, 48_000, Some(load_tx));
+        let source =
+            EngineSource::with_load_status_tx(control_rx, DEFAULT_AUDIO_SAMPLE_RATE, Some(load_tx));
         let sink = Sink::try_new(&self.handle).map_err(|e| format!("sink create failed: {e}"))?;
         sink.append(source);
         sink.play();

@@ -1,12 +1,12 @@
 use realtime_engine::synth::{
     AudioLoadStatus, InstrumentsConfig, SampleBankConfig, SynthEngine, VoiceStealingMode,
+    DEFAULT_AUDIO_BLOCK_FRAMES,
 };
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::{Duration, Instant};
 
-const DEFAULT_BLOCK_FRAMES: usize = 128;
 const MIN_BLOCK_FRAMES: usize = 32;
 const MAX_BLOCK_FRAMES: usize = 2048;
 const MAX_CONTROL_EVENTS_PER_BLOCK: usize = 256;
@@ -211,5 +211,5 @@ fn audio_block_frames() -> usize {
         .ok()
         .and_then(|value| value.parse::<usize>().ok())
         .map(|frames| frames.clamp(MIN_BLOCK_FRAMES, MAX_BLOCK_FRAMES))
-        .unwrap_or(DEFAULT_BLOCK_FRAMES)
+        .unwrap_or(DEFAULT_AUDIO_BLOCK_FRAMES)
 }

@@ -1,28 +1,24 @@
 use super::scenarios::ScenarioSpec;
-use playback_runtime::{
-    HostAdapter, HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime,
-    RuntimeAudioCommand, RuntimeConfig, RuntimePlatformEffect,
-};
+use playback_runtime::{CoreRunner, HostMessage, NativeRunner, NativeRunnerConfig, SyncSource};
+use realtime_engine::synth::{DEFAULT_AUDIO_BLOCK_FRAMES, DEFAULT_AUDIO_SAMPLE_RATE};
 use rodio_engine_source::EngineSource;
 use std::process::Command;
 use std::sync::mpsc;
 use std::time::Instant;
 
-const DEFAULT_BLOCK_FRAMES: usize = 128;
-const DEFAULT_SAMPLE_RATE: u32 = 48_000;
 const MIN_BLOCK_FRAMES: usize = 32;
 const MAX_BLOCK_FRAMES: usize = 2_048;
 
 pub fn profile_block_frames() -> usize {
     env_usize("CELLSYMPHONY_AUDIO_BLOCK_FRAMES")
-        .unwrap_or(DEFAULT_BLOCK_FRAMES)
+        .unwrap_or(DEFAULT_AUDIO_BLOCK_FRAMES)
         .clamp(MIN_BLOCK_FRAMES, MAX_BLOCK_FRAMES)
 }
 
 pub fn profile_sample_rate() -> u32 {
     env_usize("CELLSYMPHONY_PI_PROFILE_SAMPLE_RATE")
         .map(|value| value as u32)
-        .unwrap_or(DEFAULT_SAMPLE_RATE)
+        .unwrap_or(DEFAULT_AUDIO_SAMPLE_RATE)
 }
 
 pub fn measure_engine_source(
@@ -51,20 +47,20 @@ pub fn measure_engine_source(
 }
 
 pub fn measure_runtime_step(
-    sample_rate: u32,
+    _sample_rate: u32,
     block_frames: usize,
     blocks: usize,
 ) -> Result<Vec<f64>, String> {
-    let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
     let mut runner = NativeRunner::new(NativeRunnerConfig::default())?;
-    let mut host = NoopHost;
-    let step_ms = ((block_frames as f64 / sample_rate as f64) * 1000.0)
-        .round()
-        .max(1.0) as u64;
     let mut timings = Vec::with_capacity(blocks);
     for _ in 0..blocks {
         let start = Instant::now();
-        runtime.advance(step_ms, &mut runner, &mut host)?;
+        let _ = runner.send(HostMessage::TransportPulseStep {
+            pulses: block_frames.max(1) as u32,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: None,
+        })?;
         timings.push(start.elapsed().as_secs_f64() * 1000.0);
     }
     Ok(timings)
@@ -77,29 +73,6 @@ pub fn vcgencmd_output() -> Vec<(String, String)> {
             run_command("vcgencmd", &[metric]).map(|value| (metric.to_string(), value))
         })
         .collect()
-}
-
-struct NoopHost;
-
-impl HostAdapter for NoopHost {
-    fn handle_musical_event(&mut self, _event: &platform_core::MusicalEvent) -> Result<(), String> {
-        Ok(())
-    }
-
-    fn handle_platform_effect(
-        &mut self,
-        _effect: &RuntimePlatformEffect,
-    ) -> Result<Vec<HostMessage>, String> {
-        Ok(Vec::new())
-    }
-
-    fn handle_audio_command(&mut self, _command: &RuntimeAudioCommand) -> Result<(), String> {
-        Ok(())
-    }
-
-    fn handle_midi_message(&mut self, _bytes: &[u8]) -> Result<(), String> {
-        Ok(())
-    }
 }
 
 fn run_command(program: &str, args: &[&str]) -> Option<String> {

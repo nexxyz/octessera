@@ -193,19 +193,9 @@ impl SynthEngine {
             }
             match fx.kind {
                 MomentaryFxKind::Stutter => {
-                    let rate = param_f32(&fx.params, "rateHz", 8.0).clamp(1.0, 32.0);
                     let depth = (param_f32(&fx.params, "depthPct", 100.0) / 100.0).clamp(0.0, 1.0);
-                    let segment_len =
-                        ((sample_rate as f32 / rate) as usize).clamp(48, sample_rate as usize);
+                    let segment_len = fx.stutter_segment_len.min(fx.stutter_l.len()).max(1);
                     let ramp_len = fx.stutter_ramp_len.min(segment_len / 4).max(1);
-
-                    if fx.stutter_l.len() != segment_len {
-                        fx.stutter_l = vec![0.0; segment_len];
-                        fx.stutter_r = vec![0.0; segment_len];
-                        fx.stutter_write = 0;
-                        fx.stutter_ready = false;
-                        fx.stutter_ramp_pos = 0;
-                    }
 
                     if !fx.stutter_ready {
                         fx.stutter_l[fx.stutter_write] = l;
@@ -392,9 +382,14 @@ impl SynthEngine {
         let step = pitch * buffer.sample_rate as f32 / self.sample_rate as f32;
         let (voice_index, stole_voice) = {
             let pool = &mut self.sample_voices[slot];
-            match pool.iter().position(|voice| !voice.active) {
-                Some(i) => (i, false),
-                None => (0, true),
+            let active = pool.iter().filter(|voice| voice.active).count();
+            if active >= MAX_SAMPLE_VOICES_PER_SLOT {
+                (Self::steal_active_sample_voice_index(pool), true)
+            } else {
+                match pool.iter().position(|voice| !voice.active) {
+                    Some(i) => (i, false),
+                    None => (Self::steal_active_sample_voice_index(pool), true),
+                }
             }
         };
         if stole_voice {
@@ -408,6 +403,8 @@ impl SynthEngine {
             step,
             gain,
         };
+
+        self.enforce_voice_budgets();
     }
 
     fn render_sample_voices(&mut self, slot_out: &mut [f32; INSTRUMENT_SLOT_COUNT]) {

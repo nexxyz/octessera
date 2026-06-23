@@ -1,6 +1,6 @@
 use realtime_engine::synth::{
     default_synth_config, InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig,
-    DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
+    DEFAULT_AUDIO_SAMPLE_RATE, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
 };
 use rodio::{OutputStream, Sink};
 use rodio_engine_source::{EngineEvent, EngineSource};
@@ -18,7 +18,7 @@ impl AudioManager {
             .map_err(|e| format!("failed to create audio stream: {e}"))?;
         let sink = Sink::try_new(&handle).map_err(|e| format!("failed to create sink: {e}"))?;
         let (engine_tx, engine_rx) = mpsc::channel::<EngineEvent>();
-        sink.append(EngineSource::new(engine_rx, 48_000));
+        sink.append(EngineSource::new(engine_rx, DEFAULT_AUDIO_SAMPLE_RATE));
         sink.play();
         let _ = engine_tx.send(EngineEvent::SetInstruments(default_pi_instruments()));
         Ok(Self {

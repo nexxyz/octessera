@@ -1,3 +1,4 @@
+use super::support::stutter_segment_len;
 use super::*;
 
 impl SynthEngine {
@@ -22,16 +23,8 @@ impl SynthEngine {
 
         if kind == MomentaryFxKind::PitchShift {
             if let Some(fx) = self.momentary_fx.last_mut() {
-                let pos = self.dry_history_pos;
-                let len = self.dry_history.len();
-                let mut contiguous = Vec::with_capacity(len);
-                if pos < len {
-                    contiguous.extend_from_slice(&self.dry_history[pos..]);
-                }
-                if pos > 0 {
-                    contiguous.extend_from_slice(&self.dry_history[..pos]);
-                }
-                fx.pitch_shifter.prefill(&contiguous);
+                fx.pitch_shifter
+                    .prefill_from_ring(&self.dry_history, self.dry_history_pos);
             }
         }
     }
@@ -63,6 +56,12 @@ impl SynthEngine {
     pub fn momentary_fx_update(&mut self, id: &str, params: BTreeMap<String, Value>) {
         if let Some(fx) = self.momentary_fx.iter_mut().find(|fx| fx.id == id) {
             fx.params = params;
+            if fx.kind == MomentaryFxKind::Stutter {
+                fx.stutter_segment_len = stutter_segment_len(self.sample_rate, &fx.params);
+                fx.stutter_write = 0;
+                fx.stutter_ready = false;
+                fx.stutter_ramp_pos = 0;
+            }
         }
     }
 
@@ -228,9 +227,14 @@ impl SynthEngine {
         let freq = midi_note_to_hz(midi_note);
         let (i, stole_voice) = {
             let pool = &mut self.voices[slot];
-            match pool.iter().position(|voice| !voice.active) {
-                Some(i) => (i, false),
-                None => (Self::steal_voice_index(pool), true),
+            let active = pool.iter().filter(|voice| voice.active).count();
+            if active >= MAX_SYNTH_VOICES_PER_SLOT {
+                (Self::steal_active_voice_index(pool), true)
+            } else {
+                match pool.iter().position(|voice| !voice.active) {
+                    Some(i) => (i, false),
+                    None => (Self::steal_active_voice_index(pool), true),
+                }
             }
         };
         if stole_voice {
@@ -256,7 +260,7 @@ impl SynthEngine {
             filt: BiquadState::new(),
         };
 
-        self.enforce_global_voice_budget();
+        self.enforce_voice_budgets();
     }
 
     pub fn cc(&mut self, instrument_slot: u8, controller: u8, value: u8) {
