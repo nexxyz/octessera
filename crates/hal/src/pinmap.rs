@@ -44,8 +44,8 @@ pub const ENCODERS: [EncoderPins; 1 + platform_core::AUX_ENCODER_COUNT] = [
     }, // SW4 (aux3)
 ];
 
-/// NeoKey I2C address (typically 0x30)
-pub const NEOKEY_ADDR: u16 = 0x30;
+/// NeoKey I2C address with A0, A1, A2, and A3 jumpers soldered.
+pub const NEOKEY_ADDR: u16 = 0x3F;
 
-/// NeoTrellis I2C addresses (4 devices, 4x4 each = 8x8 grid)
-pub const TRELLIS_ADDRS: [u16; 4] = [0x2E, 0x2F, 0x30, 0x31];
+/// NeoTrellis I2C addresses ordered left-to-right, top-to-bottom.
+pub const TRELLIS_ADDRS: [u16; 4] = [0x30, 0x31, 0x32, 0x33];

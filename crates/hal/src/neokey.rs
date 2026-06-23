@@ -2,6 +2,8 @@
 //! Uses seesaw over I2C.
 
 #[cfg(feature = "pi-zero")]
+use crate::pinmap::NEOKEY_ADDR;
+#[cfg(feature = "pi-zero")]
 use std::fs::{File, OpenOptions};
 #[cfg(feature = "pi-zero")]
 use std::io::{Read, Write};
@@ -20,7 +22,7 @@ pub struct NeoKey {
 
 #[cfg(feature = "pi-zero")]
 impl NeoKey {
-    /// Initialize NeoKey at default address 0x30
+    /// Initialize NeoKey at the configured address.
     pub fn new(i2c_path: &str) -> Result<Self, String> {
         let mut file = OpenOptions::new()
             .read(true)
@@ -29,7 +31,7 @@ impl NeoKey {
             .map_err(|e| format!("NeoKey init failed: {}", e))?;
 
         // Set slave address (I2C_SLAVE = 0x0703)
-        set_slave_addr(&file, 0x30)?;
+        set_slave_addr(&file, NEOKEY_ADDR)?;
 
         // Init seesaw
         let init_cmd = [0xFE, 0x41]; // Seesaw HW_ID
@@ -38,7 +40,7 @@ impl NeoKey {
 
         Ok(Self {
             i2c_path: i2c_path.to_string(),
-            addr: 0x30,
+            addr: NEOKEY_ADDR,
         })
     }
 

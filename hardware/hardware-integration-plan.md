@@ -12,6 +12,7 @@ This document describes the current Raspberry Pi Zero 2 W hardware target and na
 - Controls: four clickable direct-GPIO rotary encoders: one main and three aux controls
 - Power input: USB-C breakout to the shared +5V rail
 - Bulk power smoothing: `C1` `470uf` polarized capacitor across `+5V` and `GND`
+- I2C addresses: NeoTrellis `0x30`, `0x31`, `0x32`, `0x33`; NeoKey `0x3F`
 
 Reference docs:
 
@@ -208,7 +209,7 @@ Implementation boundary: `playback-runtime` should expose the menu action and pl
 ## Bus And Pin Resource Notes
 
 - SPI: OLED write path on MOSI/SCLK/CE0 plus DC/RST GPIO.
-- I2C: NeoTrellis and NeoKey seesaw devices on bus 1.
+- I2C: NeoTrellis seesaw devices on bus 1 at `0x30`, `0x31`, `0x32`, and `0x33`; NeoKey on bus 1 at `0x3F`.
 - I2S: PCM5102-class DAC using GPIO18 BCK, GPIO19 LRCK, and GPIO21 DIN.
 - GPIO9/SPI MISO is available for the OLED module SD/MISO path rather than for encoder input in the current schematic.
 - GPIO14 can be claimed by UART TX if serial console is enabled; disable serial console for encoder reliability.
@@ -217,7 +218,7 @@ Implementation boundary: `playback-runtime` should expose the menu action and pl
 ## Bring-Up Checklist
 
 1. Verify +5V and +3.3V rails under load.
-2. Detect all NeoTrellis and NeoKey I2C devices.
+2. Detect NeoTrellis at `0x30`, `0x31`, `0x32`, and `0x33`, and NeoKey at `0x3F`.
 3. Initialize OLED and render a runtime snapshot frame.
 4. Initialize DAC and produce audio output through the realtime engine path.
 5. Verify each encoder direction and push switch.

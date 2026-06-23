@@ -2,6 +2,8 @@
 //! Uses seesaw over I2C.
 
 #[cfg(feature = "pi-zero")]
+use crate::pinmap::TRELLIS_ADDRS;
+#[cfg(feature = "pi-zero")]
 use std::fs::{File, OpenOptions};
 #[cfg(feature = "pi-zero")]
 use std::io::{Read, Write};
@@ -20,14 +22,9 @@ pub struct NeoTrellis {
 
 #[cfg(feature = "pi-zero")]
 impl NeoTrellis {
-    /// Initialize 4 NeoTrellis devices at addresses 0x2E, 0x2F, 0x30, 0x31
+    /// Initialize 4 NeoTrellis devices at the configured addresses.
     pub fn new(i2c_path: &str) -> Result<Self, String> {
-        let devices = [
-            (0x2E as u16, [0; 16]),
-            (0x2F as u16, [0; 16]),
-            (0x30 as u16, [0; 16]),
-            (0x31 as u16, [0; 16]),
-        ];
+        let devices = TRELLIS_ADDRS.map(|addr| (addr, [0; 16]));
 
         let trellis = Self {
             i2c_path: i2c_path.to_string(),
