@@ -15,6 +15,7 @@ mod dynamics;
 mod momentary_buffers;
 mod momentary_pitch_filter;
 mod routing;
+mod routing_active_slots;
 mod routing_gating;
 mod voices;
 

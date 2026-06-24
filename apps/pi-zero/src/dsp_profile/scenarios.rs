@@ -1,10 +1,15 @@
 use super::samples::all_sample_banks;
 use realtime_engine::synth::{
     default_synth_config, InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig,
-    MasterFxConfig, MixerConfig, VoiceStealingMode, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
+    MixerConfig, VoiceStealingMode, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
 };
 use rodio_engine_source::EngineEvent;
 use std::collections::BTreeMap;
+
+#[path = "fx_cases.rs"]
+mod fx_cases;
+
+use fx_cases::{bus_heavy_events, fx_mixer, fx_routes};
 
 const PROFILE_NOTE_DURATION_MS: u32 = 60_000;
 
@@ -80,6 +85,10 @@ fn full_scenarios(sample_rate: u32) -> Vec<ScenarioSpec> {
             events: fx_ramp_events(mode, sample_rate),
         });
     }
+    scenarios.push(ScenarioSpec {
+        name: "bus_heavy_6_bus_fx_2_global".into(),
+        events: bus_heavy_events(),
+    });
 
     for mode in 1..=4 {
         let name = match mode {
@@ -133,17 +142,29 @@ fn soak_scenarios(sample_rate: u32) -> Vec<ScenarioSpec> {
             events: fx_ramp_events(2, sample_rate),
         },
         ScenarioSpec {
+            name: "bus_heavy_6_bus_fx_2_global".into(),
+            events: bus_heavy_events(),
+        },
+        ScenarioSpec {
             name: "risky_soak_momentary_combined".into(),
             events: momentary_events(4, sample_rate),
         },
     ]
 }
 
-pub fn runtime_step_scenario() -> ScenarioSpec {
-    ScenarioSpec {
-        name: "runtime_step_default".into(),
+pub fn runtime_step_scenarios() -> Vec<ScenarioSpec> {
+    [
+        "runtime_step_default",
+        "dense_scan_transform_events",
+        "menu_snapshot_nav_stress",
+        "runtime_noteoff_queue_stress",
+    ]
+    .into_iter()
+    .map(|name| ScenarioSpec {
+        name: name.into(),
         events: Vec::new(),
-    }
+    })
+    .collect()
 }
 
 fn baseline_events() -> Vec<EngineEvent> {
@@ -426,67 +447,5 @@ fn route_name(route: usize) -> String {
         "direct".into()
     } else {
         format!("fx_bus_{route}")
-    }
-}
-
-fn fx_routes(mode: usize) -> [usize; INSTRUMENT_SLOT_COUNT] {
-    match mode {
-        1 => [1; INSTRUMENT_SLOT_COUNT],
-        2..=4 => std::array::from_fn(|slot| (slot % 4) + 1),
-        _ => [0; INSTRUMENT_SLOT_COUNT],
-    }
-}
-
-fn fx_mixer(mode: usize) -> Option<MixerConfig> {
-    let bus = |slots: Vec<&str>, pan_pos: usize| -> realtime_engine::synth::FxBusConfig {
-        realtime_engine::synth::FxBusConfig {
-            slots: slots
-                .into_iter()
-                .map(|kind| realtime_engine::synth::FxBusSlotConfig::Kind(kind.to_string()))
-                .collect(),
-            pan_pos,
-        }
-    };
-    let master = |slots: Vec<&str>| -> MasterFxConfig {
-        MasterFxConfig {
-            slots: slots
-                .into_iter()
-                .map(|kind| realtime_engine::synth::FxBusSlotConfig::Kind(kind.to_string()))
-                .collect(),
-        }
-    };
-    match mode {
-        0 => None,
-        1 => Some(MixerConfig {
-            buses: vec![bus(vec!["delay"], DEFAULT_PAN_POSITIONS / 2)],
-            master: None,
-        }),
-        2 => Some(MixerConfig {
-            buses: vec![
-                bus(vec!["delay"], 1),
-                bus(vec!["delay"], 2),
-                bus(vec!["delay"], 3),
-                bus(vec!["delay"], 4),
-            ],
-            master: None,
-        }),
-        3 => Some(MixerConfig {
-            buses: vec![
-                bus(vec!["delay", "reverb"], 1),
-                bus(vec!["delay", "reverb"], 2),
-                bus(vec!["delay", "reverb"], 3),
-                bus(vec!["delay", "reverb"], 4),
-            ],
-            master: None,
-        }),
-        _ => Some(MixerConfig {
-            buses: vec![
-                bus(vec!["delay", "reverb"], 1),
-                bus(vec!["delay", "reverb"], 2),
-                bus(vec!["delay", "reverb"], 3),
-                bus(vec!["delay", "reverb"], 4),
-            ],
-            master: Some(master(vec!["compressor", "reverb"])),
-        }),
     }
 }

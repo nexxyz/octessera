@@ -2,6 +2,7 @@ use super::scenarios::ScenarioSpec;
 use playback_runtime::{CoreRunner, HostMessage, NativeRunner, NativeRunnerConfig, SyncSource};
 use realtime_engine::synth::{DEFAULT_AUDIO_BLOCK_FRAMES, DEFAULT_AUDIO_SAMPLE_RATE};
 use rodio_engine_source::EngineSource;
+use serde_json::json;
 use std::process::Command;
 use std::sync::mpsc;
 use std::time::Instant;
@@ -47,23 +48,91 @@ pub fn measure_engine_source(
 }
 
 pub fn measure_runtime_step(
+    scenario: &ScenarioSpec,
     _sample_rate: u32,
     block_frames: usize,
     blocks: usize,
 ) -> Result<Vec<f64>, String> {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default())?;
+    prime_runtime_scenario(&mut runner, &scenario.name)?;
     let mut timings = Vec::with_capacity(blocks);
-    for _ in 0..blocks {
+    for block in 0..blocks {
         let start = Instant::now();
-        let _ = runner.send(HostMessage::TransportPulseStep {
-            pulses: block_frames.max(1) as u32,
-            source: SyncSource::Internal,
-            at_ppqn_pulse: None,
-            request_snapshot: None,
-        })?;
+        for message in runtime_step_messages(&scenario.name, block, block_frames) {
+            let _ = runner.send(message)?;
+        }
         timings.push(start.elapsed().as_secs_f64() * 1000.0);
     }
     Ok(timings)
+}
+
+fn prime_runtime_scenario(runner: &mut NativeRunner, scenario: &str) -> Result<(), String> {
+    if scenario == "runtime_noteoff_queue_stress" {
+        for x in 0..8 {
+            let _ = runner.send(HostMessage::DeviceInput {
+                input: json!({ "type": "grid_press", "x": x, "y": 0 }),
+            })?;
+        }
+    }
+    Ok(())
+}
+
+fn runtime_step_messages(scenario: &str, block: usize, block_frames: usize) -> Vec<HostMessage> {
+    match scenario {
+        "dense_scan_transform_events" => dense_scan_messages(block, block_frames),
+        "menu_snapshot_nav_stress" => menu_nav_messages(block, block_frames),
+        "runtime_noteoff_queue_stress" => noteoff_queue_messages(block, block_frames),
+        _ => vec![pulse_message(block_frames, None)],
+    }
+}
+
+fn dense_scan_messages(block: usize, block_frames: usize) -> Vec<HostMessage> {
+    let x = (block % 8) as u8;
+    let y = ((block / 8) % 8) as u8;
+    vec![
+        HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": x, "y": y }),
+        },
+        pulse_message(block_frames, Some(true)),
+        HostMessage::DeviceInput {
+            input: json!({ "type": "grid_release", "x": x, "y": y }),
+        },
+    ]
+}
+
+fn menu_nav_messages(block: usize, block_frames: usize) -> Vec<HostMessage> {
+    let delta = if block.is_multiple_of(2) { 1 } else { -1 };
+    vec![
+        HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "id": "main", "delta": delta }),
+        },
+        HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        },
+        pulse_message(block_frames, Some(true)),
+    ]
+}
+
+fn noteoff_queue_messages(block: usize, block_frames: usize) -> Vec<HostMessage> {
+    let x = (block % 8) as u8;
+    vec![
+        HostMessage::DeviceInput {
+            input: json!({ "type": "grid_release", "x": x, "y": 0 }),
+        },
+        pulse_message(block_frames, Some(block.is_multiple_of(2))),
+        HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": x, "y": 0 }),
+        },
+    ]
+}
+
+fn pulse_message(block_frames: usize, request_snapshot: Option<bool>) -> HostMessage {
+    HostMessage::TransportPulseStep {
+        pulses: block_frames.max(1) as u32,
+        source: SyncSource::Internal,
+        at_ppqn_pulse: None,
+        request_snapshot,
+    }
 }
 
 pub fn vcgencmd_output() -> Vec<(String, String)> {

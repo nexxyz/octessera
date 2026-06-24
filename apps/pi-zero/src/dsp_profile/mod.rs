@@ -5,7 +5,7 @@ mod telemetry;
 mod timing;
 
 use report::{emit_system_row, emit_timed_row, print_csv_header, TimedRow};
-use scenarios::{profile_scenarios, runtime_step_scenario, ProfileMode};
+use scenarios::{profile_scenarios, runtime_step_scenarios, ProfileMode};
 use timing::{profile_block_frames, profile_sample_rate};
 
 const PROFILE_BLOCKS: usize = 48;
@@ -54,18 +54,20 @@ pub fn run_dsp_profile() -> Result<(), String> {
         });
     }
 
-    let runtime = runtime_step_scenario();
-    let runtime_timing = timing::measure_runtime_step(sample_rate, block_frames, PROFILE_BLOCKS)?;
-    emit_timed_row(TimedRow {
-        kind: "runtime_step",
-        scenario: &runtime.name,
-        metric: "wall_ms",
-        samples: &runtime_timing,
-        block_frames,
-        sample_rate,
-        blocks: PROFILE_BLOCKS,
-        notes: "synth=na;sample=na;preview=na;momentary=na;steals=na;runner=native_runner",
-    });
+    for runtime in runtime_step_scenarios() {
+        let runtime_timing =
+            timing::measure_runtime_step(&runtime, sample_rate, block_frames, PROFILE_BLOCKS)?;
+        emit_timed_row(TimedRow {
+            kind: "runtime_step",
+            scenario: &runtime.name,
+            metric: "wall_ms",
+            samples: &runtime_timing,
+            block_frames,
+            sample_rate,
+            blocks: PROFILE_BLOCKS,
+            notes: "synth=na;sample=na;preview=na;momentary=na;steals=na;runner=native_runner",
+        });
+    }
 
     emit_system_row("after");
     Ok(())

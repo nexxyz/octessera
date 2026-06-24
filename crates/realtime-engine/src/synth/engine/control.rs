@@ -8,6 +8,8 @@ struct CompiledBusMixerState {
     pan_gains: Vec<(f32, f32)>,
     slot_params: Vec<[FxBusParams; BUS_SLOTS_PER_BUS]>,
     slot_state: Vec<[FxBusState; BUS_SLOTS_PER_BUS]>,
+    active_slot_indices: Vec<[usize; BUS_SLOTS_PER_BUS]>,
+    active_slot_counts: Vec<usize>,
 }
 
 impl SynthEngine {
@@ -113,6 +115,8 @@ impl SynthEngine {
         self.bus_pan_gains_cache = next_bus.pan_gains;
         self.bus_slot_params = next_bus.slot_params;
         self.bus_slot_state = next_bus.slot_state;
+        self.bus_active_slot_indices = next_bus.active_slot_indices;
+        self.bus_active_slot_counts = next_bus.active_slot_counts;
         self.bus_activity_frames
             .resize(self.bus_slot_params.len(), 0);
         self.active_bus_activity_count = self
@@ -122,6 +126,7 @@ impl SynthEngine {
             .count();
         self.master_slot_params = next_master_slot_params;
         self.master_slot_state = next_master_slot_state;
+        self.refresh_master_active_slot_indices();
         self.master_activity_frames = 0;
         self.bus_mono_scratch.resize(self.bus_pan_pos.len(), 0.0);
     }
@@ -175,12 +180,16 @@ impl SynthEngine {
                 pan_gains: next_bus_pan_gains,
                 slot_params: next_bus_slot_params,
                 slot_state: next_bus_slot_state,
+                active_slot_indices: Vec::new(),
+                active_slot_counts: Vec::new(),
             };
         };
         next_bus_pan_pos.reserve_exact(mixer.buses.len());
         next_bus_pan_gains.reserve_exact(mixer.buses.len());
         next_bus_slot_params.reserve_exact(mixer.buses.len());
         next_bus_slot_state.reserve_exact(mixer.buses.len());
+        let mut next_bus_active_slot_indices = Vec::with_capacity(mixer.buses.len());
+        let mut next_bus_active_slot_counts = Vec::with_capacity(mixer.buses.len());
         for (bus_idx, bus) in mixer.buses.iter().enumerate() {
             let pan_pos = bus.pan_pos.min(self.pan_positions - 1);
             next_bus_pan_pos.push(pan_pos);
@@ -196,14 +205,30 @@ impl SynthEngine {
                     .cloned()
                     .unwrap_or_else(|| fx_bus_state_from_params(&params[j], self.sample_rate))
             });
+            let (active_indices, active_count) = active_fx_bus_slots(&params);
             next_bus_slot_params.push(params);
             next_bus_slot_state.push(states);
+            next_bus_active_slot_indices.push(active_indices);
+            next_bus_active_slot_counts.push(active_count);
         }
         CompiledBusMixerState {
             pan_positions: next_bus_pan_pos,
             pan_gains: next_bus_pan_gains,
             slot_params: next_bus_slot_params,
             slot_state: next_bus_slot_state,
+            active_slot_indices: next_bus_active_slot_indices,
+            active_slot_counts: next_bus_active_slot_counts,
+        }
+    }
+
+    fn refresh_master_active_slot_indices(&mut self) {
+        self.master_active_slot_indices.clear();
+        self.master_active_slot_indices
+            .reserve(self.master_slot_params.len());
+        for (idx, params) in self.master_slot_params.iter().enumerate() {
+            if !matches!(params, FxBusParams::None) {
+                self.master_active_slot_indices.push(idx);
+            }
         }
     }
 
@@ -399,6 +424,20 @@ fn compile_bus_slot_configs(bus: &FxBusConfig) -> [FxBusSlotConfig; BUS_SLOTS_PE
         cfgs[j] = slot.clone();
     }
     cfgs
+}
+
+fn active_fx_bus_slots(
+    params: &[FxBusParams; BUS_SLOTS_PER_BUS],
+) -> ([usize; BUS_SLOTS_PER_BUS], usize) {
+    let mut indices = [0; BUS_SLOTS_PER_BUS];
+    let mut count = 0;
+    for (idx, params) in params.iter().enumerate() {
+        if !matches!(params, FxBusParams::None) {
+            indices[count] = idx;
+            count += 1;
+        }
+    }
+    (indices, count)
 }
 
 #[cfg(test)]

@@ -19,14 +19,17 @@ impl SynthEngine {
     ) -> (f32, f32) {
         let mut left = 0.0_f32;
         let mut right = 0.0_f32;
+        let process_momentary = !self.momentary_fx.is_empty();
         for (slot, sample) in slot_out.iter().enumerate() {
             let mut sample = *sample * self.slot_volume[slot];
-            let (fx_l, fx_r) = self.process_momentary_fx_target(
-                MomentaryFxTarget::Instrument { index: slot },
-                sample,
-                sample,
-            );
-            sample = (fx_l + fx_r) * 0.5;
+            if process_momentary {
+                let (fx_l, fx_r) = self.process_momentary_fx_target(
+                    MomentaryFxTarget::Instrument { index: slot },
+                    sample,
+                    sample,
+                );
+                sample = (fx_l + fx_r) * 0.5;
+            }
             let route = self.slot_route[slot];
             if route == 0 {
                 let (gl, gr) = self.slot_pan_gains[slot];
@@ -62,12 +65,16 @@ impl SynthEngine {
                 continue;
             }
             let (processed, pan_override) = self.process_fx_bus(bus_idx, slot_out);
-            let (fx_l, fx_r) = self.process_momentary_fx_target(
-                MomentaryFxTarget::FxBus { index: bus_idx },
-                processed,
-                processed,
-            );
-            let processed = (fx_l + fx_r) * 0.5;
+            let processed = if self.momentary_fx.is_empty() {
+                processed
+            } else {
+                let (fx_l, fx_r) = self.process_momentary_fx_target(
+                    MomentaryFxTarget::FxBus { index: bus_idx },
+                    processed,
+                    processed,
+                );
+                (fx_l + fx_r) * 0.5
+            };
             if self.signal_present_mono(processed) || self.signal_present_mono(bus_input) {
                 self.set_bus_activity_hold(bus_idx);
             } else {
@@ -102,7 +109,9 @@ impl SynthEngine {
             self.bus_slot_params.get(bus_idx),
             self.bus_slot_state.get_mut(bus_idx),
         ) {
-            for j in 0..BUS_SLOTS_PER_BUS {
+            let active_indices = self.bus_active_slot_indices[bus_idx];
+            let active_count = self.bus_active_slot_counts[bus_idx];
+            for j in active_indices.iter().take(active_count).copied() {
                 processed = process_fx_bus_slot(
                     &params[j],
                     &mut states[j],
@@ -149,7 +158,7 @@ impl SynthEngine {
     }
 
     pub(super) fn apply_master_fx_slots(&mut self, mut left: f32, mut right: f32) -> (f32, f32) {
-        for slot_idx in 0..self.master_slot_params.len() {
+        for slot_idx in self.master_active_slot_indices.iter().copied() {
             let params = self.master_slot_params[slot_idx];
             if let Some(state) = self.master_slot_state.get_mut(slot_idx) {
                 (left, right) =
