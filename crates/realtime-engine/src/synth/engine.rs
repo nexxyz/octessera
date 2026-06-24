@@ -6,11 +6,16 @@ use super::fx::{
 use super::fx_params::{compile_fx_bus_params, FxBusParams};
 use super::runtime_state::*;
 use super::types::*;
+use render_voice::{refresh_synth_voice_render_cache, SynthVoiceRenderConfig};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
 mod control;
 mod render;
+mod render_momentary_fx;
+mod render_routing;
+mod render_samples;
+mod render_synth;
 mod render_voice;
 mod support;
 #[cfg(test)]
@@ -18,10 +23,9 @@ mod test_support;
 mod voice_budget;
 
 use support::{
-    midi_note_to_hz, mono_frame, osc_sample, pan_gains, pan_gains_float, param_f32,
-    parse_instrument_kind, parse_momentary_fx_kind, parse_route, sample_slot_for_note,
-    InstrumentKind, MomentaryFxKind, MomentaryFxState, PreviewSampleVoice, SampleVoice,
-    DRY_HISTORY_FRAMES,
+    midi_note_to_hz, mono_frame, pan_gains, pan_gains_float, param_f32, parse_instrument_kind,
+    parse_momentary_fx_kind, parse_route, sample_slot_for_note, InstrumentKind, MomentaryFxKind,
+    MomentaryFxState, PreviewSampleVoice, SampleVoice, DRY_HISTORY_FRAMES,
 };
 
 #[cfg(test)]
@@ -32,20 +36,27 @@ pub struct SynthEngine {
     sample_clock: u64,
     slot_kind: [InstrumentKind; INSTRUMENT_SLOT_COUNT],
     instruments: [SynthConfig; INSTRUMENT_SLOT_COUNT],
+    synth_render_configs: [SynthVoiceRenderConfig; INSTRUMENT_SLOT_COUNT],
+    synth_render_revisions: [u32; INSTRUMENT_SLOT_COUNT],
     sample_banks: Vec<SampleBankConfig>,
     mods: [InstrumentMod; INSTRUMENT_SLOT_COUNT],
     voices: [[Voice; VOICES_PER_SLOT]; INSTRUMENT_SLOT_COUNT],
     sample_voices: [[SampleVoice; VOICES_PER_SLOT]; INSTRUMENT_SLOT_COUNT],
+    active_synth_slots: [bool; INSTRUMENT_SLOT_COUNT],
+    active_sample_slots: [bool; INSTRUMENT_SLOT_COUNT],
     preview_sample_voices: Vec<PreviewSampleVoice>,
     slot_route: [usize; INSTRUMENT_SLOT_COUNT],
     slot_pan_pos: [usize; INSTRUMENT_SLOT_COUNT],
+    slot_pan_gains: [(f32, f32); INSTRUMENT_SLOT_COUNT],
     slot_volume: [f32; INSTRUMENT_SLOT_COUNT],
     bus_pan_pos: Vec<usize>,
+    bus_pan_gains_cache: Vec<(f32, f32)>,
     bus_mono_scratch: Vec<f32>,
     bus_mono_snapshot: Vec<f32>,
     bus_slot_params: Vec<[FxBusParams; BUS_SLOTS_PER_BUS]>,
     bus_slot_state: Vec<[FxBusState; BUS_SLOTS_PER_BUS]>,
     bus_activity_frames: Vec<u32>,
+    active_bus_activity_count: usize,
     master_slot_params: Vec<FxBusParams>,
     master_slot_state: Vec<MasterFxState>,
     master_activity_frames: u32,
@@ -64,25 +75,34 @@ pub struct SynthEngine {
 impl SynthEngine {
     pub fn new(sample_rate: u32) -> Self {
         let default = default_synth_config();
+        let default_render = SynthVoiceRenderConfig::from_config(default);
         Self {
             sample_rate,
             sample_clock: 0,
             slot_kind: [InstrumentKind::Synth; INSTRUMENT_SLOT_COUNT],
             instruments: [default; INSTRUMENT_SLOT_COUNT],
+            synth_render_configs: [default_render; INSTRUMENT_SLOT_COUNT],
+            synth_render_revisions: [0; INSTRUMENT_SLOT_COUNT],
             sample_banks: vec![SampleBankConfig::default(); INSTRUMENT_SLOT_COUNT],
             mods: [InstrumentMod::new(); INSTRUMENT_SLOT_COUNT],
             voices: [[Voice::off(); VOICES_PER_SLOT]; INSTRUMENT_SLOT_COUNT],
             sample_voices: [[SampleVoice::off(); VOICES_PER_SLOT]; INSTRUMENT_SLOT_COUNT],
+            active_synth_slots: [false; INSTRUMENT_SLOT_COUNT],
+            active_sample_slots: [false; INSTRUMENT_SLOT_COUNT],
             preview_sample_voices: Vec::new(),
             slot_route: [0; INSTRUMENT_SLOT_COUNT],
             slot_pan_pos: [DEFAULT_PAN_POSITIONS / 2; INSTRUMENT_SLOT_COUNT],
+            slot_pan_gains: [pan_gains(DEFAULT_PAN_POSITIONS / 2, DEFAULT_PAN_POSITIONS);
+                INSTRUMENT_SLOT_COUNT],
             slot_volume: [1.0; INSTRUMENT_SLOT_COUNT],
             bus_pan_pos: Vec::new(),
+            bus_pan_gains_cache: Vec::new(),
             bus_mono_scratch: Vec::new(),
             bus_mono_snapshot: Vec::new(),
             bus_slot_params: Vec::new(),
             bus_slot_state: Vec::new(),
             bus_activity_frames: Vec::new(),
+            active_bus_activity_count: 0,
             master_slot_params: Vec::new(),
             master_slot_state: Vec::new(),
             master_activity_frames: 0,

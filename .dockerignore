@@ -1,0 +1,15 @@
+.git
+.github
+.opencode
+.slim
+node_modules
+**/node_modules
+target
+**/target
+dist
+**/dist
+coverage
+**/coverage
+apps/desktop/dist-desktop
+hardware
+*.log

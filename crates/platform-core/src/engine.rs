@@ -7,7 +7,7 @@ use crate::interpretation::{
 use crate::mapping::{map_intents_to_musical_events, MappingConfig};
 use crate::transforms::{
     apply_global_sound, apply_note_behavior, dedupe_simultaneous_notes, GlobalSoundConfig,
-    NoteBehavior,
+    NoteBehavior, NoteBehaviorResult,
 };
 use crate::MusicalEvent;
 use serde_json::Value;
@@ -134,9 +134,14 @@ impl NativePartEngine {
         } else {
             None
         };
-        let mut events = context.emitted_events.clone();
+        let mapped_event_len = mapped
+            .as_ref()
+            .map(|mapped| mapped.events.len())
+            .unwrap_or(0);
+        let mut events = Vec::with_capacity(context.emitted_events.len() + mapped_event_len);
+        events.extend(context.emitted_events.iter().cloned());
         if let Some(mapped) = &mapped {
-            events.extend(mapped.events.clone());
+            events.extend(mapped.events.iter().cloned());
         }
         let events = apply_global_sound(&events, &self.global_sound);
         let note_behavior = apply_note_behavior(
@@ -145,9 +150,10 @@ impl NativePartEngine {
             self.part_index,
             &self.held_notes,
         );
-        self.held_notes = note_behavior.held_notes.clone();
+        let NoteBehaviorResult { events, held_notes } = note_behavior;
+        self.held_notes = held_notes;
         Ok(NativeInputResult {
-            events: dedupe_simultaneous_notes(&note_behavior.events),
+            events: dedupe_simultaneous_notes(&events),
             emitted_events: context.emitted_events,
             mapped_intents: mapped.map(|mapped| mapped.intents).unwrap_or_default(),
             model: after,
@@ -180,7 +186,8 @@ impl NativePartEngine {
             .collect::<Vec<_>>();
         self.tick = self.tick.saturating_add(1);
         let mapped = map_intents_to_musical_events(&intents, &self.mapping_config);
-        let mut events = context.emitted_events.clone();
+        let mut events = Vec::with_capacity(context.emitted_events.len() + mapped.events.len());
+        events.extend(context.emitted_events.iter().cloned());
         events.extend(mapped.events);
         let events = apply_global_sound(&events, &self.global_sound);
         let note_behavior = apply_note_behavior(
@@ -189,11 +196,12 @@ impl NativePartEngine {
             self.part_index,
             &self.held_notes,
         );
-        self.held_notes = note_behavior.held_notes.clone();
+        let NoteBehaviorResult { events, held_notes } = note_behavior;
+        self.held_notes = held_notes;
 
         Ok(NativeTickResult {
             emitted_events: context.emitted_events,
-            events: dedupe_simultaneous_notes(&note_behavior.events),
+            events: dedupe_simultaneous_notes(&events),
             mapped_intents: mapped.intents,
             model: after,
         })

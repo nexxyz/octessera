@@ -45,18 +45,43 @@ if ($LocalBinary -ne "") {
 
   tar `
     --exclude .git `
+    --exclude .github `
+    --exclude .slim `
+    --exclude .opencode `
     --exclude .opencode/node_modules `
     --exclude node_modules `
     --exclude target `
+    --exclude dist `
+    --exclude '*/dist' `
+    --exclude coverage `
+    --exclude '*/coverage' `
+    --exclude hardware `
+    --exclude apps/desktop/dist `
     --exclude apps/desktop/dist-desktop `
+    --exclude apps/desktop/coverage `
     -czf $archive `
     -C (Resolve-Path ".") .
 
-  Copy-ToPi $archive "/tmp/cellsymphony-pi-source.tar.gz"
+  $remoteArchive = "$RemoteRepo-source.tar.gz"
+  Copy-ToPi $archive $remoteArchive
   if ($CleanRemote) {
-    Invoke-PiSsh "set -e; rm -rf '$RemoteRepo'; mkdir -p '$RemoteRepo'; tar -xzf /tmp/cellsymphony-pi-source.tar.gz -C '$RemoteRepo'; rm -f /tmp/cellsymphony-pi-source.tar.gz"
+    Invoke-PiSsh "set -e; rm -rf '$RemoteRepo'; mkdir -p '$RemoteRepo'; tar -xzf '$remoteArchive' -C '$RemoteRepo'; rm -f '$remoteArchive'"
   } else {
-    Invoke-PiSsh "set -e; mkdir -p '$RemoteRepo'; tar -xzf /tmp/cellsymphony-pi-source.tar.gz -C '$RemoteRepo'; rm -f /tmp/cellsymphony-pi-source.tar.gz"
+    $syncCommand = @"
+set -e
+SYNC_DIR='$RemoteRepo-sync'
+rm -rf "`$SYNC_DIR"
+mkdir -p "`$SYNC_DIR" '$RemoteRepo'
+tar -xzf '$remoteArchive' -C "`$SYNC_DIR"
+if command -v rsync >/dev/null 2>&1; then
+  rsync -a --checksum --delete --exclude target/ "`$SYNC_DIR"/ '$RemoteRepo'/
+else
+  echo "warning: rsync not found; falling back to tar extraction, Cargo cache fingerprints may be invalidated" >&2
+  tar -xzf '$remoteArchive' -C '$RemoteRepo'
+fi
+rm -rf "`$SYNC_DIR" '$remoteArchive'
+"@
+    Invoke-PiSsh $syncCommand
   }
 
   if ($SyncOnly -or -not $BuildOnPi) {

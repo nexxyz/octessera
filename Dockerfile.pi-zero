@@ -1,14 +1,15 @@
-FROM ghcr.io/cross-rs/aarch64-unknown-linux-gnu:latest
+FROM rust:1-bookworm
 
-# Add ARM64 architecture and install ALSA for target
 RUN dpkg --add-architecture arm64 && \
-    apt-get update && apt-get install -y \
+    apt-get update && apt-get install -y --no-install-recommends \
+    gcc-aarch64-linux-gnu \
+    libc6-dev-arm64-cross \
     libasound2-dev:arm64 \
-    pkg-config \
     libdbus-1-dev:arm64 \
+    pkg-config \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Set up cross-compilation environment
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER="aarch64-linux-gnu-gcc"
 ENV PKG_CONFIG_PATH="/usr/lib/aarch64-linux-gnu/pkgconfig/"
 ENV PKG_CONFIG_ALLOW_CROSS=1

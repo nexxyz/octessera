@@ -11,6 +11,7 @@ const MIN_BLOCK_FRAMES: usize = 32;
 const MAX_BLOCK_FRAMES: usize = 2048;
 const MAX_CONTROL_EVENTS_PER_BLOCK: usize = 256;
 const LOAD_REPORT_INTERVAL: Duration = Duration::from_millis(100);
+const TELEMETRY_WINDOW_BLOCKS: usize = 128;
 
 pub struct EngineSource {
     engine: SynthEngine,
@@ -18,9 +19,12 @@ pub struct EngineSource {
     sample_rate: u32,
     block_frames: usize,
     buf: Vec<f32>,
+    left_buf: Vec<f32>,
+    right_buf: Vec<f32>,
     idx: usize,
     load_tx: Option<Sender<AudioLoadStatus>>,
     last_load_report: Instant,
+    telemetry: EngineTelemetry,
 }
 
 pub enum EngineEvent {
@@ -79,21 +83,24 @@ impl EngineSource {
             sample_rate,
             block_frames,
             buf: Vec::with_capacity(block_frames * 2),
+            left_buf: Vec::with_capacity(block_frames),
+            right_buf: Vec::with_capacity(block_frames),
             idx: 0,
             load_tx,
             last_load_report: Instant::now(),
+            telemetry: EngineTelemetry::default(),
         }
     }
 
     fn refill(&mut self) {
-        self.drain_control_events();
+        let drained = self.drain_control_events();
         let t0 = Instant::now();
-        self.buf.clear();
-        for _ in 0..self.block_frames {
-            let (l, r) = self.engine.next_stereo_sample();
-            self.buf.push(l);
-            self.buf.push(r);
-        }
+        self.engine.render_interleaved_block(
+            self.block_frames,
+            &mut self.left_buf,
+            &mut self.right_buf,
+            &mut self.buf,
+        );
         self.idx = 0;
         let elapsed = t0.elapsed().as_secs_f32();
         let block_seconds = (self.block_frames as f32) / (self.sample_rate as f32);
@@ -102,6 +109,8 @@ impl EngineSource {
         } else {
             0.0
         };
+        self.telemetry
+            .observe_block(ratio, drained.control_events, drained.config_events);
         self.engine.set_runtime_load_ratio(ratio);
         self.report_load_status();
     }
@@ -114,17 +123,20 @@ impl EngineSource {
             return;
         }
         self.last_load_report = Instant::now();
-        let status = self.engine.audio_load_status();
+        let mut status = self.engine.audio_load_status();
+        self.telemetry.apply_to_status(&mut status);
         if let Some(load_tx) = &self.load_tx {
             let _ = load_tx.send(status);
         }
     }
 
-    fn drain_control_events(&mut self) {
+    fn drain_control_events(&mut self) -> DrainedControlEvents {
+        let mut drained = DrainedControlEvents::default();
         for _ in 0..MAX_CONTROL_EVENTS_PER_BLOCK {
             let Ok(event) = self.control_rx.try_recv() else {
                 break;
             };
+            drained.control_events += 1;
             match event {
                 EngineEvent::NoteOn {
                     instrument_slot,
@@ -148,8 +160,14 @@ impl EngineSource {
                     }
                     self.engine.cc(instrument_slot, controller, value);
                 }
-                EngineEvent::SetInstruments(config) => self.engine.set_instruments(config),
-                EngineEvent::SetSampleBanks(banks) => self.engine.set_sample_banks(banks),
+                EngineEvent::SetInstruments(config) => {
+                    drained.config_events += 1;
+                    self.engine.set_instruments(config);
+                }
+                EngineEvent::SetSampleBanks(banks) => {
+                    drained.config_events += 1;
+                    self.engine.set_sample_banks(banks);
+                }
                 EngineEvent::PreviewSample {
                     instrument_slot,
                     buffer,
@@ -158,6 +176,7 @@ impl EngineSource {
                     .engine
                     .preview_sample(instrument_slot, buffer, velocity),
                 EngineEvent::SetVoiceStealingMode(mode) => {
+                    drained.config_events += 1;
                     self.engine.set_voice_stealing_mode(mode)
                 }
                 EngineEvent::MomentaryFxStart {
@@ -165,13 +184,83 @@ impl EngineSource {
                     fx_type,
                     params,
                     target,
-                } => self.engine.momentary_fx_start(id, fx_type, params, target),
+                } => {
+                    drained.config_events += 1;
+                    self.engine.momentary_fx_start(id, fx_type, params, target);
+                }
                 EngineEvent::MomentaryFxUpdate { id, params } => {
+                    drained.config_events += 1;
                     self.engine.momentary_fx_update(&id, params)
                 }
-                EngineEvent::MomentaryFxStop { id } => self.engine.momentary_fx_stop(&id),
+                EngineEvent::MomentaryFxStop { id } => {
+                    drained.config_events += 1;
+                    self.engine.momentary_fx_stop(&id);
+                }
             }
         }
+        drained
+    }
+}
+
+#[derive(Default)]
+struct DrainedControlEvents {
+    control_events: u64,
+    config_events: u64,
+}
+
+struct EngineTelemetry {
+    ratios: [f32; TELEMETRY_WINDOW_BLOCKS],
+    next: usize,
+    len: usize,
+    blocks: u64,
+    control_events: u64,
+    config_events: u64,
+}
+
+impl Default for EngineTelemetry {
+    fn default() -> Self {
+        Self {
+            ratios: [0.0; TELEMETRY_WINDOW_BLOCKS],
+            next: 0,
+            len: 0,
+            blocks: 0,
+            control_events: 0,
+            config_events: 0,
+        }
+    }
+}
+
+impl EngineTelemetry {
+    fn observe_block(&mut self, ratio: f32, control_events: u64, config_events: u64) {
+        self.ratios[self.next] = ratio;
+        self.next = (self.next + 1) % TELEMETRY_WINDOW_BLOCKS;
+        self.len = (self.len + 1).min(TELEMETRY_WINDOW_BLOCKS);
+        self.blocks = self.blocks.saturating_add(1);
+        self.control_events = self.control_events.saturating_add(control_events);
+        self.config_events = self.config_events.saturating_add(config_events);
+    }
+
+    fn apply_to_status(&self, status: &mut AudioLoadStatus) {
+        status.block_ratio_p95 = self.percentile(0.95);
+        status.block_ratio_max = self.max();
+        status.blocks = self.blocks;
+        status.control_events = self.control_events;
+        status.config_events = self.config_events;
+    }
+
+    fn percentile(&self, percentile: f32) -> f32 {
+        if self.len == 0 {
+            return 0.0;
+        }
+        let mut values = self.ratios;
+        let values = &mut values[..self.len];
+        values.sort_by(|a, b| a.total_cmp(b));
+        let index = ((self.len as f32 * percentile).ceil() as usize).saturating_sub(1);
+        values[index.min(self.len - 1)]
+    }
+
+    fn max(&self) -> f32 {
+        self.ratios[..self.len].iter().copied().fold(0.0, f32::max)
     }
 }
 

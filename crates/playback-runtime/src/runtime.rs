@@ -4,6 +4,7 @@ use crate::protocol::{
 };
 use platform_core::MusicalEvent;
 use serde_json::Value;
+use std::collections::VecDeque;
 
 const PPQN: f64 = 24.0;
 
@@ -50,7 +51,7 @@ pub struct PlaybackRuntime {
     now_ms: u64,
     last_status: Option<RuntimeStatus>,
     last_snapshot: Option<Value>,
-    scheduled_note_offs: Vec<ScheduledMidiMessage>,
+    scheduled_note_offs: VecDeque<ScheduledMidiMessage>,
     scheduled_note_offs_dirty: bool,
     request_next_snapshot: bool,
 }
@@ -69,7 +70,7 @@ impl PlaybackRuntime {
             now_ms: 0,
             last_status: None,
             last_snapshot: None,
-            scheduled_note_offs: Vec::new(),
+            scheduled_note_offs: VecDeque::new(),
             scheduled_note_offs_dirty: false,
             request_next_snapshot: false,
         }
@@ -262,7 +263,7 @@ impl PlaybackRuntime {
                         velocity.clamp(1, 127),
                     ])?;
                     if let Some(duration_ms) = duration_ms {
-                        self.scheduled_note_offs.push(ScheduledMidiMessage {
+                        self.scheduled_note_offs.push_back(ScheduledMidiMessage {
                             due_at_ms: self.now_ms.saturating_add(duration_ms as u64),
                             bytes: vec![0x80 | (channel & 0x0F), note.min(127), 0],
                         });
@@ -336,15 +337,17 @@ impl PlaybackRuntime {
 
     fn flush_scheduled_midi<H: HostAdapter>(&mut self, host: &mut H) -> Result<(), String> {
         if self.scheduled_note_offs_dirty {
-            self.scheduled_note_offs.sort_by_key(|msg| msg.due_at_ms);
+            self.scheduled_note_offs
+                .make_contiguous()
+                .sort_by_key(|msg| msg.due_at_ms);
             self.scheduled_note_offs_dirty = false;
         }
         while self
             .scheduled_note_offs
-            .first()
+            .front()
             .is_some_and(|message| message.due_at_ms <= self.now_ms)
         {
-            let message = self.scheduled_note_offs.remove(0);
+            let message = self.scheduled_note_offs.pop_front().expect("front checked");
             host.handle_midi_message(&message.bytes)?;
         }
         Ok(())

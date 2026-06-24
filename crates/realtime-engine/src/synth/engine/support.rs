@@ -297,35 +297,3 @@ pub(super) fn pan_gains_float(pos: f32) -> (f32, f32) {
 pub(super) fn midi_note_to_hz(note: u8) -> f32 {
     440.0 * 2.0_f32.powf((note as f32 - 69.0) / 12.0)
 }
-
-pub(super) fn osc_sample(cfg: OscConfig, base_freq: f32, phase: &mut f32, sample_rate: u32) -> f32 {
-    let octave_mul = 2.0_f32.powi(cfg.octave.clamp(-2, 2));
-    let detune_mul = 2.0_f32.powf(cfg.detune_cents.clamp(-1200.0, 1200.0) / 1200.0);
-    let freq = base_freq * octave_mul * detune_mul;
-    let inc = (freq / (sample_rate as f32)).clamp(0.0, 0.5);
-    *phase = (*phase + inc).fract();
-
-    let raw = match cfg.waveform {
-        WaveformId::Sine => (2.0 * PI * *phase).sin(),
-        WaveformId::Triangle => 4.0 * (*phase - 0.5).abs() - 1.0,
-        WaveformId::Saw => 2.0 * *phase - 1.0,
-        WaveformId::Square => {
-            if *phase < 0.5 {
-                1.0
-            } else {
-                -1.0
-            }
-        }
-        WaveformId::Pulse => {
-            let duty = (cfg.pulse_width_pct / 100.0).clamp(0.05, 0.95);
-            if *phase < duty {
-                1.0
-            } else {
-                -1.0
-            }
-        }
-    };
-
-    let level = (cfg.level_pct / 100.0).clamp(0.0, 1.0);
-    raw * level
-}

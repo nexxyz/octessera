@@ -48,6 +48,11 @@ pub enum VoiceStealingMode {
 pub struct AudioLoadStatus {
     pub ratio: f32,
     pub voice_steal: bool,
+    pub block_ratio_p95: f32,
+    pub block_ratio_max: f32,
+    pub blocks: u64,
+    pub control_events: u64,
+    pub config_events: u64,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

@@ -298,11 +298,11 @@ impl NativeMenuModel {
 
     pub(super) fn path_label(&self) -> String {
         let mut node = &self.root;
-        let mut labels = Vec::new();
+        let mut labels = Vec::with_capacity(self.state.stack.len());
         for idx in &self.state.stack {
             let children = &node.children;
             if let Some(next) = children.get(*idx) {
-                labels.push(next.label.clone());
+                labels.push(next.label.as_str());
                 node = next;
             }
         }
@@ -315,15 +315,16 @@ impl NativeMenuModel {
 
     fn current_item_path(&self) -> String {
         let mut node = &self.root;
-        let mut labels = vec!["Menu".to_string()];
+        let mut labels = Vec::with_capacity(self.state.stack.len() + 2);
+        labels.push("Menu");
         for idx in &self.state.stack {
             let children = &node.children;
             if let Some(next) = children.get(*idx) {
-                labels.push(next.label.clone());
+                labels.push(next.label.as_str());
                 node = next;
             }
         }
-        labels.push(self.current_item().label.clone());
+        labels.push(self.current_item().label.as_str());
         canonicalize_help_path(&labels.join(" > "))
     }
 
@@ -349,7 +350,7 @@ impl NativeMenuModel {
 
     fn current_item_mut(&mut self) -> &mut NativeMenuItem {
         let mut node = &mut self.root;
-        for idx in self.state.stack.clone() {
+        for idx in self.state.stack.iter().copied() {
             if node.children.is_empty() {
                 break;
             }

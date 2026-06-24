@@ -17,11 +17,11 @@ impl NativeMenuModel {
         }
         let root_level = self.state.stack.is_empty();
         let (start, end, scroll_offset, total_rows) = snapshot_window(self, siblings);
-        let mut lines = Vec::new();
-        let mut colors = Vec::new();
-        let mut bar_values = Vec::new();
-        let mut line_keys = Vec::new();
-        let mut line_actions = Vec::new();
+        let mut lines = Vec::with_capacity(MENU_BODY_ROWS);
+        let mut colors = Vec::with_capacity(MENU_BODY_ROWS);
+        let mut bar_values = Vec::with_capacity(MENU_BODY_ROWS);
+        let mut line_keys = Vec::with_capacity(MENU_BODY_ROWS);
+        let mut line_actions = Vec::with_capacity(MENU_BODY_ROWS);
         let mut selected_row = None;
 
         for (index, item) in siblings.iter().enumerate().skip(start).take(end - start) {
@@ -225,18 +225,16 @@ fn append_item_metadata(
     line_keys: &mut Vec<Option<String>>,
     line_actions: &mut Vec<Option<super::NativeMenuAction>>,
 ) {
-    for line_index in 0..item_line_count {
+    if item_line_count == 0 {
+        return;
+    }
+    colors.push(item_color);
+    line_keys.push(line_key);
+    line_actions.push(line_action);
+    for _ in 1..item_line_count {
         colors.push(item_color);
-        line_keys.push(if line_index == 0 {
-            line_key.clone()
-        } else {
-            None
-        });
-        line_actions.push(if line_index == 0 {
-            line_action.clone()
-        } else {
-            None
-        });
+        line_keys.push(None);
+        line_actions.push(None);
     }
 }
 

@@ -118,7 +118,12 @@ cargo check --target aarch64-unknown-linux-gnu -p cellsymphony-hal --features pi
 
 ## Pi Hardware Build
 
-Preferred fast path: run `./tools/build-pi-cross.ps1` to produce a Linux ARM binary, then upload it with `./tools/deploy-pi-fast.ps1 -LocalBinary <path>`. Cross-building from Windows still requires an ARM Linux sysroot and cross `pkg-config` setup for ALSA; if that is missing, the helper fails with a direct setup error.
+Preferred fast path: run `./tools/build-pi-cross.ps1` to produce a Linux ARM binary, then upload it with `./tools/deploy-pi-fast.ps1 -LocalBinary target/pi-cross/cellsymphony-pi -NoTail`. On Windows, the helper uses WSL2 Docker automatically when available. Native cross-builds are still supported with an ARM Linux sysroot and cross `pkg-config` setup for ALSA.
+
+```powershell
+./tools/build-pi-cross.ps1
+./tools/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -LocalBinary target/pi-cross/cellsymphony-pi -NoTail
+```
 
 On a Pi or properly configured cross environment:
 

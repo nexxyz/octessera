@@ -9,10 +9,11 @@ pub(crate) fn select_state_candidates(
 ) -> Vec<(usize, usize, CellTriggerKind)> {
     match strategy {
         TickStrategy::WholeGridActive => {
-            let mut out = Vec::new();
+            let mut out = Vec::with_capacity(next.cells.len());
             for y in 0..next.height {
+                let row_start = y * next.width;
                 for x in 0..next.width {
-                    if next.cells[y * next.width + x] {
+                    if next.cells[row_start + x] {
                         out.push((x, y, CellTriggerKind::Scanned));
                     }
                 }
@@ -25,12 +26,13 @@ pub(crate) fn select_state_candidates(
                 return scan_column_sections(next, tick, sections, *reverse);
             }
             let column = scan_index(tick, next.width, *reverse);
-            let mut out = Vec::new();
+            let mut out = Vec::with_capacity(next.height);
             for y in 0..next.height {
+                let cell_index = y * next.width + column;
                 out.push((
                     column,
                     y,
-                    if next.cells[y * next.width + column] {
+                    if next.cells[cell_index] {
                         CellTriggerKind::Scanned
                     } else {
                         CellTriggerKind::ScannedEmpty
@@ -46,12 +48,13 @@ pub(crate) fn select_state_candidates(
                 return scan_row_sections(next, tick, sections, *reverse);
             }
             let row = scan_index(tick, next.height, *reverse);
-            let mut out = Vec::new();
+            let mut out = Vec::with_capacity(next.width);
+            let row_start = row * next.width;
             for x in 0..next.width {
                 out.push((
                     x,
                     row,
-                    if next.cells[row * next.width + x] {
+                    if next.cells[row_start + x] {
                         CellTriggerKind::Scanned
                     } else {
                         CellTriggerKind::ScannedEmpty
@@ -74,16 +77,14 @@ fn scan_row_sections(
     let section = step / next.height;
     let y = step % next.height;
     let first_x = section * section_width;
-    let mut out = Vec::new();
-    for dx in 0..section_width {
-        let x = first_x + dx;
-        if x >= next.width {
-            break;
-        }
+    let last_x = (first_x + section_width).min(next.width);
+    let mut out = Vec::with_capacity(last_x.saturating_sub(first_x));
+    let row_start = y * next.width;
+    for x in first_x..last_x {
         out.push((
             x,
             y,
-            if next.cells[y * next.width + x] {
+            if next.cells[row_start + x] {
                 CellTriggerKind::Scanned
             } else {
                 CellTriggerKind::ScannedEmpty
@@ -104,16 +105,14 @@ fn scan_column_sections(
     let section = step / next.width;
     let x = step % next.width;
     let first_y = section * section_height;
-    let mut out = Vec::new();
-    for dy in 0..section_height {
-        let y = first_y + dy;
-        if y >= next.height {
-            break;
-        }
+    let last_y = (first_y + section_height).min(next.height);
+    let mut out = Vec::with_capacity(last_y.saturating_sub(first_y));
+    for y in first_y..last_y {
+        let cell_index = y * next.width + x;
         out.push((
             x,
             y,
-            if next.cells[y * next.width + x] {
+            if next.cells[cell_index] {
                 CellTriggerKind::Scanned
             } else {
                 CellTriggerKind::ScannedEmpty

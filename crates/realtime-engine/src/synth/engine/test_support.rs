@@ -19,7 +19,7 @@ impl SynthEngine {
         slot: usize,
     ) -> Option<(usize, f32)> {
         match self.bus_slot_state.get(bus)?.get(slot)? {
-            FxBusState::Delay { buf, idx } => Some((*idx, buf.iter().map(|v| v.abs()).sum())),
+            FxBusState::Delay { buf, idx, .. } => Some((*idx, buf.iter().map(|v| v.abs()).sum())),
             _ => None,
         }
     }

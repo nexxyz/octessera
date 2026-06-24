@@ -34,8 +34,8 @@ pub struct NoteBehaviorResult {
 }
 
 pub fn dedupe_simultaneous_notes(events: &[MusicalEvent]) -> Vec<MusicalEvent> {
-    let mut out = Vec::new();
-    let mut seen = HashMap::<(u8, u8), usize>::new();
+    let mut out = Vec::with_capacity(events.len());
+    let mut seen = HashMap::<(u8, u8), usize>::with_capacity(events.len());
     for event in events {
         match event {
             MusicalEvent::NoteOn {
@@ -108,7 +108,8 @@ pub fn apply_note_behavior(
     initial_held: &[String],
 ) -> NoteBehaviorResult {
     let mut held = initial_held.iter().cloned().collect::<HashSet<_>>();
-    let mut out = Vec::new();
+    held.reserve(events.len());
+    let mut out = Vec::with_capacity(events.len());
     for event in events {
         match event {
             MusicalEvent::NoteOn {

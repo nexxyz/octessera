@@ -1,6 +1,13 @@
 use super::support::stutter_segment_len;
 use super::*;
 
+struct CompiledBusMixerState {
+    pan_positions: Vec<usize>,
+    pan_gains: Vec<(f32, f32)>,
+    slot_params: Vec<[FxBusParams; BUS_SLOTS_PER_BUS]>,
+    slot_state: Vec<[FxBusState; BUS_SLOTS_PER_BUS]>,
+}
+
 impl SynthEngine {
     pub fn momentary_fx_start(
         &mut self,
@@ -12,7 +19,9 @@ impl SynthEngine {
         let Some(kind) = parse_momentary_fx_kind(&fx_type) else {
             return;
         };
-        self.momentary_fx.retain(|fx| fx.id != id);
+        if let Some(pos) = self.momentary_fx.iter().position(|fx| fx.id == id) {
+            self.momentary_fx.remove(pos);
+        }
         self.momentary_fx.push(MomentaryFxState::new(
             id,
             kind,
@@ -22,28 +31,24 @@ impl SynthEngine {
         ));
 
         if kind == MomentaryFxKind::PitchShift {
-            if let Some(fx) = self.momentary_fx.last_mut() {
-                fx.pitch_shifter
-                    .prefill_from_ring(&self.dry_history, self.dry_history_pos);
-            }
+            let fx = self.momentary_fx.last_mut().expect("inserted momentary FX");
+            fx.pitch_shifter
+                .prefill_from_ring(&self.dry_history, self.dry_history_pos);
         }
     }
 
     pub fn momentary_fx_stop(&mut self, id: &str) {
-        let should_remove = self
-            .momentary_fx
-            .iter()
-            .find(|fx| fx.id == id)
-            .map(|fx| {
-                matches!(
-                    fx.kind,
-                    MomentaryFxKind::Stutter | MomentaryFxKind::PitchShift
-                )
-            })
-            .unwrap_or(true);
+        let Some(pos) = self.momentary_fx.iter().position(|fx| fx.id == id) else {
+            return;
+        };
+        let should_remove = matches!(
+            self.momentary_fx[pos].kind,
+            MomentaryFxKind::Stutter | MomentaryFxKind::PitchShift
+        );
         if should_remove {
-            self.momentary_fx.retain(|fx| fx.id != id);
-        } else if let Some(fx) = self.momentary_fx.iter_mut().find(|fx| fx.id == id) {
+            self.momentary_fx.remove(pos);
+        } else {
+            let fx = &mut self.momentary_fx[pos];
             fx.releasing = true;
             fx.release_pos = 0;
             if fx.kind == MomentaryFxKind::Freeze {
@@ -78,6 +83,11 @@ impl SynthEngine {
         let status = AudioLoadStatus {
             ratio: self.smoothed_load_ratio,
             voice_steal: self.voice_steal_since_status,
+            block_ratio_p95: 0.0,
+            block_ratio_max: 0.0,
+            blocks: 0,
+            control_events: 0,
+            config_events: 0,
         };
         self.voice_steal_since_status = false;
         status
@@ -87,15 +97,21 @@ impl SynthEngine {
         self.pan_positions = cfg.pan_positions.max(1);
         self.master_volume = (cfg.master_volume / 100.0).clamp(0.0, 1.0);
         self.apply_instrument_slots_config(cfg.instruments);
-        let (next_bus_pan_pos, next_bus_slot_params, next_bus_slot_state) =
-            self.compile_bus_mixer_state(cfg.mixer.as_ref());
+        self.refresh_slot_pan_gains();
+        let next_bus = self.compile_bus_mixer_state(cfg.mixer.as_ref());
         let (next_master_slot_params, next_master_slot_state) =
             self.compile_master_mixer_state(cfg.mixer.as_ref());
-        self.bus_pan_pos = next_bus_pan_pos;
-        self.bus_slot_params = next_bus_slot_params;
-        self.bus_slot_state = next_bus_slot_state;
+        self.bus_pan_pos = next_bus.pan_positions;
+        self.bus_pan_gains_cache = next_bus.pan_gains;
+        self.bus_slot_params = next_bus.slot_params;
+        self.bus_slot_state = next_bus.slot_state;
         self.bus_activity_frames
             .resize(self.bus_slot_params.len(), 0);
+        self.active_bus_activity_count = self
+            .bus_activity_frames
+            .iter()
+            .filter(|frames| **frames > 0)
+            .count();
         self.master_slot_params = next_master_slot_params;
         self.master_slot_state = next_master_slot_state;
         self.master_activity_frames = 0;
@@ -113,12 +129,18 @@ impl SynthEngine {
     }
 
     fn apply_instrument_slot_config(&mut self, idx: usize, slot: InstrumentSlotConfig) {
-        let mixer = slot.mixer.clone();
+        let InstrumentSlotConfig {
+            kind: _,
+            synth,
+            mixer,
+        } = slot;
         if self.slot_kind[idx] == InstrumentKind::Synth {
-            self.instruments[idx] = slot.synth;
+            self.instruments[idx] = synth;
+            self.synth_render_configs[idx] = SynthVoiceRenderConfig::from_config(synth);
+            self.synth_render_revisions[idx] = self.synth_render_revisions[idx].wrapping_add(1);
         }
-        if let Some(mixer) = mixer {
-            self.apply_instrument_mixer_config(idx, &mixer);
+        if let Some(mixer) = &mixer {
+            self.apply_instrument_mixer_config(idx, mixer);
         }
     }
 
@@ -128,22 +150,33 @@ impl SynthEngine {
         self.slot_volume[idx] = (mixer.volume / 100.0).clamp(0.0, 1.0);
     }
 
-    fn compile_bus_mixer_state(
-        &self,
-        mixer: Option<&MixerConfig>,
-    ) -> (
-        Vec<usize>,
-        Vec<[FxBusParams; BUS_SLOTS_PER_BUS]>,
-        Vec<[FxBusState; BUS_SLOTS_PER_BUS]>,
-    ) {
+    fn refresh_slot_pan_gains(&mut self) {
+        for idx in 0..INSTRUMENT_SLOT_COUNT {
+            self.slot_pan_gains[idx] = pan_gains(self.slot_pan_pos[idx], self.pan_positions);
+        }
+    }
+
+    fn compile_bus_mixer_state(&self, mixer: Option<&MixerConfig>) -> CompiledBusMixerState {
         let mut next_bus_pan_pos = Vec::new();
+        let mut next_bus_pan_gains = Vec::new();
         let mut next_bus_slot_params = Vec::new();
         let mut next_bus_slot_state = Vec::new();
         let Some(mixer) = mixer else {
-            return (next_bus_pan_pos, next_bus_slot_params, next_bus_slot_state);
+            return CompiledBusMixerState {
+                pan_positions: next_bus_pan_pos,
+                pan_gains: next_bus_pan_gains,
+                slot_params: next_bus_slot_params,
+                slot_state: next_bus_slot_state,
+            };
         };
-        for (bus_idx, bus) in mixer.buses.iter().cloned().enumerate() {
-            next_bus_pan_pos.push(bus.pan_pos.min(self.pan_positions - 1));
+        next_bus_pan_pos.reserve_exact(mixer.buses.len());
+        next_bus_pan_gains.reserve_exact(mixer.buses.len());
+        next_bus_slot_params.reserve_exact(mixer.buses.len());
+        next_bus_slot_state.reserve_exact(mixer.buses.len());
+        for (bus_idx, bus) in mixer.buses.iter().enumerate() {
+            let pan_pos = bus.pan_pos.min(self.pan_positions - 1);
+            next_bus_pan_pos.push(pan_pos);
+            next_bus_pan_gains.push(pan_gains(pan_pos, self.pan_positions));
             let cfgs = compile_bus_slot_configs(bus);
             let params: [FxBusParams; BUS_SLOTS_PER_BUS] =
                 std::array::from_fn(|j| compile_fx_bus_params(&cfgs[j]));
@@ -158,7 +191,12 @@ impl SynthEngine {
             next_bus_slot_params.push(params);
             next_bus_slot_state.push(states);
         }
-        (next_bus_pan_pos, next_bus_slot_params, next_bus_slot_state)
+        CompiledBusMixerState {
+            pan_positions: next_bus_pan_pos,
+            pan_gains: next_bus_pan_gains,
+            slot_params: next_bus_slot_params,
+            slot_state: next_bus_slot_state,
+        }
     }
 
     fn compile_master_mixer_state(
@@ -170,8 +208,10 @@ impl SynthEngine {
         let Some(master) = mixer.and_then(|mixer| mixer.master.as_ref()) else {
             return (next_master_slot_params, next_master_slot_state);
         };
-        for (slot_idx, slot) in master.slots.iter().cloned().enumerate() {
-            let params = compile_fx_bus_params(&slot);
+        next_master_slot_params.reserve_exact(master.slots.len());
+        next_master_slot_state.reserve_exact(master.slots.len());
+        for (slot_idx, slot) in master.slots.iter().enumerate() {
+            let params = compile_fx_bus_params(slot);
             let state = self
                 .master_slot_state
                 .get(slot_idx)
@@ -243,25 +283,36 @@ impl SynthEngine {
         if stole_voice {
             self.record_voice_steal();
         }
-        let pool = &mut self.voices[slot];
-
         let cfg = self.instruments[slot];
         let amp_env = EnvState::note_on(cfg.amp_env, self.sample_rate);
         let filt_env = EnvState::note_on(cfg.filter_env, self.sample_rate);
-        pool[i] = Voice {
+        let mut voice = Voice {
             active: true,
             instrument_slot: slot as u8,
             midi_note,
             velocity: v,
+            velocity_norm: 0.0,
             note_off_sample,
             started_sample: self.sample_clock,
             freq_hz: freq,
+            osc1_inc: 0.0,
+            osc2_inc: 0.0,
+            render_revision: 0,
             phase1: 0.0,
             phase2: 0.0,
             amp_env,
             filt_env,
             filt: BiquadState::new(),
         };
+        refresh_synth_voice_render_cache(
+            &mut voice,
+            &self.synth_render_configs[slot],
+            self.sample_rate,
+            self.synth_render_revisions[slot],
+        );
+        let pool = &mut self.voices[slot];
+        pool[i] = voice;
+        self.active_synth_slots[slot] = true;
 
         self.enforce_voice_budgets();
     }
@@ -292,6 +343,8 @@ impl SynthEngine {
                     voice.active = false;
                 }
             }
+            self.active_sample_slots[slot] =
+                self.sample_voices[slot].iter().any(|voice| voice.active);
             return;
         }
         let cfg = self.instruments[slot];
@@ -314,6 +367,7 @@ impl SynthEngine {
                 voice.active = false;
             }
         }
+        self.active_sample_slots = [false; INSTRUMENT_SLOT_COUNT];
         for slot in 0..INSTRUMENT_SLOT_COUNT {
             let cfg = self.instruments[slot];
             for voice in self.voices[slot].iter_mut() {
@@ -330,11 +384,50 @@ impl SynthEngine {
     }
 }
 
-fn compile_bus_slot_configs(bus: FxBusConfig) -> [FxBusSlotConfig; BUS_SLOTS_PER_BUS] {
+fn compile_bus_slot_configs(bus: &FxBusConfig) -> [FxBusSlotConfig; BUS_SLOTS_PER_BUS] {
     let mut cfgs: [FxBusSlotConfig; BUS_SLOTS_PER_BUS] =
         std::array::from_fn(|_| FxBusSlotConfig::Kind("none".to_string()));
-    for (j, slot) in bus.slots.into_iter().enumerate().take(BUS_SLOTS_PER_BUS) {
-        cfgs[j] = slot;
+    for (j, slot) in bus.slots.iter().enumerate().take(BUS_SLOTS_PER_BUS) {
+        cfgs[j] = slot.clone();
     }
     cfgs
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn restarting_momentary_fx_moves_it_to_end() {
+        let mut engine = SynthEngine::new(44_100);
+        engine.momentary_fx_start(
+            "a".into(),
+            "stutter".into(),
+            BTreeMap::new(),
+            MomentaryFxTarget::Global,
+        );
+        engine.momentary_fx_start(
+            "b".into(),
+            "freeze".into(),
+            BTreeMap::new(),
+            MomentaryFxTarget::Global,
+        );
+        engine.momentary_fx_start(
+            "a".into(),
+            "filter_sweep".into(),
+            BTreeMap::new(),
+            MomentaryFxTarget::Global,
+        );
+
+        let ids = engine
+            .momentary_fx
+            .iter()
+            .map(|fx| fx.id.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(ids, vec!["b", "a"]);
+        assert!(matches!(
+            engine.momentary_fx[1].kind,
+            MomentaryFxKind::FilterSweep
+        ));
+    }
 }

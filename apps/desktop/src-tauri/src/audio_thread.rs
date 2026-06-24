@@ -12,6 +12,15 @@ struct AudioLoadPayload {
     ratio: f32,
     #[serde(rename = "voiceSteal")]
     voice_steal: bool,
+    #[serde(rename = "blockRatioP95")]
+    block_ratio_p95: f32,
+    #[serde(rename = "blockRatioMax")]
+    block_ratio_max: f32,
+    blocks: u64,
+    #[serde(rename = "controlEvents")]
+    control_events: u64,
+    #[serde(rename = "configEvents")]
+    config_events: u64,
 }
 
 pub(crate) fn spawn_audio_engine_thread(
@@ -148,6 +157,11 @@ pub(crate) fn spawn_load_listener(
                 AudioLoadPayload {
                     ratio: status.ratio,
                     voice_steal: status.voice_steal,
+                    block_ratio_p95: status.block_ratio_p95,
+                    block_ratio_max: status.block_ratio_max,
+                    blocks: status.blocks,
+                    control_events: status.control_events,
+                    config_events: status.config_events,
                 },
             );
         }

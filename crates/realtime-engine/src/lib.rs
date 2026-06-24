@@ -1,3 +1,5 @@
+mod simd;
+
 pub mod synth;
 
 pub fn ping() -> &'static str {
