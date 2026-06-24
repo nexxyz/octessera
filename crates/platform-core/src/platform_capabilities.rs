@@ -36,9 +36,9 @@ mod tests {
         assert_eq!(BUS_COUNT, 4);
         assert_eq!(GLOBAL_FX_SLOT_COUNT, 2);
         assert_eq!(AUX_ENCODER_COUNT, 3);
-        assert_eq!(TOUCH_FX_MAX_CONCURRENT, 4);
-        assert_eq!(MAX_ACTIVE_BUS_FX_SLOTS, 4);
-        assert_eq!(MAX_ACTIVE_GLOBAL_FX_SLOTS, 1);
+        assert_eq!(TOUCH_FX_MAX_CONCURRENT, 2);
+        assert_eq!(MAX_ACTIVE_BUS_FX_SLOTS, 6);
+        assert_eq!(MAX_ACTIVE_GLOBAL_FX_SLOTS, 2);
         assert_eq!(SCAN_SECTION_COUNTS, &[1, 2, 4, 8]);
         assert_eq!(PAN_POSITION_COUNT, 33);
         assert_eq!(OLED_WIDTH, 128);

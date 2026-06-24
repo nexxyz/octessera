@@ -346,7 +346,7 @@ fn legacy_nested_sound_and_ui_fields_rehydrate_from_payload() {
         "noteLengthMs": 321,
         "velocityScalePct": 77,
         "velocityCurve": "hard",
-        "voiceStealingMode": "aggressive"
+        "voiceStealingMode": "auto-hard"
     });
     payload["runtimeConfig"]["midi"]["clockOutEnabled"] = json!(true);
     payload["runtimeConfig"]["midi"]["clockInEnabled"] = json!(true);
@@ -361,7 +361,7 @@ fn legacy_nested_sound_and_ui_fields_rehydrate_from_payload() {
     assert_eq!(runner.global_sound.note_length_ms, 321);
     assert_eq!(runner.global_sound.velocity_scale_pct, 77);
     assert_eq!(runner.global_sound.velocity_curve, VelocityCurve::Hard);
-    assert_eq!(runner.voice_stealing_mode, "aggressive");
+    assert_eq!(runner.voice_stealing_mode, "auto-hard");
     assert!(runner.midi_clock_out_enabled);
     assert!(runner.midi_clock_in_enabled);
     assert!(!runner.midi_respond_to_start_stop);
@@ -379,7 +379,7 @@ fn legacy_nested_sound_and_ui_fields_rehydrate_from_payload() {
     );
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["sound"]["voiceStealingMode"],
-        "aggressive"
+        "auto-hard"
     );
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["midi"]["clockOutEnabled"],

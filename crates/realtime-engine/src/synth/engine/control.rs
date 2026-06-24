@@ -1,6 +1,8 @@
 use super::support::stutter_segment_len;
 use super::*;
 
+const MAX_MOMENTARY_FX: usize = 2;
+
 struct CompiledBusMixerState {
     pan_positions: Vec<usize>,
     pan_gains: Vec<(f32, f32)>,
@@ -21,6 +23,12 @@ impl SynthEngine {
         };
         if let Some(pos) = self.momentary_fx.iter().position(|fx| fx.id == id) {
             self.momentary_fx.remove(pos);
+        }
+        if self.momentary_fx.iter().any(|fx| fx.kind == kind) {
+            return;
+        }
+        if self.momentary_fx.len() >= MAX_MOMENTARY_FX {
+            return;
         }
         self.momentary_fx.push(MomentaryFxState::new(
             id,

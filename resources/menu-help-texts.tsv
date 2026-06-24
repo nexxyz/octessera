@@ -153,7 +153,7 @@ filt_env_adsr	*	key:instruments.*.synth.filterEnv.*	number	Filter Envelope	Shape
 bpm_help	*	key:transport.bpm	number	BPM	Sets master tempo in beats per minute.	Affects internal clock rate and algorithm pulse timing.
 sound_group	Menu > System > Sound		group	Sound	Global volume, voice shaping, and note behavior controls.	Includes Master Vol, Voice Stealing, Note Length, Velocity Scale, and Velocity Curve.
 master_vol	*	key:masterVolume	number	Master Volume	Sets overall output volume scaling.	Use this for final level trim without changing patch balance.
-voice_stealing_mode	*	key:sound.voiceStealingMode	enum	Voice Stealing	Controls global load-aware voice stealing behavior: off, lenient, balanced, aggressive.	Aggressive keeps more CPU headroom under load; lenient preserves longer tails.
+voice_stealing_mode	*	key:sound.voiceStealingMode	enum	Voice Stealing	Controls voice stealing: fixed12, fixed16, auto-soft, auto-balanced, auto-hard, or none.	auto-hard keeps more CPU headroom; auto-soft preserves longer tails.
 presets_group	Menu > System > Saves		group	Presets	Save, load, and manage configuration snapshots.	Use defaults for boot state and library for named variants.
 default_save	System > Saves > Default > Save Default	action:default_save	action	Save Default	Stores current state as startup default payload.	Use with Auto Save when you want edits to persist automatically.
 default_load	System > Saves > Default > Load Default	action:default_load	action	Load Default	Loads the saved default payload into current state.	Replaces current runtime settings immediately.

@@ -57,8 +57,8 @@ impl NativeRunner {
             self.global_sound.velocity_curve = velocity_curve_from_id(value);
         }
         if let Some(value) = sound_or_runtime_str(sound, runtime, "voiceStealingMode") {
-            if matches!(value, "off" | "lenient" | "balanced" | "aggressive") {
-                self.voice_stealing_mode = value.into();
+            if let Some(mode) = super::normalize_voice_stealing_mode(value) {
+                self.voice_stealing_mode = mode.into();
             }
         }
     }

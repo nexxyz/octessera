@@ -1,6 +1,10 @@
 use cellsymphony_hal::{NeoKey, NeoTrellis, OledSsd1351};
 use serde_json::Value;
 
+mod footer;
+
+use footer::{draw_footer, draw_status_indicators};
+
 const SPLASH_REGULAR: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/splash_regular.rgb565"));
 const SPLASH_SEPIA: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/splash_sepia.rgb565"));
 
@@ -145,6 +149,7 @@ fn oled_signature(snapshot: &Value) -> u64 {
     hash_value(&mut hash, snapshot.get("transportIcon"));
     hash_value(&mut hash, snapshot.get("transportFlash"));
     hash_value(&mut hash, snapshot.get("eventDotOn"));
+    hash_value(&mut hash, snapshot.get("voiceSteal"));
     hash_value(&mut hash, snapshot.get("cpuLoadRatio"));
     hash
 }
@@ -277,23 +282,6 @@ fn display_color(display: &Value, index: usize) -> Option<u16> {
 }
 
 #[rustfmt::skip]
-fn draw_status_indicators(frame: &mut [u8], snapshot: &Value, brightness: f32) {
-    let settings = snapshot.get("settings").unwrap_or(&Value::Null);
-    let save = settings.get("autoSaveFlash").and_then(Value::as_str).unwrap_or("none") == "flash";
-    let cpu = snapshot.get("cpuLoadRatio").and_then(Value::as_f64).unwrap_or(0.0);
-    let save_color = if save { [255, 243, 176] } else { [51, 68, 51] };
-    let cpu_color = if cpu >= 0.85 {
-        [255, 102, 102]
-    } else if cpu >= 0.6 {
-        [255, 209, 102]
-    } else {
-        [51, 85, 68]
-    };
-    draw_text(frame, "S", 108, 5, 1, rgb565(scale(save_color, brightness)));
-    draw_text(frame, "C", 117, 5, 1, rgb565(scale(cpu_color, brightness)));
-}
-
-#[rustfmt::skip]
 fn draw_scrollbar(frame: &mut [u8], display: &Value, track: u16, thumb: u16) {
     let offset = display.get("scrollOffset").and_then(Value::as_u64).unwrap_or(0) as usize;
     let total = display.get("totalRows").and_then(Value::as_u64).unwrap_or(0) as usize;
@@ -309,40 +297,6 @@ fn draw_scrollbar(frame: &mut [u8], display: &Value, track: u16, thumb: u16) {
     let y = body_top + (offset.min(max_offset) * (max_y - body_top)) / max_offset;
     fill_rect(frame, 125, body_top, 2, body_height, track);
     fill_rect(frame, 125, y, 2, thumb_height, thumb);
-}
-
-#[rustfmt::skip]
-fn draw_footer(frame: &mut [u8], snapshot: &Value, brightness: f32) {
-    let display = snapshot.get("display").unwrap_or(&Value::Null);
-    let toast = display.get("toast").and_then(Value::as_str).unwrap_or_default();
-    let text = rgb565(scale([215, 255, 232], brightness));
-    if !toast.is_empty() {
-        let background = rgb565(scale([6, 18, 13], brightness));
-        fill_rect(frame, 0, 114, 128, 14, background);
-        draw_text_clipped(frame, toast, 5, 118, 17, text);
-        return;
-    }
-    draw_transport_icon(frame, snapshot, brightness);
-    if snapshot.get("eventDotOn").and_then(Value::as_bool).unwrap_or(false) {
-        let dot = rgb565(scale([255, 220, 70], brightness));
-        fill_rect(frame, 119, 119, 5, 5, dot);
-    }
-}
-
-#[rustfmt::skip]
-fn draw_transport_icon(frame: &mut [u8], snapshot: &Value, brightness: f32) {
-    let icon = match snapshot.get("transportIcon").and_then(Value::as_str).unwrap_or("stop") {
-        "play" => ">",
-        "pause" => "||",
-        _ => "[]",
-    };
-    let flash = snapshot.get("transportFlash").and_then(Value::as_str).unwrap_or("none");
-    let rgb = match flash {
-        "measure" => [255, 51, 51],
-        "beat" => [51, 255, 102],
-        _ => [215, 255, 232],
-    };
-    draw_text(frame, icon, 101, 118, 1, rgb565(scale(rgb, brightness)));
 }
 
 fn render_splash_frame(frame: &mut [u8], splash: &str, brightness: f32) {
@@ -390,7 +344,14 @@ fn rgb565_to_rgb(value: u16) -> [u8; 3] {
     ]
 }
 
-fn fill_rect(frame: &mut [u8], x: usize, y: usize, width: usize, height: usize, color: u16) {
+pub(super) fn fill_rect(
+    frame: &mut [u8],
+    x: usize,
+    y: usize,
+    width: usize,
+    height: usize,
+    color: u16,
+) {
     for py in y..(y + height).min(128) {
         for px in x..(x + width).min(128) {
             let idx = (py * 128 + px) * 2;
@@ -400,7 +361,7 @@ fn fill_rect(frame: &mut [u8], x: usize, y: usize, width: usize, height: usize, 
     }
 }
 
-fn draw_text(frame: &mut [u8], text: &str, x: i32, y: i32, scale: usize, color: u16) {
+pub(super) fn draw_text(frame: &mut [u8], text: &str, x: i32, y: i32, scale: usize, color: u16) {
     let mut cursor_x = x;
     for ch in text.chars() {
         if ch == ' ' {
@@ -426,7 +387,14 @@ fn draw_text(frame: &mut [u8], text: &str, x: i32, y: i32, scale: usize, color: 
     }
 }
 
-fn draw_text_clipped(frame: &mut [u8], text: &str, x: i32, y: i32, max_chars: usize, color: u16) {
+pub(super) fn draw_text_clipped(
+    frame: &mut [u8],
+    text: &str,
+    x: i32,
+    y: i32,
+    max_chars: usize,
+    color: u16,
+) {
     let clipped = text.chars().take(max_chars).collect::<String>();
     draw_text(frame, &clipped.to_uppercase(), x, y, 1, color);
 }
@@ -485,13 +453,13 @@ fn brightness_scale(value: Option<&Value>) -> f32 {
 }
 
 #[rustfmt::skip]
-fn scale(rgb: [u8; 3], factor: f32) -> [u8; 3] { [
+pub(super) fn scale(rgb: [u8; 3], factor: f32) -> [u8; 3] { [
     ((rgb[0] as f32) * factor).round().clamp(0.0, 255.0) as u8,
     ((rgb[1] as f32) * factor).round().clamp(0.0, 255.0) as u8,
     ((rgb[2] as f32) * factor).round().clamp(0.0, 255.0) as u8,
 ] }
 
-fn rgb565(rgb: [u8; 3]) -> u16 {
+pub(super) fn rgb565(rgb: [u8; 3]) -> u16 {
     ((u16::from(rgb[0]) & 0xF8) << 8) | ((u16::from(rgb[1]) & 0xFC) << 3) | (u16::from(rgb[2]) >> 3)
 }
 

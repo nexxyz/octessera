@@ -148,7 +148,7 @@ pub fn runtime_step_scenario() -> ScenarioSpec {
 
 fn baseline_events() -> Vec<EngineEvent> {
     vec![
-        EngineEvent::SetVoiceStealingMode(VoiceStealingMode::Off),
+        EngineEvent::SetVoiceStealingMode(VoiceStealingMode::None),
         EngineEvent::SetInstruments(all_synth_instruments([0; INSTRUMENT_SLOT_COUNT], None)),
     ]
 }
@@ -166,7 +166,7 @@ fn synth_ramp_events(voices: usize) -> Vec<EngineEvent> {
 
 fn sample_ramp_events(voices: usize, sample_rate: u32) -> Vec<EngineEvent> {
     let mut events = vec![
-        EngineEvent::SetVoiceStealingMode(VoiceStealingMode::Off),
+        EngineEvent::SetVoiceStealingMode(VoiceStealingMode::None),
         EngineEvent::SetInstruments(all_sample_instruments([0; INSTRUMENT_SLOT_COUNT], None)),
         EngineEvent::SetSampleBanks(all_sample_banks(sample_rate)),
     ];
@@ -181,7 +181,7 @@ fn sample_ramp_events(voices: usize, sample_rate: u32) -> Vec<EngineEvent> {
 
 fn mixed_ramp_events(voices: usize, sample_rate: u32) -> Vec<EngineEvent> {
     let mut events = vec![
-        EngineEvent::SetVoiceStealingMode(VoiceStealingMode::Off),
+        EngineEvent::SetVoiceStealingMode(VoiceStealingMode::None),
         EngineEvent::SetInstruments(mixed_instruments([0; INSTRUMENT_SLOT_COUNT], None)),
         EngineEvent::SetSampleBanks(all_sample_banks(sample_rate)),
     ];
@@ -202,7 +202,7 @@ fn mixed_ramp_events(voices: usize, sample_rate: u32) -> Vec<EngineEvent> {
 
 fn synth_overload_events(voices: usize, slots: usize) -> Vec<EngineEvent> {
     let mut events = vec![
-        EngineEvent::SetVoiceStealingMode(VoiceStealingMode::Balanced),
+        EngineEvent::SetVoiceStealingMode(VoiceStealingMode::AutoBalanced),
         EngineEvent::SetInstruments(all_synth_instruments([0; INSTRUMENT_SLOT_COUNT], None)),
     ];
     for (slot, count) in distribute(voices, 0, slots).iter().enumerate() {
@@ -213,7 +213,7 @@ fn synth_overload_events(voices: usize, slots: usize) -> Vec<EngineEvent> {
 
 fn sample_overload_events(voices: usize, slots: usize, sample_rate: u32) -> Vec<EngineEvent> {
     let mut events = vec![
-        EngineEvent::SetVoiceStealingMode(VoiceStealingMode::Balanced),
+        EngineEvent::SetVoiceStealingMode(VoiceStealingMode::AutoBalanced),
         EngineEvent::SetInstruments(all_sample_instruments([0; INSTRUMENT_SLOT_COUNT], None)),
         EngineEvent::SetSampleBanks(all_sample_banks(sample_rate)),
     ];
@@ -225,7 +225,7 @@ fn sample_overload_events(voices: usize, slots: usize, sample_rate: u32) -> Vec<
 
 fn mixed_overload_events(voices: usize, sample_rate: u32) -> Vec<EngineEvent> {
     let mut events = vec![
-        EngineEvent::SetVoiceStealingMode(VoiceStealingMode::Balanced),
+        EngineEvent::SetVoiceStealingMode(VoiceStealingMode::AutoBalanced),
         EngineEvent::SetInstruments(mixed_instruments([0; INSTRUMENT_SLOT_COUNT], None)),
         EngineEvent::SetSampleBanks(all_sample_banks(sample_rate)),
     ];
@@ -248,7 +248,7 @@ fn fx_ramp_events(mode: usize, sample_rate: u32) -> Vec<EngineEvent> {
     let mixer = fx_mixer(mode);
     let routes = fx_routes(mode);
     let mut events = vec![
-        EngineEvent::SetVoiceStealingMode(VoiceStealingMode::Off),
+        EngineEvent::SetVoiceStealingMode(VoiceStealingMode::None),
         EngineEvent::SetInstruments(all_synth_instruments(routes, mixer)),
     ];
     if mode > 0 {
@@ -262,7 +262,7 @@ fn fx_ramp_events(mode: usize, sample_rate: u32) -> Vec<EngineEvent> {
 
 fn momentary_events(mode: usize, sample_rate: u32) -> Vec<EngineEvent> {
     let mut events = vec![
-        EngineEvent::SetVoiceStealingMode(VoiceStealingMode::Off),
+        EngineEvent::SetVoiceStealingMode(VoiceStealingMode::None),
         EngineEvent::SetInstruments(all_synth_instruments([0; INSTRUMENT_SLOT_COUNT], None)),
         EngineEvent::SetSampleBanks(all_sample_banks(sample_rate)),
     ];

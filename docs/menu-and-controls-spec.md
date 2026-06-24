@@ -266,7 +266,7 @@ Routing semantics:
 - Internal synth and sample instruments use the same route/pan/bus-FX mixer path; MIDI instruments emit external MIDI and are not processed by audio FX.
 - Each bus runs `Slot 1` then `Slot 2` in order; with `none` selected this is passthrough.
 - Global FX runs `Slot 1..N` in order on the stereo main mix after direct and bus outputs are summed, before global momentary FX and `Master Vol`.
-- FX bus assignments above the recommended active bus budget are accepted and saved, but the runtime shows a toast warning.
+- FX bus assignments above the recommended active bus warning budget of 6 active bus FX slots are accepted and saved, but the runtime shows a toast warning. Global stereo FX slots do not count toward the bus FX warning budget.
 - Global FX is intentionally limited to `none | vinyl | eq | compressor | saturator | distortion` for current Pi Zero 2 W performance targets.
 - Selecting a slot `Type` initializes that effect's editable parameter defaults immediately; loaded presets/defaults with missing or invalid effect params are repaired to those defaults.
 - Reverb `Decay` is stored as a feedback coefficient (`0..0.995`) but displayed as approximate tail time in seconds (for example `3.1s`) in menu rows and aux encoder toasts.
@@ -322,7 +322,7 @@ Dance layer behavior:
 - `pan`: each row is an instrument; x=0 is hard left and x=7 is hard right. The marker is two cells wide so center positions are visible as the middle pair. Stored pan is a 33-position stereo scale (`0..32`, center `16`) shared with the menu and audio engine.
 - `pan` writes the audible pan target: for `Route=direct` instruments it sets `Mixer > Pan Pos`; for bus-routed (`fx_bus_n`) instruments it sets the bus pan (`Mixer > Buses[n] > Pan Pos`) plus the per-instrument pan for state preservation. The marker color reflects the route: white for direct, bus color (purple/cyan/green/amber for bus 1-4) for bus-routed instruments. Multiple instruments on the same bus show synchronized markers at the bus pan position.
 - `pan` maps the 8 grid columns onto 7 two-cell marker positions: column 0 stores `0` and lights 0+1; column 1 stores `5` and lights 1+2; column 2 stores `11` and lights 2+3; columns 3 and 4 both store center `16` and light 3+4; column 5 stores `21` and lights 4+5; column 6 stores `27` and lights 5+6; column 7 stores `32` and lights 6+7.
-- `fx`: grid cells trigger mapped momentary effects. Press starts the mapped effect and release stops it. If the active momentary FX limit is reached, the press is ignored and a toast warns the user.
+- `fx`: grid cells trigger mapped momentary effects. Press starts the mapped effect and release stops it. At most two momentary FX may be active at once, and only one momentary FX of each type may be active. If the active momentary FX limit is reached or another mapping of the same type is already active, the press is ignored and a toast warns the user.
 - `trigger-gate`: this Dance page performs live trigger mode overrides for each part; it does not edit the saved per-cell probability map.
 - Stored per-part trigger probability data lives in `L2: Sense > Pn > Trigger Prob.`.
 - `Map Probability Grid` edits the saved four-state probability map for the selected part. Cell cycle is `zero -> low -> high -> full -> zero`; `Shift+grid` applies to a row; `Shift+Fn+grid` applies to a column.
@@ -343,7 +343,7 @@ Dance layer behavior:
 - Entering FX grid assignment shows a concise `Map FX: ...` toast; Back exits assignment without changing stored cells.
 - FX assignments include a `Target` (default `master`). Targets are listed as `master` first, then FX buses, then instruments. Platform-core resolves grid semantics into audio commands; desktop forwards those commands without interpreting Dance/grid meaning; Rust applies the realtime DSP.
 - Target insertion points: `instrument_n` is applied on the instrument's outgoing signal before routing/pan; `fx_bus_n` is applied on the bus outgoing signal after bus slot FX; `master` is applied after the final mix.
-- FX concurrency is fixed by platform capability at 4. When all slots are active, additional assigned cells gray out and do not respond until a slot frees.
+- FX concurrency is fixed by platform capability at 2. When both slots are active, all other assigned FX cells gray out and do not respond until a slot frees. When one slot is active, other mappings of the same FX type gray out and do not respond until that type frees.
 - Pressing a second cell with the same effect type replaces the existing active cell of that type and emits a release for the old cell before activating the new one.
 - Stutter captures a short audio segment on press and loops it repeatedly; `Rate Hz` sets segment length (longer at lower rates) and `Depth` controls wet mix. An ease-in ramp (~2ms) and loop-wrap crossfade prevent clicks.
 - Freeze captures the early sound burst into an infinite reverb tail on press (injection window ~120ms). The tail sustains while held with no new input after the window closes. On release, the tail fades out over `Release Ms` and the effect is then removed. `Mix` controls the wet/dry blend.
@@ -391,7 +391,7 @@ System
 │   ├── Note Length: [30..2000] step 10 ms  default 120
 │   ├── Velocity Scale: [0..200] step 5 %   default 100
 │   ├── Velocity Curve: [linear | soft | hard]
-│   └── Voice Stealing: [off | lenient | balanced | aggressive]  default balanced
+│   └── Voice Stealing: [fixed12 | fixed16 | auto-soft | auto-balanced | auto-hard | none]  default auto-balanced
 ├── MIDI (group)
 │   ├── Enabled: [on | off]
 │   ├── !Panic: (action)
@@ -427,7 +427,7 @@ Diagnostics is a pre-hardware Pi check, and the update actions are native placeh
 - Splash graphics use provided logo assets: regular logo for startup/wakeup, sepia logo for sleep/shutdown.
 - Bottom-right corner: transport icon (`▶` / `⏸` / `■`), hidden while a footer toast is active
 - Transport flash: green (beat) or red (measure) border on play icon
-- Yellow event dot: briefly shown when notes fire, hidden while a footer toast is active
+- Event dot: briefly shown when notes fire, hidden while a footer toast is active; turns red when recent voice stealing occurred
 - Top-right audio load indicator: hidden when idle, yellow when DSP load is moderate or recent voice stealing occurred, red when DSP load is heavy
 - Toast text: displayed at bottom for feedback messages
 

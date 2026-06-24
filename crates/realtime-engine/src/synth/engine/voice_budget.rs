@@ -48,10 +48,12 @@ impl SynthEngine {
     fn global_voice_budget(&self) -> usize {
         let max_voices = INSTRUMENT_SLOT_COUNT * VOICES_PER_SLOT;
         let (target_load, min_budget_pct) = match self.voice_stealing_mode {
-            VoiceStealingMode::Off => return max_voices,
-            VoiceStealingMode::Lenient => (0.88_f32, 0.75_f32),
-            VoiceStealingMode::Balanced => (0.78_f32, 0.60_f32),
-            VoiceStealingMode::Aggressive => (0.68_f32, 0.45_f32),
+            VoiceStealingMode::None => return max_voices,
+            VoiceStealingMode::Fixed12 => return 12,
+            VoiceStealingMode::Fixed16 => return MAX_SYNTH_VOICES,
+            VoiceStealingMode::AutoSoft => (0.88_f32, 0.75_f32),
+            VoiceStealingMode::AutoBalanced => (0.78_f32, 0.60_f32),
+            VoiceStealingMode::AutoHard => (0.68_f32, 0.45_f32),
         };
         if self.smoothed_load_ratio <= target_load {
             return max_voices;
@@ -66,7 +68,7 @@ impl SynthEngine {
 
     pub(super) fn enforce_voice_budgets(&mut self) {
         self.enforce_slot_voice_budgets();
-        if self.voice_stealing_mode != VoiceStealingMode::Off {
+        if self.voice_stealing_mode != VoiceStealingMode::None {
             self.enforce_global_voice_budget();
             self.enforce_global_sample_budget();
         }
@@ -88,7 +90,7 @@ impl SynthEngine {
     }
 
     pub(super) fn enforce_global_voice_budget(&mut self) {
-        let budget = self.global_voice_budget().min(MAX_SYNTH_VOICES);
+        let budget = self.global_voice_budget();
         while self.active_synth_voice_total() > budget {
             let active_slot_count = self.active_synth_slot_count();
             let fair_share =

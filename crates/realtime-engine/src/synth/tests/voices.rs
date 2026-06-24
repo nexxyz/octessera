@@ -23,7 +23,7 @@ fn synth_voice_cap_limits_per_slot_to_eight() {
 #[test]
 fn voice_steal_is_scoped_to_instrument_slot() {
     let mut engine = SynthEngine::new(48_000);
-    engine.set_voice_stealing_mode(VoiceStealingMode::Off);
+    engine.set_voice_stealing_mode(VoiceStealingMode::None);
     for i in 0..MAX_SYNTH_VOICES_PER_SLOT {
         engine.note_on(0, (60 + i) as u8, 100, 2_000);
         engine.note_on(1, (72 + i) as u8, 100, 2_000);
@@ -130,9 +130,9 @@ fn long_running_event_stream_stays_finite() {
 }
 
 #[test]
-fn aggressive_global_voice_budget_reduces_polyphony_under_load() {
+fn auto_hard_global_voice_budget_reduces_polyphony_under_load() {
     let mut engine = SynthEngine::new(48_000);
-    engine.set_voice_stealing_mode(VoiceStealingMode::Aggressive);
+    engine.set_voice_stealing_mode(VoiceStealingMode::AutoHard);
     for _ in 0..20 {
         engine.set_runtime_load_ratio(2.0);
     }
@@ -148,7 +148,8 @@ fn aggressive_global_voice_budget_reduces_polyphony_under_load() {
         .sum();
     let status = engine.audio_load_status();
 
-    assert!(active <= MAX_SYNTH_VOICES);
+    assert!(active <= 29);
+    assert!(active > MAX_SYNTH_VOICES);
     assert!(status.voice_steal);
     assert!(status.ratio > 1.0);
     assert!(!engine.audio_load_status().voice_steal);
@@ -157,7 +158,7 @@ fn aggressive_global_voice_budget_reduces_polyphony_under_load() {
 #[test]
 fn disabled_global_voice_budget_preserves_per_slot_cap() {
     let mut engine = SynthEngine::new(48_000);
-    engine.set_voice_stealing_mode(VoiceStealingMode::Off);
+    engine.set_voice_stealing_mode(VoiceStealingMode::None);
     for _ in 0..20 {
         engine.set_runtime_load_ratio(2.0);
     }
@@ -178,7 +179,7 @@ fn disabled_global_voice_budget_preserves_per_slot_cap() {
 #[test]
 fn fair_global_voice_stealing_balances_two_hot_slots() {
     let mut engine = SynthEngine::new(48_000);
-    engine.set_voice_stealing_mode(VoiceStealingMode::Lenient);
+    engine.set_voice_stealing_mode(VoiceStealingMode::Fixed12);
     for _ in 0..20 {
         engine.set_runtime_load_ratio(2.0);
     }
@@ -196,7 +197,7 @@ fn fair_global_voice_stealing_balances_two_hot_slots() {
 #[test]
 fn overload_across_many_slots_preserves_one_voice_per_slot() {
     let mut engine = SynthEngine::new(48_000);
-    engine.set_voice_stealing_mode(VoiceStealingMode::Lenient);
+    engine.set_voice_stealing_mode(VoiceStealingMode::Fixed12);
     for _ in 0..20 {
         engine.set_runtime_load_ratio(2.0);
     }

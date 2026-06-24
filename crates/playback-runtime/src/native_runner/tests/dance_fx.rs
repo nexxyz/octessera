@@ -51,7 +51,7 @@ fn dance_fx_same_config_assignment_toggles_cell_clear() {
 }
 
 #[test]
-fn dance_fx_press_replaces_same_type_and_limits_concurrency() {
+fn dance_fx_press_blocks_same_type_and_limits_concurrency() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_dance_mode = "fx".into();
     for (x, fx_type) in ["stutter", "freeze", "filter_sweep", "pitch_shift"]
@@ -75,20 +75,18 @@ fn dance_fx_press_replaces_same_type_and_limits_concurrency() {
         config: json!({ "fxType": "glitch", "targetKey": "master", "params": {} }),
     });
 
-    for x in 0..4 {
+    for x in 0..2 {
         assert!(!runner.dance_fx_press_effects(x, 0).is_empty());
     }
-    assert_eq!(runner.active_dance_fx.len(), 4);
+    assert_eq!(runner.active_dance_fx.len(), 2);
 
-    let replacement = runner.dance_fx_press_effects(4, 0);
-    assert_eq!(runner.active_dance_fx.len(), 4);
-    assert!(
-        matches!(replacement.as_slice(), [RuntimePlatformEffect::AudioCommand { command: RuntimeAudioCommand::MomentaryFxStop { id } }, RuntimePlatformEffect::AudioCommand { command: RuntimeAudioCommand::MomentaryFxStart { id: new_id, fx_type, .. } }] if id == "momentary-fx:1:0" && new_id == "momentary-fx:4:0" && fx_type == "freeze")
-    );
+    let same_type = runner.dance_fx_press_effects(4, 0);
+    assert!(same_type.is_empty());
+    assert_eq!(runner.active_dance_fx.len(), 2);
 
     let limited = runner.dance_fx_press_effects(5, 0);
     assert!(limited.is_empty());
-    assert_eq!(runner.active_dance_fx.len(), 4);
+    assert_eq!(runner.active_dance_fx.len(), 2);
 }
 
 #[test]
@@ -108,8 +106,6 @@ fn dance_fx_overlay_marks_active_and_limited_cells() {
     runner.active_dance_fx = vec![
         ("momentary-fx:0:0".into(), "stutter".into()),
         ("momentary-fx:2:0".into(), "freeze".into()),
-        ("momentary-fx:3:0".into(), "filter_sweep".into()),
-        ("momentary-fx:4:0".into(), "pitch_shift".into()),
     ];
 
     let snapshot = runner.snapshot().unwrap();

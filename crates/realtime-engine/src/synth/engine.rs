@@ -108,7 +108,7 @@ impl SynthEngine {
             master_activity_frames: 0,
             pan_positions: DEFAULT_PAN_POSITIONS,
             master_volume: 1.0,
-            voice_stealing_mode: VoiceStealingMode::Balanced,
+            voice_stealing_mode: VoiceStealingMode::AutoBalanced,
             smoothed_load_ratio: 0.0,
             voice_steal_since_status: false,
             cumulative_voice_steals: 0,

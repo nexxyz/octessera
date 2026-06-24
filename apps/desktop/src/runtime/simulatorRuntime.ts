@@ -127,7 +127,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
       displayBrightness: settings?.displayBrightness ?? 75,
       buttonBrightness: settings?.buttonBrightness ?? 75,
       masterVolume: cachedMasterVolume,
-      voiceStealingMode: settings?.voiceStealingMode ?? "balanced",
+      voiceStealingMode: settings?.voiceStealingMode ?? "auto-balanced",
       audioLoad,
       audioError,
       instruments: cachedInstruments,

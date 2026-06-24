@@ -115,7 +115,7 @@ export function useAudioConfigSync(snapshot: AppSnapshot): void {
   useEffect(() => () => audioConfigSender.current?.flush(), []);
 
   useEffect(() => {
-    const mode = snapshot.voiceStealingMode ?? "balanced";
+    const mode = snapshot.voiceStealingMode ?? "auto-balanced";
     if (mode === lastVoiceStealingMode.current) return;
     lastVoiceStealingMode.current = mode;
     void nativeAudioBridge.setRuntimePolicy({ voiceStealingMode: mode });

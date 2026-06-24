@@ -135,9 +135,23 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                     enum_item(
                         "Voice Stealing",
                         "sound.voiceStealingMode",
-                        vec!["off", "lenient", "balanced", "aggressive"],
+                        vec![
+                            "fixed12",
+                            "fixed16",
+                            "auto-soft",
+                            "auto-balanced",
+                            "auto-hard",
+                            "none",
+                        ],
                         selected_index(
-                            &["off", "lenient", "balanced", "aggressive"],
+                            &[
+                                "fixed12",
+                                "fixed16",
+                                "auto-soft",
+                                "auto-balanced",
+                                "auto-hard",
+                                "none",
+                            ],
                             &config.voice_stealing_mode,
                         ),
                     ),

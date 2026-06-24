@@ -15,7 +15,7 @@ export type SimulatorSnapshot = {
     fn: "off" | "solid_yellow" | "solid_blue";
   };
   masterVolume: number;
-  voiceStealingMode: "off" | "lenient" | "balanced" | "aggressive";
+  voiceStealingMode: "fixed12" | "fixed16" | "auto-soft" | "auto-balanced" | "auto-hard" | "none";
   audioLoad: { ratio: number; voiceSteal: boolean };
   audioError: string | null;
   instruments: unknown[];

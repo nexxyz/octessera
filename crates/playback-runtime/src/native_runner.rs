@@ -143,6 +143,18 @@ const DEFERRED_MENU_APPLY_MS: u64 = 24;
 #[cfg(test)]
 const DEFERRED_MENU_APPLY_MS: u64 = 24;
 
+pub(super) fn normalize_voice_stealing_mode(value: &str) -> Option<&'static str> {
+    match value {
+        "none" | "off" => Some("none"),
+        "fixed12" => Some("fixed12"),
+        "fixed16" => Some("fixed16"),
+        "auto-soft" | "lenient" => Some("auto-soft"),
+        "auto-balanced" | "balanced" => Some("auto-balanced"),
+        "auto-hard" | "aggressive" => Some("auto-hard"),
+        _ => None,
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct NativeRunnerConfig {
     pub behavior_id: String,

@@ -125,7 +125,7 @@ fn config() -> NativeMenuConfig {
         note_length_ms: 150,
         velocity_scale_pct: 100,
         velocity_curve: "linear".into(),
-        voice_stealing_mode: "balanced".into(),
+        voice_stealing_mode: "auto-balanced".into(),
         auto_save_default: true,
         ghost_cells: false,
         input_events_while_paused: true,

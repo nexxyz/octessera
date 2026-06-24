@@ -48,15 +48,13 @@ impl NativeRunner {
             return Vec::new();
         }
         let mut effects = Vec::new();
-        if let Some(index) = self
+        if self
             .active_dance_fx
             .iter()
-            .position(|(_, active_type)| active_type == &fx_type)
+            .any(|(_, active_type)| active_type == &fx_type)
         {
-            let (old_id, _) = self.active_dance_fx.remove(index);
-            effects.push(RuntimePlatformEffect::AudioCommand {
-                command: RuntimeAudioCommand::MomentaryFxStop { id: old_id },
-            });
+            self.show_toast(format!("Momentary FX type active ({fx_type})"));
+            return Vec::new();
         } else if self.active_dance_fx.len() >= TOUCH_FX_MAX_CONCURRENT {
             self.show_toast(format!(
                 "Momentary FX limit reached ({TOUCH_FX_MAX_CONCURRENT})"

@@ -39,10 +39,10 @@ impl NativeRunner {
                 index,
             );
         }
-        if self.active_fx_bus_count() > MAX_ACTIVE_BUS_FX_SLOTS {
+        if self.active_bus_fx_slot_count() > MAX_ACTIVE_BUS_FX_SLOTS {
             self.show_toast(format!(
-                "FX bus budget exceeded ({}/{})",
-                self.active_fx_bus_count(),
+                "FX budget warning ({}/{})",
+                self.active_bus_fx_slot_count(),
                 MAX_ACTIVE_BUS_FX_SLOTS
             ));
         }
@@ -82,11 +82,13 @@ impl NativeRunner {
 }
 
 impl NativeRunner {
-    fn active_fx_bus_count(&self) -> usize {
+    fn active_bus_fx_slot_count(&self) -> usize {
         self.fx_buses
             .iter()
-            .filter(|bus| bus.slot1_type != "none" || bus.slot2_type != "none")
-            .count()
+            .map(|bus| {
+                usize::from(bus.slot1_type != "none") + usize::from(bus.slot2_type != "none")
+            })
+            .sum::<usize>()
     }
 }
 

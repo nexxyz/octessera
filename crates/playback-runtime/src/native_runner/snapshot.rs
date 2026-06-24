@@ -184,6 +184,7 @@ impl NativeRunner {
             "selectedRow": display.selected_row,
             "voiceStealingMode": self.voice_stealing_mode.clone(),
             "eventDotOn": self.event_dot_on || self.event_dot_pulses_remaining > 0,
+            "voiceSteal": false,
             "transportIcon": match self.transport {
                 RuntimeTransportState::Playing => "play",
                 RuntimeTransportState::Paused => "pause",

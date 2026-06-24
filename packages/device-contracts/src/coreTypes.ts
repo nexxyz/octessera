@@ -67,7 +67,7 @@ export type RuntimeSnapshotSettings = {
   displayBrightness: number;
   buttonBrightness: number;
   masterVolume: number;
-  voiceStealingMode: "off" | "lenient" | "balanced" | "aggressive";
+  voiceStealingMode: "fixed12" | "fixed16" | "auto-soft" | "auto-balanced" | "auto-hard" | "none";
   instruments?: unknown[];
   mixer?: unknown;
   panPositions?: number;

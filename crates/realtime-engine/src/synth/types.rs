@@ -36,12 +36,19 @@ pub enum MomentaryFxTarget {
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
 pub enum VoiceStealingMode {
-    Off,
-    Lenient,
-    Balanced,
-    Aggressive,
+    #[serde(rename = "none")]
+    None,
+    #[serde(rename = "fixed12")]
+    Fixed12,
+    #[serde(rename = "fixed16")]
+    Fixed16,
+    #[serde(rename = "auto-soft")]
+    AutoSoft,
+    #[serde(rename = "auto-balanced")]
+    AutoBalanced,
+    #[serde(rename = "auto-hard")]
+    AutoHard,
 }
 
 #[derive(Clone, Copy, Debug)]

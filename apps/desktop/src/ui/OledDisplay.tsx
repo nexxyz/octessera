@@ -16,6 +16,7 @@ type SemanticOledState = {
   scroll: { offset: number; totalRows: number; visibleRows: number } | null;
   transportIcon: string;
   eventDotOn: boolean;
+  eventDotSteal: boolean;
   transportFlash: string;
   visibleFooterToast: string;
   showSaveFlash: boolean;
@@ -67,6 +68,7 @@ function useSemanticOledState(
     : null;
   const transportIcon = String((frame as any).transportIcon ?? (frame.transport.playing ? "play" : "pause"));
   const eventDotOn = Boolean((frame as any).eventDotOn ?? false);
+  const eventDotSteal = audioLoad?.voiceSteal === true;
   const transportFlash = String((frame as any).transportFlash ?? "none");
   const autoSaveFlash = String(frame.settings?.autoSaveFlash ?? "none");
   const autoSaveFlashSerial = Number((frame.settings as any)?.autoSaveFlashSerial ?? 0);
@@ -123,6 +125,7 @@ function useSemanticOledState(
       scroll,
       transportIcon,
       eventDotOn,
+      eventDotSteal,
       transportFlash,
       visibleFooterToast: splashText === "startup" ? "Starting up, loading defaults" : visibleFooterToast,
       showSaveFlash: saveFlashVisible(saveFlashStartedAt, nowMs),
@@ -132,6 +135,7 @@ function useSemanticOledState(
       cpuLoad,
       displayOff,
       eventDotOn,
+      eventDotSteal,
       frame.display.lines,
       frame.display.title,
       lineColors,
@@ -261,7 +265,7 @@ function drawSemanticOled(
   ctx.fillStyle = semantic.transportFlash === "measure" ? "#ff3333" : semantic.transportFlash === "beat" ? "#33ff66" : "#d7ffe8";
   drawTransportIcon(ctx, semantic.transportIcon, 101, footerY + 1);
   if (semantic.eventDotOn) {
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = semantic.eventDotSteal ? "#ff3333" : "#ffffff";
     ctx.beginPath();
     ctx.arc(121, footerY + 4, 3, 0, Math.PI * 2);
     ctx.fill();

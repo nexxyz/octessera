@@ -118,8 +118,8 @@ impl NativeRunner {
 
     fn apply_voice_stealing_binding(&mut self, value: Value) {
         if let Some(value) = value.as_str() {
-            if matches!(value, "off" | "lenient" | "balanced" | "aggressive") {
-                self.voice_stealing_mode = value.into();
+            if let Some(mode) = super::normalize_voice_stealing_mode(value) {
+                self.voice_stealing_mode = mode.into();
                 self.config_dirty = true;
             }
         }
