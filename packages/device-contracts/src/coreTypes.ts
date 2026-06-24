@@ -51,7 +51,7 @@ export const GRID_DOMAIN = createGridDomain(GRID_WIDTH, GRID_HEIGHT);
 export type LedMatrixFrame = {
   width: number;
   height: number;
-  cells: LedCell[];
+  rgb: number[];
 };
 
 export type GridInteraction = "paint" | "momentary";

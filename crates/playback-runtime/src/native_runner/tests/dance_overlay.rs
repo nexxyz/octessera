@@ -10,7 +10,7 @@ fn fn_overlay_shows_active_parts_and_dance_page_options() {
     runner.ui.fn_held = true;
 
     let snapshot = runner.snapshot().unwrap();
-    let cells = snapshot["leds"]["cells"].as_array().unwrap();
+    let cells = led_cells(&snapshot);
     let active_part = cells[display_index(0, 0)].as_object().unwrap();
     let none_part = cells[display_index(0, 1)].as_object().unwrap();
     let configured_part = cells[display_index(0, 2)].as_object().unwrap();
@@ -40,7 +40,7 @@ fn fn_overlay_highlights_active_part_when_not_in_dance_mode() {
     runner.ui.fn_held = true;
 
     let snapshot = runner.snapshot().unwrap();
-    let cells = snapshot["leds"]["cells"].as_array().unwrap();
+    let cells = led_cells(&snapshot);
     let active_part = cells[display_index(0, 0)].as_object().unwrap();
     let none_part = cells[display_index(0, 1)].as_object().unwrap();
     let configured_part = cells[display_index(0, 2)].as_object().unwrap();
@@ -68,7 +68,7 @@ fn fn_overlay_dims_fx_grid_cells_when_dance_mode_is_fx() {
     runner.dance_mode = "fx".into();
 
     let snapshot = runner.snapshot().unwrap();
-    let cells = snapshot["leds"]["cells"].as_array().unwrap();
+    let cells = led_cells(&snapshot);
     let mid_cell = cells[display_index(2, 2)].as_object().unwrap();
     let fx_page = cells[display_index(GRID_WIDTH - 1, 2)].as_object().unwrap();
     let part_cell = cells[display_index(0, 0)].as_object().unwrap();

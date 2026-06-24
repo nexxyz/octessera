@@ -188,7 +188,7 @@ fn entering_dance_menu_activates_selected_page_and_overlay() {
     assert_eq!(snapshot["danceMode"], "pan");
     assert_eq!(snapshot["activeDanceMode"], "pan");
 
-    let cells = snapshot["leds"]["cells"].as_array().unwrap();
+    let cells = led_cells(&snapshot);
     let left = cells[3].as_object().unwrap();
     let right = cells[4].as_object().unwrap();
     assert!(left["r"].as_i64().unwrap() > 100 && left["g"].as_i64().unwrap() > 100);
@@ -239,10 +239,8 @@ fn trigger_gate_page_edits_only_selected_part_row() {
 
     assert_eq!(runner.trigger_gate_modes[0], "full");
     assert_eq!(runner.trigger_gate_modes[1], "zero");
-    let cells = snapshot_from(&changed)["leds"]["cells"]
-        .as_array()
-        .unwrap()
-        .clone();
+    let changed_snapshot = snapshot_from(&changed);
+    let cells = led_cells(&changed_snapshot);
     let row1_zero = cells[display_index(0, 1)].as_object().unwrap();
     assert!(row1_zero["r"].as_i64().unwrap() > 0);
     assert!(row1_zero["r"].as_i64().unwrap() >= row1_zero["g"].as_i64().unwrap());
@@ -398,7 +396,7 @@ fn dance_trigger_gate_leds_show_part_modes_and_all_parts_actions() {
     runner.trigger_gate_modes[1] = "full".into();
 
     let snapshot = runner.snapshot().unwrap();
-    let cells = snapshot["leds"]["cells"].as_array().unwrap();
+    let cells = led_cells(&snapshot);
     let part0_zero = cells[display_index(0, 0)].as_object().unwrap();
     let part0_custom = cells[display_index(1, 0)].as_object().unwrap();
     let part1_full = cells[display_index(2, 1)].as_object().unwrap();

@@ -27,6 +27,7 @@ Cell Symphony is a pnpm workspace plus Cargo workspace built around a native Rus
 - Prefer minimal diffs. Centralize shared behavior only when it actually reduces duplication.
 - Do not add source-code comments unless they are genuinely necessary.
 - Keep files under the 500 line limit. If a file exceeds the limit, do a real extraction pass that improves single responsibility; do not make cosmetic line-count reductions.
+- Do not extract vague `helper` modules or functions. Extract functionality into single-responsibility modules with domain names that describe the operation or ownership.
 
 ## Hardware Parity
 

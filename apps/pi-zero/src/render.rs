@@ -53,6 +53,22 @@ pub fn render_snapshot_cached(
 }
 
 pub fn led_frame(snapshot: &Value) -> Option<[[u8; 3]; 64]> {
+    let Some(rgb) = snapshot.get("leds")?.get("rgb").and_then(Value::as_array) else {
+        return legacy_led_frame(snapshot);
+    };
+    let mut frame = [[0_u8; 3]; 64];
+    for (idx, cell) in frame.iter_mut().enumerate() {
+        let offset = idx * 3;
+        *cell = [
+            scaled_u8(rgb.get(offset)),
+            scaled_u8(rgb.get(offset + 1)),
+            scaled_u8(rgb.get(offset + 2)),
+        ];
+    }
+    Some(frame)
+}
+
+fn legacy_led_frame(snapshot: &Value) -> Option<[[u8; 3]; 64]> {
     let cells = snapshot.get("leds")?.get("cells")?.as_array()?;
     let mut frame = [[0_u8; 3]; 64];
     for (idx, cell) in cells.iter().take(64).enumerate() {

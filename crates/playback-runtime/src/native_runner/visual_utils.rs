@@ -1,4 +1,4 @@
-use super::{json, NativeSensePart, NativeToast, Value, GRID_WIDTH, PAN_POSITION_COUNT};
+use super::{NativeSensePart, NativeToast, GRID_WIDTH, PAN_POSITION_COUNT};
 use platform_core::CellTriggerIntent;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -26,8 +26,8 @@ impl LedColor {
         )
     }
 
-    pub fn to_value(self) -> Value {
-        json!({ "r": self.r, "g": self.g, "b": self.b })
+    pub fn append_rgb(self, target: &mut Vec<u8>) {
+        target.extend([self.r, self.g, self.b]);
     }
 }
 

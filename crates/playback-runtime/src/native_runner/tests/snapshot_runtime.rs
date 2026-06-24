@@ -313,6 +313,20 @@ fn native_snapshot_reserves_bottom_oled_row_for_status() {
 }
 
 #[test]
+fn native_snapshot_led_payload_is_flat_rgb() {
+    let runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let snapshot = runner.snapshot().unwrap();
+
+    assert!(snapshot["leds"].get("cells").is_none());
+    assert_eq!(snapshot["leds"]["width"], GRID_WIDTH);
+    assert_eq!(snapshot["leds"]["height"], GRID_HEIGHT);
+    assert_eq!(
+        snapshot["leds"]["rgb"].as_array().unwrap().len(),
+        GRID_WIDTH * GRID_HEIGHT * 3
+    );
+}
+
+#[test]
 fn regular_menu_snapshot_keeps_seven_body_rows_above_reserved_status() {
     let runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let snapshot = runner.snapshot().unwrap();

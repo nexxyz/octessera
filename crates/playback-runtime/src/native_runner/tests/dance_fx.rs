@@ -109,7 +109,7 @@ fn dance_fx_overlay_marks_active_and_limited_cells() {
     ];
 
     let snapshot = runner.snapshot().unwrap();
-    let cells = snapshot["leds"]["cells"].as_array().unwrap();
+    let cells = led_cells(&snapshot);
     let active = &cells[display_index(0, 0)];
     let limited = &cells[display_index(1, 0)];
 

@@ -32,6 +32,20 @@ fn snapshot_from(messages: &[RunnerMessage]) -> Value {
         .expect("snapshot message")
 }
 
+fn led_cells(snapshot: &Value) -> Vec<Value> {
+    let rgb = snapshot["leds"]["rgb"].as_array().expect("led rgb array");
+    (0..64)
+        .map(|index| {
+            let offset = index * 3;
+            json!({
+                "r": rgb[offset].as_u64().unwrap(),
+                "g": rgb[offset + 1].as_u64().unwrap(),
+                "b": rgb[offset + 2].as_u64().unwrap(),
+            })
+        })
+        .collect()
+}
+
 fn confirm_current_dialog(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
     runner.confirm_dialog.as_mut().unwrap().cursor = 1;
     runner

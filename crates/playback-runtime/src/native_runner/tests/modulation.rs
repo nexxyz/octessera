@@ -143,7 +143,7 @@ fn dance_xy_overlay_marks_physical_touch_with_inverted_modulation() {
     assert!((runner.xy_touch.x - 6.0 / 7.0).abs() < 0.0001);
     assert!((runner.xy_touch.y - 1.0 / 7.0).abs() < 0.0001);
     let snapshot = snapshot_from(&pressed);
-    let cells = snapshot["leds"]["cells"].as_array().unwrap();
+    let cells = led_cells(&snapshot);
     assert_eq!(
         cells[display_index(1, 6)],
         json!({ "r": 255, "g": 255, "b": 255 })
@@ -156,7 +156,7 @@ fn dance_xy_overlay_marks_physical_touch_with_inverted_modulation() {
         .unwrap();
     assert!(!runner.xy_touch.active);
     let snapshot = snapshot_from(&released);
-    let cells = snapshot["leds"]["cells"].as_array().unwrap();
+    let cells = led_cells(&snapshot);
     assert_eq!(
         cells[display_index(1, 6)],
         json!({ "r": 80, "g": 80, "b": 80 })
@@ -180,7 +180,7 @@ fn dance_xy_reset_center_overlay_returns_to_center() {
         })
         .unwrap();
     let snapshot = snapshot_from(&released);
-    let cells = snapshot["leds"]["cells"].as_array().unwrap();
+    let cells = led_cells(&snapshot);
 
     assert_eq!(runner.xy_touch.x, 0.5);
     assert_eq!(runner.xy_touch.y, 0.5);
@@ -288,7 +288,7 @@ fn shift_grid_param_mod_overlay_marks_lanes_and_combined_cells() {
     runner.ui.shift_held = true;
 
     let snapshot = runner.snapshot().unwrap();
-    let cells = snapshot["leds"]["cells"].as_array().unwrap();
+    let cells = led_cells(&snapshot);
 
     assert_eq!(
         cells[display_index(3, 0)],

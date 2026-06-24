@@ -198,7 +198,7 @@ fn scan_progress_overlay_is_dim_white_and_preserves_live_cell_color() {
     runner.send(HostMessage::MidiRealtimeStart).unwrap();
 
     let snapshot = runner.snapshot().unwrap();
-    let cells = snapshot["leds"]["cells"].as_array().unwrap();
+    let cells = led_cells(&snapshot);
     let scanned_live = cells[display_index(0, 0)].as_object().unwrap();
     let scanned_empty = cells[display_index(1, 0)].as_object().unwrap();
 
@@ -248,7 +248,7 @@ fn reverse_scan_direction_starts_from_last_lane() {
     runner.refresh_active_interpretation_profile();
 
     let snapshot = runner.snapshot().unwrap();
-    let cells = snapshot["leds"]["cells"].as_array().unwrap();
+    let cells = led_cells(&snapshot);
     let bottom_row = cells[display_index(0, 0)].as_object().unwrap();
     let top_row = cells[display_index(0, GRID_HEIGHT - 1)]
         .as_object()
@@ -271,7 +271,7 @@ fn scan_sections_limit_overlay_to_current_section_lane() {
     runner.refresh_active_interpretation_profile();
 
     let snapshot = runner.snapshot().unwrap();
-    let cells = snapshot["leds"]["cells"].as_array().unwrap();
+    let cells = led_cells(&snapshot);
     let in_section = cells[display_index(3, 0)].as_object().unwrap();
     let out_of_section = cells[display_index(4, 0)].as_object().unwrap();
 
