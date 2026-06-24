@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use super::{json, Value};
+use super::{json, LedColor, Value};
 
 pub(super) fn default_dance_fx_selected() -> Value {
     json!({ "fxType": "none", "targetKey": "master", "params": {} })
@@ -103,12 +103,12 @@ pub(super) fn dance_fx_param_default(fx_type: &str, key: &str) -> i32 {
     }
 }
 
-pub(super) fn momentary_fx_color(fx_type: &str) -> Value {
+pub(super) fn momentary_fx_color(fx_type: &str) -> LedColor {
     match fx_type {
-        "stutter" => json!({ "r": 255, "g": 170, "b": 40 }),
-        "freeze" => json!({ "r": 80, "g": 210, "b": 255 }),
-        "filter_sweep" => json!({ "r": 80, "g": 255, "b": 120 }),
-        "pitch_shift" => json!({ "r": 190, "g": 90, "b": 255 }),
-        _ => json!({ "r": 40, "g": 40, "b": 40 }),
+        "stutter" => LedColor::rgb(255, 170, 40),
+        "freeze" => LedColor::rgb(80, 210, 255),
+        "filter_sweep" => LedColor::rgb(80, 255, 120),
+        "pitch_shift" => LedColor::rgb(190, 90, 255),
+        _ => LedColor::rgb(40, 40, 40),
     }
 }

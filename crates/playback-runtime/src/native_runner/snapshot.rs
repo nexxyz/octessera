@@ -4,7 +4,7 @@ use crate::protocol::{
 
 use super::{
     clip_display_line, display_index, json, sample_assignments_payload, scrolled_toast,
-    velocity_curve_id, GridInteraction, NativeOledMode, NativeRunner, NativeToast,
+    velocity_curve_id, GridInteraction, LedColor, NativeOledMode, NativeRunner, NativeToast,
     RuntimeTransportState, SyncSource, Value, GRID_HEIGHT, GRID_WIDTH, OLED_BODY_ROWS,
     PAN_POSITION_COUNT,
 };
@@ -102,6 +102,7 @@ impl NativeRunner {
         self.apply_dance_overlay(&mut leds);
         self.apply_param_mod_overlay(&mut leds);
         self.apply_fn_overlay(&mut leds);
+        let led_values = leds.into_iter().map(LedColor::to_value).collect::<Vec<_>>();
         let display = self.display_snapshot(menu);
         let toast = self.toast.as_ref().map(scrolled_toast).unwrap_or_default();
 
@@ -123,7 +124,7 @@ impl NativeRunner {
             "leds": {
                 "width": GRID_WIDTH,
                 "height": GRID_HEIGHT,
-                "cells": leds
+                "cells": led_values
             },
             "transport": {
                 "playing": self.transport == RuntimeTransportState::Playing,
@@ -205,8 +206,8 @@ impl NativeRunner {
         Ok(snapshot)
     }
 
-    fn base_led_snapshot(&self, model: &platform_core::BehaviorRenderModel) -> Vec<Value> {
-        let mut leds = vec![json!({ "r": 15, "g": 15, "b": 22 }); GRID_WIDTH * GRID_HEIGHT];
+    fn base_led_snapshot(&self, model: &platform_core::BehaviorRenderModel) -> Vec<LedColor> {
+        let mut leds = vec![LedColor::rgb(15, 15, 22); GRID_WIDTH * GRID_HEIGHT];
         for (logical_index, alive) in model.cells.iter().enumerate() {
             let x = logical_index % GRID_WIDTH;
             let y = logical_index / GRID_WIDTH;
@@ -273,7 +274,27 @@ impl NativeRunner {
         }
         self.advance_toast_state();
         let snapshot = self.next_snapshot()?;
-        let mut messages = Vec::new();
+        let save_default_effect = if self.auto_save_default && self.config_dirty {
+            self.config_dirty = false;
+            self.auto_save_flash_serial = self.auto_save_flash_serial.wrapping_add(1);
+            self.auto_save_flash_pulses_remaining = 8;
+            self.toast = Some(NativeToast {
+                message: "Saved default".into(),
+                offset: 0,
+            });
+            Some(RuntimePlatformEffect::StoreSaveDefault {
+                payload: self.config_payload(),
+                mode: Some("deferred".into()),
+            })
+        } else {
+            None
+        };
+        let mut messages = Vec::with_capacity(4);
+        if let Some(effect) = save_default_effect {
+            messages.push(RunnerMessage::PlatformEffects {
+                effects: vec![effect],
+            });
+        }
         if !self.queued_platform_effects.is_empty() {
             messages.push(RunnerMessage::PlatformEffects {
                 effects: std::mem::take(&mut self.queued_platform_effects),
@@ -285,24 +306,6 @@ impl NativeRunner {
                 status: self.status(),
             },
         ]);
-        if self.auto_save_default && self.config_dirty {
-            self.config_dirty = false;
-            self.auto_save_flash_serial = self.auto_save_flash_serial.wrapping_add(1);
-            self.auto_save_flash_pulses_remaining = 8;
-            self.toast = Some(NativeToast {
-                message: "Saved default".into(),
-                offset: 0,
-            });
-            messages.insert(
-                0,
-                RunnerMessage::PlatformEffects {
-                    effects: vec![RuntimePlatformEffect::StoreSaveDefault {
-                        payload: self.config_payload(),
-                        mode: Some("deferred".into()),
-                    }],
-                },
-            );
-        }
         if self.auto_save_flash_pulses_remaining > 0 {
             self.auto_save_flash_pulses_remaining -= 1;
         }
@@ -356,15 +359,15 @@ struct DisplayScrollMetadata {
     visible_rows: usize,
 }
 
-fn base_led_color(alive: bool, trigger: Option<platform_core::CellTriggerType>) -> Value {
+fn base_led_color(alive: bool, trigger: Option<platform_core::CellTriggerType>) -> LedColor {
     if !alive {
-        return json!({ "r": 15, "g": 15, "b": 22 });
+        return LedColor::rgb(15, 15, 22);
     }
     match trigger.unwrap_or(platform_core::CellTriggerType::Stable) {
-        platform_core::CellTriggerType::Activate => json!({ "r": 255, "g": 255, "b": 255 }),
-        platform_core::CellTriggerType::Deactivate => json!({ "r": 128, "g": 128, "b": 128 }),
-        platform_core::CellTriggerType::Scanned => json!({ "r": 255, "g": 0, "b": 0 }),
-        _ => json!({ "r": 0, "g": 255, "b": 120 }),
+        platform_core::CellTriggerType::Activate => LedColor::rgb(255, 255, 255),
+        platform_core::CellTriggerType::Deactivate => LedColor::rgb(128, 128, 128),
+        platform_core::CellTriggerType::Scanned => LedColor::rgb(255, 0, 0),
+        _ => LedColor::rgb(0, 255, 120),
     }
 }
 

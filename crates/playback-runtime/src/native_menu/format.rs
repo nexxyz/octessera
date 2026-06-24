@@ -52,6 +52,27 @@ pub(super) fn format_item_lines(
         .collect()
 }
 
+pub(super) fn formatted_item_row_count(
+    item: &NativeMenuItem,
+    selected: bool,
+    editing: bool,
+) -> usize {
+    if item.label.is_empty() {
+        return 1;
+    }
+    match &item.value {
+        NativeMenuValue::Enum { .. }
+        | NativeMenuValue::Number { .. }
+        | NativeMenuValue::Bool { .. }
+        | NativeMenuValue::Text { .. }
+            if selected && editing =>
+        {
+            2
+        }
+        _ => 1,
+    }
+}
+
 pub(super) fn format_item_bar_values(
     item: &NativeMenuItem,
     item_line_count: usize,

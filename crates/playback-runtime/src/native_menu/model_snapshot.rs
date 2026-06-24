@@ -1,5 +1,6 @@
 use super::format::{
-    format_item_bar_values, format_item_lines, section_color_for_label, section_color_from_path,
+    format_item_bar_values, format_item_lines, formatted_item_row_count, section_color_for_label,
+    section_color_from_path,
 };
 use super::{
     NativeMenuItem, NativeMenuModel, NativeMenuScrollMetadata, NativeMenuSnapshot, NativeMenuValue,
@@ -94,11 +95,11 @@ fn snapshot_window(
     let cursor = model.state.cursor.min(siblings.len().saturating_sub(1));
     let mut start = cursor;
     let mut end = cursor + 1;
-    let mut row_count = item_row_count(model, &siblings[cursor], true, model.state.editing);
+    let mut row_count = item_row_count(&siblings[cursor], true, model.state.editing);
     while row_count < MENU_BODY_ROWS && (start > 0 || end < siblings.len()) {
         let mut grew = false;
         if start > 0 {
-            let prev_rows = item_row_count(model, &siblings[start - 1], false, false);
+            let prev_rows = item_row_count(&siblings[start - 1], false, false);
             if row_count + prev_rows <= MENU_BODY_ROWS || end >= siblings.len() {
                 start -= 1;
                 row_count += prev_rows;
@@ -109,7 +110,7 @@ fn snapshot_window(
             break;
         }
         if end < siblings.len() {
-            let next_rows = item_row_count(model, &siblings[end], false, false);
+            let next_rows = item_row_count(&siblings[end], false, false);
             if row_count + next_rows <= MENU_BODY_ROWS || start == 0 {
                 end += 1;
                 row_count += next_rows;
@@ -136,7 +137,6 @@ fn rendered_row_count_before(
         .take(end)
         .map(|(index, item)| {
             item_row_count(
-                model,
                 item,
                 index == model.state.cursor,
                 index == model.state.cursor && model.state.editing,
@@ -145,13 +145,8 @@ fn rendered_row_count_before(
         .sum()
 }
 
-fn item_row_count(
-    model: &NativeMenuModel,
-    item: &NativeMenuItem,
-    selected: bool,
-    editing: bool,
-) -> usize {
-    format_item_lines(item, selected, editing, &model.numeric_display_mode).len()
+fn item_row_count(item: &NativeMenuItem, selected: bool, editing: bool) -> usize {
+    formatted_item_row_count(item, selected, editing)
 }
 
 #[allow(clippy::too_many_arguments)]

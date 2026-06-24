@@ -1,6 +1,36 @@
 use super::{json, NativeSensePart, NativeToast, Value, GRID_WIDTH, PAN_POSITION_COUNT};
 use platform_core::CellTriggerIntent;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct LedColor {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+}
+
+impl LedColor {
+    pub const fn rgb(r: u8, g: u8, b: u8) -> Self {
+        Self { r, g, b }
+    }
+
+    pub fn dim(self, divisor: u8) -> Self {
+        let divisor = divisor.max(1);
+        Self::rgb(self.r / divisor, self.g / divisor, self.b / divisor)
+    }
+
+    pub fn add_dim_white(self, amount: u8) -> Self {
+        Self::rgb(
+            self.r.saturating_add(amount),
+            self.g.saturating_add(amount),
+            self.b.saturating_add(amount),
+        )
+    }
+
+    pub fn to_value(self) -> Value {
+        json!({ "r": self.r, "g": self.g, "b": self.b })
+    }
+}
+
 pub(super) fn clip_display_line(line: &str, width: usize) -> String {
     let mut out = String::new();
     for ch in line.chars().take(width) {
@@ -21,28 +51,6 @@ pub(super) fn scrolled_toast(toast: &NativeToast) -> String {
     padded.extend([' ', ' ', ' ']);
     padded.extend(toast.message.chars());
     padded.iter().skip(offset).take(WIDTH).collect()
-}
-
-pub(super) fn dim_color(value: Value, divisor: i64) -> Value {
-    let Some(object) = value.as_object() else {
-        return value;
-    };
-    json!({
-        "r": object.get("r").and_then(Value::as_i64).unwrap_or(0) / divisor,
-        "g": object.get("g").and_then(Value::as_i64).unwrap_or(0) / divisor,
-        "b": object.get("b").and_then(Value::as_i64).unwrap_or(0) / divisor,
-    })
-}
-
-pub(super) fn add_dim_white_overlay(value: &Value, amount: i64) -> Value {
-    let Some(object) = value.as_object() else {
-        return json!({ "r": amount, "g": amount, "b": amount });
-    };
-    json!({
-        "r": (object.get("r").and_then(Value::as_i64).unwrap_or(0) + amount).min(255),
-        "g": (object.get("g").and_then(Value::as_i64).unwrap_or(0) + amount).min(255),
-        "b": (object.get("b").and_then(Value::as_i64).unwrap_or(0) + amount).min(255),
-    })
 }
 
 pub(super) fn scan_section_count(value: u8, size: usize) -> usize {
@@ -118,11 +126,11 @@ fn next_probability_random(rng: &mut u64) -> f64 {
     ((*rng >> 11) as f64) / ((1_u64 << 53) as f64)
 }
 
-pub(super) fn trigger_gate_color(mode: &str) -> Value {
+pub(super) fn trigger_gate_color(mode: &str) -> LedColor {
     match mode {
-        "zero" => json!({ "r": 220, "g": 0, "b": 0 }),
-        "custom" => json!({ "r": 220, "g": 180, "b": 0 }),
-        _ => json!({ "r": 0, "g": 220, "b": 0 }),
+        "zero" => LedColor::rgb(220, 0, 0),
+        "custom" => LedColor::rgb(220, 180, 0),
+        _ => LedColor::rgb(0, 220, 0),
     }
 }
 

@@ -42,9 +42,8 @@ use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 use visual_utils::{
-    add_dim_white_overlay, clip_display_line, dim_color, scan_index_for_overlay,
-    scan_section_count, scrolled_toast, touch_pan_pos_from_grid_x, trigger_gate_color,
-    trigger_probability_allows,
+    clip_display_line, scan_index_for_overlay, scan_section_count, scrolled_toast,
+    touch_pan_pos_from_grid_x, trigger_gate_color, trigger_probability_allows, LedColor,
 };
 
 mod action_control;
