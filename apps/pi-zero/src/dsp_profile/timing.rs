@@ -9,6 +9,7 @@ use std::time::Instant;
 
 const MIN_BLOCK_FRAMES: usize = 32;
 const MAX_BLOCK_FRAMES: usize = 2_048;
+const RUNTIME_WARMUP_BLOCKS: usize = 8;
 
 pub fn profile_block_frames() -> usize {
     env_usize("CELLSYMPHONY_AUDIO_BLOCK_FRAMES")
@@ -55,10 +56,16 @@ pub fn measure_runtime_step(
 ) -> Result<Vec<f64>, String> {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default())?;
     prime_runtime_scenario(&mut runner, &scenario.name)?;
+    let message_blocks = runtime_step_message_blocks(&scenario.name, block_frames, blocks);
+    for messages in message_blocks.iter().take(RUNTIME_WARMUP_BLOCKS) {
+        for message in messages {
+            let _ = runner.send(message.clone())?;
+        }
+    }
     let mut timings = Vec::with_capacity(blocks);
-    for block in 0..blocks {
+    for messages in message_blocks.into_iter().skip(RUNTIME_WARMUP_BLOCKS) {
         let start = Instant::now();
-        for message in runtime_step_messages(&scenario.name, block, block_frames) {
+        for message in messages {
             let _ = runner.send(message)?;
         }
         timings.push(start.elapsed().as_secs_f64() * 1000.0);
@@ -67,40 +74,85 @@ pub fn measure_runtime_step(
 }
 
 fn prime_runtime_scenario(runner: &mut NativeRunner, scenario: &str) -> Result<(), String> {
-    if scenario == "runtime_noteoff_queue_stress" {
+    if matches!(
+        scenario,
+        "runtime_noteoff_queue_stress" | "runtime_noteoff_snapshot_stress"
+    ) {
         for x in 0..8 {
             let _ = runner.send(HostMessage::DeviceInput {
                 input: json!({ "type": "grid_press", "x": x, "y": 0 }),
             })?;
         }
     }
+    if scenario == "menu_snapshot_only" {
+        let _ = runner.send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "id": "main", "delta": 1 }),
+        })?;
+        let _ = runner.send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })?;
+    }
+    if scenario == "runtime_snapshot_no_menu_change" {
+        let _ = runner.send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
+        })?;
+        let _ = runner.send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_release", "x": 0, "y": 0 }),
+        })?;
+    }
     Ok(())
+}
+
+fn runtime_step_message_blocks(
+    scenario: &str,
+    block_frames: usize,
+    measured_blocks: usize,
+) -> Vec<Vec<HostMessage>> {
+    (0..measured_blocks + RUNTIME_WARMUP_BLOCKS)
+        .map(|block| runtime_step_messages(scenario, block, block_frames))
+        .collect()
 }
 
 fn runtime_step_messages(scenario: &str, block: usize, block_frames: usize) -> Vec<HostMessage> {
     match scenario {
-        "dense_scan_transform_events" => dense_scan_messages(block, block_frames),
-        "menu_snapshot_nav_stress" => menu_nav_messages(block, block_frames),
-        "runtime_noteoff_queue_stress" => noteoff_queue_messages(block, block_frames),
+        "snapshot_only_idle" | "runtime_snapshot_no_menu_change" | "menu_snapshot_only" => {
+            vec![pulse_message(block_frames, Some(true))]
+        }
+        "dense_scan_transform_events" => dense_scan_messages(block, block_frames, None),
+        "dense_scan_transform_snapshot" => dense_scan_messages(block, block_frames, Some(true)),
+        "menu_nav_no_snapshot" => menu_nav_messages(block, block_frames, None),
+        "menu_snapshot_nav_stress" => menu_nav_messages(block, block_frames, Some(true)),
+        "runtime_noteoff_queue_stress" => noteoff_queue_messages(block, block_frames, None),
+        "runtime_noteoff_snapshot_stress" => {
+            noteoff_queue_messages(block, block_frames, Some(block.is_multiple_of(2)))
+        }
         _ => vec![pulse_message(block_frames, None)],
     }
 }
 
-fn dense_scan_messages(block: usize, block_frames: usize) -> Vec<HostMessage> {
+fn dense_scan_messages(
+    block: usize,
+    block_frames: usize,
+    request_snapshot: Option<bool>,
+) -> Vec<HostMessage> {
     let x = (block % 8) as u8;
     let y = ((block / 8) % 8) as u8;
     vec![
         HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": x, "y": y }),
         },
-        pulse_message(block_frames, Some(true)),
+        pulse_message(block_frames, request_snapshot),
         HostMessage::DeviceInput {
             input: json!({ "type": "grid_release", "x": x, "y": y }),
         },
     ]
 }
 
-fn menu_nav_messages(block: usize, block_frames: usize) -> Vec<HostMessage> {
+fn menu_nav_messages(
+    block: usize,
+    block_frames: usize,
+    request_snapshot: Option<bool>,
+) -> Vec<HostMessage> {
     let delta = if block.is_multiple_of(2) { 1 } else { -1 };
     vec![
         HostMessage::DeviceInput {
@@ -109,17 +161,21 @@ fn menu_nav_messages(block: usize, block_frames: usize) -> Vec<HostMessage> {
         HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
         },
-        pulse_message(block_frames, Some(true)),
+        pulse_message(block_frames, request_snapshot),
     ]
 }
 
-fn noteoff_queue_messages(block: usize, block_frames: usize) -> Vec<HostMessage> {
+fn noteoff_queue_messages(
+    block: usize,
+    block_frames: usize,
+    request_snapshot: Option<bool>,
+) -> Vec<HostMessage> {
     let x = (block % 8) as u8;
     vec![
         HostMessage::DeviceInput {
             input: json!({ "type": "grid_release", "x": x, "y": 0 }),
         },
-        pulse_message(block_frames, Some(block.is_multiple_of(2))),
+        pulse_message(block_frames, request_snapshot),
         HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": x, "y": 0 }),
         },

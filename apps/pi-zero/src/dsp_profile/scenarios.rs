@@ -155,9 +155,15 @@ fn soak_scenarios(sample_rate: u32) -> Vec<ScenarioSpec> {
 pub fn runtime_step_scenarios() -> Vec<ScenarioSpec> {
     [
         "runtime_step_default",
+        "snapshot_only_idle",
+        "runtime_snapshot_no_menu_change",
+        "menu_snapshot_only",
         "dense_scan_transform_events",
+        "dense_scan_transform_snapshot",
+        "menu_nav_no_snapshot",
         "menu_snapshot_nav_stress",
         "runtime_noteoff_queue_stress",
+        "runtime_noteoff_snapshot_stress",
     ]
     .into_iter()
     .map(|name| ScenarioSpec {
