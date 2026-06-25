@@ -42,6 +42,41 @@ fn oled_frame_renders_menu_bars_selection_status_and_scrollbar() {
 }
 
 #[test]
+fn oled_frame_into_matches_allocating_renderer() {
+    let snapshot = menu_snapshot();
+    let expected = oled_frame(&snapshot);
+    let mut reused = vec![0xa5_u8; OLED_FRAME_BYTES];
+    oled_frame_into(&snapshot, &mut reused);
+    assert_eq!(reused, expected);
+}
+
+#[test]
+fn oled_frame_into_clears_reused_buffer() {
+    let mut snapshot = menu_snapshot();
+    let mut reused = vec![0xff_u8; OLED_FRAME_BYTES];
+    snapshot["display"]["off"] = json!(true);
+    oled_frame_into(&snapshot, &mut reused);
+    assert!(reused.iter().all(|byte| *byte == 0));
+}
+
+#[test]
+fn oled_frame_into_clears_between_splash_menu_and_off() {
+    let mut snapshot = menu_snapshot();
+    let mut reused = vec![0xa5_u8; OLED_FRAME_BYTES];
+    snapshot["display"]["splash"] = json!("sleep");
+    oled_frame_into(&snapshot, &mut reused);
+    assert!(reused.iter().any(|byte| *byte != 0));
+
+    snapshot["display"]["splash"] = json!("");
+    oled_frame_into(&snapshot, &mut reused);
+    assert_eq!(reused, oled_frame(&snapshot));
+
+    snapshot["display"]["off"] = json!(true);
+    oled_frame_into(&snapshot, &mut reused);
+    assert!(reused.iter().all(|byte| *byte == 0));
+}
+
+#[test]
 fn glyphs_cover_common_menu_sample_and_help_text() {
     for ch in "FX/AUX VELOCITY J+Q/V X (EMPTY) SAMPLE_1 #3".chars() {
         if ch != ' ' {

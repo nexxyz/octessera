@@ -137,6 +137,15 @@ Low-resource on-Pi fallback:
 CARGO_BUILD_JOBS=1 cargo build --profile pi-dev -p cellsymphony-pi --features hardware-pi
 ```
 
+Pi UI/render responsiveness profiling is quiet by default. Enable periodic summaries with either control:
+
+```bash
+CELLSYMPHONY_PI_UI_PROFILE=1 cellsymphony-pi
+cellsymphony-pi --profile-ui
+```
+
+Summaries include loop cadence, runtime tick lateness/advance, render overruns, snapshot/config sync, hardware polling, and LED/NeoKey/OLED phase timings.
+
 ## Documentation Checks
 
 After changing docs or menu/help resources:
