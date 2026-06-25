@@ -3,14 +3,12 @@ use crate::native_menu::{
     NativeParamBindingSpec, NativeParamModsConfig, NativeSensePartConfig, NativeValueLaneConfig,
 };
 #[cfg(test)]
-use crate::protocol::RuntimeAudioCommand;
-#[cfg(test)]
 use crate::protocol::RuntimeStoreResult;
 #[cfg(test)]
 use crate::protocol::{HostMessage, RunnerMessage};
 use crate::protocol::{
-    MidiPort, RuntimeMomentaryFxTarget, RuntimePlatformEffect, RuntimeTransportState, SampleEntry,
-    SyncSource,
+    MidiPort, RuntimeAudioCommand, RuntimeMomentaryFxTarget, RuntimePlatformEffect,
+    RuntimeTransportState, SampleEntry, SyncSource,
 };
 use crate::runtime::{CoreRunner, RuntimeConfig};
 use dance_fx_utils::{
@@ -74,6 +72,7 @@ mod instrument_runtime;
 mod json_path;
 mod menu_apply;
 mod menu_apply_fast;
+mod menu_apply_fast_fx;
 mod menu_apply_instrument;
 mod menu_apply_sense_fx;
 mod menu_value_apply;
@@ -303,6 +302,7 @@ pub struct NativeRunner {
     aux_turn_toast_cooldown_until: Option<Instant>,
     pending_aux_turn_toast: Option<PendingNativeToast>,
     pending_menu_apply: Option<PendingMenuApply>,
+    pending_audio_commands: Vec<RuntimeAudioCommand>,
 }
 
 #[cfg(test)]

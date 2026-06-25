@@ -3,6 +3,7 @@ mod diagnostics;
 mod dsp_profile;
 mod encoder_queue;
 mod host_adapter;
+mod host_audio_command;
 mod input;
 mod render;
 mod runtime_loop;

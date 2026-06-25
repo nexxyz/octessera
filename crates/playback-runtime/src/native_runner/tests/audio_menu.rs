@@ -173,7 +173,16 @@ fn dynamic_fx_type_turn_is_deferred_until_flush() {
 
     assert!(!flushed.is_empty());
     assert_eq!(runner.fx_buses[0].slot1_type, "tremolo");
-    assert_eq!(runner.audio_config_revision, 1);
+    assert_eq!(runner.audio_config_revision, 0);
+    assert!(flushed.iter().any(|message| matches!(
+        message,
+        RunnerMessage::AudioCommands { commands }
+            if commands.iter().any(|command| matches!(
+                command,
+                RuntimeAudioCommand::SetFxBusSlot { bus_index: 0, slot_index: 0, fx_type, .. }
+                    if fx_type == "tremolo"
+            ))
+    )));
 }
 
 #[test]
@@ -199,10 +208,19 @@ fn dynamic_fx_slot2_type_turn_is_deferred_until_flush() {
     assert_eq!(runner.audio_config_revision, 0);
 
     runner.make_deferred_menu_apply_due_for_test();
-    let _ = runner.flush_deferred_menu_apply().unwrap();
+    let flushed = runner.flush_deferred_menu_apply().unwrap();
 
     assert_eq!(runner.fx_buses[0].slot2_type, "tremolo");
-    assert_eq!(runner.audio_config_revision, 1);
+    assert_eq!(runner.audio_config_revision, 0);
+    assert!(flushed.iter().any(|message| matches!(
+        message,
+        RunnerMessage::AudioCommands { commands }
+            if commands.iter().any(|command| matches!(
+                command,
+                RuntimeAudioCommand::SetFxBusSlot { bus_index: 0, slot_index: 1, fx_type, .. }
+                    if fx_type == "tremolo"
+            ))
+    )));
 }
 
 #[test]
@@ -228,10 +246,19 @@ fn dynamic_global_fx_type_turn_is_deferred_until_flush() {
     assert_eq!(runner.audio_config_revision, 0);
 
     runner.make_deferred_menu_apply_due_for_test();
-    let _ = runner.flush_deferred_menu_apply().unwrap();
+    let flushed = runner.flush_deferred_menu_apply().unwrap();
 
     assert_eq!(runner.global_fx_slots[0], "vinyl");
-    assert_eq!(runner.audio_config_revision, 1);
+    assert_eq!(runner.audio_config_revision, 0);
+    assert!(flushed.iter().any(|message| matches!(
+        message,
+        RunnerMessage::AudioCommands { commands }
+            if commands.iter().any(|command| matches!(
+                command,
+                RuntimeAudioCommand::SetGlobalFxSlot { slot_index: 0, fx_type, .. }
+                    if fx_type == "vinyl"
+            ))
+    )));
 }
 
 #[test]
@@ -257,28 +284,6 @@ fn dynamic_instrument_type_turn_is_deferred_until_flush() {
     let _ = runner.flush_deferred_menu_apply().unwrap();
 
     assert_eq!(runner.instruments[0].kind, "sampler");
-    assert_eq!(runner.audio_config_revision, 1);
-}
-
-#[test]
-fn fast_path_audio_param_still_applies_immediately() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    assert!(runner
-        .menu
-        .focus_item_key("instruments.0.synth.amp.gainPct"));
-    runner.menu.state.editing = true;
-
-    let _ = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": -10, "id": "main" }),
-        })
-        .unwrap();
-
-    assert_eq!(runner.instruments[0].synth_gain_pct, 70);
-    assert_eq!(
-        runner.config_payload()["runtimeConfig"]["instruments"][0]["synth"]["amp"]["gainPct"],
-        70
-    );
     assert_eq!(runner.audio_config_revision, 1);
 }
 

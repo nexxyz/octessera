@@ -18,6 +18,12 @@ export type RuntimeMomentaryFxTarget =
   | { type: "instrument"; index: number };
 
 export type RuntimeAudioCommand =
+  | { type: "set_master_volume"; volumePct: number }
+  | { type: "set_instrument_mixer"; instrumentSlot: number; volumePct?: number; panPos?: number }
+  | { type: "set_synth_param"; instrumentSlot: number; path: string; value: number }
+  | { type: "set_sample_bank_param"; instrumentSlot: number; path: string; value: number }
+  | { type: "set_fx_bus_slot"; busIndex: number; slotIndex: number; fxType: string; params: Record<string, unknown> }
+  | { type: "set_global_fx_slot"; slotIndex: number; fxType: string; params: Record<string, unknown> }
   | { type: "momentary_fx_start"; id: string; fxType: RuntimeMomentaryFxType; params: Record<string, unknown>; target: RuntimeMomentaryFxTarget }
   | { type: "momentary_fx_update"; id: string; params: Record<string, unknown> }
   | { type: "momentary_fx_stop"; id: string }

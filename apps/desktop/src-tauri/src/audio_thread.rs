@@ -92,6 +92,66 @@ pub(crate) fn spawn_audio_engine_thread(
                     QueuedAudioEvent::SetVoiceStealingMode(mode) => {
                         let _ = engine_tx.send(EngineEvent::SetVoiceStealingMode(mode));
                     }
+                    QueuedAudioEvent::SetMasterVolume { volume_pct } => {
+                        let _ = engine_tx.send(EngineEvent::SetMasterVolume { volume_pct });
+                    }
+                    QueuedAudioEvent::SetInstrumentMixer {
+                        instrument_slot,
+                        volume_pct,
+                        pan_pos,
+                    } => {
+                        let _ = engine_tx.send(EngineEvent::SetInstrumentMixer {
+                            instrument_slot,
+                            volume_pct,
+                            pan_pos,
+                        });
+                    }
+                    QueuedAudioEvent::SetSynthParam {
+                        instrument_slot,
+                        path,
+                        value,
+                    } => {
+                        let _ = engine_tx.send(EngineEvent::SetSynthParam {
+                            instrument_slot,
+                            path,
+                            value,
+                        });
+                    }
+                    QueuedAudioEvent::SetSampleBankParam {
+                        instrument_slot,
+                        path,
+                        value,
+                    } => {
+                        let _ = engine_tx.send(EngineEvent::SetSampleBankParam {
+                            instrument_slot,
+                            path,
+                            value,
+                        });
+                    }
+                    QueuedAudioEvent::SetFxBusSlot {
+                        bus_index,
+                        slot_index,
+                        fx_type,
+                        params,
+                    } => {
+                        let _ = engine_tx.send(EngineEvent::SetFxBusSlot {
+                            bus_index,
+                            slot_index,
+                            fx_type,
+                            params,
+                        });
+                    }
+                    QueuedAudioEvent::SetGlobalFxSlot {
+                        slot_index,
+                        fx_type,
+                        params,
+                    } => {
+                        let _ = engine_tx.send(EngineEvent::SetGlobalFxSlot {
+                            slot_index,
+                            fx_type,
+                            params,
+                        });
+                    }
                     QueuedAudioEvent::MomentaryFxStart {
                         id,
                         fx_type,

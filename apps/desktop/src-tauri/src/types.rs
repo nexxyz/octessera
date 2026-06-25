@@ -110,6 +110,35 @@ pub(crate) enum QueuedAudioEvent {
     SetInstruments(realtime_engine::synth::InstrumentsConfig),
     SetSampleBanks(Vec<realtime_engine::synth::SampleBankConfig>),
     SetVoiceStealingMode(realtime_engine::synth::VoiceStealingMode),
+    SetMasterVolume {
+        volume_pct: f32,
+    },
+    SetInstrumentMixer {
+        instrument_slot: usize,
+        volume_pct: Option<f32>,
+        pan_pos: Option<usize>,
+    },
+    SetSynthParam {
+        instrument_slot: usize,
+        path: String,
+        value: f32,
+    },
+    SetSampleBankParam {
+        instrument_slot: usize,
+        path: String,
+        value: f32,
+    },
+    SetFxBusSlot {
+        bus_index: usize,
+        slot_index: usize,
+        fx_type: String,
+        params: BTreeMap<String, Value>,
+    },
+    SetGlobalFxSlot {
+        slot_index: usize,
+        fx_type: String,
+        params: BTreeMap<String, Value>,
+    },
     MomentaryFxStart {
         id: String,
         fx_type: String,

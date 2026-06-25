@@ -11,6 +11,7 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 
 mod control;
+mod dynamic_control;
 mod render;
 mod render_momentary_fx;
 mod render_routing;

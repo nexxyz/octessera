@@ -347,6 +347,58 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
 
     fn handle_audio_command(&mut self, command: &RuntimeAudioCommand) -> Result<(), String> {
         let event = match command {
+            RuntimeAudioCommand::SetMasterVolume { volume_pct } => {
+                QueuedAudioEvent::SetMasterVolume {
+                    volume_pct: *volume_pct,
+                }
+            }
+            RuntimeAudioCommand::SetInstrumentMixer {
+                instrument_slot,
+                volume_pct,
+                pan_pos,
+            } => QueuedAudioEvent::SetInstrumentMixer {
+                instrument_slot: *instrument_slot,
+                volume_pct: *volume_pct,
+                pan_pos: *pan_pos,
+            },
+            RuntimeAudioCommand::SetSynthParam {
+                instrument_slot,
+                path,
+                value,
+            } => QueuedAudioEvent::SetSynthParam {
+                instrument_slot: *instrument_slot,
+                path: path.clone(),
+                value: *value,
+            },
+            RuntimeAudioCommand::SetSampleBankParam {
+                instrument_slot,
+                path,
+                value,
+            } => QueuedAudioEvent::SetSampleBankParam {
+                instrument_slot: *instrument_slot,
+                path: path.clone(),
+                value: *value,
+            },
+            RuntimeAudioCommand::SetFxBusSlot {
+                bus_index,
+                slot_index,
+                fx_type,
+                params,
+            } => QueuedAudioEvent::SetFxBusSlot {
+                bus_index: *bus_index,
+                slot_index: *slot_index,
+                fx_type: fx_type.clone(),
+                params: params.clone(),
+            },
+            RuntimeAudioCommand::SetGlobalFxSlot {
+                slot_index,
+                fx_type,
+                params,
+            } => QueuedAudioEvent::SetGlobalFxSlot {
+                slot_index: *slot_index,
+                fx_type: fx_type.clone(),
+                params: params.clone(),
+            },
             RuntimeAudioCommand::MomentaryFxStart {
                 id,
                 fx_type,

@@ -1,11 +1,12 @@
 use crate::audio::AudioManager;
+use crate::host_audio_command::send_audio_command;
 use crate::sample_browser::sample_entries;
 use midir::{MidiInputConnection, MidiOutputConnection};
 use playback_runtime::{
     HostAdapter, HostMessage, MidiPort, MusicalEvent as RuntimeMusicalEvent, RuntimeAudioCommand,
-    RuntimeMomentaryFxTarget, RuntimePlatformEffect, RuntimeStoreResult, SampleEntry,
+    RuntimePlatformEffect, RuntimeStoreResult, SampleEntry,
 };
-use realtime_engine::synth::{MomentaryFxTarget, INSTRUMENT_SLOT_COUNT};
+use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
 use rodio_engine_source::EngineEvent;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -385,40 +386,7 @@ impl HostAdapter for PiPlaybackHostAdapter<'_> {
     }
 
     fn handle_audio_command(&mut self, command: &RuntimeAudioCommand) -> Result<(), String> {
-        let Some(audio) = self.audio else {
-            return Ok(());
-        };
-        match command {
-            RuntimeAudioCommand::MomentaryFxStart {
-                id,
-                fx_type,
-                params,
-                target,
-            } => audio.send(EngineEvent::MomentaryFxStart {
-                id: id.clone(),
-                fx_type: fx_type.clone(),
-                params: params.clone(),
-                target: match target {
-                    RuntimeMomentaryFxTarget::Global => MomentaryFxTarget::Global,
-                    RuntimeMomentaryFxTarget::FxBus { index } => {
-                        MomentaryFxTarget::FxBus { index: *index }
-                    }
-                    RuntimeMomentaryFxTarget::Instrument { index } => {
-                        MomentaryFxTarget::Instrument { index: *index }
-                    }
-                },
-            }),
-            RuntimeAudioCommand::MomentaryFxUpdate { id, params } => {
-                audio.send(EngineEvent::MomentaryFxUpdate {
-                    id: id.clone(),
-                    params: params.clone(),
-                })
-            }
-            RuntimeAudioCommand::MomentaryFxStop { id } => {
-                audio.send(EngineEvent::MomentaryFxStop { id: id.clone() })
-            }
-            RuntimeAudioCommand::SamplePreview { .. } => Ok(()),
-        }
+        send_audio_command(self.audio, command)
     }
 
     fn handle_midi_message(&mut self, bytes: &[u8]) -> Result<(), String> {

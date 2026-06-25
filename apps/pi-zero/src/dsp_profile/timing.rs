@@ -261,6 +261,58 @@ fn clone_event(event: &rodio_engine_source::EngineEvent) -> rodio_engine_source:
         rodio_engine_source::EngineEvent::SetVoiceStealingMode(mode) => {
             rodio_engine_source::EngineEvent::SetVoiceStealingMode(*mode)
         }
+        rodio_engine_source::EngineEvent::SetMasterVolume { volume_pct } => {
+            rodio_engine_source::EngineEvent::SetMasterVolume {
+                volume_pct: *volume_pct,
+            }
+        }
+        rodio_engine_source::EngineEvent::SetInstrumentMixer {
+            instrument_slot,
+            volume_pct,
+            pan_pos,
+        } => rodio_engine_source::EngineEvent::SetInstrumentMixer {
+            instrument_slot: *instrument_slot,
+            volume_pct: *volume_pct,
+            pan_pos: *pan_pos,
+        },
+        rodio_engine_source::EngineEvent::SetSynthParam {
+            instrument_slot,
+            path,
+            value,
+        } => rodio_engine_source::EngineEvent::SetSynthParam {
+            instrument_slot: *instrument_slot,
+            path: path.clone(),
+            value: *value,
+        },
+        rodio_engine_source::EngineEvent::SetSampleBankParam {
+            instrument_slot,
+            path,
+            value,
+        } => rodio_engine_source::EngineEvent::SetSampleBankParam {
+            instrument_slot: *instrument_slot,
+            path: path.clone(),
+            value: *value,
+        },
+        rodio_engine_source::EngineEvent::SetFxBusSlot {
+            bus_index,
+            slot_index,
+            fx_type,
+            params,
+        } => rodio_engine_source::EngineEvent::SetFxBusSlot {
+            bus_index: *bus_index,
+            slot_index: *slot_index,
+            fx_type: fx_type.clone(),
+            params: params.clone(),
+        },
+        rodio_engine_source::EngineEvent::SetGlobalFxSlot {
+            slot_index,
+            fx_type,
+            params,
+        } => rodio_engine_source::EngineEvent::SetGlobalFxSlot {
+            slot_index: *slot_index,
+            fx_type: fx_type.clone(),
+            params: params.clone(),
+        },
         rodio_engine_source::EngineEvent::MomentaryFxStart {
             id,
             fx_type,

@@ -237,6 +237,7 @@ impl NativeRunner {
             aux_turn_toast_cooldown_until: None,
             pending_aux_turn_toast: None,
             pending_menu_apply: None,
+            pending_audio_commands: Vec::new(),
         };
         runner.seed_visible_state()?;
         runner.refresh_active_mapping_config();
@@ -281,9 +282,11 @@ impl NativeRunner {
         if pending.due_at > now {
             return Ok(Vec::new());
         }
-        let _ = pending.key.as_str();
+        let key = pending.key.clone();
         self.pending_menu_apply = None;
-        self.apply_menu_state()?;
+        if !self.apply_deferred_menu_key_fast(&key) {
+            self.apply_menu_state()?;
+        }
         self.messages_with_snapshot()
     }
 

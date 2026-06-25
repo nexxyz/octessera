@@ -52,6 +52,48 @@ pub enum RuntimeMomentaryFxTarget {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum RuntimeAudioCommand {
+    SetMasterVolume {
+        #[serde(rename = "volumePct")]
+        volume_pct: f32,
+    },
+    SetInstrumentMixer {
+        #[serde(rename = "instrumentSlot")]
+        instrument_slot: usize,
+        #[serde(default, rename = "volumePct")]
+        volume_pct: Option<f32>,
+        #[serde(default, rename = "panPos")]
+        pan_pos: Option<usize>,
+    },
+    SetSynthParam {
+        #[serde(rename = "instrumentSlot")]
+        instrument_slot: usize,
+        path: String,
+        value: f32,
+    },
+    SetSampleBankParam {
+        #[serde(rename = "instrumentSlot")]
+        instrument_slot: usize,
+        path: String,
+        value: f32,
+    },
+    SetFxBusSlot {
+        #[serde(rename = "busIndex")]
+        bus_index: usize,
+        #[serde(rename = "slotIndex")]
+        slot_index: usize,
+        #[serde(rename = "fxType")]
+        fx_type: String,
+        #[serde(default)]
+        params: BTreeMap<String, Value>,
+    },
+    SetGlobalFxSlot {
+        #[serde(rename = "slotIndex")]
+        slot_index: usize,
+        #[serde(rename = "fxType")]
+        fx_type: String,
+        #[serde(default)]
+        params: BTreeMap<String, Value>,
+    },
     MomentaryFxStart {
         id: String,
         #[serde(rename = "fxType")]

@@ -72,6 +72,11 @@ impl NativeRunner {
                 effects: std::mem::take(&mut self.queued_platform_effects),
             });
         }
+        if !self.pending_audio_commands.is_empty() {
+            messages.push(RunnerMessage::AudioCommands {
+                commands: std::mem::take(&mut self.pending_audio_commands),
+            });
+        }
         messages.extend([
             RunnerMessage::Snapshot { snapshot },
             RunnerMessage::RuntimeStatus {

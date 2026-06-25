@@ -33,6 +33,33 @@ fn apply_events(engine: &mut SynthEngine, events: &[EngineEvent]) {
             EngineEvent::SetVoiceStealingMode(mode) => engine.set_voice_stealing_mode(*mode),
             EngineEvent::SetInstruments(config) => engine.set_instruments(config.clone()),
             EngineEvent::SetSampleBanks(banks) => engine.set_sample_banks(banks.clone()),
+            EngineEvent::SetMasterVolume { volume_pct } => engine.set_master_volume(*volume_pct),
+            EngineEvent::SetInstrumentMixer {
+                instrument_slot,
+                volume_pct,
+                pan_pos,
+            } => engine.set_instrument_mixer(*instrument_slot, *volume_pct, *pan_pos),
+            EngineEvent::SetSynthParam {
+                instrument_slot,
+                path,
+                value,
+            } => engine.set_synth_param(*instrument_slot, path, *value),
+            EngineEvent::SetSampleBankParam {
+                instrument_slot,
+                path,
+                value,
+            } => engine.set_sample_bank_param(*instrument_slot, path, *value),
+            EngineEvent::SetFxBusSlot {
+                bus_index,
+                slot_index,
+                fx_type,
+                params,
+            } => engine.set_fx_bus_slot(*bus_index, *slot_index, fx_type.clone(), params.clone()),
+            EngineEvent::SetGlobalFxSlot {
+                slot_index,
+                fx_type,
+                params,
+            } => engine.set_global_fx_slot(*slot_index, fx_type.clone(), params.clone()),
             EngineEvent::PreviewSample {
                 instrument_slot,
                 buffer,

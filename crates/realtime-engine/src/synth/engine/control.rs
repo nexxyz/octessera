@@ -221,7 +221,7 @@ impl SynthEngine {
         }
     }
 
-    fn refresh_master_active_slot_indices(&mut self) {
+    pub(super) fn refresh_master_active_slot_indices(&mut self) {
         self.master_active_slot_indices.clear();
         self.master_active_slot_indices
             .reserve(self.master_slot_params.len());
@@ -426,7 +426,7 @@ fn compile_bus_slot_configs(bus: &FxBusConfig) -> [FxBusSlotConfig; BUS_SLOTS_PE
     cfgs
 }
 
-fn active_fx_bus_slots(
+pub(super) fn active_fx_bus_slots(
     params: &[FxBusParams; BUS_SLOTS_PER_BUS],
 ) -> ([usize; BUS_SLOTS_PER_BUS], usize) {
     let mut indices = [0; BUS_SLOTS_PER_BUS];

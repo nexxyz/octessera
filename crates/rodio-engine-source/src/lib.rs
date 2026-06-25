@@ -51,6 +51,35 @@ pub enum EngineEvent {
         velocity: u8,
     },
     SetVoiceStealingMode(VoiceStealingMode),
+    SetMasterVolume {
+        volume_pct: f32,
+    },
+    SetInstrumentMixer {
+        instrument_slot: usize,
+        volume_pct: Option<f32>,
+        pan_pos: Option<usize>,
+    },
+    SetSynthParam {
+        instrument_slot: usize,
+        path: String,
+        value: f32,
+    },
+    SetSampleBankParam {
+        instrument_slot: usize,
+        path: String,
+        value: f32,
+    },
+    SetFxBusSlot {
+        bus_index: usize,
+        slot_index: usize,
+        fx_type: String,
+        params: BTreeMap<String, Value>,
+    },
+    SetGlobalFxSlot {
+        slot_index: usize,
+        fx_type: String,
+        params: BTreeMap<String, Value>,
+    },
     MomentaryFxStart {
         id: String,
         fx_type: String,
@@ -93,8 +122,8 @@ impl EngineSource {
     }
 
     fn refill(&mut self) {
-        let drained = self.drain_control_events();
         let t0 = Instant::now();
+        let drained = self.drain_control_events();
         self.engine.render_interleaved_block(
             self.block_frames,
             &mut self.left_buf,
@@ -178,6 +207,48 @@ impl EngineSource {
                 EngineEvent::SetVoiceStealingMode(mode) => {
                     drained.config_events += 1;
                     self.engine.set_voice_stealing_mode(mode)
+                }
+                EngineEvent::SetMasterVolume { volume_pct } => {
+                    self.engine.set_master_volume(volume_pct);
+                }
+                EngineEvent::SetInstrumentMixer {
+                    instrument_slot,
+                    volume_pct,
+                    pan_pos,
+                } => {
+                    self.engine
+                        .set_instrument_mixer(instrument_slot, volume_pct, pan_pos);
+                }
+                EngineEvent::SetSynthParam {
+                    instrument_slot,
+                    path,
+                    value,
+                } => {
+                    self.engine.set_synth_param(instrument_slot, &path, value);
+                }
+                EngineEvent::SetSampleBankParam {
+                    instrument_slot,
+                    path,
+                    value,
+                } => {
+                    self.engine
+                        .set_sample_bank_param(instrument_slot, &path, value);
+                }
+                EngineEvent::SetFxBusSlot {
+                    bus_index,
+                    slot_index,
+                    fx_type,
+                    params,
+                } => {
+                    self.engine
+                        .set_fx_bus_slot(bus_index, slot_index, fx_type, params);
+                }
+                EngineEvent::SetGlobalFxSlot {
+                    slot_index,
+                    fx_type,
+                    params,
+                } => {
+                    self.engine.set_global_fx_slot(slot_index, fx_type, params);
                 }
                 EngineEvent::MomentaryFxStart {
                     id,
