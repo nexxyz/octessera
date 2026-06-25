@@ -45,7 +45,7 @@ fn checked_in_default_restores_sequencer_grid_state() {
 }
 
 #[test]
-fn checked_in_default_aligns_life_and_scanned_drum_first_beat() {
+fn checked_in_default_emits_life_and_scanned_drum_over_initial_steps() {
     let payload: Value =
         serde_json::from_str(include_str!("../../../../../config/default.json")).unwrap();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
@@ -61,8 +61,6 @@ fn checked_in_default_aligns_life_and_scanned_drum_first_beat() {
             request_snapshot: Some(false),
         })
         .unwrap();
-    assert!(musical_note_ons(&first).is_empty());
-
     let second = runner
         .send(HostMessage::TransportPulseStep {
             pulses: 6,
@@ -71,7 +69,8 @@ fn checked_in_default_aligns_life_and_scanned_drum_first_beat() {
             request_snapshot: Some(false),
         })
         .unwrap();
-    let notes = musical_note_ons(&second);
+    let mut notes = musical_note_ons(&first);
+    notes.extend(musical_note_ons(&second));
     assert!(notes.iter().any(|(channel, _)| *channel == 0));
     assert!(notes.iter().any(|(channel, _)| *channel == 1));
 }
