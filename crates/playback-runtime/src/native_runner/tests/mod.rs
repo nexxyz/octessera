@@ -2,6 +2,7 @@ use super::*;
 
 mod audio_menu;
 mod audio_menu_direct;
+mod audio_menu_naming;
 mod aux_auto_map;
 mod basics;
 mod browser_and_help;
@@ -18,6 +19,7 @@ mod runtime_control;
 mod runtime_transport;
 mod sense_and_voice_menu;
 mod shutdown;
+mod snapshot_autosave;
 mod snapshot_runtime;
 mod step_rates;
 mod store;
