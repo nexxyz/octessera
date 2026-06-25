@@ -339,10 +339,20 @@ fn apply_fx_bus_menu_state(
         bus.name = derive_bus_name(bus);
         changed = true;
     }
-    if let Some(name) = menu.value_for_key(&format!("{prefix}.name")) {
-        if name != before.3 {
-            bus.name = name;
-            bus.auto_name = false;
+    let name_key = format!("{prefix}.name");
+    if menu.current_key() == Some(name_key.as_str()) {
+        if let Some(name) = menu.value_for_key(&name_key) {
+            if name != before.3 {
+                bus.name = name;
+                bus.auto_name = false;
+                changed = true;
+            }
+        }
+    }
+    if bus.auto_name {
+        let derived = derive_bus_name(bus);
+        if bus.name != derived {
+            bus.name = derived;
             changed = true;
         }
     }

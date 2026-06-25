@@ -154,7 +154,11 @@ impl NativeRunner {
                     let sense = self.sense_parts.get(index).cloned().unwrap_or_default();
                     let probability_map = self.trigger_probability_maps.get(index).cloned().unwrap_or_default();
                     let auto_name = self.part_auto_names.get(index).copied().unwrap_or(true);
-                    let name = self.part_names.get(index).cloned().unwrap_or_else(|| behavior_id.clone());
+                    let name = if auto_name {
+                        behavior_id.clone()
+                    } else {
+                        self.part_names.get(index).cloned().unwrap_or_else(|| behavior_id.clone())
+                    };
                     json!({
                         "l1": self.l1_payload_for_part(index, behavior_id),
                         "l2": sense_part_payload(&sense, &probability_map),

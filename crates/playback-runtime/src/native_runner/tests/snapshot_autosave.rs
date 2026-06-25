@@ -103,3 +103,102 @@ fn save_default_result_lights_auto_save_indicator_and_toast_scrolls() {
     let second = runner.snapshot().unwrap()["display"]["toast"].clone();
     assert_ne!(first, second);
 }
+
+#[test]
+fn text_edit_turns_are_deferred_until_flush_or_exit() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.auto_save_default = true;
+    runner.menu.state.stack = vec![0, 0];
+    runner.menu.state.cursor = 2;
+    runner.menu.press();
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 27, "id": "main" }),
+        })
+        .unwrap();
+
+    assert_eq!(runner.part_names[0], "life");
+    assert!(!messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects.iter().any(|effect| matches!(
+                effect,
+                RuntimePlatformEffect::StoreSaveDefault { .. }
+            ))
+    )));
+
+    runner.make_deferred_menu_apply_due_for_test();
+    runner.flush_deferred_menu_apply().unwrap();
+
+    assert_eq!(runner.part_names[0], "lifea");
+    assert!(!runner.part_auto_names[0]);
+}
+
+#[test]
+fn deferred_text_edit_survives_leaving_name_row_before_flush() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.menu.state.stack = vec![0, 0];
+    runner.menu.state.cursor = 2;
+    runner.menu.press();
+
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 27, "id": "main" }),
+        })
+        .unwrap();
+    runner.menu.back();
+    runner.menu.back();
+
+    runner.make_deferred_menu_apply_due_for_test();
+    runner.flush_deferred_menu_apply().unwrap();
+
+    assert_eq!(runner.part_names[0], "lifea");
+    assert!(!runner.part_auto_names[0]);
+}
+
+#[test]
+fn deferred_instrument_name_edit_survives_leaving_row() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+
+    assert!(runner.menu.focus_item_key("instruments.0.name"));
+    runner.menu.state.editing = true;
+    runner.menu.turn_key("instruments.0.name", 27);
+    runner
+        .apply_or_schedule_menu_key("instruments.0.name")
+        .unwrap();
+    runner.menu.back();
+
+    assert_eq!(runner.instruments[0].name, "Synth");
+
+    runner.make_deferred_menu_apply_due_for_test();
+    runner.flush_deferred_menu_apply().unwrap();
+
+    assert_eq!(runner.instruments[0].name, "tynth");
+    assert!(!runner.instruments[0].auto_name);
+}
+
+#[test]
+fn deferred_bus_name_edit_survives_leaving_row() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.fx_buses[0].slot1_type = "delay".into();
+    runner.fx_buses[0].slot2_type = "duck".into();
+    runner.fx_buses[0].name = "Delay+Duck".into();
+    runner.menu.rebuild(runner.menu_config());
+
+    assert!(runner.menu.focus_item_key("mixer.buses.0.name"));
+    runner.menu.state.editing = true;
+    runner.menu.turn_key("mixer.buses.0.name", 27);
+    runner
+        .apply_or_schedule_menu_key("mixer.buses.0.name")
+        .unwrap();
+    runner.menu.back();
+
+    assert_eq!(runner.fx_buses[0].name, "Delay+Duck");
+
+    runner.make_deferred_menu_apply_due_for_test();
+    runner.flush_deferred_menu_apply().unwrap();
+
+    assert_eq!(runner.fx_buses[0].name, "eelay+Duck");
+    assert!(!runner.fx_buses[0].auto_name);
+}

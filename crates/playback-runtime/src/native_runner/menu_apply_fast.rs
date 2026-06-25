@@ -18,6 +18,10 @@ impl NativeRunner {
         key == "behaviorId"
             || key == "danceMode"
             || key == "dance.fx.type"
+            || key == "system.draftName"
+            || key.starts_with("parts.") && key.ends_with(".name")
+            || key.starts_with("instruments.") && key.ends_with(".name")
+            || key.starts_with("mixer.buses.") && key.ends_with(".name")
             || key.ends_with(".slot1.type")
             || key.ends_with(".slot2.type")
             || key.starts_with("mixer.master.slots.") && key.ends_with(".type")

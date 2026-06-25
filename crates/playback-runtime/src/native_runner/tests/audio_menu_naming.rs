@@ -120,3 +120,100 @@ fn factory_payload_uses_display_style_auto_names() {
     runner.apply_config_payload(payload).unwrap();
     assert_eq!(runner.fx_buses[0].name, "Delay+Duck");
 }
+
+#[test]
+fn auto_named_part_renames_when_behavior_changes_to_none() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.part_behavior_ids[1] = "sequencer".into();
+    runner.part_names[1] = "sequencer".into();
+    runner.part_auto_names[1] = false;
+    runner.select_active_part(1).unwrap();
+    runner.menu.rebuild(runner.menu_config());
+
+    runner.menu.turn_key("parts.1.autoName", 1);
+    runner.apply_menu_state().unwrap();
+    assert_eq!(runner.part_names[1], "sequencer");
+    assert!(runner.part_auto_names[1]);
+
+    assert!(runner.menu.focus_item_key("behaviorId"));
+    runner.menu.state.editing = true;
+    runner.menu.turn_key("behaviorId", -99);
+    assert_eq!(
+        runner.menu.value_for_key("behaviorId").as_deref(),
+        Some("none")
+    );
+    runner.apply_or_schedule_menu_key("behaviorId").unwrap();
+    runner.make_deferred_menu_apply_due_for_test();
+    runner.flush_deferred_menu_apply().unwrap();
+
+    assert_eq!(runner.part_behavior_ids[1], "none");
+    assert_eq!(runner.part_names[1], "none");
+    assert!(runner.part_auto_names[1]);
+}
+
+#[test]
+fn turning_part_auto_name_on_replaces_manual_name() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.part_behavior_ids[1] = "sequencer".into();
+    runner.part_names[1] = "manual name".into();
+    runner.part_auto_names[1] = false;
+    runner.select_active_part(1).unwrap();
+    runner.menu.rebuild(runner.menu_config());
+
+    runner.menu.turn_key("parts.1.autoName", 1);
+    runner.apply_menu_state().unwrap();
+
+    assert!(runner.part_auto_names[1]);
+    assert_eq!(runner.part_names[1], "sequencer");
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["parts"][1]["name"],
+        "sequencer"
+    );
+}
+
+#[test]
+fn loading_auto_named_part_ignores_stale_payload_name() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+
+    runner
+        .apply_config_payload(json!({
+            "runtimeConfig": {
+                "activePartIndex": 1,
+                "parts": [
+                    { "l1": { "behaviorId": "life" }, "autoName": true, "name": "life" },
+                    { "l1": { "behaviorId": "none" }, "autoName": true, "name": "sequencer" }
+                ]
+            }
+        }))
+        .unwrap();
+
+    assert_eq!(runner.part_behavior_ids[1], "none");
+    assert!(runner.part_auto_names[1]);
+    assert_eq!(runner.part_names[1], "none");
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["parts"][1]["name"],
+        "none"
+    );
+}
+
+#[test]
+fn turning_instrument_and_bus_auto_name_on_replaces_manual_names() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].name = "manual inst".into();
+    runner.instruments[0].auto_name = false;
+    runner.fx_buses[0].slot1_type = "delay".into();
+    runner.fx_buses[0].slot2_type = "duck".into();
+    runner.fx_buses[0].name = "manual bus".into();
+    runner.fx_buses[0].auto_name = false;
+    runner.menu.rebuild(runner.menu_config());
+
+    runner.menu.turn_key("instruments.0.autoName", 1);
+    runner.menu.turn_key("mixer.buses.0.autoName", 1);
+    runner.apply_menu_state().unwrap();
+
+    assert!(runner.instruments[0].auto_name);
+    assert_eq!(runner.instruments[0].name, "Sampler");
+    assert!(runner.fx_buses[0].auto_name);
+    assert_eq!(runner.fx_buses[0].name, "Delay+Duck");
+}

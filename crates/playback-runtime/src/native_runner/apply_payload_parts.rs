@@ -74,12 +74,6 @@ fn apply_part_identity_payload(runner: &mut NativeRunner, index: usize, part: &V
             *target = auto_name;
         }
     }
-    if let Some(name) = part.get("name").and_then(Value::as_str) {
-        if let Some(target) = runner.part_names.get_mut(index) {
-            *target = name.into();
-        }
-        return;
-    }
     if runner.part_auto_names.get(index).copied().unwrap_or(true) {
         if let Some(target) = runner.part_names.get_mut(index) {
             *target = runner
@@ -87,6 +81,12 @@ fn apply_part_identity_payload(runner: &mut NativeRunner, index: usize, part: &V
                 .get(index)
                 .cloned()
                 .unwrap_or_else(|| runner.behavior.id().into());
+        }
+        return;
+    }
+    if let Some(name) = part.get("name").and_then(Value::as_str) {
+        if let Some(target) = runner.part_names.get_mut(index) {
+            *target = name.into();
         }
     }
 }

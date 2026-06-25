@@ -6,6 +6,9 @@ use super::{derive_bus_name, fx_default_params, NativeRunner};
 
 impl NativeRunner {
     pub(super) fn apply_deferred_menu_key_fast(&mut self, key: &str) -> bool {
+        if self.apply_deferred_text_key(key) {
+            return true;
+        }
         if let Some(rest) = key.strip_prefix("mixer.buses.") {
             let Some((bus_index, rest)) = parse_indexed_key(rest) else {
                 return false;
@@ -24,6 +27,93 @@ impl NativeRunner {
             if rest == "type" {
                 return self.fast_global_fx_type_key(slot_index, key);
             }
+        }
+        false
+    }
+
+    fn apply_deferred_text_key(&mut self, key: &str) -> bool {
+        if key == "system.draftName" {
+            let Some(name) = self.menu.value_for_key(key) else {
+                return false;
+            };
+            if self.preset_draft_name != name {
+                self.preset_draft_name = name;
+                self.config_dirty = true;
+            }
+            return true;
+        }
+        if let Some(rest) = key.strip_prefix("parts.") {
+            let Some((index, suffix)) = parse_indexed_key(rest) else {
+                return false;
+            };
+            if suffix != "name" {
+                return false;
+            }
+            let Some(name) = self.menu.value_for_key(key) else {
+                return false;
+            };
+            let mut changed = false;
+            if let Some(target) = self.part_names.get_mut(index) {
+                if *target != name {
+                    *target = name;
+                    changed = true;
+                }
+            }
+            if let Some(auto_name) = self.part_auto_names.get_mut(index) {
+                if *auto_name {
+                    *auto_name = false;
+                    changed = true;
+                }
+            }
+            if changed {
+                self.config_dirty = true;
+                self.menu.rebuild(self.menu_config());
+            }
+            return true;
+        }
+        if let Some(rest) = key.strip_prefix("instruments.") {
+            let Some((index, suffix)) = parse_indexed_key(rest) else {
+                return false;
+            };
+            if suffix != "name" {
+                return false;
+            }
+            let Some(name) = self.menu.value_for_key(key) else {
+                return false;
+            };
+            let Some(instrument) = self.instruments.get_mut(index) else {
+                return false;
+            };
+            let changed = instrument.name != name || instrument.auto_name;
+            instrument.name = name;
+            instrument.auto_name = false;
+            if changed {
+                self.config_dirty = true;
+                self.menu.rebuild(self.menu_config());
+            }
+            return true;
+        }
+        if let Some(rest) = key.strip_prefix("mixer.buses.") {
+            let Some((index, suffix)) = parse_indexed_key(rest) else {
+                return false;
+            };
+            if suffix != "name" {
+                return false;
+            }
+            let Some(name) = self.menu.value_for_key(key) else {
+                return false;
+            };
+            let Some(bus) = self.fx_buses.get_mut(index) else {
+                return false;
+            };
+            let changed = bus.name != name || bus.auto_name;
+            bus.name = name;
+            bus.auto_name = false;
+            if changed {
+                self.config_dirty = true;
+                self.menu.rebuild(self.menu_config());
+            }
+            return true;
         }
         false
     }

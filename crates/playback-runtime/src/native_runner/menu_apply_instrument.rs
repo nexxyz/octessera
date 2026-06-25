@@ -57,10 +57,20 @@ fn apply_identity_menu_fields(
             changed = true;
         }
     }
-    if let Some(name) = menu.value_for_key(&format!("instruments.{index}.name")) {
-        if name != before_name {
-            instrument.name = name;
-            instrument.auto_name = false;
+    let name_key = format!("instruments.{index}.name");
+    if menu.current_key() == Some(name_key.as_str()) {
+        if let Some(name) = menu.value_for_key(&name_key) {
+            if name != before_name {
+                instrument.name = name;
+                instrument.auto_name = false;
+                changed = true;
+            }
+        }
+    }
+    if instrument.auto_name {
+        let derived = derive_instrument_name(index, &instrument.kind);
+        if instrument.name != derived {
+            instrument.name = derived;
             changed = true;
         }
     }

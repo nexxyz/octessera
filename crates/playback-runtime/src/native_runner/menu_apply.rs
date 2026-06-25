@@ -307,13 +307,29 @@ impl NativeRunner {
                 }
                 changed = true;
             }
-            if let Some(name) = self.menu.value_for_key(&format!("parts.{index}.name")) {
-                if name != before_name {
-                    if let Some(target) = self.part_names.get_mut(index) {
-                        *target = name;
+            let name_key = format!("parts.{index}.name");
+            if self.menu.current_key() == Some(name_key.as_str()) {
+                if let Some(name) = self.menu.value_for_key(&name_key) {
+                    if name != before_name {
+                        if let Some(target) = self.part_names.get_mut(index) {
+                            *target = name;
+                        }
+                        if let Some(auto_name) = self.part_auto_names.get_mut(index) {
+                            *auto_name = false;
+                        }
+                        changed = true;
                     }
-                    if let Some(auto_name) = self.part_auto_names.get_mut(index) {
-                        *auto_name = false;
+                }
+            }
+            if self.part_auto_names[index] {
+                let behavior_id = self
+                    .part_behavior_ids
+                    .get(index)
+                    .cloned()
+                    .unwrap_or_else(|| self.behavior.id().into());
+                if self.part_names.get(index) != Some(&behavior_id) {
+                    if let Some(target) = self.part_names.get_mut(index) {
+                        *target = behavior_id;
                     }
                     changed = true;
                 }
