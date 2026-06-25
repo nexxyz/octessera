@@ -293,7 +293,7 @@ fn instrument_clone_and_reset_actions_update_slots() {
         .unwrap();
 
     assert_eq!(runner.instruments[1].kind, "none");
-    assert_eq!(runner.instruments[1].name, "none");
+    assert_eq!(runner.instruments[1].name, "None");
     assert_eq!(runner.instruments[1].midi_channel, 2);
 
     runner
@@ -301,7 +301,7 @@ fn instrument_clone_and_reset_actions_update_slots() {
         .unwrap();
 
     assert_eq!(runner.instruments[1].kind, "sampler");
-    assert_eq!(runner.instruments[1].name, "sampler");
+    assert_eq!(runner.instruments[1].name, "Sampler");
     assert!(runner.instruments[1].auto_name);
     assert!(!runner.instruments[1].midi_enabled);
     assert_eq!(runner.instruments[1].midi_channel, 2);

@@ -4,15 +4,61 @@ use super::{
 };
 
 pub(super) fn derive_instrument_name(_index: usize, kind: &str) -> String {
-    kind.to_string()
+    instrument_kind_label(kind).into()
 }
 
 pub(super) fn derive_bus_name(bus: &NativeFxBus) -> String {
+    match (bus.slot1_type.as_str(), bus.slot2_type.as_str()) {
+        ("none", "none") => "None".into(),
+        ("none", slot) => fx_type_label(slot).into(),
+        (slot, "none") => fx_type_label(slot).into(),
+        (slot1, slot2) => format!("{}+{}", fx_type_label(slot1), fx_type_label(slot2)),
+    }
+}
+
+pub(super) fn legacy_derive_instrument_name(kind: &str) -> String {
+    kind.to_string()
+}
+
+pub(super) fn legacy_derive_bus_name(bus: &NativeFxBus) -> String {
     match (bus.slot1_type.as_str(), bus.slot2_type.as_str()) {
         ("none", "none") => "(none)".into(),
         ("none", slot) => slot.into(),
         (slot, "none") => slot.into(),
         (slot1, slot2) => format!("{slot1}+{slot2}"),
+    }
+}
+
+fn instrument_kind_label(kind: &str) -> &'static str {
+    match kind {
+        "synth" => "Synth",
+        "sampler" => "Sampler",
+        "midi" => "MIDI",
+        _ => "None",
+    }
+}
+
+fn fx_type_label(slot_type: &str) -> &str {
+    match slot_type {
+        "none" => "None",
+        "delay" => "Delay",
+        "duck" => "Duck",
+        "reverb" => "Reverb",
+        "tremolo" => "Tremolo",
+        "saturator" => "Saturator",
+        "distortion" => "Distortion",
+        "bitcrusher" => "Bitcrusher",
+        "vibrato" => "Vibrato",
+        "chorus" => "Chorus",
+        "flanger" => "Flanger",
+        "filter_lfo" => "Filter LFO",
+        "wah" => "Wah",
+        "auto_pan" => "Auto Pan",
+        "glitch" => "Glitch",
+        "compressor" => "Compressor",
+        "eq" => "EQ",
+        "vinyl" => "Vinyl",
+        _ => slot_type,
     }
 }
 

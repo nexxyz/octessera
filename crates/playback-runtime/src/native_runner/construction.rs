@@ -227,6 +227,7 @@ impl NativeRunner {
             transport_flash_pulses_remaining: 0,
             auto_save_default: false,
             config_dirty: false,
+            pending_autosave_payload_due_at: None,
             auto_save_flash_serial: 0,
             auto_save_flash_pulses_remaining: 0,
             audio_config_revision: 0,
@@ -272,20 +273,38 @@ impl NativeRunner {
         self.pending_menu_apply = None;
     }
 
+    pub(super) fn mark_fast_autosave_dirty(&mut self) {
+        self.config_dirty = true;
+        self.pending_autosave_payload_due_at = Some(Instant::now() + Duration::from_millis(150));
+    }
+
+    pub(super) fn force_autosave_payload_due(&mut self) {
+        self.pending_autosave_payload_due_at = None;
+    }
+
     pub(super) fn flush_deferred_menu_apply_at(
         &mut self,
         now: Instant,
     ) -> Result<Vec<crate::protocol::RunnerMessage>, String> {
-        let Some(pending) = &self.pending_menu_apply else {
-            return Ok(Vec::new());
-        };
-        if pending.due_at > now {
+        let menu_due = self
+            .pending_menu_apply
+            .as_ref()
+            .is_some_and(|pending| pending.due_at <= now);
+        let autosave_due = self
+            .pending_autosave_payload_due_at
+            .is_some_and(|due_at| due_at <= now);
+        if !menu_due && !autosave_due {
             return Ok(Vec::new());
         }
-        let key = pending.key.clone();
-        self.pending_menu_apply = None;
-        if !self.apply_deferred_menu_key_fast(&key) {
-            self.apply_menu_state()?;
+        if menu_due {
+            let key = self.pending_menu_apply.as_ref().unwrap().key.clone();
+            self.pending_menu_apply = None;
+            if !self.apply_deferred_menu_key_fast(&key) {
+                self.apply_menu_state()?;
+            }
+        }
+        if autosave_due {
+            self.pending_autosave_payload_due_at = None;
         }
         self.messages_with_snapshot()
     }
@@ -294,6 +313,9 @@ impl NativeRunner {
     pub(super) fn make_deferred_menu_apply_due_for_test(&mut self) {
         if let Some(pending) = &mut self.pending_menu_apply {
             pending.due_at = Instant::now();
+        }
+        if self.pending_autosave_payload_due_at.is_some() {
+            self.pending_autosave_payload_due_at = Some(Instant::now());
         }
     }
 

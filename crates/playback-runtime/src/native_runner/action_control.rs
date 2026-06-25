@@ -64,7 +64,7 @@ impl NativeRunner {
             .unwrap_or(80) as u8;
         instrument.kind = "synth".into();
         if instrument.auto_name {
-            instrument.name = "synth".into();
+            instrument.name = derive_instrument_name(slot, "synth");
         }
         instrument.synth_config = synth_config;
         instrument.synth_gain_pct = gain;

@@ -77,7 +77,7 @@ impl NativeRunner {
             _ => return false,
         };
         if changed {
-            self.config_dirty = true;
+            self.mark_fast_autosave_dirty();
         }
         true
     }
@@ -101,7 +101,7 @@ impl NativeRunner {
             if self.menu.state.stack.first() == Some(&3) {
                 self.active_dance_mode = dance_mode;
             }
-            self.config_dirty = true;
+            self.mark_fast_autosave_dirty();
             self.menu.rebuild(self.menu_config());
         }
         true
@@ -126,7 +126,7 @@ impl NativeRunner {
             {
                 *part_step = step_pulses;
             }
-            self.config_dirty = true;
+            self.mark_fast_autosave_dirty();
         }
         true
     }
@@ -137,7 +137,7 @@ impl NativeRunner {
         };
         if self.ui.master_volume != master_volume {
             self.ui.master_volume = master_volume;
-            self.config_dirty = true;
+            self.mark_fast_autosave_dirty();
             self.queue_audio_command(RuntimeAudioCommand::SetMasterVolume {
                 volume_pct: f32::from(master_volume),
             });

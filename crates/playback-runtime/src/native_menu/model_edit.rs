@@ -40,7 +40,7 @@ pub(super) fn turn_key_in_item(item: &mut NativeMenuItem, key: &str, delta: i8) 
 }
 
 pub(super) fn turn_text_value(value: &mut String, max_len: usize, cursor: &mut usize, delta: i8) {
-    const CHARSET: &str = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-";
+    const CHARSET: &str = " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-";
     if max_len == 0 || delta == 0 {
         return;
     }

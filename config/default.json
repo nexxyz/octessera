@@ -81,7 +81,7 @@
           "route": "fx_bus_1",
           "volume": 100
         },
-        "name": "synth",
+        "name": "Synth",
         "noteBehavior": "oneshot",
         "sample": {
           "amp": {
@@ -203,7 +203,7 @@
           "route": "direct",
           "volume": 100
         },
-        "name": "sampler",
+        "name": "Sampler",
         "noteBehavior": "oneshot",
         "sample": {
           "amp": {
@@ -470,7 +470,7 @@
           "route": "direct",
           "volume": 100
         },
-        "name": "synth",
+        "name": "Synth",
         "noteBehavior": "oneshot",
         "sample": {
           "amp": {
@@ -592,7 +592,7 @@
           "route": "fx_bus_2",
           "volume": 100
         },
-        "name": "synth",
+        "name": "Synth",
         "noteBehavior": "oneshot",
         "sample": {
           "amp": {
@@ -714,7 +714,7 @@
           "route": "direct",
           "volume": 100
         },
-        "name": "synth",
+        "name": "Synth",
         "noteBehavior": "oneshot",
         "sample": {
           "amp": {
@@ -836,7 +836,7 @@
           "route": "direct",
           "volume": 100
         },
-        "name": "synth",
+        "name": "Synth",
         "noteBehavior": "oneshot",
         "sample": {
           "amp": {
@@ -958,7 +958,7 @@
           "route": "direct",
           "volume": 100
         },
-        "name": "synth",
+        "name": "Synth",
         "noteBehavior": "oneshot",
         "sample": {
           "amp": {
@@ -1080,7 +1080,7 @@
           "route": "direct",
           "volume": 100
         },
-        "name": "synth",
+        "name": "Synth",
         "noteBehavior": "oneshot",
         "sample": {
           "amp": {
@@ -1199,7 +1199,7 @@
       "buses": [
         {
           "autoName": true,
-          "name": "delay+duck",
+          "name": "Delay+Duck",
           "panPos": 16,
           "slot1": {
             "params": {
@@ -1222,7 +1222,7 @@
         },
         {
           "autoName": true,
-          "name": "duck",
+          "name": "Duck",
           "panPos": 16,
           "slot1": {
             "params": {
@@ -1241,7 +1241,7 @@
         },
         {
           "autoName": true,
-          "name": "(none)",
+          "name": "None",
           "panPos": 16,
           "slot1": {
             "params": {},
@@ -1254,7 +1254,7 @@
         },
         {
           "autoName": true,
-          "name": "(none)",
+          "name": "None",
           "panPos": 16,
           "slot1": {
             "params": {},

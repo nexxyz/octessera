@@ -212,6 +212,9 @@ fn format_display_value(key: Option<&str>, value: impl ToString) -> String {
     if key.ends_with("pitch.scale") {
         return format_scale_name(&raw);
     }
+    if key.ends_with(".params.source") {
+        return raw;
+    }
     if key.contains(".params.") {
         return format_fx_param_display(key, raw.parse::<i32>().unwrap_or(0));
     }

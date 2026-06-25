@@ -272,25 +272,65 @@ fn inactive_part_transport_tick_applies_param_modulation() {
 fn native_menu_edit_emits_deferred_auto_save_when_enabled() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.auto_save_default = true;
-    runner.menu.state.stack = vec![3];
-    runner.menu.state.cursor = 1;
-    runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_press", "id": "main" }),
-        })
-        .unwrap();
+    for _ in 0..5 {
+        let _ = runner.send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
+        });
+    }
+    let _ = runner.send(HostMessage::DeviceInput {
+        input: json!({ "type": "encoder_press", "id": "main" }),
+    });
+    let _ = runner.send(HostMessage::DeviceInput {
+        input: json!({ "type": "encoder_turn", "delta": 3, "id": "main" }),
+    });
+    let _ = runner.send(HostMessage::DeviceInput {
+        input: json!({ "type": "encoder_press", "id": "main" }),
+    });
+    let _ = runner.send(HostMessage::DeviceInput {
+        input: json!({ "type": "encoder_press", "id": "main" }),
+    });
     runner.transport = RuntimeTransportState::Playing;
     let messages = runner
         .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            input: json!({ "type": "encoder_turn", "delta": -10, "id": "main" }),
         })
         .unwrap();
-    runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_press", "id": "main" }),
-        })
-        .unwrap();
+    let _ = runner.send(HostMessage::DeviceInput {
+        input: json!({ "type": "encoder_turn", "delta": -20, "id": "main" }),
+    });
 
+    assert!(!messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if matches!(
+                effects.as_slice(),
+                [RuntimePlatformEffect::StoreSaveDefault { mode, .. }]
+                    if mode.as_deref() == Some("deferred")
+            )
+    )));
+
+    runner.make_deferred_menu_apply_due_for_test();
+    let messages = runner.flush_deferred_menu_apply().unwrap();
+    let saved_payload = messages
+        .iter()
+        .find_map(|message| match message {
+            RunnerMessage::PlatformEffects { effects } => {
+                effects.iter().find_map(|effect| match effect {
+                    RuntimePlatformEffect::StoreSaveDefault { payload, mode }
+                        if mode.as_deref() == Some("deferred") =>
+                    {
+                        Some(payload)
+                    }
+                    _ => None,
+                })
+            }
+            _ => None,
+        })
+        .expect("deferred save payload");
+    assert_eq!(
+        saved_payload["runtimeConfig"]["masterVolume"],
+        runner.ui.master_volume
+    );
     assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::PlatformEffects { effects }

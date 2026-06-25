@@ -19,7 +19,8 @@ use dance_fx_utils::{
 use defaults::{
     default_fx_buses, default_global_fx_params, default_global_fx_slots, default_instruments,
     default_sense_parts, derive_bus_name, derive_instrument_name, fx_default_params,
-    fx_slot_payload_with_params, note_unit_from_pulses, note_unit_to_pulses,
+    fx_slot_payload_with_params, legacy_derive_bus_name, legacy_derive_instrument_name,
+    note_unit_from_pulses, note_unit_to_pulses,
 };
 use modulation_keys::{parse_instrument_binding_key, parse_part_behavior_config_binding_key};
 #[cfg(test)]
@@ -292,6 +293,7 @@ pub struct NativeRunner {
     transport_flash_pulses_remaining: u8,
     auto_save_default: bool,
     config_dirty: bool,
+    pending_autosave_payload_due_at: Option<Instant>,
     auto_save_flash_serial: u64,
     auto_save_flash_pulses_remaining: u8,
     audio_config_revision: u64,

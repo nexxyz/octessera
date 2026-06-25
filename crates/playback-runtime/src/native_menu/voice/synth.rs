@@ -150,7 +150,7 @@ fn volume_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> NativeMenuIt
                 1,
             ),
             number_item(
-                "Velocity Sens",
+                "Vel Sens",
                 format!("{prefix}.synth.amp.velocitySensitivityPct"),
                 synth_number(config.synth_config, &["amp", "velocitySensitivityPct"], 100),
                 0,

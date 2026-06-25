@@ -131,7 +131,7 @@ pub(super) fn sense_binding_group(
                 "Note Mapping",
                 vec![
                     binding_action(
-                        "Lowest Note",
+                        "Low Note",
                         &format!("{prefix}.pitch.lowestNote"),
                         "number",
                         Some(0),
@@ -141,7 +141,7 @@ pub(super) fn sense_binding_group(
                         target,
                     ),
                     binding_action(
-                        "Highest Note",
+                        "High Note",
                         &format!("{prefix}.pitch.highestNote"),
                         "number",
                         Some(0),
@@ -151,7 +151,7 @@ pub(super) fn sense_binding_group(
                         target,
                     ),
                     binding_action(
-                        "Starting Note",
+                        "Start Note",
                         &format!("{prefix}.pitch.startingNote"),
                         "number",
                         Some(0),
@@ -327,7 +327,7 @@ fn sense_axis_lane_binding_group(
                 target,
             ),
             binding_action(
-                "Grid Offset",
+                "Grid Offs",
                 &format!("{prefix}.gridOffset"),
                 "number",
                 Some(-7),

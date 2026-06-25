@@ -43,6 +43,7 @@ impl NativeRunner {
         }
         if after_payload != before_payload {
             self.config_dirty = true;
+            self.force_autosave_payload_due();
         }
         Ok(())
     }

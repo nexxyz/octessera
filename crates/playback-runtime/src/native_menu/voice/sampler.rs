@@ -55,7 +55,7 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
             1,
         ),
         bool_item(
-            "Velocity Levels",
+            "Vel Levels",
             format!("{prefix}.sample.velocityLevelsEnabled"),
             config.sample_velocity_levels_enabled,
         ),
@@ -106,7 +106,7 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
             ],
         ),
         number_item(
-            "Velocity Sens",
+            "Vel Sens",
             format!("{prefix}.sample.amp.velocitySensitivityPct"),
             i32::from(config.sample_amp_velocity_sensitivity_pct),
             0,
@@ -124,7 +124,7 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
 
 fn velocity_levels_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> NativeMenuItem {
     group(
-        "Velocity Levels",
+        "Vel Levels",
         vec![
             number_item(
                 "High",

@@ -254,7 +254,7 @@ impl NativeInstrumentSlot {
     pub(super) fn reset(index: usize) -> Self {
         let mut slot = Self::new(index);
         slot.kind = "none".into();
-        slot.name = "none".into();
+        slot.name = super::derive_instrument_name(index, "none");
         slot.auto_name = true;
         slot.midi_enabled = false;
         slot.midi_channel = (index + 1).min(16) as u8;
@@ -355,7 +355,7 @@ impl Default for NativeParamMods {
 impl Default for NativeFxBus {
     fn default() -> Self {
         Self {
-            name: "(none)".into(),
+            name: "None".into(),
             slot1_type: "none".into(),
             slot1_params: json!({}),
             slot2_type: "none".into(),

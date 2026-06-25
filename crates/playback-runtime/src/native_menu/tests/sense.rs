@@ -12,7 +12,7 @@ fn l2_spec_rows_include_probability_mapping_and_axis_controls() {
     assert!(trigger_prob
         .children
         .iter()
-        .any(|item| item.label == "Map Probability Grid"));
+        .any(|item| item.label == "Map Prob Grid"));
     let note_mapping = part
         .children
         .iter()

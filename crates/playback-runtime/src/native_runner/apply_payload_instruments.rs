@@ -2,9 +2,10 @@ use crate::protocol::RuntimePlatformEffect;
 
 use super::aux_binding_payload_apply::apply_aux_bindings_payload;
 use super::{
-    default_mapping_config, derive_bus_name, derive_instrument_name,
-    sample_assignment_from_payload, sanitize_pan_position_payload, velocity_curve_from_id,
-    NativeFxBus, NativeInstrumentSlot, NativeRunner, SyncSource, Value, SAMPLE_SLOT_COUNT,
+    default_mapping_config, derive_bus_name, derive_instrument_name, legacy_derive_bus_name,
+    legacy_derive_instrument_name, sample_assignment_from_payload, sanitize_pan_position_payload,
+    velocity_curve_from_id, NativeFxBus, NativeInstrumentSlot, NativeRunner, SyncSource, Value,
+    SAMPLE_SLOT_COUNT,
 };
 
 impl NativeRunner {
@@ -208,7 +209,11 @@ fn apply_instrument_identity_payload(
         instrument.auto_name = auto_name;
     }
     if let Some(name) = slot.get("name").and_then(Value::as_str) {
-        instrument.name = name.into();
+        if instrument.auto_name && name == legacy_derive_instrument_name(&instrument.kind) {
+            instrument.name = derive_instrument_name(index, &instrument.kind);
+        } else {
+            instrument.name = name.into();
+        }
     } else if instrument.auto_name {
         instrument.name = derive_instrument_name(index, &instrument.kind);
     }
@@ -414,7 +419,11 @@ fn apply_fx_bus_payload(payload: &Value, bus: &mut NativeFxBus) {
         bus.auto_name = auto_name;
     }
     if let Some(name) = payload.get("name").and_then(Value::as_str) {
-        bus.name = name.into();
+        if bus.auto_name && name == legacy_derive_bus_name(bus) {
+            bus.name = derive_bus_name(bus);
+        } else {
+            bus.name = name.into();
+        }
     } else if bus.auto_name {
         bus.name = derive_bus_name(bus);
     }

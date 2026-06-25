@@ -44,7 +44,7 @@ fn voice_menu_exposes_fx_bus_and_global_fx_groups() {
     let _ = menu.press();
     let buses = menu.snapshot();
     assert_eq!(buses.path, "L3: Voice/FX Buses");
-    assert!(buses.lines.iter().any(|line| line == "> B1: (none)"));
+    assert!(buses.lines.iter().any(|line| line == "> B1: None"));
     let _ = menu.press();
     let bus = menu.snapshot();
     assert!(bus.lines.iter().any(|line| line == "  Name"));
@@ -113,16 +113,39 @@ fn fx_slot_groups_show_selected_effect_params() {
     config.global_fx_params[0] =
         serde_json::json!({ "cracklePct": 9, "warpDepthPct": 6, "mixPct": 80 });
     let mut menu = NativeMenuModel::new(config);
+    menu.state.stack = vec![2, 1, 0];
+    assert!(menu
+        .current_siblings()
+        .iter()
+        .any(|item| item.label == "Slot 1: Delay"));
     menu.state.stack = vec![2, 1, 0, 0];
     assert!(menu
         .current_siblings()
         .iter()
         .any(|item| item.label == "Feedback"
             && matches!(item.value, NativeMenuValue::Number { value: 42, .. })));
+    menu.state.stack = vec![2, 2];
+    assert!(menu
+        .current_siblings()
+        .iter()
+        .any(|item| item.label == "Slot 1: Vinyl"));
     menu.state.stack = vec![2, 2, 0];
     assert!(menu
         .current_siblings()
         .iter()
         .any(|item| item.label == "Crackle %"
             && matches!(item.value, NativeMenuValue::Number { value: 9, .. })));
+}
+
+#[test]
+fn duck_source_param_displays_source_text() {
+    let mut config = config();
+    config.fx_buses[0].slot1_type = "duck".into();
+    config.fx_buses[0].slot1_params = serde_json::json!({ "source": "B2" });
+    let mut menu = NativeMenuModel::new(config);
+    menu.state.stack = vec![2, 1, 0, 0];
+    menu.state.cursor = 1;
+    let snapshot = menu.snapshot();
+    assert!(snapshot.lines.iter().any(|line| line == "> Source B2"));
+    assert!(!snapshot.lines.iter().any(|line| line.contains("Source 0")));
 }

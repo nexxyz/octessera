@@ -207,7 +207,7 @@ pub(super) fn l2_part_group(
                         ),
                     ),
                     number_item(
-                        "Low Prob",
+                        "Prob Low",
                         format!("{prefix}.triggerProbabilityLowPct"),
                         i32::from(sense.trigger_probability_low_pct),
                         0,
@@ -215,7 +215,7 @@ pub(super) fn l2_part_group(
                         1,
                     ),
                     number_item(
-                        "High Prob",
+                        "Prob High",
                         format!("{prefix}.triggerProbabilityHighPct"),
                         i32::from(sense.trigger_probability_high_pct),
                         0,
@@ -223,7 +223,7 @@ pub(super) fn l2_part_group(
                         1,
                     ),
                     action_item(
-                        "Map Probability Grid",
+                        "Map Prob Grid",
                         format!("{prefix}.triggerProbability.map"),
                         NativeMenuAction::PlatformEffect(format!(
                             "trigger.probability.assign:{index}"
@@ -242,7 +242,7 @@ pub(super) fn l2_part_group(
                 "Note Mapping",
                 vec![
                     number_item(
-                        "Lowest Note",
+                        "Low Note",
                         format!("{prefix}.pitch.lowestNote"),
                         i32::from(sense.lowest_note),
                         0,
@@ -250,7 +250,7 @@ pub(super) fn l2_part_group(
                         1,
                     ),
                     number_item(
-                        "Highest Note",
+                        "High Note",
                         format!("{prefix}.pitch.highestNote"),
                         i32::from(sense.highest_note),
                         0,
@@ -258,7 +258,7 @@ pub(super) fn l2_part_group(
                         1,
                     ),
                     number_item(
-                        "Starting Note",
+                        "Start Note",
                         format!("{prefix}.pitch.startingNote"),
                         i32::from(sense.starting_note),
                         0,

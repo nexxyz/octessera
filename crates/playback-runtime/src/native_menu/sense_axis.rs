@@ -84,7 +84,7 @@ fn lane_group(
             ),
             number_item("To", format!("{prefix}.to"), i32::from(lane.to), 0, 127, 1),
             number_item(
-                "Grid Offset",
+                "Grid Offs",
                 format!("{prefix}.gridOffset"),
                 lane.grid_offset,
                 -offset_limit,

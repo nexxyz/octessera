@@ -68,7 +68,7 @@ impl NativeRunner {
         }
         let fx_type = fx_type.clone();
         let params = value_object_to_map(params);
-        self.config_dirty = true;
+        self.mark_fast_autosave_dirty();
         self.queue_audio_command(RuntimeAudioCommand::SetFxBusSlot {
             bus_index,
             slot_index,
@@ -117,7 +117,7 @@ impl NativeRunner {
                 value_object_to_map(&bus.slot2_params),
             )
         };
-        self.config_dirty = true;
+        self.mark_fast_autosave_dirty();
         self.menu.rebuild(self.menu_config());
         self.queue_audio_command(RuntimeAudioCommand::SetFxBusSlot {
             bus_index,
@@ -140,7 +140,7 @@ impl NativeRunner {
             return false;
         }
         let params = value_object_to_map(params);
-        self.config_dirty = true;
+        self.mark_fast_autosave_dirty();
         self.queue_audio_command(RuntimeAudioCommand::SetGlobalFxSlot {
             slot_index,
             fx_type,
@@ -166,7 +166,7 @@ impl NativeRunner {
         *params = fx_default_params(slot);
         let fx_type = slot.clone();
         let params = value_object_to_map(params);
-        self.config_dirty = true;
+        self.mark_fast_autosave_dirty();
         self.menu.rebuild(self.menu_config());
         self.queue_audio_command(RuntimeAudioCommand::SetGlobalFxSlot {
             slot_index,

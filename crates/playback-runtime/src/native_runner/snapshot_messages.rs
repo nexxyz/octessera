@@ -46,21 +46,23 @@ impl NativeRunner {
         }
         self.advance_toast_state();
         let snapshot = self.next_snapshot()?;
-        let save_default_effect = if self.auto_save_default && self.config_dirty {
-            self.config_dirty = false;
-            self.auto_save_flash_serial = self.auto_save_flash_serial.wrapping_add(1);
-            self.auto_save_flash_pulses_remaining = 8;
-            self.toast = Some(NativeToast {
-                message: "Saved default".into(),
-                offset: 0,
-            });
-            Some(RuntimePlatformEffect::StoreSaveDefault {
-                payload: self.config_payload(),
-                mode: Some("deferred".into()),
-            })
-        } else {
-            None
-        };
+        let autosave_pending = self.pending_autosave_payload_due_at.is_some();
+        let save_default_effect =
+            if self.auto_save_default && self.config_dirty && !autosave_pending {
+                self.config_dirty = false;
+                self.auto_save_flash_serial = self.auto_save_flash_serial.wrapping_add(1);
+                self.auto_save_flash_pulses_remaining = 8;
+                self.toast = Some(NativeToast {
+                    message: "Saved default".into(),
+                    offset: 0,
+                });
+                Some(RuntimePlatformEffect::StoreSaveDefault {
+                    payload: self.config_payload(),
+                    mode: Some("deferred".into()),
+                })
+            } else {
+                None
+            };
         let mut messages = Vec::with_capacity(4);
         if let Some(effect) = save_default_effect {
             messages.push(RunnerMessage::PlatformEffects {

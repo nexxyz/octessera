@@ -19,7 +19,7 @@ pub(super) fn fx_buses_group(config: &[NativeFxBusConfig]) -> NativeMenuItem {
                     format!("B{}: {}", bus_index + 1, bus.name),
                     vec![
                         fx_slot_group(
-                            "Slot 1",
+                            slot_group_label(1, &bus.slot1_type),
                             &format!("{prefix}.slot1"),
                             &bus.slot1_type,
                             &bus.slot1_params,
@@ -27,7 +27,7 @@ pub(super) fn fx_buses_group(config: &[NativeFxBusConfig]) -> NativeMenuItem {
                             Some(bus_index),
                         ),
                         fx_slot_group(
-                            "Slot 2",
+                            slot_group_label(2, &bus.slot2_type),
                             &format!("{prefix}.slot2"),
                             &bus.slot2_type,
                             &bus.slot2_params,
@@ -60,7 +60,7 @@ pub(super) fn global_fx_group(config: &[String], params: &[serde_json::Value]) -
                 let slot_type = config.get(slot_index).map(String::as_str).unwrap_or("none");
                 let slot_params = params.get(slot_index).unwrap_or(&serde_json::Value::Null);
                 group(
-                    format!("Slot {}", slot_index + 1),
+                    slot_group_label(slot_index + 1, slot_type),
                     fx_slot_children(
                         &prefix,
                         slot_type,
@@ -86,6 +86,34 @@ fn fx_slot_group(
         label,
         fx_slot_children(prefix, slot_type, params, options, bus_index),
     )
+}
+
+fn slot_group_label(slot_number: usize, slot_type: &str) -> String {
+    format!("Slot {slot_number}: {}", fx_type_label(slot_type))
+}
+
+fn fx_type_label(slot_type: &str) -> String {
+    match slot_type {
+        "none" => "None".into(),
+        "delay" => "Delay".into(),
+        "duck" => "Duck".into(),
+        "reverb" => "Reverb".into(),
+        "tremolo" => "Tremolo".into(),
+        "saturator" => "Saturator".into(),
+        "distortion" => "Distortion".into(),
+        "bitcrusher" => "Bitcrusher".into(),
+        "vibrato" => "Vibrato".into(),
+        "chorus" => "Chorus".into(),
+        "flanger" => "Flanger".into(),
+        "filter_lfo" => "Filter LFO".into(),
+        "wah" => "Wah".into(),
+        "auto_pan" => "Auto Pan".into(),
+        "glitch" => "Glitch".into(),
+        "compressor" => "Compressor".into(),
+        "eq" => "EQ".into(),
+        "vinyl" => "Vinyl".into(),
+        _ => slot_type.into(),
+    }
 }
 
 fn fx_slot_children(
@@ -151,9 +179,9 @@ fn fx_param_items(
                     1.0,
                     60.0,
                 ),
-                fx_number_item("Attack ms", prefix, params, "attackMs", 1, 500, 1, 1.0, 8.0),
+                fx_number_item("Attack", prefix, params, "attackMs", 1, 500, 1, 1.0, 8.0),
                 fx_number_item(
-                    "Release ms",
+                    "Release",
                     prefix,
                     params,
                     "releaseMs",
@@ -202,15 +230,7 @@ fn fx_param_items(
         "filter_lfo" | "wah" => vec![
             fx_number_item("Rate Hz", prefix, params, "rateHz", 2, 2000, 5, 100.0, 0.5),
             fx_number_item(
-                "Center Hz",
-                prefix,
-                params,
-                "centerHz",
-                40,
-                12000,
-                20,
-                1.0,
-                1600.0,
+                "Center", prefix, params, "centerHz", 40, 12000, 20, 1.0, 1600.0,
             ),
             fx_number_item("Depth %", prefix, params, "depthPct", 0, 100, 1, 1.0, 70.0),
             fx_number_item("Q", prefix, params, "q", 25, 2000, 25, 100.0, 1.0),
@@ -231,7 +251,7 @@ fn fx_param_items(
         ],
         "compressor" => vec![
             fx_number_item(
-                "Threshold dB",
+                "Thresh dB",
                 prefix,
                 params,
                 "thresholdDb",
@@ -242,19 +262,9 @@ fn fx_param_items(
                 -24.0,
             ),
             fx_number_item("Ratio", prefix, params, "ratio", 2, 40, 1, 2.0, 4.0),
+            fx_number_item("Attack", prefix, params, "attackMs", 1, 200, 1, 1.0, 10.0),
             fx_number_item(
-                "Attack ms",
-                prefix,
-                params,
-                "attackMs",
-                1,
-                200,
-                1,
-                1.0,
-                10.0,
-            ),
-            fx_number_item(
-                "Release ms",
+                "Release",
                 prefix,
                 params,
                 "releaseMs",
@@ -394,7 +404,7 @@ fn fx_param_string(params: &serde_json::Value, key: &str, default: &str) -> Stri
 
 pub(super) fn default_fx_bus_config() -> NativeFxBusConfig {
     NativeFxBusConfig {
-        name: "(none)".into(),
+        name: "None".into(),
         slot1_type: "none".into(),
         slot1_params: serde_json::json!({}),
         slot2_type: "none".into(),

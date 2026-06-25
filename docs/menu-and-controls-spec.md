@@ -149,7 +149,7 @@ L2: Sense
 │   │   ├── Mode: [zero | custom | full]
 │   │   ├── Low Prob: [0..100] step 1
 │   │   ├── High Prob: [0..100] step 1
-│   │   └── Map Probability Grid (action)
+│   │   └── Map Prob Grid (action)
 │   ├── Mappings (group)
 │   │   ├── X Axis (group)
 │   │   │   ├── Slot 1 (group)
@@ -163,9 +163,9 @@ L2: Sense
 │   │   ├── Y Axis (group)
 │   │   │   └── (same sub-structure as X Axis)
 │   ├── Note Mapping (group)
-│   │   ├── Lowest Note: [0..127] step 1       ← lower bound, displayed as note name + MIDI number, e.g. C2 (36)
-│   │   ├── Highest Note: [0..127] step 1      ← upper bound, displayed as note name + MIDI number, e.g. D5 (74)
-│   │   ├── Starting Note: [0..127] step 1     ← nearest scale start index, displayed as note name + MIDI number, e.g. C4 (60)
+│   │   ├── Low Note: [0..127] step 1          ← lower bound, displayed as note name + MIDI number, e.g. C2 (36)
+│   │   ├── High Note: [0..127] step 1         ← upper bound, displayed as note name + MIDI number, e.g. D5 (74)
+│   │   ├── Start Note: [0..127] step 1        ← nearest scale start index, displayed as note name + MIDI number, e.g. C4 (60)
 │   │   ├── Scale: [chromatic | major | natural_minor | dorian | mixolydian | major_pentatonic | minor_pentatonic | harmonic_minor]
 │   │   ├── Root: [C | C# | D | D# | E | F | F# | G | G# | A | A# | B]
 │   │   └── Out of Range: [clamp | wrap]
@@ -178,19 +178,19 @@ L2: Sense
 │   │   │   ├── Enabled: [on | off]
 │   │   │   ├── From: [0..127] step 1         ← visible when enabled
 │   │   │   ├── To: [0..127] step 1
-│   │   │   ├── Grid Offset: [-7..7] step 1
+│   │   │   ├── Grid Offs: [-7..7] step 1
 │   │   │   └── Curve: [linear | curve]
 │   │   ├── Filter Cutoff (group)
 │   │   │   ├── Enabled: [on | off]
 │   │   │   ├── From: [0..127] step 1
 │   │   │   ├── To: [0..127] step 1
-│   │   │   ├── Grid Offset: [-7..7] step 1
+│   │   │   ├── Grid Offs: [-7..7] step 1
 │   │   │   └── Curve: [linear | curve]
 │   │   └── Filter Resonance (group)
 │   │       ├── Enabled: [on | off]
 │   │       ├── From: [0..127] step 1
 │   │       ├── To: [0..127] step 1
-│   │       ├── Grid Offset: [-7..7] step 1
+│   │       ├── Grid Offs: [-7..7] step 1
 │   │       └── Curve: [linear | curve]
 │   └── Y Axis (group)
 │       └── (same sub-structure as X Axis, keys use y.* prefix, defaults: Pitch Steps steps=3; Restart Section affects row sections)
@@ -218,9 +218,9 @@ L3: Voice
 │   │   │   ├── Sample Slot: [1..8]
 │   │   │   ├── S* Browse (group)          ← browses `samples/` tree (wav only)
 │   │   │   ├── Assign (action)            ← enters grid assignment mode for selected sample slot
-│   │   │   ├── Velocity Levels: [on | off]
-│   │   │   ├── Level High / Medium / Low: [1..127] (visible when Velocity Levels=on)
-│   │   │   ├── Base Velocity: [1..127]    ← used when Velocity Levels=off
+│   │   │   ├── Vel Levels: [on | off]
+│   │   │   ├── Level High / Medium / Low: [1..127] (visible when Vel Levels=on)
+│   │   │   ├── Base Velocity: [1..127]    ← used when Vel Levels=off
 │   │   │   ├── Tune Semis: [-24..24]
 │   │   │   ├── Filter (group)             ← sample filter + filter envelope (before Volume)
 │   │   │   └── Volume (group)             ← sample amp + amp envelope
@@ -234,22 +234,22 @@ L3: Voice
 │   │   ├── MIDI (group)
 │   │   │   ├── Enabled: [on | off]       default off
 │   │   │   └── Channel: [1..16]
-│   │   ├── Auto Name: [on | off]         ← on: name auto-derives from Type; off: name is manual text
-│   │   ├── Name: (text, max 32)          ← display name; editing sets Auto Name off
+│   │   ├── Auto Name: [on | off]         ← on: name auto-derives from Type as display text (`Synth`, `Sampler`, `MIDI`); off: name is manual text
+│   │   ├── Name: (text, max 32)          ← display name; editing sets Auto Name off; charset includes uppercase, lowercase, digits, space, `_`, `-`
 │   │   └── Actions (group)
 │   │       ├── !Clone (action)           ← duplicates instrument config to next free slot, with confirmation
 │   │       └── !Reset (action)           ← resets instrument to factory defaults, with confirmation
 ├── FX Buses (group)
 │   ├── Bus 1..4 (group)
-│   │   ├── Slot 1 (group)
+│   │   ├── Slot 1: Effect (group)
 │   │   │   ├── Type: [none | reverb | delay | tremolo | chorus | flanger | vibrato | auto_pan | filter_lfo | wah | eq | compressor | duck | saturator | distortion | bitcrusher | glitch] default none
 │   │   │   └── (effect params, visible per Type)
-│   │   ├── Slot 2 (group)
+│   │   ├── Slot 2: Effect (group)
 │   │   │   ├── Type: [same options] default none
 │   │   │   └── (effect params, visible per Type)
 │   │   ├── Pan Pos: [0..32] quantized (33-position stereo scale; 16=center)
-│   │   ├── Auto Name: [on | off]     ← on: name auto-derives from FX slot types; off: name is manual text
-│   │   └── Name: (text, max 32)      ← display name; editing sets Auto Name off
+│   │   ├── Auto Name: [on | off]     ← on: name auto-derives from FX slot types as display text (`None`, `Delay+Duck`); off: name is manual text
+│   │   └── Name: (text, max 32)      ← display name; editing sets Auto Name off; charset includes uppercase, lowercase, digits, space, `_`, `-`
 │   └── ... (per bus)
 └── Global FX (group)
     ├── Slot 1..N (group, N from platform capability `globalFxSlotCount`; current desktop/Pi Zero target = 2)
@@ -273,7 +273,8 @@ Routing semantics:
 - Bus output is then panned by bus `Pan Pos` and summed to main mix.
 - `duck` source options are stable and capability-sized: `I1..I{instrumentCount}` and `B1..B{busCount}`.
 - `auto-pan` modulates the bus stereo output position after the slot chain.
-- FX bus naming mode: `auto` builds from assigned slot types (e.g. `delay+reverb`, or `(none)` when all slots are empty); `custom` allows free text; other modes set a fixed name (`rhythm`, `melody`, `texture`, `fx`).
+- FX bus slot and global slot group labels include the loaded effect display name, e.g. `Slot 1: Delay`, `Slot 2: Duck`, or `Slot 1: None`.
+- FX bus naming mode: `auto` builds from assigned slot types using display names (e.g. `Delay+Reverb`, or `None` when all slots are empty); manual names are preserved exactly. Legacy raw auto names are normalized only when `Auto Name` is on and the stored name is missing or equals the old raw auto-derived value.
 
 Sample assignment mode semantics:
 
@@ -325,7 +326,7 @@ Dance layer behavior:
 - `fx`: grid cells trigger mapped momentary effects. Press starts the mapped effect and release stops it. At most two momentary FX may be active at once, and only one momentary FX of each type may be active. If the active momentary FX limit is reached or another mapping of the same type is already active, the press is ignored and a toast warns the user.
 - `trigger-gate`: this Dance page performs live trigger mode overrides for each part; it does not edit the saved per-cell probability map.
 - Stored per-part trigger probability data lives in `L2: Sense > Pn > Trigger Prob.`.
-- `Map Probability Grid` edits the saved four-state probability map for the selected part. Cell cycle is `zero -> low -> high -> full -> zero`; `Shift+grid` applies to a row; `Shift+Fn+grid` applies to a column.
+- `Map Prob Grid` edits the saved four-state probability map for the selected part. Cell cycle is `zero -> low -> high -> full -> zero`; `Shift+grid` applies to a row; `Shift+Fn+grid` applies to a column.
 - Probability-map editor LEDs: black = `0%`, red = `low`, yellow = `high`, green = `100%`.
 - `L2: Sense > Aux Mappings` exposes root-level menu-based assignment for aux encoder turn and click bindings plus an `Auto Map` toggle.
 - `L2: Sense > Events when paused` controls whether direct grid input can emit musical events while the transport is stopped/paused. Algorithm tick/evolution remains stopped either way.
@@ -477,12 +478,12 @@ Overrides:
 - For `columns` with `Sections=2`, each lane is 4 columns wide; the scan ray moves bottom-to-top/top-to-bottom by row across each lane. Total steps: `gridHeight * sections`.
 - Stop/emergency reset scan index to origin.
 - `Restart Section` on Pitch Steps makes pitch stepping local to the lane for the matching scan orientation: X restart applies to column sections; Y restart applies to row sections.
-- Note mapping builds the concrete notes in `Lowest Note..Highest Note` that match `Scale` and `Root`, chooses the nearest scale note to `Starting Note` as the zero-degree index, and applies X/Y pitch steps before clamp/wrap. `wrap` wraps within that concrete scale-note list, so wrapped notes must remain in scale.
+- Note mapping builds the concrete notes in `Low Note..High Note` that match `Scale` and `Root`, chooses the nearest scale note to `Start Note` as the zero-degree index, and applies X/Y pitch steps before clamp/wrap. `wrap` wraps within that concrete scale-note list, so wrapped notes must remain in scale.
 
 ## Auto-Save
 
 - Location: System > Saves > Default > Auto Save
-- When enabled: native menu edits and aux-bound value changes emit deferred `store_save_default` effects; storage writes the latest pending `ConfigPayload` after a short cooldown instead of saving every intermediate encoder step
+- When enabled: native menu edits and aux-bound value changes emit deferred `store_save_default` effects; fast audio-facing edits update state/audio immediately and coalesce `ConfigPayload` generation for about 150ms so storage writes the latest settled value instead of saving every intermediate encoder step
 - Disabled by default
 - Toggling Auto Save on triggers an immediate save when you exit that menu row
 - Explicit Save Default is always immediate and cancels any pending deferred default save
@@ -562,8 +563,8 @@ Overrides:
 - `Velocity` lane modulates outgoing `note_on` velocity.
 - `Filter Cutoff` lane emits CC74 (mapped to lowpass cutoff).
 - `Filter Resonance` lane emits CC71 (mapped to lowpass resonance).
-- `Grid Offset` rotates axis indexing (offset=5 => cell 5 treated as first, then wraps).
-- `Grid Offset` bounds are derived: `-(GRID_SIZE-1) .. +(GRID_SIZE-1)` → `-7..7`.
+- `Grid Offs` rotates axis indexing (offset=5 => cell 5 treated as first, then wraps).
+- `Grid Offs` bounds are derived: `-(GRID_SIZE-1) .. +(GRID_SIZE-1)` → `-7..7`.
 
 ## Edit Marker
 
