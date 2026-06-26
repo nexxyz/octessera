@@ -39,11 +39,11 @@ impl NativeRunner {
                 index,
             );
         }
-        if self.active_bus_fx_slot_count() > MAX_ACTIVE_BUS_FX_SLOTS {
+        let active_fx_slots = self.active_bus_fx_slot_count();
+        if active_fx_slots > MAX_ACTIVE_BUS_FX_SLOTS {
             self.show_toast(format!(
                 "FX budget warning ({}/{})",
-                self.active_bus_fx_slot_count(),
-                MAX_ACTIVE_BUS_FX_SLOTS
+                active_fx_slots, MAX_ACTIVE_BUS_FX_SLOTS
             ));
         }
         changed
@@ -335,10 +335,6 @@ fn apply_fx_bus_menu_state(
     );
     changed |= set_u8_from_menu(menu, &mut bus.pan_pos, &format!("{prefix}.panPos"), 32);
     changed |= set_bool_from_menu(menu, &mut bus.auto_name, &format!("{prefix}.autoName"));
-    if bus.auto_name && (bus.slot1_type != before.0 || bus.slot2_type != before.1 || !before.2) {
-        bus.name = derive_bus_name(bus);
-        changed = true;
-    }
     let name_key = format!("{prefix}.name");
     if menu.current_key() == Some(name_key.as_str()) {
         if let Some(name) = menu.value_for_key(&name_key) {
