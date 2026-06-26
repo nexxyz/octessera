@@ -156,6 +156,81 @@ fn auto_named_part_renames_when_behavior_changes_to_none() {
 }
 
 #[test]
+fn auto_named_part_renames_after_toggling_auto_name_off_and_on() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.part_behavior_ids[3] = "sequencer".into();
+    runner.part_names[3] = "sequencer".into();
+    runner.part_auto_names[3] = true;
+    runner.select_active_part(3).unwrap();
+    runner.menu.rebuild(runner.menu_config());
+
+    assert!(runner.menu.focus_item_key("parts.3.autoName"));
+    runner.menu.state.editing = true;
+    runner.menu.turn_key("parts.3.autoName", -1);
+    runner
+        .apply_or_schedule_menu_key("parts.3.autoName")
+        .unwrap();
+    assert!(!runner.part_auto_names[3]);
+
+    runner.menu.turn_key("parts.3.autoName", 1);
+    runner
+        .apply_or_schedule_menu_key("parts.3.autoName")
+        .unwrap();
+    assert!(runner.part_auto_names[3]);
+    assert_eq!(runner.part_names[3], "sequencer");
+
+    assert!(runner.menu.focus_item_key("behaviorId"));
+    runner.menu.state.editing = true;
+    runner.menu.turn_key("behaviorId", -99);
+    assert_eq!(
+        runner.menu.value_for_key("behaviorId").as_deref(),
+        Some("none")
+    );
+    runner.apply_or_schedule_menu_key("behaviorId").unwrap();
+    runner.make_deferred_menu_apply_due_for_test();
+    runner.flush_deferred_menu_apply().unwrap();
+
+    assert_eq!(runner.part_behavior_ids[3], "none");
+    assert!(runner.part_auto_names[3]);
+    assert_eq!(runner.part_names[3], "none");
+    assert_eq!(
+        runner.menu.value_for_key("parts.3.name").as_deref(),
+        Some("none")
+    );
+}
+
+#[test]
+fn auto_name_updates_when_engine_behavior_already_matches_menu_value() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.part_behavior_ids[3] = "sequencer".into();
+    runner.part_names[3] = "sequencer".into();
+    runner.part_auto_names[3] = true;
+    runner.select_active_part(3).unwrap();
+    runner
+        .rebuild_engine(platform_core::get_native_behavior("none").unwrap())
+        .unwrap();
+    runner.behavior = platform_core::get_native_behavior("none").unwrap();
+    runner.menu.rebuild(runner.menu_config());
+
+    assert!(runner.menu.focus_item_key("behaviorId"));
+    runner.menu.state.editing = true;
+    assert_eq!(
+        runner.menu.value_for_key("behaviorId").as_deref(),
+        Some("none")
+    );
+    runner.apply_or_schedule_menu_key("behaviorId").unwrap();
+    runner.make_deferred_menu_apply_due_for_test();
+    runner.flush_deferred_menu_apply().unwrap();
+
+    assert_eq!(runner.part_behavior_ids[3], "none");
+    assert_eq!(runner.part_names[3], "none");
+    assert_eq!(
+        runner.menu.value_for_key("parts.3.name").as_deref(),
+        Some("none")
+    );
+}
+
+#[test]
 fn part_four_auto_name_change_is_in_deferred_autosave_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.auto_save_default = true;

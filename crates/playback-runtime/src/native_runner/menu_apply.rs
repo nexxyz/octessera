@@ -192,10 +192,17 @@ impl NativeRunner {
         let Some(behavior_id) = self.menu.selected_behavior().map(|value| value.to_string()) else {
             return Ok(false);
         };
-        if behavior_id.as_str() == self.behavior.id() {
-            return Ok(false);
+        let current_part_behavior_id = self
+            .part_behavior_ids
+            .get(self.active_part_index)
+            .cloned()
+            .unwrap_or_else(|| self.behavior.id().into());
+        let behavior_changed = behavior_id.as_str() != self.behavior.id();
+        let part_behavior_changed = behavior_id != current_part_behavior_id;
+        if !behavior_changed && !part_behavior_changed {
+            return Ok(self.sync_active_part_auto_name(&behavior_id));
         }
-        let previous_behavior_id = self.behavior.id().to_string();
+        let previous_behavior_id = current_part_behavior_id;
         self.behavior_configs
             .insert(self.behavior.id().to_string(), self.behavior_config.clone());
         if let Some(config) = self.part_behavior_configs.get_mut(self.active_part_index) {
@@ -218,23 +225,35 @@ impl NativeRunner {
         if let Some(part_behavior_id) = self.part_behavior_ids.get_mut(self.active_part_index) {
             *part_behavior_id = behavior_id.clone();
         }
-        if self
-            .part_auto_names
-            .get(self.active_part_index)
-            .copied()
-            .unwrap_or(true)
-        {
-            if let Some(name) = self.part_names.get_mut(self.active_part_index) {
-                *name = behavior_id.clone();
-            }
-        }
+        self.sync_active_part_auto_name(&behavior_id);
         self.remap_bindings_for_behavior_change(
             &previous_behavior_id,
             &behavior_id,
             self.active_part_index,
         );
-        self.rebuild_engine(behavior)?;
+        if behavior_changed {
+            self.rebuild_engine(behavior)?;
+        }
         Ok(true)
+    }
+
+    fn sync_active_part_auto_name(&mut self, behavior_id: &str) -> bool {
+        if !self
+            .part_auto_names
+            .get(self.active_part_index)
+            .copied()
+            .unwrap_or(true)
+        {
+            return false;
+        }
+        let Some(name) = self.part_names.get_mut(self.active_part_index) else {
+            return false;
+        };
+        if name == behavior_id {
+            return false;
+        }
+        *name = behavior_id.into();
+        true
     }
 
     fn apply_behavior_config_menu_state(&mut self) -> Result<(), String> {

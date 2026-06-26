@@ -182,7 +182,7 @@ impl NativeMenuModel {
     }
 
     pub fn selected_behavior(&self) -> Option<String> {
-        self.find_value("Behavior")
+        self.find_key_value("behaviorId")
     }
 
     pub fn selected_algorithm_step_pulses(&self) -> Option<u32> {
