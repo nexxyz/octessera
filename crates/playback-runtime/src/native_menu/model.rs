@@ -207,10 +207,16 @@ impl NativeMenuModel {
     }
 
     pub fn value_for_key(&self, key: &str) -> Option<String> {
+        if self.current_key() == Some(key) {
+            return value_from_item(self.current_item());
+        }
         self.find_key_value(key)
     }
 
     pub fn number_for_key(&self, key: &str) -> Option<i32> {
+        if self.current_key() == Some(key) {
+            return number_from_item(self.current_item());
+        }
         self.find_key_number(key)
     }
 
@@ -293,6 +299,9 @@ impl NativeMenuModel {
     }
 
     pub fn turn_key(&mut self, key: &str, delta: i8) -> bool {
+        if self.current_key() == Some(key) {
+            return turn_key_in_item(self.current_item_mut(), key, delta);
+        }
         turn_key_in_item(&mut self.root, key, delta)
     }
 
@@ -382,22 +391,30 @@ impl NativeMenuModel {
     }
 
     fn find_key_value(&self, key: &str) -> Option<String> {
-        find_item_by_key(&self.root, key).and_then(|item| match &item.value {
-            NativeMenuValue::Enum { options, selected } => options.get(*selected).cloned(),
-            NativeMenuValue::Bool { value } => Some(if *value {
-                "true".into()
-            } else {
-                "false".into()
-            }),
-            NativeMenuValue::Text { value, .. } => Some(value.clone()),
-            _ => None,
-        })
+        find_item_by_key(&self.root, key).and_then(value_from_item)
     }
 
     fn find_key_number(&self, key: &str) -> Option<i32> {
-        find_item_by_key(&self.root, key).and_then(|item| match &item.value {
-            NativeMenuValue::Number { value, .. } => Some(*value),
-            _ => None,
-        })
+        find_item_by_key(&self.root, key).and_then(number_from_item)
+    }
+}
+
+fn value_from_item(item: &NativeMenuItem) -> Option<String> {
+    match &item.value {
+        NativeMenuValue::Enum { options, selected } => options.get(*selected).cloned(),
+        NativeMenuValue::Bool { value } => Some(if *value {
+            "true".into()
+        } else {
+            "false".into()
+        }),
+        NativeMenuValue::Text { value, .. } => Some(value.clone()),
+        _ => None,
+    }
+}
+
+fn number_from_item(item: &NativeMenuItem) -> Option<i32> {
+    match &item.value {
+        NativeMenuValue::Number { value, .. } => Some(*value),
+        _ => None,
     }
 }
