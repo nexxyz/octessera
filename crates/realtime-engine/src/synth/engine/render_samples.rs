@@ -84,8 +84,7 @@ impl SynthEngine {
                 active = true;
                 slot_active = true;
             }
-            self.active_sample_slots[slot] =
-                slot_active || self.sample_voices[slot].iter().any(|voice| voice.active);
+            self.active_sample_slots[slot] = slot_active;
         }
         active
     }

@@ -48,8 +48,7 @@ impl SynthEngine {
                 active = true;
                 slot_active = true;
             }
-            self.active_synth_slots[slot_idx] =
-                slot_active || pool.iter().any(|voice| voice.active);
+            self.active_synth_slots[slot_idx] = slot_active;
         }
         active
     }
