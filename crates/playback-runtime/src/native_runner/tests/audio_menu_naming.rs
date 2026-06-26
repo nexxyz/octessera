@@ -251,6 +251,64 @@ fn button_back_commits_l1_behavior_auto_name_after_manual_auto_name_toggle() {
 }
 
 #[test]
+fn exact_desktop_flow_renames_p4_after_auto_name_toggle_and_behavior_change() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.part_behavior_ids[3] = "sequencer".into();
+    runner.part_names[3] = "sequencer".into();
+    runner.part_auto_names[3] = true;
+    runner.menu.rebuild(runner.menu_config());
+
+    send_encoder_press(&mut runner);
+    send_encoder_turn(&mut runner, 1);
+    send_encoder_turn(&mut runner, 1);
+    send_encoder_turn(&mut runner, 1);
+    send_encoder_press(&mut runner);
+    send_encoder_turn(&mut runner, 1);
+    send_encoder_press(&mut runner);
+    send_encoder_turn(&mut runner, -1);
+    send_encoder_press(&mut runner);
+    send_encoder_press(&mut runner);
+    send_encoder_turn(&mut runner, 1);
+    send_encoder_press(&mut runner);
+    send_encoder_turn(&mut runner, -1);
+    send_encoder_press(&mut runner);
+    send_encoder_turn(&mut runner, -1);
+    send_encoder_turn(&mut runner, -1);
+    send_encoder_press(&mut runner);
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_a", "pressed": true }),
+        })
+        .unwrap();
+    let snapshot = snapshot_from(&messages);
+
+    assert_eq!(runner.part_behavior_ids[3], "none");
+    assert_eq!(runner.part_names[3], "none");
+    assert_eq!(snapshot["display"]["title"], "L1: Life");
+    assert!(snapshot["display"]["lines"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|line| line.as_str().is_some_and(|line| line.contains("P4: none"))));
+}
+
+fn send_encoder_turn(runner: &mut NativeRunner, delta: i32) -> Vec<RunnerMessage> {
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": delta, "id": "main" }),
+        })
+        .unwrap()
+}
+
+fn send_encoder_press(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })
+        .unwrap()
+}
+
+#[test]
 fn auto_name_updates_when_engine_behavior_already_matches_menu_value() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.part_behavior_ids[3] = "sequencer".into();

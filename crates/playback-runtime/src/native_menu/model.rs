@@ -182,7 +182,7 @@ impl NativeMenuModel {
     }
 
     pub fn selected_behavior(&self) -> Option<String> {
-        self.find_key_value("behaviorId")
+        self.value_for_key("behaviorId")
     }
 
     pub fn selected_algorithm_step_pulses(&self) -> Option<u32> {
@@ -192,7 +192,7 @@ impl NativeMenuModel {
 
     pub fn selected_sync_source(&self) -> Option<SyncSource> {
         match self
-            .find_key_value("midiSyncMode")
+            .value_for_key("midiSyncMode")
             .or_else(|| self.find_value("Sync"))?
             .as_str()
         {
@@ -231,7 +231,7 @@ impl NativeMenuModel {
     }
 
     pub fn selected_dance_mode(&self) -> Option<String> {
-        self.find_key_value("danceMode")
+        self.value_for_key("danceMode")
     }
 
     pub fn current_label(&self) -> Option<&str> {

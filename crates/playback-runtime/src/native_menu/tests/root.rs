@@ -45,6 +45,57 @@ fn rebuild_preserves_navigation_state() {
 }
 
 #[test]
+fn keyed_selectors_prefer_current_row_when_keys_repeat() {
+    let mut cfg = config();
+    cfg.l1_items = vec![
+        NativeMenuItem {
+            label: "Other Dance".into(),
+            key: Some("danceMode".into()),
+            value: NativeMenuValue::Enum {
+                options: vec!["none".into(), "fx".into()],
+                selected: 0,
+            },
+            children: vec![],
+        },
+        NativeMenuItem {
+            label: "Dance".into(),
+            key: Some("danceMode".into()),
+            value: NativeMenuValue::Enum {
+                options: vec!["none".into(), "fx".into()],
+                selected: 1,
+            },
+            children: vec![],
+        },
+        NativeMenuItem {
+            label: "Other Sync".into(),
+            key: Some("midiSyncMode".into()),
+            value: NativeMenuValue::Enum {
+                options: vec!["internal".into(), "external".into()],
+                selected: 0,
+            },
+            children: vec![],
+        },
+        NativeMenuItem {
+            label: "Sync".into(),
+            key: Some("midiSyncMode".into()),
+            value: NativeMenuValue::Enum {
+                options: vec!["internal".into(), "external".into()],
+                selected: 1,
+            },
+            children: vec![],
+        },
+    ];
+    let mut menu = NativeMenuModel::new(cfg);
+    menu.state.stack = vec![0, 0];
+
+    menu.state.cursor = 1;
+    assert_eq!(menu.selected_dance_mode().as_deref(), Some("fx"));
+
+    menu.state.cursor = 3;
+    assert_eq!(menu.selected_sync_source(), Some(SyncSource::External));
+}
+
+#[test]
 fn navigation_skips_separator_rows_when_turning() {
     let mut menu = NativeMenuModel::new(config());
     menu.turn(1);
