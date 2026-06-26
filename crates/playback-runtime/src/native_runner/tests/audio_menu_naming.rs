@@ -200,6 +200,57 @@ fn auto_named_part_renames_after_toggling_auto_name_off_and_on() {
 }
 
 #[test]
+fn button_back_commits_l1_behavior_auto_name_after_manual_auto_name_toggle() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.part_behavior_ids[3] = "sequencer".into();
+    runner.part_names[3] = "sequencer".into();
+    runner.part_auto_names[3] = true;
+    runner.select_active_part(3).unwrap();
+    runner.menu.rebuild(runner.menu_config());
+
+    assert!(runner.menu.focus_item_key("parts.3.autoName"));
+    runner.menu.state.editing = true;
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": -1, "id": "main" }),
+        })
+        .unwrap();
+    assert!(!runner.part_auto_names[3]);
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+        })
+        .unwrap();
+    assert!(runner.part_auto_names[3]);
+
+    assert!(runner.menu.focus_item_key("behaviorId"));
+    runner.menu.state.editing = true;
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": -99, "id": "main" }),
+        })
+        .unwrap();
+    assert_eq!(
+        runner.menu.value_for_key("behaviorId").as_deref(),
+        Some("none")
+    );
+
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_a", "pressed": true }),
+        })
+        .unwrap();
+
+    assert_eq!(runner.part_behavior_ids[3], "none");
+    assert!(runner.part_auto_names[3]);
+    assert_eq!(runner.part_names[3], "none");
+    assert_eq!(
+        runner.menu.value_for_key("parts.3.name").as_deref(),
+        Some("none")
+    );
+}
+
+#[test]
 fn auto_name_updates_when_engine_behavior_already_matches_menu_value() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.part_behavior_ids[3] = "sequencer".into();

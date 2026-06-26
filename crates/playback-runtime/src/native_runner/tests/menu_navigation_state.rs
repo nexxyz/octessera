@@ -51,6 +51,22 @@ fn changing_behavior_keeps_menu_location() {
 }
 
 #[test]
+fn button_a_release_does_not_navigate_back() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.menu.state.stack = vec![0];
+    runner.menu.state.cursor = 2;
+
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_a", "pressed": false }),
+        })
+        .unwrap();
+
+    assert_eq!(runner.menu.state.stack, vec![0]);
+    assert_eq!(runner.menu.state.cursor, 2);
+}
+
+#[test]
 fn startup_splash_closes_into_help_toast() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.oled_mode = NativeOledMode::Splash;

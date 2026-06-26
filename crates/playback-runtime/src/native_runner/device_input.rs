@@ -103,7 +103,7 @@ impl NativeRunner {
                 self.messages_with_snapshot()
             }
             DeviceInput::EncoderPress { id } => self.handle_encoder_press_input(id.as_deref()),
-            DeviceInput::ButtonA { .. } => self.handle_button_a_input(),
+            DeviceInput::ButtonA { pressed } => self.handle_button_a_input(pressed),
             DeviceInput::Other => self.messages_with_snapshot(),
         };
         if !is_modifier_input {
@@ -305,7 +305,13 @@ impl NativeRunner {
         self.messages_with_snapshot()
     }
 
-    fn handle_button_a_input(&mut self) -> Result<Vec<RunnerMessage>, String> {
+    fn handle_button_a_input(
+        &mut self,
+        pressed: Option<bool>,
+    ) -> Result<Vec<RunnerMessage>, String> {
+        if !pressed.unwrap_or(true) {
+            return self.messages_with_snapshot();
+        }
         if self.dance_fx_assign.is_some() {
             self.dance_fx_assign = None;
         } else if self.sample_assign.is_some() {
@@ -322,7 +328,19 @@ impl NativeRunner {
             if self.active_dance_mode != "none" {
                 self.active_dance_mode = "none".into();
             }
+            let editing_key = self
+                .menu
+                .state
+                .editing
+                .then(|| self.menu.current_key().map(str::to_owned))
+                .flatten();
             self.menu.back();
+            if let Some(key) = editing_key {
+                self.apply_menu_state()?;
+                if key == "behaviorId" {
+                    self.clear_deferred_menu_apply();
+                }
+            }
         }
         self.messages_with_snapshot()
     }
