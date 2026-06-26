@@ -26,7 +26,10 @@ impl NativeRunner {
             self.engine
                 .set_interpretation_profile(self.interpretation_profile.clone());
         }
-        self.apply_selected_behavior_menu_state()?;
+        let behavior_changed = self.apply_selected_behavior_menu_state()?;
+        if behavior_changed {
+            self.menu.rebuild(self.menu_config());
+        }
         self.apply_behavior_config_menu_state()?;
         self.refresh_active_mapping_config();
         self.refresh_active_interpretation_profile();
@@ -185,12 +188,12 @@ impl NativeRunner {
         }
     }
 
-    fn apply_selected_behavior_menu_state(&mut self) -> Result<(), String> {
+    fn apply_selected_behavior_menu_state(&mut self) -> Result<bool, String> {
         let Some(behavior_id) = self.menu.selected_behavior().map(|value| value.to_string()) else {
-            return Ok(());
+            return Ok(false);
         };
         if behavior_id.as_str() == self.behavior.id() {
-            return Ok(());
+            return Ok(false);
         }
         let previous_behavior_id = self.behavior.id().to_string();
         self.behavior_configs
@@ -230,7 +233,8 @@ impl NativeRunner {
             &behavior_id,
             self.active_part_index,
         );
-        self.rebuild_engine(behavior)
+        self.rebuild_engine(behavior)?;
+        Ok(true)
     }
 
     fn apply_behavior_config_menu_state(&mut self) -> Result<(), String> {

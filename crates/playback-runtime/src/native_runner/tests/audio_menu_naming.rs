@@ -149,6 +149,10 @@ fn auto_named_part_renames_when_behavior_changes_to_none() {
     assert_eq!(runner.part_behavior_ids[1], "none");
     assert_eq!(runner.part_names[1], "none");
     assert!(runner.part_auto_names[1]);
+    assert_eq!(
+        runner.menu.value_for_key("parts.1.name").as_deref(),
+        Some("none")
+    );
 }
 
 #[test]
