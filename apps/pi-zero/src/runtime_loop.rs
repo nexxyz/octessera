@@ -68,6 +68,10 @@ pub fn sync_playback_config_from_snapshot(
     runner.apply_runtime_config(playback.config());
 }
 
+pub fn playback_config_matches_snapshot(playback: &PlaybackRuntime, snapshot: &Value) -> bool {
+    playback_config_from_snapshot(snapshot).is_none_or(|config| playback.config() == &config)
+}
+
 fn playback_config_from_snapshot(snapshot: &Value) -> Option<RuntimeConfig> {
     let midi = snapshot.get("settings")?.get("midi")?;
     let transport = snapshot.get("transport").unwrap_or(&Value::Null);
