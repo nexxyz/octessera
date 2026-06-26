@@ -6,6 +6,7 @@ mod host_adapter;
 mod host_audio_command;
 mod input;
 mod render;
+mod render_loop;
 mod runtime_loop;
 mod sample_browser;
 mod ui_profile;
@@ -22,14 +23,8 @@ use input::{
 use playback_runtime::{
     HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig, SyncSource,
 };
-use render::{
-    render_snapshot_cached, render_snapshot_cached_profiled, HardwareRenderCache,
-    HardwareRenderTargets, RenderProfileMetrics,
-};
-use runtime_loop::{
-    dispatch_runtime_message, handle_deferred_host_work, initialize_host_state, latest_snapshot,
-    playback_config_matches_snapshot, sync_playback_config_from_snapshot,
-};
+use render::{HardwareRenderCache, HardwareRenderTargets};
+use runtime_loop::{dispatch_runtime_message, handle_deferred_host_work, initialize_host_state};
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::sync::Arc;
@@ -363,7 +358,7 @@ fn maybe_advance_runtime(
             trellis,
             neokey,
         };
-        render_latest_snapshot(
+        render_loop::render_latest_snapshot(
             playback,
             runner,
             &mut targets,
@@ -380,78 +375,6 @@ fn maybe_advance_runtime(
         return false;
     }
     true
-}
-
-fn render_latest_snapshot(
-    playback: &mut PlaybackRuntime,
-    runner: &mut NativeRunner,
-    targets: &mut HardwareRenderTargets<'_>,
-    render_cache: &mut HardwareRenderCache,
-    ui_profiler: &mut UiProfiler,
-    render_interval: Duration,
-) {
-    let profile_enabled = ui_profiler.enabled();
-    let Some(snapshot) = latest_snapshot(playback) else {
-        return;
-    };
-    if playback_config_matches_snapshot(playback, snapshot) {
-        render_snapshot_with_profile(
-            targets,
-            snapshot,
-            render_cache,
-            ui_profiler,
-            render_interval,
-            profile_enabled.then_some(Duration::ZERO),
-            profile_enabled.then_some(Duration::ZERO),
-        );
-    } else {
-        let clone_started = profile_enabled.then(Instant::now);
-        let Some(snapshot) = latest_snapshot(playback).cloned() else {
-            return;
-        };
-        let clone_duration = clone_started.map(|started| started.elapsed());
-        let sync_started = profile_enabled.then(Instant::now);
-        sync_playback_config_from_snapshot(playback, runner, &snapshot);
-        let sync_duration = sync_started.map(|started| started.elapsed());
-        render_snapshot_with_profile(
-            targets,
-            &snapshot,
-            render_cache,
-            ui_profiler,
-            render_interval,
-            clone_duration,
-            sync_duration,
-        );
-    }
-}
-
-fn render_snapshot_with_profile(
-    targets: &mut HardwareRenderTargets<'_>,
-    snapshot: &serde_json::Value,
-    render_cache: &mut HardwareRenderCache,
-    ui_profiler: &mut UiProfiler,
-    render_interval: Duration,
-    clone_duration: Option<Duration>,
-    sync_duration: Option<Duration>,
-) {
-    let render_started = ui_profiler.enabled().then(Instant::now);
-    let mut metrics = RenderProfileMetrics::default();
-    if ui_profiler.enabled() {
-        render_snapshot_cached_profiled(targets, snapshot, render_cache, Some(&mut metrics));
-    } else {
-        render_snapshot_cached(targets, snapshot, render_cache);
-    }
-    if let (Some(render_started), Some(clone_duration), Some(sync_duration)) =
-        (render_started, clone_duration, sync_duration)
-    {
-        ui_profiler.record_render(
-            render_started.elapsed(),
-            render_interval,
-            clone_duration,
-            sync_duration,
-            &metrics,
-        );
-    }
 }
 
 fn flush_pending_encoder_turns(
