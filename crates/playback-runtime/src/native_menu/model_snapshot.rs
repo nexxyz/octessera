@@ -121,28 +121,29 @@ fn snapshot_window(
             break;
         }
     }
-    let scroll_offset = rendered_row_count_before(model, siblings, start);
-    let total_rows = rendered_row_count_before(model, siblings, siblings.len());
+    let (scroll_offset, total_rows) = scroll_row_counts(model, siblings, start);
     (start, end, scroll_offset, total_rows)
 }
 
-fn rendered_row_count_before(
+fn scroll_row_counts(
     model: &NativeMenuModel,
     siblings: &[NativeMenuItem],
-    end: usize,
-) -> usize {
-    siblings
-        .iter()
-        .enumerate()
-        .take(end)
-        .map(|(index, item)| {
-            item_row_count(
-                item,
-                index == model.state.cursor,
-                index == model.state.cursor && model.state.editing,
-            )
-        })
-        .sum()
+    window_start: usize,
+) -> (usize, usize) {
+    let mut scroll_offset = 0;
+    let mut total_rows = 0;
+    for (index, item) in siblings.iter().enumerate() {
+        let rows = item_row_count(
+            item,
+            index == model.state.cursor,
+            index == model.state.cursor && model.state.editing,
+        );
+        if index < window_start {
+            scroll_offset += rows;
+        }
+        total_rows += rows;
+    }
+    (scroll_offset, total_rows)
 }
 
 fn item_row_count(item: &NativeMenuItem, selected: bool, editing: bool) -> usize {
