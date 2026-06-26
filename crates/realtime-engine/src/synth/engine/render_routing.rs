@@ -1,6 +1,10 @@
 use super::*;
 
 impl SynthEngine {
+    pub(super) fn should_process_fx_buses(&self) -> bool {
+        self.routed_bus_slot_count > 0 || self.active_bus_activity_count > 0
+    }
+
     pub(super) fn prepare_bus_buffers(&mut self) {
         if self.bus_mono_scratch.len() != self.bus_pan_pos.len() {
             self.bus_mono_scratch.resize(self.bus_pan_pos.len(), 0.0);
@@ -20,6 +24,23 @@ impl SynthEngine {
         let mut left = 0.0_f32;
         let mut right = 0.0_f32;
         let process_momentary = !self.momentary_fx.is_empty();
+        if self.routed_bus_slot_count == 0 {
+            for (slot, sample) in slot_out.iter().enumerate() {
+                let mut sample = *sample * self.slot_volume[slot];
+                if process_momentary {
+                    let (fx_l, fx_r) = self.process_momentary_fx_target(
+                        MomentaryFxTarget::Instrument { index: slot },
+                        sample,
+                        sample,
+                    );
+                    sample = (fx_l + fx_r) * 0.5;
+                }
+                let (gl, gr) = self.slot_pan_gains[slot];
+                left += sample * gl;
+                right += sample * gr;
+            }
+            return (left, right);
+        }
         for (slot, sample) in slot_out.iter().enumerate() {
             let mut sample = *sample * self.slot_volume[slot];
             if process_momentary {

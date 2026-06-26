@@ -12,9 +12,14 @@ impl SynthEngine {
         let sample_active = self.render_sample_voices(&mut slot_out);
         let preview_active = self.render_preview_sample_voices(&mut slot_out);
         let synth_active = self.render_synth_voices(&mut slot_out);
-        self.prepare_bus_buffers();
+        let process_buses = self.should_process_fx_buses();
+        if process_buses {
+            self.prepare_bus_buffers();
+        }
         let (mut left, mut right) = self.mix_instrument_slots(&slot_out);
-        (left, right) = self.mix_fx_buses(&slot_out, left, right);
+        if process_buses {
+            (left, right) = self.mix_fx_buses(&slot_out, left, right);
+        }
         self.push_dry_history(left, right);
         let master_signal = self.signal_present(left, right)
             || synth_active

@@ -117,6 +117,7 @@ impl SynthEngine {
         self.bus_slot_state = next_bus.slot_state;
         self.bus_active_slot_indices = next_bus.active_slot_indices;
         self.bus_active_slot_counts = next_bus.active_slot_counts;
+        self.refresh_routed_bus_slot_count();
         self.bus_activity_frames
             .resize(self.bus_slot_params.len(), 0);
         self.active_bus_activity_count = self
@@ -161,6 +162,15 @@ impl SynthEngine {
         self.slot_route[idx] = parse_route(&mixer.route);
         self.slot_pan_pos[idx] = mixer.pan_pos.min(self.pan_positions - 1);
         self.slot_volume[idx] = (mixer.volume / 100.0).clamp(0.0, 1.0);
+    }
+
+    pub(super) fn refresh_routed_bus_slot_count(&mut self) {
+        let bus_count = self.bus_pan_pos.len();
+        self.routed_bus_slot_count = self
+            .slot_route
+            .iter()
+            .filter(|route| **route > 0 && **route <= bus_count)
+            .count();
     }
 
     fn refresh_slot_pan_gains(&mut self) {
