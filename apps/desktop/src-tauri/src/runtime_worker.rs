@@ -13,6 +13,8 @@ use std::thread;
 use std::time::{Duration, Instant};
 use tauri::Emitter;
 
+mod shutdown;
+
 const SNAPSHOT_INTERVAL_MS: u64 = 16;
 #[cfg(debug_assertions)]
 const PERF_LOG_INTERVAL: Duration = Duration::from_secs(2);
@@ -187,7 +189,12 @@ impl RuntimeWorker {
                     }
                 }
                 Err(mpsc::RecvTimeoutError::Timeout) => continue,
-                Err(mpsc::RecvTimeoutError::Disconnected) => break,
+                Err(mpsc::RecvTimeoutError::Disconnected) => {
+                    if let Err(err) = self.flush_pending_host_work_now() {
+                        self.handle_error(err);
+                    }
+                    break;
+                }
             }
         }
     }

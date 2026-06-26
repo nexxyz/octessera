@@ -156,6 +156,49 @@ fn auto_named_part_renames_when_behavior_changes_to_none() {
 }
 
 #[test]
+fn part_four_auto_name_change_is_in_deferred_autosave_payload() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.auto_save_default = true;
+    runner.part_behavior_ids[3] = "sequencer".into();
+    runner.part_names[3] = "sequencer".into();
+    runner.part_auto_names[3] = true;
+    runner.select_active_part(3).unwrap();
+    runner.menu.rebuild(runner.menu_config());
+
+    assert!(runner.menu.focus_item_key("behaviorId"));
+    runner.menu.state.editing = true;
+    runner.menu.turn_key("behaviorId", -99);
+    runner.apply_or_schedule_menu_key("behaviorId").unwrap();
+
+    let messages = runner.flush_pending_deferred_work_now().unwrap();
+    let saved_payload = messages
+        .iter()
+        .find_map(|message| match message {
+            RunnerMessage::PlatformEffects { effects } => {
+                effects.iter().find_map(|effect| match effect {
+                    RuntimePlatformEffect::StoreSaveDefault { payload, mode }
+                        if mode.as_deref() == Some("deferred") =>
+                    {
+                        Some(payload)
+                    }
+                    _ => None,
+                })
+            }
+            _ => None,
+        })
+        .expect("part 4 deferred autosave payload");
+
+    assert_eq!(runner.part_behavior_ids[3], "none");
+    assert_eq!(runner.part_names[3], "none");
+    assert_eq!(
+        saved_payload["runtimeConfig"]["parts"][3]["l1"]["behaviorId"],
+        "none"
+    );
+    assert_eq!(saved_payload["runtimeConfig"]["parts"][3]["name"], "none");
+    assert_eq!(saved_payload["runtimeConfig"]["parts"][3]["autoName"], true);
+}
+
+#[test]
 fn turning_part_auto_name_on_replaces_manual_name() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.part_behavior_ids[1] = "sequencer".into();

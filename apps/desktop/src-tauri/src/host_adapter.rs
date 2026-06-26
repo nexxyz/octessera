@@ -78,6 +78,13 @@ impl DesktopPlaybackHostAdapter {
         }])
     }
 
+    pub(crate) fn flush_pending_default_save_now(&mut self) -> Result<(), String> {
+        let Some((payload, _)) = self.pending_default_save.take() else {
+            return Ok(());
+        };
+        self.save_default_payload(&payload)
+    }
+
     fn queued_note(
         channel: &u8,
         note: &u8,

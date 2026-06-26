@@ -15,7 +15,7 @@ use midir::MidiInputConnection;
 use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
 use runtime_worker::RuntimeWorker;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager};
@@ -32,36 +32,37 @@ pub(crate) struct AppState {
     audio_error: Arc<Mutex<Option<String>>>,
 }
 
-fn desktop_workspace_root() -> PathBuf {
-    workspace_root_from(Path::new(env!("CARGO_MANIFEST_DIR")))
-}
+const BUNDLED_DEFAULT_CONFIG: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../config/default.json"
+));
 
-fn workspace_root_from(crate_dir: impl AsRef<Path>) -> PathBuf {
-    let start = crate_dir.as_ref();
-    for ancestor in start.ancestors() {
-        if ancestor.join("pnpm-workspace.yaml").is_file()
-            && ancestor.join("packages").is_dir()
-            && ancestor.join("Cargo.toml").is_file()
-        {
-            return ancestor.to_path_buf();
-        }
-        if ancestor
-            .file_name()
-            .is_some_and(|name| name == "crates" || name == "apps")
-        {
-            if let Some(parent) = ancestor.parent() {
-                return parent.to_path_buf();
-            }
-        }
+fn ensure_store_dir(app: &tauri::App) -> PathBuf {
+    if let Some(dir) = std::env::var_os("CELLSYMPHONY_DESKTOP_STORE_DIR").map(PathBuf::from) {
+        return ensure_store_dir_at(dir);
     }
-    start.to_path_buf()
+    let dir = app
+        .path()
+        .app_data_dir()
+        .unwrap_or_else(|_| fallback_store_dir());
+    ensure_store_dir_at(dir)
 }
 
-fn ensure_store_dir() -> PathBuf {
-    let dir = desktop_workspace_root().join("config");
+fn ensure_store_dir_at(dir: PathBuf) -> PathBuf {
     let _ = std::fs::create_dir_all(&dir);
     let _ = std::fs::create_dir_all(dir.join("presets"));
+    let default_path = dir.join("default.json");
+    if !default_path.is_file() {
+        let _ = std::fs::write(default_path, BUNDLED_DEFAULT_CONFIG);
+    }
     dir
+}
+
+fn fallback_store_dir() -> PathBuf {
+    std::env::current_exe()
+        .ok()
+        .and_then(|path| path.parent().map(|parent| parent.join("config")))
+        .unwrap_or_else(|| PathBuf::from("config"))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -77,13 +78,12 @@ pub fn run() {
     let midi_out = Arc::new(Mutex::new(None));
     let midi_in = Arc::new(Mutex::new(None));
     let runtime_outbox = Arc::new(Mutex::new(Vec::new()));
-    let store_dir = ensure_store_dir();
-
     spawn_audio_engine_thread(trigger_rx, load_tx, audio_error.clone(), no_audio);
 
     tauri::Builder::default()
         .setup(move |app| {
             let app_handle = app.handle().clone();
+            let store_dir = ensure_store_dir(app);
             let midi_in_app_handle = app_handle.clone();
             let worker_tx = RuntimeWorker::spawn(
                 app_handle.clone(),
@@ -132,4 +132,37 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn store_dir_seed_writes_bundled_default_once() {
+        let dir = std::env::temp_dir().join(format!(
+            "cellsymphony-desktop-store-seed-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+
+        let seeded = ensure_store_dir_at(dir.clone());
+        let default_path = seeded.join("default.json");
+        let default_payload: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&default_path).unwrap()).unwrap();
+        assert_eq!(
+            default_payload["runtimeConfig"]["parts"][3]["autoName"],
+            true
+        );
+
+        std::fs::write(&default_path, "{\"kept\":true}").unwrap();
+        ensure_store_dir_at(dir.clone());
+        assert_eq!(
+            std::fs::read_to_string(&default_path).unwrap(),
+            "{\"kept\":true}"
+        );
+        let _ = std::fs::remove_dir_all(dir);
+    }
 }

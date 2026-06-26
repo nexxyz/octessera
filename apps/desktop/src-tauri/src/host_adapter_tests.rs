@@ -80,6 +80,36 @@ fn deferred_default_save_flushes_runtime_result() {
 }
 
 #[test]
+fn pending_default_save_flushes_immediately_on_shutdown() {
+    let (mut adapter, _) = test_adapter();
+    let temp_dir = std::env::temp_dir().join(format!(
+        "cellsymphony-host-adapter-shutdown-default-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(&temp_dir).unwrap();
+    adapter.store_dir = temp_dir.clone();
+    let payload = serde_json::json!({ "runtimeConfig": { "parts": [{ "name": "life" }] } });
+    adapter
+        .handle_platform_effect(&RuntimePlatformEffect::StoreSaveDefault {
+            payload: payload.clone(),
+            mode: Some("deferred".into()),
+        })
+        .unwrap();
+
+    adapter.flush_pending_default_save_now().unwrap();
+
+    let saved = std::fs::read_to_string(temp_dir.join("default.json")).unwrap();
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&saved).unwrap(),
+        payload
+    );
+    let _ = std::fs::remove_dir_all(temp_dir);
+}
+
+#[test]
 fn malformed_default_load_returns_store_error() {
     let (mut adapter, _) = test_adapter();
     let temp_dir = std::env::temp_dir().join(format!(

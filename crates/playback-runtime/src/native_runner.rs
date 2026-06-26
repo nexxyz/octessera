@@ -61,6 +61,7 @@ mod construction;
 mod dance_control;
 mod dance_fx_utils;
 mod defaults;
+mod deferred_flush;
 mod device_input;
 mod factory_payload;
 mod fx_bus_config;
