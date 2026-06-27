@@ -7,7 +7,7 @@ use crate::behavior::{
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DlaState {
@@ -68,6 +68,15 @@ fn has_adjacent_cluster(cells: &[bool], x: usize, y: usize) -> bool {
         }
     }
     false
+}
+
+pub fn serialize_persistent(state: &DlaState) -> Result<Value, String> {
+    Ok(json!({
+        "cells": &state.cells,
+        "triggerTypes": &state.trigger_types,
+        "spawnInterval": state.spawn_interval,
+        "spawnStep": state.spawn_step,
+    }))
 }
 
 pub fn dla_on_input(

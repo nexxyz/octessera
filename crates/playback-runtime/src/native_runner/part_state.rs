@@ -151,12 +151,15 @@ impl NativeRunner {
         Ok(())
     }
 
-    pub(super) fn serialized_state_for_part(&self, index: usize) -> Result<Value, String> {
+    pub(super) fn persistent_serialized_state_for_part(
+        &self,
+        index: usize,
+    ) -> Result<Value, String> {
         if index == self.active_part_index {
-            return self.engine.serialized_state();
+            return self.engine.persistent_serialized_state();
         }
         if let Some(Some(engine)) = self.part_engines.get(index) {
-            return engine.serialized_state();
+            return engine.persistent_serialized_state();
         }
         Ok(Value::Null)
     }
@@ -187,9 +190,9 @@ impl NativeRunner {
         );
         l1.insert("saveGridState".into(), json!(save_grid_state));
         if save_grid_state {
-            if let Ok(state) = self.serialized_state_for_part(index) {
+            if let Ok(state) = self.persistent_serialized_state_for_part(index) {
                 if !state.is_null() {
-                    l1.insert("savedState".into(), persistent_saved_state(state));
+                    l1.insert("savedState".into(), state);
                 }
             }
         }
@@ -275,12 +278,4 @@ impl NativeRunner {
             }
         }
     }
-}
-
-fn persistent_saved_state(mut state: Value) -> Value {
-    if let Some(object) = state.as_object_mut() {
-        object.remove("generation");
-        object.remove("tickCounter");
-    }
-    state
 }

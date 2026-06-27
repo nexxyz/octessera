@@ -262,6 +262,41 @@ impl NativeBehavior {
         }
     }
 
+    pub fn serialize_persistent(self, state: &NativeBehaviorState) -> Result<Value, String> {
+        match (self, state) {
+            (NativeBehavior::None, NativeBehaviorState::None(state)) => none::serialize(state),
+            (NativeBehavior::Life, NativeBehaviorState::Life(state)) => {
+                life::serialize_persistent(state)
+            }
+            (NativeBehavior::Glider, NativeBehaviorState::Glider(state)) => {
+                glider::serialize_persistent(state)
+            }
+            (NativeBehavior::Sequencer, NativeBehaviorState::Sequencer(state)) => {
+                sequencer::serialize(state)
+            }
+            (NativeBehavior::Keys, NativeBehaviorState::Keys(state)) => ported::serialize(state),
+            (NativeBehavior::Brain, NativeBehaviorState::Brain(state)) => {
+                ported::brain_serialize_persistent(state)
+            }
+            (NativeBehavior::Ant, NativeBehaviorState::Ant(state)) => {
+                ported::ant_serialize_persistent(state)
+            }
+            (NativeBehavior::Bounce, NativeBehaviorState::Bounce(state)) => {
+                ported::bounce_serialize_persistent(state)
+            }
+            (NativeBehavior::Shapes, NativeBehaviorState::Shapes(state)) => {
+                ported::shapes_serialize_persistent(state)
+            }
+            (NativeBehavior::Raindrops, NativeBehaviorState::Raindrops(state)) => {
+                ported::raindrops_serialize_persistent(state)
+            }
+            (NativeBehavior::Dla, NativeBehaviorState::Dla(state)) => {
+                ported::dla_serialize_persistent(state)
+            }
+            _ => Err(format!("state mismatch for behavior {}", self.id())),
+        }
+    }
+
     pub fn deserialize(self, data: Value) -> Result<NativeBehaviorState, String> {
         match self {
             NativeBehavior::None => Ok(NativeBehaviorState::None(none::deserialize(data)?)),

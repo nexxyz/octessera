@@ -6,7 +6,7 @@ use crate::behavior::{
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Ball {
@@ -69,6 +69,17 @@ pub fn bounce_init(config: Value) -> Result<BounceState, String> {
         spawn_step: 0,
         tick_counter: 0,
     })
+}
+
+pub fn serialize_persistent(state: &BounceState) -> Result<Value, String> {
+    Ok(json!({
+        "balls": &state.balls,
+        "cells": &state.cells,
+        "triggerTypes": &state.trigger_types,
+        "maxBalls": state.max_balls,
+        "spawnInterval": state.spawn_interval,
+        "spawnStep": state.spawn_step,
+    }))
 }
 
 pub fn bounce_on_input(

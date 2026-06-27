@@ -5,7 +5,7 @@ use crate::behavior::{
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 
 const CELL_COUNT: usize = GRID_WIDTH * GRID_HEIGHT;
 
@@ -186,6 +186,18 @@ pub fn config_menu(_state: &LifeState) -> Vec<BehaviorConfigItem> {
 
 pub fn serialize(state: &LifeState) -> Result<Value, String> {
     serde_json::to_value(state).map_err(|error| error.to_string())
+}
+
+pub fn serialize_persistent(state: &LifeState) -> Result<Value, String> {
+    Ok(json!({
+        "width": state.width,
+        "height": state.height,
+        "cells": &state.cells,
+        "randomCellsPerTick": state.random_cells_per_tick,
+        "randomTickInterval": state.random_tick_interval,
+        "spawnStep": state.spawn_step,
+        "triggerTypes": &state.trigger_types,
+    }))
 }
 
 pub fn deserialize(data: Value) -> Result<LifeState, String> {

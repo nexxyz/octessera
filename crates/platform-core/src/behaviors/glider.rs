@@ -5,7 +5,7 @@ use crate::behavior::{
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 
 const CELL_COUNT: usize = GRID_WIDTH * GRID_HEIGHT;
 const GLIDER_OFFSETS: [(usize, usize); 5] = [(1, 0), (2, 1), (0, 2), (1, 2), (2, 2)];
@@ -163,6 +163,15 @@ pub fn config_menu(_state: &GliderState) -> Vec<BehaviorConfigItem> {
 
 pub fn serialize(state: &GliderState) -> Result<Value, String> {
     serde_json::to_value(state).map_err(|error| error.to_string())
+}
+
+pub fn serialize_persistent(state: &GliderState) -> Result<Value, String> {
+    Ok(json!({
+        "cells": &state.cells,
+        "triggerTypes": &state.trigger_types,
+        "spawnInterval": state.spawn_interval,
+        "spawnStep": state.spawn_step,
+    }))
 }
 
 pub fn deserialize(data: Value) -> Result<GliderState, String> {

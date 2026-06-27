@@ -6,7 +6,7 @@ use crate::behavior::{
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BrainState {
@@ -66,6 +66,17 @@ fn brain_neighbors(cells: &[u8], x: usize, y: usize) -> usize {
         }
     }
     count
+}
+
+pub fn serialize_persistent(state: &BrainState) -> Result<Value, String> {
+    Ok(json!({
+        "cells": &state.cells,
+        "triggerTypes": &state.trigger_types,
+        "fireThreshold": state.fire_threshold,
+        "randomSeedCells": state.random_seed_cells,
+        "seedInterval": state.seed_interval,
+        "spawnStep": state.spawn_step,
+    }))
 }
 
 pub fn brain_on_input(
