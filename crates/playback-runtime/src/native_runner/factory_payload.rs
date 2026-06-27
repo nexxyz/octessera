@@ -48,7 +48,6 @@ pub(super) fn native_factory_payload() -> Value {
         }));
     }
     json!({
-        "activeBehavior": "life",
         "runtimeConfig": {
             "activeBehavior": "life",
             "activePartIndex": 0,

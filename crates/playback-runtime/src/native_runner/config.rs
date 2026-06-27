@@ -146,7 +146,6 @@ impl NativeRunner {
 
     pub(super) fn config_payload(&self) -> Value {
         json!({
-            "activeBehavior": self.behavior.id(),
             "runtimeConfig": {
                 "activeBehavior": self.behavior.id(),
                 "activePartIndex": self.active_part_index,
@@ -181,7 +180,6 @@ impl NativeRunner {
                         "config": assignment.config,
                     })).collect::<Vec<_>>()
                 },
-                "xyTouch": { "x": self.xy_touch.x, "y": self.xy_touch.y, "active": self.xy_touch.active },
                 "xyRelease": self.xy_release,
                 "sampleFavouriteDirs": self.sample_favourite_dirs,
                 "instruments": self.instruments.iter().map(|instrument| {

@@ -19,7 +19,7 @@ pub struct GliderState {
     pub spawn_interval: usize,
     #[serde(rename = "spawnStep")]
     pub spawn_step: usize,
-    #[serde(rename = "tickCounter")]
+    #[serde(rename = "tickCounter", default)]
     pub tick_counter: usize,
 }
 

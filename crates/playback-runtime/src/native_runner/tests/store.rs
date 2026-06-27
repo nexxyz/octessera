@@ -29,7 +29,9 @@ fn system_menu_save_default_emits_native_config_payload() {
             _ => None,
         })
         .expect("save default payload");
-    assert_eq!(payload["activeBehavior"], "life");
+    assert!(payload["activeBehavior"].is_null());
+    assert_eq!(payload["runtimeConfig"]["activeBehavior"], "life");
+    assert!(payload["runtimeConfig"]["xyTouch"].is_null());
     assert!(
         payload["runtimeConfig"]["instruments"]
             .as_array()

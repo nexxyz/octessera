@@ -14,6 +14,7 @@ pub struct LifeState {
     pub width: usize,
     pub height: usize,
     pub cells: Vec<bool>,
+    #[serde(default)]
     pub generation: usize,
     #[serde(rename = "randomCellsPerTick")]
     pub random_cells_per_tick: usize,
@@ -21,7 +22,7 @@ pub struct LifeState {
     pub random_tick_interval: usize,
     #[serde(rename = "spawnStep")]
     pub spawn_step: usize,
-    #[serde(rename = "tickCounter")]
+    #[serde(rename = "tickCounter", default)]
     pub tick_counter: usize,
     #[serde(rename = "triggerTypes")]
     pub trigger_types: Vec<CellTriggerType>,

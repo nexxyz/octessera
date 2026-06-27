@@ -395,6 +395,8 @@ fn save_grid_state_controls_saved_state_payload_and_restore() {
         true
     );
     assert!(!payload["runtimeConfig"]["parts"][0]["l1"]["savedState"].is_null());
+    assert!(payload["runtimeConfig"]["parts"][0]["l1"]["savedState"]["generation"].is_null());
+    assert!(payload["runtimeConfig"]["parts"][0]["l1"]["savedState"]["tickCounter"].is_null());
     assert!(payload["runtimeConfig"]["parts"][0]["l1"]["behaviorState"].is_null());
 
     let mut legacy_payload = payload.clone();

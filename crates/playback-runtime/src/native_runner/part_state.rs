@@ -189,7 +189,7 @@ impl NativeRunner {
         if save_grid_state {
             if let Ok(state) = self.serialized_state_for_part(index) {
                 if !state.is_null() {
-                    l1.insert("savedState".into(), state);
+                    l1.insert("savedState".into(), persistent_saved_state(state));
                 }
             }
         }
@@ -275,4 +275,12 @@ impl NativeRunner {
             }
         }
     }
+}
+
+fn persistent_saved_state(mut state: Value) -> Value {
+    if let Some(object) = state.as_object_mut() {
+        object.remove("generation");
+        object.remove("tickCounter");
+    }
+    state
 }

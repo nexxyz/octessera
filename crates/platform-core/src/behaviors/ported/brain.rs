@@ -11,6 +11,7 @@ use serde_json::Value;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BrainState {
     pub cells: Vec<u8>,
+    #[serde(default)]
     pub generation: usize,
     #[serde(rename = "triggerTypes")]
     pub trigger_types: Vec<CellTriggerType>,
@@ -22,7 +23,7 @@ pub struct BrainState {
     pub seed_interval: usize,
     #[serde(rename = "spawnStep")]
     pub spawn_step: usize,
-    #[serde(rename = "tickCounter")]
+    #[serde(rename = "tickCounter", default)]
     pub tick_counter: usize,
 }
 

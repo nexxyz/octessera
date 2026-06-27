@@ -1,5 +1,4 @@
 {
-  "activeBehavior": "life",
   "mappingConfig": {
     "activate": {
       "action": "note_on",
@@ -1353,12 +1352,10 @@
               false,
               false
             ],
-            "generation": 1238,
             "height": 8,
             "randomCellsPerTick": 0,
             "randomTickInterval": 1,
             "spawnStep": 0,
-            "tickCounter": 1238,
             "triggerTypes": [
               "none",
               "none",
@@ -2078,8 +2075,12 @@
       {
         "autoName": true,
         "l1": {
-          "behaviorConfig": {},
-          "behaviorId": "sequencer",
+          "behaviorConfig": {
+            "randomCellsPerTick": 0,
+            "randomTickInterval": 1,
+            "spawnStep": 0
+          },
+          "behaviorId": "none",
           "saveGridState": false,
           "stepRate": "1/16"
         },
@@ -2117,7 +2118,7 @@
           },
           "scanAxis": "rows",
           "scanDirection": "reverse",
-          "scanMode": "scanning",
+          "scanMode": "none",
           "scanSections": 1,
           "scanUnit": "1/8",
           "stateNotesEnabled": true,
@@ -2251,7 +2252,7 @@
             }
           }
         },
-        "name": "sequencer",
+        "name": "none",
         "paramMods": {
           "x": [
             null,
@@ -3081,12 +3082,7 @@
     "velocityCurve": "linear",
     "velocityScalePct": 100,
     "voiceStealingMode": "auto-balanced",
-    "xyRelease": "sample-hold",
-    "xyTouch": {
-      "active": false,
-      "x": 0.5,
-      "y": 0.5
-    }
+    "xyRelease": "sample-hold"
   },
   "system": {
     "danceMode": "fx"
