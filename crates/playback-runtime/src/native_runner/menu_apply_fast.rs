@@ -22,8 +22,14 @@ impl NativeRunner {
         if let Some(rest) = key.strip_prefix("instruments.") {
             if let Some((index, suffix)) = parse_indexed_key(rest) {
                 return match suffix {
-                    "type" => Ok(self.commit_instrument_type_structural_draft(index)),
-                    "mixer.route" => Ok(self.commit_instrument_route_structural_draft(index)),
+                    "type" => {
+                        self.commit_instrument_type_structural_draft(index);
+                        Ok(())
+                    }
+                    "mixer.route" => {
+                        self.commit_instrument_route_structural_draft(index);
+                        Ok(())
+                    }
                     _ => self.apply_menu_state(),
                 };
             }
