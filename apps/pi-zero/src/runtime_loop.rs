@@ -9,7 +9,7 @@ use std::collections::VecDeque;
 pub fn dispatch_runtime_message(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter<'_>,
+    adapter: &mut PiPlaybackHostAdapter,
     host_message: HostMessage,
 ) -> Result<(), String> {
     dispatch_and_ingest(playback, runner, adapter, host_message)
@@ -18,7 +18,7 @@ pub fn dispatch_runtime_message(
 pub fn handle_deferred_host_work(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter<'_>,
+    adapter: &mut PiPlaybackHostAdapter,
 ) -> Result<(), String> {
     let responses = runner.flush_deferred_menu_apply()?;
     if !responses.is_empty() {
@@ -34,7 +34,7 @@ pub fn handle_deferred_host_work(
 pub fn initialize_host_state(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter<'_>,
+    adapter: &mut PiPlaybackHostAdapter,
 ) -> Result<(), String> {
     for effect in [
         RuntimePlatformEffect::StoreLoadDefault,

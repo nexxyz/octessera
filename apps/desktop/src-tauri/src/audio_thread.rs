@@ -83,14 +83,16 @@ pub(crate) fn spawn_audio_engine_thread(
                             velocity,
                         });
                     }
-                    QueuedAudioEvent::SetInstruments(config) => {
-                        let _ = engine_tx.send(EngineEvent::SetInstruments(config));
-                    }
-                    QueuedAudioEvent::SetSampleBanks(banks) => {
-                        let _ = engine_tx.send(EngineEvent::SetSampleBanks(banks));
-                    }
-                    QueuedAudioEvent::SetVoiceStealingMode(mode) => {
-                        let _ = engine_tx.send(EngineEvent::SetVoiceStealingMode(mode));
+                    QueuedAudioEvent::SetAudioConfig {
+                        instruments,
+                        sample_banks,
+                        voice_stealing_mode,
+                    } => {
+                        let _ = engine_tx.send(EngineEvent::SetAudioConfig {
+                            instruments,
+                            sample_banks,
+                            voice_stealing_mode,
+                        });
                     }
                     QueuedAudioEvent::SetMasterVolume { volume_pct } => {
                         let _ = engine_tx.send(EngineEvent::SetMasterVolume { volume_pct });

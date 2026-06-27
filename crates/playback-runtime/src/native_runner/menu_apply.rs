@@ -310,7 +310,7 @@ impl NativeRunner {
         Ok(true)
     }
 
-    fn sync_active_part_auto_name(&mut self, behavior_id: &str) -> bool {
+    pub(super) fn sync_active_part_auto_name(&mut self, behavior_id: &str) -> bool {
         if !self
             .part_auto_names
             .get(self.active_part_index)

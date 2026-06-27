@@ -93,12 +93,12 @@ fn switching_behavior_preserves_previous_behavior_config() {
 
     assert_eq!(runner.behavior.id(), "life");
     runner.make_deferred_menu_apply_due_for_test();
-    let _ = runner.flush_deferred_menu_apply().unwrap();
-    assert_eq!(runner.behavior.id(), "keys");
-
+    assert!(runner.flush_deferred_menu_apply().unwrap().is_empty());
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
     });
+    assert_eq!(runner.behavior.id(), "keys");
+
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
     });
@@ -109,6 +109,10 @@ fn switching_behavior_preserves_previous_behavior_config() {
 
     runner.make_deferred_menu_apply_due_for_test();
     let _ = runner.flush_deferred_menu_apply().unwrap();
+    assert_eq!(runner.behavior.id(), "keys");
+    let _ = runner.send(HostMessage::DeviceInput {
+        input: json!({ "type": "encoder_press", "id": "main" }),
+    });
     assert_eq!(runner.behavior.id(), "life");
     assert_eq!(runner.behavior_config["randomCellsPerTick"], 5);
     assert_eq!(runner.behavior_config["randomTickInterval"], 3);

@@ -1,9 +1,11 @@
 mod audio;
+mod audio_config_parse;
 mod diagnostics;
 mod dsp_profile;
 mod encoder_queue;
 mod host_adapter;
 mod host_audio_command;
+mod host_audio_prep;
 mod input;
 mod render;
 mod render_loop;
@@ -61,8 +63,12 @@ fn main() {
     let samples_dir = default_samples_dir();
     ensure_runtime_dirs(&store_dir, &samples_dir);
 
-    let mut adapter =
-        PiPlaybackHostAdapter::new(audio.as_ref(), store_dir, samples_dir, midi_handler);
+    let mut adapter = PiPlaybackHostAdapter::new(
+        audio.as_ref().map(AudioManager::service),
+        store_dir,
+        samples_dir,
+        midi_handler,
+    );
     if let Err(error) = initialize_host_state(&mut playback, &mut runner, &mut adapter) {
         eprintln!("pi host state initialization failed: {error}");
     }
@@ -171,7 +177,7 @@ fn exit_code(success: bool) -> i32 {
 fn dispatch_or_log(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter<'_>,
+    adapter: &mut PiPlaybackHostAdapter,
     message: HostMessage,
 ) {
     if let Err(error) = dispatch_runtime_message(playback, runner, adapter, message) {
@@ -237,7 +243,7 @@ fn drain_midi_messages(
     midi_rx: &mpsc::Receiver<MidiMessage>,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter<'_>,
+    adapter: &mut PiPlaybackHostAdapter,
 ) {
     while let Ok(message) = midi_rx.try_recv() {
         match message {
@@ -255,7 +261,7 @@ fn drain_encoder_events(
     pending_encoder_turns: &mut PendingEncoderTurns,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter<'_>,
+    adapter: &mut PiPlaybackHostAdapter,
 ) {
     for _ in 0..HARDWARE_EVENT_BUDGET {
         let Ok(event) = event_rx.try_recv() else {
@@ -279,7 +285,7 @@ fn poll_grid(
     trellis: &mut NeoTrellis,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter<'_>,
+    adapter: &mut PiPlaybackHostAdapter,
 ) {
     if let Ok(presses) = trellis.scan_keys() {
         for (x, y, pressed) in presses {
@@ -293,7 +299,7 @@ fn poll_neokey(
     previous_neokey: &mut [bool; 4],
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter<'_>,
+    adapter: &mut PiPlaybackHostAdapter,
 ) {
     if let Ok(keys) = neokey.scan() {
         for (key, pressed) in keys {
@@ -320,7 +326,7 @@ fn maybe_advance_runtime(
     pending_encoder_turns: &mut PendingEncoderTurns,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter<'_>,
+    adapter: &mut PiPlaybackHostAdapter,
     oled: &mut OledSsd1351,
     trellis: &mut NeoTrellis,
     neokey: &mut NeoKey,
@@ -381,7 +387,7 @@ fn flush_pending_encoder_turns(
     pending: &mut PendingEncoderTurns,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter<'_>,
+    adapter: &mut PiPlaybackHostAdapter,
 ) {
     for message in pending.take_messages() {
         dispatch_or_log(playback, runner, adapter, message);

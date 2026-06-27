@@ -1,4 +1,5 @@
 use super::{DesktopHostAudioState, DesktopPlaybackHostAdapter};
+use crate::audio_prep_service::{spawn_desktop_audio_control, DesktopAudioPrepState};
 use crate::types::QueuedAudioEvent;
 use playback_runtime::{
     HostAdapter, HostMessage, RuntimeAudioCommand, RuntimePlatformEffect, RuntimeStoreResult,
@@ -6,19 +7,29 @@ use playback_runtime::{
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{mpsc, Arc, Mutex};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 fn test_adapter() -> (DesktopPlaybackHostAdapter, mpsc::Receiver<QueuedAudioEvent>) {
     let (tx, rx) = mpsc::channel();
     let (platform_service_tx, _) = mpsc::channel();
+    let synth_slots = Arc::new(Mutex::new(
+        [true; realtime_engine::synth::INSTRUMENT_SLOT_COUNT],
+    ));
+    let sample_cache = Arc::new(Mutex::new(HashMap::new()));
+    let sample_bank_signature = Arc::new(Mutex::new(String::new()));
+    let audio_control = spawn_desktop_audio_control(
+        tx.clone(),
+        DesktopAudioPrepState {
+            synth_slots: synth_slots.clone(),
+            sample_cache: sample_cache.clone(),
+            sample_bank_signature: sample_bank_signature.clone(),
+        },
+    );
     let adapter = DesktopPlaybackHostAdapter {
         audio: DesktopHostAudioState {
             trigger_tx: tx,
-            synth_slots: Arc::new(Mutex::new(
-                [true; realtime_engine::synth::INSTRUMENT_SLOT_COUNT],
-            )),
-            sample_cache: Arc::new(Mutex::new(HashMap::new())),
-            sample_bank_signature: Arc::new(Mutex::new(String::new())),
+            audio_control,
+            sample_cache,
         },
         midi_out: Arc::new(Mutex::new(None)),
         midi_in: Arc::new(Mutex::new(None)),
@@ -45,7 +56,7 @@ fn platform_effect_audio_command_reaches_audio_queue() {
         .unwrap();
     assert!(follow_ups.is_empty());
     assert!(
-        matches!(rx.try_recv().unwrap(), QueuedAudioEvent::MomentaryFxStop { id } if id == "preview")
+        matches!(rx.recv_timeout(Duration::from_secs(1)).unwrap(), QueuedAudioEvent::MomentaryFxStop { id } if id == "preview")
     );
 }
 
@@ -88,16 +99,8 @@ fn full_audio_config_command_sets_instruments_and_sample_banks() {
 
     assert!(follow_ups.is_empty());
     assert!(
-        matches!(rx.try_recv().unwrap(), QueuedAudioEvent::SetInstruments(config) if config.master_volume == 82.0)
+        matches!(rx.recv_timeout(Duration::from_secs(1)).unwrap(), QueuedAudioEvent::SetAudioConfig { instruments, sample_banks: Some(_), voice_stealing_mode: Some(realtime_engine::synth::VoiceStealingMode::AutoHard) } if instruments.master_volume == 82.0)
     );
-    assert!(matches!(
-        rx.try_recv().unwrap(),
-        QueuedAudioEvent::SetSampleBanks(_)
-    ));
-    assert!(matches!(
-        rx.try_recv().unwrap(),
-        QueuedAudioEvent::SetVoiceStealingMode(realtime_engine::synth::VoiceStealingMode::AutoHard)
-    ));
 }
 
 #[test]
@@ -117,18 +120,20 @@ fn full_audio_config_command_reuses_sample_bank_signature() {
 
     adapter.handle_platform_effect(&command).unwrap();
     assert!(matches!(
-        rx.try_recv().unwrap(),
-        QueuedAudioEvent::SetInstruments(_)
-    ));
-    assert!(matches!(
-        rx.try_recv().unwrap(),
-        QueuedAudioEvent::SetSampleBanks(_)
+        rx.recv_timeout(Duration::from_secs(1)).unwrap(),
+        QueuedAudioEvent::SetAudioConfig {
+            sample_banks: Some(_),
+            ..
+        }
     ));
 
     adapter.handle_platform_effect(&command).unwrap();
     assert!(matches!(
-        rx.try_recv().unwrap(),
-        QueuedAudioEvent::SetInstruments(_)
+        rx.recv_timeout(Duration::from_secs(1)).unwrap(),
+        QueuedAudioEvent::SetAudioConfig {
+            sample_banks: None,
+            ..
+        }
     ));
     assert!(rx.try_recv().is_err());
 }

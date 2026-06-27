@@ -79,6 +79,7 @@ mod menu_apply_fast;
 mod menu_apply_fast_fx;
 mod menu_apply_instrument;
 mod menu_apply_sense_fx;
+mod menu_apply_structural;
 mod menu_value_apply;
 mod modulation;
 mod modulation_fx;

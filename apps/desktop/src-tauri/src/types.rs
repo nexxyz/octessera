@@ -107,9 +107,11 @@ pub(crate) enum QueuedAudioEvent {
         buffer: realtime_engine::synth::SampleBuffer,
         velocity: u8,
     },
-    SetInstruments(realtime_engine::synth::InstrumentsConfig),
-    SetSampleBanks(Vec<realtime_engine::synth::SampleBankConfig>),
-    SetVoiceStealingMode(realtime_engine::synth::VoiceStealingMode),
+    SetAudioConfig {
+        instruments: realtime_engine::synth::InstrumentsConfig,
+        sample_banks: Option<Vec<realtime_engine::synth::SampleBankConfig>>,
+        voice_stealing_mode: Option<realtime_engine::synth::VoiceStealingMode>,
+    },
     SetMasterVolume {
         volume_pct: f32,
     },

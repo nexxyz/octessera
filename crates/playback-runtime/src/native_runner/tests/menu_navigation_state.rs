@@ -43,10 +43,15 @@ fn changing_behavior_keeps_menu_location() {
     assert_eq!(changed_snapshot["activeBehavior"], "life");
 
     runner.make_deferred_menu_apply_due_for_test();
-    let flushed = runner.flush_deferred_menu_apply().unwrap();
+    assert!(runner.flush_deferred_menu_apply().unwrap().is_empty());
+    let flushed = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })
+        .unwrap();
     let snapshot = snapshot_from(&flushed);
     assert_eq!(snapshot["display"]["title"], "L1: Life/P1: keys");
-    assert_eq!(snapshot["display"]["editing"], true);
+    assert_eq!(snapshot["display"]["editing"], false);
     assert_eq!(snapshot["activeBehavior"], "keys");
 }
 

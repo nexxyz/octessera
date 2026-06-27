@@ -1,6 +1,7 @@
 mod audio_config_apply;
 
 use crate::audio_config::decode_sample_file;
+use crate::audio_prep_service::DesktopAudioControl;
 use crate::desktop_platform_service::{
     shape_service_unavailable_result, DesktopPlatformServiceRequest,
 };
@@ -34,11 +35,11 @@ pub(crate) struct DesktopPlaybackHostAdapter {
     shutdown_requested: bool,
 }
 
+#[derive(Clone)]
 pub(crate) struct DesktopHostAudioState {
     pub(crate) trigger_tx: Sender<QueuedAudioEvent>,
-    pub(crate) synth_slots: Arc<Mutex<[bool; INSTRUMENT_SLOT_COUNT]>>,
+    pub(crate) audio_control: DesktopAudioControl,
     pub(crate) sample_cache: Arc<Mutex<HashMap<String, realtime_engine::synth::SampleBuffer>>>,
-    pub(crate) sample_bank_signature: Arc<Mutex<String>>,
 }
 
 impl DesktopPlaybackHostAdapter {
@@ -340,8 +341,8 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
     }
 
     fn handle_audio_command(&mut self, command: &RuntimeAudioCommand) -> Result<(), String> {
-        if let RuntimeAudioCommand::SetAudioConfig { config, .. } = command {
-            return self.handle_full_audio_config(config.clone());
+        if let RuntimeAudioCommand::SetAudioConfig { revision, config } = command {
+            return self.handle_full_audio_config(*revision, config.clone());
         }
         let event = match command {
             RuntimeAudioCommand::SetAudioConfig { .. } => unreachable!(),
@@ -463,10 +464,7 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                 }
             }
         };
-        self.audio
-            .trigger_tx
-            .send(event)
-            .map_err(|e| format!("audio queue send failed: {e}"))
+        self.audio.audio_control.enqueue_dynamic(event)
     }
 
     fn handle_midi_message(&mut self, _bytes: &[u8]) -> Result<(), String> {

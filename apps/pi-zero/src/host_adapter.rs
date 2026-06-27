@@ -1,4 +1,4 @@
-use crate::audio::AudioManager;
+use crate::audio::AudioService;
 use crate::host_audio_command::send_audio_command;
 use crate::sample_browser::sample_entries;
 use midir::{MidiInputConnection, MidiOutputConnection};
@@ -14,8 +14,8 @@ use std::time::{Duration, Instant};
 
 const DEFERRED_DEFAULT_SAVE_MS: u64 = 2_000;
 
-pub struct PiPlaybackHostAdapter<'a> {
-    audio: Option<&'a AudioManager>,
+pub struct PiPlaybackHostAdapter {
+    audio: Option<AudioService>,
     store_dir: PathBuf,
     samples_dir: PathBuf,
     pending_default_save: Option<(serde_json::Value, Instant)>,
@@ -27,9 +27,9 @@ pub struct PiPlaybackHostAdapter<'a> {
     shutdown_requested: bool,
 }
 
-impl<'a> PiPlaybackHostAdapter<'a> {
+impl PiPlaybackHostAdapter {
     pub fn new(
-        audio: Option<&'a AudioManager>,
+        audio: Option<AudioService>,
         store_dir: PathBuf,
         samples_dir: PathBuf,
         midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
@@ -215,9 +215,9 @@ impl<'a> PiPlaybackHostAdapter<'a> {
     }
 }
 
-impl HostAdapter for PiPlaybackHostAdapter<'_> {
+impl HostAdapter for PiPlaybackHostAdapter {
     fn handle_musical_event(&mut self, event: &RuntimeMusicalEvent) -> Result<(), String> {
-        let Some(audio) = self.audio else {
+        let Some(audio) = &self.audio else {
             return Ok(());
         };
         match event {
@@ -226,21 +226,23 @@ impl HostAdapter for PiPlaybackHostAdapter<'_> {
                 note,
                 velocity,
                 duration_ms,
-            } => audio.send(EngineEvent::NoteOn {
+            } => audio.send_realtime(EngineEvent::NoteOn {
                 instrument_slot: (*channel).min((INSTRUMENT_SLOT_COUNT - 1) as u8),
                 note: (*note).min(127),
                 velocity: (*velocity).clamp(1, 127),
                 duration_ms: duration_ms.unwrap_or(86_400_000).clamp(10, 86_400_000),
             }),
-            RuntimeMusicalEvent::NoteOff { channel, note } => audio.send(EngineEvent::NoteOff {
-                instrument_slot: (*channel).min((INSTRUMENT_SLOT_COUNT - 1) as u8),
-                note: (*note).min(127),
-            }),
+            RuntimeMusicalEvent::NoteOff { channel, note } => {
+                audio.send_realtime(EngineEvent::NoteOff {
+                    instrument_slot: (*channel).min((INSTRUMENT_SLOT_COUNT - 1) as u8),
+                    note: (*note).min(127),
+                })
+            }
             RuntimeMusicalEvent::Cc {
                 channel,
                 controller,
                 value,
-            } => audio.send(EngineEvent::Cc {
+            } => audio.send_realtime(EngineEvent::Cc {
                 instrument_slot: (*channel).min((INSTRUMENT_SLOT_COUNT - 1) as u8),
                 controller: (*controller).min(127),
                 value: (*value).min(127),
@@ -386,7 +388,7 @@ impl HostAdapter for PiPlaybackHostAdapter<'_> {
     }
 
     fn handle_audio_command(&mut self, command: &RuntimeAudioCommand) -> Result<(), String> {
-        send_audio_command(self.audio, command, &self.samples_dir)
+        send_audio_command(self.audio.clone(), command, &self.samples_dir)
     }
 
     fn handle_midi_message(&mut self, bytes: &[u8]) -> Result<(), String> {

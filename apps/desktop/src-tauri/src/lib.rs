@@ -1,4 +1,5 @@
 mod audio_config;
+mod audio_prep_service;
 mod audio_thread;
 mod commands;
 mod desktop_platform_service;
@@ -10,6 +11,7 @@ mod types;
 
 pub(crate) use types::SampleSlotConfig;
 
+use audio_prep_service::{spawn_desktop_audio_control, DesktopAudioPrepState};
 use audio_thread::{spawn_audio_engine_thread, spawn_load_listener};
 use desktop_platform_service::spawn_desktop_platform_service;
 use host_adapter::{DesktopHostAudioState, DesktopPlaybackHostAdapter};
@@ -80,6 +82,14 @@ pub fn run() {
             let app_handle = app.handle().clone();
             let store_dir = ensure_store_dir(app);
             let platform_service = spawn_desktop_platform_service();
+            let audio_control = spawn_desktop_audio_control(
+                trigger_tx.clone(),
+                DesktopAudioPrepState {
+                    synth_slots: synth_slots.clone(),
+                    sample_cache: sample_cache.clone(),
+                    sample_bank_signature: sample_bank_signature.clone(),
+                },
+            );
             let (native_midi_tx, native_midi_rx) = mpsc::channel::<Vec<u8>>();
             let worker_tx = RuntimeWorker::spawn(
                 app_handle.clone(),
@@ -88,9 +98,8 @@ pub fn run() {
                 DesktopPlaybackHostAdapter::new(
                     DesktopHostAudioState {
                         trigger_tx: trigger_tx.clone(),
-                        synth_slots: synth_slots.clone(),
+                        audio_control,
                         sample_cache: sample_cache.clone(),
-                        sample_bank_signature: sample_bank_signature.clone(),
                     },
                     midi_out.clone(),
                     midi_in.clone(),

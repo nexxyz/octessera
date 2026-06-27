@@ -249,6 +249,15 @@ fn clone_event(event: &rodio_engine_source::EngineEvent) -> rodio_engine_source:
         rodio_engine_source::EngineEvent::SetSampleBanks(banks) => {
             rodio_engine_source::EngineEvent::SetSampleBanks(banks.clone())
         }
+        rodio_engine_source::EngineEvent::SetAudioConfig {
+            instruments,
+            sample_banks,
+            voice_stealing_mode,
+        } => rodio_engine_source::EngineEvent::SetAudioConfig {
+            instruments: instruments.clone(),
+            sample_banks: sample_banks.clone(),
+            voice_stealing_mode: *voice_stealing_mode,
+        },
         rodio_engine_source::EngineEvent::PreviewSample {
             instrument_slot,
             buffer,

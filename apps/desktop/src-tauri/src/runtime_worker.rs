@@ -187,13 +187,13 @@ impl RuntimeWorker {
             self.handle_error(err);
         }
         loop {
-            if let Err(err) = self.flush_deferred_host_work() {
-                self.handle_error(err);
-            }
             if let Err(err) = self.maybe_advance() {
                 self.handle_error(err);
             }
             if let Err(err) = self.handle_ready_commands(&rx) {
+                self.handle_error(err);
+            }
+            if let Err(err) = self.flush_deferred_host_work() {
                 self.handle_error(err);
             }
             self.poll_platform_service_results();

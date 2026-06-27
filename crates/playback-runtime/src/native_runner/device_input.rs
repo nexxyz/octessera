@@ -96,7 +96,9 @@ impl NativeRunner {
                         };
                         self.menu.turn(delta);
                         if let Some(key) = editing_key {
-                            self.apply_or_schedule_menu_key(&key)?;
+                            if !super::menu_apply_fast::structural_draft_key(&key) {
+                                self.apply_or_schedule_menu_key(&key)?;
+                            }
                         }
                     }
                 }
@@ -296,7 +298,15 @@ impl NativeRunner {
                 }
             }
             if should_apply {
-                self.apply_menu_state()?;
+                if let Some(key) = selected_group_key.as_deref() {
+                    if super::menu_apply_fast::structural_draft_key(key) {
+                        self.commit_structural_draft_key(key)?;
+                    } else {
+                        self.apply_menu_state()?;
+                    }
+                } else {
+                    self.apply_menu_state()?;
+                }
             }
             if !effects.is_empty() {
                 return self.messages_with_effects(effects);
@@ -336,7 +346,11 @@ impl NativeRunner {
                 .flatten();
             self.menu.back();
             if let Some(key) = editing_key {
-                self.apply_menu_state()?;
+                if super::menu_apply_fast::structural_draft_key(&key) {
+                    self.commit_structural_draft_key(&key)?;
+                } else {
+                    self.apply_menu_state()?;
+                }
                 if key == "behaviorId" {
                     self.clear_deferred_menu_apply();
                 }

@@ -45,6 +45,11 @@ pub enum EngineEvent {
     },
     SetInstruments(InstrumentsConfig),
     SetSampleBanks(Vec<SampleBankConfig>),
+    SetAudioConfig {
+        instruments: InstrumentsConfig,
+        sample_banks: Option<Vec<SampleBankConfig>>,
+        voice_stealing_mode: Option<VoiceStealingMode>,
+    },
     PreviewSample {
         instrument_slot: u8,
         buffer: realtime_engine::synth::SampleBuffer,
@@ -200,6 +205,20 @@ impl EngineSource {
                 EngineEvent::SetSampleBanks(banks) => {
                     drained.config_events += 1;
                     self.engine.set_sample_banks(banks);
+                }
+                EngineEvent::SetAudioConfig {
+                    instruments,
+                    sample_banks,
+                    voice_stealing_mode,
+                } => {
+                    drained.config_events += 1;
+                    self.engine.set_instruments(instruments);
+                    if let Some(banks) = sample_banks {
+                        self.engine.set_sample_banks(banks);
+                    }
+                    if let Some(mode) = voice_stealing_mode {
+                        self.engine.set_voice_stealing_mode(mode);
+                    }
                 }
                 EngineEvent::PreviewSample {
                     instrument_slot,

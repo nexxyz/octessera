@@ -14,18 +14,34 @@ impl NativeRunner {
         self.apply_menu_state()
     }
 
+    pub(super) fn commit_structural_draft_key(&mut self, key: &str) -> Result<(), String> {
+        self.clear_deferred_menu_apply();
+        if key == "behaviorId" {
+            return self.commit_behavior_structural_draft();
+        }
+        if let Some(rest) = key.strip_prefix("instruments.") {
+            if let Some((index, suffix)) = parse_indexed_key(rest) {
+                return match suffix {
+                    "type" => Ok(self.commit_instrument_type_structural_draft(index)),
+                    "mixer.route" => Ok(self.commit_instrument_route_structural_draft(index)),
+                    _ => self.apply_menu_state(),
+                };
+            }
+        }
+        if self.apply_deferred_menu_key_fast(key) {
+            return Ok(());
+        }
+        self.apply_menu_state()
+    }
+
     fn should_defer_menu_key(&self, key: &str) -> bool {
-        key == "behaviorId"
-            || key == "danceMode"
+        key == "danceMode"
             || key == "dance.fx.type"
             || key == "system.draftName"
             || key.starts_with("parts.") && key.ends_with(".name")
             || key.starts_with("instruments.") && key.ends_with(".name")
             || key.starts_with("mixer.buses.") && key.ends_with(".name")
-            || key.ends_with(".slot1.type")
-            || key.ends_with(".slot2.type")
-            || key.starts_with("mixer.master.slots.") && key.ends_with(".type")
-            || key.starts_with("instruments.") && key.ends_with(".type")
+            || structural_draft_key(key)
     }
 
     pub(super) fn apply_menu_key_fast(&mut self, key: &str) -> bool {
@@ -244,6 +260,24 @@ impl NativeRunner {
     pub(super) fn queue_audio_command(&mut self, command: RuntimeAudioCommand) {
         self.outbox.push_audio_command(command);
     }
+}
+
+pub(super) fn structural_draft_key(key: &str) -> bool {
+    if key == "behaviorId" {
+        return true;
+    }
+    if let Some(rest) = key.strip_prefix("instruments.") {
+        return parse_indexed_key(rest)
+            .is_some_and(|(_, suffix)| matches!(suffix, "type" | "mixer.route"));
+    }
+    if let Some(rest) = key.strip_prefix("mixer.buses.") {
+        return parse_indexed_key(rest)
+            .is_some_and(|(_, suffix)| matches!(suffix, "slot1.type" | "slot2.type"));
+    }
+    if let Some(rest) = key.strip_prefix("mixer.master.slots.") {
+        return parse_indexed_key(rest).is_some_and(|(_, suffix)| suffix == "type");
+    }
+    false
 }
 
 fn parse_indexed_key(value: &str) -> Option<(usize, &str)> {

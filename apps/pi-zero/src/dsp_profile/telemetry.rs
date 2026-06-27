@@ -33,6 +33,19 @@ fn apply_events(engine: &mut SynthEngine, events: &[EngineEvent]) {
             EngineEvent::SetVoiceStealingMode(mode) => engine.set_voice_stealing_mode(*mode),
             EngineEvent::SetInstruments(config) => engine.set_instruments(config.clone()),
             EngineEvent::SetSampleBanks(banks) => engine.set_sample_banks(banks.clone()),
+            EngineEvent::SetAudioConfig {
+                instruments,
+                sample_banks,
+                voice_stealing_mode,
+            } => {
+                engine.set_instruments(instruments.clone());
+                if let Some(banks) = sample_banks {
+                    engine.set_sample_banks(banks.clone());
+                }
+                if let Some(mode) = voice_stealing_mode {
+                    engine.set_voice_stealing_mode(*mode);
+                }
+            }
             EngineEvent::SetMasterVolume { volume_pct } => engine.set_master_volume(*volume_pct),
             EngineEvent::SetInstrumentMixer {
                 instrument_slot,
