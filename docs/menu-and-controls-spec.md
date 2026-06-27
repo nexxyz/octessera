@@ -441,7 +441,7 @@ Value editing semantics:
 - When `Numeric Display` is `bar` or `bar+numbers`, bounded sound/control/behavior number items render with a smooth geometric bar (filled rectangle) alongside the numeric value
 - Bar display applies automatically to FX params, synth/sample shaping controls, mixer volume/pan, touch FX controls, system sound/UI controls, L2 axis controls, and behavior controls such as spawn interval/count, threshold, lifespan, and radius
 - Selector-like numeric rows stay plain text, including MIDI channels, instrument/sample slots, part selectors, and MIDI note ranges
-- Structural selector edits are drafted while the row is in edit mode and are applied once when edit mode exits. This covers behavior type, instrument type, instrument route, FX bus slot type, and master FX slot type. Dynamic parameter rows still apply immediately while editing.
+- Structural selector edits apply immediately while the row is in edit mode through key-specific fast paths. This covers behavior type, instrument type, instrument route, FX bus slot type, and master FX slot type. Dynamic parameter rows also apply immediately while editing.
 - Bar value text uses compact units where useful: `%`, `ms`/`s`, `Hz`, `bpm`, `dB`, semitones/cents, and pan as `L15`/`C`/`R15`; ambiguous internal `0..1` ranges display as `0..100`
 
 Action row markers:

@@ -38,12 +38,12 @@ fn changing_behavior_keeps_menu_location() {
         })
         .unwrap();
     let changed_snapshot = snapshot_from(&changed);
-    assert_eq!(changed_snapshot["display"]["title"], "L1: Life/P1: life");
+    assert_eq!(changed_snapshot["display"]["title"], "L1: Life/P1: keys");
     assert_eq!(changed_snapshot["display"]["editing"], true);
-    assert_eq!(changed_snapshot["activeBehavior"], "life");
+    assert_eq!(changed_snapshot["activeBehavior"], "keys");
 
     runner.make_deferred_menu_apply_due_for_test();
-    assert!(runner.flush_deferred_menu_apply().unwrap().is_empty());
+    let _ = runner.flush_deferred_menu_apply().unwrap();
     let flushed = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),

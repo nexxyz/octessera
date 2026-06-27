@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn fx_bus_slot1_type_turn_is_drafted_until_edit_exit() {
+fn fx_bus_slot1_type_turn_applies_immediately() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     assert!(runner.menu.focus_item_key("mixer.buses.0.slot1.type"));
     runner.menu.state.editing = true;
@@ -22,15 +22,9 @@ fn fx_bus_slot1_type_turn_is_drafted_until_edit_exit() {
         .value_for_key("mixer.buses.0.slot1.type")
         .unwrap();
     assert_eq!(selected, "delay");
-    assert_eq!(runner.fx_buses[0].slot1_type, "none");
-    assert_eq!(runner.audio_config_revision, 0);
-    assert_no_audio_commands(&messages);
-    assert!(runner.flush_deferred_menu_apply().unwrap().is_empty());
-
-    let flushed = press_main(&mut runner);
     assert_eq!(runner.fx_buses[0].slot1_type, selected);
     assert_eq!(runner.audio_config_revision, 0);
-    assert!(flushed.iter().any(|message| matches!(
+    assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::AudioCommands { commands }
             if commands.iter().any(|command| matches!(
@@ -39,15 +33,21 @@ fn fx_bus_slot1_type_turn_is_drafted_until_edit_exit() {
                     if fx_type == "delay"
             ))
     )));
+    assert!(runner.flush_deferred_menu_apply().unwrap().is_empty());
+
+    let flushed = press_main(&mut runner);
+    assert_eq!(runner.fx_buses[0].slot1_type, selected);
+    assert_eq!(runner.audio_config_revision, 0);
+    assert_no_audio_commands(&flushed);
 }
 
 #[test]
-fn fx_bus_slot2_type_turn_is_drafted_until_edit_exit() {
+fn fx_bus_slot2_type_turn_applies_immediately() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     assert!(runner.menu.focus_item_key("mixer.buses.0.slot2.type"));
     runner.menu.state.editing = true;
 
-    let _ = turn_main(&mut runner, 1);
+    let messages = turn_main(&mut runner, 1);
 
     assert_eq!(
         runner
@@ -56,14 +56,9 @@ fn fx_bus_slot2_type_turn_is_drafted_until_edit_exit() {
             .as_deref(),
         Some("tremolo")
     );
-    assert_eq!(runner.fx_buses[0].slot2_type, "none");
-    assert_eq!(runner.audio_config_revision, 0);
-    assert!(runner.flush_deferred_menu_apply().unwrap().is_empty());
-
-    let flushed = press_main(&mut runner);
     assert_eq!(runner.fx_buses[0].slot2_type, "tremolo");
     assert_eq!(runner.audio_config_revision, 0);
-    assert!(flushed.iter().any(|message| matches!(
+    assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::AudioCommands { commands }
             if commands.iter().any(|command| matches!(
@@ -72,15 +67,21 @@ fn fx_bus_slot2_type_turn_is_drafted_until_edit_exit() {
                     if fx_type == "tremolo"
             ))
     )));
+    assert!(runner.flush_deferred_menu_apply().unwrap().is_empty());
+
+    let flushed = press_main(&mut runner);
+    assert_eq!(runner.fx_buses[0].slot2_type, "tremolo");
+    assert_eq!(runner.audio_config_revision, 0);
+    assert_no_audio_commands(&flushed);
 }
 
 #[test]
-fn global_fx_type_turn_is_drafted_until_edit_exit() {
+fn global_fx_type_turn_applies_immediately() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     assert!(runner.menu.focus_item_key("mixer.master.slots.0.type"));
     runner.menu.state.editing = true;
 
-    let _ = turn_main(&mut runner, 1);
+    let messages = turn_main(&mut runner, 1);
 
     assert_eq!(
         runner
@@ -89,14 +90,9 @@ fn global_fx_type_turn_is_drafted_until_edit_exit() {
             .as_deref(),
         Some("vinyl")
     );
-    assert_eq!(runner.global_fx_slots[0], "none");
-    assert_eq!(runner.audio_config_revision, 0);
-    assert!(runner.flush_deferred_menu_apply().unwrap().is_empty());
-
-    let flushed = press_main(&mut runner);
     assert_eq!(runner.global_fx_slots[0], "vinyl");
     assert_eq!(runner.audio_config_revision, 0);
-    assert!(flushed.iter().any(|message| matches!(
+    assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::AudioCommands { commands }
             if commands.iter().any(|command| matches!(
@@ -105,28 +101,36 @@ fn global_fx_type_turn_is_drafted_until_edit_exit() {
                     if fx_type == "vinyl"
             ))
     )));
+    assert!(runner.flush_deferred_menu_apply().unwrap().is_empty());
+
+    let flushed = press_main(&mut runner);
+    assert_eq!(runner.global_fx_slots[0], "vinyl");
+    assert_eq!(runner.audio_config_revision, 0);
+    assert_no_audio_commands(&flushed);
 }
 
 #[test]
-fn instrument_type_turn_is_drafted_until_edit_exit() {
+fn instrument_type_turn_applies_immediately() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.auto_save_default = true;
     assert!(runner.menu.focus_item_key("instruments.0.type"));
     runner.menu.state.editing = true;
 
-    let _ = turn_main(&mut runner, 1);
+    let messages = turn_main(&mut runner, 1);
 
     assert_eq!(
         runner.menu.value_for_key("instruments.0.type").as_deref(),
         Some("sampler")
     );
-    assert_eq!(runner.instruments[0].kind, "synth");
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.instruments[0].kind, "sampler");
+    assert_eq!(runner.audio_config_revision, 1);
+    assert_no_store_save_default(&messages);
     assert!(runner.flush_deferred_menu_apply().unwrap().is_empty());
 
     let messages = press_main(&mut runner);
     assert_eq!(runner.instruments[0].kind, "sampler");
     assert_eq!(runner.audio_config_revision, 1);
+    assert_no_audio_commands(&messages);
     assert_no_store_save_default(&messages);
     runner.make_deferred_menu_apply_due_for_test();
     assert_deferred_autosave_payload(&runner.flush_deferred_menu_apply().unwrap());
@@ -166,7 +170,7 @@ fn synth_filter_type_turn_is_not_misclassified_as_instrument_type_draft() {
 }
 
 #[test]
-fn instrument_route_turn_is_drafted_until_edit_exit() {
+fn instrument_route_turn_applies_immediately() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.auto_save_default = true;
     let _ = runner.messages_with_snapshot().unwrap();
@@ -182,11 +186,6 @@ fn instrument_route_turn_is_drafted_until_edit_exit() {
             .as_deref(),
         Some("fx_bus_1")
     );
-    assert_eq!(runner.instruments[0].route, "direct");
-    assert_eq!(runner.audio_config_revision, 0);
-    assert_no_audio_commands(&messages);
-
-    let messages = press_main(&mut runner);
     assert_eq!(runner.instruments[0].route, "fx_bus_1");
     assert_eq!(runner.audio_config_revision, 1);
     assert_no_store_save_default(&messages);
@@ -198,26 +197,32 @@ fn instrument_route_turn_is_drafted_until_edit_exit() {
                 RuntimeAudioCommand::SetAudioConfig { revision: 1, .. }
             ))
     )));
+
+    let messages = press_main(&mut runner);
+    assert_eq!(runner.instruments[0].route, "fx_bus_1");
+    assert_eq!(runner.audio_config_revision, 1);
+    assert_no_store_save_default(&messages);
+    assert_no_audio_commands(&messages);
     runner.make_deferred_menu_apply_due_for_test();
     assert_deferred_autosave_payload(&runner.flush_deferred_menu_apply().unwrap());
 }
 
 #[test]
-fn behavior_turns_draft_until_edit_exit() {
+fn behavior_turns_apply_immediately() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.auto_save_default = true;
     assert!(runner.menu.focus_item_key("behaviorId"));
     runner.menu.state.editing = true;
 
-    let _ = turn_main(&mut runner, 1);
-    let _ = turn_main(&mut runner, 1);
+    let first_messages = turn_main(&mut runner, 1);
+    let messages = turn_main(&mut runner, 1);
 
     let selected = runner.menu.selected_behavior().unwrap();
-    assert_ne!(selected, runner.behavior.id());
-    assert_eq!(runner.behavior.id(), "life");
+    assert_eq!(runner.behavior.id(), selected);
     assert!(runner.flush_deferred_menu_apply().unwrap().is_empty());
-    assert_eq!(runner.behavior.id(), "life");
-    assert_eq!(runner.part_behavior_ids[0], "life");
+    assert_eq!(runner.part_behavior_ids[0], selected);
+    assert_no_store_save_default(&first_messages);
+    assert_no_store_save_default(&messages);
 
     let messages = press_main(&mut runner);
     assert_eq!(runner.behavior.id(), selected);
@@ -239,13 +244,13 @@ fn behavior_turns_draft_until_edit_exit() {
 }
 
 #[test]
-fn button_back_commits_structural_draft_on_edit_exit() {
+fn button_back_exits_after_immediate_structural_apply_without_double_apply() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     assert!(runner.menu.focus_item_key("mixer.buses.0.slot1.type"));
     runner.menu.state.editing = true;
     let _ = turn_main(&mut runner, 1);
 
-    assert_eq!(runner.fx_buses[0].slot1_type, "none");
+    assert_eq!(runner.fx_buses[0].slot1_type, "tremolo");
 
     let messages = runner
         .send(HostMessage::DeviceInput {
@@ -255,15 +260,7 @@ fn button_back_commits_structural_draft_on_edit_exit() {
 
     assert_eq!(runner.fx_buses[0].slot1_type, "tremolo");
     assert!(!runner.menu.state.editing);
-    assert!(messages.iter().any(|message| matches!(
-        message,
-        RunnerMessage::AudioCommands { commands }
-            if commands.iter().any(|command| matches!(
-                command,
-                RuntimeAudioCommand::SetFxBusSlot { bus_index: 0, slot_index: 0, fx_type, .. }
-                    if fx_type == "tremolo"
-            ))
-    )));
+    assert_no_audio_commands(&messages);
 }
 
 fn turn_main(runner: &mut NativeRunner, delta: i32) -> Vec<RunnerMessage> {

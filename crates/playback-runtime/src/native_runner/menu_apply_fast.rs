@@ -7,6 +7,9 @@ impl NativeRunner {
         if self.apply_menu_key_fast(key) {
             return Ok(());
         }
+        if structural_draft_key(key) {
+            return self.commit_structural_draft_key(key);
+        }
         if self.should_defer_menu_key(key) {
             self.schedule_deferred_menu_apply(key);
             return Ok(());
