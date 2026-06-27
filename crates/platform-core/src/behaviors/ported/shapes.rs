@@ -6,7 +6,7 @@ use crate::behavior::{
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::Value;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Pulse {
@@ -32,7 +32,7 @@ pub struct ShapesState {
     pub auto_pulse_interval: usize,
     #[serde(rename = "spawnStep")]
     pub spawn_step: usize,
-    #[serde(rename = "tickCounter", default)]
+    #[serde(rename = "tickCounter", default, skip_serializing)]
     pub tick_counter: usize,
 }
 
@@ -106,19 +106,6 @@ fn add_pulse(state: &ShapesState, ox: usize, oy: usize) -> ShapesState {
         max_radius: state.max_radius,
     });
     next
-}
-
-pub fn serialize_persistent(state: &ShapesState) -> Result<Value, String> {
-    Ok(json!({
-        "pulses": &state.pulses,
-        "lifetimes": &state.lifetimes,
-        "triggerTypes": &state.trigger_types,
-        "pulseShape": &state.pulse_shape,
-        "lifespan": state.lifespan,
-        "maxRadius": state.max_radius,
-        "autoPulseInterval": state.auto_pulse_interval,
-        "spawnStep": state.spawn_step,
-    }))
 }
 
 pub fn shapes_on_input(

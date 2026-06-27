@@ -86,10 +86,6 @@ impl NativePartEngine {
         self.behavior.serialize(&self.state)
     }
 
-    pub fn persistent_serialized_state(&self) -> Result<Value, String> {
-        self.behavior.serialize_persistent(&self.state)
-    }
-
     pub fn on_input(
         &mut self,
         input: DeviceInput,

@@ -262,41 +262,6 @@ impl NativeBehavior {
         }
     }
 
-    pub fn serialize_persistent(self, state: &NativeBehaviorState) -> Result<Value, String> {
-        match (self, state) {
-            (NativeBehavior::None, NativeBehaviorState::None(state)) => none::serialize(state),
-            (NativeBehavior::Life, NativeBehaviorState::Life(state)) => {
-                life::serialize_persistent(state)
-            }
-            (NativeBehavior::Glider, NativeBehaviorState::Glider(state)) => {
-                glider::serialize_persistent(state)
-            }
-            (NativeBehavior::Sequencer, NativeBehaviorState::Sequencer(state)) => {
-                sequencer::serialize(state)
-            }
-            (NativeBehavior::Keys, NativeBehaviorState::Keys(state)) => ported::serialize(state),
-            (NativeBehavior::Brain, NativeBehaviorState::Brain(state)) => {
-                ported::brain_serialize_persistent(state)
-            }
-            (NativeBehavior::Ant, NativeBehaviorState::Ant(state)) => {
-                ported::ant_serialize_persistent(state)
-            }
-            (NativeBehavior::Bounce, NativeBehaviorState::Bounce(state)) => {
-                ported::bounce_serialize_persistent(state)
-            }
-            (NativeBehavior::Shapes, NativeBehaviorState::Shapes(state)) => {
-                ported::shapes_serialize_persistent(state)
-            }
-            (NativeBehavior::Raindrops, NativeBehaviorState::Raindrops(state)) => {
-                ported::raindrops_serialize_persistent(state)
-            }
-            (NativeBehavior::Dla, NativeBehaviorState::Dla(state)) => {
-                ported::dla_serialize_persistent(state)
-            }
-            _ => Err(format!("state mismatch for behavior {}", self.id())),
-        }
-    }
-
     pub fn deserialize(self, data: Value) -> Result<NativeBehaviorState, String> {
         match self {
             NativeBehavior::None => Ok(NativeBehaviorState::None(none::deserialize(data)?)),
@@ -438,12 +403,9 @@ mod tests {
                 crate::grid::GRID_WIDTH * crate::grid::GRID_HEIGHT
             );
             let serialized = behavior.serialize(&state).unwrap();
+            assert!(serialized.get("generation").is_none());
+            assert!(serialized.get("tickCounter").is_none());
             let restored = behavior.deserialize(serialized).unwrap();
-            let persistent = behavior.serialize_persistent(&state).unwrap();
-            assert!(persistent.get("generation").is_none());
-            assert!(persistent.get("tickCounter").is_none());
-            let persistent_restored = behavior.deserialize(persistent).unwrap();
-            let _ = behavior.render_model(&persistent_restored).unwrap();
             let _ = behavior.config_menu(&restored).unwrap();
         }
     }

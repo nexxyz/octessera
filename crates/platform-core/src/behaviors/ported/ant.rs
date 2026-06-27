@@ -6,7 +6,7 @@ use crate::behavior::{
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::Value;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AntAgent {
@@ -27,7 +27,7 @@ pub struct AntState {
     pub auto_spawn_interval: usize,
     #[serde(rename = "spawnStep")]
     pub spawn_step: usize,
-    #[serde(rename = "tickCounter", default)]
+    #[serde(rename = "tickCounter", default, skip_serializing)]
     pub tick_counter: usize,
 }
 
@@ -59,17 +59,6 @@ fn random_ant() -> AntAgent {
         y: rng.gen_range(0..GRID_HEIGHT),
         dir: 0,
     }
-}
-
-pub fn serialize_persistent(state: &AntState) -> Result<Value, String> {
-    Ok(json!({
-        "ants": &state.ants,
-        "cells": &state.cells,
-        "triggerTypes": &state.trigger_types,
-        "maxAnts": state.max_ants,
-        "autoSpawnInterval": state.auto_spawn_interval,
-        "spawnStep": state.spawn_step,
-    }))
 }
 
 pub fn ant_on_input(

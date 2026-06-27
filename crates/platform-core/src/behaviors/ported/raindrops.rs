@@ -6,7 +6,7 @@ use crate::behavior::{
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::Value;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DropCell {
@@ -34,7 +34,7 @@ pub struct RaindropsState {
     pub splash_radius: usize,
     #[serde(rename = "spawnStep")]
     pub spawn_step: usize,
-    #[serde(rename = "tickCounter", default)]
+    #[serde(rename = "tickCounter", default, skip_serializing)]
     pub tick_counter: usize,
 }
 
@@ -58,18 +58,6 @@ pub fn raindrops_init(config: Value) -> Result<RaindropsState, String> {
         spawn_step: 0,
         tick_counter: 0,
     })
-}
-
-pub fn serialize_persistent(state: &RaindropsState) -> Result<Value, String> {
-    Ok(json!({
-        "drops": &state.drops,
-        "rings": &state.rings,
-        "cells": &state.cells,
-        "triggerTypes": &state.trigger_types,
-        "autoDropInterval": state.auto_drop_interval,
-        "splashRadius": state.splash_radius,
-        "spawnStep": state.spawn_step,
-    }))
 }
 
 pub fn raindrops_on_input(
