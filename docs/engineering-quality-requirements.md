@@ -1,6 +1,8 @@
 # Engineering Quality Requirements
 
-This document describes the current quality baseline. It should match the checks that are actually wired in this repository.
+This contributor document describes the current quality baseline. It should match the checks that are actually wired in this repository.
+
+Primary docs are still the user and hardware docs: `hardware/pinout-and-connections.md`, `hardware/enclosure/README.md`, `hardware/pi-bring-up.md`, and `docs/menu-and-controls-spec.md`.
 
 ## Goals
 
@@ -11,6 +13,8 @@ This document describes the current quality baseline. It should match the checks
 - Documentation that describes current behavior, not completed-work history.
 
 ## Required Checks
+
+For command details, see `docs/development-workflows.md`. The pre-push hook in `.githooks/pre-push` is the broad local CI gate.
 
 TypeScript and generated contract checks:
 

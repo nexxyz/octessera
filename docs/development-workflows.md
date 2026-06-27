@@ -1,4 +1,11 @@
-# Development Workflows
+# Contributor Development Workflows
+
+This is a contributor reference. End-user hardware build, assembly, and bring-up docs have priority:
+
+- `hardware/pinout-and-connections.md`
+- `hardware/enclosure/README.md`
+- `hardware/pi-bring-up.md`
+- `docs/menu-and-controls-spec.md`
 
 ## Install
 
@@ -89,6 +96,8 @@ cargo clippy -p platform-core -p playback-runtime -p realtime-engine -p cellsymp
 
 The root `typecheck` runs `capabilities:check` before package typechecks.
 
+The pre-push hook runs CI-like checks against the committed tree, including lint, typecheck, format checks, tests, coverage, file-length checks, Tauri build smoke, and clippy. Use a long timeout when pushing from automation. Do not skip the hook; fix failures and push again.
+
 On Windows, use the cached Cargo wrapper while iterating. It enables `sccache` when installed, uses a local rustc-wrapper shim to strip Cargo's incremental env var before invoking `sccache`, and passes temporary profile overrides that disable incremental for that command so more crates can be cached. Without `sccache`, Cargo uses its normal `target/` cache:
 
 ```powershell
@@ -156,3 +165,16 @@ git diff --check
 ```
 
 Search for obsolete completed-work history before committing documentation updates.
+
+## Menu/Control Playback-Priority Changes
+
+Menu and control changes can affect playback timing. Use this checklist when changing `crates/playback-runtime` menu apply paths, desktop/Pi runtime loops, or audio config/control routing:
+
+1. Prefer key-specific fast paths over broad `apply_menu_state()` for high-frequency edit paths.
+2. Keep dynamic parameters immediate and bounded.
+3. For structural selectors, avoid full config/audio rebuilds unless the selected structure actually changed.
+4. Delay autosave payload generation for rapid edits; explicit Save Default remains immediate.
+5. Preserve hardware parity by implementing behavior in `playback-runtime` or `platform-core`, not desktop TypeScript.
+6. Update `docs/menu-and-controls-spec.md` for parity-affecting control/menu behavior.
+7. Run targeted playback-runtime tests first, then full `cargo test -p playback-runtime` before commit.
+8. Rebuild `apps/desktop/dist-desktop/CellSymphony.exe` when the change is desktop-visible.

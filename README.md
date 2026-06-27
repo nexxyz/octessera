@@ -1,6 +1,6 @@
 # Cell Symphony
 
-Cell Symphony is a native Rust music platform that turns cellular automata into musical events. It ships as a Tauri desktop hardware simulator and as a native Raspberry Pi app target using the same Rust runtime/core behavior path.
+Cell Symphony is a hardware-first Rust music platform that turns cellular automata into musical events. It ships as a native Raspberry Pi app target and a Tauri desktop hardware simulator using the same Rust runtime/core behavior path.
 
 ## Current State
 
@@ -9,6 +9,19 @@ Cell Symphony is a native Rust music platform that turns cellular automata into 
 - Desktop uses Tauri as the host adapter for windowing, storage, MIDI, sample browsing, sample decoding, and audio output.
 - Pi Zero uses a native Rust app with HAL stubs for host builds and `hardware-pi` for real hardware builds.
 - Internal synth/sample audio routes through `crates/realtime-engine` and `crates/rodio-engine-source`; MIDI instruments emit external MIDI instead of entering the internal audio mixer.
+
+## Documentation Priority
+
+Documentation is written first for people building, wiring, assembling, and using the hardware instrument.
+
+Contributor and collaboration docs are secondary. They live under `docs/` and should stay concise so they do not bury the user/hardware path.
+
+Start here:
+
+1. [`hardware/pinout-and-connections.md`](hardware/pinout-and-connections.md) — wiring, pin ownership, buses, and hardware source of truth.
+2. [`hardware/enclosure/README.md`](hardware/enclosure/README.md) — case, port access, print notes, and power rule.
+3. [`hardware/pi-bring-up.md`](hardware/pi-bring-up.md) — Pi OS setup, preflight, build/deploy, and bring-up checklist.
+4. [`docs/menu-and-controls-spec.md`](docs/menu-and-controls-spec.md) — runtime controls, menus, overlays, and display behavior.
 
 ## What It Does
 
@@ -67,12 +80,12 @@ cellSymphony/
 ├── packages/
 │   └── device-contracts/         # Shared TypeScript bridge/display/runtime contracts
 ├── resources/                    # Menu help text and platform capabilities
-├── docs/                         # Current architecture, workflow, menu, and quality docs
-├── hardware/                     # Pi pinout, enclosure, and bring-up docs
+├── docs/                         # Menu spec and secondary contributor docs
+├── hardware/                     # Primary hardware build, wiring, enclosure, and bring-up docs
 └── tools/                        # Repository maintenance tools
 ```
 
-## Development
+## Contributor Development
 
 Install dependencies:
 
@@ -110,18 +123,23 @@ Build the Pi app with host stubs:
 cargo build -p cellsymphony-pi
 ```
 
-See `docs/development-workflows.md` for complete build, verification, capability-generation, and Pi hardware build notes.
+See `docs/development-workflows.md` for complete contributor build, verification, capability-generation, and Pi hardware build notes.
 
-## Documentation
+## Documentation Map
 
-- `docs/menu-and-controls-spec.md`: authoritative controls, menu structure, overlays, persistence, and display behavior.
-- `docs/runtime-boundaries.md`: crate/host responsibilities and dependency boundaries.
-- `docs/development-workflows.md`: current development, build, verification, and capability-generation commands.
-- `docs/engineering-quality-requirements.md`: current quality gates and definition of done.
-- `docs/open-work.md`: current actionable work only.
-- `hardware/pinout-and-connections.md`: Pi wiring, bus allocation, and logical input mapping.
-- `hardware/hardware-integration-plan.md`: current Pi integration status and bring-up checklist.
-- `hardware/enclosure/README.md`: current enclosure ports, power rule, and mechanical notes.
+Primary user and hardware docs:
+
+- [`hardware/pinout-and-connections.md`](hardware/pinout-and-connections.md): Pi wiring, bus allocation, logical input mapping, and hardware source of truth.
+- [`hardware/enclosure/README.md`](hardware/enclosure/README.md): enclosure ports, power rule, printing notes, and mechanical strategy.
+- [`hardware/pi-bring-up.md`](hardware/pi-bring-up.md): Pi OS setup, preflight, build/deploy, bring-up, diagnostics, and update plan.
+- [`docs/menu-and-controls-spec.md`](docs/menu-and-controls-spec.md): authoritative controls, menu structure, overlays, persistence, and display behavior.
+
+Secondary contributor docs:
+
+- [`docs/runtime-boundaries.md`](docs/runtime-boundaries.md): crate/host responsibilities and dependency boundaries.
+- [`docs/development-workflows.md`](docs/development-workflows.md): current development, build, verification, and capability-generation commands.
+- [`docs/engineering-quality-requirements.md`](docs/engineering-quality-requirements.md): current quality gates and definition of done.
+- [`docs/open-work.md`](docs/open-work.md): current actionable work only.
 
 ## Samples
 

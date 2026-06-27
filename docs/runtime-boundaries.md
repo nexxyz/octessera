@@ -1,6 +1,6 @@
 # Runtime Boundaries
 
-This project keeps UI, host adapters, native runtime logic, core behavior logic, and audio rendering in separate layers.
+This contributor contract keeps UI, host adapters, native runtime logic, core behavior logic, and audio rendering in separate layers.
 
 Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
 

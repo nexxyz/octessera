@@ -1,6 +1,8 @@
 # Pinout and Connections
 
-This document describes the current Cell Symphony hardware wiring for the Raspberry Pi Zero 2 W target.
+This is the primary wiring reference for the Raspberry Pi Zero 2 W hardware target.
+
+Use it while assembling the device. For Pi OS setup and bring-up, see [`pi-bring-up.md`](pi-bring-up.md). For the case and port layout, see [`enclosure/README.md`](enclosure/README.md).
 
 ## Hardware Summary
 
@@ -96,6 +98,6 @@ Notes:
 
 ## Source of Truth
 
-- Schematic: `hardware/KiCAD/cellSymphony.kicad_sch`
-- Netlist: `hardware/KiCAD/cellSymphony.net`
-- HAL pin mapping: `crates/hal/src/pinmap.rs`
+- Schematic: [`KiCAD/cellSymphony.kicad_sch`](KiCAD/cellSymphony.kicad_sch)
+- Netlist: [`KiCAD/cellSymphony.net`](KiCAD/cellSymphony.net)
+- HAL pin mapping: [`../crates/hal/src/pinmap.rs`](../crates/hal/src/pinmap.rs)

@@ -1,6 +1,8 @@
 # Enclosure
 
-This document describes the current enclosure shape and access points for the Cell Symphony hardware target.
+This is the enclosure and mechanical reference for the Cell Symphony hardware target.
+
+Use it with [`../pinout-and-connections.md`](../pinout-and-connections.md) for wiring and [`../pi-bring-up.md`](../pi-bring-up.md) for Pi setup.
 
 ## Current Version
 
@@ -59,6 +61,6 @@ The checked-in STL files in this directory are:
 
 ## Source of Truth
 
-- Parameters: `hardware/enclosure/enclosure_params.json`
-- Enclosure layout image: `hardware/enclosure/layout.png`
+- Parameters: [`enclosure_params.json`](enclosure_params.json)
+- Enclosure layout image: [`layout.png`](layout.png)
 - Printable meshes: `hardware/enclosure/*.stl`

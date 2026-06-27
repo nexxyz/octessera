@@ -25,7 +25,8 @@
     "resources": [
       "../../../README.md",
       "../../../LICENSE",
-      "../../../docs/**/*"
+      "../../../docs/**/*",
+      "../../../hardware/**/*.md"
     ],
     "windows": {
       "nsis": {

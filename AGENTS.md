@@ -43,6 +43,7 @@ Cell Symphony is a pnpm workspace plus Cargo workspace built around a native Rus
 
 ## Required Documentation Updates
 
+- Documentation is end-user hardware build, assembly, bring-up, and operation first. Contributor/collaboration docs are secondary and should not bury the hardware/user path. Point-in-time audits or completed-work history are lowest priority and should be pruned or moved out of the main docs set.
 - Any parity-affecting or control/menu change must update `docs/menu-and-controls-spec.md` in the same commit.
 - Keep `resources/menu-help-texts.tsv` in sync with enum/help-text changes; native tests enforce coverage.
 - Keep `resources/platform-capabilities.json` as the source of truth for platform dimensions and limits; regenerate TypeScript capability exports after edits.
@@ -72,6 +73,7 @@ Cell Symphony is a pnpm workspace plus Cargo workspace built around a native Rus
 - Every code-change loop should leave the codebase in a potentially shippable, production-quality state unless the user explicitly approves otherwise. Do not defer known cleanup, dead code removal, stale tests, obsolete commands, required docs, or required validation as optional follow-up.
 - Keep explanations brief and avoid post-change recap unless it is useful.
 - If a first fix for a desktop-visible menu/control/runtime bug fails, reproduce the reported phenomenon with a full UI-level or device-input replay before attempting another fix. Prefer tests that follow the user-visible flow over direct internal state mutation alone.
+- For menu/control changes that affect playback priority, avoid broad `apply_menu_state()` on high-frequency edit paths. Prefer key-specific fast paths, delayed autosave payload generation, full `cargo test -p playback-runtime` after targeted tests, and the portable desktop exe rebuild when desktop-visible.
 - If you encounter repository changes you did not make and they conflict with the current task, stop and ask the user how to proceed.
 
 ## Useful Commands
@@ -86,3 +88,4 @@ Cell Symphony is a pnpm workspace plus Cargo workspace built around a native Rus
 - Pi cross-build/deploy: `./tools/build-pi-cross.ps1`; then `./tools/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -LocalBinary target/pi-cross/cellsymphony-pi -NoTail`.
 - Pi source sync fallback: `./tools/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -SyncOnly -NoTail` preserves the remote Cargo cache; avoid ad hoc full tar extraction over the repo.
 - Pre-push hook: `.githooks/pre-push` runs lint, typecheck, format checks, tests, file-length checks, and `cargo clippy`.
+- Git push: use a long timeout because the pre-push hook runs CI-like checks. Do not skip the hook; fix failures and retry.
