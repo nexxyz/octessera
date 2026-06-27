@@ -130,6 +130,7 @@ impl NativeRunner {
             self.last_snapshot_audio_config_revision != Some(self.audio_config_revision);
         let snapshot = self.snapshot_with_audio_config(include_audio_config)?;
         if include_audio_config {
+            self.queue_audio_command(self.full_audio_config_command());
             self.last_snapshot_audio_config_revision = Some(self.audio_config_revision);
         }
         Ok(snapshot)

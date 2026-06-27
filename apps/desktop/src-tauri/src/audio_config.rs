@@ -20,6 +20,8 @@ pub struct AudioInstrumentsConfig {
     pan_positions: Option<usize>,
     #[serde(default, rename = "masterVolume")]
     master_volume: Option<f32>,
+    #[serde(default, rename = "voiceStealingMode")]
+    pub voice_stealing_mode: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -45,12 +47,6 @@ struct AudioBusConfig {
     slot2: Option<serde_json::Value>,
     #[serde(default)]
     pan_pos: Option<usize>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AudioRuntimePolicyConfig {
-    pub voice_stealing_mode: String,
 }
 
 #[derive(Deserialize)]

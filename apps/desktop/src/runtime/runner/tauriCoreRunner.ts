@@ -32,10 +32,6 @@ class TauriCoreRunnerClient {
     await withTimeout(invoke("runtime_sync_config", { config }), IPC_TIMEOUT);
   }
 
-  async handleMidiRealtime(bytes: Uint8Array): Promise<RuntimeRunnerMessage[]> {
-    return (await withTimeout(invoke("runtime_handle_midi_realtime", { bytes: Array.from(bytes) }), IPC_TIMEOUT)) as RuntimeRunnerMessage[];
-  }
-
   async drainRuntimeMessages(): Promise<RuntimeMessagesBatch[]> {
     return (await withTimeout(invoke("runtime_drain_messages"), IPC_TIMEOUT)) as RuntimeMessagesBatch[];
   }

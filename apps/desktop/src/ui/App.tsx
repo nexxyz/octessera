@@ -4,7 +4,7 @@ import { createSimulatorRuntime } from "../runtime/simulatorRuntime";
 import { ControlsPanel } from "./ControlsPanel";
 import { GridMatrix } from "./GridMatrix";
 import { useGridInteraction } from "./appGridInteraction";
-import { useAudioConfigSync, useDialDragBindings, useKeyboardBindings, useRuntimeBindings } from "./appHooks";
+import { useDialDragBindings, useKeyboardBindings, useRuntimeBindings } from "./appHooks";
 
 const runtime = createSimulatorRuntime();
 type EncoderId = "main" | `aux${number}`;
@@ -26,9 +26,11 @@ export function App() {
     runtime.dispatch(input);
   }
 
-  function bumpDialPhase(id: EncoderId | undefined, delta: -1 | 1) {
+  function bumpDialPhase(id: EncoderId | undefined, delta: number) {
+    const step = Math.sign(delta);
+    if (step === 0) return;
     const key = id ?? "main";
-    setDialPhase((prev) => ({ ...prev, [key]: ((prev[key] ?? 0) + delta + 8) % 8 }));
+    setDialPhase((prev) => ({ ...prev, [key]: ((prev[key] ?? 0) + step + 8) % 8 }));
   }
 
   function turnWithAcceleration(id: EncoderId, delta: -1 | 1, magnitude: number) {
@@ -44,7 +46,6 @@ export function App() {
   useRuntimeBindings(runtime, setSnapshot);
   useKeyboardBindings(runtime, bumpDialPhase);
   useDialDragBindings(dialDrag, setDialDrag, turnWithAcceleration);
-  useAudioConfigSync(snapshot);
 
   return (
     <main className="app-shell" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>

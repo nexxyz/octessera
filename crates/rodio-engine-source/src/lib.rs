@@ -59,6 +59,10 @@ pub enum EngineEvent {
         volume_pct: Option<f32>,
         pan_pos: Option<usize>,
     },
+    SetFxBusMixer {
+        bus_index: usize,
+        pan_pos: Option<usize>,
+    },
     SetSynthParam {
         instrument_slot: usize,
         path: String,
@@ -218,6 +222,9 @@ impl EngineSource {
                 } => {
                     self.engine
                         .set_instrument_mixer(instrument_slot, volume_pct, pan_pos);
+                }
+                EngineEvent::SetFxBusMixer { bus_index, pan_pos } => {
+                    self.engine.set_fx_bus_mixer(bus_index, pan_pos);
                 }
                 EngineEvent::SetSynthParam {
                     instrument_slot,

@@ -376,6 +376,7 @@ dependencies = [
  "realtime-engine",
  "rodio",
  "rodio-engine-source",
+ "serde",
  "serde_json",
  "simple_logger",
 ]

@@ -221,6 +221,46 @@ fn param_mod_binding_updates_native_runtime_config() {
 }
 
 #[test]
+fn voice_stealing_param_mod_emits_full_audio_config_command() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let _ = runner.messages_with_snapshot().unwrap();
+    runner.param_mods[0].x[0] = Some(NativeParamBinding {
+        key: "sound.voiceStealingMode".into(),
+        label: Some("Steal".into()),
+        kind: "enum".into(),
+        min: None,
+        max: None,
+        step: None,
+        options: vec!["auto-balanced".into(), "auto-hard".into()],
+        invert: false,
+    });
+    let intents = vec![CellTriggerIntent {
+        x: 7,
+        y: 0,
+        degree: 0,
+        kind: platform_core::CellTriggerKind::Activate,
+    }];
+
+    runner.apply_runtime_modulation(&intents, 0);
+    let messages = runner.messages_with_snapshot().unwrap();
+
+    let config = messages
+        .iter()
+        .find_map(|message| match message {
+            RunnerMessage::AudioCommands { commands } => commands.iter().find_map(|command| {
+                if let RuntimeAudioCommand::SetAudioConfig { config, .. } = command {
+                    Some(config)
+                } else {
+                    None
+                }
+            }),
+            _ => None,
+        })
+        .expect("full audio config command");
+    assert_eq!(config["voiceStealingMode"], "auto-hard");
+}
+
+#[test]
 fn shift_grid_param_mod_mapping_cycles_slots() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let binding = NativeParamBinding {

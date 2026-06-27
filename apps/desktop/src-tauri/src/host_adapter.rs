@@ -1,12 +1,16 @@
+mod audio_config_apply;
+
 use crate::audio_config::decode_sample_file;
+use crate::desktop_platform_service::{
+    shape_service_unavailable_result, DesktopPlatformServiceRequest,
+};
 use crate::midi;
-use crate::samples;
 use crate::samples::resolve_sample_file;
 use crate::types::{MomentaryFxTargetPayload, QueuedAudioEvent, QueuedNote};
 use midir::MidiInputConnection;
 use playback_runtime::{
-    HostAdapter, HostMessage, MidiPort, MusicalEvent as RuntimeMusicalEvent, RuntimeAudioCommand,
-    RuntimePlatformEffect, RuntimeStoreResult, SampleEntry,
+    HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent, RuntimeAudioCommand,
+    RuntimePlatformEffect, RuntimeStoreResult,
 };
 use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
 use std::collections::HashMap;
@@ -18,35 +22,42 @@ use std::time::{Duration, Instant};
 const DEFERRED_DEFAULT_SAVE_MS: u64 = 2_000;
 
 pub(crate) struct DesktopPlaybackHostAdapter {
-    pub(crate) trigger_tx: Sender<QueuedAudioEvent>,
-    pub(crate) sample_cache: Arc<Mutex<HashMap<String, realtime_engine::synth::SampleBuffer>>>,
+    pub(crate) audio: DesktopHostAudioState,
     pub(crate) midi_out: Arc<Mutex<Option<midir::MidiOutputConnection>>>,
     pub(crate) midi_in: Arc<Mutex<Option<MidiInputConnection<()>>>>,
     pub(crate) midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
     pub(crate) store_dir: PathBuf,
     pending_default_save: Option<(serde_json::Value, Instant)>,
+    platform_service_tx: Sender<DesktopPlatformServiceRequest>,
     selected_midi_output_id: Option<String>,
     selected_midi_input_id: Option<String>,
     shutdown_requested: bool,
 }
 
+pub(crate) struct DesktopHostAudioState {
+    pub(crate) trigger_tx: Sender<QueuedAudioEvent>,
+    pub(crate) synth_slots: Arc<Mutex<[bool; INSTRUMENT_SLOT_COUNT]>>,
+    pub(crate) sample_cache: Arc<Mutex<HashMap<String, realtime_engine::synth::SampleBuffer>>>,
+    pub(crate) sample_bank_signature: Arc<Mutex<String>>,
+}
+
 impl DesktopPlaybackHostAdapter {
     pub(crate) fn new(
-        trigger_tx: Sender<QueuedAudioEvent>,
-        sample_cache: Arc<Mutex<HashMap<String, realtime_engine::synth::SampleBuffer>>>,
+        audio: DesktopHostAudioState,
         midi_out: Arc<Mutex<Option<midir::MidiOutputConnection>>>,
         midi_in: Arc<Mutex<Option<MidiInputConnection<()>>>>,
         midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
         store_dir: PathBuf,
+        platform_service_tx: Sender<DesktopPlatformServiceRequest>,
     ) -> Self {
         Self {
-            trigger_tx,
-            sample_cache,
+            audio,
             midi_out,
             midi_in,
             midi_in_handler,
             store_dir,
             pending_default_save: None,
+            platform_service_tx,
             selected_midi_output_id: None,
             selected_midi_input_id: None,
             shutdown_requested: false,
@@ -104,25 +115,17 @@ impl DesktopPlaybackHostAdapter {
         std::fs::write(self.store_dir.join("default.json"), content).map_err(|e| e.to_string())
     }
 
-    fn midi_ports(ports: Vec<midi::MidiPortInfo>) -> Vec<MidiPort> {
-        ports
-            .into_iter()
-            .map(|port| MidiPort {
-                id: port.id,
-                name: port.name,
-            })
-            .collect()
-    }
-
-    fn sample_entries(entries: Vec<samples::SampleEntry>) -> Vec<SampleEntry> {
-        entries
-            .into_iter()
-            .map(|entry| SampleEntry {
-                name: entry.name,
-                path: entry.path,
-                is_dir: entry.is_dir,
-            })
-            .collect()
+    fn enqueue_platform_service_request(
+        &self,
+        request: DesktopPlatformServiceRequest,
+    ) -> Vec<HostMessage> {
+        match self.platform_service_tx.send(request) {
+            Ok(()) => Vec::new(),
+            Err(error) => shape_service_unavailable_result(
+                error.0,
+                "Desktop platform service unavailable".into(),
+            ),
+        }
     }
 }
 
@@ -149,7 +152,8 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                 value: (*value).min(127),
             },
         };
-        self.trigger_tx
+        self.audio
+            .trigger_tx
             .send(queued)
             .map_err(|e| format!("audio queue send failed: {e}"))
     }
@@ -262,16 +266,10 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                 self.handle_audio_command(command)?;
                 Ok(vec![])
             }
-            RuntimePlatformEffect::MidiListOutputsRequest => Ok(vec![HostMessage::RuntimeResult {
-                result: RuntimeStoreResult::MidiListOutputsResult {
-                    outputs: Self::midi_ports(midi::list_outputs()?),
-                },
-            }]),
-            RuntimePlatformEffect::MidiListInputsRequest => Ok(vec![HostMessage::RuntimeResult {
-                result: RuntimeStoreResult::MidiListInputsResult {
-                    inputs: Self::midi_ports(midi::list_inputs()?),
-                },
-            }]),
+            RuntimePlatformEffect::MidiListOutputsRequest => Ok(self
+                .enqueue_platform_service_request(DesktopPlatformServiceRequest::MidiListOutputs)),
+            RuntimePlatformEffect::MidiListInputsRequest => Ok(self
+                .enqueue_platform_service_request(DesktopPlatformServiceRequest::MidiListInputs)),
             RuntimePlatformEffect::MidiSelectOutput { id } => {
                 let result = midi::select_output(id.clone(), &self.midi_out);
                 if result.is_ok() {
@@ -331,29 +329,22 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                 instrument_slot,
                 sample_slot,
                 dir,
-            } => match samples::sample_list(dir.clone()) {
-                Ok(entries) => Ok(vec![HostMessage::RuntimeResult {
-                    result: RuntimeStoreResult::SampleListResult {
-                        instrument_slot: *instrument_slot,
-                        sample_slot: *sample_slot,
-                        dir: dir.clone(),
-                        entries: Self::sample_entries(entries),
-                    },
-                }]),
-                Err(message) => Ok(vec![HostMessage::RuntimeResult {
-                    result: RuntimeStoreResult::SampleListError {
-                        instrument_slot: *instrument_slot,
-                        sample_slot: *sample_slot,
-                        dir: dir.clone(),
-                        message,
-                    },
-                }]),
-            },
+            } => Ok(self.enqueue_platform_service_request(
+                DesktopPlatformServiceRequest::SampleList {
+                    instrument_slot: *instrument_slot,
+                    sample_slot: *sample_slot,
+                    dir: dir.clone(),
+                },
+            )),
         }
     }
 
     fn handle_audio_command(&mut self, command: &RuntimeAudioCommand) -> Result<(), String> {
+        if let RuntimeAudioCommand::SetAudioConfig { config, .. } = command {
+            return self.handle_full_audio_config(config.clone());
+        }
         let event = match command {
+            RuntimeAudioCommand::SetAudioConfig { .. } => unreachable!(),
             RuntimeAudioCommand::SetMasterVolume { volume_pct } => {
                 QueuedAudioEvent::SetMasterVolume {
                     volume_pct: *volume_pct,
@@ -368,6 +359,12 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                 volume_pct: *volume_pct,
                 pan_pos: *pan_pos,
             },
+            RuntimeAudioCommand::SetFxBusMixer { bus_index, pan_pos } => {
+                QueuedAudioEvent::SetFxBusMixer {
+                    bus_index: *bus_index,
+                    pan_pos: *pan_pos,
+                }
+            }
             RuntimeAudioCommand::SetSynthParam {
                 instrument_slot,
                 path,
@@ -446,6 +443,7 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                     resolve_sample_file(path).ok_or_else(|| "invalid sample path".to_string())?;
                 let buffer = {
                     let mut cache = self
+                        .audio
                         .sample_cache
                         .lock()
                         .map_err(|_| "sample cache poisoned".to_string())?;
@@ -465,7 +463,8 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                 }
             }
         };
-        self.trigger_tx
+        self.audio
+            .trigger_tx
             .send(event)
             .map_err(|e| format!("audio queue send failed: {e}"))
     }

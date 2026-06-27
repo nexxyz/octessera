@@ -1,15 +1,7 @@
-use crate::audio_config::{
-    build_audio_slot_configs, decode_sample_file, parse_voice_stealing_mode, sample_bank_signature,
-    sample_banks, synth_payload, AudioInstrumentsConfig, AudioRuntimePolicyConfig,
-};
-use crate::runtime_worker::{
-    request_worker_audio_command, request_worker_dispatch, request_worker_midi_realtime,
-    WorkerCommand,
-};
-use crate::samples::resolve_sample_file;
+use crate::runtime_worker::{request_worker_audio_command, request_worker_dispatch, WorkerCommand};
 use crate::types::{
     append_audio_error_values, encode_runtime_responses, AudioCommandPayload,
-    MomentaryFxTargetPayload, QueuedAudioEvent, RuntimeMessagesPayload,
+    MomentaryFxTargetPayload, RuntimeMessagesPayload,
 };
 use playback_runtime::RuntimeAudioCommand;
 use realtime_engine::synth::SAMPLE_SLOTS_PER_INSTRUMENT;
@@ -36,70 +28,6 @@ pub(crate) fn runtime_drain_messages(
         .lock()
         .map_err(|_| "runtime outbox mutex poisoned".to_string())?;
     Ok(std::mem::take(&mut *guard))
-}
-
-#[tauri::command]
-pub(crate) fn audio_set_instruments(
-    config: AudioInstrumentsConfig,
-    state: tauri::State<crate::AppState>,
-) -> Result<(), String> {
-    let (next_slots, _) = build_audio_slot_configs(&config.instruments);
-    let next_sample_signature = sample_bank_signature(&config);
-    let should_update_sample_banks = {
-        let mut current = state
-            .sample_bank_signature
-            .lock()
-            .map_err(|_| "sample bank signature lock failed".to_string())?;
-        if *current == next_sample_signature {
-            false
-        } else {
-            *current = next_sample_signature;
-            true
-        }
-    };
-    let next_sample_banks = if should_update_sample_banks {
-        let mut cache = state
-            .sample_cache
-            .lock()
-            .map_err(|_| "sample cache lock failed".to_string())?;
-        Some(sample_banks(&config, resolve_sample_file, |path| {
-            if let Some(buffer) = cache.get(path) {
-                return Some(buffer.clone());
-            }
-            let buffer = decode_sample_file(path)?;
-            cache.insert(path.to_string(), buffer.clone());
-            Some(buffer)
-        }))
-    } else {
-        None
-    };
-    if let Ok(mut slots) = state.synth_slots.lock() {
-        *slots = next_slots;
-    }
-    let synth_payload = synth_payload(&config);
-    state
-        .trigger_tx
-        .send(QueuedAudioEvent::SetInstruments(synth_payload))
-        .map_err(|e| format!("audio queue send failed: {e}"))?;
-    if let Some(next_sample_banks) = next_sample_banks {
-        state
-            .trigger_tx
-            .send(QueuedAudioEvent::SetSampleBanks(next_sample_banks))
-            .map_err(|e| format!("audio queue send failed: {e}"))?;
-    }
-    Ok(())
-}
-
-#[tauri::command]
-pub(crate) fn audio_set_runtime_policy(
-    policy: AudioRuntimePolicyConfig,
-    state: tauri::State<crate::AppState>,
-) -> Result<(), String> {
-    let mode = parse_voice_stealing_mode(&policy.voice_stealing_mode);
-    state
-        .trigger_tx
-        .send(QueuedAudioEvent::SetVoiceStealingMode(mode))
-        .map_err(|e| format!("audio queue send failed: {e}"))
 }
 
 #[tauri::command]
@@ -173,17 +101,6 @@ pub(crate) fn runtime_dispatch(
         .map_err(|e| format!("invalid runtime host message: {e}"))?;
     Ok(append_audio_error_values(
         encode_runtime_responses(request_worker_dispatch(&state, host_message)?)?,
-        &state.audio_error,
-    ))
-}
-
-#[tauri::command]
-pub(crate) fn runtime_handle_midi_realtime(
-    bytes: Vec<u8>,
-    state: tauri::State<crate::AppState>,
-) -> Result<Vec<Value>, String> {
-    Ok(append_audio_error_values(
-        encode_runtime_responses(request_worker_midi_realtime(&state, bytes)?)?,
         &state.audio_error,
     ))
 }

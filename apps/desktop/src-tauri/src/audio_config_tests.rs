@@ -70,6 +70,7 @@ fn sample_banks_preserve_sample_playback_controls_without_decoding_in_audio_thre
         mixer: None,
         pan_positions: None,
         master_volume: None,
+        voice_stealing_mode: None,
     };
 
     let banks = sample_banks(&config, |_| None, |_| None);
@@ -111,6 +112,7 @@ fn sample_bank_signature_ignores_synth_only_changes() {
         mixer: None,
         pan_positions: None,
         master_volume: None,
+        voice_stealing_mode: None,
     };
     let before = sample_bank_signature(&config);
     synth.filter.cutoff_hz = 120.0;
@@ -141,6 +143,7 @@ fn sample_bank_signature_ignores_synth_only_changes() {
         mixer: None,
         pan_positions: None,
         master_volume: None,
+        voice_stealing_mode: None,
     };
     assert_eq!(before, sample_bank_signature(&changed_synth));
 }
@@ -179,6 +182,7 @@ fn synth_payload_includes_master_fx_slots() {
         }),
         pan_positions: None,
         master_volume: None,
+        voice_stealing_mode: None,
     };
 
     let payload = synth_payload(&config);

@@ -3,12 +3,14 @@ use crate::native_menu::{
     NativeParamBindingSpec, NativeParamModsConfig, NativeSensePartConfig, NativeValueLaneConfig,
 };
 #[cfg(test)]
+use crate::protocol::RuntimeAudioCommand;
+#[cfg(test)]
 use crate::protocol::RuntimeStoreResult;
 #[cfg(test)]
 use crate::protocol::{HostMessage, RunnerMessage};
 use crate::protocol::{
-    MidiPort, RuntimeAudioCommand, RuntimeMomentaryFxTarget, RuntimePlatformEffect,
-    RuntimeTransportState, SampleEntry, SyncSource,
+    MidiPort, RuntimeMomentaryFxTarget, RuntimePlatformEffect, RuntimeTransportState, SampleEntry,
+    SyncSource,
 };
 use crate::runtime::{CoreRunner, RuntimeConfig};
 use dance_fx_utils::{
@@ -85,6 +87,7 @@ mod modulation_keys;
 mod modulation_sampler;
 mod modulation_sense;
 mod modulation_value;
+mod outbox;
 mod overlays;
 mod pan_position;
 mod part_state;
@@ -122,6 +125,7 @@ use instrument_collections::*;
 use instrument_runtime::*;
 use json_path::*;
 use menu_value_apply::*;
+use outbox::NativeRunnerOutbox;
 use pan_position::*;
 use sample_assignment_payload::*;
 use sample_paths::*;
@@ -241,7 +245,7 @@ pub struct NativeRunner {
     current_preset_name: Option<String>,
     preset_draft_name: String,
     preset_rename_source: Option<String>,
-    queued_platform_effects: Vec<RuntimePlatformEffect>,
+    outbox: NativeRunnerOutbox,
     midi_outputs: Vec<MidiPort>,
     midi_inputs: Vec<MidiPort>,
     midi_status: Option<String>,
@@ -305,7 +309,6 @@ pub struct NativeRunner {
     aux_turn_toast_cooldown_until: Option<Instant>,
     pending_aux_turn_toast: Option<PendingNativeToast>,
     pending_menu_apply: Option<PendingMenuApply>,
-    pending_audio_commands: Vec<RuntimeAudioCommand>,
 }
 
 #[cfg(test)]

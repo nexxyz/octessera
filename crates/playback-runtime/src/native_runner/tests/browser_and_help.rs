@@ -183,6 +183,12 @@ fn sample_browser_error_surfaces_host_message_and_empty_browser() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.startup_splash_presented = true;
     runner.toast = None;
+    runner.sample_browser = Some(NativeSampleBrowser {
+        instrument_slot: 0,
+        sample_slot: 0,
+        dir: "sd-card".into(),
+        entries: vec![],
+    });
     let host_message = "SD card missing";
 
     runner

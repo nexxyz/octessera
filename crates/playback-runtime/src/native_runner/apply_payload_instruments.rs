@@ -171,16 +171,16 @@ impl NativeRunner {
     }
 
     fn queue_midi_selection_effects(&mut self) {
-        self.queued_platform_effects
-            .push(RuntimePlatformEffect::MidiSelectOutput {
+        self.outbox
+            .push_platform_effect(RuntimePlatformEffect::MidiSelectOutput {
                 id: if self.midi_enabled {
                     self.selected_midi_output_id.clone()
                 } else {
                     None
                 },
             });
-        self.queued_platform_effects
-            .push(RuntimePlatformEffect::MidiSelectInput {
+        self.outbox
+            .push_platform_effect(RuntimePlatformEffect::MidiSelectInput {
                 id: if self.midi_enabled {
                     self.selected_midi_input_id.clone()
                 } else {

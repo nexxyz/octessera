@@ -168,6 +168,9 @@ fn instrument_list_shows_compact_name_labels() {
     assert!(lines
         .iter()
         .any(|line| line.as_str().unwrap_or("").contains("I1: synth")));
+    assert!(lines
+        .iter()
+        .any(|line| line.as_str().unwrap_or("").contains("I2: samp direct")));
 }
 
 #[test]

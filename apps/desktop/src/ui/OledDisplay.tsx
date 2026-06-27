@@ -55,28 +55,28 @@ function useSemanticOledState(
   frame: RuntimeSnapshot,
   audioLoad?: { ratio: number; voiceSteal: boolean }
 ): SemanticOledState {
-  const displayOff = Boolean((frame.display as any).off ?? false);
-  const splashText = String((frame.display as any).splash ?? "");
-  const selectedRow = Number((frame as any).selectedRow ?? -1);
+  const displayOff = Boolean(frame.display.off ?? false);
+  const splashText = String(frame.display.splash ?? "");
+  const selectedRow = Number(frame.selectedRow ?? -1);
   const lineColors = Array.isArray(frame.display.colors) ? frame.display.colors : [];
-  const barValues = Array.isArray((frame.display as any).barValues) ? (frame.display as any).barValues : [];
-  const scrollOffset = Number((frame.display as any).scrollOffset ?? 0);
-  const totalRows = Number((frame.display as any).totalRows ?? 0);
-  const visibleRows = Number((frame.display as any).visibleRows ?? 0);
+  const barValues = Array.isArray(frame.display.barValues) ? frame.display.barValues : [];
+  const scrollOffset = Number(frame.display.scrollOffset ?? 0);
+  const totalRows = Number(frame.display.totalRows ?? 0);
+  const visibleRows = Number(frame.display.visibleRows ?? 0);
   const scroll = totalRows > visibleRows && visibleRows > 0
     ? { offset: Math.max(0, scrollOffset), totalRows, visibleRows }
     : null;
-  const transportIcon = String((frame as any).transportIcon ?? (frame.transport.playing ? "play" : "pause"));
-  const eventDotOn = Boolean((frame as any).eventDotOn ?? false);
+  const transportIcon = String(frame.transportIcon ?? (frame.transport.playing ? "play" : "pause"));
+  const eventDotOn = Boolean(frame.eventDotOn ?? false);
   const eventDotSteal = audioLoad?.voiceSteal === true;
-  const transportFlash = String((frame as any).transportFlash ?? "none");
+  const transportFlash = String(frame.transportFlash ?? "none");
   const autoSaveFlash = String(frame.settings?.autoSaveFlash ?? "none");
-  const autoSaveFlashSerial = Number((frame.settings as any)?.autoSaveFlashSerial ?? 0);
-  const footerToast = String((frame.display as any).toast ?? "");
+  const autoSaveFlashSerial = Number(frame.settings?.autoSaveFlashSerial ?? 0);
+  const footerToast = String(frame.display.toast ?? "");
   const [saveFlashStartedAt, setSaveFlashStartedAt] = useState<number | null>(autoSaveFlash === "flash" ? Date.now() : null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [visibleFooterToast, setVisibleFooterToast] = useState(footerToast);
-  const frameCpuLoad = Number((frame as any).cpuLoadRatio ?? 0);
+  const frameCpuLoad = Number(frame.cpuLoadRatio ?? 0);
   const audioCpuLoad = audioLoad?.voiceSteal
     ? Math.max(audioLoad.ratio, 0.85)
     : (audioLoad?.ratio ?? 0);

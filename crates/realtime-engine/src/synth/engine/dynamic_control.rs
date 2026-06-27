@@ -22,6 +22,17 @@ impl SynthEngine {
         }
     }
 
+    pub fn set_fx_bus_mixer(&mut self, bus_index: usize, pan_pos: Option<usize>) {
+        if bus_index >= self.bus_pan_pos.len() {
+            return;
+        }
+        if let Some(pan_pos) = pan_pos {
+            self.bus_pan_pos[bus_index] = pan_pos.min(self.pan_positions - 1);
+            self.bus_pan_gains_cache[bus_index] =
+                pan_gains(self.bus_pan_pos[bus_index], self.pan_positions);
+        }
+    }
+
     pub fn set_synth_param(&mut self, instrument_slot: usize, path: &str, value: f32) {
         let slot = instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1);
         if self.slot_kind[slot] != InstrumentKind::Synth {

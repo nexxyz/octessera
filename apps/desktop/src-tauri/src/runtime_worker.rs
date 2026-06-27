@@ -13,7 +13,16 @@ use std::thread;
 use std::time::{Duration, Instant};
 use tauri::Emitter;
 
+mod platform_service;
+mod queue;
+mod requests;
 mod shutdown;
+
+#[cfg(test)]
+mod tests;
+
+use queue::{queue_by_priority, retain_runtime_outbox_batch, MAX_COMMANDS_PER_WAKE};
+pub(crate) use requests::{request_worker_audio_command, request_worker_dispatch};
 
 const SNAPSHOT_INTERVAL_MS: u64 = 16;
 #[cfg(debug_assertions)]
@@ -98,7 +107,7 @@ impl RuntimePerfCounters {
 pub(crate) enum WorkerCommand {
     Dispatch(HostMessage, Sender<Result<Vec<RunnerMessage>, String>>),
     SyncConfig(playback_runtime::RuntimeConfig),
-    MidiRealtime(Vec<u8>, Sender<Result<Vec<RunnerMessage>, String>>),
+    NativeMidiRealtime(Vec<u8>),
     DirectAudio(
         playback_runtime::RuntimeAudioCommand,
         Sender<Result<(), String>>,
@@ -113,6 +122,7 @@ pub(crate) struct RuntimeWorker {
     playback: PlaybackRuntime,
     runner: NativeRunner,
     adapter: DesktopPlaybackHostAdapter,
+    platform_service_result_rx: Receiver<Vec<HostMessage>>,
     last_advance_at: Instant,
     last_ui_refresh_at: Instant,
     last_snapshot_at: Instant,
@@ -126,6 +136,7 @@ impl RuntimeWorker {
         audio_error: Arc<Mutex<Option<String>>>,
         runtime_outbox: Arc<Mutex<Vec<RuntimeMessagesPayload>>>,
         adapter: DesktopPlaybackHostAdapter,
+        platform_service_result_rx: Receiver<Vec<HostMessage>>,
     ) -> Self {
         Self {
             app_handle,
@@ -141,6 +152,7 @@ impl RuntimeWorker {
             runner: NativeRunner::new(desktop_native_runner_config())
                 .expect("native runner should initialize"),
             adapter,
+            platform_service_result_rx,
             last_advance_at: Instant::now(),
             last_ui_refresh_at: Instant::now(),
             last_snapshot_at: Instant::now(),
@@ -154,10 +166,17 @@ impl RuntimeWorker {
         audio_error: Arc<Mutex<Option<String>>>,
         runtime_outbox: Arc<Mutex<Vec<RuntimeMessagesPayload>>>,
         adapter: DesktopPlaybackHostAdapter,
+        platform_service_result_rx: Receiver<Vec<HostMessage>>,
     ) -> Sender<WorkerCommand> {
         let (tx, rx) = mpsc::channel::<WorkerCommand>();
         thread::spawn(move || {
-            let mut worker = RuntimeWorker::new(app_handle, audio_error, runtime_outbox, adapter);
+            let mut worker = RuntimeWorker::new(
+                app_handle,
+                audio_error,
+                runtime_outbox,
+                adapter,
+                platform_service_result_rx,
+            );
             worker.run(rx);
         });
         tx
@@ -174,6 +193,10 @@ impl RuntimeWorker {
             if let Err(err) = self.maybe_advance() {
                 self.handle_error(err);
             }
+            if let Err(err) = self.handle_ready_commands(&rx) {
+                self.handle_error(err);
+            }
+            self.poll_platform_service_results();
             if let Err(err) = self.maybe_refresh_ui() {
                 self.handle_error(err);
             }
@@ -184,7 +207,7 @@ impl RuntimeWorker {
             };
             match rx.recv_timeout(wait) {
                 Ok(command) => {
-                    if let Err(err) = self.handle_command(command) {
+                    if let Err(err) = self.handle_command_batch(command, &rx) {
                         self.handle_error(err);
                     }
                 }
@@ -199,13 +222,43 @@ impl RuntimeWorker {
         }
     }
 
+    fn handle_command_batch(
+        &mut self,
+        first: WorkerCommand,
+        rx: &Receiver<WorkerCommand>,
+    ) -> Result<(), String> {
+        let mut realtime = Vec::new();
+        let mut normal = std::collections::VecDeque::new();
+        queue_by_priority(first, &mut realtime, &mut normal);
+        for _ in 1..MAX_COMMANDS_PER_WAKE {
+            match rx.try_recv() {
+                Ok(command) => queue_by_priority(command, &mut realtime, &mut normal),
+                Err(mpsc::TryRecvError::Empty) => break,
+                Err(mpsc::TryRecvError::Disconnected) => break,
+            }
+        }
+        for command in realtime {
+            self.handle_command(command)?;
+        }
+        while let Some(command) = normal.pop_front() {
+            self.handle_command(command)?;
+        }
+        Ok(())
+    }
+
+    fn handle_ready_commands(&mut self, rx: &Receiver<WorkerCommand>) -> Result<(), String> {
+        let Ok(first) = rx.try_recv() else {
+            return Ok(());
+        };
+        self.handle_command_batch(first, rx)
+    }
+
     fn handle_command(&mut self, command: WorkerCommand) -> Result<(), String> {
         #[cfg(debug_assertions)]
         let started_at = Instant::now();
         let was_internal_playing = self.is_internal_playing();
         match command {
             WorkerCommand::Dispatch(message, reply) => {
-                self.clear_runtime_outbox();
                 let result = self.dispatch_host_message(message);
                 if let Err(err) = &result {
                     let _ = reply.send(Err(err.clone()));
@@ -217,14 +270,9 @@ impl RuntimeWorker {
                 self.playback.set_config(config);
                 self.runner.apply_runtime_config(self.playback.config());
             }
-            WorkerCommand::MidiRealtime(bytes, reply) => {
-                self.clear_runtime_outbox();
-                let result = self.handle_midi_realtime(bytes);
-                if let Err(err) = &result {
-                    let _ = reply.send(Err(err.clone()));
-                    return Err(err.clone());
-                }
-                let _ = reply.send(result);
+            WorkerCommand::NativeMidiRealtime(bytes) => {
+                let responses = self.handle_midi_realtime(bytes)?;
+                self.emit_runner_messages(responses)?;
             }
             WorkerCommand::DirectAudio(command, reply) => {
                 let result = self.adapter.handle_audio_command(&command);
@@ -420,7 +468,7 @@ impl RuntimeWorker {
             messages: values,
         };
         if let Ok(mut guard) = self.runtime_outbox.lock() {
-            guard.push(payload.clone());
+            retain_runtime_outbox_batch(&mut guard, payload.clone());
         }
         self.app_handle
             .emit(RUNTIME_MESSAGES_EVENT, payload)
@@ -441,52 +489,4 @@ impl RuntimeWorker {
             app_handle.exit(0);
         });
     }
-
-    fn clear_runtime_outbox(&self) {
-        if let Ok(mut guard) = self.runtime_outbox.lock() {
-            guard.clear();
-        }
-    }
-}
-
-pub(crate) fn request_worker_dispatch(
-    state: &crate::AppState,
-    message: HostMessage,
-) -> Result<Vec<RunnerMessage>, String> {
-    let (reply_tx, reply_rx) = mpsc::channel();
-    state
-        .worker_tx
-        .send(WorkerCommand::Dispatch(message, reply_tx))
-        .map_err(|e| format!("runtime worker unavailable: {e}"))?;
-    reply_rx
-        .recv()
-        .map_err(|e| format!("runtime worker reply unavailable: {e}"))?
-}
-
-pub(crate) fn request_worker_midi_realtime(
-    state: &crate::AppState,
-    bytes: Vec<u8>,
-) -> Result<Vec<RunnerMessage>, String> {
-    let (reply_tx, reply_rx) = mpsc::channel();
-    state
-        .worker_tx
-        .send(WorkerCommand::MidiRealtime(bytes, reply_tx))
-        .map_err(|e| format!("runtime worker unavailable: {e}"))?;
-    reply_rx
-        .recv()
-        .map_err(|e| format!("runtime worker reply unavailable: {e}"))?
-}
-
-pub(crate) fn request_worker_audio_command(
-    state: &crate::AppState,
-    command: playback_runtime::RuntimeAudioCommand,
-) -> Result<(), String> {
-    let (reply_tx, reply_rx) = mpsc::channel();
-    state
-        .worker_tx
-        .send(WorkerCommand::DirectAudio(command, reply_tx))
-        .map_err(|e| format!("runtime worker unavailable: {e}"))?;
-    reply_rx
-        .recv()
-        .map_err(|e| format!("runtime worker reply unavailable: {e}"))?
 }

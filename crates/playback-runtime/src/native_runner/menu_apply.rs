@@ -3,14 +3,23 @@ use super::{velocity_curve_from_id, NativeRunner, Value};
 impl NativeRunner {
     pub(super) fn apply_menu_state(&mut self) -> Result<(), String> {
         self.clear_deferred_menu_apply();
-        let before_payload = self.config_payload();
-        let dance_mode_changed = self.apply_global_runtime_menu_state();
+        let current_key = self.menu.current_key().map(str::to_string);
+        let mut config_changed = false;
+        let mut audio_config_changed = false;
+        let (dance_mode_changed, global_config_changed, global_audio_config_changed) =
+            self.apply_global_runtime_menu_state();
         let dance_fx_changed = self.apply_dance_fx_menu_state();
-        self.apply_param_mod_invert_menu_state();
+        config_changed |= global_config_changed || dance_fx_changed;
+        audio_config_changed |= global_audio_config_changed;
+        config_changed |= self.apply_param_mod_invert_menu_state();
         let part_changed = self.apply_part_menu_state();
         let instrument_changed = self.apply_instrument_menu_state();
         let sense_changed = self.apply_sense_menu_state();
         let fx_changed = self.apply_fx_menu_state();
+        config_changed |= part_changed || instrument_changed || sense_changed || fx_changed;
+        audio_config_changed |=
+            instrument_changed && current_key_requires_audio_config(&current_key);
+        audio_config_changed |= fx_changed && current_key_requires_audio_config(&current_key);
         self.sync_engine_runtime_config();
         if part_changed
             || instrument_changed
@@ -27,70 +36,87 @@ impl NativeRunner {
                 .set_interpretation_profile(self.interpretation_profile.clone());
         }
         let behavior_changed = self.apply_selected_behavior_menu_state()?;
+        config_changed |= behavior_changed;
         if behavior_changed {
             self.menu.rebuild(self.menu_config());
         }
-        self.apply_behavior_config_menu_state()?;
+        config_changed |= self.apply_behavior_config_menu_state()?;
         self.refresh_active_mapping_config();
         self.refresh_active_interpretation_profile();
         self.engine
             .set_interpretation_profile(self.interpretation_profile.clone());
-        self.auto_save_default = self
+        let next_auto_save_default = self
             .menu
             .value_for_key("autoSaveDefault")
             .map(|value| value == "true")
             .unwrap_or(self.auto_save_default);
-        let after_payload = self.config_payload();
-        if audio_config_changed(&before_payload, &after_payload) {
+        if self.auto_save_default != next_auto_save_default {
+            self.auto_save_default = next_auto_save_default;
+            config_changed = true;
+        }
+        if audio_config_changed {
             self.audio_config_revision = self.audio_config_revision.wrapping_add(1);
         }
-        if after_payload != before_payload {
+        if config_changed {
             self.config_dirty = true;
             self.force_autosave_payload_due();
         }
         Ok(())
     }
 
-    fn apply_global_runtime_menu_state(&mut self) -> bool {
+    fn apply_global_runtime_menu_state(&mut self) -> (bool, bool, bool) {
         let mut dance_mode_changed = false;
+        let mut config_changed = false;
+        let mut audio_config_changed = false;
         if let Some(sync_source) = self.menu.selected_sync_source() {
+            config_changed |= self.sync_source != sync_source;
             self.sync_source = sync_source;
         }
         if let Some(step_pulses) = self.menu.selected_algorithm_step_pulses() {
+            config_changed |= self.algorithm_step_pulses != step_pulses;
             self.algorithm_step_pulses = step_pulses;
             if let Some(part_step) = self
                 .part_algorithm_step_pulses
                 .get_mut(self.active_part_index)
             {
+                config_changed |= *part_step != step_pulses;
                 *part_step = step_pulses;
             }
         }
         if let Some(master_volume) = self.menu.selected_master_volume() {
+            config_changed |= self.ui.master_volume != master_volume;
             self.ui.master_volume = master_volume;
         }
         if let Some(draft_name) = self.menu.value_for_key("system.draftName") {
+            config_changed |= self.preset_draft_name != draft_name;
             self.preset_draft_name = draft_name;
         }
-        self.apply_midi_menu_flags();
+        config_changed |= self.apply_midi_menu_flags();
         if let Some(dance_mode) = self.menu.selected_dance_mode() {
             let changed = self.dance_mode != dance_mode;
             self.dance_mode = dance_mode.clone();
             dance_mode_changed = changed;
-            if changed && self.menu.state.stack.first() == Some(&3) {
+            config_changed |= changed;
+            if changed && self.menu.is_in_dance_root_group() {
                 self.active_dance_mode = dance_mode;
             }
         }
-        self.apply_xy_menu_state();
-        self.apply_ui_sound_transport_menu_state();
-        dance_mode_changed
+        config_changed |= self.apply_xy_menu_state();
+        let (ui_sound_changed, sound_audio_config_changed) =
+            self.apply_ui_sound_transport_menu_state();
+        config_changed |= ui_sound_changed;
+        audio_config_changed |= sound_audio_config_changed;
+        (dance_mode_changed, config_changed, audio_config_changed)
     }
 
-    fn apply_midi_menu_flags(&mut self) {
+    fn apply_midi_menu_flags(&mut self) -> bool {
+        let mut changed = false;
         if let Some(midi_enabled) = self
             .menu
             .value_for_key("midiEnabled")
             .map(|value| value == "true")
         {
+            changed |= self.midi_enabled != midi_enabled;
             self.midi_enabled = midi_enabled;
         }
         if let Some(clock_out_enabled) = self
@@ -98,6 +124,7 @@ impl NativeRunner {
             .value_for_key("midi.clockOutEnabled")
             .map(|value| value == "true")
         {
+            changed |= self.midi_clock_out_enabled != clock_out_enabled;
             self.midi_clock_out_enabled = clock_out_enabled;
         }
         if let Some(clock_in_enabled) = self
@@ -105,6 +132,7 @@ impl NativeRunner {
             .value_for_key("midi.clockInEnabled")
             .map(|value| value == "true")
         {
+            changed |= self.midi_clock_in_enabled != clock_in_enabled;
             self.midi_clock_in_enabled = clock_in_enabled;
         }
         if let Some(respond_to_start_stop) = self
@@ -112,80 +140,125 @@ impl NativeRunner {
             .value_for_key("midi.respondToStartStop")
             .map(|value| value == "true")
         {
+            changed |= self.midi_respond_to_start_stop != respond_to_start_stop;
             self.midi_respond_to_start_stop = respond_to_start_stop;
         }
+        changed
     }
 
-    fn apply_xy_menu_state(&mut self) {
+    fn apply_xy_menu_state(&mut self) -> bool {
+        let mut changed = false;
         if let Some(xy_release) = self.menu.value_for_key("dance.xy.release") {
+            changed |= self.xy_release != xy_release;
             self.xy_release = xy_release;
         }
         if let Some(invert_x) = self.menu.value_for_key("dance.xy.invertX") {
-            self.xy_invert_x = invert_x == "true";
+            let invert_x = invert_x == "true";
+            changed |= self.xy_invert_x != invert_x;
+            self.xy_invert_x = invert_x;
         }
         if let Some(invert_y) = self.menu.value_for_key("dance.xy.invertY") {
-            self.xy_invert_y = invert_y == "true";
+            let invert_y = invert_y == "true";
+            changed |= self.xy_invert_y != invert_y;
+            self.xy_invert_y = invert_y;
         }
+        changed
     }
 
-    fn apply_ui_sound_transport_menu_state(&mut self) {
-        self.apply_display_menu_state();
-        self.apply_transport_menu_state();
-        self.apply_sound_menu_state();
-        self.apply_ui_behavior_menu_state();
+    fn apply_ui_sound_transport_menu_state(&mut self) -> (bool, bool) {
+        let mut changed = self.apply_display_menu_state();
+        changed |= self.apply_transport_menu_state();
+        let (sound_changed, sound_audio_config_changed) = self.apply_sound_menu_state();
+        changed |= sound_changed;
+        changed |= self.apply_ui_behavior_menu_state();
+        (changed, sound_audio_config_changed)
     }
 
-    fn apply_display_menu_state(&mut self) {
+    fn apply_display_menu_state(&mut self) -> bool {
+        let mut changed = false;
         if let Some(display_brightness) = self.menu.selected_display_brightness() {
+            changed |= self.ui.display_brightness != display_brightness;
             self.ui.display_brightness = display_brightness;
         }
         if let Some(button_brightness) = self.menu.selected_button_brightness() {
+            changed |= self.ui.button_brightness != button_brightness;
             self.ui.button_brightness = button_brightness;
         }
         if let Some(grid_brightness) = self.menu.number_for_key("gridBrightness") {
-            self.ui.grid_brightness = grid_brightness.clamp(10, 100) as u8;
+            let grid_brightness = grid_brightness.clamp(10, 100) as u8;
+            changed |= self.ui.grid_brightness != grid_brightness;
+            self.ui.grid_brightness = grid_brightness;
         }
         if let Some(numeric_display_mode) = self.menu.value_for_key("numericDisplayMode") {
+            changed |= self.ui.numeric_display_mode != numeric_display_mode;
             self.ui.numeric_display_mode = numeric_display_mode;
         }
         if let Some(screen_sleep_seconds) = self.menu.number_for_key("screenSleepSeconds") {
-            self.ui.screen_sleep_seconds = screen_sleep_seconds.clamp(0, 600) as u16;
+            let screen_sleep_seconds = screen_sleep_seconds.clamp(0, 600) as u16;
+            changed |= self.ui.screen_sleep_seconds != screen_sleep_seconds;
+            self.ui.screen_sleep_seconds = screen_sleep_seconds;
         }
+        changed
     }
 
-    fn apply_transport_menu_state(&mut self) {
+    fn apply_transport_menu_state(&mut self) -> bool {
+        let mut changed = false;
         if let Some(bpm) = self.menu.number_for_key("transport.bpm") {
-            self.bpm = f64::from(bpm.clamp(40, 240));
+            let bpm = f64::from(bpm.clamp(40, 240));
+            changed |= (self.bpm - bpm).abs() > f64::EPSILON;
+            self.bpm = bpm;
         }
+        changed
     }
 
-    fn apply_sound_menu_state(&mut self) {
+    fn apply_sound_menu_state(&mut self) -> (bool, bool) {
+        let mut changed = false;
+        let mut audio_config_changed = false;
         if let Some(note_length_ms) = self.menu.number_for_key("sound.noteLengthMs") {
-            self.global_sound.note_length_ms = note_length_ms.clamp(30, 2000) as u32;
+            let note_length_ms = note_length_ms.clamp(30, 2000) as u32;
+            changed |= self.global_sound.note_length_ms != note_length_ms;
+            self.global_sound.note_length_ms = note_length_ms;
         }
         if let Some(velocity_scale_pct) = self.menu.number_for_key("sound.velocityScalePct") {
-            self.global_sound.velocity_scale_pct = velocity_scale_pct.clamp(0, 200) as u16;
+            let velocity_scale_pct = velocity_scale_pct.clamp(0, 200) as u16;
+            changed |= self.global_sound.velocity_scale_pct != velocity_scale_pct;
+            self.global_sound.velocity_scale_pct = velocity_scale_pct;
         }
         if let Some(velocity_curve) = self.menu.value_for_key("sound.velocityCurve") {
-            self.global_sound.velocity_curve = velocity_curve_from_id(&velocity_curve);
+            let velocity_curve = velocity_curve_from_id(&velocity_curve);
+            changed |= self.global_sound.velocity_curve != velocity_curve;
+            self.global_sound.velocity_curve = velocity_curve;
         }
         if let Some(voice_stealing_mode) = self.menu.value_for_key("sound.voiceStealingMode") {
             if let Some(mode) = super::normalize_voice_stealing_mode(&voice_stealing_mode) {
-                self.voice_stealing_mode = mode.into();
+                let mode = mode.into();
+                let voice_changed = self.voice_stealing_mode != mode;
+                changed |= voice_changed;
+                audio_config_changed |= voice_changed;
+                self.voice_stealing_mode = mode;
             }
         }
+        (changed, audio_config_changed)
     }
 
-    fn apply_ui_behavior_menu_state(&mut self) {
+    fn apply_ui_behavior_menu_state(&mut self) -> bool {
+        let mut changed = false;
         if let Some(ghost_cells) = self.menu.value_for_key("ghostCells") {
-            self.ui.ghost_cells = ghost_cells == "true";
+            let ghost_cells = ghost_cells == "true";
+            changed |= self.ui.ghost_cells != ghost_cells;
+            self.ui.ghost_cells = ghost_cells;
         }
         if let Some(input_events_while_paused) = self.menu.value_for_key("inputEventsWhilePaused") {
-            self.input_events_while_paused = input_events_while_paused == "true";
+            let input_events_while_paused = input_events_while_paused == "true";
+            changed |= self.input_events_while_paused != input_events_while_paused;
+            self.input_events_while_paused = input_events_while_paused;
         }
         if let Some(aux_auto_map_enabled) = self.menu.value_for_key("auxAutoMapEnabled") {
-            self.aux_auto_map_enabled = aux_auto_map_enabled == "true";
+            let aux_auto_map_enabled = aux_auto_map_enabled == "true";
+            changed |= self.aux_auto_map_enabled != aux_auto_map_enabled;
+            self.aux_auto_map_enabled = aux_auto_map_enabled;
         }
+        changed
     }
 
     fn apply_selected_behavior_menu_state(&mut self) -> Result<bool, String> {
@@ -256,10 +329,10 @@ impl NativeRunner {
         true
     }
 
-    fn apply_behavior_config_menu_state(&mut self) -> Result<(), String> {
+    fn apply_behavior_config_menu_state(&mut self) -> Result<bool, String> {
         let next_behavior_config = self.behavior_config_from_menu()?;
         if next_behavior_config == self.behavior_config {
-            return Ok(());
+            return Ok(false);
         }
         self.behavior_config = next_behavior_config;
         if let Some(config) = self.part_behavior_configs.get_mut(self.active_part_index) {
@@ -267,10 +340,12 @@ impl NativeRunner {
         }
         self.behavior_configs
             .insert(self.behavior.id().to_string(), self.behavior_config.clone());
-        self.rebuild_engine(self.behavior)
+        self.rebuild_engine(self.behavior)?;
+        Ok(true)
     }
 
-    fn apply_param_mod_invert_menu_state(&mut self) {
+    fn apply_param_mod_invert_menu_state(&mut self) -> bool {
+        let mut changed = false;
         for part_index in 0..self.param_mods.len() {
             for axis in ["x", "y"] {
                 for slot in 0..2 {
@@ -287,12 +362,13 @@ impl NativeRunner {
                     if let Some(Some(binding)) = target {
                         if binding.invert != invert {
                             binding.invert = invert;
-                            self.config_dirty = true;
+                            changed = true;
                         }
                     }
                 }
             }
         }
+        changed
     }
 
     pub(super) fn refresh_active_mapping_config(&mut self) {
@@ -362,10 +438,52 @@ impl NativeRunner {
     }
 }
 
-fn audio_config_changed(before: &Value, after: &Value) -> bool {
-    let before = before.get("runtimeConfig").unwrap_or(before);
-    let after = after.get("runtimeConfig").unwrap_or(after);
-    ["instruments", "mixer", "masterVolume"]
-        .into_iter()
-        .any(|key| before.get(key) != after.get(key))
+fn current_key_requires_audio_config(current_key: &Option<String>) -> bool {
+    let Some(key) = current_key.as_deref() else {
+        return true;
+    };
+    if key == "masterVolume" {
+        return false;
+    }
+    if key == "sound.voiceStealingMode" {
+        return true;
+    }
+    if let Some(rest) = key.strip_prefix("instruments.") {
+        let Some((_, suffix)) = rest.split_once('.') else {
+            return true;
+        };
+        return !matches!(
+            suffix,
+            "name"
+                | "autoName"
+                | "midi.enabled"
+                | "midi.channel"
+                | "midi.velocity"
+                | "midi.durationMs"
+                | "mixer.volume"
+                | "mixer.panPos"
+                | "synth.amp.gainPct"
+                | "synth.filter.cutoffHz"
+                | "synth.filter.resonance"
+                | "sample.tuneSemis"
+                | "sample.amp.gainPct"
+                | "sample.amp.velocitySensitivityPct"
+        );
+    }
+    if let Some(rest) = key.strip_prefix("mixer.buses.") {
+        let Some((_, suffix)) = rest.split_once('.') else {
+            return true;
+        };
+        if matches!(suffix, "name" | "autoName" | "panPos") {
+            return false;
+        }
+        return suffix.ends_with(".type");
+    }
+    if let Some(rest) = key.strip_prefix("mixer.master.slots.") {
+        let Some((_, suffix)) = rest.split_once('.') else {
+            return true;
+        };
+        return suffix == "type";
+    }
+    false
 }

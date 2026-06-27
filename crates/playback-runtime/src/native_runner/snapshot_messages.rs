@@ -63,20 +63,20 @@ impl NativeRunner {
             } else {
                 None
             };
-        let mut messages = Vec::with_capacity(4);
+        let mut messages = Vec::with_capacity(5);
         if let Some(effect) = save_default_effect {
             messages.push(RunnerMessage::PlatformEffects {
                 effects: vec![effect],
             });
         }
-        if !self.queued_platform_effects.is_empty() {
+        if self.outbox.has_platform_effects() {
             messages.push(RunnerMessage::PlatformEffects {
-                effects: std::mem::take(&mut self.queued_platform_effects),
+                effects: self.outbox.drain_platform_effects(),
             });
         }
-        if !self.pending_audio_commands.is_empty() {
+        if self.outbox.has_audio_commands() {
             messages.push(RunnerMessage::AudioCommands {
-                commands: std::mem::take(&mut self.pending_audio_commands),
+                commands: self.outbox.drain_audio_commands(),
             });
         }
         messages.extend([

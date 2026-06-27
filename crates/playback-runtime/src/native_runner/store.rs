@@ -158,8 +158,9 @@ impl NativeRunner {
             RuntimeStoreResult::SavePresetResult { name, .. } => {
                 if let Some(source) = self.preset_rename_source.take() {
                     if source != name {
-                        self.queued_platform_effects
-                            .push(RuntimePlatformEffect::StoreDeletePreset { name: source });
+                        self.outbox.push_platform_effect(
+                            RuntimePlatformEffect::StoreDeletePreset { name: source },
+                        );
                     }
                 }
                 self.toast = Some(NativeToast {
@@ -220,7 +221,7 @@ impl NativeRunner {
                 sample_slot,
                 dir,
                 entries,
-            } => {
+            } if self.sample_browser_matches(instrument_slot, sample_slot, &dir) => {
                 self.sample_browser = Some(NativeSampleBrowser {
                     instrument_slot,
                     sample_slot,
@@ -234,7 +235,7 @@ impl NativeRunner {
                 sample_slot,
                 dir,
                 message,
-            } => {
+            } if self.sample_browser_matches(instrument_slot, sample_slot, &dir) => {
                 self.sample_browser = Some(NativeSampleBrowser {
                     instrument_slot,
                     sample_slot,
@@ -247,5 +248,18 @@ impl NativeRunner {
             _ => {}
         }
         Ok(())
+    }
+
+    fn sample_browser_matches(
+        &self,
+        instrument_slot: usize,
+        sample_slot: usize,
+        dir: &str,
+    ) -> bool {
+        self.sample_browser.as_ref().is_some_and(|browser| {
+            browser.instrument_slot == instrument_slot
+                && browser.sample_slot == sample_slot
+                && browser.dir == dir
+        })
     }
 }

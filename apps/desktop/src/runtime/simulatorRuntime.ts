@@ -1,7 +1,6 @@
 import { PAN_POSITION_COUNT, type DeviceInput, type OledFrame, type RuntimeHostMessage, type RuntimeRunnerMessage, type RuntimeSnapshot } from "@cellsymphony/device-contracts";
 import { TauriAudioLoadService, type AudioLoadService, type AudioLoadStatus } from "../audio/audioLoadEvents";
 import { createIntervalRuntimeScheduler, type RuntimeScheduler } from "./runtimeScheduler";
-import { TauriMidiService } from "./midi/tauriMidi";
 import { tauriCoreRunner } from "./runner/tauriCoreRunner";
 import type { InputAction, RuntimeListener, SimulatorSnapshot } from "./types";
 
@@ -14,12 +13,11 @@ type SimulatorRuntime = {
   getSnapshot(): SimulatorSnapshot;
 };
 
-type RuntimeMidiService = {
-  listenMidiIn(handler: (bytes: Uint8Array) => void): Promise<() => void>;
-};
+type EncoderTurnInput = Extract<DeviceInput, { type: "encoder_turn" }>;
+type EncoderId = NonNullable<EncoderTurnInput["id"]>;
+type DesktopRunnerMessage = RuntimeRunnerMessage | { type: "audio_error"; error?: string | null };
 
 type RuntimeDeps = {
-  midiService?: RuntimeMidiService;
   audioLoadService?: AudioLoadService;
   runtimeDispatch?: (message: RuntimeHostMessage) => Promise<RuntimeRunnerMessage[]>;
 };
@@ -58,7 +56,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
   let cachedMixer: unknown = { buses: [] };
   let cachedPanPositions: number = PAN_POSITION_COUNT;
   let cachedMasterVolume: number = 100;
-  const pendingEncoderTurns = new Map<string, number>();
+  const pendingEncoderTurns = new Map<EncoderId, number>();
   let pendingEncoderTimer: ReturnType<typeof setTimeout> | null = null;
   let startupSplashTimer: ReturnType<typeof setTimeout> | null = null;
   let indicatorTimer: ReturnType<typeof setTimeout> | null = null;
@@ -68,7 +66,6 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
   const queuedRuntimeMessages: RuntimeHostMessage[] = [];
   let runtimeDispatchInFlight = false;
   const listeners = new Set<RuntimeListener>();
-  const tauriMidi = deps.midiService ?? (isTauri && !deps.runtimeDispatch ? new TauriMidiService() : null);
   const audioLoadService = deps.audioLoadService ?? new TauriAudioLoadService();
 
   if (isTauri && !deps.runtimeDispatch) {
@@ -80,18 +77,6 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
       publishSnapshot();
     });
   }
-
-  void tauriMidi?.listenMidiIn((data: Uint8Array) => {
-    if (!isTauri || deps.runtimeDispatch) return;
-    void tauriCoreRunner.handleMidiRealtime(data)
-      .then((messages) => {
-        processRunnerMessages(messages);
-        publishSnapshot();
-      })
-      .catch((err) => {
-        console.error("[Runtime] handleMidiRealtime failed:", err);
-      });
-  });
 
   void audioLoadService.listenAudioLoad((status) => {
     audioLoad = { ratio: Math.max(0, Math.min(2, status.ratio)), voiceSteal: status.voiceSteal };
@@ -114,7 +99,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
     }
     const flash = performance.now() < transportFlashUntilMs
       ? transientTransportFlash
-      : String((frame as any).transportFlash ?? "none");
+      : String(frame.transportFlash ?? "none");
     const combined = settings?.combinedModifierHeld ?? false;
     return {
       frame: withTransientIndicators(frame),
@@ -144,10 +129,10 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
     const transientTransport = performance.now() < transportFlashUntilMs ? transientTransportFlash : null;
     if (!transientEventDotOn && transientTransport === null) return frame;
     return {
-      ...(frame as any),
+      ...frame,
       ...(transientEventDotOn ? { eventDotOn: true } : {}),
       ...(transientTransport ? { transportFlash: transientTransport } : {}),
-    } as RuntimeSnapshot;
+    };
   }
 
   function publishSnapshot() {
@@ -175,13 +160,13 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
     });
   }
 
-  function processRunnerMessages(messages: RuntimeRunnerMessage[]) {
+  function processRunnerMessages(messages: DesktopRunnerMessage[]) {
     for (const message of messages) {
       processRunnerMessage(message);
     }
   }
 
-  function processRunnerMessage(message: RuntimeRunnerMessage) {
+  function processRunnerMessage(message: DesktopRunnerMessage) {
     if (message.type === "snapshot") {
       applySnapshotMessage(message.snapshot);
       return;
@@ -190,8 +175,8 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
       applyUiPulse(message.pulse);
       return;
     }
-    if ((message as any).type === "audio_error") {
-      applyAudioErrorMessage((message as any).error ?? null);
+    if (message.type === "audio_error") {
+      applyAudioErrorMessage(message.error ?? null);
     }
   }
 
@@ -240,7 +225,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
   }
 
   function scheduleStartupSplashRefresh(snapshot: RuntimeSnapshot) {
-    const splash = String((snapshot.display as any)?.splash ?? "");
+    const splash = String(snapshot.display.splash ?? "");
     if (splash !== "startup") {
       if (startupSplashTimer !== null) {
         clearTimeout(startupSplashTimer);
@@ -338,11 +323,11 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
       pendingEncoderTurns.delete(id);
       if (delta === 0) continue;
       syncPlaybackConfigIfNeeded();
-      mirrorRuntimeMessage({ type: "device_input", input: { type: "encoder_turn", id: id as any, delta } as DeviceInput });
+      mirrorRuntimeMessage({ type: "device_input", input: { type: "encoder_turn", id, delta } });
     }
   }
 
-  function dispatchEncoderTurn(input: Extract<DeviceInput, { type: "encoder_turn" }>) {
+  function dispatchEncoderTurn(input: EncoderTurnInput) {
     const id = input.id ?? "main";
     pendingEncoderTurns.set(id, Math.max(-127, Math.min(127, (pendingEncoderTurns.get(id) ?? 0) + input.delta)));
     if (pendingEncoderTimer !== null) return;

@@ -99,7 +99,7 @@ test("runtime contract fixtures cover each host and runner message class", () =>
     for (const message of fixture.hostMessages) {
       hostTypes.add(message.type);
       if (message.type === "transport_pulse_step") assert.ok(message.pulses > 0);
-      if (message.type === "midi_realtime" && message.message === "clock") assert.ok(message.pulses > 0);
+      if (message.type === "midi_realtime_clock") assert.ok(message.pulses > 0);
     }
 
     for (const message of fixture.runnerMessages) {
@@ -108,8 +108,8 @@ test("runtime contract fixtures cover each host and runner message class", () =>
     }
   }
 
-  assert.deepEqual([...hostTypes].sort(), ["device_input", "midi_realtime", "runtime_result", "transport_pulse_step"]);
-  assert.deepEqual([...runnerTypes].sort(), ["audio_commands", "musical_events", "platform_effects", "runtime_status", "snapshot"]);
+  assert.deepEqual([...hostTypes].sort(), ["device_input", "midi_realtime_clock", "midi_realtime_continue", "midi_realtime_start", "midi_realtime_stop", "runtime_result", "transport_pulse_step"]);
+  assert.deepEqual([...runnerTypes].sort(), ["audio_commands", "musical_events", "platform_effects", "runtime_status", "snapshot", "ui_pulse"]);
 });
 
 test("cutoff display clamps and scales into synth Hz range", () => {

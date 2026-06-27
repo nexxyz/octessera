@@ -1,6 +1,7 @@
 mod audio_config;
 mod audio_thread;
 mod commands;
+mod desktop_platform_service;
 mod host_adapter;
 mod midi;
 mod runtime_worker;
@@ -10,25 +11,19 @@ mod types;
 pub(crate) use types::SampleSlotConfig;
 
 use audio_thread::{spawn_audio_engine_thread, spawn_load_listener};
-use host_adapter::DesktopPlaybackHostAdapter;
-use midir::MidiInputConnection;
+use desktop_platform_service::spawn_desktop_platform_service;
+use host_adapter::{DesktopHostAudioState, DesktopPlaybackHostAdapter};
 use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
-use runtime_worker::RuntimeWorker;
+use runtime_worker::{RuntimeWorker, WorkerCommand};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
-use tauri::{Emitter, Manager};
+use tauri::Manager;
 
 pub(crate) struct AppState {
-    pub(crate) trigger_tx: mpsc::Sender<crate::types::QueuedAudioEvent>,
     worker_tx: mpsc::Sender<crate::runtime_worker::WorkerCommand>,
     runtime_outbox: Arc<Mutex<Vec<crate::types::RuntimeMessagesPayload>>>,
-    synth_slots: Arc<Mutex<[bool; INSTRUMENT_SLOT_COUNT]>>,
-    sample_cache: Arc<Mutex<HashMap<String, realtime_engine::synth::SampleBuffer>>>,
-    sample_bank_signature: Arc<Mutex<String>>,
-    pub(crate) midi_out: Arc<Mutex<Option<midir::MidiOutputConnection>>>,
-    pub(crate) midi_in: Arc<Mutex<Option<MidiInputConnection<()>>>>,
     audio_error: Arc<Mutex<Option<String>>>,
 }
 
@@ -84,50 +79,54 @@ pub fn run() {
         .setup(move |app| {
             let app_handle = app.handle().clone();
             let store_dir = ensure_store_dir(app);
-            let midi_in_app_handle = app_handle.clone();
+            let platform_service = spawn_desktop_platform_service();
+            let (native_midi_tx, native_midi_rx) = mpsc::channel::<Vec<u8>>();
             let worker_tx = RuntimeWorker::spawn(
                 app_handle.clone(),
                 audio_error.clone(),
                 runtime_outbox.clone(),
                 DesktopPlaybackHostAdapter::new(
-                    trigger_tx.clone(),
-                    sample_cache.clone(),
+                    DesktopHostAudioState {
+                        trigger_tx: trigger_tx.clone(),
+                        synth_slots: synth_slots.clone(),
+                        sample_cache: sample_cache.clone(),
+                        sample_bank_signature: sample_bank_signature.clone(),
+                    },
                     midi_out.clone(),
                     midi_in.clone(),
                     Arc::new(move |bytes| {
-                        let _ = midi_in_app_handle.emit("midi_in", midi::MidiInMessage { bytes });
+                        let _ = native_midi_tx.send(bytes);
                     }),
                     store_dir.clone(),
+                    platform_service.request_tx,
                 ),
+                platform_service.result_rx,
             );
+            let midi_worker_tx = worker_tx.clone();
+            std::thread::spawn(move || {
+                while let Ok(bytes) = native_midi_rx.recv() {
+                    if midi_worker_tx
+                        .send(WorkerCommand::NativeMidiRealtime(bytes))
+                        .is_err()
+                    {
+                        break;
+                    }
+                }
+            });
             spawn_load_listener(load_rx, app_handle);
 
             app.manage(AppState {
-                trigger_tx,
                 worker_tx,
                 runtime_outbox,
-                synth_slots,
-                sample_cache,
-                sample_bank_signature,
-                midi_out,
-                midi_in,
                 audio_error,
             });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            commands::audio_set_instruments,
-            commands::audio_set_runtime_policy,
             commands::audio_command,
             commands::runtime_dispatch,
-            commands::runtime_handle_midi_realtime,
             commands::runtime_sync_config,
             commands::runtime_drain_messages,
-            midi::midi_list_outputs,
-            midi::midi_list_inputs,
-            midi::midi_select_output,
-            midi::midi_select_input,
-            midi::midi_send,
             samples::sample_list
         ])
         .run(tauri::generate_context!())

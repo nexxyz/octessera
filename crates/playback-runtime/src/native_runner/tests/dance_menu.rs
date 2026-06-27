@@ -63,6 +63,21 @@ fn dance_page_fast_path_applies_immediately_without_deferred_flush() {
 }
 
 #[test]
+fn dance_mode_edits_outside_dance_page_do_not_activate_overlay() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.dance_mode = "mix".into();
+    runner.active_dance_mode = "none".into();
+    runner.menu.rebuild(runner.menu_config());
+
+    assert!(runner.menu.turn_key("danceMode", 1));
+    runner.menu.state.stack = vec![0];
+    runner.apply_or_schedule_menu_key("danceMode").unwrap();
+
+    assert_eq!(runner.dance_mode, "pan");
+    assert_eq!(runner.active_dance_mode, "none");
+}
+
+#[test]
 fn fn_grid_context_changes_show_oled_toasts() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.part_names[2] = "rain".into();

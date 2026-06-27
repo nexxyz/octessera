@@ -275,6 +275,12 @@ fn clone_event(event: &rodio_engine_source::EngineEvent) -> rodio_engine_source:
             volume_pct: *volume_pct,
             pan_pos: *pan_pos,
         },
+        rodio_engine_source::EngineEvent::SetFxBusMixer { bus_index, pan_pos } => {
+            rodio_engine_source::EngineEvent::SetFxBusMixer {
+                bus_index: *bus_index,
+                pan_pos: *pan_pos,
+            }
+        }
         rodio_engine_source::EngineEvent::SetSynthParam {
             instrument_slot,
             path,

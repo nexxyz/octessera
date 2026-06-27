@@ -12,8 +12,7 @@ pub fn dispatch_runtime_message(
     adapter: &mut PiPlaybackHostAdapter<'_>,
     host_message: HostMessage,
 ) -> Result<(), String> {
-    let responses = dispatch_and_ingest(playback, runner, adapter, host_message)?;
-    ingest_responses(playback, runner, adapter, responses)
+    dispatch_and_ingest(playback, runner, adapter, host_message)
 }
 
 pub fn handle_deferred_host_work(
@@ -98,28 +97,26 @@ fn playback_config_from_snapshot(snapshot: &Value) -> Option<RuntimeConfig> {
     })
 }
 
-fn dispatch_and_ingest(
+fn dispatch_and_ingest<R: CoreRunner, H: HostAdapter>(
     playback: &mut PlaybackRuntime,
-    runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter<'_>,
+    runner: &mut R,
+    adapter: &mut H,
     host_message: HostMessage,
-) -> Result<Vec<RunnerMessage>, String> {
-    let mut captured = Vec::new();
+) -> Result<(), String> {
     let mut queue = VecDeque::from([host_message]);
     while let Some(message) = queue.pop_front() {
         let responses = runner.send(message)?;
-        captured.extend(responses.iter().cloned());
         for follow_up in playback.ingest_runner_messages(responses, adapter)? {
             queue.push_back(follow_up);
         }
     }
-    Ok(captured)
+    Ok(())
 }
 
-fn ingest_responses(
+fn ingest_responses<R: CoreRunner, H: HostAdapter>(
     playback: &mut PlaybackRuntime,
-    runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter<'_>,
+    runner: &mut R,
+    adapter: &mut H,
     responses: Vec<RunnerMessage>,
 ) -> Result<(), String> {
     let mut queue = VecDeque::from(playback.ingest_runner_messages(responses, adapter)?);
@@ -132,7 +129,137 @@ fn ingest_responses(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use platform_core::MusicalEvent;
     use serde_json::json;
+
+    #[derive(Default)]
+    struct FakeRunner;
+
+    impl CoreRunner for FakeRunner {
+        fn send(&mut self, message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
+            match message {
+                HostMessage::DeviceInput { .. } => Ok(vec![RunnerMessage::AudioCommands {
+                    commands: vec![playback_runtime::RuntimeAudioCommand::SetMasterVolume {
+                        volume_pct: 75.0,
+                    }],
+                }]),
+                _ => Ok(Vec::new()),
+            }
+        }
+    }
+
+    #[derive(Default)]
+    struct CountingHostAdapter {
+        audio_commands: usize,
+    }
+
+    impl HostAdapter for CountingHostAdapter {
+        fn handle_musical_event(&mut self, _event: &MusicalEvent) -> Result<(), String> {
+            Ok(())
+        }
+
+        fn handle_platform_effect(
+            &mut self,
+            _effect: &RuntimePlatformEffect,
+        ) -> Result<Vec<HostMessage>, String> {
+            Ok(Vec::new())
+        }
+
+        fn handle_audio_command(
+            &mut self,
+            _command: &playback_runtime::RuntimeAudioCommand,
+        ) -> Result<(), String> {
+            self.audio_commands += 1;
+            Ok(())
+        }
+
+        fn handle_midi_message(&mut self, _bytes: &[u8]) -> Result<(), String> {
+            Ok(())
+        }
+    }
+
+    #[derive(Default)]
+    struct FollowUpRunner {
+        runtime_results: usize,
+    }
+
+    impl CoreRunner for FollowUpRunner {
+        fn send(&mut self, message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
+            match message {
+                HostMessage::DeviceInput { .. } => Ok(vec![RunnerMessage::PlatformEffects {
+                    effects: vec![RuntimePlatformEffect::StoreLoadDefault],
+                }]),
+                HostMessage::RuntimeResult { .. } => {
+                    self.runtime_results += 1;
+                    Ok(Vec::new())
+                }
+                _ => Ok(Vec::new()),
+            }
+        }
+    }
+
+    #[derive(Default)]
+    struct FollowUpHostAdapter;
+
+    impl HostAdapter for FollowUpHostAdapter {
+        fn handle_musical_event(&mut self, _event: &MusicalEvent) -> Result<(), String> {
+            Ok(())
+        }
+
+        fn handle_platform_effect(
+            &mut self,
+            _effect: &RuntimePlatformEffect,
+        ) -> Result<Vec<HostMessage>, String> {
+            Ok(vec![HostMessage::RuntimeResult {
+                result: playback_runtime::RuntimeStoreResult::LoadDefaultResult { payload: None },
+            }])
+        }
+
+        fn handle_audio_command(
+            &mut self,
+            _command: &playback_runtime::RuntimeAudioCommand,
+        ) -> Result<(), String> {
+            Ok(())
+        }
+
+        fn handle_midi_message(&mut self, _bytes: &[u8]) -> Result<(), String> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn dispatch_ingests_runner_responses_once() {
+        let mut playback = PlaybackRuntime::new(RuntimeConfig::default());
+        let mut runner = FakeRunner;
+        let mut adapter = CountingHostAdapter::default();
+
+        dispatch_and_ingest(
+            &mut playback,
+            &mut runner,
+            &mut adapter,
+            HostMessage::DeviceInput { input: json!({}) },
+        )
+        .unwrap();
+
+        assert_eq!(adapter.audio_commands, 1);
+    }
+
+    #[test]
+    fn dispatch_processes_platform_effect_follow_ups() {
+        let mut playback = PlaybackRuntime::new(RuntimeConfig::default());
+        let mut runner = FollowUpRunner::default();
+        let mut adapter = FollowUpHostAdapter;
+
+        dispatch_and_ingest(
+            &mut playback,
+            &mut runner,
+            &mut adapter,
+            HostMessage::DeviceInput { input: json!({}) },
+        )
+        .unwrap();
+
+        assert_eq!(runner.runtime_results, 1);
+    }
 
     #[test]
     fn playback_config_from_snapshot_tracks_midi_runtime_settings() {

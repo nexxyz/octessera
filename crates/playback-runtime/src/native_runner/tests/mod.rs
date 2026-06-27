@@ -17,6 +17,7 @@ mod modulation;
 mod modulation_bindings;
 mod runtime_control;
 mod runtime_transport;
+mod sample_browser_store;
 mod sense_and_voice_menu;
 mod shutdown;
 mod snapshot_autosave;

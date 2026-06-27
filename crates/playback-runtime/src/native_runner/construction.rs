@@ -165,7 +165,7 @@ impl NativeRunner {
             current_preset_name: None,
             preset_draft_name: fresh_preset_name(),
             preset_rename_source: None,
-            queued_platform_effects: Vec::new(),
+            outbox: NativeRunnerOutbox::default(),
             midi_outputs: Vec::new(),
             midi_inputs: Vec::new(),
             midi_status: None,
@@ -238,7 +238,6 @@ impl NativeRunner {
             aux_turn_toast_cooldown_until: None,
             pending_aux_turn_toast: None,
             pending_menu_apply: None,
-            pending_audio_commands: Vec::new(),
         };
         runner.seed_visible_state()?;
         runner.refresh_active_mapping_config();
@@ -397,7 +396,6 @@ impl NativeRunner {
             self.active_part_index,
         )?;
         self.behavior = behavior;
-        self.reset_transport_position();
         self.menu.rebuild(self.menu_config());
         Ok(())
     }

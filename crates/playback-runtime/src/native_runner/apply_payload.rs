@@ -120,7 +120,13 @@ impl NativeRunner {
 fn audio_config_changed(before: &Value, after: &Value) -> bool {
     let before = before.get("runtimeConfig").unwrap_or(before);
     let after = after.get("runtimeConfig").unwrap_or(after);
-    ["instruments", "mixer", "masterVolume"]
+    ["instruments", "mixer", "masterVolume", "voiceStealingMode"]
         .into_iter()
         .any(|key| before.get(key) != after.get(key))
+        || before
+            .get("sound")
+            .and_then(|sound| sound.get("voiceStealingMode"))
+            != after
+                .get("sound")
+                .and_then(|sound| sound.get("voiceStealingMode"))
 }

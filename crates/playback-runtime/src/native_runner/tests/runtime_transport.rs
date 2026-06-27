@@ -253,6 +253,63 @@ fn part_two_scanning_uses_second_instrument_slot_without_bleeding_to_part_one() 
 }
 
 #[test]
+fn changing_part_four_behavior_does_not_reset_part_two_playback_phase() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        behavior_id: "life".into(),
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    runner.transport = RuntimeTransportState::Playing;
+    runner.part_behavior_ids[1] = "sequencer".into();
+    runner.sense_parts[1].scan_mode = "scanning".into();
+    runner.sense_parts[1].scan_axis = "rows".into();
+    runner.sense_parts[1].scan_unit = "1/16".into();
+    runner.sense_parts[1].scanned_slot = 1;
+    runner.sense_parts[1].scanned_action = "note_on".into();
+    runner.select_active_part(1).unwrap();
+    runner.refresh_active_mapping_config();
+    runner.refresh_active_interpretation_profile();
+    runner
+        .engine
+        .set_interpretation_profile(runner.interpretation_profile.clone());
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
+        })
+        .unwrap();
+    runner
+        .send(HostMessage::TransportPulseStep {
+            pulses: 3,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+    assert_eq!(runner.part_pulse_accumulators[1], 3);
+    let ppqn_before = runner.current_ppqn_pulse;
+
+    runner.select_active_part(3).unwrap();
+    runner
+        .rebuild_engine(platform_core::get_native_behavior("sequencer").unwrap())
+        .unwrap();
+    runner
+        .rebuild_engine(platform_core::get_native_behavior("none").unwrap())
+        .unwrap();
+
+    assert_eq!(runner.current_ppqn_pulse, ppqn_before);
+    assert_eq!(runner.part_pulse_accumulators[1], 3);
+    runner
+        .send(HostMessage::TransportPulseStep {
+            pulses: 3,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+    assert_eq!(runner.part_pulse_accumulators[1], 0);
+}
+
+#[test]
 fn inactive_scanning_part_uses_its_sampler_slot_after_config_load() {
     let payload = json!({
         "runtimeConfig": {

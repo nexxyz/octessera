@@ -234,6 +234,14 @@ impl NativeMenuModel {
         self.value_for_key("danceMode")
     }
 
+    pub fn is_in_dance_root_group(&self) -> bool {
+        self.state
+            .stack
+            .first()
+            .and_then(|index| self.root.children.get(*index))
+            .is_some_and(|item| item.label == "L4: Dance")
+    }
+
     pub fn current_label(&self) -> Option<&str> {
         let siblings = self.current_siblings();
         if siblings.is_empty() {

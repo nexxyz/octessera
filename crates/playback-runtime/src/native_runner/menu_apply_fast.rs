@@ -102,7 +102,7 @@ impl NativeRunner {
         let changed = self.dance_mode != dance_mode;
         if changed {
             self.dance_mode = dance_mode.clone();
-            if self.menu.state.stack.first() == Some(&3) {
+            if self.menu.is_in_dance_root_group() {
                 self.active_dance_mode = dance_mode;
             }
             self.mark_fast_autosave_dirty();
@@ -242,81 +242,7 @@ impl NativeRunner {
     }
 
     pub(super) fn queue_audio_command(&mut self, command: RuntimeAudioCommand) {
-        self.pending_audio_commands
-            .retain(|queued| !same_dynamic_audio_target(queued, &command));
-        self.pending_audio_commands.push(command);
-    }
-}
-
-fn same_dynamic_audio_target(left: &RuntimeAudioCommand, right: &RuntimeAudioCommand) -> bool {
-    match (left, right) {
-        (
-            RuntimeAudioCommand::SetMasterVolume { .. },
-            RuntimeAudioCommand::SetMasterVolume { .. },
-        ) => true,
-        (
-            RuntimeAudioCommand::SetInstrumentMixer {
-                instrument_slot: left_slot,
-                volume_pct: left_volume,
-                pan_pos: left_pan,
-            },
-            RuntimeAudioCommand::SetInstrumentMixer {
-                instrument_slot: right_slot,
-                volume_pct: right_volume,
-                pan_pos: right_pan,
-            },
-        ) => {
-            left_slot == right_slot
-                && left_volume.is_some() == right_volume.is_some()
-                && left_pan.is_some() == right_pan.is_some()
-        }
-        (
-            RuntimeAudioCommand::SetSynthParam {
-                instrument_slot: left_slot,
-                path: left_path,
-                ..
-            },
-            RuntimeAudioCommand::SetSynthParam {
-                instrument_slot: right_slot,
-                path: right_path,
-                ..
-            },
-        ) => left_slot == right_slot && left_path == right_path,
-        (
-            RuntimeAudioCommand::SetSampleBankParam {
-                instrument_slot: left_slot,
-                path: left_path,
-                ..
-            },
-            RuntimeAudioCommand::SetSampleBankParam {
-                instrument_slot: right_slot,
-                path: right_path,
-                ..
-            },
-        ) => left_slot == right_slot && left_path == right_path,
-        (
-            RuntimeAudioCommand::SetFxBusSlot {
-                bus_index: left_bus,
-                slot_index: left_slot,
-                ..
-            },
-            RuntimeAudioCommand::SetFxBusSlot {
-                bus_index: right_bus,
-                slot_index: right_slot,
-                ..
-            },
-        ) => left_bus == right_bus && left_slot == right_slot,
-        (
-            RuntimeAudioCommand::SetGlobalFxSlot {
-                slot_index: left_slot,
-                ..
-            },
-            RuntimeAudioCommand::SetGlobalFxSlot {
-                slot_index: right_slot,
-                ..
-            },
-        ) => left_slot == right_slot,
-        _ => false,
+        self.outbox.push_audio_command(command);
     }
 }
 

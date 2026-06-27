@@ -136,7 +136,7 @@ fn scan_index(tick: usize, span: usize, reverse: bool) -> usize {
 
 fn section_count(value: Option<usize>, size: usize) -> usize {
     match value {
-        Some(2 | 4 | 8) => value.unwrap().min(size),
+        Some(value @ (2 | 4 | 8)) => value.min(size),
         _ => 1,
     }
 }

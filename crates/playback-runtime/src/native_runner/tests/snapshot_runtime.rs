@@ -41,6 +41,58 @@ fn snapshot_settings_include_complete_audio_config_shapes() {
 }
 
 #[test]
+fn first_snapshot_emits_full_audio_config_command() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.ui.master_volume = 64;
+
+    let messages = runner.messages_with_snapshot().unwrap();
+
+    let command = messages
+        .iter()
+        .find_map(|message| match message {
+            RunnerMessage::AudioCommands { commands } => commands.iter().find_map(|command| {
+                if let RuntimeAudioCommand::SetAudioConfig { revision, config } = command {
+                    Some((*revision, config))
+                } else {
+                    None
+                }
+            }),
+            _ => None,
+        })
+        .expect("full audio config command");
+    assert_eq!(command.0, runner.audio_config_revision);
+    assert_eq!(command.1["masterVolume"], 64);
+    assert_eq!(command.1["voiceStealingMode"], "auto-balanced");
+    assert!(command.1["instruments"].is_array());
+}
+
+#[test]
+fn voice_stealing_mode_change_emits_full_audio_config_command() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let _ = runner.messages_with_snapshot().unwrap();
+    let mut payload = runner.config_payload();
+    payload["runtimeConfig"]["sound"]["voiceStealingMode"] = json!("auto-hard");
+
+    runner.apply_config_payload(payload).unwrap();
+    let messages = runner.messages_with_snapshot().unwrap();
+
+    let config = messages
+        .iter()
+        .find_map(|message| match message {
+            RunnerMessage::AudioCommands { commands } => commands.iter().find_map(|command| {
+                if let RuntimeAudioCommand::SetAudioConfig { config, .. } = command {
+                    Some(config)
+                } else {
+                    None
+                }
+            }),
+            _ => None,
+        })
+        .expect("full audio config command");
+    assert_eq!(config["voiceStealingMode"], "auto-hard");
+}
+
+#[test]
 fn runtime_snapshot_serializes_menu_scroll_metadata() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let _ = runner.menu.press();

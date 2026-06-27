@@ -1,23 +1,11 @@
-use crate::AppState;
 use midir::MidiInputConnection;
 use midir::{Ignore, MidiInput, MidiOutput};
 use std::sync::{Arc, Mutex};
-use tauri::Emitter;
 
 #[derive(Clone, serde::Serialize)]
 pub struct MidiPortInfo {
     pub(crate) id: String,
     pub(crate) name: String,
-}
-
-#[derive(serde::Serialize, Clone)]
-pub(crate) struct MidiInMessage {
-    pub(crate) bytes: Vec<u8>,
-}
-
-#[tauri::command]
-pub fn midi_list_outputs() -> Result<Vec<MidiPortInfo>, String> {
-    list_outputs()
 }
 
 pub(crate) fn list_outputs() -> Result<Vec<MidiPortInfo>, String> {
@@ -36,11 +24,6 @@ pub(crate) fn list_outputs() -> Result<Vec<MidiPortInfo>, String> {
     Ok(res)
 }
 
-#[tauri::command]
-pub fn midi_list_inputs() -> Result<Vec<MidiPortInfo>, String> {
-    list_inputs()
-}
-
 pub(crate) fn list_inputs() -> Result<Vec<MidiPortInfo>, String> {
     let mut input = MidiInput::new("cellsymphony-midi-in").map_err(|e| e.to_string())?;
     input.ignore(Ignore::None);
@@ -56,11 +39,6 @@ pub(crate) fn list_inputs() -> Result<Vec<MidiPortInfo>, String> {
         });
     }
     Ok(res)
-}
-
-#[tauri::command]
-pub fn midi_select_output(id: Option<String>, state: tauri::State<AppState>) -> Result<(), String> {
-    select_output(id, &state.midi_out)
 }
 
 pub(crate) fn select_output(
@@ -87,25 +65,6 @@ pub(crate) fn select_output(
         .map_err(|e| e.to_string())?;
     *guard = Some(conn);
     Ok(())
-}
-
-#[tauri::command]
-pub fn midi_select_input(
-    id: Option<String>,
-    state: tauri::State<AppState>,
-    app: tauri::AppHandle,
-) -> Result<(), String> {
-    select_input(id, &state.midi_in, app)
-}
-
-pub(crate) fn select_input(
-    id: Option<String>,
-    midi_in: &Arc<Mutex<Option<MidiInputConnection<()>>>>,
-    app: tauri::AppHandle,
-) -> Result<(), String> {
-    select_input_with_handler(id, midi_in, move |bytes| {
-        let _ = app.emit("midi_in", MidiInMessage { bytes });
-    })
 }
 
 pub(crate) fn select_input_with_handler<F>(
@@ -144,16 +103,4 @@ where
         .map_err(|e| e.to_string())?;
     *guard = Some(conn);
     Ok(())
-}
-
-#[tauri::command]
-pub fn midi_send(bytes: Vec<u8>, state: tauri::State<AppState>) -> Result<(), String> {
-    let mut guard = state
-        .midi_out
-        .lock()
-        .map_err(|_| "midi mutex poisoned".to_string())?;
-    let Some(conn) = guard.as_mut() else {
-        return Ok(());
-    };
-    conn.send(&bytes).map_err(|e| e.to_string())
 }

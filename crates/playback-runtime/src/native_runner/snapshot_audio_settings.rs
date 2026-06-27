@@ -1,4 +1,5 @@
 use super::{json, sample_assignments_payload, NativeRunner, Value, PAN_POSITION_COUNT};
+use crate::protocol::RuntimeAudioCommand;
 
 impl NativeRunner {
     pub(super) fn audio_snapshot_payload(&self) -> Value {
@@ -56,5 +57,17 @@ impl NativeRunner {
             "mixer": self.mixer_payload(),
             "panPositions": PAN_POSITION_COUNT,
         })
+    }
+
+    pub(super) fn full_audio_config_command(&self) -> RuntimeAudioCommand {
+        let mut config = self.audio_snapshot_payload();
+        if let Value::Object(fields) = &mut config {
+            fields.insert("masterVolume".into(), json!(self.ui.master_volume));
+            fields.insert("voiceStealingMode".into(), json!(self.voice_stealing_mode));
+        }
+        RuntimeAudioCommand::SetAudioConfig {
+            revision: self.audio_config_revision,
+            config,
+        }
     }
 }

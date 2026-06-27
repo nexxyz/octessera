@@ -1,4 +1,4 @@
-import { GRID_WIDTH, type RuntimeSnapshot } from "@cellsymphony/device-contracts";
+import { type RuntimeSnapshot } from "@cellsymphony/device-contracts";
 
 const ledCell = (frame: RuntimeSnapshot, index: number) => {
   const offset = index * 3;
@@ -23,8 +23,8 @@ export function GridMatrix({
       <div className="matrix">
         {Array.from({ length: frame.leds.width * frame.leds.height }, (_, index) => {
           const cell = ledCell(frame, index);
-          const x = index % GRID_WIDTH;
-          const y = Math.floor(index / GRID_WIDTH);
+          const x = index % frame.leds.width;
+          const y = Math.floor(index / frame.leds.width);
           return (
             <button
               key={`${x}-${y}`}

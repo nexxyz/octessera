@@ -386,7 +386,7 @@ impl HostAdapter for PiPlaybackHostAdapter<'_> {
     }
 
     fn handle_audio_command(&mut self, command: &RuntimeAudioCommand) -> Result<(), String> {
-        send_audio_command(self.audio, command)
+        send_audio_command(self.audio, command, &self.samples_dir)
     }
 
     fn handle_midi_message(&mut self, bytes: &[u8]) -> Result<(), String> {

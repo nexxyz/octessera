@@ -18,8 +18,10 @@ export type RuntimeMomentaryFxTarget =
   | { type: "instrument"; index: number };
 
 export type RuntimeAudioCommand =
+  | { type: "set_audio_config"; revision: number; config: Record<string, unknown> }
   | { type: "set_master_volume"; volumePct: number }
   | { type: "set_instrument_mixer"; instrumentSlot: number; volumePct?: number; panPos?: number }
+  | { type: "set_fx_bus_mixer"; busIndex: number; panPos?: number }
   | { type: "set_synth_param"; instrumentSlot: number; path: string; value: number }
   | { type: "set_sample_bank_param"; instrumentSlot: number; path: string; value: number }
   | { type: "set_fx_bus_slot"; busIndex: number; slotIndex: number; fxType: string; params: Record<string, unknown> }
@@ -42,6 +44,10 @@ export type RuntimePlatformEffect =
   | { type: "midi_select_input"; id: string | null }
   | { type: "midi_panic" }
   | { type: "shutdown" }
+  | { type: "hardware_test" }
+  | { type: "update_check" }
+  | { type: "update_apply" }
+  | { type: "rollback" }
   | { type: "sample_list_request"; instrumentSlot: number; sampleSlot: number; dir: string }
   | { type: "audio_command"; command: RuntimeAudioCommand };
 
@@ -79,13 +85,19 @@ export type RuntimeTransportPulseStepMessage = {
   requestSnapshot?: boolean;
 };
 
-export type RuntimeMidiRealtimeMessage =
+export type RuntimeMidiRealtimeLogicalMessage =
   | { type: "midi_realtime"; message: "clock"; pulses: number }
   | { type: "midi_realtime"; message: Exclude<MidiRealtimeMessageType, "clock"> };
 
+export type RuntimeMidiRealtimeWireMessage =
+  | { type: "midi_realtime_clock"; pulses: number }
+  | { type: "midi_realtime_start" }
+  | { type: "midi_realtime_continue" }
+  | { type: "midi_realtime_stop" };
+
 export type RuntimeResultMessage = { type: "runtime_result"; result: RuntimeStoreResult };
 
-export type RuntimeHostMessage = RuntimeDeviceInputMessage | RuntimeTransportPulseStepMessage | RuntimeMidiRealtimeMessage | RuntimeResultMessage;
+export type RuntimeHostMessage = RuntimeDeviceInputMessage | RuntimeTransportPulseStepMessage | RuntimeMidiRealtimeWireMessage | RuntimeResultMessage;
 
 export type RuntimeSnapshotMessage = { type: "snapshot"; snapshot: RuntimeSnapshot };
 export type RuntimePlatformEffectsMessage = { type: "platform_effects"; effects: RuntimePlatformEffect[] };
@@ -161,9 +173,10 @@ export const SHARED_RUNTIME_CONTRACT_FIXTURES: RuntimeContractFixture[] = [
     id: "external-midi-realtime-controls-transport",
     description: "External MIDI realtime messages stay explicit at the contract boundary instead of being inferred from desktop timers.",
     hostMessages: [
-      { type: "midi_realtime", message: "start" },
-      { type: "midi_realtime", message: "clock", pulses: 24 },
-      { type: "midi_realtime", message: "stop" }
+      { type: "midi_realtime_start" },
+      { type: "midi_realtime_clock", pulses: 24 },
+      { type: "midi_realtime_continue" },
+      { type: "midi_realtime_stop" }
     ],
     runnerMessages: [
       {
@@ -200,6 +213,26 @@ export const SHARED_RUNTIME_CONTRACT_FIXTURES: RuntimeContractFixture[] = [
       {
         type: "runtime_status",
         status: { state: "idle", transport: "stopped", currentPpqnPulse: 0, pendingResync: false, syncSource: "internal" }
+      }
+    ]
+  },
+  {
+    id: "runtime-ui-pulse-and-host-actions",
+    description: "Runner pulses transient UI indicators while platform effects stay explicit host-owned actions.",
+    hostMessages: [{ type: "device_input", input: { type: "button_s", pressed: true } }],
+    runnerMessages: [
+      {
+        type: "ui_pulse",
+        pulse: { type: "transport_flash", flash: "beat", durationMs: 160 }
+      },
+      {
+        type: "platform_effects",
+        effects: [
+          { type: "hardware_test" },
+          { type: "update_check" },
+          { type: "update_apply" },
+          { type: "rollback" }
+        ]
       }
     ]
   }

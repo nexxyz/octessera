@@ -7,7 +7,7 @@ export type MusicalEvent =
   | { type: "cc"; channel: number; controller: number; value: number };
 
 export type DeviceInput =
-  | { type: "encoder_turn"; delta: -1 | 1; id?: "main" | `aux${number}` }
+  | { type: "encoder_turn"; delta: number; id?: "main" | `aux${number}` }
   | { type: "encoder_press"; id?: "main" | `aux${number}` }
   | { type: "button_a"; pressed?: boolean }
   | { type: "button_s"; pressed?: boolean }
@@ -29,6 +29,7 @@ export type DisplayFrame = {
   title: string;
   lines: string[];
   editing: boolean;
+  off?: boolean;
   splash?: "startup" | "sleep" | "wakeup" | "shutdown" | string;
   toast?: string;
   colors?: number[];
@@ -96,5 +97,11 @@ export type RuntimeSnapshot = {
   transport: TransportFrame;
   activeBehavior: string;
   gridInteraction: GridInteraction;
+  selectedRow?: number | null;
+  eventDotOn?: boolean;
+  voiceSteal?: boolean;
+  transportIcon?: "play" | "pause" | "stop";
+  transportFlash?: "none" | "beat" | "measure";
+  cpuLoadRatio?: number;
   settings?: RuntimeSnapshotSettings;
 };

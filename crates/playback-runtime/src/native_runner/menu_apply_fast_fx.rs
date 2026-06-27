@@ -2,7 +2,7 @@ use crate::protocol::RuntimeAudioCommand;
 use serde_json::Value;
 use std::collections::BTreeMap;
 
-use super::{derive_bus_name, fx_default_params, NativeRunner};
+use super::{derive_bus_name, fx_default_params, NativeRunner, PAN_POSITION_COUNT};
 
 impl NativeRunner {
     pub(super) fn apply_deferred_menu_key_fast(&mut self, key: &str) -> bool {
@@ -121,6 +121,9 @@ impl NativeRunner {
     pub(super) fn apply_fx_menu_key_fast(&mut self, key: &str) -> Option<bool> {
         if let Some(rest) = key.strip_prefix("mixer.buses.") {
             let (bus_index, rest) = parse_indexed_key(rest)?;
+            if rest == "panPos" {
+                return Some(self.fast_fx_bus_pan_key(bus_index, key));
+            }
             let (slot_name, param_path) = rest.split_once(".params.")?;
             let slot_index = match slot_name {
                 "slot1" => 0,
@@ -135,6 +138,26 @@ impl NativeRunner {
             return Some(self.fast_global_fx_param_key(slot_index, param_path, key));
         }
         None
+    }
+
+    fn fast_fx_bus_pan_key(&mut self, bus_index: usize, key: &str) -> bool {
+        let Some(value) = self.menu.number_for_key(key) else {
+            return false;
+        };
+        let Some(bus) = self.fx_buses.get_mut(bus_index) else {
+            return false;
+        };
+        let pan_pos = value.clamp(0, i32::from(PAN_POSITION_COUNT - 1)) as u8;
+        if bus.pan_pos == pan_pos {
+            return true;
+        }
+        bus.pan_pos = pan_pos;
+        self.mark_fast_autosave_dirty();
+        self.queue_audio_command(RuntimeAudioCommand::SetFxBusMixer {
+            bus_index,
+            pan_pos: Some(usize::from(pan_pos)),
+        });
+        true
     }
 
     fn fast_fx_bus_param_key(

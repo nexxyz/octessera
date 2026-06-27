@@ -73,8 +73,14 @@ impl I2CBus {
 #[cfg(feature = "pi-zero")]
 fn set_slave_addr(file: &File, addr: u16) -> Result<(), String> {
     #[cfg(target_os = "linux")]
-    unsafe {
-        libc::ioctl(file.as_raw_fd(), 0x0703, addr as u64); // I2C_SLAVE = 0x0703
+    {
+        let result = unsafe { libc::ioctl(file.as_raw_fd(), 0x0703, addr as u64) }; // I2C_SLAVE = 0x0703
+        if result < 0 {
+            return Err(format!(
+                "I2C set slave address 0x{addr:02x} failed: {}",
+                std::io::Error::last_os_error()
+            ));
+        }
     }
     Ok(())
 }

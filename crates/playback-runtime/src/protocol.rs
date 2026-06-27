@@ -52,6 +52,10 @@ pub enum RuntimeMomentaryFxTarget {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum RuntimeAudioCommand {
+    SetAudioConfig {
+        revision: u64,
+        config: Value,
+    },
     SetMasterVolume {
         #[serde(rename = "volumePct")]
         volume_pct: f32,
@@ -61,6 +65,12 @@ pub enum RuntimeAudioCommand {
         instrument_slot: usize,
         #[serde(default, rename = "volumePct")]
         volume_pct: Option<f32>,
+        #[serde(default, rename = "panPos")]
+        pan_pos: Option<usize>,
+    },
+    SetFxBusMixer {
+        #[serde(rename = "busIndex")]
+        bus_index: usize,
         #[serde(default, rename = "panPos")]
         pan_pos: Option<usize>,
     },

@@ -277,12 +277,12 @@ fn instrument_overview_label(
     base_label: &str,
     kind: &str,
     route: &str,
-    sample_slot: usize,
+    _sample_slot: usize,
     midi_channel: u8,
 ) -> String {
     let prefix = base_label.split_whitespace().next().unwrap_or(base_label);
     match kind {
-        "sampler" => format!("{prefix} samp B{}", sample_slot + 1),
+        "sampler" => format!("{prefix} samp {route}"),
         "midi" => format!("{prefix} midi ch{midi_channel}"),
         "none" => format!("{prefix} none"),
         _ => format!("{prefix} synth {route}"),

@@ -1,7 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
-import { PAN_POSITION_COUNT } from "@cellsymphony/device-contracts";
-import { nativeAudioBridge } from "../audio/nativeAudioBridge";
-import { createCoalescedAudioConfigSender } from "../audio/coalescedAudioConfig";
+import { useEffect } from "react";
 import { mapKeyboardEventToInputAction, mapKeyboardKeyupToInputAction, shouldPreventKeyboardDefault } from "../runtime/inputAdapters/keyboardAdapter";
 import type { createSimulatorRuntime } from "../runtime/simulatorRuntime";
 
@@ -22,7 +19,7 @@ export function useRuntimeBindings(runtime: AppRuntime, setSnapshot: (snapshot: 
   }, [runtime, setSnapshot]);
 }
 
-export function useKeyboardBindings(runtime: AppRuntime, bumpDialPhase: (id: EncoderId | undefined, delta: -1 | 1) => void): void {
+export function useKeyboardBindings(runtime: AppRuntime, bumpDialPhase: (id: EncoderId | undefined, delta: number) => void): void {
   useEffect(() => {
     const pressedKeys = new Set<string>();
 
@@ -93,31 +90,3 @@ export function useDialDragBindings(
   }, [dialDrag, setDialDrag, turnWithAcceleration]);
 }
 
-export function useAudioConfigSync(snapshot: AppSnapshot): void {
-  const lastVoiceStealingMode = useRef<string>("");
-  const audioConfigSender = useRef<ReturnType<typeof createCoalescedAudioConfigSender> | null>(null);
-  if (audioConfigSender.current === null) {
-    audioConfigSender.current = createCoalescedAudioConfigSender((config) => nativeAudioBridge.setInstruments(config));
-  }
-
-  const audioConfig = useMemo(() => {
-    const instruments = (snapshot as any).instruments ?? [];
-    const mixer = (snapshot as any).mixer ?? { buses: [] };
-    const panPositions = Number((snapshot as any).panPositions ?? PAN_POSITION_COUNT);
-    return { instruments, mixer, panPositions, masterVolume: snapshot.masterVolume };
-  }, [snapshot.audioConfigRevision, snapshot.instruments, snapshot.masterVolume, snapshot.mixer, snapshot.panPositions]);
-
-  useEffect(() => {
-    if (audioConfig.instruments.length === 0) return;
-    audioConfigSender.current?.schedule(audioConfig);
-  }, [audioConfig]);
-
-  useEffect(() => () => audioConfigSender.current?.flush(), []);
-
-  useEffect(() => {
-    const mode = snapshot.voiceStealingMode ?? "auto-balanced";
-    if (mode === lastVoiceStealingMode.current) return;
-    lastVoiceStealingMode.current = mode;
-    void nativeAudioBridge.setRuntimePolicy({ voiceStealingMode: mode });
-  }, [snapshot.voiceStealingMode]);
-}
