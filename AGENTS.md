@@ -55,6 +55,7 @@ Cell Symphony is a pnpm workspace plus Cargo workspace built around a native Rus
 - Multi-line `package.json` edits can accidentally delete the `dependencies` block.
 - Keep TS/Rust bridge mappings aligned when renaming shared types, parameters, or instrument names.
 - Do not add fallbacks for our own broken wiring, configs, capability data, menu layout, or bridge logic. Fix the source.
+- Prefer clean source-model fixes over patching symptoms or filtering/removing exception fields after the fact, unless the clean design is clearly disproportionate to the task.
 - Fallbacks are acceptable only for real external compatibility cases such as old configs, disconnected MIDI devices, or missing files/resources, and should preserve safety with a user-visible status when practical.
 - Account for the current OS when choosing commands or tooling.
 - If the user corrects an earlier instruction, follow the latest instruction.
@@ -68,7 +69,9 @@ Cell Symphony is a pnpm workspace plus Cargo workspace built around a native Rus
 - Work in one package at a time unless the task clearly spans packages.
 - In planning mode, outline concrete steps before editing.
 - In build mode, continue until the task is completed or blocked by a real user decision.
+- Every code-change loop should leave the codebase in a potentially shippable, production-quality state unless the user explicitly approves otherwise. Do not defer known cleanup, dead code removal, stale tests, obsolete commands, required docs, or required validation as optional follow-up.
 - Keep explanations brief and avoid post-change recap unless it is useful.
+- If a first fix for a desktop-visible menu/control/runtime bug fails, reproduce the reported phenomenon with a full UI-level or device-input replay before attempting another fix. Prefer tests that follow the user-visible flow over direct internal state mutation alone.
 - If you encounter repository changes you did not make and they conflict with the current task, stop and ask the user how to proceed.
 
 ## Useful Commands
