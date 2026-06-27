@@ -439,6 +439,11 @@ mod tests {
             );
             let serialized = behavior.serialize(&state).unwrap();
             let restored = behavior.deserialize(serialized).unwrap();
+            let persistent = behavior.serialize_persistent(&state).unwrap();
+            assert!(persistent.get("generation").is_none());
+            assert!(persistent.get("tickCounter").is_none());
+            let persistent_restored = behavior.deserialize(persistent).unwrap();
+            let _ = behavior.render_model(&persistent_restored).unwrap();
             let _ = behavior.config_menu(&restored).unwrap();
         }
     }
