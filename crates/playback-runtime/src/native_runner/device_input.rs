@@ -1,4 +1,4 @@
-use crate::native_menu::NativeMenuPressResult;
+use crate::native_menu::{NativeMenuAction, NativeMenuPressResult};
 use crate::protocol::{RunnerMessage, RuntimePlatformEffect};
 use std::time::Instant;
 
@@ -61,9 +61,9 @@ impl NativeRunner {
         let result = match input {
             DeviceInput::GridPress { x, y } => self.handle_grid_press_input(x, y),
             DeviceInput::GridRelease { x, y } => self.handle_grid_release_input(x, y),
-            DeviceInput::BehaviorAction(_) => {
-                self.engine.on_input(input, self.bpm as f32)?;
-                self.messages_with_snapshot()
+            DeviceInput::BehaviorAction(action) => {
+                let result = self.trigger_behavior_action_result(action.action_type)?;
+                self.messages_with_input_result(result)
             }
             DeviceInput::ButtonS { pressed } => self.handle_button_s_input(pressed),
             DeviceInput::ButtonShift { pressed } => {
@@ -155,7 +155,7 @@ impl NativeRunner {
             self.select_dance_page_from_fn_grid(y);
         } else if self.ui.shift_held && !self.ui.fn_held && self.active_dance_mode == "none" {
             if !self.handle_param_mod_grid_press(x, y) {
-                self.config_dirty = true;
+                self.mark_grid_input_dirty();
                 let result = self.active_engine_input_result(DeviceInput::GridPress { x, y })?;
                 return self.messages_with_input_result(result);
             }
@@ -169,7 +169,7 @@ impl NativeRunner {
         } else if self.active_dance_mode != "none" {
             self.handle_dance_grid_press(x, y);
         } else {
-            self.config_dirty = true;
+            self.mark_grid_input_dirty();
             let result = self.active_engine_input_result(DeviceInput::GridPress { x, y })?;
             return self.messages_with_input_result(result);
         }
@@ -194,8 +194,17 @@ impl NativeRunner {
             }
             return self.messages_with_snapshot();
         }
+        self.mark_grid_input_dirty();
         let result = self.active_engine_input_result(DeviceInput::GridRelease { x, y })?;
         self.messages_with_input_result(result)
+    }
+
+    fn mark_grid_input_dirty(&mut self) {
+        if self.behavior.id() == "looper" {
+            self.mark_fast_autosave_dirty();
+        } else {
+            self.config_dirty = true;
+        }
     }
 
     fn handle_button_s_input(
@@ -232,6 +241,9 @@ impl NativeRunner {
         id: Option<&str>,
     ) -> Result<Vec<RunnerMessage>, String> {
         if let Some(index) = Self::aux_index(id) {
+            if let Some(messages) = self.handle_aux_behavior_action_press(index)? {
+                return Ok(messages);
+            }
             if let Some(effect) = self.handle_aux_press(index)? {
                 return self.messages_with_effects(vec![effect]);
             }
@@ -262,6 +274,10 @@ impl NativeRunner {
             if let Some(result) = self.menu.press() {
                 match result {
                     NativeMenuPressResult::Action(action) => {
+                        if let NativeMenuAction::BehaviorAction(action_type) = action {
+                            let result = self.trigger_behavior_action_result(action_type)?;
+                            return self.messages_with_input_result(result);
+                        }
                         if let Some(effect) = self.execute_menu_action(action)? {
                             effects.push(effect);
                         }
@@ -311,6 +327,34 @@ impl NativeRunner {
             }
         }
         self.messages_with_snapshot()
+    }
+
+    fn handle_aux_behavior_action_press(
+        &mut self,
+        index: usize,
+    ) -> Result<Option<Vec<RunnerMessage>>, String> {
+        if self.ui.fn_held {
+            return Ok(None);
+        }
+        let Some(press) = self.effective_aux_slot(index).press else {
+            return Ok(None);
+        };
+        let NativeMenuAction::BehaviorAction(action_type) = press.action else {
+            return Ok(None);
+        };
+        let valid = self.l1_menu_items().into_iter().any(|item| {
+            matches!(
+                item.value,
+                crate::native_menu::NativeMenuValue::Action(NativeMenuAction::BehaviorAction(ref current)) if current == &action_type
+            )
+        });
+        if !valid {
+            self.show_toast(format!("S{}: {} not active", index + 1, press.label));
+            return Ok(Some(self.messages_with_snapshot()?));
+        }
+        let result = self.trigger_behavior_action_result(action_type)?;
+        self.show_toast(format!("S{}: {}", index + 1, press.label));
+        Ok(Some(self.messages_with_input_result(result)?))
     }
 
     fn handle_button_a_input(

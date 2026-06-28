@@ -73,7 +73,7 @@ Root (group)
 ```
 L1: Life
 ├── P1: ... (group)                              ← one group per part, label computed via partLabel()
-│   ├── Behavior: [none | life | sequencer | keys | brain | ant | bounce | shapes | raindrops | dla | glider] ← controls which algorithm runs this part
+│   ├── Behavior: [none | life | sequencer | keys | looper | brain | ant | bounce | shapes | raindrops | dla | glider] ← controls which algorithm runs this part
 │   ├── Step Rate: [1/16, 1/8, 1/4, 1/2, 1/1]   ← controls how often onTick() is called
 │   ├── ... per-behavior dynamic config from behavior's configMenu()
 │   ├── Save Grid State: [on | off]              ← controls whether this part's current grid/runtime state is stored in preset/default saves
@@ -96,6 +96,9 @@ Behavior-specific config items (from `configMenu()`):
 | life | !Spawn Random | action, shared route `trigger.life.spawn_now` |
 | sequencer | *(none)* | — |
 | keys | Quantize: [immediate, step] | enum |
+| looper | Mode: [play, overdub] | enum |
+| looper | Length: [1..64] | number, step 1 (default 16) |
+| looper | !Clear Loop | action |
 | brain | Fire Threshold: [1..6] | number, step 1 |
 | brain | !Seed Random | action, shared route `trigger.life.spawn_now` |
 | ant | Max Ants: [1..10] | number, step 1 |
@@ -299,6 +302,7 @@ Part runtime behavior:
 - Switching active part never clears/reset any part state automatically.
 - Switching part shows the selected part's current state immediately.
 - `Save Grid State` affects preset/default save payload persistence only.
+- `looper` stores its recorded sequence in `savedState` as step-bucketed press/release events when `Save Grid State` is `on`. Live-held cells and currently sounding playback cells are not saved; loaded loops restart from step 1.
 - `Step Rate`, behavior selection/config, Sense mapping, trigger probabilities, instruments, mixer, system settings, selected Dance page, Dance FX assignments, X/Y bindings, and aux bindings are persistent and must round-trip through preset/default/autosave payloads.
 - Active overlays, assignment modes, held modifiers, active momentary FX instances, live X/Y touch, help popups, and toast state are transient and are not restored from preset/default/autosave payloads.
 
@@ -591,9 +595,9 @@ All behaviors use `CellTriggerType`: `activate`, `stable`, `deactivate`, `scanne
 
 ### Input Events
 
-`DeviceInput` supports `grid_press` and `grid_release` events. Behaviors that do not handle `grid_release` (all except `keys`) simply ignore it. The `keys` behavior uses press→activate and release→deactivate semantics.
+`DeviceInput` supports `grid_press` and `grid_release` events. Behaviors that do not handle `grid_release` simply ignore it. `keys` uses press→activate and release→deactivate semantics; `looper` uses the same live semantics and can overdub step-quantized press/release events into its loop.
 
-When a behavior enables immediate input-transition interpretation, `platform-core` interprets grid changes from input through the same Sense/mapping pipeline used during tick, producing immediate musical events. The `keys` behavior uses this to provide immediate finger-drumming response.
+When a behavior enables immediate input-transition interpretation, `platform-core` interprets grid changes from input through the same Sense/mapping pipeline used during tick, producing immediate musical events. `keys` and `looper` use this to provide immediate finger-drumming response.
 
 ## 4 Trigger Types
 

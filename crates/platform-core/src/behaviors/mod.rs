@@ -13,7 +13,8 @@ pub use glider::GliderState;
 pub use life::LifeState;
 pub use none::NoneState;
 pub use ported::{
-    AntState, BounceState, BrainState, DlaState, KeysState, RaindropsState, ShapesState,
+    AntState, BounceState, BrainState, DlaState, KeysState, LooperState, RaindropsState,
+    ShapesState,
 };
 pub use sequencer::SequencerState;
 
@@ -24,6 +25,7 @@ pub enum NativeBehaviorState {
     Glider(GliderState),
     Sequencer(SequencerState),
     Keys(KeysState),
+    Looper(LooperState),
     Brain(BrainState),
     Ant(AntState),
     Bounce(BounceState),
@@ -39,6 +41,7 @@ pub enum NativeBehavior {
     Glider,
     Sequencer,
     Keys,
+    Looper,
     Brain,
     Ant,
     Bounce,
@@ -54,6 +57,7 @@ pub fn get_native_behavior(id: &str) -> Option<NativeBehavior> {
         "glider" => Some(NativeBehavior::Glider),
         "sequencer" => Some(NativeBehavior::Sequencer),
         "keys" => Some(NativeBehavior::Keys),
+        "looper" => Some(NativeBehavior::Looper),
         "brain" => Some(NativeBehavior::Brain),
         "ant" => Some(NativeBehavior::Ant),
         "bounce" => Some(NativeBehavior::Bounce),
@@ -70,6 +74,7 @@ pub fn list_native_behavior_ids() -> &'static [&'static str] {
         "life",
         "sequencer",
         "keys",
+        "looper",
         "brain",
         "ant",
         "bounce",
@@ -88,6 +93,7 @@ impl NativeBehavior {
             NativeBehavior::Glider => "glider",
             NativeBehavior::Sequencer => "sequencer",
             NativeBehavior::Keys => "keys",
+            NativeBehavior::Looper => "looper",
             NativeBehavior::Brain => "brain",
             NativeBehavior::Ant => "ant",
             NativeBehavior::Bounce => "bounce",
@@ -130,6 +136,9 @@ impl NativeBehavior {
             ),
             (NativeBehavior::Keys, NativeBehaviorState::Keys(state)) => Ok(
                 NativeBehaviorState::Keys(ported::keys_on_input(state, input, context)),
+            ),
+            (NativeBehavior::Looper, NativeBehaviorState::Looper(state)) => Ok(
+                NativeBehaviorState::Looper(ported::looper_on_input(state, input, context)),
             ),
             (NativeBehavior::Brain, NativeBehaviorState::Brain(state)) => Ok(
                 NativeBehaviorState::Brain(ported::brain_on_input(state, input, context)),
@@ -174,6 +183,9 @@ impl NativeBehavior {
             (NativeBehavior::Keys, NativeBehaviorState::Keys(state)) => Ok(
                 NativeBehaviorState::Keys(ported::keys_on_tick(state, context)),
             ),
+            (NativeBehavior::Looper, NativeBehaviorState::Looper(state)) => Ok(
+                NativeBehaviorState::Looper(ported::looper_on_tick(state, context)),
+            ),
             (NativeBehavior::Brain, NativeBehaviorState::Brain(state)) => Ok(
                 NativeBehaviorState::Brain(ported::brain_on_tick(state, context)),
             ),
@@ -213,6 +225,9 @@ impl NativeBehavior {
             (NativeBehavior::Keys, NativeBehaviorState::Keys(state)) => {
                 Ok(ported::keys_render_model(state))
             }
+            (NativeBehavior::Looper, NativeBehaviorState::Looper(state)) => {
+                Ok(ported::looper_render_model(state))
+            }
             (NativeBehavior::Brain, NativeBehaviorState::Brain(state)) => {
                 Ok(ported::brain_render_model(state))
             }
@@ -246,6 +261,9 @@ impl NativeBehavior {
                 sequencer::serialize(state)
             }
             (NativeBehavior::Keys, NativeBehaviorState::Keys(state)) => ported::serialize(state),
+            (NativeBehavior::Looper, NativeBehaviorState::Looper(state)) => {
+                ported::looper_serialize(state)
+            }
             (NativeBehavior::Brain, NativeBehaviorState::Brain(state)) => ported::serialize(state),
             (NativeBehavior::Ant, NativeBehaviorState::Ant(state)) => ported::serialize(state),
             (NativeBehavior::Bounce, NativeBehaviorState::Bounce(state)) => {
@@ -277,6 +295,7 @@ impl NativeBehavior {
     fn init_ported(self, config: Value) -> Result<NativeBehaviorState, String> {
         match self {
             NativeBehavior::Keys => Ok(NativeBehaviorState::Keys(ported::keys_init(config)?)),
+            NativeBehavior::Looper => Ok(NativeBehaviorState::Looper(ported::looper_init(config)?)),
             NativeBehavior::Brain => Ok(NativeBehaviorState::Brain(ported::brain_init(config)?)),
             NativeBehavior::Ant => Ok(NativeBehaviorState::Ant(ported::ant_init(config)?)),
             NativeBehavior::Bounce => Ok(NativeBehaviorState::Bounce(ported::bounce_init(config)?)),
@@ -295,6 +314,9 @@ impl NativeBehavior {
     fn deserialize_ported(self, data: Value) -> Result<NativeBehaviorState, String> {
         match self {
             NativeBehavior::Keys => Ok(NativeBehaviorState::Keys(ported::deserialize(data)?)),
+            NativeBehavior::Looper => Ok(NativeBehaviorState::Looper(ported::looper_deserialize(
+                data,
+            )?)),
             NativeBehavior::Brain => Ok(NativeBehaviorState::Brain(ported::deserialize(data)?)),
             NativeBehavior::Ant => Ok(NativeBehaviorState::Ant(ported::deserialize(data)?)),
             NativeBehavior::Bounce => Ok(NativeBehaviorState::Bounce(ported::deserialize(data)?)),
@@ -326,6 +348,9 @@ impl NativeBehavior {
             (NativeBehavior::Keys, NativeBehaviorState::Keys(_)) => {
                 Ok(Some(ported::keys_config_menu()))
             }
+            (NativeBehavior::Looper, NativeBehaviorState::Looper(_)) => {
+                Ok(Some(ported::looper_config_menu()))
+            }
             (NativeBehavior::Brain, NativeBehaviorState::Brain(_)) => {
                 Ok(Some(ported::brain_config_menu()))
             }
@@ -355,6 +380,7 @@ impl NativeBehavior {
     pub fn grid_interaction(self) -> Option<GridInteraction> {
         match self {
             NativeBehavior::Keys => ported::grid_interaction_for_keys(),
+            NativeBehavior::Looper => ported::grid_interaction_for_looper(),
             _ => None,
         }
     }
@@ -373,6 +399,7 @@ mod tests {
                 "life",
                 "sequencer",
                 "keys",
+                "looper",
                 "brain",
                 "ant",
                 "bounce",
@@ -388,6 +415,7 @@ mod tests {
             Some(NativeBehavior::Sequencer)
         );
         assert_eq!(get_native_behavior("keys"), Some(NativeBehavior::Keys));
+        assert_eq!(get_native_behavior("looper"), Some(NativeBehavior::Looper));
         assert_eq!(get_native_behavior("dla"), Some(NativeBehavior::Dla));
         assert_eq!(get_native_behavior("missing"), None);
     }

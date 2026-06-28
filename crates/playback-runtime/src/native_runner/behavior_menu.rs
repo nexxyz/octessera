@@ -105,6 +105,7 @@ impl NativeRunner {
                 value: crate::native_menu::NativeMenuValue::Number {
                     value: self
                         .behavior_config_number(&item.key)
+                        .or_else(|| self.behavior_state_number_default(&item.key))
                         .unwrap_or(item.min.unwrap_or(0)),
                     min: item.min.unwrap_or(0),
                     max: item.max.unwrap_or(127),
@@ -160,6 +161,15 @@ impl NativeRunner {
             .map(|value| value as i32)
     }
 
+    fn behavior_state_number_default(&self, key: &str) -> Option<i32> {
+        match (self.behavior.id(), key, self.engine_state()) {
+            ("looper", "lengthSteps", platform_core::NativeBehaviorState::Looper(state)) => {
+                Some(state.length_steps as i32)
+            }
+            _ => None,
+        }
+    }
+
     pub(super) fn behavior_config_from_menu(&self) -> Result<Value, String> {
         let mut object = self
             .behavior_config
@@ -198,11 +208,20 @@ impl NativeRunner {
     }
 
     pub(super) fn trigger_behavior_action(&mut self, action_type: String) -> Result<(), String> {
-        self.engine.on_input(
-            DeviceInput::BehaviorAction(BehaviorActionInput { action_type }),
-            self.bpm as f32,
-        )?;
+        let _ = self.trigger_behavior_action_result(action_type)?;
         Ok(())
+    }
+
+    pub(super) fn trigger_behavior_action_result(
+        &mut self,
+        action_type: String,
+    ) -> Result<platform_core::NativeInputResult, String> {
+        let result =
+            self.active_engine_input_result(DeviceInput::BehaviorAction(BehaviorActionInput {
+                action_type,
+            }))?;
+        self.mark_fast_autosave_dirty();
+        Ok(result)
     }
 
     pub(super) fn seed_visible_state(&mut self) -> Result<(), String> {

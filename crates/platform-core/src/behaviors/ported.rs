@@ -4,6 +4,7 @@ mod brain;
 mod common;
 mod dla;
 mod keys;
+mod looper;
 mod raindrops;
 mod shapes;
 
@@ -20,6 +21,10 @@ pub use dla::{dla_config_menu, dla_init, dla_on_input, dla_on_tick, dla_render_m
 pub use keys::{
     grid_interaction_for_keys, keys_config_menu, keys_init, keys_on_input, keys_on_tick,
     keys_render_model, KeysState,
+};
+pub use looper::{
+    grid_interaction_for_looper, looper_config_menu, looper_deserialize, looper_init,
+    looper_on_input, looper_on_tick, looper_render_model, looper_serialize, LooperState,
 };
 pub use raindrops::{
     raindrops_config_menu, raindrops_init, raindrops_on_input, raindrops_on_tick,

@@ -334,13 +334,20 @@ impl NativeRunner {
         if next_behavior_config == self.behavior_config {
             return Ok(false);
         }
+        let previous_state = (self.behavior.id() == "looper")
+            .then(|| self.engine.serialized_state())
+            .transpose()?;
         self.behavior_config = next_behavior_config;
         if let Some(config) = self.part_behavior_configs.get_mut(self.active_part_index) {
             *config = self.behavior_config.clone();
         }
         self.behavior_configs
             .insert(self.behavior.id().to_string(), self.behavior_config.clone());
-        self.rebuild_engine(self.behavior)?;
+        if let Some(state) = previous_state {
+            self.rebuild_looper_engine_with_config_state(state)?;
+        } else {
+            self.rebuild_engine(self.behavior)?;
+        }
         Ok(true)
     }
 

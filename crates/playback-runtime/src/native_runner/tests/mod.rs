@@ -11,6 +11,7 @@ mod dance_menu;
 mod dance_overlay;
 mod input_events;
 mod instruments;
+mod looper;
 mod menu_navigation;
 mod menu_navigation_state;
 mod modulation;

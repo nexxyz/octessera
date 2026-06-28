@@ -1,70 +1,113 @@
 # Cell Symphony
 
-Cell Symphony is a hardware-first Rust music platform that turns cellular automata into musical events. It ships as a native Raspberry Pi app target and a Tauri desktop hardware simulator using the same Rust runtime/core behavior path.
+Cell Symphony turns cellular automata into music you can play.
 
-## Current State
+Create a dynamic, evolving beat in minutes. Let Conway's Life generate a shifting synth backdrop. Add a drumbeat with a classic grid-style sequencer. Make the drums duck the synth out of the way. Play a lead line live. Then jump into Dance mode and perform with live effects, change note probability, and use the XY pad and mixer controls to build up to a massive drop.
 
-- Native Rust runtime, menu, transport, behavior, interpretation, mapping, and config logic are canonical.
-- TypeScript is limited to desktop UI and shared bridge/display/runtime contracts.
-- Desktop uses Tauri as the host adapter for windowing, storage, MIDI, sample browsing, sample decoding, and audio output.
-- Pi Zero uses a native Rust app with HAL stubs for host builds and `hardware-pi` for real hardware builds.
-- Internal synth/sample audio routes through `crates/realtime-engine` and `crates/rodio-engine-source`; MIDI instruments emit external MIDI instead of entering the internal audio mixer.
+It is easy to start with, but deep. It rewards exploration and experimentation. Small changes to the grid can become rhythms, melodies, modulation, texture, or surprise.
 
-## Documentation Priority
+The intended way of using it is a DIY standalone hardware instrument based on a Raspberry Pi. There is, however, a fully implemented desktop app that serves simulator for building, testing, and playing the same instrument on a computer - but it is also quite usable and effective, if you don't want another piece of gear to clutter your valuable desk real estate.
 
-Documentation is written first for people building, wiring, assembling, and using the hardware instrument.
+## What You Can Make
 
-Contributor and collaboration docs are secondary. They live under `docs/` and should stay concise so they do not bury the user/hardware path.
+- **Generative synth patterns** from Life, Brain, Ant, Bounce, Raindrops, DLA, Glider, and other grid behaviors.
+- **Hands-on drum patterns** with a sequencer-style grid and sample slots.
+- **Layered arrangements** with up to eight parts/instruments.
+- **Live leads** with the Keys behavior.
+- **Evolving modulation** where grid motion changes pitch, filter, velocity, effects, and other parameters.
+- **Internal synth and sampler sounds**, plus external MIDI output.
+- **Performance scenes** with Dance mode: mix, pan, trigger probability, XY modulation, and momentary effects.
+- **Happy accidents** from systems that keep moving after you set them in motion.
 
-Start here:
+## A Quick Session
+
+1. Pick a part in **L1: Life** and choose a behavior such as `life`, `brain`, or `raindrops`.
+2. Draw or seed a few cells on the grid.
+3. Press **Space** to start playback.
+4. Go to **L3: Voice** and choose a synth, sampler or even MIDI output for the part.
+5. Add a sequencer part for drums, have it play a sampler with your preferred drum samples (we even provide a small sample library for you!)
+6. Then route the synth through an FX bus with ducking so the beat opens space in the mix.
+7. Switch another part to **Keys** and play a lead line live.
+8. Hold **Fn** and use the right grid column to enter **Dance** mode.
+9. Perform: mute, pan, change probability, move XY controls, and punch in live effects.
+
+You can treat it like a algorithmic groovebox, a generative sketchpad, or a small experimental performance instrument.
+
+## Controls
+
+The hardware (still under design) uses one clickable main encoder, three clickable aux encoders, four keys with LEDs, an 8x8 grid and a small OLED. The desktop simulator mirrors those controls with keyboard and UI inputs.
+
+| Action | Hardware | Desktop |
+|---|---|---|
+| Move or change a value | Main encoder turn | Arrow keys |
+| Enter, edit, or confirm | Main encoder press | Enter |
+| Back or leave edit mode | Back button | Backspace / Esc |
+| Play / pause | Space button | Space |
+| Emergency stop | Shift + Space | Shift + Space |
+| Clear active grid | Shift + Back | Shift + Backspace / Shift + Esc |
+| Select parts | Fn + left grid column | Ctrl + left grid column |
+| Enter Dance pages | Fn + right grid column | Ctrl + right grid column |
+| Bind a focused control | Fn + aux press | Fn + aux UI control |
+
+The full control and menu reference is [`docs/menu-and-controls-spec.md`](docs/menu-and-controls-spec.md).
+
+## Main Pages
+
+- **L1: Life** — choose the active part's behavior and edit its grid state.
+- **L2: Sense** — decide how grid motion becomes notes, velocity, filters, probability, and modulation.
+- **L3: Voice** — choose synth, sampler, MIDI, mixer routing, FX buses, and global FX.
+- **L4: Dance** — perform with mix, pan, trigger probability, XY, and momentary effects.
+- **System** — presets, default/factory actions, sound, MIDI, brightness, sleep, and help.
+
+## Build The Hardware (NOTE: not yet tested, more detailed instructions will follow at a later point in time)
+It is rather simple, especially if you've done some DIY synth work before. But even as a beginner, this is an entirely feasible first project.
+
+1. Use a service to get a custom PCB based on the provided Gerber files.
+2. Order the items in our BOM.
+3. Solder the sockets, capacitor and encoders directly onto the board. The Neotrellis uses the horizontal pin connector. The other elements all use the low-profile sockets.
+4. Solder the Neotrellis elements together, and add pins to the top left element on its left egge
+5. Bridge the jumper pads on the Neotrellis elements (none on the top left, A0 on top right, A1 on bottom left, A0 and A1 on bottom right)
+6. Bridge all jumper pads on the Neokeys
+7. Plug in all the elements (display, pi, neokeys, neotrellis, power connector, DAC)
+8. Flash the RPi image to a micro SD card
+9. Put the microSD into the pi
+10. Connect USB-C power to the power board (do NOT use the Pi's power input!)
+11. Plug in some speakers or headphones into the DAC and off you go!
+12. If you like, you can 3D print the provided enclosure and use some heat inserts and screws to hold everything together.
+
+You can read about the details here:
 
 1. [`hardware/pinout-and-connections.md`](hardware/pinout-and-connections.md) — wiring, pin ownership, buses, and hardware source of truth.
 2. [`hardware/enclosure/README.md`](hardware/enclosure/README.md) — case, port access, print notes, and power rule.
 3. [`hardware/pi-bring-up.md`](hardware/pi-bring-up.md) — Pi OS setup, preflight, build/deploy, and bring-up checklist.
 4. [`docs/menu-and-controls-spec.md`](docs/menu-and-controls-spec.md) — runtime controls, menus, overlays, and display behavior.
 
-## What It Does
+## Desktop Simulator
 
-- Runs an 8x8 cellular grid with native behaviors: none, sequencer, keys, Life, Brain, Ant, Bounce, Shapes, Raindrops, DLA, and Glider.
-- Interprets cell changes and scan positions into trigger intents.
-- Maps trigger intents into notes, CC values, sample playback, MIDI output, and parameter modulation.
-- Provides eight instrument slots with synth, sampler, MIDI, and silent `none` modes.
-- Provides mixer routing, FX buses, global FX, pan, volume, sample assignment, voice stealing policy, MIDI clock, preset/default storage, contextual help, and OLED/grid/NeoKey snapshots.
-- Provides a Dance layer for live mix, pan, trigger probability/gate control, XY modulation, and mapped momentary FX.
+The easiest way to play with this system is to just to download and launch the portable Windows EXE that is attached to the official releases.
 
-Platform dimensions and limits are defined in `resources/platform-capabilities.json`. Generated TypeScript and Rust constants must stay in sync with that file.
+It allows you try out CellSymphony without any special hardware.
 
-## Controls
+You can also launch it in a different way:
 
-| Control | Desktop Key | Runtime Input | Function |
-|---|---|---|---|
-| Main encoder turn | Left / Right / Up / Down | `encoder_turn:main` | Move cursor or adjust edited value |
-| Main encoder press | Enter | `encoder_press:main` | Enter group, toggle/edit value, confirm action |
-| Back button | Backspace / Esc | `button_a` | Back, exit edit, exit assignment mode |
-| Space button | Space | `button_s` | Play / pause |
-| Shift | Shift | `button_shift` | Modifier for destructive and layer actions |
-| Fn | Control | `button_fn` | Modifier for part/page overlays |
-| Shift + Space | Shift + Space | `button_shift` + `button_s` | Emergency stop / panic |
-| Shift + Back | Shift + Backspace / Shift + Esc | `button_shift` + `button_a` | Clear active part grid |
-| Aux encoders | UI controls | `encoder_*:aux1..aux3` | Bound parameter/action control |
+```bash
+corepack pnpm install
+corepack pnpm --filter @cellsymphony/desktop tauri:dev
+```
 
-Fn overlays:
+To create a portable Windows build yourself:
 
-- Left grid column selects the active part.
-- Right grid column toggles or selects the Dance page.
-- Combined Shift + Fn activates combined-modifier behavior described in `docs/menu-and-controls-spec.md`.
+```bash
+corepack pnpm --filter @cellsymphony/desktop tauri:build:exe
+```
 
-## Menu Overview
+## For Contributors
 
-The authoritative menu/control spec is `docs/menu-and-controls-spec.md`.
+Most users should not need this section. It is here for people changing the software or hardware docs.
 
-- `L1`: active part behavior, step rate, behavior parameters, saved grid state, and part naming.
-- `L2`: per-part scan/sense settings, trigger mapping, pitch, velocity, filter lanes, probability maps, and param modulation.
-- `L3`: instruments, synth/sample/MIDI settings, sample assignment, mixer routing, FX buses, and global FX.
-- `L4`: Dance page selection, BPM, trigger mode grid, XY controls, momentary FX setup, and grid mapping.
-- `System`: presets, default/factory actions, sound, MIDI, UI brightness/sleep, and context help.
+Cell Symphony keeps musical behavior in the native Rust runtime so the desktop simulator and Pi hardware stay aligned. TypeScript is only the desktop display/input layer and shared contracts.
 
-## Repository Layout
+Repository layout:
 
 ```text
 cellSymphony/
@@ -83,20 +126,6 @@ cellSymphony/
 ├── docs/                         # Menu spec and secondary contributor docs
 ├── hardware/                     # Primary hardware build, wiring, enclosure, and bring-up docs
 └── tools/                        # Repository maintenance tools
-```
-
-## Contributor Development
-
-Install dependencies:
-
-```bash
-corepack pnpm install
-```
-
-Run the desktop app:
-
-```bash
-corepack pnpm --filter @cellsymphony/desktop tauri:dev
 ```
 
 Run the standard checks:

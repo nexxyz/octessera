@@ -74,6 +74,7 @@ mod help_text;
 mod instrument_collections;
 mod instrument_runtime;
 mod json_path;
+mod looper_config;
 mod menu_apply;
 mod menu_apply_fast;
 mod menu_apply_fast_fx;
