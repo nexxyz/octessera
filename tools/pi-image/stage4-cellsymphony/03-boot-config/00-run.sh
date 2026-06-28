@@ -2,7 +2,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-STAGE_FILES="$(cd "$SCRIPT_DIR/../.." && pwd)/files"
+STAGE_FILES="$(cd "$SCRIPT_DIR/.." && pwd)/files"
 BOOT_DIR="$ROOTFS_DIR/boot/firmware"
 if [ ! -d "$BOOT_DIR" ]; then
     BOOT_DIR="$ROOTFS_DIR/boot"

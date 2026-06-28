@@ -2,7 +2,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-STAGE_FILES="$(cd "$SCRIPT_DIR/../.." && pwd)/files"
+STAGE_FILES="$(cd "$SCRIPT_DIR/.." && pwd)/files"
 
 install -D -m 0644 \
     "$STAGE_FILES/root/etc/systemd/system/cellsymphony.service" \
