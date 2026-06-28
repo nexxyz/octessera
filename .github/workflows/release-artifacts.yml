@@ -1,0 +1,202 @@
+name: Release Artifacts
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag, for example v0.5.0
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release_info:
+    name: Resolve release
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      version: ${{ steps.release.outputs.version }}
+      asset_prefix: ${{ steps.release.outputs.asset_prefix }}
+    steps:
+      - name: Resolve tag and verify release exists
+        id: release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
+        run: |
+          set -euo pipefail
+          if ! echo "$RELEASE_TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Release tag must look like v0.5.0; got $RELEASE_TAG" >&2
+            exit 1
+          fi
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null
+          VERSION="${RELEASE_TAG#v}"
+          {
+            echo "tag=$RELEASE_TAG"
+            echo "version=$VERSION"
+            echo "asset_prefix=CellSymphony-$VERSION"
+          } >> "$GITHUB_OUTPUT"
+
+  windows:
+    name: Windows installer and portable EXE
+    runs-on: windows-latest
+    needs: release_info
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.release_info.outputs.tag }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9.12.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2.9.1
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Windows installer
+        run: pnpm run tauri:build
+
+      - name: Prepare Windows release assets
+        id: windows_assets
+        shell: pwsh
+        run: |
+          $assetDir = New-Item -ItemType Directory -Force -Path "release-assets"
+          $installer = Get-ChildItem -Path "target/release/bundle/nsis" -Filter "*.exe" | Select-Object -First 1
+          if (-not $installer) { throw "NSIS installer not found" }
+          $portable = "target/release/cellsymphony-desktop.exe"
+          if (-not (Test-Path -LiteralPath $portable)) { throw "Portable executable source not found" }
+          $installerAsset = Join-Path $assetDir "${{ needs.release_info.outputs.asset_prefix }}-windows-installer.exe"
+          $portableAsset = Join-Path $assetDir "${{ needs.release_info.outputs.asset_prefix }}-windows-portable.exe"
+          Copy-Item -LiteralPath $installer.FullName -Destination $installerAsset
+          Copy-Item -LiteralPath $portable -Destination $portableAsset
+          Get-ChildItem -LiteralPath $assetDir | ForEach-Object { Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName } | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content -LiteralPath (Join-Path $assetDir "SHA256SUMS-windows.txt")
+          "ASSET_DIR=$($assetDir.FullName)" >> $env:GITHUB_OUTPUT
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: cellsymphony-windows-release-assets
+          path: release-assets/*
+          retention-days: 30
+
+      - name: Upload Windows assets to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ needs.release_info.outputs.tag }}" release-assets/* --clobber
+
+  pi_image:
+    name: Raspberry Pi ready-to-flash image
+    runs-on: ubuntu-latest
+    needs: release_info
+    timeout-minutes: 360
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.release_info.outputs.tag }}
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          target: aarch64-unknown-linux-gnu
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2.9.1
+
+      - name: Install cross
+        run: |
+          curl -sSL https://github.com/cross-rs/cross/releases/download/v0.2.5/cross-x86_64-unknown-linux-gnu.tar.gz | sudo tar xz -C /usr/local/bin
+          cross --version
+
+      - name: Build release Pi app
+        run: cross build --release --target aarch64-unknown-linux-gnu -p cellsymphony-pi --features hardware-pi
+
+      - name: Stage Pi app binary
+        run: |
+          install -D -m 0755 \
+            target/aarch64-unknown-linux-gnu/release/cellsymphony-pi \
+            tools/pi-image/stage4-cellsymphony/files/root/usr/local/bin/cellsymphony-pi
+          file tools/pi-image/stage4-cellsymphony/files/root/usr/local/bin/cellsymphony-pi
+
+      - name: Install pi-gen dependencies
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            quilt parted debootstrap dosfstools rsync btrfs-progs \
+            kpartx xz-utils coreutils qemu-user-static libarchive-tools \
+            arch-test device-tree-compiler unzip
+
+      - name: Clone pi-gen
+        run: |
+          git clone --depth 1 --branch bookworm-arm64 https://github.com/RPi-Distro/pi-gen.git
+          cp -r tools/pi-image/stage4-cellsymphony pi-gen/
+
+      - name: Configure pi-gen
+        working-directory: pi-gen
+        run: |
+          cat > config <<'EOL'
+          IMG_NAME=cellsymphony-pi-zero-2w
+          RELEASE=bookworm
+          TARGET_ARCH=arm64
+          STAGE_LIST="stage0 stage1 stage2 stage4-cellsymphony"
+          EXPORT_DIR=deploy
+          DEPLOY_ZIP=1
+          ENABLE_SSH=0
+          EOL
+
+      - name: Run pi-gen build
+        working-directory: pi-gen
+        run: sudo ./build.sh
+
+      - name: Find and rename Pi image
+        id: pi_asset
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          ZIP_PATH="$(find pi-gen/deploy -maxdepth 1 -name '*.zip' | head -n 1)"
+          if [ -z "$ZIP_PATH" ]; then
+            echo "No pi-gen image zip found" >&2
+            exit 1
+          fi
+          ASSET="release-assets/${{ needs.release_info.outputs.asset_prefix }}-pi-zero-2w.img.zip"
+          cp "$ZIP_PATH" "$ASSET"
+          echo "zip=$ASSET" >> "$GITHUB_OUTPUT"
+
+      - name: Verify Pi image sanitation
+        run: sudo bash tools/pi-image/verify-sanitized-image.sh "${{ steps.pi_asset.outputs.zip }}"
+
+      - name: Write Pi checksums
+        run: |
+          cd release-assets
+          sha256sum *.zip > SHA256SUMS-pi.txt
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: cellsymphony-pi-image-release-assets
+          path: release-assets/*
+          retention-days: 30
+
+      - name: Upload Pi assets to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ needs.release_info.outputs.tag }}" release-assets/* --clobber

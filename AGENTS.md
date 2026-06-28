@@ -73,6 +73,7 @@ Cell Symphony is a pnpm workspace plus Cargo workspace built around a native Rus
 - Every code-change loop should leave the codebase in a potentially shippable, production-quality state unless the user explicitly approves otherwise. Do not defer known cleanup, dead code removal, stale tests, obsolete commands, required docs, or required validation as optional follow-up.
 - Keep explanations brief and avoid post-change recap unless it is useful.
 - If a first fix for a desktop-visible menu/control/runtime bug fails, reproduce the reported phenomenon with a full UI-level or device-input replay before attempting another fix. Prefer tests that follow the user-visible flow over direct internal state mutation alone.
+- Always prefer fast paths for live/runtime/menu/audio/control changes. Use slow paths only when they are absolutely necessary; when a slow path is necessary, inform the user explicitly and clearly, including why the slow path cannot be avoided.
 - For menu/control changes that affect playback priority, avoid broad `apply_menu_state()` on high-frequency edit paths. Prefer key-specific fast paths, delayed autosave payload generation, full `cargo test -p playback-runtime` after targeted tests, and the portable desktop exe rebuild when desktop-visible.
 - If you encounter repository changes you did not make and they conflict with the current task, stop and ask the user how to proceed.
 

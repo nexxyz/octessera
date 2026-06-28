@@ -59,6 +59,31 @@ corepack pnpm --filter @cellsymphony/desktop tauri:build
 
 Release outputs are written under `target/release/`.
 
+## Explicit GitHub Releases
+
+GitHub release assets are built only by `.github/workflows/release-artifacts.yml` for explicit releases. Tag pushes and intermediate CI builds must not publish release assets.
+
+Release assets:
+
+- `CellSymphony-<version>-windows-installer.exe`: primary Windows installer.
+- `CellSymphony-<version>-windows-portable.exe`: portable Windows alternative.
+- `CellSymphony-<version>-pi-zero-2w.img.zip`: ready-to-flash Raspberry Pi Zero 2 W image.
+- `SHA256SUMS-*.txt`: checksums for release assets.
+
+Release process:
+
+1. Bump versions in Rust manifests, `package.json` files, and `apps/desktop/src-tauri/tauri.conf.json`.
+2. Run `corepack pnpm install` after package version edits.
+3. Run local validation and rebuild the portable desktop exe if desktop-visible behavior changed.
+4. Commit and push the release-prep changes.
+5. Create a draft GitHub release such as `v0.5.0`.
+6. Run `Release Artifacts` manually with that existing tag, or publish the release to trigger it.
+7. Confirm the installer, portable EXE, Pi image zip, and checksum files are attached before announcing the release.
+
+The Pi image build is a necessary slow path because it generates a full Raspberry Pi OS image through pi-gen. Keep it release-only.
+
+The release Pi image must be sanitized: no WiFi credentials, SSH keys, GitHub tokens, host logs, or local user secrets. SSH is disabled by default.
+
 ## Platform Capabilities
 
 Canonical source:

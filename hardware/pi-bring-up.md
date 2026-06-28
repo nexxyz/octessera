@@ -119,6 +119,20 @@ Fallback on-Pi build:
 
 `tools/deploy-pi-fast.ps1` preserves the Pi `target/` cache by default. Use `-CleanRemote` only when intentionally discarding that cache.
 
+## Release Image
+
+Explicit GitHub releases include a ready-to-flash Pi Zero 2 W image named `CellSymphony-<version>-pi-zero-2w.img.zip`.
+
+The image is derived from standard Raspberry Pi OS Bookworm arm64 through pi-gen and includes:
+
+- the release `cellsymphony-pi` binary built with `--release --features hardware-pi`;
+- `cellsymphony.service` and the performance governor service;
+- runtime audio/I2C/SPI dependencies;
+- Cell Symphony boot config and the `i2s-dac-no20` overlay;
+- empty `/home/pi/samples` and `/home/pi/presets` directories.
+
+The release image must not include WiFi credentials, SSH keys, GitHub tokens, host logs, or local user secrets. SSH is disabled by default. Configure network access after first boot if you need SSH for setup.
+
 ## Verified Development Pi State
 
 The current development Pi at `pi@192.168.0.211` has been verified with `tools/pi-preflight.ps1`:

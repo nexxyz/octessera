@@ -1,6 +1,6 @@
 [package]
 name = "cellsymphony-desktop"
-version = "0.1.0"
+version = "0.5.0"
 description = "Cell Symphony desktop shell"
 authors = ["Cell Symphony"]
 edition = "2021"
