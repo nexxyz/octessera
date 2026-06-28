@@ -12,6 +12,13 @@ fn looper_runner() -> NativeRunner {
     runner
 }
 
+fn looper_mode_and_step(runner: &NativeRunner) -> (String, usize) {
+    match runner.engine.state() {
+        platform_core::NativeBehaviorState::Looper(state) => (state.mode.clone(), state.step_index),
+        _ => panic!("expected looper state"),
+    }
+}
+
 fn has_note_off(messages: &[RunnerMessage]) -> bool {
     messages.iter().any(|message| match message {
         RunnerMessage::MusicalEvents { events } => events
@@ -45,6 +52,26 @@ fn looper_menu_exposes_overdub_length_and_clear() {
     assert!(l1_items
         .iter()
         .any(|item| item.key.as_deref() == Some("parts.0.l1.behaviorConfig.clearLoop")));
+}
+
+#[test]
+fn looper_defaults_to_overdub_in_menu_and_state() {
+    let runner = NativeRunner::new(NativeRunnerConfig {
+        behavior_id: "looper".into(),
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    assert_eq!(looper_mode_and_step(&runner).0, "overdub");
+    let mode_item = runner.menu.root.children[0].children[0]
+        .children
+        .iter()
+        .find(|item| item.key.as_deref() == Some("parts.0.l1.behaviorConfig.mode"))
+        .expect("mode row");
+    assert!(matches!(
+        &mode_item.value,
+        crate::native_menu::NativeMenuValue::Enum { options, selected }
+            if options[*selected] == "overdub"
+    ));
 }
 
 #[test]
@@ -163,4 +190,25 @@ fn looper_length_edit_preserves_recorded_sequence() {
     let state = runner.engine.serialized_state().unwrap();
     assert_eq!(state["steps"].as_array().unwrap().len(), 3);
     assert_eq!(state["steps"][0].as_array().unwrap().len(), 1);
+}
+
+#[test]
+fn looper_mode_edit_is_fast_and_preserves_playback_phase() {
+    let mut runner = looper_runner();
+    pulse_step(&mut runner);
+    assert_eq!(looper_mode_and_step(&runner).1, 1);
+
+    runner.menu.state.stack = vec![0, 0];
+    runner.menu.state.cursor = 4;
+    runner.menu.state.editing = true;
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+        })
+        .unwrap();
+
+    let (mode, step_index) = looper_mode_and_step(&runner);
+    assert_eq!(runner.behavior_config["mode"], "play");
+    assert_eq!(mode, "play");
+    assert_eq!(step_index, 1);
 }

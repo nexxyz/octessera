@@ -139,6 +139,7 @@ impl NativeRunner {
                     .behavior_config
                     .get(&item.key)
                     .and_then(Value::as_str)
+                    .or_else(|| self.behavior_state_enum_default(&item.key))
                     .unwrap_or_else(|| options.first().map(String::as_str).unwrap_or(""));
                 let selected = options
                     .iter()
@@ -166,6 +167,21 @@ impl NativeRunner {
             ("looper", "lengthSteps", platform_core::NativeBehaviorState::Looper(state)) => {
                 Some(state.length_steps as i32)
             }
+            _ => None,
+        }
+    }
+
+    fn behavior_state_enum_default(&self, key: &str) -> Option<&'static str> {
+        match (
+            self.behavior.id(),
+            key,
+            super::looper_config::effective_looper_mode(
+                &self.behavior_config,
+                &self.engine_state(),
+            ),
+        ) {
+            ("looper", "mode", Some(mode)) if mode == "play" => Some("play"),
+            ("looper", "mode", Some(_)) => Some("overdub"),
             _ => None,
         }
     }

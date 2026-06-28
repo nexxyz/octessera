@@ -334,6 +334,9 @@ impl NativeRunner {
         if next_behavior_config == self.behavior_config {
             return Ok(false);
         }
+        if self.apply_looper_mode_config_fast(&next_behavior_config)? {
+            return Ok(true);
+        }
         let previous_state = (self.behavior.id() == "looper")
             .then(|| self.engine.serialized_state())
             .transpose()?;

@@ -96,7 +96,7 @@ Behavior-specific config items (from `configMenu()`):
 | life | !Spawn Random | action, shared route `trigger.life.spawn_now` |
 | sequencer | *(none)* | — |
 | keys | Quantize: [immediate, step] | enum |
-| looper | Mode: [play, overdub] | enum |
+| looper | Mode: [overdub, play] | enum |
 | looper | Length: [1..64] | number, step 1 (default 16) |
 | looper | !Clear Loop | action |
 | brain | Fire Threshold: [1..6] | number, step 1 |

@@ -84,6 +84,15 @@ pub fn looper_on_input(
         DeviceInput::BehaviorAction(action) if action.action_type == "clearLoop" => {
             clear_loop(state)
         }
+        DeviceInput::BehaviorAction(action) => {
+            if let Some(mode) = action.action_type.strip_prefix("setMode:") {
+                return LooperState {
+                    mode: normalize_mode(Some(mode)),
+                    ..state
+                };
+            }
+            state
+        }
         _ => state,
     }
 }
@@ -128,7 +137,7 @@ pub fn looper_render_model(state: &LooperState) -> BehaviorRenderModel {
 
 pub fn looper_config_menu() -> Vec<BehaviorConfigItem> {
     vec![
-        enum_item("mode", "Mode", &["play", "overdub"]),
+        enum_item("mode", "Mode", &["overdub", "play"]),
         number_item("lengthSteps", "Length", 1, MAX_LENGTH_STEPS as i32, 1),
         action_item("clearLoop", "Clear Loop"),
     ]
@@ -215,8 +224,8 @@ fn combined_cells(held_cells: &[bool], playback_cells: &[bool]) -> Vec<bool> {
 
 fn normalize_mode(mode: Option<&str>) -> String {
     match mode {
-        Some("overdub") => "overdub".into(),
-        _ => "play".into(),
+        Some("play") => "play".into(),
+        _ => "overdub".into(),
     }
 }
 
@@ -248,6 +257,7 @@ mod tests {
         let state =
             looper_init(serde_json::json!({ "mode": "overdub", "lengthSteps": 4 })).unwrap();
         assert_eq!(state.mode, "overdub");
+        assert_eq!(looper_init(Value::Null).unwrap().mode, "overdub");
         assert_eq!(state.length_steps, 4);
         assert_eq!(state.steps.len(), 4);
         let menu = looper_config_menu();
@@ -263,7 +273,7 @@ mod tests {
     #[test]
     fn play_mode_behaves_like_keys_without_recording() {
         let mut context = context();
-        let state = looper_init(Value::Null).unwrap();
+        let state = looper_init(serde_json::json!({ "mode": "play" })).unwrap();
         let state = looper_on_input(state, DeviceInput::GridPress { x: 1, y: 2 }, &mut context);
         let index = grid_index(1, 2);
         assert!(state.cells[index]);
@@ -344,5 +354,32 @@ mod tests {
         assert!(restored.cells.iter().all(|cell| !cell));
         assert!(restored.held_cells.iter().all(|cell| !cell));
         assert_eq!(restored.steps[0].len(), 1);
+    }
+
+    #[test]
+    fn set_mode_action_switches_recording_without_clearing_sequence() {
+        let mut context = context();
+        let mut state = looper_init(Value::Null).unwrap();
+        state = looper_on_input(
+            state,
+            DeviceInput::BehaviorAction(crate::behavior::BehaviorActionInput {
+                action_type: "setMode:play".into(),
+            }),
+            &mut context,
+        );
+        assert_eq!(state.mode, "play");
+        state = looper_on_input(state, DeviceInput::GridPress { x: 1, y: 1 }, &mut context);
+        assert!(state.steps.iter().all(Vec::is_empty));
+
+        state = looper_on_input(
+            state,
+            DeviceInput::BehaviorAction(crate::behavior::BehaviorActionInput {
+                action_type: "setMode:overdub".into(),
+            }),
+            &mut context,
+        );
+        state = looper_on_input(state, DeviceInput::GridPress { x: 2, y: 2 }, &mut context);
+        assert_eq!(state.mode, "overdub");
+        assert_eq!(state.steps[0].len(), 1);
     }
 }
