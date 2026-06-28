@@ -5,6 +5,46 @@ ZIP_PATH="${1:?usage: verify-sanitized-image.sh <image.zip>}"
 WORK_DIR="$(mktemp -d)"
 LOOP_DEV=""
 
+require_path() {
+    local path="$1"
+    local label="$2"
+    if [ ! -e "$path" ]; then
+        echo "Sanitation check failed: missing $label at $path" >&2
+        exit 1
+    fi
+}
+
+require_executable() {
+    local path="$1"
+    local label="$2"
+    if [ ! -x "$path" ]; then
+        echo "Sanitation check failed: missing executable $label at $path" >&2
+        exit 1
+    fi
+}
+
+require_boot_config_marker() {
+    if grep -q 'Cell Symphony additions' "$WORK_DIR/boot/config.txt" 2>/dev/null; then
+        return
+    fi
+    if grep -q 'Cell Symphony additions' "$WORK_DIR/root/boot/firmware/config.txt" 2>/dev/null; then
+        return
+    fi
+    echo "Sanitation check failed: missing Cell Symphony boot config marker" >&2
+    exit 1
+}
+
+require_boot_overlay() {
+    if [ -f "$WORK_DIR/boot/overlays/i2s-dac-no20.dtbo" ]; then
+        return
+    fi
+    if [ -f "$WORK_DIR/root/boot/firmware/overlays/i2s-dac-no20.dtbo" ]; then
+        return
+    fi
+    echo "Sanitation check failed: missing i2s-dac-no20 boot overlay" >&2
+    exit 1
+}
+
 cleanup() {
     set +e
     mountpoint -q "$WORK_DIR/root" && umount "$WORK_DIR/root"
@@ -73,9 +113,9 @@ if grep -RIE '(BEGIN (RSA|OPENSSH) PRIVATE KEY|ghp_|github_pat_|ssid=|psk=)' \
     exit 1
 fi
 
-test -x "$WORK_DIR/root/usr/local/bin/cellsymphony-pi"
-test -f "$WORK_DIR/root/etc/systemd/system/cellsymphony.service"
-grep -q 'Cell Symphony additions' "$WORK_DIR/boot/config.txt"
-test -f "$WORK_DIR/boot/overlays/i2s-dac-no20.dtbo"
+require_executable "$WORK_DIR/root/usr/local/bin/cellsymphony-pi" "cellsymphony-pi"
+require_path "$WORK_DIR/root/etc/systemd/system/cellsymphony.service" "cellsymphony.service"
+require_boot_config_marker
+require_boot_overlay
 
 echo "Pi image sanitation check passed"
