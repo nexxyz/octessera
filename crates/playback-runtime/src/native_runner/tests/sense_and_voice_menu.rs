@@ -1,5 +1,15 @@
 use super::*;
 
+fn contains_label(items: &[crate::native_menu::NativeMenuItem], label: &str) -> bool {
+    items.iter().any(|item| item.label == label)
+}
+
+fn contains_key_recursive(items: &[crate::native_menu::NativeMenuItem], key: &str) -> bool {
+    items
+        .iter()
+        .any(|item| item.key.as_deref() == Some(key) || contains_key_recursive(&item.children, key))
+}
+
 #[test]
 fn entering_l1_selects_active_part_row() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
@@ -110,6 +120,62 @@ fn l2_sense_scan_mode_edits_into_config_payload() {
         runner.config_payload()["runtimeConfig"]["parts"][0]["l2"]["scanMode"],
         "scanning"
     );
+}
+
+#[test]
+fn behavior_none_hides_step_config_and_reset_but_preserves_step_rate() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        behavior_id: "none".into(),
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    runner.algorithm_step_pulses = 48;
+    runner.menu.rebuild(runner.menu_config());
+    let l1_items = &runner.menu.root.children[0].children[0].children;
+
+    assert!(contains_key_recursive(l1_items, "behaviorId"));
+    assert!(contains_key_recursive(l1_items, "parts.0.name"));
+    assert!(!contains_key_recursive(l1_items, "algorithmStep"));
+    assert!(!contains_label(l1_items, "Reset"));
+    let auto_map = runner.resolve_aux_auto_map("L1: None", Some("algorithmStep"), None);
+    assert!(auto_map.iter().all(Option::is_none));
+
+    runner.menu.focus_item_key("behaviorId");
+    runner.menu.turn_key("behaviorId", 1);
+    runner.commit_structural_draft_key("behaviorId").unwrap();
+
+    assert_ne!(runner.behavior.id(), "none");
+    assert_eq!(runner.algorithm_step_pulses, 48);
+    assert!(contains_key_recursive(
+        &runner.menu.root.children[0].children[0].children,
+        "algorithmStep"
+    ));
+}
+
+#[test]
+fn instrument_none_hides_note_mode_params_and_slot_actions() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.instruments[0].kind = "none".into();
+    runner.menu.rebuild(runner.menu_config());
+    let instrument_items = &runner.menu.root.children[2].children[0].children[0].children;
+
+    assert!(contains_key_recursive(
+        instrument_items,
+        "instruments.0.type"
+    ));
+    assert!(contains_key_recursive(
+        instrument_items,
+        "instruments.0.name"
+    ));
+    assert!(!contains_key_recursive(
+        instrument_items,
+        "instruments.0.noteBehavior"
+    ));
+    assert!(!contains_label(instrument_items, "Synth"));
+    assert!(!contains_label(instrument_items, "Sampler"));
+    assert!(!contains_label(instrument_items, "MIDI"));
+    assert!(!contains_label(instrument_items, "Mixer"));
+    assert!(!contains_label(instrument_items, "Slot Actions"));
 }
 
 #[test]

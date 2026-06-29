@@ -151,6 +151,7 @@ impl NativeRunner {
                 None,
                 None,
             ]),
+            "none" => [None, None, None, None],
             _ => [
                 Some(self.turn_slot("algorithmStep".into(), "Step")),
                 None,

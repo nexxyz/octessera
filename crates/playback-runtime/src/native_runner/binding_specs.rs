@@ -324,7 +324,8 @@ pub(super) fn supported_param_binding_key(key: &str) -> bool {
     if matches!(
         key,
         "sound.noteLengthMs" | "sound.velocityScalePct" | "sound.voiceStealingMode"
-    ) || key.starts_with("parts.") && key.contains(".l1.behaviorConfig.")
+    ) || key.starts_with("parts.")
+        && (key.ends_with(".algorithmStep") || key.contains(".l1.behaviorConfig."))
     {
         return true;
     }

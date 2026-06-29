@@ -27,6 +27,7 @@ impl NativeRunner {
                 .map(|id| (*id).to_string())
                 .collect(),
             l1_items: vec![],
+            behavior_target_items: vec![vec![]; PART_COUNT],
             part_labels: (0..PART_COUNT)
                 .map(|index| format!("P{}: life", index + 1))
                 .collect(),

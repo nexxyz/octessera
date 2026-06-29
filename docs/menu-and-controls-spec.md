@@ -82,6 +82,8 @@ Value editing semantics:
 - Browsing selected values are shown on the selected label row; edit mode uses a separate value-focused row for clarity.
 - Bool behaves like a 2-option enum (`off`/`on`) and changes on encoder turn, not immediate row press
 - Named target selectors (instrument slot, part index, mixer route) display their computed names via `formatDisplayValue()` (e.g. `I1: synth`, `P3: rain`, `fx_bus_2`)
+- Behavior `none` hides L1 Step Rate, dynamic behavior config rows, and Reset while preserving stored values. Instrument Type `none` hides Note Mode, engine-specific params, mixer/MIDI rows, and Slot Actions while preserving stored config.
+- Parameter target pickers mirror the main menu root order (`L1: Life`, `L2: Sense`, `L3: Voice`, `L4: Dance`, `System`) so modulation, Aux, and XY target browsing use the same mental model as normal navigation. Within `L1: Life`, Behavior targets are generated per part: parts with behavior `none` expose no behavior targets; real behavior parts expose their own Step Rate as `parts.N.algorithmStep` and config fields/actions as `parts.N.l1.behaviorConfig.*`.
 - When `Number Style` is `bar` or `bar+numbers`, bounded sound/control/behavior number items render with a smooth geometric bar (filled rectangle) alongside the numeric value
 - Bar display applies automatically to FX params, synth/sample shaping controls, mixer volume/pan, touch FX controls, system sound/UI controls, L2 axis controls, and behavior controls such as spawn interval/count, threshold, lifespan, and radius
 - Selector-like numeric rows stay plain text, including MIDI channels, instrument/sample slots, part selectors, and MIDI note ranges

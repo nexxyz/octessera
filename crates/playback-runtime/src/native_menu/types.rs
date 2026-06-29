@@ -125,6 +125,7 @@ pub struct NativeMenuConfig {
     pub behavior_id: String,
     pub behavior_ids: Vec<String>,
     pub l1_items: Vec<NativeMenuItem>,
+    pub behavior_target_items: Vec<Vec<NativeMenuItem>>,
     pub part_labels: Vec<String>,
     pub part_names: Vec<String>,
     pub part_auto_names: Vec<bool>,

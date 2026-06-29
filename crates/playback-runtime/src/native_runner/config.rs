@@ -29,6 +29,7 @@ impl NativeRunner {
                 .map(|id| (*id).to_string())
                 .collect(),
             l1_items: self.l1_menu_items(),
+            behavior_target_items: self.behavior_target_items(),
             part_labels: self.part_labels(),
             part_names: self.part_names.clone(),
             part_auto_names: self.part_auto_names.clone(),

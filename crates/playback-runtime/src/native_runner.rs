@@ -56,6 +56,7 @@ mod aux_auto_map;
 mod aux_auto_map_instrument_layouts;
 mod aux_auto_map_layouts;
 mod aux_binding_payload_apply;
+mod aux_generated_behavior_turn;
 mod behavior_menu;
 mod binding_specs;
 mod config;

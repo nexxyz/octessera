@@ -411,6 +411,8 @@ impl NativeRunner {
                 })
                 .unwrap_or_else(|| "changed".into());
             self.show_or_queue_aux_turn_toast(format!("T{}: {}: {value}", index + 1, turn.label));
+        } else if let Some(value) = self.turn_generated_behavior_target(&turn.key, delta) {
+            self.show_or_queue_aux_turn_toast(format!("T{}: {}: {value}", index + 1, turn.label));
         } else {
             self.show_toast(format!("T{}: {} not active", index + 1, turn.label));
         }

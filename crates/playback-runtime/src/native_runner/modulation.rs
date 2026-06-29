@@ -12,6 +12,8 @@ use super::modulation_value::{axis_norm, quantize_binding_value};
 use super::{NativeParamBinding, NativeRunner, Value, GRID_HEIGHT, GRID_WIDTH};
 use platform_core::CellTriggerIntent;
 
+use super::note_unit_to_pulses;
+
 impl NativeRunner {
     pub(super) fn apply_runtime_modulation(
         &mut self,
@@ -129,7 +131,9 @@ impl NativeRunner {
     }
 
     fn apply_routed_param_binding_value(&mut self, key: &str, value: Value) {
-        if let Some((index, field)) = parse_part_behavior_config_binding_key(key) {
+        if let Some(index) = parse_part_algorithm_step_binding_key(key) {
+            self.apply_part_algorithm_step_binding(index, value);
+        } else if let Some((index, field)) = parse_part_behavior_config_binding_key(key) {
             self.apply_behavior_param_binding(index, field, value);
         } else if let Some((index, field)) = parse_sense_binding_key(key) {
             self.apply_sense_param_binding(index, field, value);
@@ -149,7 +153,29 @@ impl NativeRunner {
         }
     }
 
+    fn apply_part_algorithm_step_binding(&mut self, index: usize, value: Value) {
+        let key = format!("parts.{index}.algorithmStep");
+        if self.generated_behavior_target_item(&key).is_none() {
+            return;
+        }
+        let Some(value) = value.as_str() else {
+            return;
+        };
+        let pulses = note_unit_to_pulses(value);
+        if let Some(part_step) = self.part_algorithm_step_pulses.get_mut(index) {
+            *part_step = pulses;
+            if index == self.active_part_index {
+                self.algorithm_step_pulses = pulses;
+            }
+            self.config_dirty = true;
+        }
+    }
+
     fn apply_behavior_param_binding(&mut self, index: usize, field: &str, value: Value) {
+        let key = format!("parts.{index}.l1.behaviorConfig.{field}");
+        if self.generated_behavior_target_item(&key).is_none() {
+            return;
+        }
         if let Some(config) = self.part_behavior_configs.get_mut(index) {
             let mut object = config.as_object().cloned().unwrap_or_default();
             object.insert(field.into(), value);
@@ -189,6 +215,14 @@ impl NativeRunner {
             &mut self.config_dirty,
         );
     }
+}
+
+fn parse_part_algorithm_step_binding_key(key: &str) -> Option<usize> {
+    let rest = key.strip_prefix("parts.")?;
+    let (index, field) = rest.split_once('.')?;
+    (field == "algorithmStep")
+        .then(|| index.parse().ok())
+        .flatten()
 }
 
 pub(super) fn param_mod_grid_targets(x: usize, y: usize) -> Vec<(&'static str, usize)> {

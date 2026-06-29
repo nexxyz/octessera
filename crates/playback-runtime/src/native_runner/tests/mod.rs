@@ -16,6 +16,7 @@ mod looper;
 mod menu_navigation;
 mod menu_navigation_state;
 mod modulation;
+mod modulation_behavior_targets;
 mod modulation_bindings;
 mod runtime_control;
 mod runtime_transport;

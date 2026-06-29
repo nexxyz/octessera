@@ -83,8 +83,8 @@ body {
   justify-self: center;
 }
 
-.aux-1 { grid-area: left; }
-.aux-2 { grid-area: top; justify-self: center; width: 120px; }
+.aux-1 { grid-area: top; justify-self: center; width: 120px; }
+.aux-2 { grid-area: left; }
 .aux-3 { grid-area: right; }
 
 .oled-bezel {

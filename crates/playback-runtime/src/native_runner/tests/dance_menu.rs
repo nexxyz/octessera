@@ -130,6 +130,28 @@ fn dance_fx_type_turn_is_deferred_until_flush() {
 }
 
 #[test]
+fn dance_fx_none_exposes_type_without_effect_params() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.dance_mode = "fx".into();
+    runner.active_dance_mode = "fx".into();
+    runner.dance_fx_selected["fxType"] = json!("none");
+    runner.menu.rebuild(runner.menu_config());
+
+    assert_eq!(
+        runner.menu.value_for_key("dance.fx.type").as_deref(),
+        Some("none")
+    );
+    assert!(runner
+        .menu
+        .value_for_key("dance.fx.params.rateHz")
+        .is_none());
+    assert!(runner
+        .menu
+        .value_for_key("dance.fx.params.depthPct")
+        .is_none());
+}
+
+#[test]
 fn changing_dance_page_rebuilds_visible_menu_rows_for_selected_page() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
 

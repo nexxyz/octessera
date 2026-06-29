@@ -71,6 +71,7 @@ fn config() -> NativeMenuConfig {
                 children: vec![],
             },
         ],
+        behavior_target_items: behavior_target_items(),
         part_labels: (0..PART_COUNT)
             .map(|index| format!("P{}: life", index + 1))
             .collect(),
@@ -153,6 +154,53 @@ fn config() -> NativeMenuConfig {
         bpm: 120,
         sync_source: SyncSource::Internal,
     }
+}
+
+fn behavior_target_items() -> Vec<Vec<NativeMenuItem>> {
+    (0..PART_COUNT)
+        .map(|part_index| {
+            vec![
+                NativeMenuItem {
+                    label: "Step Rate".into(),
+                    key: Some(format!("parts.{part_index}.algorithmStep")),
+                    value: NativeMenuValue::Enum {
+                        options: vec!["1/16", "1/8", "1/4", "1/2", "1/1"]
+                            .into_iter()
+                            .map(String::from)
+                            .collect(),
+                        selected: 1,
+                    },
+                    children: vec![],
+                },
+                NativeMenuItem {
+                    label: "Spawn Count".into(),
+                    key: Some(format!(
+                        "parts.{part_index}.l1.behaviorConfig.randomCellsPerTick"
+                    )),
+                    value: NativeMenuValue::Number {
+                        value: 12,
+                        min: 0,
+                        max: 20,
+                        step: 1,
+                    },
+                    children: vec![],
+                },
+                NativeMenuItem {
+                    label: "Spawn Interval".into(),
+                    key: Some(format!(
+                        "parts.{part_index}.l1.behaviorConfig.randomTickInterval"
+                    )),
+                    value: NativeMenuValue::Number {
+                        value: 1,
+                        min: 1,
+                        max: 20,
+                        step: 1,
+                    },
+                    children: vec![],
+                },
+            ]
+        })
+        .collect()
 }
 
 #[test]

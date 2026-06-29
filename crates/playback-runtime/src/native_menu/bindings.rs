@@ -67,51 +67,10 @@ pub(super) fn parameter_tree_groups(
     target: &str,
     config: &NativeMenuConfig,
 ) -> Vec<NativeMenuItem> {
-    let mut groups = vec![group(
-        "Sound",
-        vec![
-            binding_action(
-                "Note Length",
-                "sound.noteLengthMs",
-                "number",
-                Some(30),
-                Some(2000),
-                Some(10),
-                vec![],
-                target,
-            ),
-            binding_action(
-                "Velocity Scale",
-                "sound.velocityScalePct",
-                "number",
-                Some(0),
-                Some(200),
-                Some(1),
-                vec![],
-                target,
-            ),
-            binding_action(
-                "Voice Limit",
-                "sound.voiceStealingMode",
-                "enum",
-                None,
-                None,
-                None,
-                vec![
-                    "fixed12",
-                    "fixed16",
-                    "auto-soft",
-                    "auto-balanced",
-                    "auto-hard",
-                    "none",
-                ],
-                target,
-            ),
-        ],
-    )];
+    let mut groups = Vec::new();
 
     if let Some(behavior_group) = behavior_binding_groups(config, target) {
-        groups.push(behavior_group);
+        groups.push(group("L1: Life", behavior_group.children));
     }
 
     let sense_groups = config
@@ -121,7 +80,7 @@ pub(super) fn parameter_tree_groups(
         .filter_map(|(index, label)| sense_binding_group(index, label, config, target))
         .collect::<Vec<_>>();
     if !sense_groups.is_empty() {
-        groups.push(group("Sense", sense_groups));
+        groups.push(group("L2: Sense", sense_groups));
     }
 
     let instrument_groups = config
@@ -272,24 +231,75 @@ pub(super) fn parameter_tree_groups(
             binding_tree_from_menu_item(&item, target)
         })
         .collect::<Vec<_>>();
+    let mut voice_children = Vec::new();
     if !instrument_groups.is_empty() {
-        groups.push(group("Instruments", instrument_groups));
+        voice_children.push(group("Instruments", instrument_groups));
     }
-
     if let Some(item) = binding_tree_from_menu_item(&fx_buses_group(&config.fx_buses), target) {
-        groups.push(item);
+        voice_children.push(item);
     }
     if let Some(item) = binding_tree_from_menu_item(
         &global_fx_group(&config.global_fx_slots, &config.global_fx_params),
         target,
     ) {
-        groups.push(item);
+        voice_children.push(item);
     }
-    if let Some(item) = binding_group_from_items("Dance FX", &dance_fx_page_items(config), target) {
-        groups.push(item);
+    if !voice_children.is_empty() {
+        groups.push(group("L3: Voice", voice_children));
     }
 
+    if let Some(item) = binding_group_from_items("Dance FX", &dance_fx_page_items(config), target) {
+        groups.push(group("L4: Dance", vec![item]));
+    }
+
+    groups.push(group(
+        "System",
+        vec![group("Sound", sound_binding_items(target))],
+    ));
+
     groups
+}
+
+fn sound_binding_items(target: &str) -> Vec<NativeMenuItem> {
+    vec![
+        binding_action(
+            "Note Length",
+            "sound.noteLengthMs",
+            "number",
+            Some(30),
+            Some(2000),
+            Some(10),
+            vec![],
+            target,
+        ),
+        binding_action(
+            "Velocity Scale",
+            "sound.velocityScalePct",
+            "number",
+            Some(0),
+            Some(200),
+            Some(1),
+            vec![],
+            target,
+        ),
+        binding_action(
+            "Voice Limit",
+            "sound.voiceStealingMode",
+            "enum",
+            None,
+            None,
+            None,
+            vec![
+                "fixed12",
+                "fixed16",
+                "auto-soft",
+                "auto-balanced",
+                "auto-hard",
+                "none",
+            ],
+            target,
+        ),
+    ]
 }
 
 pub(super) fn xy_pad_items(config: &NativeMenuConfig) -> Vec<NativeMenuItem> {

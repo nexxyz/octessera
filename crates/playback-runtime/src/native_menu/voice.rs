@@ -59,20 +59,27 @@ pub(super) fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuIt
         "midi" => 3,
         _ => 1,
     };
-    let mut children = vec![
-        enum_item(
-            "Type",
-            format!("{prefix}.type"),
-            vec!["none", "synth", "sampler", "midi"],
-            type_selected,
-        ),
-        enum_item(
-            "Note Mode",
-            format!("{prefix}.noteBehavior"),
-            vec!["oneshot", "hold"],
-            selected_index(&["oneshot", "hold"], config.note_behavior),
-        ),
-    ];
+    let mut children = vec![enum_item(
+        "Type",
+        format!("{prefix}.type"),
+        vec!["none", "synth", "sampler", "midi"],
+        type_selected,
+    )];
+    if config.kind == "none" {
+        children.push(bool_item(
+            "Auto Label",
+            format!("{prefix}.autoName"),
+            config.auto_name,
+        ));
+        children.push(text_item("Name", format!("{prefix}.name"), config.name, 32));
+        return group(config.label.clone(), children);
+    }
+    children.push(enum_item(
+        "Note Mode",
+        format!("{prefix}.noteBehavior"),
+        vec!["oneshot", "hold"],
+        selected_index(&["oneshot", "hold"], config.note_behavior),
+    ));
     if config.kind == "synth" {
         children.push(synth_group(&config, &prefix));
     }

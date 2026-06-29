@@ -22,7 +22,7 @@ Root (group)
 L1: Life
 ├── P1: ... (group)                              ← one group per part, label computed via partLabel()
 │   ├── Behavior: [none | life | sequencer | keys | looper | brain | ant | bounce | shapes | raindrops | dla | glider] ← controls which algorithm runs this part
-│   ├── Step Rate: [1/16, 1/8, 1/4, 1/2, 1/1]   ← controls how often onTick() is called
+│   ├── Step Rate: [1/16, 1/8, 1/4, 1/2, 1/1]   ← controls how often onTick() is called; hidden when Behavior is `none`
 │   ├── ... per-behavior dynamic config from behavior's configMenu()
 │   ├── Save Grid State: [on | off]              ← controls whether this part's current grid/runtime state is stored in preset/default saves
 │   ├── Auto Label: [on | off]                   ← on: label auto-derives from behavior ID; off: label is manual text
@@ -33,6 +33,8 @@ L1: Life
 
 When Auto Label is on, the part label is derived from the active behavior ID (e.g. `life`, `brain`). Editing the Part Label text field switches Auto Label off.
 Part selectors (Fn+column selection, L2 Sense Part selector) display the computed part label (e.g. `P1: life`, `P2: rain`).
+When a part's behavior is `none`, the L1 part group shows Behavior, Auto Label, and Part Label only; Step Rate, dynamic behavior config rows, and Reset are hidden without deleting stored values.
+Parameter target pickers mirror the main menu root order (`L1: Life`, `L2: Sense`, `L3: Voice`, `L4: Dance`, `System`). Within `L1: Life`, behavior `none` parts expose no Behavior targets, while real behavior parts expose `parts.N.algorithmStep` and `parts.N.l1.behaviorConfig.*` targets under their own part label.
 
 Behavior-specific config items (from `configMenu()`):
 
@@ -209,6 +211,8 @@ L3: Voice
     └── ...
 ```
 
+When an instrument Type is `none`, the slot keeps Type, Auto Label, and Name visible and hides Note Mode, engine-specific groups, Mixer, MIDI, and Slot Actions without deleting stored config.
+
 Routing semantics:
 
 - Instrument `Volume` is a post-voice per-slot fader controlled by `L4: Dance > mix`.
@@ -283,7 +287,7 @@ Dance layer behavior:
 - `L2: Sense > Aux Mappings` exposes root-level menu-based assignment for aux encoder turn and click bindings plus an `Auto Map` toggle.
 - `L2: Sense > Events when paused` controls whether direct grid input can emit musical events while the transport is stopped/paused. Algorithm tick/evolution remains stopped either way.
 - `L2: Sense > Pn > Mappings` exposes explicit per-part assignment for X/Y param-mod slots.
-- The `Slot` and aux `Turn` target pickers use the same shared parameter browser as `L4: Dance > X/Y Pad`; no separate parameter tree should diverge from that browser.
+- The `Slot` and aux `Turn` target pickers use the same shared menu-mirrored parameter browser as `L4: Dance > X/Y Pad`; no separate parameter tree should diverge from that browser.
 - Aux `Click` uses a dedicated action browser for click-bindable actions.
 - Existing hardware shortcuts remain valid: Shift+grid still assigns X/Y param-mod slots and Fn+aux press binds the currently highlighted menu parameter as a Turn target or action as a `!` press target.
 - Trigger-gate Dance layout uses rows as parts with the same orientation as Fn part navigation: bottom row = part 0, top row = highest part.
@@ -305,7 +309,7 @@ Dance layer behavior:
 - Grid releases in Dance mode are consumed by the Dance layer and do not reach the active behavior engine.
 - Aux encoder bindings continue to target whichever menu item they were bound to; Dance page switching does not alter bindings.
 - `xy`: the full 8×8 grid acts as a continuous two-axis modulation surface. Pressing a grid cell normalizes its X,Y coordinates over 0–1 (full width/height, no margin). The normalized position modulates the per-part targets assigned in `L4: Dance > X/Y Pad > X/Y Axis`. While pressed, the current touch cell is bright white; after release, `sample-hold` leaves a dim gray marker at the held value and `reset-center` returns the dim marker to center.
-- `xy` target selection walks the menu tree to present all mappable parameters (same set used by aux encoder binding and Sense X/Y axis modulation). Selecting a target stores the parameter key and value metadata per part (`parts[N].xy`).
+- `xy` target selection uses the menu-mirrored parameter browser to present all mappable parameters (same set used by aux encoder binding and Sense X/Y axis modulation). Selecting a target stores the parameter key and value metadata per part (`parts[N].xy`).
 - `xy` modulation beats all other modulation sources: it is applied last in `applyModulationResult()`, after `applyParamModulation()`, overwriting the same runtime config keys.
 - `xy` grid LEDs: bright white on the touched cell while finger is down; dim gray on sample-hold (when `Release = sample-hold` and finger is lifted); rest of grid is dark.
 - `Release: sample-hold` keeps the last modulation values active after lifting the finger. `Release: reset-center` returns X and Y to 0.5 (center) on release.
