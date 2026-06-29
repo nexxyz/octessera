@@ -220,14 +220,14 @@ fn l1_part_config_always_exposes_auto_name() {
         assert!(
             lines
                 .iter()
-                .any(|line| line.as_str().unwrap_or("").contains("Part Name")),
-            "{behavior_id} should show Part Name"
+                .any(|line| line.as_str().unwrap_or("").contains("Part Label")),
+            "{behavior_id} should show Part Label"
         );
         assert!(
             lines
                 .iter()
-                .any(|line| line.as_str().unwrap_or("").contains("Auto Name")),
-            "{behavior_id} should show Auto Name"
+                .any(|line| line.as_str().unwrap_or("").contains("Auto Label")),
+            "{behavior_id} should show Auto Label"
         );
     }
 }

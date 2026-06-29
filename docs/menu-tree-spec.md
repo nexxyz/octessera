@@ -25,13 +25,13 @@ L1: Life
 │   ├── Step Rate: [1/16, 1/8, 1/4, 1/2, 1/1]   ← controls how often onTick() is called
 │   ├── ... per-behavior dynamic config from behavior's configMenu()
 │   ├── Save Grid State: [on | off]              ← controls whether this part's current grid/runtime state is stored in preset/default saves
-│   ├── Auto Name: [on | off]                    ← on: name auto-derives from behavior ID; off: name is manual text
-│   └── Part Name: (text, max 32)                ← display name; editing sets Auto Name off
+│   ├── Auto Label: [on | off]                   ← on: label auto-derives from behavior ID; off: label is manual text
+│   └── Part Label: (text, max 32)               ← display label; editing sets Auto Label off
 ├── P2: ... (group)
 └── P3: ... (group)                              ← up to partCount parts total
 ```
 
-When Auto Name is on, the part name is derived from the active behavior ID (e.g. `life`, `brain`). Editing the Part Name text field switches Auto Name off.
+When Auto Label is on, the part label is derived from the active behavior ID (e.g. `life`, `brain`). Editing the Part Label text field switches Auto Label off.
 Part selectors (Fn+column selection, L2 Sense Part selector) display the computed part label (e.g. `P1: life`, `P2: rain`).
 
 Behavior-specific config items (from `configMenu()`):
@@ -44,7 +44,7 @@ Behavior-specific config items (from `configMenu()`):
 | life | !Spawn Random | action, shared route `trigger.life.spawn_now` |
 | sequencer | *(none)* | — |
 | keys | Quantize: [immediate, step] | enum |
-| looper | Mode: [overdub, play] | enum |
+| looper | !Punch In/Out | action |
 | looper | Length: [1..64] | number, step 1 (default 16) |
 | looper | !Clear Loop | action |
 | brain | Fire Threshold: [1..6] | number, step 1 |
@@ -156,7 +156,7 @@ L3: Voice
 ├── Instruments (group)
 │   ├── Instrument 1..8 (group)                ← compact overview label e.g. `I1: synth direct`, `I2: samp fx_bus_1`, `I3: midi ch1`
 │   │   ├── Type: [none | synth | sampler | midi]
-│   │   ├── Note Behavior: [oneshot | hold] default oneshot
+│   │   ├── Note Mode: [oneshot | hold] default oneshot
 │   │   ├── Synth (group, visible when type=synth)
 │   │   │   ├── Preset > Load (group)      ← per-slot synth preset load with confirm
 │   │   │   ├── Osc 1 (group)              ← Wave, Octave, Level, Detune, Pulse Width
@@ -185,9 +185,9 @@ L3: Voice
 │   │   ├── MIDI (group)
 │   │   │   ├── Enabled: [on | off]       default off
 │   │   │   └── Channel: [1..16]
-│   │   ├── Auto Name: [on | off]         ← on: name auto-derives from Type as display text (`Synth`, `Sampler`, `MIDI`); off: name is manual text
-│   │   ├── Name: (text, max 32)          ← display name; editing sets Auto Name off; charset includes uppercase, lowercase, digits, space, `_`, `-`
-│   │   └── Actions (group)
+│   │   ├── Auto Label: [on | off]        ← on: label auto-derives from Type as display text (`Synth`, `Sampler`, `MIDI`); off: label is manual text
+│   │   ├── Name: (text, max 32)          ← display label; editing sets Auto Label off; charset includes uppercase, lowercase, digits, space, `_`, `-`
+│   │   └── Slot Actions (group)
 │   │       ├── !Clone (action)           ← duplicates instrument config to next free slot, with confirmation
 │   │       └── !Reset (action)           ← resets instrument to factory defaults, with confirmation
 ├── FX Buses (group)
@@ -199,8 +199,8 @@ L3: Voice
 │   │   │   ├── Type: [same options] default none
 │   │   │   └── (effect params, visible per Type)
 │   │   ├── Pan Pos: [0..32] quantized (33-position stereo scale; 16=center)
-│   │   ├── Auto Name: [on | off]     ← on: name auto-derives from FX slot types as display text (`None`, `Delay+Duck`); off: name is manual text
-│   │   └── Name: (text, max 32)      ← display name; editing sets Auto Name off; charset includes uppercase, lowercase, digits, space, `_`, `-`
+│   │   ├── Auto Label: [on | off]    ← on: label auto-derives from FX slot types as display text (`None`, `Delay+Duck`); off: label is manual text
+│   │   └── Name: (text, max 32)      ← display label; editing sets Auto Label off; charset includes uppercase, lowercase, digits, space, `_`, `-`
 │   └── ... (per bus)
 └── Global FX (group)
     ├── Slot 1..N (group, N from platform capability `globalFxSlotCount`; current desktop/Pi Zero target = 2)
@@ -225,7 +225,7 @@ Routing semantics:
 - `duck` source options are stable and capability-sized: `I1..I{instrumentCount}` and `B1..B{busCount}`.
 - `auto-pan` modulates the bus stereo output position after the slot chain.
 - FX bus slot and global slot group labels include the loaded effect display name, e.g. `Slot 1: Delay`, `Slot 2: Duck`, or `Slot 1: None`.
-- FX bus naming mode: `auto` builds from assigned slot types using display names (e.g. `Delay+Reverb`, or `None` when all slots are empty); manual names are preserved exactly. Legacy raw auto names are normalized only when `Auto Name` is on and the stored name is missing or equals the old raw auto-derived value.
+- FX bus naming mode: `auto` builds from assigned slot types using display names (e.g. `Delay+Reverb`, or `None` when all slots are empty); manual names are preserved exactly. Legacy raw auto names are normalized only when `Auto Label` is on and the stored name is missing or equals the old raw auto-derived value.
 
 Sample assignment mode semantics:
 
@@ -332,7 +332,7 @@ System
 │   │   ├── Load Default: (action)
 │   │   └── Auto Save: [on | off]    ← auto-persists settled config after cooldown
 │   ├── Factory (group)
-│   │   └── Load Fact. Default: (action)
+│   │   └── Load Factory: (action)
 ├── Diagnostics (group)
 │   └── Hardware Test: (action)       ← confirms, then runs pre-hardware Pi checks
 ├── Updates (group)
@@ -344,7 +344,7 @@ System
 │   ├── Note Length: [30..2000] step 10 ms  default 120
 │   ├── Velocity Scale: [0..200] step 5 %   default 100
 │   ├── Velocity Curve: [linear | soft | hard]
-│   └── Voice Stealing: [fixed12 | fixed16 | auto-soft | auto-balanced | auto-hard | none]  default auto-balanced
+│   └── Voice Limit: [fixed12 | fixed16 | auto-soft | auto-balanced | auto-hard | none]  default auto-balanced
 ├── MIDI (group)
 │   ├── Enabled: [on | off]
 │   ├── !Panic: (action)
@@ -354,14 +354,14 @@ System
 │   │   ├── Sync Mode: [internal | external]
 │   │   ├── Clock Out: [on | off]
 │   │   ├── Clock In: [on | off]
-│   │   └── Respond Start/Stop: [on | off]
+│   │   └── Follow Start/Stop: [on | off]
 ├── UI (group)
 │   ├── Ghost Cells: [on | off]  default off  ← shows dim cells from inactive parts behind active part
-│   ├── Numeric Display: [bar | numbers | bar+numbers]  ← controls rendering of bar-style numeric params, default bar+numbers
+│   ├── Number Style: [bar | numbers | bar+numbers]  ← controls rendering of bar-style numeric params, default bar+numbers
 │   ├── Screen Sleep: [0..600] step 10 s    default 60 (0=off)
-│   ├── Display Brightness: [10..100] step 5  default 75 (bar display when Numeric Display is bar or bar+numbers)
-│   ├── Grid Brightness: [10..100] step 5     default 75 (bar display when Numeric Display is bar or bar+numbers)
-│   └── Button Brightness: [10..100] step 5   default 75 (bar display when Numeric Display is bar or bar+numbers)
+│   ├── OLED Bright: [10..100] step 5     default 75 (bar display when Number Style is bar or bar+numbers)
+│   ├── Grid Bright: [10..100] step 5     default 75 (bar display when Number Style is bar or bar+numbers)
+│   └── Button Bright: [10..100] step 5   default 75 (bar display when Number Style is bar or bar+numbers)
 ├── Controls (group)                  ← read-only shortcut cheat sheet; rows have help but no actions/effects
 │   ├── Help: Sh+Fn+Main
 │   ├── Back: Back

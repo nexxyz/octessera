@@ -158,6 +158,7 @@ impl NativeRunner {
             }
             NativeMenuAction::ResetBehavior => {
                 self.seed_visible_state()?;
+                self.show_toast("Behavior reset");
                 Ok(None)
             }
         }
@@ -186,6 +187,7 @@ impl NativeRunner {
         self.instruments[target_index] = clone;
         self.config_dirty = true;
         self.menu.rebuild(self.menu_config());
+        self.show_toast(format!("Cloned to I{}", target_index + 1));
     }
 
     fn reset_instrument(&mut self, index: usize) {
@@ -195,6 +197,7 @@ impl NativeRunner {
         self.instruments[index] = NativeInstrumentSlot::reset(index);
         self.config_dirty = true;
         self.menu.rebuild(self.menu_config());
+        self.show_toast(format!("Reset I{}", index + 1));
     }
 
     fn set_aux_click_target(&mut self, index: usize, action: Option<NativeMenuAction>) {
@@ -457,7 +460,12 @@ impl NativeRunner {
             }
         }
         let result = self.execute_menu_action(press.action.clone())?;
-        self.show_toast(format!("S{}: {}", index + 1, press.label));
+        if !matches!(
+            press.action,
+            NativeMenuAction::BehaviorAction(ref action) if action == "toggleMode" && self.behavior.id() == "looper"
+        ) {
+            self.show_toast(format!("S{}: {}", index + 1, press.label));
+        }
         Ok(result)
     }
 }

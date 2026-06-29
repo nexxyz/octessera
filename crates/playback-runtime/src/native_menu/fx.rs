@@ -42,7 +42,7 @@ pub(super) fn fx_buses_group(config: &[NativeFxBusConfig]) -> NativeMenuItem {
                             32,
                             1,
                         ),
-                        bool_item("Auto Name", format!("{prefix}.autoName"), bus.auto_name),
+                        bool_item("Auto Label", format!("{prefix}.autoName"), bus.auto_name),
                         text_item("Name", format!("{prefix}.name"), bus.name.clone(), 32),
                     ],
                 )

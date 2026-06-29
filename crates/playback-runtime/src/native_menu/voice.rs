@@ -67,7 +67,7 @@ pub(super) fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuIt
             type_selected,
         ),
         enum_item(
-            "Note Behavior",
+            "Note Mode",
             format!("{prefix}.noteBehavior"),
             vec!["oneshot", "hold"],
             selected_index(&["oneshot", "hold"], config.note_behavior),
@@ -86,13 +86,13 @@ pub(super) fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuIt
         children.push(mixer_group(&config, &prefix));
     }
     children.push(bool_item(
-        "Auto Name",
+        "Auto Label",
         format!("{prefix}.autoName"),
         config.auto_name,
     ));
     children.push(text_item("Name", format!("{prefix}.name"), config.name, 32));
     children.push(group(
-        "Actions",
+        "Slot Actions",
         vec![
             action_item(
                 "Clone",

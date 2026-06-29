@@ -73,6 +73,24 @@ impl NativeRunner {
         &self,
         action: &NativeMenuAction,
     ) -> Option<NativeConfirmDialog> {
+        let instrument_detail = match action {
+            NativeMenuAction::CloneInstrument { index } => {
+                Some(("Confirm Clone", format!("Clone instrument I{}?", index + 1)))
+            }
+            NativeMenuAction::ResetInstrument { index } => {
+                Some(("Confirm Reset", format!("Reset instrument I{}?", index + 1)))
+            }
+            _ => None,
+        };
+        if let Some((title, detail)) = instrument_detail {
+            return Some(NativeConfirmDialog {
+                title: title.into(),
+                lines: wrap_help_text(&detail, 28),
+                options: vec!["Cancel".into(), "Confirm".into()],
+                cursor: 0,
+                action: action.clone(),
+            });
+        }
         let NativeMenuAction::PlatformEffect(action_type) = action else {
             return None;
         };

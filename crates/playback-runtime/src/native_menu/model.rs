@@ -241,12 +241,12 @@ impl NativeMenuModel {
     }
 
     pub fn selected_display_brightness(&self) -> Option<u8> {
-        self.find_number("Display Brightness")
+        self.find_key_number("displayBrightness")
             .map(|value| value.clamp(0, 100) as u8)
     }
 
     pub fn selected_button_brightness(&self) -> Option<u8> {
-        self.find_number("Button Brightness")
+        self.find_key_number("buttonBrightness")
             .map(|value| value.clamp(0, 100) as u8)
     }
 

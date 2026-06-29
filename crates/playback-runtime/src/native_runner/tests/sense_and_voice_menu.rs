@@ -290,19 +290,18 @@ fn instrument_clone_and_reset_actions_update_slots() {
     runner.instruments[0].kind = "sampler".into();
     runner.instruments[0].name = "kit".into();
     runner.instruments[0].auto_name = false;
-
-    runner
-        .execute_menu_action(NativeMenuAction::ResetInstrument { index: 1 })
-        .unwrap();
-
-    assert_eq!(runner.instruments[1].kind, "none");
-    assert_eq!(runner.instruments[1].name, "None");
-    assert_eq!(runner.instruments[1].midi_channel, 2);
+    runner.instruments[1] = NativeInstrumentSlot::reset(1);
 
     runner
         .execute_menu_action(NativeMenuAction::CloneInstrument { index: 0 })
         .unwrap();
+    assert_eq!(
+        runner.confirm_dialog.as_ref().unwrap().title,
+        "Confirm Clone"
+    );
+    confirm_current_dialog(&mut runner);
 
+    assert_eq!(runner.toast.as_ref().unwrap().message, "Cloned to I2");
     assert_eq!(runner.instruments[1].kind, "sampler");
     assert_eq!(runner.instruments[1].name, "Sampler");
     assert!(runner.instruments[1].auto_name);
@@ -312,4 +311,18 @@ fn instrument_clone_and_reset_actions_update_slots() {
         runner.config_payload()["runtimeConfig"]["instruments"][1]["type"],
         "sampler"
     );
+
+    runner
+        .execute_menu_action(NativeMenuAction::ResetInstrument { index: 1 })
+        .unwrap();
+    assert_eq!(
+        runner.confirm_dialog.as_ref().unwrap().title,
+        "Confirm Reset"
+    );
+    confirm_current_dialog(&mut runner);
+
+    assert_eq!(runner.toast.as_ref().unwrap().message, "Reset I2");
+    assert_eq!(runner.instruments[1].kind, "none");
+    assert_eq!(runner.instruments[1].name, "None");
+    assert_eq!(runner.instruments[1].midi_channel, 2);
 }

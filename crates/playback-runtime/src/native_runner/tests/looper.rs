@@ -40,10 +40,13 @@ fn pulse_step(runner: &mut NativeRunner) {
 }
 
 #[test]
-fn looper_menu_exposes_overdub_length_and_clear() {
+fn looper_menu_exposes_punch_length_and_clear() {
     let runner = looper_runner();
     let l1_items = &runner.menu.root.children[0].children[0].children;
-    assert!(l1_items
+    assert!(l1_items.iter().any(|item| item.key.as_deref()
+        == Some("parts.0.l1.behaviorConfig.toggleMode")
+        && item.label == "Punch In/Out"));
+    assert!(!l1_items
         .iter()
         .any(|item| item.key.as_deref() == Some("parts.0.l1.behaviorConfig.mode")));
     assert!(l1_items
@@ -62,21 +65,16 @@ fn looper_defaults_to_overdub_in_menu_and_state() {
     })
     .unwrap();
     assert_eq!(looper_mode_and_step(&runner).0, "overdub");
-    let mode_item = runner.menu.root.children[0].children[0]
+    assert!(!runner.menu.root.children[0].children[0]
         .children
         .iter()
-        .find(|item| item.key.as_deref() == Some("parts.0.l1.behaviorConfig.mode"))
-        .expect("mode row");
-    assert!(matches!(
-        &mode_item.value,
-        crate::native_menu::NativeMenuValue::Enum { options, selected }
-            if options[*selected] == "overdub"
-    ));
+        .any(|item| item.key.as_deref() == Some("parts.0.l1.behaviorConfig.mode")));
 }
 
 #[test]
 fn looper_overdub_records_release_and_replays_each_loop() {
     let mut runner = looper_runner();
+    runner.auto_save_default = true;
     let index = platform_core::grid_index(2, 3);
     runner
         .send(HostMessage::DeviceInput {
@@ -127,6 +125,7 @@ fn looper_clear_loop_action_releases_playback_cells_and_marks_dirty() {
         })
         .unwrap();
     assert!(!runner.engine.model().unwrap().cells[index]);
+    assert_eq!(snapshot_from(&messages)["display"]["toast"], "Loop cleared");
     assert!(runner.config_dirty);
     assert!(has_note_off(&messages));
     let state = runner.engine.serialized_state().unwrap();
@@ -193,13 +192,117 @@ fn looper_length_edit_preserves_recorded_sequence() {
 }
 
 #[test]
-fn looper_mode_edit_is_fast_and_preserves_playback_phase() {
+fn looper_punch_action_toggles_mode_and_preserves_live_state() {
     let mut runner = looper_runner();
+    runner.auto_save_default = true;
     pulse_step(&mut runner);
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+        })
+        .unwrap();
+    let state_before = runner.engine.serialized_state().unwrap();
+    assert_eq!(state_before["steps"][1].as_array().unwrap().len(), 1);
     assert_eq!(looper_mode_and_step(&runner).1, 1);
+    runner.config_dirty = false;
 
     runner.menu.state.stack = vec![0, 0];
     runner.menu.state.cursor = 4;
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })
+        .unwrap();
+
+    let (mode, step_index) = looper_mode_and_step(&runner);
+    assert_eq!(runner.behavior_config["mode"], "play");
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["parts"][0]["l1"]["behaviorConfig"]["mode"],
+        "play"
+    );
+    assert!(runner.config_dirty);
+    assert_eq!(mode, "play");
+    assert_eq!(step_index, 1);
+    assert_eq!(snapshot_from(&messages)["display"]["toast"], "Looper: Play");
+    runner.make_deferred_menu_apply_due_for_test();
+    assert_deferred_save(&runner.flush_deferred_menu_apply().unwrap());
+    let state_after = runner.engine.serialized_state().unwrap();
+    assert_eq!(state_after["steps"][1].as_array().unwrap().len(), 1);
+    assert!(runner.engine.model().unwrap().cells[platform_core::grid_index(2, 3)]);
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })
+        .unwrap();
+    assert_eq!(looper_mode_and_step(&runner).0, "overdub");
+    assert_eq!(runner.behavior_config["mode"], "overdub");
+    assert_eq!(
+        snapshot_from(&messages)["display"]["toast"],
+        "Looper: Overdub"
+    );
+}
+
+#[test]
+fn looper_punch_aux_binding_uses_same_action_path() {
+    let mut runner = looper_runner();
+    runner.auto_save_default = true;
+    runner.config_dirty = false;
+    runner.aux_bindings[0] = Some(NativeAuxBinding {
+        turn_key: None,
+        press_action: Some(NativeMenuAction::BehaviorAction("toggleMode".into())),
+    });
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "aux1" }),
+        })
+        .unwrap();
+
+    assert_eq!(looper_mode_and_step(&runner).0, "play");
+    assert_eq!(runner.behavior_config["mode"], "play");
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["parts"][0]["l1"]["behaviorConfig"]["mode"],
+        "play"
+    );
+    assert!(runner.config_dirty);
+    assert_eq!(snapshot_from(&messages)["display"]["toast"], "Looper: Play");
+    runner.make_deferred_menu_apply_due_for_test();
+    assert_deferred_save(&runner.flush_deferred_menu_apply().unwrap());
+}
+
+fn assert_deferred_save(messages: &[RunnerMessage]) {
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects.iter().any(|effect| matches!(
+                effect,
+                RuntimePlatformEffect::StoreSaveDefault { mode, .. }
+                    if mode.as_deref() == Some("deferred")
+            ))
+    )));
+}
+
+#[test]
+fn looper_length_edit_after_punch_preserves_play_mode_sequence_and_phase() {
+    let mut runner = looper_runner();
+    pulse_step(&mut runner);
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+        })
+        .unwrap();
+    runner.menu.state.stack = vec![0, 0];
+    runner.menu.state.cursor = 4;
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+        })
+        .unwrap();
+    assert_eq!(looper_mode_and_step(&runner), ("play".into(), 1));
+
+    runner.menu.state.stack = vec![0, 0];
+    runner.menu.state.cursor = 5;
     runner.menu.state.editing = true;
     runner
         .send(HostMessage::DeviceInput {
@@ -207,8 +310,45 @@ fn looper_mode_edit_is_fast_and_preserves_playback_phase() {
         })
         .unwrap();
 
-    let (mode, step_index) = looper_mode_and_step(&runner);
+    let state = runner.engine.serialized_state().unwrap();
     assert_eq!(runner.behavior_config["mode"], "play");
-    assert_eq!(mode, "play");
-    assert_eq!(step_index, 1);
+    assert_eq!(looper_mode_and_step(&runner), ("play".into(), 1));
+    assert_eq!(state["steps"].as_array().unwrap().len(), 3);
+    assert_eq!(state["steps"][1].as_array().unwrap().len(), 1);
+}
+
+#[test]
+fn looper_length_edit_preserves_play_mode_when_config_mode_is_absent() {
+    let mut runner = looper_runner();
+    runner
+        .behavior_config
+        .as_object_mut()
+        .unwrap()
+        .remove("mode");
+    runner.part_behavior_configs[0]
+        .as_object_mut()
+        .unwrap()
+        .remove("mode");
+    runner
+        .engine
+        .on_input(
+            platform_core::DeviceInput::BehaviorAction(platform_core::BehaviorActionInput {
+                action_type: "setMode:play".into(),
+            }),
+            runner.bpm as f32,
+        )
+        .unwrap();
+    pulse_step(&mut runner);
+    assert_eq!(looper_mode_and_step(&runner), ("play".into(), 1));
+
+    runner.menu.state.stack = vec![0, 0];
+    runner.menu.state.cursor = 5;
+    runner.menu.state.editing = true;
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+        })
+        .unwrap();
+
+    assert_eq!(looper_mode_and_step(&runner), ("play".into(), 1));
 }

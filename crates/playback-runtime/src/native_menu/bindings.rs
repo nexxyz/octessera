@@ -91,7 +91,7 @@ pub(super) fn parameter_tree_groups(
                 target,
             ),
             binding_action(
-                "Voice Stealing",
+                "Voice Limit",
                 "sound.voiceStealingMode",
                 "enum",
                 None,

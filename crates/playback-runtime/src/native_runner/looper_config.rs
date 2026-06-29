@@ -29,8 +29,13 @@ impl NativeRunner {
 
     pub(super) fn rebuild_looper_engine_with_config_state(
         &mut self,
-        state: Value,
+        mut state: Value,
     ) -> Result<(), String> {
+        if let (platform_core::NativeBehaviorState::Looper(current), Some(object)) =
+            (self.engine_state(), state.as_object_mut())
+        {
+            object.insert("stepIndex".into(), json!(current.step_index));
+        }
         self.engine = platform_core::NativePartEngine::from_serialized_state(
             platform_core::NativePartEngineConfig {
                 behavior: self.behavior,
@@ -100,11 +105,14 @@ fn effective_length(config: &Value, state: &platform_core::NativeBehaviorState) 
 }
 
 fn looper_state_with_config(mut state: Value, config: &Value) -> Value {
+    let state_mode = state.get("mode").and_then(Value::as_str);
     let mode = config
         .get("mode")
         .and_then(Value::as_str)
-        .filter(|mode| *mode == "overdub")
-        .unwrap_or("overdub");
+        .or(state_mode)
+        .filter(|mode| matches!(*mode, "overdub" | "play"))
+        .unwrap_or("overdub")
+        .to_string();
     let length_steps = config
         .get("lengthSteps")
         .and_then(Value::as_u64)

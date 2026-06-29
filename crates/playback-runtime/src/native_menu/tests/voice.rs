@@ -16,16 +16,16 @@ fn voice_instrument_rows_expose_configuration_groups() {
     assert!(menu
         .current_siblings()
         .iter()
-        .any(|item| item.label == "Actions"));
+        .any(|item| item.label == "Slot Actions"));
     assert!(menu
         .current_siblings()
         .iter()
-        .find(|item| item.label == "Actions")
+        .find(|item| item.label == "Slot Actions")
         .is_some_and(|item| item.children.iter().any(|child| child.label == "Clone")));
     assert!(menu
         .current_siblings()
         .iter()
-        .find(|item| item.label == "Actions")
+        .find(|item| item.label == "Slot Actions")
         .is_some_and(|item| item.children.iter().any(|child| child.label == "Reset")));
     assert!(snapshot.lines.iter().any(|line| line == "  Name"));
 }

@@ -82,7 +82,7 @@ Value editing semantics:
 - Browsing selected values are shown on the selected label row; edit mode uses a separate value-focused row for clarity.
 - Bool behaves like a 2-option enum (`off`/`on`) and changes on encoder turn, not immediate row press
 - Named target selectors (instrument slot, part index, mixer route) display their computed names via `formatDisplayValue()` (e.g. `I1: synth`, `P3: rain`, `fx_bus_2`)
-- When `Numeric Display` is `bar` or `bar+numbers`, bounded sound/control/behavior number items render with a smooth geometric bar (filled rectangle) alongside the numeric value
+- When `Number Style` is `bar` or `bar+numbers`, bounded sound/control/behavior number items render with a smooth geometric bar (filled rectangle) alongside the numeric value
 - Bar display applies automatically to FX params, synth/sample shaping controls, mixer volume/pan, touch FX controls, system sound/UI controls, L2 axis controls, and behavior controls such as spawn interval/count, threshold, lifespan, and radius
 - Selector-like numeric rows stay plain text, including MIDI channels, instrument/sample slots, part selectors, and MIDI note ranges
 - Structural selector edits apply immediately while the row is in edit mode through key-specific fast paths. This covers behavior type, instrument type, instrument route, FX bus slot type, and master FX slot type. Dynamic parameter rows also apply immediately while editing.
@@ -104,7 +104,7 @@ Each cell in the 8×8 grid is mapped to an LED with color based on its `CellTrig
 | `deactivate` | Dim white |
 | `scanned` | Red (only if scan mode is "scanning") |
 
-Brightness is scaled by the Grid Brightness setting.
+Brightness is scaled by the Grid Bright setting.
 
 Overrides:
 
@@ -196,9 +196,9 @@ Overrides:
 
 ## Brightness Behavior
 
-- Display Brightness scales OLED display intensity in host display adapters.
-- Grid Brightness scales matrix LED RGB intensity.
-- Button Brightness scales NeoKey button LED intensity.
+- OLED Bright scales OLED display intensity in host display adapters.
+- Grid Bright scales matrix LED RGB intensity.
+- Button Bright scales NeoKey button LED intensity.
 
 ## Modulation Behavior
 
@@ -236,6 +236,8 @@ All behaviors use `CellTriggerType`: `activate`, `stable`, `deactivate`, `scanne
 ### Input Events
 
 `DeviceInput` supports `grid_press` and `grid_release` events. Behaviors that do not handle `grid_release` simply ignore it. `keys` uses press→activate and release→deactivate semantics; `looper` uses the same live semantics and can overdub step-quantized press/release events into its loop.
+
+Looper uses a `Punch In/Out` action instead of an editable mode row. Pressing it toggles between overdub and play, preserves the recorded loop and live playback state, and shows `Looper: Overdub` or `Looper: Play`.
 
 When a behavior enables immediate input-transition interpretation, `platform-core` interprets grid changes from input through the same Sense/mapping pipeline used during tick, producing immediate musical events. `keys` and `looper` use this to provide immediate finger-drumming response.
 

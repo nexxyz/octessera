@@ -451,3 +451,14 @@ fn system_menu_midi_panic_emits_panic_effect() {
             if effects == &vec![RuntimePlatformEffect::MidiPanic]
     )));
 }
+
+#[test]
+fn reset_behavior_action_shows_feedback() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+
+    runner
+        .execute_menu_action(NativeMenuAction::ResetBehavior)
+        .unwrap();
+
+    assert_eq!(runner.toast.as_ref().unwrap().message, "Behavior reset");
+}

@@ -64,7 +64,7 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                     group(
                         "Factory",
                         vec![action_item(
-                            "Load Fact. Default",
+                            "Load Factory",
                             "factory.load",
                             NativeMenuAction::PlatformEffect("factory.load".into()),
                         )],
@@ -133,7 +133,7 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                         selected_index(&["linear", "soft", "hard"], &config.velocity_curve),
                     ),
                     enum_item(
-                        "Voice Stealing",
+                        "Voice Limit",
                         "sound.voiceStealingMode",
                         vec![
                             "fixed12",
@@ -188,7 +188,7 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                                 config.midi_clock_in_enabled,
                             ),
                             bool_item(
-                                "Respond Start/Stop",
+                                "Follow Start/Stop",
                                 "midi.respondToStartStop",
                                 config.midi_respond_to_start_stop,
                             ),
@@ -201,7 +201,7 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                 vec![
                     bool_item("Ghost Cells", "ghostCells", config.ghost_cells),
                     enum_item(
-                        "Numeric Display",
+                        "Number Style",
                         "numericDisplayMode",
                         vec!["bar", "numbers", "bar+numbers"],
                         selected_index(
@@ -218,7 +218,7 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                         10,
                     ),
                     number_item(
-                        "Display Brightness",
+                        "OLED Bright",
                         "displayBrightness",
                         i32::from(config.display_brightness),
                         10,
@@ -226,7 +226,7 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                         5,
                     ),
                     number_item(
-                        "Grid Brightness",
+                        "Grid Bright",
                         "gridBrightness",
                         i32::from(config.grid_brightness),
                         10,
@@ -234,7 +234,7 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                         5,
                     ),
                     number_item(
-                        "Button Brightness",
+                        "Button Bright",
                         "buttonBrightness",
                         i32::from(config.button_brightness),
                         10,

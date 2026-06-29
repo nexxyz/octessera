@@ -22,7 +22,7 @@ midi_in_dynamic	System > MIDI > MIDI In > *	action:midi_select_input:*	action	Se
 midi_sync_mode	System > MIDI > Sync & Clock > Sync Mode	key:midi.syncMode	enum	Sync Mode	Chooses whether timing is internal or external MIDI clock.	External mode follows incoming clock when enabled.
 midi_clock_out	System > MIDI > Sync & Clock > Clock Out	key:midi.clockOutEnabled	bool	Clock Out	Enables outgoing MIDI clock messages.	Useful when other gear should follow this transport.
 midi_clock_in	System > MIDI > Sync & Clock > Clock In	key:midi.clockInEnabled	bool	Clock In	Enables incoming MIDI clock processing.	Required to follow external timing.
-midi_respond_start_stop	System > MIDI > Sync & Clock > Respond Start/Stop	key:midi.respondToStartStop	bool	Respond Start/Stop	When enabled, external MIDI Start/Stop controls transport.	When disabled, transport reacts only to local controls.
+midi_respond_start_stop	System > MIDI > Sync & Clock > Follow Start/Stop	key:midi.respondToStartStop	bool	Follow Start/Stop	When enabled, external MIDI Start/Stop controls transport.	When disabled, transport reacts only to local controls.
 life_section	Menu > L1: Life		group	Life Layer	Configures the active Life behavior and how fast it advances.	Use this area to shape the cellular process before sensing/audio mapping.
 life_step_rate	*	key:algorithmStepUnit	enum	Step Rate	Sets how often the Life algorithm advances per musical time unit.	Faster rates evolve patterns quickly; slower rates make longer-form motion.
 life_behavior	*	key:activeBehavior	enum	Behavior	Selects this part's behavior: empty, cellular, sequenced, held-key, looper, particle, ripple, DLA, glider, or shape modes.	Switching behavior replaces that part's live behavior state with the selected behavior defaults.
@@ -34,12 +34,12 @@ part_step_rate	*	key:parts.*.l1.stepRate	enum	Step Rate	Sets how often this part
 part_spawn_count	*	key:parts.*.l1.behaviorConfig.randomCellsPerTick	number	Spawn Count	Sets how many random cells are injected by this part's spawn-style behavior action.	Higher values create denser bursts and faster pattern disruption.
 part_spawn_interval	*	key:parts.*.l1.behaviorConfig.randomTickInterval	number	Spawn Interval	Sets how many behavior ticks pass between automatic random spawn bursts.	Lower values create more frequent injections.
 part_spawn_step	*	key:parts.*.l1.behaviorConfig.spawnStep	number	Spawn Step	Sets the sequenced position or interval used by behaviors that step their own spawn source.	Increase it to spread spawned changes farther apart in time or space.
-part_looper_mode	*	key:parts.*.l1.behaviorConfig.mode	enum	Mode	Selects whether the looper overdubs new grid gestures or only plays back.	Overdub is the default; use play to perform live without adding to the loop.
+part_looper_punch	*	action:behavior_action:toggleMode	action	Punch In/Out	Toggles the looper between overdub and play.	Keeps the recorded loop and current playback position.
 part_looper_length	*	key:parts.*.l1.behaviorConfig.lengthSteps	number	Length	Sets the loop length in this part's behavior steps.	Use a faster Step Rate for tighter recording and playback resolution.
-part_looper_clear	*	key:parts.*.l1.behaviorConfig.clearLoop	action	Clear Loop	Clears the recorded looper sequence for this part.	Live-held cells stay active; loop playback cells are released.
+part_looper_clear	*	action:behavior_action:clearLoop	action	Clear Loop	Clears the recorded looper sequence for this part.	Live-held cells stay active; loop playback cells are released.
 part_save_grid_state	*	key:parts.*.l1.saveGridState	bool	Save Grid State	When On, this part's runtime/grid snapshot is stored in preset and default saves.	Turn it Off if you want to keep configuration but not the current live cell state.
-part_auto_name	*	key:parts.*.autoName	bool	Auto Name	When On, the part name follows the active behavior or generated default label.	Turn it Off before typing a custom part name you want to keep.
-part_name	*	key:parts.*.name	text	Part Name	Sets the user-visible label for this part.	Used across menus and overlays when Auto Name is off.
+part_auto_name	*	key:parts.*.autoName	bool	Auto Label	When On, the part label follows the active behavior or generated default label.	Turn it Off before typing a custom part label you want to keep.
+part_name	*	key:parts.*.name	text	Part Label	Sets the user-visible label for this part.	Used across menus and overlays when Auto Label is off.
 life_save_grid_state	Menu > L1: Life > Save Grid State		bool	Save Grid State	When On, this part's runtime/grid state is stored in preset/default saves.	When Off, saves keep this part's config but not its current runtime/grid snapshot.
 scan_mode	*	key:parts.*.l2.scanMode	enum	Scan Mode	Options: none, scanning. none uses whole-grid interpretation without a scan cursor.	scanning moves a cursor by scan unit, axis, and direction and emits scanned/scanned-empty triggers.
 scan_axis	*	key:parts.*.l2.scanAxis	enum	Scan Axis	Sets whether scanning traverses rows or columns.	Combine with Scan Direction to define scan movement.
@@ -134,7 +134,7 @@ sense_mappings_x_invert_1	*	key:parts.*.paramMods.x.0.invert	bool	Slot 1 Invert	
 sense_mappings_x_invert_2	*	key:parts.*.paramMods.x.1.invert	bool	Slot 2 Invert	When On, X Slot 2 writes the selected parameter using an inverted lane direction.	Low positions become high values and vice versa.
 sense_mappings_y_invert_1	*	key:parts.*.paramMods.y.0.invert	bool	Slot 1 Invert	When On, Y Slot 1 writes the selected parameter using an inverted lane direction.	Low positions become high values and vice versa.
 sense_mappings_y_invert_2	*	key:parts.*.paramMods.y.1.invert	bool	Slot 2 Invert	When On, Y Slot 2 writes the selected parameter using an inverted lane direction.	Low positions become high values and vice versa.
-inst_note_behavior	*	key:instruments.*.noteBehavior	enum	Note Behavior	Controls retrigger versus hold behavior for this instrument slot.	Use hold for lifecycle note_off workflows and scanned-empty release.
+inst_note_behavior	*	key:instruments.*.noteBehavior	enum	Note Mode	Controls retrigger versus hold behavior for this instrument slot.	Use hold for lifecycle note_off workflows and scanned-empty release.
 inst_midi_enabled	*	key:instruments.*.midi.enabled	bool	MIDI Enabled	Enables external MIDI output for this instrument slot.	Global MIDI must also be enabled in System > MIDI.
 inst_midi_channel	*	key:instruments.*.midi.channel	number	MIDI Channel	Selects outgoing MIDI channel for this instrument slot.	Shown as 1..16 while stored internally as 0..15.
 inst_midi_engine_velocity	*	key:instruments.*.midiEngine.velocity	number	MIDI Velocity	Sets the fixed outgoing note velocity used by this MIDI instrument slot.	Use this when Sense should drive pitch and timing but not per-event velocity dynamics.
@@ -154,9 +154,9 @@ filt_env_amt	*	key:instruments.*.synth.filter.envAmountPct	number	Filter Env Amo
 filt_keytrack	*	key:instruments.*.synth.filter.keyTrackingPct	number	Filter Key Tracking	Sets how cutoff follows played pitch across notes.	Higher values keep timbre more consistent by pitch.
 filt_env_adsr	*	key:instruments.*.synth.filterEnv.*	number	Filter Envelope	Shapes filter movement over time using ADSR stages.	Use with Env Amount for plucks, swells, and contour motion.
 bpm_help	*	key:transport.bpm	number	BPM	Sets master tempo in beats per minute.	Affects internal clock rate and algorithm pulse timing.
-sound_group	Menu > System > Sound		group	Sound	Global volume, voice shaping, and note behavior controls.	Includes Master Vol, Voice Stealing, Note Length, Velocity Scale, and Velocity Curve.
+sound_group	Menu > System > Sound		group	Sound	Global volume, voice shaping, and note behavior controls.	Includes Master Vol, Voice Limit, Note Length, Velocity Scale, and Velocity Curve.
 master_vol	*	key:masterVolume	number	Master Volume	Sets overall output volume scaling.	Use this for final level trim without changing patch balance.
-voice_stealing_mode	*	key:sound.voiceStealingMode	enum	Voice Stealing	Controls voice stealing: fixed12, fixed16, auto-soft, auto-balanced, auto-hard, or none.	auto-hard keeps more CPU headroom; auto-soft preserves longer tails.
+voice_stealing_mode	*	key:sound.voiceStealingMode	enum	Voice Limit	Controls voice stealing: fixed12, fixed16, auto-soft, auto-balanced, auto-hard, or none.	auto-hard keeps more CPU headroom; auto-soft preserves longer tails.
 presets_group	Menu > System > Saves		group	Presets	Save, load, and manage configuration snapshots.	Use defaults for boot state and library for named variants.
 default_save	System > Saves > Default > Save Default	action:default_save	action	Save Default	Stores current state as startup default payload.	Use with Auto Save when you want edits to persist automatically.
 default_load	System > Saves > Default > Load Default	action:default_load	action	Load Default	Loads the saved default payload into current state.	Replaces current runtime settings immediately.
@@ -178,10 +178,10 @@ controls_prob_map	Menu > System > Controls > Prob Map: grid	info:controls.probMa
 ghost_cells	*	key:ghostCells	bool	Ghost Cells	Shows dim cells from inactive parts behind the active part.	Off by default for clarity; active part cells always take visual priority.
 input_events_while_paused	*	key:inputEventsWhilePaused	bool	Events when paused	When On, grid presses continue to fire musical events even when transport is stopped or paused.	Disable to keep paused/stopped grid edits silent while algorithm evolution remains stopped.
 screen_sleep	*	key:screenSleepSeconds	number	Screen Sleep	Sets idle timeout before OLED sleep.	Set 0 to keep display always on.
-display_bright	*	key:displayBrightness	number	Display Brightness	Sets OLED brightness level.	Higher values improve visibility at cost of brightness.
-grid_bright	*	key:gridBrightness	number	Grid Brightness	Sets grid LED brightness scaling.	Lower values are useful for dark environments.
-button_bright	*	key:buttonBrightness	number	Button Brightness	Sets NeoKey/button LED brightness scaling.	Helps match hardware feel to ambient light.
-numeric_display	*	key:numericDisplayMode	enum	Numeric Display	Controls how bar-style numeric parameters are displayed.	bar shows a visual bar only; numbers shows plain numbers; bar+numbers shows both bar and numeric label.
+display_bright	*	key:displayBrightness	number	OLED Bright	Sets OLED brightness level.	Higher values improve visibility at cost of brightness.
+grid_bright	*	key:gridBrightness	number	Grid Bright	Sets grid LED brightness scaling.	Lower values are useful for dark environments.
+button_bright	*	key:buttonBrightness	number	Button Bright	Sets NeoKey/button LED brightness scaling.	Helps match hardware feel to ambient light.
+numeric_display	*	key:numericDisplayMode	enum	Number Style	Controls how bar-style numeric parameters are displayed.	bar shows a visual bar only; numbers shows plain numbers; bar+numbers shows both bar and numeric label.
 sense_x_axis_group	Menu > L2: Sense > P*: * > X Axis		group	X Axis Modulation	Maps X position into pitch/velocity/filter modulation lanes.	Use offsets and ranges to reshape horizontal influence.
 sense_x_pitch_group	Menu > L2: Sense > P*: * > X Axis > Pitch Steps		group	X Pitch Steps	Controls pitch stepping derived from X position.	Disable to remove X-axis pitch influence.
 sense_x_velocity_group	Menu > L2: Sense > P*: * > X Axis > Velocity		group	X Velocity Lane	Maps X position to velocity output range.	Use this for left-right dynamic shaping.
@@ -246,15 +246,15 @@ axis_cut_enabled_y	*	key:y.filterCutoff.enabled	bool	Y Cutoff Enabled	Enables cu
 axis_res_enabled_y	*	key:y.filterResonance.enabled	bool	Y Resonance Enabled	Enables resonance CC modulation from Y position.	Outputs CC71 when enabled.
 draft_name_field	*	key:system.draftName	text	Preset Name Field	Text field used for Save As and Rename preset flows.	Save/Apply actions consume this value as the target preset name.
 preset_rename_apply	Menu > System > Saves > Library > Rename > Apply	action:preset_rename_apply	action	Apply Rename	Runs rename from selected preset to entered New Name.	Requires a valid selected source preset.
-instrument_actions	Menu > L3: Voice > Instruments > Instrument * > Actions		group	Instrument Actions	Rare destructive or copy actions for this instrument slot.	Clone or reset only after confirming the target action.
-instrument_clone	Menu > L3: Voice > Instruments > Instrument * > Actions > Clone	action:instrument_clone	action	Clone	Copies this instrument slot's configuration into another instrument slot.	Use this to duplicate a sound before making variations.
-instrument_reset	Menu > L3: Voice > Instruments > Instrument * > Actions > Reset	action:instrument_reset	action	Reset	Restores this instrument slot to its default state for the current type.	Useful when you want to clear experimental edits on one slot only.
-instrument_auto_name	*	key:instruments.*.autoName	bool	Auto Name	When On, the instrument name follows its current type or generated label.	Turn it Off before typing a custom instrument name you want to keep.
-instrument_name	*	key:instruments.*.name	text	Instrument Name	Sets the user-visible label for this instrument slot.	Shown in menus, routing targets, and overlays when Auto Name is off.
-bus_auto_name	*	key:mixer.buses.*.autoName	bool	Auto Name	When On, the FX bus name follows its generated default label.	Turn it Off before typing a custom bus name you want to keep.
-bus_name	*	key:mixer.buses.*.name	text	Bus Name	Sets the user-visible label for this FX bus.	Shown in routing menus and bus-related overlays when Auto Name is off.
+instrument_actions	Menu > L3: Voice > Instruments > Instrument * > Slot Actions		group	Instrument Actions	Rare destructive or copy actions for this instrument slot.	Clone or reset only after confirming the target action.
+instrument_clone	Menu > L3: Voice > Instruments > Instrument * > Slot Actions > Clone	action:instrument_clone	action	Clone	Copies this instrument slot's configuration into another instrument slot.	Use this to duplicate a sound before making variations.
+instrument_reset	Menu > L3: Voice > Instruments > Instrument * > Slot Actions > Reset	action:instrument_reset	action	Reset	Restores this instrument slot to its default state for the current type.	Useful when you want to clear experimental edits on one slot only.
+instrument_auto_name	*	key:instruments.*.autoName	bool	Auto Label	When On, the instrument label follows its current type or generated label.	Turn it Off before typing a custom instrument label you want to keep.
+instrument_name	*	key:instruments.*.name	text	Instrument Name	Sets the user-visible label for this instrument slot.	Shown in menus, routing targets, and overlays when Auto Label is off.
+bus_auto_name	*	key:mixer.buses.*.autoName	bool	Auto Label	When On, the FX bus label follows its generated default label.	Turn it Off before typing a custom bus label you want to keep.
+bus_name	*	key:mixer.buses.*.name	text	Bus Name	Sets the user-visible label for this FX bus.	Shown in routing menus and bus-related overlays when Auto Label is off.
 velocity_curve	*	key:sound.velocityCurve	enum	Velocity Curve	Selects the global curve used to remap velocity response after scaling.	Use gentler curves for flatter dynamics or steeper curves for more accent contrast.
-factory_load_action	Menu > System > Saves > Factory > Load Fact. Default	action:factory_load	action	Load Factory Default	Loads built-in factory default configuration.	Use this to quickly recover a known baseline state.
+factory_load_action	Menu > System > Saves > Factory > Load Factory	action:factory_load	action	Load Factory	Loads built-in factory default configuration.	Use this to quickly recover a known baseline state.
 synth_preset_group	Menu > L3: Voice > Instruments > Instrument * > Preset		group	Synth Preset	Preset tools for this instrument slot's synth parameters.	Use Load to replace the slot's synth block with a named preset.
 synth_preset_load_group	Menu > L3: Voice > Instruments > Instrument * > Preset > Load		group	Load Synth Preset	Lists available synth presets for this instrument slot.	Selecting a preset asks for confirmation before overwriting synth settings.
 synth_preset_load_action	Menu > L3: Voice > Instruments > Instrument * > Preset > Load > *	action:synth_preset_load	action	Load Synth Preset	Loads the chosen synth preset into this instrument slot.	A confirmation step protects against accidental overwrite.
@@ -263,7 +263,7 @@ inst_mixer_route	Menu > L3: Voice > Instruments > Instrument * > Mixer > Route	k
 inst_mixer_pan	Menu > L3: Voice > Instruments > Instrument * > Mixer > Pan Pos	key:instruments.*.mixer.panPos	number	Pan Position	Sets the 33-position pan value for direct output sends.	0 is left, 16 is center, 32 is right.
 fx_buses_group	Menu > L3: Voice > FX Buses		group	FX Buses	Configures the shared send buses that instrument Mixer > Route can feed instead of direct output.	Each bus processes Slot 1 then Slot 2, then pans and sums its result into the main mix.
 fx_bus_names_group	Menu > L3: Voice > FX Buses > Names		group	Bus Names	Sets auto-naming and custom name for each bus.	Auto name is computed from the assigned FX slot types; turning off auto lets you edit the name freely.
-fx_bus_name_group	Menu > L3: Voice > FX Buses > Names > Bus *		group	Bus Name	Configures naming for this bus.	Auto Name on derives a label from FX slot types; Name lets you type any text when Auto is off.
+fx_bus_name_group	Menu > L3: Voice > FX Buses > Names > Bus *		group	Bus Name	Configures naming for this bus.	Auto Label on derives a label from FX slot types; Name lets you type any text when Auto is off.
 fx_bus_wild	Menu > L3: Voice > FX Buses > B*: *		group	FX Bus	Builds one shared bus chain for any instruments routed to this bus.	Slot 1 feeds Slot 2, then Pan Pos places the bus in the stereo main mix.
 
 fx_bus_slot1	Menu > L3: Voice > FX Buses > B*: * > Slot 1	key:mixer.buses.*.slot1	enum	FX Slot 1	First effect slot in the bus chain.	Default None means passthrough.

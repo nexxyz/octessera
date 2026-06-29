@@ -1,4 +1,4 @@
-use super::common::{action_item, enum_item, number_item, trigger_types_from_cells, CELL_COUNT};
+use super::common::{action_item, number_item, trigger_types_from_cells, CELL_COUNT};
 use crate::behavior::{
     BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType, DeviceInput,
     GridInteraction,
@@ -53,6 +53,8 @@ struct LooperSavedState {
     mode: Option<String>,
     #[serde(rename = "lengthSteps")]
     length_steps: Option<usize>,
+    #[serde(rename = "stepIndex", skip_serializing_if = "Option::is_none")]
+    step_index: Option<usize>,
     steps: Option<Vec<Vec<LooperEvent>>>,
 }
 
@@ -88,6 +90,17 @@ pub fn looper_on_input(
             if let Some(mode) = action.action_type.strip_prefix("setMode:") {
                 return LooperState {
                     mode: normalize_mode(Some(mode)),
+                    ..state
+                };
+            }
+            if action.action_type == "toggleMode" {
+                let mode = if state.mode == "overdub" {
+                    "play"
+                } else {
+                    "overdub"
+                };
+                return LooperState {
+                    mode: mode.into(),
                     ..state
                 };
             }
@@ -137,7 +150,7 @@ pub fn looper_render_model(state: &LooperState) -> BehaviorRenderModel {
 
 pub fn looper_config_menu() -> Vec<BehaviorConfigItem> {
     vec![
-        enum_item("mode", "Mode", &["overdub", "play"]),
+        action_item("toggleMode", "Punch In/Out"),
         number_item("lengthSteps", "Length", 1, MAX_LENGTH_STEPS as i32, 1),
         action_item("clearLoop", "Clear Loop"),
     ]
@@ -151,6 +164,7 @@ pub fn looper_serialize(state: &LooperState) -> Result<Value, String> {
     serde_json::to_value(LooperSavedState {
         mode: Some(state.mode.clone()),
         length_steps: Some(state.length_steps),
+        step_index: None,
         steps: Some(state.steps.clone()),
     })
     .map_err(|error| error.to_string())
@@ -169,7 +183,7 @@ pub fn looper_deserialize(data: Value) -> Result<LooperState, String> {
         held_cells: vec![false; CELL_COUNT],
         playback_cells: vec![false; CELL_COUNT],
         steps,
-        step_index: 0,
+        step_index: saved.step_index.unwrap_or(0) % length_steps,
         length_steps,
         mode: normalize_mode(saved.mode.as_deref()),
     })
@@ -261,7 +275,8 @@ mod tests {
         assert_eq!(state.length_steps, 4);
         assert_eq!(state.steps.len(), 4);
         let menu = looper_config_menu();
-        assert_eq!(menu[0].key, "mode");
+        assert_eq!(menu[0].key, "toggleMode");
+        assert_eq!(menu[0].label, "Punch In/Out");
         assert_eq!(menu[1].key, "lengthSteps");
         assert_eq!(menu[2].key, "clearLoop");
         assert_eq!(
@@ -346,6 +361,7 @@ mod tests {
         let serialized = looper_serialize(&state).unwrap();
         assert_eq!(serialized["mode"], "overdub");
         assert_eq!(serialized["lengthSteps"], 2);
+        assert!(serialized.get("stepIndex").is_none());
         assert!(serialized.get("heldCells").is_none());
         assert!(serialized.get("playbackCells").is_none());
         assert_eq!(serialized["steps"][0].as_array().unwrap().len(), 1);
@@ -380,6 +396,38 @@ mod tests {
         );
         state = looper_on_input(state, DeviceInput::GridPress { x: 2, y: 2 }, &mut context);
         assert_eq!(state.mode, "overdub");
+        assert_eq!(state.steps[0].len(), 1);
+    }
+
+    #[test]
+    fn toggle_mode_action_switches_recording_without_clearing_sequence_or_phase() {
+        let mut context = context();
+        let mut state = looper_init(Value::Null).unwrap();
+        state.step_index = 1;
+        state.steps[0].push(LooperEvent {
+            cell: grid_index(1, 1),
+            kind: LooperEventKind::Press,
+        });
+        state = looper_on_input(
+            state,
+            DeviceInput::BehaviorAction(crate::behavior::BehaviorActionInput {
+                action_type: "toggleMode".into(),
+            }),
+            &mut context,
+        );
+        assert_eq!(state.mode, "play");
+        assert_eq!(state.step_index, 1);
+        assert_eq!(state.steps[0].len(), 1);
+
+        state = looper_on_input(
+            state,
+            DeviceInput::BehaviorAction(crate::behavior::BehaviorActionInput {
+                action_type: "toggleMode".into(),
+            }),
+            &mut context,
+        );
+        assert_eq!(state.mode, "overdub");
+        assert_eq!(state.step_index, 1);
         assert_eq!(state.steps[0].len(), 1);
     }
 }
