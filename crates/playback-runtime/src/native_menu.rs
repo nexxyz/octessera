@@ -25,6 +25,7 @@ mod help;
 mod model;
 mod model_binding_specs;
 mod model_edit;
+mod model_navigation_memory;
 mod model_search;
 mod model_snapshot;
 mod options;
@@ -295,6 +296,15 @@ fn group(label: impl Into<String>, children: Vec<NativeMenuItem>) -> NativeMenuI
         key: None,
         value: NativeMenuValue::Group,
         children,
+    }
+}
+
+fn info_item(label: impl Into<String>, key: impl Into<String>) -> NativeMenuItem {
+    NativeMenuItem {
+        label: label.into(),
+        key: Some(key.into()),
+        value: NativeMenuValue::Info,
+        children: vec![],
     }
 }
 

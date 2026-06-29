@@ -126,7 +126,7 @@ fn system_submenu_uses_abbreviated_path_and_section_colors() {
             "  Sound",
             "  MIDI",
             "  UI",
-            "  !Shutdown"
+            "  Controls"
         ]
     );
     assert_eq!(
@@ -134,6 +134,128 @@ fn system_submenu_uses_abbreviated_path_and_section_colors() {
         vec![0xB50D, 0xB50D, 0xB50D, 0xB50D, 0xB50D, 0xB50D, 0xB50D]
     );
     assert_eq!(snapshot.selected_row, Some(0));
+}
+
+#[test]
+fn system_controls_screen_uses_read_only_info_rows() {
+    let mut menu = NativeMenuModel::new(config());
+    for _ in 0..5 {
+        menu.turn(1);
+    }
+    let _ = menu.press();
+    menu.state.cursor = 6;
+    let _ = menu.press();
+
+    let snapshot = menu.snapshot();
+    assert_eq!(snapshot.path, "SYS/Controls");
+    assert_eq!(snapshot.lines[0], "> Help: Sh+Fn+Main");
+    assert!(snapshot.lines.iter().any(|line| line == "  Back: Back"));
+    assert!(snapshot.lines.iter().all(|line| !line.contains('!')));
+    assert!(snapshot.selected_action.is_none());
+    assert!(snapshot.line_actions.iter().all(Option::is_none));
+
+    let stack = menu.state.stack.clone();
+    let cursor = menu.state.cursor;
+    assert!(menu.press().is_none());
+    assert_eq!(menu.state.stack, stack);
+    assert_eq!(menu.state.cursor, cursor);
+}
+
+#[test]
+fn static_navigation_memory_restores_allowed_system_groups() {
+    let mut menu = NativeMenuModel::new(config());
+    for _ in 0..5 {
+        menu.turn(1);
+    }
+    let _ = menu.press();
+    menu.state.cursor = 3;
+    let _ = menu.press();
+    assert_eq!(menu.snapshot().lines[0], "> Master Vol 100");
+
+    menu.turn(1);
+    menu.turn(1);
+    assert_eq!(menu.current_label(), Some("Velocity Scale"));
+    menu.back();
+    assert_eq!(menu.current_label(), Some("Sound"));
+
+    let _ = menu.press();
+    assert_eq!(menu.current_label(), Some("Velocity Scale"));
+}
+
+#[test]
+fn static_navigation_memory_clears_on_rebuild() {
+    let mut menu = NativeMenuModel::new(config());
+    for _ in 0..5 {
+        menu.turn(1);
+    }
+    let _ = menu.press();
+    menu.state.cursor = 3;
+    let _ = menu.press();
+    menu.turn(1);
+    menu.turn(1);
+    menu.back();
+    let _ = menu.press();
+    assert_eq!(menu.current_label(), Some("Velocity Scale"));
+
+    menu.rebuild(config());
+    menu.state.stack = vec![5];
+    menu.state.cursor = 3;
+    let _ = menu.press();
+    assert_eq!(menu.current_label(), Some("Master Vol"));
+}
+
+#[test]
+fn static_navigation_memory_back_while_editing_stays_in_group() {
+    let mut menu = NativeMenuModel::new(config());
+    for _ in 0..5 {
+        menu.turn(1);
+    }
+    let _ = menu.press();
+    menu.state.cursor = 3;
+    let _ = menu.press();
+    menu.turn(1);
+    assert_eq!(menu.current_label(), Some("Note Length"));
+
+    let _ = menu.press();
+    assert!(menu.state.editing);
+    menu.back();
+    assert!(!menu.state.editing);
+    assert_eq!(menu.snapshot().path, "SYS/Sound");
+    assert_eq!(menu.current_label(), Some("Note Length"));
+
+    menu.back();
+    assert_eq!(menu.current_label(), Some("Sound"));
+    let _ = menu.press();
+    assert_eq!(menu.current_label(), Some("Note Length"));
+}
+
+#[test]
+fn static_navigation_memory_ignores_dynamic_preset_lists() {
+    let mut cfg = config();
+    cfg.preset_names = vec!["One".into(), "Two".into()];
+    let mut menu = NativeMenuModel::new(cfg);
+    menu.state.stack = vec![5, 0, 0, 2];
+    menu.state.cursor = 1;
+    assert_eq!(menu.current_label(), Some("Two"));
+    menu.back();
+    assert_eq!(menu.current_label(), Some("Load"));
+
+    let _ = menu.press();
+    assert_eq!(menu.current_label(), Some("One"));
+}
+
+#[test]
+fn static_navigation_memory_does_not_affect_focus_item_key() {
+    let mut menu = NativeMenuModel::new(config());
+    menu.state.stack = vec![5, 3];
+    menu.state.cursor = 2;
+    menu.back();
+    let _ = menu.press();
+    assert_eq!(menu.current_label(), Some("Velocity Scale"));
+
+    assert!(menu.focus_item_key("masterVolume"));
+    assert_eq!(menu.current_key(), Some("masterVolume"));
+    assert_eq!(menu.current_label(), Some("Master Vol"));
 }
 
 #[test]

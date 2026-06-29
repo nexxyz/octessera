@@ -1,4 +1,7 @@
 use super::*;
+use std::collections::HashSet;
+
+const MENU_HELP_TSV: &str = include_str!("../../../../../resources/menu-help-texts.tsv");
 
 #[test]
 fn native_menu_help_targets_resolve_to_specific_tsv_rows() {
@@ -67,4 +70,85 @@ fn populated_sample_browser_help_uses_actual_sample_action_keys() {
     assert!(keys.iter().any(|key| key == "action:sample.up"));
     assert!(keys.iter().any(|key| key == "action:sample.enter"));
     assert!(keys.iter().any(|key| key == "action:sample.pick"));
+}
+
+#[test]
+fn menu_help_tsv_rows_have_unique_ids_and_specific_text() {
+    let mut ids = HashSet::new();
+    let mut problems = Vec::new();
+
+    for (line_number, line) in MENU_HELP_TSV.lines().enumerate().skip(1) {
+        if line.trim().is_empty() || line.trim_start().starts_with('#') {
+            continue;
+        }
+        let cols = line.split('\t').collect::<Vec<_>>();
+        if cols.len() != 7 {
+            problems.push(format!(
+                "line {} has {} columns",
+                line_number + 1,
+                cols.len()
+            ));
+            continue;
+        }
+        let [id, _path, _key, _kind, title, line1, line2] = cols.as_slice() else {
+            unreachable!();
+        };
+        if !ids.insert((*id).to_string()) {
+            problems.push(format!("duplicate id {id}"));
+        }
+        if id.trim().is_empty() || title.trim().is_empty() {
+            problems.push(format!("line {} has empty id/title", line_number + 1));
+        }
+        if line1.trim().is_empty() && line2.trim().is_empty() {
+            problems.push(format!("line {} has no detail text", line_number + 1));
+        }
+        for forbidden in [
+            "opens this submenu",
+            "shows related settings",
+            "runs this command",
+            "adjusts a numeric value",
+            "selects one option from a list",
+            "edits text for this field",
+            "no help text is available",
+        ] {
+            if format!("{title} {line1} {line2}")
+                .to_lowercase()
+                .contains(forbidden)
+            {
+                problems.push(format!("line {} uses generic help text", line_number + 1));
+            }
+        }
+    }
+
+    assert!(problems.is_empty(), "help TSV problems: {problems:#?}");
+}
+
+#[test]
+fn menu_help_tsv_lines_stay_concise() {
+    let mut long = Vec::new();
+    for (line_number, line) in MENU_HELP_TSV.lines().enumerate().skip(1) {
+        if line.trim().is_empty() || line.trim_start().starts_with('#') {
+            continue;
+        }
+        let cols = line.split('\t').collect::<Vec<_>>();
+        if cols.len() != 7 {
+            continue;
+        }
+        for (label, value, limit) in [
+            ("title", cols[4], 28usize),
+            ("line1", cols[5], 150usize),
+            ("line2", cols[6], 150usize),
+        ] {
+            if value.chars().count() > limit {
+                long.push(format!(
+                    "line {} {label} has {} chars: {}",
+                    line_number + 1,
+                    value.chars().count(),
+                    value
+                ));
+            }
+        }
+    }
+
+    assert!(long.is_empty(), "overlong help TSV fields: {long:#?}");
 }

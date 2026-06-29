@@ -6,6 +6,7 @@ mod audio_menu_naming;
 mod aux_auto_map;
 mod basics;
 mod browser_and_help;
+mod controls;
 mod dance_fx;
 mod dance_menu;
 mod dance_overlay;

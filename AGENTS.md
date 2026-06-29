@@ -44,7 +44,7 @@ Cell Symphony is a pnpm workspace plus Cargo workspace built around a native Rus
 ## Required Documentation Updates
 
 - Documentation is end-user hardware build, assembly, bring-up, and operation first. Contributor/collaboration docs are secondary and should not bury the hardware/user path. Point-in-time audits or completed-work history are lowest priority and should be pruned or moved out of the main docs set.
-- Any parity-affecting or control/menu change must update `docs/menu-and-controls-spec.md` in the same commit.
+- Any parity-affecting or control/menu change must update `docs/menu-and-controls-spec.md` in the same commit. If the full menu tree changes, also update the canonical split-out tree in `docs/menu-tree-spec.md`.
 - Keep `resources/menu-help-texts.tsv` in sync with enum/help-text changes; native tests enforce coverage.
 - Keep `resources/platform-capabilities.json` as the source of truth for platform dimensions and limits; regenerate TypeScript capability exports after edits.
 - Run `corepack pnpm run capabilities:generate` after editing platform capabilities, and rely on the Rust build to regenerate native capability constants.

@@ -1,4 +1,5 @@
 use crate::protocol::SyncSource;
+use std::collections::HashMap;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NativeMenuAction {
@@ -39,6 +40,7 @@ pub struct NativeParamBindingSpec {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NativeMenuValue {
     Group,
+    Info,
     Enum {
         options: Vec<String>,
         selected: usize,
@@ -115,6 +117,7 @@ pub struct NativeMenuModel {
     pub root: NativeMenuItem,
     pub state: NativeMenuState,
     pub numeric_display_mode: String,
+    pub navigation_memory: HashMap<String, usize>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

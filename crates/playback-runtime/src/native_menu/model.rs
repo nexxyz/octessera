@@ -6,6 +6,7 @@ use super::help::collect_help_targets;
 use super::help::{canonicalize_help_path, menu_help_target};
 use super::model_binding_specs::param_binding_from_item_key;
 use super::model_edit::{turn_key_in_item, turn_text_value};
+use super::model_navigation_memory::{navigation_memory_allowed, valid_child_cursor};
 use super::model_search::{find_item, find_item_by_key, find_item_path_by_key};
 use super::{
     build_root, NativeMenuAction, NativeMenuConfig, NativeMenuHelpTarget, NativeMenuItem,
@@ -27,12 +28,14 @@ impl NativeMenuModel {
             root: build_root(config),
             state: NativeMenuState::default(),
             numeric_display_mode,
+            navigation_memory: Default::default(),
         }
     }
 
     pub fn rebuild(&mut self, config: NativeMenuConfig) {
         self.numeric_display_mode = config.numeric_display_mode.clone();
         self.root = build_root(config);
+        self.navigation_memory.clear();
         let siblings_len = self.current_siblings().len();
         if siblings_len == 0 {
             self.state.cursor = 0;
@@ -112,10 +115,19 @@ impl NativeMenuModel {
                 None
             }
             NativeMenuValue::Group => {
+                self.remember_current_group_cursor();
+                let child_memory_key = self.current_item_path();
+                let child_cursor = self
+                    .navigation_memory
+                    .get(&child_memory_key)
+                    .copied()
+                    .map(|cursor| valid_child_cursor(&current.children, cursor))
+                    .unwrap_or(0);
                 self.state.stack.push(self.state.cursor);
-                self.state.cursor = 0;
+                self.state.cursor = child_cursor;
                 Some(NativeMenuPressResult::EnteredGroup)
             }
+            NativeMenuValue::Info => None,
             NativeMenuValue::Action(action) => Some(NativeMenuPressResult::Action(action)),
             NativeMenuValue::Enum { .. }
             | NativeMenuValue::Number { .. }
@@ -152,8 +164,16 @@ impl NativeMenuModel {
             self.state.editing = false;
             return;
         }
+        self.remember_current_group_cursor();
         if let Some(cursor) = self.state.stack.pop() {
             self.state.cursor = cursor;
+        }
+    }
+
+    fn remember_current_group_cursor(&mut self) {
+        let key = self.current_group_path();
+        if navigation_memory_allowed(&key) {
+            self.navigation_memory.insert(key, self.state.cursor);
         }
     }
 
@@ -284,7 +304,9 @@ impl NativeMenuModel {
             (Some(key), NativeMenuValue::Enum { .. })
             | (Some(key), NativeMenuValue::Number { .. })
             | (Some(key), NativeMenuValue::Bool { .. }) => (Some(key.clone()), None),
-            (Some(_), NativeMenuValue::Text { .. }) => (None, None),
+            (Some(_), NativeMenuValue::Text { .. }) | (Some(_), NativeMenuValue::Info) => {
+                (None, None)
+            }
             (_, NativeMenuValue::Action(action)) => (None, Some(action.clone())),
             _ => (None, None),
         }
@@ -345,6 +367,20 @@ impl NativeMenuModel {
         canonicalize_help_path(&labels.join(" > "))
     }
 
+    fn current_group_path(&self) -> String {
+        let mut node = &self.root;
+        let mut labels = Vec::with_capacity(self.state.stack.len() + 1);
+        labels.push("Menu");
+        for idx in &self.state.stack {
+            let children = &node.children;
+            if let Some(next) = children.get(*idx) {
+                labels.push(next.label.as_str());
+                node = next;
+            }
+        }
+        canonicalize_help_path(&labels.join(" > "))
+    }
+
     pub(super) fn current_siblings(&self) -> &Vec<NativeMenuItem> {
         &self.current_node().children
     }
@@ -387,6 +423,7 @@ impl NativeMenuModel {
                 "false".into()
             }),
             NativeMenuValue::Text { value, .. } => Some(value.clone()),
+            NativeMenuValue::Info => None,
             _ => None,
         })
     }
@@ -394,6 +431,7 @@ impl NativeMenuModel {
     fn find_number(&self, label: &str) -> Option<i32> {
         find_item(&self.root, label).and_then(|item| match &item.value {
             NativeMenuValue::Number { value, .. } => Some(*value),
+            NativeMenuValue::Info => None,
             _ => None,
         })
     }
@@ -416,6 +454,7 @@ fn value_from_item(item: &NativeMenuItem) -> Option<String> {
             "false".into()
         }),
         NativeMenuValue::Text { value, .. } => Some(value.clone()),
+        NativeMenuValue::Info => None,
         _ => None,
     }
 }
@@ -423,6 +462,7 @@ fn value_from_item(item: &NativeMenuItem) -> Option<String> {
 fn number_from_item(item: &NativeMenuItem) -> Option<i32> {
     match &item.value {
         NativeMenuValue::Number { value, .. } => Some(*value),
+        NativeMenuValue::Info => None,
         _ => None,
     }
 }
