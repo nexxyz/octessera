@@ -1,4 +1,4 @@
-use super::bindings::{axis_binding_label, parameter_picker_group};
+use super::binding_picker::{axis_binding_label, parameter_picker_group};
 use super::{
     action_item, bool_item, group, NativeMenuAction, NativeMenuConfig, NativeMenuItem,
     NativeMenuValue,

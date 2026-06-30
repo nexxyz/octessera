@@ -1,6 +1,7 @@
 #[cfg(test)]
 use crate::protocol::SyncSource;
-use bindings::{axis_binding_label, parameter_picker_group, xy_pad_items};
+use binding_picker::{axis_binding_label, parameter_picker_group};
+use bindings::xy_pad_items;
 #[cfg(test)]
 use fx::default_fx_bus_config;
 #[cfg(test)]
@@ -11,7 +12,10 @@ use platform_core::{BUS_COUNT as FX_BUS_COUNT, GLOBAL_FX_SLOT_COUNT};
 use sense::default_sense_part_config;
 
 mod binding_behavior;
+mod binding_picker;
+mod binding_picker_voice;
 mod binding_sense;
+mod binding_sense_axis;
 mod binding_tree;
 mod bindings;
 mod dance;
@@ -34,6 +38,7 @@ mod options;
 mod sample_browser_menu;
 mod sense;
 mod sense_axis;
+mod sense_sections;
 mod synth_preset_items;
 mod system;
 mod system_aux;

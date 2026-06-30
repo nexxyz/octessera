@@ -11,7 +11,10 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 
 mod control;
+#[cfg(test)]
+mod control_tests;
 mod dynamic_control;
+mod note_control;
 mod render;
 mod render_momentary_fx;
 mod render_routing;

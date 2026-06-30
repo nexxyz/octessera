@@ -1,8 +1,10 @@
 use super::sense_axis::{axis_group, AxisMenuConfig};
+use super::sense_sections::{
+    events_group, note_mapping_group, scanning_group, trigger_probability_group,
+};
 use super::{
-    action_item, axis_binding_label, bool_item, enum_item, enum_item_from_strings, group,
-    number_item, parameter_picker_group, selected_index, slot_option_selected, NativeMenuAction,
-    NativeMenuConfig, NativeMenuItem, NativeSensePartConfig, NativeValueLaneConfig,
+    axis_binding_label, bool_item, group, parameter_picker_group, NativeMenuConfig, NativeMenuItem,
+    NativeSensePartConfig, NativeValueLaneConfig,
 };
 pub(super) fn default_sense_part_config() -> NativeSensePartConfig {
     NativeSensePartConfig {
@@ -78,159 +80,12 @@ pub(super) fn l2_part_group(
     };
     let default_sense = default_sense_part_config();
     let sense = sense.unwrap_or(&default_sense);
-    let mut scanning_children = vec![enum_item(
-        "Scan Mode",
-        format!("{prefix}.scanMode"),
-        vec!["none", "scanning"],
-        selected_index(&["none", "scanning"], &sense.scan_mode),
-    )];
-    if sense.scan_mode == "scanning" {
-        scanning_children.extend(vec![
-            enum_item(
-                "Scan Axis",
-                format!("{prefix}.scanAxis"),
-                vec!["rows", "columns"],
-                selected_index(&["rows", "columns"], &sense.scan_axis),
-            ),
-            enum_item(
-                "Scan Unit",
-                format!("{prefix}.scanUnit"),
-                vec!["1/16", "1/8", "1/4", "1/2", "1/1"],
-                selected_index(&["1/16", "1/8", "1/4", "1/2", "1/1"], &sense.scan_unit),
-            ),
-            enum_item(
-                "Scan Direction",
-                format!("{prefix}.scanDirection"),
-                vec!["forward", "reverse"],
-                selected_index(&["forward", "reverse"], &sense.scan_direction),
-            ),
-            enum_item(
-                "Sections",
-                format!("{prefix}.scanSections"),
-                vec!["1", "2", "4", "8"],
-                selected_index(&["1", "2", "4", "8"], &sense.scan_sections.to_string()),
-            ),
-            enum_item_from_strings(
-                "Instrument",
-                format!("{prefix}.mapping.scanned.slot"),
-                instrument_options.clone(),
-                slot_option_selected(sense.scanned_slot, instrument_options.len()),
-            ),
-            enum_item(
-                "Action",
-                format!("{prefix}.mapping.scanned.action"),
-                vec!["none", "note_on", "note_off"],
-                selected_index(&["none", "note_on", "note_off"], &sense.scanned_action),
-            ),
-            enum_item_from_strings(
-                "Empty Instrument",
-                format!("{prefix}.mapping.scanned_empty.slot"),
-                instrument_options.clone(),
-                slot_option_selected(sense.scanned_empty_slot, instrument_options.len()),
-            ),
-            enum_item(
-                "Empty Action",
-                format!("{prefix}.mapping.scanned_empty.action"),
-                vec!["none", "note_on", "note_off"],
-                selected_index(
-                    &["none", "note_on", "note_off"],
-                    &sense.scanned_empty_action,
-                ),
-            ),
-        ]);
-    }
     group(
         label,
         vec![
-            group("Scanning", scanning_children),
-            group(
-                "Events",
-                vec![
-                    bool_item(
-                        "Event Triggers",
-                        format!("{prefix}.eventEnabled"),
-                        sense.event_enabled,
-                    ),
-                    bool_item(
-                        "State Notes",
-                        format!("{prefix}.stateNotesEnabled"),
-                        sense.state_notes_enabled,
-                    ),
-                    enum_item_from_strings(
-                        "Activate Instrument",
-                        format!("{prefix}.mapping.activate.slot"),
-                        instrument_options.clone(),
-                        slot_option_selected(sense.activate_slot, instrument_options.len()),
-                    ),
-                    enum_item(
-                        "Activate Action",
-                        format!("{prefix}.mapping.activate.action"),
-                        vec!["none", "note_on", "note_off"],
-                        selected_index(&["none", "note_on", "note_off"], &sense.activate_action),
-                    ),
-                    enum_item_from_strings(
-                        "Stable Instrument",
-                        format!("{prefix}.mapping.stable.slot"),
-                        instrument_options.clone(),
-                        slot_option_selected(sense.stable_slot, instrument_options.len()),
-                    ),
-                    enum_item(
-                        "Stable Action",
-                        format!("{prefix}.mapping.stable.action"),
-                        vec!["none", "note_on", "note_off"],
-                        selected_index(&["none", "note_on", "note_off"], &sense.stable_action),
-                    ),
-                    enum_item_from_strings(
-                        "Deactivate Instrument",
-                        format!("{prefix}.mapping.deactivate.slot"),
-                        instrument_options.clone(),
-                        slot_option_selected(sense.deactivate_slot, instrument_options.len()),
-                    ),
-                    enum_item(
-                        "Deactivate Action",
-                        format!("{prefix}.mapping.deactivate.action"),
-                        vec!["none", "note_on", "note_off"],
-                        selected_index(&["none", "note_on", "note_off"], &sense.deactivate_action),
-                    ),
-                ],
-            ),
-            group(
-                "Trigger Prob.",
-                vec![
-                    enum_item(
-                        "Mode",
-                        format!("{prefix}.triggerProbabilityMode"),
-                        vec!["zero", "custom", "full"],
-                        selected_index(
-                            &["zero", "custom", "full"],
-                            &sense.trigger_probability_mode,
-                        ),
-                    ),
-                    number_item(
-                        "Prob Low",
-                        format!("{prefix}.triggerProbabilityLowPct"),
-                        i32::from(sense.trigger_probability_low_pct),
-                        0,
-                        100,
-                        1,
-                    ),
-                    number_item(
-                        "Prob High",
-                        format!("{prefix}.triggerProbabilityHighPct"),
-                        i32::from(sense.trigger_probability_high_pct),
-                        0,
-                        100,
-                        1,
-                    ),
-                    action_item(
-                        "Map Prob Grid",
-                        format!("{prefix}.triggerProbability.map"),
-                        NativeMenuAction::PlatformEffect(format!(
-                            "trigger.probability.assign:{index}"
-                        )),
-                    ),
-                ],
-            ),
+            scanning_group(&prefix, sense, &instrument_options),
+            events_group(&prefix, sense, &instrument_options),
+            trigger_probability_group(index, &prefix, sense),
             group(
                 "Mappings",
                 vec![
@@ -238,81 +93,7 @@ pub(super) fn l2_part_group(
                     param_mod_axis_group(index, "Y Axis", "y", config),
                 ],
             ),
-            group(
-                "Note Mapping",
-                vec![
-                    number_item(
-                        "Low Note",
-                        format!("{prefix}.pitch.lowestNote"),
-                        i32::from(sense.lowest_note),
-                        0,
-                        127,
-                        1,
-                    ),
-                    number_item(
-                        "High Note",
-                        format!("{prefix}.pitch.highestNote"),
-                        i32::from(sense.highest_note),
-                        0,
-                        127,
-                        1,
-                    ),
-                    number_item(
-                        "Start Note",
-                        format!("{prefix}.pitch.startingNote"),
-                        i32::from(sense.starting_note),
-                        0,
-                        127,
-                        1,
-                    ),
-                    enum_item(
-                        "Scale",
-                        format!("{prefix}.pitch.scale"),
-                        vec![
-                            "chromatic",
-                            "major",
-                            "natural_minor",
-                            "dorian",
-                            "mixolydian",
-                            "major_pentatonic",
-                            "minor_pentatonic",
-                            "harmonic_minor",
-                        ],
-                        selected_index(
-                            &[
-                                "chromatic",
-                                "major",
-                                "natural_minor",
-                                "dorian",
-                                "mixolydian",
-                                "major_pentatonic",
-                                "minor_pentatonic",
-                                "harmonic_minor",
-                            ],
-                            &sense.scale,
-                        ),
-                    ),
-                    enum_item(
-                        "Root",
-                        format!("{prefix}.pitch.root"),
-                        vec![
-                            "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
-                        ],
-                        selected_index(
-                            &[
-                                "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
-                            ],
-                            &sense.root,
-                        ),
-                    ),
-                    enum_item(
-                        "Out of Range",
-                        format!("{prefix}.pitch.outOfRange"),
-                        vec!["clamp", "wrap"],
-                        selected_index(&["clamp", "wrap"], &sense.out_of_range),
-                    ),
-                ],
-            ),
+            note_mapping_group(&prefix, sense),
             axis_group(
                 &format!("{prefix}.x"),
                 "X Axis",

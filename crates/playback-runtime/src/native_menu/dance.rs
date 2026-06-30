@@ -2,7 +2,7 @@ use super::{
     action_item, enum_item, enum_item_from_strings, group, number_item, selected_index,
     xy_pad_items, NativeMenuAction, NativeMenuConfig, NativeMenuItem, NativeMenuValue,
 };
-use crate::native_menu::bindings::dance_fx_targets;
+use crate::native_menu::binding_picker::dance_fx_targets;
 
 pub(super) fn dance_group(config: &NativeMenuConfig) -> NativeMenuItem {
     let mut children = vec![

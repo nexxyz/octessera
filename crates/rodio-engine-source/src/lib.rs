@@ -1,17 +1,16 @@
-use realtime_engine::synth::{
-    AudioLoadStatus, InstrumentsConfig, SampleBankConfig, SynthEngine, VoiceStealingMode,
-    DEFAULT_AUDIO_BLOCK_FRAMES,
-};
-use serde_json::Value;
-use std::collections::BTreeMap;
+mod event;
+mod telemetry;
+
+pub use event::EngineEvent;
+use realtime_engine::synth::{AudioLoadStatus, SynthEngine, DEFAULT_AUDIO_BLOCK_FRAMES};
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::{Duration, Instant};
+use telemetry::{DrainedControlEvents, EngineTelemetry};
 
 const MIN_BLOCK_FRAMES: usize = 32;
 const MAX_BLOCK_FRAMES: usize = 2048;
 const MAX_CONTROL_EVENTS_PER_BLOCK: usize = 256;
 const LOAD_REPORT_INTERVAL: Duration = Duration::from_millis(100);
-const TELEMETRY_WINDOW_BLOCKS: usize = 128;
 
 pub struct EngineSource {
     engine: SynthEngine,
@@ -25,83 +24,6 @@ pub struct EngineSource {
     load_tx: Option<Sender<AudioLoadStatus>>,
     last_load_report: Instant,
     telemetry: EngineTelemetry,
-}
-
-pub enum EngineEvent {
-    NoteOn {
-        instrument_slot: u8,
-        note: u8,
-        velocity: u8,
-        duration_ms: u32,
-    },
-    NoteOff {
-        instrument_slot: u8,
-        note: u8,
-    },
-    Cc {
-        instrument_slot: u8,
-        controller: u8,
-        value: u8,
-    },
-    SetInstruments(InstrumentsConfig),
-    SetSampleBanks(Vec<SampleBankConfig>),
-    SetAudioConfig {
-        instruments: InstrumentsConfig,
-        sample_banks: Option<Vec<SampleBankConfig>>,
-        voice_stealing_mode: Option<VoiceStealingMode>,
-    },
-    PreviewSample {
-        instrument_slot: u8,
-        buffer: realtime_engine::synth::SampleBuffer,
-        velocity: u8,
-    },
-    SetVoiceStealingMode(VoiceStealingMode),
-    SetMasterVolume {
-        volume_pct: f32,
-    },
-    SetInstrumentMixer {
-        instrument_slot: usize,
-        volume_pct: Option<f32>,
-        pan_pos: Option<usize>,
-    },
-    SetFxBusMixer {
-        bus_index: usize,
-        pan_pos: Option<usize>,
-    },
-    SetSynthParam {
-        instrument_slot: usize,
-        path: String,
-        value: f32,
-    },
-    SetSampleBankParam {
-        instrument_slot: usize,
-        path: String,
-        value: f32,
-    },
-    SetFxBusSlot {
-        bus_index: usize,
-        slot_index: usize,
-        fx_type: String,
-        params: BTreeMap<String, Value>,
-    },
-    SetGlobalFxSlot {
-        slot_index: usize,
-        fx_type: String,
-        params: BTreeMap<String, Value>,
-    },
-    MomentaryFxStart {
-        id: String,
-        fx_type: String,
-        params: BTreeMap<String, Value>,
-        target: realtime_engine::synth::MomentaryFxTarget,
-    },
-    MomentaryFxUpdate {
-        id: String,
-        params: BTreeMap<String, Value>,
-    },
-    MomentaryFxStop {
-        id: String,
-    },
 }
 
 impl EngineSource {
@@ -296,68 +218,6 @@ impl EngineSource {
             }
         }
         drained
-    }
-}
-
-#[derive(Default)]
-struct DrainedControlEvents {
-    control_events: u64,
-    config_events: u64,
-}
-
-struct EngineTelemetry {
-    ratios: [f32; TELEMETRY_WINDOW_BLOCKS],
-    next: usize,
-    len: usize,
-    blocks: u64,
-    control_events: u64,
-    config_events: u64,
-}
-
-impl Default for EngineTelemetry {
-    fn default() -> Self {
-        Self {
-            ratios: [0.0; TELEMETRY_WINDOW_BLOCKS],
-            next: 0,
-            len: 0,
-            blocks: 0,
-            control_events: 0,
-            config_events: 0,
-        }
-    }
-}
-
-impl EngineTelemetry {
-    fn observe_block(&mut self, ratio: f32, control_events: u64, config_events: u64) {
-        self.ratios[self.next] = ratio;
-        self.next = (self.next + 1) % TELEMETRY_WINDOW_BLOCKS;
-        self.len = (self.len + 1).min(TELEMETRY_WINDOW_BLOCKS);
-        self.blocks = self.blocks.saturating_add(1);
-        self.control_events = self.control_events.saturating_add(control_events);
-        self.config_events = self.config_events.saturating_add(config_events);
-    }
-
-    fn apply_to_status(&self, status: &mut AudioLoadStatus) {
-        status.block_ratio_p95 = self.percentile(0.95);
-        status.block_ratio_max = self.max();
-        status.blocks = self.blocks;
-        status.control_events = self.control_events;
-        status.config_events = self.config_events;
-    }
-
-    fn percentile(&self, percentile: f32) -> f32 {
-        if self.len == 0 {
-            return 0.0;
-        }
-        let mut values = self.ratios;
-        let values = &mut values[..self.len];
-        values.sort_by(|a, b| a.total_cmp(b));
-        let index = ((self.len as f32 * percentile).ceil() as usize).saturating_sub(1);
-        values[index.min(self.len - 1)]
-    }
-
-    fn max(&self) -> f32 {
-        self.ratios[..self.len].iter().copied().fold(0.0, f32::max)
     }
 }
 
