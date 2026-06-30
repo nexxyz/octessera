@@ -3,7 +3,9 @@ use super::{
     RuntimeMessagesPayload, RuntimeWorker, RUNTIME_MESSAGES_EVENT,
 };
 use playback_runtime::{NativeRunner, NativeRunnerConfig, RunnerMessage};
-use std::time::{Duration, Instant};
+use std::time::Duration;
+#[cfg(debug_assertions)]
+use std::time::Instant;
 use tauri::Emitter;
 
 impl RuntimeWorker {

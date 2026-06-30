@@ -26,7 +26,8 @@ Cell Symphony is a pnpm workspace plus Cargo workspace built around a native Rus
 - Use arrow functions for closures and `function` for top-level exports.
 - Prefer minimal diffs. Centralize shared behavior only when it actually reduces duplication.
 - Do not add source-code comments unless they are genuinely necessary.
-- Keep files under the 500 line limit. If a file exceeds the limit, do a real extraction pass that improves single responsibility; do not make cosmetic line-count reductions.
+- Keep files under the 500 line limit. Treat files drifting toward 300 lines as a design smell to review, not a limit to enforce. Extract early when it improves single responsibility and cohesion.
+- Ask oracle/QA reviews to consider single responsibility and cohesion. Do not accept extraction that only moves code to satisfy a line count.
 - Do not extract vague `helper` modules or functions. Extract functionality into single-responsibility modules with domain names that describe the operation or ownership.
 
 ## Hardware Parity
