@@ -1,76 +1,14 @@
-use super::bindings::{axis_binding_label, parameter_picker_group};
+use super::system_saves::saves_group;
 use super::{
     action_item, bool_item, enum_item, enum_item_from_strings, group, info_item, number_item,
-    selected_index, NativeMenuAction, NativeMenuConfig, NativeMenuItem, NativeMenuValue,
+    selected_index, NativeMenuAction, NativeMenuConfig, NativeMenuItem,
 };
 
 pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> NativeMenuItem {
     group(
         "System",
         vec![
-            group(
-                "Saves",
-                vec![
-                    group(
-                        "Library",
-                        vec![
-                            group(
-                                "Save As",
-                                vec![
-                                    super::text_item(
-                                        "Name",
-                                        "system.draftName",
-                                        config.preset_draft_name.clone(),
-                                        32,
-                                    ),
-                                    action_item(
-                                        "Save",
-                                        "preset.saveAs.save",
-                                        NativeMenuAction::PlatformEffect("preset.saveAs".into()),
-                                    ),
-                                ],
-                            ),
-                            action_item(
-                                "Save Current",
-                                "preset.saveCurrent",
-                                NativeMenuAction::PlatformEffect("preset.saveCurrent".into()),
-                            ),
-                            preset_action_group("Load", "preset.load", &config.preset_names),
-                            preset_rename_group(config),
-                            preset_action_group("Delete", "preset.delete", &config.preset_names),
-                            action_item(
-                                "Refresh List",
-                                "preset.refresh",
-                                NativeMenuAction::PlatformEffect("preset.refresh".into()),
-                            ),
-                        ],
-                    ),
-                    group(
-                        "Default",
-                        vec![
-                            action_item(
-                                "Save Default",
-                                "default.save",
-                                NativeMenuAction::PlatformEffect("default.save".into()),
-                            ),
-                            action_item(
-                                "Load Default",
-                                "default.load",
-                                NativeMenuAction::PlatformEffect("default.load".into()),
-                            ),
-                            bool_item("Auto Save", "autoSaveDefault", config.auto_save_default),
-                        ],
-                    ),
-                    group(
-                        "Factory",
-                        vec![action_item(
-                            "Load Factory",
-                            "factory.load",
-                            NativeMenuAction::PlatformEffect("factory.load".into()),
-                        )],
-                    ),
-                ],
-            ),
+            saves_group(config),
             group(
                 "Diagnostics",
                 vec![action_item(
@@ -270,64 +208,6 @@ fn controls_group() -> NativeMenuItem {
     )
 }
 
-fn preset_action_group(label: &str, action_prefix: &str, names: &[String]) -> NativeMenuItem {
-    let children = if names.is_empty() {
-        vec![action_item(
-            "(none)",
-            format!("{action_prefix}.none"),
-            NativeMenuAction::PlatformEffect("preset.refresh".into()),
-        )]
-    } else {
-        names
-            .iter()
-            .map(|name| {
-                action_item(
-                    name.clone(),
-                    format!("{action_prefix}.{name}"),
-                    NativeMenuAction::PlatformEffect(format!("{action_prefix}:{name}")),
-                )
-            })
-            .collect()
-    };
-    group(label, children)
-}
-
-fn preset_rename_group(config: &NativeMenuConfig) -> NativeMenuItem {
-    let mut children = if config.preset_names.is_empty() {
-        vec![action_item(
-            "(none)",
-            "preset.rename.none",
-            NativeMenuAction::PlatformEffect("preset.refresh".into()),
-        )]
-    } else {
-        config
-            .preset_names
-            .iter()
-            .map(|name| {
-                action_item(
-                    name.clone(),
-                    format!("preset.renamePick.{name}"),
-                    NativeMenuAction::PlatformEffect(format!("preset.renamePick:{name}")),
-                )
-            })
-            .collect()
-    };
-    if config.preset_rename_source.is_some() {
-        children.push(super::text_item(
-            "New Name",
-            "system.draftName",
-            config.preset_draft_name.clone(),
-            32,
-        ));
-        children.push(action_item(
-            "Apply",
-            "preset.rename.apply",
-            NativeMenuAction::PlatformEffect("preset.renameApply".into()),
-        ));
-    }
-    group("Rename", children)
-}
-
 fn midi_ports_group(
     label: &str,
     action_prefix: &str,
@@ -348,119 +228,4 @@ fn midi_ports_group(
     group(label, children)
 }
 
-pub(super) fn aux_mappings_group(config: &NativeMenuConfig) -> NativeMenuItem {
-    group(
-        "Aux Mappings",
-        std::iter::once(bool_item(
-            "Auto Map",
-            "auxAutoMapEnabled",
-            config.aux_auto_map_enabled,
-        ))
-        .chain((0..platform_core::AUX_ENCODER_COUNT).map(|index| {
-            let binding = config.aux_bindings.get(index).cloned().unwrap_or_default();
-            group(
-                format!("Aux {}", index + 1),
-                vec![
-                    parameter_picker_group(
-                        axis_binding_label("Turn", binding.turn.as_ref()),
-                        format!("aux:{index}:turn"),
-                        binding.turn.as_ref(),
-                        config,
-                    ),
-                    aux_click_picker_group(index, binding.click.as_ref(), config),
-                ],
-            )
-        }))
-        .collect(),
-    )
-}
-
-fn aux_click_picker_group(
-    index: usize,
-    current: Option<&NativeMenuAction>,
-    config: &NativeMenuConfig,
-) -> NativeMenuItem {
-    let mut children = vec![action_item(
-        "(none)",
-        format!("aux{}.click.none", index + 1),
-        NativeMenuAction::SetAuxClick {
-            index,
-            action: None,
-        },
-    )];
-    if let Some(action) = current {
-        children.push(action_item(
-            "Current",
-            format!("aux{}.click.current", index + 1),
-            NativeMenuAction::SetAuxClick {
-                index,
-                action: Some(Box::new(action.clone())),
-            },
-        ));
-    }
-    let behavior_actions = config
-        .l1_items
-        .iter()
-        .filter_map(|item| match &item.value {
-            NativeMenuValue::Action(NativeMenuAction::BehaviorAction(action)) => Some(action_item(
-                item.label.clone(),
-                format!("aux{}.click.behavior.{action}", index + 1),
-                NativeMenuAction::SetAuxClick {
-                    index,
-                    action: Some(Box::new(NativeMenuAction::BehaviorAction(action.clone()))),
-                },
-            )),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
-    if !behavior_actions.is_empty() {
-        children.push(group("Behavior", behavior_actions));
-    }
-    children.push(group(
-        "Sample Assign",
-        config
-            .instrument_labels
-            .iter()
-            .enumerate()
-            .map(|(instrument, label)| {
-                action_item(
-                    label.clone(),
-                    format!("aux{}.click.sample.{instrument}", index + 1),
-                    NativeMenuAction::SetAuxClick {
-                        index,
-                        action: Some(Box::new(NativeMenuAction::PlatformEffect(format!(
-                            "sample.assign:{instrument}:0"
-                        )))),
-                    },
-                )
-            })
-            .collect(),
-    ));
-    children.push(group(
-        "Actions",
-        vec![
-            action_item(
-                "Map FX",
-                format!("aux{}.click.fx_map", index + 1),
-                NativeMenuAction::SetAuxClick {
-                    index,
-                    action: Some(Box::new(NativeMenuAction::PlatformEffect(
-                        "dance.fx.map".into(),
-                    ))),
-                },
-            ),
-            action_item(
-                "Reset Behavior",
-                format!("aux{}.click.reset", index + 1),
-                NativeMenuAction::SetAuxClick {
-                    index,
-                    action: Some(Box::new(NativeMenuAction::ResetBehavior)),
-                },
-            ),
-        ],
-    ));
-    let label = current
-        .map(|_| "Click: mapped".to_string())
-        .unwrap_or_else(|| "Click: (none)".into());
-    group(label, children)
-}
+pub(super) use super::system_aux::aux_mappings_group;

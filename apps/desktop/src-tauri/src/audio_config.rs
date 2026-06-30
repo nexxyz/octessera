@@ -2,14 +2,17 @@ use crate::SampleSlotConfig;
 use realtime_engine::synth::{
     FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig,
     MasterFxConfig, MixerConfig, SampleBankConfig, SampleBuffer,
-    SampleSlotConfig as EngineSampleSlotConfig, SynthConfig, VoiceStealingMode,
-    INSTRUMENT_SLOT_COUNT, SAMPLE_SLOTS_PER_INSTRUMENT,
+    SampleSlotConfig as EngineSampleSlotConfig, SynthConfig, INSTRUMENT_SLOT_COUNT,
+    SAMPLE_SLOTS_PER_INSTRUMENT,
 };
-use rodio::Source;
 use serde::Deserialize;
 use std::fmt::Write;
-use std::fs::File;
-use std::io::BufReader;
+
+mod sample_decode;
+mod voice_stealing;
+
+pub use sample_decode::decode_sample_file;
+pub use voice_stealing::parse_voice_stealing_mode;
 
 #[derive(Deserialize)]
 pub struct AudioInstrumentsConfig {
@@ -127,17 +130,6 @@ pub fn synth_payload(config: &AudioInstrumentsConfig) -> InstrumentsConfig {
             .pan_positions
             .unwrap_or(realtime_engine::synth::DEFAULT_PAN_POSITIONS),
         master_volume: config.master_volume.unwrap_or(100.0),
-    }
-}
-
-pub fn parse_voice_stealing_mode(raw: &str) -> VoiceStealingMode {
-    match raw {
-        "none" | "off" => VoiceStealingMode::None,
-        "fixed12" => VoiceStealingMode::Fixed12,
-        "fixed16" => VoiceStealingMode::Fixed16,
-        "auto-soft" | "lenient" => VoiceStealingMode::AutoSoft,
-        "auto-hard" | "aggressive" => VoiceStealingMode::AutoHard,
-        _ => VoiceStealingMode::AutoBalanced,
     }
 }
 
@@ -282,22 +274,6 @@ fn bus_slot(value: &Option<serde_json::Value>) -> FxBusSlotConfig {
         .clone()
         .and_then(|v| serde_json::from_value::<FxBusSlotConfig>(v).ok())
         .unwrap_or_else(|| FxBusSlotConfig::Kind("none".to_string()))
-}
-
-pub fn decode_sample_file(path: &str) -> Option<SampleBuffer> {
-    let file = File::open(path).ok()?;
-    let decoder = rodio::Decoder::new(BufReader::new(file)).ok()?;
-    let channels = decoder.channels();
-    let sample_rate = decoder.sample_rate();
-    let samples = decoder.convert_samples::<f32>().collect::<Vec<_>>();
-    if samples.is_empty() {
-        return None;
-    }
-    Some(SampleBuffer {
-        samples: samples.into(),
-        channels,
-        sample_rate,
-    })
 }
 
 fn sample_slot_config(slot: &AudioInstrumentSlotConfig) -> SampleSlotConfig {

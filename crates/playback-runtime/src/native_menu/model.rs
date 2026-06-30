@@ -1,16 +1,14 @@
-use crate::protocol::SyncSource;
-
-use super::format::{abbreviate_path, note_unit_to_pulses};
 #[cfg(test)]
 use super::help::collect_help_targets;
-use super::help::{canonicalize_help_path, menu_help_target};
+use super::help::menu_help_target;
 use super::model_binding_specs::param_binding_from_item_key;
 use super::model_edit::{turn_key_in_item, turn_text_value};
-use super::model_navigation_memory::{navigation_memory_allowed, valid_child_cursor};
-use super::model_search::{find_item, find_item_by_key, find_item_path_by_key};
+use super::model_navigation_memory::valid_child_cursor;
+use super::model_search::{find_item_by_key, find_item_path_by_key};
+use super::model_values::{number_from_item, value_from_item};
 use super::{
-    build_root, NativeMenuAction, NativeMenuConfig, NativeMenuHelpTarget, NativeMenuItem,
-    NativeMenuModel, NativeMenuState, NativeMenuValue, NativeParamBindingSpec,
+    build_root, NativeMenuAction, NativeMenuConfig, NativeMenuHelpTarget, NativeMenuModel,
+    NativeMenuState, NativeMenuValue, NativeParamBindingSpec,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -170,13 +168,6 @@ impl NativeMenuModel {
         }
     }
 
-    fn remember_current_group_cursor(&mut self) {
-        let key = self.current_group_path();
-        if navigation_memory_allowed(&key) {
-            self.navigation_memory.insert(key, self.state.cursor);
-        }
-    }
-
     pub fn delete_text_char(&mut self) -> bool {
         if !self.state.editing {
             return false;
@@ -201,31 +192,6 @@ impl NativeMenuModel {
         }
     }
 
-    pub fn selected_behavior(&self) -> Option<String> {
-        self.value_for_key("behaviorId")
-    }
-
-    pub fn selected_algorithm_step_pulses(&self) -> Option<u32> {
-        self.find_value("Step Rate")
-            .and_then(|value| note_unit_to_pulses(&value))
-    }
-
-    pub fn selected_sync_source(&self) -> Option<SyncSource> {
-        match self
-            .value_for_key("midiSyncMode")
-            .or_else(|| self.find_value("Sync"))?
-            .as_str()
-        {
-            "external" => Some(SyncSource::External),
-            _ => Some(SyncSource::Internal),
-        }
-    }
-
-    pub fn selected_master_volume(&self) -> Option<u8> {
-        self.find_number("Master Vol")
-            .map(|value| value.clamp(0, 100) as u8)
-    }
-
     pub fn value_for_key(&self, key: &str) -> Option<String> {
         if self.current_key() == Some(key) {
             return value_from_item(self.current_item());
@@ -238,20 +204,6 @@ impl NativeMenuModel {
             return number_from_item(self.current_item());
         }
         self.find_key_number(key)
-    }
-
-    pub fn selected_display_brightness(&self) -> Option<u8> {
-        self.find_key_number("displayBrightness")
-            .map(|value| value.clamp(0, 100) as u8)
-    }
-
-    pub fn selected_button_brightness(&self) -> Option<u8> {
-        self.find_key_number("buttonBrightness")
-            .map(|value| value.clamp(0, 100) as u8)
-    }
-
-    pub fn selected_dance_mode(&self) -> Option<String> {
-        self.value_for_key("danceMode")
     }
 
     pub fn is_in_dance_root_group(&self) -> bool {
@@ -335,134 +287,11 @@ impl NativeMenuModel {
         turn_key_in_item(&mut self.root, key, delta)
     }
 
-    pub(super) fn path_label(&self) -> String {
-        let mut node = &self.root;
-        let mut labels = Vec::with_capacity(self.state.stack.len());
-        for idx in &self.state.stack {
-            let children = &node.children;
-            if let Some(next) = children.get(*idx) {
-                labels.push(next.label.as_str());
-                node = next;
-            }
-        }
-        if labels.is_empty() {
-            "MENU".into()
-        } else {
-            abbreviate_path(&labels.join("/"))
-        }
-    }
-
-    fn current_item_path(&self) -> String {
-        let mut node = &self.root;
-        let mut labels = Vec::with_capacity(self.state.stack.len() + 2);
-        labels.push("Menu");
-        for idx in &self.state.stack {
-            let children = &node.children;
-            if let Some(next) = children.get(*idx) {
-                labels.push(next.label.as_str());
-                node = next;
-            }
-        }
-        labels.push(self.current_item().label.as_str());
-        canonicalize_help_path(&labels.join(" > "))
-    }
-
-    fn current_group_path(&self) -> String {
-        let mut node = &self.root;
-        let mut labels = Vec::with_capacity(self.state.stack.len() + 1);
-        labels.push("Menu");
-        for idx in &self.state.stack {
-            let children = &node.children;
-            if let Some(next) = children.get(*idx) {
-                labels.push(next.label.as_str());
-                node = next;
-            }
-        }
-        canonicalize_help_path(&labels.join(" > "))
-    }
-
-    pub(super) fn current_siblings(&self) -> &Vec<NativeMenuItem> {
-        &self.current_node().children
-    }
-
-    fn current_node(&self) -> &NativeMenuItem {
-        let mut node = &self.root;
-        for idx in &self.state.stack {
-            if node.children.is_empty() {
-                break;
-            }
-            node = &node.children[*idx.min(&node.children.len().saturating_sub(1))];
-        }
-        node
-    }
-
-    pub(super) fn current_item(&self) -> &NativeMenuItem {
-        let siblings = self.current_siblings();
-        &siblings[self.state.cursor.min(siblings.len().saturating_sub(1))]
-    }
-
-    fn current_item_mut(&mut self) -> &mut NativeMenuItem {
-        let mut node = &mut self.root;
-        for idx in self.state.stack.iter().copied() {
-            if node.children.is_empty() {
-                break;
-            }
-            let bounded = idx.min(node.children.len().saturating_sub(1));
-            node = &mut node.children[bounded];
-        }
-        let idx = self.state.cursor.min(node.children.len().saturating_sub(1));
-        &mut node.children[idx]
-    }
-
-    fn find_value(&self, label: &str) -> Option<String> {
-        find_item(&self.root, label).and_then(|item| match &item.value {
-            NativeMenuValue::Enum { options, selected } => options.get(*selected).cloned(),
-            NativeMenuValue::Bool { value } => Some(if *value {
-                "true".into()
-            } else {
-                "false".into()
-            }),
-            NativeMenuValue::Text { value, .. } => Some(value.clone()),
-            NativeMenuValue::Info => None,
-            _ => None,
-        })
-    }
-
-    fn find_number(&self, label: &str) -> Option<i32> {
-        find_item(&self.root, label).and_then(|item| match &item.value {
-            NativeMenuValue::Number { value, .. } => Some(*value),
-            NativeMenuValue::Info => None,
-            _ => None,
-        })
-    }
-
-    fn find_key_value(&self, key: &str) -> Option<String> {
+    pub(super) fn find_key_value(&self, key: &str) -> Option<String> {
         find_item_by_key(&self.root, key).and_then(value_from_item)
     }
 
-    fn find_key_number(&self, key: &str) -> Option<i32> {
+    pub(super) fn find_key_number(&self, key: &str) -> Option<i32> {
         find_item_by_key(&self.root, key).and_then(number_from_item)
-    }
-}
-
-fn value_from_item(item: &NativeMenuItem) -> Option<String> {
-    match &item.value {
-        NativeMenuValue::Enum { options, selected } => options.get(*selected).cloned(),
-        NativeMenuValue::Bool { value } => Some(if *value {
-            "true".into()
-        } else {
-            "false".into()
-        }),
-        NativeMenuValue::Text { value, .. } => Some(value.clone()),
-        NativeMenuValue::Info => None,
-        _ => None,
-    }
-}
-
-fn number_from_item(item: &NativeMenuItem) -> Option<i32> {
-    match &item.value {
-        NativeMenuValue::Number { value, .. } => Some(*value),
-        NativeMenuValue::Info => None,
-        _ => None,
     }
 }
