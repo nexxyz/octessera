@@ -43,12 +43,32 @@ pub(crate) fn l2_spec_rows_include_probability_mapping_and_axis_controls() {
     assert_eq!(
         labels,
         vec![
+            "Slot 1: (none)",
+            "Slot 1 Invert",
+            "Slot 2: (none)",
+            "Slot 2 Invert",
             "Pitch Steps",
             "Velocity",
             "Filter Cutoff",
             "Filter Resonance"
         ]
     );
+    assert!(contains_set_binding(
+        x_axis,
+        "param:0:x:0",
+        "sound.noteLengthMs"
+    ));
+
+    let y_axis = part
+        .children
+        .iter()
+        .find(|item| item.label == "Y Axis")
+        .expect("y axis group");
+    assert!(contains_set_binding(
+        y_axis,
+        "param:0:y:0",
+        "sound.noteLengthMs"
+    ));
 }
 
 #[test]
@@ -119,7 +139,7 @@ pub(crate) fn scale_menu_uses_legacy_scale_ids_and_display_labels() {
     let mut config = config();
     config.sense_parts[0].scale = "major_pentatonic".into();
     let mut menu = NativeMenuModel::new(config);
-    menu.state.stack = vec![1, 2, 4];
+    menu.state.stack = vec![1, 2, 3];
     menu.state.cursor = 3;
     let scale = menu.current_siblings()[3].clone();
     let NativeMenuValue::Enum { options, .. } = scale.value else {
@@ -137,7 +157,7 @@ pub(crate) fn scale_menu_uses_legacy_scale_ids_and_display_labels() {
 #[test]
 pub(crate) fn pitch_note_params_use_legacy_note_name_display() {
     let mut menu = NativeMenuModel::new(config());
-    menu.state.stack = vec![1, 2, 4];
+    menu.state.stack = vec![1, 2, 3];
     menu.state.cursor = 0;
     let lowest = menu.snapshot();
     assert!(lowest

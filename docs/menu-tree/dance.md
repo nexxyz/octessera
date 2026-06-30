@@ -30,7 +30,7 @@ Dance layer behavior:
 - Probability-map editor LEDs: black = `0%`, red = `low`, yellow = `high`, green = `100%`.
 - `L2: Sense > Aux Mappings` exposes root-level menu-based assignment for aux encoder turn and click bindings plus an `Auto Map` toggle.
 - `L2: Sense > Events when paused` controls whether direct grid input can emit musical events while the transport is stopped/paused. Algorithm tick/evolution remains stopped either way.
-- `L2: Sense > Pn > Mappings` exposes explicit per-part assignment for X/Y param-mod slots.
+- `L2: Sense > Pn > X Axis` and `Y Axis` expose explicit per-part assignment for X/Y param-mod slots.
 - The `Slot` and aux `Turn` target pickers use the same shared menu-mirrored parameter browser as `L4: Dance > X/Y Pad`; no separate parameter tree should diverge from that browser.
 - Aux `Click` uses a dedicated action browser for click-bindable actions.
 - Existing hardware shortcuts remain valid: Shift+grid still assigns X/Y param-mod slots and Fn+aux press binds the currently highlighted menu parameter as a Turn target or action as a `!` press target.

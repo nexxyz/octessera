@@ -41,18 +41,6 @@ L2: Sense
 │   │   ├── Low Prob: [0..100] step 1
 │   │   ├── High Prob: [0..100] step 1
 │   │   └── Map Prob Grid (action)
-│   ├── Mappings (group)
-│   │   ├── X Axis (group)
-│   │   │   ├── Slot 1 (group)
-│   │   │   │   ├── (none) (action)
-│   │   │   │   └── parameter tree...                ← same shared browser as Dance X/Y target selection
-│   │   │   ├── Slot 1 Invert: [on | off]
-│   │   │   ├── Slot 2 (group)
-│   │   │   │   ├── (none) (action)
-│   │   │   │   └── parameter tree...
-│   │   │   └── Slot 2 Invert: [on | off]
-│   │   ├── Y Axis (group)
-│   │   │   └── (same sub-structure as X Axis)
 │   ├── Note Mapping (group)
 │   │   ├── Low Note: [0..127] step 1          ← lower bound, displayed as note name + MIDI number, e.g. C2 (36)
 │   │   ├── High Note: [0..127] step 1         ← upper bound, displayed as note name + MIDI number, e.g. D5 (74)
@@ -61,6 +49,14 @@ L2: Sense
 │   │   ├── Root: [C | C# | D | D# | E | F | F# | G | G# | A | A# | B]
 │   │   └── Out of Range: [clamp | wrap]
 │   ├── X Axis (group)
+│   │   ├── Slot 1 (group)
+│   │   │   ├── (none) (action)
+│   │   │   └── parameter tree...                ← same shared browser as Dance X/Y target selection
+│   │   ├── Slot 1 Invert: [on | off]
+│   │   ├── Slot 2 (group)
+│   │   │   ├── (none) (action)
+│   │   │   └── parameter tree...
+│   │   ├── Slot 2 Invert: [on | off]
 │   │   ├── Pitch Steps (group)
 │   │   │   ├── Enabled: [on | off]
 │   │   │   ├── Steps: [-16..16] step 1       ← visible when enabled
@@ -84,7 +80,7 @@ L2: Sense
 │   │       ├── Grid Offs: [-7..7] step 1
 │   │       └── Curve: [linear | curve]
 │   └── Y Axis (group)
-│       └── (same sub-structure as X Axis, keys use y.* prefix, defaults: Pitch Steps steps=3; Restart Section affects row sections)
+│       └── (same sub-structure as X Axis, modulation target keys use param:N:y:slot, config keys use y.* prefix, defaults: Pitch Steps steps=3; Restart Section affects row sections)
 ├── P2: ... (group)
 └── P3: ... (group)
 ```

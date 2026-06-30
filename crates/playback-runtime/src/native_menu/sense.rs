@@ -86,17 +86,13 @@ pub(super) fn l2_part_group(
             scanning_group(&prefix, sense, &instrument_options),
             events_group(&prefix, sense, &instrument_options),
             trigger_probability_group(index, &prefix, sense),
-            group(
-                "Mappings",
-                vec![
-                    param_mod_axis_group(index, "X Axis", "x", config),
-                    param_mod_axis_group(index, "Y Axis", "y", config),
-                ],
-            ),
             note_mapping_group(&prefix, sense),
-            axis_group(
+            axis_group_with_param_mods(
+                index,
                 &format!("{prefix}.x"),
                 "X Axis",
+                "x",
+                config,
                 AxisMenuConfig {
                     offset_limit: 7,
                     pitch_enabled: sense.x_pitch_enabled,
@@ -107,9 +103,12 @@ pub(super) fn l2_part_group(
                     filter_resonance: &sense.x_filter_resonance,
                 },
             ),
-            axis_group(
+            axis_group_with_param_mods(
+                index,
                 &format!("{prefix}.y"),
                 "Y Axis",
+                "y",
+                config,
                 AxisMenuConfig {
                     offset_limit: 7,
                     pitch_enabled: sense.y_pitch_enabled,
@@ -135,12 +134,25 @@ pub(super) fn l2_root_items(config: &NativeMenuConfig) -> Vec<NativeMenuItem> {
     ]
 }
 
-fn param_mod_axis_group(
+fn axis_group_with_param_mods(
     part_index: usize,
+    prefix: &str,
     label: &str,
     axis: &str,
     config: &NativeMenuConfig,
+    axis_config: AxisMenuConfig<'_>,
 ) -> NativeMenuItem {
+    let mut item = axis_group(prefix, label, axis_config);
+    item.children
+        .splice(0..0, param_mod_axis_children(part_index, axis, config));
+    item
+}
+
+fn param_mod_axis_children(
+    part_index: usize,
+    axis: &str,
+    config: &NativeMenuConfig,
+) -> Vec<NativeMenuItem> {
     let prefix = format!("parts.{part_index}.paramMods.{axis}");
     let bindings = config
         .param_mods
@@ -152,31 +164,28 @@ fn param_mod_axis_group(
     } else {
         (bindings.y[0].as_ref(), bindings.y[1].as_ref())
     };
-    group(
-        label,
-        vec![
-            parameter_picker_group(
-                axis_binding_label("Slot 1", slot1),
-                format!("param:{part_index}:{axis}:0"),
-                slot1,
-                config,
-            ),
-            bool_item(
-                "Slot 1 Invert",
-                format!("{prefix}.0.invert"),
-                slot1.map(|binding| binding.invert).unwrap_or(false),
-            ),
-            parameter_picker_group(
-                axis_binding_label("Slot 2", slot2),
-                format!("param:{part_index}:{axis}:1"),
-                slot2,
-                config,
-            ),
-            bool_item(
-                "Slot 2 Invert",
-                format!("{prefix}.1.invert"),
-                slot2.map(|binding| binding.invert).unwrap_or(false),
-            ),
-        ],
-    )
+    vec![
+        parameter_picker_group(
+            axis_binding_label("Slot 1", slot1),
+            format!("param:{part_index}:{axis}:0"),
+            slot1,
+            config,
+        ),
+        bool_item(
+            "Slot 1 Invert",
+            format!("{prefix}.0.invert"),
+            slot1.map(|binding| binding.invert).unwrap_or(false),
+        ),
+        parameter_picker_group(
+            axis_binding_label("Slot 2", slot2),
+            format!("param:{part_index}:{axis}:1"),
+            slot2,
+            config,
+        ),
+        bool_item(
+            "Slot 2 Invert",
+            format!("{prefix}.1.invert"),
+            slot2.map(|binding| binding.invert).unwrap_or(false),
+        ),
+    ]
 }
