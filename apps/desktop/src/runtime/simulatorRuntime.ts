@@ -1,7 +1,11 @@
-import { PAN_POSITION_COUNT, type DeviceInput, type OledFrame, type RuntimeHostMessage, type RuntimeRunnerMessage, type RuntimeSnapshot } from "@cellsymphony/device-contracts";
+import { type DeviceInput, type RuntimeHostMessage, type RuntimeRunnerMessage, type RuntimeSnapshot } from "@cellsymphony/device-contracts";
 import { TauriAudioLoadService, type AudioLoadService, type AudioLoadStatus } from "../audio/audioLoadEvents";
+import { syncPlaybackConfigIfNeeded as syncPlaybackConfig, type PlaybackConfigSyncState } from "./playbackConfigSync";
 import { createIntervalRuntimeScheduler, type RuntimeScheduler } from "./runtimeScheduler";
 import { tauriCoreRunner } from "./runner/tauriCoreRunner";
+import { applyTransientIndicatorPulse, createTransientIndicators, resetTransientIndicators, type IndicatorTimer } from "./simulatorRuntimeIndicators";
+import { createInitialRuntimeSnapshot, createRuntimeSnapshotCache, mergeSnapshotSettings, normalizeSnapshotPixels, snapshotFromCore, type TransientIndicatorState } from "./simulatorSnapshot";
+import { scheduleStartupSplashRefresh, type StartupSplashTimer } from "./simulatorStartupSplash";
 import type { InputAction, RuntimeListener, SimulatorSnapshot } from "./types";
 
 type SimulatorRuntime = {
@@ -33,36 +37,22 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
   }
   const dispatchRuntime = runtimeDispatch;
 
-  const blankOled: OledFrame = { width: 128, height: 128, format: "rgb565be", pixels: new Uint8Array(32768) };
-  let latestFrame: RuntimeSnapshot = {
-    oled: blankOled,
-    leds: { width: 8, height: 8, rgb: Array.from({ length: 64 * 3 }, () => 0) },
-    transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
-    display: { page: "boot", title: "Boot", lines: [], editing: false },
-    activeBehavior: "life",
-    gridInteraction: "paint"
-  };
+  let latestFrame: RuntimeSnapshot = createInitialRuntimeSnapshot();
   let shiftActive = false;
   let audioLoad: AudioLoadStatus = { ratio: 0, voiceSteal: false };
   let audioError: string | null = null;
-  let lastSyncedPlaybackConfig = "";
+  const playbackConfigSyncState: PlaybackConfigSyncState = { lastSyncedPlaybackConfig: "" };
   let runtimeUpdateEpoch = 0;
   let lastAsyncRuntimeSeq = 0;
   let lastTauriDrainAt = 0;
   let tauriDrainInFlight = false;
   let ignoreAsyncUntilMs = 0;
-  let cachedAudioRevision: number | undefined;
-  let cachedInstruments: unknown[] = [];
-  let cachedMixer: unknown = { buses: [] };
-  let cachedPanPositions: number = PAN_POSITION_COUNT;
-  let cachedMasterVolume: number = 100;
+  const snapshotCache = createRuntimeSnapshotCache();
   const pendingEncoderTurns = new Map<EncoderId, number>();
   let pendingEncoderTimer: ReturnType<typeof setTimeout> | null = null;
-  let startupSplashTimer: ReturnType<typeof setTimeout> | null = null;
-  let indicatorTimer: ReturnType<typeof setTimeout> | null = null;
-  let eventDotUntilMs = 0;
-  let transportFlashUntilMs = 0;
-  let transientTransportFlash: "measure" | "beat" | "none" = "none";
+  let startupSplashTimer: StartupSplashTimer = null;
+  let indicatorTimer: IndicatorTimer = null;
+  const indicators: TransientIndicatorState = createTransientIndicators();
   const queuedRuntimeMessages: RuntimeHostMessage[] = [];
   let runtimeDispatchInFlight = false;
   const listeners = new Set<RuntimeListener>();
@@ -83,81 +73,13 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
     publishSnapshot();
   });
 
-  function frameSettings() {
-    return latestFrame.settings;
-  }
-
-  function snapshotFromCore(frame: RuntimeSnapshot): SimulatorSnapshot {
-    const settings = frame.settings;
-    const audioRevision = settings?.audioConfigRevision;
-    if (settings && (cachedAudioRevision === undefined || audioRevision === undefined || audioRevision !== cachedAudioRevision)) {
-      cachedAudioRevision = audioRevision;
-      cachedInstruments = settings.instruments ?? [];
-      cachedMixer = settings.mixer ?? { buses: [] };
-      cachedPanPositions = settings.panPositions ?? PAN_POSITION_COUNT;
-      cachedMasterVolume = settings.masterVolume ?? 100;
-    }
-    const flash = performance.now() < transportFlashUntilMs
-      ? transientTransportFlash
-      : String(frame.transportFlash ?? "none");
-    const combined = settings?.combinedModifierHeld ?? false;
-    return {
-      frame: withTransientIndicators(frame),
-      neoKeyLeds: {
-        back: "solid_red",
-        space: !frame.transport.playing ? "off" : flash === "measure" ? "measure" : flash === "beat" ? "beat" : "off",
-        shift: combined ? "solid_blue" : (settings?.shiftHeld ?? shiftActive) ? "solid_yellow" : "off",
-        fn: combined ? "solid_blue" : (settings?.fnHeld ?? false) ? "solid_yellow" : "off"
-      },
-      displayBrightness: settings?.displayBrightness ?? 75,
-      buttonBrightness: settings?.buttonBrightness ?? 75,
-      masterVolume: cachedMasterVolume,
-      voiceStealingMode: settings?.voiceStealingMode ?? "auto-balanced",
-      audioLoad,
-      audioError,
-      instruments: cachedInstruments,
-      mixer: cachedMixer,
-      panPositions: cachedPanPositions,
-      audioConfigRevision: cachedAudioRevision,
-      autoSaveFlash: settings?.autoSaveFlash ?? "none",
-      autoSaveFlashSerial: settings?.autoSaveFlashSerial
-    };
-  }
-
-  function withTransientIndicators(frame: RuntimeSnapshot): RuntimeSnapshot {
-    const transientEventDotOn = performance.now() < eventDotUntilMs;
-    const transientTransport = performance.now() < transportFlashUntilMs ? transientTransportFlash : null;
-    if (!transientEventDotOn && transientTransport === null) return frame;
-    return {
-      ...frame,
-      ...(transientEventDotOn ? { eventDotOn: true } : {}),
-      ...(transientTransport ? { transportFlash: transientTransport } : {}),
-    };
-  }
-
   function publishSnapshot() {
-    const snapshot = snapshotFromCore(latestFrame);
+    const snapshot = snapshotFromCore(latestFrame, snapshotCache, shiftActive, indicators, { audioLoad, audioError });
     for (const listener of listeners) listener(snapshot);
   }
 
   function syncPlaybackConfigIfNeeded() {
-    if (deps.runtimeDispatch) return;
-    const settings = frameSettings();
-    const midi = settings?.midi;
-    if (!midi) return;
-    const config = {
-      bpm: Number(latestFrame.transport.bpm ?? 120),
-      syncSource: midi.syncMode === "external" ? "external" : "internal",
-      midiClockOutEnabled: Boolean(midi.clockOutEnabled),
-      midiOutEnabled: Boolean(midi.enabled && midi.outId)
-    } as const;
-    const signature = JSON.stringify(config);
-    if (signature === lastSyncedPlaybackConfig) return;
-    lastSyncedPlaybackConfig = signature;
-    void tauriCoreRunner.syncConfig(config).catch((err) => {
-      console.error("[Runtime] syncConfig failed:", err);
-      if (lastSyncedPlaybackConfig === signature) lastSyncedPlaybackConfig = "";
-    });
+    syncPlaybackConfig(latestFrame, playbackConfigSyncState, Boolean(deps.runtimeDispatch));
   }
 
   function processRunnerMessages(messages: DesktopRunnerMessage[]) {
@@ -182,24 +104,11 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
 
   function applySnapshotMessage(snapshot: RuntimeSnapshot) {
     normalizeSnapshotPixels(snapshot);
-    mergeSnapshotSettings(snapshot);
+    mergeSnapshotSettings(snapshot, latestFrame);
     latestFrame = snapshot;
-    scheduleStartupSplashRefresh(snapshot);
-  }
-
-  function normalizeSnapshotPixels(snapshot: RuntimeSnapshot) {
-    if (snapshot.oled && !(snapshot.oled.pixels instanceof Uint8Array)) {
-      snapshot.oled = { ...snapshot.oled, pixels: new Uint8Array(Object.values(snapshot.oled.pixels as any)) };
-    }
-  }
-
-  function mergeSnapshotSettings(snapshot: RuntimeSnapshot) {
-    const previousSettings = latestFrame.settings;
-    const nextSettings = snapshot.settings;
-    if (!previousSettings || !nextSettings) return;
-    if (!("instruments" in nextSettings)) nextSettings.instruments = previousSettings.instruments;
-    if (!("mixer" in nextSettings)) nextSettings.mixer = previousSettings.mixer;
-    if (!("panPositions" in nextSettings)) nextSettings.panPositions = previousSettings.panPositions;
+    startupSplashTimer = scheduleStartupSplashRefresh(snapshot, startupSplashTimer, mirrorRuntimeMessage, () => {
+      startupSplashTimer = null;
+    });
   }
 
   function applyAudioErrorMessage(error: string | null) {
@@ -208,41 +117,10 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
   }
 
   function applyUiPulse(pulse: Extract<RuntimeRunnerMessage, { type: "ui_pulse" }>['pulse']) {
-    const now = performance.now();
-    if (pulse.type === "trigger_pulse") {
-      eventDotUntilMs = now + pulse.durationMs;
-    } else if (pulse.type === "transport_flash") {
-      transientTransportFlash = pulse.flash;
-      transportFlashUntilMs = now + pulse.durationMs;
-    }
-    if (indicatorTimer !== null) clearTimeout(indicatorTimer);
-    publishSnapshot();
-    const nextUntil = Math.max(eventDotUntilMs, transportFlashUntilMs);
-    indicatorTimer = setTimeout(() => {
+    indicatorTimer = applyTransientIndicatorPulse(pulse, indicators, indicatorTimer, publishSnapshot, () => {
       indicatorTimer = null;
       publishSnapshot();
-    }, Math.max(0, nextUntil - now) + 5);
-  }
-
-  function scheduleStartupSplashRefresh(snapshot: RuntimeSnapshot) {
-    const splash = String(snapshot.display.splash ?? "");
-    if (splash !== "startup") {
-      if (startupSplashTimer !== null) {
-        clearTimeout(startupSplashTimer);
-        startupSplashTimer = null;
-      }
-      return;
-    }
-    if (startupSplashTimer !== null) return;
-    startupSplashTimer = setTimeout(() => {
-      startupSplashTimer = null;
-      mirrorRuntimeMessage({
-        type: "transport_pulse_step",
-        pulses: 0,
-        source: "internal",
-        requestSnapshot: true,
-      });
-    }, 1600);
+    });
   }
 
   function drainQueuedRuntimeMessages() {
@@ -376,19 +254,17 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
         clearTimeout(indicatorTimer);
         indicatorTimer = null;
       }
-      eventDotUntilMs = 0;
-      transportFlashUntilMs = 0;
-      transientTransportFlash = "none";
+      resetTransientIndicators(indicators);
       publishSnapshot();
       scheduler.stop();
     },
     subscribe(listener) {
       listeners.add(listener);
-      listener(snapshotFromCore(latestFrame));
+      listener(snapshotFromCore(latestFrame, snapshotCache, shiftActive, indicators, { audioLoad, audioError }));
       return () => listeners.delete(listener);
     },
     getSnapshot() {
-      return snapshotFromCore(latestFrame);
+      return snapshotFromCore(latestFrame, snapshotCache, shiftActive, indicators, { audioLoad, audioError });
     }
   };
 

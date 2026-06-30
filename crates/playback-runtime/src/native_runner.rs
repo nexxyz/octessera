@@ -3,11 +3,7 @@ use crate::native_menu::{
     NativeParamBindingSpec, NativeParamModsConfig, NativeSensePartConfig, NativeValueLaneConfig,
 };
 #[cfg(test)]
-use crate::protocol::RuntimeAudioCommand;
-#[cfg(test)]
-use crate::protocol::RuntimeStoreResult;
-#[cfg(test)]
-use crate::protocol::{HostMessage, RunnerMessage};
+use crate::protocol::{HostMessage, RunnerMessage, RuntimeAudioCommand, RuntimeStoreResult};
 use crate::protocol::{
     MidiPort, RuntimeMomentaryFxTarget, RuntimePlatformEffect, RuntimeTransportState, SampleEntry,
     SyncSource,
@@ -27,10 +23,6 @@ use defaults::{
 use modulation_keys::{parse_instrument_binding_key, parse_part_behavior_config_binding_key};
 #[cfg(test)]
 use modulation_sampler::{apply_sampler_assignments_for_instruments, sampler_assignment_velocity};
-#[cfg(test)]
-use platform_core::CellTriggerIntent;
-#[cfg(test)]
-use platform_core::MusicalEvent;
 use platform_core::{
     default_mapping_config, AxisStrategy, BehaviorActionInput, BehaviorConfigItem,
     BehaviorConfigItemType, DeviceInput, GlobalSoundConfig, GridInteraction, InterpretationProfile,
@@ -39,6 +31,8 @@ use platform_core::{
     GRID_HEIGHT, GRID_WIDTH, INSTRUMENT_COUNT, PAN_POSITION_COUNT, PART_COUNT, SAMPLE_SLOT_COUNT,
     TOUCH_FX_MAX_CONCURRENT,
 };
+#[cfg(test)]
+use platform_core::{CellTriggerIntent, MusicalEvent};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
@@ -47,19 +41,25 @@ use visual_utils::{
     touch_pan_pos_from_grid_x, trigger_gate_color, trigger_probability_allows, LedColor,
 };
 
+mod action_bindings;
 mod action_control;
 mod algorithm;
 mod apply_payload;
+mod apply_payload_instrument_values;
 mod apply_payload_instruments;
+mod apply_payload_mixer_values;
 mod apply_payload_parts;
 mod aux_auto_map;
+mod aux_auto_map_fx_layouts;
 mod aux_auto_map_instrument_layouts;
 mod aux_auto_map_layouts;
 mod aux_auto_map_overlay;
 mod aux_binding_payload_apply;
 mod aux_generated_behavior_turn;
 mod behavior_menu;
+mod behavior_menu_actions;
 mod behavior_target_menu;
+mod binding_payload;
 mod binding_specs;
 mod config;
 mod construction;
@@ -67,9 +67,11 @@ mod construction_deferred;
 mod construction_engine;
 mod dance_control;
 mod dance_fx_utils;
+mod dance_trigger_gate;
 mod defaults;
 mod deferred_flush;
 mod device_input;
+mod device_input_buttons;
 mod factory_payload;
 mod fx_bus_config;
 mod fx_targets;
@@ -83,6 +85,9 @@ mod looper_config;
 mod menu_apply;
 mod menu_apply_fast;
 mod menu_apply_fast_fx;
+mod menu_apply_fast_fx_bus;
+mod menu_apply_fast_values;
+mod menu_apply_fx_state;
 mod menu_apply_global;
 mod menu_apply_instrument;
 mod menu_apply_instrument_midi;
@@ -101,6 +106,7 @@ mod modulation_sense;
 mod modulation_value;
 mod outbox;
 mod overlays;
+mod overlays_fn;
 mod pan_position;
 mod part_state;
 mod payload_assign;
@@ -130,7 +136,9 @@ mod visual_utils;
 use preset_names::{clean_preset_name, fresh_preset_name};
 pub use runner_config::NativeRunnerConfig;
 
+use binding_payload::*;
 use binding_specs::*;
+use dance_trigger_gate::*;
 use factory_payload::*;
 use fx_bus_config::*;
 use fx_targets::*;

@@ -1,18 +1,21 @@
+#[path = "host_adapter_midi.rs"]
+mod host_adapter_midi;
+#[path = "host_adapter_store.rs"]
+mod host_adapter_store;
+
 use crate::audio::AudioService;
 use crate::host_audio_command::send_audio_command;
 use crate::sample_browser::sample_entries;
 use midir::{MidiInputConnection, MidiOutputConnection};
 use playback_runtime::{
-    HostAdapter, HostMessage, MidiPort, MusicalEvent as RuntimeMusicalEvent, RuntimeAudioCommand,
+    HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent, RuntimeAudioCommand,
     RuntimePlatformEffect, RuntimeStoreResult, SampleEntry,
 };
 use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
 use rodio_engine_source::EngineEvent;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
-
-const DEFERRED_DEFAULT_SAVE_MS: u64 = 2_000;
+use std::time::Instant;
 
 pub struct PiPlaybackHostAdapter {
     audio: Option<AudioService>,
@@ -73,143 +76,6 @@ impl PiPlaybackHostAdapter {
         }])
     }
 
-    fn save_default_payload(&self, payload: &serde_json::Value) -> Result<(), String> {
-        std::fs::create_dir_all(&self.store_dir).map_err(|e| e.to_string())?;
-        let content = serde_json::to_string_pretty(payload).map_err(|e| e.to_string())?;
-        std::fs::write(self.store_dir.join("default.json"), content).map_err(|e| e.to_string())
-    }
-
-    fn list_presets(&self) -> Result<Vec<String>, String> {
-        let mut names = Vec::new();
-        if !self.store_dir.is_dir() {
-            return Ok(names);
-        }
-        for entry in std::fs::read_dir(&self.store_dir).map_err(|e| e.to_string())? {
-            let entry = entry.map_err(|e| e.to_string())?;
-            if entry
-                .path()
-                .file_name()
-                .is_some_and(|name| name == "default.json")
-            {
-                continue;
-            }
-            if entry.path().extension().is_some_and(|ext| ext == "json") {
-                if let Some(stem) = entry.path().file_stem().and_then(|stem| stem.to_str()) {
-                    names.push(stem.to_string());
-                }
-            }
-        }
-        names.sort();
-        Ok(names)
-    }
-
-    fn preset_path(&self, name: &str) -> PathBuf {
-        let safe = name.replace(['/', '\\'], "_");
-        self.store_dir.join(format!("{safe}.json"))
-    }
-
-    fn load_json(path: &Path) -> Result<Option<serde_json::Value>, String> {
-        if !path.is_file() {
-            return Ok(None);
-        }
-        let content = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
-        Ok(serde_json::from_str(&content).ok())
-    }
-
-    fn save_json(path: &Path, payload: &serde_json::Value) -> Result<(), String> {
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-        }
-        let content = serde_json::to_string_pretty(payload).map_err(|e| e.to_string())?;
-        std::fs::write(path, content).map_err(|e| e.to_string())
-    }
-
-    fn midi_outputs() -> Result<(midir::MidiOutput, Vec<midir::MidiOutputPort>), String> {
-        let out = midir::MidiOutput::new("cellsymphony-pi-out").map_err(|e| e.to_string())?;
-        let ports = out.ports();
-        Ok((out, ports))
-    }
-
-    fn midi_inputs() -> Result<(midir::MidiInput, Vec<midir::MidiInputPort>), String> {
-        let input = midir::MidiInput::new("cellsymphony-pi-in").map_err(|e| e.to_string())?;
-        let ports = input.ports();
-        Ok((input, ports))
-    }
-
-    fn list_midi_outputs() -> Result<Vec<MidiPort>, String> {
-        let (out, ports) = Self::midi_outputs()?;
-        Ok(ports
-            .iter()
-            .enumerate()
-            .map(|(index, port)| MidiPort {
-                id: index.to_string(),
-                name: out.port_name(port).unwrap_or_else(|_| "<unknown>".into()),
-            })
-            .collect())
-    }
-
-    fn list_midi_inputs() -> Result<Vec<MidiPort>, String> {
-        let (input, ports) = Self::midi_inputs()?;
-        Ok(ports
-            .iter()
-            .enumerate()
-            .map(|(index, port)| MidiPort {
-                id: index.to_string(),
-                name: input.port_name(port).unwrap_or_else(|_| "<unknown>".into()),
-            })
-            .collect())
-    }
-
-    fn select_output(&mut self, id: Option<String>) -> Result<(), String> {
-        self.midi_out = None;
-        self.selected_midi_output_id = None;
-        let Some(id) = id else {
-            return Ok(());
-        };
-        let index = id
-            .parse::<usize>()
-            .map_err(|_| "invalid MIDI output id".to_string())?;
-        let (out, ports) = Self::midi_outputs()?;
-        let port = ports
-            .get(index)
-            .ok_or_else(|| "MIDI output not found".to_string())?;
-        self.midi_out = Some(
-            out.connect(port, "cellsymphony-pi-out")
-                .map_err(|e| e.to_string())?,
-        );
-        self.selected_midi_output_id = Some(id);
-        Ok(())
-    }
-
-    fn select_input(&mut self, id: Option<String>) -> Result<(), String> {
-        self.midi_in = None;
-        self.selected_midi_input_id = None;
-        let Some(id) = id else {
-            return Ok(());
-        };
-        let index = id
-            .parse::<usize>()
-            .map_err(|_| "invalid MIDI input id".to_string())?;
-        let (mut input, ports) = Self::midi_inputs()?;
-        input.ignore(midir::Ignore::None);
-        let port = ports
-            .get(index)
-            .ok_or_else(|| "MIDI input not found".to_string())?;
-        let handler = self.midi_in_handler.clone();
-        self.midi_in = Some(
-            input
-                .connect(
-                    port,
-                    "cellsymphony-pi-in",
-                    move |_timestamp, message, _| handler(message.to_vec()),
-                    (),
-                )
-                .map_err(|e| e.to_string())?,
-        );
-        self.selected_midi_input_id = Some(id);
-        Ok(())
-    }
-
     fn sample_entries(&self, dir: &str) -> Result<Vec<SampleEntry>, String> {
         sample_entries(&self.samples_dir, dir)
     }
@@ -261,43 +127,27 @@ impl HostAdapter for PiPlaybackHostAdapter {
             RuntimePlatformEffect::StoreLoadPreset { name } => {
                 RuntimeStoreResult::LoadPresetResult {
                     name: name.clone(),
-                    payload: Self::load_json(&self.preset_path(name))?,
+                    payload: self.load_preset_payload(name)?,
                 }
             }
             RuntimePlatformEffect::StoreSavePreset { name, payload, .. } => {
-                let existed = self.preset_path(name).is_file();
-                Self::save_json(&self.preset_path(name), payload)?;
+                let existed = self.save_preset_payload(name, payload)?;
                 RuntimeStoreResult::SavePresetResult {
                     name: name.clone(),
                     outcome: if existed { "overwritten" } else { "created" }.into(),
                 }
             }
             RuntimePlatformEffect::StoreDeletePreset { name } => {
-                let path = self.preset_path(name);
                 RuntimeStoreResult::DeletePresetResult {
                     name: name.clone(),
-                    ok: path.is_file() && std::fs::remove_file(path).is_ok(),
+                    ok: self.delete_preset_payload(name),
                 }
             }
-            RuntimePlatformEffect::StoreLoadDefault => {
-                self.pending_default_save = None;
-                RuntimeStoreResult::LoadDefaultResult {
-                    payload: Self::load_json(&self.store_dir.join("default.json"))?,
-                }
-            }
+            RuntimePlatformEffect::StoreLoadDefault => self.load_default_result()?,
             RuntimePlatformEffect::StoreSaveDefault { payload, mode } => {
-                if mode.as_deref() == Some("deferred") {
-                    self.pending_default_save = Some((
-                        payload.clone(),
-                        Instant::now() + Duration::from_millis(DEFERRED_DEFAULT_SAVE_MS),
-                    ));
-                    return Ok(Vec::new());
-                }
-                self.pending_default_save = None;
-                self.save_default_payload(payload)?;
-                RuntimeStoreResult::SaveDefaultResult {
-                    ok: true,
-                    is_auto: None,
+                match self.save_default_result(payload, mode.as_deref())? {
+                    Some(result) => result,
+                    None => return Ok(Vec::new()),
                 }
             }
             RuntimePlatformEffect::MidiListOutputsRequest => {

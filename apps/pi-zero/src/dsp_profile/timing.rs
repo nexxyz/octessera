@@ -7,6 +7,11 @@ use std::process::Command;
 use std::sync::mpsc;
 use std::time::Instant;
 
+#[path = "engine_event_clone.rs"]
+mod engine_event_clone;
+
+use engine_event_clone::clone_event;
+
 const MIN_BLOCK_FRAMES: usize = 32;
 const MAX_BLOCK_FRAMES: usize = 2_048;
 const RUNTIME_WARMUP_BLOCKS: usize = 8;
@@ -212,141 +217,4 @@ fn env_usize(key: &str) -> Option<usize> {
     std::env::var(key)
         .ok()
         .and_then(|value| value.parse::<usize>().ok())
-}
-
-fn clone_event(event: &rodio_engine_source::EngineEvent) -> rodio_engine_source::EngineEvent {
-    match event {
-        rodio_engine_source::EngineEvent::NoteOn {
-            instrument_slot,
-            note,
-            velocity,
-            duration_ms,
-        } => rodio_engine_source::EngineEvent::NoteOn {
-            instrument_slot: *instrument_slot,
-            note: *note,
-            velocity: *velocity,
-            duration_ms: *duration_ms,
-        },
-        rodio_engine_source::EngineEvent::NoteOff {
-            instrument_slot,
-            note,
-        } => rodio_engine_source::EngineEvent::NoteOff {
-            instrument_slot: *instrument_slot,
-            note: *note,
-        },
-        rodio_engine_source::EngineEvent::Cc {
-            instrument_slot,
-            controller,
-            value,
-        } => rodio_engine_source::EngineEvent::Cc {
-            instrument_slot: *instrument_slot,
-            controller: *controller,
-            value: *value,
-        },
-        rodio_engine_source::EngineEvent::SetInstruments(config) => {
-            rodio_engine_source::EngineEvent::SetInstruments(config.clone())
-        }
-        rodio_engine_source::EngineEvent::SetSampleBanks(banks) => {
-            rodio_engine_source::EngineEvent::SetSampleBanks(banks.clone())
-        }
-        rodio_engine_source::EngineEvent::SetAudioConfig {
-            instruments,
-            sample_banks,
-            voice_stealing_mode,
-        } => rodio_engine_source::EngineEvent::SetAudioConfig {
-            instruments: instruments.clone(),
-            sample_banks: sample_banks.clone(),
-            voice_stealing_mode: *voice_stealing_mode,
-        },
-        rodio_engine_source::EngineEvent::PreviewSample {
-            instrument_slot,
-            buffer,
-            velocity,
-        } => rodio_engine_source::EngineEvent::PreviewSample {
-            instrument_slot: *instrument_slot,
-            buffer: buffer.clone(),
-            velocity: *velocity,
-        },
-        rodio_engine_source::EngineEvent::SetVoiceStealingMode(mode) => {
-            rodio_engine_source::EngineEvent::SetVoiceStealingMode(*mode)
-        }
-        rodio_engine_source::EngineEvent::SetMasterVolume { volume_pct } => {
-            rodio_engine_source::EngineEvent::SetMasterVolume {
-                volume_pct: *volume_pct,
-            }
-        }
-        rodio_engine_source::EngineEvent::SetInstrumentMixer {
-            instrument_slot,
-            volume_pct,
-            pan_pos,
-        } => rodio_engine_source::EngineEvent::SetInstrumentMixer {
-            instrument_slot: *instrument_slot,
-            volume_pct: *volume_pct,
-            pan_pos: *pan_pos,
-        },
-        rodio_engine_source::EngineEvent::SetFxBusMixer { bus_index, pan_pos } => {
-            rodio_engine_source::EngineEvent::SetFxBusMixer {
-                bus_index: *bus_index,
-                pan_pos: *pan_pos,
-            }
-        }
-        rodio_engine_source::EngineEvent::SetSynthParam {
-            instrument_slot,
-            path,
-            value,
-        } => rodio_engine_source::EngineEvent::SetSynthParam {
-            instrument_slot: *instrument_slot,
-            path: path.clone(),
-            value: *value,
-        },
-        rodio_engine_source::EngineEvent::SetSampleBankParam {
-            instrument_slot,
-            path,
-            value,
-        } => rodio_engine_source::EngineEvent::SetSampleBankParam {
-            instrument_slot: *instrument_slot,
-            path: path.clone(),
-            value: *value,
-        },
-        rodio_engine_source::EngineEvent::SetFxBusSlot {
-            bus_index,
-            slot_index,
-            fx_type,
-            params,
-        } => rodio_engine_source::EngineEvent::SetFxBusSlot {
-            bus_index: *bus_index,
-            slot_index: *slot_index,
-            fx_type: fx_type.clone(),
-            params: params.clone(),
-        },
-        rodio_engine_source::EngineEvent::SetGlobalFxSlot {
-            slot_index,
-            fx_type,
-            params,
-        } => rodio_engine_source::EngineEvent::SetGlobalFxSlot {
-            slot_index: *slot_index,
-            fx_type: fx_type.clone(),
-            params: params.clone(),
-        },
-        rodio_engine_source::EngineEvent::MomentaryFxStart {
-            id,
-            fx_type,
-            params,
-            target,
-        } => rodio_engine_source::EngineEvent::MomentaryFxStart {
-            id: id.clone(),
-            fx_type: fx_type.clone(),
-            params: params.clone(),
-            target: *target,
-        },
-        rodio_engine_source::EngineEvent::MomentaryFxUpdate { id, params } => {
-            rodio_engine_source::EngineEvent::MomentaryFxUpdate {
-                id: id.clone(),
-                params: params.clone(),
-            }
-        }
-        rodio_engine_source::EngineEvent::MomentaryFxStop { id } => {
-            rodio_engine_source::EngineEvent::MomentaryFxStop { id: id.clone() }
-        }
-    }
 }

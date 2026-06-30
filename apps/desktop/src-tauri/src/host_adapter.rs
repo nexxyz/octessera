@@ -1,13 +1,13 @@
 mod audio_config_apply;
+mod host_adapter_audio;
+mod host_adapter_store;
 
-use crate::audio_config::decode_sample_file;
 use crate::audio_prep_service::DesktopAudioControl;
 use crate::desktop_platform_service::{
     shape_service_unavailable_result, DesktopPlatformServiceRequest,
 };
 use crate::midi;
-use crate::samples::resolve_sample_file;
-use crate::types::{MomentaryFxTargetPayload, QueuedAudioEvent, QueuedNote};
+use crate::types::{QueuedAudioEvent, QueuedNote};
 use midir::MidiInputConnection;
 use playback_runtime::{
     HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent, RuntimeAudioCommand,
@@ -18,9 +18,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
-
-const DEFERRED_DEFAULT_SAVE_MS: u64 = 2_000;
+use std::time::Instant;
 
 pub(crate) struct DesktopPlaybackHostAdapter {
     pub(crate) audio: DesktopHostAudioState,
@@ -111,11 +109,6 @@ impl DesktopPlaybackHostAdapter {
         })
     }
 
-    fn save_default_payload(&self, payload: &serde_json::Value) -> Result<(), String> {
-        let content = serde_json::to_string_pretty(payload).map_err(|e| e.to_string())?;
-        std::fs::write(self.store_dir.join("default.json"), content).map_err(|e| e.to_string())
-    }
-
     fn enqueue_platform_service_request(
         &self,
         request: DesktopPlatformServiceRequest,
@@ -165,31 +158,13 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
     ) -> Result<Vec<HostMessage>, String> {
         match effect {
             RuntimePlatformEffect::StoreListPresets => {
-                let presets_dir = self.store_dir.join("presets");
-                let mut names: Vec<String> = Vec::new();
-                if presets_dir.is_dir() {
-                    for entry in std::fs::read_dir(&presets_dir).map_err(|e| e.to_string())? {
-                        let entry = entry.map_err(|e| e.to_string())?;
-                        if entry.path().extension().is_some_and(|ext| ext == "json") {
-                            if let Some(stem) = entry.path().file_stem().and_then(|s| s.to_str()) {
-                                names.push(stem.to_string());
-                            }
-                        }
-                    }
-                }
-                names.sort();
+                let names = self.list_preset_names()?;
                 Ok(vec![HostMessage::RuntimeResult {
                     result: RuntimeStoreResult::ListPresetsResult { names },
                 }])
             }
             RuntimePlatformEffect::StoreLoadPreset { name } => {
-                let path = self.store_dir.join("presets").join(format!("{name}.json"));
-                let payload = if path.is_file() {
-                    let content = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-                    serde_json::from_str(&content).ok()
-                } else {
-                    None
-                };
+                let payload = self.load_preset_payload(name)?;
                 Ok(vec![HostMessage::RuntimeResult {
                     result: RuntimeStoreResult::LoadPresetResult {
                         name: name.clone(),
@@ -202,11 +177,7 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                 payload,
                 mode: _,
             } => {
-                let presets_dir = self.store_dir.join("presets");
-                std::fs::create_dir_all(&presets_dir).map_err(|e| e.to_string())?;
-                let path = presets_dir.join(format!("{name}.json"));
-                let content = serde_json::to_string_pretty(payload).map_err(|e| e.to_string())?;
-                std::fs::write(&path, content).map_err(|e| e.to_string())?;
+                self.save_preset_payload(name, payload)?;
                 Ok(vec![HostMessage::RuntimeResult {
                     result: RuntimeStoreResult::SavePresetResult {
                         name: name.clone(),
@@ -215,8 +186,7 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                 }])
             }
             RuntimePlatformEffect::StoreDeletePreset { name } => {
-                let path = self.store_dir.join("presets").join(format!("{name}.json"));
-                let ok = path.is_file() && std::fs::remove_file(&path).is_ok();
+                let ok = self.delete_preset_payload(name);
                 Ok(vec![HostMessage::RuntimeResult {
                     result: RuntimeStoreResult::DeletePresetResult {
                         name: name.clone(),
@@ -224,44 +194,9 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                     },
                 }])
             }
-            RuntimePlatformEffect::StoreLoadDefault => {
-                self.pending_default_save = None;
-                let path = self.store_dir.join("default.json");
-                let payload = if path.is_file() {
-                    let content = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-                    match serde_json::from_str(&content) {
-                        Ok(payload) => Some(payload),
-                        Err(error) => {
-                            return Ok(vec![HostMessage::RuntimeResult {
-                                result: RuntimeStoreResult::StoreError {
-                                    message: format!("Default load failed: {error}"),
-                                },
-                            }]);
-                        }
-                    }
-                } else {
-                    None
-                };
-                Ok(vec![HostMessage::RuntimeResult {
-                    result: RuntimeStoreResult::LoadDefaultResult { payload },
-                }])
-            }
+            RuntimePlatformEffect::StoreLoadDefault => self.load_default_result(),
             RuntimePlatformEffect::StoreSaveDefault { payload, mode } => {
-                if mode.as_deref() == Some("deferred") {
-                    self.pending_default_save = Some((
-                        payload.clone(),
-                        Instant::now() + Duration::from_millis(DEFERRED_DEFAULT_SAVE_MS),
-                    ));
-                    return Ok(vec![]);
-                }
-                self.pending_default_save = None;
-                self.save_default_payload(payload)?;
-                Ok(vec![HostMessage::RuntimeResult {
-                    result: RuntimeStoreResult::SaveDefaultResult {
-                        ok: true,
-                        is_auto: None,
-                    },
-                }])
+                self.save_default_result(payload, mode.as_deref())
             }
             RuntimePlatformEffect::AudioCommand { command } => {
                 self.handle_audio_command(command)?;
@@ -341,130 +276,7 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
     }
 
     fn handle_audio_command(&mut self, command: &RuntimeAudioCommand) -> Result<(), String> {
-        if let RuntimeAudioCommand::SetAudioConfig { revision, config } = command {
-            return self.handle_full_audio_config(*revision, config.clone());
-        }
-        let event = match command {
-            RuntimeAudioCommand::SetAudioConfig { .. } => unreachable!(),
-            RuntimeAudioCommand::SetMasterVolume { volume_pct } => {
-                QueuedAudioEvent::SetMasterVolume {
-                    volume_pct: *volume_pct,
-                }
-            }
-            RuntimeAudioCommand::SetInstrumentMixer {
-                instrument_slot,
-                volume_pct,
-                pan_pos,
-            } => QueuedAudioEvent::SetInstrumentMixer {
-                instrument_slot: *instrument_slot,
-                volume_pct: *volume_pct,
-                pan_pos: *pan_pos,
-            },
-            RuntimeAudioCommand::SetFxBusMixer { bus_index, pan_pos } => {
-                QueuedAudioEvent::SetFxBusMixer {
-                    bus_index: *bus_index,
-                    pan_pos: *pan_pos,
-                }
-            }
-            RuntimeAudioCommand::SetSynthParam {
-                instrument_slot,
-                path,
-                value,
-            } => QueuedAudioEvent::SetSynthParam {
-                instrument_slot: *instrument_slot,
-                path: path.clone(),
-                value: *value,
-            },
-            RuntimeAudioCommand::SetSampleBankParam {
-                instrument_slot,
-                path,
-                value,
-            } => QueuedAudioEvent::SetSampleBankParam {
-                instrument_slot: *instrument_slot,
-                path: path.clone(),
-                value: *value,
-            },
-            RuntimeAudioCommand::SetFxBusSlot {
-                bus_index,
-                slot_index,
-                fx_type,
-                params,
-            } => QueuedAudioEvent::SetFxBusSlot {
-                bus_index: *bus_index,
-                slot_index: *slot_index,
-                fx_type: fx_type.clone(),
-                params: params.clone(),
-            },
-            RuntimeAudioCommand::SetGlobalFxSlot {
-                slot_index,
-                fx_type,
-                params,
-            } => QueuedAudioEvent::SetGlobalFxSlot {
-                slot_index: *slot_index,
-                fx_type: fx_type.clone(),
-                params: params.clone(),
-            },
-            RuntimeAudioCommand::MomentaryFxStart {
-                id,
-                fx_type,
-                params,
-                target,
-            } => QueuedAudioEvent::MomentaryFxStart {
-                id: id.clone(),
-                fx_type: fx_type.clone(),
-                params: params.clone(),
-                target: match target {
-                    playback_runtime::RuntimeMomentaryFxTarget::Global => {
-                        MomentaryFxTargetPayload::Global
-                    }
-                    playback_runtime::RuntimeMomentaryFxTarget::FxBus { index } => {
-                        MomentaryFxTargetPayload::FxBus { index: *index }
-                    }
-                    playback_runtime::RuntimeMomentaryFxTarget::Instrument { index } => {
-                        MomentaryFxTargetPayload::Instrument { index: *index }
-                    }
-                },
-            },
-            RuntimeAudioCommand::MomentaryFxUpdate { id, params } => {
-                QueuedAudioEvent::MomentaryFxUpdate {
-                    id: id.clone(),
-                    params: params.clone(),
-                }
-            }
-            RuntimeAudioCommand::MomentaryFxStop { id } => {
-                QueuedAudioEvent::MomentaryFxStop { id: id.clone() }
-            }
-            RuntimeAudioCommand::SamplePreview {
-                instrument_slot,
-                sample_slot: _,
-                path,
-                velocity,
-            } => {
-                let full_path =
-                    resolve_sample_file(path).ok_or_else(|| "invalid sample path".to_string())?;
-                let buffer = {
-                    let mut cache = self
-                        .audio
-                        .sample_cache
-                        .lock()
-                        .map_err(|_| "sample cache poisoned".to_string())?;
-                    if let Some(buffer) = cache.get(&full_path).cloned() {
-                        buffer
-                    } else {
-                        let buffer = decode_sample_file(&full_path)
-                            .ok_or_else(|| "sample decode failed".to_string())?;
-                        cache.insert(full_path, buffer.clone());
-                        buffer
-                    }
-                };
-                QueuedAudioEvent::PreviewSample {
-                    instrument_slot: (*instrument_slot).min(INSTRUMENT_SLOT_COUNT - 1) as u8,
-                    buffer,
-                    velocity: *velocity,
-                }
-            }
-        };
-        self.audio.audio_control.enqueue_dynamic(event)
+        self.handle_runtime_audio_command(command)
     }
 
     fn handle_midi_message(&mut self, _bytes: &[u8]) -> Result<(), String> {

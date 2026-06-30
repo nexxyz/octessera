@@ -1,15 +1,19 @@
+mod audio_sample_decode;
+
 use crate::audio::AudioService;
+use audio_sample_decode::decode_sample_file;
 use realtime_engine::synth::{
     default_synth_config, FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig,
     InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig, SampleBankConfig,
     SampleBuffer, SampleSlotConfig, SynthConfig, VoiceStealingMode, DEFAULT_PAN_POSITIONS,
     SAMPLE_SLOTS_PER_INSTRUMENT,
 };
-use rodio::Source;
 use serde::Deserialize;
-use std::fs::File;
-use std::io::BufReader;
 use std::path::{Component, Path, PathBuf};
+
+#[cfg(test)]
+#[path = "audio_config_parse_tests.rs"]
+mod audio_config_parse_tests;
 
 #[derive(Deserialize)]
 struct AudioConfigPayload {
@@ -269,22 +273,6 @@ fn resolve_sample_path(samples_dir: &Path, path: &str) -> Option<PathBuf> {
     Some(samples_dir.join(relative))
 }
 
-fn decode_sample_file(path: &Path) -> Option<SampleBuffer> {
-    let file = File::open(path).ok()?;
-    let decoder = rodio::Decoder::new(BufReader::new(file)).ok()?;
-    let channels = decoder.channels();
-    let sample_rate = decoder.sample_rate();
-    let samples = decoder.convert_samples::<f32>().collect::<Vec<_>>();
-    if samples.is_empty() {
-        return None;
-    }
-    Some(SampleBuffer {
-        samples: samples.into(),
-        channels,
-        sample_rate,
-    })
-}
-
 fn mixer_config(config: AudioMixerPayload) -> MixerConfig {
     MixerConfig {
         buses: config
@@ -307,93 +295,4 @@ fn mixer_config(config: AudioMixerPayload) -> MixerConfig {
 
 fn fx_slot_config(value: serde_json::Value) -> FxBusSlotConfig {
     serde_json::from_value(value).unwrap_or_else(|_| FxBusSlotConfig::Kind("none".into()))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parses_full_audio_config_payload_for_engine() {
-        let config = parse_audio_config(&serde_json::json!({
-            "masterVolume": 81,
-            "voiceStealingMode": "fixed12",
-            "panPositions": 33,
-            "instruments": [{
-                "type": "synth",
-                "mixer": { "route": "fx_bus_1", "panPos": 12, "volume": 76 }
-            }],
-            "mixer": {
-                "buses": [{ "slot1": { "type": "none" }, "slot2": { "type": "none" }, "panPos": 16 }],
-                "master": { "slots": [{ "type": "none" }] }
-            }
-        }))
-        .unwrap();
-
-        assert_eq!(config.instruments.master_volume, 81.0);
-        assert_eq!(config.instruments.pan_positions, 33);
-        assert_eq!(config.instruments.instruments[0].kind, "synth");
-        let mixer = config.instruments.instruments[0].mixer.as_ref().unwrap();
-        assert_eq!(mixer.route, "fx_bus_1");
-        assert_eq!(mixer.pan_pos, 12);
-        assert_eq!(mixer.volume, 76.0);
-        assert_eq!(config.instruments.mixer.unwrap().buses.len(), 1);
-        assert_eq!(config.voice_stealing_mode.as_deref(), Some("fixed12"));
-        assert_eq!(
-            parse_voice_stealing_mode(config.voice_stealing_mode.as_deref().unwrap()),
-            VoiceStealingMode::Fixed12
-        );
-    }
-
-    #[test]
-    fn sample_signature_tracks_sampler_param_changes() {
-        let first = vec![sampler_source(AudioSamplePayload {
-            slots: vec![AudioSampleSlotPayload {
-                path: Some("kick.wav".into()),
-            }],
-            tune_semis: Some(0.0),
-            amp: Some(AudioSampleAmpPayload {
-                gain_pct: Some(100.0),
-                velocity_sensitivity_pct: Some(100.0),
-            }),
-        })];
-        let changed = vec![sampler_source(AudioSamplePayload {
-            slots: vec![AudioSampleSlotPayload {
-                path: Some("kick.wav".into()),
-            }],
-            tune_semis: Some(2.0),
-            amp: Some(AudioSampleAmpPayload {
-                gain_pct: Some(80.0),
-                velocity_sensitivity_pct: Some(70.0),
-            }),
-        })];
-
-        assert_ne!(sample_signature(&first), sample_signature(&changed));
-    }
-
-    #[test]
-    fn sample_signature_ignores_sample_payload_for_non_sampler_slots() {
-        let synth_with_sample_payload = vec![SampleSource {
-            kind: "synth".into(),
-            sample: Some(AudioSamplePayload {
-                slots: vec![AudioSampleSlotPayload {
-                    path: Some("kick.wav".into()),
-                }],
-                tune_semis: Some(12.0),
-                amp: Some(AudioSampleAmpPayload {
-                    gain_pct: Some(50.0),
-                    velocity_sensitivity_pct: Some(60.0),
-                }),
-            }),
-        }];
-
-        assert_eq!(sample_signature(&synth_with_sample_payload), "-");
-    }
-
-    fn sampler_source(sample: AudioSamplePayload) -> SampleSource {
-        SampleSource {
-            kind: "sampler".into(),
-            sample: Some(sample),
-        }
-    }
 }
