@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn fn_overlay_shows_active_parts_and_dance_page_options() {
+pub(crate) fn fn_overlay_shows_active_parts_and_dance_page_options() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_dance_mode = "pan".into();
     runner.dance_mode = "pan".into();
@@ -31,7 +31,7 @@ fn fn_overlay_shows_active_parts_and_dance_page_options() {
 }
 
 #[test]
-fn fn_overlay_highlights_active_part_when_not_in_dance_mode() {
+pub(crate) fn fn_overlay_highlights_active_part_when_not_in_dance_mode() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_dance_mode = "none".into();
     runner.dance_mode = "mix".into();
@@ -61,7 +61,7 @@ fn fn_overlay_highlights_active_part_when_not_in_dance_mode() {
 }
 
 #[test]
-fn fn_overlay_dims_fx_grid_cells_when_dance_mode_is_fx() {
+pub(crate) fn fn_overlay_dims_fx_grid_cells_when_dance_mode_is_fx() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.ui.fn_held = true;
     runner.active_dance_mode = "fx".into();

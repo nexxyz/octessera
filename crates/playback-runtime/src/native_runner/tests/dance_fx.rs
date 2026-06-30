@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn dance_fx_grid_press_and_release_emit_audio_commands() {
+pub(crate) fn dance_fx_grid_press_and_release_emit_audio_commands() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_dance_mode = "fx".into();
     runner.dance_fx_assignments.push(NativeDanceFxAssignment {
@@ -38,7 +38,7 @@ fn dance_fx_grid_press_and_release_emit_audio_commands() {
 }
 
 #[test]
-fn dance_fx_same_config_assignment_toggles_cell_clear() {
+pub(crate) fn dance_fx_same_config_assignment_toggles_cell_clear() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let config = json!({ "fxType": "stutter", "targetKey": "master", "params": { "rateHz": 8 } });
     runner.dance_fx_assign = Some(config.clone());
@@ -51,7 +51,7 @@ fn dance_fx_same_config_assignment_toggles_cell_clear() {
 }
 
 #[test]
-fn dance_fx_press_blocks_same_type_and_limits_concurrency() {
+pub(crate) fn dance_fx_press_blocks_same_type_and_limits_concurrency() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_dance_mode = "fx".into();
     for (x, fx_type) in ["stutter", "freeze", "filter_sweep", "pitch_shift"]
@@ -90,7 +90,7 @@ fn dance_fx_press_blocks_same_type_and_limits_concurrency() {
 }
 
 #[test]
-fn dance_fx_overlay_marks_active_and_limited_cells() {
+pub(crate) fn dance_fx_overlay_marks_active_and_limited_cells() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_dance_mode = "fx".into();
     runner.dance_fx_assignments.push(NativeDanceFxAssignment {
@@ -123,7 +123,7 @@ fn dance_fx_overlay_marks_active_and_limited_cells() {
 }
 
 #[test]
-fn dance_fx_map_to_grid_stores_config_and_payload_round_trips() {
+pub(crate) fn dance_fx_map_to_grid_stores_config_and_payload_round_trips() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.dance_fx_selected = json!({
         "fxType": "pitch_shift",

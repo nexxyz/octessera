@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn fn_space_preserves_sequencer_cells() {
+pub(crate) fn fn_space_preserves_sequencer_cells() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         ..NativeRunnerConfig::default()
@@ -45,7 +45,7 @@ fn fn_space_preserves_sequencer_cells() {
 }
 
 #[test]
-fn fn_space_restores_triggered_input_events_after_reenable() {
+pub(crate) fn fn_space_restores_triggered_input_events_after_reenable() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "keys".into(),
         ..NativeRunnerConfig::default()

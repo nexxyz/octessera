@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn system_menu_shutdown_emits_shutdown_effect_and_splash() {
+pub(crate) fn system_menu_shutdown_emits_shutdown_effect_and_splash() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.oled_mode = NativeOledMode::Normal;
     runner.oled_splash_text.clear();

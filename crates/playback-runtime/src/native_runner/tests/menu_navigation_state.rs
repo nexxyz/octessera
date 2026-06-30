@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn changing_behavior_keeps_menu_location() {
+pub(crate) fn changing_behavior_keeps_menu_location() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
 
     let level1 = runner
@@ -56,7 +56,7 @@ fn changing_behavior_keeps_menu_location() {
 }
 
 #[test]
-fn button_a_release_does_not_navigate_back() {
+pub(crate) fn button_a_release_does_not_navigate_back() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![0];
     runner.menu.state.cursor = 2;
@@ -72,7 +72,7 @@ fn button_a_release_does_not_navigate_back() {
 }
 
 #[test]
-fn startup_splash_closes_into_help_toast() {
+pub(crate) fn startup_splash_closes_into_help_toast() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.oled_mode = NativeOledMode::Splash;
     runner.oled_splash_text = super::OLED_STARTUP_SPLASH_KEY.into();
@@ -91,7 +91,7 @@ fn startup_splash_closes_into_help_toast() {
 }
 
 #[test]
-fn startup_splash_blocks_input_until_timeout() {
+pub(crate) fn startup_splash_blocks_input_until_timeout() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.oled_mode = NativeOledMode::Splash;
     runner.oled_splash_text = super::OLED_STARTUP_SPLASH_KEY.into();
@@ -119,7 +119,7 @@ fn startup_splash_blocks_input_until_timeout() {
 }
 
 #[test]
-fn screen_sleep_splashes_then_turns_oled_off_and_wake_input_shows_wakeup_screen() {
+pub(crate) fn screen_sleep_splashes_then_turns_oled_off_and_wake_input_shows_wakeup_screen() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.oled_mode = NativeOledMode::Normal;
     runner.oled_splash_text.clear();

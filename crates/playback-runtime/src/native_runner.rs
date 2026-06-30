@@ -33,11 +33,11 @@ use platform_core::CellTriggerIntent;
 use platform_core::MusicalEvent;
 use platform_core::{
     default_mapping_config, AxisStrategy, BehaviorActionInput, BehaviorConfigItem,
-    BehaviorConfigItemType, DeviceInput, GlobalSoundConfig, GridInteraction,
-    InterpretationEventProfile, InterpretationProfile, InterpretationStateProfile, NativeBehavior,
-    NativePartEngine, NativePartEngineConfig, NoteBehavior, RangeMode, TickStrategy, TriggerAction,
-    TriggerTarget, VelocityCurve, BUS_COUNT, GLOBAL_FX_SLOT_COUNT, GRID_HEIGHT, GRID_WIDTH,
-    INSTRUMENT_COUNT, PAN_POSITION_COUNT, PART_COUNT, SAMPLE_SLOT_COUNT, TOUCH_FX_MAX_CONCURRENT,
+    BehaviorConfigItemType, DeviceInput, GlobalSoundConfig, GridInteraction, InterpretationProfile,
+    NativeBehavior, NativePartEngine, NativePartEngineConfig, NoteBehavior, RangeMode,
+    TickStrategy, TriggerAction, TriggerTarget, VelocityCurve, BUS_COUNT, GLOBAL_FX_SLOT_COUNT,
+    GRID_HEIGHT, GRID_WIDTH, INSTRUMENT_COUNT, PAN_POSITION_COUNT, PART_COUNT, SAMPLE_SLOT_COUNT,
+    TOUCH_FX_MAX_CONCURRENT,
 };
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
@@ -88,6 +88,7 @@ mod menu_value_apply;
 mod modulation;
 mod modulation_fx;
 mod modulation_instrument;
+mod modulation_instrument_numeric;
 mod modulation_keys;
 mod modulation_sampler;
 mod modulation_sense;
@@ -98,6 +99,7 @@ mod pan_position;
 mod part_state;
 mod payload_assign;
 mod preset_names;
+mod runner_config;
 mod runtime_io;
 mod sample_assignment_payload;
 mod sample_browser;
@@ -119,6 +121,7 @@ mod velocity_curve;
 mod visual_utils;
 
 use preset_names::{clean_preset_name, fresh_preset_name};
+pub use runner_config::NativeRunnerConfig;
 
 use binding_specs::*;
 use factory_payload::*;
@@ -130,6 +133,7 @@ use instrument_collections::*;
 use instrument_runtime::*;
 use json_path::*;
 use menu_value_apply::*;
+use modulation_instrument_numeric::*;
 use outbox::NativeRunnerOutbox;
 use pan_position::*;
 use sample_assignment_payload::*;
@@ -165,48 +169,6 @@ pub(super) fn normalize_voice_stealing_mode(value: &str) -> Option<&'static str>
         "auto-balanced" | "balanced" => Some("auto-balanced"),
         "auto-hard" | "aggressive" => Some("auto-hard"),
         _ => None,
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct NativeRunnerConfig {
-    pub behavior_id: String,
-    pub behavior_config: Value,
-    pub interpretation_profile: InterpretationProfile,
-    pub mapping_config: platform_core::MappingConfig,
-    pub global_sound: GlobalSoundConfig,
-    pub note_behaviors: Vec<NoteBehavior>,
-    pub sync_source: SyncSource,
-    pub bpm: f64,
-    pub sample_builtin_favourite_dirs: Vec<String>,
-}
-
-impl Default for NativeRunnerConfig {
-    fn default() -> Self {
-        Self {
-            behavior_id: "life".into(),
-            behavior_config: Value::Null,
-            interpretation_profile: InterpretationProfile {
-                id: "native_profile".into(),
-                event: InterpretationEventProfile { enabled: true },
-                state: InterpretationStateProfile {
-                    enabled: true,
-                    tick: TickStrategy::WholeGridTransitions,
-                },
-                x: AxisStrategy::ScaleStep { step: 1 },
-                y: AxisStrategy::TimingOnly,
-            },
-            mapping_config: default_mapping_config(),
-            global_sound: GlobalSoundConfig {
-                velocity_scale_pct: 100,
-                velocity_curve: VelocityCurve::Linear,
-                note_length_ms: 120,
-            },
-            note_behaviors: vec![NoteBehavior::Oneshot; 16],
-            sync_source: SyncSource::Internal,
-            bpm: 120.0,
-            sample_builtin_favourite_dirs: Vec::new(),
-        }
     }
 }
 

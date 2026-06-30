@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn behavior_target_picker_uses_each_parts_behavior_and_prunes_none() {
+pub(crate) fn behavior_target_picker_uses_each_parts_behavior_and_prunes_none() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.part_behavior_ids[0] = "none".into();
     runner.part_behavior_ids[2] = "brain".into();
@@ -25,7 +25,7 @@ fn behavior_target_picker_uses_each_parts_behavior_and_prunes_none() {
 }
 
 #[test]
-fn aux_turn_generated_per_part_behavior_targets_updates_stored_config() {
+pub(crate) fn aux_turn_generated_per_part_behavior_targets_updates_stored_config() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.part_behavior_ids[2] = "brain".into();
     runner.part_behavior_configs[2] = json!({ "randomSeedCells": 4 });
@@ -48,7 +48,7 @@ fn aux_turn_generated_per_part_behavior_targets_updates_stored_config() {
 }
 
 #[test]
-fn per_part_step_rate_xy_binding_round_trips_from_payload() {
+pub(crate) fn per_part_step_rate_xy_binding_round_trips_from_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let mut payload = runner.config_payload();
     payload["runtimeConfig"]["parts"][0]["xy"]["x"] = json!({
@@ -67,7 +67,7 @@ fn per_part_step_rate_xy_binding_round_trips_from_payload() {
 }
 
 #[test]
-fn stale_bindings_to_none_behavior_part_do_not_mutate_hidden_values() {
+pub(crate) fn stale_bindings_to_none_behavior_part_do_not_mutate_hidden_values() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.part_behavior_ids[2] = "none".into();
     runner.part_algorithm_step_pulses[2] = 24;
@@ -110,7 +110,10 @@ fn stale_bindings_to_none_behavior_part_do_not_mutate_hidden_values() {
     assert!(!runner.config_dirty);
 }
 
-fn contains_key_recursive(items: &[crate::native_menu::NativeMenuItem], key: &str) -> bool {
+pub(crate) fn contains_key_recursive(
+    items: &[crate::native_menu::NativeMenuItem],
+    key: &str,
+) -> bool {
     items
         .iter()
         .any(|item| item.key.as_deref() == Some(key) || contains_key_recursive(&item.children, key))

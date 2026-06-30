@@ -1,6 +1,6 @@
 use super::*;
 
-fn open_browser(dir: &str) -> NativeSampleBrowser {
+pub(crate) fn open_browser(dir: &str) -> NativeSampleBrowser {
     NativeSampleBrowser {
         instrument_slot: 0,
         sample_slot: 0,
@@ -10,7 +10,7 @@ fn open_browser(dir: &str) -> NativeSampleBrowser {
 }
 
 #[test]
-fn matching_sample_list_result_applies_to_open_browser() {
+pub(crate) fn matching_sample_list_result_applies_to_open_browser() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.sample_browser = Some(open_browser("Drums"));
 
@@ -33,7 +33,7 @@ fn matching_sample_list_result_applies_to_open_browser() {
 }
 
 #[test]
-fn mismatched_sample_list_result_is_ignored() {
+pub(crate) fn mismatched_sample_list_result_is_ignored() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.sample_browser = Some(open_browser("Drums"));
     let before = runner.sample_browser.clone();
@@ -57,7 +57,7 @@ fn mismatched_sample_list_result_is_ignored() {
 }
 
 #[test]
-fn mismatched_sample_list_error_is_ignored_without_toast() {
+pub(crate) fn mismatched_sample_list_error_is_ignored_without_toast() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.sample_browser = Some(open_browser("Drums"));
     runner.toast = None;

@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn voice_instrument_rows_expose_configuration_groups() {
+pub(crate) fn voice_instrument_rows_expose_configuration_groups() {
     let mut menu = NativeMenuModel::new(config());
     menu.turn(1);
     menu.turn(1);
@@ -31,7 +31,7 @@ fn voice_instrument_rows_expose_configuration_groups() {
 }
 
 #[test]
-fn voice_menu_exposes_fx_bus_and_global_fx_groups() {
+pub(crate) fn voice_menu_exposes_fx_bus_and_global_fx_groups() {
     let mut menu = NativeMenuModel::new(config());
     menu.turn(2);
     let _ = menu.press();
@@ -51,7 +51,7 @@ fn voice_menu_exposes_fx_bus_and_global_fx_groups() {
 }
 
 #[test]
-fn number_params_emit_bar_values_and_pan_uses_marker_format() {
+pub(crate) fn number_params_emit_bar_values_and_pan_uses_marker_format() {
     let mut menu = NativeMenuModel::new(config());
     menu.state.stack = vec![2, 0, 0, 3];
     menu.state.cursor = 2;
@@ -86,7 +86,7 @@ fn number_params_emit_bar_values_and_pan_uses_marker_format() {
 }
 
 #[test]
-fn mixer_menu_uses_current_volume_and_pan_values() {
+pub(crate) fn mixer_menu_uses_current_volume_and_pan_values() {
     let mut config = config();
     config.instrument_volumes = vec![70];
     config.instrument_pan_positions = vec![10];
@@ -104,7 +104,7 @@ fn mixer_menu_uses_current_volume_and_pan_values() {
 }
 
 #[test]
-fn fx_slot_groups_show_selected_effect_params() {
+pub(crate) fn fx_slot_groups_show_selected_effect_params() {
     let mut config = config();
     config.fx_buses[0].slot1_type = "delay".into();
     config.fx_buses[0].slot1_params =
@@ -138,7 +138,7 @@ fn fx_slot_groups_show_selected_effect_params() {
 }
 
 #[test]
-fn duck_source_param_displays_source_text() {
+pub(crate) fn duck_source_param_displays_source_text() {
     let mut config = config();
     config.fx_buses[0].slot1_type = "duck".into();
     config.fx_buses[0].slot1_params = serde_json::json!({ "source": "B2" });

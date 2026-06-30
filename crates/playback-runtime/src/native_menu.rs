@@ -20,8 +20,10 @@ mod binding_tree;
 mod bindings;
 mod dance;
 mod format;
+mod format_values;
 mod fx;
 mod help;
+mod item_builders;
 mod model;
 mod model_binding_specs;
 mod model_edit;
@@ -39,6 +41,7 @@ mod voice;
 mod voice_config_read;
 mod voice_env_groups;
 
+pub(in crate::native_menu) use item_builders::*;
 pub use model::NativeMenuPressResult;
 pub(crate) use options::{is_valid_fx_bus_slot_type, is_valid_global_fx_slot_type};
 pub use types::*;
@@ -287,131 +290,6 @@ fn instrument_overview_label(
         "midi" => format!("{prefix} midi ch{midi_channel}"),
         "none" => format!("{prefix} none"),
         _ => format!("{prefix} synth {route}"),
-    }
-}
-
-fn group(label: impl Into<String>, children: Vec<NativeMenuItem>) -> NativeMenuItem {
-    NativeMenuItem {
-        label: label.into(),
-        key: None,
-        value: NativeMenuValue::Group,
-        children,
-    }
-}
-
-fn info_item(label: impl Into<String>, key: impl Into<String>) -> NativeMenuItem {
-    NativeMenuItem {
-        label: label.into(),
-        key: Some(key.into()),
-        value: NativeMenuValue::Info,
-        children: vec![],
-    }
-}
-
-fn enum_item(
-    label: impl Into<String>,
-    key: impl Into<String>,
-    options: Vec<&str>,
-    selected: usize,
-) -> NativeMenuItem {
-    NativeMenuItem {
-        label: label.into(),
-        key: Some(key.into()),
-        value: NativeMenuValue::Enum {
-            options: options.into_iter().map(String::from).collect(),
-            selected,
-        },
-        children: vec![],
-    }
-}
-
-fn number_item(
-    label: impl Into<String>,
-    key: impl Into<String>,
-    value: i32,
-    min: i32,
-    max: i32,
-    step: i32,
-) -> NativeMenuItem {
-    NativeMenuItem {
-        label: label.into(),
-        key: Some(key.into()),
-        value: NativeMenuValue::Number {
-            value,
-            min,
-            max,
-            step,
-        },
-        children: vec![],
-    }
-}
-
-fn bool_item(label: impl Into<String>, key: impl Into<String>, value: bool) -> NativeMenuItem {
-    NativeMenuItem {
-        label: label.into(),
-        key: Some(key.into()),
-        value: NativeMenuValue::Bool { value },
-        children: vec![],
-    }
-}
-
-fn text_item(
-    label: impl Into<String>,
-    key: impl Into<String>,
-    value: impl Into<String>,
-    max_len: usize,
-) -> NativeMenuItem {
-    NativeMenuItem {
-        label: label.into(),
-        key: Some(key.into()),
-        value: NativeMenuValue::Text {
-            value: value.into(),
-            max_len,
-            cursor: 0,
-        },
-        children: vec![],
-    }
-}
-
-fn action_item(
-    label: impl Into<String>,
-    key: impl Into<String>,
-    action: NativeMenuAction,
-) -> NativeMenuItem {
-    NativeMenuItem {
-        label: label.into(),
-        key: Some(key.into()),
-        value: NativeMenuValue::Action(action),
-        children: vec![],
-    }
-}
-
-fn selected_index(options: &[&str], value: &str) -> usize {
-    options
-        .iter()
-        .position(|option| *option == value)
-        .unwrap_or(0)
-}
-
-fn slot_option_selected(slot: usize, option_count: usize) -> usize {
-    if slot == usize::MAX {
-        0
-    } else {
-        (slot + 1).min(option_count.saturating_sub(1))
-    }
-}
-
-fn enum_item_from_strings(
-    label: impl Into<String>,
-    key: impl Into<String>,
-    options: Vec<String>,
-    selected: usize,
-) -> NativeMenuItem {
-    NativeMenuItem {
-        label: label.into(),
-        key: Some(key.into()),
-        value: NativeMenuValue::Enum { options, selected },
-        children: vec![],
     }
 }
 

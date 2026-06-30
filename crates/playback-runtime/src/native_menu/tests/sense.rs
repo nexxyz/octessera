@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn l2_spec_rows_include_probability_mapping_and_axis_controls() {
+pub(crate) fn l2_spec_rows_include_probability_mapping_and_axis_controls() {
     let menu = NativeMenuModel::new(config());
     let part = &menu.root.children[1].children[2];
     let trigger_prob = part
@@ -52,7 +52,7 @@ fn l2_spec_rows_include_probability_mapping_and_axis_controls() {
 }
 
 #[test]
-fn conditional_rows_follow_scan_lane_and_sampler_state() {
+pub(crate) fn conditional_rows_follow_scan_lane_and_sampler_state() {
     let menu = NativeMenuModel::new(config());
     let part = &menu.root.children[1].children[2];
     let scanning = part
@@ -115,7 +115,7 @@ fn conditional_rows_follow_scan_lane_and_sampler_state() {
 }
 
 #[test]
-fn scale_menu_uses_legacy_scale_ids_and_display_labels() {
+pub(crate) fn scale_menu_uses_legacy_scale_ids_and_display_labels() {
     let mut config = config();
     config.sense_parts[0].scale = "major_pentatonic".into();
     let mut menu = NativeMenuModel::new(config);
@@ -135,7 +135,7 @@ fn scale_menu_uses_legacy_scale_ids_and_display_labels() {
 }
 
 #[test]
-fn pitch_note_params_use_legacy_note_name_display() {
+pub(crate) fn pitch_note_params_use_legacy_note_name_display() {
     let mut menu = NativeMenuModel::new(config());
     menu.state.stack = vec![1, 2, 4];
     menu.state.cursor = 0;

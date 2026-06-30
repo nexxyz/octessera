@@ -4,7 +4,7 @@ use std::collections::HashSet;
 const MENU_HELP_TSV: &str = include_str!("../../../../../resources/menu-help-texts.tsv");
 
 #[test]
-fn native_menu_help_targets_resolve_to_specific_tsv_rows() {
+pub(crate) fn native_menu_help_targets_resolve_to_specific_tsv_rows() {
     let mut targets = Vec::new();
     let mut missing = Vec::new();
     for config in representative_help_configs() {
@@ -29,7 +29,7 @@ fn native_menu_help_targets_resolve_to_specific_tsv_rows() {
 }
 
 #[test]
-fn native_menu_group_help_rows_match_current_paths() {
+pub(crate) fn native_menu_group_help_rows_match_current_paths() {
     let stale = crate::native_help::native_help_entries_for_tests()
         .iter()
         .filter(|entry| {
@@ -54,7 +54,7 @@ fn native_menu_group_help_rows_match_current_paths() {
 }
 
 #[test]
-fn populated_sample_browser_help_uses_actual_sample_action_keys() {
+pub(crate) fn populated_sample_browser_help_uses_actual_sample_action_keys() {
     let config = representative_help_configs()
         .into_iter()
         .find(|config| config.sample_browser.is_some())
@@ -73,7 +73,7 @@ fn populated_sample_browser_help_uses_actual_sample_action_keys() {
 }
 
 #[test]
-fn menu_help_tsv_rows_have_unique_ids_and_specific_text() {
+pub(crate) fn menu_help_tsv_rows_have_unique_ids_and_specific_text() {
     let mut ids = HashSet::new();
     let mut problems = Vec::new();
 
@@ -124,7 +124,7 @@ fn menu_help_tsv_rows_have_unique_ids_and_specific_text() {
 }
 
 #[test]
-fn menu_help_tsv_lines_stay_concise() {
+pub(crate) fn menu_help_tsv_lines_stay_concise() {
     let mut long = Vec::new();
     for (line_number, line) in MENU_HELP_TSV.lines().enumerate().skip(1) {
         if line.trim().is_empty() || line.trim_start().starts_with('#') {

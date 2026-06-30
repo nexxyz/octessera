@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn native_menu_edit_emits_deferred_auto_save_when_enabled() {
+pub(crate) fn native_menu_edit_emits_deferred_auto_save_when_enabled() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.auto_save_default = true;
     for _ in 0..5 {
@@ -75,7 +75,7 @@ fn native_menu_edit_emits_deferred_auto_save_when_enabled() {
 }
 
 #[test]
-fn save_default_result_lights_auto_save_indicator_and_toast_scrolls() {
+pub(crate) fn save_default_result_lights_auto_save_indicator_and_toast_scrolls() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.oled_mode = NativeOledMode::Normal;
     runner.oled_splash_text.clear();
@@ -105,7 +105,7 @@ fn save_default_result_lights_auto_save_indicator_and_toast_scrolls() {
 }
 
 #[test]
-fn text_edit_turns_are_deferred_until_flush_or_exit() {
+pub(crate) fn text_edit_turns_are_deferred_until_flush_or_exit() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.auto_save_default = true;
     runner.menu.state.stack = vec![0, 0];
@@ -136,7 +136,7 @@ fn text_edit_turns_are_deferred_until_flush_or_exit() {
 }
 
 #[test]
-fn deferred_text_edit_survives_leaving_name_row_before_flush() {
+pub(crate) fn deferred_text_edit_survives_leaving_name_row_before_flush() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![0, 0];
     runner.menu.state.cursor = 2;
@@ -158,7 +158,7 @@ fn deferred_text_edit_survives_leaving_name_row_before_flush() {
 }
 
 #[test]
-fn deferred_instrument_name_edit_survives_leaving_row() {
+pub(crate) fn deferred_instrument_name_edit_survives_leaving_row() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
 
     assert!(runner.menu.focus_item_key("instruments.0.name"));
@@ -179,7 +179,7 @@ fn deferred_instrument_name_edit_survives_leaving_row() {
 }
 
 #[test]
-fn deferred_bus_name_edit_survives_leaving_row() {
+pub(crate) fn deferred_bus_name_edit_survives_leaving_row() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.fx_buses[0].slot1_type = "delay".into();
     runner.fx_buses[0].slot2_type = "duck".into();

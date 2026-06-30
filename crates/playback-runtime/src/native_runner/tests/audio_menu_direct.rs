@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn fast_path_audio_param_still_applies_immediately() {
+pub(crate) fn fast_path_audio_param_still_applies_immediately() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     assert!(runner
         .menu
@@ -32,7 +32,7 @@ fn fast_path_audio_param_still_applies_immediately() {
 }
 
 #[test]
-fn sampler_fast_path_uses_direct_audio_command_without_revision_bump() {
+pub(crate) fn sampler_fast_path_uses_direct_audio_command_without_revision_bump() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].kind = "sampler".into();
     runner.instruments[0].name = "sampler".into();
@@ -60,7 +60,7 @@ fn sampler_fast_path_uses_direct_audio_command_without_revision_bump() {
 }
 
 #[test]
-fn fx_param_fast_path_uses_direct_audio_command_without_revision_bump() {
+pub(crate) fn fx_param_fast_path_uses_direct_audio_command_without_revision_bump() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.turn_key("mixer.buses.0.slot1.type", 1);
     runner.apply_menu_state().unwrap();
@@ -90,7 +90,7 @@ fn fx_param_fast_path_uses_direct_audio_command_without_revision_bump() {
 }
 
 #[test]
-fn fx_param_fast_path_preserves_scaled_values() {
+pub(crate) fn fx_param_fast_path_preserves_scaled_values() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.turn_key("mixer.buses.0.slot1.type", 1);
     runner.apply_menu_state().unwrap();
@@ -120,7 +120,7 @@ fn fx_param_fast_path_preserves_scaled_values() {
 }
 
 #[test]
-fn fx_bus_pan_uses_direct_audio_command_without_revision_bump() {
+pub(crate) fn fx_bus_pan_uses_direct_audio_command_without_revision_bump() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let _ = runner.messages_with_snapshot().unwrap();
     assert!(runner.menu.focus_item_key("mixer.buses.0.panPos"));
@@ -150,7 +150,7 @@ fn fx_bus_pan_uses_direct_audio_command_without_revision_bump() {
 }
 
 #[test]
-fn direct_dynamic_param_apply_does_not_bump_full_audio_config_revision() {
+pub(crate) fn direct_dynamic_param_apply_does_not_bump_full_audio_config_revision() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let _ = runner.messages_with_snapshot().unwrap();
     assert!(runner
@@ -171,7 +171,7 @@ fn direct_dynamic_param_apply_does_not_bump_full_audio_config_revision() {
 }
 
 #[test]
-fn unsupported_synth_param_apply_still_bumps_full_audio_config_revision() {
+pub(crate) fn unsupported_synth_param_apply_still_bumps_full_audio_config_revision() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let _ = runner.messages_with_snapshot().unwrap();
     assert!(runner
@@ -196,7 +196,7 @@ fn unsupported_synth_param_apply_still_bumps_full_audio_config_revision() {
 }
 
 #[test]
-fn unsupported_sampler_param_apply_still_bumps_full_audio_config_revision() {
+pub(crate) fn unsupported_sampler_param_apply_still_bumps_full_audio_config_revision() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].kind = "sampler".into();
     runner.instruments[0].name = "sampler".into();
@@ -224,7 +224,7 @@ fn unsupported_sampler_param_apply_still_bumps_full_audio_config_revision() {
 }
 
 #[test]
-fn direct_topology_apply_bumps_full_audio_config_revision() {
+pub(crate) fn direct_topology_apply_bumps_full_audio_config_revision() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let _ = runner.messages_with_snapshot().unwrap();
     assert!(runner.menu.focus_item_key("instruments.0.type"));

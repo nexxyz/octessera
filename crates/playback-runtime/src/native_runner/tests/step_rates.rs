@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn saved_step_rate_rehydrates_from_default_payload() {
+pub(crate) fn saved_step_rate_rehydrates_from_default_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.algorithm_step_pulses = 6;
     let payload = runner.config_payload();
@@ -15,7 +15,7 @@ fn saved_step_rate_rehydrates_from_default_payload() {
 }
 
 #[test]
-fn per_part_step_rates_round_trip_and_drive_non_scanning_parts() {
+pub(crate) fn per_part_step_rates_round_trip_and_drive_non_scanning_parts() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         ..NativeRunnerConfig::default()
@@ -87,7 +87,7 @@ fn per_part_step_rates_round_trip_and_drive_non_scanning_parts() {
 }
 
 #[test]
-fn sense_pitch_mapping_uses_lowest_starting_highest_and_both_axis_steps() {
+pub(crate) fn sense_pitch_mapping_uses_lowest_starting_highest_and_both_axis_steps() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.sense_parts[0].lowest_note = 60;
     runner.sense_parts[0].starting_note = 64;
@@ -116,7 +116,7 @@ fn sense_pitch_mapping_uses_lowest_starting_highest_and_both_axis_steps() {
 }
 
 #[test]
-fn part_mapping_derives_from_stable_base_config_and_part_slot_defaults() {
+pub(crate) fn part_mapping_derives_from_stable_base_config_and_part_slot_defaults() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.base_mapping_config.base_midi_note = 40;
     runner.base_mapping_config.starting_midi_note = 43;

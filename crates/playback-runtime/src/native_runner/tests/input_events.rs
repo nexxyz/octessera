@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn interpreting_behavior_grid_press_and_release_emit_musical_events() {
+pub(crate) fn interpreting_behavior_grid_press_and_release_emit_musical_events() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "keys".into(),
         ..NativeRunnerConfig::default()
@@ -28,7 +28,7 @@ fn interpreting_behavior_grid_press_and_release_emit_musical_events() {
 }
 
 #[test]
-fn input_events_while_paused_false_suppresses_paused_grid_events() {
+pub(crate) fn input_events_while_paused_false_suppresses_paused_grid_events() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "keys".into(),
         ..NativeRunnerConfig::default()
@@ -55,7 +55,7 @@ fn input_events_while_paused_false_suppresses_paused_grid_events() {
 }
 
 #[test]
-fn trigger_probability_zero_suppresses_input_transition_events() {
+pub(crate) fn trigger_probability_zero_suppresses_input_transition_events() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "keys".into(),
         ..NativeRunnerConfig::default()
@@ -74,7 +74,7 @@ fn trigger_probability_zero_suppresses_input_transition_events() {
 }
 
 #[test]
-fn event_enabled_false_suppresses_input_transition_events() {
+pub(crate) fn event_enabled_false_suppresses_input_transition_events() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "keys".into(),
         ..NativeRunnerConfig::default()
@@ -96,7 +96,7 @@ fn event_enabled_false_suppresses_input_transition_events() {
 }
 
 #[test]
-fn trigger_probability_custom_zero_cell_suppresses_transport_events() {
+pub(crate) fn trigger_probability_custom_zero_cell_suppresses_transport_events() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         ..NativeRunnerConfig::default()
@@ -134,7 +134,7 @@ fn trigger_probability_custom_zero_cell_suppresses_transport_events() {
 }
 
 #[test]
-fn non_interpreting_sequencer_grid_press_does_not_emit_input_event() {
+pub(crate) fn non_interpreting_sequencer_grid_press_does_not_emit_input_event() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         ..NativeRunnerConfig::default()
@@ -153,7 +153,7 @@ fn non_interpreting_sequencer_grid_press_does_not_emit_input_event() {
 }
 
 #[test]
-fn grid_state_edit_emits_deferred_auto_save_when_enabled() {
+pub(crate) fn grid_state_edit_emits_deferred_auto_save_when_enabled() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         ..NativeRunnerConfig::default()
@@ -179,7 +179,7 @@ fn grid_state_edit_emits_deferred_auto_save_when_enabled() {
 }
 
 #[test]
-fn scan_progress_overlay_is_dim_white_and_preserves_live_cell_color() {
+pub(crate) fn scan_progress_overlay_is_dim_white_and_preserves_live_cell_color() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         ..NativeRunnerConfig::default()
@@ -214,7 +214,7 @@ fn scan_progress_overlay_is_dim_white_and_preserves_live_cell_color() {
 }
 
 #[test]
-fn switching_active_part_preserves_current_part_engine_state() {
+pub(crate) fn switching_active_part_preserves_current_part_engine_state() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         ..NativeRunnerConfig::default()
@@ -235,7 +235,7 @@ fn switching_active_part_preserves_current_part_engine_state() {
 }
 
 #[test]
-fn reverse_scan_direction_starts_from_last_lane() {
+pub(crate) fn reverse_scan_direction_starts_from_last_lane() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         ..NativeRunnerConfig::default()
@@ -258,7 +258,7 @@ fn reverse_scan_direction_starts_from_last_lane() {
 }
 
 #[test]
-fn scan_sections_limit_overlay_to_current_section_lane() {
+pub(crate) fn scan_sections_limit_overlay_to_current_section_lane() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         ..NativeRunnerConfig::default()
@@ -279,7 +279,7 @@ fn scan_sections_limit_overlay_to_current_section_lane() {
 }
 
 #[test]
-fn sense_scan_menu_exposes_none_and_scanned_empty_targets() {
+pub(crate) fn sense_scan_menu_exposes_none_and_scanned_empty_targets() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.sense_parts[0].scan_mode = "scanning".into();
     runner.menu.rebuild(runner.menu_config());

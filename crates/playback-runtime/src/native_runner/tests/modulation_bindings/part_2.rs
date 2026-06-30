@@ -1,0 +1,213 @@
+use super::*;
+
+#[test]
+pub(crate) fn dance_xy_binding_updates_native_runtime_config() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.xy_touch = NativeXyTouch {
+        x: 1.0,
+        y: 0.5,
+        display_x: 1.0,
+        display_y: 0.5,
+        active: true,
+    };
+    runner.xy_x_binding = Some(NativeParamBinding {
+        key: "sound.velocityScalePct".into(),
+        label: Some("Velocity Scale".into()),
+        kind: "number".into(),
+        min: Some(0.0),
+        max: Some(200.0),
+        step: Some(1.0),
+        options: vec![],
+        invert: true,
+    });
+
+    runner.apply_runtime_modulation(&[], 0);
+
+    assert_eq!(runner.global_sound.velocity_scale_pct, 200);
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["parts"][0]["xy"]["x"]["key"],
+        "sound.velocityScalePct"
+    );
+}
+
+#[test]
+pub(crate) fn xy_mapping_execute_action_keeps_menu_on_xy_axis_picker() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.dance_mode = "xy".into();
+    runner.menu.rebuild(runner.menu_config());
+    assert!(runner.menu.focus_item_key("xy:x"));
+
+    runner
+        .execute_menu_action(NativeMenuAction::SetParamBinding {
+            target: "xy:x".into(),
+            binding: NativeParamBindingSpec {
+                key: "instruments.0.synth.filter.cutoffHz".into(),
+                label: Some("Cutoff".into()),
+                kind: "number".into(),
+                min: Some(0),
+                max: Some(255),
+                step: Some(1),
+                options: vec![],
+                invert: false,
+            },
+        })
+        .unwrap();
+
+    assert_eq!(
+        runner.xy_x_binding.as_ref().unwrap().key,
+        "instruments.0.synth.filter.cutoffHz"
+    );
+    assert_eq!(
+        runner.menu.current_focus_path(),
+        "Menu > L4: Dance > X Axis: Cutoff"
+    );
+    let snapshot = runner.snapshot().unwrap();
+    assert_eq!(snapshot["display"]["title"], "L4: Dance");
+}
+
+#[test]
+pub(crate) fn xy_binding_can_drive_sense_fx_bus_and_global_fx_params() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.xy_touch = NativeXyTouch {
+        x: 1.0,
+        y: 1.0,
+        display_x: 1.0,
+        display_y: 1.0,
+        active: true,
+    };
+    runner.fx_buses[0].slot1_type = "delay".into();
+    runner.fx_buses[0].slot1_params = json!({ "feedback": 0.35, "timeMs": 250, "mixPct": 35 });
+    runner.global_fx_slots[0] = "vinyl".into();
+    runner.global_fx_params[0] =
+        json!({ "cracklePct": 8, "saturationPct": 15, "warpDepthPct": 5, "mixPct": 100 });
+    runner.xy_x_binding = Some(NativeParamBinding {
+        key: "parts.0.l2.x.pitch.steps".into(),
+        label: Some("Steps".into()),
+        kind: "number".into(),
+        min: Some(-16.0),
+        max: Some(16.0),
+        step: Some(1.0),
+        options: vec![],
+        invert: false,
+    });
+    runner.xy_y_binding = Some(NativeParamBinding {
+        key: "mixer.buses.0.slot1.params.feedback".into(),
+        label: Some("Feedback".into()),
+        kind: "number".into(),
+        min: Some(0.0),
+        max: Some(98.0),
+        step: Some(1.0),
+        options: vec![],
+        invert: false,
+    });
+
+    runner.apply_runtime_modulation(&[], 0);
+
+    assert_eq!(runner.sense_parts[0].x_pitch_steps, 16);
+    assert_eq!(runner.fx_buses[0].slot1_params["feedback"], json!(0.98));
+
+    runner.xy_x_binding = Some(NativeParamBinding {
+        key: "mixer.master.slots.0.params.cracklePct".into(),
+        label: Some("Crackle".into()),
+        kind: "number".into(),
+        min: Some(0.0),
+        max: Some(100.0),
+        step: Some(1.0),
+        options: vec![],
+        invert: false,
+    });
+    runner.xy_y_binding = Some(NativeParamBinding {
+        key: "dance.fx.params.rateHz".into(),
+        label: Some("Rate Hz".into()),
+        kind: "number".into(),
+        min: Some(1.0),
+        max: Some(32.0),
+        step: Some(1.0),
+        options: vec![],
+        invert: false,
+    });
+    runner.dance_fx_selected = json!({ "fxType": "stutter", "targetKey": "master", "params": { "rateHz": 8, "depthPct": 100 } });
+
+    runner.apply_runtime_modulation(&[], 0);
+
+    assert_eq!(runner.global_fx_params[0]["cracklePct"], json!(100));
+    assert_eq!(runner.dance_fx_selected["params"]["rateHz"], json!(32.0));
+}
+
+#[test]
+pub(crate) fn invalid_aux_and_xy_bindings_are_dropped_on_load() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut payload = runner.config_payload();
+    payload["runtimeConfig"]["auxBindings"] = json!({ "aux1": { "turnKey": "../../bad", "pressAction": null }, "aux2": { "turnKey": "sound.noteLengthMs", "pressAction": null } });
+    payload["runtimeConfig"]["parts"][0]["xy"]["x"] =
+        json!({ "key": "unknown.path", "kind": "number" });
+    payload["runtimeConfig"]["parts"][0]["xy"]["y"] = json!({ "key": "instruments.0.mixer.volume", "kind": "number", "min": 0, "max": 100, "step": 1 });
+
+    runner.apply_config_payload(payload).unwrap();
+
+    assert!(runner.aux_bindings[0].is_none());
+    assert_eq!(
+        runner.aux_bindings[1].as_ref().unwrap().turn_key.as_deref(),
+        Some("sound.noteLengthMs")
+    );
+    assert!(runner.xy_x_binding.is_none());
+    assert_eq!(
+        runner.xy_y_binding.as_ref().unwrap().key,
+        "instruments.0.mixer.volume"
+    );
+}
+
+#[test]
+pub(crate) fn config_payload_includes_complete_sample_and_fx_param_shapes() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut payload = runner.config_payload();
+
+    assert_eq!(
+        payload["runtimeConfig"]["instruments"][0]["sample"]["baseVelocity"],
+        100
+    );
+    assert_eq!(
+        payload["runtimeConfig"]["instruments"][0]["midiEngine"]["velocity"],
+        100
+    );
+    assert_eq!(
+        payload["runtimeConfig"]["instruments"][0]["midiEngine"]["channel"],
+        1
+    );
+    assert!(payload["runtimeConfig"]["instruments"][0]["sample"]["ampEnv"].is_object());
+    assert!(payload["runtimeConfig"]["instruments"][0]["sample"]["filter"].is_object());
+    assert!(payload["runtimeConfig"]["instruments"][0]["sample"]["filterEnv"].is_object());
+    assert!(payload["runtimeConfig"]["mixer"]["buses"][0]["slot1"]["params"].is_object());
+    assert!(payload["runtimeConfig"]["mixer"]["master"]["slots"][0]["params"].is_object());
+
+    payload["runtimeConfig"]["instruments"][0]["sample"]["baseVelocity"] = json!(72);
+    payload["runtimeConfig"]["instruments"][0]["sample"]["ampEnv"] = json!({ "attackMs": 11 });
+    payload["runtimeConfig"]["instruments"][0]["sample"]["filter"] =
+        json!({ "type": "highpass", "cutoffHz": 1200 });
+    payload["runtimeConfig"]["instruments"][0]["sample"]["filterEnv"] = json!({ "releaseMs": 222 });
+    payload["runtimeConfig"]["instruments"][0]["midiEngine"] =
+        json!({ "channel": 7, "velocity": 66, "durationMs": 444 });
+    payload["runtimeConfig"]["mixer"]["buses"][0]["slot1"] =
+        json!({ "type": "delay", "params": { "timeMs": 333, "feedback": 0.42, "mixPct": 44 } });
+    payload["runtimeConfig"]["mixer"]["master"]["slots"][0] =
+        json!({ "type": "distortion", "params": { "drive": 3.5, "clip": 0.75, "mixPct": 88 } });
+    runner.apply_config_payload(payload).unwrap();
+    assert_eq!(runner.instruments[0].sample_base_velocity, 72);
+    assert_eq!(runner.instruments[0].sample_amp_env["attackMs"], 11);
+    assert_eq!(runner.instruments[0].sample_filter["type"], "highpass");
+    assert_eq!(runner.instruments[0].sample_filter_env["releaseMs"], 222);
+    assert_eq!(runner.instruments[0].midi_velocity, 66);
+    assert_eq!(runner.instruments[0].midi_channel, 7);
+    assert_eq!(runner.instruments[0].midi_duration_ms, 444);
+    assert_eq!(runner.fx_buses[0].slot1_params["feedback"], 0.42);
+    assert_eq!(runner.global_fx_params[0]["drive"], 3.5);
+    let round_trip = runner.config_payload();
+    assert_eq!(
+        round_trip["runtimeConfig"]["mixer"]["buses"][0]["slot1"]["params"]["timeMs"],
+        333
+    );
+    assert_eq!(
+        round_trip["runtimeConfig"]["mixer"]["master"]["slots"][0]["params"]["clip"],
+        0.75
+    );
+}

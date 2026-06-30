@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn unsupported_behavior_errors() {
+pub(crate) fn unsupported_behavior_errors() {
     let error = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "unsupported".into(),
         ..NativeRunnerConfig::default()
@@ -12,7 +12,7 @@ fn unsupported_behavior_errors() {
 }
 
 #[test]
-fn checked_in_default_restores_sequencer_grid_state() {
+pub(crate) fn checked_in_default_restores_sequencer_grid_state() {
     let payload: Value =
         serde_json::from_str(include_str!("../../../../../config/default.json")).unwrap();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
@@ -45,7 +45,7 @@ fn checked_in_default_restores_sequencer_grid_state() {
 }
 
 #[test]
-fn checked_in_default_emits_life_and_scanned_drum_over_initial_steps() {
+pub(crate) fn checked_in_default_emits_life_and_scanned_drum_over_initial_steps() {
     let payload: Value =
         serde_json::from_str(include_str!("../../../../../config/default.json")).unwrap();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
@@ -76,7 +76,7 @@ fn checked_in_default_emits_life_and_scanned_drum_over_initial_steps() {
 }
 
 #[test]
-fn sequencer_behavior_is_native_and_paintable() {
+pub(crate) fn sequencer_behavior_is_native_and_paintable() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         ..NativeRunnerConfig::default()
@@ -97,7 +97,7 @@ fn sequencer_behavior_is_native_and_paintable() {
 }
 
 #[test]
-fn keys_behavior_reports_momentary_grid_interaction() {
+pub(crate) fn keys_behavior_reports_momentary_grid_interaction() {
     let runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "keys".into(),
         ..NativeRunnerConfig::default()
@@ -108,7 +108,7 @@ fn keys_behavior_reports_momentary_grid_interaction() {
 }
 
 #[test]
-fn fresh_native_runner_uses_initial_sense_defaults() {
+pub(crate) fn fresh_native_runner_uses_initial_sense_defaults() {
     let runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
 
     assert_eq!(runner.sense_parts[0].scan_mode, "none");
@@ -133,7 +133,7 @@ fn fresh_native_runner_uses_initial_sense_defaults() {
 }
 
 #[test]
-fn behavior_menu_actions_dispatch_selected_action_type() {
+pub(crate) fn behavior_menu_actions_dispatch_selected_action_type() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "ant".into(),
         ..NativeRunnerConfig::default()
@@ -166,7 +166,7 @@ fn behavior_menu_actions_dispatch_selected_action_type() {
 }
 
 #[test]
-fn transport_tick_returns_status_and_snapshot() {
+pub(crate) fn transport_tick_returns_status_and_snapshot() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.transport = RuntimeTransportState::Playing;
     let messages = runner
@@ -187,7 +187,7 @@ fn transport_tick_returns_status_and_snapshot() {
 }
 
 #[test]
-fn button_s_toggles_transport() {
+pub(crate) fn button_s_toggles_transport() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let messages = runner
         .send(HostMessage::DeviceInput {

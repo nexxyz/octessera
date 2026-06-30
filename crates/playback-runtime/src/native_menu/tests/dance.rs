@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn l4_spec_rows_show_only_selected_dance_page_controls() {
+pub(crate) fn l4_spec_rows_show_only_selected_dance_page_controls() {
     let menu = NativeMenuModel::new(config());
     let dance = &menu.root.children[3];
     let labels = dance
@@ -49,7 +49,7 @@ fn l4_spec_rows_show_only_selected_dance_page_controls() {
 }
 
 #[test]
-fn dance_fx_page_is_flat_and_shows_selected_type_params() {
+pub(crate) fn dance_fx_page_is_flat_and_shows_selected_type_params() {
     let mut config = config();
     config.dance_mode = "fx".into();
     config.dance_fx_type = "stutter".into();
@@ -83,7 +83,7 @@ fn dance_fx_page_is_flat_and_shows_selected_type_params() {
 }
 
 #[test]
-fn parameter_picker_exposes_binding_actions_for_aux_param_and_xy_targets() {
+pub(crate) fn parameter_picker_exposes_binding_actions_for_aux_param_and_xy_targets() {
     let menu = NativeMenuModel::new(config());
     assert!(contains_set_binding(
         &menu.root,
@@ -107,7 +107,7 @@ fn parameter_picker_exposes_binding_actions_for_aux_param_and_xy_targets() {
 }
 
 #[test]
-fn parameter_picker_includes_behavior_sense_fx_and_global_fx_families() {
+pub(crate) fn parameter_picker_includes_behavior_sense_fx_and_global_fx_families() {
     let mut cfg = config();
     cfg.fx_buses[0].slot1_type = "delay".into();
     cfg.fx_buses[0].slot1_params =
@@ -156,7 +156,7 @@ fn parameter_picker_includes_behavior_sense_fx_and_global_fx_families() {
 }
 
 #[test]
-fn aux_click_picker_exposes_assignable_actions() {
+pub(crate) fn aux_click_picker_exposes_assignable_actions() {
     let menu = NativeMenuModel::new(config());
     assert!(contains_aux_click_action(
         &menu.root,

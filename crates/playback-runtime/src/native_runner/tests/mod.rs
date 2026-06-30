@@ -30,7 +30,7 @@ mod store;
 mod structural_draft;
 mod trigger_gates;
 
-fn snapshot_from(messages: &[RunnerMessage]) -> Value {
+pub(crate) fn snapshot_from(messages: &[RunnerMessage]) -> Value {
     messages
         .iter()
         .find_map(|message| match message {
@@ -40,7 +40,7 @@ fn snapshot_from(messages: &[RunnerMessage]) -> Value {
         .expect("snapshot message")
 }
 
-fn led_cells(snapshot: &Value) -> Vec<Value> {
+pub(crate) fn led_cells(snapshot: &Value) -> Vec<Value> {
     let rgb = snapshot["leds"]["rgb"].as_array().expect("led rgb array");
     (0..64)
         .map(|index| {
@@ -54,7 +54,7 @@ fn led_cells(snapshot: &Value) -> Vec<Value> {
         .collect()
 }
 
-fn confirm_current_dialog(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
+pub(crate) fn confirm_current_dialog(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
     runner.confirm_dialog.as_mut().unwrap().cursor = 1;
     runner
         .send(HostMessage::DeviceInput {
@@ -63,7 +63,7 @@ fn confirm_current_dialog(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
         .unwrap()
 }
 
-fn musical_note_ons(messages: &[RunnerMessage]) -> Vec<(u8, u8)> {
+pub(crate) fn musical_note_ons(messages: &[RunnerMessage]) -> Vec<(u8, u8)> {
     messages
         .iter()
         .flat_map(|message| match message {

@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn synth_gain_edits_into_config_payload() {
+pub(crate) fn synth_gain_edits_into_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![2, 0, 0, 2, 4];
     runner.menu.state.cursor = 0;
@@ -29,7 +29,7 @@ fn synth_gain_edits_into_config_payload() {
 }
 
 #[test]
-fn sampler_tune_edits_into_config_payload() {
+pub(crate) fn sampler_tune_edits_into_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].kind = "sampler".into();
     runner.instruments[0].name = "sampler".into();
@@ -60,7 +60,7 @@ fn sampler_tune_edits_into_config_payload() {
 }
 
 #[test]
-fn sampler_extended_params_edit_into_config_payload() {
+pub(crate) fn sampler_extended_params_edit_into_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].kind = "sampler".into();
     runner.instruments[0].name = "sampler".into();
@@ -114,7 +114,7 @@ fn sampler_extended_params_edit_into_config_payload() {
 }
 
 #[test]
-fn fx_bus_slot_type_edits_into_config_payload() {
+pub(crate) fn fx_bus_slot_type_edits_into_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.turn_key("mixer.buses.0.slot1.type", 1);
     runner.apply_menu_state().unwrap();
@@ -130,7 +130,7 @@ fn fx_bus_slot_type_edits_into_config_payload() {
 }
 
 #[test]
-fn global_fx_slot_type_edits_into_config_payload() {
+pub(crate) fn global_fx_slot_type_edits_into_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.turn_key("mixer.master.slots.0.type", 1);
     runner.apply_menu_state().unwrap();
@@ -147,7 +147,7 @@ fn global_fx_slot_type_edits_into_config_payload() {
 }
 
 #[test]
-fn fx_params_edit_into_config_payload() {
+pub(crate) fn fx_params_edit_into_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner
         .apply_config_payload(json!({
@@ -179,7 +179,7 @@ fn fx_params_edit_into_config_payload() {
 }
 
 #[test]
-fn invalid_bus_and_global_fx_types_are_sanitized_on_load() {
+pub(crate) fn invalid_bus_and_global_fx_types_are_sanitized_on_load() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let mut payload = runner.config_payload();
     payload["runtimeConfig"]["mixer"]["buses"][0]["slot1"] =
@@ -194,7 +194,7 @@ fn invalid_bus_and_global_fx_types_are_sanitized_on_load() {
 }
 
 #[test]
-fn l1_part_config_always_exposes_auto_name() {
+pub(crate) fn l1_part_config_always_exposes_auto_name() {
     for behavior_id in ["life", "none", "glider"] {
         let mut runner = NativeRunner::new(NativeRunnerConfig {
             behavior_id: behavior_id.into(),
@@ -233,7 +233,7 @@ fn l1_part_config_always_exposes_auto_name() {
 }
 
 #[test]
-fn behavior_change_updates_active_part_auto_name_label() {
+pub(crate) fn behavior_change_updates_active_part_auto_name_label() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
 
     let _ = runner

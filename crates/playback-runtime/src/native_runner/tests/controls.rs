@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn controls_info_rows_do_not_emit_effects_or_navigate_on_press() {
+pub(crate) fn controls_info_rows_do_not_emit_effects_or_navigate_on_press() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![5, 6];
     runner.menu.state.cursor = 0;
@@ -21,7 +21,7 @@ fn controls_info_rows_do_not_emit_effects_or_navigate_on_press() {
 }
 
 #[test]
-fn controls_info_rows_turn_without_effects() {
+pub(crate) fn controls_info_rows_turn_without_effects() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![5, 6];
     runner.menu.state.cursor = 0;
@@ -40,7 +40,7 @@ fn controls_info_rows_turn_without_effects() {
 }
 
 #[test]
-fn controls_info_rows_open_contextual_help() {
+pub(crate) fn controls_info_rows_open_contextual_help() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![5, 6];
     runner.menu.state.cursor = 6;
@@ -62,7 +62,7 @@ fn controls_info_rows_open_contextual_help() {
 }
 
 #[test]
-fn contextual_help_does_not_change_static_navigation_memory() {
+pub(crate) fn contextual_help_does_not_change_static_navigation_memory() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![5, 3];
     runner.menu.state.cursor = 2;
