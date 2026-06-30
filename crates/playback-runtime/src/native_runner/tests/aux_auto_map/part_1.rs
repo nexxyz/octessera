@@ -221,9 +221,25 @@ pub(crate) fn auto_map_l1_life_turn_and_press_follow_behavior_context() {
         .unwrap();
     assert_eq!(runner.behavior_config["randomCellsPerTick"], 1);
 
+    let spawn_aux_index = (0..runner.aux_bindings.len())
+        .find(|index| {
+            runner
+                .effective_aux_slot(*index)
+                .press
+                .as_ref()
+                .map(|press| {
+                    matches!(
+                        press.action,
+                        NativeMenuAction::BehaviorAction(ref action) if action == "spawnRandom"
+                    )
+                })
+                .unwrap_or(false)
+        })
+        .unwrap();
+
     let _ = runner
         .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_press", "id": "aux3" }),
+            input: json!({ "type": "encoder_press", "id": format!("aux{}", spawn_aux_index + 1) }),
         })
         .unwrap();
     let after = runner
@@ -236,5 +252,8 @@ pub(crate) fn auto_map_l1_life_turn_and_press_follow_behavior_context() {
         .count();
 
     assert!(after >= before);
-    assert_eq!(runner.toast.as_ref().unwrap().message, "S3: Spawn");
+    assert_eq!(
+        runner.toast.as_ref().unwrap().message,
+        format!("S{}: Spawn", spawn_aux_index + 1)
+    );
 }
