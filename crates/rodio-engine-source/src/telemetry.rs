@@ -2,18 +2,10 @@ use realtime_engine::synth::AudioLoadStatus;
 
 pub(super) const TELEMETRY_WINDOW_BLOCKS: usize = 128;
 
+#[derive(Default)]
 pub(super) struct DrainedControlEvents {
     pub(super) control_events: u64,
     pub(super) config_events: u64,
-}
-
-impl Default for DrainedControlEvents {
-    fn default() -> Self {
-        Self {
-            control_events: 0,
-            config_events: 0,
-        }
-    }
 }
 
 pub(super) struct EngineTelemetry {
