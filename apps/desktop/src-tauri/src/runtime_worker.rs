@@ -4,15 +4,19 @@ use crate::types::{
     RUNTIME_MESSAGES_EVENT, RUNTIME_UI_REFRESH_MS,
 };
 use playback_runtime::{
-    CoreRunner, HostAdapter, HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime,
-    RunnerMessage, SyncSource,
+    CoreRunner, HostAdapter, HostMessage, NativeRunner, PlaybackRuntime, RunnerMessage,
 };
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
-use tauri::Emitter;
 
+mod capture;
+mod commands;
+mod config;
+mod emit;
+#[cfg(debug_assertions)]
+mod perf;
 mod platform_service;
 mod queue;
 mod requests;
@@ -21,88 +25,14 @@ mod shutdown;
 #[cfg(test)]
 mod tests;
 
+use capture::CapturingCoreRunner;
+use config::desktop_native_runner_config;
+#[cfg(debug_assertions)]
+use perf::RuntimePerfCounters;
 use queue::{queue_by_priority, retain_runtime_outbox_batch, MAX_COMMANDS_PER_WAKE};
 pub(crate) use requests::{request_worker_audio_command, request_worker_dispatch};
 
 const SNAPSHOT_INTERVAL_MS: u64 = 16;
-#[cfg(debug_assertions)]
-const PERF_LOG_INTERVAL: Duration = Duration::from_secs(2);
-
-fn desktop_native_runner_config() -> NativeRunnerConfig {
-    NativeRunnerConfig {
-        behavior_id: "sequencer".into(),
-        sample_builtin_favourite_dirs: vec!["userdata".into()],
-        ..NativeRunnerConfig::default()
-    }
-}
-
-struct CapturingCoreRunner<'a, R> {
-    inner: &'a mut R,
-    captured: Vec<RunnerMessage>,
-}
-
-impl<R: CoreRunner> CoreRunner for CapturingCoreRunner<'_, R> {
-    fn send(&mut self, message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
-        let responses = self.inner.send(message)?;
-        for response in responses.iter().cloned() {
-            if !matches!(response, RunnerMessage::AudioCommands { .. }) {
-                self.captured.push(response);
-            }
-        }
-        Ok(responses)
-    }
-}
-
-#[cfg(debug_assertions)]
-struct RuntimePerfCounters {
-    last_log_at: Instant,
-    max_command_ms: u128,
-    max_advance_ms: u128,
-    max_emit_ms: u128,
-}
-
-#[cfg(debug_assertions)]
-impl RuntimePerfCounters {
-    fn new() -> Self {
-        Self {
-            last_log_at: Instant::now(),
-            max_command_ms: 0,
-            max_advance_ms: 0,
-            max_emit_ms: 0,
-        }
-    }
-
-    fn record_command(&mut self, elapsed: Duration) {
-        self.max_command_ms = self.max_command_ms.max(elapsed.as_millis());
-        self.maybe_log();
-    }
-
-    fn record_advance(&mut self, elapsed: Duration) {
-        self.max_advance_ms = self.max_advance_ms.max(elapsed.as_millis());
-        self.maybe_log();
-    }
-
-    fn record_emit(&mut self, elapsed: Duration) {
-        self.max_emit_ms = self.max_emit_ms.max(elapsed.as_millis());
-        self.maybe_log();
-    }
-
-    fn maybe_log(&mut self) {
-        if self.last_log_at.elapsed() < PERF_LOG_INTERVAL {
-            return;
-        }
-        if self.max_command_ms > 0 || self.max_advance_ms > 0 || self.max_emit_ms > 0 {
-            eprintln!(
-                "[runtime-perf] max command={}ms advance={}ms emit={}ms",
-                self.max_command_ms, self.max_advance_ms, self.max_emit_ms
-            );
-        }
-        self.last_log_at = Instant::now();
-        self.max_command_ms = 0;
-        self.max_advance_ms = 0;
-        self.max_emit_ms = 0;
-    }
-}
 
 pub(crate) enum WorkerCommand {
     Dispatch(HostMessage, Sender<Result<Vec<RunnerMessage>, String>>),
@@ -145,7 +75,7 @@ impl RuntimeWorker {
             next_runtime_seq: 0,
             playback: PlaybackRuntime::new(playback_runtime::RuntimeConfig {
                 bpm: 120.0,
-                sync_source: SyncSource::Internal,
+                sync_source: playback_runtime::SyncSource::Internal,
                 midi_clock_out_enabled: false,
                 midi_out_enabled: false,
             }),
@@ -220,77 +150,6 @@ impl RuntimeWorker {
                 }
             }
         }
-    }
-
-    fn handle_command_batch(
-        &mut self,
-        first: WorkerCommand,
-        rx: &Receiver<WorkerCommand>,
-    ) -> Result<(), String> {
-        let mut realtime = Vec::new();
-        let mut normal = std::collections::VecDeque::new();
-        queue_by_priority(first, &mut realtime, &mut normal);
-        for _ in 1..MAX_COMMANDS_PER_WAKE {
-            match rx.try_recv() {
-                Ok(command) => queue_by_priority(command, &mut realtime, &mut normal),
-                Err(mpsc::TryRecvError::Empty) => break,
-                Err(mpsc::TryRecvError::Disconnected) => break,
-            }
-        }
-        for command in realtime {
-            self.handle_command(command)?;
-        }
-        while let Some(command) = normal.pop_front() {
-            self.handle_command(command)?;
-        }
-        Ok(())
-    }
-
-    fn handle_ready_commands(&mut self, rx: &Receiver<WorkerCommand>) -> Result<(), String> {
-        let Ok(first) = rx.try_recv() else {
-            return Ok(());
-        };
-        self.handle_command_batch(first, rx)
-    }
-
-    fn handle_command(&mut self, command: WorkerCommand) -> Result<(), String> {
-        #[cfg(debug_assertions)]
-        let started_at = Instant::now();
-        let was_internal_playing = self.is_internal_playing();
-        match command {
-            WorkerCommand::Dispatch(message, reply) => {
-                let result = self.dispatch_host_message(message);
-                if let Err(err) = &result {
-                    let _ = reply.send(Err(err.clone()));
-                    return Err(err.clone());
-                }
-                let _ = reply.send(result);
-            }
-            WorkerCommand::SyncConfig(config) => {
-                self.playback.set_config(config);
-                self.runner.apply_runtime_config(self.playback.config());
-            }
-            WorkerCommand::NativeMidiRealtime(bytes) => {
-                let responses = self.handle_midi_realtime(bytes)?;
-                self.emit_runner_messages(responses)?;
-            }
-            WorkerCommand::DirectAudio(command, reply) => {
-                let result = self.adapter.handle_audio_command(&command);
-                if let Err(err) = &result {
-                    let _ = reply.send(Err(err.clone()));
-                    return Err(err.clone());
-                }
-                let _ = reply.send(Ok(()));
-            }
-        }
-        let is_internal_playing = self.is_internal_playing();
-        if was_internal_playing != is_internal_playing || !is_internal_playing {
-            self.last_advance_at = Instant::now();
-        }
-        self.last_ui_refresh_at = Instant::now();
-        #[cfg(debug_assertions)]
-        self.perf.record_command(started_at.elapsed());
-        Ok(())
     }
 
     fn maybe_advance(&mut self) -> Result<(), String> {
@@ -431,62 +290,5 @@ impl RuntimeWorker {
         }
 
         Ok(returned)
-    }
-
-    fn is_internal_playing(&self) -> bool {
-        self.playback.config().sync_source == SyncSource::Internal
-            && self.playback.last_status().is_some_and(|status| {
-                status.transport == playback_runtime::RuntimeTransportState::Playing
-            })
-    }
-
-    fn handle_error(&mut self, err: String) {
-        if let Ok(runner) = NativeRunner::new(NativeRunnerConfig::default()) {
-            self.runner = runner;
-            self.runner.apply_runtime_config(self.playback.config());
-        }
-        if let Ok(mut guard) = self.audio_error.lock() {
-            *guard = Some(err);
-        }
-        let _ = self.emit_runner_messages(Vec::new());
-    }
-
-    fn emit_runner_messages(&mut self, responses: Vec<RunnerMessage>) -> Result<(), String> {
-        #[cfg(debug_assertions)]
-        let started_at = Instant::now();
-        let values =
-            append_audio_error_values(encode_runtime_responses(responses)?, &self.audio_error);
-        if values.is_empty() {
-            self.maybe_exit_after_shutdown_request();
-            #[cfg(debug_assertions)]
-            self.perf.record_emit(started_at.elapsed());
-            return Ok(());
-        }
-        self.next_runtime_seq = self.next_runtime_seq.saturating_add(1);
-        let payload = RuntimeMessagesPayload {
-            seq: self.next_runtime_seq,
-            messages: values,
-        };
-        if let Ok(mut guard) = self.runtime_outbox.lock() {
-            retain_runtime_outbox_batch(&mut guard, payload.clone());
-        }
-        self.app_handle
-            .emit(RUNTIME_MESSAGES_EVENT, payload)
-            .map_err(|e| format!("failed to emit runtime messages: {e}"))?;
-        self.maybe_exit_after_shutdown_request();
-        #[cfg(debug_assertions)]
-        self.perf.record_emit(started_at.elapsed());
-        Ok(())
-    }
-
-    fn maybe_exit_after_shutdown_request(&mut self) {
-        if !self.adapter.take_shutdown_request() {
-            return;
-        }
-        let app_handle = self.app_handle.clone();
-        std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_millis(150));
-            app_handle.exit(0);
-        });
     }
 }
