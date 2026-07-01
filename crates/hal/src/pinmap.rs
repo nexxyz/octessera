@@ -48,4 +48,4 @@ pub const ENCODERS: [EncoderPins; 1 + platform_core::AUX_ENCODER_COUNT] = [
 pub const NEOKEY_ADDR: u16 = 0x3F;
 
 /// NeoTrellis I2C addresses ordered left-to-right, top-to-bottom.
-pub const TRELLIS_ADDRS: [u16; 4] = [0x30, 0x31, 0x32, 0x33];
+pub const TRELLIS_ADDRS: [u16; 4] = [0x2E, 0x2F, 0x30, 0x31];

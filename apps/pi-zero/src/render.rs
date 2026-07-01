@@ -5,9 +5,10 @@ use std::time::Instant;
 mod oled;
 mod profile;
 
+pub(crate) use oled::OLED_FRAME_BYTES;
 #[cfg(test)]
 use oled::{glyph_rows, oled_frame};
-use oled::{oled_frame_into, oled_signature, OLED_FRAME_BYTES};
+use oled::{oled_frame_into, oled_signature};
 pub use profile::RenderProfileMetrics;
 
 const SPLASH_REGULAR: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/splash_regular.rgb565"));
@@ -233,6 +234,10 @@ fn render_oled_profiled(
         metrics.oled_write = write_started.elapsed();
         metrics.oled_rendered = true;
     }
+}
+
+pub(crate) fn fault_oled_frame_into(lines: &[String], frame: &mut [u8], lit: bool) {
+    oled::fault_frame_into(lines, frame, lit);
 }
 
 fn scaled_u8(value: Option<&Value>) -> u8 {

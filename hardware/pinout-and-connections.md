@@ -30,16 +30,16 @@ Use it while assembling the device. For Pi OS setup and bring-up, see [`pi-bring
 - `GPIO3` / physical pin 5: SCL
 - Devices on this bus:
   - NeoKey 1x4 at `0x3F`
-  - NeoTrellis chain via `J1` at `0x30`, `0x31`, `0x32`, and `0x33`
+  - NeoTrellis chain via `J1` at `0x2E`, `0x2F`, `0x30`, and `0x31`
 
 NeoTrellis address order is left-to-right, top-to-bottom when viewing the play surface:
 
 | Position | Jumpers | Address |
 |---|---|---:|
-| upper left | none | `0x30` |
-| upper right | A0 | `0x31` |
-| lower left | A1 | `0x32` |
-| lower right | A0 + A1 | `0x33` |
+| upper left | none | `0x2E` |
+| upper right | A0 | `0x2F` |
+| lower left | A1 | `0x30` |
+| lower right | A0 + A1 | `0x31` |
 
 The NeoKey has A0, A1, A2, and A3 soldered. It has no A4 jumper, so its address is `0x3F`.
 

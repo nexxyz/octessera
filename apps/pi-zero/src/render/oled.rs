@@ -10,7 +10,7 @@ use footer::{draw_footer, draw_status_indicators};
 
 use super::{brightness_scale, rgb565, scale, SPLASH_REGULAR, SPLASH_SEPIA};
 
-pub(super) const OLED_FRAME_BYTES: usize = 128 * 128 * 2;
+pub(crate) const OLED_FRAME_BYTES: usize = 128 * 128 * 2;
 
 pub(super) fn oled_signature(snapshot: &Value) -> u64 {
     let settings = snapshot.get("settings").unwrap_or(&Value::Null);
@@ -132,6 +132,21 @@ fn render_menu_frame(frame: &mut [u8], snapshot: &Value, brightness: f32) {
     draw_footer(frame, snapshot, brightness);
 }
 
+pub(super) fn fault_frame_into(lines: &[String], frame: &mut [u8], lit: bool) {
+    frame.fill(0);
+    let red = rgb565(if lit { [255, 0, 0] } else { [80, 0, 0] });
+    let dim_red = rgb565([42, 0, 0]);
+    let white = rgb565([255, 238, 214]);
+    fill_rect(frame, 0, 0, 128, 128, dim_red);
+    fill_rect(frame, 4, 4, 120, 120, rgb565([0, 0, 0]));
+    fill_rect(frame, 8, 8, 112, 18, red);
+    draw_text_clipped(frame, "FAULT", 43, 14, 8, rgb565([0, 0, 0]));
+    for (index, line) in lines.iter().take(7).enumerate() {
+        let y = 34 + index * 12;
+        draw_text_clipped(frame, &line.to_uppercase(), 10, y as i32, 18, white);
+    }
+}
+
 fn bar_frac(display: &Value, index: usize) -> Option<f32> {
     Some(
         display
@@ -223,9 +238,9 @@ fn overlay_toast(frame: &mut [u8], toast: &str, brightness: f32) {
 
 fn rgb565_to_rgb(value: u16) -> [u8; 3] {
     [
-        (((value >> 11) & 0x1f) as u8 * 255) / 31,
-        (((value >> 5) & 0x3f) as u8 * 255) / 63,
-        ((value & 0x1f) as u8 * 255) / 31,
+        ((((value >> 11) & 0x1f) * 255) / 31) as u8,
+        ((((value >> 5) & 0x3f) * 255) / 63) as u8,
+        (((value & 0x1f) * 255) / 31) as u8,
     ]
 }
 

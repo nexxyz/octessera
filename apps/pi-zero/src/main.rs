@@ -3,6 +3,8 @@ mod audio_config_parse;
 mod diagnostics;
 mod dsp_profile;
 mod encoder_queue;
+mod hardware_fault;
+mod hardware_init;
 mod host_adapter;
 mod host_audio_command;
 mod host_audio_prep;
@@ -16,10 +18,8 @@ mod sample_browser;
 mod ui_profile;
 
 use audio::AudioManager;
-use cellsymphony_hal::{
-    encoder_gpio::HardwareEvent, EncoderGpio, I2CBus, I2sDac, NeoKey, NeoTrellis, OledSsd1351,
-};
 use encoder_queue::PendingEncoderTurns;
+use hardware_init::{init_encoders, init_hardware, HardwareDevices};
 use host_adapter::PiPlaybackHostAdapter;
 use input::{midi_realtime_message, MidiMessage};
 use playback_runtime::{
@@ -51,7 +51,28 @@ fn main() {
 
     println!("Cell Symphony - Pi native runtime");
 
-    let (_i2c_bus, mut oled, mut trellis, mut neokey, _dac) = init_hardware();
+    let hardware = match init_hardware() {
+        Ok(devices) => devices,
+        Err(fault) => hardware_fault::run_hardware_fault_mode(fault),
+    };
+    let (event_rx, _encoders) = match init_encoders() {
+        Ok(encoders) => encoders,
+        Err(mut fault) => {
+            fault.attach_outputs(
+                Some(hardware.oled),
+                Some(hardware.trellis),
+                Some(hardware.neokey),
+            );
+            hardware_fault::run_hardware_fault_mode(fault);
+        }
+    };
+    let HardwareDevices {
+        _i2c_bus,
+        mut oled,
+        mut trellis,
+        mut neokey,
+        _dac,
+    } = hardware;
     let audio = init_audio();
 
     let (midi_tx, midi_rx) = mpsc::channel::<MidiMessage>();
@@ -76,8 +97,6 @@ fn main() {
     if let Err(error) = initialize_host_state(&mut playback, &mut runner, &mut adapter) {
         eprintln!("pi host state initialization failed: {error}");
     }
-
-    let event_rx = init_encoders();
 
     let _ = oled.write_frame(&vec![0_u8; 128 * 128 * 2]);
     let mut previous_neokey = [false; 4];
@@ -178,15 +197,6 @@ fn exit_code(success: bool) -> i32 {
     }
 }
 
-fn init_hardware() -> (I2CBus, OledSsd1351, NeoTrellis, NeoKey, I2sDac) {
-    let i2c_bus = I2CBus::new(1).expect("I2C init failed");
-    let oled = OledSsd1351::new().expect("OLED init failed");
-    let trellis = NeoTrellis::new("/dev/i2c-1").expect("Trellis init failed");
-    let neokey = NeoKey::new("/dev/i2c-1").expect("NeoKey init failed");
-    let dac = I2sDac::new().expect("DAC init failed");
-    (i2c_bus, oled, trellis, neokey, dac)
-}
-
 fn init_audio() -> Option<AudioManager> {
     match AudioManager::new() {
         Ok(audio) => {
@@ -215,19 +225,4 @@ fn init_runtime() -> (PlaybackRuntime, NativeRunner) {
     .expect("native runner should initialize");
     runner.apply_runtime_config(playback.config());
     (playback, runner)
-}
-
-fn init_encoders() -> mpsc::Receiver<HardwareEvent> {
-    let (event_tx, event_rx) = mpsc::channel::<HardwareEvent>();
-    for (index, pins) in cellsymphony_hal::pinmap::ENCODERS.iter().enumerate() {
-        let id = match index {
-            0 => "encoder_main",
-            1 => "encoder_aux_1",
-            2 => "encoder_aux_2",
-            3 => "encoder_aux_3",
-            _ => unreachable!("encoder pin count follows platform capabilities"),
-        };
-        EncoderGpio::new(id, pins, event_tx.clone()).expect("Encoder init failed");
-    }
-    event_rx
 }

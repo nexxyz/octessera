@@ -146,12 +146,17 @@ The current development Pi at `pi@192.168.0.211` has been verified with `tools/p
 - ALSA exposes the PCM5102/HifiBerry-style DAC
 - `rppal` `0.22.1` is required for this OS/kernel; older `0.14.1` failed model detection
 - On-Pi fallback builds with `CARGO_BUILD_JOBS=1 cargo build --profile pi-dev -p cellsymphony-pi --features hardware-pi` succeed but take about 24 minutes on first build
-- With no PCB/components attached, the normal app gets past OLED/model initialization and then fails clearly at Trellis I2C initialization
+- The app enters persistent hardware fault mode instead of restart-looping when critical hardware initialization fails
+- PCM5102/HifiBerry-style DAC output has produced a 440 Hz ALSA test tone on the physical hardware
+- NeoKey has been detected at `0x3F` on the PCB I2C path
+- NeoTrellis has been detected at `0x2E`, `0x2F`, `0x30`, and `0x31` through a corrected connector path
+- The tested SSD1351 OLED module stayed blank with both the Pi and an Arduino Uno running Adafruit SSD1351 test code; replace or independently verify the module before treating PCB or runtime display output as failed
+- During active bring-up, `cellsymphony.service` may be disabled to prevent automatic I2C access while checking wiring; re-enable it only after the clean bus scan matches the expected devices
 
 ## Bring-Up Checklist
 
 1. Verify `+5V` and `+3.3V` rails under load.
-2. Detect NeoTrellis at `0x30`, `0x31`, `0x32`, and `0x33`, and NeoKey at `0x3F`.
+2. Detect NeoTrellis at `0x2E`, `0x2F`, `0x30`, and `0x31`, and NeoKey at `0x3F`.
 3. Initialize OLED and render a runtime snapshot frame.
 4. Initialize DAC and produce audio output through the realtime engine path.
 5. Verify each encoder direction and push switch.
