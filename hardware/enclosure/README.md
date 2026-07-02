@@ -12,6 +12,36 @@ The current enclosure data in `enclosure_params.json` is the `v21` set.
 - Main PCB rail height: `3.2 mm`
 - NeoTrellis rail height: `8.0 mm`
 
+## Two-Level CadQuery Check-Fit Model
+
+The recommended two-level check-fit model is generated with CadQuery/OpenCascade:
+
+```sh
+python hardware/enclosure/generate_two_level_enclosure_cadquery.py
+```
+
+It writes:
+
+- `case_top_two_level_cadquery.step`
+- `case_top_two_level_cadquery.stl`
+
+The script requires Python with `cadquery` available:
+
+```sh
+python -m pip install -r hardware/enclosure/requirements.txt
+```
+
+This model keeps OLED and encoders on the lower deck, raises the NeoKeys and
+8x8 NeoTrellis field, and uses a finite shoulder near the NeoKeys before
+curving down-left across the Pi area.
+
+The check-fit outputs are intentionally versioned separately from `case_top.stl`.
+The STEP file is the preferred source artifact. This is still not a production
+lid: it does not yet recreate the full underside lip, catch rims, board capture
+ribs, or bottom mating interface. Promote it to the production top only after
+adding and validating that underside interface, board capture, connector
+clearance, and the measured component height stack.
+
 ## External Access
 
 The current case exposes these ports:
@@ -55,6 +85,7 @@ The checked-in STL files in this directory are:
 
 - `case_top.stl`
 - `case_bottom.stl`
+- `case_top_two_level_cadquery.stl`
 - `tpu_foot_strip_1.stl`
 - `tpu_foot_strip_2.stl`
 - `neotrellis_cutout_test_coupon.stl`
