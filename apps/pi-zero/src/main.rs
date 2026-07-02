@@ -5,6 +5,8 @@ mod dsp_profile;
 mod encoder_queue;
 mod hardware_fault;
 mod hardware_init;
+mod hardware_test;
+mod hardware_test_noise;
 mod host_adapter;
 mod host_audio_command;
 mod host_audio_prep;
@@ -186,6 +188,12 @@ fn run_requested_utility() {
     }
     if diagnostics::diagnostic_requested() {
         std::process::exit(exit_code(diagnostics::run_pre_hardware_diagnostics()));
+    }
+    if hardware_test::noise_requested() {
+        std::process::exit(exit_code(hardware_test::run_noise_only()));
+    }
+    if hardware_test::requested() {
+        std::process::exit(exit_code(hardware_test::run()));
     }
 }
 

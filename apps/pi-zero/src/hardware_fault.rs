@@ -47,6 +47,14 @@ impl HardwareFault {
         self.trellis = trellis;
         self.neokey = neokey;
     }
+
+    pub(crate) fn summary(&self) -> String {
+        self.failures
+            .iter()
+            .map(|failure| format!("{}: {}", failure.name, failure.message))
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
 }
 
 pub(crate) fn run_hardware_fault_mode(mut fault: HardwareFault) -> ! {

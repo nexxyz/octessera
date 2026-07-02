@@ -18,7 +18,7 @@ Use it with:
 - Controls: four clickable direct-GPIO rotary encoders: one main and three aux controls
 - Power input: USB-C breakout to the shared `+5V` rail
 - Bulk power smoothing: `C1` `470uf` polarized capacitor across `+5V` and `GND`
-- I2C addresses: NeoTrellis `0x30`, `0x31`, `0x32`, `0x33`; NeoKey `0x3F`
+- I2C addresses: NeoTrellis `0x2E`, `0x2F`, `0x30`, `0x31`; NeoKey `0x3F`
 
 ## Power Rule
 
@@ -165,6 +165,17 @@ The current development Pi at `pi@192.168.0.211` has been verified with `tools/p
 8. Verify preset/default storage and sample browser paths.
 
 Current open validation work is tracked in [`../docs/open-work.md`](../docs/open-work.md).
+The no-OLED manual walkthrough and CLI diagnostics are defined in [`manual-hardware-test-suite.md`](manual-hardware-test-suite.md).
+
+Quick diagnostics:
+
+```bash
+sudo systemctl disable --now cellsymphony.service
+/usr/local/bin/cellsymphony-pi --hardware-test
+/usr/local/bin/cellsymphony-pi --hardware-noise-test --skip-trellis --skip-encoders
+```
+
+The diagnostics print a final warning/failure summary. Raw NeoKey one-sample glitches with clean immediate rereads are warnings; confirmed idle input remains a failure.
 
 ## Planned Hardware Diagnostics
 

@@ -176,13 +176,16 @@ impl NeoTrellis {
                 }
                 let pressed = edge == KEYPAD_EDGE_FALLING;
                 let key_num = seesaw_key_to_trellis_key(key_data >> 2);
+                if key_num >= TRELLIS_PIXELS_PER_DEVICE as u8 {
+                    continue;
+                }
                 // Map 4x4 key to 8x8 grid position
                 let local_x = (key_num % 4) as usize;
                 let local_y = (key_num / 4) as usize;
                 let base_x = (dev_idx % 2) * 4;
                 let base_y = (dev_idx / 2) * 4;
                 let x = base_x + local_x;
-                let y = base_y + local_y;
+                let y = 7 - (base_y + local_y);
                 result.push((x, y, pressed));
             }
         }
@@ -201,7 +204,7 @@ impl NeoTrellis {
 
             for y in base_y..(base_y + 4) {
                 for x in base_x..(base_x + 4) {
-                    let idx = (y * 8 + x) as usize;
+                    let idx = ((7 - y) * 8 + x) as usize;
                     let rgb = &frame[idx];
                     data.extend_from_slice(&[rgb[1], rgb[0], rgb[2]]);
                 }
