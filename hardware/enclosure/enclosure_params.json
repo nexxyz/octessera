@@ -18,6 +18,12 @@
   "insert_boss_h": 10.0,
   "top_screw_clearance_d": 3.4,
   "encoder_hole_d": 7.2,
+  "encoder_cap_cutouts": {
+    "SW1": 20.5,
+    "SW2": 16.0,
+    "SW3": 16.0,
+    "SW4": 16.0
+  },
   "screen_cutout": [
     33.0,
     33.0
@@ -29,10 +35,12 @@
   ],
   "oled_sd_face_r": 1.0,
   "key_cutout": [
-    16.2,
-    16.2
+    20.4,
+    20.4
   ],
   "key_cutout_r": 2.0,
+  "mx_switch_retention_cutout": 14.2,
+  "mx_switch_retention_r": 0.6,
   "neotrellis_pitch": 15.0,
   "neotrellis_button_cutout": 11.2,
   "neotrellis_button_r": 1.6,

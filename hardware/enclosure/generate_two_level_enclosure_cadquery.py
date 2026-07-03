@@ -16,6 +16,14 @@ LOW_Z = 12.0
 HIGH_Z = 26.0
 UNDERSIDE_Z = 9.0
 HIGH_UNDERSIDE_Z = 23.0
+EXTENDED_SLOPE_RIGHT_X = 115.0
+SLOPE_CURVE_START_Y = 69.0
+SLOPE_PROFILE_STEPS = 12
+NEOKEY_PANEL_Y_OFFSET = 2.0
+NEOKEY_CAP_RELIEF_BOTTOM_Z = 16.0
+NEOKEY_SEAT_BOTTOM_Z = UNDERSIDE_Z - 0.2
+NEOKEY_SEAT_OVERLAP = 3.0
+NEOKEY_SOUTH_RETURN_Y = 20.0
 
 
 def smootherstep(t: float) -> float:
@@ -33,9 +41,20 @@ def deck_boundary_x(y: float) -> float:
 
 
 def shoulder_width_at_y(y: float) -> float:
+    return shoulder_right_x(y) - deck_boundary_x(y)
+
+
+def legacy_shoulder_width_at_y(y: float) -> float:
     if y >= 69.0:
         return 2.4
     return 2.4 + 14.6 * (1.0 - smootherstep(y / 69.0))
+
+
+def shoulder_right_x(y: float) -> float:
+    legacy_right = deck_boundary_x(y) + legacy_shoulder_width_at_y(y)
+    if y >= SLOPE_CURVE_START_Y:
+        return EXTENDED_SLOPE_RIGHT_X
+    return legacy_right + (EXTENDED_SLOPE_RIGHT_X - legacy_right) * smootherstep(y / SLOPE_CURVE_START_Y)
 
 
 def rounded_plate(width: float, depth: float, radius: float, z0: float, thickness: float) -> cq.Workplane:
@@ -50,8 +69,8 @@ def rounded_plate(width: float, depth: float, radius: float, z0: float, thicknes
 
 def right_region_prism(width: float, depth: float, margin: float, z_height: float) -> cq.Workplane:
     points = []
-    for y in [i * depth / 80 for i in range(81)]:
-        points.append((deck_boundary_x(y) + shoulder_width_at_y(y) - 0.4, y))
+    for y in [i * depth / 160 for i in range(161)]:
+        points.append((shoulder_right_x(y) - 0.4, y))
     points += [(width + margin, depth + margin), (width + margin, -margin), (points[0][0], points[0][1])]
     return cq.Workplane("XY").polyline(points).close().extrude(z_height).translate((0, 0, -1))
 
@@ -65,7 +84,7 @@ def left_region_prism(width: float, depth: float, margin: float, z_height: float
 
 
 def shoulder_loft(depth: float) -> cq.Workplane:
-    y_values = [i * depth / 80 for i in range(81)]
+    y_values = [i * depth / 160 for i in range(161)]
     first_y = y_values[0]
     first_profile = shoulder_profile(first_y)
     workplane = cq.Workplane("XZ", origin=(0, first_y, 0)).polyline(first_profile).close()
@@ -78,12 +97,16 @@ def shoulder_loft(depth: float) -> cq.Workplane:
 
 def shoulder_profile(y: float) -> list[tuple[float, float]]:
     left = deck_boundary_x(y)
-    right = left + shoulder_width_at_y(y)
+    right = shoulder_right_x(y)
+    width = right - left
+    top_curve = [
+        (left + width * t, LOW_Z + (HIGH_Z - LOW_Z) * smootherstep(t))
+        for t in [1.0 - i / SLOPE_PROFILE_STEPS for i in range(SLOPE_PROFILE_STEPS + 1)]
+    ]
     return [
         (left, UNDERSIDE_Z),
         (right, UNDERSIDE_Z),
-        (right, HIGH_Z),
-        (left, LOW_Z),
+        *top_curve,
     ]
 
 
@@ -95,8 +118,97 @@ def rect_cutter(x0: float, y0: float, x1: float, y1: float, radius: float) -> cq
     return cutter.translate(((x0 + x1) / 2.0, (y0 + y1) / 2.0, -2))
 
 
+def rect_cutter_from_z(x0: float, y0: float, x1: float, y1: float, radius: float, z0: float) -> cq.Workplane:
+    width = x1 - x0
+    depth = y1 - y0
+    sketch = cq.Sketch().rect(width, depth).vertices().fillet(radius)
+    cutter = cq.Workplane("XY").placeSketch(sketch).extrude(40)
+    return cutter.translate(((x0 + x1) / 2.0, (y0 + y1) / 2.0, z0))
+
+
+def rect_prism(x0: float, y0: float, x1: float, y1: float, radius: float, z0: float, z1: float) -> cq.Workplane:
+    width = x1 - x0
+    depth = y1 - y0
+    sketch = cq.Sketch().rect(width, depth).vertices().fillet(radius)
+    prism = cq.Workplane("XY").placeSketch(sketch).extrude(z1 - z0)
+    return prism.translate(((x0 + x1) / 2.0, (y0 + y1) / 2.0, z0))
+
+
 def circle_cutter(x: float, y: float, radius: float) -> cq.Workplane:
     return cq.Workplane("XY").circle(radius).extrude(40).translate((x, y, -2))
+
+
+def neokey_slot_bounds(params: dict, key_centers: list[tuple[float, float]]) -> tuple[float, float, float, float]:
+    key_w, key_h = params["key_cutout"]
+    key_x_values = [x for x, _ in key_centers]
+    key_y_values = [y for _, y in key_centers]
+    return (
+        min(key_x_values) - key_w / 2,
+        min(key_y_values) - key_h / 2,
+        max(key_x_values) + key_w / 2,
+        max(key_y_values) + key_h / 2,
+    )
+
+
+def neokey_seating_mass(params: dict, key_centers: list[tuple[float, float]]) -> cq.Workplane:
+    slot_x0, slot_y0, slot_x1, slot_y1 = neokey_slot_bounds(params, key_centers)
+    return rect_prism(
+        slot_x0 - NEOKEY_SEAT_OVERLAP,
+        slot_y0 - NEOKEY_SEAT_OVERLAP,
+        slot_x1 + NEOKEY_SEAT_OVERLAP,
+        slot_y1 + NEOKEY_SEAT_OVERLAP,
+        params["key_cutout_r"],
+        NEOKEY_SEAT_BOTTOM_Z,
+        NEOKEY_CAP_RELIEF_BOTTOM_Z,
+    )
+
+
+def neokey_south_closure_mass(params: dict, key_centers: list[tuple[float, float]]) -> cq.Workplane:
+    slot_x0, slot_y0, slot_x1, _ = neokey_slot_bounds(params, key_centers)
+    seat_x0 = slot_x0 - NEOKEY_SEAT_OVERLAP
+    seat_y0 = slot_y0 - NEOKEY_SEAT_OVERLAP
+    seat_x1 = slot_x1 + NEOKEY_SEAT_OVERLAP
+    south = rect_prism(
+        seat_x0,
+        seat_y0,
+        seat_x1,
+        slot_y0,
+        0.8,
+        NEOKEY_CAP_RELIEF_BOTTOM_Z,
+        HIGH_Z,
+    )
+    west = rect_prism(
+        seat_x0,
+        slot_y0,
+        slot_x0,
+        slot_y0 + NEOKEY_SOUTH_RETURN_Y,
+        0.8,
+        NEOKEY_CAP_RELIEF_BOTTOM_Z,
+        HIGH_Z,
+    )
+    east = rect_prism(
+        slot_x1,
+        slot_y0,
+        seat_x1,
+        slot_y0 + NEOKEY_SOUTH_RETURN_Y,
+        0.8,
+        NEOKEY_CAP_RELIEF_BOTTOM_Z,
+        HIGH_Z,
+    )
+    return south.union(west).union(east).clean()
+
+
+def neokey_east_closure_mass(params: dict, key_centers: list[tuple[float, float]]) -> cq.Workplane:
+    _, slot_y0, slot_x1, slot_y1 = neokey_slot_bounds(params, key_centers)
+    return rect_prism(
+        slot_x1,
+        slot_y0,
+        slot_x1 + NEOKEY_SEAT_OVERLAP,
+        slot_y1,
+        0.8,
+        NEOKEY_CAP_RELIEF_BOTTOM_Z,
+        HIGH_Z,
+    )
 
 
 def local_to_case(params: dict, point: list[float]) -> tuple[float, float]:
@@ -118,12 +230,41 @@ def add_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane:
         )
     )
 
-    for x, y in [(24.1, 91.3), (54.4, 72.5), (37.4, 49.4), (71.4, 49.4)]:
-        model = model.cut(circle_cutter(x, y, params["encoder_hole_d"] / 2.0))
+    encoder_cap_cutouts = params["encoder_cap_cutouts"]
+    for name, point in params["features_local"]["encoders"].items():
+        x, y = local_to_case(params, point)
+        model = model.cut(circle_cutter(x, y, encoder_cap_cutouts[name] / 2.0))
 
-    key_w, key_h = params["key_cutout"]
-    for x, y in [(103.55, 22.7), (103.55, 41.8), (103.55, 60.8), (103.55, 79.9)]:
-        model = model.cut(rect_cutter(x - key_w / 2, y - key_h / 2, x + key_w / 2, y + key_h / 2, params["key_cutout_r"]))
+    key_centers = [
+        (local_to_case(params, point)[0], local_to_case(params, point)[1] + NEOKEY_PANEL_Y_OFFSET)
+        for point in params["features_local"]["neokey_key_centers"]
+    ]
+    slot_x0, slot_y0, slot_x1, slot_y1 = neokey_slot_bounds(params, key_centers)
+    model = model.union(neokey_seating_mass(params, key_centers))
+    model = model.union(neokey_south_closure_mass(params, key_centers))
+    model = model.union(neokey_east_closure_mass(params, key_centers))
+    model = model.cut(
+        rect_cutter_from_z(
+            slot_x0,
+            slot_y0,
+            slot_x1,
+            slot_y1,
+            params["key_cutout_r"],
+            NEOKEY_CAP_RELIEF_BOTTOM_Z,
+        )
+    )
+
+    mx_cutout = params["mx_switch_retention_cutout"]
+    for x, y in key_centers:
+        model = model.cut(
+            rect_cutter(
+                x - mx_cutout / 2,
+                y - mx_cutout / 2,
+                x + mx_cutout / 2,
+                y + mx_cutout / 2,
+                params["mx_switch_retention_r"],
+            )
+        )
 
     neo_pitch = params["neotrellis_pitch"]
     neo_d = params["neotrellis_button_cutout"]
@@ -132,6 +273,7 @@ def add_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane:
             x = 124.75 + col * neo_pitch
             y = 22.5 + row * neo_pitch
             model = model.cut(rect_cutter(x - neo_d / 2, y - neo_d / 2, x + neo_d / 2, y + neo_d / 2, params["neotrellis_button_r"]))
+
     return model
 
 
