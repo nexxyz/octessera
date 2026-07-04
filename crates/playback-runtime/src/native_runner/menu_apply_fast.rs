@@ -95,6 +95,7 @@ impl NativeRunner {
         };
         let number_value = self.menu.number_for_key(key);
         let changed = match suffix {
+            "noteBehavior" => self.fast_instrument_note_behavior_key(index, key),
             "mixer.volume" => self.fast_instrument_volume_key(index, number_value),
             "mixer.panPos" => self.fast_instrument_pan_key(index, number_value),
             "synth.amp.gainPct" => self.fast_instrument_synth_key(
@@ -139,6 +140,21 @@ impl NativeRunner {
         if changed {
             self.mark_fast_autosave_dirty();
         }
+        true
+    }
+
+    fn fast_instrument_note_behavior_key(&mut self, index: usize, key: &str) -> bool {
+        let Some(value) = self.menu.value_for_key(key) else {
+            return false;
+        };
+        let Some(instrument) = self.instruments.get_mut(index) else {
+            return false;
+        };
+        if instrument.note_behavior == value {
+            return false;
+        }
+        instrument.note_behavior = value;
+        self.sync_engine_runtime_config();
         true
     }
 

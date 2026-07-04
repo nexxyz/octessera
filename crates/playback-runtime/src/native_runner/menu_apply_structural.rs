@@ -136,7 +136,10 @@ impl NativeRunner {
         if instrument.route == route {
             return;
         }
+        let previous_label = instrument_overview_label(index, instrument);
         instrument.route = route;
+        let next_label = instrument_overview_label(index, instrument);
+        self.menu.replace_label(&previous_label, &next_label);
         self.audio_config_revision = self.audio_config_revision.wrapping_add(1);
         self.mark_fast_autosave_dirty();
     }

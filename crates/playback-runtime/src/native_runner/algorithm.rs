@@ -92,6 +92,9 @@ impl NativeRunner {
                 let tick = engine.tick_filtered(self.bpm as f32, |intent| {
                     trigger_probability_allows(sense.as_ref(), probability_map, &mut rng, intent)
                 })?;
+                if let Some(part_tick) = self.part_ticks.get_mut(index) {
+                    *part_tick = part_tick.saturating_add(1);
+                }
                 inactive_modulation_updates.push((index, tick.mapped_intents.clone()));
                 let tick_events = apply_sampler_assignments_for_instruments(
                     tick.events,
@@ -207,6 +210,9 @@ impl NativeRunner {
             self.part_pulse_accumulators[self.active_part_index] -= active_step_pulses;
             let tick = self.active_engine_tick_result()?;
             self.tick = self.tick.saturating_add(1);
+            if let Some(part_tick) = self.part_ticks.get_mut(self.active_part_index) {
+                *part_tick = self.tick;
+            }
             self.apply_runtime_modulation(&tick.mapped_intents, self.active_part_index);
             let tick_events = self.apply_sampler_assignments(
                 tick.events,

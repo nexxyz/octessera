@@ -66,7 +66,7 @@ pub(crate) fn l2_starts_with_global_rows_and_part_rows_are_enterable() {
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "L2: Sense");
     assert_eq!(snapshot.lines[0], "> Aux Mappings");
-    assert_eq!(snapshot.lines[1], "  Events when paused");
+    assert_eq!(snapshot.lines[1], "  Events when ... On");
     assert_eq!(snapshot.lines[2], "  P1: life");
     menu.turn(1);
     menu.turn(1);

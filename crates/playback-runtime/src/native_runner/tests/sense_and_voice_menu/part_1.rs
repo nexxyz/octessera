@@ -60,7 +60,7 @@ pub(crate) fn l2_sense_exposes_aux_mappings_and_enterable_part_rows() {
         .any(|line| line.as_str().unwrap_or("") == "  Aux Mappings"));
     assert!(lines
         .iter()
-        .any(|line| line.as_str().unwrap_or("") == "  Events when paused"));
+        .any(|line| line.as_str().unwrap_or("") == "  Events when ... On"));
     assert!(lines
         .iter()
         .any(|line| line.as_str().unwrap_or("") == "> P1: life"));

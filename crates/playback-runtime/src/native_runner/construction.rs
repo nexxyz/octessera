@@ -147,6 +147,7 @@ impl NativeRunner {
             current_ppqn_pulse: 0,
             swung_ppqn_pulse: 0,
             tick: 0,
+            part_ticks: vec![0; PART_COUNT],
             algorithm_step_pulses: DEFAULT_ALGORITHM_STEP_PULSES,
             algorithm_pulse_accumulator: 0,
             part_algorithm_step_pulses: vec![DEFAULT_ALGORITHM_STEP_PULSES; PART_COUNT],

@@ -180,6 +180,7 @@ impl NativeRunner {
         }
 
         self.active_part_index = next_index;
+        self.tick = self.part_ticks.get(next_index).copied().unwrap_or(0);
         self.algorithm_step_pulses = self
             .part_algorithm_step_pulses
             .get(next_index)

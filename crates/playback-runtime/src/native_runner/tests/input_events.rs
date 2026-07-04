@@ -28,6 +28,45 @@ pub(crate) fn interpreting_behavior_grid_press_and_release_emit_musical_events()
 }
 
 #[test]
+pub(crate) fn keys_with_hold_note_behavior_sustains_until_release() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        behavior_id: "keys".into(),
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    assert!(runner.menu.focus_item_key("instruments.0.noteBehavior"));
+    runner.menu.state.editing = true;
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+        })
+        .unwrap();
+    assert_eq!(runner.instruments[0].note_behavior, "hold");
+
+    let press = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+        })
+        .unwrap();
+    assert!(press.iter().any(|message| matches!(
+        message,
+        RunnerMessage::MusicalEvents { events }
+            if events.iter().any(|event| matches!(event, platform_core::MusicalEvent::NoteOn { duration_ms: None, .. }))
+    )));
+
+    let release = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_release", "x": 2, "y": 3 }),
+        })
+        .unwrap();
+    assert!(release.iter().any(|message| matches!(
+        message,
+        RunnerMessage::MusicalEvents { events }
+            if events.iter().any(|event| matches!(event, platform_core::MusicalEvent::NoteOff { .. }))
+    )));
+}
+
+#[test]
 pub(crate) fn input_events_while_paused_false_suppresses_paused_grid_events() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "keys".into(),

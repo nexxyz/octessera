@@ -58,9 +58,9 @@ const TRELLIS_PIXELS_PER_DEVICE: usize = 16;
 const TRELLIS_PIXEL_BYTES_PER_DEVICE: usize = TRELLIS_PIXELS_PER_DEVICE * 3;
 #[cfg(feature = "pi-zero")]
 const TRELLIS_LED_CHUNK_BYTES: usize = 24;
-#[cfg(feature = "pi-zero")]
+#[cfg(any(feature = "pi-zero", test))]
 const KEYPAD_EDGE_FALLING: u8 = 2;
-#[cfg(feature = "pi-zero")]
+#[cfg(any(feature = "pi-zero", test))]
 const KEYPAD_EDGE_RISING: u8 = 3;
 
 #[cfg(feature = "pi-zero")]
@@ -169,13 +169,9 @@ impl NeoTrellis {
             )?;
 
             for i in 0..key_count {
-                let key_data = buf[i];
-                let edge = key_data & 0x03;
-                if !matches!(edge, KEYPAD_EDGE_FALLING | KEYPAD_EDGE_RISING) {
+                let Some((key_num, pressed)) = decode_trellis_key_event(buf[i]) else {
                     continue;
-                }
-                let pressed = edge == KEYPAD_EDGE_FALLING;
-                let key_num = seesaw_key_to_trellis_key(key_data >> 2);
+                };
                 if key_num >= TRELLIS_PIXELS_PER_DEVICE as u8 {
                     continue;
                 }
@@ -223,6 +219,16 @@ impl NeoTrellis {
 
         Ok(())
     }
+}
+
+#[cfg(any(feature = "pi-zero", test))]
+fn decode_trellis_key_event(key_data: u8) -> Option<(u8, bool)> {
+    let edge = key_data & 0x03;
+    if !matches!(edge, KEYPAD_EDGE_FALLING | KEYPAD_EDGE_RISING) {
+        return None;
+    }
+    let pressed = edge == KEYPAD_EDGE_RISING;
+    Some((seesaw_key_to_trellis_key(key_data >> 2), pressed))
 }
 
 #[cfg(feature = "pi-zero")]
@@ -287,7 +293,7 @@ fn trellis_key_to_seesaw_key(key: u8) -> u8 {
     ((key / 4) * 8) + (key % 4)
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(any(feature = "pi-zero", test))]
 fn seesaw_key_to_trellis_key(key: u8) -> u8 {
     ((key / 8) * 4) + (key % 8)
 }
@@ -347,5 +353,29 @@ impl NeoTrellis {
 impl fmt::Debug for NeoTrellis {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "NeoTrellis {{ ... }}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rising_edge_is_press_and_falling_edge_is_release() {
+        let seesaw_key = 10;
+        assert_eq!(
+            decode_trellis_key_event((seesaw_key << 2) | KEYPAD_EDGE_RISING),
+            Some((6, true))
+        );
+        assert_eq!(
+            decode_trellis_key_event((seesaw_key << 2) | KEYPAD_EDGE_FALLING),
+            Some((6, false))
+        );
+    }
+
+    #[test]
+    fn non_edge_events_are_ignored() {
+        assert_eq!(decode_trellis_key_event(0), None);
+        assert_eq!(decode_trellis_key_event(1), None);
     }
 }

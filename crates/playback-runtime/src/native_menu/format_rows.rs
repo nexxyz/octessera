@@ -15,8 +15,24 @@ pub(in crate::native_menu) fn format_param_lines(
             format!("    {marker}{value}"),
         ]
     } else {
-        vec![format_menu_line(label, false)]
+        vec![format_unselected_param_line(label, &value)]
     }
+}
+
+fn format_unselected_param_line(label: &str, value: &str) -> String {
+    if value.is_empty() {
+        return format_menu_line(label, false);
+    }
+    let width = 18;
+    let value_len = value.chars().count();
+    if value_len + 1 >= width {
+        return format_menu_line(&clip_menu_value(value, width), false);
+    }
+    let label_width = width - value_len - 1;
+    format_menu_line(
+        &format!("{} {value}", clip_menu_value(label, label_width)),
+        false,
+    )
 }
 
 fn format_selected_param_line(label: &str, value: &str) -> String {
@@ -56,7 +72,10 @@ pub(in crate::native_menu) fn format_text_lines(
             format!("    {marker}{}", clip_menu_value(display, 22)),
         ]
     } else {
-        vec![format_menu_line(label, false)]
+        vec![format_menu_line(
+            &format!("{label} {}", clip_menu_value(display, 22)),
+            false,
+        )]
     }
 }
 

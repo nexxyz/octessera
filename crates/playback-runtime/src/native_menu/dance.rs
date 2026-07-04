@@ -47,7 +47,20 @@ fn dance_aux_map_items(config: &NativeMenuConfig) -> Vec<NativeMenuItem> {
                         if effect == "dance.fx.map"
                 )
         })
+        .map(aux_map_path_item)
         .collect()
+}
+
+fn aux_map_path_item(mut item: NativeMenuItem) -> NativeMenuItem {
+    if let Some(key) = item.key.as_deref() {
+        item.label = format!("{}: {key}", item.label);
+    } else if matches!(
+        &item.value,
+        NativeMenuValue::Action(NativeMenuAction::PlatformEffect(effect)) if effect == "dance.fx.map"
+    ) {
+        item.label = format!("{}: dance.fx.map", item.label);
+    }
+    item
 }
 
 pub(super) fn dance_fx_page_items(config: &NativeMenuConfig) -> Vec<NativeMenuItem> {

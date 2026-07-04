@@ -107,6 +107,36 @@ pub(crate) fn changing_part_four_behavior_does_not_reset_part_two_playback_phase
 }
 
 #[test]
+pub(crate) fn switching_to_scanning_part_restores_its_visual_scan_tick() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        behavior_id: "life".into(),
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    runner.transport = RuntimeTransportState::Playing;
+    runner.part_behavior_ids[1] = "sequencer".into();
+    runner.sense_parts[1].scan_mode = "scanning".into();
+    runner.sense_parts[1].scan_axis = "columns".into();
+    runner.sense_parts[1].scan_unit = "1/16".into();
+
+    runner.select_active_part(1).unwrap();
+    runner.select_active_part(0).unwrap();
+    runner
+        .send(HostMessage::TransportPulseStep {
+            pulses: 12,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+    assert_eq!(runner.part_ticks[1], 2);
+
+    runner.tick = 99;
+    runner.select_active_part(1).unwrap();
+    assert_eq!(runner.tick, 2);
+}
+
+#[test]
 pub(crate) fn inactive_scanning_part_uses_its_sampler_slot_after_config_load() {
     let payload = json!({
         "runtimeConfig": {

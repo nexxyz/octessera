@@ -209,6 +209,7 @@ pub struct NativeRunner {
     current_ppqn_pulse: u64,
     swung_ppqn_pulse: u64,
     tick: u64,
+    part_ticks: Vec<u64>,
     algorithm_step_pulses: u32,
     algorithm_pulse_accumulator: u32,
     part_algorithm_step_pulses: Vec<u32>,

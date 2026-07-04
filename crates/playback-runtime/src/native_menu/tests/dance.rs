@@ -98,6 +98,27 @@ pub(crate) fn dance_fx_page_is_flat_and_shows_selected_type_params() {
 }
 
 #[test]
+pub(crate) fn dance_aux_map_rows_show_mapped_paths() {
+    let mut config = config();
+    config.dance_mode = "fx".into();
+    config.dance_fx_type = "stutter".into();
+    let menu = NativeMenuModel::new(config);
+    let aux_map = menu.root.children[3]
+        .children
+        .iter()
+        .find(|item| item.label == "Aux Map")
+        .expect("aux map group");
+    let labels = aux_map
+        .children
+        .iter()
+        .map(|item| item.label.as_str())
+        .collect::<Vec<_>>();
+    assert!(labels.contains(&"Rate Hz: dance.fx.params.rateHz"));
+    assert!(labels.contains(&"Depth: dance.fx.params.depthPct"));
+    assert!(labels.contains(&"Map to Grid: dance.fx.map"));
+}
+
+#[test]
 pub(crate) fn parameter_picker_exposes_binding_actions_for_aux_param_and_xy_targets() {
     let menu = NativeMenuModel::new(config());
     assert!(contains_set_binding(

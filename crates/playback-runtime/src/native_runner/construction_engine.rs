@@ -40,6 +40,9 @@ impl NativeRunner {
         self.tick = 0;
         self.current_ppqn_pulse = 0;
         self.swung_ppqn_pulse = 0;
+        for tick in &mut self.part_ticks {
+            *tick = 0;
+        }
         self.algorithm_pulse_accumulator = 0;
         self.transport_flash = "none";
         self.transport_flash_pulses_remaining = 0;

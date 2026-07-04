@@ -27,7 +27,10 @@ pub(crate) fn voice_instrument_rows_expose_configuration_groups() {
         .iter()
         .find(|item| item.label == "Slot Actions")
         .is_some_and(|item| item.children.iter().any(|child| child.label == "Reset")));
-    assert!(snapshot.lines.iter().any(|line| line == "  Name"));
+    assert!(menu
+        .current_siblings()
+        .iter()
+        .any(|item| item.label == "Name"));
 }
 
 #[test]
@@ -46,8 +49,11 @@ pub(crate) fn voice_menu_exposes_fx_bus_and_global_fx_groups() {
     assert_eq!(buses.path, "L3: Voice/FX Buses");
     assert!(buses.lines.iter().any(|line| line == "> B1: None"));
     let _ = menu.press();
-    let bus = menu.snapshot();
-    assert!(bus.lines.iter().any(|line| line == "  Name"));
+    let _bus = menu.snapshot();
+    assert!(menu
+        .current_siblings()
+        .iter()
+        .any(|item| item.label == "Name"));
 }
 
 #[test]
@@ -57,6 +63,7 @@ pub(crate) fn number_params_emit_bar_values_and_pan_uses_marker_format() {
     menu.state.cursor = 2;
     let pan = menu.snapshot();
     assert!(pan.lines.iter().any(|line| line == "> Pan Pos C"));
+    assert!(pan.lines.iter().any(|line| line == "  Volume 100"));
     let pan_value_row = pan.selected_row.unwrap();
     assert!(
         matches!(pan.bar_values.get(pan_value_row), Some(Some(NativeMenuBarValue { style: Some(style), .. })) if style == "marker")
