@@ -23,7 +23,6 @@ NEOKEY_PANEL_Y_OFFSET = 2.0
 NEOKEY_CAP_RELIEF_BOTTOM_Z = 16.0
 NEOKEY_SEAT_BOTTOM_Z = UNDERSIDE_Z - 0.2
 NEOKEY_SEAT_OVERLAP = 3.0
-NEOKEY_SOUTH_RETURN_Y = 20.0
 
 
 def smootherstep(t: float) -> float:
@@ -138,6 +137,20 @@ def circle_cutter(x: float, y: float, radius: float) -> cq.Workplane:
     return cq.Workplane("XY").circle(radius).extrude(40).translate((x, y, -2))
 
 
+def crater_cutter(x: float, y: float, flat_d: float, depth: float, slope_w: float, top_z: float) -> cq.Workplane:
+    bottom_z = top_z - depth
+    flat_r = flat_d / 2.0
+    outer_r = flat_r + slope_w
+    cutter = (
+        cq.Workplane("XY", origin=(0, 0, bottom_z))
+        .circle(flat_r)
+        .workplane(offset=depth + 0.05)
+        .circle(outer_r)
+        .loft(combine=True)
+    )
+    return cutter.translate((x, y, 0))
+
+
 def neokey_slot_bounds(params: dict, key_centers: list[tuple[float, float]]) -> tuple[float, float, float, float]:
     key_w, key_h = params["key_cutout"]
     key_x_values = [x for x, _ in key_centers]
@@ -150,63 +163,25 @@ def neokey_slot_bounds(params: dict, key_centers: list[tuple[float, float]]) -> 
     )
 
 
-def neokey_seating_mass(params: dict, key_centers: list[tuple[float, float]]) -> cq.Workplane:
+def neokey_seat_bounds(params: dict, key_centers: list[tuple[float, float]]) -> tuple[float, float, float, float]:
     slot_x0, slot_y0, slot_x1, slot_y1 = neokey_slot_bounds(params, key_centers)
-    return rect_prism(
+    return (
         slot_x0 - NEOKEY_SEAT_OVERLAP,
         slot_y0 - NEOKEY_SEAT_OVERLAP,
-        slot_x1 + NEOKEY_SEAT_OVERLAP,
+        min(slot_x1 + NEOKEY_SEAT_OVERLAP, EXTENDED_SLOPE_RIGHT_X),
         slot_y1 + NEOKEY_SEAT_OVERLAP,
-        params["key_cutout_r"],
-        NEOKEY_SEAT_BOTTOM_Z,
-        NEOKEY_CAP_RELIEF_BOTTOM_Z,
     )
 
 
-def neokey_south_closure_mass(params: dict, key_centers: list[tuple[float, float]]) -> cq.Workplane:
-    slot_x0, slot_y0, slot_x1, _ = neokey_slot_bounds(params, key_centers)
-    seat_x0 = slot_x0 - NEOKEY_SEAT_OVERLAP
-    seat_y0 = slot_y0 - NEOKEY_SEAT_OVERLAP
-    seat_x1 = slot_x1 + NEOKEY_SEAT_OVERLAP
-    south = rect_prism(
+def neokey_support_block(params: dict, key_centers: list[tuple[float, float]]) -> cq.Workplane:
+    seat_x0, seat_y0, seat_x1, seat_y1 = neokey_seat_bounds(params, key_centers)
+    return rect_prism(
         seat_x0,
         seat_y0,
         seat_x1,
-        slot_y0,
-        0.8,
-        NEOKEY_CAP_RELIEF_BOTTOM_Z,
-        HIGH_Z,
-    )
-    west = rect_prism(
-        seat_x0,
-        slot_y0,
-        slot_x0,
-        slot_y0 + NEOKEY_SOUTH_RETURN_Y,
-        0.8,
-        NEOKEY_CAP_RELIEF_BOTTOM_Z,
-        HIGH_Z,
-    )
-    east = rect_prism(
-        slot_x1,
-        slot_y0,
-        seat_x1,
-        slot_y0 + NEOKEY_SOUTH_RETURN_Y,
-        0.8,
-        NEOKEY_CAP_RELIEF_BOTTOM_Z,
-        HIGH_Z,
-    )
-    return south.union(west).union(east).clean()
-
-
-def neokey_east_closure_mass(params: dict, key_centers: list[tuple[float, float]]) -> cq.Workplane:
-    _, slot_y0, slot_x1, slot_y1 = neokey_slot_bounds(params, key_centers)
-    return rect_prism(
-        slot_x1,
-        slot_y0,
-        slot_x1 + NEOKEY_SEAT_OVERLAP,
-        slot_y1,
-        0.8,
-        NEOKEY_CAP_RELIEF_BOTTOM_Z,
+        seat_y1,
+        params["key_cutout_r"],
+        NEOKEY_SEAT_BOTTOM_Z,
         HIGH_Z,
     )
 
@@ -230,19 +205,27 @@ def add_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane:
         )
     )
 
-    encoder_cap_cutouts = params["encoder_cap_cutouts"]
+    encoder_crater_flat_d = params["encoder_crater_flat_d"]
     for name, point in params["features_local"]["encoders"].items():
         x, y = local_to_case(params, point)
-        model = model.cut(circle_cutter(x, y, encoder_cap_cutouts[name] / 2.0))
+        model = model.cut(
+            crater_cutter(
+                x,
+                y,
+                encoder_crater_flat_d[name],
+                params["encoder_crater_depth"],
+                params["encoder_crater_slope_w"],
+                LOW_Z,
+            )
+        )
+        model = model.cut(circle_cutter(x, y, params["encoder_hole_d"] / 2.0))
 
     key_centers = [
         (local_to_case(params, point)[0], local_to_case(params, point)[1] + NEOKEY_PANEL_Y_OFFSET)
         for point in params["features_local"]["neokey_key_centers"]
     ]
     slot_x0, slot_y0, slot_x1, slot_y1 = neokey_slot_bounds(params, key_centers)
-    model = model.union(neokey_seating_mass(params, key_centers))
-    model = model.union(neokey_south_closure_mass(params, key_centers))
-    model = model.union(neokey_east_closure_mass(params, key_centers))
+    model = model.union(neokey_support_block(params, key_centers))
     model = model.cut(
         rect_cutter_from_z(
             slot_x0,

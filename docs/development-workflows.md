@@ -180,6 +180,25 @@ cellsymphony-pi --profile-ui
 
 Summaries include loop cadence, runtime tick lateness/advance, render overruns, snapshot/config sync, hardware polling, and LED/NeoKey/OLED phase timings.
 
+## Pi Hardware Runtime Debug Loop
+
+Use the real hardware loop for Pi-only behavior, input latency, OLED rendering, LEDs, encoders, menu timing, sample playback, and audio stutter. Automated checks cannot prove tactile timing or display readability.
+
+1. Cross-build and deploy from the PC first:
+
+   ```powershell
+   ./tools/build-pi-cross.ps1
+   ./tools/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -LocalBinary target/pi-cross/cellsymphony-pi -NoTail
+   ```
+
+2. Ask for a focused hardware observation before assuming the fix worked. Specify the control path, expected behavior, and what failure would look or sound like.
+3. Pull service logs and profile summaries when the observation is unclear. Enable `CELLSYMPHONY_PI_UI_PROFILE=1` only while profiling, then disable it again.
+4. For menu, control, or runtime stutter, inspect `pi-ui-profile` and `menu-key-profile` output before broad refactors.
+5. Fix the source path. Do not add fallbacks for broken Cell Symphony wiring; fail visibly so missing handlers, stale config paths, or bridge mismatches get fixed at the source.
+6. Prefer keyed fast paths over broad `apply_menu_state()` on high-frequency edits. Keep autosave serialization off rapid input paths.
+7. Run targeted Rust checks before redeploying when possible, then repeat the hardware observation.
+8. Before pushing a stable hardware milestone, use QA or oracle review for risky runtime/menu changes and run the pre-push hook. It validates the committed tree and includes file-length checks, coverage, Tauri smoke build, and clippy.
+
 ## Documentation Checks
 
 After changing docs or menu/help resources:

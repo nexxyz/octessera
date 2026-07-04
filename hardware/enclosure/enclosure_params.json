@@ -18,12 +18,14 @@
   "insert_boss_h": 10.0,
   "top_screw_clearance_d": 3.4,
   "encoder_hole_d": 7.2,
-  "encoder_cap_cutouts": {
-    "SW1": 20.5,
+  "encoder_crater_flat_d": {
+    "SW1": 21.0,
     "SW2": 16.0,
     "SW3": 16.0,
     "SW4": 16.0
   },
+  "encoder_crater_depth": 2.0,
+  "encoder_crater_slope_w": 2.0,
   "screen_cutout": [
     33.0,
     33.0
