@@ -86,6 +86,7 @@ mod menu_apply;
 mod menu_apply_fast;
 mod menu_apply_fast_fx;
 mod menu_apply_fast_fx_bus;
+mod menu_apply_fast_runtime;
 mod menu_apply_fast_values;
 mod menu_apply_fx_state;
 mod menu_apply_global;
