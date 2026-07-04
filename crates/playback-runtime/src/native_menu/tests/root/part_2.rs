@@ -51,7 +51,7 @@ pub(crate) fn entering_l2_selects_active_part_row_after_global_rows() {
     });
     menu.turn(1);
     let _ = menu.press();
-    menu.state.cursor = 4;
+    menu.state.cursor = 6;
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "L2: Sense");
     assert_eq!(snapshot.selected_row, Some(3));
@@ -65,9 +65,11 @@ pub(crate) fn l2_starts_with_global_rows_and_part_rows_are_enterable() {
     let _ = menu.press();
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "L2: Sense");
-    assert_eq!(snapshot.lines[0], "> Aux Mappings");
-    assert_eq!(snapshot.lines[1], "  Events when ... On");
-    assert_eq!(snapshot.lines[2], "  P1: life");
+    assert_eq!(snapshot.lines[0], "> BPM 120");
+    assert_eq!(snapshot.lines[1], "  Swing % 0%");
+    assert_eq!(snapshot.lines[2], "  Aux Mappings");
+    menu.turn(1);
+    menu.turn(1);
     menu.turn(1);
     menu.turn(1);
     let _ = menu.press();
@@ -86,7 +88,7 @@ pub(crate) fn aux_mappings_follow_platform_aux_encoder_count() {
     let mut menu = NativeMenuModel::new(config());
     menu.turn(1);
     let _ = menu.press();
-    menu.state.cursor = 0;
+    menu.state.cursor = 2;
     let _ = menu.press();
     let snapshot = menu.snapshot();
 
@@ -99,7 +101,7 @@ pub(crate) fn aux_mappings_follow_platform_aux_encoder_count() {
 #[test]
 pub(crate) fn auto_map_toggle_lives_under_system_ui_not_aux_mappings() {
     let mut menu = NativeMenuModel::new(config());
-    menu.state.stack = vec![1, 1];
+    menu.state.stack = vec![1, 2];
     let aux_snapshot = menu.snapshot();
     assert!(!aux_snapshot
         .lines

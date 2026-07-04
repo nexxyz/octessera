@@ -11,6 +11,8 @@ pub(crate) fn l4_spec_rows_show_only_selected_dance_page_controls() {
         .collect::<Vec<_>>();
     assert_eq!(labels, vec!["Dance Page"]);
     let sense = &menu.root.children[1];
+    assert_eq!(sense.children[0].label, "BPM");
+    assert_eq!(sense.children[1].label, "Swing %");
     let bpm = sense
         .children
         .iter()

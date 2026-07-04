@@ -52,8 +52,8 @@ System
 │   ├── OLED Bright: [10..100] step 5     default 75 (bar display when Number Style is bar or bar+numbers)
 │   ├── Grid Bright: [10..100] step 5     default 75 (bar display when Number Style is bar or bar+numbers)
 │   └── Button Bright: [10..100] step 5   default 75 (bar display when Number Style is bar or bar+numbers)
-├── !Controls (action)                ← opens shortcut cheat-sheet help popup
+├── !Basic Help (action)              ← opens shortcut cheat-sheet help popup
 └── Shutdown: (action)                ← confirm, then show shutdown splash and exit/poweroff
 ```
 
-Diagnostics is a pre-hardware Pi check, and the update actions are native placeholders for OTA flow control: `Check` is unconfirmed, while `Apply` and `Rollback` confirm before handing off to the Pi host adapter. Controls opens native help with the shortcut cheat sheet. `Stop/Sync: Sh+Space` follows the transport mode: internal sync emergency-stops and clears held notes, while external sync arms resync.
+Diagnostics is a pre-hardware Pi check, and the update actions are native placeholders for OTA flow control: `Check` is unconfirmed, while `Apply` and `Rollback` confirm before handing off to the Pi host adapter. Basic Help opens native help with the shortcut cheat sheet. `Stop/Sync: Sh+Space` follows the transport mode: internal sync emergency-stops and clears held notes, while external sync arms resync.

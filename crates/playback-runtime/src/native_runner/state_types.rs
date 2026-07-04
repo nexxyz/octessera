@@ -265,8 +265,8 @@ impl Default for NativeUiState {
     fn default() -> Self {
         Self {
             display_brightness: 75,
-            grid_brightness: 75,
-            button_brightness: 75,
+            grid_brightness: 25,
+            button_brightness: 35,
             master_volume: 73,
             ghost_cells: false,
             numeric_display_mode: "bar+numbers".into(),

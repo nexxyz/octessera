@@ -55,11 +55,11 @@
       "aux3": null
     },
     "bpm": 120.0,
-    "buttonBrightness": 75,
+    "buttonBrightness": 35,
     "danceMode": "fx",
     "displayBrightness": 75,
     "ghostCells": false,
-    "gridBrightness": 75,
+    "gridBrightness": 25,
     "inputEventsWhilePaused": true,
     "instruments": [
       {

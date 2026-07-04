@@ -34,12 +34,32 @@ impl NativeRunner {
             .lines
             .into_iter()
             .take(OLED_BODY_ROWS)
-            .map(|line| clip_display_line(&line, 28))
+            .enumerate()
+            .map(|(row, line)| {
+                if display.selected_row == Some(row) {
+                    clip_display_line(&scroll_display_line(&line, self.menu_scroll_offset, 20), 28)
+                } else {
+                    clip_display_line(&line, 28)
+                }
+            })
             .collect();
         display.colors.truncate(display.lines.len());
         display.bar_values.truncate(display.lines.len());
         display
     }
+}
+
+fn scroll_display_line(line: &str, offset: usize, width: usize) -> String {
+    let chars = line.chars().collect::<Vec<_>>();
+    if chars.len() <= width {
+        return line.into();
+    }
+    let span = chars.len() + 3;
+    let offset = offset % span;
+    let mut padded = chars;
+    padded.extend([' ', ' ', ' ']);
+    padded.extend(line.chars());
+    padded.iter().skip(offset).take(width).collect()
 }
 
 fn confirm_dialog_display(confirm: &super::NativeConfirmDialog) -> DisplaySnapshot {

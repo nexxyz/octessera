@@ -165,7 +165,7 @@ autosave_default	*	key:autoSaveDefault	bool	Auto Save Default	When enabled, conf
 note_length	*	key:sound.noteLengthMs	number	Note Length	Default note duration when note_on has no explicit length.	Hold-mode notes may bypass duration and wait for note_off.
 velocity_scale	*	key:sound.velocityScalePct	number	Velocity Scale	Scales velocity values globally after mapping.	Use to tame or boost overall dynamic output.
 ui_group	Menu > System > UI		group	UI	Display and lighting behavior for the device/simulator UI.	These do not change musical generation.
-controls_action	Menu > System > Controls	action:system.controlsHelp	action	Controls	Opens a quick reference for core hardware gestures.	Includes help, back, transport, part, Dance, aux bind, sample, and probability-map shortcuts.
+controls_action	Menu > System > Basic Help	action:system.controlsHelp	action	Basic Help	Opens a quick reference for core hardware gestures.	Includes help, back, transport, part, Dance, aux bind, sample, and probability-map shortcuts.
 ghost_cells	*	key:ghostCells	bool	Ghost Cells	Shows dim cells from inactive parts behind the active part.	Off by default for clarity; active part cells always take visual priority.
 input_events_while_paused	*	key:inputEventsWhilePaused	bool	Events when paused	When On, grid presses continue to fire musical events even when transport is stopped or paused.	Disable to keep paused/stopped grid edits silent while algorithm evolution remains stopped.
 screen_sleep	*	key:screenSleepSeconds	number	Screen Sleep	Sets idle timeout before OLED sleep.	Set 0 to keep display always on.

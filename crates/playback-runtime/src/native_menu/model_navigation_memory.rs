@@ -6,7 +6,7 @@ pub(super) fn navigation_memory_allowed(path: &str) -> bool {
         "Menu > System"
             | "Menu > System > Sound"
             | "Menu > System > UI"
-            | "Menu > System > Controls"
+            | "Menu > System > Basic Help"
     )
 }
 

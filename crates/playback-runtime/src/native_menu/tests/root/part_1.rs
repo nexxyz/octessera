@@ -126,7 +126,7 @@ pub(crate) fn system_submenu_uses_abbreviated_path_and_section_colors() {
             "  Sound",
             "  MIDI",
             "  UI",
-            "  !Controls"
+            "  !Basic Help"
         ]
     );
     assert_eq!(
@@ -147,7 +147,7 @@ pub(crate) fn system_controls_row_is_help_action() {
 
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "SYS");
-    assert!(snapshot.lines.iter().any(|line| line == "> !Controls"));
+    assert!(snapshot.lines.iter().any(|line| line == "> !Basic Help"));
     assert!(matches!(
         snapshot.selected_action,
         Some(NativeMenuAction::PlatformEffect(ref action)) if action == "system.controlsHelp"

@@ -42,7 +42,7 @@ fn format_selected_param_line(label: &str, value: &str) -> String {
     let width = 18;
     let value_len = value.chars().count();
     if value_len + 1 >= width {
-        return format_menu_line(&clip_menu_value(value, width), true);
+        return format_menu_line(&format!("{label} {value}"), true);
     }
     let label_width = width - value_len - 1;
     format_menu_line(

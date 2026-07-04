@@ -322,7 +322,7 @@ pub(crate) fn sense_scan_menu_exposes_none_and_scanned_empty_targets() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.sense_parts[0].scan_mode = "scanning".into();
     runner.menu.rebuild(runner.menu_config());
-    let scan_group = &runner.menu.root.children[1].children[2].children[0];
+    let scan_group = &runner.menu.root.children[1].children[4].children[0];
     let labels = scan_group
         .children
         .iter()

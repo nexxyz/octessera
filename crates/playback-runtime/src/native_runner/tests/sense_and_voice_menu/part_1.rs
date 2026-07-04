@@ -87,7 +87,7 @@ pub(crate) fn l2_sense_exposes_aux_mappings_and_enterable_part_rows() {
 #[test]
 pub(crate) fn l2_sense_scan_mode_edits_into_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![1, 2, 0];
+    runner.menu.state.stack = vec![1, 4, 0];
     runner.menu.state.cursor = 0;
 
     let _ = runner

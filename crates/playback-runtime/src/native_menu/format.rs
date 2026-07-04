@@ -61,7 +61,13 @@ pub(super) fn format_item_lines(
     };
     lines
         .into_iter()
-        .map(|line| clip_menu_value(&line, 20))
+        .map(|line| {
+            if selected {
+                line
+            } else {
+                clip_menu_value(&line, 20)
+            }
+        })
         .collect()
 }
 

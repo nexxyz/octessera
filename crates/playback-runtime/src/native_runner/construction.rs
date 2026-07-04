@@ -243,6 +243,7 @@ impl NativeRunner {
             aux_turn_toast_cooldown_until: None,
             pending_aux_turn_toast: None,
             pending_menu_apply: None,
+            menu_scroll_offset: 0,
         };
         runner.seed_visible_state()?;
         runner.refresh_active_mapping_config();

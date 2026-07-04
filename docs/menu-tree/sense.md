@@ -6,6 +6,8 @@ This file is part of the canonical split-out menu tree spec. See [`../menu-tree-
 
 ```
 L2: Sense
+├── BPM: [40..240] step 1  default 120
+├── Swing %: [0..75] step 1  default 0
 ├── Aux Mappings (group)
 │   ├── Aux 1 (group)
 │   │   ├── Turn (group)
@@ -83,7 +85,5 @@ L2: Sense
 │       └── (same sub-structure as X Axis, modulation target keys use param:N:y:slot, config keys use y.* prefix, defaults: Pitch Steps steps=3; Restart Section affects row sections)
 ├── P2: ... (group)
 ├── P3: ... (group)
-├── BPM: [40..240] step 1  default 120
-└── Swing %: [0..75] step 1  default 0
 ```
 

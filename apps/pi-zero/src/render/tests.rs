@@ -151,6 +151,9 @@ fn neokey_play_button_uses_transport_state_and_flash_colors() {
 
     snapshot["transportFlash"] = json!("measure");
     assert_eq!(neokey_colors(&snapshot)[1], [255, 160, 0]);
+
+    snapshot["display"]["off"] = json!(true);
+    assert_eq!(neokey_colors(&snapshot)[1], [20, 13, 0]);
 }
 
 #[test]

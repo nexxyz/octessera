@@ -3,7 +3,7 @@ use super::*;
 #[test]
 pub(crate) fn l2_spec_rows_include_probability_mapping_and_axis_controls() {
     let menu = NativeMenuModel::new(config());
-    let part = &menu.root.children[1].children[2];
+    let part = &menu.root.children[1].children[4];
     let trigger_prob = part
         .children
         .iter()
@@ -74,7 +74,7 @@ pub(crate) fn l2_spec_rows_include_probability_mapping_and_axis_controls() {
 #[test]
 pub(crate) fn conditional_rows_follow_scan_lane_and_sampler_state() {
     let menu = NativeMenuModel::new(config());
-    let part = &menu.root.children[1].children[2];
+    let part = &menu.root.children[1].children[4];
     let scanning = part
         .children
         .iter()
@@ -101,7 +101,7 @@ pub(crate) fn conditional_rows_follow_scan_lane_and_sampler_state() {
     cfg.instrument_types[0] = "sampler".into();
     cfg.instrument_sample_velocity_levels_enabled[0] = false;
     let menu = NativeMenuModel::new(cfg);
-    let part = &menu.root.children[1].children[2];
+    let part = &menu.root.children[1].children[4];
     let scanning = part
         .children
         .iter()
@@ -139,7 +139,7 @@ pub(crate) fn scale_menu_uses_legacy_scale_ids_and_display_labels() {
     let mut config = config();
     config.sense_parts[0].scale = "major_pentatonic".into();
     let mut menu = NativeMenuModel::new(config);
-    menu.state.stack = vec![1, 2, 3];
+    menu.state.stack = vec![1, 4, 3];
     menu.state.cursor = 3;
     let scale = menu.current_siblings()[3].clone();
     let NativeMenuValue::Enum { options, .. } = scale.value else {
@@ -157,23 +157,23 @@ pub(crate) fn scale_menu_uses_legacy_scale_ids_and_display_labels() {
 #[test]
 pub(crate) fn pitch_note_params_use_legacy_note_name_display() {
     let mut menu = NativeMenuModel::new(config());
-    menu.state.stack = vec![1, 2, 3];
+    menu.state.stack = vec![1, 4, 3];
     menu.state.cursor = 0;
     let lowest = menu.snapshot();
     assert!(lowest
         .lines
         .iter()
-        .any(|line| line.starts_with("> ") && line.contains("C1 (24)") && line.len() <= 20));
+        .any(|line| line.starts_with("> ") && line.contains("C1 (24)")));
     menu.state.cursor = 1;
     let highest = menu.snapshot();
     assert!(highest
         .lines
         .iter()
-        .any(|line| line.starts_with("> ") && line.contains("C6 (84)") && line.len() <= 20));
+        .any(|line| line.starts_with("> ") && line.contains("C6 (84)")));
     menu.state.cursor = 2;
     let starting = menu.snapshot();
     assert!(starting
         .lines
         .iter()
-        .any(|line| line.starts_with("> ") && line.contains("C4 (60)") && line.len() <= 20));
+        .any(|line| line.starts_with("> ") && line.contains("C4 (60)")));
 }

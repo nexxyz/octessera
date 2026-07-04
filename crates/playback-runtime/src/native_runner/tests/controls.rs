@@ -18,12 +18,12 @@ pub(crate) fn controls_action_opens_help_without_platform_effects() {
         .iter()
         .all(|message| !matches!(message, RunnerMessage::PlatformEffects { .. })));
     let snapshot = snapshot_from(&messages);
-    assert_eq!(snapshot["display"]["title"], "Help: Controls");
+    assert_eq!(snapshot["display"]["title"], "Help: Basic Help");
     assert!(snapshot["display"]["lines"]
         .as_array()
         .unwrap()
         .iter()
-        .any(|line| line.as_str().unwrap_or_default().contains("Aux Bind")));
+        .all(|line| line.as_str().unwrap_or_default().chars().count() <= 18));
 }
 
 #[test]
@@ -44,7 +44,7 @@ pub(crate) fn controls_help_popup_turns_without_effects() {
         .all(|message| !matches!(message, RunnerMessage::PlatformEffects { .. })));
     assert_eq!(
         snapshot_from(&messages)["display"]["title"],
-        "Help: Controls"
+        "Help: Basic Help"
     );
 }
 

@@ -58,9 +58,7 @@ pub(crate) fn submenu_snapshot_does_not_append_transport_status_line() {
         .iter()
         .map(|line| line.as_str().unwrap_or_default().to_string())
         .collect::<Vec<_>>();
-    assert!(lines
-        .iter()
-        .all(|line| !line.contains("Stopped") && !line.contains("BPM")));
+    assert!(lines.iter().all(|line| !line.contains("Stopped")));
 }
 
 #[test]
@@ -210,7 +208,7 @@ pub(crate) fn contextual_help_resolves_life_params_and_scrolls_to_bottom() {
     assert!(lines.contains("random cells"));
     runner.ui.combined_modifier_held = false;
 
-    runner.turn_help_popup(2);
+    runner.turn_help_popup(99);
     let help = runner.help_popup.as_ref().unwrap();
     assert_eq!(
         help.scroll,

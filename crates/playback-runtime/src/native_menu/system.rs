@@ -183,7 +183,7 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                 ],
             ),
             action_item(
-                "Controls",
+                "Basic Help",
                 "system.controlsHelp",
                 NativeMenuAction::PlatformEffect("system.controlsHelp".into()),
             ),

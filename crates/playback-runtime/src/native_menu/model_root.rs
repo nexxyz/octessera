@@ -57,29 +57,29 @@ fn sense_group(config: &NativeMenuConfig) -> NativeMenuItem {
         label: "L2: Sense".into(),
         key: None,
         value: NativeMenuValue::Group,
-        children: l2_root_items(config)
-            .into_iter()
-            .chain(config.part_labels.iter().enumerate().map(|(index, label)| {
-                l2_part_group(
-                    index,
-                    label.clone(),
-                    &instrument_options,
-                    config.sense_parts.get(index),
-                    config,
-                )
-            }))
-            .chain([
-                number_item("BPM", "transport.bpm", i32::from(config.bpm), 40, 240, 1),
-                number_item(
-                    "Swing %",
-                    "transport.swingPct",
-                    i32::from(config.swing_pct),
-                    0,
-                    75,
-                    1,
-                ),
-            ])
-            .collect(),
+        children: [
+            number_item("BPM", "transport.bpm", i32::from(config.bpm), 40, 240, 1),
+            number_item(
+                "Swing %",
+                "transport.swingPct",
+                i32::from(config.swing_pct),
+                0,
+                75,
+                1,
+            ),
+        ]
+        .into_iter()
+        .chain(l2_root_items(config))
+        .chain(config.part_labels.iter().enumerate().map(|(index, label)| {
+            l2_part_group(
+                index,
+                label.clone(),
+                &instrument_options,
+                config.sense_parts.get(index),
+                config,
+            )
+        }))
+        .collect(),
     }
 }
 

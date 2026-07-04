@@ -6,13 +6,15 @@ use super::{
     SyncSource,
 };
 
+const OLED_HELP_LINE_WIDTH: usize = 18;
+
 impl NativeRunner {
     pub(super) fn open_controls_help(&mut self) {
         self.help_popup = Some(NativeHelpPopup {
-            title: "Help: Controls".into(),
+            title: "Help: Basic Help".into(),
             lines: wrap_help_text(
                 "Help Sh+Fn+Main. Back Back. Play/Pause Space. Stop/Sync Sh+Space. Part Fn+left column. Dance Fn+right column. Aux Bind Fn+Aux. Sample Sh+cell. Prob Map grid.",
-                28,
+                OLED_HELP_LINE_WIDTH,
             ),
             scroll: 0,
         });
@@ -36,7 +38,7 @@ impl NativeRunner {
         let title = format!("Help: {}", help.title);
         self.help_popup = Some(NativeHelpPopup {
             title,
-            lines: wrap_help_text(&help.detail, 28),
+            lines: wrap_help_text(&help.detail, OLED_HELP_LINE_WIDTH),
             scroll: 0,
         });
     }

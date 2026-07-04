@@ -47,5 +47,6 @@ impl NativeRunner {
         if let Some(toast) = &mut self.toast {
             toast.offset = toast.offset.saturating_add(1);
         }
+        self.menu_scroll_offset = self.menu_scroll_offset.saturating_add(1);
     }
 }
