@@ -34,6 +34,42 @@ pub(crate) fn fx_bus_slot1_type_turn_applies_immediately() {
             ))
     )));
     assert!(runner.flush_deferred_menu_apply().unwrap().is_empty());
+    assert_eq!(
+        runner.menu.root.children[2].children[1].children[0].label,
+        "B1: Delay"
+    );
+    assert_eq!(
+        runner.menu.value_for_key("mixer.buses.0.name").as_deref(),
+        Some("Delay")
+    );
+    assert_eq!(
+        runner.menu.root.children[2].children[1].children[1].label,
+        "B2: None"
+    );
+    assert_eq!(
+        runner.menu.root.children[2].children[1].children[0].children[0].label,
+        "Slot 1: Delay"
+    );
+    assert!(
+        runner.menu.root.children[2].children[1].children[0].children[0]
+            .children
+            .iter()
+            .any(|item| item.label == "Feedback")
+    );
+    assert_eq!(
+        runner.menu.root.children[2].children[1].children[1].children[0].label,
+        "Slot 1: None"
+    );
+    assert!(
+        !runner.menu.root.children[2].children[1].children[1].children[0]
+            .children
+            .iter()
+            .any(|item| item.label == "Feedback")
+    );
+    assert_eq!(
+        runner.menu.root.children[2].children[2].children[0].label,
+        "Slot 1: None"
+    );
 
     let flushed = press_main(&mut runner);
     assert_eq!(runner.fx_buses[0].slot1_type, selected);
@@ -123,13 +159,21 @@ pub(crate) fn instrument_type_turn_applies_immediately() {
         Some("sampler")
     );
     assert_eq!(runner.instruments[0].kind, "sampler");
-    assert_eq!(runner.audio_config_revision, 1);
+    assert_eq!(runner.audio_config_revision, 0);
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::AudioCommands { commands }
+            if commands.iter().any(|command| matches!(
+                command,
+                RuntimeAudioCommand::SetInstrumentSlot { instrument_slot: 0, .. }
+            ))
+    )));
     assert_no_store_save_default(&messages);
     assert!(runner.flush_deferred_menu_apply().unwrap().is_empty());
 
     let messages = press_main(&mut runner);
     assert_eq!(runner.instruments[0].kind, "sampler");
-    assert_eq!(runner.audio_config_revision, 1);
+    assert_eq!(runner.audio_config_revision, 0);
     assert_no_audio_commands(&messages);
     assert_no_store_save_default(&messages);
     runner.make_deferred_menu_apply_due_for_test();

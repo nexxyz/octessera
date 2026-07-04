@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use super::{NativeRunner, Value};
 
 impl NativeRunner {
@@ -132,7 +134,7 @@ impl NativeRunner {
         true
     }
 
-    fn apply_behavior_config_menu_state(&mut self) -> Result<bool, String> {
+    pub(super) fn apply_behavior_config_menu_state(&mut self) -> Result<bool, String> {
         let next_behavior_config = self.behavior_config_from_menu()?;
         if next_behavior_config == self.behavior_config {
             return Ok(false);

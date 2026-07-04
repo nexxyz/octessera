@@ -81,7 +81,7 @@ impl NativeRunner {
     }
 }
 
-fn apply_sense_scan_and_mapping_menu_state(
+pub(super) fn apply_sense_scan_and_mapping_menu_state(
     menu: &crate::native_menu::NativeMenuModel,
     part: &mut super::NativeSensePart,
     prefix: &str,
@@ -164,7 +164,7 @@ fn apply_sense_scan_and_mapping_menu_state(
     changed
 }
 
-fn apply_sense_probability_and_pitch_menu_state(
+pub(super) fn apply_sense_probability_and_pitch_menu_state(
     menu: &crate::native_menu::NativeMenuModel,
     part: &mut super::NativeSensePart,
     prefix: &str,
@@ -215,7 +215,7 @@ fn apply_sense_probability_and_pitch_menu_state(
     changed
 }
 
-fn apply_sense_axis_menu_state(
+pub(super) fn apply_sense_axis_menu_state(
     menu: &crate::native_menu::NativeMenuModel,
     part: &mut super::NativeSensePart,
     prefix: &str,

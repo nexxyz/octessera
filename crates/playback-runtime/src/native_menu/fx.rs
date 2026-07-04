@@ -89,6 +89,29 @@ fn fx_slot_group(
     )
 }
 
+pub(crate) fn fx_bus_slot_children_for_key(
+    prefix: &str,
+    slot_type: &str,
+    params: &serde_json::Value,
+    bus_index: usize,
+) -> Vec<NativeMenuItem> {
+    fx_slot_children(
+        prefix,
+        slot_type,
+        params,
+        FX_BUS_SLOT_OPTIONS,
+        Some(bus_index),
+    )
+}
+
+pub(crate) fn global_fx_slot_children_for_key(
+    prefix: &str,
+    slot_type: &str,
+    params: &serde_json::Value,
+) -> Vec<NativeMenuItem> {
+    fx_slot_children(prefix, slot_type, params, GLOBAL_FX_SLOT_OPTIONS, None)
+}
+
 fn slot_group_label(slot_number: usize, slot_type: &str) -> String {
     format!("Slot {slot_number}: {}", fx_type_label(slot_type))
 }

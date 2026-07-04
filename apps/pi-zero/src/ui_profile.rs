@@ -38,12 +38,11 @@ pub struct UiProfiler {
     loop_gap: DurationStats,
     runtime_late: DurationStats,
     runtime_advance: DurationStats,
+    host_input: DurationStats,
     render: DurationStats,
     render_overrun: DurationStats,
     snapshot_clone: DurationStats,
     config_sync: DurationStats,
-    grid_poll: DurationStats,
-    neokey_poll: DurationStats,
     led_extract: DurationStats,
     led_write: DurationStats,
     render_neokey_build: DurationStats,
@@ -83,12 +82,11 @@ impl UiProfiler {
             loop_gap: DurationStats::default(),
             runtime_late: DurationStats::default(),
             runtime_advance: DurationStats::default(),
+            host_input: DurationStats::default(),
             render: DurationStats::default(),
             render_overrun: DurationStats::default(),
             snapshot_clone: DurationStats::default(),
             config_sync: DurationStats::default(),
-            grid_poll: DurationStats::default(),
-            neokey_poll: DurationStats::default(),
             led_extract: DurationStats::default(),
             led_write: DurationStats::default(),
             render_neokey_build: DurationStats::default(),
@@ -118,10 +116,9 @@ impl UiProfiler {
         }
     }
 
-    pub fn record_poll(&mut self, grid: Duration, neokey: Duration) {
+    pub fn record_host_input(&mut self, duration: Duration) {
         if self.enabled {
-            self.grid_poll.record(grid);
-            self.neokey_poll.record(neokey);
+            self.host_input.record(duration);
         }
     }
 
@@ -159,17 +156,16 @@ impl UiProfiler {
             return;
         }
         eprintln!(
-            "pi-ui-profile loop={} gap={} runtime_late={} runtime_advance={} render={} render_overrun={} snapshot_clone={} config_sync={} grid_poll={} neokey_poll={} led_extract={} led_write={} render_neokey_build={} render_neokey_write={} oled_signature={} oled_rendered={} oled_frame_build={} oled_write={}",
+            "pi-ui-profile loop={} gap={} runtime_late={} runtime_advance={} host_input={} render={} render_overrun={} snapshot_clone={} config_sync={} led_extract={} led_write={} render_neokey_build={} render_neokey_write={} oled_signature={} oled_rendered={} oled_frame_build={} oled_write={}",
             self.loop_iteration.summary(),
             self.loop_gap.summary(),
             self.runtime_late.summary(),
             self.runtime_advance.summary(),
+            self.host_input.summary(),
             self.render.summary(),
             self.render_overrun.summary(),
             self.snapshot_clone.summary(),
             self.config_sync.summary(),
-            self.grid_poll.summary(),
-            self.neokey_poll.summary(),
             self.led_extract.summary(),
             self.led_write.summary(),
             self.render_neokey_build.summary(),

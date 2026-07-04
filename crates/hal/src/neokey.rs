@@ -40,6 +40,10 @@ const SEESAW_GPIO_BULK: u8 = 0x04;
 #[cfg(feature = "pi-zero")]
 const SEESAW_GPIO_BULK_SET: u8 = 0x05;
 #[cfg(feature = "pi-zero")]
+const SEESAW_GPIO_INTENSET: u8 = 0x08;
+#[cfg(feature = "pi-zero")]
+const SEESAW_GPIO_INTFLAG: u8 = 0x0A;
+#[cfg(feature = "pi-zero")]
 const SEESAW_GPIO_PULLENSET: u8 = 0x0B;
 #[cfg(feature = "pi-zero")]
 const SEESAW_NEOPIXEL_BASE: u8 = 0x0E;
@@ -108,6 +112,21 @@ impl NeoKey {
         )?;
         write_register(
             &mut file,
+            SEESAW_GPIO_BASE,
+            SEESAW_GPIO_INTENSET,
+            &mask,
+            "NeoKey GPIO interrupt init failed",
+        )?;
+        let mut int_flags = [0_u8; 4];
+        read_register(
+            &mut file,
+            SEESAW_GPIO_BASE,
+            SEESAW_GPIO_INTFLAG,
+            &mut int_flags,
+            "NeoKey GPIO interrupt clear failed",
+        )?;
+        write_register(
+            &mut file,
             SEESAW_NEOPIXEL_BASE,
             SEESAW_NEOPIXEL_PIN,
             &[NEOKEY_NEOPIXEL_PIN],
@@ -149,6 +168,11 @@ impl NeoKey {
         Ok(result)
     }
 
+    pub fn scan_interrupts(&mut self) -> Result<Vec<(u8, bool)>, String> {
+        self.clear_interrupt_flags()?;
+        self.scan()
+    }
+
     pub fn raw_button_state(&mut self) -> Result<u32, String> {
         let mut file = open_device(&self.i2c_path, self.addr)?;
         let mut buf = [0_u8; 4];
@@ -160,6 +184,18 @@ impl NeoKey {
             "NeoKey raw scan failed",
         )?;
         Ok(u32::from_be_bytes(buf))
+    }
+
+    fn clear_interrupt_flags(&mut self) -> Result<(), String> {
+        let mut file = open_device(&self.i2c_path, self.addr)?;
+        let mut buf = [0_u8; 4];
+        read_register(
+            &mut file,
+            SEESAW_GPIO_BASE,
+            SEESAW_GPIO_INTFLAG,
+            &mut buf,
+            "NeoKey GPIO interrupt clear failed",
+        )
     }
 
     /// Set LED color for key (0-3)
@@ -273,6 +309,10 @@ impl NeoKey {
 
     pub fn scan(&mut self) -> Result<Vec<(u8, bool)>, String> {
         Ok(Vec::new())
+    }
+
+    pub fn scan_interrupts(&mut self) -> Result<Vec<(u8, bool)>, String> {
+        self.scan()
     }
 
     pub fn raw_button_state(&mut self) -> Result<u32, String> {

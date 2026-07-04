@@ -81,13 +81,9 @@ impl NativeRunner {
             }
             if should_apply {
                 if let Some(key) = selected_group_key.as_deref() {
-                    if super::menu_apply_fast::structural_draft_key(key) {
-                        self.clear_deferred_menu_apply();
-                    } else {
-                        self.apply_menu_state()?;
-                    }
+                    self.apply_or_schedule_menu_key(key)?;
                 } else {
-                    self.apply_menu_state()?;
+                    return Err("cannot apply menu edit: current row has no key".into());
                 }
             }
             if !effects.is_empty() {
@@ -142,10 +138,21 @@ impl NativeRunner {
             self.trigger_probability_assign = None;
         } else if self.help_popup.is_some() {
             self.help_popup = None;
-        } else if self.ui.shift_held && self.menu.delete_text_char() {
-            self.apply_menu_state()?;
         } else if self.ui.shift_held {
-            self.rebuild_engine(self.behavior)?;
+            let editing_key = self
+                .menu
+                .state
+                .editing
+                .then(|| self.menu.current_key().map(str::to_owned))
+                .flatten();
+            if self.menu.delete_text_char() {
+                let Some(key) = editing_key else {
+                    return Err("cannot apply text delete: current row has no key".into());
+                };
+                self.apply_or_schedule_menu_key(&key)?;
+            } else {
+                self.rebuild_engine(self.behavior)?;
+            }
         } else {
             if self.active_dance_mode != "none" {
                 self.active_dance_mode = "none".into();
@@ -158,14 +165,7 @@ impl NativeRunner {
                 .flatten();
             self.menu.back();
             if let Some(key) = editing_key {
-                if super::menu_apply_fast::structural_draft_key(&key) {
-                    self.clear_deferred_menu_apply();
-                } else {
-                    self.apply_menu_state()?;
-                }
-                if key == "behaviorId" {
-                    self.clear_deferred_menu_apply();
-                }
+                self.apply_or_schedule_menu_key(&key)?;
             }
         }
         self.messages_with_snapshot()

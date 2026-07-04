@@ -253,6 +253,5 @@ impl NativeRunner {
     pub fn apply_runtime_config(&mut self, config: &RuntimeConfig) {
         self.sync_source = config.sync_source.clone();
         self.bpm = config.bpm;
-        self.menu.rebuild(self.menu_config());
     }
 }

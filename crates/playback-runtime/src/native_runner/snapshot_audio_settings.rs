@@ -2,6 +2,13 @@ use super::{json, sample_assignments_payload, NativeRunner, Value, PAN_POSITION_
 use crate::protocol::RuntimeAudioCommand;
 
 impl NativeRunner {
+    pub(super) fn instrument_audio_config(&self, index: usize) -> Option<Value> {
+        self.audio_snapshot_payload()
+            .get("instruments")?
+            .get(index)
+            .cloned()
+    }
+
     pub(super) fn audio_snapshot_payload(&self) -> Value {
         json!({
             "instruments": self.instruments.iter().map(|instrument| {

@@ -6,6 +6,8 @@ use rppal::gpio::{Event, Gpio, InputPin, Level, Trigger};
 use std::sync::mpsc::Sender;
 #[cfg(feature = "pi-zero")]
 use std::sync::{Arc, Mutex};
+#[cfg(feature = "pi-zero")]
+use std::time::{Duration, Instant};
 
 #[cfg(not(feature = "pi-zero"))]
 use std::fmt;
@@ -16,6 +18,9 @@ pub enum HardwareEvent {
     EncoderTurn { id: &'static str, delta: i8 },
     EncoderPress { id: &'static str },
 }
+
+#[cfg(feature = "pi-zero")]
+const SWITCH_DEBOUNCE_MS: u64 = 80;
 
 /// Rotary encoder with GPIO interrupt handling
 #[cfg(feature = "pi-zero")]
@@ -124,7 +129,16 @@ impl EncoderGpio {
         // Switch press (active low)
         let tx_sw = tx.clone();
         let id_sw = id;
+        let last_press = Arc::new(Mutex::new(None::<Instant>));
+        let debounce = Duration::from_millis(SWITCH_DEBOUNCE_MS);
         sw.set_async_interrupt(Trigger::FallingEdge, None, move |_| {
+            let now = Instant::now();
+            if let Ok(mut last_press) = last_press.lock() {
+                if last_press.is_some_and(|last| now.duration_since(last) < debounce) {
+                    return;
+                }
+                *last_press = Some(now);
+            }
             let _ = tx_sw.send(HardwareEvent::EncoderPress { id: id_sw });
         })
         .map_err(|e| e.to_string())?;

@@ -39,6 +39,10 @@ pub enum EngineEvent {
         volume_pct: Option<f32>,
         pan_pos: Option<usize>,
     },
+    SetInstrumentSlot {
+        instrument_slot: usize,
+        config: realtime_engine::synth::InstrumentSlotConfig,
+    },
     SetFxBusMixer {
         bus_index: usize,
         pan_pos: Option<usize>,

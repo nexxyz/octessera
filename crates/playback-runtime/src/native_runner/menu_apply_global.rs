@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use super::{velocity_curve_from_id, NativeRunner};
 
 impl NativeRunner {

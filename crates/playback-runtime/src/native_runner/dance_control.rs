@@ -218,15 +218,7 @@ impl NativeRunner {
         if index == self.active_part_index {
             return Ok(());
         }
-        self.store_active_engine();
-        self.active_part_index = index;
-        self.algorithm_step_pulses = self
-            .part_algorithm_step_pulses
-            .get(index)
-            .copied()
-            .unwrap_or(super::DEFAULT_ALGORITHM_STEP_PULSES);
-        self.activate_engine(index)?;
-        self.menu.rebuild(self.menu_config());
+        self.switch_active_engine(index)?;
         self.show_toast(self.active_part_context_toast(index));
         Ok(())
     }

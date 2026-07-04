@@ -22,6 +22,9 @@ impl NativeMenuModel {
 
     pub(super) fn current_item_path(&self) -> String {
         let mut labels = self.stack_labels_with_menu();
+        if self.current_siblings().is_empty() {
+            return canonicalize_help_path(&labels.join(" > "));
+        }
         labels.push(self.current_item().label.as_str());
         canonicalize_help_path(&labels.join(" > "))
     }

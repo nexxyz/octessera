@@ -61,6 +61,16 @@ fn same_dynamic_audio_target(left: &RuntimeAudioCommand, right: &RuntimeAudioCom
                 && left_pan.is_some() == right_pan.is_some()
         }
         (
+            RuntimeAudioCommand::SetInstrumentSlot {
+                instrument_slot: left_slot,
+                ..
+            },
+            RuntimeAudioCommand::SetInstrumentSlot {
+                instrument_slot: right_slot,
+                ..
+            },
+        ) => left_slot == right_slot,
+        (
             RuntimeAudioCommand::SetFxBusMixer {
                 bus_index: left_bus,
                 pan_pos: left_pan,

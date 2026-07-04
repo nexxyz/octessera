@@ -29,6 +29,11 @@ pub enum RuntimeAudioCommand {
         #[serde(default, rename = "panPos")]
         pan_pos: Option<usize>,
     },
+    SetInstrumentSlot {
+        #[serde(rename = "instrumentSlot")]
+        instrument_slot: usize,
+        config: Value,
+    },
     SetFxBusMixer {
         #[serde(rename = "busIndex")]
         bus_index: usize,

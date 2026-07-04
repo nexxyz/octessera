@@ -52,6 +52,10 @@ fn apply_events(engine: &mut SynthEngine, events: &[EngineEvent]) {
                 volume_pct,
                 pan_pos,
             } => engine.set_instrument_mixer(*instrument_slot, *volume_pct, *pan_pos),
+            EngineEvent::SetInstrumentSlot {
+                instrument_slot,
+                config,
+            } => engine.set_instrument_slot(*instrument_slot, config.clone()),
             EngineEvent::SetFxBusMixer { bus_index, pan_pos } => {
                 engine.set_fx_bus_mixer(*bus_index, *pan_pos)
             }

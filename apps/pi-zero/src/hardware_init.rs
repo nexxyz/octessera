@@ -1,5 +1,6 @@
 use cellsymphony_hal::{
     encoder_gpio::HardwareEvent, EncoderGpio, I2CBus, I2sDac, NeoKey, NeoTrellis, OledSsd1351,
+    SeesawInterrupt,
 };
 use std::sync::mpsc;
 
@@ -10,6 +11,7 @@ pub(crate) struct HardwareDevices {
     pub(crate) oled: OledSsd1351,
     pub(crate) trellis: NeoTrellis,
     pub(crate) neokey: NeoKey,
+    pub(crate) input_interrupt: SeesawInterrupt,
     pub(crate) _dac: I2sDac,
 }
 
@@ -19,21 +21,26 @@ pub(crate) fn init_hardware() -> Result<HardwareDevices, HardwareFault> {
     let oled = init_device("OLED", OledSsd1351::new(), &mut fault);
     let trellis = init_device("TRELLIS", NeoTrellis::new("/dev/i2c-1"), &mut fault);
     let neokey = init_device("NEOKEY", NeoKey::new("/dev/i2c-1"), &mut fault);
+    let input_interrupt = init_device("SEESAW_INT", SeesawInterrupt::new(), &mut fault);
     let dac = init_device("DAC", I2sDac::new(), &mut fault);
 
-    match (i2c_bus, oled, trellis, neokey, dac) {
-        (Some(_i2c_bus), Some(oled), Some(trellis), Some(neokey), Some(_dac))
-            if fault.is_empty() =>
-        {
-            Ok(HardwareDevices {
-                _i2c_bus,
-                oled,
-                trellis,
-                neokey,
-                _dac,
-            })
-        }
-        (_, oled, trellis, neokey, _) => {
+    match (i2c_bus, oled, trellis, neokey, input_interrupt, dac) {
+        (
+            Some(_i2c_bus),
+            Some(oled),
+            Some(trellis),
+            Some(neokey),
+            Some(input_interrupt),
+            Some(_dac),
+        ) if fault.is_empty() => Ok(HardwareDevices {
+            _i2c_bus,
+            oled,
+            trellis,
+            neokey,
+            input_interrupt,
+            _dac,
+        }),
+        (_, oled, trellis, neokey, _, _) => {
             fault.attach_outputs(oled, trellis, neokey);
             Err(fault)
         }

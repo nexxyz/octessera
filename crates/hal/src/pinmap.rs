@@ -26,26 +26,29 @@ pub struct EncoderPins {
 
 /// Rotary encoders on Pi Zero 2W: main plus aux controls.
 pub const ENCODERS: [EncoderPins; 1 + platform_core::AUX_ENCODER_COUNT] = [
-    EncoderPins { a: 5, b: 6, sw: 12 }, // SW1 (main)
+    EncoderPins { a: 6, b: 5, sw: 12 }, // SW1 (main)
     EncoderPins {
-        a: 13,
-        b: 25,
+        a: 25,
+        b: 13,
         sw: 17,
     }, // SW2 (aux1)
     EncoderPins {
-        a: 27,
-        b: 4,
+        a: 4,
+        b: 27,
         sw: 14,
     }, // SW3 (aux2)
     EncoderPins {
-        a: 26,
-        b: 24,
+        a: 24,
+        b: 26,
         sw: 22,
     }, // SW4 (aux3)
 ];
 
 /// NeoKey I2C address with A0, A1, A2, and A3 jumpers soldered.
 pub const NEOKEY_ADDR: u16 = 0x3F;
+
+/// Shared active-low interrupt line for NeoTrellis and NeoKey seesaw devices.
+pub const SEESAW_INT: u8 = 15;
 
 /// NeoTrellis I2C addresses ordered left-to-right, top-to-bottom.
 pub const TRELLIS_ADDRS: [u16; 4] = [0x2E, 0x2F, 0x30, 0x31];

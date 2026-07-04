@@ -1,5 +1,7 @@
-use cellsymphony_hal::{NeoKey, NeoTrellis, OledSsd1351};
+use crate::seesaw_io::SeesawCommand;
+use cellsymphony_hal::OledSsd1351;
 use serde_json::Value;
+use std::sync::mpsc::Sender;
 use std::time::Instant;
 
 mod oled;
@@ -16,8 +18,7 @@ const SPLASH_SEPIA: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/splash_sep
 
 pub struct HardwareRenderTargets<'a> {
     pub oled: &'a mut OledSsd1351,
-    pub trellis: &'a mut NeoTrellis,
-    pub neokey: &'a mut NeoKey,
+    pub seesaw_tx: &'a Sender<SeesawCommand>,
 }
 
 pub struct HardwareRenderCache {
@@ -51,22 +52,26 @@ pub fn render_snapshot_cached(
 ) {
     if let Some(frame) = led_frame(snapshot) {
         if cache.led_frame.as_ref() != Some(&frame) {
-            let _ = targets.trellis.write_led_frame(&frame);
-            cache.led_frame = Some(frame);
+            if targets
+                .seesaw_tx
+                .send(SeesawCommand::GridFrame(frame))
+                .is_ok()
+            {
+                cache.led_frame = Some(frame);
+            }
         }
     }
 
     let neokey = neokey_colors(snapshot);
     let previous_neokey = cache.neokey_colors.unwrap_or([[u8::MAX; 3]; 4]);
-    for (index, color) in neokey.iter().enumerate() {
-        if previous_neokey.get(index) == Some(color) {
-            continue;
-        }
-        let _ = targets
-            .neokey
-            .set_led(index as u8, color[0], color[1], color[2]);
+    if previous_neokey != neokey
+        && targets
+            .seesaw_tx
+            .send(SeesawCommand::NeoKeyColors(neokey))
+            .is_ok()
+    {
+        cache.neokey_colors = Some(neokey);
     }
-    cache.neokey_colors = Some(neokey);
 
     let signature = oled_signature(snapshot);
     if cache.oled_signature != signature {
@@ -88,11 +93,16 @@ pub fn render_snapshot_cached_profiled(
         }
         if cache.led_frame.as_ref() != Some(&frame) {
             let write_started = Instant::now();
-            let _ = targets.trellis.write_led_frame(&frame);
+            let sent = targets
+                .seesaw_tx
+                .send(SeesawCommand::GridFrame(frame))
+                .is_ok();
             if let Some(metrics) = metrics.as_deref_mut() {
                 metrics.led_write = write_started.elapsed();
             }
-            cache.led_frame = Some(frame);
+            if sent {
+                cache.led_frame = Some(frame);
+            }
         }
     }
 
@@ -103,18 +113,24 @@ pub fn render_snapshot_cached_profiled(
     }
     let previous_neokey = cache.neokey_colors.unwrap_or([[u8::MAX; 3]; 4]);
     let neokey_write_started = Instant::now();
+    let mut changed = false;
     for (index, color) in neokey.iter().enumerate() {
         if previous_neokey.get(index) == Some(color) {
             continue;
         }
-        let _ = targets
-            .neokey
-            .set_led(index as u8, color[0], color[1], color[2]);
+        changed = true;
     }
+    let sent = !changed
+        || targets
+            .seesaw_tx
+            .send(SeesawCommand::NeoKeyColors(neokey))
+            .is_ok();
     if let Some(metrics) = metrics.as_deref_mut() {
         metrics.neokey_write = neokey_write_started.elapsed();
     }
-    cache.neokey_colors = Some(neokey);
+    if sent {
+        cache.neokey_colors = Some(neokey);
+    }
 
     let signature_started = Instant::now();
     let signature = oled_signature(snapshot);

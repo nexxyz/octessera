@@ -5,6 +5,12 @@ impl NativeRunner {
         if self.apply_deferred_text_key(key) {
             return true;
         }
+        if key == "dance.fx.type" {
+            if self.apply_dance_fx_menu_state() {
+                self.config_dirty = true;
+            }
+            return true;
+        }
         if let Some(rest) = key.strip_prefix("mixer.buses.") {
             let Some((bus_index, rest)) = parse_indexed_key(rest) else {
                 return false;

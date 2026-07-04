@@ -157,7 +157,7 @@ impl NeoTrellis {
             if raw_count == 0 {
                 continue;
             }
-            let key_count = raw_count.saturating_add(2).min(16);
+            let key_count = raw_count.min(16);
 
             let mut buf = [0_u8; 16];
             read_register(
@@ -204,7 +204,7 @@ impl NeoTrellis {
 
             for y in base_y..(base_y + 4) {
                 for x in base_x..(base_x + 4) {
-                    let idx = ((7 - y) * 8 + x) as usize;
+                    let idx = (y * 8 + x) as usize;
                     let rgb = &frame[idx];
                     data.extend_from_slice(&[rgb[1], rgb[0], rgb[2]]);
                 }

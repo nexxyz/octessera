@@ -25,6 +25,8 @@ const CMD_DISPLAY_OFF: u8 = 0xAE;
 #[cfg(feature = "pi-zero")]
 const CMD_NORMAL_DISPLAY: u8 = 0xA6;
 #[cfg(feature = "pi-zero")]
+const CMD_DISPLAY_ALL_ON: u8 = 0xA5;
+#[cfg(feature = "pi-zero")]
 const CMD_SET_REMAP: u8 = 0xA0;
 #[cfg(feature = "pi-zero")]
 const CMD_SET_START_LINE: u8 = 0xA1;
@@ -43,6 +45,8 @@ const CMD_SET_VSL: u8 = 0xB4;
 #[cfg(feature = "pi-zero")]
 const CMD_SET_PRECHARGE2: u8 = 0xB6;
 #[cfg(feature = "pi-zero")]
+const CMD_SET_PRECHARGE_VOLTAGE: u8 = 0xBB;
+#[cfg(feature = "pi-zero")]
 const CMD_SET_VCOMH: u8 = 0xBE;
 #[cfg(feature = "pi-zero")]
 const CMD_SET_CONTRAST: u8 = 0xC1;
@@ -54,6 +58,14 @@ const CMD_SET_MUX_RATIO: u8 = 0xCA;
 const CMD_SET_COMMAND_LOCK: u8 = 0xFD;
 #[cfg(feature = "pi-zero")]
 const SPI_CHUNK_BYTES: usize = 4096;
+#[cfg(feature = "pi-zero")]
+const WIDTH: usize = 128;
+#[cfg(feature = "pi-zero")]
+const HEIGHT: usize = 128;
+#[cfg(feature = "pi-zero")]
+const BYTES_PER_PIXEL: usize = 2;
+#[cfg(feature = "pi-zero")]
+const FRAME_BYTES: usize = WIDTH * HEIGHT * BYTES_PER_PIXEL;
 
 /// OLED display driver
 #[cfg(feature = "pi-zero")]
@@ -61,6 +73,7 @@ pub struct OledSsd1351 {
     spi: Spidev,
     dc: OutputPin,
     _rst: OutputPin,
+    rotated_frame: Vec<u8>,
 }
 
 #[cfg(feature = "pi-zero")]
@@ -68,13 +81,14 @@ impl OledSsd1351 {
     /// Initialize OLED on SPI bus 0
     pub fn new() -> Result<Self, String> {
         // Open SPI device
-        let mut spi =
-            Spidev::open("/dev/spidev0.0").map_err(|e| format!("SPI open failed: {}", e))?;
+        let spi_device = std::env::var("CELLSYMPHONY_OLED_SPI_DEVICE")
+            .unwrap_or_else(|_| "/dev/spidev0.0".into());
+        let mut spi = Spidev::open(&spi_device).map_err(|e| format!("SPI open failed: {}", e))?;
 
-        // Configure SPI: mode 0, 8-bit, 1MHz for reliable bring-up.
+        // Configure SPI: mode 0, 8-bit, 16MHz for the Adafruit SSD1351 breakout.
         let mut config = spidev::SpidevOptions::new();
-        config.mode(spidev::SpiModeFlags::SPI_MODE_0);
-        config.max_speed_hz(1_000_000u32);
+        config.mode(spi_mode_from_env());
+        config.max_speed_hz(spi_speed_hz_from_env());
         config.bits_per_word(8);
         spi.configure(&config)
             .map_err(|e| format!("SPI configure failed: {}", e))?;
@@ -90,11 +104,15 @@ impl OledSsd1351 {
             .map_err(|e| e.to_string())?
             .into_output();
 
+        std::thread::sleep(std::time::Duration::from_millis(250));
+
         // Hardware reset pulse
+        rst.set_high();
+        std::thread::sleep(std::time::Duration::from_millis(100));
         rst.set_low();
         std::thread::sleep(std::time::Duration::from_millis(100));
         rst.set_high();
-        std::thread::sleep(std::time::Duration::from_millis(100));
+        std::thread::sleep(std::time::Duration::from_millis(250));
 
         // Init sequence for SSD1351 / Adafruit 1431.
         Self::write_command(&mut spi, &mut dc, CMD_SET_COMMAND_LOCK, &[0x12])?;
@@ -112,6 +130,7 @@ impl OledSsd1351 {
         Self::write_command(&mut spi, &mut dc, CMD_SET_GPIO, &[0x00])?;
         Self::write_command(&mut spi, &mut dc, CMD_FUNCTION_SELECTION, &[0x01])?;
         Self::write_command(&mut spi, &mut dc, CMD_SET_PRECHARGE1, &[0x32])?;
+        Self::write_command(&mut spi, &mut dc, CMD_SET_PRECHARGE_VOLTAGE, &[0x17])?;
         Self::write_command(&mut spi, &mut dc, CMD_SET_VCOMH, &[0x05])?;
         Self::write_command(&mut spi, &mut dc, CMD_NORMAL_DISPLAY, &[])?;
         Self::write_command(&mut spi, &mut dc, CMD_SET_CONTRAST, &[0xC8, 0x80, 0xC8])?;
@@ -120,8 +139,14 @@ impl OledSsd1351 {
         Self::write_command(&mut spi, &mut dc, CMD_SET_PRECHARGE2, &[0x01])?;
 
         Self::write_command(&mut spi, &mut dc, CMD_DISPLAY_ON, &[])?;
+        std::thread::sleep(std::time::Duration::from_millis(100));
 
-        Ok(Self { spi, dc, _rst: rst })
+        Ok(Self {
+            spi,
+            dc,
+            _rst: rst,
+            rotated_frame: vec![0_u8; FRAME_BYTES],
+        })
     }
 
     /// Write command + optional data bytes
@@ -161,11 +186,32 @@ impl OledSsd1351 {
         // Write to RAM
         Self::write_command(&mut self.spi, &mut self.dc, CMD_WRITE_RAM, &[])?;
         self.dc.set_high();
-        write_all_chunked(&mut self.spi, pixels)
+        let frame = rotate_clockwise_rgb565(pixels, &mut self.rotated_frame);
+        write_all_chunked(&mut self.spi, frame)
             .map_err(|e| format!("SPI frame write failed: {}", e))?;
 
         Ok(())
     }
+
+    pub fn display_all_on(&mut self) -> Result<(), String> {
+        Self::write_command(&mut self.spi, &mut self.dc, CMD_DISPLAY_ALL_ON, &[])
+    }
+}
+
+#[cfg(feature = "pi-zero")]
+fn rotate_clockwise_rgb565<'a>(pixels: &'a [u8], rotated: &'a mut [u8]) -> &'a [u8] {
+    if pixels.len() != FRAME_BYTES || rotated.len() != FRAME_BYTES {
+        return pixels;
+    }
+    for y in 0..HEIGHT {
+        for x in 0..WIDTH {
+            let source = (y * WIDTH + x) * BYTES_PER_PIXEL;
+            let destination = (x * WIDTH + (WIDTH - 1 - y)) * BYTES_PER_PIXEL;
+            rotated[destination] = pixels[source];
+            rotated[destination + 1] = pixels[source + 1];
+        }
+    }
+    rotated
 }
 
 #[cfg(feature = "pi-zero")]
@@ -174,6 +220,24 @@ fn write_all_chunked(spi: &mut Spidev, data: &[u8]) -> std::io::Result<()> {
         spi.write_all(chunk)?;
     }
     Ok(())
+}
+
+#[cfg(feature = "pi-zero")]
+fn spi_speed_hz_from_env() -> u32 {
+    std::env::var("CELLSYMPHONY_OLED_SPI_SPEED_HZ")
+        .ok()
+        .and_then(|value| value.parse::<u32>().ok())
+        .unwrap_or(16_000_000)
+}
+
+#[cfg(feature = "pi-zero")]
+fn spi_mode_from_env() -> spidev::SpiModeFlags {
+    match std::env::var("CELLSYMPHONY_OLED_SPI_MODE").as_deref() {
+        Ok("1") => spidev::SpiModeFlags::SPI_MODE_1,
+        Ok("2") => spidev::SpiModeFlags::SPI_MODE_2,
+        Ok("3") => spidev::SpiModeFlags::SPI_MODE_3,
+        _ => spidev::SpiModeFlags::SPI_MODE_0,
+    }
 }
 
 /// Stub for non-Pi builds
@@ -189,6 +253,10 @@ impl OledSsd1351 {
     }
 
     pub fn write_frame(&mut self, _pixels: &[u8]) -> Result<(), String> {
+        Ok(())
+    }
+
+    pub fn display_all_on(&mut self) -> Result<(), String> {
         Ok(())
     }
 }

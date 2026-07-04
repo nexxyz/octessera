@@ -142,6 +142,16 @@ impl SynthEngine {
         }
     }
 
+    pub fn set_instrument_slot(&mut self, index: usize, slot: InstrumentSlotConfig) {
+        if index >= INSTRUMENT_SLOT_COUNT {
+            return;
+        }
+        self.slot_kind[index] = parse_instrument_kind(&slot.kind);
+        self.apply_instrument_slot_config(index, slot);
+        self.refresh_slot_pan_gains();
+        self.refresh_routed_bus_slot_count();
+    }
+
     fn apply_instrument_slot_config(&mut self, idx: usize, slot: InstrumentSlotConfig) {
         let InstrumentSlotConfig {
             kind: _,

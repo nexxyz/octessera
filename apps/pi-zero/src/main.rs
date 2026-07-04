@@ -13,10 +13,12 @@ mod host_audio_prep;
 mod input;
 mod main_paths;
 mod main_runtime_loop;
+mod oled_test;
 mod render;
 mod render_loop;
 mod runtime_loop;
 mod sample_browser;
+mod seesaw_io;
 mod ui_profile;
 
 use audio::AudioManager;
@@ -27,7 +29,7 @@ use input::{midi_realtime_message, MidiMessage};
 use playback_runtime::{
     NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig, SyncSource,
 };
-use render::HardwareRenderCache;
+use render::{HardwareRenderCache, HardwareRenderTargets};
 use runtime_loop::initialize_host_state;
 use std::sync::mpsc;
 use std::sync::Arc;
@@ -37,8 +39,8 @@ use ui_profile::UiProfiler;
 
 use main_paths::{default_samples_dir, default_store_dir, ensure_runtime_dirs};
 use main_runtime_loop::{
-    drain_encoder_events, drain_midi_messages, flush_pending_encoder_turns, maybe_advance_runtime,
-    poll_grid, poll_neokey,
+    drain_encoder_events, drain_host_messages, drain_midi_messages, flush_pending_encoder_turns,
+    maybe_advance_runtime,
 };
 
 const PLAYBACK_TICK_MS: u64 = 8;
@@ -71,10 +73,12 @@ fn main() {
     let HardwareDevices {
         _i2c_bus,
         mut oled,
-        mut trellis,
-        mut neokey,
+        trellis,
+        neokey,
+        input_interrupt,
         _dac,
     } = hardware;
+    let seesaw_io = seesaw_io::spawn(trellis, neokey, input_interrupt);
     let audio = init_audio();
 
     let (midi_tx, midi_rx) = mpsc::channel::<MidiMessage>();
@@ -101,11 +105,14 @@ fn main() {
     }
 
     let _ = oled.write_frame(&vec![0_u8; 128 * 128 * 2]);
-    let mut previous_neokey = [false; 4];
     let mut last_tick = Instant::now();
     let mut last_snapshot_request = Instant::now();
     let mut last_render = Instant::now() - Duration::from_millis(RENDER_INTERVAL_MS);
     let mut render_cache = HardwareRenderCache::default();
+    let mut render_targets = HardwareRenderTargets {
+        oled: &mut oled,
+        seesaw_tx: &seesaw_io.command_tx,
+    };
     let mut pending_encoder_turns = PendingEncoderTurns::default();
     let mut ui_profiler = UiProfiler::from_process();
     let profile_enabled = ui_profiler.enabled();
@@ -125,6 +132,16 @@ fn main() {
             .map(|(loop_start, last)| loop_start.duration_since(last));
         last_loop_start = loop_start;
         drain_midi_messages(&midi_rx, &mut playback, &mut runner, &mut adapter);
+        let host_input_started = profile_enabled.then(Instant::now);
+        drain_host_messages(
+            &seesaw_io.input_rx,
+            &mut playback,
+            &mut runner,
+            &mut adapter,
+        );
+        if let Some(started) = host_input_started {
+            ui_profiler.record_host_input(started.elapsed());
+        }
         drain_encoder_events(
             &event_rx,
             &mut pending_encoder_turns,
@@ -139,21 +156,6 @@ fn main() {
             &mut adapter,
         );
 
-        let grid_poll_started = profile_enabled.then(Instant::now);
-        poll_grid(&mut trellis, &mut playback, &mut runner, &mut adapter);
-        let grid_poll_duration = grid_poll_started.map(|started| started.elapsed());
-        let neokey_poll_started = profile_enabled.then(Instant::now);
-        poll_neokey(
-            &mut neokey,
-            &mut previous_neokey,
-            &mut playback,
-            &mut runner,
-            &mut adapter,
-        );
-        if let (Some(grid), Some(neokey_started)) = (grid_poll_duration, neokey_poll_started) {
-            ui_profiler.record_poll(grid, neokey_started.elapsed());
-        }
-
         if maybe_advance_runtime(
             &mut last_tick,
             tick_duration,
@@ -165,10 +167,8 @@ fn main() {
             &mut playback,
             &mut runner,
             &mut adapter,
-            &mut oled,
-            &mut trellis,
-            &mut neokey,
             &mut render_cache,
+            &mut render_targets,
             &mut ui_profiler,
         ) {
             break;
@@ -188,6 +188,9 @@ fn run_requested_utility() {
     }
     if diagnostics::diagnostic_requested() {
         std::process::exit(exit_code(diagnostics::run_pre_hardware_diagnostics()));
+    }
+    if oled_test::requested() {
+        std::process::exit(exit_code(oled_test::run()));
     }
     if hardware_test::noise_requested() {
         std::process::exit(exit_code(hardware_test::run_noise_only()));

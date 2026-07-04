@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use super::{
     apply_fx_param_menu_state, derive_bus_name, fx_default_params, set_bool_from_menu,
     set_string_from_menu, set_u8_from_menu, NativeRunner, Value,

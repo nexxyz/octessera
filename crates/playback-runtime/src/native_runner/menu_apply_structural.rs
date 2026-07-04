@@ -1,4 +1,5 @@
 use super::{derive_instrument_name, NativeRunner};
+use crate::protocol::RuntimeAudioCommand;
 
 impl NativeRunner {
     pub(super) fn commit_behavior_structural_draft(&mut self) -> Result<(), String> {
@@ -12,9 +13,13 @@ impl NativeRunner {
             .unwrap_or_else(|| self.behavior.id().into());
         let behavior_changed = behavior_id.as_str() != self.behavior.id();
         let part_behavior_changed = behavior_id != current_part_behavior_id;
+        let previous_part_label = self
+            .part_names
+            .get(self.active_part_index)
+            .map(|name| format!("P{}: {name}", self.active_part_index + 1));
         if !behavior_changed && !part_behavior_changed {
             if self.sync_active_part_auto_name(&behavior_id) {
-                self.menu.rebuild(self.menu_config());
+                self.update_active_part_menu_label(previous_part_label.as_deref());
                 self.mark_fast_autosave_dirty();
             }
             return Ok(());
@@ -60,9 +65,33 @@ impl NativeRunner {
             )?;
             self.behavior = behavior;
         }
-        self.menu.rebuild(self.menu_config());
+        self.update_active_part_menu_label(previous_part_label.as_deref());
+        self.update_active_l1_menu_items();
         self.mark_fast_autosave_dirty();
         Ok(())
+    }
+
+    fn update_active_part_menu_label(&mut self, previous_label: Option<&str>) {
+        let Some(name) = self.part_names.get(self.active_part_index) else {
+            return;
+        };
+        let name = name.clone();
+        self.menu
+            .set_text_value_for_key(&format!("parts.{}.name", self.active_part_index), &name);
+        let next_label = format!("P{}: {name}", self.active_part_index + 1);
+        if let Some(previous_label) = previous_label {
+            self.menu.replace_label(previous_label, &next_label);
+        }
+    }
+
+    fn update_active_l1_menu_items(&mut self) {
+        let Some(name) = self.part_names.get(self.active_part_index) else {
+            return;
+        };
+        let label = format!("P{}: {name}", self.active_part_index + 1);
+        let children = self.l1_menu_items();
+        self.menu
+            .replace_group_children_for_label(&label, &children);
     }
 
     pub(super) fn commit_instrument_type_structural_draft(&mut self, index: usize) {
@@ -78,12 +107,19 @@ impl NativeRunner {
         if instrument.kind == kind {
             return;
         }
+        let previous_label = instrument_overview_label(index, instrument);
         instrument.kind = kind;
         if instrument.auto_name {
             instrument.name = derive_instrument_name(index, &instrument.kind);
         }
-        self.audio_config_revision = self.audio_config_revision.wrapping_add(1);
-        self.menu.rebuild(self.menu_config());
+        let next_label = instrument_overview_label(index, instrument);
+        self.menu.replace_label(&previous_label, &next_label);
+        if let Some(config) = self.instrument_audio_config(index) {
+            self.queue_audio_command(RuntimeAudioCommand::SetInstrumentSlot {
+                instrument_slot: index,
+                config,
+            });
+        }
         self.mark_fast_autosave_dirty();
     }
 
@@ -103,5 +139,15 @@ impl NativeRunner {
         instrument.route = route;
         self.audio_config_revision = self.audio_config_revision.wrapping_add(1);
         self.mark_fast_autosave_dirty();
+    }
+}
+
+fn instrument_overview_label(index: usize, instrument: &super::NativeInstrumentSlot) -> String {
+    let prefix = format!("I{}:", index + 1);
+    match instrument.kind.as_str() {
+        "sampler" => format!("{prefix} samp {}", instrument.route),
+        "midi" => format!("{prefix} midi ch{}", instrument.midi_channel),
+        "none" => format!("{prefix} none"),
+        _ => format!("{prefix} synth {}", instrument.route),
     }
 }

@@ -1,10 +1,10 @@
 use crate::encoder_queue::PendingEncoderTurns;
 use crate::host_adapter::PiPlaybackHostAdapter;
-use crate::input::{encoder_press_message, grid_message, neokey_message, MidiMessage};
+use crate::input::{encoder_press_message, MidiMessage};
 use crate::render::{HardwareRenderCache, HardwareRenderTargets};
 use crate::runtime_loop::{dispatch_runtime_message, handle_deferred_host_work};
 use crate::ui_profile::UiProfiler;
-use cellsymphony_hal::{encoder_gpio::HardwareEvent, NeoKey, NeoTrellis, OledSsd1351};
+use cellsymphony_hal::encoder_gpio::HardwareEvent;
 use playback_runtime::{HostMessage, NativeRunner, PlaybackRuntime};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
@@ -25,6 +25,20 @@ pub(crate) fn drain_midi_messages(
                 }
             }
         }
+    }
+}
+
+pub(crate) fn drain_host_messages(
+    input_rx: &mpsc::Receiver<HostMessage>,
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    adapter: &mut PiPlaybackHostAdapter,
+) {
+    for _ in 0..HARDWARE_EVENT_BUDGET {
+        let Ok(message) = input_rx.try_recv() else {
+            break;
+        };
+        dispatch_or_log(playback, runner, adapter, message);
     }
 }
 
@@ -53,40 +67,6 @@ pub(crate) fn drain_encoder_events(
     }
 }
 
-pub(crate) fn poll_grid(
-    trellis: &mut NeoTrellis,
-    playback: &mut PlaybackRuntime,
-    runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter,
-) {
-    if let Ok(presses) = trellis.scan_keys() {
-        for (x, y, pressed) in presses {
-            dispatch_or_log(playback, runner, adapter, grid_message(x, y, pressed));
-        }
-    }
-}
-
-pub(crate) fn poll_neokey(
-    neokey: &mut NeoKey,
-    previous_neokey: &mut [bool; 4],
-    playback: &mut PlaybackRuntime,
-    runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter,
-) {
-    if let Ok(keys) = neokey.scan() {
-        for (key, pressed) in keys {
-            let index = usize::from(key.min(3));
-            if previous_neokey[index] == pressed {
-                continue;
-            }
-            previous_neokey[index] = pressed;
-            if let Some(message) = neokey_message(key, pressed) {
-                dispatch_or_log(playback, runner, adapter, message);
-            }
-        }
-    }
-}
-
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn maybe_advance_runtime(
     last_tick: &mut Instant,
@@ -99,10 +79,8 @@ pub(crate) fn maybe_advance_runtime(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
     adapter: &mut PiPlaybackHostAdapter,
-    oled: &mut OledSsd1351,
-    trellis: &mut NeoTrellis,
-    neokey: &mut NeoKey,
     render_cache: &mut HardwareRenderCache,
+    targets: &mut HardwareRenderTargets<'_>,
     ui_profiler: &mut UiProfiler,
 ) -> bool {
     if last_tick.elapsed() < tick_duration {
@@ -135,10 +113,8 @@ pub(crate) fn maybe_advance_runtime(
         render_interval,
         playback,
         runner,
-        oled,
-        trellis,
-        neokey,
         render_cache,
+        targets,
         ui_profiler,
     );
     shutdown_if_requested(adapter)
@@ -166,32 +142,24 @@ fn dispatch_or_log(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn render_if_due(
     now: Instant,
     last_render: &mut Instant,
     render_interval: Duration,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    oled: &mut OledSsd1351,
-    trellis: &mut NeoTrellis,
-    neokey: &mut NeoKey,
     render_cache: &mut HardwareRenderCache,
+    targets: &mut HardwareRenderTargets<'_>,
     ui_profiler: &mut UiProfiler,
 ) {
     if now.duration_since(*last_render) < render_interval {
         return;
     }
     *last_render = now;
-    let mut targets = HardwareRenderTargets {
-        oled,
-        trellis,
-        neokey,
-    };
     crate::render_loop::render_latest_snapshot(
         playback,
         runner,
-        &mut targets,
+        targets,
         render_cache,
         ui_profiler,
         render_interval,

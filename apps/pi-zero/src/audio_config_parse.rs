@@ -28,7 +28,7 @@ struct AudioConfigPayload {
     voice_stealing_mode: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 struct AudioInstrumentPayload {
     #[serde(rename = "type")]
     kind: String,
@@ -40,7 +40,7 @@ struct AudioInstrumentPayload {
     sample: Option<AudioSamplePayload>,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 pub(crate) struct AudioSamplePayload {
     #[serde(default)]
     slots: Vec<AudioSampleSlotPayload>,
@@ -50,13 +50,13 @@ pub(crate) struct AudioSamplePayload {
     amp: Option<AudioSampleAmpPayload>,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 struct AudioSampleSlotPayload {
     #[serde(default)]
     path: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 struct AudioSampleAmpPayload {
     #[serde(default, rename = "gainPct")]
     gain_pct: Option<f32>,
@@ -64,7 +64,7 @@ struct AudioSampleAmpPayload {
     velocity_sensitivity_pct: Option<f32>,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct AudioInstrumentMixerPayload {
     #[serde(default)]
@@ -120,28 +120,11 @@ pub(crate) fn parse_audio_config(config: &serde_json::Value) -> Result<ParsedAud
             .instruments
             .into_iter()
             .map(|slot| {
-                let AudioInstrumentPayload {
-                    kind,
-                    synth,
-                    mixer,
-                    sample,
-                } = slot;
                 sample_sources.push(SampleSource {
-                    kind: kind.clone(),
-                    sample,
+                    kind: slot.kind.clone(),
+                    sample: slot.sample.clone(),
                 });
-                InstrumentSlotConfig {
-                    kind,
-                    synth: synth.unwrap_or_else(default_synth_config),
-                    mixer: Some(InstrumentMixerConfig {
-                        route: mixer
-                            .as_ref()
-                            .and_then(|m| m.route.clone())
-                            .unwrap_or_else(|| "direct".to_string()),
-                        pan_pos: mixer.as_ref().and_then(|m| m.pan_pos).unwrap_or(16),
-                        volume: mixer.as_ref().and_then(|m| m.volume).unwrap_or(100.0),
-                    }),
-                }
+                instrument_slot_config(slot)
             })
             .collect(),
         mixer: config.mixer.map(mixer_config),
@@ -153,6 +136,35 @@ pub(crate) fn parse_audio_config(config: &serde_json::Value) -> Result<ParsedAud
         sample_sources,
         voice_stealing_mode: config.voice_stealing_mode,
     })
+}
+
+pub(crate) fn parse_instrument_slot_config(
+    config: &serde_json::Value,
+) -> Result<InstrumentSlotConfig, String> {
+    let slot = serde_json::from_value::<AudioInstrumentPayload>(config.clone())
+        .map_err(|e| format!("invalid instrument slot payload: {e}"))?;
+    Ok(instrument_slot_config(slot))
+}
+
+fn instrument_slot_config(slot: AudioInstrumentPayload) -> InstrumentSlotConfig {
+    let AudioInstrumentPayload {
+        kind,
+        synth,
+        mixer,
+        sample: _,
+    } = slot;
+    InstrumentSlotConfig {
+        kind,
+        synth: synth.unwrap_or_else(default_synth_config),
+        mixer: Some(InstrumentMixerConfig {
+            route: mixer
+                .as_ref()
+                .and_then(|m| m.route.clone())
+                .unwrap_or_else(|| "direct".to_string()),
+            pan_pos: mixer.as_ref().and_then(|m| m.pan_pos).unwrap_or(16),
+            volume: mixer.as_ref().and_then(|m| m.volume).unwrap_or(100.0),
+        }),
+    }
 }
 
 pub(crate) fn parse_voice_stealing_mode(raw: &str) -> VoiceStealingMode {

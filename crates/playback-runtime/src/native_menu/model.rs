@@ -4,7 +4,11 @@ use super::help::menu_help_target;
 use super::model_binding_specs::param_binding_from_item_key;
 use super::model_edit::{turn_key_in_item, turn_text_value};
 use super::model_navigation_memory::valid_child_cursor;
-use super::model_search::{find_item_by_key, find_item_path_by_key};
+use super::model_search::{
+    find_item_by_key, find_item_by_key_mut, find_item_path_by_key, replace_children_for_label,
+    replace_group_children_containing_direct_key, replace_group_label_containing_direct_key,
+    replace_item_label,
+};
 use super::model_values::{number_from_item, value_from_item};
 use super::{
     build_root, NativeMenuAction, NativeMenuConfig, NativeMenuHelpTarget, NativeMenuModel,
@@ -50,6 +54,46 @@ impl NativeMenuModel {
         self.state.cursor = *path.last().unwrap_or(&0);
         self.state.stack = path[..path.len().saturating_sub(1)].to_vec();
         self.state.editing = false;
+        true
+    }
+
+    pub fn replace_label(&mut self, old: &str, new: &str) -> bool {
+        replace_item_label(&mut self.root, old, new)
+    }
+
+    pub fn replace_group_children_for_label(
+        &mut self,
+        label: &str,
+        children: &[super::NativeMenuItem],
+    ) -> bool {
+        replace_children_for_label(&mut self.root, label, children)
+    }
+
+    pub fn replace_group_label_containing_direct_key(&mut self, key: &str, label: &str) -> bool {
+        replace_group_label_containing_direct_key(&mut self.root, key, label)
+    }
+
+    pub fn replace_group_children_containing_direct_key(
+        &mut self,
+        key: &str,
+        children: &[super::NativeMenuItem],
+    ) -> bool {
+        replace_group_children_containing_direct_key(&mut self.root, key, children)
+    }
+
+    pub fn set_text_value_for_key(&mut self, key: &str, text: &str) -> bool {
+        let Some(item) = find_item_by_key_mut(&mut self.root, key) else {
+            return false;
+        };
+        let NativeMenuValue::Text { value, cursor, .. } = &mut item.value else {
+            return false;
+        };
+        if value == text {
+            return false;
+        }
+        value.clear();
+        value.push_str(text);
+        *cursor = (*cursor).min(value.len());
         true
     }
 

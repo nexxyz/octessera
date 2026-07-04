@@ -1,5 +1,8 @@
+#![allow(dead_code)]
+
 use super::menu_apply_instrument_midi::apply_midi_menu_fields;
 use super::menu_apply_instrument_synth::apply_synth_menu_fields;
+
 use super::{
     cutoff_display_to_hz, cutoff_hz_to_display, derive_instrument_name, set_json_path_number,
     set_json_path_string, value_i32_at, value_string_at, NativeInstrumentSlot, NativeRunner,

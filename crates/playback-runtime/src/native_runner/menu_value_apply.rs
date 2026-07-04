@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use super::*;
 
 pub(super) fn set_string_from_menu(menu: &NativeMenuModel, target: &mut String, key: &str) -> bool {

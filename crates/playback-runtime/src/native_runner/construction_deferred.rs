@@ -23,6 +23,7 @@ impl NativeRunner {
         self.pending_autosave_payload_due_at = Some(Instant::now() + Duration::from_millis(150));
     }
 
+    #[allow(dead_code)]
     pub(super) fn force_autosave_payload_due(&mut self) {
         self.pending_autosave_payload_due_at = None;
     }
@@ -45,7 +46,9 @@ impl NativeRunner {
             let key = self.pending_menu_apply.as_ref().unwrap().key.clone();
             self.pending_menu_apply = None;
             if !self.apply_deferred_menu_key_fast(&key) {
-                self.apply_menu_state()?;
+                return Err(format!(
+                    "unhandled deferred menu edit key `{key}`; add an explicit deferred handler"
+                ));
             }
         }
         if autosave_due {

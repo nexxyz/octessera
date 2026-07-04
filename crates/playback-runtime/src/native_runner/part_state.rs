@@ -84,25 +84,6 @@ impl NativeRunner {
         profile
     }
 
-    pub(super) fn store_active_engine(&mut self) {
-        if let Some(config) = self.part_behavior_configs.get_mut(self.active_part_index) {
-            *config = self.behavior_config.clone();
-        }
-        if let Some(slot) = self.part_engines.get_mut(self.active_part_index) {
-            let placeholder = Self::build_engine(
-                self.behavior,
-                self.behavior_config.clone(),
-                self.interpretation_profile.clone(),
-                self.base_mapping_config.clone(),
-                self.global_sound.clone(),
-                self.note_behaviors.clone(),
-                self.active_part_index,
-            )
-            .expect("active engine placeholder");
-            *slot = Some(std::mem::replace(&mut self.engine, placeholder));
-        }
-    }
-
     pub(super) fn activate_engine(&mut self, index: usize) -> Result<(), String> {
         let behavior_id = self
             .part_behavior_ids
@@ -146,6 +127,66 @@ impl NativeRunner {
             .cloned()
             .or_else(|| self.behavior_configs.get(&behavior_id).cloned())
             .unwrap_or(Value::Null);
+        self.interpretation_profile = profile;
+        self.mapping_config = mapping;
+        Ok(())
+    }
+
+    pub(super) fn switch_active_engine(&mut self, index: usize) -> Result<(), String> {
+        let next_index = index.min(GRID_HEIGHT.saturating_sub(1));
+        if next_index == self.active_part_index {
+            return Ok(());
+        }
+
+        if let Some(config) = self.part_behavior_configs.get_mut(self.active_part_index) {
+            *config = self.behavior_config.clone();
+        }
+
+        let behavior_id = self
+            .part_behavior_ids
+            .get(next_index)
+            .cloned()
+            .unwrap_or_else(|| self.behavior.id().into());
+        let behavior = platform_core::get_native_behavior(&behavior_id)
+            .ok_or_else(|| format!("unsupported native behavior `{behavior_id}`"))?;
+        let behavior_config = self
+            .part_behavior_configs
+            .get(next_index)
+            .filter(|config| !config.is_null())
+            .cloned()
+            .or_else(|| self.behavior_configs.get(&behavior_id).cloned())
+            .unwrap_or(Value::Null);
+        let profile = self.interpretation_profile_for_part(next_index);
+        let mapping = self.mapping_config_for_part(next_index);
+        let mut next_engine = match self.part_engines.get_mut(next_index).and_then(Option::take) {
+            Some(engine) => engine,
+            None => Self::build_engine(
+                behavior,
+                behavior_config.clone(),
+                profile.clone(),
+                mapping.clone(),
+                self.global_sound.clone(),
+                self.note_behaviors.clone(),
+                next_index,
+            )?,
+        };
+        next_engine.set_interpretation_profile(profile.clone());
+        next_engine.set_mapping_config(mapping.clone());
+
+        let previous_index = self.active_part_index;
+        std::mem::swap(&mut self.engine, &mut next_engine);
+        if let Some(slot) = self.part_engines.get_mut(previous_index) {
+            *slot = Some(next_engine);
+        }
+
+        self.active_part_index = next_index;
+        self.algorithm_step_pulses = self
+            .part_algorithm_step_pulses
+            .get(next_index)
+            .copied()
+            .unwrap_or(DEFAULT_ALGORITHM_STEP_PULSES);
+        self.behavior = behavior;
+        self.behavior_config = behavior_config;
         self.interpretation_profile = profile;
         self.mapping_config = mapping;
         Ok(())

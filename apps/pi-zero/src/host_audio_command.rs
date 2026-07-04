@@ -32,6 +32,13 @@ pub fn send_audio_command(
             volume_pct: *volume_pct,
             pan_pos: *pan_pos,
         }),
+        RuntimeAudioCommand::SetInstrumentSlot {
+            instrument_slot,
+            config,
+        } => audio.send(EngineEvent::SetInstrumentSlot {
+            instrument_slot: *instrument_slot,
+            config: crate::audio_config_parse::parse_instrument_slot_config(config)?,
+        }),
         RuntimeAudioCommand::SetFxBusMixer { bus_index, pan_pos } => {
             audio.send(EngineEvent::SetFxBusMixer {
                 bus_index: *bus_index,

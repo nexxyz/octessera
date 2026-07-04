@@ -8,6 +8,7 @@ pub mod neokey;
 pub mod neotrellis;
 pub mod oled_ssd1351;
 pub mod pinmap;
+pub mod seesaw_interrupt;
 
 // Re-exports for convenience
 pub use encoder_gpio::EncoderGpio;
@@ -16,3 +17,4 @@ pub use i2s_dac::I2sDac;
 pub use neokey::NeoKey;
 pub use neotrellis::NeoTrellis;
 pub use oled_ssd1351::OledSsd1351;
+pub use seesaw_interrupt::SeesawInterrupt;
