@@ -142,6 +142,7 @@ fn dispatch_or_log(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_if_due(
     now: Instant,
     last_render: &mut Instant,

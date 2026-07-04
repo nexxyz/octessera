@@ -108,6 +108,15 @@ pub(crate) fn spawn_audio_engine_thread(
                             pan_pos,
                         });
                     }
+                    QueuedAudioEvent::SetInstrumentSlot {
+                        instrument_slot,
+                        config,
+                    } => {
+                        let _ = engine_tx.send(EngineEvent::SetInstrumentSlot {
+                            instrument_slot,
+                            config,
+                        });
+                    }
                     QueuedAudioEvent::SetFxBusMixer { bus_index, pan_pos } => {
                         let _ = engine_tx.send(EngineEvent::SetFxBusMixer { bus_index, pan_pos });
                     }

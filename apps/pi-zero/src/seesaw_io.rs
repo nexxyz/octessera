@@ -75,10 +75,8 @@ fn drain_commands(
     }
 
     if let Some(frame) = latest_grid {
-        if previous_grid_frame.as_ref() != Some(&frame) {
-            if trellis.write_led_frame(&frame).is_ok() {
-                *previous_grid_frame = Some(frame);
-            }
+        if previous_grid_frame.as_ref() != Some(&frame) && trellis.write_led_frame(&frame).is_ok() {
+            *previous_grid_frame = Some(frame);
         }
     }
 

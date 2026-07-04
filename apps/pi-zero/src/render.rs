@@ -51,14 +51,13 @@ pub fn render_snapshot_cached(
     cache: &mut HardwareRenderCache,
 ) {
     if let Some(frame) = led_frame(snapshot) {
-        if cache.led_frame.as_ref() != Some(&frame) {
-            if targets
+        if cache.led_frame.as_ref() != Some(&frame)
+            && targets
                 .seesaw_tx
                 .send(SeesawCommand::GridFrame(frame))
                 .is_ok()
-            {
-                cache.led_frame = Some(frame);
-            }
+        {
+            cache.led_frame = Some(frame);
         }
     }
 

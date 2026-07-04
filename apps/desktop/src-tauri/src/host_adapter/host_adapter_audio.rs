@@ -1,4 +1,5 @@
 use crate::audio_config::decode_sample_file;
+use crate::audio_config::parse_instrument_slot_config;
 use crate::host_adapter::DesktopPlaybackHostAdapter;
 use crate::samples::resolve_sample_file;
 use crate::types::{MomentaryFxTargetPayload, QueuedAudioEvent};
@@ -28,6 +29,13 @@ impl DesktopPlaybackHostAdapter {
                 instrument_slot: *instrument_slot,
                 volume_pct: *volume_pct,
                 pan_pos: *pan_pos,
+            },
+            RuntimeAudioCommand::SetInstrumentSlot {
+                instrument_slot,
+                config,
+            } => QueuedAudioEvent::SetInstrumentSlot {
+                instrument_slot: *instrument_slot,
+                config: parse_instrument_slot_config(config)?,
             },
             RuntimeAudioCommand::SetFxBusMixer { bus_index, pan_pos } => {
                 QueuedAudioEvent::SetFxBusMixer {

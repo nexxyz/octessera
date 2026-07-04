@@ -104,21 +104,7 @@ pub fn synth_payload(config: &AudioInstrumentsConfig) -> InstrumentsConfig {
         instruments: config
             .instruments
             .iter()
-            .map(|slot| InstrumentSlotConfig {
-                kind: slot.kind.clone(),
-                synth: slot
-                    .synth
-                    .unwrap_or_else(realtime_engine::synth::default_synth_config),
-                mixer: Some(InstrumentMixerConfig {
-                    route: slot
-                        .mixer
-                        .as_ref()
-                        .and_then(|m| m.route.clone())
-                        .unwrap_or_else(|| "direct".to_string()),
-                    pan_pos: slot.mixer.as_ref().and_then(|m| m.pan_pos).unwrap_or(16),
-                    volume: slot.mixer.as_ref().and_then(|m| m.volume).unwrap_or(100.0),
-                }),
-            })
+            .map(instrument_slot_config)
             .collect(),
         mixer: Some(MixerConfig {
             buses: mixer_buses(config),
@@ -130,6 +116,32 @@ pub fn synth_payload(config: &AudioInstrumentsConfig) -> InstrumentsConfig {
             .pan_positions
             .unwrap_or(realtime_engine::synth::DEFAULT_PAN_POSITIONS),
         master_volume: config.master_volume.unwrap_or(100.0),
+    }
+}
+
+pub fn parse_instrument_slot_config(
+    config: &serde_json::Value,
+) -> Result<InstrumentSlotConfig, String> {
+    let slot = serde_json::from_value::<AudioInstrumentSlotConfig>(config.clone())
+        .map_err(|e| format!("invalid instrument slot payload: {e}"))?;
+    Ok(instrument_slot_config(&slot))
+}
+
+fn instrument_slot_config(slot: &AudioInstrumentSlotConfig) -> InstrumentSlotConfig {
+    InstrumentSlotConfig {
+        kind: slot.kind.clone(),
+        synth: slot
+            .synth
+            .unwrap_or_else(realtime_engine::synth::default_synth_config),
+        mixer: Some(InstrumentMixerConfig {
+            route: slot
+                .mixer
+                .as_ref()
+                .and_then(|m| m.route.clone())
+                .unwrap_or_else(|| "direct".to_string()),
+            pan_pos: slot.mixer.as_ref().and_then(|m| m.pan_pos).unwrap_or(16),
+            volume: slot.mixer.as_ref().and_then(|m| m.volume).unwrap_or(100.0),
+        }),
     }
 }
 
