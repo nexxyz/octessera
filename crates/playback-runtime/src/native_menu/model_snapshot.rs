@@ -1,6 +1,6 @@
 use super::format::{
-    format_item_bar_values, format_item_lines, formatted_item_row_count, section_color_for_label,
-    section_color_from_path,
+    format_item_bar_values, format_item_full_selected_line, format_item_lines,
+    formatted_item_row_count, section_color_for_label, section_color_from_path,
 };
 use super::{
     NativeMenuItem, NativeMenuModel, NativeMenuScrollMetadata, NativeMenuSnapshot, NativeMenuValue,
@@ -23,6 +23,7 @@ impl NativeMenuModel {
         let mut bar_values = Vec::with_capacity(MENU_BODY_ROWS);
         let mut line_keys = Vec::with_capacity(MENU_BODY_ROWS);
         let mut line_actions = Vec::with_capacity(MENU_BODY_ROWS);
+        let mut full_lines = Vec::with_capacity(MENU_BODY_ROWS);
         let mut selected_row = None;
 
         for (index, item) in siblings.iter().enumerate().skip(start).take(end - start) {
@@ -37,6 +38,7 @@ impl NativeMenuModel {
                 &mut bar_values,
                 &mut line_keys,
                 &mut line_actions,
+                &mut full_lines,
                 &mut selected_row,
             );
         }
@@ -47,6 +49,7 @@ impl NativeMenuModel {
             &mut bar_values,
             &mut line_keys,
             &mut line_actions,
+            &mut full_lines,
         );
         if lines.is_empty() {
             return empty_snapshot(path, section_color);
@@ -64,6 +67,7 @@ impl NativeMenuModel {
             }),
             line_keys,
             line_actions,
+            full_lines,
             selected_row,
             selected_action: selected_action(self.current_item()),
         }
@@ -83,6 +87,7 @@ fn empty_snapshot(path: String, section_color: u16) -> NativeMenuSnapshot {
         }),
         line_keys: vec![None],
         line_actions: vec![None],
+        full_lines: vec![None],
         selected_row: Some(0),
         selected_action: None,
     }
@@ -162,6 +167,7 @@ fn materialize_item_rows(
     bar_values: &mut Vec<Option<super::NativeMenuBarValue>>,
     line_keys: &mut Vec<Option<String>>,
     line_actions: &mut Vec<Option<super::NativeMenuAction>>,
+    full_lines: &mut Vec<Option<String>>,
     selected_row: &mut Option<usize>,
 ) {
     let selected = index == model.state.cursor;
@@ -175,6 +181,9 @@ fn materialize_item_rows(
         &model.numeric_display_mode,
     );
     let item_line_count = item_lines.len();
+    let selected_full_line = (selected && !model.state.editing)
+        .then(|| format_item_full_selected_line(item, &model.numeric_display_mode))
+        .flatten();
     let item_color = item_section_color(root_level, section_color, &item.label);
     let line_key = item.key.clone();
     let line_action = selected_action(item);
@@ -184,9 +193,11 @@ fn materialize_item_rows(
         item_color,
         line_key,
         line_action,
+        selected_full_line,
         colors,
         line_keys,
         line_actions,
+        full_lines,
     );
     bar_values.extend(format_item_bar_values(
         item,
@@ -212,14 +223,17 @@ fn selected_action(item: &NativeMenuItem) -> Option<super::NativeMenuAction> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn append_item_metadata(
     item_line_count: usize,
     item_color: u16,
     line_key: Option<String>,
     line_action: Option<super::NativeMenuAction>,
+    full_line: Option<String>,
     colors: &mut Vec<u16>,
     line_keys: &mut Vec<Option<String>>,
     line_actions: &mut Vec<Option<super::NativeMenuAction>>,
+    full_lines: &mut Vec<Option<String>>,
 ) {
     if item_line_count == 0 {
         return;
@@ -227,10 +241,12 @@ fn append_item_metadata(
     colors.push(item_color);
     line_keys.push(line_key);
     line_actions.push(line_action);
+    full_lines.push(full_line);
     for _ in 1..item_line_count {
         colors.push(item_color);
         line_keys.push(None);
         line_actions.push(None);
+        full_lines.push(None);
     }
 }
 
@@ -240,10 +256,12 @@ fn truncate_snapshot_vectors(
     bar_values: &mut Vec<Option<super::NativeMenuBarValue>>,
     line_keys: &mut Vec<Option<String>>,
     line_actions: &mut Vec<Option<super::NativeMenuAction>>,
+    full_lines: &mut Vec<Option<String>>,
 ) {
     lines.truncate(MENU_BODY_ROWS);
     colors.truncate(MENU_BODY_ROWS);
     bar_values.truncate(MENU_BODY_ROWS);
     line_keys.truncate(MENU_BODY_ROWS);
     line_actions.truncate(MENU_BODY_ROWS);
+    full_lines.truncate(MENU_BODY_ROWS);
 }

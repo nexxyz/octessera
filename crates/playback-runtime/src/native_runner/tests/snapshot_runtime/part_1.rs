@@ -113,22 +113,23 @@ pub(crate) fn selected_long_menu_row_scrolls_once_slowly_only_while_highlighted(
 
     runner.menu_scroll_offset = 0;
     let initial = runner.snapshot().unwrap();
-    assert_eq!(initial["display"]["lines"][3], "> Events when paused On");
+    assert_eq!(initial["display"]["lines"][3], "> Events when ... On");
 
     runner.menu_scroll_offset = 3;
     let still_waiting = runner.snapshot().unwrap();
-    assert_eq!(
-        still_waiting["display"]["lines"][3],
-        "> Events when paused On"
-    );
+    assert_eq!(still_waiting["display"]["lines"][3], "> Events when ... On");
 
     runner.menu_scroll_offset = 4;
     let scrolled = runner.snapshot().unwrap();
-    assert_ne!(scrolled["display"]["lines"][3], "> Events when paused On");
+    assert_ne!(scrolled["display"]["lines"][3], "> Events when ... On");
+
+    runner.menu_scroll_offset = 27;
+    let end_hold = runner.snapshot().unwrap();
+    assert_ne!(end_hold["display"]["lines"][3], "> Events when ... On");
 
     runner.menu_scroll_offset = 99;
     let finished = runner.snapshot().unwrap();
-    assert_eq!(finished["display"]["lines"][3], "> Events when paused On");
+    assert_eq!(finished["display"]["lines"][3], "> Events when ... On");
 
     runner.menu_scroll_offset = 4;
     runner.menu.state.editing = true;

@@ -2,12 +2,14 @@ use super::{clip_display_line, json, NativeRunner, Value, OLED_BODY_ROWS};
 
 const SELECTED_LINE_SCROLL_WIDTH: usize = 20;
 const SELECTED_LINE_SCROLL_TICKS_PER_CHAR: usize = 4;
+const SELECTED_LINE_SCROLL_END_HOLD_TICKS: usize = 15;
 
 pub(super) struct DisplaySnapshot {
     pub(super) title: String,
     pub(super) lines: Vec<String>,
     pub(super) colors: Vec<u16>,
     pub(super) bar_values: Vec<Value>,
+    pub(super) full_lines: Vec<Option<String>>,
     pub(super) scroll: Option<DisplayScrollMetadata>,
     pub(super) selected_row: Option<usize>,
 }
@@ -41,7 +43,11 @@ impl NativeRunner {
             .map(|(row, line)| {
                 if display.selected_row == Some(row) && !self.menu.state.editing {
                     clip_display_line(
-                        &scroll_display_line_once(&line, self.menu_scroll_offset),
+                        &scroll_display_line_once(
+                            &line,
+                            display.full_lines.get(row).and_then(|line| line.as_deref()),
+                            self.menu_scroll_offset,
+                        ),
                         28,
                     )
                 } else {
@@ -51,20 +57,28 @@ impl NativeRunner {
             .collect();
         display.colors.truncate(display.lines.len());
         display.bar_values.truncate(display.lines.len());
+        display.full_lines.truncate(display.lines.len());
         display
     }
 }
 
-fn scroll_display_line_once(line: &str, ticks: usize) -> String {
-    let chars = line.chars().collect::<Vec<_>>();
+fn scroll_display_line_once(line: &str, full_line: Option<&str>, ticks: usize) -> String {
+    let Some(full_line) = full_line else {
+        return line.to_string();
+    };
+    let chars = full_line.chars().collect::<Vec<_>>();
     if chars.len() <= SELECTED_LINE_SCROLL_WIDTH {
         return line.to_string();
     }
     let max_offset = chars.len().saturating_sub(SELECTED_LINE_SCROLL_WIDTH);
-    let offset = ticks / SELECTED_LINE_SCROLL_TICKS_PER_CHAR;
-    if offset == 0 || offset > max_offset {
+    let scroll_ticks = max_offset * SELECTED_LINE_SCROLL_TICKS_PER_CHAR;
+    if ticks < SELECTED_LINE_SCROLL_TICKS_PER_CHAR {
         return line.to_string();
     }
+    if ticks > scroll_ticks + SELECTED_LINE_SCROLL_END_HOLD_TICKS {
+        return line.to_string();
+    }
+    let offset = (ticks / SELECTED_LINE_SCROLL_TICKS_PER_CHAR).min(max_offset);
     chars
         .iter()
         .skip(offset)
@@ -85,6 +99,7 @@ fn confirm_dialog_display(confirm: &super::NativeConfirmDialog) -> DisplaySnapsh
         lines,
         colors: vec![0xFFFF; line_count],
         bar_values: vec![Value::Null; line_count],
+        full_lines: vec![None; line_count],
         scroll: None,
         selected_row: Some(
             confirm
@@ -111,6 +126,7 @@ fn help_popup_display(help: &super::NativeHelpPopup) -> DisplaySnapshot {
         lines,
         colors: vec![0xFFFF; line_count],
         bar_values: vec![Value::Null; line_count],
+        full_lines: vec![None; line_count],
         scroll: None,
         selected_row: Some(
             help.lines
@@ -128,6 +144,7 @@ fn overlay_display(title: String, lines: Vec<String>) -> DisplaySnapshot {
         lines,
         colors: vec![0xFFFF; line_count],
         bar_values: vec![Value::Null; line_count],
+        full_lines: vec![None; line_count],
         scroll: None,
         selected_row: None,
     }
@@ -151,7 +168,7 @@ fn menu_display(
             .unwrap_or(Value::Null)
         })
         .collect::<Vec<_>>();
-    let lines = menu
+    let rows = menu
         .lines
         .into_iter()
         .enumerate()
@@ -162,14 +179,21 @@ fn menu_display(
                     .get(row)
                     .and_then(|action| action.as_ref()),
             );
-            prefix_line(line, prefix)
+            let full_line = menu
+                .full_lines
+                .get(row)
+                .and_then(|line| line.clone())
+                .map(|full_line| prefix_line(full_line, prefix.clone()));
+            (prefix_line(line, prefix), full_line)
         })
-        .collect();
+        .collect::<Vec<_>>();
+    let (lines, full_lines): (Vec<_>, Vec<_>) = rows.into_iter().unzip();
     DisplaySnapshot {
         title: menu.path,
         lines,
         colors: menu.colors,
         bar_values,
+        full_lines,
         scroll: menu.scroll.map(|scroll| DisplayScrollMetadata {
             scroll_offset: scroll.scroll_offset,
             total_rows: scroll.total_rows,

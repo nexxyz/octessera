@@ -86,6 +86,7 @@ pub struct NativeMenuSnapshot {
     pub scroll: Option<NativeMenuScrollMetadata>,
     pub line_keys: Vec<Option<String>>,
     pub line_actions: Vec<Option<NativeMenuAction>>,
+    pub full_lines: Vec<Option<String>>,
     pub selected_row: Option<usize>,
     pub selected_action: Option<NativeMenuAction>,
 }

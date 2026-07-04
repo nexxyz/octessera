@@ -6,7 +6,10 @@ mod format_rows;
 #[path = "format_status.rs"]
 mod format_status;
 
-use format_rows::{clip_menu_value, format_menu_line, format_param_lines, format_text_lines};
+use format_rows::{
+    clip_menu_value, format_full_param_line, format_menu_line, format_param_lines,
+    format_text_lines,
+};
 pub(in crate::native_menu) use format_status::{
     abbreviate_path, section_color_for_label, section_color_from_path,
 };
@@ -69,6 +72,44 @@ pub(super) fn format_item_lines(
             }
         })
         .collect()
+}
+
+pub(super) fn format_item_full_selected_line(
+    item: &NativeMenuItem,
+    numeric_display_mode: &str,
+) -> Option<String> {
+    match &item.value {
+        NativeMenuValue::Enum { options, selected } => Some(format_full_param_line(
+            &item.label,
+            &format_display_value(
+                item.key.as_deref(),
+                options.get(*selected).cloned().unwrap_or_default(),
+            ),
+        )),
+        NativeMenuValue::Number { value, .. } => Some(format_full_param_line(
+            &item.label,
+            &if should_use_number_bar(item.key.as_deref().unwrap_or_default())
+                && numeric_display_mode == "bar"
+            {
+                String::new()
+            } else {
+                format_display_value(item.key.as_deref(), *value)
+            },
+        )),
+        NativeMenuValue::Bool { value } => Some(format_full_param_line(
+            &item.label,
+            if *value { "On" } else { "Off" },
+        )),
+        NativeMenuValue::Text { value, .. } => Some(format_menu_line(
+            &format!(
+                "{} {}",
+                item.label,
+                if value.is_empty() { "(empty)" } else { value }
+            ),
+            true,
+        )),
+        _ => None,
+    }
 }
 
 pub(super) fn formatted_item_row_count(

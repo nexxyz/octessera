@@ -19,6 +19,13 @@ pub(in crate::native_menu) fn format_param_lines(
     }
 }
 
+pub(in crate::native_menu) fn format_full_param_line(label: &str, value: &str) -> String {
+    if value.is_empty() {
+        return format_menu_line(label, true);
+    }
+    format_menu_line(&format!("{label} {value}"), true)
+}
+
 fn format_unselected_param_line(label: &str, value: &str) -> String {
     if value.is_empty() {
         return format_menu_line(label, false);
@@ -39,7 +46,16 @@ fn format_selected_param_line(label: &str, value: &str) -> String {
     if value.is_empty() {
         return format_menu_line(label, true);
     }
-    format_menu_line(&format!("{label} {value}"), true)
+    let width = 18;
+    let value_len = value.chars().count();
+    if value_len + 1 >= width {
+        return format_menu_line(&clip_menu_value(value, width), true);
+    }
+    let label_width = width - value_len - 1;
+    format_menu_line(
+        &format!("{} {value}", clip_menu_value(label, label_width)),
+        true,
+    )
 }
 
 pub(in crate::native_menu) fn format_text_lines(
