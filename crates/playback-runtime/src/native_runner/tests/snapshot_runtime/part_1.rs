@@ -106,6 +106,49 @@ pub(crate) fn runtime_snapshot_serializes_menu_scroll_metadata() {
 }
 
 #[test]
+pub(crate) fn selected_long_menu_row_scrolls_once_slowly_only_while_highlighted() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.menu.state.stack = vec![1];
+    runner.menu.state.cursor = 3;
+
+    runner.menu_scroll_offset = 0;
+    let initial = runner.snapshot().unwrap();
+    assert_eq!(initial["display"]["lines"][3], "> Events when paused On");
+
+    runner.menu_scroll_offset = 3;
+    let still_waiting = runner.snapshot().unwrap();
+    assert_eq!(
+        still_waiting["display"]["lines"][3],
+        "> Events when paused On"
+    );
+
+    runner.menu_scroll_offset = 4;
+    let scrolled = runner.snapshot().unwrap();
+    assert_ne!(scrolled["display"]["lines"][3], "> Events when paused On");
+
+    runner.menu_scroll_offset = 99;
+    let finished = runner.snapshot().unwrap();
+    assert_eq!(finished["display"]["lines"][3], "> Events when paused On");
+
+    runner.menu_scroll_offset = 4;
+    runner.menu.state.editing = true;
+    let editing = runner.snapshot().unwrap();
+    assert_eq!(editing["display"]["lines"][3], "> Events when paused:");
+}
+
+#[test]
+pub(crate) fn menu_navigation_resets_selected_row_scroll() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.menu_scroll_offset = 12;
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+        })
+        .unwrap();
+    assert_eq!(runner.menu_scroll_offset, 1);
+}
+
+#[test]
 pub(crate) fn unbound_aux_inputs_show_toast_without_navigating_menu() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.aux_auto_map_enabled = false;

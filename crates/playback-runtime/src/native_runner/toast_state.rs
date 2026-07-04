@@ -3,6 +3,10 @@ use std::time::Duration;
 use super::NativeRunner;
 
 impl NativeRunner {
+    pub(super) fn reset_menu_scroll(&mut self) {
+        self.menu_scroll_offset = 0;
+    }
+
     pub(super) fn advance_toast_state(&mut self) {
         let now = std::time::Instant::now();
         if self.toast.is_none()

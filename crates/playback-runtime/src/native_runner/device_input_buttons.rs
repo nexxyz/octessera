@@ -16,6 +16,7 @@ impl NativeRunner {
                 return self.messages_with_effects(vec![effect]);
             }
         } else if id.unwrap_or("main") == "main" {
+            self.reset_menu_scroll();
             if self.help_popup.is_some() {
                 self.help_popup = None;
                 return self.messages_with_snapshot();
@@ -163,6 +164,7 @@ impl NativeRunner {
                 .editing
                 .then(|| self.menu.current_key().map(str::to_owned))
                 .flatten();
+            self.reset_menu_scroll();
             self.menu.back();
             if let Some(key) = editing_key {
                 self.apply_or_schedule_menu_key(&key)?;

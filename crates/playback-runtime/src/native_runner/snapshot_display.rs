@@ -1,5 +1,8 @@
 use super::{clip_display_line, json, NativeRunner, Value, OLED_BODY_ROWS};
 
+const SELECTED_LINE_SCROLL_WIDTH: usize = 20;
+const SELECTED_LINE_SCROLL_TICKS_PER_CHAR: usize = 4;
+
 pub(super) struct DisplaySnapshot {
     pub(super) title: String,
     pub(super) lines: Vec<String>,
@@ -36,8 +39,11 @@ impl NativeRunner {
             .take(OLED_BODY_ROWS)
             .enumerate()
             .map(|(row, line)| {
-                if display.selected_row == Some(row) {
-                    clip_display_line(&scroll_display_line(&line, self.menu_scroll_offset, 20), 28)
+                if display.selected_row == Some(row) && !self.menu.state.editing {
+                    clip_display_line(
+                        &scroll_display_line_once(&line, self.menu_scroll_offset),
+                        28,
+                    )
                 } else {
                     clip_display_line(&line, 28)
                 }
@@ -49,17 +55,21 @@ impl NativeRunner {
     }
 }
 
-fn scroll_display_line(line: &str, offset: usize, width: usize) -> String {
+fn scroll_display_line_once(line: &str, ticks: usize) -> String {
     let chars = line.chars().collect::<Vec<_>>();
-    if chars.len() <= width {
-        return line.into();
+    if chars.len() <= SELECTED_LINE_SCROLL_WIDTH {
+        return line.to_string();
     }
-    let span = chars.len() + 3;
-    let offset = offset % span;
-    let mut padded = chars;
-    padded.extend([' ', ' ', ' ']);
-    padded.extend(line.chars());
-    padded.iter().skip(offset).take(width).collect()
+    let max_offset = chars.len().saturating_sub(SELECTED_LINE_SCROLL_WIDTH);
+    let offset = ticks / SELECTED_LINE_SCROLL_TICKS_PER_CHAR;
+    if offset == 0 || offset > max_offset {
+        return line.to_string();
+    }
+    chars
+        .iter()
+        .skip(offset)
+        .take(SELECTED_LINE_SCROLL_WIDTH)
+        .collect()
 }
 
 fn confirm_dialog_display(confirm: &super::NativeConfirmDialog) -> DisplaySnapshot {

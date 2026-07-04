@@ -93,6 +93,7 @@ impl NativeRunner {
                         } else {
                             None
                         };
+                        self.reset_menu_scroll();
                         self.menu.turn(delta);
                         if let Some(key) = editing_key {
                             self.apply_or_schedule_menu_key(&key)?;
