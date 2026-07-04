@@ -49,12 +49,11 @@ impl HardwareRenderCache {
         let now = Instant::now();
         match pulse {
             RuntimeUiPulse::TriggerPulse { duration_ms } => {
-                self.event_dot_until = Some(now + Duration::from_millis(u64::from(duration_ms)));
+                self.event_dot_until = Some(now + Duration::from_millis(duration_ms));
             }
             RuntimeUiPulse::TransportFlash { flash, duration_ms } => {
                 self.transport_flash = Some(flash);
-                self.transport_flash_until =
-                    Some(now + Duration::from_millis(u64::from(duration_ms)));
+                self.transport_flash_until = Some(now + Duration::from_millis(duration_ms));
             }
         }
     }
