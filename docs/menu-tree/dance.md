@@ -7,9 +7,9 @@ This file is part of the canonical split-out menu tree spec. See [`../menu-tree-
 ```
 L4: Dance
 ├── Dance Page: [none | mix | pan | fx | trigger-gate | xy]
-├── BPM: [40..240] step 1  default 120
 ├── selected page controls only, flattened here:
 │   ├── fx: FX Type, Target, visible params for selected FX Type, Map to Grid
+│   │   └── Aux Map: editable auto-mapped Dance FX params/actions, with 1-/1! OLED markers
 │   └── xy: X Axis, Y Axis, Invert X, Invert Y, Release
 ```
 
@@ -28,7 +28,7 @@ Dance layer behavior:
 - Stored per-part trigger probability data lives in `L2: Sense > Pn > Trigger Prob.`.
 - `Map Prob Grid` edits the saved four-state probability map for the selected part. Cell cycle is `zero -> low -> high -> full -> zero`; `Shift+grid` applies to a row; `Shift+Fn+grid` applies to a column.
 - Probability-map editor LEDs: black = `0%`, red = `low`, yellow = `high`, green = `100%`.
-- `L2: Sense > Aux Mappings` exposes root-level menu-based assignment for aux encoder turn and click bindings plus an `Auto Map` toggle.
+- `L2: Sense > Aux Mappings` exposes root-level menu-based assignment for aux encoder turn and click bindings.
 - `L2: Sense > Events when paused` controls whether direct grid input can emit musical events while the transport is stopped/paused. Algorithm tick/evolution remains stopped either way.
 - `L2: Sense > Pn > X Axis` and `Y Axis` expose explicit per-part assignment for X/Y param-mod slots.
 - The `Slot` and aux `Turn` target pickers use the same shared menu-mirrored parameter browser as `L4: Dance > X/Y Pad`; no separate parameter tree should diverge from that browser.
@@ -41,6 +41,7 @@ Dance layer behavior:
 - Trigger filtering resolves per-part mode as follows: `zero` blocks all triggers, `full` passes all triggers, `custom` uses the stored per-cell probability map with that part's `Low Prob` and `High Prob` thresholds.
 - `Fn+Play` toggles the active part between `0%` and its previously active trigger mode without rewriting the stored probability map. On desktop this is `Fn+Space`.
 - FX cells are mapped from the flattened `L4: Dance` FX page controls: select an `FX Type`, edit its visible parameters, then select `Map to Grid` and press a grid cell. The effect type, target, and current parameter values are stored on that cell. Mapping `none` clears a cell.
+- `L4: Dance > Aux Map` appears on the FX page and lists the current Dance FX parameters/actions that are auto-mapped to aux controls. Rows are editable but do not change the mapping target. OLED row prefixes use the same `1-` turn and `1!` press markers as the live auto-map indicators.
 - Entering FX grid assignment shows a concise `Map FX: ...` toast; Back exits assignment without changing stored cells.
 - FX assignments include a `Target` (default `master`). Targets are listed as `master` first, then FX buses, then instruments. Platform-core resolves grid semantics into audio commands; desktop forwards those commands without interpreting Dance/grid meaning; Rust applies the realtime DSP.
 - Target insertion points: `instrument_n` is applied on the instrument's outgoing signal before routing/pan; `fx_bus_n` is applied on the bus outgoing signal after bus slot FX; `master` is applied after the final mix.

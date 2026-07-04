@@ -7,6 +7,17 @@ use super::{
 };
 
 impl NativeRunner {
+    pub(super) fn open_controls_help(&mut self) {
+        self.help_popup = Some(NativeHelpPopup {
+            title: "Help: Controls".into(),
+            lines: wrap_help_text(
+                "Help Sh+Fn+Main. Back Back. Play/Pause Space. Stop/Sync Sh+Space. Part Fn+left column. Dance Fn+right column. Aux Bind Fn+Aux. Sample Sh+cell. Prob Map grid.",
+                28,
+            ),
+            scroll: 0,
+        });
+    }
+
     pub(super) fn open_contextual_help(&mut self) {
         let Some(target) = self.menu.current_help_target() else {
             self.toast = Some(NativeToast {

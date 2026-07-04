@@ -9,8 +9,9 @@ pub(crate) fn l4_spec_rows_show_only_selected_dance_page_controls() {
         .iter()
         .map(|item| item.label.as_str())
         .collect::<Vec<_>>();
-    assert_eq!(labels, vec!["BPM", "Dance Page"]);
-    let bpm = dance
+    assert_eq!(labels, vec!["Dance Page"]);
+    let sense = &menu.root.children[1];
+    let bpm = sense
         .children
         .iter()
         .find(|item| item.label == "BPM")
@@ -20,6 +21,20 @@ pub(crate) fn l4_spec_rows_show_only_selected_dance_page_controls() {
         NativeMenuValue::Number {
             min: 40,
             max: 240,
+            step: 1,
+            ..
+        }
+    ));
+    let swing = sense
+        .children
+        .iter()
+        .find(|item| item.label == "Swing %")
+        .unwrap();
+    assert!(matches!(
+        swing.value,
+        NativeMenuValue::Number {
+            min: 0,
+            max: 75,
             step: 1,
             ..
         }
@@ -45,7 +60,7 @@ pub(crate) fn l4_spec_rows_show_only_selected_dance_page_controls() {
         .iter()
         .map(|item| item.label.as_str())
         .collect::<Vec<_>>();
-    assert_eq!(trigger_gate_labels, vec!["BPM", "Dance Page"]);
+    assert_eq!(trigger_gate_labels, vec!["Dance Page"]);
 }
 
 #[test]

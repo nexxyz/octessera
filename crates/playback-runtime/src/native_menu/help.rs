@@ -21,13 +21,6 @@ pub(super) fn collect_help_targets(
 pub(super) fn menu_help_target(path: &str, item: &NativeMenuItem) -> NativeMenuHelpTarget {
     let (key, kind) = match &item.value {
         NativeMenuValue::Group => (String::new(), "group"),
-        NativeMenuValue::Info => (
-            item.key
-                .as_ref()
-                .map(|key| format!("info:{key}"))
-                .unwrap_or_default(),
-            "info",
-        ),
         NativeMenuValue::Enum { .. } => (
             item.key
                 .as_ref()

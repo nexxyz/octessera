@@ -141,6 +141,7 @@ impl NativeRunner {
             xy_invert_x: self.xy_invert_x,
             xy_invert_y: self.xy_invert_y,
             bpm: self.bpm.round().clamp(20.0, 300.0) as u16,
+            swing_pct: self.swing_pct,
             sync_source: self.sync_source.clone(),
         }
     }
@@ -180,6 +181,10 @@ impl NativeRunner {
                         "y": assignment.y,
                         "config": assignment.config,
                     })).collect::<Vec<_>>()
+                },
+                "transport": {
+                    "bpm": self.bpm.round().clamp(20.0, 300.0) as u16,
+                    "swingPct": self.swing_pct
                 },
                 "xyRelease": self.xy_release,
                 "sampleFavouriteDirs": self.sample_favourite_dirs,

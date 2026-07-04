@@ -1,8 +1,9 @@
 use crate::seesaw_io::SeesawCommand;
 use cellsymphony_hal::OledSsd1351;
+use playback_runtime::RuntimeUiPulse;
 use serde_json::Value;
 use std::sync::mpsc::Sender;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 mod oled;
 mod profile;
@@ -26,6 +27,9 @@ pub struct HardwareRenderCache {
     neokey_colors: Option<[[u8; 3]; 4]>,
     oled_signature: u64,
     oled_frame: Vec<u8>,
+    event_dot_until: Option<Instant>,
+    transport_flash_until: Option<Instant>,
+    transport_flash: Option<String>,
 }
 
 impl HardwareRenderCache {
@@ -35,7 +39,50 @@ impl HardwareRenderCache {
             neokey_colors: None,
             oled_signature: 0,
             oled_frame: vec![0_u8; OLED_FRAME_BYTES],
+            event_dot_until: None,
+            transport_flash_until: None,
+            transport_flash: None,
         }
+    }
+
+    pub fn apply_ui_pulse(&mut self, pulse: RuntimeUiPulse) {
+        let now = Instant::now();
+        match pulse {
+            RuntimeUiPulse::TriggerPulse { duration_ms } => {
+                self.event_dot_until = Some(now + Duration::from_millis(u64::from(duration_ms)));
+            }
+            RuntimeUiPulse::TransportFlash { flash, duration_ms } => {
+                self.transport_flash = Some(flash);
+                self.transport_flash_until =
+                    Some(now + Duration::from_millis(u64::from(duration_ms)));
+            }
+        }
+    }
+
+    pub fn snapshot_with_transients(&mut self, snapshot: &Value) -> Value {
+        let now = Instant::now();
+        let event_active = self.event_dot_until.is_some_and(|until| now < until);
+        let transport_active = self.transport_flash_until.is_some_and(|until| now < until);
+        if !event_active {
+            self.event_dot_until = None;
+        }
+        if !transport_active {
+            self.transport_flash_until = None;
+            self.transport_flash = None;
+        }
+        if !event_active && !transport_active {
+            return snapshot.clone();
+        }
+        let mut snapshot = snapshot.clone();
+        if event_active {
+            snapshot["eventDotOn"] = serde_json::json!(true);
+        }
+        if transport_active {
+            if let Some(flash) = &self.transport_flash {
+                snapshot["transportFlash"] = serde_json::json!(flash);
+            }
+        }
+        snapshot
     }
 }
 
@@ -143,38 +190,48 @@ pub fn render_snapshot_cached_profiled(
 }
 
 pub fn led_frame(snapshot: &Value) -> Option<[[u8; 3]; 64]> {
+    let settings = snapshot.get("settings").unwrap_or(&Value::Null);
+    let display = snapshot.get("display").unwrap_or(&Value::Null);
+    let mut brightness = brightness_scale(settings.get("gridBrightness"));
+    if display.get("off").and_then(Value::as_bool).unwrap_or(false) {
+        brightness *= 0.08;
+    }
     let Some(rgb) = snapshot.get("leds")?.get("rgb").and_then(Value::as_array) else {
-        return legacy_led_frame(snapshot);
+        return legacy_led_frame(snapshot, brightness);
     };
     let mut frame = [[0_u8; 3]; 64];
     for (idx, cell) in frame.iter_mut().enumerate() {
         let offset = idx * 3;
-        *cell = [
-            scaled_u8(rgb.get(offset)),
-            scaled_u8(rgb.get(offset + 1)),
-            scaled_u8(rgb.get(offset + 2)),
-        ];
+        *cell = scale(
+            [
+                scaled_u8(rgb.get(offset)),
+                scaled_u8(rgb.get(offset + 1)),
+                scaled_u8(rgb.get(offset + 2)),
+            ],
+            brightness,
+        );
     }
     Some(frame)
 }
 
-fn legacy_led_frame(snapshot: &Value) -> Option<[[u8; 3]; 64]> {
+fn legacy_led_frame(snapshot: &Value, brightness: f32) -> Option<[[u8; 3]; 64]> {
     let cells = snapshot.get("leds")?.get("cells")?.as_array()?;
     let mut frame = [[0_u8; 3]; 64];
     for (idx, cell) in cells.iter().take(64).enumerate() {
-        frame[idx] = [
-            scaled_u8(cell.get("r")),
-            scaled_u8(cell.get("g")),
-            scaled_u8(cell.get("b")),
-        ];
+        frame[idx] = scale(
+            [
+                scaled_u8(cell.get("r")),
+                scaled_u8(cell.get("g")),
+                scaled_u8(cell.get("b")),
+            ],
+            brightness,
+        );
     }
     Some(frame)
 }
 
 pub fn neokey_colors(snapshot: &Value) -> [[u8; 3]; 4] {
     let settings = snapshot.get("settings").unwrap_or(&Value::Null);
-    let display = snapshot.get("display").unwrap_or(&Value::Null);
-    let transport = snapshot.get("transport").unwrap_or(&Value::Null);
     let button_scale = brightness_scale(settings.get("buttonBrightness"));
     let combined = settings
         .get("combinedModifierHeld")
@@ -188,28 +245,26 @@ pub fn neokey_colors(snapshot: &Value) -> [[u8; 3]; 4] {
         .get("fnHeld")
         .and_then(Value::as_bool)
         .unwrap_or(false);
-    let flash = settings
+    let flash = snapshot
         .get("transportFlash")
+        .or_else(|| settings.get("transportFlash"))
         .and_then(Value::as_str)
         .unwrap_or("none");
-    let playing = transport
-        .get("playing")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let off = display.get("off").and_then(Value::as_bool).unwrap_or(false);
-    let back = if off {
-        [0, 0, 0]
-    } else {
-        scale([90, 0, 0], button_scale)
-    };
-    let space = if !playing {
-        [0, 0, 0]
+    let icon = snapshot
+        .get("transportIcon")
+        .and_then(Value::as_str)
+        .unwrap_or("stop");
+    let back = scale([90, 0, 0], button_scale);
+    let space = if icon == "stop" {
+        scale([255, 51, 51], button_scale)
+    } else if icon == "pause" {
+        scale([215, 255, 232], button_scale)
     } else if flash == "measure" {
-        scale([80, 80, 255], button_scale)
+        scale([255, 160, 0], button_scale)
     } else if flash == "beat" {
-        scale([40, 40, 120], button_scale)
+        scale([51, 255, 102], button_scale)
     } else {
-        scale([0, 35, 0], button_scale)
+        scale([0, 80, 0], button_scale)
     };
     let shift = if combined {
         scale([0, 0, 180], button_scale)
@@ -229,8 +284,43 @@ pub fn neokey_colors(snapshot: &Value) -> [[u8; 3]; 4] {
 }
 
 fn render_oled(oled: &mut OledSsd1351, snapshot: &Value, frame: &mut [u8]) {
+    let off = snapshot_display_off(snapshot);
+    if !off {
+        let _ = oled.display_on();
+    }
     oled_frame_into(snapshot, frame);
     let _ = oled.write_frame(frame);
+    if off {
+        let _ = oled.display_off();
+    }
+}
+
+pub fn render_boot_splash(oled: &mut OledSsd1351) {
+    let _ = oled.display_on();
+    let snapshot = serde_json::json!({
+        "display": {
+            "off": false,
+            "splash": "startup",
+            "toast": ""
+        },
+        "settings": { "displayBrightness": 100 }
+    });
+    let mut frame = vec![0_u8; OLED_FRAME_BYTES];
+    render_oled(oled, &snapshot, &mut frame);
+}
+
+pub fn render_shutdown_splash(oled: &mut OledSsd1351) {
+    let _ = oled.display_on();
+    let snapshot = serde_json::json!({
+        "display": {
+            "off": false,
+            "splash": "shutdown",
+            "toast": ""
+        },
+        "settings": { "displayBrightness": 100 }
+    });
+    let mut frame = vec![0_u8; OLED_FRAME_BYTES];
+    render_oled(oled, &snapshot, &mut frame);
 }
 
 fn render_oled_profiled(
@@ -239,16 +329,31 @@ fn render_oled_profiled(
     frame: &mut [u8],
     metrics: Option<&mut RenderProfileMetrics>,
 ) {
+    let off = snapshot_display_off(snapshot);
+    if !off {
+        let _ = oled.display_on();
+    }
     let build_started = Instant::now();
     oled_frame_into(snapshot, frame);
     let build_duration = build_started.elapsed();
     let write_started = Instant::now();
     let _ = oled.write_frame(frame);
+    if off {
+        let _ = oled.display_off();
+    }
     if let Some(metrics) = metrics {
         metrics.oled_frame_build = build_duration;
         metrics.oled_write = write_started.elapsed();
         metrics.oled_rendered = true;
     }
+}
+
+fn snapshot_display_off(snapshot: &Value) -> bool {
+    snapshot
+        .get("display")
+        .and_then(|display| display.get("off"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
 }
 
 pub(crate) fn fault_oled_frame_into(lines: &[String], frame: &mut [u8], lit: bool) {

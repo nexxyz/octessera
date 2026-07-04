@@ -119,7 +119,7 @@ fn render_menu_frame(frame: &mut [u8], snapshot: &Value, brightness: f32) {
         for (index, line) in lines.iter().take(7).enumerate() {
             let line = line.as_str().unwrap_or_default();
             let y = 18 + index * 13;
-            let color = display_color(display, index).unwrap_or(text_color);
+            let color = display_color(display, index, brightness).unwrap_or(text_color);
             let selected = selected_row == Some(index);
             let bar = bar_frac(display, index);
             if selected { fill_rect(frame, 3, y - 1, 122, 11, color); }
@@ -143,7 +143,7 @@ pub(super) fn fault_frame_into(lines: &[String], frame: &mut [u8], lit: bool) {
     draw_text_clipped(frame, "FAULT", 43, 14, 8, rgb565([0, 0, 0]));
     for (index, line) in lines.iter().take(7).enumerate() {
         let y = 34 + index * 12;
-        draw_text_clipped(frame, &line.to_uppercase(), 10, y as i32, 18, white);
+        draw_text_clipped(frame, line, 10, y as i32, 18, white);
     }
 }
 
@@ -172,15 +172,14 @@ fn draw_bar(frame: &mut [u8], x: usize, y: usize, frac: f32, fill: u16, track: u
     );
 }
 
-fn display_color(display: &Value, index: usize) -> Option<u16> {
-    Some(
-        display
-            .get("colors")?
-            .as_array()?
-            .get(index)?
-            .as_u64()?
-            .min(u64::from(u16::MAX)) as u16,
-    )
+fn display_color(display: &Value, index: usize, brightness: f32) -> Option<u16> {
+    let color = display
+        .get("colors")?
+        .as_array()?
+        .get(index)?
+        .as_u64()?
+        .min(u64::from(u16::MAX)) as u16;
+    Some(rgb565(scale(rgb565_to_rgb(color), brightness)))
 }
 
 #[rustfmt::skip]
@@ -228,7 +227,7 @@ fn overlay_toast(frame: &mut [u8], toast: &str, brightness: f32) {
     fill_rect(frame, 8, 100, 112, 18, rgb565(scale([6, 6, 6], brightness)));
     draw_text(
         frame,
-        &toast.to_uppercase(),
+        toast,
         12,
         105,
         1,
@@ -296,5 +295,5 @@ pub(super) fn draw_text_clipped(
     color: u16,
 ) {
     let clipped = text.chars().take(max_chars).collect::<String>();
-    draw_text(frame, &clipped.to_uppercase(), x, y, 1, color);
+    draw_text(frame, &clipped, x, y, 1, color);
 }

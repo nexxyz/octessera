@@ -1,15 +1,17 @@
 use crate::protocol::{
     HostMessage, RunnerMessage, RuntimeAudioCommand, RuntimePlatformEffect, RuntimeStatus,
-    SyncSource,
+    RuntimeUiPulse, SyncSource,
 };
 use platform_core::MusicalEvent;
 use serde_json::Value;
 use std::collections::VecDeque;
+use std::time::Duration;
 
 #[path = "runtime_midi.rs"]
 mod midi;
 
 const PPQN: f64 = 24.0;
+const MAX_BUFFERED_UI_PULSES: usize = 16;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct RuntimeConfig {
@@ -57,6 +59,7 @@ pub struct PlaybackRuntime {
     scheduled_note_offs: VecDeque<ScheduledMidiMessage>,
     scheduled_note_offs_dirty: bool,
     request_next_snapshot: bool,
+    ui_pulses: VecDeque<RuntimeUiPulse>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -76,7 +79,12 @@ impl PlaybackRuntime {
             scheduled_note_offs: VecDeque::new(),
             scheduled_note_offs_dirty: false,
             request_next_snapshot: false,
+            ui_pulses: VecDeque::new(),
         }
+    }
+
+    pub fn drain_ui_pulses(&mut self) -> Vec<RuntimeUiPulse> {
+        self.ui_pulses.drain(..).collect()
     }
 
     pub fn config(&self) -> &RuntimeConfig {
@@ -105,14 +113,24 @@ impl PlaybackRuntime {
         runner: &mut R,
         host: &mut H,
     ) -> Result<(), String> {
+        self.advance_duration(Duration::from_millis(elapsed_ms), runner, host)
+    }
+
+    pub fn advance_duration<R: CoreRunner, H: HostAdapter>(
+        &mut self,
+        elapsed: Duration,
+        runner: &mut R,
+        host: &mut H,
+    ) -> Result<(), String> {
+        let elapsed_ms = elapsed.as_millis().min(u128::from(u64::MAX)) as u64;
         self.now_ms = self.now_ms.saturating_add(elapsed_ms);
         self.flush_scheduled_midi(host)?;
         if self.config.sync_source == SyncSource::External {
             return Ok(());
         }
 
-        let pulses_per_ms = (self.config.bpm * PPQN) / 60_000.0;
-        self.pulse_remainder += pulses_per_ms * (elapsed_ms as f64);
+        let pulses_per_second = (self.config.bpm * PPQN) / 60.0;
+        self.pulse_remainder += pulses_per_second * elapsed.as_secs_f64();
         let pulses = self.pulse_remainder.floor() as u32;
         self.pulse_remainder -= pulses as f64;
         if pulses == 0 {
@@ -232,7 +250,12 @@ impl PlaybackRuntime {
                         host.handle_audio_command(&command)?;
                     }
                 }
-                RunnerMessage::UiPulse { .. } => {}
+                RunnerMessage::UiPulse { pulse } => {
+                    if self.ui_pulses.len() >= MAX_BUFFERED_UI_PULSES {
+                        self.ui_pulses.pop_front();
+                    }
+                    self.ui_pulses.push_back(pulse);
+                }
                 RunnerMessage::RuntimeStatus { status } => {
                     self.apply_runtime_status(status, host)?;
                 }

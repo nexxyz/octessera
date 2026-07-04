@@ -70,7 +70,7 @@ The full native menu tree lives in [`menu-tree-spec.md`](menu-tree-spec.md). Kee
 - Platform-sized menu/runtime limits such as part count, instrument count, sample slots, bus count, global FX slots, touch-FX concurrency, scan section counts, OLED size, and pan position count come from `resources/platform-capabilities.json`.
 - Splash graphics use provided logo assets: regular logo for startup/wakeup, sepia logo for sleep/shutdown.
 - Bottom-right corner: transport icon (`▶` / `⏸` / `■`), hidden while a footer toast is active
-- Transport flash: green (beat) or red (measure) border on play icon
+- Transport color: stop is red, pause is white, play is white at rest and flashes green on beats or orange on measures. The NeoKey Play button uses the same stopped/paused/playing flash semantics, but its playing rest state stays dark green rather than white.
 - Event dot: briefly shown when notes fire, hidden while a footer toast is active; turns red when recent voice stealing occurred
 - Top-right audio load indicator: hidden when idle, yellow when DSP load is moderate or recent voice stealing occurred, red when DSP load is heavy
 - Toast text: displayed at bottom for feedback messages
@@ -78,7 +78,7 @@ The full native menu tree lives in [`menu-tree-spec.md`](menu-tree-spec.md). Kee
 Value editing semantics:
 
 - Number/enum/bool rows enter edit mode on main press
-- Navigation memory is limited to `System`, `System > Sound`, `System > UI`, and `System > Controls`. It is native, ephemeral, cleared on menu rebuild, and does not apply to any other menu, dynamic list, sample browser, preset list, MIDI port list, parameter picker, help, confirm dialog, or assignment overlay.
+- Navigation memory is limited to `System`, `System > Sound`, and `System > UI`. It is native, ephemeral, cleared on menu rebuild, and does not apply to any other menu, dynamic list, sample browser, preset list, MIDI port list, parameter picker, help, confirm dialog, or assignment overlay.
 - Browsing selected values are shown on the selected label row; edit mode uses a separate value-focused row for clarity.
 - Bool behaves like a 2-option enum (`off`/`on`) and changes on encoder turn, not immediate row press
 - Named target selectors (instrument slot, part index, mixer route) display their computed names via `formatDisplayValue()` (e.g. `I1: synth`, `P3: rain`, `fx_bus_2`)
@@ -89,6 +89,7 @@ Value editing semantics:
 - Selector-like numeric rows stay plain text, including MIDI channels, instrument/sample slots, part selectors, and MIDI note ranges
 - Structural selector edits apply immediately while the row is in edit mode through key-specific fast paths. This covers behavior type, instrument type, instrument route, FX bus slot type, and master FX slot type. Dynamic parameter rows also apply immediately while editing.
 - Bar value text uses compact units where useful: `%`, `ms`/`s`, `Hz`, `bpm`, `dB`, semitones/cents, and pan as `L15`/`C`/`R15`; ambiguous internal `0..1` ranges display as `0..100`
+- `L2: Sense > Swing %` is a global groove amount. `0%` is straight timing. Swing delays internal off-beat step/scan progression and catches up before the next beat; external MIDI clock output remains straight.
 
 Action row markers:
 
@@ -146,8 +147,8 @@ Overrides:
 - In the Fn-held aux overlay, plain labels are turn targets and `!Label` entries are press actions; `/` means both slots are present for that encoder.
 - Regular aux press triggers the press slot action (if any)
 - Regular aux turn adjusts the turn slot value (if any)
-- When `Auto Map` is enabled, context-sensitive auto mappings take precedence over custom aux mappings for the active menu context.
-- In supported contexts, focused menu rows show auto-map indicators like `1-Cutoff` and `1!Assign`.
+- `Auto Map` lives under `System > UI`. When enabled, context-sensitive auto mappings fill unbound aux slots for the active menu context; custom aux bindings keep precedence when present.
+- In supported contexts, focused menu rows show auto-map indicators like `1-Cutoff` and `1!Assign`, preserving selection markers on focused rows such as `> 1!Assign`.
 - If no slot is bound, toast shows `S#: No binding` or `T#: No binding`
 - Turn toasts show current value, e.g. `T1: Spawn Count: 3`
 - Shared route currently implemented:

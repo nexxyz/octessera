@@ -111,6 +111,7 @@ impl NativeRunner {
             xy_invert_x: false,
             xy_invert_y: false,
             bpm: config.bpm.round().clamp(20.0, 300.0) as u16,
+            swing_pct: config.swing_pct.min(75),
             sync_source: config.sync_source.clone(),
         });
         let mut part_engines = Vec::new();
@@ -144,6 +145,7 @@ impl NativeRunner {
             global_sound: config.global_sound,
             note_behaviors: config.note_behaviors,
             current_ppqn_pulse: 0,
+            swung_ppqn_pulse: 0,
             tick: 0,
             algorithm_step_pulses: DEFAULT_ALGORITHM_STEP_PULSES,
             algorithm_pulse_accumulator: 0,
@@ -153,6 +155,7 @@ impl NativeRunner {
             sync_source: config.sync_source,
             pending_resync: false,
             bpm: config.bpm,
+            swing_pct: config.swing_pct.min(75),
             ui,
             oled_mode: NativeOledMode::Splash,
             oled_splash_text: OLED_STARTUP_SPLASH_KEY.into(),

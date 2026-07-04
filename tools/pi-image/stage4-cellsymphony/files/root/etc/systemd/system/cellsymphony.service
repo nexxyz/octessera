@@ -8,7 +8,7 @@ User=pi
 WorkingDirectory=/home/pi
 Environment=CELLSYMPHONY_PI_SAMPLES_DIR=/home/pi/samples
 Environment=CELLSYMPHONY_PI_STORE_DIR=/home/pi/presets
-ExecStartPre=/bin/sleep 2
+Environment=CELLSYMPHONY_EARLY_BOOT_SPLASH=1
 ExecStart=/usr/local/bin/cellsymphony-pi
 Restart=always
 RestartSec=5

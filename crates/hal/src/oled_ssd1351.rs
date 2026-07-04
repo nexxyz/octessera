@@ -80,6 +80,8 @@ pub struct OledSsd1351 {
 impl OledSsd1351 {
     /// Initialize OLED on SPI bus 0
     pub fn new() -> Result<Self, String> {
+        let preserve_existing =
+            std::env::var("CELLSYMPHONY_EARLY_BOOT_SPLASH").as_deref() == Ok("1");
         // Open SPI device
         let spi_device = std::env::var("CELLSYMPHONY_OLED_SPI_DEVICE")
             .unwrap_or_else(|_| "/dev/spidev0.0".into());
@@ -102,44 +104,46 @@ impl OledSsd1351 {
         let mut rst = gpio
             .get(crate::pinmap::OLED_RST)
             .map_err(|e| e.to_string())?
-            .into_output();
+            .into_output_high();
 
-        std::thread::sleep(std::time::Duration::from_millis(250));
+        if !preserve_existing {
+            std::thread::sleep(std::time::Duration::from_millis(250));
 
-        // Hardware reset pulse
-        rst.set_high();
-        std::thread::sleep(std::time::Duration::from_millis(100));
-        rst.set_low();
-        std::thread::sleep(std::time::Duration::from_millis(100));
-        rst.set_high();
-        std::thread::sleep(std::time::Duration::from_millis(250));
+            // Hardware reset pulse
+            rst.set_high();
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            rst.set_low();
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            rst.set_high();
+            std::thread::sleep(std::time::Duration::from_millis(250));
 
-        // Init sequence for SSD1351 / Adafruit 1431.
-        Self::write_command(&mut spi, &mut dc, CMD_SET_COMMAND_LOCK, &[0x12])?;
-        Self::write_command(&mut spi, &mut dc, CMD_SET_COMMAND_LOCK, &[0xB1])?;
-        Self::write_command(&mut spi, &mut dc, CMD_DISPLAY_OFF, &[])?;
-        Self::write_command(&mut spi, &mut dc, CMD_SET_CLOCK_DIV, &[0xF1])?;
+            // Init sequence for SSD1351 / Adafruit 1431.
+            Self::write_command(&mut spi, &mut dc, CMD_SET_COMMAND_LOCK, &[0x12])?;
+            Self::write_command(&mut spi, &mut dc, CMD_SET_COMMAND_LOCK, &[0xB1])?;
+            Self::write_command(&mut spi, &mut dc, CMD_DISPLAY_OFF, &[])?;
+            Self::write_command(&mut spi, &mut dc, CMD_SET_CLOCK_DIV, &[0xF1])?;
 
-        Self::write_command(&mut spi, &mut dc, CMD_SET_MUX_RATIO, &[0x7F])?;
-        Self::write_command(&mut spi, &mut dc, CMD_SET_REMAP, &[0x74])?;
-        Self::write_command(&mut spi, &mut dc, CMD_SET_COLUMN_ADDR, &[0x00, 0x7F])?;
-        Self::write_command(&mut spi, &mut dc, CMD_SET_ROW_ADDR, &[0x00, 0x7F])?;
-        Self::write_command(&mut spi, &mut dc, CMD_SET_START_LINE, &[0x00])?;
-        Self::write_command(&mut spi, &mut dc, CMD_SET_DISPLAY_OFFSET, &[0x00])?;
+            Self::write_command(&mut spi, &mut dc, CMD_SET_MUX_RATIO, &[0x7F])?;
+            Self::write_command(&mut spi, &mut dc, CMD_SET_REMAP, &[0x74])?;
+            Self::write_command(&mut spi, &mut dc, CMD_SET_COLUMN_ADDR, &[0x00, 0x7F])?;
+            Self::write_command(&mut spi, &mut dc, CMD_SET_ROW_ADDR, &[0x00, 0x7F])?;
+            Self::write_command(&mut spi, &mut dc, CMD_SET_START_LINE, &[0x00])?;
+            Self::write_command(&mut spi, &mut dc, CMD_SET_DISPLAY_OFFSET, &[0x00])?;
 
-        Self::write_command(&mut spi, &mut dc, CMD_SET_GPIO, &[0x00])?;
-        Self::write_command(&mut spi, &mut dc, CMD_FUNCTION_SELECTION, &[0x01])?;
-        Self::write_command(&mut spi, &mut dc, CMD_SET_PRECHARGE1, &[0x32])?;
-        Self::write_command(&mut spi, &mut dc, CMD_SET_PRECHARGE_VOLTAGE, &[0x17])?;
-        Self::write_command(&mut spi, &mut dc, CMD_SET_VCOMH, &[0x05])?;
-        Self::write_command(&mut spi, &mut dc, CMD_NORMAL_DISPLAY, &[])?;
-        Self::write_command(&mut spi, &mut dc, CMD_SET_CONTRAST, &[0xC8, 0x80, 0xC8])?;
-        Self::write_command(&mut spi, &mut dc, CMD_MASTER_CONTRAST, &[0x0F])?;
-        Self::write_command(&mut spi, &mut dc, CMD_SET_VSL, &[0xA0, 0xB5, 0x55])?;
-        Self::write_command(&mut spi, &mut dc, CMD_SET_PRECHARGE2, &[0x01])?;
+            Self::write_command(&mut spi, &mut dc, CMD_SET_GPIO, &[0x00])?;
+            Self::write_command(&mut spi, &mut dc, CMD_FUNCTION_SELECTION, &[0x01])?;
+            Self::write_command(&mut spi, &mut dc, CMD_SET_PRECHARGE1, &[0x32])?;
+            Self::write_command(&mut spi, &mut dc, CMD_SET_PRECHARGE_VOLTAGE, &[0x17])?;
+            Self::write_command(&mut spi, &mut dc, CMD_SET_VCOMH, &[0x05])?;
+            Self::write_command(&mut spi, &mut dc, CMD_NORMAL_DISPLAY, &[])?;
+            Self::write_command(&mut spi, &mut dc, CMD_SET_CONTRAST, &[0xC8, 0x80, 0xC8])?;
+            Self::write_command(&mut spi, &mut dc, CMD_MASTER_CONTRAST, &[0x0F])?;
+            Self::write_command(&mut spi, &mut dc, CMD_SET_VSL, &[0xA0, 0xB5, 0x55])?;
+            Self::write_command(&mut spi, &mut dc, CMD_SET_PRECHARGE2, &[0x01])?;
 
-        Self::write_command(&mut spi, &mut dc, CMD_DISPLAY_ON, &[])?;
-        std::thread::sleep(std::time::Duration::from_millis(100));
+            Self::write_command(&mut spi, &mut dc, CMD_DISPLAY_ON, &[])?;
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
 
         Ok(Self {
             spi,
@@ -195,6 +199,15 @@ impl OledSsd1351 {
 
     pub fn display_all_on(&mut self) -> Result<(), String> {
         Self::write_command(&mut self.spi, &mut self.dc, CMD_DISPLAY_ALL_ON, &[])
+    }
+
+    pub fn display_on(&mut self) -> Result<(), String> {
+        Self::write_command(&mut self.spi, &mut self.dc, CMD_NORMAL_DISPLAY, &[])?;
+        Self::write_command(&mut self.spi, &mut self.dc, CMD_DISPLAY_ON, &[])
+    }
+
+    pub fn display_off(&mut self) -> Result<(), String> {
+        Self::write_command(&mut self.spi, &mut self.dc, CMD_DISPLAY_OFF, &[])
     }
 }
 
@@ -257,6 +270,14 @@ impl OledSsd1351 {
     }
 
     pub fn display_all_on(&mut self) -> Result<(), String> {
+        Ok(())
+    }
+
+    pub fn display_on(&mut self) -> Result<(), String> {
+        Ok(())
+    }
+
+    pub fn display_off(&mut self) -> Result<(), String> {
         Ok(())
     }
 }

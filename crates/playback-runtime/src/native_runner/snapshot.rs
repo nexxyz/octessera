@@ -48,6 +48,7 @@ impl NativeRunner {
             "transport": {
                 "playing": self.transport == RuntimeTransportState::Playing,
                 "bpm": self.bpm,
+                "swingPct": self.swing_pct,
                 "tick": self.tick,
                 "ppqnPulse": self.current_ppqn_pulse
             },
@@ -81,6 +82,10 @@ impl NativeRunner {
                 "audioConfigRevision": self.audio_config_revision,
                 "autoSaveFlash": if self.auto_save_flash_pulses_remaining > 0 { "flash" } else { "none" },
                 "autoSaveFlashSerial": self.auto_save_flash_serial,
+                "transport": {
+                    "bpm": self.bpm,
+                    "swingPct": self.swing_pct
+                },
                 "transportFlash": "none",
                 "stopLatched": false,
                 "fnHeld": self.ui.fn_held,

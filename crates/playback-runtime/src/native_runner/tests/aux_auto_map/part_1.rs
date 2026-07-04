@@ -64,7 +64,7 @@ pub(crate) fn auto_map_updates_synth_filter_and_prefixes_selected_row() {
         .as_array()
         .unwrap()
         .iter()
-        .any(|line| line.as_str().unwrap_or("").contains("1-Cutoff")));
+        .any(|line| line.as_str().unwrap_or("").starts_with("> 1-Cutoff")));
     assert!(snapshot["display"]["lines"]
         .as_array()
         .unwrap()
@@ -95,7 +95,7 @@ pub(crate) fn auto_map_press_enters_sample_assign_and_prefixes_assign_action() {
         .as_array()
         .unwrap()
         .iter()
-        .any(|line| line.as_str().unwrap_or("") == "1!Assign"));
+        .any(|line| line.as_str().unwrap_or("") == "> 1!Assign"));
 
     let _ = runner
         .send(HostMessage::DeviceInput {
@@ -119,6 +119,22 @@ pub(crate) fn auto_map_is_disabled_in_l2_sense_and_unbound_toast_uses_short_form
         .unwrap();
 
     assert_eq!(runner.toast.as_ref().unwrap().message, "T1: No binding");
+}
+
+#[test]
+pub(crate) fn disabled_auto_map_suppresses_display_prefixes() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.aux_auto_map_enabled = false;
+    runner.menu.rebuild(runner.menu_config());
+    runner.menu.state.stack = synth_stack(&runner, "Filter");
+    runner.menu.state.cursor = 1;
+
+    let messages = runner.messages_with_snapshot().unwrap();
+    assert!(snapshot_from(&messages)["display"]["lines"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|line| !line.as_str().unwrap_or_default().contains("1-Cutoff")));
 }
 
 #[test]

@@ -75,12 +75,22 @@ export function snapshotFromCore(
   const flash = performance.now() < indicators.transportFlashUntilMs
     ? indicators.transportFlash
     : String(frame.transportFlash ?? "none");
+  const transportIcon = String(frame.transportIcon ?? (frame.transport.playing ? "play" : "stop"));
+  const space = transportIcon === "stop"
+    ? "stopped"
+    : transportIcon === "pause"
+      ? "paused"
+      : flash === "measure"
+        ? "measure"
+        : flash === "beat"
+          ? "beat"
+          : "playing";
   const combined = settings?.combinedModifierHeld ?? false;
   return {
     frame: withTransientIndicators(frame, indicators),
     neoKeyLeds: {
       back: "solid_red",
-      space: !frame.transport.playing ? "off" : flash === "measure" ? "measure" : flash === "beat" ? "beat" : "off",
+      space,
       shift: combined ? "solid_blue" : (settings?.shiftHeld ?? shiftActive) ? "solid_yellow" : "off",
       fn: combined ? "solid_blue" : (settings?.fnHeld ?? false) ? "solid_yellow" : "off",
     },

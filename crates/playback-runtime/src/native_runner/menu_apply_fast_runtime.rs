@@ -7,6 +7,7 @@ impl NativeRunner {
     pub(super) fn apply_runtime_menu_key_fast(&mut self, key: &str) -> Option<bool> {
         match key {
             "transport.bpm" => Some(self.fast_bpm_menu_key()),
+            "transport.swingPct" => Some(self.fast_swing_menu_key()),
             "midiSyncMode" => Some(self.fast_sync_source_menu_key()),
             "midiEnabled" => Some(self.fast_bool_menu_key(key, |runner, value| {
                 bool_changed(&mut runner.midi_enabled, value)
@@ -70,6 +71,18 @@ impl NativeRunner {
         let bpm = f64::from(bpm.clamp(40, 240));
         if (self.bpm - bpm).abs() > f64::EPSILON {
             self.bpm = bpm;
+            self.mark_fast_autosave_dirty();
+        }
+        true
+    }
+
+    fn fast_swing_menu_key(&mut self) -> bool {
+        let Some(swing_pct) = self.menu.number_for_key("transport.swingPct") else {
+            return false;
+        };
+        let swing_pct = swing_pct.clamp(0, 75) as u8;
+        if self.swing_pct != swing_pct {
+            self.swing_pct = swing_pct;
             self.mark_fast_autosave_dirty();
         }
         true

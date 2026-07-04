@@ -75,7 +75,7 @@ pub(crate) fn maybe_advance_runtime(
     snapshot_interval: Duration,
     last_render: &mut Instant,
     render_interval: Duration,
-    pending_encoder_turns: &mut PendingEncoderTurns,
+    _pending_encoder_turns: &mut PendingEncoderTurns,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
     adapter: &mut PiPlaybackHostAdapter,
@@ -90,15 +90,14 @@ pub(crate) fn maybe_advance_runtime(
     let profile_enabled = ui_profiler.enabled();
     let lateness =
         profile_enabled.then(|| now.duration_since(*last_tick).saturating_sub(tick_duration));
-    let elapsed_ms = now.duration_since(*last_tick).as_millis() as u64;
+    let elapsed = now.duration_since(*last_tick);
     *last_tick = now;
-    flush_pending_encoder_turns(pending_encoder_turns, playback, runner, adapter);
     if now.duration_since(*last_snapshot_request) >= snapshot_interval {
         playback.request_next_snapshot();
         *last_snapshot_request = now;
     }
     let advance_started = profile_enabled.then(Instant::now);
-    if let Err(error) = playback.advance(elapsed_ms, runner, adapter) {
+    if let Err(error) = playback.advance_duration(elapsed, runner, adapter) {
         eprintln!("pi playback advance failed: {error}");
     }
     if let Err(error) = handle_deferred_host_work(playback, runner, adapter) {
@@ -117,7 +116,7 @@ pub(crate) fn maybe_advance_runtime(
         targets,
         ui_profiler,
     );
-    shutdown_if_requested(adapter)
+    shutdown_if_requested(adapter, targets)
 }
 
 pub(crate) fn flush_pending_encoder_turns(
@@ -167,10 +166,15 @@ fn render_if_due(
     );
 }
 
-fn shutdown_if_requested(adapter: &mut PiPlaybackHostAdapter) -> bool {
+fn shutdown_if_requested(
+    adapter: &mut PiPlaybackHostAdapter,
+    targets: &mut HardwareRenderTargets<'_>,
+) -> bool {
     if !adapter.take_shutdown_request() {
         return false;
     }
+    crate::render::render_shutdown_splash(targets.oled);
+    darken_hardware_for_shutdown(targets);
     if let Err(error) = shutdown_pi_system() {
         eprintln!("pi shutdown failed: {error}");
         return false;
@@ -178,16 +182,35 @@ fn shutdown_if_requested(adapter: &mut PiPlaybackHostAdapter) -> bool {
     true
 }
 
+fn darken_hardware_for_shutdown(targets: &mut HardwareRenderTargets<'_>) {
+    let _ = targets
+        .seesaw_tx
+        .send(crate::seesaw_io::SeesawCommand::GridFrame([[0; 3]; 64]));
+    let _ = targets
+        .seesaw_tx
+        .send(crate::seesaw_io::SeesawCommand::NeoKeyColors([[0; 3]; 4]));
+}
+
 fn shutdown_pi_system() -> Result<(), String> {
     #[cfg(feature = "hardware-pi")]
     {
-        let status = std::process::Command::new("systemctl")
-            .arg("poweroff")
-            .status()
-            .map_err(|e| format!("failed to launch systemctl poweroff: {e}"))?;
-        if !status.success() {
-            return Err(format!("systemctl poweroff exited with status {status}"));
+        let attempts: &[(&str, &[&str])] = &[
+            ("systemctl", &["--no-block", "poweroff"]),
+            ("sudo", &["-n", "systemctl", "--no-block", "poweroff"]),
+            ("sudo", &["-n", "poweroff"]),
+        ];
+        let mut errors = Vec::new();
+        for (command, args) in attempts {
+            match std::process::Command::new(command).args(*args).status() {
+                Ok(status) if status.success() => return Ok(()),
+                Ok(status) => errors.push(format!("{command} {args:?} exited with {status}")),
+                Err(error) => errors.push(format!("{command} {args:?} failed to launch: {error}")),
+            }
         }
+        Err(errors.join("; "))
     }
-    Ok(())
+    #[cfg(not(feature = "hardware-pi"))]
+    {
+        Ok(())
+    }
 }

@@ -86,13 +86,32 @@ pub(crate) fn aux_mappings_follow_platform_aux_encoder_count() {
     let mut menu = NativeMenuModel::new(config());
     menu.turn(1);
     let _ = menu.press();
+    menu.state.cursor = 0;
     let _ = menu.press();
     let snapshot = menu.snapshot();
 
-    assert!(snapshot.lines.iter().any(|line| line.trim() == "Aux 1"));
-    assert!(snapshot.lines.iter().any(|line| line.trim() == "Aux 2"));
-    assert!(snapshot.lines.iter().any(|line| line.trim() == "Aux 3"));
-    assert!(!snapshot.lines.iter().any(|line| line.trim() == "Aux 4"));
+    assert!(snapshot.lines.iter().any(|line| line.contains("Aux 1")));
+    assert!(snapshot.lines.iter().any(|line| line.contains("Aux 2")));
+    assert!(snapshot.lines.iter().any(|line| line.contains("Aux 3")));
+    assert!(!snapshot.lines.iter().any(|line| line.contains("Aux 4")));
+}
+
+#[test]
+pub(crate) fn auto_map_toggle_lives_under_system_ui_not_aux_mappings() {
+    let mut menu = NativeMenuModel::new(config());
+    menu.state.stack = vec![1, 1];
+    let aux_snapshot = menu.snapshot();
+    assert!(!aux_snapshot
+        .lines
+        .iter()
+        .any(|line| line.contains("Auto Map")));
+
+    menu.state.stack = vec![5, 5];
+    let ui_snapshot = menu.snapshot();
+    assert!(ui_snapshot
+        .lines
+        .iter()
+        .any(|line| line.contains("Auto Map")));
 }
 
 #[test]

@@ -18,7 +18,10 @@ pub(crate) struct HardwareDevices {
 pub(crate) fn init_hardware() -> Result<HardwareDevices, HardwareFault> {
     let mut fault = HardwareFault::new();
     let i2c_bus = init_device("I2C", I2CBus::new(1), &mut fault);
-    let oled = init_device("OLED", OledSsd1351::new(), &mut fault);
+    let mut oled = init_device("OLED", OledSsd1351::new(), &mut fault);
+    if let Some(oled) = oled.as_mut().filter(|_| !early_boot_splash_enabled()) {
+        crate::render::render_boot_splash(oled);
+    }
     let trellis = init_device("TRELLIS", NeoTrellis::new("/dev/i2c-1"), &mut fault);
     let neokey = init_device("NEOKEY", NeoKey::new("/dev/i2c-1"), &mut fault);
     let input_interrupt = init_device("SEESAW_INT", SeesawInterrupt::new(), &mut fault);
@@ -45,6 +48,10 @@ pub(crate) fn init_hardware() -> Result<HardwareDevices, HardwareFault> {
             Err(fault)
         }
     }
+}
+
+fn early_boot_splash_enabled() -> bool {
+    std::env::var("CELLSYMPHONY_EARLY_BOOT_SPLASH").as_deref() == Ok("1")
 }
 
 pub(crate) fn init_encoders(

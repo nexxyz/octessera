@@ -169,7 +169,6 @@ impl NativeMenuModel {
                 self.state.cursor = child_cursor;
                 Some(NativeMenuPressResult::EnteredGroup)
             }
-            NativeMenuValue::Info => None,
             NativeMenuValue::Action(action) => Some(NativeMenuPressResult::Action(action)),
             NativeMenuValue::Enum { .. }
             | NativeMenuValue::Number { .. }
@@ -300,9 +299,7 @@ impl NativeMenuModel {
             (Some(key), NativeMenuValue::Enum { .. })
             | (Some(key), NativeMenuValue::Number { .. })
             | (Some(key), NativeMenuValue::Bool { .. }) => (Some(key.clone()), None),
-            (Some(_), NativeMenuValue::Text { .. }) | (Some(_), NativeMenuValue::Info) => {
-                (None, None)
-            }
+            (Some(_), NativeMenuValue::Text { .. }) => (None, None),
             (_, NativeMenuValue::Action(action)) => (None, Some(action.clone())),
             _ => (None, None),
         }

@@ -30,6 +30,21 @@ fn menu_snapshot() -> Value {
     })
 }
 
+fn snapshot_with_leds() -> Value {
+    let mut rgb = Vec::new();
+    for _ in 0..64 {
+        rgb.extend([100, 50, 25]);
+    }
+    json!({
+        "display": { "off": false },
+        "settings": { "gridBrightness": 50, "buttonBrightness": 100 },
+        "leds": { "rgb": rgb },
+        "transport": { "playing": false },
+        "transportIcon": "stop",
+        "transportFlash": "none"
+    })
+}
+
 #[test]
 fn oled_frame_renders_menu_bars_selection_status_and_scrollbar() {
     let frame = oled_frame(&menu_snapshot());
@@ -78,7 +93,7 @@ fn oled_frame_into_clears_between_splash_menu_and_off() {
 
 #[test]
 fn glyphs_cover_common_menu_sample_and_help_text() {
-    for ch in "FX/AUX VELOCITY J+Q/V X (EMPTY) SAMPLE_1 #3".chars() {
+    for ch in "Voice FX/Aux sample_1 (empty) Swing % Help=Sh+Fn/Enter 1!Map ▶■●".chars() {
         if ch != ' ' {
             assert_ne!(glyph_rows(ch), [0; 7], "missing glyph {ch}");
         }
@@ -107,4 +122,41 @@ fn oled_signature_tracks_scroll_bar_status_and_float_changes() {
     changed = snapshot.clone();
     changed["cpuLoadRatio"] = json!(0.71);
     assert_ne!(base, oled_signature(&changed));
+}
+
+#[test]
+fn led_frame_applies_grid_brightness_and_sleep_dim() {
+    let mut snapshot = snapshot_with_leds();
+    let frame = led_frame(&snapshot).unwrap();
+    assert_eq!(frame[0], [50, 25, 13]);
+
+    snapshot["display"]["off"] = json!(true);
+    let dimmed = led_frame(&snapshot).unwrap();
+    assert_eq!(dimmed[0], [4, 2, 1]);
+}
+
+#[test]
+fn neokey_play_button_uses_transport_state_and_flash_colors() {
+    let mut snapshot = snapshot_with_leds();
+    assert_eq!(neokey_colors(&snapshot)[1], [255, 51, 51]);
+
+    snapshot["transportIcon"] = json!("pause");
+    assert_eq!(neokey_colors(&snapshot)[1], [215, 255, 232]);
+
+    snapshot["transportIcon"] = json!("play");
+    assert_eq!(neokey_colors(&snapshot)[1], [0, 80, 0]);
+
+    snapshot["transportFlash"] = json!("beat");
+    assert_eq!(neokey_colors(&snapshot)[1], [51, 255, 102]);
+
+    snapshot["transportFlash"] = json!("measure");
+    assert_eq!(neokey_colors(&snapshot)[1], [255, 160, 0]);
+}
+
+#[test]
+fn oled_display_brightness_scales_menu_line_colors() {
+    let mut snapshot = menu_snapshot();
+    snapshot["settings"]["displayBrightness"] = json!(50);
+    let frame = oled_frame(&snapshot);
+    assert_eq!(pixel(&frame, 4, 30), rgb565([0, 128, 0]));
 }

@@ -126,7 +126,7 @@ pub(crate) fn system_submenu_uses_abbreviated_path_and_section_colors() {
             "  Sound",
             "  MIDI",
             "  UI",
-            "  Controls"
+            "  !Controls"
         ]
     );
     assert_eq!(
@@ -137,28 +137,21 @@ pub(crate) fn system_submenu_uses_abbreviated_path_and_section_colors() {
 }
 
 #[test]
-pub(crate) fn system_controls_screen_uses_read_only_info_rows() {
+pub(crate) fn system_controls_row_is_help_action() {
     let mut menu = NativeMenuModel::new(config());
     for _ in 0..5 {
         menu.turn(1);
     }
     let _ = menu.press();
     menu.state.cursor = 6;
-    let _ = menu.press();
 
     let snapshot = menu.snapshot();
-    assert_eq!(snapshot.path, "SYS/Controls");
-    assert_eq!(snapshot.lines[0], "> Help: Sh+Fn+Main");
-    assert!(snapshot.lines.iter().any(|line| line == "  Back: Back"));
-    assert!(snapshot.lines.iter().all(|line| !line.contains('!')));
-    assert!(snapshot.selected_action.is_none());
-    assert!(snapshot.line_actions.iter().all(Option::is_none));
-
-    let stack = menu.state.stack.clone();
-    let cursor = menu.state.cursor;
-    assert!(menu.press().is_none());
-    assert_eq!(menu.state.stack, stack);
-    assert_eq!(menu.state.cursor, cursor);
+    assert_eq!(snapshot.path, "SYS");
+    assert!(snapshot.lines.iter().any(|line| line == "> !Controls"));
+    assert!(matches!(
+        snapshot.selected_action,
+        Some(NativeMenuAction::PlatformEffect(ref action)) if action == "system.controlsHelp"
+    ));
 }
 
 #[test]

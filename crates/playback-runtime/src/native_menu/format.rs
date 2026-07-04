@@ -21,7 +21,7 @@ pub(super) fn format_item_lines(
         return vec![String::new()];
     }
     let lines = match &item.value {
-        NativeMenuValue::Group | NativeMenuValue::Info => {
+        NativeMenuValue::Group => {
             vec![format_menu_line(&item.label, selected)]
         }
         NativeMenuValue::Action(_) => vec![format_menu_line(&format!("!{}", item.label), selected)],

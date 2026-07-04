@@ -169,6 +169,38 @@ mod tests {
     }
 
     #[test]
+    fn internal_clock_preserves_sub_millisecond_transport_time() {
+        let mut runtime = PlaybackRuntime::new(RuntimeConfig {
+            bpm: 120.0,
+            sync_source: SyncSource::Internal,
+            midi_clock_out_enabled: false,
+            midi_out_enabled: false,
+        });
+        let mut runner = FakeRunner::default();
+        let mut host = FakeHost::default();
+
+        for _ in 0..100 {
+            runtime
+                .advance_duration(
+                    std::time::Duration::from_micros(8_900),
+                    &mut runner,
+                    &mut host,
+                )
+                .unwrap();
+        }
+
+        let pulses = runner
+            .seen
+            .iter()
+            .filter_map(|message| match message {
+                HostMessage::TransportPulseStep { pulses, .. } => Some(*pulses),
+                _ => None,
+            })
+            .sum::<u32>();
+        assert_eq!(pulses, 42);
+    }
+
+    #[test]
     fn external_midi_realtime_bytes_are_aggregated_into_runner_messages() {
         let mut runtime = PlaybackRuntime::new(RuntimeConfig {
             bpm: 120.0,

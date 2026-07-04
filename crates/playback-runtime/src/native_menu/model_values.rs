@@ -62,7 +62,6 @@ pub(super) fn value_from_item(item: &NativeMenuItem) -> Option<String> {
             "false".into()
         }),
         NativeMenuValue::Text { value, .. } => Some(value.clone()),
-        NativeMenuValue::Info => None,
         _ => None,
     }
 }
@@ -70,7 +69,6 @@ pub(super) fn value_from_item(item: &NativeMenuItem) -> Option<String> {
 pub(super) fn number_from_item(item: &NativeMenuItem) -> Option<i32> {
     match &item.value {
         NativeMenuValue::Number { value, .. } => Some(*value),
-        NativeMenuValue::Info => None,
         _ => None,
     }
 }

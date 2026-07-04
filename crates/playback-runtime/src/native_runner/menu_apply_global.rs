@@ -147,6 +147,11 @@ impl NativeRunner {
             changed |= (self.bpm - bpm).abs() > f64::EPSILON;
             self.bpm = bpm;
         }
+        if let Some(swing_pct) = self.menu.number_for_key("transport.swingPct") {
+            let swing_pct = swing_pct.clamp(0, 75) as u8;
+            changed |= self.swing_pct != swing_pct;
+            self.swing_pct = swing_pct;
+        }
         changed
     }
 

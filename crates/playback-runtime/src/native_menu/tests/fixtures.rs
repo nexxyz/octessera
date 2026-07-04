@@ -144,6 +144,7 @@ pub(crate) fn config() -> NativeMenuConfig {
         xy_invert_x: false,
         xy_invert_y: false,
         bpm: 120,
+        swing_pct: 0,
         sync_source: SyncSource::Internal,
     }
 }

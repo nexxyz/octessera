@@ -18,13 +18,17 @@ pub fn render_latest_snapshot(
     render_interval: Duration,
 ) {
     let profile_enabled = ui_profiler.enabled();
+    for pulse in playback.drain_ui_pulses() {
+        render_cache.apply_ui_pulse(pulse);
+    }
     let Some(snapshot) = latest_snapshot(playback) else {
         return;
     };
-    if playback_config_matches_snapshot(playback, snapshot) {
+    let snapshot = render_cache.snapshot_with_transients(snapshot);
+    if playback_config_matches_snapshot(playback, &snapshot) {
         render_snapshot_with_profile(
             targets,
-            snapshot,
+            &snapshot,
             render_cache,
             ui_profiler,
             render_interval,
@@ -33,9 +37,6 @@ pub fn render_latest_snapshot(
         );
     } else {
         let clone_started = profile_enabled.then(Instant::now);
-        let Some(snapshot) = latest_snapshot(playback).cloned() else {
-            return;
-        };
         let clone_duration = clone_started.map(|started| started.elapsed());
         let sync_started = profile_enabled.then(Instant::now);
         sync_playback_config_from_snapshot(playback, runner, &snapshot);

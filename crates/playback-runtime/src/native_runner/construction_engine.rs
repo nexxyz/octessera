@@ -39,6 +39,7 @@ impl NativeRunner {
     pub(super) fn reset_transport_position(&mut self) {
         self.tick = 0;
         self.current_ppqn_pulse = 0;
+        self.swung_ppqn_pulse = 0;
         self.algorithm_pulse_accumulator = 0;
         self.transport_flash = "none";
         self.transport_flash_pulses_remaining = 0;
@@ -60,6 +61,15 @@ impl NativeRunner {
         for engine in self.part_engines.iter_mut().flatten() {
             engine.set_global_sound(self.global_sound.clone());
             engine.set_note_behaviors(self.note_behaviors.clone());
+        }
+    }
+
+    pub fn skip_startup_splash(&mut self) {
+        if self.oled_splash_text == OLED_STARTUP_SPLASH_KEY {
+            self.oled_mode = NativeOledMode::Normal;
+            self.oled_splash_text.clear();
+            self.oled_splash_until = None;
+            self.startup_splash_presented = true;
         }
     }
 
@@ -122,6 +132,7 @@ impl NativeRunner {
             self.oled_mode = NativeOledMode::Splash;
             self.oled_splash_text = OLED_SLEEP_SPLASH_KEY.into();
             self.oled_splash_until = Some(now + Duration::from_millis(OLED_SLEEP_SPLASH_MS));
+            self.show_toast("Going to sleep ...");
         }
     }
 }

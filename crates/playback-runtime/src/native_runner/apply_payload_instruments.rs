@@ -107,8 +107,20 @@ impl NativeRunner {
     }
 
     fn apply_runtime_transport_payload(&mut self, runtime: &Value) {
-        if let Some(value) = runtime.get("bpm").and_then(Value::as_f64) {
-            self.bpm = value.clamp(20.0, 300.0);
+        let transport = runtime.get("transport");
+        if let Some(value) = transport
+            .and_then(|transport| transport.get("bpm"))
+            .or_else(|| runtime.get("bpm"))
+            .and_then(Value::as_f64)
+        {
+            self.bpm = value.clamp(40.0, 240.0);
+        }
+        if let Some(value) = transport
+            .and_then(|transport| transport.get("swingPct"))
+            .or_else(|| runtime.get("swingPct"))
+            .and_then(Value::as_u64)
+        {
+            self.swing_pct = (value as u8).min(75);
         }
         if let Some(value) = runtime.get("danceMode").and_then(Value::as_str) {
             let normalized = match value {

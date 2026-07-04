@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use super::{draw_text, draw_text_clipped, fill_rect, rgb565, scale};
+use super::{draw_text_clipped, fill_rect, rgb565, scale};
 
 #[rustfmt::skip]
 pub(super) fn draw_status_indicators(frame: &mut [u8], snapshot: &Value, brightness: f32) {
@@ -15,8 +15,8 @@ pub(super) fn draw_status_indicators(frame: &mut [u8], snapshot: &Value, brightn
     } else {
         [51, 85, 68]
     };
-    draw_text(frame, "S", 108, 5, 1, rgb565(scale(save_color, brightness)));
-    draw_text(frame, "C", 117, 5, 1, rgb565(scale(cpu_color, brightness)));
+    draw_save_icon(frame, 108, 5, rgb565(scale(save_color, brightness)));
+    draw_cpu_icon(frame, 117, 5, rgb565(scale(cpu_color, brightness)));
 }
 
 #[rustfmt::skip]
@@ -41,16 +41,43 @@ pub(super) fn draw_footer(frame: &mut [u8], snapshot: &Value, brightness: f32) {
 
 #[rustfmt::skip]
 fn draw_transport_icon(frame: &mut [u8], snapshot: &Value, brightness: f32) {
-    let icon = match snapshot.get("transportIcon").and_then(Value::as_str).unwrap_or("stop") {
-        "play" => ">",
-        "pause" => "||",
-        _ => "[]",
-    };
+    let icon_name = snapshot.get("transportIcon").and_then(Value::as_str).unwrap_or("stop");
     let flash = snapshot.get("transportFlash").and_then(Value::as_str).unwrap_or("none");
-    let rgb = match flash {
-        "measure" => [255, 51, 51],
-        "beat" => [51, 255, 102],
+    let rgb = match (icon_name, flash) {
+        ("play", "measure") => [255, 160, 0],
+        ("play", "beat") => [51, 255, 102],
+        ("stop", _) => [255, 51, 51],
         _ => [215, 255, 232],
     };
-    draw_text(frame, icon, 101, 118, 1, rgb565(scale(rgb, brightness)));
+    draw_transport_shape(frame, icon_name, 101, 118, rgb565(scale(rgb, brightness)));
+}
+
+fn draw_save_icon(frame: &mut [u8], x: usize, y: usize, color: u16) {
+    fill_rect(frame, x, y, 7, 7, color);
+    fill_rect(frame, x + 1, y + 1, 4, 2, 0);
+    fill_rect(frame, x + 2, y + 5, 3, 1, 0);
+}
+
+fn draw_cpu_icon(frame: &mut [u8], x: usize, y: usize, color: u16) {
+    fill_rect(frame, x + 1, y + 1, 6, 6, color);
+    fill_rect(frame, x + 3, y + 3, 2, 2, 0);
+    fill_rect(frame, x, y + 2, 1, 1, color);
+    fill_rect(frame, x, y + 5, 1, 1, color);
+}
+
+fn draw_transport_shape(frame: &mut [u8], icon: &str, x: usize, y: usize, color: u16) {
+    match icon {
+        "play" => {
+            fill_rect(frame, x, y, 2, 9, color);
+            fill_rect(frame, x + 2, y + 1, 2, 7, color);
+            fill_rect(frame, x + 4, y + 2, 2, 5, color);
+            fill_rect(frame, x + 6, y + 3, 2, 3, color);
+            fill_rect(frame, x + 8, y + 4, 1, 1, color);
+        }
+        "pause" => {
+            fill_rect(frame, x, y, 3, 8, color);
+            fill_rect(frame, x + 6, y, 3, 8, color);
+        }
+        _ => fill_rect(frame, x, y, 8, 8, color),
+    }
 }

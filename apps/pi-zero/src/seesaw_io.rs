@@ -5,7 +5,7 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 use std::time::{Duration, Instant};
 
-const INPUT_SERVICE_INTERVAL: Duration = Duration::from_millis(12);
+const INPUT_SERVICE_INTERVAL: Duration = Duration::from_millis(4);
 
 #[derive(Clone)]
 pub(crate) enum SeesawCommand {

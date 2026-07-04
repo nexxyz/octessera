@@ -158,8 +158,8 @@ impl RuntimeWorker {
             return Ok(());
         }
         let now = Instant::now();
-        let elapsed_ms = now.duration_since(self.last_advance_at).as_millis() as u64;
-        if elapsed_ms == 0 {
+        let elapsed = now.duration_since(self.last_advance_at);
+        if elapsed.is_zero() {
             return Ok(());
         }
         self.last_advance_at = now;
@@ -175,7 +175,7 @@ impl RuntimeWorker {
                 captured: Vec::new(),
             };
             self.playback
-                .advance(elapsed_ms, &mut capturing_runner, &mut self.adapter)?;
+                .advance_duration(elapsed, &mut capturing_runner, &mut self.adapter)?;
             #[cfg(debug_assertions)]
             self.perf.record_advance(started_at.elapsed());
             capturing_runner.captured

@@ -10,7 +10,7 @@ export type SimulatorSnapshot = {
   frame: RuntimeSnapshot;
   neoKeyLeds: {
     back: "off" | "solid_red";
-    space: "off" | "beat" | "measure";
+    space: "stopped" | "paused" | "playing" | "beat" | "measure";
     shift: "off" | "solid_yellow" | "solid_blue";
     fn: "off" | "solid_yellow" | "solid_blue";
   };

@@ -44,8 +44,8 @@ use main_runtime_loop::{
 };
 
 const PLAYBACK_TICK_MS: u64 = 8;
-const SNAPSHOT_INTERVAL_MS: u64 = 100;
-const RENDER_INTERVAL_MS: u64 = 33;
+const SNAPSHOT_INTERVAL_MS: u64 = 33;
+const RENDER_INTERVAL_MS: u64 = 16;
 const PI_SD_CARD_SAMPLE_DIR: &str = "sd-card";
 
 fn main() {
@@ -89,6 +89,9 @@ fn main() {
     });
 
     let (mut playback, mut runner) = init_runtime();
+    if early_boot_splash_enabled() {
+        runner.skip_startup_splash();
+    }
 
     let store_dir = default_store_dir();
     let samples_dir = default_samples_dir();
@@ -104,7 +107,6 @@ fn main() {
         eprintln!("pi host state initialization failed: {error}");
     }
 
-    let _ = oled.write_frame(&vec![0_u8; 128 * 128 * 2]);
     let mut last_tick = Instant::now();
     let mut last_snapshot_request = Instant::now();
     let mut last_render = Instant::now() - Duration::from_millis(RENDER_INTERVAL_MS);
@@ -131,6 +133,23 @@ fn main() {
             .zip(last_loop_start)
             .map(|(loop_start, last)| loop_start.duration_since(last));
         last_loop_start = loop_start;
+        if maybe_advance_runtime(
+            &mut last_tick,
+            tick_duration,
+            &mut last_snapshot_request,
+            snapshot_interval,
+            &mut last_render,
+            render_interval,
+            &mut pending_encoder_turns,
+            &mut playback,
+            &mut runner,
+            &mut adapter,
+            &mut render_cache,
+            &mut render_targets,
+            &mut ui_profiler,
+        ) {
+            break;
+        }
         drain_midi_messages(&midi_rx, &mut playback, &mut runner, &mut adapter);
         let host_input_started = profile_enabled.then(Instant::now);
         drain_host_messages(
@@ -155,24 +174,6 @@ fn main() {
             &mut runner,
             &mut adapter,
         );
-
-        if maybe_advance_runtime(
-            &mut last_tick,
-            tick_duration,
-            &mut last_snapshot_request,
-            snapshot_interval,
-            &mut last_render,
-            render_interval,
-            &mut pending_encoder_turns,
-            &mut playback,
-            &mut runner,
-            &mut adapter,
-            &mut render_cache,
-            &mut render_targets,
-            &mut ui_profiler,
-        ) {
-            break;
-        }
 
         if let (Some(gap), Some(started)) = (loop_gap, loop_start) {
             ui_profiler.record_loop(gap, started.elapsed());
@@ -206,6 +207,10 @@ fn exit_code(success: bool) -> i32 {
     } else {
         1
     }
+}
+
+fn early_boot_splash_enabled() -> bool {
+    std::env::var("CELLSYMPHONY_EARLY_BOOT_SPLASH").as_deref() == Ok("1")
 }
 
 fn init_audio() -> Option<AudioManager> {

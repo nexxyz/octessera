@@ -5,33 +5,49 @@ use super::{
 use crate::native_menu::binding_picker::dance_fx_targets;
 
 pub(super) fn dance_group(config: &NativeMenuConfig) -> NativeMenuItem {
-    let mut children = vec![
-        number_item("BPM", "transport.bpm", i32::from(config.bpm), 40, 240, 1),
-        NativeMenuItem {
-            label: "Dance Page".into(),
-            key: Some("danceMode".into()),
-            value: NativeMenuValue::Enum {
-                options: vec![
-                    "mix".into(),
-                    "pan".into(),
-                    "fx".into(),
-                    "trigger-gate".into(),
-                    "xy".into(),
-                ],
-                selected: ["mix", "pan", "fx", "trigger-gate", "xy"]
-                    .iter()
-                    .position(|mode| *mode == config.dance_mode)
-                    .unwrap_or(0),
-            },
-            children: vec![],
+    let mut children = vec![NativeMenuItem {
+        label: "Dance Page".into(),
+        key: Some("danceMode".into()),
+        value: NativeMenuValue::Enum {
+            options: vec![
+                "mix".into(),
+                "pan".into(),
+                "fx".into(),
+                "trigger-gate".into(),
+                "xy".into(),
+            ],
+            selected: ["mix", "pan", "fx", "trigger-gate", "xy"]
+                .iter()
+                .position(|mode| *mode == config.dance_mode)
+                .unwrap_or(0),
         },
-    ];
+        children: vec![],
+    }];
     match config.dance_mode.as_str() {
-        "fx" => children.extend(dance_fx_page_items(config)),
+        "fx" => {
+            children.extend(dance_fx_page_items(config));
+            children.push(group("Aux Map", dance_aux_map_items(config)));
+        }
         "xy" => children.extend(xy_pad_items(config)),
         _ => {}
     }
     group("L4: Dance", children)
+}
+
+fn dance_aux_map_items(config: &NativeMenuConfig) -> Vec<NativeMenuItem> {
+    dance_fx_page_items(config)
+        .into_iter()
+        .filter(|item| {
+            item.key
+                .as_deref()
+                .is_some_and(|key| key.starts_with("dance.fx.params."))
+                || matches!(
+                    &item.value,
+                    NativeMenuValue::Action(NativeMenuAction::PlatformEffect(effect))
+                        if effect == "dance.fx.map"
+                )
+        })
+        .collect()
 }
 
 pub(super) fn dance_fx_page_items(config: &NativeMenuConfig) -> Vec<NativeMenuItem> {

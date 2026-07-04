@@ -1,7 +1,7 @@
 use super::system_saves::saves_group;
 use super::{
-    action_item, bool_item, enum_item, enum_item_from_strings, group, info_item, number_item,
-    selected_index, NativeMenuAction, NativeMenuConfig, NativeMenuItem,
+    action_item, bool_item, enum_item, enum_item_from_strings, group, number_item, selected_index,
+    NativeMenuAction, NativeMenuConfig, NativeMenuItem,
 };
 
 pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> NativeMenuItem {
@@ -138,6 +138,7 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                 "UI",
                 vec![
                     bool_item("Ghost Cells", "ghostCells", config.ghost_cells),
+                    bool_item("Auto Map", "auxAutoMapEnabled", config.aux_auto_map_enabled),
                     enum_item(
                         "Number Style",
                         "numericDisplayMode",
@@ -181,29 +182,16 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                     ),
                 ],
             ),
-            controls_group(),
+            action_item(
+                "Controls",
+                "system.controlsHelp",
+                NativeMenuAction::PlatformEffect("system.controlsHelp".into()),
+            ),
             action_item(
                 "Shutdown",
                 "system.shutdown",
                 NativeMenuAction::PlatformEffect("system.shutdown".into()),
             ),
-        ],
-    )
-}
-
-fn controls_group() -> NativeMenuItem {
-    group(
-        "Controls",
-        vec![
-            info_item("Help: Sh+Fn+Main", "controls.help"),
-            info_item("Back: Back", "controls.back"),
-            info_item("Play/Pause: Space", "controls.play"),
-            info_item("Stop/Sync: Sh+Space", "controls.panic"),
-            info_item("Part: Fn+left col", "controls.part"),
-            info_item("Dance: Fn+right col", "controls.dance"),
-            info_item("Aux Bind: Fn+Aux", "controls.auxBind"),
-            info_item("Sample: Sh+cell", "controls.sample"),
-            info_item("Prob Map: grid", "controls.probMap"),
         ],
     )
 }

@@ -16,6 +16,7 @@ pub struct NativeRunnerConfig {
     pub note_behaviors: Vec<NoteBehavior>,
     pub sync_source: SyncSource,
     pub bpm: f64,
+    pub swing_pct: u8,
     pub sample_builtin_favourite_dirs: Vec<String>,
 }
 
@@ -43,6 +44,7 @@ impl Default for NativeRunnerConfig {
             note_behaviors: vec![NoteBehavior::Oneshot; 16],
             sync_source: SyncSource::Internal,
             bpm: 120.0,
+            swing_pct: 0,
             sample_builtin_favourite_dirs: Vec::new(),
         }
     }

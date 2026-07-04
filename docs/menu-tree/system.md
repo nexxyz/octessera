@@ -46,22 +46,14 @@ System
 │   │   └── Follow Start/Stop: [on | off]
 ├── UI (group)
 │   ├── Ghost Cells: [on | off]  default off  ← shows dim cells from inactive parts behind active part
+│   ├── Auto Map: [on | off]  default on  ← enables context-sensitive aux mappings
 │   ├── Number Style: [bar | numbers | bar+numbers]  ← controls rendering of bar-style numeric params, default bar+numbers
 │   ├── Screen Sleep: [0..600] step 10 s    default 60 (0=off)
 │   ├── OLED Bright: [10..100] step 5     default 75 (bar display when Number Style is bar or bar+numbers)
 │   ├── Grid Bright: [10..100] step 5     default 75 (bar display when Number Style is bar or bar+numbers)
 │   └── Button Bright: [10..100] step 5   default 75 (bar display when Number Style is bar or bar+numbers)
-├── Controls (group)                  ← read-only shortcut cheat sheet; rows have help but no actions/effects
-│   ├── Help: Sh+Fn+Main
-│   ├── Back: Back
-│   ├── Play/Pause: Space
-│   ├── Stop/Sync: Sh+Space
-│   ├── Part: Fn+left col
-│   ├── Dance: Fn+right col
-│   ├── Aux Bind: Fn+Aux
-│   ├── Sample: Sh+cell
-│   └── Prob Map: grid
+├── !Controls (action)                ← opens shortcut cheat-sheet help popup
 └── Shutdown: (action)                ← confirm, then show shutdown splash and exit/poweroff
 ```
 
-Diagnostics is a pre-hardware Pi check, and the update actions are native placeholders for OTA flow control: `Check` is unconfirmed, while `Apply` and `Rollback` confirm before handing off to the Pi host adapter. Controls rows are native read-only menu rows: main press does not run an action, but context help explains each shortcut. `Stop/Sync: Sh+Space` follows the transport mode: internal sync emergency-stops and clears held notes, while external sync arms resync.
+Diagnostics is a pre-hardware Pi check, and the update actions are native placeholders for OTA flow control: `Check` is unconfirmed, while `Apply` and `Rollback` confirm before handing off to the Pi host adapter. Controls opens native help with the shortcut cheat sheet. `Stop/Sync: Sh+Space` follows the transport mode: internal sync emergency-stops and clears held notes, while external sync arms resync.

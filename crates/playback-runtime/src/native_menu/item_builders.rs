@@ -12,18 +12,6 @@ pub(in crate::native_menu) fn group(
     }
 }
 
-pub(in crate::native_menu) fn info_item(
-    label: impl Into<String>,
-    key: impl Into<String>,
-) -> NativeMenuItem {
-    NativeMenuItem {
-        label: label.into(),
-        key: Some(key.into()),
-        value: NativeMenuValue::Info,
-        children: vec![],
-    }
-}
-
 pub(in crate::native_menu) fn enum_item(
     label: impl Into<String>,
     key: impl Into<String>,

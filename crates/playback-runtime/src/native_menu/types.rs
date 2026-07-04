@@ -41,7 +41,6 @@ pub struct NativeParamBindingSpec {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NativeMenuValue {
     Group,
-    Info,
     Enum {
         options: Vec<String>,
         selected: usize,

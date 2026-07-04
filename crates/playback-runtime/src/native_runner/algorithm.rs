@@ -55,7 +55,8 @@ impl NativeRunner {
 
         let mut events = Vec::new();
         self.advance_transport_indicators(pulses);
-        self.accumulate_part_pulses(pulses);
+        let swung_pulses = self.consume_swung_pulses(pulses);
+        self.accumulate_part_pulses(swung_pulses);
         self.advance_active_part(&mut events)?;
 
         let instruments = self.instruments.clone();
@@ -184,6 +185,22 @@ impl NativeRunner {
         }
     }
 
+    fn consume_swung_pulses(&mut self, straight_pulses: u32) -> u32 {
+        if self.swing_pct == 0 || straight_pulses == 0 {
+            self.swung_ppqn_pulse = self.current_ppqn_pulse;
+            return straight_pulses;
+        }
+        let previous = self
+            .current_ppqn_pulse
+            .saturating_sub(u64::from(straight_pulses));
+        let previous_swung = swung_pulse_total(previous, self.swing_pct);
+        let current_swung = swung_pulse_total(self.current_ppqn_pulse, self.swing_pct);
+        self.swung_ppqn_pulse = current_swung;
+        current_swung
+            .saturating_sub(previous_swung)
+            .min(u64::from(u32::MAX)) as u32
+    }
+
     fn advance_active_part(&mut self, events: &mut Vec<MusicalEvent>) -> Result<(), String> {
         let active_step_pulses = self.step_pulses_for_part(self.active_part_index);
         while self.part_pulse_accumulators[self.active_part_index] >= active_step_pulses {
@@ -213,4 +230,18 @@ impl NativeRunner {
 
 fn crossed_ppqn_boundary(previous: u64, current: u64, boundary: u64) -> bool {
     boundary > 0 && current >= boundary && previous / boundary != current / boundary
+}
+
+fn swung_pulse_total(pulse: u64, swing_pct: u8) -> u64 {
+    let beat = pulse / 24;
+    let phase = (pulse % 24) as u32;
+    let delay = ((u32::from(swing_pct.min(75)) * 6) + 50) / 100;
+    let swung_phase = if delay == 0 || phase < 12 {
+        phase
+    } else if phase < 12 + delay {
+        12
+    } else {
+        12 + ((phase - 12 - delay) * 12) / (12 - delay)
+    };
+    beat * 24 + u64::from(swung_phase.min(23))
 }

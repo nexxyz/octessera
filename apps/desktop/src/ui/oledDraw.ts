@@ -62,7 +62,13 @@ function drawFooter(ctx: CanvasRenderingContext2D, semantic: SemanticOledState):
   ctx.fillStyle = "#334433";
   ctx.fillText(" ", 5, footerY, 90);
 
-  ctx.fillStyle = semantic.transportFlash === "measure" ? "#ff3333" : semantic.transportFlash === "beat" ? "#33ff66" : "#d7ffe8";
+  ctx.fillStyle = semantic.transportIcon === "stop"
+    ? "#ff3333"
+    : semantic.transportFlash === "measure"
+      ? "#ffa000"
+      : semantic.transportFlash === "beat"
+        ? "#33ff66"
+        : "#d7ffe8";
   drawTransportIcon(ctx, semantic.transportIcon, 101, footerY + 1);
   if (semantic.eventDotOn) {
     ctx.fillStyle = semantic.eventDotSteal ? "#ff3333" : "#ffffff";

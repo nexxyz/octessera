@@ -5,7 +5,7 @@ use super::fx::{fx_buses_group, global_fx_group};
 use super::sense::{l2_part_group, l2_root_items};
 use super::system::system_group;
 use super::voice::{instrument_group, InstrumentMenuConfig};
-use super::{NativeMenuConfig, NativeMenuItem, NativeMenuValue};
+use super::{number_item, NativeMenuConfig, NativeMenuItem, NativeMenuValue};
 
 pub(super) fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
     let sync_index = if config.sync_source == SyncSource::External {
@@ -68,6 +68,17 @@ fn sense_group(config: &NativeMenuConfig) -> NativeMenuItem {
                     config,
                 )
             }))
+            .chain([
+                number_item("BPM", "transport.bpm", i32::from(config.bpm), 40, 240, 1),
+                number_item(
+                    "Swing %",
+                    "transport.swingPct",
+                    i32::from(config.swing_pct),
+                    0,
+                    75,
+                    1,
+                ),
+            ])
             .collect(),
     }
 }

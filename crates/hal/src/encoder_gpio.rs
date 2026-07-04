@@ -20,7 +20,7 @@ pub enum HardwareEvent {
 }
 
 #[cfg(feature = "pi-zero")]
-const SWITCH_DEBOUNCE_MS: u64 = 80;
+const SWITCH_DEBOUNCE_MS: u64 = 45;
 
 /// Rotary encoder with GPIO interrupt handling
 #[cfg(feature = "pi-zero")]
@@ -131,7 +131,7 @@ impl EncoderGpio {
         let id_sw = id;
         let last_press = Arc::new(Mutex::new(None::<Instant>));
         let debounce = Duration::from_millis(SWITCH_DEBOUNCE_MS);
-        sw.set_async_interrupt(Trigger::FallingEdge, None, move |_| {
+        sw.set_async_interrupt(Trigger::FallingEdge, Some(debounce), move |_| {
             let now = Instant::now();
             if let Ok(mut last_press) = last_press.lock() {
                 if last_press.is_some_and(|last| now.duration_since(last) < debounce) {

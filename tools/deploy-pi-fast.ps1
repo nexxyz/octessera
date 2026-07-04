@@ -10,6 +10,7 @@ param(
   [switch]$CleanRemote,
   [switch]$SyncOnly,
   [switch]$SkipBuild,
+  [switch]$UpdateInitramfs,
   [switch]$AllowServiceFailure,
   [switch]$NoTail
 )
@@ -20,7 +21,11 @@ $sshArgs = @("-i", $Key, "-o", "IdentitiesOnly=yes", $Target)
 
 function Invoke-PiSsh {
   param([string]$Command)
-  ssh @sshArgs $Command
+  if ($Command.Contains("`n")) {
+    $Command | ssh @sshArgs "tr -d '\r' | bash -s"
+  } else {
+    ssh @sshArgs $Command
+  }
   if ($LASTEXITCODE -ne 0) {
     throw "ssh command failed with exit code $LASTEXITCODE"
   }
@@ -36,7 +41,7 @@ function Copy-ToPi {
 
 if ($LocalBinary -ne "") {
   Copy-ToPi $LocalBinary "/tmp/cellsymphony-pi"
-  Invoke-PiSsh "set -e; sudo install -d '$InstallDir/releases/dev'; sudo install -m 755 /tmp/cellsymphony-pi '$InstallDir/releases/dev/cellsymphony-pi'; rm -f /tmp/cellsymphony-pi"
+  Invoke-PiSsh "set -e; sudo install -d '$InstallDir/releases/dev'; sudo install -m 755 /tmp/cellsymphony-pi '$InstallDir/releases/dev/cellsymphony-pi'; sudo ln -sfn '$InstallDir/releases/dev' '$InstallDir/current'; sudo ln -sfn '$InstallDir/current/cellsymphony-pi' /usr/local/bin/cellsymphony-pi; rm -f /tmp/cellsymphony-pi"
 } else {
   $archive = Join-Path $env:TEMP "cellsymphony-pi-source.tar.gz"
   if (Test-Path $archive) {
@@ -93,7 +98,9 @@ rm -rf "`$SYNC_DIR" '$remoteArchive'
   }
 }
 
-$osConfigCommand = @'
+$updateInitramfsValue = if ($UpdateInitramfs) { "1" } else { "0" }
+
+$osConfigCommand = "UPDATE_INITRAMFS=$updateInitramfsValue`n" + @'
 set -e
 BOOT_CONFIG="/boot/firmware/config.txt"
 if [ ! -f "$BOOT_CONFIG" ]; then
@@ -112,6 +119,72 @@ disable_service_if_present() {
 ensure_boot_config_line "camera_auto_detect=0"
 ensure_boot_config_line "display_auto_detect=0"
 ensure_boot_config_line "dtoverlay=disable-bt"
+if [ "$UPDATE_INITRAMFS" = "1" ]; then
+if ! grep -qxF "# Cell Symphony required boot settings" "$BOOT_CONFIG"; then printf '\n[all]\n# Cell Symphony required boot settings\ndtparam=spi=on\nauto_initramfs=1\n' | sudo tee -a "$BOOT_CONFIG" >/dev/null; fi
+if ! command -v update-initramfs >/dev/null 2>&1; then
+  sudo apt-get update
+  sudo apt-get install -y --no-install-recommends initramfs-tools
+fi
+sudo install -d -m 0755 /etc/initramfs-tools/hooks /etc/initramfs-tools/scripts/init-premount
+sudo tee /etc/initramfs-tools/hooks/cellsymphony-boot-splash >/dev/null <<'EOF'
+#!/bin/sh
+set -e
+
+PREREQ=""
+
+prereqs() {
+    echo "$PREREQ"
+}
+
+case "$1" in
+    prereqs)
+        prereqs
+        exit 0
+        ;;
+esac
+
+. /usr/share/initramfs-tools/hook-functions
+
+copy_exec /usr/local/bin/cellsymphony-pi /usr/local/bin/cellsymphony-pi
+manual_add_modules spi-bcm2835 || true
+manual_add_modules spidev || true
+EOF
+sudo tee /etc/initramfs-tools/scripts/init-premount/cellsymphony-boot-splash >/dev/null <<'EOF'
+#!/bin/sh
+set -e
+
+PREREQ=""
+
+prereqs() {
+    echo "$PREREQ"
+}
+
+case "$1" in
+    prereqs)
+        prereqs
+        exit 0
+        ;;
+esac
+
+modprobe spi-bcm2835 >/dev/null 2>&1 || true
+modprobe spidev >/dev/null 2>&1 || true
+
+if [ -x /usr/local/bin/cellsymphony-pi ]; then
+    /usr/local/bin/cellsymphony-pi --boot-splash-once >/dev/kmsg 2>&1 &
+    splash_pid="$!"
+    (sleep 2; kill "$splash_pid" >/dev/null 2>&1 || true) &
+    watchdog_pid="$!"
+    wait "$splash_pid" >/dev/null 2>&1 || true
+    kill "$watchdog_pid" >/dev/null 2>&1 || true
+fi
+EOF
+sudo chmod 0755 /etc/initramfs-tools/hooks/cellsymphony-boot-splash /etc/initramfs-tools/scripts/init-premount/cellsymphony-boot-splash
+grep -qxF "spi-bcm2835" /etc/initramfs-tools/modules || echo "spi-bcm2835" | sudo tee -a /etc/initramfs-tools/modules >/dev/null
+grep -qxF "spidev" /etc/initramfs-tools/modules || echo "spidev" | sudo tee -a /etc/initramfs-tools/modules >/dev/null
+sudo update-initramfs -u
+else
+  echo "Skipping initramfs update. Pass -UpdateInitramfs to refresh the early boot splash initramfs."
+fi
 sudo install -d -m 0755 /etc/systemd/journald.conf.d
 sudo tee /etc/systemd/journald.conf.d/10-cellsymphony.conf >/dev/null <<'EOF'
 [Journal]
@@ -119,6 +192,12 @@ Storage=volatile
 RuntimeMaxUse=32M
 RuntimeMaxFileSize=4M
 EOF
+sudo install -d -m 0750 /etc/sudoers.d
+sudo tee /etc/sudoers.d/cellsymphony-shutdown >/dev/null <<'EOF'
+pi ALL=(root) NOPASSWD: /usr/bin/systemctl poweroff, /bin/systemctl poweroff, /usr/sbin/poweroff, /sbin/poweroff
+EOF
+sudo chmod 0440 /etc/sudoers.d/cellsymphony-shutdown
+sudo visudo -cf /etc/sudoers.d/cellsymphony-shutdown >/dev/null
 sudo systemctl restart systemd-journald
 disable_service_if_present bluetooth.service
 disable_service_if_present hciuart.service
@@ -135,6 +214,22 @@ RemainAfterExit=yes
 [Install]
 WantedBy=multi-user.target
 EOF
+sudo tee /etc/systemd/system/cellsymphony-oled-shutdown.service >/dev/null <<'EOF'
+[Unit]
+Description=Cell Symphony Late OLED Shutdown
+
+[Service]
+Type=oneshot
+ExecStart=/bin/true
+ExecStop=/bin/sh -c 'sleep 4; /usr/local/bin/cellsymphony-pi --oled-off-once || true'
+RemainAfterExit=yes
+TimeoutStopSec=8
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
 sudo systemctl daemon-reload
 sudo systemctl enable cellsymphony-performance-governor.service
 sudo systemctl start cellsymphony-performance-governor.service
@@ -142,7 +237,24 @@ sudo systemctl start cellsymphony-performance-governor.service
 
 Invoke-PiSsh $osConfigCommand
 
-$serviceCommand = "set -e; sudo install -d '$InstallDir'; sudo ln -sfn '$InstallDir/releases/dev' '$InstallDir/current'; sudo ln -sfn '$InstallDir/current/cellsymphony-pi' /usr/local/bin/cellsymphony-pi; sudo tee /etc/systemd/system/$Service >/dev/null <<'EOF'
+$serviceCommand = "set -e; sudo install -d '$InstallDir'; sudo ln -sfn '$InstallDir/releases/dev' '$InstallDir/current'; sudo ln -sfn '$InstallDir/current/cellsymphony-pi' /usr/local/bin/cellsymphony-pi; sudo tee /etc/systemd/system/cellsymphony-boot-splash.service >/dev/null <<'EOF'
+[Unit]
+Description=Cell Symphony Early OLED Boot Splash
+DefaultDependencies=no
+After=systemd-modules-load.service systemd-udevd.service
+Before=sysinit.target cellsymphony.service
+
+[Service]
+Type=oneshot
+ExecStart=-/usr/local/bin/cellsymphony-pi --boot-splash-once
+TimeoutStartSec=2
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=sysinit.target
+EOF
+sudo tee /etc/systemd/system/$Service >/dev/null <<'EOF'
 [Unit]
 Description=Cell Symphony Pi Zero 2W Headless Music System
 After=sound.target
@@ -151,7 +263,7 @@ After=sound.target
 Type=simple
 User=pi
 WorkingDirectory=$RemoteRepo
-ExecStartPre=/bin/sleep 2
+Environment=CELLSYMPHONY_EARLY_BOOT_SPLASH=1
 ExecStart=/usr/local/bin/cellsymphony-pi
 Restart=always
 RestartSec=5
@@ -161,7 +273,7 @@ StandardError=journal
 [Install]
 WantedBy=multi-user.target
 EOF
-sudo systemctl daemon-reload; sudo systemctl enable '$Service'; sudo systemctl restart '$Service'; systemctl --no-pager --lines=8 status '$Service'"
+sudo systemctl daemon-reload; sudo systemctl disable cellsymphony-boot-splash.service >/dev/null 2>&1 || true; sudo systemctl enable cellsymphony-oled-shutdown.service '$Service'; sudo systemctl start cellsymphony-oled-shutdown.service; sudo systemctl restart '$Service'; systemctl --no-pager --lines=8 status '$Service'"
 
 if ($AllowServiceFailure) {
   Invoke-PiSsh "$serviceCommand || true"
