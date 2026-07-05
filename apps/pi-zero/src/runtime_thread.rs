@@ -24,6 +24,30 @@ const SNAPSHOT_INTERVAL_MS: u64 = 33;
 const RENDER_INTERVAL_MS: u64 = 16;
 const PI_SD_CARD_SAMPLE_DIR: &str = "sd-card";
 
+struct SchedulerState {
+    last_tick: Instant,
+    last_snapshot_request: Instant,
+    last_render: Instant,
+    pending_encoder_turns: PendingEncoderTurns,
+    ui_profiler: UiProfiler,
+}
+
+impl SchedulerState {
+    fn new() -> Self {
+        Self {
+            last_tick: Instant::now(),
+            last_snapshot_request: Instant::now(),
+            last_render: Instant::now() - Duration::from_millis(RENDER_INTERVAL_MS),
+            pending_encoder_turns: PendingEncoderTurns::default(),
+            ui_profiler: UiProfiler::from_process(),
+        }
+    }
+
+    fn profile_enabled(&self) -> bool {
+        self.ui_profiler.enabled()
+    }
+}
+
 pub(crate) struct RuntimeThreadConfig {
     pub(crate) audio: Option<AudioService>,
     pub(crate) store_dir: PathBuf,
@@ -100,16 +124,9 @@ fn run_scheduler(
     mut runner: NativeRunner,
     mut adapter: PiPlaybackHostAdapter,
 ) {
-    let mut last_tick = Instant::now();
-    let mut last_snapshot_request = Instant::now();
-    let mut last_render = Instant::now() - Duration::from_millis(RENDER_INTERVAL_MS);
-    let mut pending_encoder_turns = PendingEncoderTurns::default();
-    let mut ui_profiler = UiProfiler::from_process();
-    let profile_enabled = ui_profiler.enabled();
+    let mut state = SchedulerState::new();
+    let profile_enabled = state.profile_enabled();
     let mut last_loop_start = profile_enabled.then(Instant::now);
-    let tick_duration = Duration::from_millis(PLAYBACK_TICK_MS);
-    let snapshot_interval = Duration::from_millis(SNAPSHOT_INTERVAL_MS);
-    let render_interval = Duration::from_millis(RENDER_INTERVAL_MS);
 
     loop {
         let loop_start = profile_enabled.then(Instant::now);
@@ -118,18 +135,11 @@ fn run_scheduler(
             .map(|(loop_start, last)| loop_start.duration_since(last));
         last_loop_start = loop_start;
         if advance(
-            &mut last_tick,
-            tick_duration,
-            &mut last_snapshot_request,
-            snapshot_interval,
-            &mut last_render,
-            render_interval,
-            &mut pending_encoder_turns,
+            &mut state,
             &mut playback,
             &mut runner,
             &mut adapter,
             &render_worker,
-            &mut ui_profiler,
         ) {
             break;
         }
@@ -137,70 +147,49 @@ fn run_scheduler(
         let host_input_started = profile_enabled.then(Instant::now);
         drain_host_messages(&input_rx, &mut playback, &mut runner, &mut adapter);
         if let Some(started) = host_input_started {
-            ui_profiler.record_host_input(started.elapsed());
+            state.ui_profiler.record_host_input(started.elapsed());
         }
         if advance(
-            &mut last_tick,
-            tick_duration,
-            &mut last_snapshot_request,
-            snapshot_interval,
-            &mut last_render,
-            render_interval,
-            &mut pending_encoder_turns,
+            &mut state,
             &mut playback,
             &mut runner,
             &mut adapter,
             &render_worker,
-            &mut ui_profiler,
         ) {
             break;
         }
         drain_encoder_events(
             &encoder_rx,
-            &mut pending_encoder_turns,
+            &mut state.pending_encoder_turns,
             &mut playback,
             &mut runner,
             &mut adapter,
         );
         flush_pending_encoder_turns(
-            &mut pending_encoder_turns,
+            &mut state.pending_encoder_turns,
             &mut playback,
             &mut runner,
             &mut adapter,
         );
         if advance(
-            &mut last_tick,
-            tick_duration,
-            &mut last_snapshot_request,
-            snapshot_interval,
-            &mut last_render,
-            render_interval,
-            &mut pending_encoder_turns,
+            &mut state,
             &mut playback,
             &mut runner,
             &mut adapter,
             &render_worker,
-            &mut ui_profiler,
         ) {
             break;
         }
         if let (Some(gap), Some(started)) = (loop_gap, loop_start) {
-            ui_profiler.record_loop(gap, started.elapsed());
-            ui_profiler.maybe_report();
+            state.ui_profiler.record_loop(gap, started.elapsed());
+            state.ui_profiler.maybe_report();
         }
         if advance(
-            &mut last_tick,
-            tick_duration,
-            &mut last_snapshot_request,
-            snapshot_interval,
-            &mut last_render,
-            render_interval,
-            &mut pending_encoder_turns,
+            &mut state,
             &mut playback,
             &mut runner,
             &mut adapter,
             &render_worker,
-            &mut ui_profiler,
         ) {
             break;
         }
@@ -208,33 +197,25 @@ fn run_scheduler(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn advance(
-    last_tick: &mut Instant,
-    tick_duration: Duration,
-    last_snapshot_request: &mut Instant,
-    snapshot_interval: Duration,
-    last_render: &mut Instant,
-    render_interval: Duration,
-    pending_encoder_turns: &mut PendingEncoderTurns,
+    state: &mut SchedulerState,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
     adapter: &mut PiPlaybackHostAdapter,
     render_worker: &RenderWorker,
-    ui_profiler: &mut UiProfiler,
 ) -> bool {
     maybe_advance_runtime(
-        last_tick,
-        tick_duration,
-        last_snapshot_request,
-        snapshot_interval,
-        last_render,
-        render_interval,
-        pending_encoder_turns,
+        &mut state.last_tick,
+        Duration::from_millis(PLAYBACK_TICK_MS),
+        &mut state.last_snapshot_request,
+        Duration::from_millis(SNAPSHOT_INTERVAL_MS),
+        &mut state.last_render,
+        Duration::from_millis(RENDER_INTERVAL_MS),
+        &mut state.pending_encoder_turns,
         playback,
         runner,
         adapter,
         render_worker,
-        ui_profiler,
+        &mut state.ui_profiler,
     )
 }
