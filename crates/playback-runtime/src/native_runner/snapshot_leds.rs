@@ -29,6 +29,6 @@ fn base_led_color(alive: bool, trigger: Option<platform_core::CellTriggerType>) 
         platform_core::CellTriggerType::Activate => LedColor::rgb(255, 255, 255),
         platform_core::CellTriggerType::Deactivate => LedColor::rgb(128, 128, 128),
         platform_core::CellTriggerType::Scanned => LedColor::rgb(255, 0, 0),
-        _ => LedColor::rgb(0, 255, 120),
+        _ => LedColor::rgb(0, 255, 0),
     }
 }
