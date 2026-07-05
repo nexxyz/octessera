@@ -18,38 +18,21 @@ mod platform_service;
 mod render;
 mod render_loop;
 mod runtime_loop;
+mod runtime_thread;
 mod sample_browser;
 mod seesaw_io;
 mod timing_probe;
 mod ui_profile;
 
 use audio::AudioManager;
-use encoder_queue::PendingEncoderTurns;
 use hardware_init::{init_encoders, init_hardware, HardwareDevices};
-use host_adapter::PiPlaybackHostAdapter;
 use input::{midi_realtime_message, MidiMessage};
-use playback_runtime::{
-    NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig, SyncSource,
-};
 use render::HardwareRenderTargets;
 use render_loop::RenderWorker;
-use runtime_loop::initialize_host_state;
 use std::sync::mpsc;
 use std::sync::Arc;
-use std::thread;
-use std::time::{Duration, Instant};
-use ui_profile::UiProfiler;
 
 use main_paths::{default_samples_dir, default_store_dir, ensure_runtime_dirs};
-use main_runtime_loop::{
-    drain_encoder_events, drain_host_messages, drain_midi_messages, flush_pending_encoder_turns,
-    maybe_advance_runtime,
-};
-
-const PLAYBACK_TICK_MS: u64 = 8;
-const SNAPSHOT_INTERVAL_MS: u64 = 33;
-const RENDER_INTERVAL_MS: u64 = 16;
-const PI_SD_CARD_SAMPLE_DIR: &str = "sd-card";
 
 fn main() {
     let _ = simple_logger::init();
@@ -91,144 +74,27 @@ fn main() {
         }
     });
 
-    let (mut playback, mut runner) = init_runtime();
-    if early_boot_splash_enabled() {
-        runner.skip_startup_splash();
-    }
-
     let store_dir = default_store_dir();
     let samples_dir = default_samples_dir();
     ensure_runtime_dirs(&store_dir, &samples_dir);
-
-    let mut adapter = PiPlaybackHostAdapter::new(
-        audio.as_ref().map(AudioManager::service),
-        store_dir,
-        samples_dir,
-        midi_handler,
-    );
-    if let Err(error) = initialize_host_state(&mut playback, &mut runner, &mut adapter) {
-        eprintln!("pi host state initialization failed: {error}");
-    }
-
-    let mut last_tick = Instant::now();
-    let mut last_snapshot_request = Instant::now();
-    let mut last_render = Instant::now() - Duration::from_millis(RENDER_INTERVAL_MS);
     let render_worker = RenderWorker::spawn(HardwareRenderTargets {
         oled,
         seesaw_tx: seesaw_io.command_tx.clone(),
     });
-    let mut pending_encoder_turns = PendingEncoderTurns::default();
-    let mut ui_profiler = UiProfiler::from_process();
-    let profile_enabled = ui_profiler.enabled();
-    let mut last_loop_start = if profile_enabled {
-        Some(Instant::now())
-    } else {
-        None
-    };
-    let tick_duration = Duration::from_millis(PLAYBACK_TICK_MS);
-    let snapshot_interval = Duration::from_millis(SNAPSHOT_INTERVAL_MS);
-    let render_interval = Duration::from_millis(RENDER_INTERVAL_MS);
 
-    loop {
-        let loop_start = profile_enabled.then(Instant::now);
-        let loop_gap = loop_start
-            .zip(last_loop_start)
-            .map(|(loop_start, last)| loop_start.duration_since(last));
-        last_loop_start = loop_start;
-        if maybe_advance_runtime(
-            &mut last_tick,
-            tick_duration,
-            &mut last_snapshot_request,
-            snapshot_interval,
-            &mut last_render,
-            render_interval,
-            &mut pending_encoder_turns,
-            &mut playback,
-            &mut runner,
-            &mut adapter,
-            &render_worker,
-            &mut ui_profiler,
-        ) {
-            break;
-        }
-        drain_midi_messages(&midi_rx, &mut playback, &mut runner, &mut adapter);
-        let host_input_started = profile_enabled.then(Instant::now);
-        drain_host_messages(
-            &seesaw_io.input_rx,
-            &mut playback,
-            &mut runner,
-            &mut adapter,
-        );
-        if let Some(started) = host_input_started {
-            ui_profiler.record_host_input(started.elapsed());
-        }
-        if maybe_advance_runtime(
-            &mut last_tick,
-            tick_duration,
-            &mut last_snapshot_request,
-            snapshot_interval,
-            &mut last_render,
-            render_interval,
-            &mut pending_encoder_turns,
-            &mut playback,
-            &mut runner,
-            &mut adapter,
-            &render_worker,
-            &mut ui_profiler,
-        ) {
-            break;
-        }
-        drain_encoder_events(
-            &event_rx,
-            &mut pending_encoder_turns,
-            &mut playback,
-            &mut runner,
-            &mut adapter,
-        );
-        flush_pending_encoder_turns(
-            &mut pending_encoder_turns,
-            &mut playback,
-            &mut runner,
-            &mut adapter,
-        );
-        if maybe_advance_runtime(
-            &mut last_tick,
-            tick_duration,
-            &mut last_snapshot_request,
-            snapshot_interval,
-            &mut last_render,
-            render_interval,
-            &mut pending_encoder_turns,
-            &mut playback,
-            &mut runner,
-            &mut adapter,
-            &render_worker,
-            &mut ui_profiler,
-        ) {
-            break;
-        }
-
-        if let (Some(gap), Some(started)) = (loop_gap, loop_start) {
-            ui_profiler.record_loop(gap, started.elapsed());
-            ui_profiler.maybe_report();
-        }
-        if maybe_advance_runtime(
-            &mut last_tick,
-            tick_duration,
-            &mut last_snapshot_request,
-            snapshot_interval,
-            &mut last_render,
-            render_interval,
-            &mut pending_encoder_turns,
-            &mut playback,
-            &mut runner,
-            &mut adapter,
-            &render_worker,
-            &mut ui_profiler,
-        ) {
-            break;
-        }
-        thread::sleep(Duration::from_millis(1));
+    let runtime = runtime_thread::spawn(runtime_thread::RuntimeThreadConfig {
+        audio: audio.as_ref().map(AudioManager::service),
+        store_dir,
+        samples_dir,
+        midi_handler,
+        midi_rx,
+        input_rx: seesaw_io.input_rx,
+        encoder_rx: event_rx,
+        render_worker,
+        early_boot_splash: early_boot_splash_enabled(),
+    });
+    if runtime.join().is_err() {
+        eprintln!("pi runtime thread panicked");
     }
 }
 
@@ -276,21 +142,4 @@ fn init_audio() -> Option<AudioManager> {
             None
         }
     }
-}
-
-fn init_runtime() -> (PlaybackRuntime, NativeRunner) {
-    let playback = PlaybackRuntime::new(RuntimeConfig {
-        bpm: 120.0,
-        sync_source: SyncSource::Internal,
-        midi_clock_out_enabled: false,
-        midi_out_enabled: false,
-    });
-    let mut runner = NativeRunner::new(NativeRunnerConfig {
-        behavior_id: "sequencer".into(),
-        sample_builtin_favourite_dirs: vec![String::new(), PI_SD_CARD_SAMPLE_DIR.into()],
-        ..NativeRunnerConfig::default()
-    })
-    .expect("native runner should initialize");
-    runner.apply_runtime_config(playback.config());
-    (playback, runner)
 }
