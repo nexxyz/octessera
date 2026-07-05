@@ -76,6 +76,7 @@ Cell Symphony is a pnpm workspace plus Cargo workspace built around a native Rus
 - If a first fix for a desktop-visible menu/control/runtime bug fails, reproduce the reported phenomenon with a full UI-level or device-input replay before attempting another fix. Prefer tests that follow the user-visible flow over direct internal state mutation alone.
 - Always prefer fast paths for live/runtime/menu/audio/control changes. Use slow paths only when they are absolutely necessary; when a slow path is necessary, inform the user explicitly and clearly, including why the slow path cannot be avoided.
 - For menu/control changes that affect playback priority, avoid broad `apply_menu_state()` on high-frequency edit paths. Prefer key-specific fast paths, delayed autosave payload generation, full `cargo test -p playback-runtime` after targeted tests, and the portable desktop exe rebuild when desktop-visible.
+- When committing and immediately pushing, run targeted confidence checks and required artifact builds before committing, then rely on the pre-push hook for exhaustive CI-like validation. Do not manually run a hook-equivalent full suite immediately before `git push` unless the change is high-risk, the user asks, or the hook cannot run.
 - If you encounter repository changes you did not make and they conflict with the current task, stop and ask the user how to proceed.
 
 ## Useful Commands
