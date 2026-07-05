@@ -219,6 +219,7 @@ pub struct NativeRunner {
     pending_resync: bool,
     bpm: f64,
     swing_pct: u8,
+    audio_output_buffer_frames: u32,
     ui: NativeUiState,
     oled_mode: NativeOledMode,
     oled_splash_text: String,
@@ -298,6 +299,13 @@ pub struct NativeRunner {
     pending_aux_turn_toast: Option<PendingNativeToast>,
     pending_menu_apply: Option<PendingMenuApply>,
     menu_scroll_offset: usize,
+}
+
+fn normalize_audio_output_buffer_frames(value: u32) -> u32 {
+    match value {
+        64 | 128 | 256 | 512 | 1024 | 2048 => value,
+        _ => 256,
+    }
 }
 
 #[cfg(test)]

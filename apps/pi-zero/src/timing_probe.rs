@@ -205,7 +205,7 @@ fn run_live_one(
     duration: Duration,
     snapshots: bool,
 ) -> Result<LiveTimingProbeReport, String> {
-    let audio = AudioManager::new()?;
+    let audio = AudioManager::new(None)?;
     let store_dir = default_store_dir();
     let samples_dir = default_samples_dir();
     ensure_runtime_dirs(&store_dir, &samples_dir);

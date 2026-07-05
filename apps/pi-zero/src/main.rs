@@ -65,7 +65,8 @@ fn main() {
         _dac,
     } = hardware;
     let seesaw_io = seesaw_io::spawn(trellis, neokey, input_interrupt);
-    let audio = init_audio();
+    let store_dir = default_store_dir();
+    let audio = init_audio(audio_output_buffer_frames_from_default_config(&store_dir));
 
     let (midi_tx, midi_rx) = mpsc::channel::<MidiMessage>();
     let midi_handler = Arc::new(move |bytes: Vec<u8>| {
@@ -74,7 +75,6 @@ fn main() {
         }
     });
 
-    let store_dir = default_store_dir();
     let samples_dir = default_samples_dir();
     ensure_runtime_dirs(&store_dir, &samples_dir);
     let render_worker = RenderWorker::spawn(HardwareRenderTargets {
@@ -131,8 +131,8 @@ fn early_boot_splash_enabled() -> bool {
     std::env::var("CELLSYMPHONY_EARLY_BOOT_SPLASH").as_deref() == Ok("1")
 }
 
-fn init_audio() -> Option<AudioManager> {
-    match AudioManager::new() {
+fn init_audio(output_buffer_frames: Option<u32>) -> Option<AudioManager> {
+    match AudioManager::new(output_buffer_frames) {
         Ok(audio) => {
             println!("Audio ready");
             Some(audio)
@@ -142,4 +142,16 @@ fn init_audio() -> Option<AudioManager> {
             None
         }
     }
+}
+
+fn audio_output_buffer_frames_from_default_config(store_dir: &std::path::Path) -> Option<u32> {
+    let payload = std::fs::read_to_string(store_dir.join("default.json")).ok()?;
+    let payload: serde_json::Value = serde_json::from_str(&payload).ok()?;
+    payload
+        .get("runtimeConfig")
+        .unwrap_or(&payload)
+        .get("sound")
+        .and_then(|sound| sound.get("audioOutputBufferFrames"))
+        .and_then(serde_json::Value::as_u64)
+        .map(|value| value as u32)
 }

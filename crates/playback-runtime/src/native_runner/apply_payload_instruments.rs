@@ -59,6 +59,10 @@ impl NativeRunner {
                 self.voice_stealing_mode = mode.into();
             }
         }
+        if let Some(value) = sound_or_runtime_u64(sound, runtime, "audioOutputBufferFrames") {
+            self.audio_output_buffer_frames =
+                super::normalize_audio_output_buffer_frames(value as u32);
+        }
     }
 
     fn apply_ui_payload(&mut self, runtime: &Value) {

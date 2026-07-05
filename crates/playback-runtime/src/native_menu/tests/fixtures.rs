@@ -119,6 +119,7 @@ pub(crate) fn config() -> NativeMenuConfig {
         velocity_scale_pct: 100,
         velocity_curve: "linear".into(),
         voice_stealing_mode: "auto-balanced".into(),
+        audio_output_buffer_frames: 256,
         auto_save_default: true,
         ghost_cells: false,
         input_events_while_paused: true,

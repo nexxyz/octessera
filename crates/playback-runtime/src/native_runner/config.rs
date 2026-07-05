@@ -142,6 +142,7 @@ impl NativeRunner {
             xy_invert_y: self.xy_invert_y,
             bpm: self.bpm.round().clamp(20.0, 300.0) as u16,
             swing_pct: self.swing_pct,
+            audio_output_buffer_frames: self.audio_output_buffer_frames,
             sync_source: self.sync_source.clone(),
         }
     }
@@ -244,7 +245,8 @@ impl NativeRunner {
                     "noteLengthMs": self.global_sound.note_length_ms,
                     "velocityScalePct": self.global_sound.velocity_scale_pct,
                     "velocityCurve": velocity_curve_id(self.global_sound.velocity_curve),
-                    "voiceStealingMode": self.voice_stealing_mode.clone()
+                    "voiceStealingMode": self.voice_stealing_mode.clone(),
+                    "audioOutputBufferFrames": self.audio_output_buffer_frames
                 },
                 "noteLengthMs": self.global_sound.note_length_ms,
                 "velocityScalePct": self.global_sound.velocity_scale_pct,

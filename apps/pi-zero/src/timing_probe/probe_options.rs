@@ -114,7 +114,7 @@ pub(super) fn run_audio_drain_probe(options: &TimingProbeOptions) -> bool {
 }
 
 fn run_audio_drain_one(duration: Duration) -> Result<AudioDrainProbeReport, String> {
-    let audio = AudioManager::new()?;
+    let audio = AudioManager::new(None)?;
     let service = audio.service();
     let interval = audio_drain_interval();
     let (report_tx, report_rx) = std::sync::mpsc::channel::<u128>();

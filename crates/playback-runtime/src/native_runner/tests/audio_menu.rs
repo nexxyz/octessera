@@ -1,6 +1,25 @@
 use super::*;
 
 #[test]
+pub(crate) fn output_buffer_frames_edits_into_config_payload_with_restart_toast() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert!(runner.menu.focus_item_key("sound.audioOutputBufferFrames"));
+    runner.menu.state.editing = true;
+
+    runner.menu.turn(1);
+    runner.apply_menu_state().unwrap();
+
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["sound"]["audioOutputBufferFrames"],
+        512
+    );
+    assert_eq!(
+        runner.snapshot().unwrap()["display"]["toast"],
+        "Restart device to apply"
+    );
+}
+
+#[test]
 pub(crate) fn synth_gain_edits_into_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![2, 0, 0, 2, 4];

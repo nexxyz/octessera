@@ -87,6 +87,7 @@ pub struct NativeMenuConfig {
     pub xy_invert_y: bool,
     pub bpm: u16,
     pub swing_pct: u8,
+    pub audio_output_buffer_frames: u32,
     pub sync_source: SyncSource,
 }
 

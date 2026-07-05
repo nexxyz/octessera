@@ -182,6 +182,17 @@ impl NativeRunner {
                 self.voice_stealing_mode = mode;
             }
         }
+        if let Some(value) = self.menu.value_for_key("sound.audioOutputBufferFrames") {
+            let value = value
+                .parse::<u32>()
+                .map(super::normalize_audio_output_buffer_frames)
+                .unwrap_or(256);
+            if self.audio_output_buffer_frames != value {
+                changed = true;
+                self.audio_output_buffer_frames = value;
+                self.show_toast("Restart device to apply");
+            }
+        }
         (changed, audio_config_changed)
     }
 

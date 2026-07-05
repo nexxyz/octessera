@@ -17,6 +17,7 @@ pub struct NativeRunnerConfig {
     pub sync_source: SyncSource,
     pub bpm: f64,
     pub swing_pct: u8,
+    pub audio_output_buffer_frames: u32,
     pub sample_builtin_favourite_dirs: Vec<String>,
 }
 
@@ -45,6 +46,7 @@ impl Default for NativeRunnerConfig {
             sync_source: SyncSource::Internal,
             bpm: 120.0,
             swing_pct: 0,
+            audio_output_buffer_frames: 256,
             sample_builtin_favourite_dirs: Vec::new(),
         }
     }

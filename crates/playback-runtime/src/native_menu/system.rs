@@ -93,6 +93,15 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                             &config.voice_stealing_mode,
                         ),
                     ),
+                    enum_item(
+                        "Output Buffer",
+                        "sound.audioOutputBufferFrames",
+                        vec!["64", "128", "256", "512", "1024", "2048"],
+                        selected_index(
+                            &["64", "128", "256", "512", "1024", "2048"],
+                            &config.audio_output_buffer_frames.to_string(),
+                        ),
+                    ),
                 ],
             ),
             group(

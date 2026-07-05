@@ -73,10 +73,10 @@ pub struct AudioManager {
 }
 
 impl AudioManager {
-    pub fn new() -> Result<Self, String> {
+    pub fn new(output_buffer_frames: Option<u32>) -> Result<Self, String> {
         let (engine_tx, engine_rx) = mpsc::channel::<EngineEvent>();
         let (control_tx, control_rx) = mpsc::channel::<AudioControlRequest>();
-        let stream = build_cpal_stream(engine_rx)?;
+        let stream = build_cpal_stream(engine_rx, output_buffer_frames)?;
         stream
             .play()
             .map_err(|e| format!("failed to play audio stream: {e}"))?;
@@ -104,7 +104,10 @@ impl AudioManager {
     }
 }
 
-fn build_cpal_stream(engine_rx: mpsc::Receiver<EngineEvent>) -> Result<Stream, String> {
+fn build_cpal_stream(
+    engine_rx: mpsc::Receiver<EngineEvent>,
+    output_buffer_frames: Option<u32>,
+) -> Result<Stream, String> {
     let host = cpal::default_host();
     let device = host
         .default_output_device()
@@ -115,7 +118,7 @@ fn build_cpal_stream(engine_rx: mpsc::Receiver<EngineEvent>) -> Result<Stream, S
     let mut config: StreamConfig = supported.config();
     config.channels = 2;
     config.sample_rate = cpal::SampleRate(DEFAULT_AUDIO_SAMPLE_RATE);
-    config.buffer_size = output_buffer_size();
+    config.buffer_size = output_buffer_size(output_buffer_frames);
     let source = EngineSource::new(engine_rx, config.sample_rate.0);
     match supported.sample_format() {
         SampleFormat::F32 => build_stream::<f32>(&device, &config, source),
@@ -155,10 +158,11 @@ where
     }
 }
 
-fn output_buffer_size() -> BufferSize {
+fn output_buffer_size(configured_frames: Option<u32>) -> BufferSize {
     let frames = std::env::var("CELLSYMPHONY_AUDIO_OUTPUT_BUFFER_FRAMES")
         .ok()
         .and_then(|value| value.parse::<u32>().ok())
+        .or(configured_frames)
         .unwrap_or(256);
     BufferSize::Fixed(frames.clamp(32, 2048))
 }

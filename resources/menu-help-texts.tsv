@@ -154,9 +154,10 @@ filt_env_amt	*	key:instruments.*.synth.filter.envAmountPct	number	Filter Env Amo
 filt_keytrack	*	key:instruments.*.synth.filter.keyTrackingPct	number	Filter Key Tracking	Sets how cutoff follows played pitch across notes.	Higher values keep timbre more consistent by pitch.
 filt_env_adsr	*	key:instruments.*.synth.filterEnv.*	number	Filter Envelope	Shapes filter movement over time using ADSR stages.	Use with Env Amount for plucks, swells, and contour motion.
 bpm_help	*	key:transport.bpm	number	BPM	Sets master tempo in beats per minute.	Affects internal clock rate and algorithm pulse timing.
-sound_group	Menu > System > Sound		group	Sound	Global volume, voice shaping, and note behavior controls.	Includes Master Vol, Voice Limit, Note Length, Velocity Scale, and Velocity Curve.
+sound_group	Menu > System > Sound		group	Sound	Global volume, voice shaping, and note behavior controls.	Includes Master Vol, Voice Limit, Note Length, Velocity Scale, Velocity Curve, and Output Buffer.
 master_vol	*	key:masterVolume	number	Master Volume	Sets overall output volume scaling.	Use this for final level trim without changing patch balance.
 voice_stealing_mode	*	key:sound.voiceStealingMode	enum	Voice Limit	Controls voice stealing: fixed12, fixed16, auto-soft, auto-balanced, auto-hard, or none.	auto-hard keeps more CPU headroom; auto-soft preserves longer tails.
+audio_output_buffer_frames	*	key:sound.audioOutputBufferFrames	enum	Output Buffer	Sets Pi audio output buffer frames for the next device restart.	Smaller values reduce latency; larger values improve stability. CELLSYMPHONY_AUDIO_OUTPUT_BUFFER_FRAMES still overrides this at startup.
 presets_group	Menu > System > Saves		group	Presets	Save, load, and manage configuration snapshots.	Use defaults for boot state and library for named variants.
 default_save	System > Saves > Default > Save Default	action:default_save	action	Save Default	Stores current state as startup default payload.	Use with Auto Save when you want edits to persist automatically.
 default_load	System > Saves > Default > Load Default	action:default_load	action	Load Default	Loads the saved default payload into current state.	Replaces current runtime settings immediately.

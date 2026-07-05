@@ -112,6 +112,7 @@ impl NativeRunner {
             xy_invert_y: false,
             bpm: config.bpm.round().clamp(20.0, 300.0) as u16,
             swing_pct: config.swing_pct.min(75),
+            audio_output_buffer_frames: config.audio_output_buffer_frames,
             sync_source: config.sync_source.clone(),
         });
         let mut part_engines = Vec::new();
@@ -157,6 +158,9 @@ impl NativeRunner {
             pending_resync: false,
             bpm: config.bpm,
             swing_pct: config.swing_pct.min(75),
+            audio_output_buffer_frames: normalize_audio_output_buffer_frames(
+                config.audio_output_buffer_frames,
+            ),
             ui,
             oled_mode: NativeOledMode::Splash,
             oled_splash_text: OLED_STARTUP_SPLASH_KEY.into(),
