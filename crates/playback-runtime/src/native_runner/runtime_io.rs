@@ -72,6 +72,10 @@ impl NativeRunner {
             }
             return Ok(None);
         }
+        if confirm.confirm_before_execute {
+            self.confirm_dialog = self.confirmation_for_action(&confirm.action);
+            return Ok(None);
+        }
         self.execute_confirmed_action(confirm.action)
     }
 

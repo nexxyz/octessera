@@ -184,6 +184,7 @@ impl NativeRunner {
                     cursor: 0,
                     action: NativeMenuAction::PlatformEffect("system.reboot".into()),
                     cancel_toast: None,
+                    confirm_before_execute: true,
                 });
             }
         }

@@ -91,6 +91,7 @@ impl NativeRunner {
                 cursor: 0,
                 action: action.clone(),
                 cancel_toast: Some("Cancelled".into()),
+                confirm_before_execute: false,
             });
         }
         let NativeMenuAction::PlatformEffect(action_type) = action else {
@@ -154,6 +155,7 @@ impl NativeRunner {
             cursor: 0,
             action: action.clone(),
             cancel_toast: Some("Cancelled".into()),
+            confirm_before_execute: false,
         })
     }
 

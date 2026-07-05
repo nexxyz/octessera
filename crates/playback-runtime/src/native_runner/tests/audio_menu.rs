@@ -56,12 +56,46 @@ pub(crate) fn output_buffer_reboot_prompt_continue_does_not_emit_reboot() {
 }
 
 #[test]
-pub(crate) fn output_buffer_reboot_prompt_reboot_emits_reboot_and_shutdown_splash() {
+pub(crate) fn output_buffer_reboot_prompt_reboot_opens_confirmation_without_rebooting() {
     let mut runner = changed_output_buffer_runner();
     runner.oled_mode = NativeOledMode::Normal;
     runner.oled_splash_text.clear();
     runner.oled_splash_until = None;
     let _ = press_back(&mut runner);
+    runner.confirm_dialog.as_mut().unwrap().cursor = 1;
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let snapshot = snapshot_from(&messages);
+
+    assert_eq!(snapshot["display"]["title"], "Confirm Reboot");
+    assert_eq!(snapshot["display"]["lines"][1], "> Cancel");
+    assert_eq!(snapshot["display"]["lines"][2], "  Confirm");
+    assert!(!messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects.contains(&RuntimePlatformEffect::Reboot)
+    )));
+}
+
+#[test]
+pub(crate) fn output_buffer_reboot_confirmation_emits_reboot_and_shutdown_splash() {
+    let mut runner = changed_output_buffer_runner();
+    runner.oled_mode = NativeOledMode::Normal;
+    runner.oled_splash_text.clear();
+    runner.oled_splash_until = None;
+    let _ = press_back(&mut runner);
+    runner.confirm_dialog.as_mut().unwrap().cursor = 1;
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
     runner.confirm_dialog.as_mut().unwrap().cursor = 1;
 
     let messages = runner

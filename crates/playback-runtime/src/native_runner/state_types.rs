@@ -102,6 +102,7 @@ pub(super) struct NativeConfirmDialog {
     pub(super) cursor: usize,
     pub(super) action: NativeMenuAction,
     pub(super) cancel_toast: Option<String>,
+    pub(super) confirm_before_execute: bool,
 }
 
 #[derive(Clone, Debug)]
