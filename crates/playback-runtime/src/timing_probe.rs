@@ -317,22 +317,24 @@ fn apply_scenario(
             json!({ "type": "button_a", "pressed": true }),
             snapshots,
         ),
-        TimingProbeScenario::StopStart if ms > 0 && ms % 1000 == 0 => send_input(
+        TimingProbeScenario::StopStart if ms > 0 && ms.is_multiple_of(1000) => send_input(
             runtime,
             runner,
             host,
             json!({ "type": "button_s", "pressed": true }),
             true,
         ),
-        TimingProbeScenario::EncoderStress if ms % 40 == 0 => send_input(
+        TimingProbeScenario::EncoderStress if ms.is_multiple_of(40) => send_input(
             runtime,
             runner,
             host,
-            json!({ "type": "encoder_turn", "delta": if (ms / 40) % 2 == 0 { 1 } else { -1 }, "id": "main" }),
+            json!({ "type": "encoder_turn", "delta": if (ms / 40).is_multiple_of(2) { 1 } else { -1 }, "id": "main" }),
             snapshots,
         ),
-        TimingProbeScenario::MuteStress if ms % 500 == 0 => send_fn_play(runtime, runner, host),
-        TimingProbeScenario::DancePageStress if ms % 250 == 0 => {
+        TimingProbeScenario::MuteStress if ms.is_multiple_of(500) => {
+            send_fn_play(runtime, runner, host)
+        }
+        TimingProbeScenario::DancePageStress if ms.is_multiple_of(250) => {
             send_dance_page_input(runtime, runner, host, ((ms / 250) % 5) as usize)
         }
         _ => Ok(()),
