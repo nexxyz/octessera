@@ -190,6 +190,7 @@ impl NativeRunner {
             if self.audio_output_buffer_frames != value {
                 changed = true;
                 self.audio_output_buffer_frames = value;
+                self.pending_audio_output_buffer_reboot_prompt = true;
                 self.show_toast("Restart device to apply");
             }
         }

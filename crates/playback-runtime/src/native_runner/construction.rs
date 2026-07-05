@@ -248,6 +248,7 @@ impl NativeRunner {
             aux_turn_toast_cooldown_until: None,
             pending_aux_turn_toast: None,
             pending_menu_apply: None,
+            pending_audio_output_buffer_reboot_prompt: false,
             menu_scroll_offset: 0,
         };
         runner.seed_visible_state()?;

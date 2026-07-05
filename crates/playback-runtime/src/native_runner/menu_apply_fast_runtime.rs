@@ -205,6 +205,7 @@ impl NativeRunner {
             .map(super::normalize_audio_output_buffer_frames)
             .unwrap_or(256);
         if value_changed(&mut self.audio_output_buffer_frames, value) {
+            self.pending_audio_output_buffer_reboot_prompt = true;
             self.mark_fast_autosave_dirty();
             self.show_toast("Restart device to apply");
         }

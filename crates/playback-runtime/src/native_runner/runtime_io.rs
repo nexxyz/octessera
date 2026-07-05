@@ -67,10 +67,9 @@ impl NativeRunner {
             return Ok(None);
         };
         if confirm.cursor == 0 {
-            self.toast = Some(NativeToast {
-                message: "Cancelled".into(),
-                offset: 0,
-            });
+            if let Some(message) = confirm.cancel_toast {
+                self.toast = Some(NativeToast { message, offset: 0 });
+            }
             return Ok(None);
         }
         self.execute_confirmed_action(confirm.action)

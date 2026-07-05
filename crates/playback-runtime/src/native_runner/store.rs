@@ -90,6 +90,7 @@ impl NativeRunner {
                 options: vec!["Cancel".into(), "Confirm".into()],
                 cursor: 0,
                 action: action.clone(),
+                cancel_toast: Some("Cancelled".into()),
             });
         }
         let NativeMenuAction::PlatformEffect(action_type) = action else {
@@ -152,6 +153,7 @@ impl NativeRunner {
             options: vec!["Cancel".into(), "Confirm".into()],
             cursor: 0,
             action: action.clone(),
+            cancel_toast: Some("Cancelled".into()),
         })
     }
 

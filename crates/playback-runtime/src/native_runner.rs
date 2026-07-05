@@ -298,6 +298,7 @@ pub struct NativeRunner {
     aux_turn_toast_cooldown_until: Option<Instant>,
     pending_aux_turn_toast: Option<PendingNativeToast>,
     pending_menu_apply: Option<PendingMenuApply>,
+    pending_audio_output_buffer_reboot_prompt: bool,
     menu_scroll_offset: usize,
 }
 

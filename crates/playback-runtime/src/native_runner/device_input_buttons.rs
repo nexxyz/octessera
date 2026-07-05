@@ -1,7 +1,7 @@
 use crate::native_menu::{NativeMenuAction, NativeMenuPressResult};
 use crate::protocol::{RunnerMessage, RuntimePlatformEffect};
 
-use super::NativeRunner;
+use super::{NativeConfirmDialog, NativeRunner};
 
 impl NativeRunner {
     pub(super) fn handle_encoder_press_input(
@@ -166,10 +166,25 @@ impl NativeRunner {
                 .editing
                 .then(|| self.menu.current_key().map(str::to_owned))
                 .flatten();
+            let prompt_for_audio_buffer_reboot = editing_key.as_deref()
+                == Some("sound.audioOutputBufferFrames")
+                && self.pending_audio_output_buffer_reboot_prompt;
             self.reset_menu_scroll();
             self.menu.back();
             if let Some(key) = editing_key {
                 self.apply_or_schedule_menu_key(&key)?;
+            }
+            if prompt_for_audio_buffer_reboot {
+                self.pending_audio_output_buffer_reboot_prompt = false;
+                self.toast = None;
+                self.confirm_dialog = Some(NativeConfirmDialog {
+                    title: "Restart Required".into(),
+                    lines: vec!["Reboot now to apply?".into()],
+                    options: vec!["Continue".into(), "Reboot".into()],
+                    cursor: 0,
+                    action: NativeMenuAction::PlatformEffect("system.reboot".into()),
+                    cancel_toast: None,
+                });
             }
         }
         self.messages_with_snapshot()

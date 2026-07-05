@@ -20,6 +20,85 @@ pub(crate) fn output_buffer_frames_edits_into_config_payload_with_restart_toast(
 }
 
 #[test]
+pub(crate) fn back_from_changed_output_buffer_opens_default_continue_reboot_prompt() {
+    let mut runner = changed_output_buffer_runner();
+
+    let messages = press_back(&mut runner);
+    let snapshot = snapshot_from(&messages);
+
+    assert_eq!(snapshot["display"]["title"], "Restart Required");
+    assert_eq!(snapshot["display"]["lines"][1], "> Continue");
+    assert_eq!(snapshot["display"]["lines"][2], "  Reboot");
+    assert_eq!(snapshot["display"]["toast"], "");
+}
+
+#[test]
+pub(crate) fn output_buffer_reboot_prompt_continue_does_not_emit_reboot() {
+    let mut runner = changed_output_buffer_runner();
+    let _ = press_back(&mut runner);
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert!(!messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects.contains(&RuntimePlatformEffect::Reboot)
+    )));
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["sound"]["audioOutputBufferFrames"],
+        512
+    );
+}
+
+#[test]
+pub(crate) fn output_buffer_reboot_prompt_reboot_emits_reboot_and_shutdown_splash() {
+    let mut runner = changed_output_buffer_runner();
+    runner.oled_mode = NativeOledMode::Normal;
+    runner.oled_splash_text.clear();
+    runner.oled_splash_until = None;
+    let _ = press_back(&mut runner);
+    runner.confirm_dialog.as_mut().unwrap().cursor = 1;
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let display = &snapshot_from(&messages)["display"];
+
+    assert_eq!(display["splash"], "shutdown");
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects == &vec![RuntimePlatformEffect::Reboot]
+    )));
+}
+
+fn changed_output_buffer_runner() -> NativeRunner {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert!(runner.menu.focus_item_key("sound.audioOutputBufferFrames"));
+    runner.menu.state.editing = true;
+    runner.menu.turn(1);
+    runner.apply_menu_state().unwrap();
+    runner
+}
+
+fn press_back(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_a", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap()
+}
+
+#[test]
 pub(crate) fn synth_gain_edits_into_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![2, 0, 0, 2, 4];

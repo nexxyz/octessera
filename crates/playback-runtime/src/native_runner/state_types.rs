@@ -101,6 +101,7 @@ pub(super) struct NativeConfirmDialog {
     pub(super) options: Vec<String>,
     pub(super) cursor: usize,
     pub(super) action: NativeMenuAction,
+    pub(super) cancel_toast: Option<String>,
 }
 
 #[derive(Clone, Debug)]
