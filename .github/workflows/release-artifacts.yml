@@ -103,6 +103,143 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "${{ needs.release_info.outputs.tag }}" release-assets/* --clobber
 
+  macos:
+    name: macOS DMG
+    runs-on: macos-latest
+    needs: release_info
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.release_info.outputs.tag }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9.12.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2.9.1
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build macOS DMG
+        run: pnpm --filter @cellsymphony/desktop exec tauri build --bundles dmg --no-sign
+
+      - name: Prepare macOS release assets
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          dmg_path="$(find target/release/bundle/dmg -maxdepth 1 -name '*.dmg' 2>/dev/null | head -n 1 || true)"
+          if [ -z "$dmg_path" ]; then
+            echo "macOS DMG not found" >&2
+            exit 1
+          fi
+          cp "$dmg_path" "release-assets/${{ needs.release_info.outputs.asset_prefix }}-macos-unsigned.dmg"
+          (cd release-assets && shasum -a 256 *.dmg > SHA256SUMS-macos.txt)
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: cellsymphony-macos-release-assets
+          path: release-assets/*
+          retention-days: 30
+
+      - name: Upload macOS assets to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ needs.release_info.outputs.tag }}" release-assets/* --clobber
+
+  ubuntu:
+    name: Ubuntu DEB and AppImage
+    runs-on: ubuntu-latest
+    needs: release_info
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.release_info.outputs.tag }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9.12.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2.9.1
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            file \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libsoup-3.0-dev \
+            libssl-dev \
+            libwebkit2gtk-4.1-dev \
+            libxdo-dev \
+            patchelf \
+            pkg-config \
+            wget
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Ubuntu bundles
+        run: pnpm --filter @cellsymphony/desktop exec tauri build --bundles deb,appimage
+
+      - name: Prepare Ubuntu release assets
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          deb_path="$(find target/release/bundle/deb -maxdepth 1 -name '*.deb' 2>/dev/null | head -n 1 || true)"
+          appimage_path="$(find target/release/bundle/appimage -maxdepth 1 -name '*.AppImage' 2>/dev/null | head -n 1 || true)"
+          if [ -z "$deb_path" ]; then
+            echo "Ubuntu DEB not found" >&2
+            exit 1
+          fi
+          if [ -z "$appimage_path" ]; then
+            echo "Ubuntu AppImage not found" >&2
+            exit 1
+          fi
+          cp "$deb_path" "release-assets/${{ needs.release_info.outputs.asset_prefix }}-ubuntu-amd64.deb"
+          cp "$appimage_path" "release-assets/${{ needs.release_info.outputs.asset_prefix }}-ubuntu-x86_64.AppImage"
+          (cd release-assets && sha256sum *.deb *.AppImage > SHA256SUMS-ubuntu.txt)
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: cellsymphony-ubuntu-release-assets
+          path: release-assets/*
+          retention-days: 30
+
+      - name: Upload Ubuntu assets to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ needs.release_info.outputs.tag }}" release-assets/* --clobber
+
   pi_image:
     name: Raspberry Pi ready-to-flash image
     runs-on: ubuntu-latest

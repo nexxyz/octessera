@@ -8,12 +8,7 @@ export type InputAction =
 
 export type SimulatorSnapshot = {
   frame: RuntimeSnapshot;
-  neoKeyLeds: {
-    back: "off" | "solid_red";
-    space: "stopped" | "paused" | "playing" | "beat" | "measure";
-    shift: "off" | "solid_yellow" | "solid_blue";
-    fn: "off" | "solid_yellow" | "solid_blue";
-  };
+  neoKeyLeds: Record<"back" | "space" | "shift" | "fn", [number, number, number]>;
   masterVolume: number;
   voiceStealingMode: "fixed12" | "fixed16" | "auto-soft" | "auto-balanced" | "auto-hard" | "none";
   audioLoad: { ratio: number; voiceSteal: boolean };

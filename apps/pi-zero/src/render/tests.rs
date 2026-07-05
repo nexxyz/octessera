@@ -138,7 +138,7 @@ fn led_frame_applies_grid_brightness_and_sleep_dim() {
 #[test]
 fn neokey_play_button_uses_transport_state_and_flash_colors() {
     let mut snapshot = snapshot_with_leds();
-    assert_eq!(neokey_colors(&snapshot)[1], [255, 51, 51]);
+    assert_eq!(neokey_colors(&snapshot)[1], [255, 0, 0]);
 
     snapshot["transportIcon"] = json!("pause");
     assert_eq!(neokey_colors(&snapshot)[1], [215, 255, 232]);

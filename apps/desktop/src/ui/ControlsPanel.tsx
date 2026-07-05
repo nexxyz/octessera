@@ -1,5 +1,6 @@
 import type { DeviceInput } from "@cellsymphony/device-contracts";
 import { AUX_ENCODER_COUNT } from "@cellsymphony/device-contracts";
+import type { CSSProperties } from "react";
 import type { SimulatorSnapshot } from "../runtime/types";
 import { OledDisplay } from "./OledDisplay";
 
@@ -137,10 +138,21 @@ function NeoKey({
         if (button.key === "shift") setModifier("shift", false);
         if (button.key === "fn") setModifier("fn", false);
       }}
-      className={`neokey-${button.key} ${snapshot.neoKeyLeds[button.key]}`}
-      style={{ opacity: Math.max(0.25, snapshot.buttonBrightness / 100) }}
+      className={`neokey-${button.key}`}
+      style={neoKeyStyle(snapshot.neoKeyLeds[button.key])}
     >
       {button.label}
     </button>
   );
+}
+
+function neoKeyStyle(rgb: [number, number, number]): CSSProperties {
+  const [r, g, b] = rgb;
+  const color = `rgb(${r}, ${g}, ${b})`;
+  const lit = Math.max(r, g, b) > 0;
+  return {
+    backgroundColor: color,
+    borderColor: lit ? `rgb(${Math.min(255, r + 64)}, ${Math.min(255, g + 64)}, ${Math.min(255, b + 64)})` : undefined,
+    boxShadow: lit ? `0 0 14px rgba(${r}, ${g}, ${b}, 0.55)` : "none",
+  };
 }

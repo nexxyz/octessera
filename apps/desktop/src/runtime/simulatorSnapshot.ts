@@ -85,15 +85,10 @@ export function snapshotFromCore(
         : flash === "beat"
           ? "beat"
           : "playing";
-  const combined = settings?.combinedModifierHeld ?? false;
+  const neoKeyLeds = neoKeyColors(frame, space, settings?.buttonBrightness, shiftActive);
   return {
     frame: withTransientIndicators(frame, indicators),
-    neoKeyLeds: {
-      back: "solid_red",
-      space,
-      shift: combined ? "solid_blue" : (settings?.shiftHeld ?? shiftActive) ? "solid_yellow" : "off",
-      fn: combined ? "solid_blue" : (settings?.fnHeld ?? false) ? "solid_yellow" : "off",
-    },
+    neoKeyLeds,
     displayBrightness: settings?.displayBrightness ?? 75,
     buttonBrightness: settings?.buttonBrightness ?? 75,
     masterVolume: cache.masterVolume,
@@ -107,6 +102,39 @@ export function snapshotFromCore(
     autoSaveFlash: settings?.autoSaveFlash ?? "none",
     autoSaveFlashSerial: settings?.autoSaveFlashSerial,
   };
+}
+
+function neoKeyColors(
+  frame: RuntimeSnapshot,
+  space: "stopped" | "paused" | "playing" | "beat" | "measure",
+  buttonBrightness: number | undefined,
+  shiftActive: boolean,
+): SimulatorSnapshot["neoKeyLeds"] {
+  const settings = frame.settings;
+  const scaleFactor = (frame.display?.off ? 0.08 : 1) * brightnessScale(buttonBrightness);
+  const combined = settings?.combinedModifierHeld ?? false;
+  return {
+    back: scale([90, 0, 0], scaleFactor),
+    space: scale(spaceColor(space), scaleFactor),
+    shift: scale(combined ? [0, 0, 180] : (settings?.shiftHeld ?? shiftActive) ? [180, 140, 0] : [0, 0, 0], scaleFactor),
+    fn: scale(combined ? [0, 0, 180] : (settings?.fnHeld ?? false) ? [180, 140, 0] : [0, 0, 0], scaleFactor),
+  };
+}
+
+function spaceColor(space: "stopped" | "paused" | "playing" | "beat" | "measure"): [number, number, number] {
+  if (space === "stopped") return [255, 0, 0];
+  if (space === "paused") return [215, 255, 232];
+  if (space === "measure") return [255, 160, 0];
+  if (space === "beat") return [51, 255, 102];
+  return [0, 80, 0];
+}
+
+function brightnessScale(value: number | undefined): number {
+  return value === undefined ? 1 : Math.min(100, Math.max(0, value)) / 100;
+}
+
+function scale(rgb: [number, number, number], factor: number): [number, number, number] {
+  return rgb.map((channel) => Math.round(channel * factor)) as [number, number, number];
 }
 
 function withTransientIndicators(frame: RuntimeSnapshot, indicators: TransientIndicatorState): RuntimeSnapshot {

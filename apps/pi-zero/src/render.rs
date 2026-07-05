@@ -194,7 +194,7 @@ pub fn neokey_colors(snapshot: &Value) -> [[u8; 3]; 4] {
         .unwrap_or("stop");
     let back = scale([90, 0, 0], button_scale);
     let space = if icon == "stop" {
-        scale([255, 51, 51], button_scale)
+        scale([255, 0, 0], button_scale)
     } else if icon == "pause" {
         scale([215, 255, 232], button_scale)
     } else if flash == "measure" {
