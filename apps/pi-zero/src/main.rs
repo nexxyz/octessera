@@ -14,6 +14,7 @@ mod input;
 mod main_paths;
 mod main_runtime_loop;
 mod oled_test;
+mod platform_service;
 mod render;
 mod render_loop;
 mod runtime_loop;
@@ -30,7 +31,8 @@ use input::{midi_realtime_message, MidiMessage};
 use playback_runtime::{
     NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig, SyncSource,
 };
-use render::{HardwareRenderCache, HardwareRenderTargets};
+use render::HardwareRenderTargets;
+use render_loop::RenderWorker;
 use runtime_loop::initialize_host_state;
 use std::sync::mpsc;
 use std::sync::Arc;
@@ -73,7 +75,7 @@ fn main() {
     };
     let HardwareDevices {
         _i2c_bus,
-        mut oled,
+        oled,
         trellis,
         neokey,
         input_interrupt,
@@ -111,11 +113,10 @@ fn main() {
     let mut last_tick = Instant::now();
     let mut last_snapshot_request = Instant::now();
     let mut last_render = Instant::now() - Duration::from_millis(RENDER_INTERVAL_MS);
-    let mut render_cache = HardwareRenderCache::default();
-    let mut render_targets = HardwareRenderTargets {
-        oled: &mut oled,
-        seesaw_tx: &seesaw_io.command_tx,
-    };
+    let render_worker = RenderWorker::spawn(HardwareRenderTargets {
+        oled,
+        seesaw_tx: seesaw_io.command_tx.clone(),
+    });
     let mut pending_encoder_turns = PendingEncoderTurns::default();
     let mut ui_profiler = UiProfiler::from_process();
     let profile_enabled = ui_profiler.enabled();
@@ -145,8 +146,7 @@ fn main() {
             &mut playback,
             &mut runner,
             &mut adapter,
-            &mut render_cache,
-            &mut render_targets,
+            &render_worker,
             &mut ui_profiler,
         ) {
             break;
@@ -162,6 +162,22 @@ fn main() {
         if let Some(started) = host_input_started {
             ui_profiler.record_host_input(started.elapsed());
         }
+        if maybe_advance_runtime(
+            &mut last_tick,
+            tick_duration,
+            &mut last_snapshot_request,
+            snapshot_interval,
+            &mut last_render,
+            render_interval,
+            &mut pending_encoder_turns,
+            &mut playback,
+            &mut runner,
+            &mut adapter,
+            &render_worker,
+            &mut ui_profiler,
+        ) {
+            break;
+        }
         drain_encoder_events(
             &event_rx,
             &mut pending_encoder_turns,
@@ -175,10 +191,42 @@ fn main() {
             &mut runner,
             &mut adapter,
         );
+        if maybe_advance_runtime(
+            &mut last_tick,
+            tick_duration,
+            &mut last_snapshot_request,
+            snapshot_interval,
+            &mut last_render,
+            render_interval,
+            &mut pending_encoder_turns,
+            &mut playback,
+            &mut runner,
+            &mut adapter,
+            &render_worker,
+            &mut ui_profiler,
+        ) {
+            break;
+        }
 
         if let (Some(gap), Some(started)) = (loop_gap, loop_start) {
             ui_profiler.record_loop(gap, started.elapsed());
             ui_profiler.maybe_report();
+        }
+        if maybe_advance_runtime(
+            &mut last_tick,
+            tick_duration,
+            &mut last_snapshot_request,
+            snapshot_interval,
+            &mut last_render,
+            render_interval,
+            &mut pending_encoder_turns,
+            &mut playback,
+            &mut runner,
+            &mut adapter,
+            &render_worker,
+            &mut ui_profiler,
+        ) {
+            break;
         }
         thread::sleep(Duration::from_millis(1));
     }

@@ -1,7 +1,7 @@
 use crate::encoder_queue::PendingEncoderTurns;
 use crate::host_adapter::PiPlaybackHostAdapter;
 use crate::input::{encoder_press_message, MidiMessage};
-use crate::render::{HardwareRenderCache, HardwareRenderTargets};
+use crate::render_loop::RenderWorker;
 use crate::runtime_loop::{dispatch_runtime_message, handle_deferred_host_work};
 use crate::ui_profile::UiProfiler;
 use cellsymphony_hal::encoder_gpio::HardwareEvent;
@@ -12,6 +12,7 @@ use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 const HARDWARE_EVENT_BUDGET: usize = 16;
+const MIDI_REALTIME_BUDGET: usize = 32;
 
 pub(crate) fn drain_midi_messages(
     midi_rx: &mpsc::Receiver<MidiMessage>,
@@ -19,7 +20,10 @@ pub(crate) fn drain_midi_messages(
     runner: &mut NativeRunner,
     adapter: &mut PiPlaybackHostAdapter,
 ) {
-    while let Ok(message) = midi_rx.try_recv() {
+    for _ in 0..MIDI_REALTIME_BUDGET {
+        let Ok(message) = midi_rx.try_recv() else {
+            break;
+        };
         match message {
             MidiMessage::Realtime { bytes } => {
                 if let Err(error) = playback.handle_midi_realtime_bytes(&bytes, runner, adapter) {
@@ -81,14 +85,46 @@ pub(crate) fn maybe_advance_runtime(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
     adapter: &mut PiPlaybackHostAdapter,
-    render_cache: &mut HardwareRenderCache,
-    targets: &mut HardwareRenderTargets<'_>,
+    render_worker: &RenderWorker,
     ui_profiler: &mut UiProfiler,
 ) -> bool {
-    if last_tick.elapsed() < tick_duration {
-        return false;
-    }
     let now = Instant::now();
+    if now.duration_since(*last_tick) >= tick_duration {
+        advance_playback_if_due(
+            now,
+            last_tick,
+            tick_duration,
+            last_snapshot_request,
+            snapshot_interval,
+            playback,
+            runner,
+            adapter,
+            ui_profiler,
+        );
+    }
+    service_render_if_due(
+        now,
+        last_render,
+        render_interval,
+        playback,
+        runner,
+        render_worker,
+    );
+    shutdown_if_requested(adapter, render_worker)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn advance_playback_if_due(
+    now: Instant,
+    last_tick: &mut Instant,
+    tick_duration: Duration,
+    last_snapshot_request: &mut Instant,
+    snapshot_interval: Duration,
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    adapter: &mut PiPlaybackHostAdapter,
+    ui_profiler: &mut UiProfiler,
+) {
     let profile_enabled = ui_profiler.enabled();
     let lateness =
         profile_enabled.then(|| now.duration_since(*last_tick).saturating_sub(tick_duration));
@@ -108,17 +144,6 @@ pub(crate) fn maybe_advance_runtime(
     if let (Some(lateness), Some(started)) = (lateness, advance_started) {
         ui_profiler.record_runtime(lateness, started.elapsed());
     }
-    render_if_due(
-        now,
-        last_render,
-        render_interval,
-        playback,
-        runner,
-        render_cache,
-        targets,
-        ui_profiler,
-    );
-    shutdown_if_requested(adapter, targets)
 }
 
 pub(crate) fn flush_pending_encoder_turns(
@@ -164,54 +189,43 @@ fn is_internal_playing(playback: &PlaybackRuntime) -> bool {
             .is_some_and(|status| status.transport == RuntimeTransportState::Playing)
 }
 
-#[allow(clippy::too_many_arguments)]
-fn render_if_due(
+fn service_render_if_due(
     now: Instant,
     last_render: &mut Instant,
     render_interval: Duration,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    render_cache: &mut HardwareRenderCache,
-    targets: &mut HardwareRenderTargets<'_>,
-    ui_profiler: &mut UiProfiler,
+    render_worker: &RenderWorker,
 ) {
     if now.duration_since(*last_render) < render_interval {
         return;
     }
     *last_render = now;
-    crate::render_loop::render_latest_snapshot(
-        playback,
-        runner,
-        targets,
-        render_cache,
-        ui_profiler,
-        render_interval,
-    );
+    let Some(snapshot) = crate::runtime_loop::latest_snapshot(playback).cloned() else {
+        return;
+    };
+    let pulses = playback.drain_ui_pulses();
+    if !crate::runtime_loop::playback_config_matches_snapshot(playback, &snapshot) {
+        crate::runtime_loop::sync_playback_config_from_snapshot(playback, runner, &snapshot);
+    }
+    render_worker.publish_snapshot(snapshot, pulses);
 }
 
 fn shutdown_if_requested(
     adapter: &mut PiPlaybackHostAdapter,
-    targets: &mut HardwareRenderTargets<'_>,
+    render_worker: &RenderWorker,
 ) -> bool {
     if !adapter.take_shutdown_request() {
         return false;
     }
-    crate::render::render_shutdown_splash(targets.oled);
-    darken_hardware_for_shutdown(targets);
+    if !render_worker.publish_shutdown() {
+        eprintln!("pi shutdown render acknowledgement timed out");
+    }
     if let Err(error) = shutdown_pi_system() {
         eprintln!("pi shutdown failed: {error}");
         return false;
     }
     true
-}
-
-fn darken_hardware_for_shutdown(targets: &mut HardwareRenderTargets<'_>) {
-    let _ = targets
-        .seesaw_tx
-        .send(crate::seesaw_io::SeesawCommand::GridFrame([[0; 3]; 64]));
-    let _ = targets
-        .seesaw_tx
-        .send(crate::seesaw_io::SeesawCommand::NeoKeyColors([[0; 3]; 4]));
 }
 
 fn shutdown_pi_system() -> Result<(), String> {

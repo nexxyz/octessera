@@ -97,7 +97,7 @@ mod tests {
     fn neokey_maps_to_native_button_inputs() {
         let expected = ["button_a", "button_s", "button_shift", "button_fn"];
         for (key, expected_type) in expected.into_iter().enumerate() {
-            let HostMessage::DeviceInput { input } = neokey_message(key as u8, true).unwrap()
+            let HostMessage::DeviceInput { input, .. } = neokey_message(key as u8, true).unwrap()
             else {
                 panic!("expected device input");
             };
@@ -115,12 +115,13 @@ mod tests {
             ("encoder_aux_3", "aux3"),
         ];
         for (hardware_id, input_id) in ids {
-            let HostMessage::DeviceInput { input } = encoder_turn_message(hardware_id, 1) else {
+            let HostMessage::DeviceInput { input, .. } = encoder_turn_message(hardware_id, 1)
+            else {
                 panic!("expected device input");
             };
             assert_eq!(input["type"], "encoder_turn");
             assert_eq!(input["id"], input_id);
-            let HostMessage::DeviceInput { input } = encoder_press_message(hardware_id) else {
+            let HostMessage::DeviceInput { input, .. } = encoder_press_message(hardware_id) else {
                 panic!("expected device input");
             };
             assert_eq!(input["type"], "encoder_press");

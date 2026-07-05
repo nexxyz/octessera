@@ -5,11 +5,11 @@ mod host_adapter_store;
 
 use crate::audio::AudioService;
 use crate::host_audio_command::send_audio_command;
-use crate::sample_browser::sample_entries;
+use crate::platform_service::{PiPlatformService, PlatformJob};
 use midir::{MidiInputConnection, MidiOutputConnection};
 use playback_runtime::{
     HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent, RuntimeAudioCommand,
-    RuntimePlatformEffect, RuntimeStoreResult, SampleEntry,
+    RuntimePlatformEffect, RuntimeStoreResult,
 };
 use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
 use rodio_engine_source::EngineEvent;
@@ -21,6 +21,7 @@ pub struct PiPlaybackHostAdapter {
     audio: Option<AudioService>,
     store_dir: PathBuf,
     samples_dir: PathBuf,
+    platform_service: PiPlatformService,
     pending_default_save: Option<(serde_json::Value, Instant)>,
     midi_out: Option<MidiOutputConnection>,
     midi_in: Option<MidiInputConnection<()>>,
@@ -37,10 +38,12 @@ impl PiPlaybackHostAdapter {
         samples_dir: PathBuf,
         midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
     ) -> Self {
+        let platform_service = PiPlatformService::new(store_dir.clone(), samples_dir.clone());
         Self {
             audio,
             store_dir,
             samples_dir,
+            platform_service,
             pending_default_save: None,
             midi_out: None,
             midi_in: None,
@@ -64,20 +67,25 @@ impl PiPlaybackHostAdapter {
         if Instant::now() < *due_at {
             return Ok(Vec::new());
         }
-        let Some((payload, _)) = self.pending_default_save.take() else {
+        let Some((payload, _)) = self.pending_default_save.as_ref() else {
             return Ok(Vec::new());
         };
-        self.save_default_payload(&payload)?;
-        Ok(vec![HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::SaveDefaultResult {
-                ok: true,
-                is_auto: Some(true),
-            },
-        }])
+        let payload = payload.clone();
+        if let Err(message) = self.platform_service.enqueue(PlatformJob::SaveDefault {
+            payload: payload.clone(),
+            is_auto: Some(true),
+        }) {
+            self.pending_default_save = Some((payload, retry_default_save_at()));
+            return Ok(vec![store_error(format!(
+                "Auto-save queue failed: {message}"
+            ))]);
+        }
+        self.pending_default_save = None;
+        Ok(Vec::new())
     }
 
-    fn sample_entries(&self, dir: &str) -> Result<Vec<SampleEntry>, String> {
-        sample_entries(&self.samples_dir, dir)
+    pub fn drain_platform_results(&self, max_results: usize) -> Vec<HostMessage> {
+        self.platform_service.drain_results(max_results)
     }
 }
 
@@ -121,27 +129,46 @@ impl HostAdapter for PiPlaybackHostAdapter {
         effect: &RuntimePlatformEffect,
     ) -> Result<Vec<HostMessage>, String> {
         let result = match effect {
-            RuntimePlatformEffect::StoreListPresets => RuntimeStoreResult::ListPresetsResult {
-                names: self.list_presets()?,
-            },
-            RuntimePlatformEffect::StoreLoadPreset { name } => {
-                RuntimeStoreResult::LoadPresetResult {
-                    name: name.clone(),
-                    payload: self.load_preset_payload(name)?,
+            RuntimePlatformEffect::StoreListPresets => {
+                if let Err(message) = self.platform_service.enqueue(PlatformJob::ListPresets) {
+                    return Ok(vec![store_error(format!(
+                        "Preset list queued failed: {message}"
+                    ))]);
                 }
+                return Ok(Vec::new());
+            }
+            RuntimePlatformEffect::StoreLoadPreset { name } => {
+                if let Err(message) = self
+                    .platform_service
+                    .enqueue(PlatformJob::LoadPreset { name: name.clone() })
+                {
+                    return Ok(vec![store_error(format!(
+                        "Load {name} queued failed: {message}"
+                    ))]);
+                }
+                return Ok(Vec::new());
             }
             RuntimePlatformEffect::StoreSavePreset { name, payload, .. } => {
-                let existed = self.save_preset_payload(name, payload)?;
-                RuntimeStoreResult::SavePresetResult {
+                if let Err(message) = self.platform_service.enqueue(PlatformJob::SavePreset {
                     name: name.clone(),
-                    outcome: if existed { "overwritten" } else { "created" }.into(),
+                    payload: payload.clone(),
+                }) {
+                    return Ok(vec![store_error(format!(
+                        "Save {name} queued failed: {message}"
+                    ))]);
                 }
+                return Ok(Vec::new());
             }
             RuntimePlatformEffect::StoreDeletePreset { name } => {
-                RuntimeStoreResult::DeletePresetResult {
-                    name: name.clone(),
-                    ok: self.delete_preset_payload(name),
+                if let Err(message) = self
+                    .platform_service
+                    .enqueue(PlatformJob::DeletePreset { name: name.clone() })
+                {
+                    return Ok(vec![store_error(format!(
+                        "Delete {name} queued failed: {message}"
+                    ))]);
                 }
+                return Ok(Vec::new());
             }
             RuntimePlatformEffect::StoreLoadDefault => self.load_default_result()?,
             RuntimePlatformEffect::StoreSaveDefault { payload, mode } => {
@@ -215,20 +242,23 @@ impl HostAdapter for PiPlaybackHostAdapter {
                 instrument_slot,
                 sample_slot,
                 dir,
-            } => match self.sample_entries(dir) {
-                Ok(entries) => RuntimeStoreResult::SampleListResult {
+            } => {
+                if let Err(message) = self.platform_service.enqueue(PlatformJob::ListSamples {
                     instrument_slot: *instrument_slot,
                     sample_slot: *sample_slot,
                     dir: dir.clone(),
-                    entries,
-                },
-                Err(message) => RuntimeStoreResult::SampleListError {
-                    instrument_slot: *instrument_slot,
-                    sample_slot: *sample_slot,
-                    dir: dir.clone(),
-                    message,
-                },
-            },
+                }) {
+                    return Ok(vec![HostMessage::RuntimeResult {
+                        result: RuntimeStoreResult::SampleListError {
+                            instrument_slot: *instrument_slot,
+                            sample_slot: *sample_slot,
+                            dir: dir.clone(),
+                            message: format!("Sample list queued failed: {message}"),
+                        },
+                    }]);
+                }
+                return Ok(Vec::new());
+            }
             RuntimePlatformEffect::AudioCommand { command } => {
                 self.handle_audio_command(command)?;
                 return Ok(Vec::new());
@@ -249,6 +279,16 @@ impl HostAdapter for PiPlaybackHostAdapter {
     }
 }
 
+fn retry_default_save_at() -> Instant {
+    Instant::now() + std::time::Duration::from_millis(1_000)
+}
+
+fn store_error(message: String) -> HostMessage {
+    HostMessage::RuntimeResult {
+        result: RuntimeStoreResult::StoreError { message },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -261,9 +301,10 @@ mod tests {
             PathBuf::from("samples"),
             Arc::new(|_| {}),
         );
-        assert!(adapter
-            .preset_path("bad/name")
-            .to_string_lossy()
-            .contains("bad_name.json"));
+        assert!(
+            crate::platform_service::preset_path(&adapter.store_dir, "bad/name")
+                .to_string_lossy()
+                .contains("bad_name.json")
+        );
     }
 }

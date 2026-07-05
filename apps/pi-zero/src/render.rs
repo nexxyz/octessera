@@ -6,20 +6,18 @@ use std::sync::mpsc::Sender;
 use std::time::{Duration, Instant};
 
 mod oled;
-mod profile;
 
 pub(crate) use oled::OLED_FRAME_BYTES;
 #[cfg(test)]
 use oled::{glyph_rows, oled_frame};
 use oled::{oled_frame_into, oled_signature};
-pub use profile::RenderProfileMetrics;
 
 const SPLASH_REGULAR: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/splash_regular.rgb565"));
 const SPLASH_SEPIA: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/splash_sepia.rgb565"));
 
-pub struct HardwareRenderTargets<'a> {
-    pub oled: &'a mut OledSsd1351,
-    pub seesaw_tx: &'a Sender<SeesawCommand>,
+pub struct HardwareRenderTargets {
+    pub oled: OledSsd1351,
+    pub seesaw_tx: Sender<SeesawCommand>,
 }
 
 pub struct HardwareRenderCache {
@@ -92,7 +90,7 @@ impl Default for HardwareRenderCache {
 }
 
 pub fn render_snapshot_cached(
-    targets: &mut HardwareRenderTargets<'_>,
+    targets: &mut HardwareRenderTargets,
     snapshot: &Value,
     cache: &mut HardwareRenderCache,
 ) {
@@ -121,70 +119,7 @@ pub fn render_snapshot_cached(
     let signature = oled_signature(snapshot);
     if cache.oled_signature != signature {
         cache.oled_signature = signature;
-        render_oled(targets.oled, snapshot, &mut cache.oled_frame);
-    }
-}
-
-pub fn render_snapshot_cached_profiled(
-    targets: &mut HardwareRenderTargets<'_>,
-    snapshot: &Value,
-    cache: &mut HardwareRenderCache,
-    mut metrics: Option<&mut RenderProfileMetrics>,
-) {
-    let started = Instant::now();
-    if let Some(frame) = led_frame(snapshot) {
-        if let Some(metrics) = metrics.as_deref_mut() {
-            metrics.led_extract = started.elapsed();
-        }
-        if cache.led_frame.as_ref() != Some(&frame) {
-            let write_started = Instant::now();
-            let sent = targets
-                .seesaw_tx
-                .send(SeesawCommand::GridFrame(frame))
-                .is_ok();
-            if let Some(metrics) = metrics.as_deref_mut() {
-                metrics.led_write = write_started.elapsed();
-            }
-            if sent {
-                cache.led_frame = Some(frame);
-            }
-        }
-    }
-
-    let neokey_started = Instant::now();
-    let neokey = neokey_colors(snapshot);
-    if let Some(metrics) = metrics.as_deref_mut() {
-        metrics.neokey_build = neokey_started.elapsed();
-    }
-    let previous_neokey = cache.neokey_colors.unwrap_or([[u8::MAX; 3]; 4]);
-    let neokey_write_started = Instant::now();
-    let mut changed = false;
-    for (index, color) in neokey.iter().enumerate() {
-        if previous_neokey.get(index) == Some(color) {
-            continue;
-        }
-        changed = true;
-    }
-    let sent = !changed
-        || targets
-            .seesaw_tx
-            .send(SeesawCommand::NeoKeyColors(neokey))
-            .is_ok();
-    if let Some(metrics) = metrics.as_deref_mut() {
-        metrics.neokey_write = neokey_write_started.elapsed();
-    }
-    if sent {
-        cache.neokey_colors = Some(neokey);
-    }
-
-    let signature_started = Instant::now();
-    let signature = oled_signature(snapshot);
-    if let Some(metrics) = metrics.as_deref_mut() {
-        metrics.oled_signature = signature_started.elapsed();
-    }
-    if cache.oled_signature != signature {
-        cache.oled_signature = signature;
-        render_oled_profiled(targets.oled, snapshot, &mut cache.oled_frame, metrics);
+        render_oled(&mut targets.oled, snapshot, &mut cache.oled_frame);
     }
 }
 
@@ -324,31 +259,6 @@ pub fn render_shutdown_splash(oled: &mut OledSsd1351) {
     });
     let mut frame = vec![0_u8; OLED_FRAME_BYTES];
     render_oled(oled, &snapshot, &mut frame);
-}
-
-fn render_oled_profiled(
-    oled: &mut OledSsd1351,
-    snapshot: &Value,
-    frame: &mut [u8],
-    metrics: Option<&mut RenderProfileMetrics>,
-) {
-    let off = snapshot_display_off(snapshot);
-    if !off {
-        let _ = oled.display_on();
-    }
-    let build_started = Instant::now();
-    oled_frame_into(snapshot, frame);
-    let build_duration = build_started.elapsed();
-    let write_started = Instant::now();
-    let _ = oled.write_frame(frame);
-    if off {
-        let _ = oled.display_off();
-    }
-    if let Some(metrics) = metrics {
-        metrics.oled_frame_build = build_duration;
-        metrics.oled_write = write_started.elapsed();
-        metrics.oled_rendered = true;
-    }
 }
 
 fn snapshot_display_off(snapshot: &Value) -> bool {

@@ -1,4 +1,3 @@
-use crate::render::RenderProfileMetrics;
 use std::time::{Duration, Instant};
 
 const REPORT_INTERVAL: Duration = Duration::from_secs(5);
@@ -39,18 +38,6 @@ pub struct UiProfiler {
     runtime_late: DurationStats,
     runtime_advance: DurationStats,
     host_input: DurationStats,
-    render: DurationStats,
-    render_overrun: DurationStats,
-    snapshot_clone: DurationStats,
-    config_sync: DurationStats,
-    led_extract: DurationStats,
-    led_write: DurationStats,
-    render_neokey_build: DurationStats,
-    render_neokey_write: DurationStats,
-    oled_signature: DurationStats,
-    oled_frame_build: DurationStats,
-    oled_write: DurationStats,
-    oled_rendered: u64,
 }
 
 impl UiProfiler {
@@ -83,18 +70,6 @@ impl UiProfiler {
             runtime_late: DurationStats::default(),
             runtime_advance: DurationStats::default(),
             host_input: DurationStats::default(),
-            render: DurationStats::default(),
-            render_overrun: DurationStats::default(),
-            snapshot_clone: DurationStats::default(),
-            config_sync: DurationStats::default(),
-            led_extract: DurationStats::default(),
-            led_write: DurationStats::default(),
-            render_neokey_build: DurationStats::default(),
-            render_neokey_write: DurationStats::default(),
-            oled_signature: DurationStats::default(),
-            oled_frame_build: DurationStats::default(),
-            oled_write: DurationStats::default(),
-            oled_rendered: 0,
         }
     }
 
@@ -122,58 +97,17 @@ impl UiProfiler {
         }
     }
 
-    pub fn record_render(
-        &mut self,
-        total: Duration,
-        interval: Duration,
-        snapshot_clone: Duration,
-        config_sync: Duration,
-        metrics: &RenderProfileMetrics,
-    ) {
-        if !self.enabled {
-            return;
-        }
-        self.render.record(total);
-        self.snapshot_clone.record(snapshot_clone);
-        self.config_sync.record(config_sync);
-        if total > interval {
-            self.render_overrun.record(total - interval);
-        }
-        self.led_extract.record(metrics.led_extract);
-        self.led_write.record(metrics.led_write);
-        self.render_neokey_build.record(metrics.neokey_build);
-        self.render_neokey_write.record(metrics.neokey_write);
-        self.oled_signature.record(metrics.oled_signature);
-        if metrics.oled_rendered {
-            self.oled_rendered += 1;
-            self.oled_frame_build.record(metrics.oled_frame_build);
-            self.oled_write.record(metrics.oled_write);
-        }
-    }
-
     pub fn maybe_report(&mut self) {
         if !self.enabled || self.last_report.elapsed() < REPORT_INTERVAL {
             return;
         }
         eprintln!(
-            "pi-ui-profile loop={} gap={} runtime_late={} runtime_advance={} host_input={} render={} render_overrun={} snapshot_clone={} config_sync={} led_extract={} led_write={} render_neokey_build={} render_neokey_write={} oled_signature={} oled_rendered={} oled_frame_build={} oled_write={}",
+            "pi-ui-profile loop={} gap={} runtime_late={} runtime_advance={} host_input={}",
             self.loop_iteration.summary(),
             self.loop_gap.summary(),
             self.runtime_late.summary(),
             self.runtime_advance.summary(),
             self.host_input.summary(),
-            self.render.summary(),
-            self.render_overrun.summary(),
-            self.snapshot_clone.summary(),
-            self.config_sync.summary(),
-            self.led_extract.summary(),
-            self.led_write.summary(),
-            self.render_neokey_build.summary(),
-            self.render_neokey_write.summary(),
-            self.oled_signature.summary(),
-            self.oled_rendered,
-            self.oled_frame_build.summary(),
-            self.oled_write.summary(),
         );
         *self = Self::new(true);
     }

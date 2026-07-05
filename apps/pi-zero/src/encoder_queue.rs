@@ -49,12 +49,12 @@ mod tests {
         let messages = pending.take_messages();
 
         assert_eq!(messages.len(), 2);
-        let HostMessage::DeviceInput { input } = &messages[0] else {
+        let HostMessage::DeviceInput { input, .. } = &messages[0] else {
             panic!("expected device input");
         };
         assert_eq!(input["id"], "main");
         assert_eq!(input["delta"], 2);
-        let HostMessage::DeviceInput { input } = &messages[1] else {
+        let HostMessage::DeviceInput { input, .. } = &messages[1] else {
             panic!("expected device input");
         };
         assert_eq!(input["id"], "aux1");

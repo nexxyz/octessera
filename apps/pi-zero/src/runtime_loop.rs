@@ -6,6 +6,8 @@ use playback_runtime::{
 use serde_json::Value;
 use std::collections::VecDeque;
 
+const PLATFORM_RESULT_BUDGET: usize = 4;
+
 pub fn dispatch_runtime_message(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
@@ -27,6 +29,9 @@ pub fn handle_deferred_host_work(
     let follow_ups = adapter.flush_due_default_save()?;
     for follow_up in follow_ups {
         dispatch_runtime_message(playback, runner, adapter, follow_up)?;
+    }
+    for result in adapter.drain_platform_results(PLATFORM_RESULT_BUDGET) {
+        dispatch_runtime_message(playback, runner, adapter, result)?;
     }
     Ok(())
 }
@@ -237,7 +242,10 @@ mod tests {
             &mut playback,
             &mut runner,
             &mut adapter,
-            HostMessage::DeviceInput { input: json!({}) },
+            HostMessage::DeviceInput {
+                input: json!({}),
+                request_snapshot: None,
+            },
         )
         .unwrap();
 
@@ -254,7 +262,10 @@ mod tests {
             &mut playback,
             &mut runner,
             &mut adapter,
-            HostMessage::DeviceInput { input: json!({}) },
+            HostMessage::DeviceInput {
+                input: json!({}),
+                request_snapshot: None,
+            },
         )
         .unwrap();
 
