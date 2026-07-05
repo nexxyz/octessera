@@ -33,6 +33,7 @@ pub enum RuntimePlatformEffect {
         id: Option<String>,
     },
     MidiPanic,
+    Reboot,
     Shutdown,
     HardwareTest,
     UpdateCheck,

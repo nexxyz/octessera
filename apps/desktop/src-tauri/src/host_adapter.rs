@@ -253,7 +253,7 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                     },
                 }])
             }
-            RuntimePlatformEffect::Shutdown => {
+            RuntimePlatformEffect::Reboot | RuntimePlatformEffect::Shutdown => {
                 self.shutdown_requested = true;
                 Ok(vec![])
             }

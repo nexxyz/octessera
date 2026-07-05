@@ -125,11 +125,15 @@ impl NativeRunner {
                 } else if action_type == "system.controlsHelp" {
                     self.open_controls_help();
                     Ok(None)
-                } else if action_type == "system.shutdown" {
+                } else if action_type == "system.reboot" || action_type == "system.shutdown" {
                     self.oled_mode = super::NativeOledMode::Splash;
                     self.oled_splash_text = super::OLED_SHUTDOWN_SPLASH_KEY.into();
                     self.oled_splash_until = None;
-                    self.show_toast("cellSymphony is shutting down");
+                    if action_type == "system.reboot" {
+                        self.show_toast("cellSymphony is rebooting");
+                    } else {
+                        self.show_toast("cellSymphony is shutting down");
+                    }
                     Ok(self.platform_effect_for_action(&action_type))
                 } else if let Some(effect) = self.handle_sample_action(&action_type)? {
                     Ok(Some(effect))

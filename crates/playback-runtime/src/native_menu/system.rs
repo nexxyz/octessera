@@ -197,6 +197,11 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                 NativeMenuAction::PlatformEffect("system.controlsHelp".into()),
             ),
             action_item(
+                "Reboot",
+                "system.reboot",
+                NativeMenuAction::PlatformEffect("system.reboot".into()),
+            ),
+            action_item(
                 "Shutdown",
                 "system.shutdown",
                 NativeMenuAction::PlatformEffect("system.shutdown".into()),

@@ -54,6 +54,7 @@ System
 │   ├── Grid Bright: [10..100] step 5     default 75 (bar display when Number Style is bar or bar+numbers)
 │   └── Button Bright: [10..100] step 5   default 75 (bar display when Number Style is bar or bar+numbers)
 ├── !Basic Help (action)              ← opens shortcut cheat-sheet help popup
+├── Reboot: (action)                  ← confirm, then show shutdown splash and reboot
 └── Shutdown: (action)                ← confirm, then show shutdown splash and exit/poweroff
 ```
 

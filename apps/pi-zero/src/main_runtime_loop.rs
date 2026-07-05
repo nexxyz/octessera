@@ -1,5 +1,5 @@
 use crate::encoder_queue::PendingEncoderTurns;
-use crate::host_adapter::PiPlaybackHostAdapter;
+use crate::host_adapter::{PiPlaybackHostAdapter, PiPowerRequest};
 use crate::input::{encoder_press_message, MidiMessage};
 use crate::render_loop::RenderWorker;
 use crate::runtime_loop::{dispatch_runtime_message, handle_deferred_host_work};
@@ -215,27 +215,23 @@ fn shutdown_if_requested(
     adapter: &mut PiPlaybackHostAdapter,
     render_worker: &RenderWorker,
 ) -> bool {
-    if !adapter.take_shutdown_request() {
+    let Some(request) = adapter.take_power_request() else {
         return false;
-    }
+    };
     if !render_worker.publish_shutdown() {
         eprintln!("pi shutdown render acknowledgement timed out");
     }
-    if let Err(error) = shutdown_pi_system() {
-        eprintln!("pi shutdown failed: {error}");
+    if let Err(error) = power_pi_system(request) {
+        eprintln!("pi power request failed: {error}");
         return false;
     }
     true
 }
 
-fn shutdown_pi_system() -> Result<(), String> {
+fn power_pi_system(_request: PiPowerRequest) -> Result<(), String> {
     #[cfg(feature = "hardware-pi")]
     {
-        let attempts: &[(&str, &[&str])] = &[
-            ("systemctl", &["--no-block", "poweroff"]),
-            ("sudo", &["-n", "systemctl", "--no-block", "poweroff"]),
-            ("sudo", &["-n", "poweroff"]),
-        ];
+        let attempts = power_command_attempts(_request);
         let mut errors = Vec::new();
         for (command, args) in attempts {
             match std::process::Command::new(command).args(*args).status() {
@@ -249,5 +245,23 @@ fn shutdown_pi_system() -> Result<(), String> {
     #[cfg(not(feature = "hardware-pi"))]
     {
         Ok(())
+    }
+}
+
+#[cfg(feature = "hardware-pi")]
+fn power_command_attempts(
+    request: PiPowerRequest,
+) -> &'static [(&'static str, &'static [&'static str])] {
+    match request {
+        PiPowerRequest::Reboot => &[
+            ("systemctl", &["--no-block", "reboot"]),
+            ("sudo", &["-n", "systemctl", "--no-block", "reboot"]),
+            ("sudo", &["-n", "reboot"]),
+        ],
+        PiPowerRequest::Shutdown => &[
+            ("systemctl", &["--no-block", "poweroff"]),
+            ("sudo", &["-n", "systemctl", "--no-block", "poweroff"]),
+            ("sudo", &["-n", "poweroff"]),
+        ],
     }
 }

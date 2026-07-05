@@ -28,7 +28,13 @@ pub struct PiPlaybackHostAdapter {
     midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
     selected_midi_output_id: Option<String>,
     selected_midi_input_id: Option<String>,
-    shutdown_requested: bool,
+    power_request: Option<PiPowerRequest>,
+}
+
+#[derive(Clone, Copy)]
+pub enum PiPowerRequest {
+    Reboot,
+    Shutdown,
 }
 
 impl PiPlaybackHostAdapter {
@@ -50,14 +56,12 @@ impl PiPlaybackHostAdapter {
             midi_in_handler,
             selected_midi_output_id: None,
             selected_midi_input_id: None,
-            shutdown_requested: false,
+            power_request: None,
         }
     }
 
-    pub fn take_shutdown_request(&mut self) -> bool {
-        let requested = self.shutdown_requested;
-        self.shutdown_requested = false;
-        requested
+    pub fn take_power_request(&mut self) -> Option<PiPowerRequest> {
+        self.power_request.take()
     }
 
     pub fn flush_due_default_save(&mut self) -> Result<Vec<HostMessage>, String> {
@@ -218,8 +222,12 @@ impl HostAdapter for PiPlaybackHostAdapter {
                     selected_in_id: self.selected_midi_input_id.clone(),
                 }
             }
+            RuntimePlatformEffect::Reboot => {
+                self.power_request = Some(PiPowerRequest::Reboot);
+                return Ok(Vec::new());
+            }
             RuntimePlatformEffect::Shutdown => {
-                self.shutdown_requested = true;
+                self.power_request = Some(PiPowerRequest::Shutdown);
                 return Ok(Vec::new());
             }
             RuntimePlatformEffect::HardwareTest => {

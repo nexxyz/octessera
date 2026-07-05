@@ -43,6 +43,7 @@ export type RuntimePlatformEffect =
   | { type: "midi_select_output"; id: string | null }
   | { type: "midi_select_input"; id: string | null }
   | { type: "midi_panic" }
+  | { type: "reboot" }
   | { type: "shutdown" }
   | { type: "hardware_test" }
   | { type: "update_check" }

@@ -48,6 +48,7 @@ impl NativeRunner {
                 .strip_prefix("preset.delete:")
                 .map(|name| RuntimePlatformEffect::StoreDeletePreset { name: name.into() }),
             "midi.panic" => Some(RuntimePlatformEffect::MidiPanic),
+            "system.reboot" => Some(RuntimePlatformEffect::Reboot),
             "system.shutdown" => Some(RuntimePlatformEffect::Shutdown),
             "system.hardwareTest" => Some(RuntimePlatformEffect::HardwareTest),
             "system.updateCheck" => Some(RuntimePlatformEffect::UpdateCheck),
@@ -126,6 +127,8 @@ impl NativeRunner {
             ("Confirm Factory", "Load factory settings?".into())
         } else if action_type == "midi.panic" {
             ("Confirm MIDI", "Send MIDI panic?".into())
+        } else if action_type == "system.reboot" {
+            ("Confirm Reboot", "Reboot cellSymphony?".into())
         } else if action_type == "system.shutdown" {
             ("Confirm Shutdown", "Shut down cellSymphony?".into())
         } else if action_type == "system.hardwareTest" {

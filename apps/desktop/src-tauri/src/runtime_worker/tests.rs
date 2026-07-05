@@ -53,8 +53,10 @@ fn worker_command_priority_separates_midi_realtime_from_normal_work() {
 
 #[test]
 fn playing_snapshot_interval_is_coalesced_beyond_frame_rate() {
-    assert!(PLAYING_SNAPSHOT_INTERVAL_MS > 16);
-    assert!(PLAYING_SNAPSHOT_INTERVAL_MS <= crate::types::RUNTIME_UI_REFRESH_MS);
+    let interval_ms = PLAYING_SNAPSHOT_INTERVAL_MS;
+    let refresh_ms = crate::types::RUNTIME_UI_REFRESH_MS;
+    assert!(interval_ms > 16);
+    assert!(interval_ms <= refresh_ms);
 }
 
 #[test]
