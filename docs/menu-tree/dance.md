@@ -6,11 +6,14 @@ This file is part of the canonical split-out menu tree spec. See [`../menu-tree-
 
 ```
 L4: Dance
-├── Dance Page: [none | mix | pan | fx | trigger-gate | xy]
-├── selected page controls only, flattened here:
-│   ├── fx: FX Type, Target, visible params for selected FX Type, Map to Grid
-│   │   └── Aux Map: editable auto-mapped Dance FX params/actions, with 1-/1! OLED markers
-│   └── xy: X Axis, Y Axis, Invert X, Invert Y, Release
+├── Mix
+├── Pan
+├── FX
+│   ├── FX Type, Target, visible params for selected FX Type, Map to Grid
+│   └── Aux Map: editable auto-mapped Dance FX params/actions, with 1-/1! OLED markers
+├── Trigger Gate
+└── XY
+    └── X Axis, Y Axis, Invert X, Invert Y, Release
 ```
 
 Dance layer behavior:
@@ -31,7 +34,7 @@ Dance layer behavior:
 - `L2: Sense > Aux Mappings` exposes root-level menu-based assignment for aux encoder turn and click bindings.
 - `L2: Sense > Events when paused` controls whether direct grid input can emit musical events while the transport is stopped/paused. Algorithm tick/evolution remains stopped either way.
 - `L2: Sense > Pn > X Axis` and `Y Axis` expose explicit per-part assignment for X/Y param-mod slots.
-- The `Slot` and aux `Turn` target pickers use the same shared menu-mirrored parameter browser as `L4: Dance > X/Y Pad`; no separate parameter tree should diverge from that browser.
+- The `Slot` and aux `Turn` target pickers use the same shared menu-mirrored parameter browser as `L4: Dance > XY`; no separate parameter tree should diverge from that browser.
 - Aux `Click` uses a dedicated action browser for click-bindable actions.
 - Existing hardware shortcuts remain valid: Shift+grid still assigns X/Y param-mod slots and Fn+aux press binds the currently highlighted menu parameter as a Turn target or action as a `!` press target.
 - Trigger-gate Dance layout uses rows as parts with the same orientation as Fn part navigation: bottom row = part 0, top row = highest part.
@@ -40,8 +43,8 @@ Dance layer behavior:
 - Bottom-row columns `5..7` are always-bright all-parts actions: set all parts to `0%`, `custom`, or `100%`.
 - Trigger filtering resolves per-part mode as follows: `zero` blocks all triggers, `full` passes all triggers, `custom` uses the stored per-cell probability map with that part's `Low Prob` and `High Prob` thresholds.
 - `Fn+Play` toggles the active part between `0%` and its previously active trigger mode without rewriting the stored probability map. On desktop this is `Fn+Space`.
-- FX cells are mapped from the flattened `L4: Dance` FX page controls: select an `FX Type`, edit its visible parameters, then select `Map to Grid` and press a grid cell. The effect type, target, and current parameter values are stored on that cell. Mapping `none` clears a cell.
-- `L4: Dance > Aux Map` appears on the FX page and lists the current Dance FX parameters/actions that are auto-mapped to aux controls. Rows are editable but do not change the mapping target. OLED row prefixes use the same `1-` turn and `1!` press markers as the live auto-map indicators.
+- FX cells are mapped from `L4: Dance > FX`: select an `FX Type`, edit its visible parameters, then select `Map to Grid` and press a grid cell. The effect type, target, and current parameter values are stored on that cell. Mapping `none` clears a cell.
+- `L4: Dance > FX > Aux Map` lists the current Dance FX parameters/actions that are auto-mapped to aux controls. Rows are editable but do not change the mapping target. OLED row prefixes use the same `1-` turn and `1!` press markers as the live auto-map indicators.
 - Entering FX grid assignment shows a concise `Map FX: ...` toast; Back exits assignment without changing stored cells.
 - FX assignments include a `Target` (default `master`). Targets are listed as `master` first, then FX buses, then instruments. Platform-core resolves grid semantics into audio commands; desktop forwards those commands without interpreting Dance/grid meaning; Rust applies the realtime DSP.
 - Target insertion points: `instrument_n` is applied on the instrument's outgoing signal before routing/pan; `fx_bus_n` is applied on the bus outgoing signal after bus slot FX; `master` is applied after the final mix.
@@ -53,7 +56,7 @@ Dance layer behavior:
 - FX LED colours are yellow for stutter, cyan for freeze, orange for filter_sweep, and magenta for pitch_shift. Assigned inactive cells are dim, active cells are bright, and limit-blocked cells are gray.
 - Grid releases in Dance mode are consumed by the Dance layer and do not reach the active behavior engine.
 - Aux encoder bindings continue to target whichever menu item they were bound to; Dance page switching does not alter bindings.
-- `xy`: the full 8×8 grid acts as a continuous two-axis modulation surface. Pressing a grid cell normalizes its X,Y coordinates over 0–1 (full width/height, no margin). The normalized position modulates the per-part targets assigned in `L4: Dance > X/Y Pad > X/Y Axis`. While pressed, the current touch cell is bright white; after release, `sample-hold` leaves a dim gray marker at the held value and `reset-center` returns the dim marker to center.
+- `xy`: the full 8×8 grid acts as a continuous two-axis modulation surface. Pressing a grid cell normalizes its X,Y coordinates over 0–1 (full width/height, no margin). The normalized position modulates the per-part targets assigned in `L4: Dance > XY > X/Y Axis`. While pressed, the current touch cell is bright white; after release, `sample-hold` leaves a dim gray marker at the held value and `reset-center` returns the dim marker to center.
 - `xy` target selection uses the menu-mirrored parameter browser to present all mappable parameters (same set used by aux encoder binding and Sense X/Y axis modulation). Selecting a target stores the parameter key and value metadata per part (`parts[N].xy`).
 - `xy` modulation beats all other modulation sources: it is applied last in `applyModulationResult()`, after `applyParamModulation()`, overwriting the same runtime config keys.
 - `xy` grid LEDs: bright white on the touched cell while finger is down; dim gray on sample-hold (when `Release = sample-hold` and finger is lifted); rest of grid is dark.

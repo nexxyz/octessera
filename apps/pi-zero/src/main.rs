@@ -19,6 +19,7 @@ mod render_loop;
 mod runtime_loop;
 mod sample_browser;
 mod seesaw_io;
+mod timing_probe;
 mod ui_profile;
 
 use audio::AudioManager;
@@ -186,6 +187,9 @@ fn main() {
 fn run_requested_utility() {
     if dsp_profile::profile_requested() {
         std::process::exit(exit_code(dsp_profile::run_dsp_profile().is_ok()));
+    }
+    if timing_probe::requested() {
+        std::process::exit(exit_code(timing_probe::run()));
     }
     if diagnostics::diagnostic_requested() {
         std::process::exit(exit_code(diagnostics::run_pre_hardware_diagnostics()));

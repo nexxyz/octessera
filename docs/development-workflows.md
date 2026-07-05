@@ -121,6 +121,14 @@ cargo clippy -p platform-core -p playback-runtime -p realtime-engine -p cellsymp
 
 The root `typecheck` runs `capabilities:check` before package typechecks.
 
+For menu/runtime-visible Rust changes on Windows, use the focused wrapper while iterating:
+
+```powershell
+./tools/validate-menu-runtime.ps1 -IncludePi -BuildDesktopExe
+```
+
+Add `-IncludePlatformCore` when platform behavior changes and `-Typecheck` when shared contracts or TypeScript-visible payloads change.
+
 The pre-push hook runs CI-like checks against the committed tree, including lint, typecheck, format checks, tests, coverage, file-length checks, Tauri build smoke, and clippy. Use a long timeout when pushing from automation. Do not skip the hook; fix failures and push again.
 
 On Windows, use the cached Cargo wrapper while iterating. It enables `sccache` when installed, uses a local rustc-wrapper shim to strip Cargo's incremental env var before invoking `sccache`, and passes temporary profile overrides that disable incremental for that command so more crates can be cached. Without `sccache`, Cargo uses its normal `target/` cache:
@@ -179,6 +187,36 @@ cellsymphony-pi --profile-ui
 ```
 
 Summaries include loop cadence, runtime tick lateness/advance, render overruns, snapshot/config sync, hardware polling, and LED/NeoKey/OLED phase timings.
+
+### Pi Timing And Audio Stability Probes
+
+Use Pi-side probes for rhythmic timing, trigger latency, audio-drain latency, and DSP budget questions. PC/runtime-only probes are useful for quick plausibility checks, but they cannot prove hardware audio timing.
+
+Wrapper examples:
+
+```powershell
+# Safe default: runtime-only, does not stop the service or open live audio.
+./tools/run-pi-timing-probes.ps1 -Mode RuntimeOnly -Durations 15s -Scenarios idle,sense
+
+# Optional live-audio probe. Use when subjective timing/audio behavior is unclear.
+./tools/run-pi-timing-probes.ps1 -Mode Live -Durations 10m -Scenarios idle
+
+# Optional audio-source drain latency probe.
+./tools/run-pi-timing-probes.ps1 -Mode AudioDrain -Durations 10m
+
+# Focused FX budget profile.
+./tools/run-pi-timing-probes.ps1 -Mode DspFxLimits
+```
+
+The wrapper stops `cellsymphony.service` for live/audio/DSP modes and restarts it after the probe. Runtime-only mode leaves the service running. Use `-PrintOnly` to inspect the remote command first.
+
+For musical timing issues, inspect p99/p99.9/p99.99 and outlier counts, not only p95. Check recent logs after live probes:
+
+```powershell
+ssh -i "$env:USERPROFILE\.ssh\cellsymphony_pi_dev" -o IdentitiesOnly=yes pi@192.168.0.211 "journalctl -u cellsymphony.service --since '10 minutes ago' --no-pager | grep -E 'realtime priority unavailable|audio stream error|underrun|POLLERR' || true"
+```
+
+Prefer offering a live probe when the report is subjective or audio-path-specific. Do not run long live probes by default for unrelated code changes.
 
 ## Pi Hardware Runtime Debug Loop
 

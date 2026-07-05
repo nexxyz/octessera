@@ -59,6 +59,7 @@ pub(crate) fn confirm_current_dialog(runner: &mut NativeRunner) -> Vec<RunnerMes
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap()
 }

@@ -32,7 +32,6 @@ impl NativeRunner {
             self.active_part_index,
         )?;
         self.behavior = behavior;
-        self.menu.rebuild(self.menu_config());
         Ok(())
     }
 

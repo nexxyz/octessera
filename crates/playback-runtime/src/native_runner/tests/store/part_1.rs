@@ -9,6 +9,7 @@ pub(crate) fn system_menu_save_default_emits_native_config_payload() {
     let opened = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(
@@ -144,6 +145,7 @@ pub(crate) fn midi_output_menu_selects_dynamic_port() {
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -163,6 +165,7 @@ pub(crate) fn entering_midi_port_groups_requests_port_lists() {
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -177,6 +180,7 @@ pub(crate) fn entering_midi_port_groups_requests_port_lists() {
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -203,6 +207,7 @@ pub(crate) fn preset_load_menu_selects_dynamic_preset() {
     let opened = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(snapshot_from(&opened)["display"]["title"], "Confirm Load");

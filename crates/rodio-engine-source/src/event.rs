@@ -1,6 +1,8 @@
 use realtime_engine::synth::{InstrumentsConfig, SampleBankConfig, VoiceStealingMode};
 use serde_json::Value;
 use std::collections::BTreeMap;
+use std::sync::mpsc::Sender;
+use std::time::Instant;
 
 pub enum EngineEvent {
     NoteOn {
@@ -80,5 +82,9 @@ pub enum EngineEvent {
     },
     MomentaryFxStop {
         id: String,
+    },
+    ProbeMark {
+        sent_at: Instant,
+        report_tx: Sender<u128>,
     },
 }

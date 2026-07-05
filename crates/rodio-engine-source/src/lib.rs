@@ -221,6 +221,9 @@ impl EngineSource {
                     drained.config_events += 1;
                     self.engine.momentary_fx_stop(&id);
                 }
+                EngineEvent::ProbeMark { sent_at, report_tx } => {
+                    let _ = report_tx.send(sent_at.elapsed().as_micros());
+                }
             }
         }
         drained

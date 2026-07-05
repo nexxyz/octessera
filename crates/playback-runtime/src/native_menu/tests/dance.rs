@@ -9,7 +9,7 @@ pub(crate) fn l4_spec_rows_show_only_selected_dance_page_controls() {
         .iter()
         .map(|item| item.label.as_str())
         .collect::<Vec<_>>();
-    assert_eq!(labels, vec!["Dance Page"]);
+    assert_eq!(labels, vec!["Mix", "Pan", "FX", "Trigger Gate", "XY"]);
     let sense = &menu.root.children[1];
     assert_eq!(sense.children[0].label, "BPM");
     assert_eq!(sense.children[1].label, "Swing %");
@@ -50,9 +50,14 @@ pub(crate) fn l4_spec_rows_show_only_selected_dance_page_controls() {
         .iter()
         .map(|item| item.label.as_str())
         .collect::<Vec<_>>();
+    assert_eq!(fx_labels, vec!["Mix", "Pan", "FX", "Trigger Gate", "XY"]);
+    let fx_labels = fx_menu.root.children[3].children[2]
+        .children
+        .iter()
+        .map(|item| item.label.as_str())
+        .collect::<Vec<_>>();
     assert!(fx_labels.contains(&"FX Type"));
     assert!(fx_labels.contains(&"Target"));
-    assert!(!fx_labels.contains(&"Trigger Gate"));
 
     let mut trigger_gate_config = config();
     trigger_gate_config.dance_mode = "trigger-gate".into();
@@ -62,7 +67,10 @@ pub(crate) fn l4_spec_rows_show_only_selected_dance_page_controls() {
         .iter()
         .map(|item| item.label.as_str())
         .collect::<Vec<_>>();
-    assert_eq!(trigger_gate_labels, vec!["Dance Page"]);
+    assert_eq!(
+        trigger_gate_labels,
+        vec!["Mix", "Pan", "FX", "Trigger Gate", "XY"]
+    );
 }
 
 #[test]
@@ -74,7 +82,7 @@ pub(crate) fn dance_fx_page_is_flat_and_shows_selected_type_params() {
         .dance_fx_params
         .insert("rateHz".into(), serde_json::json!(12));
     let mut menu = NativeMenuModel::new(config);
-    menu.state.stack = vec![3];
+    menu.state.stack = vec![3, 2];
     let _snapshot = menu.snapshot();
     assert!(menu
         .current_siblings()
@@ -105,7 +113,7 @@ pub(crate) fn dance_aux_map_rows_show_mapped_paths() {
     config.dance_mode = "fx".into();
     config.dance_fx_type = "stutter".into();
     let menu = NativeMenuModel::new(config);
-    let aux_map = menu.root.children[3]
+    let aux_map = menu.root.children[3].children[2]
         .children
         .iter()
         .find(|item| item.label == "Aux Map")

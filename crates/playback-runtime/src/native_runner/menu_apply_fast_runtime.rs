@@ -22,6 +22,11 @@ impl NativeRunner {
                 bool_changed(&mut runner.midi_respond_to_start_stop, value)
             })),
             "danceMode" => Some(self.fast_dance_mode_menu_key()),
+            "dance.page.mix" => Some(self.fast_dance_page_key("mix")),
+            "dance.page.pan" => Some(self.fast_dance_page_key("pan")),
+            "dance.page.fx" => Some(self.fast_dance_page_key("fx")),
+            "dance.page.trigger-gate" => Some(self.fast_dance_page_key("trigger-gate")),
+            "dance.page.xy" => Some(self.fast_dance_page_key("xy")),
             "algorithmStep" => Some(self.fast_algorithm_step_menu_key()),
             "masterVolume" => Some(self.fast_master_volume_menu_key()),
             "displayBrightness" => Some(self.fast_display_brightness_menu_key()),
@@ -199,7 +204,18 @@ impl NativeRunner {
                 self.active_dance_mode = dance_mode;
             }
             self.mark_fast_autosave_dirty();
-            self.menu.rebuild(self.menu_config());
+        }
+        true
+    }
+
+    fn fast_dance_page_key(&mut self, dance_mode: &str) -> bool {
+        let changed = self.dance_mode != dance_mode;
+        if changed {
+            self.dance_mode = dance_mode.into();
+            self.mark_fast_autosave_dirty();
+        }
+        if self.menu.is_in_dance_root_group() {
+            self.active_dance_mode = self.dance_mode.clone();
         }
         true
     }

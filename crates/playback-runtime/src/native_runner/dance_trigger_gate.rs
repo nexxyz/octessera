@@ -3,22 +3,21 @@ use super::{NativeRunner, NativeToast};
 impl NativeRunner {
     pub(super) fn select_dance_page_from_fn_grid(&mut self, y: usize) {
         let next_mode = match y {
-            0 => Some("mix"),
-            1 => Some("pan"),
-            2 => Some("fx"),
-            3 => Some("trigger-gate"),
-            4 => Some("xy"),
+            0 => Some(("mix", 0)),
+            1 => Some(("pan", 1)),
+            2 => Some(("fx", 2)),
+            3 => Some(("trigger-gate", 3)),
+            4 => Some(("xy", 4)),
             _ => None,
         };
-        let Some(next_mode) = next_mode else {
+        let Some((next_mode, cursor)) = next_mode else {
             return;
         };
         self.dance_mode = next_mode.into();
         self.active_dance_mode = self.dance_mode.clone();
         self.menu.state.stack = vec![3];
-        self.menu.state.cursor = 0;
+        self.menu.state.cursor = cursor;
         self.menu.state.editing = false;
-        self.menu.rebuild(self.menu_config());
         self.show_toast(format!("Dance: {}", dance_mode_label(next_mode)));
     }
 

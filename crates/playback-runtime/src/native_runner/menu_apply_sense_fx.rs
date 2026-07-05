@@ -4,7 +4,7 @@ use super::{
     dance_fx_type, json, set_bool_from_menu, set_i32_from_menu, set_string_from_menu,
     set_target_slot_from_menu, set_u8_enum_from_menu, set_u8_from_menu, NativeRunner, Value,
 };
-use platform_core::MAX_ACTIVE_BUS_FX_SLOTS;
+use platform_core::BUS_FX_WARNING_SLOT_COUNT;
 
 impl NativeRunner {
     pub(super) fn apply_sense_menu_state(&mut self) -> bool {
@@ -40,10 +40,10 @@ impl NativeRunner {
             );
         }
         let active_fx_slots = self.active_bus_fx_slot_count();
-        if active_fx_slots > MAX_ACTIVE_BUS_FX_SLOTS {
+        if active_fx_slots > BUS_FX_WARNING_SLOT_COUNT {
             self.show_toast(format!(
                 "FX budget warning ({}/{})",
-                active_fx_slots, MAX_ACTIVE_BUS_FX_SLOTS
+                active_fx_slots, BUS_FX_WARNING_SLOT_COUNT
             ));
         }
         changed

@@ -11,11 +11,13 @@ pub(crate) fn interpreting_behavior_grid_press_and_release_emit_musical_events()
     let press = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
     let release = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_release", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -39,6 +41,7 @@ pub(crate) fn keys_with_hold_note_behavior_sustains_until_release() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.instruments[0].note_behavior, "hold");
@@ -46,6 +49,7 @@ pub(crate) fn keys_with_hold_note_behavior_sustains_until_release() {
     let press = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert!(press.iter().any(|message| matches!(
@@ -57,6 +61,7 @@ pub(crate) fn keys_with_hold_note_behavior_sustains_until_release() {
     let release = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_release", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert!(release.iter().any(|message| matches!(
@@ -78,12 +83,14 @@ pub(crate) fn input_events_while_paused_false_suppresses_paused_grid_events() {
     let paused_press = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
     runner.transport = RuntimeTransportState::Playing;
     let playing_press = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 3, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -106,6 +113,7 @@ pub(crate) fn trigger_probability_zero_suppresses_input_transition_events() {
     let press = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -128,6 +136,7 @@ pub(crate) fn event_enabled_false_suppresses_input_transition_events() {
     let press = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -158,6 +167,7 @@ pub(crate) fn trigger_probability_custom_zero_cell_suppresses_transport_events()
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 0 }),
+            request_snapshot: None,
         })
         .unwrap();
     let messages = runner
@@ -183,6 +193,7 @@ pub(crate) fn non_interpreting_sequencer_grid_press_does_not_emit_input_event() 
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -203,6 +214,7 @@ pub(crate) fn grid_state_edit_emits_deferred_auto_save_when_enabled() {
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -231,6 +243,7 @@ pub(crate) fn scan_progress_overlay_is_dim_white_and_preserves_live_cell_color()
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
+            request_snapshot: None,
         })
         .unwrap();
     runner.send(HostMessage::MidiRealtimeStart).unwrap();
@@ -263,6 +276,7 @@ pub(crate) fn switching_active_part_preserves_current_part_engine_state() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
 

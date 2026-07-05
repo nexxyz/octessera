@@ -164,7 +164,6 @@ impl NativeRunner {
             "xy" => self.handle_dance_xy_press(x, y),
             _ => {}
         }
-        self.menu.rebuild(self.menu_config());
     }
 
     pub(super) fn handle_dance_xy_press(&mut self, x: usize, y: usize) {
@@ -270,6 +269,6 @@ impl NativeRunner {
                 offset: 0,
             });
         }
-        self.menu.rebuild(self.menu_config());
+        self.config_dirty = true;
     }
 }

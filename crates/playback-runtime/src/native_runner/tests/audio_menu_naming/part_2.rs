@@ -14,12 +14,14 @@ pub(crate) fn button_back_commits_l1_behavior_auto_name_after_manual_auto_name_t
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": -1, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert!(!runner.part_auto_names[3]);
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert!(runner.part_auto_names[3]);
@@ -29,6 +31,7 @@ pub(crate) fn button_back_commits_l1_behavior_auto_name_after_manual_auto_name_t
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": -99, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(
@@ -39,6 +42,7 @@ pub(crate) fn button_back_commits_l1_behavior_auto_name_after_manual_auto_name_t
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_a", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -79,6 +83,7 @@ pub(crate) fn exact_desktop_flow_renames_p4_after_auto_name_toggle_and_behavior_
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_a", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     let snapshot = snapshot_from(&messages);
@@ -97,6 +102,7 @@ pub(crate) fn send_encoder_turn(runner: &mut NativeRunner, delta: i32) -> Vec<Ru
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": delta, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap()
 }
@@ -105,6 +111,7 @@ pub(crate) fn send_encoder_press(runner: &mut NativeRunner) -> Vec<RunnerMessage
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap()
 }

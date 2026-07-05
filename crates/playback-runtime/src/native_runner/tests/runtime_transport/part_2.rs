@@ -31,6 +31,7 @@ pub(crate) fn part_two_scanning_uses_second_instrument_slot_without_bleeding_to_
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
+            request_snapshot: None,
         })
         .unwrap();
     let messages = runner
@@ -72,6 +73,7 @@ pub(crate) fn changing_part_four_behavior_does_not_reset_part_two_playback_phase
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
+            request_snapshot: None,
         })
         .unwrap();
     runner

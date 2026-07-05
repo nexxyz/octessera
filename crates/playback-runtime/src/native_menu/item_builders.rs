@@ -12,6 +12,19 @@ pub(in crate::native_menu) fn group(
     }
 }
 
+pub(in crate::native_menu) fn keyed_group(
+    label: impl Into<String>,
+    key: impl Into<String>,
+    children: Vec<NativeMenuItem>,
+) -> NativeMenuItem {
+    NativeMenuItem {
+        label: label.into(),
+        key: Some(key.into()),
+        value: NativeMenuValue::Group,
+        children,
+    }
+}
+
 pub(in crate::native_menu) fn enum_item(
     label: impl Into<String>,
     key: impl Into<String>,

@@ -22,6 +22,7 @@ pub(crate) fn factory_load_applies_native_factory_without_loading_user_default()
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
+            request_snapshot: None,
         })
         .unwrap();
     runner.select_active_part(0).unwrap();
@@ -81,15 +82,19 @@ pub(crate) fn switching_behavior_preserves_previous_behavior_config() {
 
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
+        request_snapshot: None,
     });
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
+        request_snapshot: None,
     });
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
+        request_snapshot: None,
     });
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
+        request_snapshot: None,
     });
 
     assert_eq!(runner.behavior.id(), "keys");
@@ -97,15 +102,18 @@ pub(crate) fn switching_behavior_preserves_previous_behavior_config() {
     let _ = runner.flush_deferred_menu_apply().unwrap();
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
+        request_snapshot: None,
     });
     assert_eq!(runner.behavior.id(), "keys");
 
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
+        request_snapshot: None,
     });
 
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_turn", "delta": -2, "id": "main" }),
+        request_snapshot: None,
     });
 
     runner.make_deferred_menu_apply_due_for_test();
@@ -113,6 +121,7 @@ pub(crate) fn switching_behavior_preserves_previous_behavior_config() {
     assert_eq!(runner.behavior.id(), "life");
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
+        request_snapshot: None,
     });
     assert_eq!(runner.behavior.id(), "life");
     assert_eq!(runner.behavior_config["randomCellsPerTick"], 5);
@@ -147,6 +156,7 @@ pub(crate) fn sequencer_scanned_sampler_assignment_triggers_assigned_sample_slot
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
+            request_snapshot: None,
         })
         .unwrap();
     runner.transport = RuntimeTransportState::Playing;
@@ -178,6 +188,7 @@ pub(crate) fn deferred_autosave_payload_restores_active_sequencer_grid_on_startu
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
     let payload = messages

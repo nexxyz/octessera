@@ -13,6 +13,8 @@ platform-core = { path = "../../crates/platform-core" }
 playback-runtime = { path = "../../crates/playback-runtime" }
 realtime-engine = { path = "../../crates/realtime-engine" }
 rodio-engine-source = { path = "../../crates/rodio-engine-source" }
+cpal = "0.15"
+libc = "0.2"
 rodio = "0.20"
 midir = "0.10"
 serde = { version = "1", features = ["derive"] }

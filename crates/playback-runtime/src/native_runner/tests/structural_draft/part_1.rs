@@ -9,11 +9,13 @@ pub(crate) fn fx_bus_slot1_type_turn_applies_immediately() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 

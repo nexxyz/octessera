@@ -9,6 +9,7 @@ pub(crate) fn fn_left_column_selects_parts_while_in_dance_overlay_and_exits_over
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 1 }),
+            request_snapshot: None,
         })
         .unwrap();
 

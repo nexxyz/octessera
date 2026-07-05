@@ -86,6 +86,7 @@ pub(crate) fn sequencer_behavior_is_native_and_paintable() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -157,6 +158,7 @@ pub(crate) fn behavior_menu_actions_dispatch_selected_action_type() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -192,6 +194,7 @@ pub(crate) fn button_s_toggles_transport() {
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     assert!(matches!(
@@ -202,6 +205,7 @@ pub(crate) fn button_s_toggles_transport() {
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     assert!(matches!(

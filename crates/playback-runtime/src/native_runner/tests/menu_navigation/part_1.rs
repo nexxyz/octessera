@@ -9,6 +9,7 @@ pub(crate) fn cursor_only_navigation_does_not_apply_menu_values() {
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -26,6 +27,7 @@ pub(crate) fn cursor_only_navigation_does_not_apply_group_browsing_side_effects(
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -46,6 +48,7 @@ pub(crate) fn entering_group_does_not_apply_group_side_effects() {
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -123,10 +126,12 @@ pub(crate) fn behavior_config_number_param_edit_via_menu() {
     runner.menu.state.editing = true;
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_turn", "delta": -1, "id": "main" }),
+        request_snapshot: None,
     });
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -150,6 +155,7 @@ pub(crate) fn behavior_config_second_number_param_edit_via_menu() {
     runner.menu.state.editing = true;
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+        request_snapshot: None,
     });
 
     assert_eq!(runner.behavior_config["randomTickInterval"], 2);
@@ -170,6 +176,7 @@ pub(crate) fn behavior_config_enum_param_edits_via_menu() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -183,16 +190,20 @@ pub(crate) fn bool_menu_items_edit_like_two_option_enums() {
     for _ in 0..5 {
         let _ = runner.send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 4, "id": "main" }),
+            request_snapshot: None,
         });
     }
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
+        request_snapshot: None,
     });
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_turn", "delta": 4, "id": "main" }),
+        request_snapshot: None,
     });
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
+        request_snapshot: None,
     });
 
     assert!(!runner.midi_enabled);
@@ -200,6 +211,7 @@ pub(crate) fn bool_menu_items_edit_like_two_option_enums() {
     let enter = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(snapshot_from(&enter)["display"]["editing"], true);
@@ -207,17 +219,20 @@ pub(crate) fn bool_menu_items_edit_like_two_option_enums() {
 
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_turn", "delta": 3, "id": "main" }),
+        request_snapshot: None,
     });
     assert!(runner.midi_enabled);
 
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_turn", "delta": -1, "id": "main" }),
+        request_snapshot: None,
     });
     assert!(!runner.midi_enabled);
 
     let exit = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(snapshot_from(&exit)["display"]["editing"], false);

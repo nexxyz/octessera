@@ -11,6 +11,7 @@ pub(crate) fn shift_space_emergency_stops_internal_and_external_arms_resync() {
     let stopped = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.transport, RuntimeTransportState::Stopped);
@@ -27,6 +28,7 @@ pub(crate) fn shift_space_emergency_stops_internal_and_external_arms_resync() {
     let resync = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.transport, RuntimeTransportState::Playing);
@@ -47,6 +49,7 @@ pub(crate) fn shift_back_clears_active_layer_state() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert!(runner.engine.model().unwrap().cells[platform_core::grid_index(2, 3)]);
@@ -55,6 +58,7 @@ pub(crate) fn shift_back_clears_active_layer_state() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_a", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -70,6 +74,7 @@ pub(crate) fn trigger_probability_grid_editor_cycles_cell_row_and_column() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(
@@ -81,6 +86,7 @@ pub(crate) fn trigger_probability_grid_editor_cycles_cell_row_and_column() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 1, "y": 4 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert!(
@@ -94,6 +100,7 @@ pub(crate) fn trigger_probability_grid_editor_cycles_cell_row_and_column() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 6, "y": 1 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert!(
@@ -110,6 +117,7 @@ pub(crate) fn system_sound_menu_updates_global_sound_config() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 3, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.global_sound.note_length_ms, 150);
@@ -119,6 +127,7 @@ pub(crate) fn system_sound_menu_updates_global_sound_config() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": -4, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.global_sound.velocity_scale_pct, 80);
@@ -128,6 +137,7 @@ pub(crate) fn system_sound_menu_updates_global_sound_config() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.global_sound.velocity_curve, VelocityCurve::Hard);

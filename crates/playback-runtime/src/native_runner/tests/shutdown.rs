@@ -12,6 +12,7 @@ pub(crate) fn system_menu_shutdown_emits_shutdown_effect_and_splash() {
     let opened = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(

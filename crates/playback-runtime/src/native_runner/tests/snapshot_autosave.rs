@@ -7,28 +7,35 @@ pub(crate) fn native_menu_edit_emits_deferred_auto_save_when_enabled() {
     for _ in 0..5 {
         let _ = runner.send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
+            request_snapshot: None,
         });
     }
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
+        request_snapshot: None,
     });
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_turn", "delta": 3, "id": "main" }),
+        request_snapshot: None,
     });
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
+        request_snapshot: None,
     });
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
+        request_snapshot: None,
     });
     runner.transport = RuntimeTransportState::Playing;
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": -10, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_turn", "delta": -20, "id": "main" }),
+        request_snapshot: None,
     });
 
     assert!(!messages.iter().any(|message| matches!(
@@ -115,6 +122,7 @@ pub(crate) fn text_edit_turns_are_deferred_until_flush_or_exit() {
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 27, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -145,6 +153,7 @@ pub(crate) fn deferred_text_edit_survives_leaving_name_row_before_flush() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 27, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     runner.menu.back();

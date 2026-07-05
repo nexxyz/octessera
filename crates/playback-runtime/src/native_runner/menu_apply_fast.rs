@@ -239,7 +239,6 @@ impl NativeRunner {
             }
         }
         if changed {
-            self.menu.rebuild(self.menu_config());
             self.mark_fast_autosave_dirty();
         }
         true

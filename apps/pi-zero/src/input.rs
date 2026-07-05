@@ -37,6 +37,7 @@ pub fn encoder_turn_message(id: &str, delta: i8) -> HostMessage {
             "delta": delta.clamp(-127, 127),
             "id": encoder_input_id(index)
         }),
+        request_snapshot: None,
     }
 }
 
@@ -47,6 +48,7 @@ pub fn encoder_press_message(id: &str) -> HostMessage {
             "type": "encoder_press",
             "id": encoder_input_id(index)
         }),
+        request_snapshot: None,
     }
 }
 
@@ -57,6 +59,7 @@ pub fn grid_message(x: usize, y: usize, pressed: bool) -> HostMessage {
             "x": x,
             "y": y
         }),
+        request_snapshot: None,
     }
 }
 
@@ -70,6 +73,7 @@ pub fn neokey_message(key: u8, pressed: bool) -> Option<HostMessage> {
     };
     Some(HostMessage::DeviceInput {
         input: json!({ "type": input_type, "pressed": pressed }),
+        request_snapshot: None,
     })
 }
 

@@ -9,6 +9,7 @@ pub(crate) fn entering_l1_selects_active_part_row() {
     let entered = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let snapshot = snapshot_from(&entered);
@@ -25,11 +26,13 @@ pub(crate) fn entering_l2_selects_active_part_row_after_event_group() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let entered = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let snapshot = snapshot_from(&entered);
@@ -44,11 +47,13 @@ pub(crate) fn l2_sense_exposes_aux_mappings_and_enterable_part_rows() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let entered_l2 = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let lines = snapshot_from(&entered_l2)["display"]["lines"]
@@ -71,6 +76,7 @@ pub(crate) fn l2_sense_exposes_aux_mappings_and_enterable_part_rows() {
     let part = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let snapshot = snapshot_from(&part);
@@ -93,16 +99,19 @@ pub(crate) fn l2_sense_scan_mode_edits_into_config_payload() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -174,16 +183,19 @@ pub(crate) fn entering_part_row_updates_active_part_index() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let entered = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -204,16 +216,19 @@ pub(crate) fn instrument_list_shows_compact_name_labels() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let entered = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 

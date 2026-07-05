@@ -83,9 +83,12 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
   }
 
   function processRunnerMessages(messages: DesktopRunnerMessage[]) {
+    let hasSnapshot = false;
     for (const message of messages) {
+      hasSnapshot ||= message.type === "snapshot";
       processRunnerMessage(message);
     }
+    return hasSnapshot;
   }
 
   function processRunnerMessage(message: DesktopRunnerMessage) {
@@ -137,7 +140,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
     runtimeDispatchInFlight = true;
     void dispatchRuntime(message)
       .then((messages) => {
-        processRunnerMessages(messages);
+        if (!processRunnerMessages(messages)) ignoreAsyncUntilMs = 0;
         publishSnapshot();
       })
       .catch((err) => {

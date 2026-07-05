@@ -25,6 +25,7 @@ pub(crate) fn aux_auto_map_config_load_disables_automatic_bindings() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "aux1", "delta": 1 }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -50,6 +51,7 @@ pub(crate) fn auto_map_updates_synth_filter_and_prefixes_selected_row() {
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "aux1", "delta": 1 }),
+            request_snapshot: None,
         })
         .unwrap();
     let snapshot = snapshot_from(&messages);
@@ -100,6 +102,7 @@ pub(crate) fn auto_map_press_enters_sample_assign_and_prefixes_assign_action() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "aux1" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -115,6 +118,7 @@ pub(crate) fn auto_map_is_disabled_in_l2_sense_and_unbound_toast_uses_short_form
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "aux1", "delta": 1 }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -149,6 +153,7 @@ pub(crate) fn custom_aux_binding_still_works_when_auto_map_is_disabled() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "aux1", "delta": -1 }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -168,6 +173,7 @@ pub(crate) fn custom_aux_binding_overrides_auto_map_when_enabled() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "aux1", "delta": -1 }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -193,6 +199,7 @@ pub(crate) fn custom_binding_is_used_on_l1_non_mapped_rows_even_when_auto_map_is
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "aux1", "delta": -1 }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -223,6 +230,7 @@ pub(crate) fn auto_map_l1_life_turn_and_press_follow_behavior_context() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "aux1", "delta": 1 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(
@@ -233,6 +241,7 @@ pub(crate) fn auto_map_l1_life_turn_and_press_follow_behavior_context() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "aux2", "delta": 1 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.behavior_config["randomCellsPerTick"], 1);
@@ -256,6 +265,7 @@ pub(crate) fn auto_map_l1_life_turn_and_press_follow_behavior_context() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": format!("aux{}", spawn_aux_index + 1) }),
+            request_snapshot: None,
         })
         .unwrap();
     let after = runner

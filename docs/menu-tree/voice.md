@@ -66,7 +66,7 @@ When an instrument Type is `none`, the slot keeps Type, Auto Label, and Name vis
 
 Routing semantics:
 
-- Instrument `Volume` is a post-voice per-slot fader controlled by `L4: Dance > mix`.
+- Instrument `Volume` is a post-voice per-slot fader controlled by `L4: Dance > Mix`.
 - Instrument `Route=direct` sends post-fader output to main mix using instrument `Pan Pos`.
 - Instrument `Route=fx_bus_n` sends post-fader output to the selected FX bus (exclusive send).
 - Internal synth and sample instruments use the same route/pan/bus-FX mixer path; MIDI instruments emit external MIDI and are not processed by audio FX.

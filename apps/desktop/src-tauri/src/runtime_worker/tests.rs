@@ -1,7 +1,8 @@
+use super::capture::is_async_desktop_visible;
 use super::queue::{
     queue_by_priority, retain_runtime_outbox_batch, RETAINED_RUNTIME_OUTBOX_BATCHES,
 };
-use super::WorkerCommand;
+use super::{WorkerCommand, PLAYING_SNAPSHOT_INTERVAL_MS};
 use crate::types::RuntimeMessagesPayload;
 use std::collections::VecDeque;
 use std::sync::mpsc;
@@ -48,4 +49,39 @@ fn worker_command_priority_separates_midi_realtime_from_normal_work() {
     assert_eq!(normal.len(), 1);
     assert!(matches!(realtime[0], WorkerCommand::NativeMidiRealtime(_)));
     assert!(matches!(normal[0], WorkerCommand::Dispatch(_, _)));
+}
+
+#[test]
+fn playing_snapshot_interval_is_coalesced_beyond_frame_rate() {
+    assert!(PLAYING_SNAPSHOT_INTERVAL_MS > 16);
+    assert!(PLAYING_SNAPSHOT_INTERVAL_MS <= crate::types::RUNTIME_UI_REFRESH_MS);
+}
+
+#[test]
+fn async_advance_emits_only_desktop_visible_messages() {
+    assert!(is_async_desktop_visible(
+        &playback_runtime::RunnerMessage::Snapshot {
+            snapshot: serde_json::json!({})
+        }
+    ));
+    assert!(is_async_desktop_visible(
+        &playback_runtime::RunnerMessage::UiPulse {
+            pulse: playback_runtime::RuntimeUiPulse::TriggerPulse { duration_ms: 80 }
+        }
+    ));
+    assert!(!is_async_desktop_visible(
+        &playback_runtime::RunnerMessage::RuntimeStatus {
+            status: playback_runtime::RuntimeStatus {
+                state: playback_runtime::RuntimeStatusState::Running,
+                transport: playback_runtime::RuntimeTransportState::Playing,
+                current_ppqn_pulse: 0,
+                pending_resync: false,
+                sync_source: playback_runtime::SyncSource::Internal,
+                message: None,
+            }
+        }
+    ));
+    assert!(!is_async_desktop_visible(
+        &playback_runtime::RunnerMessage::MusicalEvents { events: Vec::new() }
+    ));
 }

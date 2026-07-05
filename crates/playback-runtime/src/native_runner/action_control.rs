@@ -70,6 +70,7 @@ impl NativeRunner {
             message: format!("Loaded synth {preset}"),
             offset: 0,
         });
+        self.config_dirty = true;
         self.menu.rebuild(self.menu_config());
     }
 
@@ -107,7 +108,6 @@ impl NativeRunner {
                 if let Some(name) = action_type.strip_prefix("preset.renamePick:") {
                     self.preset_rename_source = Some(name.into());
                     self.preset_draft_name = name.into();
-                    self.menu.rebuild(self.menu_config());
                     Ok(None)
                 } else if action_type == "preset.saveCurrent" && self.current_preset_name.is_none()
                 {
@@ -187,7 +187,6 @@ impl NativeRunner {
         clone.midi_channel = (target_index + 1).min(16) as u8;
         self.instruments[target_index] = clone;
         self.config_dirty = true;
-        self.menu.rebuild(self.menu_config());
         self.show_toast(format!("Cloned to I{}", target_index + 1));
     }
 
@@ -197,7 +196,6 @@ impl NativeRunner {
         }
         self.instruments[index] = NativeInstrumentSlot::reset(index);
         self.config_dirty = true;
-        self.menu.rebuild(self.menu_config());
         self.show_toast(format!("Reset I{}", index + 1));
     }
 
@@ -223,6 +221,5 @@ impl NativeRunner {
             offset: 0,
         });
         self.config_dirty = true;
-        self.menu.rebuild(self.menu_config());
     }
 }

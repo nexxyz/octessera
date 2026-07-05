@@ -13,6 +13,7 @@ pub(crate) fn looper_punch_aux_binding_uses_same_action_path() {
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "aux1" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -47,6 +48,7 @@ pub(crate) fn looper_length_edit_after_punch_preserves_play_mode_sequence_and_ph
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
     runner.menu.state.stack = vec![0, 0];
@@ -54,6 +56,7 @@ pub(crate) fn looper_length_edit_after_punch_preserves_play_mode_sequence_and_ph
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(looper_mode_and_step(&runner), ("play".into(), 1));
@@ -64,6 +67,7 @@ pub(crate) fn looper_length_edit_after_punch_preserves_play_mode_sequence_and_ph
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -104,6 +108,7 @@ pub(crate) fn looper_length_edit_preserves_play_mode_when_config_mode_is_absent(
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 

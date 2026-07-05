@@ -22,6 +22,7 @@ pub(crate) fn fn_space_preserves_sequencer_cells() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert!(runner.engine.model().unwrap().cells[platform_core::grid_index(0, 0)]);
@@ -30,6 +31,7 @@ pub(crate) fn fn_space_preserves_sequencer_cells() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.trigger_gate_modes[0], "zero");
@@ -38,6 +40,7 @@ pub(crate) fn fn_space_preserves_sequencer_cells() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.trigger_gate_modes[0], "full");
@@ -55,6 +58,7 @@ pub(crate) fn fn_space_restores_triggered_input_events_after_reenable() {
     let before = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert!(before.iter().any(|message| matches!(
@@ -67,6 +71,7 @@ pub(crate) fn fn_space_restores_triggered_input_events_after_reenable() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.trigger_gate_modes[0], "zero");
@@ -74,6 +79,7 @@ pub(crate) fn fn_space_restores_triggered_input_events_after_reenable() {
     let muted = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 3, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert!(!muted.iter().any(|message| matches!(
@@ -85,6 +91,7 @@ pub(crate) fn fn_space_restores_triggered_input_events_after_reenable() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.trigger_gate_modes[0], "full");
@@ -92,6 +99,7 @@ pub(crate) fn fn_space_restores_triggered_input_events_after_reenable() {
     let restored = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 4, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert!(restored.iter().any(|message| matches!(

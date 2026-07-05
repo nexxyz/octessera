@@ -369,7 +369,9 @@ name = "cellsymphony-pi"
 version = "0.5.1"
 dependencies = [
  "cellsymphony-hal",
+ "cpal",
  "image",
+ "libc",
  "midir",
  "platform-core",
  "playback-runtime",

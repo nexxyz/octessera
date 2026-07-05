@@ -10,6 +10,8 @@ use serde_json::Value;
 pub enum HostMessage {
     DeviceInput {
         input: Value,
+        #[serde(default, rename = "requestSnapshot")]
+        request_snapshot: Option<bool>,
     },
     TransportPulseStep {
         pulses: u32,

@@ -134,10 +134,14 @@ impl NativeRunner {
         let include_audio_config =
             self.last_snapshot_audio_config_revision != Some(self.audio_config_revision);
         let snapshot = self.snapshot_with_audio_config(include_audio_config)?;
-        if include_audio_config {
+        self.queue_audio_config_if_changed();
+        Ok(snapshot)
+    }
+
+    pub(super) fn queue_audio_config_if_changed(&mut self) {
+        if self.last_snapshot_audio_config_revision != Some(self.audio_config_revision) {
             self.queue_audio_command(self.full_audio_config_command());
             self.last_snapshot_audio_config_revision = Some(self.audio_config_revision);
         }
-        Ok(snapshot)
     }
 }

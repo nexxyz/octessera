@@ -4,55 +4,30 @@ use super::*;
 pub(crate) fn dance_page_menu_edits_selected_and_active_mode() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
 
-    for _ in 0..3 {
-        let _ = runner.send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
-        });
-    }
-    let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_press", "id": "main" }),
-    });
-    let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
-    });
-    let edit = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_press", "id": "main" }),
-        })
-        .unwrap();
-    assert_eq!(snapshot_from(&edit)["display"]["title"], "L4: Dance");
-    assert_eq!(snapshot_from(&edit)["display"]["editing"], true);
-
-    for mode in ["pan", "fx", "trigger-gate", "xy", "xy"] {
-        let changed = runner
-            .send(HostMessage::DeviceInput {
-                input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
-            })
-            .unwrap();
-        assert_eq!(snapshot_from(&changed)["danceMode"], mode);
-        assert_eq!(snapshot_from(&changed)["activeDanceMode"], mode);
-    }
-
-    for mode in ["trigger-gate", "fx", "pan", "mix", "mix"] {
-        let changed = runner
-            .send(HostMessage::DeviceInput {
-                input: json!({ "type": "encoder_turn", "delta": -1, "id": "main" }),
-            })
-            .unwrap();
-        assert_eq!(snapshot_from(&changed)["danceMode"], mode);
-        assert_eq!(snapshot_from(&changed)["activeDanceMode"], mode);
+    for (mode, key) in [
+        ("mix", "dance.page.mix"),
+        ("pan", "dance.page.pan"),
+        ("fx", "dance.page.fx"),
+        ("trigger-gate", "dance.page.trigger-gate"),
+        ("xy", "dance.page.xy"),
+    ] {
+        assert!(runner.menu.focus_item_key(key));
+        runner.apply_or_schedule_menu_key(key).unwrap();
+        let snapshot = runner.snapshot().unwrap();
+        assert_eq!(snapshot["display"]["title"], "L4: Dance");
+        assert_eq!(snapshot["danceMode"], mode);
+        assert_eq!(snapshot["activeDanceMode"], mode);
     }
 }
 
 #[test]
 pub(crate) fn dance_page_fast_path_applies_immediately_without_deferred_flush() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    assert!(runner.menu.focus_item_key("danceMode"));
-    runner.menu.state.stack = vec![3];
-    runner.menu.state.editing = true;
+    assert!(runner.menu.focus_item_key("dance.page.pan"));
     let changed = runner
         .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(snapshot_from(&changed)["danceMode"], "pan");
@@ -69,9 +44,9 @@ pub(crate) fn dance_mode_edits_outside_dance_page_do_not_activate_overlay() {
     runner.active_dance_mode = "none".into();
     runner.menu.rebuild(runner.menu_config());
 
-    assert!(runner.menu.turn_key("danceMode", 1));
+    assert!(runner.menu.focus_item_key("dance.page.pan"));
     runner.menu.state.stack = vec![0];
-    runner.apply_or_schedule_menu_key("danceMode").unwrap();
+    runner.apply_or_schedule_menu_key("dance.page.pan").unwrap();
 
     assert_eq!(runner.dance_mode, "pan");
     assert_eq!(runner.active_dance_mode, "none");
@@ -85,11 +60,13 @@ pub(crate) fn fn_grid_context_changes_show_oled_toasts() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     let part = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 2 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(snapshot_from(&part)["display"]["toast"], "Part: P3 rain");
@@ -97,6 +74,7 @@ pub(crate) fn fn_grid_context_changes_show_oled_toasts() {
     let dance = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 7, "y": 2 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(snapshot_from(&dance)["display"]["toast"], "Dance: fx");
@@ -109,12 +87,12 @@ pub(crate) fn dance_fx_type_turn_is_deferred_until_flush() {
     runner.active_dance_mode = "fx".into();
     runner.menu.rebuild(runner.menu_config());
     assert!(runner.menu.focus_item_key("dance.fx.type"));
-    runner.menu.state.stack = vec![3];
     runner.menu.state.editing = true;
 
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -152,30 +130,13 @@ pub(crate) fn dance_fx_none_exposes_type_without_effect_params() {
 }
 
 #[test]
-pub(crate) fn changing_dance_page_rebuilds_visible_menu_rows_for_selected_page() {
+pub(crate) fn changing_dance_page_uses_static_visible_menu_rows() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-
-    for _ in 0..3 {
-        let _ = runner.send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
-        });
-    }
-    let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_press", "id": "main" }),
-    });
-    let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
-    });
-    let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_press", "id": "main" }),
-    });
-
-    let fx = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
-        })
-        .unwrap();
-    let fx_snapshot = snapshot_from(&fx);
+    assert!(runner.menu.focus_item_key("dance.page.fx"));
+    runner.apply_or_schedule_menu_key("dance.page.fx").unwrap();
+    runner.menu.state.stack = vec![3, 2];
+    runner.menu.state.cursor = 0;
+    let fx_snapshot = runner.snapshot().unwrap();
     let fx_lines = fx_snapshot["display"]["lines"]
         .as_array()
         .unwrap()
@@ -185,12 +146,11 @@ pub(crate) fn changing_dance_page_rebuilds_visible_menu_rows_for_selected_page()
     assert!(fx_lines.iter().any(|line| line.contains("FX Type")));
     assert!(fx_lines.iter().any(|line| line.contains("Target")));
 
-    let xy = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
-        })
-        .unwrap();
-    let xy_snapshot = snapshot_from(&xy);
+    assert!(runner.menu.focus_item_key("dance.page.xy"));
+    runner.apply_or_schedule_menu_key("dance.page.xy").unwrap();
+    runner.menu.state.stack = vec![3, 4];
+    runner.menu.state.cursor = 0;
+    let xy_snapshot = runner.snapshot().unwrap();
     let xy_lines = xy_snapshot["display"]["lines"]
         .as_array()
         .unwrap()
@@ -211,11 +171,13 @@ pub(crate) fn entering_dance_menu_activates_selected_page_and_overlay() {
     for _ in 0..3 {
         let _ = runner.send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
         });
     }
     let entered = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 

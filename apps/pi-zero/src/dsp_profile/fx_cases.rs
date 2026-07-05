@@ -1,9 +1,10 @@
 use realtime_engine::synth::{
     default_synth_config, FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig,
-    InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig, VoiceStealingMode,
-    DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
+    InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig, MomentaryFxTarget,
+    VoiceStealingMode, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
 };
 use rodio_engine_source::EngineEvent;
+use std::collections::BTreeMap;
 
 const PROFILE_NOTE_DURATION_MS: u32 = 60_000;
 
@@ -21,6 +22,28 @@ pub fn bus_heavy_events() -> Vec<EngineEvent> {
                 duration_ms: PROFILE_NOTE_DURATION_MS,
             });
         }
+    }
+    events
+}
+
+pub fn fx_limit_events(bus_slots: usize, momentary: usize, sample_rate: u32) -> Vec<EngineEvent> {
+    let mut events = vec![
+        EngineEvent::SetVoiceStealingMode(VoiceStealingMode::None),
+        EngineEvent::SetInstruments(fx_limit_instruments(bus_slots)),
+        EngineEvent::SetSampleBanks(crate::dsp_profile::samples::all_sample_banks(sample_rate)),
+    ];
+    for slot in 0..INSTRUMENT_SLOT_COUNT {
+        for note in [60, 67] {
+            events.push(EngineEvent::NoteOn {
+                instrument_slot: slot as u8,
+                note,
+                velocity: 100,
+                duration_ms: PROFILE_NOTE_DURATION_MS,
+            });
+        }
+    }
+    for event in fx_limit_momentary_events(momentary) {
+        events.push(event);
     }
     events
 }
@@ -97,6 +120,85 @@ fn bus_heavy_instruments() -> InstrumentsConfig {
         pan_positions: DEFAULT_PAN_POSITIONS,
         master_volume: 100.0,
     }
+}
+
+fn fx_limit_instruments(bus_slots: usize) -> InstrumentsConfig {
+    let active_buses = bus_slots.clamp(0, 6).div_ceil(2).max(1);
+    InstrumentsConfig {
+        instruments: (0..INSTRUMENT_SLOT_COUNT)
+            .map(|slot| InstrumentSlotConfig {
+                kind: if slot % 2 == 0 { "synth" } else { "sampler" }.into(),
+                synth: default_synth_config(),
+                mixer: Some(InstrumentMixerConfig {
+                    route: if bus_slots == 0 {
+                        "direct".into()
+                    } else {
+                        format!("fx_bus_{}", (slot % active_buses) + 1)
+                    },
+                    pan_pos: slot.min(DEFAULT_PAN_POSITIONS - 1),
+                    volume: 100.0,
+                }),
+            })
+            .collect(),
+        mixer: Some(MixerConfig {
+            buses: fx_limit_buses(bus_slots),
+            master: Some(master(vec!["compressor", "reverb"])),
+        }),
+        pan_positions: DEFAULT_PAN_POSITIONS,
+        master_volume: 100.0,
+    }
+}
+
+fn fx_limit_buses(bus_slots: usize) -> Vec<FxBusConfig> {
+    let kinds = [
+        "delay",
+        "reverb",
+        "filter_lfo",
+        "chorus",
+        "compressor",
+        "eq",
+    ];
+    kinds
+        .iter()
+        .take(bus_slots.clamp(0, 6))
+        .enumerate()
+        .fold(Vec::<Vec<&str>>::new(), |mut buses, (index, kind)| {
+            let bus_index = index / 2;
+            if buses.len() <= bus_index {
+                buses.push(Vec::new());
+            }
+            buses[bus_index].push(*kind);
+            buses
+        })
+        .into_iter()
+        .enumerate()
+        .map(|(index, slots)| bus(slots, index + 1))
+        .collect()
+}
+
+fn fx_limit_momentary_events(momentary: usize) -> Vec<EngineEvent> {
+    let specs = [
+        (
+            "momentary-filter",
+            "filter_sweep",
+            MomentaryFxTarget::Global,
+        ),
+        (
+            "momentary-pitch",
+            "pitch_shift",
+            MomentaryFxTarget::Instrument { index: 1 },
+        ),
+    ];
+    specs
+        .into_iter()
+        .take(momentary.clamp(0, 2))
+        .map(|(id, fx_type, target)| EngineEvent::MomentaryFxStart {
+            id: id.into(),
+            fx_type: fx_type.into(),
+            params: BTreeMap::new(),
+            target,
+        })
+        .collect()
 }
 
 fn bus(slots: Vec<&str>, pan_pos: usize) -> FxBusConfig {

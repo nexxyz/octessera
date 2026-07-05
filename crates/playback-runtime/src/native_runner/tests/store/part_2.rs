@@ -17,6 +17,7 @@ pub(crate) fn save_current_uses_loaded_preset_name() {
     let opened = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(snapshot_from(&opened)["display"]["title"], "Confirm Save");
@@ -42,6 +43,7 @@ pub(crate) fn native_store_and_action_toasts_cover_common_confirmation_results()
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert!(!messages
@@ -104,6 +106,7 @@ pub(crate) fn preset_save_as_uses_text_draft_name() {
     let opened = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(snapshot_from(&opened)["display"]["title"], "Confirm Save");
@@ -140,6 +143,7 @@ pub(crate) fn preset_save_as_uses_fresh_timestamp_draft_name() {
     let opened = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(snapshot_from(&opened)["display"]["title"], "Confirm Save");
@@ -179,6 +183,7 @@ pub(crate) fn preset_rename_pick_sets_new_name_and_apply_saves() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -192,6 +197,7 @@ pub(crate) fn preset_rename_pick_sets_new_name_and_apply_saves() {
     let opened = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(snapshot_from(&opened)["display"]["title"], "Confirm Rename");

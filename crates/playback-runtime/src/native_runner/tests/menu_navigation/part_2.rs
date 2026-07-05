@@ -7,33 +7,40 @@ pub(crate) fn system_sound_master_volume_edit_via_menu() {
     for _ in 0..5 {
         let _ = runner.send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
+            request_snapshot: None,
         });
     }
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
+        request_snapshot: None,
     });
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_turn", "delta": 3, "id": "main" }),
+        request_snapshot: None,
     });
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
+        request_snapshot: None,
     });
 
     let edit = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(snapshot_from(&edit)["display"]["editing"], true);
 
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_turn", "delta": 26, "id": "main" }),
+        request_snapshot: None,
     });
     assert_eq!(runner.ui.master_volume, 99);
 
     let exit = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(snapshot_from(&exit)["display"]["editing"], false);
@@ -49,21 +56,25 @@ pub(crate) fn fn_aux_binds_selected_param_and_aux_turn_edits_it() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "aux1" }),
+            request_snapshot: None,
         })
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_fn", "pressed": false }),
+            request_snapshot: None,
         })
         .unwrap();
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "aux1", "delta": -10 }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -87,21 +98,25 @@ pub(crate) fn fn_aux_binds_selected_action_and_aux_press_executes_it() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "aux1" }),
+            request_snapshot: None,
         })
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_fn", "pressed": false }),
+            request_snapshot: None,
         })
         .unwrap();
     let opened = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "aux1" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(snapshot_from(&opened)["display"]["title"], "Confirm MIDI");
@@ -121,21 +136,26 @@ pub(crate) fn edit_marker_uses_compact_star_prefix() {
     for _ in 0..5 {
         let _ = runner.send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
         });
     }
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
+        request_snapshot: None,
     });
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_turn", "delta": 3, "id": "main" }),
+        request_snapshot: None,
     });
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
+        request_snapshot: None,
     });
 
     let edit = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let snapshot = snapshot_from(&edit);
@@ -153,32 +173,40 @@ pub(crate) fn midi_sync_mode_edits_through_menu() {
     for _ in 0..5 {
         let _ = runner.send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 4, "id": "main" }),
+            request_snapshot: None,
         });
     }
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
+        request_snapshot: None,
     });
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_turn", "delta": 4, "id": "main" }),
+        request_snapshot: None,
     });
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
+        request_snapshot: None,
     });
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_turn", "delta": 4, "id": "main" }),
+        request_snapshot: None,
     });
 
     assert_eq!(runner.sync_source, SyncSource::Internal);
 
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
+        request_snapshot: None,
     });
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
+        request_snapshot: None,
     });
     let changed = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -198,6 +226,7 @@ pub(crate) fn system_menu_refresh_list_emits_store_list_effect() {
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -217,6 +246,7 @@ pub(crate) fn system_menu_midi_panic_emits_panic_effect() {
     let opened = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(snapshot_from(&opened)["display"]["title"], "Confirm MIDI");

@@ -40,6 +40,7 @@ pub(crate) fn looper_overdub_records_release_and_replays_each_loop() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert!(runner.engine.model().unwrap().cells[index]);
@@ -48,6 +49,7 @@ pub(crate) fn looper_overdub_records_release_and_replays_each_loop() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_release", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert!(runner.engine.model().unwrap().cells[index]);
@@ -64,12 +66,14 @@ pub(crate) fn looper_clear_loop_action_releases_playback_cells_and_marks_dirty()
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
     pulse_step(&mut runner);
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_release", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
     pulse_step(&mut runner);
@@ -83,6 +87,7 @@ pub(crate) fn looper_clear_loop_action_releases_playback_cells_and_marks_dirty()
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert!(!runner.engine.model().unwrap().cells[index]);
@@ -103,12 +108,14 @@ pub(crate) fn looper_saved_state_persists_sequence_only_when_grid_state_is_saved
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
     pulse_step(&mut runner);
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_release", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -132,6 +139,7 @@ pub(crate) fn looper_length_edit_preserves_recorded_sequence() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
     let before = runner.engine.serialized_state().unwrap();
@@ -143,6 +151,7 @@ pub(crate) fn looper_length_edit_preserves_recorded_sequence() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -160,6 +169,7 @@ pub(crate) fn looper_punch_action_toggles_mode_and_preserves_live_state() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
     let state_before = runner.engine.serialized_state().unwrap();
@@ -172,6 +182,7 @@ pub(crate) fn looper_punch_action_toggles_mode_and_preserves_live_state() {
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -194,6 +205,7 @@ pub(crate) fn looper_punch_action_toggles_mode_and_preserves_live_state() {
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(looper_mode_and_step(&runner).0, "overdub");

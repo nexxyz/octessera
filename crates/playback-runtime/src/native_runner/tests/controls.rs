@@ -10,6 +10,7 @@ pub(crate) fn controls_action_opens_help_without_platform_effects() {
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -36,6 +37,7 @@ pub(crate) fn controls_help_popup_turns_without_effects() {
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -56,17 +58,20 @@ pub(crate) fn contextual_help_does_not_change_static_navigation_memory() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_a", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.menu.current_label(), Some("Velocity Scale"));
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_a", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -76,12 +81,14 @@ pub(crate) fn contextual_help_does_not_change_static_navigation_memory() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     runner.ui.combined_modifier_held = false;
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_a", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -90,6 +97,7 @@ pub(crate) fn contextual_help_does_not_change_static_navigation_memory() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.menu.current_label(), Some("Velocity Scale"));

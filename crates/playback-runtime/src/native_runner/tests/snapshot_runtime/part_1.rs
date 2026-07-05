@@ -67,6 +67,44 @@ pub(crate) fn first_snapshot_emits_full_audio_config_command() {
 }
 
 #[test]
+pub(crate) fn device_input_json_defaults_to_snapshot_response() {
+    let message: HostMessage = serde_json::from_value(json!({
+        "type": "device_input",
+        "input": { "type": "button_s", "pressed": true }
+    }))
+    .unwrap();
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+
+    let messages = runner.send(message).unwrap();
+
+    assert!(messages
+        .iter()
+        .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
+}
+
+#[test]
+pub(crate) fn device_input_can_skip_snapshot_response() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+
+    assert!(!messages
+        .iter()
+        .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
+    assert!(messages
+        .iter()
+        .any(|message| matches!(message, RunnerMessage::RuntimeStatus { .. })));
+    assert!(messages
+        .iter()
+        .any(|message| matches!(message, RunnerMessage::AudioCommands { .. })));
+}
+
+#[test]
 pub(crate) fn voice_stealing_mode_change_emits_full_audio_config_command() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let _ = runner.messages_with_snapshot().unwrap();
@@ -144,6 +182,7 @@ pub(crate) fn menu_navigation_resets_selected_row_scroll() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.menu_scroll_offset, 1);
@@ -159,6 +198,7 @@ pub(crate) fn unbound_aux_inputs_show_toast_without_navigating_menu() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "aux1" }),
+            request_snapshot: None,
         })
         .unwrap();
     let snapshot = runner.snapshot().unwrap();
@@ -196,6 +236,7 @@ pub(crate) fn aux_turn_toast_cooldown_keeps_first_then_shows_latest() {
     let first = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "aux1", "delta": 1 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(snapshot_from(&first)["display"]["toast"], "T1: Cutoff: 223");
@@ -203,6 +244,7 @@ pub(crate) fn aux_turn_toast_cooldown_keeps_first_then_shows_latest() {
     let second = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "aux1", "delta": 1 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(
@@ -213,6 +255,7 @@ pub(crate) fn aux_turn_toast_cooldown_keeps_first_then_shows_latest() {
     let third = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "aux1", "delta": 1 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(snapshot_from(&third)["display"]["toast"], "T1: Cutoff: 223");
@@ -244,11 +287,13 @@ pub(crate) fn scanning_sequencer_pattern_emits_different_rows_over_scan_steps() 
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
+            request_snapshot: None,
         })
         .unwrap();
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 1 }),
+            request_snapshot: None,
         })
         .unwrap();
 

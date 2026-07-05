@@ -1,14 +1,52 @@
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::{BufferSize, SampleFormat, Stream, StreamConfig};
 use realtime_engine::synth::{
     default_synth_config, InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig,
     DEFAULT_AUDIO_SAMPLE_RATE, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
 };
-use rodio::{OutputStream, Sink};
 use rodio_engine_source::{EngineEvent, EngineSource};
 use serde_json::Value;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicU64;
 use std::sync::mpsc::{self, Sender};
 use std::sync::{Arc, Mutex};
+
+#[cfg(target_os = "linux")]
+mod audio_priority {
+    use std::cell::Cell;
+
+    thread_local! {
+        static PRIORITY_CONFIGURED: Cell<bool> = const { Cell::new(false) };
+    }
+
+    pub(super) fn configure_callback_thread() {
+        PRIORITY_CONFIGURED.with(|configured| {
+            if configured.get() {
+                return;
+            }
+            configured.set(true);
+            let priority = std::env::var("CELLSYMPHONY_AUDIO_THREAD_PRIORITY")
+                .ok()
+                .and_then(|value| value.parse::<i32>().ok())
+                .unwrap_or(70)
+                .clamp(1, 80);
+            let params = libc::sched_param {
+                sched_priority: priority,
+            };
+            let result = unsafe {
+                libc::pthread_setschedparam(libc::pthread_self(), libc::SCHED_FIFO, &params)
+            };
+            if result != 0 {
+                eprintln!("audio thread realtime priority unavailable: errno {result}");
+            }
+        });
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+mod audio_priority {
+    pub(super) fn configure_callback_thread() {}
+}
 
 #[derive(Clone)]
 pub struct AudioService {
@@ -30,20 +68,18 @@ pub enum AudioControlRequest {
 }
 
 pub struct AudioManager {
-    _stream: OutputStream,
-    _sink: Sink,
+    _stream: Stream,
     service: AudioService,
 }
 
 impl AudioManager {
     pub fn new() -> Result<Self, String> {
-        let (stream, handle) = OutputStream::try_default()
-            .map_err(|e| format!("failed to create audio stream: {e}"))?;
-        let sink = Sink::try_new(&handle).map_err(|e| format!("failed to create sink: {e}"))?;
         let (engine_tx, engine_rx) = mpsc::channel::<EngineEvent>();
         let (control_tx, control_rx) = mpsc::channel::<AudioControlRequest>();
-        sink.append(EngineSource::new(engine_rx, DEFAULT_AUDIO_SAMPLE_RATE));
-        sink.play();
+        let stream = build_cpal_stream(engine_rx)?;
+        stream
+            .play()
+            .map_err(|e| format!("failed to play audio stream: {e}"))?;
         let _ = engine_tx.send(EngineEvent::SetInstruments(default_pi_instruments()));
         let service = AudioService {
             realtime_tx: engine_tx.clone(),
@@ -59,7 +95,6 @@ impl AudioManager {
         );
         Ok(Self {
             _stream: stream,
-            _sink: sink,
             service,
         })
     }
@@ -67,6 +102,65 @@ impl AudioManager {
     pub fn service(&self) -> AudioService {
         self.service.clone()
     }
+}
+
+fn build_cpal_stream(engine_rx: mpsc::Receiver<EngineEvent>) -> Result<Stream, String> {
+    let host = cpal::default_host();
+    let device = host
+        .default_output_device()
+        .ok_or_else(|| "no default audio output device".to_string())?;
+    let supported = device
+        .default_output_config()
+        .map_err(|e| format!("failed to read default audio config: {e}"))?;
+    let mut config: StreamConfig = supported.config();
+    config.channels = 2;
+    config.sample_rate = cpal::SampleRate(DEFAULT_AUDIO_SAMPLE_RATE);
+    config.buffer_size = output_buffer_size();
+    let source = EngineSource::new(engine_rx, config.sample_rate.0);
+    match supported.sample_format() {
+        SampleFormat::F32 => build_stream::<f32>(&device, &config, source),
+        SampleFormat::I16 => build_stream::<i16>(&device, &config, source),
+        SampleFormat::U16 => build_stream::<u16>(&device, &config, source),
+        format => Err(format!("unsupported audio sample format: {format:?}")),
+    }
+}
+
+fn build_stream<T>(
+    device: &cpal::Device,
+    config: &StreamConfig,
+    mut source: EngineSource,
+) -> Result<Stream, String>
+where
+    T: cpal::Sample + cpal::SizedSample + cpal::FromSample<f32>,
+{
+    device
+        .build_output_stream(
+            config,
+            move |data: &mut [T], _| {
+                audio_priority::configure_callback_thread();
+                fill_output(data, &mut source);
+            },
+            move |error| eprintln!("audio stream error: {error}"),
+            None,
+        )
+        .map_err(|e| format!("failed to build audio output stream: {e}"))
+}
+
+fn fill_output<T>(data: &mut [T], source: &mut EngineSource)
+where
+    T: cpal::Sample + cpal::FromSample<f32>,
+{
+    for sample in data {
+        *sample = T::from_sample(source.next().unwrap_or(0.0));
+    }
+}
+
+fn output_buffer_size() -> BufferSize {
+    let frames = std::env::var("CELLSYMPHONY_AUDIO_OUTPUT_BUFFER_FRAMES")
+        .ok()
+        .and_then(|value| value.parse::<u32>().ok())
+        .unwrap_or(256);
+    BufferSize::Fixed(frames.clamp(32, 2048))
 }
 
 impl AudioService {

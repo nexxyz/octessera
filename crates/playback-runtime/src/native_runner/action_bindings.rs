@@ -104,7 +104,6 @@ impl NativeRunner {
             });
             self.show_toast(message);
             self.config_dirty = true;
-            self.menu.rebuild(self.menu_config());
             return true;
         }
         false
@@ -173,7 +172,6 @@ impl NativeRunner {
             offset: 0,
         });
         self.config_dirty = true;
-        self.menu.rebuild(self.menu_config());
         true
     }
 

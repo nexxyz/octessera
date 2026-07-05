@@ -17,6 +17,7 @@ pub(crate) fn dance_fx_grid_press_and_release_emit_audio_commands() {
     let start = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert!(start.iter().any(|message| matches!(
@@ -28,6 +29,7 @@ pub(crate) fn dance_fx_grid_press_and_release_emit_audio_commands() {
     let stop = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_release", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert!(stop.iter().any(|message| matches!(
@@ -139,6 +141,7 @@ pub(crate) fn dance_fx_map_to_grid_stores_config_and_payload_round_trips() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 4, "y": 5 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.dance_fx_assignments.len(), 1);

@@ -12,6 +12,7 @@ pub(crate) fn auto_map_context_updates_after_navigation_only_group_enter() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -44,6 +45,7 @@ pub(crate) fn auto_map_env_and_osc_pages_drive_expected_slots() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "aux3", "delta": 1 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(
@@ -59,6 +61,7 @@ pub(crate) fn auto_map_env_and_osc_pages_drive_expected_slots() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "aux3", "delta": 1 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(
@@ -94,6 +97,7 @@ pub(crate) fn auto_map_fx_slot_uses_effect_specific_param_layout() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "aux3", "delta": 1 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(
@@ -127,6 +131,7 @@ pub(crate) fn auto_map_global_fx_covers_vinyl_params() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "aux2", "delta": 1 }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -201,6 +206,7 @@ pub(crate) fn fn_aux_bind_sets_explicit_toast_and_marks_config_dirty() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "aux1" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -222,6 +228,7 @@ pub(crate) fn aux_click_action_toast_is_shown_for_platform_effect_actions() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "aux1" }),
+            request_snapshot: None,
         })
         .unwrap();
 

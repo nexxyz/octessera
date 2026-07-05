@@ -22,12 +22,14 @@ pub(crate) fn transport_tick_advances_multiple_configured_parts() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
+            request_snapshot: None,
         })
         .unwrap();
     runner.select_active_part(1).unwrap();
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -70,6 +72,7 @@ pub(crate) fn inactive_part_transport_tick_applies_param_modulation() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
+            request_snapshot: None,
         })
         .unwrap();
     runner.instruments[0].volume = 0;
@@ -140,11 +143,13 @@ pub(crate) fn scan_unit_advances_scanning_before_full_note_step_rate() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
+            request_snapshot: None,
         })
         .unwrap();
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 1 }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -178,12 +183,14 @@ pub(crate) fn sequencer_grid_state_is_serialized_and_rehydrated_for_all_parts() 
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
     runner.select_active_part(1).unwrap();
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 4, "y": 5 }),
+            request_snapshot: None,
         })
         .unwrap();
     let payload = runner.config_payload();
@@ -206,6 +213,7 @@ pub(crate) fn save_grid_state_controls_saved_state_payload_and_restore() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
     let mut payload = runner.config_payload();

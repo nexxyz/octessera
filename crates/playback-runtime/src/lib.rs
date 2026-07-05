@@ -5,6 +5,7 @@ mod native_menu;
 mod native_runner;
 mod protocol;
 mod runtime;
+mod timing_probe;
 
 pub use native_runner::{NativeRunner, NativeRunnerConfig};
 pub use platform_core::MusicalEvent;
@@ -14,6 +15,10 @@ pub use protocol::{
     RuntimeTransportState, RuntimeUiPulse, SampleEntry, SyncSource,
 };
 pub use runtime::{CoreRunner, HostAdapter, PlaybackRuntime, RuntimeConfig};
+pub use timing_probe::{
+    parse_timing_probe_durations, parse_timing_probe_scenarios, print_timing_probe_summary,
+    run_timing_probe, TimingProbeOptions, TimingProbeReport, TimingProbeScenario,
+};
 
 #[cfg(test)]
 mod tests {
@@ -279,6 +284,7 @@ mod tests {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
         let _ = runner.send(HostMessage::DeviceInput {
             input: json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: None,
         });
         let messages = runner
             .send(HostMessage::TransportPulseStep {

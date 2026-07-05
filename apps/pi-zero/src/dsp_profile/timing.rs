@@ -86,23 +86,28 @@ fn prime_runtime_scenario(runner: &mut NativeRunner, scenario: &str) -> Result<(
         for x in 0..8 {
             let _ = runner.send(HostMessage::DeviceInput {
                 input: json!({ "type": "grid_press", "x": x, "y": 0 }),
+                request_snapshot: None,
             })?;
         }
     }
     if scenario == "menu_snapshot_only" {
         let _ = runner.send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "main", "delta": 1 }),
+            request_snapshot: None,
         })?;
         let _ = runner.send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })?;
     }
     if scenario == "runtime_snapshot_no_menu_change" {
         let _ = runner.send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
+            request_snapshot: None,
         })?;
         let _ = runner.send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_release", "x": 0, "y": 0 }),
+            request_snapshot: None,
         })?;
     }
     Ok(())
@@ -145,10 +150,12 @@ fn dense_scan_messages(
     vec![
         HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": x, "y": y }),
+            request_snapshot: None,
         },
         pulse_message(block_frames, request_snapshot),
         HostMessage::DeviceInput {
             input: json!({ "type": "grid_release", "x": x, "y": y }),
+            request_snapshot: None,
         },
     ]
 }
@@ -162,9 +169,11 @@ fn menu_nav_messages(
     vec![
         HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "main", "delta": delta }),
+            request_snapshot: None,
         },
         HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         },
         pulse_message(block_frames, request_snapshot),
     ]
@@ -179,10 +188,12 @@ fn noteoff_queue_messages(
     vec![
         HostMessage::DeviceInput {
             input: json!({ "type": "grid_release", "x": x, "y": 0 }),
+            request_snapshot: None,
         },
         pulse_message(block_frames, request_snapshot),
         HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": x, "y": 0 }),
+            request_snapshot: None,
         },
     ]
 }

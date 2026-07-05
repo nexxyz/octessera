@@ -7,16 +7,19 @@ pub(crate) fn contextual_help_scrolls_and_back_closes() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_shift", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     if let Some(help) = &mut runner.help_popup {
@@ -29,6 +32,7 @@ pub(crate) fn contextual_help_scrolls_and_back_closes() {
     let scrolled = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.help_popup.as_ref().unwrap().scroll, 2);
@@ -42,6 +46,7 @@ pub(crate) fn contextual_help_scrolls_and_back_closes() {
     let closed = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_a", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     assert!(runner.help_popup.is_none());

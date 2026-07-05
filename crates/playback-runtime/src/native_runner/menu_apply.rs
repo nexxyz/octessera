@@ -8,7 +8,7 @@ impl NativeRunner {
         let current_key = self.menu.current_key().map(str::to_string);
         let mut config_changed = false;
         let mut audio_config_changed = false;
-        let (dance_mode_changed, global_config_changed, global_audio_config_changed) =
+        let (_dance_mode_changed, global_config_changed, global_audio_config_changed) =
             self.apply_global_runtime_menu_state();
         let dance_fx_changed = self.apply_dance_fx_menu_state();
         config_changed |= global_config_changed || dance_fx_changed;
@@ -23,13 +23,7 @@ impl NativeRunner {
             instrument_changed && current_key_requires_audio_config(&current_key);
         audio_config_changed |= fx_changed && current_key_requires_audio_config(&current_key);
         self.sync_engine_runtime_config();
-        if part_changed
-            || instrument_changed
-            || sense_changed
-            || fx_changed
-            || dance_fx_changed
-            || dance_mode_changed
-        {
+        if audio_config_changed || current_key_requires_menu_materialization(&current_key) {
             self.menu.rebuild(self.menu_config());
         }
         if sense_changed {
@@ -39,9 +33,6 @@ impl NativeRunner {
         }
         let behavior_changed = self.apply_selected_behavior_menu_state()?;
         config_changed |= behavior_changed;
-        if behavior_changed {
-            self.menu.rebuild(self.menu_config());
-        }
         config_changed |= self.apply_behavior_config_menu_state()?;
         self.refresh_active_mapping_config();
         self.refresh_active_interpretation_profile();
@@ -236,6 +227,31 @@ fn current_key_requires_audio_config(current_key: &Option<String>) -> bool {
         if matches!(suffix, "name" | "autoName" | "panPos") {
             return false;
         }
+        return suffix.ends_with(".type");
+    }
+    if let Some(rest) = key.strip_prefix("mixer.master.slots.") {
+        let Some((_, suffix)) = rest.split_once('.') else {
+            return true;
+        };
+        return suffix == "type";
+    }
+    false
+}
+
+fn current_key_requires_menu_materialization(current_key: &Option<String>) -> bool {
+    let Some(key) = current_key.as_deref() else {
+        return false;
+    };
+    if let Some(rest) = key.strip_prefix("instruments.") {
+        let Some((_, suffix)) = rest.split_once('.') else {
+            return true;
+        };
+        return suffix == "kind" || suffix.ends_with(".type");
+    }
+    if let Some(rest) = key.strip_prefix("mixer.buses.") {
+        let Some((_, suffix)) = rest.split_once('.') else {
+            return true;
+        };
         return suffix.ends_with(".type");
     }
     if let Some(rest) = key.strip_prefix("mixer.master.slots.") {

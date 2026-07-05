@@ -21,7 +21,6 @@ impl NativeRunner {
             self.assign_sample_cell(instrument_slot, sample_slot, px, py);
         }
         self.config_dirty = true;
-        self.menu.rebuild(self.menu_config());
     }
 
     pub(super) fn assign_sample_cell(
@@ -159,6 +158,12 @@ impl NativeRunner {
     ) -> Result<(), String> {
         if stack_depth_before == 1 {
             if let Some(label) = label {
+                if let Some(mode) = dance_mode_from_page_label(label) {
+                    self.dance_mode = mode.into();
+                    self.active_dance_mode = self.dance_mode.clone();
+                    self.config_dirty = true;
+                    return Ok(());
+                }
                 if let Some(part) = label
                     .strip_prefix('P')
                     .and_then(|rest| rest.split(':').next())
@@ -170,5 +175,16 @@ impl NativeRunner {
             }
         }
         Ok(())
+    }
+}
+
+fn dance_mode_from_page_label(label: &str) -> Option<&'static str> {
+    match label {
+        "Mix" => Some("mix"),
+        "Pan" => Some("pan"),
+        "FX" => Some("fx"),
+        "Trigger Gate" => Some("trigger-gate"),
+        "XY" => Some("xy"),
+        _ => None,
     }
 }

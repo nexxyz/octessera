@@ -12,6 +12,7 @@ pub(crate) fn sample_browser_opens_lists_and_picks_sample() {
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -45,6 +46,7 @@ pub(crate) fn sample_browser_opens_lists_and_picks_sample() {
     let preview = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     assert!(preview.iter().any(|message| matches!(
@@ -66,6 +68,7 @@ pub(crate) fn sample_browser_opens_lists_and_picks_sample() {
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert!(messages
@@ -107,6 +110,7 @@ pub(crate) fn sample_browser_shows_favourite_toggle_and_updates_runtime_config()
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.toast.as_ref().unwrap().message, "Favourite set");
@@ -133,6 +137,7 @@ pub(crate) fn sample_browser_shows_favourite_toggle_and_updates_runtime_config()
     let _ = loaded
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(loaded.toast.as_ref().unwrap().message, "Favourite removed");

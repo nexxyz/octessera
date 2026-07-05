@@ -68,6 +68,7 @@ pub(crate) fn configured_scanning_sequencer_runner() -> NativeRunner {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
+            request_snapshot: None,
         })
         .unwrap();
     runner
@@ -83,6 +84,7 @@ pub(crate) fn startup_playback_resets_scan_accumulators() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -114,6 +116,7 @@ pub(crate) fn scanning_sequencer_emits_scanned_notes_with_state_notes_disabled()
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -148,6 +151,7 @@ pub(crate) fn stop_then_start_restarts_scanning_from_zero_accumulator() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     runner.ui.shift_held = false;
@@ -159,6 +163,7 @@ pub(crate) fn stop_then_start_restarts_scanning_from_zero_accumulator() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -185,12 +190,14 @@ pub(crate) fn stop_then_start_restarts_scanning_from_first_lane() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     runner.ui.shift_held = false;
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
 

@@ -89,7 +89,7 @@ pub(crate) fn keyed_selectors_prefer_current_row_when_keys_repeat() {
     menu.state.stack = vec![0, 0];
 
     menu.state.cursor = 1;
-    assert_eq!(menu.selected_dance_mode().as_deref(), Some("fx"));
+    assert_eq!(menu.selected_dance_mode(), None);
 
     menu.state.cursor = 3;
     assert_eq!(menu.selected_sync_source(), Some(SyncSource::External));

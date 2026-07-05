@@ -11,6 +11,7 @@ pub(crate) fn fast_path_audio_param_still_applies_immediately() {
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": -10, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -43,6 +44,7 @@ pub(crate) fn sampler_fast_path_uses_direct_audio_command_without_revision_bump(
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 7, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -73,6 +75,7 @@ pub(crate) fn fx_param_fast_path_uses_direct_audio_command_without_revision_bump
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -103,6 +106,7 @@ pub(crate) fn fx_param_fast_path_preserves_scaled_values() {
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -129,6 +133,7 @@ pub(crate) fn fx_bus_pan_uses_direct_audio_command_without_revision_bump() {
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": -3, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 

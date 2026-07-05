@@ -133,6 +133,7 @@ pub(crate) fn sample_slot_menu_is_one_based_but_payload_remains_zero_based_and_b
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_a", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     assert!(runner.sample_assign.is_none());

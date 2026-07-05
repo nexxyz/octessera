@@ -9,16 +9,19 @@ pub(crate) fn synth_gain_edits_into_config_payload() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": -10, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -40,16 +43,19 @@ pub(crate) fn sampler_tune_edits_into_config_payload() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 7, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -205,11 +211,13 @@ pub(crate) fn l1_part_config_always_exposes_auto_name() {
         let _ = runner
             .send(HostMessage::DeviceInput {
                 input: json!({ "type": "encoder_press", "id": "main" }),
+                request_snapshot: None,
             })
             .unwrap();
         let entered = runner
             .send(HostMessage::DeviceInput {
                 input: json!({ "type": "encoder_press", "id": "main" }),
+                request_snapshot: None,
             })
             .unwrap();
 
@@ -239,26 +247,31 @@ pub(crate) fn behavior_change_updates_active_part_auto_name_label() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 

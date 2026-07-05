@@ -6,7 +6,7 @@ mod fx_cases;
 #[path = "scenario_events.rs"]
 mod scenario_events;
 
-use fx_cases::bus_heavy_events;
+use fx_cases::{bus_heavy_events, fx_limit_events};
 use scenario_events::{
     baseline_events, fx_ramp_events, mixed_overload_events, mixed_ramp_events, momentary_events,
     sample_overload_events, sample_ramp_events, synth_overload_events, synth_ramp_events,
@@ -22,6 +22,7 @@ pub enum ProfileMode {
     Full,
     Overload,
     Soak,
+    FxLimits,
 }
 
 impl ProfileMode {
@@ -30,6 +31,7 @@ impl ProfileMode {
             "full" => Some(Self::Full),
             "overload" | "steal" | "stealing" => Some(Self::Overload),
             "soak" => Some(Self::Soak),
+            "fx-limits" | "fx_limits" | "fxlimits" => Some(Self::FxLimits),
             _ => None,
         }
     }
@@ -40,6 +42,7 @@ pub fn profile_scenarios(sample_rate: u32, mode: ProfileMode) -> Vec<ScenarioSpe
         ProfileMode::Full => full_scenarios(sample_rate),
         ProfileMode::Overload => overload_scenarios(sample_rate),
         ProfileMode::Soak => soak_scenarios(sample_rate),
+        ProfileMode::FxLimits => fx_limit_scenarios(sample_rate),
     }
 }
 
@@ -149,6 +152,19 @@ fn soak_scenarios(sample_rate: u32) -> Vec<ScenarioSpec> {
             events: momentary_events(4, sample_rate),
         },
     ]
+}
+
+fn fx_limit_scenarios(sample_rate: u32) -> Vec<ScenarioSpec> {
+    let mut scenarios = Vec::new();
+    for bus_slots in [0, 2, 4, 6] {
+        for momentary in [0, 1, 2] {
+            scenarios.push(ScenarioSpec {
+                name: format!("fx_limits_8parts_2global_{bus_slots}bus_{momentary}momentary"),
+                events: fx_limit_events(bus_slots, momentary, sample_rate),
+            });
+        }
+    }
+    scenarios
 }
 
 pub fn runtime_step_scenarios() -> Vec<ScenarioSpec> {

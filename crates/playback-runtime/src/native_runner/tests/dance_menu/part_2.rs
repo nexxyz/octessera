@@ -10,6 +10,7 @@ pub(crate) fn entering_l1_or_l2_clears_active_dance_overlay_but_keeps_selected_p
     let l1 = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.active_dance_mode, "none");
@@ -23,6 +24,7 @@ pub(crate) fn entering_l1_or_l2_clears_active_dance_overlay_but_keeps_selected_p
     let l2 = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.active_dance_mode, "none");
@@ -39,6 +41,7 @@ pub(crate) fn trigger_gate_page_edits_only_selected_part_row() {
     let changed = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 1 }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -60,6 +63,7 @@ pub(crate) fn trigger_gate_all_parts_button_edits_all_rows() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 6, "y": 0 }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -78,11 +82,13 @@ pub(crate) fn fn_play_toggles_active_part_trigger_mode_to_zero_and_restores_it()
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.trigger_gate_modes[0], "zero");
@@ -95,6 +101,7 @@ pub(crate) fn fn_play_toggles_active_part_trigger_mode_to_zero_and_restores_it()
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.trigger_gate_modes[0], "custom");
@@ -103,6 +110,7 @@ pub(crate) fn fn_play_toggles_active_part_trigger_mode_to_zero_and_restores_it()
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_fn", "pressed": false }),
+            request_snapshot: None,
         })
         .unwrap();
 }
@@ -118,11 +126,13 @@ pub(crate) fn fn_play_toggles_selected_active_part_trigger_mode() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -139,12 +149,14 @@ pub(crate) fn fn_rightmost_grid_column_selects_dance_pages() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
 
     let mix = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 7, "y": 0 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.active_dance_mode, "mix");
@@ -153,6 +165,7 @@ pub(crate) fn fn_rightmost_grid_column_selects_dance_pages() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 7, "y": 1 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.active_dance_mode, "pan");
@@ -160,6 +173,7 @@ pub(crate) fn fn_rightmost_grid_column_selects_dance_pages() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 7, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.active_dance_mode, "trigger-gate");
@@ -167,6 +181,7 @@ pub(crate) fn fn_rightmost_grid_column_selects_dance_pages() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 7, "y": 7 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.active_dance_mode, "trigger-gate");
@@ -180,11 +195,13 @@ pub(crate) fn fn_leftmost_grid_column_switches_active_part() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 2 }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -224,6 +241,7 @@ pub(crate) fn back_exits_active_dance_overlay_and_menu_context() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_a", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.active_dance_mode, "none");

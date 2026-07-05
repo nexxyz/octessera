@@ -151,25 +151,29 @@ impl NativeMenuModel {
         if self.current_siblings().is_empty() {
             return None;
         }
-        let current = self.current_item().clone();
-        match current.value {
-            NativeMenuValue::Group if current.label.is_empty() && current.children.is_empty() => {
+        match &self.current_item().value {
+            NativeMenuValue::Group
+                if self.current_item().label.is_empty()
+                    && self.current_item().children.is_empty() =>
+            {
                 None
             }
             NativeMenuValue::Group => {
                 self.remember_current_group_cursor();
                 let child_memory_key = self.current_item_path();
-                let child_cursor = self
-                    .navigation_memory
-                    .get(&child_memory_key)
-                    .copied()
-                    .map(|cursor| valid_child_cursor(&current.children, cursor))
-                    .unwrap_or(0);
+                let child_cursor = {
+                    let current = self.current_item();
+                    self.navigation_memory
+                        .get(&child_memory_key)
+                        .copied()
+                        .map(|cursor| valid_child_cursor(&current.children, cursor))
+                        .unwrap_or(0)
+                };
                 self.state.stack.push(self.state.cursor);
                 self.state.cursor = child_cursor;
                 Some(NativeMenuPressResult::EnteredGroup)
             }
-            NativeMenuValue::Action(action) => Some(NativeMenuPressResult::Action(action)),
+            NativeMenuValue::Action(action) => Some(NativeMenuPressResult::Action(action.clone())),
             NativeMenuValue::Enum { .. }
             | NativeMenuValue::Number { .. }
             | NativeMenuValue::Bool { .. } => {
@@ -183,6 +187,7 @@ impl NativeMenuModel {
                 max_len,
                 cursor: _,
             } => {
+                let max_len = *max_len;
                 if self.state.editing {
                     self.advance_text_cursor(max_len);
                     Some(NativeMenuPressResult::TextCursorAdvanced)

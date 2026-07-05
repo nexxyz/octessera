@@ -1,37 +1,28 @@
 use super::{
-    action_item, enum_item, enum_item_from_strings, group, number_item, selected_index,
-    xy_pad_items, NativeMenuAction, NativeMenuConfig, NativeMenuItem, NativeMenuValue,
+    action_item, enum_item, enum_item_from_strings, group, keyed_group, number_item,
+    selected_index, xy_pad_items, NativeMenuAction, NativeMenuConfig, NativeMenuItem,
+    NativeMenuValue,
 };
 use crate::native_menu::binding_picker::dance_fx_targets;
 
 pub(super) fn dance_group(config: &NativeMenuConfig) -> NativeMenuItem {
-    let mut children = vec![NativeMenuItem {
-        label: "Dance Page".into(),
-        key: Some("danceMode".into()),
-        value: NativeMenuValue::Enum {
-            options: vec![
-                "mix".into(),
-                "pan".into(),
-                "fx".into(),
-                "trigger-gate".into(),
-                "xy".into(),
-            ],
-            selected: ["mix", "pan", "fx", "trigger-gate", "xy"]
-                .iter()
-                .position(|mode| *mode == config.dance_mode)
-                .unwrap_or(0),
-        },
-        children: vec![],
-    }];
-    match config.dance_mode.as_str() {
-        "fx" => {
-            children.extend(dance_fx_page_items(config));
-            children.push(group("Aux Map", dance_aux_map_items(config)));
-        }
-        "xy" => children.extend(xy_pad_items(config)),
-        _ => {}
-    }
-    group("L4: Dance", children)
+    group(
+        "L4: Dance",
+        vec![
+            keyed_group("Mix", "dance.page.mix", vec![]),
+            keyed_group("Pan", "dance.page.pan", vec![]),
+            keyed_group(
+                "FX",
+                "dance.page.fx",
+                dance_fx_page_items(config)
+                    .into_iter()
+                    .chain([group("Aux Map", dance_aux_map_items(config))])
+                    .collect(),
+            ),
+            keyed_group("Trigger Gate", "dance.page.trigger-gate", vec![]),
+            keyed_group("XY", "dance.page.xy", xy_pad_items(config)),
+        ],
+    )
 }
 
 fn dance_aux_map_items(config: &NativeMenuConfig) -> Vec<NativeMenuItem> {

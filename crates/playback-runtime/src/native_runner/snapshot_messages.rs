@@ -38,6 +38,9 @@ impl NativeRunner {
     }
 
     pub(super) fn messages_with_snapshot(&mut self) -> Result<Vec<RunnerMessage>, String> {
+        if self.suppress_snapshot_response {
+            return self.messages_without_snapshot();
+        }
         self.advance_oled_sleep_state();
         if self.oled_mode == NativeOledMode::Splash
             && self.oled_splash_text == super::OLED_STARTUP_SPLASH_KEY
@@ -88,6 +91,25 @@ impl NativeRunner {
         if self.auto_save_flash_pulses_remaining > 0 {
             self.auto_save_flash_pulses_remaining -= 1;
         }
+        Ok(messages)
+    }
+
+    pub(super) fn messages_without_snapshot(&mut self) -> Result<Vec<RunnerMessage>, String> {
+        self.queue_audio_config_if_changed();
+        let mut messages = Vec::with_capacity(4);
+        if self.outbox.has_platform_effects() {
+            messages.push(RunnerMessage::PlatformEffects {
+                effects: self.outbox.drain_platform_effects(),
+            });
+        }
+        if self.outbox.has_audio_commands() {
+            messages.push(RunnerMessage::AudioCommands {
+                commands: self.outbox.drain_audio_commands(),
+            });
+        }
+        messages.push(RunnerMessage::RuntimeStatus {
+            status: self.status(),
+        });
         Ok(messages)
     }
 

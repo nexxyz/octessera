@@ -75,7 +75,7 @@ export type RuntimeStatus = {
   message?: string;
 };
 
-export type RuntimeDeviceInputMessage = { type: "device_input"; input: DeviceInput };
+export type RuntimeDeviceInputMessage = { type: "device_input"; input: DeviceInput; requestSnapshot?: boolean };
 
 export type RuntimeTransportPulseStepMessage = {
   type: "transport_pulse_step";

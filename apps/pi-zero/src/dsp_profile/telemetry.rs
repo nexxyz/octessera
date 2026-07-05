@@ -110,6 +110,7 @@ fn apply_events(engine: &mut SynthEngine, events: &[EngineEvent]) {
                 engine.momentary_fx_update(id, params.clone())
             }
             EngineEvent::MomentaryFxStop { id } => engine.momentary_fx_stop(id),
+            EngineEvent::ProbeMark { .. } => {}
         }
     }
 }

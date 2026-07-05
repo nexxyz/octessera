@@ -5,7 +5,9 @@ use crate::render::{HardwareRenderCache, HardwareRenderTargets};
 use crate::runtime_loop::{dispatch_runtime_message, handle_deferred_host_work};
 use crate::ui_profile::UiProfiler;
 use cellsymphony_hal::encoder_gpio::HardwareEvent;
-use playback_runtime::{HostMessage, NativeRunner, PlaybackRuntime};
+use playback_runtime::{
+    HostMessage, NativeRunner, PlaybackRuntime, RuntimeTransportState, SyncSource,
+};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
@@ -136,9 +138,30 @@ fn dispatch_or_log(
     adapter: &mut PiPlaybackHostAdapter,
     message: HostMessage,
 ) {
+    let message = prepare_dispatch_message(playback, message);
     if let Err(error) = dispatch_runtime_message(playback, runner, adapter, message) {
         eprintln!("pi runtime dispatch failed: {error}");
     }
+}
+
+fn prepare_dispatch_message(playback: &PlaybackRuntime, message: HostMessage) -> HostMessage {
+    match message {
+        HostMessage::DeviceInput {
+            input,
+            request_snapshot: None,
+        } if is_internal_playing(playback) => HostMessage::DeviceInput {
+            input,
+            request_snapshot: Some(false),
+        },
+        other => other,
+    }
+}
+
+fn is_internal_playing(playback: &PlaybackRuntime) -> bool {
+    playback.config().sync_source == SyncSource::Internal
+        && playback
+            .last_status()
+            .is_some_and(|status| status.transport == RuntimeTransportState::Playing)
 }
 
 #[allow(clippy::too_many_arguments)]

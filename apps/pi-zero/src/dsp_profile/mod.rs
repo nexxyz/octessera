@@ -10,6 +10,7 @@ use timing::{profile_block_frames, profile_sample_rate};
 
 const PROFILE_BLOCKS: usize = 48;
 const SOAK_BLOCKS: usize = 3_750;
+const FX_LIMIT_BLOCKS: usize = 1_500;
 
 pub fn profile_requested() -> bool {
     if std::env::args().skip(1).any(|arg| arg == "--profile-dsp") {
@@ -32,10 +33,10 @@ pub fn run_dsp_profile() -> Result<(), String> {
     let block_frames = profile_block_frames();
     let sample_rate = profile_sample_rate();
     let mode = profile_mode();
-    let blocks = if mode == ProfileMode::Soak {
-        SOAK_BLOCKS
-    } else {
-        PROFILE_BLOCKS
+    let blocks = match mode {
+        ProfileMode::Soak => SOAK_BLOCKS,
+        ProfileMode::FxLimits => FX_LIMIT_BLOCKS,
+        ProfileMode::Full | ProfileMode::Overload => PROFILE_BLOCKS,
     };
 
     for scenario in profile_scenarios(sample_rate, mode) {

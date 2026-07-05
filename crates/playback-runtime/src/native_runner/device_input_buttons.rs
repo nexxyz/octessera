@@ -40,7 +40,8 @@ impl NativeRunner {
             let selected_group_key = self.menu.current_key().map(str::to_string);
             let mut should_apply = false;
             let mut effects = Vec::new();
-            if let Some(result) = self.menu.press() {
+            let press_result = self.menu.press();
+            if let Some(result) = press_result {
                 match result {
                     NativeMenuPressResult::Action(action) => {
                         if let NativeMenuAction::BehaviorAction(action_type) = action {
@@ -93,6 +94,7 @@ impl NativeRunner {
         }
         self.messages_with_snapshot()
     }
+
     fn handle_aux_behavior_action_press(
         &mut self,
         index: usize,

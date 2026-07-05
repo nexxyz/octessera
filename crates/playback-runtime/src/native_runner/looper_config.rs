@@ -48,7 +48,6 @@ impl NativeRunner {
             },
             looper_state_with_config(state, &self.behavior_config),
         )?;
-        self.menu.rebuild(self.menu_config());
         Ok(())
     }
 }

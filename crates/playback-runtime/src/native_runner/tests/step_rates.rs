@@ -37,12 +37,14 @@ pub(crate) fn per_part_step_rates_round_trip_and_drive_non_scanning_parts() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
+            request_snapshot: None,
         })
         .unwrap();
     runner.select_active_part(1).unwrap();
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
+            request_snapshot: None,
         })
         .unwrap();
     runner.select_active_part(0).unwrap();

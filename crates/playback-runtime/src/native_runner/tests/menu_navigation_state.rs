@@ -7,6 +7,7 @@ pub(crate) fn changing_behavior_keeps_menu_location() {
     let level1 = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(snapshot_from(&level1)["display"]["title"], "L1: Life");
@@ -14,6 +15,7 @@ pub(crate) fn changing_behavior_keeps_menu_location() {
     let part = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(
@@ -24,6 +26,7 @@ pub(crate) fn changing_behavior_keeps_menu_location() {
     let edit_behavior = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(
@@ -35,6 +38,7 @@ pub(crate) fn changing_behavior_keeps_menu_location() {
     let changed = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let changed_snapshot = snapshot_from(&changed);
@@ -47,6 +51,7 @@ pub(crate) fn changing_behavior_keeps_menu_location() {
     let flushed = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let snapshot = snapshot_from(&flushed);
@@ -64,6 +69,7 @@ pub(crate) fn button_a_release_does_not_navigate_back() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_a", "pressed": false }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -101,6 +107,7 @@ pub(crate) fn startup_splash_blocks_input_until_timeout() {
     let blocked = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -111,6 +118,7 @@ pub(crate) fn startup_splash_blocks_input_until_timeout() {
     let unblocked = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -140,6 +148,7 @@ pub(crate) fn screen_sleep_splashes_then_turns_oled_off_and_wake_input_shows_wak
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let display = &snapshot_from(&messages)["display"];
@@ -150,6 +159,7 @@ pub(crate) fn screen_sleep_splashes_then_turns_oled_off_and_wake_input_shows_wak
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let display = &snapshot_from(&messages)["display"];

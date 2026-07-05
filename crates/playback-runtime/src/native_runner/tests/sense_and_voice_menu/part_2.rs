@@ -21,16 +21,20 @@ pub(crate) fn voice_menu_visibility_follows_instrument_type() {
 
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
+        request_snapshot: None,
     });
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
+        request_snapshot: None,
     });
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
+        request_snapshot: None,
     });
     let sampler = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let sampler_lines = snapshot_from(&sampler)["display"]["lines"]
@@ -69,16 +73,19 @@ pub(crate) fn midi_instrument_params_edit_through_menu() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 4, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -87,16 +94,19 @@ pub(crate) fn midi_instrument_params_edit_through_menu() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": -10, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert!(messages

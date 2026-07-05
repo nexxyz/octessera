@@ -69,7 +69,6 @@ impl NativeRunner {
             }
             if changed {
                 self.config_dirty = true;
-                self.menu.rebuild(self.menu_config());
             }
             return true;
         }
@@ -91,7 +90,6 @@ impl NativeRunner {
             instrument.auto_name = false;
             if changed {
                 self.config_dirty = true;
-                self.menu.rebuild(self.menu_config());
             }
             return true;
         }
@@ -113,7 +111,6 @@ impl NativeRunner {
             bus.auto_name = false;
             if changed {
                 self.config_dirty = true;
-                self.menu.rebuild(self.menu_config());
             }
             return true;
         }

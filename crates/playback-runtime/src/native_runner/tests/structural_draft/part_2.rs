@@ -48,6 +48,7 @@ pub(crate) fn button_back_exits_after_immediate_structural_apply_without_double_
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_a", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -60,6 +61,7 @@ pub(crate) fn turn_main(runner: &mut NativeRunner, delta: i32) -> Vec<RunnerMess
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": delta, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap()
 }
@@ -68,6 +70,7 @@ pub(crate) fn press_main(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap()
 }

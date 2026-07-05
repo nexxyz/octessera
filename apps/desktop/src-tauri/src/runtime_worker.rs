@@ -32,7 +32,7 @@ use perf::RuntimePerfCounters;
 use queue::{queue_by_priority, retain_runtime_outbox_batch, MAX_COMMANDS_PER_WAKE};
 pub(crate) use requests::{request_worker_audio_command, request_worker_dispatch};
 
-const SNAPSHOT_INTERVAL_MS: u64 = 16;
+const PLAYING_SNAPSHOT_INTERVAL_MS: u64 = 50;
 
 pub(crate) enum WorkerCommand {
     Dispatch(HostMessage, Sender<Result<Vec<RunnerMessage>, String>>),
@@ -163,7 +163,9 @@ impl RuntimeWorker {
             return Ok(());
         }
         self.last_advance_at = now;
-        if now.duration_since(self.last_snapshot_at).as_millis() as u64 >= SNAPSHOT_INTERVAL_MS {
+        if now.duration_since(self.last_snapshot_at).as_millis() as u64
+            >= PLAYING_SNAPSHOT_INTERVAL_MS
+        {
             self.playback.request_next_snapshot();
             self.last_snapshot_at = now;
         }
@@ -277,6 +279,7 @@ impl RuntimeWorker {
         let mut returned = Vec::new();
 
         while let Some(message) = queue.pop_front() {
+            let message = self.prepare_dispatch_message(message);
             let responses = self.runner.send(message)?;
             for response in responses.iter().cloned() {
                 if !matches!(response, RunnerMessage::AudioCommands { .. }) {
@@ -290,5 +293,18 @@ impl RuntimeWorker {
         }
 
         Ok(returned)
+    }
+
+    fn prepare_dispatch_message(&self, message: HostMessage) -> HostMessage {
+        match message {
+            HostMessage::DeviceInput {
+                input,
+                request_snapshot: None,
+            } if self.is_internal_playing() => HostMessage::DeviceInput {
+                input,
+                request_snapshot: Some(false),
+            },
+            other => other,
+        }
     }
 }

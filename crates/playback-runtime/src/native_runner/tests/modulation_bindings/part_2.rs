@@ -59,10 +59,10 @@ pub(crate) fn xy_mapping_execute_action_keeps_menu_on_xy_axis_picker() {
     );
     assert_eq!(
         runner.menu.current_focus_path(),
-        "Menu > L4: Dance > X Axis: Cutoff"
+        "Menu > L4: Dance > XY > X Axis: Cutoff"
     );
     let snapshot = runner.snapshot().unwrap();
-    assert_eq!(snapshot["display"]["title"], "L4: Dance");
+    assert_eq!(snapshot["display"]["title"], "L4: Dance/XY");
 }
 
 #[test]

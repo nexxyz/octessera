@@ -237,6 +237,7 @@ impl NativeRunner {
             auto_save_flash_pulses_remaining: 0,
             audio_config_revision: 0,
             last_snapshot_audio_config_revision: None,
+            suppress_snapshot_response: false,
             trigger_probability_rng: 0xC311_5A7E_2024_0001,
             toast: None,
             toast_expires_at: None,

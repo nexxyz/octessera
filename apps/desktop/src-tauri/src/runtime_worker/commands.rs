@@ -30,7 +30,13 @@ impl RuntimeWorker {
             self.handle_command(command)?;
         }
         while let Some(command) = normal.pop_front() {
+            if self.is_internal_playing() {
+                self.maybe_advance()?;
+            }
             self.handle_command(command)?;
+        }
+        if self.is_internal_playing() {
+            self.maybe_advance()?;
         }
         Ok(())
     }

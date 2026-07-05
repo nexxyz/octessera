@@ -9,17 +9,20 @@ pub(crate) fn fn_shift_enter_opens_contextual_help_and_enter_closes_it() {
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_shift", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     let modifiers = snapshot_from(
         &runner
             .send(HostMessage::DeviceInput {
                 input: json!({ "type": "button_combined_modifier", "pressed": true }),
+                request_snapshot: None,
             })
             .unwrap(),
     );
@@ -29,6 +32,7 @@ pub(crate) fn fn_shift_enter_opens_contextual_help_and_enter_closes_it() {
     let opened = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let snapshot = snapshot_from(&opened);
@@ -42,6 +46,7 @@ pub(crate) fn fn_shift_enter_opens_contextual_help_and_enter_closes_it() {
     let closed = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(snapshot_from(&closed)["display"]["title"], "L3: Voice");
@@ -73,6 +78,7 @@ pub(crate) fn instrument_pan_menu_edit_moves_monotonically_from_current_value() 
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.instruments[0].pan_pos, 11);
@@ -80,6 +86,7 @@ pub(crate) fn instrument_pan_menu_edit_moves_monotonically_from_current_value() 
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.instruments[0].pan_pos, 12);
@@ -92,6 +99,7 @@ pub(crate) fn active_part_trigger_toggle_suppresses_and_restores_with_toast() {
     let off = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.trigger_gate_modes[0], "zero");
@@ -100,6 +108,7 @@ pub(crate) fn active_part_trigger_toggle_suppresses_and_restores_with_toast() {
     let on = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.trigger_gate_modes[0], "full");
@@ -113,6 +122,7 @@ pub(crate) fn repeated_autosaves_increment_flash_serial() {
     let first = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
+            request_snapshot: None,
         })
         .unwrap();
     let first_serial = snapshot_from(&first)["settings"]["autoSaveFlashSerial"]
@@ -122,6 +132,7 @@ pub(crate) fn repeated_autosaves_increment_flash_serial() {
     let second = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 1, "y": 0 }),
+            request_snapshot: None,
         })
         .unwrap();
     let second_serial = snapshot_from(&second)["settings"]["autoSaveFlashSerial"]
@@ -167,6 +178,7 @@ pub(crate) fn contextual_help_includes_midi_output_guidance() {
     let opened = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let lines = snapshot_from(&opened)["display"]["lines"]
@@ -195,6 +207,7 @@ pub(crate) fn contextual_help_resolves_life_params_and_scrolls_to_bottom() {
     let opened = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
         })
         .unwrap();
     let lines = snapshot_from(&opened)["display"]["lines"]

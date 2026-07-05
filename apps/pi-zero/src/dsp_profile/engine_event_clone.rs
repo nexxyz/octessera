@@ -129,5 +129,6 @@ pub(super) fn clone_event(
             params: params.clone(),
         },
         EngineEvent::MomentaryFxStop { id } => EngineEvent::MomentaryFxStop { id: id.clone() },
+        EngineEvent::ProbeMark { .. } => panic!("probe marks cannot be cloned for DSP profiling"),
     }
 }

@@ -49,6 +49,7 @@ pub(crate) fn assignment_mode_wins_over_fn_part_navigation_and_autosaves() {
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 3 }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -77,6 +78,7 @@ pub(crate) fn dance_mix_grid_edit_autosaves_persistent_volume_change() {
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 1 }),
+            request_snapshot: None,
         })
         .unwrap();
 
@@ -102,6 +104,7 @@ pub(crate) fn dance_xy_touch_persists_and_release_behavior_matches_config() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 7 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.xy_touch.x, 1.0);
@@ -111,6 +114,7 @@ pub(crate) fn dance_xy_touch_persists_and_release_behavior_matches_config() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_release", "x": 0, "y": 7 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert_eq!(runner.xy_touch.x, 0.5);
@@ -138,6 +142,7 @@ pub(crate) fn dance_xy_overlay_marks_physical_touch_with_inverted_modulation() {
     let pressed = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 1, "y": 6 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert!((runner.xy_touch.x - 6.0 / 7.0).abs() < 0.0001);
@@ -152,6 +157,7 @@ pub(crate) fn dance_xy_overlay_marks_physical_touch_with_inverted_modulation() {
     let released = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_release", "x": 1, "y": 6 }),
+            request_snapshot: None,
         })
         .unwrap();
     assert!(!runner.xy_touch.active);
@@ -172,11 +178,13 @@ pub(crate) fn dance_xy_reset_center_overlay_returns_to_center() {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 7, "y": 0 }),
+            request_snapshot: None,
         })
         .unwrap();
     let released = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_release", "x": 7, "y": 0 }),
+            request_snapshot: None,
         })
         .unwrap();
     let snapshot = snapshot_from(&released);

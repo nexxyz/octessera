@@ -41,7 +41,23 @@ impl NativeMenuModel {
     }
 
     pub fn selected_dance_mode(&self) -> Option<String> {
-        self.value_for_key("danceMode")
+        let path = self.current_focus_path();
+        if path.starts_with("Menu > L4: Dance > Mix") {
+            return Some("mix".into());
+        }
+        if path.starts_with("Menu > L4: Dance > Pan") {
+            return Some("pan".into());
+        }
+        if path.starts_with("Menu > L4: Dance > FX") {
+            return Some("fx".into());
+        }
+        if path.starts_with("Menu > L4: Dance > Trigger Gate") {
+            return Some("trigger-gate".into());
+        }
+        if path.starts_with("Menu > L4: Dance > XY") {
+            return Some("xy".into());
+        }
+        None
     }
 
     fn find_value(&self, label: &str) -> Option<String> {

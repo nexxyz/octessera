@@ -290,6 +290,7 @@ pub struct NativeRunner {
     auto_save_flash_pulses_remaining: u8,
     audio_config_revision: u64,
     last_snapshot_audio_config_revision: Option<u64>,
+    suppress_snapshot_response: bool,
     trigger_probability_rng: u64,
     toast: Option<NativeToast>,
     toast_expires_at: Option<Instant>,
