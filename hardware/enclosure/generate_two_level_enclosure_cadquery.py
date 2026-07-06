@@ -11,9 +11,7 @@ from wave_guidance import (
     SOUTH_ROOF_LOW_WALL_BAND,
     SOUTH_SHOULDER_PLAN_WIDTH,
     load_guidance_slots,
-    smootherstep,
     south_edge_samples,
-    south_roof_outer_samples,
 )
 
 
@@ -28,11 +26,15 @@ HIGH_Z = 26.0
 UNDERSIDE_Z = 9.0
 HIGH_UNDERSIDE_Z = 23.0
 EXTENDED_SLOPE_RIGHT_X = 115.0
-SLOPE_CURVE_START_Y = 69.0
 NEOKEY_PANEL_Y_OFFSET = 2.0
 NEOKEY_CAP_RELIEF_BOTTOM_Z = 16.0
 NEOKEY_SEAT_BOTTOM_Z = UNDERSIDE_Z
 NEOKEY_SEAT_OVERLAP = 3.0
+LOWER_WAVE_HEIGHT_SCALE = 0.5
+LOWER_WAVE_HIGH_UNDERSIDE_Z = UNDERSIDE_Z + (HIGH_UNDERSIDE_Z - UNDERSIDE_Z) * LOWER_WAVE_HEIGHT_SCALE
+LOWER_WAVE_HIGH_Z = LOW_Z + (HIGH_Z - LOW_Z) * LOWER_WAVE_HEIGHT_SCALE
+LOWER_TO_TIER2_RAMP_START_X = 105.0
+LOWER_TO_TIER2_RAMP_END_X = 115.0
 
 def x_at_y(points: list[tuple[float, float]], y: float) -> float:
     sorted_points = sorted(points, key=lambda point: point[1])
@@ -46,40 +48,14 @@ def x_at_y(points: list[tuple[float, float]], y: float) -> float:
     return sorted_points[-1][0]
 
 
-def deck_boundary_x(y: float) -> float:
-    _, low = south_edge_samples()
-    return x_at_y(low, y)
-
-
-def original_deck_boundary_x(y: float) -> float:
-    vertical_x = 90.2
-    curve_start_y = 69.0
-    bottom_x = 50.0
-    if y >= curve_start_y:
-        return vertical_x
-    return bottom_x + (vertical_x - bottom_x) * smootherstep(y / curve_start_y)
-
-
-def shoulder_width_at_y(y: float) -> float:
-    return shoulder_right_x(y) - deck_boundary_x(y)
-
-
-def legacy_shoulder_width_at_y(y: float) -> float:
-    if y >= 69.0:
-        return 2.4
-    return 2.4 + 14.6 * (1.0 - smootherstep(y / 69.0))
-
-
-def shoulder_right_x(y: float) -> float:
-    high, _ = south_edge_samples()
-    return x_at_y(high, y)
-
-
-def original_shoulder_right_x(y: float) -> float:
-    legacy_right = original_deck_boundary_x(y) + legacy_shoulder_width_at_y(y)
-    if y >= SLOPE_CURVE_START_Y:
-        return EXTENDED_SLOPE_RIGHT_X
-    return legacy_right + (EXTENDED_SLOPE_RIGHT_X - legacy_right) * smootherstep(y / SLOPE_CURVE_START_Y)
+def first_y_at_x(points: list[tuple[float, float]], x: float) -> float:
+    sorted_points = sorted(points, key=lambda point: point[1])
+    for (x0, y0), (x1, y1) in zip(sorted_points, sorted_points[1:]):
+        if (x0 <= x <= x1) or (x1 <= x <= x0):
+            if x1 == x0:
+                return y1
+            return y0 + (y1 - y0) * ((x - x0) / (x1 - x0))
+    return sorted_points[-1][1]
 
 
 def rounded_plate(width: float, depth: float, radius: float, z0: float, thickness: float) -> cq.Workplane:
@@ -90,6 +66,26 @@ def rounded_plate(width: float, depth: float, radius: float, z0: float, thicknes
         .extrude(thickness)
         .translate((width / 2.0, depth / 2.0, z0))
     )
+
+
+def y_band_prism(width: float, y0: float, y1: float, margin: float, z_height: float) -> cq.Workplane:
+    points = [
+        (-margin, y0),
+        (-margin, y1),
+        (width + margin, y1),
+        (width + margin, y0),
+    ]
+    return cq.Workplane("XY").polyline(points).close().extrude(z_height).translate((0, 0, -1))
+
+
+def x_band_prism(x0: float, x1: float, depth: float, margin: float, z_height: float) -> cq.Workplane:
+    points = [
+        (x0, -margin),
+        (x0, depth + margin),
+        (x1, depth + margin),
+        (x1, -margin),
+    ]
+    return cq.Workplane("XY").polyline(points).close().extrude(z_height).translate((0, 0, -1))
 
 
 def right_region_prism(width: float, depth: float, margin: float, z_height: float) -> cq.Workplane:
@@ -112,13 +108,42 @@ def left_region_prism(width: float, depth: float, margin: float, z_height: float
     return cq.Workplane("XY").polyline(points).close().extrude(z_height).translate((0, 0, -1))
 
 
-def shoulder_loft(depth: float) -> cq.Workplane:
+def curve_pair_at_y(
+    low: list[tuple[float, float]], high: list[tuple[float, float]], y: float
+) -> tuple[tuple[float, float], tuple[float, float]]:
+    return (x_at_y(low, y), y), (x_at_y(high, y), y)
+
+
+def trimmed_curve_pairs(
+    low: list[tuple[float, float]], high: list[tuple[float, float]], y0: float, y1: float
+) -> list[tuple[tuple[float, float], tuple[float, float]]]:
+    pairs = []
+    if y0 <= low[-1][1] and y1 >= low[0][1]:
+        start_y = max(y0, low[0][1])
+        end_y = min(y1, low[-1][1])
+        pairs.append(curve_pair_at_y(low, high, start_y))
+        pairs.extend(
+            (low_point, high_point)
+            for low_point, high_point in zip(low, high)
+            if start_y < low_point[1] < end_y
+        )
+        pairs.append(curve_pair_at_y(low, high, end_y))
+    return pairs
+
+
+def shoulder_loft(y0: float, y1: float, height_scale: float = 1.0) -> cq.Workplane:
     high, low = south_edge_samples()
-    wires = [shoulder_profile_wire(low_point, high_point) for low_point, high_point in zip(low, high)]
+    curve_pairs = trimmed_curve_pairs(low, high, y0, y1)
+    wires = [
+        shoulder_profile_wire(low_point, high_point, height_scale)
+        for low_point, high_point in curve_pairs
+    ]
     return cq.Workplane("XY").add(cq.Solid.makeLoft(wires, ruled=True))
 
 
-def shoulder_profile_wire(low: tuple[float, float], high: tuple[float, float]) -> cq.Wire:
+def shoulder_profile_wire(
+    low: tuple[float, float], high: tuple[float, float], height_scale: float = 1.0
+) -> cq.Wire:
     low_x, low_y = low
     high_x, high_y = high
     top_points = []
@@ -129,17 +154,48 @@ def shoulder_profile_wire(low: tuple[float, float], high: tuple[float, float]) -
         eased = (1.0 - (1.0 - t) * (1.0 - t)) ** 0.5
         x = low_x + (high_x - low_x) * t
         y = low_y + (high_y - low_y) * t
-        z = LOW_Z + (HIGH_Z - LOW_Z) * eased
+        z = LOW_Z + (HIGH_Z - LOW_Z) * height_scale * eased
         top_points.append(cq.Vector(x, y, z))
         if t <= bottom_band_t:
             bottom_z = UNDERSIDE_Z
         else:
             bottom_t = (t - bottom_band_t) / (1.0 - bottom_band_t)
             bottom_eased = (1.0 - (1.0 - bottom_t) * (1.0 - bottom_t)) ** 0.5
-            bottom_z = UNDERSIDE_Z + (HIGH_UNDERSIDE_Z - UNDERSIDE_Z) * bottom_eased
+            bottom_z = (
+                UNDERSIDE_Z
+                + (HIGH_UNDERSIDE_Z - UNDERSIDE_Z) * height_scale * bottom_eased
+            )
         bottom_points.append(cq.Vector(x, y, bottom_z))
     points = [*top_points, *reversed(bottom_points), top_points[0]]
     return cq.Wire.makePolygon(points)
+
+
+def quarter_circle_ease(t: float) -> float:
+    t = max(0.0, min(1.0, t))
+    return 1.0 - (1.0 - t * t) ** 0.5
+
+
+def east_wave_ramp_loft(y0: float, y1: float) -> cq.Workplane:
+    wires = []
+    samples = 16
+    for index in range(samples + 1):
+        t = index / samples
+        eased = quarter_circle_ease(t)
+        top_z = LOWER_WAVE_HIGH_Z + (HIGH_Z - LOWER_WAVE_HIGH_Z) * eased
+        bottom_z = LOWER_WAVE_HIGH_UNDERSIDE_Z + (HIGH_UNDERSIDE_Z - LOWER_WAVE_HIGH_UNDERSIDE_Z) * eased
+        x = LOWER_TO_TIER2_RAMP_START_X + (LOWER_TO_TIER2_RAMP_END_X - LOWER_TO_TIER2_RAMP_START_X) * t
+        wires.append(
+            cq.Wire.makePolygon(
+                [
+                    cq.Vector(x, y0, top_z),
+                    cq.Vector(x, y1, top_z),
+                    cq.Vector(x, y1, bottom_z),
+                    cq.Vector(x, y0, bottom_z),
+                    cq.Vector(x, y0, top_z),
+                ]
+            )
+        )
+    return cq.Workplane("XY").add(cq.Solid.makeLoft(wires, ruled=True))
 
 
 def rect_cutter(x0: float, y0: float, x1: float, y1: float, radius: float) -> cq.Workplane:
@@ -164,6 +220,24 @@ def rect_prism(x0: float, y0: float, x1: float, y1: float, radius: float, z0: fl
     sketch = cq.Sketch().rect(width, depth).vertices().fillet(radius)
     prism = cq.Workplane("XY").placeSketch(sketch).extrude(z1 - z0)
     return prism.translate(((x0 + x1) / 2.0, (y0 + y1) / 2.0, z0))
+
+
+def west_rounded_rect_prism(
+    x0: float, y0: float, x1: float, y1: float, radius: float, z0: float, z1: float
+) -> cq.Workplane:
+    arc_offset = radius * (1.0 - 2.0**-0.5)
+    return (
+        cq.Workplane("XY")
+        .moveTo(x1, y0)
+        .lineTo(x1, y1)
+        .lineTo(x0 + radius, y1)
+        .threePointArc((x0 + arc_offset, y1 - arc_offset), (x0, y1 - radius))
+        .lineTo(x0, y0 + radius)
+        .threePointArc((x0 + arc_offset, y0 + arc_offset), (x0 + radius, y0))
+        .close()
+        .extrude(z1 - z0)
+        .translate((0, 0, z0))
+    )
 
 
 def circle_cutter(x: float, y: float, radius: float) -> cq.Workplane:
@@ -246,7 +320,7 @@ def neokey_seat_bounds(params: dict, key_centers: list[tuple[float, float]]) -> 
 
 def neokey_support_block(params: dict, key_centers: list[tuple[float, float]]) -> cq.Workplane:
     seat_x0, seat_y0, seat_x1, seat_y1 = neokey_seat_bounds(params, key_centers)
-    return rect_prism(
+    return west_rounded_rect_prism(
         seat_x0,
         seat_y0,
         seat_x1,
@@ -341,16 +415,48 @@ def build_model(params: dict) -> cq.Workplane:
     width, depth = params["case_size_v21"]
     radius = params["corner_r"]
     top_thick = params["top_thick"]
+    neokey_seat_x0, _, _, neokey_seat_top_y = neokey_seat_bounds(
+        params, neokey_key_centers(params)
+    )
+    _, low_edge = south_edge_samples()
+    lower_wave_top_y = first_y_at_x(low_edge, neokey_seat_x0)
 
     footprint = rounded_plate(width, depth, radius, 0, 40)
     low_plate = rounded_plate(width, depth, radius, UNDERSIDE_Z, top_thick).intersect(
         left_region_prism(width, depth, 5, 40)
     )
-    high_plate = rounded_plate(width, depth, radius, HIGH_UNDERSIDE_Z, top_thick).intersect(
-        right_region_prism(width, depth, 5, 40)
+    right_region = right_region_prism(width, depth, 5, 40)
+    wave_strip_region = right_region.intersect(
+        x_band_prism(-5.0, EXTENDED_SLOPE_RIGHT_X, depth, 5, 40)
     )
-    flat_faceplate = add_cutouts(low_plate.union(high_plate).clean(), params).clean()
-    shoulder = shoulder_loft(depth).intersect(footprint).clean()
+    high_plate = rounded_plate(width, depth, radius, HIGH_UNDERSIDE_Z, top_thick).intersect(
+        right_region
+    )
+    high_plate = high_plate.cut(
+        wave_strip_region.intersect(y_band_prism(width, -5.0, neokey_seat_top_y, 5, 40))
+    )
+    ramp_region = x_band_prism(
+        LOWER_TO_TIER2_RAMP_START_X, LOWER_TO_TIER2_RAMP_END_X, depth, 5, 40
+    ).intersect(y_band_prism(width, -5.0, lower_wave_top_y, 5, 40))
+    high_plate = high_plate.cut(ramp_region)
+    lower_wave_plate = rounded_plate(
+        width, depth, radius, LOWER_WAVE_HIGH_UNDERSIDE_Z, top_thick
+    ).intersect(
+        wave_strip_region.intersect(y_band_prism(width, -5.0, lower_wave_top_y, 5, 40))
+    )
+    lower_wave_plate = lower_wave_plate.cut(ramp_region)
+    wave_flat_ramp = east_wave_ramp_loft(0.0, lower_wave_top_y)
+    flat_faceplate = add_cutouts(
+        low_plate.union(lower_wave_plate).union(wave_flat_ramp).union(high_plate).clean(),
+        params,
+    ).clean()
+    upper_shoulder = shoulder_loft(neokey_seat_top_y, depth).intersect(footprint).clean()
+    lower_wave = (
+        shoulder_loft(0.0, lower_wave_top_y, LOWER_WAVE_HEIGHT_SCALE)
+        .intersect(footprint)
+        .clean()
+    )
+    shoulder = upper_shoulder.union(lower_wave).clean()
     model = flat_faceplate.union(shoulder).clean()
     model = add_neokey_cutouts(model, params).clean()
     return add_guidance_slots(model).clean()

@@ -61,9 +61,41 @@ def main() -> None:
     image_h = case_h * SCALE + 2.0 * MARGIN
 
     high, low = model.south_edge_samples()
-    outer = model.south_roof_outer_samples()
-    wave_points = high + list(reversed(outer))
-    wave_poly = " ".join(f"{svg_x(x):.2f},{svg_y(y, case_h):.2f}" for x, y in wave_points)
+    key_centers = model.neokey_key_centers(params)
+    neokey_seat_x0, _, _, neokey_seat_top_y = model.neokey_seat_bounds(params, key_centers)
+    lower_wave_top_y = model.first_y_at_x(low, neokey_seat_x0)
+
+    def wave_polygon(y0: float, y1: float) -> str:
+        pairs = model.trimmed_curve_pairs(low, high, y0, y1)
+        high_points = [high_point for _, high_point in pairs]
+        low_points = [low_point for low_point, _ in pairs]
+        points = high_points + list(reversed(low_points))
+        return " ".join(f"{svg_x(x):.2f},{svg_y(y, case_h):.2f}" for x, y in points)
+
+    def wave_flat_polygon(y0: float, y1: float, right_x: float = model.EXTENDED_SLOPE_RIGHT_X) -> str:
+        pairs = model.trimmed_curve_pairs(low, high, y0, y1)
+        high_points = [high_point for _, high_point in pairs]
+        points = [
+            (right_x, y0),
+            (right_x, y1),
+            *reversed(high_points),
+        ]
+        return " ".join(f"{svg_x(x):.2f},{svg_y(y, case_h):.2f}" for x, y in points)
+
+    def polygon(points: list[tuple[float, float]]) -> str:
+        return " ".join(f"{svg_x(x):.2f},{svg_y(y, case_h):.2f}" for x, y in points)
+
+    upper_wave_poly = wave_polygon(neokey_seat_top_y, case_h)
+    lower_wave_poly = wave_polygon(0.0, lower_wave_top_y)
+    lower_wave_flat_poly = wave_flat_polygon(0.0, lower_wave_top_y, model.LOWER_TO_TIER2_RAMP_START_X)
+    ramp_poly = polygon(
+        [
+            (model.LOWER_TO_TIER2_RAMP_START_X, 0.0),
+            (model.LOWER_TO_TIER2_RAMP_END_X, 0.0),
+            (model.LOWER_TO_TIER2_RAMP_END_X, lower_wave_top_y),
+            (model.LOWER_TO_TIER2_RAMP_START_X, lower_wave_top_y),
+        ]
+    )
     high_region = [(case_w, 0.0), (case_w, case_h), (model.EXTENDED_SLOPE_RIGHT_X, case_h), *reversed(high), (case_w, 0.0)]
     high_poly = " ".join(f"{svg_x(x):.2f},{svg_y(y, case_h):.2f}" for x, y in high_region)
 
@@ -72,10 +104,12 @@ def main() -> None:
         '<rect width="100%" height="100%" fill="white"/>',
         rect(case_h, 0, 0, case_w, case_h, "#777", width=2.0),
         f'<polygon points="{high_poly}" fill="rgba(70,120,255,0.18)" stroke="#4678ff" stroke-width="1"/>',
-        f'<polygon points="{wave_poly}" fill="rgba(0,0,0,0.65)" stroke="black" stroke-width="2"/>',
+        f'<polygon points="{ramp_poly}" fill="rgba(70,120,255,0.10)" stroke="#4678ff" stroke-width="1"/>',
+        f'<polygon points="{lower_wave_flat_poly}" fill="rgba(70,120,255,0.18)" stroke="#4678ff" stroke-width="1"/>',
+        f'<polygon points="{upper_wave_poly}" fill="rgba(0,0,0,0.65)" stroke="black" stroke-width="2"/>',
+        f'<polygon points="{lower_wave_poly}" fill="rgba(0,0,0,0.65)" stroke="black" stroke-width="2"/>',
         '<polyline points="' + " ".join(f"{svg_x(x):.2f},{svg_y(y, case_h):.2f}" for x, y in high) + '" fill="none" stroke="#164cff" stroke-width="2"/>',
         '<polyline points="' + " ".join(f"{svg_x(x):.2f},{svg_y(y, case_h):.2f}" for x, y in low) + '" fill="none" stroke="#111" stroke-width="2"/>',
-        '<polyline points="' + " ".join(f"{svg_x(x):.2f},{svg_y(y, case_h):.2f}" for x, y in outer) + '" fill="none" stroke="#555" stroke-width="1.5" stroke-dasharray="4 3"/>',
         rect(case_h, 8.5, 6.5, 8.5 + 107.25, 6.5 + 127.0, "#1f77b4", width=2.0, dash='stroke-dasharray="6 3"'),
         rect(case_h, PI_BOARD_X0, PI_BOARD_Y0, PI_BOARD_X0 + PI_BOARD_W, PI_BOARD_Y0 + PI_BOARD_H, "#0aa", "rgba(0,180,180,0.06)", 2.0, dash='stroke-dasharray="4 3"'),
         circle(case_h, PI_HOTSPOT_X, PI_HOTSPOT_Y, PI_HOTSPOT_R, "#0aa", "rgba(0,180,180,0.12)", 2.0),
