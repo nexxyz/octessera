@@ -6,6 +6,7 @@ from pathlib import Path
 
 import cadquery as cq
 
+from faceplate_walls import perimeter_wall_skirts
 from wave_guidance import (
     SLOPE_PROFILE_STEPS,
     SOUTH_ROOF_LOW_WALL_BAND,
@@ -457,7 +458,17 @@ def build_model(params: dict) -> cq.Workplane:
         .clean()
     )
     shoulder = upper_shoulder.union(lower_wave).clean()
-    model = flat_faceplate.union(shoulder).clean()
+    skirts = perimeter_wall_skirts(
+        params,
+        rounded_plate,
+        EXTENDED_SLOPE_RIGHT_X,
+        LOWER_TO_TIER2_RAMP_START_X,
+        LOWER_TO_TIER2_RAMP_END_X,
+        LOW_Z,
+        LOWER_WAVE_HIGH_Z,
+        HIGH_Z,
+    )
+    model = flat_faceplate.union(shoulder).union(skirts).clean()
     model = add_neokey_cutouts(model, params).clean()
     return add_guidance_slots(model).clean()
 

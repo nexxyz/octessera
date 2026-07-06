@@ -23,6 +23,18 @@ The enclosure CAD is under construction. Use the CadQuery generator as the sourc
 4. Inspect `current_wave_top_view.png` for plan-view clearances.
 5. Inspect or slice `case_top_two_level_cadquery.stl` before using it for printing.
 
+## Geometry change checklist
+
+Use this checklist before changing generated solids, Z transitions, or board-adjacent surfaces:
+
+- Map relevant feature coordinates from `enclosure_params.json` before editing.
+- Decide which solid owns each top surface: tier 1, tier 2, shoulder, ramp, or support block.
+- Keep local ramps and cut regions tightly bounded. Do not use the full case footprint as a local clipping solid.
+- Avoid booleans where solids only touch at a face or edge. Use small overlaps when a union must be watertight.
+- Check local component bounding boxes before export when adding a new loft, ramp, or support.
+- Check the final model bounding box. Expected Z range is `9..26 mm` for the current top model.
+- Review both the plan image and at least one CAD or slicer section for Z-transition changes.
+
 ## Required roof checks
 
 `validate_wave_roof.py` checks the failure mode that caused slicer artifacts:
