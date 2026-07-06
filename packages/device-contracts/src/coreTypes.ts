@@ -75,6 +75,9 @@ export type RuntimeSnapshotSettings = {
   audioConfigRevision?: number;
   autoSaveFlash: "none" | "flash";
   autoSaveFlashSerial?: number;
+  dimTimerSeconds?: number;
+  screenSleepSeconds?: number;
+  ledsDimmed?: boolean;
   transportFlash: "none" | "beat" | "measure";
   stopLatched: boolean;
   shiftHeld: boolean;

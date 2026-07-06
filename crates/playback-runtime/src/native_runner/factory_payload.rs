@@ -61,7 +61,8 @@ pub(super) fn native_factory_payload() -> Value {
                 "master": { "slots": [{ "type": "none" }, { "type": "none" }] }
             },
             "danceMode": "none",
-            "autoSaveDefault": false
+            "autoSaveDefault": false,
+            "rollingBackups": true
         },
         "mappingConfig": default_mapping_config()
     })

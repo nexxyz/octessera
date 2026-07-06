@@ -70,7 +70,7 @@ pub(crate) fn number_params_emit_bar_values_and_pan_uses_marker_format() {
     );
 
     let mut menu = NativeMenuModel::new(config());
-    menu.state.stack = vec![5, 3];
+    menu.state.stack = vec![5, 2];
     menu.state.cursor = 0;
     let volume = menu.snapshot();
     assert!(volume.lines.iter().any(|line| line == "> Master Vol 100"));
@@ -86,7 +86,7 @@ pub(crate) fn number_params_emit_bar_values_and_pan_uses_marker_format() {
     let mut numbers_config = config();
     numbers_config.numeric_display_mode = "numbers".into();
     let mut menu = NativeMenuModel::new(numbers_config);
-    menu.state.stack = vec![5, 3];
+    menu.state.stack = vec![5, 2];
     menu.state.cursor = 0;
     let numbers = menu.snapshot();
     assert!(numbers.bar_values.iter().all(Option::is_none));

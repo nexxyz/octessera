@@ -1,4 +1,44 @@
 use super::*;
+use std::time::{Duration, Instant};
+
+#[test]
+pub(crate) fn rolling_backups_default_on_and_follow_five_minute_cadence() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert!(runner.rolling_backups);
+    runner.config_dirty = true;
+
+    let messages = runner.messages_with_snapshot().unwrap();
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects.iter().any(|effect| matches!(
+                effect,
+                RuntimePlatformEffect::StoreSaveBackup { .. }
+            ))
+    )));
+
+    runner.config_dirty = true;
+    let messages = runner.messages_with_snapshot().unwrap();
+    assert!(!messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects.iter().any(|effect| matches!(
+                effect,
+                RuntimePlatformEffect::StoreSaveBackup { .. }
+            ))
+    )));
+
+    runner.last_backup_save_at = Some(Instant::now() - Duration::from_secs(300));
+    let messages = runner.messages_with_snapshot().unwrap();
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects.iter().any(|effect| matches!(
+                effect,
+                RuntimePlatformEffect::StoreSaveBackup { .. }
+            ))
+    )));
+}
 
 #[test]
 pub(crate) fn native_menu_edit_emits_deferred_auto_save_when_enabled() {
@@ -15,7 +55,7 @@ pub(crate) fn native_menu_edit_emits_deferred_auto_save_when_enabled() {
         request_snapshot: None,
     });
     let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_turn", "delta": 3, "id": "main" }),
+        input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
         request_snapshot: None,
     });
     let _ = runner.send(HostMessage::DeviceInput {

@@ -121,12 +121,12 @@ pub(crate) fn system_submenu_uses_abbreviated_path_and_section_colors() {
         snapshot.lines,
         vec![
             "> Saves",
-            "  Diagnostics",
             "  Updates",
             "  Sound",
             "  MIDI",
             "  UI",
-            "  !Basic Help"
+            "  !Basic Help",
+            "  Diagnostics"
         ]
     );
     assert_eq!(
@@ -143,7 +143,7 @@ pub(crate) fn system_controls_row_is_help_action() {
         menu.turn(1);
     }
     let _ = menu.press();
-    menu.state.cursor = 6;
+    menu.state.cursor = 5;
 
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "SYS");
@@ -161,7 +161,7 @@ pub(crate) fn static_navigation_memory_restores_allowed_system_groups() {
         menu.turn(1);
     }
     let _ = menu.press();
-    menu.state.cursor = 3;
+    menu.state.cursor = 2;
     let _ = menu.press();
     assert_eq!(menu.snapshot().lines[0], "> Master Vol 100");
 
@@ -182,7 +182,7 @@ pub(crate) fn static_navigation_memory_clears_on_rebuild() {
         menu.turn(1);
     }
     let _ = menu.press();
-    menu.state.cursor = 3;
+    menu.state.cursor = 2;
     let _ = menu.press();
     menu.turn(1);
     menu.turn(1);
@@ -192,7 +192,7 @@ pub(crate) fn static_navigation_memory_clears_on_rebuild() {
 
     menu.rebuild(config());
     menu.state.stack = vec![5];
-    menu.state.cursor = 3;
+    menu.state.cursor = 2;
     let _ = menu.press();
     assert_eq!(menu.current_label(), Some("Master Vol"));
 }
@@ -204,7 +204,7 @@ pub(crate) fn static_navigation_memory_back_while_editing_stays_in_group() {
         menu.turn(1);
     }
     let _ = menu.press();
-    menu.state.cursor = 3;
+    menu.state.cursor = 2;
     let _ = menu.press();
     menu.turn(1);
     assert_eq!(menu.current_label(), Some("Note Length"));

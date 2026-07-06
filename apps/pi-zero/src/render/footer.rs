@@ -4,10 +4,7 @@ use super::{draw_text_clipped, fill_rect, rgb565, scale};
 
 #[rustfmt::skip]
 pub(super) fn draw_status_indicators(frame: &mut [u8], snapshot: &Value, brightness: f32) {
-    let settings = snapshot.get("settings").unwrap_or(&Value::Null);
-    let save = settings.get("autoSaveFlash").and_then(Value::as_str).unwrap_or("none") == "flash";
     let cpu = snapshot.get("cpuLoadRatio").and_then(Value::as_f64).unwrap_or(0.0);
-    let save_color = if save { [255, 243, 176] } else { [51, 68, 51] };
     let cpu_color = if cpu >= 0.85 {
         [255, 102, 102]
     } else if cpu >= 0.6 {
@@ -15,7 +12,6 @@ pub(super) fn draw_status_indicators(frame: &mut [u8], snapshot: &Value, brightn
     } else {
         [51, 85, 68]
     };
-    draw_save_icon(frame, 108, 5, rgb565(scale(save_color, brightness)));
     draw_cpu_icon(frame, 117, 5, rgb565(scale(cpu_color, brightness)));
 }
 
@@ -50,12 +46,6 @@ fn draw_transport_icon(frame: &mut [u8], snapshot: &Value, brightness: f32) {
         _ => [215, 255, 232],
     };
     draw_transport_shape(frame, icon_name, 101, 118, rgb565(scale(rgb, brightness)));
-}
-
-fn draw_save_icon(frame: &mut [u8], x: usize, y: usize, color: u16) {
-    fill_rect(frame, x, y, 7, 7, color);
-    fill_rect(frame, x + 1, y + 1, 4, 2, 0);
-    fill_rect(frame, x + 2, y + 5, 3, 1, 0);
 }
 
 fn draw_cpu_icon(frame: &mut [u8], x: usize, y: usize, color: u16) {

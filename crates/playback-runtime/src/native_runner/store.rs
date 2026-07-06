@@ -8,6 +8,7 @@ use super::{
 
 impl NativeRunner {
     pub(super) fn apply_factory_payload(&mut self) -> Result<(), String> {
+        self.stop_for_config_load();
         self.apply_config_payload(native_factory_payload())?;
         self.toast = Some(NativeToast {
             message: "Factory loaded".into(),
@@ -48,8 +49,12 @@ impl NativeRunner {
                 .strip_prefix("preset.delete:")
                 .map(|name| RuntimePlatformEffect::StoreDeletePreset { name: name.into() }),
             "midi.panic" => Some(RuntimePlatformEffect::MidiPanic),
-            "system.reboot" => Some(RuntimePlatformEffect::Reboot),
-            "system.shutdown" => Some(RuntimePlatformEffect::Shutdown),
+            "system.reboot" => Some(RuntimePlatformEffect::StoreSaveRecovery {
+                payload: self.config_payload(),
+            }),
+            "system.shutdown" => Some(RuntimePlatformEffect::StoreSaveRecovery {
+                payload: self.config_payload(),
+            }),
             "system.hardwareTest" => Some(RuntimePlatformEffect::HardwareTest),
             "system.updateCheck" => Some(RuntimePlatformEffect::UpdateCheck),
             "system.updateApply" => Some(RuntimePlatformEffect::UpdateApply),
@@ -164,6 +169,7 @@ impl NativeRunner {
             RuntimeStoreResult::LoadDefaultResult {
                 payload: Some(payload),
             } => {
+                self.stop_for_config_load();
                 self.apply_config_payload(payload)?;
                 self.toast = Some(NativeToast {
                     message: "Default loaded".into(),
@@ -172,6 +178,7 @@ impl NativeRunner {
             }
             RuntimeStoreResult::LoadPresetResult { name, payload } => {
                 if let Some(payload) = payload {
+                    self.stop_for_config_load();
                     self.apply_config_payload(payload)?;
                 }
                 self.toast = Some(NativeToast {
@@ -212,6 +219,8 @@ impl NativeRunner {
                     offset: 0,
                 });
             }
+            RuntimeStoreResult::SaveBackupResult { .. }
+            | RuntimeStoreResult::SaveRecoveryResult { .. } => {}
             RuntimeStoreResult::StoreError { message } => {
                 self.toast = Some(NativeToast { message, offset: 0 });
             }

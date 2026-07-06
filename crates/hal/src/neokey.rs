@@ -11,8 +11,8 @@ use std::io::{Read, Write};
 use std::os::unix::io::AsRawFd;
 #[cfg(feature = "pi-zero")]
 use std::thread;
-#[cfg(feature = "pi-zero")]
-use std::time::Duration;
+#[cfg(any(feature = "pi-zero", test))]
+use std::time::{Duration, Instant};
 
 #[cfg(not(feature = "pi-zero"))]
 use std::fmt;
@@ -22,7 +22,7 @@ use std::fmt;
 pub struct NeoKey {
     i2c_path: String,
     addr: u16,
-    stable_buttons: [bool; 4],
+    debouncer: NeoKeyDebouncer,
 }
 
 #[cfg(feature = "pi-zero")]
@@ -61,6 +61,8 @@ const NEOKEY_BUTTON_MASK: u32 = 0xF0;
 const NEOKEY_NEOPIXEL_PIN: u8 = 3;
 #[cfg(feature = "pi-zero")]
 const NEOKEY_LED_BYTES: u16 = 12;
+#[cfg(any(feature = "pi-zero", test))]
+const NEOKEY_DEBOUNCE: Duration = Duration::from_millis(24);
 
 #[cfg(feature = "pi-zero")]
 impl NeoKey {
@@ -143,26 +145,18 @@ impl NeoKey {
         Ok(Self {
             i2c_path: i2c_path.to_string(),
             addr: NEOKEY_ADDR,
-            stable_buttons: [false; 4],
+            debouncer: NeoKeyDebouncer::default(),
         })
     }
 
     /// Returns Vec<(key_index, pressed)> for keys 0-3.
     pub fn scan(&mut self) -> Result<Vec<(u8, bool)>, String> {
         let sampled = neokey_buttons_from_raw(self.raw_button_state()?);
-        if sampled != self.stable_buttons {
-            thread::sleep(Duration::from_millis(1));
-            let confirmed = neokey_buttons_from_raw(self.raw_button_state()?);
-            for index in 0..4 {
-                if sampled[index] == confirmed[index] {
-                    self.stable_buttons[index] = sampled[index];
-                }
-            }
-        }
+        let stable_buttons = self.debouncer.update(sampled, Instant::now());
 
         let mut result = Vec::new();
         for i in 0..4 {
-            result.push((i, self.stable_buttons[usize::from(i)]));
+            result.push((i, stable_buttons[usize::from(i)]));
         }
 
         Ok(result)
@@ -224,6 +218,52 @@ impl NeoKey {
         )?;
         thread::sleep(Duration::from_micros(300));
         Ok(())
+    }
+}
+
+#[derive(Clone)]
+#[cfg(any(feature = "pi-zero", test))]
+struct NeoKeyDebouncer {
+    stable: [bool; 4],
+    candidate: [bool; 4],
+    candidate_since: [Option<Instant>; 4],
+}
+
+#[cfg(any(feature = "pi-zero", test))]
+impl Default for NeoKeyDebouncer {
+    fn default() -> Self {
+        Self {
+            stable: [false; 4],
+            candidate: [false; 4],
+            candidate_since: [None; 4],
+        }
+    }
+}
+
+#[cfg(any(feature = "pi-zero", test))]
+impl NeoKeyDebouncer {
+    fn update(&mut self, sampled: [bool; 4], now: Instant) -> [bool; 4] {
+        for (index, pressed) in sampled.into_iter().enumerate() {
+            if pressed == self.stable[index] {
+                self.candidate[index] = pressed;
+                self.candidate_since[index] = None;
+                continue;
+            }
+            if self.candidate[index] != pressed {
+                self.candidate[index] = pressed;
+                self.candidate_since[index] = Some(now);
+                continue;
+            }
+            let Some(started) = self.candidate_since[index] else {
+                self.candidate_since[index] = Some(now);
+                continue;
+            };
+            if now.duration_since(started) >= NEOKEY_DEBOUNCE {
+                self.stable[index] = pressed;
+                self.candidate_since[index] = None;
+            }
+        }
+        self.stable
     }
 }
 
@@ -328,5 +368,77 @@ impl NeoKey {
 impl fmt::Debug for NeoKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "NeoKey {{ ... }}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn suppresses_short_press_pulse() {
+        let mut debouncer = NeoKeyDebouncer::default();
+        let start = Instant::now();
+
+        assert_eq!(debouncer.update([false; 4], start), [false; 4]);
+        assert_eq!(
+            debouncer.update(
+                [false, false, false, true],
+                start + Duration::from_millis(4)
+            ),
+            [false; 4]
+        );
+        assert_eq!(
+            debouncer.update([false; 4], start + Duration::from_millis(25)),
+            [false; 4]
+        );
+    }
+
+    #[test]
+    fn accepts_press_after_debounce_window() {
+        let mut debouncer = NeoKeyDebouncer::default();
+        let start = Instant::now();
+
+        assert_eq!(
+            debouncer.update([true, false, false, false], start),
+            [false; 4]
+        );
+        assert_eq!(
+            debouncer.update(
+                [true, false, false, false],
+                start + NEOKEY_DEBOUNCE - Duration::from_millis(1),
+            ),
+            [false; 4]
+        );
+        assert_eq!(
+            debouncer.update([true, false, false, false], start + NEOKEY_DEBOUNCE),
+            [true, false, false, false]
+        );
+    }
+
+    #[test]
+    fn debounces_release_too() {
+        let mut debouncer = NeoKeyDebouncer::default();
+        let start = Instant::now();
+
+        debouncer.update([false, true, false, false], start);
+        assert_eq!(
+            debouncer.update([false, true, false, false], start + NEOKEY_DEBOUNCE),
+            [false, true, false, false]
+        );
+        assert_eq!(
+            debouncer.update(
+                [false, false, false, false],
+                start + NEOKEY_DEBOUNCE + Duration::from_millis(10),
+            ),
+            [false, true, false, false]
+        );
+        assert_eq!(
+            debouncer.update(
+                [false, false, false, false],
+                start + NEOKEY_DEBOUNCE + Duration::from_millis(40),
+            ),
+            [false; 4]
+        );
     }
 }

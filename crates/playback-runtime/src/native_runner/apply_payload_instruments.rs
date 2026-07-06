@@ -87,9 +87,24 @@ impl NativeRunner {
                 self.ui.numeric_display_mode = value.into();
             }
         }
-        if let Some(value) = runtime.get("screenSleepSeconds").and_then(Value::as_u64) {
+        let screen_sleep_seconds = runtime.get("screenSleepSeconds").and_then(Value::as_u64);
+        if let Some(value) = screen_sleep_seconds {
             self.ui.screen_sleep_seconds = (value as u16).min(600);
         }
+        if let Some(value) = runtime
+            .get("dimTimerSeconds")
+            .and_then(Value::as_u64)
+            .or(screen_sleep_seconds)
+        {
+            self.ui.dim_timer_seconds = (value as u16).min(600);
+        }
+        if let Some(value) = runtime.get("autoSaveDefault").and_then(Value::as_bool) {
+            self.auto_save_default = value;
+        }
+        self.rolling_backups = runtime
+            .get("rollingBackups")
+            .and_then(Value::as_bool)
+            .unwrap_or(true);
     }
 
     fn apply_runtime_input_payload(&mut self, runtime: &Value) {

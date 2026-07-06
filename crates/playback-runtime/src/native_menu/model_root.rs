@@ -60,7 +60,7 @@ fn sense_group(config: &NativeMenuConfig) -> NativeMenuItem {
         children: [
             number_item("BPM", "transport.bpm", i32::from(config.bpm), 40, 240, 1),
             number_item(
-                "Swing %",
+                "Swing",
                 "transport.swingPct",
                 i32::from(config.swing_pct),
                 0,

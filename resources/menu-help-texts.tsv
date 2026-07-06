@@ -163,14 +163,16 @@ default_save	System > Saves > Default > Save Default	action:default_save	action	
 default_load	System > Saves > Default > Load Default	action:default_load	action	Load Default	Loads the saved default payload into current state.	Replaces current runtime settings immediately.
 system_shutdown	System	action:system_shutdown	action	Shutdown	Shows the shutdown splash, then closes the simulator or powers off the Pi gracefully.	Requires confirmation before shutting down.
 system_reboot	System	action:system_reboot	action	Reboot	Shows the shutdown splash, then reboots the Pi gracefully.	Requires confirmation before rebooting.
-autosave_default	*	key:autoSaveDefault	bool	Auto Save Default	When enabled, config edits update default storage after a short cooldown so sweeps save only the latest settled value.	Turning this on and exiting the row saves the current config immediately. An "S" flashes in the top-right OLED corner on each save.
+autosave_default	*	key:autoSaveDefault	bool	Auto Save Default	When enabled, config edits update default storage after a short cooldown so sweeps save only the latest settled value.	Turning this on and exiting the row saves the current config immediately.
+rolling_backups	*	key:rollingBackups	bool	Backups	When enabled, config edits write rolling backup files at most every five minutes.	The host keeps the latest 20 backups and writes a recovery save during shutdown or reboot.
 note_length	*	key:sound.noteLengthMs	number	Note Length	Default note duration when note_on has no explicit length.	Hold-mode notes may bypass duration and wait for note_off.
 velocity_scale	*	key:sound.velocityScalePct	number	Velocity Scale	Scales velocity values globally after mapping.	Use to tame or boost overall dynamic output.
 ui_group	Menu > System > UI		group	UI	Display and lighting behavior for the device/simulator UI.	These do not change musical generation.
 controls_action	Menu > System > Basic Help	action:system.controlsHelp	action	Basic Help	Opens a quick reference for core hardware gestures.	Includes help, back, transport, part, Dance, aux bind, sample, and probability-map shortcuts.
 ghost_cells	*	key:ghostCells	bool	Ghost Cells	Shows dim cells from inactive parts behind the active part.	Off by default for clarity; active part cells always take visual priority.
 input_events_while_paused	*	key:inputEventsWhilePaused	bool	Events when paused	When On, grid presses continue to fire musical events even when transport is stopped or paused.	Disable to keep paused/stopped grid edits silent while algorithm evolution remains stopped.
-screen_sleep	*	key:screenSleepSeconds	number	Screen Sleep	Sets idle timeout before OLED sleep.	Set 0 to keep display always on.
+dim_timer	*	key:dimTimerSeconds	number	Dim Timer	Sets idle timeout before non-OLED LEDs dim.	Set 0 to keep LEDs at configured brightness.
+screen_sleep	*	key:screenSleepSeconds	number	OLED Sleep	Sets idle timeout before OLED sleep.	Set 0 to keep display always on.
 display_bright	*	key:displayBrightness	number	OLED Bright	Sets OLED brightness level.	Higher values improve visibility at cost of brightness.
 grid_bright	*	key:gridBrightness	number	Grid Bright	Sets grid LED brightness scaling.	Lower values are useful for dark environments.
 button_bright	*	key:buttonBrightness	number	Button Bright	Sets NeoKey/button LED brightness scaling.	Helps match hardware feel to ambient light.
@@ -297,7 +299,7 @@ touch_page_trigger_gate	Menu > L4: Dance > Trigger Gate	key:dance.page.trigger-g
 touch_page_xy	Menu > L4: Dance > XY	key:dance.page.xy	group	XY Page	Live grid page for X/Y parameter modulation.	Fn plus the right grid column also selects Dance pages for performance.
 dance_aux_map_group	Menu > L4: Dance > FX > Aux Map		group	Aux Map	Shows the Dance FX parameters and actions that are auto-mapped to aux controls.	Rows keep the same 1- and 1! OLED markers as live auto-mapped aux controls; values can be edited here, but mappings are not changed.
 touch_bpm	Menu > L2: Sense > BPM	key:transport.bpm	number	BPM	Sets master tempo in beats per minute from Sense.	This is the main tempo control.
-touch_swing	Menu > L2: Sense > Swing %	key:transport.swingPct	number	Swing %	Delays the off-beat internal step feel while keeping the main transport clock stable.	0% is straight timing. Higher values add more groove to internal triggers and scan movement.
+touch_swing	Menu > L2: Sense > Swing	key:transport.swingPct	number	Swing	Delays the off-beat internal step feel while keeping the main transport clock stable.	0% is straight timing. Higher values add more groove to internal triggers and scan movement.
 touch_fx_type	Menu > L4: Dance > FX > FX Type	key:dance.fx.type	enum	FX Type	Selects the momentary Dance effect: none, stutter, freeze, filter sweep, or pitch shift.	Changing type seeds that effect's default parameters for grid mapping.
 touch_fx_rate	Menu > L4: Dance > FX > Rate Hz	key:dance.fx.params.rateHz	number	Rate Hz	Sets the captured segment repeat rate (1-32 Hz). Higher rate = shorter captured segment.	Stored per grid cell when Map to Grid is used.
 touch_fx_depth	Menu > L4: Dance > FX > Depth	key:dance.fx.params.depthPct	number	Depth	Sets stutter wet mix from 0 (dry) to 100 (fully wet repeat) for the config being mapped.	Stored per grid cell when Map to Grid is used.

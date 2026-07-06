@@ -11,6 +11,7 @@ param(
   [switch]$SyncOnly,
   [switch]$SkipBuild,
   [switch]$UpdateInitramfs,
+  [switch]$WakeTrace,
   [switch]$AllowServiceFailure,
   [switch]$NoTail
 )
@@ -99,6 +100,7 @@ rm -rf "`$SYNC_DIR" '$remoteArchive'
 }
 
 $updateInitramfsValue = if ($UpdateInitramfs) { "1" } else { "0" }
+$wakeTraceEnvironmentLine = if ($WakeTrace) { "Environment=CELLSYMPHONY_WAKE_TRACE=1`n" } else { "" }
 
 $osConfigCommand = "UPDATE_INITRAMFS=$updateInitramfsValue`n" + @'
 set -e
@@ -194,7 +196,7 @@ RuntimeMaxFileSize=4M
 EOF
 sudo install -d -m 0750 /etc/sudoers.d
 sudo tee /etc/sudoers.d/cellsymphony-shutdown >/dev/null <<'EOF'
-pi ALL=(root) NOPASSWD: /usr/bin/systemctl poweroff, /bin/systemctl poweroff, /usr/sbin/poweroff, /sbin/poweroff
+pi ALL=(root) NOPASSWD: /usr/bin/systemctl poweroff, /bin/systemctl poweroff, /usr/sbin/poweroff, /sbin/poweroff, /usr/bin/systemctl reboot, /bin/systemctl reboot, /usr/sbin/reboot, /sbin/reboot
 EOF
 sudo chmod 0440 /etc/sudoers.d/cellsymphony-shutdown
 sudo visudo -cf /etc/sudoers.d/cellsymphony-shutdown >/dev/null
@@ -264,7 +266,7 @@ Type=simple
 User=pi
 WorkingDirectory=$RemoteRepo
 Environment=CELLSYMPHONY_EARLY_BOOT_SPLASH=1
-ExecStart=/usr/local/bin/cellsymphony-pi
+${wakeTraceEnvironmentLine}ExecStart=/usr/local/bin/cellsymphony-pi
 Restart=always
 RestartSec=5
 StandardOutput=journal

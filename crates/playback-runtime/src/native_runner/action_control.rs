@@ -134,6 +134,12 @@ impl NativeRunner {
                     } else {
                         self.show_toast("cellSymphony is shutting down");
                     }
+                    self.outbox
+                        .push_platform_effect(if action_type == "system.reboot" {
+                            RuntimePlatformEffect::Reboot
+                        } else {
+                            RuntimePlatformEffect::Shutdown
+                        });
                     Ok(self.platform_effect_for_action(&action_type))
                 } else if let Some(effect) = self.handle_sample_action(&action_type)? {
                     Ok(Some(effect))

@@ -50,6 +50,19 @@ impl NativeRunner {
         self.advance_toast_state();
         let snapshot = self.next_snapshot()?;
         let autosave_pending = self.pending_autosave_payload_due_at.is_some();
+        let backup_due = self.config_dirty
+            && self.rolling_backups
+            && !autosave_pending
+            && self
+                .last_backup_save_at
+                .map(|last| last.elapsed() >= std::time::Duration::from_secs(300))
+                .unwrap_or(true);
+        let payload =
+            if (self.auto_save_default && self.config_dirty && !autosave_pending) || backup_due {
+                Some(self.config_payload())
+            } else {
+                None
+            };
         let save_default_effect =
             if self.auto_save_default && self.config_dirty && !autosave_pending {
                 self.config_dirty = false;
@@ -60,14 +73,27 @@ impl NativeRunner {
                     offset: 0,
                 });
                 Some(RuntimePlatformEffect::StoreSaveDefault {
-                    payload: self.config_payload(),
+                    payload: payload.clone().expect("autosave payload"),
                     mode: Some("deferred".into()),
                 })
             } else {
                 None
             };
+        let backup_effect = if backup_due {
+            self.last_backup_save_at = Some(std::time::Instant::now());
+            Some(RuntimePlatformEffect::StoreSaveBackup {
+                payload: payload.expect("backup payload"),
+            })
+        } else {
+            None
+        };
         let mut messages = Vec::with_capacity(5);
         if let Some(effect) = save_default_effect {
+            messages.push(RunnerMessage::PlatformEffects {
+                effects: vec![effect],
+            });
+        }
+        if let Some(effect) = backup_effect {
             messages.push(RunnerMessage::PlatformEffects {
                 effects: vec![effect],
             });

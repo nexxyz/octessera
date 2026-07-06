@@ -125,9 +125,12 @@ pub fn render_snapshot_cached(
 
 pub fn led_frame(snapshot: &Value) -> Option<[[u8; 3]; 64]> {
     let settings = snapshot.get("settings").unwrap_or(&Value::Null);
-    let display = snapshot.get("display").unwrap_or(&Value::Null);
     let mut brightness = brightness_scale(settings.get("gridBrightness"));
-    if display.get("off").and_then(Value::as_bool).unwrap_or(false) {
+    if settings
+        .get("ledsDimmed")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
         brightness *= 0.08;
     }
     let Some(rgb) = snapshot.get("leds")?.get("rgb").and_then(Value::as_array) else {
@@ -166,9 +169,12 @@ fn legacy_led_frame(snapshot: &Value, brightness: f32) -> Option<[[u8; 3]; 64]> 
 
 pub fn neokey_colors(snapshot: &Value) -> [[u8; 3]; 4] {
     let settings = snapshot.get("settings").unwrap_or(&Value::Null);
-    let display = snapshot.get("display").unwrap_or(&Value::Null);
     let mut button_scale = brightness_scale(settings.get("buttonBrightness"));
-    if display.get("off").and_then(Value::as_bool).unwrap_or(false) {
+    if settings
+        .get("ledsDimmed")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
         button_scale *= 0.08;
     }
     let combined = settings
@@ -209,14 +215,14 @@ pub fn neokey_colors(snapshot: &Value) -> [[u8; 3]; 4] {
     } else if shift_held {
         scale([180, 140, 0], button_scale)
     } else {
-        [0, 0, 0]
+        scale([90, 45, 0], button_scale)
     };
     let func = if combined {
         scale([0, 0, 180], button_scale)
     } else if fn_held {
         scale([180, 140, 0], button_scale)
     } else {
-        [0, 0, 0]
+        scale([90, 45, 0], button_scale)
     };
     [back, space, shift, func]
 }

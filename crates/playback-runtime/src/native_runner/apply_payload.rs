@@ -4,6 +4,13 @@ use super::{
 };
 
 impl NativeRunner {
+    pub(super) fn stop_for_config_load(&mut self) {
+        self.transport = crate::protocol::RuntimeTransportState::Stopped;
+        self.reset_transport_position();
+        self.outbox
+            .push_platform_effect(crate::protocol::RuntimePlatformEffect::MidiPanic);
+    }
+
     pub(super) fn apply_config_payload(&mut self, payload: Value) -> Result<(), String> {
         let before_payload = self.config_payload();
         let runtime = payload.get("runtimeConfig").unwrap_or(&payload);

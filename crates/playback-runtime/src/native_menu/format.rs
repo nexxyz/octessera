@@ -193,6 +193,7 @@ fn should_use_number_bar(key: &str) -> bool {
     }
     key == "masterVolume"
         || key == "transport.bpm"
+        || key == "dimTimerSeconds"
         || key == "screenSleepSeconds"
         || key.contains(".params.")
         || key_lower.ends_with("pct")

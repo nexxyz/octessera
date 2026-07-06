@@ -111,7 +111,7 @@ pub(crate) fn trigger_probability_grid_editor_cycles_cell_row_and_column() {
 #[test]
 pub(crate) fn system_sound_menu_updates_global_sound_config() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 3];
+    runner.menu.state.stack = vec![5, 2];
     runner.menu.state.cursor = 1;
     runner.menu.state.editing = true;
     runner
@@ -160,6 +160,10 @@ pub(crate) fn legacy_nested_sound_and_ui_fields_rehydrate_from_payload() {
     payload["runtimeConfig"]["inputEventsWhilePaused"] = json!(false);
     payload["runtimeConfig"]["numericDisplayMode"] = json!("numbers");
     payload["runtimeConfig"]["screenSleepSeconds"] = json!(180);
+    payload["runtimeConfig"]
+        .as_object_mut()
+        .unwrap()
+        .remove("dimTimerSeconds");
 
     runner.apply_config_payload(payload).unwrap();
 
@@ -174,6 +178,7 @@ pub(crate) fn legacy_nested_sound_and_ui_fields_rehydrate_from_payload() {
     assert!(!runner.input_events_while_paused);
     assert_eq!(runner.ui.numeric_display_mode, "numbers");
     assert_eq!(runner.ui.screen_sleep_seconds, 180);
+    assert_eq!(runner.ui.dim_timer_seconds, 180);
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["sound"]["noteLengthMs"],
         321
@@ -194,4 +199,20 @@ pub(crate) fn legacy_nested_sound_and_ui_fields_rehydrate_from_payload() {
         runner.config_payload()["runtimeConfig"]["midi"]["respondToStartStop"],
         false
     );
+}
+
+#[test]
+pub(crate) fn legacy_screen_sleep_zero_disables_dim_timer_when_dim_timer_is_absent() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut payload = runner.config_payload();
+    payload["runtimeConfig"]["screenSleepSeconds"] = json!(0);
+    payload["runtimeConfig"]
+        .as_object_mut()
+        .unwrap()
+        .remove("dimTimerSeconds");
+
+    runner.apply_config_payload(payload).unwrap();
+
+    assert_eq!(runner.ui.screen_sleep_seconds, 0);
+    assert_eq!(runner.ui.dim_timer_seconds, 0);
 }

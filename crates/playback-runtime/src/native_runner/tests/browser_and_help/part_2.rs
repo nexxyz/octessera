@@ -171,7 +171,7 @@ pub(crate) fn config_load_queues_midi_port_selection_effects() {
 #[test]
 pub(crate) fn contextual_help_includes_midi_output_guidance() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 4];
+    runner.menu.state.stack = vec![5, 3];
     runner.menu.state.cursor = 2;
     runner.ui.combined_modifier_held = true;
 

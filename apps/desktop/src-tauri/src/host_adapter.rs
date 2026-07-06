@@ -198,6 +198,14 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
             RuntimePlatformEffect::StoreSaveDefault { payload, mode } => {
                 self.save_default_result(payload, mode.as_deref())
             }
+            RuntimePlatformEffect::StoreSaveBackup { payload } => {
+                self.save_backup_payload(payload)?;
+                Ok(vec![])
+            }
+            RuntimePlatformEffect::StoreSaveRecovery { payload } => {
+                self.save_recovery_payload(payload)?;
+                Ok(vec![])
+            }
             RuntimePlatformEffect::AudioCommand { command } => {
                 self.handle_audio_command(command)?;
                 Ok(vec![])

@@ -110,6 +110,7 @@ fn dispatch_and_ingest<R: CoreRunner, H: HostAdapter>(
 ) -> Result<(), String> {
     let mut queue = VecDeque::from([host_message]);
     while let Some(message) = queue.pop_front() {
+        crate::wake_trace::log_host_dispatch(&message);
         let responses = runner.send(message)?;
         for follow_up in playback.ingest_runner_messages(responses, adapter)? {
             queue.push_back(follow_up);

@@ -24,6 +24,12 @@ pub enum RuntimePlatformEffect {
         #[serde(default)]
         mode: Option<String>,
     },
+    StoreSaveBackup {
+        payload: Value,
+    },
+    StoreSaveRecovery {
+        payload: Value,
+    },
     MidiListOutputsRequest,
     MidiListInputsRequest,
     MidiSelectOutput {
@@ -76,6 +82,12 @@ pub enum RuntimeStoreResult {
         ok: bool,
         #[serde(default, rename = "isAuto")]
         is_auto: Option<bool>,
+    },
+    SaveBackupResult {
+        ok: bool,
+    },
+    SaveRecoveryResult {
+        ok: bool,
     },
     StoreError {
         message: String,

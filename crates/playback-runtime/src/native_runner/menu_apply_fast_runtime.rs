@@ -42,6 +42,10 @@ impl NativeRunner {
                 let value = value.clamp(0, 600) as u16;
                 value_changed(&mut runner.ui.screen_sleep_seconds, value)
             })),
+            "dimTimerSeconds" => Some(self.fast_number_menu_key(key, |runner, value| {
+                let value = value.clamp(0, 600) as u16;
+                value_changed(&mut runner.ui.dim_timer_seconds, value)
+            })),
             "ghostCells" => Some(self.fast_bool_menu_key(key, |runner, value| {
                 bool_changed(&mut runner.ui.ghost_cells, value)
             })),
@@ -53,6 +57,9 @@ impl NativeRunner {
             })),
             "autoSaveDefault" => Some(self.fast_bool_menu_key(key, |runner, value| {
                 bool_changed(&mut runner.auto_save_default, value)
+            })),
+            "rollingBackups" => Some(self.fast_bool_menu_key(key, |runner, value| {
+                bool_changed(&mut runner.rolling_backups, value)
             })),
             "sound.noteLengthMs" => Some(self.fast_sound_number_menu_key(key, |runner, value| {
                 let value = value.clamp(30, 2000) as u32;

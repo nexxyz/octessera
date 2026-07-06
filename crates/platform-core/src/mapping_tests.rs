@@ -241,3 +241,32 @@ fn range_mode_clamp_and_wrap_differ_for_high_degree() {
         }
     );
 }
+
+#[test]
+fn life_sized_degree_sweep_stays_inside_mapping_range_and_scale() {
+    let mut config = default_mapping_config();
+    config.base_midi_note = 50;
+    config.starting_midi_note = 57;
+    config.max_midi_note = 74;
+    config.scale = vec![1, 3, 6, 8, 10];
+    config.range_mode = RangeMode::Clamp;
+
+    let intents = (-128..=128)
+        .map(|degree| CellTriggerIntent {
+            x: 0,
+            y: 0,
+            kind: CellTriggerKind::Activate,
+            degree,
+        })
+        .collect::<Vec<_>>();
+
+    let result = map_intents_to_musical_events(&intents, &config);
+
+    for event in result.events {
+        let MusicalEvent::NoteOn { note, .. } = event else {
+            panic!("expected note on");
+        };
+        assert!((50..=74).contains(&i32::from(note)));
+        assert!(note_matches_scale(note, &validate_config(&config)));
+    }
+}

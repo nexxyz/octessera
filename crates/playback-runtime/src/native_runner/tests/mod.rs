@@ -12,6 +12,7 @@ mod dance_menu;
 mod dance_overlay;
 mod input_events;
 mod instruments;
+mod life_mapping;
 mod looper;
 mod menu_navigation;
 mod menu_navigation_state;

@@ -38,6 +38,8 @@ export type RuntimePlatformEffect =
   | { type: "store_delete_preset"; name: string }
   | { type: "store_load_default" }
   | { type: "store_save_default"; payload: Record<string, unknown>; mode?: "immediate" | "deferred" }
+  | { type: "store_save_backup"; payload: Record<string, unknown> }
+  | { type: "store_save_recovery"; payload: Record<string, unknown> }
   | { type: "midi_list_outputs_request" }
   | { type: "midi_list_inputs_request" }
   | { type: "midi_select_output"; id: string | null }
@@ -59,6 +61,8 @@ export type RuntimeStoreResult =
   | { type: "delete_preset_result"; name: string; ok: boolean }
   | { type: "load_default_result"; payload: Record<string, unknown> | null }
   | { type: "save_default_result"; ok: boolean; isAuto?: boolean }
+  | { type: "save_backup_result"; ok: boolean }
+  | { type: "save_recovery_result"; ok: boolean }
   | { type: "store_error"; message: string }
   | { type: "midi_list_outputs_result"; outputs: Array<{ id: string; name: string }> }
   | { type: "midi_list_inputs_result"; inputs: Array<{ id: string; name: string }> }

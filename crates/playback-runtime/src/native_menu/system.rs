@@ -10,14 +10,6 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
         vec![
             saves_group(config),
             group(
-                "Diagnostics",
-                vec![action_item(
-                    "Hardware Test",
-                    "system.hardwareTest",
-                    NativeMenuAction::PlatformEffect("system.hardwareTest".into()),
-                )],
-            ),
-            group(
                 "Updates",
                 vec![
                     action_item(
@@ -158,7 +150,15 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                         ),
                     ),
                     number_item(
-                        "Screen Sleep",
+                        "Dim Timer",
+                        "dimTimerSeconds",
+                        i32::from(config.dim_timer_seconds),
+                        0,
+                        600,
+                        10,
+                    ),
+                    number_item(
+                        "OLED Sleep",
                         "screenSleepSeconds",
                         i32::from(config.screen_sleep_seconds),
                         0,
@@ -195,6 +195,14 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                 "Basic Help",
                 "system.controlsHelp",
                 NativeMenuAction::PlatformEffect("system.controlsHelp".into()),
+            ),
+            group(
+                "Diagnostics",
+                vec![action_item(
+                    "Hardware Test",
+                    "system.hardwareTest",
+                    NativeMenuAction::PlatformEffect("system.hardwareTest".into()),
+                )],
             ),
             action_item(
                 "Reboot",

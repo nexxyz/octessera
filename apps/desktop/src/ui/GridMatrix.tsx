@@ -2,10 +2,11 @@ import { type RuntimeSnapshot } from "@cellsymphony/device-contracts";
 
 const ledCell = (frame: RuntimeSnapshot, index: number) => {
   const offset = index * 3;
+  const factor = frame.settings?.ledsDimmed ? 0.08 : 1;
   return {
-    r: frame.leds.rgb[offset] ?? 0,
-    g: frame.leds.rgb[offset + 1] ?? 0,
-    b: frame.leds.rgb[offset + 2] ?? 0
+    r: Math.round((frame.leds.rgb[offset] ?? 0) * factor),
+    g: Math.round((frame.leds.rgb[offset + 1] ?? 0) * factor),
+    b: Math.round((frame.leds.rgb[offset + 2] ?? 0) * factor)
   };
 };
 

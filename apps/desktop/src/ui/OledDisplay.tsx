@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { OLED_HEIGHT, OLED_WIDTH, type RuntimeSnapshot } from "@cellsymphony/device-contracts";
 import { drawSemanticOled } from "./oledDraw";
 import { toOledImage } from "./oledImage";
-import { saveFlashVisible } from "./saveFlash";
 
 const REGULAR_SPLASH_LOGO = new URL("../../../../assets/cellSymphonyLogo128.png", import.meta.url).href;
 const SEPIA_SPLASH_LOGO = new URL("../../../../assets/cellSymphonyLogoSepia128.png", import.meta.url).href;
@@ -21,7 +20,6 @@ export type SemanticOledState = {
   eventDotSteal: boolean;
   transportFlash: string;
   visibleFooterToast: string;
-  showSaveFlash: boolean;
   cpuLoad: number;
 };
 
@@ -72,36 +70,13 @@ function useSemanticOledState(
   const eventDotOn = Boolean(frame.eventDotOn ?? false);
   const eventDotSteal = audioLoad?.voiceSteal === true;
   const transportFlash = String(frame.transportFlash ?? "none");
-  const autoSaveFlash = String(frame.settings?.autoSaveFlash ?? "none");
-  const autoSaveFlashSerial = Number(frame.settings?.autoSaveFlashSerial ?? 0);
   const footerToast = String(frame.display.toast ?? "");
-  const [saveFlashStartedAt, setSaveFlashStartedAt] = useState<number | null>(autoSaveFlash === "flash" ? Date.now() : null);
-  const [nowMs, setNowMs] = useState(() => Date.now());
   const [visibleFooterToast, setVisibleFooterToast] = useState(footerToast);
   const frameCpuLoad = Number(frame.cpuLoadRatio ?? 0);
   const audioCpuLoad = audioLoad?.voiceSteal
     ? Math.max(audioLoad.ratio, 0.85)
     : (audioLoad?.ratio ?? 0);
   const cpuLoad = Math.max(frameCpuLoad, audioCpuLoad);
-
-  useEffect(() => {
-    if (autoSaveFlash !== "flash") {
-      setSaveFlashStartedAt(null);
-      return;
-    }
-    const startedAt = Date.now();
-    setSaveFlashStartedAt(startedAt);
-    setNowMs(startedAt);
-    const interval = window.setInterval(() => setNowMs(Date.now()), 100);
-    const timeout = window.setTimeout(() => {
-      window.clearInterval(interval);
-      setNowMs(Date.now());
-    }, 700);
-    return () => {
-      window.clearInterval(interval);
-      window.clearTimeout(timeout);
-    };
-  }, [autoSaveFlash, autoSaveFlashSerial]);
 
   useEffect(() => {
     if (!footerToast) {
@@ -130,7 +105,6 @@ function useSemanticOledState(
       eventDotSteal,
       transportFlash,
       visibleFooterToast: splashText === "startup" ? "Starting up, loading defaults" : visibleFooterToast,
-      showSaveFlash: saveFlashVisible(saveFlashStartedAt, nowMs),
       cpuLoad,
     }),
     [
@@ -141,8 +115,6 @@ function useSemanticOledState(
       frame.display.lines,
       frame.display.title,
       lineColors,
-      nowMs,
-      saveFlashStartedAt,
       selectedRow,
       splashText,
       transportFlash,

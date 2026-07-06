@@ -137,4 +137,10 @@ impl NativeRunner {
             self.show_toast("Going to sleep ...");
         }
     }
+
+    pub(super) fn leds_dimmed(&self) -> bool {
+        self.ui.dim_timer_seconds != 0
+            && Instant::now().duration_since(self.last_interaction_at)
+                >= Duration::from_secs(u64::from(self.ui.dim_timer_seconds))
+    }
 }

@@ -26,8 +26,6 @@ export function drawSemanticOled(
   ctx.fillStyle = "#ffffff";
   ctx.fillText(semantic.title, 5, 5, 94);
 
-  ctx.fillStyle = semantic.showSaveFlash ? "#fff3b0" : "#334433";
-  ctx.fillText("S", 108, 5);
   ctx.fillStyle = semantic.cpuLoad >= 0.85 ? "#ff6666" : semantic.cpuLoad >= 0.6 ? "#ffd166" : "#335544";
   ctx.fillText("C", 117, 5);
 

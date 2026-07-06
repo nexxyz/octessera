@@ -12,7 +12,7 @@ pub(crate) fn l4_spec_rows_show_only_selected_dance_page_controls() {
     assert_eq!(labels, vec!["Mix", "Pan", "FX", "Trigger Gate", "XY"]);
     let sense = &menu.root.children[1];
     assert_eq!(sense.children[0].label, "BPM");
-    assert_eq!(sense.children[1].label, "Swing %");
+    assert_eq!(sense.children[1].label, "Swing");
     let bpm = sense
         .children
         .iter()
@@ -30,7 +30,7 @@ pub(crate) fn l4_spec_rows_show_only_selected_dance_page_controls() {
     let swing = sense
         .children
         .iter()
-        .find(|item| item.label == "Swing %")
+        .find(|item| item.label == "Swing")
         .unwrap();
     assert!(matches!(
         swing.value,

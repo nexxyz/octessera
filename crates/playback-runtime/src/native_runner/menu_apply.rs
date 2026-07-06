@@ -47,6 +47,15 @@ impl NativeRunner {
             self.auto_save_default = next_auto_save_default;
             config_changed = true;
         }
+        let next_rolling_backups = self
+            .menu
+            .value_for_key("rollingBackups")
+            .map(|value| value == "true")
+            .unwrap_or(self.rolling_backups);
+        if self.rolling_backups != next_rolling_backups {
+            self.rolling_backups = next_rolling_backups;
+            config_changed = true;
+        }
         if audio_config_changed {
             self.audio_config_revision = self.audio_config_revision.wrapping_add(1);
         }

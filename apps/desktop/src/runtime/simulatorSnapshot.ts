@@ -111,13 +111,13 @@ function neoKeyColors(
   shiftActive: boolean,
 ): SimulatorSnapshot["neoKeyLeds"] {
   const settings = frame.settings;
-  const scaleFactor = (frame.display?.off ? 0.08 : 1) * brightnessScale(buttonBrightness);
+  const scaleFactor = (settings?.ledsDimmed ? 0.08 : 1) * brightnessScale(buttonBrightness);
   const combined = settings?.combinedModifierHeld ?? false;
   return {
     back: scale([90, 0, 0], scaleFactor),
     space: scale(spaceColor(space), scaleFactor),
-    shift: scale(combined ? [0, 0, 180] : (settings?.shiftHeld ?? shiftActive) ? [180, 140, 0] : [0, 0, 0], scaleFactor),
-    fn: scale(combined ? [0, 0, 180] : (settings?.fnHeld ?? false) ? [180, 140, 0] : [0, 0, 0], scaleFactor),
+    shift: scale(combined ? [0, 0, 180] : (settings?.shiftHeld ?? shiftActive) ? [180, 140, 0] : [90, 45, 0], scaleFactor),
+    fn: scale(combined ? [0, 0, 180] : (settings?.fnHeld ?? false) ? [180, 140, 0] : [90, 45, 0], scaleFactor),
   };
 }
 

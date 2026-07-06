@@ -105,6 +105,7 @@ fn scan_inputs(
 ) {
     if let Ok(presses) = trellis.scan_keys() {
         for (x, y, pressed) in presses {
+            crate::wake_trace::log_trellis_event(x, y, pressed);
             let _ = input_tx.send(grid_message(x, y, pressed));
         }
     }
@@ -116,6 +117,7 @@ fn scan_inputs(
                 continue;
             }
             previous_neokey[index] = pressed;
+            crate::wake_trace::log_neokey_transition(key, pressed);
             if let Some(message) = neokey_message(key, pressed) {
                 let _ = input_tx.send(message);
             }

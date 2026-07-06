@@ -61,10 +61,12 @@ pub(crate) fn drain_encoder_events(
         };
         let message = match event {
             HardwareEvent::EncoderTurn { id, delta } => {
+                crate::wake_trace::log_encoder_event(event);
                 pending_encoder_turns.enqueue(id, delta);
                 continue;
             }
             HardwareEvent::EncoderPress { id } => {
+                crate::wake_trace::log_encoder_event(event);
                 flush_pending_encoder_turns(pending_encoder_turns, playback, runner, adapter);
                 encoder_press_message(id)
             }

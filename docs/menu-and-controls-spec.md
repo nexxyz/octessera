@@ -79,7 +79,7 @@ Value editing semantics:
 
 - Number/enum/bool rows enter edit mode on main press
 - Navigation memory is limited to `System`, `System > Sound`, and `System > UI`. It is native, ephemeral, cleared on menu rebuild, and does not apply to any other menu, dynamic list, sample browser, preset list, MIDI port list, parameter picker, help, confirm dialog, or assignment overlay.
-- `System > Sound > Output Buffer` persists Pi output buffer frames as `runtimeConfig.sound.audioOutputBufferFrames` with choices `64/128/256/512/1024/2048`, default `256`. Changing it shows `Restart device to apply`; audio is not reopened live. On Pi startup, `CELLSYMPHONY_AUDIO_OUTPUT_BUFFER_FRAMES` remains the higher-priority override.
+- `System > Sound > Output Buffer` persists Pi output buffer frames as `runtimeConfig.sound.audioOutputBufferFrames` with choices `64/128/256/512/1024/2048`, default `256`. Changing it shows `Restart device to apply`; leaving the edited row opens the standard `Confirm Reboot` dialog. Audio is not reopened live. On Pi startup, `CELLSYMPHONY_AUDIO_OUTPUT_BUFFER_FRAMES` remains the higher-priority override.
 - Browsing selected values are shown on the selected label row; edit mode uses a separate value-focused row for clarity.
 - Bool behaves like a 2-option enum (`off`/`on`) and changes on encoder turn, not immediate row press
 - Named target selectors (instrument slot, part index, mixer route) display their computed names via `formatDisplayValue()` (e.g. `I1: synth`, `P3: rain`, `fx_bus_2`)
@@ -90,7 +90,7 @@ Value editing semantics:
 - Selector-like numeric rows stay plain text, including MIDI channels, instrument/sample slots, part selectors, and MIDI note ranges
 - Structural selector edits apply immediately while the row is in edit mode through key-specific fast paths. This covers behavior type, instrument type, instrument route, FX bus slot type, and master FX slot type. Dynamic parameter rows also apply immediately while editing.
 - Bar value text uses compact units where useful: `%`, `ms`/`s`, `Hz`, `bpm`, `dB`, semitones/cents, and pan as `L15`/`C`/`R15`; ambiguous internal `0..1` ranges display as `0..100`
-- `L2: Sense > Swing %` is a global groove amount. `0%` is straight timing. Swing delays internal off-beat step/scan progression and catches up before the next beat; external MIDI clock output remains straight.
+- `L2: Sense > Swing` is a global groove amount. `0%` is straight timing. Swing delays internal off-beat step/scan progression and catches up before the next beat; external MIDI clock output remains straight.
 
 Action row markers:
 
@@ -132,10 +132,14 @@ Overrides:
 ## Auto-Save
 
 - Location: System > Saves > Default > Auto Save
+- Location: System > Saves > Default > Backups
 - When enabled: native menu edits and aux-bound value changes emit deferred `store_save_default` effects; fast audio-facing edits update state/audio immediately and coalesce `ConfigPayload` generation for about 150ms so storage writes the latest settled value instead of saving every intermediate encoder step
 - Disabled by default
 - Toggling Auto Save on triggers an immediate save when you exit that menu row
 - Explicit Save Default is always immediate and cancels any pending deferred default save
+- Backups are enabled by default. When any persistent config changes, runtime may emit `store_save_backup` at most once every five minutes; hosts keep the latest 20 `bak-{timestamp}.json` files.
+- Confirmed shutdown/reboot emits `store_save_recovery`; Pi writes the latest recovery payload synchronously before setting the power request.
+- Loading default, preset, or factory config stops transport, resets position, and sends MIDI panic/equivalent note clearing before applying the loaded config.
 
 ## Aux Encoder Binding
 

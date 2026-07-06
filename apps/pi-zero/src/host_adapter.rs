@@ -29,6 +29,7 @@ pub struct PiPlaybackHostAdapter {
     selected_midi_output_id: Option<String>,
     selected_midi_input_id: Option<String>,
     power_request: Option<PiPowerRequest>,
+    latest_recovery_payload: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Copy)]
@@ -57,6 +58,7 @@ impl PiPlaybackHostAdapter {
             selected_midi_output_id: None,
             selected_midi_input_id: None,
             power_request: None,
+            latest_recovery_payload: None,
         }
     }
 
@@ -181,6 +183,27 @@ impl HostAdapter for PiPlaybackHostAdapter {
                     None => return Ok(Vec::new()),
                 }
             }
+            RuntimePlatformEffect::StoreSaveBackup { payload } => {
+                if let Err(message) = self.platform_service.enqueue(PlatformJob::SaveBackup {
+                    payload: payload.clone(),
+                }) {
+                    return Ok(vec![store_error(format!(
+                        "Save backup queued failed: {message}"
+                    ))]);
+                }
+                return Ok(Vec::new());
+            }
+            RuntimePlatformEffect::StoreSaveRecovery { payload } => {
+                self.latest_recovery_payload = Some(payload.clone());
+                if let Err(message) = self.platform_service.save_recovery_now(payload) {
+                    return Ok(vec![store_error(format!(
+                        "Save recovery failed: {message}"
+                    ))]);
+                }
+                return Ok(vec![HostMessage::RuntimeResult {
+                    result: RuntimeStoreResult::SaveRecoveryResult { ok: true },
+                }]);
+            }
             RuntimePlatformEffect::MidiListOutputsRequest => {
                 RuntimeStoreResult::MidiListOutputsResult {
                     outputs: Self::list_midi_outputs()?,
@@ -223,10 +246,24 @@ impl HostAdapter for PiPlaybackHostAdapter {
                 }
             }
             RuntimePlatformEffect::Reboot => {
+                if let Some(payload) = &self.latest_recovery_payload {
+                    if let Err(message) = self.platform_service.save_recovery_now(payload) {
+                        return Ok(vec![store_error(format!(
+                            "Save recovery failed: {message}"
+                        ))]);
+                    }
+                }
                 self.power_request = Some(PiPowerRequest::Reboot);
                 return Ok(Vec::new());
             }
             RuntimePlatformEffect::Shutdown => {
+                if let Some(payload) = &self.latest_recovery_payload {
+                    if let Err(message) = self.platform_service.save_recovery_now(payload) {
+                        return Ok(vec![store_error(format!(
+                            "Save recovery failed: {message}"
+                        ))]);
+                    }
+                }
                 self.power_request = Some(PiPowerRequest::Shutdown);
                 return Ok(Vec::new());
             }

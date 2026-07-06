@@ -9,6 +9,13 @@ use std::path::PathBuf;
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};
 
+fn temp_store_dir(name: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("cellsymphony-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
 fn test_adapter() -> (DesktopPlaybackHostAdapter, mpsc::Receiver<QueuedAudioEvent>) {
     let (tx, rx) = mpsc::channel();
     let (platform_service_tx, _) = mpsc::channel();
@@ -58,6 +65,33 @@ fn platform_effect_audio_command_reaches_audio_queue() {
     assert!(
         matches!(rx.recv_timeout(Duration::from_secs(1)).unwrap(), QueuedAudioEvent::MomentaryFxStop { id } if id == "preview")
     );
+}
+
+#[test]
+fn backup_save_rotates_to_latest_twenty_files() {
+    let (mut adapter, _) = test_adapter();
+    adapter.store_dir = temp_store_dir("backup-rotation");
+    let backups = adapter.store_dir.join("backups");
+    std::fs::create_dir_all(&backups).unwrap();
+    for index in 0..20 {
+        std::fs::write(backups.join(format!("bak-{index:03}.json")), "{}").unwrap();
+    }
+
+    adapter
+        .handle_platform_effect(&RuntimePlatformEffect::StoreSaveBackup {
+            payload: serde_json::json!({ "latest": true }),
+        })
+        .unwrap();
+
+    let mut names = std::fs::read_dir(&backups)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().to_string())
+        .collect::<Vec<_>>();
+    names.sort();
+    assert_eq!(names.len(), 20);
+    assert!(!names.contains(&"bak-000.json".to_string()));
+    assert!(names.iter().any(|name| name.starts_with("bak-1")));
+    let _ = std::fs::remove_dir_all(&adapter.store_dir);
 }
 
 #[test]

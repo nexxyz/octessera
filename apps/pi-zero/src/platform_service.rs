@@ -8,6 +8,7 @@ const JOB_QUEUE_CAPACITY: usize = 32;
 const RESULT_QUEUE_CAPACITY: usize = 32;
 
 pub struct PiPlatformService {
+    store_dir: PathBuf,
     jobs: SyncSender<PlatformJob>,
     results: Receiver<HostMessage>,
 }
@@ -16,11 +17,17 @@ impl PiPlatformService {
     pub fn new(store_dir: PathBuf, samples_dir: PathBuf) -> Self {
         let (jobs_tx, jobs_rx) = mpsc::sync_channel(JOB_QUEUE_CAPACITY);
         let (results_tx, results_rx) = mpsc::sync_channel(RESULT_QUEUE_CAPACITY);
-        thread::spawn(move || run_worker(store_dir, samples_dir, jobs_rx, results_tx));
+        let worker_store_dir = store_dir.clone();
+        thread::spawn(move || run_worker(worker_store_dir, samples_dir, jobs_rx, results_tx));
         Self {
+            store_dir,
             jobs: jobs_tx,
             results: results_rx,
         }
+    }
+
+    pub fn save_recovery_now(&self, payload: &serde_json::Value) -> Result<(), String> {
+        save_json(&self.store_dir.join("recovery-save.json"), payload)
     }
 
     pub fn enqueue(&self, job: PlatformJob) -> Result<(), String> {
@@ -57,6 +64,9 @@ pub enum PlatformJob {
     SaveDefault {
         payload: serde_json::Value,
         is_auto: Option<bool>,
+    },
+    SaveBackup {
+        payload: serde_json::Value,
     },
     ListSamples {
         instrument_slot: usize,
@@ -110,6 +120,10 @@ fn handle_job(store_dir: &Path, samples_dir: &Path, job: PlatformJob) -> Runtime
                 Err(message) => store_error(format!("Save default failed: {message}")),
             }
         }
+        PlatformJob::SaveBackup { payload } => match save_backup(store_dir, &payload) {
+            Ok(()) => RuntimeStoreResult::SaveBackupResult { ok: true },
+            Err(message) => store_error(format!("Save backup failed: {message}")),
+        },
         PlatformJob::ListSamples {
             instrument_slot,
             sample_slot,
@@ -129,6 +143,31 @@ fn handle_job(store_dir: &Path, samples_dir: &Path, job: PlatformJob) -> Runtime
             },
         },
     }
+}
+
+fn save_backup(store_dir: &Path, payload: &serde_json::Value) -> Result<(), String> {
+    let dir = store_dir.join("backups");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let millis = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|e| e.to_string())?
+        .as_millis();
+    save_json(&dir.join(format!("bak-{millis}.json")), payload)?;
+    let mut paths = Vec::new();
+    for entry in std::fs::read_dir(&dir).map_err(|e| e.to_string())? {
+        let path = entry.map_err(|e| e.to_string())?.path();
+        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        if name.starts_with("bak-") && name.ends_with(".json") {
+            paths.push(path);
+        }
+    }
+    paths.sort();
+    for path in paths.iter().take(paths.len().saturating_sub(20)) {
+        std::fs::remove_file(path).map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 fn store_error(message: String) -> RuntimeStoreResult {

@@ -7,7 +7,7 @@ This file is part of the canonical split-out menu tree spec. See [`../menu-tree-
 ```
 L2: Sense
 ├── BPM: [40..240] step 1  default 120
-├── Swing %: [0..75] step 1  default 0
+├── Swing: [0..75] step 1 %  default 0
 ├── Aux Mappings (group)
 │   ├── Aux 1 (group)
 │   │   ├── Turn (group)

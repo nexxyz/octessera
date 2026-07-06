@@ -199,7 +199,7 @@ pub(crate) fn aux_overlay_waits_for_fn_hold_delay() {
 #[test]
 pub(crate) fn fn_aux_bind_sets_explicit_toast_and_marks_config_dirty() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 3];
+    runner.menu.state.stack = vec![5, 2];
     runner.menu.state.cursor = 0;
     runner.ui.fn_held = true;
 

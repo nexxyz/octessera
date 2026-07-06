@@ -18,7 +18,7 @@ pub(crate) fn static_navigation_memory_ignores_dynamic_preset_lists() {
 #[test]
 pub(crate) fn static_navigation_memory_does_not_affect_focus_item_key() {
     let mut menu = NativeMenuModel::new(config());
-    menu.state.stack = vec![5, 3];
+    menu.state.stack = vec![5, 2];
     menu.state.cursor = 2;
     menu.back();
     let _ = menu.press();
@@ -66,7 +66,7 @@ pub(crate) fn l2_starts_with_global_rows_and_part_rows_are_enterable() {
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "L2: Sense");
     assert_eq!(snapshot.lines[0], "> BPM 120");
-    assert_eq!(snapshot.lines[1], "  Swing % 0%");
+    assert_eq!(snapshot.lines[1], "  Swing 0%");
     assert_eq!(snapshot.lines[2], "  Aux Mappings");
     menu.turn(1);
     menu.turn(1);
@@ -108,7 +108,7 @@ pub(crate) fn auto_map_toggle_lives_under_system_ui_not_aux_mappings() {
         .iter()
         .any(|line| line.contains("Auto Map")));
 
-    menu.state.stack = vec![5, 5];
+    menu.state.stack = vec![5, 4];
     let ui_snapshot = menu.snapshot();
     assert!(ui_snapshot
         .lines

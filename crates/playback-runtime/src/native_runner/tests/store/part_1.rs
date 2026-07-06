@@ -46,6 +46,8 @@ pub(crate) fn system_menu_save_default_emits_native_config_payload() {
 #[test]
 pub(crate) fn load_default_result_applies_native_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.transport = RuntimeTransportState::Playing;
+    runner.current_ppqn_pulse = 96;
     let payload = json!({
         "activeBehavior": "sequencer",
         "runtimeConfig": {
@@ -81,6 +83,13 @@ pub(crate) fn load_default_result_applies_native_config_payload() {
     assert_eq!(runner.note_behaviors[0], NoteBehavior::Hold);
     assert_eq!(runner.ui.master_volume, 88);
     assert_eq!(runner.sync_source, SyncSource::External);
+    assert_eq!(runner.transport, RuntimeTransportState::Stopped);
+    assert_eq!(runner.current_ppqn_pulse, 0);
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects.contains(&RuntimePlatformEffect::MidiPanic)
+    )));
     assert_eq!(snapshot_from(&messages)["activeBehavior"], "sequencer");
 }
 
@@ -139,7 +148,7 @@ pub(crate) fn midi_output_menu_selects_dynamic_port() {
             },
         })
         .unwrap();
-    runner.menu.state.stack = vec![5, 4, 2];
+    runner.menu.state.stack = vec![5, 3, 2];
     runner.menu.state.cursor = 1;
 
     let messages = runner
@@ -159,7 +168,7 @@ pub(crate) fn midi_output_menu_selects_dynamic_port() {
 #[test]
 pub(crate) fn entering_midi_port_groups_requests_port_lists() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 4];
+    runner.menu.state.stack = vec![5, 3];
     runner.menu.state.cursor = 2;
 
     let messages = runner
@@ -175,7 +184,7 @@ pub(crate) fn entering_midi_port_groups_requests_port_lists() {
             if effects == &vec![RuntimePlatformEffect::MidiListOutputsRequest]
     )));
 
-    runner.menu.state.stack = vec![5, 4];
+    runner.menu.state.stack = vec![5, 3];
     runner.menu.state.cursor = 3;
     let messages = runner
         .send(HostMessage::DeviceInput {

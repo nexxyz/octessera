@@ -1,6 +1,7 @@
 use crate::host_adapter::DesktopPlaybackHostAdapter;
 use playback_runtime::{HostMessage, RuntimeStoreResult};
 use std::time::{Duration, Instant};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 const DEFERRED_DEFAULT_SAVE_MS: u64 = 2_000;
 
@@ -91,6 +92,25 @@ impl DesktopPlaybackHostAdapter {
         }])
     }
 
+    pub(super) fn save_backup_payload(&self, payload: &serde_json::Value) -> Result<(), String> {
+        let dir = self.store_dir.join("backups");
+        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+        let millis = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|e| e.to_string())?
+            .as_millis();
+        let content = serde_json::to_string_pretty(payload).map_err(|e| e.to_string())?;
+        std::fs::write(dir.join(format!("bak-{millis}.json")), content)
+            .map_err(|e| e.to_string())?;
+        rotate_backups(&dir)
+    }
+
+    pub(super) fn save_recovery_payload(&self, payload: &serde_json::Value) -> Result<(), String> {
+        let content = serde_json::to_string_pretty(payload).map_err(|e| e.to_string())?;
+        std::fs::write(self.store_dir.join("recovery-save.json"), content)
+            .map_err(|e| e.to_string())
+    }
+
     fn load_default_payload(&self) -> Result<Result<Option<serde_json::Value>, String>, String> {
         let path = self.store_dir.join("default.json");
         if !path.is_file() {
@@ -101,4 +121,23 @@ impl DesktopPlaybackHostAdapter {
             .map(Some)
             .map_err(|e| e.to_string()))
     }
+}
+
+fn rotate_backups(dir: &std::path::Path) -> Result<(), String> {
+    let mut paths = Vec::new();
+    for entry in std::fs::read_dir(dir).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        if name.starts_with("bak-") && name.ends_with(".json") {
+            paths.push(path);
+        }
+    }
+    paths.sort();
+    for path in paths.iter().take(paths.len().saturating_sub(20)) {
+        std::fs::remove_file(path).map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }

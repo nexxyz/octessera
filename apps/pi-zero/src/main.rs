@@ -23,6 +23,7 @@ mod sample_browser;
 mod seesaw_io;
 mod timing_probe;
 mod ui_profile;
+mod wake_trace;
 
 use audio::AudioManager;
 use hardware_init::{init_encoders, init_hardware, HardwareDevices};

@@ -19,11 +19,10 @@ System
 │   ├── Default (group)
 │   │   ├── Save Default: (action)
 │   │   ├── Load Default: (action)
-│   │   └── Auto Save: [on | off]    ← auto-persists settled config after cooldown
+│   │   ├── Auto Save: [on | off]    ← auto-persists settled config after cooldown
+│   │   └── Backups: [on | off]      ← rolling safety backups, default on
 │   ├── Factory (group)
 │   │   └── Load Factory: (action)
-├── Diagnostics (group)
-│   └── Hardware Test: (action)       ← confirms, then runs pre-hardware Pi checks
 ├── Updates (group)
 │   ├── Check: (action)               ← read-only update status request
 │   ├── Apply: (action)               ← confirms before applying the staged update
@@ -49,11 +48,14 @@ System
 │   ├── Ghost Cells: [on | off]  default off  ← shows dim cells from inactive parts behind active part
 │   ├── Auto Map: [on | off]  default on  ← enables context-sensitive aux mappings
 │   ├── Number Style: [bar | numbers | bar+numbers]  ← controls rendering of bar-style numeric params, default bar+numbers
-│   ├── Screen Sleep: [0..600] step 10 s    default 60 (0=off)
+│   ├── Dim Timer: [0..600] step 10 s       default 60 (0=off; dims non-OLED LEDs)
+│   ├── OLED Sleep: [0..600] step 10 s      default 60 (0=off; OLED only)
 │   ├── OLED Bright: [10..100] step 5     default 75 (bar display when Number Style is bar or bar+numbers)
 │   ├── Grid Bright: [10..100] step 5     default 75 (bar display when Number Style is bar or bar+numbers)
 │   └── Button Bright: [10..100] step 5   default 75 (bar display when Number Style is bar or bar+numbers)
 ├── !Basic Help (action)              ← opens shortcut cheat-sheet help popup
+├── Diagnostics (group)
+│   └── Hardware Test: (action)       ← confirms, then runs pre-hardware Pi checks
 ├── Reboot: (action)                  ← confirm, then show shutdown splash and reboot
 └── Shutdown: (action)                ← confirm, then show shutdown splash and exit/poweroff
 ```

@@ -137,6 +137,11 @@ impl NativeRunner {
             changed |= self.ui.screen_sleep_seconds != screen_sleep_seconds;
             self.ui.screen_sleep_seconds = screen_sleep_seconds;
         }
+        if let Some(dim_timer_seconds) = self.menu.number_for_key("dimTimerSeconds") {
+            let dim_timer_seconds = dim_timer_seconds.clamp(0, 600) as u16;
+            changed |= self.ui.dim_timer_seconds != dim_timer_seconds;
+            self.ui.dim_timer_seconds = dim_timer_seconds;
+        }
         changed
     }
 

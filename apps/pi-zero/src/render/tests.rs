@@ -131,6 +131,10 @@ fn led_frame_applies_grid_brightness_and_sleep_dim() {
     assert_eq!(frame[0], [50, 25, 13]);
 
     snapshot["display"]["off"] = json!(true);
+    let display_off = led_frame(&snapshot).unwrap();
+    assert_eq!(display_off[0], [50, 25, 13]);
+
+    snapshot["settings"]["ledsDimmed"] = json!(true);
     let dimmed = led_frame(&snapshot).unwrap();
     assert_eq!(dimmed[0], [4, 2, 1]);
 }
@@ -152,8 +156,12 @@ fn neokey_play_button_uses_transport_state_and_flash_colors() {
     snapshot["transportFlash"] = json!("measure");
     assert_eq!(neokey_colors(&snapshot)[1], [255, 160, 0]);
 
+    snapshot["transportFlash"] = json!("none");
     snapshot["display"]["off"] = json!(true);
-    assert_eq!(neokey_colors(&snapshot)[1], [20, 13, 0]);
+    assert_eq!(neokey_colors(&snapshot)[1], [0, 80, 0]);
+
+    snapshot["settings"]["ledsDimmed"] = json!(true);
+    assert_eq!(neokey_colors(&snapshot)[1], [0, 6, 0]);
 }
 
 #[test]
