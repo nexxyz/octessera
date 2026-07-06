@@ -430,4 +430,58 @@ mod tests {
             [false; 4]
         );
     }
+
+    #[test]
+    fn chatter_resets_debounce_window() {
+        let mut debouncer = NeoKeyDebouncer::default();
+        let start = Instant::now();
+
+        debouncer.update([true, false, false, false], start);
+        debouncer.update([false; 4], start + Duration::from_millis(10));
+        assert_eq!(
+            debouncer.update(
+                [true, false, false, false],
+                start + Duration::from_millis(20)
+            ),
+            [false; 4]
+        );
+        assert_eq!(
+            debouncer.update(
+                [true, false, false, false],
+                start + Duration::from_millis(43)
+            ),
+            [false; 4]
+        );
+        assert_eq!(
+            debouncer.update(
+                [true, false, false, false],
+                start + Duration::from_millis(44)
+            ),
+            [true, false, false, false]
+        );
+    }
+
+    #[test]
+    fn buttons_debounce_independently() {
+        let mut debouncer = NeoKeyDebouncer::default();
+        let start = Instant::now();
+
+        debouncer.update([true, false, false, false], start);
+        debouncer.update(
+            [true, true, false, false],
+            start + Duration::from_millis(10),
+        );
+
+        assert_eq!(
+            debouncer.update([true, true, false, false], start + NEOKEY_DEBOUNCE),
+            [true, false, false, false]
+        );
+        assert_eq!(
+            debouncer.update(
+                [true, true, false, false],
+                start + Duration::from_millis(10) + NEOKEY_DEBOUNCE,
+            ),
+            [true, true, false, false]
+        );
+    }
 }

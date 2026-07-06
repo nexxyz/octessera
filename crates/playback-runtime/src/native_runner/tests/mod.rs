@@ -10,6 +10,7 @@ mod controls;
 mod dance_fx;
 mod dance_menu;
 mod dance_overlay;
+mod dim_sleep;
 mod input_events;
 mod instruments;
 mod life_mapping;

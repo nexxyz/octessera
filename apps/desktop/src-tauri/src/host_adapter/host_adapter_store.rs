@@ -1,4 +1,5 @@
 use crate::host_adapter::DesktopPlaybackHostAdapter;
+use crate::persistence::{atomic_write_json, preset_file_path, valid_preset_name};
 use playback_runtime::{HostMessage, RuntimeStoreResult};
 use std::time::{Duration, Instant};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -7,8 +8,7 @@ const DEFERRED_DEFAULT_SAVE_MS: u64 = 2_000;
 
 impl DesktopPlaybackHostAdapter {
     pub(super) fn save_default_payload(&self, payload: &serde_json::Value) -> Result<(), String> {
-        let content = serde_json::to_string_pretty(payload).map_err(|e| e.to_string())?;
-        std::fs::write(self.store_dir.join("default.json"), content).map_err(|e| e.to_string())
+        atomic_write_json(&self.store_dir.join("default.json"), payload)
     }
 
     pub(super) fn list_preset_names(&self) -> Result<Vec<String>, String> {
@@ -18,7 +18,12 @@ impl DesktopPlaybackHostAdapter {
             for entry in std::fs::read_dir(&presets_dir).map_err(|e| e.to_string())? {
                 let entry = entry.map_err(|e| e.to_string())?;
                 if entry.path().extension().is_some_and(|ext| ext == "json") {
-                    if let Some(stem) = entry.path().file_stem().and_then(|s| s.to_str()) {
+                    if let Some(stem) = entry
+                        .path()
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .filter(|stem| valid_preset_name(stem))
+                    {
                         names.push(stem.to_string());
                     }
                 }
@@ -32,7 +37,7 @@ impl DesktopPlaybackHostAdapter {
         &self,
         name: &str,
     ) -> Result<Option<serde_json::Value>, String> {
-        let path = self.store_dir.join("presets").join(format!("{name}.json"));
+        let path = preset_file_path(&self.store_dir.join("presets"), name)?;
         if !path.is_file() {
             return Ok(None);
         }
@@ -47,13 +52,13 @@ impl DesktopPlaybackHostAdapter {
     ) -> Result<(), String> {
         let presets_dir = self.store_dir.join("presets");
         std::fs::create_dir_all(&presets_dir).map_err(|e| e.to_string())?;
-        let content = serde_json::to_string_pretty(payload).map_err(|e| e.to_string())?;
-        std::fs::write(presets_dir.join(format!("{name}.json")), content).map_err(|e| e.to_string())
+        let path = preset_file_path(&presets_dir, name)?;
+        atomic_write_json(&path, payload)
     }
 
-    pub(super) fn delete_preset_payload(&self, name: &str) -> bool {
-        let path = self.store_dir.join("presets").join(format!("{name}.json"));
-        path.is_file() && std::fs::remove_file(&path).is_ok()
+    pub(super) fn delete_preset_payload(&self, name: &str) -> Result<bool, String> {
+        let path = preset_file_path(&self.store_dir.join("presets"), name)?;
+        Ok(path.is_file() && std::fs::remove_file(&path).is_ok())
     }
 
     pub(super) fn load_default_result(&mut self) -> Result<Vec<HostMessage>, String> {
@@ -99,16 +104,12 @@ impl DesktopPlaybackHostAdapter {
             .duration_since(UNIX_EPOCH)
             .map_err(|e| e.to_string())?
             .as_millis();
-        let content = serde_json::to_string_pretty(payload).map_err(|e| e.to_string())?;
-        std::fs::write(dir.join(format!("bak-{millis}.json")), content)
-            .map_err(|e| e.to_string())?;
+        atomic_write_json(&dir.join(format!("bak-{millis}.json")), payload)?;
         rotate_backups(&dir)
     }
 
     pub(super) fn save_recovery_payload(&self, payload: &serde_json::Value) -> Result<(), String> {
-        let content = serde_json::to_string_pretty(payload).map_err(|e| e.to_string())?;
-        std::fs::write(self.store_dir.join("recovery-save.json"), content)
-            .map_err(|e| e.to_string())
+        atomic_write_json(&self.store_dir.join("recovery-save.json"), payload)
     }
 
     fn load_default_payload(&self) -> Result<Result<Option<serde_json::Value>, String>, String> {

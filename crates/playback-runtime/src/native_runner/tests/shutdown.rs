@@ -25,11 +25,7 @@ pub(crate) fn system_menu_shutdown_emits_shutdown_effect_and_splash() {
     assert!(display["toast"]
         .as_str()
         .is_some_and(|toast| toast.contains("shutting down")));
-    assert!(messages.iter().any(|message| matches!(
-        message,
-        RunnerMessage::PlatformEffects { effects }
-            if effects == &vec![RuntimePlatformEffect::Shutdown]
-    )));
+    assert_recovery_save_then_effect(&messages, RuntimePlatformEffect::Shutdown);
 }
 
 #[test]
@@ -54,9 +50,18 @@ pub(crate) fn system_menu_reboot_emits_reboot_effect_and_shutdown_splash() {
     assert!(display["toast"]
         .as_str()
         .is_some_and(|toast| toast.contains("rebooting")));
-    assert!(messages.iter().any(|message| matches!(
-        message,
-        RunnerMessage::PlatformEffects { effects }
-            if effects == &vec![RuntimePlatformEffect::Reboot]
-    )));
+    assert_recovery_save_then_effect(&messages, RuntimePlatformEffect::Reboot);
+}
+
+fn assert_recovery_save_then_effect(messages: &[RunnerMessage], expected: RuntimePlatformEffect) {
+    let effects = messages
+        .iter()
+        .flat_map(|message| match message {
+            RunnerMessage::PlatformEffects { effects } => effects.as_slice(),
+            _ => &[],
+        })
+        .collect::<Vec<_>>();
+    assert!(
+        matches!(effects.as_slice(), [RuntimePlatformEffect::StoreSaveRecovery { payload }, effect] if payload["runtimeConfig"].is_object() && **effect == expected)
+    );
 }

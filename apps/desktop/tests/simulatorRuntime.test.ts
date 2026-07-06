@@ -21,14 +21,14 @@ function waitMicrotask(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-function snapshotMessage(options: { audioConfigRevision?: number; instruments?: unknown[]; mixer?: unknown; masterVolume?: number } = {}) {
+function snapshotMessage(options: { audioConfigRevision?: number; instruments?: unknown[]; mixer?: unknown; masterVolume?: number; ledsDimmed?: boolean; displayOff?: boolean } = {}) {
   return {
     type: "snapshot" as const,
     snapshot: {
       oled: { width: 128, height: 128, format: "rgb565be" as const, pixels: new Uint8Array(32768) },
       leds: { width: 8, height: 8, rgb: Array.from({ length: 64 * 3 }, () => 0) },
       transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
-      display: { page: "boot", title: "Boot", lines: [], editing: false },
+      display: { page: "boot", title: "Boot", lines: [], editing: false, off: options.displayOff },
       activeBehavior: "life",
       gridInteraction: "paint" as const,
       settings: {
@@ -40,6 +40,7 @@ function snapshotMessage(options: { audioConfigRevision?: number; instruments?: 
         mixer: options.mixer ?? { buses: [] },
         panPositions: 33,
         audioConfigRevision: options.audioConfigRevision,
+        ledsDimmed: options.ledsDimmed,
         autoSaveFlash: "none" as const,
         transportFlash: "none" as const,
         stopLatched: false,
@@ -51,6 +52,13 @@ function snapshotMessage(options: { audioConfigRevision?: number; instruments?: 
     }
   };
 }
+
+test("runtime requires Tauri native runtime or injected dispatch", () => {
+  assert.throws(
+    () => createSimulatorRuntime(new FakeScheduler()),
+    /requires Tauri native runtime or an injected native dispatch/,
+  );
+});
 
 function sparseAudioSnapshotMessage(options: { audioConfigRevision?: number; masterVolume?: number } = {}) {
   return {
@@ -228,4 +236,26 @@ test("runtime applies native ui pulses for indicators", async () => {
   await new Promise((resolve) => setTimeout(resolve, 50));
   const after = runtime.getSnapshot();
   assert.notEqual((after.frame as any).eventDotOn, true);
+});
+
+test("runtime applies native ledsDimmed to desktop NeoKey LEDs", async () => {
+  const runtime = createSimulatorRuntime(new FakeScheduler(), {
+    runtimeDispatch: async () => [snapshotMessage({ ledsDimmed: true })]
+  });
+
+  runtime.dispatch({ type: "grid_press", x: 1, y: 2 });
+  await waitMicrotask();
+
+  assert.deepEqual(runtime.getSnapshot().neoKeyLeds.space, [15, 0, 0]);
+});
+
+test("display off does not dim desktop NeoKey LEDs", async () => {
+  const runtime = createSimulatorRuntime(new FakeScheduler(), {
+    runtimeDispatch: async () => [snapshotMessage({ displayOff: true, ledsDimmed: false })]
+  });
+
+  runtime.dispatch({ type: "grid_press", x: 1, y: 2 });
+  await waitMicrotask();
+
+  assert.deepEqual(runtime.getSnapshot().neoKeyLeds.space, [191, 0, 0]);
 });

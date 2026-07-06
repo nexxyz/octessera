@@ -41,6 +41,25 @@ pub(crate) fn rolling_backups_default_on_and_follow_five_minute_cadence() {
 }
 
 #[test]
+pub(crate) fn rolling_backups_false_suppresses_backup_effects() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.rolling_backups = false;
+    runner.config_dirty = true;
+    runner.last_backup_save_at = Some(Instant::now() - Duration::from_secs(300));
+
+    let messages = runner.messages_with_snapshot().unwrap();
+
+    assert!(!messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects.iter().any(|effect| matches!(
+                effect,
+                RuntimePlatformEffect::StoreSaveBackup { .. }
+            ))
+    )));
+}
+
+#[test]
 pub(crate) fn native_menu_edit_emits_deferred_auto_save_when_enabled() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.auto_save_default = true;

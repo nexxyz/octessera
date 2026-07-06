@@ -14,6 +14,7 @@ mod input;
 mod main_paths;
 mod main_runtime_loop;
 mod oled_test;
+mod persistence;
 mod platform_service;
 mod render;
 mod render_loop;

@@ -282,7 +282,9 @@ fn resolve_sample_path(samples_dir: &Path, path: &str) -> Option<PathBuf> {
     {
         return None;
     }
-    Some(samples_dir.join(relative))
+    let root = samples_dir.canonicalize().ok()?;
+    let target = root.join(relative).canonicalize().ok()?;
+    target.starts_with(&root).then_some(target)
 }
 
 fn mixer_config(config: AudioMixerPayload) -> MixerConfig {

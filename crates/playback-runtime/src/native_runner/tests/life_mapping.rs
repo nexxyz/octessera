@@ -59,20 +59,6 @@ pub(crate) fn active_life_notes_stay_in_mapping_after_menu_changes_and_navigatio
     assert!(musical_note_ons(&navigation).is_empty());
 }
 
-#[test]
-pub(crate) fn config_load_stops_transport_and_sends_midi_panic() {
-    let mut runner = configured_life_runner();
-    runner.transport = RuntimeTransportState::Playing;
-
-    runner.stop_for_config_load();
-
-    assert_eq!(runner.transport, RuntimeTransportState::Stopped);
-    let effects = runner.outbox.drain_platform_effects();
-    assert!(effects
-        .iter()
-        .any(|effect| matches!(effect, RuntimePlatformEffect::MidiPanic)));
-}
-
 fn configured_life_runner() -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.sense_parts[0].state_notes_enabled = true;

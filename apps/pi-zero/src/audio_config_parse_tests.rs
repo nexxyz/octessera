@@ -77,9 +77,49 @@ fn sample_signature_ignores_sample_payload_for_non_sampler_slots() {
     assert_eq!(sample_signature(&synth_with_sample_payload), "-");
 }
 
+#[test]
+fn sample_path_resolution_rejects_escape_and_missing_paths() {
+    let root = temp_dir("sample-paths");
+    std::fs::create_dir_all(root.join("kit")).unwrap();
+    std::fs::write(root.join("kit").join("kick.wav"), b"wav").unwrap();
+
+    assert!(resolve_sample_path(&root, "kit/kick.wav").is_some());
+    for path in ["../kick.wav", "/tmp/kick.wav", "missing.wav"] {
+        assert!(resolve_sample_path(&root, path).is_none(), "{path}");
+    }
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[cfg(unix)]
+#[test]
+fn sample_path_resolution_rejects_symlink_escape() {
+    let root = temp_dir("sample-symlink-root");
+    let outside = temp_dir("sample-symlink-outside");
+    std::fs::write(outside.join("escape.wav"), b"wav").unwrap();
+    std::os::unix::fs::symlink(outside.join("escape.wav"), root.join("escape.wav")).unwrap();
+
+    assert!(resolve_sample_path(&root, "escape.wav").is_none());
+    let _ = std::fs::remove_dir_all(root);
+    let _ = std::fs::remove_dir_all(outside);
+}
+
 fn sampler_source(sample: AudioSamplePayload) -> SampleSource {
     SampleSource {
         kind: "sampler".into(),
         sample: Some(sample),
     }
+}
+
+fn temp_dir(name: &str) -> std::path::PathBuf {
+    let dir = std::env::temp_dir().join(format!(
+        "cellsymphony-pi-{name}-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
 }

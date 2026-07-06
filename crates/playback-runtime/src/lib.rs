@@ -3,12 +3,14 @@
 mod native_help;
 mod native_menu;
 mod native_runner;
+mod preset_name_policy;
 mod protocol;
 mod runtime;
 mod timing_probe;
 
 pub use native_runner::{NativeRunner, NativeRunnerConfig};
 pub use platform_core::MusicalEvent;
+pub use preset_name_policy::{clean_preset_name, fresh_preset_name, is_valid_preset_name};
 pub use protocol::{
     HostMessage, MidiPort, RunnerMessage, RuntimeAudioCommand, RuntimeMomentaryFxTarget,
     RuntimePlatformEffect, RuntimeStatus, RuntimeStatusState, RuntimeStoreResult,

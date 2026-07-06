@@ -102,6 +102,14 @@ pub(crate) fn menu_help_tsv_rows_have_unique_ids_and_specific_text() {
         if line1.trim().is_empty() && line2.trim().is_empty() {
             problems.push(format!("line {} has no detail text", line_number + 1));
         }
+        for (label, value) in [("line1", *line1), ("line2", *line2)] {
+            if value.chars().count() > 150 {
+                problems.push(format!(
+                    "line {} {label} is too long to wrap cleanly in the help popup",
+                    line_number + 1
+                ));
+            }
+        }
         for forbidden in [
             "opens this submenu",
             "shows related settings",
@@ -110,6 +118,8 @@ pub(crate) fn menu_help_tsv_rows_have_unique_ids_and_specific_text() {
             "selects one option from a list",
             "edits text for this field",
             "no help text is available",
+            "see above",
+            "see below",
         ] {
             if format!("{title} {line1} {line2}")
                 .to_lowercase()

@@ -1,5 +1,6 @@
 use super::{DesktopHostAudioState, DesktopPlaybackHostAdapter};
 use crate::audio_prep_service::{spawn_desktop_audio_control, DesktopAudioPrepState};
+use crate::persistence::{atomic_write_json, valid_preset_name};
 use crate::types::QueuedAudioEvent;
 use playback_runtime::{
     HostAdapter, HostMessage, RuntimeAudioCommand, RuntimePlatformEffect, RuntimeStoreResult,
@@ -10,10 +11,110 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};
 
 fn temp_store_dir(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("cellsymphony-{name}-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!(
+        "cellsymphony-{name}-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     dir
+}
+
+#[test]
+fn preset_name_validation_rejects_unsafe_names() {
+    assert!(valid_preset_name("default"));
+    for name in [
+        "../default",
+        "presets/evil",
+        r"C:\x",
+        "",
+        "   ",
+        "bad/name",
+        "bad\\name",
+        "bad:name",
+        "bad<name>",
+        "bad>name",
+        "bad\"name",
+        "bad|name",
+        "bad?name",
+        "bad*name",
+        "bad\nname",
+        "bad.",
+        "CON",
+        "NUL.json",
+        "COM1",
+        "LPT9.txt",
+    ] {
+        assert!(!valid_preset_name(name), "{name:?}");
+    }
+}
+
+#[test]
+fn preset_host_paths_reject_unsafe_names_and_filter_list() {
+    let (mut adapter, _) = test_adapter();
+    adapter.store_dir = temp_store_dir("preset-safety");
+    let presets = adapter.store_dir.join("presets");
+    std::fs::create_dir_all(&presets).unwrap();
+    std::fs::write(presets.join("safe.json"), "{}").unwrap();
+    std::fs::write(presets.join(" bad .json"), "{}").unwrap();
+
+    assert_eq!(
+        adapter.list_preset_names().unwrap(),
+        vec!["safe".to_string()]
+    );
+    for name in [
+        "../default",
+        "presets/evil",
+        r"C:\x",
+        "",
+        "   ",
+        "bad/name",
+        "bad\\name",
+        "bad:name",
+        "bad<name>",
+        "bad?name",
+        "CON",
+        "NUL.json",
+        "bad\nname",
+    ] {
+        assert!(adapter.load_preset_payload(name).is_err(), "load {name:?}");
+        assert!(
+            adapter
+                .save_preset_payload(name, &serde_json::json!({}))
+                .is_err(),
+            "save {name:?}"
+        );
+        assert!(
+            adapter.delete_preset_payload(name).is_err(),
+            "delete {name:?}"
+        );
+    }
+    let _ = std::fs::remove_dir_all(&adapter.store_dir);
+}
+
+#[test]
+fn atomic_json_write_overwrites_existing_file() {
+    let dir = temp_store_dir("atomic-overwrite");
+    let path = dir.join("default.json");
+    std::fs::write(&path, "{\"old\":true}").unwrap();
+
+    atomic_write_json(&path, &serde_json::json!({ "new": true })).unwrap();
+
+    let saved = std::fs::read_to_string(&path).unwrap();
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&saved).unwrap(),
+        serde_json::json!({ "new": true })
+    );
+    assert!(std::fs::read_dir(&dir).unwrap().all(|entry| !entry
+        .unwrap()
+        .file_name()
+        .to_string_lossy()
+        .contains(".tmp-")));
+    let _ = std::fs::remove_dir_all(dir);
 }
 
 fn test_adapter() -> (DesktopPlaybackHostAdapter, mpsc::Receiver<QueuedAudioEvent>) {
@@ -290,4 +391,25 @@ fn shutdown_effect_sets_pending_shutdown_request() {
     assert!(follow_ups.is_empty());
     assert!(adapter.take_shutdown_request());
     assert!(!adapter.take_shutdown_request());
+}
+
+#[test]
+fn recovery_save_effect_writes_recovery_save_file() {
+    let (mut adapter, _) = test_adapter();
+    adapter.store_dir = temp_store_dir("recovery-save");
+    let payload = serde_json::json!({ "runtimeConfig": { "masterVolume": 64 } });
+
+    let follow_ups = adapter
+        .handle_platform_effect(&RuntimePlatformEffect::StoreSaveRecovery {
+            payload: payload.clone(),
+        })
+        .unwrap();
+
+    assert!(follow_ups.is_empty());
+    let saved = std::fs::read_to_string(adapter.store_dir.join("recovery-save.json")).unwrap();
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&saved).unwrap(),
+        payload
+    );
+    let _ = std::fs::remove_dir_all(&adapter.store_dir);
 }

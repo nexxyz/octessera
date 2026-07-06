@@ -1,3 +1,4 @@
+use crate::persistence::atomic_write_json;
 use crate::sample_browser::sample_entries;
 use playback_runtime::{HostMessage, RuntimeStoreResult};
 use std::path::{Path, PathBuf};
@@ -95,21 +96,25 @@ fn handle_job(store_dir: &Path, samples_dir: &Path, job: PlatformJob) -> Runtime
             Ok(names) => RuntimeStoreResult::ListPresetsResult { names },
             Err(message) => store_error(format!("Preset list failed: {message}")),
         },
-        PlatformJob::LoadPreset { name } => match load_json(&preset_path(store_dir, &name)) {
-            Ok(payload) => RuntimeStoreResult::LoadPresetResult { payload, name },
-            Err(message) => store_error(format!("Load {name} failed: {message}")),
-        },
-        PlatformJob::SavePreset { name, payload } => {
-            let path = preset_path(store_dir, &name);
-            let existed = path.is_file();
-            match save_json(&path, &payload) {
-                Ok(()) => RuntimeStoreResult::SavePresetResult {
-                    name,
-                    outcome: if existed { "overwritten" } else { "created" }.into(),
-                },
-                Err(message) => store_error(format!("Save {name} failed: {message}")),
+        PlatformJob::LoadPreset { name } => {
+            match preset_path(store_dir, &name).and_then(|path| load_json(&path)) {
+                Ok(payload) => RuntimeStoreResult::LoadPresetResult { payload, name },
+                Err(message) => store_error(format!("Load {name} failed: {message}")),
             }
         }
+        PlatformJob::SavePreset { name, payload } => match preset_path(store_dir, &name) {
+            Ok(path) => {
+                let existed = path.is_file();
+                match save_json(&path, &payload) {
+                    Ok(()) => RuntimeStoreResult::SavePresetResult {
+                        name,
+                        outcome: if existed { "overwritten" } else { "created" }.into(),
+                    },
+                    Err(message) => store_error(format!("Save {name} failed: {message}")),
+                }
+            }
+            Err(message) => store_error(format!("Save {name} failed: {message}")),
+        },
         PlatformJob::DeletePreset { name } => RuntimeStoreResult::DeletePresetResult {
             ok: delete_preset_payload(store_dir, &name),
             name,
@@ -190,7 +195,9 @@ pub fn list_presets(store_dir: &Path) -> Result<Vec<String>, String> {
         }
         if entry.path().extension().is_some_and(|ext| ext == "json") {
             if let Some(stem) = entry.path().file_stem().and_then(|stem| stem.to_str()) {
-                names.push(stem.to_string());
+                if playback_runtime::is_valid_preset_name(stem) {
+                    names.push(stem.to_string());
+                }
             }
         }
     }
@@ -198,9 +205,11 @@ pub fn list_presets(store_dir: &Path) -> Result<Vec<String>, String> {
     Ok(names)
 }
 
-pub fn preset_path(store_dir: &Path, name: &str) -> PathBuf {
-    let safe = name.replace(['/', '\\'], "_");
-    store_dir.join(format!("{safe}.json"))
+pub fn preset_path(store_dir: &Path, name: &str) -> Result<PathBuf, String> {
+    if !playback_runtime::is_valid_preset_name(name) {
+        return Err(format!("Unsafe preset name: {name:?}"));
+    }
+    Ok(store_dir.join(format!("{name}.json")))
 }
 
 pub fn load_json(path: &Path) -> Result<Option<serde_json::Value>, String> {
@@ -214,14 +223,37 @@ pub fn load_json(path: &Path) -> Result<Option<serde_json::Value>, String> {
 }
 
 pub fn save_json(path: &Path, payload: &serde_json::Value) -> Result<(), String> {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-    let content = serde_json::to_string_pretty(payload).map_err(|e| e.to_string())?;
-    std::fs::write(path, content).map_err(|e| e.to_string())
+    atomic_write_json(path, payload)
 }
 
 fn delete_preset_payload(store_dir: &Path, name: &str) -> bool {
-    let path = preset_path(store_dir, name);
+    let Ok(path) = preset_path(store_dir, name) else {
+        return false;
+    };
     path.is_file() && std::fs::remove_file(path).is_ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn list_presets_filters_unsafe_legacy_files() {
+        let dir = std::env::temp_dir().join(format!(
+            "cellsymphony-pi-preset-list-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("safe.json"), "{}").unwrap();
+        std::fs::write(dir.join("bad:name.json"), "{}").unwrap();
+        std::fs::write(dir.join("CON.json"), "{}").unwrap();
+
+        assert_eq!(list_presets(&dir).unwrap(), vec!["safe".to_string()]);
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
 }

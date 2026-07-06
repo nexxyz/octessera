@@ -186,7 +186,7 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                 }])
             }
             RuntimePlatformEffect::StoreDeletePreset { name } => {
-                let ok = self.delete_preset_payload(name);
+                let ok = self.delete_preset_payload(name)?;
                 Ok(vec![HostMessage::RuntimeResult {
                     result: RuntimeStoreResult::DeletePresetResult {
                         name: name.clone(),

@@ -2,7 +2,7 @@
 
 This is the entry point for the canonical menu/control spec. The full menu tree is split into `docs/menu-tree-spec.md`; that file is part of this authoritative spec and must stay in sync with native menu changes.
 
-Context-help copy source: `resources/menu-help-texts.tsv` (required header row).
+Context-help copy source: `resources/menu-help-texts.tsv` (required header row). Each row provides a title plus two short text fields. Keep one idea per text field; the runtime may join and wrap them for the target display.
 Platform capability source: `resources/platform-capabilities.json`; generated TypeScript and Rust constants must stay in sync with it.
 
 ## Cheat Sheet

@@ -5,6 +5,7 @@ mod commands;
 mod desktop_platform_service;
 mod host_adapter;
 mod midi;
+mod persistence;
 mod runtime_worker;
 mod samples;
 mod types;
@@ -50,7 +51,11 @@ fn ensure_store_dir_at(dir: PathBuf) -> PathBuf {
     let _ = std::fs::create_dir_all(dir.join("presets"));
     let default_path = dir.join("default.json");
     if !default_path.is_file() {
-        let _ = std::fs::write(default_path, BUNDLED_DEFAULT_CONFIG);
+        let _ = serde_json::from_str(BUNDLED_DEFAULT_CONFIG)
+            .map_err(|_| ())
+            .and_then(|payload| {
+                persistence::atomic_write_json(&default_path, &payload).map_err(|_| ())
+            });
     }
     dir
 }

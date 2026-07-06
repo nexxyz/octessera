@@ -18,6 +18,7 @@ This file tracks current actionable work only. Completed-work history does not b
 - Bake the current post-flash fixes into a new Pi image/release artifact; the live Pi currently has fixes deployed over `v0.5.1`.
 - Re-enable `cellsymphony.service` after I2C hardware is stable; it was intentionally disabled during bring-up to prevent automatic bus access.
 - Keep deployment tooling aligned with the verified cross-build path and current systemd service layout.
+- Audit deploy-script quoting scope and narrow it where needed without changing the verified fast deploy path.
 
 ## Hardware Follow-Ups
 
