@@ -16,6 +16,16 @@
   "insert_hole_d": 4.2,
   "insert_boss_od": 7.2,
   "insert_boss_h": 10.0,
+  "faceplate_insert_pillars_v22": [
+    {"name": "NW", "pos": [4.75, 135.25], "target_z": 12.0, "boss_od": 6.8},
+    {"name": "NE", "pos": [242.25, 135.25], "target_z": 26.0, "boss_od": 6.8},
+    {"name": "SW", "pos": [4.75, 4.75], "target_z": 12.0, "boss_od": 6.8},
+    {"name": "SE", "pos": [242.25, 4.75], "target_z": 26.0, "boss_od": 6.8},
+    {"name": "CENTER_N", "pos": [108.0, 135.25], "target_z": 26.0, "boss_od": 7.2},
+    {"name": "CENTER_S", "pos": [134.0, 4.75], "target_z": 26.0, "boss_od": 7.2},
+    {"name": "E_MID", "pos": [241.6, 70.0], "target_z": 26.0, "boss_od": 7.2},
+    {"name": "W_MID", "pos": [4.15, 78.0], "target_z": 12.0, "boss_od": 7.2}
+  ],
   "top_screw_clearance_d": 3.4,
   "encoder_hole_d": 7.2,
   "encoder_crater_flat_d": {

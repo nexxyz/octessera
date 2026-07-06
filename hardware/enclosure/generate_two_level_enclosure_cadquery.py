@@ -6,6 +6,7 @@ from pathlib import Path
 
 import cadquery as cq
 
+from faceplate_insert_pillars import add_faceplate_insert_pillars
 from faceplate_walls import perimeter_wall_skirts
 from wave_guidance import (
     SLOPE_PROFILE_STEPS,
@@ -469,6 +470,7 @@ def build_model(params: dict) -> cq.Workplane:
         HIGH_Z,
     )
     model = flat_faceplate.union(shoulder).union(skirts).clean()
+    model = add_faceplate_insert_pillars(model, params)
     model = add_neokey_cutouts(model, params).clean()
     return add_guidance_slots(model).clean()
 
