@@ -221,23 +221,12 @@ impl NeoKey {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 #[cfg(any(feature = "pi-zero", test))]
 struct NeoKeyDebouncer {
     stable: [bool; 4],
     candidate: [bool; 4],
     candidate_since: [Option<Instant>; 4],
-}
-
-#[cfg(any(feature = "pi-zero", test))]
-impl Default for NeoKeyDebouncer {
-    fn default() -> Self {
-        Self {
-            stable: [false; 4],
-            candidate: [false; 4],
-            candidate_since: [None; 4],
-        }
-    }
 }
 
 #[cfg(any(feature = "pi-zero", test))]
