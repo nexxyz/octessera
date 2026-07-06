@@ -10,7 +10,7 @@ const ENCODER_IDS: [&str; 4] = [
 
 #[derive(Default)]
 pub struct PendingEncoderTurns {
-    deltas: [i16; 4],
+    turns: Vec<(usize, i16)>,
 }
 
 impl PendingEncoderTurns {
@@ -19,17 +19,24 @@ impl PendingEncoderTurns {
             .iter()
             .position(|candidate| *candidate == id)
             .unwrap_or(0);
-        self.deltas[index] = (self.deltas[index] + i16::from(delta)).clamp(-127, 127);
+        let delta = i16::from(delta);
+        if let Some((last_index, last_delta)) = self.turns.last_mut() {
+            if *last_index == index && last_delta.signum() == delta.signum() {
+                *last_delta = (*last_delta + delta).clamp(-127, 127);
+                return;
+            }
+        }
+        self.turns.push((index, delta.clamp(-127, 127)));
     }
 
     pub fn take_messages(&mut self) -> Vec<HostMessage> {
-        let mut messages = Vec::new();
-        for (index, delta) in self.deltas.iter_mut().enumerate() {
-            if *delta == 0 {
+        let turns = std::mem::take(&mut self.turns);
+        let mut messages = Vec::with_capacity(turns.len());
+        for (index, delta) in turns {
+            if delta == 0 {
                 continue;
             }
-            messages.push(encoder_turn_message(ENCODER_IDS[index], *delta as i8));
-            *delta = 0;
+            messages.push(encoder_turn_message(ENCODER_IDS[index], delta as i8));
         }
         messages
     }
@@ -60,5 +67,30 @@ mod tests {
         assert_eq!(input["id"], "aux1");
         assert_eq!(input["delta"], -3);
         assert!(pending.take_messages().is_empty());
+    }
+
+    #[test]
+    fn preserves_direction_reversals_for_main_and_aux_encoders() {
+        let mut pending = PendingEncoderTurns::default();
+        pending.enqueue("encoder_main", 1);
+        pending.enqueue("encoder_main", -1);
+        pending.enqueue("encoder_aux_2", -1);
+        pending.enqueue("encoder_aux_2", 1);
+
+        let messages = pending.take_messages();
+
+        assert_eq!(messages.len(), 4);
+        assert_turn(&messages[0], "main", 1);
+        assert_turn(&messages[1], "main", -1);
+        assert_turn(&messages[2], "aux2", -1);
+        assert_turn(&messages[3], "aux2", 1);
+    }
+
+    fn assert_turn(message: &HostMessage, id: &str, delta: i8) {
+        let HostMessage::DeviceInput { input, .. } = message else {
+            panic!("expected device input");
+        };
+        assert_eq!(input["id"], id);
+        assert_eq!(input["delta"], delta);
     }
 }

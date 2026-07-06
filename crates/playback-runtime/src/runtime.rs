@@ -245,6 +245,9 @@ impl PlaybackRuntime {
                 RunnerMessage::MusicalEvents { events } => {
                     self.schedule_musical_events(events, host)?;
                 }
+                RunnerMessage::MidiEvents { events } => {
+                    self.schedule_midi_events(events, host)?;
+                }
                 RunnerMessage::AudioCommands { commands } => {
                     for command in commands {
                         host.handle_audio_command(&command)?;

@@ -107,6 +107,7 @@ export type RuntimeHostMessage = RuntimeDeviceInputMessage | RuntimeTransportPul
 export type RuntimeSnapshotMessage = { type: "snapshot"; snapshot: RuntimeSnapshot };
 export type RuntimePlatformEffectsMessage = { type: "platform_effects"; effects: RuntimePlatformEffect[] };
 export type RuntimeMusicalEventsMessage = { type: "musical_events"; events: MusicalEvent[] };
+export type RuntimeMidiEventsMessage = { type: "midi_events"; events: MusicalEvent[] };
 export type RuntimeAudioCommandsMessage = { type: "audio_commands"; commands: RuntimeAudioCommand[] };
 export type RuntimeUiPulse =
   | { type: "transport_flash"; flash: "measure" | "beat"; durationMs: number }
@@ -118,6 +119,7 @@ export type RuntimeRunnerMessage =
   | RuntimeSnapshotMessage
   | RuntimePlatformEffectsMessage
   | RuntimeMusicalEventsMessage
+  | RuntimeMidiEventsMessage
   | RuntimeAudioCommandsMessage
   | RuntimeUiPulseMessage
   | RuntimeStatusMessage;
@@ -159,6 +161,10 @@ export const SHARED_RUNTIME_CONTRACT_FIXTURES: RuntimeContractFixture[] = [
       {
         type: "musical_events",
         events: [{ type: "note_on", channel: 0, note: 60, velocity: 96, durationMs: 120 }]
+      },
+      {
+        type: "midi_events",
+        events: [{ type: "note_on", channel: 1, note: 64, velocity: 90, durationMs: 120 }]
       },
       {
         type: "platform_effects",

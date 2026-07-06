@@ -22,7 +22,7 @@ use defaults::{
 };
 use modulation_keys::{parse_instrument_binding_key, parse_part_behavior_config_binding_key};
 #[cfg(test)]
-use modulation_sampler::{apply_sampler_assignments_for_instruments, sampler_assignment_velocity};
+use modulation_sampler::sampler_assignment_velocity;
 use platform_core::{
     default_mapping_config, AxisStrategy, BehaviorActionInput, BehaviorConfigItem,
     BehaviorConfigItemType, DeviceInput, GlobalSoundConfig, GridInteraction, InterpretationProfile,

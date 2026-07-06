@@ -1,9 +1,9 @@
-use super::modulation::apply_sampler_assignments_for_instruments;
+use super::modulation::{apply_sampler_assignments_for_instruments_routed, RoutedMusicalEvents};
 use super::{
     note_unit_to_pulses, trigger_probability_allows, NativeRunner, RuntimeTransportState,
     DEFAULT_ALGORITHM_STEP_PULSES, GRID_HEIGHT,
 };
-use platform_core::{CellTriggerIntent, DeviceInput, MusicalEvent};
+use platform_core::DeviceInput;
 
 impl NativeRunner {
     pub(super) fn active_engine_input_result(
@@ -48,12 +48,12 @@ impl NativeRunner {
         Ok(result)
     }
 
-    pub(super) fn advance_algorithm(&mut self, pulses: u32) -> Result<Vec<MusicalEvent>, String> {
+    pub(super) fn advance_algorithm(&mut self, pulses: u32) -> Result<RoutedMusicalEvents, String> {
         if pulses == 0 || self.transport != RuntimeTransportState::Playing {
-            return Ok(Vec::new());
+            return Ok(RoutedMusicalEvents::default());
         }
 
-        let mut events = Vec::new();
+        let mut events = RoutedMusicalEvents::default();
         self.advance_transport_indicators(pulses);
         let swung_pulses = self.consume_swung_pulses(pulses);
         self.accumulate_part_pulses(swung_pulses);
@@ -96,7 +96,7 @@ impl NativeRunner {
                     *part_tick = part_tick.saturating_add(1);
                 }
                 inactive_modulation_updates.push((index, tick.mapped_intents.clone()));
-                let tick_events = apply_sampler_assignments_for_instruments(
+                let tick_events = apply_sampler_assignments_for_instruments_routed(
                     tick.events,
                     &tick.mapped_intents,
                     tick.emitted_events.len(),
@@ -112,23 +112,8 @@ impl NativeRunner {
         for (index, mapped_intents) in inactive_modulation_updates {
             self.apply_runtime_modulation(&mapped_intents, index);
         }
+        events.dedupe_note_ons_by_highest_velocity();
         Ok(events)
-    }
-
-    pub(super) fn apply_sampler_assignments(
-        &self,
-        events: Vec<MusicalEvent>,
-        intents: &[CellTriggerIntent],
-        part_index: usize,
-        mapped_event_offset: usize,
-    ) -> Vec<MusicalEvent> {
-        apply_sampler_assignments_for_instruments(
-            events,
-            intents,
-            mapped_event_offset,
-            &self.instruments,
-            self.sense_parts.get(part_index),
-        )
     }
 
     fn step_pulses_for_part(&self, index: usize) -> u32 {
@@ -204,7 +189,7 @@ impl NativeRunner {
             .min(u64::from(u32::MAX)) as u32
     }
 
-    fn advance_active_part(&mut self, events: &mut Vec<MusicalEvent>) -> Result<(), String> {
+    fn advance_active_part(&mut self, events: &mut RoutedMusicalEvents) -> Result<(), String> {
         let active_step_pulses = self.step_pulses_for_part(self.active_part_index);
         while self.part_pulse_accumulators[self.active_part_index] >= active_step_pulses {
             self.part_pulse_accumulators[self.active_part_index] -= active_step_pulses;
@@ -214,11 +199,12 @@ impl NativeRunner {
                 *part_tick = self.tick;
             }
             self.apply_runtime_modulation(&tick.mapped_intents, self.active_part_index);
-            let tick_events = self.apply_sampler_assignments(
+            let tick_events = apply_sampler_assignments_for_instruments_routed(
                 tick.events,
                 &tick.mapped_intents,
-                self.active_part_index,
                 tick.emitted_events.len(),
+                &self.instruments,
+                self.sense_parts.get(self.active_part_index),
             );
             self.record_tick_events_active(!tick_events.is_empty());
             events.extend(tick_events);

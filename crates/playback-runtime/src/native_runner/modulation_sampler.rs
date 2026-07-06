@@ -1,6 +1,29 @@
 use super::{NativeSensePart, NativeValueLane, GRID_HEIGHT, GRID_WIDTH};
 use platform_core::{CellTriggerIntent, MusicalEvent};
 
+#[derive(Default)]
+pub(super) struct RoutedMusicalEvents {
+    pub(super) audio: Vec<MusicalEvent>,
+    pub(super) midi: Vec<MusicalEvent>,
+}
+
+impl RoutedMusicalEvents {
+    pub(super) fn is_empty(&self) -> bool {
+        self.audio.is_empty() && self.midi.is_empty()
+    }
+
+    pub(super) fn extend(&mut self, other: RoutedMusicalEvents) {
+        self.audio.extend(other.audio);
+        self.midi.extend(other.midi);
+    }
+
+    pub(super) fn dedupe_note_ons_by_highest_velocity(&mut self) {
+        self.audio = platform_core::dedupe_simultaneous_notes(&self.audio);
+        self.midi = platform_core::dedupe_simultaneous_notes(&self.midi);
+    }
+}
+
+#[cfg(test)]
 pub(super) fn apply_sampler_assignments_for_instruments(
     events: Vec<MusicalEvent>,
     intents: &[CellTriggerIntent],
@@ -8,13 +31,31 @@ pub(super) fn apply_sampler_assignments_for_instruments(
     instruments: &[super::NativeInstrumentSlot],
     sense: Option<&NativeSensePart>,
 ) -> Vec<MusicalEvent> {
+    let routed = apply_sampler_assignments_for_instruments_routed(
+        events,
+        intents,
+        mapped_event_offset,
+        instruments,
+        sense,
+    );
+    routed.audio.into_iter().chain(routed.midi).collect()
+}
+
+pub(super) fn apply_sampler_assignments_for_instruments_routed(
+    events: Vec<MusicalEvent>,
+    intents: &[CellTriggerIntent],
+    mapped_event_offset: usize,
+    instruments: &[super::NativeInstrumentSlot],
+    sense: Option<&NativeSensePart>,
+) -> RoutedMusicalEvents {
     let mut out = Vec::with_capacity(events.len());
+    let mut midi = Vec::new();
     for event in events.iter().take(mapped_event_offset) {
-        out.push(event.clone());
+        route_event_without_intent(event.clone(), instruments, &mut out, &mut midi);
     }
     for (intent_index, event) in events.iter().skip(mapped_event_offset).enumerate() {
         let Some(intent) = intents.get(intent_index) else {
-            out.push(event.clone());
+            route_event_without_intent(event.clone(), instruments, &mut out, &mut midi);
             continue;
         };
         let channel = match event {
@@ -23,12 +64,15 @@ pub(super) fn apply_sampler_assignments_for_instruments(
             }
             MusicalEvent::Cc { channel, .. } => *channel,
         };
+        let route = instrument_route(instruments, channel);
         if let Some(sense) = sense {
-            out.extend(cc_events_from_intent(
-                intent,
-                sense,
-                midi_event_channel(instruments, channel),
-            ));
+            let cc_events =
+                cc_events_from_intent(intent, sense, midi_event_channel(instruments, channel));
+            match route {
+                InstrumentRoute::InternalAudio => out.extend(cc_events),
+                InstrumentRoute::ExternalMidi => midi.extend(cc_events),
+                InstrumentRoute::Muted => {}
+            }
         }
         let mut event = event.clone();
         let mut suppress = false;
@@ -45,8 +89,11 @@ pub(super) fn apply_sampler_assignments_for_instruments(
                     *velocity = sense_velocity;
                 }
                 if let Some(instrument) = instruments.get(*channel as usize) {
-                    if instrument.kind == "midi" {
+                    if instrument.kind == "midi" && instrument.midi_enabled {
                         *channel = instrument.midi_channel.saturating_sub(1).min(15);
+                    }
+                    if instrument.kind == "midi" && !instrument.midi_enabled {
+                        suppress = true;
                     }
                     if instrument.kind == "sampler" {
                         if let Some(assignment) = instrument
@@ -65,8 +112,11 @@ pub(super) fn apply_sampler_assignments_for_instruments(
             }
             MusicalEvent::NoteOff { channel, note } => {
                 if let Some(instrument) = instruments.get(*channel as usize) {
-                    if instrument.kind == "midi" {
+                    if instrument.kind == "midi" && instrument.midi_enabled {
                         *channel = instrument.midi_channel.saturating_sub(1).min(15);
+                    }
+                    if instrument.kind == "midi" && !instrument.midi_enabled {
+                        suppress = true;
                     }
                     if instrument.kind == "sampler" {
                         if let Some(assignment) = instrument
@@ -86,10 +136,71 @@ pub(super) fn apply_sampler_assignments_for_instruments(
             }
         }
         if !suppress {
-            out.push(event);
+            match route {
+                InstrumentRoute::InternalAudio => out.push(event),
+                InstrumentRoute::ExternalMidi => midi.push(event),
+                InstrumentRoute::Muted => {}
+            }
         }
     }
-    out
+    RoutedMusicalEvents { audio: out, midi }
+}
+
+#[derive(Clone, Copy)]
+enum InstrumentRoute {
+    InternalAudio,
+    ExternalMidi,
+    Muted,
+}
+
+fn instrument_route(
+    instruments: &[super::NativeInstrumentSlot],
+    slot_channel: u8,
+) -> InstrumentRoute {
+    let Some(instrument) = instruments.get(slot_channel as usize) else {
+        return InstrumentRoute::InternalAudio;
+    };
+    if instrument.kind != "midi" {
+        return InstrumentRoute::InternalAudio;
+    }
+    if instrument.midi_enabled {
+        InstrumentRoute::ExternalMidi
+    } else {
+        InstrumentRoute::Muted
+    }
+}
+
+fn route_event_without_intent(
+    mut event: MusicalEvent,
+    instruments: &[super::NativeInstrumentSlot],
+    audio: &mut Vec<MusicalEvent>,
+    midi: &mut Vec<MusicalEvent>,
+) {
+    let channel = event_channel(&event);
+    match instrument_route(instruments, channel) {
+        InstrumentRoute::InternalAudio => audio.push(event),
+        InstrumentRoute::ExternalMidi => {
+            set_event_channel(&mut event, midi_event_channel(instruments, channel));
+            midi.push(event);
+        }
+        InstrumentRoute::Muted => {}
+    }
+}
+
+fn event_channel(event: &MusicalEvent) -> u8 {
+    match event {
+        MusicalEvent::NoteOn { channel, .. }
+        | MusicalEvent::NoteOff { channel, .. }
+        | MusicalEvent::Cc { channel, .. } => *channel,
+    }
+}
+
+fn set_event_channel(event: &mut MusicalEvent, next_channel: u8) {
+    match event {
+        MusicalEvent::NoteOn { channel, .. }
+        | MusicalEvent::NoteOff { channel, .. }
+        | MusicalEvent::Cc { channel, .. } => *channel = next_channel,
+    }
 }
 
 pub(super) fn midi_event_channel(
@@ -98,7 +209,7 @@ pub(super) fn midi_event_channel(
 ) -> u8 {
     instruments
         .get(slot_channel as usize)
-        .filter(|instrument| instrument.kind == "midi")
+        .filter(|instrument| instrument.kind == "midi" && instrument.midi_enabled)
         .map(|instrument| instrument.midi_channel.saturating_sub(1).min(15))
         .unwrap_or(slot_channel)
 }

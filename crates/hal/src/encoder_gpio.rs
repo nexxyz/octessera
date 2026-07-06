@@ -33,17 +33,22 @@ pub struct EncoderGpio {
     _tx: Sender<HardwareEvent>,
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(any(feature = "pi-zero", test))]
 struct QuadratureState {
     last: u8,
     accum: i8,
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(any(feature = "pi-zero", test))]
 impl QuadratureState {
+    #[cfg(feature = "pi-zero")]
     fn new(a: Level, b: Level) -> Self {
+        Self::new_bits(levels_to_bits(a, b))
+    }
+
+    fn new_bits(bits: u8) -> Self {
         Self {
-            last: levels_to_bits(a, b),
+            last: bits & 0b11,
             accum: 0,
         }
     }
@@ -54,13 +59,14 @@ impl QuadratureState {
         let step = match transition {
             0b0001 | 0b0111 | 0b1110 | 0b1000 => 1,
             0b0010 | 0b1011 | 0b1101 | 0b0100 => -1,
-            0b0011 | 0b1100 => {
-                self.accum = 0;
-                return None;
-            }
+            0b0011 | 0b1100 => self.skipped_edge_step(),
             _ => 0,
         };
-        self.accum += step;
+        if step != 0 && self.accum.signum() != 0 && self.accum.signum() != step.signum() {
+            self.accum = step;
+        } else {
+            self.accum += step;
+        }
         if self.accum >= 4 {
             self.accum = 0;
             Some(1)
@@ -70,6 +76,10 @@ impl QuadratureState {
         } else {
             None
         }
+    }
+
+    fn skipped_edge_step(&self) -> i8 {
+        self.accum.signum() * 2
     }
 }
 
@@ -197,5 +207,49 @@ impl EncoderGpio {
 impl fmt::Debug for EncoderGpio {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "EncoderGpio {{ ... }}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn quadrature_emits_after_four_clean_edges() {
+        let mut state = QuadratureState::new_bits(0b00);
+
+        assert_eq!(state.update(0b01), None);
+        assert_eq!(state.update(0b11), None);
+        assert_eq!(state.update(0b10), None);
+        assert_eq!(state.update(0b00), Some(1));
+    }
+
+    #[test]
+    fn quadrature_reverse_direction_does_not_require_extra_click() {
+        let mut state = QuadratureState::new_bits(0b00);
+
+        assert_eq!(state.update(0b01), None);
+        assert_eq!(state.update(0b00), None);
+        assert_eq!(state.update(0b10), None);
+        assert_eq!(state.update(0b11), None);
+        assert_eq!(state.update(0b01), Some(-1));
+    }
+
+    #[test]
+    fn quadrature_tolerates_skipped_edge_after_direction_is_known() {
+        let mut state = QuadratureState::new_bits(0b00);
+
+        assert_eq!(state.update(0b01), None);
+        assert_eq!(state.update(0b11), None);
+        assert_eq!(state.update(0b00), Some(1));
+    }
+
+    #[test]
+    fn quadrature_ignores_ambiguous_two_bit_jump_from_rest() {
+        let mut state = QuadratureState::new_bits(0b00);
+
+        assert_eq!(state.update(0b11), None);
+        assert_eq!(state.update(0b10), None);
+        assert_eq!(state.update(0b00), None);
     }
 }

@@ -154,17 +154,27 @@ impl NativeRunner {
     ) -> Result<Vec<RunnerMessage>, String> {
         let mut messages = Vec::new();
         self.apply_runtime_modulation(&result.mapped_intents, self.active_part_index);
-        let events = self.apply_sampler_assignments(
+        let events = super::modulation::apply_sampler_assignments_for_instruments_routed(
             result.events,
             &result.mapped_intents,
-            self.active_part_index,
             result.emitted_events.len(),
+            &self.instruments,
+            self.sense_parts.get(self.active_part_index),
         );
         if !events.is_empty() {
             self.event_dot_on = true;
             self.event_dot_pulses_remaining = 1;
             messages.push(self.trigger_ui_pulse_message());
-            messages.push(RunnerMessage::MusicalEvents { events });
+            if !events.audio.is_empty() {
+                messages.push(RunnerMessage::MusicalEvents {
+                    events: events.audio,
+                });
+            }
+            if !events.midi.is_empty() {
+                messages.push(RunnerMessage::MidiEvents {
+                    events: events.midi,
+                });
+            }
         }
         messages.extend(self.messages_with_snapshot()?);
         Ok(messages)

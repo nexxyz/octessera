@@ -89,7 +89,16 @@ impl NativeRunner {
         let events = self.advance_algorithm(pulses)?;
         if !events.is_empty() {
             out.push(self.trigger_ui_pulse_message());
-            out.push(RunnerMessage::MusicalEvents { events });
+            if !events.audio.is_empty() {
+                out.push(RunnerMessage::MusicalEvents {
+                    events: events.audio,
+                });
+            }
+            if !events.midi.is_empty() {
+                out.push(RunnerMessage::MidiEvents {
+                    events: events.midi,
+                });
+            }
         }
         if let Some(pulse) = self.transport_ui_pulse_message() {
             out.push(pulse);
@@ -167,7 +176,16 @@ impl NativeRunner {
             let events = self.advance_algorithm(pulses)?;
             if !events.is_empty() {
                 out.push(self.trigger_ui_pulse_message());
-                out.push(RunnerMessage::MusicalEvents { events });
+                if !events.audio.is_empty() {
+                    out.push(RunnerMessage::MusicalEvents {
+                        events: events.audio,
+                    });
+                }
+                if !events.midi.is_empty() {
+                    out.push(RunnerMessage::MidiEvents {
+                        events: events.midi,
+                    });
+                }
             }
             if let Some(pulse) = self.transport_ui_pulse_message() {
                 out.push(pulse);

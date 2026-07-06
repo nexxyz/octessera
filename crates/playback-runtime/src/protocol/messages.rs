@@ -52,6 +52,7 @@ pub enum RunnerMessage {
     Snapshot { snapshot: Value },
     PlatformEffects { effects: Vec<RuntimePlatformEffect> },
     MusicalEvents { events: Vec<MusicalEvent> },
+    MidiEvents { events: Vec<MusicalEvent> },
     AudioCommands { commands: Vec<RuntimeAudioCommand> },
     UiPulse { pulse: RuntimeUiPulse },
     RuntimeStatus { status: RuntimeStatus },

@@ -201,7 +201,7 @@ body {
   border-radius: 8px;
   border: 1px solid #3a5e49;
   background: linear-gradient(180deg, #213629, #17271f);
-  color: #e7f4ec;
+  color: #fff;
   padding: 8px;
   cursor: pointer;
 }
@@ -229,6 +229,12 @@ body {
 .button-stack .solid_red {
   background: linear-gradient(180deg, #8a2f2f, #5e1f1f);
   box-shadow: 0 0 12px rgba(255, 92, 92, 0.45);
+}
+
+button.encoder-center,
+.button-stack button,
+.matrix-cell {
+  color: #fff;
 }
 
 .button-stack .stopped {

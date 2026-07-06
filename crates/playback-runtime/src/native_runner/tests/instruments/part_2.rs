@@ -1,4 +1,8 @@
 use super::*;
+use crate::native_runner::modulation_sampler::{
+    apply_sampler_assignments_for_instruments, apply_sampler_assignments_for_instruments_routed,
+    RoutedMusicalEvents,
+};
 
 #[test]
 pub(crate) fn dance_fx_payload_sanitizes_type_target_and_params() {
@@ -208,5 +212,150 @@ pub(crate) fn midi_instrument_channel_remaps_note_and_cc_events() {
             MusicalEvent::Cc { channel: 9, .. },
             MusicalEvent::NoteOn { channel: 9, .. }
         ]
+    ));
+}
+
+#[test]
+pub(crate) fn midi_instrument_slot_two_routes_only_to_midi_channel_one() {
+    let mut instruments = vec![NativeInstrumentSlot::new(0), NativeInstrumentSlot::new(1)];
+    instruments.push(NativeInstrumentSlot {
+        kind: "midi".into(),
+        midi_enabled: true,
+        midi_channel: 2,
+        ..NativeInstrumentSlot::new(2)
+    });
+    let intent = CellTriggerIntent {
+        x: 0,
+        y: 0,
+        degree: 0,
+        kind: platform_core::CellTriggerKind::Activate,
+    };
+
+    let routed = apply_sampler_assignments_for_instruments_routed(
+        vec![MusicalEvent::NoteOn {
+            channel: 2,
+            note: 64,
+            velocity: 100,
+            duration_ms: Some(120),
+        }],
+        std::slice::from_ref(&intent),
+        0,
+        &instruments,
+        None,
+    );
+
+    assert!(routed.audio.is_empty());
+    assert!(matches!(
+        routed.midi.as_slice(),
+        [MusicalEvent::NoteOn {
+            channel: 1,
+            note: 64,
+            ..
+        }]
+    ));
+
+    instruments[2].midi_enabled = false;
+    let muted = apply_sampler_assignments_for_instruments_routed(
+        vec![MusicalEvent::NoteOn {
+            channel: 2,
+            note: 64,
+            velocity: 100,
+            duration_ms: Some(120),
+        }],
+        &[intent],
+        0,
+        &instruments,
+        None,
+    );
+    assert!(muted.audio.is_empty());
+    assert!(muted.midi.is_empty());
+
+    instruments[2].midi_enabled = true;
+    let note_off = apply_sampler_assignments_for_instruments_routed(
+        vec![MusicalEvent::NoteOff {
+            channel: 2,
+            note: 64,
+        }],
+        &[],
+        0,
+        &instruments,
+        None,
+    );
+    assert!(note_off.audio.is_empty());
+    assert!(matches!(
+        note_off.midi.as_slice(),
+        [MusicalEvent::NoteOff {
+            channel: 1,
+            note: 64
+        }]
+    ));
+
+    instruments[2].midi_enabled = false;
+    let muted_note_off = apply_sampler_assignments_for_instruments_routed(
+        vec![MusicalEvent::NoteOff {
+            channel: 2,
+            note: 64,
+        }],
+        &[],
+        0,
+        &instruments,
+        None,
+    );
+    assert!(muted_note_off.audio.is_empty());
+    assert!(muted_note_off.midi.is_empty());
+}
+
+#[test]
+pub(crate) fn cross_part_duplicate_note_ons_keep_highest_velocity_per_route() {
+    let mut routed = RoutedMusicalEvents {
+        audio: vec![
+            MusicalEvent::NoteOn {
+                channel: 0,
+                note: 60,
+                velocity: 50,
+                duration_ms: Some(80),
+            },
+            MusicalEvent::NoteOn {
+                channel: 0,
+                note: 60,
+                velocity: 100,
+                duration_ms: Some(40),
+            },
+        ],
+        midi: vec![
+            MusicalEvent::NoteOn {
+                channel: 1,
+                note: 64,
+                velocity: 20,
+                duration_ms: Some(40),
+            },
+            MusicalEvent::NoteOn {
+                channel: 1,
+                note: 64,
+                velocity: 90,
+                duration_ms: Some(120),
+            },
+        ],
+    };
+
+    routed.dedupe_note_ons_by_highest_velocity();
+
+    assert!(matches!(
+        routed.audio.as_slice(),
+        [MusicalEvent::NoteOn {
+            channel: 0,
+            note: 60,
+            velocity: 100,
+            duration_ms: Some(80)
+        }]
+    ));
+    assert!(matches!(
+        routed.midi.as_slice(),
+        [MusicalEvent::NoteOn {
+            channel: 1,
+            note: 64,
+            velocity: 90,
+            duration_ms: Some(120)
+        }]
     ));
 }

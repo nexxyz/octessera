@@ -58,12 +58,12 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
 
 - The shared Pi/desktop playback seam is defined by `crates/playback-runtime/src/protocol.rs` and mirrored by the UI/device contract types where needed.
 - Host -> runner messages are limited to `device_input`, `transport_pulse_step`, split MIDI realtime wire messages (`midi_realtime_clock`, `midi_realtime_start`, `midi_realtime_continue`, `midi_realtime_stop`), and `runtime_result`.
-- Runner -> host messages are limited to `snapshot`, `platform_effects`, `musical_events`, `audio_commands`, `ui_pulse`, and `runtime_status`.
+- Runner -> host messages are limited to `snapshot`, `platform_effects`, `musical_events`, `midi_events`, `audio_commands`, `ui_pulse`, and `runtime_status`.
 - Shared fixtures for this seam live in `SHARED_RUNTIME_CONTRACT_FIXTURES` so both hosts can validate the same contract examples.
 - `transport_pulse_step` is the deterministic PPQN advancement boundary; hosts must not substitute wall-clock timer semantics above this seam.
 - External MIDI realtime (`clock`, `start`, `continue`, `stop`) remains explicit at the boundary and is not inferred from UI/runtime scheduling code. Desktop MIDI input is routed natively from the host adapter into the runtime worker; UI code must not observe raw MIDI bytes for display or transport state.
 - `runtime_result` carries host-side outcomes for storage, MIDI port enumeration/selection, and sample-browser operations back into the shared runner.
-- `snapshot` is the runtime display/input-facing state payload; `musical_events`, `platform_effects`, and `audio_commands` are the resolved outputs that Rust schedules or dispatches.
+- `snapshot` is the runtime display/input-facing state payload; `musical_events`, `midi_events`, `platform_effects`, and `audio_commands` are the resolved outputs that Rust schedules or dispatches.
 
 ## Audio Routing Contract
 
@@ -71,6 +71,7 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
 - Instrument `Route=direct` bypasses FX bus processing and pans directly into the main mix.
 - Instrument `Route=fx_bus_n` enters the selected FX bus, runs its slot FX in order, then pans into the main mix.
 - MIDI instruments emit external MIDI/control data and are not an internal audio source unless an audio return path is explicitly added.
+- MIDI-only instrument notes and CCs use the `midi_events` path and must not call host internal-audio musical event handling.
 - Sample browser preview is musical audio and must route through the selected instrument slot, pan, volume, FX bus, and master output path.
 - Runtime audio config commands carry `sound.voiceStealingMode`; host adapters forward it to the realtime audio policy.
 - `gridBrightness` is applied by core LED frame rendering; `displayBrightness` and `buttonBrightness` are applied by the host display/button LED adapters.

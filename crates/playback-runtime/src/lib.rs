@@ -115,12 +115,14 @@ mod tests {
     #[derive(Default)]
     struct FakeHost {
         midi_messages: Vec<Vec<u8>>,
+        musical_events: Vec<MusicalEvent>,
         audio_commands: Vec<RuntimeAudioCommand>,
         effects: Vec<RuntimePlatformEffect>,
     }
 
     impl HostAdapter for FakeHost {
-        fn handle_musical_event(&mut self, _event: &MusicalEvent) -> Result<(), String> {
+        fn handle_musical_event(&mut self, event: &MusicalEvent) -> Result<(), String> {
+            self.musical_events.push(event.clone());
             Ok(())
         }
 
@@ -205,6 +207,40 @@ mod tests {
             })
             .sum::<u32>();
         assert_eq!(pulses, 42);
+    }
+
+    #[test]
+    fn midi_only_events_send_midi_without_host_audio_and_schedule_note_off() {
+        struct MidiOnlyRunner;
+
+        impl CoreRunner for MidiOnlyRunner {
+            fn send(&mut self, _message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
+                Ok(vec![RunnerMessage::MidiEvents {
+                    events: vec![MusicalEvent::NoteOn {
+                        channel: 1,
+                        note: 64,
+                        velocity: 90,
+                        duration_ms: Some(30),
+                    }],
+                }])
+            }
+        }
+
+        let mut runtime = PlaybackRuntime::new(RuntimeConfig {
+            bpm: 120.0,
+            sync_source: SyncSource::Internal,
+            midi_clock_out_enabled: false,
+            midi_out_enabled: true,
+        });
+        let mut runner = MidiOnlyRunner;
+        let mut host = FakeHost::default();
+
+        runtime.advance(500, &mut runner, &mut host).unwrap();
+        runtime.advance(30, &mut runner, &mut host).unwrap();
+
+        assert!(host.musical_events.is_empty());
+        assert_eq!(host.midi_messages[0], vec![0x91, 64, 90]);
+        assert!(host.midi_messages.contains(&vec![0x81, 64, 0]));
     }
 
     #[test]

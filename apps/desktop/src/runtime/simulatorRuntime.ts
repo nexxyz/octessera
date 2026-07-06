@@ -48,7 +48,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
   let tauriDrainInFlight = false;
   let ignoreAsyncUntilMs = 0;
   const snapshotCache = createRuntimeSnapshotCache();
-  const pendingEncoderTurns = new Map<EncoderId, number>();
+  const pendingEncoderTurns: Array<{ id: EncoderId; delta: number }> = [];
   let pendingEncoderTimer: ReturnType<typeof setTimeout> | null = null;
   let startupSplashTimer: StartupSplashTimer = null;
   let indicatorTimer: IndicatorTimer = null;
@@ -130,7 +130,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
     if (runtimeDispatchInFlight) return;
     const message = queuedRuntimeMessages.shift();
     if (!message) {
-      if (pendingEncoderTurns.size > 0 && pendingEncoderTimer === null) {
+      if (pendingEncoderTurns.length > 0 && pendingEncoderTimer === null) {
         flushPendingEncoderTurns();
       }
       return;
@@ -200,8 +200,8 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
       pendingEncoderTimer = setTimeout(() => flushPendingEncoderTurns(), 8);
       return;
     }
-    for (const [id, delta] of pendingEncoderTurns) {
-      pendingEncoderTurns.delete(id);
+    const turns = pendingEncoderTurns.splice(0);
+    for (const { id, delta } of turns) {
       if (delta === 0) continue;
       syncPlaybackConfigIfNeeded();
       mirrorRuntimeMessage({ type: "device_input", input: { type: "encoder_turn", id, delta } });
@@ -210,7 +210,12 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
 
   function dispatchEncoderTurn(input: EncoderTurnInput) {
     const id = input.id ?? "main";
-    pendingEncoderTurns.set(id, Math.max(-127, Math.min(127, (pendingEncoderTurns.get(id) ?? 0) + input.delta)));
+    const last = pendingEncoderTurns.at(-1);
+    if (last && last.id === id && Math.sign(last.delta) === Math.sign(input.delta)) {
+      last.delta = Math.max(-127, Math.min(127, last.delta + input.delta));
+    } else {
+      pendingEncoderTurns.push({ id, delta: Math.max(-127, Math.min(127, input.delta)) });
+    }
     if (pendingEncoderTimer !== null) return;
     pendingEncoderTimer = setTimeout(flushPendingEncoderTurns, 8);
   }

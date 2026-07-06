@@ -125,7 +125,7 @@ fn drain_pending_requests(
                 *revision = next_revision;
                 *config = next_config;
                 had_full_config = true;
-                pending_dynamic.clear();
+                pending_dynamic.retain(is_realtime_dynamic_event);
             }
             AudioControlRequest::Dynamic(event) => pending_dynamic.push(event),
         }
@@ -203,9 +203,23 @@ fn send_dynamic_events(trigger_tx: &Sender<QueuedAudioEvent>, events: Vec<Queued
     }
 }
 
+fn is_realtime_dynamic_event(event: &QueuedAudioEvent) -> bool {
+    matches!(
+        event,
+        QueuedAudioEvent::Note(_)
+            | QueuedAudioEvent::NoteOff { .. }
+            | QueuedAudioEvent::Cc { .. }
+            | QueuedAudioEvent::PreviewSample { .. }
+            | QueuedAudioEvent::MomentaryFxStart { .. }
+            | QueuedAudioEvent::MomentaryFxUpdate { .. }
+            | QueuedAudioEvent::MomentaryFxStop { .. }
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::QueuedNote;
     use std::time::Duration;
 
     #[test]
@@ -236,6 +250,80 @@ mod tests {
         let (request_tx, request_rx) = mpsc::channel();
         let (audio_tx, audio_rx) = mpsc::channel();
         let state = test_state();
+        request_tx
+            .send(AudioControlRequest::FullConfig {
+                revision: 2,
+                config: audio_config(91),
+            })
+            .unwrap();
+
+        handle_full_config_request(1, audio_config(70), &request_rx, &audio_tx, &state);
+
+        assert!(matches!(
+            audio_rx.recv_timeout(Duration::from_secs(1)).unwrap(),
+            QueuedAudioEvent::SetAudioConfig { instruments, .. } if instruments.master_volume == 91.0
+        ));
+        assert!(audio_rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn newer_full_config_preserves_queued_note_on_off_order() {
+        let (request_tx, request_rx) = mpsc::channel();
+        let (audio_tx, audio_rx) = mpsc::channel();
+        let state = test_state();
+        request_tx
+            .send(AudioControlRequest::Dynamic(QueuedAudioEvent::Note(
+                QueuedNote {
+                    instrument_slot: 2,
+                    note: 64,
+                    velocity: 90,
+                    duration_ms: 150,
+                },
+            )))
+            .unwrap();
+        request_tx
+            .send(AudioControlRequest::Dynamic(QueuedAudioEvent::NoteOff {
+                instrument_slot: 2,
+                note: 64,
+            }))
+            .unwrap();
+        request_tx
+            .send(AudioControlRequest::FullConfig {
+                revision: 2,
+                config: audio_config(91),
+            })
+            .unwrap();
+
+        handle_full_config_request(1, audio_config(70), &request_rx, &audio_tx, &state);
+
+        assert!(matches!(
+            audio_rx.recv_timeout(Duration::from_secs(1)).unwrap(),
+            QueuedAudioEvent::SetAudioConfig { instruments, .. } if instruments.master_volume == 91.0
+        ));
+        assert!(matches!(
+            audio_rx.recv_timeout(Duration::from_secs(1)).unwrap(),
+            QueuedAudioEvent::Note(note) if note.instrument_slot == 2 && note.note == 64
+        ));
+        assert!(matches!(
+            audio_rx.recv_timeout(Duration::from_secs(1)).unwrap(),
+            QueuedAudioEvent::NoteOff {
+                instrument_slot: 2,
+                note: 64
+            }
+        ));
+        assert!(audio_rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn newer_full_config_drops_stale_dynamic_config_delta() {
+        let (request_tx, request_rx) = mpsc::channel();
+        let (audio_tx, audio_rx) = mpsc::channel();
+        let state = test_state();
+        request_tx
+            .send(AudioControlRequest::Dynamic(
+                QueuedAudioEvent::SetMasterVolume { volume_pct: 44.0 },
+            ))
+            .unwrap();
         request_tx
             .send(AudioControlRequest::FullConfig {
                 revision: 2,

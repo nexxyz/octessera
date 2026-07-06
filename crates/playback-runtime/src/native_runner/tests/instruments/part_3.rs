@@ -1,4 +1,5 @@
 use super::*;
+use crate::native_runner::modulation_sampler::apply_sampler_assignments_for_instruments;
 
 #[test]
 pub(crate) fn sampler_assignment_remaps_note_off_and_suppresses_unmapped_notes() {

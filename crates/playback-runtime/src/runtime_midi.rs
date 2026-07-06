@@ -17,6 +17,19 @@ impl PlaybackRuntime {
         Ok(())
     }
 
+    pub(super) fn schedule_midi_events<H: HostAdapter>(
+        &mut self,
+        events: Vec<MusicalEvent>,
+        host: &mut H,
+    ) -> Result<(), String> {
+        if self.config.midi_out_enabled {
+            for event in events {
+                self.send_musical_event_midi(event, host)?;
+            }
+        }
+        Ok(())
+    }
+
     fn send_musical_event_midi<H: HostAdapter>(
         &mut self,
         event: MusicalEvent,

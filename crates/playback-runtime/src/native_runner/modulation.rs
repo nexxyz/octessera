@@ -6,7 +6,9 @@ use super::modulation_keys::{
     parse_fx_bus_binding_key, parse_global_fx_binding_key, parse_instrument_binding_key,
     parse_part_behavior_config_binding_key, parse_sense_binding_key,
 };
-pub(super) use super::modulation_sampler::apply_sampler_assignments_for_instruments;
+pub(super) use super::modulation_sampler::{
+    apply_sampler_assignments_for_instruments_routed, RoutedMusicalEvents,
+};
 use super::modulation_sense::apply_sense_binding_value;
 use super::modulation_value::{axis_norm, quantize_binding_value};
 use super::{NativeParamBinding, NativeRunner, Value, GRID_HEIGHT, GRID_WIDTH};

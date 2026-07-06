@@ -100,7 +100,7 @@ fn drain_pending_requests(
                 *config = next_config;
                 *samples_dir = next_samples_dir;
                 had_full_config = true;
-                pending_dynamic.clear();
+                pending_dynamic.retain(is_realtime_dynamic_event);
             }
             AudioControlRequest::Dynamic(event) => pending_dynamic.push(event),
         }
@@ -168,5 +168,110 @@ fn apply_prepared_audio_config(
 fn send_dynamic_events(engine_tx: &Sender<EngineEvent>, events: Vec<EngineEvent>) {
     for event in events {
         let _ = engine_tx.send(event);
+    }
+}
+
+fn is_realtime_dynamic_event(event: &EngineEvent) -> bool {
+    matches!(
+        event,
+        EngineEvent::NoteOn { .. }
+            | EngineEvent::NoteOff { .. }
+            | EngineEvent::Cc { .. }
+            | EngineEvent::PreviewSample { .. }
+            | EngineEvent::MomentaryFxStart { .. }
+            | EngineEvent::MomentaryFxUpdate { .. }
+            | EngineEvent::MomentaryFxStop { .. }
+            | EngineEvent::ProbeMark { .. }
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::mpsc;
+
+    #[test]
+    fn full_config_coalescing_preserves_queued_note_on_off_order() {
+        let (tx, rx) = mpsc::channel();
+        tx.send(AudioControlRequest::Dynamic(EngineEvent::NoteOn {
+            instrument_slot: 2,
+            note: 64,
+            velocity: 90,
+            duration_ms: 150,
+        }))
+        .unwrap();
+        tx.send(AudioControlRequest::Dynamic(EngineEvent::NoteOff {
+            instrument_slot: 2,
+            note: 64,
+        }))
+        .unwrap();
+        tx.send(AudioControlRequest::FullConfig {
+            revision: 2,
+            config: serde_json::json!({ "masterVolume": 91 }),
+            samples_dir: PathBuf::from("new"),
+        })
+        .unwrap();
+
+        let mut revision = 1;
+        let mut config = serde_json::json!({ "masterVolume": 70 });
+        let mut samples_dir = PathBuf::from("old");
+        let mut pending = Vec::new();
+
+        assert!(drain_pending_requests(
+            &rx,
+            &mut revision,
+            &mut config,
+            &mut samples_dir,
+            &mut pending,
+        ));
+        assert_eq!(revision, 2);
+        assert_eq!(samples_dir, PathBuf::from("new"));
+        assert_eq!(pending.len(), 2);
+        assert!(matches!(
+            pending[0],
+            EngineEvent::NoteOn {
+                instrument_slot: 2,
+                note: 64,
+                ..
+            }
+        ));
+        assert!(matches!(
+            pending[1],
+            EngineEvent::NoteOff {
+                instrument_slot: 2,
+                note: 64
+            }
+        ));
+    }
+
+    #[test]
+    fn full_config_coalescing_drops_stale_dynamic_config_delta() {
+        let (tx, rx) = mpsc::channel();
+        tx.send(AudioControlRequest::Dynamic(EngineEvent::SetMasterVolume {
+            volume_pct: 44.0,
+        }))
+        .unwrap();
+        tx.send(AudioControlRequest::FullConfig {
+            revision: 2,
+            config: serde_json::json!({ "masterVolume": 91 }),
+            samples_dir: PathBuf::from("new"),
+        })
+        .unwrap();
+
+        let mut revision = 1;
+        let mut config = serde_json::json!({ "masterVolume": 70 });
+        let mut samples_dir = PathBuf::from("old");
+        let mut pending = Vec::new();
+
+        assert!(drain_pending_requests(
+            &rx,
+            &mut revision,
+            &mut config,
+            &mut samples_dir,
+            &mut pending,
+        ));
+        assert_eq!(revision, 2);
+        assert_eq!(samples_dir, PathBuf::from("new"));
+        assert!(pending.is_empty());
     }
 }

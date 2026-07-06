@@ -137,7 +137,35 @@ test("runtime coalesces encoder turn bursts", async () => {
   runtime.dispatch({ type: "encoder_turn", id: "main", delta: -1 });
   await new Promise((resolve) => setTimeout(resolve, 12));
 
-  assert.deepEqual(seen, [{ type: "device_input", input: { type: "encoder_turn", id: "main", delta: 1 } }]);
+  assert.deepEqual(seen, [
+    { type: "device_input", input: { type: "encoder_turn", id: "main", delta: 2 } },
+    { type: "device_input", input: { type: "encoder_turn", id: "main", delta: -1 } }
+  ]);
+});
+
+test("runtime preserves encoder direction reversals for main and aux", async () => {
+  const seen: any[] = [];
+  const runtime = createSimulatorRuntime(new FakeScheduler(), {
+    runtimeDispatch: async (message) => {
+      seen.push(message);
+      return [snapshotMessage()];
+    }
+  });
+
+  runtime.dispatch({ type: "encoder_turn", id: "main", delta: 1 });
+  runtime.dispatch({ type: "encoder_turn", id: "main", delta: -1 });
+  runtime.dispatch({ type: "encoder_turn", id: "aux2", delta: -1 });
+  runtime.dispatch({ type: "encoder_turn", id: "aux2", delta: 1 });
+  await new Promise((resolve) => setTimeout(resolve, 12));
+  await waitMicrotask();
+  await waitMicrotask();
+
+  assert.deepEqual(seen, [
+    { type: "device_input", input: { type: "encoder_turn", id: "main", delta: 1 } },
+    { type: "device_input", input: { type: "encoder_turn", id: "main", delta: -1 } },
+    { type: "device_input", input: { type: "encoder_turn", id: "aux2", delta: -1 } },
+    { type: "device_input", input: { type: "encoder_turn", id: "aux2", delta: 1 } }
+  ]);
 });
 
 test("runtime coalesces encoder turns while a dispatch is in flight", async () => {
