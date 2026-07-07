@@ -12,8 +12,9 @@ except ModuleNotFoundError:
 
 
 ROOT = Path(__file__).resolve().parent
-SVG_OUT = ROOT / "current_wave_top_view.svg"
-PNG_OUT = ROOT / "current_wave_top_view.png"
+ARTIFACT_ROOT = ROOT.parent.parent / "release-artifacts" / "enclosure"
+SVG_OUT = ARTIFACT_ROOT / "current_wave_top_view.svg"
+PNG_OUT = ARTIFACT_ROOT / "current_wave_top_view.png"
 
 SCALE = 6.0
 MARGIN = 30.0
@@ -161,6 +162,7 @@ def main() -> None:
             "</svg>",
         ]
     )
+    ARTIFACT_ROOT.mkdir(parents=True, exist_ok=True)
     SVG_OUT.write_text("\n".join(lines), encoding="utf-8")
     print(SVG_OUT)
     if shutil.which("magick"):

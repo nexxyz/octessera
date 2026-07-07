@@ -20,9 +20,10 @@ from wave_guidance import (
 
 
 ROOT = Path(__file__).resolve().parent
+ARTIFACT_ROOT = ROOT.parent.parent / "release-artifacts" / "enclosure"
 PARAMS = ROOT / "enclosure_params.json"
-STEP_OUT = ROOT / "case_top_two_level_cadquery.step"
-STL_OUT = ROOT / "case_top_two_level_cadquery.stl"
+STEP_OUT = ARTIFACT_ROOT / "case_top_two_level_cadquery.step"
+STL_OUT = ARTIFACT_ROOT / "case_top_two_level_cadquery.stl"
 
 
 LOW_Z = 12.0
@@ -456,6 +457,7 @@ def build_model(params: dict) -> cq.Workplane:
 def main() -> None:
     params = json.loads(PARAMS.read_text())
     model = build_model(params)
+    ARTIFACT_ROOT.mkdir(parents=True, exist_ok=True)
     cq.exporters.export(model, str(STEP_OUT))
     cq.exporters.export(model, str(STL_OUT), tolerance=0.08, angularTolerance=0.12)
     from generate_wave_review_view import main as generate_review_view

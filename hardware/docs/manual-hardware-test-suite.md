@@ -12,7 +12,7 @@ Use this checklist for hands-on hardware bring-up when no OLED is installed. The
 Before each session:
 
 ```powershell
-./tools/pi-preflight.ps1 -Target pi@192.168.0.211
+./tools/pi/pi-preflight.ps1 -Target pi@192.168.0.211
 ```
 
 Then confirm the app is stopped:

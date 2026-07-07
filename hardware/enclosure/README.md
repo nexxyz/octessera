@@ -2,7 +2,7 @@
 
 This is the enclosure and mechanical reference for the Cell Symphony hardware target.
 
-Use it with [`../pinout-and-connections.md`](../pinout-and-connections.md) for wiring and [`../pi-bring-up.md`](../pi-bring-up.md) for Pi setup.
+Use it with [`../docs/pinout-and-connections.md`](../docs/pinout-and-connections.md) for wiring and [`../docs/pi-bring-up.md`](../docs/pi-bring-up.md) for Pi setup.
 
 ## Current Status
 
@@ -30,8 +30,8 @@ python hardware/enclosure/validate_wave_roof.py
 
 It writes:
 
-- `case_top_two_level_cadquery.step`
-- `case_top_two_level_cadquery.stl`
+- `../../release-artifacts/enclosure/case_top_two_level_cadquery.step`
+- `../../release-artifacts/enclosure/case_top_two_level_cadquery.stl`
 
 The script requires Python with `cadquery` available:
 
@@ -85,8 +85,8 @@ Current enclosure notes from the parameter source:
 
 - No OLED top-edge / top-plate hole above the display
 - Case height reduced to `140 mm`; width remains `247 mm`
-- The checked-in STL in this directory is the current generated faceplate mesh:
-  `case_top_two_level_cadquery.stl`.
+- The checked-in release artifact is the current generated faceplate mesh:
+  `../../release-artifacts/enclosure/case_top_two_level_cadquery.stl`.
 
 ## Source of Truth
 
@@ -96,4 +96,4 @@ Current enclosure notes from the parameter source:
 - Parametric generator: [`generate_two_level_enclosure_cadquery.py`](generate_two_level_enclosure_cadquery.py)
 - CAD workflow and checks: [`CAD_WORKFLOW.md`](CAD_WORKFLOW.md)
 - Roof-wall validation: [`validate_wave_roof.py`](validate_wave_roof.py)
-- Generated review image: [`current_wave_top_view.png`](current_wave_top_view.png)
+- Generated review images: [`../../release-artifacts/enclosure/current_wave_top_view.svg`](../../release-artifacts/enclosure/current_wave_top_view.svg) and [`../../release-artifacts/enclosure/current_wave_top_view.png`](../../release-artifacts/enclosure/current_wave_top_view.png)

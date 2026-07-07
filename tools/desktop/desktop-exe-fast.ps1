@@ -6,7 +6,7 @@ $ErrorActionPreference = "Stop"
 
 $sccache = Get-Command "sccache" -ErrorAction SilentlyContinue
 if ($sccache) {
-  $env:RUSTC_WRAPPER = Join-Path $PSScriptRoot "sccache-rustc.cmd"
+  $env:RUSTC_WRAPPER = Join-Path $PSScriptRoot "..\dev\sccache-rustc.cmd"
   if (-not $env:SCCACHE_DIR) {
     $env:SCCACHE_DIR = Join-Path $env:LOCALAPPDATA "Mozilla\sccache"
   }

@@ -65,13 +65,13 @@ The intended build is a DIY standalone instrument around a custom PCB, Raspberry
 
 Start with the full assembly guide:
 
-- [`hardware/assembly-manual.md`](hardware/assembly-manual.md) — BOM, PCB ordering, soldering, module setup, Pi flashing, first power-on, and enclosure assembly.
+- [`hardware/docs/assembly-manual.md`](hardware/docs/assembly-manual.md) — BOM, PCB ordering, soldering, module setup, Pi flashing, first power-on, and enclosure assembly.
 
 Related references:
 
-1. [`hardware/pinout-and-connections.md`](hardware/pinout-and-connections.md) — wiring, pin ownership, buses, and hardware source of truth.
+1. [`hardware/docs/pinout-and-connections.md`](hardware/docs/pinout-and-connections.md) — wiring, pin ownership, buses, and hardware source of truth.
 2. [`hardware/enclosure/README.md`](hardware/enclosure/README.md) — case, port access, print notes, and power rule.
-3. [`hardware/pi-bring-up.md`](hardware/pi-bring-up.md) — Pi OS setup, preflight, build/deploy, and bring-up checklist.
+3. [`hardware/docs/pi-bring-up.md`](hardware/docs/pi-bring-up.md) — Pi OS setup, preflight, build/deploy, and bring-up checklist.
 4. [`docs/menu-and-controls-spec.md`](docs/menu-and-controls-spec.md) — runtime controls, menus, overlays, and display behavior.
 
 ## Desktop Simulator
@@ -116,7 +116,8 @@ cellSymphony/
 │   └── device-contracts/         # Shared TypeScript bridge/display/runtime contracts
 ├── resources/                    # Menu help text and platform capabilities
 ├── docs/                         # Menu spec and secondary contributor docs
-├── hardware/                     # Primary hardware build, wiring, enclosure, and bring-up docs
+├── hardware/                     # Hardware source files, enclosure generator, and build docs
+├── release-artifacts/            # End-user binaries, fabrication exports, and print files
 └── tools/                        # Repository maintenance tools
 ```
 
@@ -150,10 +151,10 @@ See `docs/development-workflows.md` for complete contributor build, verification
 
 Primary user and hardware docs:
 
-- [`hardware/pinout-and-connections.md`](hardware/pinout-and-connections.md): Pi wiring, bus allocation, logical input mapping, and hardware source of truth.
-- [`hardware/assembly-manual.md`](hardware/assembly-manual.md): hardware BOM, soldering, first power-on, and enclosure assembly.
+- [`hardware/docs/pinout-and-connections.md`](hardware/docs/pinout-and-connections.md): Pi wiring, bus allocation, logical input mapping, and hardware source of truth.
+- [`hardware/docs/assembly-manual.md`](hardware/docs/assembly-manual.md): hardware BOM, soldering, first power-on, and enclosure assembly.
 - [`hardware/enclosure/README.md`](hardware/enclosure/README.md): enclosure ports, power rule, printing notes, and mechanical strategy.
-- [`hardware/pi-bring-up.md`](hardware/pi-bring-up.md): Pi OS setup, preflight, build/deploy, bring-up, diagnostics, and update plan.
+- [`hardware/docs/pi-bring-up.md`](hardware/docs/pi-bring-up.md): Pi OS setup, preflight, build/deploy, bring-up, diagnostics, and update plan.
 - [`docs/menu-and-controls-spec.md`](docs/menu-and-controls-spec.md): authoritative controls, menu structure, overlays, persistence, and display behavior.
 
 Secondary contributor docs:
@@ -173,7 +174,7 @@ https://github.com/stargatedaw/stargate-sample-pack
 
 ## Hardware model attributions
 
-The standoff STL models in `hardware/enclosure/` are based on Stackable PCB Standoff by theduckom, licensed under Creative Commons Attribution 4.0 International:
+The standoff STL models in `release-artifacts/enclosure/` are based on Stackable PCB Standoff by theduckom, licensed under Creative Commons Attribution 4.0 International:
 
 ```text
 https://www.printables.com/model/163087-stackable-pcb-standoff

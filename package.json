@@ -6,14 +6,14 @@
   "packageManager": "pnpm@9.12.0",
   "scripts": {
     "build": "corepack pnpm -r build",
-    "capabilities:generate": "node tools/generate-platform-capabilities.mjs",
-    "capabilities:check": "node tools/generate-platform-capabilities.mjs --check",
+    "capabilities:generate": "node tools/resources/generate-platform-capabilities.mjs",
+    "capabilities:check": "node tools/resources/generate-platform-capabilities.mjs --check",
     "lint": "corepack pnpm -r lint",
     "format:check": "corepack pnpm -r format:check",
     "typecheck": "corepack pnpm run capabilities:check && corepack pnpm -r typecheck",
     "test": "corepack pnpm -r test",
     "test:coverage": "corepack pnpm -r test:coverage",
-    "quality:audit": "node tools/quality-audit.mjs",
+    "quality:audit": "node tools/quality/quality-audit.mjs",
     "tauri:build": "corepack pnpm --filter @cellsymphony/desktop tauri:build",
     "tauri:build:ci": "corepack pnpm --filter @cellsymphony/desktop tauri:build:ci"
   }

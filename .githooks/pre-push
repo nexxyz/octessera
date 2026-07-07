@@ -64,7 +64,7 @@ run_check "file length" "
 run_check "cargo test" \
   "cargo test --workspace --exclude cellsymphony-desktop --exclude rodio-engine-source 2>&1"
 run_check "cargo llvm-cov" \
-  "bash ./scripts/check-rust-coverage.sh 2>&1"
+  "bash ./tools/quality/check-rust-coverage.sh 2>&1"
 run_check "cargo check desktop" \
   "cargo check -p cellsymphony-desktop 2>&1"
 run_check "cargo check pi" \

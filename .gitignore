@@ -1,5 +1,6 @@
 node_modules/
 dist/
+apps/desktop/dist-desktop/
 build/
 coverage/
 target/
@@ -10,15 +11,21 @@ Thumbs.db
 pnpm-debug.log*
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/
-hardware/KiCAD/.history/
-hardware/KiCAD/cellSymphony-backups/
-hardware/KiCAD/*.lck
+hardware/KiCAD/
+hardware/pcb/.history/
+hardware/pcb/cellSymphony-backups/
+hardware/pcb/*.lck
+hardware/pcb/*.rpt
+hardware/pcb/report.txt
+hardware/pcb/gerber/
 debug/
 *.zip
 .opencode/*
 !.opencode/agent/
 .opencode/agent/*
-hardware/KiCAD/PCB.stl
+hardware/pcb/PCB.stl
+hardware/enclosure/*.stl
+hardware/enclosure/*.step
 hardware/Mouser Cart with Components.pdf
 *.bak
 *.orig

@@ -7,9 +7,10 @@ import cadquery as cq
 
 
 ROOT = Path(__file__).resolve().parent
+ARTIFACT_ROOT = ROOT.parent.parent / "release-artifacts" / "enclosure"
 PARAMS = ROOT / "enclosure_params.json"
-STEP_OUT = ROOT / "case_bottom_plate_cadquery.step"
-STL_OUT = ROOT / "case_bottom_plate_cadquery.stl"
+STEP_OUT = ARTIFACT_ROOT / "case_bottom_plate_cadquery.step"
+STL_OUT = ARTIFACT_ROOT / "case_bottom_plate_cadquery.stl"
 BOTTOM_PLATE_THICKNESS = 3.2
 GUIDE_WALL_OFFSET = 3.15
 GUIDE_WALL_THICKNESS = 1.15
@@ -137,6 +138,7 @@ def build_bottom_plate(params: dict) -> cq.Workplane:
 def main() -> None:
     params = json.loads(PARAMS.read_text())
     plate = build_bottom_plate(params)
+    ARTIFACT_ROOT.mkdir(parents=True, exist_ok=True)
     cq.exporters.export(plate, str(STEP_OUT))
     cq.exporters.export(plate, str(STL_OUT), tolerance=0.08, angularTolerance=0.12)
     print(f"wrote {STEP_OUT}")

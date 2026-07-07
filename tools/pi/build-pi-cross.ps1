@@ -85,7 +85,7 @@ function Invoke-WslDockerBuild {
   $targetArg = $Target.Replace("'", "'\''")
   $imageArg = $Image.Replace("'", "'\''")
 
-  $script = "cd '$repoWsl' && TARGET='$targetArg' PROFILE='$profileArg' OUT_DIR='$outWsl' IMAGE='$imageArg' bash ./tools/build-pi-cross-wsl.sh"
+  $script = "cd '$repoWsl' && TARGET='$targetArg' PROFILE='$profileArg' OUT_DIR='$outWsl' IMAGE='$imageArg' bash ./tools/pi/build-pi-cross-wsl.sh"
   & wsl bash -lc "docker info >/dev/null 2>&1"
   if ($LASTEXITCODE -eq 0) {
     Invoke-CheckedCommand "WSL Docker Pi cross-build" { & wsl bash -lc $script }
@@ -127,7 +127,7 @@ function Invoke-NativeCrossBuild {
 
   $sccache = Get-Command "sccache" -ErrorAction SilentlyContinue
   if ($sccache) {
-    $env:RUSTC_WRAPPER = Join-Path $PSScriptRoot "sccache-rustc.cmd"
+    $env:RUSTC_WRAPPER = Join-Path $PSScriptRoot "..\dev\sccache-rustc.cmd"
     if (-not $env:SCCACHE_DIR) {
       $env:SCCACHE_DIR = Join-Path $env:LOCALAPPDATA "Mozilla\sccache"
     }
@@ -161,7 +161,7 @@ function Invoke-NativeCrossBuild {
   }
 }
 
-$RepoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")).Path
+$RepoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\..")).Path
 $outputDir = if ([System.IO.Path]::IsPathRooted($OutDir)) { $OutDir } else { Join-Path $RepoRoot $OutDir }
 
 Push-Location $RepoRoot

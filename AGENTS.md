@@ -62,8 +62,8 @@ Cell Symphony is a pnpm workspace plus Cargo workspace built around a native Rus
 - Account for the current OS when choosing commands or tooling.
 - If the user corrects an earlier instruction, follow the latest instruction.
 - Rebuild the portable desktop exe after significant changes that affect desktop-visible behavior, native runtime behavior, audio behavior, config/default payloads, Tauri host integration, or runtime contracts. Do not rebuild it for Rust-only changes that are clearly internal and not desktop/runtime/audio observable, such as isolated tests, docs, formatting, refactors with no behavior change, or Pi/HAL-only work. When unsure whether a change is observable through the desktop app, rebuild the portable exe.
-- Prefer PC-side Pi cross-builds for hardware/profile loops: `./tools/build-pi-cross.ps1` uses WSL2 Docker automatically when available and writes `target/pi-cross/cellsymphony-pi`. Deploy with `./tools/deploy-pi-fast.ps1 -LocalBinary target/pi-cross/cellsymphony-pi -NoTail` instead of building on the Pi.
-- Preserve build caches during Pi deploy/profile loops. Prefer cross-built binary deploys. If source sync is needed, use `tools/deploy-pi-fast.ps1` without `-CleanRemote`; it uses cache-preserving remote sync so unchanged source mtimes and Cargo `target/` fingerprints survive. Use `-CleanRemote` only when intentionally discarding the Pi build cache.
+- Prefer PC-side Pi cross-builds for hardware/profile loops: `./tools/pi/build-pi-cross.ps1` uses WSL2 Docker automatically when available and writes `target/pi-cross/cellsymphony-pi`. Deploy with `./tools/pi/deploy-pi-fast.ps1 -LocalBinary target/pi-cross/cellsymphony-pi -NoTail` instead of building on the Pi.
+- Preserve build caches during Pi deploy/profile loops. Prefer cross-built binary deploys. If source sync is needed, use `tools/pi/deploy-pi-fast.ps1` without `-CleanRemote`; it uses cache-preserving remote sync so unchanged source mtimes and Cargo `target/` fingerprints survive. Use `-CleanRemote` only when intentionally discarding the Pi build cache.
 
 ## Working Style
 
@@ -88,7 +88,7 @@ Cell Symphony is a pnpm workspace plus Cargo workspace built around a native Rus
 - Portable desktop exe: `corepack pnpm --filter @cellsymphony/desktop tauri:build:exe` writes `apps/desktop/dist-desktop/CellSymphony.exe`
 - Capabilities: `corepack pnpm run capabilities:generate`, `corepack pnpm run capabilities:check`
 - Windows Pi builds use HAL stubs by default; real Pi builds use `-p cellsymphony-pi --features hardware-pi` or the cross-build workflow.
-- Pi cross-build/deploy: `./tools/build-pi-cross.ps1`; then `./tools/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -LocalBinary target/pi-cross/cellsymphony-pi -NoTail`.
-- Pi source sync fallback: `./tools/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -SyncOnly -NoTail` preserves the remote Cargo cache; avoid ad hoc full tar extraction over the repo.
+- Pi cross-build/deploy: `./tools/pi/build-pi-cross.ps1`; then `./tools/pi/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -LocalBinary target/pi-cross/cellsymphony-pi -NoTail`.
+- Pi source sync fallback: `./tools/pi/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -SyncOnly -NoTail` preserves the remote Cargo cache; avoid ad hoc full tar extraction over the repo.
 - Pre-push hook: `.githooks/pre-push` runs lint, typecheck, format checks, tests, file-length checks, and `cargo clippy`.
 - Git push: use a long timeout because the pre-push hook runs CI-like checks. Do not skip the hook; fix failures and retry.

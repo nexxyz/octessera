@@ -2,9 +2,9 @@
 
 This is a contributor reference. End-user hardware build, assembly, and bring-up docs have priority:
 
-- `hardware/pinout-and-connections.md`
+- `hardware/docs/pinout-and-connections.md`
 - `hardware/enclosure/README.md`
-- `hardware/pi-bring-up.md`
+- `hardware/docs/pi-bring-up.md`
 - `docs/menu-and-controls-spec.md`
 
 ## Install
@@ -19,12 +19,6 @@ Use pnpm workspaces. Do not use npm or yarn for this repository.
 
 ```bash
 corepack pnpm --filter @cellsymphony/desktop tauri:dev
-```
-
-Windows convenience launcher:
-
-```bash
-cellSymphony.bat
 ```
 
 ## Desktop Builds
@@ -46,7 +40,7 @@ The portable executable is copied to `apps/desktop/dist-desktop/CellSymphony.exe
 On Windows, use the cached wrapper for the same portable build when iterating:
 
 ```powershell
-./tools/desktop-exe-fast.ps1
+./tools/desktop/desktop-exe-fast.ps1
 ```
 
 Rebuild it after significant changes that affect desktop-visible behavior, native runtime behavior, audio behavior, config/default payloads, Tauri host integration, or runtime contracts. Do not rebuild it for Rust-only changes that are clearly internal and not desktop/runtime/audio observable, such as isolated tests, docs, formatting, refactors with no behavior change, or Pi/HAL-only work. When unsure whether a change is observable through the desktop app, rebuild the portable exe.
@@ -124,7 +118,7 @@ The root `typecheck` runs `capabilities:check` before package typechecks.
 For menu/runtime-visible Rust changes on Windows, use the focused wrapper while iterating:
 
 ```powershell
-./tools/validate-menu-runtime.ps1 -IncludePi -BuildDesktopExe
+./tools/quality/validate-menu-runtime.ps1 -IncludePi -BuildDesktopExe
 ```
 
 Add `-IncludePlatformCore` when platform behavior changes and `-Typecheck` when shared contracts or TypeScript-visible payloads change.
@@ -136,8 +130,8 @@ When committing and immediately pushing, run targeted confidence checks and requ
 On Windows, use the cached Cargo wrapper while iterating. It enables `sccache` when installed, uses a local rustc-wrapper shim to strip Cargo's incremental env var before invoking `sccache`, and passes temporary profile overrides that disable incremental for that command so more crates can be cached. Without `sccache`, Cargo uses its normal `target/` cache:
 
 ```powershell
-./tools/cargo-fast.ps1 check -p cellsymphony-pi
-./tools/cargo-fast.ps1 test -p playback-runtime
+./tools/dev/cargo-fast.ps1 check -p cellsymphony-pi
+./tools/dev/cargo-fast.ps1 test -p playback-runtime
 ```
 
 Install `sccache` once with:
@@ -162,11 +156,11 @@ cargo check --target aarch64-unknown-linux-gnu -p cellsymphony-hal --features pi
 
 ## Pi Hardware Build
 
-Preferred fast path: run `./tools/build-pi-cross.ps1` to produce a Linux ARM binary, then upload it with `./tools/deploy-pi-fast.ps1 -LocalBinary target/pi-cross/cellsymphony-pi -NoTail`. On Windows, the helper uses WSL2 Docker automatically when available. Native cross-builds are still supported with an ARM Linux sysroot and cross `pkg-config` setup for ALSA.
+Preferred fast path: run `./tools/pi/build-pi-cross.ps1` to produce a Linux ARM binary, then upload it with `./tools/pi/deploy-pi-fast.ps1 -LocalBinary target/pi-cross/cellsymphony-pi -NoTail`. On Windows, the helper uses WSL2 Docker automatically when available. Native cross-builds are still supported with an ARM Linux sysroot and cross `pkg-config` setup for ALSA.
 
 ```powershell
-./tools/build-pi-cross.ps1
-./tools/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -LocalBinary target/pi-cross/cellsymphony-pi -NoTail
+./tools/pi/build-pi-cross.ps1
+./tools/pi/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -LocalBinary target/pi-cross/cellsymphony-pi -NoTail
 ```
 
 On a Pi or properly configured cross environment:
@@ -198,16 +192,16 @@ Wrapper examples:
 
 ```powershell
 # Safe default: runtime-only, does not stop the service or open live audio.
-./tools/run-pi-timing-probes.ps1 -Mode RuntimeOnly -Durations 15s -Scenarios idle,sense
+./tools/pi/run-pi-timing-probes.ps1 -Mode RuntimeOnly -Durations 15s -Scenarios idle,sense
 
 # Optional live-audio probe. Use when subjective timing/audio behavior is unclear.
-./tools/run-pi-timing-probes.ps1 -Mode Live -Durations 10m -Scenarios idle
+./tools/pi/run-pi-timing-probes.ps1 -Mode Live -Durations 10m -Scenarios idle
 
 # Optional audio-source drain latency probe.
-./tools/run-pi-timing-probes.ps1 -Mode AudioDrain -Durations 10m
+./tools/pi/run-pi-timing-probes.ps1 -Mode AudioDrain -Durations 10m
 
 # Focused FX budget profile.
-./tools/run-pi-timing-probes.ps1 -Mode DspFxLimits
+./tools/pi/run-pi-timing-probes.ps1 -Mode DspFxLimits
 ```
 
 The wrapper stops `cellsymphony.service` for live/audio/DSP modes and restarts it after the probe. Runtime-only mode leaves the service running. Use `-PrintOnly` to inspect the remote command first.
@@ -227,8 +221,8 @@ Use the real hardware loop for Pi-only behavior, input latency, OLED rendering, 
 1. Cross-build and deploy from the PC first:
 
    ```powershell
-   ./tools/build-pi-cross.ps1
-   ./tools/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -LocalBinary target/pi-cross/cellsymphony-pi -NoTail
+   ./tools/pi/build-pi-cross.ps1
+   ./tools/pi/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -LocalBinary target/pi-cross/cellsymphony-pi -NoTail
    ```
 
 2. Ask for a focused hardware observation before assuming the fix worked. Specify the control path, expected behavior, and what failure would look or sound like.

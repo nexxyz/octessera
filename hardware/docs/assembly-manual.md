@@ -6,12 +6,12 @@ The hardware is still being fit-tested. Check the current enclosure files before
 
 ## Source files
 
-- Gerbers for PCB fabrication: [`KiCAD/gerber/gerber.zip`](KiCAD/gerber/gerber.zip)
-- Schematic: [`KiCAD/cellSymphony.kicad_sch`](KiCAD/cellSymphony.kicad_sch)
-- PCB layout: [`KiCAD/cellSymphony.kicad_pcb`](KiCAD/cellSymphony.kicad_pcb)
+- Gerbers for PCB fabrication: [`../../release-artifacts/pcb/gerber/gerber.zip`](../../release-artifacts/pcb/gerber/gerber.zip)
+- Schematic: [`../pcb/cellSymphony.kicad_sch`](../pcb/cellSymphony.kicad_sch)
+- PCB layout: [`../pcb/cellSymphony.kicad_pcb`](../pcb/cellSymphony.kicad_pcb)
 - Wiring reference: [`pinout-and-connections.md`](pinout-and-connections.md)
 - Pi setup and bring-up: [`pi-bring-up.md`](pi-bring-up.md)
-- Enclosure reference: [`enclosure/README.md`](enclosure/README.md)
+- Enclosure reference: [`../enclosure/README.md`](../enclosure/README.md)
 
 ## BOM
 
@@ -19,7 +19,7 @@ The hardware is still being fit-tested. Check the current enclosure files before
 
 | Qty | Item | Exact/current part | Notes |
 |---:|---|---|---|
-| 1 | Custom PCB | Fabricate from [`KiCAD/gerber/gerber.zip`](KiCAD/gerber/gerber.zip) | Order as a two-layer PCB unless the Gerber notes say otherwise. |
+| 1 | Custom PCB | Fabricate from [`../../release-artifacts/pcb/gerber/gerber.zip`](../../release-artifacts/pcb/gerber/gerber.zip) | Order as a two-layer PCB unless the Gerber notes say otherwise. |
 | 4 | NeoTrellis 4x4 driver PCB | [Mouser `485-3954`](https://www.mouser.com/ProductDetail/Adafruit/3954), Adafruit `3954` | Forms the 8x8 grid. |
 | 4 | Silicone 4x4 keypad | [Mouser `485-1611`](https://www.mouser.com/ProductDetail/Adafruit/1611), Adafruit `1611` | One per NeoTrellis board. |
 | 1 | NeoKey 1x4 QT | [Mouser `485-4980`](https://www.mouser.com/ProductDetail/Adafruit/4980), Adafruit `4980` | Holds the four Cherry MX keys. |
@@ -45,11 +45,11 @@ The hardware is still being fit-tested. Check the current enclosure files before
 
 | Qty | Item | File/spec | Notes |
 |---:|---|---|---|
-| 1 | Enclosure top | `enclosure/case_top_two_level_cadquery.stl` | Generated from CadQuery. STEP file is also checked in. |
-| 1 | Enclosure bottom | `enclosure/case_bottom_plate_cadquery.stl` | Current bottom plate with guide walls and screw holes. |
-| 18 | Regular module standoff | `enclosure/standoff_pillar_9mm.stl` | For Pi, OLED, DAC, power breakout, and NeoKey support locations. |
-| 8 | NeoTrellis standoff | `enclosure/standoff_pillar_10mm.stl` | Two for each NeoTrellis board. |
-| 26 | Standoff top pin | `enclosure/standoff_top_pin_thin_base.stl` | One top pin for every standoff. This is the default top pin with a `0.5mm` base disc. |
+| 1 | Enclosure top | `../../release-artifacts/enclosure/case_top_two_level_cadquery.stl` | Generated from CadQuery. STEP file is also checked in. |
+| 1 | Enclosure bottom | `../../release-artifacts/enclosure/case_bottom_plate_cadquery.stl` | Current bottom plate with guide walls and screw holes. |
+| 18 | Regular module standoff | `../../release-artifacts/enclosure/standoff_pillar_9mm.stl` | For Pi, OLED, DAC, power breakout, and NeoKey support locations. |
+| 8 | NeoTrellis standoff | `../../release-artifacts/enclosure/standoff_pillar_10mm.stl` | Two for each NeoTrellis board. |
+| 26 | Standoff top pin | `../../release-artifacts/enclosure/standoff_top_pin_thin_base.stl` | One top pin for every standoff. This is the default top pin with a `0.5mm` base disc. |
 | 8 | Heat-set insert | [M3 heat-set insert](https://de.aliexpress.com/item/1005012199553197.html), about `4.0-4.2mm` outer diameter and `5-6mm` long | Insert from the underside of the top. The linked kit includes multiple sizes; use the M3 inserts that fit the `4.2mm` pilot holes. |
 | 8 | Screws | M3 x 8mm socket-head cap screw, DIN 912 / ISO 4762 style | Installed from the bottom. Use a head diameter no larger than `6.4mm` so it fits the counterbores. |
 | 8 | Rubber feet or screw-hole plugs | Small adhesive feet | Optional, covers bottom screw holes and prevents sliding. |

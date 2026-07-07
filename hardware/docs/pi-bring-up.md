@@ -5,8 +5,8 @@ This is the current end-user bring-up guide for the Raspberry Pi Zero 2 W hardwa
 Use it with:
 
 - [`pinout-and-connections.md`](pinout-and-connections.md) for wiring and pin ownership.
-- [`enclosure/README.md`](enclosure/README.md) for case, ports, and power rules.
-- [`../docs/menu-and-controls-spec.md`](../docs/menu-and-controls-spec.md) for runtime controls and OLED/grid behavior.
+- [`../enclosure/README.md`](../enclosure/README.md) for case, ports, and power rules.
+- [`../../docs/menu-and-controls-spec.md`](../../docs/menu-and-controls-spec.md) for runtime controls and OLED/grid behavior.
 
 ## Hardware Target
 
@@ -91,7 +91,7 @@ aplay -l
 From Windows, run the SSH preflight helper:
 
 ```powershell
-./tools/pi-preflight.ps1 -Target pi@192.168.0.211
+./tools/pi/pi-preflight.ps1 -Target pi@192.168.0.211
 ```
 
 Running the normal app before the PCB/components are attached is only a negative smoke test. Missing OLED or I2C devices should fail clearly rather than silently falling back.
@@ -107,17 +107,17 @@ cargo build -p cellsymphony-pi
 Preferred hardware iteration from Windows:
 
 ```powershell
-./tools/build-pi-cross.ps1
-./tools/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -LocalBinary target/pi-cross/cellsymphony-pi -NoTail
+./tools/pi/build-pi-cross.ps1
+./tools/pi/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -LocalBinary target/pi-cross/cellsymphony-pi -NoTail
 ```
 
 Fallback on-Pi build:
 
 ```powershell
-./tools/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -BuildOnPi -NoTail -AllowServiceFailure
+./tools/pi/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -BuildOnPi -NoTail -AllowServiceFailure
 ```
 
-`tools/deploy-pi-fast.ps1` preserves the Pi `target/` cache by default. Use `-CleanRemote` only when intentionally discarding that cache.
+`tools/pi/deploy-pi-fast.ps1` preserves the Pi `target/` cache by default. Use `-CleanRemote` only when intentionally discarding that cache.
 
 ## Release Image
 
@@ -135,7 +135,7 @@ The release image must not include WiFi credentials, SSH keys, GitHub tokens, ho
 
 ## Verified Development Pi State
 
-The current development Pi at `pi@192.168.0.211` has been verified with `tools/pi-preflight.ps1`:
+The current development Pi at `pi@192.168.0.211` has been verified with `tools/pi/pi-preflight.ps1`:
 
 - Raspberry Pi OS Lite aarch64, kernel `6.18.34+rpt-rpi-v8`
 - Persistent journald enabled through `/var/log/journal`
@@ -164,7 +164,7 @@ The current development Pi at `pi@192.168.0.211` has been verified with `tools/p
 7. Verify transport timing and MIDI clock behavior.
 8. Verify preset/default storage and sample browser paths.
 
-Current open validation work is tracked in [`../docs/open-work.md`](../docs/open-work.md).
+Current open validation work is tracked in [`../../docs/open-work.md`](../../docs/open-work.md).
 The no-OLED manual walkthrough and CLI diagnostics are defined in [`manual-hardware-test-suite.md`](manual-hardware-test-suite.md).
 
 Quick diagnostics:

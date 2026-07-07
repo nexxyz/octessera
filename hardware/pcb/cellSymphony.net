@@ -1,7 +1,7 @@
 (export
 	(version "E")
 	(design
-		(source "F:\\dev\\cellSymphony\\hardware\\KiCAD\\cellSymphony.kicad_sch")
+		(source "F:\\dev\\cellSymphony\\hardware\\pcb\\cellSymphony.kicad_sch")
 		(date "2026-06-18T15:09:07")
 		(tool "Eeschema 10.0.1")
 		(sheet

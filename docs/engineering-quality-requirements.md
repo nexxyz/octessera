@@ -2,7 +2,7 @@
 
 This contributor document describes the current quality baseline. It should match the checks that are actually wired in this repository.
 
-Primary docs are still the user and hardware docs: `hardware/pinout-and-connections.md`, `hardware/enclosure/README.md`, `hardware/pi-bring-up.md`, and `docs/menu-and-controls-spec.md`.
+Primary docs are still the user and hardware docs: `hardware/docs/pinout-and-connections.md`, `hardware/enclosure/README.md`, `hardware/docs/pi-bring-up.md`, and `docs/menu-and-controls-spec.md`.
 
 ## Goals
 
