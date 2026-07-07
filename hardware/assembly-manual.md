@@ -1,0 +1,182 @@
+# Cell Symphony Hardware Assembly Manual
+
+This guide builds the standalone Cell Symphony instrument: PCB, soldered controls, plug-in modules, NeoTrellis grid, Raspberry Pi image, and enclosure.
+
+The hardware is still being fit-tested. Check the current enclosure files before ordering printed parts.
+
+## Source files
+
+- Gerbers for PCB fabrication: [`KiCAD/gerber/gerber.zip`](KiCAD/gerber/gerber.zip)
+- Schematic: [`KiCAD/cellSymphony.kicad_sch`](KiCAD/cellSymphony.kicad_sch)
+- PCB layout: [`KiCAD/cellSymphony.kicad_pcb`](KiCAD/cellSymphony.kicad_pcb)
+- Wiring reference: [`pinout-and-connections.md`](pinout-and-connections.md)
+- Pi setup and bring-up: [`pi-bring-up.md`](pi-bring-up.md)
+- Enclosure reference: [`enclosure/README.md`](enclosure/README.md)
+
+## BOM
+
+### PCB and electronics
+
+| Qty | Item | Exact/current part | Notes |
+|---:|---|---|---|
+| 1 | Custom PCB | Fabricate from [`KiCAD/gerber/gerber.zip`](KiCAD/gerber/gerber.zip) | Order as a two-layer PCB unless the Gerber notes say otherwise. |
+| 4 | NeoTrellis 4x4 driver PCB | [Mouser `485-3954`](https://www.mouser.com/ProductDetail/Adafruit/3954), Adafruit `3954` | Forms the 8x8 grid. |
+| 4 | Silicone 4x4 keypad | [Mouser `485-1611`](https://www.mouser.com/ProductDetail/Adafruit/1611), Adafruit `1611` | One per NeoTrellis board. |
+| 1 | NeoKey 1x4 QT | [Mouser `485-4980`](https://www.mouser.com/ProductDetail/Adafruit/4980), Adafruit `4980` | Holds the four Cherry MX keys. |
+| 1 | Raspberry Pi Zero 2 W with header | [Mouser `358-SC0721`](https://www.mouser.com/ProductDetail/Raspberry-Pi/SC0721), Raspberry Pi `SC0721` | Use the headered version. |
+| 1 | SSD1351 OLED breakout with microSD holder | [Mouser `485-1431`](https://www.mouser.com/ProductDetail/Adafruit/1431), Adafruit `1431` | SPI display. |
+| 1 | PCM5102 I2S DAC | [Mouser `485-6250`](https://www.mouser.com/ProductDetail/Adafruit/6250), Adafruit `6250` | Line/headphone output path. |
+| 1 | USB-C power breakout | [Mouser `485-4090`](https://www.mouser.com/ProductDetail/Adafruit/4090), Adafruit `4090` | Power the device here, not through the Pi. |
+| 5 | Horizontal rotary encoder with switch | [Mouser `652-PEC12R-4225F-S24`](https://www.mouser.com/ProductDetail/Bourns/PEC12R-4225F-S0024), Bourns `PEC12R-4225F-S0024` | The PCB uses four encoders; buy one spare. |
+| 4 | Black D-shaft encoder knob | [Mouser `450-BA600`](https://www.mouser.com/ProductDetail/Eagle-Plastic-Devices/450-BA600) | Main/aux encoder caps. |
+| 1 | Red 20mm encoder knob | [Mouser `485-5530`](https://www.mouser.com/ProductDetail/Adafruit/5530), Adafruit `5530` | Optional accent knob. |
+| 2 | STEMMA QT / Qwiic JST-SH cable, 200mm | [Mouser `485-4401`](https://www.mouser.com/ProductDetail/Adafruit/4401), Adafruit `4401` | For module bring-up or alternate I2C wiring. |
+| 1 | Polarized capacitor | [`470uF`, 16V, radial, about 8x12mm](https://de.aliexpress.com/item/1005010415990713.html) | PCB footprint: `CP_Radial_D8.0mm_P3.50mm`. Any equivalent 470uF polarized radial capacitor with 3.5mm lead pitch and >5V rating is fine. |
+| 1 | 1x5 right-angle female socket/header, 2.54mm pitch | [2.54mm right-angle female header strip](https://de.aliexpress.com/item/32896617287.html) | Cut to 5 pins for the NeoTrellis connector on the PCB. |
+| 1 | 5-wire female-to-male Dupont cable, about 5cm | [Female-to-male Dupont jumper cable set](https://de.aliexpress.com/item/1005003683781229.html) | Use five adjacent leads, about 5cm long, to connect the NeoTrellis array to the PCB. |
+| several | Low-profile female header/socket strips, 2.54mm pitch | [Round-pin 2.54mm header/socket strip](https://de.aliexpress.com/item/1005006673257121.html) or [round-pin 2.54mm header/socket strip](https://de.aliexpress.com/item/4001122376295.html) | Cut to length for Pi, OLED, DAC, power breakout, and other plug-in modules. Confirm the socket height before ordering. |
+| 4 | Cherry MX-compatible key switches | [Mouser `540-MX1A-G1NW`](https://www.mouser.com/ProductDetail/CHERRY/MX1A-G1NW), Cherry MX Black, or any MX-compatible switch | Install into the NeoKey after bring-up. |
+| 4 | MX keycaps | [Mouser `540-G99-1779ZUB`](https://www.mouser.com/ProductDetail/CHERRY/G99-1779ZUB), or any MX-stem keycap | Match your preferred profile. |
+| 1 | MicroSD card for Raspberry Pi | 16GB or larger recommended | Flash the release image. |
+| 1 | USB-C power supply | 5V supply with enough current for Pi + LEDs | Connect only to the USB-C breakout. |
+| 1 | Audio cable/headphones/speaker | 3.5mm audio | Used for test and operation. |
+
+### 3D printed and mechanical parts
+
+| Qty | Item | File/spec | Notes |
+|---:|---|---|---|
+| 1 | Enclosure top | `enclosure/case_top_two_level_cadquery.stl` | Generated from CadQuery. STEP file is also checked in. |
+| 1 | Enclosure bottom | `enclosure/case_bottom_plate_cadquery.stl` | Current bottom plate with guide walls and screw holes. |
+| 18 | Regular module standoff | `enclosure/standoff_pillar_9mm.stl` | For Pi, OLED, DAC, power breakout, and NeoKey support locations. |
+| 8 | NeoTrellis standoff | `enclosure/standoff_pillar_10mm.stl` | Two for each NeoTrellis board. |
+| 26 | Standoff top pin | `enclosure/standoff_top_pin_thin_base.stl` | One top pin for every standoff. This is the default top pin with a `0.5mm` base disc. |
+| 8 | Heat-set insert | [M3 heat-set insert](https://de.aliexpress.com/item/1005012199553197.html), about `4.0-4.2mm` outer diameter and `5-6mm` long | Insert from the underside of the top. The linked kit includes multiple sizes; use the M3 inserts that fit the `4.2mm` pilot holes. |
+| 8 | Screws | M3 x 8mm socket-head cap screw, DIN 912 / ISO 4762 style | Installed from the bottom. Use a head diameter no larger than `6.4mm` so it fits the counterbores. |
+| 8 | Rubber feet or screw-hole plugs | Small adhesive feet | Optional, covers bottom screw holes and prevents sliding. |
+
+Standoff STL attribution: the standoff models are based on [Stackable PCB Standoff by theduckom](https://www.printables.com/model/163087-stackable-pcb-standoff), licensed under [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/).
+
+### Tools and consumables
+
+- Soldering iron and solder.
+- Flush cutters.
+- Small screwdriver and a longish bit for bottom screws.
+- Heat-set insert tool or soldering iron tip for M3 inserts.
+- Multimeter.
+- Raspberry Pi Imager.
+- Optional: continuity tester, tweezers, helping hands, and magnifier.
+
+## Before soldering
+
+1. Inspect the PCB for visible manufacturing defects.
+2. Confirm the PCB matches the current Gerber zip.
+3. Sort sockets, headers, and modules before soldering.
+4. Keep every module oriented the same way it will sit in the enclosure.
+5. Mark the correct side of every module before soldering headers.
+
+Headers on the wrong side are difficult to fix. Check the silkscreen, enclosure orientation, and module footprint before soldering.
+
+## Solder the main PCB
+
+Solder low-profile sockets and headers first. They define module height and alignment.
+
+1. Solder the low-profile sockets for the Raspberry Pi, OLED, DAC, USB-C power breakout, and any other socketed modules.
+2. Solder the 1x5 right-angle female socket for the NeoTrellis connector.
+3. Solder `C1`, the `470uF` polarized capacitor. Match polarity to the PCB markings.
+4. Solder the four rotary encoders into `SW1` through `SW4`.
+
+Do not install plug-in modules yet.
+
+## Build the NeoTrellis array
+
+The four NeoTrellis boards form one 8x8 grid.
+
+1. Arrange the boards as viewed from the play surface:
+   - upper left
+   - upper right
+   - lower left
+   - lower right
+2. Solder the boards together with pin links between adjacent edges.
+3. Add the external connector pins to the left side of the upper-left NeoTrellis board.
+4. Set the NeoTrellis addresses:
+
+   | Position | Jumpers | Address |
+   |---|---|---:|
+   | upper left | none | `0x2E` |
+   | upper right | A0 | `0x2F` |
+   | lower left | A1 | `0x30` |
+   | lower right | A0 + A1 | `0x31` |
+
+5. Set the NeoKey address by soldering A0, A1, A2, and A3. Leave A4 open. The expected address is `0x3F`.
+
+## Flash the Raspberry Pi image
+
+1. Download the latest release image from the project releases. It is named like:
+
+   ```text
+   CellSymphony-<version>-pi-zero-2w.img.zip
+   ```
+
+2. Flash it to the Pi microSD card with Raspberry Pi Imager.
+3. Configure WiFi, SSH, hostname, and locale in Raspberry Pi Imager if you need network access.
+4. Insert the microSD card into the Raspberry Pi.
+
+For manual Pi setup and diagnostics, see [`pi-bring-up.md`](pi-bring-up.md).
+
+## First electrical assembly
+
+1. Insert the Raspberry Pi, OLED, DAC, USB-C power breakout, and NeoKey into their sockets.
+2. Connect the NeoTrellis array to the PCB with the short 5-wire female-to-male Dupont cable.
+3. Install the Cherry MX switches into the NeoKey.
+4. Add the keycaps.
+5. Connect audio output to headphones, speakers, or a mixer.
+6. Connect power to the USB-C breakout.
+
+Do not power the device from the Raspberry Pi power connector.
+
+Wait for the Pi to boot. First boot can take a while. Then check:
+
+- NeoKey LEDs/input.
+- NeoTrellis LEDs/input.
+- OLED output.
+- Encoder turns and presses.
+- Audio output.
+
+Then run the hardware diagnostics from the System menu before assembling the enclosure. Complete the guided checks for display, grid, keys, encoders, and audio while the boards are still accessible.
+
+If the hardware does not come up, stop and use the bring-up checks in [`pi-bring-up.md`](pi-bring-up.md).
+
+## Enclosure assembly
+
+Only assemble the enclosure after the electrical test and System-menu diagnostics pass.
+
+1. Place the bottom enclosure on the bench.
+2. Put the PCB and NeoTrellis array onto the bottom.
+3. Add standoffs between the bottom supports and the modules:
+   - For each plug-in module, remove the module, add the standoff, then reinstall the module.
+   - Repeat for the NeoTrellis array.
+4. Press one top pin into every standoff, including PCB/module standoffs and NeoTrellis standoffs.
+5. Insert the M3 heat-set inserts into the underside of the enclosure top with a soldering iron or insert tool.
+6. Place the enclosure top over the assembly. The guide walls and standoff pins should locate the parts without forcing them.
+7. Turn the device over carefully.
+8. Install the bottom screws into the recessed holes and tighten them into the heat inserts.
+9. Add rubber feet or screw-hole covers if desired.
+
+Tighten screws gently. If the top does not sit flat, stop and find the interference instead of forcing the case closed.
+
+## Final checks
+
+1. Connect power through the USB-C breakout.
+2. Wait for boot.
+3. Confirm input from all encoders, NeoKey switches, and NeoTrellis buttons.
+4. Confirm the OLED is readable.
+5. Confirm audio output from the DAC.
+6. Confirm the Pi microSD, OLED microSD, audio, USB-C power, Pi mini-HDMI, and Pi USB data openings are accessible.
+
+## Things to verify before ordering in quantity
+
+- Confirm the selected M3 heat-set inserts fit the `4.2mm` pilot holes and that M3 x 8mm socket-head screws reach the inserts cleanly after printing.
+- Final fit of the printed bottom, top, standoffs, and top pins.
+- Whether the generic sockets you buy match the intended low profile.
+- Whether the 5cm Dupont cable has enough slack after the NeoTrellis array is installed.
+- Port alignment after printing with your printer and slicer.

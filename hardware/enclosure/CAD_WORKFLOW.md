@@ -35,6 +35,18 @@ Use this checklist before changing generated solids, Z transitions, or board-adj
 - Check the final model bounding box. Expected Z range is `9..26 mm` for the current top model.
 - Review both the plan image and at least one CAD or slicer section for Z-transition changes.
 
+## Bottom plate plan
+
+The first bottom artifact is only a flat drill/alignment plate. It is not the final enclosure tray.
+
+- Source: `generate_bottom_plate_cadquery.py`.
+- Exports: `case_bottom_plate_cadquery.step` and `case_bottom_plate_cadquery.stl`.
+- Footprint: same rounded rectangle as the faceplate.
+- Holes: one M3 clearance hole and bottom-side counterbore at each `faceplate_insert_pillars_v22` position.
+- Guide walls: low inset perimeter ribs align the faceplate without forming a full tray.
+- Scope exclusions for this step: no full-height side walls, no port cutouts, no PCB retention, no NeoTrellis retention, no internal towers.
+- Validate with `validate_bottom_plate.py` after changing insert positions or bottom-plate dimensions.
+
 ## Required roof checks
 
 `validate_wave_roof.py` checks the failure mode that caused slicer artifacts:

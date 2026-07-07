@@ -6,8 +6,10 @@ from pathlib import Path
 
 import cadquery as cq
 
-from faceplate_insert_pillars import add_faceplate_insert_pillars
+from faceplate_insert_pillars import add_faceplate_insert_pillars, subtract_faceplate_insert_holes
+from faceplate_neokey_support import neokey_south_filler, neokey_support_block
 from faceplate_walls import perimeter_wall_skirts
+from top_wall_port_cutouts import add_top_wall_port_cutouts
 from wave_guidance import (
     SLOPE_PROFILE_STEPS,
     SOUTH_ROOF_LOW_WALL_BAND,
@@ -24,19 +26,22 @@ STL_OUT = ROOT / "case_top_two_level_cadquery.stl"
 
 
 LOW_Z = 12.0
-HIGH_Z = 26.0
+HIGH_Z = 17.0
 UNDERSIDE_Z = 9.0
-HIGH_UNDERSIDE_Z = 23.0
+HIGH_UNDERSIDE_Z = 14.0
 EXTENDED_SLOPE_RIGHT_X = 115.0
 NEOKEY_PANEL_Y_OFFSET = 2.0
-NEOKEY_CAP_RELIEF_BOTTOM_Z = 16.0
-NEOKEY_SEAT_BOTTOM_Z = UNDERSIDE_Z
+NEOKEY_TOP_Z = 16.0
+NEOKEY_KEYCAP_RECESS_DEPTH = 1.0
+NEOKEY_SEAT_BOTTOM_Z = UNDERSIDE_Z + 1.0
 NEOKEY_SEAT_OVERLAP = 3.0
-LOWER_WAVE_HEIGHT_SCALE = 0.5
+LOWER_WAVE_HEIGHT_SCALE = 1.0
 LOWER_WAVE_HIGH_UNDERSIDE_Z = UNDERSIDE_Z + (HIGH_UNDERSIDE_Z - UNDERSIDE_Z) * LOWER_WAVE_HEIGHT_SCALE
 LOWER_WAVE_HIGH_Z = LOW_Z + (HIGH_Z - LOW_Z) * LOWER_WAVE_HEIGHT_SCALE
 LOWER_TO_TIER2_RAMP_START_X = 105.0
 LOWER_TO_TIER2_RAMP_END_X = 115.0
+TIER1_WAVE_SEAM_OVERLAP = 2.4
+NEOKEY_WAVE_HOLLOW_SOUTH_EXTRA = 1.0
 
 def x_at_y(points: list[tuple[float, float]], y: float) -> float:
     sorted_points = sorted(points, key=lambda point: point[1])
@@ -58,8 +63,6 @@ def first_y_at_x(points: list[tuple[float, float]], x: float) -> float:
                 return y1
             return y0 + (y1 - y0) * ((x - x0) / (x1 - x0))
     return sorted_points[-1][1]
-
-
 def rounded_plate(width: float, depth: float, radius: float, z0: float, thickness: float) -> cq.Workplane:
     sketch = cq.Sketch().rect(width, depth).vertices().fillet(radius)
     return (
@@ -68,8 +71,6 @@ def rounded_plate(width: float, depth: float, radius: float, z0: float, thicknes
         .extrude(thickness)
         .translate((width / 2.0, depth / 2.0, z0))
     )
-
-
 def y_band_prism(width: float, y0: float, y1: float, margin: float, z_height: float) -> cq.Workplane:
     points = [
         (-margin, y0),
@@ -79,7 +80,6 @@ def y_band_prism(width: float, y0: float, y1: float, margin: float, z_height: fl
     ]
     return cq.Workplane("XY").polyline(points).close().extrude(z_height).translate((0, 0, -1))
 
-
 def x_band_prism(x0: float, x1: float, depth: float, margin: float, z_height: float) -> cq.Workplane:
     points = [
         (x0, -margin),
@@ -88,7 +88,6 @@ def x_band_prism(x0: float, x1: float, depth: float, margin: float, z_height: fl
         (x1, -margin),
     ]
     return cq.Workplane("XY").polyline(points).close().extrude(z_height).translate((0, 0, -1))
-
 
 def right_region_prism(width: float, depth: float, margin: float, z_height: float) -> cq.Workplane:
     high, _ = south_edge_samples()
@@ -103,9 +102,9 @@ def right_region_prism(width: float, depth: float, margin: float, z_height: floa
 
 
 def left_region_prism(width: float, depth: float, margin: float, z_height: float) -> cq.Workplane:
-    _, low = south_edge_samples()
-    points = [(-margin, -margin), (-margin, depth + margin), (low[-1][0] + 0.2, depth + margin)]
-    points += [(x + 0.2, y) for x, y in reversed(low)]
+    high, _ = south_edge_samples()
+    points = [(-margin, -margin), (-margin, depth + margin), (high[-1][0] + TIER1_WAVE_SEAM_OVERLAP, depth + margin)]
+    points += [(x + TIER1_WAVE_SEAM_OVERLAP, y) for x, y in reversed(high)]
     points.append((-margin, -margin))
     return cq.Workplane("XY").polyline(points).close().extrude(z_height).translate((0, 0, -1))
 
@@ -219,27 +218,11 @@ def rect_cutter_from_z(x0: float, y0: float, x1: float, y1: float, radius: float
 def rect_prism(x0: float, y0: float, x1: float, y1: float, radius: float, z0: float, z1: float) -> cq.Workplane:
     width = x1 - x0
     depth = y1 - y0
+    if radius <= 0.0:
+        return cq.Workplane("XY").rect(width, depth).extrude(z1 - z0).translate(((x0 + x1) / 2.0, (y0 + y1) / 2.0, z0))
     sketch = cq.Sketch().rect(width, depth).vertices().fillet(radius)
     prism = cq.Workplane("XY").placeSketch(sketch).extrude(z1 - z0)
     return prism.translate(((x0 + x1) / 2.0, (y0 + y1) / 2.0, z0))
-
-
-def west_rounded_rect_prism(
-    x0: float, y0: float, x1: float, y1: float, radius: float, z0: float, z1: float
-) -> cq.Workplane:
-    arc_offset = radius * (1.0 - 2.0**-0.5)
-    return (
-        cq.Workplane("XY")
-        .moveTo(x1, y0)
-        .lineTo(x1, y1)
-        .lineTo(x0 + radius, y1)
-        .threePointArc((x0 + arc_offset, y1 - arc_offset), (x0, y1 - radius))
-        .lineTo(x0, y0 + radius)
-        .threePointArc((x0 + arc_offset, y0 + arc_offset), (x0 + radius, y0))
-        .close()
-        .extrude(z1 - z0)
-        .translate((0, 0, z0))
-    )
 
 
 def circle_cutter(x: float, y: float, radius: float) -> cq.Workplane:
@@ -320,19 +303,6 @@ def neokey_seat_bounds(params: dict, key_centers: list[tuple[float, float]]) -> 
     )
 
 
-def neokey_support_block(params: dict, key_centers: list[tuple[float, float]]) -> cq.Workplane:
-    seat_x0, seat_y0, seat_x1, seat_y1 = neokey_seat_bounds(params, key_centers)
-    return west_rounded_rect_prism(
-        seat_x0,
-        seat_y0,
-        seat_x1,
-        seat_y1,
-        params["key_cutout_r"],
-        NEOKEY_SEAT_BOTTOM_Z,
-        HIGH_Z,
-    )
-
-
 def local_to_case(params: dict, point: list[float]) -> tuple[float, float]:
     _, case_depth = params["case_size_v21"]
     offset_x, offset_y = params["offset_v21"]
@@ -348,18 +318,22 @@ def neokey_key_centers(params: dict) -> list[tuple[float, float]]:
 
 def add_neokey_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane:
     key_centers = neokey_key_centers(params)
-    slot_x0, slot_y0, slot_x1, slot_y1 = neokey_slot_bounds(params, key_centers)
-    model = model.union(neokey_support_block(params, key_centers))
-    model = model.cut(
-        rect_cutter_from_z(
-            slot_x0,
-            slot_y0,
-            slot_x1,
-            slot_y1,
-            params["key_cutout_r"],
-            NEOKEY_CAP_RELIEF_BOTTOM_Z,
+    seat_bounds = neokey_seat_bounds(params, key_centers)
+    model = model.union(neokey_support_block(params, seat_bounds, NEOKEY_SEAT_BOTTOM_Z, LOW_Z, NEOKEY_TOP_Z))
+    model = model.union(neokey_south_filler(seat_bounds, NEOKEY_SEAT_BOTTOM_Z, NEOKEY_TOP_Z))
+    key_w = key_h = params["key_cutout"][0]
+    for x, y in key_centers:
+        model = model.cut(
+            rect_prism(
+                x - key_w / 2,
+                y - key_h / 2,
+                x + key_w / 2,
+                y + key_h / 2,
+                params["key_cutout_r"],
+                NEOKEY_TOP_Z - NEOKEY_KEYCAP_RECESS_DEPTH,
+                NEOKEY_TOP_Z + 0.2,
+            )
         )
-    )
     mx_cutout = params["mx_switch_retention_cutout"]
     for x, y in key_centers:
         model = model.cut(
@@ -417,20 +391,22 @@ def build_model(params: dict) -> cq.Workplane:
     width, depth = params["case_size_v21"]
     radius = params["corner_r"]
     top_thick = params["top_thick"]
-    neokey_seat_x0, _, _, neokey_seat_top_y = neokey_seat_bounds(
+    neokey_seat_x0, neokey_seat_y0, neokey_seat_x1, neokey_seat_top_y = neokey_seat_bounds(
         params, neokey_key_centers(params)
     )
     _, low_edge = south_edge_samples()
     lower_wave_top_y = first_y_at_x(low_edge, neokey_seat_x0)
 
     footprint = rounded_plate(width, depth, radius, 0, 40)
-    low_plate = rounded_plate(width, depth, radius, UNDERSIDE_Z, top_thick).intersect(
-        left_region_prism(width, depth, 5, 40)
-    )
+    low_plate = rounded_plate(width, depth, radius, UNDERSIDE_Z, top_thick).intersect(left_region_prism(width, depth, 5, 40))
     right_region = right_region_prism(width, depth, 5, 40)
     wave_strip_region = right_region.intersect(
         x_band_prism(-5.0, EXTENDED_SLOPE_RIGHT_X, depth, 5, 40)
     )
+    neokey_seat_region = x_band_prism(neokey_seat_x0, neokey_seat_x1, depth, 5, 40).intersect(
+        y_band_prism(width, neokey_seat_y0 - NEOKEY_WAVE_HOLLOW_SOUTH_EXTRA, neokey_seat_top_y, 5, 40)
+    )
+    low_plate = low_plate.cut(neokey_seat_region)
     high_plate = rounded_plate(width, depth, radius, HIGH_UNDERSIDE_Z, top_thick).intersect(
         right_region
     )
@@ -447,7 +423,9 @@ def build_model(params: dict) -> cq.Workplane:
         wave_strip_region.intersect(y_band_prism(width, -5.0, lower_wave_top_y, 5, 40))
     )
     lower_wave_plate = lower_wave_plate.cut(ramp_region)
+    lower_wave_plate = lower_wave_plate.cut(neokey_seat_region)
     wave_flat_ramp = east_wave_ramp_loft(0.0, lower_wave_top_y)
+    wave_flat_ramp = wave_flat_ramp.cut(neokey_seat_region)
     flat_faceplate = add_cutouts(
         low_plate.union(lower_wave_plate).union(wave_flat_ramp).union(high_plate).clean(),
         params,
@@ -456,6 +434,7 @@ def build_model(params: dict) -> cq.Workplane:
     lower_wave = (
         shoulder_loft(0.0, lower_wave_top_y, LOWER_WAVE_HEIGHT_SCALE)
         .intersect(footprint)
+        .cut(neokey_seat_region)
         .clean()
     )
     shoulder = upper_shoulder.union(lower_wave).clean()
@@ -472,9 +451,8 @@ def build_model(params: dict) -> cq.Workplane:
     model = flat_faceplate.union(shoulder).union(skirts).clean()
     model = add_faceplate_insert_pillars(model, params)
     model = add_neokey_cutouts(model, params).clean()
-    return add_guidance_slots(model).clean()
-
-
+    model = add_guidance_slots(model).clean()
+    return subtract_faceplate_insert_holes(add_top_wall_port_cutouts(model.union(skirts).clean(), params), params)
 def main() -> None:
     params = json.loads(PARAMS.read_text())
     model = build_model(params)
@@ -485,7 +463,5 @@ def main() -> None:
     generate_review_view()
     print(f"wrote {STEP_OUT}")
     print(f"wrote {STL_OUT}")
-
-
 if __name__ == "__main__":
     main()

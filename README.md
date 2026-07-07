@@ -59,23 +59,15 @@ The full control and menu reference is [`docs/menu-and-controls-spec.md`](docs/m
 - **L4: Dance** — perform with mix, pan, trigger probability, XY, and momentary effects.
 - **System** — presets, default/factory actions, sound, MIDI, brightness, sleep, and help.
 
-## Build The Hardware (NOTE: not yet tested, more detailed instructions will follow at a later point in time)
-It is rather simple, especially if you've done some DIY synth work before. But even as a beginner, this is an entirely feasible first project.
+## Build The Hardware
 
-1. Use a service to get a custom PCB based on the provided Gerber files.
-2. Order the items in our BOM.
-3. Solder the sockets, capacitor and encoders directly onto the board. The Neotrellis uses the horizontal pin connector. The other elements all use the low-profile sockets.
-4. Solder the Neotrellis elements together, and add pins to the top left element on its left egge
-5. Bridge the jumper pads on the Neotrellis elements (none on the top left, A0 on top right, A1 on bottom left, A0 and A1 on bottom right)
-6. Bridge all jumper pads on the Neokeys
-7. Plug in all the elements (display, pi, neokeys, neotrellis, power connector, DAC)
-8. Flash the RPi image to a micro SD card
-9. Put the microSD into the pi
-10. Connect USB-C power to the power board (do NOT use the Pi's power input!)
-11. Plug in some speakers or headphones into the DAC and off you go!
-12. If you like, you can 3D print the provided enclosure and use some heat inserts and screws to hold everything together.
+The intended build is a DIY standalone instrument around a custom PCB, Raspberry Pi Zero 2 W, NeoTrellis grid, NeoKey controls, OLED, DAC, and printed enclosure.
 
-You can read about the details here:
+Start with the full assembly guide:
+
+- [`hardware/assembly-manual.md`](hardware/assembly-manual.md) — BOM, PCB ordering, soldering, module setup, Pi flashing, first power-on, and enclosure assembly.
+
+Related references:
 
 1. [`hardware/pinout-and-connections.md`](hardware/pinout-and-connections.md) — wiring, pin ownership, buses, and hardware source of truth.
 2. [`hardware/enclosure/README.md`](hardware/enclosure/README.md) — case, port access, print notes, and power rule.
@@ -159,6 +151,7 @@ See `docs/development-workflows.md` for complete contributor build, verification
 Primary user and hardware docs:
 
 - [`hardware/pinout-and-connections.md`](hardware/pinout-and-connections.md): Pi wiring, bus allocation, logical input mapping, and hardware source of truth.
+- [`hardware/assembly-manual.md`](hardware/assembly-manual.md): hardware BOM, soldering, first power-on, and enclosure assembly.
 - [`hardware/enclosure/README.md`](hardware/enclosure/README.md): enclosure ports, power rule, printing notes, and mechanical strategy.
 - [`hardware/pi-bring-up.md`](hardware/pi-bring-up.md): Pi OS setup, preflight, build/deploy, bring-up, diagnostics, and update plan.
 - [`docs/menu-and-controls-spec.md`](docs/menu-and-controls-spec.md): authoritative controls, menu structure, overlays, persistence, and display behavior.
@@ -176,6 +169,15 @@ Repository sample content is sourced from the Stargate sample pack:
 
 ```text
 https://github.com/stargatedaw/stargate-sample-pack
+```
+
+## Hardware model attributions
+
+The standoff STL models in `hardware/enclosure/` are based on Stackable PCB Standoff by theduckom, licensed under Creative Commons Attribution 4.0 International:
+
+```text
+https://www.printables.com/model/163087-stackable-pcb-standoff
+https://creativecommons.org/licenses/by/4.0/
 ```
 
 ## License

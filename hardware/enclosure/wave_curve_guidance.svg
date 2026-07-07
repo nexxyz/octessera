@@ -1,13 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1542" height="900" viewBox="0 0 1542 900">
   <path d="M 600 30, 600 400" stroke="brown" fill="none"/>
-  <path d="M 600 400 C 600 550, 600 765, 330 645" stroke="brown" fill="none"/>
-  <path d="M 330 645 C 210 600, 30 680, 30 869" stroke="brown" fill="none"/>
+  <path d="M 600 400 C 600 550, 600 765, 330 654" stroke="brown" fill="none"/>
+  <path d="M 330 654 C 210 615, 30 680, 30 869" stroke="brown" fill="none"/>
   <path d="M 650 30, 650 450" stroke="brown" fill="none"/>
   <path d="M 650 450 C 650 620, 600 790, 380 710" stroke="green" fill="none"/>
   <path d="M 380 710 C 250 655, 130 700, 130 869" stroke="green" fill="none"/>
-  <line x1="210.00" y1="830.00" x2="210.00" y2="740.00" stroke="#333" stroke-width="10"/>
-  <line x1="270.00" y1="830.00" x2="270.00" y2="740.00" stroke="#333" stroke-width="10"/>
-  <line x1="330.00" y1="830.00" x2="330.00" y2="740.00" stroke="#333" stroke-width="10"/>
+  <line x1="186.00" y1="824.00" x2="186.00" y2="734.00" stroke="#333" stroke-width="10"/>
+  <line x1="246.00" y1="833.00" x2="246.00" y2="725.00" stroke="#333" stroke-width="12"/>
+  <line x1="306.00" y1="824.00" x2="306.00" y2="734.00" stroke="#333" stroke-width="10"/>
+  <line x1="366.00" y1="810.50" x2="366.00" y2="747.50" stroke="#333" stroke-width="7"/>
+  <line x1="426.00" y1="801.50" x2="426.00" y2="756.50" stroke="#333" stroke-width="5"/>
   <line x1="30.00" y1="870.00" x2="30.00" y2="30.00" stroke="#eee" stroke-width="1"/>
   <line x1="90.00" y1="870.00" x2="90.00" y2="30.00" stroke="#eee" stroke-width="1"/>
   <line x1="150.00" y1="870.00" x2="150.00" y2="30.00" stroke="#eee" stroke-width="1"/>
