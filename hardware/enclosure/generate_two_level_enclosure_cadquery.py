@@ -7,7 +7,7 @@ from pathlib import Path
 import cadquery as cq
 
 from faceplate_insert_pillars import add_faceplate_insert_pillars, subtract_faceplate_insert_holes
-from faceplate_neokey_support import neokey_south_filler, neokey_support_block
+from faceplate_neokey_support import neokey_deck_cap, neokey_raised_cap, neokey_south_filler, neokey_support_block
 from faceplate_walls import perimeter_wall_skirts
 from top_wall_port_cutouts import add_top_wall_port_cutouts
 from wave_guidance import (
@@ -33,6 +33,7 @@ HIGH_UNDERSIDE_Z = 14.0
 EXTENDED_SLOPE_RIGHT_X = 115.0
 NEOKEY_PANEL_Y_OFFSET = 0.0
 NEOKEY_TOP_Z = 16.0
+NEOKEY_DECK_TOP_Z = HIGH_Z + 3.0
 NEOKEY_KEYCAP_RECESS_DEPTH = 1.0
 NEOKEY_MX_LATCH_PLATE_THICKNESS = 1.5
 NEOKEY_MX_UNDERSIDE_CLEARANCE = 2.6
@@ -336,6 +337,8 @@ def add_neokey_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane:
     seat_bounds = neokey_seat_bounds(params, key_centers)
     model = model.union(neokey_support_block(params, seat_bounds, NEOKEY_SEAT_BOTTOM_Z, LOW_Z, NEOKEY_TOP_Z))
     model = model.union(neokey_south_filler(seat_bounds, NEOKEY_SEAT_BOTTOM_Z, NEOKEY_TOP_Z))
+    model = model.union(neokey_deck_cap(params, seat_bounds, NEOKEY_TOP_Z, HIGH_Z))
+    model = model.union(neokey_raised_cap(params, seat_bounds, HIGH_Z, NEOKEY_DECK_TOP_Z))
     key_w = key_h = params["key_cutout"][0]
     for x, y in key_centers:
         model = model.cut(
@@ -346,7 +349,7 @@ def add_neokey_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane:
                 y + key_h / 2,
                 params["key_cutout_r"],
                 NEOKEY_TOP_Z - NEOKEY_KEYCAP_RECESS_DEPTH,
-                NEOKEY_TOP_Z + 0.2,
+                NEOKEY_DECK_TOP_Z + 0.2,
             )
         )
     mx_cutout = params["mx_switch_retention_cutout"]
@@ -373,7 +376,7 @@ def add_neokey_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane:
                 y + mx_cutout / 2.0,
                 params["mx_switch_retention_r"],
                 mx_plate_bottom_z - 0.05,
-                NEOKEY_TOP_Z + 0.2,
+                NEOKEY_DECK_TOP_Z + 0.2,
             )
         )
     return model

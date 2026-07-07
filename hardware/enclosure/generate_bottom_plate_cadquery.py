@@ -17,9 +17,10 @@ GUIDE_WALL_THICKNESS = 1.15
 GUIDE_WALL_HEIGHT = 1.6
 COMPONENT_PILLAR_D = 5.0
 COMPONENT_PILLAR_BASE_D = 7.0
-COMPONENT_PILLAR_HOLE_D = 2.55
+COMPONENT_PILLAR_HOLE_D = 2.65
 COMPONENT_PILLAR_HEIGHT = 5.0
-NEOTRELLIS_PILLAR_BASE_D = 8.0
+NEOTRELLIS_PILLAR_BASE_D = 7.0
+NEOTRELLIS_PILLAR_HOLE_D = 2.70
 SCREW_CLEARANCE_D = 3.4
 COUNTERBORE_D = 6.4
 CORNER_COUNTERBORE_D = 5.8
@@ -88,6 +89,11 @@ def component_support_pillars(params: dict) -> cq.Workplane:
             if spec["component"] == "neotrellis"
             else COMPONENT_PILLAR_BASE_D
         )
+        hole_d = (
+            NEOTRELLIS_PILLAR_HOLE_D
+            if spec["component"] == "neotrellis"
+            else COMPONENT_PILLAR_HOLE_D
+        )
         pillar = (
             cq.Workplane("XY")
             .circle(base_d / 2.0)
@@ -98,7 +104,7 @@ def component_support_pillars(params: dict) -> cq.Workplane:
         )
         hole = (
             cq.Workplane("XY")
-            .circle(COMPONENT_PILLAR_HOLE_D / 2.0)
+            .circle(hole_d / 2.0)
             .extrude(height + 2 * EPS)
             .translate((x, y, BOTTOM_PLATE_THICKNESS - EPS))
         )

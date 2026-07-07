@@ -12,6 +12,20 @@ def rect_prism(x0: float, y0: float, x1: float, y1: float, z0: float, z1: float)
     )
 
 
+def rounded_rect_prism(
+    x0: float, y0: float, x1: float, y1: float, radius: float, z0: float, z1: float
+) -> cq.Workplane:
+    width = x1 - x0
+    depth = y1 - y0
+    sketch = cq.Sketch().rect(width, depth).vertices().fillet(radius)
+    return (
+        cq.Workplane("XY")
+        .placeSketch(sketch)
+        .extrude(z1 - z0)
+        .translate(((x0 + x1) / 2.0, (y0 + y1) / 2.0, z0))
+    )
+
+
 def northwest_rounded_rect_prism(
     x0: float, y0: float, x1: float, y1: float, radius: float, z0: float, z1: float
 ) -> cq.Workplane:
@@ -55,3 +69,41 @@ def neokey_south_filler(
 ) -> cq.Workplane:
     seat_x0, seat_y0, seat_x1, _ = seat_bounds
     return rect_prism(seat_x0, 0.0, seat_x1, seat_y0 + 0.25, bottom_z, top_z)
+
+
+def neokey_deck_cap(
+    params: dict,
+    seat_bounds: tuple[float, float, float, float],
+    bottom_z: float,
+    top_z: float,
+) -> cq.Workplane:
+    seat_x0, seat_y0, seat_x1, seat_y1 = seat_bounds
+    support_cap = northwest_rounded_rect_prism(
+        seat_x0,
+        seat_y0,
+        seat_x1,
+        seat_y1,
+        params["key_cutout_r"],
+        bottom_z,
+        top_z,
+    )
+    filler_cap = rect_prism(seat_x0, 0.0, seat_x1, seat_y0 + 0.25, bottom_z, top_z)
+    return support_cap.union(filler_cap).clean()
+
+
+def neokey_raised_cap(
+    params: dict,
+    seat_bounds: tuple[float, float, float, float],
+    bottom_z: float,
+    top_z: float,
+) -> cq.Workplane:
+    seat_x0, _, seat_x1, seat_y1 = seat_bounds
+    return rounded_rect_prism(
+        seat_x0,
+        0.0,
+        seat_x1,
+        seat_y1,
+        params["key_cutout_r"],
+        bottom_z,
+        top_z,
+    )

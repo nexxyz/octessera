@@ -74,3 +74,16 @@ Do not accept a roof-wall change until this script passes.
 - `../../release-artifacts/enclosure/current_wave_top_view.png`: plan-view review image.
 
 STEP and STL files are generated artifacts. Do not review their full text diffs.
+
+To revert generated top artifacts from automation, prefer the checked wrapper:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File hardware/enclosure/revert_top_artifacts_checked.ps1
+```
+
+Expected sentinels:
+
+```text
+__ENCLOSURE_TOP_ARTIFACT_CHECKOUT_DONE__
+__GIT_STATUS_DONE__
+```
