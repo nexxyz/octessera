@@ -3,7 +3,7 @@ from __future__ import annotations
 import cadquery as cq
 
 
-WALL_PORT_CENTER_Z = 1.0
+WALL_PORT_TOP_Z = 7.5
 PORT_CUT_EPS = 1.0
 OLED_SD_X0 = 61.88
 OLED_SD_X1 = 82.88
@@ -32,37 +32,40 @@ def quarter_ease(t: float) -> float:
 
 
 def z_bounds(height: float, pad: float = 0.0) -> tuple[float, float]:
-    return WALL_PORT_CENTER_Z - height / 2.0 - pad, WALL_PORT_CENTER_Z + height / 2.0 + pad
+    return WALL_PORT_TOP_Z - height - pad, WALL_PORT_TOP_Z + pad
+
+
+def z_center(height: float) -> float:
+    z0, z1 = z_bounds(height)
+    return (z0 + z1) / 2.0
 
 
 def left_wall_rect(params: dict, y0: float, y1: float, height: float, x1: float | None = None) -> cq.Workplane:
     wall = params["wall"]
-    z0 = WALL_PORT_CENTER_Z - height / 2.0
-    z1 = WALL_PORT_CENTER_Z + height / 2.0
+    z0, z1 = z_bounds(height)
     return box_cutter(-PORT_CUT_EPS, y0, (x1 or wall) + PORT_CUT_EPS, y1, z0, z1)
 
 
 def south_wall_rect(params: dict, x0: float, x1: float, height: float, y1: float | None = None) -> cq.Workplane:
     wall = params["wall"]
-    z0 = WALL_PORT_CENTER_Z - height / 2.0
-    z1 = WALL_PORT_CENTER_Z + height / 2.0
+    z0, z1 = z_bounds(height)
     return box_cutter(x0, -PORT_CUT_EPS, x1, (y1 or wall) + PORT_CUT_EPS, z0, z1)
 
 
 def north_wall_rect(params: dict, x0: float, x1: float, height: float, y0: float | None = None) -> cq.Workplane:
     _, depth = params["case_size_v21"]
     wall = params["wall"]
-    z0 = WALL_PORT_CENTER_Z - height / 2.0
-    z1 = WALL_PORT_CENTER_Z + height / 2.0
+    z0, z1 = z_bounds(height)
     return box_cutter(x0, (y0 or depth - wall) - PORT_CUT_EPS, x1, depth + PORT_CUT_EPS, z0, z1)
 
 
 def audio_jack_cutter(params: dict, y: float, x1: float) -> cq.Workplane:
+    height = 8.2
     return (
         cq.Workplane("YZ")
         .circle(4.1)
         .extrude(x1 + 2 * PORT_CUT_EPS)
-        .translate((-PORT_CUT_EPS, y, WALL_PORT_CENTER_Z))
+        .translate((-PORT_CUT_EPS, y, z_center(height)))
     )
 
 

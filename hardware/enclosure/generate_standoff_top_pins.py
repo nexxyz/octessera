@@ -12,8 +12,8 @@ THIN_BASE_STEP_OUT = ARTIFACT_ROOT / "standoff_top_pin_thin_base.step"
 
 BASE_D = 5.0
 THIN_BASE_H = 0.5
-PIN_BOTTOM_D = 2.6
-PIN_TOP_D = 2.48
+PIN_BOTTOM_D = 2.65
+PIN_TOP_D = 2.53
 PIN_H = 6.0
 
 

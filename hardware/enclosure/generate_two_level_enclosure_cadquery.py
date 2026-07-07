@@ -31,7 +31,7 @@ HIGH_Z = 17.0
 UNDERSIDE_Z = 9.0
 HIGH_UNDERSIDE_Z = 14.0
 EXTENDED_SLOPE_RIGHT_X = 115.0
-NEOKEY_PANEL_Y_OFFSET = 3.0
+NEOKEY_PANEL_Y_OFFSET = 0.0
 NEOKEY_TOP_Z = 16.0
 NEOKEY_KEYCAP_RECESS_DEPTH = 1.0
 NEOKEY_MX_LATCH_PLATE_THICKNESS = 1.5
@@ -45,6 +45,7 @@ LOWER_TO_TIER2_RAMP_START_X = 105.0
 LOWER_TO_TIER2_RAMP_END_X = 115.0
 TIER1_WAVE_SEAM_OVERLAP = 2.4
 NEOKEY_WAVE_HOLLOW_SOUTH_EXTRA = 1.0
+ENCODER_CRATER_FLOOR_THICKNESS = 1.2
 
 def x_at_y(points: list[tuple[float, float]], y: float) -> float:
     sorted_points = sorted(points, key=lambda point: point[1])
@@ -284,6 +285,17 @@ def crater_cutter(x: float, y: float, flat_d: float, depth: float, slope_w: floa
     return cutter.translate((x, y, 0))
 
 
+def crater_backing(x: float, y: float, flat_d: float, depth: float, slope_w: float, top_z: float) -> cq.Workplane:
+    bottom_z = top_z - depth
+    radius = flat_d / 2.0 + slope_w + 0.4
+    return (
+        cq.Workplane("XY")
+        .circle(radius)
+        .extrude(depth + ENCODER_CRATER_FLOOR_THICKNESS)
+        .translate((x, y, bottom_z - ENCODER_CRATER_FLOOR_THICKNESS))
+    )
+
+
 def neokey_slot_bounds(params: dict, key_centers: list[tuple[float, float]]) -> tuple[float, float, float, float]:
     key_w, key_h = params["key_cutout"]
     key_x_values = [x for x, _ in key_centers]
@@ -383,6 +395,16 @@ def add_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane:
     encoder_crater_flat_d = params["encoder_crater_flat_d"]
     for name, point in params["features_local"]["encoders"].items():
         x, y = local_to_case(params, point)
+        model = model.union(
+            crater_backing(
+                x,
+                y,
+                encoder_crater_flat_d[name],
+                params["encoder_crater_depth"],
+                params["encoder_crater_slope_w"],
+                LOW_Z,
+            )
+        )
         model = model.cut(
             crater_cutter(
                 x,
