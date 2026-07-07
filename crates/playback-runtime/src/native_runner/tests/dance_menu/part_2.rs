@@ -180,11 +180,45 @@ pub(crate) fn fn_rightmost_grid_column_selects_dance_pages() {
 
     let _ = runner
         .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 7, "y": 4 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    assert_eq!(runner.active_dance_mode, "transpose");
+
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 7, "y": 5 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    assert_eq!(runner.active_dance_mode, "xy");
+
+    let _ = runner
+        .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 7, "y": 7 }),
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.active_dance_mode, "trigger-gate");
+    assert_eq!(runner.active_dance_mode, "xy");
+}
+
+#[test]
+pub(crate) fn dance_transpose_part_selection_controls_routing() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.active_dance_mode = "transpose".into();
+    runner.dance_transpose_offsets[0] = 7;
+    assert_eq!(runner.dance_transpose_offsets_for_routing()[0], 7);
+
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert!(!runner.dance_transpose_selected[0]);
+    assert_eq!(runner.dance_transpose_offsets_for_routing()[0], 0);
 }
 
 #[test]

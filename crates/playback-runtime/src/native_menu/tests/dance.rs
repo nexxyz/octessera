@@ -9,7 +9,10 @@ pub(crate) fn l4_spec_rows_show_only_selected_dance_page_controls() {
         .iter()
         .map(|item| item.label.as_str())
         .collect::<Vec<_>>();
-    assert_eq!(labels, vec!["Mix", "Pan", "FX", "Trigger Gate", "XY"]);
+    assert_eq!(
+        labels,
+        vec!["Mix", "Pan", "FX", "Trigger Gate", "Transpose", "XY"]
+    );
     let sense = &menu.root.children[1];
     assert_eq!(sense.children[0].label, "BPM");
     assert_eq!(sense.children[1].label, "Swing");
@@ -50,7 +53,10 @@ pub(crate) fn l4_spec_rows_show_only_selected_dance_page_controls() {
         .iter()
         .map(|item| item.label.as_str())
         .collect::<Vec<_>>();
-    assert_eq!(fx_labels, vec!["Mix", "Pan", "FX", "Trigger Gate", "XY"]);
+    assert_eq!(
+        fx_labels,
+        vec!["Mix", "Pan", "FX", "Trigger Gate", "Transpose", "XY"]
+    );
     let fx_labels = fx_menu.root.children[3].children[2]
         .children
         .iter()
@@ -69,7 +75,7 @@ pub(crate) fn l4_spec_rows_show_only_selected_dance_page_controls() {
         .collect::<Vec<_>>();
     assert_eq!(
         trigger_gate_labels,
-        vec!["Mix", "Pan", "FX", "Trigger Gate", "XY"]
+        vec!["Mix", "Pan", "FX", "Trigger Gate", "Transpose", "XY"]
     );
 }
 

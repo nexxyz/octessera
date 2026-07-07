@@ -7,7 +7,8 @@ impl NativeRunner {
             1 => Some(("pan", 1)),
             2 => Some(("fx", 2)),
             3 => Some(("trigger-gate", 3)),
-            4 => Some(("xy", 4)),
+            4 => Some(("transpose", 4)),
+            5 => Some(("xy", 5)),
             _ => None,
         };
         let Some((next_mode, cursor)) = next_mode else {

@@ -154,6 +154,8 @@ impl NativeRunner {
             self.handle_sample_assignment_grid_press(x, y);
         } else if self.trigger_probability_assign.is_some() {
             self.handle_trigger_probability_grid_press(x, y);
+        } else if self.active_dance_mode == "transpose" && x == 0 && self.ui.shift_held {
+            self.toggle_all_dance_transpose_parts();
         } else if self.ui.fn_held && x == 0 && !self.ui.shift_held {
             self.select_active_part(display_part_index_from_y(y))?;
             self.active_dance_mode = "none".into();
@@ -167,6 +169,8 @@ impl NativeRunner {
             }
         } else if self.active_dance_mode == "trigger-gate" {
             self.handle_trigger_gate_grid_press(x, y);
+        } else if self.active_dance_mode == "transpose" {
+            self.handle_dance_transpose_grid_press(x, y);
         } else if self.active_dance_mode == "fx" {
             let effects = self.dance_fx_press_effects(x, y);
             if !effects.is_empty() {

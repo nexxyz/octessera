@@ -60,6 +60,7 @@ impl NativeRunner {
         self.advance_active_part(&mut events)?;
 
         let instruments = self.instruments.clone();
+        let transpose_offsets = self.dance_transpose_offsets_for_routing();
         let inactive_configs = (0..self.part_engines.len())
             .map(|index| {
                 (
@@ -102,6 +103,8 @@ impl NativeRunner {
                     tick.emitted_events.len(),
                     &instruments,
                     sense.as_ref(),
+                    transpose_offsets.get(index).copied().unwrap_or(0),
+                    self.dance_transpose_active_notes.get_mut(index),
                 );
                 saw_inactive_events |= !tick_events.is_empty();
                 events.extend(tick_events);
@@ -199,12 +202,22 @@ impl NativeRunner {
                 *part_tick = self.tick;
             }
             self.apply_runtime_modulation(&tick.mapped_intents, self.active_part_index);
+            let transpose_offset = self
+                .dance_transpose_offsets_for_routing()
+                .get(self.active_part_index)
+                .copied()
+                .unwrap_or(0);
+            let active_transpose_notes = self
+                .dance_transpose_active_notes
+                .get_mut(self.active_part_index);
             let tick_events = apply_sampler_assignments_for_instruments_routed(
                 tick.events,
                 &tick.mapped_intents,
                 tick.emitted_events.len(),
                 &self.instruments,
                 self.sense_parts.get(self.active_part_index),
+                transpose_offset,
+                active_transpose_notes,
             );
             self.record_tick_events_active(!tick_events.is_empty());
             events.extend(tick_events);

@@ -1,5 +1,6 @@
 use super::{NativeSensePart, NativeValueLane, GRID_HEIGHT, GRID_WIDTH};
 use platform_core::{CellTriggerIntent, MusicalEvent};
+use std::collections::BTreeMap;
 
 #[derive(Default)]
 pub(super) struct RoutedMusicalEvents {
@@ -37,6 +38,8 @@ pub(super) fn apply_sampler_assignments_for_instruments(
         mapped_event_offset,
         instruments,
         sense,
+        0,
+        None,
     );
     routed.audio.into_iter().chain(routed.midi).collect()
 }
@@ -47,6 +50,8 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
     mapped_event_offset: usize,
     instruments: &[super::NativeInstrumentSlot],
     sense: Option<&NativeSensePart>,
+    transpose_offset: i8,
+    mut active_transpose_notes: Option<&mut BTreeMap<(u8, u8), Vec<u8>>>,
 ) -> RoutedMusicalEvents {
     let mut out = Vec::with_capacity(events.len());
     let mut midi = Vec::new();
@@ -81,6 +86,7 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
                 channel,
                 note,
                 velocity,
+                duration_ms,
                 ..
             } => {
                 if let Some(sense_velocity) =
@@ -89,6 +95,21 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
                     *velocity = sense_velocity;
                 }
                 if let Some(instrument) = instruments.get(*channel as usize) {
+                    let original_channel = *channel;
+                    let original_note = *note;
+                    if instrument.kind == "synth"
+                        || (instrument.kind == "midi" && instrument.midi_enabled)
+                    {
+                        transpose_note(note, transpose_offset);
+                        if duration_ms.is_none() {
+                            if let Some(active_notes) = active_transpose_notes.as_deref_mut() {
+                                active_notes
+                                    .entry((original_channel, original_note))
+                                    .or_default()
+                                    .push(*note);
+                            }
+                        }
+                    }
                     if instrument.kind == "midi" && instrument.midi_enabled {
                         *channel = instrument.midi_channel.saturating_sub(1).min(15);
                     }
@@ -112,6 +133,28 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
             }
             MusicalEvent::NoteOff { channel, note } => {
                 if let Some(instrument) = instruments.get(*channel as usize) {
+                    let original_channel = *channel;
+                    let original_note = *note;
+                    if instrument.kind == "synth"
+                        || (instrument.kind == "midi" && instrument.midi_enabled)
+                    {
+                        if let Some(active_notes) = active_transpose_notes.as_deref_mut() {
+                            if let Some(notes) =
+                                active_notes.get_mut(&(original_channel, original_note))
+                            {
+                                if let Some(transposed_note) = notes.pop() {
+                                    *note = transposed_note;
+                                }
+                                if notes.is_empty() {
+                                    active_notes.remove(&(original_channel, original_note));
+                                }
+                            } else {
+                                transpose_note(note, transpose_offset);
+                            }
+                        } else {
+                            transpose_note(note, transpose_offset);
+                        }
+                    }
                     if instrument.kind == "midi" && instrument.midi_enabled {
                         *channel = instrument.midi_channel.saturating_sub(1).min(15);
                     }
@@ -144,6 +187,10 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
         }
     }
     RoutedMusicalEvents { audio: out, midi }
+}
+
+fn transpose_note(note: &mut u8, offset: i8) {
+    *note = ((*note as i16) + offset as i16).clamp(0, 127) as u8;
 }
 
 #[derive(Clone, Copy)]

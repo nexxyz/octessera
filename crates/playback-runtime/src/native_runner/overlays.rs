@@ -10,6 +10,7 @@ impl NativeRunner {
             "pan" => self.apply_dance_pan_overlay(leds),
             "fx" => self.apply_dance_fx_overlay(leds),
             "trigger-gate" => self.apply_dance_trigger_gate_overlay(leds),
+            "transpose" => self.apply_dance_transpose_overlay(leds),
             "xy" => self.apply_dance_xy_overlay(leds),
             _ => {}
         }

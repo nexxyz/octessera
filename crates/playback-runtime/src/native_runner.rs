@@ -67,6 +67,7 @@ mod construction_deferred;
 mod construction_engine;
 mod dance_control;
 mod dance_fx_utils;
+mod dance_transpose;
 mod dance_trigger_gate;
 mod defaults;
 mod deferred_flush;
@@ -264,6 +265,10 @@ pub struct NativeRunner {
     param_mods: Vec<NativeParamMods>,
     trigger_gate_modes: Vec<String>,
     trigger_gate_restore_modes: Vec<Option<String>>,
+    dance_transpose_selected: Vec<bool>,
+    dance_transpose_enabled: Vec<bool>,
+    dance_transpose_offsets: Vec<i8>,
+    dance_transpose_active_notes: Vec<BTreeMap<(u8, u8), Vec<u8>>>,
     trigger_probability_assign: Option<usize>,
     trigger_probability_maps: Vec<Vec<String>>,
     part_behavior_ids: Vec<String>,

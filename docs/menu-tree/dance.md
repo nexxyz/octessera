@@ -12,13 +12,14 @@ L4: Dance
 │   ├── FX Type, Target, visible params for selected FX Type, Map to Grid
 │   └── Aux Map: editable auto-mapped Dance FX params/actions, with 1-/1! OLED markers
 ├── Trigger Gate
+├── Transpose
 └── XY
     └── X Axis, Y Axis, Invert X, Invert Y, Release
 ```
 
 Dance layer behavior:
 
-- Hold Fn to reveal navigation columns: the leftmost grid column selects the active part using grid Y directly (`y=0` = part 0), and the rightmost grid column selects and activates Dance pages by row: row 0 = mix, row 1 = pan, row 2 = fx, row 3 = trigger-gate, row 4 = xy. Lower rows are unused.
+- Hold Fn to reveal navigation columns: the leftmost grid column selects the active part using grid Y directly (`y=0` = part 0), and the rightmost grid column selects and activates Dance pages by row: row 0 = mix, row 1 = pan, row 2 = fx, row 3 = trigger-gate, row 4 = transpose, row 5 = xy. Lower rows are unused.
 - Fn + leftmost grid selection exits the current Dance overlay without changing the saved Dance Page selection. Menu position is not changed by part selection.
 - When Fn is held, the left grid column shows part-selection options and the right grid column shows Dance page options. The active part and saved Dance page are highlighted; parts whose behavior is not `none` have a dim indicator; `none` parts stay dark. All other cells (columns 1 through 6) are dimmed to 25% brightness to make the navigation columns unambiguous.
 - `mix`: each column is an instrument; y=0 mutes, y=7 sets 100%, intermediate rows quantize per-slot `Mixer > Volume`.
@@ -28,6 +29,7 @@ Dance layer behavior:
 - `pan` maps the 8 grid columns onto 7 two-cell marker positions: column 0 stores `0` and lights 0+1; column 1 stores `5` and lights 1+2; column 2 stores `11` and lights 2+3; columns 3 and 4 both store center `16` and light 3+4; column 5 stores `21` and lights 4+5; column 6 stores `27` and lights 5+6; column 7 stores `32` and lights 6+7.
 - `fx`: grid cells trigger mapped momentary effects. Press starts the mapped effect and release stops it. At most two momentary FX may be active at once, and only one momentary FX of each type may be active. If the active momentary FX limit is reached or another mapping of the same type is already active, the press is ignored and a toast warns the user.
 - `trigger-gate`: this Dance page performs live trigger mode overrides for each part; it does not edit the saved per-cell probability map.
+- `transpose`: left column toggles which eligible parts are affected; Shift + left column enables/disables transpose for all eligible parts. Columns 1..7 form a piano layout: white rows 1/3/5, black rows 2/4/6, octaves -1/0/+1, with center C at x=1,y=3 as no-op. Offsets apply transiently to synth and enabled MIDI note events after mapping and before routing; sampler assignment notes are not transposed.
 - Stored per-part trigger probability data lives in `L2: Sense > Pn > Trigger Prob.`.
 - `Map Prob Grid` edits the saved four-state probability map for the selected part. Cell cycle is `zero -> low -> high -> full -> zero`; `Shift+grid` applies to a row; `Shift+Fn+grid` applies to a column.
 - Probability-map editor LEDs: black = `0%`, red = `low`, yellow = `high`, green = `100%`.
@@ -63,5 +65,5 @@ Dance layer behavior:
 - `Release: sample-hold` keeps the last modulation values active after lifting the finger. `Release: reset-center` returns X and Y to 0.5 (center) on release.
 - `Invert X` / `Invert Y` flip the respective axis: `value = 1 - norm` when enabled, so left becomes max and right becomes min (X axis), or bottom becomes max and top becomes min (Y axis).
 - Saved with presets/defaults: selected Dance Page, FX page config and assignments, instrument mix volumes, pan positions, per-part trigger probability mode, low/high thresholds, trigger probability map cell state, X/Y bindings, X/Y invert flags, and X/Y release behavior.
-- Not saved: transient performance state such as the currently active Dance overlay on load/startup, the live X/Y touch position (`xyTouch`), active momentary FX instances, assign modes, held modifiers, and other temporary overlays.
+- Not saved: transient performance state such as the currently active Dance overlay on load/startup, Dance Transpose selections/enabled state/offsets, the live X/Y touch position (`xyTouch`), active momentary FX instances, assign modes, held modifiers, and other temporary overlays.
 

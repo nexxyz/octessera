@@ -114,7 +114,7 @@ Overrides:
 
 - While Fn is held: leftmost column shows part selectors (gray) and active part (green).
 - While sample assignment mode is active: grid shows assignment overlay (selected-slot colors, other-slot dim white, unassigned dark).
-- While any Dance Page (`mix`, `pan`, `fx`, `trigger-gate`, `xy`) is active: grid shows the Dance performance overlay instead of active behavior cells.
+- While any Dance Page (`mix`, `pan`, `fx`, `trigger-gate`, `transpose`, `xy`) is active: grid shows the Dance performance overlay instead of active behavior cells. Dance Transpose uses the left column for eligible part selection, Shift + left column to enable/disable all eligible parts, and columns 1..7 as a three-octave piano offset picker for synth and enabled MIDI note targets only.
 - When Ghost Cells is on, inactive parts' active cells render as very dim green behind the active part. Active part cells and sample assignment overlays take priority.
 - Active context changes use OLED toast/status feedback, for example `Part: P3 rain` or `Dance: fx`; these toasts do not change LED overlay priority. Modal help/confirm displays keep display priority over context feedback.
 - Holding Shift, Fn, or Shift+Fn for more than one second without another mapped action shows a concise hint toast (`Shift: map/edit`, `Fn: parts/pages`, or `Help: Sh+Fn+Enter`). Startup uses the same chord wording: `Help: Sh+Fn+Enter`. Existing toasts, help/confirm dialogs, assignment overlays, and consumed mappings suppress the hint.

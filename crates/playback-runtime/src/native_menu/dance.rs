@@ -20,6 +20,7 @@ pub(super) fn dance_group(config: &NativeMenuConfig) -> NativeMenuItem {
                     .collect(),
             ),
             keyed_group("Trigger Gate", "dance.page.trigger-gate", vec![]),
+            keyed_group("Transpose", "dance.page.transpose", vec![]),
             keyed_group("XY", "dance.page.xy", xy_pad_items(config)),
         ],
     )

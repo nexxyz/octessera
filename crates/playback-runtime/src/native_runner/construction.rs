@@ -209,6 +209,10 @@ impl NativeRunner {
             param_mods: vec![NativeParamMods::default(); PART_COUNT],
             trigger_gate_modes: vec!["full".into(); PART_COUNT],
             trigger_gate_restore_modes: vec![None; PART_COUNT],
+            dance_transpose_selected: vec![true; PART_COUNT],
+            dance_transpose_enabled: vec![true; PART_COUNT],
+            dance_transpose_offsets: vec![0; PART_COUNT],
+            dance_transpose_active_notes: vec![BTreeMap::new(); PART_COUNT],
             trigger_probability_assign: None,
             trigger_probability_maps: vec![
                 vec!["full".into(); GRID_WIDTH * GRID_HEIGHT];

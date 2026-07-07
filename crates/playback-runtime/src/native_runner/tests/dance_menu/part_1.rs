@@ -9,6 +9,7 @@ pub(crate) fn dance_page_menu_edits_selected_and_active_mode() {
         ("pan", "dance.page.pan"),
         ("fx", "dance.page.fx"),
         ("trigger-gate", "dance.page.trigger-gate"),
+        ("transpose", "dance.page.transpose"),
         ("xy", "dance.page.xy"),
     ] {
         assert!(runner.menu.focus_item_key(key));
@@ -18,6 +19,25 @@ pub(crate) fn dance_page_menu_edits_selected_and_active_mode() {
         assert_eq!(snapshot["danceMode"], mode);
         assert_eq!(snapshot["activeDanceMode"], mode);
     }
+}
+
+#[test]
+pub(crate) fn dance_transpose_page_round_trips_through_runtime_config() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert!(runner.menu.focus_item_key("dance.page.transpose"));
+    runner
+        .apply_or_schedule_menu_key("dance.page.transpose")
+        .unwrap();
+    let payload = runner.config_payload();
+
+    assert_eq!(runner.dance_mode, "transpose");
+    assert_eq!(payload["runtimeConfig"]["danceMode"], "transpose");
+    assert!(payload["runtimeConfig"].get("danceTranspose").is_none());
+
+    let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    restored.apply_config_payload(payload).unwrap();
+    assert_eq!(restored.dance_mode, "transpose");
+    assert_eq!(restored.active_dance_mode, "none");
 }
 
 #[test]
@@ -148,7 +168,7 @@ pub(crate) fn changing_dance_page_uses_static_visible_menu_rows() {
 
     assert!(runner.menu.focus_item_key("dance.page.xy"));
     runner.apply_or_schedule_menu_key("dance.page.xy").unwrap();
-    runner.menu.state.stack = vec![3, 4];
+    runner.menu.state.stack = vec![3, 5];
     runner.menu.state.cursor = 0;
     let xy_snapshot = runner.snapshot().unwrap();
     let xy_lines = xy_snapshot["display"]["lines"]

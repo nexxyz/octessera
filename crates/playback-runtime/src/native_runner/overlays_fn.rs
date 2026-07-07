@@ -8,9 +8,13 @@ impl NativeRunner {
         if !self.ui.fn_held {
             return;
         }
-        if self.active_dance_mode != "none" {
-            self.dim_dance_fn_overlay(leds);
+        if self.sample_assign.is_some()
+            || self.trigger_probability_assign.is_some()
+            || self.dance_fx_assign.is_some()
+        {
+            return;
         }
+        self.dim_fn_overlay(leds);
         self.paint_fn_part_column(leds);
         self.paint_fn_page_column(leds);
     }
@@ -126,7 +130,7 @@ impl NativeRunner {
             && self.dance_fx_assign.is_none()
     }
 
-    fn dim_dance_fn_overlay(&self, leds: &mut [LedColor]) {
+    fn dim_fn_overlay(&self, leds: &mut [LedColor]) {
         for cell in leds.iter_mut() {
             *cell = cell.dim(4);
         }
@@ -149,7 +153,7 @@ impl NativeRunner {
     }
 
     fn paint_fn_page_column(&self, leds: &mut [LedColor]) {
-        let page_options = ["mix", "pan", "fx", "trigger-gate", "xy"];
+        let page_options = ["mix", "pan", "fx", "trigger-gate", "transpose", "xy"];
         for (row, mode) in page_options.iter().enumerate() {
             let selected = self.active_dance_mode != "none" && self.active_dance_mode == *mode;
             let color = if selected {

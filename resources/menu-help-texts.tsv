@@ -291,11 +291,13 @@ dance_mix_group	Menu > L4: Dance > Mix		group	Mix Page	Live grid page for per-pa
 dance_pan_group	Menu > L4: Dance > Pan		group	Pan Page	Live grid page for per-part pan gestures.	Fn plus the right grid column also selects Dance pages for performance.
 dance_fx_group	Menu > L4: Dance > FX		group	FX Page	Configures and performs momentary Dance FX.	Fn plus the right grid column also selects Dance pages for performance.
 dance_trigger_gate_group	Menu > L4: Dance > Trigger Gate		group	Trigger Gate Page	Live grid page for trigger probability gate controls.	Fn plus the right grid column also selects Dance pages for performance.
+dance_transpose_group	Menu > L4: Dance > Transpose		group	Transpose Page	Live grid page for transient synth/MIDI note transposition.	Left column selects parts; piano cells choose semitone offsets.
 dance_xy_group	Menu > L4: Dance > XY		group	XY Page	Live grid page for X/Y parameter modulation.	Fn plus the right grid column also selects Dance pages for performance.
 touch_page_mix	Menu > L4: Dance > Mix	key:dance.page.mix	group	Mix Page	Live grid page for per-part mix gestures.	Fn plus the right grid column also selects Dance pages for performance.
 touch_page_pan	Menu > L4: Dance > Pan	key:dance.page.pan	group	Pan Page	Live grid page for per-part pan gestures.	Fn plus the right grid column also selects Dance pages for performance.
 touch_page_fx	Menu > L4: Dance > FX	key:dance.page.fx	group	FX Page	Configures and performs momentary Dance FX.	Fn plus the right grid column also selects Dance pages for performance.
 touch_page_trigger_gate	Menu > L4: Dance > Trigger Gate	key:dance.page.trigger-gate	group	Trigger Gate Page	Live grid page for trigger probability gate controls.	Fn plus the right grid column also selects Dance pages for performance.
+touch_page_transpose	Menu > L4: Dance > Transpose	key:dance.page.transpose	group	Transpose Page	Live grid page for transient synth/MIDI note transposition.	Left column selects parts; piano cells choose semitone offsets.
 touch_page_xy	Menu > L4: Dance > XY	key:dance.page.xy	group	XY Page	Live grid page for X/Y parameter modulation.	Fn plus the right grid column also selects Dance pages for performance.
 dance_aux_map_group	Menu > L4: Dance > FX > Aux Map		group	Aux Map	Shows the Dance FX parameters and actions that are auto-mapped to aux controls.	Rows keep the same 1- and 1! OLED markers as live auto-mapped aux controls; values can be edited here, but mappings are not changed.
 touch_bpm	Menu > L2: Sense > BPM	key:transport.bpm	number	BPM	Sets master tempo in beats per minute from Sense.	This is the main tempo control.

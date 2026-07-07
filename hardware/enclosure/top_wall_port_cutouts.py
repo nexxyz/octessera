@@ -66,11 +66,18 @@ def audio_jack_cutter(params: dict, y: float, x1: float) -> cq.Workplane:
     )
 
 
-def left_wall_indent(params: dict, y0: float, y1: float, height: float, target_x: float) -> cq.Workplane:
+def left_wall_indent(
+    params: dict,
+    y0: float,
+    y1: float,
+    height: float,
+    target_x: float,
+    south_trim: float = 0.0,
+) -> cq.Workplane:
     wall = params["wall"]
     wall_overlap = wall - PORT_INDENT_WALL_OVERLAP
     z0, z1 = z_bounds(height, PORT_INDENT_Z_PAD)
-    start = y0 - PORT_INDENT_SPAN_PAD - PORT_INDENT_RAMP
+    start = y0 - PORT_INDENT_SPAN_PAD - PORT_INDENT_RAMP + south_trim
     end = y1 + PORT_INDENT_SPAN_PAD + PORT_INDENT_RAMP
     stations = []
     for index in range(25):
@@ -281,7 +288,7 @@ def add_top_wall_port_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane
             model = model.cut(left_wall_face_recess(params, port["a"], port["b"], 5.6, left_flush_recess_x))
             model = model.cut(left_wall_rect(params, port["a"], port["b"], 5.6, left_flush_x))
         elif label == "Pi microSD":
-            model = model.union(left_wall_indent(params, port["a"], port["b"], 4.0, left_pi_x))
+            model = model.union(left_wall_indent(params, port["a"], port["b"], 4.0, left_pi_x, south_trim=2.0))
             model = model.cut(left_wall_face_recess(params, port["a"], port["b"], 4.0, left_pi_recess_x))
             model = model.cut(left_wall_rect(params, port["a"], port["b"], 4.0, left_pi_x))
         elif label == "Pi mini-HDMI":

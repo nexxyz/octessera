@@ -26,6 +26,7 @@ impl NativeRunner {
             "dance.page.pan" => Some(self.fast_dance_page_key("pan")),
             "dance.page.fx" => Some(self.fast_dance_page_key("fx")),
             "dance.page.trigger-gate" => Some(self.fast_dance_page_key("trigger-gate")),
+            "dance.page.transpose" => Some(self.fast_dance_page_key("transpose")),
             "dance.page.xy" => Some(self.fast_dance_page_key("xy")),
             "algorithmStep" => Some(self.fast_algorithm_step_menu_key()),
             "masterVolume" => Some(self.fast_master_volume_menu_key()),

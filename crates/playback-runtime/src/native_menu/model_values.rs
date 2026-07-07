@@ -54,6 +54,9 @@ impl NativeMenuModel {
         if path.starts_with("Menu > L4: Dance > Trigger Gate") {
             return Some("trigger-gate".into());
         }
+        if path.starts_with("Menu > L4: Dance > Transpose") {
+            return Some("transpose".into());
+        }
         if path.starts_with("Menu > L4: Dance > XY") {
             return Some("xy".into());
         }
