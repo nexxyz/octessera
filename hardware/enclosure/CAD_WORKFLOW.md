@@ -14,6 +14,14 @@ The enclosure CAD is under construction. Use the CadQuery generator as the sourc
    python hardware/enclosure/generate_two_level_enclosure_cadquery.py
    ```
 
+   On Windows, prefer the checked wrapper when running from automation:
+
+   ```powershell
+   powershell -NoProfile -ExecutionPolicy Bypass -File hardware/enclosure/generate_top_artifacts_checked.ps1
+   ```
+
+   It runs generation and validation as child processes and prints completion sentinels after each step.
+
 3. Run the roof-wall validation:
 
    ```sh
