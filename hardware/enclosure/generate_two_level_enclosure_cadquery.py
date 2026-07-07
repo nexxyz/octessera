@@ -31,9 +31,11 @@ HIGH_Z = 17.0
 UNDERSIDE_Z = 9.0
 HIGH_UNDERSIDE_Z = 14.0
 EXTENDED_SLOPE_RIGHT_X = 115.0
-NEOKEY_PANEL_Y_OFFSET = 2.0
+NEOKEY_PANEL_Y_OFFSET = 3.0
 NEOKEY_TOP_Z = 16.0
 NEOKEY_KEYCAP_RECESS_DEPTH = 1.0
+NEOKEY_MX_LATCH_PLATE_THICKNESS = 1.5
+NEOKEY_MX_UNDERSIDE_CLEARANCE = 2.6
 NEOKEY_SEAT_BOTTOM_Z = UNDERSIDE_Z + 1.0
 NEOKEY_SEAT_OVERLAP = 3.0
 LOWER_WAVE_HEIGHT_SCALE = 1.0
@@ -336,14 +338,30 @@ def add_neokey_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane:
             )
         )
     mx_cutout = params["mx_switch_retention_cutout"]
+    mx_plate_top_z = NEOKEY_TOP_Z - NEOKEY_KEYCAP_RECESS_DEPTH
+    mx_plate_bottom_z = mx_plate_top_z - NEOKEY_MX_LATCH_PLATE_THICKNESS
+    mx_underside_clearance = mx_cutout + NEOKEY_MX_UNDERSIDE_CLEARANCE
     for x, y in key_centers:
         model = model.cut(
-            rect_cutter(
-                x - mx_cutout / 2,
-                y - mx_cutout / 2,
-                x + mx_cutout / 2,
-                y + mx_cutout / 2,
+            rect_prism(
+                x - mx_underside_clearance / 2,
+                y - mx_underside_clearance / 2,
+                x + mx_underside_clearance / 2,
+                y + mx_underside_clearance / 2,
                 params["mx_switch_retention_r"],
+                NEOKEY_SEAT_BOTTOM_Z - 0.1,
+                mx_plate_bottom_z,
+            )
+        )
+        model = model.cut(
+            rect_prism(
+                x - mx_cutout / 2.0,
+                y - mx_cutout / 2.0,
+                x + mx_cutout / 2.0,
+                y + mx_cutout / 2.0,
+                params["mx_switch_retention_r"],
+                mx_plate_bottom_z - 0.05,
+                NEOKEY_TOP_Z + 0.2,
             )
         )
     return model

@@ -3,7 +3,7 @@ from __future__ import annotations
 import cadquery as cq
 
 
-PILLAR_BOTTOM_Z = 0.0
+PILLAR_BOTTOM_Z = -10.0
 INSERT_HOLE_DEPTH = 6.0
 
 

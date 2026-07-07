@@ -5,7 +5,7 @@ import cadquery as cq
 from wave_guidance import south_edge_samples
 
 
-SKIRT_BOTTOM_Z = 0.0
+SKIRT_BOTTOM_Z = -10.0
 
 
 def plain_rect_prism(x0: float, y0: float, x1: float, y1: float, z0: float, z1: float) -> cq.Workplane:
@@ -98,7 +98,7 @@ def perimeter_wall_skirts(
 ) -> cq.Workplane:
     width, depth = params["case_size_v21"]
     wall = params["wall"]
-    footprint = rounded_plate(width, depth, params["corner_r"], SKIRT_BOTTOM_Z, high_z)
+    footprint = rounded_plate(width, depth, params["corner_r"], SKIRT_BOTTOM_Z, high_z - SKIRT_BOTTOM_Z)
     low_shell = rounded_wall_shell(params, rounded_plate, SKIRT_BOTTOM_Z, low_z)
     high_edge, low_edge = south_edge_samples()
     south_low_x = low_edge[0][0]
