@@ -146,6 +146,7 @@ def draw(params: dict) -> PdfCanvas:
     c.rounded_rect(origin_x, origin_y, case_w, case_h, params["corner_r"])
     c.text(10, page_h - 10, "Cell Symphony bottom layout, 1:1 scale on A4 landscape. Print at 100%, no fit-to-page.", 8)
     c.text(10, page_h - 18, "Printed directions: north is up on this page, east is right.", 7)
+    c.text(10, page_h - 26, "Check coords: OLED W x=52.65, OLED E x=89.75, OLED S y=90.95, POWER y=65.85/50.61, NEOKEY N y=64.31", 6)
     c.text(origin_x, origin_y - 8, f"Case outline {case_w:.1f} x {case_h:.1f} mm", 6)
     c.line_width(0.35)
     c.arrow(origin_x + case_w + 6.0, origin_y + 20.0, origin_x + case_w + 6.0, origin_y + 38.0, "N")

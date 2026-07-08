@@ -4,17 +4,38 @@ The enclosure CAD is under construction. Use the CadQuery generator as the sourc
 
 ## Edit loop
 
-1. Edit `wave_curve_guidance.svg`.
-   - Brown paths define the canonical lower roof edge.
-   - The high edge is generated as an even offset from the brown curve.
-   - `#333` guide lines define ventilation slots.
+1. Edit `wave_guidance.py`.
+   - It defines the raised Pi roof block, quarter-circle slope edges, and S-shaped ventilation slots.
+   - Keep the raised block hollow below the roof slab for Pi airflow and top-side components.
+   - Keep the S-shaped slot definitions parametric in this module.
 2. Regenerate the model:
 
    ```sh
    python hardware/enclosure/generate_two_level_enclosure_cadquery.py
    ```
 
-   On Windows, prefer the checked wrapper when running from automation:
+   On Windows, prefer the async wrapper when running from automation so the orchestrator is not held open by CadQuery export:
+
+   ```powershell
+   powershell -NoProfile -ExecutionPolicy Bypass -File hardware/enclosure/generate_top_artifacts_async.ps1
+   powershell -NoProfile -ExecutionPolicy Bypass -File hardware/enclosure/top_artifacts_async_status.ps1
+   ```
+
+   The status command should eventually report `state=succeeded` and show both sentinels in the log tail.
+
+   Automation rule: do not chain CAD generation, cleanup, and `git status` in one shell command. Launch CAD asynchronously, check it with `top_artifacts_async_status.ps1`, and use the checked Git status wrapper as a separate quick command:
+
+   ```powershell
+   powershell -NoProfile -ExecutionPolicy Bypass -File tools/git/status_checked.ps1
+   ```
+
+   Expected sentinel:
+
+   ```text
+   __GIT_STATUS_DONE__
+   ```
+
+   The blocking checked wrapper is still available for manual terminal use:
 
    ```powershell
    powershell -NoProfile -ExecutionPolicy Bypass -File hardware/enclosure/generate_top_artifacts_checked.ps1
@@ -62,7 +83,7 @@ The first bottom artifact is only a flat drill/alignment plate. It is not the fi
 - the brown-edge wall must be vertical from the faceplate bottom to tier 1;
 - the wall must have a finite bottom footprint;
 - the generated model must be one valid solid;
-- the slot guides must parse from the SVG.
+- the parametric slot guides must parse from `wave_guidance.py`.
 
 Do not accept a roof-wall change until this script passes.
 

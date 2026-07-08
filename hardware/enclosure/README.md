@@ -22,7 +22,7 @@ Generate the current two-level model with CadQuery/OpenCascade:
 python hardware/enclosure/generate_two_level_enclosure_cadquery.py
 ```
 
-After changing the roof or guidance SVG, run the validation script:
+After changing the roof or parametric wave guidance, run the validation script:
 
 ```sh
 python hardware/enclosure/validate_wave_roof.py
@@ -40,7 +40,7 @@ python -m pip install -r hardware/enclosure/requirements.txt
 ```
 
 This model keeps OLED and encoders on the lower deck, raises the NeoKeys and
-8x8 NeoTrellis field, and uses a guidance-driven roof/shoulder over the Pi area.
+8x8 NeoTrellis field, and uses a parametric raised roof/shoulder over the Pi area.
 See [`CAD_WORKFLOW.md`](CAD_WORKFLOW.md) for the edit and validation loop.
 
 The STEP file is the preferred generated artifact. This is still not a
@@ -92,7 +92,7 @@ Current enclosure notes from the parameter source:
 
 - Parameters: [`enclosure_params.json`](enclosure_params.json)
 - Enclosure layout image: [`layout.png`](layout.png)
-- Wave/slot guidance SVG: [`wave_curve_guidance.svg`](wave_curve_guidance.svg)
+- Wave/slot guidance: [`wave_guidance.py`](wave_guidance.py)
 - Parametric generator: [`generate_two_level_enclosure_cadquery.py`](generate_two_level_enclosure_cadquery.py)
 - CAD workflow and checks: [`CAD_WORKFLOW.md`](CAD_WORKFLOW.md)
 - Roof-wall validation: [`validate_wave_roof.py`](validate_wave_roof.py)

@@ -11,6 +11,7 @@ from faceplate_neokey_support import neokey_deck_cap, neokey_raised_cap, neokey_
 from faceplate_walls import perimeter_wall_skirts
 from top_wall_port_cutouts import add_top_wall_port_cutouts
 from wave_guidance import (
+    PI_BLOCK_NORTH_Y,
     SLOPE_PROFILE_STEPS,
     SOUTH_ROOF_LOW_WALL_BAND,
     SOUTH_SHOULDER_PLAN_WIDTH,
@@ -202,6 +203,60 @@ def east_wave_ramp_loft(y0: float, y1: float) -> cq.Workplane:
             )
         )
     return cq.Workplane("XY").add(cq.Solid.makeLoft(wires, ruled=True))
+
+
+def rectangular_lower_wave_slope_loft(x0: float, x1: float, low_y: float) -> cq.Workplane:
+    high_y = low_y - SOUTH_SHOULDER_PLAN_WIDTH
+    wires = []
+    samples = 32
+    bottom_band_t = min(0.45, SOUTH_ROOF_LOW_WALL_BAND / SOUTH_SHOULDER_PLAN_WIDTH)
+    for index in range(samples + 1):
+        x = x0 + (x1 - x0) * index / samples
+        top_points = []
+        bottom_points = []
+        for profile_index in range(SLOPE_PROFILE_STEPS + 1):
+            t = profile_index / SLOPE_PROFILE_STEPS
+            eased = (1.0 - (1.0 - t) * (1.0 - t)) ** 0.5
+            y = low_y + (high_y - low_y) * t
+            z = LOW_Z + (HIGH_Z - LOW_Z) * eased
+            top_points.append(cq.Vector(x, y, z))
+            if t <= bottom_band_t:
+                bottom_z = UNDERSIDE_Z
+            else:
+                bottom_t = (t - bottom_band_t) / (1.0 - bottom_band_t)
+                bottom_eased = (1.0 - (1.0 - bottom_t) * (1.0 - bottom_t)) ** 0.5
+                bottom_z = UNDERSIDE_Z + (HIGH_UNDERSIDE_Z - UNDERSIDE_Z) * bottom_eased
+            bottom_points.append(cq.Vector(x, y, bottom_z))
+        wires.append(cq.Wire.makePolygon([*top_points, *reversed(bottom_points), top_points[0]]))
+    return cq.Workplane("XY").add(cq.Solid.makeLoft(wires, ruled=True))
+
+
+def west_wave_wall(params: dict, footprint: cq.Workplane) -> cq.Workplane:
+    wall = params["wall"]
+    low_y = PI_BLOCK_NORTH_Y
+    high_y = PI_BLOCK_NORTH_Y - SOUTH_SHOULDER_PLAN_WIDTH
+    wires = []
+    samples = 24
+    for index in range(samples + 1):
+        y = PI_BLOCK_NORTH_Y * index / samples
+        if y <= high_y:
+            top_z = HIGH_Z
+        else:
+            t = (low_y - y) / (low_y - high_y)
+            eased = (1.0 - (1.0 - t) * (1.0 - t)) ** 0.5
+            top_z = LOW_Z + (HIGH_Z - LOW_Z) * eased
+        wires.append(
+            cq.Wire.makePolygon(
+                [
+                    cq.Vector(0.0, y, LOW_Z - 0.05),
+                    cq.Vector(wall + 0.3, y, LOW_Z - 0.05),
+                    cq.Vector(wall + 0.3, y, top_z),
+                    cq.Vector(0.0, y, top_z),
+                    cq.Vector(0.0, y, LOW_Z - 0.05),
+                ]
+            )
+        )
+    return cq.Workplane("XY").add(cq.Solid.makeLoft(wires, ruled=True)).intersect(footprint).clean()
 
 
 def rect_cutter(x0: float, y0: float, x1: float, y1: float, radius: float) -> cq.Workplane:
@@ -470,13 +525,14 @@ def build_model(params: dict) -> cq.Workplane:
     lower_wave_plate = lower_wave_plate.cut(neokey_seat_region)
     wave_flat_ramp = east_wave_ramp_loft(0.0, lower_wave_top_y)
     wave_flat_ramp = wave_flat_ramp.cut(neokey_seat_region)
+    west_wall = west_wave_wall(params, footprint)
     flat_faceplate = add_cutouts(
-        low_plate.union(lower_wave_plate).union(wave_flat_ramp).union(high_plate).clean(),
+        low_plate.union(lower_wave_plate).union(wave_flat_ramp).union(west_wall).union(high_plate).clean(),
         params,
     ).clean()
     upper_shoulder = shoulder_loft(neokey_seat_top_y, depth).intersect(footprint).clean()
     lower_wave = (
-        shoulder_loft(0.0, lower_wave_top_y, LOWER_WAVE_HEIGHT_SCALE)
+        rectangular_lower_wave_slope_loft(0.0, EXTENDED_SLOPE_RIGHT_X, lower_wave_top_y)
         .intersect(footprint)
         .cut(neokey_seat_region)
         .clean()

@@ -4,6 +4,7 @@ import json
 import math
 import sys
 
+import cadquery as cq
 from OCP.BRep import BRep_Tool
 from OCP.TopAbs import TopAbs_VERTEX
 from OCP.TopExp import TopExp_Explorer
@@ -14,6 +15,23 @@ import generate_two_level_enclosure_cadquery as cad
 
 MAX_LOW_WALL_SHIFT_MM = 0.25
 MIN_BOTTOM_FOOTPRINT_MM = cad.SOUTH_ROOF_LOW_WALL_BAND - 0.2
+ROOF_SAMPLE_TOLERANCE = 0.12
+ROOF_SAMPLES = [
+    ("Pi block roof west", 25.0, 18.0, cad.HIGH_Z - 0.2),
+    ("Pi block roof east", 85.0, 18.0, cad.HIGH_Z - 0.2),
+    ("tier-1 between craters", 45.0, 65.0, cad.LOW_Z - 0.2),
+    ("tier-1 east of craters", 80.0, 80.0, cad.LOW_Z - 0.2),
+    ("NeoTrellis northwest roof", 132.0, 130.0, cad.HIGH_Z - 0.2),
+    ("NeoTrellis northeast roof", 240.0, 130.0, cad.HIGH_Z - 0.2),
+    ("Pi block north slope", 55.0, 33.0, cad.HIGH_Z - 1.0),
+    ("Pi block west wall", 1.0, 20.0, cad.LOW_Z + 1.0),
+    ("NeoKey roof north extension", 115.0, 130.0, cad.HIGH_Z - 0.2),
+    ("NeoKey north slope", 104.0, 120.0, cad.HIGH_Z - 1.0),
+]
+
+
+def solid_contains_point(solid, point: cq.Vector, tolerance: float) -> bool:
+    return solid.isInside(point, tolerance)
 
 
 def wire_vertices(wire) -> list[tuple[float, float, float]]:
@@ -61,12 +79,23 @@ def main() -> None:
     narrowest_bottom = min(rows, key=lambda row: row[4])
     params = json.loads(cad.PARAMS.read_text())
     model = cad.build_model(params)
+    solids = model.solids().vals()
+    missing_samples = [
+        name
+        for name, x, y, z in ROOF_SAMPLES
+        if not any(
+            solid_contains_point(solid, cq.Vector(x, y, z), ROOF_SAMPLE_TOLERANCE)
+            for solid in solids
+        )
+    ]
     print(f"worst_vertical_shift_mm={worst_shift[3]:.3f} at index={worst_shift[0]}")
     print(f"min_bottom_footprint_mm={narrowest_bottom[4]:.3f} at index={narrowest_bottom[0]}")
     slot_count = len(cad.load_guidance_slots())
     print(f"slots={slot_count}")
     print(f"valid={model.val().isValid()}")
     print(f"solids={len(model.solids().vals())}")
+    if missing_samples:
+        raise SystemExit(f"FAIL: missing roof samples: {', '.join(missing_samples)}")
     if worst_shift[3] > MAX_LOW_WALL_SHIFT_MM:
         raise SystemExit("FAIL: low roof wall is slanted")
     if narrowest_bottom[4] < MIN_BOTTOM_FOOTPRINT_MM:
