@@ -9,15 +9,15 @@ import cadquery as cq
 ROOT = Path(__file__).resolve().parent
 ARTIFACT_ROOT = ROOT.parent.parent / "release-artifacts" / "enclosure"
 PARAMS = ROOT / "enclosure_params.json"
-STEP_OUT = ARTIFACT_ROOT / "case_bottom_plate_cadquery.step"
-STL_OUT = ARTIFACT_ROOT / "case_bottom_plate_cadquery.stl"
+STEP_OUT = ARTIFACT_ROOT / "step" / "case_bottom_plate_cadquery.step"
+STL_OUT = ARTIFACT_ROOT / "stl" / "case_bottom_plate_cadquery.stl"
 BOTTOM_PLATE_THICKNESS = 3.2
 GUIDE_WALL_OFFSET = 3.15
 GUIDE_WALL_THICKNESS = 1.15
 GUIDE_WALL_HEIGHT = 1.6
 COMPONENT_PILLAR_D = 5.0
 COMPONENT_PILLAR_BASE_D = 7.0
-COMPONENT_PILLAR_HOLE_D = 2.65
+COMPONENT_PILLAR_HOLE_D = 2.85
 COMPONENT_PILLAR_HEIGHT = 5.0
 NEOTRELLIS_PILLAR_BASE_D = 7.0
 NEOTRELLIS_PILLAR_HOLE_D = 2.70
@@ -144,7 +144,8 @@ def build_bottom_plate(params: dict) -> cq.Workplane:
 def main() -> None:
     params = json.loads(PARAMS.read_text())
     plate = build_bottom_plate(params)
-    ARTIFACT_ROOT.mkdir(parents=True, exist_ok=True)
+    STEP_OUT.parent.mkdir(parents=True, exist_ok=True)
+    STL_OUT.parent.mkdir(parents=True, exist_ok=True)
     cq.exporters.export(plate, str(STEP_OUT))
     cq.exporters.export(plate, str(STL_OUT), tolerance=0.08, angularTolerance=0.12)
     print(f"wrote {STEP_OUT}")

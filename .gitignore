@@ -26,6 +26,8 @@ debug/
 hardware/pcb/PCB.stl
 release-artifacts/enclosure/top_artifacts_async.log
 release-artifacts/enclosure/top_artifacts_async_status.json
+release-artifacts/enclosure/review/top_artifacts_async.log
+release-artifacts/enclosure/review/top_artifacts_async_status.json
 hardware/enclosure/*.stl
 hardware/enclosure/*.step
 hardware/Mouser Cart with Components.pdf

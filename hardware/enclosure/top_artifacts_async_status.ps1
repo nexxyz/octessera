@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $projectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$artifactRoot = Join-Path $projectRoot "release-artifacts\enclosure"
+$artifactRoot = Join-Path $projectRoot "release-artifacts\enclosure\review"
 $statusPath = Join-Path $artifactRoot "top_artifacts_async_status.json"
 
 if (-not (Test-Path -LiteralPath $statusPath)) {

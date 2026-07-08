@@ -30,8 +30,8 @@ python hardware/enclosure/validate_wave_roof.py
 
 It writes:
 
-- `../../release-artifacts/enclosure/case_top_two_level_cadquery.step`
-- `../../release-artifacts/enclosure/case_top_two_level_cadquery.stl`
+- `../../release-artifacts/enclosure/step/case_top_two_level_cadquery.step`
+- `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery.stl`
 
 The script requires Python with `cadquery` available:
 
@@ -86,7 +86,7 @@ Current enclosure notes from the parameter source:
 - No OLED top-edge / top-plate hole above the display
 - Case height reduced to `140 mm`; width remains `247 mm`
 - The checked-in release artifact is the current generated faceplate mesh:
-  `../../release-artifacts/enclosure/case_top_two_level_cadquery.stl`.
+  `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery.stl`.
 
 ## Source of Truth
 
@@ -94,6 +94,8 @@ Current enclosure notes from the parameter source:
 - Enclosure layout image: [`layout.png`](layout.png)
 - Wave/slot guidance: [`wave_guidance.py`](wave_guidance.py)
 - Parametric generator: [`generate_two_level_enclosure_cadquery.py`](generate_two_level_enclosure_cadquery.py)
+- Standoff pillar generator: [`generate_standoff_pillars.py`](generate_standoff_pillars.py)
+- Standoff top-pin generator: [`generate_standoff_top_pins.py`](generate_standoff_top_pins.py)
 - CAD workflow and checks: [`CAD_WORKFLOW.md`](CAD_WORKFLOW.md)
 - Roof-wall validation: [`validate_wave_roof.py`](validate_wave_roof.py)
-- Generated review images: [`../../release-artifacts/enclosure/current_wave_top_view.svg`](../../release-artifacts/enclosure/current_wave_top_view.svg) and [`../../release-artifacts/enclosure/current_wave_top_view.png`](../../release-artifacts/enclosure/current_wave_top_view.png)
+- Generated review images: [`../../release-artifacts/enclosure/review/current_wave_top_view.svg`](../../release-artifacts/enclosure/review/current_wave_top_view.svg) and [`../../release-artifacts/enclosure/review/current_wave_top_view.png`](../../release-artifacts/enclosure/review/current_wave_top_view.png)

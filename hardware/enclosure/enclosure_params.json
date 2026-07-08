@@ -19,9 +19,9 @@
   "faceplate_insert_pillars_v22": [
     {"name": "NW", "pos": [5.75, 134.25], "target_z": 12.0, "boss_od": 6.8},
     {"name": "NE", "pos": [241.25, 134.25], "target_z": 17.0, "boss_od": 6.8},
-    {"name": "SW", "pos": [5.75, 5.75], "target_z": 12.0, "boss_od": 6.8},
+    {"name": "SW", "pos": [5.75, 5.75], "target_z": 17.0, "boss_od": 6.8},
     {"name": "SE", "pos": [241.25, 5.75], "target_z": 17.0, "boss_od": 6.8},
-    {"name": "CENTER_N", "pos": [108.0, 135.25], "target_z": 15.0, "boss_od": 7.2},
+    {"name": "CENTER_N", "pos": [134.0, 136.25], "target_z": 15.0, "boss_od": 7.2},
     {"name": "CENTER_S", "pos": [134.0, 4.75], "target_z": 17.0, "boss_od": 7.2},
     {"name": "E_MID", "pos": [241.6, 70.0], "target_z": 17.0, "boss_od": 7.2},
     {"name": "W_MID", "pos": [4.15, 83.0], "target_z": 12.0, "boss_od": 7.2}
@@ -45,14 +45,14 @@
     {"name": "NEOKEY_MH2", "component": "neokey", "pos": [111.21, 64.31]},
     {"name": "NEOKEY_MH3", "component": "neokey", "pos": [94.7, 26.3]},
     {"name": "NEOKEY_MH4", "component": "neokey", "pos": [111.21, 26.3]},
-    {"name": "NT1_MH1", "component": "neotrellis", "pos": [132.264, 105.0], "height": 20.0},
-    {"name": "NT1_MH2", "component": "neotrellis", "pos": [162.236, 105.0], "height": 20.0},
-    {"name": "NT2_MH1", "component": "neotrellis", "pos": [132.264, 45.0], "height": 20.0},
-    {"name": "NT2_MH2", "component": "neotrellis", "pos": [162.236, 45.0], "height": 20.0},
-    {"name": "NT3_MH1", "component": "neotrellis", "pos": [192.264, 105.0], "height": 20.0},
-    {"name": "NT3_MH2", "component": "neotrellis", "pos": [222.236, 105.0], "height": 20.0},
-    {"name": "NT4_MH1", "component": "neotrellis", "pos": [192.264, 45.0], "height": 20.0},
-    {"name": "NT4_MH2", "component": "neotrellis", "pos": [222.236, 45.0], "height": 20.0}
+    {"name": "NT1_MH1", "component": "neotrellis", "pos": [132.264, 100.0], "height": 21.0},
+    {"name": "NT1_MH2", "component": "neotrellis", "pos": [162.236, 100.0], "height": 21.0},
+    {"name": "NT2_MH1", "component": "neotrellis", "pos": [132.264, 40.0], "height": 21.0},
+    {"name": "NT2_MH2", "component": "neotrellis", "pos": [162.236, 40.0], "height": 21.0},
+    {"name": "NT3_MH1", "component": "neotrellis", "pos": [192.264, 100.0], "height": 21.0},
+    {"name": "NT3_MH2", "component": "neotrellis", "pos": [222.236, 100.0], "height": 21.0},
+    {"name": "NT4_MH1", "component": "neotrellis", "pos": [192.264, 40.0], "height": 21.0},
+    {"name": "NT4_MH2", "component": "neotrellis", "pos": [222.236, 40.0], "height": 21.0}
   ],
   "top_screw_clearance_d": 3.4,
   "encoder_hole_d": 7.2,
@@ -62,7 +62,7 @@
     "SW3": 16.0,
     "SW4": 16.0
   },
-  "encoder_crater_depth": 5.0,
+  "encoder_crater_depth": 2.0,
   "encoder_crater_slope_w": 2.0,
   "screen_cutout": [
     33.0,
@@ -561,8 +561,8 @@
   "ports_v21": [
     {
       "side": "left",
-      "a": 111.5,
-      "b": 124.5,
+      "a": 113.5,
+      "b": 126.5,
       "z0": 8.5,
       "z1": 19.0,
       "label": "audio 3.5mm"
@@ -578,23 +578,23 @@
     {
       "side": "left",
       "a": 13.5,
-      "b": 29.5,
+      "b": 29.85,
       "z0": 8.5,
       "z1": 18.0,
       "label": "Pi microSD"
     },
     {
       "side": "bottom",
-      "a": 16.0,
-      "b": 30.0,
+      "a": 17.0,
+      "b": 29.0,
       "z0": 8.5,
       "z1": 19.5,
       "label": "Pi mini-HDMI"
     },
     {
       "side": "bottom",
-      "a": 44.5,
-      "b": 58.5,
+      "a": 45.5,
+      "b": 57.5,
       "z0": 8.5,
       "z1": 19.5,
       "label": "Pi USB data"

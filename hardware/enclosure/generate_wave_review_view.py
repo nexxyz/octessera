@@ -12,7 +12,7 @@ except ModuleNotFoundError:
 
 
 ROOT = Path(__file__).resolve().parent
-ARTIFACT_ROOT = ROOT.parent.parent / "release-artifacts" / "enclosure"
+ARTIFACT_ROOT = ROOT.parent.parent / "release-artifacts" / "enclosure" / "review"
 SVG_OUT = ARTIFACT_ROOT / "current_wave_top_view.svg"
 PNG_OUT = ARTIFACT_ROOT / "current_wave_top_view.png"
 
@@ -124,9 +124,10 @@ def main() -> None:
             'stroke="#333" stroke-width="12" stroke-linecap="round"/>'
         )
 
-    for x0, x1, label in [(16.0, 30.0, "Pi mini-HDMI"), (44.5, 58.5, "Pi USB data")]:
-        lines.append(rect(case_h, x0, -4.0, x1, 0.0, "#0aa", "rgba(0,180,180,0.18)", 1.0))
-        lines.append(text(case_h, x0, 3.0, label, 11))
+    for port in params["ports_v21"]:
+        if port["label"] in {"Pi mini-HDMI", "Pi USB data"}:
+            lines.append(rect(case_h, port["a"], -4.0, port["b"], 0.0, "#0aa", "rgba(0,180,180,0.18)", 1.0))
+            lines.append(text(case_h, port["a"], 3.0, port["label"], 11))
 
     oled = params["features_local"]["oled_board_bbox"]
     oled_x0, oled_y0 = model.local_to_case(params, [oled[0], oled[3]])
@@ -142,8 +143,10 @@ def main() -> None:
         x, y = model.local_to_case(params, point)
         flat_r = params["encoder_crater_flat_d"][name] / 2.0
         outer_r = flat_r + params["encoder_crater_slope_w"]
+        hole_r = params["encoder_hole_d"] / 2.0
         lines.append(circle(case_h, x, y, outer_r, "#777", width=1.5))
         lines.append(circle(case_h, x, y, flat_r, "#111", width=2.0))
+        lines.append(circle(case_h, x, y, hole_r, "#111", width=1.0))
         lines.append(text(case_h, x + 5.0, y - 2.0, encoder_labels[name]))
 
     pitch = params["neotrellis_pitch"]
@@ -151,7 +154,7 @@ def main() -> None:
     for row in range(8):
         for col in range(8):
             x = 124.75 + col * pitch
-            y = 22.5 + row * pitch
+            y = 17.5 + row * pitch
             lines.append(rect(case_h, x - cutout / 2.0, y - cutout / 2.0, x + cutout / 2.0, y + cutout / 2.0, "orange", width=0.8))
 
     lines.extend(

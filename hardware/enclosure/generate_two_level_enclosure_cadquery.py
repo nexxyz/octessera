@@ -23,8 +23,8 @@ from wave_guidance import (
 ROOT = Path(__file__).resolve().parent
 ARTIFACT_ROOT = ROOT.parent.parent / "release-artifacts" / "enclosure"
 PARAMS = ROOT / "enclosure_params.json"
-STEP_OUT = ARTIFACT_ROOT / "case_top_two_level_cadquery.step"
-STL_OUT = ARTIFACT_ROOT / "case_top_two_level_cadquery.stl"
+STEP_OUT = ARTIFACT_ROOT / "step" / "case_top_two_level_cadquery.step"
+STL_OUT = ARTIFACT_ROOT / "stl" / "case_top_two_level_cadquery.stl"
 
 
 LOW_Z = 12.0
@@ -38,6 +38,7 @@ NEOKEY_DECK_TOP_Z = HIGH_Z + 3.0
 NEOKEY_KEYCAP_RECESS_DEPTH = 1.0
 NEOKEY_MX_LATCH_PLATE_THICKNESS = 1.5
 NEOKEY_MX_UNDERSIDE_CLEARANCE = 2.6
+NEOKEY_MX_MOUNTING_GRID_Z_DROP = 2.0
 NEOKEY_SEAT_BOTTOM_Z = UNDERSIDE_Z + 1.0
 NEOKEY_SEAT_OVERLAP = 3.0
 LOWER_WAVE_HEIGHT_SCALE = 1.0
@@ -47,7 +48,6 @@ LOWER_TO_TIER2_RAMP_START_X = 105.0
 LOWER_TO_TIER2_RAMP_END_X = 115.0
 TIER1_WAVE_SEAM_OVERLAP = 2.4
 NEOKEY_WAVE_HOLLOW_SOUTH_EXTRA = 1.0
-ENCODER_CRATER_FLOOR_THICKNESS = 1.2
 
 def x_at_y(points: list[tuple[float, float]], y: float) -> float:
     sorted_points = sorted(points, key=lambda point: point[1])
@@ -136,6 +136,15 @@ def trimmed_curve_pairs(
         )
         pairs.append(curve_pair_at_y(low, high, end_y))
     return pairs
+
+
+def shoulder_plan_prism(y0: float, y1: float, z_height: float, high_x_extra: float = 0.0) -> cq.Workplane:
+    high, low = south_edge_samples()
+    curve_pairs = trimmed_curve_pairs(low, high, y0, y1)
+    low_points = [low_point for low_point, _ in curve_pairs]
+    high_points = [(x + high_x_extra, y) for _, (x, y) in curve_pairs]
+    points = [*low_points, *reversed(high_points), low_points[0]]
+    return cq.Workplane("XY").polyline(points).close().extrude(z_height).translate((0, 0, -1))
 
 
 def shoulder_loft(y0: float, y1: float, height_scale: float = 1.0) -> cq.Workplane:
@@ -331,25 +340,21 @@ def crater_cutter(x: float, y: float, flat_d: float, depth: float, slope_w: floa
     bottom_z = top_z - depth
     flat_r = flat_d / 2.0
     outer_r = flat_r + slope_w
-    cutter = (
+    slope = (
         cq.Workplane("XY", origin=(0, 0, bottom_z))
         .circle(flat_r)
         .workplane(offset=depth + 0.05)
         .circle(outer_r)
         .loft(combine=True)
     )
-    return cutter.translate((x, y, 0))
-
-
-def crater_backing(x: float, y: float, flat_d: float, depth: float, slope_w: float, top_z: float) -> cq.Workplane:
-    bottom_z = top_z - depth
-    radius = flat_d / 2.0 + slope_w + 0.4
-    return (
+    bottom_clearance = (
         cq.Workplane("XY")
-        .circle(radius)
-        .extrude(depth + ENCODER_CRATER_FLOOR_THICKNESS)
-        .translate((x, y, bottom_z - ENCODER_CRATER_FLOOR_THICKNESS))
+        .circle(flat_r)
+        .extrude(bottom_z - UNDERSIDE_Z + 0.2)
+        .translate((0, 0, UNDERSIDE_Z - 0.1))
     )
+    cutter = slope.union(bottom_clearance).clean()
+    return cutter.translate((x, y, 0))
 
 
 def neokey_slot_bounds(params: dict, key_centers: list[tuple[float, float]]) -> tuple[float, float, float, float]:
@@ -395,6 +400,7 @@ def add_neokey_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane:
     model = model.union(neokey_deck_cap(params, seat_bounds, NEOKEY_TOP_Z, HIGH_Z))
     model = model.union(neokey_raised_cap(params, seat_bounds, HIGH_Z, NEOKEY_DECK_TOP_Z))
     key_w = key_h = params["key_cutout"][0]
+    mx_plate_top_z = NEOKEY_TOP_Z - NEOKEY_KEYCAP_RECESS_DEPTH - NEOKEY_MX_MOUNTING_GRID_Z_DROP
     for x, y in key_centers:
         model = model.cut(
             rect_prism(
@@ -403,13 +409,13 @@ def add_neokey_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane:
                 x + key_w / 2,
                 y + key_h / 2,
                 params["key_cutout_r"],
-                NEOKEY_TOP_Z - NEOKEY_KEYCAP_RECESS_DEPTH,
+                mx_plate_top_z,
                 NEOKEY_DECK_TOP_Z + 0.2,
             )
         )
     mx_cutout = params["mx_switch_retention_cutout"]
-    mx_plate_top_z = NEOKEY_TOP_Z - NEOKEY_KEYCAP_RECESS_DEPTH
     mx_plate_bottom_z = mx_plate_top_z - NEOKEY_MX_LATCH_PLATE_THICKNESS
+    mx_mounting_grid_bottom_z = NEOKEY_SEAT_BOTTOM_Z - NEOKEY_MX_MOUNTING_GRID_Z_DROP
     mx_underside_clearance = mx_cutout + NEOKEY_MX_UNDERSIDE_CLEARANCE
     for x, y in key_centers:
         model = model.cut(
@@ -419,7 +425,7 @@ def add_neokey_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane:
                 x + mx_underside_clearance / 2,
                 y + mx_underside_clearance / 2,
                 params["mx_switch_retention_r"],
-                NEOKEY_SEAT_BOTTOM_Z - 0.1,
+                mx_mounting_grid_bottom_z - 0.1,
                 mx_plate_bottom_z,
             )
         )
@@ -453,16 +459,6 @@ def add_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane:
     encoder_crater_flat_d = params["encoder_crater_flat_d"]
     for name, point in params["features_local"]["encoders"].items():
         x, y = local_to_case(params, point)
-        model = model.union(
-            crater_backing(
-                x,
-                y,
-                encoder_crater_flat_d[name],
-                params["encoder_crater_depth"],
-                params["encoder_crater_slope_w"],
-                LOW_Z,
-            )
-        )
         model = model.cut(
             crater_cutter(
                 x,
@@ -480,7 +476,7 @@ def add_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane:
     for row in range(8):
         for col in range(8):
             x = 124.75 + col * neo_pitch
-            y = 22.5 + row * neo_pitch
+            y = 17.5 + row * neo_pitch
             model = model.cut(rect_cutter(x - neo_d / 2, y - neo_d / 2, x + neo_d / 2, y + neo_d / 2, params["neotrellis_button_r"]))
 
     return model
@@ -515,12 +511,32 @@ def build_model(params: dict) -> cq.Workplane:
     ramp_region = x_band_prism(
         LOWER_TO_TIER2_RAMP_START_X, LOWER_TO_TIER2_RAMP_END_X, depth, 5, 40
     ).intersect(y_band_prism(width, -5.0, lower_wave_top_y, 5, 40))
+    lower_wave_slope_clearance = x_band_prism(-5.0, EXTENDED_SLOPE_RIGHT_X, depth, 5, 40).intersect(
+        y_band_prism(
+            width,
+            lower_wave_top_y - SOUTH_SHOULDER_PLAN_WIDTH,
+            lower_wave_top_y,
+            5,
+            40,
+        )
+    )
+    upper_shoulder_clearance = shoulder_plan_prism(
+        neokey_seat_top_y,
+        depth,
+        40,
+        TIER1_WAVE_SEAM_OVERLAP + 0.3,
+    ).intersect(footprint)
+    east_ramp_clearance = ramp_region
+    low_plate = low_plate.cut(lower_wave_slope_clearance)
+    low_plate = low_plate.cut(upper_shoulder_clearance)
+    low_plate = low_plate.cut(east_ramp_clearance)
     high_plate = high_plate.cut(ramp_region)
     lower_wave_plate = rounded_plate(
         width, depth, radius, LOWER_WAVE_HIGH_UNDERSIDE_Z, top_thick
     ).intersect(
         wave_strip_region.intersect(y_band_prism(width, -5.0, lower_wave_top_y, 5, 40))
     )
+    lower_wave_plate = lower_wave_plate.cut(lower_wave_slope_clearance)
     lower_wave_plate = lower_wave_plate.cut(ramp_region)
     lower_wave_plate = lower_wave_plate.cut(neokey_seat_region)
     wave_flat_ramp = east_wave_ramp_loft(0.0, lower_wave_top_y)
@@ -556,7 +572,8 @@ def build_model(params: dict) -> cq.Workplane:
 def main() -> None:
     params = json.loads(PARAMS.read_text())
     model = build_model(params)
-    ARTIFACT_ROOT.mkdir(parents=True, exist_ok=True)
+    STEP_OUT.parent.mkdir(parents=True, exist_ok=True)
+    STL_OUT.parent.mkdir(parents=True, exist_ok=True)
     cq.exporters.export(model, str(STEP_OUT))
     cq.exporters.export(model, str(STL_OUT), tolerance=0.08, angularTolerance=0.12)
     from generate_wave_review_view import main as generate_review_view

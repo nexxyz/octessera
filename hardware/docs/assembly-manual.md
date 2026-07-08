@@ -28,15 +28,15 @@ The hardware is still being fit-tested. Check the current enclosure files before
 | 1 | PCM5102 I2S DAC | [Mouser `485-6250`](https://www.mouser.com/ProductDetail/Adafruit/6250), Adafruit `6250` | Line/headphone output path. |
 | 1 | USB-C power breakout | [Mouser `485-4090`](https://www.mouser.com/ProductDetail/Adafruit/4090), Adafruit `4090` | Power the device here, not through the Pi. |
 | 5 | Horizontal rotary encoder with switch | [Mouser `652-PEC12R-4225F-S24`](https://www.mouser.com/ProductDetail/Bourns/PEC12R-4225F-S0024), Bourns `PEC12R-4225F-S0024` | The PCB uses four encoders; buy one spare. |
-| 4 | Black D-shaft encoder knob | [Mouser `450-BA600`](https://www.mouser.com/ProductDetail/Eagle-Plastic-Devices/450-BA600) | Main/aux encoder caps. |
-| 1 | Red 20mm encoder knob | [Mouser `485-5530`](https://www.mouser.com/ProductDetail/Adafruit/5530), Adafruit `5530` | Optional accent knob. |
+| 1 | Main encoder knob | Print `../../release-artifacts/enclosure/stl/encoder_cap_main_knurled_dots.stl`, use `../../release-artifacts/enclosure/3mf-multicolor/encoder_cap_main_knurled_dots_multicolor_flush.3mf`, or buy [Mouser `450-BA600`](https://www.mouser.com/ProductDetail/Eagle-Plastic-Devices/450-BA600) | Main encoder cap. Printed version uses the dot-ring marking. |
+| 3 | Aux encoder knobs | Print `../../release-artifacts/enclosure/stl/encoder_cap_aux*_ribbed_dot*.stl`, use matching `../../release-artifacts/enclosure/3mf-multicolor/encoder_cap_aux*_multicolor_flush.3mf`, or buy [Mouser `450-BA600`](https://www.mouser.com/ProductDetail/Eagle-Plastic-Devices/450-BA600) or [Mouser `485-5530`](https://www.mouser.com/ProductDetail/Adafruit/5530) | Aux 1/2/3 caps. Printed versions use one, two, and three dots. |
 | 2 | STEMMA QT / Qwiic JST-SH cable, 200mm | [Mouser `485-4401`](https://www.mouser.com/ProductDetail/Adafruit/4401), Adafruit `4401` | For module bring-up or alternate I2C wiring. |
 | 1 | Polarized capacitor | [`470uF`, 16V, radial, about 8x12mm](https://de.aliexpress.com/item/1005010415990713.html) | PCB footprint: `CP_Radial_D8.0mm_P3.50mm`. Any equivalent 470uF polarized radial capacitor with 3.5mm lead pitch and >5V rating is fine. |
 | 1 | 1x5 right-angle female socket/header, 2.54mm pitch | [2.54mm right-angle female header strip](https://de.aliexpress.com/item/32896617287.html) | Cut to 5 pins for the NeoTrellis connector on the PCB. |
 | 1 | 5-wire female-to-male Dupont cable, about 5cm | [Female-to-male Dupont jumper cable set](https://de.aliexpress.com/item/1005003683781229.html) | Use five adjacent leads, about 5cm long, to connect the NeoTrellis array to the PCB. |
 | several | Low-profile female header/socket strips, 2.54mm pitch | [Round-pin 2.54mm header/socket strip](https://de.aliexpress.com/item/1005006673257121.html) or [round-pin 2.54mm header/socket strip](https://de.aliexpress.com/item/4001122376295.html) | Cut to length for Pi, OLED, DAC, power breakout, and other plug-in modules. Confirm the socket height before ordering. |
 | 4 | Cherry MX-compatible key switches | [Mouser `540-MX1A-G1NW`](https://www.mouser.com/ProductDetail/CHERRY/MX1A-G1NW), Cherry MX Black, or any MX-compatible switch | Install into the NeoKey after bring-up. |
-| 4 | MX keycaps | [Mouser `540-G99-1779ZUB`](https://www.mouser.com/ProductDetail/CHERRY/G99-1779ZUB), or any MX-stem keycap | Match your preferred profile. |
+| 4 | MX keycaps | Print `../../release-artifacts/enclosure/stl/mx_keycap_*.stl`, use matching `../../release-artifacts/enclosure/3mf-multicolor/mx_keycap_*_multicolor_flush.3mf`, buy [Mouser `540-G99-1779ZUB`](https://www.mouser.com/ProductDetail/CHERRY/G99-1779ZUB), or use any MX-stem keycap | Four NeoKey caps: back, play, shift, and function/layer. |
 | 1 | MicroSD card for Raspberry Pi | 16GB or larger recommended | Flash the release image. |
 | 1 | USB-C power supply | 5V supply with enough current for Pi + LEDs | Connect only to the USB-C breakout. |
 | 1 | Audio cable/headphones/speaker | 3.5mm audio | Used for test and operation. |
@@ -45,16 +45,15 @@ The hardware is still being fit-tested. Check the current enclosure files before
 
 | Qty | Item | File/spec | Notes |
 |---:|---|---|---|
-| 1 | Enclosure top | `../../release-artifacts/enclosure/case_top_two_level_cadquery.stl` | Generated from CadQuery. STEP file is also checked in. |
-| 1 | Enclosure bottom | `../../release-artifacts/enclosure/case_bottom_plate_cadquery.stl` | Current bottom plate with guide walls and screw holes. |
-| 18 | Regular module standoff | `../../release-artifacts/enclosure/standoff_pillar_9mm.stl` | For Pi, OLED, DAC, power breakout, and NeoKey support locations. |
-| 8 | NeoTrellis standoff | `../../release-artifacts/enclosure/standoff_pillar_10mm.stl` | Two for each NeoTrellis board. |
-| 26 | Standoff top pin | `../../release-artifacts/enclosure/standoff_top_pin_thin_base.stl` | One top pin for every standoff. This is the default top pin with a `0.5mm` base disc. |
+| 1 | Enclosure top | `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery.stl` | Generated from CadQuery. STEP file is also checked in. |
+| 1 | Enclosure bottom | `../../release-artifacts/enclosure/stl/case_bottom_plate_cadquery.stl` | Current bottom plate with guide walls and screw holes. |
+| 18 | Standoff pillar | Print `../../release-artifacts/enclosure/stl/standoff_pillar_9mm.stl` and matching `../../release-artifacts/enclosure/3mf-multicolor/standoff_pillar_9mm.3mf`, or use compatible purchased stackable PCB standoffs | For Pi, OLED, DAC/audio, power breakout, and NeoKey support locations. NeoTrellis array pins go straight into the bottom's integrated pillars, so they do not need separate standoff pillars. |
+| 26 | Standoff top pin | Print `../../release-artifacts/enclosure/stl/standoff_top_pin_thin_base.stl` and matching `../../release-artifacts/enclosure/3mf-multicolor/standoff_top_pin_thin_base.3mf`, or use compatible purchased stackable PCB standoff pins | 4 Pi + 4 audio/DAC + 4 OLED/screen + 4 NeoKey + 2 power + 8 NeoTrellis array pins = 26 total. |
 | 8 | Heat-set insert | [M3 heat-set insert](https://de.aliexpress.com/item/1005012199553197.html), about `4.0-4.2mm` outer diameter and `5-6mm` long | Insert from the underside of the top. The linked kit includes multiple sizes; use the M3 inserts that fit the `4.2mm` pilot holes. |
 | 8 | Screws | M3 x 8mm socket-head cap screw, DIN 912 / ISO 4762 style | Installed from the bottom. Use a head diameter no larger than `6.4mm` so it fits the counterbores. |
 | 8 | Rubber feet or screw-hole plugs | Small adhesive feet | Optional, covers bottom screw holes and prevents sliding. |
 
-Standoff STL attribution: the standoff models are based on [Stackable PCB Standoff by theduckom](https://www.printables.com/model/163087-stackable-pcb-standoff), licensed under [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/).
+Standoff STL attribution and purchase/source reference: the standoff models are based on [Stackable PCB Standoff by theduckom](https://www.printables.com/model/163087-stackable-pcb-standoff), licensed under [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/).
 
 ### Tools and consumables
 
@@ -128,7 +127,7 @@ For manual Pi setup and diagnostics, see [`pi-bring-up.md`](pi-bring-up.md).
 1. Insert the Raspberry Pi, OLED, DAC, USB-C power breakout, and NeoKey into their sockets.
 2. Connect the NeoTrellis array to the PCB with the short 5-wire female-to-male Dupont cable.
 3. Install the Cherry MX switches into the NeoKey.
-4. Add the keycaps.
+4. Add the four keycaps. Use either printed keycaps from `release-artifacts/enclosure/stl/` or purchased MX-stem keycaps.
 5. Connect audio output to headphones, speakers, or a mixer.
 6. Connect power to the USB-C breakout.
 
@@ -152,15 +151,19 @@ Only assemble the enclosure after the electrical test and System-menu diagnostic
 
 1. Place the bottom enclosure on the bench.
 2. Put the PCB and NeoTrellis array onto the bottom.
-3. Add standoffs between the bottom supports and the modules:
+3. Add the 18 separate standoff pillars between the bottom supports and the plug-in modules:
+   - Use the printed standoff pillars or compatible purchased stackable standoffs.
    - For each plug-in module, remove the module, add the standoff, then reinstall the module.
-   - Repeat for the NeoTrellis array.
-4. Press one top pin into every standoff, including PCB/module standoffs and NeoTrellis standoffs.
+   - Do not add separate standoff pillars for the NeoTrellis array. Its eight pins go straight into the integrated bottom pillars.
+4. Press in all 26 top pins:
+   - 18 pins go into the separate standoff pillars.
+   - 8 pins go into the NeoTrellis array's integrated bottom pillars.
 5. Insert the M3 heat-set inserts into the underside of the enclosure top with a soldering iron or insert tool.
 6. Place the enclosure top over the assembly. The guide walls and standoff pins should locate the parts without forcing them.
-7. Turn the device over carefully.
-8. Install the bottom screws into the recessed holes and tighten them into the heat inserts.
-9. Add rubber feet or screw-hole covers if desired.
+7. Install the four encoder knobs. Use printed knobs from `release-artifacts/enclosure/stl/` or purchased D-shaft knobs.
+8. Turn the device over carefully.
+9. Install the bottom screws into the recessed holes and tighten them into the heat inserts.
+10. Add rubber feet or screw-hole covers if desired.
 
 Tighten screws gently. If the top does not sit flat, stop and find the interference instead of forcing the case closed.
 
@@ -176,7 +179,7 @@ Tighten screws gently. If the top does not sit flat, stop and find the interfere
 ## Things to verify before ordering in quantity
 
 - Confirm the selected M3 heat-set inserts fit the `4.2mm` pilot holes and that M3 x 8mm socket-head screws reach the inserts cleanly after printing.
-- Final fit of the printed bottom, top, standoffs, and top pins.
+- Final fit of the printed bottom, top, standoff pillars, top pins, keycaps, and encoder knobs.
 - Whether the generic sockets you buy match the intended low profile.
 - Whether the 5cm Dupont cable has enough slack after the NeoTrellis array is installed.
 - Port alignment after printing with your printer and slicer.

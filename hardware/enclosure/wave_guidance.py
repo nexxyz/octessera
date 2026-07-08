@@ -10,9 +10,9 @@ SOUTH_ROOF_LOW_WALL_BAND = 3.0
 PI_BLOCK_WEST_X = 0.0
 PI_BLOCK_EAST_X = 105.0
 PI_BLOCK_SOUTH_Y = 0.0
-PI_BLOCK_NORTH_Y = 37.35
+PI_BLOCK_NORTH_Y = 38.35
 NEOKEY_SLOPE_SOUTH_Y = 88.0
-NEOKEY_SLOPE_LOW_X = 100.0
+NEOKEY_SLOPE_LOW_X = 95.0
 CASE_NORTH_Y = 140.0
 
 
@@ -41,13 +41,15 @@ def south_edge_samples() -> tuple[list[tuple[float, float]], list[tuple[float, f
 
 
 def load_guidance_slots() -> list[tuple[tuple[float, float], tuple[float, float]]]:
-    return [
-        ((18.0, 5.8), (18.0, 23.0)),
-        ((28.0, 5.2), (28.0, 24.2)),
-        ((38.0, 5.8), (38.0, 23.0)),
-        ((48.0, 8.0), (48.0, 20.5)),
-        ((58.0, 9.5), (58.0, 18.5)),
-    ]
+    slot_count = 5
+    slot_spacing = 10.0
+    slot_length = 17.2
+    center_x = (PI_BLOCK_WEST_X + PI_BLOCK_EAST_X) / 2.0 - 8.0
+    center_y = (PI_BLOCK_SOUTH_Y + PI_BLOCK_NORTH_Y) / 2.0 - 2.5
+    first_x = center_x - slot_spacing * (slot_count - 1) / 2.0
+    y0 = center_y - slot_length / 2.0
+    y1 = center_y + slot_length / 2.0
+    return [((first_x + index * slot_spacing, y0), (first_x + index * slot_spacing, y1)) for index in range(slot_count)]
 
 
 def extend_low_edge_outward(

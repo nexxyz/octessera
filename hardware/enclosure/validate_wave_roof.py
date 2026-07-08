@@ -17,14 +17,14 @@ MAX_LOW_WALL_SHIFT_MM = 0.25
 MIN_BOTTOM_FOOTPRINT_MM = cad.SOUTH_ROOF_LOW_WALL_BAND - 0.2
 ROOF_SAMPLE_TOLERANCE = 0.12
 ROOF_SAMPLES = [
-    ("Pi block roof west", 25.0, 18.0, cad.HIGH_Z - 0.2),
+    ("Pi block roof west", 19.0, 18.0, cad.HIGH_Z - 0.2),
     ("Pi block roof east", 85.0, 18.0, cad.HIGH_Z - 0.2),
     ("tier-1 between craters", 45.0, 65.0, cad.LOW_Z - 0.2),
     ("tier-1 east of craters", 80.0, 80.0, cad.LOW_Z - 0.2),
     ("NeoTrellis northwest roof", 132.0, 130.0, cad.HIGH_Z - 0.2),
     ("NeoTrellis northeast roof", 240.0, 130.0, cad.HIGH_Z - 0.2),
     ("Pi block north slope", 55.0, 33.0, cad.HIGH_Z - 1.0),
-    ("Pi block west wall", 1.0, 20.0, cad.LOW_Z + 1.0),
+    ("Pi block west wall", 1.0, 5.0, cad.LOW_Z + 1.0),
     ("NeoKey roof north extension", 115.0, 130.0, cad.HIGH_Z - 0.2),
     ("NeoKey north slope", 104.0, 120.0, cad.HIGH_Z - 1.0),
 ]

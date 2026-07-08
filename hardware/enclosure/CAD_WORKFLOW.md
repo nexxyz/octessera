@@ -49,8 +49,8 @@ The enclosure CAD is under construction. Use the CadQuery generator as the sourc
    python hardware/enclosure/validate_wave_roof.py
    ```
 
-4. Inspect `../../release-artifacts/enclosure/current_wave_top_view.png` for plan-view clearances.
-5. Inspect or slice `../../release-artifacts/enclosure/case_top_two_level_cadquery.stl` before using it for printing.
+4. Inspect `../../release-artifacts/enclosure/review/current_wave_top_view.png` for plan-view clearances.
+5. Inspect or slice `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery.stl` before using it for printing.
 
 ## Geometry change checklist
 
@@ -69,7 +69,7 @@ Use this checklist before changing generated solids, Z transitions, or board-adj
 The first bottom artifact is only a flat drill/alignment plate. It is not the final enclosure tray.
 
 - Source: `generate_bottom_plate_cadquery.py`.
-- Exports: `../../release-artifacts/enclosure/case_bottom_plate_cadquery.step` and `../../release-artifacts/enclosure/case_bottom_plate_cadquery.stl`.
+- Exports: `../../release-artifacts/enclosure/step/case_bottom_plate_cadquery.step` and `../../release-artifacts/enclosure/stl/case_bottom_plate_cadquery.stl`.
 - Footprint: same rounded rectangle as the faceplate.
 - Holes: one M3 clearance hole and bottom-side counterbore at each `faceplate_insert_pillars_v22` position.
 - Guide walls: low inset perimeter ribs align the faceplate without forming a full tray.
@@ -89,10 +89,10 @@ Do not accept a roof-wall change until this script passes.
 
 ## Generated artifacts
 
-- `../../release-artifacts/enclosure/case_top_two_level_cadquery.step`: preferred CAD exchange artifact.
-- `../../release-artifacts/enclosure/case_top_two_level_cadquery.stl`: current printable/check-fit mesh.
-- `../../release-artifacts/enclosure/current_wave_top_view.svg`: plan-view review source image.
-- `../../release-artifacts/enclosure/current_wave_top_view.png`: plan-view review image.
+- `../../release-artifacts/enclosure/step/case_top_two_level_cadquery.step`: preferred CAD exchange artifact.
+- `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery.stl`: current printable/check-fit mesh.
+- `../../release-artifacts/enclosure/review/current_wave_top_view.svg`: plan-view review source image.
+- `../../release-artifacts/enclosure/review/current_wave_top_view.png`: plan-view review image.
 
 STEP and STL files are generated artifacts. Do not review their full text diffs.
 
