@@ -184,6 +184,7 @@ jobs:
             curl \
             file \
             libayatana-appindicator3-dev \
+            libasound2-dev \
             libfuse2 \
             librsvg2-dev \
             libsoup-3.0-dev \
