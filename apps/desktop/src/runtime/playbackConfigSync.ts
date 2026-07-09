@@ -1,4 +1,4 @@
-import type { RuntimeSnapshot } from "@cellsymphony/device-contracts";
+import type { RuntimeSnapshot } from "@octessera/device-contracts";
 import { tauriCoreRunner } from "./runner/tauriCoreRunner";
 
 export type PlaybackConfigSyncState = {

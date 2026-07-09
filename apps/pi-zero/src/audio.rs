@@ -25,7 +25,7 @@ mod audio_priority {
                 return;
             }
             configured.set(true);
-            let priority = std::env::var("CELLSYMPHONY_AUDIO_THREAD_PRIORITY")
+            let priority = std::env::var("OCTESSERA_AUDIO_THREAD_PRIORITY")
                 .ok()
                 .and_then(|value| value.parse::<i32>().ok())
                 .unwrap_or(70)
@@ -159,7 +159,7 @@ where
 }
 
 fn output_buffer_size(configured_frames: Option<u32>) -> BufferSize {
-    let frames = std::env::var("CELLSYMPHONY_AUDIO_OUTPUT_BUFFER_FRAMES")
+    let frames = std::env::var("OCTESSERA_AUDIO_OUTPUT_BUFFER_FRAMES")
         .ok()
         .and_then(|value| value.parse::<u32>().ok())
         .or(configured_frames)

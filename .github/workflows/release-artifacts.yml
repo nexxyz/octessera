@@ -81,7 +81,7 @@ jobs:
           $assetDir = New-Item -ItemType Directory -Force -Path "release-assets"
           $installer = Get-ChildItem -Path "target/release/bundle/nsis" -Filter "*.exe" | Select-Object -First 1
           if (-not $installer) { throw "NSIS installer not found" }
-          $portable = "target/release/cellsymphony-desktop.exe"
+          $portable = "target/release/octessera-desktop.exe"
           if (-not (Test-Path -LiteralPath $portable)) { throw "Portable executable source not found" }
           $installerAsset = Join-Path $assetDir "${{ needs.release_info.outputs.asset_prefix }}-windows-installer.exe"
           $portableAsset = Join-Path $assetDir "${{ needs.release_info.outputs.asset_prefix }}-windows-portable.exe"
@@ -257,12 +257,12 @@ jobs:
         run: python3 tools/assets/generate_pi_logo_pngs.py
 
       - name: Build release Pi app
-        run: cross build --release --target aarch64-unknown-linux-gnu -p cellsymphony-pi --features hardware-pi
+        run: cross build --release --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-pi
 
       - name: Stage Pi app binary
         run: |
           install -D -m 0755 \
-            target/aarch64-unknown-linux-gnu/release/cellsymphony-pi \
+            target/aarch64-unknown-linux-gnu/release/octessera-pi \
             tools/pi-image/stage4-cellsymphony/files/root/usr/local/bin/cellsymphony-pi
           file tools/pi-image/stage4-cellsymphony/files/root/usr/local/bin/cellsymphony-pi
 

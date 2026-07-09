@@ -1,4 +1,4 @@
-use cellsymphony_hal::OledSsd1351;
+use octessera_hal::OledSsd1351;
 use std::thread;
 use std::time::Duration;
 

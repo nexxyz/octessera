@@ -30,8 +30,8 @@ if ($IncludePlatformCore) {
 }
 
 if ($IncludePi) {
-  $testCrates += "cellsymphony-pi"
-  $clippyCrates += "cellsymphony-pi"
+  $testCrates += "octessera-pi"
+  $clippyCrates += "octessera-pi"
 }
 
 Invoke-Step "cargo fmt" { cargo fmt --all --check }
@@ -44,5 +44,5 @@ Invoke-Step "cargo test" { cargo test @($testCrates | ForEach-Object { @("-p", $
 Invoke-Step "cargo clippy" { cargo clippy @($clippyCrates | ForEach-Object { @("-p", $_) }) --all-targets -- -D warnings }
 
 if ($BuildDesktopExe) {
-  Invoke-Step "desktop portable exe" { corepack pnpm --filter @cellsymphony/desktop tauri:build:exe }
+  Invoke-Step "desktop portable exe" { corepack pnpm --filter @octessera/desktop tauri:build:exe }
 }

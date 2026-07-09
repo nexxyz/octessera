@@ -240,7 +240,7 @@ mod tests {
     #[test]
     fn list_presets_filters_unsafe_legacy_files() {
         let dir = std::env::temp_dir().join(format!(
-            "cellsymphony-pi-preset-list-{}-{}",
+            "octessera-pi-preset-list-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)

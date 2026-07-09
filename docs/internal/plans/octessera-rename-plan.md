@@ -30,7 +30,7 @@ commit them first or create a separate backup before tagging.
 - Repository name: likely `octessera`.
 - User-facing binaries: likely `octessera-pi`, `octessera-desktop`, and
   `Octessera.exe`.
-- Pi systemd services: likely `octessera.service`,
+- Pi systemd services: `octessera.service`,
   `octessera-boot-splash.service`, `octessera-oled-shutdown.service`, and
   `octessera-performance-governor.service`.
 - Rename internal crates/packages in phase 2, not as an optional later cleanup.
@@ -45,11 +45,11 @@ and crate identity, then deployment/repository/artifact surfaces.
 
 Major current identifiers include:
 
-- root package name: `cellsymphony`;
-- pnpm packages: `@cellsymphony/desktop`,
-  `@cellsymphony/device-contracts`;
-- Rust crates/binaries: `cellsymphony-desktop`, `cellsymphony-pi`,
-  `cellsymphony-hal`;
+- root package name: `octessera`;
+- pnpm packages: `@octessera/desktop`,
+  `@octessera/device-contracts`;
+- Rust crates/binaries: `octessera-desktop`, `octessera-pi`,
+  `octessera-hal`;
 - desktop package/source names and historical metadata; Phase 1 changes visible
   product metadata, app titles, and portable executable output to Octessera;
 - Pi install paths and services: `/opt/cellsymphony`,
@@ -103,19 +103,14 @@ Do not keep compatibility wording in product UI. Historical docs may say
 
 ## Packages, Binaries, And Services
 
-Potential renames:
+Completed Phase 2 renames and deferred Phase 3 surfaces:
 
-- `cellsymphony-pi` → `octessera-pi`;
-- `cellsymphony-desktop` → `octessera-desktop`;
-- `cellsymphony-hal` → `octessera-hal` only if internal crate/package rename is
-  included;
-- `@cellsymphony/desktop` → `@octessera/desktop`;
-- `@cellsymphony/device-contracts` → `@octessera/device-contracts`;
-- `cellsymphony.service` → `octessera.service`;
-- `cellsymphony-boot-splash.service` → `octessera-boot-splash.service`;
-- `cellsymphony-oled-shutdown.service` → `octessera-oled-shutdown.service`;
-- `cellsymphony-performance-governor.service` → `octessera-performance-governor.service`;
-- `/usr/local/bin/cellsymphony-pi` → `/usr/local/bin/octessera-pi`.
+- Phase 2 package and crate names now use `octessera-pi`,
+  `octessera-desktop`, `octessera-hal`, `@octessera/desktop`, and
+  `@octessera/device-contracts`.
+- Phase 3 still owns service/unit filenames, `/usr/local/bin/cellsymphony-pi`,
+  `/opt/cellsymphony`, Pi image stage directory names, PCB/CAD filenames, and
+  repo URL/path examples.
 
 Service changes must install and use only the Octessera unit names. Do not add
 service aliases or old binary wrappers. If an old service is handled during a
@@ -127,6 +122,7 @@ kept as a compatibility path.
 Audit and rename:
 
 - desktop config/store paths;
+- desktop sample path defaults in `apps/desktop/src-tauri/src/samples.rs`;
 - Pi store/config paths;
 - deploy scripts and release packaging;
 - Pi image builder paths under `tools/pi-image/stage4-cellsymphony`;

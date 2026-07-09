@@ -16,7 +16,7 @@ pub fn profile_requested() -> bool {
     if std::env::args().skip(1).any(|arg| arg == "--profile-dsp") {
         return true;
     }
-    std::env::var("CELLSYMPHONY_PI_PROFILE_DSP")
+    std::env::var("OCTESSERA_PI_PROFILE_DSP")
         .ok()
         .is_some_and(|value| {
             matches!(
@@ -75,7 +75,7 @@ pub fn run_dsp_profile() -> Result<(), String> {
 }
 
 fn profile_mode() -> ProfileMode {
-    std::env::var("CELLSYMPHONY_PI_PROFILE_MODE")
+    std::env::var("OCTESSERA_PI_PROFILE_MODE")
         .ok()
         .as_deref()
         .and_then(ProfileMode::from_str)

@@ -12,7 +12,7 @@ use std::time::{Duration, Instant};
 
 fn temp_store_dir(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!(
-        "cellsymphony-{name}-{}-{}",
+        "octessera-{name}-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -277,7 +277,7 @@ fn full_audio_config_command_reuses_sample_bank_signature() {
 fn deferred_default_save_flushes_runtime_result() {
     let (mut adapter, _) = test_adapter();
     let temp_dir = std::env::temp_dir().join(format!(
-        "cellsymphony-host-adapter-{}",
+        "octessera-host-adapter-{}",
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
@@ -315,7 +315,7 @@ fn deferred_default_save_flushes_runtime_result() {
 fn pending_default_save_flushes_immediately_on_shutdown() {
     let (mut adapter, _) = test_adapter();
     let temp_dir = std::env::temp_dir().join(format!(
-        "cellsymphony-host-adapter-shutdown-default-{}",
+        "octessera-host-adapter-shutdown-default-{}",
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
@@ -345,7 +345,7 @@ fn pending_default_save_flushes_immediately_on_shutdown() {
 fn malformed_default_load_returns_store_error() {
     let (mut adapter, _) = test_adapter();
     let temp_dir = std::env::temp_dir().join(format!(
-        "cellsymphony-host-adapter-bad-default-{}",
+        "octessera-host-adapter-bad-default-{}",
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()

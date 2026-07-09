@@ -1,4 +1,4 @@
-use cellsymphony_hal::{encoder_gpio::HardwareEvent, I2CBus, I2sDac, NeoKey, NeoTrellis};
+use octessera_hal::{encoder_gpio::HardwareEvent, I2CBus, I2sDac, NeoKey, NeoTrellis};
 use std::io;
 use std::process::Command;
 use std::sync::mpsc;
@@ -13,7 +13,7 @@ const NEOKEY_DEBOUNCE_SAMPLES: u8 = 2;
 
 pub(crate) fn requested() -> bool {
     std::env::args().skip(1).any(|arg| arg == "--hardware-test")
-        || std::env::var("CELLSYMPHONY_PI_HARDWARE_TEST")
+        || std::env::var("OCTESSERA_PI_HARDWARE_TEST")
             .ok()
             .is_some_and(|value| matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true"))
 }
@@ -22,7 +22,7 @@ pub(crate) fn noise_requested() -> bool {
     std::env::args()
         .skip(1)
         .any(|arg| arg == "--hardware-noise-test")
-        || std::env::var("CELLSYMPHONY_PI_HARDWARE_NOISE_TEST")
+        || std::env::var("OCTESSERA_PI_HARDWARE_NOISE_TEST")
             .ok()
             .is_some_and(|value| matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true"))
 }

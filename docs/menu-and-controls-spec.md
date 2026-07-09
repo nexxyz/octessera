@@ -79,7 +79,7 @@ Value editing semantics:
 
 - Number/enum/bool rows enter edit mode on main press
 - Navigation memory is limited to `System`, `System > Sound`, and `System > UI`. It is native, ephemeral, cleared on menu rebuild, and does not apply to any other menu, dynamic list, sample browser, preset list, MIDI port list, parameter picker, help, confirm dialog, or assignment overlay.
-- `System > Sound > Output Buffer` persists Pi output buffer frames as `runtimeConfig.sound.audioOutputBufferFrames` with choices `64/128/256/512/1024/2048`, default `256`. Changing it shows `Restart device to apply`; leaving the edited row opens the standard `Confirm Reboot` dialog. Audio is not reopened live. On Pi startup, `CELLSYMPHONY_AUDIO_OUTPUT_BUFFER_FRAMES` remains the higher-priority override.
+- `System > Sound > Output Buffer` persists Pi output buffer frames as `runtimeConfig.sound.audioOutputBufferFrames` with choices `64/128/256/512/1024/2048`, default `256`. Changing it shows `Restart device to apply`; leaving the edited row opens the standard `Confirm Reboot` dialog. Audio is not reopened live. On Pi startup, `OCTESSERA_AUDIO_OUTPUT_BUFFER_FRAMES` remains the higher-priority override.
 - Browsing selected values are shown on the selected label row; edit mode uses a separate value-focused row for clarity.
 - Bool behaves like a 2-option enum (`off`/`on`) and changes on encoder turn, not immediate row press
 - Named target selectors (instrument slot, part index, mixer route) display their computed names via `formatDisplayValue()` (e.g. `I1: synth`, `P3: rain`, `fx_bus_2`)

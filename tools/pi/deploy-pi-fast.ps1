@@ -41,10 +41,10 @@ function Copy-ToPi {
 }
 
 if ($LocalBinary -ne "") {
-  Copy-ToPi $LocalBinary "/tmp/cellsymphony-pi"
-  Invoke-PiSsh "set -e; sudo install -d '$InstallDir/releases/dev'; sudo install -m 755 /tmp/cellsymphony-pi '$InstallDir/releases/dev/cellsymphony-pi'; sudo ln -sfn '$InstallDir/releases/dev' '$InstallDir/current'; sudo ln -sfn '$InstallDir/current/cellsymphony-pi' /usr/local/bin/cellsymphony-pi; rm -f /tmp/cellsymphony-pi"
+  Copy-ToPi $LocalBinary "/tmp/octessera-pi"
+  Invoke-PiSsh "set -e; sudo install -d '$InstallDir/releases/dev'; sudo install -m 755 /tmp/octessera-pi '$InstallDir/releases/dev/octessera-pi'; sudo ln -sfn '$InstallDir/releases/dev' '$InstallDir/current'; sudo ln -sfn '$InstallDir/current/octessera-pi' /usr/local/bin/cellsymphony-pi; rm -f /tmp/octessera-pi"
 } else {
-  $archive = Join-Path $env:TEMP "cellsymphony-pi-source.tar.gz"
+  $archive = Join-Path $env:TEMP "octessera-pi-source.tar.gz"
   if (Test-Path $archive) {
     Remove-Item $archive -Force
   }
@@ -95,12 +95,12 @@ rm -rf "`$SYNC_DIR" '$remoteArchive'
   }
 
   if (-not $SkipBuild) {
-    Invoke-PiSsh "set -e; . `$HOME/.cargo/env; cd '$RemoteRepo'; CARGO_BUILD_JOBS=1 cargo build --profile '$BuildProfile' -p cellsymphony-pi --features hardware-pi; sudo install -d '$InstallDir/releases/dev'; sudo install -m 755 target/$BuildProfile/cellsymphony-pi '$InstallDir/releases/dev/cellsymphony-pi'"
+    Invoke-PiSsh "set -e; . `$HOME/.cargo/env; cd '$RemoteRepo'; CARGO_BUILD_JOBS=1 cargo build --profile '$BuildProfile' -p octessera-pi --features hardware-pi; sudo install -d '$InstallDir/releases/dev'; sudo install -m 755 target/$BuildProfile/octessera-pi '$InstallDir/releases/dev/octessera-pi'"
   }
 }
 
 $updateInitramfsValue = if ($UpdateInitramfs) { "1" } else { "0" }
-$wakeTraceEnvironmentLine = if ($WakeTrace) { "Environment=CELLSYMPHONY_WAKE_TRACE=1`n" } else { "" }
+$wakeTraceEnvironmentLine = if ($WakeTrace) { "Environment=OCTESSERA_WAKE_TRACE=1`n" } else { "" }
 
 $osConfigCommand = "UPDATE_INITRAMFS=$updateInitramfsValue`n" + @'
 set -e
@@ -239,7 +239,7 @@ sudo systemctl start cellsymphony-performance-governor.service
 
 Invoke-PiSsh $osConfigCommand
 
-$serviceCommand = "set -e; sudo install -d '$InstallDir'; sudo ln -sfn '$InstallDir/releases/dev' '$InstallDir/current'; sudo ln -sfn '$InstallDir/current/cellsymphony-pi' /usr/local/bin/cellsymphony-pi; sudo tee /etc/systemd/system/cellsymphony-boot-splash.service >/dev/null <<'EOF'
+$serviceCommand = "set -e; sudo install -d '$InstallDir'; sudo ln -sfn '$InstallDir/releases/dev' '$InstallDir/current'; sudo ln -sfn '$InstallDir/current/octessera-pi' /usr/local/bin/cellsymphony-pi; sudo tee /etc/systemd/system/cellsymphony-boot-splash.service >/dev/null <<'EOF'
 [Unit]
 Description=Octessera Early OLED Boot Splash
 DefaultDependencies=no
@@ -265,7 +265,7 @@ After=sound.target
 Type=simple
 User=pi
 WorkingDirectory=$RemoteRepo
-Environment=CELLSYMPHONY_EARLY_BOOT_SPLASH=1
+Environment=OCTESSERA_EARLY_BOOT_SPLASH=1
 ${wakeTraceEnvironmentLine}ExecStart=/usr/local/bin/cellsymphony-pi
 Restart=always
 RestartSec=5

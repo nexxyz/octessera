@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AUX_ENCODER_COUNT, type DeviceInput } from "@cellsymphony/device-contracts";
+import { AUX_ENCODER_COUNT, type DeviceInput } from "@octessera/device-contracts";
 import { createSimulatorRuntime } from "../runtime/simulatorRuntime";
 import { ControlsPanel } from "./ControlsPanel";
 import { GridMatrix } from "./GridMatrix";

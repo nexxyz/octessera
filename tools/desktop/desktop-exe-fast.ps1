@@ -17,7 +17,7 @@ if ($sccache) {
   Write-Output "sccache not found; building without compiler cache"
 }
 
-corepack pnpm --filter @cellsymphony/desktop tauri:build:exe
+corepack pnpm --filter @octessera/desktop tauri:build:exe
 if ($LASTEXITCODE -ne 0) {
   exit $LASTEXITCODE
 }

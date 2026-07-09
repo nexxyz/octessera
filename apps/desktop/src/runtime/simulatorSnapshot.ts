@@ -1,4 +1,4 @@
-import { PAN_POSITION_COUNT, type OledFrame, type RuntimeSnapshot } from "@cellsymphony/device-contracts";
+import { PAN_POSITION_COUNT, type OledFrame, type RuntimeSnapshot } from "@octessera/device-contracts";
 import type { SimulatorSnapshot } from "./types";
 
 export type RuntimeSnapshotCache = {

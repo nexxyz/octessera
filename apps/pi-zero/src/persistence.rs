@@ -85,7 +85,7 @@ mod tests {
     #[test]
     fn atomic_json_write_overwrites_existing_file() {
         let dir = std::env::temp_dir().join(format!(
-            "cellsymphony-pi-atomic-{}-{}",
+            "octessera-pi-atomic-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)

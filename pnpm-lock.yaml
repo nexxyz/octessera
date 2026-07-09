@@ -10,7 +10,7 @@ importers:
 
   apps/desktop:
     dependencies:
-      '@cellsymphony/device-contracts':
+      '@octessera/device-contracts':
         specifier: workspace:*
         version: link:../../packages/device-contracts
       '@tauri-apps/api':

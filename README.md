@@ -84,13 +84,13 @@ You can also launch it in a different way:
 
 ```bash
 corepack pnpm install
-corepack pnpm --filter @cellsymphony/desktop tauri:dev
+corepack pnpm --filter @octessera/desktop tauri:dev
 ```
 
 To create a portable Windows build yourself:
 
 ```bash
-corepack pnpm --filter @cellsymphony/desktop tauri:build:exe
+corepack pnpm --filter @octessera/desktop tauri:build:exe
 ```
 
 ## For Contributors
@@ -129,20 +129,20 @@ corepack pnpm -r test
 corepack pnpm -r lint
 corepack pnpm -r format:check
 cargo fmt --all --check
-cargo test -p platform-core -p playback-runtime -p realtime-engine -p cellsymphony-desktop
-cargo clippy -p platform-core -p playback-runtime -p realtime-engine -p cellsymphony-desktop --all-targets -- -D warnings
+cargo test -p platform-core -p playback-runtime -p realtime-engine -p octessera-desktop
+cargo clippy -p platform-core -p playback-runtime -p realtime-engine -p octessera-desktop --all-targets -- -D warnings
 ```
 
 Build desktop release artifacts:
 
 ```bash
-corepack pnpm --filter @cellsymphony/desktop tauri:build
+corepack pnpm --filter @octessera/desktop tauri:build
 ```
 
 Build the Pi app with host stubs:
 
 ```bash
-cargo build -p cellsymphony-pi
+cargo build -p octessera-pi
 ```
 
 See `docs/development-workflows.md` for complete contributor build, verification, capability-generation, and Pi hardware build notes.

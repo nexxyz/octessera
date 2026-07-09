@@ -332,7 +332,7 @@ fn oled_mode_trace_name(mode: &super::NativeOledMode) -> &'static str {
 fn wake_trace_enabled() -> bool {
     static ENABLED: OnceLock<bool> = OnceLock::new();
     *ENABLED.get_or_init(|| {
-        std::env::var("CELLSYMPHONY_WAKE_TRACE")
+        std::env::var("OCTESSERA_WAKE_TRACE")
             .is_ok_and(|value| !matches!(value.as_str(), "" | "0" | "false" | "off"))
     })
 }

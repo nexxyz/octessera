@@ -124,7 +124,7 @@ disable_service_if_present hciuart.service
 # Build natively on Pi (simpler than cross-compilation)
 echo "Building Octessera for Pi..."
 cd /home/pi/cellsymphony
-cargo build --release -p cellsymphony-pi --features hardware-pi
+cargo build --release -p octessera-pi --features hardware-pi
 
 # Create systemd service
 echo "Creating systemd service..."
@@ -138,7 +138,7 @@ Type=simple
 User=pi
 WorkingDirectory=/home/pi/cellsymphony
 ExecStartPre=/bin/sleep 2
-ExecStart=/home/pi/cellsymphony/target/release/cellsymphony-pi
+ExecStart=/home/pi/cellsymphony/target/release/octessera-pi
 Restart=always
 RestartSec=5
 StandardOutput=journal

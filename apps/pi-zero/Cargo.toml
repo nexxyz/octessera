@@ -1,14 +1,14 @@
 [package]
-name = "cellsymphony-pi"
+name = "octessera-pi"
 version = "0.5.2"
 edition = "2021"
 
 [[bin]]
-name = "cellsymphony-pi"
+name = "octessera-pi"
 path = "src/main.rs"
 
 [dependencies]
-cellsymphony-hal = { path = "../../crates/hal" }
+octessera-hal = { path = "../../crates/hal" }
 platform-core = { path = "../../crates/platform-core" }
 playback-runtime = { path = "../../crates/playback-runtime" }
 realtime-engine = { path = "../../crates/realtime-engine" }
@@ -23,7 +23,7 @@ simple_logger = "1.16"
 
 [features]
 default = []
-hardware-pi = ["cellsymphony-hal/pi-zero"]
+hardware-pi = ["octessera-hal/pi-zero"]
 
 [build-dependencies]
 image = { version = "0.25", default-features = false, features = ["png"] }

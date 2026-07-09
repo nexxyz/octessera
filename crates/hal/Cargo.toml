@@ -1,5 +1,5 @@
 [package]
-name = "cellsymphony-hal"
+name = "octessera-hal"
 version = "0.5.2"
 edition = "2021"
 

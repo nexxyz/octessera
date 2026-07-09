@@ -17,13 +17,13 @@ const MAX_BLOCK_FRAMES: usize = 2_048;
 const RUNTIME_WARMUP_BLOCKS: usize = 8;
 
 pub fn profile_block_frames() -> usize {
-    env_usize("CELLSYMPHONY_AUDIO_BLOCK_FRAMES")
+    env_usize("OCTESSERA_AUDIO_BLOCK_FRAMES")
         .unwrap_or(DEFAULT_AUDIO_BLOCK_FRAMES)
         .clamp(MIN_BLOCK_FRAMES, MAX_BLOCK_FRAMES)
 }
 
 pub fn profile_sample_rate() -> u32 {
-    env_usize("CELLSYMPHONY_PI_PROFILE_SAMPLE_RATE")
+    env_usize("OCTESSERA_PI_PROFILE_SAMPLE_RATE")
         .map(|value| value as u32)
         .unwrap_or(DEFAULT_AUDIO_SAMPLE_RATE)
 }

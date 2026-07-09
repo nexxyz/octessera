@@ -1,4 +1,4 @@
-import { OLED_HEIGHT, OLED_WIDTH } from "@cellsymphony/device-contracts";
+import { OLED_HEIGHT, OLED_WIDTH } from "@octessera/device-contracts";
 import { rgb565ToCss } from "./oledImage";
 import type { SemanticOledState } from "./OledDisplay";
 

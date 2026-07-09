@@ -75,9 +75,9 @@ Expected ownership:
 On the development PC:
 
 ```bash
-cargo build -p cellsymphony-pi
+cargo build -p octessera-pi
 cargo test -p platform-core -p playback-runtime
-cargo test -p cellsymphony-pi render
+cargo test -p octessera-pi render
 ```
 
 On the Pi, before all hardware is attached:
@@ -101,14 +101,14 @@ Running the normal app before the PCB/components are attached is only a negative
 Host-stub build:
 
 ```bash
-cargo build -p cellsymphony-pi
+cargo build -p octessera-pi
 ```
 
 Preferred hardware iteration from Windows:
 
 ```powershell
 ./tools/pi/build-pi-cross.ps1
-./tools/pi/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -LocalBinary target/pi-cross/cellsymphony-pi -NoTail
+./tools/pi/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -LocalBinary target/pi-cross/octessera-pi -NoTail
 ```
 
 Fallback on-Pi build:
@@ -125,7 +125,7 @@ Explicit GitHub releases include a ready-to-flash Pi Zero 2 W image named `Octes
 
 The image is derived from standard Raspberry Pi OS Bookworm arm64 through pi-gen and includes:
 
-- the release `cellsymphony-pi` binary built with `--release --features hardware-pi`;
+- the release `octessera-pi` binary built with `--release --features hardware-pi`;
 - `cellsymphony.service` and the performance governor service;
 - runtime audio/I2C/SPI dependencies;
 - Octessera boot config and the `i2s-dac-no20` overlay;
@@ -145,7 +145,7 @@ The current development Pi at `pi@192.168.0.211` has been verified with `tools/p
 - GPIO18/19/21 are PCM/I2S and GPIO20 remains input for card detect
 - ALSA exposes the PCM5102/HifiBerry-style DAC
 - `rppal` `0.22.1` is required for this OS/kernel; older `0.14.1` failed model detection
-- On-Pi fallback builds with `CARGO_BUILD_JOBS=1 cargo build --profile pi-dev -p cellsymphony-pi --features hardware-pi` succeed but take about 24 minutes on first build
+- On-Pi fallback builds with `CARGO_BUILD_JOBS=1 cargo build --profile pi-dev -p octessera-pi --features hardware-pi` succeed but take about 24 minutes on first build
 - The app enters persistent hardware fault mode instead of restart-looping when critical hardware initialization fails
 - PCM5102/HifiBerry-style DAC output has produced a 440 Hz ALSA test tone on the physical hardware
 - NeoKey has been detected at `0x3F` on the PCB I2C path
@@ -195,7 +195,7 @@ Implementation boundary: `playback-runtime` owns the menu action and platform ef
 
 Use a simple A/B binary swap first:
 
-1. Upload a release bundle containing `cellsymphony-pi`, version metadata, and optional resources.
+1. Upload a release bundle containing `octessera-pi`, version metadata, and optional resources.
 2. Write it to `/opt/cellsymphony/releases/<version>/`.
 3. Verify checksum and executable bit.
 4. Update `/opt/cellsymphony/current` atomically.

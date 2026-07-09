@@ -1,4 +1,4 @@
-use cellsymphony_hal::{encoder_gpio::HardwareEvent, NeoKey, NeoTrellis};
+use octessera_hal::{encoder_gpio::HardwareEvent, NeoKey, NeoTrellis};
 use std::io;
 use std::sync::mpsc;
 use std::thread;

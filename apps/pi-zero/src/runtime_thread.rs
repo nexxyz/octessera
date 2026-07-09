@@ -9,7 +9,7 @@ use crate::main_runtime_loop::{
 use crate::render_loop::RenderWorker;
 use crate::runtime_loop::initialize_host_state;
 use crate::ui_profile::UiProfiler;
-use cellsymphony_hal::encoder_gpio::HardwareEvent;
+use octessera_hal::encoder_gpio::HardwareEvent;
 use playback_runtime::{
     HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig, SyncSource,
 };
@@ -62,7 +62,7 @@ pub(crate) struct RuntimeThreadConfig {
 
 pub(crate) fn spawn(config: RuntimeThreadConfig) -> JoinHandle<()> {
     thread::Builder::new()
-        .name("cellsymphony-runtime".into())
+        .name("octessera-runtime".into())
         .spawn(move || run(config))
         .expect("pi runtime thread should start")
 }

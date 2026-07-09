@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 pub(crate) fn default_store_dir() -> PathBuf {
-    std::env::var_os("CELLSYMPHONY_PI_STORE_DIR")
+    std::env::var_os("OCTESSERA_PI_STORE_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|| {
             home_dir()
@@ -16,7 +16,7 @@ pub(crate) fn ensure_runtime_dirs(store_dir: &Path, samples_dir: &Path) {
 }
 
 pub(crate) fn default_samples_dir() -> PathBuf {
-    std::env::var_os("CELLSYMPHONY_PI_SAMPLES_DIR")
+    std::env::var_os("OCTESSERA_PI_SAMPLES_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|| {
             home_dir()

@@ -1,3 +1,3 @@
 fn main() {
-    cellsymphony_desktop_lib::run();
+    octessera_desktop_lib::run();
 }

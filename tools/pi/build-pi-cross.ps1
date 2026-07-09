@@ -4,7 +4,7 @@ param(
   [string]$Target = "aarch64-unknown-linux-gnu",
   [string]$Profile = "pi-dev",
   [string]$OutDir = "target/pi-cross",
-  [string]$Image = "cellsymphony-pi-cross:latest",
+  [string]$Image = "octessera-pi-cross:latest",
   [string]$Sysroot = "",
   [string]$PkgConfigPath = ""
 )
@@ -114,7 +114,7 @@ function Invoke-DockerBuild {
       -e PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig/ `
       -e PKG_CONFIG_ALLOW_CROSS=1 `
       $Image `
-      bash -lc "set -euo pipefail; rustup target add $Target; cargo build --target $Target --profile $Profile -p cellsymphony-pi --features hardware-pi; mkdir -p '$outMount'; cp target/$Target/$Profile/cellsymphony-pi '$outMount'/cellsymphony-pi"
+      bash -lc "set -euo pipefail; rustup target add $Target; cargo build --target $Target --profile $Profile -p octessera-pi --features hardware-pi; mkdir -p '$outMount'; cp target/$Target/$Profile/octessera-pi '$outMount'/octessera-pi"
   }
 }
 
@@ -154,10 +154,10 @@ function Invoke-NativeCrossBuild {
     throw "pkg-config could not find alsa. Use -Backend wsl-docker, supply -Sysroot/-PkgConfigPath, or build on a Pi."
   }
 
-  Write-Output "Building cellsymphony-pi for $Target ($Profile) with native cross tools"
+  Write-Output "Building octessera-pi for $Target ($Profile) with native cross tools"
   Invoke-CheckedCommand "rustup target add" { & rustup target add $Target }
   Invoke-CheckedCommand "cargo build" {
-    & cargo build --target $Target --profile $Profile -p cellsymphony-pi --features hardware-pi
+    & cargo build --target $Target --profile $Profile -p octessera-pi --features hardware-pi
   }
 }
 
@@ -178,7 +178,7 @@ try {
     }
   }
 
-  Write-Output "Building cellsymphony-pi with backend: $selectedBackend"
+  Write-Output "Building octessera-pi with backend: $selectedBackend"
   switch ($selectedBackend) {
     "wsl-docker" { Invoke-WslDockerBuild -RepoRoot $RepoRoot -OutputDir $outputDir }
     "docker" { Invoke-DockerBuild -RepoRoot $RepoRoot -OutputDir $outputDir }
@@ -187,14 +187,14 @@ try {
 
   if ($selectedBackend -eq "native") {
     $binaryPath = Join-Path (Join-Path (Join-Path $RepoRoot "target") $Target) $Profile
-    $binaryPath = Join-Path $binaryPath "cellsymphony-pi"
+    $binaryPath = Join-Path $binaryPath "octessera-pi"
     if (-not (Test-Path -LiteralPath $binaryPath)) {
       throw "Build finished but binary was not found at $binaryPath"
     }
-    Copy-Item -Force -LiteralPath $binaryPath -Destination (Join-Path $outputDir "cellsymphony-pi")
+    Copy-Item -Force -LiteralPath $binaryPath -Destination (Join-Path $outputDir "octessera-pi")
   }
 
-  $outputBinary = Join-Path $outputDir "cellsymphony-pi"
+  $outputBinary = Join-Path $outputDir "octessera-pi"
   if (-not (Test-Path -LiteralPath $outputBinary)) {
     throw "Build finished but binary was not found at $outputBinary"
   }

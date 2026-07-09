@@ -1,5 +1,5 @@
-import type { DeviceInput } from "@cellsymphony/device-contracts";
-import { AUX_ENCODER_COUNT } from "@cellsymphony/device-contracts";
+import type { DeviceInput } from "@octessera/device-contracts";
+import { AUX_ENCODER_COUNT } from "@octessera/device-contracts";
 import type { CSSProperties } from "react";
 import type { SimulatorSnapshot } from "../runtime/types";
 import { OledDisplay } from "./OledDisplay";

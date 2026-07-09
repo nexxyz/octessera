@@ -9,7 +9,7 @@ pub struct MidiPortInfo {
 }
 
 pub(crate) fn list_outputs() -> Result<Vec<MidiPortInfo>, String> {
-    let out = MidiOutput::new("cellsymphony-midi-out").map_err(|e| e.to_string())?;
+    let out = MidiOutput::new("octessera-midi-out").map_err(|e| e.to_string())?;
     let ports = out.ports();
     let mut res = Vec::new();
     for (idx, port) in ports.iter().enumerate() {
@@ -25,7 +25,7 @@ pub(crate) fn list_outputs() -> Result<Vec<MidiPortInfo>, String> {
 }
 
 pub(crate) fn list_inputs() -> Result<Vec<MidiPortInfo>, String> {
-    let mut input = MidiInput::new("cellsymphony-midi-in").map_err(|e| e.to_string())?;
+    let mut input = MidiInput::new("octessera-midi-in").map_err(|e| e.to_string())?;
     input.ignore(Ignore::None);
     let ports = input.ports();
     let mut res = Vec::new();
@@ -55,13 +55,13 @@ pub(crate) fn select_output(
     let idx: usize = id
         .parse()
         .map_err(|_| "invalid midi output id".to_string())?;
-    let out = MidiOutput::new("cellsymphony-midi-out").map_err(|e| e.to_string())?;
+    let out = MidiOutput::new("octessera-midi-out").map_err(|e| e.to_string())?;
     let ports = out.ports();
     let port = ports
         .get(idx)
         .ok_or_else(|| "midi output id out of range".to_string())?;
     let conn = out
-        .connect(port, "cellsymphony-midi-out-conn")
+        .connect(port, "octessera-midi-out-conn")
         .map_err(|e| e.to_string())?;
     *guard = Some(conn);
     Ok(())
@@ -85,7 +85,7 @@ where
     let idx: usize = id
         .parse()
         .map_err(|_| "invalid midi input id".to_string())?;
-    let mut input = MidiInput::new("cellsymphony-midi-in").map_err(|e| e.to_string())?;
+    let mut input = MidiInput::new("octessera-midi-in").map_err(|e| e.to_string())?;
     input.ignore(Ignore::None);
     let ports = input.ports();
     let port = ports
@@ -94,7 +94,7 @@ where
     let conn = input
         .connect(
             port,
-            "cellsymphony-midi-in-conn",
+            "octessera-midi-in-conn",
             move |_stamp, msg, _| {
                 handler(msg.to_vec());
             },

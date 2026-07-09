@@ -7,7 +7,7 @@ pub fn diagnostic_requested() -> bool {
     if std::env::args().skip(1).any(|arg| arg == "--diagnostic") {
         return true;
     }
-    std::env::var("CELLSYMPHONY_PI_DIAGNOSTIC")
+    std::env::var("OCTESSERA_PI_DIAGNOSTIC")
         .ok()
         .is_some_and(|value| {
             matches!(

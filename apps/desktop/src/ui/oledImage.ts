@@ -1,4 +1,4 @@
-import type { OledFrame } from "@cellsymphony/device-contracts";
+import type { OledFrame } from "@octessera/device-contracts";
 
 export function rgb565ToCss(value: number): string {
   const r5 = (value >> 11) & 0x1f;

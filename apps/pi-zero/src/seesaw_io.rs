@@ -1,5 +1,5 @@
 use crate::input::{grid_message, neokey_message};
-use cellsymphony_hal::{NeoKey, NeoTrellis, SeesawInterrupt};
+use octessera_hal::{NeoKey, NeoTrellis, SeesawInterrupt};
 use playback_runtime::HostMessage;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;

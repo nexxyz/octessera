@@ -1,4 +1,4 @@
-import { type RuntimeSnapshot } from "@cellsymphony/device-contracts";
+import { type RuntimeSnapshot } from "@octessera/device-contracts";
 
 const ledCell = (frame: RuntimeSnapshot, index: number) => {
   const offset = index * 3;

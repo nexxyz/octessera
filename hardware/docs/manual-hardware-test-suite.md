@@ -223,7 +223,7 @@ sudo systemctl stop cellsymphony.service
 The mode initializes NeoTrellis, NeoKey, DAC, and encoders without requiring an OLED. It then runs the LED checks, logs grid/key/encoder events to stdout, and launches the ALSA test tone.
 It prints a final `SUMMARY` with warning and failure counts.
 
-For unattended launch, set `CELLSYMPHONY_PI_HARDWARE_TEST=1` instead of passing `--hardware-test`.
+For unattended launch, set `OCTESSERA_PI_HARDWARE_TEST=1` instead of passing `--hardware-test`.
 
 To run only the no-touch input noise check:
 
@@ -233,7 +233,7 @@ sudo systemctl stop cellsymphony.service
 /usr/local/bin/cellsymphony-pi --hardware-noise-test
 ```
 
-For unattended no-touch-only launch, set `CELLSYMPHONY_PI_HARDWARE_NOISE_TEST=1`.
+For unattended no-touch-only launch, set `OCTESSERA_PI_HARDWARE_NOISE_TEST=1`.
 The noise-only mode also prints a final `SUMMARY`. Warnings indicate raw noise that is below the runtime confirmation threshold; failures indicate confirmed input, read failures, or encoder/grid idle events.
 
 Use skip flags to isolate one hardware family while another is disconnected or suspect:

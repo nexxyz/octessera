@@ -1,5 +1,5 @@
 {
-  "name": "cellsymphony",
+  "name": "octessera",
   "private": true,
   "version": "0.5.2",
   "description": "Cellular algorithm music instrument desktop-first platform",
@@ -15,7 +15,7 @@
     "test": "corepack pnpm -r test",
     "test:coverage": "corepack pnpm -r test:coverage",
     "quality:audit": "node tools/quality/quality-audit.mjs",
-    "tauri:build": "corepack pnpm --filter @cellsymphony/desktop tauri:build",
-    "tauri:build:ci": "corepack pnpm --filter @cellsymphony/desktop tauri:build:ci"
+    "tauri:build": "corepack pnpm --filter @octessera/desktop tauri:build",
+    "tauri:build:ci": "corepack pnpm --filter @octessera/desktop tauri:build:ci"
   }
 }

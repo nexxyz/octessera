@@ -373,7 +373,7 @@ impl NativeRunner {
 }
 
 fn menu_key_profile_enabled() -> bool {
-    std::env::var("CELLSYMPHONY_PI_UI_PROFILE")
+    std::env::var("OCTESSERA_PI_UI_PROFILE")
         .map(|value| {
             matches!(
                 value.trim().to_ascii_lowercase().as_str(),
