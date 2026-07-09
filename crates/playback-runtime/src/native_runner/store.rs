@@ -147,11 +147,10 @@ impl NativeRunner {
                 "Confirm Rollback",
                 "Rollback to the previous release?".into(),
             )
-        } else if let Some(rest) = action_type.strip_prefix("synth.preset:") {
+        } else {
+            let rest = action_type.strip_prefix("synth.preset:")?;
             let preset = rest.split(':').nth(1).unwrap_or("preset");
             ("Confirm Synth", format!("Load synth preset {preset}?"))
-        } else {
-            return None;
         };
         Some(NativeConfirmDialog {
             title: title.into(),
