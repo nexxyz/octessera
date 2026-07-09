@@ -176,29 +176,30 @@ def draw_wordmark(canvas: list[list[int]], target_width: float, center_x: float,
     min_x, min_y, max_x, max_y = bounds
     source_width = max_x - min_x
     source_height = max_y - min_y
-    scale = (target_width * SCALE) / source_width
+    scale = target_width / source_width
     target_height = source_height * scale
     source_center = Point((min_x + max_x) / 2, (min_y + max_y) / 2)
-    target_center = Point(center_x * SCALE, center_y * SCALE)
     transformed = [
         [
             Point(
-                (point.x - source_center.x) * scale + target_center.x,
-                (point.y - source_center.y) * scale + target_center.y,
+                round((point.x - source_center.x) * scale + center_x),
+                round((point.y - source_center.y) * scale + center_y),
             )
             for point in polygon
         ]
         for polygon in polygons
     ]
-    min_draw_x = round(center_x * SCALE - target_width * SCALE / 2) - 1
-    max_draw_x = round(center_x * SCALE + target_width * SCALE / 2) + 1
-    min_draw_y = round(center_y * SCALE - target_height / 2) - 1
-    max_draw_y = round(center_y * SCALE + target_height / 2) + 1
+    min_draw_x = max(0, round(center_x - target_width / 2) - 1)
+    max_draw_x = min(SIZE - 1, round(center_x + target_width / 2) + 1)
+    min_draw_y = max(0, round(center_y - target_height / 2) - 1)
+    max_draw_y = min(SIZE - 1, round(center_y + target_height / 2) + 1)
     for y in range(min_draw_y, max_draw_y + 1):
         for x in range(min_draw_x, max_draw_x + 1):
             point = Point(x + 0.5, y + 0.5)
             if sum(1 for polygon in transformed if point_in_polygon(point, polygon)) % 2 == 1:
-                set_pixel(canvas, x, y)
+                for sy in range(SCALE):
+                    for sx in range(SCALE):
+                        set_pixel(canvas, x * SCALE + sx, y * SCALE + sy)
 
 
 def downsample_grayscale(canvas: list[list[int]]) -> bytes:
@@ -241,7 +242,7 @@ def save_mark(path: Path) -> None:
 def save_stacked_logo(path: Path) -> None:
     canvas = make_canvas()
     draw_mark(canvas, target_size=58, center_x=64, center_y=52)
-    draw_wordmark(canvas, target_width=104, center_x=64, center_y=92)
+    draw_wordmark(canvas, target_width=118, center_x=64, center_y=93)
     write_png(path, downsample_grayscale(canvas))
 
 
