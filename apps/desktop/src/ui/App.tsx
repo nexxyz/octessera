@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AUX_ENCODER_COUNT, type DeviceInput } from "@cellsymphony/device-contracts";
+import { AUX_ENCODER_COUNT, type DeviceInput } from "@octessera/device-contracts";
 import { createSimulatorRuntime } from "../runtime/simulatorRuntime";
 import { ControlsPanel } from "./ControlsPanel";
 import { GridMatrix } from "./GridMatrix";
@@ -49,7 +49,7 @@ export function App() {
 
   return (
     <main className="app-shell" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
-      <header className="bar">Cell Symphony Hardware Simulator</header>
+      <header className="bar">Octessera Hardware Simulator</header>
       <section className="panel-layout">
         <ControlsPanel
           dialPhase={dialPhase}

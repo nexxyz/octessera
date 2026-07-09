@@ -42,7 +42,7 @@ pub struct UiProfiler {
 
 impl UiProfiler {
     pub fn from_process() -> Self {
-        let enabled = std::env::var("CELLSYMPHONY_PI_UI_PROFILE")
+        let enabled = std::env::var("OCTESSERA_PI_UI_PROFILE")
             .map(|value| Self::truthy(&value))
             .unwrap_or(false)
             || std::env::args().any(|arg| arg == "--profile-ui");

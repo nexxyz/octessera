@@ -32,7 +32,7 @@ fn sanitize_relative_dir_normalizes_separator_and_dots() {
 
 #[test]
 fn resolve_sample_file_from_root_accepts_only_wav_inside_root() {
-    let root = unique_temp_dir("cellsymphony_samples_resolve");
+    let root = unique_temp_dir("octessera_samples_resolve");
     let sub = root.join("drums");
     fs::create_dir_all(&sub).expect("subdir");
     let wav = sub.join("kick.wav");
@@ -48,7 +48,7 @@ fn resolve_sample_file_from_root_accepts_only_wav_inside_root() {
 
 #[test]
 fn sample_list_from_root_sorts_dirs_first_and_filters_wav() {
-    let root = unique_temp_dir("cellsymphony_samples_list");
+    let root = unique_temp_dir("octessera_samples_list");
     let drums = root.join("Drums");
     fs::create_dir_all(&drums).expect("drums dir");
     touch(&root.join("b.wav"));

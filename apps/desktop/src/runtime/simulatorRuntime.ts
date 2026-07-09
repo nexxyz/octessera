@@ -1,4 +1,4 @@
-import { type DeviceInput, type RuntimeHostMessage, type RuntimeRunnerMessage, type RuntimeSnapshot } from "@cellsymphony/device-contracts";
+import { type DeviceInput, type RuntimeHostMessage, type RuntimeRunnerMessage, type RuntimeSnapshot } from "@octessera/device-contracts";
 import { TauriAudioLoadService, type AudioLoadService, type AudioLoadStatus } from "../audio/audioLoadEvents";
 import { syncPlaybackConfigIfNeeded as syncPlaybackConfig, type PlaybackConfigSyncState } from "./playbackConfigSync";
 import { createIntervalRuntimeScheduler, type RuntimeScheduler } from "./runtimeScheduler";

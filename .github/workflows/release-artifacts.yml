@@ -38,7 +38,7 @@ jobs:
           {
             echo "tag=$RELEASE_TAG"
             echo "version=$VERSION"
-            echo "asset_prefix=CellSymphony-$VERSION"
+            echo "asset_prefix=Octessera-$VERSION"
           } >> "$GITHUB_OUTPUT"
 
   windows:
@@ -81,7 +81,7 @@ jobs:
           $assetDir = New-Item -ItemType Directory -Force -Path "release-assets"
           $installer = Get-ChildItem -Path "target/release/bundle/nsis" -Filter "*.exe" | Select-Object -First 1
           if (-not $installer) { throw "NSIS installer not found" }
-          $portable = "target/release/cellsymphony-desktop.exe"
+          $portable = "target/release/octessera-desktop.exe"
           if (-not (Test-Path -LiteralPath $portable)) { throw "Portable executable source not found" }
           $installerAsset = Join-Path $assetDir "${{ needs.release_info.outputs.asset_prefix }}-windows-installer.exe"
           $portableAsset = Join-Path $assetDir "${{ needs.release_info.outputs.asset_prefix }}-windows-portable.exe"
@@ -93,7 +93,7 @@ jobs:
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v7
         with:
-          name: cellsymphony-windows-release-assets
+          name: octessera-windows-release-assets
           path: release-assets/*
           retention-days: 30
 
@@ -145,7 +145,7 @@ jobs:
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v7
         with:
-          name: cellsymphony-macos-release-assets
+          name: octessera-macos-release-assets
           path: release-assets/*
           retention-days: 30
 
@@ -225,7 +225,7 @@ jobs:
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v7
         with:
-          name: cellsymphony-ubuntu-release-assets
+          name: octessera-ubuntu-release-assets
           path: release-assets/*
           retention-days: 30
 
@@ -257,14 +257,14 @@ jobs:
         run: python3 tools/assets/generate_pi_logo_pngs.py
 
       - name: Build release Pi app
-        run: cross build --release --target aarch64-unknown-linux-gnu -p cellsymphony-pi --features hardware-pi
+        run: cross build --release --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-pi
 
       - name: Stage Pi app binary
         run: |
           install -D -m 0755 \
-            target/aarch64-unknown-linux-gnu/release/cellsymphony-pi \
-            tools/pi-image/stage4-cellsymphony/files/root/usr/local/bin/cellsymphony-pi
-          file tools/pi-image/stage4-cellsymphony/files/root/usr/local/bin/cellsymphony-pi
+            target/aarch64-unknown-linux-gnu/release/octessera-pi \
+            tools/pi-image/stage4-octessera/files/root/usr/local/bin/octessera-pi
+          file tools/pi-image/stage4-octessera/files/root/usr/local/bin/octessera-pi
 
       - name: Install pi-gen dependencies
         run: |
@@ -277,16 +277,16 @@ jobs:
       - name: Clone pi-gen
         run: |
           git clone --depth 1 --branch bookworm-arm64 https://github.com/RPi-Distro/pi-gen.git
-          cp -r tools/pi-image/stage4-cellsymphony pi-gen/
+          cp -r tools/pi-image/stage4-octessera pi-gen/
 
       - name: Configure pi-gen
         working-directory: pi-gen
         run: |
           cat > config <<'EOL'
-          IMG_NAME=cellsymphony-pi-zero-2w
+          IMG_NAME=octessera-pi-zero-2w
           RELEASE=bookworm
           TARGET_ARCH=arm64
-          STAGE_LIST="stage0 stage1 stage2 stage4-cellsymphony"
+          STAGE_LIST="stage0 stage1 stage2 stage4-octessera"
           EXPORT_DIR=deploy
           DEPLOY_ZIP=1
           ENABLE_SSH=0
@@ -327,7 +327,7 @@ jobs:
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v7
         with:
-          name: cellsymphony-pi-image-release-assets
+          name: octessera-pi-image-release-assets
           path: release-assets/*
           retention-days: 30
 
@@ -339,7 +339,7 @@ jobs:
       - name: Download workflow artifacts
         uses: actions/download-artifact@v8
         with:
-          pattern: cellsymphony-*-release-assets
+          pattern: octessera-*-release-assets
           path: gathered-release-assets
           merge-multiple: true
 

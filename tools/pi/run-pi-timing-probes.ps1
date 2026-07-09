@@ -1,8 +1,8 @@
 param(
   [string]$Target = "pi@192.168.0.211",
-  [string]$Key = "$env:USERPROFILE\.ssh\cellsymphony_pi_dev",
-  [string]$Binary = "/usr/local/bin/cellsymphony-pi",
-  [string]$Service = "cellsymphony.service",
+  [string]$Key = "$env:USERPROFILE\.ssh\octessera_pi_dev",
+  [string]$Binary = "/usr/local/bin/octessera-pi",
+  [string]$Service = "octessera.service",
   [ValidateSet("RuntimeOnly", "Live", "AudioDrain", "DspFxLimits")]
   [string]$Mode = "RuntimeOnly",
   [string]$Durations = "5s",
@@ -39,12 +39,12 @@ function Invoke-PiSsh {
 }
 
 $envParts = @(
-  (Env-Assignment "CELLSYMPHONY_PI_STORE_DIR" "/home/pi/presets"),
-  (Env-Assignment "CELLSYMPHONY_PI_SAMPLES_DIR" "/home/pi/samples")
+  (Env-Assignment "OCTESSERA_PI_STORE_DIR" "/home/pi/presets"),
+  (Env-Assignment "OCTESSERA_PI_SAMPLES_DIR" "/home/pi/samples")
 )
 
 if ($AudioOutputBufferFrames -gt 0) {
-  $envParts += Env-Assignment "CELLSYMPHONY_AUDIO_OUTPUT_BUFFER_FRAMES" ([string]$AudioOutputBufferFrames)
+  $envParts += Env-Assignment "OCTESSERA_AUDIO_OUTPUT_BUFFER_FRAMES" ([string]$AudioOutputBufferFrames)
 }
 
 $args = @()
@@ -68,7 +68,7 @@ switch ($Mode) {
     }
   }
   "AudioDrain" {
-    $envParts += Env-Assignment "CELLSYMPHONY_PI_TIMING_PROBE_AUDIO_DRAIN_INTERVAL_MS" ([string]$AudioDrainIntervalMs)
+    $envParts += Env-Assignment "OCTESSERA_PI_TIMING_PROBE_AUDIO_DRAIN_INTERVAL_MS" ([string]$AudioDrainIntervalMs)
     $args = @(
       "--timing-probe",
       "--timing-probe-audio-drain",
@@ -76,7 +76,7 @@ switch ($Mode) {
     )
   }
   "DspFxLimits" {
-    $envParts += Env-Assignment "CELLSYMPHONY_PI_PROFILE_MODE" "fx-limits"
+    $envParts += Env-Assignment "OCTESSERA_PI_PROFILE_MODE" "fx-limits"
     $args = @("--profile-dsp")
   }
 }

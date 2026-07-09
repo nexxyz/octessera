@@ -36,7 +36,7 @@ const BUNDLED_DEFAULT_CONFIG: &str = include_str!(concat!(
 ));
 
 fn ensure_store_dir(app: &tauri::App) -> PathBuf {
-    if let Some(dir) = std::env::var_os("CELLSYMPHONY_DESKTOP_STORE_DIR").map(PathBuf::from) {
+    if let Some(dir) = std::env::var_os("OCTESSERA_DESKTOP_STORE_DIR").map(PathBuf::from) {
         return ensure_store_dir_at(dir);
     }
     let dir = app
@@ -154,7 +154,7 @@ mod tests {
     #[test]
     fn store_dir_seed_writes_bundled_default_once() {
         let dir = std::env::temp_dir().join(format!(
-            "cellsymphony-desktop-store-seed-{}",
+            "octessera-desktop-store-seed-{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()

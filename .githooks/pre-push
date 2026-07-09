@@ -62,17 +62,17 @@ run_check "file length" "
   [ \"\$FAILED\" -eq 0 ]
 "
 run_check "cargo test" \
-  "cargo test --workspace --exclude cellsymphony-desktop --exclude rodio-engine-source 2>&1"
+  "cargo test --workspace --exclude octessera-desktop --exclude rodio-engine-source 2>&1"
 run_check "cargo llvm-cov" \
   "bash ./tools/quality/check-rust-coverage.sh 2>&1"
 run_check "cargo check desktop" \
-  "cargo check -p cellsymphony-desktop 2>&1"
+  "cargo check -p octessera-desktop 2>&1"
 run_check "cargo check pi" \
-  "cargo check -p cellsymphony-pi 2>&1"
+  "cargo check -p octessera-pi 2>&1"
 run_check "tauri build smoke" \
   "pnpm run tauri:build:ci 2>&1"
 run_check "cargo clippy" \
-  "cargo clippy --workspace --exclude cellsymphony-desktop --exclude rodio-engine-source --all-targets -- -D warnings 2>&1"
+  "cargo clippy --workspace --exclude octessera-desktop --exclude rodio-engine-source --all-targets -- -D warnings 2>&1"
 
 printf "\n====================\n"
 printf "  %d passed, %d failed\n" "$PASS" "$FAIL"

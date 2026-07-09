@@ -1,4 +1,4 @@
-use cellsymphony_hal::encoder_gpio::HardwareEvent;
+use octessera_hal::encoder_gpio::HardwareEvent;
 use playback_runtime::HostMessage;
 use serde_json::Value;
 use std::sync::OnceLock;
@@ -82,7 +82,7 @@ fn log(args: std::fmt::Arguments<'_>) {
 fn enabled() -> bool {
     static ENABLED: OnceLock<bool> = OnceLock::new();
     *ENABLED.get_or_init(|| {
-        std::env::var("CELLSYMPHONY_WAKE_TRACE")
+        std::env::var("OCTESSERA_WAKE_TRACE")
             .is_ok_and(|value| !matches!(value.as_str(), "" | "0" | "false" | "off"))
     })
 }

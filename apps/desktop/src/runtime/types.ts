@@ -1,7 +1,7 @@
-import type { RuntimeSnapshot } from "@cellsymphony/device-contracts";
+import type { RuntimeSnapshot } from "@octessera/device-contracts";
 
 export type InputAction =
-  | { type: "device_input"; input: import("@cellsymphony/device-contracts").DeviceInput }
+  | { type: "device_input"; input: import("@octessera/device-contracts").DeviceInput }
   | { type: "emergency_brake" }
   | { type: "shift"; active: boolean }
   | { type: "fn"; active: boolean };

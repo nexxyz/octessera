@@ -1,14 +1,14 @@
-# Cell Symphony Hardware Assembly Manual
+# Octessera Hardware Assembly Manual
 
-This guide builds the standalone Cell Symphony instrument: PCB, soldered controls, plug-in modules, NeoTrellis grid, Raspberry Pi image, and enclosure.
+This guide builds the standalone Octessera instrument: PCB, soldered controls, plug-in modules, NeoTrellis grid, Raspberry Pi image, and enclosure.
 
 The hardware is still being fit-tested. Check the current enclosure files before ordering printed parts.
 
 ## Source files
 
 - Gerbers for PCB fabrication: [`../../release-artifacts/pcb/gerber/gerber.zip`](../../release-artifacts/pcb/gerber/gerber.zip)
-- Schematic: [`../pcb/cellSymphony.kicad_sch`](../pcb/cellSymphony.kicad_sch)
-- PCB layout: [`../pcb/cellSymphony.kicad_pcb`](../pcb/cellSymphony.kicad_pcb)
+- Schematic: [`../pcb/octessera.kicad_sch`](../pcb/octessera.kicad_sch)
+- PCB layout: [`../pcb/octessera.kicad_pcb`](../pcb/octessera.kicad_pcb)
 - Wiring reference: [`pinout-and-connections.md`](pinout-and-connections.md)
 - Pi setup and bring-up: [`pi-bring-up.md`](pi-bring-up.md)
 - Enclosure reference: [`../enclosure/README.md`](../enclosure/README.md)
@@ -133,7 +133,7 @@ The NeoKey and NeoTrellis connector are the two parts that are easiest to plug i
 1. Download the latest release image from the project releases. It is named like:
 
    ```text
-   CellSymphony-<version>-pi-zero-2w.img.zip
+   Octessera-<version>-pi-zero-2w.img.zip
    ```
 
 2. Flash it to the Pi microSD card with Raspberry Pi Imager.
@@ -145,16 +145,16 @@ You can flash the downloaded `.img.zip` directly with Raspberry Pi Imager by cho
 The release also includes Raspberry Pi Imager metadata in two places:
 
 - inside the image ZIP as `os_list.rpi-imager-manifest`;
-- next to the image ZIP as `CellSymphony-<version>-pi-zero-2w.rpi-imager-manifest`.
+- next to the image ZIP as `Octessera-<version>-pi-zero-2w.rpi-imager-manifest`.
 
-If you want Cell Symphony to appear as a custom OS entry in Raspberry Pi Imager, use the standalone `.rpi-imager-manifest` release asset as Imager's custom repository manifest. Loading the manifest/custom image this way lets Raspberry Pi Imager configure locale, WiFi, SSH, hostname, and user settings before flashing.
+If you want Octessera to appear as a custom OS entry in Raspberry Pi Imager, use the standalone `.rpi-imager-manifest` release asset as Imager's custom repository manifest. Loading the manifest/custom image this way lets Raspberry Pi Imager configure locale, WiFi, SSH, hostname, and user settings before flashing.
 
 In Raspberry Pi Imager, open **App Options**, press **Edit** next to **Content Repository**, then choose one of these options:
 
 - **Use custom file**: select the downloaded `.rpi-imager-manifest` file.
 - **Use custom URL**: paste the manifest URL from the GitHub release.
 
-Then press **Apply and Restart**. After Imager restarts, the Cell Symphony image will show up in the **OS** list after you have selected your device type.
+Then press **Apply and Restart**. After Imager restarts, the Octessera image will show up in the **OS** list after you have selected your device type.
 
 Reference screenshots:
 
@@ -165,7 +165,7 @@ Reference screenshots:
 You can also start Imager with the manifest URL from the command line, for example:
 
 ```powershell
-rpi-imager --repo "https://github.com/nexxyz/cellSymphony/releases/download/v<version>/CellSymphony-<version>-pi-zero-2w.rpi-imager-manifest"
+rpi-imager --repo "https://github.com/nexxyz/octessera/releases/download/v<version>/Octessera-<version>-pi-zero-2w.rpi-imager-manifest"
 ```
 
 Use the actual release tag and version from the release page. The embedded manifest inside the ZIP is for packaged metadata; do not extract the ZIP just to load the manifest.

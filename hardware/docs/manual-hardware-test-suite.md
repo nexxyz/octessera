@@ -5,7 +5,7 @@ Use this checklist for hands-on hardware bring-up when no OLED is installed. The
 ## Starting State
 
 - Pi is reachable as `pi@192.168.0.211`.
-- `cellsymphony.service` is disabled and inactive unless a test step explicitly starts it.
+- `octessera.service` is disabled and inactive unless a test step explicitly starts it.
 - OLED is removed.
 - NeoTrellis, NeoKey, DAC/audio, encoders, and power are connected.
 
@@ -18,8 +18,8 @@ Before each session:
 Then confirm the app is stopped:
 
 ```bash
-sudo systemctl disable cellsymphony.service
-sudo systemctl stop cellsymphony.service
+sudo systemctl disable octessera.service
+sudo systemctl stop octessera.service
 ```
 
 ## 1. Bus And Power Baseline
@@ -183,11 +183,11 @@ Then run a runtime audio smoke test:
 
 Use after individual hardware tests pass.
 
-1. Start `cellsymphony.service` manually.
+1. Start `octessera.service` manually.
 2. Watch logs:
 
    ```bash
-   journalctl -u cellsymphony.service -f
+   journalctl -u octessera.service -f
    ```
 
 3. Confirm no `critical hardware init failed` messages.
@@ -197,7 +197,7 @@ Use after individual hardware tests pass.
 7. Stop the service and verify the I2C bus releases:
 
    ```bash
-   sudo systemctl stop cellsymphony.service
+   sudo systemctl stop octessera.service
    pinctrl get 2
    pinctrl get 3
    sudo i2cdetect -y -r 1 0x2e 0x3f
@@ -215,31 +215,31 @@ Expected:
 Run the no-OLED interactive hardware-test mode directly over SSH:
 
 ```bash
-sudo systemctl disable cellsymphony.service
-sudo systemctl stop cellsymphony.service
-/usr/local/bin/cellsymphony-pi --hardware-test
+sudo systemctl disable octessera.service
+sudo systemctl stop octessera.service
+/usr/local/bin/octessera-pi --hardware-test
 ```
 
 The mode initializes NeoTrellis, NeoKey, DAC, and encoders without requiring an OLED. It then runs the LED checks, logs grid/key/encoder events to stdout, and launches the ALSA test tone.
 It prints a final `SUMMARY` with warning and failure counts.
 
-For unattended launch, set `CELLSYMPHONY_PI_HARDWARE_TEST=1` instead of passing `--hardware-test`.
+For unattended launch, set `OCTESSERA_PI_HARDWARE_TEST=1` instead of passing `--hardware-test`.
 
 To run only the no-touch input noise check:
 
 ```bash
-sudo systemctl disable cellsymphony.service
-sudo systemctl stop cellsymphony.service
-/usr/local/bin/cellsymphony-pi --hardware-noise-test
+sudo systemctl disable octessera.service
+sudo systemctl stop octessera.service
+/usr/local/bin/octessera-pi --hardware-noise-test
 ```
 
-For unattended no-touch-only launch, set `CELLSYMPHONY_PI_HARDWARE_NOISE_TEST=1`.
+For unattended no-touch-only launch, set `OCTESSERA_PI_HARDWARE_NOISE_TEST=1`.
 The noise-only mode also prints a final `SUMMARY`. Warnings indicate raw noise that is below the runtime confirmation threshold; failures indicate confirmed input, read failures, or encoder/grid idle events.
 
 Use skip flags to isolate one hardware family while another is disconnected or suspect:
 
 ```bash
-/usr/local/bin/cellsymphony-pi --hardware-noise-test --skip-trellis
-/usr/local/bin/cellsymphony-pi --hardware-noise-test --skip-neokey
-/usr/local/bin/cellsymphony-pi --hardware-noise-test --skip-encoders
+/usr/local/bin/octessera-pi --hardware-noise-test --skip-trellis
+/usr/local/bin/octessera-pi --hardware-noise-test --skip-neokey
+/usr/local/bin/octessera-pi --hardware-noise-test --skip-encoders
 ```

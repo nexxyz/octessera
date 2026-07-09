@@ -9,7 +9,7 @@ This project uses the Octessera mark and wordmark across hardware docs, PCB silk
 - `tools/assets/generate_pi_logo_pngs.py`: generates Pi splash and Imager PNG assets.
 - `apps/desktop/src-tauri/icons/`: generated desktop simulator icon assets.
 - `hardware/enclosure/branding_marking_cadquery.py`: converts the SVG mark and wordmark into CadQuery solids.
-- `hardware/pcb/cellSymphony.kicad_pcb`: contains the PCB silkscreen branding geometry.
+- `hardware/pcb/octessera.kicad_pcb`: contains the PCB silkscreen branding geometry.
 
 Keep the SVGs as the source of truth. Do not hand-edit generated PNGs, STL files, STEP files, or 3MF files as source.
 
@@ -64,7 +64,7 @@ Do not restore the old unbranded top 3MF; the top 3MF should be multicolor only.
 
 ## PCB branding
 
-The PCB silkscreen branding lives in `hardware/pcb/cellSymphony.kicad_pcb` on `F.SilkS`.
+The PCB silkscreen branding lives in `hardware/pcb/octessera.kicad_pcb` on `F.SilkS`.
 
 Use `assets/octessera-mark.svg` and `assets/octessera-wordmark.svg` as the basis when regenerating it. Preserve the manually tuned placement unless intentionally changing the PCB layout.
 

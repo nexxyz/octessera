@@ -1,4 +1,4 @@
-use cellsymphony_hal::{encoder_gpio::HardwareEvent, I2CBus, I2sDac, NeoKey, NeoTrellis};
+use octessera_hal::{encoder_gpio::HardwareEvent, I2CBus, I2sDac, NeoKey, NeoTrellis};
 use std::io;
 use std::process::Command;
 use std::sync::mpsc;
@@ -13,7 +13,7 @@ const NEOKEY_DEBOUNCE_SAMPLES: u8 = 2;
 
 pub(crate) fn requested() -> bool {
     std::env::args().skip(1).any(|arg| arg == "--hardware-test")
-        || std::env::var("CELLSYMPHONY_PI_HARDWARE_TEST")
+        || std::env::var("OCTESSERA_PI_HARDWARE_TEST")
             .ok()
             .is_some_and(|value| matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true"))
 }
@@ -22,13 +22,13 @@ pub(crate) fn noise_requested() -> bool {
     std::env::args()
         .skip(1)
         .any(|arg| arg == "--hardware-noise-test")
-        || std::env::var("CELLSYMPHONY_PI_HARDWARE_NOISE_TEST")
+        || std::env::var("OCTESSERA_PI_HARDWARE_NOISE_TEST")
             .ok()
             .is_some_and(|value| matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true"))
 }
 
 pub(crate) fn run_noise_only() -> bool {
-    println!("Cell Symphony no-touch hardware noise test mode");
+    println!("Octessera no-touch hardware noise test mode");
     let options = NoiseTestOptions::from_args();
     let _i2c = match I2CBus::new(1) {
         Ok(bus) => bus,
@@ -93,7 +93,7 @@ impl NoiseTestOptions {
 }
 
 pub(crate) fn run() -> bool {
-    println!("Cell Symphony hardware test mode");
+    println!("Octessera hardware test mode");
     let _i2c = match I2CBus::new(1) {
         Ok(bus) => bus,
         Err(error) => return fail(format!("I2C init failed: {error}")),

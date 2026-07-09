@@ -4,7 +4,7 @@ use crate::input::{encoder_press_message, MidiMessage};
 use crate::render_loop::RenderWorker;
 use crate::runtime_loop::{dispatch_runtime_message, handle_deferred_host_work};
 use crate::ui_profile::UiProfiler;
-use cellsymphony_hal::encoder_gpio::HardwareEvent;
+use octessera_hal::encoder_gpio::HardwareEvent;
 use playback_runtime::{
     HostMessage, NativeRunner, PlaybackRuntime, RuntimeTransportState, SyncSource,
 };

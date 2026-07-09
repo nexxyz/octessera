@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { OLED_HEIGHT, OLED_WIDTH, type RuntimeSnapshot } from "@cellsymphony/device-contracts";
+import { OLED_HEIGHT, OLED_WIDTH, type RuntimeSnapshot } from "@octessera/device-contracts";
 import { drawSemanticOled } from "./oledDraw";
 import { toOledImage } from "./oledImage";
 

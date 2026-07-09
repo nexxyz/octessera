@@ -130,9 +130,9 @@ impl NativeRunner {
                     self.oled_splash_text = super::OLED_SHUTDOWN_SPLASH_KEY.into();
                     self.oled_splash_until = None;
                     if action_type == "system.reboot" {
-                        self.show_toast("cellSymphony is rebooting");
+                        self.show_toast("Octessera is rebooting");
                     } else {
-                        self.show_toast("cellSymphony is shutting down");
+                        self.show_toast("Octessera is shutting down");
                     }
                     self.outbox
                         .push_platform_effect(if action_type == "system.reboot" {

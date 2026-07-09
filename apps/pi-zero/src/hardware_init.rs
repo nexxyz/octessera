@@ -1,4 +1,4 @@
-use cellsymphony_hal::{
+use octessera_hal::{
     encoder_gpio::HardwareEvent, EncoderGpio, I2CBus, I2sDac, NeoKey, NeoTrellis, OledSsd1351,
     SeesawInterrupt,
 };
@@ -51,7 +51,7 @@ pub(crate) fn init_hardware() -> Result<HardwareDevices, HardwareFault> {
 }
 
 fn early_boot_splash_enabled() -> bool {
-    std::env::var("CELLSYMPHONY_EARLY_BOOT_SPLASH").as_deref() == Ok("1")
+    std::env::var("OCTESSERA_EARLY_BOOT_SPLASH").as_deref() == Ok("1")
 }
 
 pub(crate) fn init_encoders(
@@ -59,7 +59,7 @@ pub(crate) fn init_encoders(
     let (event_tx, event_rx) = mpsc::channel::<HardwareEvent>();
     let mut encoders = Vec::new();
     let mut fault = HardwareFault::new();
-    for (index, pins) in cellsymphony_hal::pinmap::ENCODERS.iter().enumerate() {
+    for (index, pins) in octessera_hal::pinmap::ENCODERS.iter().enumerate() {
         let id = match index {
             0 => "encoder_main",
             1 => "encoder_aux_1",

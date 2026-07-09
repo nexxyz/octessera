@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { GRID_DOMAIN, type DeviceInput, type RuntimeSnapshot } from "@cellsymphony/device-contracts";
+import { GRID_DOMAIN, type DeviceInput, type RuntimeSnapshot } from "@octessera/device-contracts";
 
 export function useGridInteraction(frame: RuntimeSnapshot, dispatch: (input: DeviceInput) => void) {
   const [paintMode, setPaintMode] = useState<boolean | null>(null);

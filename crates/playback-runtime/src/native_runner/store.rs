@@ -135,9 +135,9 @@ impl NativeRunner {
         } else if action_type == "midi.panic" {
             ("Confirm MIDI", "Send MIDI panic?".into())
         } else if action_type == "system.reboot" {
-            ("Confirm Reboot", "Reboot cellSymphony?".into())
+            ("Confirm Reboot", "Reboot Octessera?".into())
         } else if action_type == "system.shutdown" {
-            ("Confirm Shutdown", "Shut down cellSymphony?".into())
+            ("Confirm Shutdown", "Shut down Octessera?".into())
         } else if action_type == "system.hardwareTest" {
             ("Confirm Hardware Test", "Run the hardware test?".into())
         } else if action_type == "system.updateApply" {

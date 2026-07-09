@@ -24,13 +24,13 @@ require_executable() {
 }
 
 require_boot_config_marker() {
-    if grep -q 'Cell Symphony additions' "$WORK_DIR/boot/config.txt" 2>/dev/null; then
+    if grep -q 'Octessera additions' "$WORK_DIR/boot/config.txt" 2>/dev/null; then
         return
     fi
-    if grep -q 'Cell Symphony additions' "$WORK_DIR/root/boot/firmware/config.txt" 2>/dev/null; then
+    if grep -q 'Octessera additions' "$WORK_DIR/root/boot/firmware/config.txt" 2>/dev/null; then
         return
     fi
-    echo "Sanitation check failed: missing Cell Symphony boot config marker" >&2
+    echo "Sanitation check failed: missing Octessera boot config marker" >&2
     exit 1
 }
 
@@ -113,10 +113,10 @@ if grep -RIE '(BEGIN (RSA|OPENSSH) PRIVATE KEY|ghp_|github_pat_|ssid=|psk=)' \
     exit 1
 fi
 
-require_executable "$WORK_DIR/root/usr/local/bin/cellsymphony-pi" "cellsymphony-pi"
-require_path "$WORK_DIR/root/etc/systemd/system/cellsymphony.service" "cellsymphony.service"
-require_path "$WORK_DIR/root/etc/systemd/system/sysinit.target.wants/cellsymphony-boot-splash.service" "enabled boot splash service"
-require_path "$WORK_DIR/root/etc/sudoers.d/cellsymphony-shutdown" "shutdown sudoers rule"
+require_executable "$WORK_DIR/root/usr/local/bin/octessera-pi" "octessera-pi"
+require_path "$WORK_DIR/root/etc/systemd/system/octessera.service" "octessera.service"
+require_path "$WORK_DIR/root/etc/systemd/system/sysinit.target.wants/octessera-boot-splash.service" "enabled boot splash service"
+require_path "$WORK_DIR/root/etc/sudoers.d/octessera-shutdown" "shutdown sudoers rule"
 require_boot_config_marker
 require_boot_overlay
 

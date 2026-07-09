@@ -1,4 +1,4 @@
-import type { RuntimeRunnerMessage } from "@cellsymphony/device-contracts";
+import type { RuntimeRunnerMessage } from "@octessera/device-contracts";
 import type { TransientIndicatorState } from "./simulatorSnapshot";
 
 export type IndicatorTimer = ReturnType<typeof setTimeout> | null;

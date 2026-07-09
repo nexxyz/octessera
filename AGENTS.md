@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Cell Symphony is a pnpm workspace plus Cargo workspace built around a native Rust core/runtime, a Rust realtime synth, a Tauri desktop hardware simulator, and a native Pi app. The product turns cellular automata into music. TypeScript is limited to desktop UI and shared bridge/display/runtime contracts.
+Octessera is a pnpm workspace plus Cargo workspace built around a native Rust core/runtime, a Rust realtime synth, a Tauri desktop hardware simulator, and a native Pi app. The product turns cellular automata into music. TypeScript is limited to desktop UI and shared bridge/display/runtime contracts.
 
 ## Keep These Boundaries
 
@@ -62,7 +62,7 @@ Cell Symphony is a pnpm workspace plus Cargo workspace built around a native Rus
 - Account for the current OS when choosing commands or tooling.
 - If the user corrects an earlier instruction, follow the latest instruction.
 - Rebuild the portable desktop exe after significant changes that affect desktop-visible behavior, native runtime behavior, audio behavior, config/default payloads, Tauri host integration, or runtime contracts. Do not rebuild it for Rust-only changes that are clearly internal and not desktop/runtime/audio observable, such as isolated tests, docs, formatting, refactors with no behavior change, or Pi/HAL-only work. When unsure whether a change is observable through the desktop app, rebuild the portable exe.
-- Prefer PC-side Pi cross-builds for hardware/profile loops: `./tools/pi/build-pi-cross.ps1` uses WSL2 Docker automatically when available and writes `target/pi-cross/cellsymphony-pi`. Deploy with `./tools/pi/deploy-pi-fast.ps1 -LocalBinary target/pi-cross/cellsymphony-pi -NoTail` instead of building on the Pi.
+- Prefer PC-side Pi cross-builds for hardware/profile loops: `./tools/pi/build-pi-cross.ps1` uses WSL2 Docker automatically when available and writes `target/pi-cross/octessera-pi`. Deploy with `./tools/pi/deploy-pi-fast.ps1 -LocalBinary target/pi-cross/octessera-pi -NoTail` instead of building on the Pi.
 - Preserve build caches during Pi deploy/profile loops. Prefer cross-built binary deploys. If source sync is needed, use `tools/pi/deploy-pi-fast.ps1` without `-CleanRemote`; it uses cache-preserving remote sync so unchanged source mtimes and Cargo `target/` fingerprints survive. Use `-CleanRemote` only when intentionally discarding the Pi build cache.
 
 ## Working Style
@@ -81,14 +81,14 @@ Cell Symphony is a pnpm workspace plus Cargo workspace built around a native Rus
 
 ## Useful Commands
 
-- Desktop dev: `corepack pnpm --filter @cellsymphony/desktop tauri:dev`
+- Desktop dev: `corepack pnpm --filter @octessera/desktop tauri:dev`
 - Verification: `corepack pnpm run typecheck`, `corepack pnpm -r test`, `corepack pnpm -r lint`, `corepack pnpm -r format:check`, `corepack pnpm run quality:audit`
-- Rust checks: `cargo fmt --all --check`, `cargo test -p platform-core -p playback-runtime -p realtime-engine -p cellsymphony-desktop`, `cargo clippy -p platform-core -p playback-runtime -p realtime-engine -p cellsymphony-desktop --all-targets -- -D warnings`
-- Desktop build smoke check: `corepack pnpm --filter @cellsymphony/desktop tauri:build:ci`
-- Portable desktop exe: `corepack pnpm --filter @cellsymphony/desktop tauri:build:exe` writes `apps/desktop/dist-desktop/CellSymphony.exe`
+- Rust checks: `cargo fmt --all --check`, `cargo test -p platform-core -p playback-runtime -p realtime-engine -p octessera-desktop`, `cargo clippy -p platform-core -p playback-runtime -p realtime-engine -p octessera-desktop --all-targets -- -D warnings`
+- Desktop build smoke check: `corepack pnpm --filter @octessera/desktop tauri:build:ci`
+- Portable desktop exe: `corepack pnpm --filter @octessera/desktop tauri:build:exe` writes `apps/desktop/dist-desktop/Octessera.exe`
 - Capabilities: `corepack pnpm run capabilities:generate`, `corepack pnpm run capabilities:check`
-- Windows Pi builds use HAL stubs by default; real Pi builds use `-p cellsymphony-pi --features hardware-pi` or the cross-build workflow.
-- Pi cross-build/deploy: `./tools/pi/build-pi-cross.ps1`; then `./tools/pi/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -LocalBinary target/pi-cross/cellsymphony-pi -NoTail`.
+- Windows Pi builds use HAL stubs by default; real Pi builds use `-p octessera-pi --features hardware-pi` or the cross-build workflow.
+- Pi cross-build/deploy: `./tools/pi/build-pi-cross.ps1`; then `./tools/pi/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -LocalBinary target/pi-cross/octessera-pi -NoTail`.
 - Pi source sync fallback: `./tools/pi/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -SyncOnly -NoTail` preserves the remote Cargo cache; avoid ad hoc full tar extraction over the repo.
 - Pre-push hook: `.githooks/pre-push` runs lint, typecheck, format checks, tests, file-length checks, and `cargo clippy`.
 - Git push: use a long timeout because the pre-push hook runs CI-like checks. Do not skip the hook; fix failures and retry.

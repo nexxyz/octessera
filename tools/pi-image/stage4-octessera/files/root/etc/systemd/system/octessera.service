@@ -1,0 +1,19 @@
+[Unit]
+Description=Octessera Pi Zero 2W Headless Music System
+After=sound.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi
+Environment=OCTESSERA_PI_SAMPLES_DIR=/home/pi/samples
+Environment=OCTESSERA_PI_STORE_DIR=/home/pi/presets
+Environment=OCTESSERA_EARLY_BOOT_SPLASH=1
+ExecStart=/usr/local/bin/octessera-pi
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -262,7 +262,7 @@ impl rodio::Source for EngineSource {
 }
 
 fn audio_block_frames() -> usize {
-    std::env::var("CELLSYMPHONY_AUDIO_BLOCK_FRAMES")
+    std::env::var("OCTESSERA_AUDIO_BLOCK_FRAMES")
         .ok()
         .and_then(|value| value.parse::<usize>().ok())
         .map(|frames| frames.clamp(MIN_BLOCK_FRAMES, MAX_BLOCK_FRAMES))

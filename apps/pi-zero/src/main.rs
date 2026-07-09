@@ -41,7 +41,7 @@ fn main() {
 
     run_requested_utility();
 
-    println!("Cell Symphony - Pi native runtime");
+    println!("Octessera - Pi native runtime");
 
     let hardware = match init_hardware() {
         Ok(devices) => devices,
@@ -130,7 +130,7 @@ fn exit_code(success: bool) -> i32 {
 }
 
 fn early_boot_splash_enabled() -> bool {
-    std::env::var("CELLSYMPHONY_EARLY_BOOT_SPLASH").as_deref() == Ok("1")
+    std::env::var("OCTESSERA_EARLY_BOOT_SPLASH").as_deref() == Ok("1")
 }
 
 fn init_audio(output_buffer_frames: Option<u32>) -> Option<AudioManager> {

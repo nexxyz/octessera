@@ -19,7 +19,7 @@ Use pnpm workspaces. Do not use npm or yarn for this repository.
 ## Desktop Development
 
 ```bash
-corepack pnpm --filter @cellsymphony/desktop tauri:dev
+corepack pnpm --filter @octessera/desktop tauri:dev
 ```
 
 ## Desktop Builds
@@ -27,16 +27,16 @@ corepack pnpm --filter @cellsymphony/desktop tauri:dev
 CI smoke build without bundling:
 
 ```bash
-corepack pnpm --filter @cellsymphony/desktop tauri:build:ci
+corepack pnpm --filter @octessera/desktop tauri:build:ci
 ```
 
 Portable desktop executable:
 
 ```bash
-corepack pnpm --filter @cellsymphony/desktop tauri:build:exe
+corepack pnpm --filter @octessera/desktop tauri:build:exe
 ```
 
-The portable executable is copied to `apps/desktop/dist-desktop/CellSymphony.exe`.
+The portable executable is copied to `apps/desktop/dist-desktop/Octessera.exe`.
 
 On Windows, use the cached wrapper for the same portable build when iterating:
 
@@ -49,7 +49,7 @@ Rebuild it after significant changes that affect desktop-visible behavior, nativ
 Release executable and NSIS installer:
 
 ```bash
-corepack pnpm --filter @cellsymphony/desktop tauri:build
+corepack pnpm --filter @octessera/desktop tauri:build
 ```
 
 Release outputs are written under `target/release/`.
@@ -60,13 +60,13 @@ GitHub release assets are built only by `.github/workflows/release-artifacts.yml
 
 Release assets:
 
-- `CellSymphony-<version>-windows-installer.exe`: primary Windows installer.
-- `CellSymphony-<version>-windows-portable.exe`: portable Windows alternative.
-- `CellSymphony-<version>-macos-unsigned.dmg`: unsigned macOS DMG.
-- `CellSymphony-<version>-ubuntu-amd64.deb`: Ubuntu/Debian package.
-- `CellSymphony-<version>-ubuntu-x86_64.AppImage`: portable Linux AppImage.
-- `CellSymphony-<version>-pi-zero-2w.img.zip`: ready-to-flash Raspberry Pi Zero 2 W image, including `os_list.rpi-imager-manifest` for Raspberry Pi Imager.
-- `CellSymphony-<version>-pi-zero-2w.rpi-imager-manifest`: standalone Raspberry Pi Imager manifest copy.
+- `Octessera-<version>-windows-installer.exe`: primary Windows installer.
+- `Octessera-<version>-windows-portable.exe`: portable Windows alternative.
+- `Octessera-<version>-macos-unsigned.dmg`: unsigned macOS DMG.
+- `Octessera-<version>-ubuntu-amd64.deb`: Ubuntu/Debian package.
+- `Octessera-<version>-ubuntu-x86_64.AppImage`: portable Linux AppImage.
+- `Octessera-<version>-pi-zero-2w.img.zip`: ready-to-flash Raspberry Pi Zero 2 W image, including `os_list.rpi-imager-manifest` for Raspberry Pi Imager.
+- `Octessera-<version>-pi-zero-2w.rpi-imager-manifest`: standalone Raspberry Pi Imager manifest copy.
 - `SHA256SUMS-*.txt`: checksums for release assets.
 
 Release process:
@@ -114,8 +114,8 @@ corepack pnpm -r lint
 corepack pnpm -r format:check
 corepack pnpm run quality:audit
 cargo fmt --all --check
-cargo test -p platform-core -p playback-runtime -p realtime-engine -p cellsymphony-desktop
-cargo clippy -p platform-core -p playback-runtime -p realtime-engine -p cellsymphony-desktop --all-targets -- -D warnings
+cargo test -p platform-core -p playback-runtime -p realtime-engine -p octessera-desktop
+cargo clippy -p platform-core -p playback-runtime -p realtime-engine -p octessera-desktop --all-targets -- -D warnings
 ```
 
 The root `typecheck` runs `capabilities:check` before package typechecks.
@@ -137,7 +137,7 @@ For hardware branding and enclosure artifact changes, also check `hardware/docs/
 On Windows, use the cached Cargo wrapper while iterating. It enables `sccache` when installed, uses a local rustc-wrapper shim to strip Cargo's incremental env var before invoking `sccache`, and passes temporary profile overrides that disable incremental for that command so more crates can be cached. Without `sccache`, Cargo uses its normal `target/` cache:
 
 ```powershell
-./tools/dev/cargo-fast.ps1 check -p cellsymphony-pi
+./tools/dev/cargo-fast.ps1 check -p octessera-pi
 ./tools/dev/cargo-fast.ps1 test -p playback-runtime
 ```
 
@@ -152,41 +152,41 @@ cargo install sccache --locked
 Host-stub Pi app build:
 
 ```bash
-cargo build -p cellsymphony-pi
+cargo build -p octessera-pi
 ```
 
 Hardware HAL target check when the Rust target is installed:
 
 ```bash
-cargo check --target aarch64-unknown-linux-gnu -p cellsymphony-hal --features pi-zero
+cargo check --target aarch64-unknown-linux-gnu -p octessera-hal --features pi-zero
 ```
 
 ## Pi Hardware Build
 
-Preferred fast path: run `./tools/pi/build-pi-cross.ps1` to produce a Linux ARM binary, then upload it with `./tools/pi/deploy-pi-fast.ps1 -LocalBinary target/pi-cross/cellsymphony-pi -NoTail`. On Windows, the helper uses WSL2 Docker automatically when available. Native cross-builds are still supported with an ARM Linux sysroot and cross `pkg-config` setup for ALSA.
+Preferred fast path: run `./tools/pi/build-pi-cross.ps1` to produce a Linux ARM binary, then upload it with `./tools/pi/deploy-pi-fast.ps1 -LocalBinary target/pi-cross/octessera-pi -NoTail`. On Windows, the helper uses WSL2 Docker automatically when available. Native cross-builds are still supported with an ARM Linux sysroot and cross `pkg-config` setup for ALSA.
 
 ```powershell
 ./tools/pi/build-pi-cross.ps1
-./tools/pi/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -LocalBinary target/pi-cross/cellsymphony-pi -NoTail
+./tools/pi/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -LocalBinary target/pi-cross/octessera-pi -NoTail
 ```
 
 On a Pi or properly configured cross environment:
 
 ```bash
-cargo build -p cellsymphony-pi --features hardware-pi
+cargo build -p octessera-pi --features hardware-pi
 ```
 
 Low-resource on-Pi fallback:
 
 ```bash
-CARGO_BUILD_JOBS=1 cargo build --profile pi-dev -p cellsymphony-pi --features hardware-pi
+CARGO_BUILD_JOBS=1 cargo build --profile pi-dev -p octessera-pi --features hardware-pi
 ```
 
 Pi UI/render responsiveness profiling is quiet by default. Enable periodic summaries with either control:
 
 ```bash
-CELLSYMPHONY_PI_UI_PROFILE=1 cellsymphony-pi
-cellsymphony-pi --profile-ui
+OCTESSERA_PI_UI_PROFILE=1 octessera-pi
+octessera-pi --profile-ui
 ```
 
 Summaries include loop cadence, runtime tick lateness/advance, render overruns, snapshot/config sync, hardware polling, and LED/NeoKey/OLED phase timings.
@@ -211,12 +211,12 @@ Wrapper examples:
 ./tools/pi/run-pi-timing-probes.ps1 -Mode DspFxLimits
 ```
 
-The wrapper stops `cellsymphony.service` for live/audio/DSP modes and restarts it after the probe. Runtime-only mode leaves the service running. Use `-PrintOnly` to inspect the remote command first.
+The wrapper stops `octessera.service` for live/audio/DSP modes and restarts it after the probe. Runtime-only mode leaves the service running. Use `-PrintOnly` to inspect the remote command first.
 
 For musical timing issues, inspect p99/p99.9/p99.99 and outlier counts, not only p95. Check recent logs after live probes:
 
 ```powershell
-ssh -i "$env:USERPROFILE\.ssh\cellsymphony_pi_dev" -o IdentitiesOnly=yes pi@192.168.0.211 "journalctl -u cellsymphony.service --since '10 minutes ago' --no-pager | grep -E 'realtime priority unavailable|audio stream error|underrun|POLLERR' || true"
+ssh -i "$env:USERPROFILE\.ssh\octessera_pi_dev" -o IdentitiesOnly=yes pi@192.168.0.211 "journalctl -u octessera.service --since '10 minutes ago' --no-pager | grep -E 'realtime priority unavailable|audio stream error|underrun|POLLERR' || true"
 ```
 
 Prefer offering a live probe when the report is subjective or audio-path-specific. Do not run long live probes by default for unrelated code changes.
@@ -229,13 +229,13 @@ Use the real hardware loop for Pi-only behavior, input latency, OLED rendering, 
 
    ```powershell
    ./tools/pi/build-pi-cross.ps1
-   ./tools/pi/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -LocalBinary target/pi-cross/cellsymphony-pi -NoTail
+   ./tools/pi/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -LocalBinary target/pi-cross/octessera-pi -NoTail
    ```
 
 2. Ask for a focused hardware observation before assuming the fix worked. Specify the control path, expected behavior, and what failure would look or sound like.
-3. Pull service logs and profile summaries when the observation is unclear. Enable `CELLSYMPHONY_PI_UI_PROFILE=1` only while profiling, then disable it again.
+3. Pull service logs and profile summaries when the observation is unclear. Enable `OCTESSERA_PI_UI_PROFILE=1` only while profiling, then disable it again.
 4. For menu, control, or runtime stutter, inspect `pi-ui-profile` and `menu-key-profile` output before broad refactors.
-5. Fix the source path. Do not add fallbacks for broken Cell Symphony wiring; fail visibly so missing handlers, stale config paths, or bridge mismatches get fixed at the source.
+5. Fix the source path. Do not add fallbacks for broken Octessera wiring; fail visibly so missing handlers, stale config paths, or bridge mismatches get fixed at the source.
 6. Prefer keyed fast paths over broad `apply_menu_state()` on high-frequency edits. Keep autosave serialization off rapid input paths.
 7. Run targeted Rust checks before redeploying when possible, then repeat the hardware observation.
 8. Before pushing a stable hardware milestone, use QA or oracle review for risky runtime/menu changes and run the pre-push hook. It validates the committed tree and includes file-length checks, coverage, Tauri smoke build, and clippy.
@@ -262,4 +262,4 @@ Menu and control changes can affect playback timing. Use this checklist when cha
 5. Preserve hardware parity by implementing behavior in `playback-runtime` or `platform-core`, not desktop TypeScript.
 6. Update `docs/menu-and-controls-spec.md` for parity-affecting control/menu behavior.
 7. Run targeted playback-runtime tests first, then full `cargo test -p playback-runtime` before commit.
-8. Rebuild `apps/desktop/dist-desktop/CellSymphony.exe` when the change is desktop-visible.
+8. Rebuild `apps/desktop/dist-desktop/Octessera.exe` when the change is desktop-visible.

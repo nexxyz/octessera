@@ -1,4 +1,4 @@
-import type { RuntimeHostMessage, RuntimeSnapshot } from "@cellsymphony/device-contracts";
+import type { RuntimeHostMessage, RuntimeSnapshot } from "@octessera/device-contracts";
 
 export type StartupSplashTimer = ReturnType<typeof setTimeout> | null;
 

@@ -59,11 +59,11 @@ def build_manifest(
         },
         "os_list": [
             {
-                "name": f"Cell Symphony {version} for Raspberry Pi Zero 2 W",
-                "description": "Ready-to-flash Raspberry Pi OS Lite image with Cell Symphony hardware services preinstalled. Uses Imager systemd first-run customization for SSH, user, hostname, and Wi-Fi.",
+                "name": f"Octessera {version} for Raspberry Pi Zero 2 W",
+                "description": "Ready-to-flash Raspberry Pi OS Lite image with Octessera hardware services preinstalled. Uses Imager systemd first-run customization for SSH, user, hostname, and Wi-Fi.",
                 "url": image_url,
                 "icon": icon_url,
-                "website": "https://github.com/nexxyz/cellSymphony",
+                "website": "https://github.com/nexxyz/octessera",
                 "release_date": release_date,
                 "extract_size": extract_size,
                 "extract_sha256": extract_sha256,
@@ -107,7 +107,7 @@ def package_manifest(args: argparse.Namespace) -> dict:
 
     current_size = os.path.getsize(zip_path)
     manifest = None
-    with tempfile.TemporaryDirectory(prefix="cellsymphony-rpi-manifest-") as temp_dir:
+    with tempfile.TemporaryDirectory(prefix="octessera-rpi-manifest-") as temp_dir:
         source_zip = zip_path
         for _ in range(10):
             manifest = build_manifest(
@@ -136,13 +136,13 @@ def package_manifest(args: argparse.Namespace) -> dict:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Add a Raspberry Pi Imager manifest to a Cell Symphony Pi image ZIP.")
+    parser = argparse.ArgumentParser(description="Add a Raspberry Pi Imager manifest to an Octessera Pi image ZIP.")
     parser.add_argument("--zip", required=True, help="Pi image ZIP to update in place")
     parser.add_argument("--version", required=True, help="Release version without leading v")
     parser.add_argument("--tag", required=True, help="Release tag, for example v0.5.1")
     parser.add_argument("--repository", required=True, help="GitHub repository owner/name")
     parser.add_argument("--manifest-out", help="Path for a standalone copy of the generated manifest")
-    parser.add_argument("--icon-url", help="Manifest icon URL. Defaults to the tagged Cell Symphony logo asset.")
+    parser.add_argument("--icon-url", help="Manifest icon URL. Defaults to the tagged Octessera logo asset.")
     parser.add_argument("--release-date", help="Release date in YYYY-MM-DD. Defaults to today.")
     args = parser.parse_args()
     package_manifest(args)

@@ -36,7 +36,7 @@ Do not power the Raspberry Pi through its own micro-USB power port. The enclosur
 
 The Pi app is native Rust. It does not start Node or TypeScript.
 
-The device is intended to run as an appliance. The Pi app should launch on boot through `cellsymphony.service`. SSH is for setup, diagnostics, logs, and updates.
+The device is intended to run as an appliance. The Pi app should launch on boot through `octessera.service`. SSH is for setup, diagnostics, logs, and updates.
 
 ## Pi OS Boot Configuration
 
@@ -75,9 +75,9 @@ Expected ownership:
 On the development PC:
 
 ```bash
-cargo build -p cellsymphony-pi
+cargo build -p octessera-pi
 cargo test -p platform-core -p playback-runtime
-cargo test -p cellsymphony-pi render
+cargo test -p octessera-pi render
 ```
 
 On the Pi, before all hardware is attached:
@@ -101,14 +101,14 @@ Running the normal app before the PCB/components are attached is only a negative
 Host-stub build:
 
 ```bash
-cargo build -p cellsymphony-pi
+cargo build -p octessera-pi
 ```
 
 Preferred hardware iteration from Windows:
 
 ```powershell
 ./tools/pi/build-pi-cross.ps1
-./tools/pi/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -LocalBinary target/pi-cross/cellsymphony-pi -NoTail
+./tools/pi/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -LocalBinary target/pi-cross/octessera-pi -NoTail
 ```
 
 Fallback on-Pi build:
@@ -121,14 +121,14 @@ Fallback on-Pi build:
 
 ## Release Image
 
-Explicit GitHub releases include a ready-to-flash Pi Zero 2 W image named `CellSymphony-<version>-pi-zero-2w.img.zip`.
+Explicit GitHub releases include a ready-to-flash Pi Zero 2 W image named `Octessera-<version>-pi-zero-2w.img.zip`.
 
 The image is derived from standard Raspberry Pi OS Bookworm arm64 through pi-gen and includes:
 
-- the release `cellsymphony-pi` binary built with `--release --features hardware-pi`;
-- `cellsymphony.service` and the performance governor service;
+- the release `octessera-pi` binary built with `--release --features hardware-pi`;
+- `octessera.service` and the performance governor service;
 - runtime audio/I2C/SPI dependencies;
-- Cell Symphony boot config and the `i2s-dac-no20` overlay;
+- Octessera boot config and the `i2s-dac-no20` overlay;
 - empty `/home/pi/samples` and `/home/pi/presets` directories.
 
 The release image must not include WiFi credentials, SSH keys, GitHub tokens, host logs, or local user secrets. SSH is disabled by default. Configure network access after first boot if you need SSH for setup.
@@ -145,13 +145,13 @@ The current development Pi at `pi@192.168.0.211` has been verified with `tools/p
 - GPIO18/19/21 are PCM/I2S and GPIO20 remains input for card detect
 - ALSA exposes the PCM5102/HifiBerry-style DAC
 - `rppal` `0.22.1` is required for this OS/kernel; older `0.14.1` failed model detection
-- On-Pi fallback builds with `CARGO_BUILD_JOBS=1 cargo build --profile pi-dev -p cellsymphony-pi --features hardware-pi` succeed but take about 24 minutes on first build
+- On-Pi fallback builds with `CARGO_BUILD_JOBS=1 cargo build --profile pi-dev -p octessera-pi --features hardware-pi` succeed but take about 24 minutes on first build
 - The app enters persistent hardware fault mode instead of restart-looping when critical hardware initialization fails
 - PCM5102/HifiBerry-style DAC output has produced a 440 Hz ALSA test tone on the physical hardware
 - NeoKey has been detected at `0x3F` on the PCB I2C path
 - NeoTrellis has been detected at `0x2E`, `0x2F`, `0x30`, and `0x31` through a corrected connector path
 - The tested SSD1351 OLED module stayed blank with both the Pi and an Arduino Uno running Adafruit SSD1351 test code; replace or independently verify the module before treating PCB or runtime display output as failed
-- During active bring-up, `cellsymphony.service` may be disabled to prevent automatic I2C access while checking wiring; re-enable it only after the clean bus scan matches the expected devices
+- During active bring-up, `octessera.service` may be disabled to prevent automatic I2C access while checking wiring; re-enable it only after the clean bus scan matches the expected devices
 
 ## Bring-Up Checklist
 
@@ -170,9 +170,9 @@ The no-OLED manual walkthrough and CLI diagnostics are defined in [`manual-hardw
 Quick diagnostics:
 
 ```bash
-sudo systemctl disable --now cellsymphony.service
-/usr/local/bin/cellsymphony-pi --hardware-test
-/usr/local/bin/cellsymphony-pi --hardware-noise-test --skip-trellis --skip-encoders
+sudo systemctl disable --now octessera.service
+/usr/local/bin/octessera-pi --hardware-test
+/usr/local/bin/octessera-pi --hardware-noise-test --skip-trellis --skip-encoders
 ```
 
 The diagnostics print a final warning/failure summary. Raw NeoKey one-sample glitches with clean immediate rereads are warnings; confirmed idle input remains a failure.
@@ -195,9 +195,9 @@ Implementation boundary: `playback-runtime` owns the menu action and platform ef
 
 Use a simple A/B binary swap first:
 
-1. Upload a release bundle containing `cellsymphony-pi`, version metadata, and optional resources.
-2. Write it to `/opt/cellsymphony/releases/<version>/`.
+1. Upload a release bundle containing `octessera-pi`, version metadata, and optional resources.
+2. Write it to `/opt/octessera/releases/<version>/`.
 3. Verify checksum and executable bit.
-4. Update `/opt/cellsymphony/current` atomically.
-5. Restart `cellsymphony.service`.
+4. Update `/opt/octessera/current` atomically.
+5. Restart `octessera.service`.
 6. Keep the previous symlink target for rollback.

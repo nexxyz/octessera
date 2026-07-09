@@ -1,5 +1,5 @@
 use crate::seesaw_io::SeesawCommand;
-use cellsymphony_hal::OledSsd1351;
+use octessera_hal::OledSsd1351;
 use playback_runtime::RuntimeUiPulse;
 use serde_json::Value;
 use std::sync::mpsc::Sender;

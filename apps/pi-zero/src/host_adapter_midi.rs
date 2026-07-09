@@ -40,7 +40,7 @@ impl PiPlaybackHostAdapter {
             .get(index)
             .ok_or_else(|| "MIDI output not found".to_string())?;
         self.midi_out = Some(
-            out.connect(port, "cellsymphony-pi-out")
+            out.connect(port, "octessera-pi-out")
                 .map_err(|e| e.to_string())?,
         );
         self.selected_midi_output_id = Some(id);
@@ -66,7 +66,7 @@ impl PiPlaybackHostAdapter {
             input
                 .connect(
                     port,
-                    "cellsymphony-pi-in",
+                    "octessera-pi-in",
                     move |_timestamp, message, _| handler(message.to_vec()),
                     (),
                 )
@@ -78,13 +78,13 @@ impl PiPlaybackHostAdapter {
 }
 
 fn midi_outputs() -> Result<(midir::MidiOutput, Vec<midir::MidiOutputPort>), String> {
-    let out = midir::MidiOutput::new("cellsymphony-pi-out").map_err(|e| e.to_string())?;
+    let out = midir::MidiOutput::new("octessera-pi-out").map_err(|e| e.to_string())?;
     let ports = out.ports();
     Ok((out, ports))
 }
 
 fn midi_inputs() -> Result<(midir::MidiInput, Vec<midir::MidiInputPort>), String> {
-    let input = midir::MidiInput::new("cellsymphony-pi-in").map_err(|e| e.to_string())?;
+    let input = midir::MidiInput::new("octessera-pi-in").map_err(|e| e.to_string())?;
     let ports = input.ports();
     Ok((input, ports))
 }

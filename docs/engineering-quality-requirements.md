@@ -29,22 +29,22 @@ Rust checks:
 
 ```bash
 cargo fmt --all --check
-cargo test -p platform-core -p playback-runtime -p realtime-engine -p cellsymphony-desktop
-cargo clippy -p platform-core -p playback-runtime -p realtime-engine -p cellsymphony-desktop --all-targets -- -D warnings
+cargo test -p platform-core -p playback-runtime -p realtime-engine -p octessera-desktop
+cargo clippy -p platform-core -p playback-runtime -p realtime-engine -p octessera-desktop --all-targets -- -D warnings
 ```
 
 Build checks:
 
 ```bash
-corepack pnpm --filter @cellsymphony/desktop tauri:build:ci
-cargo build -p cellsymphony-pi
-cargo check --target aarch64-unknown-linux-gnu -p cellsymphony-hal --features pi-zero
+corepack pnpm --filter @octessera/desktop tauri:build:ci
+cargo build -p octessera-pi
+cargo check --target aarch64-unknown-linux-gnu -p octessera-hal --features pi-zero
 ```
 
 Release builds use:
 
 ```bash
-corepack pnpm --filter @cellsymphony/desktop tauri:build
+corepack pnpm --filter @octessera/desktop tauri:build
 ```
 
 Quality audit:

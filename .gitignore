@@ -13,7 +13,7 @@ pnpm-debug.log*
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/
 hardware/pcb/.history/
-hardware/pcb/cellSymphony-backups/
+hardware/pcb/octessera-backups/
 hardware/pcb/*.lck
 hardware/pcb/*.rpt
 hardware/pcb/report.txt
@@ -36,4 +36,4 @@ hardware/Mouser Cart with Components.pdf
 .cargo_vcs_info.json
 .slim/deepwork/
 apps/desktop/src-tauri/samples/
-tools/pi-image/stage4-cellsymphony/files/root/usr/
+tools/pi-image/stage4-octessera/files/root/usr/

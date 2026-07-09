@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createSimulatorRuntime } from "../src/runtime/simulatorRuntime";
-import type { RuntimeRunnerMessage } from "@cellsymphony/device-contracts";
+import type { RuntimeRunnerMessage } from "@octessera/device-contracts";
 import type { RuntimeScheduler } from "../src/runtime/runtimeScheduler";
 
 class FakeScheduler implements RuntimeScheduler {

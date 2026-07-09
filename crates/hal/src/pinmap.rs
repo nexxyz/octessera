@@ -1,4 +1,4 @@
-//! Pin mapping for Cell Symphony hardware on Pi Zero 2W
+//! Pin mapping for Octessera hardware on Pi Zero 2W
 
 /// I2C Bus 1 (GPIO2=SDA, GPIO3=SCL)
 pub const I2C_BUS: u8 = 1;

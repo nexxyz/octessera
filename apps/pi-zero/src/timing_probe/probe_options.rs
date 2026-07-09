@@ -19,7 +19,7 @@ struct AudioDrainProbeReport {
 }
 
 pub(crate) fn requested() -> bool {
-    std::env::var("CELLSYMPHONY_PI_TIMING_PROBE").as_deref() == Ok("1")
+    std::env::var("OCTESSERA_PI_TIMING_PROBE").as_deref() == Ok("1")
         || std::env::args().any(|arg| arg == "--timing-probe")
 }
 
@@ -29,13 +29,13 @@ pub(super) fn options_from_env_and_args() -> Result<TimingProbeOptions, String> 
         config: default_config_path(),
         ..TimingProbeOptions::default()
     };
-    if let Ok(value) = std::env::var("CELLSYMPHONY_PI_TIMING_PROBE_DURATIONS") {
+    if let Ok(value) = std::env::var("OCTESSERA_PI_TIMING_PROBE_DURATIONS") {
         options.durations = parse_timing_probe_durations(&value)?;
     }
-    if let Ok(value) = std::env::var("CELLSYMPHONY_PI_TIMING_PROBE_SCENARIOS") {
+    if let Ok(value) = std::env::var("OCTESSERA_PI_TIMING_PROBE_SCENARIOS") {
         options.scenarios = parse_timing_probe_scenarios(&value)?;
     }
-    if let Ok(value) = std::env::var("CELLSYMPHONY_PI_TIMING_PROBE_CONFIG") {
+    if let Ok(value) = std::env::var("OCTESSERA_PI_TIMING_PROBE_CONFIG") {
         options.config = Some(value);
     }
     let mut iter = std::env::args().skip(1);
@@ -147,17 +147,17 @@ fn run_audio_drain_one(duration: Duration) -> Result<AudioDrainProbeReport, Stri
 }
 
 pub(super) fn runtime_only_requested() -> bool {
-    std::env::var("CELLSYMPHONY_PI_TIMING_PROBE_RUNTIME_ONLY").as_deref() == Ok("1")
+    std::env::var("OCTESSERA_PI_TIMING_PROBE_RUNTIME_ONLY").as_deref() == Ok("1")
         || std::env::args().any(|arg| arg == "--timing-probe-runtime-only")
 }
 
 pub(super) fn audio_drain_requested() -> bool {
-    std::env::var("CELLSYMPHONY_PI_TIMING_PROBE_AUDIO_DRAIN").as_deref() == Ok("1")
+    std::env::var("OCTESSERA_PI_TIMING_PROBE_AUDIO_DRAIN").as_deref() == Ok("1")
         || std::env::args().any(|arg| arg == "--timing-probe-audio-drain")
 }
 
 fn audio_drain_interval() -> Duration {
-    let millis = std::env::var("CELLSYMPHONY_PI_TIMING_PROBE_AUDIO_DRAIN_INTERVAL_MS")
+    let millis = std::env::var("OCTESSERA_PI_TIMING_PROBE_AUDIO_DRAIN_INTERVAL_MS")
         .ok()
         .and_then(|value| value.parse::<u64>().ok())
         .unwrap_or(10)

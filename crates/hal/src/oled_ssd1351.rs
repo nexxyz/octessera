@@ -80,11 +80,10 @@ pub struct OledSsd1351 {
 impl OledSsd1351 {
     /// Initialize OLED on SPI bus 0
     pub fn new() -> Result<Self, String> {
-        let preserve_existing =
-            std::env::var("CELLSYMPHONY_EARLY_BOOT_SPLASH").as_deref() == Ok("1");
+        let preserve_existing = std::env::var("OCTESSERA_EARLY_BOOT_SPLASH").as_deref() == Ok("1");
         // Open SPI device
-        let spi_device = std::env::var("CELLSYMPHONY_OLED_SPI_DEVICE")
-            .unwrap_or_else(|_| "/dev/spidev0.0".into());
+        let spi_device =
+            std::env::var("OCTESSERA_OLED_SPI_DEVICE").unwrap_or_else(|_| "/dev/spidev0.0".into());
         let mut spi = Spidev::open(&spi_device).map_err(|e| format!("SPI open failed: {}", e))?;
 
         // Configure SPI: mode 0, 8-bit, 16MHz for the Adafruit SSD1351 breakout.
@@ -237,7 +236,7 @@ fn write_all_chunked(spi: &mut Spidev, data: &[u8]) -> std::io::Result<()> {
 
 #[cfg(feature = "pi-zero")]
 fn spi_speed_hz_from_env() -> u32 {
-    std::env::var("CELLSYMPHONY_OLED_SPI_SPEED_HZ")
+    std::env::var("OCTESSERA_OLED_SPI_SPEED_HZ")
         .ok()
         .and_then(|value| value.parse::<u32>().ok())
         .unwrap_or(16_000_000)
@@ -245,7 +244,7 @@ fn spi_speed_hz_from_env() -> u32 {
 
 #[cfg(feature = "pi-zero")]
 fn spi_mode_from_env() -> spidev::SpiModeFlags {
-    match std::env::var("CELLSYMPHONY_OLED_SPI_MODE").as_deref() {
+    match std::env::var("OCTESSERA_OLED_SPI_MODE").as_deref() {
         Ok("1") => spidev::SpiModeFlags::SPI_MODE_1,
         Ok("2") => spidev::SpiModeFlags::SPI_MODE_2,
         Ok("3") => spidev::SpiModeFlags::SPI_MODE_3,

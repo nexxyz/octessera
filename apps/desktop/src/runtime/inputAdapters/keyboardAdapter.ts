@@ -1,4 +1,4 @@
-import type { DeviceInput } from "@cellsymphony/device-contracts";
+import type { DeviceInput } from "@octessera/device-contracts";
 import type { InputAction } from "../types";
 
 export function mapKeyboardEventToInputAction(event: KeyboardEvent): InputAction | null {
