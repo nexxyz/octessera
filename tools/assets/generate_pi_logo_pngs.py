@@ -181,8 +181,8 @@ def draw_mark(canvas: list[list[int]], target_size: float, center_x: float, cent
 
 def draw_wordmark(canvas: list[list[int]], target_width: float, center_x: float, center_y: float) -> None:
     text = parse_wordmark_text()
-    letter_width = 10
-    letter_height = 14
+    letter_width = 11
+    letter_height = 16
     stroke = 2
     gap = 2
     width = len(text) * letter_width + (len(text) - 1) * gap
@@ -198,8 +198,8 @@ def draw_wordmark(canvas: list[list[int]], target_width: float, center_x: float,
 
     def fill_diag(x: int, y: int) -> None:
         for row in range(letter_height // 2, letter_height):
-            col = letter_width - stroke - 1 - (row - letter_height // 2) // 2
-            fill_rect(x + max(stroke, col), y + row, stroke, 1)
+            col = 4 + (row - letter_height // 2) // 2
+            fill_rect(x + min(letter_width - stroke, col), y + row, stroke, 1)
 
     for index, char in enumerate(text):
         glyph_x = x0 + index * (letter_width + gap)
