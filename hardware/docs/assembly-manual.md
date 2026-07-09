@@ -147,7 +147,7 @@ For manual Pi setup and diagnostics, see [`pi-bring-up.md`](pi-bring-up.md).
 1. Insert the Raspberry Pi, OLED, DAC, USB-C power breakout, and NeoKey into their sockets.
 2. Connect the NeoTrellis array to the PCB with the short 5-wire female-to-male Dupont cable.
 3. Install the Cherry MX switches into the NeoKey.
-4. Add the four keycaps. Use either printed keycaps from `release-artifacts/enclosure/stl/` or purchased MX-stem keycaps.
+4. Add the four keycaps. Use either printed keycaps from `release-artifacts/enclosure/stl/` or purchased MX-stem keycaps. Install them before running diagnostics so the key checks match the assembled control feel.
 5. Connect audio output to headphones, speakers, or a mixer.
 6. Connect power to the USB-C breakout.
 
@@ -157,15 +157,9 @@ Before applying power, check the NeoKey and NeoTrellis connector orientation aga
 
 Wait for the Pi to boot. First boot can take a while, but you should soon see the splashscreen.
 
-Once it is up, you can check:
+Once it is up, check that none of the elements report an error. The OLED, NeoKey, and NeoTrellis can turn completely red in case of an electrical issue. The top NeoKey should light up red; that is intended because it is the Back button.
 
-- NeoKey LEDs/input.
-- NeoTrellis LEDs/input.
-- OLED output.
-- Encoder turns and presses.
-- Audio output.
-
-To do this, you can run the hardware diagnostics from the System menu before assembling the enclosure. Complete the guided checks for display, grid, keys, encoders, and audio while the boards are still accessible.
+Then turn the main encoder to select the System menu, and click the main encoder to enter it. In the System menu, scroll to and run the hardware diagnostics before assembling the enclosure. Complete the guided checks for display, grid, keys, encoders, and audio while the boards are still accessible. The diagnostics can also detect inconsistent button or encoder signals. A couple of warnings are usually okay, but if the diagnostics report actual errors, double-check your soldering and components.
 
 If the hardware does not come up, stop and use the bring-up checks in [`pi-bring-up.md`](pi-bring-up.md).
 
