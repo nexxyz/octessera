@@ -140,6 +140,36 @@ The NeoKey and NeoTrellis connector are the two parts that are easiest to plug i
 3. Configure WiFi, SSH, hostname, and locale in Raspberry Pi Imager if you need network access.
 4. Insert the microSD card into the Raspberry Pi.
 
+You can flash the downloaded `.img.zip` directly with Raspberry Pi Imager by choosing **Use custom** and selecting the ZIP. You do not need to extract the ZIP first.
+
+The release also includes Raspberry Pi Imager metadata in two places:
+
+- inside the image ZIP as `os_list.rpi-imager-manifest`;
+- next to the image ZIP as `CellSymphony-<version>-pi-zero-2w.rpi-imager-manifest`.
+
+If you want Cell Symphony to appear as a custom OS entry in Raspberry Pi Imager, use the standalone `.rpi-imager-manifest` release asset as Imager's custom repository manifest. Loading the manifest/custom image this way lets Raspberry Pi Imager configure locale, WiFi, SSH, hostname, and user settings before flashing.
+
+In Raspberry Pi Imager, open **App Options**, press **Edit** next to **Content Repository**, then choose one of these options:
+
+- **Use custom file**: select the downloaded `.rpi-imager-manifest` file.
+- **Use custom URL**: paste the manifest URL from the GitHub release.
+
+Then press **Apply and Restart**. After Imager restarts, the Cell Symphony image will show up in the **OS** list after you have selected your device type.
+
+Reference screenshots:
+
+- [Raspberry Pi Imager options](images/assembly/rpi-imager-options.png)
+- [Content Repository setting](images/assembly/rpi-content-repository.png)
+- [Custom repository source](images/assembly/rpi-repository-source.png)
+
+You can also start Imager with the manifest URL from the command line, for example:
+
+```powershell
+rpi-imager --repo "https://github.com/nexxyz/cellSymphony/releases/download/v<version>/CellSymphony-<version>-pi-zero-2w.rpi-imager-manifest"
+```
+
+Use the actual release tag and version from the release page. The embedded manifest inside the ZIP is for packaged metadata; do not extract the ZIP just to load the manifest.
+
 For manual Pi setup and diagnostics, see [`pi-bring-up.md`](pi-bring-up.md).
 
 ## First electrical assembly

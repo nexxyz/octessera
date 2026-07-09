@@ -16,15 +16,6 @@ SIZE = 128
 SCALE = 4
 WHITE = 255
 BLACK = 0
-WORDMARK_GLYPHS = {
-    "O": ["11110", "10010", "10010", "10010", "10010", "11110"],
-    "C": ["11110", "10000", "10000", "10000", "10000", "11110"],
-    "T": ["11111", "00100", "00100", "00100", "00100", "00100"],
-    "E": ["11110", "10000", "11100", "10000", "10000", "11110"],
-    "S": ["11110", "10000", "11110", "00010", "00010", "11110"],
-    "R": ["11110", "10010", "10010", "11100", "10100", "10010"],
-    "A": ["11110", "10010", "10010", "11110", "10010", "10010"],
-}
 
 
 @dataclass(frozen=True)
@@ -179,30 +170,42 @@ def draw_mark(canvas: list[list[int]], target_size: float, center_x: float, cent
         draw_disk(canvas, transform(circle.center, bounds, high_target, high_center), circle.radius * mark_scale)
 
 
-def draw_wordmark(canvas: list[list[int]], target_width: float, center_x: float, center_y: float) -> None:
-    text = parse_wordmark_text()
-    pixel_scale = 2
-    glyph_width = 5
-    glyph_height = 6
-    gap = 1
-    width = (len(text) * glyph_width + (len(text) - 1) * gap) * pixel_scale
-    height = glyph_height * pixel_scale
-    x0 = round(center_x - width / 2)
-    y0 = round(center_y - height / 2)
-
-    def fill_rect(x: int, y: int, width: int, height: int) -> None:
-        for py in range(y, y + height):
-            for px in range(x, x + width):
+def draw_wordmark(canvas: list[list[int]], target_width: int, target_height: int, center_x: float, center_y: float) -> None:
+    polygons = parse_wordmark_polygons()
+    min_x, min_y, max_x, max_y = polygon_bounds(polygons)
+    source_width = max_x - min_x
+    source_height = max_y - min_y
+    x0 = round(center_x - target_width / 2)
+    y0 = round(center_y - target_height / 2)
+    for y in range(target_height):
+        for x in range(target_width):
+            point = Point(
+                min_x + (x + 0.5) * source_width / target_width,
+                min_y + (y + 0.5) * source_height / target_height,
+            )
+            if any(point_in_polygon(point, polygon) for polygon in polygons):
                 for sy in range(SCALE):
                     for sx in range(SCALE):
-                        set_pixel(canvas, px * SCALE + sx, py * SCALE + sy)
+                        set_pixel(canvas, (x0 + x) * SCALE + sx, (y0 + y) * SCALE + sy)
 
-    for index, char in enumerate(text):
-        glyph_x = x0 + index * (glyph_width + gap) * pixel_scale
-        for row, line in enumerate(WORDMARK_GLYPHS[char]):
-            for col, value in enumerate(line):
-                if value == "1":
-                    fill_rect(glyph_x + col * pixel_scale, y0 + row * pixel_scale, pixel_scale, pixel_scale)
+
+def draw_wordmark_antialiased(canvas: list[list[int]], target_width: int, target_height: int, center_x: float, center_y: float) -> None:
+    polygons = parse_wordmark_polygons()
+    min_x, min_y, max_x, max_y = polygon_bounds(polygons)
+    source_width = max_x - min_x
+    source_height = max_y - min_y
+    high_width = target_width * SCALE
+    high_height = target_height * SCALE
+    x0 = round(center_x * SCALE - high_width / 2)
+    y0 = round(center_y * SCALE - high_height / 2)
+    for y in range(high_height):
+        for x in range(high_width):
+            point = Point(
+                min_x + (x + 0.5) * source_width / high_width,
+                min_y + (y + 0.5) * source_height / high_height,
+            )
+            if any(point_in_polygon(point, polygon) for polygon in polygons):
+                set_pixel(canvas, x0 + x, y0 + y)
 
 
 def downsample_grayscale(canvas: list[list[int]]) -> bytes:
@@ -242,16 +245,22 @@ def save_mark(path: Path) -> None:
     write_png(path, downsample_grayscale(canvas))
 
 
+def save_manifest_icon(path: Path) -> None:
+    canvas = make_canvas()
+    draw_mark(canvas, target_size=118, center_x=64, center_y=64)
+    write_png(path, downsample_grayscale(canvas))
+
+
 def save_stacked_logo(path: Path) -> None:
     canvas = make_canvas()
     draw_mark(canvas, target_size=58, center_x=64, center_y=52)
-    draw_wordmark(canvas, target_width=106, center_x=64, center_y=93)
+    draw_wordmark_antialiased(canvas, target_width=106, target_height=16, center_x=64, center_y=93)
     write_png(path, downsample_grayscale(canvas))
 
 
 def main() -> None:
     _ = parse_wordmark_text()
-    save_stacked_logo(ASSETS / "octessera-pi-manifest.png")
+    save_manifest_icon(ASSETS / "octessera-pi-manifest.png")
     save_mark(ASSETS / "octessera-pi-sleeping.png")
     save_mark(ASSETS / "octessera-pi-shutdown.png")
     save_stacked_logo(ASSETS / "octessera-pi-booting.png")
