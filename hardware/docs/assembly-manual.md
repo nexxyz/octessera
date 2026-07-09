@@ -155,7 +155,9 @@ Do not power the device from the Raspberry Pi power connector.
 
 Before applying power, check the NeoKey and NeoTrellis connector orientation again. `INT` should be on the south side.
 
-Wait for the Pi to boot. First boot can take a while. Then check:
+Wait for the Pi to boot. First boot can take a while, but you should soon see the splashscreen.
+
+Once it is up, you can check:
 
 - NeoKey LEDs/input.
 - NeoTrellis LEDs/input.
@@ -163,7 +165,7 @@ Wait for the Pi to boot. First boot can take a while. Then check:
 - Encoder turns and presses.
 - Audio output.
 
-Then run the hardware diagnostics from the System menu before assembling the enclosure. Complete the guided checks for display, grid, keys, encoders, and audio while the boards are still accessible.
+To do this, you can run the hardware diagnostics from the System menu before assembling the enclosure. Complete the guided checks for display, grid, keys, encoders, and audio while the boards are still accessible.
 
 If the hardware does not come up, stop and use the bring-up checks in [`pi-bring-up.md`](pi-bring-up.md).
 
