@@ -151,6 +151,7 @@ Only assemble the enclosure after the electrical test and System-menu diagnostic
 
 1. Place the bottom enclosure on the bench.
 2. Put the PCB and NeoTrellis array onto the bottom.
+   - Remove the Raspberry Pi microSD card and OLED microSD card first. They can catch on the enclosure and break during installation.
 3. Add the 18 separate standoff pillars between the bottom supports and the plug-in modules:
    - Use the printed standoff pillars or compatible purchased stackable standoffs.
    - For each plug-in module, remove the module, add the standoff, then reinstall the module.

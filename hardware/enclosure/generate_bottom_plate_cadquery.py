@@ -26,6 +26,7 @@ COUNTERBORE_D = 6.4
 CORNER_COUNTERBORE_D = 5.8
 COUNTERBORE_DEPTH = 1.8
 EPS = 0.15
+WEST_EXTENSION = 1.0
 
 
 def rounded_plate(width: float, depth: float, radius: float, thickness: float) -> cq.Workplane:
@@ -35,6 +36,16 @@ def rounded_plate(width: float, depth: float, radius: float, thickness: float) -
         .placeSketch(sketch)
         .extrude(thickness)
         .translate((width / 2.0, depth / 2.0, 0.0))
+    )
+
+
+def west_extended_rounded_plate(width: float, depth: float, radius: float, thickness: float) -> cq.Workplane:
+    sketch = cq.Sketch().rect(width + WEST_EXTENSION, depth).vertices().fillet(radius)
+    return (
+        cq.Workplane("XY")
+        .placeSketch(sketch)
+        .extrude(thickness)
+        .translate(((width - WEST_EXTENSION) / 2.0, depth / 2.0, 0.0))
     )
 
 
@@ -62,6 +73,19 @@ def guide_wall(params: dict) -> cq.Workplane:
         )
     )
     wall = outer.cut(inner).clean()
+    west_extension = (
+        cq.Workplane("XY")
+        .rect(WEST_EXTENSION + GUIDE_WALL_THICKNESS, outer_d)
+        .extrude(GUIDE_WALL_HEIGHT)
+        .translate(
+            (
+                GUIDE_WALL_OFFSET - WEST_EXTENSION + (WEST_EXTENSION + GUIDE_WALL_THICKNESS) / 2.0,
+                depth / 2.0,
+                BOTTOM_PLATE_THICKNESS,
+            )
+        )
+    )
+    wall = wall.union(west_extension).clean()
     return add_screw_keepouts(wall, params).clean()
 
 
@@ -135,7 +159,7 @@ def add_screw_holes(plate: cq.Workplane, params: dict) -> cq.Workplane:
 
 def build_bottom_plate(params: dict) -> cq.Workplane:
     width, depth = params["case_size_v21"]
-    plate = rounded_plate(width, depth, params["corner_r"], BOTTOM_PLATE_THICKNESS)
+    plate = west_extended_rounded_plate(width, depth, params["corner_r"], BOTTOM_PLATE_THICKNESS)
     plate = plate.union(guide_wall(params)).clean()
     plate = plate.union(component_support_pillars(params)).clean()
     return add_screw_holes(plate, params)

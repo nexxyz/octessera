@@ -5,8 +5,9 @@ import cadquery as cq
 
 WALL_PORT_TOP_Z = 7.5
 PORT_CUT_EPS = 1.0
-OLED_SD_X0 = 57.88
-OLED_SD_X1 = 78.88
+WEST_EXTENSION = 1.0
+OLED_SD_X0 = 58.88
+OLED_SD_X1 = 77.88
 PORT_INDENT_RAMP = 6.0
 PORT_INDENT_Z_PAD = 4.2
 PORT_INDENT_SPAN_PAD = 6.0
@@ -45,7 +46,7 @@ def z_center(height: float, z_shift: float = 0.0) -> float:
 def left_wall_rect(params: dict, y0: float, y1: float, height: float, x1: float | None = None, z_shift: float = 0.0) -> cq.Workplane:
     wall = params["wall"]
     z0, z1 = z_bounds(height, z_shift=z_shift)
-    return box_cutter(-PORT_CUT_EPS, y0, (x1 or wall) + PORT_CUT_EPS, y1, z0, z1)
+    return box_cutter(-WEST_EXTENSION - PORT_CUT_EPS, y0, (x1 or wall) + PORT_CUT_EPS, y1, z0, z1)
 
 
 def south_wall_rect(params: dict, x0: float, x1: float, height: float, y1: float | None = None, z_shift: float = 0.0) -> cq.Workplane:
@@ -190,8 +191,8 @@ def audio_jack_cutter(params: dict, y: float, x1: float) -> cq.Workplane:
     return (
         cq.Workplane("YZ")
         .circle(3.35)
-        .extrude(x1 + 2 * PORT_CUT_EPS)
-        .translate((-PORT_CUT_EPS, y, z_center(height)))
+        .extrude(x1 + WEST_EXTENSION + 2 * PORT_CUT_EPS)
+        .translate((-WEST_EXTENSION - PORT_CUT_EPS, y, z_center(height)))
     )
 
 
@@ -323,9 +324,10 @@ def left_wall_face_recess(
     half_y_outer = half_y_inner + PORT_FACE_RECESS_SPAN_PAD
     half_z_outer = half_z_inner + PORT_FACE_RECESS_Z_PAD
     wires = []
+    start_x = -WEST_EXTENSION - PORT_CUT_EPS
     for index in range(17):
-        x = -PORT_CUT_EPS + (depth_x + PORT_CUT_EPS) * index / 16
-        t = (x + PORT_CUT_EPS) / (depth_x + PORT_CUT_EPS)
+        x = start_x + (depth_x - start_x) * index / 16
+        t = (x - start_x) / (depth_x - start_x)
         ease = quarter_ease(t)
         half_y = half_y_outer + (half_y_inner - half_y_outer) * ease
         half_z = half_z_outer
@@ -431,13 +433,13 @@ def add_top_wall_port_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane
     left_pi_recess_x = left_pi_x - PORT_RECESS_BACK_LAND
     south_pi_recess_y = south_pi_y - PORT_RECESS_BACK_LAND
     north_flush_recess_y = north_flush_y + PORT_RECESS_BACK_LAND
-    power_z_shift = -0.5
+    power_z_shift = 0.25
     pi_z_shift = 7.0
     pi_top_trim_z_shift = pi_z_shift - 1.5
     pi_south_indent_z_shift = pi_top_trim_z_shift - 0.5
-    pi_sd_hole_z_shift = pi_z_shift - 4.0
+    pi_sd_hole_z_shift = pi_z_shift - 3.5
     pi_sd_indent_z_shift = pi_sd_hole_z_shift
-    pi_sd_indent_span_adjust = -1.5
+    pi_sd_indent_span_adjust = -2.5
     additions = []
     cuts = []
     for port in params["ports_v21"]:
@@ -446,13 +448,32 @@ def add_top_wall_port_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane
             center_y = (port["a"] + port["b"]) / 2.0
             audio_indent_y0 = center_y - 4.1
             audio_indent_y1 = center_y + 4.1
-            additions.append(left_wall_indent_wall(params, audio_indent_y0, audio_indent_y1, 6.7, left_flush_x))
-            cuts.append(left_wall_face_recess(params, audio_indent_y0, audio_indent_y1, 6.7, left_flush_recess_x))
+            audio_indent_z_shift = z_center(8.2) - z_center(5.2)
+            additions.append(
+                left_wall_indent_wall(
+                    params,
+                    audio_indent_y0,
+                    audio_indent_y1,
+                    5.2,
+                    left_flush_x,
+                    z_shift=audio_indent_z_shift,
+                )
+            )
+            cuts.append(
+                left_wall_face_recess(
+                    params,
+                    audio_indent_y0,
+                    audio_indent_y1,
+                    5.2,
+                    left_flush_recess_x,
+                    z_shift=audio_indent_z_shift,
+                )
+            )
             cuts.append(audio_jack_cutter(params, (port["a"] + port["b"]) / 2.0, left_flush_x))
         elif label == "USB-C power":
-            additions.append(left_wall_indent_wall(params, port["a"], port["b"], 5.6, left_flush_x, z_shift=power_z_shift))
-            cuts.append(left_wall_face_recess(params, port["a"], port["b"], 5.6, left_flush_recess_x, z_shift=power_z_shift))
-            cuts.append(left_wall_rect(params, port["a"], port["b"], 5.6, left_flush_x, z_shift=power_z_shift))
+            additions.append(left_wall_indent_wall(params, port["a"], port["b"], 4.6, left_flush_x, z_shift=power_z_shift))
+            cuts.append(left_wall_face_recess(params, port["a"], port["b"], 4.6, left_flush_recess_x, z_shift=power_z_shift))
+            cuts.append(left_wall_rect(params, port["a"], port["b"], 4.6, left_flush_x, z_shift=power_z_shift))
         elif label == "Pi microSD":
             additions.append(
                 left_wall_indent_wall(
@@ -476,7 +497,7 @@ def add_top_wall_port_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane
                     half_span_adjust=pi_sd_indent_span_adjust,
                 )
             )
-            cuts.append(left_wall_rect(params, port["a"], port["b"], 2.0, left_pi_x, z_shift=pi_sd_hole_z_shift))
+            cuts.append(left_wall_rect(params, port["a"], port["b"], 3.0, left_pi_x, z_shift=pi_sd_hole_z_shift))
         elif label == "Pi mini-HDMI":
             additions.append(south_wall_indent_wall(params, port["a"], port["b"], 2.5, south_pi_y, z_shift=pi_south_indent_z_shift))
             cuts.append(south_wall_face_recess(params, port["a"], port["b"], 2.5, south_pi_recess_y, z_shift=pi_south_indent_z_shift))

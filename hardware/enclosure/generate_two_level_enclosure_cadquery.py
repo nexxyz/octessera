@@ -7,7 +7,7 @@ from pathlib import Path
 import cadquery as cq
 
 from faceplate_insert_pillars import add_faceplate_insert_pillars, subtract_faceplate_insert_holes
-from faceplate_neokey_support import neokey_deck_cap, neokey_raised_cap, neokey_south_filler, neokey_support_block
+from faceplate_neokey_support import neokey_deck_cap, neokey_raised_cap, neokey_south_slot_fill, neokey_support_block
 from faceplate_walls import perimeter_wall_skirts
 from top_wall_port_cutouts import add_top_wall_port_cutouts
 from wave_guidance import (
@@ -32,7 +32,8 @@ HIGH_Z = 17.0
 UNDERSIDE_Z = 9.0
 HIGH_UNDERSIDE_Z = 14.0
 EXTENDED_SLOPE_RIGHT_X = 115.0
-NEOKEY_PANEL_Y_OFFSET = 0.0
+WEST_EXTENSION = 1.0
+NEOKEY_PANEL_Y_OFFSET = -0.5
 NEOKEY_TOP_Z = 16.0
 NEOKEY_DECK_TOP_Z = HIGH_Z + 3.0
 NEOKEY_KEYCAP_RECESS_DEPTH = 1.0
@@ -77,6 +78,18 @@ def rounded_plate(width: float, depth: float, radius: float, z0: float, thicknes
         .extrude(thickness)
         .translate((width / 2.0, depth / 2.0, z0))
     )
+
+
+def west_extension_solid(width: float, depth: float, radius: float, z0: float, z1: float) -> cq.Workplane:
+    extended = rounded_plate(width + WEST_EXTENSION, depth, radius, z0, z1 - z0).translate((-WEST_EXTENSION, 0, 0))
+    original = rounded_plate(width, depth, radius, z0 - 0.1, z1 - z0 + 0.2)
+    return extended.cut(original).clean()
+
+
+def west_extended_footprint(width: float, depth: float, radius: float, z0: float, thickness: float) -> cq.Workplane:
+    return rounded_plate(width + WEST_EXTENSION, depth, radius, z0, thickness).translate((-WEST_EXTENSION, 0, 0))
+
+
 def y_band_prism(width: float, y0: float, y1: float, margin: float, z_height: float) -> cq.Workplane:
     points = [
         (-margin, y0),
@@ -257,11 +270,11 @@ def west_wave_wall(params: dict, footprint: cq.Workplane) -> cq.Workplane:
         wires.append(
             cq.Wire.makePolygon(
                 [
-                    cq.Vector(0.0, y, LOW_Z - 0.05),
+                    cq.Vector(-WEST_EXTENSION, y, LOW_Z - 0.05),
                     cq.Vector(wall + 0.3, y, LOW_Z - 0.05),
                     cq.Vector(wall + 0.3, y, top_z),
-                    cq.Vector(0.0, y, top_z),
-                    cq.Vector(0.0, y, LOW_Z - 0.05),
+                    cq.Vector(-WEST_EXTENSION, y, top_z),
+                    cq.Vector(-WEST_EXTENSION, y, LOW_Z - 0.05),
                 ]
             )
         )
@@ -395,8 +408,8 @@ def neokey_key_centers(params: dict) -> list[tuple[float, float]]:
 def add_neokey_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane:
     key_centers = neokey_key_centers(params)
     seat_bounds = neokey_seat_bounds(params, key_centers)
+    model = model.union(neokey_south_slot_fill(seat_bounds, NEOKEY_WAVE_HOLLOW_SOUTH_EXTRA, LOW_Z, HIGH_Z))
     model = model.union(neokey_support_block(params, seat_bounds, NEOKEY_SEAT_BOTTOM_Z, LOW_Z, NEOKEY_TOP_Z))
-    model = model.union(neokey_south_filler(seat_bounds, NEOKEY_SEAT_BOTTOM_Z, NEOKEY_TOP_Z))
     model = model.union(neokey_deck_cap(params, seat_bounds, NEOKEY_TOP_Z, HIGH_Z))
     model = model.union(neokey_raised_cap(params, seat_bounds, HIGH_Z, NEOKEY_DECK_TOP_Z))
     key_w = key_h = params["key_cutout"][0]
@@ -492,7 +505,8 @@ def build_model(params: dict) -> cq.Workplane:
     _, low_edge = south_edge_samples()
     lower_wave_top_y = first_y_at_x(low_edge, neokey_seat_x0)
 
-    footprint = rounded_plate(width, depth, radius, 0, 40)
+    footprint = west_extended_footprint(width, depth, radius, 0, 40)
+    west_extension = west_extension_solid(width, depth, radius, -10.0, LOW_Z)
     low_plate = rounded_plate(width, depth, radius, UNDERSIDE_Z, top_thick).intersect(left_region_prism(width, depth, 5, 40))
     right_region = right_region_prism(width, depth, 5, 40)
     wave_strip_region = right_region.intersect(
@@ -543,12 +557,12 @@ def build_model(params: dict) -> cq.Workplane:
     wave_flat_ramp = wave_flat_ramp.cut(neokey_seat_region)
     west_wall = west_wave_wall(params, footprint)
     flat_faceplate = add_cutouts(
-        low_plate.union(lower_wave_plate).union(wave_flat_ramp).union(west_wall).union(high_plate).clean(),
+        low_plate.union(lower_wave_plate).union(wave_flat_ramp).union(west_wall).union(high_plate).union(west_extension).clean(),
         params,
     ).clean()
     upper_shoulder = shoulder_loft(neokey_seat_top_y, depth).intersect(footprint).clean()
     lower_wave = (
-        rectangular_lower_wave_slope_loft(0.0, EXTENDED_SLOPE_RIGHT_X, lower_wave_top_y)
+        rectangular_lower_wave_slope_loft(-WEST_EXTENSION, EXTENDED_SLOPE_RIGHT_X, lower_wave_top_y)
         .intersect(footprint)
         .cut(neokey_seat_region)
         .clean()
@@ -556,7 +570,7 @@ def build_model(params: dict) -> cq.Workplane:
     shoulder = upper_shoulder.union(lower_wave).clean()
     skirts = perimeter_wall_skirts(
         params,
-        rounded_plate,
+        west_extended_footprint,
         EXTENDED_SLOPE_RIGHT_X,
         LOWER_TO_TIER2_RAMP_START_X,
         LOWER_TO_TIER2_RAMP_END_X,
@@ -576,9 +590,6 @@ def main() -> None:
     STL_OUT.parent.mkdir(parents=True, exist_ok=True)
     cq.exporters.export(model, str(STEP_OUT))
     cq.exporters.export(model, str(STL_OUT), tolerance=0.08, angularTolerance=0.12)
-    from generate_wave_review_view import main as generate_review_view
-
-    generate_review_view()
     print(f"wrote {STEP_OUT}")
     print(f"wrote {STL_OUT}")
 if __name__ == "__main__":

@@ -71,6 +71,13 @@ def neokey_south_filler(
     return rect_prism(seat_x0, 0.0, seat_x1, seat_y0 + 0.25, bottom_z, top_z)
 
 
+def neokey_south_slot_fill(
+    seat_bounds: tuple[float, float, float, float], south_extra: float, bottom_z: float, top_z: float
+) -> cq.Workplane:
+    seat_x0, seat_y0, seat_x1, _ = seat_bounds
+    return rect_prism(seat_x0, seat_y0 - south_extra, seat_x1, seat_y0, bottom_z, top_z)
+
+
 def neokey_deck_cap(
     params: dict,
     seat_bounds: tuple[float, float, float, float],
@@ -78,7 +85,7 @@ def neokey_deck_cap(
     top_z: float,
 ) -> cq.Workplane:
     seat_x0, seat_y0, seat_x1, seat_y1 = seat_bounds
-    support_cap = northwest_rounded_rect_prism(
+    return northwest_rounded_rect_prism(
         seat_x0,
         seat_y0,
         seat_x1,
@@ -87,8 +94,6 @@ def neokey_deck_cap(
         bottom_z,
         top_z,
     )
-    filler_cap = rect_prism(seat_x0, 0.0, seat_x1, seat_y0 + 0.25, bottom_z, top_z)
-    return support_cap.union(filler_cap).clean()
 
 
 def neokey_raised_cap(
@@ -97,10 +102,10 @@ def neokey_raised_cap(
     bottom_z: float,
     top_z: float,
 ) -> cq.Workplane:
-    seat_x0, _, seat_x1, seat_y1 = seat_bounds
+    seat_x0, seat_y0, seat_x1, seat_y1 = seat_bounds
     return rounded_rect_prism(
         seat_x0,
-        0.0,
+        seat_y0,
         seat_x1,
         seat_y1,
         params["key_cutout_r"],
