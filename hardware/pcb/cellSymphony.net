@@ -1,7 +1,7 @@
 (export
 	(version "E")
 	(design
-		(source "F:\\dev\\cellSymphony\\hardware\\pcb\\cellSymphony.kicad_sch")
+		(source "cellSymphony.kicad_sch")
 		(date "2026-06-18T15:09:07")
 		(tool "Eeschema 10.0.1")
 		(sheet
@@ -1573,11 +1573,11 @@
 		)
 		(library
 			(logical "RASPBERRY_PI_ZERO_2_W")
-			(uri "F:/dev/cellSymphony/hardware/kicad-libs/symbols/RASPBERRY_PI_ZERO_2_W.kicad_sym")
+			(uri "kicad-libs/symbols/RASPBERRY_PI_ZERO_2_W.kicad_sym")
 		)
 		(library
 			(logical "adafruit-modules")
-			(uri "F:/dev/cellSymphony/hardware/kicad-libs/symbols/adafruit-modules.kicad_sym")
+			(uri "kicad-libs/symbols/adafruit-modules.kicad_sym")
 		)
 	)
 	(nets

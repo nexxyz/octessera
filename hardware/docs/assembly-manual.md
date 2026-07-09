@@ -73,7 +73,15 @@ Standoff STL attribution and purchase/source reference: the standoff models are 
 4. Keep every module oriented the same way it will sit in the enclosure.
 5. Mark the correct side of every module before soldering headers.
 
-Headers on the wrong side are difficult to fix. Check the silkscreen, enclosure orientation, and module footprint before soldering.
+Headers on the wrong side are difficult to fix. Check the silkscreen, enclosure orientation, and module footprint before soldering. Best double-check every header before soldering it: the correct side matters for the PCB sockets, Pi, OLED, DAC/audio breakout, power breakout, NeoKey, and NeoTrellis connector.
+
+Reference photos:
+
+- [Soldered PCB overview](images/assembly/soldered-pcb.jpg)
+- [Raspberry Pi Zero 2 W header side](images/assembly/pi-zero-2w.jpg)
+- [OLED header side](images/assembly/oled.jpg)
+- [Audio breakout header side](images/assembly/audio-breakout.jpg)
+- [Power breakout header side](images/assembly/power-breakout.jpg)
 
 ## Solder the main PCB
 
@@ -83,6 +91,10 @@ Solder low-profile sockets and headers first. They define module height and alig
 2. Solder the 1x5 right-angle female socket for the NeoTrellis connector.
 3. Solder `C1`, the `470uF` polarized capacitor. Match polarity to the PCB markings.
 4. Solder the four rotary encoders into `SW1` through `SW4`.
+
+You can leave the capacitor legs a little longer than usual so the capacitor can bend sideways if you need to save vertical space. Keep polarity correct and make sure the legs cannot short against nearby pads or metal parts.
+
+The horizontal socket for the NeoTrellis array can be a tight fit near the case pillar that supports the NeoTrellis. Consider bending the socket legs slightly before soldering, or use a vertical connector if your build has enough space. If you plug the cable in before mounting the NeoTrellis array on the pillars, it will be very tight, but it fits as designed.
 
 Do not install plug-in modules yet.
 
@@ -108,6 +120,13 @@ The four NeoTrellis boards form one 8x8 grid.
 
 5. Set the NeoKey address by soldering A0, A1, A2, and A3. Leave A4 open. The expected address is `0x3F`.
 
+Use the reference photos to confirm the soldered address jumper pads:
+
+- [NeoTrellis address jumper pads](images/assembly/neotrellis-address-jumpers.jpg)
+- [NeoKey address jumper pads](images/assembly/neokey-address-jumpers.jpg)
+
+The NeoKey and NeoTrellis connector are the two parts that are easiest to plug in backwards. Double-check their orientation before powering the device. The simplest check is that `INT` should always be on the south side.
+
 ## Flash the Raspberry Pi image
 
 1. Download the latest release image from the project releases. It is named like:
@@ -132,6 +151,8 @@ For manual Pi setup and diagnostics, see [`pi-bring-up.md`](pi-bring-up.md).
 6. Connect power to the USB-C breakout.
 
 Do not power the device from the Raspberry Pi power connector.
+
+Before applying power, check the NeoKey and NeoTrellis connector orientation again. `INT` should be on the south side.
 
 Wait for the Pi to boot. First boot can take a while. Then check:
 

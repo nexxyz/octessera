@@ -3,9 +3,11 @@ from __future__ import annotations
 import json
 import math
 from pathlib import Path
+from typing import cast
 
 import cadquery as cq
 
+from branding_marking_cadquery import make_branding_marking
 from faceplate_insert_pillars import add_faceplate_insert_pillars, subtract_faceplate_insert_holes
 from faceplate_neokey_support import neokey_deck_cap, neokey_raised_cap, neokey_south_slot_fill, neokey_support_block
 from faceplate_walls import perimeter_wall_skirts
@@ -38,6 +40,7 @@ NEOKEY_TOP_Z = 16.0
 NEOKEY_DECK_TOP_Z = HIGH_Z + 3.0
 NEOKEY_KEYCAP_RECESS_DEPTH = 1.0
 NEOKEY_MX_LATCH_PLATE_THICKNESS = 1.5
+BRANDING_RAISE = 0.65
 NEOKEY_MX_UNDERSIDE_CLEARANCE = 2.6
 NEOKEY_MX_MOUNTING_GRID_Z_DROP = 2.0
 NEOKEY_SEAT_BOTTOM_Z = UNDERSIDE_Z + 1.0
@@ -495,7 +498,7 @@ def add_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane:
     return model
 
 
-def build_model(params: dict) -> cq.Workplane:
+def build_body_model(params: dict) -> cq.Workplane:
     width, depth = params["case_size_v21"]
     radius = params["corner_r"]
     top_thick = params["top_thick"]
@@ -583,9 +586,30 @@ def build_model(params: dict) -> cq.Workplane:
     model = add_neokey_cutouts(model, params).clean()
     model = add_guidance_slots(model).clean()
     return subtract_faceplate_insert_holes(add_top_wall_port_cutouts(model.union(skirts).clean(), params), params)
+
+
+def build_branding_marking() -> cq.Workplane:
+    return make_branding_marking(LOW_Z, BRANDING_RAISE)
+
+
+def build_flush_branding_marking() -> cq.Workplane:
+    return make_branding_marking(LOW_Z - BRANDING_RAISE, BRANDING_RAISE)
+
+
+def build_model(params: dict) -> cq.Workplane:
+    return build_body_model(params)
+
+
+def build_branded_export_model(params: dict) -> cq.Workplane:
+    body = build_body_model(params)
+    branding = build_branding_marking()
+    solids = cast(list[cq.Shape], [*body.solids().vals(), *branding.solids().vals()])
+    return cq.Workplane("XY").add(cq.Compound.makeCompound(solids))
+
+
 def main() -> None:
     params = json.loads(PARAMS.read_text())
-    model = build_model(params)
+    model = build_branded_export_model(params)
     STEP_OUT.parent.mkdir(parents=True, exist_ok=True)
     STL_OUT.parent.mkdir(parents=True, exist_ok=True)
     cq.exporters.export(model, str(STEP_OUT))

@@ -8,10 +8,10 @@ target/
 .DS_Store
 Thumbs.db
 *.log
+__pycache__/
 pnpm-debug.log*
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/
-hardware/KiCAD/
 hardware/pcb/.history/
 hardware/pcb/cellSymphony-backups/
 hardware/pcb/*.lck
@@ -26,8 +26,7 @@ debug/
 hardware/pcb/PCB.stl
 release-artifacts/enclosure/top_artifacts_async.log
 release-artifacts/enclosure/top_artifacts_async_status.json
-release-artifacts/enclosure/review/top_artifacts_async.log
-release-artifacts/enclosure/review/top_artifacts_async_status.json
+hardware/enclosure/review/
 hardware/enclosure/*.stl
 hardware/enclosure/*.step
 hardware/Mouser Cart with Components.pdf

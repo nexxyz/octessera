@@ -98,4 +98,4 @@ Current enclosure notes from the parameter source:
 - Standoff top-pin generator: [`generate_standoff_top_pins.py`](generate_standoff_top_pins.py)
 - CAD workflow and checks: [`CAD_WORKFLOW.md`](CAD_WORKFLOW.md)
 - Roof-wall validation: [`validate_wave_roof.py`](validate_wave_roof.py)
-- Generated review images: [`../../release-artifacts/enclosure/review/current_wave_top_view.svg`](../../release-artifacts/enclosure/review/current_wave_top_view.svg) and [`../../release-artifacts/enclosure/review/current_wave_top_view.png`](../../release-artifacts/enclosure/review/current_wave_top_view.png)
+- Generated review images: `review/current_wave_top_view.svg` and `review/current_wave_top_view.png`.

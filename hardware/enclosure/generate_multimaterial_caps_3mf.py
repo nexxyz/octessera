@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import json
 import zipfile
 from pathlib import Path
 
 import cadquery as cq
 
+import generate_two_level_enclosure_cadquery as enclosure
 import generate_encoder_caps_cadquery as enc
 import generate_mx_keycaps_cadquery as mx
 
@@ -196,8 +198,23 @@ def encoder_dot_variant(name: str) -> tuple[cq.Workplane, cq.Workplane]:
     return cut_parts(body, [cutter]), label
 
 
+def enclosure_top_variant(params: dict) -> tuple[cq.Workplane, cq.Workplane]:
+    flush_branding = enclosure.build_flush_branding_marking()
+    body = enclosure.build_body_model(params)
+    for cutter in [flush_branding, flush_branding.translate((0.0, 0.0, 0.08))]:
+        for solid in cutter.solids().vals():
+            body = body.cut(cq.Workplane("XY").add(solid)).clean()
+    return body, flush_branding
+
+
 def main() -> None:
     THREEMF_ROOT.mkdir(parents=True, exist_ok=True)
+    params = json.loads(enclosure.PARAMS.read_text())
+    case_body, case_branding = enclosure_top_variant(params)
+    case_filename = "case_top_two_level_branded_multicolor.3mf"
+    write_3mf(THREEMF_ROOT / case_filename, case_body, case_branding)
+    print(f"wrote {THREEMF_ROOT / case_filename}")
+
     mx_caps = {
         "mx_keycap_back_multicolor_flush.3mf": mx.back_icon(),
         "mx_keycap_play_multicolor_flush.3mf": mx.play_icon(),

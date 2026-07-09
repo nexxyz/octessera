@@ -13,12 +13,15 @@ STL_ROOT = ARTIFACT_ROOT / "stl"
 STANDOFF_D = 5.0
 PIN_D = 2.65
 PIN_H = 6.0
+SOCKET_D = 2.85
+SOCKET_DEPTH = 6.0
 
 
 def build_standoff_pillar(standoff_h: float) -> cq.Workplane:
     standoff = cq.Workplane("XY").circle(STANDOFF_D / 2.0).extrude(standoff_h)
     pin = cq.Workplane("XY", origin=(0.0, 0.0, standoff_h)).circle(PIN_D / 2.0).extrude(PIN_H)
-    return standoff.union(pin).clean()
+    socket = cq.Workplane("XY", origin=(0.0, 0.0, -0.1)).circle(SOCKET_D / 2.0).extrude(SOCKET_DEPTH + 0.1)
+    return standoff.union(pin).cut(socket).clean()
 
 
 def export_pillar(name: str, model: cq.Workplane) -> None:

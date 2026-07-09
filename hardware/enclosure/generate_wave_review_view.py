@@ -12,7 +12,7 @@ except ModuleNotFoundError:
 
 
 ROOT = Path(__file__).resolve().parent
-ARTIFACT_ROOT = ROOT.parent.parent / "release-artifacts" / "enclosure" / "review"
+ARTIFACT_ROOT = ROOT / "review"
 SVG_OUT = ARTIFACT_ROOT / "current_wave_top_view.svg"
 PNG_OUT = ARTIFACT_ROOT / "current_wave_top_view.png"
 
