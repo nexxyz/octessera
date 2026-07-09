@@ -4,6 +4,7 @@ This is a contributor reference. End-user hardware build, assembly, and bring-up
 
 - `hardware/docs/pinout-and-connections.md`
 - `hardware/enclosure/README.md`
+- `hardware/docs/branding-assets.md`
 - `hardware/docs/pi-bring-up.md`
 - `docs/menu-and-controls-spec.md`
 
@@ -130,6 +131,8 @@ Add `-IncludePlatformCore` when platform behavior changes and `-Typecheck` when 
 The pre-push hook runs CI-like checks against the committed tree, including lint, typecheck, format checks, tests, coverage, file-length checks, Tauri build smoke, and clippy. Use a long timeout when pushing from automation. Do not skip the hook; fix failures and push again.
 
 When committing and immediately pushing, run targeted confidence checks and required artifact builds before committing, then rely on the pre-push hook for the exhaustive CI-like suite. Avoid manually running a hook-equivalent full validation immediately before `git push` unless the change is high-risk, explicitly requested, or the hook cannot run.
+
+For hardware branding and enclosure artifact changes, also check `hardware/docs/branding-assets.md` before committing. It documents the SVG source of truth, Pi PNG/initramfs path, PCB/enclosure branding conversions, and the cleanup checklist for stale generated artifacts and local absolute paths.
 
 On Windows, use the cached Cargo wrapper while iterating. It enables `sccache` when installed, uses a local rustc-wrapper shim to strip Cargo's incremental env var before invoking `sccache`, and passes temporary profile overrides that disable incremental for that command so more crates can be cached. Without `sccache`, Cargo uses its normal `target/` cache:
 

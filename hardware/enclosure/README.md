@@ -41,7 +41,13 @@ python -m pip install -r hardware/enclosure/requirements.txt
 
 This model keeps OLED and encoders on the lower deck, raises the NeoKeys and
 8x8 NeoTrellis field, and uses a parametric raised roof/shoulder over the Pi area.
-See [`CAD_WORKFLOW.md`](CAD_WORKFLOW.md) for the edit and validation loop.
+See [`CAD_WORKFLOW.md`](CAD_WORKFLOW.md) for the edit and validation loop. For branded top artifacts, prefer:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File hardware/enclosure/generate_branded_top_artifacts_checked.ps1
+```
+
+Branding source and cleanup rules are documented in [`../docs/branding-assets.md`](../docs/branding-assets.md).
 
 The STEP file is the preferred generated artifact. This is still not a
 production lid: it does not yet recreate the full underside lip, catch rims,
@@ -97,5 +103,6 @@ Current enclosure notes from the parameter source:
 - Standoff pillar generator: [`generate_standoff_pillars.py`](generate_standoff_pillars.py)
 - Standoff top-pin generator: [`generate_standoff_top_pins.py`](generate_standoff_top_pins.py)
 - CAD workflow and checks: [`CAD_WORKFLOW.md`](CAD_WORKFLOW.md)
+- Branded top artifact wrapper: [`generate_branded_top_artifacts_checked.ps1`](generate_branded_top_artifacts_checked.ps1)
 - Roof-wall validation: [`validate_wave_roof.py`](validate_wave_roof.py)
 - Generated review images: `review/current_wave_top_view.svg` and `review/current_wave_top_view.png`.

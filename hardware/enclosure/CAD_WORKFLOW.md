@@ -43,6 +43,19 @@ The enclosure CAD is under construction. Use the CadQuery generator as the sourc
 
    It runs generation and validation as child processes and prints completion sentinels after each step.
 
+For branded top changes, prefer the wrapper that also regenerates the flush multicolor 3MF and review image:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File hardware/enclosure/generate_branded_top_artifacts_checked.ps1
+```
+
+Expected additional sentinels:
+
+```text
+__BRANDED_3MF_DONE__
+__BRANDED_TOP_ARTIFACTS_DONE__
+```
+
 3. Run the roof-wall validation:
 
    ```sh
@@ -91,10 +104,20 @@ Do not accept a roof-wall change until this script passes.
 
 - `../../release-artifacts/enclosure/step/case_top_two_level_cadquery.step`: preferred CAD exchange artifact.
 - `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery.stl`: current printable/check-fit mesh.
+- `../../release-artifacts/enclosure/3mf-multicolor/case_top_two_level_branded_multicolor.3mf`: multicolor top with flush branding on extruder 2.
 - `review/current_wave_top_view.svg`: plan-view review source image.
 - `review/current_wave_top_view.png`: plan-view review image.
 
 STEP and STL files are generated artifacts. Do not review their full text diffs.
+
+The non-multicolor top 3MF is obsolete. Do not regenerate or restore the old unbranded top 3MF.
+
+Before committing enclosure artifacts, check:
+
+- `git diff --check` passes;
+- no `hardware/enclosure/__pycache__/` is staged;
+- review images remain under ignored `hardware/enclosure/review/`;
+- no local Windows absolute paths were introduced.
 
 To revert generated top artifacts from automation, prefer the checked wrapper:
 
