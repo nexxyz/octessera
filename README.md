@@ -28,7 +28,7 @@ The intended way of using it is a DIY standalone hardware instrument based on a 
 5. Add a sequencer part for drums, have it play a sampler with your preferred drum samples (we even provide a small sample library for you!)
 6. Then route the synth through an FX bus with ducking so the beat opens space in the mix.
 7. Switch another part to **Keys** and play a lead line live.
-8. Hold **Fn** and use the right grid column to enter **Dance** mode.
+8. Hold **Fn** for navigation and use the right grid column to enter **Dance** mode.
 9. Perform: mute, pan, change probability, move XY controls, and punch in live effects.
 
 You can treat it like a algorithmic groovebox, a generative sketchpad, or a small experimental performance instrument.
@@ -45,9 +45,9 @@ The hardware (still under design) uses one clickable main encoder, three clickab
 | Play / pause | Space button | Space |
 | Emergency stop | Shift + Space | Shift + Space |
 | Clear active grid | Shift + Back | Shift + Backspace / Shift + Esc |
-| Select parts | Fn + left grid column | Ctrl + left grid column |
-| Enter Dance pages | Fn + right grid column | Ctrl + right grid column |
-| Bind a focused control | Fn + aux press | Fn + aux UI control |
+| Navigate parts | Fn + left grid column | Ctrl + left grid column |
+| Navigate Dance pages | Fn + right grid column | Ctrl + right grid column |
+| Access alternate aux binding | Fn + aux press | Fn + aux UI control |
 
 The full control and menu reference is [`docs/menu-and-controls-spec.md`](docs/menu-and-controls-spec.md).
 

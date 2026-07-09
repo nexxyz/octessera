@@ -22,7 +22,7 @@ impl NativeRunner {
             let message = if self.ui.combined_modifier_held {
                 "Help: Sh+Fn+Enter"
             } else if self.ui.fn_held {
-                "Fn: parts/pages"
+                "Fn: nav/alt"
             } else {
                 "Shift: map/edit"
             };

@@ -14,12 +14,12 @@ Platform capability source: `resources/platform-capabilities.json`; generated Ty
 | Shift + Back | Clear active layer | Re-initializes current active layer behavior state.
 | Shift + Fn | Combined modifier | Acts as its own logical button; Fn and Shift are inactive while both physical buttons are held.
 | Combined modifier + Main press | Context help | Opens help for highlighted menu entry.
-| Fn + leftmost grid column | Select active part (1..8) | Mirrors `L1: Life > Part`.
-| Fn held + leftmost column LEDs | Layer indicators | Gray = available layers, green = current active layer.
-| Fn + rightmost grid column | Toggle Dance | Opens `L4: Dance` and enables Dance page if currently off; exits Dance if already active.
+| Fn + leftmost grid column | Navigate parts (1..8) | Mirrors `L1: Life > Part`.
+| Fn held + leftmost column LEDs | Navigation indicators | Gray = available layers, green = current active layer.
+| Fn + rightmost grid column | Navigate Dance pages | Opens `L4: Dance` and enables Dance page if currently off; exits Dance if already active.
 | Sample assign + Shift + cell | Row assign step | Applies current selected-cell assign step to the whole row.
 | Sample assign + combined modifier + cell | Column assign step | Applies current selected-cell assign step to the whole column.
-| Fn + Aux press | Bind aux mapping | Binds the focused bindable value as that aux Turn target, or focused action as its `!` press target.
+| Fn + Aux press | Alternate aux binding | Binds the focused bindable value as that aux Turn target, or focused action as its `!` press target.
 
 ## Control Mapping
 
@@ -33,11 +33,11 @@ Platform capability source: `resources/platform-capabilities.json`; generated Ty
 | Shift + Back | Shift+Backspace / Shift+Esc | Clear grid (re-initialize behavior) |
 | Aux encoder 1-3 turn | (simulated) | Adjust bound turn mapping |
 | Aux encoder 1-3 press | (simulated) | Trigger bound press mapping |
-| Fn + Aux encoder press | Fn + (simulated) | Bind current value as Turn target or current action as `!` press target |
+| Fn + Aux encoder press | Fn + (simulated) | Alternate action: bind current value as Turn target or current action as `!` press target |
 | Shift + Fn | Shift+Ctrl | Combined modifier; acts as its own logical button and disables Fn/Shift functions while both are held |
 | Combined modifier + Main press | Shift+Ctrl+Enter | Context help for highlighted entry |
-| Fn + leftmost grid column | Ctrl + leftmost grid column | Select active part (1..8); hold Fn to see part indicators |
-| Fn + rightmost grid column | Ctrl + rightmost grid column | Select/activate L4 Dance page; hold Fn to see page indicators |
+| Fn + leftmost grid column | Ctrl + leftmost grid column | Navigate active part (1..8); hold Fn to see part indicators |
+| Fn + rightmost grid column | Ctrl + rightmost grid column | Navigate/activate L4 Dance page; hold Fn to see page indicators |
 | Sample assign mode + Shift + cell press | Shift + cell | Apply current assign toggle/level step to entire row |
 | Sample assign mode + combined modifier + cell press | Shift+Ctrl + cell | Apply current assign toggle/level step to entire column |
 
@@ -112,12 +112,12 @@ Brightness is scaled by the Grid Bright setting.
 
 Overrides:
 
-- While Fn is held: leftmost column shows part selectors (gray) and active part (green).
+- While Fn is held for navigation: leftmost column shows part selectors (gray) and active part (green).
 - While sample assignment mode is active: grid shows assignment overlay (selected-slot colors, other-slot dim white, unassigned dark).
 - While any Dance Page (`mix`, `pan`, `fx`, `trigger-gate`, `transpose`, `xy`) is active: grid shows the Dance performance overlay instead of active behavior cells. Dance Transpose uses the left column for eligible part selection, Shift + left column to enable/disable all eligible parts, and columns 1..7 as a three-octave piano offset picker for synth and enabled MIDI note targets only.
 - When Ghost Cells is on, inactive parts' active cells render as very dim green behind the active part. Active part cells and sample assignment overlays take priority.
 - Active context changes use OLED toast/status feedback, for example `Part: P3 rain` or `Dance: fx`; these toasts do not change LED overlay priority. Modal help/confirm displays keep display priority over context feedback.
-- Holding Shift, Fn, or Shift+Fn for more than one second without another mapped action shows a concise hint toast (`Shift: map/edit`, `Fn: parts/pages`, or `Help: Sh+Fn+Enter`). Startup uses the same chord wording: `Help: Sh+Fn+Enter`. Existing toasts, help/confirm dialogs, assignment overlays, and consumed mappings suppress the hint.
+- Holding Shift, Fn, or Shift+Fn for more than one second without another mapped action shows a concise hint toast (`Shift: map/edit`, `Fn: nav/alt`, or `Help: Sh+Fn+Enter`). Startup uses the same chord wording: `Help: Sh+Fn+Enter`. Existing toasts, help/confirm dialogs, assignment overlays, and consumed mappings suppress the hint.
 
 ## Sectioned Scanning
 
@@ -146,7 +146,7 @@ Overrides:
 - Each aux encoder has two independent custom slots:
   - turn slot: bound to value parameters (number/enum/bool)
   - press slot: bound to actions
-- Fn + aux press on a bindable item binds/overwrites the relevant custom slot:
+- Fn + aux press is an alternate action on a bindable item that binds/overwrites the relevant custom slot:
   - while editing a value item: binds Turn slot
   - while selecting an action item: binds `!` press slot
 - In the Fn-held aux overlay, plain labels are turn targets and `!Label` entries are press actions; `/` means both slots are present for that encoder.
