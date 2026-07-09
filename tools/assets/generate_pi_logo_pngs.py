@@ -16,14 +16,14 @@ SIZE = 128
 SCALE = 4
 WHITE = 255
 BLACK = 0
-WORDMARK_SEGMENTS = {
-    "O": ["top", "bottom", "ul", "ll", "ur", "lr"],
-    "C": ["top", "bottom", "ul", "ll"],
-    "T": ["top", "center"],
-    "E": ["top", "middle", "bottom", "ul", "ll"],
-    "S": ["top", "middle", "bottom", "ul", "lr"],
-    "R": ["top", "middle", "ul", "ll", "ur", "diag"],
-    "A": ["top", "middle", "ul", "ll", "ur", "lr"],
+WORDMARK_GLYPHS = {
+    "O": ["11110", "10010", "10010", "10010", "10010", "11110"],
+    "C": ["11110", "10000", "10000", "10000", "10000", "11110"],
+    "T": ["11111", "00100", "00100", "00100", "00100", "00100"],
+    "E": ["11110", "10000", "11100", "10000", "10000", "11110"],
+    "S": ["11110", "10000", "11110", "00010", "00010", "11110"],
+    "R": ["11110", "10010", "10010", "11100", "10100", "10010"],
+    "A": ["11110", "10010", "10010", "11110", "10010", "10010"],
 }
 
 
@@ -181,13 +181,14 @@ def draw_mark(canvas: list[list[int]], target_size: float, center_x: float, cent
 
 def draw_wordmark(canvas: list[list[int]], target_width: float, center_x: float, center_y: float) -> None:
     text = parse_wordmark_text()
-    letter_width = 11
-    letter_height = 16
-    stroke = 2
-    gap = 2
-    width = len(text) * letter_width + (len(text) - 1) * gap
+    pixel_scale = 2
+    glyph_width = 5
+    glyph_height = 6
+    gap = 1
+    width = (len(text) * glyph_width + (len(text) - 1) * gap) * pixel_scale
+    height = glyph_height * pixel_scale
     x0 = round(center_x - width / 2)
-    y0 = round(center_y - letter_height / 2)
+    y0 = round(center_y - height / 2)
 
     def fill_rect(x: int, y: int, width: int, height: int) -> None:
         for py in range(y, y + height):
@@ -196,32 +197,12 @@ def draw_wordmark(canvas: list[list[int]], target_width: float, center_x: float,
                     for sx in range(SCALE):
                         set_pixel(canvas, px * SCALE + sx, py * SCALE + sy)
 
-    def fill_diag(x: int, y: int) -> None:
-        for row in range(letter_height // 2, letter_height):
-            col = 4 + (row - letter_height // 2) // 2
-            fill_rect(x + min(letter_width - stroke, col), y + row, stroke, 1)
-
     for index, char in enumerate(text):
-        glyph_x = x0 + index * (letter_width + gap)
-        for segment in WORDMARK_SEGMENTS[char]:
-            if segment == "top":
-                fill_rect(glyph_x, y0, letter_width, stroke)
-            elif segment == "middle":
-                fill_rect(glyph_x, y0 + (letter_height - stroke) // 2, letter_width, stroke)
-            elif segment == "bottom":
-                fill_rect(glyph_x, y0 + letter_height - stroke, letter_width, stroke)
-            elif segment == "ul":
-                fill_rect(glyph_x, y0, stroke, letter_height // 2)
-            elif segment == "ll":
-                fill_rect(glyph_x, y0 + letter_height // 2, stroke, letter_height // 2)
-            elif segment == "ur":
-                fill_rect(glyph_x + letter_width - stroke, y0, stroke, letter_height // 2)
-            elif segment == "lr":
-                fill_rect(glyph_x + letter_width - stroke, y0 + letter_height // 2, stroke, letter_height // 2)
-            elif segment == "center":
-                fill_rect(glyph_x + (letter_width - stroke) // 2, y0, stroke, letter_height)
-            elif segment == "diag":
-                fill_diag(glyph_x, y0)
+        glyph_x = x0 + index * (glyph_width + gap) * pixel_scale
+        for row, line in enumerate(WORDMARK_GLYPHS[char]):
+            for col, value in enumerate(line):
+                if value == "1":
+                    fill_rect(glyph_x + col * pixel_scale, y0 + row * pixel_scale, pixel_scale, pixel_scale)
 
 
 def downsample_grayscale(canvas: list[list[int]]) -> bytes:
