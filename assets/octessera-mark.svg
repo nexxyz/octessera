@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Octessera logo mark">
+  <g fill="none" stroke="#fff" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M60 36 L36 60 L60 84 L84 60"/>
+    <path d="M60 60 L84 36 L108 60 L84 84"/>
+  </g>
+  <g fill="#fff">
+    <circle cx="60" cy="36" r="6.5"/>
+    <circle cx="36" cy="60" r="6.5"/>
+    <circle cx="60" cy="84" r="6.5"/>
+    <circle cx="84" cy="60" r="6.5"/>
+    <circle cx="60" cy="60" r="6.5"/>
+    <circle cx="84" cy="36" r="6.5"/>
+    <circle cx="108" cy="60" r="6.5"/>
+    <circle cx="84" cy="84" r="6.5"/>
+  </g>
+</svg>

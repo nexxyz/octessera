@@ -3,8 +3,8 @@ import { OLED_HEIGHT, OLED_WIDTH, type RuntimeSnapshot } from "@cellsymphony/dev
 import { drawSemanticOled } from "./oledDraw";
 import { toOledImage } from "./oledImage";
 
-const REGULAR_SPLASH_LOGO = new URL("../../../../assets/cellSymphonyLogo128.png", import.meta.url).href;
-const SEPIA_SPLASH_LOGO = new URL("../../../../assets/cellSymphonyLogoSepia128.png", import.meta.url).href;
+const BOOT_SPLASH_LOGO = new URL("../../../../assets/octessera-pi-booting.png", import.meta.url).href;
+const SLEEP_SHUTDOWN_SPLASH_LOGO = new URL("../../../../assets/octessera-pi-shutdown.png", import.meta.url).href;
 
 export type SemanticOledState = {
   displayOff: boolean;
@@ -34,8 +34,8 @@ export function OledDisplay({
 }) {
   const oledImage = useMemo(() => toOledImage(frame.oled), [frame.oled]);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const regularSplashImage = useImageAsset(REGULAR_SPLASH_LOGO);
-  const sepiaSplashImage = useImageAsset(SEPIA_SPLASH_LOGO);
+  const regularSplashImage = useImageAsset(BOOT_SPLASH_LOGO);
+  const sepiaSplashImage = useImageAsset(SLEEP_SHUTDOWN_SPLASH_LOGO);
   const semantic = useSemanticOledState(frame, audioLoad);
 
   useOledCanvas(canvasRef, oledImage, semantic, regularSplashImage, sepiaSplashImage);

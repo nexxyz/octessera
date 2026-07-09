@@ -12,8 +12,9 @@ pub(crate) use oled::OLED_FRAME_BYTES;
 use oled::{glyph_rows, oled_frame};
 use oled::{oled_frame_into, oled_signature};
 
-const SPLASH_REGULAR: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/splash_regular.rgb565"));
-const SPLASH_SEPIA: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/splash_sepia.rgb565"));
+const SPLASH_BOOT: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/splash_boot.rgb565"));
+const SPLASH_SLEEP_SHUTDOWN: &[u8] =
+    include_bytes!(concat!(env!("OUT_DIR"), "/splash_sleep_shutdown.rgb565"));
 
 pub struct HardwareRenderTargets {
     pub oled: OledSsd1351,

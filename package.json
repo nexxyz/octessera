@@ -5,7 +5,8 @@
   "description": "Cellular algorithm music instrument desktop-first platform",
   "packageManager": "pnpm@9.12.0",
   "scripts": {
-    "build": "corepack pnpm -r build",
+    "assets:generate": "python tools/assets/generate_pi_logo_pngs.py",
+    "build": "corepack pnpm run assets:generate && corepack pnpm -r build",
     "capabilities:generate": "node tools/resources/generate-platform-capabilities.mjs",
     "capabilities:check": "node tools/resources/generate-platform-capabilities.mjs --check",
     "lint": "corepack pnpm -r lint",

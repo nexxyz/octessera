@@ -8,7 +8,7 @@ mod footer;
 pub(super) use font::glyph_rows;
 use footer::{draw_footer, draw_status_indicators};
 
-use super::{brightness_scale, rgb565, scale, SPLASH_REGULAR, SPLASH_SEPIA};
+use super::{brightness_scale, rgb565, scale, SPLASH_BOOT, SPLASH_SLEEP_SHUTDOWN};
 
 pub(crate) const OLED_FRAME_BYTES: usize = 128 * 128 * 2;
 
@@ -200,8 +200,8 @@ fn draw_scrollbar(frame: &mut [u8], display: &Value, track: u16, thumb: u16) {
 
 fn render_splash_frame(frame: &mut [u8], splash: &str, brightness: f32) {
     let source = match splash {
-        "sleep" | "shutdown" => SPLASH_SEPIA,
-        _ => SPLASH_REGULAR,
+        "sleep" | "shutdown" => SPLASH_SLEEP_SHUTDOWN,
+        _ => SPLASH_BOOT,
     };
     copy_rgb565_scaled(frame, source, brightness);
 }

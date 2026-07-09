@@ -47,17 +47,17 @@ jobs:
     needs: release_info
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           ref: ${{ needs.release_info.outputs.tag }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@v4
         with:
           version: 9.12.0
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
@@ -91,17 +91,11 @@ jobs:
           "ASSET_DIR=$($assetDir.FullName)" >> $env:GITHUB_OUTPUT
 
       - name: Upload workflow artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: cellsymphony-windows-release-assets
           path: release-assets/*
           retention-days: 30
-
-      - name: Upload Windows assets to release
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ needs.release_info.outputs.tag }}" release-assets/* --clobber
 
   macos:
     name: macOS DMG
@@ -109,17 +103,17 @@ jobs:
     needs: release_info
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           ref: ${{ needs.release_info.outputs.tag }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@v4
         with:
           version: 9.12.0
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
@@ -134,7 +128,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build macOS DMG
-        run: pnpm --filter @cellsymphony/desktop exec tauri build --bundles dmg --no-sign
+        run: corepack pnpm --dir apps/desktop exec tauri build --bundles dmg --no-sign
 
       - name: Prepare macOS release assets
         run: |
@@ -149,34 +143,29 @@ jobs:
           (cd release-assets && shasum -a 256 *.dmg > SHA256SUMS-macos.txt)
 
       - name: Upload workflow artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: cellsymphony-macos-release-assets
           path: release-assets/*
           retention-days: 30
 
-      - name: Upload macOS assets to release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ needs.release_info.outputs.tag }}" release-assets/* --clobber
-
   ubuntu:
     name: Ubuntu DEB and AppImage
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: release_info
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           ref: ${{ needs.release_info.outputs.tag }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@v4
         with:
           version: 9.12.0
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
@@ -195,6 +184,7 @@ jobs:
             curl \
             file \
             libayatana-appindicator3-dev \
+            libfuse2 \
             librsvg2-dev \
             libsoup-3.0-dev \
             libssl-dev \
@@ -202,13 +192,16 @@ jobs:
             libxdo-dev \
             patchelf \
             pkg-config \
-            wget
+            wget \
+            xdg-utils
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Build Ubuntu bundles
-        run: pnpm --filter @cellsymphony/desktop exec tauri build --bundles deb,appimage
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: 1
+        run: corepack pnpm --dir apps/desktop exec tauri build --bundles deb,appimage
 
       - name: Prepare Ubuntu release assets
         run: |
@@ -229,16 +222,11 @@ jobs:
           (cd release-assets && sha256sum *.deb *.AppImage > SHA256SUMS-ubuntu.txt)
 
       - name: Upload workflow artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: cellsymphony-ubuntu-release-assets
           path: release-assets/*
           retention-days: 30
-
-      - name: Upload Ubuntu assets to release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ needs.release_info.outputs.tag }}" release-assets/* --clobber
 
   pi_image:
     name: Raspberry Pi ready-to-flash image
@@ -247,7 +235,7 @@ jobs:
     timeout-minutes: 360
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           ref: ${{ needs.release_info.outputs.tag }}
 
@@ -263,6 +251,9 @@ jobs:
         run: |
           curl -sSL https://github.com/cross-rs/cross/releases/download/v0.2.5/cross-x86_64-unknown-linux-gnu.tar.gz | sudo tar xz -C /usr/local/bin
           cross --version
+
+      - name: Generate Pi logo assets
+        run: python3 tools/assets/generate_pi_logo_pngs.py
 
       - name: Build release Pi app
         run: cross build --release --target aarch64-unknown-linux-gnu -p cellsymphony-pi --features hardware-pi
@@ -316,6 +307,12 @@ jobs:
           fi
           ASSET="release-assets/${{ needs.release_info.outputs.asset_prefix }}-pi-zero-2w.img.zip"
           cp "$ZIP_PATH" "$ASSET"
+          python3 tools/pi-image/package-rpi-imager-zip.py \
+            --zip "$ASSET" \
+            --version "${{ needs.release_info.outputs.version }}" \
+            --tag "${{ needs.release_info.outputs.tag }}" \
+            --repository "$GITHUB_REPOSITORY" \
+            --manifest-out "release-assets/${{ needs.release_info.outputs.asset_prefix }}-pi-zero-2w.rpi-imager-manifest"
           echo "zip=$ASSET" >> "$GITHUB_OUTPUT"
 
       - name: Verify Pi image sanitation
@@ -324,16 +321,53 @@ jobs:
       - name: Write Pi checksums
         run: |
           cd release-assets
-          sha256sum *.zip > SHA256SUMS-pi.txt
+          sha256sum *.zip *.rpi-imager-manifest > SHA256SUMS-pi.txt
 
       - name: Upload workflow artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: cellsymphony-pi-image-release-assets
           path: release-assets/*
           retention-days: 30
 
-      - name: Upload Pi assets to release
+  publish_release_assets:
+    name: Publish release assets
+    runs-on: ubuntu-latest
+    needs: [release_info, windows, macos, ubuntu, pi_image]
+    steps:
+      - name: Download workflow artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: cellsymphony-*-release-assets
+          path: gathered-release-assets
+          merge-multiple: true
+
+      - name: Verify gathered assets
+        run: |
+          set -euo pipefail
+          cd gathered-release-assets
+          expected=(
+            "${{ needs.release_info.outputs.asset_prefix }}-windows-installer.exe"
+            "${{ needs.release_info.outputs.asset_prefix }}-windows-portable.exe"
+            "${{ needs.release_info.outputs.asset_prefix }}-macos-unsigned.dmg"
+            "${{ needs.release_info.outputs.asset_prefix }}-ubuntu-amd64.deb"
+            "${{ needs.release_info.outputs.asset_prefix }}-ubuntu-x86_64.AppImage"
+            "${{ needs.release_info.outputs.asset_prefix }}-pi-zero-2w.img.zip"
+            "${{ needs.release_info.outputs.asset_prefix }}-pi-zero-2w.rpi-imager-manifest"
+            SHA256SUMS-windows.txt
+            SHA256SUMS-macos.txt
+            SHA256SUMS-ubuntu.txt
+            SHA256SUMS-pi.txt
+          )
+          for asset in "${expected[@]}"; do
+            test -f "$asset" || { echo "Missing release asset: $asset" >&2; exit 1; }
+          done
+          sha256sum -c SHA256SUMS-windows.txt
+          sha256sum -c SHA256SUMS-macos.txt
+          sha256sum -c SHA256SUMS-ubuntu.txt
+          sha256sum -c SHA256SUMS-pi.txt
+
+      - name: Upload assets to GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ needs.release_info.outputs.tag }}" release-assets/* --clobber
+        run: gh release upload "${{ needs.release_info.outputs.tag }}" gathered-release-assets/* --clobber

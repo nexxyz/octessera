@@ -61,7 +61,11 @@ Release assets:
 
 - `CellSymphony-<version>-windows-installer.exe`: primary Windows installer.
 - `CellSymphony-<version>-windows-portable.exe`: portable Windows alternative.
-- `CellSymphony-<version>-pi-zero-2w.img.zip`: ready-to-flash Raspberry Pi Zero 2 W image.
+- `CellSymphony-<version>-macos-unsigned.dmg`: unsigned macOS DMG.
+- `CellSymphony-<version>-ubuntu-amd64.deb`: Ubuntu/Debian package.
+- `CellSymphony-<version>-ubuntu-x86_64.AppImage`: portable Linux AppImage.
+- `CellSymphony-<version>-pi-zero-2w.img.zip`: ready-to-flash Raspberry Pi Zero 2 W image, including `os_list.rpi-imager-manifest` for Raspberry Pi Imager.
+- `CellSymphony-<version>-pi-zero-2w.rpi-imager-manifest`: standalone Raspberry Pi Imager manifest copy.
 - `SHA256SUMS-*.txt`: checksums for release assets.
 
 Release process:
@@ -72,7 +76,7 @@ Release process:
 4. Commit and push the release-prep changes.
 5. Create a draft GitHub release such as `v0.5.0`.
 6. Run `Release Artifacts` manually with that existing tag, or publish the release to trigger it.
-7. Confirm the installer, portable EXE, Pi image zip, and checksum files are attached before announcing the release.
+7. Confirm the installer, portable EXE, macOS DMG, Ubuntu DEB/AppImage, Pi image zip, Pi Imager manifest, and checksum files are attached before announcing the release.
 
 The Pi image build is a necessary slow path because it generates a full Raspberry Pi OS image through pi-gen. Keep it release-only.
 

@@ -256,14 +256,52 @@ fn power_command_attempts(
 ) -> &'static [(&'static str, &'static [&'static str])] {
     match request {
         PiPowerRequest::Reboot => &[
-            ("systemctl", &["--no-block", "reboot"]),
-            ("sudo", &["-n", "systemctl", "--no-block", "reboot"]),
-            ("sudo", &["-n", "reboot"]),
+            ("/usr/bin/systemctl", &["reboot"]),
+            ("/bin/systemctl", &["reboot"]),
+            ("/usr/sbin/reboot", &[]),
+            ("/sbin/reboot", &[]),
+            ("sudo", &["-n", "/usr/bin/systemctl", "reboot"]),
+            ("sudo", &["-n", "/bin/systemctl", "reboot"]),
+            ("sudo", &["-n", "/usr/sbin/reboot"]),
+            ("sudo", &["-n", "/sbin/reboot"]),
         ],
         PiPowerRequest::Shutdown => &[
-            ("systemctl", &["--no-block", "poweroff"]),
-            ("sudo", &["-n", "systemctl", "--no-block", "poweroff"]),
-            ("sudo", &["-n", "poweroff"]),
+            ("/usr/bin/systemctl", &["poweroff"]),
+            ("/bin/systemctl", &["poweroff"]),
+            ("/usr/sbin/poweroff", &[]),
+            ("/sbin/poweroff", &[]),
+            ("sudo", &["-n", "/usr/bin/systemctl", "poweroff"]),
+            ("sudo", &["-n", "/bin/systemctl", "poweroff"]),
+            ("sudo", &["-n", "/usr/sbin/poweroff"]),
+            ("sudo", &["-n", "/sbin/poweroff"]),
         ],
+    }
+}
+
+#[cfg(all(test, feature = "hardware-pi"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn power_command_attempts_match_shutdown_sudoers_shape() {
+        let shutdown = power_command_attempts(PiPowerRequest::Shutdown);
+        assert!(shutdown
+            .iter()
+            .any(|attempt| *attempt == ("/usr/bin/systemctl", &["poweroff"])));
+        assert!(shutdown
+            .iter()
+            .any(|attempt| *attempt == ("sudo", &["-n", "/usr/bin/systemctl", "poweroff"])));
+        assert!(!shutdown
+            .iter()
+            .any(|(_, args)| args.contains(&"--no-block")));
+
+        let reboot = power_command_attempts(PiPowerRequest::Reboot);
+        assert!(reboot
+            .iter()
+            .any(|attempt| *attempt == ("/usr/bin/systemctl", &["reboot"])));
+        assert!(reboot
+            .iter()
+            .any(|attempt| *attempt == ("sudo", &["-n", "/usr/bin/systemctl", "reboot"])));
+        assert!(!reboot.iter().any(|(_, args)| args.contains(&"--no-block")));
     }
 }

@@ -115,6 +115,8 @@ fi
 
 require_executable "$WORK_DIR/root/usr/local/bin/cellsymphony-pi" "cellsymphony-pi"
 require_path "$WORK_DIR/root/etc/systemd/system/cellsymphony.service" "cellsymphony.service"
+require_path "$WORK_DIR/root/etc/systemd/system/sysinit.target.wants/cellsymphony-boot-splash.service" "enabled boot splash service"
+require_path "$WORK_DIR/root/etc/sudoers.d/cellsymphony-shutdown" "shutdown sudoers rule"
 require_boot_config_marker
 require_boot_overlay
 

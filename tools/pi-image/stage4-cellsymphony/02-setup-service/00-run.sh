@@ -19,6 +19,9 @@ install -D -m 0644 \
 install -D -m 0644 \
     "$STAGE_FILES/root/etc/systemd/journald.conf.d/10-cellsymphony.conf" \
     "$ROOTFS_DIR/etc/systemd/journald.conf.d/10-cellsymphony.conf"
+install -D -m 0440 \
+    "$STAGE_FILES/root/etc/sudoers.d/cellsymphony-shutdown" \
+    "$ROOTFS_DIR/etc/sudoers.d/cellsymphony-shutdown"
 install -D -m 0755 \
     "$STAGE_FILES/root/etc/initramfs-tools/hooks/cellsymphony-boot-splash" \
     "$ROOTFS_DIR/etc/initramfs-tools/hooks/cellsymphony-boot-splash"
@@ -27,12 +30,15 @@ install -D -m 0755 \
     "$ROOTFS_DIR/etc/initramfs-tools/scripts/init-premount/cellsymphony-boot-splash"
 
 install -d "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants"
+install -d "$ROOTFS_DIR/etc/systemd/system/sysinit.target.wants"
 ln -sf ../cellsymphony.service \
     "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/cellsymphony.service"
 ln -sf ../cellsymphony-performance-governor.service \
     "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/cellsymphony-performance-governor.service"
 ln -sf ../cellsymphony-oled-shutdown.service \
     "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/cellsymphony-oled-shutdown.service"
+ln -sf ../cellsymphony-boot-splash.service \
+    "$ROOTFS_DIR/etc/systemd/system/sysinit.target.wants/cellsymphony-boot-splash.service"
 
 rm -f "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/bluetooth.service"
 rm -f "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/hciuart.service"

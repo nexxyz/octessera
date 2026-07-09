@@ -4,13 +4,25 @@ use std::path::PathBuf;
 
 fn main() {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("manifest dir set"));
-    let regular = manifest_dir.join("../../assets/cellSymphonyLogo128.png");
-    let sepia = manifest_dir.join("../../assets/cellSymphonyLogoSepia128.png");
-    println!("cargo:rerun-if-changed={}", regular.display());
-    println!("cargo:rerun-if-changed={}", sepia.display());
+    let boot = manifest_dir.join("../../assets/octessera-pi-booting.png");
+    let sleep_shutdown = manifest_dir.join("../../assets/octessera-pi-shutdown.png");
+    println!("cargo:rerun-if-changed={}", boot.display());
+    println!("cargo:rerun-if-changed={}", sleep_shutdown.display());
+    println!(
+        "cargo:rerun-if-changed={}",
+        manifest_dir
+            .join("../../assets/octessera-mark.svg")
+            .display()
+    );
+    println!(
+        "cargo:rerun-if-changed={}",
+        manifest_dir
+            .join("../../assets/octessera-wordmark.svg")
+            .display()
+    );
 
-    write_rgb565_asset(&regular, "splash_regular.rgb565");
-    write_rgb565_asset(&sepia, "splash_sepia.rgb565");
+    write_rgb565_asset(&boot, "splash_boot.rgb565");
+    write_rgb565_asset(&sleep_shutdown, "splash_sleep_shutdown.rgb565");
 }
 
 fn write_rgb565_asset(source: &PathBuf, output_name: &str) {
