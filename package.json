@@ -1,7 +1,7 @@
 {
   "name": "cellsymphony",
   "private": true,
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Cellular algorithm music instrument desktop-first platform",
   "packageManager": "pnpm@9.12.0",
   "scripts": {
