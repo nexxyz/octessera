@@ -1,7 +1,7 @@
 {
   "name": "octessera",
   "private": true,
-  "version": "0.5.2",
+  "version": "0.7.0",
   "description": "Cellular algorithm music instrument desktop-first platform",
   "packageManager": "pnpm@9.12.0",
   "scripts": {

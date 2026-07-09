@@ -2491,7 +2491,7 @@ dependencies = [
 
 [[package]]
 name = "octessera-desktop"
-version = "0.5.2"
+version = "0.7.0"
 dependencies = [
  "midir",
  "playback-runtime",
@@ -2506,7 +2506,7 @@ dependencies = [
 
 [[package]]
 name = "octessera-hal"
-version = "0.5.2"
+version = "0.7.0"
 dependencies = [
  "i2cdev",
  "libc",
@@ -2517,7 +2517,7 @@ dependencies = [
 
 [[package]]
 name = "octessera-pi"
-version = "0.5.2"
+version = "0.7.0"
 dependencies = [
  "cpal",
  "image",
@@ -2718,7 +2718,7 @@ checksum = "19f132c84eca552bf34cab8ec81f1c1dcc229b811638f9d283dceabe58c5569e"
 
 [[package]]
 name = "platform-core"
-version = "0.5.2"
+version = "0.7.0"
 dependencies = [
  "rand",
  "serde",
@@ -2727,7 +2727,7 @@ dependencies = [
 
 [[package]]
 name = "playback-runtime"
-version = "0.5.2"
+version = "0.7.0"
 dependencies = [
  "chrono",
  "platform-core",
@@ -2950,7 +2950,7 @@ checksum = "20675572f6f24e9e76ef639bc5552774ed45f1c30e2951e1e99c59888861c539"
 
 [[package]]
 name = "realtime-engine"
-version = "0.5.2"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -3074,7 +3074,7 @@ dependencies = [
 
 [[package]]
 name = "rodio-engine-source"
-version = "0.5.2"
+version = "0.7.0"
 dependencies = [
  "realtime-engine",
  "rodio",
