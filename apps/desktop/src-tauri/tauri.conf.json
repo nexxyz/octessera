@@ -22,6 +22,7 @@
   "bundle": {
     "active": true,
     "targets": ["nsis"],
+    "icon": ["icons/icon.png"],
     "resources": [
       "../../../README.md",
       "../../../LICENSE",
