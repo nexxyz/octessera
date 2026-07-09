@@ -10,6 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 ASSETS = ROOT / "assets"
+DESKTOP_ICONS = ROOT / "apps" / "desktop" / "src-tauri" / "icons"
 MARK_SVG = ASSETS / "octessera-mark.svg"
 WORDMARK_SVG = ASSETS / "octessera-wordmark.svg"
 SIZE = 128
@@ -239,6 +240,24 @@ def write_png(path: Path, rgba: bytes) -> None:
     path.write_bytes(data)
 
 
+def write_ico_from_png(path: Path, png_path: Path) -> None:
+    png = png_path.read_bytes()
+    width, height = struct.unpack(">II", png[16:24])
+    if width > 256 or height > 256:
+        raise ValueError(f"ICO source is too large: {png_path}")
+    image_offset = 6 + 16
+    entry = bytes(
+        [
+            0 if width == 256 else width,
+            0 if height == 256 else height,
+            0,
+            0,
+        ]
+    )
+    entry += struct.pack("<HHII", 1, 32, len(png), image_offset)
+    path.write_bytes(struct.pack("<HHH", 0, 1, 1) + entry + png)
+
+
 def save_mark(path: Path) -> None:
     canvas = make_canvas()
     draw_mark(canvas, target_size=80, center_x=64, center_y=64)
@@ -264,6 +283,9 @@ def main() -> None:
     save_mark(ASSETS / "octessera-pi-sleeping.png")
     save_mark(ASSETS / "octessera-pi-shutdown.png")
     save_stacked_logo(ASSETS / "octessera-pi-booting.png")
+    DESKTOP_ICONS.mkdir(parents=True, exist_ok=True)
+    save_stacked_logo(DESKTOP_ICONS / "icon.png")
+    write_ico_from_png(DESKTOP_ICONS / "icon.ico", DESKTOP_ICONS / "icon.png")
 
 
 if __name__ == "__main__":

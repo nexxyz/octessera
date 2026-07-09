@@ -1,12 +1,13 @@
 # Branding assets
 
-This project uses the Octessera mark and wordmark across hardware docs, PCB silkscreen, enclosure CAD, Pi splash screens, and Raspberry Pi Imager metadata.
+This project uses the Octessera mark and wordmark across hardware docs, PCB silkscreen, enclosure CAD, Pi splash screens, Raspberry Pi Imager metadata, and the desktop hardware simulator icon.
 
 ## Source assets
 
 - `assets/octessera-mark.svg`: vector mark source.
 - `assets/octessera-wordmark.svg`: grid-native vector wordmark source.
 - `tools/assets/generate_pi_logo_pngs.py`: generates Pi splash and Imager PNG assets.
+- `apps/desktop/src-tauri/icons/`: generated desktop simulator icon assets.
 - `hardware/enclosure/branding_marking_cadquery.py`: converts the SVG mark and wordmark into CadQuery solids.
 - `hardware/pcb/cellSymphony.kicad_pcb`: contains the PCB silkscreen branding geometry.
 
@@ -34,6 +35,8 @@ Generated PNGs:
 - `assets/octessera-pi-booting.png`: Pi boot splash.
 - `assets/octessera-pi-sleeping.png`: sleep splash mark.
 - `assets/octessera-pi-shutdown.png`: shutdown splash mark.
+- `apps/desktop/src-tauri/icons/icon.png`: desktop hardware simulator icon.
+- `apps/desktop/src-tauri/icons/icon.ico`: Windows desktop hardware simulator icon.
 
 The Pi build embeds the PNGs through `apps/pi-zero/build.rs`, which writes RGB565 splash assets into Cargo `OUT_DIR`. Rebuild the Pi binary or Pi image/initramfs after changing these PNGs.
 
