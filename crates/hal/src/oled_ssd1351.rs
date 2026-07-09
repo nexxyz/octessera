@@ -80,11 +80,10 @@ pub struct OledSsd1351 {
 impl OledSsd1351 {
     /// Initialize OLED on SPI bus 0
     pub fn new() -> Result<Self, String> {
-        let preserve_existing =
-            std::env::var("OCTESSERA_EARLY_BOOT_SPLASH").as_deref() == Ok("1");
+        let preserve_existing = std::env::var("OCTESSERA_EARLY_BOOT_SPLASH").as_deref() == Ok("1");
         // Open SPI device
-        let spi_device = std::env::var("OCTESSERA_OLED_SPI_DEVICE")
-            .unwrap_or_else(|_| "/dev/spidev0.0".into());
+        let spi_device =
+            std::env::var("OCTESSERA_OLED_SPI_DEVICE").unwrap_or_else(|_| "/dev/spidev0.0".into());
         let mut spi = Spidev::open(&spi_device).map_err(|e| format!("SPI open failed: {}", e))?;
 
         // Configure SPI: mode 0, 8-bit, 16MHz for the Adafruit SSD1351 breakout.
