@@ -16,6 +16,15 @@ SIZE = 128
 SCALE = 4
 WHITE = 255
 BLACK = 0
+WORDMARK_SEGMENTS = {
+    "O": ["top", "bottom", "ul", "ll", "ur", "lr"],
+    "C": ["top", "bottom", "ul", "ll"],
+    "T": ["top", "center"],
+    "E": ["top", "middle", "bottom", "ul", "ll"],
+    "S": ["top", "middle", "bottom", "ul", "lr"],
+    "R": ["top", "middle", "ul", "ll", "ur", "diag"],
+    "A": ["top", "middle", "ul", "ll", "ur", "lr"],
+}
 
 
 @dataclass(frozen=True)
@@ -171,35 +180,48 @@ def draw_mark(canvas: list[list[int]], target_size: float, center_x: float, cent
 
 
 def draw_wordmark(canvas: list[list[int]], target_width: float, center_x: float, center_y: float) -> None:
-    polygons = parse_wordmark_polygons()
-    bounds = polygon_bounds(polygons)
-    min_x, min_y, max_x, max_y = bounds
-    source_width = max_x - min_x
-    source_height = max_y - min_y
-    scale = target_width / source_width
-    target_height = source_height * scale
-    source_center = Point((min_x + max_x) / 2, (min_y + max_y) / 2)
-    transformed = [
-        [
-            Point(
-                round((point.x - source_center.x) * scale + center_x),
-                round((point.y - source_center.y) * scale + center_y),
-            )
-            for point in polygon
-        ]
-        for polygon in polygons
-    ]
-    min_draw_x = max(0, round(center_x - target_width / 2) - 1)
-    max_draw_x = min(SIZE - 1, round(center_x + target_width / 2) + 1)
-    min_draw_y = max(0, round(center_y - target_height / 2) - 1)
-    max_draw_y = min(SIZE - 1, round(center_y + target_height / 2) + 1)
-    for y in range(min_draw_y, max_draw_y + 1):
-        for x in range(min_draw_x, max_draw_x + 1):
-            point = Point(x + 0.5, y + 0.5)
-            if sum(1 for polygon in transformed if point_in_polygon(point, polygon)) % 2 == 1:
+    text = parse_wordmark_text()
+    letter_width = 10
+    letter_height = 14
+    stroke = 2
+    gap = 2
+    width = len(text) * letter_width + (len(text) - 1) * gap
+    x0 = round(center_x - width / 2)
+    y0 = round(center_y - letter_height / 2)
+
+    def fill_rect(x: int, y: int, width: int, height: int) -> None:
+        for py in range(y, y + height):
+            for px in range(x, x + width):
                 for sy in range(SCALE):
                     for sx in range(SCALE):
-                        set_pixel(canvas, x * SCALE + sx, y * SCALE + sy)
+                        set_pixel(canvas, px * SCALE + sx, py * SCALE + sy)
+
+    def fill_diag(x: int, y: int) -> None:
+        for row in range(letter_height // 2, letter_height):
+            col = letter_width - stroke - 1 - (row - letter_height // 2) // 2
+            fill_rect(x + max(stroke, col), y + row, stroke, 1)
+
+    for index, char in enumerate(text):
+        glyph_x = x0 + index * (letter_width + gap)
+        for segment in WORDMARK_SEGMENTS[char]:
+            if segment == "top":
+                fill_rect(glyph_x, y0, letter_width, stroke)
+            elif segment == "middle":
+                fill_rect(glyph_x, y0 + (letter_height - stroke) // 2, letter_width, stroke)
+            elif segment == "bottom":
+                fill_rect(glyph_x, y0 + letter_height - stroke, letter_width, stroke)
+            elif segment == "ul":
+                fill_rect(glyph_x, y0, stroke, letter_height // 2)
+            elif segment == "ll":
+                fill_rect(glyph_x, y0 + letter_height // 2, stroke, letter_height // 2)
+            elif segment == "ur":
+                fill_rect(glyph_x + letter_width - stroke, y0, stroke, letter_height // 2)
+            elif segment == "lr":
+                fill_rect(glyph_x + letter_width - stroke, y0 + letter_height // 2, stroke, letter_height // 2)
+            elif segment == "center":
+                fill_rect(glyph_x + (letter_width - stroke) // 2, y0, stroke, letter_height)
+            elif segment == "diag":
+                fill_diag(glyph_x, y0)
 
 
 def downsample_grayscale(canvas: list[list[int]]) -> bytes:
@@ -242,7 +264,7 @@ def save_mark(path: Path) -> None:
 def save_stacked_logo(path: Path) -> None:
     canvas = make_canvas()
     draw_mark(canvas, target_size=58, center_x=64, center_y=52)
-    draw_wordmark(canvas, target_width=118, center_x=64, center_y=93)
+    draw_wordmark(canvas, target_width=106, center_x=64, center_y=93)
     write_png(path, downsample_grayscale(canvas))
 
 
