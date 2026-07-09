@@ -13,7 +13,7 @@ const tauriCli = resolve(
   process.platform === "win32" ? "tauri.cmd" : "tauri",
 );
 const sourceExe = resolve(repoRoot, "target", "release", "cellsymphony-desktop.exe");
-const outputExe = resolve(desktopDir, "dist-desktop", "CellSymphony.exe");
+const outputExe = resolve(desktopDir, "dist-desktop", "Octessera.exe");
 const result = spawnSync(
   process.env.ComSpec ?? "cmd.exe",
   ["/d", "/s", "/c", "call", tauriCli, "build", "--no-bundle"],

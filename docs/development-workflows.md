@@ -36,7 +36,7 @@ Portable desktop executable:
 corepack pnpm --filter @cellsymphony/desktop tauri:build:exe
 ```
 
-The portable executable is copied to `apps/desktop/dist-desktop/CellSymphony.exe`.
+The portable executable is copied to `apps/desktop/dist-desktop/Octessera.exe`.
 
 On Windows, use the cached wrapper for the same portable build when iterating:
 
@@ -60,13 +60,13 @@ GitHub release assets are built only by `.github/workflows/release-artifacts.yml
 
 Release assets:
 
-- `CellSymphony-<version>-windows-installer.exe`: primary Windows installer.
-- `CellSymphony-<version>-windows-portable.exe`: portable Windows alternative.
-- `CellSymphony-<version>-macos-unsigned.dmg`: unsigned macOS DMG.
-- `CellSymphony-<version>-ubuntu-amd64.deb`: Ubuntu/Debian package.
-- `CellSymphony-<version>-ubuntu-x86_64.AppImage`: portable Linux AppImage.
-- `CellSymphony-<version>-pi-zero-2w.img.zip`: ready-to-flash Raspberry Pi Zero 2 W image, including `os_list.rpi-imager-manifest` for Raspberry Pi Imager.
-- `CellSymphony-<version>-pi-zero-2w.rpi-imager-manifest`: standalone Raspberry Pi Imager manifest copy.
+- `Octessera-<version>-windows-installer.exe`: primary Windows installer.
+- `Octessera-<version>-windows-portable.exe`: portable Windows alternative.
+- `Octessera-<version>-macos-unsigned.dmg`: unsigned macOS DMG.
+- `Octessera-<version>-ubuntu-amd64.deb`: Ubuntu/Debian package.
+- `Octessera-<version>-ubuntu-x86_64.AppImage`: portable Linux AppImage.
+- `Octessera-<version>-pi-zero-2w.img.zip`: ready-to-flash Raspberry Pi Zero 2 W image, including `os_list.rpi-imager-manifest` for Raspberry Pi Imager.
+- `Octessera-<version>-pi-zero-2w.rpi-imager-manifest`: standalone Raspberry Pi Imager manifest copy.
 - `SHA256SUMS-*.txt`: checksums for release assets.
 
 Release process:
@@ -235,7 +235,7 @@ Use the real hardware loop for Pi-only behavior, input latency, OLED rendering, 
 2. Ask for a focused hardware observation before assuming the fix worked. Specify the control path, expected behavior, and what failure would look or sound like.
 3. Pull service logs and profile summaries when the observation is unclear. Enable `CELLSYMPHONY_PI_UI_PROFILE=1` only while profiling, then disable it again.
 4. For menu, control, or runtime stutter, inspect `pi-ui-profile` and `menu-key-profile` output before broad refactors.
-5. Fix the source path. Do not add fallbacks for broken Cell Symphony wiring; fail visibly so missing handlers, stale config paths, or bridge mismatches get fixed at the source.
+5. Fix the source path. Do not add fallbacks for broken Octessera wiring; fail visibly so missing handlers, stale config paths, or bridge mismatches get fixed at the source.
 6. Prefer keyed fast paths over broad `apply_menu_state()` on high-frequency edits. Keep autosave serialization off rapid input paths.
 7. Run targeted Rust checks before redeploying when possible, then repeat the hardware observation.
 8. Before pushing a stable hardware milestone, use QA or oracle review for risky runtime/menu changes and run the pre-push hook. It validates the committed tree and includes file-length checks, coverage, Tauri smoke build, and clippy.
@@ -262,4 +262,4 @@ Menu and control changes can affect playback timing. Use this checklist when cha
 5. Preserve hardware parity by implementing behavior in `playback-runtime` or `platform-core`, not desktop TypeScript.
 6. Update `docs/menu-and-controls-spec.md` for parity-affecting control/menu behavior.
 7. Run targeted playback-runtime tests first, then full `cargo test -p playback-runtime` before commit.
-8. Rebuild `apps/desktop/dist-desktop/CellSymphony.exe` when the change is desktop-visible.
+8. Rebuild `apps/desktop/dist-desktop/Octessera.exe` when the change is desktop-visible.

@@ -1,6 +1,6 @@
-# Cell Symphony
+# Octessera
 
-Cell Symphony turns cellular automata into music you can play.
+Octessera turns cellular automata into music you can play.
 
 Create a dynamic, evolving beat in minutes. Let Conway's Life generate a shifting synth backdrop. Add a drumbeat with a classic grid-style sequencer. Make the drums duck the synth out of the way. Play a lead line live. Then jump into Dance mode and perform with live effects, change note probability, and use the XY pad and mixer controls to build up to a massive drop.
 
@@ -78,7 +78,7 @@ Related references:
 
 The easiest way to play with this system is to just to download and launch the portable Windows EXE that is attached to the official releases.
 
-It allows you try out CellSymphony without any special hardware.
+It allows you try out Octessera without any special hardware.
 
 You can also launch it in a different way:
 
@@ -97,7 +97,7 @@ corepack pnpm --filter @cellsymphony/desktop tauri:build:exe
 
 Most users should not need this section. It is here for people changing the software or hardware docs.
 
-Cell Symphony keeps musical behavior in the native Rust runtime so the desktop simulator and Pi hardware stay aligned. TypeScript is only the desktop display/input layer and shared contracts.
+Octessera keeps musical behavior in the native Rust runtime so the desktop simulator and Pi hardware stay aligned. TypeScript is only the desktop display/input layer and shared contracts.
 
 Repository layout:
 

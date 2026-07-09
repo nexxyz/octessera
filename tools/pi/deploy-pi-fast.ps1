@@ -205,7 +205,7 @@ disable_service_if_present bluetooth.service
 disable_service_if_present hciuart.service
 sudo tee /etc/systemd/system/cellsymphony-performance-governor.service >/dev/null <<'EOF'
 [Unit]
-Description=Cell Symphony Performance CPU Governor
+Description=Octessera Performance CPU Governor
 Before=cellsymphony.service
 
 [Service]
@@ -218,7 +218,7 @@ WantedBy=multi-user.target
 EOF
 sudo tee /etc/systemd/system/cellsymphony-oled-shutdown.service >/dev/null <<'EOF'
 [Unit]
-Description=Cell Symphony Late OLED Shutdown
+Description=Octessera Late OLED Shutdown
 
 [Service]
 Type=oneshot
@@ -241,7 +241,7 @@ Invoke-PiSsh $osConfigCommand
 
 $serviceCommand = "set -e; sudo install -d '$InstallDir'; sudo ln -sfn '$InstallDir/releases/dev' '$InstallDir/current'; sudo ln -sfn '$InstallDir/current/cellsymphony-pi' /usr/local/bin/cellsymphony-pi; sudo tee /etc/systemd/system/cellsymphony-boot-splash.service >/dev/null <<'EOF'
 [Unit]
-Description=Cell Symphony Early OLED Boot Splash
+Description=Octessera Early OLED Boot Splash
 DefaultDependencies=no
 After=systemd-modules-load.service systemd-udevd.service
 Before=sysinit.target cellsymphony.service
@@ -258,7 +258,7 @@ WantedBy=sysinit.target
 EOF
 sudo tee /etc/systemd/system/$Service >/dev/null <<'EOF'
 [Unit]
-Description=Cell Symphony Pi Zero 2W Headless Music System
+Description=Octessera Pi Zero 2W Headless Music System
 After=sound.target
 
 [Service]

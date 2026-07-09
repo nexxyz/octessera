@@ -1,5 +1,5 @@
 [Unit]
-Description=Cell Symphony Performance CPU Governor
+Description=Octessera Performance CPU Governor
 Before=cellsymphony.service
 
 [Service]

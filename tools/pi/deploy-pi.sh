@@ -1,10 +1,10 @@
 #!/bin/bash
-# Deploy Cell Symphony to Pi Zero 2W
+# Deploy Octessera to Pi Zero 2W
 # Run this script ON the Pi after copying the repo
 
 set -e
 
-echo "=== Cell Symphony Pi Deployment ==="
+echo "=== Octessera Pi Deployment ==="
 
 # Install system dependencies
 echo "Installing system dependencies..."
@@ -122,7 +122,7 @@ disable_service_if_present bluetooth.service
 disable_service_if_present hciuart.service
 
 # Build natively on Pi (simpler than cross-compilation)
-echo "Building Cell Symphony for Pi..."
+echo "Building Octessera for Pi..."
 cd /home/pi/cellsymphony
 cargo build --release -p cellsymphony-pi --features hardware-pi
 
@@ -130,7 +130,7 @@ cargo build --release -p cellsymphony-pi --features hardware-pi
 echo "Creating systemd service..."
 sudo tee /etc/systemd/system/cellsymphony.service > /dev/null <<EOL
 [Unit]
-Description=Cell Symphony Pi Zero 2W
+Description=Octessera Pi Zero 2W
 After=sound.target
 
 [Service]
@@ -150,7 +150,7 @@ EOL
 
 sudo tee /etc/systemd/system/cellsymphony-performance-governor.service > /dev/null <<'EOL'
 [Unit]
-Description=Cell Symphony Performance CPU Governor
+Description=Octessera Performance CPU Governor
 Before=cellsymphony.service
 
 [Service]

@@ -28,7 +28,7 @@ pub fn run() -> bool {
     if std::env::args().skip(1).any(|arg| arg == "--oled-off-once") {
         return run_oled_off_once();
     }
-    println!("Cell Symphony OLED persistent test pattern");
+    println!("Octessera OLED persistent test pattern");
     let mut oled = match OledSsd1351::new() {
         Ok(oled) => oled,
         Err(error) => {

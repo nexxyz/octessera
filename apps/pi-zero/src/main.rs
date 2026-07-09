@@ -41,7 +41,7 @@ fn main() {
 
     run_requested_utility();
 
-    println!("Cell Symphony - Pi native runtime");
+    println!("Octessera - Pi native runtime");
 
     let hardware = match init_hardware() {
         Ok(devices) => devices,

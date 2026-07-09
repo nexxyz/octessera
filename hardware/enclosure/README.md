@@ -1,6 +1,6 @@
 # Enclosure
 
-This is the enclosure and mechanical reference for the Cell Symphony hardware target.
+This is the enclosure and mechanical reference for the Octessera hardware target.
 
 Use it with [`../docs/pinout-and-connections.md`](../docs/pinout-and-connections.md) for wiring and [`../docs/pi-bring-up.md`](../docs/pi-bring-up.md) for Pi setup.
 

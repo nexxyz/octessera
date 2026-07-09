@@ -1,10 +1,14 @@
 # Octessera Rename Plan
 
-Planning note only. Do not execute this rename until explicitly approved.
+Active plan. Execute only on the rename branch created from the rollback tag.
 
-Current condition: the repository is still named and wired as Cell Symphony. The
-rename should start from a clean rollback point, then proceed in small phases
-that preserve existing saves, config, services, and hardware deployment paths.
+Current condition: Phase 1 user-facing identity has started, while internal
+packages, crates, services, install paths, repository paths, and hardware source
+filenames are still named and wired as Cell Symphony. The rename starts from the
+clean rollback tag `pre-octessera-rename`, then proceeds in three large phases.
+Naming mismatches should fail hard. Do not add aliases, fallback imports,
+duplicate package names, old binary wrappers, old service aliases, or path
+fallbacks for project-owned identifiers.
 
 ## Rollback Marker
 
@@ -20,7 +24,7 @@ A git tag marks a commit, not uncommitted working-tree files. If generated CAD,
 release artifacts, or other local changes must be part of the rollback point,
 commit them first or create a separate backup before tagging.
 
-## Naming Decisions To Confirm
+## Naming Decisions
 
 - Product, device, and app name: `Octessera`.
 - Repository name: likely `octessera`.
@@ -29,11 +33,13 @@ commit them first or create a separate backup before tagging.
 - Pi systemd services: likely `octessera.service`,
   `octessera-boot-splash.service`, `octessera-oled-shutdown.service`, and
   `octessera-performance-governor.service`.
-- Decide whether to rename internal crates/packages now or later. Default:
-  later, unless a user-facing artifact cannot be renamed cleanly without it.
-- Preserve existing `cellSymphony` saves, config, service upgrades, and store directories through migration or aliases.
+- Rename internal crates/packages in phase 2, not as an optional later cleanup.
+- Existing Cell Symphony saves/configs are not preserved through fallback search
+  paths. If data preservation is required later, implement it as an explicit,
+  one-time migration with tests, not as a runtime alias.
 
-Recommended approach: rename user-facing identity first, with compatibility migration. Rename internal crates/packages only in a later pass if the extra churn is worth it.
+Recommended approach: rename user-facing identity first, then internal package
+and crate identity, then deployment/repository/artifact surfaces.
 
 ## Current Cell Symphony Inventory
 
@@ -44,8 +50,8 @@ Major current identifiers include:
   `@cellsymphony/device-contracts`;
 - Rust crates/binaries: `cellsymphony-desktop`, `cellsymphony-pi`,
   `cellsymphony-hal`;
-- desktop executable and metadata: `CellSymphony.exe`, Tauri product name,
-  desktop package metadata, and app titles;
+- desktop package/source names and historical metadata; Phase 1 changes visible
+  product metadata, app titles, and portable executable output to Octessera;
 - Pi install paths and services: `/opt/cellsymphony`,
   `/usr/local/bin/cellsymphony-pi`, `cellsymphony.service`, and related boot,
   shutdown, and performance services;
@@ -56,28 +62,30 @@ Major current identifiers include:
   references.
 
 The rename is broader than product copy. It touches packaging, deployment,
-service migration, generated artifacts, build scripts, tests, and hardware docs.
+service installation, generated artifacts, build scripts, tests, and hardware
+docs.
 
 ## Execution Phases
 
-1. Finish or shelve unrelated work, especially generated enclosure and release
-   artifacts.
-2. Commit and push all current work.
-3. Create the rollback tag.
-4. Create a rename branch.
-5. Add compatibility tests before changing names:
-   - old default/config payloads still load;
-   - old desktop/Pi store directories migrate or alias safely;
-   - existing presets and saves remain valid;
-   - service upgrade stops/disables old services and enables new services;
-   - deploy scripts still work against a Pi with old Cell Symphony paths.
-6. Add path, store, and service migration while old names still exist.
-7. Rename user-facing product text and desktop/Pi artifacts.
-8. Rename docs, assets, CAD, PCB source names, and regenerated fabrication
-   outputs.
-9. Optionally rename internal crates/packages in a separate phase.
-10. Run full validation, rebuild desktop/Pi artifacts, and smoke-test Pi
-    deployment.
+0. Preflight:
+   - ensure `pre-octessera-rename` points to the approved rollback commit;
+   - work on a rename branch;
+   - capture an old-name grep inventory.
+1. User-facing identity:
+   - product strings, desktop title/product metadata, OLED/splash/status/help
+     text, user docs, and visible desktop artifact names;
+   - change the Tauri identifier to `xyz.nex.octessera` in this phase. This
+     intentionally changes desktop OS app identity/app-data resolution with no
+     fallback to old Cell Symphony app data;
+   - do not rename pnpm packages, Rust crates, services, or install paths yet.
+2. Internal-facing identity:
+   - pnpm package names/imports, Cargo crate and binary names, package filters,
+     runtime labels, tests, and lockfiles;
+   - run `corepack pnpm install` immediately after package name changes.
+3. Repository, deployment, and artifact cleanup:
+   - Pi service names, install paths, deploy/build scripts, Pi image stage paths,
+     Cross targets, hardware docs, CAD/PCB source names, and regenerated release
+     artifacts.
 
 ## User-Facing Text And Assets
 
@@ -90,7 +98,8 @@ Rename product-facing strings:
 - README, screenshots, and docs images;
 - logos/icons/splash images if new Octessera artwork exists.
 
-Keep compatibility wording where needed, for example: “Migrated from Cell Symphony config.”
+Do not keep compatibility wording in product UI. Historical docs may say
+“formerly Cell Symphony” only when useful to explain the rename.
 
 ## Packages, Binaries, And Services
 
@@ -108,11 +117,14 @@ Potential renames:
 - `cellsymphony-performance-governor.service` → `octessera-performance-governor.service`;
 - `/usr/local/bin/cellsymphony-pi` → `/usr/local/bin/octessera-pi`.
 
-Migration must stop/disable old services and install/enable new services without requiring a manual recovery step. Keep aliases or compatibility handling for at least one release if practical.
+Service changes must install and use only the Octessera unit names. Do not add
+service aliases or old binary wrappers. If an old service is handled during a
+deployment upgrade, it should be explicitly stopped/disabled/removed rather than
+kept as a compatibility path.
 
 ## Files, Directories, And Config Paths
 
-Audit and migrate:
+Audit and rename:
 
 - desktop config/store paths;
 - Pi store/config paths;
@@ -122,7 +134,9 @@ Audit and migrate:
 - logs and journal identifiers;
 - portable executable path: `apps/desktop/dist-desktop/CellSymphony.exe` → `Octessera.exe`.
 
-Startup migration should copy or migrate old stores to the new location when the new store is absent. Leave old stores untouched unless the user explicitly opts into cleanup.
+Do not add startup fallback search paths for old stores/config directories. If
+old user data must be carried forward, add a separately reviewed one-time
+migration step with tests.
 
 ## Hardware, PCB, And Enclosure
 
@@ -152,7 +166,9 @@ Rename throughout:
 - troubleshooting docs;
 - release process docs.
 
-Keep a short migration note: “Octessera was formerly Cell Symphony. Existing Cell Symphony saves/configs are migrated automatically.”
+Keep a short historical note only where useful: “Octessera was formerly Cell
+Symphony.” Do not claim automatic save/config migration unless a one-time
+migration is explicitly implemented and tested.
 
 ## Validation
 
@@ -172,8 +188,9 @@ Also verify:
 
 - no user-facing `Cell Symphony` strings remain except intentional migration or
   history references;
-- old Cell Symphony config/store locations are still readable;
-- Pi upgrade from old `cellsymphony.service` does not leave the runtime stopped
-  or double-started;
+- no fallback imports, package aliases, service aliases, old binary wrappers, or
+  project-owned old path fallbacks remain;
+- Pi deployment uses Octessera service and install paths without double-starting
+  an old Cell Symphony service;
 - release artifacts use Octessera names after source regeneration;
 - package lockfiles and Cargo lockfile changes are intentional.
