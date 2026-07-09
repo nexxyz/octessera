@@ -102,7 +102,7 @@ Octessera keeps musical behavior in the native Rust runtime so the desktop simul
 Repository layout:
 
 ```text
-cellSymphony/
+octessera/
 ├── apps/
 │   ├── desktop/                  # Tauri desktop host and UI
 │   └── pi-zero/                  # Native Pi app target

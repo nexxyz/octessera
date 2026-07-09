@@ -1,0 +1,14 @@
+[Unit]
+Description=Octessera Late OLED Shutdown
+
+[Service]
+Type=oneshot
+ExecStart=/bin/true
+ExecStop=/bin/sh -c 'sleep 4; /usr/local/bin/octessera-pi --oled-off-once || true'
+RemainAfterExit=yes
+TimeoutStopSec=8
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

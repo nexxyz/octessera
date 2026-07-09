@@ -98,6 +98,6 @@ Notes:
 
 ## Source of Truth
 
-- Schematic: [`../pcb/cellSymphony.kicad_sch`](../pcb/cellSymphony.kicad_sch)
-- Netlist: [`../pcb/cellSymphony.net`](../pcb/cellSymphony.net)
+- Schematic: [`../pcb/octessera.kicad_sch`](../pcb/octessera.kicad_sch)
+- Netlist: [`../pcb/octessera.net`](../pcb/octessera.net)
 - HAL pin mapping: [`../../crates/hal/src/pinmap.rs`](../../crates/hal/src/pinmap.rs)

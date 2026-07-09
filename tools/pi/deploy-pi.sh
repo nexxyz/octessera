@@ -109,7 +109,7 @@ grep -qxF "i2c-dev" /etc/modules || echo "i2c-dev" | sudo tee -a /etc/modules > 
 
 # Install journald config for volatile capped logs
 sudo install -d -m 0755 /etc/systemd/journald.conf.d
-sudo tee /etc/systemd/journald.conf.d/10-cellsymphony.conf > /dev/null <<'EOL'
+sudo tee /etc/systemd/journald.conf.d/10-octessera.conf > /dev/null <<'EOL'
 [Journal]
 Storage=volatile
 RuntimeMaxUse=32M
@@ -123,12 +123,12 @@ disable_service_if_present hciuart.service
 
 # Build natively on Pi (simpler than cross-compilation)
 echo "Building Octessera for Pi..."
-cd /home/pi/cellsymphony
+cd /home/pi/octessera
 cargo build --release -p octessera-pi --features hardware-pi
 
 # Create systemd service
 echo "Creating systemd service..."
-sudo tee /etc/systemd/system/cellsymphony.service > /dev/null <<EOL
+sudo tee /etc/systemd/system/octessera.service > /dev/null <<EOL
 [Unit]
 Description=Octessera Pi Zero 2W
 After=sound.target
@@ -136,9 +136,9 @@ After=sound.target
 [Service]
 Type=simple
 User=pi
-WorkingDirectory=/home/pi/cellsymphony
+WorkingDirectory=/home/pi/octessera
 ExecStartPre=/bin/sleep 2
-ExecStart=/home/pi/cellsymphony/target/release/octessera-pi
+ExecStart=/home/pi/octessera/target/release/octessera-pi
 Restart=always
 RestartSec=5
 StandardOutput=journal
@@ -148,10 +148,10 @@ StandardError=journal
 WantedBy=multi-user.target
 EOL
 
-sudo tee /etc/systemd/system/cellsymphony-performance-governor.service > /dev/null <<'EOL'
+sudo tee /etc/systemd/system/octessera-performance-governor.service > /dev/null <<'EOL'
 [Unit]
 Description=Octessera Performance CPU Governor
-Before=cellsymphony.service
+Before=octessera.service
 
 [Service]
 Type=oneshot
@@ -164,15 +164,15 @@ EOL
 
 # Enable service
 sudo systemctl daemon-reload
-sudo systemctl enable cellsymphony
-sudo systemctl enable cellsymphony-performance-governor.service
-sudo systemctl start cellsymphony-performance-governor.service
+sudo systemctl enable octessera
+sudo systemctl enable octessera-performance-governor.service
+sudo systemctl start octessera-performance-governor.service
 
 echo ""
 echo "=== Deployment complete! ==="
 echo "Reboot to enable I2S audio, then the service will auto-start."
-echo "Check status with: sudo systemctl status cellsymphony"
-echo "View logs with: journalctl -u cellsymphony -f"
+echo "Check status with: sudo systemctl status octessera"
+echo "View logs with: journalctl -u octessera -f"
 echo ""
 echo "REBOOT NOW? (y/n)"
 read -r answer

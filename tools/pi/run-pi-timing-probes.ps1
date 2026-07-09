@@ -1,8 +1,8 @@
 param(
   [string]$Target = "pi@192.168.0.211",
-  [string]$Key = "$env:USERPROFILE\.ssh\cellsymphony_pi_dev",
-  [string]$Binary = "/usr/local/bin/cellsymphony-pi",
-  [string]$Service = "cellsymphony.service",
+  [string]$Key = "$env:USERPROFILE\.ssh\octessera_pi_dev",
+  [string]$Binary = "/usr/local/bin/octessera-pi",
+  [string]$Service = "octessera.service",
   [ValidateSet("RuntimeOnly", "Live", "AudioDrain", "DspFxLimits")]
   [string]$Mode = "RuntimeOnly",
   [string]$Durations = "5s",

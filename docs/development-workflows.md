@@ -211,12 +211,12 @@ Wrapper examples:
 ./tools/pi/run-pi-timing-probes.ps1 -Mode DspFxLimits
 ```
 
-The wrapper stops `cellsymphony.service` for live/audio/DSP modes and restarts it after the probe. Runtime-only mode leaves the service running. Use `-PrintOnly` to inspect the remote command first.
+The wrapper stops `octessera.service` for live/audio/DSP modes and restarts it after the probe. Runtime-only mode leaves the service running. Use `-PrintOnly` to inspect the remote command first.
 
 For musical timing issues, inspect p99/p99.9/p99.99 and outlier counts, not only p95. Check recent logs after live probes:
 
 ```powershell
-ssh -i "$env:USERPROFILE\.ssh\cellsymphony_pi_dev" -o IdentitiesOnly=yes pi@192.168.0.211 "journalctl -u cellsymphony.service --since '10 minutes ago' --no-pager | grep -E 'realtime priority unavailable|audio stream error|underrun|POLLERR' || true"
+ssh -i "$env:USERPROFILE\.ssh\octessera_pi_dev" -o IdentitiesOnly=yes pi@192.168.0.211 "journalctl -u octessera.service --since '10 minutes ago' --no-pager | grep -E 'realtime priority unavailable|audio stream error|underrun|POLLERR' || true"
 ```
 
 Prefer offering a live probe when the report is subjective or audio-path-specific. Do not run long live probes by default for unrelated code changes.

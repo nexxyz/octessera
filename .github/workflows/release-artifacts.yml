@@ -263,8 +263,8 @@ jobs:
         run: |
           install -D -m 0755 \
             target/aarch64-unknown-linux-gnu/release/octessera-pi \
-            tools/pi-image/stage4-cellsymphony/files/root/usr/local/bin/cellsymphony-pi
-          file tools/pi-image/stage4-cellsymphony/files/root/usr/local/bin/cellsymphony-pi
+            tools/pi-image/stage4-octessera/files/root/usr/local/bin/octessera-pi
+          file tools/pi-image/stage4-octessera/files/root/usr/local/bin/octessera-pi
 
       - name: Install pi-gen dependencies
         run: |
@@ -277,7 +277,7 @@ jobs:
       - name: Clone pi-gen
         run: |
           git clone --depth 1 --branch bookworm-arm64 https://github.com/RPi-Distro/pi-gen.git
-          cp -r tools/pi-image/stage4-cellsymphony pi-gen/
+          cp -r tools/pi-image/stage4-octessera pi-gen/
 
       - name: Configure pi-gen
         working-directory: pi-gen
@@ -286,7 +286,7 @@ jobs:
           IMG_NAME=octessera-pi-zero-2w
           RELEASE=bookworm
           TARGET_ARCH=arm64
-          STAGE_LIST="stage0 stage1 stage2 stage4-cellsymphony"
+          STAGE_LIST="stage0 stage1 stage2 stage4-octessera"
           EXPORT_DIR=deploy
           DEPLOY_ZIP=1
           ENABLE_SSH=0

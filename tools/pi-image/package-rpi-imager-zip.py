@@ -63,7 +63,7 @@ def build_manifest(
                 "description": "Ready-to-flash Raspberry Pi OS Lite image with Octessera hardware services preinstalled. Uses Imager systemd first-run customization for SSH, user, hostname, and Wi-Fi.",
                 "url": image_url,
                 "icon": icon_url,
-                "website": "https://github.com/nexxyz/cellSymphony",
+                "website": "https://github.com/nexxyz/octessera",
                 "release_date": release_date,
                 "extract_size": extract_size,
                 "extract_sha256": extract_sha256,
@@ -107,7 +107,7 @@ def package_manifest(args: argparse.Namespace) -> dict:
 
     current_size = os.path.getsize(zip_path)
     manifest = None
-    with tempfile.TemporaryDirectory(prefix="cellsymphony-rpi-manifest-") as temp_dir:
+    with tempfile.TemporaryDirectory(prefix="octessera-rpi-manifest-") as temp_dir:
         source_zip = zip_path
         for _ in range(10):
             manifest = build_manifest(

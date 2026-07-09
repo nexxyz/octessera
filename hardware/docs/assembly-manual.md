@@ -7,8 +7,8 @@ The hardware is still being fit-tested. Check the current enclosure files before
 ## Source files
 
 - Gerbers for PCB fabrication: [`../../release-artifacts/pcb/gerber/gerber.zip`](../../release-artifacts/pcb/gerber/gerber.zip)
-- Schematic: [`../pcb/cellSymphony.kicad_sch`](../pcb/cellSymphony.kicad_sch)
-- PCB layout: [`../pcb/cellSymphony.kicad_pcb`](../pcb/cellSymphony.kicad_pcb)
+- Schematic: [`../pcb/octessera.kicad_sch`](../pcb/octessera.kicad_sch)
+- PCB layout: [`../pcb/octessera.kicad_pcb`](../pcb/octessera.kicad_pcb)
 - Wiring reference: [`pinout-and-connections.md`](pinout-and-connections.md)
 - Pi setup and bring-up: [`pi-bring-up.md`](pi-bring-up.md)
 - Enclosure reference: [`../enclosure/README.md`](../enclosure/README.md)
@@ -165,7 +165,7 @@ Reference screenshots:
 You can also start Imager with the manifest URL from the command line, for example:
 
 ```powershell
-rpi-imager --repo "https://github.com/nexxyz/cellSymphony/releases/download/v<version>/Octessera-<version>-pi-zero-2w.rpi-imager-manifest"
+rpi-imager --repo "https://github.com/nexxyz/octessera/releases/download/v<version>/Octessera-<version>-pi-zero-2w.rpi-imager-manifest"
 ```
 
 Use the actual release tag and version from the release page. The embedded manifest inside the ZIP is for packaged metadata; do not extract the ZIP just to load the manifest.

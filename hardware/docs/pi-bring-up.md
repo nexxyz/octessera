@@ -36,7 +36,7 @@ Do not power the Raspberry Pi through its own micro-USB power port. The enclosur
 
 The Pi app is native Rust. It does not start Node or TypeScript.
 
-The device is intended to run as an appliance. The Pi app should launch on boot through `cellsymphony.service`. SSH is for setup, diagnostics, logs, and updates.
+The device is intended to run as an appliance. The Pi app should launch on boot through `octessera.service`. SSH is for setup, diagnostics, logs, and updates.
 
 ## Pi OS Boot Configuration
 
@@ -126,7 +126,7 @@ Explicit GitHub releases include a ready-to-flash Pi Zero 2 W image named `Octes
 The image is derived from standard Raspberry Pi OS Bookworm arm64 through pi-gen and includes:
 
 - the release `octessera-pi` binary built with `--release --features hardware-pi`;
-- `cellsymphony.service` and the performance governor service;
+- `octessera.service` and the performance governor service;
 - runtime audio/I2C/SPI dependencies;
 - Octessera boot config and the `i2s-dac-no20` overlay;
 - empty `/home/pi/samples` and `/home/pi/presets` directories.
@@ -151,7 +151,7 @@ The current development Pi at `pi@192.168.0.211` has been verified with `tools/p
 - NeoKey has been detected at `0x3F` on the PCB I2C path
 - NeoTrellis has been detected at `0x2E`, `0x2F`, `0x30`, and `0x31` through a corrected connector path
 - The tested SSD1351 OLED module stayed blank with both the Pi and an Arduino Uno running Adafruit SSD1351 test code; replace or independently verify the module before treating PCB or runtime display output as failed
-- During active bring-up, `cellsymphony.service` may be disabled to prevent automatic I2C access while checking wiring; re-enable it only after the clean bus scan matches the expected devices
+- During active bring-up, `octessera.service` may be disabled to prevent automatic I2C access while checking wiring; re-enable it only after the clean bus scan matches the expected devices
 
 ## Bring-Up Checklist
 
@@ -170,9 +170,9 @@ The no-OLED manual walkthrough and CLI diagnostics are defined in [`manual-hardw
 Quick diagnostics:
 
 ```bash
-sudo systemctl disable --now cellsymphony.service
-/usr/local/bin/cellsymphony-pi --hardware-test
-/usr/local/bin/cellsymphony-pi --hardware-noise-test --skip-trellis --skip-encoders
+sudo systemctl disable --now octessera.service
+/usr/local/bin/octessera-pi --hardware-test
+/usr/local/bin/octessera-pi --hardware-noise-test --skip-trellis --skip-encoders
 ```
 
 The diagnostics print a final warning/failure summary. Raw NeoKey one-sample glitches with clean immediate rereads are warnings; confirmed idle input remains a failure.
@@ -196,8 +196,8 @@ Implementation boundary: `playback-runtime` owns the menu action and platform ef
 Use a simple A/B binary swap first:
 
 1. Upload a release bundle containing `octessera-pi`, version metadata, and optional resources.
-2. Write it to `/opt/cellsymphony/releases/<version>/`.
+2. Write it to `/opt/octessera/releases/<version>/`.
 3. Verify checksum and executable bit.
-4. Update `/opt/cellsymphony/current` atomically.
-5. Restart `cellsymphony.service`.
+4. Update `/opt/octessera/current` atomically.
+5. Restart `octessera.service`.
 6. Keep the previous symlink target for rollback.

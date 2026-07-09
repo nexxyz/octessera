@@ -1,4 +1,4 @@
-//! Hardware Abstraction Layer for Cell Symphony
+//! Hardware Abstraction Layer for Octessera
 //! Used by headless Pi Zero 2W binary (and optionally desktop for testing)
 
 pub mod encoder_gpio;

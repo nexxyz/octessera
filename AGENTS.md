@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Cell Symphony is a pnpm workspace plus Cargo workspace built around a native Rust core/runtime, a Rust realtime synth, a Tauri desktop hardware simulator, and a native Pi app. The product turns cellular automata into music. TypeScript is limited to desktop UI and shared bridge/display/runtime contracts.
+Octessera is a pnpm workspace plus Cargo workspace built around a native Rust core/runtime, a Rust realtime synth, a Tauri desktop hardware simulator, and a native Pi app. The product turns cellular automata into music. TypeScript is limited to desktop UI and shared bridge/display/runtime contracts.
 
 ## Keep These Boundaries
 
