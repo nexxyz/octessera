@@ -167,13 +167,15 @@ If the hardware does not come up, stop and use the bring-up checks in [`pi-bring
 
 Only assemble the enclosure after the electrical test and System-menu diagnostics pass.
 
+Before you start with the enclosure, you need to remove the keyswitches from the NeoKey, but you can leave the keycaps on.
+
 1. Place the bottom enclosure on the bench.
 2. Put the PCB and NeoTrellis array onto the bottom.
    - Remove the Raspberry Pi microSD card and OLED microSD card first. They can catch on the enclosure and break during installation.
 3. Add the 18 separate standoff pillars between the bottom supports and the plug-in modules:
    - Use the printed standoff pillars or compatible purchased stackable standoffs.
    - For each plug-in module, remove the module, add the standoff, then reinstall the module.
-   - Do not add separate standoff pillars for the NeoTrellis array. Its eight pins go straight into the integrated bottom pillars.
+   - You do not need separate standoff pillars for the NeoTrellis array. Its eight pins go straight into the integrated bottom pillars.
 4. Press in all 26 top pins:
    - 18 pins go into the separate standoff pillars.
    - 8 pins go into the NeoTrellis array's integrated bottom pillars.
