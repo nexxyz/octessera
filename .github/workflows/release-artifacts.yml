@@ -47,17 +47,17 @@ jobs:
     needs: release_info
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.release_info.outputs.tag }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 9.12.0
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: pnpm
@@ -91,7 +91,7 @@ jobs:
           "ASSET_DIR=$($assetDir.FullName)" >> $env:GITHUB_OUTPUT
 
       - name: Upload workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cellsymphony-windows-release-assets
           path: release-assets/*
@@ -103,17 +103,17 @@ jobs:
     needs: release_info
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.release_info.outputs.tag }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 9.12.0
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: pnpm
@@ -143,7 +143,7 @@ jobs:
           (cd release-assets && shasum -a 256 *.dmg > SHA256SUMS-macos.txt)
 
       - name: Upload workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cellsymphony-macos-release-assets
           path: release-assets/*
@@ -155,17 +155,17 @@ jobs:
     needs: release_info
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.release_info.outputs.tag }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 9.12.0
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: pnpm
@@ -223,7 +223,7 @@ jobs:
           (cd release-assets && sha256sum *.deb *.AppImage > SHA256SUMS-ubuntu.txt)
 
       - name: Upload workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cellsymphony-ubuntu-release-assets
           path: release-assets/*
@@ -236,7 +236,7 @@ jobs:
     timeout-minutes: 360
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.release_info.outputs.tag }}
 
@@ -325,7 +325,7 @@ jobs:
           sha256sum *.zip *.rpi-imager-manifest > SHA256SUMS-pi.txt
 
       - name: Upload workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cellsymphony-pi-image-release-assets
           path: release-assets/*
@@ -337,7 +337,7 @@ jobs:
     needs: [release_info, windows, macos, ubuntu, pi_image]
     steps:
       - name: Download workflow artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: cellsymphony-*-release-assets
           path: gathered-release-assets
