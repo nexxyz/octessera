@@ -98,6 +98,37 @@ def set_pixel(canvas: list[list[int]], x: int, y: int, value: int = WHITE) -> No
         canvas[y][x] = value
 
 
+def content_bounds(canvas: list[list[int]]) -> tuple[int, int, int, int] | None:
+    points = [(x, y) for y, row in enumerate(canvas) for x, value in enumerate(row) if value != BLACK]
+    if not points:
+        return None
+    return (
+        min(x for x, _ in points),
+        min(y for _, y in points),
+        max(x for x, _ in points),
+        max(y for _, y in points),
+    )
+
+
+def center_content(canvas: list[list[int]]) -> None:
+    bounds = content_bounds(canvas)
+    if bounds is None:
+        return
+    min_x, min_y, max_x, max_y = bounds
+    target_center = (SIZE * SCALE - 1) / 2
+    dx = round(target_center - (min_x + max_x) / 2)
+    dy = round(target_center - (min_y + max_y) / 2)
+    if dx == 0 and dy == 0:
+        return
+    shifted = make_canvas()
+    for y, row in enumerate(canvas):
+        for x, value in enumerate(row):
+            if value != BLACK:
+                set_pixel(shifted, x + dx, y + dy, value)
+    for y, row in enumerate(shifted):
+        canvas[y][:] = row
+
+
 def draw_disk(canvas: list[list[int]], center: Point, radius: float) -> None:
     min_x = int(center.x - radius - 1)
     max_x = int(center.x + radius + 1)
@@ -274,6 +305,7 @@ def save_stacked_logo(path: Path) -> None:
     canvas = make_canvas()
     draw_mark(canvas, target_size=58, center_x=64, center_y=52)
     draw_wordmark_antialiased(canvas, target_width=106, target_height=16, center_x=64, center_y=93)
+    center_content(canvas)
     write_png(path, downsample_grayscale(canvas))
 
 
