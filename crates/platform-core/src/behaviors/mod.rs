@@ -1,9 +1,9 @@
 mod behavior_config;
-mod behavior_ported_lifecycle;
+mod behavior_native_lifecycle;
 mod glider;
 mod life;
+mod native_impl;
 mod none;
-mod ported;
 mod sequencer;
 
 use crate::behavior::{BehaviorContext, BehaviorRenderModel, DeviceInput};
@@ -14,11 +14,11 @@ mod tests;
 
 pub use glider::GliderState;
 pub use life::LifeState;
-pub use none::NoneState;
-pub use ported::{
+pub use native_impl::{
     AntState, BounceState, BrainState, DlaState, KeysState, LooperState, RaindropsState,
     ShapesState,
 };
+pub use none::NoneState;
 pub use sequencer::SequencerState;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -114,7 +114,7 @@ impl NativeBehavior {
             NativeBehavior::Sequencer => {
                 Ok(NativeBehaviorState::Sequencer(sequencer::init(config)?))
             }
-            _ => self.init_ported(config),
+            _ => self.init_native(config),
         }
     }
 
@@ -138,28 +138,30 @@ impl NativeBehavior {
                 NativeBehaviorState::Sequencer(sequencer::on_input(state, input, context)),
             ),
             (NativeBehavior::Keys, NativeBehaviorState::Keys(state)) => Ok(
-                NativeBehaviorState::Keys(ported::keys_on_input(state, input, context)),
+                NativeBehaviorState::Keys(native_impl::keys_on_input(state, input, context)),
             ),
             (NativeBehavior::Looper, NativeBehaviorState::Looper(state)) => Ok(
-                NativeBehaviorState::Looper(ported::looper_on_input(state, input, context)),
+                NativeBehaviorState::Looper(native_impl::looper_on_input(state, input, context)),
             ),
             (NativeBehavior::Brain, NativeBehaviorState::Brain(state)) => Ok(
-                NativeBehaviorState::Brain(ported::brain_on_input(state, input, context)),
+                NativeBehaviorState::Brain(native_impl::brain_on_input(state, input, context)),
             ),
             (NativeBehavior::Ant, NativeBehaviorState::Ant(state)) => Ok(NativeBehaviorState::Ant(
-                ported::ant_on_input(state, input, context),
+                native_impl::ant_on_input(state, input, context),
             )),
             (NativeBehavior::Bounce, NativeBehaviorState::Bounce(state)) => Ok(
-                NativeBehaviorState::Bounce(ported::bounce_on_input(state, input, context)),
+                NativeBehaviorState::Bounce(native_impl::bounce_on_input(state, input, context)),
             ),
             (NativeBehavior::Shapes, NativeBehaviorState::Shapes(state)) => Ok(
-                NativeBehaviorState::Shapes(ported::shapes_on_input(state, input, context)),
+                NativeBehaviorState::Shapes(native_impl::shapes_on_input(state, input, context)),
             ),
-            (NativeBehavior::Raindrops, NativeBehaviorState::Raindrops(state)) => Ok(
-                NativeBehaviorState::Raindrops(ported::raindrops_on_input(state, input, context)),
-            ),
+            (NativeBehavior::Raindrops, NativeBehaviorState::Raindrops(state)) => {
+                Ok(NativeBehaviorState::Raindrops(
+                    native_impl::raindrops_on_input(state, input, context),
+                ))
+            }
             (NativeBehavior::Dla, NativeBehaviorState::Dla(state)) => Ok(NativeBehaviorState::Dla(
-                ported::dla_on_input(state, input, context),
+                native_impl::dla_on_input(state, input, context),
             )),
             _ => Err(format!("state mismatch for behavior {}", self.id())),
         }
@@ -184,28 +186,28 @@ impl NativeBehavior {
                 NativeBehaviorState::Sequencer(sequencer::on_tick(state, context)),
             ),
             (NativeBehavior::Keys, NativeBehaviorState::Keys(state)) => Ok(
-                NativeBehaviorState::Keys(ported::keys_on_tick(state, context)),
+                NativeBehaviorState::Keys(native_impl::keys_on_tick(state, context)),
             ),
             (NativeBehavior::Looper, NativeBehaviorState::Looper(state)) => Ok(
-                NativeBehaviorState::Looper(ported::looper_on_tick(state, context)),
+                NativeBehaviorState::Looper(native_impl::looper_on_tick(state, context)),
             ),
             (NativeBehavior::Brain, NativeBehaviorState::Brain(state)) => Ok(
-                NativeBehaviorState::Brain(ported::brain_on_tick(state, context)),
+                NativeBehaviorState::Brain(native_impl::brain_on_tick(state, context)),
             ),
             (NativeBehavior::Ant, NativeBehaviorState::Ant(state)) => Ok(NativeBehaviorState::Ant(
-                ported::ant_on_tick(state, context),
+                native_impl::ant_on_tick(state, context),
             )),
             (NativeBehavior::Bounce, NativeBehaviorState::Bounce(state)) => Ok(
-                NativeBehaviorState::Bounce(ported::bounce_on_tick(state, context)),
+                NativeBehaviorState::Bounce(native_impl::bounce_on_tick(state, context)),
             ),
             (NativeBehavior::Shapes, NativeBehaviorState::Shapes(state)) => Ok(
-                NativeBehaviorState::Shapes(ported::shapes_on_tick(state, context)),
+                NativeBehaviorState::Shapes(native_impl::shapes_on_tick(state, context)),
             ),
             (NativeBehavior::Raindrops, NativeBehaviorState::Raindrops(state)) => Ok(
-                NativeBehaviorState::Raindrops(ported::raindrops_on_tick(state, context)),
+                NativeBehaviorState::Raindrops(native_impl::raindrops_on_tick(state, context)),
             ),
             (NativeBehavior::Dla, NativeBehaviorState::Dla(state)) => Ok(NativeBehaviorState::Dla(
-                ported::dla_on_tick(state, context),
+                native_impl::dla_on_tick(state, context),
             )),
             _ => Err(format!("state mismatch for behavior {}", self.id())),
         }
@@ -226,28 +228,28 @@ impl NativeBehavior {
                 Ok(sequencer::render_model(state))
             }
             (NativeBehavior::Keys, NativeBehaviorState::Keys(state)) => {
-                Ok(ported::keys_render_model(state))
+                Ok(native_impl::keys_render_model(state))
             }
             (NativeBehavior::Looper, NativeBehaviorState::Looper(state)) => {
-                Ok(ported::looper_render_model(state))
+                Ok(native_impl::looper_render_model(state))
             }
             (NativeBehavior::Brain, NativeBehaviorState::Brain(state)) => {
-                Ok(ported::brain_render_model(state))
+                Ok(native_impl::brain_render_model(state))
             }
             (NativeBehavior::Ant, NativeBehaviorState::Ant(state)) => {
-                Ok(ported::ant_render_model(state))
+                Ok(native_impl::ant_render_model(state))
             }
             (NativeBehavior::Bounce, NativeBehaviorState::Bounce(state)) => {
-                Ok(ported::bounce_render_model(state))
+                Ok(native_impl::bounce_render_model(state))
             }
             (NativeBehavior::Shapes, NativeBehaviorState::Shapes(state)) => {
-                Ok(ported::shapes_render_model(state))
+                Ok(native_impl::shapes_render_model(state))
             }
             (NativeBehavior::Raindrops, NativeBehaviorState::Raindrops(state)) => {
-                Ok(ported::raindrops_render_model(state))
+                Ok(native_impl::raindrops_render_model(state))
             }
             (NativeBehavior::Dla, NativeBehaviorState::Dla(state)) => {
-                Ok(ported::dla_render_model(state))
+                Ok(native_impl::dla_render_model(state))
             }
             _ => Err(format!("state mismatch for behavior {}", self.id())),
         }
@@ -263,22 +265,26 @@ impl NativeBehavior {
             (NativeBehavior::Sequencer, NativeBehaviorState::Sequencer(state)) => {
                 sequencer::serialize(state)
             }
-            (NativeBehavior::Keys, NativeBehaviorState::Keys(state)) => ported::serialize(state),
-            (NativeBehavior::Looper, NativeBehaviorState::Looper(state)) => {
-                ported::looper_serialize(state)
+            (NativeBehavior::Keys, NativeBehaviorState::Keys(state)) => {
+                native_impl::serialize(state)
             }
-            (NativeBehavior::Brain, NativeBehaviorState::Brain(state)) => ported::serialize(state),
-            (NativeBehavior::Ant, NativeBehaviorState::Ant(state)) => ported::serialize(state),
+            (NativeBehavior::Looper, NativeBehaviorState::Looper(state)) => {
+                native_impl::looper_serialize(state)
+            }
+            (NativeBehavior::Brain, NativeBehaviorState::Brain(state)) => {
+                native_impl::serialize(state)
+            }
+            (NativeBehavior::Ant, NativeBehaviorState::Ant(state)) => native_impl::serialize(state),
             (NativeBehavior::Bounce, NativeBehaviorState::Bounce(state)) => {
-                ported::serialize(state)
+                native_impl::serialize(state)
             }
             (NativeBehavior::Shapes, NativeBehaviorState::Shapes(state)) => {
-                ported::serialize(state)
+                native_impl::serialize(state)
             }
             (NativeBehavior::Raindrops, NativeBehaviorState::Raindrops(state)) => {
-                ported::serialize(state)
+                native_impl::serialize(state)
             }
-            (NativeBehavior::Dla, NativeBehaviorState::Dla(state)) => ported::serialize(state),
+            (NativeBehavior::Dla, NativeBehaviorState::Dla(state)) => native_impl::serialize(state),
             _ => Err(format!("state mismatch for behavior {}", self.id())),
         }
     }
@@ -291,7 +297,7 @@ impl NativeBehavior {
             NativeBehavior::Sequencer => Ok(NativeBehaviorState::Sequencer(
                 sequencer::deserialize(data)?,
             )),
-            _ => self.deserialize_ported(data),
+            _ => self.deserialize_native(data),
         }
     }
 }
