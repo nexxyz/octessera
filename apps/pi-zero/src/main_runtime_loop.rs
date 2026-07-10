@@ -231,7 +231,7 @@ fn shutdown_if_requested(
 }
 
 fn power_pi_system(_request: PiPowerRequest) -> Result<(), String> {
-    #[cfg(feature = "hardware-pi")]
+    #[cfg(feature = "hardware-rpi-zero-2w")]
     {
         let attempts = power_command_attempts(_request);
         let mut errors = Vec::new();
@@ -244,13 +244,13 @@ fn power_pi_system(_request: PiPowerRequest) -> Result<(), String> {
         }
         Err(errors.join("; "))
     }
-    #[cfg(not(feature = "hardware-pi"))]
+    #[cfg(not(feature = "hardware-rpi-zero-2w"))]
     {
         Ok(())
     }
 }
 
-#[cfg(feature = "hardware-pi")]
+#[cfg(feature = "hardware-rpi-zero-2w")]
 fn power_command_attempts(
     request: PiPowerRequest,
 ) -> &'static [(&'static str, &'static [&'static str])] {
@@ -278,7 +278,7 @@ fn power_command_attempts(
     }
 }
 
-#[cfg(all(test, feature = "hardware-pi"))]
+#[cfg(all(test, feature = "hardware-rpi-zero-2w"))]
 mod tests {
     use super::*;
 

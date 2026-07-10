@@ -3,8 +3,14 @@ set -euo pipefail
 
 TARGET="${TARGET:-aarch64-unknown-linux-gnu}"
 PROFILE="${PROFILE:-pi-dev}"
+BOARD_PROFILE="${BOARD_PROFILE:-rpi-zero-2w}"
 OUT_DIR="${OUT_DIR:-target/pi-cross}"
 IMAGE="${IMAGE:-octessera-pi-cross:latest}"
+
+if [ "$BOARD_PROFILE" != "rpi-zero-2w" ]; then
+  echo "unsupported BOARD_PROFILE: $BOARD_PROFILE" >&2
+  exit 2
+fi
 
 docker build -f Dockerfile.pi-zero -t "$IMAGE" .
 docker run --rm \
@@ -17,4 +23,4 @@ docker run --rm \
   -e PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig/ \
   -e PKG_CONFIG_ALLOW_CROSS=1 \
   "$IMAGE" \
-  bash -lc "set -euo pipefail; export PATH=/usr/local/cargo/bin:\$PATH; if command -v rustup >/dev/null 2>&1; then rustup target add '$TARGET'; fi; cargo build --target '$TARGET' --profile '$PROFILE' -p octessera-pi --features hardware-pi; mkdir -p '$OUT_DIR'; cp target/'$TARGET'/'$PROFILE'/octessera-pi '$OUT_DIR'/octessera-pi"
+  bash -lc "set -euo pipefail; export PATH=/usr/local/cargo/bin:\$PATH; if command -v rustup >/dev/null 2>&1; then rustup target add '$TARGET'; fi; cargo build --target '$TARGET' --profile '$PROFILE' -p octessera-pi --features hardware-rpi-zero-2w; mkdir -p '$OUT_DIR'; cp target/'$TARGET'/'$PROFILE'/octessera-pi '$OUT_DIR'/octessera-pi"

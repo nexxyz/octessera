@@ -15,4 +15,5 @@ i2cdev = { version = "0.6", optional = true }
 
 [features]
 default = []
-pi-zero = ["dep:rppal", "dep:spidev", "dep:i2cdev", "dep:libc"]
+rpi-zero-2w = ["dep:rppal", "dep:spidev", "dep:i2cdev", "dep:libc"]
+pi-zero = ["rpi-zero-2w"]

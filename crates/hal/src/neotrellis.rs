@@ -1,69 +1,69 @@
 //! NeoTrellis 8x8 LED matrix driver (4x4 devices x4 chain)
 //! Uses seesaw over I2C.
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 use crate::pinmap::TRELLIS_ADDRS;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 use std::fs::{File, OpenOptions};
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 use std::io::{Read, Write};
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 use std::os::unix::io::AsRawFd;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 use std::thread;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 use std::time::Duration;
 
-#[cfg(not(feature = "pi-zero"))]
+#[cfg(not(feature = "rpi-zero-2w"))]
 use std::fmt;
 
 /// NeoTrellis device (4x4, daisy-chained to make 8x8)
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 pub struct NeoTrellis {
     i2c_path: String,
     devices: [(u16, [u8; 16]); 4],
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_STATUS_BASE: u8 = 0x00;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_HW_ID: u8 = 0x01;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_SW_RESET: u8 = 0x7F;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_KEYPAD_BASE: u8 = 0x10;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_KEYPAD_EVENT: u8 = 0x01;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_KEYPAD_INTENSET: u8 = 0x02;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_KEYPAD_COUNT: u8 = 0x04;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_KEYPAD_FIFO: u8 = 0x10;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_NEOPIXEL_BASE: u8 = 0x0E;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_NEOPIXEL_PIN: u8 = 0x01;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_NEOPIXEL_BUF_LENGTH: u8 = 0x03;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_NEOPIXEL_BUF: u8 = 0x04;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_NEOPIXEL_SHOW: u8 = 0x05;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const TRELLIS_NEOPIXEL_PIN: u8 = 3;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const TRELLIS_PIXELS_PER_DEVICE: usize = 16;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const TRELLIS_PIXEL_BYTES_PER_DEVICE: usize = TRELLIS_PIXELS_PER_DEVICE * 3;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const TRELLIS_LED_CHUNK_BYTES: usize = 24;
-#[cfg(any(feature = "pi-zero", test))]
+#[cfg(any(feature = "rpi-zero-2w", test))]
 const KEYPAD_EDGE_FALLING: u8 = 2;
-#[cfg(any(feature = "pi-zero", test))]
+#[cfg(any(feature = "rpi-zero-2w", test))]
 const KEYPAD_EDGE_RISING: u8 = 3;
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 impl NeoTrellis {
     /// Initialize 4 NeoTrellis devices at the configured addresses.
     pub fn new(i2c_path: &str) -> Result<Self, String> {
@@ -221,7 +221,7 @@ impl NeoTrellis {
     }
 }
 
-#[cfg(any(feature = "pi-zero", test))]
+#[cfg(any(feature = "rpi-zero-2w", test))]
 fn decode_trellis_key_event(key_data: u8) -> Option<(u8, bool)> {
     let edge = key_data & 0x03;
     if !matches!(edge, KEYPAD_EDGE_FALLING | KEYPAD_EDGE_RISING) {
@@ -231,7 +231,7 @@ fn decode_trellis_key_event(key_data: u8) -> Option<(u8, bool)> {
     Some((seesaw_key_to_trellis_key(key_data >> 2), pressed))
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 fn open_device(i2c_path: &str, addr: u16) -> Result<File, String> {
     let file = OpenOptions::new()
         .read(true)
@@ -242,7 +242,7 @@ fn open_device(i2c_path: &str, addr: u16) -> Result<File, String> {
     Ok(file)
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 fn write_register(
     file: &mut File,
     base: u8,
@@ -258,7 +258,7 @@ fn write_register(
         .map_err(|e| format!("{context}: {e}"))
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 fn write_led_buffer_chunks(file: &mut File, data: &[u8]) -> Result<(), String> {
     for offset in (0..data.len()).step_by(TRELLIS_LED_CHUNK_BYTES) {
         let end = (offset + TRELLIS_LED_CHUNK_BYTES).min(data.len());
@@ -276,7 +276,7 @@ fn write_led_buffer_chunks(file: &mut File, data: &[u8]) -> Result<(), String> {
     Ok(())
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 fn enable_keypad_event(file: &mut File, key: u8, edge: u8) -> Result<(), String> {
     let state = 0x01 | (1 << (edge + 1));
     write_register(
@@ -288,17 +288,17 @@ fn enable_keypad_event(file: &mut File, key: u8, edge: u8) -> Result<(), String>
     )
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 fn trellis_key_to_seesaw_key(key: u8) -> u8 {
     ((key / 4) * 8) + (key % 4)
 }
 
-#[cfg(any(feature = "pi-zero", test))]
+#[cfg(any(feature = "rpi-zero-2w", test))]
 fn seesaw_key_to_trellis_key(key: u8) -> u8 {
     ((key / 8) * 4) + (key % 8)
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 fn read_register(
     file: &mut File,
     base: u8,
@@ -313,7 +313,7 @@ fn read_register(
         .map_err(|e| format!("{context}: {e}"))
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 fn set_slave_addr(file: &File, addr: u16) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     unsafe {
@@ -329,12 +329,12 @@ fn set_slave_addr(file: &File, addr: u16) -> Result<(), String> {
 }
 
 /// Stub for non-Pi builds
-#[cfg(not(feature = "pi-zero"))]
+#[cfg(not(feature = "rpi-zero-2w"))]
 pub struct NeoTrellis {
     _private: (),
 }
 
-#[cfg(not(feature = "pi-zero"))]
+#[cfg(not(feature = "rpi-zero-2w"))]
 impl NeoTrellis {
     pub fn new(_i2c_path: &str) -> Result<Self, String> {
         Ok(Self { _private: () })
@@ -349,7 +349,7 @@ impl NeoTrellis {
     }
 }
 
-#[cfg(not(feature = "pi-zero"))]
+#[cfg(not(feature = "rpi-zero-2w"))]
 impl fmt::Debug for NeoTrellis {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "NeoTrellis {{ ... }}")

@@ -1,74 +1,74 @@
 //! SSD1351 OLED driver (128x128, 16-bit color, SPI interface)
 //! For Adafruit 1431 / generic SSD1351 breakout.
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 use rppal::gpio::{Gpio, OutputPin};
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 use spidev::Spidev;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 use std::io::Write;
 
-#[cfg(not(feature = "pi-zero"))]
+#[cfg(not(feature = "rpi-zero-2w"))]
 use std::fmt;
 
 /// SSD1351 commands
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const CMD_SET_COLUMN_ADDR: u8 = 0x15;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const CMD_SET_ROW_ADDR: u8 = 0x75;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const CMD_WRITE_RAM: u8 = 0x5C;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const CMD_DISPLAY_ON: u8 = 0xAF;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const CMD_DISPLAY_OFF: u8 = 0xAE;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const CMD_NORMAL_DISPLAY: u8 = 0xA6;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const CMD_DISPLAY_ALL_ON: u8 = 0xA5;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const CMD_SET_REMAP: u8 = 0xA0;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const CMD_SET_START_LINE: u8 = 0xA1;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const CMD_SET_DISPLAY_OFFSET: u8 = 0xA2;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const CMD_SET_GPIO: u8 = 0xB5;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const CMD_FUNCTION_SELECTION: u8 = 0xAB;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const CMD_SET_PRECHARGE1: u8 = 0xB1;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const CMD_SET_CLOCK_DIV: u8 = 0xB3;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const CMD_SET_VSL: u8 = 0xB4;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const CMD_SET_PRECHARGE2: u8 = 0xB6;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const CMD_SET_PRECHARGE_VOLTAGE: u8 = 0xBB;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const CMD_SET_VCOMH: u8 = 0xBE;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const CMD_SET_CONTRAST: u8 = 0xC1;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const CMD_MASTER_CONTRAST: u8 = 0xC7;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const CMD_SET_MUX_RATIO: u8 = 0xCA;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const CMD_SET_COMMAND_LOCK: u8 = 0xFD;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SPI_CHUNK_BYTES: usize = 4096;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const WIDTH: usize = 128;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const HEIGHT: usize = 128;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const BYTES_PER_PIXEL: usize = 2;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const FRAME_BYTES: usize = WIDTH * HEIGHT * BYTES_PER_PIXEL;
 
 /// OLED display driver
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 pub struct OledSsd1351 {
     spi: Spidev,
     dc: OutputPin,
@@ -76,7 +76,7 @@ pub struct OledSsd1351 {
     rotated_frame: Vec<u8>,
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 impl OledSsd1351 {
     /// Initialize OLED on SPI bus 0
     pub fn new() -> Result<Self, String> {
@@ -210,7 +210,7 @@ impl OledSsd1351 {
     }
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 fn rotate_clockwise_rgb565<'a>(pixels: &'a [u8], rotated: &'a mut [u8]) -> &'a [u8] {
     if pixels.len() != FRAME_BYTES || rotated.len() != FRAME_BYTES {
         return pixels;
@@ -226,7 +226,7 @@ fn rotate_clockwise_rgb565<'a>(pixels: &'a [u8], rotated: &'a mut [u8]) -> &'a [
     rotated
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 fn write_all_chunked(spi: &mut Spidev, data: &[u8]) -> std::io::Result<()> {
     for chunk in data.chunks(SPI_CHUNK_BYTES) {
         spi.write_all(chunk)?;
@@ -234,7 +234,7 @@ fn write_all_chunked(spi: &mut Spidev, data: &[u8]) -> std::io::Result<()> {
     Ok(())
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 fn spi_speed_hz_from_env() -> u32 {
     std::env::var("OCTESSERA_OLED_SPI_SPEED_HZ")
         .ok()
@@ -242,7 +242,7 @@ fn spi_speed_hz_from_env() -> u32 {
         .unwrap_or(16_000_000)
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 fn spi_mode_from_env() -> spidev::SpiModeFlags {
     match std::env::var("OCTESSERA_OLED_SPI_MODE").as_deref() {
         Ok("1") => spidev::SpiModeFlags::SPI_MODE_1,
@@ -253,12 +253,12 @@ fn spi_mode_from_env() -> spidev::SpiModeFlags {
 }
 
 /// Stub for non-Pi builds
-#[cfg(not(feature = "pi-zero"))]
+#[cfg(not(feature = "rpi-zero-2w"))]
 pub struct OledSsd1351 {
     _private: (),
 }
 
-#[cfg(not(feature = "pi-zero"))]
+#[cfg(not(feature = "rpi-zero-2w"))]
 impl OledSsd1351 {
     pub fn new() -> Result<Self, String> {
         Ok(Self { _private: () })
@@ -281,7 +281,7 @@ impl OledSsd1351 {
     }
 }
 
-#[cfg(not(feature = "pi-zero"))]
+#[cfg(not(feature = "rpi-zero-2w"))]
 impl fmt::Debug for OledSsd1351 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "OledSsd1351 {{ ... }}")

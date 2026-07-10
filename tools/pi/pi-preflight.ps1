@@ -1,6 +1,8 @@
 param(
   [string]$Target = "pi@192.168.0.211",
-  [string]$Key = "$env:USERPROFILE\.ssh\octessera_pi_dev"
+  [string]$Key = "$env:USERPROFILE\.ssh\octessera_pi_dev",
+  [ValidateSet("rpi-zero-2w")]
+  [string]$BoardProfile = "rpi-zero-2w"
 )
 
 $ErrorActionPreference = "Stop"

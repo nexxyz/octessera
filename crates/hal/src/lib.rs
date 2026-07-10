@@ -1,6 +1,7 @@
 //! Hardware Abstraction Layer for Octessera
 //! Used by headless Pi Zero 2W binary (and optionally desktop for testing)
 
+pub mod board_profiles;
 pub mod encoder_gpio;
 pub mod i2c_bus;
 pub mod i2s_dac;

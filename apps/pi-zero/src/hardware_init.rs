@@ -17,13 +17,25 @@ pub(crate) struct HardwareDevices {
 
 pub(crate) fn init_hardware() -> Result<HardwareDevices, HardwareFault> {
     let mut fault = HardwareFault::new();
-    let i2c_bus = init_device("I2C", I2CBus::new(1), &mut fault);
+    let i2c_bus = init_device(
+        "I2C",
+        I2CBus::new(octessera_hal::pinmap::I2C_BUS),
+        &mut fault,
+    );
     let mut oled = init_device("OLED", OledSsd1351::new(), &mut fault);
     if let Some(oled) = oled.as_mut().filter(|_| !early_boot_splash_enabled()) {
         crate::render::render_boot_splash(oled);
     }
-    let trellis = init_device("TRELLIS", NeoTrellis::new("/dev/i2c-1"), &mut fault);
-    let neokey = init_device("NEOKEY", NeoKey::new("/dev/i2c-1"), &mut fault);
+    let trellis = init_device(
+        "TRELLIS",
+        NeoTrellis::new(octessera_hal::pinmap::I2C_PATH),
+        &mut fault,
+    );
+    let neokey = init_device(
+        "NEOKEY",
+        NeoKey::new(octessera_hal::pinmap::I2C_PATH),
+        &mut fault,
+    );
     let input_interrupt = init_device("SEESAW_INT", SeesawInterrupt::new(), &mut fault);
     let dac = init_device("DAC", I2sDac::new(), &mut fault);
 

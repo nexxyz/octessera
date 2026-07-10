@@ -6,6 +6,8 @@ param(
   [string]$Service = "octessera.service",
   [string]$LocalBinary = "",
   [string]$BuildProfile = "pi-dev",
+  [ValidateSet("rpi-zero-2w")]
+  [string]$BoardProfile = "rpi-zero-2w",
   [switch]$BuildOnPi,
   [switch]$CleanRemote,
   [switch]$SyncOnly,
@@ -95,7 +97,7 @@ rm -rf "`$SYNC_DIR" '$remoteArchive'
   }
 
   if (-not $SkipBuild) {
-    Invoke-PiSsh "set -e; . `$HOME/.cargo/env; cd '$RemoteRepo'; CARGO_BUILD_JOBS=1 cargo build --profile '$BuildProfile' -p octessera-pi --features hardware-pi; sudo install -d '$InstallDir/releases/dev'; sudo install -m 755 target/$BuildProfile/octessera-pi '$InstallDir/releases/dev/octessera-pi'"
+    Invoke-PiSsh "set -e; . `$HOME/.cargo/env; cd '$RemoteRepo'; CARGO_BUILD_JOBS=1 cargo build --profile '$BuildProfile' -p octessera-pi --features hardware-rpi-zero-2w; sudo install -d '$InstallDir/releases/dev'; sudo install -m 755 target/$BuildProfile/octessera-pi '$InstallDir/releases/dev/octessera-pi'"
   }
 }
 

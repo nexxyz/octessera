@@ -1,17 +1,17 @@
 //! I2S PCM5102 DAC driver for Raspberry Pi Zero 2W
 //! Hardware abstraction - actual audio output is in the Pi app via rodio
 
-#[cfg(not(feature = "pi-zero"))]
+#[cfg(not(feature = "rpi-zero-2w"))]
 use std::fmt;
 
 /// I2S DAC wrapper - stub for non-Pi builds
 /// Actual audio output uses rodio in the Pi-Zero app
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 pub struct I2sDac {
     // Placeholder - actual implementation in apps/pi-zero with rodio
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 impl I2sDac {
     /// Initialize I2S DAC
     pub fn new() -> Result<Self, String> {
@@ -35,12 +35,12 @@ impl I2sDac {
 }
 
 /// Stub for non-Pi builds
-#[cfg(not(feature = "pi-zero"))]
+#[cfg(not(feature = "rpi-zero-2w"))]
 pub struct I2sDac {
     _private: (),
 }
 
-#[cfg(not(feature = "pi-zero"))]
+#[cfg(not(feature = "rpi-zero-2w"))]
 impl I2sDac {
     pub fn new() -> Result<Self, String> {
         Ok(Self { _private: () })
@@ -57,7 +57,7 @@ impl I2sDac {
     }
 }
 
-#[cfg(not(feature = "pi-zero"))]
+#[cfg(not(feature = "rpi-zero-2w"))]
 impl fmt::Debug for I2sDac {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "I2sDac {{ ... }}")

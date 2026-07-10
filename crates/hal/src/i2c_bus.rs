@@ -1,22 +1,22 @@
 //! Shared I2C bus manager for NeoTrellis + NeoKey (seesaw devices)
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 use std::fs::{File, OpenOptions};
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 use std::io::{Read, Write};
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 use std::os::unix::io::AsRawFd;
 
-#[cfg(not(feature = "pi-zero"))]
+#[cfg(not(feature = "rpi-zero-2w"))]
 use std::fmt;
 
 /// I2C bus wrapper for Pi Zero 2W
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 pub struct I2CBus {
     bus_path: String,
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 impl I2CBus {
     /// Open I2C bus (e.g., bus=1 opens /dev/i2c-1)
     pub fn new(bus: u8) -> Result<Self, String> {
@@ -70,7 +70,7 @@ impl I2CBus {
     }
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 fn set_slave_addr(file: &File, addr: u16) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     {
@@ -86,12 +86,12 @@ fn set_slave_addr(file: &File, addr: u16) -> Result<(), String> {
 }
 
 /// Stub for non-Pi builds
-#[cfg(not(feature = "pi-zero"))]
+#[cfg(not(feature = "rpi-zero-2w"))]
 pub struct I2CBus {
     _private: (),
 }
 
-#[cfg(not(feature = "pi-zero"))]
+#[cfg(not(feature = "rpi-zero-2w"))]
 impl I2CBus {
     pub fn new(_bus: u8) -> Result<Self, String> {
         Ok(Self { _private: () })
@@ -107,7 +107,7 @@ impl I2CBus {
     }
 }
 
-#[cfg(not(feature = "pi-zero"))]
+#[cfg(not(feature = "rpi-zero-2w"))]
 impl fmt::Debug for I2CBus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "I2CBus {{ ... }}")

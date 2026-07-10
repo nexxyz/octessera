@@ -1,15 +1,15 @@
 //! Rotary encoder input via GPIO (quadrature + push switch)
 //! Uses rppal for interrupt-driven decoding on Pi Zero 2W
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 use rppal::gpio::{Event, Gpio, InputPin, Level, Trigger};
 use std::sync::mpsc::Sender;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 use std::sync::{Arc, Mutex};
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 use std::time::{Duration, Instant};
 
-#[cfg(not(feature = "pi-zero"))]
+#[cfg(not(feature = "rpi-zero-2w"))]
 use std::fmt;
 
 /// Hardware event from encoders
@@ -19,11 +19,11 @@ pub enum HardwareEvent {
     EncoderPress { id: &'static str },
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SWITCH_DEBOUNCE_MS: u64 = 45;
 
 /// Rotary encoder with GPIO interrupt handling
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 pub struct EncoderGpio {
     _id: &'static str,
     _a: InputPin,
@@ -33,15 +33,15 @@ pub struct EncoderGpio {
     _tx: Sender<HardwareEvent>,
 }
 
-#[cfg(any(feature = "pi-zero", test))]
+#[cfg(any(feature = "rpi-zero-2w", test))]
 struct QuadratureState {
     last: u8,
     accum: i8,
 }
 
-#[cfg(any(feature = "pi-zero", test))]
+#[cfg(any(feature = "rpi-zero-2w", test))]
 impl QuadratureState {
-    #[cfg(feature = "pi-zero")]
+    #[cfg(feature = "rpi-zero-2w")]
     fn new(a: Level, b: Level) -> Self {
         Self::new_bits(levels_to_bits(a, b))
     }
@@ -83,7 +83,7 @@ impl QuadratureState {
     }
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 impl EncoderGpio {
     /// Create new encoder on given pins (A, B, Switch)
     pub fn new(
@@ -164,12 +164,12 @@ impl EncoderGpio {
     }
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 fn levels_to_bits(a: Level, b: Level) -> u8 {
     (level_bit(a) << 1) | level_bit(b)
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 fn level_bit(level: Level) -> u8 {
     match level {
         Level::Low => 0,
@@ -177,7 +177,7 @@ fn level_bit(level: Level) -> u8 {
     }
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 fn event_bit(event: Event) -> u8 {
     match event.trigger {
         Trigger::RisingEdge => 1,
@@ -187,12 +187,12 @@ fn event_bit(event: Event) -> u8 {
 }
 
 /// Stub for non-Pi builds
-#[cfg(not(feature = "pi-zero"))]
+#[cfg(not(feature = "rpi-zero-2w"))]
 pub struct EncoderGpio {
     _private: (),
 }
 
-#[cfg(not(feature = "pi-zero"))]
+#[cfg(not(feature = "rpi-zero-2w"))]
 impl EncoderGpio {
     pub fn new(
         _id: &'static str,
@@ -203,7 +203,7 @@ impl EncoderGpio {
     }
 }
 
-#[cfg(not(feature = "pi-zero"))]
+#[cfg(not(feature = "rpi-zero-2w"))]
 impl fmt::Debug for EncoderGpio {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "EncoderGpio {{ ... }}")

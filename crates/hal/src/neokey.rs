@@ -1,70 +1,70 @@
 //! NeoKey 1x4 button + LED driver
 //! Uses seesaw over I2C.
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 use crate::pinmap::NEOKEY_ADDR;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 use std::fs::{File, OpenOptions};
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 use std::io::{Read, Write};
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 use std::os::unix::io::AsRawFd;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 use std::thread;
-#[cfg(any(feature = "pi-zero", test))]
+#[cfg(any(feature = "rpi-zero-2w", test))]
 use std::time::{Duration, Instant};
 
-#[cfg(not(feature = "pi-zero"))]
+#[cfg(not(feature = "rpi-zero-2w"))]
 use std::fmt;
 
 /// NeoKey 1x4 device
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 pub struct NeoKey {
     i2c_path: String,
     addr: u16,
     debouncer: NeoKeyDebouncer,
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_STATUS_BASE: u8 = 0x00;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_HW_ID: u8 = 0x01;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_SW_RESET: u8 = 0x7F;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_GPIO_BASE: u8 = 0x01;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_GPIO_DIRCLR_BULK: u8 = 0x03;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_GPIO_BULK: u8 = 0x04;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_GPIO_BULK_SET: u8 = 0x05;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_GPIO_INTENSET: u8 = 0x08;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_GPIO_INTFLAG: u8 = 0x0A;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_GPIO_PULLENSET: u8 = 0x0B;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_NEOPIXEL_BASE: u8 = 0x0E;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_NEOPIXEL_PIN: u8 = 0x01;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_NEOPIXEL_BUF_LENGTH: u8 = 0x03;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_NEOPIXEL_BUF: u8 = 0x04;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const SEESAW_NEOPIXEL_SHOW: u8 = 0x05;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const NEOKEY_BUTTON_MASK: u32 = 0xF0;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const NEOKEY_NEOPIXEL_PIN: u8 = 3;
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 const NEOKEY_LED_BYTES: u16 = 12;
-#[cfg(any(feature = "pi-zero", test))]
+#[cfg(any(feature = "rpi-zero-2w", test))]
 const NEOKEY_DEBOUNCE: Duration = Duration::from_millis(24);
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 impl NeoKey {
     /// Initialize NeoKey at the configured address.
     pub fn new(i2c_path: &str) -> Result<Self, String> {
@@ -222,14 +222,14 @@ impl NeoKey {
 }
 
 #[derive(Clone, Default)]
-#[cfg(any(feature = "pi-zero", test))]
+#[cfg(any(feature = "rpi-zero-2w", test))]
 struct NeoKeyDebouncer {
     stable: [bool; 4],
     candidate: [bool; 4],
     candidate_since: [Option<Instant>; 4],
 }
 
-#[cfg(any(feature = "pi-zero", test))]
+#[cfg(any(feature = "rpi-zero-2w", test))]
 impl NeoKeyDebouncer {
     fn update(&mut self, sampled: [bool; 4], now: Instant) -> [bool; 4] {
         for (index, pressed) in sampled.into_iter().enumerate() {
@@ -256,7 +256,7 @@ impl NeoKeyDebouncer {
     }
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 fn neokey_buttons_from_raw(raw: u32) -> [bool; 4] {
     let state = raw & NEOKEY_BUTTON_MASK;
     [
@@ -267,7 +267,7 @@ fn neokey_buttons_from_raw(raw: u32) -> [bool; 4] {
     ]
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 fn open_device(i2c_path: &str, addr: u16) -> Result<File, String> {
     let file = OpenOptions::new()
         .read(true)
@@ -278,7 +278,7 @@ fn open_device(i2c_path: &str, addr: u16) -> Result<File, String> {
     Ok(file)
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 fn write_register(
     file: &mut File,
     base: u8,
@@ -294,7 +294,7 @@ fn write_register(
         .map_err(|e| format!("{context}: {e}"))
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 fn read_register(
     file: &mut File,
     base: u8,
@@ -309,7 +309,7 @@ fn read_register(
         .map_err(|e| format!("{context}: {e}"))
 }
 
-#[cfg(feature = "pi-zero")]
+#[cfg(feature = "rpi-zero-2w")]
 fn set_slave_addr(file: &File, addr: u16) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     unsafe {
@@ -325,12 +325,12 @@ fn set_slave_addr(file: &File, addr: u16) -> Result<(), String> {
 }
 
 /// Stub for non-Pi builds
-#[cfg(not(feature = "pi-zero"))]
+#[cfg(not(feature = "rpi-zero-2w"))]
 pub struct NeoKey {
     _private: (),
 }
 
-#[cfg(not(feature = "pi-zero"))]
+#[cfg(not(feature = "rpi-zero-2w"))]
 impl NeoKey {
     pub fn new(_i2c_path: &str) -> Result<Self, String> {
         Ok(Self { _private: () })
@@ -353,7 +353,7 @@ impl NeoKey {
     }
 }
 
-#[cfg(not(feature = "pi-zero"))]
+#[cfg(not(feature = "rpi-zero-2w"))]
 impl fmt::Debug for NeoKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "NeoKey {{ ... }}")
