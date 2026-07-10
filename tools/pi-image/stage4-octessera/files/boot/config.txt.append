@@ -1,4 +1,4 @@
-# Octessera hardware configuration
+# octessera hardware configuration
 # Enable I2C, SPI, and playback-only I2S for PCM5102 DAC
 [all]
 dtparam=i2c_arm=on

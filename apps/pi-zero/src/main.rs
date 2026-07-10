@@ -41,7 +41,7 @@ fn main() {
 
     run_requested_utility();
 
-    println!("Octessera - Pi native runtime");
+    println!("octessera - Pi native runtime");
 
     let hardware = match init_hardware() {
         Ok(devices) => devices,

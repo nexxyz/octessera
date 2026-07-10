@@ -1,5 +1,5 @@
 [Unit]
-Description=Octessera Pi Zero 2W Headless Music System
+Description=octessera Pi Zero 2W Headless Music System
 After=sound.target
 
 [Service]

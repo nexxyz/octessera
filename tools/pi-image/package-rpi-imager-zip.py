@@ -59,8 +59,8 @@ def build_manifest(
         },
         "os_list": [
             {
-                "name": f"Octessera {version} for Raspberry Pi Zero 2 W",
-                "description": "Ready-to-flash Raspberry Pi OS Lite image with Octessera hardware services preinstalled. Uses Imager systemd first-run customization for SSH, user, hostname, and Wi-Fi.",
+                "name": f"octessera {version} for Raspberry Pi Zero 2 W",
+                "description": "Ready-to-flash Raspberry Pi OS Lite image with octessera hardware services preinstalled. Uses Imager systemd first-run customization for SSH, user, hostname, and Wi-Fi.",
                 "url": image_url,
                 "icon": icon_url,
                 "website": "https://github.com/nexxyz/octessera",
@@ -136,13 +136,13 @@ def package_manifest(args: argparse.Namespace) -> dict:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Add a Raspberry Pi Imager manifest to an Octessera Pi image ZIP.")
+    parser = argparse.ArgumentParser(description="Add a Raspberry Pi Imager manifest to an octessera Pi image ZIP.")
     parser.add_argument("--zip", required=True, help="Pi image ZIP to update in place")
     parser.add_argument("--version", required=True, help="Release version without leading v")
     parser.add_argument("--tag", required=True, help="Release tag, for example v0.5.1")
     parser.add_argument("--repository", required=True, help="GitHub repository owner/name")
     parser.add_argument("--manifest-out", help="Path for a standalone copy of the generated manifest")
-    parser.add_argument("--icon-url", help="Manifest icon URL. Defaults to the tagged Octessera logo asset.")
+    parser.add_argument("--icon-url", help="Manifest icon URL. Defaults to the tagged octessera logo asset.")
     parser.add_argument("--release-date", help="Release date in YYYY-MM-DD. Defaults to today.")
     args = parser.parse_args()
     package_manifest(args)

@@ -88,7 +88,7 @@ Octessera is a pnpm workspace plus Cargo workspace built around a native Rust co
 - Verification: `corepack pnpm run typecheck`, `corepack pnpm -r test`, `corepack pnpm -r lint`, `corepack pnpm -r format:check`, `corepack pnpm run quality:audit`
 - Rust checks: `cargo fmt --all --check`, `cargo test -p platform-core -p playback-runtime -p realtime-engine -p octessera-desktop`, `cargo clippy -p platform-core -p playback-runtime -p realtime-engine -p octessera-desktop --all-targets -- -D warnings`
 - Desktop build smoke check: `corepack pnpm --filter @octessera/desktop tauri:build:ci`
-- Portable desktop exe: `corepack pnpm --filter @octessera/desktop tauri:build:exe` writes `apps/desktop/dist-desktop/Octessera.exe`
+- Portable desktop exe: `corepack pnpm --filter @octessera/desktop tauri:build:exe` writes `apps/desktop/dist-desktop/octessera.exe`
 - Capabilities: `corepack pnpm run capabilities:generate`, `corepack pnpm run capabilities:check`
 - Default configs: `corepack pnpm run config:generate`, `corepack pnpm run config:check`
 - Windows Pi builds use HAL stubs by default; real Pi builds use `-p octessera-pi --features hardware-pi` or the cross-build workflow.

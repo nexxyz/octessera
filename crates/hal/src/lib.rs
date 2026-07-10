@@ -1,4 +1,4 @@
-//! Hardware Abstraction Layer for Octessera
+//! Hardware Abstraction Layer for octessera
 //! Used by headless Pi Zero 2W binary (and optionally desktop for testing)
 
 pub mod board_profiles;

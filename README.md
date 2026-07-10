@@ -1,4 +1,4 @@
-# Octessera
+# octessera
 
 Octessera turns cellular automata into music you can play.
 

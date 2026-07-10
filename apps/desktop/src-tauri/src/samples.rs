@@ -140,7 +140,7 @@ fn resolve_user_samples_root() -> Result<PathBuf, String> {
 
 fn user_data_dir() -> Result<PathBuf, String> {
     if let Some(appdata) = std::env::var_os("APPDATA") {
-        return Ok(PathBuf::from(appdata).join("Octessera"));
+        return Ok(PathBuf::from(appdata).join("octessera"));
     }
     if let Some(home) = std::env::var_os("HOME") {
         return Ok(PathBuf::from(home)

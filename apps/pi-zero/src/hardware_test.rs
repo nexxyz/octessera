@@ -28,7 +28,7 @@ pub(crate) fn noise_requested() -> bool {
 }
 
 pub(crate) fn run_noise_only() -> bool {
-    println!("Octessera no-touch hardware noise test mode");
+    println!("octessera no-touch hardware noise test mode");
     let options = NoiseTestOptions::from_args();
     let _i2c = match I2CBus::new(1) {
         Ok(bus) => bus,
@@ -93,7 +93,7 @@ impl NoiseTestOptions {
 }
 
 pub(crate) fn run() -> bool {
-    println!("Octessera hardware test mode");
+    println!("octessera hardware test mode");
     let _i2c = match I2CBus::new(1) {
         Ok(bus) => bus,
         Err(error) => return fail(format!("I2C init failed: {error}")),

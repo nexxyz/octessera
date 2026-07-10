@@ -24,13 +24,13 @@ require_executable() {
 }
 
 require_boot_config_marker() {
-    if grep -q 'Octessera additions' "$WORK_DIR/boot/config.txt" 2>/dev/null; then
+    if grep -q 'octessera additions' "$WORK_DIR/boot/config.txt" 2>/dev/null; then
         return
     fi
-    if grep -q 'Octessera additions' "$WORK_DIR/root/boot/firmware/config.txt" 2>/dev/null; then
+    if grep -q 'octessera additions' "$WORK_DIR/root/boot/firmware/config.txt" 2>/dev/null; then
         return
     fi
-    echo "Sanitation check failed: missing Octessera boot config marker" >&2
+    echo "Sanitation check failed: missing octessera boot config marker" >&2
     exit 1
 }
 

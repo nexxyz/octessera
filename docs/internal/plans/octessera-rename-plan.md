@@ -1,4 +1,4 @@
-# Octessera Rename Status
+# octessera rename status
 
 The Octessera rename is executed on the `octessera-rename` branch. Rollback is
 the annotated tag `pre-octessera-rename`.
@@ -9,10 +9,10 @@ project-owned path fallbacks.
 
 ## Final Names
 
-- Product, device, and app name: `Octessera`.
+- Product, device, and app name: `octessera`.
 - Repository name: `octessera`.
 - User-facing binaries: `octessera-pi`, `octessera-desktop`, and
-  `Octessera.exe`.
+  `octessera.exe`.
 - Pi systemd services: `octessera.service`, `octessera-boot-splash.service`,
   `octessera-oled-shutdown.service`, and
   `octessera-performance-governor.service`.
@@ -56,7 +56,7 @@ Run before merging or releasing:
 - `corepack pnpm -r format:check`;
 - `corepack pnpm run quality:audit`;
 - `cargo fmt --all --check`;
-- relevant Rust tests and clippy using Octessera package names;
+- relevant Rust tests and clippy using octessera package names;
 - Pi cross-build;
 - desktop portable executable build;
 - Pi deploy smoke test when hardware is available.
@@ -66,5 +66,5 @@ Also verify:
 - no prior project names remain in tracked content or filenames;
 - no fallback imports, package aliases, service aliases, old binary wrappers, or
   project-owned old path fallbacks remain;
-- release artifacts use Octessera names after source regeneration;
+- release artifacts use octessera names after source regeneration;
 - package lockfile and Cargo lockfile changes are intentional.

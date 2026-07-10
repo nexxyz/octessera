@@ -1,5 +1,5 @@
 [Unit]
-Description=Octessera Performance CPU Governor
+Description=octessera Performance CPU Governor
 Before=octessera.service
 
 [Service]

@@ -121,14 +121,14 @@ Fallback on-Pi build:
 
 ## Release Image
 
-Explicit GitHub releases include a ready-to-flash Pi Zero 2 W image named `Octessera-<version>-pi-zero-2w.img.zip`.
+Explicit GitHub releases include a ready-to-flash Pi Zero 2 W image named `octessera-<version>-pi-zero-2w.img.zip`.
 
 The image is derived from standard Raspberry Pi OS Bookworm arm64 through pi-gen and includes:
 
 - the release `octessera-pi` binary built with `--release --features hardware-pi`;
 - `octessera.service` and the performance governor service;
 - runtime audio/I2C/SPI dependencies;
-- Octessera boot config and the `i2s-dac-no20` overlay;
+- octessera boot config and the `i2s-dac-no20` overlay;
 - empty `/home/pi/samples` and `/home/pi/presets` directories.
 
 The release image must not include WiFi credentials, SSH keys, GitHub tokens, host logs, or local user secrets. SSH is disabled by default. Configure network access after first boot if you need SSH for setup.

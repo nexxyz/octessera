@@ -49,7 +49,7 @@ export function App() {
 
   return (
     <main className="app-shell" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
-      <header className="bar">Octessera Hardware Simulator</header>
+      <header className="bar">octessera hardware simulator</header>
       <section className="panel-layout">
         <ControlsPanel
           dialPhase={dialPhase}

@@ -1,4 +1,4 @@
-//! Pin mapping for Octessera hardware on Pi Zero 2W
+//! Pin mapping for octessera hardware on Pi Zero 2W
 
 pub use crate::board_profiles::EncoderPins;
 

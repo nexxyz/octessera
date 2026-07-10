@@ -1,5 +1,5 @@
 [Unit]
-Description=Octessera Late OLED Shutdown
+Description=octessera Late OLED Shutdown
 
 [Service]
 Type=oneshot

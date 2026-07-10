@@ -124,7 +124,7 @@ ensure_boot_config_line "camera_auto_detect=0"
 ensure_boot_config_line "display_auto_detect=0"
 ensure_boot_config_line "dtoverlay=disable-bt"
 if [ "$UPDATE_INITRAMFS" = "1" ]; then
-if ! grep -qxF "# Octessera required boot settings" "$BOOT_CONFIG"; then printf '\n[all]\n# Octessera required boot settings\ndtparam=spi=on\nauto_initramfs=1\n' | sudo tee -a "$BOOT_CONFIG" >/dev/null; fi
+if ! grep -qxF "# octessera required boot settings" "$BOOT_CONFIG" && ! grep -qxF "# Octessera required boot settings" "$BOOT_CONFIG"; then printf '\n[all]\n# octessera required boot settings\ndtparam=spi=on\nauto_initramfs=1\n' | sudo tee -a "$BOOT_CONFIG" >/dev/null; fi
 if ! command -v update-initramfs >/dev/null 2>&1; then
   sudo apt-get update
   sudo apt-get install -y --no-install-recommends initramfs-tools
@@ -202,12 +202,50 @@ pi ALL=(root) NOPASSWD: /usr/bin/systemctl poweroff, /bin/systemctl poweroff, /u
 EOF
 sudo chmod 0440 /etc/sudoers.d/octessera-shutdown
 sudo visudo -cf /etc/sudoers.d/octessera-shutdown >/dev/null
+sudo install -d -m 0755 /etc/profile.d
+sudo tee /etc/profile.d/octessera-welcome.sh >/dev/null <<'EOF'
+case $- in
+    *i*) ;;
+    *) return 0 ;;
+esac
+
+if [ -n "${OCTESSERA_WELCOME_SHOWN:-}" ]; then
+    return 0
+fi
+export OCTESSERA_WELCOME_SHOWN=1
+
+if [ ! -t 1 ]; then
+    return 0
+fi
+
+cat <<'EOM'
+                          ████    ████
+                         █████   ██████
+                       ███     ███    ███
+                     ████    ████       ████
+                   ████    ████   ████    ████
+                   ████    ████   ████    ████
+                      ███       ████    ███
+                        ████   ███    ████
+                          ██████   █████
+                           ████    ████
+
+      █████ █████ ██████ █████ █████ █████ █████ █████ █████
+      █   █ █       ██   █     █     █     █     █   █ █   █
+      █   █ █       ██   █████ █████ █████ █████ █████ █████
+      █   █ █       ██   █         █     █ █     █  ██ █   █
+      █████ █████   ██   █████ █████ █████ █████ █   █ █   █
+EOM
+printf '\n  cellular automata -> music\n'
+printf '  service: systemctl status octessera\n'
+printf '  logs:    journalctl -u octessera -f\n\n'
+EOF
 sudo systemctl restart systemd-journald
 disable_service_if_present bluetooth.service
 disable_service_if_present hciuart.service
 sudo tee /etc/systemd/system/octessera-performance-governor.service >/dev/null <<'EOF'
 [Unit]
-Description=Octessera Performance CPU Governor
+Description=octessera Performance CPU Governor
 Before=octessera.service
 
 [Service]
@@ -220,7 +258,7 @@ WantedBy=multi-user.target
 EOF
 sudo tee /etc/systemd/system/octessera-oled-shutdown.service >/dev/null <<'EOF'
 [Unit]
-Description=Octessera Late OLED Shutdown
+Description=octessera Late OLED Shutdown
 
 [Service]
 Type=oneshot
@@ -243,7 +281,7 @@ Invoke-PiSsh $osConfigCommand
 
 $serviceCommand = "set -e; sudo install -d '$InstallDir'; sudo ln -sfn '$InstallDir/releases/dev' '$InstallDir/current'; sudo ln -sfn '$InstallDir/current/octessera-pi' /usr/local/bin/octessera-pi; sudo tee /etc/systemd/system/octessera-boot-splash.service >/dev/null <<'EOF'
 [Unit]
-Description=Octessera Early OLED Boot Splash
+Description=octessera Early OLED Boot Splash
 DefaultDependencies=no
 After=systemd-modules-load.service systemd-udevd.service
 Before=sysinit.target octessera.service
@@ -260,7 +298,7 @@ WantedBy=sysinit.target
 EOF
 sudo tee /etc/systemd/system/$Service >/dev/null <<'EOF'
 [Unit]
-Description=Octessera Pi Zero 2W Headless Music System
+Description=octessera Pi Zero 2W Headless Music System
 After=sound.target
 
 [Service]

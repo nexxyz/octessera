@@ -1,6 +1,6 @@
 # Branding assets
 
-This project uses the Octessera mark and wordmark across hardware docs, PCB silkscreen, enclosure CAD, Pi splash screens, Raspberry Pi Imager metadata, and the desktop hardware simulator icon.
+This project uses the octessera mark and wordmark across hardware docs, PCB silkscreen, enclosure CAD, Pi splash screens, Raspberry Pi Imager metadata, and the desktop hardware simulator icon.
 
 ## Source assets
 

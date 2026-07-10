@@ -11,7 +11,7 @@ fi
 if [ -f "$STAGE_FILES/boot/config.txt.append" ]; then
     {
         echo ""
-        echo "# --- Octessera additions ---"
+        echo "# --- octessera additions ---"
         cat "$STAGE_FILES/boot/config.txt.append"
     } >> "$BOOT_DIR/config.txt"
 fi

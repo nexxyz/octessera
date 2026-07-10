@@ -1,10 +1,10 @@
 #!/bin/bash
-# Deploy Octessera to Pi Zero 2W
+# Deploy octessera to Pi Zero 2W
 # Run this script ON the Pi after copying the repo
 
 set -e
 
-echo "=== Octessera Pi Deployment ==="
+echo "=== octessera Pi Deployment ==="
 
 # Install system dependencies
 echo "Installing system dependencies..."
@@ -115,6 +115,45 @@ Storage=volatile
 RuntimeMaxUse=32M
 RuntimeMaxFileSize=4M
 EOL
+
+sudo install -d -m 0755 /etc/profile.d
+sudo tee /etc/profile.d/octessera-welcome.sh > /dev/null <<'EOL'
+case $- in
+    *i*) ;;
+    *) return 0 ;;
+esac
+
+if [ -n "${OCTESSERA_WELCOME_SHOWN:-}" ]; then
+    return 0
+fi
+export OCTESSERA_WELCOME_SHOWN=1
+
+if [ ! -t 1 ]; then
+    return 0
+fi
+
+cat <<'EOF'
+                          ████    ████
+                         █████   ██████
+                       ███     ███    ███
+                     ████    ████       ████
+                   ████    ████   ████    ████
+                   ████    ████   ████    ████
+                      ███       ████    ███
+                        ████   ███    ████
+                          ██████   █████
+                           ████    ████
+
+      █████ █████ ██████ █████ █████ █████ █████ █████ █████
+      █   █ █       ██   █     █     █     █     █   █ █   █
+      █   █ █       ██   █████ █████ █████ █████ █████ █████
+      █   █ █       ██   █         █     █ █     █  ██ █   █
+      █████ █████   ██   █████ █████ █████ █████ █   █ █   █
+EOF
+printf '\n  cellular automata -> music\n'
+printf '  service: systemctl status octessera\n'
+printf '  logs:    journalctl -u octessera -f\n\n'
+EOL
 sudo systemctl restart systemd-journald
 
 # Disable Bluetooth services when present
@@ -122,7 +161,7 @@ disable_service_if_present bluetooth.service
 disable_service_if_present hciuart.service
 
 # Build natively on Pi (simpler than cross-compilation)
-echo "Building Octessera for Pi..."
+echo "Building octessera for Pi..."
 cd /home/pi/octessera
 cargo build --release -p octessera-pi --features hardware-pi
 
@@ -130,7 +169,7 @@ cargo build --release -p octessera-pi --features hardware-pi
 echo "Creating systemd service..."
 sudo tee /etc/systemd/system/octessera.service > /dev/null <<EOL
 [Unit]
-Description=Octessera Pi Zero 2W
+Description=octessera Pi Zero 2W
 After=sound.target
 
 [Service]
@@ -150,7 +189,7 @@ EOL
 
 sudo tee /etc/systemd/system/octessera-performance-governor.service > /dev/null <<'EOL'
 [Unit]
-Description=Octessera Performance CPU Governor
+Description=octessera Performance CPU Governor
 Before=octessera.service
 
 [Service]
