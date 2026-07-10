@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import argparse
 import json
 import zipfile
+from collections import Counter
 from pathlib import Path
 
 import cadquery as cq
@@ -16,6 +18,62 @@ ARTIFACT_ROOT = ROOT.parent.parent / "release-artifacts" / "enclosure"
 THREEMF_ROOT = ARTIFACT_ROOT / "3mf-multicolor"
 TOLERANCE = 0.04
 FLUSH_DEPTH = 0.65
+
+
+def vertex_key(vertex: cq.Vector) -> tuple[int, int, int]:
+    return (
+        round(vertex.x * 1_000_000),
+        round(vertex.y * 1_000_000),
+        round(vertex.z * 1_000_000),
+    )
+
+
+def triangle_area_sq(
+    vertices: list[cq.Vector],
+    triangle: tuple[int, int, int],
+) -> float:
+    a, b, c = (vertices[index] for index in triangle)
+    ab = (b.x - a.x, b.y - a.y, b.z - a.z)
+    ac = (c.x - a.x, c.y - a.y, c.z - a.z)
+    cross = (
+        ab[1] * ac[2] - ab[2] * ac[1],
+        ab[2] * ac[0] - ab[0] * ac[2],
+        ab[0] * ac[1] - ab[1] * ac[0],
+    )
+    return cross[0] * cross[0] + cross[1] * cross[1] + cross[2] * cross[2]
+
+
+def add_indexed_mesh(
+    mesh_vertices: list[cq.Vector],
+    mesh_triangles: list[tuple[int, int, int]],
+    vertices: list[cq.Vector],
+    vertex_indices: dict[tuple[int, int, int], int],
+    triangles: list[tuple[int, int, int]],
+) -> None:
+    for triangle in mesh_triangles:
+        if triangle_area_sq(mesh_vertices, triangle) < 1e-18:
+            continue
+        indices = []
+        for source_index in triangle:
+            vertex = mesh_vertices[source_index]
+            key = vertex_key(vertex)
+            if key not in vertex_indices:
+                vertex_indices[key] = len(vertices)
+                vertices.append(vertex)
+            indices.append(vertex_indices[key])
+        if len(set(indices)) == 3:
+            triangles.append((indices[0], indices[1], indices[2]))
+
+
+def assert_manifold_edges(name: str, triangles: list[tuple[int, int, int]]) -> None:
+    edge_counts: Counter[tuple[int, int]] = Counter()
+    for a, b, c in triangles:
+        for edge in ((a, b), (b, c), (c, a)):
+            low, high = sorted(edge)
+            edge_counts[(low, high)] += 1
+    bad_edges = [edge for edge, count in edge_counts.items() if count != 2]
+    if bad_edges:
+        raise ValueError(f"{name} has {len(bad_edges)} non-manifold 3MF edges after indexing")
 
 
 def translated(parts: list[cq.Workplane], z: float) -> list[cq.Workplane]:
@@ -36,21 +94,16 @@ def compound(parts: list[cq.Workplane]) -> cq.Workplane:
     return cq.Workplane("XY").add(cq.Compound.makeCompound(solids))
 
 
-def mesh_xml(model: cq.Workplane) -> tuple[str, int]:
-    vertices_xml = []
-    triangles_xml = []
-    vertex_offset = 0
+def mesh_xml(name: str, model: cq.Workplane) -> tuple[str, int]:
+    vertices: list[cq.Vector] = []
+    vertex_indices: dict[tuple[int, int, int], int] = {}
+    triangles: list[tuple[int, int, int]] = []
     for solid in model.solids().vals():
-        vertices, triangles = solid.tessellate(TOLERANCE)
-        for vertex in vertices:
-            vertices_xml.append(
-                f'<vertex x="{vertex.x:.6f}" y="{vertex.y:.6f}" z="{vertex.z:.6f}" />'
-            )
-        for a, b, c in triangles:
-            triangles_xml.append(
-                f'<triangle v1="{a + vertex_offset}" v2="{b + vertex_offset}" v3="{c + vertex_offset}" />'
-            )
-        vertex_offset += len(vertices)
+        mesh_vertices, mesh_triangles = solid.tessellate(TOLERANCE)
+        add_indexed_mesh(mesh_vertices, mesh_triangles, vertices, vertex_indices, triangles)
+    assert_manifold_edges(name, triangles)
+    vertices_xml = [f'<vertex x="{vertex.x:.6f}" y="{vertex.y:.6f}" z="{vertex.z:.6f}" />' for vertex in vertices]
+    triangles_xml = [f'<triangle v1="{a}" v2="{b}" v3="{c}" />' for a, b, c in triangles]
     return (
         "<mesh><vertices>"
         + "".join(vertices_xml)
@@ -61,8 +114,8 @@ def mesh_xml(model: cq.Workplane) -> tuple[str, int]:
 
 
 def object_model_xml(body: cq.Workplane, marking: cq.Workplane) -> tuple[str, int, int]:
-    body_mesh, body_faces = mesh_xml(body)
-    marking_mesh, marking_faces = mesh_xml(marking)
+    body_mesh, body_faces = mesh_xml("body", body)
+    marking_mesh, marking_faces = mesh_xml("marking", marking)
     return f'''<?xml version="1.0" encoding="UTF-8"?>
 <model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02" xmlns:BambuStudio="http://schemas.bambulab.com/package/2021" xmlns:p="http://schemas.microsoft.com/3dmanufacturing/production/2015/06" requiredextensions="p">
   <metadata name="BambuStudio:3mfVersion">1</metadata>
@@ -207,14 +260,15 @@ def enclosure_top_variant(params: dict) -> tuple[cq.Workplane, cq.Workplane]:
     return body, flush_branding
 
 
-def main() -> None:
-    THREEMF_ROOT.mkdir(parents=True, exist_ok=True)
+def write_case_top() -> None:
     params = json.loads(enclosure.PARAMS.read_text())
     case_body, case_branding = enclosure_top_variant(params)
     case_filename = "case_top_two_level_branded_multicolor.3mf"
     write_3mf(THREEMF_ROOT / case_filename, case_body, case_branding)
     print(f"wrote {THREEMF_ROOT / case_filename}")
 
+
+def write_mx_caps() -> None:
     mx_caps = {
         "mx_keycap_back_multicolor_flush.3mf": mx.back_icon(),
         "mx_keycap_play_multicolor_flush.3mf": mx.play_icon(),
@@ -226,6 +280,8 @@ def main() -> None:
         write_3mf(THREEMF_ROOT / filename, body, marking)
         print(f"wrote {THREEMF_ROOT / filename}")
 
+
+def write_encoder_caps() -> None:
     encoder_dot_caps = {
         "encoder_cap_main_knurled_dots_multicolor_flush.3mf": "main",
         "encoder_cap_aux1_ribbed_dot_multicolor_flush.3mf": "1",
@@ -236,6 +292,19 @@ def main() -> None:
         body, marking = encoder_dot_variant(label)
         write_3mf(THREEMF_ROOT / filename, body, marking)
         print(f"wrote {THREEMF_ROOT / filename}")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--only", choices=("all", "case", "mx", "encoder"), default="all")
+    args = parser.parse_args()
+    THREEMF_ROOT.mkdir(parents=True, exist_ok=True)
+    if args.only in ("all", "case"):
+        write_case_top()
+    if args.only in ("all", "mx"):
+        write_mx_caps()
+    if args.only in ("all", "encoder"):
+        write_encoder_caps()
 
 
 if __name__ == "__main__":

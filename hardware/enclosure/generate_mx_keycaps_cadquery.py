@@ -21,7 +21,7 @@ STEM_BOSS_D = 6.2
 STEM_BOSS_H = 7.7
 MX_CROSS_ARM_LEN = 4.35
 MX_CROSS_ARM_W = 1.35
-MX_SOCKET_DEPTH = 5.2
+MX_SOCKET_DEPTH = 7.1
 ICON_SCALE = 0.598
 FN_ICON_SCALE = 0.86
 ICON_RAISE = 0.65
@@ -56,6 +56,11 @@ def mx_cross_cutter(depth: float) -> cq.Workplane:
     return arm_a.union(arm_b).translate((0.0, 0.0, -0.1))
 
 
+def mx_stem_socket() -> cq.Workplane:
+    stem = cq.Workplane("XY").circle(STEM_BOSS_D / 2.0).extrude(STEM_BOSS_H)
+    return stem.cut(mx_cross_cutter(MX_SOCKET_DEPTH)).clean()
+
+
 def make_basic_mx_keycap() -> cq.Workplane:
     outer = rounded_loft(CAP_BOTTOM_W, CAP_TOP_W, CAP_HEIGHT, CAP_CORNER_R)
     inner_bottom_w = CAP_BOTTOM_W - 2.0 * WALL_THICKNESS
@@ -63,9 +68,7 @@ def make_basic_mx_keycap() -> cq.Workplane:
     inner_h = CAP_HEIGHT - TOP_THICKNESS
     inner = rounded_loft(inner_bottom_w, inner_top_w, inner_h + 0.2, CAP_CORNER_R - 0.45).translate((0.0, 0.0, -0.1))
     shell = outer.cut(inner).clean()
-    stem_boss = cq.Workplane("XY").circle(STEM_BOSS_D / 2.0).extrude(STEM_BOSS_H)
-    cap = shell.union(stem_boss).clean()
-    cap = cap.cut(mx_cross_cutter(MX_SOCKET_DEPTH)).clean()
+    cap = shell.union(mx_stem_socket()).clean()
     cap = cap.faces(">Z").fillet(0.45)
     cap = cap.faces("<Z").fillet(0.25)
     return cap.clean()

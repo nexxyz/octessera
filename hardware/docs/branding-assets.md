@@ -32,6 +32,7 @@ python tools/assets/generate_pi_logo_pngs.py
 Generated PNGs:
 
 - `assets/octessera-pi-manifest.png`: Raspberry Pi Imager icon.
+- `assets/octessera-app-large.png`: desktop app icon source.
 - `assets/octessera-pi-booting.png`: Pi boot splash.
 - `assets/octessera-pi-sleeping.png`: sleep splash mark.
 - `assets/octessera-pi-shutdown.png`: shutdown splash mark.

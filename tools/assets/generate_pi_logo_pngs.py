@@ -312,11 +312,12 @@ def save_stacked_logo(path: Path) -> None:
 def main() -> None:
     _ = parse_wordmark_text()
     save_manifest_icon(ASSETS / "octessera-pi-manifest.png")
+    save_manifest_icon(ASSETS / "octessera-app-large.png")
     save_mark(ASSETS / "octessera-pi-sleeping.png")
     save_mark(ASSETS / "octessera-pi-shutdown.png")
     save_stacked_logo(ASSETS / "octessera-pi-booting.png")
     DESKTOP_ICONS.mkdir(parents=True, exist_ok=True)
-    save_stacked_logo(DESKTOP_ICONS / "icon.png")
+    save_manifest_icon(DESKTOP_ICONS / "icon.png")
     write_ico_from_png(DESKTOP_ICONS / "icon.ico", DESKTOP_ICONS / "icon.png")
 
 
