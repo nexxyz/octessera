@@ -207,14 +207,15 @@ Before you start with the enclosure, you need to remove the keyswitches from the
    - For each plug-in module, remove the module, add the standoff, then reinstall the module.
    - You do not need separate standoff pillars for the NeoTrellis array. Its eight pins go straight into the integrated bottom pillars.
 4. Press in all 26 top pins:
-   - 18 pins go into the separate standoff pillars.
-   - 8 pins go into the NeoTrellis array's integrated bottom pillars.
-5. Insert the M3 heat-set inserts into the underside of the enclosure top with a soldering iron or insert tool.
-6. Place the enclosure top over the assembly. The guide walls and standoff pins should locate the parts without forcing them.
-7. Install the four encoder knobs. Use printed knobs from `release-artifacts/enclosure/stl/` or purchased D-shaft knobs.
-8. Turn the device over carefully.
-9. Install the bottom screws into the recessed holes and tighten them into the heat inserts.
-10. Add rubber feet or screw-hole covers if desired.
+    - 18 pins go into the separate standoff pillars.
+    - 8 pins go into the NeoTrellis array's integrated bottom pillars.
+5. Place one silicone 4x4 keypad on each NeoTrellis board. Make sure the pads sit flat and line up with the 8x8 opening before closing the case.
+6. Insert the M3 heat-set inserts into the underside of the enclosure top with a soldering iron or insert tool.
+7. Place the enclosure top over the assembly. The guide walls and standoff pins should locate the parts without forcing them.
+8. Install the four encoder knobs. Use printed knobs from `release-artifacts/enclosure/stl/` or purchased D-shaft knobs.
+9. Turn the device over carefully.
+10. Install the bottom screws into the recessed holes and tighten them into the heat inserts.
+11. Add rubber feet or screw-hole covers if desired.
 
 Tighten screws gently. If the top does not sit flat, stop and find the interference instead of forcing the case closed.
 

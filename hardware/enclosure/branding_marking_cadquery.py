@@ -140,7 +140,7 @@ def wordmark_marking(z0: float, height: float) -> cq.Workplane:
     return result.clean()
 
 
-def make_branding_marking(z0: float, height: float = 0.65) -> cq.Workplane:
+def logo_marking(z0: float, height: float = 0.65) -> cq.Workplane:
     mark_x = WEST_TO_OLED_CENTER_X - MARK_SIZE / 2.0
     mark_paths, mark_circles = parse_mark()
     mark_points = [point for path in mark_paths for point in path]
@@ -155,6 +155,15 @@ def make_branding_marking(z0: float, height: float = 0.65) -> cq.Workplane:
     for circle in mark_circles:
         center = transform(circle.center, mark_source, mark_scale, mark_x, MARK_TOP_Y)
         parts.append(cq.Workplane("XY").circle(circle.radius * mark_scale).extrude(height).translate((center.x, center.y, z0)))
-
-    parts.append(wordmark_marking(z0, height))
     return compound(parts).clean()
+
+
+def branding_marking_parts(z0: float, height: float = 0.65) -> list[tuple[str, cq.Workplane]]:
+    return [
+        ("octessera_logo", logo_marking(z0, height)),
+        ("octessera_wordmark", wordmark_marking(z0, height)),
+    ]
+
+
+def make_branding_marking(z0: float, height: float = 0.65) -> cq.Workplane:
+    return compound([part for _, part in branding_marking_parts(z0, height)]).clean()

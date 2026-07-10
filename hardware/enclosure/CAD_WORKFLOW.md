@@ -41,13 +41,25 @@ The enclosure CAD is under construction. Use the CadQuery generator as the sourc
    powershell -NoProfile -ExecutionPolicy Bypass -File hardware/enclosure/generate_top_artifacts_checked.ps1
    ```
 
-   It runs generation and validation as child processes and prints completion sentinels after each step.
+   It runs generation and validation as child processes and prints completion
+   sentinels after each step.
 
-For branded top changes, prefer the wrapper that also regenerates the flush multicolor 3MF and review image:
+   Automation rule: after the final expected sentinel for the chosen wrapper
+   appears, do not hang. Either continue the next explicit planned task or
+   report the validation summary. Do not silently wait, poll, inspect generated
+   STEP/STL/3MF contents, or run extra diffs/status commands unless that was
+   explicitly requested.
+
+For branded top changes, prefer the wrapper that also regenerates the flush multicolor 3MF:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File hardware/enclosure/generate_branded_top_artifacts_checked.ps1
 ```
+
+In interactive orchestrator sessions, prefer launching this wrapper detached
+with a log file and completion sound. Report the PID/log path immediately and do
+not poll or wait unless explicitly asked. The checked wrapper remains the source
+of truth; the async launch mode only prevents session hold-ups.
 
 Expected additional sentinels:
 
@@ -56,14 +68,18 @@ __BRANDED_3MF_DONE__
 __BRANDED_TOP_ARTIFACTS_DONE__
 ```
 
+For this branded wrapper, `__BRANDED_TOP_ARTIFACTS_DONE__` is the final
+automation sentinel. The preceding `valid=...`, `solids=...`, `body_valid=...`,
+`body_solids=...`, and `extruder2=...` lines are the expected verification
+summary.
+
 3. Run the roof-wall validation:
 
    ```sh
    python hardware/enclosure/validate_wave_roof.py
    ```
 
-4. Inspect `review/current_wave_top_view.png` for plan-view clearances.
-5. Inspect or slice `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery.stl` before using it for printing.
+4. Inspect or slice `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery.stl` before using it for printing.
 
 ## Geometry change checklist
 
@@ -75,7 +91,10 @@ Use this checklist before changing generated solids, Z transitions, or board-adj
 - Avoid booleans where solids only touch at a face or edge. Use small overlaps when a union must be watertight.
 - Check local component bounding boxes before export when adding a new loft, ramp, or support.
 - Check the final model bounding box. Expected Z range is `9..26 mm` for the current top model.
-- Review both the plan image and at least one CAD or slicer section for Z-transition changes.
+- Review at least one CAD or slicer section for Z-transition changes.
+- Never move physical port holes, cutouts, or indents unless the user explicitly
+  asks to move the ports/cutouts themselves. Port geometry is hardware-layout
+  critical. Icon/mark placement requests do not imply physical port movement.
 
 ## Bottom plate plan
 
@@ -104,11 +123,10 @@ Do not accept a roof-wall change until this script passes.
 
 - `../../release-artifacts/enclosure/step/case_top_two_level_cadquery.step`: preferred CAD exchange artifact.
 - `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery.stl`: current printable/check-fit mesh.
-- `../../release-artifacts/enclosure/3mf-multicolor/case_top_two_level_branded_multicolor.3mf`: multicolor top with flush branding on extruder 2.
-- `review/current_wave_top_view.svg`: plan-view review source image.
-- `review/current_wave_top_view.png`: plan-view review image.
+- `../../release-artifacts/enclosure/3mf-multicolor/case_top_two_level_multicolor.3mf`: multicolor top with flush markings on extruder 2.
 
-STEP and STL files are generated artifacts. Do not review their full text diffs.
+STEP, STL, and 3MF files are generated artifacts. Do not review their full text
+diffs or contents in automation.
 
 The non-multicolor top 3MF is obsolete. Do not regenerate or restore the old unbranded top 3MF.
 
@@ -116,7 +134,6 @@ Before committing enclosure artifacts, check:
 
 - `git diff --check` passes;
 - no `hardware/enclosure/__pycache__/` is staged;
-- review images remain under ignored `hardware/enclosure/review/`;
 - no local Windows absolute paths were introduced.
 
 To revert generated top artifacts from automation, prefer the checked wrapper:

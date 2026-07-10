@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 import cadquery as cq
 
 
@@ -18,6 +20,15 @@ PORT_FACE_RECESS_Z_PAD = 3.0
 PORT_RECESS_BACK_LAND = 1.0
 PORT_RECESS_VERTICAL_LAND = 1.2
 PORT_INDENT_WALL_OVERLAP = 0.4
+WEST_PORT_INDENT_BACK_OVERLAP = 0.5
+PORT_INDENT_CORNER_R = 1.2
+ROUNDED_CORNER_STEPS = 4
+POWER_Z_SHIFT = -0.25
+PI_Z_SHIFT = 7.0
+PI_TOP_TRIM_Z_SHIFT = PI_Z_SHIFT - 1.5
+PI_HDMI_Z_SHIFT = PI_TOP_TRIM_Z_SHIFT - 1.0
+PI_USB_Z_SHIFT = PI_TOP_TRIM_Z_SHIFT - 2.0
+PI_SD_HOLE_Z_SHIFT = PI_Z_SHIFT - 4.0
 
 
 def box_cutter(x0: float, y0: float, x1: float, y1: float, z0: float, z1: float) -> cq.Workplane:
@@ -43,6 +54,10 @@ def z_center(height: float, z_shift: float = 0.0) -> float:
     return (z0 + z1) / 2.0
 
 
+def z_shift_centered_on(hole_height: float, hole_z_shift: float, indent_height: float) -> float:
+    return z_center(hole_height, hole_z_shift) - z_center(indent_height)
+
+
 def left_wall_rect(params: dict, y0: float, y1: float, height: float, x1: float | None = None, z_shift: float = 0.0) -> cq.Workplane:
     wall = params["wall"]
     z0, z1 = z_bounds(height, z_shift=z_shift)
@@ -64,6 +79,36 @@ def north_wall_rect(params: dict, x0: float, x1: float, height: float, y0: float
 
 def safe_span(start: float, end: float, low: float, high: float) -> tuple[float, float]:
     return max(start, low), min(end, high)
+
+
+def rounded_rect_points(u0: float, u1: float, z0: float, z1: float, radius: float = PORT_INDENT_CORNER_R) -> list[tuple[float, float]]:
+    half_u = (u1 - u0) / 2.0
+    half_z = (z1 - z0) / 2.0
+    r = min(radius, half_u - 0.05, half_z - 0.05)
+    if r <= 0.05:
+        return [(u0, z0), (u1, z0), (u1, z1), (u0, z1), (u0, z0)]
+
+    corners = [
+        (u1 - r, z0 + r, -90.0, 0.0),
+        (u1 - r, z1 - r, 0.0, 90.0),
+        (u0 + r, z1 - r, 90.0, 180.0),
+        (u0 + r, z0 + r, 180.0, 270.0),
+    ]
+    points: list[tuple[float, float]] = []
+    for cx, cz, a0, a1 in corners:
+        for step in range(ROUNDED_CORNER_STEPS + 1):
+            angle = math.radians(a0 + (a1 - a0) * step / ROUNDED_CORNER_STEPS)
+            points.append((cx + math.cos(angle) * r, cz + math.sin(angle) * r))
+    points.append(points[0])
+    return points
+
+
+def west_profile_wire(x: float, y0: float, y1: float, z0: float, z1: float) -> cq.Wire:
+    return cq.Wire.makePolygon([cq.Vector(x, y, z) for y, z in rounded_rect_points(y0, y1, z0, z1)])
+
+
+def south_north_profile_wire(x0: float, x1: float, y: float, z0: float, z1: float) -> cq.Wire:
+    return cq.Wire.makePolygon([cq.Vector(x, y, z) for x, z in rounded_rect_points(x0, x1, z0, z1)])
 
 
 def left_wall_indent_wall(
@@ -88,21 +133,16 @@ def left_wall_indent_wall(
     half_y_outer = half_y_inner + PORT_FACE_RECESS_SPAN_PAD
     safe0 = params["corner_r"] + 0.5
     safe1 = depth - params["corner_r"] - 0.5
-    wall_overlap = wall - PORT_INDENT_WALL_OVERLAP
+    wall_overlap = wall - WEST_EXTENSION - PORT_INDENT_WALL_OVERLAP
+    target_with_overlap = target_x + WEST_PORT_INDENT_BACK_OVERLAP
     wires = []
     for index in range(17):
-        x = wall_overlap + (target_x - wall_overlap) * index / 16
+        x = wall_overlap + (target_with_overlap - wall_overlap) * index / 16
         t = (x - wall_overlap) / (target_x - wall_overlap)
         half_y = half_y_outer + (half_y_inner - half_y_outer) * quarter_ease(t)
         y_min = max(center_y - half_y, safe0)
         y_max = min(center_y + half_y, safe1)
-        wires.append(cq.Wire.makePolygon([
-            cq.Vector(x, y_min, z0),
-            cq.Vector(x, y_max, z0),
-            cq.Vector(x, y_max, z1),
-            cq.Vector(x, y_min, z1),
-            cq.Vector(x, y_min, z0),
-        ]))
+        wires.append(west_profile_wire(x, y_min, y_max, z0, z1))
     return cq.Workplane("XY").add(cq.Solid.makeLoft(wires, ruled=True)).clean()
 
 
@@ -136,13 +176,7 @@ def south_wall_indent_wall(
         half_x = half_x_outer + (half_x_inner - half_x_outer) * quarter_ease(t)
         x_min = max(center_x - half_x, safe0)
         x_max = min(center_x + half_x, safe1)
-        wires.append(cq.Wire.makePolygon([
-            cq.Vector(x_min, y, z0),
-            cq.Vector(x_max, y, z0),
-            cq.Vector(x_max, y, z1),
-            cq.Vector(x_min, y, z1),
-            cq.Vector(x_min, y, z0),
-        ]))
+        wires.append(south_north_profile_wire(x_min, x_max, y, z0, z1))
     return cq.Workplane("XY").add(cq.Solid.makeLoft(wires, ruled=True)).clean()
 
 
@@ -176,13 +210,7 @@ def north_wall_indent_wall(
         half_x = half_x_outer + (half_x_inner - half_x_outer) * quarter_ease(t)
         x_min = max(center_x - half_x, safe0)
         x_max = min(center_x + half_x, safe1)
-        wires.append(cq.Wire.makePolygon([
-            cq.Vector(x_min, y, z0),
-            cq.Vector(x_max, y, z0),
-            cq.Vector(x_max, y, z1),
-            cq.Vector(x_min, y, z1),
-            cq.Vector(x_min, y, z0),
-        ]))
+        wires.append(south_north_profile_wire(x_min, x_max, y, z0, z1))
     return cq.Workplane("XY").add(cq.Solid.makeLoft(wires, ruled=True)).clean()
 
 
@@ -332,15 +360,7 @@ def left_wall_face_recess(
         half_y = half_y_outer + (half_y_inner - half_y_outer) * ease
         half_z = half_z_outer
         wires.append(
-            cq.Wire.makePolygon(
-                [
-                    cq.Vector(x, center_y - half_y, center_z - half_z),
-                    cq.Vector(x, center_y + half_y, center_z - half_z),
-                    cq.Vector(x, center_y + half_y, center_z + half_z),
-                    cq.Vector(x, center_y - half_y, center_z + half_z),
-                    cq.Vector(x, center_y - half_y, center_z - half_z),
-                ]
-            )
+            west_profile_wire(x, center_y - half_y, center_y + half_y, center_z - half_z, center_z + half_z)
         )
     return cq.Workplane("XY").add(cq.Solid.makeLoft(wires, ruled=True)).clean()
 
@@ -369,15 +389,7 @@ def south_wall_face_recess(
         half_x = half_x_outer + (half_x_inner - half_x_outer) * ease
         half_z = half_z_outer
         wires.append(
-            cq.Wire.makePolygon(
-                [
-                    cq.Vector(center_x - half_x, y, center_z - half_z),
-                    cq.Vector(center_x + half_x, y, center_z - half_z),
-                    cq.Vector(center_x + half_x, y, center_z + half_z),
-                    cq.Vector(center_x - half_x, y, center_z + half_z),
-                    cq.Vector(center_x - half_x, y, center_z - half_z),
-                ]
-            )
+            south_north_profile_wire(center_x - half_x, center_x + half_x, y, center_z - half_z, center_z + half_z)
         )
     return cq.Workplane("XY").add(cq.Solid.makeLoft(wires, ruled=True)).clean()
 
@@ -408,15 +420,7 @@ def north_wall_face_recess(
         half_x = half_x_outer + (half_x_inner - half_x_outer) * ease
         half_z = half_z_outer
         wires.append(
-            cq.Wire.makePolygon(
-                [
-                    cq.Vector(center_x - half_x, y, center_z - half_z),
-                    cq.Vector(center_x + half_x, y, center_z - half_z),
-                    cq.Vector(center_x + half_x, y, center_z + half_z),
-                    cq.Vector(center_x - half_x, y, center_z + half_z),
-                    cq.Vector(center_x - half_x, y, center_z - half_z),
-                ]
-            )
+            south_north_profile_wire(center_x - half_x, center_x + half_x, y, center_z - half_z, center_z + half_z)
         )
     return cq.Workplane("XY").add(cq.Solid.makeLoft(wires, ruled=True)).clean()
 
@@ -433,14 +437,10 @@ def add_top_wall_port_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane
     left_pi_recess_x = left_pi_x - PORT_RECESS_BACK_LAND
     south_pi_recess_y = south_pi_y - PORT_RECESS_BACK_LAND
     north_flush_recess_y = north_flush_y + PORT_RECESS_BACK_LAND
-    power_z_shift = -0.25
-    pi_z_shift = 7.0
-    pi_top_trim_z_shift = pi_z_shift - 1.5
-    pi_hdmi_z_shift = pi_top_trim_z_shift - 1.0
-    pi_usb_z_shift = pi_top_trim_z_shift - 2.0
-    pi_sd_hole_z_shift = pi_z_shift - 4.0
-    pi_sd_indent_z_shift = pi_sd_hole_z_shift
+    pi_sd_indent_z_shift = z_shift_centered_on(3.0, PI_SD_HOLE_Z_SHIFT, 2.0)
     pi_sd_indent_span_adjust = -2.5
+    pi_hdmi_indent_z_shift = z_shift_centered_on(3.0, PI_HDMI_Z_SHIFT, 2.5)
+    pi_usb_indent_z_shift = z_shift_centered_on(2.3, PI_USB_Z_SHIFT, 1.8)
     additions = []
     cuts = []
     for port in params["ports_v21"]:
@@ -472,9 +472,9 @@ def add_top_wall_port_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane
             )
             cuts.append(audio_jack_cutter(params, (port["a"] + port["b"]) / 2.0, left_flush_x))
         elif label == "USB-C power":
-            additions.append(left_wall_indent_wall(params, port["a"], port["b"], 4.6, left_flush_x, z_shift=power_z_shift))
-            cuts.append(left_wall_face_recess(params, port["a"], port["b"], 4.6, left_flush_recess_x, z_shift=power_z_shift))
-            cuts.append(left_wall_rect(params, port["a"], port["b"], 4.6, left_flush_x, z_shift=power_z_shift))
+            additions.append(left_wall_indent_wall(params, port["a"], port["b"], 4.6, left_flush_x, z_shift=POWER_Z_SHIFT))
+            cuts.append(left_wall_face_recess(params, port["a"], port["b"], 4.6, left_flush_recess_x, z_shift=POWER_Z_SHIFT))
+            cuts.append(left_wall_rect(params, port["a"], port["b"], 4.6, left_flush_x, z_shift=POWER_Z_SHIFT))
         elif label == "Pi microSD":
             additions.append(
                 left_wall_indent_wall(
@@ -498,15 +498,15 @@ def add_top_wall_port_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane
                     half_span_adjust=pi_sd_indent_span_adjust,
                 )
             )
-            cuts.append(left_wall_rect(params, port["a"], port["b"], 3.0, left_pi_x, z_shift=pi_sd_hole_z_shift))
+            cuts.append(left_wall_rect(params, port["a"], port["b"], 3.0, left_pi_x, z_shift=PI_SD_HOLE_Z_SHIFT))
         elif label == "Pi mini-HDMI":
-            additions.append(south_wall_indent_wall(params, port["a"], port["b"], 2.5, south_pi_y, z_shift=pi_hdmi_z_shift))
-            cuts.append(south_wall_face_recess(params, port["a"], port["b"], 2.5, south_pi_recess_y, z_shift=pi_hdmi_z_shift))
-            cuts.append(south_wall_rect(params, port["a"], port["b"], 3.0, south_pi_y, z_shift=pi_hdmi_z_shift))
+            additions.append(south_wall_indent_wall(params, port["a"], port["b"], 2.5, south_pi_y, z_shift=pi_hdmi_indent_z_shift))
+            cuts.append(south_wall_face_recess(params, port["a"], port["b"], 2.5, south_pi_recess_y, z_shift=pi_hdmi_indent_z_shift))
+            cuts.append(south_wall_rect(params, port["a"], port["b"], 3.0, south_pi_y, z_shift=PI_HDMI_Z_SHIFT))
         elif label == "Pi USB data":
-            additions.append(south_wall_indent_wall(params, port["a"], port["b"], 1.8, south_pi_y, z_shift=pi_usb_z_shift))
-            cuts.append(south_wall_face_recess(params, port["a"], port["b"], 1.8, south_pi_recess_y, z_shift=pi_usb_z_shift))
-            cuts.append(south_wall_rect(params, port["a"], port["b"], 2.3, south_pi_y, z_shift=pi_usb_z_shift))
+            additions.append(south_wall_indent_wall(params, port["a"], port["b"], 1.8, south_pi_y, z_shift=pi_usb_indent_z_shift))
+            cuts.append(south_wall_face_recess(params, port["a"], port["b"], 1.8, south_pi_recess_y, z_shift=pi_usb_indent_z_shift))
+            cuts.append(south_wall_rect(params, port["a"], port["b"], 2.3, south_pi_y, z_shift=PI_USB_Z_SHIFT))
 
     additions.append(north_wall_indent_wall(params, OLED_SD_X0, OLED_SD_X1, 5.0, north_flush_y))
     cuts.append(north_wall_face_recess(params, OLED_SD_X0, OLED_SD_X1, 5.0, north_flush_recess_y))

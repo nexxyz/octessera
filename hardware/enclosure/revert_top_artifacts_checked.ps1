@@ -3,9 +3,7 @@ $ErrorActionPreference = "Stop"
 $projectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $artifacts = @(
     "release-artifacts\enclosure\step\case_top_two_level_cadquery.step",
-    "release-artifacts\enclosure\stl\case_top_two_level_cadquery.stl",
-    "release-artifacts\enclosure\review\current_wave_top_view.png",
-    "release-artifacts\enclosure\review\current_wave_top_view.svg"
+    "release-artifacts\enclosure\stl\case_top_two_level_cadquery.stl"
 )
 
 Push-Location $projectRoot

@@ -7,10 +7,11 @@ from typing import cast
 
 import cadquery as cq
 
-from branding_marking_cadquery import make_branding_marking
+from branding_marking_cadquery import branding_marking_parts, make_branding_marking
 from faceplate_insert_pillars import add_faceplate_insert_pillars, subtract_faceplate_insert_holes
 from faceplate_neokey_support import neokey_deck_cap, neokey_raised_cap, neokey_south_slot_fill, neokey_support_block
 from faceplate_walls import perimeter_wall_skirts
+from port_markings_cadquery import MARK_CUT_CLEARANCE, make_port_markings, port_marking_parts
 from top_wall_port_cutouts import add_top_wall_port_cutouts
 from wave_guidance import (
     PI_BLOCK_NORTH_Y,
@@ -588,12 +589,40 @@ def build_body_model(params: dict) -> cq.Workplane:
     return subtract_faceplate_insert_holes(add_top_wall_port_cutouts(model.union(skirts).clean(), params), params)
 
 
-def build_branding_marking() -> cq.Workplane:
-    return make_branding_marking(LOW_Z, BRANDING_RAISE)
+def build_branding_marking(params: dict | None = None, model_bottom_z: float = -10.0) -> cq.Workplane:
+    case_params = params or load_params()
+    return make_branding_marking(LOW_Z, BRANDING_RAISE).union(make_port_markings(case_params, model_bottom_z)).clean()
 
 
-def build_flush_branding_marking() -> cq.Workplane:
-    return make_branding_marking(LOW_Z - BRANDING_RAISE, BRANDING_RAISE)
+def build_flush_top_branding_marking() -> cq.Workplane:
+    return make_branding_marking(LOW_Z - BRANDING_RAISE, BRANDING_RAISE).clean()
+
+
+def build_flush_top_branding_parts() -> list[tuple[str, cq.Workplane]]:
+    return branding_marking_parts(LOW_Z - BRANDING_RAISE, BRANDING_RAISE)
+
+
+def build_flush_port_markings(params: dict | None = None, model_bottom_z: float = -10.0) -> cq.Workplane:
+    case_params = params or load_params()
+    return make_port_markings(case_params, model_bottom_z, flush=True).clean()
+
+
+def build_flush_port_marking_parts(params: dict | None = None, model_bottom_z: float = -10.0) -> list[tuple[str, cq.Workplane]]:
+    case_params = params or load_params()
+    return port_marking_parts(case_params, model_bottom_z, flush=True)
+
+
+def build_flush_port_marking_cutters(params: dict | None = None, model_bottom_z: float = -10.0) -> cq.Workplane:
+    case_params = params or load_params()
+    return make_port_markings(case_params, model_bottom_z, flush=True, cut_clearance=MARK_CUT_CLEARANCE).clean()
+
+
+def build_flush_branding_marking(params: dict | None = None, model_bottom_z: float = -10.0) -> cq.Workplane:
+    return build_flush_top_branding_marking().union(build_flush_port_markings(params, model_bottom_z)).clean()
+
+
+def load_params() -> dict:
+    return json.loads(PARAMS.read_text())
 
 
 def build_model(params: dict) -> cq.Workplane:
@@ -602,13 +631,13 @@ def build_model(params: dict) -> cq.Workplane:
 
 def build_branded_export_model(params: dict) -> cq.Workplane:
     body = build_body_model(params)
-    branding = build_branding_marking()
+    branding = build_branding_marking(params, cast(cq.Shape, body.val()).BoundingBox().zmin)
     solids = cast(list[cq.Shape], [*body.solids().vals(), *branding.solids().vals()])
     return cq.Workplane("XY").add(cq.Compound.makeCompound(solids))
 
 
 def main() -> None:
-    params = json.loads(PARAMS.read_text())
+    params = load_params()
     model = build_branded_export_model(params)
     STEP_OUT.parent.mkdir(parents=True, exist_ok=True)
     STL_OUT.parent.mkdir(parents=True, exist_ok=True)

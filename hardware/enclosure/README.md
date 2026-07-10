@@ -33,7 +33,7 @@ It writes:
 - `../../release-artifacts/enclosure/step/case_top_two_level_cadquery.step`
 - `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery.stl`
 
-The script requires Python with `cadquery` available:
+The script requires the enclosure Python dependencies:
 
 ```sh
 python -m pip install -r hardware/enclosure/requirements.txt
@@ -105,4 +105,3 @@ Current enclosure notes from the parameter source:
 - CAD workflow and checks: [`CAD_WORKFLOW.md`](CAD_WORKFLOW.md)
 - Branded top artifact wrapper: [`generate_branded_top_artifacts_checked.ps1`](generate_branded_top_artifacts_checked.ps1)
 - Roof-wall validation: [`validate_wave_roof.py`](validate_wave_roof.py)
-- Generated review images: `review/current_wave_top_view.svg` and `review/current_wave_top_view.png`.

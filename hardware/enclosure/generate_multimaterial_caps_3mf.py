@@ -4,7 +4,10 @@ import argparse
 import json
 import zipfile
 from collections import Counter
+from dataclasses import dataclass
+from html import escape
 from pathlib import Path
+from typing import cast
 
 import cadquery as cq
 
@@ -18,6 +21,17 @@ ARTIFACT_ROOT = ROOT.parent.parent / "release-artifacts" / "enclosure"
 THREEMF_ROOT = ARTIFACT_ROOT / "3mf-multicolor"
 TOLERANCE = 0.04
 FLUSH_DEPTH = 0.65
+
+
+@dataclass(frozen=True)
+class ModelPart:
+    name: str
+    model: cq.Workplane
+    extruder: int
+
+
+def shape_value(model: cq.Workplane) -> cq.Shape:
+    return cast(cq.Shape, model.val())
 
 
 def vertex_key(vertex: cq.Vector) -> tuple[int, int, int]:
@@ -98,7 +112,7 @@ def mesh_xml(name: str, model: cq.Workplane) -> tuple[str, int]:
     vertices: list[cq.Vector] = []
     vertex_indices: dict[tuple[int, int, int], int] = {}
     triangles: list[tuple[int, int, int]] = []
-    for solid in model.solids().vals():
+    for solid in cast(list[cq.Shape], model.solids().vals()):
         mesh_vertices, mesh_triangles = solid.tessellate(TOLERANCE)
         add_indexed_mesh(mesh_vertices, mesh_triangles, vertices, vertex_indices, triangles)
     assert_manifold_edges(name, triangles)
@@ -113,67 +127,78 @@ def mesh_xml(name: str, model: cq.Workplane) -> tuple[str, int]:
     ), len(triangles_xml)
 
 
-def object_model_xml(body: cq.Workplane, marking: cq.Workplane) -> tuple[str, int, int]:
-    body_mesh, body_faces = mesh_xml("body", body)
-    marking_mesh, marking_faces = mesh_xml("marking", marking)
+def object_resources_xml(parts: list[ModelPart]) -> tuple[str, list[int]]:
+    meshes = []
+    face_counts = []
+    for index, part in enumerate(parts, start=1):
+        mesh, face_count = mesh_xml(part.name, part.model)
+        meshes.append(f'<object id="{index}" p:UUID="000000{index:02d}-81cb-4c03-9d28-80fed5dfa1dc" type="model">{mesh}</object>')
+        face_counts.append(face_count)
+    return "".join(meshes), face_counts
+
+
+def root_model_xml(parts: list[ModelPart], object_resources: str) -> str:
+    root_object_id = len(parts) + 1
+    components = "".join(
+        f'<component objectid="{index}" p:UUID="000000{index:02d}-b206-40ff-9872-83e8017abed1" transform="1 0 0 0 1 0 0 0 1 0 0 0"/>'
+        for index in range(1, len(parts) + 1)
+    )
     return f'''<?xml version="1.0" encoding="UTF-8"?>
 <model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02" xmlns:BambuStudio="http://schemas.bambulab.com/package/2021" xmlns:p="http://schemas.microsoft.com/3dmanufacturing/production/2015/06" requiredextensions="p">
   <metadata name="BambuStudio:3mfVersion">1</metadata>
   <resources>
-    <object id="1" p:UUID="00000001-81cb-4c03-9d28-80fed5dfa1dc" type="model">{body_mesh}</object>
-    <object id="2" p:UUID="00000002-81cb-4c03-9d28-80fed5dfa1dc" type="model">{marking_mesh}</object>
-  </resources>
-</model>
-''', body_faces, marking_faces
-
-
-def root_model_xml() -> str:
-    return '''<?xml version="1.0" encoding="UTF-8"?>
-<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02" xmlns:BambuStudio="http://schemas.bambulab.com/package/2021" xmlns:p="http://schemas.microsoft.com/3dmanufacturing/production/2015/06" requiredextensions="p">
-  <metadata name="BambuStudio:3mfVersion">1</metadata>
-  <resources>
-    <object id="3" p:UUID="00000003-61cb-4c03-9d28-80fed5dfa1dc" type="model">
-      <components>
-        <component p:path="/3D/Objects/object_1.model" objectid="1" p:UUID="00000001-b206-40ff-9872-83e8017abed1" transform="1 0 0 0 1 0 0 0 1 0 0 0"/>
-        <component p:path="/3D/Objects/object_1.model" objectid="2" p:UUID="00000002-b206-40ff-9872-83e8017abed1" transform="1 0 0 0 1 0 0 0 1 0 0 0"/>
-      </components>
+    {object_resources}
+    <object id="{root_object_id}" p:UUID="000000{root_object_id:02d}-61cb-4c03-9d28-80fed5dfa1dc" type="model">
+      <components>{components}</components>
     </object>
   </resources>
   <build p:UUID="00000004-22b5-4d84-8835-1976022ea369">
-    <item objectid="3" p:UUID="00000005-b1ec-4553-aec9-835e5b724bb4" printable="1"/>
+    <item objectid="{root_object_id}" p:UUID="00000005-b1ec-4553-aec9-835e5b724bb4" printable="1"/>
   </build>
 </model>
 '''
 
 
-def model_settings_xml(name: str, body_faces: int, marking_faces: int) -> str:
+def part_settings_xml(parts: list[ModelPart], face_counts: list[int]) -> str:
+    return "".join(
+        f'''    <part id="{index}" subtype="normal_part">
+      <metadata key="name" value="{escape(part.name)}"/>
+      <metadata key="matrix" value="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1"/>
+      <metadata key="extruder" value="{part.extruder}"/>
+      <mesh_stat face_count="{face_count}" edges_fixed="0" degenerate_facets="0" facets_removed="0" facets_reversed="0" backwards_edges="0"/>
+    </part>
+'''
+        for index, (part, face_count) in enumerate(zip(parts, face_counts), start=1)
+    )
+
+
+def model_settings_xml(name: str, parts: list[ModelPart], face_counts: list[int]) -> str:
+    root_object_id = len(parts) + 1
+    part_settings = "".join(
+        f'''    <part id="{index}" subtype="normal_part">
+      <metadata key="name" value="{escape(part.name)}"/>
+      <metadata key="matrix" value="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1"/>
+      <metadata key="extruder" value="{part.extruder}"/>
+      <mesh_stat face_count="{face_count}" edges_fixed="0" degenerate_facets="0" facets_removed="0" facets_reversed="0" backwards_edges="0"/>
+    </part>
+'''
+        for index, (part, face_count) in enumerate(zip(parts, face_counts), start=1)
+    )
     return f'''<?xml version="1.0" encoding="UTF-8"?>
 <config>
-  <object id="3">
-    <metadata key="name" value="{name}"/>
+  <object id="{root_object_id}">
+    <metadata key="name" value="{escape(name)}"/>
     <metadata key="extruder" value="1"/>
-    <metadata face_count="{body_faces + marking_faces}"/>
-    <part id="1" subtype="normal_part">
-      <metadata key="name" value="{name}_body"/>
-      <metadata key="matrix" value="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1"/>
-      <metadata key="extruder" value="1"/>
-      <mesh_stat face_count="{body_faces}" edges_fixed="0" degenerate_facets="0" facets_removed="0" facets_reversed="0" backwards_edges="0"/>
-    </part>
-    <part id="2" subtype="normal_part">
-      <metadata key="name" value="{name}_marking"/>
-      <metadata key="matrix" value="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1"/>
-      <metadata key="extruder" value="2"/>
-      <mesh_stat face_count="{marking_faces}" edges_fixed="0" degenerate_facets="0" facets_removed="0" facets_reversed="0" backwards_edges="0"/>
-    </part>
-  </object>
+    <metadata face_count="{sum(face_counts)}"/>
+{part_settings}  </object>
 </config>
 '''
 
 
-def write_3mf(path: Path, body: cq.Workplane, marking: cq.Workplane) -> None:
-    object_xml, body_faces, marking_faces = object_model_xml(body, marking)
-    model_xml = root_model_xml()
-    model_settings = model_settings_xml(path.stem, body_faces, marking_faces)
+def write_3mf_parts(path: Path, parts: list[ModelPart]) -> None:
+    object_resources, face_counts = object_resources_xml(parts)
+    model_xml = root_model_xml(parts, object_resources)
+    model_settings = model_settings_xml(path.stem, parts, face_counts)
     with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as package:
         package.writestr(
             "[Content_Types].xml",
@@ -193,17 +218,12 @@ def write_3mf(path: Path, body: cq.Workplane, marking: cq.Workplane) -> None:
 </Relationships>
 ''',
         )
-        package.writestr(
-            "3D/_rels/3dmodel.model.rels",
-            '''<?xml version="1.0" encoding="UTF-8"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Target="/3D/Objects/object_1.model" Id="rel-1" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel" />
-</Relationships>
-''',
-        )
         package.writestr("3D/3dmodel.model", model_xml)
-        package.writestr("3D/Objects/object_1.model", object_xml)
         package.writestr("Metadata/model_settings.config", model_settings)
+
+
+def write_3mf(path: Path, body: cq.Workplane, marking: cq.Workplane) -> None:
+    write_3mf_parts(path, [ModelPart(f"{path.stem}_body", body, 1), ModelPart(f"{path.stem}_marking", marking, 2)])
 
 
 def mx_variant(name: str, icon_parts: list[cq.Workplane]) -> tuple[cq.Workplane, cq.Workplane]:
@@ -215,7 +235,7 @@ def mx_variant(name: str, icon_parts: list[cq.Workplane]) -> tuple[cq.Workplane,
 def encoder_dot_variant(name: str) -> tuple[cq.Workplane, cq.Workplane]:
     if name == "main":
         body = enc.make_wide_knurled_cap()
-        top_z = body.val().BoundingBox().zmax
+        top_z = shape_value(body).BoundingBox().zmax
         cutter = enc.perimeter_dot_marking(
             enc.MAIN_MARK_DOT_COUNT,
             enc.MAIN_MARK_DOT_ORBIT_R,
@@ -232,7 +252,7 @@ def encoder_dot_variant(name: str) -> tuple[cq.Workplane, cq.Workplane]:
         )
     else:
         body = enc.make_aux_cap_body()
-        top_z = body.val().BoundingBox().zmax
+        top_z = shape_value(body).BoundingBox().zmax
         count = int(name)
         cutter = enc.dot_marking(
             count,
@@ -252,19 +272,32 @@ def encoder_dot_variant(name: str) -> tuple[cq.Workplane, cq.Workplane]:
 
 
 def enclosure_top_variant(params: dict) -> tuple[cq.Workplane, cq.Workplane]:
-    flush_branding = enclosure.build_flush_branding_marking()
+    body, marking_parts = enclosure_top_part_variant(params)
+    marking_solids = cast(list[cq.Shape], [solid for part in marking_parts for solid in part.model.solids().vals()])
+    flush_branding = cq.Workplane("XY").add(cq.Compound.makeCompound(marking_solids))
+    return body, flush_branding
+
+
+def enclosure_top_part_variant(params: dict) -> tuple[cq.Workplane, list[ModelPart]]:
     body = enclosure.build_body_model(params)
-    for cutter in [flush_branding, flush_branding.translate((0.0, 0.0, 0.08))]:
+    model_bottom_z = shape_value(body).BoundingBox().zmin
+    top_branding = enclosure.build_flush_top_branding_marking()
+    port_marking_cutters = enclosure.build_flush_port_marking_cutters(params, model_bottom_z)
+    for cutter in [top_branding, top_branding.translate((0.0, 0.0, 0.08)), port_marking_cutters]:
         for solid in cutter.solids().vals():
             body = body.cut(cq.Workplane("XY").add(solid)).clean()
-    return body, flush_branding
+    marking_parts = [
+        *[ModelPart(name, part, 2) for name, part in enclosure.build_flush_top_branding_parts()],
+        *[ModelPart(name, part, 2) for name, part in enclosure.build_flush_port_marking_parts(params, model_bottom_z)],
+    ]
+    return body, marking_parts
 
 
 def write_case_top() -> None:
     params = json.loads(enclosure.PARAMS.read_text())
-    case_body, case_branding = enclosure_top_variant(params)
-    case_filename = "case_top_two_level_branded_multicolor.3mf"
-    write_3mf(THREEMF_ROOT / case_filename, case_body, case_branding)
+    case_body, marking_parts = enclosure_top_part_variant(params)
+    case_filename = "case_top_two_level_multicolor.3mf"
+    write_3mf_parts(THREEMF_ROOT / case_filename, [ModelPart("case_top_body", case_body, 1), *marking_parts])
     print(f"wrote {THREEMF_ROOT / case_filename}")
 
 

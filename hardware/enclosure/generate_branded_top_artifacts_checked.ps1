@@ -1,10 +1,6 @@
-param(
-    [switch]$SkipReview
-)
-
 $ErrorActionPreference = "Stop"
 $repoRoot = Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\..")
-$top3mf = Join-Path $repoRoot "release-artifacts\enclosure\3mf-multicolor\case_top_two_level_branded_multicolor.3mf"
+$top3mf = Join-Path $repoRoot "release-artifacts\enclosure\3mf-multicolor\case_top_two_level_multicolor.3mf"
 
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "generate_top_artifacts_checked.ps1")
 
@@ -24,7 +20,7 @@ import generate_two_level_enclosure_cadquery as enclosure
 
 params = json.loads(enclosure.PARAMS.read_text())
 body, branding = multi.enclosure_top_variant(params)
-out = multi.THREEMF_ROOT / 'case_top_two_level_branded_multicolor.3mf'
+out = multi.THREEMF_ROOT / 'case_top_two_level_multicolor.3mf'
 multi.THREEMF_ROOT.mkdir(parents=True, exist_ok=True)
 multi.write_3mf(out, body, branding)
 
@@ -46,14 +42,6 @@ if (-not $?) {
 
 if (-not (Test-Path -LiteralPath $top3mf)) {
     throw "missing branded top 3MF: $top3mf"
-}
-
-if (-not $SkipReview) {
-    python (Join-Path $PSScriptRoot "generate_wave_review_view.py")
-    if (-not $?) {
-        throw "review image generation failed"
-    }
-    Write-Output "__REVIEW_VIEW_DONE__"
 }
 
 Write-Output "__BRANDED_TOP_ARTIFACTS_DONE__"

@@ -58,7 +58,7 @@ Expected outputs:
 
 - `release-artifacts/enclosure/step/case_top_two_level_cadquery.step`
 - `release-artifacts/enclosure/stl/case_top_two_level_cadquery.stl`
-- `release-artifacts/enclosure/3mf-multicolor/case_top_two_level_branded_multicolor.3mf`
+- `release-artifacts/enclosure/3mf-multicolor/case_top_two_level_multicolor.3mf`
 - ignored review images under `hardware/enclosure/review/`
 
 Do not restore the old unbranded top 3MF; the top 3MF should be multicolor only.
