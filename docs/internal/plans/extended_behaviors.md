@@ -1,587 +1,1434 @@
-# Octessera – Behaviors
+# Octessera Behavior Roadmap
 
-## Philosophy
+## Purpose
 
-Octessera is an instrument for **steering emergent musical systems**, not programming deterministic sequences.
+Octessera is an instrument for **performing with emergent systems**.
 
-Each behavior represents a small autonomous "world" governed by simple local rules. Music emerges from the interaction between the behavior, the player's input, and the musical mapping.
+Its behaviors should not merely generate random notes or draw static patterns. Each behavior should create a small world with simple rules, recognizable internal logic, useful musical motion, and enough renewal that it remains interesting over time.
 
-The goal is not randomness.
+The core formula is:
 
-The goal is **emergence**.
+> generative behavior + enough structure for listenability + live intervention = emergent music
 
----
+This document proposes:
 
-# Design Principles
-
-## Simple Rules
-
-Every behavior should be understandable after a short explanation.
-
-Complexity should arise from interaction, not from dozens of parameters.
-
-If the core idea cannot be explained on a napkin, it probably does not belong in Octessera.
+- a category tree for the behavior menu
+- priorities for new behaviors
+- transience and reset strategies
+- computational constraints
+- a review of existing behaviors
+- recommendations for avoiding redundant additions
 
 ---
 
-## Emergence over Randomness
+# 1. Core Selection Criteria
 
-Interesting patterns should arise from local interactions.
+A behavior is a strong fit for Octessera when it satisfies most of the following:
 
-Randomness is useful only as:
+## 1.1 Distinct Musical Character
 
-* initial seeding
-* occasional perturbation
-* controlled renewal
+It should produce a kind of motion, rhythm, density, or interaction that is meaningfully different from existing behaviors.
 
-Random note generation is not a behavior.
+Adding another academically interesting algorithm is not enough if it feels nearly identical in use.
+
+## 1.2 Simple Underlying Rules
+
+The behavior should be explainable in a short paragraph.
+
+Complexity should emerge from the interaction of simple rules rather than from a large number of special cases.
+
+## 1.3 Computationally Bounded
+
+The device is also a synthesizer. Behavior simulation must remain lightweight and predictable.
+
+A behavior should have:
+
+- fixed or bounded memory use
+- fixed or bounded work per tick
+- no unbounded searches
+- no uncontrolled recursion
+- no dependence on high-resolution rendering
+- no simulation work in the realtime audio callback
+
+## 1.4 Transience
+
+The world should not merely fill up and remain full.
+
+Structures should be able to:
+
+- appear
+- evolve
+- interact
+- decay
+- disappear
+- be replaced
+
+## 1.5 Natural or Designed Renewal
+
+A behavior may renew itself through:
+
+- native birth/death rules
+- fading or evaporation
+- cell lifetime
+- erosion
+- destructive agents
+- competing instances
+- parity or XOR combination
+- milestone-triggered reset
+- partial reset with preserved fragments
+- phase changes
+
+## 1.6 Meaningful Interaction
+
+Octessera already allows parameters and actions to be mapped flexibly.
+
+The relevant question is therefore not whether interaction is possible, but whether the behavior exposes parameters whose changes create interesting musical consequences.
 
 ---
 
-## Transient Worlds
+# 2. Computational Model
 
-Nothing should exist forever.
+## 2.1 Recommended Update Rates
 
-Structures should:
+Behavior simulation should generally run at control rate rather than audio rate.
 
-* appear
-* evolve
-* interact
-* decay
-* disappear
+Typical ranges:
 
-Permanent equilibrium is generally undesirable.
+- 5–15 Hz for slow growth systems
+- 10–30 Hz for most cellular and agent systems
+- up to 60 Hz for motion-heavy systems
+
+## 2.2 Recommended Limits
+
+Suggested default ceilings:
+
+- internal grid: 8×8 by default
+- higher-resolution internal field: only when clearly beneficial
+- agents: usually 8–64
+- attractors or food sources: small fixed count
+- bounded steps per walker per tick
+- no heap allocation during steady-state updates
+
+## 2.3 Internal Resolution
+
+An 8×8 simulation is ideal when the behavior remains legible at that scale.
+
+A 16×16 or 32×32 internal field may be justified for:
+
+- reaction–diffusion
+- wave propagation
+- fractal sampling
+- slime-mold trail fields
+
+The internal field should still be sampled or reduced to the 8×8 board.
+
+## 2.4 Audio Safety
+
+Behavior simulation should remain outside the realtime audio callback.
+
+The audio engine should consume:
+
+- cell-state snapshots
+- trigger events
+- note events
+- modulation values
+- compact shared state
+
+The simulation must avoid realtime hazards such as allocation, locking, or unpredictable loops.
 
 ---
 
-## Continuous Renewal
+# 3. Transience and Renewal
 
-Every behavior should remain interesting indefinitely.
+## 3.1 Native Transience
 
-If a simulation naturally converges, Octessera should gently reintroduce novelty without fundamentally changing the algorithm.
-
----
-
-## Player Influence
-
-The musician does not program the world.
-
-The musician **steers** it.
-
-The world remains partially autonomous while responding naturally to intervention.
-
----
-
-# Native vs. Imposed Transience
-
-Some algorithms naturally contain both constructive and destructive forces.
-
-Others only accumulate.
-
-Both are acceptable.
-
-If a source algorithm does not naturally remove structures, Octessera may introduce a complementary lifecycle system while preserving the recognizable character of the original behavior.
-
-The objective is compelling musical behavior, not strict academic fidelity.
-
-## Native Transience
+Some systems already contain construction and destruction.
 
 Examples:
 
-* Brian's Brain
-* Forest Fire
-* Slime Mold (trail evaporation)
-* Wave Equation (damping)
-* Raindrops (expanding and fading splashes)
+- Brian's Brain
+- Forest Fire
+- Wave Equation with damping
+- Slime Mold with evaporation
+- Predator–Prey
+- Cyclic Cellular Automata
+- Pulse-coupled oscillators
 
-These generally require little additional lifecycle management.
+These are especially desirable because renewal is part of the world itself.
 
-## Imposed Transience
-
-Possible strategies include:
-
-### Cell Lifetime (TTL)
+## 3.2 Cell Lifetime
 
 Each created cell receives a finite lifetime.
 
-When the timer expires, it disappears.
+When its time-to-live expires, it disappears.
 
----
+Best for:
 
-### Age-Based Erosion
+- Shapes
+- Crystal Growth
+- Vines
+- Fractal samples
+- persistent particle trails
 
-Older cells become progressively more likely to disappear.
+## 3.3 Age-Based Erosion
 
----
+Older cells become increasingly likely to disappear.
 
-### XOR / Toggle Combination
+This is less mechanical than a fixed lifetime and creates gradual renewal.
 
-A secondary process toggles cells instead of only creating them.
+## 3.4 XOR or Toggle Combination
 
-Overlapping activity naturally cancels.
+A new event toggles a cell instead of always setting it.
 
----
+Repeated or overlapping activity can therefore remove cells.
 
-### Even/Odd (Parity) Combination
+This is especially useful for:
 
-Each activation flips a cell.
+- Shapes
+- line-based growth
+- repeated geometric generators
+- overlapping pattern systems
+- dual-source simulations
 
-Odd activations produce live cells.
+## 3.5 Even/Odd Parity
 
-Even activations remove them.
+Count how many influences affect a cell.
 
----
+- odd count: active
+- even count: inactive
 
-### Competing Instances
+This makes overlap destructive as well as constructive.
 
-Run two copies of the same behavior.
+## 3.6 Competing Instances
 
-One primarily creates.
+Run two instances of the same or related process.
 
-One primarily destroys.
+One creates; the other removes.
 
-The destructive instance may be mirrored, phase-shifted, delayed or independently seeded.
+The destructive instance may be:
 
----
+- mirrored
+- phase-shifted
+- delayed
+- offset
+- independently seeded
+- slower or faster
 
-### Destructive Walkers
+This is a strong option when the original algorithm is attractive but accumulative.
 
-Introduce agents whose purpose is to erase cells.
+## 3.7 Destructive Agents
+
+Add walkers, predators, erasers, or waves that remove existing cells.
 
 Examples:
 
-* wandering particles
-* ants
-* predator agents
+- eraser ants
+- sweeping fronts
+- decay particles
+- predators
+- cutting cracks
+- dissolving droplets
+
+## 3.8 Density-Based Death
+
+Overcrowded areas erode or collapse.
+
+This prevents the board from saturating.
+
+## 3.9 Resource Depletion
+
+Cells consume a local resource.
+
+When the resource is exhausted, cells die.
+
+The resource then regenerates.
+
+This works particularly well for:
+
+- vines
+- coral
+- ecosystems
+- slime mold
+- crystal growth
+
+## 3.10 Alternating Phases
+
+The world alternates between phases such as:
+
+- growth
+- stability
+- erosion
+- reseeding
+
+This can be deterministic or condition-driven.
+
+## 3.11 Pattern-Based Erasure
+
+Inject destructive patterns:
+
+- waves
+- circles
+- lines
+- masks
+- gliders
+- expanding voids
+
+These create renewal while keeping the world's existing structure partially intact.
 
 ---
 
-### Density-Based Death
+# 4. World Events and Conditional Reset
 
-Dense regions gradually erode.
+A reset should preferably happen because the world reached a meaningful state, not merely because a timer expired.
 
----
+The reset becomes part of the behavior's narrative.
 
-### Resource Consumption
+## 4.1 Full Reset
 
-Cells consume local resources.
+The entire state is regenerated.
 
-Without resources they disappear.
+Examples:
 
-Resources regenerate over time.
+- Cracks: a crack spans the pane, so the window is replaced
+- Maze: the maze completes, so a new maze begins
+- Fractal Explorer: the view becomes uninformative, so a new region is selected
+- Forest Fire: nearly all vegetation is gone, so a new season begins
 
----
+## 4.2 Partial Reset
 
-### Alternating Phases
+Only part of the world is replaced.
 
-Alternate between periods of growth and erosion.
+Examples:
 
----
+- DLA: preserve one fragment, regrow from it
+- Coral: a storm removes large sections
+- Physarum: relocate food sources but keep some trails
+- Gravity: clear only the settled bottom rows
+- Crystal Growth: dissolve one region and reseed another
 
-### Pattern-Based Erasure
+## 4.3 Phase Transition
 
-Inject destructive patterns such as:
+The world changes mode instead of resetting.
 
-* waves
-* gliders
-* masks
-* expanding circles
+Examples:
 
-These periodically clear space for new structures.
+- Cracks: intact glass → cracking → shatter → new pane
+- Forest Fire: growth season → fire season → recovery
+- Ecosystem: abundance → collapse → regrowth
+- Wave: excitation → interference → calm → new impulse
+- Fractal Explorer: zoom-in → drift → zoom-out → teleport
 
----
+## 4.4 Suggested World Events
 
-## Guideline
-
-Behaviors that do not naturally remove their own output should define an explicit removal mechanism.
-
-The removal process should complement the original algorithm rather than replacing it.
-
----
-
-# Performance Philosophy
-
-Octessera is a musical instrument.
-
-Behavior simulation exists to drive musical interaction, not to maximize simulation accuracy.
-
-A convincing miniature implementation is preferred over a computationally expensive reference implementation.
-
-The musical character is more important than algorithmic completeness.
-
----
-
-## Fixed Computational Budget
-
-Every behavior should have a strictly bounded execution cost.
-
-Recommended constraints:
-
-* Fixed grid size
-* Fixed maximum agent count
-* Fixed work per update
-* No unbounded searches
-* No recursive growth without limits
-* No heap allocation during steady-state updates
-
-The CPU cost of a behavior should remain predictable regardless of its current state.
+| Behavior | Condition | Event |
+|---|---|---|
+| Cracks | Crack connects opposite edges | Glass shatters; replace pane |
+| Forest Fire | Tree density falls below threshold | Begin new season |
+| Boids | Flock becomes too compact | Scatter event or predator |
+| Physarum | Food exhausted or trail field saturates | Relocate food sources |
+| DLA | Aggregate reaches edge or density limit | Fracture, erode, or reseed |
+| Gravity | Stable pile reaches height threshold | Avalanche or clear zone |
+| Brain | Activity falls below threshold | Random excitation |
+| Life | Extinction or stable repetition detected | Reseed or inject pattern |
+| Wave | Total energy falls below threshold | New impulse |
+| Crystals | Crystal covers too much of board | Dissolve selected region |
+| Predator–Prey | One population collapses | Reintroduce population |
+| Fractal Explorer | Detail score becomes too low/high | Shift center or reset zoom |
 
 ---
 
-## Simulation Rate
+# 5. Existing Behaviors: Keep, Merge, or Reconsider
 
-Behaviors should operate at musical control rates rather than audio rates.
+Current behaviors:
 
-Typical update frequencies:
+- None
+- Life
+- Sequencer
+- Keys
+- Looper
+- Brain
+- Ant
+- Bounce
+- Shapes
+- Raindrops
+- DLA
+- Glider
 
-* 10–30 Hz for slower evolving systems
-* Up to 60 Hz for highly dynamic behaviors
+## 5.1 Definitely Keep
 
-There is generally no benefit in simulating behaviors at audio sample rates.
+### None
+
+A true null behavior.
+
+It performs no simulation, no processing, and no autonomous activity.
+
+It is an empty layer, not a manual-performance mode.
+
+### Keys
+
+Meaningfully distinct because it is direct live performance rather than autonomous generation.
+
+### Sequencer
+
+Provides deliberate rhythmic structure and listenability.
+
+It serves a different role from generative behaviors.
+
+### Looper
+
+Distinct because it works with captured performance and repetition rather than simulated state.
+
+### Ant
+
+Langton's Ant has a clear identity:
+
+- one moving agent
+- deterministic local transformation
+- path-dependent structure
+- strong long-term evolution
+
+It is meaningfully distinct from Life and Brain.
+
+### Bounce
+
+Distinct physical motion.
+
+Its identity is trajectory, collision, and reflection rather than cellular evolution.
+
+### Raindrops
+
+Distinct if implemented as falling droplets followed by local splashes.
+
+It should remain focused on impact and splash lifecycle, not general wave interference.
+
+### DLA
+
+Distinct as an accretive branching-growth process.
+
+It should remain, but its renewal strategy deserves attention because classical DLA accumulates.
+
+Recommended renewal:
+
+- age-based erosion
+- destructive walkers
+- branch fracture
+- condition-triggered restart
+- competing destructive DLA
+- preserve a fragment and regrow
+
+### Shapes
+
+Likely worth keeping because it represents deliberate geometric generation rather than naturalistic simulation.
+
+Its distinctness depends on implementation.
+
+To avoid overlap with future geometry or fractal behaviors, Shapes should remain focused on discrete geometric construction and transformations.
+
+## 5.2 Keep, but Clarify the Relationship
+
+### Life
+
+Keep as the general Conway-style world.
+
+Its identity should be free evolution from a board state or seed.
+
+### Glider
+
+Glider is the most obvious candidate for possible consolidation.
+
+It uses Conway-style Game of Life with a spawn-glider feature. That means its simulation core overlaps almost entirely with Life.
+
+There are two valid choices:
+
+#### Keep Glider as a separate behavior
+
+Keep it if it feels materially different in performance because:
+
+- gliders are continuously or conditionally injected
+- the world has directional movement
+- the player's relationship to it is different
+- it has its own parameters and musical output character
+
+#### Merge Glider into Life
+
+Merge it if the only meaningful difference is one optional setting:
+
+- spawn gliders: on/off
+- glider interval
+- glider direction
+- glider source edge
+
+Recommendation:
+
+> Keep Glider only if it has a clearly different interaction loop and musical result. Otherwise, make glider injection a Life mode or Life parameter.
+
+### Brain
+
+Keep.
+
+Although Brain and Life are both cellular automata, they behave differently enough:
+
+- Life produces persistent structures, still lifes, oscillators, and moving objects
+- Brain produces firing fronts, refractory trails, pulses, and excitable-wave behavior
+
+Brain has a distinct temporal and rhythmic identity.
+
+## 5.3 Main Redundancy Risk
+
+The largest risk is not in the current list but in future additions.
+
+Avoid collecting many near-neighbor cellular automata merely because they have different rule tables.
+
+Examples to treat cautiously:
+
+- HighLife
+- Seeds
+- Day & Night
+- Morley
+- multiple minor Life variants
+- multiple excitable-media variants
+
+A new cellular automaton should be added only when it creates a clearly different performance experience.
 
 ---
 
-## Audio Separation
+# 6. Recommended Category Tree
 
-Behavior simulation must remain independent from the realtime audio callback.
+A flat list will become difficult to navigate as the library grows.
 
-The audio engine should consume lightweight snapshots or generated musical events.
+The menu should separate direct musical tools from algorithmic worlds, then group worlds by how they behave.
 
-Simulation should never perform:
+```text
+Behaviors
+├── Empty & Performance
+│   ├── None
+│   ├── Keys
+│   ├── Sequencer
+│   └── Looper
+│
+├── Cellular Worlds
+│   ├── Life
+│   ├── Glider            [or merge into Life]
+│   ├── Brain
+│   ├── Ant
+│   ├── Cyclic
+│   ├── Forest Fire
+│   └── Predator–Prey
+│
+├── Particles & Motion
+│   ├── Bounce
+│   ├── Gravity
+│   ├── Boids
+│   ├── Orbit
+│   ├── Flow Field
+│   └── Lightning
+│
+├── Growth & Decay
+│   ├── DLA
+│   ├── Physarum
+│   ├── Crystal
+│   ├── Vines
+│   ├── Coral
+│   └── Cracks
+│
+├── Fields & Waves
+│   ├── Raindrops
+│   ├── Wave
+│   ├── Diffusion
+│   ├── Magnetic Domains
+│   ├── Ink
+│   └── Reaction–Diffusion
+│
+├── Rhythm & Synchronization
+│   ├── Pulse Network
+│   ├── Kuramoto
+│   ├── Fireflies
+│   └── Coupled Clocks
+│
+├── Geometry & Space
+│   ├── Shapes
+│   ├── Maze
+│   ├── Voronoi
+│   ├── Tessellation
+│   └── Fractal Explorer
+│
+└── Experimental
+    ├── Rivers
+    ├── Sand Ripples
+    ├── Lava Lamp
+    └── hybrid or unfinished systems
+```
 
-* expensive computation
-* memory allocation
-* locking
-* unbounded loops
+## 6.1 Practical Menu Recommendation
 
-inside the realtime audio thread.
+Do not create too many top-level categories immediately.
 
----
+A good first version would use six groups:
 
-# Existing Behaviors
+```text
+Behaviors
+├── Play
+├── Cellular
+├── Motion
+├── Growth
+├── Fields
+└── Geometry
+```
 
-## None
+Only add separate categories such as Synchronization or Ecology once each contains enough behaviors to justify a submenu.
 
-**Category:** Null
+## 6.2 Alternative Category Names
 
-Empty behavior.
+More technical:
 
-Performs no simulation, processing or autonomous activity.
+- Performance
+- Cellular Automata
+- Agent Systems
+- Particle Systems
+- Growth Systems
+- Field Systems
+- Dynamical Systems
+- Geometry
 
-Represents the intentional absence of a behavior.
+More approachable:
 
----
+- Play
+- Cells
+- Swarms
+- Motion
+- Growth
+- Waves
+- Patterns
 
-## Keys
+Recommendation:
 
-**Category:** Performance
-
-Direct manual performance.
-
----
-
-## Sequencer
-
-**Category:** Musical
-
-Traditional deterministic step sequencer.
-
----
-
-## Looper
-
-**Category:** Musical
-
-Loop recording and playback.
-
----
-
-## Life
-
-**Category:** Cellular Automaton
-
-Conway's Game of Life.
-
----
-
-## Glider
-
-**Category:** Cellular Automaton
-
-Conway's Game of Life with periodic glider injection.
-
----
-
-## Brain
-
-**Category:** Cellular Automaton
-
-Brian's Brain.
-
-Cells cycle through:
-
-* resting
-* firing
-* refractory
-
-Optional random seeding maintains continuous activity.
-
----
-
-## Ant
-
-**Category:** Cellular Automaton
-
-Langton's Ant.
-
----
-
-## Bounce
-
-**Category:** Physics
-
-Particles bounce through the grid and interact with boundaries.
-
----
-
-## Shapes
-
-**Category:** Geometry
-
-Procedural geometric generators.
-
----
-
-## Raindrops
-
-**Category:** Physics
-
-Droplets fall onto the grid.
-
-Each impact produces expanding splashes that gradually disappear.
+> Use approachable menu labels and technical descriptions in documentation.
 
 ---
 
-## DLA
+# 7. Prioritized New Behaviors
 
-**Category:** Emergent Growth
+## Priority 1: Highest Value
 
-Diffusion-Limited Aggregation.
+These are strongly distinct from the current set, computationally cheap enough, and well aligned with Octessera.
 
-Random walkers attach to existing structures, gradually producing branching forms.
+## 7.1 Kuramoto / Pulse-Coupled Oscillators
 
-Future implementations should incorporate erosion or competing growth to avoid permanent accumulation.
+**Category:** Rhythm & Synchronization
+**Priority:** Very high
+**Cost:** Very low to low
+
+Each cell contains an oscillator with:
+
+- phase
+- natural frequency
+- local coupling strength
+
+Neighboring oscillators gradually synchronize.
+
+Possible variants:
+
+- continuous Kuramoto-style phase coupling
+- discrete pulse-coupled firefly model
+- cells flash when crossing a phase threshold
+- flashes advance neighboring phases
+
+Why it is valuable:
+
+- creates emergent rhythm rather than merely spatial pattern
+- extremely suitable for musical output
+- computationally trivial with 64 local oscillators
+- meaningfully different from existing behaviors
+- naturally cycles between disorder and synchronization
+
+Renewal:
+
+- slight frequency drift
+- random phase perturbations
+- local resets
+- periodic desynchronization pulse
+
+Search terms:
+
+- Kuramoto model local coupling
+- pulse-coupled oscillators
+- Mirollo Strogatz firefly synchronization
+- cellular oscillator synchronization
+
+## 7.2 Forest Fire
+
+**Category:** Cellular Worlds
+**Priority:** Very high
+**Cost:** Very low
+
+Cells are:
+
+- empty
+- tree
+- burning
+
+Rules:
+
+- trees regrow
+- fires spread
+- lightning occasionally starts fires
+- burned cells become empty
+
+Why it is valuable:
+
+- natural birth, destruction, and regrowth
+- easy to understand
+- strong rhythmic waves
+- almost free computationally
+- visually and musically distinct from Life and Brain
+
+World events:
+
+- new season after near-total burn
+- wind shift after a large fire
+- partial reseeding
+
+Search terms:
+
+- Drossel Schwabl forest fire
+- forest fire cellular automaton
+
+## 7.3 Physarum / Slime Mold
+
+**Category:** Growth & Decay
+**Priority:** Very high
+**Cost:** Low to moderate in miniature form
+
+Use a bounded population of agents.
+
+Each agent:
+
+- samples trail values ahead and to either side
+- turns toward stronger trails
+- moves
+- deposits trail
+
+The trail field evaporates over time.
+
+Why it is valuable:
+
+- combines agents, memory, path formation, and decay
+- visually unlike DLA
+- naturally transient through evaporation
+- strong potential for evolving networks
+
+Recommended scale:
+
+- 16–64 agents
+- 8×8, 16×16, or 32×32 trail field
+- fixed sensing directions
+- fixed maximum work per tick
+
+World events:
+
+- move food sources
+- erase over-saturated trail regions
+- preserve one network fragment and restart
+
+Search terms:
+
+- Physarum agent simulation
+- Jeff Jones slime mold algorithm
+- trail-following agent model
+
+## 7.4 Cracks / Glass
+
+**Category:** Growth & Decay
+**Priority:** Very high
+**Cost:** Very low to low
+
+The board is a sheet of glass.
+
+Stress accumulates.
+
+Cracks propagate from:
+
+- impact points
+- stressed cells
+- existing crack tips
+
+A crack may branch or turn based on local stress.
+
+Why it is valuable:
+
+- extremely clear lifecycle
+- strong visual narrative
+- deterministic enough to feel structured
+- reset condition is naturally meaningful
+
+World event:
+
+> When a connected crack reaches or splits opposite edges, the pane shatters and is replaced.
+
+Possible post-shatter options:
+
+- full reset
+- preserve a few fragments
+- temporarily scatter debris
+- make the next pane inherit stress scars
+
+Search terms:
+
+- procedural crack propagation
+- glass fracture simulation grid
+- cellular fracture model
+- lattice fracture simulation
+
+## 7.5 Boids
+
+**Category:** Particles & Motion
+**Priority:** High
+**Cost:** Low with a small population
+
+Each agent follows:
+
+- separation
+- alignment
+- cohesion
+
+Why it is valuable:
+
+- iconic emergent system
+- fluid and collective movement
+- different from Bounce because movement is socially coupled
+- a small population is sufficient
+
+Recommended scale:
+
+- 8–24 boids
+- naive pairwise interaction is acceptable at this size
+- wrap, reflect, or attract at boundaries
+
+Renewal:
+
+- scatter event when flock becomes too compact
+- temporary predator
+- random new boid heading
+- split flock when stable
+
+Search terms:
+
+- Craig Reynolds Boids
+- flocking simulation local rules
+
+## 7.6 Wave
+
+**Category:** Fields & Waves
+**Priority:** High
+**Cost:** Very low to low
+
+Maintain displacement and velocity per cell.
+
+Energy propagates through neighboring cells with damping.
+
+Why it is valuable:
+
+- continuous spatial propagation
+- very cheap
+- naturally transient through damping
+- musically useful as traveling energy
+
+Difference from Raindrops:
+
+- Raindrops is a specific falling-drop and splash behavior
+- Wave is a general field that propagates, reflects, interferes, and is repeatedly excited
+
+World events:
+
+- inject a new impulse when energy falls too low
+- invert boundaries
+- change reflection behavior
+- calm-to-storm phase shift
+
+Search terms:
+
+- discrete 2D wave equation grid
+- ripple simulation finite difference
+
+## 7.7 Fractal Explorer
+
+**Category:** Geometry & Space / Dynamical Systems
+**Priority:** High
+**Cost:** Low to moderate
+
+The behavior continuously explores a fractal rather than drawing a static one.
+
+State includes:
+
+- center point
+- zoom level
+- drift direction
+- zoom direction
+- iteration limit
+- fractal parameters
+
+The center drifts semi-randomly or according to a detail score.
+
+Possible fractals:
+
+- Mandelbrot
+- Julia
+- Burning Ship
+- Newton fractal
+
+Why it is valuable:
+
+- mathematically distinct from all current behaviors
+- provides an effectively infinite landscape
+- naturally supports zoom, drift, morphing, and reseeding
+- only 64 output samples are required for an 8×8 board
+
+Recommended implementation:
+
+- bounded iteration count
+- 64 samples per frame
+- optional higher-resolution cache
+- score candidate centers by edge/detail density
+- reset or zoom out when the region becomes uninteresting
+
+World events:
+
+- detail collapse → choose new center
+- excessive uniformity → zoom out
+- maximum zoom → jump to new region
+- Julia parameter drift → morphing phase
+
+Search terms:
+
+- Mandelbrot escape-time algorithm
+- Julia set explorer
+- fractal zoom center selection
+- adaptive fractal exploration
 
 ---
 
-# Candidate Behaviors
+# 8. Priority 2: Strong Additions
 
-## Tier 1 — Strongest Candidates
+## 8.1 Cyclic Cellular Automaton
 
-### Slime Mold (Physarum)
+**Cost:** Very low
 
-**Category:** Agent Simulation
+Each cell has one of several states.
 
-A bounded population of simple agents:
-
-* senses nearby trails
-* moves
-* deposits trails
-
-Trails gradually evaporate.
-
-Produces continuously evolving transport networks.
-
-**Implementation Notes**
-
-* Small fixed agent count (e.g. 16–64)
-* Fixed trail buffer
-* No dynamic allocation
-
-**References**
-
-* Physarum simulation
-* Jones Physarum algorithm
-
----
-
-### Forest Fire
-
-**Category:** Cellular Automaton
-
-Trees grow.
-
-Lightning ignites fires.
-
-Burned areas recover.
-
-Excellent natural birth–death cycle.
-
-**References**
-
-* Drossel–Schwabl Forest Fire
-
----
-
-### Boids
-
-**Category:** Swarm Simulation
-
-Agents follow:
-
-* Separation
-* Alignment
-* Cohesion
-
-Produces flocking behavior.
-
-**Implementation Notes**
-
-Use a small fixed population.
-
-A few dozen boids are sufficient for rich behavior.
-
-**References**
-
-* Craig Reynolds Boids
-
----
-
-## Tier 2 — Excellent Candidates
-
-### Cyclic Cellular Automaton
-
-Produces spirals and travelling waves.
-
-Very inexpensive.
-
----
-
-### Wave Equation
-
-Travelling waves with:
-
-* damping
-* reflection
-* interference
-
-Natural extension of Raindrops.
-
----
-
-### Falling Sand
-
-Simple local material rules.
-
-Supports sand, water, smoke and similar materials.
-
----
-
-### Crystal Growth
-
-Seeds nucleate.
-
-Crystals grow.
-
-Old structures dissolve.
-
----
-
-### Gravity
-
-Particles fall, stack and avalanche.
-
-Periodic disturbances maintain renewal.
-
----
-
-## Tier 3 — Good Candidates
-
-### Diffusion
-
-Random walkers continuously enter and leave the world.
-
----
-
-### Vines
-
-Branches grow, compete and die.
-
----
-
-### Ising Model
-
-Neighbor interactions produce evolving domains.
-
-Introduce thermal noise to avoid freezing.
-
----
-
-### Orbital System
-
-Particles orbit temporary moving attractors.
-
----
-
-## Tier 4 — More Computationally Demanding
-
-These remain viable but should use simplified implementations or lower internal resolutions.
-
-### Reaction–Diffusion (Gray–Scott)
-
-Virtual chemicals diffuse and react.
+A cell advances when enough neighbors are in the next state.
 
 Produces:
 
-* spots
-* stripes
-* labyrinths
+- waves
+- spirals
+- rotating fronts
 
-**References**
+Strengths:
 
-* Gray–Scott reaction diffusion
+- extremely cheap
+- naturally active
+- visibly distinct from Life and Brain
+
+Caution:
+
+- choose a rule that remains legible on 8×8
+
+## 8.2 Predator–Prey Ecosystem
+
+**Cost:** Very low to low
+
+Spatial agents or cells represent:
+
+- grass or resource
+- herbivore
+- predator
+
+Simple rules create population cycles.
+
+Strengths:
+
+- ecological rise and collapse
+- natural reset conditions
+- meaningful multi-species interaction
+- strong long-form musical variation
+
+World events:
+
+- species extinction → migration or reseeding
+- overpopulation → famine
+- resource recovery phase
+
+## 8.3 Gravity / Sandpile
+
+**Cost:** Very low
+
+Particles fall, stack, slide, and avalanche.
+
+Strengths:
+
+- intuitive movement
+- strong rhythmic cascades
+- simple local rules
+
+Renewal:
+
+- clear bottom rows
+- invert gravity
+- trigger avalanche
+- remove settled cells by age
+
+## 8.4 Orbit / Moving Attractors
+
+**Cost:** Low
+
+Particles move around one or more attractors.
+
+Attractors may:
+
+- drift
+- appear
+- disappear
+- repel instead of attract
+
+Strengths:
+
+- flowing motion
+- distinct from Bounce and Boids
+- simple bounded particle system
+
+## 8.5 Crystal Growth
+
+**Cost:** Very low
+
+Seeded cells expand according to local orientation or neighborhood rules.
+
+Strengths:
+
+- more geometric than DLA
+- easy to combine with erosion
+- useful for structured growth
+
+Renewal:
+
+- dissolve old cells
+- competing crystal colors or phases
+- parity cancellation
+- fracture at edge contact
+
+## 8.6 Lightning
+
+**Cost:** Very low to low
+
+A branching leader grows toward a target edge or field gradient.
+
+Once it connects:
+
+- flash
+- decay
+- restart
+
+Strengths:
+
+- natural short lifecycle
+- strong dramatic events
+- easy reset condition
+
+Caution:
+
+- should not become merely a one-shot drawing
+- use multiple leaders, branching, and variable decay
+
+## 8.7 Ink / Diffusing Dye
+
+**Cost:** Low
+
+Drops spread and diffuse through a field while fading or being absorbed.
+
+Strengths:
+
+- soft, fluid evolution
+- different from discrete cells and particles
+- naturally transient
+
+Caution:
+
+- may resemble Wave or Reaction–Diffusion if not given a clear identity
 
 ---
 
-### Turing Patterns
+# 9. Priority 3: Good but More Conditional
 
-Reaction–diffusion variant inspired by biological morphogenesis.
+## 9.1 Reaction–Diffusion / Gray–Scott
 
-Produces evolving organic textures.
+**Cost:** Moderate relative to the others
 
-**References**
+Two fields diffuse and react.
 
-* Turing morphogenesis
+Strengths:
+
+- organic spots, stripes, and labyrinths
+- rich parameter space
+
+Limitations:
+
+- 8×8 may be too coarse
+- usually benefits from 16×16 or 32×32 internal resolution
+- overlaps somewhat with Turing Patterns
+- less immediately legible than simpler systems
+
+Recommendation:
+
+> Implement one reaction–diffusion behavior, not separate Gray–Scott and Turing entries unless they feel meaningfully different.
+
+## 9.2 Vines
+
+**Cost:** Very low to low
+
+Branches grow toward space, light, or resources.
+
+Strengths:
+
+- organic branching
+- simple growth logic
+
+Limitations:
+
+- possible overlap with DLA, Crystal, and Coral
+
+Keep only if it has a distinct rule:
+
+- directional growth
+- branching hierarchy
+- resource transport
+- pruning
+
+## 9.3 Coral
+
+**Cost:** Very low to low
+
+Growth favors exposed surfaces.
+
+Colonies compete.
+
+Old regions die or break away.
+
+Strengths:
+
+- natural competition
+- attractive lifecycle
+
+Limitations:
+
+- can overlap with DLA and Vines
+
+## 9.4 Maze Growth
+
+**Cost:** Very low
+
+A maze is generated incrementally.
+
+Strengths:
+
+- clear structure
+- trivial cost
+- natural completion event
+
+Limitations:
+
+- may be visually interesting but musically less rich
+- risks becoming a construction animation rather than a living world
+
+Improve it by adding:
+
+- erosion
+- competing maze builders
+- moving path activity
+- repeated collapse and regrowth
+
+## 9.5 Ising / Magnetic Domains
+
+**Cost:** Very low
+
+Cells align with neighbors under temperature/noise.
+
+Strengths:
+
+- phase transitions
+- moving domains
+- simple local rule
+
+Limitations:
+
+- may be less musically obvious
+- can settle into large uniform regions
+
+Renewal:
+
+- heat pulses
+- field reversal
+- local noise injection
+
+## 9.6 Rivers
+
+**Cost:** Low
+
+Water follows a changing height field.
+
+Flow erodes terrain and deposits material.
+
+Strengths:
+
+- channels form, clog, and migrate
+- strong emergent structure
+
+Limitations:
+
+- more implementation design is required
+- needs careful simplification for 8×8
+
+## 9.7 Sand Ripples / Dunes
+
+**Cost:** Low
+
+Wind transports grains.
+
+Deposition creates migrating ridges.
+
+Strengths:
+
+- slow coherent motion
+- useful for long-form evolution
+
+Limitations:
+
+- may be subtle at 8×8
+
+## 9.8 Lava Lamp / Metaball Approximation
+
+**Cost:** Low to moderate
+
+A few soft blobs move, merge, and split.
+
+Strengths:
+
+- visually distinct
+- smooth and organic
+
+Limitations:
+
+- needs field sampling or approximation
+- may be less naturally eventful musically
 
 ---
 
-# General Implementation Guidelines
+# 10. Behaviors to Avoid or Consolidate
 
-Every behavior should satisfy the following:
+## 10.1 Too Many Life-Like Automata
 
-* Simple local rules
-* Emergent global behavior
-* Predictable computational cost
-* Bounded execution time
-* No unbounded loops
-* Fixed memory usage
-* Continuous renewal
-* Suitable for real-time musical interaction
+Do not add a long list of Life rule variants unless one creates a clearly different interaction pattern.
 
-When choosing between algorithmic purity and musical usefulness, prioritize musical usefulness.
+Prefer one configurable "Life Family" behavior over many near-duplicates.
 
-A miniature implementation that captures the essence of a system is preferable to a computationally expensive reference implementation.
+## 10.2 Duplicate Reaction–Diffusion Entries
+
+Gray–Scott and Turing Patterns belong to the same broad family.
+
+Start with one behavior.
+
+Add another only if the interaction and output are clearly distinct.
+
+## 10.3 Static Fractal Renderers
+
+A static Mandelbrot or Julia image is not enough.
+
+Use:
+
+- continuous zoom
+- drifting center
+- parameter morphing
+- interesting-region selection
+- lifecycle reset
+
+The behavior should be **Fractal Explorer**, not merely **Fractal**.
+
+## 10.4 One-Way Drawing Algorithms
+
+Avoid systems that simply finish a picture unless they include:
+
+- erosion
+- competing growth
+- conditional reset
+- fragment inheritance
+- ongoing transformation
+
+## 10.5 Generic Particle Effects
+
+Smoke, fire, snow, and sparks are not automatically strong behaviors.
+
+They should be added only if their rules create a distinctive emergent system rather than a visual effect.
+
+## 10.6 Near-Duplicate Growth Systems
+
+DLA, Crystal, Vines, Coral, and Lightning can overlap.
+
+Each should have a specific identity:
+
+- DLA: random aggregation
+- Crystal: local geometric growth
+- Vines: directed branching and pruning
+- Coral: surface competition and colony death
+- Lightning: rapid goal-seeking fracture followed by decay
 
 ---
 
-# Final Guiding Principle
+# 11. Final Priority Order
 
-Every world should balance **construction** and **destruction**.
+## Tier S — Implement First
 
-Some algorithms provide both naturally.
+1. **Kuramoto / Pulse Network**
+2. **Forest Fire**
+3. **Physarum / Slime Mold**
+4. **Cracks / Glass**
+5. **Boids**
+6. **Wave**
+7. **Fractal Explorer**
 
-Others require Octessera to introduce complementary removal mechanisms.
+These offer the best combination of:
 
-The objective is not to faithfully reproduce scientific simulations.
+- distinctness
+- musical potential
+- low computational cost
+- clear lifecycle
+- strong interaction
+- minimal overlap with the current library
 
-The objective is to create **living, evolving musical worlds** that remain expressive, responsive and computationally lightweight enough to coexist with real-time synthesis.
+## Tier A — Strong Next Additions
+
+8. **Cyclic Cellular Automaton**
+9. **Predator–Prey Ecosystem**
+10. **Gravity / Sandpile**
+11. **Orbit / Moving Attractors**
+12. **Crystal Growth**
+13. **Lightning**
+14. **Ink / Diffusing Dye**
+
+## Tier B — Add Selectively
+
+15. **Reaction–Diffusion**
+16. **Vines**
+17. **Coral**
+18. **Maze**
+19. **Ising / Magnetic Domains**
+20. **Rivers**
+21. **Sand Ripples**
+22. **Lava Lamp**
+
+---
+
+# 12. Recommended Immediate Decisions
+
+## Keep
+
+- None
+- Keys
+- Sequencer
+- Looper
+- Life
+- Brain
+- Ant
+- Bounce
+- Shapes
+- Raindrops
+- DLA
+
+## Review
+
+- Glider
+
+Recommendation:
+
+- keep it if it behaves and sounds materially different from Life
+- otherwise merge it into Life as a glider-injection mode or parameter
+
+## Avoid Adding Soon
+
+- more minor Life variants
+- a second reaction–diffusion behavior
+- another generic random-walker behavior
+- another branching growth behavior without a clearly distinct lifecycle
+- static fractal rendering
+- purely cosmetic particle effects
+
+---
+
+# 13. Suggested Near-Term Menu
+
+With the current set plus the first recommended additions:
+
+```text
+Behaviors
+├── Play
+│   ├── None
+│   ├── Keys
+│   ├── Sequencer
+│   └── Looper
+│
+├── Cellular
+│   ├── Life
+│   ├── Glider
+│   ├── Brain
+│   ├── Ant
+│   ├── Forest Fire
+│   ├── Cyclic
+│   └── Predator–Prey
+│
+├── Motion
+│   ├── Bounce
+│   ├── Boids
+│   ├── Gravity
+│   ├── Orbit
+│   └── Lightning
+│
+├── Growth
+│   ├── DLA
+│   ├── Physarum
+│   ├── Crystal
+│   └── Cracks
+│
+├── Fields
+│   ├── Raindrops
+│   ├── Wave
+│   ├── Ink
+│   └── Reaction–Diffusion
+│
+├── Rhythm
+│   └── Pulse Network
+│
+└── Geometry
+    ├── Shapes
+    ├── Maze
+    └── Fractal Explorer
+```
+
+This tree is broad enough to scale without becoming cumbersome.
+
+---
+
+# 14. Guiding Principle
+
+The best Octessera behaviors are not simply generators.
+
+They are **small worlds with their own logic, tension, lifecycle, and renewal**.
+
+A good behavior should make the player feel that something is happening on the board even before it is mapped to sound.
+
+The strongest additions will not be the most mathematically sophisticated ones.
+
+They will be the ones that are:
+
+- easy to understand
+- cheap to simulate
+- hard to fully predict
+- easy to influence
+- capable of disappearing and renewing
+- meaningfully different from everything already present
