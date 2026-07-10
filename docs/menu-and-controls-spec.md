@@ -81,7 +81,7 @@ Value editing semantics:
 - Navigation memory is limited to `System`, `System > Sound`, and `System > UI`. It is native, ephemeral, cleared on menu rebuild, and does not apply to any other menu, dynamic list, sample browser, preset list, MIDI port list, parameter picker, help, confirm dialog, or assignment overlay.
 - `System > Sound > Output Buffer` persists Pi output buffer frames as `runtimeConfig.sound.audioOutputBufferFrames` with choices `64/128/256/512/1024/2048`, default `256`. Changing it shows `Restart device to apply`; leaving the edited row opens the standard `Confirm Reboot` dialog. Audio is not reopened live. On Pi startup, `OCTESSERA_AUDIO_OUTPUT_BUFFER_FRAMES` remains the higher-priority override.
 - Browsing selected values are shown on the selected label row; edit mode uses a separate value-focused row for clarity.
-- Rows that lead to a submenu or selector render with a trailing `>` marker. `L1: Life > Part > Behavior: <id>` is a synthetic browser-style selector, not an editable enum. It groups behavior rows alphabetically under `[Cellular]`, `[Fields]`, `[Geometry]`, `[Growth]`, `[Motion]`, and `[Play]`, uses `..` rows for parent navigation, and writes the selected native behavior ID to the same persisted `behaviorId` field. Selecting a behavior uses a targeted native L1 refresh and does not rebuild the full menu tree.
+- Rows that lead to a submenu or selector render with a trailing `>` marker. `L1: Life > Part > Behavior: <id>` is a synthetic browser-style selector, not an editable enum. It groups behavior rows alphabetically under `[Cellular]`, `[Fields]`, `[Geometry]`, `[Growth]`, `[Motion]`, and `[Play]`, uses `..` rows for parent navigation, and writes the selected native behavior ID to the same persisted `behaviorId` field. Selecting a behavior uses a targeted native L1 refresh and does not rebuild the full menu tree. `glider` is no longer a behavior ID; its glider injection controls are part of `life`.
 - Bool behaves like a 2-option enum (`off`/`on`) and changes on encoder turn, not immediate row press
 - Named target selectors (instrument slot, part index, mixer route) display their computed names via `formatDisplayValue()` (e.g. `I1: synth`, `P3: rain`, `fx_bus_2`)
 - Behavior `none` hides L1 Step Rate, dynamic behavior config rows, and Reset while preserving stored values. Instrument Type `none` hides Note Mode, engine-specific params, mixer/MIDI rows, and Slot Actions while preserving stored config.
@@ -99,17 +99,17 @@ Action row markers:
 
 ## Grid LED Behavior (NeoKey per-key RGB)
 
-Each cell in the 8×8 grid is mapped to an LED with color based on its `CellTriggerType`:
+Each cell in the 8×8 grid is mapped to an LED with color based on its behavior palette and `CellTriggerType`. Every behavior provides inactive, active, and stable colors. Defaults are inactive black, active white, and stable green. Inactive black is preferred unless a behavior needs a different off-state color.
 
 | Condition | Color |
 |---|---|
-| Cell off | Off (0, 0, 0) |
-| `activate` | Bright white |
-| `stable` | Green |
+| Cell off | Behavior inactive color |
+| `activate` | Behavior active color |
+| `stable` | Behavior stable color |
 | `deactivate` | Dim white |
 | `scanned` | Red (only if scan mode is "scanning") |
 
-Brightness is scaled by the Grid Bright setting.
+Brightness is scaled by the Grid Bright setting after the behavior palette is applied. Runtime snapshots also expose logical active-cell booleans so simulator paint controls do not infer cell state from RGB values.
 
 Overrides:
 

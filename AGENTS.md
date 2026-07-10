@@ -49,6 +49,7 @@ Octessera is a pnpm workspace plus Cargo workspace built around a native Rust co
 - Keep `resources/menu-help-texts.tsv` in sync with enum/help-text changes; native tests enforce coverage.
 - Keep `resources/platform-capabilities.json` as the source of truth for platform dimensions and limits; regenerate TypeScript capability exports after edits.
 - Run `corepack pnpm run capabilities:generate` after editing platform capabilities, and rely on the Rust build to regenerate native capability constants.
+- Keep `config/defaults/base.json` and platform overrides in `config/defaults/` as the source of truth for shipped defaults. Run `corepack pnpm run config:generate` after editing default config sources; `config/generated/desktop/default.json`, `config/generated/pi/default.json`, and `config/default.json` are generated outputs.
 - Keep `docs/runtime-boundaries.md` aligned with native runtime/core ownership.
 - `docs/open-work.md` tracks only current actionable follow-up work, not completed history.
 
@@ -75,10 +76,11 @@ Octessera is a pnpm workspace plus Cargo workspace built around a native Rust co
 - Every code-change loop should leave the codebase in a potentially shippable, production-quality state unless the user explicitly approves otherwise. Do not defer known cleanup, dead code removal, stale tests, obsolete commands, required docs, or required validation as optional follow-up.
 - Keep explanations brief and avoid post-change recap unless it is useful.
 - If a first fix for a desktop-visible menu/control/runtime bug fails, reproduce the reported phenomenon with a full UI-level or device-input replay before attempting another fix. Prefer tests that follow the user-visible flow over direct internal state mutation alone.
+- If the user asks a question, asks for a recommendation, says "take a look", "just asking", or explicitly says not to do anything yet, answer with analysis/recommendation only. Do not implement until the user explicitly asks for changes.
 - Always prefer fast paths for live/runtime/menu/audio/control changes. Use slow paths only when they are absolutely necessary; when a slow path is necessary, inform the user explicitly and clearly, including why the slow path cannot be avoided.
 - For menu/control changes that affect playback priority, avoid broad `apply_menu_state()` on high-frequency edit paths. Prefer key-specific fast paths, delayed autosave payload generation, full `cargo test -p playback-runtime` after targeted tests, and the portable desktop exe rebuild when desktop-visible.
 - When committing and immediately pushing, run targeted confidence checks and required artifact builds before committing, then rely on the pre-push hook for exhaustive CI-like validation. Do not manually run a hook-equivalent full suite immediately before `git push` unless the change is high-risk, the user asks, or the hook cannot run.
-- If you encounter repository changes you did not make and they conflict with the current task, stop and ask the user how to proceed.
+- The user may make parallel uncommitted changes, usually cosmetic docs edits. Do not revert unexpected user changes. Ignore unrelated user changes for builds/tests unless they affect the current task or the user says otherwise. If unexpected changes conflict with the current task, stop and ask how to proceed. If the user asks to commit/push everything, include user changes too after reviewing status/diff for safety.
 
 ## Useful Commands
 
@@ -88,6 +90,7 @@ Octessera is a pnpm workspace plus Cargo workspace built around a native Rust co
 - Desktop build smoke check: `corepack pnpm --filter @octessera/desktop tauri:build:ci`
 - Portable desktop exe: `corepack pnpm --filter @octessera/desktop tauri:build:exe` writes `apps/desktop/dist-desktop/Octessera.exe`
 - Capabilities: `corepack pnpm run capabilities:generate`, `corepack pnpm run capabilities:check`
+- Default configs: `corepack pnpm run config:generate`, `corepack pnpm run config:check`
 - Windows Pi builds use HAL stubs by default; real Pi builds use `-p octessera-pi --features hardware-pi` or the cross-build workflow.
 - Pi cross-build/deploy: `./tools/pi/build-pi-cross.ps1`; then `./tools/pi/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -LocalBinary target/pi-cross/octessera-pi -NoTail`.
 - Pi source sync fallback: `./tools/pi/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -SyncOnly -NoTail` preserves the remote Cargo cache; avoid ad hoc full tar extraction over the repo.

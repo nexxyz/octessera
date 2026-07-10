@@ -144,6 +144,11 @@ pub fn dla_render_model(state: &DlaState) -> BehaviorRenderModel {
             state.cells.iter().filter(|cell| **cell).count()
         ),
         cells: state.cells.clone(),
+        palette: crate::BehaviorRenderPalette {
+            active: [255, 255, 180],
+            inactive: [0, 0, 0],
+            stable: [80, 255, 80],
+        },
         trigger_types: Some(state.trigger_types.clone()),
     }
 }

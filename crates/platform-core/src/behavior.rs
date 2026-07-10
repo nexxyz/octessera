@@ -94,7 +94,26 @@ pub struct BehaviorRenderModel {
     pub status_line: String,
     pub cells: Vec<bool>,
     #[serde(default)]
+    pub palette: BehaviorRenderPalette,
+    #[serde(default)]
     pub trigger_types: Option<Vec<CellTriggerType>>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BehaviorRenderPalette {
+    pub active: [u8; 3],
+    pub inactive: [u8; 3],
+    pub stable: [u8; 3],
+}
+
+impl Default for BehaviorRenderPalette {
+    fn default() -> Self {
+        Self {
+            active: [255, 255, 255],
+            inactive: [0, 0, 0],
+            stable: [0, 255, 0],
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

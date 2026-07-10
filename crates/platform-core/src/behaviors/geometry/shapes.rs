@@ -198,6 +198,11 @@ pub fn shapes_render_model(state: &ShapesState) -> BehaviorRenderModel {
             state.pulse_shape
         ),
         cells: state.lifetimes.iter().map(|life| *life > 0).collect(),
+        palette: crate::BehaviorRenderPalette {
+            active: [255, 255, 255],
+            inactive: [0, 0, 0],
+            stable: [180, 0, 255],
+        },
         trigger_types: Some(state.trigger_types.clone()),
     }
 }

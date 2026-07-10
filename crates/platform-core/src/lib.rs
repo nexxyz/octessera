@@ -11,7 +11,8 @@ mod transforms;
 
 pub use behavior::{
     BehaviorActionInput, BehaviorConfigItem, BehaviorConfigItemType, BehaviorContext,
-    BehaviorEngine, BehaviorRenderModel, CellTriggerType, DeviceInput, GridInteraction,
+    BehaviorEngine, BehaviorRenderModel, BehaviorRenderPalette, CellTriggerType, DeviceInput,
+    GridInteraction,
 };
 pub use behaviors::{
     behavior_catalog, behavior_categories, get_native_behavior, list_native_behavior_ids,

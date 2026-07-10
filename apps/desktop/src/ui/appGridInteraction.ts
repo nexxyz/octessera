@@ -7,7 +7,7 @@ export function useGridInteraction(frame: RuntimeSnapshot, dispatch: (input: Dev
   const lastPressedCell = useRef<{ x: number; y: number } | null>(null);
 
   function cellAlive(index: number): boolean {
-    return (frame.leds.rgb[index * 3 + 1] ?? 0) > 100;
+    return frame.leds.active[index] ?? false;
   }
 
   function logicalCellFromDisplay(x: number, y: number) {

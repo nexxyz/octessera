@@ -15,7 +15,7 @@ pub fn behavior_categories() -> &'static [BehaviorCategory] {
         BehaviorCategory {
             id: "cellular",
             label: "Cellular",
-            behavior_ids: &["ant", "brain", "glider", "life"],
+            behavior_ids: &["ant", "brain", "life"],
         },
         BehaviorCategory {
             id: "fields",
@@ -70,11 +70,6 @@ pub fn behavior_catalog() -> &'static [BehaviorCatalogEntry] {
         BehaviorCatalogEntry {
             id: "life",
             label: "life",
-            category_id: "cellular",
-        },
-        BehaviorCatalogEntry {
-            id: "glider",
-            label: "glider",
             category_id: "cellular",
         },
         BehaviorCatalogEntry {

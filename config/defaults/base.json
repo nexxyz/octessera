@@ -54,7 +54,7 @@
       "aux2": null,
       "aux3": null
     },
-    "bpm": 120,
+    "bpm": 120.0,
     "buttonBrightness": 35,
     "danceMode": "fx",
     "displayBrightness": 75,

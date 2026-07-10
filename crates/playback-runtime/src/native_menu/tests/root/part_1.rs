@@ -31,9 +31,9 @@ pub(crate) fn rebuild_preserves_navigation_state() {
     let _ = menu.press();
     menu.turn(1);
     let mut next = config();
-    next.behavior_id = "glider".into();
+    next.behavior_id = "brain".into();
     next.l1_items[0].value = NativeMenuValue::Enum {
-        options: vec!["life".into(), "glider".into(), "none".into()],
+        options: vec!["life".into(), "brain".into(), "none".into()],
         selected: 1,
     };
     menu.rebuild(next);
@@ -41,7 +41,7 @@ pub(crate) fn rebuild_preserves_navigation_state() {
     assert_eq!(snapshot.path, "L1: Life/P1: life");
     assert_eq!(snapshot.selected_row, Some(0));
     assert!(menu.state.editing);
-    assert_eq!(menu.selected_behavior().as_deref(), Some("glider"));
+    assert_eq!(menu.selected_behavior().as_deref(), Some("brain"));
 }
 
 #[test]

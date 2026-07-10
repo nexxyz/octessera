@@ -167,6 +167,11 @@ pub fn raindrops_render_model(state: &RaindropsState) -> BehaviorRenderModel {
         name: "raindrops".into(),
         status_line: format!("Drops:{} Rings:{}", state.drops.len(), state.rings.len()),
         cells: state.cells.clone(),
+        palette: crate::BehaviorRenderPalette {
+            active: [180, 220, 255],
+            inactive: [0, 0, 0],
+            stable: [0, 80, 255],
+        },
         trigger_types: Some(state.trigger_types.clone()),
     }
 }

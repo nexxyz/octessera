@@ -1,14 +1,5 @@
 import { type RuntimeSnapshot } from "@octessera/device-contracts";
-
-const ledCell = (frame: RuntimeSnapshot, index: number) => {
-  const offset = index * 3;
-  const factor = frame.settings?.ledsDimmed ? 0.08 : 1;
-  return {
-    r: Math.round((frame.leds.rgb[offset] ?? 0) * factor),
-    g: Math.round((frame.leds.rgb[offset + 1] ?? 0) * factor),
-    b: Math.round((frame.leds.rgb[offset + 2] ?? 0) * factor)
-  };
-};
+import { gridLedColor } from "./gridLedColor";
 
 export function GridMatrix({
   frame,
@@ -23,7 +14,7 @@ export function GridMatrix({
     <section className="matrix-chassis" aria-label="8 by 8 matrix">
       <div className="matrix">
         {Array.from({ length: frame.leds.width * frame.leds.height }, (_, index) => {
-          const cell = ledCell(frame, index);
+          const cell = gridLedColor(frame, index);
           const x = index % frame.leds.width;
           const y = Math.floor(index / frame.leds.width);
           return (

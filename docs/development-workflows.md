@@ -105,6 +105,32 @@ corepack pnpm run capabilities:check
 
 Rust constants for `platform-core` and `realtime-engine` are generated at build time from the same JSON.
 
+## Platform Default Configs
+
+Source defaults live under `config/defaults/`:
+
+- `base.json`: shared default runtime payload.
+- `desktop.json`: desktop overrides, including desktop brightness defaults.
+- `pi.json`: Pi-family hardware overrides.
+
+Generate platform runtime defaults after editing those sources:
+
+```bash
+corepack pnpm run config:generate
+```
+
+Generated outputs are checked in:
+
+- `config/generated/desktop/default.json`
+- `config/generated/pi/default.json`
+- `config/default.json` as the current Pi-family default for existing tooling
+
+Check generated output freshness:
+
+```bash
+corepack pnpm run config:check
+```
+
 ## Standard Verification
 
 ```bash
@@ -118,7 +144,7 @@ cargo test -p platform-core -p playback-runtime -p realtime-engine -p octessera-
 cargo clippy -p platform-core -p playback-runtime -p realtime-engine -p octessera-desktop --all-targets -- -D warnings
 ```
 
-The root `typecheck` runs `capabilities:check` before package typechecks.
+The root `typecheck` runs `config:check` and `capabilities:check` before package typechecks.
 
 For menu/runtime-visible Rust changes on Windows, use the focused wrapper while iterating:
 

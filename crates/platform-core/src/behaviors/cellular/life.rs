@@ -20,6 +20,8 @@ pub struct LifeState {
     pub random_cells_per_tick: usize,
     #[serde(rename = "randomTickInterval")]
     pub random_tick_interval: usize,
+    #[serde(rename = "gliderSpawnInterval", default)]
+    pub glider_spawn_interval: usize,
     #[serde(rename = "spawnStep")]
     pub spawn_step: usize,
     #[serde(rename = "tickCounter", default, skip_serializing)]
@@ -34,6 +36,10 @@ pub struct LifeConfig {
     pub random_cells_per_tick: Option<usize>,
     #[serde(rename = "randomTickInterval")]
     pub random_tick_interval: Option<usize>,
+    #[serde(rename = "gliderSpawnInterval")]
+    pub glider_spawn_interval: Option<usize>,
+    #[serde(rename = "spawnStep")]
+    pub spawn_step: Option<usize>,
 }
 
 pub fn init(config: Value) -> Result<LifeState, String> {
@@ -45,7 +51,8 @@ pub fn init(config: Value) -> Result<LifeState, String> {
         generation: 0,
         random_cells_per_tick: config.random_cells_per_tick.unwrap_or(0),
         random_tick_interval: config.random_tick_interval.unwrap_or(1),
-        spawn_step: 0,
+        glider_spawn_interval: config.glider_spawn_interval.unwrap_or(0),
+        spawn_step: config.spawn_step.unwrap_or(0).min(63),
         tick_counter: 0,
         trigger_types: vec![CellTriggerType::None; CELL_COUNT],
     })
@@ -67,6 +74,13 @@ pub fn on_input(state: LifeState, input: DeviceInput, _context: &mut BehaviorCon
                     next.trigger_types[index] = CellTriggerType::Activate;
                 }
             }
+            next
+        }
+        DeviceInput::BehaviorAction(BehaviorActionInput { action_type })
+            if action_type == "spawnGlider" =>
+        {
+            let mut next = state.clone();
+            spawn_glider(&mut next.cells, &mut next.trigger_types, 0, 0);
             next
         }
         DeviceInput::GridPress { x, y } if x < GRID_WIDTH && y < GRID_HEIGHT => {
@@ -121,6 +135,13 @@ pub fn on_tick(state: LifeState, _context: &mut BehaviorContext) -> LifeState {
         }
     }
 
+    if state.glider_spawn_interval > 0
+        && (next_tick_counter - 1) % state.glider_spawn_interval
+            == state.spawn_step % state.glider_spawn_interval
+    {
+        spawn_glider(&mut next_cells, &mut trigger_types, 0, 0);
+    }
+
     LifeState {
         width: state.width,
         height: state.height,
@@ -128,6 +149,7 @@ pub fn on_tick(state: LifeState, _context: &mut BehaviorContext) -> LifeState {
         generation: state.generation + 1,
         random_cells_per_tick: state.random_cells_per_tick,
         random_tick_interval: state.random_tick_interval,
+        glider_spawn_interval: state.glider_spawn_interval,
         spawn_step: state.spawn_step,
         tick_counter: next_tick_counter,
         trigger_types,
@@ -139,6 +161,7 @@ pub fn render_model(state: &LifeState) -> BehaviorRenderModel {
         name: "game of life".into(),
         status_line: format!("Gen {}", state.generation),
         cells: state.cells.clone(),
+        palette: Default::default(),
         trigger_types: Some(state.trigger_types.clone()),
     }
 }
@@ -164,6 +187,15 @@ pub fn config_menu(_state: &LifeState) -> Vec<BehaviorConfigItem> {
             options: None,
         },
         BehaviorConfigItem {
+            key: "gliderSpawnInterval".into(),
+            label: "Glider Interval".into(),
+            item_type: BehaviorConfigItemType::Number,
+            min: Some(0),
+            max: Some(20),
+            step: Some(1),
+            options: None,
+        },
+        BehaviorConfigItem {
             key: "spawnStep".into(),
             label: "Spawn Step".into(),
             item_type: BehaviorConfigItemType::Number,
@@ -181,7 +213,35 @@ pub fn config_menu(_state: &LifeState) -> Vec<BehaviorConfigItem> {
             step: None,
             options: None,
         },
+        BehaviorConfigItem {
+            key: "spawnGlider".into(),
+            label: "Spawn Glider".into(),
+            item_type: BehaviorConfigItemType::Action,
+            min: None,
+            max: None,
+            step: None,
+            options: None,
+        },
     ]
+}
+
+fn spawn_glider(
+    cells: &mut [bool],
+    trigger_types: &mut [CellTriggerType],
+    origin_x: usize,
+    origin_y: usize,
+) {
+    for (dx, dy) in [(1, 0), (2, 1), (0, 2), (1, 2), (2, 2)] {
+        let x = origin_x + dx;
+        let y = origin_y + dy;
+        if x < GRID_WIDTH && y < GRID_HEIGHT {
+            let index = grid_index(x, y);
+            if !cells[index] {
+                trigger_types[index] = CellTriggerType::Activate;
+            }
+            cells[index] = true;
+        }
+    }
 }
 
 pub fn serialize(state: &LifeState) -> Result<Value, String> {

@@ -10,7 +10,7 @@ The intended way of using it is a DIY standalone hardware instrument based on a 
 
 ## What You Can Make
 
-- **Generative synth patterns** from Life, Brain, Ant, Bounce, Raindrops, DLA, Glider, and other grid behaviors.
+- **Generative synth patterns** from Life, Brain, Ant, Bounce, Raindrops, DLA, and other grid behaviors.
 - **Hands-on drum patterns** with a sequencer-style grid and sample slots.
 - **Layered arrangements** with up to eight parts/instruments.
 - **Live leads** with the Keys behavior.
@@ -115,6 +115,7 @@ octessera/
 ├── packages/
 │   └── device-contracts/         # Shared TypeScript bridge/display/runtime contracts
 ├── resources/                    # Menu help text and platform capabilities
+├── config/                       # Generated platform default configs and source overrides
 ├── docs/                         # Menu spec and secondary contributor docs
 ├── hardware/                     # Hardware source files, enclosure generator, and build docs
 ├── release-artifacts/            # End-user binaries, fabrication exports, and print files

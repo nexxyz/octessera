@@ -53,6 +53,7 @@ export type LedMatrixFrame = {
   width: number;
   height: number;
   rgb: number[];
+  active: boolean[];
 };
 
 export type GridInteraction = "paint" | "momentary";
@@ -66,6 +67,7 @@ export type TransportFrame = {
 
 export type RuntimeSnapshotSettings = {
   displayBrightness: number;
+  gridBrightness?: number;
   buttonBrightness: number;
   masterVolume: number;
   voiceStealingMode: "fixed12" | "fixed16" | "auto-soft" | "auto-balanced" | "auto-hard" | "none";

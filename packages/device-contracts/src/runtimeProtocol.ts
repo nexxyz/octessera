@@ -141,7 +141,7 @@ export const SHARED_RUNTIME_CONTRACT_FIXTURES: RuntimeContractFixture[] = [
         type: "snapshot",
         snapshot: {
           display: { page: "life", title: "L1: Life", lines: ["grid press"], editing: false },
-          leds: { width: 8, height: 8, rgb: Array.from({ length: 64 * 3 }, () => 0) },
+          leds: { width: 8, height: 8, rgb: Array.from({ length: 64 * 3 }, () => 0), active: Array.from({ length: 64 }, () => false) },
           transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
           activeBehavior: "life",
           gridInteraction: "paint"
@@ -215,7 +215,7 @@ export const SHARED_RUNTIME_CONTRACT_FIXTURES: RuntimeContractFixture[] = [
         type: "snapshot",
         snapshot: {
           display: { page: "system", title: "System", lines: ["presets updated"], editing: false },
-          leds: { width: 8, height: 8, rgb: Array.from({ length: 64 * 3 }, () => 0) },
+          leds: { width: 8, height: 8, rgb: Array.from({ length: 64 * 3 }, () => 0), active: Array.from({ length: 64 }, () => false) },
           transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
           activeBehavior: "life",
           gridInteraction: "paint"

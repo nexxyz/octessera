@@ -16,7 +16,7 @@ use serde_json::Value;
 mod tests;
 
 pub use catalog::{behavior_catalog, behavior_categories, BehaviorCatalogEntry, BehaviorCategory};
-pub use cellular::{GliderState, LifeState};
+pub use cellular::LifeState;
 pub use native_impl::{
     AntState, BounceState, BrainState, DlaState, KeysState, LooperState, RaindropsState,
     ShapesState,
@@ -27,7 +27,6 @@ pub use play::{NoneState, SequencerState};
 pub enum NativeBehaviorState {
     None(NoneState),
     Life(LifeState),
-    Glider(GliderState),
     Sequencer(SequencerState),
     Keys(KeysState),
     Looper(LooperState),
@@ -43,7 +42,6 @@ pub enum NativeBehaviorState {
 pub enum NativeBehavior {
     None,
     Life,
-    Glider,
     Sequencer,
     Keys,
     Looper,
@@ -59,7 +57,6 @@ pub fn get_native_behavior(id: &str) -> Option<NativeBehavior> {
     match id {
         "none" => Some(NativeBehavior::None),
         "life" => Some(NativeBehavior::Life),
-        "glider" => Some(NativeBehavior::Glider),
         "sequencer" => Some(NativeBehavior::Sequencer),
         "keys" => Some(NativeBehavior::Keys),
         "looper" => Some(NativeBehavior::Looper),
@@ -86,7 +83,6 @@ pub fn list_native_behavior_ids() -> &'static [&'static str] {
         "shapes",
         "raindrops",
         "dla",
-        "glider",
     ]
 }
 
@@ -95,7 +91,6 @@ impl NativeBehavior {
         match self {
             NativeBehavior::None => "none",
             NativeBehavior::Life => "life",
-            NativeBehavior::Glider => "glider",
             NativeBehavior::Sequencer => "sequencer",
             NativeBehavior::Keys => "keys",
             NativeBehavior::Looper => "looper",
@@ -112,9 +107,6 @@ impl NativeBehavior {
         match self {
             NativeBehavior::None => Ok(NativeBehaviorState::None(play::none::init(config)?)),
             NativeBehavior::Life => Ok(NativeBehaviorState::Life(cellular::life::init(config)?)),
-            NativeBehavior::Glider => {
-                Ok(NativeBehaviorState::Glider(cellular::glider::init(config)?))
-            }
             NativeBehavior::Sequencer => Ok(NativeBehaviorState::Sequencer(play::sequencer::init(
                 config,
             )?)),
@@ -134,9 +126,6 @@ impl NativeBehavior {
             ),
             (NativeBehavior::Life, NativeBehaviorState::Life(state)) => Ok(
                 NativeBehaviorState::Life(cellular::life::on_input(state, input, context)),
-            ),
-            (NativeBehavior::Glider, NativeBehaviorState::Glider(state)) => Ok(
-                NativeBehaviorState::Glider(cellular::glider::on_input(state, input, context)),
             ),
             (NativeBehavior::Sequencer, NativeBehaviorState::Sequencer(state)) => Ok(
                 NativeBehaviorState::Sequencer(play::sequencer::on_input(state, input, context)),
@@ -183,9 +172,6 @@ impl NativeBehavior {
             (NativeBehavior::Life, NativeBehaviorState::Life(state)) => Ok(
                 NativeBehaviorState::Life(cellular::life::on_tick(state, context)),
             ),
-            (NativeBehavior::Glider, NativeBehaviorState::Glider(state)) => Ok(
-                NativeBehaviorState::Glider(cellular::glider::on_tick(state, context)),
-            ),
             (NativeBehavior::Sequencer, NativeBehaviorState::Sequencer(state)) => Ok(
                 NativeBehaviorState::Sequencer(play::sequencer::on_tick(state, context)),
             ),
@@ -224,9 +210,6 @@ impl NativeBehavior {
             }
             (NativeBehavior::Life, NativeBehaviorState::Life(state)) => {
                 Ok(cellular::life::render_model(state))
-            }
-            (NativeBehavior::Glider, NativeBehaviorState::Glider(state)) => {
-                Ok(cellular::glider::render_model(state))
             }
             (NativeBehavior::Sequencer, NativeBehaviorState::Sequencer(state)) => {
                 Ok(play::sequencer::render_model(state))
@@ -267,9 +250,6 @@ impl NativeBehavior {
             (NativeBehavior::Life, NativeBehaviorState::Life(state)) => {
                 cellular::life::serialize(state)
             }
-            (NativeBehavior::Glider, NativeBehaviorState::Glider(state)) => {
-                cellular::glider::serialize(state)
-            }
             (NativeBehavior::Sequencer, NativeBehaviorState::Sequencer(state)) => {
                 play::sequencer::serialize(state)
             }
@@ -303,9 +283,6 @@ impl NativeBehavior {
             NativeBehavior::Life => Ok(NativeBehaviorState::Life(cellular::life::deserialize(
                 data,
             )?)),
-            NativeBehavior::Glider => Ok(NativeBehaviorState::Glider(
-                cellular::glider::deserialize(data)?,
-            )),
             NativeBehavior::Sequencer => Ok(NativeBehaviorState::Sequencer(
                 play::sequencer::deserialize(data)?,
             )),

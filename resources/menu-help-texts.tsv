@@ -33,6 +33,7 @@ part_behavior	*	key:parts.*.l1.behaviorId	enum	Behavior	Selects which behavior e
 part_step_rate	*	key:parts.*.l1.stepRate	enum	Step Rate	Sets how often this part's behavior advances relative to transport time.	Use faster rates for dense motion and slower rates for long-form pattern change.
 part_spawn_count	*	key:parts.*.l1.behaviorConfig.randomCellsPerTick	number	Spawn Count	Sets how many random cells are injected by this part's spawn-style behavior action.	Higher values create denser bursts and faster pattern disruption.
 part_spawn_interval	*	key:parts.*.l1.behaviorConfig.randomTickInterval	number	Spawn Interval	Sets how many behavior ticks pass between automatic random spawn bursts.	Lower values create more frequent injections.
+part_glider_interval	*	key:parts.*.l1.behaviorConfig.gliderSpawnInterval	number	Glider Interval	Sets how many behavior ticks pass between automatic glider injections.	Use 0 to disable automatic glider spawning.
 part_spawn_step	*	key:parts.*.l1.behaviorConfig.spawnStep	number	Spawn Step	Sets the sequenced position or interval used by behaviors that step their own spawn source.	Increase it to spread spawned changes farther apart in time or space.
 part_looper_punch	*	action:behavior_action:toggleMode	action	Punch In/Out	Toggles the looper between overdub and play.	Keeps the recorded loop and current playback position.
 part_looper_length	*	key:parts.*.l1.behaviorConfig.lengthSteps	number	Length	Sets the loop length in this part's behavior steps.	Use a faster Step Rate for tighter recording and playback resolution.

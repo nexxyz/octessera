@@ -74,7 +74,12 @@ impl NativeRunner {
                     NativeMenuAction::BehaviorAction("spawnRandom".into()),
                     "Spawn",
                 )),
-                None,
+                Some(self.turn_press_slot(
+                    format!("{part_prefix}.gliderSpawnInterval"),
+                    "Glider",
+                    NativeMenuAction::BehaviorAction("spawnGlider".into()),
+                    "Glider",
+                )),
             ]),
             "brain" => self.with_step_rate([
                 Some(self.turn_slot(format!("{part_prefix}.randomSeedCells"), "Count")),
@@ -132,16 +137,6 @@ impl NativeRunner {
                     "Interval",
                     NativeMenuAction::BehaviorAction("seedCluster".into()),
                     "Seed",
-                )),
-                None,
-                None,
-            ]),
-            "glider" => self.with_step_rate([
-                Some(self.turn_press_slot(
-                    format!("{part_prefix}.spawnInterval"),
-                    "Interval",
-                    NativeMenuAction::BehaviorAction("spawnGlider".into()),
-                    "Spawn",
                 )),
                 None,
                 None,

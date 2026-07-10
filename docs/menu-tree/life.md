@@ -12,7 +12,6 @@ L1: Life
 │   │   │   ├── ..
 │   │   │   ├── ant
 │   │   │   ├── brain
-│   │   │   ├── glider
 │   │   │   └── life
 │   │   ├── [Fields]
 │   │   │   ├── ..
@@ -42,10 +41,22 @@ L1: Life
 ```
 
 Rows that open submenus or selectors render with a trailing `>`. Selecting a behavior row switches the part immediately through the native runtime and returns focus to the part's Behavior row. It does not rebuild the full menu tree; only the active part's L1 rows are refreshed. Behavior IDs remain the persisted payload values under `behaviorId`.
+`glider` is no longer selectable. Its glider injection controls are part of `life`.
 When Auto Label is on, the part label is derived from the active behavior ID (e.g. `life`, `brain`). Editing the Part Label text field switches Auto Label off.
 Part selectors (Fn+column selection, L2 Sense Part selector) display the computed part label (e.g. `P1: life`, `P2: rain`).
 When a part's behavior is `none`, the L1 part group shows Behavior, Auto Label, and Part Label only; Step Rate, dynamic behavior config rows, and Reset are hidden without deleting stored values.
 Parameter target pickers mirror the main menu root order (`L1: Life`, `L2: Sense`, `L3: Voice`, `L4: Dance`, `System`). Within `L1: Life`, behavior `none` parts expose no Behavior targets, while real behavior parts expose `parts.N.algorithmStep` and `parts.N.l1.behaviorConfig.*` targets under their own part label.
+
+Behavior categories:
+
+| Category | Behaviors | Description |
+|---|---|---|
+| Cellular | ant, brain, life | Cell-state simulations where neighboring cells or agents create evolving patterns. |
+| Fields | raindrops | Field-style activity that spreads from localized events. |
+| Geometry | shapes | Explicit geometric pulse patterns. |
+| Growth | dla | Diffusion-limited aggregation clusters that grow from seeded particles. |
+| Motion | bounce | Moving objects that rebound through the grid. |
+| Play | keys, looper, none, sequencer | Direct performance, recording, silence, or step-style behaviors. |
 
 Behavior-specific config items (from `configMenu()`):
 
@@ -54,7 +65,10 @@ Behavior-specific config items (from `configMenu()`):
 | none | *(none)* | — |
 | life | Spawn Count: [0..20] | number, step 1 (default 12) |
 | life | Spawn Interval: [1..20] | number, step 1 (default 1) |
+| life | Glider Interval: [0..20] | number, step 1 (default 0; 0 disables automatic glider injection) |
+| life | Spawn Step: [0..63] | number, step 1 |
 | life | !Spawn Random | action, shared route `trigger.life.spawn_now` |
+| life | !Spawn Glider | action, shared route `trigger.life.spawn_now` |
 | sequencer | *(none)* | — |
 | keys | Quantize: [immediate, step] | enum |
 | looper | !Punch In/Out | action |
@@ -72,6 +86,4 @@ Behavior-specific config items (from `configMenu()`):
 | shapes | !Spawn Pulse | action, shared route `trigger.life.spawn_now` |
 | raindrops | !Drop Now | action, shared route `trigger.life.spawn_now` |
 | dla | !Seed Cluster | action, shared route `trigger.life.spawn_now` |
-| glider | Glider Spawn Int: [0=off, 1, 2, 4, 8, 16] | enum |
-| glider | !Spawn Glider | action, shared route `trigger.life.spawn_now` |
 

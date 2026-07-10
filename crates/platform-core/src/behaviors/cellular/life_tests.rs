@@ -83,13 +83,59 @@ fn render_config_and_serialization_match_contract() {
         vec![
             "randomCellsPerTick",
             "randomTickInterval",
+            "gliderSpawnInterval",
             "spawnStep",
-            "spawnRandom"
+            "spawnRandom",
+            "spawnGlider"
         ]
     );
 
     let raw = serialize(&state).unwrap();
     assert_eq!(deserialize(raw).unwrap(), state);
+}
+
+#[test]
+fn spawn_glider_action_adds_glider_pattern() {
+    let mut context = BehaviorContext::new(120.0);
+    let state = on_input(
+        init(Value::Null).unwrap(),
+        DeviceInput::BehaviorAction(BehaviorActionInput {
+            action_type: "spawnGlider".into(),
+        }),
+        &mut context,
+    );
+    for (x, y) in [(1, 0), (2, 1), (0, 2), (1, 2), (2, 2)] {
+        assert!(state.cells[grid_index(x, y)]);
+        assert_eq!(
+            state.trigger_types[grid_index(x, y)],
+            CellTriggerType::Activate
+        );
+    }
+}
+
+#[test]
+fn glider_interval_is_disabled_by_default_and_spawn_step_delays_it() {
+    let mut context = BehaviorContext::new(120.0);
+    let default_state = init(Value::Null).unwrap();
+    let default_next = on_tick(default_state, &mut context);
+    assert!(default_next.cells.iter().all(|cell| !cell));
+
+    let delayed = init(serde_json::json!({
+        "gliderSpawnInterval": 2,
+        "spawnStep": 1
+    }))
+    .unwrap();
+    let first = on_tick(delayed, &mut context);
+    assert!(first.cells.iter().all(|cell| !cell));
+
+    let second = on_tick(first, &mut context);
+    for (x, y) in [(1, 0), (2, 1), (0, 2), (1, 2), (2, 2)] {
+        assert!(second.cells[grid_index(x, y)]);
+        assert_eq!(
+            second.trigger_types[grid_index(x, y)],
+            CellTriggerType::Activate
+        );
+    }
 }
 
 #[test]

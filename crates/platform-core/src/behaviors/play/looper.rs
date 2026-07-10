@@ -146,6 +146,11 @@ pub fn looper_render_model(state: &LooperState) -> BehaviorRenderModel {
             state.length_steps
         ),
         cells: state.cells.clone(),
+        palette: crate::BehaviorRenderPalette {
+            active: [255, 255, 255],
+            inactive: [0, 0, 0],
+            stable: [0, 200, 255],
+        },
         trigger_types: Some(state.trigger_types.clone()),
     }
 }

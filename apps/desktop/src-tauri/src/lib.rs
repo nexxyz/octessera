@@ -32,7 +32,7 @@ pub(crate) struct AppState {
 
 const BUNDLED_DEFAULT_CONFIG: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../../config/default.json"
+    "/../../../config/generated/desktop/default.json"
 ));
 
 fn ensure_store_dir(app: &tauri::App) -> PathBuf {
@@ -169,6 +169,9 @@ mod tests {
             default_payload["runtimeConfig"]["parts"][3]["autoName"],
             true
         );
+        assert_eq!(default_payload["runtimeConfig"]["displayBrightness"], 100);
+        assert_eq!(default_payload["runtimeConfig"]["gridBrightness"], 100);
+        assert_eq!(default_payload["runtimeConfig"]["buttonBrightness"], 100);
 
         std::fs::write(&default_path, "{\"kept\":true}").unwrap();
         ensure_store_dir_at(dir.clone());

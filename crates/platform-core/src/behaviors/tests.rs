@@ -18,10 +18,10 @@ fn lists_and_resolves_native_behaviors() {
             "shapes",
             "raindrops",
             "dla",
-            "glider",
         ]
     );
     assert_eq!(get_native_behavior("life"), Some(NativeBehavior::Life));
+    assert_eq!(get_native_behavior("glider"), None);
     assert_eq!(
         get_native_behavior("sequencer"),
         Some(NativeBehavior::Sequencer)
@@ -128,13 +128,13 @@ fn behavior_metadata_matches_expected_interaction_modes() {
 fn behavior_state_mismatches_return_errors() {
     let mut context = BehaviorContext::new(120.0);
     let state = NativeBehavior::Life.init(Value::Null).unwrap();
-    assert!(NativeBehavior::Glider
+    assert!(NativeBehavior::Sequencer
         .on_input(state.clone(), DeviceInput::Other, &mut context)
         .is_err());
-    assert!(NativeBehavior::Glider
+    assert!(NativeBehavior::Sequencer
         .on_tick(state.clone(), &mut context)
         .is_err());
-    assert!(NativeBehavior::Glider.render_model(&state).is_err());
-    assert!(NativeBehavior::Glider.serialize(&state).is_err());
-    assert!(NativeBehavior::Glider.config_menu(&state).is_err());
+    assert!(NativeBehavior::Sequencer.render_model(&state).is_err());
+    assert!(NativeBehavior::Sequencer.serialize(&state).is_err());
+    assert!(NativeBehavior::Sequencer.config_menu(&state).is_err());
 }

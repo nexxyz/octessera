@@ -1,6 +1,6 @@
 use super::{
-    json, scrolled_toast, velocity_curve_id, GridInteraction, NativeOledMode, NativeRunner,
-    RuntimeTransportState, SyncSource, Value, GRID_HEIGHT, GRID_WIDTH,
+    display_index, json, scrolled_toast, velocity_curve_id, GridInteraction, NativeOledMode,
+    NativeRunner, RuntimeTransportState, SyncSource, Value, GRID_HEIGHT, GRID_WIDTH,
 };
 
 impl NativeRunner {
@@ -10,6 +10,7 @@ impl NativeRunner {
 
     fn snapshot_with_audio_config(&self, include_audio_config: bool) -> Result<Value, String> {
         let model = self.engine.model()?;
+        let active_cells = display_active_cells(&model.cells);
         let menu = self.menu.snapshot();
         let mut leds = self.base_led_snapshot(&model);
         self.apply_scan_progress_overlay(&mut leds);
@@ -43,7 +44,8 @@ impl NativeRunner {
             "leds": {
                 "width": GRID_WIDTH,
                 "height": GRID_HEIGHT,
-                "rgb": led_rgb
+                "rgb": led_rgb,
+                "active": active_cells
             },
             "transport": {
                 "playing": self.transport == RuntimeTransportState::Playing,
@@ -146,4 +148,14 @@ impl NativeRunner {
             self.last_snapshot_audio_config_revision = Some(self.audio_config_revision);
         }
     }
+}
+
+fn display_active_cells(cells: &[bool]) -> Vec<bool> {
+    let mut active = vec![false; GRID_WIDTH * GRID_HEIGHT];
+    for (logical_index, alive) in cells.iter().enumerate() {
+        let x = logical_index % GRID_WIDTH;
+        let y = logical_index / GRID_WIDTH;
+        active[display_index(x, y)] = *alive;
+    }
+    active
 }

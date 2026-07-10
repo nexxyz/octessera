@@ -45,6 +45,25 @@ pub(crate) fn checked_in_default_restores_sequencer_grid_state() {
 }
 
 #[test]
+pub(crate) fn generated_platform_defaults_set_platform_brightness() {
+    let desktop: Value = serde_json::from_str(include_str!(
+        "../../../../../config/generated/desktop/default.json"
+    ))
+    .unwrap();
+    let pi: Value = serde_json::from_str(include_str!(
+        "../../../../../config/generated/pi/default.json"
+    ))
+    .unwrap();
+
+    assert_eq!(desktop["runtimeConfig"]["displayBrightness"], 100);
+    assert_eq!(desktop["runtimeConfig"]["gridBrightness"], 100);
+    assert_eq!(desktop["runtimeConfig"]["buttonBrightness"], 100);
+    assert_eq!(pi["runtimeConfig"]["displayBrightness"], 75);
+    assert_eq!(pi["runtimeConfig"]["gridBrightness"], 25);
+    assert_eq!(pi["runtimeConfig"]["buttonBrightness"], 35);
+}
+
+#[test]
 pub(crate) fn checked_in_default_emits_life_and_scanned_drum_over_initial_steps() {
     let payload: Value =
         serde_json::from_str(include_str!("../../../../../config/default.json")).unwrap();

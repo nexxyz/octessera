@@ -11,9 +11,6 @@ impl NativeBehavior {
             (NativeBehavior::Life, NativeBehaviorState::Life(state)) => {
                 Ok(Some(cellular::life::config_menu(state)))
             }
-            (NativeBehavior::Glider, NativeBehaviorState::Glider(state)) => {
-                Ok(Some(cellular::glider::config_menu(state)))
-            }
             (NativeBehavior::Sequencer, NativeBehaviorState::Sequencer(_)) => Ok(None),
             (NativeBehavior::Keys, NativeBehaviorState::Keys(_)) => {
                 Ok(Some(native_impl::keys_config_menu()))

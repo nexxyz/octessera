@@ -299,7 +299,7 @@ pub(crate) fn invalid_bus_and_global_fx_types_are_sanitized_on_load() {
 
 #[test]
 pub(crate) fn l1_part_config_always_exposes_auto_name() {
-    for behavior_id in ["life", "none", "glider"] {
+    for behavior_id in ["life", "none", "brain"] {
         let mut runner = NativeRunner::new(NativeRunnerConfig {
             behavior_id: behavior_id.into(),
             ..NativeRunnerConfig::default()

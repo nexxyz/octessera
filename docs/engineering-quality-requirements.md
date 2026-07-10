@@ -76,6 +76,8 @@ The audit reports file length, function length, simple complexity, wide signatur
 - Run `corepack pnpm run capabilities:generate` after editing platform capabilities.
 - Run `corepack pnpm run capabilities:check` to verify generated TypeScript exports are current.
 - Rust capability constants are generated at build time for `platform-core` and `realtime-engine`.
+- `config/defaults/base.json` and platform overrides in `config/defaults/` are the source of truth for shipped default configs.
+- Run `corepack pnpm run config:generate` after editing default config sources, and `corepack pnpm run config:check` to verify generated platform defaults are current.
 - `resources/menu-help-texts.tsv` must cover every native menu/help target with specific rows; generic fallback help is not allowed.
 
 ## File Size And Refactoring
@@ -95,6 +97,7 @@ The audit reports file length, function length, simple complexity, wide signatur
 A code or behavior change is done when:
 
 - Current docs and resource files are updated in the same change.
+- Generated default config outputs are current when default config sources change.
 - Generated capability outputs are current.
 - Relevant TypeScript and Rust tests pass.
 - Runtime/core boundary rules remain intact.

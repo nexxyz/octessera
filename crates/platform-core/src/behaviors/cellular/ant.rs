@@ -159,6 +159,11 @@ pub fn ant_render_model(state: &AntState) -> BehaviorRenderModel {
             if state.ants.len() == 1 { "" } else { "s" }
         ),
         cells,
+        palette: crate::BehaviorRenderPalette {
+            active: [255, 220, 80],
+            inactive: [0, 0, 0],
+            stable: [255, 120, 0],
+        },
         trigger_types: Some(state.trigger_types.clone()),
     }
 }

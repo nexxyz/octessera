@@ -3,13 +3,13 @@ use super::*;
 pub(crate) fn config() -> NativeMenuConfig {
     NativeMenuConfig {
         behavior_id: "life".into(),
-        behavior_ids: vec!["life".into(), "glider".into(), "none".into()],
+        behavior_ids: vec!["life".into(), "brain".into(), "none".into()],
         l1_items: vec![
             NativeMenuItem {
                 label: "Behavior".into(),
                 key: Some("behaviorId".into()),
                 value: NativeMenuValue::Enum {
-                    options: vec!["life".into(), "glider".into(), "none".into()],
+                    options: vec!["life".into(), "brain".into(), "none".into()],
                     selected: 0,
                 },
                 children: vec![],

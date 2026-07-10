@@ -33,7 +33,7 @@ export function createInitialRuntimeSnapshot(): RuntimeSnapshot {
   const blankOled: OledFrame = { width: 128, height: 128, format: "rgb565be", pixels: new Uint8Array(32768) };
   return {
     oled: blankOled,
-    leds: { width: 8, height: 8, rgb: Array.from({ length: 64 * 3 }, () => 0) },
+    leds: { width: 8, height: 8, rgb: Array.from({ length: 64 * 3 }, () => 0), active: Array.from({ length: 64 }, () => false) },
     transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
     display: { page: "boot", title: "Boot", lines: [], editing: false },
     activeBehavior: "life",
