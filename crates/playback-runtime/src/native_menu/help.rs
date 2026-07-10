@@ -109,6 +109,8 @@ fn canonicalize_help_key(key: &str) -> String {
 fn menu_action_help_key(action: &NativeMenuAction) -> String {
     match action {
         NativeMenuAction::ResetBehavior => "action:reset_behavior".into(),
+        NativeMenuAction::SelectBehavior(_) => "action:behavior_select".into(),
+        NativeMenuAction::NavigateBack => "action:navigate_back".into(),
         NativeMenuAction::BehaviorAction(action_type) => {
             format!("action:behavior_action:{action_type}")
         }

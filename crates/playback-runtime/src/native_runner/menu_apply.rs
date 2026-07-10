@@ -70,15 +70,19 @@ impl NativeRunner {
         let Some(behavior_id) = self.menu.selected_behavior().map(|value| value.to_string()) else {
             return Ok(false);
         };
+        self.apply_behavior_selection(&behavior_id)
+    }
+
+    pub(super) fn apply_behavior_selection(&mut self, behavior_id: &str) -> Result<bool, String> {
         let current_part_behavior_id = self
             .part_behavior_ids
             .get(self.active_part_index)
             .cloned()
             .unwrap_or_else(|| self.behavior.id().into());
-        let behavior_changed = behavior_id.as_str() != self.behavior.id();
+        let behavior_changed = behavior_id != self.behavior.id();
         let part_behavior_changed = behavior_id != current_part_behavior_id;
         if !behavior_changed && !part_behavior_changed {
-            return Ok(self.sync_active_part_auto_name(&behavior_id));
+            return Ok(self.sync_active_part_auto_name(behavior_id));
         }
         let previous_behavior_id = current_part_behavior_id;
         self.behavior_configs
@@ -86,27 +90,27 @@ impl NativeRunner {
         if let Some(config) = self.part_behavior_configs.get_mut(self.active_part_index) {
             *config = self.behavior_config.clone();
         }
-        let behavior = platform_core::get_native_behavior(&behavior_id)
+        let behavior = platform_core::get_native_behavior(behavior_id)
             .ok_or_else(|| format!("unsupported native behavior `{behavior_id}`"))?;
         self.behavior_config = self
             .part_behavior_configs
             .get(self.active_part_index)
             .filter(|config| !config.is_null())
             .cloned()
-            .or_else(|| self.behavior_configs.get(&behavior_id).cloned())
+            .or_else(|| self.behavior_configs.get(behavior_id).cloned())
             .unwrap_or(Value::Null);
         self.behavior_configs
-            .insert(behavior_id.clone(), self.behavior_config.clone());
+            .insert(behavior_id.to_string(), self.behavior_config.clone());
         if let Some(config) = self.part_behavior_configs.get_mut(self.active_part_index) {
             *config = self.behavior_config.clone();
         }
         if let Some(part_behavior_id) = self.part_behavior_ids.get_mut(self.active_part_index) {
-            *part_behavior_id = behavior_id.clone();
+            *part_behavior_id = behavior_id.to_string();
         }
-        self.sync_active_part_auto_name(&behavior_id);
+        self.sync_active_part_auto_name(behavior_id);
         self.remap_bindings_for_behavior_change(
             &previous_behavior_id,
-            &behavior_id,
+            behavior_id,
             self.active_part_index,
         );
         if behavior_changed {

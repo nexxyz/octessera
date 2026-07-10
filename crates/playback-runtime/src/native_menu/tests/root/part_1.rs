@@ -8,12 +8,12 @@ pub(crate) fn root_snapshot_includes_l4_separator_and_system() {
     assert_eq!(
         snapshot.lines,
         vec![
-            "> L1: Life",
-            "  L2: Sense",
-            "  L3: Voice",
-            "  L4: Dance",
+            "> L1: Life >",
+            "  L2: Sense >",
+            "  L3: Voice >",
+            "  L4: Dance >",
             "",
-            "  System"
+            "  System >"
         ]
     );
     assert_eq!(snapshot.selected_row, Some(0));
@@ -105,7 +105,7 @@ pub(crate) fn navigation_skips_separator_rows_when_turning() {
     menu.turn(1);
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.selected_row, Some(5));
-    assert_eq!(snapshot.lines[5], "> System");
+    assert_eq!(snapshot.lines[5], "> System >");
 }
 
 #[test]
@@ -120,13 +120,13 @@ pub(crate) fn system_submenu_uses_abbreviated_path_and_section_colors() {
     assert_eq!(
         snapshot.lines,
         vec![
-            "> Saves",
-            "  Updates",
-            "  Sound",
-            "  MIDI",
-            "  UI",
+            "> Saves >",
+            "  Updates >",
+            "  Sound >",
+            "  MIDI >",
+            "  UI >",
             "  !Basic Help",
-            "  Diagnostics"
+            "  Diagnostics >"
         ]
     );
     assert_eq!(

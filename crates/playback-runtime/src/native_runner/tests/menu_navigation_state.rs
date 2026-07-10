@@ -31,19 +31,15 @@ pub(crate) fn changing_behavior_keeps_menu_location() {
         .unwrap();
     assert_eq!(
         snapshot_from(&edit_behavior)["display"]["title"],
-        "L1: Life/P1: life"
+        "L1: Life/P1: life/Behavior: "
     );
-    assert_eq!(snapshot_from(&edit_behavior)["display"]["editing"], true);
+    assert_eq!(snapshot_from(&edit_behavior)["display"]["editing"], false);
 
-    let changed = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
-            request_snapshot: None,
-        })
-        .unwrap();
+    select_behavior(&mut runner, "keys");
+    let changed = runner.messages_with_snapshot().unwrap();
     let changed_snapshot = snapshot_from(&changed);
     assert_eq!(changed_snapshot["display"]["title"], "L1: Life/P1: keys");
-    assert_eq!(changed_snapshot["display"]["editing"], true);
+    assert_eq!(changed_snapshot["display"]["editing"], false);
     assert_eq!(changed_snapshot["activeBehavior"], "keys");
 
     runner.make_deferred_menu_apply_due_for_test();
@@ -55,7 +51,7 @@ pub(crate) fn changing_behavior_keeps_menu_location() {
         })
         .unwrap();
     let snapshot = snapshot_from(&flushed);
-    assert_eq!(snapshot["display"]["title"], "L1: Life/P1: keys");
+    assert_eq!(snapshot["display"]["title"], "L1: Life/P1: keys/Behavior: ");
     assert_eq!(snapshot["display"]["editing"], false);
     assert_eq!(snapshot["activeBehavior"], "keys");
 }

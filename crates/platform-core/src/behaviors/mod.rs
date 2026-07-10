@@ -1,10 +1,13 @@
 mod behavior_config;
 mod behavior_native_lifecycle;
-mod glider;
-mod life;
+mod catalog;
+mod cellular;
+mod fields;
+mod geometry;
+mod growth;
+mod motion;
 mod native_impl;
-mod none;
-mod sequencer;
+mod play;
 
 use crate::behavior::{BehaviorContext, BehaviorRenderModel, DeviceInput};
 use serde_json::Value;
@@ -12,14 +15,13 @@ use serde_json::Value;
 #[cfg(test)]
 mod tests;
 
-pub use glider::GliderState;
-pub use life::LifeState;
+pub use catalog::{behavior_catalog, behavior_categories, BehaviorCatalogEntry, BehaviorCategory};
+pub use cellular::{GliderState, LifeState};
 pub use native_impl::{
     AntState, BounceState, BrainState, DlaState, KeysState, LooperState, RaindropsState,
     ShapesState,
 };
-pub use none::NoneState;
-pub use sequencer::SequencerState;
+pub use play::{NoneState, SequencerState};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum NativeBehaviorState {
@@ -108,12 +110,14 @@ impl NativeBehavior {
 
     pub fn init(self, config: Value) -> Result<NativeBehaviorState, String> {
         match self {
-            NativeBehavior::None => Ok(NativeBehaviorState::None(none::init(config)?)),
-            NativeBehavior::Life => Ok(NativeBehaviorState::Life(life::init(config)?)),
-            NativeBehavior::Glider => Ok(NativeBehaviorState::Glider(glider::init(config)?)),
-            NativeBehavior::Sequencer => {
-                Ok(NativeBehaviorState::Sequencer(sequencer::init(config)?))
+            NativeBehavior::None => Ok(NativeBehaviorState::None(play::none::init(config)?)),
+            NativeBehavior::Life => Ok(NativeBehaviorState::Life(cellular::life::init(config)?)),
+            NativeBehavior::Glider => {
+                Ok(NativeBehaviorState::Glider(cellular::glider::init(config)?))
             }
+            NativeBehavior::Sequencer => Ok(NativeBehaviorState::Sequencer(play::sequencer::init(
+                config,
+            )?)),
             _ => self.init_native(config),
         }
     }
@@ -126,16 +130,16 @@ impl NativeBehavior {
     ) -> Result<NativeBehaviorState, String> {
         match (self, state) {
             (NativeBehavior::None, NativeBehaviorState::None(state)) => Ok(
-                NativeBehaviorState::None(none::on_input(state, input, context)),
+                NativeBehaviorState::None(play::none::on_input(state, input, context)),
             ),
             (NativeBehavior::Life, NativeBehaviorState::Life(state)) => Ok(
-                NativeBehaviorState::Life(life::on_input(state, input, context)),
+                NativeBehaviorState::Life(cellular::life::on_input(state, input, context)),
             ),
             (NativeBehavior::Glider, NativeBehaviorState::Glider(state)) => Ok(
-                NativeBehaviorState::Glider(glider::on_input(state, input, context)),
+                NativeBehaviorState::Glider(cellular::glider::on_input(state, input, context)),
             ),
             (NativeBehavior::Sequencer, NativeBehaviorState::Sequencer(state)) => Ok(
-                NativeBehaviorState::Sequencer(sequencer::on_input(state, input, context)),
+                NativeBehaviorState::Sequencer(play::sequencer::on_input(state, input, context)),
             ),
             (NativeBehavior::Keys, NativeBehaviorState::Keys(state)) => Ok(
                 NativeBehaviorState::Keys(native_impl::keys_on_input(state, input, context)),
@@ -173,17 +177,17 @@ impl NativeBehavior {
         context: &mut BehaviorContext,
     ) -> Result<NativeBehaviorState, String> {
         match (self, state) {
-            (NativeBehavior::None, NativeBehaviorState::None(state)) => {
-                Ok(NativeBehaviorState::None(none::on_tick(state, context)))
-            }
-            (NativeBehavior::Life, NativeBehaviorState::Life(state)) => {
-                Ok(NativeBehaviorState::Life(life::on_tick(state, context)))
-            }
-            (NativeBehavior::Glider, NativeBehaviorState::Glider(state)) => {
-                Ok(NativeBehaviorState::Glider(glider::on_tick(state, context)))
-            }
+            (NativeBehavior::None, NativeBehaviorState::None(state)) => Ok(
+                NativeBehaviorState::None(play::none::on_tick(state, context)),
+            ),
+            (NativeBehavior::Life, NativeBehaviorState::Life(state)) => Ok(
+                NativeBehaviorState::Life(cellular::life::on_tick(state, context)),
+            ),
+            (NativeBehavior::Glider, NativeBehaviorState::Glider(state)) => Ok(
+                NativeBehaviorState::Glider(cellular::glider::on_tick(state, context)),
+            ),
             (NativeBehavior::Sequencer, NativeBehaviorState::Sequencer(state)) => Ok(
-                NativeBehaviorState::Sequencer(sequencer::on_tick(state, context)),
+                NativeBehaviorState::Sequencer(play::sequencer::on_tick(state, context)),
             ),
             (NativeBehavior::Keys, NativeBehaviorState::Keys(state)) => Ok(
                 NativeBehaviorState::Keys(native_impl::keys_on_tick(state, context)),
@@ -216,16 +220,16 @@ impl NativeBehavior {
     pub fn render_model(self, state: &NativeBehaviorState) -> Result<BehaviorRenderModel, String> {
         match (self, state) {
             (NativeBehavior::None, NativeBehaviorState::None(state)) => {
-                Ok(none::render_model(state))
+                Ok(play::none::render_model(state))
             }
             (NativeBehavior::Life, NativeBehaviorState::Life(state)) => {
-                Ok(life::render_model(state))
+                Ok(cellular::life::render_model(state))
             }
             (NativeBehavior::Glider, NativeBehaviorState::Glider(state)) => {
-                Ok(glider::render_model(state))
+                Ok(cellular::glider::render_model(state))
             }
             (NativeBehavior::Sequencer, NativeBehaviorState::Sequencer(state)) => {
-                Ok(sequencer::render_model(state))
+                Ok(play::sequencer::render_model(state))
             }
             (NativeBehavior::Keys, NativeBehaviorState::Keys(state)) => {
                 Ok(native_impl::keys_render_model(state))
@@ -257,13 +261,17 @@ impl NativeBehavior {
 
     pub fn serialize(self, state: &NativeBehaviorState) -> Result<Value, String> {
         match (self, state) {
-            (NativeBehavior::None, NativeBehaviorState::None(state)) => none::serialize(state),
-            (NativeBehavior::Life, NativeBehaviorState::Life(state)) => life::serialize(state),
+            (NativeBehavior::None, NativeBehaviorState::None(state)) => {
+                play::none::serialize(state)
+            }
+            (NativeBehavior::Life, NativeBehaviorState::Life(state)) => {
+                cellular::life::serialize(state)
+            }
             (NativeBehavior::Glider, NativeBehaviorState::Glider(state)) => {
-                glider::serialize(state)
+                cellular::glider::serialize(state)
             }
             (NativeBehavior::Sequencer, NativeBehaviorState::Sequencer(state)) => {
-                sequencer::serialize(state)
+                play::sequencer::serialize(state)
             }
             (NativeBehavior::Keys, NativeBehaviorState::Keys(state)) => {
                 native_impl::serialize(state)
@@ -291,11 +299,15 @@ impl NativeBehavior {
 
     pub fn deserialize(self, data: Value) -> Result<NativeBehaviorState, String> {
         match self {
-            NativeBehavior::None => Ok(NativeBehaviorState::None(none::deserialize(data)?)),
-            NativeBehavior::Life => Ok(NativeBehaviorState::Life(life::deserialize(data)?)),
-            NativeBehavior::Glider => Ok(NativeBehaviorState::Glider(glider::deserialize(data)?)),
+            NativeBehavior::None => Ok(NativeBehaviorState::None(play::none::deserialize(data)?)),
+            NativeBehavior::Life => Ok(NativeBehaviorState::Life(cellular::life::deserialize(
+                data,
+            )?)),
+            NativeBehavior::Glider => Ok(NativeBehaviorState::Glider(
+                cellular::glider::deserialize(data)?,
+            )),
             NativeBehavior::Sequencer => Ok(NativeBehaviorState::Sequencer(
-                sequencer::deserialize(data)?,
+                play::sequencer::deserialize(data)?,
             )),
             _ => self.deserialize_native(data),
         }

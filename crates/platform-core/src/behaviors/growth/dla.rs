@@ -1,8 +1,10 @@
-use super::common::{action_item, number_item, trigger_types_from_cells, CELL_COUNT};
-use super::shapes::random_point_for_dla;
 use crate::behavior::{
     BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
     DeviceInput,
+};
+use crate::behaviors::geometry::shapes::random_point_for_dla;
+use crate::behaviors::native_impl::common::{
+    action_item, number_item, trigger_types_from_cells, CELL_COUNT,
 };
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use rand::Rng;

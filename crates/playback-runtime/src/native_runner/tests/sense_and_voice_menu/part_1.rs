@@ -62,13 +62,13 @@ pub(crate) fn l2_sense_exposes_aux_mappings_and_enterable_part_rows() {
         .clone();
     assert!(lines
         .iter()
-        .any(|line| line.as_str().unwrap_or("") == "  Aux Mappings"));
+        .any(|line| line.as_str().unwrap_or("") == "  Aux Mappings >"));
     assert!(lines
         .iter()
         .any(|line| line.as_str().unwrap_or("") == "  Events when ... On"));
     assert!(lines
         .iter()
-        .any(|line| line.as_str().unwrap_or("") == "> P1: life"));
+        .any(|line| line.as_str().unwrap_or("") == "> P1: life >"));
     assert!(lines
         .iter()
         .any(|line| line.as_str().unwrap_or("").contains("P1:")));
@@ -84,10 +84,10 @@ pub(crate) fn l2_sense_exposes_aux_mappings_and_enterable_part_rows() {
     let part_lines = snapshot["display"]["lines"].as_array().unwrap().clone();
     assert!(part_lines
         .iter()
-        .any(|line| line.as_str().unwrap_or("") == "> Scanning"));
+        .any(|line| line.as_str().unwrap_or("") == "> Scanning >"));
     assert!(part_lines
         .iter()
-        .any(|line| line.as_str().unwrap_or("").trim() == "Events"));
+        .any(|line| line.as_str().unwrap_or("").trim() == "Events >"));
 }
 
 #[test]
@@ -139,9 +139,7 @@ pub(crate) fn behavior_none_hides_step_config_and_reset_but_preserves_step_rate(
     let auto_map = runner.resolve_aux_auto_map("L1: None", Some("algorithmStep"), None);
     assert!(auto_map.iter().all(Option::is_none));
 
-    runner.menu.focus_item_key("behaviorId");
-    runner.menu.turn_key("behaviorId", 1);
-    runner.commit_structural_draft_key("behaviorId").unwrap();
+    select_behavior(&mut runner, "life");
 
     assert_ne!(runner.behavior.id(), "none");
     assert_eq!(runner.algorithm_step_pulses, 48);

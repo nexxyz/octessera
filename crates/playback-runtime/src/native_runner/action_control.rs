@@ -104,6 +104,14 @@ impl NativeRunner {
                 self.trigger_behavior_action(action_type)?;
                 Ok(None)
             }
+            NativeMenuAction::SelectBehavior(behavior_id) => {
+                self.select_behavior(&behavior_id)?;
+                Ok(None)
+            }
+            NativeMenuAction::NavigateBack => {
+                self.menu.back();
+                Ok(None)
+            }
             NativeMenuAction::PlatformEffect(action_type) => {
                 if let Some(name) = action_type.strip_prefix("preset.renamePick:") {
                     self.preset_rename_source = Some(name.into());

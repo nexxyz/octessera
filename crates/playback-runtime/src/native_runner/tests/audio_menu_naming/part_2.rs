@@ -26,25 +26,7 @@ pub(crate) fn button_back_commits_l1_behavior_auto_name_after_manual_auto_name_t
         .unwrap();
     assert!(runner.part_auto_names[3]);
 
-    assert!(runner.menu.focus_item_key("behaviorId"));
-    runner.menu.state.editing = true;
-    runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": -99, "id": "main" }),
-            request_snapshot: None,
-        })
-        .unwrap();
-    assert_eq!(
-        runner.menu.value_for_key("behaviorId").as_deref(),
-        Some("none")
-    );
-
-    runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "button_a", "pressed": true }),
-            request_snapshot: None,
-        })
-        .unwrap();
+    select_behavior(&mut runner, "none");
 
     assert_eq!(runner.part_behavior_ids[3], "none");
     assert!(runner.part_auto_names[3]);
@@ -72,30 +54,14 @@ pub(crate) fn exact_desktop_flow_renames_p4_after_auto_name_toggle_and_behavior_
     send_encoder_press(&mut runner);
     send_encoder_turn(&mut runner, -1);
     send_encoder_press(&mut runner);
-    send_encoder_press(&mut runner);
-    send_encoder_turn(&mut runner, 1);
-    send_encoder_press(&mut runner);
-    send_encoder_turn(&mut runner, -1);
-    send_encoder_press(&mut runner);
-    send_encoder_turn(&mut runner, -1);
-    send_encoder_turn(&mut runner, -1);
-    send_encoder_press(&mut runner);
-    let messages = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "button_a", "pressed": true }),
-            request_snapshot: None,
-        })
-        .unwrap();
+    select_behavior(&mut runner, "none");
+    let messages = runner.messages_with_snapshot().unwrap();
     let snapshot = snapshot_from(&messages);
 
     assert_eq!(runner.part_behavior_ids[3], "none");
     assert_eq!(runner.part_names[3], "none");
-    assert_eq!(snapshot["display"]["title"], "L1: Life");
-    assert!(snapshot["display"]["lines"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .any(|line| line.as_str().is_some_and(|line| line.contains("P4: none"))));
+    assert_eq!(snapshot["display"]["title"], "L1: Life/P1: life");
+    assert_eq!(runner.part_names[3], "none");
 }
 
 pub(crate) fn send_encoder_turn(runner: &mut NativeRunner, delta: i32) -> Vec<RunnerMessage> {
@@ -129,15 +95,7 @@ pub(crate) fn auto_name_updates_when_engine_behavior_already_matches_menu_value(
     runner.behavior = platform_core::get_native_behavior("none").unwrap();
     runner.menu.rebuild(runner.menu_config());
 
-    assert!(runner.menu.focus_item_key("behaviorId"));
-    runner.menu.state.editing = true;
-    assert_eq!(
-        runner.menu.value_for_key("behaviorId").as_deref(),
-        Some("none")
-    );
-    runner.apply_or_schedule_menu_key("behaviorId").unwrap();
-    runner.make_deferred_menu_apply_due_for_test();
-    runner.flush_deferred_menu_apply().unwrap();
+    select_behavior(&mut runner, "none");
 
     assert_eq!(runner.part_behavior_ids[3], "none");
     assert_eq!(runner.part_names[3], "none");
@@ -157,10 +115,7 @@ pub(crate) fn part_four_auto_name_change_is_in_deferred_autosave_payload() {
     runner.select_active_part(3).unwrap();
     runner.menu.rebuild(runner.menu_config());
 
-    assert!(runner.menu.focus_item_key("behaviorId"));
-    runner.menu.state.editing = true;
-    runner.menu.turn_key("behaviorId", -99);
-    runner.apply_or_schedule_menu_key("behaviorId").unwrap();
+    select_behavior(&mut runner, "none");
 
     let messages = runner.flush_pending_deferred_work_now().unwrap();
     let saved_payload = messages

@@ -61,6 +61,12 @@ fn binding_tree_from_behavior_item(item: &NativeMenuItem, target: &str) -> Optio
 }
 
 fn binding_spec_from_behavior_item(item: &NativeMenuItem) -> Option<NativeParamBindingSpec> {
+    if matches!(
+        item.value,
+        super::NativeMenuValue::Action(super::NativeMenuAction::SelectBehavior(_))
+    ) {
+        return None;
+    }
     item.key.as_ref()?;
     binding_spec_from_item(item)
 }

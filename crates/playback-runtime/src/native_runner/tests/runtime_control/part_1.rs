@@ -80,49 +80,13 @@ pub(crate) fn switching_behavior_preserves_previous_behavior_config() {
     })
     .unwrap();
 
-    let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_press", "id": "main" }),
-        request_snapshot: None,
-    });
-    let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_press", "id": "main" }),
-        request_snapshot: None,
-    });
-    let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_press", "id": "main" }),
-        request_snapshot: None,
-    });
-    let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
-        request_snapshot: None,
-    });
+    select_behavior(&mut runner, "keys");
 
     assert_eq!(runner.behavior.id(), "keys");
-    runner.make_deferred_menu_apply_due_for_test();
-    let _ = runner.flush_deferred_menu_apply().unwrap();
-    let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_press", "id": "main" }),
-        request_snapshot: None,
-    });
     assert_eq!(runner.behavior.id(), "keys");
 
-    let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_press", "id": "main" }),
-        request_snapshot: None,
-    });
-
-    let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_turn", "delta": -2, "id": "main" }),
-        request_snapshot: None,
-    });
-
-    runner.make_deferred_menu_apply_due_for_test();
-    let _ = runner.flush_deferred_menu_apply().unwrap();
+    select_behavior(&mut runner, "life");
     assert_eq!(runner.behavior.id(), "life");
-    let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_press", "id": "main" }),
-        request_snapshot: None,
-    });
     assert_eq!(runner.behavior.id(), "life");
     assert_eq!(runner.behavior_config["randomCellsPerTick"], 5);
     assert_eq!(runner.behavior_config["randomTickInterval"], 3);

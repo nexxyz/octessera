@@ -66,6 +66,14 @@ pub(crate) fn confirm_current_dialog(runner: &mut NativeRunner) -> Vec<RunnerMes
         .unwrap()
 }
 
+pub(crate) fn select_behavior(runner: &mut NativeRunner, behavior_id: &str) {
+    runner
+        .execute_menu_action(crate::native_menu::NativeMenuAction::SelectBehavior(
+            behavior_id.into(),
+        ))
+        .unwrap();
+}
+
 pub(crate) fn musical_note_ons(messages: &[RunnerMessage]) -> Vec<(u8, u8)> {
     messages
         .iter()

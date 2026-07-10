@@ -73,6 +73,8 @@ pub(super) fn aux_bindings_payload(bindings: &[Option<NativeAuxBinding>]) -> Val
                 "turnKey": binding.turn_key.clone(),
                 "pressAction": match &binding.press_action {
                     Some(NativeMenuAction::BehaviorAction(action)) => json!({ "kind": "behavior_action", "actionType": action.clone() }),
+                    Some(NativeMenuAction::SelectBehavior(_)) => Value::Null,
+                    Some(NativeMenuAction::NavigateBack) => Value::Null,
                     Some(NativeMenuAction::PlatformEffect(action)) => json!({ "kind": "platform_effect", "action": action.clone() }),
                     Some(NativeMenuAction::CloneInstrument { index }) => json!({ "kind": "instrument_clone", "slot": index }),
                     Some(NativeMenuAction::ResetInstrument { index }) => json!({ "kind": "instrument_reset", "slot": index }),

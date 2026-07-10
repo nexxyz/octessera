@@ -7,16 +7,41 @@ This file is part of the canonical split-out menu tree spec. See [`../menu-tree-
 ```
 L1: Life
 ├── P1: ... (group)                              ← one group per part, label computed via partLabel()
-│   ├── Behavior: [none | life | sequencer | keys | looper | brain | ant | bounce | shapes | raindrops | dla | glider] ← controls which algorithm runs this part
+│   ├── Behavior: <id> (group)                   ← browser-style selector for this part's behavior
+│   │   ├── [Cellular]
+│   │   │   ├── ..
+│   │   │   ├── ant
+│   │   │   ├── brain
+│   │   │   ├── glider
+│   │   │   └── life
+│   │   ├── [Fields]
+│   │   │   ├── ..
+│   │   │   └── raindrops
+│   │   ├── [Geometry]
+│   │   │   ├── ..
+│   │   │   └── shapes
+│   │   ├── [Growth]
+│   │   │   ├── ..
+│   │   │   └── dla
+│   │   ├── [Motion]
+│   │   │   ├── ..
+│   │   │   └── bounce
+│   │   └── [Play]
+│   │       ├── ..
+│   │       ├── keys
+│   │       ├── looper
+│   │       ├── none
+│   │       └── sequencer
+│   ├── Auto Label: [on | off]                   ← on: label auto-derives from behavior ID; off: label is manual text
+│   ├── Part Label: (text, max 32)               ← display label; editing sets Auto Label off
 │   ├── Step Rate: [1/16, 1/8, 1/4, 1/2, 1/1]   ← controls how often onTick() is called; hidden when Behavior is `none`
 │   ├── ... per-behavior dynamic config from behavior's configMenu()
-│   ├── Save Grid State: [on | off]              ← controls whether this part's current grid/runtime state is stored in preset/default saves
-│   ├── Auto Label: [on | off]                   ← on: label auto-derives from behavior ID; off: label is manual text
-│   └── Part Label: (text, max 32)               ← display label; editing sets Auto Label off
+│   └── Reset                                    ← reinitializes the active behavior state; hidden when Behavior is `none`
 ├── P2: ... (group)
 └── P3: ... (group)                              ← up to partCount parts total
 ```
 
+Rows that open submenus or selectors render with a trailing `>`. Selecting a behavior row switches the part immediately through the native runtime and returns focus to the part's Behavior row. It does not rebuild the full menu tree; only the active part's L1 rows are refreshed. Behavior IDs remain the persisted payload values under `behaviorId`.
 When Auto Label is on, the part label is derived from the active behavior ID (e.g. `life`, `brain`). Editing the Part Label text field switches Auto Label off.
 Part selectors (Fn+column selection, L2 Sense Part selector) display the computed part label (e.g. `P1: life`, `P2: rain`).
 When a part's behavior is `none`, the L1 part group shows Behavior, Auto Label, and Part Label only; Step Rate, dynamic behavior config rows, and Reset are hidden without deleting stored values.

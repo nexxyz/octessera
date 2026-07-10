@@ -25,7 +25,12 @@ pub(super) fn format_item_lines(
     }
     let lines = match &item.value {
         NativeMenuValue::Group => {
-            vec![format_menu_line(&item.label, selected)]
+            let label = if item.children.is_empty() {
+                item.label.clone()
+            } else {
+                format!("{} >", item.label)
+            };
+            vec![format_menu_line(&label, selected)]
         }
         NativeMenuValue::Action(_) => vec![format_menu_line(&format!("!{}", item.label), selected)],
         NativeMenuValue::Enum {

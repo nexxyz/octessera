@@ -43,10 +43,10 @@ pub(crate) fn voice_menu_visibility_follows_instrument_type() {
         .clone();
     assert!(sampler_lines
         .iter()
-        .any(|line| line.as_str().unwrap_or("").trim() == "Sampler"));
+        .any(|line| line.as_str().unwrap_or("").trim() == "Sampler >"));
     assert!(!sampler_lines
         .iter()
-        .any(|line| line.as_str().unwrap_or("").trim() == "Synth"));
+        .any(|line| line.as_str().unwrap_or("").trim() == "Synth >"));
 
     runner.instruments[0].kind = "midi".into();
     runner.instruments[0].name = "midi".into();
@@ -55,10 +55,10 @@ pub(crate) fn voice_menu_visibility_follows_instrument_type() {
     let midi_lines = midi["display"]["lines"].as_array().unwrap();
     assert!(midi_lines
         .iter()
-        .any(|line| line.as_str().unwrap_or("").trim() == "MIDI"));
+        .any(|line| line.as_str().unwrap_or("").trim() == "MIDI >"));
     assert!(!midi_lines
         .iter()
-        .any(|line| line.as_str().unwrap_or("").trim() == "Mixer"));
+        .any(|line| line.as_str().unwrap_or("").trim() == "Mixer >"));
 }
 
 #[test]

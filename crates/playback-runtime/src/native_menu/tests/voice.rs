@@ -11,8 +11,8 @@ pub(crate) fn voice_instrument_rows_expose_configuration_groups() {
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "L3: Voice/Instruments/I1: synth direct");
     assert!(snapshot.lines.iter().any(|line| line == "> Type synth"));
-    assert!(snapshot.lines.iter().any(|line| line == "  Synth"));
-    assert!(!snapshot.lines.iter().any(|line| line == "> Sampler"));
+    assert!(snapshot.lines.iter().any(|line| line == "  Synth >"));
+    assert!(!snapshot.lines.iter().any(|line| line == "> Sampler >"));
     assert!(menu
         .current_siblings()
         .iter()
@@ -40,14 +40,14 @@ pub(crate) fn voice_menu_exposes_fx_bus_and_global_fx_groups() {
     let _ = menu.press();
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "L3: Voice");
-    assert!(snapshot.lines.iter().any(|line| line == "> Instruments"));
-    assert!(snapshot.lines.iter().any(|line| line == "  FX Buses"));
-    assert!(snapshot.lines.iter().any(|line| line == "  Global FX"));
+    assert!(snapshot.lines.iter().any(|line| line == "> Instruments >"));
+    assert!(snapshot.lines.iter().any(|line| line == "  FX Buses >"));
+    assert!(snapshot.lines.iter().any(|line| line == "  Global FX >"));
     menu.turn(1);
     let _ = menu.press();
     let buses = menu.snapshot();
     assert_eq!(buses.path, "L3: Voice/FX Buses");
-    assert!(buses.lines.iter().any(|line| line == "> B1: None"));
+    assert!(buses.lines.iter().any(|line| line == "> B1: None >"));
     let _ = menu.press();
     let _bus = menu.snapshot();
     assert!(menu

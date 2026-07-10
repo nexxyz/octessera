@@ -5,6 +5,8 @@ pub use super::types_config::*;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NativeMenuAction {
     BehaviorAction(String),
+    SelectBehavior(String),
+    NavigateBack,
     PlatformEffect(String),
     SetParamBinding {
         target: String,

@@ -40,7 +40,7 @@ pub(crate) fn entering_l1_selects_active_part_row() {
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "L1: Life");
     assert_eq!(snapshot.selected_row, Some(2));
-    assert_eq!(snapshot.lines[2], "> P3: life");
+    assert_eq!(snapshot.lines[2], "> P3: life >");
 }
 
 #[test]
@@ -55,7 +55,7 @@ pub(crate) fn entering_l2_selects_active_part_row_after_global_rows() {
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "L2: Sense");
     assert_eq!(snapshot.selected_row, Some(3));
-    assert_eq!(snapshot.lines[3], "> P3: life");
+    assert_eq!(snapshot.lines[3], "> P3: life >");
 }
 
 #[test]
@@ -67,7 +67,7 @@ pub(crate) fn l2_starts_with_global_rows_and_part_rows_are_enterable() {
     assert_eq!(snapshot.path, "L2: Sense");
     assert_eq!(snapshot.lines[0], "> BPM 120");
     assert_eq!(snapshot.lines[1], "  Swing 0%");
-    assert_eq!(snapshot.lines[2], "  Aux Mappings");
+    assert_eq!(snapshot.lines[2], "  Aux Mappings >");
     menu.turn(1);
     menu.turn(1);
     menu.turn(1);
@@ -75,12 +75,15 @@ pub(crate) fn l2_starts_with_global_rows_and_part_rows_are_enterable() {
     let _ = menu.press();
     let part_snapshot = menu.snapshot();
     assert_eq!(part_snapshot.path, "L2: Sense/P1: life");
-    assert!(part_snapshot.lines.iter().any(|line| line == "> Scanning"));
-    assert!(part_snapshot.lines.iter().any(|line| line == "  Events"));
     assert!(part_snapshot
         .lines
         .iter()
-        .any(|line| line == "  Note Mapping"));
+        .any(|line| line == "> Scanning >"));
+    assert!(part_snapshot.lines.iter().any(|line| line == "  Events >"));
+    assert!(part_snapshot
+        .lines
+        .iter()
+        .any(|line| line == "  Note Mapping >"));
 }
 
 #[test]
@@ -136,7 +139,7 @@ pub(crate) fn snapshot_scrolls_to_keep_selected_row_visible() {
         snapshot.scroll.as_ref().map(|scroll| scroll.visible_rows),
         Some(7)
     );
-    assert_eq!(snapshot.lines[6], "> P8: life");
+    assert_eq!(snapshot.lines[6], "> P8: life >");
     assert!(!snapshot.lines.iter().any(|line| line == "  P1: life"));
 }
 

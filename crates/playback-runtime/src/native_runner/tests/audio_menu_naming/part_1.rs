@@ -135,16 +135,7 @@ pub(crate) fn auto_named_part_renames_when_behavior_changes_to_none() {
     assert_eq!(runner.part_names[1], "sequencer");
     assert!(runner.part_auto_names[1]);
 
-    assert!(runner.menu.focus_item_key("behaviorId"));
-    runner.menu.state.editing = true;
-    runner.menu.turn_key("behaviorId", -99);
-    assert_eq!(
-        runner.menu.value_for_key("behaviorId").as_deref(),
-        Some("none")
-    );
-    runner.apply_or_schedule_menu_key("behaviorId").unwrap();
-    runner.make_deferred_menu_apply_due_for_test();
-    runner.flush_deferred_menu_apply().unwrap();
+    select_behavior(&mut runner, "none");
 
     assert_eq!(runner.part_behavior_ids[1], "none");
     assert_eq!(runner.part_names[1], "none");
@@ -179,16 +170,7 @@ pub(crate) fn auto_named_part_renames_after_toggling_auto_name_off_and_on() {
     assert!(runner.part_auto_names[3]);
     assert_eq!(runner.part_names[3], "sequencer");
 
-    assert!(runner.menu.focus_item_key("behaviorId"));
-    runner.menu.state.editing = true;
-    runner.menu.turn_key("behaviorId", -99);
-    assert_eq!(
-        runner.menu.value_for_key("behaviorId").as_deref(),
-        Some("none")
-    );
-    runner.apply_or_schedule_menu_key("behaviorId").unwrap();
-    runner.make_deferred_menu_apply_due_for_test();
-    runner.flush_deferred_menu_apply().unwrap();
+    select_behavior(&mut runner, "none");
 
     assert_eq!(runner.part_behavior_ids[3], "none");
     assert!(runner.part_auto_names[3]);

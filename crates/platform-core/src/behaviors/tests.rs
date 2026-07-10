@@ -1,5 +1,6 @@
 use super::*;
 use crate::behavior::{BehaviorContext, DeviceInput, GridInteraction};
+use std::collections::HashSet;
 
 #[test]
 fn lists_and_resolves_native_behaviors() {
@@ -29,6 +30,46 @@ fn lists_and_resolves_native_behaviors() {
     assert_eq!(get_native_behavior("looper"), Some(NativeBehavior::Looper));
     assert_eq!(get_native_behavior("dla"), Some(NativeBehavior::Dla));
     assert_eq!(get_native_behavior("missing"), None);
+}
+
+#[test]
+fn behavior_catalog_matches_registry() {
+    let list_ids = list_native_behavior_ids()
+        .iter()
+        .copied()
+        .collect::<HashSet<_>>();
+    let mut catalog_ids = HashSet::new();
+    let category_ids = behavior_categories()
+        .iter()
+        .map(|category| category.id)
+        .collect::<HashSet<_>>();
+
+    for entry in behavior_catalog() {
+        assert!(
+            catalog_ids.insert(entry.id),
+            "duplicate behavior catalog id"
+        );
+        assert!(
+            category_ids.contains(entry.category_id),
+            "catalog entry has unknown category"
+        );
+        assert_eq!(
+            get_native_behavior(entry.id).map(|behavior| behavior.id()),
+            Some(entry.id)
+        );
+    }
+
+    assert_eq!(catalog_ids, list_ids);
+
+    for category in behavior_categories() {
+        assert!(
+            category
+                .behavior_ids
+                .iter()
+                .all(|behavior_id| catalog_ids.contains(behavior_id)),
+            "category includes unknown behavior id"
+        );
+    }
 }
 
 #[test]

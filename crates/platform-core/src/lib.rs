@@ -14,7 +14,8 @@ pub use behavior::{
     BehaviorEngine, BehaviorRenderModel, CellTriggerType, DeviceInput, GridInteraction,
 };
 pub use behaviors::{
-    get_native_behavior, list_native_behavior_ids, NativeBehavior, NativeBehaviorState,
+    behavior_catalog, behavior_categories, get_native_behavior, list_native_behavior_ids,
+    BehaviorCatalogEntry, BehaviorCategory, NativeBehavior, NativeBehaviorState,
 };
 pub use engine::{NativeInputResult, NativePartEngine, NativePartEngineConfig, NativeTickResult};
 pub use events::MusicalEvent;

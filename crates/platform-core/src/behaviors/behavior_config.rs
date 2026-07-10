@@ -1,4 +1,4 @@
-use super::{glider, life, native_impl, NativeBehavior, NativeBehaviorState};
+use super::{cellular, native_impl, NativeBehavior, NativeBehaviorState};
 use crate::behavior::{BehaviorConfigItem, GridInteraction};
 
 impl NativeBehavior {
@@ -9,10 +9,10 @@ impl NativeBehavior {
         match (self, state) {
             (NativeBehavior::None, NativeBehaviorState::None(_)) => Ok(None),
             (NativeBehavior::Life, NativeBehaviorState::Life(state)) => {
-                Ok(Some(life::config_menu(state)))
+                Ok(Some(cellular::life::config_menu(state)))
             }
             (NativeBehavior::Glider, NativeBehaviorState::Glider(state)) => {
-                Ok(Some(glider::config_menu(state)))
+                Ok(Some(cellular::glider::config_menu(state)))
             }
             (NativeBehavior::Sequencer, NativeBehaviorState::Sequencer(_)) => Ok(None),
             (NativeBehavior::Keys, NativeBehaviorState::Keys(_)) => {

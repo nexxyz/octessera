@@ -354,24 +354,7 @@ pub(crate) fn behavior_change_updates_active_part_auto_name_label() {
             request_snapshot: None,
         })
         .unwrap();
-    let _ = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_press", "id": "main" }),
-            request_snapshot: None,
-        })
-        .unwrap();
-    let _ = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
-            request_snapshot: None,
-        })
-        .unwrap();
-    let _ = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_press", "id": "main" }),
-            request_snapshot: None,
-        })
-        .unwrap();
+    select_behavior(&mut runner, "keys");
 
     assert_eq!(runner.part_behavior_ids[0], "keys");
     runner.menu.back();
@@ -380,5 +363,5 @@ pub(crate) fn behavior_change_updates_active_part_auto_name_label() {
     let lines = snapshot["display"]["lines"].as_array().unwrap();
     assert!(lines
         .iter()
-        .any(|line| line.as_str().unwrap_or("") == "> P1: keys"));
+        .any(|line| line.as_str().unwrap_or("") == "> P1: keys >"));
 }

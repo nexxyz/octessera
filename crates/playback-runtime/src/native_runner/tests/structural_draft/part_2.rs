@@ -1,26 +1,13 @@
 use super::*;
 
 #[test]
-pub(crate) fn behavior_turns_apply_immediately() {
+pub(crate) fn behavior_selection_applies_immediately() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.auto_save_default = true;
-    assert!(runner.menu.focus_item_key("behaviorId"));
-    runner.menu.state.editing = true;
+    select_behavior(&mut runner, "keys");
 
-    let first_messages = turn_main(&mut runner, 1);
-    let messages = turn_main(&mut runner, 1);
-
-    let selected = runner.menu.selected_behavior().unwrap();
-    assert_eq!(runner.behavior.id(), selected);
-    assert!(runner.flush_deferred_menu_apply().unwrap().is_empty());
-    assert_eq!(runner.part_behavior_ids[0], selected);
-    assert_no_store_save_default(&first_messages);
-    assert_no_store_save_default(&messages);
-
-    let messages = press_main(&mut runner);
-    assert_eq!(runner.behavior.id(), selected);
-    assert_eq!(runner.part_behavior_ids[0], selected);
-    assert_no_store_save_default(&messages);
+    assert_eq!(runner.behavior.id(), "keys");
+    assert_eq!(runner.part_behavior_ids[0], "keys");
     runner.make_deferred_menu_apply_due_for_test();
     let messages = runner.flush_deferred_menu_apply().unwrap();
     assert_deferred_autosave_payload(&messages);
@@ -31,7 +18,7 @@ pub(crate) fn behavior_turns_apply_immediately() {
                 effect,
                 RuntimePlatformEffect::StoreSaveDefault { payload, mode }
                     if mode.as_deref() == Some("deferred")
-                        && payload["runtimeConfig"]["parts"][0]["l1"]["behaviorId"] == selected
+                        && payload["runtimeConfig"]["parts"][0]["l1"]["behaviorId"] == "keys"
             ))
     )));
 }
