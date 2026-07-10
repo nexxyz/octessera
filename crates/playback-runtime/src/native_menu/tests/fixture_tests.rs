@@ -168,6 +168,18 @@ pub(crate) fn find_item_by_key<'a>(
         .find_map(|child| find_item_by_key(child, key))
 }
 
+fn find_path_by_key(item: &NativeMenuItem, key: &str) -> Option<Vec<usize>> {
+    if item.key.as_deref() == Some(key) {
+        return Some(vec![]);
+    }
+    item.children.iter().enumerate().find_map(|(index, child)| {
+        find_path_by_key(child, key).map(|mut path| {
+            path.insert(0, index);
+            path
+        })
+    })
+}
+
 #[test]
 pub(crate) fn sample_browser_label_includes_selected_slot_context_without_body_rows() {
     let mut cfg = config();
@@ -190,6 +202,66 @@ pub(crate) fn sample_browser_label_includes_selected_slot_context_without_body_r
     assert_eq!(browser.label, "S3 Browse");
     assert_eq!(browser.children[0].label, "..");
     assert_eq!(browser.children[1].label, "[Long Folder Name]");
+}
+
+#[test]
+pub(crate) fn sample_browser_empty_and_long_name_rows_preserve_display_contract() {
+    let mut cfg = config();
+    cfg.instrument_types[0] = "sampler".into();
+    cfg.sample_favourite_dirs.clear();
+    cfg.sample_builtin_favourite_dirs.clear();
+    cfg.sample_browser = Some(NativeSampleBrowserConfig {
+        instrument_slot: 0,
+        sample_slot: 0,
+        dir: String::new(),
+        entries: vec![],
+    });
+
+    let root = build_root(cfg.clone());
+    let browser = find_item_by_key(&root, "sample.choose:0:0").unwrap();
+    let labels = browser
+        .children
+        .iter()
+        .map(|child| child.label.as_str())
+        .collect::<Vec<_>>();
+
+    assert!(labels.contains(&".."));
+    assert!(labels.contains(&"(empty)"));
+
+    cfg.sample_browser = Some(NativeSampleBrowserConfig {
+        instrument_slot: 0,
+        sample_slot: 0,
+        dir: String::new(),
+        entries: vec![
+            NativeSampleEntryConfig {
+                name: "Extremely Long Directory Name".into(),
+                path: "Extremely Long Directory Name".into(),
+                is_dir: true,
+            },
+            NativeSampleEntryConfig {
+                name: "extremely-long-sample-file.wav".into(),
+                path: "extremely-long-sample-file.wav".into(),
+                is_dir: false,
+            },
+        ],
+    });
+
+    let root = build_root(cfg.clone());
+    let browser = find_item_by_key(&root, "sample.choose:0:0").unwrap();
+    assert!(browser
+        .children
+        .iter()
+        .any(|child| { child.label.starts_with('[') && child.label.contains("Directory") }));
+    assert!(browser
+        .children
+        .iter()
+        .any(|child| child.label.contains("sample-file.wav")));
+
+    let mut menu = NativeMenuModel::new(cfg);
+    menu.state.stack = find_path_by_key(&menu.root, "sample.choose:0:0").unwrap();
+    for line in menu.snapshot().lines {
+        assert!(line.chars().count() <= 20, "row too wide: {line:?}");
+    }
 }
 
 pub(crate) fn contains_aux_click_reset(item: &NativeMenuItem, index: usize) -> bool {

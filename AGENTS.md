@@ -70,6 +70,7 @@ Octessera is a pnpm workspace plus Cargo workspace built around a native Rust co
 - Read only the files needed for the current task. Prefer targeted search before broad reads.
 - Work in one package at a time unless the task clearly spans packages.
 - In planning mode, outline concrete steps before editing.
+- For full test-strategy sweeps, keep docs-only, product-code-only, and test-code passes separate. After each pass, challenge assumptions before advancing, and do not encode implementation quirks as user contracts.
 - In build mode, continue until the task is completed or blocked by a real user decision.
 - Every code-change loop should leave the codebase in a potentially shippable, production-quality state unless the user explicitly approves otherwise. Do not defer known cleanup, dead code removal, stale tests, obsolete commands, required docs, or required validation as optional follow-up.
 - Keep explanations brief and avoid post-change recap unless it is useful.

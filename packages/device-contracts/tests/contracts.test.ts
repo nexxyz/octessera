@@ -81,6 +81,13 @@ test("grid domain index conversion is consistent", () => {
   assert.equal(back.y, 2);
 });
 
+test("grid display conversion preserves lower-left logical origin", () => {
+  assert.deepEqual(GRID_DOMAIN.toLogicalCell({ x: 0, y: 0 }), { x: 0, y: 7 });
+  assert.deepEqual(GRID_DOMAIN.toLogicalCell({ x: 7, y: 0 }), { x: 7, y: 7 });
+  assert.deepEqual(GRID_DOMAIN.toLogicalCell({ x: 0, y: 7 }), { x: 0, y: 0 });
+  assert.deepEqual(GRID_DOMAIN.toLogicalCell({ x: 7, y: 7 }), { x: 7, y: 0 });
+});
+
 test("runtime contract fixtures cover each host and runner message class", () => {
   assert.equal(MIDI_REALTIME_MESSAGE_TYPES.join(","), "clock,start,continue,stop");
   assert.equal(RUNTIME_STATUS_STATES.join(","), "idle,running,paused,error");

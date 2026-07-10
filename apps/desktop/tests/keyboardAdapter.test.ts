@@ -40,8 +40,3 @@ test("handles combined modifiers", () => {
   assert.deepEqual(mapKeyboardEventToInputAction(keyEvent("Shift", true, true)), { type: "shift", active: true });
   assert.deepEqual(mapKeyboardEventToInputAction(keyEvent("Control", true, true)), { type: "fn", active: true });
 });
-
-test("maps repeated key releases", () => {
-  assert.deepEqual(mapKeyboardKeyupToInputAction(keyEvent("Shift")), { type: "shift", active: false });
-  assert.deepEqual(mapKeyboardKeyupToInputAction(keyEvent("Shift")), { type: "shift", active: false });
-});

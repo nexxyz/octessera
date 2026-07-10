@@ -29,6 +29,53 @@ pub(crate) fn native_menu_help_targets_resolve_to_specific_tsv_rows() {
 }
 
 #[test]
+pub(crate) fn specific_native_help_tsv_rows_are_self_resolvable() {
+    let unresolved = crate::native_help::native_help_entries_for_tests()
+        .iter()
+        .filter(|entry| is_specific_contract_help_entry(entry))
+        .filter(|entry| {
+            let target = NativeMenuHelpTarget {
+                path: entry.path.clone(),
+                key: entry.key.clone(),
+                kind: entry.kind.clone(),
+                label: entry.title.clone(),
+            };
+            crate::native_help::resolve_native_help_entry(&target)
+                .as_ref()
+                .is_none_or(|resolved| !same_help_entry(entry, resolved))
+        })
+        .map(|entry| format!("{} {} {}", entry.kind, entry.key, entry.path))
+        .collect::<Vec<_>>();
+
+    assert!(
+        unresolved.is_empty(),
+        "help TSV rows not self-resolvable: {unresolved:#?}"
+    );
+}
+
+fn is_specific_contract_help_entry(entry: &crate::native_help::NativeHelpEntry) -> bool {
+    let key = entry.key.trim();
+    let path = entry.path.trim();
+    !(path == "*" && key.is_empty())
+        && key != "action:*"
+        && key != "key:*"
+        && !path.contains('*')
+        && !key.contains('*')
+}
+
+fn same_help_entry(
+    a: &crate::native_help::NativeHelpEntry,
+    b: &crate::native_help::NativeHelpEntry,
+) -> bool {
+    a.path == b.path
+        && a.key == b.key
+        && a.kind == b.kind
+        && a.title == b.title
+        && a.line1 == b.line1
+        && a.line2 == b.line2
+}
+
+#[test]
 pub(crate) fn native_menu_group_help_rows_match_current_paths() {
     let stale = crate::native_help::native_help_entries_for_tests()
         .iter()
