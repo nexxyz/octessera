@@ -6,13 +6,13 @@ use super::{NativeMenuAction, NativeMenuItem, NativeParamBindingSpec};
 pub struct NativeMenuConfig {
     pub behavior_id: String,
     pub behavior_ids: Vec<String>,
-    pub l1_items: Vec<NativeMenuItem>,
+    pub worlds_items: Vec<NativeMenuItem>,
     pub behavior_target_items: Vec<Vec<NativeMenuItem>>,
-    pub part_labels: Vec<String>,
-    pub part_names: Vec<String>,
-    pub part_auto_names: Vec<bool>,
-    pub sense_parts: Vec<NativeSensePartConfig>,
-    pub active_part_index: usize,
+    pub layer_labels: Vec<String>,
+    pub layer_names: Vec<String>,
+    pub layer_auto_names: Vec<bool>,
+    pub pulses_layers: Vec<NativePulsesLayerConfig>,
+    pub active_layer_index: usize,
     pub param_mods: Vec<NativeParamModsConfig>,
     pub xy_x_binding: Option<NativeParamBindingSpec>,
     pub xy_y_binding: Option<NativeParamBindingSpec>,
@@ -80,10 +80,10 @@ pub struct NativeMenuConfig {
     pub preset_rename_source: Option<String>,
     pub midi_outputs: Vec<(String, String)>,
     pub midi_inputs: Vec<(String, String)>,
-    pub dance_mode: String,
-    pub dance_fx_type: String,
-    pub dance_fx_target: String,
-    pub dance_fx_params: serde_json::Map<String, serde_json::Value>,
+    pub sparks_mode: String,
+    pub sparks_fx_type: String,
+    pub sparks_fx_target: String,
+    pub sparks_fx_params: serde_json::Map<String, serde_json::Value>,
     pub xy_release: String,
     pub xy_invert_x: bool,
     pub xy_invert_y: bool,
@@ -106,7 +106,7 @@ pub struct NativeAuxBindingConfig {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct NativeSensePartConfig {
+pub struct NativePulsesLayerConfig {
     pub scan_mode: String,
     pub scan_axis: String,
     pub scan_unit: String,

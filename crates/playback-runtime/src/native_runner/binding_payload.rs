@@ -88,8 +88,8 @@ pub(super) fn supported_param_binding_key(key: &str) -> bool {
     if matches!(
         key,
         "sound.noteLengthMs" | "sound.velocityScalePct" | "sound.voiceStealingMode"
-    ) || key.starts_with("parts.")
-        && (key.ends_with(".algorithmStep") || key.contains(".l1.behaviorConfig."))
+    ) || key.starts_with("layers.")
+        && (key.ends_with(".algorithmStep") || key.contains(".worlds.behaviorConfig."))
     {
         return true;
     }
@@ -116,10 +116,10 @@ pub(super) fn supported_aux_turn_key(key: &str) -> bool {
     !key.is_empty()
         && !key.contains("..")
         && (supported_param_binding_key(key)
-            || key.starts_with("parts.")
+            || key.starts_with("layers.")
             || key.starts_with("mixer.")
             || key.starts_with("transport.")
-            || key.starts_with("dance.")
+            || key.starts_with("sparks.")
             || key.starts_with("midi")
             || key.starts_with("screen")
             || key.ends_with("Brightness")

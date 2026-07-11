@@ -4,7 +4,7 @@ use super::{velocity_curve_from_id, NativeRunner};
 
 impl NativeRunner {
     pub(super) fn apply_global_runtime_menu_state(&mut self) -> (bool, bool, bool) {
-        let mut dance_mode_changed = false;
+        let mut sparks_mode_changed = false;
         let mut config_changed = false;
         let mut audio_config_changed = false;
         if let Some(sync_source) = self.menu.selected_sync_source() {
@@ -14,12 +14,12 @@ impl NativeRunner {
         if let Some(step_pulses) = self.menu.selected_algorithm_step_pulses() {
             config_changed |= self.algorithm_step_pulses != step_pulses;
             self.algorithm_step_pulses = step_pulses;
-            if let Some(part_step) = self
-                .part_algorithm_step_pulses
-                .get_mut(self.active_part_index)
+            if let Some(layer_step) = self
+                .layer_algorithm_step_pulses
+                .get_mut(self.active_layer_index)
             {
-                config_changed |= *part_step != step_pulses;
-                *part_step = step_pulses;
+                config_changed |= *layer_step != step_pulses;
+                *layer_step = step_pulses;
             }
         }
         if let Some(master_volume) = self.menu.selected_master_volume() {
@@ -31,13 +31,13 @@ impl NativeRunner {
             self.preset_draft_name = draft_name;
         }
         config_changed |= self.apply_midi_menu_flags();
-        if let Some(dance_mode) = self.menu.selected_dance_mode() {
-            let changed = self.dance_mode != dance_mode;
-            self.dance_mode = dance_mode.clone();
-            dance_mode_changed = changed;
+        if let Some(sparks_mode) = self.menu.selected_sparks_mode() {
+            let changed = self.sparks_mode != sparks_mode;
+            self.sparks_mode = sparks_mode.clone();
+            sparks_mode_changed = changed;
             config_changed |= changed;
-            if changed && self.menu.is_in_dance_root_group() {
-                self.active_dance_mode = dance_mode;
+            if changed && self.menu.is_in_sparks_root_group() {
+                self.active_sparks_mode = sparks_mode;
             }
         }
         config_changed |= self.apply_xy_menu_state();
@@ -45,7 +45,7 @@ impl NativeRunner {
             self.apply_ui_sound_transport_menu_state();
         config_changed |= ui_sound_changed;
         audio_config_changed |= sound_audio_config_changed;
-        (dance_mode_changed, config_changed, audio_config_changed)
+        (sparks_mode_changed, config_changed, audio_config_changed)
     }
 
     pub(super) fn apply_midi_menu_flags(&mut self) -> bool {
@@ -87,16 +87,16 @@ impl NativeRunner {
 
     pub(super) fn apply_xy_menu_state(&mut self) -> bool {
         let mut changed = false;
-        if let Some(xy_release) = self.menu.value_for_key("dance.xy.release") {
+        if let Some(xy_release) = self.menu.value_for_key("sparks.xy.release") {
             changed |= self.xy_release != xy_release;
             self.xy_release = xy_release;
         }
-        if let Some(invert_x) = self.menu.value_for_key("dance.xy.invertX") {
+        if let Some(invert_x) = self.menu.value_for_key("sparks.xy.invertX") {
             let invert_x = invert_x == "true";
             changed |= self.xy_invert_x != invert_x;
             self.xy_invert_x = invert_x;
         }
-        if let Some(invert_y) = self.menu.value_for_key("dance.xy.invertY") {
+        if let Some(invert_y) = self.menu.value_for_key("sparks.xy.invertY") {
             let invert_y = invert_y == "true";
             changed |= self.xy_invert_y != invert_y;
             self.xy_invert_y = invert_y;

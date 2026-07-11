@@ -3,7 +3,7 @@ use std::sync::OnceLock;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use super::{
-    display_part_index_from_y, DeviceInput, NativeRunner, NativeToast, RuntimeTransportState,
+    display_layer_index_from_y, DeviceInput, NativeRunner, NativeToast, RuntimeTransportState,
     SyncSource,
 };
 
@@ -148,36 +148,36 @@ impl NativeRunner {
         x: usize,
         y: usize,
     ) -> Result<Vec<RunnerMessage>, String> {
-        if self.dance_fx_assign.is_some() {
-            self.handle_dance_fx_assignment_grid_press(x, y);
+        if self.sparks_fx_assign.is_some() {
+            self.handle_sparks_fx_assignment_grid_press(x, y);
         } else if self.sample_assign.is_some() {
             self.handle_sample_assignment_grid_press(x, y);
         } else if self.trigger_probability_assign.is_some() {
             self.handle_trigger_probability_grid_press(x, y);
-        } else if self.active_dance_mode == "transpose" && x == 0 && self.ui.shift_held {
-            self.toggle_all_dance_transpose_parts();
+        } else if self.active_sparks_mode == "transpose" && x == 0 && self.ui.shift_held {
+            self.toggle_all_sparks_transpose_layers();
         } else if self.ui.fn_held && x == 0 && !self.ui.shift_held {
-            self.select_active_part(display_part_index_from_y(y))?;
-            self.active_dance_mode = "none".into();
+            self.select_active_layer(display_layer_index_from_y(y))?;
+            self.active_sparks_mode = "none".into();
         } else if self.ui.fn_held && x == super::GRID_WIDTH - 1 && !self.ui.shift_held {
-            self.select_dance_page_from_fn_grid(y);
-        } else if self.ui.shift_held && !self.ui.fn_held && self.active_dance_mode == "none" {
+            self.select_sparks_page_from_fn_grid(y);
+        } else if self.ui.shift_held && !self.ui.fn_held && self.active_sparks_mode == "none" {
             if !self.handle_param_mod_grid_press(x, y) {
                 self.mark_grid_input_dirty();
                 let result = self.active_engine_input_result(DeviceInput::GridPress { x, y })?;
                 return self.messages_with_input_result(result);
             }
-        } else if self.active_dance_mode == "trigger-gate" {
+        } else if self.active_sparks_mode == "trigger-gate" {
             self.handle_trigger_gate_grid_press(x, y);
-        } else if self.active_dance_mode == "transpose" {
-            self.handle_dance_transpose_grid_press(x, y);
-        } else if self.active_dance_mode == "fx" {
-            let effects = self.dance_fx_press_effects(x, y);
+        } else if self.active_sparks_mode == "transpose" {
+            self.handle_sparks_transpose_grid_press(x, y);
+        } else if self.active_sparks_mode == "fx" {
+            let effects = self.sparks_fx_press_effects(x, y);
             if !effects.is_empty() {
                 return self.messages_with_effects(effects);
             }
-        } else if self.active_dance_mode != "none" {
-            self.handle_dance_grid_press(x, y);
+        } else if self.active_sparks_mode != "none" {
+            self.handle_sparks_grid_press(x, y);
         } else {
             self.mark_grid_input_dirty();
             let result = self.active_engine_input_result(DeviceInput::GridPress { x, y })?;
@@ -191,16 +191,16 @@ impl NativeRunner {
         x: usize,
         y: usize,
     ) -> Result<Vec<RunnerMessage>, String> {
-        if self.active_dance_mode != "none" {
-            if self.active_dance_mode == "fx" {
-                let effects = self.dance_fx_release_effects(x, y);
+        if self.active_sparks_mode != "none" {
+            if self.active_sparks_mode == "fx" {
+                let effects = self.sparks_fx_release_effects(x, y);
                 if !effects.is_empty() {
                     return self.messages_with_effects(effects);
                 }
                 return self.messages_with_snapshot();
             }
-            if self.active_dance_mode == "xy" {
-                self.handle_dance_xy_release();
+            if self.active_sparks_mode == "xy" {
+                self.handle_sparks_xy_release();
             }
             return self.messages_with_snapshot();
         }
@@ -231,7 +231,7 @@ impl NativeRunner {
                 self.reset_transport_position();
                 return self.messages_with_effects(vec![RuntimePlatformEffect::MidiPanic]);
             } else if self.ui.fn_held {
-                self.toggle_active_part_trigger_gate();
+                self.toggle_active_layer_trigger_gate();
             } else {
                 if self.transport == RuntimeTransportState::Stopped {
                     self.reset_transport_position();

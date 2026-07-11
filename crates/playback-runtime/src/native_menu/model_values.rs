@@ -40,24 +40,24 @@ impl NativeMenuModel {
             .map(|value| value.clamp(0, 100) as u8)
     }
 
-    pub fn selected_dance_mode(&self) -> Option<String> {
+    pub fn selected_sparks_mode(&self) -> Option<String> {
         let path = self.current_focus_path();
-        if path.starts_with("Menu > L4: Dance > Mix") {
+        if path.starts_with("Menu > 4: Sparks > Mix") {
             return Some("mix".into());
         }
-        if path.starts_with("Menu > L4: Dance > Pan") {
+        if path.starts_with("Menu > 4: Sparks > Pan") {
             return Some("pan".into());
         }
-        if path.starts_with("Menu > L4: Dance > FX") {
+        if path.starts_with("Menu > 4: Sparks > FX") {
             return Some("fx".into());
         }
-        if path.starts_with("Menu > L4: Dance > Trigger Gate") {
+        if path.starts_with("Menu > 4: Sparks > Trigger Gate") {
             return Some("trigger-gate".into());
         }
-        if path.starts_with("Menu > L4: Dance > Transpose") {
+        if path.starts_with("Menu > 4: Sparks > Transpose") {
             return Some("transpose".into());
         }
-        if path.starts_with("Menu > L4: Dance > XY") {
+        if path.starts_with("Menu > 4: Sparks > XY") {
             return Some("xy".into());
         }
         None

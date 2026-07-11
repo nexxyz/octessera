@@ -9,16 +9,15 @@ use options::{FX_BUS_SLOT_OPTIONS, GLOBAL_FX_SLOT_OPTIONS};
 #[cfg(test)]
 use platform_core::{BUS_COUNT as FX_BUS_COUNT, GLOBAL_FX_SLOT_COUNT};
 #[cfg(test)]
-use sense::default_sense_part_config;
+use pulses::default_pulses_layer_config;
 
 mod binding_behavior;
 mod binding_picker;
 mod binding_picker_voice;
-mod binding_sense;
-mod binding_sense_axis;
+mod binding_pulses;
+mod binding_pulses_axis;
 mod binding_tree;
 mod bindings;
-mod dance;
 mod format;
 mod format_values;
 mod fx;
@@ -35,10 +34,11 @@ mod model_search;
 mod model_snapshot;
 mod model_values;
 mod options;
+mod pulses;
+mod pulses_axis;
+mod pulses_sections;
 mod sample_browser_menu;
-mod sense;
-mod sense_axis;
-mod sense_sections;
+mod sparks;
 mod synth_preset_items;
 mod system;
 mod system_aux;

@@ -1,6 +1,6 @@
 use super::{
-    json, NativeFxBus, NativeInstrumentSlot, NativeSensePart, Value, BUS_COUNT,
-    GLOBAL_FX_SLOT_COUNT, INSTRUMENT_COUNT, PART_COUNT,
+    json, NativeFxBus, NativeInstrumentSlot, NativePulsesLayer, Value, BUS_COUNT,
+    GLOBAL_FX_SLOT_COUNT, INSTRUMENT_COUNT, LAYER_COUNT,
 };
 
 pub(super) fn derive_instrument_name(_index: usize, kind: &str) -> String {
@@ -68,23 +68,25 @@ pub(super) fn default_instruments() -> Vec<NativeInstrumentSlot> {
         .collect()
 }
 
-pub(super) fn default_sense_parts() -> Vec<NativeSensePart> {
-    let mut parts = (0..PART_COUNT).map(default_sense_part).collect::<Vec<_>>();
-    for part in parts.iter_mut().skip(1) {
-        part.event_enabled = false;
+pub(super) fn default_pulses_layers() -> Vec<NativePulsesLayer> {
+    let mut layers = (0..LAYER_COUNT)
+        .map(default_pulses_layer)
+        .collect::<Vec<_>>();
+    for layer in layers.iter_mut().skip(1) {
+        layer.event_enabled = false;
     }
-    parts
+    layers
 }
 
-pub(super) fn default_sense_part(index: usize) -> NativeSensePart {
-    let mut part = NativeSensePart::default();
+pub(super) fn default_pulses_layer(index: usize) -> NativePulsesLayer {
+    let mut layer = NativePulsesLayer::default();
     let slot = index.min(INSTRUMENT_COUNT.saturating_sub(1));
-    part.scanned_slot = slot;
-    part.scanned_empty_slot = slot;
-    part.activate_slot = slot;
-    part.stable_slot = slot;
-    part.deactivate_slot = slot;
-    part
+    layer.scanned_slot = slot;
+    layer.scanned_empty_slot = slot;
+    layer.activate_slot = slot;
+    layer.stable_slot = slot;
+    layer.deactivate_slot = slot;
+    layer
 }
 
 pub(super) fn default_fx_buses() -> Vec<NativeFxBus> {

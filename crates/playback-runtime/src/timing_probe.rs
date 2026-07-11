@@ -21,11 +21,11 @@ pub use timing_probe_report::{
 #[serde(rename_all = "snake_case")]
 pub enum TimingProbeScenario {
     Idle,
-    SenseStress,
+    PulsesStress,
     StopStart,
     EncoderStress,
     MuteStress,
-    DancePageStress,
+    SparksPageStress,
 }
 
 #[derive(Clone, Debug)]
@@ -305,21 +305,21 @@ fn apply_scenario(
 ) -> Result<(), String> {
     match scenario {
         TimingProbeScenario::Idle => Ok(()),
-        TimingProbeScenario::SenseStress if ms == 0 => send_input(
+        TimingProbeScenario::PulsesStress if ms == 0 => send_input(
             runtime,
             runner,
             host,
             json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
             snapshots,
         ),
-        TimingProbeScenario::SenseStress if ms % 250 == 20 => send_input(
+        TimingProbeScenario::PulsesStress if ms % 250 == 20 => send_input(
             runtime,
             runner,
             host,
             json!({ "type": "encoder_press", "id": "main" }),
             snapshots,
         ),
-        TimingProbeScenario::SenseStress if ms % 250 == 120 => send_input(
+        TimingProbeScenario::PulsesStress if ms % 250 == 120 => send_input(
             runtime,
             runner,
             host,
@@ -343,14 +343,14 @@ fn apply_scenario(
         TimingProbeScenario::MuteStress if ms.is_multiple_of(500) => {
             send_fn_play(runtime, runner, host)
         }
-        TimingProbeScenario::DancePageStress if ms.is_multiple_of(250) => {
-            send_dance_page_input(runtime, runner, host, ((ms / 250) % 5) as usize)
+        TimingProbeScenario::SparksPageStress if ms.is_multiple_of(250) => {
+            send_sparks_page_input(runtime, runner, host, ((ms / 250) % 5) as usize)
         }
         _ => Ok(()),
     }
 }
 
-fn send_dance_page_input(
+fn send_sparks_page_input(
     runtime: &mut PlaybackRuntime,
     runner: &mut ProbeRunner,
     host: &mut ProbeHost,

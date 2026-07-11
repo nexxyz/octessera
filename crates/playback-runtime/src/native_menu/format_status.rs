@@ -3,6 +3,10 @@ pub(in crate::native_menu) fn abbreviate_path(path: &str) -> String {
     for segment in path.split('/') {
         out.push(match segment {
             "Menu" => "MENU".to_string(),
+            "1: Worlds" => "W".to_string(),
+            "2: Pulses" => "P".to_string(),
+            "3: Tones" => "T".to_string(),
+            "4: Sparks" => "S".to_string(),
             "System" => "SYS".to_string(),
             other => other.to_string(),
         });
@@ -16,16 +20,16 @@ pub(in crate::native_menu) fn section_color_from_path(path: &str) -> u16 {
 }
 
 pub(in crate::native_menu) fn section_color_for_label(label: &str) -> u16 {
-    if label.starts_with("L1:") || label == "L1: Life" {
+    if label.starts_with("1:") || label == "W" {
         return 0x8ED1;
     }
-    if label.starts_with("L2:") || label == "L2: Sense" {
+    if label.starts_with("2:") || label == "P" {
         return 0x8D5C;
     }
-    if label.starts_with("L3:") || label == "L3: Voice" {
+    if label.starts_with("3:") || label == "T" {
         return 0xC59B;
     }
-    if label.starts_with("L4:") || label == "L4: Dance" {
+    if label.starts_with("4:") || label == "S" {
         return 0xFFFF;
     }
     if label == "System" || label == "SYS" || label == "MENU" {

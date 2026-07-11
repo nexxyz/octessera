@@ -6,7 +6,7 @@ param(
   [ValidateSet("RuntimeOnly", "Live", "AudioDrain", "DspFxLimits")]
   [string]$Mode = "RuntimeOnly",
   [string]$Durations = "5s",
-  [string]$Scenarios = "idle,sense",
+  [string]$Scenarios = "idle,pulses-stress",
   [int]$AudioOutputBufferFrames = 0,
   [int]$AudioDrainIntervalMs = 10,
   [switch]$Snapshots,

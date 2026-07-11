@@ -1,58 +1,58 @@
 use super::*;
 
 #[test]
-pub(crate) fn behavior_target_picker_uses_each_parts_behavior_and_prunes_none() {
+pub(crate) fn behavior_target_picker_uses_each_layers_behavior_and_prunes_none() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.part_behavior_ids[0] = "none".into();
-    runner.part_behavior_ids[2] = "brain".into();
-    runner.part_behavior_configs[2] = json!({ "randomSeedCells": 4 });
+    runner.layer_behavior_ids[0] = "none".into();
+    runner.layer_behavior_ids[2] = "brain".into();
+    runner.layer_behavior_configs[2] = json!({ "randomSeedCells": 4 });
 
     let config = runner.menu_config();
 
     assert!(config.behavior_target_items[0].is_empty());
     assert!(contains_key_recursive(
         &config.behavior_target_items[2],
-        "parts.2.algorithmStep"
+        "layers.2.algorithmStep"
     ));
     assert!(contains_key_recursive(
         &config.behavior_target_items[2],
-        "parts.2.l1.behaviorConfig.randomSeedCells"
+        "layers.2.worlds.behaviorConfig.randomSeedCells"
     ));
     assert!(!contains_key_recursive(
         &config.behavior_target_items[2],
-        "parts.0.l1.behaviorConfig.randomCellsPerTick"
+        "layers.0.worlds.behaviorConfig.randomCellsPerTick"
     ));
 }
 
 #[test]
-pub(crate) fn aux_turn_generated_per_part_behavior_targets_updates_stored_config() {
+pub(crate) fn aux_turn_generated_per_layer_behavior_targets_updates_stored_config() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.part_behavior_ids[2] = "brain".into();
-    runner.part_behavior_configs[2] = json!({ "randomSeedCells": 4 });
-    runner.part_algorithm_step_pulses[2] = 24;
+    runner.layer_behavior_ids[2] = "brain".into();
+    runner.layer_behavior_configs[2] = json!({ "randomSeedCells": 4 });
+    runner.layer_algorithm_step_pulses[2] = 24;
     runner.aux_bindings[0] = Some(NativeAuxBinding {
-        turn_key: Some("parts.2.algorithmStep".into()),
+        turn_key: Some("layers.2.algorithmStep".into()),
         press_action: None,
     });
     runner.aux_bindings[1] = Some(NativeAuxBinding {
-        turn_key: Some("parts.2.l1.behaviorConfig.randomSeedCells".into()),
+        turn_key: Some("layers.2.worlds.behaviorConfig.randomSeedCells".into()),
         press_action: None,
     });
 
     runner.handle_aux_turn(0, 1).unwrap();
     runner.handle_aux_turn(1, 1).unwrap();
 
-    assert_eq!(runner.part_algorithm_step_pulses[2], 48);
-    assert_eq!(runner.part_behavior_configs[2]["randomSeedCells"], 5);
+    assert_eq!(runner.layer_algorithm_step_pulses[2], 48);
+    assert_eq!(runner.layer_behavior_configs[2]["randomSeedCells"], 5);
     assert!(runner.config_dirty);
 }
 
 #[test]
-pub(crate) fn per_part_step_rate_xy_binding_round_trips_from_payload() {
+pub(crate) fn per_layer_step_rate_xy_binding_round_trips_from_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let mut payload = runner.config_payload();
-    payload["runtimeConfig"]["parts"][0]["xy"]["x"] = json!({
-        "key": "parts.2.algorithmStep",
+    payload["runtimeConfig"]["layers"][0]["xy"]["x"] = json!({
+        "key": "layers.2.algorithmStep",
         "label": "Step Rate",
         "kind": "enum",
         "options": ["1/16", "1/8", "1/4", "1/2", "1/1"]
@@ -62,16 +62,16 @@ pub(crate) fn per_part_step_rate_xy_binding_round_trips_from_payload() {
 
     assert_eq!(
         runner.xy_x_binding.as_ref().unwrap().key,
-        "parts.2.algorithmStep"
+        "layers.2.algorithmStep"
     );
 }
 
 #[test]
-pub(crate) fn stale_bindings_to_none_behavior_part_do_not_mutate_hidden_values() {
+pub(crate) fn stale_bindings_to_none_behavior_layer_do_not_mutate_hidden_values() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.part_behavior_ids[2] = "none".into();
-    runner.part_algorithm_step_pulses[2] = 24;
-    runner.part_behavior_configs[2] = json!({ "randomSeedCells": 4 });
+    runner.layer_behavior_ids[2] = "none".into();
+    runner.layer_algorithm_step_pulses[2] = 24;
+    runner.layer_behavior_configs[2] = json!({ "randomSeedCells": 4 });
     runner.xy_touch = NativeXyTouch {
         x: 1.0,
         y: 1.0,
@@ -80,7 +80,7 @@ pub(crate) fn stale_bindings_to_none_behavior_part_do_not_mutate_hidden_values()
         active: true,
     };
     runner.xy_x_binding = Some(NativeParamBinding {
-        key: "parts.2.algorithmStep".into(),
+        key: "layers.2.algorithmStep".into(),
         label: Some("Step Rate".into()),
         kind: "enum".into(),
         min: None,
@@ -93,7 +93,7 @@ pub(crate) fn stale_bindings_to_none_behavior_part_do_not_mutate_hidden_values()
         invert: false,
     });
     runner.xy_y_binding = Some(NativeParamBinding {
-        key: "parts.2.l1.behaviorConfig.randomSeedCells".into(),
+        key: "layers.2.worlds.behaviorConfig.randomSeedCells".into(),
         label: Some("Spawn Count".into()),
         kind: "number".into(),
         min: Some(0.0),
@@ -105,8 +105,8 @@ pub(crate) fn stale_bindings_to_none_behavior_part_do_not_mutate_hidden_values()
 
     runner.apply_runtime_modulation(&[], 0);
 
-    assert_eq!(runner.part_algorithm_step_pulses[2], 24);
-    assert_eq!(runner.part_behavior_configs[2]["randomSeedCells"], 4);
+    assert_eq!(runner.layer_algorithm_step_pulses[2], 24);
+    assert_eq!(runner.layer_behavior_configs[2]["randomSeedCells"], 4);
     assert!(!runner.config_dirty);
 }
 

@@ -166,7 +166,7 @@ mod tests {
         let default_payload: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(&default_path).unwrap()).unwrap();
         assert_eq!(
-            default_payload["runtimeConfig"]["parts"][3]["autoName"],
+            default_payload["runtimeConfig"]["layers"][3]["autoName"],
             true
         );
         assert_eq!(default_payload["runtimeConfig"]["displayBrightness"], 100);

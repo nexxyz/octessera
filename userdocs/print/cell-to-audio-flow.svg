@@ -24,20 +24,20 @@
     <text class="txt title" x="256" y="237" text-anchor="middle">Start</text>
 
     <rect class="group" x="480" y="58" width="430" height="208"/>
-    <text class="txt group-title" x="502" y="85">L1: Life</text>
+    <text class="txt group-title" x="502" y="85">1: Worlds</text>
     <rect class="box" x="630" y="70" width="200" height="62"/>
     <text class="txt title" x="730" y="101" text-anchor="middle" dominant-baseline="middle">Behaviors</text>
     <rect class="box" x="608" y="190" width="244" height="52"/>
     <text class="txt title" x="730" y="223" text-anchor="middle">Grid Cell State</text>
 
     <rect class="group" x="572" y="310" width="316" height="132"/>
-    <text class="txt group-title" x="594" y="337">L2: Sense</text>
+    <text class="txt group-title" x="594" y="337">2: Pulses</text>
     <rect class="box" x="630" y="356" width="200" height="62"/>
     <text class="txt title" x="730" y="379" text-anchor="middle">Note Mapping</text>
     <text class="txt title" x="730" y="403" text-anchor="middle">&amp; Routing</text>
 
     <rect class="group" x="430" y="486" width="760" height="148"/>
-    <text class="txt group-title" x="452" y="513">L3: Voice</text>
+    <text class="txt group-title" x="452" y="513">3: Tones</text>
     <rect class="box" x="610" y="532" width="200" height="62"/>
     <text class="txt title" x="710" y="570" text-anchor="middle">Instrument</text>
     <rect class="box" x="930" y="504" width="196" height="52"/>
@@ -47,7 +47,7 @@
     <text class="txt small" x="1028" y="609" text-anchor="middle">(optional)</text>
 
     <rect class="group" x="256" y="670" width="912" height="205"/>
-    <text class="txt group-title" x="278" y="697">L4: Dance</text>
+    <text class="txt group-title" x="278" y="697">4: Sparks</text>
     <rect class="box" x="310" y="720" width="190" height="62"/>
     <text class="txt title" x="405" y="748" text-anchor="middle">Transpose,</text>
     <text class="txt title" x="405" y="771" text-anchor="middle">Probability Pages</text>

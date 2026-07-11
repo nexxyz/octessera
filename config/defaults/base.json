@@ -46,7 +46,7 @@
   },
   "runtimeConfig": {
     "activeBehavior": "life",
-    "activePartIndex": 0,
+    "activeLayerIndex": 0,
     "autoSaveDefault": false,
     "auxAutoMapEnabled": true,
     "auxBindings": {
@@ -56,7 +56,7 @@
     },
     "bpm": 120.0,
     "buttonBrightness": 35,
-    "danceMode": "fx",
+    "sparksMode": "fx",
     "displayBrightness": 75,
     "ghostCells": false,
     "gridBrightness": 25,
@@ -1274,10 +1274,10 @@
     },
     "noteLengthMs": 150,
     "numericDisplayMode": "bar+numbers",
-    "parts": [
+    "layers": [
       {
         "autoName": true,
-        "l1": {
+        "worlds": {
           "behaviorConfig": {
             "randomCellsPerTick": 0,
             "randomTickInterval": 1,
@@ -1426,7 +1426,7 @@
           },
           "stepRate": "1/16"
         },
-        "l2": {
+        "pulses": {
           "eventEnabled": true,
           "mapping": {
             "activate": {
@@ -1614,7 +1614,7 @@
       },
       {
         "autoName": true,
-        "l1": {
+        "worlds": {
           "behaviorConfig": {},
           "behaviorId": "sequencer",
           "saveGridState": true,
@@ -1690,7 +1690,7 @@
           },
           "stepRate": "1/16"
         },
-        "l2": {
+        "pulses": {
           "eventEnabled": false,
           "mapping": {
             "activate": {
@@ -1878,7 +1878,7 @@
       },
       {
         "autoName": true,
-        "l1": {
+        "worlds": {
           "behaviorConfig": {
             "quantize": "immediate"
           },
@@ -1886,7 +1886,7 @@
           "saveGridState": false,
           "stepRate": "1/16"
         },
-        "l2": {
+        "pulses": {
           "eventEnabled": true,
           "mapping": {
             "activate": {
@@ -2074,7 +2074,7 @@
       },
       {
         "autoName": true,
-        "l1": {
+        "worlds": {
           "behaviorConfig": {
             "randomCellsPerTick": 0,
             "randomTickInterval": 1,
@@ -2084,7 +2084,7 @@
           "saveGridState": false,
           "stepRate": "1/16"
         },
-        "l2": {
+        "pulses": {
           "eventEnabled": false,
           "mapping": {
             "activate": {
@@ -2272,13 +2272,13 @@
       },
       {
         "autoName": true,
-        "l1": {
+        "worlds": {
           "behaviorConfig": null,
           "behaviorId": "none",
           "saveGridState": false,
           "stepRate": "1/16"
         },
-        "l2": {
+        "pulses": {
           "eventEnabled": false,
           "mapping": {
             "activate": {
@@ -2466,13 +2466,13 @@
       },
       {
         "autoName": true,
-        "l1": {
+        "worlds": {
           "behaviorConfig": null,
           "behaviorId": "none",
           "saveGridState": false,
           "stepRate": "1/16"
         },
-        "l2": {
+        "pulses": {
           "eventEnabled": false,
           "mapping": {
             "activate": {
@@ -2660,13 +2660,13 @@
       },
       {
         "autoName": true,
-        "l1": {
+        "worlds": {
           "behaviorConfig": null,
           "behaviorId": "none",
           "saveGridState": false,
           "stepRate": "1/16"
         },
-        "l2": {
+        "pulses": {
           "eventEnabled": false,
           "mapping": {
             "activate": {
@@ -2854,13 +2854,13 @@
       },
       {
         "autoName": true,
-        "l1": {
+        "worlds": {
           "behaviorConfig": null,
           "behaviorId": "none",
           "saveGridState": false,
           "stepRate": "1/16"
         },
-        "l2": {
+        "pulses": {
           "eventEnabled": false,
           "mapping": {
             "activate": {
@@ -3055,7 +3055,7 @@
       "velocityScalePct": 100,
       "voiceStealingMode": "auto-balanced"
     },
-    "touchFx": {
+    "sparksFx": {
       "assignments": [
         {
           "config": {
@@ -3085,6 +3085,6 @@
     "xyRelease": "sample-hold"
   },
   "system": {
-    "danceMode": "fx"
+    "sparksMode": "fx"
   }
 }

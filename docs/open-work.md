@@ -6,10 +6,10 @@ This file tracks current actionable work only. Completed-work history does not b
 
 - Replace or independently verify the SSD1351 OLED module; the tested module stayed blank with Pi and Arduino Adafruit test code despite valid power and command wiring.
 - OLED checklist after replacement: validate orientation, clipping, brightness, text layout, startup/help toast wording, help dialogs, confirm dialogs, and long sample-browser rows on the physical display.
-- NeoTrellis checklist: validate coordinate orientation, lower-left grid semantics, Dance Fn columns, overlay priority, XY marker position, sample/probability assignment colors, and full-frame stability on hardware after the corrected connector path is installed.
+- NeoTrellis checklist: validate coordinate orientation, lower-left grid semantics, Sparks Fn columns, overlay priority, XY marker position, sample/probability assignment colors, and full-frame stability on hardware after the corrected connector path is installed.
 - NeoKey checklist: validate Back, Space, Shift, Fn, combined Shift+Fn, modifier-held hints, button LED colors, and help chord entry on the PCB.
 - Encoders checklist: validate main encoder turn/press, all aux encoder directions, aux push switches, Fn+Aux binding, turn/press overlay indicators, and no-binding/not-active toasts.
-- Audio-adjacent UX checklist: validate audio-device startup status, sample preview feedback, sampler assignment feedback, Dance FX assignment feedback, MIDI panic/status, and user-visible errors without requiring full audio quality sign-off.
+- Audio-adjacent UX checklist: validate audio-device startup status, sample preview feedback, sampler assignment feedback, Sparks FX assignment feedback, MIDI panic/status, and user-visible errors without requiring full audio quality sign-off.
 - Validate runtime audio through the target DAC beyond the successful ALSA 440 Hz test tone.
 - Validate sample preview, loaded sample banks, and runtime audio config sync through the Pi host adapter.
 

@@ -159,7 +159,7 @@ fn fx_limit_scenarios(sample_rate: u32) -> Vec<ScenarioSpec> {
     for bus_slots in [0, 2, 4, 6] {
         for momentary in [0, 1, 2] {
             scenarios.push(ScenarioSpec {
-                name: format!("fx_limits_8parts_2global_{bus_slots}bus_{momentary}momentary"),
+                name: format!("fx_limits_8layers_2global_{bus_slots}bus_{momentary}momentary"),
                 events: fx_limit_events(bus_slots, momentary, sample_rate),
             });
         }

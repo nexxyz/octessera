@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) fn dance_fx_cell_id(x: usize, y: usize) -> String {
+pub(super) fn sparks_fx_cell_id(x: usize, y: usize) -> String {
     format!("momentary-fx:{x}:{y}")
 }
 

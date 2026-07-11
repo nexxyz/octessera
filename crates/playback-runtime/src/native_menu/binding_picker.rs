@@ -2,14 +2,14 @@ use platform_core::BUS_COUNT as FX_BUS_COUNT;
 
 use super::binding_behavior::behavior_binding_groups;
 use super::binding_picker_voice::instrument_binding_groups;
-use super::binding_sense::sense_binding_group;
+use super::binding_pulses::pulses_binding_group;
 use super::binding_tree::{binding_action, binding_group_from_items, binding_tree_from_menu_item};
-use super::dance::dance_fx_page_items;
 use super::fx::{fx_buses_group, global_fx_group};
+use super::sparks::sparks_fx_page_items;
 use super::{action_item, group, NativeMenuAction, NativeMenuConfig, NativeMenuItem};
 use super::{NativeMenuValue, NativeParamBindingSpec};
 
-pub(super) fn dance_fx_targets() -> Vec<String> {
+pub(super) fn sparks_fx_targets() -> Vec<String> {
     let mut targets = vec!["master".to_string()];
     targets.extend((1..=FX_BUS_COUNT).map(|index| format!("fx_bus_{index}")));
     targets.extend((1..=8).map(|index| format!("instrument_{index}")));
@@ -68,17 +68,17 @@ pub(super) fn parameter_tree_groups(
     let mut groups = Vec::new();
 
     if let Some(behavior_group) = behavior_binding_groups(config, target) {
-        groups.push(group("L1: Life", behavior_group.children));
+        groups.push(group("1: Worlds", behavior_group.children));
     }
 
-    let sense_groups = config
-        .part_labels
+    let pulses_groups = config
+        .layer_labels
         .iter()
         .enumerate()
-        .filter_map(|(index, label)| sense_binding_group(index, label, config, target))
+        .filter_map(|(index, label)| pulses_binding_group(index, label, config, target))
         .collect::<Vec<_>>();
-    if !sense_groups.is_empty() {
-        groups.push(group("L2: Sense", sense_groups));
+    if !pulses_groups.is_empty() {
+        groups.push(group("2: Pulses", pulses_groups));
     }
 
     let instrument_groups = instrument_binding_groups(config, target);
@@ -96,11 +96,12 @@ pub(super) fn parameter_tree_groups(
         voice_children.push(item);
     }
     if !voice_children.is_empty() {
-        groups.push(group("L3: Voice", voice_children));
+        groups.push(group("3: Tones", voice_children));
     }
 
-    if let Some(item) = binding_group_from_items("Dance FX", &dance_fx_page_items(config), target) {
-        groups.push(group("L4: Dance", vec![item]));
+    if let Some(item) = binding_group_from_items("Sparks FX", &sparks_fx_page_items(config), target)
+    {
+        groups.push(group("4: Sparks", vec![item]));
     }
 
     groups.push(group(

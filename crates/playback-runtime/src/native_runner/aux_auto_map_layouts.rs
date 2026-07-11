@@ -12,19 +12,19 @@ impl NativeRunner {
         selected_key: Option<&str>,
         selected_action: Option<&NativeMenuAction>,
     ) -> [Option<ResolvedAuxSlot>; 4] {
-        if !self.aux_auto_map_enabled || path.contains("L2: Sense") {
+        if !self.aux_auto_map_enabled || path.contains("2: Pulses") {
             return [None, None, None, None];
         }
 
-        if path.contains("L4: Dance")
-            && (selected_key.is_some_and(|key| key.starts_with("dance.fx.params."))
+        if path.contains("4: Sparks")
+            && (selected_key.is_some_and(|key| key.starts_with("sparks.fx.params."))
                 || selected_action
                     .map(|action| {
-                        matches!(action, NativeMenuAction::PlatformEffect(effect) if effect == "dance.fx.map")
+                        matches!(action, NativeMenuAction::PlatformEffect(effect) if effect == "sparks.fx.map")
                     })
                     .unwrap_or(false))
         {
-            return self.dance_fx_auto_map();
+            return self.sparks_fx_auto_map();
         }
 
         if let Some(key) = selected_key {
@@ -47,8 +47,8 @@ impl NativeRunner {
             if let Some(slot) = self.sample_action_auto_map(action) {
                 return slot;
             }
-            if action == "dance.fx.map" {
-                return self.dance_fx_auto_map();
+            if action == "sparks.fx.map" {
+                return self.sparks_fx_auto_map();
             }
         }
 
@@ -58,43 +58,43 @@ impl NativeRunner {
     fn is_behavior_auto_map_key(&self, key: &str) -> bool {
         key == "algorithmStep"
             || key.starts_with(&format!(
-                "parts.{}.l1.behaviorConfig.",
-                self.active_part_index
+                "layers.{}.worlds.behaviorConfig.",
+                self.active_layer_index
             ))
     }
 
     fn behavior_auto_map(&self) -> [Option<ResolvedAuxSlot>; 4] {
-        let part_prefix = format!("parts.{}.l1.behaviorConfig", self.active_part_index);
+        let layer_prefix = format!("layers.{}.worlds.behaviorConfig", self.active_layer_index);
         match self.behavior.id() {
             "life" => self.with_step_rate([
-                Some(self.turn_slot(format!("{part_prefix}.randomCellsPerTick"), "Count")),
+                Some(self.turn_slot(format!("{layer_prefix}.randomCellsPerTick"), "Count")),
                 Some(self.turn_press_slot(
-                    format!("{part_prefix}.randomTickInterval"),
+                    format!("{layer_prefix}.randomTickInterval"),
                     "Interval",
                     NativeMenuAction::BehaviorAction("spawnRandom".into()),
                     "Spawn",
                 )),
                 Some(self.turn_press_slot(
-                    format!("{part_prefix}.gliderSpawnInterval"),
+                    format!("{layer_prefix}.gliderSpawnInterval"),
                     "Glider",
                     NativeMenuAction::BehaviorAction("spawnGlider".into()),
                     "Glider",
                 )),
             ]),
             "brain" => self.with_step_rate([
-                Some(self.turn_slot(format!("{part_prefix}.randomSeedCells"), "Count")),
+                Some(self.turn_slot(format!("{layer_prefix}.randomSeedCells"), "Count")),
                 Some(self.turn_press_slot(
-                    format!("{part_prefix}.seedInterval"),
+                    format!("{layer_prefix}.seedInterval"),
                     "Interval",
                     NativeMenuAction::BehaviorAction("seedRandom".into()),
                     "Seed",
                 )),
-                Some(self.turn_slot(format!("{part_prefix}.fireThreshold"), "Thresh")),
+                Some(self.turn_slot(format!("{layer_prefix}.fireThreshold"), "Thresh")),
             ]),
             "ant" => self.with_step_rate([
-                Some(self.turn_slot(format!("{part_prefix}.maxAnts"), "Count")),
+                Some(self.turn_slot(format!("{layer_prefix}.maxAnts"), "Count")),
                 Some(self.turn_press_slot(
-                    format!("{part_prefix}.autoSpawnInterval"),
+                    format!("{layer_prefix}.autoSpawnInterval"),
                     "Interval",
                     NativeMenuAction::BehaviorAction("spawnAnt".into()),
                     "Spawn",
@@ -102,9 +102,9 @@ impl NativeRunner {
                 None,
             ]),
             "bounce" => self.with_step_rate([
-                Some(self.turn_slot(format!("{part_prefix}.maxBalls"), "Count")),
+                Some(self.turn_slot(format!("{layer_prefix}.maxBalls"), "Count")),
                 Some(self.turn_press_slot(
-                    format!("{part_prefix}.spawnInterval"),
+                    format!("{layer_prefix}.spawnInterval"),
                     "Interval",
                     NativeMenuAction::BehaviorAction("addBall".into()),
                     "Add",
@@ -112,19 +112,19 @@ impl NativeRunner {
                 None,
             ]),
             "pulse" => self.with_step_rate([
-                Some(self.turn_slot(format!("{part_prefix}.lifespan"), "Life")),
+                Some(self.turn_slot(format!("{layer_prefix}.lifespan"), "Life")),
                 Some(self.turn_press_slot(
-                    format!("{part_prefix}.autoPulseInterval"),
+                    format!("{layer_prefix}.autoPulseInterval"),
                     "Interval",
                     NativeMenuAction::BehaviorAction("spawnPulse".into()),
                     "Spawn",
                 )),
-                Some(self.turn_slot(format!("{part_prefix}.pulseShape"), "Shape")),
+                Some(self.turn_slot(format!("{layer_prefix}.pulseShape"), "Shape")),
             ]),
             "raindrops" => self.with_step_rate([
-                Some(self.turn_slot(format!("{part_prefix}.splashRadius"), "Splash")),
+                Some(self.turn_slot(format!("{layer_prefix}.splashRadius"), "Splash")),
                 Some(self.turn_press_slot(
-                    format!("{part_prefix}.autoDropInterval"),
+                    format!("{layer_prefix}.autoDropInterval"),
                     "Interval",
                     NativeMenuAction::BehaviorAction("dropNow".into()),
                     "Drop",
@@ -133,7 +133,7 @@ impl NativeRunner {
             ]),
             "dla" => self.with_step_rate([
                 Some(self.turn_press_slot(
-                    format!("{part_prefix}.spawnInterval"),
+                    format!("{layer_prefix}.spawnInterval"),
                     "Interval",
                     NativeMenuAction::BehaviorAction("seedCluster".into()),
                     "Seed",
@@ -142,7 +142,7 @@ impl NativeRunner {
                 None,
             ]),
             "keys" => self.with_step_rate([
-                Some(self.turn_slot(format!("{part_prefix}.quantize"), "Quantize")),
+                Some(self.turn_slot(format!("{layer_prefix}.quantize"), "Quantize")),
                 None,
                 None,
             ]),

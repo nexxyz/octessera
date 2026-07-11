@@ -4,7 +4,7 @@
 export const PLATFORM_CAPS = {
   "gridWidth": 8,
   "gridHeight": 8,
-  "partCount": 8,
+  "layerCount": 8,
   "instrumentCount": 8,
   "sampleSlotCount": 8,
   "audioSampleRate": 44100,
@@ -17,7 +17,7 @@ export const PLATFORM_CAPS = {
   "busCount": 4,
   "globalFxSlotCount": 2,
   "auxEncoderCount": 3,
-  "touchFxMaxConcurrent": 2,
+  "sparksFxMaxConcurrent": 2,
   "scanSectionCounts": [
     1,
     2,
@@ -31,6 +31,7 @@ export const PLATFORM_CAPS = {
 
 export const GRID_WIDTH = PLATFORM_CAPS.gridWidth;
 export const GRID_HEIGHT = PLATFORM_CAPS.gridHeight;
+export const LAYER_COUNT = PLATFORM_CAPS.layerCount;
 export const PAN_POSITION_COUNT = PLATFORM_CAPS.panPositionCount;
 export const AUX_ENCODER_COUNT = PLATFORM_CAPS.auxEncoderCount;
 export const OLED_WIDTH = PLATFORM_CAPS.oledWidth;

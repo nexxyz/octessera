@@ -124,7 +124,7 @@ impl NativeRunner {
     pub(super) fn aux_binding_action_label(&self, action: &NativeMenuAction) -> String {
         match action {
             NativeMenuAction::BehaviorAction(action_type) => self
-                .l1_menu_items()
+                .worlds_menu_items()
                 .into_iter()
                 .find_map(|item| match item.value {
                     NativeMenuValue::Action(NativeMenuAction::BehaviorAction(ref current))
@@ -135,7 +135,7 @@ impl NativeRunner {
                     _ => None,
                 })
                 .unwrap_or_else(|| action_type.clone()),
-            NativeMenuAction::PlatformEffect(action_type) if action_type == "dance.fx.map" => {
+            NativeMenuAction::PlatformEffect(action_type) if action_type == "sparks.fx.map" => {
                 "Map".into()
             }
             NativeMenuAction::PlatformEffect(action_type) if action_type == "midi.panic" => {

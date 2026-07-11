@@ -298,7 +298,7 @@ pub(crate) fn invalid_bus_and_global_fx_types_are_sanitized_on_load() {
 }
 
 #[test]
-pub(crate) fn l1_part_config_always_exposes_auto_name() {
+pub(crate) fn worlds_layer_config_always_exposes_auto_name() {
     for behavior_id in ["life", "none", "brain"] {
         let mut runner = NativeRunner::new(NativeRunnerConfig {
             behavior_id: behavior_id.into(),
@@ -326,8 +326,8 @@ pub(crate) fn l1_part_config_always_exposes_auto_name() {
         assert!(
             lines
                 .iter()
-                .any(|line| line.as_str().unwrap_or("").contains("Part Label")),
-            "{behavior_id} should show Part Label"
+                .any(|line| line.as_str().unwrap_or("").contains("Layer Label")),
+            "{behavior_id} should show Layer Label"
         );
         assert!(
             lines
@@ -339,7 +339,7 @@ pub(crate) fn l1_part_config_always_exposes_auto_name() {
 }
 
 #[test]
-pub(crate) fn behavior_change_updates_active_part_auto_name_label() {
+pub(crate) fn behavior_change_updates_active_layer_auto_name_label() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
 
     let _ = runner
@@ -356,12 +356,12 @@ pub(crate) fn behavior_change_updates_active_part_auto_name_label() {
         .unwrap();
     select_behavior(&mut runner, "keys");
 
-    assert_eq!(runner.part_behavior_ids[0], "keys");
+    assert_eq!(runner.layer_behavior_ids[0], "keys");
     runner.menu.back();
     runner.menu.rebuild(runner.menu_config());
     let snapshot = runner.snapshot().unwrap();
     let lines = snapshot["display"]["lines"].as_array().unwrap();
     assert!(lines
         .iter()
-        .any(|line| line.as_str().unwrap_or("") == "> P1: keys >"));
+        .any(|line| line.as_str().unwrap_or("") == "> L1: keys >"));
 }

@@ -27,7 +27,7 @@ test("platform capabilities match the hardware profile", () => {
   assert.deepEqual(PLATFORM_CAPS, {
     gridWidth: 8,
     gridHeight: 8,
-    partCount: 8,
+    layerCount: 8,
     instrumentCount: 8,
     sampleSlotCount: 8,
     audioSampleRate: 44100,
@@ -40,7 +40,7 @@ test("platform capabilities match the hardware profile", () => {
     busCount: 4,
     globalFxSlotCount: 2,
     auxEncoderCount: 3,
-    touchFxMaxConcurrent: 2,
+    sparksFxMaxConcurrent: 2,
     scanSectionCounts: [1, 2, 4, 8],
     panPositionCount: 33,
     oledWidth: 128,

@@ -8,17 +8,17 @@ impl NativeRunner {
         let current_key = self.menu.current_key().map(str::to_string);
         let mut config_changed = false;
         let mut audio_config_changed = false;
-        let (_dance_mode_changed, global_config_changed, global_audio_config_changed) =
+        let (_sparks_mode_changed, global_config_changed, global_audio_config_changed) =
             self.apply_global_runtime_menu_state();
-        let dance_fx_changed = self.apply_dance_fx_menu_state();
-        config_changed |= global_config_changed || dance_fx_changed;
+        let sparks_fx_changed = self.apply_sparks_fx_menu_state();
+        config_changed |= global_config_changed || sparks_fx_changed;
         audio_config_changed |= global_audio_config_changed;
         config_changed |= self.apply_param_mod_invert_menu_state();
-        let part_changed = self.apply_part_menu_state();
+        let layer_changed = self.apply_layer_menu_state();
         let instrument_changed = self.apply_instrument_menu_state();
-        let sense_changed = self.apply_sense_menu_state();
+        let pulses_changed = self.apply_pulses_menu_state();
         let fx_changed = self.apply_fx_menu_state();
-        config_changed |= part_changed || instrument_changed || sense_changed || fx_changed;
+        config_changed |= layer_changed || instrument_changed || pulses_changed || fx_changed;
         audio_config_changed |=
             instrument_changed && current_key_requires_audio_config(&current_key);
         audio_config_changed |= fx_changed && current_key_requires_audio_config(&current_key);
@@ -26,7 +26,7 @@ impl NativeRunner {
         if audio_config_changed || current_key_requires_menu_materialization(&current_key) {
             self.menu.rebuild(self.menu_config());
         }
-        if sense_changed {
+        if pulses_changed {
             self.refresh_active_interpretation_profile();
             self.engine
                 .set_interpretation_profile(self.interpretation_profile.clone());
@@ -74,44 +74,44 @@ impl NativeRunner {
     }
 
     pub(super) fn apply_behavior_selection(&mut self, behavior_id: &str) -> Result<bool, String> {
-        let current_part_behavior_id = self
-            .part_behavior_ids
-            .get(self.active_part_index)
+        let current_layer_behavior_id = self
+            .layer_behavior_ids
+            .get(self.active_layer_index)
             .cloned()
             .unwrap_or_else(|| self.behavior.id().into());
         let behavior_changed = behavior_id != self.behavior.id();
-        let part_behavior_changed = behavior_id != current_part_behavior_id;
-        if !behavior_changed && !part_behavior_changed {
-            return Ok(self.sync_active_part_auto_name(behavior_id));
+        let layer_behavior_changed = behavior_id != current_layer_behavior_id;
+        if !behavior_changed && !layer_behavior_changed {
+            return Ok(self.sync_active_layer_auto_name(behavior_id));
         }
-        let previous_behavior_id = current_part_behavior_id;
+        let previous_behavior_id = current_layer_behavior_id;
         self.behavior_configs
             .insert(self.behavior.id().to_string(), self.behavior_config.clone());
-        if let Some(config) = self.part_behavior_configs.get_mut(self.active_part_index) {
+        if let Some(config) = self.layer_behavior_configs.get_mut(self.active_layer_index) {
             *config = self.behavior_config.clone();
         }
         let behavior = platform_core::get_native_behavior(behavior_id)
             .ok_or_else(|| format!("unsupported native behavior `{behavior_id}`"))?;
         self.behavior_config = self
-            .part_behavior_configs
-            .get(self.active_part_index)
+            .layer_behavior_configs
+            .get(self.active_layer_index)
             .filter(|config| !config.is_null())
             .cloned()
             .or_else(|| self.behavior_configs.get(behavior_id).cloned())
             .unwrap_or(Value::Null);
         self.behavior_configs
             .insert(behavior_id.to_string(), self.behavior_config.clone());
-        if let Some(config) = self.part_behavior_configs.get_mut(self.active_part_index) {
+        if let Some(config) = self.layer_behavior_configs.get_mut(self.active_layer_index) {
             *config = self.behavior_config.clone();
         }
-        if let Some(part_behavior_id) = self.part_behavior_ids.get_mut(self.active_part_index) {
-            *part_behavior_id = behavior_id.to_string();
+        if let Some(layer_behavior_id) = self.layer_behavior_ids.get_mut(self.active_layer_index) {
+            *layer_behavior_id = behavior_id.to_string();
         }
-        self.sync_active_part_auto_name(behavior_id);
+        self.sync_active_layer_auto_name(behavior_id);
         self.remap_bindings_for_behavior_change(
             &previous_behavior_id,
             behavior_id,
-            self.active_part_index,
+            self.active_layer_index,
         );
         if behavior_changed {
             self.rebuild_engine(behavior)?;
@@ -119,16 +119,16 @@ impl NativeRunner {
         Ok(true)
     }
 
-    pub(super) fn sync_active_part_auto_name(&mut self, behavior_id: &str) -> bool {
+    pub(super) fn sync_active_layer_auto_name(&mut self, behavior_id: &str) -> bool {
         if !self
-            .part_auto_names
-            .get(self.active_part_index)
+            .layer_auto_names
+            .get(self.active_layer_index)
             .copied()
             .unwrap_or(true)
         {
             return false;
         }
-        let Some(name) = self.part_names.get_mut(self.active_part_index) else {
+        let Some(name) = self.layer_names.get_mut(self.active_layer_index) else {
             return false;
         };
         if name == behavior_id {
@@ -150,7 +150,7 @@ impl NativeRunner {
             .then(|| self.engine.serialized_state())
             .transpose()?;
         self.behavior_config = next_behavior_config;
-        if let Some(config) = self.part_behavior_configs.get_mut(self.active_part_index) {
+        if let Some(config) = self.layer_behavior_configs.get_mut(self.active_layer_index) {
             *config = self.behavior_config.clone();
         }
         self.behavior_configs
@@ -165,18 +165,18 @@ impl NativeRunner {
 
     fn apply_param_mod_invert_menu_state(&mut self) -> bool {
         let mut changed = false;
-        for part_index in 0..self.param_mods.len() {
+        for layer_index in 0..self.param_mods.len() {
             for axis in ["x", "y"] {
                 for slot in 0..2 {
-                    let key = format!("parts.{part_index}.paramMods.{axis}.{slot}.invert");
+                    let key = format!("layers.{layer_index}.paramMods.{axis}.{slot}.invert");
                     let Some(value) = self.menu.value_for_key(&key) else {
                         continue;
                     };
                     let invert = value == "true";
                     let target = if axis == "x" {
-                        self.param_mods[part_index].x.get_mut(slot)
+                        self.param_mods[layer_index].x.get_mut(slot)
                     } else {
-                        self.param_mods[part_index].y.get_mut(slot)
+                        self.param_mods[layer_index].y.get_mut(slot)
                     };
                     if let Some(Some(binding)) = target {
                         if binding.invert != invert {
@@ -191,13 +191,14 @@ impl NativeRunner {
     }
 
     pub(super) fn refresh_active_mapping_config(&mut self) {
-        let mapping = self.mapping_config_for_part(self.active_part_index);
+        let mapping = self.mapping_config_for_layer(self.active_layer_index);
         self.engine.set_mapping_config(mapping.clone());
         self.mapping_config = mapping;
     }
 
     pub(super) fn refresh_active_interpretation_profile(&mut self) {
-        self.interpretation_profile = self.interpretation_profile_for_part(self.active_part_index);
+        self.interpretation_profile =
+            self.interpretation_profile_for_layer(self.active_layer_index);
     }
 }
 

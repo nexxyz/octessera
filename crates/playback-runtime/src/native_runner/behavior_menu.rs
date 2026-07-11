@@ -1,28 +1,28 @@
 use super::*;
 
 impl NativeRunner {
-    pub(super) fn l1_menu_items(&self) -> Vec<crate::native_menu::NativeMenuItem> {
+    pub(super) fn worlds_menu_items(&self) -> Vec<crate::native_menu::NativeMenuItem> {
         let mut items = vec![
             self.behavior_selector_menu_item(),
             crate::native_menu::NativeMenuItem {
                 label: "Auto Label".into(),
-                key: Some(format!("parts.{}.autoName", self.active_part_index)),
+                key: Some(format!("layers.{}.autoName", self.active_layer_index)),
                 value: crate::native_menu::NativeMenuValue::Bool {
                     value: self
-                        .part_auto_names
-                        .get(self.active_part_index)
+                        .layer_auto_names
+                        .get(self.active_layer_index)
                         .copied()
                         .unwrap_or(true),
                 },
                 children: vec![],
             },
             crate::native_menu::NativeMenuItem {
-                label: "Part Label".into(),
-                key: Some(format!("parts.{}.name", self.active_part_index)),
+                label: "Layer Label".into(),
+                key: Some(format!("layers.{}.name", self.active_layer_index)),
                 value: crate::native_menu::NativeMenuValue::Text {
                     value: self
-                        .part_names
-                        .get(self.active_part_index)
+                        .layer_names
+                        .get(self.active_layer_index)
                         .cloned()
                         .unwrap_or_else(|| self.behavior.id().into()),
                     max_len: 32,
@@ -109,11 +109,11 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn part_labels(&self) -> Vec<String> {
-        self.part_names
+    pub(super) fn layer_labels(&self) -> Vec<String> {
+        self.layer_names
             .iter()
             .enumerate()
-            .map(|(index, name)| format!("P{}: {}", index + 1, name))
+            .map(|(index, name)| format!("L{}: {}", index + 1, name))
             .collect()
     }
 
@@ -126,8 +126,8 @@ impl NativeRunner {
         item: BehaviorConfigItem,
     ) -> Option<crate::native_menu::NativeMenuItem> {
         let key = format!(
-            "parts.{}.l1.behaviorConfig.{}",
-            self.active_part_index, item.key
+            "layers.{}.worlds.behaviorConfig.{}",
+            self.active_layer_index, item.key
         );
         match item.item_type {
             BehaviorConfigItemType::Number => Some(crate::native_menu::NativeMenuItem {
@@ -239,8 +239,8 @@ impl NativeRunner {
         if let Ok(Some(config_items)) = self.behavior.config_menu(&self.engine_state()) {
             for item in config_items {
                 let key = format!(
-                    "parts.{}.l1.behaviorConfig.{}",
-                    self.active_part_index, item.key
+                    "layers.{}.worlds.behaviorConfig.{}",
+                    self.active_layer_index, item.key
                 );
                 match item.item_type {
                     BehaviorConfigItemType::Number => {

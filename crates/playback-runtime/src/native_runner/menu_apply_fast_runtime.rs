@@ -21,13 +21,13 @@ impl NativeRunner {
             "midi.respondToStartStop" => Some(self.fast_bool_menu_key(key, |runner, value| {
                 bool_changed(&mut runner.midi_respond_to_start_stop, value)
             })),
-            "danceMode" => Some(self.fast_dance_mode_menu_key()),
-            "dance.page.mix" => Some(self.fast_dance_page_key("mix")),
-            "dance.page.pan" => Some(self.fast_dance_page_key("pan")),
-            "dance.page.fx" => Some(self.fast_dance_page_key("fx")),
-            "dance.page.trigger-gate" => Some(self.fast_dance_page_key("trigger-gate")),
-            "dance.page.transpose" => Some(self.fast_dance_page_key("transpose")),
-            "dance.page.xy" => Some(self.fast_dance_page_key("xy")),
+            "sparksMode" => Some(self.fast_sparks_mode_menu_key()),
+            "sparks.page.mix" => Some(self.fast_sparks_page_key("mix")),
+            "sparks.page.pan" => Some(self.fast_sparks_page_key("pan")),
+            "sparks.page.fx" => Some(self.fast_sparks_page_key("fx")),
+            "sparks.page.trigger-gate" => Some(self.fast_sparks_page_key("trigger-gate")),
+            "sparks.page.transpose" => Some(self.fast_sparks_page_key("transpose")),
+            "sparks.page.xy" => Some(self.fast_sparks_page_key("xy")),
             "algorithmStep" => Some(self.fast_algorithm_step_menu_key()),
             "masterVolume" => Some(self.fast_master_volume_menu_key()),
             "displayBrightness" => Some(self.fast_display_brightness_menu_key()),
@@ -220,29 +220,29 @@ impl NativeRunner {
         true
     }
 
-    fn fast_dance_mode_menu_key(&mut self) -> bool {
-        let Some(dance_mode) = self.menu.selected_dance_mode() else {
+    fn fast_sparks_mode_menu_key(&mut self) -> bool {
+        let Some(sparks_mode) = self.menu.selected_sparks_mode() else {
             return false;
         };
-        let changed = self.dance_mode != dance_mode;
+        let changed = self.sparks_mode != sparks_mode;
         if changed {
-            self.dance_mode = dance_mode.clone();
-            if self.menu.is_in_dance_root_group() {
-                self.active_dance_mode = dance_mode;
+            self.sparks_mode = sparks_mode.clone();
+            if self.menu.is_in_sparks_root_group() {
+                self.active_sparks_mode = sparks_mode;
             }
             self.mark_fast_autosave_dirty();
         }
         true
     }
 
-    fn fast_dance_page_key(&mut self, dance_mode: &str) -> bool {
-        let changed = self.dance_mode != dance_mode;
+    fn fast_sparks_page_key(&mut self, sparks_mode: &str) -> bool {
+        let changed = self.sparks_mode != sparks_mode;
         if changed {
-            self.dance_mode = dance_mode.into();
+            self.sparks_mode = sparks_mode.into();
             self.mark_fast_autosave_dirty();
         }
-        if self.menu.is_in_dance_root_group() {
-            self.active_dance_mode = self.dance_mode.clone();
+        if self.menu.is_in_sparks_root_group() {
+            self.active_sparks_mode = self.sparks_mode.clone();
         }
         true
     }
@@ -253,18 +253,18 @@ impl NativeRunner {
         };
         let changed = self.algorithm_step_pulses != step_pulses
             || self
-                .part_algorithm_step_pulses
-                .get(self.active_part_index)
+                .layer_algorithm_step_pulses
+                .get(self.active_layer_index)
                 .copied()
                 .unwrap_or(self.algorithm_step_pulses)
                 != step_pulses;
         if changed {
             self.algorithm_step_pulses = step_pulses;
-            if let Some(part_step) = self
-                .part_algorithm_step_pulses
-                .get_mut(self.active_part_index)
+            if let Some(layer_step) = self
+                .layer_algorithm_step_pulses
+                .get_mut(self.active_layer_index)
             {
-                *part_step = step_pulses;
+                *layer_step = step_pulses;
             }
             self.mark_fast_autosave_dirty();
         }

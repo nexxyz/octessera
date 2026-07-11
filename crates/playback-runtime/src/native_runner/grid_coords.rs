@@ -35,6 +35,6 @@ pub(super) fn display_index(x: usize, y: usize) -> usize {
     (GRID_HEIGHT - 1 - y) * GRID_WIDTH + x
 }
 
-pub(super) fn display_part_index_from_y(y: usize) -> usize {
+pub(super) fn display_layer_index_from_y(y: usize) -> usize {
     y.min(GRID_HEIGHT - 1)
 }

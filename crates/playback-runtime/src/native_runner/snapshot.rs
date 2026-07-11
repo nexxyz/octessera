@@ -16,7 +16,7 @@ impl NativeRunner {
         self.apply_scan_progress_overlay(&mut leds);
         self.apply_sample_assignment_overlay(&mut leds);
         self.apply_trigger_probability_overlay(&mut leds);
-        self.apply_dance_overlay(&mut leds);
+        self.apply_sparks_overlay(&mut leds);
         self.apply_param_mod_overlay(&mut leds);
         self.apply_fn_overlay(&mut leds);
         let mut led_rgb = Vec::with_capacity(GRID_WIDTH * GRID_HEIGHT * 3);
@@ -55,8 +55,8 @@ impl NativeRunner {
                 "ppqnPulse": self.current_ppqn_pulse
             },
             "activeBehavior": self.behavior.id(),
-            "danceMode": self.dance_mode,
-            "activeDanceMode": self.active_dance_mode,
+            "sparksMode": self.sparks_mode,
+            "activeSparksMode": self.active_sparks_mode,
             "gridInteraction": match self.behavior.grid_interaction().unwrap_or(GridInteraction::Paint) {
                 GridInteraction::Paint => "paint",
                 GridInteraction::Momentary => "momentary",

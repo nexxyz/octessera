@@ -10,7 +10,7 @@ impl NativeRunner {
             return Ok(false);
         }
         self.behavior_config = next_config.clone();
-        if let Some(config) = self.part_behavior_configs.get_mut(self.active_part_index) {
+        if let Some(config) = self.layer_behavior_configs.get_mut(self.active_layer_index) {
             *config = self.behavior_config.clone();
         }
         self.behavior_configs
@@ -36,15 +36,15 @@ impl NativeRunner {
         {
             object.insert("stepIndex".into(), json!(current.step_index));
         }
-        self.engine = platform_core::NativePartEngine::from_serialized_state(
-            platform_core::NativePartEngineConfig {
+        self.engine = platform_core::NativeLayerEngine::from_serialized_state(
+            platform_core::NativeLayerEngineConfig {
                 behavior: self.behavior,
                 behavior_config: self.behavior_config.clone(),
                 interpretation_profile: self.interpretation_profile.clone(),
                 mapping_config: self.mapping_config.clone(),
                 global_sound: self.global_sound.clone(),
                 note_behaviors: self.note_behaviors.clone(),
-                part_index: self.active_part_index,
+                layer_index: self.active_layer_index,
             },
             looper_state_with_config(state, &self.behavior_config),
         )?;

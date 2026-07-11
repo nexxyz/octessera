@@ -121,9 +121,9 @@ pub(super) fn native_binding_from_spec(binding: NativeParamBindingSpec) -> Nativ
 pub(super) fn remap_behavior_param_binding(
     binding: NativeParamBinding,
     to_behavior: NativeBehavior,
-    part_index: usize,
+    layer_index: usize,
 ) -> Option<NativeParamBinding> {
-    let remapped = remap_behavior_binding_key(&binding.key, to_behavior, Some(part_index))?;
+    let remapped = remap_behavior_binding_key(&binding.key, to_behavior, Some(layer_index))?;
     Some(NativeParamBinding {
         invert: binding.invert,
         ..remapped
@@ -133,14 +133,14 @@ pub(super) fn remap_behavior_param_binding(
 pub(super) fn remap_behavior_binding_key(
     key: &str,
     to_behavior: NativeBehavior,
-    part_index: Option<usize>,
+    layer_index: Option<usize>,
 ) -> Option<NativeParamBinding> {
-    if let Some((index, param_key)) = parse_part_behavior_config_binding_key(key) {
+    if let Some((index, param_key)) = parse_layer_behavior_config_binding_key(key) {
         let analogue = behavior_param_analogue(param_key, to_behavior)?;
         return Some(NativeParamBinding {
             key: format!(
-                "parts.{}.l1.behaviorConfig.{}",
-                part_index.unwrap_or(index),
+                "layers.{}.worlds.behaviorConfig.{}",
+                layer_index.unwrap_or(index),
                 analogue.key
             ),
             ..analogue

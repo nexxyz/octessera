@@ -153,21 +153,21 @@ impl NativeRunner {
         result: platform_core::NativeInputResult,
     ) -> Result<Vec<RunnerMessage>, String> {
         let mut messages = Vec::new();
-        self.apply_runtime_modulation(&result.mapped_intents, self.active_part_index);
+        self.apply_runtime_modulation(&result.mapped_intents, self.active_layer_index);
         let transpose_offset = self
-            .dance_transpose_offsets_for_routing()
-            .get(self.active_part_index)
+            .sparks_transpose_offsets_for_routing()
+            .get(self.active_layer_index)
             .copied()
             .unwrap_or(0);
         let active_transpose_notes = self
-            .dance_transpose_active_notes
-            .get_mut(self.active_part_index);
+            .sparks_transpose_active_notes
+            .get_mut(self.active_layer_index);
         let events = super::modulation::apply_sampler_assignments_for_instruments_routed(
             result.events,
             &result.mapped_intents,
             result.emitted_events.len(),
             &self.instruments,
-            self.sense_parts.get(self.active_part_index),
+            self.pulses_layers.get(self.active_layer_index),
             transpose_offset,
             active_transpose_notes,
         );

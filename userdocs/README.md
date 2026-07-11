@@ -4,19 +4,19 @@ Octessera is a little box of algorithmic music systems.
 
 Instead of drawing fixed notes on a grid or a piano roll, you set up small self-contained systems: cellular automata, bouncing particles, raindrops, loops, keys, and shapes. Each one has its own rules. Each one produces music in a slightly different, slightly unpredictable way.
 
-Then you nudge them. You anchor them with a bit of manual sequencing if you want. You add probability so the pattern breathes. You grab a Dance page and play the machine in real time. The result is not only what you wrote, and not only what octessera generated. It is what the two of you found together.
+Then you nudge them. You anchor them with a bit of manual sequencing if you want. You add probability so the pattern breathes. You grab a Sparks page and play the machine in real time. The result is not only what you wrote, and not only what octessera generated. It is what the two of you found together.
 
 ## Start here
 
 - [Build and assembly manual](hardware/assembly-manual.md) — parts, soldering, enclosure, and the bits where I try to keep you from breaking the same things I broke.
-- [Controls cheat sheet](controls-cheat-sheet.md) — what the encoders, buttons, grid, modifiers, Dance pages, and auto-maps do.
-- [Behaviors and Dance pages](behaviors-and-dance.md) — the part behaviors and live performance pages.
+- [Controls cheat sheet](controls-cheat-sheet.md) — what the encoders, buttons, grid, modifiers, Sparks pages, and auto-maps do.
+- [Behaviors and Sparks pages](behaviors-and-sparks.md) — the layer behaviors and live performance pages.
 - [Pinout and connections](hardware/pinout-and-connections.md) — wiring and pin ownership.
 - [Enclosure and print notes](hardware/enclosure.md) — case files, ports, power, and print-fit notes.
 
 ## Printable quick reference
 
-- [Two-page controls, behaviors, Dance, and flowchart PDF](print/quick-reference.pdf)
+- [Two-page controls, behaviors, Sparks, and flowchart PDF](print/quick-reference.pdf)
 - HTML sources are in [`print/`](print/) if you want to print or tweak them yourself.
 
 ## Canonical specs

@@ -19,11 +19,11 @@ impl NativeRunner {
                 model,
             });
         }
-        let part_index = self.active_part_index;
-        let sense = self.sense_parts.get(part_index).cloned();
+        let layer_index = self.active_layer_index;
+        let sense = self.pulses_layers.get(layer_index).cloned();
         let probability_map = self
             .trigger_probability_maps
-            .get(part_index)
+            .get(layer_index)
             .cloned()
             .unwrap_or_default();
         let mut rng = self.trigger_probability_rng;
@@ -39,7 +39,7 @@ impl NativeRunner {
     pub(super) fn active_engine_tick_result(
         &mut self,
     ) -> Result<platform_core::NativeTickResult, String> {
-        let (sense, probability_map) = self.probability_context(self.active_part_index);
+        let (sense, probability_map) = self.probability_context(self.active_layer_index);
         let mut rng = self.trigger_probability_rng;
         let result = self.engine.tick_filtered(self.bpm as f32, |intent| {
             trigger_probability_allows(sense.as_ref(), &probability_map, &mut rng, intent)
@@ -56,18 +56,18 @@ impl NativeRunner {
         let mut events = RoutedMusicalEvents::default();
         self.advance_transport_indicators(pulses);
         let swung_pulses = self.consume_swung_pulses(pulses);
-        self.accumulate_part_pulses(swung_pulses);
-        self.advance_active_part(&mut events)?;
+        self.accumulate_layer_pulses(swung_pulses);
+        self.advance_active_layer(&mut events)?;
 
         let instruments = self.instruments.clone();
-        let transpose_offsets = self.dance_transpose_offsets_for_routing();
-        let inactive_configs = (0..self.part_engines.len())
+        let transpose_offsets = self.sparks_transpose_offsets_for_routing();
+        let inactive_configs = (0..self.layer_engines.len())
             .map(|index| {
                 (
-                    self.interpretation_profile_for_part(index),
-                    self.mapping_config_for_part(index),
-                    self.step_pulses_for_part(index),
-                    self.sense_parts.get(index).cloned(),
+                    self.interpretation_profile_for_layer(index),
+                    self.mapping_config_for_layer(index),
+                    self.step_pulses_for_layer(index),
+                    self.pulses_layers.get(index).cloned(),
                     self.trigger_probability_maps
                         .get(index)
                         .cloned()
@@ -78,23 +78,23 @@ impl NativeRunner {
         let mut rng = self.trigger_probability_rng;
         let mut inactive_modulation_updates = Vec::new();
         let mut saw_inactive_events = false;
-        for (index, engine) in self.part_engines.iter_mut().enumerate() {
-            if index == self.active_part_index {
+        for (index, engine) in self.layer_engines.iter_mut().enumerate() {
+            if index == self.active_layer_index {
                 continue;
             }
             let Some(engine) = engine.as_mut() else {
                 continue;
             };
             let (profile, mapping, step_pulses, sense, probability_map) = &inactive_configs[index];
-            while self.part_pulse_accumulators[index] >= *step_pulses {
-                self.part_pulse_accumulators[index] -= *step_pulses;
+            while self.layer_pulse_accumulators[index] >= *step_pulses {
+                self.layer_pulse_accumulators[index] -= *step_pulses;
                 engine.set_interpretation_profile(profile.clone());
                 engine.set_mapping_config(mapping.clone());
                 let tick = engine.tick_filtered(self.bpm as f32, |intent| {
                     trigger_probability_allows(sense.as_ref(), probability_map, &mut rng, intent)
                 })?;
-                if let Some(part_tick) = self.part_ticks.get_mut(index) {
-                    *part_tick = part_tick.saturating_add(1);
+                if let Some(layer_tick) = self.layer_ticks.get_mut(index) {
+                    *layer_tick = layer_tick.saturating_add(1);
                 }
                 inactive_modulation_updates.push((index, tick.mapped_intents.clone()));
                 let tick_events = apply_sampler_assignments_for_instruments_routed(
@@ -104,7 +104,7 @@ impl NativeRunner {
                     &instruments,
                     sense.as_ref(),
                     transpose_offsets.get(index).copied().unwrap_or(0),
-                    self.dance_transpose_active_notes.get_mut(index),
+                    self.sparks_transpose_active_notes.get_mut(index),
                 );
                 saw_inactive_events |= !tick_events.is_empty();
                 events.extend(tick_events);
@@ -119,14 +119,14 @@ impl NativeRunner {
         Ok(events)
     }
 
-    fn step_pulses_for_part(&self, index: usize) -> u32 {
-        let Some(sense) = self.sense_parts.get(index) else {
+    fn step_pulses_for_layer(&self, index: usize) -> u32 {
+        let Some(sense) = self.pulses_layers.get(index) else {
             return self.algorithm_step_pulses;
         };
         if sense.scan_mode == "scanning" {
             note_unit_to_pulses(&sense.scan_unit)
         } else {
-            self.part_algorithm_step_pulses
+            self.layer_algorithm_step_pulses
                 .get(index)
                 .copied()
                 .unwrap_or(DEFAULT_ALGORITHM_STEP_PULSES)
@@ -135,12 +135,12 @@ impl NativeRunner {
 
     fn probability_context(
         &self,
-        part_index: usize,
-    ) -> (Option<super::NativeSensePart>, Vec<String>) {
+        layer_index: usize,
+    ) -> (Option<super::NativePulsesLayer>, Vec<String>) {
         (
-            self.sense_parts.get(part_index).cloned(),
+            self.pulses_layers.get(layer_index).cloned(),
             self.trigger_probability_maps
-                .get(part_index)
+                .get(layer_index)
                 .cloned()
                 .unwrap_or_default(),
         )
@@ -167,11 +167,11 @@ impl NativeRunner {
         }
     }
 
-    fn accumulate_part_pulses(&mut self, pulses: u32) {
-        if self.part_pulse_accumulators.len() < GRID_HEIGHT {
-            self.part_pulse_accumulators.resize(GRID_HEIGHT, 0);
+    fn accumulate_layer_pulses(&mut self, pulses: u32) {
+        if self.layer_pulse_accumulators.len() < GRID_HEIGHT {
+            self.layer_pulse_accumulators.resize(GRID_HEIGHT, 0);
         }
-        for value in &mut self.part_pulse_accumulators {
+        for value in &mut self.layer_pulse_accumulators {
             *value = value.saturating_add(pulses);
         }
     }
@@ -192,30 +192,30 @@ impl NativeRunner {
             .min(u64::from(u32::MAX)) as u32
     }
 
-    fn advance_active_part(&mut self, events: &mut RoutedMusicalEvents) -> Result<(), String> {
-        let active_step_pulses = self.step_pulses_for_part(self.active_part_index);
-        while self.part_pulse_accumulators[self.active_part_index] >= active_step_pulses {
-            self.part_pulse_accumulators[self.active_part_index] -= active_step_pulses;
+    fn advance_active_layer(&mut self, events: &mut RoutedMusicalEvents) -> Result<(), String> {
+        let active_step_pulses = self.step_pulses_for_layer(self.active_layer_index);
+        while self.layer_pulse_accumulators[self.active_layer_index] >= active_step_pulses {
+            self.layer_pulse_accumulators[self.active_layer_index] -= active_step_pulses;
             let tick = self.active_engine_tick_result()?;
             self.tick = self.tick.saturating_add(1);
-            if let Some(part_tick) = self.part_ticks.get_mut(self.active_part_index) {
-                *part_tick = self.tick;
+            if let Some(layer_tick) = self.layer_ticks.get_mut(self.active_layer_index) {
+                *layer_tick = self.tick;
             }
-            self.apply_runtime_modulation(&tick.mapped_intents, self.active_part_index);
+            self.apply_runtime_modulation(&tick.mapped_intents, self.active_layer_index);
             let transpose_offset = self
-                .dance_transpose_offsets_for_routing()
-                .get(self.active_part_index)
+                .sparks_transpose_offsets_for_routing()
+                .get(self.active_layer_index)
                 .copied()
                 .unwrap_or(0);
             let active_transpose_notes = self
-                .dance_transpose_active_notes
-                .get_mut(self.active_part_index);
+                .sparks_transpose_active_notes
+                .get_mut(self.active_layer_index);
             let tick_events = apply_sampler_assignments_for_instruments_routed(
                 tick.events,
                 &tick.mapped_intents,
                 tick.emitted_events.len(),
                 &self.instruments,
-                self.sense_parts.get(self.active_part_index),
+                self.pulses_layers.get(self.active_layer_index),
                 transpose_offset,
                 active_transpose_notes,
             );

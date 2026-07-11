@@ -10,18 +10,15 @@ pub(crate) fn changing_behavior_keeps_menu_location() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(snapshot_from(&level1)["display"]["title"], "L1: Life");
+    assert_eq!(snapshot_from(&level1)["display"]["title"], "W");
 
-    let part = runner
+    let layer = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(
-        snapshot_from(&part)["display"]["title"],
-        "L1: Life/P1: life"
-    );
+    assert_eq!(snapshot_from(&layer)["display"]["title"], "W/L1: life");
 
     let edit_behavior = runner
         .send(HostMessage::DeviceInput {
@@ -31,14 +28,14 @@ pub(crate) fn changing_behavior_keeps_menu_location() {
         .unwrap();
     assert_eq!(
         snapshot_from(&edit_behavior)["display"]["title"],
-        "L1: Life/P1: life/Behavior: "
+        "W/L1: life/Behavior: life"
     );
     assert_eq!(snapshot_from(&edit_behavior)["display"]["editing"], false);
 
     select_behavior(&mut runner, "keys");
     let changed = runner.messages_with_snapshot().unwrap();
     let changed_snapshot = snapshot_from(&changed);
-    assert_eq!(changed_snapshot["display"]["title"], "L1: Life/P1: keys");
+    assert_eq!(changed_snapshot["display"]["title"], "W/L1: keys");
     assert_eq!(changed_snapshot["display"]["editing"], false);
     assert_eq!(changed_snapshot["activeBehavior"], "keys");
 
@@ -51,7 +48,7 @@ pub(crate) fn changing_behavior_keeps_menu_location() {
         })
         .unwrap();
     let snapshot = snapshot_from(&flushed);
-    assert_eq!(snapshot["display"]["title"], "L1: Life/P1: keys/Behavior: ");
+    assert_eq!(snapshot["display"]["title"], "W/L1: keys/Behavior: keys");
     assert_eq!(snapshot["display"]["editing"], false);
     assert_eq!(snapshot["activeBehavior"], "keys");
 }

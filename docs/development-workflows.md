@@ -245,7 +245,7 @@ Wrapper examples:
 
 ```powershell
 # Safe default: runtime-only, does not stop the service or open live audio.
-./tools/pi/run-pi-timing-probes.ps1 -Mode RuntimeOnly -Durations 15s -Scenarios idle,sense
+./tools/pi/run-pi-timing-probes.ps1 -Mode RuntimeOnly -Durations 15s -Scenarios idle,pulses-stress
 
 # Optional live-audio probe. Use when subjective timing/audio behavior is unclear.
 ./tools/pi/run-pi-timing-probes.ps1 -Mode Live -Durations 10m -Scenarios idle

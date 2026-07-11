@@ -127,7 +127,7 @@ fn runtime_effect_json_uses_public_audio_store_and_sample_field_names() {
     );
 
     let fx_command = RuntimeAudioCommand::MomentaryFxStart {
-        id: "dance".into(),
+        id: "sparks".into(),
         fx_type: "stutter".into(),
         params: BTreeMap::new(),
         target: RuntimeMomentaryFxTarget::FxBus { index: 3 },
@@ -136,7 +136,7 @@ fn runtime_effect_json_uses_public_audio_store_and_sample_field_names() {
         serde_json::to_value(&fx_command).unwrap(),
         json!({
             "type": "momentary_fx_start",
-            "id": "dance",
+            "id": "sparks",
             "fxType": "stutter",
             "params": {},
             "target": { "type": "fx_bus", "index": 3 },
@@ -197,7 +197,7 @@ fn runtime_effect_json_uses_public_audio_store_and_sample_field_names() {
             "type": "audio_command",
             "command": {
                 "type": "momentary_fx_start",
-                "id": "dance",
+                "id": "sparks",
                 "fxType": "stutter",
                 "params": {},
                 "target": { "type": "fx_bus", "index": 3 },

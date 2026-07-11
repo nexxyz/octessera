@@ -8,16 +8,16 @@ impl NativeRunner {
         mapping_config: platform_core::MappingConfig,
         global_sound: GlobalSoundConfig,
         note_behaviors: Vec<NoteBehavior>,
-        part_index: usize,
-    ) -> Result<NativePartEngine, String> {
-        NativePartEngine::new(NativePartEngineConfig {
+        layer_index: usize,
+    ) -> Result<NativeLayerEngine, String> {
+        NativeLayerEngine::new(NativeLayerEngineConfig {
             behavior,
             behavior_config,
             interpretation_profile,
             mapping_config,
             global_sound,
             note_behaviors,
-            part_index,
+            layer_index,
         })
     }
 
@@ -29,7 +29,7 @@ impl NativeRunner {
             self.mapping_config.clone(),
             self.global_sound.clone(),
             self.note_behaviors.clone(),
-            self.active_part_index,
+            self.active_layer_index,
         )?;
         self.behavior = behavior;
         Ok(())
@@ -39,7 +39,7 @@ impl NativeRunner {
         self.tick = 0;
         self.current_ppqn_pulse = 0;
         self.swung_ppqn_pulse = 0;
-        for tick in &mut self.part_ticks {
+        for tick in &mut self.layer_ticks {
             *tick = 0;
         }
         self.algorithm_pulse_accumulator = 0;
@@ -48,10 +48,10 @@ impl NativeRunner {
         self.event_dot_on = false;
         self.event_dot_pulses_remaining = 0;
         self.engine.reset_transport_phase();
-        for engine in self.part_engines.iter_mut().flatten() {
+        for engine in self.layer_engines.iter_mut().flatten() {
             engine.reset_transport_phase();
         }
-        for accumulator in &mut self.part_pulse_accumulators {
+        for accumulator in &mut self.layer_pulse_accumulators {
             *accumulator = 0;
         }
     }
@@ -60,7 +60,7 @@ impl NativeRunner {
         self.note_behaviors = note_behaviors_from_instruments(&self.instruments);
         self.engine.set_global_sound(self.global_sound.clone());
         self.engine.set_note_behaviors(self.note_behaviors.clone());
-        for engine in self.part_engines.iter_mut().flatten() {
+        for engine in self.layer_engines.iter_mut().flatten() {
             engine.set_global_sound(self.global_sound.clone());
             engine.set_note_behaviors(self.note_behaviors.clone());
         }

@@ -7,7 +7,7 @@ use crate::transforms::{GlobalSoundConfig, VelocityCurve};
 
 #[test]
 fn ticks_life_behavior_end_to_end() {
-    let mut engine = NativePartEngine::new(NativePartEngineConfig {
+    let mut engine = NativeLayerEngine::new(NativeLayerEngineConfig {
         behavior: NativeBehavior::Life,
         behavior_config: Value::Null,
         interpretation_profile: InterpretationProfile {
@@ -27,7 +27,7 @@ fn ticks_life_behavior_end_to_end() {
             note_length_ms: 120,
         },
         note_behaviors: vec![NoteBehavior::Oneshot; 16],
-        part_index: 0,
+        layer_index: 0,
     })
     .unwrap();
 
@@ -48,7 +48,7 @@ fn ticks_life_behavior_end_to_end() {
 
 #[test]
 fn scan_interpretation_advances_with_engine_ticks() {
-    let mut engine = NativePartEngine::new(NativePartEngineConfig {
+    let mut engine = NativeLayerEngine::new(NativeLayerEngineConfig {
         behavior: NativeBehavior::Sequencer,
         behavior_config: Value::Null,
         interpretation_profile: InterpretationProfile {
@@ -71,7 +71,7 @@ fn scan_interpretation_advances_with_engine_ticks() {
             note_length_ms: 120,
         },
         note_behaviors: vec![NoteBehavior::Oneshot; 16],
-        part_index: 0,
+        layer_index: 0,
     })
     .unwrap();
     engine

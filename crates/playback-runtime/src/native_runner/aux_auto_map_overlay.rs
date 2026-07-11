@@ -37,11 +37,11 @@ impl NativeRunner {
         {
             return "Sample".into();
         }
-        if path.contains("L1: Life") {
-            return "Life".into();
+        if path.contains("1: Worlds") {
+            return "Worlds".into();
         }
-        if path.contains("L4: Dance") {
-            return "Dance FX".into();
+        if path.contains("4: Sparks") {
+            return "Sparks FX".into();
         }
         "Aux Map".into()
     }
@@ -83,17 +83,17 @@ fn overlay_title(slots: &[ResolvedAuxSlot]) -> &'static str {
 }
 
 fn aux_slot_body(slot: &ResolvedAuxSlot) -> String {
-    let mut parts = Vec::new();
+    let mut layers = Vec::new();
     if let Some(turn) = &slot.turn {
-        parts.push(turn.label.clone());
+        layers.push(turn.label.clone());
     }
     if let Some(press) = &slot.press {
-        parts.push(format!("!{}", press.label));
+        layers.push(format!("!{}", press.label));
     }
-    if parts.is_empty() {
+    if layers.is_empty() {
         "-".into()
     } else {
-        parts.join("/")
+        layers.join("/")
     }
 }
 
@@ -140,16 +140,16 @@ fn aux_overlay_fx_context(key: &str) -> Option<&'static str> {
         Some("FX Bus")
     } else if key.contains("mixer.master.slots.") {
         Some("Global FX")
-    } else if key.contains("dance.fx.params.") {
-        Some("Dance FX")
+    } else if key.contains("sparks.fx.params.") {
+        Some("Sparks FX")
     } else {
         None
     }
 }
 
 fn aux_overlay_behavior_context(key: &str) -> Option<&'static str> {
-    if key.starts_with("parts.") && key.contains(".behaviorConfig.") {
-        Some("Life")
+    if key.starts_with("layers.") && key.contains(".behaviorConfig.") {
+        Some("Worlds")
     } else {
         None
     }

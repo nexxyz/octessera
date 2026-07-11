@@ -70,14 +70,14 @@ pub(crate) fn representative_help_configs() -> Vec<NativeMenuConfig> {
     configs.push(dynamic);
 
     let mut scanning = config();
-    scanning.sense_parts[0].scan_mode = "scanning".into();
-    scanning.sense_parts[0].x_velocity.enabled = true;
-    scanning.sense_parts[0].x_filter_cutoff.enabled = true;
-    scanning.sense_parts[0].x_filter_resonance.enabled = true;
-    scanning.sense_parts[0].y_pitch_enabled = true;
-    scanning.sense_parts[0].y_velocity.enabled = true;
-    scanning.sense_parts[0].y_filter_cutoff.enabled = true;
-    scanning.sense_parts[0].y_filter_resonance.enabled = true;
+    scanning.pulses_layers[0].scan_mode = "scanning".into();
+    scanning.pulses_layers[0].x_velocity.enabled = true;
+    scanning.pulses_layers[0].x_filter_cutoff.enabled = true;
+    scanning.pulses_layers[0].x_filter_resonance.enabled = true;
+    scanning.pulses_layers[0].y_pitch_enabled = true;
+    scanning.pulses_layers[0].y_velocity.enabled = true;
+    scanning.pulses_layers[0].y_filter_cutoff.enabled = true;
+    scanning.pulses_layers[0].y_filter_resonance.enabled = true;
     configs.push(scanning);
 
     for instrument_type in ["none", "synth", "sampler", "midi"] {
@@ -101,19 +101,19 @@ pub(crate) fn representative_help_configs() -> Vec<NativeMenuConfig> {
         configs.push(cfg);
     }
 
-    for dance_mode in ["mix", "pan", "fx", "trigger-gate", "xy"] {
+    for sparks_mode in ["mix", "pan", "fx", "trigger-gate", "xy"] {
         let mut cfg = config();
-        cfg.dance_mode = dance_mode.into();
-        cfg.dance_fx_type = "stutter".into();
-        cfg.dance_fx_params
+        cfg.sparks_mode = sparks_mode.into();
+        cfg.sparks_fx_type = "stutter".into();
+        cfg.sparks_fx_params
             .insert("rateHz".into(), serde_json::json!(8));
         configs.push(cfg);
     }
 
     for fx_type in ["stutter", "freeze", "filter_sweep", "pitch_shift"] {
         let mut cfg = config();
-        cfg.dance_mode = "fx".into();
-        cfg.dance_fx_type = fx_type.into();
+        cfg.sparks_mode = "fx".into();
+        cfg.sparks_fx_type = fx_type.into();
         configs.push(cfg);
     }
 

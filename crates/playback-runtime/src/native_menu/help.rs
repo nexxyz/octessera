@@ -63,8 +63,8 @@ pub(super) fn canonicalize_help_path(path: &str) -> String {
     let parts = path
         .split(" > ")
         .map(|part| {
-            if part.starts_with('P') && part.contains(':') {
-                "P*: *".into()
+            if part.starts_with('L') && part.contains(':') {
+                "L*: *".into()
             } else if part.starts_with('I') && part.contains(':') {
                 if part == path.rsplit(" > ").next().unwrap_or(part) {
                     let number = part
@@ -159,7 +159,7 @@ fn default_system_effect_help_key(effect: &str) -> Option<String> {
         "system.updateCheck" => Some("action:system_update_check".into()),
         "system.updateApply" => Some("action:system_update_apply".into()),
         "system.rollback" => Some("action:system_rollback".into()),
-        "dance.fx.map" => Some("action:fx_assign_enter".into()),
+        "sparks.fx.map" => Some("action:fx_assign_enter".into()),
         _ => None,
     }
 }

@@ -36,7 +36,7 @@ impl NativeRunner {
             .unwrap_or_default();
         object.insert("mode".into(), Value::from(state.mode.clone()));
         self.behavior_config = Value::Object(object);
-        if let Some(config) = self.part_behavior_configs.get_mut(self.active_part_index) {
+        if let Some(config) = self.layer_behavior_configs.get_mut(self.active_layer_index) {
             *config = self.behavior_config.clone();
         }
         self.behavior_configs

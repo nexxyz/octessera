@@ -141,15 +141,15 @@ impl NativeRunner {
         {
             self.swing_pct = (value as u8).min(75);
         }
-        if let Some(value) = runtime.get("danceMode").and_then(Value::as_str) {
+        if let Some(value) = runtime.get("sparksMode").and_then(Value::as_str) {
             let normalized = match value {
                 "mix" | "pan" | "fx" | "trigger-gate" | "transpose" | "xy" => Some(value),
                 "none" => Some("mix"),
                 _ => None,
             };
             if let Some(value) = normalized {
-                self.dance_mode = value.into();
-                self.active_dance_mode = "none".into();
+                self.sparks_mode = value.into();
+                self.active_sparks_mode = "none".into();
             }
         }
     }

@@ -26,7 +26,7 @@ pub(super) struct NativeUiState {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(super) struct NativeSensePart {
+pub(super) struct NativePulsesLayer {
     pub(super) scan_mode: String,
     pub(super) scan_axis: String,
     pub(super) scan_unit: String,
@@ -154,13 +154,13 @@ pub(super) struct NativeParamMods {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub(super) struct NativeDanceFxAssignment {
+pub(super) struct NativeSparksFxAssignment {
     pub(super) x: usize,
     pub(super) y: usize,
     pub(super) config: Value,
 }
 
-impl Default for NativeSensePart {
+impl Default for NativePulsesLayer {
     fn default() -> Self {
         Self {
             scan_mode: "none".into(),

@@ -6,13 +6,13 @@ impl NativeRunner {
         let Some(behavior_id) = self.menu.selected_behavior().map(|value| value.to_string()) else {
             return Ok(());
         };
-        let previous_part_label = self
-            .part_names
-            .get(self.active_part_index)
-            .map(|name| format!("P{}: {name}", self.active_part_index + 1));
+        let previous_layer_label = self
+            .layer_names
+            .get(self.active_layer_index)
+            .map(|name| format!("L{}: {name}", self.active_layer_index + 1));
         let changed = self.apply_behavior_selection(&behavior_id)?;
-        self.update_active_part_menu_label(previous_part_label.as_deref());
-        self.update_active_l1_menu_items();
+        self.update_active_layer_menu_label(previous_layer_label.as_deref());
+        self.update_active_worlds_menu_items();
         if changed {
             self.mark_fast_autosave_dirty();
         }
@@ -20,13 +20,13 @@ impl NativeRunner {
     }
 
     pub(super) fn select_behavior(&mut self, behavior_id: &str) -> Result<(), String> {
-        let previous_part_label = self
-            .part_names
-            .get(self.active_part_index)
-            .map(|name| format!("P{}: {name}", self.active_part_index + 1));
+        let previous_layer_label = self
+            .layer_names
+            .get(self.active_layer_index)
+            .map(|name| format!("L{}: {name}", self.active_layer_index + 1));
         let changed = self.apply_behavior_selection(behavior_id)?;
-        self.update_active_part_menu_label(previous_part_label.as_deref());
-        self.update_active_l1_menu_items();
+        self.update_active_layer_menu_label(previous_layer_label.as_deref());
+        self.update_active_worlds_menu_items();
         let _ = self.menu.focus_item_key("behaviorId");
         if changed {
             self.mark_fast_autosave_dirty();
@@ -34,25 +34,25 @@ impl NativeRunner {
         Ok(())
     }
 
-    fn update_active_part_menu_label(&mut self, previous_label: Option<&str>) {
-        let Some(name) = self.part_names.get(self.active_part_index) else {
+    fn update_active_layer_menu_label(&mut self, previous_label: Option<&str>) {
+        let Some(name) = self.layer_names.get(self.active_layer_index) else {
             return;
         };
         let name = name.clone();
         self.menu
-            .set_text_value_for_key(&format!("parts.{}.name", self.active_part_index), &name);
-        let next_label = format!("P{}: {name}", self.active_part_index + 1);
+            .set_text_value_for_key(&format!("layers.{}.name", self.active_layer_index), &name);
+        let next_label = format!("L{}: {name}", self.active_layer_index + 1);
         if let Some(previous_label) = previous_label {
             self.menu.replace_label(previous_label, &next_label);
         }
     }
 
-    fn update_active_l1_menu_items(&mut self) {
-        let Some(name) = self.part_names.get(self.active_part_index) else {
+    fn update_active_worlds_menu_items(&mut self) {
+        let Some(name) = self.layer_names.get(self.active_layer_index) else {
             return;
         };
-        let label = format!("P{}: {name}", self.active_part_index + 1);
-        let children = self.l1_menu_items();
+        let label = format!("L{}: {name}", self.active_layer_index + 1);
+        let children = self.worlds_menu_items();
         self.menu
             .replace_group_children_for_label(&label, &children);
     }

@@ -14,7 +14,7 @@ impl NativeRunner {
             && self.confirm_dialog.is_none()
             && self.sample_assign.is_none()
             && self.trigger_probability_assign.is_none()
-            && self.dance_fx_assign.is_none()
+            && self.sparks_fx_assign.is_none()
             && self
                 .modifier_hint_started_at
                 .is_some_and(|started| now.duration_since(started) >= Duration::from_millis(1000))

@@ -4,14 +4,14 @@ use super::{
 };
 
 impl NativeRunner {
-    pub(super) fn apply_dance_overlay(&self, leds: &mut [LedColor]) {
-        match self.active_dance_mode.as_str() {
-            "mix" => self.apply_dance_mix_overlay(leds),
-            "pan" => self.apply_dance_pan_overlay(leds),
-            "fx" => self.apply_dance_fx_overlay(leds),
-            "trigger-gate" => self.apply_dance_trigger_gate_overlay(leds),
-            "transpose" => self.apply_dance_transpose_overlay(leds),
-            "xy" => self.apply_dance_xy_overlay(leds),
+    pub(super) fn apply_sparks_overlay(&self, leds: &mut [LedColor]) {
+        match self.active_sparks_mode.as_str() {
+            "mix" => self.apply_sparks_mix_overlay(leds),
+            "pan" => self.apply_sparks_pan_overlay(leds),
+            "fx" => self.apply_sparks_fx_overlay(leds),
+            "trigger-gate" => self.apply_sparks_trigger_gate_overlay(leds),
+            "transpose" => self.apply_sparks_transpose_overlay(leds),
+            "xy" => self.apply_sparks_xy_overlay(leds),
             _ => {}
         }
     }
@@ -40,11 +40,11 @@ impl NativeRunner {
     }
 
     pub(super) fn apply_trigger_probability_overlay(&self, leds: &mut [LedColor]) {
-        let Some(part_index) = self.trigger_probability_assign else {
+        let Some(layer_index) = self.trigger_probability_assign else {
             return;
         };
         self.fill_leds(leds, LedColor::rgb(0, 0, 0));
-        let Some(map) = self.trigger_probability_maps.get(part_index) else {
+        let Some(map) = self.trigger_probability_maps.get(layer_index) else {
             return;
         };
         for y in 0..GRID_HEIGHT {
@@ -72,9 +72,12 @@ impl NativeRunner {
             return;
         };
         if let Some(field) = highlighted.key.strip_prefix("behavior.") {
-            highlighted.key = format!("parts.{}.l1.behaviorConfig.{field}", self.active_part_index);
+            highlighted.key = format!(
+                "layers.{}.worlds.behaviorConfig.{field}",
+                self.active_layer_index
+            );
         }
-        let Some(param_mods) = self.param_mods.get(self.active_part_index) else {
+        let Some(param_mods) = self.param_mods.get(self.active_layer_index) else {
             return;
         };
         let lane = LedColor::rgb(18, 18, 24);
@@ -132,7 +135,7 @@ impl NativeRunner {
     }
 
     pub(super) fn apply_scan_progress_overlay(&self, leds: &mut [LedColor]) {
-        let Some(sense) = self.sense_parts.get(self.active_part_index) else {
+        let Some(sense) = self.pulses_layers.get(self.active_layer_index) else {
             return;
         };
         if sense.scan_mode != "scanning" {
@@ -216,7 +219,7 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn dance_pan_target(&self, instrument: &NativeInstrumentSlot) -> (u8, LedColor) {
+    pub(super) fn sparks_pan_target(&self, instrument: &NativeInstrumentSlot) -> (u8, LedColor) {
         if let Some(bus_index) = instrument
             .route
             .strip_prefix("fx_bus_")

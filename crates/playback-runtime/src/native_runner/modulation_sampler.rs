@@ -1,4 +1,4 @@
-use super::{NativeSensePart, NativeValueLane, GRID_HEIGHT, GRID_WIDTH};
+use super::{NativePulsesLayer, NativeValueLane, GRID_HEIGHT, GRID_WIDTH};
 use platform_core::{CellTriggerIntent, MusicalEvent};
 use std::collections::BTreeMap;
 
@@ -30,7 +30,7 @@ pub(super) fn apply_sampler_assignments_for_instruments(
     intents: &[CellTriggerIntent],
     mapped_event_offset: usize,
     instruments: &[super::NativeInstrumentSlot],
-    sense: Option<&NativeSensePart>,
+    sense: Option<&NativePulsesLayer>,
 ) -> Vec<MusicalEvent> {
     let routed = apply_sampler_assignments_for_instruments_routed(
         events,
@@ -49,7 +49,7 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
     intents: &[CellTriggerIntent],
     mapped_event_offset: usize,
     instruments: &[super::NativeInstrumentSlot],
-    sense: Option<&NativeSensePart>,
+    sense: Option<&NativePulsesLayer>,
     transpose_offset: i8,
     mut active_transpose_notes: Option<&mut BTreeMap<(u8, u8), Vec<u8>>>,
 ) -> RoutedMusicalEvents {
@@ -89,10 +89,10 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
                 duration_ms,
                 ..
             } => {
-                if let Some(sense_velocity) =
+                if let Some(pulses_velocity) =
                     sense.and_then(|sense| velocity_from_intent(intent, sense))
                 {
-                    *velocity = sense_velocity;
+                    *velocity = pulses_velocity;
                 }
                 if let Some(instrument) = instruments.get(*channel as usize) {
                     let original_channel = *channel;
@@ -263,7 +263,7 @@ pub(super) fn midi_event_channel(
 
 pub(super) fn cc_events_from_intent(
     intent: &CellTriggerIntent,
-    sense: &NativeSensePart,
+    sense: &NativePulsesLayer,
     channel: u8,
 ) -> Vec<MusicalEvent> {
     let mut events = Vec::new();
@@ -322,7 +322,7 @@ fn push_lane_cc(
 
 pub(super) fn velocity_from_intent(
     intent: &CellTriggerIntent,
-    sense: &NativeSensePart,
+    sense: &NativePulsesLayer,
 ) -> Option<u8> {
     let mut values = Vec::new();
     if sense.x_velocity.enabled {

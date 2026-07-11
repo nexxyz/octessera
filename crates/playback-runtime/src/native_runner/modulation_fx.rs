@@ -58,7 +58,7 @@ pub(super) fn apply_global_fx_binding_value(
     *config_dirty |= changed;
 }
 
-pub(super) fn apply_dance_fx_binding_value(
+pub(super) fn apply_sparks_fx_binding_value(
     selected: &mut Value,
     field: &str,
     value: Value,

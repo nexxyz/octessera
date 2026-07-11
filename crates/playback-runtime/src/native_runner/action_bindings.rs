@@ -16,12 +16,12 @@ impl NativeRunner {
         if let Some(rest) = target.strip_prefix("param:") {
             let parts = rest.split(':').collect::<Vec<_>>();
             if parts.len() == 3 {
-                let part = parts[0]
+                let layer = parts[0]
                     .parse::<usize>()
-                    .unwrap_or(self.active_part_index)
+                    .unwrap_or(self.active_layer_index)
                     .min(GRID_HEIGHT - 1);
                 let slot = parts[2].parse::<usize>().unwrap_or(0).min(1);
-                if let Some(param_mods) = self.param_mods.get_mut(part) {
+                if let Some(param_mods) = self.param_mods.get_mut(layer) {
                     match parts[1] {
                         "x" => param_mods.x[slot] = binding.clone(),
                         "y" => param_mods.y[slot] = binding.clone(),
@@ -118,7 +118,10 @@ impl NativeRunner {
             return false;
         };
         if let Some(field) = binding.key.strip_prefix("behavior.") {
-            binding.key = format!("parts.{}.l1.behaviorConfig.{field}", self.active_part_index);
+            binding.key = format!(
+                "layers.{}.worlds.behaviorConfig.{field}",
+                self.active_layer_index
+            );
         }
         self.apply_param_mod_mapping(x, y, binding)
     }
@@ -133,7 +136,7 @@ impl NativeRunner {
         if targets.is_empty() {
             return false;
         }
-        let Some(param_mods) = self.param_mods.get_mut(self.active_part_index) else {
+        let Some(param_mods) = self.param_mods.get_mut(self.active_layer_index) else {
             return false;
         };
         let current = match targets[0].0 {
@@ -218,7 +221,7 @@ impl NativeRunner {
             return Ok(None);
         };
         if let NativeMenuAction::BehaviorAction(action_type) = &press.action {
-            let valid = self.l1_menu_items().into_iter().any(|item| {
+            let valid = self.worlds_menu_items().into_iter().any(|item| {
                 matches!(
                     item.value,
                     NativeMenuValue::Action(NativeMenuAction::BehaviorAction(ref current)) if current == action_type

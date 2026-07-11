@@ -4,7 +4,7 @@ pub(crate) fn config() -> NativeMenuConfig {
     NativeMenuConfig {
         behavior_id: "life".into(),
         behavior_ids: vec!["life".into(), "brain".into(), "none".into()],
-        l1_items: vec![
+        worlds_items: vec![
             NativeMenuItem {
                 label: "Behavior".into(),
                 key: Some("behaviorId".into()),
@@ -64,14 +64,14 @@ pub(crate) fn config() -> NativeMenuConfig {
             },
         ],
         behavior_target_items: behavior_target_items(),
-        part_labels: (0..PART_COUNT)
-            .map(|index| format!("P{}: life", index + 1))
+        layer_labels: (0..LAYER_COUNT)
+            .map(|index| format!("L{}: life", index + 1))
             .collect(),
-        part_names: vec!["life".into(); PART_COUNT],
-        part_auto_names: vec![true; PART_COUNT],
-        sense_parts: vec![default_sense_part_config(); PART_COUNT],
-        active_part_index: 0,
-        param_mods: vec![NativeParamModsConfig::default(); PART_COUNT],
+        layer_names: vec!["life".into(); LAYER_COUNT],
+        layer_auto_names: vec![true; LAYER_COUNT],
+        pulses_layers: vec![default_pulses_layer_config(); LAYER_COUNT],
+        active_layer_index: 0,
+        param_mods: vec![NativeParamModsConfig::default(); LAYER_COUNT],
         xy_x_binding: None,
         xy_y_binding: None,
         aux_auto_map_enabled: true,
@@ -139,10 +139,10 @@ pub(crate) fn config() -> NativeMenuConfig {
         preset_rename_source: None,
         midi_outputs: vec![],
         midi_inputs: vec![],
-        dance_mode: "mix".into(),
-        dance_fx_type: "none".into(),
-        dance_fx_target: "master".into(),
-        dance_fx_params: serde_json::Map::new(),
+        sparks_mode: "mix".into(),
+        sparks_fx_type: "none".into(),
+        sparks_fx_target: "master".into(),
+        sparks_fx_params: serde_json::Map::new(),
         xy_release: "sample-hold".into(),
         xy_invert_x: false,
         xy_invert_y: false,
@@ -153,12 +153,12 @@ pub(crate) fn config() -> NativeMenuConfig {
 }
 
 pub(crate) fn behavior_target_items() -> Vec<Vec<NativeMenuItem>> {
-    (0..PART_COUNT)
-        .map(|part_index| {
+    (0..LAYER_COUNT)
+        .map(|layer_index| {
             vec![
                 NativeMenuItem {
                     label: "Step Rate".into(),
-                    key: Some(format!("parts.{part_index}.algorithmStep")),
+                    key: Some(format!("layers.{layer_index}.algorithmStep")),
                     value: NativeMenuValue::Enum {
                         options: vec!["1/16", "1/8", "1/4", "1/2", "1/1"]
                             .into_iter()
@@ -171,7 +171,7 @@ pub(crate) fn behavior_target_items() -> Vec<Vec<NativeMenuItem>> {
                 NativeMenuItem {
                     label: "Spawn Count".into(),
                     key: Some(format!(
-                        "parts.{part_index}.l1.behaviorConfig.randomCellsPerTick"
+                        "layers.{layer_index}.worlds.behaviorConfig.randomCellsPerTick"
                     )),
                     value: NativeMenuValue::Number {
                         value: 12,
@@ -184,7 +184,7 @@ pub(crate) fn behavior_target_items() -> Vec<Vec<NativeMenuItem>> {
                 NativeMenuItem {
                     label: "Spawn Interval".into(),
                     key: Some(format!(
-                        "parts.{part_index}.l1.behaviorConfig.randomTickInterval"
+                        "layers.{layer_index}.worlds.behaviorConfig.randomTickInterval"
                     )),
                     value: NativeMenuValue::Number {
                         value: 1,

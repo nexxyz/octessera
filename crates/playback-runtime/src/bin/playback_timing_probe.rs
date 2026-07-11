@@ -52,5 +52,5 @@ fn next(iter: &mut impl Iterator<Item = String>, name: &str) -> Result<String, S
 }
 
 fn help() -> String {
-    "usage: cargo run -p playback-runtime --bin playback_timing_probe -- [--config config/default.json] [--durations 5s,15s,1m] [--scenarios idle,sense,stop-start,encoder] [--realtime] [--snapshots] [--output path]".to_string()
+    "usage: cargo run -p playback-runtime --bin playback_timing_probe -- [--config config/default.json] [--durations 5s,15s,1m] [--scenarios idle,pulses-stress,stop-start,encoder] [--realtime] [--snapshots] [--output path]".to_string()
 }

@@ -20,7 +20,7 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
   - owns MIDI input/output through host adapters only; Tauri/midir and Pi MIDI device access stay outside canonical runtime crates
 
 - Core logic layer (`crates/platform-core`)
-  - deterministic behavior execution, grid state, interpretation, mapping, transforms, and native part engine logic
+  - deterministic behavior execution, grid state, interpretation, mapping, transforms, and native layer engine logic
   - generated platform capability constants from `resources/platform-capabilities.json`
   - no UI framework code
   - no platform-specific I/O

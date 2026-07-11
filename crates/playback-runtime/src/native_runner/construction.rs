@@ -16,7 +16,7 @@ impl NativeRunner {
         let ui = NativeUiState::default();
         let now = Instant::now();
         let instruments = default_instruments();
-        let sense_parts = default_sense_parts();
+        let pulses_layers = default_pulses_layers();
         let fx_buses = default_fx_buses();
         let global_fx_slots = default_global_fx_slots();
         let global_fx_params = default_global_fx_params();
@@ -26,16 +26,16 @@ impl NativeRunner {
                 .iter()
                 .map(|id| (*id).to_string())
                 .collect(),
-            l1_items: vec![],
-            behavior_target_items: vec![vec![]; PART_COUNT],
-            part_labels: (0..PART_COUNT)
-                .map(|index| format!("P{}: life", index + 1))
+            worlds_items: vec![],
+            behavior_target_items: vec![vec![]; LAYER_COUNT],
+            layer_labels: (0..LAYER_COUNT)
+                .map(|index| format!("L{}: life", index + 1))
                 .collect(),
-            part_names: vec![behavior.id().into(); PART_COUNT],
-            part_auto_names: vec![true; PART_COUNT],
-            sense_parts: sense_part_configs(&sense_parts),
-            active_part_index: 0,
-            param_mods: vec![NativeParamModsConfig::default(); PART_COUNT],
+            layer_names: vec![behavior.id().into(); LAYER_COUNT],
+            layer_auto_names: vec![true; LAYER_COUNT],
+            pulses_layers: pulses_layer_configs(&pulses_layers),
+            active_layer_index: 0,
+            param_mods: vec![NativeParamModsConfig::default(); LAYER_COUNT],
             xy_x_binding: None,
             xy_y_binding: None,
             aux_auto_map_enabled: true,
@@ -105,10 +105,10 @@ impl NativeRunner {
             preset_rename_source: None,
             midi_outputs: Vec::new(),
             midi_inputs: Vec::new(),
-            dance_mode: "mix".into(),
-            dance_fx_type: "none".into(),
-            dance_fx_target: "master".into(),
-            dance_fx_params: serde_json::Map::new(),
+            sparks_mode: "mix".into(),
+            sparks_fx_type: "none".into(),
+            sparks_fx_target: "master".into(),
+            sparks_fx_params: serde_json::Map::new(),
             xy_release: "sample-hold".into(),
             xy_invert_x: false,
             xy_invert_y: false,
@@ -117,13 +117,13 @@ impl NativeRunner {
             audio_output_buffer_frames: config.audio_output_buffer_frames,
             sync_source: config.sync_source.clone(),
         });
-        let mut part_engines = Vec::new();
-        part_engines.resize_with(PART_COUNT, || None);
-        for (index, slot) in part_engines.iter_mut().enumerate().skip(1) {
-            let part_behavior = platform_core::get_native_behavior(config.behavior_id.as_str())
+        let mut layer_engines = Vec::new();
+        layer_engines.resize_with(LAYER_COUNT, || None);
+        for (index, slot) in layer_engines.iter_mut().enumerate().skip(1) {
+            let layer_behavior = platform_core::get_native_behavior(config.behavior_id.as_str())
                 .ok_or_else(|| format!("unsupported native behavior `{}`", config.behavior_id))?;
             *slot = Some(Self::build_engine(
-                part_behavior,
+                layer_behavior,
                 config.behavior_config.clone(),
                 config.interpretation_profile.clone(),
                 config.mapping_config.clone(),
@@ -134,14 +134,14 @@ impl NativeRunner {
         }
         let mut runner = Self {
             engine,
-            part_engines,
+            layer_engines,
             behavior,
             behavior_config: config.behavior_config.clone(),
             behavior_configs: BTreeMap::from([(
                 behavior.id().to_string(),
                 config.behavior_config.clone(),
             )]),
-            part_behavior_configs: vec![config.behavior_config; PART_COUNT],
+            layer_behavior_configs: vec![config.behavior_config; LAYER_COUNT],
             interpretation_profile: config.interpretation_profile,
             mapping_config: config.mapping_config.clone(),
             base_mapping_config: config.mapping_config,
@@ -150,11 +150,11 @@ impl NativeRunner {
             current_ppqn_pulse: 0,
             swung_ppqn_pulse: 0,
             tick: 0,
-            part_ticks: vec![0; PART_COUNT],
+            layer_ticks: vec![0; LAYER_COUNT],
             algorithm_step_pulses: DEFAULT_ALGORITHM_STEP_PULSES,
             algorithm_pulse_accumulator: 0,
-            part_algorithm_step_pulses: vec![DEFAULT_ALGORITHM_STEP_PULSES; PART_COUNT],
-            part_pulse_accumulators: vec![0; PART_COUNT],
+            layer_algorithm_step_pulses: vec![DEFAULT_ALGORITHM_STEP_PULSES; LAYER_COUNT],
+            layer_pulse_accumulators: vec![0; LAYER_COUNT],
             transport: RuntimeTransportState::Stopped,
             sync_source: config.sync_source,
             pending_resync: false,
@@ -187,12 +187,12 @@ impl NativeRunner {
             midi_clock_out_enabled: false,
             midi_clock_in_enabled: false,
             midi_respond_to_start_stop: true,
-            dance_mode: "mix".into(),
-            active_dance_mode: "none".into(),
-            dance_fx_selected: default_dance_fx_selected(),
-            dance_fx_assign: None,
-            dance_fx_assignments: vec![],
-            active_dance_fx: Vec::new(),
+            sparks_mode: "mix".into(),
+            active_sparks_mode: "none".into(),
+            sparks_fx_selected: default_sparks_fx_selected(),
+            sparks_fx_assign: None,
+            sparks_fx_assignments: vec![],
+            active_sparks_fx: Vec::new(),
             xy_touch: NativeXyTouch {
                 x: 0.5,
                 y: 0.5,
@@ -206,25 +206,25 @@ impl NativeRunner {
             xy_x_binding: None,
             xy_y_binding: None,
             aux_auto_map_enabled: true,
-            param_mods: vec![NativeParamMods::default(); PART_COUNT],
-            trigger_gate_modes: vec!["full".into(); PART_COUNT],
-            trigger_gate_restore_modes: vec![None; PART_COUNT],
-            dance_transpose_selected: vec![true; PART_COUNT],
-            dance_transpose_enabled: vec![true; PART_COUNT],
-            dance_transpose_offsets: vec![0; PART_COUNT],
-            dance_transpose_active_notes: vec![BTreeMap::new(); PART_COUNT],
+            param_mods: vec![NativeParamMods::default(); LAYER_COUNT],
+            trigger_gate_modes: vec!["full".into(); LAYER_COUNT],
+            trigger_gate_restore_modes: vec![None; LAYER_COUNT],
+            sparks_transpose_selected: vec![true; LAYER_COUNT],
+            sparks_transpose_enabled: vec![true; LAYER_COUNT],
+            sparks_transpose_offsets: vec![0; LAYER_COUNT],
+            sparks_transpose_active_notes: vec![BTreeMap::new(); LAYER_COUNT],
             trigger_probability_assign: None,
             trigger_probability_maps: vec![
                 vec!["full".into(); GRID_WIDTH * GRID_HEIGHT];
-                PART_COUNT
+                LAYER_COUNT
             ],
-            part_behavior_ids: vec![behavior.id().into(); PART_COUNT],
-            part_names: vec![behavior.id().into(); PART_COUNT],
-            part_auto_names: vec![true; PART_COUNT],
-            save_grid_states: vec![true; PART_COUNT],
-            sense_parts,
+            layer_behavior_ids: vec![behavior.id().into(); LAYER_COUNT],
+            layer_names: vec![behavior.id().into(); LAYER_COUNT],
+            layer_auto_names: vec![true; LAYER_COUNT],
+            save_grid_states: vec![true; LAYER_COUNT],
+            pulses_layers,
             aux_bindings: vec![None; platform_core::AUX_ENCODER_COUNT],
-            active_part_index: 0,
+            active_layer_index: 0,
             instruments,
             sample_assign: None,
             fx_buses,

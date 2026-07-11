@@ -103,22 +103,23 @@ impl NativeRunner {
     }
 
     fn fx_slot_auto_map_context(&self, key: &str) -> Option<(&str, String)> {
-        let parts = key.split('.').collect::<Vec<_>>();
-        if parts.first() != Some(&"mixer") {
+        let layers = key.split('.').collect::<Vec<_>>();
+        if layers.first() != Some(&"mixer") {
             return None;
         }
-        if parts.get(1) == Some(&"buses") && parts.len() >= 6 {
-            return self.fx_bus_slot_auto_map_context(&parts);
+        if layers.get(1) == Some(&"buses") && layers.len() >= 6 {
+            return self.fx_bus_slot_auto_map_context(&layers);
         }
-        if parts.get(1) == Some(&"master") && parts.get(2) == Some(&"slots") && parts.len() >= 5 {
-            return self.global_fx_slot_auto_map_context(&parts);
+        if layers.get(1) == Some(&"master") && layers.get(2) == Some(&"slots") && layers.len() >= 5
+        {
+            return self.global_fx_slot_auto_map_context(&layers);
         }
         None
     }
 
-    fn fx_bus_slot_auto_map_context(&self, parts: &[&str]) -> Option<(&str, String)> {
-        let bus_index = parts.get(2)?.parse::<usize>().ok()?;
-        let slot_name = *parts.get(3)?;
+    fn fx_bus_slot_auto_map_context(&self, layers: &[&str]) -> Option<(&str, String)> {
+        let bus_index = layers.get(2)?.parse::<usize>().ok()?;
+        let slot_name = *layers.get(3)?;
         let slot_type = match slot_name {
             "slot1" => self.fx_buses.get(bus_index)?.slot1_type.as_str(),
             "slot2" => self.fx_buses.get(bus_index)?.slot2_type.as_str(),
@@ -130,15 +131,15 @@ impl NativeRunner {
         ))
     }
 
-    fn global_fx_slot_auto_map_context(&self, parts: &[&str]) -> Option<(&str, String)> {
-        let slot_index = parts.get(3)?.parse::<usize>().ok()?;
+    fn global_fx_slot_auto_map_context(&self, layers: &[&str]) -> Option<(&str, String)> {
+        let slot_index = layers.get(3)?.parse::<usize>().ok()?;
         let slot_type = self.global_fx_slots.get(slot_index)?.as_str();
         Some((slot_type, format!("mixer.master.slots.{slot_index}.params")))
     }
 
-    pub(super) fn dance_fx_auto_map(&self) -> [Option<ResolvedAuxSlot>; 4] {
-        let fx_type = dance_fx_type(&self.dance_fx_selected);
-        let key_for = |name: &str| format!("dance.fx.params.{name}");
+    pub(super) fn sparks_fx_auto_map(&self) -> [Option<ResolvedAuxSlot>; 4] {
+        let fx_type = sparks_fx_type(&self.sparks_fx_selected);
+        let key_for = |name: &str| format!("sparks.fx.params.{name}");
         let slots = match fx_type {
             "stutter" => [
                 Some(self.turn_slot(key_for("rateHz"), "Rate")),
@@ -170,7 +171,7 @@ impl NativeRunner {
             Some(ResolvedAuxSlot {
                 turn: slots[0].as_ref().and_then(|slot| slot.turn.clone()),
                 press: Some(ResolvedAuxPress {
-                    action: NativeMenuAction::PlatformEffect("dance.fx.map".into()),
+                    action: NativeMenuAction::PlatformEffect("sparks.fx.map".into()),
                     label: "Map".into(),
                 }),
                 turn_source: slots[0]

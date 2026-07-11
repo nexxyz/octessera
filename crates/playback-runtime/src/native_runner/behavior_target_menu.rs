@@ -2,8 +2,8 @@ use super::*;
 
 impl NativeRunner {
     pub(super) fn behavior_target_items(&self) -> Vec<Vec<crate::native_menu::NativeMenuItem>> {
-        (0..self.part_behavior_ids.len())
-            .map(|index| self.behavior_target_items_for_part(index))
+        (0..self.layer_behavior_ids.len())
+            .map(|index| self.behavior_target_items_for_layer(index))
             .collect()
     }
 
@@ -11,33 +11,33 @@ impl NativeRunner {
         &self,
         key: &str,
     ) -> Option<crate::native_menu::NativeMenuItem> {
-        let part_index = parse_generated_behavior_target_part_index(key)?;
-        find_item_by_key(&self.behavior_target_items_for_part(part_index), key).cloned()
+        let layer_index = parse_generated_behavior_target_layer_index(key)?;
+        find_item_by_key(&self.behavior_target_items_for_layer(layer_index), key).cloned()
     }
 
-    fn behavior_target_items_for_part(
+    fn behavior_target_items_for_layer(
         &self,
-        part_index: usize,
+        layer_index: usize,
     ) -> Vec<crate::native_menu::NativeMenuItem> {
         let behavior_id = self
-            .part_behavior_ids
-            .get(part_index)
+            .layer_behavior_ids
+            .get(layer_index)
             .map(String::as_str)
             .unwrap_or("none");
         if behavior_id == "none" {
             return vec![];
         }
-        let step_pulses = if part_index == self.active_part_index {
+        let step_pulses = if layer_index == self.active_layer_index {
             self.algorithm_step_pulses
         } else {
-            self.part_algorithm_step_pulses
-                .get(part_index)
+            self.layer_algorithm_step_pulses
+                .get(layer_index)
                 .copied()
                 .unwrap_or(self.algorithm_step_pulses)
         };
         let mut items = vec![crate::native_menu::NativeMenuItem {
             label: "Step Rate".into(),
-            key: Some(format!("parts.{part_index}.algorithmStep")),
+            key: Some(format!("layers.{layer_index}.algorithmStep")),
             value: crate::native_menu::NativeMenuValue::Enum {
                 options: vec!["1/16", "1/8", "1/4", "1/2", "1/1"]
                     .into_iter()
@@ -53,18 +53,18 @@ impl NativeRunner {
         let Some(behavior) = platform_core::get_native_behavior(behavior_id) else {
             return items;
         };
-        let mut state = self.behavior_state_for_part(part_index);
+        let mut state = self.behavior_state_for_layer(layer_index);
         if behavior.config_menu(&state).is_err() {
-            state = self.default_behavior_state_for_part(part_index, behavior);
+            state = self.default_behavior_state_for_layer(layer_index, behavior);
         }
         let config = self
-            .part_behavior_configs
-            .get(part_index)
+            .layer_behavior_configs
+            .get(layer_index)
             .unwrap_or(&Value::Null);
         if let Ok(Some(config_items)) = behavior.config_menu(&state) {
             for item in config_items {
                 if let Some(menu_item) =
-                    behavior_target_menu_item(self, part_index, config, &state, item)
+                    behavior_target_menu_item(self, layer_index, config, &state, item)
                 {
                     items.push(menu_item);
                 }
@@ -73,35 +73,35 @@ impl NativeRunner {
         items
     }
 
-    fn behavior_state_for_part(&self, part_index: usize) -> platform_core::NativeBehaviorState {
-        if part_index == self.active_part_index {
+    fn behavior_state_for_layer(&self, layer_index: usize) -> platform_core::NativeBehaviorState {
+        if layer_index == self.active_layer_index {
             return self.engine_state();
         }
-        self.part_engines
-            .get(part_index)
+        self.layer_engines
+            .get(layer_index)
             .and_then(|engine| engine.as_ref())
             .map(|engine| engine.state().clone())
             .unwrap_or_else(|| self.engine_state())
     }
 
-    fn default_behavior_state_for_part(
+    fn default_behavior_state_for_layer(
         &self,
-        part_index: usize,
+        layer_index: usize,
         behavior: platform_core::NativeBehavior,
     ) -> platform_core::NativeBehaviorState {
         let behavior_config = self
-            .part_behavior_configs
-            .get(part_index)
+            .layer_behavior_configs
+            .get(layer_index)
             .cloned()
             .unwrap_or(Value::Null);
-        platform_core::NativePartEngine::new(platform_core::NativePartEngineConfig {
+        platform_core::NativeLayerEngine::new(platform_core::NativeLayerEngineConfig {
             behavior,
             behavior_config,
-            interpretation_profile: self.interpretation_profile_for_part(part_index),
-            mapping_config: self.mapping_config_for_part(part_index),
+            interpretation_profile: self.interpretation_profile_for_layer(layer_index),
+            mapping_config: self.mapping_config_for_layer(layer_index),
             global_sound: self.global_sound.clone(),
             note_behaviors: self.note_behaviors.clone(),
-            part_index,
+            layer_index,
         })
         .map(|engine| engine.state().clone())
         .unwrap_or_else(|_| self.engine_state())
@@ -110,12 +110,12 @@ impl NativeRunner {
 
 fn behavior_target_menu_item(
     runner: &NativeRunner,
-    part_index: usize,
+    layer_index: usize,
     config: &Value,
     state: &platform_core::NativeBehaviorState,
     item: BehaviorConfigItem,
 ) -> Option<crate::native_menu::NativeMenuItem> {
-    let key = format!("parts.{part_index}.l1.behaviorConfig.{}", item.key);
+    let key = format!("layers.{layer_index}.worlds.behaviorConfig.{}", item.key);
     match item.item_type {
         BehaviorConfigItemType::Number => Some(crate::native_menu::NativeMenuItem {
             label: item.label,
@@ -208,8 +208,8 @@ fn behavior_state_enum_default(
     }
 }
 
-fn parse_generated_behavior_target_part_index(key: &str) -> Option<usize> {
-    let rest = key.strip_prefix("parts.")?;
+fn parse_generated_behavior_target_layer_index(key: &str) -> Option<usize> {
+    let rest = key.strip_prefix("layers.")?;
     let (index, _) = rest.split_once('.')?;
     index.parse().ok()
 }

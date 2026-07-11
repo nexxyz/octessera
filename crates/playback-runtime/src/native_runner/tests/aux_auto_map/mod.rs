@@ -28,5 +28,5 @@ pub(crate) fn synth_stack(runner: &NativeRunner, label: &str) -> Vec<usize> {
     vec![2, 0, 0, 2, synth_child_index(runner, label)]
 }
 
-mod part_1;
-mod part_2;
+mod section_1;
+mod section_2;

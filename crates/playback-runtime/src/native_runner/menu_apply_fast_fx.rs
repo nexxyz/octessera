@@ -5,8 +5,8 @@ impl NativeRunner {
         if self.apply_deferred_text_key(key) {
             return true;
         }
-        if key == "dance.fx.type" {
-            if self.apply_dance_fx_menu_state() {
+        if key == "sparks.fx.type" {
+            if self.apply_sparks_fx_menu_state() {
                 self.config_dirty = true;
             }
             return true;
@@ -44,7 +44,7 @@ impl NativeRunner {
             }
             return true;
         }
-        if let Some(rest) = key.strip_prefix("parts.") {
+        if let Some(rest) = key.strip_prefix("layers.") {
             let Some((index, suffix)) = parse_indexed_key(rest) else {
                 return false;
             };
@@ -55,13 +55,13 @@ impl NativeRunner {
                 return false;
             };
             let mut changed = false;
-            if let Some(target) = self.part_names.get_mut(index) {
+            if let Some(target) = self.layer_names.get_mut(index) {
                 if *target != name {
                     *target = name;
                     changed = true;
                 }
             }
-            if let Some(auto_name) = self.part_auto_names.get_mut(index) {
+            if let Some(auto_name) = self.layer_auto_names.get_mut(index) {
                 if *auto_name {
                     *auto_name = false;
                     changed = true;

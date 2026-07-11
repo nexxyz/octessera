@@ -15,12 +15,12 @@ impl NativeRunner {
             self.apply_factory_payload()?;
             return Ok(None);
         }
-        if action == "dance.fx.map" {
-            let config = self.dance_fx_selected.clone();
-            self.dance_fx_assign = Some(config.clone());
-            self.active_dance_mode = "fx".into();
+        if action == "sparks.fx.map" {
+            let config = self.sparks_fx_selected.clone();
+            self.sparks_fx_assign = Some(config.clone());
+            self.active_sparks_mode = "fx".into();
             self.toast = Some(NativeToast {
-                message: format!("Map FX: {}", super::dance_fx_type(&config)),
+                message: format!("Map FX: {}", super::sparks_fx_type(&config)),
                 offset: 0,
             });
             return Ok(None);
@@ -32,16 +32,16 @@ impl NativeRunner {
             return Ok(None);
         }
         if let Some(rest) = action.strip_prefix("trigger.probability.assign:") {
-            if let Ok(part_index) = rest.parse::<usize>() {
-                self.trigger_probability_assign = Some(part_index.min(GRID_HEIGHT - 1));
-                self.show_toast(format!("Trig P{}: grid", part_index + 1));
+            if let Ok(layer_index) = rest.parse::<usize>() {
+                self.trigger_probability_assign = Some(layer_index.min(GRID_HEIGHT - 1));
+                self.show_toast(format!("Trig L{}: grid", layer_index + 1));
             }
             return Ok(None);
         }
         if let Some(rest) = action.strip_prefix("synth.preset:") {
-            let mut parts = rest.splitn(2, ':');
-            let slot = parts.next().and_then(|value| value.parse::<usize>().ok());
-            let preset = parts.next();
+            let mut layers = rest.splitn(2, ':');
+            let slot = layers.next().and_then(|value| value.parse::<usize>().ok());
+            let preset = layers.next();
             if let (Some(slot), Some(preset)) = (slot, preset) {
                 self.load_synth_preset(slot, preset);
             }

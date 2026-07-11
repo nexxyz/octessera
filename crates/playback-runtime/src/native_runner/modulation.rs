@@ -1,15 +1,15 @@
 use super::modulation_fx::{
-    apply_dance_fx_binding_value, apply_fx_bus_binding_value, apply_global_fx_binding_value,
+    apply_fx_bus_binding_value, apply_global_fx_binding_value, apply_sparks_fx_binding_value,
 };
 use super::modulation_instrument::apply_instrument_binding_value;
 use super::modulation_keys::{
     parse_fx_bus_binding_key, parse_global_fx_binding_key, parse_instrument_binding_key,
-    parse_part_behavior_config_binding_key, parse_sense_binding_key,
+    parse_layer_behavior_config_binding_key, parse_pulses_binding_key,
 };
+use super::modulation_pulses::apply_pulses_binding_value;
 pub(super) use super::modulation_sampler::{
     apply_sampler_assignments_for_instruments_routed, RoutedMusicalEvents,
 };
-use super::modulation_sense::apply_sense_binding_value;
 use super::modulation_value::{axis_norm, quantize_binding_value};
 use super::{NativeParamBinding, NativeRunner, Value, GRID_HEIGHT, GRID_WIDTH};
 use platform_core::CellTriggerIntent;
@@ -20,7 +20,7 @@ impl NativeRunner {
     pub(super) fn apply_runtime_modulation(
         &mut self,
         intents: &[CellTriggerIntent],
-        part_index: usize,
+        layer_index: usize,
     ) {
         let intent = intents
             .iter()
@@ -34,7 +34,7 @@ impl NativeRunner {
             })
             .or_else(|| intents.last());
         if let Some(intent) = intent {
-            if let Some(param_mods) = self.param_mods.get(part_index).cloned() {
+            if let Some(param_mods) = self.param_mods.get(layer_index).cloned() {
                 for binding in param_mods.x.iter().flatten() {
                     let value = quantize_binding_value(
                         axis_norm(intent.x, GRID_WIDTH, binding.invert),
@@ -133,21 +133,21 @@ impl NativeRunner {
     }
 
     fn apply_routed_param_binding_value(&mut self, key: &str, value: Value) {
-        if let Some(index) = parse_part_algorithm_step_binding_key(key) {
-            self.apply_part_algorithm_step_binding(index, value);
-        } else if let Some((index, field)) = parse_part_behavior_config_binding_key(key) {
+        if let Some(index) = parse_layer_algorithm_step_binding_key(key) {
+            self.apply_layer_algorithm_step_binding(index, value);
+        } else if let Some((index, field)) = parse_layer_behavior_config_binding_key(key) {
             self.apply_behavior_param_binding(index, field, value);
-        } else if let Some((index, field)) = parse_sense_binding_key(key) {
-            self.apply_sense_param_binding(index, field, value);
+        } else if let Some((index, field)) = parse_pulses_binding_key(key) {
+            self.apply_pulses_param_binding(index, field, value);
         } else if let Some((index, field)) = parse_instrument_binding_key(key) {
             self.apply_instrument_param_binding(index, field, value);
         } else if let Some((index, slot, field)) = parse_fx_bus_binding_key(key) {
             self.apply_fx_bus_param_binding(index, slot, field, value);
         } else if let Some((index, field)) = parse_global_fx_binding_key(key) {
             self.apply_global_fx_param_binding(index, field, value);
-        } else if let Some(field) = key.strip_prefix("dance.fx.") {
-            apply_dance_fx_binding_value(
-                &mut self.dance_fx_selected,
+        } else if let Some(field) = key.strip_prefix("sparks.fx.") {
+            apply_sparks_fx_binding_value(
+                &mut self.sparks_fx_selected,
                 field,
                 value,
                 &mut self.config_dirty,
@@ -155,8 +155,8 @@ impl NativeRunner {
         }
     }
 
-    fn apply_part_algorithm_step_binding(&mut self, index: usize, value: Value) {
-        let key = format!("parts.{index}.algorithmStep");
+    fn apply_layer_algorithm_step_binding(&mut self, index: usize, value: Value) {
+        let key = format!("layers.{index}.algorithmStep");
         if self.generated_behavior_target_item(&key).is_none() {
             return;
         }
@@ -164,9 +164,9 @@ impl NativeRunner {
             return;
         };
         let pulses = note_unit_to_pulses(value);
-        if let Some(part_step) = self.part_algorithm_step_pulses.get_mut(index) {
-            *part_step = pulses;
-            if index == self.active_part_index {
+        if let Some(layer_step) = self.layer_algorithm_step_pulses.get_mut(index) {
+            *layer_step = pulses;
+            if index == self.active_layer_index {
                 self.algorithm_step_pulses = pulses;
             }
             self.config_dirty = true;
@@ -174,24 +174,24 @@ impl NativeRunner {
     }
 
     fn apply_behavior_param_binding(&mut self, index: usize, field: &str, value: Value) {
-        let key = format!("parts.{index}.l1.behaviorConfig.{field}");
+        let key = format!("layers.{index}.worlds.behaviorConfig.{field}");
         if self.generated_behavior_target_item(&key).is_none() {
             return;
         }
-        if let Some(config) = self.part_behavior_configs.get_mut(index) {
+        if let Some(config) = self.layer_behavior_configs.get_mut(index) {
             let mut object = config.as_object().cloned().unwrap_or_default();
             object.insert(field.into(), value);
             *config = Value::Object(object.clone());
-            if index == self.active_part_index {
+            if index == self.active_layer_index {
                 self.behavior_config = Value::Object(object);
             }
             self.config_dirty = true;
         }
     }
 
-    fn apply_sense_param_binding(&mut self, index: usize, field: &str, value: Value) {
-        if let Some(part) = self.sense_parts.get_mut(index) {
-            apply_sense_binding_value(part, field, value, &mut self.config_dirty);
+    fn apply_pulses_param_binding(&mut self, index: usize, field: &str, value: Value) {
+        if let Some(layer) = self.pulses_layers.get_mut(index) {
+            apply_pulses_binding_value(layer, field, value, &mut self.config_dirty);
         }
     }
 
@@ -219,8 +219,8 @@ impl NativeRunner {
     }
 }
 
-fn parse_part_algorithm_step_binding_key(key: &str) -> Option<usize> {
-    let rest = key.strip_prefix("parts.")?;
+fn parse_layer_algorithm_step_binding_key(key: &str) -> Option<usize> {
+    let rest = key.strip_prefix("layers.")?;
     let (index, field) = rest.split_once('.')?;
     (field == "algorithmStep")
         .then(|| index.parse().ok())

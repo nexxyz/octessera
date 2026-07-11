@@ -10,18 +10,20 @@ This is the canonical index for the full menu tree. The split-out section files 
 
 ```
 Root (group)
-├── L1: Life (group)
-├── L2: Sense (group)
-├── L3: Voice (group)
-├── L4: Dance (group)
+├── 1: Worlds (group)
+├── 2: Pulses (group)
+├── 3: Tones (group)
+├── 4: Sparks (group)
 ├── [spacer] (visual separator)
 └── System (group)
 ```
 
 ## Split-out sections
 
-- [L1: Life](menu-tree/life.md)
-- [L2: Sense](menu-tree/sense.md)
-- [L3: Voice](menu-tree/voice.md)
-- [L4: Dance](menu-tree/dance.md)
+- [1: Worlds](menu-tree/worlds.md)
+- [2: Pulses](menu-tree/pulses.md)
+- [3: Tones](menu-tree/tones.md)
+- [4: Sparks](menu-tree/sparks.md)
 - [System](menu-tree/system.md)
+
+Short breadcrumb forms use `W`, `P`, `T`, and `S` for Worlds, Pulses, Tones, and Sparks.

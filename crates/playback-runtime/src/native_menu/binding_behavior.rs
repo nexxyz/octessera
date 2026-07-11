@@ -6,15 +6,15 @@ pub(super) fn behavior_binding_groups(
     target: &str,
 ) -> Option<NativeMenuItem> {
     let children = config
-        .part_labels
+        .layer_labels
         .iter()
         .enumerate()
-        .filter_map(|(part_index, label)| {
+        .filter_map(|(layer_index, label)| {
             binding_group_from_behavior_items(
                 label,
                 config
                     .behavior_target_items
-                    .get(part_index)
+                    .get(layer_index)
                     .map(Vec::as_slice)
                     .unwrap_or(&[]),
                 target,

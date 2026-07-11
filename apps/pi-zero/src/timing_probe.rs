@@ -345,21 +345,21 @@ fn apply_live_scenario(
 ) -> Result<(), String> {
     match scenario {
         TimingProbeScenario::Idle => Ok(()),
-        TimingProbeScenario::SenseStress if ms == 0 => send_device_input(
+        TimingProbeScenario::PulsesStress if ms == 0 => send_device_input(
             playback,
             runner,
             host,
             json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
             snapshots,
         ),
-        TimingProbeScenario::SenseStress if ms % 250 == 20 => send_device_input(
+        TimingProbeScenario::PulsesStress if ms % 250 == 20 => send_device_input(
             playback,
             runner,
             host,
             json!({ "type": "encoder_press", "id": "main" }),
             snapshots,
         ),
-        TimingProbeScenario::SenseStress if ms % 250 == 120 => send_device_input(
+        TimingProbeScenario::PulsesStress if ms % 250 == 120 => send_device_input(
             playback,
             runner,
             host,
@@ -382,14 +382,14 @@ fn apply_live_scenario(
         TimingProbeScenario::MuteStress if ms.is_multiple_of(500) => {
             send_fn_play(playback, runner, host)
         }
-        TimingProbeScenario::DancePageStress if ms.is_multiple_of(250) => {
-            send_dance_page_input(playback, runner, host, ((ms / 250) % 5) as usize)
+        TimingProbeScenario::SparksPageStress if ms.is_multiple_of(250) => {
+            send_sparks_page_input(playback, runner, host, ((ms / 250) % 5) as usize)
         }
         _ => Ok(()),
     }
 }
 
-fn send_dance_page_input(
+fn send_sparks_page_input(
     playback: &mut PlaybackRuntime,
     runner: &mut LiveProbeRunner,
     host: &mut LiveProbeHost,

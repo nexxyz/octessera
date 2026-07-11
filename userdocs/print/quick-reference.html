@@ -11,7 +11,7 @@
       <img src="../../assets/octessera-wordmark.svg" alt="octessera" class="wordmark">
       <div>
         <h1>quick reference</h1>
-        <p>Controls, bindings, behaviors, and Dance pages on one page.</p>
+        <p>Controls, bindings, behaviors, and Sparks pages on one page.</p>
       </div>
     </header>
     <main class="landscape-grid">
@@ -31,9 +31,9 @@
         <section>
           <h2>Navigation + bindings</h2>
           <table><tbody>
-            <tr><th><i>Fn</i> + left column</th><td><b>Navigate to Part 1–8</b> · bottom row = part 1</td></tr>
+            <tr><th><i>Fn</i> + left column</th><td><b>Navigate to Layer 1–8</b> · bottom row = layer 1</td></tr>
             <tr><th><i>Hold</i> <i>Fn</i></th><td><b>Preview</b> · gray available, green current</td></tr>
-            <tr><th><i>Fn</i> + right column</th><td><b>Navigate Dance</b> · exits if already active</td></tr>
+            <tr><th><i>Fn</i> + right column</th><td><b>Navigate Sparks</b> · exits if already active</td></tr>
             <tr><th><i>Fn</i> + <i>Aux click</i></th><td><b>Bind focused value/action</b> · value to turn, action to click</td></tr>
           </tbody></table>
           <p class="compact">Auto-map maps <i>Aux 1–3</i> to important values/actions in the current menu area. It temporarily overrides manual bindings.</p>
@@ -44,11 +44,11 @@
           <table><tbody>
             <tr><th>Sample assign</th><td><i>Shift</i> + cell maps row; <i>Shift</i> + <i>Fn</i> + cell maps column</td></tr>
             <tr><th>Probability map</th><td>Trigger chance: never, low, high, always</td></tr>
-            <tr><th>Dance Mix</th><td>Grid becomes a mixer for each part's volume</td></tr>
-            <tr><th>Dance Pan</th><td>Grid moves around parts' stereo positions</td></tr>
-            <tr><th>Dance FX</th><td>Press mapped cells to trigger live effects</td></tr>
-            <tr><th>Trigger Gate</th><td>Block, allow, or use custom probability per part</td></tr>
-            <tr><th>Transpose</th><td>Temporarily transpose synth and MIDI parts</td></tr>
+            <tr><th>Sparks Mix</th><td>Grid becomes a mixer for each layer's volume</td></tr>
+            <tr><th>Sparks Pan</th><td>Grid moves around layers' stereo positions</td></tr>
+            <tr><th>Sparks FX</th><td>Press mapped cells to trigger live effects</td></tr>
+            <tr><th>Trigger Gate</th><td>Block, allow, or use custom probability per layer</td></tr>
+            <tr><th>Transpose</th><td>Temporarily transpose synth and MIDI layers</td></tr>
             <tr><th>XY</th><td>Mappable two-axis surface for live-manipulating parameters</td></tr>
           </tbody></table>
         </section>
@@ -57,7 +57,7 @@
         <section>
           <h2>Behaviors</h2>
           <table class="behavior-table"><tbody>
-            <tr><th>none</th><td>Inactive part</td><th>keys</th><td>Finger-drumming</td></tr>
+            <tr><th>none</th><td>Inactive layer</td><th>keys</th><td>Finger-drumming</td></tr>
             <tr><th>sequencer</th><td>Manual rhythm anchor</td><th>looper</th><td>Recorded grid gestures</td></tr>
             <tr><th>life</th><td>Birth/survival/death cells</td><th>brain</th><td>Pulses and trails</td></tr>
             <tr><th>ant</th><td>Walking grid agent</td><th>bounce</th><td>Moving collisions</td></tr>
@@ -83,12 +83,12 @@
             <li>Use probability on sequencer cells so patterns feel alive.</li>
             <li>Bind aux encoders to parameters or actions you keep reaching for.</li>
           </ol>
-          <p class="compact">Factory preset hint: <b>life</b> on Part 1, <b>sequencer</b> rhythm on Part 2.</p>
-          <p class="note">If the grid behaves unexpectedly, check the OLED. You are probably in an overlay or Dance page. Use <i>Back</i> or <i>Fn</i> to leave.</p>
+          <p class="compact">Factory preset hint: <b>life</b> on Layer 1, <b>sequencer</b> rhythm on Layer 2.</p>
+          <p class="note">If the grid behaves unexpectedly, check the OLED. You are probably in an overlay or Sparks page. Use <i>Back</i> or <i>Fn</i> to leave.</p>
         </section>
       </div>
     </main>
-    <footer>octessera · quick reference · controls, behaviors, Dance</footer>
+    <footer>octessera · quick reference · controls, behaviors, Sparks</footer>
   </section>
   <section class="page flow-page">
     <header>
@@ -101,7 +101,7 @@
     <main>
       <img src="cell-to-audio-flow.svg" alt="Flowchart from behavior and cell state through trigger mapping, instrument routing, optional FX branches, MIDI, and audio output" class="flowchart-landscape-img">
     </main>
-    <footer>octessera · cell state → behavior → triggers → Sense → instrument → output</footer>
+    <footer>octessera · cell state → behavior → triggers → Pulses → instrument → output</footer>
   </section>
 </body>
 </html>

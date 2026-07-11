@@ -45,7 +45,7 @@ System
 │   │   ├── Clock In: [on | off]
 │   │   └── Follow Start/Stop: [on | off]
 ├── UI (group)
-│   ├── Ghost Cells: [on | off]  default off  ← shows dim cells from inactive parts behind active part
+│   ├── Ghost Cells: [on | off]  default off  ← shows dim cells from inactive layers behind active layer
 │   ├── Auto Map: [on | off]  default on  ← enables context-sensitive aux mappings
 │   ├── Number Style: [bar | numbers | bar+numbers]  ← controls rendering of bar-style numeric params, default bar+numbers
 │   ├── Dim Timer: [0..600] step 10 s       default 60 (0=off; dims non-OLED LEDs)

@@ -79,31 +79,31 @@ impl NativeRunner {
     }
 
     pub(super) fn handle_trigger_probability_grid_press(&mut self, x: usize, y: usize) {
-        let Some(part_index) = self.trigger_probability_assign else {
+        let Some(layer_index) = self.trigger_probability_assign else {
             return;
         };
         if x >= GRID_WIDTH || y >= GRID_HEIGHT {
             return;
         }
-        let next = self.next_probability_state(part_index, x, y);
+        let next = self.next_probability_state(layer_index, x, y);
         if self.ui.combined_modifier_held {
             for row in 0..GRID_HEIGHT {
-                self.set_probability_cell(part_index, x, row, &next);
+                self.set_probability_cell(layer_index, x, row, &next);
             }
         } else if self.ui.shift_held {
             for column in 0..GRID_WIDTH {
-                self.set_probability_cell(part_index, column, y, &next);
+                self.set_probability_cell(layer_index, column, y, &next);
             }
         } else {
-            self.set_probability_cell(part_index, x, y, &next);
+            self.set_probability_cell(layer_index, x, y, &next);
         }
         self.config_dirty = true;
     }
 
-    pub(super) fn next_probability_state(&self, part_index: usize, x: usize, y: usize) -> String {
+    pub(super) fn next_probability_state(&self, layer_index: usize, x: usize, y: usize) -> String {
         let current = self
             .trigger_probability_maps
-            .get(part_index)
+            .get(layer_index)
             .and_then(|map| map.get(y * GRID_WIDTH + x))
             .map(String::as_str)
             .unwrap_or("zero");
@@ -118,12 +118,12 @@ impl NativeRunner {
 
     pub(super) fn set_probability_cell(
         &mut self,
-        part_index: usize,
+        layer_index: usize,
         x: usize,
         y: usize,
         value: &str,
     ) {
-        let Some(map) = self.trigger_probability_maps.get_mut(part_index) else {
+        let Some(map) = self.trigger_probability_maps.get_mut(layer_index) else {
             return;
         };
         if let Some(cell) = map.get_mut(y * GRID_WIDTH + x) {
@@ -133,19 +133,19 @@ impl NativeRunner {
 
     pub(super) fn enter_root_group(&mut self, label: Option<&str>) {
         match label {
-            Some("L4: Dance") => {
-                self.active_dance_mode = self.dance_mode.clone();
+            Some("4: Sparks") => {
+                self.active_sparks_mode = self.sparks_mode.clone();
             }
-            Some("L1: Life") => {
-                self.menu.state.cursor = self.active_part_index.min(GRID_HEIGHT.saturating_sub(1));
-                self.active_dance_mode = "none".into();
+            Some("1: Worlds") => {
+                self.menu.state.cursor = self.active_layer_index.min(GRID_HEIGHT.saturating_sub(1));
+                self.active_sparks_mode = "none".into();
             }
-            Some("L2: Sense") => {
-                self.menu.state.cursor = (self.active_part_index + 4).min(GRID_HEIGHT + 3);
-                self.active_dance_mode = "none".into();
+            Some("2: Pulses") => {
+                self.menu.state.cursor = (self.active_layer_index + 4).min(GRID_HEIGHT + 3);
+                self.active_sparks_mode = "none".into();
             }
-            Some("L3: Voice") | Some("System") => {
-                self.active_dance_mode = "none".into();
+            Some("3: Tones") | Some("System") => {
+                self.active_sparks_mode = "none".into();
             }
             _ => {}
         }
@@ -158,18 +158,18 @@ impl NativeRunner {
     ) -> Result<(), String> {
         if stack_depth_before == 1 {
             if let Some(label) = label {
-                if let Some(mode) = dance_mode_from_page_label(label) {
-                    self.dance_mode = mode.into();
-                    self.active_dance_mode = self.dance_mode.clone();
+                if let Some(mode) = sparks_mode_from_page_label(label) {
+                    self.sparks_mode = mode.into();
+                    self.active_sparks_mode = self.sparks_mode.clone();
                     self.config_dirty = true;
                     return Ok(());
                 }
-                if let Some(part) = label
-                    .strip_prefix('P')
+                if let Some(layer) = label
+                    .strip_prefix('L')
                     .and_then(|rest| rest.split(':').next())
                 {
-                    if let Ok(index) = part.parse::<usize>() {
-                        self.select_active_part(index.saturating_sub(1))?;
+                    if let Ok(index) = layer.parse::<usize>() {
+                        self.select_active_layer(index.saturating_sub(1))?;
                     }
                 }
             }
@@ -178,7 +178,7 @@ impl NativeRunner {
     }
 }
 
-fn dance_mode_from_page_label(label: &str) -> Option<&'static str> {
+fn sparks_mode_from_page_label(label: &str) -> Option<&'static str> {
     match label {
         "Mix" => Some("mix"),
         "Pan" => Some("pan"),

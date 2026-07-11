@@ -6,7 +6,7 @@ It is a collection of little algorithmic musical world-bubbles: small systems yo
 
 Start with the user docs: [`userdocs/README.md`](userdocs/README.md).
 
-Create a dynamic, evolving beat in minutes. Let Conway's Life generate a shifting synth backdrop. Add a drumbeat with a classic grid-style sequencer. Make the drums duck the synth out of the way. Play a lead line live. Then jump into Dance mode and perform with live effects, change trigger probability, and use the XY pad and mixer controls to build something that you and octessera found together.
+Create a dynamic, evolving beat in minutes. Let Conway's Life generate a shifting synth backdrop. Add a drumbeat with a classic grid-style sequencer. Make the drums duck the synth out of the way. Play a lead line live. Then jump into Sparks mode and perform with live effects, change trigger probability, and use the XY pad and mixer controls to build something that you and octessera found together.
 
 It is easy to start with, but deep. It rewards exploration and experimentation. Small changes to the grid can become rhythms, melodies, modulation, texture, or surprise.
 
@@ -16,23 +16,23 @@ The intended way of using it is a DIY standalone hardware instrument based on a 
 
 - **Generative synth patterns** from Life, Brain, Ant, Bounce, Raindrops, DLA, and other grid behaviors.
 - **Hands-on drum patterns** with a sequencer-style grid and sample slots.
-- **Layered arrangements** with up to eight parts/instruments.
+- **Layered arrangements** with up to eight layers/instruments.
 - **Live leads** with the Keys behavior.
 - **Evolving modulation** where grid motion changes pitch, filter, velocity, effects, and other parameters.
 - **Internal synth and sampler sounds**, plus external MIDI output.
-- **Performance scenes** with Dance mode: mix, pan, trigger probability, XY modulation, and momentary effects.
+- **Performance scenes** with Sparks mode: mix, pan, trigger probability, XY modulation, and momentary effects.
 - **Happy accidents** from systems that keep moving after you set them in motion.
 
 ## A Quick Session
 
-1. Pick a part in **L1: Life** and choose a behavior such as `life`, `brain`, or `raindrops`.
+1. Pick a layer in **1: Worlds** and choose a behavior such as `life`, `brain`, or `raindrops`.
 2. Draw or seed a few cells on the grid.
 3. Press **Space** to start playback.
-4. Go to **L3: Voice** and choose a synth, sampler or even MIDI output for the part.
-5. Add a sequencer part for drums, have it play a sampler with your preferred drum samples (we even provide a small sample library for you!)
+4. Go to **3: Tones** and choose a synth, sampler or even MIDI output for the layer.
+5. Add a sequencer layer for drums, have it play a sampler with your preferred drum samples (we even provide a small sample library for you!)
 6. Then route the synth through an FX bus with ducking so the beat opens space in the mix.
-7. Switch another part to **Keys** and play a lead line live.
-8. Hold **Fn** for navigation and use the right grid column to enter **Dance** mode.
+7. Switch another layer to **Keys** and play a lead line live.
+8. Hold **Fn** for navigation and use the right grid column to enter **Sparks** mode.
 9. Perform: mute, pan, change probability, move XY controls, and punch in live effects.
 
 You can treat it like a algorithmic groovebox, a generative sketchpad, or a small experimental performance instrument.
@@ -49,18 +49,18 @@ The hardware (still under design) uses one clickable main encoder, three clickab
 | Play / pause | Space button | Space |
 | Emergency stop | Shift + Space | Shift + Space |
 | Clear active grid | Shift + Back | Shift + Backspace / Shift + Esc |
-| Navigate parts | Fn + left grid column | Ctrl + left grid column |
-| Navigate Dance pages | Fn + right grid column | Ctrl + right grid column |
+| Navigate layers | Fn + left grid column | Ctrl + left grid column |
+| Navigate Sparks pages | Fn + right grid column | Ctrl + right grid column |
 | Access alternate aux binding | Fn + aux press | Fn + aux UI control |
 
 The friendly control guide starts at [`userdocs/controls-cheat-sheet.md`](userdocs/controls-cheat-sheet.md). The canonical control/menu spec is [`docs/menu-and-controls-spec.md`](docs/menu-and-controls-spec.md).
 
 ## Main Pages
 
-- **L1: Life** — choose the active part's behavior and edit its grid state.
-- **L2: Sense** — decide how grid motion becomes notes, velocity, filters, probability, and modulation.
-- **L3: Voice** — choose synth, sampler, MIDI, mixer routing, FX buses, and global FX.
-- **L4: Dance** — perform with mix, pan, trigger probability, XY, and momentary effects.
+- **1: Worlds** — choose the active layer's behavior and edit its grid state.
+- **2: Pulses** — decide how grid motion becomes notes, velocity, filters, probability, and modulation.
+- **3: Tones** — choose synth, sampler, MIDI, mixer routing, FX buses, and global FX.
+- **4: Sparks** — perform with mix, pan, trigger probability, XY, and momentary effects.
 - **System** — presets, default/factory actions, sound, MIDI, brightness, sleep, and help.
 
 ## Build The Hardware
@@ -94,8 +94,8 @@ Primary user docs:
 - [`userdocs/hardware/pinout-and-connections.md`](userdocs/hardware/pinout-and-connections.md): Pi wiring, bus allocation, logical input mapping, and hardware source of truth.
 - [`userdocs/hardware/enclosure.md`](userdocs/hardware/enclosure.md): enclosure ports, power rule, printing notes, and mechanical strategy.
 - [`userdocs/controls-cheat-sheet.md`](userdocs/controls-cheat-sheet.md): hardware and simulator controls.
-- [`userdocs/behaviors-and-dance.md`](userdocs/behaviors-and-dance.md): behavior overview and Dance page reference.
-- [`userdocs/print/quick-reference.pdf`](userdocs/print/quick-reference.pdf): two-page printable controls, behaviors, Dance, and signal-flow sheet.
+- [`userdocs/behaviors-and-sparks.md`](userdocs/behaviors-and-sparks.md): behavior overview and Sparks page reference.
+- [`userdocs/print/quick-reference.pdf`](userdocs/print/quick-reference.pdf): two-page printable controls, behaviors, Sparks, and signal-flow sheet.
 
 Canonical specs:
 

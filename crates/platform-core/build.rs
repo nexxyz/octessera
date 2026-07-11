@@ -15,13 +15,13 @@ fn main() {
 
     let grid_width = positive_usize(&value, "gridWidth");
     let grid_height = positive_usize(&value, "gridHeight");
-    let part_count = positive_usize(&value, "partCount");
+    let layer_count = positive_usize(&value, "layerCount");
     let instrument_count = positive_usize(&value, "instrumentCount");
     let sample_slot_count = positive_usize(&value, "sampleSlotCount");
     let bus_count = positive_usize(&value, "busCount");
     let global_fx_slot_count = positive_usize(&value, "globalFxSlotCount");
     let aux_encoder_count = positive_usize(&value, "auxEncoderCount");
-    let touch_fx_max_concurrent = positive_usize(&value, "touchFxMaxConcurrent");
+    let sparks_fx_max_concurrent = positive_usize(&value, "sparksFxMaxConcurrent");
     let bus_fx_warning_slot_count = positive_usize(&value, "busFxWarningSlotCount");
     let pan_position_count = positive_u8(&value, "panPositionCount");
     let oled_width = positive_usize(&value, "oledWidth");
@@ -36,13 +36,13 @@ fn main() {
     let generated = format!(
         r#"pub const GRID_WIDTH: usize = {grid_width};
 pub const GRID_HEIGHT: usize = {grid_height};
-pub const PART_COUNT: usize = {part_count};
+pub const LAYER_COUNT: usize = {layer_count};
 pub const INSTRUMENT_COUNT: usize = {instrument_count};
 pub const SAMPLE_SLOT_COUNT: usize = {sample_slot_count};
 pub const BUS_COUNT: usize = {bus_count};
 pub const GLOBAL_FX_SLOT_COUNT: usize = {global_fx_slot_count};
 pub const AUX_ENCODER_COUNT: usize = {aux_encoder_count};
-pub const TOUCH_FX_MAX_CONCURRENT: usize = {touch_fx_max_concurrent};
+pub const SPARKS_FX_MAX_CONCURRENT: usize = {sparks_fx_max_concurrent};
 pub const BUS_FX_WARNING_SLOT_COUNT: usize = {bus_fx_warning_slot_count};
 pub const SCAN_SECTION_COUNTS: &[usize] = &[{scan_section_counts_source}];
 pub const PAN_POSITION_COUNT: u8 = {pan_position_count};
@@ -51,13 +51,13 @@ pub const OLED_HEIGHT: usize = {oled_height};
 pub const PLATFORM_CAPABILITIES: PlatformCapabilities = PlatformCapabilities {{
     grid_width: GRID_WIDTH,
     grid_height: GRID_HEIGHT,
-    part_count: PART_COUNT,
+    layer_count: LAYER_COUNT,
     instrument_count: INSTRUMENT_COUNT,
     sample_slot_count: SAMPLE_SLOT_COUNT,
     bus_count: BUS_COUNT,
     global_fx_slot_count: GLOBAL_FX_SLOT_COUNT,
     aux_encoder_count: AUX_ENCODER_COUNT,
-    touch_fx_max_concurrent: TOUCH_FX_MAX_CONCURRENT,
+    sparks_fx_max_concurrent: SPARKS_FX_MAX_CONCURRENT,
     bus_fx_warning_slot_count: BUS_FX_WARNING_SLOT_COUNT,
     scan_section_counts: SCAN_SECTION_COUNTS,
     pan_position_count: PAN_POSITION_COUNT,

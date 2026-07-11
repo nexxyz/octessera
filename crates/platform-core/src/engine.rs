@@ -13,14 +13,14 @@ use crate::MusicalEvent;
 use serde_json::Value;
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct NativePartEngineConfig {
+pub struct NativeLayerEngineConfig {
     pub behavior: NativeBehavior,
     pub behavior_config: Value,
     pub interpretation_profile: InterpretationProfile,
     pub mapping_config: MappingConfig,
     pub global_sound: GlobalSoundConfig,
     pub note_behaviors: Vec<NoteBehavior>,
-    pub part_index: usize,
+    pub layer_index: usize,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -39,26 +39,26 @@ pub struct NativeInputResult {
     pub model: BehaviorRenderModel,
 }
 
-pub struct NativePartEngine {
+pub struct NativeLayerEngine {
     behavior: NativeBehavior,
     state: NativeBehaviorState,
     interpretation_profile: InterpretationProfile,
     mapping_config: MappingConfig,
     global_sound: GlobalSoundConfig,
     note_behaviors: Vec<NoteBehavior>,
-    part_index: usize,
+    layer_index: usize,
     tick: usize,
     held_notes: Vec<String>,
 }
 
-impl NativePartEngine {
-    pub fn new(config: NativePartEngineConfig) -> Result<Self, String> {
+impl NativeLayerEngine {
+    pub fn new(config: NativeLayerEngineConfig) -> Result<Self, String> {
         let state = config.behavior.init(config.behavior_config.clone())?;
         Self::from_state(config, state)
     }
 
     pub fn from_serialized_state(
-        config: NativePartEngineConfig,
+        config: NativeLayerEngineConfig,
         state: Value,
     ) -> Result<Self, String> {
         let state = config.behavior.deserialize(state)?;
@@ -66,7 +66,7 @@ impl NativePartEngine {
     }
 
     fn from_state(
-        config: NativePartEngineConfig,
+        config: NativeLayerEngineConfig,
         state: NativeBehaviorState,
     ) -> Result<Self, String> {
         Ok(Self {
@@ -76,7 +76,7 @@ impl NativePartEngine {
             mapping_config: config.mapping_config,
             global_sound: config.global_sound,
             note_behaviors: config.note_behaviors,
-            part_index: config.part_index,
+            layer_index: config.layer_index,
             tick: 0,
             held_notes: Vec::new(),
         })
@@ -147,7 +147,7 @@ impl NativePartEngine {
         let note_behavior = apply_note_behavior(
             &events,
             self.note_behaviors.as_slice(),
-            self.part_index,
+            self.layer_index,
             &self.held_notes,
         );
         let NoteBehaviorResult { events, held_notes } = note_behavior;
@@ -193,7 +193,7 @@ impl NativePartEngine {
         let note_behavior = apply_note_behavior(
             &events,
             &self.note_behaviors,
-            self.part_index,
+            self.layer_index,
             &self.held_notes,
         );
         let NoteBehaviorResult { events, held_notes } = note_behavior;

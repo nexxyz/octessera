@@ -30,22 +30,22 @@ impl NativeRunner {
     }
 
     fn apply_generated_behavior_target_value(&mut self, key: &str, value: &str) -> Option<()> {
-        if let Some(index) = parse_part_algorithm_step_key(key) {
+        if let Some(index) = parse_layer_algorithm_step_key(key) {
             let pulses = super::note_unit_to_pulses(value);
-            let part_step = self.part_algorithm_step_pulses.get_mut(index)?;
-            *part_step = pulses;
-            if index == self.active_part_index {
+            let layer_step = self.layer_algorithm_step_pulses.get_mut(index)?;
+            *layer_step = pulses;
+            if index == self.active_layer_index {
                 self.algorithm_step_pulses = pulses;
             }
             self.config_dirty = true;
             return Some(());
         }
-        let (index, field) = parse_part_behavior_config_key(key)?;
-        let config = self.part_behavior_configs.get_mut(index)?;
+        let (index, field) = parse_layer_behavior_config_key(key)?;
+        let config = self.layer_behavior_configs.get_mut(index)?;
         let mut object = config.as_object().cloned().unwrap_or_default();
         object.insert(field.into(), parse_generated_value(value));
         *config = Value::Object(object.clone());
-        if index == self.active_part_index {
+        if index == self.active_layer_index {
             self.behavior_config = Value::Object(object);
         }
         self.config_dirty = true;
@@ -68,16 +68,16 @@ fn turn_index(selected: usize, len: usize, delta: i8) -> Option<usize> {
     (len > 0).then(|| (selected as i32 + i32::from(delta)).rem_euclid(len as i32) as usize)
 }
 
-fn parse_part_algorithm_step_key(key: &str) -> Option<usize> {
-    let rest = key.strip_prefix("parts.")?;
+fn parse_layer_algorithm_step_key(key: &str) -> Option<usize> {
+    let rest = key.strip_prefix("layers.")?;
     let (index, field) = rest.split_once('.')?;
     (field == "algorithmStep")
         .then(|| index.parse().ok())
         .flatten()
 }
 
-fn parse_part_behavior_config_key(key: &str) -> Option<(usize, &str)> {
-    let rest = key.strip_prefix("parts.")?;
-    let (index, field) = rest.split_once(".l1.behaviorConfig.")?;
+fn parse_layer_behavior_config_key(key: &str) -> Option<(usize, &str)> {
+    let rest = key.strip_prefix("layers.")?;
+    let (index, field) = rest.split_once(".worlds.behaviorConfig.")?;
     Some((index.parse().ok()?, field))
 }

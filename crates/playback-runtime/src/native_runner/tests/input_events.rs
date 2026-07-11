@@ -107,7 +107,7 @@ pub(crate) fn trigger_probability_zero_suppresses_input_transition_events() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.sense_parts[0].trigger_probability_mode = "zero".into();
+    runner.pulses_layers[0].trigger_probability_mode = "zero".into();
     runner.refresh_active_interpretation_profile();
 
     let press = runner
@@ -127,7 +127,7 @@ pub(crate) fn event_enabled_false_suppresses_input_transition_events() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.sense_parts[0].event_enabled = false;
+    runner.pulses_layers[0].event_enabled = false;
     runner.refresh_active_interpretation_profile();
     runner
         .engine
@@ -152,11 +152,11 @@ pub(crate) fn trigger_probability_custom_zero_cell_suppresses_transport_events()
     .unwrap();
     runner.transport = RuntimeTransportState::Playing;
     runner.algorithm_step_pulses = 24;
-    runner.sense_parts[0].scan_mode = "scanning".into();
-    runner.sense_parts[0].scan_axis = "rows".into();
-    runner.sense_parts[0].scan_unit = "1/4".into();
-    runner.sense_parts[0].scanned_action = "note_on".into();
-    runner.sense_parts[0].trigger_probability_mode = "custom".into();
+    runner.pulses_layers[0].scan_mode = "scanning".into();
+    runner.pulses_layers[0].scan_axis = "rows".into();
+    runner.pulses_layers[0].scan_unit = "1/4".into();
+    runner.pulses_layers[0].scanned_action = "note_on".into();
+    runner.pulses_layers[0].trigger_probability_mode = "custom".into();
     runner.trigger_probability_maps[0][2] = "zero".into();
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
@@ -236,8 +236,8 @@ pub(crate) fn scan_progress_overlay_is_dim_white_and_preserves_live_cell_color()
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.sense_parts[0].scan_mode = "scanning".into();
-    runner.sense_parts[0].scan_axis = "rows".into();
+    runner.pulses_layers[0].scan_mode = "scanning".into();
+    runner.pulses_layers[0].scan_axis = "rows".into();
     runner.tick = 0;
     runner.refresh_active_interpretation_profile();
     runner
@@ -266,13 +266,13 @@ pub(crate) fn scan_progress_overlay_is_dim_white_and_preserves_live_cell_color()
 }
 
 #[test]
-pub(crate) fn switching_active_part_preserves_current_part_engine_state() {
+pub(crate) fn switching_active_layer_preserves_current_layer_engine_state() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.part_behavior_ids[1] = "sequencer".into();
+    runner.layer_behavior_ids[1] = "sequencer".into();
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
@@ -280,8 +280,8 @@ pub(crate) fn switching_active_part_preserves_current_part_engine_state() {
         })
         .unwrap();
 
-    runner.select_active_part(1).unwrap();
-    runner.select_active_part(0).unwrap();
+    runner.select_active_layer(1).unwrap();
+    runner.select_active_layer(0).unwrap();
 
     let model = runner.engine.model().unwrap();
     assert!(model.cells[platform_core::grid_index(2, 3)]);
@@ -294,9 +294,9 @@ pub(crate) fn reverse_scan_direction_starts_from_last_lane() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.sense_parts[0].scan_mode = "scanning".into();
-    runner.sense_parts[0].scan_axis = "rows".into();
-    runner.sense_parts[0].scan_direction = "reverse".into();
+    runner.pulses_layers[0].scan_mode = "scanning".into();
+    runner.pulses_layers[0].scan_axis = "rows".into();
+    runner.pulses_layers[0].scan_direction = "reverse".into();
     runner.tick = 0;
     runner.refresh_active_interpretation_profile();
 
@@ -317,9 +317,9 @@ pub(crate) fn scan_sections_limit_overlay_to_current_section_lane() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.sense_parts[0].scan_mode = "scanning".into();
-    runner.sense_parts[0].scan_axis = "rows".into();
-    runner.sense_parts[0].scan_sections = 2;
+    runner.pulses_layers[0].scan_mode = "scanning".into();
+    runner.pulses_layers[0].scan_axis = "rows".into();
+    runner.pulses_layers[0].scan_sections = 2;
     runner.tick = 0;
     runner.refresh_active_interpretation_profile();
 
@@ -332,9 +332,9 @@ pub(crate) fn scan_sections_limit_overlay_to_current_section_lane() {
 }
 
 #[test]
-pub(crate) fn sense_scan_menu_exposes_none_and_scanned_empty_targets() {
+pub(crate) fn pulses_scan_menu_exposes_none_and_scanned_empty_targets() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.sense_parts[0].scan_mode = "scanning".into();
+    runner.pulses_layers[0].scan_mode = "scanning".into();
     runner.menu.rebuild(runner.menu_config());
     let scan_group = &runner.menu.root.children[1].children[4].children[0];
     let labels = scan_group
@@ -347,6 +347,6 @@ pub(crate) fn sense_scan_menu_exposes_none_and_scanned_empty_targets() {
     assert!(labels.contains(&"Empty Action"));
     assert!(runner
         .menu
-        .value_for_key("parts.0.l2.mapping.scanned_empty.slot")
+        .value_for_key("layers.0.pulses.mapping.scanned_empty.slot")
         .is_some_and(|value| value != "none"));
 }

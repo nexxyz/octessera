@@ -1,6 +1,6 @@
-pub(super) fn parse_sense_binding_key(key: &str) -> Option<(usize, &str)> {
-    let rest = key.strip_prefix("parts.")?;
-    let (index, field) = rest.split_once(".l2.")?;
+pub(super) fn parse_pulses_binding_key(key: &str) -> Option<(usize, &str)> {
+    let rest = key.strip_prefix("layers.")?;
+    let (index, field) = rest.split_once(".pulses.")?;
     Some((index.parse::<usize>().ok()?, field))
 }
 
@@ -29,8 +29,8 @@ pub(super) fn parse_instrument_binding_key(key: &str) -> Option<(usize, &str)> {
     Some((index.parse::<usize>().ok()?, field))
 }
 
-pub(super) fn parse_part_behavior_config_binding_key(key: &str) -> Option<(usize, &str)> {
-    let rest = key.strip_prefix("parts.")?;
-    let (index, field) = rest.split_once(".l1.behaviorConfig.")?;
+pub(super) fn parse_layer_behavior_config_binding_key(key: &str) -> Option<(usize, &str)> {
+    let rest = key.strip_prefix("layers.")?;
+    let (index, field) = rest.split_once(".worlds.behaviorConfig.")?;
     Some((index.parse::<usize>().ok()?, field))
 }

@@ -323,7 +323,7 @@ fn pending_default_save_flushes_immediately_on_shutdown() {
     ));
     std::fs::create_dir_all(&temp_dir).unwrap();
     adapter.store_dir = temp_dir.clone();
-    let payload = serde_json::json!({ "runtimeConfig": { "parts": [{ "name": "life" }] } });
+    let payload = serde_json::json!({ "runtimeConfig": { "layers": [{ "name": "life" }] } });
     adapter
         .handle_platform_effect(&RuntimePlatformEffect::StoreSaveDefault {
             payload: payload.clone(),

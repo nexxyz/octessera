@@ -50,7 +50,7 @@ fn aux_click_picker_group(
         ));
     }
     let behavior_actions = config
-        .l1_items
+        .worlds_items
         .iter()
         .filter_map(|item| match &item.value {
             NativeMenuValue::Action(NativeMenuAction::BehaviorAction(action)) => Some(action_item(
@@ -96,7 +96,7 @@ fn aux_click_picker_group(
                 NativeMenuAction::SetAuxClick {
                     index,
                     action: Some(Box::new(NativeMenuAction::PlatformEffect(
-                        "dance.fx.map".into(),
+                        "sparks.fx.map".into(),
                     ))),
                 },
             ),

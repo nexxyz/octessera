@@ -17,7 +17,7 @@ Octessera is a pnpm workspace plus Cargo workspace built around a native Rust co
 ## Keep These Boundaries
 
 - Native runtime behavior belongs in `crates/platform-core`; do not reintroduce behavior/runtime execution paths in desktop TypeScript.
-- `crates/platform-core/` is the canonical core for behavior execution, grid state, interpretation, mapping, transforms, and native part engine logic.
+- `crates/platform-core/` is the canonical core for behavior execution, grid state, interpretation, mapping, transforms, and native layer engine logic.
 - `crates/playback-runtime/` owns the native runner/runtime protocol, menu model, transport/runtime status, snapshots, platform effects, audio commands, MIDI/store/sample-browser handling, and the desktop-facing runner contract.
 - `apps/desktop/src-tauri/src/runtime_worker.rs` instantiates `NativeRunner`; desktop must not add Node/TypeScript fallbacks for playback or control behavior.
 - `apps/desktop/src/` is a simplified simulator UI layer: it renders snapshots, captures input, and emits device/runtime messages. Do not move menu, transport, interpretation, storage, MIDI, or audio logic into React/TypeScript.
@@ -50,7 +50,7 @@ Octessera is a pnpm workspace plus Cargo workspace built around a native Rust co
 - Menu display semantics must stay stable. For example, named selectors should display labels like `I1: synth`, not raw IDs.
 - Menu enum channel targets are strings: `"0"`, `"1"`, `"2"`, `"3"`.
 - Sample browser behavior must preserve `..`, `[folder]`, file rows, `(empty)`, preview-input preview, and clipped/scrolled long names without OLED overlap.
-- Overlay priority and coordinate behavior for Dance/Fn, sample assignment, trigger probability, and ghost cells are defined in `docs/menu-and-controls-spec.md`.
+- Overlay priority and coordinate behavior for Sparks/Fn, sample assignment, trigger probability, and ghost cells are defined in `docs/menu-and-controls-spec.md`.
 
 ## Required Documentation Updates
 

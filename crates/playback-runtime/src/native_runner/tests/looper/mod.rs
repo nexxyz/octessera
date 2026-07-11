@@ -39,6 +39,6 @@ pub(crate) fn pulse_step(runner: &mut NativeRunner) {
         .unwrap();
 }
 
-mod part_1;
-mod part_2;
-pub(super) use part_2::*;
+mod section_1;
+mod section_2;
+pub(super) use section_2::*;

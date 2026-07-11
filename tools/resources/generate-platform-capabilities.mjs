@@ -30,7 +30,7 @@ function capabilitiesFrom(source) {
   return {
     gridWidth: positiveInteger(source, "gridWidth"),
     gridHeight: positiveInteger(source, "gridHeight"),
-    partCount: positiveInteger(source, "partCount"),
+    layerCount: positiveInteger(source, "layerCount"),
     instrumentCount: positiveInteger(source, "instrumentCount"),
     sampleSlotCount: positiveInteger(source, "sampleSlotCount"),
     audioSampleRate: positiveInteger(source, "audioSampleRate"),
@@ -43,7 +43,7 @@ function capabilitiesFrom(source) {
     busCount: positiveInteger(source, "busCount"),
     globalFxSlotCount: positiveInteger(source, "globalFxSlotCount"),
     auxEncoderCount: positiveInteger(source, "auxEncoderCount"),
-    touchFxMaxConcurrent: positiveInteger(source, "touchFxMaxConcurrent"),
+    sparksFxMaxConcurrent: positiveInteger(source, "sparksFxMaxConcurrent"),
     scanSectionCounts: parsedScanSectionCounts,
     panPositionCount: positiveInteger(source, "panPositionCount"),
     oledWidth: positiveInteger(source, "oledWidth"),
@@ -59,6 +59,7 @@ export const PLATFORM_CAPS = ${JSON.stringify(caps, null, 2)} as const;
 
 export const GRID_WIDTH = PLATFORM_CAPS.gridWidth;
 export const GRID_HEIGHT = PLATFORM_CAPS.gridHeight;
+export const LAYER_COUNT = PLATFORM_CAPS.layerCount;
 export const PAN_POSITION_COUNT = PLATFORM_CAPS.panPositionCount;
 export const AUX_ENCODER_COUNT = PLATFORM_CAPS.auxEncoderCount;
 export const OLED_WIDTH = PLATFORM_CAPS.oledWidth;

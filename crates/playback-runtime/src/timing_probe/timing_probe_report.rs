@@ -107,12 +107,12 @@ pub fn parse_timing_probe_scenarios(value: &str) -> Result<Vec<TimingProbeScenar
         .split(',')
         .map(|item| match item.trim() {
             "idle" => Ok(TimingProbeScenario::Idle),
-            "sense" | "sense-stress" => Ok(TimingProbeScenario::SenseStress),
+            "pulses-stress" => Ok(TimingProbeScenario::PulsesStress),
             "stop-start" => Ok(TimingProbeScenario::StopStart),
             "encoder" | "encoder-stress" => Ok(TimingProbeScenario::EncoderStress),
             "mute" | "mute-stress" | "fn-play" => Ok(TimingProbeScenario::MuteStress),
-            "dance-page" | "dance-pages" | "dance-page-stress" => {
-                Ok(TimingProbeScenario::DancePageStress)
+            "sparks-page" | "sparks-pages" | "sparks-page-stress" => {
+                Ok(TimingProbeScenario::SparksPageStress)
             }
             other => Err(format!("unknown scenario {other}")),
         })

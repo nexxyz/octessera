@@ -1,8 +1,8 @@
 use crate::protocol::SyncSource;
 
-use super::dance::dance_group;
 use super::fx::{fx_buses_group, global_fx_group};
-use super::sense::{l2_part_group, l2_root_items};
+use super::pulses::{pulses_layer_group, pulses_root_items};
+use super::sparks::sparks_group;
 use super::system::system_group;
 use super::voice::{instrument_group, InstrumentMenuConfig};
 use super::{number_item, NativeMenuConfig, NativeMenuItem, NativeMenuValue};
@@ -18,10 +18,10 @@ pub(super) fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
         key: None,
         value: NativeMenuValue::Group,
         children: vec![
-            life_group(&config),
-            sense_group(&config),
-            voice_group(&config),
-            dance_group(&config),
+            worlds_group(&config),
+            pulses_group(&config),
+            tones_group(&config),
+            sparks_group(&config),
             NativeMenuItem {
                 label: "".into(),
                 key: None,
@@ -33,28 +33,28 @@ pub(super) fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
     }
 }
 
-fn life_group(config: &NativeMenuConfig) -> NativeMenuItem {
+fn worlds_group(config: &NativeMenuConfig) -> NativeMenuItem {
     NativeMenuItem {
-        label: "L1: Life".into(),
+        label: "1: Worlds".into(),
         key: None,
         value: NativeMenuValue::Group,
         children: config
-            .part_labels
+            .layer_labels
             .iter()
             .map(|label| NativeMenuItem {
                 label: label.clone(),
                 key: None,
                 value: NativeMenuValue::Group,
-                children: config.l1_items.clone(),
+                children: config.worlds_items.clone(),
             })
             .collect(),
     }
 }
 
-fn sense_group(config: &NativeMenuConfig) -> NativeMenuItem {
+fn pulses_group(config: &NativeMenuConfig) -> NativeMenuItem {
     let instrument_options = config.instrument_labels.to_vec();
     NativeMenuItem {
-        label: "L2: Sense".into(),
+        label: "2: Pulses".into(),
         key: None,
         value: NativeMenuValue::Group,
         children: [
@@ -69,23 +69,29 @@ fn sense_group(config: &NativeMenuConfig) -> NativeMenuItem {
             ),
         ]
         .into_iter()
-        .chain(l2_root_items(config))
-        .chain(config.part_labels.iter().enumerate().map(|(index, label)| {
-            l2_part_group(
-                index,
-                label.clone(),
-                &instrument_options,
-                config.sense_parts.get(index),
-                config,
-            )
-        }))
+        .chain(pulses_root_items(config))
+        .chain(
+            config
+                .layer_labels
+                .iter()
+                .enumerate()
+                .map(|(index, label)| {
+                    pulses_layer_group(
+                        index,
+                        label.clone(),
+                        &instrument_options,
+                        config.pulses_layers.get(index),
+                        config,
+                    )
+                }),
+        )
         .collect(),
     }
 }
 
-fn voice_group(config: &NativeMenuConfig) -> NativeMenuItem {
+fn tones_group(config: &NativeMenuConfig) -> NativeMenuItem {
     NativeMenuItem {
-        label: "L3: Voice".into(),
+        label: "3: Tones".into(),
         key: None,
         value: NativeMenuValue::Group,
         children: vec![

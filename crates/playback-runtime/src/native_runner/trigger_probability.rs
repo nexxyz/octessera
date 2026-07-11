@@ -1,13 +1,13 @@
-use super::{NativeSensePart, GRID_WIDTH};
+use super::{NativePulsesLayer, GRID_WIDTH};
 use platform_core::CellTriggerIntent;
 
 pub(super) fn trigger_probability_allows(
-    part: Option<&NativeSensePart>,
+    pulses_layer: Option<&NativePulsesLayer>,
     map: &[String],
     rng: &mut u64,
     intent: &CellTriggerIntent,
 ) -> bool {
-    let pct = trigger_probability_pct(part, map, intent.x, intent.y);
+    let pct = trigger_probability_pct(pulses_layer, map, intent.x, intent.y);
     if pct == 0 {
         return false;
     }
@@ -18,15 +18,15 @@ pub(super) fn trigger_probability_allows(
 }
 
 fn trigger_probability_pct(
-    part: Option<&NativeSensePart>,
+    pulses_layer: Option<&NativePulsesLayer>,
     map: &[String],
     x: usize,
     y: usize,
 ) -> u8 {
-    let Some(part) = part else {
+    let Some(layer) = pulses_layer else {
         return 100;
     };
-    match part.trigger_probability_mode.as_str() {
+    match layer.trigger_probability_mode.as_str() {
         "zero" => 0,
         "custom" => {
             let cell = map
@@ -35,12 +35,12 @@ fn trigger_probability_pct(
                 .unwrap_or("full");
             match cell {
                 "zero" => 0,
-                "low" => part
+                "low" => layer
                     .trigger_probability_low_pct
-                    .min(part.trigger_probability_high_pct),
-                "high" => part
+                    .min(layer.trigger_probability_high_pct),
+                "high" => layer
                     .trigger_probability_high_pct
-                    .max(part.trigger_probability_low_pct),
+                    .max(layer.trigger_probability_low_pct),
                 _ => 100,
             }
         }

@@ -1,5 +1,5 @@
 use super::{
-    default_dance_fx_selected, sanitize_dance_fx_config, NativeDanceFxAssignment, NativeRunner,
+    default_sparks_fx_selected, sanitize_sparks_fx_config, NativeRunner, NativeSparksFxAssignment,
     Value, DEFAULT_ALGORITHM_STEP_PULSES, GRID_HEIGHT,
 };
 
@@ -14,24 +14,27 @@ impl NativeRunner {
     pub(super) fn apply_config_payload(&mut self, payload: Value) -> Result<(), String> {
         let before_payload = self.config_payload();
         let runtime = payload.get("runtimeConfig").unwrap_or(&payload);
-        let desired_active_part_index = runtime
-            .get("activePartIndex")
+        reject_old_layer_schema(runtime)?;
+        reject_old_sparks_schema(runtime)?;
+        reject_old_payload_sparks_schema(&payload)?;
+        let desired_active_layer_index = runtime
+            .get("activeLayerIndex")
             .and_then(Value::as_u64)
             .map(|value| (value as usize).min(GRID_HEIGHT.saturating_sub(1)))
-            .unwrap_or(self.active_part_index);
-        if let Some(active_part_index) = runtime.get("activePartIndex").and_then(Value::as_u64) {
-            self.active_part_index =
-                (active_part_index as usize).min(GRID_HEIGHT.saturating_sub(1));
+            .unwrap_or(self.active_layer_index);
+        if let Some(active_layer_index) = runtime.get("activeLayerIndex").and_then(Value::as_u64) {
+            self.active_layer_index =
+                (active_layer_index as usize).min(GRID_HEIGHT.saturating_sub(1));
         }
-        self.apply_parts_payload(runtime)?;
-        self.apply_touch_and_xy_payload(runtime, desired_active_part_index);
-        self.swap_active_engine_from_part(desired_active_part_index)?;
+        self.apply_layers_payload(runtime)?;
+        self.apply_sparks_and_xy_payload(runtime, desired_active_layer_index);
+        self.swap_active_engine_from_layer(desired_active_layer_index)?;
         self.apply_instruments_payload(runtime);
         self.apply_runtime_ui_and_sound_payload(runtime, &payload);
         self.apply_sample_browser_favourites_payload(runtime);
         let active_behavior_id = self
-            .part_behavior_ids
-            .get(self.active_part_index)
+            .layer_behavior_ids
+            .get(self.active_layer_index)
             .cloned()
             .or_else(|| {
                 payload
@@ -43,13 +46,13 @@ impl NativeRunner {
         let behavior = platform_core::get_native_behavior(&active_behavior_id)
             .ok_or_else(|| format!("unsupported native behavior `{active_behavior_id}`"))?;
         self.behavior = behavior;
-        if let Some(active_l1) = runtime
-            .get("parts")
+        if let Some(active_worlds) = runtime
+            .get("layers")
             .and_then(Value::as_array)
-            .and_then(|parts| parts.get(self.active_part_index))
-            .and_then(|part| part.get("l1"))
+            .and_then(|layers| layers.get(self.active_layer_index))
+            .and_then(|layer| layer.get("worlds"))
         {
-            self.behavior_config = active_l1
+            self.behavior_config = active_worlds
                 .get("behaviorConfig")
                 .cloned()
                 .unwrap_or(Value::Null);
@@ -68,14 +71,14 @@ impl NativeRunner {
         Ok(())
     }
 
-    pub(super) fn apply_touch_fx_payload(&mut self, touch_fx: &Value) {
-        self.dance_fx_selected = sanitize_dance_fx_config(
-            &touch_fx
+    pub(super) fn apply_sparks_fx_payload(&mut self, sparks_fx: &Value) {
+        self.sparks_fx_selected = sanitize_sparks_fx_config(
+            &sparks_fx
                 .get("selected")
                 .cloned()
-                .unwrap_or_else(default_dance_fx_selected),
+                .unwrap_or_else(default_sparks_fx_selected),
         );
-        self.dance_fx_assignments = touch_fx
+        self.sparks_fx_assignments = sparks_fx
             .get("assignments")
             .and_then(Value::as_array)
             .map(|assignments| {
@@ -87,25 +90,25 @@ impl NativeRunner {
                         if x >= super::GRID_WIDTH || y >= super::GRID_HEIGHT {
                             return None;
                         }
-                        Some(NativeDanceFxAssignment {
+                        Some(NativeSparksFxAssignment {
                             x,
                             y,
-                            config: sanitize_dance_fx_config(
+                            config: sanitize_sparks_fx_config(
                                 &assignment
                                     .get("config")
                                     .cloned()
-                                    .unwrap_or_else(default_dance_fx_selected),
+                                    .unwrap_or_else(default_sparks_fx_selected),
                             ),
                         })
                     })
                     .collect()
             })
             .unwrap_or_default();
-        self.dance_fx_assign = None;
-        self.active_part_index = self.active_part_index.min(GRID_HEIGHT.saturating_sub(1));
+        self.sparks_fx_assign = None;
+        self.active_layer_index = self.active_layer_index.min(GRID_HEIGHT.saturating_sub(1));
         self.algorithm_step_pulses = self
-            .part_algorithm_step_pulses
-            .get(self.active_part_index)
+            .layer_algorithm_step_pulses
+            .get(self.active_layer_index)
             .copied()
             .unwrap_or(DEFAULT_ALGORITHM_STEP_PULSES);
     }
@@ -121,6 +124,61 @@ impl NativeRunner {
                     .collect()
             })
             .unwrap_or_default();
+    }
+}
+
+fn reject_old_layer_schema(runtime: &Value) -> Result<(), String> {
+    if runtime.get("activePartIndex").is_some() || runtime.get("parts").is_some() {
+        return Err("unsupported old layer schema".into());
+    }
+    if let Some(layers) = runtime.get("layers").and_then(Value::as_array) {
+        if layers
+            .iter()
+            .any(|layer| layer.get("l1").is_some() || layer.get("l2").is_some())
+        {
+            return Err("unsupported old layer schema".into());
+        }
+    }
+    Ok(())
+}
+
+fn reject_old_sparks_schema(runtime: &Value) -> Result<(), String> {
+    if runtime.get("danceMode").is_some()
+        || runtime.get("touchFx").is_some()
+        || runtime.get("touchFxMaxConcurrent").is_some()
+        || runtime.get("xyTouch").is_some()
+    {
+        return Err("unsupported old Sparks schema".into());
+    }
+    if contains_old_sparks_key(runtime) {
+        return Err("unsupported old Sparks schema".into());
+    }
+    Ok(())
+}
+
+fn reject_old_payload_sparks_schema(payload: &Value) -> Result<(), String> {
+    if payload
+        .get("system")
+        .and_then(|system| system.get("danceMode"))
+        .is_some()
+    {
+        return Err("unsupported old Sparks schema".into());
+    }
+    Ok(())
+}
+
+fn contains_old_sparks_key(value: &Value) -> bool {
+    match value {
+        Value::Object(map) => map.iter().any(|(key, value)| {
+            key.starts_with("dance.fx")
+                || value
+                    .as_str()
+                    .is_some_and(|text| text.starts_with("dance.fx"))
+                || contains_old_sparks_key(value)
+        }),
+        Value::Array(items) => items.iter().any(contains_old_sparks_key),
+        Value::String(text) => text.starts_with("dance.fx"),
+        _ => false,
     }
 }
 

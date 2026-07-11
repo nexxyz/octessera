@@ -108,7 +108,7 @@ impl NativeRunner {
         let NativeMenuAction::BehaviorAction(action_type) = press.action else {
             return Ok(None);
         };
-        let valid = self.l1_menu_items().into_iter().any(|item| {
+        let valid = self.worlds_menu_items().into_iter().any(|item| {
             matches!(
                 item.value,
                 crate::native_menu::NativeMenuValue::Action(NativeMenuAction::BehaviorAction(ref current)) if current == &action_type
@@ -133,8 +133,8 @@ impl NativeRunner {
         if !pressed.unwrap_or(true) {
             return self.messages_with_snapshot();
         }
-        if self.dance_fx_assign.is_some() {
-            self.dance_fx_assign = None;
+        if self.sparks_fx_assign.is_some() {
+            self.sparks_fx_assign = None;
         } else if self.sample_assign.is_some() {
             self.sample_assign = None;
         } else if self.trigger_probability_assign.is_some() {
@@ -157,8 +157,8 @@ impl NativeRunner {
                 self.rebuild_engine(self.behavior)?;
             }
         } else {
-            if self.active_dance_mode != "none" {
-                self.active_dance_mode = "none".into();
+            if self.active_sparks_mode != "none" {
+                self.active_sparks_mode = "none".into();
             }
             let editing_key = self
                 .menu

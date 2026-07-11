@@ -2,21 +2,21 @@ use crate::native_menu::{NativeMenuConfig, NativeSampleBrowserConfig, NativeSamp
 use crate::protocol::SyncSource;
 
 use super::{
-    aux_binding_configs, aux_bindings_payload, dance_fx_params_map, dance_fx_target_key,
-    dance_fx_type, fx_bus_configs, fx_slot_payload_with_params, instrument_auto_names,
-    instrument_labels, instrument_midi_channels, instrument_midi_duration_ms,
-    instrument_midi_enabled, instrument_midi_velocity, instrument_names, instrument_note_behaviors,
-    instrument_pan_positions, instrument_routes, instrument_sample_amp_envs,
-    instrument_sample_amp_velocity_sensitivity_pct, instrument_sample_base_velocity,
-    instrument_sample_filter_envs, instrument_sample_filters, instrument_sample_gain_pct,
-    instrument_sample_slots, instrument_sample_tune_semis, instrument_sample_velocity_high,
-    instrument_sample_velocity_levels_enabled, instrument_sample_velocity_low,
-    instrument_sample_velocity_medium, instrument_synth_configs, instrument_synth_filter_cutoffs,
-    instrument_synth_filter_resonance, instrument_synth_filter_types, instrument_synth_gain_pct,
-    instrument_synth_osc1_waveforms, instrument_synth_osc2_waveforms, instrument_types,
-    instrument_volumes, param_binding_spec_from_native, param_mod_configs, param_mods_payload,
-    sample_assignments_payload, sense_part_configs, sense_part_payload, velocity_curve_id,
-    NativeRunner, Value,
+    aux_binding_configs, aux_bindings_payload, fx_bus_configs, fx_slot_payload_with_params,
+    instrument_auto_names, instrument_labels, instrument_midi_channels,
+    instrument_midi_duration_ms, instrument_midi_enabled, instrument_midi_velocity,
+    instrument_names, instrument_note_behaviors, instrument_pan_positions, instrument_routes,
+    instrument_sample_amp_envs, instrument_sample_amp_velocity_sensitivity_pct,
+    instrument_sample_base_velocity, instrument_sample_filter_envs, instrument_sample_filters,
+    instrument_sample_gain_pct, instrument_sample_slots, instrument_sample_tune_semis,
+    instrument_sample_velocity_high, instrument_sample_velocity_levels_enabled,
+    instrument_sample_velocity_low, instrument_sample_velocity_medium, instrument_synth_configs,
+    instrument_synth_filter_cutoffs, instrument_synth_filter_resonance,
+    instrument_synth_filter_types, instrument_synth_gain_pct, instrument_synth_osc1_waveforms,
+    instrument_synth_osc2_waveforms, instrument_types, instrument_volumes,
+    param_binding_spec_from_native, param_mod_configs, param_mods_payload, pulses_layer_configs,
+    pulses_layer_payload, sample_assignments_payload, sparks_fx_params_map, sparks_fx_target_key,
+    sparks_fx_type, velocity_curve_id, NativeRunner, Value,
 };
 use serde_json::json;
 
@@ -28,13 +28,13 @@ impl NativeRunner {
                 .iter()
                 .map(|id| (*id).to_string())
                 .collect(),
-            l1_items: self.l1_menu_items(),
+            worlds_items: self.worlds_menu_items(),
             behavior_target_items: self.behavior_target_items(),
-            part_labels: self.part_labels(),
-            part_names: self.part_names.clone(),
-            part_auto_names: self.part_auto_names.clone(),
-            sense_parts: sense_part_configs(&self.sense_parts),
-            active_part_index: self.active_part_index,
+            layer_labels: self.layer_labels(),
+            layer_names: self.layer_names.clone(),
+            layer_auto_names: self.layer_auto_names.clone(),
+            pulses_layers: pulses_layer_configs(&self.pulses_layers),
+            active_layer_index: self.active_layer_index,
             param_mods: param_mod_configs(&self.param_mods),
             xy_x_binding: self
                 .xy_x_binding
@@ -135,10 +135,10 @@ impl NativeRunner {
                 .iter()
                 .map(|port| (port.id.clone(), port.name.clone()))
                 .collect(),
-            dance_mode: self.dance_mode.clone(),
-            dance_fx_type: dance_fx_type(&self.dance_fx_selected).into(),
-            dance_fx_target: dance_fx_target_key(&self.dance_fx_selected).into(),
-            dance_fx_params: dance_fx_params_map(&self.dance_fx_selected),
+            sparks_mode: self.sparks_mode.clone(),
+            sparks_fx_type: sparks_fx_type(&self.sparks_fx_selected).into(),
+            sparks_fx_target: sparks_fx_target_key(&self.sparks_fx_selected).into(),
+            sparks_fx_params: sparks_fx_params_map(&self.sparks_fx_selected),
             xy_release: self.xy_release.clone(),
             xy_invert_x: self.xy_invert_x,
             xy_invert_y: self.xy_invert_y,
@@ -153,19 +153,19 @@ impl NativeRunner {
         json!({
             "runtimeConfig": {
                 "activeBehavior": self.behavior.id(),
-                "activePartIndex": self.active_part_index,
-                "parts": self.part_behavior_ids.iter().enumerate().map(|(index, behavior_id)| {
-                    let sense = self.sense_parts.get(index).cloned().unwrap_or_default();
+                "activeLayerIndex": self.active_layer_index,
+                "layers": self.layer_behavior_ids.iter().enumerate().map(|(index, behavior_id)| {
+                    let sense = self.pulses_layers.get(index).cloned().unwrap_or_default();
                     let probability_map = self.trigger_probability_maps.get(index).cloned().unwrap_or_default();
-                    let auto_name = self.part_auto_names.get(index).copied().unwrap_or(true);
+                    let auto_name = self.layer_auto_names.get(index).copied().unwrap_or(true);
                     let name = if auto_name {
                         behavior_id.clone()
                     } else {
-                        self.part_names.get(index).cloned().unwrap_or_else(|| behavior_id.clone())
+                        self.layer_names.get(index).cloned().unwrap_or_else(|| behavior_id.clone())
                     };
                     json!({
-                        "l1": self.l1_payload_for_part(index, behavior_id),
-                        "l2": sense_part_payload(&sense, &probability_map),
+                        "worlds": self.worlds_payload_for_layer(index, behavior_id),
+                        "pulses": pulses_layer_payload(&sense, &probability_map),
                         "paramMods": param_mods_payload(self.param_mods.get(index)),
                         "xy": {
                             "x": super::param_binding_payload(self.xy_x_binding.as_ref()),
@@ -177,9 +177,9 @@ impl NativeRunner {
                         "name": name
                     })
                 }).collect::<Vec<_>>(),
-                "touchFx": {
-                    "selected": self.dance_fx_selected.clone(),
-                    "assignments": self.dance_fx_assignments.iter().map(|assignment| json!({
+                "sparksFx": {
+                    "selected": self.sparks_fx_selected.clone(),
+                    "assignments": self.sparks_fx_assignments.iter().map(|assignment| json!({
                         "x": assignment.x,
                         "y": assignment.y,
                         "config": assignment.config,
@@ -266,7 +266,7 @@ impl NativeRunner {
                 "rollingBackups": self.rolling_backups,
                 "auxAutoMapEnabled": self.aux_auto_map_enabled,
                 "bpm": self.bpm,
-                "danceMode": self.dance_mode,
+                "sparksMode": self.sparks_mode,
                 "auxBindings": aux_bindings_payload(&self.aux_bindings),
                 "midi": {
                     "enabled": self.midi_enabled,
@@ -283,7 +283,7 @@ impl NativeRunner {
             },
             "mappingConfig": self.base_mapping_config,
             "system": {
-                "danceMode": self.dance_mode
+                "sparksMode": self.sparks_mode
             }
         })
     }

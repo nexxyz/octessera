@@ -104,7 +104,7 @@ pub fn apply_global_sound(
 pub fn apply_note_behavior(
     events: &[MusicalEvent],
     behaviors: &[NoteBehavior],
-    part_idx: usize,
+    layer_idx: usize,
     initial_held: &[String],
 ) -> NoteBehaviorResult {
     let mut held = initial_held.iter().cloned().collect::<HashSet<_>>();
@@ -118,7 +118,7 @@ pub fn apply_note_behavior(
                 velocity,
                 duration_ms,
             } => {
-                let key = format!("{part_idx}:{channel}:{note}");
+                let key = format!("{layer_idx}:{channel}:{note}");
                 let behavior = behaviors
                     .get(*channel as usize)
                     .copied()
@@ -144,7 +144,7 @@ pub fn apply_note_behavior(
                 }
             }
             MusicalEvent::NoteOff { channel, note } => {
-                let key = format!("{part_idx}:{channel}:{note}");
+                let key = format!("{layer_idx}:{channel}:{note}");
                 let _ = held.remove(&key);
                 out.push(event.clone());
             }

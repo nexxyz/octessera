@@ -1,3 +1,3 @@
 use super::*;
-mod part_1;
-mod part_2;
+mod section_1;
+mod section_2;

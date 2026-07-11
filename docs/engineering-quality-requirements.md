@@ -72,7 +72,7 @@ The audit reports file length, function length, simple complexity, wide signatur
 
 ## Capability And Help Resources
 
-- `resources/platform-capabilities.json` is the source of truth for grid size, part count, instrument count, sample slots, bus count, global FX slots, touch-FX concurrency, scan sections, OLED size, and pan positions.
+- `resources/platform-capabilities.json` is the source of truth for grid size, layer count, instrument count, sample slots, bus count, global FX slots, Sparks-FX concurrency, scan sections, OLED size, and pan positions.
 - Run `corepack pnpm run capabilities:generate` after editing platform capabilities.
 - Run `corepack pnpm run capabilities:check` to verify generated TypeScript exports are current.
 - Rust capability constants are generated at build time for `platform-core` and `realtime-engine`.

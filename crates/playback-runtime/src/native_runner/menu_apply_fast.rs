@@ -62,10 +62,10 @@ impl NativeRunner {
     }
 
     fn should_defer_menu_key(&self, key: &str) -> bool {
-        key == "danceMode"
-            || key == "dance.fx.type"
+        key == "sparksMode"
+            || key == "sparks.fx.type"
             || key == "system.draftName"
-            || key.starts_with("parts.") && key.ends_with(".name")
+            || key.starts_with("layers.") && key.ends_with(".name")
             || key.starts_with("instruments.") && key.ends_with(".name")
             || key.starts_with("mixer.buses.") && key.ends_with(".name")
             || structural_draft_key(key)
@@ -78,13 +78,13 @@ impl NativeRunner {
         if let Some(applied) = self.apply_fx_menu_key_fast(key) {
             return applied;
         }
-        if let Some(applied) = self.apply_part_menu_key_fast(key) {
+        if let Some(applied) = self.apply_layer_menu_key_fast(key) {
             return applied;
         }
         if let Some(applied) = self.apply_behavior_config_menu_key_fast(key) {
             return applied;
         }
-        if let Some(applied) = self.apply_sense_menu_key_fast(key) {
+        if let Some(applied) = self.apply_pulses_menu_key_fast(key) {
             return applied;
         }
         let Some(rest) = key.strip_prefix("instruments.") else {
@@ -158,54 +158,60 @@ impl NativeRunner {
         true
     }
 
-    fn apply_part_menu_key_fast(&mut self, key: &str) -> Option<bool> {
-        let rest = key.strip_prefix("parts.")?;
+    fn apply_layer_menu_key_fast(&mut self, key: &str) -> Option<bool> {
+        let rest = key.strip_prefix("layers.")?;
         let (index, suffix) = parse_indexed_key(rest)?;
         match suffix {
-            "autoName" => Some(self.fast_part_auto_name_key(index, key)),
+            "autoName" => Some(self.fast_layer_auto_name_key(index, key)),
             _ => None,
         }
     }
 
     fn apply_behavior_config_menu_key_fast(&mut self, key: &str) -> Option<bool> {
-        if !key.contains(".l1.behaviorConfig.") {
+        if !key.contains(".worlds.behaviorConfig.") {
             return None;
         }
         Some(self.fast_behavior_config_key().unwrap_or(false))
     }
 
-    fn apply_sense_menu_key_fast(&mut self, key: &str) -> Option<bool> {
-        let rest = key.strip_prefix("parts.")?;
+    fn apply_pulses_menu_key_fast(&mut self, key: &str) -> Option<bool> {
+        let rest = key.strip_prefix("layers.")?;
         let (index, suffix) = parse_indexed_key(rest)?;
-        let prefix = format!("parts.{index}.l2");
-        let part = self.sense_parts.get_mut(index)?;
+        let prefix = format!("layers.{index}.pulses");
+        let layer = self.pulses_layers.get_mut(index)?;
         let changed = if matches!(
             suffix,
-            "l2.scanMode"
-                | "l2.scanAxis"
-                | "l2.scanUnit"
-                | "l2.scanDirection"
-                | "l2.scanSections"
-                | "l2.eventEnabled"
-                | "l2.stateNotesEnabled"
-        ) || suffix.starts_with("l2.mapping.")
+            "pulses.scanMode"
+                | "pulses.scanAxis"
+                | "pulses.scanUnit"
+                | "pulses.scanDirection"
+                | "pulses.scanSections"
+                | "pulses.eventEnabled"
+                | "pulses.stateNotesEnabled"
+        ) || suffix.starts_with("pulses.mapping.")
         {
-            super::menu_apply_sense_fx::apply_sense_scan_and_mapping_menu_state(
-                &self.menu, part, &prefix,
+            super::menu_apply_pulses_fx::apply_pulses_scan_and_mapping_menu_state(
+                &self.menu, layer, &prefix,
             )
-        } else if suffix.starts_with("l2.triggerProbability") || suffix.starts_with("l2.pitch.") {
-            super::menu_apply_sense_fx::apply_sense_probability_and_pitch_menu_state(
-                &self.menu, part, &prefix,
+        } else if suffix.starts_with("pulses.triggerProbability")
+            || suffix.starts_with("pulses.pitch.")
+        {
+            super::menu_apply_pulses_fx::apply_pulses_probability_and_pitch_menu_state(
+                &self.menu, layer, &prefix,
             )
-        } else if suffix.starts_with("l2.x.") {
-            super::menu_apply_sense_fx::apply_sense_axis_menu_state(&self.menu, part, &prefix, "x")
-        } else if suffix.starts_with("l2.y.") {
-            super::menu_apply_sense_fx::apply_sense_axis_menu_state(&self.menu, part, &prefix, "y")
+        } else if suffix.starts_with("pulses.x.") {
+            super::menu_apply_pulses_fx::apply_pulses_axis_menu_state(
+                &self.menu, layer, &prefix, "x",
+            )
+        } else if suffix.starts_with("pulses.y.") {
+            super::menu_apply_pulses_fx::apply_pulses_axis_menu_state(
+                &self.menu, layer, &prefix, "y",
+            )
         } else {
             return None;
         };
         if changed {
-            if index == self.active_part_index {
+            if index == self.active_layer_index {
                 self.refresh_active_mapping_config();
                 self.refresh_active_interpretation_profile();
                 self.engine
@@ -216,11 +222,11 @@ impl NativeRunner {
         Some(true)
     }
 
-    fn fast_part_auto_name_key(&mut self, index: usize, key: &str) -> bool {
+    fn fast_layer_auto_name_key(&mut self, index: usize, key: &str) -> bool {
         let Some(auto_name) = self.menu.value_for_key(key).map(|value| value == "true") else {
             return false;
         };
-        let Some(target) = self.part_auto_names.get_mut(index) else {
+        let Some(target) = self.layer_auto_names.get_mut(index) else {
             return false;
         };
         let mut changed = false;
@@ -230,11 +236,11 @@ impl NativeRunner {
         }
         if auto_name {
             let behavior_id = self
-                .part_behavior_ids
+                .layer_behavior_ids
                 .get(index)
                 .cloned()
                 .unwrap_or_else(|| self.behavior.id().into());
-            if let Some(name) = self.part_names.get_mut(index) {
+            if let Some(name) = self.layer_names.get_mut(index) {
                 changed |= value_changed(name, behavior_id);
             }
         }

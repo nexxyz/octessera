@@ -7,11 +7,11 @@ pub(crate) fn fn_space_preserves_sequencer_cells() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.sense_parts[0].scan_mode = "scanning".into();
-    runner.sense_parts[0].scan_axis = "rows".into();
-    runner.sense_parts[0].scan_unit = "1/16".into();
-    runner.sense_parts[0].scanned_slot = 0;
-    runner.sense_parts[0].scanned_action = "note_on".into();
+    runner.pulses_layers[0].scan_mode = "scanning".into();
+    runner.pulses_layers[0].scan_axis = "rows".into();
+    runner.pulses_layers[0].scan_unit = "1/16".into();
+    runner.pulses_layers[0].scanned_slot = 0;
+    runner.pulses_layers[0].scanned_action = "note_on".into();
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner
