@@ -91,6 +91,8 @@ Octessera is a pnpm workspace plus Cargo workspace built around a native Rust co
 - For menu/control changes that affect playback priority, avoid broad `apply_menu_state()` on high-frequency edit paths. Prefer key-specific fast paths, delayed autosave payload generation, full `cargo test -p playback-runtime` after targeted tests, and the portable desktop exe rebuild when desktop-visible.
 - When committing and immediately pushing, run targeted confidence checks and required artifact builds before committing, then rely on the pre-push hook for exhaustive CI-like validation. Do not manually run a hook-equivalent full suite immediately before `git push` unless the change is high-risk, the user asks, or the hook cannot run.
 - The user may make parallel uncommitted changes, usually cosmetic docs edits. Do not revert unexpected user changes. Ignore unrelated user changes for builds/tests unless they affect the current task or the user says otherwise. If unexpected changes conflict with the current task, stop and ask how to proceed. If the user asks to commit/push everything, include user changes too after reviewing status/diff for safety.
+- If the user marks a file or set of edits as "do not touch", ask before editing that file even for link cleanup or nearby maintenance, unless the user explicitly authorizes the exact edit.
+- For enclosure artifact generation, run the checked generator in a detached process and use its log/sentinels as the validation source. Do not run long CAD generation synchronously in-session unless the user explicitly asks. Do not inspect, normalize, or hand-edit generated STEP/STL/3MF files; treat them as artifacts regenerated from CAD source.
 
 ## Useful Commands
 

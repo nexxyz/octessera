@@ -13,7 +13,7 @@
   "pcb_clearance": 0.22,
   "neotrellis_clearance": 0.25,
   "neotrellis_connector_gap": 1.5,
-  "insert_hole_d": 4.2,
+  "insert_hole_d": 4.6,
   "insert_boss_od": 7.2,
   "insert_boss_h": 10.0,
   "faceplate_insert_pillars_v22": [
@@ -57,12 +57,12 @@
   "top_screw_clearance_d": 3.4,
   "encoder_hole_d": 7.8,
   "encoder_crater_flat_d": {
-    "SW1": 23.0,
+    "SW1": 22.0,
     "SW2": 16.0,
     "SW3": 16.0,
     "SW4": 16.0
   },
-  "encoder_crater_depth": 1.0,
+  "encoder_crater_depth": 0.5,
   "encoder_crater_slope_w": 1.0,
   "screen_cutout": [
     33.0,
@@ -585,16 +585,16 @@
     },
     {
       "side": "bottom",
-      "a": 16.0,
-      "b": 29.0,
+      "a": 15.5,
+      "b": 28.5,
       "z0": 8.5,
       "z1": 19.5,
       "label": "Pi mini-HDMI"
     },
     {
       "side": "bottom",
-      "a": 45.5,
-      "b": 57.5,
+      "a": 45.75,
+      "b": 57.25,
       "z0": 8.5,
       "z1": 19.5,
       "label": "Pi USB data"

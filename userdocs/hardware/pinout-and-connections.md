@@ -2,7 +2,7 @@
 
 This is the primary wiring reference for the Raspberry Pi Zero 2 W hardware target.
 
-Use it while assembling the device. It is deliberately plain: this is where the electricity gets fewer jokes and more exact pins. For the user-facing docs home, see [`../README.md`](../README.md). For Pi OS setup and bring-up, see [`pi-bring-up.md`](pi-bring-up.md). For the case and port layout, see [`enclosure.md`](enclosure.md).
+Use it while assembling the device. It is deliberately plain: this is where the electricity gets fewer jokes and more exact pins. For the user-facing docs home, see [`../README.md`](../README.md). For build order and Pi setup, see [`assembly-manual.md`](assembly-manual.md). For the case and port layout, see [`enclosure.md`](enclosure.md).
 
 ## Hardware Summary
 

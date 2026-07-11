@@ -75,8 +75,7 @@ Related references:
 
 1. [`userdocs/hardware/pinout-and-connections.md`](userdocs/hardware/pinout-and-connections.md) — wiring, pin ownership, buses, and hardware source of truth.
 2. [`userdocs/hardware/enclosure.md`](userdocs/hardware/enclosure.md) — case, port access, print notes, and power rule.
-3. [`userdocs/hardware/pi-bring-up.md`](userdocs/hardware/pi-bring-up.md) — Pi OS setup, preflight, build/deploy, and bring-up checklist.
-4. [`docs/menu-and-controls-spec.md`](docs/menu-and-controls-spec.md) — runtime controls, menus, overlays, and display behavior.
+3. [`docs/menu-and-controls-spec.md`](docs/menu-and-controls-spec.md) — runtime controls, menus, overlays, and display behavior.
 
 ## Desktop Simulator
 
@@ -86,74 +85,6 @@ Releases may also include macOS and Linux desktop simulator builds. Those are cu
 
 It allows you try out Octessera without any special hardware.
 
-You can also launch it in a different way:
-
-```bash
-corepack pnpm install
-corepack pnpm --filter @octessera/desktop tauri:dev
-```
-
-To create a portable Windows build yourself:
-
-```bash
-corepack pnpm --filter @octessera/desktop tauri:build:exe
-```
-
-## For Contributors
-
-Most users should not need this section. It is here for people changing the software or hardware docs.
-
-Octessera keeps musical behavior in the native Rust runtime so the desktop simulator and Pi hardware stay aligned. TypeScript is only the desktop display/input layer and shared contracts.
-
-Repository layout:
-
-```text
-octessera/
-├── apps/
-│   ├── desktop/                  # Tauri desktop host and UI
-│   └── pi-zero/                  # Native Pi app target
-├── crates/
-│   ├── platform-core/            # Native behavior/grid/interpretation/mapping core
-│   ├── playback-runtime/         # Native runner, protocol, snapshots, menu, platform effects
-│   ├── realtime-engine/          # Rust synth/sample/FX mixer
-│   ├── rodio-engine-source/      # Rodio source wrapper for desktop/Pi audio output
-│   └── hal/                      # Pi hardware abstraction layer and host stubs
-├── packages/
-│   └── device-contracts/         # Shared TypeScript bridge/display/runtime contracts
-├── resources/                    # Menu help text and platform capabilities
-├── config/                       # Generated platform default configs and source overrides
-├── docs/                         # Menu spec and secondary contributor docs
-├── hardware/                     # Hardware source files, enclosure generator, and build docs
-├── release-artifacts/            # End-user binaries, fabrication exports, and print files
-└── tools/                        # Repository maintenance tools
-```
-
-Run the standard checks:
-
-```bash
-corepack pnpm run typecheck
-corepack pnpm -r test
-corepack pnpm -r lint
-corepack pnpm -r format:check
-cargo fmt --all --check
-cargo test -p platform-core -p playback-runtime -p realtime-engine -p octessera-desktop
-cargo clippy -p platform-core -p playback-runtime -p realtime-engine -p octessera-desktop --all-targets -- -D warnings
-```
-
-Build desktop release artifacts:
-
-```bash
-corepack pnpm --filter @octessera/desktop tauri:build
-```
-
-Build the Pi app with host stubs:
-
-```bash
-cargo build -p octessera-pi
-```
-
-See `docs/development-workflows.md` for complete contributor build, verification, capability-generation, and Pi hardware build notes.
-
 ## Documentation Map
 
 Primary user docs:
@@ -162,7 +93,6 @@ Primary user docs:
 - [`userdocs/hardware/assembly-manual.md`](userdocs/hardware/assembly-manual.md): hardware BOM, soldering, first power-on, and enclosure assembly.
 - [`userdocs/hardware/pinout-and-connections.md`](userdocs/hardware/pinout-and-connections.md): Pi wiring, bus allocation, logical input mapping, and hardware source of truth.
 - [`userdocs/hardware/enclosure.md`](userdocs/hardware/enclosure.md): enclosure ports, power rule, printing notes, and mechanical strategy.
-- [`userdocs/hardware/pi-bring-up.md`](userdocs/hardware/pi-bring-up.md): Pi OS setup, preflight, build/deploy, bring-up, diagnostics, and update plan.
 - [`userdocs/controls-cheat-sheet.md`](userdocs/controls-cheat-sheet.md): hardware and simulator controls.
 - [`userdocs/behaviors-and-dance.md`](userdocs/behaviors-and-dance.md): behavior overview and Dance page reference.
 - [`userdocs/print/quick-reference.pdf`](userdocs/print/quick-reference.pdf): two-page printable controls, behaviors, Dance, and signal-flow sheet.

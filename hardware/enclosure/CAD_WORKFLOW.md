@@ -50,16 +50,22 @@ The enclosure CAD is under construction. Use the CadQuery generator as the sourc
    STEP/STL/3MF contents, or run extra diffs/status commands unless that was
    explicitly requested.
 
-For branded top changes, prefer the wrapper that also regenerates the flush multicolor 3MF:
+For branded top changes, prefer the async wrapper that also regenerates the flush multicolor 3MF:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File hardware/enclosure/generate_branded_top_artifacts_async.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File hardware/enclosure/branded_top_artifacts_async_status.ps1
+```
+
+Report the PID/log path immediately and do not poll or wait unless explicitly
+asked. The async worker runs the checked wrapper; the log remains the validation
+source of truth.
+
+The blocking checked wrapper is still available for manual terminal use:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File hardware/enclosure/generate_branded_top_artifacts_checked.ps1
 ```
-
-In interactive orchestrator sessions, prefer launching this wrapper detached
-with a log file and completion sound. Report the PID/log path immediately and do
-not poll or wait unless explicitly asked. The checked wrapper remains the source
-of truth; the async launch mode only prevents session hold-ups.
 
 Expected additional sentinels:
 
@@ -130,9 +136,9 @@ diffs or contents in automation.
 
 The non-multicolor top 3MF is obsolete. Do not regenerate or restore the old unbranded top 3MF.
 
-Before committing enclosure artifacts, check:
+Before committing enclosure source and artifacts, check:
 
-- `git diff --check` passes;
+- source-only `git diff --check` passes; do not include generated STEP/STL/3MF files in whitespace checks;
 - no `hardware/enclosure/__pycache__/` is staged;
 - no local Windows absolute paths were introduced.
 

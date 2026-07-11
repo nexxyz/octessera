@@ -12,7 +12,6 @@ If you are new here, start with the friendlier map in [`../README.md`](../README
 - Schematic: [`../../hardware/pcb/octessera.kicad_sch`](../../hardware/pcb/octessera.kicad_sch)
 - PCB layout: [`../../hardware/pcb/octessera.kicad_pcb`](../../hardware/pcb/octessera.kicad_pcb)
 - Wiring reference: [`pinout-and-connections.md`](pinout-and-connections.md)
-- Pi setup and bring-up: [`pi-bring-up.md`](pi-bring-up.md)
 - Enclosure reference: [`enclosure.md`](enclosure.md)
 - User docs home: [`../README.md`](../README.md)
 
@@ -42,18 +41,22 @@ If you are new here, start with the friendlier map in [`../README.md`](../README
 
 ### 3D printed and mechanical parts
 
+Aside from the screws and the heat-inserts, the whole enclosure is 3D-printable.
+
+Note that there are a lot of parts that fit snugly into each other and into the components' mount holes, with rather tight tolerances. Make sure your printer is well calibrated, or test things out with partial prints ahead of time and scale e.g. pins and standoffs accordingly on X/Y axis to make them fit the pillars.
+
 | Qty | Item | File/spec | Notes |
 |---:|---|---|---|
 | 1 | Enclosure top | `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery.stl` | Generated from CadQuery. STEP file is also checked in. |
 | 1 | Enclosure bottom | `../../release-artifacts/enclosure/stl/case_bottom_plate_cadquery.stl` | Current bottom plate with guide walls and screw holes. |
 | 1 | Main encoder knob | Print `../../release-artifacts/enclosure/stl/encoder_cap_main_knurled_dots.stl` or use `../../release-artifacts/enclosure/3mf-multicolor/encoder_cap_main_knurled_dots_multicolor_flush.3mf` | Main encoder cap. Printed version uses the dot-ring marking. |
 | 3 | Aux encoder knobs | Print `../../release-artifacts/enclosure/stl/encoder_cap_aux*_ribbed_dot*.stl` or use matching `../../release-artifacts/enclosure/3mf-multicolor/encoder_cap_aux*_multicolor_flush.3mf` | Aux 1/2/3 caps. Printed versions use one, two, and three dots. |
-| 4 | MX keycaps | Print `../../release-artifacts/enclosure/stl/mx_keycap_*.stl`, use matching `../../release-artifacts/enclosure/3mf-multicolor/mx_keycap_*_multicolor_flush.3mf`, or use any MX-stem keycap | Four NeoKey caps: back, play, shift, and function/layer. Transparent filament for the cap body and dark filament for the symbols works well, either with a filament swap for the last layers or multi-material printing. |
+| 4 | MX keycaps | Print `../../release-artifacts/enclosure/stl/mx_keycap_*.stl`, use matching `../../release-artifacts/enclosure/3mf-multicolor/mx_keycap_*_multicolor_flush.3mf`, or use any MX-stem keycap | Four NeoKey caps: back, play, shift, and function/layer. Transparent filament for the cap body (so the color LEDs of the NeoKey can shine through) and dark filament for the symbols works well, either with a filament swap for the last layers or multi-material printing. |
 | 8 | 9.5mm standoff pillar | Print `../../release-artifacts/enclosure/stl/standoff_pillar_9_5mm.stl` and matching `../../release-artifacts/enclosure/3mf-multicolor/standoff_pillar_9_5mm.3mf`, or use compatible purchased stackable PCB standoffs | Use for the OLED and audio/DAC board support locations. |
 | 10 | 10mm standoff pillar | Print `../../release-artifacts/enclosure/stl/standoff_pillar_10mm.stl` and matching `../../release-artifacts/enclosure/3mf-multicolor/standoff_pillar_10mm.3mf`, or use compatible purchased stackable PCB standoffs | Use for the Raspberry Pi, power breakout, and NeoKey support locations. NeoTrellis array pins go straight into the bottom's integrated pillars, so they do not need separate standoff pillars. |
 | 26 | Standoff top pin | Print `../../release-artifacts/enclosure/stl/standoff_top_pin_thin_base.stl` and matching `../../release-artifacts/enclosure/3mf-multicolor/standoff_top_pin_thin_base.3mf`, or use compatible purchased stackable PCB standoff pins | 4 Pi + 4 audio/DAC + 4 OLED/screen + 4 NeoKey + 2 power + 8 NeoTrellis array pins = 26 total. |
-| 8 | Heat-set insert | [M3 heat-set insert](https://de.aliexpress.com/item/1005012199553197.html), about `4.0-4.2mm` outer diameter and `5-6mm` long | Insert from the underside of the top. The linked kit includes multiple sizes; use the M3 inserts that fit the `4.2mm` pilot holes. |
-| 8 | Screws | M3 x 8mm socket-head cap screw, DIN 912 / ISO 4762 style | Installed from the bottom. Use a head diameter no larger than `6.4mm` so it fits the counterbores. |
+| 8 | Heat-set insert | M3x6x5 heat-set insert, such as the M3 size in this [heat-set insert kit](https://de.aliexpress.com/item/1005012199553197.html) | Insert from the underside of the top. The smooth lead-in side should locate in the `4.6mm` pilot hole before heat-setting. |
+| 8 | Screws | M3x8 socket-head cap screw, DIN 912 / ISO 4762 style | Installed from the bottom. Use a head diameter no larger than `6.4mm` so it fits the counterbores. |
 | 8 | Rubber feet or screw-hole plugs | Small adhesive feet | Optional, covers bottom screw holes and prevents sliding. |
 
 Standoff STL attribution and purchase/source reference: the standoff models are based on [Stackable PCB Standoff by theduckom](https://www.printables.com/model/163087-stackable-pcb-standoff), licensed under [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/).
@@ -97,7 +100,7 @@ Solder low-profile sockets and headers first. They define module height and alig
 
 You can leave the capacitor legs a little longer than usual so the capacitor can bend sideways if you need to save vertical space. Keep polarity correct and make sure the legs cannot short against nearby pads or metal parts.
 
-The horizontal socket for the NeoTrellis array can be a tight fit near the case pillar that supports the NeoTrellis. Consider bending the socket legs slightly before soldering, or use a vertical connector if your build has enough space. If you plug the cable in before mounting the NeoTrellis array on the pillars, it will be very tight, but will fit (barely).
+The horizontal socket for the NeoTrellis array can be a tight fit near the case pillar that supports the NeoTrellis. Consider bending the socket legs slightly before soldering, or use a vertical connector if you prefer. If you plug the cable in before mounting the NeoTrellis array on the pillars, it will be very tight, but will fit (barely).
 
 Do not install plug-in modules yet.
 
@@ -110,22 +113,23 @@ The four NeoTrellis boards form one 8x8 grid.
    - upper right
    - lower left
    - lower right
-2. Solder the boards together with pin links between adjacent edges.
-3. Add the external connector pins to the left side of the upper-left NeoTrellis board.
-4. Set the NeoTrellis addresses:
+2. Pretend they are already soldered together and turn them around like they are one plane already (meaning left and right switch places).
+3. Solder the boards together with pin links between adjacent edges.
+4. Add the external connector pins to the left side of the upper-left NeoTrellis board.
+5. Set the NeoTrellis addresses (now that they are switched! This is looking at them from the bottom!):
 
    | Position | Jumpers | Address |
    |---|---|---:|
-   | upper left | none | `0x2E` |
-   | upper right | A0 | `0x2F` |
-   | lower left | A1 | `0x30` |
-   | lower right | A0 + A1 | `0x31` |
+   | upper left | A0 | `0x2F` |
+   | upper right | none | `0x2E` |
+   | lower left | A0 + A1 | `0x31` |
+   | lower right | A1 | `0x30` |
 
 Use the reference photos to confirm the soldered address jumper pads:
 
-- [NeoTrellis address jumper pads](images/assembly/neotrellis-address-jumpers.jpg)
+- [NeoTrellis address jumper pads](images/assembly/neotrellis-address-jumpers.jpg). Note that there is solder on A1 on the upper left in the picture, but it is not shorted. I shorted it by mistake, separated the pads but and then not clean it up completely. So don't get confused by those drops of solder.
 
-5. Set the NeoKey address by soldering A0, A1, A2, and A3. Leave A4 open. The expected address is `0x3F`.
+5. Set the NeoKey address by soldering A0, A1, A2, and A3. The expected address is `0x3F`.
 
 - [NeoKey address jumper pads](images/assembly/neokey-address-jumpers.jpg)
 
@@ -173,7 +177,7 @@ rpi-imager --repo "https://github.com/nexxyz/octessera/releases/download/v<versi
 
 Use the actual release tag and version from the release page. The embedded manifest inside the ZIP is for packaged metadata; do not extract the ZIP just to load the manifest.
 
-For manual Pi setup and diagnostics, see [`pi-bring-up.md`](pi-bring-up.md).
+For manual Pi setup and developer deploy/update workflows, see [`../../docs/development-workflows.md`](../../docs/development-workflows.md).
 
 ## First electrical assembly
 
@@ -194,26 +198,26 @@ Once it is up, check that none of the elements report an error. The OLED, NeoKey
 
 Then turn the main encoder to select the System menu, and click the main encoder to enter it. In the System menu, scroll to and run the hardware diagnostics before assembling the enclosure. Complete the guided checks for display, grid, keys, encoders, and audio while the boards are still accessible. The diagnostics can also detect inconsistent button or encoder signals. A couple of warnings are usually okay, but if the diagnostics report actual errors, double-check your soldering and components.
 
-If the hardware does not come up, stop and use the bring-up checks in [`pi-bring-up.md`](pi-bring-up.md).
+If the hardware does not come up, stop and use the manual hardware checks in [`../../hardware/docs/manual-hardware-test-suite.md`](../../hardware/docs/manual-hardware-test-suite.md).
 
 ## Enclosure assembly
 
 Only assemble the enclosure after the electrical test and System-menu diagnostics pass.
 
 Before you start with the enclosure, you need to remove the keyswitches from the NeoKey, but you can leave the keycaps on.
+Remove the Raspberry Pi microSD card and OLED microSD card first. They can catch on the enclosure and break during installation.
 
 1. Place the bottom enclosure on the bench.
-2. Put the PCB and NeoTrellis array onto the bottom.
-   - Remove the Raspberry Pi microSD card and OLED microSD card first. They can catch on the enclosure and break during installation.
+2. Put the PCB and NeoTrellis array onto the taller pillars.
 3. Add the 18 separate standoff pillars between the bottom supports and the plug-in modules:
-   - Use 9.5mm standoff pillars for the OLED and audio/DAC board.
-   - Use 10mm standoff pillars for the Raspberry Pi, power breakout, and NeoKey.
-   - Printing the 9mm, 9.5mm, and 10mm support parts in different colors makes them easier to tell apart during assembly.
-   - For each plug-in module, remove the module, add the standoff, then reinstall the module.
+   - Use 8 of the 9.5mm standoff pillars for the OLED and audio/DAC board.
+   - Use the 10 pieces of 10mm standoff pillars for the Raspberry Pi, power breakout, and NeoKey.
+   - Printing the 9.5mm, and 10mm support parts in different colors makes them easier to tell apart during assembly.
+   - For each plug-in module, remove the module, add the standoff, then reinstall the module. The standoffs' pins might take a little force to go through the component's mount holes and into the pillars, but if you are firm but gentle it will work.
    - You do not need separate standoff pillars for the NeoTrellis array. Its eight pins go straight into the integrated bottom pillars.
 4. Press in all 26 top pins:
    - 18 pins go into the separate standoff pillars.
-   - 8 pins go into the NeoTrellis array's integrated bottom pillars.
+   - 8 pins go into the NeoTrellis array's integrated bottom pillars. It might be a bit tight due to the female connectors on the bottom, since the pillars are flared a bit for stability, but it will end up fitting nicely.
    - During final assembly, a small drop of glue on the top-pin can keep pins from falling out if the device is turned upside down.
 5. Place one silicone 4x4 keypad on each NeoTrellis board. Make sure the pads sit flat and line up with the 8x8 opening before closing the case.
 6. Insert the M3 heat-set inserts into the underside of the enclosure top with a soldering iron or insert tool.
@@ -233,11 +237,3 @@ Tighten screws gently. If the top does not sit flat, stop and find the interfere
 4. Confirm the OLED is readable.
 5. Confirm audio output from the DAC.
 6. Confirm the Pi microSD, OLED microSD, audio, USB-C power, Pi mini-HDMI, and Pi USB data openings are accessible.
-
-## Things to verify before ordering in quantity
-
-- Confirm the selected M3 heat-set inserts fit the `4.2mm` pilot holes and that M3 x 8mm socket-head screws reach the inserts cleanly after printing.
-- Final fit of the printed bottom, top, standoff pillars, top pins, keycaps, and encoder knobs.
-- Whether the generic sockets you buy match the intended low profile.
-- Whether the 5cm Dupont cable has enough slack after the NeoTrellis array is installed.
-- Port alignment after printing with your printer and slicer.

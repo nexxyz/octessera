@@ -54,7 +54,7 @@ LOWER_TO_TIER2_RAMP_END_X = 115.0
 TIER1_WAVE_SEAM_OVERLAP = 2.4
 NEOKEY_WAVE_HOLLOW_SOUTH_EXTRA = 1.0
 OLED_SCREEN_CUTOUT_X_SHIFT = -0.5
-OLED_SCREEN_CUTOUT_Y_SHIFT = 0.2
+OLED_SCREEN_CUTOUT_Y_SHIFT = -0.3
 
 def x_at_y(points: list[tuple[float, float]], y: float) -> float:
     sorted_points = sorted(points, key=lambda point: point[1])
