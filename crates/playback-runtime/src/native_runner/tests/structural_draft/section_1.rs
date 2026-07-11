@@ -160,6 +160,14 @@ pub(crate) fn instrument_type_turn_applies_immediately() {
         runner.menu.value_for_key("instruments.0.type").as_deref(),
         Some("sampler")
     );
+    assert!(runner
+        .menu
+        .value_for_key("instruments.0.sample.selectedSlot")
+        .is_some());
+    assert!(runner
+        .menu
+        .value_for_key("instruments.0.synth.amp.gainPct")
+        .is_none());
     assert_eq!(runner.instruments[0].kind, "sampler");
     assert_eq!(runner.audio_config_revision, 0);
     assert!(messages.iter().any(|message| matches!(

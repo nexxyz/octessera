@@ -94,6 +94,15 @@ pub(crate) fn spawn_audio_engine_thread(
                             voice_stealing_mode,
                         });
                     }
+                    QueuedAudioEvent::SetSampleBank {
+                        instrument_slot,
+                        bank,
+                    } => {
+                        let _ = engine_tx.send(EngineEvent::SetSampleBank {
+                            instrument_slot,
+                            bank,
+                        });
+                    }
                     QueuedAudioEvent::SetMasterVolume { volume_pct } => {
                         let _ = engine_tx.send(EngineEvent::SetMasterVolume { volume_pct });
                     }

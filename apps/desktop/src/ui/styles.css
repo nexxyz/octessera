@@ -1,7 +1,9 @@
+@import "./displayPalette.generated.css";
+
 :root {
   font-family: "Space Grotesk", "Segoe UI", sans-serif;
-  color: #dae4de;
-  background: radial-gradient(circle at 12% 10%, #2c3a30 0%, #111814 58%, #0a0f0d 100%);
+  color: var(--palette-system);
+  background: var(--palette-black);
 }
 
 body {
@@ -20,9 +22,9 @@ body {
 }
 
 .bar {
-  border: 1px solid #355042;
+  border: 1px solid rgb(var(--palette-system-rgb) / 0.34);
   border-radius: 10px;
-  background: linear-gradient(180deg, #18231d, #111915);
+  background: linear-gradient(180deg, rgb(var(--palette-system-rgb) / 0.12), rgb(var(--palette-black-rgb) / 0.88));
   padding: 9px 12px;
   font-size: 13px;
   letter-spacing: 0.03em;
@@ -61,9 +63,9 @@ body {
 .encoder-card,
 .button-stack,
 .matrix-chassis {
-  border: 1px solid #2d4638;
+  border: 1px solid rgb(var(--palette-system-rgb) / 0.28);
   border-radius: 12px;
-  background: linear-gradient(180deg, rgba(17, 26, 21, 0.92), rgba(10, 15, 12, 0.94));
+  background: linear-gradient(180deg, rgb(var(--palette-system-rgb) / 0.08), rgb(var(--palette-black-rgb) / 0.94));
   padding: 10px;
 }
 
@@ -90,11 +92,11 @@ body {
 .oled-bezel {
   width: fit-content;
   margin: 0 auto;
-  border: 1px solid #476451;
+  border: 1px solid rgb(var(--palette-system-rgb) / 0.42);
   border-radius: 12px;
   padding: 8px;
-  background: linear-gradient(145deg, #121917, #0b0f0d);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  background: linear-gradient(145deg, rgb(var(--palette-system-rgb) / 0.08), var(--palette-black));
+  box-shadow: 0 8px 30px rgb(var(--palette-black-rgb) / 0.4);
 }
 
 .oled-panel {
@@ -103,17 +105,13 @@ body {
   user-select: none;
   border-radius: 6px;
   border: 0;
-  color: #78f7ab;
+  color: var(--palette-white);
   display: grid;
   place-items: center;
   padding: 0;
   box-sizing: content-box;
-  background:
-    repeating-linear-gradient(0deg, rgba(120, 247, 171, 0.04) 0 1px, transparent 1px 3px),
-    radial-gradient(circle at 40% 35%, rgba(16, 102, 55, 0.48) 0, rgba(3, 16, 8, 0.95) 70%);
-  box-shadow:
-    inset 0 0 18px rgba(84, 221, 140, 0.2),
-    0 0 24px rgba(50, 205, 124, 0.12);
+  background: var(--palette-black);
+  box-shadow: inset 0 0 18px rgb(var(--palette-system-rgb) / 0.12);
 }
 
 .oled-canvas {
@@ -125,10 +123,10 @@ body {
 
 
 .encoder-card {
-  border: 1px solid #355142;
+  border: 1px solid rgb(var(--palette-system-rgb) / 0.34);
   border-radius: 10px;
   padding: 8px;
-  background: linear-gradient(180deg, #16231d, #0f1814);
+  background: linear-gradient(180deg, rgb(var(--palette-system-rgb) / 0.1), rgb(var(--palette-black-rgb) / 0.9));
 }
 
 .encoder-card h3 {
@@ -141,7 +139,7 @@ body {
   display: block;
   margin-top: 7px;
   font-size: 11px;
-  color: #93a99b;
+  color: var(--palette-system);
 }
 
 .encoder-buttons {
@@ -155,8 +153,8 @@ body {
   height: 86px;
   margin: 0 auto;
   border-radius: 50%;
-  border: 2px solid #3a5e49;
-  background: radial-gradient(circle at 35% 30%, #2a4335, #12231b 68%);
+  border: 2px solid rgb(var(--palette-system-rgb) / 0.4);
+  background: radial-gradient(circle at 35% 30%, rgb(var(--palette-system-rgb) / 0.18), rgb(var(--palette-black-rgb) / 0.86) 68%);
   display: grid;
   place-items: center;
   position: relative;
@@ -176,32 +174,32 @@ body {
   width: 2px;
   height: 8px;
   border-radius: 2px;
-  background: rgba(120, 247, 171, 0.22);
+  background: rgb(var(--palette-worlds-rgb) / 0.22);
   transform-origin: center center;
   transition: background-color 90ms ease, box-shadow 90ms ease;
 }
 
 .encoder-tick.active {
-  background: rgba(185, 255, 213, 0.96);
-  box-shadow: 0 0 6px rgba(185, 255, 213, 0.8);
+  background: rgb(var(--palette-white-rgb) / 0.96);
+  box-shadow: 0 0 6px rgb(var(--palette-white-rgb) / 0.8);
 }
 
 .encoder-center {
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  border: 1px solid #496b56;
-  background: linear-gradient(180deg, #2e4a39, #1a2f25);
-  color: #dff7e8;
+  border: 1px solid rgb(var(--palette-system-rgb) / 0.42);
+  background: linear-gradient(180deg, rgb(var(--palette-system-rgb) / 0.18), rgb(var(--palette-black-rgb) / 0.78));
+  color: var(--palette-white);
 }
 
 .encoder-buttons button,
 .neokey-row button {
   font: inherit;
   border-radius: 8px;
-  border: 1px solid #3a5e49;
-  background: linear-gradient(180deg, #213629, #17271f);
-  color: #fff;
+  border: 1px solid rgb(var(--palette-system-rgb) / 0.4);
+  background: linear-gradient(180deg, rgb(var(--palette-system-rgb) / 0.18), rgb(var(--palette-black-rgb) / 0.82));
+  color: var(--palette-white);
   padding: 8px;
   cursor: pointer;
 }
@@ -222,60 +220,43 @@ body {
 }
 
 .button-stack .neokey-back {
-  border-color: #894242;
-  background: linear-gradient(180deg, #4d1f1f, #381617);
-}
-
-.button-stack .solid_red {
-  background: linear-gradient(180deg, #8a2f2f, #5e1f1f);
-  box-shadow: 0 0 12px rgba(255, 92, 92, 0.45);
+  border-color: var(--palette-pulses);
+  background: rgb(var(--palette-pulses-rgb) / 0.24);
 }
 
 button.encoder-center,
 .button-stack button,
 .matrix-cell {
-  color: #fff;
+  color: var(--palette-white);
 }
 
 .button-stack .stopped {
-  background: linear-gradient(180deg, #ff3333, #a91c1c);
-  border-color: #ff8b8b;
-  box-shadow: 0 0 16px rgba(255, 51, 51, 0.5);
+  background: linear-gradient(180deg, var(--palette-pulses), rgb(var(--palette-pulses-rgb) / 0.46));
+  border-color: var(--palette-pulses);
+  box-shadow: 0 0 16px rgb(var(--palette-pulses-rgb) / 0.5);
 }
 
 .button-stack .paused {
-  background: linear-gradient(180deg, #d7ffe8, #88aa98);
-  border-color: #eafff1;
-  box-shadow: 0 0 12px rgba(215, 255, 232, 0.5);
+  background: linear-gradient(180deg, var(--palette-tones), rgb(var(--palette-tones-rgb) / 0.52));
+  border-color: var(--palette-tones);
+  box-shadow: 0 0 12px rgb(var(--palette-tones-rgb) / 0.5);
 }
 
 .button-stack .playing {
-  background: linear-gradient(180deg, #0a5f22, #063814);
-  border-color: #288846;
+  background: linear-gradient(180deg, rgb(var(--palette-worlds-rgb) / 0.42), rgb(var(--palette-black-rgb) / 0.82));
+  border-color: var(--palette-worlds);
 }
 
 .button-stack .beat {
-  background: linear-gradient(180deg, #33ff66, #17913a);
-  border-color: #8effa9;
-  box-shadow: 0 0 14px rgba(51, 255, 102, 0.55);
+  background: linear-gradient(180deg, var(--palette-sparks), rgb(var(--palette-sparks-rgb) / 0.58));
+  border-color: var(--palette-sparks);
+  box-shadow: 0 0 14px rgb(var(--palette-sparks-rgb) / 0.55);
 }
 
 .button-stack .measure {
-  background: linear-gradient(180deg, #ffa000, #a86400);
-  box-shadow: 0 0 18px rgba(255, 160, 0, 0.6);
-  border-color: #ffd180;
-}
-
-.button-stack .solid_yellow {
-  background: linear-gradient(180deg, #85702e, #62521d);
-  border-color: #baa14a;
-  box-shadow: 0 0 12px rgba(245, 220, 106, 0.6);
-}
-
-.button-stack .solid_blue {
-  background: linear-gradient(180deg, #2f5f9f, #1b3d73);
-  border-color: #6fa3e8;
-  box-shadow: 0 0 12px rgba(90, 160, 255, 0.6);
+  background: linear-gradient(180deg, var(--palette-worlds), rgb(var(--palette-worlds-rgb) / 0.58));
+  box-shadow: 0 0 18px rgb(var(--palette-worlds-rgb) / 0.6);
+  border-color: var(--palette-worlds);
 }
 
 .matrix-chassis {
@@ -291,17 +272,17 @@ button.encoder-center,
   grid-template-columns: repeat(8, 1fr);
   gap: 6px;
   padding: 8px;
-  border: 1px solid #385343;
+  border: 1px solid rgb(var(--palette-system-rgb) / 0.34);
   border-radius: 12px;
-  background: linear-gradient(180deg, #111a15, #0b120e);
+  background: linear-gradient(180deg, rgb(var(--palette-system-rgb) / 0.08), var(--palette-black));
 }
 
 .cell {
   width: 100%;
   aspect-ratio: 1;
-  border: 1px solid rgba(203, 255, 228, 0.12);
+  border: 1px solid rgb(var(--palette-system-rgb) / 0.12);
   border-radius: 8px;
-  box-shadow: inset 0 0 10px rgba(180, 255, 222, 0.15), 0 0 9px rgba(105, 239, 156, 0.14);
+  box-shadow: inset 0 0 10px rgb(var(--palette-white-rgb) / 0.12), 0 0 9px rgb(var(--palette-worlds-rgb) / 0.14);
   cursor: pointer;
 }
 

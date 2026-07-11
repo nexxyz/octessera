@@ -127,6 +127,16 @@ pub fn parse_instrument_slot_config(
     Ok(instrument_slot_config(&slot))
 }
 
+pub(crate) fn sample_bank_for_slot_config(
+    config: &serde_json::Value,
+    resolve_sample: impl Fn(&str) -> Option<String>,
+    load_sample: impl FnMut(&str) -> Option<SampleBuffer>,
+) -> Result<Option<SampleBankConfig>, String> {
+    let slot = serde_json::from_value::<AudioInstrumentSlotConfig>(config.clone())
+        .map_err(|e| format!("invalid instrument slot payload: {e}"))?;
+    Ok(sample_bank_for_slot(&slot, resolve_sample, load_sample))
+}
+
 fn instrument_slot_config(slot: &AudioInstrumentSlotConfig) -> InstrumentSlotConfig {
     InstrumentSlotConfig {
         kind: slot.kind.clone(),
@@ -176,43 +186,49 @@ pub fn sample_banks(
         .iter()
         .take(INSTRUMENT_SLOT_COUNT)
         .map(|slot| {
-            if slot.kind != "sampler" {
-                return SampleBankConfig::default();
-            }
-            let Some(sample) = &slot.sample else {
-                return SampleBankConfig::default();
-            };
-            let mut slots = vec![EngineSampleSlotConfig::default(); SAMPLE_SLOTS_PER_INSTRUMENT];
-            for (idx, entry) in sample
-                .slots
-                .iter()
-                .enumerate()
-                .take(SAMPLE_SLOTS_PER_INSTRUMENT)
-            {
-                let Some(path) = &entry.path else {
-                    continue;
-                };
-                let Some(full_path) = resolve_sample(path) else {
-                    continue;
-                };
-                slots[idx].buffer = load_sample(&full_path);
-            }
-            SampleBankConfig {
-                slots,
-                tune_semis: sample.tune_semis.unwrap_or(0.0),
-                gain_pct: sample
-                    .amp
-                    .as_ref()
-                    .and_then(|amp| amp.gain_pct)
-                    .unwrap_or(100.0),
-                velocity_sensitivity_pct: sample
-                    .amp
-                    .as_ref()
-                    .and_then(|amp| amp.velocity_sensitivity_pct)
-                    .unwrap_or(100.0),
-            }
+            sample_bank_for_slot(slot, &resolve_sample, &mut load_sample).unwrap_or_default()
         })
         .collect()
+}
+
+fn sample_bank_for_slot(
+    slot: &AudioInstrumentSlotConfig,
+    resolve_sample: impl Fn(&str) -> Option<String>,
+    mut load_sample: impl FnMut(&str) -> Option<SampleBuffer>,
+) -> Option<SampleBankConfig> {
+    if slot.kind != "sampler" {
+        return None;
+    }
+    let sample = slot.sample.as_ref()?;
+    let mut slots = vec![EngineSampleSlotConfig::default(); SAMPLE_SLOTS_PER_INSTRUMENT];
+    for (idx, entry) in sample
+        .slots
+        .iter()
+        .enumerate()
+        .take(SAMPLE_SLOTS_PER_INSTRUMENT)
+    {
+        let Some(path) = &entry.path else {
+            continue;
+        };
+        let Some(full_path) = resolve_sample(path) else {
+            continue;
+        };
+        slots[idx].buffer = load_sample(&full_path);
+    }
+    Some(SampleBankConfig {
+        slots,
+        tune_semis: sample.tune_semis.unwrap_or(0.0),
+        gain_pct: sample
+            .amp
+            .as_ref()
+            .and_then(|amp| amp.gain_pct)
+            .unwrap_or(100.0),
+        velocity_sensitivity_pct: sample
+            .amp
+            .as_ref()
+            .and_then(|amp| amp.velocity_sensitivity_pct)
+            .unwrap_or(100.0),
+    })
 }
 
 pub fn sample_bank_signature(config: &AudioInstrumentsConfig) -> String {

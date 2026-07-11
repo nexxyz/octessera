@@ -3,7 +3,7 @@
 This is the entry point for the canonical menu/control spec. The full menu tree is split into `docs/menu-tree-spec.md`; that file is part of this authoritative spec and must stay in sync with native menu changes.
 
 Context-help copy source: `resources/menu-help-texts.tsv` (required header row). Each row provides a title plus two short text fields. Keep one idea per text field; the runtime may join and wrap them for the target display.
-Platform capability source: `resources/platform-capabilities.json`; generated TypeScript and Rust constants must stay in sync with it.
+Platform capability source: `resources/platform-capabilities.json`; generated TypeScript and Rust constants must stay in sync with it. Display palette source: `resources/display-palette.json`; generated TypeScript, CSS, and Rust constants must stay in sync with it.
 
 ## Cheat Sheet
 
@@ -15,7 +15,7 @@ Platform capability source: `resources/platform-capabilities.json`; generated Ty
 | Shift + Fn | Combined modifier | Acts as its own logical button; Fn and Shift are inactive while both physical buttons are held.
 | Combined modifier + Main press | Context help | Opens help for highlighted menu entry.
 | Fn + leftmost grid column | Navigate layers (1..8) | Mirrors `1: Worlds > Layer`.
-| Fn held + leftmost column LEDs | Navigation indicators | Gray = available layers, green = current active layer.
+| Fn held + leftmost column LEDs | Navigation indicators | Cyan = navigation/current layer focus, green = configured layer, gray/black = inactive or non-navigable.
 | Fn + rightmost grid column | Navigate Sparks pages | Opens `4: Sparks` and enables Sparks page if currently off; exits Sparks if already active.
 | Sample assign + Shift + cell | Row assign step | Applies current selected-cell assign step to the whole row.
 | Sample assign + combined modifier + cell | Column assign step | Applies current selected-cell assign step to the whole column.
@@ -50,7 +50,7 @@ Help popup behavior:
 
 ## Transport States
 
-- Play: `▶` (green flash on beat, red flash on measure)
+- Play: `▶` (green flash on full-note/measure boundaries, yellow flash on other beat boundaries)
 - Pause: `⏸`
 - Stop (emergency): `■`
 
@@ -63,16 +63,16 @@ The full native menu tree lives in [`menu-tree-spec.md`](menu-tree-spec.md). Kee
 - 128×128 pixel, simulated in desktop app
 - 20 characters × 8 lines of text (5×7 font, 16px line height)
 - Top line: title bar (colored by section)
-- Canonical section colors: `1: Worlds` = worlds color, `2: Pulses` = links color, `3: Tones` = voices color, `4: Sparks` = white, `System` = sepia.
+- Canonical display palette: green `#63D23F` for `1: Worlds`, magenta `#E077CC` for `2: Pulses`, cyan `#35CFF2` for `3: Tones`, yellow `#FFD447` for `4: Sparks`, light gray `#C9CED6` for `System`, plus white `#FFFFFF` and black `#000000`. Runtime, Pi, and desktop UI colors use this palette unless a behavior deliberately owns its own palette.
 - Body lines 2-8: menu items use a `> ` marker and inverted highlight on the selected row, and `* ` when editing; while browsing, selected value rows stay compact on one row (for example `> Cutoff 127`) instead of adding a separate value row
 - Native menu snapshots include rendered-row scroll metadata (`scrollOffset`, `totalRows`, `visibleRows`) for the current body window. Desktop renders this as a 1-2 px scrollbar inside the OLED body only when total rendered rows exceed visible body rows; it does not consume text columns and is omitted for splash/help/confirm overlays unless menu metadata is present.
 - Context help for every submenu, parameter, and action must resolve to a specific row from `resources/menu-help-texts.tsv`; generic fallback help is not allowed and native tests must fail on missing coverage.
 - Platform-sized menu/runtime limits such as layer count, instrument count, sample slots, bus count, global FX slots, Sparks-FX concurrency, scan section counts, OLED size, and pan position count come from `resources/platform-capabilities.json`.
 - Splash graphics use provided logo assets: regular logo for startup/wakeup, sepia logo for sleep/shutdown.
 - Bottom-right corner: transport icon (`▶` / `⏸` / `■`), hidden while a footer toast is active
-- Transport color: stop is red, pause is white, play is white at rest and flashes green on beats or orange on measures. The NeoKey Play button uses the same stopped/paused/playing flash semantics, but its playing rest state stays dark green rather than white.
-- Event dot: briefly shown when notes fire, hidden while a footer toast is active; turns red when recent voice stealing occurred
-- Top-right audio load indicator: hidden when idle, yellow when DSP load is moderate or recent voice stealing occurred, red when DSP load is heavy
+- Transport color: stop is magenta, pause is cyan, play is white at rest and flashes green on full-note/measure boundaries or yellow on other beat boundaries. The NeoKey Play button uses the same stopped/paused/playing flash semantics, but its playing rest state stays dim green rather than white.
+- Event dot: briefly shown when notes fire, hidden while a footer toast is active; turns magenta when recent voice stealing occurred
+- Top-right audio load indicator: hidden when idle, yellow when DSP load is moderate or recent voice stealing occurred, magenta when DSP load is heavy
 - Toast text: displayed at bottom for feedback messages
 
 Value editing semantics:
@@ -99,22 +99,22 @@ Action row markers:
 
 ## Grid LED Behavior (NeoKey per-key RGB)
 
-Each cell in the 8×8 grid is mapped to an LED with color based on its behavior palette and `CellTriggerType`. Every behavior provides inactive, active, and stable colors. Defaults are inactive black, active white, and stable green. Inactive black is preferred unless a behavior needs a different off-state color.
+Each cell in the 8×8 grid is mapped to an LED with color based on its behavior palette and `CellTriggerType`. Every behavior provides inactive, active, and stable colors. Defaults are inactive black, active yellow, and stable green. Inactive black is preferred unless a behavior needs a different off-state color.
 
 | Condition | Color |
 |---|---|
 | Cell off | Behavior inactive color |
 | `activate` | Behavior active color |
 | `stable` | Behavior stable color |
-| `deactivate` | Dim white |
-| `scanned` | Red (only if scan mode is "scanning") |
+| `deactivate` | Gray |
+| `scanned` | Cyan (only if scan mode is "scanning") |
 
 Brightness is scaled by the Grid Bright setting after the behavior palette is applied. Runtime snapshots also expose logical active-cell booleans so simulator paint controls do not infer cell state from RGB values.
 
 Overrides:
 
-- While Fn is held for navigation: leftmost column shows layer selectors (gray) and active layer (green).
-- While sample assignment mode is active: grid shows assignment overlay (selected-slot colors, other-slot dim white, unassigned dark).
+- While Fn is held for navigation: leftmost column shows navigation/current-layer focus cells in cyan, configured layers in green when Sparks is not active, and inactive/non-navigable cells in gray or black when truly off. The rightmost Sparks page column uses yellow for page cells and green for the active page.
+- While sample assignment mode is active: grid shows assignment overlay using magenta for high, yellow for medium, green for low, gray for other assigned cells, and black for unassigned dark cells.
 - While any Sparks Page (`mix`, `pan`, `fx`, `trigger-gate`, `transpose`, `xy`) is active: grid shows the Sparks performance overlay instead of active behavior cells. Sparks Transpose uses the left column for eligible layer selection, Shift + left column to enable/disable all eligible layers, and columns 1..7 as a three-octave piano offset picker for synth and enabled MIDI note targets only.
 - When Ghost Cells is on, inactive layers' active cells render as very dim green behind the active layer. Active layer cells and sample assignment overlays take priority.
 - Active context changes use OLED toast/status feedback, for example `Layer: L3 rain` or `Sparks: fx`; these toasts do not change LED overlay priority. Modal help/confirm displays keep display priority over context feedback.

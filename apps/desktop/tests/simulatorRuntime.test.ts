@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { PULSES_COLOR } from "@octessera/device-contracts";
 import { createSimulatorRuntime } from "../src/runtime/simulatorRuntime";
 import type { RuntimeRunnerMessage } from "@octessera/device-contracts";
 import type { RuntimeScheduler } from "../src/runtime/runtimeScheduler";
@@ -274,7 +275,7 @@ test("runtime applies native ledsDimmed to desktop NeoKey LEDs", async () => {
   runtime.dispatch({ type: "grid_press", x: 1, y: 2 });
   await waitMicrotask();
 
-  assert.deepEqual(runtime.getSnapshot().neoKeyLeds.space, [15, 0, 0]);
+  assert.deepEqual(runtime.getSnapshot().neoKeyLeds.space, PULSES_COLOR.map((channel) => Math.round(channel * 0.08 * 0.75)));
 });
 
 test("display off does not dim desktop NeoKey LEDs", async () => {
@@ -285,5 +286,5 @@ test("display off does not dim desktop NeoKey LEDs", async () => {
   runtime.dispatch({ type: "grid_press", x: 1, y: 2 });
   await waitMicrotask();
 
-  assert.deepEqual(runtime.getSnapshot().neoKeyLeds.space, [191, 0, 0]);
+  assert.deepEqual(runtime.getSnapshot().neoKeyLeds.space, PULSES_COLOR.map((channel) => Math.round(channel * 0.75)));
 });

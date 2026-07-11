@@ -7,7 +7,7 @@ use super::model_navigation_memory::valid_child_cursor;
 use super::model_search::{
     find_item_by_key, find_item_by_key_mut, find_item_path_by_key, replace_children_for_label,
     replace_group_children_containing_direct_key, replace_group_label_containing_direct_key,
-    replace_item_label,
+    replace_item_label, set_item_label_by_key,
 };
 use super::model_values::{number_from_item, value_from_item};
 use super::{
@@ -59,6 +59,10 @@ impl NativeMenuModel {
 
     pub fn replace_label(&mut self, old: &str, new: &str) -> bool {
         replace_item_label(&mut self.root, old, new)
+    }
+
+    pub fn set_label_for_key(&mut self, key: &str, label: &str) -> bool {
+        set_item_label_by_key(&mut self.root, key, label)
     }
 
     pub fn replace_group_children_for_label(

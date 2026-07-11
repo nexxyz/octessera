@@ -88,9 +88,9 @@ Sample assignment mode semantics:
 - Back exits assignment mode
 - Entering assignment mode shows a concise OLED toast (for example `Assign S1: grid`); Back continues to exit without changing mappings.
 - One sample assignment per cell (new assignment replaces the existing cell assignment)
-- With Velocity Levels ON, selected-slot cell presses cycle: `Off -> High(red) -> Medium(yellow) -> Low(green) -> Off`
+- With Velocity Levels ON, selected-slot cell presses cycle: `Off -> High(magenta) -> Medium(yellow) -> Low(green) -> Off`
 - With Velocity Levels OFF, selected-slot cell presses toggle: `Off <-> Assigned(white)`
-- Cells assigned to other sample slots are shown as dim white during assignment editing
+- Cells assigned to other sample slots are shown as dim gray during assignment editing
 - Shift + cell applies the same toggle/step to the whole row
 - Combined modifier + cell applies the same toggle/step to the whole column
 - The sample browser menu is labeled with selected slot context (for example `S1 Browse`) and preserves the body rows as browser entries: `..`, built-in/user favourites at the sample root, `[folder]`, file rows, or `(empty)`, followed by a blank separator row and a current-folder favourite action.

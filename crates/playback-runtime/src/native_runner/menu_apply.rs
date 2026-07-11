@@ -274,5 +274,11 @@ fn current_key_requires_menu_materialization(current_key: &Option<String>) -> bo
         };
         return suffix == "type";
     }
+    if let Some(rest) = key.strip_prefix("layers.") {
+        let Some((_, suffix)) = rest.split_once('.') else {
+            return true;
+        };
+        return suffix == "pulses.scanMode";
+    }
     false
 }

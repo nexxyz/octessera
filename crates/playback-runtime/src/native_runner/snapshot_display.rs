@@ -97,7 +97,7 @@ fn confirm_dialog_display(confirm: &super::NativeConfirmDialog) -> DisplaySnapsh
     DisplaySnapshot {
         title: confirm.title.clone(),
         lines,
-        colors: vec![0xFFFF; line_count],
+        colors: vec![platform_core::palette::WHITE_RGB565; line_count],
         bar_values: vec![Value::Null; line_count],
         full_lines: vec![None; line_count],
         scroll: None,
@@ -124,7 +124,7 @@ fn help_popup_display(help: &super::NativeHelpPopup) -> DisplaySnapshot {
     DisplaySnapshot {
         title: help.title.clone(),
         lines,
-        colors: vec![0xFFFF; line_count],
+        colors: vec![platform_core::palette::WHITE_RGB565; line_count],
         bar_values: vec![Value::Null; line_count],
         full_lines: vec![None; line_count],
         scroll: None,
@@ -142,7 +142,7 @@ fn overlay_display(title: String, lines: Vec<String>) -> DisplaySnapshot {
     DisplaySnapshot {
         title,
         lines,
-        colors: vec![0xFFFF; line_count],
+        colors: vec![platform_core::palette::WHITE_RGB565; line_count],
         bar_values: vec![Value::Null; line_count],
         full_lines: vec![None; line_count],
         scroll: None,

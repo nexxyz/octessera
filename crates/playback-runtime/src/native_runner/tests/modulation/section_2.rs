@@ -112,19 +112,19 @@ pub(crate) fn shift_grid_param_mod_overlay_marks_lanes_and_combined_cells() {
 
     assert_eq!(
         cells[display_index(3, 0)],
-        json!({ "r": 0, "g": 255, "b": 120 })
+        led_rgb(platform_core::palette::WORLDS)
     );
     assert_eq!(
         cells[display_index(1, 3)],
-        json!({ "r": 255, "g": 0, "b": 90 })
+        led_rgb(platform_core::palette::PULSES)
     );
     assert_eq!(
         cells[display_index(3, 1)],
-        json!({ "r": 18, "g": 18, "b": 24 })
+        led_rgb(dim_rgb(platform_core::palette::SYSTEM, 8))
     );
     assert_eq!(
         cells[display_index(0, 0)],
-        json!({ "r": 255, "g": 255, "b": 255 })
+        led_rgb(platform_core::palette::WHITE)
     );
     assert_eq!(
         cells[display_index(1, 1)],

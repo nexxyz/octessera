@@ -70,43 +70,74 @@ impl NativeRunner {
     }
 
     fn behavior_selector_menu_item(&self) -> crate::native_menu::NativeMenuItem {
+        let behavior_id = self
+            .layer_behavior_ids
+            .get(self.active_layer_index)
+            .map(String::as_str)
+            .unwrap_or_else(|| self.behavior.id());
         let catalog = platform_core::behavior_catalog();
-        let children = platform_core::behavior_categories()
+        let none_item = catalog
             .iter()
-            .map(|category| crate::native_menu::NativeMenuItem {
-                label: format!("[{}]", category.label),
+            .find(|entry| entry.id == "none")
+            .map(|entry| crate::native_menu::NativeMenuItem {
+                label: entry.label.into(),
                 key: None,
-                value: crate::native_menu::NativeMenuValue::Group,
-                children: std::iter::once(crate::native_menu::NativeMenuItem {
-                    label: "..".into(),
+                value: crate::native_menu::NativeMenuValue::Action(
+                    NativeMenuAction::SelectBehavior(entry.id.into()),
+                ),
+                children: vec![],
+            });
+        let children = none_item
+            .into_iter()
+            .chain(platform_core::behavior_categories().iter().map(|category| {
+                crate::native_menu::NativeMenuItem {
+                    label: format!("[{}]", category.label),
                     key: None,
-                    value: crate::native_menu::NativeMenuValue::Action(
-                        NativeMenuAction::NavigateBack,
-                    ),
-                    children: vec![],
-                })
-                .chain(category.behavior_ids.iter().filter_map(|behavior_id| {
-                    catalog
-                        .iter()
-                        .find(|entry| entry.id == *behavior_id)
-                        .map(|entry| crate::native_menu::NativeMenuItem {
-                            label: entry.label.into(),
-                            key: None,
-                            value: crate::native_menu::NativeMenuValue::Action(
-                                NativeMenuAction::SelectBehavior(entry.id.into()),
-                            ),
-                            children: vec![],
-                        })
-                }))
-                .collect(),
-            })
+                    value: crate::native_menu::NativeMenuValue::Group,
+                    children: std::iter::once(crate::native_menu::NativeMenuItem {
+                        label: "..".into(),
+                        key: None,
+                        value: crate::native_menu::NativeMenuValue::Action(
+                            NativeMenuAction::NavigateBack,
+                        ),
+                        children: vec![],
+                    })
+                    .chain(category.behavior_ids.iter().filter_map(|behavior_id| {
+                        if *behavior_id == "none" {
+                            return None;
+                        }
+                        catalog
+                            .iter()
+                            .find(|entry| entry.id == *behavior_id)
+                            .map(|entry| crate::native_menu::NativeMenuItem {
+                                label: entry.label.into(),
+                                key: None,
+                                value: crate::native_menu::NativeMenuValue::Action(
+                                    NativeMenuAction::SelectBehavior(entry.id.into()),
+                                ),
+                                children: vec![],
+                            })
+                    }))
+                    .collect(),
+                }
+            }))
             .collect();
         crate::native_menu::NativeMenuItem {
-            label: format!("Behavior: {}", self.behavior.id()),
+            label: format!("Behavior: {behavior_id}"),
             key: Some("behaviorId".into()),
             value: crate::native_menu::NativeMenuValue::Group,
             children,
         }
+    }
+
+    pub(super) fn update_active_behavior_selector_label(&mut self) {
+        let behavior_id = self
+            .layer_behavior_ids
+            .get(self.active_layer_index)
+            .map(String::as_str)
+            .unwrap_or_else(|| self.behavior.id());
+        self.menu
+            .set_label_for_key("behaviorId", &format!("Behavior: {behavior_id}"));
     }
 
     pub(super) fn layer_labels(&self) -> Vec<String> {

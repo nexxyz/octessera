@@ -31,6 +31,13 @@ pub(crate) fn changing_behavior_keeps_menu_location() {
         "W/L1: life/Behavior: life"
     );
     assert_eq!(snapshot_from(&edit_behavior)["display"]["editing"], false);
+    let behavior_picker_rows = &runner.menu.root.children[0].children[0].children[0].children;
+    assert_eq!(behavior_picker_rows[0].label, "none");
+    let play_folder = behavior_picker_rows
+        .iter()
+        .find(|item| item.label == "[Play]")
+        .unwrap();
+    assert!(!play_folder.children.iter().any(|item| item.label == "none"));
 
     select_behavior(&mut runner, "keys");
     let changed = runner.messages_with_snapshot().unwrap();
@@ -38,6 +45,11 @@ pub(crate) fn changing_behavior_keeps_menu_location() {
     assert_eq!(changed_snapshot["display"]["title"], "W/L1: keys");
     assert_eq!(changed_snapshot["display"]["editing"], false);
     assert_eq!(changed_snapshot["activeBehavior"], "keys");
+    assert!(changed_snapshot["display"]["lines"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|line| line.as_str().unwrap_or("") == "> Behavior: keys >"));
 
     runner.make_deferred_menu_apply_due_for_test();
     let _ = runner.flush_deferred_menu_apply().unwrap();

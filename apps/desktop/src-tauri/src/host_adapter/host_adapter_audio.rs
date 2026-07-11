@@ -1,5 +1,6 @@
-use crate::audio_config::decode_sample_file;
-use crate::audio_config::parse_instrument_slot_config;
+use crate::audio_config::{
+    decode_sample_file, parse_instrument_slot_config, sample_bank_for_slot_config,
+};
 use crate::host_adapter::DesktopPlaybackHostAdapter;
 use crate::samples::resolve_sample_file;
 use crate::types::{MomentaryFxTargetPayload, QueuedAudioEvent};
@@ -33,10 +34,22 @@ impl DesktopPlaybackHostAdapter {
             RuntimeAudioCommand::SetInstrumentSlot {
                 instrument_slot,
                 config,
-            } => QueuedAudioEvent::SetInstrumentSlot {
-                instrument_slot: *instrument_slot,
-                config: parse_instrument_slot_config(config)?,
-            },
+            } => {
+                let event = QueuedAudioEvent::SetInstrumentSlot {
+                    instrument_slot: *instrument_slot,
+                    config: parse_instrument_slot_config(config)?,
+                };
+                self.audio.audio_control.enqueue_dynamic(event)?;
+                if let Some(bank) = self.sample_bank_event(config)? {
+                    self.audio
+                        .audio_control
+                        .enqueue_dynamic(QueuedAudioEvent::SetSampleBank {
+                            instrument_slot: *instrument_slot,
+                            bank,
+                        })?;
+                }
+                return Ok(());
+            }
             RuntimeAudioCommand::SetFxBusMixer { bus_index, pan_pos } => {
                 QueuedAudioEvent::SetFxBusMixer {
                     bus_index: *bus_index,
@@ -119,26 +132,36 @@ impl DesktopPlaybackHostAdapter {
     ) -> Result<QueuedAudioEvent, String> {
         let full_path =
             resolve_sample_file(path).ok_or_else(|| "invalid sample path".to_string())?;
-        let buffer = {
-            let mut cache = self
-                .audio
-                .sample_cache
-                .lock()
-                .map_err(|_| "sample cache poisoned".to_string())?;
-            if let Some(buffer) = cache.get(&full_path).cloned() {
-                buffer
-            } else {
-                let buffer = decode_sample_file(&full_path)
-                    .ok_or_else(|| "sample decode failed".to_string())?;
-                cache.insert(full_path, buffer.clone());
-                buffer
-            }
-        };
+        let buffer = self
+            .load_sample(&full_path)
+            .ok_or_else(|| "sample decode failed".to_string())?;
         Ok(QueuedAudioEvent::PreviewSample {
             instrument_slot: instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1) as u8,
             buffer,
             velocity,
         })
+    }
+
+    fn sample_bank_event(
+        &self,
+        config: &serde_json::Value,
+    ) -> Result<Option<realtime_engine::synth::SampleBankConfig>, String> {
+        sample_bank_for_slot_config(config, resolve_sample_file, |path| self.load_sample(path))
+    }
+
+    fn load_sample(&self, path: &str) -> Option<realtime_engine::synth::SampleBuffer> {
+        if let Ok(cache) = self.audio.sample_cache.lock() {
+            if let Some(buffer) = cache.get(path) {
+                return Some(buffer.clone());
+            }
+        } else {
+            return None;
+        }
+        let buffer = decode_sample_file(path)?;
+        if let Ok(mut cache) = self.audio.sample_cache.lock() {
+            cache.insert(path.to_string(), buffer.clone());
+        }
+        Some(buffer)
     }
 }
 

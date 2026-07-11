@@ -112,6 +112,10 @@ pub(crate) enum QueuedAudioEvent {
         sample_banks: Option<Vec<realtime_engine::synth::SampleBankConfig>>,
         voice_stealing_mode: Option<realtime_engine::synth::VoiceStealingMode>,
     },
+    SetSampleBank {
+        instrument_slot: usize,
+        bank: realtime_engine::synth::SampleBankConfig,
+    },
     SetMasterVolume {
         volume_pct: f32,
     },

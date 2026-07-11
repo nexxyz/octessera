@@ -7,8 +7,9 @@ mod footer;
 
 pub(super) use font::glyph_rows;
 use footer::{draw_footer, draw_status_indicators};
+use platform_core::palette;
 
-use super::{brightness_scale, rgb565, scale, SPLASH_BOOT, SPLASH_SLEEP_SHUTDOWN};
+use super::{brightness_scale, dim, rgb565, scale, SPLASH_BOOT, SPLASH_SLEEP_SHUTDOWN};
 
 pub(crate) const OLED_FRAME_BYTES: usize = 128 * 128 * 2;
 
@@ -107,10 +108,10 @@ pub(super) fn oled_frame_into(snapshot: &Value, frame: &mut [u8]) {
 fn render_menu_frame(frame: &mut [u8], snapshot: &Value, brightness: f32) {
     let display = snapshot.get("display").unwrap_or(&Value::Null);
     let title = display.get("title").and_then(Value::as_str).unwrap_or_default();
-    let title_color = rgb565(scale([215, 255, 232], brightness));
-    let dim_color = rgb565(scale([28, 51, 40], brightness));
-    let text_color = rgb565(scale([215, 255, 232], brightness));
-    fill_rect(frame, 0, 0, 128, 16, rgb565(scale([6, 18, 13], brightness)));
+    let title_color = rgb565(scale(palette::WHITE, brightness));
+    let dim_color = rgb565(scale(dim(palette::SYSTEM, 4), brightness));
+    let text_color = rgb565(scale(palette::WHITE, brightness));
+    fill_rect(frame, 0, 0, 128, 16, rgb565(scale(palette::BLACK, brightness)));
     draw_text_clipped(frame, title, 5, 5, 15, title_color);
     draw_status_indicators(frame, snapshot, brightness);
 
@@ -124,7 +125,7 @@ fn render_menu_frame(frame: &mut [u8], snapshot: &Value, brightness: f32) {
             let bar = bar_frac(display, index);
             if selected { fill_rect(frame, 3, y - 1, 122, 11, color); }
             if let Some(frac) = bar { draw_bar(frame, 88, y + 2, frac, color, dim_color); }
-            let text = if selected { rgb565(scale([4, 18, 13], brightness)) } else { color };
+            let text = if selected { rgb565(scale(palette::BLACK, brightness)) } else { color };
             draw_text_clipped(frame, line, if line.starts_with("  ") { 4 } else { 6 }, y as i32, if bar.is_some() { 13 } else { 19 }, text);
         }
     }
@@ -134,16 +135,20 @@ fn render_menu_frame(frame: &mut [u8], snapshot: &Value, brightness: f32) {
 
 pub(super) fn fault_frame_into(lines: &[String], frame: &mut [u8], lit: bool) {
     frame.fill(0);
-    let red = rgb565(if lit { [255, 0, 0] } else { [80, 0, 0] });
-    let dim_red = rgb565([42, 0, 0]);
-    let white = rgb565([255, 238, 214]);
-    fill_rect(frame, 0, 0, 128, 128, dim_red);
-    fill_rect(frame, 4, 4, 120, 120, rgb565([0, 0, 0]));
-    fill_rect(frame, 8, 8, 112, 18, red);
-    draw_text_clipped(frame, "FAULT", 43, 14, 8, rgb565([0, 0, 0]));
+    let warning = rgb565(if lit {
+        palette::PULSES
+    } else {
+        dim(palette::PULSES, 3)
+    });
+    let dim_warning = rgb565(dim(palette::PULSES, 6));
+    let text = rgb565(palette::SYSTEM);
+    fill_rect(frame, 0, 0, 128, 128, dim_warning);
+    fill_rect(frame, 4, 4, 120, 120, rgb565(palette::BLACK));
+    fill_rect(frame, 8, 8, 112, 18, warning);
+    draw_text_clipped(frame, "FAULT", 43, 14, 8, rgb565(palette::BLACK));
     for (index, line) in lines.iter().take(7).enumerate() {
         let y = 34 + index * 12;
-        draw_text_clipped(frame, line, 10, y as i32, 18, white);
+        draw_text_clipped(frame, line, 10, y as i32, 18, text);
     }
 }
 
@@ -224,14 +229,21 @@ fn overlay_toast(frame: &mut [u8], toast: &str, brightness: f32) {
     if toast.is_empty() {
         return;
     }
-    fill_rect(frame, 8, 100, 112, 18, rgb565(scale([6, 6, 6], brightness)));
+    fill_rect(
+        frame,
+        8,
+        100,
+        112,
+        18,
+        rgb565(scale(palette::BLACK, brightness)),
+    );
     draw_text(
         frame,
         toast,
         12,
         105,
         1,
-        rgb565(scale([240, 244, 228], brightness)),
+        rgb565(scale(palette::SYSTEM, brightness)),
     );
 }
 

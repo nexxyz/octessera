@@ -1,6 +1,33 @@
-use super::NativeRunner;
+use super::{json, sanitize_sparks_fx_config, sparks_fx_target_key, NativeRunner};
 
 impl NativeRunner {
+    pub(super) fn fast_sparks_fx_type_key(&mut self, key: &str) -> bool {
+        let before = self.sparks_fx_selected.clone();
+        let Some(fx_type) = self.menu.value_for_key(key) else {
+            return false;
+        };
+        let target = self
+            .menu
+            .value_for_key("sparks.fx.target")
+            .unwrap_or_else(|| sparks_fx_target_key(&before).into());
+        let params = before.get("params").cloned().unwrap_or_else(|| json!({}));
+        self.sparks_fx_selected = sanitize_sparks_fx_config(
+            &json!({ "fxType": fx_type, "targetKey": target, "params": params }),
+        );
+        if self.sparks_fx_selected != before {
+            self.rematerialize_menu_around_key(key);
+            self.mark_fast_autosave_dirty();
+        }
+        true
+    }
+
+    pub(super) fn fast_sparks_fx_value_key(&mut self) -> bool {
+        if self.apply_sparks_fx_menu_state() {
+            self.mark_fast_autosave_dirty();
+        }
+        true
+    }
+
     pub(super) fn apply_deferred_menu_key_fast(&mut self, key: &str) -> bool {
         if self.apply_deferred_text_key(key) {
             return true;

@@ -1,4 +1,5 @@
 use octessera_hal::OledSsd1351;
+use platform_core::palette;
 use std::thread;
 use std::time::Duration;
 
@@ -112,19 +113,19 @@ fn test_frame() -> Vec<u8> {
 
 fn color_at(x: usize, y: usize) -> u16 {
     if x == 0 || y == 0 || x == WIDTH - 1 || y == HEIGHT - 1 {
-        return 0xffff;
+        return palette::WHITE_RGB565;
     }
     if x == y || x == WIDTH - 1 - y {
-        return 0xffff;
+        return palette::WHITE_RGB565;
     }
     match x / 16 {
-        0 => 0xf800,
-        1 => 0x07e0,
-        2 => 0x001f,
-        3 => 0xffe0,
-        4 => 0xf81f,
-        5 => 0x07ff,
-        6 => 0xffff,
-        _ => 0x39e7,
+        0 => palette::PULSES_RGB565,
+        1 => palette::WORLDS_RGB565,
+        2 => palette::TONES_RGB565,
+        3 => palette::SPARKS_RGB565,
+        4 => palette::SYSTEM_RGB565,
+        5 => palette::WHITE_RGB565,
+        6 => palette::BLACK_RGB565,
+        _ => palette::SYSTEM_RGB565,
     }
 }

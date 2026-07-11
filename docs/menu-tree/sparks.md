@@ -23,16 +23,16 @@ Sparks layer behavior:
 - Fn + leftmost grid selection exits the current Sparks overlay without changing the saved Sparks Page selection. Menu position is not changed by layer selection.
 - When Fn is held, the left grid column shows layer-selection options and the right grid column shows Sparks page options. The active layer and saved Sparks page are highlighted; layers whose behavior is not `none` have a dim indicator; `none` layers stay dark. All other cells (columns 1 through 6) are dimmed to 25% brightness to make the navigation columns unambiguous.
 - `mix`: each column is an instrument; y=0 mutes, y=7 sets 100%, intermediate rows quantize per-slot `Mixer > Volume`.
-- `mix` LEDs show the current volume marker in green.
+- `mix` LEDs show the current volume marker in green; inactive instruments use dim gray.
 - `pan`: each row is an instrument; x=0 is hard left and x=7 is hard right. The marker is two cells wide so center positions are visible as the middle pair. Stored pan is a 33-position stereo scale (`0..32`, center `16`) shared with the menu and audio engine.
-- `pan` writes the audible pan target: for `Route=direct` instruments it sets `Mixer > Pan Pos`; for bus-routed (`fx_bus_n`) instruments it sets the bus pan (`Mixer > Buses[n] > Pan Pos`) plus the per-instrument pan for state preservation. The marker color reflects the route: white for direct, bus color (purple/cyan/green/amber for bus 1-4) for bus-routed instruments. Multiple instruments on the same bus show synchronized markers at the bus pan position.
+- `pan` writes the audible pan target: for `Route=direct` instruments it sets `Mixer > Pan Pos`; for bus-routed (`fx_bus_n`) instruments it sets the bus pan (`Mixer > Buses[n] > Pan Pos`) plus the per-instrument pan for state preservation. The marker color reflects the route: white for direct, and magenta, cyan, green, or yellow for buses 1-4. Multiple instruments on the same bus show synchronized markers at the bus pan position.
 - `pan` maps the 8 grid columns onto 7 two-cell marker positions: column 0 stores `0` and lights 0+1; column 1 stores `5` and lights 1+2; column 2 stores `11` and lights 2+3; columns 3 and 4 both store center `16` and light 3+4; column 5 stores `21` and lights 4+5; column 6 stores `27` and lights 5+6; column 7 stores `32` and lights 6+7.
 - `fx`: grid cells trigger mapped momentary effects. Press starts the mapped effect and release stops it. At most two momentary FX may be active at once, and only one momentary FX of each type may be active. If the active momentary FX limit is reached or another mapping of the same type is already active, the press is ignored and a toast warns the user.
 - `trigger-gate`: this Sparks page performs live trigger mode overrides for each layer; it does not edit the saved per-cell probability map.
 - `transpose`: left column toggles which eligible layers are affected; Shift + left column enables/disables transpose for all eligible layers. Columns 1..7 form a piano layout: white rows 1/3/5, black rows 2/4/6, octaves -1/0/+1, with center C at x=1,y=3 as no-op. Offsets apply transiently to synth and enabled MIDI note events after mapping and before routing; sampler assignment notes are not transposed.
 - Stored per-layer trigger probability data lives in `2: Pulses > L* > Trigger Prob.`.
 - `Map Prob Grid` edits the saved four-state probability map for the selected layer. Cell cycle is `zero -> low -> high -> full -> zero`; `Shift+grid` applies to a row; `Shift+Fn+grid` applies to a column.
-- Probability-map editor LEDs: black = `0%`, red = `low`, yellow = `high`, green = `100%`.
+- Probability-map editor LEDs: black = `0%`, magenta = `low`, yellow = `high`, green = `100%`.
 - `2: Pulses > Aux Mappings` exposes root-level menu-based assignment for aux encoder turn and click bindings.
 - `2: Pulses > Events when paused` controls whether direct grid input can emit musical events while the transport is stopped/paused. Algorithm tick/evolution remains stopped either way.
 - `2: Pulses > L* > X Axis` and `Y Axis` expose explicit per-layer assignment for X/Y param-mod slots.
@@ -40,8 +40,8 @@ Sparks layer behavior:
 - Aux `Click` uses a dedicated action browser for click-bindable actions.
 - Existing hardware shortcuts remain valid: Shift+grid still assigns X/Y param-mod slots and Fn+aux press provides the alternate aux-binding action for the currently highlighted menu parameter or `!` press action.
 - Trigger-gate Sparks layout uses rows as layers with the same orientation as Fn layer navigation: bottom row = layer 0, top row = highest layer.
-- Sparks columns `0..2` set that row's layer mode: `0%` (red), `custom` (yellow), `100%` (green). Selected mode is bright; the other two are dim.
-- Sparks columns `3..4` are an unassigned dark gap.
+- Sparks columns `0..2` set that row's layer mode: `0%` (magenta), `custom` (yellow), `100%` (green). Selected mode is bright; the other two are dim.
+- Sparks columns `3..4` are an unassigned black gap.
 - Bottom-row columns `5..7` are always-bright all-layers actions: set all layers to `0%`, `custom`, or `100%`.
 - Trigger filtering resolves per-layer mode as follows: `zero` blocks all triggers, `full` passes all triggers, `custom` uses the stored per-cell probability map with that layer's `Low Prob` and `High Prob` thresholds.
 - `Fn+Play` toggles the active layer between `0%` and its previously active trigger mode without rewriting the stored probability map. On desktop this is `Fn+Space`.
@@ -55,7 +55,7 @@ Sparks layer behavior:
 - Stutter captures a short audio segment on press and loops it repeatedly; `Rate Hz` sets segment length (longer at lower rates) and `Depth` controls wet mix. An ease-in ramp (~2ms) and loop-wrap crossfade prevent clicks.
 - Freeze captures the early sound burst into an infinite reverb tail on press (injection window ~120ms). The tail sustains while held with no new input after the window closes. On release, the tail fades out over `Release Ms` and the effect is then removed. `Mix` controls the wet/dry blend.
 - Filter Sweep starts with the filter fully open (~20kHz, no audible effect) and sweeps toward the target lowpass cutoff over `Sweep In` on press. On release, it sweeps back to fully open over `Sweep Out` and removes the effect when complete. `Cutoff` sets the target position between 20kHz (0) and the lowest cutoff (100). `Res` controls resonance.
-- FX LED colours are yellow for stutter, cyan for freeze, orange for filter_sweep, and magenta for pitch_shift. Assigned inactive cells are dim, active cells are bright, and limit-blocked cells are gray.
+- FX LED colours are yellow for stutter, cyan for freeze, green for filter_sweep, and magenta for pitch_shift. Assigned inactive cells are bright, active cells add white, and limit-blocked cells are dimmed.
 - Grid releases in Sparks mode are consumed by the Sparks layer and do not reach the active behavior engine.
 - Aux encoder bindings continue to target whichever menu item they were bound to; Sparks page switching does not alter bindings.
 - `xy`: the full 8×8 grid acts as a continuous two-axis modulation surface. Pressing a grid cell normalizes its X,Y coordinates over 0–1 (full width/height, no margin). The normalized position modulates the per-layer targets assigned in `4: Sparks > XY > X/Y Axis`. While pressed, the current touch cell is bright white; after release, `sample-hold` leaves a dim gray marker at the held value and `reset-center` returns the dim marker to center.

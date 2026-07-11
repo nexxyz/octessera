@@ -72,6 +72,12 @@ impl NativeRunner {
     }
 
     pub(super) fn apply_menu_key_fast(&mut self, key: &str) -> bool {
+        if key == "sparks.fx.type" {
+            return self.fast_sparks_fx_type_key(key);
+        }
+        if key == "sparks.fx.target" || key.starts_with("sparks.fx.params.") {
+            return self.fast_sparks_fx_value_key();
+        }
         if let Some(applied) = self.apply_runtime_menu_key_fast(key) {
             return applied;
         }
@@ -131,6 +137,9 @@ impl NativeRunner {
                 "sample.amp.velocitySensitivityPct",
                 fast_sample_velocity_sensitivity,
             ),
+            suffix if suffix.starts_with("sample.") => {
+                return self.fast_full_instrument_sample_key(index, key);
+            }
             suffix if suffix.starts_with("synth.") => {
                 self.fast_full_instrument_synth_key(index, key)
             }
@@ -211,6 +220,9 @@ impl NativeRunner {
             return None;
         };
         if changed {
+            if suffix == "pulses.scanMode" {
+                self.rematerialize_menu_around_key(key);
+            }
             if index == self.active_layer_index {
                 self.refresh_active_mapping_config();
                 self.refresh_active_interpretation_profile();
@@ -220,6 +232,13 @@ impl NativeRunner {
             self.mark_fast_autosave_dirty();
         }
         Some(true)
+    }
+
+    pub(super) fn rematerialize_menu_around_key(&mut self, key: &str) {
+        let was_editing = self.menu.state.editing;
+        self.menu.rebuild(self.menu_config());
+        let _ = self.menu.focus_item_key(key);
+        self.menu.state.editing = was_editing;
     }
 
     fn fast_layer_auto_name_key(&mut self, index: usize, key: &str) -> bool {
@@ -265,6 +284,25 @@ impl NativeRunner {
             &self.menu, index, instrument,
         ) {
             self.audio_config_revision = self.audio_config_revision.wrapping_add(1);
+            self.mark_fast_autosave_dirty();
+        }
+        true
+    }
+
+    fn fast_full_instrument_sample_key(&mut self, index: usize, key: &str) -> bool {
+        let changed = self.apply_instrument_menu_state();
+        if changed {
+            if key.ends_with(".selectedSlot") || key.ends_with(".velocityLevelsEnabled") {
+                self.rematerialize_menu_around_key(key);
+            }
+            if let Some(config) = self.instrument_audio_config(index) {
+                self.queue_audio_command(RuntimeAudioCommand::SetInstrumentSlot {
+                    instrument_slot: index,
+                    config,
+                });
+            } else {
+                self.audio_config_revision = self.audio_config_revision.wrapping_add(1);
+            }
             self.mark_fast_autosave_dirty();
         }
         true

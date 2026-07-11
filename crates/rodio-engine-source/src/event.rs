@@ -22,6 +22,10 @@ pub enum EngineEvent {
     },
     SetInstruments(InstrumentsConfig),
     SetSampleBanks(Vec<SampleBankConfig>),
+    SetSampleBank {
+        instrument_slot: usize,
+        bank: SampleBankConfig,
+    },
     SetAudioConfig {
         instruments: InstrumentsConfig,
         sample_banks: Option<Vec<SampleBankConfig>>,

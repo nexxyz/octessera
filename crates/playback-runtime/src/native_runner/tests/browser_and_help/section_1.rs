@@ -3,6 +3,7 @@ use super::*;
 #[test]
 pub(crate) fn sample_browser_opens_lists_and_picks_sample() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.auto_save_default = true;
     runner.instruments[0].kind = "sampler".into();
     runner.instruments[0].name = "sampler".into();
     runner.menu.rebuild(runner.menu_config());
@@ -74,12 +75,34 @@ pub(crate) fn sample_browser_opens_lists_and_picks_sample() {
     assert!(messages
         .iter()
         .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::AudioCommands { commands }
+            if commands.iter().any(|command| matches!(
+                command,
+                RuntimeAudioCommand::SetInstrumentSlot { instrument_slot: 0, .. }
+            ))
+    )));
     let snapshot = runner.snapshot().unwrap();
 
     assert_eq!(
         snapshot["settings"]["instruments"][0]["sample"]["slots"][0]["path"],
         "Drums/kick.wav"
     );
+    assert!(runner.sample_browser.is_none());
+    assert_eq!(snapshot["display"]["title"], "T/Instruments/I1: samp direc");
+    assert_eq!(snapshot["display"]["lines"][1], "> S1 Browse >");
+    runner.make_deferred_menu_apply_due_for_test();
+    let autosave = runner.flush_deferred_menu_apply().unwrap();
+    assert!(autosave.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects.iter().any(|effect| matches!(
+                effect,
+                RuntimePlatformEffect::StoreSaveDefault { mode, .. }
+                    if mode.as_deref() == Some("deferred")
+            ))
+    )));
 }
 
 #[test]

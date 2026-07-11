@@ -41,7 +41,7 @@ pub(crate) fn entering_worlds_selects_active_layer_row() {
     assert_eq!(snapshot.path, "W");
     assert_eq!(snapshot.selected_row, Some(2));
     assert_eq!(snapshot.lines[2], "> L3: life >");
-    assert_eq!(snapshot.colors[0], 0x8ED1);
+    assert_eq!(snapshot.colors[0], platform_core::palette::WORLDS_RGB565);
 }
 
 #[test]
@@ -57,7 +57,7 @@ pub(crate) fn entering_pulses_selects_active_layer_row_after_global_rows() {
     assert_eq!(snapshot.path, "P");
     assert_eq!(snapshot.selected_row, Some(3));
     assert_eq!(snapshot.lines[3], "> L3: life >");
-    assert_eq!(snapshot.colors[0], 0x8D5C);
+    assert_eq!(snapshot.colors[0], platform_core::palette::PULSES_RGB565);
 }
 
 #[test]
@@ -93,22 +93,34 @@ pub(crate) fn entered_root_short_paths_keep_section_colors() {
     let mut menu = NativeMenuModel::new(config());
 
     let _ = menu.press();
-    assert_eq!(menu.snapshot().colors[0], 0x8ED1);
+    assert_eq!(
+        menu.snapshot().colors[0],
+        platform_core::palette::WORLDS_RGB565
+    );
 
     menu.state.stack.clear();
     menu.state.cursor = 1;
     let _ = menu.press();
-    assert_eq!(menu.snapshot().colors[0], 0x8D5C);
+    assert_eq!(
+        menu.snapshot().colors[0],
+        platform_core::palette::PULSES_RGB565
+    );
 
     menu.state.stack.clear();
     menu.state.cursor = 2;
     let _ = menu.press();
-    assert_eq!(menu.snapshot().colors[0], 0xC59B);
+    assert_eq!(
+        menu.snapshot().colors[0],
+        platform_core::palette::TONES_RGB565
+    );
 
     menu.state.stack.clear();
     menu.state.cursor = 3;
     let _ = menu.press();
-    assert_eq!(menu.snapshot().colors[0], 0xFFFF);
+    assert_eq!(
+        menu.snapshot().colors[0],
+        platform_core::palette::SPARKS_RGB565
+    );
 }
 
 #[test]

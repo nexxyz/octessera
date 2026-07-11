@@ -1,3 +1,4 @@
+use platform_core::palette;
 use serde_json::Value;
 
 use super::{draw_text_clipped, fill_rect, rgb565, scale};
@@ -6,11 +7,11 @@ use super::{draw_text_clipped, fill_rect, rgb565, scale};
 pub(super) fn draw_status_indicators(frame: &mut [u8], snapshot: &Value, brightness: f32) {
     let cpu = snapshot.get("cpuLoadRatio").and_then(Value::as_f64).unwrap_or(0.0);
     let cpu_color = if cpu >= 0.85 {
-        [255, 102, 102]
+        palette::PULSES
     } else if cpu >= 0.6 {
-        [255, 209, 102]
+        palette::SPARKS
     } else {
-        [51, 85, 68]
+        palette::SYSTEM
     };
     draw_cpu_icon(frame, 117, 5, rgb565(scale(cpu_color, brightness)));
 }
@@ -19,9 +20,9 @@ pub(super) fn draw_status_indicators(frame: &mut [u8], snapshot: &Value, brightn
 pub(super) fn draw_footer(frame: &mut [u8], snapshot: &Value, brightness: f32) {
     let display = snapshot.get("display").unwrap_or(&Value::Null);
     let toast = display.get("toast").and_then(Value::as_str).unwrap_or_default();
-    let text = rgb565(scale([215, 255, 232], brightness));
+    let text = rgb565(scale(palette::WHITE, brightness));
     if !toast.is_empty() {
-        let background = rgb565(scale([6, 18, 13], brightness));
+        let background = rgb565(scale(palette::BLACK, brightness));
         fill_rect(frame, 0, 114, 128, 14, background);
         draw_text_clipped(frame, toast, 5, 118, 17, text);
         return;
@@ -29,7 +30,7 @@ pub(super) fn draw_footer(frame: &mut [u8], snapshot: &Value, brightness: f32) {
     draw_transport_icon(frame, snapshot, brightness);
     if snapshot.get("eventDotOn").and_then(Value::as_bool).unwrap_or(false) {
         let voice_steal = snapshot.get("voiceSteal").and_then(Value::as_bool).unwrap_or(false);
-        let color = if voice_steal { [255, 51, 51] } else { [255, 220, 70] };
+        let color = if voice_steal { palette::PULSES } else { palette::WHITE };
         let dot = rgb565(scale(color, brightness));
         fill_rect(frame, 119, 119, 5, 5, dot);
     }
@@ -40,10 +41,11 @@ fn draw_transport_icon(frame: &mut [u8], snapshot: &Value, brightness: f32) {
     let icon_name = snapshot.get("transportIcon").and_then(Value::as_str).unwrap_or("stop");
     let flash = snapshot.get("transportFlash").and_then(Value::as_str).unwrap_or("none");
     let rgb = match (icon_name, flash) {
-        ("play", "measure") => [255, 160, 0],
-        ("play", "beat") => [51, 255, 102],
-        ("stop", _) => [255, 51, 51],
-        _ => [215, 255, 232],
+        ("play", "measure") => palette::WORLDS,
+        ("play", "beat") => palette::SPARKS,
+        ("stop", _) => palette::PULSES,
+        ("pause", _) => palette::TONES,
+        _ => palette::WHITE,
     };
     draw_transport_shape(frame, icon_name, 101, 118, rgb565(scale(rgb, brightness)));
 }

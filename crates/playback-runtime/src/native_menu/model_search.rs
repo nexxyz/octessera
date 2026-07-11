@@ -54,6 +54,22 @@ pub(super) fn replace_item_label(node: &mut NativeMenuItem, old: &str, new: &str
     changed
 }
 
+pub(super) fn set_item_label_by_key(node: &mut NativeMenuItem, key: &str, label: &str) -> bool {
+    if node.key.as_deref() == Some(key) {
+        if node.label == label {
+            return false;
+        }
+        node.label = label.to_string();
+        return true;
+    }
+    for child in &mut node.children {
+        if set_item_label_by_key(child, key, label) {
+            return true;
+        }
+    }
+    false
+}
+
 pub(super) fn replace_children_for_label(
     node: &mut NativeMenuItem,
     label: &str,

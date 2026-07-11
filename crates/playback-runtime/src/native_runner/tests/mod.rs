@@ -8,6 +8,7 @@ mod basics;
 mod browser_and_help;
 mod controls;
 mod dim_sleep;
+mod happy_path;
 mod input_events;
 mod instruments;
 mod life_mapping;
@@ -54,6 +55,15 @@ pub(crate) fn led_cells(snapshot: &Value) -> Vec<Value> {
             })
         })
         .collect()
+}
+
+pub(crate) fn led_rgb(rgb: [u8; 3]) -> Value {
+    json!({ "r": rgb[0], "g": rgb[1], "b": rgb[2] })
+}
+
+pub(crate) fn dim_rgb(rgb: [u8; 3], divisor: u8) -> [u8; 3] {
+    let divisor = divisor.max(1);
+    [rgb[0] / divisor, rgb[1] / divisor, rgb[2] / divisor]
 }
 
 pub(crate) fn confirm_current_dialog(runner: &mut NativeRunner) -> Vec<RunnerMessage> {

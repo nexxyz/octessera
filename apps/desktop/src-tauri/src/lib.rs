@@ -56,8 +56,54 @@ fn ensure_store_dir_at(dir: PathBuf) -> PathBuf {
             .and_then(|payload| {
                 persistence::atomic_write_json(&default_path, &payload).map_err(|_| ())
             });
+    } else {
+        let _ = repair_existing_desktop_default_brightness(&default_path);
     }
     dir
+}
+
+fn repair_existing_desktop_default_brightness(path: &std::path::Path) -> Result<(), String> {
+    let bundled: serde_json::Value =
+        serde_json::from_str(BUNDLED_DEFAULT_CONFIG).map_err(|e| e.to_string())?;
+    let mut payload: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(path).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+    let Some(runtime) = payload
+        .get_mut("runtimeConfig")
+        .and_then(serde_json::Value::as_object_mut)
+    else {
+        return Ok(());
+    };
+    let bundled_runtime = bundled
+        .get("runtimeConfig")
+        .and_then(serde_json::Value::as_object)
+        .ok_or_else(|| "bundled desktop default missing runtimeConfig".to_string())?;
+    let old_pi_defaults = [
+        ("buttonBrightness", 35_u64),
+        ("displayBrightness", 75_u64),
+        ("gridBrightness", 25_u64),
+    ];
+    let mut changed = false;
+    for (key, old_value) in old_pi_defaults {
+        let should_repair = runtime
+            .get(key)
+            .and_then(serde_json::Value::as_u64)
+            .is_none_or(|current| current == old_value);
+        if !should_repair {
+            continue;
+        }
+        let Some(next) = bundled_runtime.get(key) else {
+            continue;
+        };
+        if runtime.get(key) != Some(next) {
+            runtime.insert(key.to_string(), next.clone());
+            changed = true;
+        }
+    }
+    if changed {
+        persistence::atomic_write_json(path, &payload)?;
+    }
+    Ok(())
 }
 
 fn fallback_store_dir() -> PathBuf {
@@ -179,6 +225,77 @@ mod tests {
             std::fs::read_to_string(&default_path).unwrap(),
             "{\"kept\":true}"
         );
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn store_dir_repairs_existing_pi_brightness_default_for_desktop() {
+        let dir = std::env::temp_dir().join(format!(
+            "octessera-desktop-store-brightness-repair-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let default_path = dir.join("default.json");
+        std::fs::write(
+            &default_path,
+            serde_json::to_string_pretty(&serde_json::json!({
+                "runtimeConfig": {
+                    "buttonBrightness": 35,
+                    "displayBrightness": 75,
+                    "gridBrightness": 25,
+                    "masterVolume": 82
+                }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+
+        ensure_store_dir_at(dir.clone());
+
+        let default_payload: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&default_path).unwrap()).unwrap();
+        assert_eq!(default_payload["runtimeConfig"]["displayBrightness"], 100);
+        assert_eq!(default_payload["runtimeConfig"]["gridBrightness"], 100);
+        assert_eq!(default_payload["runtimeConfig"]["buttonBrightness"], 100);
+        assert_eq!(default_payload["runtimeConfig"]["masterVolume"], 82);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn store_dir_repairs_partial_old_brightness_without_overwriting_custom_values() {
+        let dir = std::env::temp_dir().join(format!(
+            "octessera-desktop-store-partial-brightness-repair-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let default_path = dir.join("default.json");
+        std::fs::write(
+            &default_path,
+            serde_json::to_string_pretty(&serde_json::json!({
+                "runtimeConfig": {
+                    "buttonBrightness": 35,
+                    "displayBrightness": 88,
+                    "masterVolume": 82
+                }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+
+        ensure_store_dir_at(dir.clone());
+
+        let default_payload: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&default_path).unwrap()).unwrap();
+        assert_eq!(default_payload["runtimeConfig"]["buttonBrightness"], 100);
+        assert_eq!(default_payload["runtimeConfig"]["displayBrightness"], 88);
+        assert_eq!(default_payload["runtimeConfig"]["gridBrightness"], 100);
+        assert_eq!(default_payload["runtimeConfig"]["masterVolume"], 82);
         let _ = std::fs::remove_dir_all(dir);
     }
 }

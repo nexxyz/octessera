@@ -65,11 +65,26 @@ impl NativeRunner {
             let Some(path) = path else {
                 return Ok(None);
             };
+            let mut changed = false;
             if let Some(instrument) = self.instruments.get_mut(instrument_slot) {
                 if sample_slot < instrument.sample_paths.len() {
                     instrument.sample_paths[sample_slot] = Some(path);
-                    self.menu.rebuild(self.menu_config());
+                    changed = true;
                 }
+            }
+            if changed {
+                if let Some(config) = self.instrument_audio_config(instrument_slot) {
+                    self.queue_audio_command(RuntimeAudioCommand::SetInstrumentSlot {
+                        instrument_slot,
+                        config,
+                    });
+                }
+                self.mark_fast_autosave_dirty();
+                self.sample_browser = None;
+                self.menu.rebuild(self.menu_config());
+                let _ = self
+                    .menu
+                    .focus_item_key(&format!("sample.choose:{instrument_slot}:{sample_slot}"));
             }
             return Ok(None);
         }

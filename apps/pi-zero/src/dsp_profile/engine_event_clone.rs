@@ -33,6 +33,13 @@ pub(super) fn clone_event(
         },
         EngineEvent::SetInstruments(config) => EngineEvent::SetInstruments(config.clone()),
         EngineEvent::SetSampleBanks(banks) => EngineEvent::SetSampleBanks(banks.clone()),
+        EngineEvent::SetSampleBank {
+            instrument_slot,
+            bank,
+        } => EngineEvent::SetSampleBank {
+            instrument_slot: *instrument_slot,
+            bank: bank.clone(),
+        },
         EngineEvent::SetAudioConfig {
             instruments,
             sample_banks,

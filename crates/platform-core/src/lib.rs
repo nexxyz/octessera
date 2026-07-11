@@ -6,6 +6,7 @@ mod grid;
 mod interpretation;
 mod interpretation_scan;
 mod mapping;
+pub mod palette;
 mod platform_capabilities;
 mod transforms;
 

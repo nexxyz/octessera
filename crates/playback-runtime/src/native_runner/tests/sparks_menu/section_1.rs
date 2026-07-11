@@ -103,7 +103,7 @@ pub(crate) fn fn_grid_context_changes_show_oled_toasts() {
 }
 
 #[test]
-pub(crate) fn sparks_fx_type_turn_is_deferred_until_flush() {
+pub(crate) fn sparks_fx_type_turn_updates_params_immediately() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.sparks_mode = "fx".into();
     runner.active_sparks_mode = "fx".into();
@@ -122,11 +122,16 @@ pub(crate) fn sparks_fx_type_turn_is_deferred_until_flush() {
         runner.menu.value_for_key("sparks.fx.type").as_deref(),
         Some("stutter")
     );
-    assert_eq!(runner.sparks_fx_selected["fxType"], "none");
-    runner.make_deferred_menu_apply_due_for_test();
-    let flushed = runner.flush_deferred_menu_apply().unwrap();
-    assert!(!flushed.is_empty());
     assert_eq!(runner.sparks_fx_selected["fxType"], "stutter");
+    assert!(runner
+        .menu
+        .number_for_key("sparks.fx.params.rateHz")
+        .is_some());
+    assert!(runner
+        .menu
+        .number_for_key("sparks.fx.params.depthPct")
+        .is_some());
+    assert!(runner.flush_deferred_menu_apply().unwrap().is_empty());
 }
 
 #[test]

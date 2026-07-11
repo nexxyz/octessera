@@ -1,4 +1,5 @@
 use octessera_hal::{NeoKey, NeoTrellis, OledSsd1351};
+use platform_core::palette;
 use std::thread;
 use std::time::Duration;
 
@@ -72,8 +73,12 @@ pub(crate) fn run_hardware_fault_mode(mut fault: HardwareFault) -> ! {
         }
         if let Some(neokey) = fault.neokey.as_mut() {
             for index in 0..4 {
-                let color = if lit { 180 } else { 0 };
-                let _ = neokey.set_led(index, color, 0, 0);
+                let color = if lit {
+                    platform_core::palette::PULSES
+                } else {
+                    platform_core::palette::BLACK
+                };
+                let _ = neokey.set_led(index, color[0], color[1], color[2]);
             }
         }
         lit = !lit;
@@ -124,7 +129,7 @@ fn trellis_fault_frame(lit: bool) -> [[u8; 3]; 64] {
         (1, 5),
         (1, 6),
     ] {
-        frame[y * 8 + x] = [180, 0, 0];
+        frame[y * 8 + x] = palette::PULSES;
     }
     frame
 }

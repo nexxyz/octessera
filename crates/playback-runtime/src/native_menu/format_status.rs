@@ -21,19 +21,19 @@ pub(in crate::native_menu) fn section_color_from_path(path: &str) -> u16 {
 
 pub(in crate::native_menu) fn section_color_for_label(label: &str) -> u16 {
     if label.starts_with("1:") || label == "W" {
-        return 0x8ED1;
+        return platform_core::palette::WORLDS_RGB565;
     }
     if label.starts_with("2:") || label == "P" {
-        return 0x8D5C;
+        return platform_core::palette::PULSES_RGB565;
     }
     if label.starts_with("3:") || label == "T" {
-        return 0xC59B;
+        return platform_core::palette::TONES_RGB565;
     }
     if label.starts_with("4:") || label == "S" {
-        return 0xFFFF;
+        return platform_core::palette::SPARKS_RGB565;
     }
     if label == "System" || label == "SYS" || label == "MENU" {
-        return 0xB50D;
+        return platform_core::palette::SYSTEM_RGB565;
     }
-    0xFFFF
+    platform_core::palette::WHITE_RGB565
 }

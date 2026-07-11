@@ -7,6 +7,8 @@ fn main() {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let source_path = manifest_dir.join("../../resources/platform-capabilities.json");
     println!("cargo:rerun-if-changed={}", source_path.display());
+    let palette_source_path = manifest_dir.join("../../resources/display-palette.json");
+    println!("cargo:rerun-if-changed={}", palette_source_path.display());
 
     let source = fs::read_to_string(&source_path)
         .unwrap_or_else(|error| panic!("failed to read {}: {}", source_path.display(), error));
@@ -70,6 +72,25 @@ pub const PLATFORM_CAPABILITIES: PlatformCapabilities = PlatformCapabilities {{
     let output_path =
         PathBuf::from(env::var("OUT_DIR").unwrap()).join("platform_capabilities.generated.rs");
     fs::write(output_path, generated).unwrap();
+
+    let palette_source = fs::read_to_string(&palette_source_path).unwrap_or_else(|error| {
+        panic!(
+            "failed to read {}: {}",
+            palette_source_path.display(),
+            error
+        )
+    });
+    let palette_value: Value = serde_json::from_str(&palette_source).unwrap_or_else(|error| {
+        panic!(
+            "failed to parse {}: {}",
+            palette_source_path.display(),
+            error
+        )
+    });
+    let palette_generated = display_palette_source(&palette_value);
+    let palette_output_path =
+        PathBuf::from(env::var("OUT_DIR").unwrap()).join("display_palette.generated.rs");
+    fs::write(palette_output_path, palette_generated).unwrap();
 }
 
 fn positive_usize(value: &Value, key: &str) -> usize {
@@ -118,4 +139,93 @@ fn scan_section_counts(value: &Value) -> Vec<usize> {
                 .unwrap_or_else(|| panic!("invalid scanSectionCounts entry: {}", entry))
         })
         .collect()
+}
+
+fn display_palette_source(value: &Value) -> String {
+    validate_palette_keys(value);
+    let worlds = rgb(value, "worlds");
+    let pulses = rgb(value, "pulses");
+    let tones = rgb(value, "tones");
+    let sparks = rgb(value, "sparks");
+    let system = rgb(value, "system");
+    let white = rgb(value, "white");
+    let black = rgb(value, "black");
+    format!(
+        r#"pub const WORLDS: [u8; 3] = {worlds};
+pub const PULSES: [u8; 3] = {pulses};
+pub const TONES: [u8; 3] = {tones};
+pub const SPARKS: [u8; 3] = {sparks};
+pub const SYSTEM: [u8; 3] = {system};
+pub const WHITE: [u8; 3] = {white};
+pub const BLACK: [u8; 3] = {black};
+
+pub const WORLDS_RGB565: u16 = {worlds_rgb565:#06X};
+pub const PULSES_RGB565: u16 = {pulses_rgb565:#06X};
+pub const TONES_RGB565: u16 = {tones_rgb565:#06X};
+pub const SPARKS_RGB565: u16 = {sparks_rgb565:#06X};
+pub const SYSTEM_RGB565: u16 = {system_rgb565:#06X};
+pub const WHITE_RGB565: u16 = {white_rgb565:#06X};
+pub const BLACK_RGB565: u16 = {black_rgb565:#06X};
+"#,
+        worlds = rgb_source(worlds),
+        pulses = rgb_source(pulses),
+        tones = rgb_source(tones),
+        sparks = rgb_source(sparks),
+        system = rgb_source(system),
+        white = rgb_source(white),
+        black = rgb_source(black),
+        worlds_rgb565 = rgb565(worlds),
+        pulses_rgb565 = rgb565(pulses),
+        tones_rgb565 = rgb565(tones),
+        sparks_rgb565 = rgb565(sparks),
+        system_rgb565 = rgb565(system),
+        white_rgb565 = rgb565(white),
+        black_rgb565 = rgb565(black),
+    )
+}
+
+fn validate_palette_keys(value: &Value) {
+    let object = value
+        .as_object()
+        .unwrap_or_else(|| panic!("invalid display palette: expected object"));
+    let mut keys = object.keys().map(String::as_str).collect::<Vec<_>>();
+    keys.sort_unstable();
+    let expected = [
+        "black", "pulses", "sparks", "system", "tones", "white", "worlds",
+    ];
+    if keys != expected {
+        panic!(
+            "invalid display palette keys: expected {}; got {}",
+            expected.join(", "),
+            keys.join(", ")
+        );
+    }
+}
+
+fn rgb(value: &Value, key: &str) -> [u8; 3] {
+    let text = value
+        .get(key)
+        .and_then(Value::as_str)
+        .unwrap_or_else(|| panic!("invalid display palette '{}': expected #RRGGBB", key));
+    if text.len() != 7 || !text.starts_with('#') {
+        panic!("invalid display palette '{}': expected #RRGGBB", key);
+    }
+    [
+        hex_pair(key, &text[1..3]),
+        hex_pair(key, &text[3..5]),
+        hex_pair(key, &text[5..7]),
+    ]
+}
+
+fn hex_pair(key: &str, text: &str) -> u8 {
+    u8::from_str_radix(text, 16)
+        .unwrap_or_else(|_| panic!("invalid display palette '{}': expected #RRGGBB", key))
+}
+
+fn rgb_source(rgb: [u8; 3]) -> String {
+    format!("[{}, {}, {}]", rgb[0], rgb[1], rgb[2])
+}
+
+fn rgb565(rgb: [u8; 3]) -> u16 {
+    ((u16::from(rgb[0]) & 0xF8) << 8) | ((u16::from(rgb[1]) & 0xFC) << 3) | (u16::from(rgb[2]) >> 3)
 }

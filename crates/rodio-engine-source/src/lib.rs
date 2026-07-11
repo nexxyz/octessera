@@ -128,6 +128,13 @@ impl EngineSource {
                     drained.config_events += 1;
                     self.engine.set_sample_banks(banks);
                 }
+                EngineEvent::SetSampleBank {
+                    instrument_slot,
+                    bank,
+                } => {
+                    drained.config_events += 1;
+                    self.engine.set_sample_bank(instrument_slot, bank);
+                }
                 EngineEvent::SetAudioConfig {
                     instruments,
                     sample_banks,

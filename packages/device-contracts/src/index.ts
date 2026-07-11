@@ -14,6 +14,17 @@ export type {
 } from "./coreTypes";
 export { createGridDomain } from "./gridDomain";
 export type { GridCell, GridDomain } from "./gridDomain";
+export {
+  BLACK_COLOR,
+  DISPLAY_PALETTE,
+  PULSES_COLOR,
+  SPARKS_COLOR,
+  SYSTEM_COLOR,
+  TONES_COLOR,
+  WHITE_COLOR,
+  WORLDS_COLOR
+} from "./displayPalette.generated";
+export type { DisplayPaletteRgb } from "./displayPalette.generated";
 export { AUX_ENCODER_COUNT, GRID_HEIGHT, GRID_WIDTH, OLED_HEIGHT, OLED_WIDTH, PAN_POSITION_COUNT, PLATFORM_CAPS } from "./platformCapabilities.generated";
 export {
   MIDI_REALTIME_MESSAGE_TYPES,

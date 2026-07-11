@@ -119,6 +119,10 @@ pub(crate) fn pulses_scan_mode_edits_into_config_payload() {
         runner.config_payload()["runtimeConfig"]["layers"][0]["pulses"]["scanMode"],
         "scanning"
     );
+    assert!(contains_key_recursive(
+        &runner.menu.root.children,
+        "layers.0.pulses.scanAxis"
+    ));
 }
 
 #[test]

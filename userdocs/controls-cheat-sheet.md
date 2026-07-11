@@ -21,7 +21,7 @@ Octessera has regular controls, and then it has places where the controls tempor
 | Control | Area | What it does |
 |---|---|---|
 | *Fn* + left grid column | **Navigate to Layer 1–8** | Jump to the chosen layer. Bottom row is layer 1. |
-| *Hold* *Fn* | **Navigation preview** | Left column shows layers. Gray means available; green means current. |
+| *Hold* *Fn* | **Navigation preview** | Left column shows layers: cyan for navigation/current focus, green for configured layers, gray/black for inactive or unavailable cells. Right column shows Sparks pages in yellow, with the active page in green. |
 | *Fn* + right grid column | **Navigate to Sparks pages** | Jump to *Mix*, *Pan*, *FX*, *Trigger Gate*, *Transpose*, or *XY*. If Sparks is already active, this exits Sparks. |
 | *Fn* + *aux encoder click* | **Bind focused value/action** | Assign the highlighted menu value to that aux turn, or the highlighted action to that aux click. |
 

@@ -12,6 +12,16 @@ impl SynthEngine {
         }
     }
 
+    pub fn set_sample_bank(&mut self, instrument_slot: usize, bank: SampleBankConfig) {
+        let slot = instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1);
+        self.sample_banks
+            .resize(INSTRUMENT_SLOT_COUNT, SampleBankConfig::default());
+        self.sample_banks[slot] = bank;
+        for voice in self.sample_voices[slot].iter_mut() {
+            voice.active = false;
+        }
+    }
+
     pub fn preview_sample(&mut self, instrument_slot: u8, buffer: SampleBuffer, velocity: u8) {
         let slot = (instrument_slot as usize).min(INSTRUMENT_SLOT_COUNT - 1);
         if buffer.samples.is_empty() || buffer.channels == 0 || buffer.sample_rate == 0 {

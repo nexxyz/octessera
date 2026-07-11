@@ -22,6 +22,7 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
 - Core logic layer (`crates/platform-core`)
   - deterministic behavior execution, grid state, interpretation, mapping, transforms, and native layer engine logic
   - generated platform capability constants from `resources/platform-capabilities.json`
+  - generated display palette constants from `resources/display-palette.json` so runtime, Pi, and desktop adapters share color values without moving UI policy into the core
   - no UI framework code
   - no platform-specific I/O
   - no desktop, Pi, Tauri, Node runner, storage, MIDI-device, filesystem, or hardware adapter code

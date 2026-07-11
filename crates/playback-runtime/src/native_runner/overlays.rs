@@ -20,20 +20,20 @@ impl NativeRunner {
         let Some((instrument_slot, selected_sample_slot)) = self.sample_assign else {
             return;
         };
-        self.fill_leds(leds, LedColor::rgb(0, 0, 0));
+        self.fill_leds(leds, LedColor::BLACK);
         let Some(instrument) = self.instruments.get(instrument_slot) else {
             return;
         };
         for assignment in &instrument.sample_assignments {
             let color = if assignment.sample_slot == selected_sample_slot {
                 match assignment.level.as_deref() {
-                    Some("high") => LedColor::rgb(220, 0, 0),
-                    Some("medium") => LedColor::rgb(220, 180, 0),
-                    Some("low") => LedColor::rgb(0, 220, 0),
-                    _ => LedColor::rgb(220, 220, 220),
+                    Some("high") => LedColor::PULSES,
+                    Some("medium") => LedColor::SPARKS,
+                    Some("low") => LedColor::WORLDS,
+                    _ => LedColor::SYSTEM,
                 }
             } else {
-                LedColor::rgb(70, 70, 70)
+                LedColor::SYSTEM.dim(3)
             };
             self.set_display_led(leds, assignment.x, assignment.y, color);
         }
@@ -43,17 +43,17 @@ impl NativeRunner {
         let Some(layer_index) = self.trigger_probability_assign else {
             return;
         };
-        self.fill_leds(leds, LedColor::rgb(0, 0, 0));
+        self.fill_leds(leds, LedColor::BLACK);
         let Some(map) = self.trigger_probability_maps.get(layer_index) else {
             return;
         };
         for y in 0..GRID_HEIGHT {
             for x in 0..GRID_WIDTH {
                 let color = match map.get(y * GRID_WIDTH + x).map(String::as_str) {
-                    Some("low") => LedColor::rgb(220, 0, 0),
-                    Some("high") => LedColor::rgb(220, 180, 0),
-                    Some("full") => LedColor::rgb(0, 220, 0),
-                    _ => LedColor::rgb(0, 0, 0),
+                    Some("low") => LedColor::PULSES,
+                    Some("high") => LedColor::SPARKS,
+                    Some("full") => LedColor::WORLDS,
+                    _ => LedColor::BLACK,
                 };
                 self.set_display_led(leds, x, y, color);
             }
@@ -80,7 +80,7 @@ impl NativeRunner {
         let Some(param_mods) = self.param_mods.get(self.active_layer_index) else {
             return;
         };
-        let lane = LedColor::rgb(18, 18, 24);
+        let lane = LedColor::SYSTEM.dim(8);
         for x in 0..GRID_WIDTH {
             self.set_display_led(leds, x, 0, lane);
             self.set_display_led(leds, x, 1, lane);
@@ -101,8 +101,8 @@ impl NativeRunner {
         if let Some(binding) = param_mods.y.get(1).and_then(Option::as_ref) {
             self.paint_param_mod_axis_slot(leds, binding, &highlighted.key, "y", 1);
         }
-        self.set_display_led(leds, 0, 0, LedColor::rgb(255, 255, 255));
-        self.set_display_led(leds, 1, 1, LedColor::rgb(255, 255, 255));
+        self.set_display_led(leds, 0, 0, LedColor::WHITE);
+        self.set_display_led(leds, 1, 1, LedColor::WHITE);
     }
 
     fn paint_param_mod_axis_slot(
@@ -114,9 +114,9 @@ impl NativeRunner {
         slot: usize,
     ) {
         let color = if binding.invert {
-            LedColor::rgb(255, 0, 90)
+            LedColor::PULSES
         } else {
-            LedColor::rgb(0, 255, 120)
+            LedColor::WORLDS
         };
         let color = if binding.key == highlighted_key {
             color
@@ -232,14 +232,14 @@ impl NativeRunner {
                 .map(|bus| bus.pan_pos)
                 .unwrap_or(instrument.pan_pos);
             let color = match bus_index {
-                0 => LedColor::rgb(190, 80, 255),
-                1 => LedColor::rgb(0, 210, 255),
-                2 => LedColor::rgb(0, 230, 120),
-                3 => LedColor::rgb(255, 160, 0),
-                _ => LedColor::rgb(255, 255, 255),
+                0 => LedColor::PULSES,
+                1 => LedColor::TONES,
+                2 => LedColor::WORLDS,
+                3 => LedColor::SPARKS,
+                _ => LedColor::WHITE,
             };
             return (pan, color);
         }
-        (instrument.pan_pos, LedColor::rgb(255, 255, 255))
+        (instrument.pan_pos, LedColor::WHITE)
     }
 }

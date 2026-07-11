@@ -19,7 +19,14 @@ pub(crate) fn root_snapshot_includes_sparks_separator_and_system() {
     assert_eq!(snapshot.selected_row, Some(0));
     assert_eq!(
         snapshot.colors,
-        vec![0x8ED1, 0x8D5C, 0xC59B, 0xFFFF, 0xFFFF, 0xB50D]
+        vec![
+            platform_core::palette::WORLDS_RGB565,
+            platform_core::palette::PULSES_RGB565,
+            platform_core::palette::TONES_RGB565,
+            platform_core::palette::SPARKS_RGB565,
+            platform_core::palette::WHITE_RGB565,
+            platform_core::palette::SYSTEM_RGB565
+        ]
     );
 }
 
@@ -131,7 +138,15 @@ pub(crate) fn system_submenu_uses_abbreviated_path_and_section_colors() {
     );
     assert_eq!(
         snapshot.colors,
-        vec![0xB50D, 0xB50D, 0xB50D, 0xB50D, 0xB50D, 0xB50D, 0xB50D]
+        vec![
+            platform_core::palette::SYSTEM_RGB565,
+            platform_core::palette::SYSTEM_RGB565,
+            platform_core::palette::SYSTEM_RGB565,
+            platform_core::palette::SYSTEM_RGB565,
+            platform_core::palette::SYSTEM_RGB565,
+            platform_core::palette::SYSTEM_RGB565,
+            platform_core::palette::SYSTEM_RGB565
+        ]
     );
     assert_eq!(snapshot.selected_row, Some(0));
 }

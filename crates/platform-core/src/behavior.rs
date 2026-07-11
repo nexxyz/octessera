@@ -109,9 +109,9 @@ pub struct BehaviorRenderPalette {
 impl Default for BehaviorRenderPalette {
     fn default() -> Self {
         Self {
-            active: [255, 255, 255],
-            inactive: [0, 0, 0],
-            stable: [0, 255, 0],
+            active: crate::palette::DEFAULT_BEHAVIOR_ACTIVE,
+            inactive: crate::palette::DEFAULT_BEHAVIOR_INACTIVE,
+            stable: crate::palette::DEFAULT_BEHAVIOR_STABLE,
         }
     }
 }

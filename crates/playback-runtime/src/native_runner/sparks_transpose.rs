@@ -88,13 +88,13 @@ impl NativeRunner {
             let selected = self.sparks_transpose_selected.get(layer) == Some(&true);
             let enabled = self.sparks_transpose_enabled.get(layer) == Some(&true);
             let color = if eligible && selected && enabled {
-                LedColor::rgb(0, 220, 150)
+                LedColor::WORLDS
             } else if eligible && selected {
-                LedColor::rgb(0, 90, 80)
+                LedColor::TONES.dim(2)
             } else if eligible {
-                LedColor::rgb(0, 45, 40)
+                LedColor::SYSTEM.dim(4)
             } else {
-                LedColor::rgb(20, 20, 20)
+                LedColor::BLACK
             };
             self.set_display_led(leds, 0, layer, color);
         }
@@ -102,9 +102,9 @@ impl NativeRunner {
             for x in 1..GRID_WIDTH {
                 if let Some(offset) = sparks_transpose_offset_at(x, y) {
                     let color = if offset == 0 {
-                        LedColor::rgb(255, 255, 255)
+                        LedColor::WHITE
                     } else {
-                        LedColor::rgb(90, 90, 180)
+                        LedColor::TONES
                     };
                     self.set_display_led(leds, x, y, color);
                 }

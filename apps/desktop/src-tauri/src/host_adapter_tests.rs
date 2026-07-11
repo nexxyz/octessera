@@ -274,6 +274,41 @@ fn full_audio_config_command_reuses_sample_bank_signature() {
 }
 
 #[test]
+fn sampler_slot_command_enqueues_slot_and_single_sample_bank_update() {
+    let (mut adapter, rx) = test_adapter();
+
+    adapter
+        .handle_platform_effect(&RuntimePlatformEffect::AudioCommand {
+            command: RuntimeAudioCommand::SetInstrumentSlot {
+                instrument_slot: 2,
+                config: serde_json::json!({
+                    "type": "sampler",
+                    "sample": {
+                        "slots": [{ "path": "missing.wav" }],
+                        "tuneSemis": -2.0,
+                        "amp": { "gainPct": 55.0, "velocitySensitivityPct": 35.0 }
+                    },
+                    "mixer": { "route": "direct", "panPos": 16, "volume": 77 }
+                }),
+            },
+        })
+        .unwrap();
+
+    assert!(matches!(
+        rx.recv_timeout(Duration::from_secs(1)).unwrap(),
+        QueuedAudioEvent::SetInstrumentSlot {
+            instrument_slot: 2,
+            ..
+        }
+    ));
+    assert!(matches!(
+        rx.recv_timeout(Duration::from_secs(1)).unwrap(),
+        QueuedAudioEvent::SetSampleBank { instrument_slot: 2, bank }
+            if bank.tune_semis == -2.0 && bank.gain_pct == 55.0
+    ));
+}
+
+#[test]
 fn deferred_default_save_flushes_runtime_result() {
     let (mut adapter, _) = test_adapter();
     let temp_dir = std::env::temp_dir().join(format!(

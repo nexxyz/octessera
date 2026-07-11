@@ -12,6 +12,7 @@ impl NativeRunner {
             .map(|name| format!("L{}: {name}", self.active_layer_index + 1));
         let changed = self.apply_behavior_selection(&behavior_id)?;
         self.update_active_layer_menu_label(previous_layer_label.as_deref());
+        self.update_active_behavior_selector_label();
         self.update_active_worlds_menu_items();
         if changed {
             self.mark_fast_autosave_dirty();
@@ -26,6 +27,7 @@ impl NativeRunner {
             .map(|name| format!("L{}: {name}", self.active_layer_index + 1));
         let changed = self.apply_behavior_selection(behavior_id)?;
         self.update_active_layer_menu_label(previous_layer_label.as_deref());
+        self.update_active_behavior_selector_label();
         self.update_active_worlds_menu_items();
         let _ = self.menu.focus_item_key("behaviorId");
         if changed {
@@ -77,6 +79,7 @@ impl NativeRunner {
         }
         let next_label = instrument_overview_label(index, instrument);
         self.menu.replace_label(&previous_label, &next_label);
+        self.rematerialize_menu_around_key(&format!("instruments.{index}.type"));
         if let Some(config) = self.instrument_audio_config(index) {
             self.queue_audio_command(RuntimeAudioCommand::SetInstrumentSlot {
                 instrument_slot: index,

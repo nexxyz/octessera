@@ -5,6 +5,7 @@ import {
   GRID_DOMAIN,
   AUX_ENCODER_COUNT,
   cutoffDisplayToHz,
+  DISPLAY_PALETTE,
   GRID_HEIGHT,
   GRID_WIDTH,
   MIDI_REALTIME_MESSAGE_TYPES,
@@ -17,6 +18,16 @@ import {
   SHARED_RUNTIME_CONTRACT_FIXTURES,
   type OledFrame
 } from "../src/index";
+
+test("display palette matches the canonical instrument colors", () => {
+  assert.deepEqual(DISPLAY_PALETTE.worlds, { label: "Worlds", hex: "#63D23F", rgb: [99, 210, 63], rgb565: 0x6687 });
+  assert.deepEqual(DISPLAY_PALETTE.pulses, { label: "Pulses", hex: "#E077CC", rgb: [224, 119, 204], rgb565: 0xe3b9 });
+  assert.deepEqual(DISPLAY_PALETTE.tones, { label: "Tones", hex: "#35CFF2", rgb: [53, 207, 242], rgb565: 0x367e });
+  assert.deepEqual(DISPLAY_PALETTE.sparks, { label: "Sparks", hex: "#FFD447", rgb: [255, 212, 71], rgb565: 0xfea8 });
+  assert.deepEqual(DISPLAY_PALETTE.system, { label: "System", hex: "#C9CED6", rgb: [201, 206, 214], rgb565: 0xce7a });
+  assert.deepEqual(DISPLAY_PALETTE.white, { label: "White", hex: "#FFFFFF", rgb: [255, 255, 255], rgb565: 0xffff });
+  assert.deepEqual(DISPLAY_PALETTE.black, { label: "Black", hex: "#000000", rgb: [0, 0, 0], rgb565: 0x0000 });
+});
 
 test("grid constants are 8x8", () => {
   assert.equal(GRID_WIDTH, 8);

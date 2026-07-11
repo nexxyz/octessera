@@ -1,5 +1,6 @@
 use crate::seesaw_io::SeesawCommand;
 use octessera_hal::OledSsd1351;
+use platform_core::palette;
 use playback_runtime::RuntimeUiPulse;
 use serde_json::Value;
 use std::sync::mpsc::Sender;
@@ -199,31 +200,31 @@ pub fn neokey_colors(snapshot: &Value) -> [[u8; 3]; 4] {
         .get("transportIcon")
         .and_then(Value::as_str)
         .unwrap_or("stop");
-    let back = scale([90, 0, 0], button_scale);
+    let back = scale(palette::PULSES, button_scale);
     let space = if icon == "stop" {
-        scale([255, 0, 0], button_scale)
+        scale(palette::PULSES, button_scale)
     } else if icon == "pause" {
-        scale([215, 255, 232], button_scale)
+        scale(palette::TONES, button_scale)
     } else if flash == "measure" {
-        scale([255, 160, 0], button_scale)
+        scale(palette::WORLDS, button_scale)
     } else if flash == "beat" {
-        scale([51, 255, 102], button_scale)
+        scale(palette::SPARKS, button_scale)
     } else {
-        scale([0, 80, 0], button_scale)
+        scale(dim(palette::WORLDS, 3), button_scale)
     };
     let shift = if combined {
-        scale([0, 0, 180], button_scale)
+        scale(palette::TONES, button_scale)
     } else if shift_held {
-        scale([180, 140, 0], button_scale)
+        scale(palette::SPARKS, button_scale)
     } else {
-        scale([90, 45, 0], button_scale)
+        scale(dim(palette::SYSTEM, 3), button_scale)
     };
     let func = if combined {
-        scale([0, 0, 180], button_scale)
+        scale(palette::TONES, button_scale)
     } else if fn_held {
-        scale([180, 140, 0], button_scale)
+        scale(palette::SPARKS, button_scale)
     } else {
-        scale([90, 45, 0], button_scale)
+        scale(dim(palette::SYSTEM, 3), button_scale)
     };
     [back, space, shift, func]
 }
@@ -297,6 +298,11 @@ pub(super) fn scale(rgb: [u8; 3], factor: f32) -> [u8; 3] { [
     ((rgb[1] as f32) * factor).round().clamp(0.0, 255.0) as u8,
     ((rgb[2] as f32) * factor).round().clamp(0.0, 255.0) as u8,
 ] }
+
+pub(super) fn dim(rgb: [u8; 3], divisor: u8) -> [u8; 3] {
+    let divisor = divisor.max(1);
+    [rgb[0] / divisor, rgb[1] / divisor, rgb[2] / divisor]
+}
 
 pub(super) fn rgb565(rgb: [u8; 3]) -> u16 {
     ((u16::from(rgb[0]) & 0xF8) << 8) | ((u16::from(rgb[1]) & 0xFC) << 3) | (u16::from(rgb[2]) >> 3)

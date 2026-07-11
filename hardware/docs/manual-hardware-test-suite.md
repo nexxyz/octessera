@@ -67,15 +67,15 @@ Test behavior to run from code for up to 90 seconds, or until the operator press
 
 1. Clear all grid LEDs.
 2. Light each physical 4x4 board address as a different solid color:
-   - `0x2E`: red
+   - `0x2E`: magenta
    - `0x2F`: green
-   - `0x30`: blue
+   - `0x30`: cyan
    - `0x31`: white
-3. Sweep one red pixel left-to-right, bottom-to-top in runtime grid coordinates.
+3. Sweep one yellow pixel left-to-right, bottom-to-top in runtime grid coordinates.
 4. Light the four logical corners:
-   - `(0,0)` red
+   - `(0,0)` magenta
    - `(7,0)` green
-   - `(0,7)` blue
+   - `(0,7)` cyan
    - `(7,7)` white
 
 Operator records:
@@ -93,7 +93,7 @@ Test behavior to run from code for up to 90 seconds, or until the operator press
 
 1. Clear grid LEDs.
 2. On every grid press, log `grid_press x y` and light that cell yellow.
-3. On release, log `grid_release x y` and dim that cell blue.
+3. On release, log `grid_release x y` and dim that cell cyan.
 4. Keep a count of seen cells.
 5. Print missing coordinates after each pass.
 
@@ -116,14 +116,14 @@ Goal: prove four keys and four LEDs work without OLED feedback.
 Test behavior to run from code:
 
 1. Light NeoKey LEDs one at a time:
-   - key 0 red
+   - key 0 magenta
    - key 1 green
-   - key 2 blue
+   - key 2 cyan
    - key 3 white
-2. Then set all keys dim amber.
+2. Then set all keys dim gray.
 3. Confirm hands-off readiness, then run a no-touch idle noise check across NeoTrellis, NeoKey, and encoders. Confirmed input during this phase is a failure. Raw NeoKey one-sample glitches whose immediate reread burst is clean are warnings within tolerance.
 4. On press, log and set pressed key bright white.
-5. On release, log and return it to dim amber.
+5. On release, log and return it to dim gray.
 
 Expected logical mapping:
 

@@ -1,4 +1,14 @@
-import { PAN_POSITION_COUNT, type OledFrame, type RuntimeSnapshot } from "@octessera/device-contracts";
+import {
+  PAN_POSITION_COUNT,
+  PULSES_COLOR,
+  SPARKS_COLOR,
+  SYSTEM_COLOR,
+  TONES_COLOR,
+  WORLDS_COLOR,
+  type DisplayPaletteRgb,
+  type OledFrame,
+  type RuntimeSnapshot
+} from "@octessera/device-contracts";
 import type { SimulatorSnapshot } from "./types";
 
 export type RuntimeSnapshotCache = {
@@ -114,27 +124,31 @@ function neoKeyColors(
   const scaleFactor = (settings?.ledsDimmed ? 0.08 : 1) * brightnessScale(buttonBrightness);
   const combined = settings?.combinedModifierHeld ?? false;
   return {
-    back: scale([90, 0, 0], scaleFactor),
+    back: scale(PULSES_COLOR, scaleFactor),
     space: scale(spaceColor(space), scaleFactor),
-    shift: scale(combined ? [0, 0, 180] : (settings?.shiftHeld ?? shiftActive) ? [180, 140, 0] : [90, 45, 0], scaleFactor),
-    fn: scale(combined ? [0, 0, 180] : (settings?.fnHeld ?? false) ? [180, 140, 0] : [90, 45, 0], scaleFactor),
+    shift: scale(combined ? TONES_COLOR : (settings?.shiftHeld ?? shiftActive) ? SPARKS_COLOR : dim(SYSTEM_COLOR, 3), scaleFactor),
+    fn: scale(combined ? TONES_COLOR : (settings?.fnHeld ?? false) ? SPARKS_COLOR : dim(SYSTEM_COLOR, 3), scaleFactor),
   };
 }
 
-function spaceColor(space: "stopped" | "paused" | "playing" | "beat" | "measure"): [number, number, number] {
-  if (space === "stopped") return [255, 0, 0];
-  if (space === "paused") return [215, 255, 232];
-  if (space === "measure") return [255, 160, 0];
-  if (space === "beat") return [51, 255, 102];
-  return [0, 80, 0];
+function spaceColor(space: "stopped" | "paused" | "playing" | "beat" | "measure"): DisplayPaletteRgb {
+  if (space === "stopped") return PULSES_COLOR;
+  if (space === "paused") return TONES_COLOR;
+  if (space === "measure") return WORLDS_COLOR;
+  if (space === "beat") return SPARKS_COLOR;
+  return dim(WORLDS_COLOR, 3);
 }
 
 function brightnessScale(value: number | undefined): number {
   return value === undefined ? 1 : Math.min(100, Math.max(0, value)) / 100;
 }
 
-function scale(rgb: [number, number, number], factor: number): [number, number, number] {
+function scale(rgb: DisplayPaletteRgb, factor: number): [number, number, number] {
   return rgb.map((channel) => Math.round(channel * factor)) as [number, number, number];
+}
+
+function dim(rgb: DisplayPaletteRgb, divisor: number): [number, number, number] {
+  return rgb.map((channel) => Math.round(channel / divisor)) as [number, number, number];
 }
 
 function withTransientIndicators(frame: RuntimeSnapshot, indicators: TransientIndicatorState): RuntimeSnapshot {

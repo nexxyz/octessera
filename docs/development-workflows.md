@@ -125,6 +125,24 @@ corepack pnpm run capabilities:check
 
 Rust constants for `platform-core` and `realtime-engine` are generated at build time from the same JSON.
 
+## Display Palette
+
+`resources/display-palette.json` is the source of truth for the shared display/UI palette used by runtime LEDs, Pi rendering, desktop simulator rendering, printable docs, and shared TypeScript contracts. Do not add palette colors without deciding the product role first.
+
+Generate palette exports after editing that source:
+
+```bash
+corepack pnpm run palette:generate
+```
+
+Generated outputs are checked in for TypeScript and CSS consumers; Rust constants are generated at build time through `platform-core`.
+
+Check generated output freshness:
+
+```bash
+corepack pnpm run palette:check
+```
+
 ## Platform Default Configs
 
 Source defaults live under `config/defaults/`:
@@ -164,7 +182,7 @@ cargo test -p platform-core -p playback-runtime -p realtime-engine -p octessera-
 cargo clippy -p platform-core -p playback-runtime -p realtime-engine -p octessera-desktop --all-targets -- -D warnings
 ```
 
-The root `typecheck` runs `config:check` and `capabilities:check` before package typechecks.
+The root `typecheck` runs `config:check`, `capabilities:check`, and `palette:check` before package typechecks.
 
 For menu/runtime-visible Rust changes on Windows, use the focused wrapper while iterating:
 

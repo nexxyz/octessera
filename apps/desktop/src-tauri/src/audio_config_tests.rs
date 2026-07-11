@@ -83,6 +83,41 @@ fn sample_banks_preserve_sample_playback_controls_without_decoding_in_audio_thre
 }
 
 #[test]
+fn sample_bank_for_slot_config_loads_sampler_slot_and_preserves_controls() {
+    let config = serde_json::json!({
+        "type": "sampler",
+        "sample": {
+            "slots": [{ "path": "kick.wav" }],
+            "tuneSemis": 3.0,
+            "amp": { "gainPct": 66.0, "velocitySensitivityPct": 25.0 }
+        }
+    });
+
+    let bank = sample_bank_for_slot_config(
+        &config,
+        |path| Some(format!("resolved/{path}")),
+        |path| {
+            assert_eq!(path, "resolved/kick.wav");
+            Some(SampleBuffer {
+                samples: vec![0.5, -0.5].into(),
+                channels: 1,
+                sample_rate: 48_000,
+            })
+        },
+    )
+    .unwrap()
+    .expect("sampler bank");
+
+    assert_eq!(bank.tune_semis, 3.0);
+    assert_eq!(bank.gain_pct, 66.0);
+    assert_eq!(bank.velocity_sensitivity_pct, 25.0);
+    assert_eq!(
+        bank.slots[0].buffer.as_ref().unwrap().samples.as_ref(),
+        &[0.5, -0.5]
+    );
+}
+
+#[test]
 fn sample_bank_signature_ignores_synth_only_changes() {
     let mut synth = realtime_engine::synth::default_synth_config();
     let config = AudioInstrumentsConfig {

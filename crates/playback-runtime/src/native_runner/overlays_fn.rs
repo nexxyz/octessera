@@ -27,9 +27,9 @@ impl NativeRunner {
             let volume = instrument.map(|inst| inst.volume).unwrap_or(0).min(100);
             let y = ((f32::from(volume) / 100.0) * (GRID_HEIGHT - 1) as f32).round() as usize;
             let color = if instrument.map(|inst| inst.kind.as_str()) == Some("none") {
-                LedColor::rgb(0, 55, 22)
+                LedColor::SYSTEM.dim(4)
             } else {
-                LedColor::rgb(0, 220, 90)
+                LedColor::WORLDS
             };
             self.set_display_led(leds, x, y, color);
         }
@@ -113,11 +113,11 @@ impl NativeRunner {
         let y =
             (self.xy_touch.display_y.clamp(0.0, 1.0) * (GRID_HEIGHT - 1) as f32).round() as usize;
         let color = if self.xy_touch.active {
-            LedColor::rgb(255, 255, 255)
+            LedColor::WHITE
         } else if self.xy_release == "sample-hold" {
-            LedColor::rgb(80, 80, 80)
+            LedColor::SYSTEM.dim(2)
         } else {
-            LedColor::rgb(48, 48, 48)
+            LedColor::SYSTEM.dim(4)
         };
         self.set_display_led(leds, x, y, color);
     }
@@ -158,9 +158,9 @@ impl NativeRunner {
         for (row, mode) in page_options.iter().enumerate() {
             let selected = self.active_sparks_mode != "none" && self.active_sparks_mode == *mode;
             let color = if selected {
-                LedColor::rgb(0, 158, 158)
+                LedColor::WORLDS
             } else {
-                LedColor::rgb(0, 60, 60)
+                LedColor::SPARKS.dim(4)
             };
             self.set_display_led(leds, GRID_WIDTH - 1, row, color);
         }
@@ -170,15 +170,15 @@ impl NativeRunner {
 fn fn_layer_color(configured: bool, active: bool, sparks_active: bool) -> LedColor {
     if sparks_active {
         if configured {
-            LedColor::rgb(0, 120, 0)
+            LedColor::TONES
         } else {
-            LedColor::rgb(0, 48, 23)
+            LedColor::SYSTEM.dim(4)
         }
     } else if active {
-        LedColor::rgb(0, 191, 191)
+        LedColor::TONES
     } else if configured {
-        LedColor::rgb(0, 120, 0)
+        LedColor::WORLDS
     } else {
-        LedColor::rgb(0, 48, 23)
+        LedColor::SYSTEM.dim(4)
     }
 }

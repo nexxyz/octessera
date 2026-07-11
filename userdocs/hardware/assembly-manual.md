@@ -194,7 +194,7 @@ Before applying power, check the NeoKey and NeoTrellis connector orientation aga
 
 Wait for the Pi to boot. First boot can take a while, but you should soon see the splashscreen.
 
-Once it is up, check that none of the elements report an error. The OLED, NeoKey, and NeoTrellis can turn completely red in case of an electrical issue. The top NeoKey should light up red; that is intended because it is the Back button.
+Once it is up, check that none of the elements report an error. The OLED, NeoKey, and NeoTrellis can flash magenta in case of an electrical issue. The top NeoKey should light up magenta; that is intended because it is the Back button.
 
 Then turn the main encoder to select the System menu, and click the main encoder to enter it. In the System menu, scroll to and run the hardware diagnostics before assembling the enclosure. Complete the guided checks for display, grid, keys, encoders, and audio while the boards are still accessible. The diagnostics can also detect inconsistent button or encoder signals. A couple of warnings are usually okay, but if the diagnostics report actual errors, double-check your soldering and components.
 

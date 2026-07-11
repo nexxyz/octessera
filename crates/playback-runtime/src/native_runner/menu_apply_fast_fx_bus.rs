@@ -64,8 +64,10 @@ impl NativeRunner {
         } else {
             (&bus.slot2_type, &mut bus.slot2_params)
         };
-        if !set_json_leaf(params, param_path, value) {
-            return false;
+        match set_json_leaf(params, param_path, value) {
+            Some(true) => {}
+            Some(false) => return true,
+            None => return false,
         }
         let fx_type = fx_type.clone();
         let params = value_object_to_map(params);
@@ -176,8 +178,10 @@ impl NativeRunner {
         let Some(params) = self.global_fx_params.get_mut(slot_index) else {
             return false;
         };
-        if !set_json_leaf(params, param_path, value) {
-            return false;
+        match set_json_leaf(params, param_path, value) {
+            Some(true) => {}
+            Some(false) => return true,
+            None => return false,
         }
         let params = value_object_to_map(params);
         self.mark_fast_autosave_dirty();
@@ -284,15 +288,13 @@ fn fx_param_scale(param: &str) -> f64 {
     }
 }
 
-fn set_json_leaf(target: &mut Value, path: &str, value: Value) -> bool {
-    let Some(object) = target.as_object_mut() else {
-        return false;
-    };
+fn set_json_leaf(target: &mut Value, path: &str, value: Value) -> Option<bool> {
+    let object = target.as_object_mut()?;
     let changed = object.get(path) != Some(&value);
     if changed {
         object.insert(path.to_string(), value);
     }
-    changed
+    Some(changed)
 }
 
 fn value_object_to_map(value: &Value) -> BTreeMap<String, Value> {

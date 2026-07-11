@@ -125,6 +125,42 @@ pub(crate) fn sparks_fx_overlay_marks_active_and_limited_cells() {
 }
 
 #[test]
+pub(crate) fn sparks_fx_overlay_uses_canonical_fx_palette() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.active_sparks_mode = "fx".into();
+    for (x, fx_type) in ["stutter", "freeze", "filter_sweep", "pitch_shift"]
+        .into_iter()
+        .enumerate()
+    {
+        runner.sparks_fx_assignments.push(NativeSparksFxAssignment {
+            x,
+            y: 0,
+            config: json!({ "fxType": fx_type, "targetKey": "master", "params": {} }),
+        });
+    }
+
+    let snapshot = runner.snapshot().unwrap();
+    let cells = led_cells(&snapshot);
+
+    assert_eq!(
+        cells[display_index(0, 0)],
+        led_rgb(platform_core::palette::SPARKS)
+    );
+    assert_eq!(
+        cells[display_index(1, 0)],
+        led_rgb(platform_core::palette::TONES)
+    );
+    assert_eq!(
+        cells[display_index(2, 0)],
+        led_rgb(platform_core::palette::WORLDS)
+    );
+    assert_eq!(
+        cells[display_index(3, 0)],
+        led_rgb(platform_core::palette::PULSES)
+    );
+}
+
+#[test]
 pub(crate) fn sparks_fx_map_to_grid_stores_config_and_payload_round_trips() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.sparks_fx_selected = json!({

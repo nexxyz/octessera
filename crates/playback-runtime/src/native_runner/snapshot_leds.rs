@@ -5,7 +5,7 @@ impl NativeRunner {
         &self,
         model: &platform_core::BehaviorRenderModel,
     ) -> Vec<LedColor> {
-        let mut leds = vec![LedColor::rgb(0, 0, 0); GRID_WIDTH * GRID_HEIGHT];
+        let mut leds = vec![LedColor::BLACK; GRID_WIDTH * GRID_HEIGHT];
         for (logical_index, alive) in model.cells.iter().enumerate() {
             let x = logical_index % GRID_WIDTH;
             let y = logical_index / GRID_WIDTH;
@@ -31,12 +31,12 @@ fn base_led_color(
     }
     match trigger.unwrap_or(platform_core::CellTriggerType::Stable) {
         platform_core::CellTriggerType::Activate => palette_color(palette.active),
-        platform_core::CellTriggerType::Deactivate => LedColor::rgb(128, 128, 128),
-        platform_core::CellTriggerType::Scanned => LedColor::rgb(255, 0, 0),
+        platform_core::CellTriggerType::Deactivate => LedColor::SYSTEM,
+        platform_core::CellTriggerType::Scanned => LedColor::TONES,
         _ => palette_color(palette.stable),
     }
 }
 
 fn palette_color(color: [u8; 3]) -> LedColor {
-    LedColor::rgb(color[0], color[1], color[2])
+    LedColor::from_rgb(color)
 }
