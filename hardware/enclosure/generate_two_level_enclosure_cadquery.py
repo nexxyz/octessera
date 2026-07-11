@@ -53,6 +53,8 @@ LOWER_TO_TIER2_RAMP_START_X = 105.0
 LOWER_TO_TIER2_RAMP_END_X = 115.0
 TIER1_WAVE_SEAM_OVERLAP = 2.4
 NEOKEY_WAVE_HOLLOW_SOUTH_EXTRA = 1.0
+OLED_SCREEN_CUTOUT_X_SHIFT = -0.5
+OLED_SCREEN_CUTOUT_Y_SHIFT = 0.2
 
 def x_at_y(points: list[tuple[float, float]], y: float) -> float:
     sorted_points = sorted(points, key=lambda point: point[1])
@@ -357,21 +359,14 @@ def crater_cutter(x: float, y: float, flat_d: float, depth: float, slope_w: floa
     bottom_z = top_z - depth
     flat_r = flat_d / 2.0
     outer_r = flat_r + slope_w
-    slope = (
+    return (
         cq.Workplane("XY", origin=(0, 0, bottom_z))
         .circle(flat_r)
         .workplane(offset=depth + 0.05)
         .circle(outer_r)
         .loft(combine=True)
+        .translate((x, y, 0))
     )
-    bottom_clearance = (
-        cq.Workplane("XY")
-        .circle(flat_r)
-        .extrude(bottom_z - UNDERSIDE_Z + 0.2)
-        .translate((0, 0, UNDERSIDE_Z - 0.1))
-    )
-    cutter = slope.union(bottom_clearance).clean()
-    return cutter.translate((x, y, 0))
 
 
 def neokey_slot_bounds(params: dict, key_centers: list[tuple[float, float]]) -> tuple[float, float, float, float]:
@@ -462,6 +457,8 @@ def add_neokey_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane:
 
 def add_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane:
     screen_cx, screen_cy = local_to_case(params, params["features_local"]["oled_screen_center"])
+    screen_cx += OLED_SCREEN_CUTOUT_X_SHIFT
+    screen_cy += OLED_SCREEN_CUTOUT_Y_SHIFT
     screen_w, screen_h = params["screen_cutout"]
     model = model.cut(
         rect_cutter(

@@ -8,10 +8,19 @@ import cadquery as cq
 from svgelements import Circle, Close, Line, Move, Path as SvgPath, Point, Polygon, Rect, SVG
 
 from top_wall_port_cutouts import (
+    AUDIO_Z_SHIFT,
+    OLED_SD_HEIGHT,
     OLED_SD_X0,
     OLED_SD_X1,
+    OLED_SD_Z_SHIFT,
+    PI_HDMI_HEIGHT,
     PI_HDMI_Z_SHIFT,
+    PI_HDMI_INDENT_HEIGHT,
+    PI_SD_HEIGHT,
     PI_SD_HOLE_Z_SHIFT,
+    PI_SD_INDENT_HEIGHT,
+    PI_USB_HEIGHT,
+    PI_USB_INDENT_HEIGHT,
     PI_USB_Z_SHIFT,
     PORT_INDENT_Z_PAD,
     POWER_Z_SHIFT,
@@ -364,16 +373,27 @@ def icon_bottom_from_indent(indent_height: float, indent_z_shift: float, icon_he
 
 
 def port_icon_bottoms() -> dict[str, float]:
-    audio_indent_z_shift = z_center(8.2) - z_center(5.2)
-    pi_usb_bottom = icon_bottom_from_indent(1.8, z_shift_centered_on(2.3, PI_USB_Z_SHIFT, 1.8), SOUTH_ICON_HEIGHT)
-    south_icon_center = pi_usb_bottom + SOUTH_ICON_HEIGHT / 2.0
+    audio_indent_z_shift = z_center(8.2, AUDIO_Z_SHIFT) - z_center(5.2)
+    pi_usb_bottom = icon_bottom_from_indent(
+        PI_USB_INDENT_HEIGHT,
+        z_shift_centered_on(PI_USB_HEIGHT, PI_USB_Z_SHIFT, PI_USB_INDENT_HEIGHT),
+        SOUTH_ICON_HEIGHT,
+    )
     return {
         "audio 3.5mm": icon_bottom_from_indent(5.2, audio_indent_z_shift, ICON_HEIGHT),
         "USB-C power": icon_bottom_from_indent(4.6, POWER_Z_SHIFT, ICON_HEIGHT),
-        "Pi microSD": icon_bottom_from_indent(2.0, z_shift_centered_on(3.0, PI_SD_HOLE_Z_SHIFT, 2.0), ICON_HEIGHT),
-        "Pi mini-HDMI": south_icon_center - SCREEN_ICON_HEIGHT / 2.0,
+        "Pi microSD": icon_bottom_from_indent(
+            PI_SD_INDENT_HEIGHT,
+            z_shift_centered_on(PI_SD_HEIGHT, PI_SD_HOLE_Z_SHIFT, PI_SD_INDENT_HEIGHT),
+            ICON_HEIGHT,
+        ),
+        "Pi mini-HDMI": icon_bottom_from_indent(
+            PI_HDMI_INDENT_HEIGHT,
+            z_shift_centered_on(PI_HDMI_HEIGHT, PI_HDMI_Z_SHIFT, PI_HDMI_INDENT_HEIGHT),
+            SCREEN_ICON_HEIGHT,
+        ),
         "Pi USB data": pi_usb_bottom,
-        "OLED SD": icon_bottom_from_indent(5.0, 0.0, ICON_HEIGHT),
+        "OLED SD": icon_bottom_from_indent(OLED_SD_HEIGHT, OLED_SD_Z_SHIFT, ICON_HEIGHT),
     }
 
 

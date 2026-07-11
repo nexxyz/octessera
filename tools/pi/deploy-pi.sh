@@ -107,14 +107,107 @@ ensure_boot_config_line "dtparam=i2c_arm=on"
 ensure_boot_config_line "enable_uart=0"
 grep -qxF "i2c-dev" /etc/modules || echo "i2c-dev" | sudo tee -a /etc/modules > /dev/null
 
-# Install journald config for volatile capped logs
+# Install journald config for persistent capped logs
 sudo install -d -m 0755 /etc/systemd/journald.conf.d
 sudo tee /etc/systemd/journald.conf.d/10-octessera.conf > /dev/null <<'EOL'
 [Journal]
-Storage=volatile
+Storage=persistent
 RuntimeMaxUse=32M
 RuntimeMaxFileSize=4M
+SystemMaxUse=64M
+SystemMaxFileSize=8M
 EOL
+
+sudo install -d -m 0755 /etc/NetworkManager/conf.d /usr/local/bin
+sudo tee /etc/NetworkManager/conf.d/10-octessera-wifi-powersave.conf > /dev/null <<'EOL'
+[connection]
+wifi.powersave = 2
+EOL
+sudo tee /usr/local/bin/octessera-network-health > /dev/null <<'EOL'
+#!/bin/sh
+set -eu
+
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+LOG_DIR=/var/log/octessera
+LOG_FILE="$LOG_DIR/network-health.log"
+STATE_DIR=/run/octessera-network-health
+FAIL_FILE="$STATE_DIR/fail-count"
+
+mkdir -p "$LOG_DIR" "$STATE_DIR"
+
+timestamp=$(date -Is)
+uptime_line=$(uptime | tr -s ' ')
+gateway=$(ip route show default 0.0.0.0/0 | awk 'NR == 1 { print $3 }')
+power_save=$(iw dev wlan0 get power_save 2>/dev/null | tr '\n' ' ' || true)
+link=$(iw dev wlan0 link 2>/dev/null | tr '\n' ';' || true)
+addr=$(ip -brief addr show wlan0 2>/dev/null | tr -s ' ' | tr '\n' ' ' || true)
+route=$(ip route show default 2>/dev/null | tr '\n' ';' || true)
+throttled=$(vcgencmd get_throttled 2>/dev/null || true)
+temp=$(vcgencmd measure_temp 2>/dev/null || true)
+ssh_active=$(systemctl is-active ssh 2>/dev/null || true)
+nm_active=$(systemctl is-active NetworkManager 2>/dev/null || true)
+wpa_active=$(systemctl is-active wpa_supplicant 2>/dev/null || true)
+
+ping_ok=0
+if [ -n "$gateway" ] && ping -I wlan0 -c 1 -W 2 "$gateway" >/dev/null 2>&1; then
+    ping_ok=1
+fi
+
+printf '%s uptime="%s" gateway=%s ping_gateway=%s ssh=%s networkmanager=%s wpa=%s %s %s power_save="%s" addr="%s" route="%s" link="%s"\n' \
+    "$timestamp" "$uptime_line" "${gateway:-none}" "$ping_ok" "$ssh_active" "$nm_active" "$wpa_active" \
+    "$throttled" "$temp" "$power_save" "$addr" "$route" "$link" >> "$LOG_FILE"
+
+if [ "$ping_ok" -eq 1 ] && [ "$nm_active" = active ]; then
+    printf '0\n' > "$FAIL_FILE"
+    exit 0
+fi
+
+fail_count=0
+if [ -f "$FAIL_FILE" ]; then
+    fail_count=$(cat "$FAIL_FILE" 2>/dev/null || printf '0')
+fi
+case "$fail_count" in
+    ''|*[!0-9]*) fail_count=0 ;;
+esac
+fail_count=$((fail_count + 1))
+printf '%s\n' "$fail_count" > "$FAIL_FILE"
+
+if [ -n "$gateway" ] && [ "$fail_count" -ge 3 ]; then
+    printf '%s recovery=restart_networkmanager fail_count=%s gateway=%s\n' "$timestamp" "$fail_count" "${gateway:-none}" >> "$LOG_FILE"
+    printf '0\n' > "$FAIL_FILE"
+    systemctl restart NetworkManager || true
+fi
+EOL
+sudo chmod 0755 /usr/local/bin/octessera-network-health
+sudo tee /etc/systemd/system/octessera-network-health.service > /dev/null <<'EOL'
+[Unit]
+Description=octessera Network Health Logger
+After=NetworkManager.service ssh.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/octessera-network-health
+EOL
+sudo tee /etc/systemd/system/octessera-network-health.timer > /dev/null <<'EOL'
+[Unit]
+Description=Run octessera network health checks
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+AccuracySec=15s
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOL
+sudo sed -i 's/\r$//' /usr/local/bin/octessera-network-health /etc/systemd/system/octessera-network-health.service /etc/systemd/system/octessera-network-health.timer /etc/NetworkManager/conf.d/10-octessera-wifi-powersave.conf /etc/systemd/journald.conf.d/10-octessera.conf
+sudo systemctl daemon-reload
+sudo systemctl enable --now octessera-network-health.timer >/dev/null
+sudo iw dev wlan0 set power_save off >/dev/null 2>&1 || true
+sudo nmcli connection modify preconfigured 802-11-wireless.powersave 2 >/dev/null 2>&1 || true
+sudo nmcli device reapply wlan0 >/dev/null 2>&1 || true
 
 sudo install -d -m 0755 /etc/profile.d
 sudo tee /etc/profile.d/octessera-welcome.sh > /dev/null <<'EOL'

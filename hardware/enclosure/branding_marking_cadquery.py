@@ -106,6 +106,13 @@ def compound(parts: list[cq.Workplane]) -> cq.Workplane:
     return cq.Workplane("XY").add(cq.Compound.makeCompound(solids))
 
 
+def fused(parts: list[cq.Workplane]) -> cq.Workplane:
+    result = parts[0]
+    for part in parts[1:]:
+        result = result.union(part)
+    return result.clean()
+
+
 def wordmark_marking(z0: float, height: float) -> cq.Workplane:
     polygons = parse_wordmark_polygons()
     word_points = [point for polygon in polygons for point in polygon]
@@ -155,7 +162,7 @@ def logo_marking(z0: float, height: float = 0.65) -> cq.Workplane:
     for circle in mark_circles:
         center = transform(circle.center, mark_source, mark_scale, mark_x, MARK_TOP_Y)
         parts.append(cq.Workplane("XY").circle(circle.radius * mark_scale).extrude(height).translate((center.x, center.y, z0)))
-    return compound(parts).clean()
+    return fused(parts)
 
 
 def branding_marking_parts(z0: float, height: float = 0.65) -> list[tuple[str, cq.Workplane]]:

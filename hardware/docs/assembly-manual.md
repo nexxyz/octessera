@@ -28,8 +28,8 @@ The hardware is still being fit-tested. Check the current enclosure files before
 | 1 | PCM5102 I2S DAC | [Mouser `485-6250`](https://www.mouser.com/ProductDetail/Adafruit/6250), Adafruit `6250` | Line/headphone output path. |
 | 1 | USB-C power breakout | [Mouser `485-4090`](https://www.mouser.com/ProductDetail/Adafruit/4090), Adafruit `4090` | Power the device here, not through the Pi. |
 | 5 | Horizontal rotary encoder with switch | [Mouser `652-PEC12R-4225F-S24`](https://www.mouser.com/ProductDetail/Bourns/PEC12R-4225F-S0024), Bourns `PEC12R-4225F-S0024` | The PCB uses four encoders; buy one spare. |
-| 1 | Main encoder knob | Print `../../release-artifacts/enclosure/stl/encoder_cap_main_knurled_dots.stl`, use `../../release-artifacts/enclosure/3mf-multicolor/encoder_cap_main_knurled_dots_multicolor_flush.3mf`, or buy [Mouser `450-BA600`](https://www.mouser.com/ProductDetail/Eagle-Plastic-Devices/450-BA600) | Main encoder cap. Printed version uses the dot-ring marking. |
-| 3 | Aux encoder knobs | Print `../../release-artifacts/enclosure/stl/encoder_cap_aux*_ribbed_dot*.stl`, use matching `../../release-artifacts/enclosure/3mf-multicolor/encoder_cap_aux*_multicolor_flush.3mf`, or buy [Mouser `450-BA600`](https://www.mouser.com/ProductDetail/Eagle-Plastic-Devices/450-BA600) or [Mouser `485-5530`](https://www.mouser.com/ProductDetail/Adafruit/5530) | Aux 1/2/3 caps. Printed versions use one, two, and three dots. |
+| 1 | Main encoder knob | Print `../../release-artifacts/enclosure/stl/encoder_cap_main_knurled_dots.stl` or use `../../release-artifacts/enclosure/3mf-multicolor/encoder_cap_main_knurled_dots_multicolor_flush.3mf` | Main encoder cap. Printed version uses the dot-ring marking. |
+| 3 | Aux encoder knobs | Print `../../release-artifacts/enclosure/stl/encoder_cap_aux*_ribbed_dot*.stl` or use matching `../../release-artifacts/enclosure/3mf-multicolor/encoder_cap_aux*_multicolor_flush.3mf` | Aux 1/2/3 caps. Printed versions use one, two, and three dots. |
 | 2 | STEMMA QT / Qwiic JST-SH cable, 200mm | [Mouser `485-4401`](https://www.mouser.com/ProductDetail/Adafruit/4401), Adafruit `4401` | For module bring-up or alternate I2C wiring. |
 | 1 | Polarized capacitor | [`470uF`, 16V, radial, about 8x12mm](https://de.aliexpress.com/item/1005010415990713.html) | PCB footprint: `CP_Radial_D8.0mm_P3.50mm`. Any equivalent 470uF polarized radial capacitor with 3.5mm lead pitch and >5V rating is fine. |
 | 1 | 1x5 right-angle female socket/header, 2.54mm pitch | [2.54mm right-angle female header strip](https://de.aliexpress.com/item/32896617287.html) | Cut to 5 pins for the NeoTrellis connector on the PCB. |
@@ -204,15 +204,17 @@ Before you start with the enclosure, you need to remove the keyswitches from the
    - Remove the Raspberry Pi microSD card and OLED microSD card first. They can catch on the enclosure and break during installation.
 3. Add the 18 separate standoff pillars between the bottom supports and the plug-in modules:
    - Use the printed standoff pillars or compatible purchased stackable standoffs.
+   - Printing the 9mm and 10mm standoff pillars in different colors makes them easier to tell apart during assembly.
    - For each plug-in module, remove the module, add the standoff, then reinstall the module.
    - You do not need separate standoff pillars for the NeoTrellis array. Its eight pins go straight into the integrated bottom pillars.
 4. Press in all 26 top pins:
-    - 18 pins go into the separate standoff pillars.
-    - 8 pins go into the NeoTrellis array's integrated bottom pillars.
+   - 18 pins go into the separate standoff pillars.
+   - 8 pins go into the NeoTrellis array's integrated bottom pillars.
+   - During final assembly, a small drop of glue on the top-pin can keep pins from falling out if the device is turned upside down.
 5. Place one silicone 4x4 keypad on each NeoTrellis board. Make sure the pads sit flat and line up with the 8x8 opening before closing the case.
 6. Insert the M3 heat-set inserts into the underside of the enclosure top with a soldering iron or insert tool.
 7. Place the enclosure top over the assembly. The guide walls and standoff pins should locate the parts without forcing them.
-8. Install the four encoder knobs. Use printed knobs from `release-artifacts/enclosure/stl/` or purchased D-shaft knobs.
+8. Install the four printed encoder knobs from `release-artifacts/enclosure/stl/` or the matching multicolor 3MF files.
 9. Turn the device over carefully.
 10. Install the bottom screws into the recessed holes and tighten them into the heat inserts.
 11. Add rubber feet or screw-hole covers if desired.

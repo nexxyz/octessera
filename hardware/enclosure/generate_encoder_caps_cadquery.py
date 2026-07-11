@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
+from typing import cast
 
 import cadquery as cq
 
@@ -11,8 +12,8 @@ ARTIFACT_ROOT = ROOT.parent.parent / "release-artifacts" / "enclosure"
 STEP_ROOT = ARTIFACT_ROOT / "step"
 STL_ROOT = ARTIFACT_ROOT / "stl"
 
-SHAFT_BORE_D = 6.15
-SHAFT_FLAT_TO_ARC_MM = 4.65
+SHAFT_BORE_D = 6.4
+SHAFT_FLAT_TO_ARC_MM = 4.9
 BORE_CLEARANCE_Z = 0.2
 AUX_MARK_DOT_R = 1.2
 AUX_MARK_DOT_SPACING = 3.0
@@ -85,13 +86,14 @@ def add_diamond_knurl_cuts(body: cq.Workplane, radius: float, height: float) -> 
 
 
 def make_wide_knurled_cap() -> cq.Workplane:
-    height = 12.5
+    height = 13.5
+    bore_depth = 11.1
     radius = 10.0
     body = cq.Workplane("XY").circle(radius).extrude(height)
     body = add_diamond_knurl_cuts(body, radius, height)
     body = body.faces(">Z").fillet(0.7)
     body = body.faces("<Z").fillet(0.45)
-    body = body.cut(d_bore_cutter(height - 1.4))
+    body = body.cut(d_bore_cutter(bore_depth))
     return body.clean()
 
 
@@ -116,7 +118,7 @@ def perimeter_dot_marking(count: int, orbit_radius: float, dot_radius: float, de
 
 
 def add_separate_marking(body: cq.Workplane, marking: cq.Workplane) -> cq.Workplane:
-    solids = [body.solids().vals()[0], *marking.solids().vals()]
+    solids = cast(list[cq.Shape], [body.solids().vals()[0], *marking.solids().vals()])
     compound = cq.Compound.makeCompound(solids)
     return cq.Workplane("XY").add(compound)
 
@@ -124,12 +126,13 @@ def add_separate_marking(body: cq.Workplane, marking: cq.Workplane) -> cq.Workpl
 def make_main_cap() -> cq.Workplane:
     return add_separate_marking(
         make_wide_knurled_cap(),
-        perimeter_dot_marking(MAIN_MARK_DOT_COUNT, MAIN_MARK_DOT_ORBIT_R, AUX_MARK_DOT_R, 0.65, 12.5),
+        perimeter_dot_marking(MAIN_MARK_DOT_COUNT, MAIN_MARK_DOT_ORBIT_R, AUX_MARK_DOT_R, 0.65, 13.5),
     )
 
 
 def make_aux_cap_body() -> cq.Workplane:
-    height = 10.5
+    height = 11.5
+    bore_depth = 9.3
     flange_h = 2.0
     flange_r = 8.4
     body_r = 6.0
@@ -151,14 +154,14 @@ def make_aux_cap_body() -> cq.Workplane:
         plane = cq.Plane(radial.multiply(body_r + 0.04) + cq.Vector(0, 0, 5.8), tangent, radial)
         groove = cq.Workplane(plane).rect(1.05, 5.7).extrude(-0.65)
         body = body.cut(groove)
-    body = body.cut(d_bore_cutter(height - 1.2))
+    body = body.cut(d_bore_cutter(bore_depth))
     return body.clean()
 
 
 def make_aux_cap(dot_count: int) -> cq.Workplane:
     return add_separate_marking(
         make_aux_cap_body(),
-        dot_marking(dot_count, AUX_MARK_DOT_R, AUX_MARK_DOT_SPACING, 0.65, 10.5),
+        dot_marking(dot_count, AUX_MARK_DOT_R, AUX_MARK_DOT_SPACING, 0.65, 11.5),
     )
 
 
@@ -190,8 +193,9 @@ def main() -> None:
     }
     for name, model in caps.items():
         solid_count = len(model.solids().vals())
-        if solid_count < 2 or not model.val().isValid():
-            raise SystemExit(f"{name} invalid: solids={solid_count} valid={model.val().isValid()}")
+        shape = cast(cq.Shape, model.val())
+        if solid_count < 2 or not shape.isValid():
+            raise SystemExit(f"{name} invalid: solids={solid_count} valid={shape.isValid()}")
         export_cap(name, model)
 
 

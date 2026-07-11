@@ -55,14 +55,14 @@
     {"name": "NT4_MH2", "component": "neotrellis", "pos": [222.236, 40.0], "height": 20.0}
   ],
   "top_screw_clearance_d": 3.4,
-  "encoder_hole_d": 7.2,
+  "encoder_hole_d": 7.8,
   "encoder_crater_flat_d": {
-    "SW1": 19.0,
+    "SW1": 23.0,
     "SW2": 16.0,
     "SW3": 16.0,
     "SW4": 16.0
   },
-  "encoder_crater_depth": 2.0,
+  "encoder_crater_depth": 1.0,
   "encoder_crater_slope_w": 1.0,
   "screen_cutout": [
     33.0,
@@ -561,8 +561,8 @@
   "ports_v21": [
     {
       "side": "left",
-      "a": 112.7,
-      "b": 125.7,
+      "a": 112.2,
+      "b": 125.2,
       "z0": 8.5,
       "z1": 19.0,
       "label": "audio 3.5mm"
@@ -585,7 +585,7 @@
     },
     {
       "side": "bottom",
-      "a": 17.0,
+      "a": 16.0,
       "b": 29.0,
       "z0": 8.5,
       "z1": 19.5,

@@ -19,6 +19,18 @@ install -D -m 0644 \
 install -D -m 0644 \
     "$STAGE_FILES/root/etc/systemd/journald.conf.d/10-octessera.conf" \
     "$ROOTFS_DIR/etc/systemd/journald.conf.d/10-octessera.conf"
+install -D -m 0644 \
+    "$STAGE_FILES/root/etc/NetworkManager/conf.d/10-octessera-wifi-powersave.conf" \
+    "$ROOTFS_DIR/etc/NetworkManager/conf.d/10-octessera-wifi-powersave.conf"
+install -D -m 0755 \
+    "$STAGE_FILES/root/usr/local/bin/octessera-network-health" \
+    "$ROOTFS_DIR/usr/local/bin/octessera-network-health"
+install -D -m 0644 \
+    "$STAGE_FILES/root/etc/systemd/system/octessera-network-health.service" \
+    "$ROOTFS_DIR/etc/systemd/system/octessera-network-health.service"
+install -D -m 0644 \
+    "$STAGE_FILES/root/etc/systemd/system/octessera-network-health.timer" \
+    "$ROOTFS_DIR/etc/systemd/system/octessera-network-health.timer"
 install -D -m 0440 \
     "$STAGE_FILES/root/etc/sudoers.d/octessera-shutdown" \
     "$ROOTFS_DIR/etc/sudoers.d/octessera-shutdown"
@@ -31,6 +43,7 @@ install -D -m 0755 \
 
 install -d "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants"
 install -d "$ROOTFS_DIR/etc/systemd/system/sysinit.target.wants"
+install -d "$ROOTFS_DIR/etc/systemd/system/timers.target.wants"
 ln -sf ../octessera.service \
     "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/octessera.service"
 ln -sf ../octessera-performance-governor.service \
@@ -39,6 +52,8 @@ ln -sf ../octessera-oled-shutdown.service \
     "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/octessera-oled-shutdown.service"
 ln -sf ../octessera-boot-splash.service \
     "$ROOTFS_DIR/etc/systemd/system/sysinit.target.wants/octessera-boot-splash.service"
+ln -sf ../octessera-network-health.timer \
+    "$ROOTFS_DIR/etc/systemd/system/timers.target.wants/octessera-network-health.timer"
 
 rm -f "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/bluetooth.service"
 rm -f "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/hciuart.service"

@@ -1,0 +1,7 @@
+[Unit]
+Description=octessera Network Health Logger
+After=NetworkManager.service ssh.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/octessera-network-health

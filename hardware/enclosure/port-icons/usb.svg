@@ -1,9 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 44" >
-  <rect x="15" y="5" width="2" height="35" fill="black" />
-  <polygon points="16 0, 21 7.5, 11 7.5" fill="black" />
-  <circle cx="16" cy="40" r="4" fill="black"/>
-  <polygon points="16 34, 3 28, 3 20, 5 20, 5 26.5, 16 31.5" fill="black" />
-  <circle cx="4" cy="17" r="4" fill="black"/>
-  <rect x="24.5" y="10" width="7" height="7" fill="black"/>
-  <polygon points="16 27, 27 21, 27 16, 29 16, 29 22.5, 16 29.5" fill="black" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34 47" >
+  <rect x="15" y="6" width="4" height="35" fill="black" />
+  <polygon points="17 1, 23 10.5, 11 10.5" fill="black" />
+  <circle cx="17" cy="41" r="5" fill="black"/>
+  <polygon points="17 35, 5 29, 5 21, 8 21, 8 27, 17 31.5" fill="black" />
+  <circle cx="6.5" cy="18" r="5" fill="black"/>
+  <rect x="24" y="11" width="9" height="8" fill="black"/>
+  <polygon points="17 27, 27 22, 27 17, 30 17, 30 24, 17 30.5" fill="black" />
 </svg>

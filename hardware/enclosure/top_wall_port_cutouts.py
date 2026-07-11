@@ -8,8 +8,10 @@ import cadquery as cq
 WALL_PORT_TOP_Z = 7.5
 PORT_CUT_EPS = 1.0
 WEST_EXTENSION = 1.0
-OLED_SD_X0 = 58.88
-OLED_SD_X1 = 77.38
+OLED_SD_X0 = 58.63
+OLED_SD_X1 = 75.63
+OLED_SD_HEIGHT = 4.5
+OLED_SD_Z_SHIFT = -0.25
 PORT_INDENT_RAMP = 6.0
 PORT_INDENT_Z_PAD = 4.2
 PORT_INDENT_SPAN_PAD = 6.0
@@ -24,11 +26,18 @@ WEST_PORT_INDENT_BACK_OVERLAP = 0.5
 PORT_INDENT_CORNER_R = 1.2
 ROUNDED_CORNER_STEPS = 4
 POWER_Z_SHIFT = -0.25
+AUDIO_Z_SHIFT = 0.3
 PI_Z_SHIFT = 7.0
 PI_TOP_TRIM_Z_SHIFT = PI_Z_SHIFT - 1.5
-PI_HDMI_Z_SHIFT = PI_TOP_TRIM_Z_SHIFT - 1.0
-PI_USB_Z_SHIFT = PI_TOP_TRIM_Z_SHIFT - 2.0
-PI_SD_HOLE_Z_SHIFT = PI_Z_SHIFT - 4.0
+PI_HDMI_Z_SHIFT = PI_TOP_TRIM_Z_SHIFT - 0.5
+PI_USB_Z_SHIFT = PI_TOP_TRIM_Z_SHIFT - 1.8
+PI_SD_HOLE_Z_SHIFT = PI_Z_SHIFT - 4.3
+PI_HDMI_HEIGHT = 4.0
+PI_HDMI_INDENT_HEIGHT = 3.5
+PI_USB_HEIGHT = 3.3
+PI_USB_INDENT_HEIGHT = 2.8
+PI_SD_HEIGHT = 3.0
+PI_SD_INDENT_HEIGHT = 2.0
 
 
 def box_cutter(x0: float, y0: float, x1: float, y1: float, z0: float, z1: float) -> cq.Workplane:
@@ -220,7 +229,7 @@ def audio_jack_cutter(params: dict, y: float, x1: float) -> cq.Workplane:
         cq.Workplane("YZ")
         .circle(3.35)
         .extrude(x1 + WEST_EXTENSION + 2 * PORT_CUT_EPS)
-        .translate((-WEST_EXTENSION - PORT_CUT_EPS, y, z_center(height)))
+        .translate((-WEST_EXTENSION - PORT_CUT_EPS, y, z_center(height, AUDIO_Z_SHIFT)))
     )
 
 
@@ -437,10 +446,10 @@ def add_top_wall_port_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane
     left_pi_recess_x = left_pi_x - PORT_RECESS_BACK_LAND
     south_pi_recess_y = south_pi_y - PORT_RECESS_BACK_LAND
     north_flush_recess_y = north_flush_y + PORT_RECESS_BACK_LAND
-    pi_sd_indent_z_shift = z_shift_centered_on(3.0, PI_SD_HOLE_Z_SHIFT, 2.0)
+    pi_sd_indent_z_shift = z_shift_centered_on(PI_SD_HEIGHT, PI_SD_HOLE_Z_SHIFT, PI_SD_INDENT_HEIGHT)
     pi_sd_indent_span_adjust = -2.5
-    pi_hdmi_indent_z_shift = z_shift_centered_on(3.0, PI_HDMI_Z_SHIFT, 2.5)
-    pi_usb_indent_z_shift = z_shift_centered_on(2.3, PI_USB_Z_SHIFT, 1.8)
+    pi_hdmi_indent_z_shift = z_shift_centered_on(PI_HDMI_HEIGHT, PI_HDMI_Z_SHIFT, PI_HDMI_INDENT_HEIGHT)
+    pi_usb_indent_z_shift = z_shift_centered_on(PI_USB_HEIGHT, PI_USB_Z_SHIFT, PI_USB_INDENT_HEIGHT)
     additions = []
     cuts = []
     for port in params["ports_v21"]:
@@ -449,7 +458,7 @@ def add_top_wall_port_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane
             center_y = (port["a"] + port["b"]) / 2.0
             audio_indent_y0 = center_y - 4.1
             audio_indent_y1 = center_y + 4.1
-            audio_indent_z_shift = z_center(8.2) - z_center(5.2)
+            audio_indent_z_shift = z_center(8.2, AUDIO_Z_SHIFT) - z_center(5.2)
             additions.append(
                 left_wall_indent_wall(
                     params,
@@ -481,7 +490,7 @@ def add_top_wall_port_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane
                     params,
                     port["a"],
                     port["b"],
-                    2.0,
+                    PI_SD_INDENT_HEIGHT,
                     left_pi_x,
                     z_shift=pi_sd_indent_z_shift,
                     half_span_adjust=pi_sd_indent_span_adjust,
@@ -492,25 +501,25 @@ def add_top_wall_port_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane
                     params,
                     port["a"],
                     port["b"],
-                    2.0,
+                    PI_SD_INDENT_HEIGHT,
                     left_pi_recess_x,
                     z_shift=pi_sd_indent_z_shift,
                     half_span_adjust=pi_sd_indent_span_adjust,
                 )
             )
-            cuts.append(left_wall_rect(params, port["a"], port["b"], 3.0, left_pi_x, z_shift=PI_SD_HOLE_Z_SHIFT))
+            cuts.append(left_wall_rect(params, port["a"], port["b"], PI_SD_HEIGHT, left_pi_x, z_shift=PI_SD_HOLE_Z_SHIFT))
         elif label == "Pi mini-HDMI":
-            additions.append(south_wall_indent_wall(params, port["a"], port["b"], 2.5, south_pi_y, z_shift=pi_hdmi_indent_z_shift))
-            cuts.append(south_wall_face_recess(params, port["a"], port["b"], 2.5, south_pi_recess_y, z_shift=pi_hdmi_indent_z_shift))
-            cuts.append(south_wall_rect(params, port["a"], port["b"], 3.0, south_pi_y, z_shift=PI_HDMI_Z_SHIFT))
+            additions.append(south_wall_indent_wall(params, port["a"], port["b"], PI_HDMI_INDENT_HEIGHT, south_pi_y, z_shift=pi_hdmi_indent_z_shift))
+            cuts.append(south_wall_face_recess(params, port["a"], port["b"], PI_HDMI_INDENT_HEIGHT, south_pi_recess_y, z_shift=pi_hdmi_indent_z_shift))
+            cuts.append(south_wall_rect(params, port["a"], port["b"], PI_HDMI_HEIGHT, south_pi_y, z_shift=PI_HDMI_Z_SHIFT))
         elif label == "Pi USB data":
-            additions.append(south_wall_indent_wall(params, port["a"], port["b"], 1.8, south_pi_y, z_shift=pi_usb_indent_z_shift))
-            cuts.append(south_wall_face_recess(params, port["a"], port["b"], 1.8, south_pi_recess_y, z_shift=pi_usb_indent_z_shift))
-            cuts.append(south_wall_rect(params, port["a"], port["b"], 2.3, south_pi_y, z_shift=PI_USB_Z_SHIFT))
+            additions.append(south_wall_indent_wall(params, port["a"], port["b"], PI_USB_INDENT_HEIGHT, south_pi_y, z_shift=pi_usb_indent_z_shift))
+            cuts.append(south_wall_face_recess(params, port["a"], port["b"], PI_USB_INDENT_HEIGHT, south_pi_recess_y, z_shift=pi_usb_indent_z_shift))
+            cuts.append(south_wall_rect(params, port["a"], port["b"], PI_USB_HEIGHT, south_pi_y, z_shift=PI_USB_Z_SHIFT))
 
-    additions.append(north_wall_indent_wall(params, OLED_SD_X0, OLED_SD_X1, 5.0, north_flush_y))
-    cuts.append(north_wall_face_recess(params, OLED_SD_X0, OLED_SD_X1, 5.0, north_flush_recess_y))
-    cuts.append(north_wall_rect(params, OLED_SD_X0, OLED_SD_X1, 5.0, north_flush_y))
+    additions.append(north_wall_indent_wall(params, OLED_SD_X0, OLED_SD_X1, OLED_SD_HEIGHT, north_flush_y, z_shift=OLED_SD_Z_SHIFT))
+    cuts.append(north_wall_face_recess(params, OLED_SD_X0, OLED_SD_X1, OLED_SD_HEIGHT, north_flush_recess_y, z_shift=OLED_SD_Z_SHIFT))
+    cuts.append(north_wall_rect(params, OLED_SD_X0, OLED_SD_X1, OLED_SD_HEIGHT, north_flush_y, z_shift=OLED_SD_Z_SHIFT))
 
     for addition in additions:
         model = model.union(addition)
