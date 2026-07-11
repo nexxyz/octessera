@@ -7,6 +7,7 @@ LOG_DIR=/var/log/octessera
 LOG_FILE="$LOG_DIR/network-health.log"
 STATE_DIR=/run/octessera-network-health
 FAIL_FILE="$STATE_DIR/fail-count"
+RECOVERY_STAMP_FILE="$STATE_DIR/wifi-stack-recovery-at"
 
 mkdir -p "$LOG_DIR" "$STATE_DIR"
 
@@ -47,8 +48,33 @@ esac
 fail_count=$((fail_count + 1))
 printf '%s\n' "$fail_count" > "$FAIL_FILE"
 
-if [ -n "$gateway" ] && [ "$fail_count" -ge 3 ]; then
-    printf '%s recovery=restart_networkmanager fail_count=%s gateway=%s\n' "$timestamp" "$fail_count" "${gateway:-none}" >> "$LOG_FILE"
+if [ "$fail_count" -eq 2 ]; then
+    printf '%s recovery=wifi_reconnect fail_count=%s gateway=%s\n' "$timestamp" "$fail_count" "${gateway:-none}" >> "$LOG_FILE"
+    iw dev wlan0 set power_save off >/dev/null 2>&1 || true
+    nmcli radio wifi on >/dev/null 2>&1 || true
+    nmcli device connect wlan0 >/dev/null 2>&1 || true
+    exit 0
+fi
+
+last_recovery=0
+if [ -f "$RECOVERY_STAMP_FILE" ]; then
+    last_recovery=$(cat "$RECOVERY_STAMP_FILE" 2>/dev/null || printf '0')
+fi
+case "$last_recovery" in
+    ''|*[!0-9]*) last_recovery=0 ;;
+esac
+now_epoch=$(date +%s)
+
+if [ "$fail_count" -ge 5 ] && [ $((now_epoch - last_recovery)) -ge 600 ]; then
+    printf '%s recovery=wifi_stack_reset fail_count=%s gateway=%s\n' "$timestamp" "$fail_count" "${gateway:-none}" >> "$LOG_FILE"
+    printf '%s\n' "$now_epoch" > "$RECOVERY_STAMP_FILE"
     printf '0\n' > "$FAIL_FILE"
-    systemctl restart NetworkManager || true
+    systemctl stop NetworkManager wpa_supplicant >/dev/null 2>&1 || true
+    modprobe -r brcmfmac brcmutil >/dev/null 2>&1 || true
+    sleep 2
+    modprobe brcmfmac >/dev/null 2>&1 || true
+    systemctl start wpa_supplicant NetworkManager >/dev/null 2>&1 || true
+    iw dev wlan0 set power_save off >/dev/null 2>&1 || true
+    nmcli radio wifi on >/dev/null 2>&1 || true
+    nmcli device connect wlan0 >/dev/null 2>&1 || true
 fi

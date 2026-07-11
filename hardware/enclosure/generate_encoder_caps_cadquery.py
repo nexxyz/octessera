@@ -12,13 +12,15 @@ ARTIFACT_ROOT = ROOT.parent.parent / "release-artifacts" / "enclosure"
 STEP_ROOT = ARTIFACT_ROOT / "step"
 STL_ROOT = ARTIFACT_ROOT / "stl"
 
-SHAFT_BORE_D = 6.4
-SHAFT_FLAT_TO_ARC_MM = 4.9
+SHAFT_BORE_D = 6.25
+SHAFT_FLAT_TO_ARC_MM = 4.75
 BORE_CLEARANCE_Z = 0.2
 AUX_MARK_DOT_R = 1.2
 AUX_MARK_DOT_SPACING = 3.0
 MAIN_MARK_DOT_COUNT = 11
 MAIN_MARK_DOT_ORBIT_R = 7.35
+MAIN_CAP_HEIGHT = 14.0
+AUX_CAP_HEIGHT = 12.0
 
 
 def polar_points(radius: float, count: int, phase: float = 0.0) -> list[tuple[float, float]]:
@@ -76,7 +78,8 @@ def diagonal_groove(angle: float, z: float, handedness: int, radius: float) -> c
 
 
 def add_diamond_knurl_cuts(body: cq.Workplane, radius: float, height: float) -> cq.Workplane:
-    for row, z in enumerate([2.0, 4.0, 6.0, 8.0, 10.0]):
+    row_z = [2.0, 4.0, 6.0, 8.0, 10.0, height - 2.6]
+    for row, z in enumerate(row_z):
         offset = (row % 2) * math.pi / 18.0
         for index in range(18):
             angle = 2.0 * math.pi * index / 18.0 + offset
@@ -86,7 +89,7 @@ def add_diamond_knurl_cuts(body: cq.Workplane, radius: float, height: float) -> 
 
 
 def make_wide_knurled_cap() -> cq.Workplane:
-    height = 13.5
+    height = MAIN_CAP_HEIGHT
     bore_depth = 11.1
     radius = 10.0
     body = cq.Workplane("XY").circle(radius).extrude(height)
@@ -126,12 +129,12 @@ def add_separate_marking(body: cq.Workplane, marking: cq.Workplane) -> cq.Workpl
 def make_main_cap() -> cq.Workplane:
     return add_separate_marking(
         make_wide_knurled_cap(),
-        perimeter_dot_marking(MAIN_MARK_DOT_COUNT, MAIN_MARK_DOT_ORBIT_R, AUX_MARK_DOT_R, 0.65, 13.5),
+        perimeter_dot_marking(MAIN_MARK_DOT_COUNT, MAIN_MARK_DOT_ORBIT_R, AUX_MARK_DOT_R, 0.65, MAIN_CAP_HEIGHT),
     )
 
 
 def make_aux_cap_body() -> cq.Workplane:
-    height = 11.5
+    height = AUX_CAP_HEIGHT
     bore_depth = 9.3
     flange_h = 2.0
     flange_r = 8.4
@@ -147,12 +150,16 @@ def make_aux_cap_body() -> cq.Workplane:
     )
     body = body.faces(">Z").fillet(0.45)
     body = body.faces("<Z").fillet(0.45)
+    rib_bottom = 3.0
+    rib_top = height - 1.0
+    rib_center_z = (rib_bottom + rib_top) / 2.0
+    rib_height = rib_top - rib_bottom
     for index in range(14):
         angle = 2.0 * math.pi * index / 14
         radial = cq.Vector(math.cos(angle), math.sin(angle), 0.0)
         tangent = cq.Vector(-math.sin(angle), math.cos(angle), 0.0)
-        plane = cq.Plane(radial.multiply(body_r + 0.04) + cq.Vector(0, 0, 5.8), tangent, radial)
-        groove = cq.Workplane(plane).rect(1.05, 5.7).extrude(-0.65)
+        plane = cq.Plane(radial.multiply(body_r + 0.04) + cq.Vector(0, 0, rib_center_z), tangent, radial)
+        groove = cq.Workplane(plane).rect(1.05, rib_height).extrude(-0.65)
         body = body.cut(groove)
     body = body.cut(d_bore_cutter(bore_depth))
     return body.clean()
@@ -161,7 +168,7 @@ def make_aux_cap_body() -> cq.Workplane:
 def make_aux_cap(dot_count: int) -> cq.Workplane:
     return add_separate_marking(
         make_aux_cap_body(),
-        dot_marking(dot_count, AUX_MARK_DOT_R, AUX_MARK_DOT_SPACING, 0.65, 11.5),
+        dot_marking(dot_count, AUX_MARK_DOT_R, AUX_MARK_DOT_SPACING, 0.65, AUX_CAP_HEIGHT),
     )
 
 

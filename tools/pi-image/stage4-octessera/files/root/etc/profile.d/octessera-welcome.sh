@@ -12,6 +12,7 @@ if [ ! -t 1 ]; then
     return 0
 fi
 
+printf '\n'
 cat <<'EOF'
                           ████    ████
                          █████   ██████

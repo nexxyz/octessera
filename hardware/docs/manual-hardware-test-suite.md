@@ -15,6 +15,21 @@ Before each session:
 ./tools/pi/pi-preflight.ps1 -Target pi@192.168.0.211
 ```
 
+After flashing a fresh image, verify the app can reboot and shut down without broad passwordless sudo:
+
+```bash
+sudo test -f /etc/sudoers.d/octessera-shutdown
+sudo visudo -cf /etc/sudoers.d/octessera-shutdown
+sudo -n /usr/bin/systemctl reboot --dry-run
+sudo -n /usr/bin/systemctl poweroff --dry-run
+```
+
+Expected:
+
+- `/etc/sudoers.d/octessera-shutdown` exists and parses cleanly.
+- The dry-run reboot and poweroff commands do not prompt for a password.
+- No broad `NOPASSWD: ALL` rule is required for octessera power controls.
+
 Then confirm the app is stopped:
 
 ```bash

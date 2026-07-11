@@ -27,6 +27,11 @@ def build_standoff_pillar(standoff_h: float) -> cq.Workplane:
 def export_pillar(name: str, model: cq.Workplane) -> None:
     STEP_ROOT.mkdir(parents=True, exist_ok=True)
     STL_ROOT.mkdir(parents=True, exist_ok=True)
+    for old_name in ["standoff_pillar_9mm"]:
+        for suffix in ["step", "stl"]:
+            old_path = (STEP_ROOT if suffix == "step" else STL_ROOT) / f"{old_name}.{suffix}"
+            if old_path.exists():
+                old_path.unlink()
     step_path = STEP_ROOT / f"{name}.step"
     stl_path = STL_ROOT / f"{name}.stl"
     cq.exporters.export(model, str(step_path))
@@ -35,13 +40,18 @@ def export_pillar(name: str, model: cq.Workplane) -> None:
     print(f"wrote {stl_path}")
 
 
+def is_valid_solid(model: cq.Workplane) -> bool:
+    shape = model.findSolid()
+    return bool(getattr(shape, "isValid")())
+
+
 def main() -> None:
     pillars = {
-        "standoff_pillar_9mm": build_standoff_pillar(9.0),
+        "standoff_pillar_9_5mm": build_standoff_pillar(9.5),
         "standoff_pillar_10mm": build_standoff_pillar(10.0),
     }
     for name, model in pillars.items():
-        if not model.val().isValid():
+        if not is_valid_solid(model):
             raise SystemExit(f"{name} invalid")
         export_pillar(name, model)
 

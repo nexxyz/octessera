@@ -11,6 +11,7 @@ ARTIFACT_ROOT = ROOT.parent.parent / "release-artifacts" / "enclosure"
 STL_ROOT = ARTIFACT_ROOT / "stl"
 THREEMF_ROOT = ARTIFACT_ROOT / "3mf-multicolor"
 SKIPPED_STEMS = {"case_top_two_level_cadquery"}
+OBSOLETE_STEMS = {"standoff_pillar_9mm"}
 
 
 def read_binary_stl_triangles(path: Path) -> list[tuple[tuple[float, float, float], tuple[float, float, float], tuple[float, float, float]]]:
@@ -130,8 +131,12 @@ def write_3mf(stl_path: Path) -> None:
 
 
 def main() -> None:
+    for stem in OBSOLETE_STEMS:
+        old_path = THREEMF_ROOT / f"{stem}.3mf"
+        if old_path.exists():
+            old_path.unlink()
     for stl_path in sorted(STL_ROOT.glob("case_*.stl")) + sorted(STL_ROOT.glob("standoff_*.stl")):
-        if stl_path.stem not in SKIPPED_STEMS:
+        if stl_path.stem not in SKIPPED_STEMS and stl_path.stem not in OBSOLETE_STEMS:
             write_3mf(stl_path)
 
 
