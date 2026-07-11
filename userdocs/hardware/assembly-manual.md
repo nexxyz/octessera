@@ -62,7 +62,7 @@ Standoff STL attribution and purchase/source reference: the standoff models are 
 
 - Soldering iron and solder.
 - Flush cutters.
-- Small screwdriver and a longish bit for bottom screws.
+- Small screwdriver for bottom screws.
 - Optional: Heat-set insert tool.
 - Multimeter.
 - Raspberry Pi Imager.
