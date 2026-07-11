@@ -60,10 +60,10 @@ Dance FX are momentary. Pressing a mapped grid cell starts the effect. Releasing
 
 ## A useful patch recipe
 
-The factory preset is a good orientation point: it has a self-sustaining `life` pattern on Part 1 and a basic sequencer rhythm on Part 2.
+The factory preset is a good orientation point: it has a self-sustaining `life` pattern on Part 1 and a basic `sequencer` rhythm on Part 2.
 
-1. Use `sequencer` or `looper`, route it to a sampler, and create a basic rhythm loop to ground your track.
-2. Add a generative part: `life`, `raindrops`, `bounce`, or `dla`, and route it to a synthesizer.
+1. Use `sequencer` or `looper`, route it to a `sampler`, and create a basic rhythm loop to ground your track.
+2. Add a generative part: `life`, `raindrops`, `bounce`, or `dla`, and route it to a `synth`.
 3. Use probability on your sequencer cells to make patterns play back in a more interesting way.
 4. Bind one or two aux encoders to the parameters or actions you keep reaching for.
 5. Open Dance Mix or Trigger Gate and perform the parts like little weather systems.
