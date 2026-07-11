@@ -69,18 +69,20 @@ The intended build is a DIY standalone instrument around a custom PCB, Raspberry
 
 Start with the full assembly guide:
 
-- [`hardware/docs/assembly-manual.md`](hardware/docs/assembly-manual.md) — BOM, PCB ordering, soldering, module setup, Pi flashing, first power-on, and enclosure assembly.
+- [`userdocs/hardware/assembly-manual.md`](userdocs/hardware/assembly-manual.md) — BOM, PCB ordering, soldering, module setup, Pi flashing, first power-on, and enclosure assembly.
 
 Related references:
 
-1. [`hardware/docs/pinout-and-connections.md`](hardware/docs/pinout-and-connections.md) — wiring, pin ownership, buses, and hardware source of truth.
-2. [`hardware/enclosure/README.md`](hardware/enclosure/README.md) — case, port access, print notes, and power rule.
-3. [`hardware/docs/pi-bring-up.md`](hardware/docs/pi-bring-up.md) — Pi OS setup, preflight, build/deploy, and bring-up checklist.
+1. [`userdocs/hardware/pinout-and-connections.md`](userdocs/hardware/pinout-and-connections.md) — wiring, pin ownership, buses, and hardware source of truth.
+2. [`userdocs/hardware/enclosure.md`](userdocs/hardware/enclosure.md) — case, port access, print notes, and power rule.
+3. [`userdocs/hardware/pi-bring-up.md`](userdocs/hardware/pi-bring-up.md) — Pi OS setup, preflight, build/deploy, and bring-up checklist.
 4. [`docs/menu-and-controls-spec.md`](docs/menu-and-controls-spec.md) — runtime controls, menus, overlays, and display behavior.
 
 ## Desktop Simulator
 
-The easiest way to play with this system is to just to download and launch the portable Windows EXE that is attached to the official releases.
+The easiest way to play with this system is to download and launch the portable Windows EXE attached to the official releases.
+
+Releases may also include macOS and Linux desktop simulator builds. Those are currently untested; treat them as experimental until someone has done the boring part and actually run them on those systems.
 
 It allows you try out Octessera without any special hardware.
 
@@ -154,13 +156,21 @@ See `docs/development-workflows.md` for complete contributor build, verification
 
 ## Documentation Map
 
-Primary user and hardware docs:
+Primary user docs:
 
-- [`hardware/docs/pinout-and-connections.md`](hardware/docs/pinout-and-connections.md): Pi wiring, bus allocation, logical input mapping, and hardware source of truth.
-- [`hardware/docs/assembly-manual.md`](hardware/docs/assembly-manual.md): hardware BOM, soldering, first power-on, and enclosure assembly.
-- [`hardware/enclosure/README.md`](hardware/enclosure/README.md): enclosure ports, power rule, printing notes, and mechanical strategy.
-- [`hardware/docs/pi-bring-up.md`](hardware/docs/pi-bring-up.md): Pi OS setup, preflight, build/deploy, bring-up, diagnostics, and update plan.
+- [`userdocs/README.md`](userdocs/README.md): start here for build, bring-up, controls, printable sheets, and references.
+- [`userdocs/hardware/assembly-manual.md`](userdocs/hardware/assembly-manual.md): hardware BOM, soldering, first power-on, and enclosure assembly.
+- [`userdocs/hardware/pinout-and-connections.md`](userdocs/hardware/pinout-and-connections.md): Pi wiring, bus allocation, logical input mapping, and hardware source of truth.
+- [`userdocs/hardware/enclosure.md`](userdocs/hardware/enclosure.md): enclosure ports, power rule, printing notes, and mechanical strategy.
+- [`userdocs/hardware/pi-bring-up.md`](userdocs/hardware/pi-bring-up.md): Pi OS setup, preflight, build/deploy, bring-up, diagnostics, and update plan.
+- [`userdocs/controls-cheat-sheet.md`](userdocs/controls-cheat-sheet.md): hardware and simulator controls.
+- [`userdocs/behaviors-and-dance.md`](userdocs/behaviors-and-dance.md): behavior overview and Dance page reference.
+- [`userdocs/print/quick-reference.pdf`](userdocs/print/quick-reference.pdf): two-page printable controls, behaviors, Dance, and signal-flow sheet.
+
+Canonical specs:
+
 - [`docs/menu-and-controls-spec.md`](docs/menu-and-controls-spec.md): authoritative controls, menu structure, overlays, persistence, and display behavior.
+- [`docs/menu-tree-spec.md`](docs/menu-tree-spec.md): canonical menu tree.
 
 Secondary contributor docs:
 
@@ -171,20 +181,11 @@ Secondary contributor docs:
 
 ## Samples
 
-Repository sample content is sourced from the Stargate sample pack:
-
-```text
-https://github.com/stargatedaw/stargate-sample-pack
-```
+Repository sample content is sourced from the [Stargate sample pack](https://github.com/stargatedaw/stargate-sample-pack).
 
 ## Hardware model attributions
 
-The standoff STL models in `release-artifacts/enclosure/` are based on Stackable PCB Standoff by theduckom, licensed under Creative Commons Attribution 4.0 International:
-
-```text
-https://www.printables.com/model/163087-stackable-pcb-standoff
-https://creativecommons.org/licenses/by/4.0/
-```
+The standoff STL models in `release-artifacts/enclosure/` are based on [Stackable PCB Standoff by theduckom](https://www.printables.com/model/163087-stackable-pcb-standoff), licensed under [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/).
 
 ## License
 
@@ -196,4 +197,4 @@ Commercial use or selling hardware devices requires prior written permission.
 
 To request permission, contact: https://github.com/nexxyz
 
-See `LICENSE` for full terms.
+See [LICENSE](LICENSE) for full terms.

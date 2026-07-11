@@ -2,7 +2,7 @@
 
 This is the primary wiring reference for the Raspberry Pi Zero 2 W hardware target.
 
-Use it while assembling the device. It is deliberately plain: this is where the electricity gets fewer jokes and more exact pins. For the user-facing docs home, see [`../../userdocs/README.md`](../../userdocs/README.md). For Pi OS setup and bring-up, see [`pi-bring-up.md`](pi-bring-up.md). For the case and port layout, see [`../enclosure/README.md`](../enclosure/README.md).
+Use it while assembling the device. It is deliberately plain: this is where the electricity gets fewer jokes and more exact pins. For the user-facing docs home, see [`../README.md`](../README.md). For Pi OS setup and bring-up, see [`pi-bring-up.md`](pi-bring-up.md). For the case and port layout, see [`enclosure.md`](enclosure.md).
 
 ## Hardware Summary
 
@@ -98,6 +98,6 @@ Notes:
 
 ## Source of Truth
 
-- Schematic: [`../pcb/octessera.kicad_sch`](../pcb/octessera.kicad_sch)
-- Netlist: [`../pcb/octessera.net`](../pcb/octessera.net)
+- Schematic: [`../../hardware/pcb/octessera.kicad_sch`](../../hardware/pcb/octessera.kicad_sch)
+- Netlist: [`../../hardware/pcb/octessera.net`](../../hardware/pcb/octessera.net)
 - HAL pin mapping: [`../../crates/hal/src/pinmap.rs`](../../crates/hal/src/pinmap.rs)

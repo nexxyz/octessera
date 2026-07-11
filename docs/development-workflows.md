@@ -2,10 +2,10 @@
 
 This is a contributor reference. End-user hardware build, assembly, and bring-up docs have priority:
 
-- `hardware/docs/pinout-and-connections.md`
-- `hardware/enclosure/README.md`
+- `userdocs/hardware/pinout-and-connections.md`
+- `userdocs/hardware/enclosure.md`
 - `hardware/docs/branding-assets.md`
-- `hardware/docs/pi-bring-up.md`
+- `userdocs/hardware/pi-bring-up.md`
 - `docs/menu-and-controls-spec.md`
 
 ## Install

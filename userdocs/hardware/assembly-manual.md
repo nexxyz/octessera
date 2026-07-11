@@ -4,17 +4,17 @@ This guide builds the standalone Octessera instrument: PCB, soldered controls, p
 
 The hardware is still being fit-tested. Check the current enclosure files before ordering printed parts, and do the slow fit checks before you close the box. Tiny clearances are where instruments learn humility.
 
-If you are new here, start with the friendlier map in [`../../userdocs/README.md`](../../userdocs/README.md), then come back with a soldering iron and snacks.
+If you are new here, start with the friendlier map in [`../README.md`](../README.md), then come back with a soldering iron and snacks.
 
 ## Source files
 
 - Gerbers for PCB fabrication: [`../../release-artifacts/pcb/gerber/gerber.zip`](../../release-artifacts/pcb/gerber/gerber.zip)
-- Schematic: [`../pcb/octessera.kicad_sch`](../pcb/octessera.kicad_sch)
-- PCB layout: [`../pcb/octessera.kicad_pcb`](../pcb/octessera.kicad_pcb)
+- Schematic: [`../../hardware/pcb/octessera.kicad_sch`](../../hardware/pcb/octessera.kicad_sch)
+- PCB layout: [`../../hardware/pcb/octessera.kicad_pcb`](../../hardware/pcb/octessera.kicad_pcb)
 - Wiring reference: [`pinout-and-connections.md`](pinout-and-connections.md)
 - Pi setup and bring-up: [`pi-bring-up.md`](pi-bring-up.md)
-- Enclosure reference: [`../enclosure/README.md`](../enclosure/README.md)
-- User docs home: [`../../userdocs/README.md`](../../userdocs/README.md)
+- Enclosure reference: [`enclosure.md`](enclosure.md)
+- User docs home: [`../README.md`](../README.md)
 
 ## BOM
 

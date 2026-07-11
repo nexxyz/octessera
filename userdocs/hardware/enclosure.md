@@ -2,7 +2,7 @@
 
 This is the enclosure and mechanical reference for the Octessera hardware target.
 
-Use it with [`../docs/pinout-and-connections.md`](../docs/pinout-and-connections.md) for wiring and [`../docs/pi-bring-up.md`](../docs/pi-bring-up.md) for Pi setup. For the user-facing docs home, start at [`../../userdocs/README.md`](../../userdocs/README.md).
+Use it with [`pinout-and-connections.md`](pinout-and-connections.md) for wiring and [`pi-bring-up.md`](pi-bring-up.md) for Pi setup. For the user-facing docs home, start at [`../README.md`](../README.md).
 
 This is the part where the instrument becomes an object you can pick up. Print carefully, test-fit patiently, and take out the SD card before you put the device in the enclosure, or it may break. Ask me how I found that one out.
 
@@ -43,13 +43,13 @@ python -m pip install -r hardware/enclosure/requirements.txt
 
 This model keeps OLED and encoders on the lower deck, raises the NeoKeys and
 8x8 NeoTrellis field, and uses a parametric raised roof/shoulder over the Pi area.
-See [`CAD_WORKFLOW.md`](CAD_WORKFLOW.md) for the edit and validation loop. For branded top artifacts, prefer:
+See [`../../hardware/enclosure/CAD_WORKFLOW.md`](../../hardware/enclosure/CAD_WORKFLOW.md) for the edit and validation loop. For branded top artifacts, prefer:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File hardware/enclosure/generate_branded_top_artifacts_checked.ps1
 ```
 
-Branding source and cleanup rules are documented in [`../docs/branding-assets.md`](../docs/branding-assets.md).
+Branding source and cleanup rules are documented in [`../../hardware/docs/branding-assets.md`](../../hardware/docs/branding-assets.md).
 
 The STEP file is the preferred generated artifact. This is still not a
 production lid: it does not yet recreate the full underside lip, catch rims,
@@ -98,12 +98,12 @@ Current enclosure notes from the parameter source:
 
 ## Source of Truth
 
-- Parameters: [`enclosure_params.json`](enclosure_params.json)
-- Enclosure layout image: [`layout.png`](layout.png)
-- Wave/slot guidance: [`wave_guidance.py`](wave_guidance.py)
-- Parametric generator: [`generate_two_level_enclosure_cadquery.py`](generate_two_level_enclosure_cadquery.py)
-- Standoff pillar generator: [`generate_standoff_pillars.py`](generate_standoff_pillars.py)
-- Standoff top-pin generator: [`generate_standoff_top_pins.py`](generate_standoff_top_pins.py)
-- CAD workflow and checks: [`CAD_WORKFLOW.md`](CAD_WORKFLOW.md)
-- Branded top artifact wrapper: [`generate_branded_top_artifacts_checked.ps1`](generate_branded_top_artifacts_checked.ps1)
-- Roof-wall validation: [`validate_wave_roof.py`](validate_wave_roof.py)
+- Parameters: [`../../hardware/enclosure/enclosure_params.json`](../../hardware/enclosure/enclosure_params.json)
+- Enclosure layout image: [`../../hardware/enclosure/layout.png`](../../hardware/enclosure/layout.png)
+- Wave/slot guidance: [`../../hardware/enclosure/wave_guidance.py`](../../hardware/enclosure/wave_guidance.py)
+- Parametric generator: [`../../hardware/enclosure/generate_two_level_enclosure_cadquery.py`](../../hardware/enclosure/generate_two_level_enclosure_cadquery.py)
+- Standoff pillar generator: [`../../hardware/enclosure/generate_standoff_pillars.py`](../../hardware/enclosure/generate_standoff_pillars.py)
+- Standoff top-pin generator: [`../../hardware/enclosure/generate_standoff_top_pins.py`](../../hardware/enclosure/generate_standoff_top_pins.py)
+- CAD workflow and checks: [`../../hardware/enclosure/CAD_WORKFLOW.md`](../../hardware/enclosure/CAD_WORKFLOW.md)
+- Branded top artifact wrapper: [`../../hardware/enclosure/generate_branded_top_artifacts_checked.ps1`](../../hardware/enclosure/generate_branded_top_artifacts_checked.ps1)
+- Roof-wall validation: [`../../hardware/enclosure/validate_wave_roof.py`](../../hardware/enclosure/validate_wave_roof.py)

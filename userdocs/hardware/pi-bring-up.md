@@ -6,9 +6,9 @@ The goal is simple: build, flash, start, and run diagnostics until the instrumen
 
 Use it with:
 
-- [`../../userdocs/README.md`](../../userdocs/README.md) for the user-facing docs home.
+- [`../README.md`](../README.md) for the user-facing docs home.
 - [`pinout-and-connections.md`](pinout-and-connections.md) for wiring and pin ownership.
-- [`../enclosure/README.md`](../enclosure/README.md) for case, ports, and power rules.
+- [`enclosure.md`](enclosure.md) for case, ports, and power rules.
 - [`../../docs/menu-and-controls-spec.md`](../../docs/menu-and-controls-spec.md) for runtime controls and OLED/grid behavior.
 
 ## Hardware Target
@@ -176,7 +176,7 @@ The current development Pi at `pi@192.168.0.211` has been verified with `tools/p
 8. Verify preset/default storage and sample browser paths.
 
 Current open validation work is tracked in [`../../docs/open-work.md`](../../docs/open-work.md).
-The no-OLED manual walkthrough and CLI diagnostics are defined in [`manual-hardware-test-suite.md`](manual-hardware-test-suite.md).
+The no-OLED manual walkthrough and CLI diagnostics are defined in [`../../hardware/docs/manual-hardware-test-suite.md`](../../hardware/docs/manual-hardware-test-suite.md).
 
 Quick diagnostics:
 

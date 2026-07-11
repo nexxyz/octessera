@@ -8,12 +8,12 @@ Then you nudge them. You anchor them with a bit of manual sequencing if you want
 
 ## Start here
 
-- [Build and assembly manual](../hardware/docs/assembly-manual.md) — parts, soldering, enclosure, and the bits where I try to keep you from breaking the same things I broke.
-- [Raspberry Pi bring-up](../hardware/docs/pi-bring-up.md) — image, SSH, hardware preflight, service checks, and network diagnostics.
+- [Build and assembly manual](hardware/assembly-manual.md) — parts, soldering, enclosure, and the bits where I try to keep you from breaking the same things I broke.
+- [Raspberry Pi bring-up](hardware/pi-bring-up.md) — image, SSH debugging, hardware preflight, service checks, and network diagnostics.
 - [Controls cheat sheet](controls-cheat-sheet.md) — what the encoders, buttons, grid, modifiers, Dance pages, and auto-maps do.
 - [Behaviors and Dance pages](behaviors-and-dance.md) — the part behaviors and live performance pages.
-- [Pinout and connections](../hardware/docs/pinout-and-connections.md) — wiring and pin ownership.
-- [Enclosure and print notes](../hardware/enclosure/README.md) — case files, ports, power, and print-fit notes.
+- [Pinout and connections](hardware/pinout-and-connections.md) — wiring and pin ownership.
+- [Enclosure and print notes](hardware/enclosure.md) — case files, ports, power, and print-fit notes.
 
 ## Printable quick reference
 
