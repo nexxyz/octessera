@@ -2,7 +2,11 @@
 
 Octessera turns cellular automata into music you can play.
 
-Create a dynamic, evolving beat in minutes. Let Conway's Life generate a shifting synth backdrop. Add a drumbeat with a classic grid-style sequencer. Make the drums duck the synth out of the way. Play a lead line live. Then jump into Dance mode and perform with live effects, change note probability, and use the XY pad and mixer controls to build up to a massive drop.
+It is a collection of little algorithmic musical world-bubbles: small systems you set up, nudge, combine, and occasionally interrupt. You are not programming fixed notes on a piano roll. You are giving tiny rule-based worlds something to do, adding a bit of manual sequencing when you want an anchor, and then playing the result in real time.
+
+Start with the user docs: [`userdocs/README.md`](userdocs/README.md).
+
+Create a dynamic, evolving beat in minutes. Let Conway's Life generate a shifting synth backdrop. Add a drumbeat with a classic grid-style sequencer. Make the drums duck the synth out of the way. Play a lead line live. Then jump into Dance mode and perform with live effects, change trigger probability, and use the XY pad and mixer controls to build something that you and octessera found together.
 
 It is easy to start with, but deep. It rewards exploration and experimentation. Small changes to the grid can become rhythms, melodies, modulation, texture, or surprise.
 
@@ -49,7 +53,7 @@ The hardware (still under design) uses one clickable main encoder, three clickab
 | Navigate Dance pages | Fn + right grid column | Ctrl + right grid column |
 | Access alternate aux binding | Fn + aux press | Fn + aux UI control |
 
-The full control and menu reference is [`docs/menu-and-controls-spec.md`](docs/menu-and-controls-spec.md).
+The friendly control guide starts at [`userdocs/controls-cheat-sheet.md`](userdocs/controls-cheat-sheet.md). The canonical control/menu spec is [`docs/menu-and-controls-spec.md`](docs/menu-and-controls-spec.md).
 
 ## Main Pages
 

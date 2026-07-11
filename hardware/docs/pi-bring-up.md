@@ -2,8 +2,11 @@
 
 This is the current end-user bring-up guide for the Raspberry Pi Zero 2 W hardware target.
 
+The goal is simple: build, flash, start, and run diagnostics until the instrument proves that its buses, display, controls, and audio path behave.
+
 Use it with:
 
+- [`../../userdocs/README.md`](../../userdocs/README.md) for the user-facing docs home.
 - [`pinout-and-connections.md`](pinout-and-connections.md) for wiring and pin ownership.
 - [`../enclosure/README.md`](../enclosure/README.md) for case, ports, and power rules.
 - [`../../docs/menu-and-controls-spec.md`](../../docs/menu-and-controls-spec.md) for runtime controls and OLED/grid behavior.
@@ -36,7 +39,7 @@ Do not power the Raspberry Pi through its own micro-USB power port. The enclosur
 
 The Pi app is native Rust. It does not start Node or TypeScript.
 
-The device is intended to run as an appliance. The Pi app should launch on boot through `octessera.service`. SSH is for setup, diagnostics, logs, and updates.
+The device is intended to run as an appliance. The Pi app should launch on boot through `octessera.service`. SSH is only for debugging, logs, and updates; it is not part of normal bring-up.
 
 ## Pi OS Boot Configuration
 
@@ -88,11 +91,19 @@ pinctrl get 2 3 7 8 9 10 11 14 15 18 19 20 21 23 16
 aplay -l
 ```
 
-From Windows, run the SSH preflight helper:
+Optional SSH debugging helpers:
 
 ```powershell
 ./tools/pi/pi-preflight.ps1 -Target pi@192.168.0.211
 ```
+
+If the instrument still runs but SSH or `octessera.local` disappears during debugging, collect the network diagnostics before rebooting when possible:
+
+```powershell
+./tools/pi/collect-network-diagnostics.ps1 -Target pi@192.168.0.211
+```
+
+The report includes local reachability, WiFi power state, NetworkManager/SSH state, `brcmfmac` firmware errors, and `/var/log/octessera/network-health.log`. You do not need this for a normal first boot unless the network itself is what you are debugging.
 
 Running the normal app before the PCB/components are attached is only a negative smoke test. Missing OLED or I2C devices should fail clearly rather than silently falling back.
 

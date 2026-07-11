@@ -2,7 +2,9 @@
 
 This guide builds the standalone Octessera instrument: PCB, soldered controls, plug-in modules, NeoTrellis grid, Raspberry Pi image, and enclosure.
 
-The hardware is still being fit-tested. Check the current enclosure files before ordering printed parts.
+The hardware is still being fit-tested. Check the current enclosure files before ordering printed parts, and do the slow fit checks before you close the box. Tiny clearances are where instruments learn humility.
+
+If you are new here, start with the friendlier map in [`../../userdocs/README.md`](../../userdocs/README.md), then come back with a soldering iron and snacks.
 
 ## Source files
 
@@ -12,6 +14,7 @@ The hardware is still being fit-tested. Check the current enclosure files before
 - Wiring reference: [`pinout-and-connections.md`](pinout-and-connections.md)
 - Pi setup and bring-up: [`pi-bring-up.md`](pi-bring-up.md)
 - Enclosure reference: [`../enclosure/README.md`](../enclosure/README.md)
+- User docs home: [`../../userdocs/README.md`](../../userdocs/README.md)
 
 ## BOM
 
@@ -27,7 +30,7 @@ The hardware is still being fit-tested. Check the current enclosure files before
 | 1 | SSD1351 OLED breakout with microSD holder | [Adafruit `1431`](https://www.adafruit.com/product/1431), Mouser `485-1431` | SPI display. |
 | 1 | PCM5102 I2S DAC | [Adafruit `6250`](https://www.adafruit.com/product/6250), Mouser `485-6250` | Line/headphone output path. |
 | 1 | USB-C power breakout | [Adafruit `4090`](https://www.adafruit.com/product/4090), Mouser `485-4090` | Power the device here, not through the Pi. |
-| 4 | Horizontal rotary encoder with switch | [Bourns `PEC12R-4225F-S0024`](https://www.bourns.com/products/encoders/contacting-encoders/product/PEC12R), Mouser `652-PEC12R-4225F-S0024` | The PCB uses four encoders. |
+| 4 | Horizontal rotary encoder with switch | [RS `781-6811`](https://at.rs-online.com/web/p/mechanische-drehgeber/7816811), Bourns `PEC12R-4225F-S0024` | The PCB uses four encoders. |
 | 1 | Polarized capacitor | [`470uF`, 16V, radial, about 8x12mm](https://de.aliexpress.com/item/1005010415990713.html) | PCB footprint: `CP_Radial_D8.0mm_P3.50mm`. Any equivalent 470uF polarized radial capacitor with 3.5mm lead pitch and >5V rating is fine. |
 | 1 | 1x5 right-angle female socket/header, 2.54mm pitch | [2.54mm right-angle female header strip](https://de.aliexpress.com/item/32896617287.html) | Cut to 5 pins for the NeoTrellis connector on the PCB. |
 | 1 | 5-wire female-to-male Dupont cable, about 5cm | [Female-to-male Dupont jumper cable set](https://de.aliexpress.com/item/1005003683781229.html) | Use five adjacent leads, about 5cm long, to connect the NeoTrellis array to the PCB. |

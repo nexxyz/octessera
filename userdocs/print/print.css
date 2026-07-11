@@ -1,0 +1,215 @@
+@page {
+  size: A4 landscape;
+  margin: 7mm;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  color: #17120f;
+  background: #fffaf1;
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 8.5pt;
+  line-height: 1.18;
+}
+
+.page {
+  min-height: 0;
+  page-break-after: always;
+}
+
+.page:last-child {
+  page-break-after: auto;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 10mm;
+  border-bottom: 1.2pt solid #17120f;
+  padding-bottom: 2.5mm;
+  margin-bottom: 2.5mm;
+}
+
+.wordmark {
+  width: 38mm;
+  height: auto;
+}
+
+h1 {
+  margin: 0;
+  font-size: 15pt;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+}
+
+header p {
+  margin: 1mm 0 0;
+  font-size: 8.8pt;
+}
+
+.grid.two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3mm;
+}
+
+.reference-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.4mm;
+}
+
+.landscape-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3mm;
+}
+
+.column {
+  display: grid;
+  gap: 1.6mm;
+  align-content: start;
+}
+
+section {
+  border: 0.8pt solid #17120f;
+  padding: 1.6mm;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+section.wide {
+  grid-column: 1 / -1;
+}
+
+.reference-grid section {
+  padding: 1.6mm;
+}
+
+h2 {
+  margin: 0 0 1.1mm;
+  font-size: 9.5pt;
+  text-transform: lowercase;
+  letter-spacing: 0.03em;
+}
+
+p { margin: 0 0 1mm; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  text-align: left;
+  vertical-align: top;
+  border-top: 0.4pt solid rgba(23, 18, 15, 0.25);
+  padding: 0.62mm 0.75mm;
+}
+
+tr:first-child th, tr:first-child td { border-top: 0; }
+
+th {
+  width: 31%;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 7.8pt;
+  white-space: nowrap;
+}
+
+table.small th { width: 15%; }
+table.small td { width: 35%; }
+
+.behavior-table th { width: 16%; }
+.behavior-table td { width: 34%; }
+
+.compact {
+  margin: 1mm 0 0;
+  font-size: 7.8pt;
+}
+
+.flow {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 9pt;
+  padding: 2.3mm;
+  background: #17120f;
+  color: #fffaf1;
+}
+
+.flowchart-img {
+  display: block;
+  width: 100%;
+  max-height: 92mm;
+  object-fit: contain;
+}
+
+.flowchart-page-img {
+  display: block;
+  width: 100%;
+  max-height: 220mm;
+  object-fit: contain;
+  margin-top: 8mm;
+}
+
+.flow-page main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flowchart-landscape-img {
+  display: block;
+  width: 100%;
+  max-height: 168mm;
+  object-fit: contain;
+  margin-top: -8mm;
+}
+
+.chips span {
+  display: inline-block;
+  font-family: Consolas, "Courier New", monospace;
+  border: 0.7pt solid #17120f;
+  padding: 0.4mm 1.2mm;
+  margin-right: 1mm;
+}
+
+.chips {
+  margin-top: 2mm;
+}
+
+.chips .action-chip {
+  margin-left: 3mm;
+}
+
+.note {
+  border-left: 2.2pt solid #000;
+  margin-top: 2mm;
+  padding-left: 2mm;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2mm;
+}
+
+.cards p {
+  margin: 0;
+  border: 0.5pt solid rgba(23, 18, 15, 0.28);
+  padding: 2mm;
+}
+
+ol {
+  margin: 0;
+  padding-left: 5mm;
+}
+
+li { margin-bottom: 0.6mm; }
+
+footer {
+  margin-top: 2mm;
+  border-top: 0.7pt solid #17120f;
+  padding-top: 1mm;
+  font-size: 7.4pt;
+  text-align: center;
+}

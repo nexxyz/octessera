@@ -19,6 +19,7 @@ hardware/pcb/*.rpt
 hardware/pcb/report.txt
 hardware/pcb/gerber/
 debug/
+diagnostics/
 *.zip
 .opencode/*
 !.opencode/agent/

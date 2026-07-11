@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>octessera quick reference</title>
+  <link rel="stylesheet" href="print.css">
+</head>
+<body class="quick-reference">
+  <section class="page reference-page">
+    <header>
+      <img src="../../assets/octessera-wordmark.svg" alt="octessera" class="wordmark">
+      <div>
+        <h1>quick reference</h1>
+        <p>Controls, bindings, behaviors, and Dance pages on one page.</p>
+      </div>
+    </header>
+    <main class="landscape-grid">
+      <div class="column">
+        <section>
+          <h2>Regular controls</h2>
+          <table><tbody>
+            <tr><th><i>Turn Main</i></th><td><b>Menu navigation</b> · navigate menu / edit value</td></tr>
+            <tr><th><i>Click Main</i></th><td><b>Menu selection</b> · select, edit, confirm</td></tr>
+            <tr><th><i>Back</i></th><td><b>Exit location</b> · exit edit, overlay, or menu level</td></tr>
+            <tr><th><i>Play</i></th><td><b>Transport</b> · play or pause</td></tr>
+            <tr><th><i>Shift</i> + <i>Play</i></th><td><b>Stop</b> · external sync arms resync</td></tr>
+            <tr><th><i>Shift</i> + <i>Back</i></th><td><b>Clear layer</b> · re-initialize active layer</td></tr>
+            <tr><th><i>Shift</i> + <i>Fn</i> + <i>Main</i></th><td><b>Context help</b> · hold modifiers, click row</td></tr>
+          </tbody></table>
+        </section>
+        <section>
+          <h2>Navigation + bindings</h2>
+          <table><tbody>
+            <tr><th><i>Fn</i> + left column</th><td><b>Navigate to Part 1–8</b> · bottom row = part 1</td></tr>
+            <tr><th><i>Hold</i> <i>Fn</i></th><td><b>Preview</b> · gray available, green current</td></tr>
+            <tr><th><i>Fn</i> + right column</th><td><b>Navigate Dance</b> · exits if already active</td></tr>
+            <tr><th><i>Fn</i> + <i>Aux click</i></th><td><b>Bind focused value/action</b> · value to turn, action to click</td></tr>
+          </tbody></table>
+          <p class="compact">Auto-map maps <i>Aux 1–3</i> to important values/actions in the current menu area. It temporarily overrides manual bindings.</p>
+          <p class="chips"><span>1-Cutoff</span> <i>Aux 1</i> turn <span class="action-chip">1!Assign</span> <i>Aux 1</i> click</p>
+        </section>
+        <section>
+          <h2>Special grid modes</h2>
+          <table><tbody>
+            <tr><th>Sample assign</th><td><i>Shift</i> + cell maps row; <i>Shift</i> + <i>Fn</i> + cell maps column</td></tr>
+            <tr><th>Probability map</th><td>Trigger chance: never, low, high, always</td></tr>
+            <tr><th>Dance Mix</th><td>Grid becomes a mixer for each part's volume</td></tr>
+            <tr><th>Dance Pan</th><td>Grid moves around parts' stereo positions</td></tr>
+            <tr><th>Dance FX</th><td>Press mapped cells to trigger live effects</td></tr>
+            <tr><th>Trigger Gate</th><td>Block, allow, or use custom probability per part</td></tr>
+            <tr><th>Transpose</th><td>Temporarily transpose synth and MIDI parts</td></tr>
+            <tr><th>XY</th><td>Mappable two-axis surface for live-manipulating parameters</td></tr>
+          </tbody></table>
+        </section>
+      </div>
+      <div class="column">
+        <section>
+          <h2>Behaviors</h2>
+          <table class="behavior-table"><tbody>
+            <tr><th>none</th><td>Inactive part</td><th>keys</th><td>Finger-drumming</td></tr>
+            <tr><th>sequencer</th><td>Manual rhythm anchor</td><th>looper</th><td>Recorded grid gestures</td></tr>
+            <tr><th>life</th><td>Birth/survival/death cells</td><th>brain</th><td>Pulses and trails</td></tr>
+            <tr><th>ant</th><td>Walking grid agent</td><th>bounce</th><td>Moving collisions</td></tr>
+            <tr><th>shapes</th><td>Geometric regions</td><th>raindrops</th><td>Drops and ripples</td></tr>
+            <tr><th>dla</th><td>Branching growth</td><th></th><td></td></tr>
+          </tbody></table>
+        </section>
+        <section>
+          <h2>Triggers</h2>
+          <table><tbody>
+            <tr><th>activate</th><td>Cell turns on</td></tr>
+            <tr><th>stable</th><td>Cell stays on</td></tr>
+            <tr><th>deactivate</th><td>Cell turns off</td></tr>
+            <tr><th>scanned</th><td>Scanner finds active cell</td></tr>
+            <tr><th>scanned empty</th><td>Scanner visits inactive cell</td></tr>
+          </tbody></table>
+        </section>
+        <section>
+          <h2>Patch orientation</h2>
+          <ol>
+            <li>Route <b>sequencer</b> or <b>looper</b> to sampler for a rhythm loop.</li>
+            <li>Add <b>life</b>, <b>raindrops</b>, <b>bounce</b>, or <b>dla</b> to a synth.</li>
+            <li>Use probability on sequencer cells so patterns feel alive.</li>
+            <li>Bind aux encoders to parameters or actions you keep reaching for.</li>
+          </ol>
+          <p class="compact">Factory preset hint: <b>life</b> on Part 1, sequencer rhythm on Part 2.</p>
+          <p class="note">If the grid behaves unexpectedly, check the OLED. You are probably in an overlay or Dance page. Use <i>Back</i> or <i>Fn</i> to leave.</p>
+        </section>
+      </div>
+    </main>
+    <footer>octessera · quick reference · controls, behaviors, Dance</footer>
+  </section>
+  <section class="page flow-page">
+    <header>
+      <img src="../../assets/octessera-wordmark.svg" alt="octessera" class="wordmark">
+      <div>
+        <h1>cell state to sound</h1>
+        <p>From behavior state and direct input to MIDI, internal audio, routing, and optional live FX.</p>
+      </div>
+    </header>
+    <main>
+      <img src="cell-to-audio-flow.svg" alt="Flowchart from behavior and cell state through trigger mapping, instrument routing, optional FX branches, MIDI, and audio output" class="flowchart-landscape-img">
+    </main>
+    <footer>octessera · cell state → behavior → triggers → Sense → instrument → output</footer>
+  </section>
+</body>
+</html>

@@ -2,7 +2,9 @@
 
 This is the enclosure and mechanical reference for the Octessera hardware target.
 
-Use it with [`../docs/pinout-and-connections.md`](../docs/pinout-and-connections.md) for wiring and [`../docs/pi-bring-up.md`](../docs/pi-bring-up.md) for Pi setup.
+Use it with [`../docs/pinout-and-connections.md`](../docs/pinout-and-connections.md) for wiring and [`../docs/pi-bring-up.md`](../docs/pi-bring-up.md) for Pi setup. For the user-facing docs home, start at [`../../userdocs/README.md`](../../userdocs/README.md).
+
+This is the part where the instrument becomes an object you can pick up. Print carefully, test-fit patiently, and take out the SD card before you put the device in the enclosure, or it may break. Ask me how I found that one out.
 
 ## Current Status
 

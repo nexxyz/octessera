@@ -16,6 +16,26 @@ corepack pnpm install
 
 Use pnpm workspaces. Do not use npm or yarn for this repository.
 
+## Documentation Checks
+
+Check local Markdown links:
+
+```bash
+python tools/docs/check_links.py
+```
+
+For a slower pass that also fetches HTTP links and validates known BOM product pages by content, run:
+
+```bash
+python tools/docs/check_links.py --http
+```
+
+Regenerate the printable user PDF after editing `userdocs/print/*.html`, `userdocs/print/*.svg`, or `userdocs/print/print.css`. The script prints the HTML sheet to PDF:
+
+```powershell
+./tools/docs/render_userdocs_pdf.ps1
+```
+
 ## Desktop Development
 
 ```bash

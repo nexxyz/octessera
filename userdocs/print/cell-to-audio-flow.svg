@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="100%" role="graphics-document document" aria-roledescription="flowchart" aria-label="Cell state to sound flowchart">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#000"/>
+    </marker>
+  </defs>
+
+  <style>
+    .box, .group { fill: none; stroke: #000; stroke-width: 2.4; }
+    .group { stroke-width: 2; }
+    .txt { fill: #000; font-family: "Segoe UI", Arial, sans-serif; font-size: 17px; }
+    .title { font-size: 19px; font-weight: 700; }
+    .group-title { font-size: 18px; font-weight: 700; }
+    .small { font-size: 14px; }
+    .note-symbol { font-size: 38px; }
+    .line { fill: none; stroke: #000; stroke-width: 2.4; stroke-linecap: square; stroke-linejoin: miter; marker-end: url(#arrow); }
+    .line.thin { stroke-width: 2; }
+    .line.page-control { stroke-dasharray: 7 6; }
+    .label { fill: #000; font-family: "Segoe UI", Arial, sans-serif; font-size: 13px; }
+  </style>
+
+  <g id="nodes">
+    <circle class="box" cx="256" cy="230" r="40"/>
+    <text class="txt title" x="256" y="237" text-anchor="middle">Start</text>
+
+    <rect class="group" x="480" y="58" width="430" height="208"/>
+    <text class="txt group-title" x="502" y="85">L1: Life</text>
+    <rect class="box" x="630" y="70" width="200" height="62"/>
+    <text class="txt title" x="730" y="101" text-anchor="middle" dominant-baseline="middle">Behaviors</text>
+    <rect class="box" x="608" y="190" width="244" height="52"/>
+    <text class="txt title" x="730" y="223" text-anchor="middle">Grid Cell State</text>
+
+    <rect class="group" x="572" y="310" width="316" height="132"/>
+    <text class="txt group-title" x="594" y="337">L2: Sense</text>
+    <rect class="box" x="630" y="356" width="200" height="62"/>
+    <text class="txt title" x="730" y="379" text-anchor="middle">Note Mapping</text>
+    <text class="txt title" x="730" y="403" text-anchor="middle">&amp; Routing</text>
+
+    <rect class="group" x="430" y="486" width="760" height="148"/>
+    <text class="txt group-title" x="452" y="513">L3: Voice</text>
+    <rect class="box" x="610" y="532" width="200" height="62"/>
+    <text class="txt title" x="710" y="570" text-anchor="middle">Instrument</text>
+    <rect class="box" x="930" y="504" width="196" height="52"/>
+    <text class="txt title" x="1028" y="537" text-anchor="middle">USB MIDI Output</text>
+    <rect class="box" x="930" y="568" width="196" height="52"/>
+    <text class="txt title" x="1028" y="590" text-anchor="middle">FX Bus</text>
+    <text class="txt small" x="1028" y="609" text-anchor="middle">(optional)</text>
+
+    <rect class="group" x="256" y="670" width="912" height="205"/>
+    <text class="txt group-title" x="278" y="697">L4: Dance</text>
+    <rect class="box" x="310" y="720" width="190" height="62"/>
+    <text class="txt title" x="405" y="748" text-anchor="middle">Transpose,</text>
+    <text class="txt title" x="405" y="771" text-anchor="middle">Probability Pages</text>
+    <rect class="box" x="610" y="720" width="190" height="62"/>
+    <text class="txt title" x="705" y="758" text-anchor="middle">FX Page</text>
+    <rect class="box" x="910" y="702" width="132" height="62"/>
+    <text class="txt title" x="976" y="740" text-anchor="middle">Mixer</text>
+    <rect class="box" x="930" y="792" width="190" height="38"/>
+    <text class="txt title" x="1025" y="818" text-anchor="middle">Global FX</text>
+    <rect class="box" x="740" y="792" width="170" height="38"/>
+    <text class="txt title" x="825" y="818" text-anchor="middle">Mixer, Pan Pages</text>
+
+    <circle class="box" cx="1398" cy="811" r="70"/>
+    <text class="txt title" x="1398" y="794" text-anchor="middle">Final</text>
+    <text class="txt title" x="1398" y="814" text-anchor="middle">Audio</text>
+    <text class="txt title" x="1398" y="834" text-anchor="middle">Output</text>
+    <text class="txt note-symbol" x="1504" y="778" text-anchor="middle">♫</text>
+    <text class="txt note-symbol" x="1552" y="740" text-anchor="middle">♪</text>
+    <text class="txt note-symbol" x="1518" y="700" text-anchor="middle">♩</text>
+    <text class="txt note-symbol" x="1568" y="668" text-anchor="middle">♬</text>
+  </g>
+
+  <g id="arrows">
+    <path class="line" d="M296 230 H608"/>
+    <path class="line" d="M730 132 V190"/>
+    <path class="line" d="M608 216 H564 V101 H630"/>
+    <text class="label" x="752" y="166" text-anchor="start">Behavior Outcome:</text>
+    <text class="label" x="752" y="180" text-anchor="start">Status / Scan / Press</text>
+    <text class="label" x="602" y="172" text-anchor="middle">Grid State</text>
+
+    <path class="line" d="M730 242 V356"/>
+    <text class="label" x="752" y="290" text-anchor="start">Events/Scan Results</text>
+
+    <path class="line" d="M730 418 V532"/>
+    <text class="label" x="783" y="475" text-anchor="middle">Note / Grid Cell</text>
+
+    <path class="line" d="M810 563 H870 V530 H930"/>
+    <text class="label" x="896" y="521" text-anchor="middle">MIDI</text>
+    <path class="line" d="M810 563 H870 V586 H930"/>
+    <text class="label" x="894" y="580" text-anchor="middle">Audio</text>
+
+    <path class="line" d="M1028 620 V680 H976 V702"/>
+    <path class="line" d="M976 764 V792"/>
+    <path class="line" d="M1120 811 H1328"/>
+
+    <path class="line thin page-control" d="M405 720 V387 H630"/>
+    <path class="line thin page-control" d="M705 720 V650 H880 V604 H930"/>
+    <path class="line thin page-control" d="M825 792 V733 H910"/>
+    <path class="line thin page-control" d="M705 782 V856 H1025 V830"/>
+  </g>
+</svg>

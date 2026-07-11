@@ -4,6 +4,16 @@
 
 Octessera is a pnpm workspace plus Cargo workspace built around a native Rust core/runtime, a Rust realtime synth, a Tauri desktop hardware simulator, and a native Pi app. The product turns cellular automata into music. TypeScript is limited to desktop UI and shared bridge/display/runtime contracts.
 
+## Product Voice And User Docs
+
+- Write end-user docs with a little warmth and mischief. This is a handmade creative instrument, not a sterile appliance or sales brochure.
+- It is fine to use first-person builder voice in user-facing hardware/docs where it helps, e.g. "take out the SD card before you put the device in the enclosure, or it may break. Ask me how I found that one out."
+- Keep claims grounded. Avoid hype, but let curiosity and enthusiasm show.
+- Describe Octessera as a collection of small algorithmic musical world-bubbles. The user is not programming fixed notes on a piano roll; they are setting up and nudging self-contained systems, each with its own rules and sometimes-surprising musical output.
+- Emphasize co-creation: combine behaviors and parts, anchor them with a bit of manual sequencing and probability, play some elements in real time, and enjoy the emergent music made by the human and octessera together.
+- User docs should invite exploration and safe tinkering. Contributor docs may stay more direct and technical.
+- Keep the main user-facing documentation entry point under `userdocs/`. Existing source-of-truth specs may remain in `docs/` or `hardware/docs/`, but users should be able to start from `userdocs/README.md` and find the build, bring-up, controls, printable sheets, and reference material from there.
+
 ## Keep These Boundaries
 
 - Native runtime behavior belongs in `crates/platform-core`; do not reintroduce behavior/runtime execution paths in desktop TypeScript.
