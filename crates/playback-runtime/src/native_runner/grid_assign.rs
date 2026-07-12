@@ -1,4 +1,5 @@
 use super::*;
+use crate::native_menu::section_labels::{BUILD_LABEL, LINK_LABEL, PLAY_LABEL, SHAPE_LABEL};
 
 impl NativeRunner {
     pub(super) fn handle_sample_assignment_grid_press(&mut self, x: usize, y: usize) {
@@ -133,18 +134,18 @@ impl NativeRunner {
 
     pub(super) fn enter_root_group(&mut self, label: Option<&str>) {
         match label {
-            Some("4: Sparks") => {
+            Some(PLAY_LABEL) => {
                 self.active_sparks_mode = self.sparks_mode.clone();
             }
-            Some("1: Worlds") => {
+            Some(BUILD_LABEL) => {
                 self.menu.state.cursor = self.active_layer_index.min(GRID_HEIGHT.saturating_sub(1));
                 self.active_sparks_mode = "none".into();
             }
-            Some("2: Pulses") => {
+            Some(LINK_LABEL) => {
                 self.menu.state.cursor = (self.active_layer_index + 4).min(GRID_HEIGHT + 3);
                 self.active_sparks_mode = "none".into();
             }
-            Some("3: Tones") | Some("System") => {
+            Some(SHAPE_LABEL) | Some("System") => {
                 self.active_sparks_mode = "none".into();
             }
             _ => {}

@@ -1,11 +1,11 @@
-# 3: Tones Menu Tree
+# Shape Menu Tree
 
 This file is part of the canonical split-out menu tree spec. See [`../menu-tree-spec.md`](../menu-tree-spec.md) for the canonical index.
 
-### 3: Tones
+### Shape
 
 ```
-3: Tones
+Shape
 ├── Instruments (group)
 │   ├── Instrument 1..8 (group)                ← compact overview label e.g. `I1: synth direct`, `I2: samp fx_bus_1`, `I3: midi ch1`
 │   │   ├── Type: [none | synth | sampler | midi]
@@ -66,7 +66,7 @@ When an instrument Type is `none`, the slot keeps Type, Auto Label, and Name vis
 
 Routing semantics:
 
-- Instrument `Volume` is a post-voice per-slot fader controlled by `4: Sparks > Mix`.
+- Instrument `Volume` is a post-voice per-slot fader controlled by `Play > Mix`.
 - Instrument `Route=direct` sends post-fader output to main mix using instrument `Pan Pos`.
 - Instrument `Route=fx_bus_n` sends post-fader output to the selected FX bus (exclusive send).
 - Internal synth and sample instruments use the same route/pan/bus-FX mixer path; MIDI instruments emit external MIDI and are not processed by audio FX.
@@ -84,7 +84,7 @@ Routing semantics:
 
 Sample assignment mode semantics:
 
-- Enter via `3: Tones > Instruments > Instrument N > Sampler > Assign`
+- Enter via `Shape > Instruments > Instrument N > Sampler > Assign`
 - Back exits assignment mode
 - Entering assignment mode shows a concise OLED toast (for example `Assign S1: grid`); Back continues to exit without changing mappings.
 - One sample assignment per cell (new assignment replaces the existing cell assignment)
@@ -106,5 +106,5 @@ Layer runtime behavior:
 - Switching layer shows the selected layer's current state immediately.
 - `Save Grid State` affects preset/default save payload persistence only.
 - `looper` stores its recorded sequence in `savedState` as step-bucketed press/release events when `Save Grid State` is `on`. Live-held cells and currently sounding playback cells are not saved; loaded loops restart from step 1.
-- `Step Rate`, behavior selection/config, Pulses mapping, trigger probabilities, instruments, mixer, system settings, selected Sparks page, Sparks FX assignments, X/Y bindings, and aux bindings are persistent and must round-trip through preset/default/autosave payloads.
+- `Step Rate`, behavior selection/config, Link mapping, trigger probabilities, instruments, mixer, system settings, selected Play page, Play FX assignments, X/Y bindings, and aux bindings are persistent and must round-trip through preset/default/autosave payloads.
 - Active overlays, assignment modes, held modifiers, active momentary FX instances, live X/Y touch, help popups, and toast state are transient and are not restored from preset/default/autosave payloads.

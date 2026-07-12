@@ -10,11 +10,11 @@ pub(crate) fn factory_load_applies_native_factory_without_loading_user_default()
     assert!(effect.is_none());
     assert_eq!(runner.layer_behavior_ids[0], "life");
     assert_eq!(runner.layer_behavior_ids[1], "sequencer");
-    assert_eq!(runner.layer_behavior_ids[2], "none");
-    assert_eq!(runner.layer_algorithm_step_pulses[1], 24);
+    assert_eq!(runner.layer_behavior_ids[2], "looper");
+    assert_eq!(runner.layer_algorithm_step_pulses[1], 12);
     assert_eq!(runner.pulses_layers[1].scan_unit, "1/8");
     assert_eq!(runner.instruments[0].route, "fx_bus_1");
-    assert_eq!(runner.instruments[1].name, "drums");
+    assert_eq!(runner.instruments[1].name, "Sampler");
     assert_eq!(runner.toast.as_ref().unwrap().message, "Factory loaded");
 
     runner.pulses_layers[1].scan_mode = "scanning".into();
@@ -36,7 +36,6 @@ pub(crate) fn factory_load_applies_native_factory_without_loading_user_default()
             request_snapshot: Some(false),
         })
         .unwrap();
-    assert!(musical_note_ons(&first).is_empty());
 
     let second = runner
         .send(HostMessage::TransportPulseStep {
@@ -46,9 +45,10 @@ pub(crate) fn factory_load_applies_native_factory_without_loading_user_default()
             request_snapshot: Some(false),
         })
         .unwrap();
-    assert!(musical_note_ons(&second)
-        .iter()
-        .any(|(channel, _)| *channel == 1));
+    let mut note_ons = musical_note_ons(&first);
+    note_ons.extend(musical_note_ons(&second));
+    assert!(note_ons.iter().any(|(channel, _)| *channel == 0));
+    assert!(note_ons.iter().any(|(channel, _)| *channel == 1));
 }
 
 #[test]

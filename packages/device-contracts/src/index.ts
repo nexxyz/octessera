@@ -17,12 +17,12 @@ export type { GridCell, GridDomain } from "./gridDomain";
 export {
   BLACK_COLOR,
   DISPLAY_PALETTE,
-  PULSES_COLOR,
-  SPARKS_COLOR,
-  SYSTEM_COLOR,
-  TONES_COLOR,
+  RED_COLOR,
+  YELLOW_COLOR,
+  GRAY_COLOR,
+  BLUE_COLOR,
   WHITE_COLOR,
-  WORLDS_COLOR
+  GREEN_COLOR
 } from "./displayPalette.generated";
 export type { DisplayPaletteRgb } from "./displayPalette.generated";
 export { AUX_ENCODER_COUNT, GRID_HEIGHT, GRID_WIDTH, OLED_HEIGHT, OLED_WIDTH, PAN_POSITION_COUNT, PLATFORM_CAPS } from "./platformCapabilities.generated";

@@ -1,7 +1,7 @@
 use super::modulation::{apply_sampler_assignments_for_instruments_routed, RoutedMusicalEvents};
 use super::{
     note_unit_to_pulses, trigger_probability_allows, NativeRunner, RuntimeTransportState,
-    DEFAULT_ALGORITHM_STEP_PULSES, GRID_HEIGHT,
+    DEFAULT_ALGORITHM_STEP_RED, GRID_HEIGHT,
 };
 use platform_core::DeviceInput;
 
@@ -129,7 +129,7 @@ impl NativeRunner {
             self.layer_algorithm_step_pulses
                 .get(index)
                 .copied()
-                .unwrap_or(DEFAULT_ALGORITHM_STEP_PULSES)
+                .unwrap_or(DEFAULT_ALGORITHM_STEP_RED)
         }
     }
 

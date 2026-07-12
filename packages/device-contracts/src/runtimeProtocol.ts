@@ -140,7 +140,7 @@ export const SHARED_RUNTIME_CONTRACT_FIXTURES: RuntimeContractFixture[] = [
       {
         type: "snapshot",
         snapshot: {
-          display: { page: "life", title: "1: Worlds", lines: ["grid press"], editing: false },
+          display: { page: "life", title: "Build", lines: ["grid press"], editing: false },
           leds: { width: 8, height: 8, rgb: Array.from({ length: 64 * 3 }, () => 0), active: Array.from({ length: 64 }, () => false) },
           transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
           activeBehavior: "life",

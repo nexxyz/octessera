@@ -38,10 +38,10 @@ pub(crate) fn entering_worlds_selects_active_layer_row() {
     let _ = menu.press();
     menu.state.cursor = 2;
     let snapshot = menu.snapshot();
-    assert_eq!(snapshot.path, "W");
+    assert_eq!(snapshot.path, "B");
     assert_eq!(snapshot.selected_row, Some(2));
     assert_eq!(snapshot.lines[2], "> L3: life >");
-    assert_eq!(snapshot.colors[0], platform_core::palette::WORLDS_RGB565);
+    assert_eq!(snapshot.colors[0], platform_core::palette::GREEN_RGB565);
 }
 
 #[test]
@@ -54,10 +54,10 @@ pub(crate) fn entering_pulses_selects_active_layer_row_after_global_rows() {
     let _ = menu.press();
     menu.state.cursor = 6;
     let snapshot = menu.snapshot();
-    assert_eq!(snapshot.path, "P");
+    assert_eq!(snapshot.path, "L");
     assert_eq!(snapshot.selected_row, Some(3));
     assert_eq!(snapshot.lines[3], "> L3: life >");
-    assert_eq!(snapshot.colors[0], platform_core::palette::PULSES_RGB565);
+    assert_eq!(snapshot.colors[0], platform_core::palette::RED_RGB565);
 }
 
 #[test]
@@ -66,7 +66,7 @@ pub(crate) fn pulses_starts_with_global_rows_and_layer_rows_are_enterable() {
     menu.turn(1);
     let _ = menu.press();
     let snapshot = menu.snapshot();
-    assert_eq!(snapshot.path, "P");
+    assert_eq!(snapshot.path, "L");
     assert_eq!(snapshot.lines[0], "> BPM 120");
     assert_eq!(snapshot.lines[1], "  Swing 0%");
     assert_eq!(snapshot.lines[2], "  Aux Mappings >");
@@ -76,7 +76,7 @@ pub(crate) fn pulses_starts_with_global_rows_and_layer_rows_are_enterable() {
     menu.turn(1);
     let _ = menu.press();
     let layer_snapshot = menu.snapshot();
-    assert_eq!(layer_snapshot.path, "P/L1: life");
+    assert_eq!(layer_snapshot.path, "L/L1: life");
     assert!(layer_snapshot
         .lines
         .iter()
@@ -90,37 +90,39 @@ pub(crate) fn pulses_starts_with_global_rows_and_layer_rows_are_enterable() {
 
 #[test]
 pub(crate) fn entered_root_short_paths_keep_section_colors() {
+    let mut menu = root_menu_at(0);
+    let _ = menu.press();
+    assert_eq!(
+        menu.snapshot().colors[0],
+        platform_core::palette::GREEN_RGB565
+    );
+
+    let mut menu = root_menu_at(1);
+    let _ = menu.press();
+    assert_eq!(
+        menu.snapshot().colors[0],
+        platform_core::palette::RED_RGB565
+    );
+
+    let mut menu = root_menu_at(2);
+    let _ = menu.press();
+    assert_eq!(
+        menu.snapshot().colors[0],
+        platform_core::palette::BLUE_RGB565
+    );
+
+    let mut menu = root_menu_at(3);
+    let _ = menu.press();
+    assert_eq!(
+        menu.snapshot().colors[0],
+        platform_core::palette::YELLOW_RGB565
+    );
+}
+
+fn root_menu_at(cursor: usize) -> NativeMenuModel {
     let mut menu = NativeMenuModel::new(config());
-
-    let _ = menu.press();
-    assert_eq!(
-        menu.snapshot().colors[0],
-        platform_core::palette::WORLDS_RGB565
-    );
-
-    menu.state.stack.clear();
-    menu.state.cursor = 1;
-    let _ = menu.press();
-    assert_eq!(
-        menu.snapshot().colors[0],
-        platform_core::palette::PULSES_RGB565
-    );
-
-    menu.state.stack.clear();
-    menu.state.cursor = 2;
-    let _ = menu.press();
-    assert_eq!(
-        menu.snapshot().colors[0],
-        platform_core::palette::TONES_RGB565
-    );
-
-    menu.state.stack.clear();
-    menu.state.cursor = 3;
-    let _ = menu.press();
-    assert_eq!(
-        menu.snapshot().colors[0],
-        platform_core::palette::SPARKS_RGB565
-    );
+    menu.state.cursor = cursor;
+    menu
 }
 
 #[test]
@@ -162,7 +164,7 @@ pub(crate) fn snapshot_scrolls_to_keep_selected_row_visible() {
     let _ = menu.press();
     menu.state.cursor = 7;
     let snapshot = menu.snapshot();
-    assert_eq!(snapshot.path, "W");
+    assert_eq!(snapshot.path, "B");
     assert_eq!(snapshot.selected_row, Some(6));
     assert_eq!(
         snapshot.scroll.as_ref().map(|scroll| scroll.scroll_offset),
@@ -190,8 +192,5 @@ pub(crate) fn root_matches_current_canonical_menu_without_playback_group() {
         .filter(|item| !item.label.is_empty())
         .map(|item| item.label.as_str())
         .collect::<Vec<_>>();
-    assert_eq!(
-        labels,
-        vec!["1: Worlds", "2: Pulses", "3: Tones", "4: Sparks", "System"]
-    );
+    assert_eq!(labels, vec!["Build", "Link", "Shape", "Play", "System"]);
 }

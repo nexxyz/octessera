@@ -168,7 +168,7 @@ use synth_config::*;
 use trigger_probability_payload::*;
 use velocity_curve::*;
 
-const DEFAULT_ALGORITHM_STEP_PULSES: u32 = 12;
+const DEFAULT_ALGORITHM_STEP_RED: u32 = 12;
 const OLED_BODY_ROWS: usize = 7;
 #[cfg(not(test))]
 const OLED_STARTUP_SPLASH_MS: u64 = 1_500;

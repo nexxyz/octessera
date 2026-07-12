@@ -154,9 +154,9 @@ fn trellis_led_check(trellis: &mut NeoTrellis) -> bool {
     let mut passed = true;
     println!("STEP NeoTrellis LED board colors: 0x2E magenta, 0x2F green, 0x30 cyan, 0x31 white");
     let mut frame = [[0_u8; 3]; 64];
-    fill_board(&mut frame, 2, dim(palette::PULSES, 2));
-    fill_board(&mut frame, 3, dim(palette::WORLDS, 2));
-    fill_board(&mut frame, 0, dim(palette::TONES, 2));
+    fill_board(&mut frame, 2, dim(palette::RED, 2));
+    fill_board(&mut frame, 3, dim(palette::GREEN, 2));
+    fill_board(&mut frame, 0, dim(palette::BLUE, 2));
     fill_board(&mut frame, 1, dim(palette::WHITE, 2));
     passed &= report(
         "NeoTrellis board color write",
@@ -168,7 +168,7 @@ fn trellis_led_check(trellis: &mut NeoTrellis) -> bool {
     for y in 0..8 {
         for x in 0..8 {
             frame = [[0_u8; 3]; 64];
-            frame[y * 8 + x] = dim(palette::SPARKS, 2);
+            frame[y * 8 + x] = dim(palette::YELLOW, 2);
             if let Err(error) = trellis.write_led_frame(&frame) {
                 println!("FAIL NeoTrellis sweep write x={x} y={y}: {error}");
                 passed = false;
@@ -180,9 +180,9 @@ fn trellis_led_check(trellis: &mut NeoTrellis) -> bool {
 
     println!("STEP NeoTrellis corners: (0,0)=magenta (7,0)=green (0,7)=cyan (7,7)=white");
     frame = [[0_u8; 3]; 64];
-    frame[0] = dim(palette::PULSES, 2);
-    frame[7] = dim(palette::WORLDS, 2);
-    frame[56] = dim(palette::TONES, 2);
+    frame[0] = dim(palette::RED, 2);
+    frame[7] = dim(palette::GREEN, 2);
+    frame[56] = dim(palette::BLUE, 2);
     frame[63] = dim(palette::WHITE, 2);
     passed &= report("NeoTrellis corner write", trellis.write_led_frame(&frame));
     wait_for_operator("Confirm corner orientation, then press Enter.");
@@ -193,9 +193,9 @@ fn neokey_led_check(neokey: &mut NeoKey) -> bool {
     let mut passed = true;
     println!("STEP NeoKey LEDs: key0 magenta, key1 green, key2 cyan, key3 white");
     for (index, color) in [
-        dim(palette::PULSES, 2),
-        dim(palette::WORLDS, 2),
-        dim(palette::TONES, 2),
+        dim(palette::RED, 2),
+        dim(palette::GREEN, 2),
+        dim(palette::BLUE, 2),
         dim(palette::WHITE, 2),
     ]
     .into_iter()
@@ -208,7 +208,7 @@ fn neokey_led_check(neokey: &mut NeoKey) -> bool {
     }
     wait_for_operator("Confirm NeoKey LED order/colors, then press Enter.");
     for index in 0..4 {
-        let reset = dim(palette::SYSTEM, 4);
+        let reset = dim(palette::GRAY, 4);
         if let Err(error) = neokey.set_led(index, reset[0], reset[1], reset[2]) {
             println!("FAIL NeoKey reset {index}: {error}");
             passed = false;
@@ -273,9 +273,9 @@ fn input_event_check(
                     if x < 8 && y < 8 {
                         grid_seen[y][x] = true;
                         frame[y * 8 + x] = if pressed {
-                            dim(palette::SPARKS, 2)
+                            dim(palette::YELLOW, 2)
                         } else {
-                            dim(palette::TONES, 6)
+                            dim(palette::BLUE, 6)
                         };
                         if let Err(error) = trellis.write_led_frame(&frame) {
                             println!("FAIL NeoTrellis input feedback write: {error}");
@@ -315,7 +315,7 @@ fn input_event_check(
                         let color = if pressed {
                             dim(palette::WHITE, 2)
                         } else {
-                            dim(palette::SYSTEM, 4)
+                            dim(palette::GRAY, 4)
                         };
                         let _ = neokey.set_led(key, color[0], color[1], color[2]);
                     }

@@ -1,3 +1,4 @@
+use super::super::native_factory_payload;
 use super::device_driver::DeviceDriver;
 use super::visible_menu_driver::VisibleMenuDriver;
 use crate::SampleEntry;
@@ -6,13 +7,13 @@ const FACTORY_PATCH_SEQUENCE: &[&str] = &[
     "System > Clear all > Confirm Clear All",
     "Layer 1 double-line cross grid paint",
     "Layer 2 row-pattern grid paint",
-    "Worlds L1 Life 16th no random spawn",
-    "Worlds L2 Sequencer 8th",
-    "Worlds L3 Looper 8th",
-    "Pulses BPM and layer note/scanning routes",
-    "Tones synth/sampler/hold setup and aux assignments",
+    "Build L1 Life 16th no random spawn",
+    "Build L2 Sequencer 8th",
+    "Build L3 Looper 8th",
+    "Route BPM and layer note/scanning routes",
+    "Shape synth/sampler/hold setup and aux assignments",
     "FX Bus 1 Delay + Duck target I2 amount 60",
-    "Sparks X/Y bindings and FX block assignments",
+    "Play X/Y bindings and FX block assignments",
     "Transport, mute, looper, X/Y, FX, aux assertions",
 ];
 
@@ -27,8 +28,21 @@ pub(super) fn run() {
     configure_pulses_from_visible_ui(&mut device);
     configure_tones_from_visible_ui(&mut device);
     configure_aux_xy_and_sparks_fx_from_visible_ui(&mut device);
+    assert_factory_patch_matches_system_default(&device);
     assert_configured_patch_emits(&mut device);
     assert_mute_looper_xy_fx_and_aux_paths(&mut device);
+}
+
+fn assert_factory_patch_matches_system_default(device: &DeviceDriver) {
+    let scenario_payload = device.config_payload();
+    let factory_payload = native_factory_payload();
+    if scenario_payload != factory_payload {
+        panic!(
+            "factory patch scenario payload does not match native factory/default payload\nscenario:\n{}\nfactory:\n{}",
+            serde_json::to_string_pretty(&scenario_payload).unwrap(),
+            serde_json::to_string_pretty(&factory_payload).unwrap()
+        );
+    }
 }
 
 fn clear_all_from_visible_ui(device: &mut DeviceDriver) {
@@ -62,7 +76,7 @@ fn paint_layer_two_pattern(device: &mut DeviceDriver) {
 fn configure_worlds_and_paint_from_visible_ui(device: &mut DeviceDriver) {
     {
         let mut menu = VisibleMenuDriver::new(device);
-        menu.open_group("1: Worlds");
+        menu.open_group("Build");
         menu.open_group("L1:");
         menu.open_group("Behavior");
         menu.open_group("Cellular");
@@ -101,7 +115,7 @@ fn assert_configured_patch_emits(device: &mut DeviceDriver) {
         device.clock_pulses(6);
     }
     if device.output().musical_event_count <= before {
-        device.fail("configured patch did not emit musical events after visible Worlds/grid setup");
+        device.fail("configured patch did not emit musical events after visible Build/grid setup");
     }
 }
 
@@ -184,7 +198,7 @@ fn play_and_expect_events(device: &mut DeviceDriver, label: &str) {
 
 fn configure_pulses_from_visible_ui(device: &mut DeviceDriver) {
     let mut menu = VisibleMenuDriver::new(device);
-    menu.open_group("2: Pulses");
+    menu.open_group("Link");
     menu.expect_visible_value("BPM", "120");
 
     menu.open_group("L1:");
@@ -234,7 +248,7 @@ fn configure_tones_from_visible_ui(device: &mut DeviceDriver) {
     let before_audio_slots = device.output().set_instrument_slot_count;
     {
         let mut menu = VisibleMenuDriver::new(device);
-        menu.open_group("3: Tones");
+        menu.open_group("Shape");
         menu.open_group("Instruments");
         menu.open_group("I1:");
         menu.edit_enum_to("Type", "synth");
@@ -292,21 +306,21 @@ fn configure_tones_from_visible_ui(device: &mut DeviceDriver) {
         menu.back_to_root();
     }
     if device.output().set_instrument_slot_count <= before_audio_slots {
-        device.fail("Tones setup did not emit instrument audio config updates");
+        device.fail("Shape setup did not emit instrument audio config updates");
     }
 }
 
 fn configure_aux_xy_and_sparks_fx_from_visible_ui(device: &mut DeviceDriver) {
     {
         let mut menu = VisibleMenuDriver::new(device);
-        menu.open_group("2: Pulses");
+        menu.open_group("Link");
         menu.open_group("Aux Mappings");
         menu.open_group("Aux 1");
         menu.open_group("Turn");
         select_sampler_cutoff_target(&mut menu);
         menu.back_to_root();
 
-        menu.open_group("4: Sparks");
+        menu.open_group("Play");
         menu.open_group("XY");
         menu.open_group("X Axis");
         select_synth_filter_target(&mut menu, "Cutoff");
@@ -316,7 +330,7 @@ fn configure_aux_xy_and_sparks_fx_from_visible_ui(device: &mut DeviceDriver) {
         menu.expect_visible_value("Y Axis", "Res");
         menu.back_to_root();
 
-        menu.open_group("4: Sparks");
+        menu.open_group("Play");
         menu.open_group("FX");
     }
     map_sparks_fx_cell(device, 1, 0, 0);
@@ -333,7 +347,7 @@ fn configure_aux_xy_and_sparks_fx_from_visible_ui(device: &mut DeviceDriver) {
 }
 
 fn select_sampler_cutoff_target(menu: &mut VisibleMenuDriver<'_>) {
-    menu.open_group("3: Tones");
+    menu.open_group("Shape");
     menu.open_group("Instruments");
     menu.open_group("I2:");
     menu.open_group("Sampler >");
@@ -342,7 +356,7 @@ fn select_sampler_cutoff_target(menu: &mut VisibleMenuDriver<'_>) {
 }
 
 fn select_synth_filter_target(menu: &mut VisibleMenuDriver<'_>, target: &str) {
-    menu.open_group("3: Tones");
+    menu.open_group("Shape");
     menu.open_group("Instruments");
     menu.open_group("I1:");
     menu.open_group("Synth >");

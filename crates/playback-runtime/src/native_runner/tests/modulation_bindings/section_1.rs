@@ -155,7 +155,7 @@ pub(crate) fn generated_selector_trees_expose_representative_bindings() {
         .collect::<Vec<_>>();
     assert_eq!(
         group_labels,
-        vec!["1: Worlds", "2: Pulses", "3: Tones", "4: Sparks", "System"]
+        vec!["Build", "Link", "Shape", "Play", "System"]
     );
 }
 
@@ -172,8 +172,8 @@ pub(crate) fn behavior_target_picker_uses_per_layer_behavior_rows_and_hides_none
     let behavior_group = picker
         .children
         .iter()
-        .find(|child| child.label == "1: Worlds")
-        .expect("Worlds target group");
+        .find(|child| child.label == "Build")
+        .expect("Build target group");
 
     assert!(behavior_group
         .children

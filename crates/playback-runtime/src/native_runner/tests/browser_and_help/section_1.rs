@@ -90,7 +90,7 @@ pub(crate) fn sample_browser_opens_lists_and_picks_sample() {
         "Drums/kick.wav"
     );
     assert!(runner.sample_browser.is_none());
-    assert_eq!(snapshot["display"]["title"], "T/Instruments/I1: samp direc");
+    assert_eq!(snapshot["display"]["title"], "S/Instruments/I1: samp direc");
     assert_eq!(snapshot["display"]["lines"][2], "> S1 Browse >");
     runner.make_deferred_menu_apply_due_for_test();
     let autosave = runner.flush_deferred_menu_apply().unwrap();

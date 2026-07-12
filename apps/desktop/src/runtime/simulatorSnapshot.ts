@@ -1,10 +1,10 @@
 import {
   PAN_POSITION_COUNT,
-  PULSES_COLOR,
-  SPARKS_COLOR,
-  SYSTEM_COLOR,
-  TONES_COLOR,
-  WORLDS_COLOR,
+  RED_COLOR,
+  YELLOW_COLOR,
+  GRAY_COLOR,
+  BLUE_COLOR,
+  GREEN_COLOR,
   type DisplayPaletteRgb,
   type OledFrame,
   type RuntimeSnapshot
@@ -124,19 +124,19 @@ function neoKeyColors(
   const scaleFactor = (settings?.ledsDimmed ? 0.22 : 1) * brightnessScale(buttonBrightness);
   const combined = settings?.combinedModifierHeld ?? false;
   return {
-    back: scale(PULSES_COLOR, scaleFactor),
+    back: scale(RED_COLOR, scaleFactor),
     space: scale(spaceColor(space), scaleFactor),
-    shift: scale(combined ? TONES_COLOR : (settings?.shiftHeld ?? shiftActive) ? SPARKS_COLOR : dim(SYSTEM_COLOR, 3), scaleFactor),
-    fn: scale(combined ? TONES_COLOR : (settings?.fnHeld ?? false) ? SPARKS_COLOR : dim(SYSTEM_COLOR, 3), scaleFactor),
+    shift: scale(combined ? BLUE_COLOR : (settings?.shiftHeld ?? shiftActive) ? YELLOW_COLOR : dim(GRAY_COLOR, 3), scaleFactor),
+    fn: scale(combined ? BLUE_COLOR : (settings?.fnHeld ?? false) ? YELLOW_COLOR : dim(GRAY_COLOR, 3), scaleFactor),
   };
 }
 
 function spaceColor(space: "stopped" | "paused" | "playing" | "beat" | "measure"): DisplayPaletteRgb {
-  if (space === "stopped") return PULSES_COLOR;
-  if (space === "paused") return TONES_COLOR;
-  if (space === "measure") return WORLDS_COLOR;
-  if (space === "beat") return SPARKS_COLOR;
-  return dim(WORLDS_COLOR, 3);
+  if (space === "stopped") return RED_COLOR;
+  if (space === "paused") return BLUE_COLOR;
+  if (space === "measure") return GREEN_COLOR;
+  if (space === "beat") return YELLOW_COLOR;
+  return dim(GREEN_COLOR, 3);
 }
 
 function brightnessScale(value: number | undefined): number {

@@ -9,7 +9,7 @@ pub(crate) fn voice_instrument_rows_expose_configuration_groups() {
     let _ = menu.press();
     let _ = menu.press();
     let snapshot = menu.snapshot();
-    assert_eq!(snapshot.path, "T/Instruments/I1: synth direct");
+    assert_eq!(snapshot.path, "S/Instruments/I1: synth direct");
     assert!(snapshot.lines.iter().any(|line| line == "> Type synth"));
     assert!(snapshot.lines.iter().any(|line| line == "  Synth >"));
     assert!(!snapshot.lines.iter().any(|line| line == "> Sampler >"));
@@ -39,14 +39,14 @@ pub(crate) fn voice_menu_exposes_fx_bus_and_global_fx_groups() {
     menu.turn(2);
     let _ = menu.press();
     let snapshot = menu.snapshot();
-    assert_eq!(snapshot.path, "T");
+    assert_eq!(snapshot.path, "S");
     assert!(snapshot.lines.iter().any(|line| line == "> Instruments >"));
     assert!(snapshot.lines.iter().any(|line| line == "  FX Buses >"));
     assert!(snapshot.lines.iter().any(|line| line == "  Global FX >"));
     menu.turn(1);
     let _ = menu.press();
     let buses = menu.snapshot();
-    assert_eq!(buses.path, "T/FX Buses");
+    assert_eq!(buses.path, "S/FX Buses");
     assert!(buses.lines.iter().any(|line| line == "> B1: None >"));
     let _ = menu.press();
     let _bus = menu.snapshot();

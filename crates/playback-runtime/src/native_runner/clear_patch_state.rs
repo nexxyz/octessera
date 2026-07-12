@@ -68,8 +68,8 @@ impl NativeRunner {
             })
             .collect::<Result<Vec<_>, String>>()?;
 
-        self.algorithm_step_pulses = DEFAULT_ALGORITHM_STEP_PULSES;
-        self.layer_algorithm_step_pulses = vec![DEFAULT_ALGORITHM_STEP_PULSES; LAYER_COUNT];
+        self.algorithm_step_pulses = DEFAULT_ALGORITHM_STEP_RED;
+        self.layer_algorithm_step_pulses = vec![DEFAULT_ALGORITHM_STEP_RED; LAYER_COUNT];
         self.reset_transport_position();
         self.sync_engine_runtime_config();
         self.sample_assign = None;

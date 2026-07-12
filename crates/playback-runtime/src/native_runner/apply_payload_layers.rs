@@ -2,7 +2,7 @@ use super::pulses_payload_apply::apply_pulses_payload;
 use super::{
     apply_legacy_trigger_gates_payload, apply_trigger_probability_map_payload, note_unit_to_pulses,
     param_binding_from_payload, param_mods_from_payload, NativeRunner, Value,
-    DEFAULT_ALGORITHM_STEP_PULSES, GRID_HEIGHT,
+    DEFAULT_ALGORITHM_STEP_RED, GRID_HEIGHT,
 };
 
 impl NativeRunner {
@@ -42,7 +42,7 @@ impl NativeRunner {
             .layer_algorithm_step_pulses
             .get(self.active_layer_index)
             .copied()
-            .unwrap_or(DEFAULT_ALGORITHM_STEP_PULSES);
+            .unwrap_or(DEFAULT_ALGORITHM_STEP_RED);
         if let Some(Some(engine)) = self.layer_engines.get_mut(desired_active_layer_index) {
             let placeholder = Self::build_engine(
                 self.behavior,

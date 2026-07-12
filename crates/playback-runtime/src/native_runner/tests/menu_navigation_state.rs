@@ -10,7 +10,7 @@ pub(crate) fn changing_behavior_keeps_menu_location() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(snapshot_from(&level1)["display"]["title"], "W");
+    assert_eq!(snapshot_from(&level1)["display"]["title"], "B");
 
     let layer = runner
         .send(HostMessage::DeviceInput {
@@ -18,7 +18,7 @@ pub(crate) fn changing_behavior_keeps_menu_location() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(snapshot_from(&layer)["display"]["title"], "W/L1: life");
+    assert_eq!(snapshot_from(&layer)["display"]["title"], "B/L1: life");
 
     let edit_behavior = runner
         .send(HostMessage::DeviceInput {
@@ -28,7 +28,7 @@ pub(crate) fn changing_behavior_keeps_menu_location() {
         .unwrap();
     assert_eq!(
         snapshot_from(&edit_behavior)["display"]["title"],
-        "W/L1: life/Behavior: life"
+        "B/L1: life/Behavior: life"
     );
     assert_eq!(snapshot_from(&edit_behavior)["display"]["editing"], false);
     let behavior_picker_rows = &runner.menu.root.children[0].children[0].children[0].children;
@@ -42,7 +42,7 @@ pub(crate) fn changing_behavior_keeps_menu_location() {
     select_behavior(&mut runner, "keys");
     let changed = runner.messages_with_snapshot().unwrap();
     let changed_snapshot = snapshot_from(&changed);
-    assert_eq!(changed_snapshot["display"]["title"], "W/L1: keys");
+    assert_eq!(changed_snapshot["display"]["title"], "B/L1: keys");
     assert_eq!(changed_snapshot["display"]["editing"], false);
     assert_eq!(changed_snapshot["activeBehavior"], "keys");
     assert!(changed_snapshot["display"]["lines"]
@@ -60,7 +60,7 @@ pub(crate) fn changing_behavior_keeps_menu_location() {
         })
         .unwrap();
     let snapshot = snapshot_from(&flushed);
-    assert_eq!(snapshot["display"]["title"], "W/L1: keys/Behavior: keys");
+    assert_eq!(snapshot["display"]["title"], "B/L1: keys/Behavior: keys");
     assert_eq!(snapshot["display"]["editing"], false);
     assert_eq!(snapshot["activeBehavior"], "keys");
 }

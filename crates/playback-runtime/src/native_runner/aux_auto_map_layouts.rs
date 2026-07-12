@@ -4,6 +4,7 @@ use super::aux_auto_map_instrument_layouts::{
     instrument_mixer_auto_map, instrument_oscillator_auto_map, instrument_sample_auto_map,
 };
 use super::*;
+use crate::native_menu::section_labels::{LINK_LABEL, PLAY_LABEL};
 
 impl NativeRunner {
     pub(super) fn resolve_aux_auto_map(
@@ -12,11 +13,11 @@ impl NativeRunner {
         selected_key: Option<&str>,
         selected_action: Option<&NativeMenuAction>,
     ) -> [Option<ResolvedAuxSlot>; 4] {
-        if !self.aux_auto_map_enabled || path.contains("2: Pulses") {
+        if !self.aux_auto_map_enabled || path.contains(LINK_LABEL) {
             return [None, None, None, None];
         }
 
-        if path.contains("4: Sparks")
+        if path.contains(PLAY_LABEL)
             && (selected_key.is_some_and(|key| key.starts_with("sparks.fx.params."))
                 || selected_action
                     .map(|action| {

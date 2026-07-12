@@ -4,10 +4,11 @@ use super::{
     NativeMenuValue,
 };
 use crate::native_menu::binding_picker::sparks_fx_targets;
+use crate::native_menu::section_labels::PLAY_LABEL;
 
 pub(super) fn sparks_group(config: &NativeMenuConfig) -> NativeMenuItem {
     group(
-        "4: Sparks",
+        PLAY_LABEL,
         vec![
             keyed_group("Mix", "sparks.page.mix", vec![]),
             keyed_group("Pan", "sparks.page.pan", vec![]),

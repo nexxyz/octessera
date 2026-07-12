@@ -119,13 +119,13 @@ fn color_at(x: usize, y: usize) -> u16 {
         return palette::WHITE_RGB565;
     }
     match x / 16 {
-        0 => palette::PULSES_RGB565,
-        1 => palette::WORLDS_RGB565,
-        2 => palette::TONES_RGB565,
-        3 => palette::SPARKS_RGB565,
-        4 => palette::SYSTEM_RGB565,
+        0 => palette::RED_RGB565,
+        1 => palette::GREEN_RGB565,
+        2 => palette::BLUE_RGB565,
+        3 => palette::YELLOW_RGB565,
+        4 => palette::GRAY_RGB565,
         5 => palette::WHITE_RGB565,
         6 => palette::BLACK_RGB565,
-        _ => palette::SYSTEM_RGB565,
+        _ => palette::GRAY_RGB565,
     }
 }

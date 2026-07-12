@@ -20,11 +20,11 @@ import {
 } from "../src/index";
 
 test("display palette matches the canonical instrument colors", () => {
-  assert.deepEqual(DISPLAY_PALETTE.worlds, { label: "Worlds", hex: "#63D23F", rgb: [99, 210, 63], rgb565: 0x6687 });
-  assert.deepEqual(DISPLAY_PALETTE.pulses, { label: "Pulses", hex: "#E077CC", rgb: [224, 119, 204], rgb565: 0xe3b9 });
-  assert.deepEqual(DISPLAY_PALETTE.tones, { label: "Tones", hex: "#35CFF2", rgb: [53, 207, 242], rgb565: 0x367e });
-  assert.deepEqual(DISPLAY_PALETTE.sparks, { label: "Sparks", hex: "#FFD447", rgb: [255, 212, 71], rgb565: 0xfea8 });
-  assert.deepEqual(DISPLAY_PALETTE.system, { label: "System", hex: "#C9CED6", rgb: [201, 206, 214], rgb565: 0xce7a });
+  assert.deepEqual(DISPLAY_PALETTE.green, { label: "Green", hex: "#63D23F", rgb: [99, 210, 63], rgb565: 0x6687 });
+  assert.deepEqual(DISPLAY_PALETTE.red, { label: "Red", hex: "#DD82CD", rgb: [221, 130, 205], rgb565: 0xdc19 });
+  assert.deepEqual(DISPLAY_PALETTE.blue, { label: "Blue", hex: "#35CFF2", rgb: [53, 207, 242], rgb565: 0x367e });
+  assert.deepEqual(DISPLAY_PALETTE.yellow, { label: "Yellow", hex: "#FFD447", rgb: [255, 212, 71], rgb565: 0xfea8 });
+  assert.deepEqual(DISPLAY_PALETTE.gray, { label: "Gray", hex: "#C9CED6", rgb: [201, 206, 214], rgb565: 0xce7a });
   assert.deepEqual(DISPLAY_PALETTE.white, { label: "White", hex: "#FFFFFF", rgb: [255, 255, 255], rgb565: 0xffff });
   assert.deepEqual(DISPLAY_PALETTE.black, { label: "Black", hex: "#000000", rgb: [0, 0, 0], rgb565: 0x0000 });
 });

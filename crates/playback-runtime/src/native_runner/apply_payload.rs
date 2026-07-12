@@ -1,6 +1,6 @@
 use super::{
     default_sparks_fx_selected, sanitize_sparks_fx_config, NativeRunner, NativeSparksFxAssignment,
-    Value, DEFAULT_ALGORITHM_STEP_PULSES, GRID_HEIGHT,
+    Value, DEFAULT_ALGORITHM_STEP_RED, GRID_HEIGHT,
 };
 
 impl NativeRunner {
@@ -110,7 +110,7 @@ impl NativeRunner {
             .layer_algorithm_step_pulses
             .get(self.active_layer_index)
             .copied()
-            .unwrap_or(DEFAULT_ALGORITHM_STEP_PULSES);
+            .unwrap_or(DEFAULT_ALGORITHM_STEP_RED);
     }
 
     pub(super) fn apply_sample_browser_favourites_payload(&mut self, runtime: &Value) {
@@ -148,10 +148,10 @@ fn reject_old_sparks_schema(runtime: &Value) -> Result<(), String> {
         || runtime.get("touchFxMaxConcurrent").is_some()
         || runtime.get("xyTouch").is_some()
     {
-        return Err("unsupported old Sparks schema".into());
+        return Err("unsupported old Play schema".into());
     }
     if contains_old_sparks_key(runtime) {
-        return Err("unsupported old Sparks schema".into());
+        return Err("unsupported old Play schema".into());
     }
     Ok(())
 }
@@ -162,7 +162,7 @@ fn reject_old_payload_sparks_schema(payload: &Value) -> Result<(), String> {
         .and_then(|system| system.get("danceMode"))
         .is_some()
     {
-        return Err("unsupported old Sparks schema".into());
+        return Err("unsupported old Play schema".into());
     }
     Ok(())
 }

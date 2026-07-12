@@ -2,7 +2,7 @@
 
 This is the map I wish I had taped next to the prototype while I was still learning where everything lived.
 
-Octessera has regular controls, and then it has places where the controls temporarily become something else: Sparks pages, grid assignment modes, sample assignment, and context help. When in doubt, watch the OLED. It is small, but it tries to tell you what you are currently touching.
+Octessera has regular controls, and then it has places where the controls temporarily become something else: Play pages, grid assignment modes, sample assignment, and context help. When in doubt, watch the OLED. It is small, but it tries to tell you what you are currently touching.
 
 ## Regular controls
 
@@ -22,8 +22,8 @@ Octessera has regular controls, and then it has places where the controls tempor
 | Control | Area | What it does |
 |---|---|---|
 | *Fn* + left grid column | **Navigate to Layer 1–8** | Jump to the chosen layer. Bottom row is layer 1. |
-| *Hold* *Fn* | **Navigation preview** | Left column shows layers: cyan for navigation/current focus, green for configured layers, gray/black for inactive or unavailable cells. Right column shows Sparks pages in yellow, with the active page in green. |
-| *Fn* + right grid column | **Navigate to Sparks pages** | Jump to *Mix*, *Pan*, *FX*, *Trigger Gate*, *Transpose*, or *XY*. If Sparks is already active, this exits Sparks. |
+| *Hold* *Fn* | **Navigation preview** | Left column shows layers: cyan for navigation/current focus, green for configured layers, gray/black for inactive or unavailable cells. Right column shows Play pages in yellow, with the active page in green. |
+| *Fn* + right grid column | **Navigate to Play pages** | Jump to *Mix*, *Pan*, *FX*, *Trigger Gate*, *Transpose*, or *XY*. If Play is already active, this exits Play. |
 | *Fn* + *aux encoder click* | **Bind focused value/action** | Assign the highlighted menu value to that aux turn, or the highlighted action to that aux click. |
 
 ## Aux encoders and auto-map
@@ -60,15 +60,15 @@ Scanning is optional. If a layer is not scanning, it can still emit state-note e
 |---|---|
 | Sample assignment | *Shift* + cell maps the whole row. *Shift* + *Fn* + cell maps the whole column. |
 | Trigger probability map | Cells set trigger chance for the selected layer: never, low, high, or always. *Shift* + cell maps the whole row. *Shift* + *Fn* + cell maps the whole column. |
-| Sparks Mix | Grid turns into a mixer, where you can change the volume of each layer. |
-| Sparks Pan | Grid lets you move around the layers' stereo position. |
-| Sparks FX | Press mapped cells to trigger live effects. Releasing the cell stops the effect. |
-| Sparks Trigger Gate | Grid lets you quickly block, allow, or use custom probability for each layer's triggers. |
-| Sparks Transpose | Grid lets you temporarily transpose eligible synth and MIDI layers. |
-| Sparks XY | Mappable two-axis surface for live-manipulating parameters. |
+| Play Mix | Grid turns into a mixer, where you can change the volume of each layer. |
+| Play Pan | Grid lets you move around the layers' stereo position. |
+| Play FX | Press mapped cells to trigger live effects. Releasing the cell stops the effect. |
+| Play Trigger Gate | Grid lets you quickly block, allow, or use custom probability for each layer's triggers. |
+| Play Transpose | Grid lets you temporarily transpose eligible synth and MIDI layers. |
+| Play XY | Mappable two-axis surface for live-manipulating parameters. |
 
 ## Tiny survival notes
 
-- The OLED is the truth. If the grid behaves in an unexpected way, you are probably in an overlay or Sparks page. Take a look at the OLED, and back out using *Back* or navigate away using *Fn*.
+- The OLED is the truth. If the grid behaves in an unexpected way, you are probably in an overlay or Play page. Take a look at the OLED, and back out using *Back* or navigate away using *Fn*.
 - Help is *Shift* + *Fn* + *click main encoder*. I made it a chord so it is hard to hit by accident.
 - If a behavior gets too busy, try probability before you delete the pattern. Let it breathe.

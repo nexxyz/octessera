@@ -48,6 +48,8 @@ pub(crate) struct AudioSamplePayload {
     tune_semis: Option<f32>,
     #[serde(default)]
     amp: Option<AudioSampleAmpPayload>,
+    #[serde(default)]
+    filter: Option<AudioSampleFilterPayload>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -62,6 +64,14 @@ struct AudioSampleAmpPayload {
     gain_pct: Option<f32>,
     #[serde(default, rename = "velocitySensitivityPct")]
     velocity_sensitivity_pct: Option<f32>,
+}
+
+#[derive(Clone, Deserialize)]
+struct AudioSampleFilterPayload {
+    #[serde(default, rename = "cutoffHz")]
+    cutoff_hz: Option<f32>,
+    #[serde(default)]
+    resonance: Option<f32>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -218,6 +228,16 @@ pub(crate) fn sample_banks(
                     .as_ref()
                     .and_then(|amp| amp.velocity_sensitivity_pct)
                     .unwrap_or(100.0),
+                filter_cutoff_hz: sample
+                    .filter
+                    .as_ref()
+                    .and_then(|filter| filter.cutoff_hz)
+                    .unwrap_or(8000.0),
+                filter_resonance: sample
+                    .filter
+                    .as_ref()
+                    .and_then(|filter| filter.resonance)
+                    .unwrap_or(20.0),
             }
         })
         .collect()
@@ -254,11 +274,21 @@ pub(crate) fn sample_signature(samples: &[SampleSource]) -> String {
                 .collect::<Vec<_>>()
                 .join("|");
             format!(
-                "{paths}|t={}|g={}|v={}",
+                "{paths}|t={}|g={}|v={}|fc={}|fr={}",
                 sample.tune_semis.unwrap_or(0.0),
                 amp.and_then(|amp| amp.gain_pct).unwrap_or(100.0),
                 amp.and_then(|amp| amp.velocity_sensitivity_pct)
-                    .unwrap_or(100.0)
+                    .unwrap_or(100.0),
+                sample
+                    .filter
+                    .as_ref()
+                    .and_then(|filter| filter.cutoff_hz)
+                    .unwrap_or(8000.0),
+                sample
+                    .filter
+                    .as_ref()
+                    .and_then(|filter| filter.resonance)
+                    .unwrap_or(20.0)
             )
         })
         .collect::<Vec<_>>()

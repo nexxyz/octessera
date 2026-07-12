@@ -2,6 +2,7 @@ use crate::protocol::SyncSource;
 
 use super::format::note_unit_to_pulses;
 use super::model_search::find_item;
+use super::section_labels::PLAY_PATH_PREFIX;
 use super::{NativeMenuItem, NativeMenuModel, NativeMenuValue};
 
 impl NativeMenuModel {
@@ -42,22 +43,22 @@ impl NativeMenuModel {
 
     pub fn selected_sparks_mode(&self) -> Option<String> {
         let path = self.current_focus_path();
-        if path.starts_with("Menu > 4: Sparks > Mix") {
+        if path.starts_with(&format!("{PLAY_PATH_PREFIX} > Mix")) {
             return Some("mix".into());
         }
-        if path.starts_with("Menu > 4: Sparks > Pan") {
+        if path.starts_with(&format!("{PLAY_PATH_PREFIX} > Pan")) {
             return Some("pan".into());
         }
-        if path.starts_with("Menu > 4: Sparks > FX") {
+        if path.starts_with(&format!("{PLAY_PATH_PREFIX} > FX")) {
             return Some("fx".into());
         }
-        if path.starts_with("Menu > 4: Sparks > Trigger Gate") {
+        if path.starts_with(&format!("{PLAY_PATH_PREFIX} > Trigger Gate")) {
             return Some("trigger-gate".into());
         }
-        if path.starts_with("Menu > 4: Sparks > Transpose") {
+        if path.starts_with(&format!("{PLAY_PATH_PREFIX} > Transpose")) {
             return Some("transpose".into());
         }
-        if path.starts_with("Menu > 4: Sparks > XY") {
+        if path.starts_with(&format!("{PLAY_PATH_PREFIX} > XY")) {
             return Some("xy".into());
         }
         None

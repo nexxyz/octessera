@@ -19,7 +19,7 @@ impl NativeRunner {
         self.menu.state.stack = vec![3];
         self.menu.state.cursor = cursor;
         self.menu.state.editing = false;
-        self.show_toast(format!("Sparks: {}", sparks_mode_label(next_mode)));
+        self.show_toast(format!("Play: {}", sparks_mode_label(next_mode)));
     }
 
     pub(super) fn active_layer_context_toast(&self, index: usize) -> String {

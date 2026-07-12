@@ -96,6 +96,10 @@ impl DeviceDriver {
         &self.output
     }
 
+    pub(super) fn config_payload(&self) -> Value {
+        self.runner.config_payload()
+    }
+
     pub(super) fn select_layer_with_fn(&mut self, layer_index: usize) {
         self.hold_button("fn");
         self.press_grid(0, layer_index);

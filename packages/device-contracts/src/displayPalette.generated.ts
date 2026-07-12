@@ -4,8 +4,8 @@
 export type DisplayPaletteRgb = readonly [number, number, number];
 
 export const DISPLAY_PALETTE = {
-  "worlds": {
-    "label": "Worlds",
+  "green": {
+    "label": "Green",
     "hex": "#63D23F",
     "rgb": [
       99,
@@ -14,18 +14,18 @@ export const DISPLAY_PALETTE = {
     ],
     "rgb565": 26247
   },
-  "pulses": {
-    "label": "Pulses",
-    "hex": "#E077CC",
+  "red": {
+    "label": "Red",
+    "hex": "#DD82CD",
     "rgb": [
-      224,
-      119,
-      204
+      221,
+      130,
+      205
     ],
-    "rgb565": 58297
+    "rgb565": 56345
   },
-  "tones": {
-    "label": "Tones",
+  "blue": {
+    "label": "Blue",
     "hex": "#35CFF2",
     "rgb": [
       53,
@@ -34,8 +34,8 @@ export const DISPLAY_PALETTE = {
     ],
     "rgb565": 13950
   },
-  "sparks": {
-    "label": "Sparks",
+  "yellow": {
+    "label": "Yellow",
     "hex": "#FFD447",
     "rgb": [
       255,
@@ -44,8 +44,8 @@ export const DISPLAY_PALETTE = {
     ],
     "rgb565": 65192
   },
-  "system": {
-    "label": "System",
+  "gray": {
+    "label": "Gray",
     "hex": "#C9CED6",
     "rgb": [
       201,
@@ -76,10 +76,10 @@ export const DISPLAY_PALETTE = {
   }
 } as const;
 
-export const WORLDS_COLOR = DISPLAY_PALETTE.worlds.rgb;
-export const PULSES_COLOR = DISPLAY_PALETTE.pulses.rgb;
-export const TONES_COLOR = DISPLAY_PALETTE.tones.rgb;
-export const SPARKS_COLOR = DISPLAY_PALETTE.sparks.rgb;
-export const SYSTEM_COLOR = DISPLAY_PALETTE.system.rgb;
+export const GREEN_COLOR = DISPLAY_PALETTE.green.rgb;
+export const RED_COLOR = DISPLAY_PALETTE.red.rgb;
+export const BLUE_COLOR = DISPLAY_PALETTE.blue.rgb;
+export const YELLOW_COLOR = DISPLAY_PALETTE.yellow.rgb;
+export const GRAY_COLOR = DISPLAY_PALETTE.gray.rgb;
 export const WHITE_COLOR = DISPLAY_PALETTE.white.rgb;
 export const BLACK_COLOR = DISPLAY_PALETTE.black.rgb;

@@ -74,7 +74,7 @@ pub(crate) fn run_hardware_fault_mode(mut fault: HardwareFault) -> ! {
         if let Some(neokey) = fault.neokey.as_mut() {
             for index in 0..4 {
                 let color = if lit {
-                    platform_core::palette::PULSES
+                    platform_core::palette::RED
                 } else {
                     platform_core::palette::BLACK
                 };
@@ -129,7 +129,7 @@ fn trellis_fault_frame(lit: bool) -> [[u8; 3]; 64] {
         (1, 5),
         (1, 6),
     ] {
-        frame[y * 8 + x] = palette::PULSES;
+        frame[y * 8 + x] = palette::RED;
     }
     frame
 }

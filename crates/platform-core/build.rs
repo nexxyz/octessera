@@ -143,42 +143,42 @@ fn scan_section_counts(value: &Value) -> Vec<usize> {
 
 fn display_palette_source(value: &Value) -> String {
     validate_palette_keys(value);
-    let worlds = rgb(value, "worlds");
-    let pulses = rgb(value, "pulses");
-    let tones = rgb(value, "tones");
-    let sparks = rgb(value, "sparks");
-    let system = rgb(value, "system");
+    let green = rgb(value, "green");
+    let red = rgb(value, "red");
+    let blue = rgb(value, "blue");
+    let yellow = rgb(value, "yellow");
+    let gray = rgb(value, "gray");
     let white = rgb(value, "white");
     let black = rgb(value, "black");
     format!(
-        r#"pub const WORLDS: [u8; 3] = {worlds};
-pub const PULSES: [u8; 3] = {pulses};
-pub const TONES: [u8; 3] = {tones};
-pub const SPARKS: [u8; 3] = {sparks};
-pub const SYSTEM: [u8; 3] = {system};
+        r#"pub const GREEN: [u8; 3] = {green};
+pub const RED: [u8; 3] = {red};
+pub const BLUE: [u8; 3] = {blue};
+pub const YELLOW: [u8; 3] = {yellow};
+pub const GRAY: [u8; 3] = {gray};
 pub const WHITE: [u8; 3] = {white};
 pub const BLACK: [u8; 3] = {black};
 
-pub const WORLDS_RGB565: u16 = {worlds_rgb565:#06X};
-pub const PULSES_RGB565: u16 = {pulses_rgb565:#06X};
-pub const TONES_RGB565: u16 = {tones_rgb565:#06X};
-pub const SPARKS_RGB565: u16 = {sparks_rgb565:#06X};
-pub const SYSTEM_RGB565: u16 = {system_rgb565:#06X};
+pub const GREEN_RGB565: u16 = {green_rgb565:#06X};
+pub const RED_RGB565: u16 = {red_rgb565:#06X};
+pub const BLUE_RGB565: u16 = {blue_rgb565:#06X};
+pub const YELLOW_RGB565: u16 = {yellow_rgb565:#06X};
+pub const GRAY_RGB565: u16 = {gray_rgb565:#06X};
 pub const WHITE_RGB565: u16 = {white_rgb565:#06X};
 pub const BLACK_RGB565: u16 = {black_rgb565:#06X};
 "#,
-        worlds = rgb_source(worlds),
-        pulses = rgb_source(pulses),
-        tones = rgb_source(tones),
-        sparks = rgb_source(sparks),
-        system = rgb_source(system),
+        green = rgb_source(green),
+        red = rgb_source(red),
+        blue = rgb_source(blue),
+        yellow = rgb_source(yellow),
+        gray = rgb_source(gray),
         white = rgb_source(white),
         black = rgb_source(black),
-        worlds_rgb565 = rgb565(worlds),
-        pulses_rgb565 = rgb565(pulses),
-        tones_rgb565 = rgb565(tones),
-        sparks_rgb565 = rgb565(sparks),
-        system_rgb565 = rgb565(system),
+        green_rgb565 = rgb565(green),
+        red_rgb565 = rgb565(red),
+        blue_rgb565 = rgb565(blue),
+        yellow_rgb565 = rgb565(yellow),
+        gray_rgb565 = rgb565(gray),
         white_rgb565 = rgb565(white),
         black_rgb565 = rgb565(black),
     )
@@ -190,9 +190,7 @@ fn validate_palette_keys(value: &Value) {
         .unwrap_or_else(|| panic!("invalid display palette: expected object"));
     let mut keys = object.keys().map(String::as_str).collect::<Vec<_>>();
     keys.sort_unstable();
-    let expected = [
-        "black", "pulses", "sparks", "system", "tones", "white", "worlds",
-    ];
+    let expected = ["black", "blue", "gray", "green", "red", "white", "yellow"];
     if keys != expected {
         panic!(
             "invalid display palette keys: expected {}; got {}",

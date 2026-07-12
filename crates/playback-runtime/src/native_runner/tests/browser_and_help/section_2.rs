@@ -49,7 +49,7 @@ pub(crate) fn fn_shift_enter_opens_contextual_help_and_enter_closes_it() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(snapshot_from(&closed)["display"]["title"], "T");
+    assert_eq!(snapshot_from(&closed)["display"]["title"], "S");
 }
 
 #[test]

@@ -20,19 +20,19 @@ The intended way of using it is a DIY standalone hardware instrument based on a 
 - **Live leads** with the Keys behavior.
 - **Evolving modulation** where grid motion changes pitch, filter, velocity, effects, and other parameters.
 - **Internal synth and sampler sounds**, plus external MIDI output.
-- **Performance scenes** with Sparks mode: mix, pan, trigger probability, XY modulation, and momentary effects.
+- **Performance scenes** with Play pages: mix, pan, trigger probability, XY modulation, and momentary effects.
 - **Happy accidents** from systems that keep moving after you set them in motion.
 
 ## A Quick Session
 
-1. Pick a layer in **1: Worlds** and choose a behavior such as `life`, `brain`, or `raindrops`.
+1. Pick a layer in **Build** and choose a behavior such as `life`, `brain`, or `raindrops`.
 2. Draw or seed a few cells on the grid.
 3. Press **Space** to start playback.
-4. Go to **3: Tones** and choose a synth, sampler or even MIDI output for the layer.
+4. Go to **Shape** and choose a synth, sampler or even MIDI output for the layer.
 5. Add a sequencer layer for drums, have it play a sampler with your preferred drum samples (we even provide a small sample library for you!)
 6. Then route the synth through an FX bus with ducking so the beat opens space in the mix.
 7. Switch another layer to **Keys** and play a lead line live.
-8. Hold **Fn** for navigation and use the right grid column to enter **Sparks** mode.
+8. Hold **Fn** for navigation and use the right grid column to enter **Play** pages.
 9. Perform: mute, pan, change probability, move XY controls, and punch in live effects.
 
 You can treat it like a algorithmic groovebox, a generative sketchpad, or a small experimental performance instrument.
@@ -50,17 +50,17 @@ The hardware (still under design) uses one clickable main encoder, three clickab
 | Emergency stop | Shift + Space | Shift + Space |
 | Clear active grid | Shift + Back | Shift + Backspace / Shift + Esc |
 | Navigate layers | Fn + left grid column | Ctrl + left grid column |
-| Navigate Sparks pages | Fn + right grid column | Ctrl + right grid column |
+| Navigate Play pages | Fn + right grid column | Ctrl + right grid column |
 | Access alternate aux binding | Fn + aux press | Fn + aux UI control |
 
 The friendly control guide starts at [`userdocs/controls-cheat-sheet.md`](userdocs/controls-cheat-sheet.md). The canonical control/menu spec is [`docs/menu-and-controls-spec.md`](docs/menu-and-controls-spec.md).
 
 ## Main Pages
 
-- **1: Worlds** — choose the active layer's behavior and edit its grid state.
-- **2: Pulses** — decide how grid motion becomes notes, velocity, filters, probability, and modulation.
-- **3: Tones** — choose synth, sampler, MIDI, mixer routing, FX buses, and global FX.
-- **4: Sparks** — perform with mix, pan, trigger probability, XY, and momentary effects.
+- **Build** — choose the active layer's behavior and edit its grid state.
+- **Link** — decide how grid motion becomes notes, velocity, filters, probability, and modulation.
+- **Shape** — choose synth, sampler, MIDI, mixer routing, FX buses, and global FX.
+- **Play** — perform with mix, pan, trigger probability, XY, and momentary effects.
 - **System** — presets, default/factory actions, sound, MIDI, brightness, sleep, and help.
 
 ## Build The Hardware
@@ -116,6 +116,8 @@ Repository sample content is sourced from the [Stargate sample pack](https://git
 ## Hardware model attributions
 
 The standoff STL models in `release-artifacts/enclosure/` are based on [Stackable PCB Standoff by theduckom](https://www.printables.com/model/163087-stackable-pcb-standoff), licensed under [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/).
+
+AI assistance was used during the creation of Octessera.
 
 ## License
 

@@ -24,7 +24,7 @@ fn menu_snapshot() -> Value {
             "lines": ["  Volume +3", "@@ FX/Aux 1", "*Velocity", "  sample_1", "  (empty)", "  Q/V X", "  J+K"],
             "colors": [
                 palette::WHITE_RGB565,
-                palette::WORLDS_RGB565,
+                palette::GREEN_RGB565,
                 palette::WHITE_RGB565,
                 palette::WHITE_RGB565,
                 palette::WHITE_RGB565,
@@ -50,7 +50,7 @@ fn menu_snapshot() -> Value {
 fn snapshot_with_leds() -> Value {
     let mut rgb = Vec::new();
     for _ in 0..64 {
-        rgb.extend(palette::SPARKS);
+        rgb.extend(palette::YELLOW);
     }
     json!({
         "display": { "off": false },
@@ -66,8 +66,8 @@ fn snapshot_with_leds() -> Value {
 fn oled_frame_renders_menu_bars_selection_status_and_scrollbar() {
     let frame = oled_frame(&menu_snapshot());
     assert_ne!(pixel(&frame, 5, 5), 0);
-    assert_eq!(pixel(&frame, 4, 30), palette::WORLDS_RGB565);
-    assert_eq!(pixel(&frame, 88, 33), palette::WORLDS_RGB565);
+    assert_eq!(pixel(&frame, 4, 30), palette::GREEN_RGB565);
+    assert_eq!(pixel(&frame, 88, 33), palette::GREEN_RGB565);
     assert_ne!(pixel(&frame, 125, 18), 0);
     assert_ne!(pixel(&frame, 102, 118), 0);
     assert_ne!(pixel(&frame, 119, 119), 0);
@@ -145,42 +145,42 @@ fn oled_signature_tracks_scroll_bar_status_and_float_changes() {
 fn led_frame_applies_grid_brightness_and_sleep_dim() {
     let mut snapshot = snapshot_with_leds();
     let frame = led_frame(&snapshot).unwrap();
-    assert_eq!(frame[0], scale(palette::SPARKS, 0.5));
+    assert_eq!(frame[0], scale(palette::YELLOW, 0.5));
 
     snapshot["display"]["off"] = json!(true);
     let display_off = led_frame(&snapshot).unwrap();
-    assert_eq!(display_off[0], scale(palette::SPARKS, 0.5));
+    assert_eq!(display_off[0], scale(palette::YELLOW, 0.5));
 
     snapshot["settings"]["ledsDimmed"] = json!(true);
     let dimmed = led_frame(&snapshot).unwrap();
-    assert_eq!(dimmed[0], scale(palette::SPARKS, 0.04));
+    assert_eq!(dimmed[0], scale(palette::YELLOW, 0.04));
 }
 
 #[test]
 fn neokey_play_button_uses_transport_state_and_flash_colors() {
     let mut snapshot = snapshot_with_leds();
-    assert_eq!(neokey_colors(&snapshot)[1], palette::PULSES);
+    assert_eq!(neokey_colors(&snapshot)[1], palette::RED);
 
     snapshot["transportIcon"] = json!("pause");
-    assert_eq!(neokey_colors(&snapshot)[1], palette::TONES);
+    assert_eq!(neokey_colors(&snapshot)[1], palette::BLUE);
 
     snapshot["transportIcon"] = json!("play");
-    assert_eq!(neokey_colors(&snapshot)[1], dim(palette::WORLDS, 3));
+    assert_eq!(neokey_colors(&snapshot)[1], dim(palette::GREEN, 3));
 
     snapshot["transportFlash"] = json!("beat");
-    assert_eq!(neokey_colors(&snapshot)[1], palette::SPARKS);
+    assert_eq!(neokey_colors(&snapshot)[1], palette::YELLOW);
 
     snapshot["transportFlash"] = json!("measure");
-    assert_eq!(neokey_colors(&snapshot)[1], palette::WORLDS);
+    assert_eq!(neokey_colors(&snapshot)[1], palette::GREEN);
 
     snapshot["transportFlash"] = json!("none");
     snapshot["display"]["off"] = json!(true);
-    assert_eq!(neokey_colors(&snapshot)[1], dim(palette::WORLDS, 3));
+    assert_eq!(neokey_colors(&snapshot)[1], dim(palette::GREEN, 3));
 
     snapshot["settings"]["ledsDimmed"] = json!(true);
     assert_eq!(
         neokey_colors(&snapshot)[1],
-        scale(dim(palette::WORLDS, 3), 0.08)
+        scale(dim(palette::GREEN, 3), 0.08)
     );
 }
 
@@ -191,6 +191,6 @@ fn oled_display_brightness_scales_menu_line_colors() {
     let frame = oled_frame(&snapshot);
     assert_eq!(
         pixel(&frame, 4, 30),
-        rgb565(scale(rgb565_to_rgb(palette::WORLDS_RGB565), 0.5))
+        rgb565(scale(rgb565_to_rgb(palette::GREEN_RGB565), 0.5))
     );
 }

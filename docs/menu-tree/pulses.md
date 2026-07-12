@@ -1,18 +1,18 @@
-# 2: Pulses Menu Tree
+# Link Menu Tree
 
 This file is part of the canonical split-out menu tree spec. See [`../menu-tree-spec.md`](../menu-tree-spec.md) for the canonical index.
 
-### 2: Pulses
+### Link
 
 ```
-2: Pulses
+Link
 ├── BPM: [40..240] step 1  default 120
 ├── Swing: [0..75] step 1 %  default 0
 ├── Aux Mappings (group)
 │   ├── Aux 1 (group)
 │   │   ├── Turn (group)
 │   │   │   ├── (none) (action)
-│   │   │   └── parameter tree...            ← same shared browser as Sparks X/Y target selection
+│   │   │   └── parameter tree...            ← same shared browser as Play X/Y target selection
 │   │   └── Click (group)
 │   │       ├── (none) (action)
 │   │       └── action tree...               ← behavior actions, sample assign, selected FX map-to-grid
@@ -53,7 +53,7 @@ This file is part of the canonical split-out menu tree spec. See [`../menu-tree-
 │   ├── X Axis (group)
 │   │   ├── Slot 1 (group)
 │   │   │   ├── (none) (action)
-│   │   │   └── parameter tree...                ← same shared browser as Sparks X/Y target selection
+│   │   │   └── parameter tree...                ← same shared browser as Play X/Y target selection
 │   │   ├── Slot 1 Invert: [on | off]
 │   │   ├── Slot 2 (group)
 │   │   │   ├── (none) (action)

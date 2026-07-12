@@ -27,9 +27,9 @@ impl NativeRunner {
         for assignment in &instrument.sample_assignments {
             let color = if assignment.sample_slot == selected_sample_slot {
                 match assignment.level.as_deref() {
-                    Some("high") => LedColor::PULSES,
-                    Some("medium") => LedColor::SPARKS,
-                    Some("low") => LedColor::WORLDS,
+                    Some("high") => LedColor::RED,
+                    Some("medium") => LedColor::YELLOW,
+                    Some("low") => LedColor::GREEN,
                     _ => LedColor::SYSTEM,
                 }
             } else {
@@ -50,9 +50,9 @@ impl NativeRunner {
         for y in 0..GRID_HEIGHT {
             for x in 0..GRID_WIDTH {
                 let color = match map.get(y * GRID_WIDTH + x).map(String::as_str) {
-                    Some("low") => LedColor::PULSES,
-                    Some("high") => LedColor::SPARKS,
-                    Some("full") => LedColor::WORLDS,
+                    Some("low") => LedColor::RED,
+                    Some("high") => LedColor::YELLOW,
+                    Some("full") => LedColor::GREEN,
                     _ => LedColor::BLACK,
                 };
                 self.set_display_led(leds, x, y, color);
@@ -114,9 +114,9 @@ impl NativeRunner {
         slot: usize,
     ) {
         let color = if binding.invert {
-            LedColor::PULSES
+            LedColor::RED
         } else {
-            LedColor::WORLDS
+            LedColor::GREEN
         };
         let color = if binding.key == highlighted_key {
             color
@@ -232,10 +232,10 @@ impl NativeRunner {
                 .map(|bus| bus.pan_pos)
                 .unwrap_or(instrument.pan_pos);
             let color = match bus_index {
-                0 => LedColor::PULSES,
-                1 => LedColor::TONES,
-                2 => LedColor::WORLDS,
-                3 => LedColor::SPARKS,
+                0 => LedColor::RED,
+                1 => LedColor::BLUE,
+                2 => LedColor::GREEN,
+                3 => LedColor::YELLOW,
                 _ => LedColor::WHITE,
             };
             return (pan, color);

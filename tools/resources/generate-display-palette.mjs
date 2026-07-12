@@ -10,11 +10,11 @@ const printCssOutputPath = resolve(root, "userdocs", "print", "displayPalette.ge
 const check = process.argv.includes("--check");
 
 const entries = [
-  ["worlds", "Worlds"],
-  ["pulses", "Pulses"],
-  ["tones", "Tones"],
-  ["sparks", "Sparks"],
-  ["system", "System"],
+  ["green", "Green"],
+  ["red", "Red"],
+  ["blue", "Blue"],
+  ["yellow", "Yellow"],
+  ["gray", "Gray"],
   ["white", "White"],
   ["black", "Black"]
 ];
@@ -49,11 +49,11 @@ export type DisplayPaletteRgb = readonly [number, number, number];
 
 export const DISPLAY_PALETTE = ${JSON.stringify(palette, null, 2)} as const;
 
-export const WORLDS_COLOR = DISPLAY_PALETTE.worlds.rgb;
-export const PULSES_COLOR = DISPLAY_PALETTE.pulses.rgb;
-export const TONES_COLOR = DISPLAY_PALETTE.tones.rgb;
-export const SPARKS_COLOR = DISPLAY_PALETTE.sparks.rgb;
-export const SYSTEM_COLOR = DISPLAY_PALETTE.system.rgb;
+export const GREEN_COLOR = DISPLAY_PALETTE.green.rgb;
+export const RED_COLOR = DISPLAY_PALETTE.red.rgb;
+export const BLUE_COLOR = DISPLAY_PALETTE.blue.rgb;
+export const YELLOW_COLOR = DISPLAY_PALETTE.yellow.rgb;
+export const GRAY_COLOR = DISPLAY_PALETTE.gray.rgb;
 export const WHITE_COLOR = DISPLAY_PALETTE.white.rgb;
 export const BLACK_COLOR = DISPLAY_PALETTE.black.rgb;
 `;

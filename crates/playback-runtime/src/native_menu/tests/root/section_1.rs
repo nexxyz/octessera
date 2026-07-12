@@ -8,10 +8,10 @@ pub(crate) fn root_snapshot_includes_sparks_separator_and_system() {
     assert_eq!(
         snapshot.lines,
         vec![
-            "> 1: Worlds >",
-            "  2: Pulses >",
-            "  3: Tones >",
-            "  4: Sparks >",
+            "> Build >",
+            "  Link >",
+            "  Shape >",
+            "  Play >",
             "",
             "  System >"
         ]
@@ -20,12 +20,12 @@ pub(crate) fn root_snapshot_includes_sparks_separator_and_system() {
     assert_eq!(
         snapshot.colors,
         vec![
-            platform_core::palette::WORLDS_RGB565,
-            platform_core::palette::PULSES_RGB565,
-            platform_core::palette::TONES_RGB565,
-            platform_core::palette::SPARKS_RGB565,
+            platform_core::palette::GREEN_RGB565,
+            platform_core::palette::RED_RGB565,
+            platform_core::palette::BLUE_RGB565,
+            platform_core::palette::YELLOW_RGB565,
             platform_core::palette::WHITE_RGB565,
-            platform_core::palette::SYSTEM_RGB565
+            platform_core::palette::GRAY_RGB565
         ]
     );
 }
@@ -45,7 +45,7 @@ pub(crate) fn rebuild_preserves_navigation_state() {
     };
     menu.rebuild(next);
     let snapshot = menu.snapshot();
-    assert_eq!(snapshot.path, "W/L1: life");
+    assert_eq!(snapshot.path, "B/L1: life");
     assert_eq!(snapshot.selected_row, Some(0));
     assert!(menu.state.editing);
     assert_eq!(menu.selected_behavior().as_deref(), Some("brain"));
@@ -56,7 +56,7 @@ pub(crate) fn keyed_selectors_prefer_current_row_when_keys_repeat() {
     let mut cfg = config();
     cfg.worlds_items = vec![
         NativeMenuItem {
-            label: "Other Sparks".into(),
+            label: "Other Play".into(),
             key: Some("sparksMode".into()),
             value: NativeMenuValue::Enum {
                 options: vec!["none".into(), "fx".into()],
@@ -65,7 +65,7 @@ pub(crate) fn keyed_selectors_prefer_current_row_when_keys_repeat() {
             children: vec![],
         },
         NativeMenuItem {
-            label: "Sparks".into(),
+            label: "Play".into(),
             key: Some("sparksMode".into()),
             value: NativeMenuValue::Enum {
                 options: vec!["none".into(), "fx".into()],
@@ -139,13 +139,13 @@ pub(crate) fn system_submenu_uses_abbreviated_path_and_section_colors() {
     assert_eq!(
         snapshot.colors,
         vec![
-            platform_core::palette::SYSTEM_RGB565,
-            platform_core::palette::SYSTEM_RGB565,
-            platform_core::palette::SYSTEM_RGB565,
-            platform_core::palette::SYSTEM_RGB565,
-            platform_core::palette::SYSTEM_RGB565,
-            platform_core::palette::SYSTEM_RGB565,
-            platform_core::palette::SYSTEM_RGB565
+            platform_core::palette::GRAY_RGB565,
+            platform_core::palette::GRAY_RGB565,
+            platform_core::palette::GRAY_RGB565,
+            platform_core::palette::GRAY_RGB565,
+            platform_core::palette::GRAY_RGB565,
+            platform_core::palette::GRAY_RGB565,
+            platform_core::palette::GRAY_RGB565
         ]
     );
     assert_eq!(snapshot.selected_row, Some(0));

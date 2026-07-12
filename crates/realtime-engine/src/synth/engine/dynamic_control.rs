@@ -60,6 +60,8 @@ impl SynthEngine {
             "sample.amp.velocitySensitivityPct" => {
                 bank.velocity_sensitivity_pct = value.clamp(0.0, 100.0)
             }
+            "sample.filter.cutoffHz" => bank.filter_cutoff_hz = value.clamp(20.0, 20_000.0),
+            "sample.filter.resonance" => bank.filter_resonance = value.clamp(0.0, 255.0),
             _ => (),
         }
     }

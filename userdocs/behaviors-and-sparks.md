@@ -1,4 +1,4 @@
-# Behaviors and Sparks pages
+# Behaviors and Play pages
 
 Each layer runs one behavior. Think of a behavior as a small rule-based system: you seed it, nudge it, sometimes interrupt it, and listen to what it decides to become.
 
@@ -32,13 +32,13 @@ The canonical behavior IDs are `none`, `life`, `sequencer`, `keys`, `looper`, `b
 | `scanned` | The scan layer finds an active cell while scanning is enabled. |
 | `scanned empty` | The scan layer visits an inactive cell while scanning is enabled. |
 
-These triggers feed Pulses, probability, note mapping, instruments, FX routing, and output. That is the bridge from cell state to sound.
+These triggers feed Link, probability, note mapping, instruments, FX routing, and output. That is the bridge from cell state to sound.
 
-## Sparks pages
+## Play pages
 
-Sparks pages are performance overlays. They temporarily borrow the grid so you can play the whole instrument, not just edit it.
+Play pages are performance overlays. They temporarily borrow the grid so you can play the whole instrument, not just edit it.
 
-Hold **Fn** and use the right grid column to choose a Sparks page.
+Hold **Fn** and use the right grid column to choose a Play page.
 
 | Page | Grid role | Use it for |
 |---|---|---|
@@ -49,9 +49,9 @@ Hold **Fn** and use the right grid column to choose a Sparks page.
 | Transpose | Grid becomes a pitch offset picker. | Temporarily transpose eligible synth and MIDI layers. |
 | XY | Grid becomes a mappable two-axis surface. | Live-manipulate assigned parameters with X/Y touch position. |
 
-## Sparks FX details
+## Play FX details
 
-Sparks FX are momentary. Pressing a mapped grid cell starts the effect. Releasing it stops the effect. Octessera limits them so the Pi does not melt into a sad little cracker:
+Play FX are momentary. Pressing a mapped grid cell starts the effect. Releasing it stops the effect. Octessera limits them so the Pi does not melt into a sad little cracker:
 
 - At most two momentary FX are active at once.
 - Only one active cell of the same FX type is allowed.
@@ -66,6 +66,6 @@ The factory preset is a good orientation point: it has a self-sustaining `life` 
 2. Add a generative layer: `life`, `raindrops`, `bounce`, or `dla`, and route it to a `synth`.
 3. Use probability on your sequencer cells to make patterns play back in a more interesting way.
 4. Bind one or two aux encoders to the parameters or actions you keep reaching for.
-5. Open Sparks Mix or Trigger Gate and perform the layers like little weather systems.
+5. Open Play Mix or Trigger Gate and perform the layers like little weather systems.
 
 That is the heart of octessera for me: not a song file, not a rigid pattern, but a few small systems making music together.

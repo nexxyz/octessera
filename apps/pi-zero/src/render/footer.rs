@@ -7,11 +7,11 @@ use super::{draw_text_clipped, fill_rect, rgb565, scale};
 pub(super) fn draw_status_indicators(frame: &mut [u8], snapshot: &Value, brightness: f32) {
     let cpu = snapshot.get("cpuLoadRatio").and_then(Value::as_f64).unwrap_or(0.0);
     let cpu_color = if cpu >= 0.85 {
-        palette::PULSES
+        palette::RED
     } else if cpu >= 0.6 {
-        palette::SPARKS
+        palette::YELLOW
     } else {
-        palette::SYSTEM
+        palette::GRAY
     };
     draw_cpu_icon(frame, 117, 5, rgb565(scale(cpu_color, brightness)));
 }
@@ -30,7 +30,7 @@ pub(super) fn draw_footer(frame: &mut [u8], snapshot: &Value, brightness: f32) {
     draw_transport_icon(frame, snapshot, brightness);
     if snapshot.get("eventDotOn").and_then(Value::as_bool).unwrap_or(false) {
         let voice_steal = snapshot.get("voiceSteal").and_then(Value::as_bool).unwrap_or(false);
-        let color = if voice_steal { palette::PULSES } else { palette::WHITE };
+        let color = if voice_steal { palette::RED } else { palette::WHITE };
         let dot = rgb565(scale(color, brightness));
         fill_rect(frame, 119, 119, 5, 5, dot);
     }
@@ -41,10 +41,10 @@ fn draw_transport_icon(frame: &mut [u8], snapshot: &Value, brightness: f32) {
     let icon_name = snapshot.get("transportIcon").and_then(Value::as_str).unwrap_or("stop");
     let flash = snapshot.get("transportFlash").and_then(Value::as_str).unwrap_or("none");
     let rgb = match (icon_name, flash) {
-        ("play", "measure") => palette::WORLDS,
-        ("play", "beat") => palette::SPARKS,
-        ("stop", _) => palette::PULSES,
-        ("pause", _) => palette::TONES,
+        ("play", "measure") => palette::GREEN,
+        ("play", "beat") => palette::YELLOW,
+        ("stop", _) => palette::RED,
+        ("pause", _) => palette::BLUE,
         _ => palette::WHITE,
     };
     draw_transport_shape(frame, icon_name, 101, 118, rgb565(scale(rgb, brightness)));

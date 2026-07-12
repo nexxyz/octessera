@@ -147,7 +147,7 @@ corepack pnpm run palette:check
 
 The factory patch UI scenario is an ignored Rust test. It drives `NativeRunner` through protocol messages and simulated device input, not through private menu state.
 
-Run it directly when changing menu traversal, runtime modulation, sampler assignment, Sparks, or factory-patch setup behavior:
+Run it directly when changing menu traversal, runtime modulation, sampler assignment, Play, or factory-patch setup behavior:
 
 ```bash
 cargo test -p playback-runtime factory_patch_ui_scenario -- --ignored

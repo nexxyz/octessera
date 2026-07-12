@@ -5,6 +5,7 @@ use super::binding_picker_voice::instrument_binding_groups;
 use super::binding_pulses::pulses_binding_group;
 use super::binding_tree::{binding_action, binding_group_from_items, binding_tree_from_menu_item};
 use super::fx::{fx_buses_group, global_fx_group};
+use super::section_labels::{BUILD_LABEL, LINK_LABEL, PLAY_LABEL, SHAPE_LABEL};
 use super::sparks::sparks_fx_page_items;
 use super::{action_item, group, NativeMenuAction, NativeMenuConfig, NativeMenuItem};
 use super::{NativeMenuValue, NativeParamBindingSpec};
@@ -68,7 +69,7 @@ pub(super) fn parameter_tree_groups(
     let mut groups = Vec::new();
 
     if let Some(behavior_group) = behavior_binding_groups(config, target) {
-        groups.push(group("1: Worlds", behavior_group.children));
+        groups.push(group(BUILD_LABEL, behavior_group.children));
     }
 
     let pulses_groups = config
@@ -78,7 +79,7 @@ pub(super) fn parameter_tree_groups(
         .filter_map(|(index, label)| pulses_binding_group(index, label, config, target))
         .collect::<Vec<_>>();
     if !pulses_groups.is_empty() {
-        groups.push(group("2: Pulses", pulses_groups));
+        groups.push(group(LINK_LABEL, pulses_groups));
     }
 
     let instrument_groups = instrument_binding_groups(config, target);
@@ -96,12 +97,11 @@ pub(super) fn parameter_tree_groups(
         voice_children.push(item);
     }
     if !voice_children.is_empty() {
-        groups.push(group("3: Tones", voice_children));
+        groups.push(group(SHAPE_LABEL, voice_children));
     }
 
-    if let Some(item) = binding_group_from_items("Sparks FX", &sparks_fx_page_items(config), target)
-    {
-        groups.push(group("4: Sparks", vec![item]));
+    if let Some(item) = binding_group_from_items("Play FX", &sparks_fx_page_items(config), target) {
+        groups.push(group(PLAY_LABEL, vec![item]));
     }
 
     groups.push(group(

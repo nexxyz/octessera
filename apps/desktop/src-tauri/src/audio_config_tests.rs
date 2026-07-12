@@ -20,6 +20,7 @@ fn build_audio_slot_configs_applies_defaults_and_limits() {
                 gain_pct: Some(80.0),
                 velocity_sensitivity_pct: Some(50.0),
             }),
+            filter: None,
         }),
         mixer: None,
     });
@@ -64,6 +65,10 @@ fn sample_banks_preserve_sample_playback_controls_without_decoding_in_audio_thre
                     gain_pct: Some(70.0),
                     velocity_sensitivity_pct: Some(40.0),
                 }),
+                filter: Some(AudioSampleFilterConfig {
+                    cutoff_hz: Some(6400.0),
+                    resonance: Some(35.0),
+                }),
             }),
             mixer: None,
         }],
@@ -79,6 +84,8 @@ fn sample_banks_preserve_sample_playback_controls_without_decoding_in_audio_thre
     assert_eq!(banks[0].tune_semis, -5.0);
     assert_eq!(banks[0].gain_pct, 70.0);
     assert_eq!(banks[0].velocity_sensitivity_pct, 40.0);
+    assert_eq!(banks[0].filter_cutoff_hz, 6400.0);
+    assert_eq!(banks[0].filter_resonance, 35.0);
     assert!(banks[0].slots[0].buffer.is_none());
 }
 
@@ -89,7 +96,8 @@ fn sample_bank_for_slot_config_loads_sampler_slot_and_preserves_controls() {
         "sample": {
             "slots": [{ "path": "kick.wav" }],
             "tuneSemis": 3.0,
-            "amp": { "gainPct": 66.0, "velocitySensitivityPct": 25.0 }
+            "amp": { "gainPct": 66.0, "velocitySensitivityPct": 25.0 },
+            "filter": { "cutoffHz": 4200.0 }
         }
     });
 
@@ -111,6 +119,8 @@ fn sample_bank_for_slot_config_loads_sampler_slot_and_preserves_controls() {
     assert_eq!(bank.tune_semis, 3.0);
     assert_eq!(bank.gain_pct, 66.0);
     assert_eq!(bank.velocity_sensitivity_pct, 25.0);
+    assert_eq!(bank.filter_cutoff_hz, 4200.0);
+    assert_eq!(bank.filter_resonance, 20.0);
     assert_eq!(
         bank.slots[0].buffer.as_ref().unwrap().samples.as_ref(),
         &[0.5, -0.5]
@@ -139,6 +149,10 @@ fn sample_bank_signature_ignores_synth_only_changes() {
                     amp: Some(AudioAmpConfig {
                         gain_pct: Some(100.0),
                         velocity_sensitivity_pct: Some(100.0),
+                    }),
+                    filter: Some(AudioSampleFilterConfig {
+                        cutoff_hz: Some(8000.0),
+                        resonance: Some(20.0),
                     }),
                 }),
                 mixer: None,
@@ -171,6 +185,10 @@ fn sample_bank_signature_ignores_synth_only_changes() {
                         gain_pct: Some(100.0),
                         velocity_sensitivity_pct: Some(100.0),
                     }),
+                    filter: Some(AudioSampleFilterConfig {
+                        cutoff_hz: Some(8000.0),
+                        resonance: Some(20.0),
+                    }),
                 }),
                 mixer: None,
             },
@@ -181,6 +199,59 @@ fn sample_bank_signature_ignores_synth_only_changes() {
         voice_stealing_mode: None,
     };
     assert_eq!(before, sample_bank_signature(&changed_synth));
+}
+
+#[test]
+fn sample_bank_signature_tracks_sampler_filter_changes() {
+    let config = AudioInstrumentsConfig {
+        instruments: vec![AudioInstrumentSlotConfig {
+            kind: "sampler".to_string(),
+            synth: None,
+            sample: Some(AudioSampleConfig {
+                slots: vec![AudioSampleSlotEntry {
+                    path: Some("kick.wav".to_string()),
+                }],
+                tune_semis: None,
+                amp: None,
+                filter: Some(AudioSampleFilterConfig {
+                    cutoff_hz: Some(8000.0),
+                    resonance: Some(20.0),
+                }),
+            }),
+            mixer: None,
+        }],
+        mixer: None,
+        pan_positions: None,
+        master_volume: None,
+        voice_stealing_mode: None,
+    };
+    let changed = AudioInstrumentsConfig {
+        instruments: vec![AudioInstrumentSlotConfig {
+            kind: "sampler".to_string(),
+            synth: None,
+            sample: Some(AudioSampleConfig {
+                slots: vec![AudioSampleSlotEntry {
+                    path: Some("kick.wav".to_string()),
+                }],
+                tune_semis: None,
+                amp: None,
+                filter: Some(AudioSampleFilterConfig {
+                    cutoff_hz: Some(3200.0),
+                    resonance: Some(55.0),
+                }),
+            }),
+            mixer: None,
+        }],
+        mixer: None,
+        pan_positions: None,
+        master_volume: None,
+        voice_stealing_mode: None,
+    };
+
+    assert_ne!(
+        sample_bank_signature(&config),
+        sample_bank_signature(&changed)
+    );
 }
 
 #[test]

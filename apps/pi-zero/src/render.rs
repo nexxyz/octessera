@@ -200,31 +200,31 @@ pub fn neokey_colors(snapshot: &Value) -> [[u8; 3]; 4] {
         .get("transportIcon")
         .and_then(Value::as_str)
         .unwrap_or("stop");
-    let back = scale(palette::PULSES, button_scale);
+    let back = scale(palette::RED, button_scale);
     let space = if icon == "stop" {
-        scale(palette::PULSES, button_scale)
+        scale(palette::RED, button_scale)
     } else if icon == "pause" {
-        scale(palette::TONES, button_scale)
+        scale(palette::BLUE, button_scale)
     } else if flash == "measure" {
-        scale(palette::WORLDS, button_scale)
+        scale(palette::GREEN, button_scale)
     } else if flash == "beat" {
-        scale(palette::SPARKS, button_scale)
+        scale(palette::YELLOW, button_scale)
     } else {
-        scale(dim(palette::WORLDS, 3), button_scale)
+        scale(dim(palette::GREEN, 3), button_scale)
     };
     let shift = if combined {
-        scale(palette::TONES, button_scale)
+        scale(palette::BLUE, button_scale)
     } else if shift_held {
-        scale(palette::SPARKS, button_scale)
+        scale(palette::YELLOW, button_scale)
     } else {
-        scale(dim(palette::SYSTEM, 3), button_scale)
+        scale(dim(palette::GRAY, 3), button_scale)
     };
     let func = if combined {
-        scale(palette::TONES, button_scale)
+        scale(palette::BLUE, button_scale)
     } else if fn_held {
-        scale(palette::SPARKS, button_scale)
+        scale(palette::YELLOW, button_scale)
     } else {
-        scale(dim(palette::SYSTEM, 3), button_scale)
+        scale(dim(palette::GRAY, 3), button_scale)
     };
     [back, space, shift, func]
 }

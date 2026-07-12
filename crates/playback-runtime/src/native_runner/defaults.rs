@@ -149,7 +149,7 @@ pub(super) fn note_unit_to_pulses(unit: &str) -> u32 {
         "1/4" => 24,
         "1/2" => 48,
         "1/1" => 96,
-        _ => super::DEFAULT_ALGORITHM_STEP_PULSES,
+        _ => super::DEFAULT_ALGORITHM_STEP_RED,
     }
 }
 

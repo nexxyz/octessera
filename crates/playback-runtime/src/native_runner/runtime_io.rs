@@ -13,7 +13,7 @@ impl NativeRunner {
         self.help_popup = Some(NativeHelpPopup {
             title: "Help: Basic Help".into(),
             lines: wrap_help_text(
-                "Help Sh+Fn+Main. Back Back. Play/Pause Space. Stop/Sync Sh+Space. Fn nav: left layer, right Sparks. Fn+Aux alt bind. Sample Sh+cell. Prob Map grid.",
+                "Help Sh+Fn+Main. Back Back. Play/Pause Space. Stop/Sync Sh+Space. Fn nav: left layer, right Play. Fn+Aux alt bind. Sample Sh+cell. Prob Map grid.",
                 OLED_HELP_LINE_WIDTH,
             ),
             scroll: 0,

@@ -32,9 +32,9 @@ The test driver chooses rows by visible OLED labels. It fails with a trace and t
 
 Expected result: transport stops, MIDI panic/note safety runs, all layers and instruments are `none`, grids are clear, and device preferences stay intact.
 
-### 2. Worlds and grid seed
+### 2. Build and grid seed
 
-1. `1: Worlds > L1 > Behavior > Cellular > life`.
+1. `Build > L1 > Behavior > Cellular > life`.
 2. Set `Step Rate` to `1/16`.
 3. Set `Spawn Count` to `0`; minimize `Spawn Interval`.
 4. Paint L1 double-line cross:
@@ -49,9 +49,9 @@ Expected result: transport stops, MIDI panic/note safety runs, all layers and in
 8. `L3 > Behavior > Play > looper`.
 9. Set `Step Rate` to `1/8`.
 
-### 3. Pulses
+### 3. Link
 
-1. `2: Pulses`; verify `BPM 120`.
+1. `Route`; verify `BPM 120`.
 2. `L1 > Events`; verify activation routes to `I1` and `note_on`.
 3. `L1 > Note Mapping`; verify pentatonic scale and root `D`; nudge `Start Note` to D.
 4. `L2 > Scanning`; set `Scan Mode scanning`, `Scan Axis rows`, `Sections 1`, `Scan Unit 1/8`.
@@ -59,9 +59,9 @@ Expected result: transport stops, MIDI panic/note safety runs, all layers and in
 6. `L3 > Events`; set `Event Triggers On`; verify activation to `I3`; set deactivation action to `note_off`.
 7. `L3 > Note Mapping`; verify pentatonic scale and root `D`; nudge `Start Note` to D.
 
-### 4. Tones and samples
+### 4. Shape and samples
 
-1. `3: Tones > Instruments > I1`.
+1. `Shape > Instruments > I1`.
 2. Set `Type synth`.
 3. `Synth > Filter > Cutoff`; turn the cutoff upward.
 4. `Mixer > Route`; set `fx_bus_1`.
@@ -73,13 +73,13 @@ Expected result: transport stops, MIDI panic/note safety runs, all layers and in
 10. `FX Buses > B1 > Slot 1`; set type `delay`.
 11. `B1 > Slot 2`; set type `duck`, source `I2`, amount `60`.
 
-### 5. Aux, XY, and Sparks FX mappings
+### 5. Aux, XY, and Play FX mappings
 
-1. `2: Pulses > Aux Mappings > Aux 1 > Turn`.
-2. Pick `3: Tones > Instruments > I2 > Sampler > Filter > Cutoff`.
-3. `4: Sparks > XY > X Axis`; pick `3: Tones > Instruments > I1 > Synth > Filter > Cutoff`.
-4. `4: Sparks > XY > Y Axis`; pick `3: Tones > Instruments > I1 > Synth > Filter > Res`.
-5. `4: Sparks > FX`; set `FX Type stutter`; choose `Map to Grid`; press `Grid 0,0`.
+1. `Link > Aux Mappings > Aux 1 > Turn`.
+2. Pick `Shape > Instruments > I2 > Sampler > Filter > Cutoff`.
+3. `Play > XY > X Axis`; pick `Shape > Instruments > I1 > Synth > Filter > Cutoff`.
+4. `Play > XY > Y Axis`; pick `Shape > Instruments > I1 > Synth > Filter > Res`.
+5. `Play > FX`; set `FX Type stutter`; choose `Map to Grid`; press `Grid 0,0`.
 6. Set `FX Type freeze`; map `Grid 1,0`.
 7. Set `FX Type pitch_shift`; map `Grid 2,0`.
 8. Set `Semitones` to a different value; map another pitch-shift cell at `Grid 3,0`.

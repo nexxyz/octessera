@@ -22,16 +22,18 @@ pub(super) struct SampleVoice {
     pub(super) pos: f32,
     pub(super) step: f32,
     pub(super) gain: f32,
+    pub(super) filt: BiquadState,
 }
 
 impl SampleVoice {
-    pub(super) const fn off() -> Self {
+    pub(super) fn off() -> Self {
         Self {
             active: false,
             sample_slot: 0,
             pos: 0.0,
             step: 1.0,
             gain: 0.0,
+            filt: BiquadState::new(),
         }
     }
 }
@@ -43,6 +45,7 @@ pub(super) struct PreviewSampleVoice {
     pub(super) pos: f32,
     pub(super) step: f32,
     pub(super) gain: f32,
+    pub(super) filt: BiquadState,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

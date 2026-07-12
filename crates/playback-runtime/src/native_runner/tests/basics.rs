@@ -31,6 +31,7 @@ pub(crate) fn checked_in_default_restores_sequencer_grid_state() {
 
     assert_eq!(runner.behavior.id(), expected_behavior_id);
     assert_eq!(runner.active_layer_index, expected_active_layer_index);
+    runner.select_active_layer(0).unwrap();
     assert!(runner
         .engine
         .model()

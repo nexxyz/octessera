@@ -106,8 +106,7 @@ pub(crate) fn factory_payload_uses_display_style_auto_names() {
     let payload = super::super::native_factory_payload();
     let runtime = &payload["runtimeConfig"];
     assert_eq!(runtime["instruments"][0]["name"], "Synth");
-    assert_eq!(runtime["instruments"][1]["name"], "drums");
-    assert_eq!(runtime["instruments"][1]["autoName"], false);
+    assert_eq!(runtime["instruments"][1]["name"], "Sampler");
     assert!(runtime["instruments"]
         .as_array()
         .unwrap()

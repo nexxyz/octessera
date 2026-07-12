@@ -189,7 +189,7 @@ impl NativeRunner {
             .layer_algorithm_step_pulses
             .get(next_index)
             .copied()
-            .unwrap_or(DEFAULT_ALGORITHM_STEP_PULSES);
+            .unwrap_or(DEFAULT_ALGORITHM_STEP_RED);
         self.behavior = behavior;
         self.behavior_config = behavior_config;
         self.interpretation_profile = profile;
@@ -214,7 +214,7 @@ impl NativeRunner {
             self.layer_algorithm_step_pulses
                 .get(index)
                 .copied()
-                .unwrap_or(DEFAULT_ALGORITHM_STEP_PULSES)
+                .unwrap_or(DEFAULT_ALGORITHM_STEP_RED)
         };
         let save_grid_state = self.save_grid_states.get(index).copied().unwrap_or(true);
         let mut worlds = serde_json::Map::new();

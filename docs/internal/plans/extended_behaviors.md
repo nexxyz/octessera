@@ -506,7 +506,7 @@ Behaviors
 │   ├── Sequencer
 │   └── Looper
 │
-├── Cellular Worlds
+├── Cellular Build
 │   ├── Life
 │   ├── Glider            [or merge into Life]
 │   ├── Brain
@@ -657,7 +657,7 @@ Search terms:
 
 ## 7.2 Forest Fire
 
-**Category:** Cellular Worlds
+**Category:** Cellular Build
 **Priority:** Very high
 **Cost:** Very low
 

@@ -155,6 +155,8 @@ pub struct SampleBankConfig {
     pub tune_semis: f32,
     pub gain_pct: f32,
     pub velocity_sensitivity_pct: f32,
+    pub filter_cutoff_hz: f32,
+    pub filter_resonance: f32,
 }
 
 impl Default for SampleBankConfig {
@@ -164,6 +166,8 @@ impl Default for SampleBankConfig {
             tune_semis: 0.0,
             gain_pct: 100.0,
             velocity_sensitivity_pct: 100.0,
+            filter_cutoff_hz: 8000.0,
+            filter_resonance: 20.0,
         }
     }
 }

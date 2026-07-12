@@ -144,19 +144,19 @@ pub(crate) fn sparks_fx_overlay_uses_canonical_fx_palette() {
 
     assert_eq!(
         cells[display_index(0, 0)],
-        led_rgb(platform_core::palette::SPARKS)
+        led_rgb(platform_core::palette::YELLOW)
     );
     assert_eq!(
         cells[display_index(1, 0)],
-        led_rgb(platform_core::palette::TONES)
+        led_rgb(platform_core::palette::BLUE)
     );
     assert_eq!(
         cells[display_index(2, 0)],
-        led_rgb(platform_core::palette::WORLDS)
+        led_rgb(platform_core::palette::GREEN)
     );
     assert_eq!(
         cells[display_index(3, 0)],
-        led_rgb(platform_core::palette::PULSES)
+        led_rgb(platform_core::palette::RED)
     );
 }
 

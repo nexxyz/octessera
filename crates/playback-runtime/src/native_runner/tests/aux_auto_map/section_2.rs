@@ -46,7 +46,7 @@ pub(crate) fn auto_map_behavior_context_uses_worlds_label() {
     let lines = snapshot["display"]["lines"].as_array().unwrap();
 
     assert_eq!(snapshot["display"]["title"], "AUTO MAP");
-    assert_eq!(lines[0], "Worlds");
+    assert_eq!(lines[0], "Build");
 }
 
 #[test]

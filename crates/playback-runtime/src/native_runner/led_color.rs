@@ -7,12 +7,12 @@ pub(super) struct LedColor {
 
 impl LedColor {
     pub const BLACK: Self = Self::from_rgb(platform_core::palette::BLACK);
-    pub const PULSES: Self = Self::from_rgb(platform_core::palette::PULSES);
-    pub const SPARKS: Self = Self::from_rgb(platform_core::palette::SPARKS);
-    pub const SYSTEM: Self = Self::from_rgb(platform_core::palette::SYSTEM);
-    pub const TONES: Self = Self::from_rgb(platform_core::palette::TONES);
+    pub const RED: Self = Self::from_rgb(platform_core::palette::RED);
+    pub const YELLOW: Self = Self::from_rgb(platform_core::palette::YELLOW);
+    pub const SYSTEM: Self = Self::from_rgb(platform_core::palette::GRAY);
+    pub const BLUE: Self = Self::from_rgb(platform_core::palette::BLUE);
     pub const WHITE: Self = Self::from_rgb(platform_core::palette::WHITE);
-    pub const WORLDS: Self = Self::from_rgb(platform_core::palette::WORLDS);
+    pub const GREEN: Self = Self::from_rgb(platform_core::palette::GREEN);
 
     pub const fn rgb(r: u8, g: u8, b: u8) -> Self {
         Self { r, g, b }
@@ -42,8 +42,8 @@ impl LedColor {
 
 pub(super) fn trigger_gate_color(mode: &str) -> LedColor {
     match mode {
-        "zero" => LedColor::PULSES,
-        "custom" => LedColor::SPARKS,
-        _ => LedColor::WORLDS,
+        "zero" => LedColor::RED,
+        "custom" => LedColor::YELLOW,
+        _ => LedColor::GREEN,
     }
 }

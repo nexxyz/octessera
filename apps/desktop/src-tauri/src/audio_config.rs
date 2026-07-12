@@ -83,6 +83,8 @@ struct AudioSampleConfig {
     tune_semis: Option<f32>,
     #[serde(default)]
     amp: Option<AudioAmpConfig>,
+    #[serde(default)]
+    filter: Option<AudioSampleFilterConfig>,
 }
 
 #[derive(Deserialize)]
@@ -97,6 +99,14 @@ struct AudioAmpConfig {
     gain_pct: Option<f32>,
     #[serde(default, rename = "velocitySensitivityPct")]
     velocity_sensitivity_pct: Option<f32>,
+}
+
+#[derive(Deserialize)]
+struct AudioSampleFilterConfig {
+    #[serde(default, rename = "cutoffHz")]
+    cutoff_hz: Option<f32>,
+    #[serde(default)]
+    resonance: Option<f32>,
 }
 
 pub fn synth_payload(config: &AudioInstrumentsConfig) -> InstrumentsConfig {
@@ -228,6 +238,16 @@ fn sample_bank_for_slot(
             .as_ref()
             .and_then(|amp| amp.velocity_sensitivity_pct)
             .unwrap_or(100.0),
+        filter_cutoff_hz: sample
+            .filter
+            .as_ref()
+            .and_then(|filter| filter.cutoff_hz)
+            .unwrap_or(8000.0),
+        filter_resonance: sample
+            .filter
+            .as_ref()
+            .and_then(|filter| filter.resonance)
+            .unwrap_or(20.0),
     })
 }
 
@@ -244,7 +264,7 @@ pub fn sample_bank_signature(config: &AudioInstrumentsConfig) -> String {
         };
         let _ = write!(
             out,
-            "sample:t{}:g{}:v{}:",
+            "sample:t{}:g{}:v{}:fc{}:fr{}:",
             sample.tune_semis.unwrap_or(0.0),
             sample
                 .amp
@@ -255,7 +275,17 @@ pub fn sample_bank_signature(config: &AudioInstrumentsConfig) -> String {
                 .amp
                 .as_ref()
                 .and_then(|amp| amp.velocity_sensitivity_pct)
-                .unwrap_or(100.0)
+                .unwrap_or(100.0),
+            sample
+                .filter
+                .as_ref()
+                .and_then(|filter| filter.cutoff_hz)
+                .unwrap_or(8000.0),
+            sample
+                .filter
+                .as_ref()
+                .and_then(|filter| filter.resonance)
+                .unwrap_or(20.0)
         );
         for entry in sample.slots.iter().take(SAMPLE_SLOTS_PER_INSTRUMENT) {
             out.push_str(entry.path.as_deref().unwrap_or(""));

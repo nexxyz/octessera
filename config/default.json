@@ -6,7 +6,7 @@
       "durationMs": 150,
       "velocity": 96
     },
-    "baseMidiNote": 36,
+    "baseMidiNote": 24,
     "columnStepDegrees": 1,
     "deactivate": {
       "action": "note_off",
@@ -14,15 +14,15 @@
       "durationMs": 90,
       "velocity": 68
     },
-    "maxMidiNote": 74,
+    "maxMidiNote": 84,
     "rangeMode": "wrap",
     "rowStepDegrees": 3,
     "scale": [
-      2,
-      4,
-      6,
-      9,
-      11
+      0,
+      3,
+      5,
+      7,
+      10
     ],
     "scanned": {
       "action": "note_on",
@@ -42,21 +42,24 @@
       "durationMs": 130,
       "velocity": 88
     },
-    "startingMidiNote": 60
+    "startingMidiNote": 24
   },
   "runtimeConfig": {
-    "activeBehavior": "life",
-    "activeLayerIndex": 0,
+    "activeBehavior": "looper",
+    "activeLayerIndex": 2,
     "autoSaveDefault": false,
     "auxAutoMapEnabled": true,
     "auxBindings": {
-      "aux1": null,
+      "aux1": {
+        "pressAction": null,
+        "turnKey": "instruments.1.sample.filter.cutoffHz"
+      },
       "aux2": null,
       "aux3": null
     },
     "bpm": 120,
     "buttonBrightness": 35,
-    "sparksMode": "fx",
+    "dimTimerSeconds": 60,
     "displayBrightness": 75,
     "ghostCells": false,
     "gridBrightness": 25,
@@ -84,7 +87,7 @@
         "noteBehavior": "oneshot",
         "sample": {
           "amp": {
-            "gainPct": 80,
+            "gainPct": 100,
             "velocitySensitivityPct": 100
           },
           "ampEnv": {
@@ -155,7 +158,7 @@
             "sustainPct": 70
           },
           "filter": {
-            "cutoffHz": 222,
+            "cutoffHz": 9921,
             "envAmountPct": 0,
             "keyTrackingPct": 0,
             "resonance": 20,
@@ -187,13 +190,13 @@
       {
         "autoName": true,
         "midi": {
-          "channel": 1,
+          "channel": 2,
           "durationMs": 120,
           "enabled": false,
           "velocity": 100
         },
         "midiEngine": {
-          "channel": 1,
+          "channel": 2,
           "durationMs": 120,
           "velocity": 100
         },
@@ -218,102 +221,6 @@
           "assignments": [
             {
               "level": null,
-              "sampleSlot": 2,
-              "x": 0,
-              "y": 2
-            },
-            {
-              "level": null,
-              "sampleSlot": 2,
-              "x": 1,
-              "y": 2
-            },
-            {
-              "level": null,
-              "sampleSlot": 2,
-              "x": 2,
-              "y": 2
-            },
-            {
-              "level": null,
-              "sampleSlot": 2,
-              "x": 3,
-              "y": 2
-            },
-            {
-              "level": null,
-              "sampleSlot": 2,
-              "x": 4,
-              "y": 2
-            },
-            {
-              "level": null,
-              "sampleSlot": 2,
-              "x": 5,
-              "y": 2
-            },
-            {
-              "level": null,
-              "sampleSlot": 2,
-              "x": 6,
-              "y": 2
-            },
-            {
-              "level": null,
-              "sampleSlot": 2,
-              "x": 7,
-              "y": 2
-            },
-            {
-              "level": null,
-              "sampleSlot": 1,
-              "x": 0,
-              "y": 1
-            },
-            {
-              "level": null,
-              "sampleSlot": 1,
-              "x": 1,
-              "y": 1
-            },
-            {
-              "level": null,
-              "sampleSlot": 1,
-              "x": 2,
-              "y": 1
-            },
-            {
-              "level": null,
-              "sampleSlot": 1,
-              "x": 3,
-              "y": 1
-            },
-            {
-              "level": null,
-              "sampleSlot": 1,
-              "x": 4,
-              "y": 1
-            },
-            {
-              "level": null,
-              "sampleSlot": 1,
-              "x": 5,
-              "y": 1
-            },
-            {
-              "level": null,
-              "sampleSlot": 1,
-              "x": 6,
-              "y": 1
-            },
-            {
-              "level": null,
-              "sampleSlot": 1,
-              "x": 7,
-              "y": 1
-            },
-            {
-              "level": null,
               "sampleSlot": 0,
               "x": 0,
               "y": 0
@@ -359,6 +266,102 @@
               "sampleSlot": 0,
               "x": 7,
               "y": 0
+            },
+            {
+              "level": null,
+              "sampleSlot": 1,
+              "x": 0,
+              "y": 1
+            },
+            {
+              "level": null,
+              "sampleSlot": 1,
+              "x": 1,
+              "y": 1
+            },
+            {
+              "level": null,
+              "sampleSlot": 1,
+              "x": 2,
+              "y": 1
+            },
+            {
+              "level": null,
+              "sampleSlot": 1,
+              "x": 3,
+              "y": 1
+            },
+            {
+              "level": null,
+              "sampleSlot": 1,
+              "x": 4,
+              "y": 1
+            },
+            {
+              "level": null,
+              "sampleSlot": 1,
+              "x": 5,
+              "y": 1
+            },
+            {
+              "level": null,
+              "sampleSlot": 1,
+              "x": 6,
+              "y": 1
+            },
+            {
+              "level": null,
+              "sampleSlot": 1,
+              "x": 7,
+              "y": 1
+            },
+            {
+              "level": null,
+              "sampleSlot": 3,
+              "x": 0,
+              "y": 2
+            },
+            {
+              "level": null,
+              "sampleSlot": 3,
+              "x": 1,
+              "y": 2
+            },
+            {
+              "level": null,
+              "sampleSlot": 3,
+              "x": 2,
+              "y": 2
+            },
+            {
+              "level": null,
+              "sampleSlot": 3,
+              "x": 3,
+              "y": 2
+            },
+            {
+              "level": null,
+              "sampleSlot": 3,
+              "x": 4,
+              "y": 2
+            },
+            {
+              "level": null,
+              "sampleSlot": 3,
+              "x": 5,
+              "y": 2
+            },
+            {
+              "level": null,
+              "sampleSlot": 3,
+              "x": 6,
+              "y": 2
+            },
+            {
+              "level": null,
+              "sampleSlot": 3,
+              "x": 7,
+              "y": 2
             }
           ],
           "baseVelocity": 100,
@@ -375,19 +378,19 @@
             "releaseMs": 180,
             "sustainPct": 70
           },
-          "selectedSlot": 0,
+          "selectedSlot": 3,
           "slots": [
             {
-              "path": "Drum/kick/Kick2.wav"
+              "path": "samples/Drum/kick/Kick2.wav"
             },
             {
-              "path": "Drum/clap/448221__toxicfilmzsrsounds__hip-hop-clap.wav"
-            },
-            {
-              "path": "Drum/hihat open/439820__twentytwentymusic__electronic-open-hat-7.wav"
+              "path": "samples/Drum/claps/distkit-clap.wav"
             },
             {
               "path": null
+            },
+            {
+              "path": "samples/Drum/hihat open/165028__rodrigo-the-mad__mini-909ish-open-hat.wav"
             },
             {
               "path": null
@@ -412,41 +415,41 @@
         },
         "synth": {
           "amp": {
-            "gainPct": 72,
-            "velocitySensitivityPct": 85
+            "gainPct": 80,
+            "velocitySensitivityPct": 100
           },
           "ampEnv": {
-            "attackMs": 240,
-            "decayMs": 360,
-            "releaseMs": 460,
-            "sustainPct": 78
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
           },
           "filter": {
-            "cutoffHz": 186,
-            "envAmountPct": 28,
-            "keyTrackingPct": 20,
-            "resonance": 18,
+            "cutoffHz": 8000,
+            "envAmountPct": 0,
+            "keyTrackingPct": 0,
+            "resonance": 20,
             "type": "lowpass"
           },
           "filterEnv": {
-            "attackMs": 190,
-            "decayMs": 420,
-            "releaseMs": 500,
-            "sustainPct": 72
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
           },
           "osc1": {
-            "detuneCents": -3,
-            "levelPct": 78,
+            "detuneCents": 0,
+            "levelPct": 80,
             "octave": 0,
             "pulseWidthPct": 50,
-            "waveform": "triangle"
+            "waveform": "saw"
           },
           "osc2": {
-            "detuneCents": 3,
-            "levelPct": 64,
+            "detuneCents": 0,
+            "levelPct": 72,
             "octave": 0,
-            "pulseWidthPct": 42,
-            "waveform": "pulse"
+            "pulseWidthPct": 50,
+            "waveform": "square"
           }
         },
         "type": "sampler"
@@ -454,26 +457,26 @@
       {
         "autoName": true,
         "midi": {
-          "channel": 1,
+          "channel": 3,
           "durationMs": 120,
           "enabled": false,
           "velocity": 100
         },
         "midiEngine": {
-          "channel": 1,
+          "channel": 3,
           "durationMs": 120,
           "velocity": 100
         },
         "mixer": {
           "panPos": 16,
-          "route": "direct",
+          "route": "fx_bus_1",
           "volume": 100
         },
         "name": "Synth",
-        "noteBehavior": "oneshot",
+        "noteBehavior": "hold",
         "sample": {
           "amp": {
-            "gainPct": 84,
+            "gainPct": 100,
             "velocitySensitivityPct": 100
           },
           "ampEnv": {
@@ -534,68 +537,7 @@
         },
         "synth": {
           "amp": {
-            "gainPct": 72,
-            "velocitySensitivityPct": 85
-          },
-          "ampEnv": {
-            "attackMs": 240,
-            "decayMs": 360,
-            "releaseMs": 460,
-            "sustainPct": 78
-          },
-          "filter": {
-            "cutoffHz": 186,
-            "envAmountPct": 28,
-            "keyTrackingPct": 20,
-            "resonance": 18,
-            "type": "lowpass"
-          },
-          "filterEnv": {
-            "attackMs": 190,
-            "decayMs": 420,
-            "releaseMs": 500,
-            "sustainPct": 72
-          },
-          "osc1": {
-            "detuneCents": -3,
-            "levelPct": 78,
-            "octave": 0,
-            "pulseWidthPct": 50,
-            "waveform": "triangle"
-          },
-          "osc2": {
-            "detuneCents": 3,
-            "levelPct": 64,
-            "octave": 0,
-            "pulseWidthPct": 42,
-            "waveform": "pulse"
-          }
-        },
-        "type": "synth"
-      },
-      {
-        "autoName": true,
-        "midi": {
-          "channel": 1,
-          "durationMs": 120,
-          "enabled": false,
-          "velocity": 100
-        },
-        "midiEngine": {
-          "channel": 1,
-          "durationMs": 120,
-          "velocity": 100
-        },
-        "mixer": {
-          "panPos": 16,
-          "route": "fx_bus_2",
-          "volume": 100
-        },
-        "name": "Synth",
-        "noteBehavior": "oneshot",
-        "sample": {
-          "amp": {
-            "gainPct": 88,
+            "gainPct": 80,
             "velocitySensitivityPct": 100
           },
           "ampEnv": {
@@ -604,8 +546,6 @@
             "releaseMs": 180,
             "sustainPct": 70
           },
-          "assignments": [],
-          "baseVelocity": 100,
           "filter": {
             "cutoffHz": 8000,
             "envAmountPct": 0,
@@ -618,77 +558,18 @@
             "decayMs": 120,
             "releaseMs": 180,
             "sustainPct": 70
-          },
-          "selectedSlot": 0,
-          "slots": [
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            }
-          ],
-          "tuneSemis": 0,
-          "velocityLevels": {
-            "high": 120,
-            "low": 45,
-            "medium": 85
-          },
-          "velocityLevelsEnabled": false
-        },
-        "synth": {
-          "amp": {
-            "gainPct": 88,
-            "velocitySensitivityPct": 72
-          },
-          "ampEnv": {
-            "attackMs": 5,
-            "decayMs": 160,
-            "releaseMs": 120,
-            "sustainPct": 56
-          },
-          "filter": {
-            "cutoffHz": 157,
-            "envAmountPct": 22,
-            "keyTrackingPct": 24,
-            "resonance": 30,
-            "type": "lowpass"
-          },
-          "filterEnv": {
-            "attackMs": 7,
-            "decayMs": 170,
-            "releaseMs": 150,
-            "sustainPct": 44
           },
           "osc1": {
             "detuneCents": 0,
-            "levelPct": 84,
-            "octave": -1,
+            "levelPct": 80,
+            "octave": 0,
             "pulseWidthPct": 50,
             "waveform": "saw"
           },
           "osc2": {
-            "detuneCents": -4,
-            "levelPct": 68,
-            "octave": -1,
+            "detuneCents": 0,
+            "levelPct": 72,
+            "octave": 0,
             "pulseWidthPct": 50,
             "waveform": "square"
           }
@@ -698,13 +579,13 @@
       {
         "autoName": true,
         "midi": {
-          "channel": 1,
+          "channel": 4,
           "durationMs": 120,
           "enabled": false,
           "velocity": 100
         },
         "midiEngine": {
-          "channel": 1,
+          "channel": 4,
           "durationMs": 120,
           "velocity": 100
         },
@@ -713,11 +594,11 @@
           "route": "direct",
           "volume": 100
         },
-        "name": "Synth",
+        "name": "None",
         "noteBehavior": "oneshot",
         "sample": {
           "amp": {
-            "gainPct": 82,
+            "gainPct": 100,
             "velocitySensitivityPct": 100
           },
           "ampEnv": {
@@ -778,68 +659,7 @@
         },
         "synth": {
           "amp": {
-            "gainPct": 82,
-            "velocitySensitivityPct": 96
-          },
-          "ampEnv": {
-            "attackMs": 9,
-            "decayMs": 260,
-            "releaseMs": 180,
-            "sustainPct": 60
-          },
-          "filter": {
-            "cutoffHz": 166,
-            "envAmountPct": 30,
-            "keyTrackingPct": 28,
-            "resonance": 48,
-            "type": "bandpass"
-          },
-          "filterEnv": {
-            "attackMs": 5,
-            "decayMs": 220,
-            "releaseMs": 180,
-            "sustainPct": 40
-          },
-          "osc1": {
-            "detuneCents": -6,
-            "levelPct": 74,
-            "octave": 0,
-            "pulseWidthPct": 34,
-            "waveform": "pulse"
-          },
-          "osc2": {
-            "detuneCents": 6,
-            "levelPct": 74,
-            "octave": 0,
-            "pulseWidthPct": 66,
-            "waveform": "pulse"
-          }
-        },
-        "type": "synth"
-      },
-      {
-        "autoName": true,
-        "midi": {
-          "channel": 1,
-          "durationMs": 120,
-          "enabled": false,
-          "velocity": 100
-        },
-        "midiEngine": {
-          "channel": 1,
-          "durationMs": 120,
-          "velocity": 100
-        },
-        "mixer": {
-          "panPos": 16,
-          "route": "direct",
-          "volume": 100
-        },
-        "name": "Synth",
-        "noteBehavior": "oneshot",
-        "sample": {
-          "amp": {
-            "gainPct": 85,
+            "gainPct": 80,
             "velocitySensitivityPct": 100
           },
           "ampEnv": {
@@ -848,8 +668,6 @@
             "releaseMs": 180,
             "sustainPct": 70
           },
-          "assignments": [],
-          "baseVelocity": 100,
           "filter": {
             "cutoffHz": 8000,
             "envAmountPct": 0,
@@ -863,325 +681,2424 @@
             "releaseMs": 180,
             "sustainPct": 70
           },
-          "selectedSlot": 0,
-          "slots": [
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            }
-          ],
-          "tuneSemis": 0,
-          "velocityLevels": {
-            "high": 120,
-            "low": 45,
-            "medium": 85
-          },
-          "velocityLevelsEnabled": false
-        },
-        "synth": {
-          "amp": {
-            "gainPct": 85,
-            "velocitySensitivityPct": 100
-          },
-          "ampEnv": {
-            "attackMs": 2,
-            "decayMs": 130,
-            "releaseMs": 110,
-            "sustainPct": 26
-          },
-          "filter": {
-            "cutoffHz": 101,
-            "envAmountPct": 46,
-            "keyTrackingPct": 30,
-            "resonance": 24,
-            "type": "highpass"
-          },
-          "filterEnv": {
-            "attackMs": 3,
-            "decayMs": 140,
-            "releaseMs": 130,
-            "sustainPct": 24
-          },
           "osc1": {
-            "detuneCents": 5,
-            "levelPct": 88,
+            "detuneCents": 0,
+            "levelPct": 80,
             "octave": 0,
             "pulseWidthPct": 50,
             "waveform": "saw"
           },
           "osc2": {
-            "detuneCents": -2,
-            "levelPct": 64,
-            "octave": 1,
-            "pulseWidthPct": 50,
-            "waveform": "triangle"
-          }
-        },
-        "type": "synth"
-      },
-      {
-        "autoName": true,
-        "midi": {
-          "channel": 1,
-          "durationMs": 120,
-          "enabled": false,
-          "velocity": 100
-        },
-        "midiEngine": {
-          "channel": 1,
-          "durationMs": 120,
-          "velocity": 100
-        },
-        "mixer": {
-          "panPos": 16,
-          "route": "direct",
-          "volume": 100
-        },
-        "name": "Synth",
-        "noteBehavior": "oneshot",
-        "sample": {
-          "amp": {
-            "gainPct": 76,
-            "velocitySensitivityPct": 100
-          },
-          "ampEnv": {
-            "attackMs": 5,
-            "decayMs": 120,
-            "releaseMs": 180,
-            "sustainPct": 70
-          },
-          "assignments": [],
-          "baseVelocity": 100,
-          "filter": {
-            "cutoffHz": 8000,
-            "envAmountPct": 0,
-            "keyTrackingPct": 0,
-            "resonance": 20,
-            "type": "lowpass"
-          },
-          "filterEnv": {
-            "attackMs": 5,
-            "decayMs": 120,
-            "releaseMs": 180,
-            "sustainPct": 70
-          },
-          "selectedSlot": 0,
-          "slots": [
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            }
-          ],
-          "tuneSemis": 0,
-          "velocityLevels": {
-            "high": 120,
-            "low": 45,
-            "medium": 85
-          },
-          "velocityLevelsEnabled": false
-        },
-        "synth": {
-          "amp": {
-            "gainPct": 76,
-            "velocitySensitivityPct": 100
-          },
-          "ampEnv": {
-            "attackMs": 1,
-            "decayMs": 540,
-            "releaseMs": 360,
-            "sustainPct": 0
-          },
-          "filter": {
-            "cutoffHz": 174,
-            "envAmountPct": 34,
-            "keyTrackingPct": 12,
-            "resonance": 52,
-            "type": "notch"
-          },
-          "filterEnv": {
-            "attackMs": 1,
-            "decayMs": 380,
-            "releaseMs": 280,
-            "sustainPct": 0
-          },
-          "osc1": {
             "detuneCents": 0,
-            "levelPct": 76,
-            "octave": 0,
-            "pulseWidthPct": 50,
-            "waveform": "sine"
-          },
-          "osc2": {
-            "detuneCents": 12,
-            "levelPct": 60,
-            "octave": 1,
-            "pulseWidthPct": 50,
-            "waveform": "triangle"
-          }
-        },
-        "type": "synth"
-      },
-      {
-        "autoName": true,
-        "midi": {
-          "channel": 1,
-          "durationMs": 120,
-          "enabled": false,
-          "velocity": 100
-        },
-        "midiEngine": {
-          "channel": 1,
-          "durationMs": 120,
-          "velocity": 100
-        },
-        "mixer": {
-          "panPos": 16,
-          "route": "direct",
-          "volume": 100
-        },
-        "name": "Synth",
-        "noteBehavior": "oneshot",
-        "sample": {
-          "amp": {
-            "gainPct": 88,
-            "velocitySensitivityPct": 100
-          },
-          "ampEnv": {
-            "attackMs": 5,
-            "decayMs": 120,
-            "releaseMs": 180,
-            "sustainPct": 70
-          },
-          "assignments": [],
-          "baseVelocity": 100,
-          "filter": {
-            "cutoffHz": 8000,
-            "envAmountPct": 0,
-            "keyTrackingPct": 0,
-            "resonance": 20,
-            "type": "lowpass"
-          },
-          "filterEnv": {
-            "attackMs": 5,
-            "decayMs": 120,
-            "releaseMs": 180,
-            "sustainPct": 70
-          },
-          "selectedSlot": 0,
-          "slots": [
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            }
-          ],
-          "tuneSemis": 0,
-          "velocityLevels": {
-            "high": 120,
-            "low": 45,
-            "medium": 85
-          },
-          "velocityLevelsEnabled": false
-        },
-        "synth": {
-          "amp": {
-            "gainPct": 88,
-            "velocitySensitivityPct": 100
-          },
-          "ampEnv": {
-            "attackMs": 0,
-            "decayMs": 90,
-            "releaseMs": 120,
-            "sustainPct": 0
-          },
-          "filter": {
-            "cutoffHz": 191,
-            "envAmountPct": 72,
-            "keyTrackingPct": 8,
-            "resonance": 26,
-            "type": "lowpass"
-          },
-          "filterEnv": {
-            "attackMs": 0,
-            "decayMs": 120,
-            "releaseMs": 140,
-            "sustainPct": 0
-          },
-          "osc1": {
-            "detuneCents": 0,
-            "levelPct": 84,
+            "levelPct": 72,
             "octave": 0,
             "pulseWidthPct": 50,
             "waveform": "square"
+          }
+        },
+        "type": "none"
+      },
+      {
+        "autoName": true,
+        "midi": {
+          "channel": 5,
+          "durationMs": 120,
+          "enabled": false,
+          "velocity": 100
+        },
+        "midiEngine": {
+          "channel": 5,
+          "durationMs": 120,
+          "velocity": 100
+        },
+        "mixer": {
+          "panPos": 16,
+          "route": "direct",
+          "volume": 100
+        },
+        "name": "None",
+        "noteBehavior": "oneshot",
+        "sample": {
+          "amp": {
+            "gainPct": 100,
+            "velocitySensitivityPct": 100
+          },
+          "ampEnv": {
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
+          },
+          "assignments": [],
+          "baseVelocity": 100,
+          "filter": {
+            "cutoffHz": 8000,
+            "envAmountPct": 0,
+            "keyTrackingPct": 0,
+            "resonance": 20,
+            "type": "lowpass"
+          },
+          "filterEnv": {
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
+          },
+          "selectedSlot": 0,
+          "slots": [
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            }
+          ],
+          "tuneSemis": 0,
+          "velocityLevels": {
+            "high": 120,
+            "low": 45,
+            "medium": 85
+          },
+          "velocityLevelsEnabled": false
+        },
+        "synth": {
+          "amp": {
+            "gainPct": 80,
+            "velocitySensitivityPct": 100
+          },
+          "ampEnv": {
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
+          },
+          "filter": {
+            "cutoffHz": 8000,
+            "envAmountPct": 0,
+            "keyTrackingPct": 0,
+            "resonance": 20,
+            "type": "lowpass"
+          },
+          "filterEnv": {
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
+          },
+          "osc1": {
+            "detuneCents": 0,
+            "levelPct": 80,
+            "octave": 0,
+            "pulseWidthPct": 50,
+            "waveform": "saw"
           },
           "osc2": {
             "detuneCents": 0,
-            "levelPct": 48,
-            "octave": 1,
-            "pulseWidthPct": 20,
-            "waveform": "pulse"
+            "levelPct": 72,
+            "octave": 0,
+            "pulseWidthPct": 50,
+            "waveform": "square"
           }
         },
-        "type": "synth"
+        "type": "none"
+      },
+      {
+        "autoName": true,
+        "midi": {
+          "channel": 6,
+          "durationMs": 120,
+          "enabled": false,
+          "velocity": 100
+        },
+        "midiEngine": {
+          "channel": 6,
+          "durationMs": 120,
+          "velocity": 100
+        },
+        "mixer": {
+          "panPos": 16,
+          "route": "direct",
+          "volume": 100
+        },
+        "name": "None",
+        "noteBehavior": "oneshot",
+        "sample": {
+          "amp": {
+            "gainPct": 100,
+            "velocitySensitivityPct": 100
+          },
+          "ampEnv": {
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
+          },
+          "assignments": [],
+          "baseVelocity": 100,
+          "filter": {
+            "cutoffHz": 8000,
+            "envAmountPct": 0,
+            "keyTrackingPct": 0,
+            "resonance": 20,
+            "type": "lowpass"
+          },
+          "filterEnv": {
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
+          },
+          "selectedSlot": 0,
+          "slots": [
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            }
+          ],
+          "tuneSemis": 0,
+          "velocityLevels": {
+            "high": 120,
+            "low": 45,
+            "medium": 85
+          },
+          "velocityLevelsEnabled": false
+        },
+        "synth": {
+          "amp": {
+            "gainPct": 80,
+            "velocitySensitivityPct": 100
+          },
+          "ampEnv": {
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
+          },
+          "filter": {
+            "cutoffHz": 8000,
+            "envAmountPct": 0,
+            "keyTrackingPct": 0,
+            "resonance": 20,
+            "type": "lowpass"
+          },
+          "filterEnv": {
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
+          },
+          "osc1": {
+            "detuneCents": 0,
+            "levelPct": 80,
+            "octave": 0,
+            "pulseWidthPct": 50,
+            "waveform": "saw"
+          },
+          "osc2": {
+            "detuneCents": 0,
+            "levelPct": 72,
+            "octave": 0,
+            "pulseWidthPct": 50,
+            "waveform": "square"
+          }
+        },
+        "type": "none"
+      },
+      {
+        "autoName": true,
+        "midi": {
+          "channel": 7,
+          "durationMs": 120,
+          "enabled": false,
+          "velocity": 100
+        },
+        "midiEngine": {
+          "channel": 7,
+          "durationMs": 120,
+          "velocity": 100
+        },
+        "mixer": {
+          "panPos": 16,
+          "route": "direct",
+          "volume": 100
+        },
+        "name": "None",
+        "noteBehavior": "oneshot",
+        "sample": {
+          "amp": {
+            "gainPct": 100,
+            "velocitySensitivityPct": 100
+          },
+          "ampEnv": {
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
+          },
+          "assignments": [],
+          "baseVelocity": 100,
+          "filter": {
+            "cutoffHz": 8000,
+            "envAmountPct": 0,
+            "keyTrackingPct": 0,
+            "resonance": 20,
+            "type": "lowpass"
+          },
+          "filterEnv": {
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
+          },
+          "selectedSlot": 0,
+          "slots": [
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            }
+          ],
+          "tuneSemis": 0,
+          "velocityLevels": {
+            "high": 120,
+            "low": 45,
+            "medium": 85
+          },
+          "velocityLevelsEnabled": false
+        },
+        "synth": {
+          "amp": {
+            "gainPct": 80,
+            "velocitySensitivityPct": 100
+          },
+          "ampEnv": {
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
+          },
+          "filter": {
+            "cutoffHz": 8000,
+            "envAmountPct": 0,
+            "keyTrackingPct": 0,
+            "resonance": 20,
+            "type": "lowpass"
+          },
+          "filterEnv": {
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
+          },
+          "osc1": {
+            "detuneCents": 0,
+            "levelPct": 80,
+            "octave": 0,
+            "pulseWidthPct": 50,
+            "waveform": "saw"
+          },
+          "osc2": {
+            "detuneCents": 0,
+            "levelPct": 72,
+            "octave": 0,
+            "pulseWidthPct": 50,
+            "waveform": "square"
+          }
+        },
+        "type": "none"
+      },
+      {
+        "autoName": true,
+        "midi": {
+          "channel": 8,
+          "durationMs": 120,
+          "enabled": false,
+          "velocity": 100
+        },
+        "midiEngine": {
+          "channel": 8,
+          "durationMs": 120,
+          "velocity": 100
+        },
+        "mixer": {
+          "panPos": 16,
+          "route": "direct",
+          "volume": 100
+        },
+        "name": "None",
+        "noteBehavior": "oneshot",
+        "sample": {
+          "amp": {
+            "gainPct": 100,
+            "velocitySensitivityPct": 100
+          },
+          "ampEnv": {
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
+          },
+          "assignments": [],
+          "baseVelocity": 100,
+          "filter": {
+            "cutoffHz": 8000,
+            "envAmountPct": 0,
+            "keyTrackingPct": 0,
+            "resonance": 20,
+            "type": "lowpass"
+          },
+          "filterEnv": {
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
+          },
+          "selectedSlot": 0,
+          "slots": [
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            }
+          ],
+          "tuneSemis": 0,
+          "velocityLevels": {
+            "high": 120,
+            "low": 45,
+            "medium": 85
+          },
+          "velocityLevelsEnabled": false
+        },
+        "synth": {
+          "amp": {
+            "gainPct": 80,
+            "velocitySensitivityPct": 100
+          },
+          "ampEnv": {
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
+          },
+          "filter": {
+            "cutoffHz": 8000,
+            "envAmountPct": 0,
+            "keyTrackingPct": 0,
+            "resonance": 20,
+            "type": "lowpass"
+          },
+          "filterEnv": {
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
+          },
+          "osc1": {
+            "detuneCents": 0,
+            "levelPct": 80,
+            "octave": 0,
+            "pulseWidthPct": 50,
+            "waveform": "saw"
+          },
+          "osc2": {
+            "detuneCents": 0,
+            "levelPct": 72,
+            "octave": 0,
+            "pulseWidthPct": 50,
+            "waveform": "square"
+          }
+        },
+        "type": "none"
+      }
+    ],
+    "layers": [
+      {
+        "autoName": true,
+        "name": "life",
+        "paramMods": {
+          "x": [
+            null,
+            null
+          ],
+          "y": [
+            null,
+            null
+          ]
+        },
+        "pulses": {
+          "eventEnabled": true,
+          "mapping": {
+            "activate": {
+              "action": "note_on",
+              "slot": 0
+            },
+            "deactivate": {
+              "action": "note_off",
+              "slot": 0
+            },
+            "scanned": {
+              "action": "note_on",
+              "slot": 0
+            },
+            "scanned_empty": {
+              "action": "none",
+              "slot": 0
+            },
+            "stable": {
+              "action": "none",
+              "slot": 0
+            }
+          },
+          "pitch": {
+            "highestNote": 74,
+            "lowestNote": 36,
+            "outOfRange": "clamp",
+            "root": "D",
+            "scale": "major_pentatonic",
+            "startingNote": 62
+          },
+          "scanAxis": "columns",
+          "scanDirection": "forward",
+          "scanMode": "none",
+          "scanSections": 1,
+          "scanUnit": "1/16",
+          "stateNotesEnabled": true,
+          "triggerProbabilityHighPct": 75,
+          "triggerProbabilityLowPct": 25,
+          "triggerProbabilityMap": [
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full"
+          ],
+          "triggerProbabilityMode": "full",
+          "x": {
+            "filterCutoff": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 20,
+              "gridOffset": 0,
+              "to": 127
+            },
+            "filterResonance": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 10,
+              "gridOffset": 0,
+              "to": 90
+            },
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 0
+            },
+            "to": 7,
+            "velocity": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 1,
+              "gridOffset": 0,
+              "to": 127
+            }
+          },
+          "y": {
+            "filterCutoff": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 20,
+              "gridOffset": 0,
+              "to": 127
+            },
+            "filterResonance": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 10,
+              "gridOffset": 0,
+              "to": 90
+            },
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 1
+            },
+            "to": 7,
+            "velocity": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 1,
+              "gridOffset": 0,
+              "to": 127
+            }
+          }
+        },
+        "worlds": {
+          "behaviorConfig": {
+            "gliderSpawnInterval": 0,
+            "randomCellsPerTick": 0,
+            "randomTickInterval": 1,
+            "spawnStep": 0
+          },
+          "behaviorId": "life",
+          "saveGridState": true,
+          "savedState": {
+            "cells": [
+              false,
+              false,
+              false,
+              true,
+              true,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              true,
+              true,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              true,
+              true,
+              false,
+              false,
+              false,
+              true,
+              true,
+              true,
+              false,
+              false,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              false,
+              false,
+              true,
+              true,
+              true,
+              false,
+              false,
+              false,
+              true,
+              true,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              true,
+              true,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              true,
+              true,
+              false,
+              false,
+              false
+            ],
+            "gliderSpawnInterval": 0,
+            "height": 8,
+            "randomCellsPerTick": 0,
+            "randomTickInterval": 1,
+            "spawnStep": 0,
+            "triggerTypes": [
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none"
+            ],
+            "width": 8
+          },
+          "stepRate": "1/16"
+        },
+        "xy": {
+          "x": {
+            "invert": false,
+            "key": "instruments.0.synth.filter.cutoffHz",
+            "kind": "number",
+            "label": "Cutoff",
+            "max": 255,
+            "min": 0,
+            "step": 1
+          },
+          "xInvert": false,
+          "y": {
+            "invert": false,
+            "key": "instruments.0.synth.filter.resonance",
+            "kind": "number",
+            "label": "Res",
+            "max": 255,
+            "min": 0,
+            "step": 1
+          },
+          "yInvert": false
+        }
+      },
+      {
+        "autoName": true,
+        "name": "sequencer",
+        "paramMods": {
+          "x": [
+            null,
+            null
+          ],
+          "y": [
+            null,
+            null
+          ]
+        },
+        "pulses": {
+          "eventEnabled": true,
+          "mapping": {
+            "activate": {
+              "action": "note_on",
+              "slot": 1
+            },
+            "deactivate": {
+              "action": "note_off",
+              "slot": 1
+            },
+            "scanned": {
+              "action": "note_on",
+              "slot": 1
+            },
+            "scanned_empty": {
+              "action": "none",
+              "slot": 1
+            },
+            "stable": {
+              "action": "none",
+              "slot": 1
+            }
+          },
+          "pitch": {
+            "highestNote": 74,
+            "lowestNote": 36,
+            "outOfRange": "clamp",
+            "root": "D",
+            "scale": "major_pentatonic",
+            "startingNote": 60
+          },
+          "scanAxis": "rows",
+          "scanDirection": "forward",
+          "scanMode": "scanning",
+          "scanSections": 1,
+          "scanUnit": "1/8",
+          "stateNotesEnabled": true,
+          "triggerProbabilityHighPct": 75,
+          "triggerProbabilityLowPct": 25,
+          "triggerProbabilityMap": [
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full"
+          ],
+          "triggerProbabilityMode": "full",
+          "x": {
+            "filterCutoff": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 20,
+              "gridOffset": 0,
+              "to": 127
+            },
+            "filterResonance": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 10,
+              "gridOffset": 0,
+              "to": 90
+            },
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 0
+            },
+            "to": 7,
+            "velocity": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 1,
+              "gridOffset": 0,
+              "to": 127
+            }
+          },
+          "y": {
+            "filterCutoff": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 20,
+              "gridOffset": 0,
+              "to": 127
+            },
+            "filterResonance": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 10,
+              "gridOffset": 0,
+              "to": 90
+            },
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 1
+            },
+            "to": 7,
+            "velocity": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 1,
+              "gridOffset": 0,
+              "to": 127
+            }
+          }
+        },
+        "worlds": {
+          "behaviorConfig": null,
+          "behaviorId": "sequencer",
+          "saveGridState": true,
+          "savedState": {
+            "cells": [
+              true,
+              false,
+              true,
+              false,
+              true,
+              false,
+              true,
+              false,
+              false,
+              false,
+              true,
+              false,
+              true,
+              false,
+              false,
+              false,
+              false,
+              true,
+              false,
+              true,
+              false,
+              true,
+              false,
+              true,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false
+            ],
+            "height": 8,
+            "width": 8
+          },
+          "stepRate": "1/8"
+        },
+        "xy": {
+          "x": {
+            "invert": false,
+            "key": "instruments.0.synth.filter.cutoffHz",
+            "kind": "number",
+            "label": "Cutoff",
+            "max": 255,
+            "min": 0,
+            "step": 1
+          },
+          "xInvert": false,
+          "y": {
+            "invert": false,
+            "key": "instruments.0.synth.filter.resonance",
+            "kind": "number",
+            "label": "Res",
+            "max": 255,
+            "min": 0,
+            "step": 1
+          },
+          "yInvert": false
+        }
+      },
+      {
+        "autoName": true,
+        "name": "looper",
+        "paramMods": {
+          "x": [
+            null,
+            null
+          ],
+          "y": [
+            null,
+            null
+          ]
+        },
+        "pulses": {
+          "eventEnabled": true,
+          "mapping": {
+            "activate": {
+              "action": "note_on",
+              "slot": 2
+            },
+            "deactivate": {
+              "action": "note_off",
+              "slot": 2
+            },
+            "scanned": {
+              "action": "note_on",
+              "slot": 2
+            },
+            "scanned_empty": {
+              "action": "none",
+              "slot": 2
+            },
+            "stable": {
+              "action": "none",
+              "slot": 2
+            }
+          },
+          "pitch": {
+            "highestNote": 74,
+            "lowestNote": 36,
+            "outOfRange": "clamp",
+            "root": "D",
+            "scale": "major_pentatonic",
+            "startingNote": 62
+          },
+          "scanAxis": "columns",
+          "scanDirection": "forward",
+          "scanMode": "none",
+          "scanSections": 1,
+          "scanUnit": "1/16",
+          "stateNotesEnabled": true,
+          "triggerProbabilityHighPct": 75,
+          "triggerProbabilityLowPct": 25,
+          "triggerProbabilityMap": [
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full"
+          ],
+          "triggerProbabilityMode": "full",
+          "x": {
+            "filterCutoff": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 20,
+              "gridOffset": 0,
+              "to": 127
+            },
+            "filterResonance": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 10,
+              "gridOffset": 0,
+              "to": 90
+            },
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 0
+            },
+            "to": 7,
+            "velocity": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 1,
+              "gridOffset": 0,
+              "to": 127
+            }
+          },
+          "y": {
+            "filterCutoff": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 20,
+              "gridOffset": 0,
+              "to": 127
+            },
+            "filterResonance": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 10,
+              "gridOffset": 0,
+              "to": 90
+            },
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 1
+            },
+            "to": 7,
+            "velocity": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 1,
+              "gridOffset": 0,
+              "to": 127
+            }
+          }
+        },
+        "worlds": {
+          "behaviorConfig": null,
+          "behaviorId": "looper",
+          "saveGridState": true,
+          "savedState": {
+            "lengthSteps": 16,
+            "mode": "overdub",
+            "steps": [
+              [],
+              [],
+              [],
+              [],
+              [],
+              [],
+              [],
+              [],
+              [],
+              [],
+              [],
+              [],
+              [],
+              [],
+              [],
+              []
+            ]
+          },
+          "stepRate": "1/8"
+        },
+        "xy": {
+          "x": {
+            "invert": false,
+            "key": "instruments.0.synth.filter.cutoffHz",
+            "kind": "number",
+            "label": "Cutoff",
+            "max": 255,
+            "min": 0,
+            "step": 1
+          },
+          "xInvert": false,
+          "y": {
+            "invert": false,
+            "key": "instruments.0.synth.filter.resonance",
+            "kind": "number",
+            "label": "Res",
+            "max": 255,
+            "min": 0,
+            "step": 1
+          },
+          "yInvert": false
+        }
+      },
+      {
+        "autoName": true,
+        "name": "none",
+        "paramMods": {
+          "x": [
+            null,
+            null
+          ],
+          "y": [
+            null,
+            null
+          ]
+        },
+        "pulses": {
+          "eventEnabled": false,
+          "mapping": {
+            "activate": {
+              "action": "note_on",
+              "slot": 3
+            },
+            "deactivate": {
+              "action": "note_off",
+              "slot": 3
+            },
+            "scanned": {
+              "action": "note_on",
+              "slot": 3
+            },
+            "scanned_empty": {
+              "action": "none",
+              "slot": 3
+            },
+            "stable": {
+              "action": "none",
+              "slot": 3
+            }
+          },
+          "pitch": {
+            "highestNote": 74,
+            "lowestNote": 36,
+            "outOfRange": "clamp",
+            "root": "D",
+            "scale": "major_pentatonic",
+            "startingNote": 60
+          },
+          "scanAxis": "columns",
+          "scanDirection": "forward",
+          "scanMode": "none",
+          "scanSections": 1,
+          "scanUnit": "1/16",
+          "stateNotesEnabled": true,
+          "triggerProbabilityHighPct": 75,
+          "triggerProbabilityLowPct": 25,
+          "triggerProbabilityMap": [
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full"
+          ],
+          "triggerProbabilityMode": "full",
+          "x": {
+            "filterCutoff": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 20,
+              "gridOffset": 0,
+              "to": 127
+            },
+            "filterResonance": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 10,
+              "gridOffset": 0,
+              "to": 90
+            },
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 0
+            },
+            "to": 7,
+            "velocity": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 1,
+              "gridOffset": 0,
+              "to": 127
+            }
+          },
+          "y": {
+            "filterCutoff": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 20,
+              "gridOffset": 0,
+              "to": 127
+            },
+            "filterResonance": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 10,
+              "gridOffset": 0,
+              "to": 90
+            },
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 1
+            },
+            "to": 7,
+            "velocity": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 1,
+              "gridOffset": 0,
+              "to": 127
+            }
+          }
+        },
+        "worlds": {
+          "behaviorConfig": null,
+          "behaviorId": "none",
+          "saveGridState": true
+        },
+        "xy": {
+          "x": {
+            "invert": false,
+            "key": "instruments.0.synth.filter.cutoffHz",
+            "kind": "number",
+            "label": "Cutoff",
+            "max": 255,
+            "min": 0,
+            "step": 1
+          },
+          "xInvert": false,
+          "y": {
+            "invert": false,
+            "key": "instruments.0.synth.filter.resonance",
+            "kind": "number",
+            "label": "Res",
+            "max": 255,
+            "min": 0,
+            "step": 1
+          },
+          "yInvert": false
+        }
+      },
+      {
+        "autoName": true,
+        "name": "none",
+        "paramMods": {
+          "x": [
+            null,
+            null
+          ],
+          "y": [
+            null,
+            null
+          ]
+        },
+        "pulses": {
+          "eventEnabled": false,
+          "mapping": {
+            "activate": {
+              "action": "note_on",
+              "slot": 4
+            },
+            "deactivate": {
+              "action": "note_off",
+              "slot": 4
+            },
+            "scanned": {
+              "action": "note_on",
+              "slot": 4
+            },
+            "scanned_empty": {
+              "action": "none",
+              "slot": 4
+            },
+            "stable": {
+              "action": "none",
+              "slot": 4
+            }
+          },
+          "pitch": {
+            "highestNote": 74,
+            "lowestNote": 36,
+            "outOfRange": "clamp",
+            "root": "D",
+            "scale": "major_pentatonic",
+            "startingNote": 60
+          },
+          "scanAxis": "columns",
+          "scanDirection": "forward",
+          "scanMode": "none",
+          "scanSections": 1,
+          "scanUnit": "1/16",
+          "stateNotesEnabled": true,
+          "triggerProbabilityHighPct": 75,
+          "triggerProbabilityLowPct": 25,
+          "triggerProbabilityMap": [
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full"
+          ],
+          "triggerProbabilityMode": "full",
+          "x": {
+            "filterCutoff": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 20,
+              "gridOffset": 0,
+              "to": 127
+            },
+            "filterResonance": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 10,
+              "gridOffset": 0,
+              "to": 90
+            },
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 0
+            },
+            "to": 7,
+            "velocity": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 1,
+              "gridOffset": 0,
+              "to": 127
+            }
+          },
+          "y": {
+            "filterCutoff": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 20,
+              "gridOffset": 0,
+              "to": 127
+            },
+            "filterResonance": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 10,
+              "gridOffset": 0,
+              "to": 90
+            },
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 1
+            },
+            "to": 7,
+            "velocity": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 1,
+              "gridOffset": 0,
+              "to": 127
+            }
+          }
+        },
+        "worlds": {
+          "behaviorConfig": null,
+          "behaviorId": "none",
+          "saveGridState": true
+        },
+        "xy": {
+          "x": {
+            "invert": false,
+            "key": "instruments.0.synth.filter.cutoffHz",
+            "kind": "number",
+            "label": "Cutoff",
+            "max": 255,
+            "min": 0,
+            "step": 1
+          },
+          "xInvert": false,
+          "y": {
+            "invert": false,
+            "key": "instruments.0.synth.filter.resonance",
+            "kind": "number",
+            "label": "Res",
+            "max": 255,
+            "min": 0,
+            "step": 1
+          },
+          "yInvert": false
+        }
+      },
+      {
+        "autoName": true,
+        "name": "none",
+        "paramMods": {
+          "x": [
+            null,
+            null
+          ],
+          "y": [
+            null,
+            null
+          ]
+        },
+        "pulses": {
+          "eventEnabled": false,
+          "mapping": {
+            "activate": {
+              "action": "note_on",
+              "slot": 5
+            },
+            "deactivate": {
+              "action": "note_off",
+              "slot": 5
+            },
+            "scanned": {
+              "action": "note_on",
+              "slot": 5
+            },
+            "scanned_empty": {
+              "action": "none",
+              "slot": 5
+            },
+            "stable": {
+              "action": "none",
+              "slot": 5
+            }
+          },
+          "pitch": {
+            "highestNote": 74,
+            "lowestNote": 36,
+            "outOfRange": "clamp",
+            "root": "D",
+            "scale": "major_pentatonic",
+            "startingNote": 60
+          },
+          "scanAxis": "columns",
+          "scanDirection": "forward",
+          "scanMode": "none",
+          "scanSections": 1,
+          "scanUnit": "1/16",
+          "stateNotesEnabled": true,
+          "triggerProbabilityHighPct": 75,
+          "triggerProbabilityLowPct": 25,
+          "triggerProbabilityMap": [
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full"
+          ],
+          "triggerProbabilityMode": "full",
+          "x": {
+            "filterCutoff": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 20,
+              "gridOffset": 0,
+              "to": 127
+            },
+            "filterResonance": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 10,
+              "gridOffset": 0,
+              "to": 90
+            },
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 0
+            },
+            "to": 7,
+            "velocity": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 1,
+              "gridOffset": 0,
+              "to": 127
+            }
+          },
+          "y": {
+            "filterCutoff": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 20,
+              "gridOffset": 0,
+              "to": 127
+            },
+            "filterResonance": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 10,
+              "gridOffset": 0,
+              "to": 90
+            },
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 1
+            },
+            "to": 7,
+            "velocity": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 1,
+              "gridOffset": 0,
+              "to": 127
+            }
+          }
+        },
+        "worlds": {
+          "behaviorConfig": null,
+          "behaviorId": "none",
+          "saveGridState": true
+        },
+        "xy": {
+          "x": {
+            "invert": false,
+            "key": "instruments.0.synth.filter.cutoffHz",
+            "kind": "number",
+            "label": "Cutoff",
+            "max": 255,
+            "min": 0,
+            "step": 1
+          },
+          "xInvert": false,
+          "y": {
+            "invert": false,
+            "key": "instruments.0.synth.filter.resonance",
+            "kind": "number",
+            "label": "Res",
+            "max": 255,
+            "min": 0,
+            "step": 1
+          },
+          "yInvert": false
+        }
+      },
+      {
+        "autoName": true,
+        "name": "none",
+        "paramMods": {
+          "x": [
+            null,
+            null
+          ],
+          "y": [
+            null,
+            null
+          ]
+        },
+        "pulses": {
+          "eventEnabled": false,
+          "mapping": {
+            "activate": {
+              "action": "note_on",
+              "slot": 6
+            },
+            "deactivate": {
+              "action": "note_off",
+              "slot": 6
+            },
+            "scanned": {
+              "action": "note_on",
+              "slot": 6
+            },
+            "scanned_empty": {
+              "action": "none",
+              "slot": 6
+            },
+            "stable": {
+              "action": "none",
+              "slot": 6
+            }
+          },
+          "pitch": {
+            "highestNote": 74,
+            "lowestNote": 36,
+            "outOfRange": "clamp",
+            "root": "D",
+            "scale": "major_pentatonic",
+            "startingNote": 60
+          },
+          "scanAxis": "columns",
+          "scanDirection": "forward",
+          "scanMode": "none",
+          "scanSections": 1,
+          "scanUnit": "1/16",
+          "stateNotesEnabled": true,
+          "triggerProbabilityHighPct": 75,
+          "triggerProbabilityLowPct": 25,
+          "triggerProbabilityMap": [
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full"
+          ],
+          "triggerProbabilityMode": "full",
+          "x": {
+            "filterCutoff": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 20,
+              "gridOffset": 0,
+              "to": 127
+            },
+            "filterResonance": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 10,
+              "gridOffset": 0,
+              "to": 90
+            },
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 0
+            },
+            "to": 7,
+            "velocity": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 1,
+              "gridOffset": 0,
+              "to": 127
+            }
+          },
+          "y": {
+            "filterCutoff": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 20,
+              "gridOffset": 0,
+              "to": 127
+            },
+            "filterResonance": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 10,
+              "gridOffset": 0,
+              "to": 90
+            },
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 1
+            },
+            "to": 7,
+            "velocity": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 1,
+              "gridOffset": 0,
+              "to": 127
+            }
+          }
+        },
+        "worlds": {
+          "behaviorConfig": null,
+          "behaviorId": "none",
+          "saveGridState": true
+        },
+        "xy": {
+          "x": {
+            "invert": false,
+            "key": "instruments.0.synth.filter.cutoffHz",
+            "kind": "number",
+            "label": "Cutoff",
+            "max": 255,
+            "min": 0,
+            "step": 1
+          },
+          "xInvert": false,
+          "y": {
+            "invert": false,
+            "key": "instruments.0.synth.filter.resonance",
+            "kind": "number",
+            "label": "Res",
+            "max": 255,
+            "min": 0,
+            "step": 1
+          },
+          "yInvert": false
+        }
+      },
+      {
+        "autoName": true,
+        "name": "none",
+        "paramMods": {
+          "x": [
+            null,
+            null
+          ],
+          "y": [
+            null,
+            null
+          ]
+        },
+        "pulses": {
+          "eventEnabled": false,
+          "mapping": {
+            "activate": {
+              "action": "note_on",
+              "slot": 7
+            },
+            "deactivate": {
+              "action": "note_off",
+              "slot": 7
+            },
+            "scanned": {
+              "action": "note_on",
+              "slot": 7
+            },
+            "scanned_empty": {
+              "action": "none",
+              "slot": 7
+            },
+            "stable": {
+              "action": "none",
+              "slot": 7
+            }
+          },
+          "pitch": {
+            "highestNote": 74,
+            "lowestNote": 36,
+            "outOfRange": "clamp",
+            "root": "D",
+            "scale": "major_pentatonic",
+            "startingNote": 60
+          },
+          "scanAxis": "columns",
+          "scanDirection": "forward",
+          "scanMode": "none",
+          "scanSections": 1,
+          "scanUnit": "1/16",
+          "stateNotesEnabled": true,
+          "triggerProbabilityHighPct": 75,
+          "triggerProbabilityLowPct": 25,
+          "triggerProbabilityMap": [
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full"
+          ],
+          "triggerProbabilityMode": "full",
+          "x": {
+            "filterCutoff": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 20,
+              "gridOffset": 0,
+              "to": 127
+            },
+            "filterResonance": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 10,
+              "gridOffset": 0,
+              "to": 90
+            },
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 0
+            },
+            "to": 7,
+            "velocity": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 1,
+              "gridOffset": 0,
+              "to": 127
+            }
+          },
+          "y": {
+            "filterCutoff": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 20,
+              "gridOffset": 0,
+              "to": 127
+            },
+            "filterResonance": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 10,
+              "gridOffset": 0,
+              "to": 90
+            },
+            "from": 0,
+            "pitch": {
+              "enabled": true,
+              "restartEachSection": false,
+              "steps": 1
+            },
+            "to": 7,
+            "velocity": {
+              "curve": "linear",
+              "enabled": false,
+              "from": 1,
+              "gridOffset": 0,
+              "to": 127
+            }
+          }
+        },
+        "worlds": {
+          "behaviorConfig": null,
+          "behaviorId": "none",
+          "saveGridState": true
+        },
+        "xy": {
+          "x": {
+            "invert": false,
+            "key": "instruments.0.synth.filter.cutoffHz",
+            "kind": "number",
+            "label": "Cutoff",
+            "max": 255,
+            "min": 0,
+            "step": 1
+          },
+          "xInvert": false,
+          "y": {
+            "invert": false,
+            "key": "instruments.0.synth.filter.resonance",
+            "kind": "number",
+            "label": "Res",
+            "max": 255,
+            "min": 0,
+            "step": 1
+          },
+          "yInvert": false
+        }
       }
     ],
     "masterVolume": 73,
@@ -1210,7 +3127,7 @@
           },
           "slot2": {
             "params": {
-              "amountPct": 50,
+              "amountPct": 60,
               "attackMs": 8,
               "releaseMs": 160,
               "source": "I2",
@@ -1272,1785 +3189,14 @@
         ]
       }
     },
-    "noteLengthMs": 150,
+    "noteLengthMs": 120,
     "numericDisplayMode": "bar+numbers",
-    "layers": [
-      {
-        "autoName": true,
-        "worlds": {
-          "behaviorConfig": {
-            "randomCellsPerTick": 0,
-            "randomTickInterval": 1,
-            "spawnStep": 0
-          },
-          "behaviorId": "life",
-          "saveGridState": true,
-          "savedState": {
-            "cells": [
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              true,
-              false,
-              false,
-              true,
-              false,
-              false,
-              false,
-              true,
-              false,
-              true,
-              true,
-              false,
-              true,
-              false,
-              false,
-              false,
-              true,
-              false,
-              false,
-              true,
-              false,
-              false,
-              false,
-              false,
-              true,
-              false,
-              false,
-              true,
-              false,
-              false,
-              false,
-              true,
-              false,
-              true,
-              true,
-              false,
-              true,
-              false,
-              false,
-              false,
-              true,
-              false,
-              false,
-              true,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false
-            ],
-            "height": 8,
-            "randomCellsPerTick": 0,
-            "randomTickInterval": 1,
-            "spawnStep": 0,
-            "triggerTypes": [
-              "none",
-              "none",
-              "deactivate",
-              "none",
-              "none",
-              "deactivate",
-              "none",
-              "none",
-              "none",
-              "none",
-              "stable",
-              "none",
-              "none",
-              "stable",
-              "none",
-              "none",
-              "deactivate",
-              "stable",
-              "none",
-              "stable",
-              "stable",
-              "none",
-              "stable",
-              "deactivate",
-              "none",
-              "none",
-              "stable",
-              "none",
-              "none",
-              "stable",
-              "none",
-              "none",
-              "none",
-              "none",
-              "stable",
-              "none",
-              "none",
-              "stable",
-              "none",
-              "none",
-              "deactivate",
-              "stable",
-              "none",
-              "stable",
-              "stable",
-              "none",
-              "stable",
-              "deactivate",
-              "none",
-              "none",
-              "stable",
-              "none",
-              "none",
-              "stable",
-              "none",
-              "none",
-              "none",
-              "none",
-              "deactivate",
-              "none",
-              "none",
-              "deactivate",
-              "none",
-              "none"
-            ],
-            "width": 8
-          },
-          "stepRate": "1/16"
-        },
-        "pulses": {
-          "eventEnabled": true,
-          "mapping": {
-            "activate": {
-              "action": "note_on",
-              "slot": 0
-            },
-            "deactivate": {
-              "action": "note_off",
-              "slot": 0
-            },
-            "scanned": {
-              "action": "note_on",
-              "slot": 0
-            },
-            "scanned_empty": {
-              "action": "none",
-              "slot": 0
-            },
-            "stable": {
-              "action": "none",
-              "slot": 0
-            }
-          },
-          "pitch": {
-            "highestNote": 74,
-            "lowestNote": 36,
-            "outOfRange": "wrap",
-            "root": "D",
-            "scale": "major_pentatonic",
-            "startingNote": 60
-          },
-          "scanAxis": "columns",
-          "scanDirection": "forward",
-          "scanMode": "none",
-          "scanSections": 1,
-          "scanUnit": "1/8",
-          "stateNotesEnabled": true,
-          "triggerProbabilityHighPct": 75,
-          "triggerProbabilityLowPct": 25,
-          "triggerProbabilityMap": [
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero"
-          ],
-          "triggerProbabilityMode": "full",
-          "x": {
-            "filterCutoff": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 20,
-              "gridOffset": 0,
-              "to": 127
-            },
-            "filterResonance": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 10,
-              "gridOffset": 0,
-              "to": 90
-            },
-            "from": 0,
-            "pitch": {
-              "enabled": true,
-              "restartEachSection": false,
-              "steps": 1
-            },
-            "to": 7,
-            "velocity": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 1,
-              "gridOffset": 0,
-              "to": 127
-            }
-          },
-          "y": {
-            "filterCutoff": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 20,
-              "gridOffset": 0,
-              "to": 127
-            },
-            "filterResonance": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 10,
-              "gridOffset": 0,
-              "to": 90
-            },
-            "from": 0,
-            "pitch": {
-              "enabled": true,
-              "restartEachSection": false,
-              "steps": 3
-            },
-            "to": 7,
-            "velocity": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 1,
-              "gridOffset": 0,
-              "to": 127
-            }
-          }
-        },
-        "name": "life",
-        "paramMods": {
-          "x": [
-            null,
-            null
-          ],
-          "y": [
-            null,
-            null
-          ]
-        },
-        "xy": {
-          "x": null,
-          "xInvert": false,
-          "y": null,
-          "yInvert": false
-        }
-      },
-      {
-        "autoName": true,
-        "worlds": {
-          "behaviorConfig": {},
-          "behaviorId": "sequencer",
-          "saveGridState": true,
-          "savedState": {
-            "cells": [
-              true,
-              false,
-              true,
-              false,
-              true,
-              false,
-              true,
-              false,
-              false,
-              false,
-              true,
-              false,
-              false,
-              false,
-              true,
-              false,
-              false,
-              true,
-              false,
-              true,
-              false,
-              true,
-              false,
-              true,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false
-            ],
-            "height": 8,
-            "width": 8
-          },
-          "stepRate": "1/16"
-        },
-        "pulses": {
-          "eventEnabled": false,
-          "mapping": {
-            "activate": {
-              "action": "note_on",
-              "slot": 0
-            },
-            "deactivate": {
-              "action": "note_off",
-              "slot": 0
-            },
-            "scanned": {
-              "action": "note_on",
-              "slot": 1
-            },
-            "scanned_empty": {
-              "action": "none",
-              "slot": "none"
-            },
-            "stable": {
-              "action": "none",
-              "slot": 0
-            }
-          },
-          "pitch": {
-            "highestNote": 74,
-            "lowestNote": 36,
-            "outOfRange": "wrap",
-            "root": "D",
-            "scale": "chromatic",
-            "startingNote": 60
-          },
-          "scanAxis": "columns",
-          "scanDirection": "forward",
-          "scanMode": "scanning",
-          "scanSections": 1,
-          "scanUnit": "1/8",
-          "stateNotesEnabled": true,
-          "triggerProbabilityHighPct": 75,
-          "triggerProbabilityLowPct": 25,
-          "triggerProbabilityMap": [
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero"
-          ],
-          "triggerProbabilityMode": "full",
-          "x": {
-            "filterCutoff": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 20,
-              "gridOffset": 0,
-              "to": 127
-            },
-            "filterResonance": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 10,
-              "gridOffset": 0,
-              "to": 90
-            },
-            "from": 0,
-            "pitch": {
-              "enabled": true,
-              "restartEachSection": false,
-              "steps": 1
-            },
-            "to": 7,
-            "velocity": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 1,
-              "gridOffset": 0,
-              "to": 127
-            }
-          },
-          "y": {
-            "filterCutoff": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 20,
-              "gridOffset": 0,
-              "to": 127
-            },
-            "filterResonance": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 10,
-              "gridOffset": 0,
-              "to": 90
-            },
-            "from": 0,
-            "pitch": {
-              "enabled": true,
-              "restartEachSection": false,
-              "steps": 3
-            },
-            "to": 7,
-            "velocity": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 1,
-              "gridOffset": 0,
-              "to": 127
-            }
-          }
-        },
-        "name": "sequencer",
-        "paramMods": {
-          "x": [
-            null,
-            null
-          ],
-          "y": [
-            null,
-            null
-          ]
-        },
-        "xy": {
-          "x": null,
-          "xInvert": false,
-          "y": null,
-          "yInvert": false
-        }
-      },
-      {
-        "autoName": true,
-        "worlds": {
-          "behaviorConfig": {
-            "quantize": "immediate"
-          },
-          "behaviorId": "keys",
-          "saveGridState": false,
-          "stepRate": "1/16"
-        },
-        "pulses": {
-          "eventEnabled": true,
-          "mapping": {
-            "activate": {
-              "action": "note_on",
-              "slot": 1
-            },
-            "deactivate": {
-              "action": "note_off",
-              "slot": 1
-            },
-            "scanned": {
-              "action": "note_on",
-              "slot": 0
-            },
-            "scanned_empty": {
-              "action": "none",
-              "slot": 0
-            },
-            "stable": {
-              "action": "none",
-              "slot": 0
-            }
-          },
-          "pitch": {
-            "highestNote": 74,
-            "lowestNote": 36,
-            "outOfRange": "wrap",
-            "root": "D",
-            "scale": "chromatic",
-            "startingNote": 60
-          },
-          "scanAxis": "columns",
-          "scanDirection": "forward",
-          "scanMode": "none",
-          "scanSections": 1,
-          "scanUnit": "1/8",
-          "stateNotesEnabled": true,
-          "triggerProbabilityHighPct": 75,
-          "triggerProbabilityLowPct": 25,
-          "triggerProbabilityMap": [
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero"
-          ],
-          "triggerProbabilityMode": "full",
-          "x": {
-            "filterCutoff": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 20,
-              "gridOffset": 0,
-              "to": 127
-            },
-            "filterResonance": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 10,
-              "gridOffset": 0,
-              "to": 90
-            },
-            "from": 0,
-            "pitch": {
-              "enabled": true,
-              "restartEachSection": false,
-              "steps": 1
-            },
-            "to": 7,
-            "velocity": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 1,
-              "gridOffset": 0,
-              "to": 127
-            }
-          },
-          "y": {
-            "filterCutoff": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 20,
-              "gridOffset": 0,
-              "to": 127
-            },
-            "filterResonance": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 10,
-              "gridOffset": 0,
-              "to": 90
-            },
-            "from": 0,
-            "pitch": {
-              "enabled": true,
-              "restartEachSection": false,
-              "steps": 3
-            },
-            "to": 7,
-            "velocity": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 1,
-              "gridOffset": 0,
-              "to": 127
-            }
-          }
-        },
-        "name": "keys",
-        "paramMods": {
-          "x": [
-            null,
-            null
-          ],
-          "y": [
-            null,
-            null
-          ]
-        },
-        "xy": {
-          "x": null,
-          "xInvert": false,
-          "y": null,
-          "yInvert": false
-        }
-      },
-      {
-        "autoName": true,
-        "worlds": {
-          "behaviorConfig": {
-            "randomCellsPerTick": 0,
-            "randomTickInterval": 1,
-            "spawnStep": 0
-          },
-          "behaviorId": "none",
-          "saveGridState": false,
-          "stepRate": "1/16"
-        },
-        "pulses": {
-          "eventEnabled": false,
-          "mapping": {
-            "activate": {
-              "action": "note_on",
-              "slot": 0
-            },
-            "deactivate": {
-              "action": "note_off",
-              "slot": 0
-            },
-            "scanned": {
-              "action": "note_on",
-              "slot": 2
-            },
-            "scanned_empty": {
-              "action": "none",
-              "slot": 2
-            },
-            "stable": {
-              "action": "none",
-              "slot": 0
-            }
-          },
-          "pitch": {
-            "highestNote": 74,
-            "lowestNote": 36,
-            "outOfRange": "wrap",
-            "root": "D",
-            "scale": "chromatic",
-            "startingNote": 60
-          },
-          "scanAxis": "rows",
-          "scanDirection": "reverse",
-          "scanMode": "none",
-          "scanSections": 1,
-          "scanUnit": "1/8",
-          "stateNotesEnabled": true,
-          "triggerProbabilityHighPct": 75,
-          "triggerProbabilityLowPct": 25,
-          "triggerProbabilityMap": [
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero"
-          ],
-          "triggerProbabilityMode": "full",
-          "x": {
-            "filterCutoff": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 20,
-              "gridOffset": 0,
-              "to": 127
-            },
-            "filterResonance": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 10,
-              "gridOffset": 0,
-              "to": 90
-            },
-            "from": 0,
-            "pitch": {
-              "enabled": true,
-              "restartEachSection": false,
-              "steps": 1
-            },
-            "to": 7,
-            "velocity": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 1,
-              "gridOffset": 0,
-              "to": 127
-            }
-          },
-          "y": {
-            "filterCutoff": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 20,
-              "gridOffset": 0,
-              "to": 127
-            },
-            "filterResonance": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 10,
-              "gridOffset": 0,
-              "to": 90
-            },
-            "from": 0,
-            "pitch": {
-              "enabled": true,
-              "restartEachSection": false,
-              "steps": 3
-            },
-            "to": 7,
-            "velocity": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 1,
-              "gridOffset": 0,
-              "to": 127
-            }
-          }
-        },
-        "name": "none",
-        "paramMods": {
-          "x": [
-            null,
-            null
-          ],
-          "y": [
-            null,
-            null
-          ]
-        },
-        "xy": {
-          "x": null,
-          "xInvert": false,
-          "y": null,
-          "yInvert": false
-        }
-      },
-      {
-        "autoName": true,
-        "worlds": {
-          "behaviorConfig": null,
-          "behaviorId": "none",
-          "saveGridState": false,
-          "stepRate": "1/16"
-        },
-        "pulses": {
-          "eventEnabled": false,
-          "mapping": {
-            "activate": {
-              "action": "note_on",
-              "slot": 0
-            },
-            "deactivate": {
-              "action": "note_off",
-              "slot": 0
-            },
-            "scanned": {
-              "action": "note_on",
-              "slot": 0
-            },
-            "scanned_empty": {
-              "action": "none",
-              "slot": 0
-            },
-            "stable": {
-              "action": "none",
-              "slot": 0
-            }
-          },
-          "pitch": {
-            "highestNote": 74,
-            "lowestNote": 36,
-            "outOfRange": "wrap",
-            "root": "D",
-            "scale": "chromatic",
-            "startingNote": 60
-          },
-          "scanAxis": "columns",
-          "scanDirection": "forward",
-          "scanMode": "none",
-          "scanSections": 1,
-          "scanUnit": "1/8",
-          "stateNotesEnabled": true,
-          "triggerProbabilityHighPct": 75,
-          "triggerProbabilityLowPct": 25,
-          "triggerProbabilityMap": [
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero"
-          ],
-          "triggerProbabilityMode": "full",
-          "x": {
-            "filterCutoff": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 20,
-              "gridOffset": 0,
-              "to": 127
-            },
-            "filterResonance": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 10,
-              "gridOffset": 0,
-              "to": 90
-            },
-            "from": 0,
-            "pitch": {
-              "enabled": true,
-              "restartEachSection": false,
-              "steps": 1
-            },
-            "to": 7,
-            "velocity": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 1,
-              "gridOffset": 0,
-              "to": 127
-            }
-          },
-          "y": {
-            "filterCutoff": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 20,
-              "gridOffset": 0,
-              "to": 127
-            },
-            "filterResonance": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 10,
-              "gridOffset": 0,
-              "to": 90
-            },
-            "from": 0,
-            "pitch": {
-              "enabled": true,
-              "restartEachSection": false,
-              "steps": 3
-            },
-            "to": 7,
-            "velocity": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 1,
-              "gridOffset": 0,
-              "to": 127
-            }
-          }
-        },
-        "name": "none",
-        "paramMods": {
-          "x": [
-            null,
-            null
-          ],
-          "y": [
-            null,
-            null
-          ]
-        },
-        "xy": {
-          "x": null,
-          "xInvert": false,
-          "y": null,
-          "yInvert": false
-        }
-      },
-      {
-        "autoName": true,
-        "worlds": {
-          "behaviorConfig": null,
-          "behaviorId": "none",
-          "saveGridState": false,
-          "stepRate": "1/16"
-        },
-        "pulses": {
-          "eventEnabled": false,
-          "mapping": {
-            "activate": {
-              "action": "note_on",
-              "slot": 0
-            },
-            "deactivate": {
-              "action": "note_off",
-              "slot": 0
-            },
-            "scanned": {
-              "action": "note_on",
-              "slot": 0
-            },
-            "scanned_empty": {
-              "action": "none",
-              "slot": 0
-            },
-            "stable": {
-              "action": "none",
-              "slot": 0
-            }
-          },
-          "pitch": {
-            "highestNote": 74,
-            "lowestNote": 36,
-            "outOfRange": "wrap",
-            "root": "D",
-            "scale": "chromatic",
-            "startingNote": 60
-          },
-          "scanAxis": "columns",
-          "scanDirection": "forward",
-          "scanMode": "none",
-          "scanSections": 1,
-          "scanUnit": "1/8",
-          "stateNotesEnabled": true,
-          "triggerProbabilityHighPct": 75,
-          "triggerProbabilityLowPct": 25,
-          "triggerProbabilityMap": [
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero"
-          ],
-          "triggerProbabilityMode": "full",
-          "x": {
-            "filterCutoff": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 20,
-              "gridOffset": 0,
-              "to": 127
-            },
-            "filterResonance": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 10,
-              "gridOffset": 0,
-              "to": 90
-            },
-            "from": 0,
-            "pitch": {
-              "enabled": true,
-              "restartEachSection": false,
-              "steps": 1
-            },
-            "to": 7,
-            "velocity": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 1,
-              "gridOffset": 0,
-              "to": 127
-            }
-          },
-          "y": {
-            "filterCutoff": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 20,
-              "gridOffset": 0,
-              "to": 127
-            },
-            "filterResonance": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 10,
-              "gridOffset": 0,
-              "to": 90
-            },
-            "from": 0,
-            "pitch": {
-              "enabled": true,
-              "restartEachSection": false,
-              "steps": 3
-            },
-            "to": 7,
-            "velocity": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 1,
-              "gridOffset": 0,
-              "to": 127
-            }
-          }
-        },
-        "name": "none",
-        "paramMods": {
-          "x": [
-            null,
-            null
-          ],
-          "y": [
-            null,
-            null
-          ]
-        },
-        "xy": {
-          "x": null,
-          "xInvert": false,
-          "y": null,
-          "yInvert": false
-        }
-      },
-      {
-        "autoName": true,
-        "worlds": {
-          "behaviorConfig": null,
-          "behaviorId": "none",
-          "saveGridState": false,
-          "stepRate": "1/16"
-        },
-        "pulses": {
-          "eventEnabled": false,
-          "mapping": {
-            "activate": {
-              "action": "note_on",
-              "slot": 0
-            },
-            "deactivate": {
-              "action": "note_off",
-              "slot": 0
-            },
-            "scanned": {
-              "action": "note_on",
-              "slot": 0
-            },
-            "scanned_empty": {
-              "action": "none",
-              "slot": 0
-            },
-            "stable": {
-              "action": "none",
-              "slot": 0
-            }
-          },
-          "pitch": {
-            "highestNote": 74,
-            "lowestNote": 36,
-            "outOfRange": "wrap",
-            "root": "D",
-            "scale": "chromatic",
-            "startingNote": 60
-          },
-          "scanAxis": "columns",
-          "scanDirection": "forward",
-          "scanMode": "none",
-          "scanSections": 1,
-          "scanUnit": "1/8",
-          "stateNotesEnabled": true,
-          "triggerProbabilityHighPct": 75,
-          "triggerProbabilityLowPct": 25,
-          "triggerProbabilityMap": [
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero"
-          ],
-          "triggerProbabilityMode": "full",
-          "x": {
-            "filterCutoff": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 20,
-              "gridOffset": 0,
-              "to": 127
-            },
-            "filterResonance": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 10,
-              "gridOffset": 0,
-              "to": 90
-            },
-            "from": 0,
-            "pitch": {
-              "enabled": true,
-              "restartEachSection": false,
-              "steps": 1
-            },
-            "to": 7,
-            "velocity": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 1,
-              "gridOffset": 0,
-              "to": 127
-            }
-          },
-          "y": {
-            "filterCutoff": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 20,
-              "gridOffset": 0,
-              "to": 127
-            },
-            "filterResonance": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 10,
-              "gridOffset": 0,
-              "to": 90
-            },
-            "from": 0,
-            "pitch": {
-              "enabled": true,
-              "restartEachSection": false,
-              "steps": 3
-            },
-            "to": 7,
-            "velocity": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 1,
-              "gridOffset": 0,
-              "to": 127
-            }
-          }
-        },
-        "name": "none",
-        "paramMods": {
-          "x": [
-            null,
-            null
-          ],
-          "y": [
-            null,
-            null
-          ]
-        },
-        "xy": {
-          "x": null,
-          "xInvert": false,
-          "y": null,
-          "yInvert": false
-        }
-      },
-      {
-        "autoName": true,
-        "worlds": {
-          "behaviorConfig": null,
-          "behaviorId": "none",
-          "saveGridState": false,
-          "stepRate": "1/16"
-        },
-        "pulses": {
-          "eventEnabled": false,
-          "mapping": {
-            "activate": {
-              "action": "note_on",
-              "slot": 0
-            },
-            "deactivate": {
-              "action": "note_off",
-              "slot": 0
-            },
-            "scanned": {
-              "action": "note_on",
-              "slot": 0
-            },
-            "scanned_empty": {
-              "action": "none",
-              "slot": 0
-            },
-            "stable": {
-              "action": "none",
-              "slot": 0
-            }
-          },
-          "pitch": {
-            "highestNote": 74,
-            "lowestNote": 36,
-            "outOfRange": "wrap",
-            "root": "D",
-            "scale": "chromatic",
-            "startingNote": 60
-          },
-          "scanAxis": "columns",
-          "scanDirection": "forward",
-          "scanMode": "none",
-          "scanSections": 1,
-          "scanUnit": "1/8",
-          "stateNotesEnabled": true,
-          "triggerProbabilityHighPct": 75,
-          "triggerProbabilityLowPct": 25,
-          "triggerProbabilityMap": [
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero",
-            "zero"
-          ],
-          "triggerProbabilityMode": "full",
-          "x": {
-            "filterCutoff": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 20,
-              "gridOffset": 0,
-              "to": 127
-            },
-            "filterResonance": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 10,
-              "gridOffset": 0,
-              "to": 90
-            },
-            "from": 0,
-            "pitch": {
-              "enabled": true,
-              "restartEachSection": false,
-              "steps": 1
-            },
-            "to": 7,
-            "velocity": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 1,
-              "gridOffset": 0,
-              "to": 127
-            }
-          },
-          "y": {
-            "filterCutoff": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 20,
-              "gridOffset": 0,
-              "to": 127
-            },
-            "filterResonance": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 10,
-              "gridOffset": 0,
-              "to": 90
-            },
-            "from": 0,
-            "pitch": {
-              "enabled": true,
-              "restartEachSection": false,
-              "steps": 3
-            },
-            "to": 7,
-            "velocity": {
-              "curve": "linear",
-              "enabled": false,
-              "from": 1,
-              "gridOffset": 0,
-              "to": 127
-            }
-          }
-        },
-        "name": "none",
-        "paramMods": {
-          "x": [
-            null,
-            null
-          ],
-          "y": [
-            null,
-            null
-          ]
-        },
-        "xy": {
-          "x": null,
-          "xInvert": false,
-          "y": null,
-          "yInvert": false
-        }
-      }
-    ],
+    "rollingBackups": true,
     "sampleFavouriteDirs": [],
     "screenSleepSeconds": 60,
     "sound": {
-      "noteLengthMs": 150,
+      "audioOutputBufferFrames": 256,
+      "noteLengthMs": 120,
       "velocityCurve": "linear",
       "velocityScalePct": 100,
       "voiceStealingMode": "auto-balanced"
@@ -3067,17 +3213,61 @@
             "targetKey": "master"
           },
           "x": 0,
-          "y": 6
+          "y": 0
+        },
+        {
+          "config": {
+            "fxType": "freeze",
+            "params": {
+              "mixPct": 100,
+              "releaseMs": 500
+            },
+            "targetKey": "master"
+          },
+          "x": 1,
+          "y": 0
+        },
+        {
+          "config": {
+            "fxType": "pitch_shift",
+            "params": {
+              "cents": 0,
+              "mixPct": 100,
+              "semitones": 0
+            },
+            "targetKey": "master"
+          },
+          "x": 2,
+          "y": 0
+        },
+        {
+          "config": {
+            "fxType": "pitch_shift",
+            "params": {
+              "cents": 0,
+              "mixPct": 100,
+              "semitones": 7
+            },
+            "targetKey": "master"
+          },
+          "x": 3,
+          "y": 0
         }
       ],
       "selected": {
-        "fxType": "stutter",
+        "fxType": "pitch_shift",
         "params": {
-          "depthPct": 100,
-          "rateHz": 8
+          "cents": 0,
+          "mixPct": 100,
+          "semitones": 7
         },
         "targetKey": "master"
       }
+    },
+    "sparksMode": "fx",
+    "transport": {
+      "bpm": 120,
+      "swingPct": 0
     },
     "velocityCurve": "linear",
     "velocityScalePct": 100,

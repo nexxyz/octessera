@@ -32,7 +32,7 @@ fn base_led_color(
     match trigger.unwrap_or(platform_core::CellTriggerType::Stable) {
         platform_core::CellTriggerType::Activate => palette_color(palette.active),
         platform_core::CellTriggerType::Deactivate => LedColor::SYSTEM,
-        platform_core::CellTriggerType::Scanned => LedColor::TONES,
+        platform_core::CellTriggerType::Scanned => LedColor::BLUE,
         _ => palette_color(palette.stable),
     }
 }

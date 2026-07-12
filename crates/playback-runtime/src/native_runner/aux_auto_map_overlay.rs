@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use super::aux_auto_map::{AuxBindingSource, ResolvedAuxSlot};
 use super::*;
+use crate::native_menu::section_labels::{BUILD_LABEL, PLAY_LABEL};
 
 const AUX_OVERLAY_DELAY_MS: u64 = 1_500;
 
@@ -37,11 +38,11 @@ impl NativeRunner {
         {
             return "Sample".into();
         }
-        if path.contains("1: Worlds") {
-            return "Worlds".into();
+        if path.contains(BUILD_LABEL) {
+            return BUILD_LABEL.into();
         }
-        if path.contains("4: Sparks") {
-            return "Sparks FX".into();
+        if path.contains(PLAY_LABEL) {
+            return "Play FX".into();
         }
         "Aux Map".into()
     }
@@ -141,7 +142,7 @@ fn aux_overlay_fx_context(key: &str) -> Option<&'static str> {
     } else if key.contains("mixer.master.slots.") {
         Some("Global FX")
     } else if key.contains("sparks.fx.params.") {
-        Some("Sparks FX")
+        Some("Play FX")
     } else {
         None
     }
@@ -149,7 +150,7 @@ fn aux_overlay_fx_context(key: &str) -> Option<&'static str> {
 
 fn aux_overlay_behavior_context(key: &str) -> Option<&'static str> {
     if key.starts_with("layers.") && key.contains(".behaviorConfig.") {
-        Some("Worlds")
+        Some(BUILD_LABEL)
     } else {
         None
     }

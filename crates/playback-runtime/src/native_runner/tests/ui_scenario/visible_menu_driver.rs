@@ -125,7 +125,7 @@ impl<'a> VisibleMenuDriver<'a> {
     pub(super) fn back_to_root(&mut self) {
         for _ in 0..8 {
             let lines = self.lines();
-            if lines.iter().any(|line| line.contains("1: Worlds"))
+            if lines.iter().any(|line| line.contains("Build"))
                 && lines.iter().any(|line| line.contains("System"))
             {
                 return;

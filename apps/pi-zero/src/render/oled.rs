@@ -109,7 +109,7 @@ fn render_menu_frame(frame: &mut [u8], snapshot: &Value, brightness: f32) {
     let display = snapshot.get("display").unwrap_or(&Value::Null);
     let title = display.get("title").and_then(Value::as_str).unwrap_or_default();
     let title_color = rgb565(scale(palette::WHITE, brightness));
-    let dim_color = rgb565(scale(dim(palette::SYSTEM, 4), brightness));
+    let dim_color = rgb565(scale(dim(palette::GRAY, 4), brightness));
     let text_color = rgb565(scale(palette::WHITE, brightness));
     fill_rect(frame, 0, 0, 128, 16, rgb565(scale(palette::BLACK, brightness)));
     draw_text_clipped(frame, title, 5, 5, 15, title_color);
@@ -136,12 +136,12 @@ fn render_menu_frame(frame: &mut [u8], snapshot: &Value, brightness: f32) {
 pub(super) fn fault_frame_into(lines: &[String], frame: &mut [u8], lit: bool) {
     frame.fill(0);
     let warning = rgb565(if lit {
-        palette::PULSES
+        palette::RED
     } else {
-        dim(palette::PULSES, 3)
+        dim(palette::RED, 3)
     });
-    let dim_warning = rgb565(dim(palette::PULSES, 6));
-    let text = rgb565(palette::SYSTEM);
+    let dim_warning = rgb565(dim(palette::RED, 6));
+    let text = rgb565(palette::GRAY);
     fill_rect(frame, 0, 0, 128, 128, dim_warning);
     fill_rect(frame, 4, 4, 120, 120, rgb565(palette::BLACK));
     fill_rect(frame, 8, 8, 112, 18, warning);
@@ -243,7 +243,7 @@ fn overlay_toast(frame: &mut [u8], toast: &str, brightness: f32) {
         12,
         105,
         1,
-        rgb565(scale(palette::SYSTEM, brightness)),
+        rgb565(scale(palette::GRAY, brightness)),
     );
 }
 

@@ -38,6 +38,7 @@ mod pulses;
 mod pulses_axis;
 mod pulses_sections;
 mod sample_browser_menu;
+pub(crate) mod section_labels;
 mod sparks;
 mod synth_preset_items;
 mod system;

@@ -2,12 +2,12 @@ import {
   BLACK_COLOR,
   OLED_HEIGHT,
   OLED_WIDTH,
-  PULSES_COLOR,
-  SPARKS_COLOR,
-  SYSTEM_COLOR,
-  TONES_COLOR,
+  RED_COLOR,
+  YELLOW_COLOR,
+  GRAY_COLOR,
+  BLUE_COLOR,
   WHITE_COLOR,
-  WORLDS_COLOR,
+  GREEN_COLOR,
   type DisplayPaletteRgb
 } from "@octessera/device-contracts";
 import { rgb565ToCss } from "./oledImage";
@@ -37,7 +37,7 @@ export function drawSemanticOled(
   ctx.fillStyle = css(WHITE_COLOR);
   ctx.fillText(semantic.title, 5, 5, 94);
 
-  ctx.fillStyle = semantic.cpuLoad >= 0.85 ? css(PULSES_COLOR) : semantic.cpuLoad >= 0.6 ? css(SPARKS_COLOR) : css(SYSTEM_COLOR);
+  ctx.fillStyle = semantic.cpuLoad >= 0.85 ? css(RED_COLOR) : semantic.cpuLoad >= 0.6 ? css(YELLOW_COLOR) : css(GRAY_COLOR);
   ctx.fillText("C", 117, 5);
 
   semantic.lines.forEach((line, index) => {
@@ -72,17 +72,17 @@ function drawFooter(ctx: CanvasRenderingContext2D, semantic: SemanticOledState):
   ctx.fillText(" ", 5, footerY, 90);
 
   ctx.fillStyle = semantic.transportIcon === "stop"
-    ? css(PULSES_COLOR)
+    ? css(RED_COLOR)
     : semantic.transportIcon === "pause"
-      ? css(TONES_COLOR)
+      ? css(BLUE_COLOR)
     : semantic.transportFlash === "measure"
-      ? css(WORLDS_COLOR)
+      ? css(GREEN_COLOR)
     : semantic.transportFlash === "beat"
-        ? css(SPARKS_COLOR)
+        ? css(YELLOW_COLOR)
         : css(WHITE_COLOR);
   drawTransportIcon(ctx, semantic.transportIcon, 101, footerY + 1);
   if (semantic.eventDotOn) {
-    ctx.fillStyle = semantic.eventDotSteal ? css(PULSES_COLOR) : css(WHITE_COLOR);
+    ctx.fillStyle = semantic.eventDotSteal ? css(RED_COLOR) : css(WHITE_COLOR);
     ctx.beginPath();
     ctx.arc(121, footerY + 4, 3, 0, Math.PI * 2);
     ctx.fill();
@@ -98,9 +98,9 @@ function drawScrollbar(ctx: CanvasRenderingContext2D, scroll: { offset: number; 
   const maxOffset = Math.max(1, scroll.totalRows - scroll.visibleRows);
   const maxThumbY = bodyTop + bodyHeight - thumbHeight;
   const y = bodyTop + Math.round((Math.min(scroll.offset, maxOffset) / maxOffset) * (maxThumbY - bodyTop));
-  ctx.fillStyle = rgba(SYSTEM_COLOR, 0.28);
+  ctx.fillStyle = rgba(GRAY_COLOR, 0.28);
   ctx.fillRect(x, bodyTop, width, bodyHeight);
-  ctx.fillStyle = css(SYSTEM_COLOR);
+  ctx.fillStyle = css(GRAY_COLOR);
   ctx.fillRect(x, y, width, thumbHeight);
 }
 
@@ -140,7 +140,7 @@ function drawSplash(
   if (toast) {
     ctx.fillStyle = rgba(BLACK_COLOR, 0.72);
     ctx.fillRect(10, 104, 108, 14);
-    ctx.fillStyle = css(SYSTEM_COLOR);
+    ctx.fillStyle = css(GRAY_COLOR);
     ctx.fillText(toast.toUpperCase(), 13, 107, 102);
   }
 }

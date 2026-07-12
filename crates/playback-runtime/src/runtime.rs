@@ -11,7 +11,7 @@ use std::time::Duration;
 mod midi;
 
 const PPQN: f64 = 24.0;
-const MAX_BUFFERED_UI_PULSES: usize = 16;
+const MAX_BUFFERED_UI_RED: usize = 16;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct RuntimeConfig {
@@ -254,7 +254,7 @@ impl PlaybackRuntime {
                     }
                 }
                 RunnerMessage::UiPulse { pulse } => {
-                    if self.ui_pulses.len() >= MAX_BUFFERED_UI_PULSES {
+                    if self.ui_pulses.len() >= MAX_BUFFERED_UI_RED {
                         self.ui_pulses.pop_front();
                     }
                     self.ui_pulses.push_back(pulse);

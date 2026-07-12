@@ -165,7 +165,7 @@ pub(crate) fn sparks_xy_overlay_marks_physical_touch_with_inverted_modulation() 
     let cells = led_cells(&snapshot);
     assert_eq!(
         cells[display_index(1, 6)],
-        led_rgb(dim_rgb(platform_core::palette::SYSTEM, 2))
+        led_rgb(dim_rgb(platform_core::palette::GRAY, 2))
     );
 }
 
@@ -194,7 +194,7 @@ pub(crate) fn sparks_xy_reset_center_overlay_returns_to_center() {
     assert_eq!(runner.xy_touch.y, 0.5);
     assert_eq!(
         cells[display_index(4, 4)],
-        led_rgb(dim_rgb(platform_core::palette::SYSTEM, 4))
+        led_rgb(dim_rgb(platform_core::palette::GRAY, 4))
     );
 }
 

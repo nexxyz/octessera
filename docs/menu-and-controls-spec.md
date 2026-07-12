@@ -14,9 +14,9 @@ Platform capability source: `resources/platform-capabilities.json`; generated Ty
 | Shift + Back | Clear active layer | Re-initializes current active layer behavior state.
 | Shift + Fn | Combined modifier | Acts as its own logical button; Fn and Shift are inactive while both physical buttons are held.
 | Combined modifier + Main press | Context help | Opens help for highlighted menu entry.
-| Fn + leftmost grid column | Navigate layers (1..8) | Mirrors `1: Worlds > Layer`.
+| Fn + leftmost grid column | Navigate layers (1..8) | Mirrors `Build > Layer`.
 | Fn held + leftmost column LEDs | Navigation indicators | Cyan = navigation/current layer focus, green = configured layer, gray/black = inactive or non-navigable.
-| Fn + rightmost grid column | Navigate Sparks pages | Opens `4: Sparks` and enables Sparks page if currently off; exits Sparks if already active.
+| Fn + rightmost grid column | Navigate Play pages | Opens `Play` and enables Play page if currently off; exits Play if already active.
 | Sample assign + Shift + cell | Row assign step | Applies current selected-cell assign step to the whole row.
 | Sample assign + combined modifier + cell | Column assign step | Applies current selected-cell assign step to the whole column.
 | Fn + Aux press | Alternate aux binding | Binds the focused bindable value as that aux Turn target, or focused action as its `!` press target.
@@ -37,7 +37,7 @@ Platform capability source: `resources/platform-capabilities.json`; generated Ty
 | Shift + Fn | Shift+Ctrl | Combined modifier; acts as its own logical button and disables Fn/Shift functions while both are held |
 | Combined modifier + Main press | Shift+Ctrl+Enter | Context help for highlighted entry |
 | Fn + leftmost grid column | Ctrl + leftmost grid column | Navigate active layer (1..8); hold Fn to see layer indicators |
-| Fn + rightmost grid column | Ctrl + rightmost grid column | Navigate/activate Sparks Sparks page; hold Fn to see page indicators |
+| Fn + rightmost grid column | Ctrl + rightmost grid column | Navigate/activate Play Play page; hold Fn to see page indicators |
 | Sample assign mode + Shift + cell press | Shift + cell | Apply current assign toggle/level step to entire row |
 | Sample assign mode + combined modifier + cell press | Shift+Ctrl + cell | Apply current assign toggle/level step to entire column |
 
@@ -63,11 +63,11 @@ The full native menu tree lives in [`menu-tree-spec.md`](menu-tree-spec.md). Kee
 - 128×128 pixel, simulated in desktop app
 - 20 characters × 8 lines of text (5×7 font, 16px line height)
 - Top line: title bar (colored by section)
-- Canonical display palette: green `#63D23F` for `1: Worlds`, magenta `#E077CC` for `2: Pulses`, cyan `#35CFF2` for `3: Tones`, yellow `#FFD447` for `4: Sparks`, light gray `#C9CED6` for `System`, plus white `#FFFFFF` and black `#000000`. Runtime, Pi, and desktop UI colors use this palette unless a behavior deliberately owns its own palette.
+- Canonical display palette names are independent from menu sections: `GREEN` `#63D23F` for `Build`, `RED` `#DD82CD` for `Link`, `BLUE` `#35CFF2` for `Shape`, `YELLOW` `#FFD447` for `Play`, `GRAY` `#C9CED6` for `System`, plus white `#FFFFFF` and black `#000000`. Runtime, Pi, and desktop UI colors use this palette unless a behavior deliberately owns its own palette.
 - Body lines 2-8: menu items use a `> ` marker and inverted highlight on the selected row, and `* ` when editing; while browsing, selected value rows stay compact on one row (for example `> Cutoff 127`) instead of adding a separate value row
 - Native menu snapshots include rendered-row scroll metadata (`scrollOffset`, `totalRows`, `visibleRows`) for the current body window. Desktop renders this as a 1-2 px scrollbar inside the OLED body only when total rendered rows exceed visible body rows; it does not consume text columns and is omitted for splash/help/confirm overlays unless menu metadata is present.
 - Context help for every submenu, parameter, and action must resolve to a specific row from `resources/menu-help-texts.tsv`; generic fallback help is not allowed and native tests must fail on missing coverage.
-- Platform-sized menu/runtime limits such as layer count, instrument count, sample slots, bus count, global FX slots, Sparks-FX concurrency, scan section counts, OLED size, and pan position count come from `resources/platform-capabilities.json`.
+- Platform-sized menu/runtime limits such as layer count, instrument count, sample slots, bus count, global FX slots, Play-FX concurrency, scan section counts, OLED size, and pan position count come from `resources/platform-capabilities.json`.
 - Splash graphics use provided logo assets: regular logo for startup/wakeup, sepia logo for sleep/shutdown.
 - Bottom-right corner: transport icon (`▶` / `⏸` / `■`), hidden while a footer toast is active
 - Transport color: stop is magenta, pause is cyan, play is white at rest and flashes green on full-note/measure boundaries or yellow on other beat boundaries. The NeoKey Play button uses the same stopped/paused/playing flash semantics, but its playing rest state stays dim green rather than white.
@@ -81,17 +81,17 @@ Value editing semantics:
 - Navigation memory is limited to `System`, `System > Sound`, and `System > UI`. It is native, ephemeral, cleared on menu rebuild, and does not apply to any other menu, dynamic list, sample browser, preset list, MIDI port list, parameter picker, help, confirm dialog, or assignment overlay.
 - `System > Sound > Output Buffer` persists Pi output buffer frames as `runtimeConfig.sound.audioOutputBufferFrames` with choices `64/128/256/512/1024/2048`, default `256`. Changing it shows `Restart device to apply`; leaving the edited row opens the standard `Confirm Reboot` dialog. Audio is not reopened live. On Pi startup, `OCTESSERA_AUDIO_OUTPUT_BUFFER_FRAMES` remains the higher-priority override.
 - Browsing selected values are shown on the selected label row; edit mode uses a separate value-focused row for clarity.
-- Rows that lead to a submenu or selector render with a trailing `>` marker. `1: Worlds > Layer > Behavior: <id>` is a synthetic browser-style selector, not an editable enum. It groups behavior rows alphabetically under `[Cellular]`, `[Fields]`, `[Geometry]`, `[Growth]`, `[Motion]`, and `[Play]`, uses `..` rows for parent navigation, and writes the selected native behavior ID to the same persisted `behaviorId` field. Selecting a behavior uses a targeted native Worlds refresh and does not rebuild the full menu tree. `glider` is no longer a behavior ID; its glider injection controls are part of `life`.
+- Rows that lead to a submenu or selector render with a trailing `>` marker. `Build > Layer > Behavior: <id>` is a synthetic browser-style selector, not an editable enum. It groups behavior rows alphabetically under `[Cellular]`, `[Fields]`, `[Geometry]`, `[Growth]`, `[Motion]`, and `[Play]`, uses `..` rows for parent navigation, and writes the selected native behavior ID to the same persisted `behaviorId` field. Selecting a behavior uses a targeted native Build refresh and does not rebuild the full menu tree. `glider` is no longer a behavior ID; its glider injection controls are part of `life`.
 - Bool behaves like a 2-option enum (`off`/`on`) and changes on encoder turn, not immediate row press
 - Named target selectors (instrument slot, layer index, mixer route) display their computed names via `formatDisplayValue()` (e.g. `I1: synth`, `L3: rain`, `fx_bus_2`)
-- Behavior `none` hides Worlds Step Rate, dynamic behavior config rows, and Reset while preserving stored values. Instrument Type `none` hides Note Mode, engine-specific params, mixer/MIDI rows, and Slot Actions while preserving stored config.
-- Parameter target pickers mirror the main menu root order (`1: Worlds`, `2: Pulses`, `3: Tones`, `4: Sparks`, `System`) so modulation, Aux, and XY target browsing use the same mental model as normal navigation. Within `1: Worlds`, Behavior targets are generated per layer: layers with behavior `none` expose no behavior targets; real behavior layers expose their own Step Rate as `layers.N.algorithmStep` and config fields/actions as `layers.N.worlds.behaviorConfig.*`.
+- Behavior `none` hides Build Step Rate, dynamic behavior config rows, and Reset while preserving stored values. Instrument Type `none` hides Note Mode, engine-specific params, mixer/MIDI rows, and Slot Actions while preserving stored config.
+- Parameter target pickers mirror the main menu root order (`Build`, `Link`, `Shape`, `Play`, `System`) so modulation, Aux, and XY target browsing use the same mental model as normal navigation. Within `Build`, Behavior targets are generated per layer: layers with behavior `none` expose no behavior targets; real behavior layers expose their own Step Rate as `layers.N.algorithmStep` and config fields/actions as `layers.N.worlds.behaviorConfig.*`.
 - When `Number Style` is `bar` or `bar+numbers`, bounded sound/control/behavior number items render with a smooth geometric bar (filled rectangle) alongside the numeric value
-- Bar display applies automatically to FX params, synth/sample shaping controls, mixer volume/pan, Sparks FX controls, system sound/UI controls, Pulses axis controls, and behavior controls such as spawn interval/count, threshold, lifespan, and radius
+- Bar display applies automatically to FX params, synth/sample shaping controls, mixer volume/pan, Play FX controls, system sound/UI controls, Link axis controls, and behavior controls such as spawn interval/count, threshold, lifespan, and radius
 - Selector-like numeric rows stay plain text, including MIDI channels, instrument/sample slots, layer selectors, and MIDI note ranges
 - Structural selector edits apply immediately while the row is in edit mode through key-specific fast paths. This covers instrument type, instrument route, FX bus slot type, and master FX slot type. Behavior selection applies immediately when a behavior action row is pressed. Dynamic parameter rows also apply immediately while editing.
 - Bar value text uses compact units where useful: `%`, `ms`/`s`, `Hz`, `bpm`, `dB`, semitones/cents, and pan as `L15`/`C`/`R15`; ambiguous internal `0..1` ranges display as `0..100`
-- `2: Pulses > Swing` is a global groove amount. `0%` is straight timing. Swing delays internal off-beat step/scan progression and catches up before the next beat; external MIDI clock output remains straight.
+- `Link > Swing` is a global groove amount. `0%` is straight timing. Swing delays internal off-beat step/scan progression and catches up before the next beat; external MIDI clock output remains straight.
 
 Action row markers:
 
@@ -113,11 +113,11 @@ Brightness is scaled by the Grid Bright setting after the behavior palette is ap
 
 Overrides:
 
-- While Fn is held for navigation: leftmost column shows navigation/current-layer focus cells in cyan, configured layers in green when Sparks is not active, and inactive/non-navigable cells in gray or black when truly off. The rightmost Sparks page column uses yellow for page cells and green for the active page.
+- While Fn is held for navigation: leftmost column shows navigation/current-layer focus cells in cyan, configured layers in green when Play is not active, and inactive/non-navigable cells in gray or black when truly off. The rightmost Play page column uses yellow for page cells and green for the active page.
 - While sample assignment mode is active: grid shows assignment overlay using magenta for high, yellow for medium, green for low, gray for other assigned cells, and black for unassigned dark cells.
-- While any Sparks Page (`mix`, `pan`, `fx`, `trigger-gate`, `transpose`, `xy`) is active: grid shows the Sparks performance overlay instead of active behavior cells. Sparks Transpose uses the left column for eligible layer selection, Shift + left column to enable/disable all eligible layers, and columns 1..7 as a three-octave piano offset picker for synth and enabled MIDI note targets only.
+- While any Play Page (`mix`, `pan`, `fx`, `trigger-gate`, `transpose`, `xy`) is active: grid shows the Play performance overlay instead of active behavior cells. Play Transpose uses the left column for eligible layer selection, Shift + left column to enable/disable all eligible layers, and columns 1..7 as a three-octave piano offset picker for synth and enabled MIDI note targets only.
 - When Ghost Cells is on, inactive layers' active cells render as very dim green behind the active layer. Active layer cells and sample assignment overlays take priority.
-- Active context changes use OLED toast/status feedback, for example `Layer: L3 rain` or `Sparks: fx`; these toasts do not change LED overlay priority. Modal help/confirm displays keep display priority over context feedback.
+- Active context changes use OLED toast/status feedback, for example `Layer: L3 rain` or `Play: fx`; these toasts do not change LED overlay priority. Modal help/confirm displays keep display priority over context feedback.
 - Holding Shift, Fn, or Shift+Fn for more than one second without another mapped action shows a concise hint toast (`Shift: map/edit`, `Fn: nav/alt`, or `Help: Sh+Fn+Enter`). Startup uses the same chord wording: `Help: Sh+Fn+Enter`. Existing toasts, help/confirm dialogs, assignment overlays, and consumed mappings suppress the hint.
 
 ## Sectioned Scanning
@@ -199,7 +199,7 @@ Overrides:
 ## Config Persistence (ConfigPayload)
 
 - Native `ConfigPayload` is produced and consumed by `crates/playback-runtime/src/native_runner.rs`.
-- It stores active behavior, per-layer behavior/config/state, Pulses settings, mapping, instruments, mixer, FX, Sparks settings, MIDI settings, UI settings, and persistence flags.
+- It stores active behavior, per-layer behavior/config/state, Link settings, mapping, instruments, mixer, FX, Play settings, MIDI settings, UI settings, and persistence flags.
 - Restore accepts current payloads and supported older saved shapes, sanitizes external compatibility data, then applies only native-owned runtime/core fields.
 - Behavior state is restored when saved and compatible; behavior changes initialize the new behavior state through the native behavior engine.
 - Transport timing accumulators are reset on restore so loaded configs start from a deterministic runtime position.
@@ -249,7 +249,7 @@ All behaviors use `CellTriggerType`: `activate`, `stable`, `deactivate`, `scanne
 
 Looper uses a `Punch In/Out` action instead of an editable mode row. Pressing it toggles between overdub and play, preserves the recorded loop and live playback state, and shows `Looper: Overdub` or `Looper: Play`.
 
-When a behavior enables immediate input-transition interpretation, `platform-core` interprets grid changes from input through the same Pulses/mapping pipeline used during tick, producing immediate musical events. `keys` and `looper` use this to provide immediate finger-drumming response.
+When a behavior enables immediate input-transition interpretation, `platform-core` interprets grid changes from input through the same Link/mapping pipeline used during tick, producing immediate musical events. `keys` and `looper` use this to provide immediate finger-drumming response.
 
 ## 4 Trigger Types
 

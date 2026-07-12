@@ -39,6 +39,7 @@ impl SynthEngine {
             pos: 0.0,
             step,
             gain,
+            filt: BiquadState::new(),
         });
     }
 

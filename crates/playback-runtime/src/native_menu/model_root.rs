@@ -2,6 +2,7 @@ use crate::protocol::SyncSource;
 
 use super::fx::{fx_buses_group, global_fx_group};
 use super::pulses::{pulses_layer_group, pulses_root_items};
+use super::section_labels::{BUILD_LABEL, LINK_LABEL, SHAPE_LABEL};
 use super::sparks::sparks_group;
 use super::system::system_group;
 use super::voice::{instrument_group, InstrumentMenuConfig};
@@ -35,7 +36,7 @@ pub(super) fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
 
 fn worlds_group(config: &NativeMenuConfig) -> NativeMenuItem {
     NativeMenuItem {
-        label: "1: Worlds".into(),
+        label: BUILD_LABEL.into(),
         key: None,
         value: NativeMenuValue::Group,
         children: config
@@ -54,7 +55,7 @@ fn worlds_group(config: &NativeMenuConfig) -> NativeMenuItem {
 fn pulses_group(config: &NativeMenuConfig) -> NativeMenuItem {
     let instrument_options = config.instrument_labels.to_vec();
     NativeMenuItem {
-        label: "2: Pulses".into(),
+        label: LINK_LABEL.into(),
         key: None,
         value: NativeMenuValue::Group,
         children: [
@@ -91,7 +92,7 @@ fn pulses_group(config: &NativeMenuConfig) -> NativeMenuItem {
 
 fn tones_group(config: &NativeMenuConfig) -> NativeMenuItem {
     NativeMenuItem {
-        label: "3: Tones".into(),
+        label: SHAPE_LABEL.into(),
         key: None,
         value: NativeMenuValue::Group,
         children: vec![

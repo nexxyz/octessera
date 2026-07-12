@@ -105,10 +105,10 @@ pub(super) fn sparks_fx_param_default(fx_type: &str, key: &str) -> i32 {
 
 pub(super) fn momentary_fx_color(fx_type: &str) -> LedColor {
     match fx_type {
-        "stutter" => LedColor::SPARKS,
-        "freeze" => LedColor::TONES,
-        "filter_sweep" => LedColor::WORLDS,
-        "pitch_shift" => LedColor::PULSES,
+        "stutter" => LedColor::YELLOW,
+        "freeze" => LedColor::BLUE,
+        "filter_sweep" => LedColor::GREEN,
+        "pitch_shift" => LedColor::RED,
         _ => LedColor::SYSTEM,
     }
 }

@@ -39,6 +39,7 @@ impl SynthEngine {
             pos: 0.0,
             step,
             gain,
+            filt: BiquadState::new(),
         };
         self.active_sample_slots[slot] = true;
 
@@ -79,7 +80,14 @@ impl SynthEngine {
                 let next_frame = (frame + 1).min(frames - 1);
                 let sample = mono_frame(buffer, frame) * (1.0 - frac)
                     + mono_frame(buffer, next_frame) * frac;
-                *out += sample * voice.gain;
+                let filtered = sample_lowpass(
+                    sample,
+                    &mut voice.filt,
+                    bank.filter_cutoff_hz,
+                    bank.filter_resonance,
+                    self.sample_rate,
+                );
+                *out += filtered * voice.gain;
                 voice.pos += voice.step;
                 active = true;
                 slot_active = true;
@@ -105,7 +113,17 @@ impl SynthEngine {
             let next_frame = (frame + 1).min(frames - 1);
             let sample = mono_frame(&voice.buffer, frame) * (1.0 - frac)
                 + mono_frame(&voice.buffer, next_frame) * frac;
-            slot_out[voice.slot] += sample * voice.gain;
+            let bank = self.sample_banks.get(voice.slot);
+            let cutoff_hz = bank.map(|bank| bank.filter_cutoff_hz).unwrap_or(8000.0);
+            let resonance = bank.map(|bank| bank.filter_resonance).unwrap_or(20.0);
+            let filtered = sample_lowpass(
+                sample,
+                &mut voice.filt,
+                cutoff_hz,
+                resonance,
+                self.sample_rate,
+            );
+            slot_out[voice.slot] += filtered * voice.gain;
             voice.pos += voice.step;
             active = true;
         }
@@ -115,4 +133,16 @@ impl SynthEngine {
         });
         active || !self.preview_sample_voices.is_empty()
     }
+}
+
+fn sample_lowpass(
+    sample: f32,
+    filt: &mut BiquadState,
+    cutoff_hz: f32,
+    resonance: f32,
+    sample_rate: u32,
+) -> f32 {
+    let q = 0.5 + (resonance.clamp(0.0, 100.0) / 100.0) * 11.5;
+    filt.process(sample, FilterType::Lowpass, cutoff_hz, q, sample_rate)
+        .clamp(-8.0, 8.0)
 }

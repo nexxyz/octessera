@@ -7,6 +7,7 @@ const MIN_DIMMED_VISIBLE_NON_BLACK_CHANNEL = 2;
 export type GridLedColor = { r: number; g: number; b: number };
 
 export function gridLedColor(frame: RuntimeSnapshot, index: number): GridLedColor {
+  if (frame.leds.active[index] === false) return { r: 0, g: 0, b: 0 };
   const offset = index * 3;
   const dimmed = frame.settings?.ledsDimmed ?? false;
   const factor = brightnessScale(frame.settings?.gridBrightness) * (dimmed ? DIMMED_LED_FACTOR : 1);

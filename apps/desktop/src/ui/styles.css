@@ -2,12 +2,16 @@
 
 :root {
   font-family: "Space Grotesk", "Segoe UI", sans-serif;
-  color: var(--palette-system);
-  background: var(--palette-black);
+  color: var(--palette-gray);
+  --sim-bg: #10151c;
+  --sim-panel-bg: #151c25;
+  --sim-panel-bg-dark: #0c1117;
+  background: var(--sim-bg);
 }
 
 body {
   margin: 0;
+  background: var(--sim-bg);
 }
 
 .app-shell {
@@ -19,12 +23,13 @@ body {
   box-sizing: border-box;
   max-width: 100vw;
   overflow-x: clip;
+  background: radial-gradient(circle at 50% 18%, rgb(var(--palette-gray-rgb) / 0.08), var(--sim-bg) 58%);
 }
 
 .bar {
-  border: 1px solid rgb(var(--palette-system-rgb) / 0.34);
+  border: 1px solid rgb(var(--palette-gray-rgb) / 0.34);
   border-radius: 10px;
-  background: linear-gradient(180deg, rgb(var(--palette-system-rgb) / 0.12), rgb(var(--palette-black-rgb) / 0.88));
+  background: linear-gradient(180deg, rgb(var(--palette-gray-rgb) / 0.16), var(--sim-panel-bg-dark));
   padding: 9px 12px;
   font-size: 13px;
   letter-spacing: 0.03em;
@@ -46,14 +51,14 @@ body {
   display: grid;
   grid-template-columns: max-content max-content;
   align-items: start;
-  gap: 30px;
+  gap: 18px;
 }
 
 .control-grid {
   display: grid;
   grid-template-columns: 120px auto 98px;
   grid-template-areas:
-    "sw1 oled ."
+    "sw1 oled oled"
     "aux aux buttons";
   gap: 10px;
   align-items: start;
@@ -63,14 +68,14 @@ body {
 .encoder-card,
 .button-stack,
 .matrix-chassis {
-  border: 1px solid rgb(var(--palette-system-rgb) / 0.28);
+  border: 1px solid rgb(var(--palette-gray-rgb) / 0.28);
   border-radius: 12px;
-  background: linear-gradient(180deg, rgb(var(--palette-system-rgb) / 0.08), rgb(var(--palette-black-rgb) / 0.94));
+  background: linear-gradient(180deg, rgb(var(--palette-gray-rgb) / 0.11), var(--sim-panel-bg-dark));
   padding: 10px;
 }
 
 .sw1 { grid-area: sw1; }
-.oled-wrap { grid-area: oled; justify-self: start; }
+.oled-wrap { grid-area: oled; justify-self: end; }
 .aux-triangle { grid-area: aux; }
 .button-block { grid-area: buttons; }
 
@@ -92,15 +97,16 @@ body {
 .oled-bezel {
   width: fit-content;
   margin: 0 auto;
-  border: 1px solid rgb(var(--palette-system-rgb) / 0.42);
+  border: 1px solid rgb(var(--palette-gray-rgb) / 0.42);
   border-radius: 12px;
   padding: 8px;
-  background: linear-gradient(145deg, rgb(var(--palette-system-rgb) / 0.08), var(--palette-black));
+  background: linear-gradient(145deg, rgb(var(--palette-gray-rgb) / 0.1), var(--sim-panel-bg));
   box-shadow: 0 8px 30px rgb(var(--palette-black-rgb) / 0.4);
 }
 
 .oled-panel {
   position: relative;
+  image-rendering: crisp-edges;
   image-rendering: pixelated;
   user-select: none;
   border-radius: 6px;
@@ -111,22 +117,23 @@ body {
   padding: 0;
   box-sizing: content-box;
   background: var(--palette-black);
-  box-shadow: inset 0 0 18px rgb(var(--palette-system-rgb) / 0.12);
+  box-shadow: inset 0 0 18px rgb(var(--palette-gray-rgb) / 0.12);
 }
 
 .oled-canvas {
   width: 100%;
   height: 100%;
+  image-rendering: crisp-edges;
   image-rendering: pixelated;
 }
 
 
 
 .encoder-card {
-  border: 1px solid rgb(var(--palette-system-rgb) / 0.34);
+  border: 1px solid rgb(var(--palette-gray-rgb) / 0.34);
   border-radius: 10px;
   padding: 8px;
-  background: linear-gradient(180deg, rgb(var(--palette-system-rgb) / 0.1), rgb(var(--palette-black-rgb) / 0.9));
+  background: linear-gradient(180deg, rgb(var(--palette-gray-rgb) / 0.1), rgb(var(--palette-black-rgb) / 0.9));
 }
 
 .encoder-card h3 {
@@ -139,7 +146,7 @@ body {
   display: block;
   margin-top: 7px;
   font-size: 11px;
-  color: var(--palette-system);
+  color: var(--palette-gray);
 }
 
 .encoder-buttons {
@@ -153,8 +160,8 @@ body {
   height: 86px;
   margin: 0 auto;
   border-radius: 50%;
-  border: 2px solid rgb(var(--palette-system-rgb) / 0.4);
-  background: radial-gradient(circle at 35% 30%, rgb(var(--palette-system-rgb) / 0.18), rgb(var(--palette-black-rgb) / 0.86) 68%);
+  border: 2px solid rgb(var(--palette-gray-rgb) / 0.4);
+  background: radial-gradient(circle at 35% 30%, rgb(var(--palette-gray-rgb) / 0.18), rgb(var(--palette-black-rgb) / 0.86) 68%);
   display: grid;
   place-items: center;
   position: relative;
@@ -174,7 +181,7 @@ body {
   width: 2px;
   height: 8px;
   border-radius: 2px;
-  background: rgb(var(--palette-worlds-rgb) / 0.22);
+  background: rgb(var(--palette-green-rgb) / 0.22);
   transform-origin: center center;
   transition: background-color 90ms ease, box-shadow 90ms ease;
 }
@@ -188,8 +195,8 @@ body {
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  border: 1px solid rgb(var(--palette-system-rgb) / 0.42);
-  background: linear-gradient(180deg, rgb(var(--palette-system-rgb) / 0.18), rgb(var(--palette-black-rgb) / 0.78));
+  border: 1px solid rgb(var(--palette-gray-rgb) / 0.42);
+  background: linear-gradient(180deg, rgb(var(--palette-gray-rgb) / 0.18), rgb(var(--palette-black-rgb) / 0.78));
   color: var(--palette-white);
 }
 
@@ -197,8 +204,8 @@ body {
 .neokey-row button {
   font: inherit;
   border-radius: 8px;
-  border: 1px solid rgb(var(--palette-system-rgb) / 0.4);
-  background: linear-gradient(180deg, rgb(var(--palette-system-rgb) / 0.18), rgb(var(--palette-black-rgb) / 0.82));
+  border: 1px solid rgb(var(--palette-gray-rgb) / 0.4);
+  background: linear-gradient(180deg, rgb(var(--palette-gray-rgb) / 0.18), rgb(var(--palette-black-rgb) / 0.82));
   color: var(--palette-white);
   padding: 8px;
   cursor: pointer;
@@ -220,8 +227,8 @@ body {
 }
 
 .button-stack .neokey-back {
-  border-color: var(--palette-pulses);
-  background: rgb(var(--palette-pulses-rgb) / 0.24);
+  border-color: var(--palette-red);
+  background: rgb(var(--palette-red-rgb) / 0.24);
 }
 
 button.encoder-center,
@@ -231,32 +238,32 @@ button.encoder-center,
 }
 
 .button-stack .stopped {
-  background: linear-gradient(180deg, var(--palette-pulses), rgb(var(--palette-pulses-rgb) / 0.46));
-  border-color: var(--palette-pulses);
-  box-shadow: 0 0 16px rgb(var(--palette-pulses-rgb) / 0.5);
+  background: linear-gradient(180deg, var(--palette-red), rgb(var(--palette-red-rgb) / 0.46));
+  border-color: var(--palette-red);
+  box-shadow: 0 0 16px rgb(var(--palette-red-rgb) / 0.5);
 }
 
 .button-stack .paused {
-  background: linear-gradient(180deg, var(--palette-tones), rgb(var(--palette-tones-rgb) / 0.52));
-  border-color: var(--palette-tones);
-  box-shadow: 0 0 12px rgb(var(--palette-tones-rgb) / 0.5);
+  background: linear-gradient(180deg, var(--palette-blue), rgb(var(--palette-blue-rgb) / 0.52));
+  border-color: var(--palette-blue);
+  box-shadow: 0 0 12px rgb(var(--palette-blue-rgb) / 0.5);
 }
 
 .button-stack .playing {
-  background: linear-gradient(180deg, rgb(var(--palette-worlds-rgb) / 0.42), rgb(var(--palette-black-rgb) / 0.82));
-  border-color: var(--palette-worlds);
+  background: linear-gradient(180deg, rgb(var(--palette-green-rgb) / 0.42), rgb(var(--palette-black-rgb) / 0.82));
+  border-color: var(--palette-green);
 }
 
 .button-stack .beat {
-  background: linear-gradient(180deg, var(--palette-sparks), rgb(var(--palette-sparks-rgb) / 0.58));
-  border-color: var(--palette-sparks);
-  box-shadow: 0 0 14px rgb(var(--palette-sparks-rgb) / 0.55);
+  background: linear-gradient(180deg, var(--palette-yellow), rgb(var(--palette-yellow-rgb) / 0.58));
+  border-color: var(--palette-yellow);
+  box-shadow: 0 0 14px rgb(var(--palette-yellow-rgb) / 0.55);
 }
 
 .button-stack .measure {
-  background: linear-gradient(180deg, var(--palette-worlds), rgb(var(--palette-worlds-rgb) / 0.58));
-  box-shadow: 0 0 18px rgb(var(--palette-worlds-rgb) / 0.6);
-  border-color: var(--palette-worlds);
+  background: linear-gradient(180deg, var(--palette-green), rgb(var(--palette-green-rgb) / 0.58));
+  box-shadow: 0 0 18px rgb(var(--palette-green-rgb) / 0.6);
+  border-color: var(--palette-green);
 }
 
 .matrix-chassis {
@@ -272,17 +279,17 @@ button.encoder-center,
   grid-template-columns: repeat(8, 1fr);
   gap: 6px;
   padding: 8px;
-  border: 1px solid rgb(var(--palette-system-rgb) / 0.34);
+  border: 1px solid rgb(var(--palette-gray-rgb) / 0.34);
   border-radius: 12px;
-  background: linear-gradient(180deg, rgb(var(--palette-system-rgb) / 0.08), var(--palette-black));
+  background: #141a22;
 }
 
 .cell {
   width: 100%;
   aspect-ratio: 1;
-  border: 1px solid rgb(var(--palette-system-rgb) / 0.12);
+  border: 1px solid rgb(var(--palette-gray-rgb) / 0.12);
   border-radius: 8px;
-  box-shadow: inset 0 0 10px rgb(var(--palette-white-rgb) / 0.12), 0 0 9px rgb(var(--palette-worlds-rgb) / 0.14);
+  box-shadow: inset 0 0 10px rgb(var(--palette-white-rgb) / 0.12), 0 0 9px rgb(var(--palette-green-rgb) / 0.14);
   cursor: pointer;
 }
 

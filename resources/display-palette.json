@@ -1,9 +1,9 @@
 {
-  "worlds": "#63D23F",
-  "pulses": "#E077CC",
-  "tones": "#35CFF2",
-  "sparks": "#FFD447",
-  "system": "#C9CED6",
+  "green": "#63D23F",
+  "red": "#DD82CD",
+  "blue": "#35CFF2",
+  "yellow": "#FFD447",
+  "gray": "#C9CED6",
   "white": "#FFFFFF",
   "black": "#000000"
 }

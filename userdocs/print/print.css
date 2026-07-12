@@ -78,7 +78,7 @@ header p {
 section {
   border: 0.8pt solid var(--palette-black);
   padding: 1.6mm;
-  background: rgb(var(--palette-system-rgb) / 0.22);
+  background: rgb(var(--palette-gray-rgb) / 0.22);
 }
 
 section.wide {

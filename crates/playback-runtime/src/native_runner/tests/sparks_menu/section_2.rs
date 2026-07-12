@@ -15,7 +15,7 @@ pub(crate) fn entering_worlds_or_pulses_clears_active_sparks_overlay_but_keeps_s
         .unwrap();
     assert_eq!(runner.active_sparks_mode, "none");
     assert_eq!(runner.sparks_mode, "pan");
-    assert_eq!(snapshot_from(&worlds_response)["display"]["title"], "W");
+    assert_eq!(snapshot_from(&worlds_response)["display"]["title"], "B");
 
     runner.active_sparks_mode = "pan".into();
     runner.menu.state.stack.clear();
@@ -29,7 +29,7 @@ pub(crate) fn entering_worlds_or_pulses_clears_active_sparks_overlay_but_keeps_s
         .unwrap();
     assert_eq!(runner.active_sparks_mode, "none");
     assert_eq!(runner.sparks_mode, "pan");
-    assert_eq!(snapshot_from(&pulses_response)["display"]["title"], "P");
+    assert_eq!(snapshot_from(&pulses_response)["display"]["title"], "L");
 }
 
 #[test]
@@ -160,7 +160,7 @@ pub(crate) fn fn_rightmost_grid_column_selects_sparks_pages() {
         })
         .unwrap();
     assert_eq!(runner.active_sparks_mode, "mix");
-    assert_eq!(snapshot_from(&mix)["display"]["title"], "S");
+    assert_eq!(snapshot_from(&mix)["display"]["title"], "P");
 
     let _ = runner
         .send(HostMessage::DeviceInput {

@@ -29,7 +29,7 @@ impl NativeRunner {
             let color = if instrument.map(|inst| inst.kind.as_str()) == Some("none") {
                 LedColor::SYSTEM.dim(4)
             } else {
-                LedColor::WORLDS
+                LedColor::GREEN
             };
             self.set_display_led(leds, x, y, color);
         }
@@ -158,9 +158,9 @@ impl NativeRunner {
         for (row, mode) in page_options.iter().enumerate() {
             let selected = self.active_sparks_mode != "none" && self.active_sparks_mode == *mode;
             let color = if selected {
-                LedColor::WORLDS
+                LedColor::GREEN
             } else {
-                LedColor::SPARKS.dim(4)
+                LedColor::YELLOW.dim(4)
             };
             self.set_display_led(leds, GRID_WIDTH - 1, row, color);
         }
@@ -170,14 +170,14 @@ impl NativeRunner {
 fn fn_layer_color(configured: bool, active: bool, sparks_active: bool) -> LedColor {
     if sparks_active {
         if configured {
-            LedColor::TONES
+            LedColor::BLUE
         } else {
             LedColor::SYSTEM.dim(4)
         }
     } else if active {
-        LedColor::TONES
+        LedColor::BLUE
     } else if configured {
-        LedColor::WORLDS
+        LedColor::GREEN
     } else {
         LedColor::SYSTEM.dim(4)
     }

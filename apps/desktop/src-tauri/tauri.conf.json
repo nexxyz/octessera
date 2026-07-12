@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "octessera",
-        "width": 1080,
-        "height": 720,
+        "width": 1280,
+        "height": 780,
         "resizable": true
       }
     ]

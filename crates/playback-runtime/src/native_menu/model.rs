@@ -263,7 +263,7 @@ impl NativeMenuModel {
             .stack
             .first()
             .and_then(|index| self.root.children.get(*index))
-            .is_some_and(|item| item.label == "4: Sparks")
+            .is_some_and(|item| item.label == "Play")
     }
 
     pub fn current_label(&self) -> Option<&str> {

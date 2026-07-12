@@ -43,6 +43,10 @@ fn sample_signature_tracks_sampler_param_changes() {
             gain_pct: Some(100.0),
             velocity_sensitivity_pct: Some(100.0),
         }),
+        filter: Some(AudioSampleFilterPayload {
+            cutoff_hz: Some(8000.0),
+            resonance: Some(20.0),
+        }),
     })];
     let changed = vec![sampler_source(AudioSamplePayload {
         slots: vec![AudioSampleSlotPayload {
@@ -52,6 +56,38 @@ fn sample_signature_tracks_sampler_param_changes() {
         amp: Some(AudioSampleAmpPayload {
             gain_pct: Some(80.0),
             velocity_sensitivity_pct: Some(70.0),
+        }),
+        filter: Some(AudioSampleFilterPayload {
+            cutoff_hz: Some(4400.0),
+            resonance: Some(42.0),
+        }),
+    })];
+
+    assert_ne!(sample_signature(&first), sample_signature(&changed));
+}
+
+#[test]
+fn sample_signature_tracks_sampler_filter_changes() {
+    let first = vec![sampler_source(AudioSamplePayload {
+        slots: vec![AudioSampleSlotPayload {
+            path: Some("kick.wav".into()),
+        }],
+        tune_semis: None,
+        amp: None,
+        filter: Some(AudioSampleFilterPayload {
+            cutoff_hz: Some(8000.0),
+            resonance: Some(20.0),
+        }),
+    })];
+    let changed = vec![sampler_source(AudioSamplePayload {
+        slots: vec![AudioSampleSlotPayload {
+            path: Some("kick.wav".into()),
+        }],
+        tune_semis: None,
+        amp: None,
+        filter: Some(AudioSampleFilterPayload {
+            cutoff_hz: Some(3200.0),
+            resonance: Some(55.0),
         }),
     })];
 
@@ -70,6 +106,10 @@ fn sample_signature_ignores_sample_payload_for_non_sampler_slots() {
             amp: Some(AudioSampleAmpPayload {
                 gain_pct: Some(50.0),
                 velocity_sensitivity_pct: Some(60.0),
+            }),
+            filter: Some(AudioSampleFilterPayload {
+                cutoff_hz: Some(1200.0),
+                resonance: Some(80.0),
             }),
         }),
     }];

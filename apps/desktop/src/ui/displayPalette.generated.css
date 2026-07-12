@@ -2,18 +2,18 @@
 /* Do not edit by hand. */
 
 :root {
-  --palette-worlds-rgb: 99 210 63;
-  --palette-pulses-rgb: 224 119 204;
-  --palette-tones-rgb: 53 207 242;
-  --palette-sparks-rgb: 255 212 71;
-  --palette-system-rgb: 201 206 214;
+  --palette-green-rgb: 99 210 63;
+  --palette-red-rgb: 221 130 205;
+  --palette-blue-rgb: 53 207 242;
+  --palette-yellow-rgb: 255 212 71;
+  --palette-gray-rgb: 201 206 214;
   --palette-white-rgb: 255 255 255;
   --palette-black-rgb: 0 0 0;
-  --palette-worlds: rgb(var(--palette-worlds-rgb));
-  --palette-pulses: rgb(var(--palette-pulses-rgb));
-  --palette-tones: rgb(var(--palette-tones-rgb));
-  --palette-sparks: rgb(var(--palette-sparks-rgb));
-  --palette-system: rgb(var(--palette-system-rgb));
+  --palette-green: rgb(var(--palette-green-rgb));
+  --palette-red: rgb(var(--palette-red-rgb));
+  --palette-blue: rgb(var(--palette-blue-rgb));
+  --palette-yellow: rgb(var(--palette-yellow-rgb));
+  --palette-gray: rgb(var(--palette-gray-rgb));
   --palette-white: rgb(var(--palette-white-rgb));
   --palette-black: rgb(var(--palette-black-rgb));
 }
