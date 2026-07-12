@@ -150,27 +150,6 @@ fn is_i2c_timeout(message: &str) -> bool {
     lower.contains("timed out") || lower.contains("os error 110")
 }
 
-#[cfg(test)]
-mod tests {
-    use super::concise_error;
-
-    #[test]
-    fn concise_error_names_i2c_timeouts() {
-        assert_eq!(
-            concise_error("NeoKey HW ID read failed: Connection timed out (os error 110)"),
-            "I2C TIMEOUT"
-        );
-    }
-
-    #[test]
-    fn concise_error_names_i2c_io_errors() {
-        assert_eq!(
-            concise_error("NeoKey reset failed: Input/output error (os error 5)"),
-            "I2C ERROR"
-        );
-    }
-}
-
 fn trellis_fault_frame(lit: bool) -> [[u8; 3]; 64] {
     let mut frame = [[0_u8; 3]; 64];
     if !lit {
@@ -194,4 +173,25 @@ fn trellis_fault_frame(lit: bool) -> [[u8; 3]; 64] {
         frame[y * 8 + x] = palette::RED;
     }
     frame
+}
+
+#[cfg(test)]
+mod tests {
+    use super::concise_error;
+
+    #[test]
+    fn concise_error_names_i2c_timeouts() {
+        assert_eq!(
+            concise_error("NeoKey HW ID read failed: Connection timed out (os error 110)"),
+            "I2C TIMEOUT"
+        );
+    }
+
+    #[test]
+    fn concise_error_names_i2c_io_errors() {
+        assert_eq!(
+            concise_error("NeoKey reset failed: Input/output error (os error 5)"),
+            "I2C ERROR"
+        );
+    }
 }
