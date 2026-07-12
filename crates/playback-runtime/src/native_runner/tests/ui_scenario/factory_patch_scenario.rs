@@ -252,13 +252,7 @@ fn configure_tones_from_visible_ui(device: &mut DeviceDriver) {
         menu.edit_enum_to("Type", "sampler");
         menu.open_group("Sampler >");
     }
-    pick_sample_and_assign_rows(
-        device,
-        1,
-        "Kick2.wav",
-        "samples/Drum/kick/Kick2.wav",
-        0,
-    );
+    pick_sample_and_assign_rows(device, 1, "Kick2.wav", "samples/Drum/kick/Kick2.wav", 0);
     pick_sample_and_assign_rows(
         device,
         2,
