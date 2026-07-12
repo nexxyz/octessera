@@ -103,6 +103,10 @@ rm -rf "`$SYNC_DIR" '$remoteArchive'
 
 $updateInitramfsValue = if ($UpdateInitramfs) { "1" } else { "0" }
 $wakeTraceEnvironmentLine = if ($WakeTrace) { "Environment=OCTESSERA_WAKE_TRACE=1`n" } else { "" }
+$piImageFiles = "tools/pi-image/stage4-octessera/files/root"
+Copy-ToPi "$piImageFiles/usr/local/sbin/octessera-usb-gadget" "/tmp/octessera-usb-gadget"
+Copy-ToPi "$piImageFiles/etc/systemd/system/octessera-usb-gadget.service" "/tmp/octessera-usb-gadget.service"
+Copy-ToPi "$piImageFiles/etc/modules-load.d/octessera-usb-gadget.conf" "/tmp/octessera-usb-gadget.conf"
 
 $osConfigCommand = "UPDATE_INITRAMFS=$updateInitramfsValue`n" + @'
 set -e
@@ -123,6 +127,17 @@ disable_service_if_present() {
 ensure_boot_config_line "camera_auto_detect=0"
 ensure_boot_config_line "display_auto_detect=0"
 ensure_boot_config_line "dtoverlay=disable-bt"
+ensure_boot_config_line "dtoverlay=dwc2,dr_mode=peripheral"
+sudo rm -f \
+  /etc/initramfs-tools/hooks/cellsymphony-boot-splash \
+  /etc/initramfs-tools/scripts/init-premount/cellsymphony-boot-splash \
+  /etc/systemd/system/cellsymphony-boot-splash.service \
+  /etc/systemd/system/sysinit.target.wants/cellsymphony-boot-splash.service
+sudo install -D -m 0755 /tmp/octessera-usb-gadget /usr/local/sbin/octessera-usb-gadget
+sudo install -D -m 0644 /tmp/octessera-usb-gadget.service /etc/systemd/system/octessera-usb-gadget.service
+sudo install -D -m 0644 /tmp/octessera-usb-gadget.conf /etc/modules-load.d/octessera-usb-gadget.conf
+sudo systemctl daemon-reload
+sudo systemctl enable octessera-usb-gadget.service >/dev/null
 if [ "$UPDATE_INITRAMFS" = "1" ]; then
 if ! grep -qxF "# octessera required boot settings" "$BOOT_CONFIG" && ! grep -qxF "# Octessera required boot settings" "$BOOT_CONFIG"; then printf '\n[all]\n# octessera required boot settings\ndtparam=spi=on\nauto_initramfs=1\n' | sudo tee -a "$BOOT_CONFIG" >/dev/null; fi
 if ! command -v update-initramfs >/dev/null 2>&1; then
@@ -418,7 +433,8 @@ EOF
 sudo tee /etc/systemd/system/$Service >/dev/null <<'EOF'
 [Unit]
 Description=octessera Pi Zero 2W Headless Music System
-After=sound.target
+Wants=octessera-usb-gadget.service
+After=octessera-usb-gadget.service sound.target
 
 [Service]
 Type=simple

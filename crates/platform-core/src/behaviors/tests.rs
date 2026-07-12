@@ -15,6 +15,7 @@ fn lists_and_resolves_native_behaviors() {
             "brain",
             "ant",
             "bounce",
+            "bubbles",
             "shapes",
             "raindrops",
             "dla",
@@ -28,6 +29,10 @@ fn lists_and_resolves_native_behaviors() {
     );
     assert_eq!(get_native_behavior("keys"), Some(NativeBehavior::Keys));
     assert_eq!(get_native_behavior("looper"), Some(NativeBehavior::Looper));
+    assert_eq!(
+        get_native_behavior("bubbles"),
+        Some(NativeBehavior::Bubbles)
+    );
     assert_eq!(get_native_behavior("dla"), Some(NativeBehavior::Dla));
     assert_eq!(get_native_behavior("missing"), None);
 }

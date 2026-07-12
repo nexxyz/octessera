@@ -236,11 +236,15 @@ impl NativeRunner {
                 if self.transport == RuntimeTransportState::Stopped {
                     self.reset_transport_position();
                 }
+                let was_playing = self.transport == RuntimeTransportState::Playing;
                 self.transport = if self.transport == RuntimeTransportState::Playing {
                     RuntimeTransportState::Paused
                 } else {
                     RuntimeTransportState::Playing
                 };
+                if was_playing && self.transport == RuntimeTransportState::Paused {
+                    return self.messages_with_effects(vec![RuntimePlatformEffect::MidiPanic]);
+                }
             }
         }
         self.messages_with_snapshot()

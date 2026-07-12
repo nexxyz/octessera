@@ -29,7 +29,7 @@ impl PiPlaybackHostAdapter {
     pub(super) fn select_output(&mut self, id: Option<String>) -> Result<(), String> {
         self.midi_out = None;
         self.selected_midi_output_id = None;
-        let Some(id) = id else {
+        let Some(id) = self.preferred_output_id(id)? else {
             return Ok(());
         };
         let index = id
@@ -45,6 +45,17 @@ impl PiPlaybackHostAdapter {
         );
         self.selected_midi_output_id = Some(id);
         Ok(())
+    }
+
+    fn preferred_output_id(&self, requested: Option<String>) -> Result<Option<String>, String> {
+        if !self.usb_midi_out_enabled {
+            return Ok(requested);
+        }
+        let (out, ports) = midi_outputs()?;
+        Ok(ports.iter().enumerate().find_map(|(index, port)| {
+            let name = out.port_name(port).ok()?;
+            is_usb_gadget_midi_name(&name).then(|| index.to_string())
+        }))
     }
 
     pub(super) fn select_input(&mut self, id: Option<String>) -> Result<(), String> {
@@ -77,6 +88,15 @@ impl PiPlaybackHostAdapter {
     }
 }
 
+fn is_usb_gadget_midi_name(name: &str) -> bool {
+    let name = name.to_ascii_lowercase();
+    name.contains("octessera")
+        || name.contains("gadget")
+        || name.contains("midi gadget")
+        || name.contains("usb midi")
+        || name.contains("f_midi")
+}
+
 fn midi_outputs() -> Result<(midir::MidiOutput, Vec<midir::MidiOutputPort>), String> {
     let out = midir::MidiOutput::new("octessera-pi-out").map_err(|e| e.to_string())?;
     let ports = out.ports();
@@ -87,4 +107,16 @@ fn midi_inputs() -> Result<(midir::MidiInput, Vec<midir::MidiInputPort>), String
     let input = midir::MidiInput::new("octessera-pi-in").map_err(|e| e.to_string())?;
     let ports = input.ports();
     Ok((input, ports))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_usb_gadget_midi_name;
+
+    #[test]
+    fn usb_gadget_midi_names_include_kernel_f_midi_port() {
+        assert!(is_usb_gadget_midi_name("f_midi"));
+        assert!(is_usb_gadget_midi_name("UAC2 Gadget MIDI"));
+        assert!(!is_usb_gadget_midi_name("Midi Through Port-0"));
+    }
 }

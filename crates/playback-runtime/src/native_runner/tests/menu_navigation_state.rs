@@ -32,12 +32,15 @@ pub(crate) fn changing_behavior_keeps_menu_location() {
     );
     assert_eq!(snapshot_from(&edit_behavior)["display"]["editing"], false);
     let behavior_picker_rows = &runner.menu.root.children[0].children[0].children[0].children;
-    assert_eq!(behavior_picker_rows[0].label, "none");
-    let play_folder = behavior_picker_rows
+    assert_eq!(behavior_picker_rows[0].label, "[Human]");
+    let human_folder = behavior_picker_rows
         .iter()
-        .find(|item| item.label == "[Play]")
+        .find(|item| item.label == "[Human]")
         .unwrap();
-    assert!(!play_folder.children.iter().any(|item| item.label == "none"));
+    assert!(human_folder
+        .children
+        .iter()
+        .any(|item| item.label == "none"));
 
     select_behavior(&mut runner, "keys");
     let changed = runner.messages_with_snapshot().unwrap();

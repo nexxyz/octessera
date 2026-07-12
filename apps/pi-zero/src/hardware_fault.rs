@@ -91,26 +91,84 @@ pub(crate) fn run_hardware_fault_mode(mut fault: HardwareFault) -> ! {
 }
 
 fn fault_lines(fault: &HardwareFault) -> Vec<String> {
-    let mut lines = vec!["HARDWARE FAULT".to_string(), "CHECK WIRING".to_string()];
-    lines.extend(
-        fault
-            .failures
-            .iter()
-            .take(5)
-            .map(|failure| format!("{}: {}", failure.name, concise_error(&failure.message))),
-    );
+    let hint = if fault
+        .failures
+        .iter()
+        .any(|failure| is_i2c_timeout(&failure.message))
+    {
+        "POWER CYCLE"
+    } else {
+        "CHECK WIRING"
+    };
+    let mut lines = vec![hint.to_string()];
+    for failure in fault.failures.iter().take(3) {
+        lines.push(short_name(failure.name).to_string());
+        lines.push(concise_error(&failure.message));
+    }
     lines
 }
 
+fn short_name(name: &str) -> &str {
+    match name {
+        "SEESAW_INT" => "SEESAW INT",
+        other => other,
+    }
+}
+
 fn concise_error(message: &str) -> String {
+    if is_i2c_timeout(message) {
+        return "I2C TIMEOUT".to_string();
+    }
+    let lower = message.to_ascii_lowercase();
+    if lower.contains("input/output")
+        || lower.contains("remote i/o")
+        || lower.contains("os error 5")
+    {
+        return "I2C ERROR".to_string();
+    }
+    if lower.contains("no such file") || lower.contains("not found") {
+        return "NOT FOUND".to_string();
+    }
+    if lower.contains("invalid") {
+        return "BAD HW ID".to_string();
+    }
+    if lower.contains("permission") {
+        return "PERMISSION".to_string();
+    }
     message
         .split(':')
         .next_back()
         .unwrap_or(message)
         .trim()
         .chars()
-        .take(18)
+        .take(14)
         .collect()
+}
+
+fn is_i2c_timeout(message: &str) -> bool {
+    let lower = message.to_ascii_lowercase();
+    lower.contains("timed out") || lower.contains("os error 110")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::concise_error;
+
+    #[test]
+    fn concise_error_names_i2c_timeouts() {
+        assert_eq!(
+            concise_error("NeoKey HW ID read failed: Connection timed out (os error 110)"),
+            "I2C TIMEOUT"
+        );
+    }
+
+    #[test]
+    fn concise_error_names_i2c_io_errors() {
+        assert_eq!(
+            concise_error("NeoKey reset failed: Input/output error (os error 5)"),
+            "I2C ERROR"
+        );
+    }
 }
 
 fn trellis_fault_frame(lit: bool) -> [[u8; 3]; 64] {

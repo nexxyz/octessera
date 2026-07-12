@@ -33,6 +33,8 @@ impl NativeRunner {
         self.apply_sound_payload(runtime);
         self.apply_ui_payload(runtime);
         self.apply_midi_payload(runtime);
+        self.apply_usb_payload(runtime);
+        self.apply_recording_payload(runtime);
         if let Some(mapping_config) = payload.get("mappingConfig") {
             self.base_mapping_config = serde_json::from_value(mapping_config.clone())
                 .unwrap_or_else(|_| default_mapping_config());
@@ -162,6 +164,27 @@ impl NativeRunner {
         self.apply_midi_port_payload(midi);
         self.apply_midi_sync_payload(midi);
         self.queue_midi_selection_effects();
+    }
+
+    fn apply_usb_payload(&mut self, runtime: &Value) {
+        let Some(usb) = runtime.get("usb") else {
+            return;
+        };
+        if let Some(audio_out) = usb.get("audioOut").and_then(Value::as_str) {
+            self.usb_audio_out = super::normalize_usb_audio_out(audio_out).into();
+        }
+        if let Some(enabled) = usb.get("midiOutEnabled").and_then(Value::as_bool) {
+            self.usb_midi_out_enabled = enabled;
+        }
+    }
+
+    fn apply_recording_payload(&mut self, runtime: &Value) {
+        let Some(recording) = runtime.get("recording") else {
+            return;
+        };
+        if let Some(value) = recording.get("maxMinutes").and_then(Value::as_u64) {
+            self.recording_max_minutes = (value as u16).clamp(1, 120);
+        }
     }
 
     fn apply_midi_enabled_payload(&mut self, midi: &Value) {

@@ -28,6 +28,7 @@ pub struct PiPlaybackHostAdapter {
     midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
     selected_midi_output_id: Option<String>,
     selected_midi_input_id: Option<String>,
+    usb_midi_out_enabled: bool,
     power_request: Option<PiPowerRequest>,
     latest_recovery_payload: Option<serde_json::Value>,
 }
@@ -44,6 +45,7 @@ impl PiPlaybackHostAdapter {
         store_dir: PathBuf,
         samples_dir: PathBuf,
         midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
+        usb_midi_out_enabled: bool,
     ) -> Self {
         let platform_service = PiPlatformService::new(store_dir.clone(), samples_dir.clone());
         Self {
@@ -57,6 +59,7 @@ impl PiPlaybackHostAdapter {
             midi_in_handler,
             selected_midi_output_id: None,
             selected_midi_input_id: None,
+            usb_midi_out_enabled,
             power_request: None,
             latest_recovery_payload: None,
         }
@@ -183,6 +186,28 @@ impl HostAdapter for PiPlaybackHostAdapter {
                     None => return Ok(Vec::new()),
                 }
             }
+            RuntimePlatformEffect::UsbApplyReboot { payload } => {
+                self.pending_default_save = None;
+                if let Err(message) = self.platform_service.save_default_now(payload) {
+                    return Ok(vec![store_error(format!(
+                        "USB apply save failed: {message}"
+                    ))]);
+                }
+                self.power_request = Some(PiPowerRequest::Reboot);
+                return Ok(Vec::new());
+            }
+            RuntimePlatformEffect::RecordingStartAudio { max_minutes } => {
+                if let Some(audio) = &self.audio {
+                    audio.start_recording(*max_minutes)?;
+                }
+                return Ok(Vec::new());
+            }
+            RuntimePlatformEffect::RecordingStop => {
+                if let Some(audio) = &self.audio {
+                    audio.stop_recording()?;
+                }
+                return Ok(Vec::new());
+            }
             RuntimePlatformEffect::StoreSaveBackup { payload } => {
                 if let Err(message) = self.platform_service.enqueue(PlatformJob::SaveBackup {
                     payload: payload.clone(),
@@ -233,6 +258,21 @@ impl HostAdapter for PiPlaybackHostAdapter {
                 }
             }
             RuntimePlatformEffect::MidiPanic => {
+                if let Some(audio) = &self.audio {
+                    for slot in 0..INSTRUMENT_SLOT_COUNT {
+                        let instrument_slot = slot as u8;
+                        audio.send_realtime(EngineEvent::Cc {
+                            instrument_slot,
+                            controller: 120,
+                            value: 0,
+                        })?;
+                        audio.send_realtime(EngineEvent::Cc {
+                            instrument_slot,
+                            controller: 123,
+                            value: 0,
+                        })?;
+                    }
+                }
                 self.handle_midi_message(&[0xFC])?;
                 for channel in 0..16_u8 {
                     self.handle_midi_message(&[0xB0 | channel, 120, 0])?;
@@ -345,6 +385,7 @@ mod tests {
             PathBuf::from("store"),
             PathBuf::from("samples"),
             Arc::new(|_| {}),
+            false,
         );
         assert!(crate::platform_service::preset_path(&adapter.store_dir, "safe").is_ok());
         for name in ["bad/name", r"bad\name", r"C:\x", "CON", "bad:name"] {

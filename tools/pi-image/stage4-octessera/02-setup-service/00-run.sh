@@ -4,9 +4,24 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 STAGE_FILES="$(cd "$SCRIPT_DIR/.." && pwd)/files"
 
+rm -f \
+    "$ROOTFS_DIR/etc/initramfs-tools/hooks/cellsymphony-boot-splash" \
+    "$ROOTFS_DIR/etc/initramfs-tools/scripts/init-premount/cellsymphony-boot-splash" \
+    "$ROOTFS_DIR/etc/systemd/system/cellsymphony-boot-splash.service" \
+    "$ROOTFS_DIR/etc/systemd/system/sysinit.target.wants/cellsymphony-boot-splash.service"
+
 install -D -m 0644 \
     "$STAGE_FILES/root/etc/systemd/system/octessera.service" \
     "$ROOTFS_DIR/etc/systemd/system/octessera.service"
+install -D -m 0644 \
+    "$STAGE_FILES/root/etc/systemd/system/octessera-usb-gadget.service" \
+    "$ROOTFS_DIR/etc/systemd/system/octessera-usb-gadget.service"
+install -D -m 0644 \
+    "$STAGE_FILES/root/etc/modules-load.d/octessera-usb-gadget.conf" \
+    "$ROOTFS_DIR/etc/modules-load.d/octessera-usb-gadget.conf"
+install -D -m 0755 \
+    "$STAGE_FILES/root/usr/local/sbin/octessera-usb-gadget" \
+    "$ROOTFS_DIR/usr/local/sbin/octessera-usb-gadget"
 install -D -m 0644 \
     "$STAGE_FILES/root/etc/systemd/system/octessera-performance-governor.service" \
     "$ROOTFS_DIR/etc/systemd/system/octessera-performance-governor.service"
@@ -49,6 +64,8 @@ install -d "$ROOTFS_DIR/etc/systemd/system/sysinit.target.wants"
 install -d "$ROOTFS_DIR/etc/systemd/system/timers.target.wants"
 ln -sf ../octessera.service \
     "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/octessera.service"
+ln -sf ../octessera-usb-gadget.service \
+    "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/octessera-usb-gadget.service"
 ln -sf ../octessera-performance-governor.service \
     "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/octessera-performance-governor.service"
 ln -sf ../octessera-oled-shutdown.service \

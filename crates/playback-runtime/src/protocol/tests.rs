@@ -3,6 +3,20 @@ use serde_json::json;
 use std::collections::BTreeMap;
 
 #[test]
+fn recording_protocol_json_uses_public_field_names() {
+    assert_eq!(
+        serde_json::to_value(RuntimePlatformEffect::RecordingStartAudio { max_minutes: 5 })
+            .unwrap(),
+        json!({ "type": "recording_start_audio", "maxMinutes": 5 })
+    );
+
+    assert_eq!(
+        serde_json::to_value(RuntimePlatformEffect::RecordingStop).unwrap(),
+        json!({ "type": "recording_stop" })
+    );
+}
+
+#[test]
 fn runtime_protocol_json_uses_public_field_names_and_defaults() {
     assert_eq!(
         serde_json::to_value(HostMessage::DeviceInput {
@@ -186,6 +200,28 @@ fn runtime_effect_json_uses_public_audio_store_and_sample_field_names() {
         })
         .unwrap(),
         json!({ "type": "save_default_result", "ok": true, "isAuto": false })
+    );
+
+    assert_eq!(
+        serde_json::to_value(RuntimePlatformEffect::UsbApplyReboot {
+            payload: json!({ "runtimeConfig": { "usb": { "audioOut": "jack", "midiOutEnabled": false } } }),
+        })
+        .unwrap(),
+        json!({
+            "type": "usb_apply_reboot",
+            "payload": { "runtimeConfig": { "usb": { "audioOut": "jack", "midiOutEnabled": false } } }
+        })
+    );
+
+    assert_eq!(
+        serde_json::to_value(RuntimePlatformEffect::RecordingStartAudio { max_minutes: 5 })
+            .unwrap(),
+        json!({ "type": "recording_start_audio", "maxMinutes": 5 })
+    );
+
+    assert_eq!(
+        serde_json::to_value(RuntimePlatformEffect::RecordingStop).unwrap(),
+        json!({ "type": "recording_stop" })
     );
 
     assert_eq!(

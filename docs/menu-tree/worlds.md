@@ -8,6 +8,12 @@ This file is part of the canonical split-out menu tree spec. See [`../menu-tree-
 Build
 ├── L1: ... (group)                              ← one group per layer, label computed from the layer label
 │   ├── Behavior: <id> (group)                   ← browser-style selector for this layer's behavior
+│   │   ├── [Human]
+│   │   │   ├── ..
+│   │   │   ├── keys
+│   │   │   ├── looper
+│   │   │   ├── none
+│   │   │   └── sequencer
 │   │   ├── [Cellular]
 │   │   │   ├── ..
 │   │   │   ├── ant
@@ -24,13 +30,8 @@ Build
 │   │   │   └── dla
 │   │   ├── [Motion]
 │   │   │   ├── ..
-│   │   │   └── bounce
-│   │   └── [Play]
-│   │       ├── ..
-│   │       ├── keys
-│   │       ├── looper
-│   │       ├── none
-│   │       └── sequencer
+│   │   │   ├── bounce
+│   │   │   └── bubbles
 │   ├── Auto Label: [on | off]                   ← on: label auto-derives from behavior ID; off: label is manual text
 │   ├── Layer Label: (text, max 32)               ← display label; editing sets Auto Label off
 │   ├── Step Rate: [1/16, 1/8, 1/4, 1/2, 1/1]   ← controls how often onTick() is called; hidden when Behavior is `none`
@@ -51,12 +52,12 @@ Behavior categories:
 
 | Category | Behaviors | Description |
 |---|---|---|
+| Human | keys, looper, none, sequencer | Direct performance, recording, silence, or step-style behaviors. |
 | Cellular | ant, brain, life | Cell-state simulations where neighboring cells or agents create evolving patterns. |
 | Fields | raindrops | Field-style activity that spreads from localized events. |
 | Geometry | shapes | Explicit geometric pulse patterns. |
 | Growth | dla | Diffusion-limited aggregation clusters that grow from seeded particles. |
-| Motion | bounce | Moving objects that rebound through the grid. |
-| Play | keys, looper, none, sequencer | Direct performance, recording, silence, or step-style behaviors. |
+| Motion | bounce, bubbles | Moving objects that rebound or rise through the grid. |
 
 Behavior-specific config items (from `configMenu()`):
 
@@ -80,6 +81,16 @@ Behavior-specific config items (from `configMenu()`):
 | ant | !Spawn Ant | action, shared route `trigger.life.spawn_now` |
 | bounce | Max Balls: [1..20] | number, step 1 |
 | bounce | !Add Ball | action, shared route `trigger.life.spawn_now` |
+| bubbles | Spawn Interval: [0..30] | number, step 1 |
+| bubbles | Spawn Step: [0..63] | number, step 1 |
+| bubbles | Spawn Count: [1..8] | number, step 1 |
+| bubbles | Min Radius: [1..4] | number, step 1 |
+| bubbles | Max Radius: [1..4] | number, step 1 |
+| bubbles | Drift: [0..8] | number, step 1; eighth-cell units |
+| bubbles | Current: [-8..8] | number, step 1; eighth-cell units |
+| bubbles | Buoyancy: [1..8] | number, step 1; eighth-cell units |
+| bubbles | Max Bubbles: [1..64] | number, step 1 |
+| bubbles | !Add Bubble | action, shared route `trigger.life.spawn_now` |
 | shapes | Shape: [ring, heart, star, plus, x] | enum |
 | shapes | Expansion Speed: [1..5] | number, step 1 |
 | shapes | Auto Spawn Int: [0=off, 10, 20, 50] | enum |

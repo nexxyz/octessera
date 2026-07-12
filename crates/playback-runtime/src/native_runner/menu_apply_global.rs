@@ -31,6 +31,8 @@ impl NativeRunner {
             self.preset_draft_name = draft_name;
         }
         config_changed |= self.apply_midi_menu_flags();
+        config_changed |= self.apply_usb_menu_state();
+        config_changed |= self.apply_recording_menu_state();
         if let Some(sparks_mode) = self.menu.selected_sparks_mode() {
             let changed = self.sparks_mode != sparks_mode;
             self.sparks_mode = sparks_mode.clone();
@@ -101,6 +103,34 @@ impl NativeRunner {
             changed |= self.xy_invert_y != invert_y;
             self.xy_invert_y = invert_y;
         }
+        changed
+    }
+
+    pub(super) fn apply_usb_menu_state(&mut self) -> bool {
+        let mut changed = false;
+        if let Some(audio_out) = self.menu.value_for_key("usb.audioOut") {
+            let audio_out = super::normalize_usb_audio_out(&audio_out).to_string();
+            changed |= self.usb_audio_out != audio_out;
+            self.usb_audio_out = audio_out;
+        }
+        if let Some(enabled) = self.menu.value_for_key("usb.midiOutEnabled") {
+            let enabled = enabled == "true";
+            changed |= self.usb_midi_out_enabled != enabled;
+            self.usb_midi_out_enabled = enabled;
+        }
+        if changed {
+            self.show_toast("USB: Save & Reboot");
+        }
+        changed
+    }
+
+    pub(super) fn apply_recording_menu_state(&mut self) -> bool {
+        let Some(value) = self.menu.value_for_key("recording.maxMinutes") else {
+            return false;
+        };
+        let value = value.parse::<u16>().unwrap_or(10).clamp(1, 120);
+        let changed = self.recording_max_minutes != value;
+        self.recording_max_minutes = value;
         changed
     }
 

@@ -1,0 +1,15 @@
+[Unit]
+Description=octessera USB gadget audio/MIDI
+Wants=sys-kernel-config.mount
+Before=sound.target octessera.service
+After=local-fs.target systemd-modules-load.service sys-kernel-config.mount
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/octessera-usb-gadget setup
+ExecStop=/usr/local/sbin/octessera-usb-gadget teardown
+
+[Install]
+WantedBy=multi-user.target

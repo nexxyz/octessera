@@ -21,7 +21,8 @@ use std::time::{Duration, Instant};
 
 const PLAYBACK_TICK_MS: u64 = 8;
 const SNAPSHOT_INTERVAL_MS: u64 = 33;
-const RENDER_INTERVAL_MS: u64 = 16;
+const RENDER_INTERVAL_MS: u64 = 33;
+const SCHEDULER_IDLE_SLEEP_MAX_MS: u64 = 4;
 const PI_SD_CARD_SAMPLE_DIR: &str = "sd-card";
 
 struct SchedulerState {
@@ -55,6 +56,7 @@ pub(crate) struct RuntimeThreadConfig {
     pub(crate) store_dir: PathBuf,
     pub(crate) samples_dir: PathBuf,
     pub(crate) midi_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
+    pub(crate) usb_midi_out_enabled: bool,
     pub(crate) midi_rx: mpsc::Receiver<MidiMessage>,
     pub(crate) input_rx: mpsc::Receiver<HostMessage>,
     pub(crate) encoder_rx: mpsc::Receiver<HardwareEvent>,
@@ -75,6 +77,7 @@ fn run(config: RuntimeThreadConfig) {
         store_dir,
         samples_dir,
         midi_handler,
+        usb_midi_out_enabled,
         midi_rx,
         input_rx,
         encoder_rx,
@@ -85,7 +88,13 @@ fn run(config: RuntimeThreadConfig) {
     if early_boot_splash {
         runner.skip_startup_splash();
     }
-    let mut adapter = PiPlaybackHostAdapter::new(audio, store_dir, samples_dir, midi_handler);
+    let mut adapter = PiPlaybackHostAdapter::new(
+        audio,
+        store_dir,
+        samples_dir,
+        midi_handler,
+        usb_midi_out_enabled,
+    );
     if let Err(error) = initialize_host_state(&mut playback, &mut runner, &mut adapter) {
         eprintln!("pi host state initialization failed: {error}");
     }
@@ -196,7 +205,20 @@ fn run_scheduler(
         ) {
             break;
         }
-        thread::sleep(Duration::from_millis(1));
+        thread::sleep(state.idle_sleep_duration());
+    }
+}
+
+impl SchedulerState {
+    fn idle_sleep_duration(&self) -> Duration {
+        let now = Instant::now();
+        let tick_due = self.last_tick + Duration::from_millis(PLAYBACK_TICK_MS);
+        let render_due = self.last_render + Duration::from_millis(RENDER_INTERVAL_MS);
+        let next_due = tick_due.min(render_due);
+        next_due
+            .checked_duration_since(now)
+            .unwrap_or_default()
+            .min(Duration::from_millis(SCHEDULER_IDLE_SLEEP_MAX_MS))
     }
 }
 

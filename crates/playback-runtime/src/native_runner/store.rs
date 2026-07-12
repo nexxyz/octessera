@@ -55,6 +55,13 @@ impl NativeRunner {
             "system.shutdown" => Some(RuntimePlatformEffect::StoreSaveRecovery {
                 payload: self.config_payload(),
             }),
+            "usb.applyReboot" => Some(RuntimePlatformEffect::UsbApplyReboot {
+                payload: self.config_payload(),
+            }),
+            "recording.startAudio" => Some(RuntimePlatformEffect::RecordingStartAudio {
+                max_minutes: self.recording_max_minutes,
+            }),
+            "recording.stop" => Some(RuntimePlatformEffect::RecordingStop),
             "system.hardwareTest" => Some(RuntimePlatformEffect::HardwareTest),
             "system.updateCheck" => Some(RuntimePlatformEffect::UpdateCheck),
             "system.updateApply" => Some(RuntimePlatformEffect::UpdateApply),
@@ -140,6 +147,8 @@ impl NativeRunner {
             ("Confirm Reboot", "Reboot Octessera?".into())
         } else if action_type == "system.shutdown" {
             ("Confirm Shutdown", "Shut down Octessera?".into())
+        } else if action_type == "usb.applyReboot" {
+            ("Confirm USB", "Save USB settings and reboot?".into())
         } else if action_type == "system.hardwareTest" {
             ("Confirm Hardware Test", "Run the hardware test?".into())
         } else if action_type == "system.updateApply" {
@@ -154,10 +163,15 @@ impl NativeRunner {
             let preset = rest.split(':').nth(1).unwrap_or("preset");
             ("Confirm Synth", format!("Load synth preset {preset}?"))
         };
+        let options = if action_type == "usb.applyReboot" {
+            vec!["Cancel".into(), "Save & Reboot".into()]
+        } else {
+            vec!["Cancel".into(), "Confirm".into()]
+        };
         Some(NativeConfirmDialog {
             title: title.into(),
             lines: wrap_help_text(&detail, 28),
-            options: vec!["Cancel".into(), "Confirm".into()],
+            options,
             cursor: 0,
             action: action.clone(),
             cancel_toast: Some("Cancelled".into()),

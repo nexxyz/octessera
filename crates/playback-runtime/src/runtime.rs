@@ -1,6 +1,6 @@
 use crate::protocol::{
     HostMessage, RunnerMessage, RuntimeAudioCommand, RuntimePlatformEffect, RuntimeStatus,
-    RuntimeUiPulse, SyncSource,
+    RuntimeTransportState, RuntimeUiPulse, SyncSource,
 };
 use platform_core::MusicalEvent;
 use serde_json::Value;
@@ -126,6 +126,13 @@ impl PlaybackRuntime {
         self.now_ms = self.now_ms.saturating_add(elapsed_ms);
         self.flush_scheduled_midi(host)?;
         if self.config.sync_source == SyncSource::External {
+            return Ok(());
+        }
+        if self
+            .last_status
+            .as_ref()
+            .is_none_or(|status| status.transport != RuntimeTransportState::Playing)
+        {
             return Ok(());
         }
 

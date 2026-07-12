@@ -27,6 +27,9 @@ impl NativeBehavior {
             (NativeBehavior::Bounce, NativeBehaviorState::Bounce(_)) => {
                 Ok(Some(native_impl::bounce_config_menu()))
             }
+            (NativeBehavior::Bubbles, NativeBehaviorState::Bubbles(_)) => {
+                Ok(Some(native_impl::bubbles_config_menu()))
+            }
             (NativeBehavior::Shapes, NativeBehaviorState::Shapes(_)) => {
                 Ok(Some(native_impl::shapes_config_menu()))
             }

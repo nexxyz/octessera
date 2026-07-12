@@ -31,6 +31,10 @@ impl PiPlatformService {
         save_json(&self.store_dir.join("recovery-save.json"), payload)
     }
 
+    pub fn save_default_now(&self, payload: &serde_json::Value) -> Result<(), String> {
+        save_json(&self.store_dir.join("default.json"), payload)
+    }
+
     pub fn enqueue(&self, job: PlatformJob) -> Result<(), String> {
         self.jobs.try_send(job).map_err(|error| match error {
             TrySendError::Full(_) => "pi platform service queue is full".to_string(),

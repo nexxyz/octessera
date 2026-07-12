@@ -3,6 +3,7 @@ life_spawn_shared	*	action:behavior_action:spawnRandom	action	Spawn Now	Adds ran
 life_spawn_shared_brain	*	action:behavior_action:seedRandom	action	Spawn Now	Seeds random active cells for Brian's Brain.	This shares the same Spawn Now intent across behaviors.
 life_spawn_shared_ant	*	action:behavior_action:spawnAnt	action	Spawn Now	Adds an ant to the current grid.	This shares the same Spawn Now intent across behaviors.
 life_spawn_shared_bounce	*	action:behavior_action:addBall	action	Spawn Now	Adds a ball to the simulation.	This shares the same Spawn Now intent across behaviors.
+life_spawn_shared_bubbles	*	action:behavior_action:addBubble	action	Spawn Now	Adds a bottom-born bubble to the simulation.	Bubbles rise upward, drift sideways, and merge when they touch.
 life_spawn_shared_pulse	*	action:behavior_action:spawnPulse	action	Spawn Now	Spawns a pulse shape.	This shares the same Spawn Now intent across behaviors.
 life_spawn_shared_rain	*	action:behavior_action:dropNow	action	Spawn Now	Drops a new raindrop immediately.	This shares the same Spawn Now intent across behaviors.
 life_spawn_shared_dla	*	action:behavior_action:seedCluster	action	Spawn Now	Seeds a new DLA cluster.	This shares the same Spawn Now intent across behaviors.
@@ -35,6 +36,14 @@ layer_spawn_count	*	key:layers.*.worlds.behaviorConfig.randomCellsPerTick	number
 layer_spawn_interval	*	key:layers.*.worlds.behaviorConfig.randomTickInterval	number	Spawn Interval	Sets how many behavior ticks pass between automatic random spawn bursts.	Lower values create more frequent injections.
 layer_glider_interval	*	key:layers.*.worlds.behaviorConfig.gliderSpawnInterval	number	Glider Interval	Sets how many behavior ticks pass between automatic glider injections.	Use 0 to disable automatic glider spawning.
 layer_spawn_step	*	key:layers.*.worlds.behaviorConfig.spawnStep	number	Spawn Step	Sets the sequenced position or interval used by behaviors that step their own spawn source.	Increase it to spread spawned changes farther apart in time or space.
+layer_bubbles_spawn_interval	*	key:layers.*.worlds.behaviorConfig.spawnInterval	number	Spawn Interval	Sets how many behavior ticks pass between automatic bubble spawns.	Use 0 to turn automatic spawning off.
+layer_bubbles_spawn_count	*	key:layers.*.worlds.behaviorConfig.spawnCount	number	Spawn Count	Sets how many bubbles are attempted at each spawn tick.	The Max Bubbles cap still limits the active population.
+layer_bubbles_radius_min	*	key:layers.*.worlds.behaviorConfig.minRadius	number	Min Radius	Sets the smallest bubble size level spawned by Bubbles.	Radius 1 is one cell; larger sizes use compact or hollow outlines.
+layer_bubbles_radius_max	*	key:layers.*.worlds.behaviorConfig.maxRadius	number	Max Radius	Sets the largest bubble size level and merge cap for Bubbles.	If Min Radius is higher, the behavior normalizes the range upward.
+layer_bubbles_drift	*	key:layers.*.worlds.behaviorConfig.drift	number	Drift	Sets random sideways sway in eighth-cell units per tick.	Each bubble independently picks left, still, or right every tick.
+layer_bubbles_current	*	key:layers.*.worlds.behaviorConfig.current	number	Current	Pushes all bubbles sideways in eighth-cell units per tick.	Negative values push left; positive values push right; walls clamp the center.
+layer_bubbles_buoyancy	*	key:layers.*.worlds.behaviorConfig.buoyancy	number	Buoyancy	Sets upward speed in eighth-cell units per tick.	Bubbles leave only after their rendered shape is fully above the top.
+layer_bubbles_max	*	key:layers.*.worlds.behaviorConfig.maxBubbles	number	Max Bubbles	Caps the number of active Bubbles particles.	Automatic and manual spawns stop at this limit.
 layer_looper_punch	*	action:behavior_action:toggleMode	action	Punch In/Out	Toggles the looper between overdub and play.	Keeps the recorded loop and current playback position.
 layer_looper_length	*	key:layers.*.worlds.behaviorConfig.lengthSteps	number	Length	Sets the loop length in this layer's behavior steps.	Use a faster Step Rate for tighter recording and playback resolution.
 layer_looper_clear	*	action:behavior_action:clearLoop	action	Clear Loop	Clears the recorded looper sequence for this layer.	Live-held cells stay active; loop playback cells are released.
@@ -164,6 +173,14 @@ default_save	System > Saves > Default > Save Default	action:default_save	action	
 default_load	System > Saves > Default > Load Default	action:default_load	action	Load Default	Loads the saved default payload into current state.	Replaces current runtime settings immediately.
 system_shutdown	System	action:system_shutdown	action	Shutdown	Shows the shutdown splash, then closes the simulator or powers off the Pi gracefully.	Requires confirmation before shutting down.
 system_reboot	System	action:system_reboot	action	Reboot	Shows the shutdown splash, then reboots the Pi gracefully.	Requires confirmation before rebooting.
+usb_group	Menu > System > USB		group	USB	Controls restart-applied USB gadget exposure for the Pi.	Audio Out selects jack, USB, or both; MIDI Out exposes gadget MIDI when Pi support is enabled.
+usb_audio_out	*	key:usb.audioOut	enum	Audio Out	Selects the persisted USB audio output mode for the next reboot.	Choose jack, usb, or both, then use Save & Reboot.
+usb_midi_out	*	key:usb.midiOutEnabled	bool	MIDI Out	Enables persisted USB MIDI gadget output preference for the next reboot.	General MIDI enable/input/clock settings remain under System > MIDI.
+usb_apply_reboot	System > USB	action:usb.applyReboot	action	Save & Reboot	Saves the current default payload and asks the platform to apply USB settings with a reboot.	Confirmation offers Cancel or Save & Reboot.
+recording_group	Menu > System > Recording		group	Recording	Controls Pi main-SD audio recording.	Phase 1 records Octessera's internal stereo output to /home/pi/recordings as WAV.
+recording_max_time	*	key:recording.maxMinutes	number	Max Time	Sets the maximum audio recording length in minutes.	The recorder stops and finalizes the WAV when the limit is reached.
+recording_start_audio	System > Recording	action:recording.startAudio	action	Start Audio	Starts Pi main-SD audio recording of the final internal stereo mix.	External MIDI instrument audio is not captured.
+recording_stop	System > Recording	action:recording.stop	action	Stop	Stops the active Pi audio recording and finalizes the WAV file.	Safe to press when no recording is active.
 autosave_default	*	key:autoSaveDefault	bool	Auto Save Default	When enabled, config edits update default storage after a short cooldown so sweeps save only the latest settled value.	Turning this on and exiting the row saves the current config immediately.
 rolling_backups	*	key:rollingBackups	bool	Backups	When enabled, config edits write rolling backup files at most every five minutes.	The host keeps the latest 20 backups and writes a recovery save during shutdown or reboot.
 note_length	*	key:sound.noteLengthMs	number	Note Length	Default note duration when note_on has no explicit length.	Hold-mode notes may bypass duration and wait for note_off.

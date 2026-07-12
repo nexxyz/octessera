@@ -3,8 +3,7 @@ use super::*;
 #[test]
 pub(crate) fn controls_action_opens_help_without_platform_effects() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5];
-    runner.menu.state.cursor = 5;
+    assert!(runner.menu.focus_item_key("system.controlsHelp"));
 
     let before_path = runner.menu.current_focus_path();
     let messages = runner

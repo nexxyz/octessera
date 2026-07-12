@@ -1,0 +1,89 @@
+#!/bin/sh
+set -eu
+
+G=/sys/kernel/config/usb_gadget/octessera
+CONFIG=/home/pi/presets/default.json
+LOG=octessera-usb-gadget
+LINE_CONNECTOR_TERMINAL_TYPE=1539
+
+log() { logger -t "$LOG" "$*"; echo "$LOG: $*"; }
+json_has() { grep -Eq "$1" "$CONFIG" 2>/dev/null; }
+audio_enabled() { json_has '"audioOut"[[:space:]]*:[[:space:]]*"(usb|both)"'; }
+midi_enabled() { json_has '"midiOutEnabled"[[:space:]]*:[[:space:]]*true'; }
+serial_number() {
+  if [ -r /etc/machine-id ]; then
+    printf 'octessera-%s\n' "$(cut -c1-16 /etc/machine-id)"
+  else
+    printf 'octessera-pi\n'
+  fi
+}
+
+teardown() {
+  [ -d "$G" ] || return 0
+  echo "" > "$G/UDC" 2>/dev/null || true
+  rm -f "$G/configs/c.1"/*.usb0 2>/dev/null || true
+  rmdir "$G/functions"/*.usb0 2>/dev/null || true
+  rmdir "$G/configs/c.1/strings/0x409" "$G/configs/c.1" 2>/dev/null || true
+  rmdir "$G/strings/0x409" "$G" 2>/dev/null || true
+}
+
+setup() {
+  modprobe dwc2 >/dev/null 2>&1 || true
+  modprobe libcomposite >/dev/null 2>&1 || true
+  mountpoint -q /sys/kernel/config || mount -t configfs none /sys/kernel/config || true
+  [ -d /sys/class/udc ] || { log "no UDC class; skipping"; exit 0; }
+  UDC=$(ls /sys/class/udc 2>/dev/null | head -n 1 || true)
+  [ -n "$UDC" ] || { log "no UDC available; skipping"; exit 0; }
+  AUDIO=0; MIDI=0
+  audio_enabled && AUDIO=1
+  midi_enabled && MIDI=1
+  [ "$AUDIO$MIDI" != "00" ] || { teardown; log "no USB gadget functions enabled"; exit 0; }
+  teardown
+  mkdir -p "$G/strings/0x409" "$G/configs/c.1/strings/0x409"
+  echo 0x1d6b > "$G/idVendor"
+  echo 0x0104 > "$G/idProduct"
+  echo 0x0200 > "$G/bcdUSB"
+  echo 0x0100 > "$G/bcdDevice"
+  echo "Octessera" > "$G/strings/0x409/manufacturer"
+  echo "Octessera Line In" > "$G/strings/0x409/product"
+  serial_number > "$G/strings/0x409/serialnumber"
+  echo 250 > "$G/configs/c.1/MaxPower"
+  echo "Octessera" > "$G/configs/c.1/strings/0x409/configuration"
+  if [ "$AUDIO" = 1 ]; then
+    modprobe usb_f_uac2 >/dev/null 2>&1 || true
+    mkdir -p "$G/functions/uac2.usb0"
+    [ -f "$G/functions/uac2.usb0/function_name" ] && echo "Octessera Line In" > "$G/functions/uac2.usb0/function_name"
+    [ -f "$G/functions/uac2.usb0/p_terminal_type" ] && echo "$LINE_CONNECTOR_TERMINAL_TYPE" > "$G/functions/uac2.usb0/p_terminal_type"
+    [ -f "$G/functions/uac2.usb0/c_terminal_type" ] && echo "$LINE_CONNECTOR_TERMINAL_TYPE" > "$G/functions/uac2.usb0/c_terminal_type"
+    [ -f "$G/functions/uac2.usb0/p_it_name" ] && echo "Octessera" > "$G/functions/uac2.usb0/p_it_name"
+    [ -f "$G/functions/uac2.usb0/p_ot_name" ] && echo "Octessera Line In" > "$G/functions/uac2.usb0/p_ot_name"
+    [ -f "$G/functions/uac2.usb0/p_it_ch_name" ] && echo "Line In" > "$G/functions/uac2.usb0/p_it_ch_name"
+    [ -f "$G/functions/uac2.usb0/p_fu_vol_name" ] && echo "Line In Volume" > "$G/functions/uac2.usb0/p_fu_vol_name"
+    [ -f "$G/functions/uac2.usb0/c_it_name" ] && echo "Octessera" > "$G/functions/uac2.usb0/c_it_name"
+    [ -f "$G/functions/uac2.usb0/c_ot_name" ] && echo "Octessera Line Out" > "$G/functions/uac2.usb0/c_ot_name"
+    [ -f "$G/functions/uac2.usb0/c_it_ch_name" ] && echo "Line Out" > "$G/functions/uac2.usb0/c_it_ch_name"
+    [ -f "$G/functions/uac2.usb0/c_fu_vol_name" ] && echo "Line Out Volume" > "$G/functions/uac2.usb0/c_fu_vol_name"
+    echo 3 > "$G/functions/uac2.usb0/p_chmask"
+    echo 2 > "$G/functions/uac2.usb0/p_ssize"
+    echo 44100 > "$G/functions/uac2.usb0/p_srate"
+    [ -f "$G/functions/uac2.usb0/c_chmask" ] && echo 0 > "$G/functions/uac2.usb0/c_chmask"
+    ln -s "$G/functions/uac2.usb0" "$G/configs/c.1/uac2.usb0"
+  fi
+  if [ "$MIDI" = 1 ]; then
+    modprobe usb_f_midi >/dev/null 2>&1 || true
+    mkdir -p "$G/functions/midi.usb0"
+    [ -f "$G/functions/midi.usb0/id" ] && echo "Octessera MIDI" > "$G/functions/midi.usb0/id"
+    ln -s "$G/functions/midi.usb0" "$G/configs/c.1/midi.usb0"
+  fi
+  echo "$UDC" > "$G/UDC"
+  if [ "$AUDIO" = 1 ]; then
+    i=0; while [ "$i" -lt 20 ]; do aplay -l 2>/dev/null | grep -Eiq 'octessera|uac|gadget|usb audio' && break; i=$((i+1)); sleep 0.1; done
+  fi
+  log "configured USB gadget audio=$AUDIO midi=$MIDI udc=$UDC"
+}
+
+case "${1:-setup}" in
+  setup) setup ;;
+  teardown) teardown ;;
+  *) echo "usage: $0 [setup|teardown]" >&2; exit 2 ;;
+esac

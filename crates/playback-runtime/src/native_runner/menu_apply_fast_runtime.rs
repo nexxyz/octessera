@@ -21,6 +21,9 @@ impl NativeRunner {
             "midi.respondToStartStop" => Some(self.fast_bool_menu_key(key, |runner, value| {
                 bool_changed(&mut runner.midi_respond_to_start_stop, value)
             })),
+            "usb.audioOut" => Some(self.fast_usb_audio_out_menu_key()),
+            "usb.midiOutEnabled" => Some(self.fast_usb_midi_out_menu_key()),
+            "recording.maxMinutes" => Some(self.fast_recording_max_minutes_menu_key()),
             "sparksMode" => Some(self.fast_sparks_mode_menu_key()),
             "sparks.page.mix" => Some(self.fast_sparks_page_key("mix")),
             "sparks.page.pan" => Some(self.fast_sparks_page_key("pan")),
@@ -110,6 +113,44 @@ impl NativeRunner {
         };
         if self.sync_source != sync_source {
             self.sync_source = sync_source;
+            self.mark_fast_autosave_dirty();
+        }
+        true
+    }
+
+    fn fast_usb_audio_out_menu_key(&mut self) -> bool {
+        let Some(value) = self.menu.value_for_key("usb.audioOut") else {
+            return false;
+        };
+        let value = super::normalize_usb_audio_out(&value).to_string();
+        if value_changed(&mut self.usb_audio_out, value) {
+            self.mark_fast_autosave_dirty();
+            self.show_toast("USB: Save & Reboot");
+        }
+        true
+    }
+
+    fn fast_usb_midi_out_menu_key(&mut self) -> bool {
+        let Some(value) = self
+            .menu
+            .value_for_key("usb.midiOutEnabled")
+            .map(|value| value == "true")
+        else {
+            return false;
+        };
+        if value_changed(&mut self.usb_midi_out_enabled, value) {
+            self.mark_fast_autosave_dirty();
+            self.show_toast("USB: Save & Reboot");
+        }
+        true
+    }
+
+    fn fast_recording_max_minutes_menu_key(&mut self) -> bool {
+        let Some(value) = self.menu.value_for_key("recording.maxMinutes") else {
+            return false;
+        };
+        let value = value.parse::<u16>().unwrap_or(10).clamp(1, 120);
+        if value_changed(&mut self.recording_max_minutes, value) {
             self.mark_fast_autosave_dirty();
         }
         true

@@ -152,6 +152,25 @@ mod tests {
         }
     }
 
+    fn set_runtime_playing(runtime: &mut PlaybackRuntime, host: &mut FakeHost) {
+        runtime
+            .ingest_runner_messages(
+                vec![RunnerMessage::RuntimeStatus {
+                    status: RuntimeStatus {
+                        state: RuntimeStatusState::Running,
+                        transport: RuntimeTransportState::Playing,
+                        current_ppqn_pulse: 0,
+                        pending_resync: false,
+                        sync_source: SyncSource::Internal,
+                        message: None,
+                    },
+                }],
+                host,
+            )
+            .unwrap();
+        host.midi_messages.clear();
+    }
+
     #[test]
     fn internal_clock_advances_runner_and_schedules_note_offs() {
         let mut runtime = PlaybackRuntime::new(RuntimeConfig {
@@ -162,6 +181,7 @@ mod tests {
         });
         let mut runner = FakeRunner::default();
         let mut host = FakeHost::default();
+        set_runtime_playing(&mut runtime, &mut host);
 
         runtime.advance(500, &mut runner, &mut host).unwrap();
 
@@ -170,8 +190,8 @@ mod tests {
             HostMessage::TransportPulseStep { pulses: 24, .. }
         ));
         assert_eq!(host.midi_messages[0], vec![0x90, 60, 100]);
-        assert_eq!(host.midi_messages[1], vec![0xFA]);
-        assert_eq!(host.midi_messages.len(), 26);
+        assert_eq!(host.midi_messages[1], vec![0xF8]);
+        assert_eq!(host.midi_messages.len(), 25);
 
         runtime.advance(30, &mut runner, &mut host).unwrap();
         assert!(host.midi_messages.contains(&vec![0x80, 60, 0]));
@@ -187,6 +207,7 @@ mod tests {
         });
         let mut runner = FakeRunner::default();
         let mut host = FakeHost::default();
+        set_runtime_playing(&mut runtime, &mut host);
 
         for _ in 0..100 {
             runtime
@@ -234,6 +255,7 @@ mod tests {
         });
         let mut runner = MidiOnlyRunner;
         let mut host = FakeHost::default();
+        set_runtime_playing(&mut runtime, &mut host);
 
         runtime.advance(500, &mut runner, &mut host).unwrap();
         runtime.advance(30, &mut runner, &mut host).unwrap();
@@ -291,6 +313,7 @@ mod tests {
         let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
         let mut runner = EffectRunner;
         let mut host = FakeHost::default();
+        set_runtime_playing(&mut runtime, &mut host);
 
         runtime.advance(500, &mut runner, &mut host).unwrap();
 

@@ -30,6 +30,14 @@ pub enum RuntimePlatformEffect {
     StoreSaveRecovery {
         payload: Value,
     },
+    UsbApplyReboot {
+        payload: Value,
+    },
+    RecordingStartAudio {
+        #[serde(rename = "maxMinutes")]
+        max_minutes: u16,
+    },
+    RecordingStop,
     MidiListOutputsRequest,
     MidiListInputsRequest,
     MidiSelectOutput {

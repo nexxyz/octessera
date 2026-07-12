@@ -517,6 +517,7 @@ Behaviors
 │
 ├── Particles & Motion
 │   ├── Bounce
+│   ├── Bubbles
 │   ├── Gravity
 │   ├── Boids
 │   ├── Orbit
@@ -567,7 +568,7 @@ A good first version would use six groups:
 
 ```text
 Behaviors
-├── Play
+├── Human
 ├── Cellular
 ├── Motion
 ├── Growth
@@ -592,7 +593,7 @@ More technical:
 
 More approachable:
 
-- Play
+- Human
 - Cells
 - Swarms
 - Motion
@@ -1054,6 +1055,56 @@ Caution:
 
 - may resemble Wave or Reaction–Diffusion if not given a clear identity
 
+## 8.8 Bubbles
+
+**Category:** Motion
+**Cost:** Very low to low
+
+Bubbles spawn from the bottom of the grid and rise until they leave the top.
+Each bubble has a subcell position tracked at 64 steps per LED cell on both axes,
+then quantized back to the LED matrix for rendering and musical interpretation.
+
+Bubbles may be:
+
+- a single cell
+- a small hollow circle
+- intermediate radii rendered as compact hollow shapes, such as a radius-3 bubble
+  drawn as a 3×3 cross with an empty center
+
+Motion combines three influences:
+
+- **buoyancy**: upward movement speed, adjustable 1–8, in eighth-cell units
+- **current**: constant lateral movement from -8 to 8, where -8 moves one LED
+  cell left per step, 0 is still, and 8 moves one LED cell right per step
+- **drift**: independent random sway per bubble; each step chooses -1, 0, or 1,
+  multiplies it by a 0–8 eighth-cell drift amount, and applies it to that bubble's X position
+
+When bubbles accidentally touch, they merge into one new bubble using their
+combined radius. When they rise beyond the top of the grid, they despawn. New
+bubbles are always generated from the bottom.
+
+Core parameters:
+
+- minimum radius
+- maximum radius
+- spawn frequency
+- spawn count
+- drift amount, 0–8
+- current, -8–8
+- buoyancy, 1–8
+
+Strengths:
+
+- buoyant vertical motion distinct from Bounce and Raindrops
+- sparse-to-dense texture controlled by spawn frequency and count
+- musically useful merging events and disappearing lifecycle
+- cheap bounded particle system with clear renewal
+
+Caution:
+
+- keep population bounded so high spawn settings remain predictable
+- keep hollow-circle rendering legible on 8×8
+
 ---
 
 # 9. Priority 3: Good but More Conditional
@@ -1307,21 +1358,22 @@ These offer the best combination of:
 8. **Cyclic Cellular Automaton**
 9. **Predator–Prey Ecosystem**
 10. **Gravity / Sandpile**
-11. **Orbit / Moving Attractors**
-12. **Crystal Growth**
-13. **Lightning**
-14. **Ink / Diffusing Dye**
+11. **Bubbles**
+12. **Orbit / Moving Attractors**
+13. **Crystal Growth**
+14. **Lightning**
+15. **Ink / Diffusing Dye**
 
 ## Tier B — Add Selectively
 
-15. **Reaction–Diffusion**
-16. **Vines**
-17. **Coral**
-18. **Maze**
-19. **Ising / Magnetic Domains**
-20. **Rivers**
-21. **Sand Ripples**
-22. **Lava Lamp**
+16. **Reaction–Diffusion**
+17. **Vines**
+18. **Coral**
+19. **Maze**
+20. **Ising / Magnetic Domains**
+21. **Rivers**
+22. **Sand Ripples**
+23. **Lava Lamp**
 
 ---
 
@@ -1367,7 +1419,7 @@ With the current set plus the first recommended additions:
 
 ```text
 Behaviors
-├── Play
+├── Human
 │   ├── None
 │   ├── Keys
 │   ├── Sequencer
@@ -1375,7 +1427,6 @@ Behaviors
 │
 ├── Cellular
 │   ├── Life
-│   ├── Glider
 │   ├── Brain
 │   ├── Ant
 │   ├── Forest Fire
@@ -1386,6 +1437,7 @@ Behaviors
 │   ├── Bounce
 │   ├── Boids
 │   ├── Gravity
+│   ├── Bubbles
 │   ├── Orbit
 │   └── Lightning
 │

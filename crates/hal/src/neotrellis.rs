@@ -58,6 +58,10 @@ const TRELLIS_PIXELS_PER_DEVICE: usize = 16;
 const TRELLIS_PIXEL_BYTES_PER_DEVICE: usize = TRELLIS_PIXELS_PER_DEVICE * 3;
 #[cfg(feature = "rpi-zero-2w")]
 const TRELLIS_LED_CHUNK_BYTES: usize = 24;
+#[cfg(feature = "rpi-zero-2w")]
+const TRELLIS_INIT_ATTEMPTS: usize = 3;
+#[cfg(feature = "rpi-zero-2w")]
+const TRELLIS_INIT_RETRY_DELAY: Duration = Duration::from_millis(250);
 #[cfg(any(feature = "rpi-zero-2w", test))]
 const KEYPAD_EDGE_FALLING: u8 = 2;
 #[cfg(any(feature = "rpi-zero-2w", test))]
@@ -67,6 +71,22 @@ const KEYPAD_EDGE_RISING: u8 = 3;
 impl NeoTrellis {
     /// Initialize 4 NeoTrellis devices at the configured addresses.
     pub fn new(i2c_path: &str) -> Result<Self, String> {
+        let mut last_error = None;
+        for attempt in 1..=TRELLIS_INIT_ATTEMPTS {
+            match Self::try_new(i2c_path) {
+                Ok(trellis) => return Ok(trellis),
+                Err(error) => {
+                    last_error = Some(error);
+                    if attempt < TRELLIS_INIT_ATTEMPTS {
+                        thread::sleep(TRELLIS_INIT_RETRY_DELAY);
+                    }
+                }
+            }
+        }
+        Err(last_error.unwrap_or_else(|| "Trellis init failed".to_string()))
+    }
+
+    fn try_new(i2c_path: &str) -> Result<Self, String> {
         let devices = TRELLIS_ADDRS.map(|addr| (addr, [0; 16]));
 
         let trellis = Self {

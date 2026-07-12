@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 use std::sync::mpsc::Sender;
 use std::time::Instant;
 
+#[derive(Clone)]
 pub enum EngineEvent {
     NoteOn {
         instrument_slot: u8,

@@ -123,6 +123,9 @@ impl NativeRunner {
             midi_clock_out_enabled: self.midi_clock_out_enabled,
             midi_clock_in_enabled: self.midi_clock_in_enabled,
             midi_respond_to_start_stop: self.midi_respond_to_start_stop,
+            usb_audio_out: self.usb_audio_out.clone(),
+            usb_midi_out_enabled: self.usb_midi_out_enabled,
+            recording_max_minutes: self.recording_max_minutes,
             preset_names: self.preset_names.clone(),
             preset_draft_name: self.preset_draft_name.clone(),
             preset_rename_source: self.preset_rename_source.clone(),
@@ -280,6 +283,13 @@ impl NativeRunner {
                     "clockOutEnabled": self.midi_clock_out_enabled,
                     "clockInEnabled": self.midi_clock_in_enabled,
                     "respondToStartStop": self.midi_respond_to_start_stop
+                },
+                "usb": {
+                    "audioOut": self.usb_audio_out,
+                    "midiOutEnabled": self.usb_midi_out_enabled
+                },
+                "recording": {
+                    "maxMinutes": self.recording_max_minutes
                 }
             },
             "mappingConfig": self.base_mapping_config,

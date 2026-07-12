@@ -131,9 +131,9 @@ pub(crate) fn system_submenu_uses_abbreviated_path_and_section_colors() {
             "  Updates >",
             "  Sound >",
             "  MIDI >",
+            "  USB >",
+            "  Recording >",
             "  UI >",
-            "  !Basic Help",
-            "  Diagnostics >"
         ]
     );
     assert_eq!(
@@ -158,7 +158,7 @@ pub(crate) fn system_controls_row_is_help_action() {
         menu.turn(1);
     }
     let _ = menu.press();
-    menu.state.cursor = 5;
+    assert!(menu.focus_item_key("system.controlsHelp"));
 
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "SYS");

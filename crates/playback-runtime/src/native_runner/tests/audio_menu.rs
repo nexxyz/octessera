@@ -1,6 +1,134 @@
 use super::*;
 
 #[test]
+pub(crate) fn usb_menu_edits_payload_with_save_reboot_toast() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert!(runner.menu.focus_item_key("usb.audioOut"));
+    runner.menu.state.editing = true;
+
+    runner.menu.turn(1);
+    runner.apply_menu_state().unwrap();
+
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["usb"]["audioOut"],
+        "usb"
+    );
+    assert_eq!(
+        runner.snapshot().unwrap()["display"]["toast"],
+        "USB: Save & Reboot"
+    );
+}
+
+#[test]
+pub(crate) fn usb_apply_reboot_is_confirmed_and_emits_payload() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.usb_audio_out = "both".into();
+    runner.usb_midi_out_enabled = true;
+    assert!(runner.menu.focus_item_key("usb.applyReboot"));
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let snapshot = snapshot_from(&messages);
+    assert_eq!(snapshot["display"]["title"], "Confirm USB");
+    let lines = snapshot["display"]["lines"].as_array().unwrap();
+    assert!(lines.iter().any(|line| line == "> Cancel"));
+    assert!(lines.iter().any(|line| line == "  Save & Reboot"));
+
+    runner.confirm_dialog.as_mut().unwrap().cursor = 1;
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    let effect = messages.iter().find_map(|message| match message {
+        RunnerMessage::PlatformEffects { effects } => effects.first(),
+        _ => None,
+    });
+    assert!(
+        matches!(effect, Some(RuntimePlatformEffect::UsbApplyReboot { payload }) if payload["runtimeConfig"]["usb"] == json!({ "audioOut": "both", "midiOutEnabled": true }))
+    );
+}
+
+#[test]
+pub(crate) fn usb_apply_reboot_cancel_keeps_menu_without_effect() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert!(runner.menu.focus_item_key("usb.applyReboot"));
+    let before_path = runner.menu.current_focus_path();
+
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert_eq!(runner.menu.current_focus_path(), before_path);
+    assert!(!messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::UsbApplyReboot { .. }))
+    )));
+}
+
+#[test]
+pub(crate) fn recording_max_time_edits_config_payload() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.recording_max_minutes = 14;
+
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["recording"]["maxMinutes"],
+        14
+    );
+}
+
+#[test]
+pub(crate) fn recording_actions_emit_platform_effects() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.recording_max_minutes = 7;
+    assert!(runner.menu.focus_item_key("recording.startAudio"));
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let effect = messages.iter().find_map(|message| match message {
+        RunnerMessage::PlatformEffects { effects } => effects.first(),
+        _ => None,
+    });
+    assert_eq!(
+        effect,
+        Some(&RuntimePlatformEffect::RecordingStartAudio { max_minutes: 7 })
+    );
+
+    assert!(runner.menu.focus_item_key("recording.stop"));
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let effect = messages.iter().find_map(|message| match message {
+        RunnerMessage::PlatformEffects { effects } => effects.first(),
+        _ => None,
+    });
+    assert_eq!(effect, Some(&RuntimePlatformEffect::RecordingStop));
+}
+
+#[test]
 pub(crate) fn output_buffer_frames_edits_into_config_payload_with_restart_toast() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     assert!(runner.menu.focus_item_key("sound.audioOutputBufferFrames"));

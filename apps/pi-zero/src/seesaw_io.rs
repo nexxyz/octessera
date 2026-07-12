@@ -50,7 +50,7 @@ pub(crate) fn spawn(
                 &mut previous_neokey_colors,
             );
 
-            thread::sleep(Duration::from_millis(1));
+            thread::sleep(Duration::from_millis(2));
         }
     });
 

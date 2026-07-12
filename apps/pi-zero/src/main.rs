@@ -16,6 +16,7 @@ mod main_runtime_loop;
 mod oled_test;
 mod persistence;
 mod platform_service;
+mod recording;
 mod render;
 mod render_loop;
 mod runtime_loop;
@@ -25,6 +26,7 @@ mod seesaw_io;
 mod temporary_neokey_hack;
 mod timing_probe;
 mod ui_profile;
+mod usb_config;
 mod wake_trace;
 
 use audio::AudioManager;
@@ -65,7 +67,11 @@ fn main() {
     } = hardware;
     let seesaw_io = seesaw_io::spawn(trellis, neokey, input_interrupt);
     let store_dir = default_store_dir();
-    let audio = init_audio(audio_output_buffer_frames_from_default_config(&store_dir));
+    let usb_config = usb_config::read_usb_runtime_config(&store_dir);
+    let audio = init_audio(
+        audio_output_buffer_frames_from_default_config(&store_dir),
+        usb_config.audio_out,
+    );
 
     let (midi_tx, midi_rx) = mpsc::channel::<MidiMessage>();
     let midi_handler = Arc::new(move |bytes: Vec<u8>| {
@@ -86,6 +92,7 @@ fn main() {
         store_dir,
         samples_dir,
         midi_handler,
+        usb_midi_out_enabled: usb_config.midi_out_enabled,
         midi_rx,
         input_rx: seesaw_io.input_rx,
         encoder_rx: event_rx,
@@ -130,8 +137,11 @@ fn early_boot_splash_enabled() -> bool {
     std::env::var("OCTESSERA_EARLY_BOOT_SPLASH").as_deref() == Ok("1")
 }
 
-fn init_audio(output_buffer_frames: Option<u32>) -> Option<AudioManager> {
-    match AudioManager::new(output_buffer_frames) {
+fn init_audio(
+    output_buffer_frames: Option<u32>,
+    audio_out: usb_config::UsbAudioOut,
+) -> Option<AudioManager> {
+    match AudioManager::new(output_buffer_frames, audio_out) {
         Ok(audio) => {
             println!("Audio ready");
             Some(audio)

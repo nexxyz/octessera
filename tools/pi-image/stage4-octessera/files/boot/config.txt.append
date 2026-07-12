@@ -8,6 +8,7 @@ dtparam=audio=off
 camera_auto_detect=0
 display_auto_detect=0
 dtoverlay=disable-bt
+dtoverlay=dwc2,dr_mode=peripheral
 enable_uart=0
 dtoverlay=i2s-dac-no20
 

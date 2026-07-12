@@ -64,6 +64,13 @@
     "ghostCells": false,
     "gridBrightness": 100,
     "inputEventsWhilePaused": true,
+    "usb": {
+      "audioOut": "jack",
+      "midiOutEnabled": false
+    },
+    "recording": {
+      "maxMinutes": 10
+    },
     "instruments": [
       {
         "autoName": true,

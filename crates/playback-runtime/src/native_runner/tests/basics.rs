@@ -276,4 +276,9 @@ pub(crate) fn button_s_toggles_transport() {
         messages.last(),
         Some(RunnerMessage::RuntimeStatus { status }) if status.transport == RuntimeTransportState::Paused
     ));
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects.contains(&RuntimePlatformEffect::MidiPanic)
+    )));
 }

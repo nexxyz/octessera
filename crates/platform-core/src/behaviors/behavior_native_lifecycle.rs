@@ -15,6 +15,9 @@ impl NativeBehavior {
             NativeBehavior::Bounce => Ok(NativeBehaviorState::Bounce(native_impl::bounce_init(
                 config,
             )?)),
+            NativeBehavior::Bubbles => Ok(NativeBehaviorState::Bubbles(native_impl::bubbles_init(
+                config,
+            )?)),
             NativeBehavior::Shapes => Ok(NativeBehaviorState::Shapes(native_impl::shapes_init(
                 config,
             )?)),
@@ -42,6 +45,9 @@ impl NativeBehavior {
             NativeBehavior::Bounce => {
                 Ok(NativeBehaviorState::Bounce(native_impl::deserialize(data)?))
             }
+            NativeBehavior::Bubbles => Ok(NativeBehaviorState::Bubbles(
+                native_impl::bubbles_deserialize(data)?,
+            )),
             NativeBehavior::Shapes => {
                 Ok(NativeBehaviorState::Shapes(native_impl::deserialize(data)?))
             }

@@ -150,7 +150,7 @@ pub(crate) fn auto_map_toggle_lives_under_system_ui_not_aux_mappings() {
         .iter()
         .any(|line| line.contains("Auto Map")));
 
-    menu.state.stack = vec![5, 4];
+    assert!(menu.focus_item_key("auxAutoMapEnabled"));
     let ui_snapshot = menu.snapshot();
     assert!(ui_snapshot
         .lines

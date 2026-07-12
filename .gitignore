@@ -38,3 +38,10 @@ hardware/Mouser Cart with Components.pdf
 .slim/deepwork/
 apps/desktop/src-tauri/samples/
 tools/pi-image/stage4-octessera/files/root/usr/
+!tools/pi-image/stage4-octessera/files/root/usr/
+tools/pi-image/stage4-octessera/files/root/usr/*
+!tools/pi-image/stage4-octessera/files/root/usr/local/
+tools/pi-image/stage4-octessera/files/root/usr/local/*
+!tools/pi-image/stage4-octessera/files/root/usr/local/sbin/
+tools/pi-image/stage4-octessera/files/root/usr/local/sbin/*
+!tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget

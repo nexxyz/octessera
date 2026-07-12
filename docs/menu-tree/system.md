@@ -44,6 +44,14 @@ System
 │   │   ├── Clock Out: [on | off]
 │   │   ├── Clock In: [on | off]
 │   │   └── Follow Start/Stop: [on | off]
+├── USB (group)
+│   ├── Audio Out: [jack | usb | both]  default jack  ← restart-applied
+│   ├── MIDI Out: [on | off]  default off             ← USB gadget exposure preference
+│   └── Save & Reboot: (action)         ← confirms with Cancel / Save & Reboot, saves payload, asks platform to apply and reboot
+├── Recording (group)
+│   ├── Max Time: [1..120] min  default 10
+│   ├── Start Audio: (action)           ← Pi main-SD WAV of internal stereo output
+│   └── Stop: (action)                  ← finalize active recording
 ├── UI (group)
 │   ├── Ghost Cells: [on | off]  default off  ← shows dim cells from inactive layers behind active layer
 │   ├── Auto Map: [on | off]  default on  ← enables context-sensitive aux mappings

@@ -63,11 +63,31 @@ const NEOKEY_NEOPIXEL_PIN: u8 = 3;
 const NEOKEY_LED_BYTES: u16 = 12;
 #[cfg(any(feature = "rpi-zero-2w", test))]
 const NEOKEY_DEBOUNCE: Duration = Duration::from_millis(24);
+#[cfg(feature = "rpi-zero-2w")]
+const NEOKEY_INIT_ATTEMPTS: usize = 3;
+#[cfg(feature = "rpi-zero-2w")]
+const NEOKEY_INIT_RETRY_DELAY: Duration = Duration::from_millis(250);
 
 #[cfg(feature = "rpi-zero-2w")]
 impl NeoKey {
     /// Initialize NeoKey at the configured address.
     pub fn new(i2c_path: &str) -> Result<Self, String> {
+        let mut last_error = None;
+        for attempt in 1..=NEOKEY_INIT_ATTEMPTS {
+            match Self::try_new(i2c_path) {
+                Ok(neokey) => return Ok(neokey),
+                Err(error) => {
+                    last_error = Some(error);
+                    if attempt < NEOKEY_INIT_ATTEMPTS {
+                        thread::sleep(NEOKEY_INIT_RETRY_DELAY);
+                    }
+                }
+            }
+        }
+        Err(last_error.unwrap_or_else(|| "NeoKey init failed".to_string()))
+    }
+
+    fn try_new(i2c_path: &str) -> Result<Self, String> {
         let mut file = open_device(i2c_path, NEOKEY_ADDR)?;
         write_register(
             &mut file,

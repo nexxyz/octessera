@@ -12,17 +12,18 @@
 body {
   margin: 0;
   background: var(--sim-bg);
+  overflow: hidden;
 }
 
 .app-shell {
-  min-height: 100vh;
-  padding: 14px;
+  height: 100vh;
+  padding: 10px;
   display: grid;
   grid-template-rows: auto 1fr auto;
-  gap: 12px;
+  gap: 8px;
   box-sizing: border-box;
   max-width: 100vw;
-  overflow-x: clip;
+  overflow: hidden;
   background: radial-gradient(circle at 50% 18%, rgb(var(--palette-gray-rgb) / 0.08), var(--sim-bg) 58%);
 }
 
@@ -30,8 +31,8 @@ body {
   border: 1px solid rgb(var(--palette-gray-rgb) / 0.34);
   border-radius: 10px;
   background: linear-gradient(180deg, rgb(var(--palette-gray-rgb) / 0.16), var(--sim-panel-bg-dark));
-  padding: 9px 12px;
-  font-size: 13px;
+  padding: 7px 10px;
+  font-size: 12px;
   letter-spacing: 0.03em;
   box-sizing: border-box;
   max-width: 100%;
@@ -47,20 +48,21 @@ body {
 .panel-layout {
   width: fit-content;
   max-width: 100%;
+  min-height: 0;
   margin: 0 auto;
   display: grid;
   grid-template-columns: max-content max-content;
   align-items: start;
-  gap: 18px;
+  gap: 10px;
 }
 
 .control-grid {
   display: grid;
-  grid-template-columns: 120px auto 98px;
+  grid-template-columns: 108px auto 88px;
   grid-template-areas:
     "sw1 oled oled"
     "aux aux buttons";
-  gap: 10px;
+  gap: 8px;
   align-items: start;
 }
 
@@ -69,9 +71,9 @@ body {
 .button-stack,
 .matrix-chassis {
   border: 1px solid rgb(var(--palette-gray-rgb) / 0.28);
-  border-radius: 12px;
+  border-radius: 10px;
   background: linear-gradient(180deg, rgb(var(--palette-gray-rgb) / 0.11), var(--sim-panel-bg-dark));
-  padding: 10px;
+  padding: 8px;
 }
 
 .sw1 { grid-area: sw1; }
@@ -85,12 +87,12 @@ body {
   grid-template-areas:
     "top top"
     "left right";
-  gap: 12px 14px;
+  gap: 8px 10px;
   align-items: start;
   justify-self: center;
 }
 
-.aux-1 { grid-area: top; justify-self: center; width: 120px; }
+.aux-1 { grid-area: top; justify-self: center; width: 108px; }
 .aux-2 { grid-area: left; }
 .aux-3 { grid-area: right; }
 
@@ -98,8 +100,8 @@ body {
   width: fit-content;
   margin: 0 auto;
   border: 1px solid rgb(var(--palette-gray-rgb) / 0.42);
-  border-radius: 12px;
-  padding: 8px;
+  border-radius: 10px;
+  padding: 6px;
   background: linear-gradient(145deg, rgb(var(--palette-gray-rgb) / 0.1), var(--sim-panel-bg));
   box-shadow: 0 8px 30px rgb(var(--palette-black-rgb) / 0.4);
 }
@@ -132,20 +134,20 @@ body {
 .encoder-card {
   border: 1px solid rgb(var(--palette-gray-rgb) / 0.34);
   border-radius: 10px;
-  padding: 8px;
+  padding: 6px;
   background: linear-gradient(180deg, rgb(var(--palette-gray-rgb) / 0.1), rgb(var(--palette-black-rgb) / 0.9));
 }
 
 .encoder-card h3 {
-  margin: 0 0 7px;
-  font-size: 12px;
+  margin: 0 0 5px;
+  font-size: 11px;
   letter-spacing: 0.03em;
 }
 
 .encoder-card small {
   display: block;
-  margin-top: 7px;
-  font-size: 11px;
+  margin-top: 5px;
+  font-size: 10px;
   color: var(--palette-gray);
 }
 
@@ -156,8 +158,8 @@ body {
 }
 
 .encoder-dial {
-  width: 86px;
-  height: 86px;
+  width: 76px;
+  height: 76px;
   margin: 0 auto;
   border-radius: 50%;
   border: 2px solid rgb(var(--palette-gray-rgb) / 0.4);
@@ -192,8 +194,8 @@ body {
 }
 
 .encoder-center {
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: 1px solid rgb(var(--palette-gray-rgb) / 0.42);
   background: linear-gradient(180deg, rgb(var(--palette-gray-rgb) / 0.18), rgb(var(--palette-black-rgb) / 0.78));
@@ -207,7 +209,7 @@ body {
   border: 1px solid rgb(var(--palette-gray-rgb) / 0.4);
   background: linear-gradient(180deg, rgb(var(--palette-gray-rgb) / 0.18), rgb(var(--palette-black-rgb) / 0.82));
   color: var(--palette-white);
-  padding: 8px;
+  padding: 6px;
   cursor: pointer;
 }
 
@@ -215,15 +217,15 @@ body {
 .button-stack {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 10px;
-  width: 98px;
+  gap: 8px;
+  width: 88px;
   justify-self: start;
   align-self: start;
 }
 
 .button-stack button {
-  min-height: 48px;
-  width: 98px;
+  min-height: 40px;
+  width: 88px;
 }
 
 .button-stack .neokey-back {
@@ -274,13 +276,13 @@ button.encoder-center,
 }
 
 .matrix {
-  width: 560px;
+  width: min(456px, calc(100vw - 536px));
   display: grid;
   grid-template-columns: repeat(8, 1fr);
-  gap: 6px;
-  padding: 8px;
+  gap: 5px;
+  padding: 7px;
   border: 1px solid rgb(var(--palette-gray-rgb) / 0.34);
-  border-radius: 12px;
+  border-radius: 10px;
   background: #141a22;
 }
 
@@ -288,12 +290,12 @@ button.encoder-center,
   width: 100%;
   aspect-ratio: 1;
   border: 1px solid rgb(var(--palette-gray-rgb) / 0.12);
-  border-radius: 8px;
+  border-radius: 7px;
   box-shadow: inset 0 0 10px rgb(var(--palette-white-rgb) / 0.12), 0 0 9px rgb(var(--palette-green-rgb) / 0.14);
   cursor: pointer;
 }
 
-@media (max-width: 1040px) {
+@media (max-width: 960px) {
   .panel-layout {
     width: 100%;
     grid-template-columns: 1fr;
@@ -311,6 +313,25 @@ button.encoder-center,
     justify-self: center;
   }
   .matrix {
-    width: min(500px, 100%);
+    width: min(456px, 100%);
+  }
+}
+
+@media (max-height: 620px) {
+  .app-shell {
+    padding: 8px;
+    gap: 6px;
+  }
+
+  .bar {
+    padding: 5px 8px;
+  }
+
+  .matrix {
+    width: min(420px, calc(100vw - 520px));
+  }
+
+  .button-stack button {
+    min-height: 36px;
   }
 }

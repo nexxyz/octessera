@@ -13,6 +13,11 @@ pub struct BehaviorCatalogEntry {
 pub fn behavior_categories() -> &'static [BehaviorCategory] {
     &[
         BehaviorCategory {
+            id: "play",
+            label: "Human",
+            behavior_ids: &["keys", "looper", "none", "sequencer"],
+        },
+        BehaviorCategory {
             id: "cellular",
             label: "Cellular",
             behavior_ids: &["ant", "brain", "life"],
@@ -35,12 +40,7 @@ pub fn behavior_categories() -> &'static [BehaviorCategory] {
         BehaviorCategory {
             id: "motion",
             label: "Motion",
-            behavior_ids: &["bounce"],
-        },
-        BehaviorCategory {
-            id: "play",
-            label: "Play",
-            behavior_ids: &["keys", "looper", "none", "sequencer"],
+            behavior_ids: &["bounce", "bubbles"],
         },
     ]
 }
@@ -85,6 +85,11 @@ pub fn behavior_catalog() -> &'static [BehaviorCatalogEntry] {
         BehaviorCatalogEntry {
             id: "bounce",
             label: "bounce",
+            category_id: "motion",
+        },
+        BehaviorCatalogEntry {
+            id: "bubbles",
+            label: "bubbles",
             category_id: "motion",
         },
         BehaviorCatalogEntry {

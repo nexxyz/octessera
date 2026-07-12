@@ -76,51 +76,35 @@ impl NativeRunner {
             .map(String::as_str)
             .unwrap_or_else(|| self.behavior.id());
         let catalog = platform_core::behavior_catalog();
-        let none_item = catalog
+        let children = platform_core::behavior_categories()
             .iter()
-            .find(|entry| entry.id == "none")
-            .map(|entry| crate::native_menu::NativeMenuItem {
-                label: entry.label.into(),
+            .map(|category| crate::native_menu::NativeMenuItem {
+                label: format!("[{}]", category.label),
                 key: None,
-                value: crate::native_menu::NativeMenuValue::Action(
-                    NativeMenuAction::SelectBehavior(entry.id.into()),
-                ),
-                children: vec![],
-            });
-        let children = none_item
-            .into_iter()
-            .chain(platform_core::behavior_categories().iter().map(|category| {
-                crate::native_menu::NativeMenuItem {
-                    label: format!("[{}]", category.label),
+                value: crate::native_menu::NativeMenuValue::Group,
+                children: std::iter::once(crate::native_menu::NativeMenuItem {
+                    label: "..".into(),
                     key: None,
-                    value: crate::native_menu::NativeMenuValue::Group,
-                    children: std::iter::once(crate::native_menu::NativeMenuItem {
-                        label: "..".into(),
-                        key: None,
-                        value: crate::native_menu::NativeMenuValue::Action(
-                            NativeMenuAction::NavigateBack,
-                        ),
-                        children: vec![],
-                    })
-                    .chain(category.behavior_ids.iter().filter_map(|behavior_id| {
-                        if *behavior_id == "none" {
-                            return None;
-                        }
-                        catalog
-                            .iter()
-                            .find(|entry| entry.id == *behavior_id)
-                            .map(|entry| crate::native_menu::NativeMenuItem {
-                                label: entry.label.into(),
-                                key: None,
-                                value: crate::native_menu::NativeMenuValue::Action(
-                                    NativeMenuAction::SelectBehavior(entry.id.into()),
-                                ),
-                                children: vec![],
-                            })
-                    }))
-                    .collect(),
-                }
-            }))
+                    value: crate::native_menu::NativeMenuValue::Action(
+                        NativeMenuAction::NavigateBack,
+                    ),
+                    children: vec![],
+                })
+                .chain(category.behavior_ids.iter().filter_map(|behavior_id| {
+                    catalog
+                        .iter()
+                        .find(|entry| entry.id == *behavior_id)
+                        .map(|entry| crate::native_menu::NativeMenuItem {
+                            label: entry.label.into(),
+                            key: None,
+                            value: crate::native_menu::NativeMenuValue::Action(
+                                NativeMenuAction::SelectBehavior(entry.id.into()),
+                            ),
+                            children: vec![],
+                        })
+                }))
+                .collect(),
+            })
             .collect();
         crate::native_menu::NativeMenuItem {
             label: format!("Behavior: {behavior_id}"),

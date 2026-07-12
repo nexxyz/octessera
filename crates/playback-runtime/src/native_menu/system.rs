@@ -136,6 +136,50 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                 ],
             ),
             group(
+                "USB",
+                vec![
+                    enum_item(
+                        "Audio Out",
+                        "usb.audioOut",
+                        vec!["jack", "usb", "both"],
+                        selected_index(&["jack", "usb", "both"], &config.usb_audio_out),
+                    ),
+                    bool_item(
+                        "MIDI Out",
+                        "usb.midiOutEnabled",
+                        config.usb_midi_out_enabled,
+                    ),
+                    action_item(
+                        "Save & Reboot",
+                        "usb.applyReboot",
+                        NativeMenuAction::PlatformEffect("usb.applyReboot".into()),
+                    ),
+                ],
+            ),
+            group(
+                "Recording",
+                vec![
+                    number_item(
+                        "Max Time",
+                        "recording.maxMinutes",
+                        i32::from(config.recording_max_minutes),
+                        1,
+                        120,
+                        1,
+                    ),
+                    action_item(
+                        "Start Audio",
+                        "recording.startAudio",
+                        NativeMenuAction::PlatformEffect("recording.startAudio".into()),
+                    ),
+                    action_item(
+                        "Stop",
+                        "recording.stop",
+                        NativeMenuAction::PlatformEffect("recording.stop".into()),
+                    ),
+                ],
+            ),
+            group(
                 "UI",
                 vec![
                     bool_item("Ghost Cells", "ghostCells", config.ghost_cells),

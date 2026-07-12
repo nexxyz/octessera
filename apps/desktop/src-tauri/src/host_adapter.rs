@@ -206,6 +206,16 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                 self.save_recovery_payload(payload)?;
                 Ok(vec![])
             }
+            RuntimePlatformEffect::UsbApplyReboot { payload } => {
+                self.save_default_result(payload, Some("overwrite"))?;
+                self.shutdown_requested = true;
+                Ok(vec![])
+            }
+            RuntimePlatformEffect::RecordingStartAudio { .. }
+            | RuntimePlatformEffect::RecordingStop => {
+                println!("SD audio recording is unsupported on desktop host");
+                Ok(vec![])
+            }
             RuntimePlatformEffect::AudioCommand { command } => {
                 self.handle_audio_command(command)?;
                 Ok(vec![])

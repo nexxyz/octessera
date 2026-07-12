@@ -8,19 +8,20 @@ You can run several layers at once. One layer might be a stable pulse. Another m
 
 | Behavior | Category | What it is good for |
 |---|---|---|
-| `none` | Play | Inactive layer. Useful when you want space, or when you are setting up before sound. |
-| `keys` | Play | Momentary finger-drumming. Press a cell to play; release it to stop. Immediate and human. |
-| `sequencer` | Play | A manual grid sequence for anchoring the more generative layers. Add probability if it feels too square. |
-| `looper` | Play | Records and replays grid presses/releases. Use Punch In/Out to overdub or perform. |
+| `none` | Human | Inactive layer. Useful when you want space, or when you are setting up before sound. |
+| `keys` | Human | Momentary finger-drumming. Press a cell to play; release it to stop. Immediate and human. |
+| `sequencer` | Human | A manual grid sequence for anchoring the more generative layers. Add probability if it feels too square. |
+| `looper` | Human | Records and replays grid presses/releases. Use Punch In/Out to overdub or perform. |
 | `life` | Cellular | Conway-style cells that birth, survive, and die. A classic little organism for rhythm and texture. |
 | `brain` | Cellular | Brian's Brain style states. It tends to leave trails and pulses rather than simply living/dying. |
 | `ant` | Cellular | Langton-like motion. A tiny agent walks the grid and changes cell states as it goes. |
 | `bounce` | Motion | Moving particles that bounce through the grid. Nice for kinetic patterns and repeating collisions. |
+| `bubbles` | Motion | Bottom-born bubbles drift upward, merge when they touch, and vanish past the top. Good for light, buoyant motion. |
 | `shapes` | Geometry | Geometric areas and edges as musical material. Good when you want a pattern with a visible skeleton. |
 | `raindrops` | Fields | Drops/ripples across the grid. Great for sparse starts that bloom into motion. |
 | `dla` | Growth | Diffusion-limited aggregation. Slow-growing clusters; more sculpture than step sequencer. |
 
-The canonical behavior IDs are `none`, `life`, `sequencer`, `keys`, `looper`, `brain`, `ant`, `bounce`, `shapes`, `raindrops`, and `dla`.
+The canonical behavior IDs are `none`, `life`, `sequencer`, `keys`, `looper`, `brain`, `ant`, `bounce`, `bubbles`, `shapes`, `raindrops`, and `dla`.
 
 ## Trigger types
 
@@ -63,7 +64,7 @@ Play FX are momentary. Pressing a mapped grid cell starts the effect. Releasing 
 The factory preset is a good orientation point: it has a self-sustaining `life` pattern on Layer 1 and a basic `sequencer` rhythm on Layer 2.
 
 1. Use `sequencer` or `looper`, route it to a `sampler`, and create a basic rhythm loop to ground your track.
-2. Add a generative layer: `life`, `raindrops`, `bounce`, or `dla`, and route it to a `synth`.
+2. Add a generative layer: `life`, `raindrops`, `bounce`, `bubbles`, or `dla`, and route it to a `synth`.
 3. Use probability on your sequencer cells to make patterns play back in a more interesting way.
 4. Bind one or two aux encoders to the parameters or actions you keep reaching for.
 5. Open Play Mix or Trigger Gate and perform the layers like little weather systems.

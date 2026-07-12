@@ -195,6 +195,14 @@ pub(super) fn normalize_voice_stealing_mode(value: &str) -> Option<&'static str>
     }
 }
 
+pub(super) fn normalize_usb_audio_out(value: &str) -> &'static str {
+    match value {
+        "usb" => "usb",
+        "both" => "both",
+        _ => "jack",
+    }
+}
+
 struct PendingMenuApply {
     due_at: Instant,
     key: String,
@@ -250,6 +258,9 @@ pub struct NativeRunner {
     midi_clock_out_enabled: bool,
     midi_clock_in_enabled: bool,
     midi_respond_to_start_stop: bool,
+    usb_audio_out: String,
+    usb_midi_out_enabled: bool,
+    recording_max_minutes: u16,
     sparks_mode: String,
     active_sparks_mode: String,
     sparks_fx_selected: Value,

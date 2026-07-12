@@ -43,7 +43,7 @@ fn menu_snapshot() -> Value {
         "transportIcon": "play",
         "transportFlash": "beat",
         "eventDotOn": true,
-        "cpuLoadRatio": 0.7
+        "cpuLoadRatio": 0.0
     })
 }
 
@@ -127,6 +127,25 @@ fn toast_footer_has_priority_over_transport_and_event_dot() {
 }
 
 #[test]
+fn status_icons_are_invisible_until_warning_or_save_flash() {
+    let snapshot = menu_snapshot();
+    let frame = oled_frame(&snapshot);
+    assert_eq!(pixel(&frame, 118, 6), 0);
+    assert_eq!(pixel(&frame, 107, 5), 0);
+
+    let mut high_cpu = snapshot.clone();
+    high_cpu["cpuLoadRatio"] = json!(0.9);
+    let frame = oled_frame(&high_cpu);
+    assert_eq!(pixel(&frame, 118, 6), palette::RED_RGB565);
+
+    let mut saving = snapshot.clone();
+    saving["settings"]["autoSaveFlash"] = json!("flash");
+    saving["settings"]["autoSaveFlashSerial"] = json!(1);
+    let frame = oled_frame(&saving);
+    assert_eq!(pixel(&frame, 107, 5), palette::YELLOW_RGB565);
+}
+
+#[test]
 fn oled_signature_tracks_scroll_bar_status_and_float_changes() {
     let snapshot = menu_snapshot();
     let base = oled_signature(&snapshot);
@@ -137,7 +156,7 @@ fn oled_signature_tracks_scroll_bar_status_and_float_changes() {
     changed["display"]["scrollOffset"] = json!(3);
     assert_ne!(base, oled_signature(&changed));
     changed = snapshot.clone();
-    changed["cpuLoadRatio"] = json!(0.71);
+    changed["cpuLoadRatio"] = json!(0.9);
     assert_ne!(base, oled_signature(&changed));
 }
 

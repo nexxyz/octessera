@@ -152,6 +152,9 @@ impl NativeRunner {
                             RuntimePlatformEffect::Shutdown
                         });
                     Ok(self.platform_effect_for_action(&action_type))
+                } else if action_type == "usb.applyReboot" {
+                    self.show_toast("USB: applying");
+                    Ok(self.platform_effect_for_action(&action_type))
                 } else if let Some(effect) = self.handle_sample_action(&action_type)? {
                     Ok(Some(effect))
                 } else {

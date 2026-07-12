@@ -18,8 +18,8 @@ mod tests;
 pub use catalog::{behavior_catalog, behavior_categories, BehaviorCatalogEntry, BehaviorCategory};
 pub use cellular::LifeState;
 pub use native_impl::{
-    AntState, BounceState, BrainState, DlaState, KeysState, LooperState, RaindropsState,
-    ShapesState,
+    AntState, BounceState, BrainState, BubblesState, DlaState, KeysState, LooperState,
+    RaindropsState, ShapesState,
 };
 pub use play::{NoneState, SequencerState};
 
@@ -33,6 +33,7 @@ pub enum NativeBehaviorState {
     Brain(BrainState),
     Ant(AntState),
     Bounce(BounceState),
+    Bubbles(BubblesState),
     Shapes(ShapesState),
     Raindrops(RaindropsState),
     Dla(DlaState),
@@ -48,6 +49,7 @@ pub enum NativeBehavior {
     Brain,
     Ant,
     Bounce,
+    Bubbles,
     Shapes,
     Raindrops,
     Dla,
@@ -63,6 +65,7 @@ pub fn get_native_behavior(id: &str) -> Option<NativeBehavior> {
         "brain" => Some(NativeBehavior::Brain),
         "ant" => Some(NativeBehavior::Ant),
         "bounce" => Some(NativeBehavior::Bounce),
+        "bubbles" => Some(NativeBehavior::Bubbles),
         "shapes" => Some(NativeBehavior::Shapes),
         "raindrops" => Some(NativeBehavior::Raindrops),
         "dla" => Some(NativeBehavior::Dla),
@@ -80,6 +83,7 @@ pub fn list_native_behavior_ids() -> &'static [&'static str] {
         "brain",
         "ant",
         "bounce",
+        "bubbles",
         "shapes",
         "raindrops",
         "dla",
@@ -97,6 +101,7 @@ impl NativeBehavior {
             NativeBehavior::Brain => "brain",
             NativeBehavior::Ant => "ant",
             NativeBehavior::Bounce => "bounce",
+            NativeBehavior::Bubbles => "bubbles",
             NativeBehavior::Shapes => "shapes",
             NativeBehavior::Raindrops => "raindrops",
             NativeBehavior::Dla => "dla",
@@ -145,6 +150,9 @@ impl NativeBehavior {
             (NativeBehavior::Bounce, NativeBehaviorState::Bounce(state)) => Ok(
                 NativeBehaviorState::Bounce(native_impl::bounce_on_input(state, input, context)),
             ),
+            (NativeBehavior::Bubbles, NativeBehaviorState::Bubbles(state)) => Ok(
+                NativeBehaviorState::Bubbles(native_impl::bubbles_on_input(state, input, context)),
+            ),
             (NativeBehavior::Shapes, NativeBehaviorState::Shapes(state)) => Ok(
                 NativeBehaviorState::Shapes(native_impl::shapes_on_input(state, input, context)),
             ),
@@ -190,6 +198,9 @@ impl NativeBehavior {
             (NativeBehavior::Bounce, NativeBehaviorState::Bounce(state)) => Ok(
                 NativeBehaviorState::Bounce(native_impl::bounce_on_tick(state, context)),
             ),
+            (NativeBehavior::Bubbles, NativeBehaviorState::Bubbles(state)) => Ok(
+                NativeBehaviorState::Bubbles(native_impl::bubbles_on_tick(state, context)),
+            ),
             (NativeBehavior::Shapes, NativeBehaviorState::Shapes(state)) => Ok(
                 NativeBehaviorState::Shapes(native_impl::shapes_on_tick(state, context)),
             ),
@@ -229,6 +240,9 @@ impl NativeBehavior {
             (NativeBehavior::Bounce, NativeBehaviorState::Bounce(state)) => {
                 Ok(native_impl::bounce_render_model(state))
             }
+            (NativeBehavior::Bubbles, NativeBehaviorState::Bubbles(state)) => {
+                Ok(native_impl::bubbles_render_model(state))
+            }
             (NativeBehavior::Shapes, NativeBehaviorState::Shapes(state)) => {
                 Ok(native_impl::shapes_render_model(state))
             }
@@ -265,6 +279,9 @@ impl NativeBehavior {
             (NativeBehavior::Ant, NativeBehaviorState::Ant(state)) => native_impl::serialize(state),
             (NativeBehavior::Bounce, NativeBehaviorState::Bounce(state)) => {
                 native_impl::serialize(state)
+            }
+            (NativeBehavior::Bubbles, NativeBehaviorState::Bubbles(state)) => {
+                native_impl::bubbles_serialize(state)
             }
             (NativeBehavior::Shapes, NativeBehaviorState::Shapes(state)) => {
                 native_impl::serialize(state)
