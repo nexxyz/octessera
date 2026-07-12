@@ -20,7 +20,7 @@ pub(crate) struct SeesawIo {
 
 pub(crate) fn spawn(
     mut trellis: NeoTrellis,
-    mut neokey: NeoKey,
+    mut neokey: Option<NeoKey>,
     interrupt: SeesawInterrupt,
 ) -> SeesawIo {
     let (input_tx, input_rx) = mpsc::channel::<HostMessage>();
@@ -33,14 +33,19 @@ pub(crate) fn spawn(
         loop {
             let service_due = last_input_service.elapsed() >= INPUT_SERVICE_INTERVAL;
             if service_due || interrupt.pending() {
-                scan_inputs(&mut trellis, &mut neokey, &mut previous_neokey, &input_tx);
+                scan_inputs(
+                    &mut trellis,
+                    neokey.as_mut(),
+                    &mut previous_neokey,
+                    &input_tx,
+                );
                 last_input_service = Instant::now();
             }
 
             drain_commands(
                 &command_rx,
                 &mut trellis,
-                &mut neokey,
+                neokey.as_mut(),
                 &mut previous_grid_frame,
                 &mut previous_neokey_colors,
             );
@@ -58,7 +63,7 @@ pub(crate) fn spawn(
 fn drain_commands(
     command_rx: &Receiver<SeesawCommand>,
     trellis: &mut NeoTrellis,
-    neokey: &mut NeoKey,
+    neokey: Option<&mut NeoKey>,
     previous_grid_frame: &mut Option<[[u8; 3]; 64]>,
     previous_neokey_colors: &mut Option<[[u8; 3]; 4]>,
 ) {
@@ -80,7 +85,7 @@ fn drain_commands(
         }
     }
 
-    if let Some(colors) = latest_neokey {
+    if let (Some(colors), Some(neokey)) = (latest_neokey, neokey) {
         let previous = previous_neokey_colors.unwrap_or([[u8::MAX; 3]; 4]);
         let mut all_ok = true;
         for (index, color) in colors.iter().enumerate() {
@@ -99,7 +104,7 @@ fn drain_commands(
 
 fn scan_inputs(
     trellis: &mut NeoTrellis,
-    neokey: &mut NeoKey,
+    neokey: Option<&mut NeoKey>,
     previous_neokey: &mut [bool; 4],
     input_tx: &Sender<HostMessage>,
 ) {
@@ -110,7 +115,10 @@ fn scan_inputs(
         }
     }
 
-    if let Ok(keys) = neokey.scan_interrupts() {
+    if let Some(neokey) = neokey {
+        let Ok(keys) = neokey.scan_interrupts() else {
+            return;
+        };
         for (key, pressed) in keys {
             let index = usize::from(key.min(3));
             if previous_neokey[index] == pressed {

@@ -56,6 +56,10 @@ impl HardwareFault {
             .collect::<Vec<_>>()
             .join(", ")
     }
+
+    pub(crate) fn failure_names(&self) -> impl Iterator<Item = &'static str> + '_ {
+        self.failures.iter().map(|failure| failure.name)
+    }
 }
 
 pub(crate) fn run_hardware_fault_mode(mut fault: HardwareFault) -> ! {

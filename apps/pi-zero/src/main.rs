@@ -22,6 +22,7 @@ mod runtime_loop;
 mod runtime_thread;
 mod sample_browser;
 mod seesaw_io;
+mod temporary_neokey_hack;
 mod timing_probe;
 mod ui_profile;
 mod wake_trace;
@@ -50,11 +51,7 @@ fn main() {
     let (event_rx, _encoders) = match init_encoders() {
         Ok(encoders) => encoders,
         Err(mut fault) => {
-            fault.attach_outputs(
-                Some(hardware.oled),
-                Some(hardware.trellis),
-                Some(hardware.neokey),
-            );
+            fault.attach_outputs(Some(hardware.oled), Some(hardware.trellis), hardware.neokey);
             hardware_fault::run_hardware_fault_mode(fault);
         }
     };
