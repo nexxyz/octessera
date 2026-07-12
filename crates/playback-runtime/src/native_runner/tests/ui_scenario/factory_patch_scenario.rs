@@ -91,7 +91,7 @@ fn configure_worlds_and_paint_from_visible_ui(device: &mut DeviceDriver) {
         menu.back();
         menu.open_group("L2:");
         menu.open_group("Behavior");
-        menu.open_group("Play");
+        menu.open_group("Human");
         menu.activate_action("sequencer");
         menu.edit_enum_to("Step Rate", "1/8");
     }
@@ -101,7 +101,7 @@ fn configure_worlds_and_paint_from_visible_ui(device: &mut DeviceDriver) {
         menu.back();
         menu.open_group("L3:");
         menu.open_group("Behavior");
-        menu.open_group("Play");
+        menu.open_group("Human");
         menu.activate_action("looper");
         menu.edit_enum_to("Step Rate", "1/8");
         menu.back_to_root();

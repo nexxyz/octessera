@@ -1,6 +1,3 @@
-//! NeoKey 1x4 button + LED driver
-//! Uses seesaw over I2C.
-
 #[cfg(feature = "rpi-zero-2w")]
 use crate::pinmap::NEOKEY_ADDR;
 #[cfg(feature = "rpi-zero-2w")]
@@ -17,7 +14,6 @@ use std::time::{Duration, Instant};
 #[cfg(not(feature = "rpi-zero-2w"))]
 use std::fmt;
 
-/// NeoKey 1x4 device
 #[cfg(feature = "rpi-zero-2w")]
 pub struct NeoKey {
     i2c_path: String,
@@ -70,7 +66,6 @@ const NEOKEY_INIT_RETRY_DELAY: Duration = Duration::from_millis(250);
 
 #[cfg(feature = "rpi-zero-2w")]
 impl NeoKey {
-    /// Initialize NeoKey at the configured address.
     pub fn new(i2c_path: &str) -> Result<Self, String> {
         let mut last_error = None;
         for attempt in 1..=NEOKEY_INIT_ATTEMPTS {
@@ -169,7 +164,6 @@ impl NeoKey {
         })
     }
 
-    /// Returns Vec<(key_index, pressed)> for keys 0-3.
     pub fn scan(&mut self) -> Result<Vec<(u8, bool)>, String> {
         let sampled = neokey_buttons_from_raw(self.raw_button_state()?);
         let stable_buttons = self.debouncer.update(sampled, Instant::now());
@@ -212,7 +206,6 @@ impl NeoKey {
         )
     }
 
-    /// Set LED color for key (0-3)
     pub fn set_led(&mut self, key: u8, r: u8, g: u8, b: u8) -> Result<(), String> {
         if key >= 4 {
             return Err(format!("NeoKey LED index out of range: {key}"));
@@ -344,7 +337,6 @@ fn set_slave_addr(file: &File, addr: u16) -> Result<(), String> {
     Ok(())
 }
 
-/// Stub for non-Pi builds
 #[cfg(not(feature = "rpi-zero-2w"))]
 pub struct NeoKey {
     _private: (),
