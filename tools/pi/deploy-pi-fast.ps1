@@ -353,22 +353,22 @@ fi
 
 printf '\n'
 cat <<'EOM'
-                          ████    ████
-                         █████   ██████
-                       ███     ███    ███
-                     ████    ████       ████
-                   ████    ████   ████    ████
-                   ████    ████   ████    ████
-                      ███       ████    ███
-                        ████   ███    ████
-                          ██████   █████
-                           ████    ████
+                          OOOO    OOOO
+                         OOOOO   OOOOOO
+                       OOO     OOO    OOO
+                     OOOO    OOOO       OOOO
+                   OOOO    OOOO   OOOO    OOOO
+                   OOOO    OOOO   OOOO    OOOO
+                      OOO       OOOO    OOO
+                        OOOO   OOO    OOOO
+                          OOOOOO   OOOOO
+                           OOOO    OOOO
 
-      █████ █████ ██████ █████ █████ █████ █████ █████ █████
-      █   █ █       ██   █     █     █     █     █   █ █   █
-      █   █ █       ██   █████ █████ █████ █████ █████ █████
-      █   █ █       ██   █         █     █ █     █  ██ █   █
-      █████ █████   ██   █████ █████ █████ █████ █   █ █   █
+      OOOOO OOOOO OOOOOO OOOOO OOOOO OOOOO OOOOO OOOOO OOOOO
+      O   O O       OO   O     O     O     O     O   O O   O
+      O   O O       OO   OOOOO OOOOO OOOOO OOOOO OOOOO OOOOO
+      O   O O       OO   O         O     O O     O  OO O   O
+      OOOOO OOOOO   OO   OOOOO OOOOO OOOOO OOOOO O   O O   O
 EOM
 printf '\n  cellular automata -> music\n'
 printf '  service: systemctl status octessera\n'

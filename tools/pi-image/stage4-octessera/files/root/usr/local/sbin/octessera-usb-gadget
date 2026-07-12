@@ -73,6 +73,7 @@ setup() {
     modprobe usb_f_midi >/dev/null 2>&1 || true
     mkdir -p "$G/functions/midi.usb0"
     [ -f "$G/functions/midi.usb0/id" ] && echo "Octessera MIDI" > "$G/functions/midi.usb0/id"
+    [ -f "$G/functions/midi.usb0/interface_string" ] && echo "Octessera MIDI" > "$G/functions/midi.usb0/interface_string"
     ln -s "$G/functions/midi.usb0" "$G/configs/c.1/midi.usb0"
   fi
   echo "$UDC" > "$G/UDC"
