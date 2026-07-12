@@ -24,6 +24,7 @@ pub(super) struct InstrumentMenuConfig<'a> {
     pub(super) volume: u8,
     pub(super) pan_pos: u8,
     pub(super) sample_slot: usize,
+    pub(super) sample_paths: &'a [Option<String>],
     pub(super) synth_config: Option<&'a serde_json::Value>,
     pub(super) synth_osc1_waveform: &'a str,
     pub(super) synth_osc2_waveform: &'a str,

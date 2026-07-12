@@ -275,7 +275,7 @@ test("runtime applies native ledsDimmed to desktop NeoKey LEDs", async () => {
   runtime.dispatch({ type: "grid_press", x: 1, y: 2 });
   await waitMicrotask();
 
-  assert.deepEqual(runtime.getSnapshot().neoKeyLeds.space, PULSES_COLOR.map((channel) => Math.round(channel * 0.08 * 0.75)));
+  assert.deepEqual(runtime.getSnapshot().neoKeyLeds.space, PULSES_COLOR.map((channel) => Math.round(channel * 0.22 * 0.75)));
 });
 
 test("display off does not dim desktop NeoKey LEDs", async () => {

@@ -214,6 +214,11 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                 "system.shutdown",
                 NativeMenuAction::PlatformEffect("system.shutdown".into()),
             ),
+            action_item(
+                "Clear all",
+                "system.clearAll",
+                NativeMenuAction::PlatformEffect("system.clearAll".into()),
+            ),
         ],
     )
 }

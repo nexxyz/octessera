@@ -49,6 +49,7 @@ impl NativeRunner {
             instrument_volumes: instrument_volumes(&instruments),
             instrument_pan_positions: instrument_pan_positions(&instruments),
             instrument_sample_slots: instrument_sample_slots(&instruments),
+            instrument_sample_paths: instrument_sample_paths(&instruments),
             instrument_synth_configs: instrument_synth_configs(&instruments),
             instrument_synth_osc1_waveforms: instrument_synth_osc1_waveforms(&instruments),
             instrument_synth_osc2_waveforms: instrument_synth_osc2_waveforms(&instruments),

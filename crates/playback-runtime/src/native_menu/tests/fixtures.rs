@@ -85,6 +85,7 @@ pub(crate) fn config() -> NativeMenuConfig {
         instrument_volumes: vec![100],
         instrument_pan_positions: vec![16],
         instrument_sample_slots: vec![0],
+        instrument_sample_paths: vec![vec![None; 8]],
         instrument_synth_configs: vec![serde_json::json!({})],
         instrument_synth_osc1_waveforms: vec!["saw".into()],
         instrument_synth_osc2_waveforms: vec!["square".into()],

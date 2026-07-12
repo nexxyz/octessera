@@ -1,26 +1,32 @@
 use super::*;
 
 #[test]
-pub(crate) fn fx_bus_and_global_fx_option_sets_do_not_overlap_except_none() {
+pub(crate) fn fx_bus_and_global_fx_option_sets_only_share_supported_processors() {
+    let shared_fx = [
+        "none",
+        "vinyl",
+        "eq",
+        "compressor",
+        "saturator",
+        "distortion",
+    ];
     for fx_type in FX_BUS_SLOT_OPTIONS {
-        if *fx_type == "none" {
-            continue;
-        }
         assert!(is_valid_fx_bus_slot_type(fx_type));
-        assert!(
-            !is_valid_global_fx_slot_type(fx_type),
-            "{fx_type} should not be global"
-        );
+        if is_valid_global_fx_slot_type(fx_type) {
+            assert!(
+                shared_fx.contains(fx_type),
+                "{fx_type} should not be global"
+            );
+        }
     }
     for fx_type in GLOBAL_FX_SLOT_OPTIONS {
-        if *fx_type == "none" {
-            continue;
-        }
         assert!(is_valid_global_fx_slot_type(fx_type));
-        assert!(
-            !is_valid_fx_bus_slot_type(fx_type),
-            "{fx_type} should not be a bus FX"
-        );
+        if is_valid_fx_bus_slot_type(fx_type) {
+            assert!(
+                shared_fx.contains(fx_type),
+                "{fx_type} should not be a bus FX"
+            );
+        }
     }
 }
 
@@ -202,6 +208,38 @@ pub(crate) fn sample_browser_label_includes_selected_slot_context_without_body_r
     assert_eq!(browser.label, "S3 Browse");
     assert_eq!(browser.children[0].label, "..");
     assert_eq!(browser.children[1].label, "[Long Folder Name]");
+}
+
+#[test]
+pub(crate) fn loaded_sample_row_shows_filename_idle_and_full_path_when_selected() {
+    let mut cfg = config();
+    cfg.instrument_types[0] = "sampler".into();
+    cfg.instrument_sample_slots[0] = 2;
+    cfg.instrument_sample_paths[0][2] = Some("Drum/kick/long-sample-file.wav".into());
+
+    let root = build_root(cfg.clone());
+    let loaded =
+        find_item_by_key(&root, "sample.loaded:0:2:Drum/kick/long-sample-file.wav").unwrap();
+    assert_eq!(loaded.label, "long-sample-file.wav");
+
+    let mut menu = NativeMenuModel::new(cfg);
+    let path = find_path_by_key(
+        &menu.root,
+        "sample.loaded:0:2:Drum/kick/long-sample-file.wav",
+    )
+    .unwrap();
+    menu.state.cursor = *path.last().unwrap();
+    menu.state.stack = path[..path.len() - 1].to_vec();
+    let snapshot = menu.snapshot();
+    let selected_row = snapshot.selected_row.unwrap();
+    assert!(snapshot
+        .lines
+        .iter()
+        .any(|line| line.contains("sample-file")));
+    assert_eq!(
+        snapshot.full_lines[selected_row].as_deref(),
+        Some("> !Drum/kick/long-sample-file.wav")
+    );
 }
 
 #[test]

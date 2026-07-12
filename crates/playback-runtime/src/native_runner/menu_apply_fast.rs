@@ -137,6 +137,18 @@ impl NativeRunner {
                 "sample.amp.velocitySensitivityPct",
                 fast_sample_velocity_sensitivity,
             ),
+            "sample.filter.cutoffHz" => self.fast_sample_bank_key(
+                index,
+                number_value,
+                "sample.filter.cutoffHz",
+                fast_sample_filter_cutoff,
+            ),
+            "sample.filter.resonance" => self.fast_sample_bank_key(
+                index,
+                number_value,
+                "sample.filter.resonance",
+                fast_sample_filter_resonance,
+            ),
             suffix if suffix.starts_with("sample.") => {
                 return self.fast_full_instrument_sample_key(index, key);
             }

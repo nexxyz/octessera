@@ -143,6 +143,20 @@ Check generated output freshness:
 corepack pnpm run palette:check
 ```
 
+## Heavy Runtime UI Scenario
+
+The factory patch UI scenario is an ignored Rust test. It drives `NativeRunner` through protocol messages and simulated device input, not through private menu state.
+
+Run it directly when changing menu traversal, runtime modulation, sampler assignment, Sparks, or factory-patch setup behavior:
+
+```bash
+cargo test -p playback-runtime factory_patch_ui_scenario -- --ignored
+```
+
+The pre-push hook runs this scenario. GitHub CI can also run it from `workflow_dispatch` with `run-heavy-ui-scenario=true`.
+
+The documented input recipe lives in [`factory-patch-ui-scenario.md`](factory-patch-ui-scenario.md).
+
 ## Platform Default Configs
 
 Source defaults live under `config/defaults/`:

@@ -50,6 +50,11 @@ pub(super) fn instrument_binding_groups(
                     .get(index)
                     .copied()
                     .unwrap_or(0),
+                sample_paths: config
+                    .instrument_sample_paths
+                    .get(index)
+                    .map(Vec::as_slice)
+                    .unwrap_or(&[]),
                 synth_config: config.instrument_synth_configs.get(index),
                 synth_osc1_waveform: config
                     .instrument_synth_osc1_waveforms

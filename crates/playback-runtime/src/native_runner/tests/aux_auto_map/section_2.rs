@@ -234,7 +234,7 @@ pub(crate) fn fn_aux_bind_sets_explicit_toast_and_marks_config_dirty() {
 
     assert_eq!(
         runner.toast.as_ref().unwrap().message,
-        "S1: Bound turn: Master Vol"
+        "Click-1: Bound turn: Master Vol"
     );
     assert!(runner.config_dirty);
 }
@@ -254,5 +254,8 @@ pub(crate) fn aux_click_action_toast_is_shown_for_platform_effect_actions() {
         })
         .unwrap();
 
-    assert_eq!(runner.toast.as_ref().unwrap().message, "S1: MIDI Panic");
+    assert_eq!(
+        runner.toast.as_ref().unwrap().message,
+        "Click-1: MIDI Panic"
+    );
 }

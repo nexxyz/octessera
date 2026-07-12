@@ -32,6 +32,7 @@ mod step_rates;
 mod store;
 mod structural_draft;
 mod trigger_gates;
+mod ui_scenario;
 
 pub(crate) fn snapshot_from(messages: &[RunnerMessage]) -> Value {
     messages

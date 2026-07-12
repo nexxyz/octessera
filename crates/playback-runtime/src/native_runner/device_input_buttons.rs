@@ -115,13 +115,13 @@ impl NativeRunner {
             )
         });
         if !valid {
-            self.show_toast(format!("S{}: {} not active", index + 1, press.label));
+            self.show_toast(format!("Click-{}: {} not active", index + 1, press.label));
             return Ok(Some(self.messages_with_snapshot()?));
         }
         let suppress_aux_toast = self.behavior.id() == "looper" && action_type == "toggleMode";
         let result = self.trigger_behavior_action_result(action_type)?;
         if !suppress_aux_toast {
-            self.show_toast(format!("S{}: {}", index + 1, press.label));
+            self.show_toast(format!("Click-{}: {}", index + 1, press.label));
         }
         Ok(Some(self.messages_with_input_result(result)?))
     }

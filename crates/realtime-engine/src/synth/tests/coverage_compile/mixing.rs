@@ -1,4 +1,4 @@
-use super::helpers::*;
+use super::param_fixtures::*;
 
 #[test]
 fn compiles_mixing_fx_params_with_expected_defaults_and_clamps() {

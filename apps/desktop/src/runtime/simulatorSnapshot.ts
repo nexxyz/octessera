@@ -121,7 +121,7 @@ function neoKeyColors(
   shiftActive: boolean,
 ): SimulatorSnapshot["neoKeyLeds"] {
   const settings = frame.settings;
-  const scaleFactor = (settings?.ledsDimmed ? 0.08 : 1) * brightnessScale(buttonBrightness);
+  const scaleFactor = (settings?.ledsDimmed ? 0.22 : 1) * brightnessScale(buttonBrightness);
   const combined = settings?.combinedModifierHeld ?? false;
   return {
     back: scale(PULSES_COLOR, scaleFactor),

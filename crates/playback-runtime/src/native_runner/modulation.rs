@@ -12,6 +12,7 @@ pub(super) use super::modulation_sampler::{
 };
 use super::modulation_value::{axis_norm, quantize_binding_value};
 use super::{NativeParamBinding, NativeRunner, Value, GRID_HEIGHT, GRID_WIDTH};
+use crate::protocol::RuntimeAudioCommand;
 use platform_core::CellTriggerIntent;
 
 use super::note_unit_to_pulses;
@@ -197,7 +198,14 @@ impl NativeRunner {
 
     fn apply_instrument_param_binding(&mut self, index: usize, field: &str, value: Value) {
         if let Some(instrument) = self.instruments.get_mut(index) {
+            let before = instrument.clone();
+            let audio_command = instrument_modulation_audio_command(index, field, &value);
             apply_instrument_binding_value(instrument, field, value, &mut self.config_dirty);
+            if *instrument != before {
+                if let Some(command) = audio_command {
+                    self.queue_audio_command(command);
+                }
+            }
         }
     }
 
@@ -216,6 +224,38 @@ impl NativeRunner {
             value,
             &mut self.config_dirty,
         );
+    }
+}
+
+fn instrument_modulation_audio_command(
+    index: usize,
+    field: &str,
+    value: &Value,
+) -> Option<RuntimeAudioCommand> {
+    let value = value.as_f64()?;
+    let display = value.round() as i32;
+    match field {
+        "synth.filter.cutoffHz" => Some(RuntimeAudioCommand::SetSynthParam {
+            instrument_slot: index,
+            path: field.into(),
+            value: super::cutoff_display_to_hz(display) as f32,
+        }),
+        "synth.filter.resonance" => Some(RuntimeAudioCommand::SetSynthParam {
+            instrument_slot: index,
+            path: field.into(),
+            value: value.round().clamp(0.0, 255.0) as f32,
+        }),
+        "sample.filter.cutoffHz" => Some(RuntimeAudioCommand::SetSampleBankParam {
+            instrument_slot: index,
+            path: field.into(),
+            value: super::cutoff_display_to_hz(display) as f32,
+        }),
+        "sample.filter.resonance" => Some(RuntimeAudioCommand::SetSampleBankParam {
+            instrument_slot: index,
+            path: field.into(),
+            value: value.round().clamp(0.0, 255.0) as f32,
+        }),
+        _ => None,
     }
 }
 

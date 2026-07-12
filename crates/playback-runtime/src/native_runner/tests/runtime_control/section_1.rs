@@ -52,6 +52,120 @@ pub(crate) fn factory_load_applies_native_factory_without_loading_user_default()
 }
 
 #[test]
+pub(crate) fn clear_all_confirmation_cancel_is_noop() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.current_preset_name = Some("keeper".into());
+    runner
+        .execute_menu_action(NativeMenuAction::PlatformEffect("system.clearAll".into()))
+        .unwrap();
+    assert_eq!(
+        runner.confirm_dialog.as_ref().unwrap().title,
+        "Confirm Clear All"
+    );
+
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert_eq!(runner.current_preset_name.as_deref(), Some("keeper"));
+    assert_eq!(runner.layer_behavior_ids[0], "life");
+    assert_eq!(runner.audio_config_revision, 0);
+}
+
+#[test]
+pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.current_preset_name = Some("old".into());
+    runner.preset_rename_source = Some("old".into());
+    runner.preset_draft_name = "custom draft".into();
+    runner.preset_names = vec!["old".into()];
+    runner.instruments[0].kind = "synth".into();
+    runner.fx_buses[0].slot1_type = "delay".into();
+    runner.sparks_fx_assign = Some(json!({ "type": "delay" }));
+    runner.aux_auto_map_enabled = false;
+    runner.ui.ghost_cells = false;
+    runner.ui.master_volume = 77;
+    runner.midi_enabled = true;
+    runner.transport = RuntimeTransportState::Playing;
+
+    runner
+        .execute_confirmed_action(NativeMenuAction::PlatformEffect("system.clearAll".into()))
+        .unwrap();
+
+    assert_eq!(runner.transport, RuntimeTransportState::Stopped);
+    assert!(runner
+        .outbox
+        .drain_platform_effects()
+        .iter()
+        .any(|effect| matches!(effect, RuntimePlatformEffect::MidiPanic)));
+    assert!(runner.layer_behavior_ids.iter().all(|id| id == "none"));
+    assert!(runner.layer_behavior_configs.iter().all(Value::is_null));
+    assert!(runner.config_payload()["runtimeConfig"]["layers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|layer| layer["worlds"].get("savedState").is_none()));
+    assert!(runner
+        .instruments
+        .iter()
+        .all(|instrument| instrument.kind == "none"));
+    assert!(runner
+        .fx_buses
+        .iter()
+        .all(|bus| bus.slot1_type == "none" && bus.slot2_type == "none"));
+    assert!(runner.global_fx_slots.iter().all(|slot| slot == "none"));
+    assert_eq!(runner.trigger_probability_assign, None);
+    assert!(runner
+        .trigger_probability_maps
+        .iter()
+        .flatten()
+        .all(|mode| mode == "full"));
+    assert_eq!(runner.current_preset_name, None);
+    assert_eq!(runner.preset_rename_source, None);
+    assert_ne!(runner.preset_draft_name, "custom draft");
+    assert_eq!(runner.preset_names, vec!["old"]);
+    assert!(!runner.aux_auto_map_enabled);
+    assert!(!runner.ui.ghost_cells);
+    assert_eq!(runner.ui.master_volume, 77);
+    assert!(runner.midi_enabled);
+    assert_eq!(runner.audio_config_revision, 1);
+    assert_eq!(
+        runner.menu.value_for_key("instruments.0.type").as_deref(),
+        Some("none")
+    );
+    assert_eq!(
+        runner
+            .menu
+            .value_for_key("mixer.buses.0.slot1.type")
+            .as_deref(),
+        Some("none")
+    );
+    assert_eq!(runner.toast.as_ref().unwrap().message, "Cleared all");
+    let messages = runner.messages_with_snapshot().unwrap();
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::AudioCommands { commands }
+            if commands.iter().any(|command| matches!(
+                command,
+                RuntimeAudioCommand::SetAudioConfig { revision: 1, config }
+                    if config["instruments"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .all(|instrument| instrument["type"] == "none")
+                    && config["mixer"]["buses"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .all(|bus| bus["slot1"]["type"] == "none" && bus["slot2"]["type"] == "none")
+            ))
+    )));
+}
+
+#[test]
 pub(crate) fn external_midi_realtime_respects_clock_in_and_start_stop_settings() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.sync_source = SyncSource::External;

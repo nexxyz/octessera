@@ -5,6 +5,7 @@ use super::{
     action_item, bool_item, enum_item, group, number_item, selected_index, InstrumentMenuConfig,
     NativeMenuAction, NativeMenuItem,
 };
+use crate::native_menu::NativeMenuValue;
 
 pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> NativeMenuItem {
     let sample_slot = config.sample_slot.min(7);
@@ -15,6 +16,7 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
             vec!["1", "2", "3", "4", "5", "6", "7", "8"],
             sample_slot,
         ),
+        loaded_sample_item(config.index, sample_slot, config.sample_paths),
         sample_browser_group(
             config.index,
             sample_slot,
@@ -152,4 +154,40 @@ fn velocity_levels_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Nat
             ),
         ],
     )
+}
+
+fn loaded_sample_item(
+    instrument_slot: usize,
+    sample_slot: usize,
+    sample_paths: &[Option<String>],
+) -> NativeMenuItem {
+    let path = sample_paths
+        .get(sample_slot)
+        .and_then(Option::as_deref)
+        .unwrap_or("(empty)");
+    let label = path
+        .rsplit('/')
+        .next()
+        .filter(|name| !name.is_empty())
+        .unwrap_or(path);
+    let browse_dir = sample_parent_dir(path);
+    NativeMenuItem {
+        label: label.into(),
+        key: Some(format!(
+            "sample.loaded:{instrument_slot}:{sample_slot}:{path}"
+        )),
+        value: NativeMenuValue::Action(NativeMenuAction::PlatformEffect(format!(
+            "sample.open:{instrument_slot}:{sample_slot}:{browse_dir}"
+        ))),
+        children: vec![],
+    }
+}
+
+fn sample_parent_dir(path: &str) -> String {
+    let mut parts = path
+        .split('/')
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>();
+    let _ = parts.pop();
+    parts.join("/")
 }

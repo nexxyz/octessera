@@ -9,10 +9,15 @@ pub(super) const FX_BUS_SLOT_OPTIONS: &[&str] = &[
     "flanger",
     "filter_lfo",
     "wah",
+    "vinyl",
+    "eq",
+    "compressor",
     "reverb",
     "glitch",
     "auto_pan",
     "duck",
+    "saturator",
+    "distortion",
     "bitcrusher",
 ];
 

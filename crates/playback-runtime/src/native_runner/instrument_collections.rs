@@ -78,6 +78,15 @@ pub(super) fn instrument_sample_slots(instruments: &[NativeInstrumentSlot]) -> V
         .collect()
 }
 
+pub(super) fn instrument_sample_paths(
+    instruments: &[NativeInstrumentSlot],
+) -> Vec<Vec<Option<String>>> {
+    instruments
+        .iter()
+        .map(|instrument| instrument.sample_paths.clone())
+        .collect()
+}
+
 pub(super) fn instrument_sample_tune_semis(instruments: &[NativeInstrumentSlot]) -> Vec<i8> {
     instruments
         .iter()

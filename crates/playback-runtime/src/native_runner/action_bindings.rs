@@ -79,23 +79,23 @@ impl NativeRunner {
     fn bind_aux_from_current(&mut self, index: usize) -> bool {
         let (turn_key, press_action) = self.menu.current_binding_target();
         if turn_key.is_none() && press_action.is_none() {
-            self.show_toast(format!("S{}: No binding", index + 1));
+            self.show_toast(format!("Click-{}: No binding", index + 1));
             return false;
         }
         let message = if let Some(key) = turn_key.as_deref() {
             format!(
-                "S{}: Bound turn: {}",
+                "Click-{}: Bound turn: {}",
                 index + 1,
                 self.aux_binding_key_label(key)
             )
         } else if let Some(action) = press_action.as_ref() {
             format!(
-                "S{}: Bound click: {}",
+                "Click-{}: Bound click: {}",
                 index + 1,
                 self.aux_binding_action_label(action)
             )
         } else {
-            format!("S{}: Bound", index + 1)
+            format!("Click-{}: Bound", index + 1)
         };
         if let Some(slot) = self.aux_bindings.get_mut(index) {
             *slot = Some(NativeAuxBinding {
@@ -184,7 +184,7 @@ impl NativeRunner {
         }
         let binding = self.effective_aux_slot(index);
         let Some(turn) = binding.turn else {
-            self.show_toast(format!("T{}: No binding", index + 1));
+            self.show_toast(format!("Turn-{}: No binding", index + 1));
             return Ok(());
         };
         if self.menu.turn_key(&turn.key, delta) {
@@ -198,11 +198,19 @@ impl NativeRunner {
                         .map(|value| value.to_string())
                 })
                 .unwrap_or_else(|| "changed".into());
-            self.show_or_queue_aux_turn_toast(format!("T{}: {}: {value}", index + 1, turn.label));
+            self.show_or_queue_aux_turn_toast(format!(
+                "Turn-{}: {}: {value}",
+                index + 1,
+                turn.label
+            ));
         } else if let Some(value) = self.turn_generated_behavior_target(&turn.key, delta) {
-            self.show_or_queue_aux_turn_toast(format!("T{}: {}: {value}", index + 1, turn.label));
+            self.show_or_queue_aux_turn_toast(format!(
+                "Turn-{}: {}: {value}",
+                index + 1,
+                turn.label
+            ));
         } else {
-            self.show_toast(format!("T{}: {} not active", index + 1, turn.label));
+            self.show_toast(format!("Turn-{}: {} not active", index + 1, turn.label));
         }
         Ok(())
     }
@@ -217,7 +225,7 @@ impl NativeRunner {
         }
         let binding = self.effective_aux_slot(index);
         let Some(press) = binding.press else {
-            self.show_toast(format!("S{}: No binding", index + 1));
+            self.show_toast(format!("Click-{}: No binding", index + 1));
             return Ok(None);
         };
         if let NativeMenuAction::BehaviorAction(action_type) = &press.action {
@@ -228,7 +236,7 @@ impl NativeRunner {
                 )
             });
             if !valid {
-                self.show_toast(format!("S{}: {} not active", index + 1, press.label));
+                self.show_toast(format!("Click-{}: {} not active", index + 1, press.label));
                 return Ok(None);
             }
         }
@@ -244,7 +252,7 @@ impl NativeRunner {
                     .map(|instrument| instrument.kind.as_str() != "sampler")
                     .unwrap_or(true)
                 {
-                    self.show_toast(format!("S{}: {} not active", index + 1, press.label));
+                    self.show_toast(format!("Click-{}: {} not active", index + 1, press.label));
                     return Ok(None);
                 }
             }
@@ -254,7 +262,7 @@ impl NativeRunner {
             press.action,
             NativeMenuAction::BehaviorAction(ref action) if action == "toggleMode" && self.behavior.id() == "looper"
         ) {
-            self.show_toast(format!("S{}: {}", index + 1, press.label));
+            self.show_toast(format!("Click-{}: {}", index + 1, press.label));
         }
         Ok(result)
     }

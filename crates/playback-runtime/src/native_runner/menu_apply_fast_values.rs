@@ -140,3 +140,48 @@ pub(super) fn fast_sample_velocity_sensitivity(
         Some(f32::from(value))
     }
 }
+
+pub(super) fn fast_sample_filter_cutoff(
+    value: i32,
+    instrument: &mut super::NativeInstrumentSlot,
+) -> Option<f32> {
+    let display = value.clamp(0, 255);
+    let cutoff = cutoff_display_to_hz(display) as u16;
+    if instrument
+        .sample_filter
+        .get("cutoffHz")
+        .and_then(|value| value.as_u64())
+        == Some(u64::from(cutoff))
+    {
+        None
+    } else {
+        set_json_path_number(
+            &mut instrument.sample_filter,
+            &["cutoffHz"],
+            f64::from(cutoff),
+        );
+        Some(f32::from(cutoff))
+    }
+}
+
+pub(super) fn fast_sample_filter_resonance(
+    value: i32,
+    instrument: &mut super::NativeInstrumentSlot,
+) -> Option<f32> {
+    let value = value.clamp(0, 255) as u8;
+    if instrument
+        .sample_filter
+        .get("resonance")
+        .and_then(|value| value.as_u64())
+        == Some(u64::from(value))
+    {
+        None
+    } else {
+        set_json_path_number(
+            &mut instrument.sample_filter,
+            &["resonance"],
+            f64::from(value),
+        );
+        Some(f32::from(value))
+    }
+}

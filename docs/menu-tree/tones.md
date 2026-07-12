@@ -46,7 +46,7 @@ This file is part of the canonical split-out menu tree spec. See [`../menu-tree-
 ├── FX Buses (group)
 │   ├── Bus 1..4 (group)
 │   │   ├── Slot 1: Effect (group)
-│   │   │   ├── Type: [none | reverb | delay | tremolo | chorus | flanger | vibrato | auto_pan | filter_lfo | wah | eq | compressor | duck | saturator | distortion | bitcrusher | glitch] default none
+│   │   │   ├── Type: [none | reverb | delay | tremolo | chorus | flanger | vibrato | auto_pan | filter_lfo | wah | vinyl | eq | compressor | duck | saturator | distortion | bitcrusher | glitch] default none
 │   │   │   └── (effect params, visible per Type)
 │   │   ├── Slot 2: Effect (group)
 │   │   │   ├── Type: [same options] default none

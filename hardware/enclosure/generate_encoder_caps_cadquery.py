@@ -19,8 +19,9 @@ AUX_MARK_DOT_R = 1.2
 AUX_MARK_DOT_SPACING = 3.0
 MAIN_MARK_DOT_COUNT = 11
 MAIN_MARK_DOT_ORBIT_R = 7.35
-MAIN_CAP_HEIGHT = 14.0
 AUX_CAP_HEIGHT = 12.0
+MAIN_CAP_HEIGHT = AUX_CAP_HEIGHT
+SHAFT_BORE_DEPTH = 9.3
 
 
 def polar_points(radius: float, count: int, phase: float = 0.0) -> list[tuple[float, float]]:
@@ -90,13 +91,12 @@ def add_diamond_knurl_cuts(body: cq.Workplane, radius: float, height: float) -> 
 
 def make_wide_knurled_cap() -> cq.Workplane:
     height = MAIN_CAP_HEIGHT
-    bore_depth = 11.1
     radius = 10.0
     body = cq.Workplane("XY").circle(radius).extrude(height)
     body = add_diamond_knurl_cuts(body, radius, height)
     body = body.faces(">Z").fillet(0.7)
     body = body.faces("<Z").fillet(0.45)
-    body = body.cut(d_bore_cutter(bore_depth))
+    body = body.cut(d_bore_cutter(SHAFT_BORE_DEPTH))
     return body.clean()
 
 
@@ -135,7 +135,6 @@ def make_main_cap() -> cq.Workplane:
 
 def make_aux_cap_body() -> cq.Workplane:
     height = AUX_CAP_HEIGHT
-    bore_depth = 9.3
     flange_h = 2.0
     flange_r = 8.4
     body_r = 6.0
@@ -161,7 +160,7 @@ def make_aux_cap_body() -> cq.Workplane:
         plane = cq.Plane(radial.multiply(body_r + 0.04) + cq.Vector(0, 0, rib_center_z), tangent, radial)
         groove = cq.Workplane(plane).rect(1.05, rib_height).extrude(-0.65)
         body = body.cut(groove)
-    body = body.cut(d_bore_cutter(bore_depth))
+    body = body.cut(d_bore_cutter(SHAFT_BORE_DEPTH))
     return body.clean()
 
 

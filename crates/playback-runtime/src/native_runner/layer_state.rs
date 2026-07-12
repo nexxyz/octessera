@@ -219,7 +219,9 @@ impl NativeRunner {
         let save_grid_state = self.save_grid_states.get(index).copied().unwrap_or(true);
         let mut worlds = serde_json::Map::new();
         worlds.insert("behaviorId".into(), json!(behavior_id));
-        worlds.insert("stepRate".into(), json!(note_unit_from_pulses(step_pulses)));
+        if behavior_id != "none" {
+            worlds.insert("stepRate".into(), json!(note_unit_from_pulses(step_pulses)));
+        }
         worlds.insert(
             "behaviorConfig".into(),
             if index == self.active_layer_index {
@@ -232,7 +234,7 @@ impl NativeRunner {
             },
         );
         worlds.insert("saveGridState".into(), json!(save_grid_state));
-        if save_grid_state {
+        if save_grid_state && behavior_id != "none" {
             if let Ok(state) = self.serialized_state_for_layer(index) {
                 if !state.is_null() {
                     worlds.insert("savedState".into(), state);

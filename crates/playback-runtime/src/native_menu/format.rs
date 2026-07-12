@@ -113,6 +113,12 @@ pub(super) fn format_item_full_selected_line(
             ),
             true,
         )),
+        NativeMenuValue::Action(_) => item
+            .key
+            .as_deref()
+            .and_then(|key| key.strip_prefix("sample.loaded:"))
+            .and_then(|rest| rest.splitn(3, ':').nth(2))
+            .map(|path| format_menu_line(&format!("!{path}"), true)),
         _ => None,
     }
 }

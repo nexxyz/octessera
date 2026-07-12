@@ -39,7 +39,7 @@ pub(crate) fn aux_auto_map_config_load_disables_automatic_bindings() {
             .number_for_key("instruments.0.synth.filter.cutoffHz"),
         Some(222)
     );
-    assert_eq!(runner.toast.as_ref().unwrap().message, "T1: No binding");
+    assert_eq!(runner.toast.as_ref().unwrap().message, "Turn-1: No binding");
 }
 
 #[test]
@@ -90,7 +90,7 @@ pub(crate) fn auto_map_press_enters_sample_assign_and_prefixes_assign_action() {
     runner.instruments[0].kind = "sampler".into();
     runner.menu.rebuild(runner.menu_config());
     runner.menu.state.stack = vec![2, 0, 0, 2];
-    runner.menu.state.cursor = 2;
+    runner.menu.state.cursor = 3;
 
     let opened = runner.messages_with_snapshot().unwrap();
     assert!(snapshot_from(&opened)["display"]["lines"]
@@ -122,7 +122,7 @@ pub(crate) fn auto_map_is_disabled_in_pulses_and_unbound_toast_uses_short_format
         })
         .unwrap();
 
-    assert_eq!(runner.toast.as_ref().unwrap().message, "T1: No binding");
+    assert_eq!(runner.toast.as_ref().unwrap().message, "Turn-1: No binding");
 }
 
 #[test]
@@ -282,6 +282,6 @@ pub(crate) fn auto_map_worlds_life_turn_and_press_follow_behavior_context() {
     assert!(after >= before);
     assert_eq!(
         runner.toast.as_ref().unwrap().message,
-        format!("S{}: Spawn", spawn_aux_index + 1)
+        format!("Click-{}: Spawn", spawn_aux_index + 1)
     );
 }

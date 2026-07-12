@@ -12,6 +12,7 @@ Octessera has regular controls, and then it has places where the controls tempor
 | *Click main encoder* | **Menu selection** | Select menu entries, enter groups, edit values, or confirm actions. |
 | *Back* | **Exit current location** | Exit the current edit, leave the current overlay, or go back one menu level. |
 | *Play* / *Space* | **Transport** | Play or pause. |
+| *Play* / *Space* | **Sample browser preview** | In sample browser menus, preview the highlighted sample. |
 | *Shift* + *Play* | **Stop** | Stop playback. In external sync, this arms resync instead of stopping the external clock. |
 | *Shift* + *Back* | **Clear active layer** | Re-initialize the active layer. Very useful. Also very easy to press on purpose only. |
 | *Shift* + *Fn* + *click main encoder* | **Context help** | Hold *Shift* + *Fn*, then click a menu option with *Main* to open help for that row. |

@@ -141,6 +141,7 @@ Overrides:
 - Backups are enabled by default. When any persistent config changes, runtime may emit `store_save_backup` at most once every five minutes; hosts keep the latest 20 `bak-{timestamp}.json` files.
 - Confirmed shutdown/reboot emits `store_save_recovery`; Pi writes the latest recovery payload synchronously before setting the power request.
 - Loading default, preset, or factory config stops transport, resets position, and sends MIDI panic/equivalent note clearing before applying the loaded config.
+- `System > Clear all` opens `Confirm Clear All`. Cancel is a no-op. Confirm stops playback with the same MIDI panic/note-safety path, clears musical patch state to a blank `none`-behavior patch, regenerates the preset draft name, marks config dirty for autosave, and preserves device/user preferences: brightness, ghost cells, numeric display, sleep/dim timers, master volume, autosave/backup settings, MIDI setup/status/sync settings, sync source, audio output buffer frames, sample favourites, input-events-while-paused, aux auto-map enabled, and the available preset name list.
 
 ## Aux Encoder Binding
 

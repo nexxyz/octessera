@@ -47,6 +47,8 @@ impl NativeRunner {
         if let Some(previous_label) = previous_label {
             self.menu.replace_label(previous_label, &next_label);
         }
+        self.menu
+            .replace_group_label_containing_direct_key("behaviorId", &next_label);
     }
 
     fn update_active_worlds_menu_items(&mut self) {

@@ -27,6 +27,7 @@ pub struct NativeMenuConfig {
     pub instrument_volumes: Vec<u8>,
     pub instrument_pan_positions: Vec<u8>,
     pub instrument_sample_slots: Vec<usize>,
+    pub instrument_sample_paths: Vec<Vec<Option<String>>>,
     pub instrument_synth_configs: Vec<serde_json::Value>,
     pub instrument_synth_osc1_waveforms: Vec<String>,
     pub instrument_synth_osc2_waveforms: Vec<String>,

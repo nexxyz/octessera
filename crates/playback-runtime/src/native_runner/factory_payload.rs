@@ -35,13 +35,21 @@ pub(super) fn native_factory_payload() -> Value {
             sense.scanned_action = "none".into();
             sense.scanned_empty_action = "none".into();
         }
+        let mut worlds = json!({
+            "behaviorId": behavior_id,
+            "behaviorConfig": if index == 0 { json!({ "randomCellsPerTick": 12, "randomTickInterval": 1 }) } else { json!({}) },
+            "saveGridState": true
+        });
+        if behavior_id != "none" {
+            if let Some(worlds) = worlds.as_object_mut() {
+                worlds.insert(
+                    "stepRate".into(),
+                    json!(if index == 1 { "1/4" } else { "1/8" }),
+                );
+            }
+        }
         layers.push(json!({
-            "worlds": {
-                "behaviorId": behavior_id,
-                "stepRate": if index == 1 { "1/4" } else { "1/8" },
-                "behaviorConfig": if index == 0 { json!({ "randomCellsPerTick": 12, "randomTickInterval": 1 }) } else { json!({}) },
-                "saveGridState": true
-            },
+            "worlds": worlds,
             "pulses": pulses_layer_payload(&sense, &vec!["full".into(); GRID_WIDTH * GRID_HEIGHT]),
             "autoName": true,
             "name": behavior_id

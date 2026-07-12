@@ -57,7 +57,8 @@ System
 ├── Diagnostics (group)
 │   └── Hardware Test: (action)       ← confirms, then runs pre-hardware Pi checks
 ├── Reboot: (action)                  ← confirm, then show shutdown splash and reboot
-└── Shutdown: (action)                ← confirm, then show shutdown splash and exit/poweroff
+├── Shutdown: (action)                ← confirm, then show shutdown splash and exit/poweroff
+└── Clear all: (action)               ← confirm, stop playback, clear patch state while preserving device preferences
 ```
 
-Diagnostics is a pre-hardware Pi check, and the update actions are native placeholders for OTA flow control: `Check` is unconfirmed, while `Apply` and `Rollback` confirm before handing off to the Pi host adapter. Basic Help opens native help with the shortcut cheat sheet. `Stop/Sync: Sh+Space` follows the transport mode: internal sync emergency-stops and clears held notes, while external sync arms resync.
+Diagnostics is a pre-hardware Pi check, and the update actions are native placeholders for OTA flow control: `Check` is unconfirmed, while `Apply` and `Rollback` confirm before handing off to the Pi host adapter. Clear all confirms with `Confirm Clear All`, stops playback with MIDI panic/note safety, clears musical patch state, and preserves device preferences such as brightness, MIDI setup, audio buffer, favourites, and preset names. Basic Help opens native help with the shortcut cheat sheet. `Stop/Sync: Sh+Space` follows the transport mode: internal sync emergency-stops and clears held notes, while external sync arms resync.

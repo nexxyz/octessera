@@ -82,7 +82,7 @@ pub(crate) fn fn_aux_binds_selected_param_and_aux_turn_edits_it() {
     assert!(snapshot_from(&messages)["display"]["toast"]
         .as_str()
         .unwrap_or("")
-        .contains("T1:"));
+        .contains("Turn-1:"));
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["auxBindings"]["aux1"]["turnKey"],
         "masterVolume"

@@ -1,6 +1,6 @@
 import type { RuntimeSnapshot } from "@octessera/device-contracts";
 
-const DIMMED_LED_FACTOR = 0.08;
+const DIMMED_LED_FACTOR = 0.22;
 const MIN_VISIBLE_NON_BLACK_CHANNEL = 8;
 const MIN_DIMMED_VISIBLE_NON_BLACK_CHANNEL = 2;
 

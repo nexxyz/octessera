@@ -252,6 +252,7 @@ bus_auto_name	*	key:mixer.buses.*.autoName	bool	Auto Label	When On, the FX bus l
 bus_name	*	key:mixer.buses.*.name	text	Bus Name	Sets the user-visible label for this FX bus.	Shown in routing menus and bus-related overlays when Auto Label is off.
 velocity_curve	*	key:sound.velocityCurve	enum	Velocity Curve	Selects the global curve used to remap velocity response after scaling.	Use gentler curves for flatter dynamics or steeper curves for more accent contrast.
 factory_load_action	Menu > System > Saves > Factory > Load Factory	action:factory_load	action	Load Factory	Loads built-in factory default configuration.	Use this to quickly recover a known baseline state.
+system_clear_all_action	Menu > System > Clear all	action:system_clear_all	action	Clear all	Stops playback and clears musical patch state after confirmation.	Preserves device preferences such as brightness, MIDI settings, audio buffer, favourites, and preset names.
 synth_preset_group	Menu > 3: Tones > Instruments > Instrument * > Preset		group	Synth Preset	Preset tools for this instrument slot's synth parameters.	Use Load to replace the slot's synth block with a named preset.
 synth_preset_load_group	Menu > 3: Tones > Instruments > Instrument * > Preset > Load		group	Load Synth Preset	Lists available synth presets for this instrument slot.	Selecting a preset asks for confirmation before overwriting synth settings.
 synth_preset_load_action	Menu > 3: Tones > Instruments > Instrument * > Preset > Load > *	action:synth_preset_load	action	Load Synth Preset	Loads the chosen synth preset into this instrument slot.	A confirmation step protects against accidental overwrite.
@@ -398,6 +399,9 @@ native_fx_mid_q	*	key:mixer.*.slots.*.params.midQ	number	Mid Q	Sets the EQ mid-b
 native_fx_saturation	*	key:mixer.master.slots.*.params.saturationPct	number	Saturation	Sets vinyl saturation amount.	Higher values add more warmth and compression.
 native_fx_crackle	*	key:mixer.master.slots.*.params.cracklePct	number	Crackle	Sets vinyl crackle amount.	Higher values add more noise events.
 native_fx_warp	*	key:mixer.master.slots.*.params.warpDepthPct	number	Warp Depth	Sets vinyl pitch/time warp depth.	Higher values add more wobble.
+native_fx_bus_saturation	*	key:mixer.buses.*.slot*.params.saturationPct	number	Saturation	Sets vinyl saturation amount.	Higher values add more warmth and compression.
+native_fx_bus_crackle	*	key:mixer.buses.*.slot*.params.cracklePct	number	Crackle	Sets vinyl crackle amount.	Higher values add more noise events.
+native_fx_bus_warp	*	key:mixer.buses.*.slot*.params.warpDepthPct	number	Warp Depth	Sets vinyl pitch/time warp depth.	Higher values add more wobble.
 native_fx_bus_threshold_db	*	key:mixer.*.slot*.params.thresholdDb	number	Threshold dB	Sets compressor threshold in dB.	Signals above this level are reduced.
 native_fx_bus_ratio	*	key:mixer.*.slot*.params.ratio	number	Ratio	Sets compressor ratio.	Higher ratios reduce peaks more strongly.
 native_fx_bus_makeup	*	key:mixer.*.slot*.params.makeupDb	number	Makeup dB	Adds gain after compression.	Use it to recover level after gain reduction.

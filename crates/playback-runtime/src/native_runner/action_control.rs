@@ -133,6 +133,9 @@ impl NativeRunner {
                 } else if action_type == "system.controlsHelp" {
                     self.open_controls_help();
                     Ok(None)
+                } else if action_type == "system.clearAll" {
+                    self.clear_patch_state()?;
+                    Ok(None)
                 } else if action_type == "system.reboot" || action_type == "system.shutdown" {
                     self.oled_mode = super::NativeOledMode::Splash;
                     self.oled_splash_text = super::OLED_SHUTDOWN_SPLASH_KEY.into();
