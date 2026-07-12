@@ -28,6 +28,9 @@ pub(crate) fn log_encoder_event(event: HardwareEvent) {
         HardwareEvent::EncoderPress { id } => {
             log(format_args!("source=encoder event=raw_press id={id}"));
         }
+        HardwareEvent::EncoderRelease { id } => {
+            log(format_args!("source=encoder event=raw_release id={id}"));
+        }
     }
 }
 

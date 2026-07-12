@@ -24,6 +24,30 @@ pub(crate) fn behavior_selection_applies_immediately() {
 }
 
 #[test]
+pub(crate) fn behavior_switch_rematerializes_visible_world_params_back_and_forth() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert!(runner.menu.focus_item_key("behaviorId"));
+    assert_visible_world_params(&runner, &["Spawn Count"], &["Quantize"]);
+
+    select_behavior(&mut runner, "keys");
+    assert_visible_world_params(&runner, &["Quantize"], &["Spawn Count"]);
+
+    select_behavior(&mut runner, "life");
+    assert_visible_world_params(&runner, &["Spawn Count"], &["Quantize"]);
+}
+
+fn assert_visible_world_params(runner: &NativeRunner, expected: &[&str], stale: &[&str]) {
+    let snapshot = runner.menu.snapshot();
+    let lines = snapshot.lines.join("\n");
+    for label in expected {
+        assert!(lines.contains(label), "missing {label} in {lines}");
+    }
+    for label in stale {
+        assert!(!lines.contains(label), "stale {label} in {lines}");
+    }
+}
+
+#[test]
 pub(crate) fn button_back_exits_after_immediate_structural_apply_without_double_apply() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     assert!(runner.menu.focus_item_key("mixer.buses.0.slot1.type"));

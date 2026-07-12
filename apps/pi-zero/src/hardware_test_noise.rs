@@ -160,6 +160,9 @@ fn poll_encoder_noise(
                 HardwareEvent::EncoderPress { id } => {
                     encoder_events.push(format!("press id={}", encoder_label(id)));
                 }
+                HardwareEvent::EncoderRelease { id } => {
+                    encoder_events.push(format!("release id={}", encoder_label(id)));
+                }
             }
         }
     }

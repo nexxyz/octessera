@@ -7,7 +7,7 @@ use std::sync::mpsc::Sender;
 #[cfg(feature = "rpi-zero-2w")]
 use std::sync::{Arc, Mutex};
 #[cfg(feature = "rpi-zero-2w")]
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 #[cfg(not(feature = "rpi-zero-2w"))]
 use std::fmt;
@@ -17,6 +17,7 @@ use std::fmt;
 pub enum HardwareEvent {
     EncoderTurn { id: &'static str, delta: i8 },
     EncoderPress { id: &'static str },
+    EncoderRelease { id: &'static str },
 }
 
 #[cfg(feature = "rpi-zero-2w")]
@@ -136,20 +137,17 @@ impl EncoderGpio {
         })
         .map_err(|e| e.to_string())?;
 
-        // Switch press (active low)
+        // Switch press/release (active low)
         let tx_sw = tx.clone();
         let id_sw = id;
-        let last_press = Arc::new(Mutex::new(None::<Instant>));
         let debounce = Duration::from_millis(SWITCH_DEBOUNCE_MS);
-        sw.set_async_interrupt(Trigger::FallingEdge, Some(debounce), move |_| {
-            let now = Instant::now();
-            if let Ok(mut last_press) = last_press.lock() {
-                if last_press.is_some_and(|last| now.duration_since(last) < debounce) {
-                    return;
-                }
-                *last_press = Some(now);
-            }
-            let _ = tx_sw.send(HardwareEvent::EncoderPress { id: id_sw });
+        sw.set_async_interrupt(Trigger::Both, Some(debounce), move |event| {
+            let message = match event.trigger {
+                Trigger::FallingEdge => HardwareEvent::EncoderPress { id: id_sw },
+                Trigger::RisingEdge => HardwareEvent::EncoderRelease { id: id_sw },
+                _ => return,
+            };
+            let _ = tx_sw.send(message);
         })
         .map_err(|e| e.to_string())?;
 

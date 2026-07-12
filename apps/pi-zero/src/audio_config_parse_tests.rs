@@ -130,6 +130,25 @@ fn sample_path_resolution_rejects_escape_and_missing_paths() {
     let _ = std::fs::remove_dir_all(root);
 }
 
+#[test]
+fn sample_path_resolution_strips_desktop_samples_prefix() {
+    let root = temp_dir("sample-path-prefix");
+    std::fs::write(root.join("kick.wav"), b"wav").unwrap();
+    let expected = root.join("kick.wav").canonicalize().unwrap();
+
+    assert_eq!(
+        resolve_sample_path(&root, "samples/kick.wav"),
+        Some(expected.clone())
+    );
+    assert_eq!(
+        resolve_sample_path(&root, r"samples\kick.wav"),
+        Some(expected)
+    );
+    assert!(resolve_sample_path(&root, "samples/../kick.wav").is_none());
+    assert!(resolve_sample_path(&root, r"samples\..\kick.wav").is_none());
+    let _ = std::fs::remove_dir_all(root);
+}
+
 #[cfg(unix)]
 #[test]
 fn sample_path_resolution_rejects_symlink_escape() {

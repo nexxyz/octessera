@@ -80,6 +80,22 @@ pub(crate) fn fx_bus_slot1_type_turn_applies_immediately() {
 }
 
 #[test]
+pub(crate) fn fx_type_switch_rematerializes_visible_params_back_and_forth() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert!(runner.menu.focus_item_key("mixer.buses.0.slot1.type"));
+    runner.menu.state.editing = true;
+
+    let _ = turn_main(&mut runner, 1);
+    assert_visible_rows(&runner, &["Depth", "Rate"], &["Feedback"]);
+
+    let _ = turn_main(&mut runner, 1);
+    assert_visible_rows(&runner, &["Feedback"], &["Depth"]);
+
+    let _ = turn_main(&mut runner, -2);
+    assert_visible_rows(&runner, &[], &["Depth", "Feedback"]);
+}
+
+#[test]
 pub(crate) fn fx_bus_slot2_type_turn_applies_immediately() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     assert!(runner.menu.focus_item_key("mixer.buses.0.slot2.type"));
@@ -188,6 +204,29 @@ pub(crate) fn instrument_type_turn_applies_immediately() {
     assert_no_store_save_default(&messages);
     runner.make_deferred_menu_apply_due_for_test();
     assert_deferred_autosave_payload(&runner.flush_deferred_menu_apply().unwrap());
+}
+
+#[test]
+pub(crate) fn instrument_type_switch_rematerializes_visible_params_back_and_forth() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert!(runner.menu.focus_item_key("instruments.0.type"));
+    runner.menu.state.editing = true;
+
+    let _ = turn_main(&mut runner, 1);
+    assert_visible_rows(&runner, &["Sampler >"], &["Synth >"]);
+
+    let _ = turn_main(&mut runner, -1);
+    assert_visible_rows(&runner, &["Synth >"], &["Sampler >"]);
+}
+
+fn assert_visible_rows(runner: &NativeRunner, expected: &[&str], stale: &[&str]) {
+    let lines = runner.menu.snapshot().lines.join("\n");
+    for label in expected {
+        assert!(lines.contains(label), "missing {label} in {lines}");
+    }
+    for label in stale {
+        assert!(!lines.contains(label), "stale {label} in {lines}");
+    }
 }
 
 #[test]

@@ -135,7 +135,12 @@ def main() -> None:
         old_path = THREEMF_ROOT / f"{stem}.3mf"
         if old_path.exists():
             old_path.unlink()
-    for stl_path in sorted(STL_ROOT.glob("case_*.stl")) + sorted(STL_ROOT.glob("standoff_*.stl")):
+    stl_paths = (
+        sorted(STL_ROOT.glob("case_*.stl"))
+        + sorted(STL_ROOT.glob("friction_insert_*.stl"))
+        + sorted(STL_ROOT.glob("standoff_*.stl"))
+    )
+    for stl_path in stl_paths:
         if stl_path.stem not in SKIPPED_STEMS and stl_path.stem not in OBSOLETE_STEMS:
             write_3mf(stl_path)
 

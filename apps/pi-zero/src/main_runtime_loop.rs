@@ -84,6 +84,15 @@ pub(crate) fn drain_encoder_events(
                 }
                 encoder_press_message(id)
             }
+            HardwareEvent::EncoderRelease { id } => {
+                crate::wake_trace::log_encoder_event(event);
+                if let Some(messages) = temporary_neokey_hack.encoder_release_messages(id) {
+                    for message in messages {
+                        dispatch_or_log(playback, runner, adapter, message);
+                    }
+                }
+                continue;
+            }
         };
         dispatch_or_log(playback, runner, adapter, message);
     }

@@ -304,7 +304,7 @@ impl SampleSource {
 }
 
 fn resolve_sample_path(samples_dir: &Path, path: &str) -> Option<PathBuf> {
-    let relative = Path::new(path);
+    let relative = Path::new(pi_relative_sample_path(path));
     if relative.is_absolute()
         || relative
             .components()
@@ -315,6 +315,12 @@ fn resolve_sample_path(samples_dir: &Path, path: &str) -> Option<PathBuf> {
     let root = samples_dir.canonicalize().ok()?;
     let target = root.join(relative).canonicalize().ok()?;
     target.starts_with(&root).then_some(target)
+}
+
+fn pi_relative_sample_path(path: &str) -> &str {
+    path.strip_prefix("samples/")
+        .or_else(|| path.strip_prefix(r"samples\"))
+        .unwrap_or(path)
 }
 
 fn mixer_config(config: AudioMixerPayload) -> MixerConfig {

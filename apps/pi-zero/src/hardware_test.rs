@@ -334,6 +334,9 @@ fn input_event_check(
                 HardwareEvent::EncoderPress { id } => {
                     println!("ENCODER press id={}", encoder_label(id))
                 }
+                HardwareEvent::EncoderRelease { id } => {
+                    println!("ENCODER release id={}", encoder_label(id))
+                }
             }
         }
         thread::sleep(Duration::from_millis(10));

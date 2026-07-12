@@ -58,6 +58,8 @@ impl NativeRunner {
         let label = format!("L{}: {name}", self.active_layer_index + 1);
         let children = self.worlds_menu_items();
         self.menu
+            .replace_group_children_containing_direct_key("behaviorId", &children);
+        self.menu
             .replace_group_children_for_label(&label, &children);
     }
 

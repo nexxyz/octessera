@@ -29,8 +29,19 @@ impl TemporaryNeoKeyHack {
         }
         match encoder_index(id) {
             1 => Some(button_tap(0)),
-            2 => Some(vec![toggle_button(2, &mut self.shift_pressed)]),
-            3 => Some(vec![toggle_button(3, &mut self.fn_pressed)]),
+            2 => set_modifier(2, &mut self.shift_pressed, true),
+            3 => set_modifier(3, &mut self.fn_pressed, true),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn encoder_release_messages(&mut self, id: &str) -> Option<Vec<HostMessage>> {
+        if !ENABLED {
+            return None;
+        }
+        match encoder_index(id) {
+            2 => set_modifier(2, &mut self.shift_pressed, false),
+            3 => set_modifier(3, &mut self.fn_pressed, false),
             _ => None,
         }
     }
@@ -47,9 +58,14 @@ fn button_tap(key: u8) -> Vec<HostMessage> {
         .collect()
 }
 
-fn toggle_button(key: u8, pressed: &mut bool) -> HostMessage {
-    *pressed = !*pressed;
-    neokey_message(key, *pressed).expect("temporary NeoKey hack uses valid NeoKey indices")
+fn set_modifier(key: u8, current: &mut bool, pressed: bool) -> Option<Vec<HostMessage>> {
+    if *current == pressed {
+        return Some(Vec::new());
+    }
+    *current = pressed;
+    Some(vec![
+        neokey_message(key, pressed).expect("temporary NeoKey hack uses valid NeoKey indices")
+    ])
 }
 
 #[cfg(test)]
@@ -67,21 +83,71 @@ mod tests {
             hack.encoder_press_messages("encoder_aux_1").unwrap(),
             "button_a",
         );
-        assert_toggle(
+        assert_modifier(
             hack.encoder_press_messages("encoder_aux_2").unwrap(),
             "button_shift",
             true,
         );
-        assert_toggle(
-            hack.encoder_press_messages("encoder_aux_2").unwrap(),
+        assert_modifier(
+            hack.encoder_release_messages("encoder_aux_2").unwrap(),
             "button_shift",
             false,
         );
-        assert_toggle(
+        assert_modifier(
             hack.encoder_press_messages("encoder_aux_3").unwrap(),
             "button_fn",
             true,
         );
+    }
+
+    #[test]
+    fn aux_encoder_modifiers_can_be_held_together_and_released_independently() {
+        let mut hack = TemporaryNeoKeyHack::default();
+
+        assert_modifier(
+            hack.encoder_press_messages("encoder_aux_2").unwrap(),
+            "button_shift",
+            true,
+        );
+        assert_modifier(
+            hack.encoder_press_messages("encoder_aux_3").unwrap(),
+            "button_fn",
+            true,
+        );
+        assert_modifier(
+            hack.encoder_release_messages("encoder_aux_2").unwrap(),
+            "button_shift",
+            false,
+        );
+        assert_modifier(
+            hack.encoder_release_messages("encoder_aux_3").unwrap(),
+            "button_fn",
+            false,
+        );
+    }
+
+    #[test]
+    fn repeated_modifier_edges_do_not_emit_duplicate_messages() {
+        let mut hack = TemporaryNeoKeyHack::default();
+
+        assert_modifier(
+            hack.encoder_press_messages("encoder_aux_2").unwrap(),
+            "button_shift",
+            true,
+        );
+        assert!(hack
+            .encoder_press_messages("encoder_aux_2")
+            .unwrap()
+            .is_empty());
+        assert_modifier(
+            hack.encoder_release_messages("encoder_aux_2").unwrap(),
+            "button_shift",
+            false,
+        );
+        assert!(hack
+            .encoder_release_messages("encoder_aux_2")
+            .unwrap()
+            .is_empty());
     }
 
     fn assert_button_pair(messages: Vec<HostMessage>, expected_type: &str) {
@@ -90,7 +156,7 @@ mod tests {
         assert_device_input(&messages[1], expected_type, false);
     }
 
-    fn assert_toggle(messages: Vec<HostMessage>, expected_type: &str, pressed: bool) {
+    fn assert_modifier(messages: Vec<HostMessage>, expected_type: &str, pressed: bool) {
         assert_eq!(messages.len(), 1);
         assert_device_input(&messages[0], expected_type, pressed);
     }
