@@ -57,7 +57,6 @@ pub(crate) fn run() -> bool {
         }
     }
 }
-
 #[derive(Serialize)]
 struct LiveTimingProbeReport {
     scenario: TimingProbeScenario,
