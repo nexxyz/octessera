@@ -16,11 +16,14 @@ mod control_tests;
 mod dynamic_control;
 mod note_control;
 mod render;
+#[cfg(test)]
+mod render_block_tests;
 mod render_momentary_fx;
 mod render_profile;
 mod render_routing;
 mod render_samples;
 mod render_synth;
+mod render_synth_parallel;
 mod render_voice;
 mod support;
 #[cfg(test)]
@@ -81,12 +84,67 @@ pub struct SynthEngine {
     dry_history_pos: usize,
     fx_activity_hold_frames: u32,
     render_profile: RenderProfileState,
+    block_slot_scratch: BlockSlotScratch,
+    synth_workers: Option<render_synth_parallel::SynthSlotWorkerPool>,
+    synth_parallel_backoff_blocks: u32,
+    synth_parallel_failure_count: u32,
+    synth_parallel_unhealthy: bool,
+    synth_parallel_dispatches: u64,
+    synth_parallel_light_skips: u64,
+    synth_parallel_backoff_skips: u64,
+    synth_parallel_timing_backoffs: u64,
+    synth_parallel_failures: u64,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
 pub(super) struct SlotFrameOutput {
     pub sample: f32,
     pub active: bool,
+}
+
+pub(super) const BLOCK_SLOT_SCRATCH_FRAMES: usize = 2048;
+
+pub(super) struct BlockSlotScratch {
+    sample_slot_out: [Vec<f32>; INSTRUMENT_SLOT_COUNT],
+    synth_slot_out: [Vec<f32>; INSTRUMENT_SLOT_COUNT],
+    sample_active: [Vec<bool>; INSTRUMENT_SLOT_COUNT],
+    synth_active: [Vec<bool>; INSTRUMENT_SLOT_COUNT],
+    synth_voices: [Option<[Voice; VOICES_PER_SLOT]>; INSTRUMENT_SLOT_COUNT],
+    synth_final_active: [bool; INSTRUMENT_SLOT_COUNT],
+}
+
+impl BlockSlotScratch {
+    fn new() -> Self {
+        Self {
+            sample_slot_out: std::array::from_fn(|_| vec![0.0; BLOCK_SLOT_SCRATCH_FRAMES]),
+            synth_slot_out: std::array::from_fn(|_| vec![0.0; BLOCK_SLOT_SCRATCH_FRAMES]),
+            sample_active: std::array::from_fn(|_| vec![false; BLOCK_SLOT_SCRATCH_FRAMES]),
+            synth_active: std::array::from_fn(|_| vec![false; BLOCK_SLOT_SCRATCH_FRAMES]),
+            synth_voices: std::array::from_fn(|_| None),
+            synth_final_active: [false; INSTRUMENT_SLOT_COUNT],
+        }
+    }
+
+    fn prepare(&mut self, frames: usize) -> bool {
+        if frames > BLOCK_SLOT_SCRATCH_FRAMES {
+            return false;
+        }
+        for buffer in &mut self.sample_slot_out {
+            buffer[..frames].fill(0.0);
+        }
+        for buffer in &mut self.synth_slot_out {
+            buffer[..frames].fill(0.0);
+        }
+        for buffer in &mut self.sample_active {
+            buffer[..frames].fill(false);
+        }
+        for buffer in &mut self.synth_active {
+            buffer[..frames].fill(false);
+        }
+        self.synth_voices.fill(None);
+        self.synth_final_active.fill(false);
+        true
+    }
 }
 
 impl SynthEngine {
@@ -138,7 +196,43 @@ impl SynthEngine {
             dry_history_pos: 0,
             fx_activity_hold_frames: (sample_rate.saturating_mul(150) / 1000).max(1),
             render_profile: RenderProfileState::default(),
+            block_slot_scratch: BlockSlotScratch::new(),
+            synth_workers: None,
+            synth_parallel_backoff_blocks: 0,
+            synth_parallel_failure_count: 0,
+            synth_parallel_unhealthy: false,
+            synth_parallel_dispatches: 0,
+            synth_parallel_light_skips: 0,
+            synth_parallel_backoff_skips: 0,
+            synth_parallel_timing_backoffs: 0,
+            synth_parallel_failures: 0,
         }
+    }
+
+    pub fn set_synth_slot_parallelism_enabled(
+        &mut self,
+        enabled: bool,
+        worker_count: usize,
+    ) -> bool {
+        self.synth_workers = if enabled && worker_count > 0 {
+            render_synth_parallel::SynthSlotWorkerPool::start(worker_count)
+        } else {
+            None
+        };
+        self.synth_parallel_backoff_blocks = 0;
+        self.synth_parallel_failure_count = 0;
+        self.synth_parallel_unhealthy = false;
+        self.synth_parallel_dispatches = 0;
+        self.synth_parallel_light_skips = 0;
+        self.synth_parallel_backoff_skips = 0;
+        self.synth_parallel_timing_backoffs = 0;
+        self.synth_parallel_failures = 0;
+        self.synth_workers.is_some()
+    }
+
+    #[cfg(test)]
+    pub(in crate::synth) fn enable_synth_slot_workers_for_tests(&mut self, worker_count: usize) {
+        assert!(self.set_synth_slot_parallelism_enabled(true, worker_count));
     }
 
     pub(in crate::synth::engine) fn record_voice_steal(&mut self) {
@@ -163,6 +257,50 @@ impl SynthEngine {
             active_preview_sample_voices: self.preview_sample_voices.len(),
             active_momentary_fx: self.momentary_fx.len(),
             cumulative_voice_steals: self.cumulative_voice_steals,
+            synth_parallel_dispatches: self.synth_parallel_dispatches,
+            synth_parallel_light_skips: self.synth_parallel_light_skips,
+            synth_parallel_backoff_skips: self.synth_parallel_backoff_skips,
+            synth_parallel_timing_backoffs: self.synth_parallel_timing_backoffs,
+            synth_parallel_failures: self.synth_parallel_failures,
+            synth_parallel_unhealthy: self.synth_parallel_unhealthy,
+        }
+    }
+
+    pub(in crate::synth::engine) fn record_synth_parallel_dispatch(&mut self) {
+        self.synth_parallel_dispatches = self.synth_parallel_dispatches.saturating_add(1);
+        self.synth_parallel_failure_count = 0;
+    }
+
+    pub(in crate::synth::engine) fn record_synth_parallel_light_skip(&mut self) {
+        self.synth_parallel_light_skips = self.synth_parallel_light_skips.saturating_add(1);
+    }
+
+    pub(in crate::synth::engine) fn record_synth_parallel_backoff_skip(&mut self) {
+        self.synth_parallel_backoff_skips = self.synth_parallel_backoff_skips.saturating_add(1);
+    }
+
+    pub(in crate::synth::engine) fn record_synth_parallel_failure(&mut self) {
+        self.synth_parallel_failures = self.synth_parallel_failures.saturating_add(1);
+        self.synth_parallel_failure_count = self.synth_parallel_failure_count.saturating_add(1);
+        self.synth_parallel_backoff_blocks = 128;
+        if self.synth_parallel_failure_count >= 3 {
+            self.synth_parallel_unhealthy = true;
+        }
+    }
+
+    pub(in crate::synth::engine) fn apply_synth_parallel_timing_backoff(
+        &mut self,
+        frames: usize,
+        elapsed_ns: u64,
+    ) {
+        let budget_ns = (frames as u128)
+            .saturating_mul(1_000_000_000)
+            .checked_div(self.sample_rate.max(1) as u128)
+            .unwrap_or(0) as u64;
+        if budget_ns > 0 && elapsed_ns > budget_ns.saturating_mul(3) / 5 {
+            self.synth_parallel_timing_backoffs =
+                self.synth_parallel_timing_backoffs.saturating_add(1);
+            self.synth_parallel_backoff_blocks = 64;
         }
     }
 }

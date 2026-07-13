@@ -3,6 +3,8 @@ mod telemetry;
 
 pub use event::EngineEvent;
 use realtime_engine::synth::{AudioLoadStatus, SynthEngine, DEFAULT_AUDIO_BLOCK_FRAMES};
+use std::env;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::{Duration, Instant};
 use telemetry::{DrainedControlEvents, EngineTelemetry};
@@ -11,6 +13,7 @@ const MIN_BLOCK_FRAMES: usize = 32;
 const MAX_BLOCK_FRAMES: usize = 2048;
 const MAX_CONTROL_EVENTS_PER_BLOCK: usize = 256;
 const LOAD_REPORT_INTERVAL: Duration = Duration::from_millis(100);
+static SYNTH_WORKER_START_LOGGED: AtomicBool = AtomicBool::new(false);
 
 pub struct EngineSource {
     engine: SynthEngine,
@@ -37,8 +40,15 @@ impl EngineSource {
         load_tx: Option<Sender<AudioLoadStatus>>,
     ) -> Self {
         let block_frames = audio_block_frames();
+        let mut engine = SynthEngine::new(sample_rate);
+        if let Some(worker_count) = synth_slot_worker_count() {
+            let enabled = engine.set_synth_slot_parallelism_enabled(true, worker_count);
+            if !SYNTH_WORKER_START_LOGGED.swap(true, Ordering::Relaxed) {
+                eprintln!("synth slot parallel workers requested={worker_count} enabled={enabled}");
+            }
+        }
         Self {
-            engine: SynthEngine::new(sample_rate),
+            engine,
             control_rx,
             sample_rate,
             block_frames,
@@ -274,4 +284,10 @@ fn audio_block_frames() -> usize {
         .and_then(|value| value.parse::<usize>().ok())
         .map(|frames| frames.clamp(MIN_BLOCK_FRAMES, MAX_BLOCK_FRAMES))
         .unwrap_or(DEFAULT_AUDIO_BLOCK_FRAMES)
+}
+
+fn synth_slot_worker_count() -> Option<usize> {
+    let raw = env::var("OCTESSERA_SYNTH_SLOT_WORKERS").ok()?;
+    let count = raw.trim().parse::<usize>().ok()?;
+    (count > 0).then_some(count.min(3))
 }

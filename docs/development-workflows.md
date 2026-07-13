@@ -287,6 +287,9 @@ Wrapper examples:
 
 # Focused FX budget profile.
 ./tools/pi/run-pi-timing-probes.ps1 -Mode DspFxLimits
+
+# Same profile using the current 3-worker/256-frame Pi audio settings.
+./tools/pi/run-pi-timing-probes.ps1 -Mode DspFxLimits -SynthSlotWorkers 3 -AudioBlockFrames 256
 ```
 
 The wrapper stops `octessera.service` for live/audio/DSP modes and restarts it after the probe. Runtime-only mode leaves the service running. Use `-PrintOnly` to inspect the remote command first.

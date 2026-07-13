@@ -1,4 +1,4 @@
-use super::render_voice::render_synth_voice_sample_precomputed;
+use super::render_synth_parallel::render_synth_slot_pool_frame;
 use super::*;
 
 impl SynthEngine {
@@ -16,51 +16,30 @@ impl SynthEngine {
     }
 
     pub(super) fn render_synth_slot(&mut self, slot_idx: usize) -> SlotFrameOutput {
+        self.render_synth_slot_at(slot_idx, self.sample_clock)
+    }
+
+    pub(super) fn render_synth_slot_at(
+        &mut self,
+        slot_idx: usize,
+        frame_sample_clock: u64,
+    ) -> SlotFrameOutput {
         if !self.active_synth_slots[slot_idx] {
             return SlotFrameOutput::default();
         }
-        let mut out = 0.0;
-        let mut slot_active = false;
-        let pool = &mut self.voices[slot_idx];
-        for v in pool.iter_mut() {
-            if !v.active {
-                continue;
-            }
-            debug_assert_eq!(v.instrument_slot as usize, slot_idx);
-            let slot = (v.instrument_slot as usize).min(INSTRUMENT_SLOT_COUNT - 1);
-            let cfg = self.instruments[slot];
-            if self.sample_clock >= v.note_off_sample {
-                v.amp_env.begin_release(cfg.amp_env, self.sample_rate);
-                v.filt_env.begin_release(cfg.filter_env, self.sample_rate);
-            }
-            let amp_env = v.amp_env.next();
-            let filt_env = v.filt_env.next();
-            if v.amp_env.is_off() {
-                v.active = false;
-                continue;
-            }
-            if v.render_revision != self.synth_render_revisions[slot] {
-                refresh_synth_voice_render_cache(
-                    v,
-                    &self.synth_render_configs[slot],
-                    self.sample_rate,
-                    self.synth_render_revisions[slot],
-                );
-            }
-            out += render_synth_voice_sample_precomputed(
-                self.sample_rate,
-                self.mods[slot],
-                &self.synth_render_configs[slot],
-                v,
-                amp_env,
-                filt_env,
-            );
-            slot_active = true;
-        }
-        self.active_synth_slots[slot_idx] = slot_active;
-        SlotFrameOutput {
-            sample: out,
-            active: slot_active,
-        }
+        let rendered = render_synth_slot_pool_frame(
+            &mut self.voices[slot_idx],
+            slot_idx,
+            frame_sample_clock,
+            render_synth_parallel::SynthSlotFrameContext {
+                sample_rate: self.sample_rate,
+                config: self.instruments[slot_idx],
+                render_config: &self.synth_render_configs[slot_idx],
+                revision: self.synth_render_revisions[slot_idx],
+                mods: self.mods[slot_idx],
+            },
+        );
+        self.active_synth_slots[slot_idx] = rendered.active;
+        rendered
     }
 }

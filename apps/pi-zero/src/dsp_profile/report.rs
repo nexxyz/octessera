@@ -56,7 +56,7 @@ pub fn emit_timed_row(row: TimedRow<'_>) {
 
 pub fn notes_for(summary: &TelemetrySummary) -> String {
     format!(
-        "synth={}/{};sample={}/{};preview={}/{};momentary={}/{};steals={}/{}",
+        "synth={}/{};sample={}/{};preview={}/{};momentary={}/{};steals={}/{};parallel_dispatch={}/{};parallel_light_skip={}/{};parallel_backoff_skip={}/{};parallel_timing_backoff={}/{};parallel_fail={}/{};parallel_unhealthy={}",
         summary.final_snapshot.active_synth_voices,
         summary.peak_snapshot.active_synth_voices,
         summary.final_snapshot.active_sample_voices,
@@ -67,6 +67,17 @@ pub fn notes_for(summary: &TelemetrySummary) -> String {
         summary.peak_snapshot.active_momentary_fx,
         summary.final_snapshot.cumulative_voice_steals,
         summary.peak_snapshot.cumulative_voice_steals,
+        summary.final_snapshot.synth_parallel_dispatches,
+        summary.peak_snapshot.synth_parallel_dispatches,
+        summary.final_snapshot.synth_parallel_light_skips,
+        summary.peak_snapshot.synth_parallel_light_skips,
+        summary.final_snapshot.synth_parallel_backoff_skips,
+        summary.peak_snapshot.synth_parallel_backoff_skips,
+        summary.final_snapshot.synth_parallel_timing_backoffs,
+        summary.peak_snapshot.synth_parallel_timing_backoffs,
+        summary.final_snapshot.synth_parallel_failures,
+        summary.peak_snapshot.synth_parallel_failures,
+        summary.final_snapshot.synth_parallel_unhealthy,
     )
 }
 

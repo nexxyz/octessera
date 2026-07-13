@@ -14,6 +14,9 @@ pub fn collect_synth_telemetry(
     blocks: usize,
 ) -> TelemetrySummary {
     let mut engine = SynthEngine::new(sample_rate);
+    if let Some(worker_count) = synth_slot_worker_count() {
+        let _ = engine.set_synth_slot_parallelism_enabled(true, worker_count);
+    }
     apply_events(&mut engine, &scenario.events);
     let mut peak = engine.profile_snapshot();
     for _ in 0..blocks {
@@ -120,9 +123,16 @@ fn apply_events(engine: &mut SynthEngine, events: &[EngineEvent]) {
 }
 
 fn render_block(engine: &mut SynthEngine, block_frames: usize) {
-    for _ in 0..block_frames {
-        let _ = engine.next_stereo_sample();
-    }
+    let mut left = Vec::new();
+    let mut right = Vec::new();
+    let mut interleaved = Vec::new();
+    engine.render_interleaved_block(block_frames, &mut left, &mut right, &mut interleaved);
+}
+
+fn synth_slot_worker_count() -> Option<usize> {
+    let raw = std::env::var("OCTESSERA_SYNTH_SLOT_WORKERS").ok()?;
+    let count = raw.trim().parse::<usize>().ok()?;
+    (count > 0).then_some(count.min(3))
 }
 
 fn peak_snapshot(a: SynthProfileSnapshot, b: SynthProfileSnapshot) -> SynthProfileSnapshot {
@@ -134,5 +144,17 @@ fn peak_snapshot(a: SynthProfileSnapshot, b: SynthProfileSnapshot) -> SynthProfi
             .max(b.active_preview_sample_voices),
         active_momentary_fx: a.active_momentary_fx.max(b.active_momentary_fx),
         cumulative_voice_steals: a.cumulative_voice_steals.max(b.cumulative_voice_steals),
+        synth_parallel_dispatches: a.synth_parallel_dispatches.max(b.synth_parallel_dispatches),
+        synth_parallel_light_skips: a
+            .synth_parallel_light_skips
+            .max(b.synth_parallel_light_skips),
+        synth_parallel_backoff_skips: a
+            .synth_parallel_backoff_skips
+            .max(b.synth_parallel_backoff_skips),
+        synth_parallel_timing_backoffs: a
+            .synth_parallel_timing_backoffs
+            .max(b.synth_parallel_timing_backoffs),
+        synth_parallel_failures: a.synth_parallel_failures.max(b.synth_parallel_failures),
+        synth_parallel_unhealthy: a.synth_parallel_unhealthy || b.synth_parallel_unhealthy,
     }
 }

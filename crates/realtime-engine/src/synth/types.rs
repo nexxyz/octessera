@@ -69,6 +69,12 @@ pub struct SynthProfileSnapshot {
     pub active_preview_sample_voices: usize,
     pub active_momentary_fx: usize,
     pub cumulative_voice_steals: u64,
+    pub synth_parallel_dispatches: u64,
+    pub synth_parallel_light_skips: u64,
+    pub synth_parallel_backoff_skips: u64,
+    pub synth_parallel_timing_backoffs: u64,
+    pub synth_parallel_failures: u64,
+    pub synth_parallel_unhealthy: bool,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]

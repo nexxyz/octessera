@@ -7,6 +7,8 @@ param(
   [string]$Mode = "RuntimeOnly",
   [string]$Durations = "5s",
   [string]$Scenarios = "idle,pulses-stress",
+  [int]$SynthSlotWorkers = -1,
+  [int]$AudioBlockFrames = 0,
   [int]$AudioOutputBufferFrames = 0,
   [int]$AudioDrainIntervalMs = 10,
   [switch]$Snapshots,
@@ -45,6 +47,14 @@ $envParts = @(
 
 if ($AudioOutputBufferFrames -gt 0) {
   $envParts += Env-Assignment "OCTESSERA_AUDIO_OUTPUT_BUFFER_FRAMES" ([string]$AudioOutputBufferFrames)
+}
+
+if ($AudioBlockFrames -gt 0) {
+  $envParts += Env-Assignment "OCTESSERA_AUDIO_BLOCK_FRAMES" ([string]$AudioBlockFrames)
+}
+
+if ($SynthSlotWorkers -ge 0) {
+  $envParts += Env-Assignment "OCTESSERA_SYNTH_SLOT_WORKERS" ([string]$SynthSlotWorkers)
 }
 
 $args = @()

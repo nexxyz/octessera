@@ -21,6 +21,16 @@ impl SynthEngine {
         let sample_active = self.render_sample_voices(&mut slot_out);
         let preview_active = self.render_preview_sample_voices(&mut slot_out);
         let synth_active = self.render_synth_voices(&mut slot_out);
+        self.finish_serial_frame(slot_out, sample_active, preview_active, synth_active)
+    }
+
+    fn finish_serial_frame(
+        &mut self,
+        slot_out: [f32; INSTRUMENT_SLOT_COUNT],
+        sample_active: bool,
+        preview_active: bool,
+        synth_active: bool,
+    ) -> (f32, f32) {
         let process_buses = self.should_process_fx_buses();
         if process_buses {
             self.prepare_bus_buffers();
@@ -52,6 +62,100 @@ impl SynthEngine {
             (left * self.master_volume).clamp(-1.0, 1.0),
             (right * self.master_volume).clamp(-1.0, 1.0),
         )
+    }
+
+    fn block_slot_frame_graph(
+        &mut self,
+        frames: usize,
+        left_out: &mut [f32],
+        right_out: &mut [f32],
+    ) {
+        let base_sample_clock = self.sample_clock;
+        let synth_prerendered = self.try_parallel_synth_slot_prerender(frames, base_sample_clock);
+        for slot in 0..INSTRUMENT_SLOT_COUNT {
+            for frame in 0..frames {
+                let rendered = self.render_sample_slot(slot);
+                self.block_slot_scratch.sample_slot_out[slot][frame] = rendered.sample;
+                self.block_slot_scratch.sample_active[slot][frame] = rendered.active;
+            }
+        }
+        if synth_prerendered {
+            for slot in 0..INSTRUMENT_SLOT_COUNT {
+                if let Some(voices) = self.block_slot_scratch.synth_voices[slot] {
+                    self.voices[slot] = voices;
+                    self.active_synth_slots[slot] =
+                        self.block_slot_scratch.synth_final_active[slot];
+                }
+            }
+        } else {
+            for slot in 0..INSTRUMENT_SLOT_COUNT {
+                for frame in 0..frames {
+                    let frame_sample_clock = base_sample_clock.saturating_add(frame as u64);
+                    let rendered = self.render_synth_slot_at(slot, frame_sample_clock);
+                    self.block_slot_scratch.synth_slot_out[slot][frame] = rendered.sample;
+                    self.block_slot_scratch.synth_active[slot][frame] = rendered.active;
+                }
+            }
+        }
+        for frame in 0..frames {
+            let mut slot_out = [0.0_f32; INSTRUMENT_SLOT_COUNT];
+            let mut sample_active = false;
+            let mut synth_active = false;
+            for (slot, out) in slot_out.iter_mut().enumerate() {
+                *out += self.block_slot_scratch.sample_slot_out[slot][frame];
+                sample_active |= self.block_slot_scratch.sample_active[slot][frame];
+            }
+            let preview_active = self.render_preview_sample_voices(&mut slot_out);
+            for (slot, out) in slot_out.iter_mut().enumerate() {
+                *out += self.block_slot_scratch.synth_slot_out[slot][frame];
+                synth_active |= self.block_slot_scratch.synth_active[slot][frame];
+            }
+            let (left, right) =
+                self.finish_serial_frame(slot_out, sample_active, preview_active, synth_active);
+            left_out[frame] = left;
+            right_out[frame] = right;
+        }
+    }
+
+    fn try_parallel_synth_slot_prerender(&mut self, frames: usize, base_sample_clock: u64) -> bool {
+        if self.synth_parallel_unhealthy {
+            return false;
+        }
+        if self.synth_parallel_backoff_blocks > 0 {
+            self.synth_parallel_backoff_blocks -= 1;
+            self.record_synth_parallel_backoff_skip();
+            return false;
+        }
+        let Some(workers) = self.synth_workers.as_mut() else {
+            return false;
+        };
+        let inputs = std::array::from_fn(|slot| render_synth_parallel::SynthSlotRenderInput {
+            active: self.active_synth_slots[slot],
+            voices: self.voices[slot],
+            config: self.instruments[slot],
+            render_config: self.synth_render_configs[slot],
+            revision: self.synth_render_revisions[slot],
+            mods: self.mods[slot],
+        });
+        if !workers.should_render_parallel(frames, &inputs) {
+            self.record_synth_parallel_light_skip();
+            return false;
+        }
+        let start = Instant::now();
+        let rendered = workers.render_synth_slots(
+            frames,
+            base_sample_clock,
+            self.sample_rate,
+            &inputs,
+            &mut self.block_slot_scratch,
+        );
+        if !rendered {
+            self.record_synth_parallel_failure();
+            return false;
+        }
+        self.record_synth_parallel_dispatch();
+        self.apply_synth_parallel_timing_backoff(frames, start.elapsed().as_nanos() as u64);
+        true
     }
 
     fn profiled_serial_frame_graph(&mut self) -> (f32, f32) {
@@ -138,6 +242,11 @@ impl SynthEngine {
         left.resize(frames, 0.0);
         right.resize(frames, 0.0);
         out.resize(frames * 2, 0.0);
+        if !self.render_profile.enabled && self.block_slot_scratch.prepare(frames) {
+            self.block_slot_frame_graph(frames, left, right);
+            interleave_stereo(left, right, out);
+            return;
+        }
         let block_start = self.render_profile.enabled.then(Instant::now);
         for frame in 0..frames {
             let (l, r) = self.next_stereo_sample();
