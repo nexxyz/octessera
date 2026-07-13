@@ -107,6 +107,7 @@ $piImageFiles = "tools/pi-image/stage4-octessera/files/root"
 Copy-ToPi "$piImageFiles/usr/local/sbin/octessera-usb-gadget" "/tmp/octessera-usb-gadget"
 Copy-ToPi "$piImageFiles/etc/systemd/system/octessera-usb-gadget.service" "/tmp/octessera-usb-gadget.service"
 Copy-ToPi "$piImageFiles/etc/modules-load.d/octessera-usb-gadget.conf" "/tmp/octessera-usb-gadget.conf"
+Copy-ToPi "$piImageFiles/etc/sudoers.d/octessera-usb-storage" "/tmp/octessera-usb-storage.sudoers"
 Copy-ToPi "$piImageFiles/etc/systemd/system/octessera.service.d/audio-realtime.conf" "/tmp/octessera-audio-realtime.conf"
 
 $osConfigCommand = "UPDATE_INITRAMFS=$updateInitramfsValue`n" + @'
@@ -137,6 +138,8 @@ sudo rm -f \
 sudo install -D -m 0755 /tmp/octessera-usb-gadget /usr/local/sbin/octessera-usb-gadget
 sudo install -D -m 0644 /tmp/octessera-usb-gadget.service /etc/systemd/system/octessera-usb-gadget.service
 sudo install -D -m 0644 /tmp/octessera-usb-gadget.conf /etc/modules-load.d/octessera-usb-gadget.conf
+sudo install -D -m 0440 /tmp/octessera-usb-storage.sudoers /etc/sudoers.d/octessera-usb-storage
+sudo visudo -cf /etc/sudoers.d/octessera-usb-storage >/dev/null
 sudo systemctl daemon-reload
 sudo systemctl enable octessera-usb-gadget.service >/dev/null
 if [ "$UPDATE_INITRAMFS" = "1" ]; then
@@ -354,22 +357,22 @@ fi
 
 printf '\n'
 cat <<'EOM'
-                          OOOO    OOOO
-                         OOOOO   OOOOOO
-                       OOO     OOO    OOO
-                     OOOO    OOOO       OOOO
-                   OOOO    OOOO   OOOO    OOOO
-                   OOOO    OOOO   OOOO    OOOO
-                      OOO       OOOO    OOO
-                        OOOO   OOO    OOOO
-                          OOOOOO   OOOOO
-                           OOOO    OOOO
+                OOOO    OOOO
+               OOOOO   OOOOOO
+             OOO     OOO    OOO
+           OOOO    OOOO       OOOO
+         OOOO    OOOO   OOOO    OOOO
+         OOOO    OOOO   OOOO    OOOO
+            OOO       OOOO    OOO
+              OOOO   OOO    OOOO
+                OOOOOO   OOOOO
+                 OOOO    OOOO
 
-      OOOOO OOOOO OOOOOO OOOOO OOOOO OOOOO OOOOO OOOOO OOOOO
-      O   O O       OO   O     O     O     O     O   O O   O
-      O   O O       OO   OOOOO OOOOO OOOOO OOOOO OOOOO OOOOO
-      O   O O       OO   O         O     O O     O  OO O   O
-      OOOOO OOOOO   OO   OOOOO OOOOO OOOOO OOOOO O   O O   O
+OOOO OOOO OOOOO OOOO OOOO OOOO OOOO OOOO OOOO
+O  O O      O   O    O    O    O    O  O O  O
+O  O O      O   OOOO OOOO OOOO OOOO OOOO OOOO
+O  O O      O   O       O    O O    O OO O  O
+OOOO OOOO   O   OOOO OOOO OOOO OOOO O  O O  O
 EOM
 printf '\n  cellular automata -> music\n'
 printf '  service: systemctl status octessera\n'

@@ -399,6 +399,14 @@ impl AudioService {
             .stop_audio();
         Ok(())
     }
+
+    pub fn is_recording(&self) -> Result<bool, String> {
+        Ok(self
+            .recording_tap
+            .read()
+            .map_err(|_| "recording tap lock poisoned".to_string())?
+            .is_some())
+    }
 }
 
 fn recordings_dir() -> PathBuf {

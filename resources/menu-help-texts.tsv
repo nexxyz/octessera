@@ -177,6 +177,8 @@ usb_group	Menu > System > USB		group	USB	Controls restart-applied USB gadget exp
 usb_audio_out	*	key:usb.audioOut	enum	Audio Out	Selects the persisted USB audio output mode for the next reboot.	Choose jack, usb, or both, then use Save & Reboot.
 usb_midi_out	*	key:usb.midiOutEnabled	bool	MIDI Out	Enables persisted USB MIDI gadget output preference for the next reboot.	General MIDI enable/input/clock settings remain under System > MIDI.
 usb_apply_reboot	System > USB	action:usb.applyReboot	action	Save & Reboot	Saves the current default payload and asks the platform to apply USB settings with a reboot.	Confirmation offers Cancel or Save & Reboot.
+usb_sd_transfer_start	System > USB	action:usb.sdTransferStart	action	Start SD Transfer	Temporarily exposes the Pi SD sample card to the USB host as writable storage.	USB audio and MIDI disconnect during transfer; Pi rejects this while USB audio out, USB MIDI out, or recording is active.
+usb_sd_transfer_stop	System > USB	action:usb.sdTransferStop	action	Stop SD Transfer	Restores the normal USB audio/MIDI gadget after host file transfer.	Eject the SD card on the host before stopping transfer.
 recording_group	Menu > System > Recording		group	Recording	Controls Pi main-SD audio recording.	Phase 1 records Octessera's internal stereo output to /home/pi/recordings as WAV.
 recording_max_time	*	key:recording.maxMinutes	number	Max Time	Sets the maximum audio recording length in minutes.	The recorder stops and finalizes the WAV when the limit is reached.
 recording_start_audio	System > Recording	action:recording.startAudio	action	Start Audio	Starts Pi main-SD audio recording of the final internal stereo mix.	External MIDI instrument audio is not captured.

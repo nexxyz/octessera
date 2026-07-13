@@ -154,6 +154,16 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                         "usb.applyReboot",
                         NativeMenuAction::PlatformEffect("usb.applyReboot".into()),
                     ),
+                    action_item(
+                        "Start SD Transfer",
+                        "usb.sdTransferStart",
+                        NativeMenuAction::PlatformEffect("usb.sdTransferStart".into()),
+                    ),
+                    action_item(
+                        "Stop SD Transfer",
+                        "usb.sdTransferStop",
+                        NativeMenuAction::PlatformEffect("usb.sdTransferStop".into()),
+                    ),
                 ],
             ),
             group(

@@ -11,6 +11,25 @@ fn recording_protocol_json_uses_public_field_names() {
     );
 
     assert_eq!(
+        serde_json::to_value(RuntimePlatformEffect::UsbSdTransferStart).unwrap(),
+        json!({ "type": "usb_sd_transfer_start" })
+    );
+
+    assert_eq!(
+        serde_json::to_value(RuntimePlatformEffect::UsbSdTransferStop).unwrap(),
+        json!({ "type": "usb_sd_transfer_stop" })
+    );
+
+    assert_eq!(
+        serde_json::to_value(RuntimeStoreResult::UsbSdTransferStatus {
+            active: true,
+            message: "USB SD transfer active".into(),
+        })
+        .unwrap(),
+        json!({ "type": "usb_sd_transfer_status", "active": true, "message": "USB SD transfer active" })
+    );
+
+    assert_eq!(
         serde_json::to_value(RuntimePlatformEffect::RecordingStop).unwrap(),
         json!({ "type": "recording_stop" })
     );

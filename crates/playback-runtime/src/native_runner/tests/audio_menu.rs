@@ -83,6 +83,45 @@ pub(crate) fn usb_apply_reboot_cancel_keeps_menu_without_effect() {
 }
 
 #[test]
+pub(crate) fn usb_sd_transfer_actions_are_confirmed_and_emit_effects() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert!(runner.menu.focus_item_key("usb.sdTransferStart"));
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let snapshot = snapshot_from(&messages);
+    assert_eq!(snapshot["display"]["title"], "Confirm SD Transfer");
+    assert!(snapshot["display"]["lines"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|line| line.as_str().unwrap_or_default().contains("disconnect")));
+
+    runner.confirm_dialog.as_mut().unwrap().cursor = 1;
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects == &vec![RuntimePlatformEffect::UsbSdTransferStart]
+    )));
+
+    assert!(runner.menu.focus_item_key("usb.sdTransferStop"));
+    assert_eq!(
+        runner.platform_effect_for_action("usb.sdTransferStop"),
+        Some(RuntimePlatformEffect::UsbSdTransferStop)
+    );
+}
+
+#[test]
 pub(crate) fn recording_max_time_edits_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.recording_max_minutes = 14;

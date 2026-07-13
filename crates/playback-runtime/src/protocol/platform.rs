@@ -33,6 +33,8 @@ pub enum RuntimePlatformEffect {
     UsbApplyReboot {
         payload: Value,
     },
+    UsbSdTransferStart,
+    UsbSdTransferStop,
     RecordingStartAudio {
         #[serde(rename = "maxMinutes")]
         max_minutes: u16,
@@ -132,6 +134,10 @@ pub enum RuntimeStoreResult {
         message: String,
     },
     SamplePreviewError {
+        message: String,
+    },
+    UsbSdTransferStatus {
+        active: bool,
         message: String,
     },
 }

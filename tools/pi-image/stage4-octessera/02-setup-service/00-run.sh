@@ -52,6 +52,9 @@ install -D -m 0644 \
 install -D -m 0440 \
     "$STAGE_FILES/root/etc/sudoers.d/octessera-shutdown" \
     "$ROOTFS_DIR/etc/sudoers.d/octessera-shutdown"
+install -D -m 0440 \
+    "$STAGE_FILES/root/etc/sudoers.d/octessera-usb-storage" \
+    "$ROOTFS_DIR/etc/sudoers.d/octessera-usb-storage"
 install -D -m 0644 \
     "$STAGE_FILES/root/etc/profile.d/octessera-welcome.sh" \
     "$ROOTFS_DIR/etc/profile.d/octessera-welcome.sh"

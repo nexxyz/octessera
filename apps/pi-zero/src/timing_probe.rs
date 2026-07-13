@@ -217,6 +217,7 @@ fn run_live_one(
             samples_dir,
             midi_handler,
             false,
+            crate::usb_config::UsbAudioOut::Jack,
         ),
         started_at: Instant::now(),
         events: Vec::new(),

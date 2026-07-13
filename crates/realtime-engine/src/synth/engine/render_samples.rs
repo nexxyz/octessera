@@ -52,49 +52,58 @@ impl SynthEngine {
     ) -> bool {
         let mut active = false;
         for (slot, out) in slot_out.iter_mut().enumerate().take(INSTRUMENT_SLOT_COUNT) {
-            if !self.active_sample_slots[slot] {
-                continue;
-            }
-            let Some(bank) = self.sample_banks.get(slot) else {
-                self.active_sample_slots[slot] = false;
-                continue;
-            };
-            let mut slot_active = false;
-            for voice in self.sample_voices[slot].iter_mut() {
-                if !voice.active {
-                    continue;
-                }
-                let Some(Some(buffer)) =
-                    bank.slots.get(voice.sample_slot).map(|s| s.buffer.as_ref())
-                else {
-                    voice.active = false;
-                    continue;
-                };
-                let frames = buffer.samples.len() / buffer.channels as usize;
-                if frames == 0 || voice.pos >= frames as f32 {
-                    voice.active = false;
-                    continue;
-                }
-                let frame = voice.pos.floor() as usize;
-                let frac = voice.pos - frame as f32;
-                let next_frame = (frame + 1).min(frames - 1);
-                let sample = mono_frame(buffer, frame) * (1.0 - frac)
-                    + mono_frame(buffer, next_frame) * frac;
-                let filtered = sample_lowpass(
-                    sample,
-                    &mut voice.filt,
-                    bank.filter_cutoff_hz,
-                    bank.filter_resonance,
-                    self.sample_rate,
-                );
-                *out += filtered * voice.gain;
-                voice.pos += voice.step;
-                active = true;
-                slot_active = true;
-            }
-            self.active_sample_slots[slot] = slot_active;
+            let rendered = self.render_sample_slot(slot);
+            *out += rendered.sample;
+            active |= rendered.active;
         }
         active
+    }
+
+    pub(super) fn render_sample_slot(&mut self, slot: usize) -> SlotFrameOutput {
+        if !self.active_sample_slots[slot] {
+            return SlotFrameOutput::default();
+        }
+        let Some(bank) = self.sample_banks.get(slot) else {
+            self.active_sample_slots[slot] = false;
+            return SlotFrameOutput::default();
+        };
+        let mut out = 0.0;
+        let mut slot_active = false;
+        for voice in self.sample_voices[slot].iter_mut() {
+            if !voice.active {
+                continue;
+            }
+            let Some(Some(buffer)) = bank.slots.get(voice.sample_slot).map(|s| s.buffer.as_ref())
+            else {
+                voice.active = false;
+                continue;
+            };
+            let frames = buffer.samples.len() / buffer.channels as usize;
+            if frames == 0 || voice.pos >= frames as f32 {
+                voice.active = false;
+                continue;
+            }
+            let frame = voice.pos.floor() as usize;
+            let frac = voice.pos - frame as f32;
+            let next_frame = (frame + 1).min(frames - 1);
+            let sample =
+                mono_frame(buffer, frame) * (1.0 - frac) + mono_frame(buffer, next_frame) * frac;
+            let filtered = sample_lowpass(
+                sample,
+                &mut voice.filt,
+                bank.filter_cutoff_hz,
+                bank.filter_resonance,
+                self.sample_rate,
+            );
+            out += filtered * voice.gain;
+            voice.pos += voice.step;
+            slot_active = true;
+        }
+        self.active_sample_slots[slot] = slot_active;
+        SlotFrameOutput {
+            sample: out,
+            active: slot_active,
+        }
     }
 
     pub(super) fn render_preview_sample_voices(

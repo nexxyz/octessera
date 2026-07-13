@@ -83,6 +83,12 @@ pub struct SynthEngine {
     render_profile: RenderProfileState,
 }
 
+#[derive(Clone, Copy, Debug, Default)]
+pub(super) struct SlotFrameOutput {
+    pub sample: f32,
+    pub active: bool,
+}
+
 impl SynthEngine {
     pub fn new(sample_rate: u32) -> Self {
         let default = default_synth_config();

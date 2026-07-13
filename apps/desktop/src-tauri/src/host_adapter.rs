@@ -216,6 +216,12 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                 println!("SD audio recording is unsupported on desktop host");
                 Ok(vec![])
             }
+            RuntimePlatformEffect::UsbSdTransferStart
+            | RuntimePlatformEffect::UsbSdTransferStop => Ok(vec![HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::StoreError {
+                    message: "USB SD transfer is Pi-only".into(),
+                },
+            }]),
             RuntimePlatformEffect::AudioCommand { command } => {
                 self.handle_audio_command(command)?;
                 Ok(vec![])

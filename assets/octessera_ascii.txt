@@ -9,8 +9,8 @@
                 OOOOOO   OOOOO
                  OOOO    OOOO
 
- OOOO OOOO OOOOO OOOO OOOO OOOO OOOO OOOO OOOO
- O  O O      O   O    O    O    O    O  O O  O
- O  O O      O   OOOO OOOO OOOO OOOO OOOO OOOO
- O  O O      O   O       O    O O    O OO O  O
- OOOO OOOO   O   OOOO OOOO OOOO OOOO O  O O  O
+OOOO OOOO OOOOO OOOO OOOO OOOO OOOO OOOO OOOO
+O  O O      O   O    O    O    O    O  O O  O
+O  O O      O   OOOO OOOO OOOO OOOO OOOO OOOO
+O  O O      O   O       O    O O    O OO O  O
+OOOO OOOO   O   OOOO OOOO OOOO OOOO O  O O  O

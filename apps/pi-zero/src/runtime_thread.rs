@@ -9,6 +9,7 @@ use crate::main_runtime_loop::{
 use crate::render_loop::RenderWorker;
 use crate::runtime_loop::initialize_host_state;
 use crate::ui_profile::UiProfiler;
+use crate::usb_config::UsbAudioOut;
 use octessera_hal::encoder_gpio::HardwareEvent;
 use playback_runtime::{
     HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig, SyncSource,
@@ -57,6 +58,7 @@ pub(crate) struct RuntimeThreadConfig {
     pub(crate) samples_dir: PathBuf,
     pub(crate) midi_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
     pub(crate) usb_midi_out_enabled: bool,
+    pub(crate) usb_audio_out: UsbAudioOut,
     pub(crate) midi_rx: mpsc::Receiver<MidiMessage>,
     pub(crate) input_rx: mpsc::Receiver<HostMessage>,
     pub(crate) encoder_rx: mpsc::Receiver<HardwareEvent>,
@@ -78,6 +80,7 @@ fn run(config: RuntimeThreadConfig) {
         samples_dir,
         midi_handler,
         usb_midi_out_enabled,
+        usb_audio_out,
         midi_rx,
         input_rx,
         encoder_rx,
@@ -94,6 +97,7 @@ fn run(config: RuntimeThreadConfig) {
         samples_dir,
         midi_handler,
         usb_midi_out_enabled,
+        usb_audio_out,
     );
     if let Err(error) = initialize_host_state(&mut playback, &mut runner, &mut adapter) {
         eprintln!("pi host state initialization failed: {error}");

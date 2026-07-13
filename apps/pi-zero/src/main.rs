@@ -93,6 +93,7 @@ fn main() {
         samples_dir,
         midi_handler,
         usb_midi_out_enabled: usb_config.midi_out_enabled,
+        usb_audio_out: usb_config.audio_out,
         midi_rx,
         input_rx: seesaw_io.input_rx,
         encoder_rx: event_rx,

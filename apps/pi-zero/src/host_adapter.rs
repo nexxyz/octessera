@@ -6,6 +6,7 @@ mod host_adapter_store;
 use crate::audio::AudioService;
 use crate::host_audio_command::send_audio_command;
 use crate::platform_service::{PiPlatformService, PlatformJob};
+use crate::usb_config::UsbAudioOut;
 use midir::{MidiInputConnection, MidiOutputConnection};
 use playback_runtime::{
     HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent, RuntimeAudioCommand,
@@ -29,6 +30,7 @@ pub struct PiPlaybackHostAdapter {
     selected_midi_output_id: Option<String>,
     selected_midi_input_id: Option<String>,
     usb_midi_out_enabled: bool,
+    usb_audio_out: UsbAudioOut,
     power_request: Option<PiPowerRequest>,
     latest_recovery_payload: Option<serde_json::Value>,
 }
@@ -46,6 +48,7 @@ impl PiPlaybackHostAdapter {
         samples_dir: PathBuf,
         midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
         usb_midi_out_enabled: bool,
+        usb_audio_out: UsbAudioOut,
     ) -> Self {
         let platform_service = PiPlatformService::new(store_dir.clone(), samples_dir.clone());
         Self {
@@ -60,6 +63,7 @@ impl PiPlaybackHostAdapter {
             selected_midi_output_id: None,
             selected_midi_input_id: None,
             usb_midi_out_enabled,
+            usb_audio_out,
             power_request: None,
             latest_recovery_payload: None,
         }
@@ -205,6 +209,50 @@ impl HostAdapter for PiPlaybackHostAdapter {
             RuntimePlatformEffect::RecordingStop => {
                 if let Some(audio) = &self.audio {
                     audio.stop_recording()?;
+                }
+                return Ok(Vec::new());
+            }
+            RuntimePlatformEffect::UsbSdTransferStart => {
+                if matches!(self.usb_audio_out, UsbAudioOut::Usb | UsbAudioOut::Both) {
+                    return Ok(vec![store_error(
+                        "USB SD transfer blocked while USB audio out is active".into(),
+                    )]);
+                }
+                if self.usb_midi_out_enabled {
+                    return Ok(vec![store_error(
+                        "USB SD transfer blocked while USB MIDI out is enabled".into(),
+                    )]);
+                }
+                if self
+                    .audio
+                    .as_ref()
+                    .map(AudioService::is_recording)
+                    .transpose()?
+                    .unwrap_or(false)
+                {
+                    return Ok(vec![store_error(
+                        "USB SD transfer blocked while recording is active".into(),
+                    )]);
+                }
+                self.handle_platform_effect(&RuntimePlatformEffect::MidiPanic)?;
+                if let Err(message) = self
+                    .platform_service
+                    .enqueue(PlatformJob::UsbSdTransferStart)
+                {
+                    return Ok(vec![store_error(format!(
+                        "USB SD transfer start queued failed: {message}"
+                    ))]);
+                }
+                return Ok(Vec::new());
+            }
+            RuntimePlatformEffect::UsbSdTransferStop => {
+                if let Err(message) = self
+                    .platform_service
+                    .enqueue(PlatformJob::UsbSdTransferStop)
+                {
+                    return Ok(vec![store_error(format!(
+                        "USB SD transfer stop queued failed: {message}"
+                    ))]);
                 }
                 return Ok(Vec::new());
             }
@@ -386,6 +434,7 @@ mod tests {
             PathBuf::from("samples"),
             Arc::new(|_| {}),
             false,
+            UsbAudioOut::Jack,
         );
         assert!(crate::platform_service::preset_path(&adapter.store_dir, "safe").is_ok());
         for name in ["bad/name", r"bad\name", r"C:\x", "CON", "bad:name"] {

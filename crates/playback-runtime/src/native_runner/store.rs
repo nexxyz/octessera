@@ -58,6 +58,8 @@ impl NativeRunner {
             "usb.applyReboot" => Some(RuntimePlatformEffect::UsbApplyReboot {
                 payload: self.config_payload(),
             }),
+            "usb.sdTransferStart" => Some(RuntimePlatformEffect::UsbSdTransferStart),
+            "usb.sdTransferStop" => Some(RuntimePlatformEffect::UsbSdTransferStop),
             "recording.startAudio" => Some(RuntimePlatformEffect::RecordingStartAudio {
                 max_minutes: self.recording_max_minutes,
             }),
@@ -149,6 +151,16 @@ impl NativeRunner {
             ("Confirm Shutdown", "Shut down Octessera?".into())
         } else if action_type == "usb.applyReboot" {
             ("Confirm USB", "Save USB settings and reboot?".into())
+        } else if action_type == "usb.sdTransferStart" {
+            (
+                "Confirm SD Transfer",
+                "USB audio/MIDI disconnect. Host owns the SD card until stopped.".into(),
+            )
+        } else if action_type == "usb.sdTransferStop" {
+            (
+                "Confirm SD Transfer",
+                "Eject the SD card on the host first, then stop transfer.".into(),
+            )
         } else if action_type == "system.hardwareTest" {
             ("Confirm Hardware Test", "Run the hardware test?".into())
         } else if action_type == "system.updateApply" {
@@ -237,6 +249,9 @@ impl NativeRunner {
             RuntimeStoreResult::SaveBackupResult { .. }
             | RuntimeStoreResult::SaveRecoveryResult { .. } => {}
             RuntimeStoreResult::StoreError { message } => {
+                self.toast = Some(NativeToast { message, offset: 0 });
+            }
+            RuntimeStoreResult::UsbSdTransferStatus { message, .. } => {
                 self.toast = Some(NativeToast { message, offset: 0 });
             }
             RuntimeStoreResult::ListPresetsResult { names } => {

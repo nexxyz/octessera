@@ -106,6 +106,20 @@ ensure_boot_config_line "dtparam=spi=on"
 ensure_boot_config_line "dtparam=i2c_arm=on"
 ensure_boot_config_line "enable_uart=0"
 grep -qxF "i2c-dev" /etc/modules || echo "i2c-dev" | sudo tee -a /etc/modules > /dev/null
+if [ -f tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget ]; then
+    sudo install -D -m 0755 \
+        tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget \
+        /usr/local/sbin/octessera-usb-gadget
+    sudo install -D -m 0644 \
+        tools/pi-image/stage4-octessera/files/root/etc/modules-load.d/octessera-usb-gadget.conf \
+        /etc/modules-load.d/octessera-usb-gadget.conf
+fi
+if [ -f tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-usb-storage ]; then
+    sudo install -D -m 0440 \
+        tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-usb-storage \
+        /etc/sudoers.d/octessera-usb-storage
+    sudo visudo -cf /etc/sudoers.d/octessera-usb-storage >/dev/null
+fi
 
 # Install journald config for persistent capped logs
 sudo install -d -m 0755 /etc/systemd/journald.conf.d
@@ -253,22 +267,22 @@ fi
 
 printf '\n'
 cat <<'EOF'
-                          OOOO    OOOO
-                         OOOOO   OOOOOO
-                       OOO     OOO    OOO
-                     OOOO    OOOO       OOOO
-                   OOOO    OOOO   OOOO    OOOO
-                   OOOO    OOOO   OOOO    OOOO
-                      OOO       OOOO    OOO
-                        OOOO   OOO    OOOO
-                          OOOOOO   OOOOO
-                           OOOO    OOOO
+                OOOO    OOOO
+               OOOOO   OOOOOO
+             OOO     OOO    OOO
+           OOOO    OOOO       OOOO
+         OOOO    OOOO   OOOO    OOOO
+         OOOO    OOOO   OOOO    OOOO
+            OOO       OOOO    OOO
+              OOOO   OOO    OOOO
+                OOOOOO   OOOOO
+                 OOOO    OOOO
 
-      OOOOO OOOOO OOOOOO OOOOO OOOOO OOOOO OOOOO OOOOO OOOOO
-      O   O O       OO   O     O     O     O     O   O O   O
-      O   O O       OO   OOOOO OOOOO OOOOO OOOOO OOOOO OOOOO
-      O   O O       OO   O         O     O O     O  OO O   O
-      OOOOO OOOOO   OO   OOOOO OOOOO OOOOO OOOOO O   O O   O
+OOOO OOOO OOOOO OOOO OOOO OOOO OOOO OOOO OOOO
+O  O O      O   O    O    O    O    O  O O  O
+O  O O      O   OOOO OOOO OOOO OOOO OOOO OOOO
+O  O O      O   O       O    O O    O OO O  O
+OOOO OOOO   O   OOOO OOOO OOOO OOOO O  O O  O
 EOF
 printf '\n  cellular automata -> music\n'
 printf '  service: systemctl status octessera\n'

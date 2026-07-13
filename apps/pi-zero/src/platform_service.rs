@@ -2,6 +2,7 @@ use crate::persistence::atomic_write_json;
 use crate::sample_browser::sample_entries;
 use playback_runtime::{HostMessage, RuntimeStoreResult};
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::sync::mpsc::{self, Receiver, SyncSender, TryRecvError, TrySendError};
 use std::thread;
 
@@ -78,6 +79,8 @@ pub enum PlatformJob {
         sample_slot: usize,
         dir: String,
     },
+    UsbSdTransferStart,
+    UsbSdTransferStop,
 }
 
 fn run_worker(
@@ -151,6 +154,30 @@ fn handle_job(store_dir: &Path, samples_dir: &Path, job: PlatformJob) -> Runtime
                 message,
             },
         },
+        PlatformJob::UsbSdTransferStart => run_usb_storage_command("storage-start"),
+        PlatformJob::UsbSdTransferStop => run_usb_storage_command("storage-stop"),
+    }
+}
+
+fn run_usb_storage_command(action: &str) -> RuntimeStoreResult {
+    match Command::new("sudo")
+        .args(["-n", "/usr/local/sbin/octessera-usb-gadget", action])
+        .output()
+    {
+        Ok(output) if output.status.success() => RuntimeStoreResult::UsbSdTransferStatus {
+            active: action == "storage-start",
+            message: if action == "storage-start" {
+                "USB SD transfer active".into()
+            } else {
+                "USB SD transfer stopped".into()
+            },
+        },
+        Ok(output) => store_error(format!(
+            "USB SD transfer {action} failed: {}{}",
+            String::from_utf8_lossy(&output.stderr),
+            String::from_utf8_lossy(&output.stdout)
+        )),
+        Err(error) => store_error(format!("USB SD transfer {action} failed: {error}")),
     }
 }
 
