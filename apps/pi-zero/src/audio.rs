@@ -1,3 +1,4 @@
+use crate::audio_stream_health::AudioStreamHealth;
 use crate::recording::{RecorderService, RecordingTap};
 use crate::usb_config::UsbAudioOut;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -12,9 +13,9 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicU64;
 use std::sync::mpsc::{self, Sender};
 use std::sync::{Arc, Mutex, RwLock};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-const AUDIO_STREAM_ERROR_LOG_INTERVAL: Duration = Duration::from_secs(1);
+const USB_AUDIO_STARTUP_FAULT_GRACE: Duration = Duration::from_millis(250);
 
 #[cfg(target_os = "linux")]
 mod audio_priority {
@@ -89,23 +90,28 @@ impl AudioManager {
         let recording_tap = Arc::new(RwLock::new(None));
         let mut recording_tap_claimed = false;
         for sink in sinks {
-            let (engine_tx, engine_rx) = mpsc::channel::<EngineEvent>();
             let uses_recording_tap = !recording_tap_claimed;
             let tap = uses_recording_tap.then(|| recording_tap.clone());
-            match build_cpal_stream(engine_rx, output_buffer_frames, sink, tap) {
-                Ok(stream) => {
-                    stream
-                        .play()
-                        .map_err(|e| format!("failed to play {sink:?} audio stream: {e}"))?;
+            match open_audio_sink(output_buffer_frames, sink, tap.clone()) {
+                Ok((engine_tx, stream)) => {
                     if uses_recording_tap {
                         recording_tap_claimed = true;
                     }
-                    let _ = engine_tx.send(EngineEvent::SetInstruments(default_pi_instruments()));
                     streams.push(stream);
                     realtime_txs.push(engine_tx);
                 }
                 Err(error) if audio_out == UsbAudioOut::Both => {
                     eprintln!("{sink:?} audio init failed: {error} (continuing with other sinks)");
+                }
+                Err(error) if audio_out == UsbAudioOut::Usb && sink == AudioSink::Usb => {
+                    eprintln!("Usb audio init failed: {error} (falling back to jack)");
+                    let (engine_tx, stream) =
+                        open_audio_sink(output_buffer_frames, AudioSink::Jack, tap)?;
+                    if uses_recording_tap {
+                        recording_tap_claimed = true;
+                    }
+                    streams.push(stream);
+                    realtime_txs.push(engine_tx);
                 }
                 Err(error) => return Err(error),
             }
@@ -138,11 +144,39 @@ impl AudioManager {
     }
 }
 
+fn open_audio_sink(
+    output_buffer_frames: Option<u32>,
+    sink: AudioSink,
+    recording_tap: Option<Arc<RwLock<Option<RecordingTap>>>>,
+) -> Result<(Sender<EngineEvent>, Stream), String> {
+    let (engine_tx, engine_rx) = mpsc::channel::<EngineEvent>();
+    let health = AudioStreamHealth::new(format!("{sink:?}"));
+    let stream = build_cpal_stream(
+        engine_rx,
+        output_buffer_frames,
+        sink,
+        recording_tap,
+        health.clone(),
+    )?;
+    stream
+        .play()
+        .map_err(|e| format!("failed to play {sink:?} audio stream: {e}"))?;
+    if sink == AudioSink::Usb {
+        std::thread::sleep(USB_AUDIO_STARTUP_FAULT_GRACE);
+        if health.is_faulted() {
+            return Err("USB audio stream entered a high-rate error loop".into());
+        }
+    }
+    let _ = engine_tx.send(EngineEvent::SetInstruments(default_pi_instruments()));
+    Ok((engine_tx, stream))
+}
+
 fn build_cpal_stream(
     engine_rx: mpsc::Receiver<EngineEvent>,
     output_buffer_frames: Option<u32>,
     sink: AudioSink,
     recording_tap: Option<Arc<RwLock<Option<RecordingTap>>>>,
+    stream_health: AudioStreamHealth,
 ) -> Result<Stream, String> {
     let host = cpal::default_host();
     let device = select_output_device(&host, sink)?;
@@ -154,22 +188,21 @@ fn build_cpal_stream(
     config.sample_rate = cpal::SampleRate(DEFAULT_AUDIO_SAMPLE_RATE);
     config.buffer_size = output_buffer_size(output_buffer_frames);
     let source = EngineSource::new(engine_rx, config.sample_rate.0);
-    let error_log = AudioStreamErrorLog::new(format!("{sink:?}"));
     match supported.sample_format() {
         SampleFormat::F32 => {
-            build_stream::<f32>(&device, &config, source, recording_tap, error_log)
+            build_stream::<f32>(&device, &config, source, recording_tap, stream_health)
         }
         SampleFormat::I16 => {
-            build_stream::<i16>(&device, &config, source, recording_tap, error_log)
+            build_stream::<i16>(&device, &config, source, recording_tap, stream_health)
         }
         SampleFormat::U16 => {
-            build_stream::<u16>(&device, &config, source, recording_tap, error_log)
+            build_stream::<u16>(&device, &config, source, recording_tap, stream_health)
         }
         format => Err(format!("unsupported audio sample format: {format:?}")),
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum AudioSink {
     Jack,
     Usb,
@@ -240,7 +273,7 @@ fn build_stream<T>(
     config: &StreamConfig,
     mut source: EngineSource,
     recording_tap: Option<Arc<RwLock<Option<RecordingTap>>>>,
-    error_log: AudioStreamErrorLog,
+    stream_health: AudioStreamHealth,
 ) -> Result<Stream, String>
 where
     T: cpal::Sample + cpal::SizedSample + cpal::FromSample<f32>,
@@ -252,58 +285,10 @@ where
                 audio_priority::configure_callback_thread();
                 fill_output(data, &mut source, recording_tap.as_ref());
             },
-            move |error| error_log.log(error),
+            move |error| stream_health.log(error),
             None,
         )
         .map_err(|e| format!("failed to build audio output stream: {e}"))
-}
-
-#[derive(Clone)]
-struct AudioStreamErrorLog {
-    label: String,
-    state: Arc<Mutex<AudioStreamErrorLogState>>,
-}
-
-struct AudioStreamErrorLogState {
-    last_log: Option<Instant>,
-    suppressed: u64,
-}
-
-impl AudioStreamErrorLog {
-    fn new(label: String) -> Self {
-        Self {
-            label,
-            state: Arc::new(Mutex::new(AudioStreamErrorLogState {
-                last_log: None,
-                suppressed: 0,
-            })),
-        }
-    }
-
-    fn log(&self, error: cpal::StreamError) {
-        let Ok(mut state) = self.state.lock() else {
-            return;
-        };
-        let now = Instant::now();
-        if state
-            .last_log
-            .is_some_and(|last| now.duration_since(last) < AUDIO_STREAM_ERROR_LOG_INTERVAL)
-        {
-            state.suppressed += 1;
-            return;
-        }
-        let suppressed = state.suppressed;
-        state.last_log = Some(now);
-        state.suppressed = 0;
-        if suppressed == 0 {
-            eprintln!("{} audio stream error: {error}", self.label);
-        } else {
-            eprintln!(
-                "{} audio stream error: {error} ({suppressed} similar errors suppressed)",
-                self.label
-            );
-        }
-    }
 }
 
 fn fill_output<T>(
