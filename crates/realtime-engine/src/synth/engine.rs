@@ -17,6 +17,7 @@ mod dynamic_control;
 mod note_control;
 mod render;
 mod render_momentary_fx;
+mod render_profile;
 mod render_routing;
 mod render_samples;
 mod render_synth;
@@ -26,6 +27,7 @@ mod support;
 mod test_support;
 mod voice_budget;
 
+use render_profile::RenderProfileState;
 use support::{
     midi_note_to_hz, mono_frame, pan_gains, pan_gains_float, param_f32, parse_instrument_kind,
     parse_momentary_fx_kind, parse_route, sample_slot_for_note, InstrumentKind, MomentaryFxKind,
@@ -78,6 +80,7 @@ pub struct SynthEngine {
     dry_history: Vec<f32>,
     dry_history_pos: usize,
     fx_activity_hold_frames: u32,
+    render_profile: RenderProfileState,
 }
 
 impl SynthEngine {
@@ -128,6 +131,7 @@ impl SynthEngine {
             dry_history: vec![0.0; DRY_HISTORY_FRAMES * 2],
             dry_history_pos: 0,
             fx_activity_hold_frames: (sample_rate.saturating_mul(150) / 1000).max(1),
+            render_profile: RenderProfileState::default(),
         }
     }
 

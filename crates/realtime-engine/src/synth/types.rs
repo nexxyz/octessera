@@ -159,6 +159,20 @@ pub struct SampleBankConfig {
     pub filter_resonance: f32,
 }
 
+pub const RENDER_PROFILE_STAGE_COUNT: usize = 8;
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct RenderProfileSnapshot {
+    pub enabled: bool,
+    pub frames_observed: u64,
+    pub blocks_observed: u64,
+    pub last_block_frames: usize,
+    pub last_frame_total_ns: u64,
+    pub last_block_total_ns: u64,
+    pub stage_ns: [u64; RENDER_PROFILE_STAGE_COUNT],
+    pub interleave_ns: u64,
+}
+
 impl Default for SampleBankConfig {
     fn default() -> Self {
         Self {
