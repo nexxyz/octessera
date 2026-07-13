@@ -64,6 +64,7 @@ fn binding_spec_from_behavior_item(item: &NativeMenuItem) -> Option<NativeParamB
     if matches!(
         item.value,
         super::NativeMenuValue::Action(super::NativeMenuAction::SelectBehavior(_))
+            | super::NativeMenuValue::Action(super::NativeMenuAction::SelectLayerBehavior { .. })
     ) {
         return None;
     }

@@ -63,6 +63,7 @@ pub(crate) fn config() -> NativeMenuConfig {
                 children: vec![],
             },
         ],
+        worlds_items_by_layer: vec![],
         behavior_target_items: behavior_target_items(),
         layer_labels: (0..LAYER_COUNT)
             .map(|index| format!("L{}: life", index + 1))

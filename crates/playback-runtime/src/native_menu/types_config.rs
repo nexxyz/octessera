@@ -7,6 +7,7 @@ pub struct NativeMenuConfig {
     pub behavior_id: String,
     pub behavior_ids: Vec<String>,
     pub worlds_items: Vec<NativeMenuItem>,
+    pub worlds_items_by_layer: Vec<Vec<NativeMenuItem>>,
     pub behavior_target_items: Vec<Vec<NativeMenuItem>>,
     pub layer_labels: Vec<String>,
     pub layer_names: Vec<String>,

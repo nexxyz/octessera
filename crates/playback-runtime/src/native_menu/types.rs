@@ -6,6 +6,10 @@ pub use super::types_config::*;
 pub enum NativeMenuAction {
     BehaviorAction(String),
     SelectBehavior(String),
+    SelectLayerBehavior {
+        layer_index: usize,
+        behavior_id: String,
+    },
     NavigateBack,
     PlatformEffect(String),
     SetParamBinding {

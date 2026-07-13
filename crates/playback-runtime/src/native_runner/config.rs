@@ -29,6 +29,7 @@ impl NativeRunner {
                 .map(|id| (*id).to_string())
                 .collect(),
             worlds_items: self.worlds_menu_items(),
+            worlds_items_by_layer: self.worlds_menu_items_by_layer(),
             behavior_target_items: self.behavior_target_items(),
             layer_labels: self.layer_labels(),
             layer_names: self.layer_names.clone(),

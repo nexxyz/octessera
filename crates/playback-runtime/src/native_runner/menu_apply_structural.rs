@@ -36,29 +36,71 @@ impl NativeRunner {
         Ok(())
     }
 
+    pub(super) fn select_layer_behavior(
+        &mut self,
+        layer_index: usize,
+        behavior_id: &str,
+    ) -> Result<(), String> {
+        if layer_index == self.active_layer_index {
+            return self.select_behavior(behavior_id);
+        }
+        let previous_label = self
+            .layer_names
+            .get(layer_index)
+            .map(|name| format!("L{}: {name}", layer_index + 1));
+        let changed = self.apply_layer_behavior_selection(layer_index, behavior_id)?;
+        self.update_layer_menu_label(layer_index, previous_label.as_deref());
+        self.update_layer_worlds_menu_items(layer_index);
+        if changed {
+            self.mark_fast_autosave_dirty();
+        }
+        Ok(())
+    }
+
     fn update_active_layer_menu_label(&mut self, previous_label: Option<&str>) {
-        let Some(name) = self.layer_names.get(self.active_layer_index) else {
+        self.update_layer_menu_label(self.active_layer_index, previous_label);
+        self.menu.replace_group_label_containing_direct_key(
+            "behaviorId",
+            &format!(
+                "L{}: {}",
+                self.active_layer_index + 1,
+                self.layer_names
+                    .get(self.active_layer_index)
+                    .map(String::as_str)
+                    .unwrap_or_else(|| self.behavior.id())
+            ),
+        );
+    }
+
+    fn update_layer_menu_label(&mut self, layer_index: usize, previous_label: Option<&str>) {
+        let Some(name) = self.layer_names.get(layer_index).cloned() else {
             return;
         };
-        let name = name.clone();
         self.menu
-            .set_text_value_for_key(&format!("layers.{}.name", self.active_layer_index), &name);
-        let next_label = format!("L{}: {name}", self.active_layer_index + 1);
+            .set_text_value_for_key(&format!("layers.{layer_index}.name"), &name);
+        let next_label = format!("L{}: {name}", layer_index + 1);
         if let Some(previous_label) = previous_label {
             self.menu.replace_label(previous_label, &next_label);
         }
-        self.menu
-            .replace_group_label_containing_direct_key("behaviorId", &next_label);
     }
 
     fn update_active_worlds_menu_items(&mut self) {
-        let Some(name) = self.layer_names.get(self.active_layer_index) else {
-            return;
-        };
-        let label = format!("L{}: {name}", self.active_layer_index + 1);
+        self.update_layer_worlds_menu_items(self.active_layer_index);
         let children = self.worlds_menu_items();
         self.menu
             .replace_group_children_containing_direct_key("behaviorId", &children);
+    }
+
+    pub(super) fn update_layer_worlds_menu_items(&mut self, layer_index: usize) {
+        let Some(name) = self.layer_names.get(layer_index) else {
+            return;
+        };
+        let label = format!("L{}: {name}", layer_index + 1);
+        let children = if layer_index == self.active_layer_index {
+            self.worlds_menu_items()
+        } else {
+            self.worlds_menu_items_for_layer(layer_index)
+        };
         self.menu
             .replace_group_children_for_label(&label, &children);
     }

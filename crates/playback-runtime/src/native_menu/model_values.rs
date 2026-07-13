@@ -11,7 +11,8 @@ impl NativeMenuModel {
     }
 
     pub fn selected_algorithm_step_pulses(&self) -> Option<u32> {
-        self.find_value("Step Rate")
+        self.value_for_key("algorithmStep")
+            .or_else(|| self.find_value("Step Rate"))
             .and_then(|value| note_unit_to_pulses(&value))
     }
 

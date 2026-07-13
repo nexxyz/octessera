@@ -42,11 +42,16 @@ fn worlds_group(config: &NativeMenuConfig) -> NativeMenuItem {
         children: config
             .layer_labels
             .iter()
-            .map(|label| NativeMenuItem {
+            .enumerate()
+            .map(|(index, label)| NativeMenuItem {
                 label: label.clone(),
                 key: None,
                 value: NativeMenuValue::Group,
-                children: config.worlds_items.clone(),
+                children: config
+                    .worlds_items_by_layer
+                    .get(index)
+                    .cloned()
+                    .unwrap_or_else(|| config.worlds_items.clone()),
             })
             .collect(),
     }

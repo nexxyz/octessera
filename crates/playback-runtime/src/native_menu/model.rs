@@ -310,6 +310,7 @@ impl NativeMenuModel {
             | (Some(key), NativeMenuValue::Bool { .. }) => (Some(key.clone()), None),
             (Some(_), NativeMenuValue::Text { .. }) => (None, None),
             (_, NativeMenuValue::Action(NativeMenuAction::SelectBehavior(_)))
+            | (_, NativeMenuValue::Action(NativeMenuAction::SelectLayerBehavior { .. }))
             | (_, NativeMenuValue::Action(NativeMenuAction::NavigateBack)) => (None, None),
             (_, NativeMenuValue::Action(action)) => (None, Some(action.clone())),
             _ => (None, None),

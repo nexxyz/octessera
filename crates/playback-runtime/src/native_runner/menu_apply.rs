@@ -119,16 +119,55 @@ impl NativeRunner {
         Ok(true)
     }
 
+    pub(super) fn apply_layer_behavior_selection(
+        &mut self,
+        layer_index: usize,
+        behavior_id: &str,
+    ) -> Result<bool, String> {
+        let current_behavior_id = self
+            .layer_behavior_ids
+            .get(layer_index)
+            .cloned()
+            .unwrap_or_else(|| "none".into());
+        if behavior_id == current_behavior_id {
+            return Ok(self.sync_layer_auto_name(layer_index, behavior_id));
+        }
+        let behavior = platform_core::get_native_behavior(behavior_id)
+            .ok_or_else(|| format!("unsupported native behavior `{behavior_id}`"))?;
+        if let Some(layer_behavior_id) = self.layer_behavior_ids.get_mut(layer_index) {
+            *layer_behavior_id = behavior_id.to_string();
+        }
+        let next_config = self
+            .behavior_configs
+            .get(behavior_id)
+            .cloned()
+            .unwrap_or(Value::Null);
+        if let Some(config) = self.layer_behavior_configs.get_mut(layer_index) {
+            *config = next_config;
+        }
+        if let Some(engine) = self.layer_engines.get_mut(layer_index) {
+            *engine = None;
+        }
+        self.sync_layer_auto_name(layer_index, behavior_id);
+        self.remap_bindings_for_behavior_change(&current_behavior_id, behavior_id, layer_index);
+        let _ = behavior;
+        Ok(true)
+    }
+
     pub(super) fn sync_active_layer_auto_name(&mut self, behavior_id: &str) -> bool {
+        self.sync_layer_auto_name(self.active_layer_index, behavior_id)
+    }
+
+    pub(super) fn sync_layer_auto_name(&mut self, layer_index: usize, behavior_id: &str) -> bool {
         if !self
             .layer_auto_names
-            .get(self.active_layer_index)
+            .get(layer_index)
             .copied()
             .unwrap_or(true)
         {
             return false;
         }
-        let Some(name) = self.layer_names.get_mut(self.active_layer_index) else {
+        let Some(name) = self.layer_names.get_mut(layer_index) else {
             return false;
         };
         if name == behavior_id {

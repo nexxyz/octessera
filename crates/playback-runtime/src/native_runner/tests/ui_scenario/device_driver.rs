@@ -100,6 +100,24 @@ impl DeviceDriver {
         self.runner.config_payload()
     }
 
+    pub(super) fn set_preset_draft_name(&mut self, name: &str) {
+        self.runner.preset_draft_name = name.into();
+        self.runner.menu.rebuild(self.runner.menu_config());
+        self.refresh_snapshot();
+    }
+
+    pub(super) fn send_store_result(&mut self, result: RuntimeStoreResult) {
+        self.send(HostMessage::RuntimeResult { result });
+    }
+
+    pub(super) fn latest_saved_preset(&self) -> Option<(String, Value)> {
+        self.output.saved_presets.last().cloned()
+    }
+
+    pub(super) fn latest_load_preset_request(&self) -> Option<&str> {
+        self.output.load_preset_requests.last().map(String::as_str)
+    }
+
     pub(super) fn select_layer_with_fn(&mut self, layer_index: usize) {
         self.hold_button("fn");
         self.press_grid(0, layer_index);
@@ -166,6 +184,17 @@ impl DeviceDriver {
             input,
             request_snapshot: Some(true),
         });
+    }
+
+    fn refresh_snapshot(&mut self) {
+        let messages = self.runner.snapshot().map_or_else(
+            |error| self.fail(&format!("snapshot failed: {error}")),
+            |snapshot| vec![RunnerMessage::Snapshot { snapshot }],
+        );
+        self.output.record(&messages);
+        if let RunnerMessage::Snapshot { snapshot } = &messages[0] {
+            self.latest_snapshot = snapshot.clone();
+        }
     }
 
     fn send(&mut self, message: HostMessage) {

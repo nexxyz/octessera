@@ -187,7 +187,13 @@ impl NativeRunner {
             self.show_toast(format!("Turn-{}: No binding", index + 1));
             return Ok(());
         };
-        if self.menu.turn_key(&turn.key, delta) {
+        if let Some(value) = self.turn_generated_behavior_target(&turn.key, delta) {
+            self.show_or_queue_aux_turn_toast(format!(
+                "Turn-{}: {}: {value}",
+                index + 1,
+                turn.label
+            ));
+        } else if self.menu.turn_key(&turn.key, delta) {
             self.apply_or_schedule_menu_key(&turn.key)?;
             let value = self
                 .menu
@@ -198,12 +204,6 @@ impl NativeRunner {
                         .map(|value| value.to_string())
                 })
                 .unwrap_or_else(|| "changed".into());
-            self.show_or_queue_aux_turn_toast(format!(
-                "Turn-{}: {}: {value}",
-                index + 1,
-                turn.label
-            ));
-        } else if let Some(value) = self.turn_generated_behavior_target(&turn.key, delta) {
             self.show_or_queue_aux_turn_toast(format!(
                 "Turn-{}: {}: {value}",
                 index + 1,

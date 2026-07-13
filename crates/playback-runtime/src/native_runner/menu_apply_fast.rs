@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 
 pub(super) use super::menu_apply_fast_values::structural_draft_key;
 use super::menu_apply_fast_values::*;
-use super::NativeRunner;
+use super::{note_unit_to_pulses, NativeRunner};
 
 impl NativeRunner {
     pub(super) fn apply_or_schedule_menu_key(&mut self, key: &str) -> Result<(), String> {
@@ -183,9 +183,28 @@ impl NativeRunner {
         let rest = key.strip_prefix("layers.")?;
         let (index, suffix) = parse_indexed_key(rest)?;
         match suffix {
+            "algorithmStep" => Some(self.fast_layer_algorithm_step_key(index, key)),
             "autoName" => Some(self.fast_layer_auto_name_key(index, key)),
             _ => None,
         }
+    }
+
+    fn fast_layer_algorithm_step_key(&mut self, index: usize, key: &str) -> bool {
+        let Some(value) = self.menu.value_for_key(key) else {
+            return false;
+        };
+        let Some(layer_step) = self.layer_algorithm_step_pulses.get_mut(index) else {
+            return false;
+        };
+        let pulses = note_unit_to_pulses(&value);
+        if *layer_step == pulses {
+            return false;
+        }
+        *layer_step = pulses;
+        if index == self.active_layer_index {
+            self.algorithm_step_pulses = pulses;
+        }
+        true
     }
 
     fn apply_behavior_config_menu_key_fast(&mut self, key: &str) -> Option<bool> {

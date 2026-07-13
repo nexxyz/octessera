@@ -8,7 +8,7 @@ use interaction_driver::*;
 pub(crate) fn behavior_selector_and_visible_params_are_usable() {
     let mut runner = runner();
 
-    for behavior_id in ["keys", "sequencer", "none"] {
+    for behavior_id in ["keys", "looper", "none"] {
         select_behavior_via_menu_action(&mut runner, behavior_id);
         assert_eq!(runner.behavior.id(), behavior_id);
         assert_eq!(

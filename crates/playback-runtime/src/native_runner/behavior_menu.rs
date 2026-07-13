@@ -1,6 +1,68 @@
 use super::*;
 
 impl NativeRunner {
+    pub(super) fn worlds_menu_items_by_layer(
+        &self,
+    ) -> Vec<Vec<crate::native_menu::NativeMenuItem>> {
+        (0..self.layer_behavior_ids.len())
+            .map(|layer_index| {
+                if layer_index == self.active_layer_index {
+                    self.worlds_menu_items()
+                } else {
+                    self.worlds_menu_items_for_layer(layer_index)
+                }
+            })
+            .collect()
+    }
+
+    pub(super) fn worlds_menu_items_for_layer(
+        &self,
+        layer_index: usize,
+    ) -> Vec<crate::native_menu::NativeMenuItem> {
+        let behavior_id = self
+            .layer_behavior_ids
+            .get(layer_index)
+            .map(String::as_str)
+            .unwrap_or("none");
+        let mut items = vec![
+            self.behavior_selector_menu_item_for_layer(layer_index),
+            crate::native_menu::NativeMenuItem {
+                label: "Auto Label".into(),
+                key: Some(format!("layers.{layer_index}.autoName")),
+                value: crate::native_menu::NativeMenuValue::Bool {
+                    value: self
+                        .layer_auto_names
+                        .get(layer_index)
+                        .copied()
+                        .unwrap_or(true),
+                },
+                children: vec![],
+            },
+            crate::native_menu::NativeMenuItem {
+                label: "Layer Label".into(),
+                key: Some(format!("layers.{layer_index}.name")),
+                value: crate::native_menu::NativeMenuValue::Text {
+                    value: self
+                        .layer_names
+                        .get(layer_index)
+                        .cloned()
+                        .unwrap_or_else(|| behavior_id.into()),
+                    max_len: 32,
+                    cursor: 0,
+                },
+                children: vec![],
+            },
+        ];
+        items.extend(
+            self.behavior_target_items_for_layer(layer_index)
+                .into_iter()
+                .filter(|item| {
+                    !matches!(item.value, crate::native_menu::NativeMenuValue::Action(_))
+                }),
+        );
+        items
+    }
+
     pub(super) fn worlds_menu_items(&self) -> Vec<crate::native_menu::NativeMenuItem> {
         let mut items = vec![
             self.behavior_selector_menu_item(),
@@ -70,9 +132,16 @@ impl NativeRunner {
     }
 
     fn behavior_selector_menu_item(&self) -> crate::native_menu::NativeMenuItem {
+        self.behavior_selector_menu_item_for_layer(self.active_layer_index)
+    }
+
+    fn behavior_selector_menu_item_for_layer(
+        &self,
+        layer_index: usize,
+    ) -> crate::native_menu::NativeMenuItem {
         let behavior_id = self
             .layer_behavior_ids
-            .get(self.active_layer_index)
+            .get(layer_index)
             .map(String::as_str)
             .unwrap_or_else(|| self.behavior.id());
         let catalog = platform_core::behavior_catalog();
@@ -98,7 +167,14 @@ impl NativeRunner {
                             label: entry.label.into(),
                             key: None,
                             value: crate::native_menu::NativeMenuValue::Action(
-                                NativeMenuAction::SelectBehavior(entry.id.into()),
+                                if layer_index == self.active_layer_index {
+                                    NativeMenuAction::SelectBehavior(entry.id.into())
+                                } else {
+                                    NativeMenuAction::SelectLayerBehavior {
+                                        layer_index,
+                                        behavior_id: entry.id.into(),
+                                    }
+                                },
                             ),
                             children: vec![],
                         })
@@ -108,7 +184,11 @@ impl NativeRunner {
             .collect();
         crate::native_menu::NativeMenuItem {
             label: format!("Behavior: {behavior_id}"),
-            key: Some("behaviorId".into()),
+            key: Some(if layer_index == self.active_layer_index {
+                "behaviorId".into()
+            } else {
+                format!("layers.{layer_index}.behaviorId")
+            }),
             value: crate::native_menu::NativeMenuValue::Group,
             children,
         }

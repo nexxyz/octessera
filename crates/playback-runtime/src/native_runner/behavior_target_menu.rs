@@ -15,7 +15,7 @@ impl NativeRunner {
         find_item_by_key(&self.behavior_target_items_for_layer(layer_index), key).cloned()
     }
 
-    fn behavior_target_items_for_layer(
+    pub(super) fn behavior_target_items_for_layer(
         &self,
         layer_index: usize,
     ) -> Vec<crate::native_menu::NativeMenuItem> {

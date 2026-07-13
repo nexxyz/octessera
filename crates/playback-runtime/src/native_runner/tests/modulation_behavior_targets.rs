@@ -25,6 +25,34 @@ pub(crate) fn behavior_target_picker_uses_each_layers_behavior_and_prunes_none()
 }
 
 #[test]
+pub(crate) fn build_layer_menu_uses_selected_layers_behavior_params() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.layer_behavior_ids[2] = "brain".into();
+    runner.layer_names[2] = "brain".into();
+    runner.layer_behavior_configs[2] = json!({ "randomSeedCells": 4 });
+    runner.menu.rebuild(runner.menu_config());
+
+    let _ = runner.menu.press();
+    runner.menu.state.cursor = 2;
+    let _ = runner.menu.press();
+    let snapshot = runner.menu.snapshot();
+
+    assert_eq!(snapshot.path, "B/L3: brain");
+    assert!(snapshot
+        .lines
+        .iter()
+        .any(|line| line.contains("Fire Threshold")));
+    assert!(snapshot
+        .lines
+        .iter()
+        .any(|line| line.contains("Seed Interval")));
+    assert!(!snapshot
+        .lines
+        .iter()
+        .any(|line| line.contains("Spawn Interval")));
+}
+
+#[test]
 pub(crate) fn aux_turn_generated_per_layer_behavior_targets_updates_stored_config() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.layer_behavior_ids[2] = "brain".into();

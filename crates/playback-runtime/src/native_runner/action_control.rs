@@ -108,6 +108,13 @@ impl NativeRunner {
                 self.select_behavior(&behavior_id)?;
                 Ok(None)
             }
+            NativeMenuAction::SelectLayerBehavior {
+                layer_index,
+                behavior_id,
+            } => {
+                self.select_layer_behavior(layer_index, &behavior_id)?;
+                Ok(None)
+            }
             NativeMenuAction::NavigateBack => {
                 self.menu.back();
                 Ok(None)

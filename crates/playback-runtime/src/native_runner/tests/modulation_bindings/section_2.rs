@@ -158,6 +158,46 @@ pub(crate) fn invalid_aux_and_xy_bindings_are_dropped_on_load() {
 }
 
 #[test]
+pub(crate) fn instrument_filter_aux_and_xy_bindings_survive_config_load() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut payload = runner.config_payload();
+    payload["runtimeConfig"]["auxBindings"] = json!({
+        "aux1": { "turnKey": "instruments.1.sample.filter.cutoffHz", "pressAction": null }
+    });
+    payload["runtimeConfig"]["layers"][0]["xy"]["x"] = json!({
+        "key": "instruments.0.synth.filter.cutoffHz",
+        "label": "Cutoff",
+        "kind": "number",
+        "min": 0,
+        "max": 255,
+        "step": 1
+    });
+    payload["runtimeConfig"]["layers"][0]["xy"]["y"] = json!({
+        "key": "instruments.0.synth.filter.resonance",
+        "label": "Res",
+        "kind": "number",
+        "min": 0,
+        "max": 255,
+        "step": 1
+    });
+
+    runner.apply_config_payload(payload).unwrap();
+
+    assert_eq!(
+        runner.aux_bindings[0].as_ref().unwrap().turn_key.as_deref(),
+        Some("instruments.1.sample.filter.cutoffHz")
+    );
+    assert_eq!(
+        runner.xy_x_binding.as_ref().unwrap().key,
+        "instruments.0.synth.filter.cutoffHz"
+    );
+    assert_eq!(
+        runner.xy_y_binding.as_ref().unwrap().key,
+        "instruments.0.synth.filter.resonance"
+    );
+}
+
+#[test]
 pub(crate) fn config_payload_includes_complete_sample_and_fx_param_shapes() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let mut payload = runner.config_payload();

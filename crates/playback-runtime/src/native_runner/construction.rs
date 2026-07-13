@@ -27,6 +27,7 @@ impl NativeRunner {
                 .map(|id| (*id).to_string())
                 .collect(),
             worlds_items: vec![],
+            worlds_items_by_layer: vec![vec![]; LAYER_COUNT],
             behavior_target_items: vec![vec![]; LAYER_COUNT],
             layer_labels: (0..LAYER_COUNT)
                 .map(|index| format!("L{}: life", index + 1))

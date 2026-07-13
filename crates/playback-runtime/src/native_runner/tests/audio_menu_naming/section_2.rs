@@ -54,6 +54,9 @@ pub(crate) fn exact_desktop_flow_renames_p4_after_auto_name_toggle_and_behavior_
     send_encoder_press(&mut runner);
     send_encoder_turn(&mut runner, -1);
     send_encoder_press(&mut runner);
+    send_encoder_press(&mut runner);
+    send_encoder_turn(&mut runner, 1);
+    send_encoder_press(&mut runner);
     select_behavior(&mut runner, "none");
     let messages = runner.messages_with_snapshot().unwrap();
     let snapshot = snapshot_from(&messages);

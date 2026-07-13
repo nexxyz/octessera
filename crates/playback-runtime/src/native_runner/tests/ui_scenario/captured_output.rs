@@ -8,6 +8,8 @@ pub(super) struct CapturedOutput {
     pub(super) audio_command_count: usize,
     pub(super) runtime_status_count: usize,
     pub(super) sample_list_requests: Vec<(usize, usize, String)>,
+    pub(super) load_preset_requests: Vec<String>,
+    pub(super) saved_presets: Vec<(String, Value)>,
     pub(super) set_instrument_slot_count: usize,
     pub(super) synth_param_count: usize,
     pub(super) sample_bank_param_count: usize,
@@ -42,6 +44,15 @@ impl CapturedOutput {
                                 *sample_slot,
                                 dir.clone(),
                             ));
+                        }
+                        match effect {
+                            RuntimePlatformEffect::StoreLoadPreset { name } => {
+                                self.load_preset_requests.push(name.clone());
+                            }
+                            RuntimePlatformEffect::StoreSavePreset { name, payload, .. } => {
+                                self.saved_presets.push((name.clone(), payload.clone()));
+                            }
+                            _ => {}
                         }
                     }
                 }

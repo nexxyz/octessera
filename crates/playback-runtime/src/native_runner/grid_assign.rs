@@ -170,7 +170,11 @@ impl NativeRunner {
                     .and_then(|rest| rest.split(':').next())
                 {
                     if let Ok(index) = layer.parse::<usize>() {
+                        let previous_index = self.active_layer_index;
                         self.select_active_layer(index.saturating_sub(1))?;
+                        self.update_layer_worlds_menu_items(previous_index);
+                        self.update_layer_worlds_menu_items(self.active_layer_index);
+                        self.update_active_behavior_selector_label();
                     }
                 }
             }

@@ -41,7 +41,7 @@ Build
 └── L3: ... (group)                              ← up to layerCount layers total
 ```
 
-Rows that open submenus or selectors render with a trailing `>`. Selecting a behavior row switches the layer immediately through the native runtime and returns focus to the layer's Behavior row. It does not rebuild the full menu tree; only the active layer's Build rows are refreshed. Behavior IDs remain the persisted payload values under `behaviorId`.
+Rows that open submenus or selectors render with a trailing `>`. Selecting a behavior row switches that layer immediately through the native runtime and returns focus to the layer's Behavior row. It does not rebuild the full menu tree; only the affected Build layer rows are refreshed. Behavior IDs remain the persisted payload values under each layer's `behaviorId`.
 `glider` is no longer selectable. Its glider injection controls are part of `life`.
 When Auto Label is on, the layer label is derived from the active behavior ID (e.g. `life`, `brain`). Editing the Layer Label text field switches Auto Label off.
 Layer selectors (Fn+column selection, Link Layer selector) display the computed layer label (e.g. `L1: life`, `L2: rain`).
