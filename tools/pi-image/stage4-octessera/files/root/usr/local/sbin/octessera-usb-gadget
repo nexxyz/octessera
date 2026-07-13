@@ -20,6 +20,24 @@ serial_number() {
     printf 'octessera-pi\n'
   fi
 }
+product_name() {
+  if [ "$AUDIO" = 1 ] && [ "$MIDI" = 1 ]; then
+    printf 'Octessera Audio + MIDI\n'
+  elif [ "$MIDI" = 1 ]; then
+    printf 'Octessera MIDI\n'
+  else
+    printf 'Octessera Line In\n'
+  fi
+}
+write_if_present() {
+  path="$1"
+  value="$2"
+  if [ -f "$path" ]; then
+    printf '%s\n' "$value" > "$path"
+    return 0
+  fi
+  return 1
+}
 
 teardown() {
   [ -d "$G" ] || return 0
@@ -48,7 +66,7 @@ setup() {
   echo 0x0200 > "$G/bcdUSB"
   echo 0x0100 > "$G/bcdDevice"
   echo "Octessera" > "$G/strings/0x409/manufacturer"
-  echo "Octessera Line In" > "$G/strings/0x409/product"
+  product_name > "$G/strings/0x409/product"
   serial_number > "$G/strings/0x409/serialnumber"
   echo 250 > "$G/configs/c.1/MaxPower"
   echo "Octessera" > "$G/configs/c.1/strings/0x409/configuration"
@@ -75,8 +93,11 @@ setup() {
   if [ "$MIDI" = 1 ]; then
     modprobe usb_f_midi >/dev/null 2>&1 || true
     mkdir -p "$G/functions/midi.usb0"
-    [ -f "$G/functions/midi.usb0/id" ] && echo "Octessera MIDI" > "$G/functions/midi.usb0/id"
-    [ -f "$G/functions/midi.usb0/interface_string" ] && echo "Octessera MIDI" > "$G/functions/midi.usb0/interface_string"
+    write_if_present "$G/functions/midi.usb0/id" "Octessera MIDI" || true
+    write_if_present "$G/functions/midi.usb0/function_name" "Octessera MIDI" || true
+    if ! write_if_present "$G/functions/midi.usb0/interface_string" "Octessera MIDI"; then
+      log "f_midi has no interface_string attribute; host DAWs may show the kernel default 'MIDI Function'"
+    fi
     ln -s "$G/functions/midi.usb0" "$G/configs/c.1/midi.usb0"
   fi
   echo "$UDC" > "$G/UDC"

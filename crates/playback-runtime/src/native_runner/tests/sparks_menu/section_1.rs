@@ -15,7 +15,7 @@ pub(crate) fn sparks_page_menu_edits_selected_and_active_mode() {
         assert!(runner.menu.focus_item_key(key));
         runner.apply_or_schedule_menu_key(key).unwrap();
         let snapshot = runner.snapshot().unwrap();
-        assert_eq!(snapshot["display"]["title"], "P");
+        assert_eq!(snapshot["display"]["title"], "/Play");
         assert_eq!(snapshot["sparksMode"], mode);
         assert_eq!(snapshot["activeSparksMode"], mode);
     }
@@ -210,7 +210,7 @@ pub(crate) fn entering_sparks_menu_activates_selected_page_and_overlay() {
 
     assert_eq!(runner.active_sparks_mode, "pan");
     let snapshot = snapshot_from(&entered);
-    assert_eq!(snapshot["display"]["title"], "P");
+    assert_eq!(snapshot["display"]["title"], "/Play");
     assert_eq!(snapshot["sparksMode"], "pan");
     assert_eq!(snapshot["activeSparksMode"], "pan");
 

@@ -13,7 +13,7 @@ pub(crate) fn entering_worlds_selects_active_layer_row() {
         })
         .unwrap();
     let snapshot = snapshot_from(&entered);
-    assert_eq!(snapshot["display"]["title"], "B");
+    assert_eq!(snapshot["display"]["title"], "/Build");
     assert_eq!(snapshot["selectedRow"], 2);
 }
 
@@ -36,7 +36,7 @@ pub(crate) fn entering_pulses_selects_active_layer_row_after_event_group() {
         })
         .unwrap();
     let snapshot = snapshot_from(&entered);
-    assert_eq!(snapshot["display"]["title"], "L");
+    assert_eq!(snapshot["display"]["title"], "/Link");
     assert_eq!(snapshot["selectedRow"], 3);
 }
 
@@ -80,7 +80,7 @@ pub(crate) fn pulses_exposes_aux_mappings_and_enterable_layer_rows() {
         })
         .unwrap();
     let snapshot = snapshot_from(&layer);
-    assert_eq!(snapshot["display"]["title"], "L/L1: life");
+    assert_eq!(snapshot["display"]["title"], "/L/L1: life");
     let layer_lines = snapshot["display"]["lines"].as_array().unwrap().clone();
     assert!(layer_lines
         .iter()
@@ -202,7 +202,7 @@ pub(crate) fn entering_layer_row_updates_active_layer_index() {
         .unwrap();
 
     assert_eq!(runner.active_layer_index, 2);
-    assert_eq!(snapshot_from(&entered)["display"]["title"], "B/L3: life");
+    assert_eq!(snapshot_from(&entered)["display"]["title"], "/B/L3: life");
 }
 
 #[test]

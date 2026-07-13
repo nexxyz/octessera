@@ -9,7 +9,9 @@ impl PiPlaybackHostAdapter {
             .enumerate()
             .map(|(index, port)| MidiPort {
                 id: index.to_string(),
-                name: out.port_name(port).unwrap_or_else(|_| "<unknown>".into()),
+                name: display_midi_port_name(
+                    &out.port_name(port).unwrap_or_else(|_| "<unknown>".into()),
+                ),
             })
             .collect())
     }
@@ -21,7 +23,9 @@ impl PiPlaybackHostAdapter {
             .enumerate()
             .map(|(index, port)| MidiPort {
                 id: index.to_string(),
-                name: input.port_name(port).unwrap_or_else(|_| "<unknown>".into()),
+                name: display_midi_port_name(
+                    &input.port_name(port).unwrap_or_else(|_| "<unknown>".into()),
+                ),
             })
             .collect())
     }
@@ -89,12 +93,22 @@ impl PiPlaybackHostAdapter {
 }
 
 fn is_usb_gadget_midi_name(name: &str) -> bool {
-    let name = name.to_ascii_lowercase();
-    name.contains("octessera")
-        || name.contains("gadget")
-        || name.contains("midi gadget")
-        || name.contains("usb midi")
-        || name.contains("f_midi")
+    let name = name.trim().to_ascii_lowercase();
+    name == "octessera midi"
+        || name.starts_with("octessera midi:")
+        || name.starts_with("octessera midi ")
+        || name.contains(":octessera midi ")
+        || name == "f_midi"
+        || name.starts_with("f_midi:")
+        || name.starts_with("f_midi ")
+}
+
+fn display_midi_port_name(raw_name: &str) -> String {
+    if is_usb_gadget_midi_name(raw_name) {
+        "Octessera MIDI".into()
+    } else {
+        raw_name.into()
+    }
 }
 
 fn midi_outputs() -> Result<(midir::MidiOutput, Vec<midir::MidiOutputPort>), String> {
@@ -111,12 +125,40 @@ fn midi_inputs() -> Result<(midir::MidiInput, Vec<midir::MidiInputPort>), String
 
 #[cfg(test)]
 mod tests {
-    use super::is_usb_gadget_midi_name;
+    use super::{display_midi_port_name, is_usb_gadget_midi_name};
 
     #[test]
     fn usb_gadget_midi_names_include_kernel_f_midi_port() {
         assert!(is_usb_gadget_midi_name("f_midi"));
-        assert!(is_usb_gadget_midi_name("UAC2 Gadget MIDI"));
+        assert!(is_usb_gadget_midi_name("f_midi 20:0"));
+        assert!(is_usb_gadget_midi_name("Octessera MIDI"));
+        assert!(is_usb_gadget_midi_name(
+            "Octessera MIDI:Octessera MIDI 20:0"
+        ));
         assert!(!is_usb_gadget_midi_name("Midi Through Port-0"));
+        assert!(!is_usb_gadget_midi_name("Octessera Controller"));
+        assert!(!is_usb_gadget_midi_name("UAC2 Gadget MIDI"));
+        assert!(!is_usb_gadget_midi_name("MIDI Gadget"));
+        assert!(!is_usb_gadget_midi_name("Generic Gadget MIDI"));
+        assert!(!is_usb_gadget_midi_name("USB MIDI Controller"));
+    }
+
+    #[test]
+    fn display_names_normalize_only_octessera_gadget_ports() {
+        assert_eq!(
+            display_midi_port_name("Octessera MIDI:Octessera MIDI 20:0"),
+            "Octessera MIDI"
+        );
+        assert_eq!(display_midi_port_name("f_midi"), "Octessera MIDI");
+        assert_eq!(
+            display_midi_port_name("USB MIDI Controller"),
+            "USB MIDI Controller"
+        );
+        assert_eq!(
+            display_midi_port_name("Octessera Controller"),
+            "Octessera Controller"
+        );
+        assert_eq!(display_midi_port_name("MIDI Gadget"), "MIDI Gadget");
+        assert_eq!(display_midi_port_name("<unknown>"), "<unknown>");
     }
 }

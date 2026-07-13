@@ -1,5 +1,6 @@
 use super::*;
-use crate::behavior::{BehaviorContext, DeviceInput, GridInteraction};
+use crate::behavior::{BehaviorContext, BehaviorRenderPalette, DeviceInput, GridInteraction};
+use crate::palette::{BLACK, BLUE, GRAY, GREEN, RED, WHITE, YELLOW};
 use std::collections::HashSet;
 
 #[test]
@@ -93,6 +94,148 @@ fn every_native_behavior_supports_runtime_contract() {
         let restored = behavior.deserialize(serialized).unwrap();
         let _ = behavior.config_menu(&restored).unwrap();
     }
+}
+
+#[test]
+fn behavior_render_palettes_match_themes() {
+    let expected = [
+        (
+            NativeBehavior::None,
+            BehaviorRenderPalette {
+                active: GRAY,
+                inactive: BLACK,
+                stable: GRAY,
+            },
+        ),
+        (
+            NativeBehavior::Life,
+            BehaviorRenderPalette {
+                active: YELLOW,
+                inactive: GREEN,
+                stable: RED,
+            },
+        ),
+        (
+            NativeBehavior::Sequencer,
+            BehaviorRenderPalette {
+                active: WHITE,
+                inactive: BLACK,
+                stable: YELLOW,
+            },
+        ),
+        (
+            NativeBehavior::Keys,
+            BehaviorRenderPalette {
+                active: WHITE,
+                inactive: BLACK,
+                stable: YELLOW,
+            },
+        ),
+        (
+            NativeBehavior::Looper,
+            BehaviorRenderPalette {
+                active: WHITE,
+                inactive: BLACK,
+                stable: BLUE,
+            },
+        ),
+        (
+            NativeBehavior::Brain,
+            BehaviorRenderPalette {
+                active: WHITE,
+                inactive: BLACK,
+                stable: BLUE,
+            },
+        ),
+        (
+            NativeBehavior::Ant,
+            BehaviorRenderPalette {
+                active: YELLOW,
+                inactive: BLACK,
+                stable: YELLOW,
+            },
+        ),
+        (
+            NativeBehavior::Bounce,
+            BehaviorRenderPalette {
+                active: WHITE,
+                inactive: BLACK,
+                stable: RED,
+            },
+        ),
+        (
+            NativeBehavior::Bubbles,
+            BehaviorRenderPalette {
+                active: WHITE,
+                inactive: BLUE,
+                stable: GRAY,
+            },
+        ),
+        (
+            NativeBehavior::Shapes,
+            BehaviorRenderPalette {
+                active: WHITE,
+                inactive: BLACK,
+                stable: RED,
+            },
+        ),
+        (
+            NativeBehavior::Raindrops,
+            BehaviorRenderPalette {
+                active: WHITE,
+                inactive: BLUE,
+                stable: GRAY,
+            },
+        ),
+        (
+            NativeBehavior::Dla,
+            BehaviorRenderPalette {
+                active: YELLOW,
+                inactive: BLACK,
+                stable: GREEN,
+            },
+        ),
+    ];
+
+    for (behavior, palette) in expected {
+        let state = behavior.init(Value::Null).unwrap();
+        let model = behavior.render_model(&state).unwrap();
+        assert_eq!(model.palette, palette, "{} palette", behavior.id());
+    }
+}
+
+#[test]
+fn themed_background_palettes_keep_live_cells_visible() {
+    for behavior in [
+        NativeBehavior::Life,
+        NativeBehavior::Bubbles,
+        NativeBehavior::Raindrops,
+    ] {
+        let state = behavior.init(Value::Null).unwrap();
+        let model = behavior.render_model(&state).unwrap();
+        assert_ne!(
+            model.palette.active,
+            model.palette.inactive,
+            "{} active cells must contrast with themed inactive background",
+            behavior.id()
+        );
+        assert_ne!(
+            model.palette.stable,
+            model.palette.inactive,
+            "{} stable cells must contrast with themed inactive background",
+            behavior.id()
+        );
+    }
+}
+
+#[test]
+fn ant_palette_keeps_trails_visible_on_dark_background() {
+    let state = NativeBehavior::Ant.init(Value::Null).unwrap();
+    let model = NativeBehavior::Ant.render_model(&state).unwrap();
+
+    assert_eq!(model.palette.inactive, BLACK);
+    assert_ne!(model.palette.active, model.palette.inactive);
+    assert_ne!(model.palette.stable, model.palette.inactive);
 }
 
 #[test]

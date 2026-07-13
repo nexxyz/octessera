@@ -94,6 +94,14 @@ pub(in crate::native_menu) fn format_menu_line(text: &str, selected: bool) -> St
     }
 }
 
+pub(in crate::native_menu) fn format_action_menu_line(text: &str, selected: bool) -> String {
+    if selected {
+        format!(">!{text}")
+    } else {
+        format!(" !{text}")
+    }
+}
+
 pub(in crate::native_menu) fn clip_menu_value(value: &str, width: usize) -> String {
     if value.chars().count() <= width {
         return value.into();

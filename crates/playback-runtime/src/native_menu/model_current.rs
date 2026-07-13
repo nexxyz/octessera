@@ -1,4 +1,4 @@
-use super::format::abbreviate_path;
+use super::format::{abbreviate_path, section_color_from_path};
 use super::help::canonicalize_help_path;
 use super::model_navigation_memory::navigation_memory_allowed;
 use super::{NativeMenuItem, NativeMenuModel};
@@ -17,6 +17,15 @@ impl NativeMenuModel {
             "MENU".into()
         } else {
             abbreviate_path(&labels.join("/"))
+        }
+    }
+
+    pub(super) fn path_section_color(&self) -> u16 {
+        let labels = self.stack_labels();
+        if labels.is_empty() {
+            section_color_from_path("MENU")
+        } else {
+            section_color_from_path(&labels.join("/"))
         }
     }
 

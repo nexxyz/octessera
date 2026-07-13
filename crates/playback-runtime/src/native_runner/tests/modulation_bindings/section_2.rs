@@ -62,7 +62,7 @@ pub(crate) fn xy_mapping_execute_action_keeps_menu_on_xy_axis_picker() {
         "Menu > Play > XY > X Axis: Cutoff"
     );
     let snapshot = runner.snapshot().unwrap();
-    assert_eq!(snapshot["display"]["title"], "P/XY");
+    assert_eq!(snapshot["display"]["title"], "/P/XY");
 }
 
 #[test]

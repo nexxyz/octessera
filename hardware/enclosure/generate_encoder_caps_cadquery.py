@@ -60,11 +60,11 @@ def d_bore_cutter(depth: float) -> cq.Workplane:
 def diagonal_groove(angle: float, z: float, handedness: int, radius: float) -> cq.Workplane:
     radial = cq.Vector(math.cos(angle), math.sin(angle), 0.0)
     tangent = cq.Vector(-math.sin(angle), math.cos(angle), 0.0)
-    origin = radial.multiply(radius + 0.08) + cq.Vector(0.0, 0.0, z)
+    origin = radial.multiply(radius + 0.18) + cq.Vector(0.0, 0.0, z)
     plane = cq.Plane(origin, tangent, radial)
-    length = 4.6
-    width = 0.52
-    tilt = handedness * math.radians(38.0)
+    length = 5.2
+    width = 0.64
+    tilt = handedness * math.radians(42.0)
     ux = math.cos(tilt)
     uy = math.sin(tilt)
     vx = -uy
@@ -75,15 +75,20 @@ def diagonal_groove(angle: float, z: float, handedness: int, radius: float) -> c
         (-ux * length / 2.0 - vx * width / 2.0, -uy * length / 2.0 - vy * width / 2.0),
         (ux * length / 2.0 - vx * width / 2.0, uy * length / 2.0 - vy * width / 2.0),
     ]
-    return cq.Workplane(plane).polyline(points).close().extrude(-0.55)
+    return cq.Workplane(plane).polyline(points).close().extrude(-0.95)
 
 
 def add_diamond_knurl_cuts(body: cq.Workplane, radius: float, height: float) -> cq.Workplane:
-    row_z = [2.0, 4.0, 6.0, 8.0, 10.0, height - 2.6]
+    row_count = 7
+    segment_count = 24
+    bottom_margin = 1.65
+    top_margin = 1.9
+    usable_height = height - bottom_margin - top_margin
+    row_z = [bottom_margin + usable_height * row / (row_count - 1) for row in range(row_count)]
     for row, z in enumerate(row_z):
-        offset = (row % 2) * math.pi / 18.0
-        for index in range(18):
-            angle = 2.0 * math.pi * index / 18.0 + offset
+        offset = (row % 2) * math.pi / segment_count
+        for index in range(segment_count):
+            angle = 2.0 * math.pi * index / segment_count + offset
             body = body.cut(diagonal_groove(angle, z, 1, radius))
             body = body.cut(diagonal_groove(angle, z, -1, radius))
     return body
@@ -93,9 +98,9 @@ def make_wide_knurled_cap() -> cq.Workplane:
     height = MAIN_CAP_HEIGHT
     radius = 10.0
     body = cq.Workplane("XY").circle(radius).extrude(height)
-    body = add_diamond_knurl_cuts(body, radius, height)
     body = body.faces(">Z").fillet(0.7)
     body = body.faces("<Z").fillet(0.45)
+    body = add_diamond_knurl_cuts(body, radius, height)
     body = body.cut(d_bore_cutter(SHAFT_BORE_DEPTH))
     return body.clean()
 

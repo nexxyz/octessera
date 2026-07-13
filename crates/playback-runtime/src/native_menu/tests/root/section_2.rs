@@ -38,7 +38,7 @@ pub(crate) fn entering_worlds_selects_active_layer_row() {
     let _ = menu.press();
     menu.state.cursor = 2;
     let snapshot = menu.snapshot();
-    assert_eq!(snapshot.path, "B");
+    assert_eq!(snapshot.path, "/Build");
     assert_eq!(snapshot.selected_row, Some(2));
     assert_eq!(snapshot.lines[2], "> L3: life >");
     assert_eq!(snapshot.colors[0], platform_core::palette::GREEN_RGB565);
@@ -54,7 +54,7 @@ pub(crate) fn entering_pulses_selects_active_layer_row_after_global_rows() {
     let _ = menu.press();
     menu.state.cursor = 6;
     let snapshot = menu.snapshot();
-    assert_eq!(snapshot.path, "L");
+    assert_eq!(snapshot.path, "/Link");
     assert_eq!(snapshot.selected_row, Some(3));
     assert_eq!(snapshot.lines[3], "> L3: life >");
     assert_eq!(snapshot.colors[0], platform_core::palette::RED_RGB565);
@@ -66,7 +66,7 @@ pub(crate) fn pulses_starts_with_global_rows_and_layer_rows_are_enterable() {
     menu.turn(1);
     let _ = menu.press();
     let snapshot = menu.snapshot();
-    assert_eq!(snapshot.path, "L");
+    assert_eq!(snapshot.path, "/Link");
     assert_eq!(snapshot.lines[0], "> BPM 120");
     assert_eq!(snapshot.lines[1], "  Swing 0%");
     assert_eq!(snapshot.lines[2], "  Aux Mappings >");
@@ -76,7 +76,7 @@ pub(crate) fn pulses_starts_with_global_rows_and_layer_rows_are_enterable() {
     menu.turn(1);
     let _ = menu.press();
     let layer_snapshot = menu.snapshot();
-    assert_eq!(layer_snapshot.path, "L/L1: life");
+    assert_eq!(layer_snapshot.path, "/L/L1: life");
     assert!(layer_snapshot
         .lines
         .iter()
@@ -164,7 +164,7 @@ pub(crate) fn snapshot_scrolls_to_keep_selected_row_visible() {
     let _ = menu.press();
     menu.state.cursor = 7;
     let snapshot = menu.snapshot();
-    assert_eq!(snapshot.path, "B");
+    assert_eq!(snapshot.path, "/Build");
     assert_eq!(snapshot.selected_row, Some(6));
     assert_eq!(
         snapshot.scroll.as_ref().map(|scroll| scroll.scroll_offset),

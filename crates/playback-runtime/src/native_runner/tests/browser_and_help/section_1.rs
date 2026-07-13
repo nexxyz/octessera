@@ -90,7 +90,7 @@ pub(crate) fn sample_browser_opens_lists_and_picks_sample() {
         "Drums/kick.wav"
     );
     assert!(runner.sample_browser.is_none());
-    assert_eq!(snapshot["display"]["title"], "S/Instruments/I1: samp direc");
+    assert_eq!(snapshot["display"]["title"], ".../I1: samp direct/Sampler");
     assert_eq!(snapshot["display"]["lines"][2], "> S1 Browse >");
     runner.make_deferred_menu_apply_due_for_test();
     let autosave = runner.flush_deferred_menu_apply().unwrap();
@@ -127,7 +127,7 @@ pub(crate) fn sample_browser_shows_favourite_toggle_and_updates_runtime_config()
     let snapshot = runner.menu.snapshot();
     assert_eq!(
         snapshot.lines,
-        vec!["  !..", "  !kick.wav", "", "> !Set favourite"]
+        vec![" !..", " !kick.wav", "", ">!Set favourite"]
     );
 
     let _ = runner
@@ -140,7 +140,7 @@ pub(crate) fn sample_browser_shows_favourite_toggle_and_updates_runtime_config()
     assert_eq!(runner.sample_favourite_dirs, vec![String::from("Samples")]);
 
     let snapshot = runner.menu.snapshot();
-    assert_eq!(snapshot.lines[3], "> !Remove favourite");
+    assert_eq!(snapshot.lines[3], ">!Remove favourite");
 
     let payload = runner.config_payload();
     assert_eq!(
@@ -155,7 +155,7 @@ pub(crate) fn sample_browser_shows_favourite_toggle_and_updates_runtime_config()
 
     loaded.menu.state.stack = vec![2, 0, 0, 2, 2];
     loaded.menu.state.cursor = 3;
-    assert_eq!(loaded.menu.snapshot().lines[3], "> !Remove favourite");
+    assert_eq!(loaded.menu.snapshot().lines[3], ">!Remove favourite");
 
     let _ = loaded
         .send(HostMessage::DeviceInput {
@@ -185,8 +185,8 @@ pub(crate) fn sample_browser_shows_non_deletable_builtin_favourites() {
     runner.menu.rebuild(runner.menu_config());
 
     let snapshot = runner.menu.snapshot();
-    assert!(snapshot.lines.contains(&"  ![★ Samples]".into()));
-    assert!(snapshot.lines.contains(&"  ![★ SD card]".into()));
+    assert!(snapshot.lines.contains(&" ![★ Samples]".into()));
+    assert!(snapshot.lines.contains(&" ![★ SD card]".into()));
 
     runner.sample_browser = Some(NativeSampleBrowser {
         instrument_slot: 0,

@@ -80,12 +80,13 @@ The OLED microSD is not exposed as a case-edge port in the current `v21` entry.
 The current enclosure captures the boards without running screws through active hardware areas.
 
 - Case screws do not pass through the PCBs or component fields.
-- Heat-set insert bosses are integrated into the outer locator rail regions.
+- Heat-set insert bosses are integrated into the outer locator rail regions. Screws and inserts are recommended for a robust portable build, but the printed dowel/standoff and top-pin system is intended to be strong enough to hold the enclosure together without them.
 - The main PCB is located laterally by tight rails and nubs.
 - Lid capture ribs limit upward movement at safe board-edge regions.
 - The NeoTrellis cluster is located by perimeter rails.
 - The NeoTrellis left rail is broken for the `J1` / connector path clearance.
-- NeoTrellis vertical retention is handled by the screwed-down top faceplate and edge capture ribs, not by screws through the button field.
+- NeoTrellis vertical retention is handled by the top faceplate, top pins, and edge capture ribs, not by screws through the button field.
+- If a printed top pin is a little too loose, gently squeeze the ball at the end with pliers to make it grip tighter. Sneak up on the fit; crushed pins are less charming than snug ones.
 
 ## Printing Notes
 

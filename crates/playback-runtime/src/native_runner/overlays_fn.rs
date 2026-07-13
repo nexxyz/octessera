@@ -133,7 +133,7 @@ impl NativeRunner {
 
     fn dim_fn_overlay(&self, leds: &mut [LedColor]) {
         for cell in leds.iter_mut() {
-            *cell = cell.dim(4);
+            *cell = LedColor::BLACK;
         }
     }
 
@@ -164,6 +164,9 @@ impl NativeRunner {
             };
             self.set_display_led(leds, GRID_WIDTH - 1, row, color);
         }
+        for row in page_options.len()..GRID_HEIGHT {
+            self.set_display_led(leds, GRID_WIDTH - 1, row, LedColor::SYSTEM.dim(8));
+        }
     }
 }
 
@@ -172,13 +175,13 @@ fn fn_layer_color(configured: bool, active: bool, sparks_active: bool) -> LedCol
         if configured {
             LedColor::BLUE
         } else {
-            LedColor::SYSTEM.dim(4)
+            LedColor::SYSTEM.dim(8)
         }
     } else if active {
         LedColor::BLUE
     } else if configured {
         LedColor::GREEN
     } else {
-        LedColor::SYSTEM.dim(4)
+        LedColor::SYSTEM.dim(8)
     }
 }

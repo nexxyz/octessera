@@ -213,6 +213,9 @@ fn prefix_line(line: String, prefix: Option<String>) -> String {
     let indent = line.chars().take_while(|ch| *ch == ' ').count();
     let body = &line[indent..];
     if prefix.ends_with('!') {
+        if let Some(stripped) = body.strip_prefix(">!") {
+            return format!("> {prefix}{stripped}");
+        }
         if let Some(stripped) = body.strip_prefix("> ") {
             let stripped = stripped.strip_prefix('!').unwrap_or(stripped);
             return format!("> {prefix}{stripped}");
@@ -224,4 +227,30 @@ fn prefix_line(line: String, prefix: Option<String>) -> String {
         return format!("> {prefix}{stripped}");
     }
     format!("{prefix}{body}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::prefix_line;
+
+    #[test]
+    fn auto_mapped_action_rows_keep_equal_prefix_alignment() {
+        assert_eq!(
+            prefix_line(">!Do It".into(), Some("1!".into())),
+            "> 1!Do It"
+        );
+        assert_eq!(prefix_line(" !Do It".into(), Some("1!".into())), "1!Do It");
+    }
+
+    #[test]
+    fn auto_mapped_value_rows_keep_turn_prefix_alignment() {
+        assert_eq!(
+            prefix_line("> Cutoff".into(), Some("1-".into())),
+            "> 1-Cutoff"
+        );
+        assert_eq!(
+            prefix_line("  Cutoff".into(), Some("1-".into())),
+            "1-Cutoff"
+        );
+    }
 }

@@ -161,7 +161,11 @@ pub fn render_model(state: &LifeState) -> BehaviorRenderModel {
         name: "game of life".into(),
         status_line: format!("Gen {}", state.generation),
         cells: state.cells.clone(),
-        palette: Default::default(),
+        palette: crate::BehaviorRenderPalette {
+            active: crate::palette::YELLOW,
+            inactive: crate::palette::GREEN,
+            stable: crate::palette::RED,
+        },
         trigger_types: Some(state.trigger_types.clone()),
     }
 }

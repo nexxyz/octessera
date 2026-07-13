@@ -37,7 +37,7 @@ pub(crate) fn build_layer_menu_uses_selected_layers_behavior_params() {
     let _ = runner.menu.press();
     let snapshot = runner.menu.snapshot();
 
-    assert_eq!(snapshot.path, "B/L3: brain");
+    assert_eq!(snapshot.path, "/B/L3: brain");
     assert!(snapshot
         .lines
         .iter()

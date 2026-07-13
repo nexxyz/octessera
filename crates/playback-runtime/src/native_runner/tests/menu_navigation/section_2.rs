@@ -44,7 +44,7 @@ pub(crate) fn system_sound_master_volume_edit_via_menu() {
         })
         .unwrap();
     assert_eq!(snapshot_from(&exit)["display"]["editing"], false);
-    assert_eq!(snapshot_from(&exit)["display"]["title"], "SYS/Sound");
+    assert_eq!(snapshot_from(&exit)["display"]["title"], "/SYS/Sound");
 }
 
 #[test]

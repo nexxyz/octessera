@@ -319,9 +319,9 @@ pub fn bubbles_render_model(state: &BubblesState) -> BehaviorRenderModel {
         ),
         cells: state.cells.clone(),
         palette: crate::BehaviorRenderPalette {
-            active: [170, 235, 255],
-            inactive: [0, 0, 0],
-            stable: [0, 120, 255],
+            active: crate::palette::WHITE,
+            inactive: crate::palette::BLUE,
+            stable: crate::palette::GRAY,
         },
         trigger_types: Some(state.trigger_types.clone()),
     }

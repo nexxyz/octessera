@@ -67,7 +67,9 @@ pub(crate) fn screen_sleep_zero_prevents_off_and_sleep() {
     runner.skip_startup_splash();
     runner.ui.screen_sleep_seconds = 0;
     runner.oled_mode = NativeOledMode::Normal;
-    runner.last_interaction_at = Instant::now() - Duration::from_secs(3600);
+    runner.last_interaction_at = Instant::now()
+        .checked_sub(Duration::from_secs(3600))
+        .unwrap_or_else(Instant::now);
 
     let snapshot = runner.messages_with_snapshot().unwrap();
 

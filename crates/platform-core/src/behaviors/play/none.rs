@@ -33,7 +33,11 @@ pub fn render_model(_state: &NoneState) -> BehaviorRenderModel {
         name: "none".into(),
         status_line: "Idle".into(),
         cells: vec![false; CELL_COUNT],
-        palette: Default::default(),
+        palette: crate::BehaviorRenderPalette {
+            active: crate::palette::GRAY,
+            inactive: crate::palette::BLACK,
+            stable: crate::palette::GRAY,
+        },
         trigger_types: None,
     }
 }

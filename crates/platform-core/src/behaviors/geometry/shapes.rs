@@ -199,9 +199,9 @@ pub fn shapes_render_model(state: &ShapesState) -> BehaviorRenderModel {
         ),
         cells: state.lifetimes.iter().map(|life| *life > 0).collect(),
         palette: crate::BehaviorRenderPalette {
-            active: [255, 255, 255],
-            inactive: [0, 0, 0],
-            stable: [180, 0, 255],
+            active: crate::palette::WHITE,
+            inactive: crate::palette::BLACK,
+            stable: crate::palette::RED,
         },
         trigger_types: Some(state.trigger_types.clone()),
     }

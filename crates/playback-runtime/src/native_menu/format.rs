@@ -7,8 +7,8 @@ mod format_rows;
 mod format_status;
 
 use format_rows::{
-    clip_menu_value, format_full_param_line, format_menu_line, format_param_lines,
-    format_text_lines,
+    clip_menu_value, format_action_menu_line, format_full_param_line, format_menu_line,
+    format_param_lines, format_text_lines,
 };
 pub(in crate::native_menu) use format_status::{
     abbreviate_path, section_color_for_label, section_color_from_path,
@@ -32,7 +32,7 @@ pub(super) fn format_item_lines(
             };
             vec![format_menu_line(&label, selected)]
         }
-        NativeMenuValue::Action(_) => vec![format_menu_line(&format!("!{}", item.label), selected)],
+        NativeMenuValue::Action(_) => vec![format_action_menu_line(&item.label, selected)],
         NativeMenuValue::Enum {
             options,
             selected: current,
@@ -118,7 +118,7 @@ pub(super) fn format_item_full_selected_line(
             .as_deref()
             .and_then(|key| key.strip_prefix("sample.loaded:"))
             .and_then(|rest| rest.splitn(3, ':').nth(2))
-            .map(|path| format_menu_line(&format!("!{path}"), true)),
+            .map(|path| format_action_menu_line(path, true)),
         _ => None,
     }
 }
@@ -285,5 +285,33 @@ pub(super) fn note_unit_to_pulses(value: &str) -> Option<u32> {
         "1/2" => Some(48),
         "1/1" => Some(96),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::native_menu::{NativeMenuAction, NativeMenuItem, NativeMenuValue};
+
+    fn action_item(label: &str) -> NativeMenuItem {
+        NativeMenuItem {
+            label: label.into(),
+            key: None,
+            value: NativeMenuValue::Action(NativeMenuAction::PlatformEffect("test".into())),
+            children: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn plain_action_rows_reduce_bang_indent() {
+        let item = action_item("Do It");
+        assert_eq!(
+            format_item_lines(&item, true, false, "bar"),
+            vec![">!Do It"]
+        );
+        assert_eq!(
+            format_item_lines(&item, false, false, "bar"),
+            vec![" !Do It"]
+        );
     }
 }

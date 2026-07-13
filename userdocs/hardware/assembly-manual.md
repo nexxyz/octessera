@@ -41,7 +41,7 @@ If you are new here, start with the friendlier map in [`../README.md`](../README
 
 ### 3D printed and mechanical parts
 
-Aside from the screws and the heat-inserts, the whole enclosure is 3D-printable.
+The enclosure is printable, including the dowel/standoff and top-pin system that holds the boards and case together. Screws and heat-set inserts are still recommended for the tidiest, most travel-safe build, but they are optional rather than mandatory.
 
 Note that there are a lot of parts that fit snugly into each other and into the components' mount holes, with rather tight tolerances. Make sure your printer is well calibrated, or test things out with partial prints ahead of time and scale e.g. pins and standoffs accordingly on X/Y axis to make them fit the pillars.
 
@@ -55,8 +55,8 @@ Note that there are a lot of parts that fit snugly into each other and into the 
 | 8 | 9.5mm standoff pillar | Print `../../release-artifacts/enclosure/stl/standoff_pillar_9_5mm.stl` and matching `../../release-artifacts/enclosure/3mf-multicolor/standoff_pillar_9_5mm.3mf`, or use compatible purchased stackable PCB standoffs | Use for the OLED and audio/DAC board support locations. |
 | 10 | 10mm standoff pillar | Print `../../release-artifacts/enclosure/stl/standoff_pillar_10mm.stl` and matching `../../release-artifacts/enclosure/3mf-multicolor/standoff_pillar_10mm.3mf`, or use compatible purchased stackable PCB standoffs | Use for the Raspberry Pi, power breakout, and NeoKey support locations. NeoTrellis array pins go straight into the bottom's integrated pillars, so they do not need separate standoff pillars. |
 | 26 | Standoff top pin | Print `../../release-artifacts/enclosure/stl/standoff_top_pin_thin_base.stl` and matching `../../release-artifacts/enclosure/3mf-multicolor/standoff_top_pin_thin_base.3mf`, or use compatible purchased stackable PCB standoff pins | 4 Pi + 4 audio/DAC + 4 OLED/screen + 4 NeoKey + 2 power + 8 NeoTrellis array pins = 26 total. |
-| 8 | Heat-set insert | M3x6x5 heat-set insert, such as the M3 size in this [heat-set insert kit](https://de.aliexpress.com/item/1005012199553197.html) | Insert from the underside of the top. The smooth lead-in side should locate in the `4.6mm` pilot hole before heat-setting. |
-| 8 | Screws | M3x8 socket-head cap screw, DIN 912 / ISO 4762 style | Installed from the bottom. Use a head diameter no larger than `6.4mm` so it fits the counterbores. |
+| 8 | Heat-set insert | M3x6x5 heat-set insert, such as the M3 size in this [heat-set insert kit](https://de.aliexpress.com/item/1005012199553197.html) | Recommended, but optional if the printed dowel/top-pin system grips well enough. Insert from the underside of the top. The smooth lead-in side should locate in the `4.6mm` pilot hole before heat-setting. |
+| 8 | Screws | M3x8 socket-head cap screw, DIN 912 / ISO 4762 style | Recommended, but optional if the printed dowel/top-pin system grips well enough. Installed from the bottom. Use a head diameter no larger than `6.4mm` so it fits the counterbores. |
 | 8 | Rubber feet or screw-hole plugs | Small adhesive feet | Optional, covers bottom screw holes and prevents sliding. |
 
 Standoff STL attribution and purchase/source reference: the standoff models are based on [Stackable PCB Standoff by theduckom](https://www.printables.com/model/163087-stackable-pcb-standoff), licensed under [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/).
@@ -65,8 +65,9 @@ Standoff STL attribution and purchase/source reference: the standoff models are 
 
 - Soldering iron and solder.
 - Flush cutters.
-- Small screwdriver for bottom screws.
-- Optional: Heat-set insert tool.
+- Optional: small screwdriver for bottom screws.
+- Optional: heat-set insert tool.
+- Optional: pliers for gently tuning top-pin fit.
 - Multimeter.
 - Raspberry Pi Imager.
 - Optional: continuity tester, tweezers, helping hands, and magnifier.
@@ -219,12 +220,13 @@ Remove the Raspberry Pi microSD card and OLED microSD card first. They can catch
    - 18 pins go into the separate standoff pillars.
    - 8 pins go into the NeoTrellis array's integrated bottom pillars. It might be a bit tight due to the female connectors on the bottom, since the pillars are flared a bit for stability, but it will end up fitting nicely.
    - During final assembly, a small drop of glue on the top-pin can keep pins from falling out if the device is turned upside down.
+   - The dowel/top-pin system can hold the enclosure together on its own. If a pin does not secure enough, use pliers to gently squeeze the ball at the end of the pin for a tighter fit. Gently is the magic word here; the tiny mushroom is brave, not immortal.
 5. Place one silicone 4x4 keypad on each NeoTrellis board. Make sure the pads sit flat and line up with the 8x8 opening before closing the case.
-6. Insert the M3 heat-set inserts into the underside of the enclosure top with a soldering iron or insert tool.
+6. Optional but recommended: insert the M3 heat-set inserts into the underside of the enclosure top with a soldering iron or insert tool.
 7. Place the enclosure top over the assembly. It is easiest to slip the top on from the left/west side first so the ports pass through their holes, then lower the right/east side. The guide walls and standoff pins should locate the parts without forcing them.
 8. Install the four printed encoder knobs from `release-artifacts/enclosure/stl/` or the matching multicolor 3MF files. Check the fit before pressing them fully down: they should slide on with a decent amount of friction, but not so tightly that removal would require force. If the fit is too tight, scale the encoder cap models up slightly in the X/Y plane before printing another set.
 9. Turn the device over carefully.
-10. Install the bottom screws into the recessed holes and tighten them into the heat inserts.
+10. Optional but recommended: install the bottom screws into the recessed holes and tighten them into the heat inserts. If the printed pins already hold everything securely and the device will live a gentle bench life, you can leave the screws out.
 11. Add rubber feet or screw-hole covers if desired.
 
 Tighten screws gently. If the top does not sit flat, stop and find the interference instead of forcing the case closed.

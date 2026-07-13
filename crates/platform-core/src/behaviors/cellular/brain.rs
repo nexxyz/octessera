@@ -145,9 +145,9 @@ pub fn brain_render_model(state: &BrainState) -> BehaviorRenderModel {
         status_line: format!("Gen {}", state.generation),
         cells: state.cells.iter().map(|cell| *cell == 1).collect(),
         palette: crate::BehaviorRenderPalette {
-            active: [255, 255, 255],
-            inactive: [0, 0, 0],
-            stable: [0, 180, 255],
+            active: crate::palette::WHITE,
+            inactive: crate::palette::BLACK,
+            stable: crate::palette::BLUE,
         },
         trigger_types: Some(state.trigger_types.clone()),
     }

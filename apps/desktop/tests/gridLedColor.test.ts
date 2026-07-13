@@ -39,8 +39,8 @@ test("desktop grid LED color keeps black black", () => {
   assert.deepEqual(gridLedColor(frame(BLACK_COLOR, settings({ gridBrightness: 0 })), 0), { r: 0, g: 0, b: 0 });
 });
 
-test("desktop grid LED color keeps inactive LEDs black", () => {
-  assert.deepEqual(gridLedColor(frame(GREEN_COLOR, settings({ gridBrightness: 100 }), false), 0), { r: 0, g: 0, b: 0 });
+test("desktop grid LED color renders inactive LED rgb", () => {
+  assert.deepEqual(gridLedColor(frame(GREEN_COLOR, settings({ gridBrightness: 100 }), false), 0), { r: 99, g: 210, b: 63 });
 });
 
 test("desktop grid LED color keeps non-black cells visible at zero brightness", () => {

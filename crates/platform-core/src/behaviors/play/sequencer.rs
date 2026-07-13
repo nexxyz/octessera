@@ -46,9 +46,9 @@ pub fn render_model(state: &SequencerState) -> BehaviorRenderModel {
         status_line: "Manual".into(),
         cells: state.cells.clone(),
         palette: crate::BehaviorRenderPalette {
-            active: [255, 255, 255],
-            inactive: [0, 0, 0],
-            stable: [255, 255, 0],
+            active: crate::palette::WHITE,
+            inactive: crate::palette::BLACK,
+            stable: crate::palette::YELLOW,
         },
         trigger_types: None,
     }

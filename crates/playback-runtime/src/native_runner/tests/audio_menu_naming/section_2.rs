@@ -63,7 +63,7 @@ pub(crate) fn exact_desktop_flow_renames_p4_after_auto_name_toggle_and_behavior_
 
     assert_eq!(runner.layer_behavior_ids[3], "none");
     assert_eq!(runner.layer_names[3], "none");
-    assert_eq!(snapshot["display"]["title"], "B/L4: none");
+    assert_eq!(snapshot["display"]["title"], "/B/L4: none");
     assert_eq!(runner.layer_names[3], "none");
 }
 

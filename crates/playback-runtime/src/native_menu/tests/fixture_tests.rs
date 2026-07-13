@@ -261,7 +261,7 @@ pub(crate) fn loaded_sample_row_shows_filename_idle_and_full_path_when_selected(
         .any(|line| line.contains("sample-file")));
     assert_eq!(
         snapshot.full_lines[selected_row].as_deref(),
-        Some("> !Drum/kick/long-sample-file.wav")
+        Some(">!Drum/kick/long-sample-file.wav")
     );
 }
 

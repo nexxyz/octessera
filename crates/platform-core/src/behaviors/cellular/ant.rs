@@ -160,9 +160,9 @@ pub fn ant_render_model(state: &AntState) -> BehaviorRenderModel {
         ),
         cells,
         palette: crate::BehaviorRenderPalette {
-            active: [255, 220, 80],
-            inactive: [0, 0, 0],
-            stable: [255, 120, 0],
+            active: crate::palette::YELLOW,
+            inactive: crate::palette::BLACK,
+            stable: crate::palette::YELLOW,
         },
         trigger_types: Some(state.trigger_types.clone()),
     }

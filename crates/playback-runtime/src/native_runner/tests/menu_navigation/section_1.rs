@@ -138,7 +138,7 @@ pub(crate) fn behavior_config_number_param_edit_via_menu() {
     assert_eq!(runner.behavior_config["randomCellsPerTick"], 11);
     let snapshot = snapshot_from(&messages);
     assert_eq!(snapshot["display"]["editing"], false);
-    assert_eq!(snapshot["display"]["title"], "B/L1: life");
+    assert_eq!(snapshot["display"]["title"], "/B/L1: life");
 }
 
 #[test]

@@ -1,6 +1,6 @@
 use super::format::{
     format_item_bar_values, format_item_full_selected_line, format_item_lines,
-    formatted_item_row_count, section_color_for_label, section_color_from_path,
+    formatted_item_row_count, section_color_for_label,
 };
 use super::{
     NativeMenuItem, NativeMenuModel, NativeMenuScrollMetadata, NativeMenuSnapshot, NativeMenuValue,
@@ -12,7 +12,7 @@ impl NativeMenuModel {
     pub fn snapshot(&self) -> NativeMenuSnapshot {
         let siblings = self.current_siblings();
         let path = self.path_label();
-        let section_color = section_color_from_path(&path);
+        let section_color = self.path_section_color();
         if siblings.is_empty() {
             return empty_snapshot(path, section_color);
         }

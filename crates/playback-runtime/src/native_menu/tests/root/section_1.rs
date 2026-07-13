@@ -45,7 +45,7 @@ pub(crate) fn rebuild_preserves_navigation_state() {
     };
     menu.rebuild(next);
     let snapshot = menu.snapshot();
-    assert_eq!(snapshot.path, "B/L1: life");
+    assert_eq!(snapshot.path, "/B/L1: life");
     assert_eq!(snapshot.selected_row, Some(0));
     assert!(menu.state.editing);
     assert_eq!(menu.selected_behavior().as_deref(), Some("brain"));
@@ -123,7 +123,7 @@ pub(crate) fn system_submenu_uses_abbreviated_path_and_section_colors() {
     }
     let _ = menu.press();
     let snapshot = menu.snapshot();
-    assert_eq!(snapshot.path, "SYS");
+    assert_eq!(snapshot.path, "/System");
     assert_eq!(
         snapshot.lines,
         vec![
@@ -161,8 +161,8 @@ pub(crate) fn system_controls_row_is_help_action() {
     assert!(menu.focus_item_key("system.controlsHelp"));
 
     let snapshot = menu.snapshot();
-    assert_eq!(snapshot.path, "SYS");
-    assert!(snapshot.lines.iter().any(|line| line == "> !Basic Help"));
+    assert_eq!(snapshot.path, "/System");
+    assert!(snapshot.lines.iter().any(|line| line == ">!Basic Help"));
     assert!(matches!(
         snapshot.selected_action,
         Some(NativeMenuAction::PlatformEffect(ref action)) if action == "system.controlsHelp"
@@ -228,7 +228,7 @@ pub(crate) fn static_navigation_memory_back_while_editing_stays_in_group() {
     assert!(menu.state.editing);
     menu.back();
     assert!(!menu.state.editing);
-    assert_eq!(menu.snapshot().path, "SYS/Sound");
+    assert_eq!(menu.snapshot().path, "/SYS/Sound");
     assert_eq!(menu.current_label(), Some("Note Length"));
 
     menu.back();
