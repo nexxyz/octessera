@@ -14,6 +14,9 @@ install -D -m 0644 \
     "$STAGE_FILES/root/etc/systemd/system/octessera.service" \
     "$ROOTFS_DIR/etc/systemd/system/octessera.service"
 install -D -m 0644 \
+    "$STAGE_FILES/root/etc/systemd/system/octessera.service.d/audio-realtime.conf" \
+    "$ROOTFS_DIR/etc/systemd/system/octessera.service.d/audio-realtime.conf"
+install -D -m 0644 \
     "$STAGE_FILES/root/etc/systemd/system/octessera-usb-gadget.service" \
     "$ROOTFS_DIR/etc/systemd/system/octessera-usb-gadget.service"
 install -D -m 0644 \

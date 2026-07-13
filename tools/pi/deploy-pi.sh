@@ -307,6 +307,16 @@ StandardError=journal
 WantedBy=multi-user.target
 EOL
 
+sudo install -d -m 0755 /etc/systemd/system/octessera.service.d
+sudo tee /etc/systemd/system/octessera.service.d/audio-realtime.conf > /dev/null <<'EOL'
+[Service]
+AmbientCapabilities=CAP_SYS_NICE
+CapabilityBoundingSet=CAP_SYS_NICE
+LimitRTPRIO=80
+LimitMEMLOCK=infinity
+Nice=-10
+EOL
+
 sudo tee /etc/systemd/system/octessera-performance-governor.service > /dev/null <<'EOL'
 [Unit]
 Description=octessera Performance CPU Governor

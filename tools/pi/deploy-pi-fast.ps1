@@ -107,6 +107,7 @@ $piImageFiles = "tools/pi-image/stage4-octessera/files/root"
 Copy-ToPi "$piImageFiles/usr/local/sbin/octessera-usb-gadget" "/tmp/octessera-usb-gadget"
 Copy-ToPi "$piImageFiles/etc/systemd/system/octessera-usb-gadget.service" "/tmp/octessera-usb-gadget.service"
 Copy-ToPi "$piImageFiles/etc/modules-load.d/octessera-usb-gadget.conf" "/tmp/octessera-usb-gadget.conf"
+Copy-ToPi "$piImageFiles/etc/systemd/system/octessera.service.d/audio-realtime.conf" "/tmp/octessera-audio-realtime.conf"
 
 $osConfigCommand = "UPDATE_INITRAMFS=$updateInitramfsValue`n" + @'
 set -e
@@ -450,6 +451,8 @@ StandardError=journal
 [Install]
 WantedBy=multi-user.target
 EOF
+sudo install -d -m 0755 /etc/systemd/system/$Service.d
+sudo install -m 0644 /tmp/octessera-audio-realtime.conf /etc/systemd/system/$Service.d/audio-realtime.conf
 sudo systemctl daemon-reload; sudo systemctl disable octessera-boot-splash.service >/dev/null 2>&1 || true; sudo systemctl enable octessera-oled-shutdown.service '$Service'; sudo systemctl start octessera-oled-shutdown.service; sudo systemctl restart '$Service'; systemctl --no-pager --lines=8 status '$Service'"
 
 if ($AllowServiceFailure) {
