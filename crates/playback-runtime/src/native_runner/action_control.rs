@@ -180,6 +180,10 @@ impl NativeRunner {
                 self.set_aux_click_target(index, action.map(|action| *action));
                 Ok(None)
             }
+            NativeMenuAction::SetShiftAuxClick { index, action } => {
+                self.set_shift_aux_click_target(index, action.map(|action| *action));
+                Ok(None)
+            }
             NativeMenuAction::CloneInstrument { index } => {
                 self.clone_instrument(index);
                 Ok(None)
@@ -249,6 +253,30 @@ impl NativeRunner {
         };
         self.toast = Some(NativeToast {
             message: format!("Aux {} click mapped", index + 1),
+            offset: 0,
+        });
+        self.config_dirty = true;
+    }
+
+    fn set_shift_aux_click_target(&mut self, index: usize, action: Option<NativeMenuAction>) {
+        if index >= self.shift_aux_bindings.len() {
+            return;
+        }
+        let turn_key = self
+            .shift_aux_bindings
+            .get(index)
+            .and_then(|binding| binding.as_ref())
+            .and_then(|binding| binding.turn_key.clone());
+        self.shift_aux_bindings[index] = if turn_key.is_some() || action.is_some() {
+            Some(NativeAuxBinding {
+                turn_key,
+                press_action: action.clone(),
+            })
+        } else {
+            None
+        };
+        self.toast = Some(NativeToast {
+            message: format!("Aux {} S+Clk mapped", index + 1),
             offset: 0,
         });
         self.config_dirty = true;

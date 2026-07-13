@@ -23,6 +23,10 @@ pub enum NativeMenuAction {
         index: usize,
         action: Option<Box<NativeMenuAction>>,
     },
+    SetShiftAuxClick {
+        index: usize,
+        action: Option<Box<NativeMenuAction>>,
+    },
     CloneInstrument {
         index: usize,
     },

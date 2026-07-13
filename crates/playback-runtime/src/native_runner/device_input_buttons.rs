@@ -99,9 +99,10 @@ impl NativeRunner {
         &mut self,
         index: usize,
     ) -> Result<Option<Vec<RunnerMessage>>, String> {
-        if self.ui.fn_held {
+        if self.ui.fn_held || self.ui.combined_modifier_held {
             return Ok(None);
         }
+        let click_prefix = if self.ui.shift_held { "S+Clk" } else { "Clk" };
         let Some(press) = self.effective_aux_slot(index).press else {
             return Ok(None);
         };
@@ -115,13 +116,17 @@ impl NativeRunner {
             )
         });
         if !valid {
-            self.show_toast(format!("Click-{}: {} not active", index + 1, press.label));
+            self.show_toast(format!(
+                "{click_prefix}-{}: {} not active",
+                index + 1,
+                press.label
+            ));
             return Ok(Some(self.messages_with_snapshot()?));
         }
         let suppress_aux_toast = self.behavior.id() == "looper" && action_type == "toggleMode";
         let result = self.trigger_behavior_action_result(action_type)?;
         if !suppress_aux_toast {
-            self.show_toast(format!("Click-{}: {}", index + 1, press.label));
+            self.show_toast(format!("{click_prefix}-{}: {}", index + 1, press.label));
         }
         Ok(Some(self.messages_with_input_result(result)?))
     }

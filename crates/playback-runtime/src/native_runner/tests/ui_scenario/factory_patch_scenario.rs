@@ -397,7 +397,7 @@ fn configure_aux_xy_and_sparks_fx_from_visible_ui(device: &mut DeviceDriver) {
         menu.open_group("Link");
         menu.open_group("Aux Mappings");
         menu.open_group("Aux 1");
-        menu.open_group("Turn");
+        menu.open_group("Trn");
         select_sampler_cutoff_target(&mut menu);
         menu.back_to_root();
 

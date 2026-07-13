@@ -36,25 +36,48 @@ impl NativeRunner {
         } else if let Some(rest) = target.strip_prefix("aux:") {
             let parts = rest.split(':').collect::<Vec<_>>();
             if parts.len() == 2 && parts[1] == "turn" {
-                let index = parts[0].parse::<usize>().unwrap_or(0).min(3);
-                let press_action = self
-                    .aux_bindings
-                    .get(index)
-                    .and_then(|binding| binding.as_ref())
-                    .and_then(|binding| binding.press_action.clone());
-                self.aux_bindings[index] = if let Some(binding) = binding.clone() {
-                    Some(NativeAuxBinding {
-                        turn_key: Some(binding.key),
-                        press_action,
-                    })
-                } else if press_action.is_some() {
-                    Some(NativeAuxBinding {
-                        turn_key: None,
-                        press_action,
-                    })
-                } else {
-                    None
-                };
+                let index = parts[0].parse::<usize>().unwrap_or(0);
+                if let Some(slot) = self.aux_bindings.get_mut(index) {
+                    let press_action = slot
+                        .as_ref()
+                        .and_then(|binding| binding.press_action.clone());
+                    *slot = if let Some(binding) = binding.clone() {
+                        Some(NativeAuxBinding {
+                            turn_key: Some(binding.key),
+                            press_action,
+                        })
+                    } else if press_action.is_some() {
+                        Some(NativeAuxBinding {
+                            turn_key: None,
+                            press_action,
+                        })
+                    } else {
+                        None
+                    };
+                }
+            }
+        } else if let Some(rest) = target.strip_prefix("shiftAux:") {
+            let parts = rest.split(':').collect::<Vec<_>>();
+            if parts.len() == 2 && parts[1] == "turn" {
+                let index = parts[0].parse::<usize>().unwrap_or(0);
+                if let Some(slot) = self.shift_aux_bindings.get_mut(index) {
+                    let press_action = slot
+                        .as_ref()
+                        .and_then(|binding| binding.press_action.clone());
+                    *slot = if let Some(binding) = binding.clone() {
+                        Some(NativeAuxBinding {
+                            turn_key: Some(binding.key),
+                            press_action,
+                        })
+                    } else if press_action.is_some() {
+                        Some(NativeAuxBinding {
+                            turn_key: None,
+                            press_action,
+                        })
+                    } else {
+                        None
+                    };
+                }
             }
         }
         let label = binding
@@ -76,28 +99,34 @@ impl NativeRunner {
         (index < platform_core::AUX_ENCODER_COUNT).then_some(index)
     }
 
-    fn bind_aux_from_current(&mut self, index: usize) -> bool {
+    fn bind_aux_from_current(&mut self, index: usize, shifted: bool) -> bool {
         let (turn_key, press_action) = self.menu.current_binding_target();
+        let prefix = if shifted { "S+Clk" } else { "Clk" };
         if turn_key.is_none() && press_action.is_none() {
-            self.show_toast(format!("Click-{}: No binding", index + 1));
+            self.show_toast(format!("{prefix}-{}: No binding", index + 1));
             return false;
         }
         let message = if let Some(key) = turn_key.as_deref() {
             format!(
-                "Click-{}: Bound turn: {}",
+                "{prefix}-{}: Bound turn: {}",
                 index + 1,
                 self.aux_binding_key_label(key)
             )
         } else if let Some(action) = press_action.as_ref() {
             format!(
-                "Click-{}: Bound click: {}",
+                "{prefix}-{}: Bound click: {}",
                 index + 1,
                 self.aux_binding_action_label(action)
             )
         } else {
-            format!("Click-{}: Bound", index + 1)
+            format!("{prefix}-{}: Bound", index + 1)
         };
-        if let Some(slot) = self.aux_bindings.get_mut(index) {
+        let bindings = if shifted {
+            &mut self.shift_aux_bindings
+        } else {
+            &mut self.aux_bindings
+        };
+        if let Some(slot) = bindings.get_mut(index) {
             *slot = Some(NativeAuxBinding {
                 turn_key,
                 press_action,
@@ -182,14 +211,19 @@ impl NativeRunner {
         if delta == 0 {
             return Ok(());
         }
+        let prefix = if self.ui.shift_held || self.ui.combined_modifier_held {
+            "S+Trn"
+        } else {
+            "Trn"
+        };
         let binding = self.effective_aux_slot(index);
         let Some(turn) = binding.turn else {
-            self.show_toast(format!("Turn-{}: No binding", index + 1));
+            self.show_toast(format!("{prefix}-{}: No binding", index + 1));
             return Ok(());
         };
         if let Some(value) = self.turn_generated_behavior_target(&turn.key, delta) {
             self.show_or_queue_aux_turn_toast(format!(
-                "Turn-{}: {}: {value}",
+                "{prefix}-{}: {}: {value}",
                 index + 1,
                 turn.label
             ));
@@ -205,12 +239,12 @@ impl NativeRunner {
                 })
                 .unwrap_or_else(|| "changed".into());
             self.show_or_queue_aux_turn_toast(format!(
-                "Turn-{}: {}: {value}",
+                "{prefix}-{}: {}: {value}",
                 index + 1,
                 turn.label
             ));
         } else {
-            self.show_toast(format!("Turn-{}: {} not active", index + 1, turn.label));
+            self.show_toast(format!("{prefix}-{}: {} not active", index + 1, turn.label));
         }
         Ok(())
     }
@@ -219,13 +253,15 @@ impl NativeRunner {
         &mut self,
         index: usize,
     ) -> Result<Option<RuntimePlatformEffect>, String> {
-        if self.ui.fn_held {
-            self.bind_aux_from_current(index);
+        let shifted = self.ui.shift_held || self.ui.combined_modifier_held;
+        let click_prefix = if shifted { "S+Clk" } else { "Clk" };
+        if self.ui.fn_held || self.ui.combined_modifier_held {
+            self.bind_aux_from_current(index, shifted);
             return Ok(None);
         }
         let binding = self.effective_aux_slot(index);
         let Some(press) = binding.press else {
-            self.show_toast(format!("Click-{}: No binding", index + 1));
+            self.show_toast(format!("{click_prefix}-{}: No binding", index + 1));
             return Ok(None);
         };
         if let NativeMenuAction::BehaviorAction(action_type) = &press.action {
@@ -236,7 +272,11 @@ impl NativeRunner {
                 )
             });
             if !valid {
-                self.show_toast(format!("Click-{}: {} not active", index + 1, press.label));
+                self.show_toast(format!(
+                    "{click_prefix}-{}: {} not active",
+                    index + 1,
+                    press.label
+                ));
                 return Ok(None);
             }
         }
@@ -252,7 +292,11 @@ impl NativeRunner {
                     .map(|instrument| instrument.kind.as_str() != "sampler")
                     .unwrap_or(true)
                 {
-                    self.show_toast(format!("Click-{}: {} not active", index + 1, press.label));
+                    self.show_toast(format!(
+                        "{click_prefix}-{}: {} not active",
+                        index + 1,
+                        press.label
+                    ));
                     return Ok(None);
                 }
             }
@@ -262,7 +306,7 @@ impl NativeRunner {
             press.action,
             NativeMenuAction::BehaviorAction(ref action) if action == "toggleMode" && self.behavior.id() == "looper"
         ) {
-            self.show_toast(format!("Click-{}: {}", index + 1, press.label));
+            self.show_toast(format!("{click_prefix}-{}: {}", index + 1, press.label));
         }
         Ok(result)
     }

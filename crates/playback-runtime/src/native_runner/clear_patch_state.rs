@@ -97,6 +97,7 @@ impl NativeRunner {
         self.xy_invert_y = false;
         self.param_mods = vec![NativeParamMods::default(); LAYER_COUNT];
         self.aux_bindings = vec![None; platform_core::AUX_ENCODER_COUNT];
+        self.shift_aux_bindings = vec![None; platform_core::AUX_ENCODER_COUNT];
         self.trigger_gate_modes = vec!["full".into(); LAYER_COUNT];
         self.trigger_gate_restore_modes = vec![None; LAYER_COUNT];
         self.sparks_transpose_selected = vec![true; LAYER_COUNT];

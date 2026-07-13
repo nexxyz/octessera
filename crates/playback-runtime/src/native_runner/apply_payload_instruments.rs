@@ -125,6 +125,11 @@ impl NativeRunner {
         if let Some(value) = runtime.get("auxBindings") {
             apply_aux_bindings_payload(&mut self.aux_bindings, value);
         }
+        if let Some(value) = runtime.get("shiftAuxBindings") {
+            apply_aux_bindings_payload(&mut self.shift_aux_bindings, value);
+        } else {
+            self.shift_aux_bindings.fill(None);
+        }
     }
 
     fn apply_runtime_transport_payload(&mut self, runtime: &Value) {

@@ -44,6 +44,29 @@ pub(crate) fn native_menu_snapshot_rows_fit_oled_width() {
     }
 }
 
+#[test]
+pub(crate) fn aux_mappings_include_plain_and_shifted_rows() {
+    let root = build_root(config());
+
+    let turn = find_item_by_key(&root, "aux:0:turn").unwrap();
+    assert_eq!(turn.label, "Trn: (none)");
+
+    let shift_turn = find_item_by_key(&root, "shiftAux:0:turn").unwrap();
+    assert_eq!(shift_turn.label, "S+Trn: (none)");
+
+    let click = find_item_by_key(&root, "aux1.click.none").unwrap();
+    assert!(matches!(
+        click.value,
+        NativeMenuValue::Action(NativeMenuAction::SetAuxClick { index: 0, .. })
+    ));
+
+    let shift_click = find_item_by_key(&root, "shift_aux1.click.none").unwrap();
+    assert!(matches!(
+        shift_click.value,
+        NativeMenuValue::Action(NativeMenuAction::SetShiftAuxClick { index: 0, .. })
+    ));
+}
+
 pub(crate) fn representative_help_configs() -> Vec<NativeMenuConfig> {
     let mut configs = vec![config()];
 

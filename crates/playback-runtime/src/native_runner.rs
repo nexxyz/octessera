@@ -289,6 +289,7 @@ pub struct NativeRunner {
     save_grid_states: Vec<bool>,
     pulses_layers: Vec<NativePulsesLayer>,
     aux_bindings: Vec<Option<NativeAuxBinding>>,
+    shift_aux_bindings: Vec<Option<NativeAuxBinding>>,
     active_layer_index: usize,
     instruments: Vec<NativeInstrumentSlot>,
     sample_assign: Option<(usize, usize)>,

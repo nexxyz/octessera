@@ -41,6 +41,10 @@ impl NativeRunner {
             xy_y_binding: None,
             aux_auto_map_enabled: true,
             aux_bindings: vec![NativeAuxBindingConfig::default(); platform_core::AUX_ENCODER_COUNT],
+            shift_aux_bindings: vec![
+                NativeAuxBindingConfig::default();
+                platform_core::AUX_ENCODER_COUNT
+            ],
             instrument_labels: instrument_labels(&instruments),
             instrument_names: instrument_names(&instruments),
             instrument_types: instrument_types(&instruments),
@@ -232,6 +236,7 @@ impl NativeRunner {
             save_grid_states: vec![true; LAYER_COUNT],
             pulses_layers,
             aux_bindings: vec![None; platform_core::AUX_ENCODER_COUNT],
+            shift_aux_bindings: vec![None; platform_core::AUX_ENCODER_COUNT],
             active_layer_index: 0,
             instruments,
             sample_assign: None,

@@ -205,7 +205,7 @@ pub(crate) fn unbound_aux_inputs_show_toast_without_navigating_menu() {
 
     assert_eq!(runner.menu.state.stack, original_stack);
     assert_eq!(runner.menu.state.cursor, original_cursor);
-    assert_eq!(snapshot["display"]["toast"], "Turn-1: No binding");
+    assert_eq!(snapshot["display"]["toast"], "Trn-1: No binding");
 }
 
 #[test]
@@ -241,7 +241,7 @@ pub(crate) fn aux_turn_toast_cooldown_keeps_first_then_shows_latest() {
         .unwrap();
     assert_eq!(
         snapshot_from(&first)["display"]["toast"],
-        "Turn-1: Cutoff: 223"
+        "Trn-1: Cutoff: 223"
     );
 
     let second = runner
@@ -252,7 +252,7 @@ pub(crate) fn aux_turn_toast_cooldown_keeps_first_then_shows_latest() {
         .unwrap();
     assert_eq!(
         snapshot_from(&second)["display"]["toast"],
-        "Turn-1: Cutoff: 223"
+        "Trn-1: Cutoff: 223"
     );
 
     let third = runner
@@ -263,7 +263,7 @@ pub(crate) fn aux_turn_toast_cooldown_keeps_first_then_shows_latest() {
         .unwrap();
     assert_eq!(
         snapshot_from(&third)["display"]["toast"],
-        "Turn-1: Cutoff: 223"
+        "Trn-1: Cutoff: 223"
     );
 
     runner.age_toast_state_for_test(600);
@@ -271,7 +271,7 @@ pub(crate) fn aux_turn_toast_cooldown_keeps_first_then_shows_latest() {
 
     assert_eq!(
         snapshot_from(&after)["display"]["toast"],
-        "Turn-1: Cutoff: 225"
+        "Trn-1: Cutoff: 225"
     );
 }
 

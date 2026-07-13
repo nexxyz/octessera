@@ -14,6 +14,7 @@ Platform capability source: `resources/platform-capabilities.json`; generated Ty
 | Shift + Back | Clear active layer | Re-initializes current active layer behavior state.
 | Shift + Fn | Combined modifier | Acts as its own logical button; Fn and Shift are inactive while both physical buttons are held.
 | Combined modifier + Main press | Context help | Opens help for highlighted menu entry.
+| Combined modifier + Space | Single step | While paused/stopped, advances exactly one behavior generation and remains paused/stopped; while playing, shows `Pause first` and does not step or toggle.
 | Fn + leftmost grid column | Navigate layers (1..8) | Mirrors `Build > Layer`.
 | Fn held + leftmost column LEDs | Navigation indicators | Cyan = navigation/current layer focus, green = configured layer, gray/black = inactive or non-navigable.
 | Fn + rightmost grid column | Navigate Play pages | Opens `Play` and enables Play page if currently off; exits Play if already active.
@@ -30,10 +31,13 @@ Platform capability source: `resources/platform-capabilities.json`; generated Ty
 | Back button | Backspace / Esc | Go back / exit edit / clear grid (with Shift) |
 | Space button | Space | Play / Pause |
 | Shift + Space | Shift+Space | Emergency stop (panic + reset scan origin) |
+| Shift + Fn + Space | Shift+Ctrl+Space | Single behavior/world generation step while paused/stopped |
 | Shift + Back | Shift+Backspace / Shift+Esc | Clear grid (re-initialize behavior) |
 | Aux encoder 1-3 turn | (simulated) | Adjust bound turn mapping |
 | Aux encoder 1-3 press | (simulated) | Trigger bound press mapping |
 | Fn + Aux encoder press | Fn + (simulated) | Alternate action: bind current value as Turn target or current action as `!` press target |
+| Shift + Aux encoder turn/press | Shift + (simulated) | Use shifted aux binding bank |
+| Shift + Fn + Aux encoder press | Shift+Ctrl + (simulated) | Bind current value/action into shifted aux binding bank |
 | Shift + Fn | Shift+Ctrl | Combined modifier; acts as its own logical button and disables Fn/Shift functions while both are held |
 | Combined modifier + Main press | Shift+Ctrl+Enter | Context help for highlighted entry |
 | Fn + leftmost grid column | Ctrl + leftmost grid column | Navigate active layer (1..8); hold Fn to see layer indicators |
@@ -150,16 +154,20 @@ Overrides:
 - Each aux encoder has two independent custom slots:
   - turn slot: bound to value parameters (number/enum/bool)
   - press slot: bound to actions
+- Each aux encoder also has a separate shifted custom bank with the same turn/press slot shape. Shift + aux turn/press uses only the shifted bank; plain aux turn/press uses the normal bank plus auto-map fallback. `Link > Aux Mappings` labels these rows `Trn`, `Clk`, `S+Trn`, and `S+Clk`.
 - Fn + aux press is an alternate action on a bindable item that binds/overwrites the relevant custom slot:
   - while editing a value item: binds Turn slot
   - while selecting an action item: binds `!` press slot
+- Shift + Fn + aux press binds/overwrites the shifted custom bank instead of the normal bank.
 - In the Fn-held aux overlay, plain labels are turn targets and `!Label` entries are press actions; `/` means both slots are present for that encoder.
 - Regular aux press triggers the press slot action (if any)
 - Regular aux turn adjusts the turn slot value (if any)
+- Aux toasts use compact labels such as `Trn-1`, `Clk-1`, `S+Trn-1`, and `S+Clk-1`.
 - `Auto Map` lives under `System > UI`. When enabled, context-sensitive auto mappings fill unbound aux slots for the active menu context; custom aux bindings keep precedence when present.
+- Auto-map does not fill shifted aux slots; shifted aux bindings are custom-only and persist as `runtimeConfig.shiftAuxBindings`, mirroring `runtimeConfig.auxBindings`.
 - In supported contexts, focused menu rows show auto-map indicators like `1-Cutoff` and `1!Assign`, preserving selection markers on focused rows such as `> 1!Assign`.
-- If no slot is bound, toast shows `S#: No binding` or `T#: No binding`
-- Turn toasts show current value, e.g. `T1: Spawn Count: 3`
+- If no slot is bound, toast shows labels like `Trn-1: No binding` or `S+Clk-1: No binding`
+- Turn toasts show current value, e.g. `Trn-1: Spawn Count: 3`
 - Shared route currently implemented:
   - `trigger.life.spawn_now` resolves per behavior (sequencer has no implementation)
 - Enum turning is clamped (no wrap)
@@ -174,10 +182,10 @@ Overrides:
 - The binding remains intact so the user can re-activate the target later
 
 #### Turn (Stale Target)
-- **FX param**: param does not exist for the current slot type, e.g. `T1: B1 Time ms not active`
-- **Instrument subtree**: instrument type changed away from the bound subtree, e.g. `T1: I1 Filter cutoff not active`
-- **Layer scan field**: `scanMode` is not `"scanning"`, e.g. `T1: L1 Scan Direction not active`
-- **Behavior config param**: param is not in the current behavior's `configMenu()`, e.g. `T1: L1 Spawn Count not active`
+- **FX param**: param does not exist for the current slot type, e.g. `Trn-1: B1 Time ms not active`
+- **Instrument subtree**: instrument type changed away from the bound subtree, e.g. `Trn-1: I1 Filter cutoff not active`
+- **Layer scan field**: `scanMode` is not `"scanning"`, e.g. `Trn-1: L1 Scan Direction not active`
+- **Behavior config param**: param is not in the current behavior's `configMenu()`, e.g. `Trn-1: L1 Spawn Count not active`
 
 #### Press (Stale Action)
 - **Spawn route**: current behavior has no spawn action, e.g. `S1: L1 Spawn Now not active`

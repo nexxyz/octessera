@@ -57,6 +57,11 @@
       "aux2": null,
       "aux3": null
     },
+    "shiftAuxBindings": {
+      "aux1": null,
+      "aux2": null,
+      "aux3": null
+    },
     "bpm": 120.0,
     "buttonBrightness": 35,
     "dimTimerSeconds": 60,

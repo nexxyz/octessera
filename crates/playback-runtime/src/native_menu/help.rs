@@ -118,7 +118,9 @@ fn menu_action_help_key(action: &NativeMenuAction) -> String {
         }
         NativeMenuAction::SetParamBinding { .. } => "action:param_bind".into(),
         NativeMenuAction::ClearParamBinding { .. } => "action:param_clear".into(),
-        NativeMenuAction::SetAuxClick { .. } => "action:aux_click_set_target".into(),
+        NativeMenuAction::SetAuxClick { .. } | NativeMenuAction::SetShiftAuxClick { .. } => {
+            "action:aux_click_set_target".into()
+        }
         NativeMenuAction::CloneInstrument { .. } => "action:instrument_clone".into(),
         NativeMenuAction::ResetInstrument { .. } => "action:instrument_reset".into(),
         NativeMenuAction::PlatformEffect(effect) => platform_effect_help_key(effect),

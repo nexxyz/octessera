@@ -9,16 +9,28 @@ pub(super) fn aux_mappings_group(config: &NativeMenuConfig) -> NativeMenuItem {
         (0..platform_core::AUX_ENCODER_COUNT)
             .map(|index| {
                 let binding = config.aux_bindings.get(index).cloned().unwrap_or_default();
+                let shift_binding = config
+                    .shift_aux_bindings
+                    .get(index)
+                    .cloned()
+                    .unwrap_or_default();
                 group(
                     format!("Aux {}", index + 1),
                     vec![
                         parameter_picker_group(
-                            axis_binding_label("Turn", binding.turn.as_ref()),
+                            axis_binding_label("Trn", binding.turn.as_ref()),
                             format!("aux:{index}:turn"),
                             binding.turn.as_ref(),
                             config,
                         ),
                         aux_click_picker_group(index, binding.click.as_ref(), config),
+                        parameter_picker_group(
+                            axis_binding_label("S+Trn", shift_binding.turn.as_ref()),
+                            format!("shiftAux:{index}:turn"),
+                            shift_binding.turn.as_ref(),
+                            config,
+                        ),
+                        shift_aux_click_picker_group(index, shift_binding.click.as_ref(), config),
                     ],
                 )
             })
@@ -31,22 +43,35 @@ fn aux_click_picker_group(
     current: Option<&NativeMenuAction>,
     config: &NativeMenuConfig,
 ) -> NativeMenuItem {
+    aux_click_picker_group_with(index, current, config, "Clk", "aux", false)
+}
+
+fn shift_aux_click_picker_group(
+    index: usize,
+    current: Option<&NativeMenuAction>,
+    config: &NativeMenuConfig,
+) -> NativeMenuItem {
+    aux_click_picker_group_with(index, current, config, "S+Clk", "shift_aux", true)
+}
+
+fn aux_click_picker_group_with(
+    index: usize,
+    current: Option<&NativeMenuAction>,
+    config: &NativeMenuConfig,
+    label_prefix: &str,
+    key_prefix: &str,
+    shifted: bool,
+) -> NativeMenuItem {
     let mut children = vec![action_item(
         "(none)",
-        format!("aux{}.click.none", index + 1),
-        NativeMenuAction::SetAuxClick {
-            index,
-            action: None,
-        },
+        format!("{key_prefix}{}.click.none", index + 1),
+        aux_click_action(index, None, shifted),
     )];
     if let Some(action) = current {
         children.push(action_item(
             "Current",
-            format!("aux{}.click.current", index + 1),
-            NativeMenuAction::SetAuxClick {
-                index,
-                action: Some(Box::new(action.clone())),
-            },
+            format!("{key_prefix}{}.click.current", index + 1),
+            aux_click_action(index, Some(Box::new(action.clone())), shifted),
         ));
     }
     let behavior_actions = config
@@ -55,11 +80,12 @@ fn aux_click_picker_group(
         .filter_map(|item| match &item.value {
             NativeMenuValue::Action(NativeMenuAction::BehaviorAction(action)) => Some(action_item(
                 item.label.clone(),
-                format!("aux{}.click.behavior.{action}", index + 1),
-                NativeMenuAction::SetAuxClick {
+                format!("{key_prefix}{}.click.behavior.{action}", index + 1),
+                aux_click_action(
                     index,
-                    action: Some(Box::new(NativeMenuAction::BehaviorAction(action.clone()))),
-                },
+                    Some(Box::new(NativeMenuAction::BehaviorAction(action.clone()))),
+                    shifted,
+                ),
             )),
             _ => None,
         })
@@ -76,13 +102,14 @@ fn aux_click_picker_group(
             .map(|(instrument, label)| {
                 action_item(
                     label.clone(),
-                    format!("aux{}.click.sample.{instrument}", index + 1),
-                    NativeMenuAction::SetAuxClick {
+                    format!("{key_prefix}{}.click.sample.{instrument}", index + 1),
+                    aux_click_action(
                         index,
-                        action: Some(Box::new(NativeMenuAction::PlatformEffect(format!(
+                        Some(Box::new(NativeMenuAction::PlatformEffect(format!(
                             "sample.assign:{instrument}:0"
                         )))),
-                    },
+                        shifted,
+                    ),
                 )
             })
             .collect(),
@@ -92,26 +119,40 @@ fn aux_click_picker_group(
         vec![
             action_item(
                 "Map FX",
-                format!("aux{}.click.fx_map", index + 1),
-                NativeMenuAction::SetAuxClick {
+                format!("{key_prefix}{}.click.fx_map", index + 1),
+                aux_click_action(
                     index,
-                    action: Some(Box::new(NativeMenuAction::PlatformEffect(
+                    Some(Box::new(NativeMenuAction::PlatformEffect(
                         "sparks.fx.map".into(),
                     ))),
-                },
+                    shifted,
+                ),
             ),
             action_item(
                 "Reset Behavior",
-                format!("aux{}.click.reset", index + 1),
-                NativeMenuAction::SetAuxClick {
+                format!("{key_prefix}{}.click.reset", index + 1),
+                aux_click_action(
                     index,
-                    action: Some(Box::new(NativeMenuAction::ResetBehavior)),
-                },
+                    Some(Box::new(NativeMenuAction::ResetBehavior)),
+                    shifted,
+                ),
             ),
         ],
     ));
     let label = current
-        .map(|_| "Click: mapped".to_string())
-        .unwrap_or_else(|| "Click: (none)".into());
+        .map(|_| format!("{label_prefix}: mapped"))
+        .unwrap_or_else(|| format!("{label_prefix}: (none)"));
     group(label, children)
+}
+
+fn aux_click_action(
+    index: usize,
+    action: Option<Box<NativeMenuAction>>,
+    shifted: bool,
+) -> NativeMenuAction {
+    if shifted {
+        NativeMenuAction::SetShiftAuxClick { index, action }
+    } else {
+        NativeMenuAction::SetAuxClick { index, action }
+    }
 }

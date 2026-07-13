@@ -174,6 +174,51 @@ pub(crate) fn stop_then_start_restarts_scanning_from_zero_accumulator() {
 }
 
 #[test]
+pub(crate) fn combined_modifier_play_single_steps_while_staying_paused() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.transport = RuntimeTransportState::Paused;
+    runner.ui.combined_modifier_held = true;
+    let before_tick = runner.tick;
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert_eq!(runner.transport, RuntimeTransportState::Paused);
+    assert_eq!(runner.tick, before_tick + 1);
+    assert!(messages
+        .iter()
+        .all(|message| !matches!(message, RunnerMessage::PlatformEffects { effects } if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::MidiPanic)))));
+    let snapshot = snapshot_from(&messages);
+    assert_eq!(snapshot["transportIcon"], "pause");
+}
+
+#[test]
+pub(crate) fn combined_modifier_play_asks_to_pause_first_while_playing() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.transport = RuntimeTransportState::Playing;
+    runner.ui.combined_modifier_held = true;
+    let before_tick = runner.tick;
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert_eq!(runner.transport, RuntimeTransportState::Playing);
+    assert_eq!(runner.tick, before_tick);
+    assert_eq!(snapshot_from(&messages)["display"]["toast"], "Pause first");
+    assert!(messages
+        .iter()
+        .all(|message| !matches!(message, RunnerMessage::PlatformEffects { effects } if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::MidiPanic)))));
+}
+
+#[test]
 pub(crate) fn stop_then_start_restarts_scanning_from_first_lane() {
     let mut runner = configured_scanning_sequencer_runner();
     runner.transport = RuntimeTransportState::Playing;

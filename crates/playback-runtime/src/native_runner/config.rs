@@ -47,6 +47,7 @@ impl NativeRunner {
                 .map(param_binding_spec_from_native),
             aux_auto_map_enabled: self.aux_auto_map_enabled,
             aux_bindings: aux_binding_configs(&self.aux_bindings),
+            shift_aux_bindings: aux_binding_configs(&self.shift_aux_bindings),
             instrument_labels: instrument_labels(&self.instruments),
             instrument_names: instrument_names(&self.instruments),
             instrument_types: instrument_types(&self.instruments),
@@ -273,6 +274,7 @@ impl NativeRunner {
                 "bpm": self.bpm,
                 "sparksMode": self.sparks_mode,
                 "auxBindings": aux_bindings_payload(&self.aux_bindings),
+                "shiftAuxBindings": aux_bindings_payload(&self.shift_aux_bindings),
                 "midi": {
                     "enabled": self.midi_enabled,
                     "outId": self.selected_midi_output_id,

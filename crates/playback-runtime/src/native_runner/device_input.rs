@@ -1,3 +1,5 @@
+use platform_core::NativeInputResult;
+
 use crate::protocol::{RunnerMessage, RuntimePlatformEffect};
 use std::sync::OnceLock;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
@@ -222,7 +224,9 @@ impl NativeRunner {
         pressed: Option<bool>,
     ) -> Result<Vec<RunnerMessage>, String> {
         if pressed.unwrap_or(true) {
-            if let Some(effect) = self.preview_selected_sample()? {
+            if self.ui.combined_modifier_held {
+                return self.handle_single_step_input();
+            } else if let Some(effect) = self.preview_selected_sample()? {
                 return self.messages_with_effects(vec![effect]);
             } else if self.ui.shift_held && self.sync_source == SyncSource::External {
                 self.pending_resync = true;
@@ -248,6 +252,24 @@ impl NativeRunner {
             }
         }
         self.messages_with_snapshot()
+    }
+
+    fn handle_single_step_input(&mut self) -> Result<Vec<RunnerMessage>, String> {
+        if self.transport == RuntimeTransportState::Playing {
+            self.show_toast("Pause first");
+            return self.messages_with_snapshot();
+        }
+        let tick = self.active_engine_tick_result()?;
+        self.tick = self.tick.saturating_add(1);
+        if let Some(layer_tick) = self.layer_ticks.get_mut(self.active_layer_index) {
+            *layer_tick = self.tick;
+        }
+        self.messages_with_input_result(NativeInputResult {
+            events: tick.events,
+            emitted_events: tick.emitted_events,
+            mapped_intents: tick.mapped_intents,
+            model: tick.model,
+        })
     }
 }
 

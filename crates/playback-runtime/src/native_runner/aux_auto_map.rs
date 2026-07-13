@@ -30,6 +30,9 @@ pub(super) struct ResolvedAuxSlot {
 
 impl NativeRunner {
     pub(super) fn effective_aux_slot(&self, index: usize) -> ResolvedAuxSlot {
+        if self.ui.shift_held || self.ui.combined_modifier_held {
+            return self.resolve_shift_aux_slot(index);
+        }
         let auto = self.current_auto_aux_map();
         let custom = self.resolve_custom_aux_slot(index);
         let auto_slot = auto.get(index).and_then(|slot| slot.as_ref());
@@ -50,6 +53,16 @@ impl NativeRunner {
                 auto_slot.and_then(|slot| slot.press.as_ref()).is_some(),
             ),
         }
+    }
+
+    fn resolve_shift_aux_slot(&self, index: usize) -> ResolvedAuxSlot {
+        self.resolve_custom_aux_slot_from(&self.shift_aux_bindings, index)
+            .unwrap_or(ResolvedAuxSlot {
+                turn: None,
+                press: None,
+                turn_source: AuxBindingSource::None,
+                press_source: AuxBindingSource::None,
+            })
     }
 
     pub(super) fn auto_map_prefix_for_line(
@@ -83,7 +96,15 @@ impl NativeRunner {
     }
 
     fn resolve_custom_aux_slot(&self, index: usize) -> Option<ResolvedAuxSlot> {
-        let binding = self.aux_bindings.get(index)?.as_ref()?;
+        self.resolve_custom_aux_slot_from(&self.aux_bindings, index)
+    }
+
+    fn resolve_custom_aux_slot_from(
+        &self,
+        bindings: &[Option<NativeAuxBinding>],
+        index: usize,
+    ) -> Option<ResolvedAuxSlot> {
+        let binding = bindings.get(index)?.as_ref()?;
         let turn = binding.turn_key.as_ref().map(|key| ResolvedAuxTurn {
             key: key.clone(),
             label: self.aux_binding_key_label(key),

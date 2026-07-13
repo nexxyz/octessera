@@ -234,7 +234,7 @@ pub(crate) fn fn_aux_bind_sets_explicit_toast_and_marks_config_dirty() {
 
     assert_eq!(
         runner.toast.as_ref().unwrap().message,
-        "Click-1: Bound turn: Master Vol"
+        "Clk-1: Bound turn: Master Vol"
     );
     assert!(runner.config_dirty);
 }
@@ -254,8 +254,138 @@ pub(crate) fn aux_click_action_toast_is_shown_for_platform_effect_actions() {
         })
         .unwrap();
 
+    assert_eq!(runner.toast.as_ref().unwrap().message, "Clk-1: MIDI Panic");
+}
+
+#[test]
+pub(crate) fn shift_aux_press_uses_shifted_bank_not_plain_bank() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.aux_bindings[0] = Some(NativeAuxBinding {
+        turn_key: None,
+        press_action: Some(NativeMenuAction::PlatformEffect("midi.panic".into())),
+    });
+    runner.shift_aux_bindings[0] = Some(NativeAuxBinding {
+        turn_key: None,
+        press_action: Some(NativeMenuAction::PlatformEffect("preset.refresh".into())),
+    });
+    runner.ui.shift_held = true;
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "aux1" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects == &vec![RuntimePlatformEffect::StoreListPresets]
+    )));
+    assert_eq!(runner.toast.as_ref().unwrap().message, "S+Clk-1: Refresh");
+}
+
+#[test]
+pub(crate) fn shift_aux_turn_uses_shifted_bank_not_plain_bank() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.aux_bindings[0] = Some(NativeAuxBinding {
+        turn_key: Some("masterVolume".into()),
+        press_action: None,
+    });
+    runner.shift_aux_bindings[0] = None;
+    runner.ui.shift_held = true;
+
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "aux1" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
     assert_eq!(
         runner.toast.as_ref().unwrap().message,
-        "Click-1: MIDI Panic"
+        "S+Trn-1: No binding"
     );
+}
+
+#[test]
+pub(crate) fn shift_fn_aux_binds_shift_bank_and_fn_aux_binds_plain_bank() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.menu.state.stack = vec![5, 2];
+    runner.menu.state.cursor = 0;
+    runner.ui.combined_modifier_held = true;
+
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "aux1" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert!(runner.aux_bindings[0].is_none());
+    assert_eq!(
+        runner.shift_aux_bindings[0]
+            .as_ref()
+            .unwrap()
+            .turn_key
+            .as_deref(),
+        Some("masterVolume")
+    );
+    assert_eq!(
+        runner.toast.as_ref().unwrap().message,
+        "S+Clk-1: Bound turn: Master Vol"
+    );
+
+    runner.ui.combined_modifier_held = false;
+    runner.ui.fn_held = true;
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "aux2" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert_eq!(
+        runner.aux_bindings[1].as_ref().unwrap().turn_key.as_deref(),
+        Some("masterVolume")
+    );
+    assert!(runner.shift_aux_bindings[1].is_none());
+}
+
+#[test]
+pub(crate) fn shift_aux_bindings_round_trip_and_old_payload_defaults_empty() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.shift_aux_bindings[0] = Some(NativeAuxBinding {
+        turn_key: Some("sound.noteLengthMs".into()),
+        press_action: Some(NativeMenuAction::PlatformEffect("midi.panic".into())),
+    });
+    let payload = runner.config_payload();
+    assert_eq!(
+        payload["runtimeConfig"]["shiftAuxBindings"]["aux1"]["turnKey"],
+        "sound.noteLengthMs"
+    );
+
+    let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    restored.apply_config_payload(payload).unwrap();
+    assert_eq!(
+        restored.shift_aux_bindings[0]
+            .as_ref()
+            .unwrap()
+            .turn_key
+            .as_deref(),
+        Some("sound.noteLengthMs")
+    );
+
+    let mut old_payload = restored.config_payload();
+    old_payload["runtimeConfig"]
+        .as_object_mut()
+        .unwrap()
+        .remove("shiftAuxBindings");
+    let mut old_loaded = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    old_loaded.shift_aux_bindings[0] = Some(NativeAuxBinding {
+        turn_key: Some("masterVolume".into()),
+        press_action: None,
+    });
+    old_loaded.apply_config_payload(old_payload).unwrap();
+    assert!(old_loaded.shift_aux_bindings.iter().all(Option::is_none));
 }
