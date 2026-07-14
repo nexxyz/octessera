@@ -1,0 +1,10 @@
+[Unit]
+Description=octessera OLED SD card mount
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/octessera-sd-card mount
+
+[Install]
+WantedBy=multi-user.target

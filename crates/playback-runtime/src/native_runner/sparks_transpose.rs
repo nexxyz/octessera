@@ -1,4 +1,5 @@
-use super::{LedColor, NativeRunner, GRID_HEIGHT, GRID_WIDTH};
+use super::{LedColor, NativeRunner, RoutedMusicalEvents, GRID_HEIGHT, GRID_WIDTH};
+use platform_core::MusicalEvent;
 
 pub(super) fn sparks_transpose_offset_at(x: usize, y: usize) -> Option<i8> {
     if x == 0 || y == 0 || y == 7 || x >= GRID_WIDTH || y >= GRID_HEIGHT {
@@ -35,16 +36,20 @@ impl NativeRunner {
             return;
         };
         let mut changed = 0;
+        let mut drain_layers = Vec::new();
         for layer in 0..self.sparks_transpose_offsets.len() {
             if self.sparks_transpose_selected.get(layer) == Some(&true)
                 && self.sparks_transpose_enabled.get(layer) == Some(&true)
                 && self.sparks_transpose_layer_eligible(layer)
+                && self.sparks_transpose_offsets[layer] != offset
             {
+                drain_layers.push(layer);
                 self.sparks_transpose_offsets[layer] = offset;
                 changed += 1;
             }
         }
         if changed > 0 {
+            self.drain_sparks_transpose_layers(&drain_layers);
             self.show_toast(format!("Transpose {offset:+}"));
         }
     }
@@ -58,6 +63,10 @@ impl NativeRunner {
             if self.sparks_transpose_layer_eligible(layer) {
                 self.sparks_transpose_enabled[layer] = any_off;
             }
+        }
+        if !any_off {
+            let layers = (0..self.sparks_transpose_enabled.len()).collect::<Vec<_>>();
+            self.drain_sparks_transpose_layers(&layers);
         }
         self.show_toast(if any_off {
             "Transpose all on"
@@ -98,13 +107,24 @@ impl NativeRunner {
             };
             self.set_display_led(leds, 0, layer, color);
         }
+        let selected_offsets = (0..self.sparks_transpose_offsets.len())
+            .filter(|layer| {
+                self.sparks_transpose_enabled.get(*layer) == Some(&true)
+                    && self.sparks_transpose_selected.get(*layer) == Some(&true)
+                    && self.sparks_transpose_layer_eligible(*layer)
+            })
+            .map(|layer| self.sparks_transpose_offsets[layer])
+            .collect::<Vec<_>>();
         for y in 1..=6 {
             for x in 1..GRID_WIDTH {
                 if let Some(offset) = sparks_transpose_offset_at(x, y) {
-                    let color = if offset == 0 {
+                    let selected = selected_offsets.contains(&offset);
+                    let color = if selected {
+                        LedColor::GREEN
+                    } else if offset == 0 {
                         LedColor::WHITE
                     } else {
-                        LedColor::BLUE
+                        LedColor::BLUE.dim(3)
                     };
                     self.set_display_led(leds, x, y, color);
                 }
@@ -119,6 +139,65 @@ impl NativeRunner {
             return;
         }
         self.sparks_transpose_selected[layer] = !self.sparks_transpose_selected[layer];
+        if !self.sparks_transpose_selected[layer] {
+            self.drain_sparks_transpose_layers(&[layer]);
+        }
+    }
+
+    pub(super) fn drain_all_sparks_transpose_notes(&mut self) {
+        let layers = (0..self.sparks_transpose_active_notes.len()).collect::<Vec<_>>();
+        self.drain_sparks_transpose_layers(&layers);
+    }
+
+    pub(super) fn drain_sparks_transpose_instrument_notes(&mut self, instrument_index: usize) {
+        let mut drained = RoutedMusicalEvents::default();
+        for active_notes in &mut self.sparks_transpose_active_notes {
+            let keys = active_notes
+                .keys()
+                .copied()
+                .filter(|(channel, _)| usize::from(*channel) == instrument_index)
+                .collect::<Vec<_>>();
+            for key in keys {
+                let Some(held_notes) = active_notes.remove(&key) else {
+                    continue;
+                };
+                for held_note in held_notes {
+                    let event = MusicalEvent::NoteOff {
+                        channel: held_note.routed_channel,
+                        note: held_note.routed_note,
+                    };
+                    if held_note.routed_to_midi {
+                        drained.midi.push(event);
+                    } else {
+                        drained.audio.push(event);
+                    }
+                }
+            }
+        }
+        self.pending_transpose_note_offs.extend(drained);
+    }
+
+    fn drain_sparks_transpose_layers(&mut self, layers: &[usize]) {
+        let mut drained = RoutedMusicalEvents::default();
+        for layer in layers {
+            let Some(active_notes) = self.sparks_transpose_active_notes.get_mut(*layer) else {
+                continue;
+            };
+            for held_notes in std::mem::take(active_notes).into_values() {
+                for held_note in held_notes {
+                    let event = MusicalEvent::NoteOff {
+                        channel: held_note.routed_channel,
+                        note: held_note.routed_note,
+                    };
+                    if held_note.routed_to_midi {
+                        drained.midi.push(event);
+                    } else {
+                        drained.audio.push(event);
+                    }
+                }
+            }
+        }
+        self.pending_transpose_note_offs.extend(drained);
     }
 
     fn sparks_transpose_layer_eligible(&self, layer: usize) -> bool {

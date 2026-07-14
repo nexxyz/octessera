@@ -56,6 +56,7 @@ pub struct PlaybackRuntime {
     now_ms: u64,
     last_status: Option<RuntimeStatus>,
     last_snapshot: Option<Value>,
+    last_snapshot_revision: u64,
     scheduled_note_offs: VecDeque<ScheduledMidiMessage>,
     scheduled_note_offs_dirty: bool,
     request_next_snapshot: bool,
@@ -76,6 +77,7 @@ impl PlaybackRuntime {
             now_ms: 0,
             last_status: None,
             last_snapshot: None,
+            last_snapshot_revision: 0,
             scheduled_note_offs: VecDeque::new(),
             scheduled_note_offs_dirty: false,
             request_next_snapshot: false,
@@ -99,8 +101,16 @@ impl PlaybackRuntime {
         self.request_next_snapshot = true;
     }
 
+    pub fn has_scheduled_midi(&self) -> bool {
+        !self.scheduled_note_offs.is_empty()
+    }
+
     pub fn last_snapshot(&self) -> Option<&Value> {
         self.last_snapshot.as_ref()
+    }
+
+    pub fn last_snapshot_revision(&self) -> u64 {
+        self.last_snapshot_revision
     }
 
     pub fn last_status(&self) -> Option<&RuntimeStatus> {
@@ -241,7 +251,10 @@ impl PlaybackRuntime {
         let mut follow_ups = Vec::new();
         for message in messages {
             match message {
-                RunnerMessage::Snapshot { snapshot } => self.last_snapshot = Some(snapshot),
+                RunnerMessage::Snapshot { snapshot } => {
+                    self.last_snapshot = Some(snapshot);
+                    self.last_snapshot_revision = self.last_snapshot_revision.wrapping_add(1);
+                }
                 RunnerMessage::PlatformEffects { effects } => {
                     for effect in effects {
                         for follow_up in host.handle_platform_effect(&effect)? {

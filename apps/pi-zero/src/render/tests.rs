@@ -74,6 +74,13 @@ fn oled_frame_renders_menu_bars_selection_status_and_scrollbar() {
 }
 
 #[test]
+fn oled_title_expands_direct_root_short_breadcrumbs() {
+    assert_eq!(oled::title_text_for_oled("B"), "/Build");
+    assert_eq!(oled::title_text_for_oled("/B"), "/Build");
+    assert_eq!(oled::title_text_for_oled("/B/L1: life"), "/B/L1: life");
+}
+
+#[test]
 fn oled_frame_into_matches_allocating_renderer() {
     let snapshot = menu_snapshot();
     let expected = oled_frame(&snapshot);

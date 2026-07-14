@@ -106,6 +106,12 @@ pub(super) struct NativeConfirmDialog {
     pub(super) confirm_before_execute: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct NativeUsbSdTransferModal {
+    pub(super) title: String,
+    pub(super) lines: Vec<String>,
+}
+
 #[derive(Clone, Debug)]
 pub(super) struct NativeToast {
     pub(super) message: String,

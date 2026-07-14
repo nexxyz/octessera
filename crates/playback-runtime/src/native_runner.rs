@@ -155,6 +155,7 @@ use instrument_runtime::*;
 use json_path::*;
 use menu_value_apply::*;
 use modulation_instrument_numeric::*;
+use modulation_sampler::{RoutedMusicalEvents, TransposedHeldNote};
 use outbox::NativeRunnerOutbox;
 use pan_position::*;
 use pulses_config::*;
@@ -178,6 +179,8 @@ const OLED_SLEEP_SPLASH_MS: u64 = 3_000;
 const OLED_STARTUP_SPLASH_KEY: &str = "startup";
 const OLED_SLEEP_SPLASH_KEY: &str = "sleep";
 const OLED_SHUTDOWN_SPLASH_KEY: &str = "shutdown";
+const OLED_SHUTDOWN_SPLASH_FAILSAFE_MS: u64 = 30_000;
+const AUTO_SAVE_FLASH_MS: u64 = 650;
 #[cfg(not(test))]
 const DEFERRED_MENU_APPLY_MS: u64 = 24;
 #[cfg(test)]
@@ -280,7 +283,8 @@ pub struct NativeRunner {
     sparks_transpose_selected: Vec<bool>,
     sparks_transpose_enabled: Vec<bool>,
     sparks_transpose_offsets: Vec<i8>,
-    sparks_transpose_active_notes: Vec<BTreeMap<(u8, u8), Vec<u8>>>,
+    sparks_transpose_active_notes: Vec<BTreeMap<(u8, u8), Vec<TransposedHeldNote>>>,
+    pending_transpose_note_offs: RoutedMusicalEvents,
     trigger_probability_assign: Option<usize>,
     trigger_probability_maps: Vec<Vec<String>>,
     layer_behavior_ids: Vec<String>,
@@ -301,6 +305,7 @@ pub struct NativeRunner {
     sample_favourite_dirs: Vec<String>,
     help_popup: Option<NativeHelpPopup>,
     confirm_dialog: Option<NativeConfirmDialog>,
+    usb_sd_transfer_modal: Option<NativeUsbSdTransferModal>,
     menu: NativeMenuModel,
     event_dot_on: bool,
     event_dot_pulses_remaining: u8,
@@ -312,7 +317,7 @@ pub struct NativeRunner {
     pending_autosave_payload_due_at: Option<Instant>,
     last_backup_save_at: Option<Instant>,
     auto_save_flash_serial: u64,
-    auto_save_flash_pulses_remaining: u8,
+    auto_save_flash_until: Option<Instant>,
     audio_config_revision: u64,
     last_snapshot_audio_config_revision: Option<u64>,
     suppress_snapshot_response: bool,

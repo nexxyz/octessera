@@ -2,9 +2,10 @@ use playback_runtime::SampleEntry;
 use std::path::Path;
 
 const SD_CARD_SAMPLE_DIR: &str = "sd-card";
+pub(crate) const SD_CARD_SAMPLE_BROWSER_DIR: &str = "sd-card/octessera/samples";
 
 pub fn sample_entries(samples_dir: &Path, dir: &str) -> Result<Vec<SampleEntry>, String> {
-    if dir == SD_CARD_SAMPLE_DIR && !sd_card_samples_available(samples_dir) {
+    if sd_card_path_requested(dir) && !sd_card_samples_available(samples_dir) {
         return Err("SD card is not available. Insert the OLED SD card and try again.".into());
     }
     let root = samples_dir
@@ -77,7 +78,11 @@ fn parent_relative(root: &Path, requested: &Path) -> String {
 
 fn sd_card_samples_available(samples_dir: &Path) -> bool {
     let path = samples_dir.join(SD_CARD_SAMPLE_DIR);
-    path.is_dir() && is_mount_point(&path)
+    path.is_dir() && is_mount_point(&path) && samples_dir.join(SD_CARD_SAMPLE_BROWSER_DIR).is_dir()
+}
+
+fn sd_card_path_requested(dir: &str) -> bool {
+    dir == SD_CARD_SAMPLE_DIR || dir.starts_with("sd-card/")
 }
 
 fn is_mount_point(path: &Path) -> bool {

@@ -107,12 +107,16 @@ pub(super) fn oled_frame_into(snapshot: &Value, frame: &mut [u8]) {
 #[rustfmt::skip]
 fn render_menu_frame(frame: &mut [u8], snapshot: &Value, brightness: f32) {
     let display = snapshot.get("display").unwrap_or(&Value::Null);
-    let title = display.get("title").and_then(Value::as_str).unwrap_or_default();
+    let title = display
+        .get("title")
+        .and_then(Value::as_str)
+        .map(title_text_for_oled)
+        .unwrap_or_default();
     let title_color = rgb565(scale(palette::WHITE, brightness));
     let dim_color = rgb565(scale(dim(palette::GRAY, 4), brightness));
     let text_color = rgb565(scale(palette::WHITE, brightness));
     fill_rect(frame, 0, 0, 128, 16, rgb565(scale(palette::BLACK, brightness)));
-    draw_text_clipped(frame, title, 5, 5, 15, title_color);
+    draw_text_clipped(frame, &title, 5, 5, 15, title_color);
     draw_status_indicators(frame, snapshot, brightness);
 
     let selected_row = snapshot.get("selectedRow").and_then(Value::as_u64).map(|value| value as usize);
@@ -131,6 +135,17 @@ fn render_menu_frame(frame: &mut [u8], snapshot: &Value, brightness: f32) {
     }
     draw_scrollbar(frame, display, dim_color, text_color);
     draw_footer(frame, snapshot, brightness);
+}
+
+pub(super) fn title_text_for_oled(title: &str) -> String {
+    match title {
+        "B" | "/B" => "/Build".into(),
+        "L" | "/L" => "/Link".into(),
+        "S" | "/S" => "/Shape".into(),
+        "P" | "/P" => "/Play".into(),
+        "SYS" | "/SYS" => "/System".into(),
+        other => other.into(),
+    }
 }
 
 pub(super) fn fault_frame_into(lines: &[String], frame: &mut [u8], lit: bool) {

@@ -48,16 +48,19 @@ impl NativeRunner {
             && self.oled_splash_text == super::OLED_STARTUP_SPLASH_KEY
         {
             trace_device_input_wake(trace_context.as_ref(), false, true, "startup_splash");
-            return self.messages_with_snapshot();
+            return self.messages_with_forced_snapshot();
         }
         let woke_display = self.record_display_interaction();
         if woke_display {
             trace_device_input_wake(trace_context.as_ref(), true, true, "wake_consumed");
-            return self.messages_with_snapshot();
+            return self.messages_with_forced_snapshot();
         }
         trace_device_input_wake(trace_context.as_ref(), false, false, "active_dispatch");
         if self.confirm_dialog.is_some() {
             return self.handle_confirm_device_input(input);
+        }
+        if self.usb_sd_transfer_modal.is_some() {
+            return self.handle_usb_sd_transfer_modal_input(input);
         }
         let is_modifier_input = matches!(
             input,
@@ -250,6 +253,21 @@ impl NativeRunner {
                     return self.messages_with_effects(vec![RuntimePlatformEffect::MidiPanic]);
                 }
             }
+        }
+        self.messages_with_snapshot()
+    }
+
+    fn handle_usb_sd_transfer_modal_input(
+        &mut self,
+        input: DeviceInput,
+    ) -> Result<Vec<RunnerMessage>, String> {
+        let close_requested = matches!(
+            input,
+            DeviceInput::EncoderPress { ref id } if id.as_deref().unwrap_or("main") == "main"
+        ) || matches!(input, DeviceInput::ButtonA { pressed } if pressed.unwrap_or(true));
+        if close_requested {
+            self.usb_sd_transfer_modal = None;
+            return self.messages_with_effects(vec![RuntimePlatformEffect::UsbSdTransferStop]);
         }
         self.messages_with_snapshot()
     }

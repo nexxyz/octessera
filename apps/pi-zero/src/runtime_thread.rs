@@ -8,11 +8,13 @@ use crate::main_runtime_loop::{
 };
 use crate::render_loop::RenderWorker;
 use crate::runtime_loop::initialize_host_state;
+use crate::sample_browser::SD_CARD_SAMPLE_BROWSER_DIR;
 use crate::ui_profile::UiProfiler;
 use crate::usb_config::UsbAudioOut;
 use octessera_hal::encoder_gpio::HardwareEvent;
 use playback_runtime::{
-    HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig, SyncSource,
+    HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig,
+    RuntimeTransportState, SyncSource,
 };
 use std::path::PathBuf;
 use std::sync::mpsc;
@@ -24,12 +26,14 @@ const PLAYBACK_TICK_MS: u64 = 8;
 const SNAPSHOT_INTERVAL_MS: u64 = 33;
 const RENDER_INTERVAL_MS: u64 = 33;
 const SCHEDULER_IDLE_SLEEP_MAX_MS: u64 = 4;
-const PI_SD_CARD_SAMPLE_DIR: &str = "sd-card";
+const SCHEDULER_STOPPED_SLEEP_MAX_MS: u64 = 20;
 
 struct SchedulerState {
     last_tick: Instant,
     last_snapshot_request: Instant,
     last_render: Instant,
+    last_rendered_snapshot_revision: u64,
+    transient_render_until: Option<Instant>,
     pending_encoder_turns: PendingEncoderTurns,
     temporary_neokey_hack: crate::temporary_neokey_hack::TemporaryNeoKeyHack,
     ui_profiler: UiProfiler,
@@ -41,6 +45,8 @@ impl SchedulerState {
             last_tick: Instant::now(),
             last_snapshot_request: Instant::now(),
             last_render: Instant::now() - Duration::from_millis(RENDER_INTERVAL_MS),
+            last_rendered_snapshot_revision: 0,
+            transient_render_until: None,
             pending_encoder_turns: PendingEncoderTurns::default(),
             temporary_neokey_hack: Default::default(),
             ui_profiler: UiProfiler::from_process(),
@@ -122,7 +128,7 @@ fn init_runtime() -> (PlaybackRuntime, NativeRunner) {
     });
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
-        sample_builtin_favourite_dirs: vec![String::new(), PI_SD_CARD_SAMPLE_DIR.into()],
+        sample_builtin_favourite_dirs: vec![String::new(), SD_CARD_SAMPLE_BROWSER_DIR.into()],
         ..NativeRunnerConfig::default()
     })
     .expect("native runner should initialize");
@@ -209,21 +215,57 @@ fn run_scheduler(
         ) {
             break;
         }
-        thread::sleep(state.idle_sleep_duration());
+        thread::sleep(state.idle_sleep_duration(&playback, &runner));
     }
 }
 
 impl SchedulerState {
-    fn idle_sleep_duration(&self) -> Duration {
+    fn idle_sleep_duration(&self, playback: &PlaybackRuntime, runner: &NativeRunner) -> Duration {
         let now = Instant::now();
-        let tick_due = self.last_tick + Duration::from_millis(PLAYBACK_TICK_MS);
-        let render_due = self.last_render + Duration::from_millis(RENDER_INTERVAL_MS);
-        let next_due = tick_due.min(render_due);
+        let mut next_due = None;
+        if runtime_tick_needed(playback) {
+            next_due = Some(self.last_tick + Duration::from_millis(PLAYBACK_TICK_MS));
+        }
+        if render_tick_needed(self, playback) {
+            next_due = Some(earliest_due(
+                next_due,
+                self.last_render + Duration::from_millis(RENDER_INTERVAL_MS),
+            ));
+        }
+        if let Some(display_deadline) =
+            runner.next_timed_display_snapshot_deadline_after(Some(self.last_snapshot_request))
+        {
+            next_due = Some(earliest_due(next_due, display_deadline));
+        }
+        let max_sleep = if runtime_tick_needed(playback) || render_tick_needed(self, playback) {
+            Duration::from_millis(SCHEDULER_IDLE_SLEEP_MAX_MS)
+        } else {
+            Duration::from_millis(SCHEDULER_STOPPED_SLEEP_MAX_MS)
+        };
         next_due
-            .checked_duration_since(now)
-            .unwrap_or_default()
-            .min(Duration::from_millis(SCHEDULER_IDLE_SLEEP_MAX_MS))
+            .and_then(|due| due.checked_duration_since(now))
+            .unwrap_or(max_sleep)
+            .min(max_sleep)
     }
+}
+
+fn runtime_tick_needed(playback: &PlaybackRuntime) -> bool {
+    playback.has_scheduled_midi()
+        || (playback.config().sync_source == SyncSource::Internal
+            && playback
+                .last_status()
+                .is_some_and(|status| status.transport == RuntimeTransportState::Playing))
+}
+
+fn render_tick_needed(state: &SchedulerState, playback: &PlaybackRuntime) -> bool {
+    state
+        .transient_render_until
+        .is_some_and(|deadline| Instant::now() <= deadline)
+        || playback.last_snapshot_revision() != state.last_rendered_snapshot_revision
+}
+
+fn earliest_due(current: Option<Instant>, candidate: Instant) -> Instant {
+    current.map_or(candidate, |current| current.min(candidate))
 }
 
 fn advance(
@@ -240,6 +282,8 @@ fn advance(
         Duration::from_millis(SNAPSHOT_INTERVAL_MS),
         &mut state.last_render,
         Duration::from_millis(RENDER_INTERVAL_MS),
+        &mut state.last_rendered_snapshot_revision,
+        &mut state.transient_render_until,
         &mut state.pending_encoder_turns,
         playback,
         runner,

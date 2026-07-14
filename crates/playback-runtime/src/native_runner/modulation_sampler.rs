@@ -8,6 +8,13 @@ pub(super) struct RoutedMusicalEvents {
     pub(super) midi: Vec<MusicalEvent>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct TransposedHeldNote {
+    pub(super) routed_channel: u8,
+    pub(super) routed_note: u8,
+    pub(super) routed_to_midi: bool,
+}
+
 impl RoutedMusicalEvents {
     pub(super) fn is_empty(&self) -> bool {
         self.audio.is_empty() && self.midi.is_empty()
@@ -51,7 +58,7 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
     instruments: &[super::NativeInstrumentSlot],
     sense: Option<&NativePulsesLayer>,
     transpose_offset: i8,
-    mut active_transpose_notes: Option<&mut BTreeMap<(u8, u8), Vec<u8>>>,
+    mut active_transpose_notes: Option<&mut BTreeMap<(u8, u8), Vec<TransposedHeldNote>>>,
 ) -> RoutedMusicalEvents {
     let mut out = Vec::with_capacity(events.len());
     let mut midi = Vec::new();
@@ -69,7 +76,7 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
             }
             MusicalEvent::Cc { channel, .. } => *channel,
         };
-        let route = instrument_route(instruments, channel);
+        let mut route = instrument_route(instruments, channel);
         if let Some(sense) = sense {
             let cc_events =
                 cc_events_from_intent(intent, sense, midi_event_channel(instruments, channel));
@@ -97,21 +104,26 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
                 if let Some(instrument) = instruments.get(*channel as usize) {
                     let original_channel = *channel;
                     let original_note = *note;
-                    if instrument.kind == "synth"
-                        || (instrument.kind == "midi" && instrument.midi_enabled)
-                    {
+                    let transpose_eligible = instrument.kind == "synth"
+                        || (instrument.kind == "midi" && instrument.midi_enabled);
+                    if transpose_eligible {
                         transpose_note(note, transpose_offset);
-                        if duration_ms.is_none() {
-                            if let Some(active_notes) = active_transpose_notes.as_deref_mut() {
-                                active_notes
-                                    .entry((original_channel, original_note))
-                                    .or_default()
-                                    .push(*note);
-                            }
-                        }
                     }
                     if instrument.kind == "midi" && instrument.midi_enabled {
                         *channel = instrument.midi_channel.saturating_sub(1).min(15);
+                    }
+                    if transpose_eligible && duration_ms.is_none() {
+                        if let Some(active_notes) = active_transpose_notes.as_deref_mut() {
+                            active_notes
+                                .entry((original_channel, original_note))
+                                .or_default()
+                                .push(TransposedHeldNote {
+                                    routed_channel: *channel,
+                                    routed_note: *note,
+                                    routed_to_midi: instrument.kind == "midi"
+                                        && instrument.midi_enabled,
+                                });
+                        }
                     }
                     if instrument.kind == "midi" && !instrument.midi_enabled {
                         suppress = true;
@@ -132,44 +144,49 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
                 }
             }
             MusicalEvent::NoteOff { channel, note } => {
-                if let Some(instrument) = instruments.get(*channel as usize) {
-                    let original_channel = *channel;
-                    let original_note = *note;
-                    if instrument.kind == "synth"
-                        || (instrument.kind == "midi" && instrument.midi_enabled)
-                    {
-                        if let Some(active_notes) = active_transpose_notes.as_deref_mut() {
-                            if let Some(notes) =
-                                active_notes.get_mut(&(original_channel, original_note))
-                            {
-                                if let Some(transposed_note) = notes.pop() {
-                                    *note = transposed_note;
-                                }
-                                if notes.is_empty() {
-                                    active_notes.remove(&(original_channel, original_note));
-                                }
+                let mut used_held_transpose_note = false;
+                let original_channel = *channel;
+                let original_note = *note;
+                if let Some(active_notes) = active_transpose_notes.as_deref_mut() {
+                    if let Some(notes) = active_notes.get_mut(&(original_channel, original_note)) {
+                        if let Some(held_note) = notes.pop() {
+                            *channel = held_note.routed_channel;
+                            *note = held_note.routed_note;
+                            route = if held_note.routed_to_midi {
+                                InstrumentRoute::ExternalMidi
                             } else {
-                                transpose_note(note, transpose_offset);
-                            }
-                        } else {
-                            transpose_note(note, transpose_offset);
+                                InstrumentRoute::InternalAudio
+                            };
+                            used_held_transpose_note = true;
+                        }
+                        if notes.is_empty() {
+                            active_notes.remove(&(original_channel, original_note));
                         }
                     }
-                    if instrument.kind == "midi" && instrument.midi_enabled {
-                        *channel = instrument.midi_channel.saturating_sub(1).min(15);
-                    }
-                    if instrument.kind == "midi" && !instrument.midi_enabled {
-                        suppress = true;
-                    }
-                    if instrument.kind == "sampler" {
-                        if let Some(assignment) = instrument
-                            .sample_assignments
-                            .iter()
-                            .find(|assignment| assignment.x == intent.x && assignment.y == intent.y)
+                }
+                if !used_held_transpose_note {
+                    if let Some(instrument) = instruments.get(*channel as usize) {
+                        if instrument.kind == "synth"
+                            || (instrument.kind == "midi" && instrument.midi_enabled)
                         {
-                            *note = 36 + assignment.sample_slot.min(7) as u8;
-                        } else {
+                            transpose_note(note, transpose_offset);
+                        }
+                        if instrument.kind == "midi" && instrument.midi_enabled {
+                            *channel = instrument.midi_channel.saturating_sub(1).min(15);
+                        }
+                        if instrument.kind == "midi" && !instrument.midi_enabled {
                             suppress = true;
+                        }
+                        if instrument.kind == "sampler" {
+                            if let Some(assignment) =
+                                instrument.sample_assignments.iter().find(|assignment| {
+                                    assignment.x == intent.x && assignment.y == intent.y
+                                })
+                            {
+                                *note = 36 + assignment.sample_slot.min(7) as u8;
+                            } else {
+                                suppress = true;
+                            }
                         }
                     }
                 }

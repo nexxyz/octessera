@@ -27,6 +27,8 @@ impl NativeRunner {
     ) -> DisplaySnapshot {
         let mut display = if let Some(confirm) = &self.confirm_dialog {
             confirm_dialog_display(confirm)
+        } else if let Some(modal) = &self.usb_sd_transfer_modal {
+            usb_sd_transfer_modal_display(modal)
         } else if let Some(help) = &self.help_popup {
             help_popup_display(help)
         } else if let Some((title, lines)) = self.aux_mapping_overlay() {
@@ -108,6 +110,22 @@ fn confirm_dialog_display(confirm: &super::NativeConfirmDialog) -> DisplaySnapsh
                 .saturating_add(confirm.cursor)
                 .min(OLED_BODY_ROWS.saturating_sub(1)),
         ),
+    }
+}
+
+fn usb_sd_transfer_modal_display(modal: &super::NativeUsbSdTransferModal) -> DisplaySnapshot {
+    let mut lines = modal.lines.clone();
+    lines.push("> Stop Transfer".into());
+    lines.truncate(OLED_BODY_ROWS);
+    let line_count = lines.len();
+    DisplaySnapshot {
+        title: modal.title.clone(),
+        lines,
+        colors: vec![platform_core::palette::WHITE_RGB565; line_count],
+        bar_values: vec![Value::Null; line_count],
+        full_lines: vec![None; line_count],
+        scroll: None,
+        selected_row: Some(line_count.saturating_sub(1)),
     }
 }
 

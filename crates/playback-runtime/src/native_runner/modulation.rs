@@ -245,6 +245,34 @@ fn instrument_modulation_audio_command(
             path: field.into(),
             value: value.round().clamp(0.0, 255.0) as f32,
         }),
+        "synth.filter.envAmountPct" => Some(RuntimeAudioCommand::SetSynthParam {
+            instrument_slot: index,
+            path: field.into(),
+            value: value.round().clamp(-100.0, 100.0) as f32,
+        }),
+        "synth.filter.keyTrackingPct"
+        | "synth.amp.velocitySensitivityPct"
+        | "synth.ampEnv.sustainPct"
+        | "synth.filterEnv.sustainPct" => Some(RuntimeAudioCommand::SetSynthParam {
+            instrument_slot: index,
+            path: field.into(),
+            value: value.round().clamp(0.0, 100.0) as f32,
+        }),
+        "synth.ampEnv.attackMs"
+        | "synth.ampEnv.decayMs"
+        | "synth.filterEnv.attackMs"
+        | "synth.filterEnv.decayMs" => Some(RuntimeAudioCommand::SetSynthParam {
+            instrument_slot: index,
+            path: field.into(),
+            value: value.round().clamp(0.0, 5000.0) as f32,
+        }),
+        "synth.ampEnv.releaseMs" | "synth.filterEnv.releaseMs" => {
+            Some(RuntimeAudioCommand::SetSynthParam {
+                instrument_slot: index,
+                path: field.into(),
+                value: value.round().clamp(0.0, 10000.0) as f32,
+            })
+        }
         "sample.filter.cutoffHz" => Some(RuntimeAudioCommand::SetSampleBankParam {
             instrument_slot: index,
             path: field.into(),

@@ -66,7 +66,7 @@ pub(crate) fn number_params_emit_bar_values_and_pan_uses_marker_format() {
     assert!(pan.lines.iter().any(|line| line == "  Volume 100"));
     let pan_value_row = pan.selected_row.unwrap();
     assert!(
-        matches!(pan.bar_values.get(pan_value_row), Some(Some(NativeMenuBarValue { style: Some(style), .. })) if style == "marker")
+        matches!(pan.bar_values.get(pan_value_row + 1), Some(Some(NativeMenuBarValue { style: Some(style), .. })) if style == "marker")
     );
 
     let mut menu = NativeMenuModel::new(config());
@@ -75,7 +75,7 @@ pub(crate) fn number_params_emit_bar_values_and_pan_uses_marker_format() {
     let volume = menu.snapshot();
     assert!(volume.lines.iter().any(|line| line == "> Master Vol 100"));
     assert!(matches!(
-        volume.bar_values.get(volume.selected_row.unwrap()),
+        volume.bar_values.get(volume.selected_row.unwrap() + 1),
         Some(Some(NativeMenuBarValue {
             frac_pct: 100,
             style: None,

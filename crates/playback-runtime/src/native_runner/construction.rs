@@ -225,6 +225,7 @@ impl NativeRunner {
             sparks_transpose_enabled: vec![true; LAYER_COUNT],
             sparks_transpose_offsets: vec![0; LAYER_COUNT],
             sparks_transpose_active_notes: vec![BTreeMap::new(); LAYER_COUNT],
+            pending_transpose_note_offs: RoutedMusicalEvents::default(),
             trigger_probability_assign: None,
             trigger_probability_maps: vec![
                 vec!["full".into(); GRID_WIDTH * GRID_HEIGHT];
@@ -248,6 +249,7 @@ impl NativeRunner {
             sample_favourite_dirs: Vec::new(),
             help_popup: None,
             confirm_dialog: None,
+            usb_sd_transfer_modal: None,
             menu,
             event_dot_on: false,
             event_dot_pulses_remaining: 0,
@@ -259,7 +261,7 @@ impl NativeRunner {
             pending_autosave_payload_due_at: None,
             last_backup_save_at: None,
             auto_save_flash_serial: 0,
-            auto_save_flash_pulses_remaining: 0,
+            auto_save_flash_until: None,
             audio_config_revision: 0,
             last_snapshot_audio_config_revision: None,
             suppress_snapshot_response: false,

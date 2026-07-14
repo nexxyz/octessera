@@ -41,12 +41,21 @@ impl AudioStreamHealth {
         self.faulted.load(Ordering::Relaxed)
     }
 
+    pub(crate) fn clear_faulted(&self) {
+        self.faulted.store(false, Ordering::Relaxed);
+    }
+
     pub(crate) fn log(&self, error: StreamError) {
+        if matches!(error, StreamError::DeviceNotAvailable) {
+            self.faulted.store(true, Ordering::Relaxed);
+        }
         let Ok(mut state) = self.state.lock() else {
             return;
         };
         let now = Instant::now();
-        self.update_fault_window(&mut state, now);
+        if !matches!(error, StreamError::DeviceNotAvailable) {
+            self.update_fault_window(&mut state, now);
+        }
         self.log_rate_limited(&mut state, now, error);
     }
 
@@ -93,5 +102,19 @@ impl AudioStreamHealth {
                 self.label
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn device_loss_faults_immediately() {
+        let health = AudioStreamHealth::new("usb".into());
+
+        health.log(StreamError::DeviceNotAvailable);
+
+        assert!(health.is_faulted());
     }
 }

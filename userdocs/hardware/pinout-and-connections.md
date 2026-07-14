@@ -19,6 +19,7 @@ Use it while assembling the device. It is deliberately plain: this is where the 
 - Power the device through the enclosure USB-C power port only.
 - Do not power the device from the Raspberry Pi micro-USB power port.
 - The enclosure intentionally covers the Pi micro-USB power port so it cannot be used by mistake.
+- If you use the Pi USB data/gadget port with a host computer, use a data-only cable or another hardware method that blocks the cable's 5V line. Software cannot make a Pi Zero accept USB data while electrically refusing USB power.
 - The USB-C breakout feeds the shared `+5V` rail for the Pi, OLED, NeoKey, NeoTrellis connector, and DAC.
 - `C1` is a `470uf` polarized capacitor across `+5V` and `GND` to add bulk supply smoothing on the main power rail.
 

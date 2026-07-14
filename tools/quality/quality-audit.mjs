@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, relative, resolve } from "node:path";
 
 const ROOT = resolve(process.cwd());
@@ -15,6 +15,12 @@ const thresholds = {
   paramsWarn: 4,
   paramsHard: 6
 };
+
+const requiredPiImageAssets = [
+  "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-sd-card",
+  "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-sd-card.service",
+  "tools/pi-image/stage4-octessera/files/root/etc/udev/rules.d/99-octessera-sd-card.rules"
+];
 
 function listFiles(dir) {
   const out = [];
@@ -95,6 +101,11 @@ const longFns = fnStats.filter((f) => f.loc > thresholds.fnLocWarn).sort((a, b) 
 const wideFns = fnStats.filter((f) => f.paramCount > thresholds.paramsWarn).sort((a, b) => b.paramCount - a.paramCount);
 
 const report = [];
+const missingPiImageAssets = requiredPiImageAssets.filter((file) => !existsSync(join(ROOT, file)));
+if (missingPiImageAssets.length > 0) {
+  console.error(`Missing required Pi image assets:\n${missingPiImageAssets.map((file) => `- ${file}`).join("\n")}`);
+  process.exit(1);
+}
 report.push("# Code Quality Baseline");
 report.push("");
 report.push("## Standards (Staged Warning Mode)");

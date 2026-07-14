@@ -41,8 +41,23 @@ impl SynthEngine {
         let synth = &mut self.instruments[slot];
         match path {
             "synth.amp.gainPct" => synth.amp.gain_pct = value.clamp(0.0, 100.0),
+            "synth.amp.velocitySensitivityPct" => {
+                synth.amp.velocity_sensitivity_pct = value.clamp(0.0, 100.0)
+            }
+            "synth.ampEnv.attackMs" => synth.amp_env.attack_ms = value.clamp(0.0, 5000.0),
+            "synth.ampEnv.decayMs" => synth.amp_env.decay_ms = value.clamp(0.0, 5000.0),
+            "synth.ampEnv.sustainPct" => synth.amp_env.sustain_pct = value.clamp(0.0, 100.0),
+            "synth.ampEnv.releaseMs" => synth.amp_env.release_ms = value.clamp(0.0, 10000.0),
             "synth.filter.cutoffHz" => synth.filter.cutoff_hz = value.clamp(20.0, 20_000.0),
             "synth.filter.resonance" => synth.filter.resonance = value.clamp(0.0, 255.0),
+            "synth.filter.envAmountPct" => synth.filter.env_amount_pct = value.clamp(-100.0, 100.0),
+            "synth.filter.keyTrackingPct" => {
+                synth.filter.key_tracking_pct = value.clamp(0.0, 100.0)
+            }
+            "synth.filterEnv.attackMs" => synth.filter_env.attack_ms = value.clamp(0.0, 5000.0),
+            "synth.filterEnv.decayMs" => synth.filter_env.decay_ms = value.clamp(0.0, 5000.0),
+            "synth.filterEnv.sustainPct" => synth.filter_env.sustain_pct = value.clamp(0.0, 100.0),
+            "synth.filterEnv.releaseMs" => synth.filter_env.release_ms = value.clamp(0.0, 10000.0),
             _ => return,
         }
         self.synth_render_configs[slot] = SynthVoiceRenderConfig::from_config(*synth);

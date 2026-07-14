@@ -2,8 +2,8 @@ use crate::protocol::{HostMessage, RunnerMessage};
 use std::time::Instant;
 
 use super::{
-    wrap_help_text, DeviceInput, NativeHelpPopup, NativeRunner, NativeToast, RuntimeTransportState,
-    SyncSource,
+    wrap_help_text, DeviceInput, NativeHelpPopup, NativeRunner, NativeToast,
+    NativeUsbSdTransferModal, RuntimeTransportState, SyncSource,
 };
 
 const OLED_HELP_LINE_WIDTH: usize = 18;
@@ -58,6 +58,16 @@ impl NativeRunner {
         };
         let max = confirm.options.len().saturating_sub(1);
         confirm.cursor = (confirm.cursor as isize + delta as isize).clamp(0, max as isize) as usize;
+    }
+
+    pub(super) fn open_usb_sd_transfer_modal(&mut self) {
+        self.usb_sd_transfer_modal = Some(NativeUsbSdTransferModal {
+            title: "SD Transfer".into(),
+            lines: wrap_help_text(
+                "USB SD transfer is active. Eject the drive on the host, then press Back or Main to stop transfer.",
+                OLED_HELP_LINE_WIDTH,
+            ),
+        });
     }
 
     pub(super) fn confirm_dialog_selection(

@@ -6,6 +6,7 @@ CONFIG=/home/pi/presets/default.json
 STORAGE_CONFIG=/etc/octessera/usb-storage.conf
 SD_MOUNT=/home/pi/samples/sd-card
 STORAGE_STATE=/run/octessera-usb-storage.state
+SD_LOCK=/run/octessera-sd-card.lock
 LOG=octessera-usb-gadget
 LINE_CONNECTOR_TERMINAL_TYPE=1539
 
@@ -263,10 +264,17 @@ storage_stop() {
   [ "${setup_failed:-0}" = 0 ] || exit 1
 }
 
+with_sd_lock() {
+  (
+    flock 9
+    "$@"
+  ) 9>"$SD_LOCK"
+}
+
 case "${1:-setup}" in
   setup) setup ;;
   teardown) teardown ;;
-  storage-start) storage_start ;;
-  storage-stop) storage_stop ;;
+  storage-start) with_sd_lock storage_start ;;
+  storage-stop) with_sd_lock storage_stop ;;
   *) echo "usage: $0 [setup|teardown|storage-start|storage-stop]" >&2; exit 2 ;;
 esac

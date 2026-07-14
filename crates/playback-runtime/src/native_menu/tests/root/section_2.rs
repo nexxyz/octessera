@@ -68,8 +68,10 @@ pub(crate) fn pulses_starts_with_global_rows_and_layer_rows_are_enterable() {
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "/Link");
     assert_eq!(snapshot.lines[0], "> BPM 120");
-    assert_eq!(snapshot.lines[1], "  Swing 0%");
-    assert_eq!(snapshot.lines[2], "  Aux Mappings >");
+    assert_eq!(snapshot.lines[1], "");
+    assert!(snapshot.bar_values[1].is_some());
+    assert_eq!(snapshot.lines[2], "  Swing 0%");
+    assert_eq!(snapshot.lines[3], "  Aux Mappings >");
     menu.turn(1);
     menu.turn(1);
     menu.turn(1);

@@ -1,3 +1,8 @@
+use crate::audio_hotplug::{
+    broadcast_event, default_replay_events, has_sink, is_replay_event, recovery_enabled,
+    register_sink, remove_sink, replay_to_sink, startup_sinks, usb_uses_recording_tap, ReplayCache,
+    SinkSender,
+};
 use crate::audio_stream_health::AudioStreamHealth;
 use crate::recording::{RecorderService, RecordingTap};
 use crate::usb_config::UsbAudioOut;
@@ -16,47 +21,12 @@ use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 
 const USB_AUDIO_STARTUP_FAULT_GRACE: Duration = Duration::from_millis(250);
-
-#[cfg(target_os = "linux")]
-mod audio_priority {
-    use std::cell::Cell;
-
-    thread_local! {
-        static PRIORITY_CONFIGURED: Cell<bool> = const { Cell::new(false) };
-    }
-
-    pub(super) fn configure_callback_thread() {
-        PRIORITY_CONFIGURED.with(|configured| {
-            if configured.get() {
-                return;
-            }
-            configured.set(true);
-            let priority = std::env::var("OCTESSERA_AUDIO_THREAD_PRIORITY")
-                .ok()
-                .and_then(|value| value.parse::<i32>().ok())
-                .unwrap_or(70)
-                .clamp(1, 80);
-            let params = libc::sched_param {
-                sched_priority: priority,
-            };
-            let result = unsafe {
-                libc::pthread_setschedparam(libc::pthread_self(), libc::SCHED_FIFO, &params)
-            };
-            if result != 0 {
-                eprintln!("audio thread realtime priority unavailable: errno {result}");
-            }
-        });
-    }
-}
-
-#[cfg(not(target_os = "linux"))]
-mod audio_priority {
-    pub(super) fn configure_callback_thread() {}
-}
+const USB_AUDIO_RECOVERY_INTERVAL: Duration = Duration::from_secs(2);
 
 #[derive(Clone)]
 pub struct AudioService {
-    realtime_txs: Vec<Sender<EngineEvent>>,
+    realtime_txs: Arc<Mutex<Vec<SinkSender>>>,
+    replay_events: Arc<Mutex<ReplayCache>>,
     pub control_tx: Sender<AudioControlRequest>,
     pub config_revision: Arc<AtomicU64>,
     pub sample_cache:
@@ -80,12 +50,18 @@ pub struct AudioManager {
     service: AudioService,
 }
 
+struct ManagedUsbStream {
+    _stream: Stream,
+    health: AudioStreamHealth,
+}
+
 impl AudioManager {
     pub fn new(output_buffer_frames: Option<u32>, audio_out: UsbAudioOut) -> Result<Self, String> {
         let (control_tx, control_rx) = mpsc::channel::<AudioControlRequest>();
         let mut streams = Vec::new();
-        let mut realtime_txs = Vec::new();
-        let sinks = audio_sinks(audio_out);
+        let realtime_txs = Arc::new(Mutex::new(Vec::new()));
+        let replay_events = Arc::new(Mutex::new(default_replay_events()));
+        let sinks = startup_sinks(audio_out);
         let recorder = Arc::new(Mutex::new(RecorderService::new(recordings_dir())));
         let recording_tap = Arc::new(RwLock::new(None));
         let mut recording_tap_claimed = false;
@@ -98,41 +74,37 @@ impl AudioManager {
                         recording_tap_claimed = true;
                     }
                     streams.push(stream);
-                    realtime_txs.push(engine_tx);
+                    register_sink(&realtime_txs, sink, engine_tx);
                 }
                 Err(error) if audio_out == UsbAudioOut::Both => {
                     eprintln!("{sink:?} audio init failed: {error} (continuing with other sinks)");
                 }
-                Err(error) if audio_out == UsbAudioOut::Usb && sink == AudioSink::Usb => {
-                    eprintln!("Usb audio init failed: {error} (falling back to jack)");
-                    let (engine_tx, stream) =
-                        open_audio_sink(output_buffer_frames, AudioSink::Jack, tap)?;
-                    if uses_recording_tap {
-                        recording_tap_claimed = true;
-                    }
-                    streams.push(stream);
-                    realtime_txs.push(engine_tx);
-                }
                 Err(error) => return Err(error),
             }
         }
-        if streams.is_empty() {
+        if streams.is_empty() && audio_out == UsbAudioOut::Jack {
             return Err("no requested audio outputs opened".into());
         }
         let service = AudioService {
             realtime_txs: realtime_txs.clone(),
+            replay_events: replay_events.clone(),
             control_tx,
             config_revision: Arc::new(AtomicU64::new(0)),
             sample_cache: Arc::new(Mutex::new(std::collections::HashMap::new())),
             sample_bank_signature: Arc::new(Mutex::new(String::new())),
             recorder,
-            recording_tap,
+            recording_tap: recording_tap.clone(),
         };
-        crate::host_audio_prep::spawn_audio_control_worker(
-            control_rx,
-            realtime_txs,
-            service.clone(),
-        );
+        crate::host_audio_prep::spawn_audio_control_worker(control_rx, service.clone());
+        if recovery_enabled(audio_out) {
+            spawn_usb_recovery_worker(
+                output_buffer_frames,
+                realtime_txs.clone(),
+                replay_events.clone(),
+                recording_tap.clone(),
+                audio_out,
+            );
+        }
         Ok(Self {
             _streams: streams,
             service,
@@ -171,6 +143,72 @@ fn open_audio_sink(
     Ok((engine_tx, stream))
 }
 
+fn open_managed_usb_sink(
+    output_buffer_frames: Option<u32>,
+    recording_tap: Option<Arc<RwLock<Option<RecordingTap>>>>,
+) -> Result<(Sender<EngineEvent>, ManagedUsbStream), String> {
+    let sink = AudioSink::Usb;
+    let (engine_tx, engine_rx) = mpsc::channel::<EngineEvent>();
+    let health = AudioStreamHealth::new(format!("{sink:?}"));
+    let stream = build_cpal_stream(
+        engine_rx,
+        output_buffer_frames,
+        sink,
+        recording_tap,
+        health.clone(),
+    )?;
+    stream
+        .play()
+        .map_err(|e| format!("failed to play {sink:?} audio stream: {e}"))?;
+    std::thread::sleep(USB_AUDIO_STARTUP_FAULT_GRACE);
+    if health.is_faulted() {
+        return Err("USB audio stream entered a high-rate error loop".into());
+    }
+    Ok((
+        engine_tx,
+        ManagedUsbStream {
+            _stream: stream,
+            health,
+        },
+    ))
+}
+
+fn spawn_usb_recovery_worker(
+    output_buffer_frames: Option<u32>,
+    realtime_txs: Arc<Mutex<Vec<SinkSender>>>,
+    replay_events: Arc<Mutex<ReplayCache>>,
+    recording_tap: Arc<RwLock<Option<RecordingTap>>>,
+    audio_out: UsbAudioOut,
+) {
+    std::thread::spawn(move || {
+        let mut managed: Option<ManagedUsbStream> = None;
+        loop {
+            if managed
+                .as_ref()
+                .is_some_and(|stream| stream.health.is_faulted())
+            {
+                remove_sink(&realtime_txs, AudioSink::Usb);
+                managed = None;
+                eprintln!("USB audio stream faulted; waiting for gadget audio to return");
+            }
+            if !has_sink(&realtime_txs, AudioSink::Usb) {
+                let tap = usb_uses_recording_tap(audio_out).then(|| recording_tap.clone());
+                match open_managed_usb_sink(output_buffer_frames, tap) {
+                    Ok((tx, stream)) => {
+                        replay_to_sink(&tx, &replay_events);
+                        register_sink(&realtime_txs, AudioSink::Usb, tx);
+                        stream.health.clear_faulted();
+                        managed = Some(stream);
+                        eprintln!("USB audio stream ready");
+                    }
+                    Err(error) => eprintln!("USB audio unavailable: {error}"),
+                }
+            }
+            std::thread::sleep(USB_AUDIO_RECOVERY_INTERVAL);
+        }
+    });
+}
+
 fn build_cpal_stream(
     engine_rx: mpsc::Receiver<EngineEvent>,
     output_buffer_frames: Option<u32>,
@@ -203,12 +241,13 @@ fn build_cpal_stream(
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum AudioSink {
+pub(crate) enum AudioSink {
     Jack,
     Usb,
 }
 
-fn audio_sinks(audio_out: UsbAudioOut) -> Vec<AudioSink> {
+#[cfg(test)]
+pub(crate) fn audio_sinks(audio_out: UsbAudioOut) -> Vec<AudioSink> {
     match audio_out {
         UsbAudioOut::Jack => vec![AudioSink::Jack],
         UsbAudioOut::Usb => vec![AudioSink::Usb],
@@ -282,7 +321,7 @@ where
         .build_output_stream(
             config,
             move |data: &mut [T], _| {
-                audio_priority::configure_callback_thread();
+                crate::audio_priority::configure_callback_thread();
                 fill_output(data, &mut source, recording_tap.as_ref());
             },
             move |error| stream_health.log(error),
@@ -342,6 +381,7 @@ impl AudioService {
     }
 
     pub fn send_realtime(&self, event: EngineEvent) -> Result<(), String> {
+        self.remember_replay_event(&event);
         broadcast_event(&self.realtime_txs, event)
     }
 
@@ -394,24 +434,29 @@ impl AudioService {
     }
 }
 
+impl AudioService {
+    pub(crate) fn remember_replay_event(&self, event: &EngineEvent) {
+        if !is_replay_event(event) {
+            return;
+        }
+        if let Ok(mut events) = self.replay_events.lock() {
+            events.remember(event);
+        }
+    }
+
+    pub(crate) fn broadcast(&self, event: EngineEvent) -> Result<(), String> {
+        self.remember_replay_event(&event);
+        broadcast_event(&self.realtime_txs, event)
+    }
+}
+
 fn recordings_dir() -> PathBuf {
     std::env::var("OCTESSERA_PI_RECORDINGS_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from("/home/pi/recordings"))
 }
 
-pub(crate) fn broadcast_event(
-    txs: &[Sender<EngineEvent>],
-    event: EngineEvent,
-) -> Result<(), String> {
-    for tx in txs {
-        tx.send(event.clone())
-            .map_err(|e| format!("audio send failed: {e}"))?;
-    }
-    Ok(())
-}
-
-fn default_pi_instruments() -> InstrumentsConfig {
+pub(crate) fn default_pi_instruments() -> InstrumentsConfig {
     let synth = default_synth_config();
     InstrumentsConfig {
         instruments: (0..INSTRUMENT_SLOT_COUNT)

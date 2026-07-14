@@ -1,5 +1,7 @@
 mod audio;
 mod audio_config_parse;
+mod audio_hotplug;
+mod audio_priority;
 mod audio_stream_health;
 mod diagnostics;
 mod dsp_profile;

@@ -62,6 +62,60 @@ pub(crate) fn sampler_fast_path_uses_direct_audio_command_without_revision_bump(
 }
 
 #[test]
+pub(crate) fn synth_envelope_fast_path_uses_direct_audio_command_without_revision_bump() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let _ = runner.messages_with_snapshot().unwrap();
+    assert!(runner
+        .menu
+        .focus_item_key("instruments.0.synth.ampEnv.attackMs"));
+    runner.menu.state.editing = true;
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 10, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert_eq!(runner.audio_config_revision, 0);
+    let expected = runner.instruments[0].synth_config["ampEnv"]["attackMs"]
+        .as_i64()
+        .unwrap() as f32;
+    assert!(expected > 5.0);
+    assert_direct_synth_param(&messages, "synth.ampEnv.attackMs", expected);
+    assert_no_full_audio_config(&messages);
+}
+
+#[test]
+pub(crate) fn synth_filter_env_fast_path_uses_direct_audio_command_without_revision_bump() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let _ = runner.messages_with_snapshot().unwrap();
+    assert!(runner
+        .menu
+        .focus_item_key("instruments.0.synth.filter.envAmountPct"));
+    runner.menu.state.editing = true;
+    let expected = runner
+        .menu
+        .number_for_key("instruments.0.synth.filter.envAmountPct")
+        .unwrap()
+        + 20;
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 20, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(
+        runner.instruments[0].synth_config["filter"]["envAmountPct"],
+        expected
+    );
+    assert_direct_synth_param(&messages, "synth.filter.envAmountPct", expected as f32);
+    assert_no_full_audio_config(&messages);
+}
+
+#[test]
 pub(crate) fn fx_param_fast_path_uses_direct_audio_command_without_revision_bump() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.turn_key("mixer.buses.0.slot1.type", 1);
@@ -247,5 +301,25 @@ pub(crate) fn direct_topology_apply_bumps_full_audio_config_revision() {
                 command,
                 RuntimeAudioCommand::SetAudioConfig { revision: 1, .. }
             ))
+    )));
+}
+
+fn assert_direct_synth_param(messages: &[RunnerMessage], expected_path: &str, expected: f32) {
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::AudioCommands { commands }
+            if commands.iter().any(|command| matches!(
+                command,
+                RuntimeAudioCommand::SetSynthParam { instrument_slot: 0, path, value }
+                    if path == expected_path && (*value - expected).abs() < f32::EPSILON
+            ))
+    )));
+}
+
+fn assert_no_full_audio_config(messages: &[RunnerMessage]) {
+    assert!(!messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::AudioCommands { commands }
+            if commands.iter().any(|command| matches!(command, RuntimeAudioCommand::SetAudioConfig { .. }))
     )));
 }

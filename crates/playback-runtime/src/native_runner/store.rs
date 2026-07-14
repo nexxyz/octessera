@@ -239,19 +239,18 @@ impl NativeRunner {
                 });
             }
             RuntimeStoreResult::SaveDefaultResult { ok, is_auto: _ } if ok => {
-                self.auto_save_flash_serial = self.auto_save_flash_serial.wrapping_add(1);
-                self.auto_save_flash_pulses_remaining = 8;
-                self.toast = Some(NativeToast {
-                    message: "Saved default".into(),
-                    offset: 0,
-                });
+                self.show_saved_default_feedback();
             }
             RuntimeStoreResult::SaveBackupResult { .. }
             | RuntimeStoreResult::SaveRecoveryResult { .. } => {}
             RuntimeStoreResult::StoreError { message } => {
+                self.usb_sd_transfer_modal = None;
                 self.toast = Some(NativeToast { message, offset: 0 });
             }
-            RuntimeStoreResult::UsbSdTransferStatus { message, .. } => {
+            RuntimeStoreResult::UsbSdTransferStatus { active, message } => {
+                if !active {
+                    self.usb_sd_transfer_modal = None;
+                }
                 self.toast = Some(NativeToast { message, offset: 0 });
             }
             RuntimeStoreResult::ListPresetsResult { names } => {

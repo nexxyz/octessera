@@ -7,13 +7,14 @@ use crate::temporary_neokey_hack::TemporaryNeoKeyHack;
 use crate::ui_profile::UiProfiler;
 use octessera_hal::encoder_gpio::HardwareEvent;
 use playback_runtime::{
-    HostMessage, NativeRunner, PlaybackRuntime, RuntimeTransportState, SyncSource,
+    HostMessage, NativeRunner, PlaybackRuntime, RuntimeTransportState, RuntimeUiPulse, SyncSource,
 };
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 const HARDWARE_EVENT_BUDGET: usize = 16;
 const MIDI_REALTIME_BUDGET: usize = 32;
+const IDLE_MAINTENANCE_INTERVAL: Duration = Duration::from_millis(50);
 
 pub(crate) fn drain_midi_messages(
     midi_rx: &mpsc::Receiver<MidiMessage>,
@@ -106,6 +107,8 @@ pub(crate) fn maybe_advance_runtime(
     snapshot_interval: Duration,
     last_render: &mut Instant,
     render_interval: Duration,
+    last_rendered_snapshot_revision: &mut u64,
+    transient_render_until: &mut Option<Instant>,
     _pending_encoder_turns: &mut PendingEncoderTurns,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
@@ -114,11 +117,16 @@ pub(crate) fn maybe_advance_runtime(
     ui_profiler: &mut UiProfiler,
 ) -> bool {
     let now = Instant::now();
-    if now.duration_since(*last_tick) >= tick_duration {
+    let effective_tick_duration = if runtime_tick_needed(playback) {
+        tick_duration
+    } else {
+        IDLE_MAINTENANCE_INTERVAL
+    };
+    if now.duration_since(*last_tick) >= effective_tick_duration {
         advance_playback_if_due(
             now,
             last_tick,
-            tick_duration,
+            effective_tick_duration,
             last_snapshot_request,
             snapshot_interval,
             playback,
@@ -127,10 +135,13 @@ pub(crate) fn maybe_advance_runtime(
             ui_profiler,
         );
     }
+    request_periodic_snapshot_if_due(now, last_snapshot_request, playback, runner, adapter);
     service_render_if_due(
         now,
         last_render,
         render_interval,
+        last_rendered_snapshot_revision,
+        transient_render_until,
         playback,
         runner,
         render_worker,
@@ -168,6 +179,45 @@ fn advance_playback_if_due(
     }
     if let (Some(lateness), Some(started)) = (lateness, advance_started) {
         ui_profiler.record_runtime(lateness, started.elapsed());
+    }
+}
+
+fn request_periodic_snapshot_if_due(
+    now: Instant,
+    last_snapshot_request: &mut Instant,
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    adapter: &mut PiPlaybackHostAdapter,
+) {
+    if is_internal_playing(playback) {
+        return;
+    }
+    if !timed_display_snapshot_due(now, *last_snapshot_request, runner) {
+        return;
+    }
+    *last_snapshot_request = now;
+    let message = periodic_snapshot_message(playback);
+    dispatch_or_log(playback, runner, adapter, message);
+}
+
+fn timed_display_snapshot_due(
+    now: Instant,
+    last_snapshot_request: Instant,
+    runner: &NativeRunner,
+) -> bool {
+    runner
+        .next_timed_display_snapshot_deadline_after(Some(last_snapshot_request))
+        .is_some_and(|deadline| now >= deadline)
+}
+
+fn periodic_snapshot_message(playback: &PlaybackRuntime) -> HostMessage {
+    HostMessage::TransportPulseStep {
+        pulses: 0,
+        source: playback.config().sync_source.clone(),
+        at_ppqn_pulse: playback
+            .last_status()
+            .map(|status| status.current_ppqn_pulse),
+        request_snapshot: Some(true),
     }
 }
 
@@ -214,10 +264,17 @@ fn is_internal_playing(playback: &PlaybackRuntime) -> bool {
             .is_some_and(|status| status.transport == RuntimeTransportState::Playing)
 }
 
+fn runtime_tick_needed(playback: &PlaybackRuntime) -> bool {
+    playback.has_scheduled_midi() || is_internal_playing(playback)
+}
+
+#[allow(clippy::too_many_arguments)]
 fn service_render_if_due(
     now: Instant,
     last_render: &mut Instant,
     render_interval: Duration,
+    last_rendered_snapshot_revision: &mut u64,
+    transient_render_until: &mut Option<Instant>,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
     render_worker: &RenderWorker,
@@ -226,14 +283,54 @@ fn service_render_if_due(
         return;
     }
     *last_render = now;
+    let snapshot_revision = playback.last_snapshot_revision();
+    if snapshot_revision == 0 {
+        return;
+    }
+    let pulses = playback.drain_ui_pulses();
+    update_transient_render_deadline(now, transient_render_until, &pulses);
+    let snapshot_changed = *last_rendered_snapshot_revision != snapshot_revision;
+    if !snapshot_changed
+        && pulses.is_empty()
+        && !transient_render_active(now, transient_render_until)
+    {
+        return;
+    }
     let Some(snapshot) = crate::runtime_loop::latest_snapshot(playback).cloned() else {
         return;
     };
-    let pulses = playback.drain_ui_pulses();
     if !crate::runtime_loop::playback_config_matches_snapshot(playback, &snapshot) {
         crate::runtime_loop::sync_playback_config_from_snapshot(playback, runner, &snapshot);
     }
+    *last_rendered_snapshot_revision = snapshot_revision;
     render_worker.publish_snapshot(snapshot, pulses);
+}
+
+fn update_transient_render_deadline(
+    now: Instant,
+    transient_render_until: &mut Option<Instant>,
+    pulses: &[RuntimeUiPulse],
+) {
+    for pulse in pulses {
+        let duration_ms = match pulse {
+            RuntimeUiPulse::TriggerPulse { duration_ms } => *duration_ms,
+            RuntimeUiPulse::TransportFlash { duration_ms, .. } => *duration_ms,
+        };
+        let deadline = now + Duration::from_millis(duration_ms);
+        *transient_render_until =
+            Some(transient_render_until.map_or(deadline, |until| until.max(deadline)));
+    }
+}
+
+fn transient_render_active(now: Instant, transient_render_until: &mut Option<Instant>) -> bool {
+    let Some(deadline) = *transient_render_until else {
+        return false;
+    };
+    if now < deadline {
+        return true;
+    }
+    *transient_render_until = None;
+    true
 }
 
 fn shutdown_if_requested(
@@ -279,25 +376,53 @@ fn power_command_attempts(
 ) -> &'static [(&'static str, &'static [&'static str])] {
     match request {
         PiPowerRequest::Reboot => &[
-            ("/usr/bin/systemctl", &["reboot"]),
-            ("/bin/systemctl", &["reboot"]),
-            ("/usr/sbin/reboot", &[]),
-            ("/sbin/reboot", &[]),
             ("sudo", &["-n", "/usr/bin/systemctl", "reboot"]),
             ("sudo", &["-n", "/bin/systemctl", "reboot"]),
             ("sudo", &["-n", "/usr/sbin/reboot"]),
             ("sudo", &["-n", "/sbin/reboot"]),
+            ("/usr/bin/systemctl", &["reboot"]),
+            ("/bin/systemctl", &["reboot"]),
+            ("/usr/sbin/reboot", &[]),
+            ("/sbin/reboot", &[]),
         ],
         PiPowerRequest::Shutdown => &[
-            ("/usr/bin/systemctl", &["poweroff"]),
-            ("/bin/systemctl", &["poweroff"]),
-            ("/usr/sbin/poweroff", &[]),
-            ("/sbin/poweroff", &[]),
             ("sudo", &["-n", "/usr/bin/systemctl", "poweroff"]),
             ("sudo", &["-n", "/bin/systemctl", "poweroff"]),
             ("sudo", &["-n", "/usr/sbin/poweroff"]),
             ("sudo", &["-n", "/sbin/poweroff"]),
+            ("/usr/bin/systemctl", &["poweroff"]),
+            ("/bin/systemctl", &["poweroff"]),
+            ("/usr/sbin/poweroff", &[]),
+            ("/sbin/poweroff", &[]),
         ],
+    }
+}
+
+#[cfg(test)]
+mod periodic_snapshot_tests {
+    use super::*;
+    use playback_runtime::RuntimeConfig;
+
+    #[test]
+    fn periodic_snapshot_message_requests_snapshot_without_advancing_pulses() {
+        let playback = PlaybackRuntime::new(RuntimeConfig {
+            sync_source: SyncSource::External,
+            ..RuntimeConfig::default()
+        });
+
+        let HostMessage::TransportPulseStep {
+            pulses,
+            source,
+            request_snapshot,
+            ..
+        } = periodic_snapshot_message(&playback)
+        else {
+            panic!("expected transport snapshot request");
+        };
+
+        assert_eq!(pulses, 0);
+        assert_eq!(source, SyncSource::External);
+        assert_eq!(request_snapshot, Some(true));
     }
 }
 

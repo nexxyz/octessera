@@ -102,6 +102,22 @@ pub(super) fn fast_instrument_filter_resonance(
     }
 }
 
+pub(super) fn fast_instrument_synth_number(
+    value: i32,
+    instrument: &mut super::NativeInstrumentSlot,
+    path: &[&str],
+    min: i32,
+    max: i32,
+) -> Option<f32> {
+    let value = value.clamp(min, max);
+    if super::synth_i32_at(instrument, path, i32::MIN) == value {
+        None
+    } else {
+        set_json_path_number(&mut instrument.synth_config, path, f64::from(value));
+        Some(value as f32)
+    }
+}
+
 pub(super) fn fast_sample_tune(
     value: i32,
     instrument: &mut super::NativeInstrumentSlot,

@@ -48,7 +48,7 @@ System
 │   ├── Audio Out: [jack | usb | both]  default jack  ← restart-applied
 │   ├── MIDI Out: [on | off]  default off             ← USB gadget exposure preference
 │   ├── Save & Reboot: (action)         ← confirms with Cancel / Save & Reboot, saves payload, asks platform to apply and reboot
-│   ├── Start SD Transfer: (action)     ← confirms, rejects active USB audio, USB MIDI out, or recording on Pi, temporarily exposes SD as USB storage
+│   ├── Start SD Transfer: (action)     ← confirms, stops playback, blocks input in transfer popup, rejects active USB audio, USB MIDI out, or recording on Pi, temporarily exposes SD as USB storage
 │   └── Stop SD Transfer: (action)      ← confirms host eject first, restores normal USB audio/MIDI gadget
 ├── Recording (group)
 │   ├── Max Time: [1..120] min  default 10

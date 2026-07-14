@@ -14,6 +14,9 @@ impl NativeRunner {
     pub(super) fn apply_instrument_menu_state(&mut self) -> bool {
         let mut changed = false;
         for index in 0..self.instruments.len() {
+            if self.instrument_transpose_route_will_change(index) {
+                self.drain_sparks_transpose_instrument_notes(index);
+            }
             let Some(instrument) = self.instruments.get_mut(index) else {
                 continue;
             };
@@ -24,6 +27,31 @@ impl NativeRunner {
             changed |= apply_midi_menu_fields(&self.menu, index, instrument);
         }
         changed
+    }
+
+    fn instrument_transpose_route_will_change(&self, index: usize) -> bool {
+        let Some(instrument) = self.instruments.get(index) else {
+            return false;
+        };
+        if self
+            .menu
+            .value_for_key(&format!("instruments.{index}.type"))
+            .is_some_and(|kind| kind != instrument.kind)
+        {
+            return true;
+        }
+        if self
+            .menu
+            .value_for_key(&format!("instruments.{index}.midi.enabled"))
+            .map(|value| value == "true")
+            .is_some_and(|enabled| enabled != instrument.midi_enabled)
+        {
+            return true;
+        }
+        self.menu
+            .number_for_key(&format!("instruments.{index}.midi.channel"))
+            .map(|channel| channel.clamp(1, 16) as u8)
+            .is_some_and(|channel| channel != instrument.midi_channel)
     }
 }
 

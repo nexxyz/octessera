@@ -4,6 +4,12 @@ pub const DEFAULT_BEHAVIOR_ACTIVE: [u8; 3] = YELLOW;
 pub const DEFAULT_BEHAVIOR_INACTIVE: [u8; 3] = BLACK;
 pub const DEFAULT_BEHAVIOR_STABLE: [u8; 3] = GREEN;
 
+pub const BEHAVIOR_PRIMARY_BLUE: [u8; 3] = [0, 0, 255];
+pub const BEHAVIOR_PRIMARY_GREEN: [u8; 3] = [0, 255, 0];
+pub const BEHAVIOR_PRIMARY_YELLOW: [u8; 3] = [255, 255, 0];
+pub const BEHAVIOR_PRIMARY_RED: [u8; 3] = [255, 0, 0];
+pub const BEHAVIOR_DIM_GREEN: [u8; 3] = [0, 48, 0];
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -24,5 +30,7 @@ mod tests {
         assert_eq!(GRAY_RGB565, 0xCE7A);
         assert_eq!(WHITE_RGB565, 0xFFFF);
         assert_eq!(BLACK_RGB565, 0x0000);
+        assert_eq!(BEHAVIOR_PRIMARY_GREEN, [0, 255, 0]);
+        assert_eq!(BEHAVIOR_DIM_GREEN, [0, 48, 0]);
     }
 }

@@ -36,6 +36,7 @@ impl NativeRunner {
     }
 
     pub(super) fn reset_transport_position(&mut self) {
+        self.drain_all_sparks_transpose_notes();
         self.tick = 0;
         self.current_ppqn_pulse = 0;
         self.swung_ppqn_pulse = 0;
@@ -138,9 +139,59 @@ impl NativeRunner {
         }
     }
 
+    pub fn next_timed_display_snapshot_deadline(&self) -> Option<Instant> {
+        self.next_timed_display_snapshot_deadline_after(None)
+    }
+
+    pub fn next_timed_display_snapshot_deadline_after(
+        &self,
+        last_snapshot_at: Option<Instant>,
+    ) -> Option<Instant> {
+        let mut deadline = None;
+        if self.ui.dim_timer_seconds != 0 {
+            deadline = earliest_deadline(
+                deadline,
+                self.last_interaction_at
+                    + Duration::from_secs(u64::from(self.ui.dim_timer_seconds)),
+                last_snapshot_at,
+            );
+        }
+        if self.ui.screen_sleep_seconds != 0 && self.oled_mode == NativeOledMode::Normal {
+            deadline = earliest_deadline(
+                deadline,
+                self.last_interaction_at
+                    + Duration::from_secs(u64::from(self.ui.screen_sleep_seconds)),
+                last_snapshot_at,
+            );
+        }
+        if self.oled_mode == NativeOledMode::Splash {
+            if let Some(splash_until) = self.oled_splash_until {
+                deadline = earliest_deadline(deadline, splash_until, last_snapshot_at);
+            }
+        }
+        if let Some(toast_expires_at) = self.toast_expires_at {
+            deadline = earliest_deadline(deadline, toast_expires_at, last_snapshot_at);
+        }
+        if let Some(auto_save_flash_until) = self.auto_save_flash_until {
+            deadline = earliest_deadline(deadline, auto_save_flash_until, last_snapshot_at);
+        }
+        deadline
+    }
+
     pub(super) fn leds_dimmed(&self) -> bool {
         self.ui.dim_timer_seconds != 0
             && Instant::now().duration_since(self.last_interaction_at)
                 >= Duration::from_secs(u64::from(self.ui.dim_timer_seconds))
     }
+}
+
+fn earliest_deadline(
+    current: Option<Instant>,
+    candidate: Instant,
+    last_snapshot_at: Option<Instant>,
+) -> Option<Instant> {
+    if last_snapshot_at.is_some_and(|last_snapshot_at| candidate <= last_snapshot_at) {
+        return current;
+    }
+    Some(current.map_or(candidate, |deadline| deadline.min(candidate)))
 }

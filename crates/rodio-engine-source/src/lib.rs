@@ -65,12 +65,19 @@ impl EngineSource {
     fn refill(&mut self) {
         let t0 = Instant::now();
         let drained = self.drain_control_events();
-        self.engine.render_interleaved_block(
-            self.block_frames,
-            &mut self.left_buf,
-            &mut self.right_buf,
-            &mut self.buf,
-        );
+        if self.engine.is_idle() {
+            self.buf.resize(self.block_frames * 2, 0.0);
+            self.buf.fill(0.0);
+            self.left_buf.clear();
+            self.right_buf.clear();
+        } else {
+            self.engine.render_interleaved_block(
+                self.block_frames,
+                &mut self.left_buf,
+                &mut self.right_buf,
+                &mut self.buf,
+            );
+        }
         self.idx = 0;
         let elapsed = t0.elapsed().as_secs_f32();
         let block_seconds = (self.block_frames as f32) / (self.sample_rate as f32);
@@ -290,4 +297,46 @@ fn synth_slot_worker_count() -> Option<usize> {
     let raw = env::var("OCTESSERA_SYNTH_SLOT_WORKERS").ok()?;
     let count = raw.trim().parse::<usize>().ok()?;
     (count > 0).then_some(count.min(3))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::mpsc;
+
+    #[test]
+    fn idle_source_refills_with_silence() {
+        let (_tx, rx) = mpsc::channel();
+        let mut source = EngineSource::new(rx, 44_100);
+
+        for _ in 0..128 {
+            assert_eq!(source.next(), Some(0.0));
+        }
+    }
+
+    #[test]
+    fn note_on_after_idle_renders_audio() {
+        let (tx, rx) = mpsc::channel();
+        let mut source = EngineSource::new(rx, 44_100);
+        for _ in 0..64 {
+            assert_eq!(source.next(), Some(0.0));
+        }
+
+        tx.send(EngineEvent::NoteOn {
+            instrument_slot: 0,
+            note: 60,
+            velocity: 100,
+            duration_ms: 1_000,
+        })
+        .unwrap();
+
+        let mut saw_audio = false;
+        for _ in 0..4096 {
+            if source.next().unwrap_or(0.0).abs() > f32::EPSILON {
+                saw_audio = true;
+                break;
+            }
+        }
+        assert!(saw_audio);
+    }
 }

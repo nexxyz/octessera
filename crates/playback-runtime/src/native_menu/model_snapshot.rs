@@ -100,11 +100,21 @@ fn snapshot_window(
     let cursor = model.state.cursor.min(siblings.len().saturating_sub(1));
     let mut start = cursor;
     let mut end = cursor + 1;
-    let mut row_count = item_row_count(&siblings[cursor], true, model.state.editing);
+    let mut row_count = item_row_count(
+        &siblings[cursor],
+        true,
+        model.state.editing,
+        &model.numeric_display_mode,
+    );
     while row_count < MENU_BODY_ROWS && (start > 0 || end < siblings.len()) {
         let mut grew = false;
         if start > 0 {
-            let prev_rows = item_row_count(&siblings[start - 1], false, false);
+            let prev_rows = item_row_count(
+                &siblings[start - 1],
+                false,
+                false,
+                &model.numeric_display_mode,
+            );
             if row_count + prev_rows <= MENU_BODY_ROWS || end >= siblings.len() {
                 start -= 1;
                 row_count += prev_rows;
@@ -115,7 +125,8 @@ fn snapshot_window(
             break;
         }
         if end < siblings.len() {
-            let next_rows = item_row_count(&siblings[end], false, false);
+            let next_rows =
+                item_row_count(&siblings[end], false, false, &model.numeric_display_mode);
             if row_count + next_rows <= MENU_BODY_ROWS || start == 0 {
                 end += 1;
                 row_count += next_rows;
@@ -142,6 +153,7 @@ fn scroll_row_counts(
             item,
             index == model.state.cursor,
             index == model.state.cursor && model.state.editing,
+            &model.numeric_display_mode,
         );
         if index < window_start {
             scroll_offset += rows;
@@ -151,8 +163,13 @@ fn scroll_row_counts(
     (scroll_offset, total_rows)
 }
 
-fn item_row_count(item: &NativeMenuItem, selected: bool, editing: bool) -> usize {
-    formatted_item_row_count(item, selected, editing)
+fn item_row_count(
+    item: &NativeMenuItem,
+    selected: bool,
+    editing: bool,
+    numeric_display_mode: &str,
+) -> usize {
+    formatted_item_row_count(item, selected, editing, numeric_display_mode)
 }
 
 #[allow(clippy::too_many_arguments)]

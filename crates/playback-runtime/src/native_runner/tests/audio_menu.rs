@@ -122,6 +122,89 @@ pub(crate) fn usb_sd_transfer_actions_are_confirmed_and_emit_effects() {
 }
 
 #[test]
+pub(crate) fn usb_sd_transfer_start_stops_playback_and_opens_blocking_modal() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.transport = RuntimeTransportState::Playing;
+    assert!(runner.menu.focus_item_key("usb.sdTransferStart"));
+
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let messages = confirm_current_dialog(&mut runner);
+
+    assert_eq!(runner.transport, RuntimeTransportState::Stopped);
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects == &vec![RuntimePlatformEffect::UsbSdTransferStart]
+    )));
+    let snapshot = snapshot_from(&messages);
+    assert_eq!(snapshot["display"]["title"], "SD Transfer");
+    assert!(snapshot["display"]["lines"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|line| line == "> Stop Transfer"));
+
+    let blocked_messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    assert!(!blocked_messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::MusicalEvents { .. } | RunnerMessage::PlatformEffects { .. }
+    )));
+}
+
+#[test]
+pub(crate) fn usb_sd_transfer_modal_closes_by_back_or_main_without_resuming() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.transport = RuntimeTransportState::Playing;
+    assert!(runner.menu.focus_item_key("usb.sdTransferStart"));
+
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let _ = confirm_current_dialog(&mut runner);
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_a", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert_eq!(runner.transport, RuntimeTransportState::Stopped);
+    assert!(runner.usb_sd_transfer_modal.is_none());
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects == &vec![RuntimePlatformEffect::UsbSdTransferStop]
+    )));
+
+    runner.open_usb_sd_transfer_modal();
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    assert!(runner.usb_sd_transfer_modal.is_none());
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects == &vec![RuntimePlatformEffect::UsbSdTransferStop]
+    )));
+}
+
+#[test]
 pub(crate) fn recording_max_time_edits_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.recording_max_minutes = 14;

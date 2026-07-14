@@ -19,6 +19,10 @@ Then you nudge them. You anchor them with a bit of manual sequencing if you want
 - [Two-page controls, behaviors, Play, and flowchart PDF](print/quick-reference.pdf)
 - HTML sources are in [`print/`](print/) if you want to print or tweak them yourself.
 
+## OLED SD card samples
+
+For the optional OLED microSD card, label the card `OCTESSERA_SD`. Octessera mounts it at `SD card` and creates `octessera/samples` plus `octessera/saves`; put WAV samples under `octessera/samples`. If you use `System > USB > Start SD Transfer`, eject the drive on the host before pressing Back or Main to stop transfer. Tiny storage goblin, ordinary safe-eject rules.
+
 ## Canonical specs
 
 The friendly pages above are meant for humans at the workbench. The exact runtime contracts live in the source specs:

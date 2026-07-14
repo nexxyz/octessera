@@ -1,6 +1,7 @@
 use crate::audio::AudioManager;
 use crate::host_adapter::PiPlaybackHostAdapter;
 use crate::main_paths::{default_samples_dir, default_store_dir, ensure_runtime_dirs};
+use crate::sample_browser::SD_CARD_SAMPLE_BROWSER_DIR;
 use playback_runtime::{
     CoreRunner, HostAdapter, HostMessage, MusicalEvent, NativeRunner, NativeRunnerConfig,
     PlaybackRuntime, RunnerMessage, RuntimeAudioCommand, RuntimeConfig, RuntimePlatformEffect,
@@ -234,7 +235,7 @@ fn run_live_one(
     let mut runner = LiveProbeRunner {
         inner: NativeRunner::new(NativeRunnerConfig {
             behavior_id: "sequencer".into(),
-            sample_builtin_favourite_dirs: vec![String::new(), "sd-card".into()],
+            sample_builtin_favourite_dirs: vec![String::new(), SD_CARD_SAMPLE_BROWSER_DIR.into()],
             ..NativeRunnerConfig::default()
         })?,
         send_us: Vec::new(),

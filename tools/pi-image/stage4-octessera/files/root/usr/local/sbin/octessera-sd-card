@@ -1,0 +1,101 @@
+#!/bin/sh
+set -eu
+
+SD_MOUNT=/home/pi/samples/sd-card
+ROOT_OCTESSERA=octessera
+SAMPLES_SUBDIR=$ROOT_OCTESSERA/samples
+SAVES_SUBDIR=$ROOT_OCTESSERA/saves
+STORAGE_STATE=/run/octessera-usb-storage.state
+SD_LOCK=/run/octessera-sd-card.lock
+LOG=octessera-sd-card
+
+log() { logger -t "$LOG" "$*"; echo "$LOG: $*" >&2; }
+canonical_block() { readlink -f "$1"; }
+root_device() { findmnt -nro SOURCE /; }
+parent_disk() { lsblk -no PKNAME "$1" 2>/dev/null | head -n 1; }
+
+root_parent_disk() {
+  root="$(canonical_block "$(root_device)")"
+  parent_disk "$root"
+}
+
+safe_partition() {
+  dev="$(canonical_block "$1")"
+  [ -b "$dev" ] || return 1
+  root="$(canonical_block "$(root_device)")"
+  [ "$dev" != "$root" ] || return 1
+  root_pk="$(root_parent_disk)"
+  dev_pk="$(parent_disk "$dev")"
+  [ -z "$root_pk" ] || [ "$dev" != "/dev/$root_pk" ] || return 1
+  [ -z "$root_pk" ] || [ -z "$dev_pk" ] || [ "$dev_pk" != "$root_pk" ] || return 1
+}
+
+configured_device() {
+  if [ -e /dev/disk/by-label/OCTESSERA_SD ]; then
+    canonical_block /dev/disk/by-label/OCTESSERA_SD
+    return 0
+  fi
+}
+
+prepare_folders() {
+  mkdir -p "$SD_MOUNT/$SAMPLES_SUBDIR" "$SD_MOUNT/$SAVES_SUBDIR"
+  chown pi:pi "$SD_MOUNT/$ROOT_OCTESSERA" "$SD_MOUNT/$SAMPLES_SUBDIR" "$SD_MOUNT/$SAVES_SUBDIR" 2>/dev/null || true
+}
+
+transfer_active() {
+  [ -e "$STORAGE_STATE" ]
+}
+
+mount_options_for() {
+  fstype="$(blkid -o value -s TYPE "$1" 2>/dev/null || true)"
+  case "$fstype" in
+    vfat|exfat|fat|msdos) printf 'uid=pi,gid=pi,umask=002' ;;
+    *) printf '' ;;
+  esac
+}
+
+mount_card() {
+  if transfer_active; then
+    log "USB SD transfer is active; not mounting OLED SD card"
+    return 0
+  fi
+  mkdir -p "$SD_MOUNT"
+  if mountpoint -q "$SD_MOUNT"; then
+    prepare_folders
+    return 0
+  fi
+  dev="$(configured_device || true)"
+  [ -n "$dev" ] || { log "no OCTESSERA_SD card found"; return 0; }
+  safe_partition "$dev" || { log "refusing unsafe SD candidate $dev"; return 1; }
+  mounts="$(findmnt -nr -S "$dev" -o TARGET || true)"
+  if [ -n "$mounts" ]; then
+    while IFS= read -r target; do
+      [ -z "$target" ] || [ "$target" = "$SD_MOUNT" ] || {
+        log "$dev is mounted at $target, not $SD_MOUNT"
+        return 1
+      }
+    done <<EOF
+$mounts
+EOF
+  fi
+  options="$(mount_options_for "$dev")"
+  if [ -n "$options" ]; then
+    mount -o "$options" "$dev" "$SD_MOUNT"
+  else
+    mount "$dev" "$SD_MOUNT"
+  fi
+  prepare_folders
+  log "mounted OLED SD card $dev at $SD_MOUNT"
+}
+
+with_sd_lock() {
+  (
+    flock 9
+    "$@"
+  ) 9>"$SD_LOCK"
+}
+
+case "${1:-mount}" in
+  mount) with_sd_lock mount_card ;;
+  *) echo "usage: $0 [mount]" >&2; exit 2 ;;
+esac

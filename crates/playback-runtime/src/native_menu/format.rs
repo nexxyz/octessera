@@ -47,13 +47,7 @@ pub(super) fn format_item_lines(
         ),
         NativeMenuValue::Number { value, .. } => format_param_lines(
             &item.label,
-            if should_use_number_bar(item.key.as_deref().unwrap_or_default())
-                && numeric_display_mode == "bar"
-            {
-                String::new()
-            } else {
-                format_display_value(item.key.as_deref(), *value)
-            },
+            format_display_value(item.key.as_deref(), *value),
             selected,
             editing,
         ),
@@ -67,7 +61,7 @@ pub(super) fn format_item_lines(
             format_text_lines(&item.label, value, *cursor, selected, editing)
         }
     };
-    lines
+    let mut lines = lines
         .into_iter()
         .map(|line| {
             if selected {
@@ -76,12 +70,16 @@ pub(super) fn format_item_lines(
                 clip_menu_value(&line, 20)
             }
         })
-        .collect()
+        .collect::<Vec<_>>();
+    if selected && item_shows_bar_row(item, numeric_display_mode) {
+        lines.push(String::new());
+    }
+    lines
 }
 
 pub(super) fn format_item_full_selected_line(
     item: &NativeMenuItem,
-    numeric_display_mode: &str,
+    _numeric_display_mode: &str,
 ) -> Option<String> {
     match &item.value {
         NativeMenuValue::Enum { options, selected } => Some(format_full_param_line(
@@ -93,13 +91,7 @@ pub(super) fn format_item_full_selected_line(
         )),
         NativeMenuValue::Number { value, .. } => Some(format_full_param_line(
             &item.label,
-            &if should_use_number_bar(item.key.as_deref().unwrap_or_default())
-                && numeric_display_mode == "bar"
-            {
-                String::new()
-            } else {
-                format_display_value(item.key.as_deref(), *value)
-            },
+            &format_display_value(item.key.as_deref(), *value),
         )),
         NativeMenuValue::Bool { value } => Some(format_full_param_line(
             &item.label,
@@ -127,11 +119,12 @@ pub(super) fn formatted_item_row_count(
     item: &NativeMenuItem,
     selected: bool,
     editing: bool,
+    numeric_display_mode: &str,
 ) -> usize {
     if item.label.is_empty() {
         return 1;
     }
-    match &item.value {
+    let text_rows = match &item.value {
         NativeMenuValue::Enum { .. }
         | NativeMenuValue::Number { .. }
         | NativeMenuValue::Bool { .. }
@@ -141,14 +134,15 @@ pub(super) fn formatted_item_row_count(
             2
         }
         _ => 1,
-    }
+    };
+    text_rows + usize::from(selected && item_shows_bar_row(item, numeric_display_mode))
 }
 
 pub(super) fn format_item_bar_values(
     item: &NativeMenuItem,
     item_line_count: usize,
     selected: bool,
-    editing: bool,
+    _editing: bool,
     numeric_display_mode: &str,
 ) -> Vec<Option<NativeMenuBarValue>> {
     if numeric_display_mode == "numbers" {
@@ -184,11 +178,17 @@ pub(super) fn format_item_bar_values(
             None
         },
     });
-    if editing && item_line_count > 1 {
-        vec![None, bar]
-    } else {
-        vec![bar]
+    let mut values = vec![None; item_line_count.saturating_sub(1)];
+    values.push(bar);
+    values
+}
+
+fn item_shows_bar_row(item: &NativeMenuItem, numeric_display_mode: &str) -> bool {
+    if numeric_display_mode == "numbers" {
+        return false;
     }
+    matches!(item.value, NativeMenuValue::Number { .. })
+        && item.key.as_deref().is_some_and(should_use_number_bar)
 }
 
 fn should_use_number_bar(key: &str) -> bool {

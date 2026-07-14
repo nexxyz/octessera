@@ -5,6 +5,7 @@ mod audio_menu_direct;
 mod audio_menu_naming;
 mod aux_auto_map;
 mod basics;
+mod behavior_palette;
 mod browser_and_help;
 mod controls;
 mod dim_sleep;

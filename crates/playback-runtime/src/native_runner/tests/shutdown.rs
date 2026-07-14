@@ -22,6 +22,7 @@ pub(crate) fn system_menu_shutdown_emits_shutdown_effect_and_splash() {
     let messages = confirm_current_dialog(&mut runner);
     let display = &snapshot_from(&messages)["display"];
     assert_eq!(display["splash"], "shutdown");
+    assert!(runner.oled_splash_until.is_some());
     assert!(display["toast"]
         .as_str()
         .is_some_and(|toast| toast.contains("shutting down")));
@@ -47,6 +48,7 @@ pub(crate) fn system_menu_reboot_emits_reboot_effect_and_shutdown_splash() {
     let messages = confirm_current_dialog(&mut runner);
     let display = &snapshot_from(&messages)["display"];
     assert_eq!(display["splash"], "shutdown");
+    assert!(runner.oled_splash_until.is_some());
     assert!(display["toast"]
         .as_str()
         .is_some_and(|toast| toast.contains("rebooting")));

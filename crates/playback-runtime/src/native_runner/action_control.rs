@@ -3,7 +3,8 @@ use crate::protocol::RuntimePlatformEffect;
 
 use super::{
     derive_instrument_name, native_binding_from_spec, parse_sample_action, synth_preset_config,
-    NativeAuxBinding, NativeInstrumentSlot, NativeRunner, NativeToast, Value, GRID_HEIGHT,
+    NativeAuxBinding, NativeInstrumentSlot, NativeRunner, NativeToast, RuntimeTransportState,
+    Value, GRID_HEIGHT,
 };
 
 impl NativeRunner {
@@ -146,7 +147,12 @@ impl NativeRunner {
                 } else if action_type == "system.reboot" || action_type == "system.shutdown" {
                     self.oled_mode = super::NativeOledMode::Splash;
                     self.oled_splash_text = super::OLED_SHUTDOWN_SPLASH_KEY.into();
-                    self.oled_splash_until = None;
+                    self.oled_splash_until = Some(
+                        std::time::Instant::now()
+                            + std::time::Duration::from_millis(
+                                super::OLED_SHUTDOWN_SPLASH_FAILSAFE_MS,
+                            ),
+                    );
                     if action_type == "system.reboot" {
                         self.show_toast("Octessera is rebooting");
                     } else {
@@ -161,6 +167,12 @@ impl NativeRunner {
                     Ok(self.platform_effect_for_action(&action_type))
                 } else if action_type == "usb.applyReboot" {
                     self.show_toast("USB: applying");
+                    Ok(self.platform_effect_for_action(&action_type))
+                } else if action_type == "usb.sdTransferStart" {
+                    self.transport = RuntimeTransportState::Stopped;
+                    self.reset_transport_position();
+                    self.help_popup = None;
+                    self.open_usb_sd_transfer_modal();
                     Ok(self.platform_effect_for_action(&action_type))
                 } else if let Some(effect) = self.handle_sample_action(&action_type)? {
                     Ok(Some(effect))

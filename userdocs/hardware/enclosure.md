@@ -74,6 +74,7 @@ The OLED microSD is not exposed as a case-edge port in the current `v21` entry.
 - Power the device through the enclosure USB-C power opening.
 - Do not power the Raspberry Pi through its own micro-USB power connector.
 - The Pi micro-USB power connector is intentionally covered by the enclosure and is not meant to be used.
+- The exposed Pi USB data port can still receive 5V from a normal host cable. There is no software setting that blocks that power while keeping USB data alive; use a data-only cable, a powered hub/splitter that isolates power, or a hardware power-path fix if you need pins-only power.
 
 ## Mechanical Strategy
 

@@ -2,7 +2,7 @@ use crate::protocol::{
     RunnerMessage, RuntimePlatformEffect, RuntimeStatus, RuntimeStatusState, RuntimeUiPulse,
 };
 
-use super::{NativeOledMode, NativeRunner, NativeToast};
+use super::{NativeOledMode, NativeRunner};
 
 impl NativeRunner {
     pub(super) fn trigger_ui_pulse_message(&self) -> RunnerMessage {
@@ -41,6 +41,18 @@ impl NativeRunner {
         if self.suppress_snapshot_response {
             return self.messages_without_snapshot();
         }
+        self.messages_with_snapshot_response()
+    }
+
+    pub(super) fn messages_with_forced_snapshot(&mut self) -> Result<Vec<RunnerMessage>, String> {
+        let suppress_snapshot_response = self.suppress_snapshot_response;
+        self.suppress_snapshot_response = false;
+        let result = self.messages_with_snapshot_response();
+        self.suppress_snapshot_response = suppress_snapshot_response;
+        result
+    }
+
+    fn messages_with_snapshot_response(&mut self) -> Result<Vec<RunnerMessage>, String> {
         self.advance_oled_sleep_state();
         if self.oled_mode == NativeOledMode::Splash
             && self.oled_splash_text == super::OLED_STARTUP_SPLASH_KEY
@@ -66,12 +78,7 @@ impl NativeRunner {
         let save_default_effect =
             if self.auto_save_default && self.config_dirty && !autosave_pending {
                 self.config_dirty = false;
-                self.auto_save_flash_serial = self.auto_save_flash_serial.wrapping_add(1);
-                self.auto_save_flash_pulses_remaining = 8;
-                self.toast = Some(NativeToast {
-                    message: "Saved default".into(),
-                    offset: 0,
-                });
+                self.show_saved_default_feedback();
                 Some(RuntimePlatformEffect::StoreSaveDefault {
                     payload: payload.clone().expect("autosave payload"),
                     mode: Some("deferred".into()),
@@ -88,6 +95,7 @@ impl NativeRunner {
             None
         };
         let mut messages = Vec::with_capacity(5);
+        self.append_pending_transpose_note_offs(&mut messages);
         if let Some(effect) = save_default_effect {
             messages.push(RunnerMessage::PlatformEffects {
                 effects: vec![effect],
@@ -114,15 +122,13 @@ impl NativeRunner {
                 status: self.status(),
             },
         ]);
-        if self.auto_save_flash_pulses_remaining > 0 {
-            self.auto_save_flash_pulses_remaining -= 1;
-        }
         Ok(messages)
     }
 
     pub(super) fn messages_without_snapshot(&mut self) -> Result<Vec<RunnerMessage>, String> {
         self.queue_audio_config_if_changed();
         let mut messages = Vec::with_capacity(4);
+        self.append_pending_transpose_note_offs(&mut messages);
         if self.outbox.has_platform_effects() {
             messages.push(RunnerMessage::PlatformEffects {
                 effects: self.outbox.drain_platform_effects(),
@@ -137,6 +143,20 @@ impl NativeRunner {
             status: self.status(),
         });
         Ok(messages)
+    }
+
+    fn append_pending_transpose_note_offs(&mut self, messages: &mut Vec<RunnerMessage>) {
+        let events = std::mem::take(&mut self.pending_transpose_note_offs);
+        if !events.audio.is_empty() {
+            messages.push(RunnerMessage::MusicalEvents {
+                events: events.audio,
+            });
+        }
+        if !events.midi.is_empty() {
+            messages.push(RunnerMessage::MidiEvents {
+                events: events.midi,
+            });
+        }
     }
 
     pub(super) fn messages_with_effects(

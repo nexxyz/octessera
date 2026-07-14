@@ -98,6 +98,23 @@ impl NativeRunner {
         self.toast_expires_at = Some(Instant::now() + Duration::from_millis(1800));
     }
 
+    pub(super) fn show_saved_default_feedback(&mut self) {
+        self.auto_save_flash_serial = self.auto_save_flash_serial.wrapping_add(1);
+        self.auto_save_flash_until =
+            Some(Instant::now() + Duration::from_millis(AUTO_SAVE_FLASH_MS));
+        self.show_toast("Saved default");
+    }
+
+    pub(super) fn auto_save_flash_active(&self) -> bool {
+        self.auto_save_flash_until
+            .is_some_and(|flash_until| Instant::now() < flash_until)
+    }
+
+    #[cfg(test)]
+    pub(super) fn expire_auto_save_flash_for_test(&mut self) {
+        self.auto_save_flash_until = Some(Instant::now() - Duration::from_millis(1));
+    }
+
     pub(super) fn show_or_queue_aux_turn_toast(&mut self, message: impl Into<String>) {
         let message = message.into();
         let now = Instant::now();

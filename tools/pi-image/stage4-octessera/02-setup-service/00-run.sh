@@ -25,9 +25,18 @@ install -D -m 0644 \
 install -D -m 0755 \
     "$STAGE_FILES/root/usr/local/sbin/octessera-usb-gadget" \
     "$ROOTFS_DIR/usr/local/sbin/octessera-usb-gadget"
+install -D -m 0755 \
+    "$STAGE_FILES/root/usr/local/sbin/octessera-sd-card" \
+    "$ROOTFS_DIR/usr/local/sbin/octessera-sd-card"
 install -D -m 0644 \
     "$STAGE_FILES/root/etc/systemd/system/octessera-performance-governor.service" \
     "$ROOTFS_DIR/etc/systemd/system/octessera-performance-governor.service"
+install -D -m 0644 \
+    "$STAGE_FILES/root/etc/systemd/system/octessera-sd-card.service" \
+    "$ROOTFS_DIR/etc/systemd/system/octessera-sd-card.service"
+install -D -m 0644 \
+    "$STAGE_FILES/root/etc/udev/rules.d/99-octessera-sd-card.rules" \
+    "$ROOTFS_DIR/etc/udev/rules.d/99-octessera-sd-card.rules"
 install -D -m 0644 \
     "$STAGE_FILES/root/etc/systemd/system/octessera-boot-splash.service" \
     "$ROOTFS_DIR/etc/systemd/system/octessera-boot-splash.service"
@@ -74,6 +83,8 @@ ln -sf ../octessera-usb-gadget.service \
     "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/octessera-usb-gadget.service"
 ln -sf ../octessera-performance-governor.service \
     "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/octessera-performance-governor.service"
+ln -sf ../octessera-sd-card.service \
+    "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/octessera-sd-card.service"
 ln -sf ../octessera-oled-shutdown.service \
     "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/octessera-oled-shutdown.service"
 ln -sf ../octessera-boot-splash.service \

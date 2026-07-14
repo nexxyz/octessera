@@ -122,6 +122,94 @@ impl NativeRunner {
                 "synth.filter.resonance",
                 fast_instrument_filter_resonance,
             ),
+            "synth.filter.envAmountPct" => self.fast_instrument_synth_number_key(
+                index,
+                number_value,
+                "synth.filter.envAmountPct",
+                &["filter", "envAmountPct"],
+                -100,
+                100,
+            ),
+            "synth.filter.keyTrackingPct" => self.fast_instrument_synth_number_key(
+                index,
+                number_value,
+                "synth.filter.keyTrackingPct",
+                &["filter", "keyTrackingPct"],
+                0,
+                100,
+            ),
+            "synth.amp.velocitySensitivityPct" => self.fast_instrument_synth_number_key(
+                index,
+                number_value,
+                "synth.amp.velocitySensitivityPct",
+                &["amp", "velocitySensitivityPct"],
+                0,
+                100,
+            ),
+            "synth.ampEnv.attackMs" => self.fast_instrument_synth_number_key(
+                index,
+                number_value,
+                "synth.ampEnv.attackMs",
+                &["ampEnv", "attackMs"],
+                0,
+                5000,
+            ),
+            "synth.ampEnv.decayMs" => self.fast_instrument_synth_number_key(
+                index,
+                number_value,
+                "synth.ampEnv.decayMs",
+                &["ampEnv", "decayMs"],
+                0,
+                5000,
+            ),
+            "synth.ampEnv.sustainPct" => self.fast_instrument_synth_number_key(
+                index,
+                number_value,
+                "synth.ampEnv.sustainPct",
+                &["ampEnv", "sustainPct"],
+                0,
+                100,
+            ),
+            "synth.ampEnv.releaseMs" => self.fast_instrument_synth_number_key(
+                index,
+                number_value,
+                "synth.ampEnv.releaseMs",
+                &["ampEnv", "releaseMs"],
+                0,
+                10000,
+            ),
+            "synth.filterEnv.attackMs" => self.fast_instrument_synth_number_key(
+                index,
+                number_value,
+                "synth.filterEnv.attackMs",
+                &["filterEnv", "attackMs"],
+                0,
+                5000,
+            ),
+            "synth.filterEnv.decayMs" => self.fast_instrument_synth_number_key(
+                index,
+                number_value,
+                "synth.filterEnv.decayMs",
+                &["filterEnv", "decayMs"],
+                0,
+                5000,
+            ),
+            "synth.filterEnv.sustainPct" => self.fast_instrument_synth_number_key(
+                index,
+                number_value,
+                "synth.filterEnv.sustainPct",
+                &["filterEnv", "sustainPct"],
+                0,
+                100,
+            ),
+            "synth.filterEnv.releaseMs" => self.fast_instrument_synth_number_key(
+                index,
+                number_value,
+                "synth.filterEnv.releaseMs",
+                &["filterEnv", "releaseMs"],
+                0,
+                10000,
+            ),
             "sample.tuneSemis" => {
                 self.fast_sample_bank_key(index, number_value, "sample.tuneSemis", fast_sample_tune)
             }
@@ -413,6 +501,34 @@ impl NativeRunner {
         self.queue_audio_command(RuntimeAudioCommand::SetSynthParam {
             instrument_slot: index,
             path: path.into(),
+            value: audio_value,
+        });
+        true
+    }
+
+    fn fast_instrument_synth_number_key(
+        &mut self,
+        index: usize,
+        value: Option<i32>,
+        command_path: &'static str,
+        json_path: &[&str],
+        min: i32,
+        max: i32,
+    ) -> bool {
+        let Some(value) = value else {
+            return false;
+        };
+        let Some(instrument) = self.instruments.get_mut(index) else {
+            return false;
+        };
+        let Some(audio_value) =
+            fast_instrument_synth_number(value, instrument, json_path, min, max)
+        else {
+            return false;
+        };
+        self.queue_audio_command(RuntimeAudioCommand::SetSynthParam {
+            instrument_slot: index,
+            path: command_path.into(),
             value: audio_value,
         });
         true

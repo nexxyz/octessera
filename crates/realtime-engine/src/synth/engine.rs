@@ -266,6 +266,27 @@ impl SynthEngine {
         }
     }
 
+    pub fn is_idle(&self) -> bool {
+        !self.has_active_synth_voices()
+            && !self.has_active_sample_voices()
+            && self.preview_sample_voices.is_empty()
+            && self.momentary_fx.is_empty()
+            && self.active_bus_activity_count == 0
+            && self.master_activity_frames == 0
+    }
+
+    fn has_active_synth_voices(&self) -> bool {
+        self.voices
+            .iter()
+            .any(|pool| pool.iter().any(|voice| voice.active))
+    }
+
+    fn has_active_sample_voices(&self) -> bool {
+        self.sample_voices
+            .iter()
+            .any(|pool| pool.iter().any(|voice| voice.active))
+    }
+
     pub(in crate::synth::engine) fn record_synth_parallel_dispatch(&mut self) {
         self.synth_parallel_dispatches = self.synth_parallel_dispatches.saturating_add(1);
         self.synth_parallel_failure_count = 0;

@@ -37,6 +37,7 @@ If you are new here, start with the friendlier map in [`../README.md`](../README
 | 4 | Cherry MX-compatible key switches | [Cherry MX Black switches](https://www.amazon.de/-/en/CHERRY-Mechanical-Keyboard-Switches-without/dp/B0CBS4HJJR?th=1), or any MX-compatible switch | Install into the NeoKey after bring-up. |
 | 1 | MicroSD card for Raspberry Pi | 16GB or larger recommended | Flash the release image. |
 | 1 | USB-C power supply | Regulated 5V supply, 3A minimum; 4A recommended for extra LED headroom | Connect only to the USB-C breakout. A 2A supply is likely marginal once the Pi and LEDs are running together. |
+| 1 | Data-only USB cable or power-isolating USB adapter | Optional, for Pi USB data/gadget use | Needed if you want the Pi data port connected to a host without back-powering the device from that host. Software cannot block USB 5V for you. |
 | 1 | Audio cable/headphones/speaker | 3.5mm audio | Used for test and operation. |
 
 ### 3D printed and mechanical parts
@@ -190,6 +191,8 @@ For manual Pi setup and developer deploy/update workflows, see [`../../docs/deve
 6. Connect power to the USB-C breakout.
 
 Do not power the device from the Raspberry Pi power connector.
+
+If you connect the Pi USB data/gadget port to a computer, remember that a normal USB cable carries 5V too. Octessera can configure the gadget, but it cannot make the Pi politely decline that power. Use a data-only cable or a power-isolating adapter if the instrument is already powered through the enclosure USB-C port.
 
 Before applying power, check the NeoKey and NeoTrellis connector orientation again. `INT` should be on the south side.
 

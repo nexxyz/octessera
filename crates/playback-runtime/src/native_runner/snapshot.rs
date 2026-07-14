@@ -84,7 +84,7 @@ impl NativeRunner {
                 "ledsDimmed": self.leds_dimmed(),
                 "auxAutoMapEnabled": self.aux_auto_map_enabled,
                 "audioConfigRevision": self.audio_config_revision,
-                "autoSaveFlash": if self.auto_save_flash_pulses_remaining > 0 { "flash" } else { "none" },
+                "autoSaveFlash": if self.auto_save_flash_active() { "flash" } else { "none" },
                 "autoSaveFlashSerial": self.auto_save_flash_serial,
                 "transport": {
                     "bpm": self.bpm,

@@ -1,37 +1,27 @@
-use crate::audio::{broadcast_event, AudioControlRequest, AudioService};
+use crate::audio::{AudioControlRequest, AudioService};
 use crate::audio_config_parse::{
     parse_audio_config, parse_voice_stealing_mode, sample_banks, sample_signature,
 };
 use rodio_engine_source::EngineEvent;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
-use std::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc::Receiver;
 
-pub fn spawn_audio_control_worker(
-    rx: Receiver<AudioControlRequest>,
-    engine_txs: Vec<Sender<EngineEvent>>,
-    audio: AudioService,
-) {
-    std::thread::spawn(move || audio_control_loop(rx, engine_txs, audio));
+pub fn spawn_audio_control_worker(rx: Receiver<AudioControlRequest>, audio: AudioService) {
+    std::thread::spawn(move || audio_control_loop(rx, audio));
 }
 
-fn audio_control_loop(
-    rx: Receiver<AudioControlRequest>,
-    engine_txs: Vec<Sender<EngineEvent>>,
-    audio: AudioService,
-) {
+fn audio_control_loop(rx: Receiver<AudioControlRequest>, audio: AudioService) {
     while let Ok(request) = rx.recv() {
         match request {
             AudioControlRequest::Dynamic(event) => {
-                let _ = broadcast_event(&engine_txs, event);
+                let _ = audio.broadcast(event);
             }
             AudioControlRequest::FullConfig {
                 revision,
                 config,
                 samples_dir,
-            } => {
-                handle_full_config_request(revision, config, samples_dir, &rx, &engine_txs, &audio)
-            }
+            } => handle_full_config_request(revision, config, samples_dir, &rx, &audio),
         }
     }
 }
@@ -41,7 +31,6 @@ fn handle_full_config_request(
     mut config: serde_json::Value,
     mut samples_dir: PathBuf,
     rx: &Receiver<AudioControlRequest>,
-    engine_txs: &[Sender<EngineEvent>],
     audio: &AudioService,
 ) {
     let mut pending_dynamic = Vec::new();
@@ -58,7 +47,7 @@ fn handle_full_config_request(
                 Ok(prepared) => prepared,
                 Err(error) => {
                     eprintln!("audio config prep failed: {error}");
-                    send_dynamic_events(engine_txs, pending_dynamic);
+                    send_dynamic_events(audio, pending_dynamic);
                     return;
                 }
             };
@@ -77,8 +66,8 @@ fn handle_full_config_request(
             samples_dir = next_samples_dir;
             continue;
         }
-        apply_prepared_audio_config(audio, engine_txs, prepared);
-        send_dynamic_events(engine_txs, pending_dynamic);
+        apply_prepared_audio_config(audio, prepared);
+        send_dynamic_events(audio, pending_dynamic);
         return;
     }
 }
@@ -154,22 +143,18 @@ fn prepare_audio_config(
     })
 }
 
-fn apply_prepared_audio_config(
-    audio: &AudioService,
-    engine_txs: &[Sender<EngineEvent>],
-    prepared: PreparedAudioConfig,
-) {
+fn apply_prepared_audio_config(audio: &AudioService, prepared: PreparedAudioConfig) {
     if let Some(signature) = prepared.sample_signature {
         if let Ok(mut current) = audio.sample_bank_signature.lock() {
             *current = signature;
         }
     }
-    let _ = broadcast_event(engine_txs, prepared.event);
+    let _ = audio.broadcast(prepared.event);
 }
 
-fn send_dynamic_events(engine_txs: &[Sender<EngineEvent>], events: Vec<EngineEvent>) {
+fn send_dynamic_events(audio: &AudioService, events: Vec<EngineEvent>) {
     for event in events {
-        let _ = broadcast_event(engine_txs, event);
+        let _ = audio.broadcast(event);
     }
 }
 

@@ -171,6 +171,42 @@ pub(crate) fn save_default_result_lights_auto_save_indicator_and_toast_scrolls()
 }
 
 #[test]
+pub(crate) fn save_default_flash_expires_by_time_not_snapshot_count() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.oled_mode = NativeOledMode::Normal;
+    runner.oled_splash_text.clear();
+    runner.oled_splash_until = None;
+
+    runner
+        .send(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::SaveDefaultResult {
+                ok: true,
+                is_auto: Some(true),
+            },
+        })
+        .unwrap();
+    let serial = runner.snapshot().unwrap()["settings"]["autoSaveFlashSerial"]
+        .as_u64()
+        .unwrap();
+    assert_eq!(
+        runner.snapshot().unwrap()["settings"]["autoSaveFlash"],
+        "flash"
+    );
+
+    runner.expire_auto_save_flash_for_test();
+    let _ = runner.messages_without_snapshot().unwrap();
+
+    let snapshot = runner.snapshot().unwrap();
+    assert_eq!(snapshot["settings"]["autoSaveFlash"], "none");
+    assert_eq!(
+        snapshot["settings"]["autoSaveFlashSerial"]
+            .as_u64()
+            .unwrap(),
+        serial
+    );
+}
+
+#[test]
 pub(crate) fn text_edit_turns_are_deferred_until_flush_or_exit() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.auto_save_default = true;

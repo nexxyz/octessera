@@ -111,3 +111,27 @@ pub(crate) fn assignment_overlays_suppress_fn_navigation_overlay() {
         );
     }
 }
+
+#[test]
+pub(crate) fn sparks_transpose_overlay_distinguishes_selected_center_and_potential_keys() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.active_sparks_mode = "transpose".into();
+    runner.sparks_transpose_offsets[0] = 7;
+    for selected in &mut runner.sparks_transpose_selected {
+        *selected = false;
+    }
+    runner.sparks_transpose_selected[0] = true;
+
+    let snapshot = runner.snapshot().unwrap();
+    let cells = led_cells(&snapshot);
+    let center = &cells[display_index(1, 3)];
+    let selected = &cells[display_index(5, 3)];
+    let potential = &cells[display_index(2, 3)];
+
+    assert_eq!(*center, led_rgb(platform_core::palette::WHITE));
+    assert_eq!(*selected, led_rgb(platform_core::palette::GREEN));
+    assert_eq!(
+        *potential,
+        led_rgb(dim_rgb(platform_core::palette::BLUE, 3))
+    );
+}
