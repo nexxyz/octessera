@@ -1,5 +1,12 @@
 use super::*;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+
+fn make_backup_due(runner: &mut NativeRunner) {
+    runner.last_backup_save_at = runner
+        .last_backup_save_at
+        .take()
+        .and_then(|last| last.checked_sub(Duration::from_secs(300)));
+}
 
 #[test]
 pub(crate) fn rolling_backups_default_on_and_follow_five_minute_cadence() {
@@ -28,7 +35,7 @@ pub(crate) fn rolling_backups_default_on_and_follow_five_minute_cadence() {
             ))
     )));
 
-    runner.last_backup_save_at = Some(Instant::now() - Duration::from_secs(300));
+    make_backup_due(&mut runner);
     let messages = runner.messages_with_snapshot().unwrap();
     assert!(messages.iter().any(|message| matches!(
         message,
@@ -45,7 +52,7 @@ pub(crate) fn rolling_backups_false_suppresses_backup_effects() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.rolling_backups = false;
     runner.config_dirty = true;
-    runner.last_backup_save_at = Some(Instant::now() - Duration::from_secs(300));
+    runner.last_backup_save_at = None;
 
     let messages = runner.messages_with_snapshot().unwrap();
 
