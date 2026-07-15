@@ -123,7 +123,7 @@ fn bus_heavy_instruments() -> InstrumentsConfig {
 }
 
 fn fx_limit_instruments(bus_slots: usize) -> InstrumentsConfig {
-    let active_buses = bus_slots.clamp(0, 12).div_ceil(3).max(1);
+    let active_buses = bus_slots.clamp(0, 24).div_ceil(3).max(1);
     InstrumentsConfig {
         instruments: (0..INSTRUMENT_SLOT_COUNT)
             .map(|slot| InstrumentSlotConfig {
@@ -167,7 +167,7 @@ fn fx_limit_buses(bus_slots: usize) -> Vec<FxBusConfig> {
     kinds
         .iter()
         .cycle()
-        .take(bus_slots.clamp(0, 12))
+        .take(bus_slots.clamp(0, 24))
         .enumerate()
         .fold(Vec::<Vec<&str>>::new(), |mut buses, (index, kind)| {
             let bus_index = index / 3;
@@ -234,10 +234,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn fx_limit_buses_pack_three_slots_per_bus_up_to_twelve() {
-        let buses = fx_limit_buses(12);
+    fn fx_limit_buses_pack_three_slots_per_bus_up_to_twenty_four() {
+        let buses = fx_limit_buses(24);
 
-        assert_eq!(buses.len(), 4);
+        assert_eq!(buses.len(), 8);
         assert!(buses.iter().all(|bus| bus.slots.len() == 3));
     }
 
