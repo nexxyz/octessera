@@ -31,7 +31,7 @@ impl NativeRunner {
             &mut self.fx_buses,
             &mut self.global_fx_slots,
             &mut self.global_fx_params,
-            self.bpm.round().clamp(20.0, 300.0) as u16,
+            self.bpm.round().clamp(40.0, 240.0) as u16,
         );
         self.apply_ui_payload(runtime);
         self.apply_midi_payload(runtime);

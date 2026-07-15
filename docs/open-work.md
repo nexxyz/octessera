@@ -28,13 +28,12 @@ This file tracks current actionable work only. Completed-work history does not b
 ## Product Follow-Ups
 
 - Signal path visualization is on hold due to other priorities.
-- Align or document the internal Delay note-conversion BPM clamp versus the visible BPM menu range.
 - Later Octessera rename phases are captured in `docs/internal/plans/octessera-rename-plan.md`; do not execute later phases until explicitly approved.
 - Continue splitting oversized native runtime files when working in those areas instead of expanding them further.
 
 ## Performance And Limits
 
-- Revisit shipped voice, FX bus, and momentary FX limits after multi-core profiling on desktop and Pi; update recommendations and voice-stealing policy if CPU-load telemetry does not reflect multi-core headroom.
+- Evaluate a deliberate Pi high-headroom audio mode using 256-frame blocks and 2 synth-slot workers. Current 128-frame low-latency mode does not dispatch synth-slot workers.
 - Consider centralizing timing selector fallback/index helpers so invalid labels display the same default that runtime conversion uses.
 
 ## Quality Targets

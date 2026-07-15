@@ -199,6 +199,26 @@ pub(crate) fn note_mode_delay_config_load_uses_payload_bpm() {
 }
 
 #[test]
+pub(crate) fn note_mode_delay_config_load_uses_visible_bpm_clamp() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner
+        .apply_config_payload(json!({
+            "runtimeConfig": {
+                "bpm": 20,
+                "mixer": {
+                    "buses": [{
+                        "slot1": { "type": "delay", "params": { "timeMode": "note", "timeNote": "1/8", "timeMs": 250, "feedback": 0.35, "mixPct": 35 } }
+                    }]
+                }
+            }
+        }))
+        .unwrap();
+
+    assert_eq!(runner.bpm, 40.0);
+    assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 750);
+}
+
+#[test]
 pub(crate) fn old_delay_payload_loads_as_ms_mode_and_audio_strips_timing_metadata() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner
