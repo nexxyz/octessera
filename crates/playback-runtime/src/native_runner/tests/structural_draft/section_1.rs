@@ -89,10 +89,10 @@ pub(crate) fn fx_type_switch_rematerializes_visible_params_back_and_forth() {
     assert_visible_rows(&runner, &["Depth", "Rate"], &["Feedback"]);
 
     let _ = turn_main(&mut runner, 1);
-    assert_visible_rows(&runner, &["Feedback"], &["Depth"]);
+    assert_visible_rows(&runner, &["Spread"], &["Depth"]);
 
     let _ = turn_main(&mut runner, -2);
-    assert_visible_rows(&runner, &[], &["Depth", "Feedback"]);
+    assert_visible_rows(&runner, &[], &["Depth", "Spread"]);
 }
 
 #[test]

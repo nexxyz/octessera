@@ -18,6 +18,7 @@ fn fx_state_factories_and_matchers_cover_supported_variants() {
             time_ms: 20.0,
             feedback: 0.2,
             mix: 0.3,
+            spread: 0.0,
         },
         FxBusParams::ModDelay {
             rate_hz: 0.5,
@@ -143,6 +144,7 @@ fn fx_state_factories_and_matchers_cover_supported_variants() {
             time_ms: 10.0,
             feedback: 0.0,
             mix: 0.0,
+            spread: 0.0,
         },
     ));
     assert!(!master_fx_state_matches_params(
@@ -172,6 +174,7 @@ fn process_fx_paths_stay_finite_across_bus_and_master_slots() {
             time_ms: 5.0,
             feedback: 0.3,
             mix: 0.5,
+            spread: 0.0,
         },
         FxBusParams::ModDelay {
             rate_hz: 0.7,

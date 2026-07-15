@@ -404,6 +404,7 @@ native_fx_mix	*	key:mixer.*.slots.*.params.mixPct	number	Mix	Sets wet/dry mix fo
 native_fx_time_mode	*	key:mixer.buses.*.slot*.params.timeMode	enum	Delay Time Mode	Chooses manual milliseconds or tempo note mode for bus Delay.	Note mode follows later BPM edits by rematerializing Time ms; ms mode stays fixed.
 native_fx_time_note	*	key:mixer.buses.*.slot*.params.timeNote	enum	Delay Time Note	Sets the tempo note used by note-mode bus Delay.	Editing this row switches Delay to note mode and writes the current-BPM millisecond value into Time ms.
 native_fx_time	*	key:mixer.buses.*.slot*.params.timeMs	number	Delay Time	Sets delay time in milliseconds.	Longer values create wider echoes.
+native_fx_spread	*	key:mixer.buses.*.slot*.params.spreadPct	number	Delay Spread	Widens Delay at the FX bus output.	0% keeps the current mono bus output; Mix 0 produces no spread.
 native_fx_feedback	*	key:mixer.buses.*.slot*.params.feedback	number	Feedback	Sets how much output feeds back into the effect.	Higher values increase repeats or resonance.
 native_fx_rate_hz	*	key:mixer.*.slots.*.params.rateHz	number	Rate Hz	Sets modulation rate in Hertz.	Higher rates move faster.
 native_fx_depth_pct	*	key:mixer.buses.*.slot*.params.depthPct	number	Depth	Sets modulation depth as a percentage.	Higher values create stronger movement.

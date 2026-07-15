@@ -109,7 +109,7 @@ pub(super) fn fx_default_params(slot_type: &str) -> Value {
     match slot_type {
         "reverb" => json!({ "mixPct": 30, "decay": 0.72, "damp": 0.35 }),
         "delay" => {
-            json!({ "timeMode": "ms", "timeNote": "1/8", "timeMs": 250, "feedback": 0.35, "mixPct": 35 })
+            json!({ "timeMode": "ms", "timeNote": "1/8", "timeMs": 250, "feedback": 0.35, "mixPct": 35, "spreadPct": 0 })
         }
         "tremolo" => json!({ "rateHz": 4, "depthPct": 60 }),
         "vibrato" => {

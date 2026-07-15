@@ -28,10 +28,12 @@ fn compiles_fx_bus_params_with_expected_defaults_and_clamps() {
             time_ms,
             feedback,
             mix,
+            spread,
         } => {
             assert_close(time_ms, 2_000.0);
             assert_close(feedback, 0.98);
             assert_close(mix, 0.0);
+            assert_close(spread, 0.0);
         }
         _ => panic!("expected delay params"),
     }

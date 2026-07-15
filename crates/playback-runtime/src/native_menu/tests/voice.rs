@@ -115,7 +115,7 @@ pub(crate) fn fx_slot_groups_show_selected_effect_params() {
     let mut config = config();
     config.fx_buses[0].slot1_type = "delay".into();
     config.fx_buses[0].slot1_params =
-        serde_json::json!({ "timeMs": 333, "feedback": 0.42, "mixPct": 44 });
+        serde_json::json!({ "timeMs": 333, "feedback": 0.42, "mixPct": 44, "spreadPct": 12 });
     config.global_fx_slots[0] = "vinyl".into();
     config.global_fx_params[0] =
         serde_json::json!({ "cracklePct": 9, "warpDepthPct": 6, "mixPct": 80 });
@@ -136,6 +136,19 @@ pub(crate) fn fx_slot_groups_show_selected_effect_params() {
         .iter()
         .any(|item| item.label == "Feedback"
             && matches!(item.value, NativeMenuValue::Number { value: 42, .. })));
+    assert!(menu
+        .current_siblings()
+        .iter()
+        .any(|item| item.label == "Spread %"
+            && matches!(
+                item.value,
+                NativeMenuValue::Number {
+                    value: 12,
+                    min: 0,
+                    max: 100,
+                    ..
+                }
+            )));
     menu.state.stack = vec![2, 2];
     assert!(menu
         .current_siblings()
@@ -154,7 +167,7 @@ pub(crate) fn binding_target_tree_excludes_delay_time_note_shortcut() {
     let mut config = config();
     config.fx_buses[0].slot1_type = "delay".into();
     config.fx_buses[0].slot1_params =
-        serde_json::json!({ "timeMs": 333, "feedback": 0.42, "mixPct": 44 });
+        serde_json::json!({ "timeMs": 333, "feedback": 0.42, "mixPct": 44, "spreadPct": 12 });
 
     let picker = parameter_picker_group("Bind".into(), "aux.turn.0".into(), None, &config);
     let keys = binding_action_keys(&picker);

@@ -47,7 +47,7 @@ Shape
 │   ├── Bus 1..4 (group)
 │   │   ├── Slot 1: Effect (group)
 │   │   │   ├── Type: [none | reverb | delay | tremolo | chorus | flanger | vibrato | auto_pan | filter_lfo | wah | vinyl | eq | compressor | duck | saturator | distortion | bitcrusher | glitch] default none
-│   │   │   └── (effect params, visible per Type; Delay shows `Time Mode`, `Time Note`, then `Time ms`)
+│   │   │   └── (effect params, visible per Type; Delay shows `Mix %`, `Spread %`, `Time Mode`, `Time Note`, then `Time ms`)
 │   │   ├── Slot 2: Effect (group)
 │   │   │   ├── Type: [same options] default none
 │   │   │   └── (effect params, visible per Type)
@@ -74,7 +74,7 @@ Routing semantics:
 - Global FX runs `Slot 1..N` in order on the stereo main mix after direct and bus outputs are summed, before global momentary FX and `Master Vol`.
 - FX bus assignments above the recommended active bus warning budget of 6 active bus FX slots are accepted and saved, but the runtime shows a toast warning. Global stereo FX slots do not count toward the bus FX warning budget.
 - Global FX is intentionally limited to `none | vinyl | eq | compressor | saturator | distortion` for current Pi Zero 2 W performance targets.
-- Bus Delay timing stores `Time Mode` (`ms` or `note`), `Time Note`, and a materialized `Time ms`. In note mode, BPM changes re-materialize `Time ms` from the saved note. In ms mode, `Time ms` is manual and does not retime. Audio/runtime commands receive `timeMs` only; `Time Mode` and `Time Note` are patch metadata and are not bindable targets.
+- Bus Delay timing stores `Time Mode` (`ms` or `note`), `Time Note`, and a materialized `Time ms`. In note mode, BPM changes re-materialize `Time ms` from the saved note. In ms mode, `Time ms` is manual and does not retime. Audio/runtime commands receive `timeMs` only; `Time Mode` and `Time Note` are patch metadata and are not bindable targets. `Spread %` widens only the final FX bus output; the bus input and FX slot chain stay mono.
 - Selecting a slot `Type` initializes that effect's editable parameter defaults immediately; loaded presets/defaults with missing or invalid effect params are repaired to those defaults.
 - Reverb `Decay` is stored as a feedback coefficient (`0..0.995`) but displayed as approximate tail time in seconds (for example `3.1s`) in menu rows and aux encoder toasts.
 - Bus output is then panned by bus `Pan Pos` and summed to main mix.

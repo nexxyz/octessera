@@ -15,6 +15,8 @@ mod control;
 mod control_tests;
 mod dynamic_control;
 mod note_control;
+#[cfg(test)]
+mod output_stereo_bus_tests;
 mod render;
 #[cfg(test)]
 mod render_block_tests;
@@ -31,6 +33,7 @@ mod test_support;
 mod voice_budget;
 
 use render_profile::RenderProfileState;
+use render_routing::FxBusOutputSpreadState;
 use support::{
     midi_note_to_hz, mono_frame, pan_gains, pan_gains_float, param_f32, parse_instrument_kind,
     parse_momentary_fx_kind, parse_route, sample_slot_for_note, InstrumentKind, MomentaryFxKind,
@@ -62,6 +65,7 @@ pub struct SynthEngine {
     bus_pan_gains_cache: Vec<(f32, f32)>,
     bus_mono_scratch: Vec<f32>,
     bus_mono_snapshot: Vec<f32>,
+    bus_output_spread_state: Vec<FxBusOutputSpreadState>,
     bus_slot_params: Vec<[FxBusParams; BUS_SLOTS_PER_BUS]>,
     bus_slot_state: Vec<[FxBusState; BUS_SLOTS_PER_BUS]>,
     bus_active_slot_indices: Vec<[usize; BUS_SLOTS_PER_BUS]>,
@@ -174,6 +178,7 @@ impl SynthEngine {
             bus_pan_gains_cache: Vec::new(),
             bus_mono_scratch: Vec::new(),
             bus_mono_snapshot: Vec::new(),
+            bus_output_spread_state: Vec::new(),
             bus_slot_params: Vec::new(),
             bus_slot_state: Vec::new(),
             bus_active_slot_indices: Vec::new(),

@@ -24,6 +24,7 @@ pub(in crate::synth) fn process_fx_bus_slot(
             time_ms,
             feedback,
             mix,
+            spread: _,
         } => process_delay(state, input, time_ms, feedback, mix, sample_rate),
         FxBusParams::ModDelay {
             rate_hz,

@@ -23,6 +23,7 @@ pub(super) enum FxBusParams {
         time_ms: f32,
         feedback: f32,
         mix: f32,
+        spread: f32,
     },
     ModDelay {
         rate_hz: f32,
@@ -107,6 +108,7 @@ pub(super) fn compile_fx_bus_params(cfg: &FxBusSlotConfig) -> FxBusParams {
             time_ms: param_f32(cfg, "timeMs", 250.0).clamp(1.0, 2000.0),
             feedback: param_f32(cfg, "feedback", 0.35).clamp(0.0, 0.98),
             mix: pct(cfg, "mixPct", 35.0),
+            spread: pct(cfg, "spreadPct", 0.0),
         },
         "vibrato" => mod_delay(cfg, 6.0, 8.0, 0.0, 100.0),
         "chorus" => mod_delay(cfg, 14.0, 22.0, 0.0, 45.0),

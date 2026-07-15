@@ -120,6 +120,10 @@ impl SynthEngine {
         self.refresh_routed_bus_slot_count();
         self.bus_activity_frames
             .resize(self.bus_slot_params.len(), 0);
+        self.bus_output_spread_state
+            .resize_with(self.bus_slot_params.len(), || {
+                FxBusOutputSpreadState::new(self.sample_rate)
+            });
         self.active_bus_activity_count = self
             .bus_activity_frames
             .iter()

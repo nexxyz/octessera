@@ -14,6 +14,7 @@ pub(super) fn fx_param_items(
         "duck" => duck_param_items(prefix, params, bus_index),
         "delay" => vec![
             fx_number_item("Mix %", prefix, params, "mixPct", 0, 100, 1, 1.0, 35.0),
+            fx_number_item("Spread %", prefix, params, "spreadPct", 0, 100, 1, 1.0, 0.0),
             delay_time_mode_item(prefix, params, bpm),
             delay_time_note_item(prefix, params, bpm),
             fx_number_item("Time ms", prefix, params, "timeMs", 1, 2000, 5, 1.0, 250.0),
