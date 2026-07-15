@@ -9,8 +9,9 @@ pub(super) fn structural_draft_key(key: &str) -> bool {
             .is_some_and(|(_, suffix)| matches!(suffix, "type" | "mixer.route"));
     }
     if let Some(rest) = key.strip_prefix("mixer.buses.") {
-        return parse_indexed_key(rest)
-            .is_some_and(|(_, suffix)| matches!(suffix, "slot1.type" | "slot2.type"));
+        return parse_indexed_key(rest).is_some_and(|(_, suffix)| {
+            matches!(suffix, "slot1.type" | "slot2.type" | "slot3.type")
+        });
     }
     if let Some(rest) = key.strip_prefix("mixer.master.slots.") {
         return parse_indexed_key(rest).is_some_and(|(_, suffix)| suffix == "type");

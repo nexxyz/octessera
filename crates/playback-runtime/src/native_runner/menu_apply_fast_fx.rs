@@ -45,6 +45,7 @@ impl NativeRunner {
             let slot_index = match rest {
                 "slot1.type" => 0,
                 "slot2.type" => 1,
+                "slot3.type" => 2,
                 _ => return false,
             };
             return self.fast_fx_bus_type_key(bus_index, slot_index, key);

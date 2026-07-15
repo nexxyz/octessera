@@ -254,15 +254,15 @@ pub(crate) fn old_delay_payload_loads_as_ms_mode_and_audio_strips_timing_metadat
 #[test]
 pub(crate) fn fx_bus_slot_type_edits_into_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.turn_key("mixer.buses.0.slot1.type", 1);
+    runner.menu.turn_key("mixer.buses.0.slot3.type", 1);
     runner.apply_menu_state().unwrap();
 
     assert_eq!(
-        runner.config_payload()["runtimeConfig"]["mixer"]["buses"][0]["slot1"]["type"],
+        runner.config_payload()["runtimeConfig"]["mixer"]["buses"][0]["slot3"]["type"],
         "tremolo"
     );
     assert_eq!(
-        runner.config_payload()["runtimeConfig"]["mixer"]["buses"][0]["slot1"]["params"]["rateHz"],
+        runner.config_payload()["runtimeConfig"]["mixer"]["buses"][0]["slot3"]["params"]["rateHz"],
         4.0
     );
 }
@@ -314,6 +314,34 @@ pub(crate) fn fx_params_edit_into_config_payload() {
         payload["runtimeConfig"]["mixer"]["master"]["slots"][0]["params"]["clip"],
         0.65
     );
+}
+
+#[test]
+pub(crate) fn old_fx_bus_payload_defaults_slot3_to_none() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.fx_buses[0].slot3_type = "tremolo".into();
+    runner.fx_buses[0].slot3_params = json!({ "rateHz": 4.0, "depthPct": 60 });
+    runner
+        .apply_config_payload(json!({
+            "runtimeConfig": {
+                "mixer": { "buses": [{ "slot1": { "type": "delay", "params": {} } }] }
+            }
+        }))
+        .unwrap();
+
+    assert_eq!(runner.fx_buses[0].slot3_type, "none");
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["mixer"]["buses"][0]["slot3"]["type"],
+        "none"
+    );
+}
+
+#[test]
+pub(crate) fn active_bus_fx_slot_count_includes_slot3() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.fx_buses[0].slot3_type = "tremolo".into();
+
+    assert_eq!(runner.active_bus_fx_slot_count(), 1);
 }
 
 #[test]

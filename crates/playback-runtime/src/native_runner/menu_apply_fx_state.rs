@@ -10,7 +10,9 @@ impl NativeRunner {
         self.fx_buses
             .iter()
             .map(|bus| {
-                usize::from(bus.slot1_type != "none") + usize::from(bus.slot2_type != "none")
+                usize::from(bus.slot1_type != "none")
+                    + usize::from(bus.slot2_type != "none")
+                    + usize::from(bus.slot3_type != "none")
             })
             .sum::<usize>()
     }
@@ -25,6 +27,7 @@ pub(super) fn apply_fx_bus_menu_state(
     let before = (
         bus.slot1_type.clone(),
         bus.slot2_type.clone(),
+        bus.slot3_type.clone(),
         bus.auto_name,
         bus.name.clone(),
     );
@@ -36,6 +39,10 @@ pub(super) fn apply_fx_bus_menu_state(
     if bus.slot2_type != before.1 {
         bus.slot2_params = fx_default_params(&bus.slot2_type);
     }
+    changed |= set_string_from_menu(menu, &mut bus.slot3_type, &format!("{prefix}.slot3.type"));
+    if bus.slot3_type != before.2 {
+        bus.slot3_params = fx_default_params(&bus.slot3_type);
+    }
     changed |= apply_fx_param_menu_state(
         menu,
         &mut bus.slot1_params,
@@ -46,13 +53,18 @@ pub(super) fn apply_fx_bus_menu_state(
         &mut bus.slot2_params,
         &format!("{prefix}.slot2.params"),
     );
+    changed |= apply_fx_param_menu_state(
+        menu,
+        &mut bus.slot3_params,
+        &format!("{prefix}.slot3.params"),
+    );
     changed |= set_u8_from_menu(menu, &mut bus.pan_pos, &format!("{prefix}.panPos"), 32);
     changed |= set_u8_from_menu(menu, &mut bus.volume_pct, &format!("{prefix}.volume"), 100);
     changed |= set_bool_from_menu(menu, &mut bus.auto_name, &format!("{prefix}.autoName"));
     let name_key = format!("{prefix}.name");
     if menu.current_key() == Some(name_key.as_str()) {
         if let Some(name) = menu.value_for_key(&name_key) {
-            if name != before.3 {
+            if name != before.4 {
                 bus.name = name;
                 bus.auto_name = false;
                 changed = true;

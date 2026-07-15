@@ -11,7 +11,7 @@ fn parses_full_audio_config_payload_for_engine() {
             "mixer": { "route": "fx_bus_1", "panPos": 12, "volume": 76 }
         }],
         "mixer": {
-            "buses": [{ "slot1": { "type": "none" }, "slot2": { "type": "none" }, "panPos": 16 }],
+            "buses": [{ "slot1": { "type": "none" }, "slot3": { "type": "tremolo" }, "panPos": 16 }],
             "master": { "slots": [{ "type": "none" }] }
         }
     }))
@@ -24,7 +24,14 @@ fn parses_full_audio_config_payload_for_engine() {
     assert_eq!(mixer.route, "fx_bus_1");
     assert_eq!(mixer.pan_pos, 12);
     assert_eq!(mixer.volume, 76.0);
-    assert_eq!(config.instruments.mixer.unwrap().buses.len(), 1);
+    let mixer_config = config.instruments.mixer.unwrap();
+    assert_eq!(mixer_config.buses.len(), 1);
+    assert!(
+        matches!(mixer_config.buses[0].slots[1], FxBusSlotConfig::Kind(ref kind) if kind == "none")
+    );
+    assert!(
+        matches!(mixer_config.buses[0].slots[2], FxBusSlotConfig::Config { ref kind, .. } if kind == "tremolo")
+    );
     assert_eq!(config.voice_stealing_mode.as_deref(), Some("fixed12"));
     assert_eq!(
         parse_voice_stealing_mode(config.voice_stealing_mode.as_deref().unwrap()),

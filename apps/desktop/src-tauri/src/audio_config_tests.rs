@@ -270,6 +270,7 @@ fn synth_payload_includes_master_fx_slots() {
                     "params": { "timeMs": 333.0, "feedback": 0.42, "mixPct": 44.0 }
                 })),
                 slot2: None,
+                slot3: Some(serde_json::json!({ "type": "tremolo", "params": {} })),
                 pan_pos: Some(18),
                 volume_pct: Some(72.0),
             }],
@@ -295,6 +296,7 @@ fn synth_payload_includes_master_fx_slots() {
     let payload = synth_payload(&config);
     let mixer = payload.mixer.expect("expected mixer config");
     assert_eq!(mixer.buses.len(), 1);
+    assert_eq!(mixer.buses[0].slots.len(), 3);
     assert_eq!(mixer.buses[0].pan_pos, 18);
     assert_eq!(mixer.buses[0].volume_pct, 72.0);
     match &mixer.buses[0].slots[0] {
@@ -304,6 +306,10 @@ fn synth_payload_includes_master_fx_slots() {
         }
         slot => panic!("unexpected bus slot: {slot:?}"),
     }
+    assert!(matches!(mixer.buses[0].slots[1], FxBusSlotConfig::Kind(ref kind) if kind == "none"));
+    assert!(
+        matches!(mixer.buses[0].slots[2], FxBusSlotConfig::Config { ref kind, .. } if kind == "tremolo")
+    );
     let master = mixer.master.expect("expected master FX config");
     assert_eq!(master.slots.len(), 1);
     match &master.slots[0] {

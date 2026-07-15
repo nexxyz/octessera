@@ -19,11 +19,17 @@ pub(super) fn apply_fx_bus_binding_value(
         ("slot2", "type") => {
             apply_fx_slot_type_value(&mut bus.slot2_type, &mut bus.slot2_params, value)
         }
+        ("slot3", "type") => {
+            apply_fx_slot_type_value(&mut bus.slot3_type, &mut bus.slot3_params, value)
+        }
         ("slot1", field) if field.starts_with("params.") => {
             apply_fx_param_binding_value(&mut bus.slot1_params, &field[7..], value)
         }
         ("slot2", field) if field.starts_with("params.") => {
             apply_fx_param_binding_value(&mut bus.slot2_params, &field[7..], value)
+        }
+        ("slot3", field) if field.starts_with("params.") => {
+            apply_fx_param_binding_value(&mut bus.slot3_params, &field[7..], value)
         }
         _ => false,
     };

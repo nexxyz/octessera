@@ -123,6 +123,7 @@ impl NativeRunner {
         let slot_type = match slot_name {
             "slot1" => self.fx_buses.get(bus_index)?.slot1_type.as_str(),
             "slot2" => self.fx_buses.get(bus_index)?.slot2_type.as_str(),
+            "slot3" => self.fx_buses.get(bus_index)?.slot3_type.as_str(),
             _ => return None,
         };
         Some((

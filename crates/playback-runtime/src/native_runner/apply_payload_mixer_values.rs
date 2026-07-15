@@ -55,6 +55,12 @@ pub(super) fn apply_fx_bus_payload(payload: &Value, bus: &mut NativeFxBus, bpm: 
         &mut bus.slot2_params,
         bpm,
     );
+    if let Some(slot3) = payload.get("slot3") {
+        apply_fx_bus_slot_payload(Some(slot3), &mut bus.slot3_type, &mut bus.slot3_params, bpm);
+    } else {
+        bus.slot3_type = "none".into();
+        bus.slot3_params = Value::Object(Default::default());
+    }
     if let Some(pan_pos) = payload.get("panPos").and_then(Value::as_u64) {
         bus.pan_pos = (pan_pos as u8).min(32);
     }

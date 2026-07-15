@@ -135,3 +135,55 @@ impl SynthEngine {
         self.refresh_master_active_slot_indices();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dynamic_fx_bus_slot_accepts_third_slot_and_ignores_fourth() {
+        let mut engine = SynthEngine::new(48_000);
+        engine.set_instruments(InstrumentsConfig {
+            instruments: Vec::new(),
+            mixer: Some(MixerConfig {
+                buses: vec![FxBusConfig::default()],
+                master: None,
+            }),
+            pan_positions: DEFAULT_PAN_POSITIONS,
+            master_volume: 100.0,
+        });
+
+        engine.set_fx_bus_slot(0, 2, "tremolo".into(), BTreeMap::new());
+        assert_eq!(engine.bus_active_slot_counts[0], 1);
+        assert!(matches!(
+            engine.bus_slot_params[0][2],
+            FxBusParams::Tremolo { .. }
+        ));
+
+        engine.set_fx_bus_slot(0, 3, "delay".into(), BTreeMap::new());
+        assert_eq!(engine.bus_active_slot_counts[0], 1);
+    }
+
+    #[test]
+    fn master_fx_config_ignores_third_slot() {
+        let mut engine = SynthEngine::new(48_000);
+        engine.set_instruments(InstrumentsConfig {
+            instruments: Vec::new(),
+            mixer: Some(MixerConfig {
+                buses: Vec::new(),
+                master: Some(MasterFxConfig {
+                    slots: vec![
+                        FxBusSlotConfig::Kind("none".into()),
+                        FxBusSlotConfig::Kind("none".into()),
+                        FxBusSlotConfig::Kind("tremolo".into()),
+                    ],
+                }),
+            }),
+            pan_positions: DEFAULT_PAN_POSITIONS,
+            master_volume: 100.0,
+        });
+
+        assert_eq!(engine.master_slot_params.len(), GLOBAL_FX_SLOT_COUNT);
+        assert!(engine.master_active_slot_indices.is_empty());
+    }
+}

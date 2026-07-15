@@ -21,7 +21,7 @@ pub enum FilterType {
 }
 
 pub const VOICES_PER_SLOT: usize = 8;
-pub const BUS_SLOTS_PER_BUS: usize = 2;
+pub const BUS_SLOTS_PER_BUS: usize = 3;
 include!(concat!(
     env!("OUT_DIR"),
     "/synth_platform_capabilities.generated.rs"

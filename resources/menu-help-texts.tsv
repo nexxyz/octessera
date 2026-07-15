@@ -284,27 +284,34 @@ synth_preset_load_action	Menu > Shape > Instruments > Instrument * > Preset > Lo
 inst_mixer_group	Menu > Shape > Instruments > Instrument * > Mixer		group	Instrument Mixer	Sets this slot's audio level, route, and pan.	Mixer settings affect synth and sampler audio, not external MIDI notes.
 inst_mixer_route	Menu > Shape > Instruments > Instrument * > Mixer > Route	key:instruments.*.mixer.route	enum	Route	Sends this slot's synth or sampler audio direct or to one FX bus.	External MIDI notes bypass audio routing and FX.
 inst_mixer_pan	Menu > Shape > Instruments > Instrument * > Mixer > Pan Pos	key:instruments.*.mixer.panPos	number	Pan Position	Sets direct-output pan for this slot's audio.	0 is left, 16 center, 32 right; bus-routed audio uses the bus pan.
-fx_buses_group	Menu > Shape > FX Buses		group	FX Buses	Configures shared audio buses used by instrument routes.	Each bus runs Slot 1 then Slot 2, pans the result, and joins the main mix.
+fx_buses_group	Menu > Shape > FX Buses		group	FX Buses	Configures shared audio buses used by instrument routes.	Each bus runs Slot 1, Slot 2, then Slot 3, pans the result, and joins the main mix.
 fx_bus_names_group	Menu > Shape > FX Buses > Names		group	Bus Names	Sets auto-naming and custom name for each bus.	Auto name is computed from the assigned FX slot types; turning off auto lets you edit the name freely.
 fx_bus_name_group	Menu > Shape > FX Buses > Names > Bus *		group	Bus Name	Configures naming for this bus.	Auto Label on derives a label from FX slot types; Name lets you type any text when Auto is off.
-fx_bus_wild	Menu > Shape > FX Buses > B*: *		group	FX Bus	Builds one shared bus chain for any instruments routed to this bus.	Slot 1 feeds Slot 2, then Pan Pos places the bus in the stereo main mix.
+fx_bus_wild	Menu > Shape > FX Buses > B*: *		group	FX Bus	Builds one shared bus chain for any instruments routed to this bus.	Slot 1 feeds Slot 2 feeds Slot 3, then Volume and Pan Pos place the bus in the stereo main mix.
 
 fx_bus_slot1	Menu > Shape > FX Buses > B*: * > Slot 1	key:mixer.buses.*.slot1	enum	FX Slot 1	First effect slot in the bus chain.	Default None means passthrough.
 fx_bus_slot2	Menu > Shape > FX Buses > B*: * > Slot 2	key:mixer.buses.*.slot2	enum	FX Slot 2	Second effect slot in the bus chain.	Default None means passthrough.
+fx_bus_slot3	Menu > Shape > FX Buses > B*: * > Slot 3	key:mixer.buses.*.slot3	enum	FX Slot 3	Third effect slot in the bus chain.	Default None means passthrough.
 fx_bus_volume	Menu > Shape > FX Buses > B*: * > Volume	key:mixer.buses.*.volume	number	FX Bus Volume	Sets the bus output level from 0 to 100 after the FX chain.	Use it to balance everything routed through this bus.
 fx_bus_pan	Menu > Shape > FX Buses > B*: * > Pan Pos	key:mixer.buses.*.panPos	number	FX Bus Pan Position	Sets where this bus output sits in the stereo mix.	0 is left, 16 center, 32 right.
 fx_bus_slot1_group	Menu > Shape > FX Buses > B*: * > Slot 1		group	FX Slot	Configures one effect slot in the bus chain.	Choose Type, then edit effect parameters below.
 fx_bus_slot2_group	Menu > Shape > FX Buses > B*: * > Slot 2		group	FX Slot	Configures one effect slot in the bus chain.	Choose Type, then edit effect parameters below.
+fx_bus_slot3_group	Menu > Shape > FX Buses > B*: * > Slot 3		group	FX Slot	Configures one effect slot in the bus chain.	Choose Type, then edit effect parameters below.
 fx_bus_slot1_type	Menu > Shape > FX Buses > B*: * > Slot 1 > Type	key:mixer.buses.*.slot1.type	enum	Slot Type	Selects the first bus effect, or none for passthrough.	Choosing an effect initializes its editable parameter defaults.
 fx_bus_slot2_type	Menu > Shape > FX Buses > B*: * > Slot 2 > Type	key:mixer.buses.*.slot2.type	enum	Slot Type	Selects the second bus effect, or none for passthrough.	Choosing an effect initializes its editable parameter defaults.
+fx_bus_slot3_type	Menu > Shape > FX Buses > B*: * > Slot 3 > Type	key:mixer.buses.*.slot3.type	enum	Slot Type	Selects the third bus effect, or none for passthrough.	Choosing an effect initializes its editable parameter defaults.
 fx_bus_slot1_duck_group	Menu > Shape > FX Buses > B*: * > Slot 1 > duck		group	duck	Sidechain-style ducking effect.	Reduces this bus level when the selected source is loud.
 fx_bus_slot2_duck_group	Menu > Shape > FX Buses > B*: * > Slot 2 > duck		group	duck	Sidechain-style ducking effect.	Reduces this bus level when the selected source is loud.
+fx_bus_slot3_duck_group	Menu > Shape > FX Buses > B*: * > Slot 3 > duck		group	duck	Sidechain-style ducking effect.	Reduces this bus level when the selected source is loud.
 fx_bus_slot1_duck_source	Menu > Shape > FX Buses > B*: * > Slot 1 > duck > Source	key:mixer.buses.*.slot1.params.source	enum	duck Source	Selects which signal triggers ducking.	Options are I# (instrument) and B# (bus), capability-sized.
 fx_bus_slot2_duck_source	Menu > Shape > FX Buses > B*: * > Slot 2 > duck > Source	key:mixer.buses.*.slot2.params.source	enum	duck Source	Selects which signal triggers ducking.	Options are I# (instrument) and B# (bus), capability-sized.
+fx_bus_slot3_duck_source	Menu > Shape > FX Buses > B*: * > Slot 3 > duck > Source	key:mixer.buses.*.slot3.params.source	enum	duck Source	Selects which signal triggers ducking.	Options are I# (instrument) and B# (bus), capability-sized.
 fx_bus_slot1_compressor_group	Menu > Shape > FX Buses > B*: * > Slot 1 > compressor		group	compressor	Dynamics processor that reduces gain when signal exceeds a threshold.	Adjust threshold, ratio, attack, release, makeup gain, and dry/wet mix.
 fx_bus_slot2_compressor_group	Menu > Shape > FX Buses > B*: * > Slot 2 > compressor		group	compressor	Dynamics processor that reduces gain when signal exceeds a threshold.	Adjust threshold, ratio, attack, release, makeup gain, and dry/wet mix.
+fx_bus_slot3_compressor_group	Menu > Shape > FX Buses > B*: * > Slot 3 > compressor		group	compressor	Dynamics processor that reduces gain when signal exceeds a threshold.	Adjust threshold, ratio, attack, release, makeup gain, and dry/wet mix.
 fx_bus_slot1_eq_group	Menu > Shape > FX Buses > B*: * > Slot 1 > eq		group	eq	Three-band equalizer with low shelf, peaking mid, and high shelf bands.	Boosts or cuts each band independently; gain range ±12 dB.
 fx_bus_slot2_eq_group	Menu > Shape > FX Buses > B*: * > Slot 2 > eq		group	eq	Three-band equalizer with low shelf, peaking mid, and high shelf bands.	Boosts or cuts each band independently; gain range ±12 dB.
+fx_bus_slot3_eq_group	Menu > Shape > FX Buses > B*: * > Slot 3 > eq		group	eq	Three-band equalizer with low shelf, peaking mid, and high shelf bands.	Boosts or cuts each band independently; gain range ±12 dB.
 global_fx_group	Menu > Shape > Global FX		group	Global FX	Processes the full stereo main mix after instruments and FX buses are summed together.	These slots run before momentary Play FX and Master Vol, so they color the whole output.
 global_fx_slot_group	Menu > Shape > Global FX > Slot *		group	Global FX Slot	Configures one stereo master effect slot.	Choose Type, then edit the parameters shown below.
 global_fx_slot_type	Menu > Shape > Global FX > Slot * > Type	key:mixer.master.slots.*.type	enum	Slot Type	Options: none, vinyl, eq, compressor, saturator, distortion.	Selecting an effect initializes its editable parameter defaults; none is passthrough.

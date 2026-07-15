@@ -207,6 +207,27 @@ pub(crate) fn instrument_type_turn_applies_immediately() {
 }
 
 #[test]
+pub(crate) fn fx_bus_slot3_type_turn_applies_immediately() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert!(runner.menu.focus_item_key("mixer.buses.0.slot3.type"));
+    runner.menu.state.editing = true;
+
+    let messages = turn_main(&mut runner, 1);
+
+    assert_eq!(runner.fx_buses[0].slot3_type, "tremolo");
+    assert_eq!(runner.audio_config_revision, 0);
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::AudioCommands { commands }
+            if commands.iter().any(|command| matches!(
+                command,
+                RuntimeAudioCommand::SetFxBusSlot { bus_index: 0, slot_index: 2, fx_type, .. }
+                    if fx_type == "tremolo"
+            ))
+    )));
+}
+
+#[test]
 pub(crate) fn instrument_type_switch_rematerializes_visible_params_back_and_forth() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     assert!(runner.menu.focus_item_key("instruments.0.type"));

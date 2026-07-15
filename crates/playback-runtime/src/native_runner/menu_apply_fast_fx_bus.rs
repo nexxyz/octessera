@@ -22,6 +22,7 @@ impl NativeRunner {
             let slot_index = match slot_name {
                 "slot1" => 0,
                 "slot2" => 1,
+                "slot3" => 2,
                 _ => return Some(false),
             };
             return Some(self.fast_fx_bus_param_key(bus_index, slot_index, param_path, key));
@@ -88,10 +89,11 @@ impl NativeRunner {
         let Some(bus) = self.fx_buses.get_mut(bus_index) else {
             return false;
         };
-        let (fx_type, params) = if slot_index == 0 {
-            (&bus.slot1_type, &mut bus.slot1_params)
-        } else {
-            (&bus.slot2_type, &mut bus.slot2_params)
+        let (fx_type, params) = match slot_index {
+            0 => (&bus.slot1_type, &mut bus.slot1_params),
+            1 => (&bus.slot2_type, &mut bus.slot2_params),
+            2 => (&bus.slot3_type, &mut bus.slot3_params),
+            _ => return false,
         };
         let before = params.clone();
         if !apply_fx_param_value(params, param_path, value, bpm) {
@@ -129,27 +131,20 @@ impl NativeRunner {
             return false;
         };
         let previous_bus_label = format!("B{}: {}", bus_index + 1, bus.name);
-        let changed = if slot_index == 0 {
-            if bus.slot1_type == next_type {
-                false
-            } else {
-                bus.slot1_type = next_type;
-                bus.slot1_params = fx_default_params(&bus.slot1_type);
-                let next_label = fx_slot_group_label(1, &bus.slot1_type);
-                self.menu.replace_group_label_containing_direct_key(
-                    &format!("mixer.buses.{bus_index}.slot1.type"),
-                    &next_label,
-                );
-                true
-            }
-        } else if bus.slot2_type == next_type {
+        let (slot_type, slot_params) = match slot_index {
+            0 => (&mut bus.slot1_type, &mut bus.slot1_params),
+            1 => (&mut bus.slot2_type, &mut bus.slot2_params),
+            2 => (&mut bus.slot3_type, &mut bus.slot3_params),
+            _ => return false,
+        };
+        let changed = if *slot_type == next_type {
             false
         } else {
-            bus.slot2_type = next_type;
-            bus.slot2_params = fx_default_params(&bus.slot2_type);
-            let next_label = fx_slot_group_label(2, &bus.slot2_type);
+            *slot_type = next_type;
+            *slot_params = fx_default_params(slot_type);
+            let next_label = fx_slot_group_label(slot_index + 1, slot_type);
             self.menu.replace_group_label_containing_direct_key(
-                &format!("mixer.buses.{bus_index}.slot2.type"),
+                &format!("mixer.buses.{bus_index}.slot{}.type", slot_index + 1),
                 &next_label,
             );
             true
@@ -162,26 +157,31 @@ impl NativeRunner {
         }
         let next_bus_label = format!("B{}: {}", bus_index + 1, bus.name);
         let next_bus_name = bus.name.clone();
-        let (fx_type, params) = if slot_index == 0 {
-            (
+        let (fx_type, params) = match slot_index {
+            0 => (
                 bus.slot1_type.clone(),
                 audio_params_for_fx(&bus.slot1_type, &bus.slot1_params),
-            )
-        } else {
-            (
+            ),
+            1 => (
                 bus.slot2_type.clone(),
                 audio_params_for_fx(&bus.slot2_type, &bus.slot2_params),
-            )
+            ),
+            2 => (
+                bus.slot3_type.clone(),
+                audio_params_for_fx(&bus.slot3_type, &bus.slot3_params),
+            ),
+            _ => return false,
         };
         let slot_key = format!("mixer.buses.{bus_index}.slot{}.type", slot_index + 1);
         let slot_prefix = format!("mixer.buses.{bus_index}.slot{}", slot_index + 1);
         let children = fx_bus_slot_children_for_key(
             &slot_prefix,
             &fx_type,
-            &if slot_index == 0 {
-                self.fx_buses[bus_index].slot1_params.clone()
-            } else {
-                self.fx_buses[bus_index].slot2_params.clone()
+            &match slot_index {
+                0 => self.fx_buses[bus_index].slot1_params.clone(),
+                1 => self.fx_buses[bus_index].slot2_params.clone(),
+                2 => self.fx_buses[bus_index].slot3_params.clone(),
+                _ => Value::Null,
             },
             bus_index,
             self.current_menu_bpm(),

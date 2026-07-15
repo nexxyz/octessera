@@ -51,6 +51,9 @@ Shape
 │   │   ├── Slot 2: Effect (group)
 │   │   │   ├── Type: [same options] default none
 │   │   │   └── (effect params, visible per Type)
+│   │   ├── Slot 3: Effect (group)
+│   │   │   ├── Type: [same options] default none
+│   │   │   └── (effect params, visible per Type)
 │   │   ├── Volume: [0..100] default 100
 │   │   ├── Pan Pos: [0..32] quantized (33-position stereo scale; 16=center)
 │   │   ├── Auto Label: [on | off]    ← on: label auto-derives from FX slot types as display text (`None`, `Delay+Duck`); off: label is manual text
@@ -71,7 +74,7 @@ Routing semantics:
 - Instrument `Route=direct` sends post-fader output to main mix using instrument `Pan Pos`.
 - Instrument `Route=fx_bus_n` sends post-fader output to the selected FX bus (exclusive send); instrument `Pan Pos` is non-editable because bus output pan controls placement.
 - Internal synth and sample instruments use the same route/pan/bus-FX mixer path; MIDI instruments emit external MIDI and are not processed by audio FX.
-- Each bus runs `Slot 1` then `Slot 2` in order; with `none` selected this is passthrough.
+- Each bus runs `Slot 1`, then `Slot 2`, then `Slot 3` in order; with `none` selected this is passthrough.
 - Global FX runs `Slot 1..N` in order on the stereo main mix after direct and bus outputs are summed, before global momentary FX and `Master Vol`.
 - FX bus assignments above the recommended active bus warning budget of 6 active bus FX slots are accepted and saved, but the runtime shows a toast warning. Global stereo FX slots do not count toward the bus FX warning budget.
 - Global FX is intentionally limited to `none | vinyl | eq | compressor | saturator | distortion` for current Pi Zero 2 W performance targets.
@@ -81,7 +84,7 @@ Routing semantics:
 - Bus output is scaled by bus `Volume`, panned by bus `Pan Pos`, and summed to main mix.
 - `duck` source options are stable and capability-sized: `I1..I{instrumentCount}` and `B1..B{busCount}`.
 - `auto-pan` modulates the bus stereo output position after the slot chain.
-- FX bus slot and global slot group labels include the loaded effect display name, e.g. `Slot 1: Delay`, `Slot 2: Duck`, or `Slot 1: None`.
+- FX bus slot and global slot group labels include the loaded effect display name, e.g. `Slot 1: Delay`, `Slot 2: Duck`, `Slot 3: None`, or `Slot 1: None`.
 - FX bus naming mode: `auto` builds from assigned slot types using display names (e.g. `Delay+Reverb`, or `None` when all slots are empty); manual names are preserved exactly. Legacy raw auto names are normalized only when `Auto Label` is on and the stored name is missing or equals the old raw auto-derived value.
 
 Sample assignment mode semantics:

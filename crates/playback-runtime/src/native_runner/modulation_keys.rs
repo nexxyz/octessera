@@ -14,6 +14,8 @@ pub(super) fn parse_fx_bus_binding_key(key: &str) -> Option<(usize, &str, &str)>
         ("slot1", field)
     } else if let Some(field) = field.strip_prefix("slot2.") {
         ("slot2", field)
+    } else if let Some(field) = field.strip_prefix("slot3.") {
+        ("slot3", field)
     } else {
         return Some((index.parse::<usize>().ok()?, "bus", field));
     };

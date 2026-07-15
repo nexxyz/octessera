@@ -272,9 +272,10 @@ impl SynthEngine {
         let Some(master) = mixer.and_then(|mixer| mixer.master.as_ref()) else {
             return (next_master_slot_params, next_master_slot_state);
         };
-        next_master_slot_params.reserve_exact(master.slots.len());
-        next_master_slot_state.reserve_exact(master.slots.len());
-        for (slot_idx, slot) in master.slots.iter().enumerate() {
+        let slot_count = master.slots.len().min(GLOBAL_FX_SLOT_COUNT);
+        next_master_slot_params.reserve_exact(slot_count);
+        next_master_slot_state.reserve_exact(slot_count);
+        for (slot_idx, slot) in master.slots.iter().take(GLOBAL_FX_SLOT_COUNT).enumerate() {
             let params = compile_fx_bus_params(slot);
             let state = self
                 .master_slot_state

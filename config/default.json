@@ -3147,6 +3147,10 @@
               "threshold": 0.08
             },
             "type": "duck"
+          },
+          "slot3": {
+            "params": {},
+            "type": "none"
           }
         },
         {
@@ -3161,6 +3165,10 @@
           "slot2": {
             "params": {},
             "type": "none"
+          },
+          "slot3": {
+            "params": {},
+            "type": "none"
           }
         },
         {
@@ -3175,6 +3183,10 @@
           "slot2": {
             "params": {},
             "type": "none"
+          },
+          "slot3": {
+            "params": {},
+            "type": "none"
           }
         },
         {
@@ -3187,6 +3199,10 @@
             "type": "none"
           },
           "slot2": {
+            "params": {},
+            "type": "none"
+          },
+          "slot3": {
             "params": {},
             "type": "none"
           }

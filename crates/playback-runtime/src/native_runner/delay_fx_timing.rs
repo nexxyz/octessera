@@ -10,11 +10,12 @@ impl NativeRunner {
         let mut commands = Vec::new();
         let mut menu_updates = Vec::new();
         for (bus_index, bus) in self.fx_buses.iter_mut().enumerate() {
-            for slot_index in 0..2 {
-                let (fx_type, params) = if slot_index == 0 {
-                    (&bus.slot1_type, &mut bus.slot1_params)
-                } else {
-                    (&bus.slot2_type, &mut bus.slot2_params)
+            for slot_index in 0..3 {
+                let (fx_type, params) = match slot_index {
+                    0 => (&bus.slot1_type, &mut bus.slot1_params),
+                    1 => (&bus.slot2_type, &mut bus.slot2_params),
+                    2 => (&bus.slot3_type, &mut bus.slot3_params),
+                    _ => unreachable!(),
                 };
                 if fx_type != "delay" {
                     continue;
