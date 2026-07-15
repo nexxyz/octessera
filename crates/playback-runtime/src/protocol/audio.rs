@@ -39,6 +39,8 @@ pub enum RuntimeAudioCommand {
         bus_index: usize,
         #[serde(default, rename = "panPos")]
         pan_pos: Option<usize>,
+        #[serde(default, rename = "volumePct")]
+        volume_pct: Option<f32>,
     },
     SetSynthParam {
         #[serde(rename = "instrumentSlot")]

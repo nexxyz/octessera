@@ -38,6 +38,14 @@ pub(super) fn fx_buses_group(config: &[NativeFxBusConfig], bpm: u16) -> NativeMe
                             bpm,
                         ),
                         number_item(
+                            "Volume",
+                            format!("{prefix}.volume"),
+                            i32::from(bus.volume_pct),
+                            0,
+                            100,
+                            1,
+                        ),
+                        number_item(
                             "Pan Pos",
                             format!("{prefix}.panPos"),
                             i32::from(bus.pan_pos),
@@ -183,6 +191,7 @@ pub(super) fn default_fx_bus_config() -> NativeFxBusConfig {
         slot2_type: "none".into(),
         slot2_params: serde_json::json!({}),
         pan_pos: 16,
+        volume_pct: 100,
         auto_name: true,
     }
 }

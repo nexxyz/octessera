@@ -316,6 +316,7 @@ impl NativeRunner {
                     "slot1": fx_slot_payload_with_params(&bus.slot1_type, &bus.slot1_params),
                     "slot2": fx_slot_payload_with_params(&bus.slot2_type, &bus.slot2_params),
                     "panPos": bus.pan_pos,
+                    "volumePct": bus.volume_pct,
                     "autoName": bus.auto_name
                 })
             }).collect::<Vec<_>>(),

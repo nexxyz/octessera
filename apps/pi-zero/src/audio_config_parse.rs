@@ -102,6 +102,8 @@ struct AudioBusPayload {
     slot2: Option<serde_json::Value>,
     #[serde(default)]
     pan_pos: Option<usize>,
+    #[serde(default)]
+    volume_pct: Option<f32>,
 }
 
 #[derive(Deserialize)]
@@ -335,6 +337,7 @@ fn mixer_config(config: AudioMixerPayload) -> MixerConfig {
                     .map(fx_slot_config)
                     .collect(),
                 pan_pos: bus.pan_pos.unwrap_or(16),
+                volume_pct: bus.volume_pct.unwrap_or(100.0),
             })
             .collect(),
         master: config.master.map(|master| MasterFxConfig {

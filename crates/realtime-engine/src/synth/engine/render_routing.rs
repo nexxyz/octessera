@@ -231,10 +231,12 @@ impl SynthEngine {
             let (gl, gr) = self.bus_stereo_balance_gains(bus_idx);
             bus_left *= gl;
             bus_right *= gr;
-            (bus_left, bus_right)
+            let volume = self.bus_volume.get(bus_idx).copied().unwrap_or(1.0);
+            (bus_left * volume, bus_right * volume)
         } else {
             let (gl, gr) = self.bus_mono_pan_gains(bus_idx);
-            (output.mono * gl, output.mono * gr)
+            let volume = self.bus_volume.get(bus_idx).copied().unwrap_or(1.0);
+            (output.mono * gl * volume, output.mono * gr * volume)
         }
     }
 

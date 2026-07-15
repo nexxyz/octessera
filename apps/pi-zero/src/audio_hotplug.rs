@@ -98,6 +98,9 @@ impl ReplayCache {
             return;
         }
         if let Some(key) = replay_key(event) {
+            if merge_fx_bus_mixer_event(&mut self.keyed, &key, event) {
+                return;
+            }
             self.keyed.insert(key, event.clone());
         }
     }
@@ -126,6 +129,36 @@ impl ReplayCache {
             voice_stealing_mode: *voice_stealing_mode,
         }
     }
+}
+
+fn merge_fx_bus_mixer_event(
+    keyed: &mut BTreeMap<ReplayKey, EngineEvent>,
+    key: &ReplayKey,
+    event: &EngineEvent,
+) -> bool {
+    let EngineEvent::SetFxBusMixer {
+        pan_pos,
+        volume_pct,
+        ..
+    } = event
+    else {
+        return false;
+    };
+    let Some(EngineEvent::SetFxBusMixer {
+        pan_pos: queued_pan,
+        volume_pct: queued_volume,
+        ..
+    }) = keyed.get_mut(key)
+    else {
+        return false;
+    };
+    if pan_pos.is_some() {
+        *queued_pan = *pan_pos;
+    }
+    if volume_pct.is_some() {
+        *queued_volume = *volume_pct;
+    }
+    true
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -313,6 +346,30 @@ mod tests {
                 value,
                 ..
             } if *value == 0.75
+        )));
+    }
+
+    #[test]
+    fn replay_cache_merges_fx_bus_mixer_options() {
+        let mut cache = ReplayCache::default();
+        cache.remember(&EngineEvent::SetFxBusMixer {
+            bus_index: 0,
+            pan_pos: Some(13),
+            volume_pct: None,
+        });
+        cache.remember(&EngineEvent::SetFxBusMixer {
+            bus_index: 0,
+            pan_pos: None,
+            volume_pct: Some(55.0),
+        });
+        let replay = collect_replay_events(&cache);
+        assert!(replay.iter().any(|event| matches!(
+            event,
+            EngineEvent::SetFxBusMixer {
+                bus_index: 0,
+                pan_pos: Some(13),
+                volume_pct: Some(55.0),
+            }
         )));
     }
 }

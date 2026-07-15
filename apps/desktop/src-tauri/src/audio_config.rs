@@ -50,6 +50,8 @@ struct AudioBusConfig {
     slot2: Option<serde_json::Value>,
     #[serde(default)]
     pan_pos: Option<usize>,
+    #[serde(default)]
+    volume_pct: Option<f32>,
 }
 
 #[derive(Deserialize)]
@@ -306,6 +308,7 @@ fn mixer_buses(config: &AudioInstrumentsConfig) -> Vec<FxBusConfig> {
                 .map(|b| FxBusConfig {
                     slots: vec![bus_slot(&b.slot1), bus_slot(&b.slot2)],
                     pan_pos: b.pan_pos.unwrap_or(16),
+                    volume_pct: b.volume_pct.unwrap_or(100.0),
                 })
                 .collect::<Vec<_>>()
         })

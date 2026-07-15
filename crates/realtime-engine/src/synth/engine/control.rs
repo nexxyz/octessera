@@ -6,6 +6,7 @@ const MAX_MOMENTARY_FX: usize = 2;
 struct CompiledBusMixerState {
     pan_positions: Vec<usize>,
     pan_gains: Vec<(f32, f32)>,
+    volumes: Vec<f32>,
     slot_params: Vec<[FxBusParams; BUS_SLOTS_PER_BUS]>,
     slot_state: Vec<[FxBusState; BUS_SLOTS_PER_BUS]>,
     active_slot_indices: Vec<[usize; BUS_SLOTS_PER_BUS]>,
@@ -113,6 +114,7 @@ impl SynthEngine {
             self.compile_master_mixer_state(cfg.mixer.as_ref());
         self.bus_pan_pos = next_bus.pan_positions;
         self.bus_pan_gains_cache = next_bus.pan_gains;
+        self.bus_volume = next_bus.volumes;
         self.bus_slot_params = next_bus.slot_params;
         self.bus_slot_state = next_bus.slot_state;
         self.bus_active_slot_indices = next_bus.active_slot_indices;
@@ -196,12 +198,14 @@ impl SynthEngine {
     fn compile_bus_mixer_state(&self, mixer: Option<&MixerConfig>) -> CompiledBusMixerState {
         let mut next_bus_pan_pos = Vec::new();
         let mut next_bus_pan_gains = Vec::new();
+        let mut next_bus_volumes = Vec::new();
         let mut next_bus_slot_params = Vec::new();
         let mut next_bus_slot_state = Vec::new();
         let Some(mixer) = mixer else {
             return CompiledBusMixerState {
                 pan_positions: next_bus_pan_pos,
                 pan_gains: next_bus_pan_gains,
+                volumes: next_bus_volumes,
                 slot_params: next_bus_slot_params,
                 slot_state: next_bus_slot_state,
                 active_slot_indices: Vec::new(),
@@ -210,6 +214,7 @@ impl SynthEngine {
         };
         next_bus_pan_pos.reserve_exact(mixer.buses.len());
         next_bus_pan_gains.reserve_exact(mixer.buses.len());
+        next_bus_volumes.reserve_exact(mixer.buses.len());
         next_bus_slot_params.reserve_exact(mixer.buses.len());
         next_bus_slot_state.reserve_exact(mixer.buses.len());
         let mut next_bus_active_slot_indices = Vec::with_capacity(mixer.buses.len());
@@ -218,6 +223,7 @@ impl SynthEngine {
             let pan_pos = bus.pan_pos.min(self.pan_positions - 1);
             next_bus_pan_pos.push(pan_pos);
             next_bus_pan_gains.push(pan_gains(pan_pos, self.pan_positions));
+            next_bus_volumes.push((bus.volume_pct / 100.0).clamp(0.0, 1.0));
             let cfgs = compile_bus_slot_configs(bus);
             let params: [FxBusParams; BUS_SLOTS_PER_BUS] =
                 std::array::from_fn(|j| compile_fx_bus_params(&cfgs[j]));
@@ -238,6 +244,7 @@ impl SynthEngine {
         CompiledBusMixerState {
             pan_positions: next_bus_pan_pos,
             pan_gains: next_bus_pan_gains,
+            volumes: next_bus_volumes,
             slot_params: next_bus_slot_params,
             slot_state: next_bus_slot_state,
             active_slot_indices: next_bus_active_slot_indices,

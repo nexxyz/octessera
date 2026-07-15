@@ -22,7 +22,12 @@ impl SynthEngine {
         }
     }
 
-    pub fn set_fx_bus_mixer(&mut self, bus_index: usize, pan_pos: Option<usize>) {
+    pub fn set_fx_bus_mixer(
+        &mut self,
+        bus_index: usize,
+        pan_pos: Option<usize>,
+        volume_pct: Option<f32>,
+    ) {
         if bus_index >= self.bus_pan_pos.len() {
             return;
         }
@@ -30,6 +35,9 @@ impl SynthEngine {
             self.bus_pan_pos[bus_index] = pan_pos.min(self.pan_positions - 1);
             self.bus_pan_gains_cache[bus_index] =
                 pan_gains(self.bus_pan_pos[bus_index], self.pan_positions);
+        }
+        if let Some(volume_pct) = volume_pct {
+            self.bus_volume[bus_index] = (volume_pct / 100.0).clamp(0.0, 1.0);
         }
     }
 

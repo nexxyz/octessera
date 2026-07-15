@@ -127,6 +127,7 @@ fn fx_isolation_config(fx_kind: Option<IsolatedFx>) -> InstrumentsConfig {
             buses: vec![FxBusConfig {
                 slots: fx_kind.map(fx_slot).into_iter().collect(),
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
+                volume_pct: 100.0,
             }],
             master: None,
         }),
@@ -213,6 +214,7 @@ fn bus<const N: usize>(kind: &str, params: [(&str, serde_json::Value); N]) -> Fx
     FxBusConfig {
         slots: vec![fx(kind, params)],
         pan_pos: DEFAULT_PAN_POSITIONS / 2,
+        volume_pct: 100.0,
     }
 }
 
@@ -223,6 +225,7 @@ fn bus_pair(first: FxBusSlotConfig, second: FxBusSlotConfig) -> FxBusConfig {
             .take(BUS_SLOTS_PER_BUS)
             .collect(),
         pan_pos: DEFAULT_PAN_POSITIONS / 2,
+        volume_pct: 100.0,
     }
 }
 

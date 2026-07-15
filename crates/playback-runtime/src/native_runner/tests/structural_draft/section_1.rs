@@ -307,6 +307,19 @@ pub(crate) fn instrument_route_turn_applies_immediately() {
     assert_eq!(runner.audio_config_revision, 1);
     assert_no_store_save_default(&messages);
     assert_no_audio_commands(&messages);
+    let snapshot = runner.menu.snapshot();
+    assert!(snapshot
+        .lines
+        .iter()
+        .any(|line| line.contains("Pan Pos -- (bus)")));
+    assert!(runner.menu.focus_item_key("instruments.0.mixer.route"));
+    runner.menu.state.editing = true;
+    let _ = turn_main(&mut runner, -1);
+    assert!(runner.menu.focus_item_key("instruments.0.mixer.panPos"));
+    let snapshot = runner.menu.snapshot();
+    assert!(snapshot.lines.iter().any(|line| line == "> Pan Pos C"));
+    assert_eq!(runner.instruments[0].route, "direct");
+    assert_eq!(runner.audio_config_revision, 2);
     runner.make_deferred_menu_apply_due_for_test();
     assert_deferred_autosave_payload(&runner.flush_deferred_menu_apply().unwrap());
 }

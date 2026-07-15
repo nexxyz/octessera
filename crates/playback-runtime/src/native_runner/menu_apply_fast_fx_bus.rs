@@ -15,6 +15,9 @@ impl NativeRunner {
             if rest == "panPos" {
                 return Some(self.fast_fx_bus_pan_key(bus_index, key));
             }
+            if rest == "volume" {
+                return Some(self.fast_fx_bus_volume_key(bus_index, key));
+            }
             let (slot_name, param_path) = rest.split_once(".params.")?;
             let slot_index = match slot_name {
                 "slot1" => 0,
@@ -47,6 +50,28 @@ impl NativeRunner {
         self.queue_audio_command(RuntimeAudioCommand::SetFxBusMixer {
             bus_index,
             pan_pos: Some(usize::from(pan_pos)),
+            volume_pct: None,
+        });
+        true
+    }
+
+    fn fast_fx_bus_volume_key(&mut self, bus_index: usize, key: &str) -> bool {
+        let Some(value) = self.menu.number_for_key(key) else {
+            return false;
+        };
+        let Some(bus) = self.fx_buses.get_mut(bus_index) else {
+            return false;
+        };
+        let volume_pct = value.clamp(0, 100) as u8;
+        if bus.volume_pct == volume_pct {
+            return true;
+        }
+        bus.volume_pct = volume_pct;
+        self.mark_fast_autosave_dirty();
+        self.queue_audio_command(RuntimeAudioCommand::SetFxBusMixer {
+            bus_index,
+            pan_pos: None,
+            volume_pct: Some(f32::from(volume_pct)),
         });
         true
     }

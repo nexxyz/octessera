@@ -51,6 +51,7 @@ pub(crate) fn pan_page_grid_edit_sends_live_mixer_commands() {
                 RuntimeAudioCommand::SetFxBusMixer {
                     bus_index: 0,
                     pan_pos: Some(5),
+                    ..
                 }
             ))
     )));

@@ -194,8 +194,12 @@ impl EngineSource {
                 } => {
                     self.engine.set_instrument_slot(instrument_slot, config);
                 }
-                EngineEvent::SetFxBusMixer { bus_index, pan_pos } => {
-                    self.engine.set_fx_bus_mixer(bus_index, pan_pos);
+                EngineEvent::SetFxBusMixer {
+                    bus_index,
+                    pan_pos,
+                    volume_pct,
+                } => {
+                    self.engine.set_fx_bus_mixer(bus_index, pan_pos, volume_pct);
                 }
                 EngineEvent::SetSynthParam {
                     instrument_slot,

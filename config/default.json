@@ -3129,6 +3129,7 @@
           "autoName": true,
           "name": "Delay+Duck",
           "panPos": 16,
+          "volumePct": 100,
           "slot1": {
             "params": {
               "feedback": 0.35,
@@ -3152,6 +3153,7 @@
           "autoName": true,
           "name": "None",
           "panPos": 16,
+          "volumePct": 100,
           "slot1": {
             "params": {},
             "type": "none"
@@ -3165,6 +3167,7 @@
           "autoName": true,
           "name": "None",
           "panPos": 16,
+          "volumePct": 100,
           "slot1": {
             "params": {},
             "type": "none"
@@ -3178,6 +3181,7 @@
           "autoName": true,
           "name": "None",
           "panPos": 16,
+          "volumePct": 100,
           "slot1": {
             "params": {},
             "type": "none"

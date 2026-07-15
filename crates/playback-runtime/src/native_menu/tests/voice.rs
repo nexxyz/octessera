@@ -53,6 +53,10 @@ pub(crate) fn voice_menu_exposes_fx_bus_and_global_fx_groups() {
     assert!(menu
         .current_siblings()
         .iter()
+        .any(|item| item.label == "Volume"));
+    assert!(menu
+        .current_siblings()
+        .iter()
         .any(|item| item.label == "Name"));
 }
 
@@ -108,6 +112,29 @@ pub(crate) fn mixer_menu_uses_current_volume_and_pan_values() {
     menu.state.cursor = 2;
     let pan = menu.snapshot();
     assert!(pan.lines.iter().any(|line| line == "> Pan Pos L6"));
+}
+
+#[test]
+pub(crate) fn mixer_pan_is_non_editable_when_routed_to_fx_bus() {
+    let mut config = config();
+    config.instrument_routes = vec!["fx_bus_1".into()];
+    let mut menu = NativeMenuModel::new(config);
+    menu.state.stack = vec![2, 0, 0, 3];
+    menu.state.cursor = 2;
+    let snapshot = menu.snapshot();
+    assert!(snapshot
+        .lines
+        .iter()
+        .any(|line| line == "> Pan Pos -- (bus)"));
+    assert_eq!(menu.current_siblings()[2].key, None);
+    assert!(matches!(
+        menu.current_siblings()[2].value,
+        NativeMenuValue::Group
+    ));
+    assert_eq!(menu.press(), None);
+    assert_eq!(menu.state.stack, vec![2, 0, 0, 3]);
+    assert_eq!(menu.state.cursor, 2);
+    assert!(!menu.state.editing);
 }
 
 #[test]

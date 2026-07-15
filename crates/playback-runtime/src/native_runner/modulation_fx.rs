@@ -12,6 +12,7 @@ pub(super) fn apply_fx_bus_binding_value(
 ) {
     let changed = match (slot, field) {
         ("bus", "panPos") => apply_u8_value(&mut bus.pan_pos, value, PAN_POSITION_COUNT - 1),
+        ("bus", "volume") => apply_u8_value(&mut bus.volume_pct, value, 100),
         ("slot1", "type") => {
             apply_fx_slot_type_value(&mut bus.slot1_type, &mut bus.slot1_params, value)
         }

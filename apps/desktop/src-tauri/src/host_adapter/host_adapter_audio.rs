@@ -50,12 +50,15 @@ impl DesktopPlaybackHostAdapter {
                 }
                 return Ok(());
             }
-            RuntimeAudioCommand::SetFxBusMixer { bus_index, pan_pos } => {
-                QueuedAudioEvent::SetFxBusMixer {
-                    bus_index: *bus_index,
-                    pan_pos: *pan_pos,
-                }
-            }
+            RuntimeAudioCommand::SetFxBusMixer {
+                bus_index,
+                pan_pos,
+                volume_pct,
+            } => QueuedAudioEvent::SetFxBusMixer {
+                bus_index: *bus_index,
+                pan_pos: *pan_pos,
+                volume_pct: *volume_pct,
+            },
             RuntimeAudioCommand::SetSynthParam {
                 instrument_slot,
                 path,

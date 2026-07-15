@@ -209,5 +209,6 @@ pub struct NativeFxBusConfig {
     pub slot2_type: String,
     pub slot2_params: serde_json::Value,
     pub pan_pos: u8,
+    pub volume_pct: u8,
     pub auto_name: bool,
 }

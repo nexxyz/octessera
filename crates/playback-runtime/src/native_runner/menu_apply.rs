@@ -289,7 +289,7 @@ fn current_key_requires_audio_config(current_key: &Option<String>) -> bool {
         let Some((_, suffix)) = rest.split_once('.') else {
             return true;
         };
-        if matches!(suffix, "name" | "autoName" | "panPos") {
+        if matches!(suffix, "name" | "autoName" | "panPos" | "volume") {
             return false;
         }
         return suffix.ends_with(".type");

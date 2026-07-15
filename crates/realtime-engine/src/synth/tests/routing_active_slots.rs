@@ -26,6 +26,7 @@ fn fx_active_slot_indices_preserve_none_gaps_and_autopan() {
                     },
                 ],
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
+                volume_pct: 100.0,
             }],
             master: Some(MasterFxConfig {
                 slots: vec![

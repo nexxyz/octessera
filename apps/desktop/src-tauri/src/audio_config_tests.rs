@@ -271,6 +271,7 @@ fn synth_payload_includes_master_fx_slots() {
                 })),
                 slot2: None,
                 pan_pos: Some(18),
+                volume_pct: Some(72.0),
             }],
             master: Some(AudioMasterConfig {
                 slots: vec![serde_json::json!({
@@ -295,6 +296,7 @@ fn synth_payload_includes_master_fx_slots() {
     let mixer = payload.mixer.expect("expected mixer config");
     assert_eq!(mixer.buses.len(), 1);
     assert_eq!(mixer.buses[0].pan_pos, 18);
+    assert_eq!(mixer.buses[0].volume_pct, 72.0);
     match &mixer.buses[0].slots[0] {
         FxBusSlotConfig::Config { kind, params } => {
             assert_eq!(kind, "delay");

@@ -65,6 +65,7 @@ fn delay_bus_test_config(feedback: f32) -> InstrumentsConfig {
                     ]),
                 }],
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
+                volume_pct: 100.0,
             }],
             master: None,
         }),

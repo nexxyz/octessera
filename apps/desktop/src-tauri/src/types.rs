@@ -131,6 +131,7 @@ pub(crate) enum QueuedAudioEvent {
     SetFxBusMixer {
         bus_index: usize,
         pan_pos: Option<usize>,
+        volume_pct: Option<f32>,
     },
     SetSynthParam {
         instrument_slot: usize,

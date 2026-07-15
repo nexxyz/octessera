@@ -10,6 +10,7 @@ pub(super) fn fx_bus_configs(buses: &[NativeFxBus]) -> Vec<NativeFxBusConfig> {
             slot2_type: bus.slot2_type.clone(),
             slot2_params: bus.slot2_params.clone(),
             pan_pos: bus.pan_pos,
+            volume_pct: bus.volume_pct,
             auto_name: bus.auto_name,
         })
         .collect()

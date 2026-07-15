@@ -47,6 +47,7 @@ pub(super) fn apply_fx_bus_menu_state(
         &format!("{prefix}.slot2.params"),
     );
     changed |= set_u8_from_menu(menu, &mut bus.pan_pos, &format!("{prefix}.panPos"), 32);
+    changed |= set_u8_from_menu(menu, &mut bus.volume_pct, &format!("{prefix}.volume"), 100);
     changed |= set_bool_from_menu(menu, &mut bus.auto_name, &format!("{prefix}.autoName"));
     let name_key = format!("{prefix}.name");
     if menu.current_key() == Some(name_key.as_str()) {

@@ -21,14 +21,22 @@ pub(super) fn mixer_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Na
                 100,
                 1,
             ),
-            number_item(
-                "Pan Pos",
-                format!("{prefix}.mixer.panPos"),
-                i32::from(config.pan_pos),
-                0,
-                32,
-                1,
-            ),
+            pan_item(config, prefix),
         ],
     )
+}
+
+fn pan_item(config: &InstrumentMenuConfig<'_>, prefix: &str) -> NativeMenuItem {
+    if config.route.starts_with("fx_bus_") {
+        group("Pan Pos -- (bus)", vec![])
+    } else {
+        number_item(
+            "Pan Pos",
+            format!("{prefix}.mixer.panPos"),
+            i32::from(config.pan_pos),
+            0,
+            32,
+            1,
+        )
+    }
 }

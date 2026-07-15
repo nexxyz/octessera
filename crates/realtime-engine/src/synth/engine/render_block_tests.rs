@@ -270,6 +270,7 @@ fn delay_bus_config() -> InstrumentsConfig {
                     .collect::<BTreeMap<_, _>>(),
                 }],
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
+                volume_pct: 100.0,
             }],
             master: None,
         }),

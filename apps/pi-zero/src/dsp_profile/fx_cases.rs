@@ -208,6 +208,7 @@ fn bus(slots: Vec<&str>, pan_pos: usize) -> FxBusConfig {
             .map(|kind| FxBusSlotConfig::Kind(kind.to_string()))
             .collect(),
         pan_pos,
+        volume_pct: 100.0,
     }
 }
 

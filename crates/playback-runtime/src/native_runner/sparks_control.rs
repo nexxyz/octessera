@@ -171,6 +171,7 @@ impl NativeRunner {
                                 self.queue_audio_command(RuntimeAudioCommand::SetFxBusMixer {
                                     bus_index,
                                     pan_pos: Some(usize::from(pan_pos)),
+                                    volume_pct: None,
                                 });
                             }
                         }

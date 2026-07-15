@@ -63,9 +63,11 @@ fn apply_events(engine: &mut SynthEngine, events: &[EngineEvent]) {
                 instrument_slot,
                 config,
             } => engine.set_instrument_slot(*instrument_slot, config.clone()),
-            EngineEvent::SetFxBusMixer { bus_index, pan_pos } => {
-                engine.set_fx_bus_mixer(*bus_index, *pan_pos)
-            }
+            EngineEvent::SetFxBusMixer {
+                bus_index,
+                pan_pos,
+                volume_pct,
+            } => engine.set_fx_bus_mixer(*bus_index, *pan_pos, *volume_pct),
             EngineEvent::SetSynthParam {
                 instrument_slot,
                 path,

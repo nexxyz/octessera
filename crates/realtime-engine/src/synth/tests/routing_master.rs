@@ -67,6 +67,7 @@ fn master_fx_processes_bus_routed_output() {
             buses: vec![FxBusConfig {
                 slots: vec![FxBusSlotConfig::Kind("none".to_string())],
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
+                volume_pct: 100.0,
             }],
             master: None,
         }),
@@ -88,6 +89,7 @@ fn master_fx_processes_bus_routed_output() {
             buses: vec![FxBusConfig {
                 slots: vec![FxBusSlotConfig::Kind("none".to_string())],
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
+                volume_pct: 100.0,
             }],
             master: Some(MasterFxConfig {
                 slots: vec![FxBusSlotConfig::Config {

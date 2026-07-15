@@ -21,7 +21,7 @@ export type RuntimeAudioCommand =
   | { type: "set_audio_config"; revision: number; config: Record<string, unknown> }
   | { type: "set_master_volume"; volumePct: number }
   | { type: "set_instrument_mixer"; instrumentSlot: number; volumePct?: number; panPos?: number }
-  | { type: "set_fx_bus_mixer"; busIndex: number; panPos?: number }
+  | { type: "set_fx_bus_mixer"; busIndex: number; panPos?: number; volumePct?: number }
   | { type: "set_synth_param"; instrumentSlot: number; path: string; value: number }
   | { type: "set_sample_bank_param"; instrumentSlot: number; path: string; value: number }
   | { type: "set_fx_bus_slot"; busIndex: number; slotIndex: number; fxType: string; params: Record<string, unknown> }

@@ -291,6 +291,7 @@ fx_bus_wild	Menu > Shape > FX Buses > B*: *		group	FX Bus	Builds one shared bus 
 
 fx_bus_slot1	Menu > Shape > FX Buses > B*: * > Slot 1	key:mixer.buses.*.slot1	enum	FX Slot 1	First effect slot in the bus chain.	Default None means passthrough.
 fx_bus_slot2	Menu > Shape > FX Buses > B*: * > Slot 2	key:mixer.buses.*.slot2	enum	FX Slot 2	Second effect slot in the bus chain.	Default None means passthrough.
+fx_bus_volume	Menu > Shape > FX Buses > B*: * > Volume	key:mixer.buses.*.volume	number	FX Bus Volume	Sets the bus output level from 0 to 100 after the FX chain.	Use it to balance everything routed through this bus.
 fx_bus_pan	Menu > Shape > FX Buses > B*: * > Pan Pos	key:mixer.buses.*.panPos	number	FX Bus Pan Position	Sets where this bus output sits in the stereo mix.	0 is left, 16 center, 32 right.
 fx_bus_slot1_group	Menu > Shape > FX Buses > B*: * > Slot 1		group	FX Slot	Configures one effect slot in the bus chain.	Choose Type, then edit effect parameters below.
 fx_bus_slot2_group	Menu > Shape > FX Buses > B*: * > Slot 2		group	FX Slot	Configures one effect slot in the bus chain.	Choose Type, then edit effect parameters below.

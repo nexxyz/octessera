@@ -233,7 +233,14 @@ impl NativeRunner {
 
     fn apply_fx_bus_param_binding(&mut self, index: usize, slot: &str, field: &str, value: Value) {
         if let Some(bus) = self.fx_buses.get_mut(index) {
+            let before = bus.clone();
+            let audio_command = fx_bus_modulation_audio_command(index, slot, field, &value);
             apply_fx_bus_binding_value(bus, slot, field, value, &mut self.config_dirty);
+            if *bus != before {
+                if let Some(command) = audio_command {
+                    self.queue_audio_command(command);
+                }
+            }
         }
     }
 
@@ -246,6 +253,28 @@ impl NativeRunner {
             value,
             &mut self.config_dirty,
         );
+    }
+}
+
+fn fx_bus_modulation_audio_command(
+    index: usize,
+    slot: &str,
+    field: &str,
+    value: &Value,
+) -> Option<RuntimeAudioCommand> {
+    let value = value.as_f64()?;
+    match (slot, field) {
+        ("bus", "panPos") => Some(RuntimeAudioCommand::SetFxBusMixer {
+            bus_index: index,
+            pan_pos: Some(value.round().clamp(0.0, 32.0) as usize),
+            volume_pct: None,
+        }),
+        ("bus", "volume") => Some(RuntimeAudioCommand::SetFxBusMixer {
+            bus_index: index,
+            pan_pos: None,
+            volume_pct: Some(value.round().clamp(0.0, 100.0) as f32),
+        }),
+        _ => None,
     }
 }
 

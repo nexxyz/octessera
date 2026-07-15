@@ -243,6 +243,22 @@ pub struct FxBusConfig {
     pub slots: Vec<FxBusSlotConfig>,
     #[serde(rename = "panPos")]
     pub pan_pos: usize,
+    #[serde(default = "default_fx_bus_volume", rename = "volumePct")]
+    pub volume_pct: f32,
+}
+
+fn default_fx_bus_volume() -> f32 {
+    100.0
+}
+
+impl Default for FxBusConfig {
+    fn default() -> Self {
+        Self {
+            slots: Vec::new(),
+            pan_pos: 16,
+            volume_pct: default_fx_bus_volume(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

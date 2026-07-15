@@ -34,7 +34,7 @@ Shape
 │   │   ├── Mixer (group)
 │   │   │   ├── Route: [direct | fx_bus_1..fx_bus_N] default direct (N from platform capabilities)
 │   │   │   ├── Volume: [0..100] default 100
-│   │   │   └── Pan Pos: [0..32] quantized (33-position stereo scale; 16=center)
+│   │   │   └── Pan Pos: [0..32] quantized (33-position stereo scale; 16=center; shown as non-editable bus pan note when Route=fx_bus_n)
 │   │   ├── MIDI (group)
 │   │   │   ├── Enabled: [on | off]       default off
 │   │   │   └── Channel: [1..16]
@@ -51,6 +51,7 @@ Shape
 │   │   ├── Slot 2: Effect (group)
 │   │   │   ├── Type: [same options] default none
 │   │   │   └── (effect params, visible per Type)
+│   │   ├── Volume: [0..100] default 100
 │   │   ├── Pan Pos: [0..32] quantized (33-position stereo scale; 16=center)
 │   │   ├── Auto Label: [on | off]    ← on: label auto-derives from FX slot types as display text (`None`, `Delay+Duck`); off: label is manual text
 │   │   └── Name: (text, max 32)      ← display label; editing sets Auto Label off; charset includes uppercase, lowercase, digits, space, `_`, `-`
@@ -68,7 +69,7 @@ Routing semantics:
 
 - Instrument `Volume` is a post-voice per-slot fader controlled by `Play > Mix`.
 - Instrument `Route=direct` sends post-fader output to main mix using instrument `Pan Pos`.
-- Instrument `Route=fx_bus_n` sends post-fader output to the selected FX bus (exclusive send).
+- Instrument `Route=fx_bus_n` sends post-fader output to the selected FX bus (exclusive send); instrument `Pan Pos` is non-editable because bus output pan controls placement.
 - Internal synth and sample instruments use the same route/pan/bus-FX mixer path; MIDI instruments emit external MIDI and are not processed by audio FX.
 - Each bus runs `Slot 1` then `Slot 2` in order; with `none` selected this is passthrough.
 - Global FX runs `Slot 1..N` in order on the stereo main mix after direct and bus outputs are summed, before global momentary FX and `Master Vol`.
@@ -77,7 +78,7 @@ Routing semantics:
 - Bus Delay timing stores `Time Mode` (`ms` or `note`), `Time Note`, and a materialized `Time ms`. In note mode, BPM changes re-materialize `Time ms` from the saved note. In ms mode, `Time ms` is manual and does not retime. Audio/runtime commands receive `timeMs` only; `Time Mode` and `Time Note` are patch metadata and are not bindable targets. `Spread %` widens only the final FX bus output; the bus input and FX slot chain stay mono.
 - Selecting a slot `Type` initializes that effect's editable parameter defaults immediately; loaded presets/defaults with missing or invalid effect params are repaired to those defaults.
 - Reverb `Decay` is stored as a feedback coefficient (`0..0.995`) but displayed as approximate tail time in seconds (for example `3.1s`) in menu rows and aux encoder toasts.
-- Bus output is then panned by bus `Pan Pos` and summed to main mix.
+- Bus output is scaled by bus `Volume`, panned by bus `Pan Pos`, and summed to main mix.
 - `duck` source options are stable and capability-sized: `I1..I{instrumentCount}` and `B1..B{busCount}`.
 - `auto-pan` modulates the bus stereo output position after the slot chain.
 - FX bus slot and global slot group labels include the loaded effect display name, e.g. `Slot 1: Delay`, `Slot 2: Duck`, or `Slot 1: None`.

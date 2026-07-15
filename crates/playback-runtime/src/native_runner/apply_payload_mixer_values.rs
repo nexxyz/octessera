@@ -58,6 +58,9 @@ pub(super) fn apply_fx_bus_payload(payload: &Value, bus: &mut NativeFxBus, bpm: 
     if let Some(pan_pos) = payload.get("panPos").and_then(Value::as_u64) {
         bus.pan_pos = (pan_pos as u8).min(32);
     }
+    if let Some(volume_pct) = payload.get("volumePct").and_then(Value::as_u64) {
+        bus.volume_pct = (volume_pct as u8).min(100);
+    }
     if let Some(auto_name) = payload.get("autoName").and_then(Value::as_bool) {
         bus.auto_name = auto_name;
     }

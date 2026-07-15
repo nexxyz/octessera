@@ -76,6 +76,35 @@ fn auto_pan_produces_real_stereo_bus_output_without_changing_stored_pan() {
     assert!(saw_difference);
 }
 
+#[test]
+fn bus_volume_scales_final_stereo_output() {
+    let mut full = spread_sample_bus_engine_with_volume(100.0, 100.0, 50.0);
+    let mut half = spread_sample_bus_engine_with_volume(50.0, 100.0, 50.0);
+    let mut muted = spread_sample_bus_engine_with_volume(0.0, 100.0, 50.0);
+    full.note_on(0, 36, 127, 0);
+    half.note_on(0, 36, 127, 0);
+    muted.note_on(0, 36, 127, 0);
+
+    let mut saw_output = false;
+    for frame in 0..32 {
+        let (full_left, full_right) = full.next_stereo_sample();
+        let (half_left, half_right) = half.next_stereo_sample();
+        let (muted_left, muted_right) = muted.next_stereo_sample();
+        saw_output |= full_left.abs() > 1.0e-6 || full_right.abs() > 1.0e-6;
+        assert!(
+            (half_left - full_left * 0.5).abs() < 1.0e-6,
+            "left frame {frame}"
+        );
+        assert!(
+            (half_right - full_right * 0.5).abs() < 1.0e-6,
+            "right frame {frame}"
+        );
+        assert!(muted_left.abs() < 1.0e-7, "muted left frame {frame}");
+        assert!(muted_right.abs() < 1.0e-7, "muted right frame {frame}");
+    }
+    assert!(saw_output);
+}
+
 fn assert_samples_match(actual: &mut SynthEngine, expected: &mut SynthEngine, frames: usize) {
     for frame in 0..frames {
         let (actual_left, actual_right) = actual.next_stereo_sample();
@@ -111,6 +140,21 @@ fn spread_sample_bus_engine_without_spread_param() -> SynthEngine {
     engine
 }
 
+fn spread_sample_bus_engine_with_volume(
+    volume_pct: f32,
+    spread_pct: f32,
+    mix_pct: f32,
+) -> SynthEngine {
+    let mut config = spread_bus_config(Some(spread_pct), mix_pct, false);
+    if let Some(mixer) = config.mixer.as_mut() {
+        mixer.buses[0].volume_pct = volume_pct;
+    }
+    let mut engine = SynthEngine::new(48_000);
+    engine.set_instruments(config);
+    engine.set_sample_banks(vec![sample_bank(vec![1.0, 0.25, -0.5, 0.75, 0.0])]);
+    engine
+}
+
 fn auto_pan_sample_bus_engine() -> SynthEngine {
     let mut engine = SynthEngine::new(48_000);
     engine.set_instruments(InstrumentsConfig {
@@ -127,6 +171,7 @@ fn auto_pan_sample_bus_engine() -> SynthEngine {
                     .collect::<BTreeMap<_, _>>(),
                 }],
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
+                volume_pct: 100.0,
             }],
             master: None,
         }),
@@ -169,6 +214,7 @@ fn spread_bus_config(
             buses: vec![FxBusConfig {
                 slots,
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
+                volume_pct: 100.0,
             }],
             master: None,
         }),

@@ -226,6 +226,51 @@ pub(crate) fn link_lfo_invert_and_audio_command_emit_on_transport_pulse() {
 }
 
 #[test]
+pub(crate) fn link_lfo_fx_bus_volume_emits_fast_mixer_command() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut payload = runner.config_payload();
+    payload["runtimeConfig"]["layers"][0]["linkLfo"] = json!({
+        "enabled": true,
+        "target": {
+            "key": "mixer.buses.0.volume",
+            "label": "Volume",
+            "kind": "number",
+            "min": 0,
+            "max": 100,
+            "step": 1,
+            "invert": true
+        },
+        "period": "1/4",
+        "depthPct": 100
+    });
+    runner.apply_config_payload(payload).unwrap();
+    runner.transport = RuntimeTransportState::Playing;
+
+    let messages = runner
+        .send(HostMessage::TransportPulseStep {
+            pulses: 6,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+
+    assert_eq!(runner.fx_buses[0].volume_pct, 0);
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::AudioCommands { commands }
+            if commands.iter().any(|command| matches!(
+                command,
+                RuntimeAudioCommand::SetFxBusMixer {
+                    bus_index: 0,
+                    pan_pos: None,
+                    volume_pct: Some(volume),
+                } if (*volume - 0.0).abs() < f32::EPSILON
+            ))
+    )));
+}
+
+#[test]
 pub(crate) fn assignment_mode_wins_over_fn_layer_navigation_and_autosaves() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.auto_save_default = true;

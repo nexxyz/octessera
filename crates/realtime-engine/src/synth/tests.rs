@@ -73,10 +73,12 @@ fn duck_test_engine(with_duck: bool) -> SynthEngine {
                 FxBusConfig {
                     slots: vec![slot1],
                     pan_pos: DEFAULT_PAN_POSITIONS / 2,
+                    volume_pct: 100.0,
                 },
                 FxBusConfig {
                     slots: vec![FxBusSlotConfig::Kind("none".to_string())],
                     pan_pos: DEFAULT_PAN_POSITIONS / 2,
+                    volume_pct: 100.0,
                 },
             ],
             master: None,

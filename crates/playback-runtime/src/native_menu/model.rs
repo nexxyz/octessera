@@ -175,8 +175,7 @@ impl NativeMenuModel {
         }
         match &self.current_item().value {
             NativeMenuValue::Group
-                if self.current_item().label.is_empty()
-                    && self.current_item().children.is_empty() =>
+                if self.current_item().key.is_none() && self.current_item().children.is_empty() =>
             {
                 None
             }

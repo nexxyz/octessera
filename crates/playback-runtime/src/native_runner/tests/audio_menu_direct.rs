@@ -198,7 +198,7 @@ pub(crate) fn fx_bus_pan_uses_direct_audio_command_without_revision_bump() {
         RunnerMessage::AudioCommands { commands }
             if commands.iter().any(|command| matches!(
                 command,
-                RuntimeAudioCommand::SetFxBusMixer { bus_index: 0, pan_pos: Some(13) }
+                RuntimeAudioCommand::SetFxBusMixer { bus_index: 0, pan_pos: Some(13), .. }
             ))
     )));
     assert!(!messages.iter().any(|message| matches!(

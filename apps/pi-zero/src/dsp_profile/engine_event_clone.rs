@@ -78,9 +78,14 @@ pub(super) fn clone_event(
             instrument_slot: *instrument_slot,
             config: config.clone(),
         },
-        EngineEvent::SetFxBusMixer { bus_index, pan_pos } => EngineEvent::SetFxBusMixer {
+        EngineEvent::SetFxBusMixer {
+            bus_index,
+            pan_pos,
+            volume_pct,
+        } => EngineEvent::SetFxBusMixer {
             bus_index: *bus_index,
             pan_pos: *pan_pos,
+            volume_pct: *volume_pct,
         },
         EngineEvent::SetSynthParam {
             instrument_slot,

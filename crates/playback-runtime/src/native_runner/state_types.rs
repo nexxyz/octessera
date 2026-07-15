@@ -100,6 +100,7 @@ pub(super) struct NativeFxBus {
     pub(super) slot2_type: String,
     pub(super) slot2_params: Value,
     pub(super) pan_pos: u8,
+    pub(super) volume_pct: u8,
     pub(super) auto_name: bool,
 }
 
@@ -312,6 +313,7 @@ impl Default for NativeFxBus {
             slot2_type: "none".into(),
             slot2_params: json!({}),
             pan_pos: 16,
+            volume_pct: 100,
             auto_name: true,
         }
     }

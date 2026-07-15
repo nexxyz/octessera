@@ -39,12 +39,15 @@ pub fn send_audio_command(
             instrument_slot: *instrument_slot,
             config: crate::audio_config_parse::parse_instrument_slot_config(config)?,
         }),
-        RuntimeAudioCommand::SetFxBusMixer { bus_index, pan_pos } => {
-            audio.send(EngineEvent::SetFxBusMixer {
-                bus_index: *bus_index,
-                pan_pos: *pan_pos,
-            })
-        }
+        RuntimeAudioCommand::SetFxBusMixer {
+            bus_index,
+            pan_pos,
+            volume_pct,
+        } => audio.send(EngineEvent::SetFxBusMixer {
+            bus_index: *bus_index,
+            pan_pos: *pan_pos,
+            volume_pct: *volume_pct,
+        }),
         RuntimeAudioCommand::SetSynthParam {
             instrument_slot,
             path,

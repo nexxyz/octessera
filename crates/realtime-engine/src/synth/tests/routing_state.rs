@@ -17,6 +17,7 @@ fn set_instruments_preserves_unchanged_fx_state() {
                 ]),
             }],
             pan_pos: DEFAULT_PAN_POSITIONS / 2,
+            volume_pct: 100.0,
         }],
         master: None,
     });

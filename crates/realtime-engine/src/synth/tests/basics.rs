@@ -125,10 +125,12 @@ fn routes_through_dynamic_bus_count_without_allocating_bus_vec() {
                 FxBusConfig {
                     slots: vec![FxBusSlotConfig::Kind("none".to_string())],
                     pan_pos: DEFAULT_PAN_POSITIONS / 2,
+                    volume_pct: 100.0,
                 },
                 FxBusConfig {
                     slots: vec![FxBusSlotConfig::Kind("saturator".to_string())],
                     pan_pos: DEFAULT_PAN_POSITIONS / 2,
+                    volume_pct: 100.0,
                 },
             ],
             master: None,
