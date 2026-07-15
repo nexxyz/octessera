@@ -1,8 +1,8 @@
 use super::*;
 use crate::behavior::{BehaviorContext, BehaviorRenderPalette, DeviceInput, GridInteraction};
 use crate::palette::{
-    BEHAVIOR_DIM_GREEN, BEHAVIOR_PRIMARY_GREEN, BEHAVIOR_PRIMARY_YELLOW, BLACK, BLUE, GRAY, GREEN,
-    RED, WHITE, YELLOW,
+    BEHAVIOR_DIM_GREEN, BEHAVIOR_PRIMARY_MAGENTA, BEHAVIOR_PRIMARY_YELLOW, BLACK, BLUE, GRAY,
+    GREEN, RED, WHITE, YELLOW,
 };
 use std::collections::HashSet;
 
@@ -113,9 +113,9 @@ fn behavior_render_palettes_match_themes() {
         (
             NativeBehavior::Life,
             BehaviorRenderPalette {
-                active: BEHAVIOR_PRIMARY_YELLOW,
+                active: BEHAVIOR_PRIMARY_MAGENTA,
                 inactive: BEHAVIOR_DIM_GREEN,
-                stable: BEHAVIOR_PRIMARY_GREEN,
+                stable: BEHAVIOR_PRIMARY_YELLOW,
             },
         ),
         (

@@ -90,6 +90,7 @@ impl NativeRunner {
         let bpm = f64::from(bpm.clamp(40, 240));
         if (self.bpm - bpm).abs() > f64::EPSILON {
             self.bpm = bpm;
+            self.retime_note_mode_bus_delays();
             self.mark_fast_autosave_dirty();
         }
         true

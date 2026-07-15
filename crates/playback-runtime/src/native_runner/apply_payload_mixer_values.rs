@@ -5,21 +5,22 @@ pub(super) fn apply_mixer_payload(
     fx_buses: &mut [NativeFxBus],
     global_fx_slots: &mut [String],
     global_fx_params: &mut [Value],
+    bpm: u16,
 ) {
     let Some(mixer) = runtime.get("mixer") else {
         return;
     };
-    apply_fx_bus_mixer_payload(mixer, fx_buses);
+    apply_fx_bus_mixer_payload(mixer, fx_buses, bpm);
     apply_global_fx_mixer_payload(mixer, global_fx_slots, global_fx_params);
 }
 
-pub(super) fn apply_fx_bus_mixer_payload(mixer: &Value, fx_buses: &mut [NativeFxBus]) {
+pub(super) fn apply_fx_bus_mixer_payload(mixer: &Value, fx_buses: &mut [NativeFxBus], bpm: u16) {
     let Some(buses) = mixer.get("buses").and_then(Value::as_array) else {
         return;
     };
     for (index, payload) in buses.iter().take(fx_buses.len()).enumerate() {
         if let Some(bus) = fx_buses.get_mut(index) {
-            apply_fx_bus_payload(payload, bus);
+            apply_fx_bus_payload(payload, bus, bpm);
         }
     }
 }
@@ -41,16 +42,18 @@ pub(super) fn apply_global_fx_mixer_payload(
     }
 }
 
-pub(super) fn apply_fx_bus_payload(payload: &Value, bus: &mut NativeFxBus) {
+pub(super) fn apply_fx_bus_payload(payload: &Value, bus: &mut NativeFxBus, bpm: u16) {
     apply_fx_bus_slot_payload(
         payload.get("slot1"),
         &mut bus.slot1_type,
         &mut bus.slot1_params,
+        bpm,
     );
     apply_fx_bus_slot_payload(
         payload.get("slot2"),
         &mut bus.slot2_type,
         &mut bus.slot2_params,
+        bpm,
     );
     if let Some(pan_pos) = payload.get("panPos").and_then(Value::as_u64) {
         bus.pan_pos = (pan_pos as u8).min(32);
@@ -73,6 +76,7 @@ pub(super) fn apply_fx_bus_slot_payload(
     slot: Option<&Value>,
     slot_type: &mut String,
     slot_params: &mut Value,
+    bpm: u16,
 ) {
     let Some(slot) = slot else {
         return;
@@ -85,7 +89,7 @@ pub(super) fn apply_fx_bus_slot_payload(
         };
     }
     if let Some(params) = slot.get("params").filter(|params| params.is_object()) {
-        *slot_params = params.clone();
+        *slot_params = sanitized_fx_params(params, slot_type, bpm);
     }
 }
 
@@ -104,8 +108,16 @@ pub(super) fn apply_global_fx_payload(
     }
     if let Some(params) = payload.get("params").filter(|params| params.is_object()) {
         if let Some(target) = global_fx_params.get_mut(index) {
-            *target = params.clone();
+            *target = crate::delay_timing::strip_invalid_timing_metadata(params);
         }
+    }
+}
+
+fn sanitized_fx_params(params: &Value, slot_type: &str, bpm: u16) -> Value {
+    if slot_type == "delay" {
+        crate::delay_timing::normalized_delay_params(params, bpm)
+    } else {
+        crate::delay_timing::strip_invalid_timing_metadata(params)
     }
 }
 

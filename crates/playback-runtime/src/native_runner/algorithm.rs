@@ -1,9 +1,17 @@
 use super::modulation::{apply_sampler_assignments_for_instruments_routed, RoutedMusicalEvents};
 use super::{
-    note_unit_to_pulses, trigger_probability_allows, NativeRunner, RuntimeTransportState,
-    DEFAULT_ALGORITHM_STEP_RED, GRID_HEIGHT,
+    note_unit_to_pulses, trigger_probability_allows, DelayedRoutedEvents, LinkEventTiming,
+    NativeRunner, RuntimeTransportState, DEFAULT_ALGORITHM_STEP_RED, GRID_HEIGHT,
 };
-use platform_core::DeviceInput;
+use platform_core::{CellTriggerIntent, CellTriggerKind, DeviceInput, MusicalEvent};
+
+pub(super) struct LinkRoutingInput<'a> {
+    pub(super) events: Vec<MusicalEvent>,
+    pub(super) event_intents: &'a [Option<CellTriggerIntent>],
+    pub(super) instruments: &'a [super::NativeInstrumentSlot],
+    pub(super) sense: Option<super::NativePulsesLayer>,
+    pub(super) transpose_offset: i8,
+}
 
 impl NativeRunner {
     pub(super) fn active_engine_input_result(
@@ -16,6 +24,7 @@ impl NativeRunner {
                 events: Vec::new(),
                 emitted_events: Vec::new(),
                 mapped_intents: Vec::new(),
+                event_intents: Vec::new(),
                 model,
             });
         }
@@ -78,34 +87,44 @@ impl NativeRunner {
         let mut rng = self.trigger_probability_rng;
         let mut inactive_modulation_updates = Vec::new();
         let mut saw_inactive_events = false;
-        for (index, engine) in self.layer_engines.iter_mut().enumerate() {
+        for (index, (profile, mapping, step_pulses, sense, probability_map)) in
+            inactive_configs.iter().enumerate()
+        {
             if index == self.active_layer_index {
                 continue;
             }
-            let Some(engine) = engine.as_mut() else {
-                continue;
-            };
-            let (profile, mapping, step_pulses, sense, probability_map) = &inactive_configs[index];
             while self.layer_pulse_accumulators[index] >= *step_pulses {
                 self.layer_pulse_accumulators[index] -= *step_pulses;
-                engine.set_interpretation_profile(profile.clone());
-                engine.set_mapping_config(mapping.clone());
-                let tick = engine.tick_filtered(self.bpm as f32, |intent| {
-                    trigger_probability_allows(sense.as_ref(), probability_map, &mut rng, intent)
-                })?;
+                let tick = {
+                    let Some(engine) = self.layer_engines[index].as_mut() else {
+                        continue;
+                    };
+                    engine.set_interpretation_profile(profile.clone());
+                    engine.set_mapping_config(mapping.clone());
+                    engine.tick_filtered(self.bpm as f32, |intent| {
+                        trigger_probability_allows(
+                            sense.as_ref(),
+                            probability_map,
+                            &mut rng,
+                            intent,
+                        )
+                    })?
+                };
                 if let Some(layer_tick) = self.layer_ticks.get_mut(index) {
                     *layer_tick = layer_tick.saturating_add(1);
                 }
+                events.extend(self.take_due_link_events(index));
                 inactive_modulation_updates.push((index, tick.mapped_intents.clone()));
-                let tick_events = apply_sampler_assignments_for_instruments_routed(
-                    tick.events,
-                    &tick.mapped_intents,
-                    tick.emitted_events.len(),
-                    &instruments,
-                    sense.as_ref(),
-                    transpose_offsets.get(index).copied().unwrap_or(0),
-                    self.sparks_transpose_active_notes.get_mut(index),
-                );
+                let tick_events = self.route_events_with_link_timing(
+                    index,
+                    LinkRoutingInput {
+                        events: tick.events,
+                        event_intents: &tick.event_intents,
+                        instruments: &instruments,
+                        sense: sense.clone(),
+                        transpose_offset: transpose_offsets.get(index).copied().unwrap_or(0),
+                    },
+                )?;
                 saw_inactive_events |= !tick_events.is_empty();
                 events.extend(tick_events);
             }
@@ -201,24 +220,25 @@ impl NativeRunner {
             if let Some(layer_tick) = self.layer_ticks.get_mut(self.active_layer_index) {
                 *layer_tick = self.tick;
             }
+            events.extend(self.take_due_link_events(self.active_layer_index));
             self.apply_runtime_modulation(&tick.mapped_intents, self.active_layer_index);
             let transpose_offset = self
                 .sparks_transpose_offsets_for_routing()
                 .get(self.active_layer_index)
                 .copied()
                 .unwrap_or(0);
-            let active_transpose_notes = self
-                .sparks_transpose_active_notes
-                .get_mut(self.active_layer_index);
-            let tick_events = apply_sampler_assignments_for_instruments_routed(
-                tick.events,
-                &tick.mapped_intents,
-                tick.emitted_events.len(),
-                &self.instruments,
-                self.pulses_layers.get(self.active_layer_index),
-                transpose_offset,
-                active_transpose_notes,
-            );
+            let instruments = self.instruments.clone();
+            let sense = self.pulses_layers.get(self.active_layer_index).cloned();
+            let tick_events = self.route_events_with_link_timing(
+                self.active_layer_index,
+                LinkRoutingInput {
+                    events: tick.events,
+                    event_intents: &tick.event_intents,
+                    instruments: &instruments,
+                    sense,
+                    transpose_offset,
+                },
+            )?;
             self.record_tick_events_active(!tick_events.is_empty());
             events.extend(tick_events);
         }
@@ -230,6 +250,192 @@ impl NativeRunner {
             self.event_dot_on = true;
             self.event_dot_pulses_remaining = 1;
         }
+    }
+
+    pub(super) fn take_due_link_events(&mut self, layer_index: usize) -> RoutedMusicalEvents {
+        let mut due = RoutedMusicalEvents::default();
+        let Some(queue) = self.delayed_link_events.get_mut(layer_index) else {
+            return due;
+        };
+        let mut kept = Vec::new();
+        for mut entry in queue.drain(..) {
+            if entry.remaining_steps == 0 {
+                due.extend(entry.events);
+            } else {
+                entry.remaining_steps = entry.remaining_steps.saturating_sub(1);
+                if entry.remaining_steps == 0 {
+                    due.extend(entry.events);
+                } else {
+                    kept.push(entry);
+                }
+            }
+        }
+        *queue = kept;
+        due
+    }
+
+    pub(super) fn clear_delayed_link_events_for_layer(&mut self, layer_index: usize) {
+        if let Some(queue) = self.delayed_link_events.get_mut(layer_index) {
+            queue.clear();
+        }
+    }
+
+    pub(super) fn apply_link_timing(
+        &mut self,
+        layer_index: usize,
+        intents: &[CellTriggerIntent],
+        routed: RoutedMusicalEvents,
+    ) -> RoutedMusicalEvents {
+        if routed.is_empty() {
+            return routed;
+        }
+        let timing = link_timing_for_intents(self.pulses_layers.get(layer_index), intents);
+        self.cancel_pending_delayed_hold_note_ons_after(layer_index, &routed, timing.delay_steps);
+        let retrigger_count = if routed_contains_held_note_on(&routed) {
+            0
+        } else {
+            timing.retrigger_count
+        };
+        if timing.delay_steps == 0 && retrigger_count == 0 {
+            return routed;
+        }
+        let mut immediate = RoutedMusicalEvents::default();
+        if timing.delay_steps == 0 {
+            immediate.extend(routed.clone());
+        }
+        if let Some(queue) = self.delayed_link_events.get_mut(layer_index) {
+            let first_repeat = if timing.delay_steps == 0 { 1 } else { 0 };
+            for repeat in first_repeat..=retrigger_count {
+                queue.push(DelayedRoutedEvents {
+                    remaining_steps: timing.delay_steps.saturating_add(repeat),
+                    events: routed.clone(),
+                });
+            }
+        }
+        immediate
+    }
+
+    fn cancel_pending_delayed_hold_note_ons_after(
+        &mut self,
+        layer_index: usize,
+        note_offs: &RoutedMusicalEvents,
+        note_off_due_steps: u8,
+    ) {
+        let audio_note_offs = note_off_keys(&note_offs.audio);
+        let midi_note_offs = note_off_keys(&note_offs.midi);
+        if audio_note_offs.is_empty() && midi_note_offs.is_empty() {
+            return;
+        }
+        let Some(queue) = self.delayed_link_events.get_mut(layer_index) else {
+            return;
+        };
+        queue.retain_mut(|entry| {
+            if entry.remaining_steps <= note_off_due_steps {
+                return true;
+            }
+            !has_matching_held_note_on(&entry.events.audio, &audio_note_offs)
+                && !has_matching_held_note_on(&entry.events.midi, &midi_note_offs)
+        });
+    }
+
+    pub(super) fn route_events_with_link_timing(
+        &mut self,
+        layer_index: usize,
+        input: LinkRoutingInput<'_>,
+    ) -> Result<RoutedMusicalEvents, String> {
+        let LinkRoutingInput {
+            events,
+            event_intents,
+            instruments,
+            sense,
+            transpose_offset,
+        } = input;
+        if events.len() != event_intents.len() {
+            return Err(format!(
+                "event intent metadata length mismatch before Link routing: events={}, intents={}",
+                events.len(),
+                event_intents.len()
+            ));
+        }
+        let mut out = RoutedMusicalEvents::default();
+        for (event_index, event) in events.into_iter().enumerate() {
+            let Some(Some(intent)) = event_intents.get(event_index) else {
+                let routed = apply_sampler_assignments_for_instruments_routed(
+                    vec![event],
+                    &[],
+                    0,
+                    instruments,
+                    sense.as_ref(),
+                    transpose_offset,
+                    self.sparks_transpose_active_notes.get_mut(layer_index),
+                );
+                self.cancel_pending_delayed_hold_note_ons_after(layer_index, &routed, 0);
+                out.extend(routed);
+                continue;
+            };
+            let routed = apply_sampler_assignments_for_instruments_routed(
+                vec![event],
+                std::slice::from_ref(intent),
+                0,
+                instruments,
+                sense.as_ref(),
+                transpose_offset,
+                self.sparks_transpose_active_notes.get_mut(layer_index),
+            );
+            out.extend(self.apply_link_timing(layer_index, std::slice::from_ref(intent), routed));
+        }
+        Ok(out)
+    }
+}
+
+fn note_off_keys(events: &[MusicalEvent]) -> Vec<(u8, u8)> {
+    events
+        .iter()
+        .filter_map(|event| match event {
+            MusicalEvent::NoteOff { channel, note } => Some((*channel, *note)),
+            _ => None,
+        })
+        .collect()
+}
+
+fn routed_contains_held_note_on(events: &RoutedMusicalEvents) -> bool {
+    events.audio.iter().chain(events.midi.iter()).any(|event| {
+        matches!(
+            event,
+            MusicalEvent::NoteOn {
+                duration_ms: None,
+                ..
+            }
+        )
+    })
+}
+
+fn has_matching_held_note_on(events: &[MusicalEvent], note_offs: &[(u8, u8)]) -> bool {
+    events.iter().any(|event| match event {
+        MusicalEvent::NoteOn {
+            channel,
+            note,
+            duration_ms,
+            ..
+        } => duration_ms.is_none() && note_offs.contains(&(*channel, *note)),
+        _ => false,
+    })
+}
+
+fn link_timing_for_intents(
+    layer: Option<&super::NativePulsesLayer>,
+    intents: &[CellTriggerIntent],
+) -> LinkEventTiming {
+    let Some(layer) = layer else {
+        return LinkEventTiming::default();
+    };
+    match intents.first().map(|intent| intent.kind) {
+        Some(CellTriggerKind::Activate) => layer.activate_timing,
+        Some(CellTriggerKind::Stable) => layer.stable_timing,
+        Some(CellTriggerKind::Deactivate) => layer.deactivate_timing,
+        Some(CellTriggerKind::Scanned) => layer.scanned_timing,
+        Some(CellTriggerKind::ScannedEmpty) => layer.scanned_empty_timing,
+        None => LinkEventTiming::default(),
     }
 }
 

@@ -1,5 +1,256 @@
 use super::*;
 
+fn set_bus_delay(runner: &mut NativeRunner, time_ms: i32) {
+    runner.fx_buses[0].slot1_type = "delay".into();
+    runner.fx_buses[0].slot1_params = json!({ "timeMs": time_ms, "feedback": 0.35, "mixPct": 35 });
+    runner.menu.rebuild(runner.menu_config());
+}
+
+#[test]
+pub(crate) fn delay_time_note_converts_at_current_bpm() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.bpm = 120.0;
+    set_bus_delay(&mut runner, 250);
+
+    assert_eq!(
+        runner
+            .menu
+            .value_for_key("mixer.buses.0.slot1.params.timeNote"),
+        Some("1/8".into())
+    );
+    assert!(runner
+        .menu
+        .focus_item_key("mixer.buses.0.slot1.params.timeNote"));
+    runner.menu.state.editing = true;
+    runner.menu.turn(1);
+    runner.apply_menu_state().unwrap();
+    assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 333);
+
+    runner.menu.turn(5);
+    runner.apply_menu_state().unwrap();
+    assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 2000);
+}
+
+#[test]
+pub(crate) fn delay_menu_orders_time_note_before_time_ms_and_derives_from_payload() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.bpm = 120.0;
+    set_bus_delay(&mut runner, 333);
+
+    assert!(runner
+        .menu
+        .focus_item_key("mixer.buses.0.slot1.params.timeMode"));
+    assert_eq!(runner.menu.current_label(), Some("Time Mode"));
+    runner.menu.turn(1);
+    assert_eq!(runner.menu.current_label(), Some("Time Note"));
+    runner.menu.turn(1);
+    assert_eq!(runner.menu.current_label(), Some("Time ms"));
+    assert_eq!(
+        runner
+            .menu
+            .value_for_key("mixer.buses.0.slot1.params.timeNote"),
+        Some("1/4T".into())
+    );
+}
+
+#[test]
+pub(crate) fn invalid_delay_fields_normalize_and_non_delay_strips_timing_metadata() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.bpm = 120.0;
+    runner
+        .apply_config_payload(json!({
+            "runtimeConfig": {
+                "mixer": {
+                    "buses": [{
+                        "slot1": { "type": "delay", "params": { "timeMode": "banana", "timeNote": "bad", "timeMs": 9999, "feedback": 0.35, "mixPct": 35 } },
+                        "slot2": { "type": "tremolo", "params": { "timeMode": "note", "timeNote": "1/4", "rateHz": 4.0, "depthPct": 60 } }
+                    }]
+                }
+            }
+        }))
+        .unwrap();
+
+    assert_eq!(runner.fx_buses[0].slot1_params["timeMode"], "ms");
+    assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 2000);
+    assert_eq!(runner.fx_buses[0].slot1_params["timeNote"], "1/1");
+    assert!(runner.fx_buses[0].slot2_params.get("timeMode").is_none());
+    assert!(runner.fx_buses[0].slot2_params.get("timeNote").is_none());
+}
+
+#[test]
+pub(crate) fn selecting_delay_time_note_updates_time_ms_only_and_queues_audio() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.bpm = 120.0;
+    set_bus_delay(&mut runner, 250);
+    assert!(runner
+        .menu
+        .focus_item_key("mixer.buses.0.slot1.params.timeNote"));
+    runner.menu.state.editing = true;
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 333);
+    assert_eq!(runner.fx_buses[0].slot1_params["timeMode"], "note");
+    assert_eq!(runner.fx_buses[0].slot1_params["timeNote"], "1/4T");
+    assert_eq!(
+        runner
+            .menu
+            .number_for_key("mixer.buses.0.slot1.params.timeMs"),
+        Some(333)
+    );
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::AudioCommands { commands }
+            if commands.iter().any(|command| matches!(
+                command,
+                RuntimeAudioCommand::SetFxBusSlot { bus_index: 0, slot_index: 0, fx_type, params }
+                    if fx_type == "delay"
+                        && params.get("timeMs") == Some(&json!(333))
+                        && !params.contains_key("timeMode")
+                        && !params.contains_key("timeNote")
+            ))
+    )));
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["mixer"]["buses"][0]["slot1"]["params"]
+            ["timeNote"],
+        "1/4T"
+    );
+}
+
+#[test]
+pub(crate) fn delay_time_ms_edit_remains_authoritative() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.bpm = 120.0;
+    set_bus_delay(&mut runner, 333);
+    assert!(runner
+        .menu
+        .focus_item_key("mixer.buses.0.slot1.params.timeMs"));
+    runner.menu.state.editing = true;
+    runner.menu.turn(-10);
+    runner.apply_menu_state().unwrap();
+
+    assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 283);
+    assert_eq!(runner.fx_buses[0].slot1_params["timeMode"], "ms");
+}
+
+#[test]
+pub(crate) fn bpm_edit_retimes_note_mode_delay_but_not_ms_mode() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.bpm = 120.0;
+    runner.fx_buses[0].slot1_type = "delay".into();
+    runner.fx_buses[0].slot1_params = json!({ "timeMode": "note", "timeNote": "1/8", "timeMs": 250, "feedback": 0.35, "mixPct": 35 });
+    runner.fx_buses[0].slot2_type = "delay".into();
+    runner.fx_buses[0].slot2_params = json!({ "timeMode": "ms", "timeNote": "1/8", "timeMs": 250, "feedback": 0.35, "mixPct": 35 });
+    runner.menu.rebuild(runner.menu_config());
+
+    assert!(runner.menu.focus_item_key("transport.bpm"));
+    runner.menu.state.editing = true;
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": -60, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 500);
+    assert_eq!(runner.fx_buses[0].slot2_params["timeMs"], 250);
+    assert_eq!(
+        runner
+            .menu
+            .number_for_key("mixer.buses.0.slot1.params.timeMs"),
+        Some(500)
+    );
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::AudioCommands { commands }
+            if commands.iter().any(|command| matches!(
+                command,
+                RuntimeAudioCommand::SetFxBusSlot { slot_index: 0, params, .. }
+                    if params.get("timeMs") == Some(&json!(500))
+                        && !params.contains_key("timeMode")
+                        && !params.contains_key("timeNote")
+            ))
+    )));
+}
+
+#[test]
+pub(crate) fn note_mode_delay_config_load_uses_payload_bpm() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner
+        .apply_config_payload(json!({
+            "runtimeConfig": {
+                "bpm": 60,
+                "mixer": {
+                    "buses": [{
+                        "slot1": { "type": "delay", "params": { "timeMode": "note", "timeNote": "1/8", "timeMs": 250, "feedback": 0.35, "mixPct": 35 } }
+                    }]
+                }
+            }
+        }))
+        .unwrap();
+
+    assert_eq!(runner.bpm, 60.0);
+    assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 500);
+}
+
+#[test]
+pub(crate) fn old_delay_payload_loads_as_ms_mode_and_audio_strips_timing_metadata() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner
+        .apply_config_payload(json!({
+            "runtimeConfig": {
+                "mixer": {
+                    "buses": [{
+                        "slot1": {
+                            "type": "delay",
+                            "params": {
+                                "timeMs": 250,
+                                "feedback": 0.35,
+                                "mixPct": 35
+                            }
+                        }
+                    }]
+                }
+            }
+        }))
+        .unwrap();
+    runner.menu.rebuild(runner.menu_config());
+
+    assert_eq!(runner.fx_buses[0].slot1_params["timeMode"], "ms");
+    assert_eq!(runner.fx_buses[0].slot1_params["timeNote"], "1/8");
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["mixer"]["buses"][0]["slot1"]["params"]
+            ["timeMode"],
+        "ms"
+    );
+
+    assert!(runner
+        .menu
+        .focus_item_key("mixer.buses.0.slot1.params.feedback"));
+    runner.menu.state.editing = true;
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::AudioCommands { commands }
+            if commands.iter().any(|command| matches!(
+                command,
+                RuntimeAudioCommand::SetFxBusSlot { params, .. }
+                    if !params.contains_key("timeMode") && !params.contains_key("timeNote")
+            ))
+    )));
+}
+
 #[test]
 pub(crate) fn fx_bus_slot_type_edits_into_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();

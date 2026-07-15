@@ -38,6 +38,15 @@ impl NativeRunner {
             };
             let selected_group_label = self.menu.current_label().map(str::to_string);
             let selected_group_key = self.menu.current_key().map(str::to_string);
+            if let Some(key) = selected_group_key.as_deref() {
+                if self.menu.state.stack.len() == 1
+                    && self.menu.is_in_sparks_root_group()
+                    && parameterless_sparks_page_key(key)
+                {
+                    self.apply_or_schedule_menu_key(key)?;
+                    return self.messages_with_snapshot();
+                }
+            }
             let mut should_apply = false;
             let mut effects = Vec::new();
             let press_result = self.menu.press();
@@ -188,4 +197,14 @@ impl NativeRunner {
         }
         self.messages_with_snapshot()
     }
+}
+
+fn parameterless_sparks_page_key(key: &str) -> bool {
+    matches!(
+        key,
+        "sparks.page.mix"
+            | "sparks.page.pan"
+            | "sparks.page.trigger-gate"
+            | "sparks.page.transpose"
+    )
 }

@@ -6,6 +6,15 @@ impl NativeRunner {
     pub(super) fn apply_menu_state(&mut self) -> Result<(), String> {
         self.clear_deferred_menu_apply();
         let current_key = self.menu.current_key().map(str::to_string);
+        if current_key.as_deref().is_some_and(|key| {
+            key.ends_with(".params.timeNote")
+                || key.ends_with(".params.timeMode")
+                || key.ends_with(".params.timeMs")
+                || key.ends_with(".rangeMin")
+                || key.ends_with(".rangeMax")
+        }) {
+            return self.apply_or_schedule_menu_key(current_key.as_deref().unwrap());
+        }
         let mut config_changed = false;
         let mut audio_config_changed = false;
         let (_sparks_mode_changed, global_config_changed, global_audio_config_changed) =
@@ -107,6 +116,7 @@ impl NativeRunner {
         if let Some(layer_behavior_id) = self.layer_behavior_ids.get_mut(self.active_layer_index) {
             *layer_behavior_id = behavior_id.to_string();
         }
+        self.clear_delayed_link_events_for_layer(self.active_layer_index);
         self.sync_active_layer_auto_name(behavior_id);
         self.remap_bindings_for_behavior_change(
             &previous_behavior_id,
@@ -148,6 +158,7 @@ impl NativeRunner {
         if let Some(engine) = self.layer_engines.get_mut(layer_index) {
             *engine = None;
         }
+        self.clear_delayed_link_events_for_layer(layer_index);
         self.sync_layer_auto_name(layer_index, behavior_id);
         self.remap_bindings_for_behavior_change(&current_behavior_id, behavior_id, layer_index);
         let _ = behavior;
@@ -192,6 +203,7 @@ impl NativeRunner {
         if let Some(config) = self.layer_behavior_configs.get_mut(self.active_layer_index) {
             *config = self.behavior_config.clone();
         }
+        self.clear_delayed_link_events_for_layer(self.active_layer_index);
         self.behavior_configs
             .insert(self.behavior.id().to_string(), self.behavior_config.clone());
         if let Some(state) = previous_state {

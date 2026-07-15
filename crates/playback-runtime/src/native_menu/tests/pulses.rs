@@ -13,6 +13,21 @@ pub(crate) fn pulses_spec_rows_include_probability_mapping_and_axis_controls() {
         .children
         .iter()
         .any(|item| item.label == "Map Prob Grid"));
+    let events = layer
+        .children
+        .iter()
+        .find(|item| item.label == "Events")
+        .expect("events group");
+    for label in [
+        "On Delay",
+        "On Retrig",
+        "Hold Delay",
+        "Hold Retrig",
+        "Off Delay",
+        "Off Retrig",
+    ] {
+        assert!(events.children.iter().any(|item| item.label == label));
+    }
     let note_mapping = layer
         .children
         .iter()
@@ -50,7 +65,7 @@ pub(crate) fn pulses_spec_rows_include_probability_mapping_and_axis_controls() {
             "Pitch Steps",
             "Velocity",
             "Filter Cutoff",
-            "Filter Resonance"
+            "Filter Res"
         ]
     );
     assert!(contains_set_binding(
@@ -107,6 +122,16 @@ pub(crate) fn conditional_rows_follow_scan_lane_and_sampler_state() {
         .iter()
         .find(|item| item.label == "Scanning")
         .expect("scanning group");
+    let scan_unit = scanning
+        .children
+        .iter()
+        .find(|item| item.label == "Scan Unit")
+        .expect("scan unit row");
+    assert!(matches!(
+        &scan_unit.value,
+        NativeMenuValue::Enum { options, .. }
+            if options.contains(&"1/32".to_string()) && options.contains(&"1/16T".to_string())
+    ));
     assert!(scanning
         .children
         .iter()

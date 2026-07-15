@@ -56,7 +56,7 @@ mount_options_for() {
 
 mount_card() {
   if transfer_active; then
-    log "USB SD transfer is active; not mounting OLED SD card"
+    log "USB SD2 transfer is active; not mounting OLED SD card"
     return 0
   fi
   mkdir -p "$SD_MOUNT"

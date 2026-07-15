@@ -101,6 +101,24 @@ impl NativeMenuModel {
         true
     }
 
+    pub fn set_number_value_for_key(&mut self, key: &str, next: i32) -> bool {
+        let Some(item) = find_item_by_key_mut(&mut self.root, key) else {
+            return false;
+        };
+        let NativeMenuValue::Number {
+            value, min, max, ..
+        } = &mut item.value
+        else {
+            return false;
+        };
+        let next = next.clamp(*min, *max);
+        if *value == next {
+            return false;
+        }
+        *value = next;
+        true
+    }
+
     pub fn turn(&mut self, delta: i8) {
         let siblings_len = self.current_siblings().len();
         if siblings_len == 0 || delta == 0 {

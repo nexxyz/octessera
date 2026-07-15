@@ -221,10 +221,10 @@ storage_start() {
     echo 0x0200 > "$G/bcdUSB"
     echo 0x0100 > "$G/bcdDevice"
     echo "Octessera" > "$G/strings/0x409/manufacturer"
-    echo "Octessera SD Transfer" > "$G/strings/0x409/product"
+    echo "Octessera SD2 Transfer" > "$G/strings/0x409/product"
     serial_number > "$G/strings/0x409/serialnumber"
     echo 250 > "$G/configs/c.1/MaxPower"
-    echo "Octessera SD Transfer" > "$G/configs/c.1/strings/0x409/configuration"
+    echo "Octessera SD2 Transfer" > "$G/configs/c.1/strings/0x409/configuration"
     echo 1 > "$G/functions/mass_storage.usb0/stall"
     echo 0 > "$G/functions/mass_storage.usb0/lun.0/ro"
     echo 1 > "$G/functions/mass_storage.usb0/lun.0/removable"
@@ -232,6 +232,11 @@ storage_start() {
     echo "$dev" > "$G/functions/mass_storage.usb0/lun.0/file"
     ln -s "$G/functions/mass_storage.usb0" "$G/configs/c.1/mass_storage.usb0"
     echo "$UDC" > "$G/UDC"
+    if [ -r "/sys/class/udc/$UDC/state" ]; then
+      printf 'HOST_STATE=%s\n' "$(cat "/sys/class/udc/$UDC/state")"
+    else
+      printf 'HOST_STATE=unknown\n'
+    fi
   ); then
     storage_teardown_only
     if [ "$was_mounted" = 1 ]; then
@@ -242,7 +247,7 @@ storage_start() {
     log "storage-start failed; restored normal gadget"
     exit 1
   fi
-  log "configured USB SD transfer backing=$dev"
+  log "configured USB SD2 transfer backing=$dev"
 }
 
 storage_stop() {

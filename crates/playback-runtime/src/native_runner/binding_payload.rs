@@ -19,6 +19,12 @@ pub(super) fn param_binding_payload(binding: Option<&NativeParamBinding>) -> Val
     if let Some(step) = binding.step {
         value.insert("step".into(), json!(step));
     }
+    if let Some(user_min) = binding.user_min {
+        value.insert("userMin".into(), json!(user_min));
+    }
+    if let Some(user_max) = binding.user_max {
+        value.insert("userMax".into(), json!(user_max));
+    }
     if !binding.options.is_empty() {
         value.insert("options".into(), json!(binding.options));
     }
@@ -56,7 +62,7 @@ pub(super) fn param_binding_from_payload(payload: &Value) -> Option<NativeParamB
         _ => "number",
     }
     .to_string();
-    Some(NativeParamBinding {
+    let mut binding = NativeParamBinding {
         key,
         label: payload
             .get("label")
@@ -66,6 +72,8 @@ pub(super) fn param_binding_from_payload(payload: &Value) -> Option<NativeParamB
         min: payload.get("min").and_then(Value::as_f64),
         max: payload.get("max").and_then(Value::as_f64),
         step: payload.get("step").and_then(Value::as_f64),
+        user_min: payload.get("userMin").and_then(Value::as_f64),
+        user_max: payload.get("userMax").and_then(Value::as_f64),
         options: payload
             .get("options")
             .and_then(Value::as_array)
@@ -81,7 +89,33 @@ pub(super) fn param_binding_from_payload(payload: &Value) -> Option<NativeParamB
             .get("invert")
             .and_then(Value::as_bool)
             .unwrap_or(false),
-    })
+    };
+    sanitize_binding_user_range(&mut binding);
+    Some(binding)
+}
+
+pub(super) fn sanitize_binding_user_range(binding: &mut NativeParamBinding) {
+    if binding.kind != "number" {
+        binding.user_min = None;
+        binding.user_max = None;
+        return;
+    }
+    let Some(target_min) = binding.min else {
+        return;
+    };
+    let Some(target_max) = binding.max else {
+        return;
+    };
+    let low = target_min.min(target_max);
+    let high = target_min.max(target_max);
+    binding.user_min = binding.user_min.map(|value| value.clamp(low, high));
+    binding.user_max = binding.user_max.map(|value| value.clamp(low, high));
+    if let (Some(user_min), Some(user_max)) = (binding.user_min, binding.user_max) {
+        if user_min > user_max {
+            binding.user_min = Some(user_max);
+            binding.user_max = Some(user_min);
+        }
+    }
 }
 
 pub(super) fn supported_param_binding_key(key: &str) -> bool {

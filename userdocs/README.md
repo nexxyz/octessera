@@ -8,6 +8,7 @@ Then you nudge them. You anchor them with a bit of manual sequencing if you want
 
 ## Start here
 
+- The full hardware device can be built for well under €200 through suppliers such as Mouser, even after accounting for the small stuff: sockets, pin headers, wire, solder, screws, and a sensible amount of 3D-printing filament.
 - [Build and assembly manual](hardware/assembly-manual.md) — parts, soldering, enclosure, and the bits where I try to keep you from breaking the same things I broke.
 - [Controls cheat sheet](controls-cheat-sheet.md) — what the encoders, buttons, grid, modifiers, Play pages, and auto-maps do.
 - [Behaviors and Play pages](behaviors-and-sparks.md) — the layer behaviors and live performance pages.
@@ -21,7 +22,7 @@ Then you nudge them. You anchor them with a bit of manual sequencing if you want
 
 ## OLED SD card samples
 
-For the optional OLED microSD card, label the card `OCTESSERA_SD`. Octessera mounts it at `SD card` and creates `octessera/samples` plus `octessera/saves`; put WAV samples under `octessera/samples`. If you use `System > USB > Start SD Transfer`, eject the drive on the host before pressing Back or Main to stop transfer. Tiny storage goblin, ordinary safe-eject rules.
+For the optional OLED microSD card, label the card `OCTESSERA_SD`. This is SD2. The Pi boot card is SD1. Octessera mounts SD2 at `SD card` and creates `octessera/samples` plus `octessera/saves`; put WAV samples under `octessera/samples`. If you use `System > USB > Start SD2 Xfer`, eject the drive on the host before pressing Back or Main to stop transfer. If no host is connected yet, Octessera waits until one appears and you can still cancel from the popup. Tiny storage goblin, ordinary safe-eject rules.
 
 ## Canonical specs
 

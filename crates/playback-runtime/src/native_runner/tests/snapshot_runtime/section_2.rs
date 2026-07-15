@@ -66,6 +66,8 @@ pub(crate) fn inactive_layer_transport_tick_applies_param_modulation() {
         min: Some(0.0),
         max: Some(100.0),
         step: Some(1.0),
+        user_min: None,
+        user_max: None,
         options: vec![],
         invert: true,
     });

@@ -18,11 +18,12 @@ pub(crate) fn config() -> NativeMenuConfig {
                 label: "Step Rate".into(),
                 key: Some("algorithmStep".into()),
                 value: NativeMenuValue::Enum {
-                    options: vec!["1/16", "1/8", "1/4", "1/2", "1/1"]
-                        .into_iter()
+                    options: crate::timing_units::NOTE_UNIT_OPTIONS
+                        .iter()
+                        .copied()
                         .map(String::from)
                         .collect(),
-                    selected: 1,
+                    selected: 5,
                 },
                 children: vec![],
             },
@@ -166,11 +167,12 @@ pub(crate) fn behavior_target_items() -> Vec<Vec<NativeMenuItem>> {
                     label: "Step Rate".into(),
                     key: Some(format!("layers.{layer_index}.algorithmStep")),
                     value: NativeMenuValue::Enum {
-                        options: vec!["1/16", "1/8", "1/4", "1/2", "1/1"]
-                            .into_iter()
+                        options: crate::timing_units::NOTE_UNIT_OPTIONS
+                            .iter()
+                            .copied()
                             .map(String::from)
                             .collect(),
-                        selected: 1,
+                        selected: 5,
                     },
                     children: vec![],
                 },

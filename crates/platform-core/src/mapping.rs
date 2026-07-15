@@ -52,6 +52,7 @@ pub struct MappingConfig {
 pub struct MappingResult {
     pub events: Vec<MusicalEvent>,
     pub intents: Vec<CellTriggerIntent>,
+    pub event_intents: Vec<CellTriggerIntent>,
 }
 
 pub fn default_mapping_config() -> MappingConfig {
@@ -103,6 +104,7 @@ pub fn map_intents_to_musical_events(
     let safe = validate_config(config);
     let mut events = Vec::new();
     let mut matched = Vec::new();
+    let mut event_intents = Vec::new();
     for intent in intents {
         let note = note_from_degree(intent.degree, &safe);
         let target = target_for_kind(intent.kind, &safe);
@@ -113,6 +115,7 @@ pub fn map_intents_to_musical_events(
                     channel: target.channel,
                     note: note as u8,
                 });
+                event_intents.push(intent.clone());
             }
             TriggerAction::NoteOn => {
                 events.push(MusicalEvent::NoteOn {
@@ -122,12 +125,14 @@ pub fn map_intents_to_musical_events(
                     duration_ms: Some(target.duration_ms),
                 });
                 matched.push(intent.clone());
+                event_intents.push(intent.clone());
             }
         }
     }
     MappingResult {
         events,
         intents: matched,
+        event_intents,
     }
 }
 

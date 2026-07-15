@@ -1,5 +1,6 @@
 #![recursion_limit = "256"]
 
+mod delay_timing;
 mod native_help;
 mod native_menu;
 mod native_runner;
@@ -7,6 +8,7 @@ mod preset_name_policy;
 mod protocol;
 mod runtime;
 mod timing_probe;
+mod timing_units;
 
 pub use native_runner::{NativeRunner, NativeRunnerConfig};
 pub use platform_core::MusicalEvent;

@@ -2,6 +2,7 @@ use crate::protocol::{
     RunnerMessage, RuntimePlatformEffect, RuntimeStatus, RuntimeStatusState, RuntimeUiPulse,
 };
 
+use super::algorithm::LinkRoutingInput;
 use super::{NativeOledMode, NativeRunner};
 
 impl NativeRunner {
@@ -179,18 +180,19 @@ impl NativeRunner {
             .get(self.active_layer_index)
             .copied()
             .unwrap_or(0);
-        let active_transpose_notes = self
-            .sparks_transpose_active_notes
-            .get_mut(self.active_layer_index);
-        let events = super::modulation::apply_sampler_assignments_for_instruments_routed(
-            result.events,
-            &result.mapped_intents,
-            result.emitted_events.len(),
-            &self.instruments,
-            self.pulses_layers.get(self.active_layer_index),
-            transpose_offset,
-            active_transpose_notes,
-        );
+        let instruments = self.instruments.clone();
+        let sense = self.pulses_layers.get(self.active_layer_index).cloned();
+        let mut events = self.route_events_with_link_timing(
+            self.active_layer_index,
+            LinkRoutingInput {
+                events: result.events,
+                event_intents: &result.event_intents,
+                instruments: &instruments,
+                sense,
+                transpose_offset,
+            },
+        )?;
+        events.dedupe_note_ons_by_highest_velocity();
         if !events.is_empty() {
             self.event_dot_on = true;
             self.event_dot_pulses_remaining = 1;
@@ -207,6 +209,29 @@ impl NativeRunner {
             }
         }
         messages.extend(self.messages_with_snapshot()?);
+        Ok(messages)
+    }
+
+    pub(super) fn messages_with_routed_events(
+        &mut self,
+        events: super::RoutedMusicalEvents,
+    ) -> Result<Vec<RunnerMessage>, String> {
+        let mut messages = Vec::new();
+        if !events.is_empty() {
+            self.event_dot_on = true;
+            self.event_dot_pulses_remaining = 1;
+            messages.push(self.trigger_ui_pulse_message());
+            if !events.audio.is_empty() {
+                messages.push(RunnerMessage::MusicalEvents {
+                    events: events.audio,
+                });
+            }
+            if !events.midi.is_empty() {
+                messages.push(RunnerMessage::MidiEvents {
+                    events: events.midi,
+                });
+            }
+        }
         Ok(messages)
     }
 }

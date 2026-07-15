@@ -112,8 +112,12 @@ fn tones_group(config: &NativeMenuConfig) -> NativeMenuItem {
                     .map(|(index, label)| instrument_item(config, index, label))
                     .collect(),
             },
-            fx_buses_group(&config.fx_buses),
-            global_fx_group(&config.global_fx_slots, &config.global_fx_params),
+            fx_buses_group(&config.fx_buses, config.bpm),
+            global_fx_group(
+                &config.global_fx_slots,
+                &config.global_fx_params,
+                config.bpm,
+            ),
         ],
     }
 }

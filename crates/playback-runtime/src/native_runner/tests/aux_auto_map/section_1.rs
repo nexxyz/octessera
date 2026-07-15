@@ -237,7 +237,7 @@ pub(crate) fn auto_map_worlds_life_turn_and_press_follow_behavior_context() {
         .unwrap();
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["layers"][0]["worlds"]["stepRate"],
-        "1/4"
+        "1/4T"
     );
 
     let _ = runner

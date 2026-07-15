@@ -10,22 +10,56 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
         vec![
             saves_group(config),
             group(
-                "Updates",
+                "Recording",
                 vec![
-                    action_item(
-                        "Check",
-                        "system.updateCheck",
-                        NativeMenuAction::PlatformEffect("system.updateCheck".into()),
+                    number_item(
+                        "Max Time",
+                        "recording.maxMinutes",
+                        i32::from(config.recording_max_minutes),
+                        1,
+                        120,
+                        1,
                     ),
                     action_item(
-                        "Apply",
-                        "system.updateApply",
-                        NativeMenuAction::PlatformEffect("system.updateApply".into()),
+                        "Start Audio",
+                        "recording.startAudio",
+                        NativeMenuAction::PlatformEffect("recording.startAudio".into()),
                     ),
                     action_item(
-                        "Rollback",
-                        "system.rollback",
-                        NativeMenuAction::PlatformEffect("system.rollback".into()),
+                        "Stop",
+                        "recording.stop",
+                        NativeMenuAction::PlatformEffect("recording.stop".into()),
+                    ),
+                ],
+            ),
+            group(
+                "USB",
+                vec![
+                    enum_item(
+                        "Audio Out",
+                        "usb.audioOut",
+                        vec!["jack", "usb", "both"],
+                        selected_index(&["jack", "usb", "both"], &config.usb_audio_out),
+                    ),
+                    bool_item(
+                        "MIDI Out",
+                        "usb.midiOutEnabled",
+                        config.usb_midi_out_enabled,
+                    ),
+                    action_item(
+                        "Save & Reboot",
+                        "usb.applyReboot",
+                        NativeMenuAction::PlatformEffect("usb.applyReboot".into()),
+                    ),
+                    action_item(
+                        "Start SD2 Xfer",
+                        "usb.sdTransferStart",
+                        NativeMenuAction::PlatformEffect("usb.sdTransferStart".into()),
+                    ),
+                    action_item(
+                        "Stop SD2 Xfer",
+                        "usb.sdTransferStop",
+                        NativeMenuAction::PlatformEffect("usb.sdTransferStop".into()),
                     ),
                 ],
             ),
@@ -127,65 +161,11 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                                 config.midi_clock_in_enabled,
                             ),
                             bool_item(
-                                "Follow Start/Stop",
+                                "Follow S/S",
                                 "midi.respondToStartStop",
                                 config.midi_respond_to_start_stop,
                             ),
                         ],
-                    ),
-                ],
-            ),
-            group(
-                "USB",
-                vec![
-                    enum_item(
-                        "Audio Out",
-                        "usb.audioOut",
-                        vec!["jack", "usb", "both"],
-                        selected_index(&["jack", "usb", "both"], &config.usb_audio_out),
-                    ),
-                    bool_item(
-                        "MIDI Out",
-                        "usb.midiOutEnabled",
-                        config.usb_midi_out_enabled,
-                    ),
-                    action_item(
-                        "Save & Reboot",
-                        "usb.applyReboot",
-                        NativeMenuAction::PlatformEffect("usb.applyReboot".into()),
-                    ),
-                    action_item(
-                        "Start SD Transfer",
-                        "usb.sdTransferStart",
-                        NativeMenuAction::PlatformEffect("usb.sdTransferStart".into()),
-                    ),
-                    action_item(
-                        "Stop SD Transfer",
-                        "usb.sdTransferStop",
-                        NativeMenuAction::PlatformEffect("usb.sdTransferStop".into()),
-                    ),
-                ],
-            ),
-            group(
-                "Recording",
-                vec![
-                    number_item(
-                        "Max Time",
-                        "recording.maxMinutes",
-                        i32::from(config.recording_max_minutes),
-                        1,
-                        120,
-                        1,
-                    ),
-                    action_item(
-                        "Start Audio",
-                        "recording.startAudio",
-                        NativeMenuAction::PlatformEffect("recording.startAudio".into()),
-                    ),
-                    action_item(
-                        "Stop",
-                        "recording.stop",
-                        NativeMenuAction::PlatformEffect("recording.stop".into()),
                     ),
                 ],
             ),
@@ -245,11 +225,7 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                     ),
                 ],
             ),
-            action_item(
-                "Basic Help",
-                "system.controlsHelp",
-                NativeMenuAction::PlatformEffect("system.controlsHelp".into()),
-            ),
+            updates_group(),
             group(
                 "Diagnostics",
                 vec![action_item(
@@ -257,6 +233,11 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                     "system.hardwareTest",
                     NativeMenuAction::PlatformEffect("system.hardwareTest".into()),
                 )],
+            ),
+            action_item(
+                "Basic Help",
+                "system.controlsHelp",
+                NativeMenuAction::PlatformEffect("system.controlsHelp".into()),
             ),
             action_item(
                 "Reboot",
@@ -272,6 +253,29 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                 "Clear all",
                 "system.clearAll",
                 NativeMenuAction::PlatformEffect("system.clearAll".into()),
+            ),
+        ],
+    )
+}
+
+fn updates_group() -> NativeMenuItem {
+    group(
+        "Updates",
+        vec![
+            action_item(
+                "Check",
+                "system.updateCheck",
+                NativeMenuAction::PlatformEffect("system.updateCheck".into()),
+            ),
+            action_item(
+                "Apply",
+                "system.updateApply",
+                NativeMenuAction::PlatformEffect("system.updateApply".into()),
+            ),
+            action_item(
+                "Rollback",
+                "system.rollback",
+                NativeMenuAction::PlatformEffect("system.rollback".into()),
             ),
         ],
     )

@@ -23,10 +23,10 @@ fn recording_protocol_json_uses_public_field_names() {
     assert_eq!(
         serde_json::to_value(RuntimeStoreResult::UsbSdTransferStatus {
             active: true,
-            message: "USB SD transfer active".into(),
+            message: "USB SD2 transfer active".into(),
         })
         .unwrap(),
-        json!({ "type": "usb_sd_transfer_status", "active": true, "message": "USB SD transfer active" })
+        json!({ "type": "usb_sd_transfer_status", "active": true, "message": "USB SD2 transfer active" })
     );
 
     assert_eq!(

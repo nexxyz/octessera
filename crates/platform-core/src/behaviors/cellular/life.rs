@@ -162,9 +162,9 @@ pub fn render_model(state: &LifeState) -> BehaviorRenderModel {
         status_line: format!("Gen {}", state.generation),
         cells: state.cells.clone(),
         palette: crate::BehaviorRenderPalette {
-            active: crate::palette::BEHAVIOR_PRIMARY_YELLOW,
+            active: crate::palette::BEHAVIOR_PRIMARY_MAGENTA,
             inactive: crate::palette::BEHAVIOR_DIM_GREEN,
-            stable: crate::palette::BEHAVIOR_PRIMARY_GREEN,
+            stable: crate::palette::BEHAVIOR_PRIMARY_YELLOW,
         },
         trigger_types: Some(state.trigger_types.clone()),
     }

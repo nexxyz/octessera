@@ -68,6 +68,24 @@ pub(crate) fn fn_overlay_highlights_active_layer_when_not_in_sparks_mode() {
 }
 
 #[test]
+pub(crate) fn combined_modifier_overlay_shows_layer_column_only() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.active_sparks_mode = "pan".into();
+    runner.sparks_mode = "pan".into();
+    runner.ui.combined_modifier_held = true;
+
+    let snapshot = runner.snapshot().unwrap();
+    let cells = led_cells(&snapshot);
+    let active_layer = &cells[display_index(0, 0)];
+    let right_page = cells[display_index(GRID_WIDTH - 1, 1)].as_object().unwrap();
+
+    assert_eq!(*active_layer, led_rgb(platform_core::palette::BLUE));
+    assert_eq!(right_page["r"], 0);
+    assert_eq!(right_page["g"], 0);
+    assert_eq!(right_page["b"], 0);
+}
+
+#[test]
 pub(crate) fn fn_overlay_dims_fx_grid_cells_when_sparks_mode_is_fx() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.ui.fn_held = true;

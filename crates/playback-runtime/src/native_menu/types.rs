@@ -44,6 +44,8 @@ pub struct NativeParamBindingSpec {
     pub min: Option<i32>,
     pub max: Option<i32>,
     pub step: Option<i32>,
+    pub user_min: Option<i32>,
+    pub user_max: Option<i32>,
     pub options: Vec<String>,
     pub invert: bool,
 }

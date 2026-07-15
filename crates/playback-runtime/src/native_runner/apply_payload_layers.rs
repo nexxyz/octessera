@@ -148,6 +148,7 @@ fn apply_layer_worlds_payload(
     if let Some(slot) = runner.layer_engines.get_mut(index) {
         *slot = Some(engine);
     }
+    runner.clear_delayed_link_events_for_layer(index);
     Ok(())
 }
 

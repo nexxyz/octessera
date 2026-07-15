@@ -1,9 +1,8 @@
-use platform_core::NativeInputResult;
-
 use crate::protocol::{RunnerMessage, RuntimePlatformEffect};
 use std::sync::OnceLock;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
+use super::algorithm::LinkRoutingInput;
 use super::{
     display_layer_index_from_y, DeviceInput, NativeRunner, NativeToast, RuntimeTransportState,
     SyncSource,
@@ -97,6 +96,9 @@ impl NativeRunner {
                 } else if id.as_deref().unwrap_or("main") == "main" && delta != 0 {
                     if self.help_popup.is_some() {
                         self.turn_help_popup(delta);
+                    } else if self.ui.fn_held && delta > 0 {
+                        return self.handle_single_step_input();
+                    } else if self.ui.fn_held {
                     } else {
                         let editing = self.menu.state.editing;
                         let editing_key = if editing {
@@ -161,6 +163,8 @@ impl NativeRunner {
             self.handle_trigger_probability_grid_press(x, y);
         } else if self.active_sparks_mode == "transpose" && x == 0 && self.ui.shift_held {
             self.toggle_all_sparks_transpose_layers();
+        } else if self.ui.combined_modifier_held && x == 0 {
+            self.toggle_layer_trigger_gate(display_layer_index_from_y(y));
         } else if self.ui.fn_held && x == 0 && !self.ui.shift_held {
             self.select_active_layer(display_layer_index_from_y(y))?;
             self.active_sparks_mode = "none".into();
@@ -228,17 +232,15 @@ impl NativeRunner {
     ) -> Result<Vec<RunnerMessage>, String> {
         if pressed.unwrap_or(true) {
             if self.ui.combined_modifier_held {
-                return self.handle_single_step_input();
+                return self.messages_with_snapshot();
+            } else if self.ui.fn_held {
+                return self.reset_stop_with_midi_panic();
             } else if let Some(effect) = self.preview_selected_sample()? {
                 return self.messages_with_effects(vec![effect]);
             } else if self.ui.shift_held && self.sync_source == SyncSource::External {
                 self.pending_resync = true;
             } else if self.ui.shift_held {
-                self.transport = RuntimeTransportState::Stopped;
-                self.reset_transport_position();
-                return self.messages_with_effects(vec![RuntimePlatformEffect::MidiPanic]);
-            } else if self.ui.fn_held {
-                self.toggle_active_layer_trigger_gate();
+                return self.reset_stop_with_midi_panic();
             } else {
                 if self.transport == RuntimeTransportState::Stopped {
                     self.reset_transport_position();
@@ -255,6 +257,12 @@ impl NativeRunner {
             }
         }
         self.messages_with_snapshot()
+    }
+
+    fn reset_stop_with_midi_panic(&mut self) -> Result<Vec<RunnerMessage>, String> {
+        self.transport = RuntimeTransportState::Stopped;
+        self.reset_transport_position();
+        self.messages_with_effects(vec![RuntimePlatformEffect::MidiPanic])
     }
 
     fn handle_usb_sd_transfer_modal_input(
@@ -282,12 +290,29 @@ impl NativeRunner {
         if let Some(layer_tick) = self.layer_ticks.get_mut(self.active_layer_index) {
             *layer_tick = self.tick;
         }
-        self.messages_with_input_result(NativeInputResult {
-            events: tick.events,
-            emitted_events: tick.emitted_events,
-            mapped_intents: tick.mapped_intents,
-            model: tick.model,
-        })
+        let mut events = self.take_due_link_events(self.active_layer_index);
+        self.apply_runtime_modulation(&tick.mapped_intents, self.active_layer_index);
+        let transpose_offset = self
+            .sparks_transpose_offsets_for_routing()
+            .get(self.active_layer_index)
+            .copied()
+            .unwrap_or(0);
+        let instruments = self.instruments.clone();
+        let sense = self.pulses_layers.get(self.active_layer_index).cloned();
+        events.extend(self.route_events_with_link_timing(
+            self.active_layer_index,
+            LinkRoutingInput {
+                events: tick.events,
+                event_intents: &tick.event_intents,
+                instruments: &instruments,
+                sense,
+                transpose_offset,
+            },
+        )?);
+        events.dedupe_note_ons_by_highest_velocity();
+        let mut messages = self.messages_with_routed_events(events)?;
+        messages.extend(self.messages_with_snapshot()?);
+        Ok(messages)
     }
 }
 

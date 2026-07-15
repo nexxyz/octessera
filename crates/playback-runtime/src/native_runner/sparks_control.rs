@@ -223,54 +223,45 @@ impl NativeRunner {
         Ok(())
     }
 
-    pub(super) fn toggle_active_layer_trigger_gate(&mut self) {
+    pub(super) fn toggle_layer_trigger_gate(&mut self, index: usize) {
+        let index = index.min(GRID_HEIGHT.saturating_sub(1));
         let current = self
             .pulses_layers
-            .get(self.active_layer_index)
+            .get(index)
             .map(|layer| layer.trigger_probability_mode.clone())
-            .or_else(|| {
-                self.trigger_gate_modes
-                    .get(self.active_layer_index)
-                    .cloned()
-            })
+            .or_else(|| self.trigger_gate_modes.get(index).cloned())
             .unwrap_or_else(|| "full".into());
         if current == "zero" {
             let restore = self
                 .trigger_gate_restore_modes
-                .get(self.active_layer_index)
+                .get(index)
                 .and_then(Clone::clone)
                 .unwrap_or_else(|| "full".into());
-            if let Some(mode) = self.trigger_gate_modes.get_mut(self.active_layer_index) {
+            if let Some(mode) = self.trigger_gate_modes.get_mut(index) {
                 *mode = restore.clone();
             }
-            if let Some(layer) = self.pulses_layers.get_mut(self.active_layer_index) {
+            if let Some(layer) = self.pulses_layers.get_mut(index) {
                 layer.trigger_probability_mode = restore.clone();
             }
-            if let Some(slot) = self
-                .trigger_gate_restore_modes
-                .get_mut(self.active_layer_index)
-            {
+            if let Some(slot) = self.trigger_gate_restore_modes.get_mut(index) {
                 *slot = None;
             }
             self.toast = Some(NativeToast {
-                message: format!("L{} triggers {}", self.active_layer_index + 1, restore),
+                message: format!("L{} triggers {}", index + 1, restore),
                 offset: 0,
             });
         } else {
-            if let Some(slot) = self
-                .trigger_gate_restore_modes
-                .get_mut(self.active_layer_index)
-            {
+            if let Some(slot) = self.trigger_gate_restore_modes.get_mut(index) {
                 *slot = Some(current);
             }
-            if let Some(mode) = self.trigger_gate_modes.get_mut(self.active_layer_index) {
+            if let Some(mode) = self.trigger_gate_modes.get_mut(index) {
                 *mode = "zero".into();
             }
-            if let Some(layer) = self.pulses_layers.get_mut(self.active_layer_index) {
+            if let Some(layer) = self.pulses_layers.get_mut(index) {
                 layer.trigger_probability_mode = "zero".into();
             }
             self.toast = Some(NativeToast {
-                message: format!("L{} triggers off", self.active_layer_index + 1),
+                message: format!("L{} triggers off", index + 1),
                 offset: 0,
             });
         }

@@ -90,6 +90,68 @@ impl NativeRunner {
         let _ = self.menu.focus_item_key(target);
     }
 
+    pub(super) fn set_param_binding_range_value(
+        &mut self,
+        target: &str,
+        is_min: bool,
+        value: i32,
+    ) -> bool {
+        let Some(binding) = self.param_binding_target_mut(target) else {
+            return false;
+        };
+        if binding.kind != "number" {
+            binding.user_min = None;
+            binding.user_max = None;
+            return false;
+        }
+        let Some(target_min) = binding.min else {
+            return false;
+        };
+        let Some(target_max) = binding.max else {
+            return false;
+        };
+        let low = target_min.min(target_max);
+        let high = target_min.max(target_max);
+        let value = f64::from(value).clamp(low, high);
+        let changed = if is_min {
+            binding.user_min != Some(value)
+        } else {
+            binding.user_max != Some(value)
+        };
+        if is_min {
+            binding.user_min = Some(value);
+        } else {
+            binding.user_max = Some(value);
+        }
+        super::sanitize_binding_user_range(binding);
+        if changed {
+            self.config_dirty = true;
+            self.mark_fast_autosave_dirty();
+        }
+        changed
+    }
+
+    fn param_binding_target_mut(&mut self, target: &str) -> Option<&mut NativeParamBinding> {
+        if let Some(rest) = target.strip_prefix("param:") {
+            let parts = rest.split(':').collect::<Vec<_>>();
+            if parts.len() == 3 {
+                let layer = parts[0].parse::<usize>().ok()?.min(GRID_HEIGHT - 1);
+                let slot = parts[2].parse::<usize>().ok()?.min(1);
+                let param_mods = self.param_mods.get_mut(layer)?;
+                return match parts[1] {
+                    "x" => param_mods.x.get_mut(slot)?.as_mut(),
+                    "y" => param_mods.y.get_mut(slot)?.as_mut(),
+                    _ => None,
+                };
+            }
+        } else if target == "xy:x" {
+            return self.xy_x_binding.as_mut();
+        } else if target == "xy:y" {
+            return self.xy_y_binding.as_mut();
+        }
+        None
+    }
+
     pub(super) fn aux_index(id: Option<&str>) -> Option<usize> {
         let index = id?
             .strip_prefix("aux")?

@@ -128,12 +128,12 @@ pub(crate) fn system_submenu_uses_abbreviated_path_and_section_colors() {
         snapshot.lines,
         vec![
             "> Saves >",
-            "  Updates >",
+            "  Recording >",
+            "  USB >",
             "  Sound >",
             "  MIDI >",
-            "  USB >",
-            "  Recording >",
             "  UI >",
+            "  Updates >",
         ]
     );
     assert_eq!(
@@ -176,7 +176,7 @@ pub(crate) fn static_navigation_memory_restores_allowed_system_groups() {
         menu.turn(1);
     }
     let _ = menu.press();
-    menu.state.cursor = 2;
+    menu.state.cursor = 3;
     let _ = menu.press();
     assert_eq!(menu.snapshot().lines[0], "> Master Vol 100");
 
@@ -197,7 +197,7 @@ pub(crate) fn static_navigation_memory_clears_on_rebuild() {
         menu.turn(1);
     }
     let _ = menu.press();
-    menu.state.cursor = 2;
+    menu.state.cursor = 3;
     let _ = menu.press();
     menu.turn(1);
     menu.turn(1);
@@ -207,7 +207,7 @@ pub(crate) fn static_navigation_memory_clears_on_rebuild() {
 
     menu.rebuild(config());
     menu.state.stack = vec![5];
-    menu.state.cursor = 2;
+    menu.state.cursor = 3;
     let _ = menu.press();
     assert_eq!(menu.current_label(), Some("Master Vol"));
 }
@@ -219,7 +219,7 @@ pub(crate) fn static_navigation_memory_back_while_editing_stays_in_group() {
         menu.turn(1);
     }
     let _ = menu.press();
-    menu.state.cursor = 2;
+    menu.state.cursor = 3;
     let _ = menu.press();
     menu.turn(1);
     assert_eq!(menu.current_label(), Some("Note Length"));

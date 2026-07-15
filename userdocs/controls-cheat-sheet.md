@@ -14,6 +14,9 @@ Octessera has regular controls, and then it has places where the controls tempor
 | *Play* / *Space* | **Transport** | Play or pause. |
 | *Play* / *Space* | **Sample browser preview** | In sample browser menus, preview the highlighted sample. |
 | *Shift* + *Play* | **Stop** | Stop playback. In external sync, this arms resync instead of stopping the external clock. |
+| *Fn* + *Play* | **Reset stop** | Stop, reset the transport position, and send MIDI panic. |
+| *Fn* + turn main encoder right | **Single step** | While paused or stopped, advance one generation/tick. Turning left is a no-op. |
+| *Shift* + *Fn* + *Play* | **Reserved** | No action for now. A tiny patch of silence in the shortcut garden. |
 | *Shift* + *Back* | **Clear active layer** | Re-initialize the active layer. Very useful. Also very easy to press on purpose only. |
 | *Shift* + *Fn* + *click main encoder* | **Context help** | Hold *Shift* + *Fn*, then click a menu option with *Main* to open help for that row. |
 
@@ -23,6 +26,7 @@ Octessera has regular controls, and then it has places where the controls tempor
 |---|---|---|
 | *Fn* + left grid column | **Navigate to Layer 1–8** | Jump to the chosen layer. Bottom row is layer 1. |
 | *Hold* *Fn* | **Navigation preview** | Left column shows layers: cyan for navigation/current focus, green for configured layers, gray/black for inactive or unavailable cells. Right column shows Play pages in yellow, with the active page in green. |
+| *Shift* + *Fn* + left grid column | **Layer trigger toggle** | Toggle that layer's emissions without changing the active layer. |
 | *Fn* + right grid column | **Navigate to Play pages** | Jump to *Mix*, *Pan*, *FX*, *Trigger Gate*, *Transpose*, or *XY*. If Play is already active, this exits Play. |
 | *Fn* + *aux encoder click* | **Bind focused value/action** | Assign the highlighted menu value to that aux turn, or the highlighted action to that aux click. |
 

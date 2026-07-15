@@ -7,7 +7,7 @@ use super::binding_tree::{binding_action, binding_group_from_items, binding_tree
 use super::fx::{fx_buses_group, global_fx_group};
 use super::section_labels::{BUILD_LABEL, LINK_LABEL, PLAY_LABEL, SHAPE_LABEL};
 use super::sparks::sparks_fx_page_items;
-use super::{action_item, group, NativeMenuAction, NativeMenuConfig, NativeMenuItem};
+use super::{action_item, group, number_item, NativeMenuAction, NativeMenuConfig, NativeMenuItem};
 use super::{NativeMenuValue, NativeParamBindingSpec};
 
 pub(super) fn sparks_fx_targets() -> Vec<String> {
@@ -39,6 +39,13 @@ pub(super) fn parameter_picker_group(
     )];
     children.extend(parameter_tree_groups(&target, config));
     if let Some(binding) = current {
+        if binding.kind == "number"
+            && !target.starts_with("aux:")
+            && !target.starts_with("shiftAux:")
+        {
+            children.insert(1, range_item("Range Max", &target, "rangeMax", binding));
+            children.insert(1, range_item("Range Min", &target, "rangeMin", binding));
+        }
         children.insert(
             1,
             action_item(
@@ -60,6 +67,32 @@ pub(super) fn parameter_picker_group(
         value: NativeMenuValue::Group,
         children,
     }
+}
+
+fn range_item(
+    label: &str,
+    target: &str,
+    suffix: &str,
+    binding: &NativeParamBindingSpec,
+) -> NativeMenuItem {
+    let min = binding.min.unwrap_or(0);
+    let max = binding.max.unwrap_or(127);
+    let low = min.min(max);
+    let high = min.max(max);
+    let value = match suffix {
+        "rangeMin" => binding.user_min.unwrap_or(min),
+        "rangeMax" => binding.user_max.unwrap_or(max),
+        _ => min,
+    }
+    .clamp(low, high);
+    number_item(
+        label,
+        format!("{target}.{suffix}"),
+        value,
+        low,
+        high,
+        binding.step.unwrap_or(1).max(1),
+    )
 }
 
 pub(super) fn parameter_tree_groups(
@@ -87,11 +120,17 @@ pub(super) fn parameter_tree_groups(
     if !instrument_groups.is_empty() {
         voice_children.push(group("Instruments", instrument_groups));
     }
-    if let Some(item) = binding_tree_from_menu_item(&fx_buses_group(&config.fx_buses), target) {
+    if let Some(item) =
+        binding_tree_from_menu_item(&fx_buses_group(&config.fx_buses, config.bpm), target)
+    {
         voice_children.push(item);
     }
     if let Some(item) = binding_tree_from_menu_item(
-        &global_fx_group(&config.global_fx_slots, &config.global_fx_params),
+        &global_fx_group(
+            &config.global_fx_slots,
+            &config.global_fx_params,
+            config.bpm,
+        ),
         target,
     ) {
         voice_children.push(item);

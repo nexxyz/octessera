@@ -57,6 +57,8 @@ pub(super) fn binding_spec_from_leaf(
             min: Some(*min),
             max: Some(*max),
             step: Some(*step),
+            user_min: None,
+            user_max: None,
             options: vec![],
             invert: false,
         }),
@@ -67,6 +69,8 @@ pub(super) fn binding_spec_from_leaf(
             min: None,
             max: None,
             step: None,
+            user_min: None,
+            user_max: None,
             options: options.clone(),
             invert: false,
         }),
@@ -77,6 +81,8 @@ pub(super) fn binding_spec_from_leaf(
             min: None,
             max: None,
             step: None,
+            user_min: None,
+            user_max: None,
             options: vec![],
             invert: false,
         }),
@@ -91,6 +97,8 @@ pub(super) fn is_excluded_binding_key(key: &str) -> bool {
         || key.ends_with(".autoName")
         || key.ends_with(".clone")
         || key.ends_with(".reset")
+        || key.ends_with(".params.timeMode")
+        || key.ends_with(".params.timeNote")
         || key.contains(".mapping.")
         || key.ends_with(".triggerProbability.map")
 }
@@ -114,6 +122,8 @@ pub(super) fn binding_action(
             min,
             max,
             step,
+            user_min: None,
+            user_max: None,
             options: options.into_iter().map(str::to_string).collect(),
             invert: false,
         },

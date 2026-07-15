@@ -1,7 +1,7 @@
 use super::payload_assign::{
     apply_value_lane_payload, assign_bool, assign_i32, assign_mapping, assign_string, assign_u8,
 };
-use super::{NativePulsesLayer, Value};
+use super::{LinkEventTiming, NativePulsesLayer, Value};
 
 pub(super) fn apply_pulses_payload(layer: &mut NativePulsesLayer, payload: &Value) {
     apply_scan_and_trigger_payload(layer, payload);
@@ -58,30 +58,47 @@ fn apply_mapping_payload(layer: &mut NativePulsesLayer, payload: &Value) {
         &mut layer.scanned_slot,
         &mut layer.scanned_action,
     );
+    assign_timing(mapping, "scanned", &mut layer.scanned_timing);
     assign_mapping(
         mapping,
         "scanned_empty",
         &mut layer.scanned_empty_slot,
         &mut layer.scanned_empty_action,
     );
+    assign_timing(mapping, "scanned_empty", &mut layer.scanned_empty_timing);
     assign_mapping(
         mapping,
         "activate",
         &mut layer.activate_slot,
         &mut layer.activate_action,
     );
+    assign_timing(mapping, "activate", &mut layer.activate_timing);
     assign_mapping(
         mapping,
         "stable",
         &mut layer.stable_slot,
         &mut layer.stable_action,
     );
+    assign_timing(mapping, "stable", &mut layer.stable_timing);
     assign_mapping(
         mapping,
         "deactivate",
         &mut layer.deactivate_slot,
         &mut layer.deactivate_action,
     );
+    assign_timing(mapping, "deactivate", &mut layer.deactivate_timing);
+}
+
+fn assign_timing(mapping: &Value, key: &str, timing: &mut LinkEventTiming) {
+    let Some(payload) = mapping.get(key) else {
+        return;
+    };
+    if let Some(delay) = payload.get("delaySteps").and_then(Value::as_u64) {
+        timing.delay_steps = (delay as u8).min(16);
+    }
+    if let Some(retrigger) = payload.get("retriggerCount").and_then(Value::as_u64) {
+        timing.retrigger_count = (retrigger as u8).min(8);
+    }
 }
 
 fn apply_pitch_payload(layer: &mut NativePulsesLayer, payload: &Value) {

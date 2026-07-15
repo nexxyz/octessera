@@ -86,6 +86,14 @@ mod tests {
         assert_turn(&messages[3], "aux2", 1);
     }
 
+    #[test]
+    fn drops_zero_delta_turns() {
+        let mut pending = PendingEncoderTurns::default();
+        pending.enqueue("encoder_aux_1", 0);
+
+        assert!(pending.take_messages().is_empty());
+    }
+
     fn assert_turn(message: &HostMessage, id: &str, delta: i8) {
         let HostMessage::DeviceInput { input, .. } = message else {
             panic!("expected device input");

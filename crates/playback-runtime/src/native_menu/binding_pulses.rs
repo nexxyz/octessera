@@ -43,7 +43,7 @@ pub(super) fn pulses_binding_group(
                         None,
                         None,
                         None,
-                        vec!["1/16", "1/8", "1/4", "1/2", "1/1"],
+                        crate::timing_units::NOTE_UNIT_OPTIONS.to_vec(),
                         target,
                     ),
                     binding_action(
@@ -219,7 +219,7 @@ pub(super) fn pulses_binding_group(
             ),
             pulses_axis_lane_binding_group(
                 &format!("{prefix}.x.filterResonance"),
-                "Filter Resonance",
+                "Filter Res",
                 &sense.x_filter_resonance,
                 target,
             ),
@@ -238,7 +238,7 @@ pub(super) fn pulses_binding_group(
             ),
             pulses_axis_lane_binding_group(
                 &format!("{prefix}.y.filterResonance"),
-                "Filter Resonance",
+                "Filter Res",
                 &sense.y_filter_resonance,
                 target,
             ),

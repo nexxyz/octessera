@@ -39,14 +39,15 @@ impl NativeRunner {
             label: "Step Rate".into(),
             key: Some(format!("layers.{layer_index}.algorithmStep")),
             value: crate::native_menu::NativeMenuValue::Enum {
-                options: vec!["1/16", "1/8", "1/4", "1/2", "1/1"]
-                    .into_iter()
+                options: crate::timing_units::NOTE_UNIT_OPTIONS
+                    .iter()
+                    .copied()
                     .map(String::from)
                     .collect(),
-                selected: [6, 12, 24, 48, 96]
+                selected: crate::timing_units::NOTE_UNIT_OPTIONS
                     .iter()
-                    .position(|value| *value == step_pulses)
-                    .unwrap_or(1),
+                    .position(|unit| crate::timing_units::note_unit_to_pulses(unit) == step_pulses)
+                    .unwrap_or(5),
             },
             children: vec![],
         }];

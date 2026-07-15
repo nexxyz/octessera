@@ -6,7 +6,7 @@ use super::{
 };
 use platform_core::{BUS_COUNT as FX_BUS_COUNT, GLOBAL_FX_SLOT_COUNT};
 
-pub(super) fn fx_buses_group(config: &[NativeFxBusConfig]) -> NativeMenuItem {
+pub(super) fn fx_buses_group(config: &[NativeFxBusConfig], bpm: u16) -> NativeMenuItem {
     group(
         "FX Buses",
         (0..FX_BUS_COUNT)
@@ -26,6 +26,7 @@ pub(super) fn fx_buses_group(config: &[NativeFxBusConfig]) -> NativeMenuItem {
                             &bus.slot1_params,
                             FX_BUS_SLOT_OPTIONS,
                             Some(bus_index),
+                            bpm,
                         ),
                         fx_slot_group(
                             slot_group_label(2, &bus.slot2_type),
@@ -34,6 +35,7 @@ pub(super) fn fx_buses_group(config: &[NativeFxBusConfig]) -> NativeMenuItem {
                             &bus.slot2_params,
                             FX_BUS_SLOT_OPTIONS,
                             Some(bus_index),
+                            bpm,
                         ),
                         number_item(
                             "Pan Pos",
@@ -52,7 +54,11 @@ pub(super) fn fx_buses_group(config: &[NativeFxBusConfig]) -> NativeMenuItem {
     )
 }
 
-pub(super) fn global_fx_group(config: &[String], params: &[serde_json::Value]) -> NativeMenuItem {
+pub(super) fn global_fx_group(
+    config: &[String],
+    params: &[serde_json::Value],
+    bpm: u16,
+) -> NativeMenuItem {
     group(
         "Global FX",
         (0..GLOBAL_FX_SLOT_COUNT)
@@ -68,6 +74,7 @@ pub(super) fn global_fx_group(config: &[String], params: &[serde_json::Value]) -
                         slot_params,
                         GLOBAL_FX_SLOT_OPTIONS,
                         None,
+                        bpm,
                     ),
                 )
             })
@@ -82,10 +89,11 @@ fn fx_slot_group(
     params: &serde_json::Value,
     options: &[&str],
     bus_index: Option<usize>,
+    bpm: u16,
 ) -> NativeMenuItem {
     group(
         label,
-        fx_slot_children(prefix, slot_type, params, options, bus_index),
+        fx_slot_children(prefix, slot_type, params, options, bus_index, bpm),
     )
 }
 
@@ -94,6 +102,7 @@ pub(crate) fn fx_bus_slot_children_for_key(
     slot_type: &str,
     params: &serde_json::Value,
     bus_index: usize,
+    bpm: u16,
 ) -> Vec<NativeMenuItem> {
     fx_slot_children(
         prefix,
@@ -101,6 +110,7 @@ pub(crate) fn fx_bus_slot_children_for_key(
         params,
         FX_BUS_SLOT_OPTIONS,
         Some(bus_index),
+        bpm,
     )
 }
 
@@ -108,8 +118,9 @@ pub(crate) fn global_fx_slot_children_for_key(
     prefix: &str,
     slot_type: &str,
     params: &serde_json::Value,
+    bpm: u16,
 ) -> Vec<NativeMenuItem> {
-    fx_slot_children(prefix, slot_type, params, GLOBAL_FX_SLOT_OPTIONS, None)
+    fx_slot_children(prefix, slot_type, params, GLOBAL_FX_SLOT_OPTIONS, None, bpm)
 }
 
 fn slot_group_label(slot_number: usize, slot_type: &str) -> String {
@@ -146,6 +157,7 @@ fn fx_slot_children(
     params: &serde_json::Value,
     options: &[&str],
     bus_index: Option<usize>,
+    bpm: u16,
 ) -> Vec<NativeMenuItem> {
     let mut children = vec![enum_item(
         "Type",
@@ -158,6 +170,7 @@ fn fx_slot_children(
         &format!("{prefix}.params"),
         params,
         bus_index,
+        bpm,
     ));
     children
 }

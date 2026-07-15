@@ -2,7 +2,7 @@ use super::{NativePulsesLayer, NativeValueLane, GRID_HEIGHT, GRID_WIDTH};
 use platform_core::{CellTriggerIntent, MusicalEvent};
 use std::collections::BTreeMap;
 
-#[derive(Default)]
+#[derive(Clone, Debug, Default)]
 pub(super) struct RoutedMusicalEvents {
     pub(super) audio: Vec<MusicalEvent>,
     pub(super) midi: Vec<MusicalEvent>,

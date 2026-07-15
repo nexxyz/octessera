@@ -70,7 +70,7 @@ pub(crate) fn number_params_emit_bar_values_and_pan_uses_marker_format() {
     );
 
     let mut menu = NativeMenuModel::new(config());
-    menu.state.stack = vec![5, 2];
+    menu.state.stack = vec![5, 3];
     menu.state.cursor = 0;
     let volume = menu.snapshot();
     assert!(volume.lines.iter().any(|line| line == "> Master Vol 100"));
@@ -86,7 +86,7 @@ pub(crate) fn number_params_emit_bar_values_and_pan_uses_marker_format() {
     let mut numbers_config = config();
     numbers_config.numeric_display_mode = "numbers".into();
     let mut menu = NativeMenuModel::new(numbers_config);
-    menu.state.stack = vec![5, 2];
+    menu.state.stack = vec![5, 3];
     menu.state.cursor = 0;
     let numbers = menu.snapshot();
     assert!(numbers.bar_values.iter().all(Option::is_none));
@@ -129,6 +129,11 @@ pub(crate) fn fx_slot_groups_show_selected_effect_params() {
     assert!(menu
         .current_siblings()
         .iter()
+        .any(|item| item.label == "Time Note"
+            && matches!(item.value, NativeMenuValue::Enum { ref options, selected } if options[selected] == "1/4T")));
+    assert!(menu
+        .current_siblings()
+        .iter()
         .any(|item| item.label == "Feedback"
             && matches!(item.value, NativeMenuValue::Number { value: 42, .. })));
     menu.state.stack = vec![2, 2];
@@ -142,6 +147,33 @@ pub(crate) fn fx_slot_groups_show_selected_effect_params() {
         .iter()
         .any(|item| item.label == "Crackle %"
             && matches!(item.value, NativeMenuValue::Number { value: 9, .. })));
+}
+
+#[test]
+pub(crate) fn binding_target_tree_excludes_delay_time_note_shortcut() {
+    let mut config = config();
+    config.fx_buses[0].slot1_type = "delay".into();
+    config.fx_buses[0].slot1_params =
+        serde_json::json!({ "timeMs": 333, "feedback": 0.42, "mixPct": 44 });
+
+    let picker = parameter_picker_group("Bind".into(), "aux.turn.0".into(), None, &config);
+    let keys = binding_action_keys(&picker);
+
+    assert!(keys.iter().any(|key| key.ends_with(".params.timeMs")));
+    assert!(!keys.iter().any(|key| key.ends_with(".params.timeMode")));
+    assert!(!keys.iter().any(|key| key.ends_with(".params.timeNote")));
+}
+
+fn binding_action_keys(item: &NativeMenuItem) -> Vec<String> {
+    let mut keys = Vec::new();
+    if let NativeMenuValue::Action(NativeMenuAction::SetParamBinding { binding, .. }) = &item.value
+    {
+        keys.push(binding.key.clone());
+    }
+    for child in &item.children {
+        keys.extend(binding_action_keys(child));
+    }
+    keys
 }
 
 #[test]

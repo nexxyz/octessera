@@ -25,8 +25,8 @@ pub(super) fn scanning_group(
             enum_item(
                 "Scan Unit",
                 format!("{prefix}.scanUnit"),
-                vec!["1/16", "1/8", "1/4", "1/2", "1/1"],
-                selected_index(&["1/16", "1/8", "1/4", "1/2", "1/1"], &sense.scan_unit),
+                crate::timing_units::NOTE_UNIT_OPTIONS.to_vec(),
+                selected_index(crate::timing_units::NOTE_UNIT_OPTIONS, &sense.scan_unit),
             ),
             enum_item(
                 "Scan Direction",
@@ -52,20 +52,44 @@ pub(super) fn scanning_group(
                 vec!["none", "note_on", "note_off"],
                 selected_index(&["none", "note_on", "note_off"], &sense.scanned_action),
             ),
+            timing_item(
+                "Scan Delay",
+                format!("{prefix}.mapping.scanned.delaySteps"),
+                sense.scanned_timing.delay_steps,
+                16,
+            ),
+            timing_item(
+                "Scan Retrig",
+                format!("{prefix}.mapping.scanned.retriggerCount"),
+                sense.scanned_timing.retrigger_count,
+                8,
+            ),
             enum_item_from_strings(
-                "Empty Instrument",
+                "Empty Inst",
                 format!("{prefix}.mapping.scanned_empty.slot"),
                 instrument_options.to_vec(),
                 slot_option_selected(sense.scanned_empty_slot, instrument_options.len()),
             ),
             enum_item(
-                "Empty Action",
+                "Empty Trig",
                 format!("{prefix}.mapping.scanned_empty.action"),
                 vec!["none", "note_on", "note_off"],
                 selected_index(
                     &["none", "note_on", "note_off"],
                     &sense.scanned_empty_action,
                 ),
+            ),
+            timing_item(
+                "Empty Delay",
+                format!("{prefix}.mapping.scanned_empty.delaySteps"),
+                sense.scanned_empty_timing.delay_steps,
+                16,
+            ),
+            timing_item(
+                "Empty Retrig",
+                format!("{prefix}.mapping.scanned_empty.retriggerCount"),
+                sense.scanned_empty_timing.retrigger_count,
+                8,
             ),
         ]);
     }
@@ -95,6 +119,7 @@ pub(super) fn events_group(
         "activate",
         sense.activate_slot,
         &sense.activate_action,
+        sense.activate_timing,
         instrument_options,
     ));
     children.extend(event_mapping_item(
@@ -103,6 +128,7 @@ pub(super) fn events_group(
         "stable",
         sense.stable_slot,
         &sense.stable_action,
+        sense.stable_timing,
         instrument_options,
     ));
     children.extend(event_mapping_item(
@@ -111,6 +137,7 @@ pub(super) fn events_group(
         "deactivate",
         sense.deactivate_slot,
         &sense.deactivate_action,
+        sense.deactivate_timing,
         instrument_options,
     ));
     group("Events", children)
@@ -239,20 +266,43 @@ fn event_mapping_item(
     key: &str,
     slot: usize,
     action: &str,
+    timing: super::LinkEventTimingConfig,
     instrument_options: &[String],
 ) -> Vec<NativeMenuItem> {
+    let short_label = match label {
+        "Activate" => "On",
+        "Stable" => "Hold",
+        "Deactivate" => "Off",
+        _ => label,
+    };
     vec![
         enum_item_from_strings(
-            format!("{label} Instrument"),
+            format!("{short_label} Inst"),
             format!("{prefix}.mapping.{key}.slot"),
             instrument_options.to_vec(),
             slot_option_selected(slot, instrument_options.len()),
         ),
         enum_item(
-            format!("{label} Action"),
+            format!("{short_label} Trig"),
             format!("{prefix}.mapping.{key}.action"),
             vec!["none", "note_on", "note_off"],
             selected_index(&["none", "note_on", "note_off"], action),
         ),
+        timing_item(
+            format!("{short_label} Delay"),
+            format!("{prefix}.mapping.{key}.delaySteps"),
+            timing.delay_steps,
+            16,
+        ),
+        timing_item(
+            format!("{short_label} Retrig"),
+            format!("{prefix}.mapping.{key}.retriggerCount"),
+            timing.retrigger_count,
+            8,
+        ),
     ]
+}
+
+fn timing_item(label: impl Into<String>, key: String, value: u8, max: i32) -> NativeMenuItem {
+    number_item(label, key, i32::from(value), 0, max, 1)
 }

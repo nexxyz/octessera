@@ -5,12 +5,10 @@ use crate::interpretation::{
     interpret_grid, CellTriggerIntent, GridSnapshot, InterpretationProfile,
 };
 use crate::mapping::{map_intents_to_musical_events, MappingConfig};
-use crate::transforms::{
-    apply_global_sound, apply_note_behavior, dedupe_simultaneous_notes, GlobalSoundConfig,
-    NoteBehavior, NoteBehaviorResult,
-};
+use crate::transforms::{apply_global_sound, GlobalSoundConfig, NoteBehavior};
 use crate::MusicalEvent;
 use serde_json::Value;
+use std::collections::HashSet;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct NativeLayerEngineConfig {
@@ -28,6 +26,7 @@ pub struct NativeTickResult {
     pub events: Vec<MusicalEvent>,
     pub emitted_events: Vec<MusicalEvent>,
     pub mapped_intents: Vec<CellTriggerIntent>,
+    pub event_intents: Vec<Option<CellTriggerIntent>>,
     pub model: BehaviorRenderModel,
 }
 
@@ -36,6 +35,7 @@ pub struct NativeInputResult {
     pub events: Vec<MusicalEvent>,
     pub emitted_events: Vec<MusicalEvent>,
     pub mapped_intents: Vec<CellTriggerIntent>,
+    pub event_intents: Vec<Option<CellTriggerIntent>>,
     pub model: BehaviorRenderModel,
 }
 
@@ -140,22 +140,37 @@ impl NativeLayerEngine {
             .unwrap_or(0);
         let mut events = Vec::with_capacity(context.emitted_events.len() + mapped_event_len);
         events.extend(context.emitted_events.iter().cloned());
+        let mut event_intents = vec![None; context.emitted_events.len()];
         if let Some(mapped) = &mapped {
             events.extend(mapped.events.iter().cloned());
+            event_intents.extend(mapped.event_intents.iter().cloned().map(Some));
         }
         let events = apply_global_sound(&events, &self.global_sound);
-        let note_behavior = apply_note_behavior(
+        if events.len() != event_intents.len() {
+            return Err("event intent metadata length mismatch before note behavior".into());
+        }
+        let note_behavior = apply_note_behavior_with_event_intents(
             &events,
+            event_intents,
             self.note_behaviors.as_slice(),
             self.layer_index,
             &self.held_notes,
         );
-        let NoteBehaviorResult { events, held_notes } = note_behavior;
+        let NoteBehaviorWithIntentsResult {
+            events,
+            event_intents,
+            held_notes,
+        } = note_behavior;
         self.held_notes = held_notes;
+        if events.len() != event_intents.len() {
+            return Err("event intent metadata length mismatch after note behavior".into());
+        }
+        let mapped_intents = mapped.map(|mapped| mapped.intents).unwrap_or_default();
         Ok(NativeInputResult {
-            events: dedupe_simultaneous_notes(&events),
+            events,
             emitted_events: context.emitted_events,
-            mapped_intents: mapped.map(|mapped| mapped.intents).unwrap_or_default(),
+            mapped_intents,
+            event_intents,
             model: after,
         })
     }
@@ -188,21 +203,35 @@ impl NativeLayerEngine {
         let mapped = map_intents_to_musical_events(&intents, &self.mapping_config);
         let mut events = Vec::with_capacity(context.emitted_events.len() + mapped.events.len());
         events.extend(context.emitted_events.iter().cloned());
+        let mut event_intents = vec![None; context.emitted_events.len()];
+        event_intents.extend(mapped.event_intents.iter().cloned().map(Some));
         events.extend(mapped.events);
         let events = apply_global_sound(&events, &self.global_sound);
-        let note_behavior = apply_note_behavior(
+        if events.len() != event_intents.len() {
+            return Err("event intent metadata length mismatch before note behavior".into());
+        }
+        let note_behavior = apply_note_behavior_with_event_intents(
             &events,
+            event_intents,
             &self.note_behaviors,
             self.layer_index,
             &self.held_notes,
         );
-        let NoteBehaviorResult { events, held_notes } = note_behavior;
+        let NoteBehaviorWithIntentsResult {
+            events,
+            event_intents,
+            held_notes,
+        } = note_behavior;
         self.held_notes = held_notes;
+        if events.len() != event_intents.len() {
+            return Err("event intent metadata length mismatch after note behavior".into());
+        }
 
         Ok(NativeTickResult {
             emitted_events: context.emitted_events,
-            events: dedupe_simultaneous_notes(&events),
+            events,
             mapped_intents: mapped.intents,
+            event_intents,
             model: after,
         })
     }
@@ -241,6 +270,80 @@ fn to_snapshot(model: &BehaviorRenderModel) -> GridSnapshot {
         width: GRID_WIDTH,
         height: GRID_HEIGHT,
         cells: model.cells.clone(),
+    }
+}
+
+struct NoteBehaviorWithIntentsResult {
+    events: Vec<MusicalEvent>,
+    event_intents: Vec<Option<CellTriggerIntent>>,
+    held_notes: Vec<String>,
+}
+
+fn apply_note_behavior_with_event_intents(
+    events: &[MusicalEvent],
+    event_intents: Vec<Option<CellTriggerIntent>>,
+    behaviors: &[NoteBehavior],
+    layer_idx: usize,
+    initial_held: &[String],
+) -> NoteBehaviorWithIntentsResult {
+    let mut held = initial_held.iter().cloned().collect::<HashSet<_>>();
+    held.reserve(events.len());
+    let mut out = Vec::with_capacity(events.len());
+    let mut out_intents = Vec::with_capacity(event_intents.len());
+    let mut intents = event_intents.into_iter();
+    for event in events {
+        let event_intent = intents.next().unwrap_or(None);
+        match event {
+            MusicalEvent::NoteOn {
+                channel,
+                note,
+                velocity,
+                duration_ms,
+            } => {
+                let key = format!("{layer_idx}:{channel}:{note}");
+                let behavior = behaviors
+                    .get(*channel as usize)
+                    .copied()
+                    .unwrap_or(NoteBehavior::Oneshot);
+                if behavior == NoteBehavior::Hold && held.contains(&key) {
+                    continue;
+                }
+                if behavior == NoteBehavior::Hold {
+                    held.insert(key);
+                    out.push(MusicalEvent::NoteOn {
+                        channel: *channel,
+                        note: *note,
+                        velocity: *velocity,
+                        duration_ms: None,
+                    });
+                } else {
+                    out.push(MusicalEvent::NoteOn {
+                        channel: *channel,
+                        note: *note,
+                        velocity: *velocity,
+                        duration_ms: *duration_ms,
+                    });
+                }
+                out_intents.push(event_intent);
+            }
+            MusicalEvent::NoteOff { channel, note } => {
+                let key = format!("{layer_idx}:{channel}:{note}");
+                let _ = held.remove(&key);
+                out.push(event.clone());
+                out_intents.push(event_intent);
+            }
+            _ => {
+                out.push(event.clone());
+                out_intents.push(event_intent);
+            }
+        }
+    }
+    let mut held_notes = held.into_iter().collect::<Vec<_>>();
+    held_notes.sort();
+    NoteBehaviorWithIntentsResult {
+        events: out,
+        event_intents: out_intents,
+        held_notes,
     }
 }
 

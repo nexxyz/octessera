@@ -11,6 +11,8 @@ pub(crate) fn voice_stealing_param_mod_emits_full_audio_config_command() {
         min: None,
         max: None,
         step: None,
+        user_min: None,
+        user_max: None,
         options: vec!["auto-balanced".into(), "auto-hard".into()],
         invert: false,
     });
@@ -50,6 +52,8 @@ pub(crate) fn shift_grid_param_mod_mapping_cycles_slots() {
         min: Some(0.0),
         max: Some(100.0),
         step: Some(1.0),
+        user_min: None,
+        user_max: None,
         options: vec![],
         invert: false,
     };
@@ -90,6 +94,8 @@ pub(crate) fn shift_grid_param_mod_overlay_marks_lanes_and_combined_cells() {
         min: Some(0.0),
         max: Some(100.0),
         step: Some(1.0),
+        user_min: None,
+        user_max: None,
         options: vec![],
         invert: false,
     };

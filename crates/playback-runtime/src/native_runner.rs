@@ -9,11 +9,11 @@ use crate::protocol::{
     SyncSource,
 };
 use crate::runtime::{CoreRunner, RuntimeConfig};
+use crate::timing_units::{note_unit_from_pulses, note_unit_to_pulses};
 use defaults::{
     default_fx_buses, default_global_fx_params, default_global_fx_slots, default_instruments,
     default_pulses_layers, derive_bus_name, derive_instrument_name, fx_default_params,
     fx_slot_payload_with_params, legacy_derive_bus_name, legacy_derive_instrument_name,
-    note_unit_from_pulses, note_unit_to_pulses,
 };
 use modulation_keys::{parse_instrument_binding_key, parse_layer_behavior_config_binding_key};
 #[cfg(test)]
@@ -68,6 +68,7 @@ mod construction_deferred;
 mod construction_engine;
 mod defaults;
 mod deferred_flush;
+mod delay_fx_timing;
 mod device_input;
 mod device_input_buttons;
 mod factory_payload;
@@ -228,6 +229,7 @@ pub struct NativeRunner {
     swung_ppqn_pulse: u64,
     tick: u64,
     layer_ticks: Vec<u64>,
+    delayed_link_events: Vec<Vec<DelayedRoutedEvents>>,
     algorithm_step_pulses: u32,
     algorithm_pulse_accumulator: u32,
     layer_algorithm_step_pulses: Vec<u32>,

@@ -14,11 +14,11 @@ pub(super) fn pulses_layer_payload(layer: &NativePulsesLayer, probability_map: &
         "stateNotesEnabled": layer.state_notes_enabled,
         "triggerProbabilityMap": probability_map,
         "mapping": {
-            "scanned": { "slot": slot_payload(layer.scanned_slot), "action": layer.scanned_action.clone() },
-            "scanned_empty": { "slot": slot_payload(layer.scanned_empty_slot), "action": layer.scanned_empty_action.clone() },
-            "activate": { "slot": slot_payload(layer.activate_slot), "action": layer.activate_action.clone() },
-            "stable": { "slot": slot_payload(layer.stable_slot), "action": layer.stable_action.clone() },
-            "deactivate": { "slot": slot_payload(layer.deactivate_slot), "action": layer.deactivate_action.clone() }
+            "scanned": mapping_payload(layer.scanned_slot, &layer.scanned_action, layer.scanned_timing),
+            "scanned_empty": mapping_payload(layer.scanned_empty_slot, &layer.scanned_empty_action, layer.scanned_empty_timing),
+            "activate": mapping_payload(layer.activate_slot, &layer.activate_action, layer.activate_timing),
+            "stable": mapping_payload(layer.stable_slot, &layer.stable_action, layer.stable_timing),
+            "deactivate": mapping_payload(layer.deactivate_slot, &layer.deactivate_action, layer.deactivate_timing)
         },
         "pitch": {
             "lowestNote": layer.lowest_note,
@@ -52,6 +52,15 @@ pub(super) fn pulses_layer_payload(layer: &NativePulsesLayer, probability_map: &
             "filterCutoff": value_lane_payload(&layer.y_filter_cutoff),
             "filterResonance": value_lane_payload(&layer.y_filter_resonance)
         }
+    })
+}
+
+fn mapping_payload(slot: usize, action: &str, timing: LinkEventTiming) -> Value {
+    json!({
+        "slot": slot_payload(slot),
+        "action": action,
+        "delaySteps": timing.delay_steps,
+        "retriggerCount": timing.retrigger_count,
     })
 }
 

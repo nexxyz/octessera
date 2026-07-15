@@ -144,35 +144,69 @@ pub(crate) fn runtime_snapshot_serializes_menu_scroll_metadata() {
 }
 
 #[test]
-pub(crate) fn selected_long_menu_row_scrolls_once_slowly_only_while_highlighted() {
+pub(crate) fn selected_short_menu_row_stays_stable_while_highlighted() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![1];
     runner.menu.state.cursor = 3;
 
     runner.menu_scroll_offset = 0;
     let initial = runner.snapshot().unwrap();
-    assert_eq!(initial["display"]["lines"][3], "> Events when ... On");
+    assert_eq!(initial["display"]["lines"][3], "> Paused Events On");
 
     runner.menu_scroll_offset = 3;
     let still_waiting = runner.snapshot().unwrap();
-    assert_eq!(still_waiting["display"]["lines"][3], "> Events when ... On");
+    assert_eq!(still_waiting["display"]["lines"][3], "> Paused Events On");
 
     runner.menu_scroll_offset = 4;
     let scrolled = runner.snapshot().unwrap();
-    assert_ne!(scrolled["display"]["lines"][3], "> Events when ... On");
+    assert_eq!(scrolled["display"]["lines"][3], "> Paused Events On");
 
     runner.menu_scroll_offset = 27;
     let end_hold = runner.snapshot().unwrap();
-    assert_ne!(end_hold["display"]["lines"][3], "> Events when ... On");
+    assert_eq!(end_hold["display"]["lines"][3], "> Paused Events On");
 
     runner.menu_scroll_offset = 99;
-    let finished = runner.snapshot().unwrap();
-    assert_eq!(finished["display"]["lines"][3], "> Events when ... On");
+    let later = runner.snapshot().unwrap();
+    assert_eq!(later["display"]["lines"][3], "> Paused Events On");
 
     runner.menu_scroll_offset = 4;
     runner.menu.state.editing = true;
     let editing = runner.snapshot().unwrap();
-    assert_eq!(editing["display"]["lines"][3], "> Events when paused:");
+    assert_eq!(editing["display"]["lines"][3], "> Paused Events:");
+}
+
+#[test]
+pub(crate) fn selected_group_row_scrolls_full_link_target_label() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.param_mods[0].x[0] = Some(NativeParamBinding {
+        key: "instruments.0.sample.filter.resonance".into(),
+        label: Some("Filter Resonance Amount".into()),
+        kind: "number".into(),
+        min: Some(0.0),
+        max: Some(100.0),
+        step: Some(1.0),
+        user_min: None,
+        user_max: None,
+        options: vec![],
+        invert: false,
+    });
+    runner.menu.rebuild(runner.menu_config());
+    runner.menu.state.stack = vec![1, 4, 4];
+    runner.menu.state.cursor = 0;
+
+    runner.menu_scroll_offset = 0;
+    let initial = runner.snapshot().unwrap();
+    let selected_row = initial["selectedRow"].as_u64().unwrap() as usize;
+    let initial_line = initial["display"]["lines"][selected_row].as_str().unwrap();
+    assert!(!initial_line.contains("Amount"));
+
+    runner.menu_scroll_offset = 36;
+    let scrolled = runner.snapshot().unwrap();
+    let scrolled_line = scrolled["display"]["lines"][selected_row].as_str().unwrap();
+    assert!(
+        scrolled_line.contains("Amount >"),
+        "scrolled line was {scrolled_line:?}"
+    );
 }
 
 #[test]

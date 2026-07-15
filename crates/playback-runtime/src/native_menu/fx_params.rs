@@ -1,16 +1,21 @@
 use super::options::duck_source_options;
 use super::{enum_item_from_strings, number_item, NativeMenuItem};
+use crate::delay_timing::normalized_delay_params;
+use crate::timing_units::NOTE_UNIT_OPTIONS;
 
 pub(super) fn fx_param_items(
     slot_type: &str,
     prefix: &str,
     params: &serde_json::Value,
     bus_index: Option<usize>,
+    bpm: u16,
 ) -> Vec<NativeMenuItem> {
     match slot_type {
         "duck" => duck_param_items(prefix, params, bus_index),
         "delay" => vec![
             fx_number_item("Mix %", prefix, params, "mixPct", 0, 100, 1, 1.0, 35.0),
+            delay_time_mode_item(prefix, params, bpm),
+            delay_time_note_item(prefix, params, bpm),
             fx_number_item("Time ms", prefix, params, "timeMs", 1, 2000, 5, 1.0, 250.0),
             fx_number_item(
                 "Feedback", prefix, params, "feedback", 0, 98, 1, 100.0, 0.35,
@@ -62,6 +67,41 @@ pub(super) fn fx_param_items(
         "vinyl" => vinyl_param_items(prefix, params),
         _ => vec![],
     }
+}
+
+fn delay_time_mode_item(prefix: &str, params: &serde_json::Value, bpm: u16) -> NativeMenuItem {
+    let params = normalized_delay_params(params, bpm);
+    let mode = params
+        .get("timeMode")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("ms");
+    let options = vec!["ms".to_string(), "note".to_string()];
+    enum_item_from_strings(
+        "Time Mode",
+        format!("{prefix}.timeMode"),
+        options,
+        if mode == "note" { 1 } else { 0 },
+    )
+}
+
+fn delay_time_note_item(prefix: &str, params: &serde_json::Value, bpm: u16) -> NativeMenuItem {
+    let params = normalized_delay_params(params, bpm);
+    let selected_note = params
+        .get("timeNote")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("1/8");
+    enum_item_from_strings(
+        "Time Note",
+        format!("{prefix}.timeNote"),
+        NOTE_UNIT_OPTIONS
+            .iter()
+            .map(|option| (*option).to_string())
+            .collect(),
+        NOTE_UNIT_OPTIONS
+            .iter()
+            .position(|option| option == &selected_note)
+            .unwrap_or(0),
+    )
 }
 
 fn duck_param_items(

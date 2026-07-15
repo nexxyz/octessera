@@ -6,7 +6,7 @@ use super::{
 
 impl NativeRunner {
     pub(super) fn apply_fn_overlay(&self, leds: &mut [LedColor]) {
-        if !self.ui.fn_held {
+        if !self.ui.fn_held && !self.ui.combined_modifier_held {
             return;
         }
         if self.sample_assign.is_some()
@@ -17,7 +17,9 @@ impl NativeRunner {
         }
         self.dim_fn_overlay(leds);
         self.paint_fn_layer_column(leds);
-        self.paint_fn_page_column(leds);
+        if !self.ui.combined_modifier_held {
+            self.paint_fn_page_column(leds);
+        }
     }
 
     pub(super) fn apply_sparks_mix_overlay(&self, leds: &mut [LedColor]) {

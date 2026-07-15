@@ -179,8 +179,11 @@ impl NativeRunner {
         let mut changed = false;
         if let Some(bpm) = self.menu.number_for_key("transport.bpm") {
             let bpm = f64::from(bpm.clamp(40, 240));
-            changed |= (self.bpm - bpm).abs() > f64::EPSILON;
-            self.bpm = bpm;
+            if (self.bpm - bpm).abs() > f64::EPSILON {
+                self.bpm = bpm;
+                changed = true;
+                self.retime_note_mode_bus_delays();
+            }
         }
         if let Some(swing_pct) = self.menu.number_for_key("transport.swingPct") {
             let swing_pct = swing_pct.clamp(0, 75) as u8;

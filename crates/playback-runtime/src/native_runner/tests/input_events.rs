@@ -1,4 +1,6 @@
 use super::*;
+mod link;
+mod link_hold;
 
 #[test]
 pub(crate) fn interpreting_behavior_grid_press_and_release_emit_musical_events() {
@@ -121,6 +123,53 @@ pub(crate) fn trigger_probability_zero_suppresses_input_transition_events() {
 }
 
 #[test]
+pub(crate) fn none_trigger_targets_do_not_apply_runtime_modulation() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        behavior_id: "keys".into(),
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    bind_x_to_instrument_volume(&mut runner);
+    runner.instruments[0].volume = 10;
+    runner.pulses_layers[0].activate_action = "none".into();
+    runner.refresh_active_mapping_config();
+    runner.refresh_active_interpretation_profile();
+
+    let press = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 7, "y": 3 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert!(musical_note_ons(&press).is_empty());
+    assert_eq!(runner.instruments[0].volume, 10);
+}
+
+#[test]
+pub(crate) fn probability_suppressed_events_do_not_apply_runtime_modulation() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        behavior_id: "keys".into(),
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    bind_x_to_instrument_volume(&mut runner);
+    runner.instruments[0].volume = 10;
+    runner.pulses_layers[0].trigger_probability_mode = "zero".into();
+    runner.refresh_active_interpretation_profile();
+
+    let press = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 7, "y": 3 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert!(musical_note_ons(&press).is_empty());
+    assert_eq!(runner.instruments[0].volume, 10);
+}
+
+#[test]
 pub(crate) fn event_enabled_false_suppresses_input_transition_events() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "keys".into(),
@@ -180,6 +229,55 @@ pub(crate) fn trigger_probability_custom_zero_cell_suppresses_transport_events()
         .unwrap();
 
     assert!(musical_note_ons(&messages).is_empty());
+}
+
+#[test]
+pub(crate) fn scanned_note_on_events_apply_runtime_modulation() {
+    let mut runner = scanning_sequencer_runner();
+    bind_x_to_instrument_volume(&mut runner);
+    runner.instruments[0].volume = 10;
+    runner.pulses_layers[0].scanned_action = "note_on".into();
+    runner.refresh_active_mapping_config();
+
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 7, "y": 0 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let messages = runner
+        .send(HostMessage::TransportPulseStep {
+            pulses: 24,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+
+    assert!(!musical_note_ons(&messages).is_empty());
+    assert_eq!(runner.instruments[0].volume, 100);
+}
+
+#[test]
+pub(crate) fn scanned_empty_note_on_events_apply_runtime_modulation() {
+    let mut runner = scanning_sequencer_runner();
+    bind_x_to_instrument_volume(&mut runner);
+    runner.instruments[0].volume = 10;
+    runner.pulses_layers[0].scanned_action = "none".into();
+    runner.pulses_layers[0].scanned_empty_action = "note_on".into();
+    runner.refresh_active_mapping_config();
+
+    let messages = runner
+        .send(HostMessage::TransportPulseStep {
+            pulses: 24,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+
+    assert!(!musical_note_ons(&messages).is_empty());
+    assert_eq!(runner.instruments[0].volume, 100);
 }
 
 #[test]
@@ -343,10 +441,44 @@ pub(crate) fn pulses_scan_menu_exposes_none_and_scanned_empty_targets() {
         .map(|item| item.label.as_str())
         .collect::<Vec<_>>();
 
-    assert!(labels.contains(&"Empty Instrument"));
-    assert!(labels.contains(&"Empty Action"));
+    assert!(labels.contains(&"Empty Inst"));
+    assert!(labels.contains(&"Empty Trig"));
     assert!(runner
         .menu
         .value_for_key("layers.0.pulses.mapping.scanned_empty.slot")
         .is_some_and(|value| value != "none"));
+}
+
+fn bind_x_to_instrument_volume(runner: &mut NativeRunner) {
+    runner.param_mods[0].x[0] = Some(NativeParamBinding {
+        key: "instruments.0.mixer.volume".into(),
+        label: Some("Volume".into()),
+        kind: "number".into(),
+        min: Some(0.0),
+        max: Some(100.0),
+        step: Some(1.0),
+        user_min: None,
+        user_max: None,
+        options: vec![],
+        invert: false,
+    });
+}
+
+fn scanning_sequencer_runner() -> NativeRunner {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        behavior_id: "sequencer".into(),
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    runner.transport = RuntimeTransportState::Playing;
+    runner.algorithm_step_pulses = 24;
+    runner.pulses_layers[0].scan_mode = "scanning".into();
+    runner.pulses_layers[0].scan_axis = "rows".into();
+    runner.pulses_layers[0].scan_unit = "1/4".into();
+    runner.refresh_active_mapping_config();
+    runner.refresh_active_interpretation_profile();
+    runner
+        .engine
+        .set_interpretation_profile(runner.interpretation_profile.clone());
+    runner
 }

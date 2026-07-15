@@ -123,6 +123,7 @@ pub(super) fn quantize_binding_value(norm: f32, binding: &NativeParamBinding) ->
     }
     let min = binding.min.unwrap_or(0.0);
     let max = binding.max.unwrap_or(127.0);
+    let (min, max) = effective_numeric_range(binding, min, max);
     let step = binding.step.unwrap_or(1.0);
     let raw = min + f64::from(norm) * (max - min);
     let stepped = if step > 0.0 {
@@ -131,4 +132,20 @@ pub(super) fn quantize_binding_value(norm: f32, binding: &NativeParamBinding) ->
         raw
     };
     json!(stepped.clamp(min, max))
+}
+
+fn effective_numeric_range(
+    binding: &NativeParamBinding,
+    target_min: f64,
+    target_max: f64,
+) -> (f64, f64) {
+    let low = target_min.min(target_max);
+    let high = target_min.max(target_max);
+    let min = binding.user_min.unwrap_or(target_min).clamp(low, high);
+    let max = binding.user_max.unwrap_or(target_max).clamp(low, high);
+    if min <= max {
+        (min, max)
+    } else {
+        (max, min)
+    }
 }

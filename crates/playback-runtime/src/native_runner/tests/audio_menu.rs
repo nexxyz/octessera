@@ -96,7 +96,7 @@ pub(crate) fn usb_sd_transfer_actions_are_confirmed_and_emit_effects() {
         })
         .unwrap();
     let snapshot = snapshot_from(&messages);
-    assert_eq!(snapshot["display"]["title"], "Confirm SD Transfer");
+    assert_eq!(snapshot["display"]["title"], "Confirm SD2 Transfer");
     assert!(snapshot["display"]["lines"]
         .as_array()
         .unwrap()
@@ -144,7 +144,7 @@ pub(crate) fn usb_sd_transfer_start_stops_playback_and_opens_blocking_modal() {
             if effects == &vec![RuntimePlatformEffect::UsbSdTransferStart]
     )));
     let snapshot = snapshot_from(&messages);
-    assert_eq!(snapshot["display"]["title"], "SD Transfer");
+    assert_eq!(snapshot["display"]["title"], "SD2 Transfer");
     assert!(snapshot["display"]["lines"]
         .as_array()
         .unwrap()

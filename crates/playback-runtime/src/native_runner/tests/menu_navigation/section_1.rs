@@ -3,7 +3,7 @@ use super::*;
 #[test]
 pub(crate) fn cursor_only_navigation_does_not_apply_menu_values() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 2];
+    runner.menu.state.stack = vec![5, 3];
     runner.ui.master_volume = 12;
 
     let messages = runner
@@ -198,7 +198,7 @@ pub(crate) fn bool_menu_items_edit_like_two_option_enums() {
         request_snapshot: None,
     });
     let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_turn", "delta": 3, "id": "main" }),
+        input: json!({ "type": "encoder_turn", "delta": 4, "id": "main" }),
         request_snapshot: None,
     });
     let _ = runner.send(HostMessage::DeviceInput {

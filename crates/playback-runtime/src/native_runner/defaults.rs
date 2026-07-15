@@ -108,7 +108,9 @@ pub(super) fn fx_slot_payload_with_params(slot_type: &str, params: &Value) -> Va
 pub(super) fn fx_default_params(slot_type: &str) -> Value {
     match slot_type {
         "reverb" => json!({ "mixPct": 30, "decay": 0.72, "damp": 0.35 }),
-        "delay" => json!({ "timeMs": 250, "feedback": 0.35, "mixPct": 35 }),
+        "delay" => {
+            json!({ "timeMode": "ms", "timeNote": "1/8", "timeMs": 250, "feedback": 0.35, "mixPct": 35 })
+        }
         "tremolo" => json!({ "rateHz": 4, "depthPct": 60 }),
         "vibrato" => {
             json!({ "rateHz": 0.8, "depthMs": 6, "baseMs": 8, "feedback": 0, "mixPct": 100 })
@@ -139,27 +141,5 @@ pub(super) fn fx_default_params(slot_type: &str) -> Value {
             json!({ "saturationPct": 15, "cracklePct": 8, "warpDepthPct": 5, "mixPct": 100 })
         }
         _ => json!({}),
-    }
-}
-
-pub(super) fn note_unit_to_pulses(unit: &str) -> u32 {
-    match unit {
-        "1/16" => 6,
-        "1/8" => 12,
-        "1/4" => 24,
-        "1/2" => 48,
-        "1/1" => 96,
-        _ => super::DEFAULT_ALGORITHM_STEP_RED,
-    }
-}
-
-pub(super) fn note_unit_from_pulses(pulses: u32) -> &'static str {
-    match pulses {
-        6 => "1/16",
-        12 => "1/8",
-        24 => "1/4",
-        48 => "1/2",
-        96 => "1/1",
-        _ => "1/8",
     }
 }

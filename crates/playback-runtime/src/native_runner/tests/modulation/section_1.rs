@@ -208,6 +208,8 @@ pub(crate) fn param_mod_binding_updates_native_runtime_config() {
         min: Some(0.0),
         max: Some(100.0),
         step: Some(1.0),
+        user_min: None,
+        user_max: None,
         options: vec![],
         invert: false,
     });

@@ -140,7 +140,7 @@ pub(crate) fn sample_browser_shows_favourite_toggle_and_updates_runtime_config()
     assert_eq!(runner.sample_favourite_dirs, vec![String::from("Samples")]);
 
     let snapshot = runner.menu.snapshot();
-    assert_eq!(snapshot.lines[3], ">!Remove favourite");
+    assert_eq!(snapshot.lines[3], ">!Remove fav");
 
     let payload = runner.config_payload();
     assert_eq!(
@@ -155,7 +155,7 @@ pub(crate) fn sample_browser_shows_favourite_toggle_and_updates_runtime_config()
 
     loaded.menu.state.stack = vec![2, 0, 0, 2, 2];
     loaded.menu.state.cursor = 3;
-    assert_eq!(loaded.menu.snapshot().lines[3], ">!Remove favourite");
+    assert_eq!(loaded.menu.snapshot().lines[3], ">!Remove fav");
 
     let _ = loaded
         .send(HostMessage::DeviceInput {
@@ -199,11 +199,11 @@ pub(crate) fn sample_browser_shows_non_deletable_builtin_favourites() {
     assert!(snapshot
         .lines
         .iter()
-        .any(|line| line.contains("Built-in favourite")));
+        .any(|line| line.contains("Built-in fav")));
     assert!(!snapshot
         .lines
         .iter()
-        .any(|line| line.contains("Remove favourite")));
+        .any(|line| line.contains("Remove fav")));
 }
 
 #[test]

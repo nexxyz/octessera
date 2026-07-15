@@ -166,18 +166,28 @@ fn run_usb_storage_command(action: &str) -> RuntimeStoreResult {
     {
         Ok(output) if output.status.success() => RuntimeStoreResult::UsbSdTransferStatus {
             active: action == "storage-start",
-            message: if action == "storage-start" {
-                "USB SD transfer active".into()
-            } else {
-                "USB SD transfer stopped".into()
-            },
+            message: usb_storage_message(action, &String::from_utf8_lossy(&output.stdout)),
         },
         Ok(output) => store_error(format!(
-            "USB SD transfer {action} failed: {}{}",
+            "USB SD2 transfer {action} failed: {}{}",
             String::from_utf8_lossy(&output.stderr),
             String::from_utf8_lossy(&output.stdout)
         )),
-        Err(error) => store_error(format!("USB SD transfer {action} failed: {error}")),
+        Err(error) => store_error(format!("USB SD2 transfer {action} failed: {error}")),
+    }
+}
+
+fn usb_storage_message(action: &str, stdout: &str) -> String {
+    if action != "storage-start" {
+        return "USB SD2 transfer stopped".into();
+    }
+    if stdout
+        .lines()
+        .any(|line| line.trim() == "HOST_STATE=configured")
+    {
+        "USB SD2 transfer active".into()
+    } else {
+        "USB SD2 transfer waiting for host".into()
     }
 }
 
@@ -286,5 +296,17 @@ mod tests {
         assert_eq!(list_presets(&dir).unwrap(), vec!["safe".to_string()]);
 
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn usb_storage_start_reports_waiting_until_host_configures_gadget() {
+        assert_eq!(
+            usb_storage_message("storage-start", "HOST_STATE=not attached\n"),
+            "USB SD2 transfer waiting for host"
+        );
+        assert_eq!(
+            usb_storage_message("storage-start", "HOST_STATE=configured\n"),
+            "USB SD2 transfer active"
+        );
     }
 }

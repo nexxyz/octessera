@@ -15,7 +15,7 @@ cargo test -p playback-runtime factory_patch_ui_scenario -- --ignored
 - `Back`: Back button press.
 - `Grid x,y`: grid press at zero-based display coordinates.
 - `Fn+Grid x,y`: hold Fn, press grid, release grid, release Fn.
-- `Fn+Play`: hold Fn, press Play, release Play, release Fn.
+- `Shift+Fn+Grid x,y`: hold Shift+Fn, press grid, release grid, release modifiers.
 - `Aux1 Turn +N`: Aux encoder 1 turn.
 - `Clock N`: send `N` PPQN pulses through `HostMessage::TransportPulseStep`.
 
@@ -87,10 +87,10 @@ Expected result: transport stops, MIDI panic/note safety runs, all layers and in
 ### 6. Playback assertions
 
 1. Start transport; clock the pattern and assert musical output appears.
-2. `Fn+Grid 0,0`, `Fn+Play`: mute L1; clock and assert L2/L3 still output.
-3. `Fn+Play`: unmute L1.
-4. `Fn+Grid 0,1`, `Fn+Play`: mute L2; clock and assert L1/L3 still output.
-5. `Fn+Play`: unmute L2.
+2. `Shift+Fn+Grid 0,0`: mute L1; clock and assert L2/L3 still output.
+3. `Shift+Fn+Grid 0,0`: unmute L1.
+4. `Shift+Fn+Grid 0,1`: mute L2; clock and assert L1/L3 still output.
+5. `Shift+Fn+Grid 0,1`: unmute L2.
 6. Mute L1 and L2, select L3, press several looper grid keys, clock across the loop, and assert output from the looper layer.
 7. Unmute L1 and L2.
 8. `Fn+Grid 7,5`: activate XY page; press an XY grid cell; clock once; assert a synth parameter command reaches audio.

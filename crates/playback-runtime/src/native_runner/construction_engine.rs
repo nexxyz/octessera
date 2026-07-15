@@ -55,6 +55,9 @@ impl NativeRunner {
         for accumulator in &mut self.layer_pulse_accumulators {
             *accumulator = 0;
         }
+        for queue in &mut self.delayed_link_events {
+            queue.clear();
+        }
     }
 
     pub(super) fn sync_engine_runtime_config(&mut self) {

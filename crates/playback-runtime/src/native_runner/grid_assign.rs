@@ -189,6 +189,7 @@ fn sparks_mode_from_page_label(label: &str) -> Option<&'static str> {
         "Pan" => Some("pan"),
         "FX" => Some("fx"),
         "Trigger Gate" => Some("trigger-gate"),
+        "Transpose" => Some("transpose"),
         "XY" => Some("xy"),
         _ => None,
     }

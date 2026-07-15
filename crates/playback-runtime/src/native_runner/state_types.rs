@@ -36,13 +36,18 @@ pub(super) struct NativePulsesLayer {
     pub(super) scanned_action: String,
     pub(super) scanned_empty_slot: usize,
     pub(super) scanned_empty_action: String,
+    pub(super) scanned_timing: LinkEventTiming,
+    pub(super) scanned_empty_timing: LinkEventTiming,
     pub(super) event_enabled: bool,
     pub(super) activate_slot: usize,
     pub(super) activate_action: String,
+    pub(super) activate_timing: LinkEventTiming,
     pub(super) stable_slot: usize,
     pub(super) stable_action: String,
+    pub(super) stable_timing: LinkEventTiming,
     pub(super) deactivate_slot: usize,
     pub(super) deactivate_action: String,
+    pub(super) deactivate_timing: LinkEventTiming,
     pub(super) trigger_probability_mode: String,
     pub(super) trigger_probability_low_pct: u8,
     pub(super) trigger_probability_high_pct: u8,
@@ -106,6 +111,18 @@ pub(super) struct NativeConfirmDialog {
     pub(super) confirm_before_execute: bool,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct LinkEventTiming {
+    pub(super) delay_steps: u8,
+    pub(super) retrigger_count: u8,
+}
+
+#[derive(Clone, Debug, Default)]
+pub(super) struct DelayedRoutedEvents {
+    pub(super) remaining_steps: u8,
+    pub(super) events: RoutedMusicalEvents,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct NativeUsbSdTransferModal {
     pub(super) title: String,
@@ -149,6 +166,8 @@ pub(super) struct NativeParamBinding {
     pub(super) min: Option<f64>,
     pub(super) max: Option<f64>,
     pub(super) step: Option<f64>,
+    pub(super) user_min: Option<f64>,
+    pub(super) user_max: Option<f64>,
     pub(super) options: Vec<String>,
     pub(super) invert: bool,
 }
@@ -178,13 +197,18 @@ impl Default for NativePulsesLayer {
             scanned_action: "note_on".into(),
             scanned_empty_slot: usize::MAX,
             scanned_empty_action: "none".into(),
+            scanned_timing: LinkEventTiming::default(),
+            scanned_empty_timing: LinkEventTiming::default(),
             event_enabled: true,
             activate_slot: 0,
             activate_action: "note_on".into(),
+            activate_timing: LinkEventTiming::default(),
             stable_slot: 0,
             stable_action: "none".into(),
+            stable_timing: LinkEventTiming::default(),
             deactivate_slot: 0,
             deactivate_action: "note_off".into(),
+            deactivate_timing: LinkEventTiming::default(),
             trigger_probability_mode: "full".into(),
             trigger_probability_low_pct: 25,
             trigger_probability_high_pct: 75,

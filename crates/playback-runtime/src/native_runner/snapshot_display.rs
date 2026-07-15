@@ -1,8 +1,8 @@
 use super::{clip_display_line, json, NativeRunner, Value, OLED_BODY_ROWS};
 
-const SELECTED_LINE_SCROLL_WIDTH: usize = 20;
+const DISPLAY_LINE_WIDTH: usize = 28;
 const SELECTED_LINE_SCROLL_TICKS_PER_CHAR: usize = 4;
-const SELECTED_LINE_SCROLL_END_HOLD_TICKS: usize = 15;
+const SELECTED_LINE_SCROLL_GAP: [char; 3] = [' ', ' ', ' '];
 
 pub(super) struct DisplaySnapshot {
     pub(super) title: String,
@@ -36,7 +36,7 @@ impl NativeRunner {
         } else {
             menu_display(self, menu)
         };
-        display.title = clip_display_line(&display.title, 28);
+        display.title = clip_display_line(&display.title, DISPLAY_LINE_WIDTH);
         display.lines = display
             .lines
             .into_iter()
@@ -50,10 +50,10 @@ impl NativeRunner {
                             display.full_lines.get(row).and_then(|line| line.as_deref()),
                             self.menu_scroll_offset,
                         ),
-                        28,
+                        DISPLAY_LINE_WIDTH,
                     )
                 } else {
-                    clip_display_line(&line, 28)
+                    clip_display_line(&line, DISPLAY_LINE_WIDTH)
                 }
             })
             .collect();
@@ -69,22 +69,20 @@ fn scroll_display_line_once(line: &str, full_line: Option<&str>, ticks: usize) -
         return line.to_string();
     };
     let chars = full_line.chars().collect::<Vec<_>>();
-    if chars.len() <= SELECTED_LINE_SCROLL_WIDTH {
-        return line.to_string();
+    if chars.len() <= DISPLAY_LINE_WIDTH {
+        if ticks < SELECTED_LINE_SCROLL_TICKS_PER_CHAR || full_line == line {
+            return line.to_string();
+        }
+        return full_line.to_string();
     }
-    let max_offset = chars.len().saturating_sub(SELECTED_LINE_SCROLL_WIDTH);
-    let scroll_ticks = max_offset * SELECTED_LINE_SCROLL_TICKS_PER_CHAR;
     if ticks < SELECTED_LINE_SCROLL_TICKS_PER_CHAR {
         return line.to_string();
     }
-    if ticks > scroll_ticks + SELECTED_LINE_SCROLL_END_HOLD_TICKS {
-        return line.to_string();
-    }
-    let offset = (ticks / SELECTED_LINE_SCROLL_TICKS_PER_CHAR).min(max_offset);
-    chars
-        .iter()
-        .skip(offset)
-        .take(SELECTED_LINE_SCROLL_WIDTH)
+    let mut padded = chars;
+    padded.extend(SELECTED_LINE_SCROLL_GAP);
+    let offset = (ticks / SELECTED_LINE_SCROLL_TICKS_PER_CHAR - 1) % padded.len();
+    (0..DISPLAY_LINE_WIDTH)
+        .map(|index| padded[(offset + index) % padded.len()])
         .collect()
 }
 

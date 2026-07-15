@@ -22,7 +22,7 @@ pub(crate) fn life_palette_surfaces_in_runtime_snapshot_led_rgb() {
     );
     assert_eq!(
         stable_leds[display_index(3, 3)],
-        led_rgb(platform_core::palette::BEHAVIOR_PRIMARY_GREEN)
+        led_rgb(platform_core::palette::BEHAVIOR_PRIMARY_YELLOW)
     );
 
     let active_messages = runner
@@ -36,7 +36,7 @@ pub(crate) fn life_palette_surfaces_in_runtime_snapshot_led_rgb() {
 
     assert_eq!(
         active_leds[display_index(1, 0)],
-        led_rgb(platform_core::palette::BEHAVIOR_PRIMARY_YELLOW)
+        led_rgb(platform_core::palette::BEHAVIOR_PRIMARY_MAGENTA)
     );
     assert_eq!(
         active_leds[display_index(7, 7)],

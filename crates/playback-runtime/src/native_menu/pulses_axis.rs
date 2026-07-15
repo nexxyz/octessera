@@ -52,7 +52,7 @@ pub(super) fn axis_group(prefix: &str, label: &str, config: AxisMenuConfig<'_>) 
                 config.offset_limit,
             ),
             lane_group(
-                "Filter Resonance",
+                "Filter Res",
                 &format!("{prefix}.filterResonance"),
                 config.filter_resonance,
                 config.offset_limit,

@@ -111,6 +111,18 @@ pub(super) fn apply_pulses_scan_and_mapping_menu_state(
         &mut layer.scanned_action,
         &format!("{prefix}.mapping.scanned.action"),
     );
+    changed |= set_u8_from_menu(
+        menu,
+        &mut layer.scanned_timing.delay_steps,
+        &format!("{prefix}.mapping.scanned.delaySteps"),
+        16,
+    );
+    changed |= set_u8_from_menu(
+        menu,
+        &mut layer.scanned_timing.retrigger_count,
+        &format!("{prefix}.mapping.scanned.retriggerCount"),
+        8,
+    );
     changed |= set_target_slot_from_menu(
         menu,
         &mut layer.scanned_empty_slot,
@@ -120,6 +132,18 @@ pub(super) fn apply_pulses_scan_and_mapping_menu_state(
         menu,
         &mut layer.scanned_empty_action,
         &format!("{prefix}.mapping.scanned_empty.action"),
+    );
+    changed |= set_u8_from_menu(
+        menu,
+        &mut layer.scanned_empty_timing.delay_steps,
+        &format!("{prefix}.mapping.scanned_empty.delaySteps"),
+        16,
+    );
+    changed |= set_u8_from_menu(
+        menu,
+        &mut layer.scanned_empty_timing.retrigger_count,
+        &format!("{prefix}.mapping.scanned_empty.retriggerCount"),
+        8,
     );
     changed |= set_bool_from_menu(
         menu,
@@ -141,6 +165,18 @@ pub(super) fn apply_pulses_scan_and_mapping_menu_state(
         &mut layer.activate_action,
         &format!("{prefix}.mapping.activate.action"),
     );
+    changed |= set_u8_from_menu(
+        menu,
+        &mut layer.activate_timing.delay_steps,
+        &format!("{prefix}.mapping.activate.delaySteps"),
+        16,
+    );
+    changed |= set_u8_from_menu(
+        menu,
+        &mut layer.activate_timing.retrigger_count,
+        &format!("{prefix}.mapping.activate.retriggerCount"),
+        8,
+    );
     changed |= set_target_slot_from_menu(
         menu,
         &mut layer.stable_slot,
@@ -151,6 +187,18 @@ pub(super) fn apply_pulses_scan_and_mapping_menu_state(
         &mut layer.stable_action,
         &format!("{prefix}.mapping.stable.action"),
     );
+    changed |= set_u8_from_menu(
+        menu,
+        &mut layer.stable_timing.delay_steps,
+        &format!("{prefix}.mapping.stable.delaySteps"),
+        16,
+    );
+    changed |= set_u8_from_menu(
+        menu,
+        &mut layer.stable_timing.retrigger_count,
+        &format!("{prefix}.mapping.stable.retriggerCount"),
+        8,
+    );
     changed |= set_target_slot_from_menu(
         menu,
         &mut layer.deactivate_slot,
@@ -160,6 +208,18 @@ pub(super) fn apply_pulses_scan_and_mapping_menu_state(
         menu,
         &mut layer.deactivate_action,
         &format!("{prefix}.mapping.deactivate.action"),
+    );
+    changed |= set_u8_from_menu(
+        menu,
+        &mut layer.deactivate_timing.delay_steps,
+        &format!("{prefix}.mapping.deactivate.delaySteps"),
+        16,
+    );
+    changed |= set_u8_from_menu(
+        menu,
+        &mut layer.deactivate_timing.retrigger_count,
+        &format!("{prefix}.mapping.deactivate.retriggerCount"),
+        8,
     );
     changed
 }

@@ -70,7 +70,7 @@ pub(crate) fn aux_turn_generated_per_layer_behavior_targets_updates_stored_confi
     runner.handle_aux_turn(0, 1).unwrap();
     runner.handle_aux_turn(1, 1).unwrap();
 
-    assert_eq!(runner.layer_algorithm_step_pulses[2], 48);
+    assert_eq!(runner.layer_algorithm_step_pulses[2], 32);
     assert_eq!(runner.layer_behavior_configs[2]["randomSeedCells"], 5);
     assert!(runner.config_dirty);
 }
@@ -83,7 +83,7 @@ pub(crate) fn per_layer_step_rate_xy_binding_round_trips_from_payload() {
         "key": "layers.2.algorithmStep",
         "label": "Step Rate",
         "kind": "enum",
-        "options": ["1/16", "1/8", "1/4", "1/2", "1/1"]
+        "options": ["1/32T", "1/32", "1/16T", "1/16", "1/8T", "1/8", "1/4T", "1/4", "1/2T", "1/2", "1/1T", "1/1"]
     });
 
     runner.apply_config_payload(payload).unwrap();
@@ -114,8 +114,11 @@ pub(crate) fn stale_bindings_to_none_behavior_layer_do_not_mutate_hidden_values(
         min: None,
         max: None,
         step: None,
-        options: vec!["1/16", "1/8", "1/4", "1/2", "1/1"]
-            .into_iter()
+        user_min: None,
+        user_max: None,
+        options: crate::timing_units::NOTE_UNIT_OPTIONS
+            .iter()
+            .copied()
             .map(String::from)
             .collect(),
         invert: false,
@@ -127,6 +130,8 @@ pub(crate) fn stale_bindings_to_none_behavior_layer_do_not_mutate_hidden_values(
         min: Some(0.0),
         max: Some(20.0),
         step: Some(1.0),
+        user_min: None,
+        user_max: None,
         options: vec![],
         invert: false,
     });

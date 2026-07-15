@@ -58,6 +58,52 @@ pub(crate) fn sparks_page_fast_path_applies_immediately_without_deferred_flush()
 }
 
 #[test]
+pub(crate) fn parameterless_sparks_pages_select_without_entering_empty_page() {
+    for (key, mode) in [
+        ("sparks.page.mix", "mix"),
+        ("sparks.page.pan", "pan"),
+        ("sparks.page.trigger-gate", "trigger-gate"),
+        ("sparks.page.transpose", "transpose"),
+    ] {
+        let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+        assert!(runner.menu.focus_item_key(key));
+
+        let messages = runner
+            .send(HostMessage::DeviceInput {
+                input: json!({ "type": "encoder_press", "id": "main" }),
+                request_snapshot: None,
+            })
+            .unwrap();
+
+        assert_eq!(runner.sparks_mode, mode);
+        assert_eq!(runner.active_sparks_mode, mode);
+        assert_eq!(runner.menu.state.stack, vec![3]);
+        assert_eq!(snapshot_from(&messages)["display"]["title"], "/Play");
+    }
+}
+
+#[test]
+pub(crate) fn parameterized_sparks_pages_remain_enterable() {
+    for (key, expected_label) in [
+        ("sparks.page.fx", "FX Type"),
+        ("sparks.page.xy", "X Axis: (none)"),
+    ] {
+        let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+        assert!(runner.menu.focus_item_key(key));
+
+        runner
+            .send(HostMessage::DeviceInput {
+                input: json!({ "type": "encoder_press", "id": "main" }),
+                request_snapshot: None,
+            })
+            .unwrap();
+
+        assert_eq!(runner.menu.current_label(), Some(expected_label));
+        assert_eq!(runner.menu.state.stack.len(), 2);
+    }
+}
+
+#[test]
 pub(crate) fn sparks_mode_edits_outside_sparks_page_do_not_activate_overlay() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.sparks_mode = "mix".into();

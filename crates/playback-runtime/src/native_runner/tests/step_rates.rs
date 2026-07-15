@@ -15,6 +15,21 @@ pub(crate) fn saved_step_rate_rehydrates_from_default_payload() {
 }
 
 #[test]
+pub(crate) fn triplet_step_rate_round_trips_from_default_payload() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.algorithm_step_pulses = 4;
+    let payload = runner.config_payload();
+    let mut loaded = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    loaded.apply_config_payload(payload).unwrap();
+
+    assert_eq!(loaded.algorithm_step_pulses, 4);
+    assert_eq!(
+        loaded.config_payload()["runtimeConfig"]["layers"][0]["worlds"]["stepRate"],
+        "1/16T"
+    );
+}
+
+#[test]
 pub(crate) fn per_layer_step_rates_round_trip_and_drive_non_scanning_layers() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),

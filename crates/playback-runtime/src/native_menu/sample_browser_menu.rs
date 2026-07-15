@@ -80,7 +80,7 @@ pub(super) fn sample_browser_group(
                 .any(|dir| dir == &browser.dir);
             if is_builtin_favourite {
                 children.push(NativeMenuItem {
-                    label: "Built-in favourite".into(),
+                    label: "Built-in fav".into(),
                     key: None,
                     value: NativeMenuValue::Group,
                     children: vec![],
@@ -93,7 +93,7 @@ pub(super) fn sample_browser_group(
                     "sample.favorite.set"
                 };
                 let favorite_label = if favorite_action.ends_with("remove") {
-                    "Remove favourite"
+                    "Remove fav"
                 } else {
                     "Set favourite"
                 };

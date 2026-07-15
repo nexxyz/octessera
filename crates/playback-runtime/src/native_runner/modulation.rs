@@ -93,14 +93,7 @@ impl NativeRunner {
         let Some(value) = value.as_str() else {
             return;
         };
-        let pulses = match value {
-            "1/16" => Some(6),
-            "1/8" => Some(12),
-            "1/4" => Some(24),
-            "1/2" => Some(48),
-            "1/1" => Some(96),
-            _ => None,
-        };
+        let pulses = crate::timing_units::note_unit_to_pulses_option(value);
         if let Some(pulses) = pulses {
             self.algorithm_step_pulses = pulses;
             self.config_dirty = true;

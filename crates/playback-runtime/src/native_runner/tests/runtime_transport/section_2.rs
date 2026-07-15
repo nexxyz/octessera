@@ -51,6 +51,53 @@ pub(crate) fn layer_two_scanning_uses_second_instrument_slot_without_bleeding_to
 }
 
 #[test]
+pub(crate) fn triplet_scan_unit_advances_at_expected_pulse_count() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        behavior_id: "sequencer".into(),
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    runner.transport = RuntimeTransportState::Playing;
+    runner.pulses_layers[0].scan_mode = "scanning".into();
+    runner.pulses_layers[0].scan_axis = "rows".into();
+    runner.pulses_layers[0].scan_unit = "1/8T".into();
+    runner.pulses_layers[0].scanned_action = "note_on".into();
+    runner.refresh_active_mapping_config();
+    runner.refresh_active_interpretation_profile();
+    runner
+        .engine
+        .set_interpretation_profile(runner.interpretation_profile.clone());
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    let before_unit = runner
+        .send(HostMessage::TransportPulseStep {
+            pulses: 7,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+    assert!(musical_note_ons(&before_unit).is_empty());
+    assert_eq!(runner.layer_pulse_accumulators[0], 7);
+
+    let on_unit = runner
+        .send(HostMessage::TransportPulseStep {
+            pulses: 1,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+    assert!(!musical_note_ons(&on_unit).is_empty());
+    assert_eq!(runner.layer_pulse_accumulators[0], 0);
+}
+
+#[test]
 pub(crate) fn changing_layer_four_behavior_does_not_reset_layer_two_playback_phase() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "life".into(),

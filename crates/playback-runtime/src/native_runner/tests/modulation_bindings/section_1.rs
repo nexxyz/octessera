@@ -10,6 +10,8 @@ pub(crate) fn menu_binding_actions_update_param_xy_and_aux_targets() {
         min: Some(0),
         max: Some(100),
         step: Some(1),
+        user_min: None,
+        user_max: None,
         options: vec![],
         invert: false,
     };
@@ -72,6 +74,8 @@ pub(crate) fn representative_selector_actions_update_pulses_aux_and_sparks_xy_bi
         min: Some(0),
         max: Some(100),
         step: Some(1),
+        user_min: None,
+        user_max: None,
         options: vec![],
         invert: false,
     };
@@ -195,6 +199,8 @@ pub(crate) fn behavior_change_remaps_behavior_param_mods_and_aux_bindings() {
         min: Some(1.0),
         max: Some(20.0),
         step: Some(1.0),
+        user_min: None,
+        user_max: None,
         options: vec![],
         invert: false,
     });
@@ -205,6 +211,8 @@ pub(crate) fn behavior_change_remaps_behavior_param_mods_and_aux_bindings() {
         min: Some(0.0),
         max: Some(20.0),
         step: Some(1.0),
+        user_min: None,
+        user_max: None,
         options: vec![],
         invert: true,
     });

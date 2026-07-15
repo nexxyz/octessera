@@ -34,7 +34,7 @@ Build
 │   │   │   └── bubbles
 │   ├── Auto Label: [on | off]                   ← on: label auto-derives from behavior ID; off: label is manual text
 │   ├── Layer Label: (text, max 32)               ← display label; editing sets Auto Label off
-│   ├── Step Rate: [1/16, 1/8, 1/4, 1/2, 1/1]   ← controls how often onTick() is called; hidden when Behavior is `none`
+│   ├── Step Rate: [1/32T, 1/32, 1/16T, 1/16, 1/8T, 1/8, 1/4T, 1/4, 1/2T, 1/2, 1/1T, 1/1]   ← controls how often onTick() is called; hidden when Behavior is `none`
 │   ├── ... per-behavior dynamic config from behavior's configMenu()
 │   └── Reset                                    ← reinitializes the active behavior state; hidden when Behavior is `none`
 ├── L2: ... (group)

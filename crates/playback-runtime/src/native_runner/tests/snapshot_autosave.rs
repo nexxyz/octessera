@@ -81,7 +81,7 @@ pub(crate) fn native_menu_edit_emits_deferred_auto_save_when_enabled() {
         request_snapshot: None,
     });
     let _ = runner.send(HostMessage::DeviceInput {
-        input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
+        input: json!({ "type": "encoder_turn", "delta": 3, "id": "main" }),
         request_snapshot: None,
     });
     let _ = runner.send(HostMessage::DeviceInput {

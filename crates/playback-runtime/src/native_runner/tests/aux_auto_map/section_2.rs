@@ -221,7 +221,7 @@ pub(crate) fn aux_overlay_waits_for_fn_hold_delay() {
 #[test]
 pub(crate) fn fn_aux_bind_sets_explicit_toast_and_marks_config_dirty() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 2];
+    runner.menu.state.stack = vec![5, 3];
     runner.menu.state.cursor = 0;
     runner.ui.fn_held = true;
 
@@ -311,7 +311,7 @@ pub(crate) fn shift_aux_turn_uses_shifted_bank_not_plain_bank() {
 #[test]
 pub(crate) fn shift_fn_aux_binds_shift_bank_and_fn_aux_binds_plain_bank() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 2];
+    runner.menu.state.stack = vec![5, 3];
     runner.menu.state.cursor = 0;
     runner.ui.combined_modifier_held = true;
 

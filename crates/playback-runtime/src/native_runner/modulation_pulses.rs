@@ -15,7 +15,7 @@ pub(super) fn apply_pulses_binding_value(
         "scanUnit" => apply_string_value(
             &mut layer.scan_unit,
             value,
-            &["1/16", "1/8", "1/4", "1/2", "1/1"],
+            crate::timing_units::NOTE_UNIT_OPTIONS,
         ),
         "scanDirection" => {
             apply_string_value(&mut layer.scan_direction, value, &["forward", "reverse"])

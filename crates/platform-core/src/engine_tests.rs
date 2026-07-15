@@ -1,6 +1,7 @@
 use super::*;
 use crate::interpretation::{
-    AxisStrategy, InterpretationEventProfile, InterpretationStateProfile, TickStrategy,
+    AxisStrategy, CellTriggerIntent, CellTriggerKind, InterpretationEventProfile,
+    InterpretationStateProfile, TickStrategy,
 };
 use crate::mapping::default_mapping_config;
 use crate::transforms::{GlobalSoundConfig, VelocityCurve};
@@ -83,4 +84,88 @@ fn scan_interpretation_advances_with_engine_ticks() {
 
     assert!(first.events.is_empty());
     assert!(!second.events.is_empty());
+}
+
+#[test]
+fn note_behavior_suppression_keeps_event_intents_aligned() {
+    let duplicate = CellTriggerIntent {
+        x: 1,
+        y: 1,
+        degree: 0,
+        kind: CellTriggerKind::Activate,
+    };
+    let release = CellTriggerIntent {
+        x: 1,
+        y: 1,
+        degree: 0,
+        kind: CellTriggerKind::Deactivate,
+    };
+
+    let result = apply_note_behavior_with_event_intents(
+        &[
+            MusicalEvent::NoteOn {
+                channel: 0,
+                note: 60,
+                velocity: 96,
+                duration_ms: Some(120),
+            },
+            MusicalEvent::NoteOff {
+                channel: 0,
+                note: 60,
+            },
+        ],
+        vec![Some(duplicate), Some(release.clone())],
+        &[NoteBehavior::Hold],
+        0,
+        &["0:0:60".into()],
+    );
+
+    assert_eq!(
+        result.events,
+        vec![MusicalEvent::NoteOff {
+            channel: 0,
+            note: 60,
+        }]
+    );
+    assert_eq!(result.event_intents, vec![Some(release)]);
+}
+
+#[test]
+fn duplicate_note_ons_keep_distinct_event_intents_for_link_timing() {
+    let activate = CellTriggerIntent {
+        x: 1,
+        y: 1,
+        degree: 0,
+        kind: CellTriggerKind::Activate,
+    };
+    let scanned = CellTriggerIntent {
+        x: 1,
+        y: 1,
+        degree: 0,
+        kind: CellTriggerKind::Scanned,
+    };
+
+    let result = apply_note_behavior_with_event_intents(
+        &[
+            MusicalEvent::NoteOn {
+                channel: 0,
+                note: 60,
+                velocity: 80,
+                duration_ms: Some(120),
+            },
+            MusicalEvent::NoteOn {
+                channel: 0,
+                note: 60,
+                velocity: 96,
+                duration_ms: Some(120),
+            },
+        ],
+        vec![Some(activate.clone()), Some(scanned.clone())],
+        &[NoteBehavior::Oneshot],
+        0,
+        &[],
+    );
+
+    assert_eq!(result.events.len(), 2);
+    assert_eq!(result.event_intents, vec![Some(activate), Some(scanned)]);
 }

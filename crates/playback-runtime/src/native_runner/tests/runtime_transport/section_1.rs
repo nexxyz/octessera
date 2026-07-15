@@ -174,15 +174,15 @@ pub(crate) fn stop_then_start_restarts_scanning_from_zero_accumulator() {
 }
 
 #[test]
-pub(crate) fn combined_modifier_play_single_steps_while_staying_paused() {
+pub(crate) fn fn_encoder_turn_positive_single_steps_while_staying_paused() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.transport = RuntimeTransportState::Paused;
-    runner.ui.combined_modifier_held = true;
+    runner.ui.fn_held = true;
     let before_tick = runner.tick;
 
     let messages = runner
         .send(HostMessage::DeviceInput {
-            input: json!({ "type": "button_s", "pressed": true }),
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
             request_snapshot: None,
         })
         .unwrap();
@@ -197,15 +197,63 @@ pub(crate) fn combined_modifier_play_single_steps_while_staying_paused() {
 }
 
 #[test]
-pub(crate) fn combined_modifier_play_asks_to_pause_first_while_playing() {
+pub(crate) fn fn_encoder_single_step_matures_delayed_link_queue() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        behavior_id: "keys".into(),
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    runner.transport = RuntimeTransportState::Paused;
+    runner.input_events_while_paused = true;
+    runner.pulses_layers[0].activate_timing.delay_steps = 1;
+    let queued = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    assert!(musical_note_ons(&queued).is_empty());
+    runner.ui.fn_held = true;
+
+    let stepped = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert_eq!(musical_note_ons(&stepped).len(), 1);
+}
+
+#[test]
+pub(crate) fn fn_encoder_turn_negative_is_consumed_without_step_or_menu_turn() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.transport = RuntimeTransportState::Paused;
+    runner.ui.fn_held = true;
+    let before_tick = runner.tick;
+    let before_path = runner.menu.current_focus_path();
+
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": -1, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert_eq!(runner.tick, before_tick);
+    assert_eq!(runner.menu.current_focus_path(), before_path);
+}
+
+#[test]
+pub(crate) fn fn_encoder_turn_asks_to_pause_first_while_playing() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.transport = RuntimeTransportState::Playing;
-    runner.ui.combined_modifier_held = true;
+    runner.ui.fn_held = true;
     let before_tick = runner.tick;
 
     let messages = runner
         .send(HostMessage::DeviceInput {
-            input: json!({ "type": "button_s", "pressed": true }),
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
             request_snapshot: None,
         })
         .unwrap();
@@ -216,6 +264,52 @@ pub(crate) fn combined_modifier_play_asks_to_pause_first_while_playing() {
     assert!(messages
         .iter()
         .all(|message| !matches!(message, RunnerMessage::PlatformEffects { effects } if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::MidiPanic)))));
+}
+
+#[test]
+pub(crate) fn fn_play_reset_stops_before_sample_preview() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.transport = RuntimeTransportState::Playing;
+    runner.tick = 4;
+    runner.ui.fn_held = true;
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert_eq!(runner.transport, RuntimeTransportState::Stopped);
+    assert_eq!(runner.tick, 0);
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::MidiPanic))
+    )));
+}
+
+#[test]
+pub(crate) fn combined_modifier_play_is_reserved_no_op() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.transport = RuntimeTransportState::Paused;
+    runner.ui.combined_modifier_held = true;
+    let before_tick = runner.tick;
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert_eq!(runner.transport, RuntimeTransportState::Paused);
+    assert_eq!(runner.tick, before_tick);
+    assert!(messages.iter().all(|message| !matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::MidiPanic))
+    )));
 }
 
 #[test]

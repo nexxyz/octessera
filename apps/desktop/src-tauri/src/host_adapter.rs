@@ -219,7 +219,7 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
             RuntimePlatformEffect::UsbSdTransferStart
             | RuntimePlatformEffect::UsbSdTransferStop => Ok(vec![HostMessage::RuntimeResult {
                 result: RuntimeStoreResult::StoreError {
-                    message: "USB SD transfer is Pi-only".into(),
+                    message: "USB SD2 transfer is Pi-only".into(),
                 },
             }]),
             RuntimePlatformEffect::AudioCommand { command } => {

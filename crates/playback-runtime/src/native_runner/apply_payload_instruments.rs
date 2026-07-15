@@ -24,13 +24,15 @@ impl NativeRunner {
     }
 
     pub(super) fn apply_runtime_ui_and_sound_payload(&mut self, runtime: &Value, payload: &Value) {
+        self.apply_sound_payload(runtime);
+        self.apply_runtime_transport_payload(runtime);
         apply_mixer_payload(
             runtime,
             &mut self.fx_buses,
             &mut self.global_fx_slots,
             &mut self.global_fx_params,
+            self.bpm.round().clamp(20.0, 300.0) as u16,
         );
-        self.apply_sound_payload(runtime);
         self.apply_ui_payload(runtime);
         self.apply_midi_payload(runtime);
         self.apply_usb_payload(runtime);

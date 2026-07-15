@@ -13,13 +13,18 @@ pub(super) fn pulses_layer_configs(layers: &[NativePulsesLayer]) -> Vec<NativePu
             scanned_action: layer.scanned_action.clone(),
             scanned_empty_slot: layer.scanned_empty_slot,
             scanned_empty_action: layer.scanned_empty_action.clone(),
+            scanned_timing: timing_config(layer.scanned_timing),
+            scanned_empty_timing: timing_config(layer.scanned_empty_timing),
             event_enabled: layer.event_enabled,
             activate_slot: layer.activate_slot,
             activate_action: layer.activate_action.clone(),
+            activate_timing: timing_config(layer.activate_timing),
             stable_slot: layer.stable_slot,
             stable_action: layer.stable_action.clone(),
+            stable_timing: timing_config(layer.stable_timing),
             deactivate_slot: layer.deactivate_slot,
             deactivate_action: layer.deactivate_action.clone(),
+            deactivate_timing: timing_config(layer.deactivate_timing),
             trigger_probability_mode: layer.trigger_probability_mode.clone(),
             trigger_probability_low_pct: layer.trigger_probability_low_pct,
             trigger_probability_high_pct: layer.trigger_probability_high_pct,
@@ -48,6 +53,13 @@ pub(super) fn pulses_layer_configs(layers: &[NativePulsesLayer]) -> Vec<NativePu
             y_filter_resonance: value_lane_config(&layer.y_filter_resonance),
         })
         .collect()
+}
+
+fn timing_config(timing: LinkEventTiming) -> crate::native_menu::LinkEventTimingConfig {
+    crate::native_menu::LinkEventTimingConfig {
+        delay_steps: timing.delay_steps,
+        retrigger_count: timing.retrigger_count,
+    }
 }
 
 pub(super) fn value_lane_config(lane: &NativeValueLane) -> NativeValueLaneConfig {

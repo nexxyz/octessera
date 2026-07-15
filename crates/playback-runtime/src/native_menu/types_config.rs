@@ -122,13 +122,18 @@ pub struct NativePulsesLayerConfig {
     pub scanned_action: String,
     pub scanned_empty_slot: usize,
     pub scanned_empty_action: String,
+    pub scanned_timing: LinkEventTimingConfig,
+    pub scanned_empty_timing: LinkEventTimingConfig,
     pub event_enabled: bool,
     pub activate_slot: usize,
     pub activate_action: String,
+    pub activate_timing: LinkEventTimingConfig,
     pub stable_slot: usize,
     pub stable_action: String,
+    pub stable_timing: LinkEventTimingConfig,
     pub deactivate_slot: usize,
     pub deactivate_action: String,
+    pub deactivate_timing: LinkEventTimingConfig,
     pub trigger_probability_mode: String,
     pub trigger_probability_low_pct: u8,
     pub trigger_probability_high_pct: u8,
@@ -155,6 +160,12 @@ pub struct NativePulsesLayerConfig {
     pub y_velocity: NativeValueLaneConfig,
     pub y_filter_cutoff: NativeValueLaneConfig,
     pub y_filter_resonance: NativeValueLaneConfig,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct LinkEventTimingConfig {
+    pub delay_steps: u8,
+    pub retrigger_count: u8,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

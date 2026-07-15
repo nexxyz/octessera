@@ -82,6 +82,14 @@ pub(super) fn format_item_full_selected_line(
     _numeric_display_mode: &str,
 ) -> Option<String> {
     match &item.value {
+        NativeMenuValue::Group => {
+            let label = if item.children.is_empty() {
+                item.label.clone()
+            } else {
+                format!("{} >", item.label)
+            };
+            Some(format_menu_line(&label, true))
+        }
         NativeMenuValue::Enum { options, selected } => Some(format_full_param_line(
             &item.label,
             &format_display_value(
@@ -110,8 +118,8 @@ pub(super) fn format_item_full_selected_line(
             .as_deref()
             .and_then(|key| key.strip_prefix("sample.loaded:"))
             .and_then(|rest| rest.splitn(3, ':').nth(2))
-            .map(|path| format_action_menu_line(path, true)),
-        _ => None,
+            .map(|path| format_action_menu_line(path, true))
+            .or_else(|| Some(format_action_menu_line(&item.label, true))),
     }
 }
 
@@ -278,14 +286,7 @@ fn is_marker_bar_key(key: &str) -> bool {
 }
 
 pub(super) fn note_unit_to_pulses(value: &str) -> Option<u32> {
-    match value {
-        "1/16" => Some(6),
-        "1/8" => Some(12),
-        "1/4" => Some(24),
-        "1/2" => Some(48),
-        "1/1" => Some(96),
-        _ => None,
-    }
+    crate::timing_units::note_unit_to_pulses_option(value)
 }
 
 #[cfg(test)]

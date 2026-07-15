@@ -160,6 +160,7 @@ impl NativeRunner {
             swung_ppqn_pulse: 0,
             tick: 0,
             layer_ticks: vec![0; LAYER_COUNT],
+            delayed_link_events: vec![Vec::new(); LAYER_COUNT],
             algorithm_step_pulses: DEFAULT_ALGORITHM_STEP_RED,
             algorithm_pulse_accumulator: 0,
             layer_algorithm_step_pulses: vec![DEFAULT_ALGORITHM_STEP_RED; LAYER_COUNT],

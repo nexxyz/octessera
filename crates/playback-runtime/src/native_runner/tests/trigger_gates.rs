@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-pub(crate) fn fn_space_preserves_sequencer_cells() {
+pub(crate) fn combined_modifier_layer_toggle_preserves_sequencer_cells() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         ..NativeRunnerConfig::default()
@@ -27,10 +27,10 @@ pub(crate) fn fn_space_preserves_sequencer_cells() {
         .unwrap();
     assert!(runner.engine.model().unwrap().cells[platform_core::grid_index(0, 0)]);
 
-    runner.ui.fn_held = true;
+    runner.ui.combined_modifier_held = true;
     runner
         .send(HostMessage::DeviceInput {
-            input: json!({ "type": "button_s", "pressed": true }),
+            input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
             request_snapshot: None,
         })
         .unwrap();
@@ -39,7 +39,7 @@ pub(crate) fn fn_space_preserves_sequencer_cells() {
 
     runner
         .send(HostMessage::DeviceInput {
-            input: json!({ "type": "button_s", "pressed": true }),
+            input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
             request_snapshot: None,
         })
         .unwrap();
@@ -48,7 +48,7 @@ pub(crate) fn fn_space_preserves_sequencer_cells() {
 }
 
 #[test]
-pub(crate) fn fn_space_restores_triggered_input_events_after_reenable() {
+pub(crate) fn combined_modifier_layer_toggle_restores_triggered_input_events_after_reenable() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "keys".into(),
         ..NativeRunnerConfig::default()
@@ -67,10 +67,10 @@ pub(crate) fn fn_space_restores_triggered_input_events_after_reenable() {
             if events.iter().any(|event| matches!(event, MusicalEvent::NoteOn { .. }))
     )));
 
-    runner.ui.fn_held = true;
+    runner.ui.combined_modifier_held = true;
     runner
         .send(HostMessage::DeviceInput {
-            input: json!({ "type": "button_s", "pressed": true }),
+            input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
             request_snapshot: None,
         })
         .unwrap();
@@ -90,7 +90,7 @@ pub(crate) fn fn_space_restores_triggered_input_events_after_reenable() {
 
     runner
         .send(HostMessage::DeviceInput {
-            input: json!({ "type": "button_s", "pressed": true }),
+            input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
             request_snapshot: None,
         })
         .unwrap();
@@ -107,4 +107,22 @@ pub(crate) fn fn_space_restores_triggered_input_events_after_reenable() {
         RunnerMessage::MusicalEvents { events }
             if events.iter().any(|event| matches!(event, MusicalEvent::NoteOn { .. }))
     )));
+}
+
+#[test]
+pub(crate) fn combined_modifier_left_column_toggles_selected_layer_without_switching() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.active_layer_index = 0;
+    runner.ui.combined_modifier_held = true;
+
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 0, "y": 2 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert_eq!(runner.active_layer_index, 0);
+    assert_eq!(runner.trigger_gate_modes[2], "zero");
+    assert_eq!(runner.pulses_layers[2].trigger_probability_mode, "zero");
 }

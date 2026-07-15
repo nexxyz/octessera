@@ -13,7 +13,7 @@ impl NativeRunner {
         self.help_popup = Some(NativeHelpPopup {
             title: "Help: Basic Help".into(),
             lines: wrap_help_text(
-                "Help Sh+Fn+Main. Back Back. Play/Pause Space. Stop/Sync Sh+Space. Fn nav: left layer, right Play. Fn+Aux alt bind. Sample Sh+cell. Prob Map grid.",
+                "Help Sh+Fn+Main. Back Back. Play/Pause Space. Stop/Sync Sh+Space. Reset Stop Fn+Space. Fn nav: left layer, right Play. Sh+Fn layer mutes. Fn+Aux alt bind.",
                 OLED_HELP_LINE_WIDTH,
             ),
             scroll: 0,
@@ -62,9 +62,9 @@ impl NativeRunner {
 
     pub(super) fn open_usb_sd_transfer_modal(&mut self) {
         self.usb_sd_transfer_modal = Some(NativeUsbSdTransferModal {
-            title: "SD Transfer".into(),
+            title: "SD2 Transfer".into(),
             lines: wrap_help_text(
-                "USB SD transfer is active. Eject the drive on the host, then press Back or Main to stop transfer.",
+                "SD2 active/waiting. Eject on host, then Back/Main to stop.",
                 OLED_HELP_LINE_WIDTH,
             ),
         });

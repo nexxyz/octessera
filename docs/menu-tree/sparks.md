@@ -19,9 +19,10 @@ Play
 
 Play layer behavior:
 
-- Hold Fn for navigation columns: the leftmost grid column selects the active layer using grid Y directly (`y=0` = layer 0), and the rightmost grid column selects and activates Play pages by row: row 0 = mix, row 1 = pan, row 2 = fx, row 3 = trigger-gate, row 4 = transpose, row 5 = xy. Lower rows are unused.
+- Hold Fn for navigation columns: the leftmost grid column selects the active layer using grid Y directly (`y=0` = layer 0), and the rightmost grid column selects and activates Play pages by row: row 0 = mix, row 1 = pan, row 2 = fx, row 3 = trigger-gate, row 4 = transpose, row 5 = xy. Lower rows are unused. Hold Shift+Fn for the layer column only; pressing a left-column layer toggles that layer's trigger gate without changing the active layer, and the right column is reserved.
+- In the Play menu, `Mix`, `Pan`, `Trigger Gate`, and `Transpose` are selectable pages, not submenus. Pressing the main encoder on one selects and activates that Play page without entering an empty child page. `FX` and `XY` remain enterable because they have configuration rows.
 - Fn + leftmost grid selection exits the current Play overlay without changing the saved Play Page selection. Menu position is not changed by layer selection.
-- When Fn is held, the left grid column shows layer-selection options and the right grid column shows Play page options. The active layer and saved Play page are highlighted; layers whose behavior is not `none` have a dim indicator; `none` layers stay dark. All other cells (columns 1 through 6) are dimmed to 25% brightness to make the navigation columns unambiguous.
+- When Fn is held, the left grid column shows layer-selection options and the right grid column shows Play page options. The active layer and saved Play page are highlighted; layers whose behavior is not `none` have a dim indicator; `none` layers stay dark. When Shift+Fn is held, only the left layer column is shown. All other cells are dark to make the active shortcut lane unambiguous.
 - `mix`: each column is an instrument; y=0 mutes, y=7 sets 100%, intermediate rows quantize per-slot `Mixer > Volume`.
 - `mix` LEDs show the current volume marker in green; inactive instruments use dim gray.
 - `pan`: each row is an instrument; x=0 is hard left and x=7 is hard right. The marker is two cells wide so center positions are visible as the middle pair. Stored pan is a 33-position stereo scale (`0..32`, center `16`) shared with the menu and audio engine.
@@ -34,9 +35,10 @@ Play layer behavior:
 - `Map Prob Grid` edits the saved four-state probability map for the selected layer. Cell cycle is `zero -> low -> high -> full -> zero`; `Shift+grid` applies to a row; `Shift+Fn+grid` applies to a column.
 - Probability-map editor LEDs: black = `0%`, magenta = `low`, yellow = `high`, green = `100%`.
 - `Link > Aux Mappings` exposes root-level menu-based assignment for aux encoder turn and click bindings.
-- `Link > Events when paused` controls whether direct grid input can emit musical events while the transport is stopped/paused. Algorithm tick/evolution remains stopped either way.
+- `Link > Paused Events` controls whether direct grid input can emit musical events while the transport is stopped/paused. Algorithm tick/evolution remains stopped either way.
 - `Link > L* > X Axis` and `Y Axis` expose explicit per-layer assignment for X/Y param-mod slots.
 - The `Slot` and aux `Turn` target pickers use the same shared menu-mirrored parameter browser as `Play > XY`; no separate parameter tree should diverge from that browser.
+- When an X/Y axis already has a numeric binding, its picker shows `Range Min` and `Range Max`. These rows limit the user modulation range without changing the target's real min/max metadata. Missing sides fall back to the target range; equal min/max produces a fixed value.
 - Aux `Click` uses a dedicated action browser for click-bindable actions.
 - Existing hardware shortcuts remain valid: Shift+grid still assigns X/Y param-mod slots and Fn+aux press provides the alternate aux-binding action for the currently highlighted menu parameter or `!` press action.
 - Trigger-gate Play layout uses rows as layers with the same orientation as Fn layer navigation: bottom row = layer 0, top row = highest layer.
@@ -44,7 +46,7 @@ Play layer behavior:
 - Play columns `3..4` are an unassigned black gap.
 - Bottom-row columns `5..7` are always-bright all-layers actions: set all layers to `0%`, `custom`, or `100%`.
 - Trigger filtering resolves per-layer mode as follows: `zero` blocks all triggers, `full` passes all triggers, `custom` uses the stored per-cell probability map with that layer's `Low Prob` and `High Prob` thresholds.
-- `Fn+Play` toggles the active layer between `0%` and its previously active trigger mode without rewriting the stored probability map. On desktop this is `Fn+Space`.
+- `Shift+Fn+left-column layer` toggles that layer between `0%` and its previously active trigger mode without rewriting the stored probability map or changing the active layer.
 - FX cells are mapped from `Play > FX`: select an `FX Type`, edit its visible parameters, then select `Map to Grid` and press a grid cell. The effect type, target, and current parameter values are stored on that cell. Mapping `none` clears a cell.
 - `Play > FX > Aux Map` lists the current Play FX parameters/actions that are auto-mapped to aux controls. Rows are editable but do not change the mapping target. OLED row prefixes use the same `1-` turn and `1!` press markers as the live auto-map indicators.
 - Entering FX grid assignment shows a concise `Map FX: ...` toast; Back exits assignment without changing stored cells.

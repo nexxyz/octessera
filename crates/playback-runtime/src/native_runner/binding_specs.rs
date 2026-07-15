@@ -54,6 +54,8 @@ pub(super) fn aux_binding_configs(
                     min: None,
                     max: None,
                     step: None,
+                    user_min: None,
+                    user_max: None,
                     options: vec![],
                     invert: false,
                 }),
@@ -100,22 +102,28 @@ pub(super) fn param_binding_spec_from_native(
         min: binding.min.map(|value| value as i32),
         max: binding.max.map(|value| value as i32),
         step: binding.step.map(|value| value as i32),
+        user_min: binding.user_min.map(|value| value as i32),
+        user_max: binding.user_max.map(|value| value as i32),
         options: binding.options.clone(),
         invert: binding.invert,
     }
 }
 
 pub(super) fn native_binding_from_spec(binding: NativeParamBindingSpec) -> NativeParamBinding {
-    NativeParamBinding {
+    let mut binding = NativeParamBinding {
         key: binding.key,
         label: binding.label,
         kind: binding.kind,
         min: binding.min.map(f64::from),
         max: binding.max.map(f64::from),
         step: binding.step.map(f64::from),
+        user_min: binding.user_min.map(f64::from),
+        user_max: binding.user_max.map(f64::from),
         options: binding.options,
         invert: binding.invert,
-    }
+    };
+    sanitize_binding_user_range(&mut binding);
+    binding
 }
 
 pub(super) fn remap_behavior_param_binding(
@@ -124,10 +132,14 @@ pub(super) fn remap_behavior_param_binding(
     layer_index: usize,
 ) -> Option<NativeParamBinding> {
     let remapped = remap_behavior_binding_key(&binding.key, to_behavior, Some(layer_index))?;
-    Some(NativeParamBinding {
+    let mut remapped = NativeParamBinding {
         invert: binding.invert,
+        user_min: binding.user_min,
+        user_max: binding.user_max,
         ..remapped
-    })
+    };
+    sanitize_binding_user_range(&mut remapped);
+    Some(remapped)
 }
 
 pub(super) fn remap_behavior_binding_key(
@@ -174,6 +186,8 @@ pub(super) fn behavior_param_analogue(
                 min: Some(f64::from(item.min.unwrap_or(0))),
                 max: Some(f64::from(item.max.unwrap_or(127))),
                 step: Some(f64::from(item.step.unwrap_or(1))),
+                user_min: None,
+                user_max: None,
                 options: vec![],
                 invert: false,
             }),
@@ -184,6 +198,8 @@ pub(super) fn behavior_param_analogue(
                 min: None,
                 max: None,
                 step: None,
+                user_min: None,
+                user_max: None,
                 options: item.options.unwrap_or_default(),
                 invert: false,
             }),
@@ -194,6 +210,8 @@ pub(super) fn behavior_param_analogue(
                 min: None,
                 max: None,
                 step: None,
+                user_min: None,
+                user_max: None,
                 options: vec![],
                 invert: false,
             }),

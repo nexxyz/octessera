@@ -225,11 +225,11 @@ Remove the Raspberry Pi microSD card and OLED microSD card first. They can catch
    - During final assembly, a small drop of glue on the top-pin can keep pins from falling out if the device is turned upside down.
    - The dowel/top-pin system can hold the enclosure together on its own. If a pin does not secure enough, use pliers to gently squeeze the ball at the end of the pin for a tighter fit. Gently is the magic word here; the tiny mushroom is brave, not immortal.
 5. Place one silicone 4x4 keypad on each NeoTrellis board. Make sure the pads sit flat and line up with the 8x8 opening before closing the case.
-6. Optional but recommended: insert the M3 heat-set inserts into the underside of the enclosure top with a soldering iron or insert tool.
+6. Optional but recommended: install all 8 M3 heat-set inserts into the underside of the enclosure top with a soldering iron or insert tool.
 7. Place the enclosure top over the assembly. It is easiest to slip the top on from the left/west side first so the ports pass through their holes, then lower the right/east side. The guide walls and standoff pins should locate the parts without forcing them.
 8. Install the four printed encoder knobs from `release-artifacts/enclosure/stl/` or the matching multicolor 3MF files. Check the fit before pressing them fully down: they should slide on with a decent amount of friction, but not so tightly that removal would require force. If the fit is too tight, scale the encoder cap models up slightly in the X/Y plane before printing another set.
 9. Turn the device over carefully.
-10. Optional but recommended: install the bottom screws into the recessed holes and tighten them into the heat inserts. If the printed pins already hold everything securely and the device will live a gentle bench life, you can leave the screws out.
+10. Optional but recommended: install all 8 bottom screws into the recessed holes and tighten them into the heat-set inserts. If the printed pins already hold everything securely and the device will live a gentle bench life, you can leave the screws out.
 11. Add rubber feet or screw-hole covers if desired.
 
 Tighten screws gently. If the top does not sit flat, stop and find the interference instead of forcing the case closed.

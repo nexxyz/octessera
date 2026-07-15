@@ -77,20 +77,20 @@ pub(crate) fn trigger_gate_all_layers_button_edits_all_rows() {
 }
 
 #[test]
-pub(crate) fn fn_play_toggles_active_layer_trigger_mode_to_zero_and_restores_it() {
+pub(crate) fn combined_modifier_left_column_toggles_layer_trigger_mode_to_zero_and_restores_it() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.trigger_gate_modes[0] = "custom".into();
     runner.pulses_layers[0].trigger_probability_mode = "custom".into();
 
     let _ = runner
         .send(HostMessage::DeviceInput {
-            input: json!({ "type": "button_fn", "pressed": true }),
+            input: json!({ "type": "button_combined_modifier", "pressed": true }),
             request_snapshot: None,
         })
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
-            input: json!({ "type": "button_s", "pressed": true }),
+            input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
             request_snapshot: None,
         })
         .unwrap();
@@ -103,7 +103,7 @@ pub(crate) fn fn_play_toggles_active_layer_trigger_mode_to_zero_and_restores_it(
 
     let _ = runner
         .send(HostMessage::DeviceInput {
-            input: json!({ "type": "button_s", "pressed": true }),
+            input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
             request_snapshot: None,
         })
         .unwrap();
@@ -112,14 +112,14 @@ pub(crate) fn fn_play_toggles_active_layer_trigger_mode_to_zero_and_restores_it(
 
     let _ = runner
         .send(HostMessage::DeviceInput {
-            input: json!({ "type": "button_fn", "pressed": false }),
+            input: json!({ "type": "button_combined_modifier", "pressed": false }),
             request_snapshot: None,
         })
         .unwrap();
 }
 
 #[test]
-pub(crate) fn fn_play_toggles_selected_active_layer_trigger_mode() {
+pub(crate) fn combined_modifier_left_column_toggles_selected_layer_trigger_mode() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_layer_index = 2;
     runner.trigger_gate_modes = vec!["full".into(); GRID_HEIGHT];
@@ -128,13 +128,13 @@ pub(crate) fn fn_play_toggles_selected_active_layer_trigger_mode() {
 
     let _ = runner
         .send(HostMessage::DeviceInput {
-            input: json!({ "type": "button_fn", "pressed": true }),
+            input: json!({ "type": "button_combined_modifier", "pressed": true }),
             request_snapshot: None,
         })
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
-            input: json!({ "type": "button_s", "pressed": true }),
+            input: json!({ "type": "grid_press", "x": 0, "y": 2 }),
             request_snapshot: None,
         })
         .unwrap();
@@ -204,6 +204,26 @@ pub(crate) fn fn_rightmost_grid_column_selects_sparks_pages() {
         })
         .unwrap();
     assert_eq!(runner.active_sparks_mode, "xy");
+}
+
+#[test]
+pub(crate) fn combined_modifier_rightmost_grid_column_is_reserved() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_combined_modifier", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 7, "y": 0 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert_eq!(runner.active_sparks_mode, "none");
 }
 
 #[test]

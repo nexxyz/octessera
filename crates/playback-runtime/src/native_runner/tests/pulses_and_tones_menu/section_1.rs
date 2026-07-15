@@ -65,7 +65,7 @@ pub(crate) fn pulses_exposes_aux_mappings_and_enterable_layer_rows() {
         .any(|line| line.as_str().unwrap_or("") == "  Aux Mappings >"));
     assert!(lines
         .iter()
-        .any(|line| line.as_str().unwrap_or("") == "  Events when ... On"));
+        .any(|line| line.as_str().unwrap_or("") == "  Paused Events On"));
     assert!(lines
         .iter()
         .any(|line| line.as_str().unwrap_or("") == "> L1: life >"));

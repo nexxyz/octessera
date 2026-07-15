@@ -23,7 +23,7 @@ midi_in_dynamic	System > MIDI > MIDI In > *	action:midi_select_input:*	action	Se
 midi_sync_mode	System > MIDI > Sync & Clock > Sync Mode	key:midi.syncMode	enum	Sync Mode	Chooses whether timing is internal or external MIDI clock.	External mode follows incoming clock when enabled.
 midi_clock_out	System > MIDI > Sync & Clock > Clock Out	key:midi.clockOutEnabled	bool	Clock Out	Enables outgoing MIDI clock messages.	Useful when other gear should follow this transport.
 midi_clock_in	System > MIDI > Sync & Clock > Clock In	key:midi.clockInEnabled	bool	Clock In	Enables incoming MIDI clock processing.	Required to follow external timing.
-midi_respond_start_stop	System > MIDI > Sync & Clock > Follow Start/Stop	key:midi.respondToStartStop	bool	Follow Start/Stop	When enabled, external MIDI Start/Stop controls transport.	When disabled, transport reacts only to local controls.
+midi_respond_start_stop	System > MIDI > Sync & Clock > Follow S/S	key:midi.respondToStartStop	bool	Follow S/S	When enabled, external MIDI Start/Stop controls transport.	When disabled, transport reacts only to local controls.
 worlds_section	Menu > Build		group	Build	Configures each layer's grid behavior and step timing.	Shape the cell process here before Link turns activity into notes.
 life_step_rate	*	key:algorithmStepUnit	enum	Step Rate	Sets how often the Life algorithm advances per musical time unit.	Faster rates evolve patterns quickly; slower rates make longer-form motion.
 life_behavior	*	key:activeBehavior	enum	Behavior	Selects the current layer's Life behavior engine.	Changing behavior resets that layer's live grid state to the new defaults.
@@ -58,16 +58,16 @@ scan_direction	*	key:layers.*.pulses.scanDirection	enum	Scan Direction	Sets scan
 scan_sections	*	key:layers.*.pulses.scanSections	enum	Sections	Splits scanning into 1, 2, 4, or 8 lane sections.	1 preserves current full-grid scan behavior; higher values scan smaller lanes in sequence.
 event_enabled	*	key:layers.*.pulses.eventEnabled	bool	Event Triggers	Enables transition triggers such as activate, deactivate, and stable for this layer.	Turn it Off to suppress event-based note generation while keeping other Link settings intact.
 targets_group	Menu > Link > L*: * > Events > Instrument Targets		group	Instrument Targets	Maps each trigger kind to an action and destination instrument slot.	Use note_off actions for release-style lifecycle behavior.
-map_activate_action	*	key:layers.*.pulses.mapping.activate.action	enum	Activate Action	Defines what happens when a cell becomes active.	Default note_on starts notes on birth, spawn, or press transitions.
-map_activate_slot	*	key:layers.*.pulses.mapping.activate.slot	enum	Activate Instrument	Selects which instrument slot receives activate events.	Point this at the slot that should sound when a cell turns on.
-map_stable_action	*	key:layers.*.pulses.mapping.stable.action	enum	Stable Action	Defines behavior for cells that stay active across updates.	Default none avoids constant retriggering from unchanged active cells.
-map_stable_slot	*	key:layers.*.pulses.mapping.stable.slot	enum	Stable Instrument	Selects destination instrument slot for stable triggers.	Use with stable action when you want sustained-state gestures.
-map_deactivate_action	*	key:layers.*.pulses.mapping.deactivate.action	enum	Deactivate Action	Defines what happens when a cell turns inactive.	Default note_off releases matching notes in lifecycle workflows.
-map_deactivate_slot	*	key:layers.*.pulses.mapping.deactivate.slot	enum	Deactivate Instrument	Selects destination instrument slot for deactivate triggers.	Typically points to the same slot used by activate note_on.
+map_activate_action	*	key:layers.*.pulses.mapping.activate.action	enum	On Trig	Defines what happens when a cell becomes active.	Default note_on starts notes on birth, spawn, or press transitions.
+map_activate_slot	*	key:layers.*.pulses.mapping.activate.slot	enum	On Inst	Selects which instrument slot receives activate events.	Point this at the slot that should sound when a cell turns on.
+map_stable_action	*	key:layers.*.pulses.mapping.stable.action	enum	Hold Trig	Defines behavior for cells that stay active across updates.	Default none avoids constant retriggering from unchanged active cells.
+map_stable_slot	*	key:layers.*.pulses.mapping.stable.slot	enum	Hold Inst	Selects destination instrument slot for stable triggers.	Use with stable action when you want sustained-state gestures.
+map_deactivate_action	*	key:layers.*.pulses.mapping.deactivate.action	enum	Off Trig	Defines what happens when a cell turns inactive.	Default note_off releases matching notes in lifecycle workflows.
+map_deactivate_slot	*	key:layers.*.pulses.mapping.deactivate.slot	enum	Off Inst	Selects destination instrument slot for deactivate triggers.	Typically points to the same slot used by activate note_on.
 map_scanned_action	*	key:layers.*.pulses.mapping.scanned.action	enum	Scanned Action	Defines behavior when scan encounters a filled cell.	Default note_on makes scanning immediately audible.
 map_scanned_slot	*	key:layers.*.pulses.mapping.scanned.slot	enum	Scanned Instrument	Selects destination instrument slot for scanned-filled triggers.	Use different slots for layered scan and event voicing.
-map_scanned_empty_action	*	key:layers.*.pulses.mapping.scanned_empty.action	enum	Scanned Empty Action	Defines behavior when scan encounters an empty cell.	Default note_off can release held scan notes.
-map_scanned_empty_slot	*	key:layers.*.pulses.mapping.scanned_empty.slot	enum	Scanned Empty Instrument	Selects destination instrument slot for scanned-empty triggers.	Pair with the scanned slot for directional hold-and-release patterns.
+map_scanned_empty_action	*	key:layers.*.pulses.mapping.scanned_empty.action	enum	Empty Trig	Defines behavior when scan encounters an empty cell.	Default note_off can release held scan notes.
+map_scanned_empty_slot	*	key:layers.*.pulses.mapping.scanned_empty.slot	enum	Empty Inst	Selects destination instrument slot for scanned-empty triggers.	Pair with the scanned slot for directional hold-and-release patterns.
 voices_section	Menu > Shape		group	Shape	Defines pitch mapping and instrument slot sound engines.	This layer controls how sensed events become audible voices.
 note_mapping_group	Menu > Shape > Note Mapping		group	Note Mapping	Sets pitch quantization, range, and root/scale behavior.	Applied before per-instrument synth shaping.
 pitch_start	*	key:layers.*.pulses.pitch.startingNote	number	Starting Note	Sets the reference note before X/Y pitch step offsets are applied for this layer.	Use this as the tonal center anchor.
@@ -113,7 +113,7 @@ inst_sample_browse_up	Menu > Shape > Instruments > Instrument * > Sampler > S* B
 inst_sample_browse_enter	Menu > Shape > Instruments > Instrument * > Sampler > S* Browse > *	action:sample.enter	action	Enter Folder	Opens the highlighted bracketed folder.	Navigation stays inside the `samples/` folder tree.
 inst_sample_pick	Menu > Shape > Instruments > Instrument * > Sampler > S* Browse > *	action:sample.pick	action	Pick Sample	Assigns the highlighted wav to the selected sample slot.	The slot path updates immediately.
 inst_sample_favourite_set	Menu > Shape > Instruments > Instrument * > Sampler > S* Browse > Set favourite	action:sample_favourite_set	action	Set Favourite	Adds the current folder to the sample favourites list.	The action applies to the open folder, not the highlighted file.
-inst_sample_favourite_remove	Menu > Shape > Instruments > Instrument * > Sampler > S* Browse > Remove favourite	action:sample_favourite_remove	action	Remove Favourite	Removes the current folder from the sample favourites list.	The action applies to the open folder, not the highlighted file.
+inst_sample_favourite_remove	Menu > Shape > Instruments > Instrument * > Sampler > S* Browse > Remove fav	action:sample_favourite_remove	action	Remove fav	Removes the current folder from the sample favourites list.	The action applies to the open folder, not the highlighted file.
 pulses_scanning_group	Menu > Link > L*: * > Scanning		group	Scanning	Controls scan cursor movement, subdivision, and cursor-based instrument targets.	Scan mode, axis, unit, direction, sections; plus action/instrument mappings for scanned-filled and scanned-empty.
 pulses_scan_targets_group	Menu > Link > L*: * > Scanning > Instrument Targets		group	Scan Instrument Targets	Maps scan cursor hits (filled and empty) to action and instrument slot.	Action defaults to none so you opt into scan-based triggering.
 pulses_events_group	Menu > Link > L*: * > Events		group	Events	Controls transition event triggering and event-based instrument targets.	Event Triggers toggle, plus activate/stable/deactivate action/instrument mappings.
@@ -177,8 +177,8 @@ usb_group	Menu > System > USB		group	USB	Controls restart-applied USB gadget exp
 usb_audio_out	*	key:usb.audioOut	enum	Audio Out	Selects the persisted USB audio output mode for the next reboot.	Choose jack, usb, or both, then use Save & Reboot.
 usb_midi_out	*	key:usb.midiOutEnabled	bool	MIDI Out	Enables persisted USB MIDI gadget output preference for the next reboot.	General MIDI enable/input/clock settings remain under System > MIDI.
 usb_apply_reboot	System > USB	action:usb.applyReboot	action	Save & Reboot	Saves the current default payload and asks the platform to apply USB settings with a reboot.	Confirmation offers Cancel or Save & Reboot.
-usb_sd_transfer_start	System > USB	action:usb.sdTransferStart	action	Start SD Transfer	Temporarily exposes the Pi SD sample card to the USB host as writable storage.	USB audio and MIDI disconnect during transfer; Pi rejects this while USB audio out, USB MIDI out, or recording is active.
-usb_sd_transfer_stop	System > USB	action:usb.sdTransferStop	action	Stop SD Transfer	Restores the normal USB audio/MIDI gadget after host file transfer.	Eject the SD card on the host before stopping transfer.
+usb_sd_transfer_start	System > USB	action:usb.sdTransferStart	action	Start SD2 Xfer	Temporarily exposes the OLED SD2 sample card to the USB host as writable storage.	USB audio and MIDI disconnect during transfer; Pi rejects this while USB audio out, USB MIDI out, or recording is active.
+usb_sd_transfer_stop	System > USB	action:usb.sdTransferStop	action	Stop SD2 Xfer	Restores the normal USB audio/MIDI gadget after host file transfer.	Eject OLED SD2 on the host before stopping transfer.
 recording_group	Menu > System > Recording		group	Recording	Controls Pi main-SD audio recording.	Phase 1 records Octessera's internal stereo output to /home/pi/recordings as WAV.
 recording_max_time	*	key:recording.maxMinutes	number	Max Time	Sets the maximum audio recording length in minutes.	The recorder stops and finalizes the WAV when the limit is reached.
 recording_start_audio	System > Recording	action:recording.startAudio	action	Start Audio	Starts Pi main-SD audio recording of the final internal stereo mix.	External MIDI instrument audio is not captured.
@@ -190,7 +190,7 @@ velocity_scale	*	key:sound.velocityScalePct	number	Velocity Scale	Scales velocit
 ui_group	Menu > System > UI		group	UI	Display and lighting behavior for the device/simulator UI.	These do not change musical generation.
 controls_action	Menu > System > Basic Help	action:system.controlsHelp	action	Basic Help	Opens a quick reference for core hardware gestures.	Includes help, back, transport, Fn navigation, alternate aux binding, sample, and probability-map shortcuts.
 ghost_cells	*	key:ghostCells	bool	Ghost Cells	Shows dim cells from inactive layers behind the active layer.	Off by default for clarity; active layer cells always take visual priority.
-input_events_while_paused	*	key:inputEventsWhilePaused	bool	Events when paused	When On, grid presses continue to fire musical events even when transport is stopped or paused.	Disable to keep paused/stopped grid edits silent while algorithm evolution remains stopped.
+input_events_while_paused	*	key:inputEventsWhilePaused	bool	Paused Events	When On, grid presses continue to fire musical events even when transport is stopped or paused.	Disable to keep paused/stopped grid edits silent while algorithm evolution remains stopped.
 dim_timer	*	key:dimTimerSeconds	number	Dim Timer	Sets idle timeout before non-OLED LEDs dim.	Set 0 to keep LEDs at configured brightness.
 screen_sleep	*	key:screenSleepSeconds	number	OLED Sleep	Sets idle timeout before OLED sleep.	Set 0 to keep display always on.
 display_bright	*	key:displayBrightness	number	OLED Bright	Sets OLED brightness level.	Higher values improve visibility at cost of brightness.
@@ -202,12 +202,12 @@ pulses_x_axis_group	Menu > Link > L*: * > X Axis		group	X Axis Modulation	Maps X
 pulses_x_pitch_group	Menu > Link > L*: * > X Axis > Pitch Steps		group	X Pitch Steps	Controls pitch stepping derived from X position.	Disable to remove X-axis pitch influence.
 pulses_x_velocity_group	Menu > Link > L*: * > X Axis > Velocity		group	X Velocity Lane	Maps X position to velocity output range.	Use this for left-right dynamic shaping.
 pulses_x_cutoff_group	Menu > Link > L*: * > X Axis > Filter Cutoff		group	X Cutoff Lane	Maps X position to CC74 cutoff modulation range.	Works when filter cutoff lane is enabled.
-pulses_x_res_group	Menu > Link > L*: * > X Axis > Filter Resonance		group	X Resonance Lane	Maps X position to CC71 resonance modulation range.	Use carefully to avoid excessive resonance peaks.
+pulses_x_res_group	Menu > Link > L*: * > X Axis > Filter Res		group	X Resonance Lane	Maps X position to CC71 resonance modulation range.	Use carefully to avoid excessive resonance peaks.
 pulses_y_axis_group	Menu > Link > L*: * > Y Axis		group	Y Axis Modulation	Maps Y position into pitch/velocity/filter modulation lanes.	Use alongside X axis for two-dimensional mapping.
 pulses_y_pitch_group	Menu > Link > L*: * > Y Axis > Pitch Steps		group	Y Pitch Steps	Controls pitch stepping derived from Y position.	Disable to remove Y-axis pitch influence.
 pulses_y_velocity_group	Menu > Link > L*: * > Y Axis > Velocity		group	Y Velocity Lane	Maps Y position to velocity output range.	Useful for top-bottom accent patterns.
 pulses_y_cutoff_group	Menu > Link > L*: * > Y Axis > Filter Cutoff		group	Y Cutoff Lane	Maps Y position to CC74 cutoff modulation range.	Combine with X lane for richer filter motion.
-pulses_y_res_group	Menu > Link > L*: * > Y Axis > Filter Resonance		group	Y Resonance Lane	Maps Y position to CC71 resonance modulation range.	Lower ranges are usually easier to control musically.
+pulses_y_res_group	Menu > Link > L*: * > Y Axis > Filter Res		group	Y Resonance Lane	Maps Y position to CC71 resonance modulation range.	Lower ranges are usually easier to control musically.
 axis_pitch_enabled_x_part	*	key:layers.*.pulses.x.pitch.enabled	bool	X Pitch Enabled	Enables pitch stepping derived from X position.	Disable to remove horizontal pitch influence for this layer.
 axis_pitch_steps_x_part	*	key:layers.*.pulses.x.pitch.steps	number	X Pitch Steps	Sets semitone-step influence per X grid step.	Larger values create wider horizontal intervals.
 axis_pitch_restart_x_part	*	key:layers.*.pulses.x.pitch.restartEachSection	bool	Restart Section	When On, X pitch stepping restarts from the lane origin in each scan section.	Turn it Off to keep pitch indexing continuous across section boundaries.
@@ -224,12 +224,12 @@ tones_x_axis_group	Menu > Shape > X Axis		group	Shape X Axis	Alternate X-axis mo
 tones_x_pitch_group	Menu > Shape > X Axis > Pitch Steps		group	Shape X Pitch Steps	Controls X-based pitch stepping in Shape layer.	Can diverge from Route defaults for performance tuning.
 tones_x_velocity_group	Menu > Shape > X Axis > Velocity		group	Shape X Velocity Lane	Controls X-based velocity modulation in Shape layer.	Use to rebalance loudness response per performance profile.
 tones_x_cutoff_group	Menu > Shape > X Axis > Filter Cutoff		group	Shape X Cutoff Lane	Controls X-based cutoff modulation in Shape layer.	Affects generated CC74 values.
-tones_x_res_group	Menu > Shape > X Axis > Filter Resonance		group	Shape X Resonance Lane	Controls X-based resonance modulation in Shape layer.	Affects generated CC71 values.
+tones_x_res_group	Menu > Shape > X Axis > Filter Res		group	Shape X Resonance Lane	Controls X-based resonance modulation in Shape layer.	Affects generated CC71 values.
 tones_y_axis_group	Menu > Shape > Y Axis		group	Shape Y Axis	Alternate Y-axis modulation settings at Shape layer.	Use for per-context modulation tuning.
 tones_y_pitch_group	Menu > Shape > Y Axis > Pitch Steps		group	Shape Y Pitch Steps	Controls Y-based pitch stepping in Shape layer.	Higher steps create larger vertical interval jumps.
 tones_y_velocity_group	Menu > Shape > Y Axis > Velocity		group	Shape Y Velocity Lane	Controls Y-based velocity modulation in Shape layer.	Use to weight top/bottom cell dynamics.
 tones_y_cutoff_group	Menu > Shape > Y Axis > Filter Cutoff		group	Shape Y Cutoff Lane	Controls Y-based cutoff modulation in Shape layer.	Affects generated CC74 values.
-tones_y_res_group	Menu > Shape > Y Axis > Filter Resonance		group	Shape Y Resonance Lane	Controls Y-based resonance modulation in Shape layer.	Affects generated CC71 values.
+tones_y_res_group	Menu > Shape > Y Axis > Filter Res		group	Shape Y Resonance Lane	Controls Y-based resonance modulation in Shape layer.	Affects generated CC71 values.
 system_group	Menu > System		group	System	Global configuration area for presets, sound, MIDI, and UI.	Use this for environment and persistence behavior.
 system_diagnostics_group	Menu > System > Diagnostics		group	Diagnostics	Hardware checks before the Pi runtime starts.	Use Hardware Test to verify boot config, pins, and DAC detection.
 system_hardware_test	Menu > System > Diagnostics > Hardware Test	action:system_hardware_test	action	Hardware Test	Runs the Pi pre-hardware diagnostic checks.	Requires confirmation before running the guided test.
@@ -386,12 +386,18 @@ native_param_browser_instrument	Menu > * > Instruments > Instrument *		group	Ins
 native_param_browser_sample	Menu > * > Instruments > Instrument * > Sample		group	Sample Parameters	Lists bindable sampler parameters for this instrument slot.	Selecting a row binds that parameter to the current target slot.
 native_param_browser_synth	Menu > * > Instruments > Instrument * > Synth		group	Synth Parameters	Lists bindable synth parameters for this instrument slot.	Selecting a row binds that parameter to the current target slot.
 native_param_browser_sound	Menu > * > Sound		group	Sound Parameters	Lists global sound parameters available for binding.	Selecting a row binds that parameter to the current target slot.
+native_binding_range_min	*	key:*.rangeMin	number	Range Min	Sets the low end of the current numeric binding's user range.	Target min/max metadata is preserved; this only narrows modulation output.
+native_binding_range_max	*	key:*.rangeMax	number	Range Max	Sets the high end of the current numeric binding's user range.	Set equal to Range Min for a fixed modulation value.
+native_link_delay	*	key:layers.*.pulses.mapping.*.delaySteps	number	Link Delay	Delays this Link event target by layer link ticks.	0 is immediate; delayed events use the already-routed event and do not re-roll probability.
+native_link_retrigger	*	key:layers.*.pulses.mapping.*.retriggerCount	number	Link Retrig	Adds extra repeats after this Link event target.	A value of 2 repeats at delay+1 and delay+2 layer ticks.
 native_fx_amount	*	key:mixer.buses.*.slot*.params.amountPct	number	Duck Amount	Sets how strongly ducking reduces the target bus.	Higher percentages create deeper ducking.
 native_fx_attack	*	key:mixer.buses.*.slot*.params.attackMs	number	Attack	Sets how quickly this effect reacts after input crosses its trigger condition.	Short values respond faster.
 native_fx_release	*	key:mixer.buses.*.slot*.params.releaseMs	number	Release	Sets how quickly this effect returns after release or input falls away.	Longer values decay more slowly.
 native_fx_threshold	*	key:mixer.buses.*.slot*.params.threshold	number	Threshold	Sets the normalized trigger level for this effect.	Lower values trigger more easily.
 native_fx_threshold_db	*	key:mixer.*.slots.*.params.thresholdDb	number	Threshold dB	Sets compressor threshold in dB.	Signals above this level are reduced.
 native_fx_mix	*	key:mixer.*.slots.*.params.mixPct	number	Mix	Sets wet/dry mix for this effect.	0 is dry; 100 is fully wet.
+native_fx_time_mode	*	key:mixer.buses.*.slot*.params.timeMode	enum	Delay Time Mode	Chooses manual milliseconds or tempo note mode for bus Delay.	Note mode follows later BPM edits by rematerializing Time ms; ms mode stays fixed.
+native_fx_time_note	*	key:mixer.buses.*.slot*.params.timeNote	enum	Delay Time Note	Sets the tempo note used by note-mode bus Delay.	Editing this row switches Delay to note mode and writes the current-BPM millisecond value into Time ms.
 native_fx_time	*	key:mixer.buses.*.slot*.params.timeMs	number	Delay Time	Sets delay time in milliseconds.	Longer values create wider echoes.
 native_fx_feedback	*	key:mixer.buses.*.slot*.params.feedback	number	Feedback	Sets how much output feeds back into the effect.	Higher values increase repeats or resonance.
 native_fx_rate_hz	*	key:mixer.*.slots.*.params.rateHz	number	Rate Hz	Sets modulation rate in Hertz.	Higher rates move faster.

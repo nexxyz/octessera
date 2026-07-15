@@ -95,10 +95,10 @@ pub(crate) fn instrument_pan_menu_edit_moves_monotonically_from_current_value() 
 #[test]
 pub(crate) fn active_layer_trigger_toggle_suppresses_and_restores_with_toast() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.ui.fn_held = true;
+    runner.ui.combined_modifier_held = true;
     let off = runner
         .send(HostMessage::DeviceInput {
-            input: json!({ "type": "button_s", "pressed": true }),
+            input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
             request_snapshot: None,
         })
         .unwrap();
@@ -107,7 +107,7 @@ pub(crate) fn active_layer_trigger_toggle_suppresses_and_restores_with_toast() {
 
     let on = runner
         .send(HostMessage::DeviceInput {
-            input: json!({ "type": "button_s", "pressed": true }),
+            input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
             request_snapshot: None,
         })
         .unwrap();
@@ -171,7 +171,7 @@ pub(crate) fn config_load_queues_midi_port_selection_effects() {
 #[test]
 pub(crate) fn contextual_help_includes_midi_output_guidance() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 3];
+    runner.menu.state.stack = vec![5, 4];
     runner.menu.state.cursor = 2;
     runner.ui.combined_modifier_held = true;
 

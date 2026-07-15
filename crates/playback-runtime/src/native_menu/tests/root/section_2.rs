@@ -18,7 +18,7 @@ pub(crate) fn static_navigation_memory_ignores_dynamic_preset_lists() {
 #[test]
 pub(crate) fn static_navigation_memory_does_not_affect_focus_item_key() {
     let mut menu = NativeMenuModel::new(config());
-    menu.state.stack = vec![5, 2];
+    menu.state.stack = vec![5, 3];
     menu.state.cursor = 2;
     menu.back();
     let _ = menu.press();

@@ -215,12 +215,12 @@ impl HostAdapter for PiPlaybackHostAdapter {
             RuntimePlatformEffect::UsbSdTransferStart => {
                 if matches!(self.usb_audio_out, UsbAudioOut::Usb | UsbAudioOut::Both) {
                     return Ok(vec![store_error(
-                        "USB SD transfer blocked while USB audio out is active".into(),
+                        "USB SD2 transfer blocked while USB audio out is active".into(),
                     )]);
                 }
                 if self.usb_midi_out_enabled {
                     return Ok(vec![store_error(
-                        "USB SD transfer blocked while USB MIDI out is enabled".into(),
+                        "USB SD2 transfer blocked while USB MIDI out is enabled".into(),
                     )]);
                 }
                 if self
@@ -231,7 +231,7 @@ impl HostAdapter for PiPlaybackHostAdapter {
                     .unwrap_or(false)
                 {
                     return Ok(vec![store_error(
-                        "USB SD transfer blocked while recording is active".into(),
+                        "USB SD2 transfer blocked while recording is active".into(),
                     )]);
                 }
                 self.handle_platform_effect(&RuntimePlatformEffect::MidiPanic)?;
@@ -240,7 +240,7 @@ impl HostAdapter for PiPlaybackHostAdapter {
                     .enqueue(PlatformJob::UsbSdTransferStart)
                 {
                     return Ok(vec![store_error(format!(
-                        "USB SD transfer start queued failed: {message}"
+                        "USB SD2 transfer start queued failed: {message}"
                     ))]);
                 }
                 return Ok(Vec::new());
@@ -251,7 +251,7 @@ impl HostAdapter for PiPlaybackHostAdapter {
                     .enqueue(PlatformJob::UsbSdTransferStop)
                 {
                     return Ok(vec![store_error(format!(
-                        "USB SD transfer stop queued failed: {message}"
+                        "USB SD2 transfer stop queued failed: {message}"
                     ))]);
                 }
                 return Ok(Vec::new());

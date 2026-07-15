@@ -1,3 +1,6 @@
+use crate::delay_timing::{
+    nearest_note_for_ms, normalized_delay_params, note_ms, strip_delay_timing_metadata,
+};
 use crate::native_menu::{fx_bus_slot_children_for_key, global_fx_slot_children_for_key};
 use crate::protocol::RuntimeAudioCommand;
 use serde_json::Value;
@@ -56,6 +59,7 @@ impl NativeRunner {
         key: &str,
     ) -> bool {
         let value = self.menu_value_for_audio_param(key);
+        let bpm = self.current_menu_bpm();
         let Some(bus) = self.fx_buses.get_mut(bus_index) else {
             return false;
         };
@@ -64,13 +68,19 @@ impl NativeRunner {
         } else {
             (&bus.slot2_type, &mut bus.slot2_params)
         };
-        match set_json_leaf(params, param_path, value) {
-            Some(true) => {}
-            Some(false) => return true,
-            None => return false,
+        let before = params.clone();
+        if !apply_fx_param_value(params, param_path, value, bpm) {
+            return false;
         }
+        if before == *params {
+            return true;
+        }
+        let sync_time_ms = matches!(param_path, "timeMode" | "timeNote").then(|| params.clone());
         let fx_type = fx_type.clone();
-        let params = value_object_to_map(params);
+        let params = audio_params_for_fx(&fx_type, params);
+        if let Some(sync_time_ms) = sync_time_ms {
+            self.sync_delay_time_ms_menu_value(key, &sync_time_ms);
+        }
         self.mark_fast_autosave_dirty();
         self.queue_audio_command(RuntimeAudioCommand::SetFxBusSlot {
             bus_index,
@@ -130,12 +140,12 @@ impl NativeRunner {
         let (fx_type, params) = if slot_index == 0 {
             (
                 bus.slot1_type.clone(),
-                value_object_to_map(&bus.slot1_params),
+                audio_params_for_fx(&bus.slot1_type, &bus.slot1_params),
             )
         } else {
             (
                 bus.slot2_type.clone(),
-                value_object_to_map(&bus.slot2_params),
+                audio_params_for_fx(&bus.slot2_type, &bus.slot2_params),
             )
         };
         let slot_key = format!("mixer.buses.{bus_index}.slot{}.type", slot_index + 1);
@@ -149,6 +159,7 @@ impl NativeRunner {
                 self.fx_buses[bus_index].slot2_params.clone()
             },
             bus_index,
+            self.current_menu_bpm(),
         );
         self.menu
             .replace_group_children_containing_direct_key(&slot_key, &children);
@@ -221,6 +232,7 @@ impl NativeRunner {
             &slot_prefix,
             &fx_type,
             &self.global_fx_params[slot_index],
+            self.current_menu_bpm(),
         );
         self.menu
             .replace_group_children_containing_direct_key(&slot_key, &children);
@@ -247,6 +259,78 @@ impl NativeRunner {
             .value_for_key(key)
             .map(Value::from)
             .unwrap_or(Value::Null)
+    }
+
+    fn sync_delay_time_ms_menu_value(&mut self, key: &str, value: &Value) {
+        let Some(time_ms) = value
+            .get("timeMs")
+            .and_then(serde_json::Value::as_i64)
+            .and_then(|value| i32::try_from(value).ok())
+        else {
+            return;
+        };
+        let time_ms_key = key
+            .strip_suffix("timeNote")
+            .or_else(|| key.strip_suffix("timeMode"))
+            .map(|prefix| format!("{prefix}timeMs"));
+        if let Some(time_ms_key) = time_ms_key {
+            self.menu.set_number_value_for_key(&time_ms_key, time_ms);
+        }
+    }
+
+    pub(super) fn current_menu_bpm(&self) -> u16 {
+        self.bpm.round().clamp(20.0, 300.0) as u16
+    }
+}
+
+fn apply_fx_param_value(params: &mut Value, param_path: &str, value: Value, bpm: u16) -> bool {
+    if param_path == "timeNote" {
+        let Some(note) = value.as_str() else {
+            return false;
+        };
+        let mut next = normalized_delay_params(params, bpm);
+        set_json_leaf(&mut next, "timeMode", Value::from("note"));
+        set_json_leaf(&mut next, "timeNote", Value::from(note));
+        set_json_leaf(&mut next, "timeMs", Value::from(note_ms(note, bpm)));
+        *params = next;
+        return true;
+    }
+    if param_path == "timeMode" {
+        let Some(mode) = value.as_str() else {
+            return false;
+        };
+        let mut next = normalized_delay_params(params, bpm);
+        if mode == "note" {
+            let current_ms = next.get("timeMs").and_then(Value::as_i64).unwrap_or(250) as i32;
+            let note = next
+                .get("timeNote")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+                .unwrap_or_else(|| nearest_note_for_ms(current_ms, bpm).to_string());
+            set_json_leaf(&mut next, "timeMode", Value::from("note"));
+            set_json_leaf(&mut next, "timeNote", Value::from(note.clone()));
+            set_json_leaf(&mut next, "timeMs", Value::from(note_ms(&note, bpm)));
+        } else {
+            set_json_leaf(&mut next, "timeMode", Value::from("ms"));
+        }
+        *params = next;
+        return true;
+    }
+    if param_path == "timeMs" {
+        let mut next = normalized_delay_params(params, bpm);
+        set_json_leaf(&mut next, "timeMode", Value::from("ms"));
+        set_json_leaf(&mut next, param_path, value);
+        *params = next;
+        return true;
+    }
+    set_json_leaf(params, param_path, value).is_some()
+}
+
+fn audio_params_for_fx(fx_type: &str, params: &Value) -> BTreeMap<String, Value> {
+    if fx_type == "delay" {
+        strip_delay_timing_metadata(params).into_iter().collect()
+    } else {
+        value_object_to_map(params)
     }
 }
 

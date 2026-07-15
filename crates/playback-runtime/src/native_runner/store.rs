@@ -153,13 +153,13 @@ impl NativeRunner {
             ("Confirm USB", "Save USB settings and reboot?".into())
         } else if action_type == "usb.sdTransferStart" {
             (
-                "Confirm SD Transfer",
-                "USB audio/MIDI disconnect. Host owns the SD card until stopped.".into(),
+                "Confirm SD2 Transfer",
+                "USB audio/MIDI disconnect. Host owns OLED SD2 until stopped.".into(),
             )
         } else if action_type == "usb.sdTransferStop" {
             (
-                "Confirm SD Transfer",
-                "Eject the SD card on the host first, then stop transfer.".into(),
+                "Confirm SD2 Transfer",
+                "Eject OLED SD2 on the host first, then stop transfer.".into(),
             )
         } else if action_type == "system.hardwareTest" {
             ("Confirm Hardware Test", "Run the hardware test?".into())

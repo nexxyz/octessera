@@ -17,6 +17,8 @@ pub(crate) fn sparks_xy_binding_updates_native_runtime_config() {
         min: Some(0.0),
         max: Some(200.0),
         step: Some(1.0),
+        user_min: None,
+        user_max: None,
         options: vec![],
         invert: true,
     });
@@ -47,6 +49,8 @@ pub(crate) fn xy_mapping_execute_action_keeps_menu_on_xy_axis_picker() {
                 min: Some(0),
                 max: Some(255),
                 step: Some(1),
+                user_min: None,
+                user_max: None,
                 options: vec![],
                 invert: false,
             },
@@ -87,6 +91,8 @@ pub(crate) fn xy_binding_can_drive_pulses_fx_bus_and_global_fx_params() {
         min: Some(-16.0),
         max: Some(16.0),
         step: Some(1.0),
+        user_min: None,
+        user_max: None,
         options: vec![],
         invert: false,
     });
@@ -97,6 +103,8 @@ pub(crate) fn xy_binding_can_drive_pulses_fx_bus_and_global_fx_params() {
         min: Some(0.0),
         max: Some(98.0),
         step: Some(1.0),
+        user_min: None,
+        user_max: None,
         options: vec![],
         invert: false,
     });
@@ -113,6 +121,8 @@ pub(crate) fn xy_binding_can_drive_pulses_fx_bus_and_global_fx_params() {
         min: Some(0.0),
         max: Some(100.0),
         step: Some(1.0),
+        user_min: None,
+        user_max: None,
         options: vec![],
         invert: false,
     });
@@ -123,6 +133,8 @@ pub(crate) fn xy_binding_can_drive_pulses_fx_bus_and_global_fx_params() {
         min: Some(1.0),
         max: Some(32.0),
         step: Some(1.0),
+        user_min: None,
+        user_max: None,
         options: vec![],
         invert: false,
     });
@@ -155,6 +167,195 @@ pub(crate) fn invalid_aux_and_xy_bindings_are_dropped_on_load() {
         runner.xy_y_binding.as_ref().unwrap().key,
         "instruments.0.mixer.volume"
     );
+}
+
+#[test]
+pub(crate) fn numeric_binding_user_range_maps_values_and_round_trips() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.xy_touch = NativeXyTouch {
+        x: 0.5,
+        y: 0.0,
+        display_x: 0.5,
+        display_y: 0.0,
+        active: true,
+    };
+    runner.xy_x_binding = Some(NativeParamBinding {
+        key: "instruments.0.mixer.volume".into(),
+        label: Some("Volume".into()),
+        kind: "number".into(),
+        min: Some(0.0),
+        max: Some(100.0),
+        step: Some(1.0),
+        user_min: Some(20.0),
+        user_max: Some(80.0),
+        options: vec![],
+        invert: false,
+    });
+
+    runner.apply_runtime_modulation(&[], 0);
+
+    assert_eq!(runner.instruments[0].volume, 50);
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["layers"][0]["xy"]["x"]["userMin"],
+        20.0
+    );
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["layers"][0]["xy"]["x"]["userMax"],
+        80.0
+    );
+}
+
+#[test]
+pub(crate) fn custom_range_invert_equal_and_partial_ranges_are_sanitized() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.xy_invert_x = true;
+    runner.xy_touch = NativeXyTouch {
+        x: 0.25,
+        y: 0.0,
+        display_x: 0.25,
+        display_y: 0.0,
+        active: true,
+    };
+    runner
+        .apply_config_payload(json!({
+            "runtimeConfig": {
+                "layers": [{
+                    "xy": {
+                        "x": {
+                            "key": "instruments.0.mixer.volume",
+                            "label": "Volume",
+                            "kind": "number",
+                            "min": 0,
+                            "max": 100,
+                            "step": 1,
+                            "userMin": 90,
+                            "userMax": 10,
+                            "invert": true
+                        }
+                    }
+                }]
+            }
+        }))
+        .unwrap();
+
+    let binding = runner.xy_x_binding.as_ref().unwrap();
+    assert_eq!(binding.user_min, Some(10.0));
+    assert_eq!(binding.user_max, Some(90.0));
+    runner.apply_runtime_modulation(&[], 0);
+    assert_eq!(runner.instruments[0].volume, 70);
+
+    runner.xy_x_binding.as_mut().unwrap().user_min = Some(42.0);
+    runner.xy_x_binding.as_mut().unwrap().user_max = Some(42.0);
+    runner.apply_runtime_modulation(&[], 0);
+    assert_eq!(runner.instruments[0].volume, 42);
+
+    runner.xy_invert_x = false;
+    runner.xy_x_binding.as_mut().unwrap().user_min = None;
+    runner.xy_x_binding.as_mut().unwrap().user_max = Some(60.0);
+    runner.apply_runtime_modulation(&[], 0);
+    assert_eq!(runner.instruments[0].volume, 15);
+}
+
+#[test]
+pub(crate) fn enum_and_bool_bindings_drop_user_ranges_on_load() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner
+        .apply_config_payload(json!({
+            "runtimeConfig": {
+                "layers": [{
+                    "xy": {
+                        "x": {
+                            "key": "sound.voiceStealingMode",
+                            "label": "Steal",
+                            "kind": "enum",
+                            "options": ["auto-balanced", "auto-hard"],
+                            "userMin": 10,
+                            "userMax": 20
+                        }
+                    }
+                }]
+            }
+        }))
+        .unwrap();
+
+    let binding = runner.xy_x_binding.as_ref().unwrap();
+    assert_eq!(binding.kind, "enum");
+    assert_eq!(binding.user_min, None);
+    assert_eq!(binding.user_max, None);
+}
+
+#[test]
+pub(crate) fn range_rows_edit_xy_and_param_mod_bindings_only() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.sparks_mode = "xy".into();
+    runner.xy_x_binding = Some(NativeParamBinding {
+        key: "instruments.0.mixer.volume".into(),
+        label: Some("Volume".into()),
+        kind: "number".into(),
+        min: Some(0.0),
+        max: Some(100.0),
+        step: Some(1.0),
+        user_min: None,
+        user_max: None,
+        options: vec![],
+        invert: false,
+    });
+    runner.param_mods[0].x[0] = Some(NativeParamBinding {
+        key: "instruments.0.mixer.panPos".into(),
+        label: Some("Pan Pos".into()),
+        kind: "number".into(),
+        min: Some(0.0),
+        max: Some(32.0),
+        step: Some(1.0),
+        user_min: None,
+        user_max: None,
+        options: vec![],
+        invert: false,
+    });
+    runner.menu.rebuild(runner.menu_config());
+
+    assert!(runner.menu.focus_item_key("xy:x.rangeMin"));
+    runner.menu.state.editing = true;
+    runner.menu.turn(25);
+    runner.apply_menu_state().unwrap();
+    assert_eq!(runner.xy_x_binding.as_ref().unwrap().user_min, Some(25.0));
+    assert_eq!(runner.param_mods[0].x[0].as_ref().unwrap().user_min, None);
+
+    assert!(runner.menu.focus_item_key("param:0:x:0.rangeMax"));
+    runner.menu.state.editing = true;
+    runner.menu.turn(-8);
+    runner.apply_menu_state().unwrap();
+    assert_eq!(
+        runner.param_mods[0].x[0].as_ref().unwrap().user_max,
+        Some(24.0)
+    );
+    assert_eq!(runner.xy_x_binding.as_ref().unwrap().user_max, None);
+}
+
+#[test]
+pub(crate) fn aux_numeric_binding_picker_hides_range_rows() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner
+        .execute_menu_action(NativeMenuAction::SetParamBinding {
+            target: "aux:0:turn".into(),
+            binding: NativeParamBindingSpec {
+                key: "instruments.0.mixer.volume".into(),
+                label: Some("Volume".into()),
+                kind: "number".into(),
+                min: Some(0),
+                max: Some(100),
+                step: Some(1),
+                user_min: None,
+                user_max: None,
+                options: vec![],
+                invert: false,
+            },
+        })
+        .unwrap();
+    runner.menu.rebuild(runner.menu_config());
+
+    assert!(!runner.menu.focus_item_key("aux:0:turn.rangeMin"));
+    assert!(!runner.menu.focus_item_key("aux:0:turn.rangeMax"));
 }
 
 #[test]
