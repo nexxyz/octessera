@@ -16,6 +16,8 @@ use oled::{oled_frame_into, oled_signature};
 const SPLASH_BOOT: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/splash_boot.rgb565"));
 const SPLASH_SLEEP_SHUTDOWN: &[u8] =
     include_bytes!(concat!(env!("OUT_DIR"), "/splash_sleep_shutdown.rgb565"));
+const SLEEP_DIM_SCALE: f32 = 0.08;
+const MIN_SLEEP_DIM_SCALE: f32 = 0.04;
 
 pub struct HardwareRenderTargets {
     pub oled: OledSsd1351,
@@ -133,7 +135,7 @@ pub fn led_frame(snapshot: &Value) -> Option<[[u8; 3]; 64]> {
         .and_then(Value::as_bool)
         .unwrap_or(false)
     {
-        brightness *= 0.08;
+        brightness = sleep_dim_brightness(brightness);
     }
     let Some(rgb) = snapshot.get("leds")?.get("rgb").and_then(Value::as_array) else {
         return legacy_led_frame(snapshot, brightness);
@@ -177,7 +179,7 @@ pub fn neokey_colors(snapshot: &Value) -> [[u8; 3]; 4] {
         .and_then(Value::as_bool)
         .unwrap_or(false)
     {
-        button_scale *= 0.08;
+        button_scale = sleep_dim_brightness(button_scale);
     }
     let combined = settings
         .get("combinedModifierHeld")
@@ -290,6 +292,14 @@ fn brightness_scale(value: Option<&Value>) -> f32 {
         .and_then(Value::as_u64)
         .map(|value| value.min(100) as f32 / 100.0)
         .unwrap_or(1.0)
+}
+
+fn sleep_dim_brightness(brightness: f32) -> f32 {
+    if brightness <= 0.0 {
+        0.0
+    } else {
+        (brightness * SLEEP_DIM_SCALE).max(MIN_SLEEP_DIM_SCALE)
+    }
 }
 
 #[rustfmt::skip]

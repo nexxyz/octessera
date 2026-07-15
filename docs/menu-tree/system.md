@@ -54,7 +54,7 @@ System
 │   ├── Ghost Cells: [on | off]  default off  ← shows dim cells from inactive layers behind active layer
 │   ├── Auto Map: [on | off]  default on  ← enables context-sensitive aux mappings
 │   ├── Number Style: [bar | numbers | bar+numbers]  ← controls rendering of bar-style numeric params, default bar+numbers
-│   ├── Dim Timer: [0..600] step 10 s       default 60 (0=off; dims non-OLED LEDs)
+│   ├── Dim Timer: [0..600] step 10 s       default 60 (0=off; dims non-OLED LEDs with a small visible floor at low brightness)
 │   ├── OLED Sleep: [0..600] step 10 s      default 60 (0=off; OLED only)
 │   ├── OLED Bright: [10..100] step 5     default 75 (bar display when Number Style is bar or bar+numbers)
 │   ├── Grid Bright: [10..100] step 5     default 75 (bar display when Number Style is bar or bar+numbers)

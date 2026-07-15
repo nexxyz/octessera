@@ -231,7 +231,7 @@ Overrides:
 
 ## Brightness Behavior
 
-- OLED Bright scales OLED display intensity in host display adapters.
+- OLED Bright scales OLED display intensity in host display adapters. Grid Bright and Button Bright scale their LEDs; the Dim Timer applies an additional sleep dim with a small visible floor so low brightness settings do not make dimmed LEDs look fully off.
 - Grid Bright scales matrix LED RGB intensity.
 - Button Bright scales NeoKey button LED intensity.
 
