@@ -13,7 +13,7 @@ export const PLATFORM_CAPS = {
   "maxSampleVoices": 64,
   "maxSynthVoicesPerSlot": 8,
   "maxSampleVoicesPerSlot": 8,
-  "busFxWarningSlotCount": 6,
+  "busFxWarningSlotCount": 12,
   "busCount": 4,
   "globalFxSlotCount": 2,
   "auxEncoderCount": 3,

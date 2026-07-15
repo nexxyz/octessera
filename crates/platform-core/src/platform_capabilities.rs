@@ -36,7 +36,7 @@ mod tests {
         assert_eq!(GLOBAL_FX_SLOT_COUNT, 2);
         assert_eq!(AUX_ENCODER_COUNT, 3);
         assert_eq!(SPARKS_FX_MAX_CONCURRENT, 2);
-        assert_eq!(BUS_FX_WARNING_SLOT_COUNT, 6);
+        assert_eq!(BUS_FX_WARNING_SLOT_COUNT, 12);
         assert_eq!(SCAN_SECTION_COUNTS, &[1, 2, 4, 8]);
         assert_eq!(PAN_POSITION_COUNT, 33);
         assert_eq!(OLED_WIDTH, 128);

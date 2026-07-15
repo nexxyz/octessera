@@ -123,7 +123,7 @@ fn bus_heavy_instruments() -> InstrumentsConfig {
 }
 
 fn fx_limit_instruments(bus_slots: usize) -> InstrumentsConfig {
-    let active_buses = bus_slots.clamp(0, 6).div_ceil(2).max(1);
+    let active_buses = bus_slots.clamp(0, 12).div_ceil(3).max(1);
     InstrumentsConfig {
         instruments: (0..INSTRUMENT_SLOT_COUNT)
             .map(|slot| InstrumentSlotConfig {
@@ -153,17 +153,24 @@ fn fx_limit_buses(bus_slots: usize) -> Vec<FxBusConfig> {
     let kinds = [
         "delay",
         "reverb",
-        "filter_lfo",
+        "glitch",
+        "flanger",
         "chorus",
+        "filter_lfo",
+        "wah",
+        "vibrato",
+        "vinyl",
+        "auto_pan",
         "compressor",
         "eq",
     ];
     kinds
         .iter()
-        .take(bus_slots.clamp(0, 6))
+        .cycle()
+        .take(bus_slots.clamp(0, 12))
         .enumerate()
         .fold(Vec::<Vec<&str>>::new(), |mut buses, (index, kind)| {
-            let bus_index = index / 2;
+            let bus_index = index / 3;
             if buses.len() <= bus_index {
                 buses.push(Vec::new());
             }
@@ -216,7 +223,38 @@ fn master(slots: Vec<&str>) -> MasterFxConfig {
     MasterFxConfig {
         slots: slots
             .into_iter()
+            .take(2)
             .map(|kind| FxBusSlotConfig::Kind(kind.to_string()))
             .collect(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fx_limit_buses_pack_three_slots_per_bus_up_to_twelve() {
+        let buses = fx_limit_buses(12);
+
+        assert_eq!(buses.len(), 4);
+        assert!(buses.iter().all(|bus| bus.slots.len() == 3));
+    }
+
+    #[test]
+    fn fx_limit_buses_preserve_positional_partial_bus_slots() {
+        let buses = fx_limit_buses(8);
+
+        assert_eq!(buses.len(), 3);
+        assert_eq!(buses[0].slots.len(), 3);
+        assert_eq!(buses[1].slots.len(), 3);
+        assert_eq!(buses[2].slots.len(), 2);
+    }
+
+    #[test]
+    fn fx_limit_master_stays_two_slots() {
+        let master = master(vec!["compressor", "reverb", "eq"]);
+
+        assert_eq!(master.slots.len(), 2);
     }
 }

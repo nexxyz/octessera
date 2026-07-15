@@ -156,7 +156,7 @@ fn soak_scenarios(sample_rate: u32) -> Vec<ScenarioSpec> {
 
 fn fx_limit_scenarios(sample_rate: u32) -> Vec<ScenarioSpec> {
     let mut scenarios = Vec::new();
-    for bus_slots in [0, 2, 4, 6] {
+    for bus_slots in [0, 2, 4, 6, 8, 10, 12] {
         for momentary in [0, 1, 2] {
             scenarios.push(ScenarioSpec {
                 name: format!("fx_limits_8layers_2global_{bus_slots}bus_{momentary}momentary"),
