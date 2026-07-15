@@ -282,8 +282,15 @@ pub(crate) fn instrument_route_turn_applies_immediately() {
     assert_eq!(runner.instruments[0].route, "fx_bus_1");
     assert_eq!(
         runner.menu.root.children[2].children[0].children[0].label,
-        "I1: synth fx_bus_1"
+        "I1: synth fxb1"
     );
+    let display_lines = snapshot_from(&messages)["display"]["lines"]
+        .as_array()
+        .unwrap()
+        .clone();
+    assert!(display_lines
+        .iter()
+        .any(|line| line.as_str().unwrap_or("").contains("fxb1")));
     assert_eq!(runner.audio_config_revision, 1);
     assert_no_store_save_default(&messages);
     assert!(messages.iter().any(|message| matches!(

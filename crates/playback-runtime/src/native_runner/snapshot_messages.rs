@@ -164,6 +164,14 @@ impl NativeRunner {
         &mut self,
         effects: Vec<RuntimePlatformEffect>,
     ) -> Result<Vec<RunnerMessage>, String> {
+        if effects
+            .iter()
+            .any(|effect| matches!(effect, RuntimePlatformEffect::AudioCommand { .. }))
+        {
+            let mut messages = self.messages_with_snapshot()?;
+            messages.push(RunnerMessage::PlatformEffects { effects });
+            return Ok(messages);
+        }
         let mut messages = vec![RunnerMessage::PlatformEffects { effects }];
         messages.extend(self.messages_with_snapshot()?);
         Ok(messages)

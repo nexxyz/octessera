@@ -1,6 +1,62 @@
 use super::*;
 
 #[test]
+pub(crate) fn pan_page_grid_edit_sends_live_mixer_commands() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.active_sparks_mode = "pan".into();
+
+    let direct = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 6, "y": 0 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert_eq!(runner.instruments[0].pan_pos, 27);
+    assert!(direct.iter().any(|message| matches!(
+        message,
+        RunnerMessage::AudioCommands { commands }
+            if commands.iter().any(|command| matches!(
+                command,
+                RuntimeAudioCommand::SetInstrumentMixer {
+                    instrument_slot: 0,
+                    volume_pct: None,
+                    pan_pos: Some(27),
+                }
+            ))
+    )));
+
+    runner.instruments[0].route = "fx_bus_1".into();
+    let bus = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 1, "y": 0 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert_eq!(runner.instruments[0].pan_pos, 5);
+    assert_eq!(runner.fx_buses[0].pan_pos, 5);
+    assert!(bus.iter().any(|message| matches!(
+        message,
+        RunnerMessage::AudioCommands { commands }
+            if commands.iter().any(|command| matches!(
+                command,
+                RuntimeAudioCommand::SetInstrumentMixer {
+                    instrument_slot: 0,
+                    volume_pct: None,
+                    pan_pos: Some(5),
+                }
+            )) && commands.iter().any(|command| matches!(
+                command,
+                RuntimeAudioCommand::SetFxBusMixer {
+                    bus_index: 0,
+                    pan_pos: Some(5),
+                }
+            ))
+    )));
+}
+
+#[test]
 pub(crate) fn entering_worlds_or_pulses_clears_active_sparks_overlay_but_keeps_selected_page() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.sparks_mode = "pan".into();

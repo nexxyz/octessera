@@ -278,10 +278,18 @@ fn instrument_overview_label(
     midi_channel: u8,
 ) -> String {
     let prefix = base_label.split_whitespace().next().unwrap_or(base_label);
+    let route = compact_route_postfix(route);
     match kind {
         "sampler" => format!("{prefix} samp {route}"),
         "midi" => format!("{prefix} midi ch{midi_channel}"),
         "none" => format!("{prefix} none"),
         _ => format!("{prefix} synth {route}"),
     }
+}
+
+fn compact_route_postfix(route: &str) -> String {
+    route
+        .strip_prefix("fx_bus_")
+        .map(|suffix| format!("fxb{suffix}"))
+        .unwrap_or_else(|| route.into())
 }

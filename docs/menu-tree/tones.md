@@ -7,7 +7,7 @@ This file is part of the canonical split-out menu tree spec. See [`../menu-tree-
 ```
 Shape
 ├── Instruments (group)
-│   ├── Instrument 1..8 (group)                ← compact overview label e.g. `I1: synth direct`, `I2: samp fx_bus_1`, `I3: midi ch1`
+│   ├── Instrument 1..8 (group)                ← compact overview label e.g. `I1: synth direct`, `I2: samp fxb1`, `I3: midi ch1`
 │   │   ├── Type: [none | synth | sampler | midi]
 │   │   ├── Note Mode: [oneshot | hold] default oneshot
 │   │   ├── Synth (group, visible when type=synth)

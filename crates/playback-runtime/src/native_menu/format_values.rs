@@ -6,6 +6,9 @@ pub(super) fn format_display_value(key: Option<&str>, value: impl ToString) -> S
     if key.ends_with("panPos") {
         return format_pan_position(raw.parse::<i32>().unwrap_or(16));
     }
+    if key.ends_with("mixer.route") {
+        return compact_route_value(&raw);
+    }
     if key.ends_with("pitch.lowestNote")
         || key.ends_with("pitch.highestNote")
         || key.ends_with("pitch.startingNote")
@@ -32,6 +35,13 @@ pub(super) fn format_display_value(key: Option<&str>, value: impl ToString) -> S
         return format!("{ms}ms");
     }
     raw
+}
+
+fn compact_route_value(value: &str) -> String {
+    value
+        .strip_prefix("fx_bus_")
+        .map(|suffix| format!("fxb{suffix}"))
+        .unwrap_or_else(|| value.into())
 }
 
 fn format_fx_param_display(key: &str, value: i32) -> String {

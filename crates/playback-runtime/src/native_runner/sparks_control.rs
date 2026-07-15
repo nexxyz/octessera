@@ -134,30 +134,45 @@ impl NativeRunner {
                         if instrument.volume != volume {
                             instrument.volume = volume;
                             self.config_dirty = true;
+                            self.queue_audio_command(RuntimeAudioCommand::SetInstrumentMixer {
+                                instrument_slot: x,
+                                volume_pct: Some(f32::from(volume)),
+                                pan_pos: None,
+                            });
                         }
                     }
                 }
             }
             "pan" => {
-                if let Some(instrument) = self.instruments.get_mut(y) {
-                    if instrument.kind != "none" {
-                        let pan_pos = touch_pan_pos_from_grid_x(x);
-                        if let Some(bus_index) = instrument
-                            .route
-                            .strip_prefix("fx_bus_")
-                            .and_then(|value| value.parse::<usize>().ok())
-                            .and_then(|value| value.checked_sub(1))
-                        {
-                            if let Some(bus) = self.fx_buses.get_mut(bus_index) {
-                                if bus.pan_pos != pan_pos {
-                                    bus.pan_pos = pan_pos;
-                                    self.config_dirty = true;
-                                }
+                let pan_pos = touch_pan_pos_from_grid_x(x);
+                let Some(instrument) = self.instruments.get_mut(y) else {
+                    return;
+                };
+                if instrument.kind != "none" {
+                    let bus_index = instrument
+                        .route
+                        .strip_prefix("fx_bus_")
+                        .and_then(|value| value.parse::<usize>().ok())
+                        .and_then(|value| value.checked_sub(1));
+                    if instrument.pan_pos != pan_pos {
+                        instrument.pan_pos = pan_pos;
+                        self.config_dirty = true;
+                        self.queue_audio_command(RuntimeAudioCommand::SetInstrumentMixer {
+                            instrument_slot: y,
+                            volume_pct: None,
+                            pan_pos: Some(usize::from(pan_pos)),
+                        });
+                    }
+                    if let Some(bus_index) = bus_index {
+                        if let Some(bus) = self.fx_buses.get_mut(bus_index) {
+                            if bus.pan_pos != pan_pos {
+                                bus.pan_pos = pan_pos;
+                                self.config_dirty = true;
+                                self.queue_audio_command(RuntimeAudioCommand::SetFxBusMixer {
+                                    bus_index,
+                                    pan_pos: Some(usize::from(pan_pos)),
+                                });
                             }
-                        }
-                        if instrument.pan_pos != pan_pos {
-                            instrument.pan_pos = pan_pos;
-                            self.config_dirty = true;
                         }
                     }
                 }

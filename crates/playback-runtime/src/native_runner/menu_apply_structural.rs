@@ -159,10 +159,18 @@ impl NativeRunner {
 
 fn instrument_overview_label(index: usize, instrument: &super::NativeInstrumentSlot) -> String {
     let prefix = format!("I{}:", index + 1);
+    let route = compact_route_postfix(&instrument.route);
     match instrument.kind.as_str() {
-        "sampler" => format!("{prefix} samp {}", instrument.route),
+        "sampler" => format!("{prefix} samp {route}"),
         "midi" => format!("{prefix} midi ch{}", instrument.midi_channel),
         "none" => format!("{prefix} none"),
-        _ => format!("{prefix} synth {}", instrument.route),
+        _ => format!("{prefix} synth {route}"),
     }
+}
+
+fn compact_route_postfix(route: &str) -> String {
+    route
+        .strip_prefix("fx_bus_")
+        .map(|suffix| format!("fxb{suffix}"))
+        .unwrap_or_else(|| route.into())
 }

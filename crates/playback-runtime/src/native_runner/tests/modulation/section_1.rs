@@ -85,6 +85,18 @@ pub(crate) fn sparks_mix_grid_edit_autosaves_persistent_volume_change() {
     assert_eq!(runner.instruments[0].volume, 14);
     assert!(messages.iter().any(|message| matches!(
         message,
+        RunnerMessage::AudioCommands { commands }
+            if commands.iter().any(|command| matches!(
+                command,
+                RuntimeAudioCommand::SetInstrumentMixer {
+                    instrument_slot: 0,
+                    volume_pct: Some(volume),
+                    pan_pos: None,
+                } if (*volume - 14.0).abs() < f32::EPSILON
+            ))
+    )));
+    assert!(messages.iter().any(|message| matches!(
+        message,
         RunnerMessage::PlatformEffects { effects }
             if matches!(
                 effects.as_slice(),

@@ -25,6 +25,29 @@ pub(crate) fn sparks_fx_grid_press_and_release_emit_audio_commands() {
         RunnerMessage::PlatformEffects { effects }
             if matches!(effects.as_slice(), [RuntimePlatformEffect::AudioCommand { command: RuntimeAudioCommand::MomentaryFxStart { id, fx_type, params, .. } }] if id == "momentary-fx:2:3" && fx_type == "stutter" && params.get("rateHz") == Some(&json!(12)))
     )));
+    let start_index = start
+        .iter()
+        .position(|message| {
+            matches!(
+                message,
+                RunnerMessage::PlatformEffects { effects }
+                    if effects.iter().any(|effect| matches!(
+                        effect,
+                        RuntimePlatformEffect::AudioCommand {
+                            command: RuntimeAudioCommand::MomentaryFxStart { .. }
+                        }
+                    ))
+            )
+        })
+        .unwrap();
+    assert!(start
+        .iter()
+        .take(start_index)
+        .any(|message| matches!(message, RunnerMessage::AudioCommands { .. })));
+    assert!(start
+        .iter()
+        .skip(start_index + 1)
+        .all(|message| !matches!(message, RunnerMessage::AudioCommands { .. })));
 
     let stop = runner
         .send(HostMessage::DeviceInput {
