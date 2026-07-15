@@ -1,4 +1,8 @@
 import {
+  GRID_HEIGHT,
+  GRID_WIDTH,
+  OLED_HEIGHT,
+  OLED_WIDTH,
   PAN_POSITION_COUNT,
   RED_COLOR,
   YELLOW_COLOR,
@@ -40,10 +44,21 @@ export function createRuntimeSnapshotCache(): RuntimeSnapshotCache {
 }
 
 export function createInitialRuntimeSnapshot(): RuntimeSnapshot {
-  const blankOled: OledFrame = { width: 128, height: 128, format: "rgb565be", pixels: new Uint8Array(32768) };
+  const blankOled: OledFrame = {
+    width: OLED_WIDTH,
+    height: OLED_HEIGHT,
+    format: "rgb565be",
+    pixels: new Uint8Array(OLED_WIDTH * OLED_HEIGHT * 2),
+  };
+  const ledCount = GRID_WIDTH * GRID_HEIGHT;
   return {
     oled: blankOled,
-    leds: { width: 8, height: 8, rgb: Array.from({ length: 64 * 3 }, () => 0), active: Array.from({ length: 64 }, () => false) },
+    leds: {
+      width: GRID_WIDTH,
+      height: GRID_HEIGHT,
+      rgb: Array.from({ length: ledCount * 3 }, () => 0),
+      active: Array.from({ length: ledCount }, () => false),
+    },
     transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
     display: { page: "boot", title: "Boot", lines: [], editing: false },
     activeBehavior: "life",

@@ -76,7 +76,7 @@ function useSemanticOledState(
   const scroll = totalRows > visibleRows && visibleRows > 0
     ? { offset: Math.max(0, scrollOffset), totalRows, visibleRows }
     : null;
-  const transportIcon = String(frame.transportIcon ?? (frame.transport.playing ? "play" : "pause"));
+  const transportIcon = String(frame.transportIcon ?? (frame.transport.playing ? "play" : "stop"));
   const eventDotOn = Boolean(frame.eventDotOn ?? false);
   const eventDotSteal = audioLoad?.voiceSteal === true;
   const transportFlash = String(frame.transportFlash ?? "none");
