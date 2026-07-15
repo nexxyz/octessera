@@ -5,6 +5,8 @@ pub struct PlatformCapabilities {
     pub layer_count: usize,
     pub instrument_count: usize,
     pub sample_slot_count: usize,
+    pub audio_block_frames: usize,
+    pub synth_slot_workers: usize,
     pub bus_count: usize,
     pub global_fx_slot_count: usize,
     pub aux_encoder_count: usize,
@@ -32,6 +34,8 @@ mod tests {
         assert_eq!(LAYER_COUNT, 8);
         assert_eq!(INSTRUMENT_COUNT, 8);
         assert_eq!(SAMPLE_SLOT_COUNT, 8);
+        assert_eq!(AUDIO_BLOCK_FRAMES, 256);
+        assert_eq!(SYNTH_SLOT_WORKERS, 2);
         assert_eq!(BUS_COUNT, 4);
         assert_eq!(GLOBAL_FX_SLOT_COUNT, 2);
         assert_eq!(AUX_ENCODER_COUNT, 3);

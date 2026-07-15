@@ -50,4 +50,4 @@ At 256-frame blocks, overload profiling showed the parallel path can help if it 
 | `mixed_cross_slot_48_48_steal` | 2 | 0.711 | 0.714 | 0.803 | 48/48 |
 | `mixed_cross_slot_48_48_steal` | 3 | 0.713 | 0.731 | 0.798 | 48/48 |
 
-Recommendation: do not enable synth-slot workers by default for the current 128-frame low-latency path; they cannot dispatch there. If Octessera gets a high-headroom Pi audio mode at 256-frame blocks, prefer 2 workers first. Three workers helped mixed overload about the same as two, but was worse for synth-only overload on this Pi.
+Update: platform capabilities now use the high-headroom path: 256-frame internal render blocks and 2 synth-slot workers. The runtime default output buffer remains 256 frames. `OCTESSERA_AUDIO_OUTPUT_BUFFER_FRAMES`, `OCTESSERA_AUDIO_BLOCK_FRAMES`, and `OCTESSERA_SYNTH_SLOT_WORKERS` still override those defaults for profiling.

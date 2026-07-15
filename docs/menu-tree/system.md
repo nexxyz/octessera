@@ -39,7 +39,7 @@ System
 │   ├── Velocity Scale: [0..200] step 5 %   default 100
 │   ├── Velocity Curve: [linear | soft | hard]
 │   ├── Voice Limit: [fixed12 | fixed16 | auto-soft | auto-balanced | auto-hard | none]  default auto-balanced
-│   └── Output Buffer: [64 | 128 | 256 | 512 | 1024 | 2048] frames  default 256  ← restart required; env override still wins
+│   └── Output Buffer: [64 | 128 | 256 | 512 | 1024 | 2048] frames  default 256  ← CPAL/ALSA buffer; restart required; OCTESSERA_AUDIO_OUTPUT_BUFFER_FRAMES wins
 ├── MIDI (group)
 │   ├── Enabled: [on | off]
 │   ├── !Panic: (action)

@@ -35,6 +35,7 @@ function capabilitiesFrom(source) {
     sampleSlotCount: positiveInteger(source, "sampleSlotCount"),
     audioSampleRate: positiveInteger(source, "audioSampleRate"),
     audioBlockFrames: positiveInteger(source, "audioBlockFrames"),
+    synthSlotWorkers: positiveInteger(source, "synthSlotWorkers"),
     maxSynthVoices: positiveInteger(source, "maxSynthVoices"),
     maxSampleVoices: positiveInteger(source, "maxSampleVoices"),
     maxSynthVoicesPerSlot: positiveInteger(source, "maxSynthVoicesPerSlot"),

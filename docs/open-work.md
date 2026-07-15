@@ -33,7 +33,7 @@ This file tracks current actionable work only. Completed-work history does not b
 
 ## Performance And Limits
 
-- Evaluate a deliberate Pi high-headroom audio mode using 256-frame blocks and 2 synth-slot workers. Current 128-frame low-latency mode does not dispatch synth-slot workers.
+- Profile and tune Pi high-headroom capability defaults now that internal blocks are 256 frames with 2 synth-slot workers.
 - Consider centralizing timing selector fallback/index helpers so invalid labels display the same default that runtime conversion uses.
 
 ## Quality Targets

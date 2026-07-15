@@ -20,6 +20,8 @@ fn main() {
     let layer_count = positive_usize(&value, "layerCount");
     let instrument_count = positive_usize(&value, "instrumentCount");
     let sample_slot_count = positive_usize(&value, "sampleSlotCount");
+    let audio_block_frames = positive_usize(&value, "audioBlockFrames");
+    let synth_slot_workers = positive_usize(&value, "synthSlotWorkers");
     let bus_count = positive_usize(&value, "busCount");
     let global_fx_slot_count = positive_usize(&value, "globalFxSlotCount");
     let aux_encoder_count = positive_usize(&value, "auxEncoderCount");
@@ -41,6 +43,8 @@ pub const GRID_HEIGHT: usize = {grid_height};
 pub const LAYER_COUNT: usize = {layer_count};
 pub const INSTRUMENT_COUNT: usize = {instrument_count};
 pub const SAMPLE_SLOT_COUNT: usize = {sample_slot_count};
+pub const AUDIO_BLOCK_FRAMES: usize = {audio_block_frames};
+pub const SYNTH_SLOT_WORKERS: usize = {synth_slot_workers};
 pub const BUS_COUNT: usize = {bus_count};
 pub const GLOBAL_FX_SLOT_COUNT: usize = {global_fx_slot_count};
 pub const AUX_ENCODER_COUNT: usize = {aux_encoder_count};
@@ -56,6 +60,8 @@ pub const PLATFORM_CAPABILITIES: PlatformCapabilities = PlatformCapabilities {{
     layer_count: LAYER_COUNT,
     instrument_count: INSTRUMENT_COUNT,
     sample_slot_count: SAMPLE_SLOT_COUNT,
+    audio_block_frames: AUDIO_BLOCK_FRAMES,
+    synth_slot_workers: SYNTH_SLOT_WORKERS,
     bus_count: BUS_COUNT,
     global_fx_slot_count: GLOBAL_FX_SLOT_COUNT,
     aux_encoder_count: AUX_ENCODER_COUNT,

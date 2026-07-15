@@ -447,8 +447,6 @@ WorkingDirectory=$RemoteRepo
 Environment=OCTESSERA_PI_SAMPLES_DIR=/home/pi/samples
 Environment=OCTESSERA_PI_STORE_DIR=/home/pi/presets
 Environment=OCTESSERA_EARLY_BOOT_SPLASH=1
-Environment=OCTESSERA_SYNTH_SLOT_WORKERS=3
-Environment=OCTESSERA_AUDIO_BLOCK_FRAMES=256
 ${wakeTraceEnvironmentLine}ExecStart=/usr/local/bin/octessera-pi
 Restart=always
 RestartSec=5

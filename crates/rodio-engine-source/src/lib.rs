@@ -2,7 +2,9 @@ mod event;
 mod telemetry;
 
 pub use event::EngineEvent;
-use realtime_engine::synth::{AudioLoadStatus, SynthEngine, DEFAULT_AUDIO_BLOCK_FRAMES};
+use realtime_engine::synth::{
+    AudioLoadStatus, SynthEngine, DEFAULT_AUDIO_BLOCK_FRAMES, DEFAULT_SYNTH_SLOT_WORKERS,
+};
 use std::env;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender};
@@ -298,8 +300,10 @@ fn audio_block_frames() -> usize {
 }
 
 fn synth_slot_worker_count() -> Option<usize> {
-    let raw = env::var("OCTESSERA_SYNTH_SLOT_WORKERS").ok()?;
-    let count = raw.trim().parse::<usize>().ok()?;
+    let count = env::var("OCTESSERA_SYNTH_SLOT_WORKERS")
+        .ok()
+        .and_then(|raw| raw.trim().parse::<usize>().ok())
+        .unwrap_or(DEFAULT_SYNTH_SLOT_WORKERS);
     (count > 0).then_some(count.min(3))
 }
 
@@ -342,5 +346,11 @@ mod tests {
             }
         }
         assert!(saw_audio);
+    }
+
+    #[test]
+    fn capability_audio_defaults_enable_high_headroom_mode() {
+        assert_eq!(audio_block_frames(), DEFAULT_AUDIO_BLOCK_FRAMES);
+        assert_eq!(synth_slot_worker_count(), Some(DEFAULT_SYNTH_SLOT_WORKERS));
     }
 }

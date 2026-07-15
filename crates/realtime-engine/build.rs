@@ -16,6 +16,7 @@ fn main() {
     let generated = format!(
         "pub const DEFAULT_AUDIO_SAMPLE_RATE: u32 = {};\n\
          pub const DEFAULT_AUDIO_BLOCK_FRAMES: usize = {};\n\
+         pub const DEFAULT_SYNTH_SLOT_WORKERS: usize = {};\n\
          pub const MAX_SYNTH_VOICES: usize = {};\n\
          pub const MAX_SAMPLE_VOICES: usize = {};\n\
          pub const MAX_SYNTH_VOICES_PER_SLOT: usize = {};\n\
@@ -27,6 +28,7 @@ fn main() {
          pub const SAMPLE_SLOTS_PER_INSTRUMENT: usize = {};\n",
         positive_usize(&value, "audioSampleRate"),
         positive_usize(&value, "audioBlockFrames"),
+        positive_usize(&value, "synthSlotWorkers"),
         positive_usize(&value, "maxSynthVoices"),
         positive_usize(&value, "maxSampleVoices"),
         positive_usize(&value, "maxSynthVoicesPerSlot"),
