@@ -96,4 +96,7 @@ Behavior-specific config items (from `configMenu()`):
 | shapes | Auto Spawn Int: [0=off, 10, 20, 50] | enum |
 | shapes | !Spawn Pulse | action, shared route `trigger.life.spawn_now` |
 | raindrops | !Drop Now | action, shared route `trigger.life.spawn_now` |
+| dla | Spawn Interval: [1..20] | number, step 1 |
+| dla | Spawn Step: [0..63] | number, step 1 |
+| dla | Cell Life: [0..256] | number, step 1; `0` disables DLA aging/removal |
 | dla | !Seed Cluster | action, shared route `trigger.life.spawn_now` |

@@ -44,6 +44,7 @@ layer_bubbles_drift	*	key:layers.*.worlds.behaviorConfig.drift	number	Drift	Sets
 layer_bubbles_current	*	key:layers.*.worlds.behaviorConfig.current	number	Current	Pushes all bubbles sideways in eighth-cell units per tick.	Negative values push left; positive values push right; walls clamp the center.
 layer_bubbles_buoyancy	*	key:layers.*.worlds.behaviorConfig.buoyancy	number	Buoyancy	Sets upward speed in eighth-cell units per tick.	Bubbles leave only after their rendered shape is fully above the top.
 layer_bubbles_max	*	key:layers.*.worlds.behaviorConfig.maxBubbles	number	Max Bubbles	Caps the number of active Bubbles particles.	Automatic and manual spawns stop at this limit.
+layer_dla_cell_life	*	key:layers.*.worlds.behaviorConfig.cellLife	number	DLA Cell Life	Sets how many behavior ticks a DLA cell can remain before aging out.	Use 0 to disable DLA aging; if all cells expire, DLA reseeds a starter cluster.
 layer_looper_punch	*	action:behavior_action:toggleMode	action	Punch In/Out	Toggles the looper between overdub and play.	Keeps the recorded loop and current playback position.
 layer_looper_length	*	key:layers.*.worlds.behaviorConfig.lengthSteps	number	Length	Sets the loop length in this layer's behavior steps.	Use a faster Step Rate for tighter recording and playback resolution.
 layer_looper_clear	*	action:behavior_action:clearLoop	action	Clear Loop	Clears the recorded looper sequence for this layer.	Live-held cells stay active; loop playback cells are released.
