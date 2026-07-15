@@ -129,6 +129,7 @@ pub(crate) fn parse_audio_config(config: &serde_json::Value) -> Result<ParsedAud
     let config = serde_json::from_value::<AudioConfigPayload>(config.clone())
         .map_err(|e| format!("invalid audio config payload: {e}"))?;
     let mut sample_sources = Vec::with_capacity(config.instruments.len());
+    let mixer = config.mixer.map(mixer_config).transpose()?;
     let instruments = InstrumentsConfig {
         instruments: config
             .instruments
@@ -141,7 +142,7 @@ pub(crate) fn parse_audio_config(config: &serde_json::Value) -> Result<ParsedAud
                 instrument_slot_config(slot)
             })
             .collect(),
-        mixer: config.mixer.map(mixer_config),
+        mixer,
         pan_positions: config.pan_positions.unwrap_or(DEFAULT_PAN_POSITIONS),
         master_volume: config.master_volume.unwrap_or(100.0),
     };
@@ -327,33 +328,70 @@ fn pi_relative_sample_path(path: &str) -> &str {
         .unwrap_or(path)
 }
 
-fn mixer_config(config: AudioMixerPayload) -> MixerConfig {
-    MixerConfig {
-        buses: config
-            .buses
-            .into_iter()
-            .map(|bus| FxBusConfig {
-                slots: [bus.slot1, bus.slot2, bus.slot3]
-                    .into_iter()
-                    .map(|slot| {
-                        slot.map_or_else(|| FxBusSlotConfig::Kind("none".into()), fx_slot_config)
-                    })
-                    .collect(),
+fn mixer_config(config: AudioMixerPayload) -> Result<MixerConfig, String> {
+    let buses = config
+        .buses
+        .into_iter()
+        .enumerate()
+        .map(|(bus_index, bus)| {
+            let slots = [bus.slot1, bus.slot2, bus.slot3]
+                .into_iter()
+                .enumerate()
+                .map(|(slot_index, slot)| match slot {
+                    Some(slot) => fx_slot_config(slot).map_err(|error| {
+                        format!(
+                            "invalid mixer bus {} slot {}: {error}",
+                            bus_index + 1,
+                            slot_index + 1
+                        )
+                    }),
+                    None => Ok(FxBusSlotConfig::Kind("none".into())),
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(FxBusConfig {
+                slots,
                 pan_pos: bus.pan_pos.unwrap_or(16),
                 volume_pct: bus.volume_pct.unwrap_or(100.0),
             })
-            .collect(),
-        master: config.master.map(|master| MasterFxConfig {
-            slots: master
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    let master = config
+        .master
+        .map(|master| {
+            master
                 .slots
                 .into_iter()
                 .take(2)
-                .map(fx_slot_config)
-                .collect(),
-        }),
-    }
+                .enumerate()
+                .map(|(slot_index, slot)| {
+                    fx_slot_config(slot)
+                        .map_err(|error| format!("invalid master slot {}: {error}", slot_index + 1))
+                })
+                .collect::<Result<Vec<_>, _>>()
+                .map(|slots| MasterFxConfig { slots })
+        })
+        .transpose()?;
+
+    Ok(MixerConfig { buses, master })
 }
 
-fn fx_slot_config(value: serde_json::Value) -> FxBusSlotConfig {
-    serde_json::from_value(value).unwrap_or_else(|_| FxBusSlotConfig::Kind("none".into()))
+fn fx_slot_config(value: serde_json::Value) -> Result<FxBusSlotConfig, String> {
+    match value {
+        serde_json::Value::String(kind) => Ok(FxBusSlotConfig::Kind(kind)),
+        serde_json::Value::Object(mut object) => {
+            let Some(kind) = object
+                .remove("type")
+                .and_then(|value| value.as_str().map(str::to_owned))
+            else {
+                return Err("expected slot object with string type".into());
+            };
+            let params = object
+                .remove("params")
+                .unwrap_or_else(|| serde_json::json!({}));
+            let params = serde_json::from_value(params)
+                .map_err(|error| format!("invalid slot params: {error}"))?;
+            Ok(FxBusSlotConfig::Config { kind, params })
+        }
+        _ => Err("expected slot string or object".into()),
+    }
 }

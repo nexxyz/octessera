@@ -40,6 +40,50 @@ fn parses_full_audio_config_payload_for_engine() {
 }
 
 #[test]
+fn malformed_fx_slot_payload_fails_parse() {
+    let error = match parse_audio_config(&serde_json::json!({
+        "instruments": [{ "type": "synth" }],
+        "mixer": { "buses": [{ "slot1": { "params": {} } }] }
+    })) {
+        Ok(_) => panic!("malformed slot unexpectedly parsed"),
+        Err(error) => error,
+    };
+
+    assert!(error.contains("invalid mixer bus 1 slot 1"), "{error}");
+}
+
+#[test]
+fn missing_fx_slots_default_to_positional_none() {
+    let config = parse_audio_config(&serde_json::json!({
+        "instruments": [{ "type": "synth" }],
+        "mixer": { "buses": [{}] }
+    }))
+    .unwrap();
+    let mixer_config = config.instruments.mixer.unwrap();
+
+    assert_eq!(mixer_config.buses[0].slots.len(), 3);
+    assert!(mixer_config.buses[0]
+        .slots
+        .iter()
+        .all(|slot| matches!(slot, FxBusSlotConfig::Kind(kind) if kind == "none")));
+}
+
+#[test]
+fn explicit_none_fx_slot_still_parses() {
+    let config = parse_audio_config(&serde_json::json!({
+        "instruments": [{ "type": "synth" }],
+        "mixer": { "buses": [{ "slot1": { "type": "none" } }] }
+    }))
+    .unwrap();
+    let mixer_config = config.instruments.mixer.unwrap();
+
+    assert!(matches!(
+        mixer_config.buses[0].slots[0],
+        FxBusSlotConfig::Config { ref kind, .. } if kind == "none"
+    ));
+}
+
+#[test]
 fn sample_signature_tracks_sampler_param_changes() {
     let first = vec![sampler_source(AudioSamplePayload {
         slots: vec![AudioSampleSlotPayload {

@@ -78,24 +78,10 @@ pub(crate) fn shape_service_unavailable_result(
                 message,
             },
         }],
-        DesktopPlatformServiceRequest::MidiListOutputs => vec![
-            HostMessage::RuntimeResult {
-                result: RuntimeStoreResult::MidiListOutputsResult {
-                    outputs: Vec::new(),
-                },
-            },
-            HostMessage::RuntimeResult {
-                result: RuntimeStoreResult::StoreError { message },
-            },
-        ],
-        DesktopPlatformServiceRequest::MidiListInputs => vec![
-            HostMessage::RuntimeResult {
-                result: RuntimeStoreResult::MidiListInputsResult { inputs: Vec::new() },
-            },
-            HostMessage::RuntimeResult {
-                result: RuntimeStoreResult::StoreError { message },
-            },
-        ],
+        DesktopPlatformServiceRequest::MidiListOutputs
+        | DesktopPlatformServiceRequest::MidiListInputs => vec![HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::StoreError { message },
+        }],
     }
 }
 
@@ -134,16 +120,9 @@ fn shape_midi_outputs_result(
                 outputs: midi_ports(outputs),
             },
         }],
-        Err(message) => vec![
-            HostMessage::RuntimeResult {
-                result: RuntimeStoreResult::MidiListOutputsResult {
-                    outputs: Vec::new(),
-                },
-            },
-            HostMessage::RuntimeResult {
-                result: RuntimeStoreResult::StoreError { message },
-            },
-        ],
+        Err(message) => vec![HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::StoreError { message },
+        }],
     }
 }
 
@@ -156,14 +135,9 @@ fn shape_midi_inputs_result(
                 inputs: midi_ports(inputs),
             },
         }],
-        Err(message) => vec![
-            HostMessage::RuntimeResult {
-                result: RuntimeStoreResult::MidiListInputsResult { inputs: Vec::new() },
-            },
-            HostMessage::RuntimeResult {
-                result: RuntimeStoreResult::StoreError { message },
-            },
-        ],
+        Err(message) => vec![HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::StoreError { message },
+        }],
     }
 }
 
@@ -211,14 +185,50 @@ mod tests {
     }
 
     #[test]
-    fn midi_output_error_returns_empty_list_and_store_error() {
-        let messages = shape_midi_outputs_result(|| Err("midi unavailable".into()));
-        assert_eq!(messages.len(), 2);
+    fn midi_output_error_returns_only_store_error() {
+        let result = only_result(shape_midi_outputs_result(|| Err("midi unavailable".into())));
         assert!(
-            matches!(&messages[0], HostMessage::RuntimeResult { result: RuntimeStoreResult::MidiListOutputsResult { outputs } } if outputs.is_empty())
+            matches!(result, RuntimeStoreResult::StoreError { message } if message == "midi unavailable")
         );
+    }
+
+    #[test]
+    fn midi_input_error_returns_only_store_error() {
+        let result = only_result(shape_midi_inputs_result(|| Err("midi unavailable".into())));
         assert!(
-            matches!(&messages[1], HostMessage::RuntimeResult { result: RuntimeStoreResult::StoreError { message } } if message == "midi unavailable")
+            matches!(result, RuntimeStoreResult::StoreError { message } if message == "midi unavailable")
+        );
+    }
+
+    #[test]
+    fn midi_empty_lists_remain_successful_results() {
+        let outputs = only_result(shape_midi_outputs_result(|| Ok(Vec::new())));
+        assert!(
+            matches!(outputs, RuntimeStoreResult::MidiListOutputsResult { outputs } if outputs.is_empty())
+        );
+
+        let inputs = only_result(shape_midi_inputs_result(|| Ok(Vec::new())));
+        assert!(
+            matches!(inputs, RuntimeStoreResult::MidiListInputsResult { inputs } if inputs.is_empty())
+        );
+    }
+
+    #[test]
+    fn service_unavailable_midi_requests_return_only_store_error() {
+        let outputs = only_result(shape_service_unavailable_result(
+            DesktopPlatformServiceRequest::MidiListOutputs,
+            "service down".into(),
+        ));
+        assert!(
+            matches!(outputs, RuntimeStoreResult::StoreError { message } if message == "service down")
+        );
+
+        let inputs = only_result(shape_service_unavailable_result(
+            DesktopPlatformServiceRequest::MidiListInputs,
+            "service down".into(),
+        ));
+        assert!(
+            matches!(inputs, RuntimeStoreResult::StoreError { message } if message == "service down")
         );
     }
 
