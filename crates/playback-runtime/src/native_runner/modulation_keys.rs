@@ -1,7 +1,10 @@
-pub(super) fn parse_pulses_binding_key(key: &str) -> Option<(usize, &str)> {
+pub(super) fn parse_pulses_binding_key(key: &str) -> Option<(usize, String)> {
     let rest = key.strip_prefix("layers.")?;
+    if let Some((index, field)) = rest.split_once(".linkLfo.") {
+        return Some((index.parse::<usize>().ok()?, format!("linkLfo.{field}")));
+    }
     let (index, field) = rest.split_once(".pulses.")?;
-    Some((index.parse::<usize>().ok()?, field))
+    Some((index.parse::<usize>().ok()?, field.into()))
 }
 
 pub(super) fn parse_fx_bus_binding_key(key: &str) -> Option<(usize, &str, &str)> {

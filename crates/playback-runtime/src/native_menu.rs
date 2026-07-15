@@ -1,6 +1,6 @@
 #[cfg(test)]
 use crate::protocol::SyncSource;
-use binding_picker::{axis_binding_label, parameter_picker_group};
+use binding_picker::{axis_binding_label, parameter_picker_group, parameter_picker_group_numeric};
 use bindings::xy_pad_items;
 #[cfg(test)]
 use fx::default_fx_bus_config;

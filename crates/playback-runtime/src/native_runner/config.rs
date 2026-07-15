@@ -172,6 +172,12 @@ impl NativeRunner {
                     json!({
                         "worlds": self.worlds_payload_for_layer(index, behavior_id),
                         "pulses": pulses_layer_payload(&sense, &probability_map),
+                        "linkLfo": {
+                            "enabled": sense.link_lfo.enabled,
+                            "target": super::param_binding_payload(sense.link_lfo.target.as_ref()),
+                            "period": sense.link_lfo.period,
+                            "depthPct": sense.link_lfo.depth_pct
+                        },
                         "paramMods": param_mods_payload(self.param_mods.get(index)),
                         "xy": {
                             "x": super::param_binding_payload(self.xy_x_binding.as_ref()),

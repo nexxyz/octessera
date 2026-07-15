@@ -1,4 +1,4 @@
-use super::pulses_payload_apply::apply_pulses_payload;
+use super::pulses_payload_apply::{apply_link_lfo_payload, apply_pulses_payload};
 use super::{
     apply_legacy_trigger_gates_payload, apply_trigger_probability_map_payload, note_unit_to_pulses,
     param_binding_from_payload, param_mods_from_payload, NativeRunner, Value,
@@ -14,6 +14,7 @@ impl NativeRunner {
             let worlds = layer.get("worlds");
             apply_layer_identity_payload(self, index, layer);
             apply_layer_pulses_payload(self, index, layer, worlds);
+            apply_layer_link_lfo_payload(self, index, layer);
             apply_layer_worlds_payload(self, index, worlds)?;
             apply_layer_param_mods_payload(self, index, layer);
         }
@@ -150,6 +151,12 @@ fn apply_layer_worlds_payload(
     }
     runner.clear_delayed_link_events_for_layer(index);
     Ok(())
+}
+
+fn apply_layer_link_lfo_payload(runner: &mut NativeRunner, index: usize, layer: &Value) {
+    if let Some(pulses_layer) = runner.pulses_layers.get_mut(index) {
+        apply_link_lfo_payload(pulses_layer, layer);
+    }
 }
 
 fn apply_layer_param_mods_payload(runner: &mut NativeRunner, index: usize, layer: &Value) {

@@ -34,6 +34,19 @@ pub(super) fn apply_pulses_binding_value(
         "triggerProbabilityHighPct" => {
             apply_u8_value(&mut layer.trigger_probability_high_pct, value, 100)
         }
+        "linkLfo.enabled" => {
+            let changed = apply_bool_value(&mut layer.link_lfo.enabled, value);
+            if layer.link_lfo.target.is_none() {
+                layer.link_lfo.enabled = false;
+            }
+            changed
+        }
+        "linkLfo.period" => apply_string_value(
+            &mut layer.link_lfo.period,
+            value,
+            crate::timing_units::NOTE_UNIT_OPTIONS,
+        ),
+        "linkLfo.depthPct" => apply_u8_value(&mut layer.link_lfo.depth_pct, value, 100),
         "pitch.lowestNote" => apply_u8_value(&mut layer.lowest_note, value, 127),
         "pitch.highestNote" => apply_u8_value(&mut layer.highest_note, value, 127),
         "pitch.startingNote" => apply_u8_value(&mut layer.starting_note, value, 127),

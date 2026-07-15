@@ -33,6 +33,20 @@ impl NativeRunner {
             self.xy_x_binding = binding.clone();
         } else if target == "xy:y" {
             self.xy_y_binding = binding.clone();
+        } else if let Some(rest) = target
+            .strip_prefix("layers.")
+            .and_then(|s| s.strip_suffix(".linkLfo.target"))
+        {
+            if let Ok(index) = rest.parse::<usize>() {
+                if let Some(layer) = self.pulses_layers.get_mut(index) {
+                    layer.link_lfo.target = binding.clone().filter(|binding| {
+                        binding.kind == "number" && !binding.key.contains(".linkLfo.")
+                    });
+                    if layer.link_lfo.target.is_none() {
+                        layer.link_lfo.enabled = false;
+                    }
+                }
+            }
         } else if let Some(rest) = target.strip_prefix("aux:") {
             let parts = rest.split(':').collect::<Vec<_>>();
             if parts.len() == 2 && parts[1] == "turn" {
@@ -148,6 +162,12 @@ impl NativeRunner {
             return self.xy_x_binding.as_mut();
         } else if target == "xy:y" {
             return self.xy_y_binding.as_mut();
+        } else if let Some(rest) = target
+            .strip_prefix("layers.")
+            .and_then(|s| s.strip_suffix(".linkLfo.target"))
+        {
+            let layer = rest.parse::<usize>().ok()?;
+            return self.pulses_layers.get_mut(layer)?.link_lfo.target.as_mut();
         }
         None
     }

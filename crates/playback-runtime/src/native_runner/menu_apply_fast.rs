@@ -325,9 +325,16 @@ impl NativeRunner {
     fn apply_pulses_menu_key_fast(&mut self, key: &str) -> Option<bool> {
         let rest = key.strip_prefix("layers.")?;
         let (index, suffix) = parse_indexed_key(rest)?;
-        let prefix = format!("layers.{index}.pulses");
         let layer = self.pulses_layers.get_mut(index)?;
-        let changed = if matches!(
+        let changed = if suffix.starts_with("linkLfo.target.range") {
+            return None;
+        } else if suffix.starts_with("linkLfo.") {
+            super::menu_apply_pulses_fx::apply_link_lfo_menu_state(
+                &self.menu,
+                layer,
+                &format!("layers.{index}.linkLfo"),
+            )
+        } else if matches!(
             suffix,
             "pulses.scanMode"
                 | "pulses.scanAxis"
@@ -338,20 +345,24 @@ impl NativeRunner {
                 | "pulses.stateNotesEnabled"
         ) || suffix.starts_with("pulses.mapping.")
         {
+            let prefix = format!("layers.{index}.pulses");
             super::menu_apply_pulses_fx::apply_pulses_scan_and_mapping_menu_state(
                 &self.menu, layer, &prefix,
             )
         } else if suffix.starts_with("pulses.triggerProbability")
             || suffix.starts_with("pulses.pitch.")
         {
+            let prefix = format!("layers.{index}.pulses");
             super::menu_apply_pulses_fx::apply_pulses_probability_and_pitch_menu_state(
                 &self.menu, layer, &prefix,
             )
         } else if suffix.starts_with("pulses.x.") {
+            let prefix = format!("layers.{index}.pulses");
             super::menu_apply_pulses_fx::apply_pulses_axis_menu_state(
                 &self.menu, layer, &prefix, "x",
             )
         } else if suffix.starts_with("pulses.y.") {
+            let prefix = format!("layers.{index}.pulses");
             super::menu_apply_pulses_fx::apply_pulses_axis_menu_state(
                 &self.menu, layer, &prefix, "y",
             )

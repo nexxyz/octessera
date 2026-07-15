@@ -69,6 +69,42 @@ pub(super) fn parameter_picker_group(
     }
 }
 
+pub(super) fn parameter_picker_group_numeric(
+    label: String,
+    target: String,
+    current: Option<&NativeParamBindingSpec>,
+    config: &NativeMenuConfig,
+) -> NativeMenuItem {
+    let mut item = parameter_picker_group(
+        label,
+        target,
+        current.filter(|b| b.kind == "number"),
+        config,
+    );
+    item.children = item
+        .children
+        .into_iter()
+        .filter_map(keep_numeric_binding_item)
+        .collect();
+    item
+}
+
+fn keep_numeric_binding_item(mut item: NativeMenuItem) -> Option<NativeMenuItem> {
+    if let NativeMenuValue::Action(NativeMenuAction::SetParamBinding { binding, .. }) = &item.value
+    {
+        return (binding.kind == "number" && !binding.key.contains(".linkLfo.")).then_some(item);
+    }
+    item.children = item
+        .children
+        .into_iter()
+        .filter_map(keep_numeric_binding_item)
+        .collect();
+    match item.value {
+        NativeMenuValue::Group if item.children.is_empty() => None,
+        _ => Some(item),
+    }
+}
+
 fn range_item(
     label: &str,
     target: &str,

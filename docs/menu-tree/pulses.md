@@ -94,8 +94,13 @@ Link
 │   │       ├── To: [0..127] step 1
 │   │       ├── Grid Offs: [-7..7] step 1
 │   │       └── Curve: [linear | curve]
-│   └── Y Axis (group)
-│       └── (same sub-structure as X Axis, modulation target keys use param:N:y:slot, config keys use y.* prefix, defaults: Pitch Steps steps=3; Restart Section affects row sections)
+│   ├── Y Axis (group)
+│   │   └── (same sub-structure as X Axis, modulation target keys use param:N:y:slot, config keys use y.* prefix, defaults: Pitch Steps steps=3; Restart Section affects row sections)
+│   └── LFO (group)
+│       ├── Enabled: [on | off]
+│       ├── Target (group)                         ← numeric parameter tree only; excludes LFO rows
+│       ├── Period: [same 24 PPQN note units]
+│       └── Depth %: [0..100] step 1
 ├── L2: ... (group)
 ├── L3: ... (group)
 ```

@@ -132,7 +132,7 @@ impl NativeRunner {
         } else if let Some((index, field)) = parse_layer_behavior_config_binding_key(key) {
             self.apply_behavior_param_binding(index, field, value);
         } else if let Some((index, field)) = parse_pulses_binding_key(key) {
-            self.apply_pulses_param_binding(index, field, value);
+            self.apply_pulses_param_binding(index, &field, value);
         } else if let Some((index, field)) = parse_instrument_binding_key(key) {
             self.apply_instrument_param_binding(index, field, value);
         } else if let Some((index, slot, field)) = parse_fx_bus_binding_key(key) {
@@ -202,6 +202,35 @@ impl NativeRunner {
         }
     }
 
+    pub(super) fn apply_link_lfos(&mut self, pulses: u32) {
+        let mut updates = Vec::new();
+        for layer in &mut self.pulses_layers {
+            let Some(binding) = layer.link_lfo.target.clone() else {
+                continue;
+            };
+            if !layer.link_lfo.enabled || binding.kind != "number" {
+                continue;
+            }
+            let period = note_unit_to_pulses(&layer.link_lfo.period).max(1);
+            layer.link_lfo.phase_pulses = (layer.link_lfo.phase_pulses + pulses) % period;
+            let phase = layer.link_lfo.phase_pulses as f64 / period as f64;
+            let sine = (phase * std::f64::consts::TAU).sin();
+            let depth = f64::from(layer.link_lfo.depth_pct) / 100.0;
+            let norm = (0.5 + sine * 0.5 * depth) as f32;
+            let norm = if binding.invert { 1.0 - norm } else { norm };
+            updates.push((binding.key.clone(), quantize_binding_value(norm, &binding)));
+        }
+        for (key, value) in updates {
+            self.apply_param_binding_value(&key, value);
+        }
+    }
+
+    pub(super) fn reset_link_lfo_phases(&mut self) {
+        for layer in &mut self.pulses_layers {
+            layer.link_lfo.phase_pulses = 0;
+        }
+    }
+
     fn apply_fx_bus_param_binding(&mut self, index: usize, slot: &str, field: &str, value: Value) {
         if let Some(bus) = self.fx_buses.get_mut(index) {
             apply_fx_bus_binding_value(bus, slot, field, value, &mut self.config_dirty);
@@ -228,6 +257,16 @@ fn instrument_modulation_audio_command(
     let value = value.as_f64()?;
     let display = value.round() as i32;
     match field {
+        "mixer.volume" => Some(RuntimeAudioCommand::SetInstrumentMixer {
+            instrument_slot: index,
+            volume_pct: Some(value.round().clamp(0.0, 100.0) as f32),
+            pan_pos: None,
+        }),
+        "mixer.panPos" => Some(RuntimeAudioCommand::SetInstrumentMixer {
+            instrument_slot: index,
+            volume_pct: None,
+            pan_pos: Some(value.round().clamp(0.0, 32.0) as usize),
+        }),
         "synth.filter.cutoffHz" => Some(RuntimeAudioCommand::SetSynthParam {
             instrument_slot: index,
             path: field.into(),

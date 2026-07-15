@@ -51,6 +51,16 @@ pub(super) fn pulses_layer_configs(layers: &[NativePulsesLayer]) -> Vec<NativePu
             y_velocity: value_lane_config(&layer.y_velocity),
             y_filter_cutoff: value_lane_config(&layer.y_filter_cutoff),
             y_filter_resonance: value_lane_config(&layer.y_filter_resonance),
+            link_lfo: crate::native_menu::NativeLinkLfoConfig {
+                enabled: layer.link_lfo.enabled,
+                target: layer
+                    .link_lfo
+                    .target
+                    .as_ref()
+                    .map(param_binding_spec_from_native),
+                period: layer.link_lfo.period.clone(),
+                depth_pct: layer.link_lfo.depth_pct,
+            },
         })
         .collect()
 }

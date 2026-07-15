@@ -1,3 +1,6 @@
+use super::modulation_keys::{
+    parse_fx_bus_binding_key, parse_global_fx_binding_key, parse_pulses_binding_key,
+};
 use super::*;
 
 pub(super) fn param_binding_payload(binding: Option<&NativeParamBinding>) -> Value {
@@ -119,11 +122,21 @@ pub(super) fn sanitize_binding_user_range(binding: &mut NativeParamBinding) {
 }
 
 pub(super) fn supported_param_binding_key(key: &str) -> bool {
+    if key.contains(".linkLfo.") {
+        return false;
+    }
     if matches!(
         key,
         "sound.noteLengthMs" | "sound.velocityScalePct" | "sound.voiceStealingMode"
     ) || key.starts_with("layers.")
         && (key.ends_with(".algorithmStep") || key.contains(".worlds.behaviorConfig."))
+    {
+        return true;
+    }
+    if parse_pulses_binding_key(key).is_some()
+        || parse_fx_bus_binding_key(key).is_some()
+        || parse_global_fx_binding_key(key).is_some()
+        || key.starts_with("sparks.fx.")
     {
         return true;
     }

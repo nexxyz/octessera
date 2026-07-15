@@ -113,6 +113,16 @@ impl NativeRunner {
         if let Some(pulse) = self.transport_ui_pulse_message() {
             out.push(pulse);
         }
+        if self.outbox.has_platform_effects() {
+            out.push(RunnerMessage::PlatformEffects {
+                effects: self.outbox.drain_platform_effects(),
+            });
+        }
+        if self.outbox.has_audio_commands() {
+            out.push(RunnerMessage::AudioCommands {
+                commands: self.outbox.drain_audio_commands(),
+            });
+        }
         if request_snapshot.unwrap_or(false) {
             self.advance_oled_sleep_state();
             self.advance_toast_state();

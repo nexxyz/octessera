@@ -25,7 +25,7 @@ pub(super) struct NativeUiState {
     pub(super) combined_button_pressed: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub(super) struct NativePulsesLayer {
     pub(super) scan_mode: String,
     pub(super) scan_axis: String,
@@ -74,6 +74,16 @@ pub(super) struct NativePulsesLayer {
     pub(super) y_velocity: NativeValueLane,
     pub(super) y_filter_cutoff: NativeValueLane,
     pub(super) y_filter_resonance: NativeValueLane,
+    pub(super) link_lfo: NativeLinkLfo,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(super) struct NativeLinkLfo {
+    pub(super) enabled: bool,
+    pub(super) target: Option<NativeParamBinding>,
+    pub(super) period: String,
+    pub(super) depth_pct: u8,
+    pub(super) phase_pulses: u32,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -235,6 +245,19 @@ impl Default for NativePulsesLayer {
             y_velocity: NativeValueLane::velocity_default(),
             y_filter_cutoff: NativeValueLane::filter_cutoff_default(),
             y_filter_resonance: NativeValueLane::filter_resonance_default(),
+            link_lfo: NativeLinkLfo::default(),
+        }
+    }
+}
+
+impl Default for NativeLinkLfo {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            target: None,
+            period: "1/1".into(),
+            depth_pct: 100,
+            phase_pulses: 0,
         }
     }
 }

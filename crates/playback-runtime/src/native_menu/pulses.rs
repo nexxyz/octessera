@@ -1,10 +1,10 @@
 use super::pulses_axis::{axis_group, AxisMenuConfig};
 use super::pulses_sections::{
-    events_group, note_mapping_group, scanning_group, trigger_probability_group,
+    events_group, link_lfo_group, note_mapping_group, scanning_group, trigger_probability_group,
 };
 use super::{
-    axis_binding_label, bool_item, group, parameter_picker_group, NativeMenuConfig, NativeMenuItem,
-    NativePulsesLayerConfig, NativeValueLaneConfig,
+    axis_binding_label, bool_item, group, parameter_picker_group, NativeLinkLfoConfig,
+    NativeMenuConfig, NativeMenuItem, NativePulsesLayerConfig, NativeValueLaneConfig,
 };
 pub(super) fn default_pulses_layer_config() -> NativePulsesLayerConfig {
     NativePulsesLayerConfig {
@@ -55,6 +55,12 @@ pub(super) fn default_pulses_layer_config() -> NativePulsesLayerConfig {
         y_velocity: value_lane_config(1, 127),
         y_filter_cutoff: value_lane_config(20, 127),
         y_filter_resonance: value_lane_config(10, 90),
+        link_lfo: NativeLinkLfoConfig {
+            enabled: false,
+            target: None,
+            period: "1/1".into(),
+            depth_pct: 100,
+        },
     }
 }
 
@@ -124,6 +130,7 @@ pub(super) fn pulses_layer_group(
                     filter_resonance: &sense.y_filter_resonance,
                 },
             ),
+            link_lfo_group(&format!("layers.{index}.linkLfo"), &sense.link_lfo, config),
         ],
     )
 }

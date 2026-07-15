@@ -48,6 +48,7 @@ impl NativeRunner {
         self.transport_flash_pulses_remaining = 0;
         self.event_dot_on = false;
         self.event_dot_pulses_remaining = 0;
+        self.reset_link_lfo_phases();
         self.engine.reset_transport_phase();
         for engine in self.layer_engines.iter_mut().flatten() {
             engine.reset_transport_phase();

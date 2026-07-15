@@ -1,7 +1,7 @@
 use super::payload_assign::{
     apply_value_lane_payload, assign_bool, assign_i32, assign_mapping, assign_string, assign_u8,
 };
-use super::{LinkEventTiming, NativePulsesLayer, Value};
+use super::{param_binding_from_payload, LinkEventTiming, NativeLinkLfo, NativePulsesLayer, Value};
 
 pub(super) fn apply_pulses_payload(layer: &mut NativePulsesLayer, payload: &Value) {
     apply_scan_and_trigger_payload(layer, payload);
@@ -9,6 +9,30 @@ pub(super) fn apply_pulses_payload(layer: &mut NativePulsesLayer, payload: &Valu
     apply_pitch_payload(layer, payload);
     apply_axis_payload(layer, payload, "x");
     apply_axis_payload(layer, payload, "y");
+}
+
+pub(super) fn apply_link_lfo_payload(layer: &mut NativePulsesLayer, payload: &Value) {
+    let Some(lfo) = payload.get("linkLfo") else {
+        layer.link_lfo = NativeLinkLfo::default();
+        return;
+    };
+    layer.link_lfo.phase_pulses = 0;
+    layer.link_lfo.enabled = lfo.get("enabled").and_then(Value::as_bool).unwrap_or(false);
+    layer.link_lfo.target = lfo
+        .get("target")
+        .and_then(param_binding_from_payload)
+        .filter(|binding| binding.kind == "number" && !binding.key.contains(".linkLfo."));
+    if layer.link_lfo.target.is_none() {
+        layer.link_lfo.enabled = false;
+    }
+    if let Some(period) = lfo.get("period").and_then(Value::as_str) {
+        if crate::timing_units::NOTE_UNIT_OPTIONS.contains(&period) {
+            layer.link_lfo.period = period.into();
+        }
+    }
+    if let Some(depth) = lfo.get("depthPct").and_then(Value::as_u64) {
+        layer.link_lfo.depth_pct = depth.min(100) as u8;
+    }
 }
 
 fn apply_scan_and_trigger_payload(layer: &mut NativePulsesLayer, payload: &Value) {

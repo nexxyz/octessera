@@ -2,7 +2,8 @@ use super::menu_apply_fx_state::{apply_fx_bus_menu_state, apply_global_fx_slot_m
 use super::{
     apply_value_lane_menu_state, json, set_bool_from_menu, set_i32_from_menu, set_string_from_menu,
     set_target_slot_from_menu, set_u8_enum_from_menu, set_u8_from_menu, sparks_fx_param_default,
-    sparks_fx_param_keys, sparks_fx_target_key, sparks_fx_type, NativeRunner, Value,
+    sparks_fx_param_keys, sparks_fx_target_key, sparks_fx_type, NativePulsesLayer, NativeRunner,
+    Value,
 };
 use platform_core::BUS_FX_WARNING_SLOT_COUNT;
 
@@ -18,6 +19,8 @@ impl NativeRunner {
             changed |= apply_pulses_probability_and_pitch_menu_state(&self.menu, layer, &prefix);
             changed |= apply_pulses_axis_menu_state(&self.menu, layer, &prefix, "x");
             changed |= apply_pulses_axis_menu_state(&self.menu, layer, &prefix, "y");
+            changed |=
+                apply_link_lfo_menu_state(&self.menu, layer, &format!("layers.{index}.linkLfo"));
         }
         changed
     }
@@ -349,5 +352,34 @@ pub(super) fn apply_pulses_axis_menu_state(
             &format!("{prefix}.y.filterResonance"),
         );
     }
+    changed
+}
+
+pub(super) fn apply_link_lfo_menu_state(
+    menu: &super::NativeMenuModel,
+    layer: &mut NativePulsesLayer,
+    prefix: &str,
+) -> bool {
+    let mut changed = false;
+    changed |= set_bool_from_menu(
+        menu,
+        &mut layer.link_lfo.enabled,
+        &format!("{prefix}.enabled"),
+    );
+    if layer.link_lfo.target.is_none() && layer.link_lfo.enabled {
+        layer.link_lfo.enabled = false;
+        changed = true;
+    }
+    changed |= set_string_from_menu(
+        menu,
+        &mut layer.link_lfo.period,
+        &format!("{prefix}.period"),
+    );
+    changed |= set_u8_from_menu(
+        menu,
+        &mut layer.link_lfo.depth_pct,
+        &format!("{prefix}.depthPct"),
+        100,
+    );
     changed
 }

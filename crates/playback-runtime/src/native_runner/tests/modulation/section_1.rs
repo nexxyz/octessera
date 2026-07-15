@@ -39,6 +39,193 @@ pub(crate) fn pulses_value_lanes_load_into_runner_and_menu_curve_edits_apply() {
 }
 
 #[test]
+pub(crate) fn link_lfo_payload_defaults_round_trips_and_modulates_numeric_target() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let payload = runner.config_payload();
+    assert_eq!(
+        payload["runtimeConfig"]["layers"][0]["linkLfo"]["enabled"],
+        false
+    );
+    assert!(payload["runtimeConfig"]["layers"][0]["linkLfo"]["target"].is_null());
+    assert_eq!(
+        payload["runtimeConfig"]["layers"][0]["linkLfo"]["period"],
+        "1/1"
+    );
+    assert_eq!(
+        payload["runtimeConfig"]["layers"][0]["linkLfo"]["depthPct"],
+        100
+    );
+
+    let mut payload = payload;
+    payload["runtimeConfig"]["layers"][0]["linkLfo"] = json!({
+        "enabled": true,
+        "target": { "key": "sound.noteLengthMs", "kind": "number", "min": 30, "max": 2000, "userMin": 100, "userMax": 300 },
+        "period": "1/4",
+        "depthPct": 100
+    });
+    runner.apply_config_payload(payload).unwrap();
+    assert!(runner.pulses_layers[0].link_lfo.enabled);
+
+    let round_trip = runner.config_payload();
+    assert_eq!(
+        round_trip["runtimeConfig"]["layers"][0]["linkLfo"]["enabled"],
+        true
+    );
+    assert_eq!(
+        round_trip["runtimeConfig"]["layers"][0]["linkLfo"]["target"]["key"],
+        "sound.noteLengthMs"
+    );
+
+    runner.transport = RuntimeTransportState::Playing;
+    runner.advance_algorithm(6).unwrap();
+    assert_eq!(runner.global_sound.note_length_ms, 300);
+    runner.transport = RuntimeTransportState::Paused;
+    runner.advance_algorithm(6).unwrap();
+    assert_eq!(runner.pulses_layers[0].link_lfo.phase_pulses, 6);
+    runner.reset_transport_position();
+    assert_eq!(runner.pulses_layers[0].link_lfo.phase_pulses, 0);
+
+    let mut legacy = runner.config_payload();
+    legacy["runtimeConfig"]["layers"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("linkLfo");
+    runner.apply_config_payload(legacy).unwrap();
+    assert!(!runner.pulses_layers[0].link_lfo.enabled);
+    assert_eq!(runner.pulses_layers[0].link_lfo.period, "1/1");
+    assert_eq!(runner.pulses_layers[0].link_lfo.depth_pct, 100);
+}
+
+#[test]
+pub(crate) fn link_lfo_rejects_non_numeric_targets() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut payload = runner.config_payload();
+    payload["runtimeConfig"]["layers"][0]["linkLfo"] = json!({
+        "enabled": true,
+        "target": { "key": "sound.voiceStealingMode", "kind": "enum", "options": ["none"] },
+        "period": "1/1",
+        "depthPct": 100
+    });
+    runner.apply_config_payload(payload).unwrap();
+    assert!(!runner.pulses_layers[0].link_lfo.enabled);
+    assert!(runner.pulses_layers[0].link_lfo.target.is_none());
+
+    let mut payload = runner.config_payload();
+    payload["runtimeConfig"]["layers"][0]["linkLfo"] = json!({
+        "enabled": true,
+        "target": { "key": "layers.0.linkLfo.depthPct", "kind": "number", "min": 0, "max": 100 },
+        "period": "1/1",
+        "depthPct": 100
+    });
+    runner.apply_config_payload(payload).unwrap();
+    assert!(!runner.pulses_layers[0].link_lfo.enabled);
+    assert!(runner.pulses_layers[0].link_lfo.target.is_none());
+}
+
+#[test]
+pub(crate) fn link_lfo_menu_rows_apply_with_keyed_fast_path() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.pulses_layers[0].link_lfo.target = Some(NativeParamBinding {
+        key: "sound.noteLengthMs".into(),
+        label: Some("Note Length".into()),
+        kind: "number".into(),
+        min: Some(30.0),
+        max: Some(2000.0),
+        step: Some(10.0),
+        user_min: None,
+        user_max: None,
+        options: vec![],
+        invert: false,
+    });
+    runner.menu.rebuild(runner.menu_config());
+    assert!(runner.menu.focus_item_key("layers.0.linkLfo.depthPct"));
+    runner.menu.state.editing = true;
+
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": -25, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    assert_eq!(runner.pulses_layers[0].link_lfo.depth_pct, 75);
+
+    assert!(runner.menu.focus_item_key("layers.0.linkLfo.period"));
+    runner.menu.state.editing = true;
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": -1, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    assert_eq!(runner.pulses_layers[0].link_lfo.period, "1/1T");
+
+    assert!(runner
+        .menu
+        .focus_item_key("layers.0.linkLfo.target.rangeMin"));
+    runner.menu.state.editing = true;
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 7, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    assert_eq!(
+        runner.pulses_layers[0]
+            .link_lfo
+            .target
+            .as_ref()
+            .unwrap()
+            .user_min,
+        Some(100.0)
+    );
+}
+
+#[test]
+pub(crate) fn link_lfo_invert_and_audio_command_emit_on_transport_pulse() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut payload = runner.config_payload();
+    payload["runtimeConfig"]["layers"][0]["linkLfo"] = json!({
+        "enabled": true,
+        "target": {
+            "key": "instruments.0.mixer.volume",
+            "label": "Volume",
+            "kind": "number",
+            "min": 0,
+            "max": 100,
+            "step": 1,
+            "invert": true
+        },
+        "period": "1/4",
+        "depthPct": 100
+    });
+    runner.apply_config_payload(payload).unwrap();
+    runner.transport = RuntimeTransportState::Playing;
+
+    let messages = runner
+        .send(HostMessage::TransportPulseStep {
+            pulses: 6,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+
+    assert_eq!(runner.instruments[0].volume, 0);
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::AudioCommands { commands }
+            if commands.iter().any(|command| matches!(
+                command,
+                RuntimeAudioCommand::SetInstrumentMixer {
+                    instrument_slot: 0,
+                    volume_pct: Some(volume),
+                    pan_pos: None,
+                } if (*volume - 0.0).abs() < f32::EPSILON
+            ))
+    )));
+}
+
+#[test]
 pub(crate) fn assignment_mode_wins_over_fn_layer_navigation_and_autosaves() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.auto_save_default = true;

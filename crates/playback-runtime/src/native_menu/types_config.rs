@@ -160,6 +160,15 @@ pub struct NativePulsesLayerConfig {
     pub y_velocity: NativeValueLaneConfig,
     pub y_filter_cutoff: NativeValueLaneConfig,
     pub y_filter_resonance: NativeValueLaneConfig,
+    pub link_lfo: NativeLinkLfoConfig,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NativeLinkLfoConfig {
+    pub enabled: bool,
+    pub target: Option<NativeParamBindingSpec>,
+    pub period: String,
+    pub depth_pct: u8,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

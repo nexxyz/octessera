@@ -1,7 +1,42 @@
 use super::{
-    action_item, bool_item, enum_item, enum_item_from_strings, group, number_item, selected_index,
-    slot_option_selected, NativeMenuAction, NativeMenuItem, NativePulsesLayerConfig,
+    action_item, axis_binding_label, bool_item, enum_item, enum_item_from_strings, group,
+    number_item, parameter_picker_group_numeric, selected_index, slot_option_selected,
+    NativeLinkLfoConfig, NativeMenuAction, NativeMenuConfig, NativeMenuItem,
+    NativePulsesLayerConfig,
 };
+
+pub(super) fn link_lfo_group(
+    prefix: &str,
+    lfo: &NativeLinkLfoConfig,
+    config: &NativeMenuConfig,
+) -> NativeMenuItem {
+    group(
+        "LFO",
+        vec![
+            bool_item("Enabled", format!("{prefix}.enabled"), lfo.enabled),
+            parameter_picker_group_numeric(
+                axis_binding_label("Target", lfo.target.as_ref()),
+                format!("{prefix}.target"),
+                lfo.target.as_ref(),
+                config,
+            ),
+            enum_item(
+                "Period",
+                format!("{prefix}.period"),
+                crate::timing_units::NOTE_UNIT_OPTIONS.to_vec(),
+                selected_index(crate::timing_units::NOTE_UNIT_OPTIONS, &lfo.period),
+            ),
+            number_item(
+                "Depth %",
+                format!("{prefix}.depthPct"),
+                i32::from(lfo.depth_pct),
+                0,
+                100,
+                1,
+            ),
+        ],
+    )
+}
 
 pub(super) fn scanning_group(
     prefix: &str,

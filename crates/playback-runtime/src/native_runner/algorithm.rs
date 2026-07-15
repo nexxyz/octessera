@@ -64,6 +64,7 @@ impl NativeRunner {
 
         let mut events = RoutedMusicalEvents::default();
         self.advance_transport_indicators(pulses);
+        self.apply_link_lfos(pulses);
         let swung_pulses = self.consume_swung_pulses(pulses);
         self.accumulate_layer_pulses(swung_pulses);
         self.advance_active_layer(&mut events)?;
