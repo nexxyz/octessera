@@ -159,6 +159,47 @@ pub(crate) fn parameter_picker_exposes_binding_actions_for_aux_param_and_xy_targ
 }
 
 #[test]
+pub(crate) fn link_lfo_picker_only_exposes_live_safe_targets() {
+    let mut cfg = config();
+    cfg.fx_buses[0].slot1_type = "delay".into();
+    cfg.fx_buses[0].slot1_params =
+        serde_json::json!({ "feedback": 0.35, "timeMs": 250, "mixPct": 35 });
+    let menu = NativeMenuModel::new(cfg);
+    let target = "layers.0.linkLfo.target";
+
+    assert!(contains_set_binding(
+        &menu.root,
+        target,
+        "instruments.0.mixer.volume"
+    ));
+    assert!(contains_set_binding(
+        &menu.root,
+        target,
+        "mixer.buses.0.volume"
+    ));
+    assert!(contains_set_binding(
+        &menu.root,
+        target,
+        "mixer.buses.0.slot1.params.feedback"
+    ));
+    assert!(!contains_set_binding(
+        &menu.root,
+        target,
+        "sound.noteLengthMs"
+    ));
+    assert!(!contains_set_binding(
+        &menu.root,
+        target,
+        "mixer.buses.0.slot1.params.timeMs"
+    ));
+    assert!(!contains_set_binding(
+        &menu.root,
+        target,
+        "instruments.0.synth.filter.cutoffHz"
+    ));
+}
+
+#[test]
 pub(crate) fn parameter_picker_includes_behavior_pulses_fx_and_global_fx_families() {
     let mut cfg = config();
     cfg.fx_buses[0].slot1_type = "delay".into();

@@ -100,6 +100,7 @@ mod menu_apply_pulses_fx;
 mod menu_apply_structural;
 mod menu_value_apply;
 mod modulation;
+pub(crate) use modulation::is_live_link_lfo_target as is_live_link_lfo_target_for_picker;
 mod modulation_fx;
 mod modulation_instrument;
 mod modulation_instrument_numeric;
@@ -332,6 +333,7 @@ pub struct NativeRunner {
     pending_menu_apply: Option<PendingMenuApply>,
     pending_audio_output_buffer_reboot_prompt: bool,
     menu_scroll_offset: usize,
+    last_link_lfo_values: BTreeMap<String, Value>,
 }
 
 fn normalize_audio_output_buffer_frames(value: u32) -> u32 {

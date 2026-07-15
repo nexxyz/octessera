@@ -87,7 +87,7 @@ impl NativeRunner {
         let Some(bpm) = self.menu.number_for_key("transport.bpm") else {
             return false;
         };
-        let bpm = f64::from(bpm.clamp(40, 240));
+        let bpm = crate::delay_timing::clamp_visible_bpm(f64::from(bpm));
         if (self.bpm - bpm).abs() > f64::EPSILON {
             self.bpm = bpm;
             self.retime_note_mode_bus_delays();

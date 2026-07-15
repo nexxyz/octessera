@@ -329,6 +329,8 @@ impl NativeRunner {
         let changed = if suffix.starts_with("linkLfo.target.range") {
             return None;
         } else if suffix.starts_with("linkLfo.") {
+            self.restore_link_lfo_base_audio();
+            let layer = self.pulses_layers.get_mut(index)?;
             super::menu_apply_pulses_fx::apply_link_lfo_menu_state(
                 &self.menu,
                 layer,

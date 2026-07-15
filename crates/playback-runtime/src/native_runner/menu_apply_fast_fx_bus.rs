@@ -203,6 +203,7 @@ impl NativeRunner {
             fx_type,
             params,
         });
+        self.warn_if_bus_fx_over_budget();
         true
     }
 
@@ -304,7 +305,7 @@ impl NativeRunner {
     }
 
     pub(super) fn current_menu_bpm(&self) -> u16 {
-        self.bpm.round().clamp(20.0, 300.0) as u16
+        crate::delay_timing::visible_bpm_u16(self.bpm)
     }
 }
 
@@ -351,7 +352,7 @@ fn apply_fx_param_value(params: &mut Value, param_path: &str, value: Value, bpm:
     set_json_leaf(params, param_path, value).is_some()
 }
 
-fn audio_params_for_fx(fx_type: &str, params: &Value) -> BTreeMap<String, Value> {
+pub(super) fn audio_params_for_fx(fx_type: &str, params: &Value) -> BTreeMap<String, Value> {
     if fx_type == "delay" {
         strip_delay_timing_metadata(params).into_iter().collect()
     } else {

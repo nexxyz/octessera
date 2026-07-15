@@ -98,9 +98,11 @@ Link
 │   │   └── (same sub-structure as X Axis, modulation target keys use param:N:y:slot, config keys use y.* prefix, defaults: Pitch Steps steps=3; Restart Section affects row sections)
 │   └── LFO (group)
 │       ├── Enabled: [on | off]
-│       ├── Target (group)                         ← numeric parameter tree only; excludes LFO rows
+│       ├── Target (group)                         ← live audio-facing numeric controls only; excludes LFO rows and unsafe FX timing/buffer params
 │       ├── Period: [same 24 PPQN note units]
 │       └── Depth %: [0..100] step 1
 ├── L2: ... (group)
 ├── L3: ... (group)
 ```
+
+Link LFO sends transient live audio control values while transport plays. It restores the saved base value on stop/reset/config changes, and LFO movement is not saved back into the target parameter value.

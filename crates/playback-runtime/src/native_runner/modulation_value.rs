@@ -82,15 +82,9 @@ pub(super) fn apply_fx_param_binding_value(params: &mut Value, key: &str, value:
     let next = if key == "source" {
         value.as_str().map(|value| json!(value))
     } else {
-        value.as_f64().map(|value| match key {
-            "threshold" | "feedback" | "rateHz" | "clip" | "q" | "damp" => json!(value / 100.0),
-            "drive" | "depthMs" | "baseMs" => json!(value / 10.0),
-            "decay" => json!(value / 1000.0),
-            "thresholdDb" | "ratio" | "makeupDb" | "lowGainDb" | "midGainDb" | "highGainDb" => {
-                json!(value / 2.0)
-            }
-            _ => json!(value.round() as i32),
-        })
+        value
+            .as_f64()
+            .map(|value| fx_param_storage_value(key, value))
     };
     let Some(next) = next else {
         return false;
@@ -101,6 +95,20 @@ pub(super) fn apply_fx_param_binding_value(params: &mut Value, key: &str, value:
         return true;
     }
     false
+}
+
+pub(super) fn fx_param_storage_value(key: &str, value: f64) -> Value {
+    match key {
+        "threshold" | "feedback" | "rateHz" | "clip" | "q" | "damp" | "midQ" => {
+            json!(value / 100.0)
+        }
+        "drive" | "depthMs" | "baseMs" => json!(value / 10.0),
+        "decay" => json!(value / 1000.0),
+        "thresholdDb" | "ratio" | "makeupDb" | "lowGainDb" | "midGainDb" | "highGainDb" => {
+            json!(value / 2.0)
+        }
+        _ => json!(value.round() as i32),
+    }
 }
 
 pub(super) fn axis_norm(index: usize, size: usize, invert: bool) -> f32 {

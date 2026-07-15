@@ -77,27 +77,31 @@ pub(super) fn parameter_picker_group_numeric(
 ) -> NativeMenuItem {
     let mut item = parameter_picker_group(
         label,
-        target,
+        target.clone(),
         current.filter(|b| b.kind == "number"),
         config,
     );
     item.children = item
         .children
         .into_iter()
-        .filter_map(keep_numeric_binding_item)
+        .filter_map(|item| keep_numeric_binding_item(item, &target))
         .collect();
     item
 }
 
-fn keep_numeric_binding_item(mut item: NativeMenuItem) -> Option<NativeMenuItem> {
+fn keep_numeric_binding_item(mut item: NativeMenuItem, target: &str) -> Option<NativeMenuItem> {
     if let NativeMenuValue::Action(NativeMenuAction::SetParamBinding { binding, .. }) = &item.value
     {
-        return (binding.kind == "number" && !binding.key.contains(".linkLfo.")).then_some(item);
+        let allowed = binding.kind == "number"
+            && !binding.key.contains(".linkLfo.")
+            && (!target.ends_with(".linkLfo.target")
+                || crate::native_runner::is_live_link_lfo_target_for_picker(&binding.key));
+        return allowed.then_some(item);
     }
     item.children = item
         .children
         .into_iter()
-        .filter_map(keep_numeric_binding_item)
+        .filter_map(|item| keep_numeric_binding_item(item, target))
         .collect();
     match item.value {
         NativeMenuValue::Group if item.children.is_empty() => None,

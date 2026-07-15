@@ -5,11 +5,10 @@ use super::{
     sparks_fx_param_keys, sparks_fx_target_key, sparks_fx_type, NativePulsesLayer, NativeRunner,
     Value,
 };
-use platform_core::BUS_FX_WARNING_SLOT_COUNT;
-
 impl NativeRunner {
     pub(super) fn apply_pulses_menu_state(&mut self) -> bool {
         let mut changed = false;
+        self.restore_link_lfo_base_audio();
         for index in 0..self.pulses_layers.len() {
             let prefix = format!("layers.{index}.pulses");
             let Some(layer) = self.pulses_layers.get_mut(index) else {
@@ -42,13 +41,7 @@ impl NativeRunner {
                 index,
             );
         }
-        let active_fx_slots = self.active_bus_fx_slot_count();
-        if active_fx_slots > BUS_FX_WARNING_SLOT_COUNT {
-            self.show_toast(format!(
-                "FX budget warning ({}/{})",
-                active_fx_slots, BUS_FX_WARNING_SLOT_COUNT
-            ));
-        }
+        self.warn_if_bus_fx_over_budget();
         changed
     }
 
@@ -367,6 +360,16 @@ pub(super) fn apply_link_lfo_menu_state(
         &format!("{prefix}.enabled"),
     );
     if layer.link_lfo.target.is_none() && layer.link_lfo.enabled {
+        layer.link_lfo.enabled = false;
+        changed = true;
+    }
+    if layer
+        .link_lfo
+        .target
+        .as_ref()
+        .is_some_and(|target| !super::modulation::is_live_link_lfo_target(&target.key))
+    {
+        layer.link_lfo.target = None;
         layer.link_lfo.enabled = false;
         changed = true;
     }

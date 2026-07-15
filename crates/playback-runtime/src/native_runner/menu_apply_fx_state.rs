@@ -4,6 +4,7 @@ use super::{
     apply_fx_param_menu_state, derive_bus_name, fx_default_params, set_bool_from_menu,
     set_string_from_menu, set_u8_from_menu, NativeRunner, Value,
 };
+use platform_core::BUS_FX_WARNING_SLOT_COUNT;
 
 impl NativeRunner {
     pub(super) fn active_bus_fx_slot_count(&self) -> usize {
@@ -15,6 +16,16 @@ impl NativeRunner {
                     + usize::from(bus.slot3_type != "none")
             })
             .sum::<usize>()
+    }
+
+    pub(super) fn warn_if_bus_fx_over_budget(&mut self) {
+        let active_fx_slots = self.active_bus_fx_slot_count();
+        if active_fx_slots > BUS_FX_WARNING_SLOT_COUNT {
+            self.show_toast(format!(
+                "FX budget warning ({}/{})",
+                active_fx_slots, BUS_FX_WARNING_SLOT_COUNT
+            ));
+        }
     }
 }
 

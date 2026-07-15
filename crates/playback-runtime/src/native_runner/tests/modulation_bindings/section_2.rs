@@ -147,6 +147,62 @@ pub(crate) fn xy_binding_can_drive_pulses_fx_bus_and_global_fx_params() {
 }
 
 #[test]
+pub(crate) fn xy_fx_param_bindings_emit_live_audio_commands_and_scale_mid_q() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.xy_touch = NativeXyTouch {
+        x: 1.0,
+        y: 1.0,
+        display_x: 1.0,
+        display_y: 1.0,
+        active: true,
+    };
+    runner.fx_buses[0].slot3_type = "eq".into();
+    runner.fx_buses[0].slot3_params = json!({ "midQ": 1.0, "mixPct": 100 });
+    runner.global_fx_slots[0] = "eq".into();
+    runner.global_fx_params[0] = json!({ "midQ": 1.0, "mixPct": 100 });
+    runner.xy_x_binding = Some(NativeParamBinding {
+        key: "mixer.buses.0.slot3.params.midQ".into(),
+        label: Some("Mid Q".into()),
+        kind: "number".into(),
+        min: Some(25.0),
+        max: Some(2000.0),
+        step: Some(25.0),
+        user_min: None,
+        user_max: None,
+        options: vec![],
+        invert: false,
+    });
+    runner.xy_y_binding = Some(NativeParamBinding {
+        key: "mixer.master.slots.0.params.midQ".into(),
+        label: Some("Mid Q".into()),
+        kind: "number".into(),
+        min: Some(25.0),
+        max: Some(2000.0),
+        step: Some(25.0),
+        user_min: None,
+        user_max: None,
+        options: vec![],
+        invert: false,
+    });
+
+    runner.apply_runtime_modulation(&[], 0);
+    let commands = runner.outbox.drain_audio_commands();
+
+    assert_eq!(runner.fx_buses[0].slot3_params["midQ"], json!(20.0));
+    assert_eq!(runner.global_fx_params[0]["midQ"], json!(20.0));
+    assert!(commands.iter().any(|command| matches!(
+        command,
+        RuntimeAudioCommand::SetFxBusSlot { bus_index: 0, slot_index: 2, params, .. }
+            if params.get("midQ") == Some(&json!(20.0))
+    )));
+    assert!(commands.iter().any(|command| matches!(
+        command,
+        RuntimeAudioCommand::SetGlobalFxSlot { slot_index: 0, params, .. }
+            if params.get("midQ") == Some(&json!(20.0))
+    )));
+}
+
+#[test]
 pub(crate) fn invalid_aux_and_xy_bindings_are_dropped_on_load() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let mut payload = runner.config_payload();

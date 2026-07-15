@@ -38,14 +38,28 @@ impl NativeRunner {
             .and_then(|s| s.strip_suffix(".linkLfo.target"))
         {
             if let Ok(index) = rest.parse::<usize>() {
+                self.restore_link_lfo_base_audio();
+                let rejected = binding.as_ref().is_some_and(|binding| {
+                    !super::modulation::is_live_link_lfo_target(&binding.key)
+                });
                 if let Some(layer) = self.pulses_layers.get_mut(index) {
                     layer.link_lfo.target = binding.clone().filter(|binding| {
-                        binding.kind == "number" && !binding.key.contains(".linkLfo.")
+                        binding.kind == "number"
+                            && super::modulation::is_live_link_lfo_target(&binding.key)
                     });
                     if layer.link_lfo.target.is_none() {
                         layer.link_lfo.enabled = false;
                     }
                 }
+                self.show_toast(if rejected {
+                    "LFO target not live"
+                } else {
+                    "Mapped LFO"
+                });
+                self.config_dirty = true;
+                self.menu.rebuild(self.menu_config());
+                let _ = self.menu.focus_item_key(target);
+                return;
             }
         } else if let Some(rest) = target.strip_prefix("aux:") {
             let parts = rest.split(':').collect::<Vec<_>>();

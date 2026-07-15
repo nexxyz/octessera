@@ -4,6 +4,16 @@ use crate::timing_units::{note_unit_to_pulses, NOTE_UNIT_OPTIONS};
 
 pub(crate) const DELAY_TIME_MIN_MS: i32 = 1;
 pub(crate) const DELAY_TIME_MAX_MS: i32 = 2000;
+pub(crate) const MIN_VISIBLE_BPM: f64 = 40.0;
+pub(crate) const MAX_VISIBLE_BPM: f64 = 240.0;
+
+pub(crate) fn clamp_visible_bpm(value: f64) -> f64 {
+    value.clamp(MIN_VISIBLE_BPM, MAX_VISIBLE_BPM)
+}
+
+pub(crate) fn visible_bpm_u16(value: f64) -> u16 {
+    clamp_visible_bpm(value).round() as u16
+}
 
 pub(crate) fn note_ms(note: &str, bpm: u16) -> i32 {
     let bpm = u32::from(bpm.max(1));

@@ -121,7 +121,7 @@ impl NativeRunner {
             xy_release: "sample-hold".into(),
             xy_invert_x: false,
             xy_invert_y: false,
-            bpm: config.bpm.round().clamp(20.0, 300.0) as u16,
+            bpm: crate::delay_timing::visible_bpm_u16(config.bpm),
             swing_pct: config.swing_pct.min(75),
             audio_output_buffer_frames: config.audio_output_buffer_frames,
             sync_source: config.sync_source.clone(),
@@ -274,6 +274,7 @@ impl NativeRunner {
             pending_menu_apply: None,
             pending_audio_output_buffer_reboot_prompt: false,
             menu_scroll_offset: 0,
+            last_link_lfo_values: BTreeMap::new(),
         };
         runner.seed_visible_state()?;
         runner.refresh_active_mapping_config();

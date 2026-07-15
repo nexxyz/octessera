@@ -178,7 +178,7 @@ impl NativeRunner {
     pub(super) fn apply_transport_menu_state(&mut self) -> bool {
         let mut changed = false;
         if let Some(bpm) = self.menu.number_for_key("transport.bpm") {
-            let bpm = f64::from(bpm.clamp(40, 240));
+            let bpm = crate::delay_timing::clamp_visible_bpm(f64::from(bpm));
             if (self.bpm - bpm).abs() > f64::EPSILON {
                 self.bpm = bpm;
                 changed = true;

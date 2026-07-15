@@ -31,7 +31,7 @@ impl NativeRunner {
             &mut self.fx_buses,
             &mut self.global_fx_slots,
             &mut self.global_fx_params,
-            self.bpm.round().clamp(40.0, 240.0) as u16,
+            crate::delay_timing::visible_bpm_u16(self.bpm),
         );
         self.apply_ui_payload(runtime);
         self.apply_midi_payload(runtime);
@@ -141,7 +141,7 @@ impl NativeRunner {
             .or_else(|| runtime.get("bpm"))
             .and_then(Value::as_f64)
         {
-            self.bpm = value.clamp(40.0, 240.0);
+            self.bpm = crate::delay_timing::clamp_visible_bpm(value);
         }
         if let Some(value) = transport
             .and_then(|transport| transport.get("swingPct"))

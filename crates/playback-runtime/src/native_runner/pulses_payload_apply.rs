@@ -21,7 +21,9 @@ pub(super) fn apply_link_lfo_payload(layer: &mut NativePulsesLayer, payload: &Va
     layer.link_lfo.target = lfo
         .get("target")
         .and_then(param_binding_from_payload)
-        .filter(|binding| binding.kind == "number" && !binding.key.contains(".linkLfo."));
+        .filter(|binding| {
+            binding.kind == "number" && super::modulation::is_live_link_lfo_target(&binding.key)
+        });
     if layer.link_lfo.target.is_none() {
         layer.link_lfo.enabled = false;
     }

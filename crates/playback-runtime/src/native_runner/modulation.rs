@@ -1,3 +1,4 @@
+use super::menu_apply_fast_fx_bus::audio_params_for_fx;
 use super::modulation_fx::{
     apply_fx_bus_binding_value, apply_global_fx_binding_value, apply_sparks_fx_binding_value,
 };
@@ -11,7 +12,7 @@ pub(super) use super::modulation_sampler::{
     apply_sampler_assignments_for_instruments_routed, RoutedMusicalEvents,
 };
 use super::modulation_value::{axis_norm, quantize_binding_value};
-use super::{NativeParamBinding, NativeRunner, Value, GRID_HEIGHT, GRID_WIDTH};
+use super::{json, NativeParamBinding, NativeRunner, Value, GRID_HEIGHT, GRID_WIDTH};
 use crate::protocol::RuntimeAudioCommand;
 use platform_core::CellTriggerIntent;
 
@@ -221,8 +222,87 @@ impl NativeRunner {
             updates.push((binding.key.clone(), quantize_binding_value(norm, &binding)));
         }
         for (key, value) in updates {
-            self.apply_param_binding_value(&key, value);
+            self.apply_transient_param_binding_value(&key, value);
         }
+    }
+
+    fn apply_transient_param_binding_value(&mut self, key: &str, value: Value) {
+        if !is_live_link_lfo_target(key) {
+            return;
+        }
+        if self.last_link_lfo_values.get(key) == Some(&value) {
+            return;
+        }
+        if let Some(command) = self.transient_audio_command_for_binding(key, value.clone()) {
+            self.last_link_lfo_values.insert(key.into(), value);
+            self.queue_audio_command(command);
+        }
+    }
+
+    pub(super) fn restore_link_lfo_base_audio(&mut self) {
+        let keys = std::mem::take(&mut self.last_link_lfo_values)
+            .into_keys()
+            .collect::<Vec<_>>();
+        for key in keys {
+            if let Some(command) = self.base_audio_command_for_binding(&key) {
+                self.queue_audio_command(command);
+            }
+        }
+    }
+
+    fn base_audio_command_for_binding(&self, key: &str) -> Option<RuntimeAudioCommand> {
+        if let Some((index, slot, _field)) = parse_fx_bus_binding_key(key) {
+            let bus = self.fx_buses.get(index)?;
+            return fx_bus_slot_audio_command(index, slot, bus).or_else(|| {
+                let field = key.rsplit('.').next()?;
+                let value = match (slot, field) {
+                    ("bus", "panPos") => json!(self.fx_buses.get(index)?.pan_pos),
+                    ("bus", "volume") => json!(self.fx_buses.get(index)?.volume_pct),
+                    _ => return None,
+                };
+                fx_bus_modulation_audio_command(index, slot, field, &value)
+            });
+        }
+        if let Some((index, _field)) = parse_global_fx_binding_key(key) {
+            return global_fx_slot_audio_command(
+                index,
+                &self.global_fx_slots,
+                &self.global_fx_params,
+            );
+        }
+        if let Some((index, field)) = parse_instrument_binding_key(key) {
+            let instrument = self.instruments.get(index)?;
+            let value = match field {
+                "mixer.volume" => json!(instrument.volume),
+                "mixer.panPos" => json!(instrument.pan_pos),
+                _ => return None,
+            };
+            return instrument_modulation_audio_command(index, field, &value);
+        }
+        None
+    }
+
+    fn transient_audio_command_for_binding(
+        &self,
+        key: &str,
+        value: Value,
+    ) -> Option<RuntimeAudioCommand> {
+        if let Some((index, slot, field)) = parse_fx_bus_binding_key(key) {
+            let mut bus = self.fx_buses.get(index)?.clone();
+            apply_fx_bus_binding_value(&mut bus, slot, field, value.clone(), &mut false);
+            return fx_bus_slot_audio_command(index, slot, &bus)
+                .or_else(|| fx_bus_modulation_audio_command(index, slot, field, &value));
+        }
+        if let Some((index, field)) = parse_global_fx_binding_key(key) {
+            let mut slots = self.global_fx_slots.clone();
+            let mut params = self.global_fx_params.clone();
+            apply_global_fx_binding_value(&mut slots, &mut params, index, field, value, &mut false);
+            return global_fx_slot_audio_command(index, &slots, &params);
+        }
+        if let Some((index, field)) = parse_instrument_binding_key(key) {
+            return instrument_modulation_audio_command(index, field, &value);
+        }
+        None
     }
 
     pub(super) fn reset_link_lfo_phases(&mut self) {
@@ -237,7 +317,8 @@ impl NativeRunner {
             let audio_command = fx_bus_modulation_audio_command(index, slot, field, &value);
             apply_fx_bus_binding_value(bus, slot, field, value, &mut self.config_dirty);
             if *bus != before {
-                if let Some(command) = audio_command {
+                if let Some(command) = fx_bus_slot_audio_command(index, slot, bus).or(audio_command)
+                {
                     self.queue_audio_command(command);
                 }
             }
@@ -245,6 +326,8 @@ impl NativeRunner {
     }
 
     fn apply_global_fx_param_binding(&mut self, index: usize, field: &str, value: Value) {
+        let before_slot = self.global_fx_slots.get(index).cloned();
+        let before_params = self.global_fx_params.get(index).cloned();
         apply_global_fx_binding_value(
             &mut self.global_fx_slots,
             &mut self.global_fx_params,
@@ -253,7 +336,104 @@ impl NativeRunner {
             value,
             &mut self.config_dirty,
         );
+        if before_slot != self.global_fx_slots.get(index).cloned()
+            || before_params != self.global_fx_params.get(index).cloned()
+        {
+            if let Some(command) =
+                global_fx_slot_audio_command(index, &self.global_fx_slots, &self.global_fx_params)
+            {
+                self.queue_audio_command(command);
+            }
+        }
     }
+}
+
+pub(crate) fn is_live_link_lfo_target(key: &str) -> bool {
+    if let Some((_index, slot, field)) = parse_fx_bus_binding_key(key) {
+        return match (slot, field) {
+            ("bus", "panPos" | "volume") => true,
+            ("slot1" | "slot2" | "slot3", field) if field.starts_with("params.") => {
+                is_realtime_safe_fx_param(&field[7..])
+            }
+            _ => false,
+        };
+    }
+    if let Some((_index, field)) = parse_global_fx_binding_key(key) {
+        return field
+            .strip_prefix("params.")
+            .is_some_and(is_realtime_safe_fx_param);
+    }
+    parse_instrument_binding_key(key)
+        .is_some_and(|(_index, field)| matches!(field, "mixer.volume" | "mixer.panPos"))
+}
+
+fn is_realtime_safe_fx_param(field: &str) -> bool {
+    matches!(
+        field,
+        "amountPct"
+            | "attackMs"
+            | "bits"
+            | "centerHz"
+            | "chancePct"
+            | "clip"
+            | "cracklePct"
+            | "damp"
+            | "decay"
+            | "depthPct"
+            | "drive"
+            | "feedback"
+            | "highGainDb"
+            | "lowGainDb"
+            | "makeupDb"
+            | "midFreqHz"
+            | "midGainDb"
+            | "midQ"
+            | "mixPct"
+            | "q"
+            | "rateDiv"
+            | "rateHz"
+            | "ratio"
+            | "releaseMs"
+            | "saturationPct"
+            | "sliceMs"
+            | "spreadPct"
+            | "threshold"
+            | "thresholdDb"
+            | "warpDepthPct"
+    )
+}
+
+fn fx_bus_slot_audio_command(
+    bus_index: usize,
+    slot: &str,
+    bus: &super::NativeFxBus,
+) -> Option<RuntimeAudioCommand> {
+    let (slot_index, fx_type, params) = match slot {
+        "slot1" => (0, &bus.slot1_type, &bus.slot1_params),
+        "slot2" => (1, &bus.slot2_type, &bus.slot2_params),
+        "slot3" => (2, &bus.slot3_type, &bus.slot3_params),
+        _ => return None,
+    };
+    Some(RuntimeAudioCommand::SetFxBusSlot {
+        bus_index,
+        slot_index,
+        fx_type: fx_type.clone(),
+        params: audio_params_for_fx(fx_type, params),
+    })
+}
+
+fn global_fx_slot_audio_command(
+    slot_index: usize,
+    slots: &[String],
+    params: &[Value],
+) -> Option<RuntimeAudioCommand> {
+    let fx_type = slots.get(slot_index)?;
+    let params = params.get(slot_index)?;
+    Some(RuntimeAudioCommand::SetGlobalFxSlot {
+        slot_index,
+        fx_type: fx_type.clone(),
+        params: audio_params_for_fx(fx_type, params),
+    })
 }
 
 fn fx_bus_modulation_audio_command(

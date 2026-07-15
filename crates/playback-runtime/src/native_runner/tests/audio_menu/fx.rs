@@ -146,6 +146,8 @@ pub(crate) fn bpm_edit_retimes_note_mode_delay_but_not_ms_mode() {
     runner.fx_buses[0].slot1_params = json!({ "timeMode": "note", "timeNote": "1/8", "timeMs": 250, "feedback": 0.35, "mixPct": 35 });
     runner.fx_buses[0].slot2_type = "delay".into();
     runner.fx_buses[0].slot2_params = json!({ "timeMode": "ms", "timeNote": "1/8", "timeMs": 250, "feedback": 0.35, "mixPct": 35 });
+    runner.fx_buses[0].slot3_type = "delay".into();
+    runner.fx_buses[0].slot3_params = json!({ "timeMode": "note", "timeNote": "1/4", "timeMs": 500, "feedback": 0.35, "mixPct": 35 });
     runner.menu.rebuild(runner.menu_config());
 
     assert!(runner.menu.focus_item_key("transport.bpm"));
@@ -159,6 +161,7 @@ pub(crate) fn bpm_edit_retimes_note_mode_delay_but_not_ms_mode() {
 
     assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 500);
     assert_eq!(runner.fx_buses[0].slot2_params["timeMs"], 250);
+    assert_eq!(runner.fx_buses[0].slot3_params["timeMs"], 1000);
     assert_eq!(
         runner
             .menu
@@ -174,6 +177,21 @@ pub(crate) fn bpm_edit_retimes_note_mode_delay_but_not_ms_mode() {
                     if params.get("timeMs") == Some(&json!(500))
                         && !params.contains_key("timeMode")
                         && !params.contains_key("timeNote")
+            ))
+    )));
+    assert_eq!(
+        runner
+            .menu
+            .number_for_key("mixer.buses.0.slot3.params.timeMs"),
+        Some(1000)
+    );
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::AudioCommands { commands }
+            if commands.iter().any(|command| matches!(
+                command,
+                RuntimeAudioCommand::SetFxBusSlot { slot_index: 2, params, .. }
+                    if params.get("timeMs") == Some(&json!(1000))
             ))
     )));
 }
@@ -362,6 +380,53 @@ pub(crate) fn active_bus_fx_slot_count_includes_slot3() {
     runner.fx_buses[0].slot3_type = "tremolo".into();
 
     assert_eq!(runner.active_bus_fx_slot_count(), 1);
+}
+
+#[test]
+pub(crate) fn active_bus_fx_warning_allows_exact_product_budget() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    for bus in &mut runner.fx_buses {
+        bus.slot1_type = "delay".into();
+        bus.slot2_type = "reverb".into();
+        bus.slot3_type = "eq".into();
+    }
+
+    runner.warn_if_bus_fx_over_budget();
+
+    assert_eq!(runner.active_bus_fx_slot_count(), 12);
+    assert!(runner.toast.is_none());
+}
+
+#[test]
+pub(crate) fn active_bus_fx_warning_reports_synthetic_over_budget_state() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    for bus in &mut runner.fx_buses {
+        bus.slot1_type = "delay".into();
+        bus.slot2_type = "reverb".into();
+        bus.slot3_type = "eq".into();
+    }
+    runner.fx_buses[0].slot1_type = "none".into();
+    let mut extra = runner.fx_buses[0].clone();
+    extra.slot1_type = "delay".into();
+    extra.slot2_type = "none".into();
+    extra.slot3_type = "none".into();
+    runner.fx_buses.push(extra);
+    runner.menu.rebuild(runner.menu_config());
+    assert!(runner.menu.focus_item_key("mixer.buses.0.slot1.type"));
+    runner.menu.state.editing = true;
+
+    let _messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+
+    assert_eq!(runner.active_bus_fx_slot_count(), 13);
+    assert!(runner
+        .toast
+        .as_ref()
+        .is_some_and(|toast| toast.message.contains("13/12")));
 }
 
 #[test]
