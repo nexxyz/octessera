@@ -3134,6 +3134,7 @@
             "params": {
               "feedback": 0.35,
               "mixPct": 35,
+              "spreadPct": 0,
               "timeMs": 250
             },
             "type": "delay"

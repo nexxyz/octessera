@@ -80,7 +80,11 @@ impl<'a> VisibleMenuDriver<'a> {
         self.select_visible(label);
         self.device.press_main();
         for attempt in 0..32 {
-            if self.lines().iter().any(|line| contains_label(line, value)) {
+            if self
+                .lines()
+                .iter()
+                .any(|line| line.trim_start().starts_with('*') && enum_option_matches(line, value))
+            {
                 self.device.press_main();
                 self.ensure_not_editing(label);
                 return;
@@ -102,7 +106,11 @@ impl<'a> VisibleMenuDriver<'a> {
     pub(super) fn edit_selected_enum_to(&mut self, value: &str) {
         self.device.press_main();
         for attempt in 0..32 {
-            if self.lines().iter().any(|line| contains_label(line, value)) {
+            if self
+                .lines()
+                .iter()
+                .any(|line| line.trim_start().starts_with('*') && enum_option_matches(line, value))
+            {
                 self.device.press_main();
                 self.ensure_not_editing("selected row");
                 return;
@@ -204,4 +212,11 @@ fn clean_line(line: &str) -> String {
 fn contains_label(line: &str, label: &str) -> bool {
     line.to_ascii_lowercase()
         .contains(&label.to_ascii_lowercase())
+}
+
+fn enum_option_matches(line: &str, value: &str) -> bool {
+    clean_line(line)
+        .trim_start_matches('*')
+        .trim()
+        .eq_ignore_ascii_case(value)
 }

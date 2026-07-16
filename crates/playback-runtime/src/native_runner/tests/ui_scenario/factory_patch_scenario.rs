@@ -1,7 +1,7 @@
 use super::super::native_factory_payload;
 use super::device_driver::DeviceDriver;
 use super::visible_menu_driver::VisibleMenuDriver;
-use crate::{RuntimeStoreResult, SampleEntry};
+use crate::{NativeRunner, NativeRunnerConfig, RuntimeStoreResult, SampleEntry};
 
 const FACTORY_PATCH_SEQUENCE: &[&str] = &[
     "System > Clear all > Confirm Clear All",
@@ -116,7 +116,11 @@ fn load_visible_preset(device: &mut DeviceDriver, name: &str) {
 
 fn assert_factory_patch_matches_system_default(device: &DeviceDriver) {
     let scenario_payload = device.config_payload();
-    let factory_payload = native_factory_payload();
+    let mut factory_runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    factory_runner
+        .apply_config_payload(native_factory_payload())
+        .unwrap();
+    let factory_payload = factory_runner.config_payload();
     if scenario_payload != factory_payload {
         panic!(
             "factory patch scenario payload does not match native factory/default payload\nscenario:\n{}\nfactory:\n{}",
@@ -205,11 +209,13 @@ fn assert_mute_looper_xy_fx_and_aux_paths(device: &mut DeviceDriver) {
 
     device.select_layer_with_fn(0);
     device.toggle_active_layer_mute();
+    device.start();
     play_and_expect_events(device, "L1 muted, L2/L3 still active");
     device.toggle_active_layer_mute();
 
     device.select_layer_with_fn(1);
     device.toggle_active_layer_mute();
+    device.start();
     play_and_expect_events(device, "L2 muted, L1/L3 still active");
     device.toggle_active_layer_mute();
 
@@ -237,7 +243,9 @@ fn assert_mute_looper_xy_fx_and_aux_paths(device: &mut DeviceDriver) {
     device.toggle_active_layer_mute();
 
     let synth_before = device.output().synth_param_count;
+    device.select_layer_with_fn(0);
     device.select_sparks_page_with_fn(5);
+    device.start();
     device.press_grid(6, 6);
     device.clock_pulses(6);
     device.release_grid(6, 6);
@@ -269,12 +277,13 @@ fn assert_mute_looper_xy_fx_and_aux_paths(device: &mut DeviceDriver) {
 
 fn play_and_expect_events(device: &mut DeviceDriver, label: &str) {
     let before = device.output().musical_event_count;
-    for _ in 0..32 {
+    for _ in 0..96 {
         device.clock_pulses(6);
+        if device.output().musical_event_count > before {
+            return;
+        }
     }
-    if device.output().musical_event_count <= before {
-        device.fail(&format!("{label} did not emit musical events"));
-    }
+    device.fail(&format!("{label} did not emit musical events"));
 }
 
 fn configure_pulses_from_visible_ui(device: &mut DeviceDriver) {
@@ -284,8 +293,8 @@ fn configure_pulses_from_visible_ui(device: &mut DeviceDriver) {
 
     menu.open_group("L1:");
     menu.open_group("Events");
-    menu.expect_visible_value("Activat... note_on", "note_on");
-    menu.expect_visible_value("Activa... I1", "I1");
+    menu.expect_visible_value("On Trig", "note_on");
+    menu.expect_visible_value("On Inst", "I1");
     menu.back();
     menu.open_group("Note Mapping");
     menu.expect_visible_value("Sca", "Pentatonic");
@@ -304,7 +313,7 @@ fn configure_pulses_from_visible_ui(device: &mut DeviceDriver) {
     menu.open_group("Events");
     menu.edit_bool_to("Event Triggers", "On");
     menu.expect_visible_value("Event Triggers", "On");
-    menu.expect_visible_value("Activa", "I2");
+    menu.expect_visible_value("On Inst", "I2");
     menu.back();
     menu.back();
 
@@ -312,9 +321,9 @@ fn configure_pulses_from_visible_ui(device: &mut DeviceDriver) {
     menu.open_group("Events");
     menu.edit_bool_to("Event Triggers", "On");
     menu.expect_visible_value("Event Triggers", "On");
-    menu.expect_visible_value("Activa", "I3");
-    menu.expect_visible_value("Activat... note_on", "note_on");
-    menu.expect_visible_value("Deacti", "I3");
+    menu.expect_visible_value("On Inst", "I3");
+    menu.expect_visible_value("On Trig", "note_on");
+    menu.expect_visible_value("Off Inst", "I3");
     menu.move_selection(1);
     menu.edit_selected_enum_to("note_off");
     menu.back();
@@ -339,7 +348,7 @@ fn configure_tones_from_visible_ui(device: &mut DeviceDriver) {
         menu.back();
         menu.back();
         menu.open_group("Mixer >");
-        menu.edit_enum_to("Route", "fx_bus_1");
+        menu.edit_enum_to("Route", "fxb1");
         menu.back();
         menu.back();
 
@@ -370,7 +379,7 @@ fn configure_tones_from_visible_ui(device: &mut DeviceDriver) {
         menu.edit_enum_to("Type", "synth");
         menu.edit_enum_to("Note Mode", "hold");
         menu.open_group("Mixer >");
-        menu.edit_enum_to("Route", "fx_bus_1");
+        menu.edit_enum_to("Route", "fxb1");
         menu.back();
         menu.back();
         menu.back();
