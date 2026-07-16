@@ -60,6 +60,7 @@ pub(super) struct MomentaryFxState {
     pub(super) id: String,
     pub(super) kind: MomentaryFxKind,
     pub(super) params: BTreeMap<String, Value>,
+    pub(super) runtime_params: MomentaryFxRuntimeParams,
     pub(super) target: MomentaryFxTarget,
     pub(super) releasing: bool,
     pub(super) release_pos: u32,
@@ -84,6 +85,70 @@ pub(super) struct MomentaryFxState {
     pub(super) freeze_inject_len: u32,
 }
 
+#[derive(Clone, Copy)]
+pub(super) enum MomentaryFxRuntimeParams {
+    Stutter {
+        depth: f32,
+    },
+    Freeze {
+        mix: f32,
+        release_len: u32,
+    },
+    FilterSweep {
+        target_cutoff: f32,
+        q: f32,
+        sweep_in_step: f32,
+        sweep_out_step: f32,
+    },
+    PitchShift {
+        ratio: f32,
+        mix: f32,
+    },
+}
+
+impl MomentaryFxRuntimeParams {
+    pub(super) fn from_params(
+        kind: MomentaryFxKind,
+        params: &BTreeMap<String, Value>,
+        sample_rate: u32,
+    ) -> Self {
+        match kind {
+            MomentaryFxKind::Stutter => Self::Stutter {
+                depth: (param_f32(params, "depthPct", 100.0) / 100.0).clamp(0.0, 1.0),
+            },
+            MomentaryFxKind::Freeze => Self::Freeze {
+                mix: (param_f32(params, "mixPct", 100.0) / 100.0).clamp(0.0, 1.0),
+                release_len: ms_to_samples(param_f32(params, "releaseMs", 500.0), sample_rate)
+                    .max(1),
+            },
+            MomentaryFxKind::FilterSweep => {
+                let cutoff_pct = (param_f32(params, "cutoffPct", 35.0) / 100.0).clamp(0.0, 1.0);
+                let resonance_pct =
+                    (param_f32(params, "resonancePct", 70.0) / 100.0).clamp(0.0, 1.0);
+                let in_len =
+                    ms_to_samples(param_f32(params, "sweepInMs", 200.0), sample_rate).max(1) as f32;
+                let out_len = ms_to_samples(param_f32(params, "sweepOutMs", 500.0), sample_rate)
+                    .max(1) as f32;
+                Self::FilterSweep {
+                    target_cutoff: 120.0 + cutoff_pct * 8_000.0,
+                    q: 0.5 + resonance_pct * 11.5,
+                    sweep_in_step: 1.0 / in_len,
+                    sweep_out_step: 1.0 / out_len,
+                }
+            }
+            MomentaryFxKind::PitchShift => {
+                let semitones = param_f32(params, "semitones", 7.0).clamp(-24.0, 24.0);
+                let cents = param_f32(params, "cents", 0.0).clamp(-100.0, 100.0);
+                let mix = (param_f32(params, "mixPct", 100.0) / 100.0).clamp(0.0, 1.0);
+                Self::PitchShift {
+                    ratio: 2.0_f32.powf((semitones + cents / 100.0) / 12.0),
+                    mix,
+                }
+            }
+        }
+    }
+}
+
 impl MomentaryFxState {
     pub(super) fn new(
         id: String,
@@ -99,10 +164,12 @@ impl MomentaryFxState {
         let freeze_bufs: [Vec<f32>; 4] =
             DELAY_LENS.map(|n| vec![0.0; (n * sample_rate as usize / 44_100).max(1)]);
         let freeze_inject_len = (sample_rate * FREEZE_INJECT_MS / 1000).max(1);
+        let runtime_params = MomentaryFxRuntimeParams::from_params(kind, &params, sample_rate);
         Self {
             id,
             kind,
             params,
+            runtime_params,
             target,
             releasing: false,
             release_pos: 0,

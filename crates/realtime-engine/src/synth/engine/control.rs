@@ -63,8 +63,9 @@ impl SynthEngine {
             fx.releasing = true;
             fx.release_pos = 0;
             if fx.kind == MomentaryFxKind::Freeze {
-                let ms = param_f32(&fx.params, "releaseMs", 500.0);
-                fx.release_len = ms_to_samples(ms, self.sample_rate).max(1);
+                if let MomentaryFxRuntimeParams::Freeze { release_len, .. } = fx.runtime_params {
+                    fx.release_len = release_len;
+                }
             }
         }
     }
@@ -72,6 +73,8 @@ impl SynthEngine {
     pub fn momentary_fx_update(&mut self, id: &str, params: BTreeMap<String, Value>) {
         if let Some(fx) = self.momentary_fx.iter_mut().find(|fx| fx.id == id) {
             fx.params = params;
+            fx.runtime_params =
+                MomentaryFxRuntimeParams::from_params(fx.kind, &fx.params, self.sample_rate);
             if fx.kind == MomentaryFxKind::Stutter {
                 fx.stutter_segment_len = stutter_segment_len(self.sample_rate, &fx.params);
                 fx.stutter_write = 0;

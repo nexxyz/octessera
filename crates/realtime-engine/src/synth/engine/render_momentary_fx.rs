@@ -19,7 +19,9 @@ impl SynthEngine {
             }
             match fx.kind {
                 MomentaryFxKind::Stutter => {
-                    let depth = (param_f32(&fx.params, "depthPct", 100.0) / 100.0).clamp(0.0, 1.0);
+                    let MomentaryFxRuntimeParams::Stutter { depth } = fx.runtime_params else {
+                        continue;
+                    };
                     let segment_len = fx.stutter_segment_len.min(fx.stutter_l.len()).max(1);
                     let ramp_len = fx.stutter_ramp_len.min(segment_len / 4).max(1);
 
@@ -62,7 +64,9 @@ impl SynthEngine {
                     }
                 }
                 MomentaryFxKind::Freeze => {
-                    let mix = (param_f32(&fx.params, "mixPct", 100.0) / 100.0).clamp(0.0, 1.0);
+                    let MomentaryFxRuntimeParams::Freeze { mix, .. } = fx.runtime_params else {
+                        continue;
+                    };
                     let feedback = 0.997_f32;
                     let damp = 0.35_f32;
 
@@ -117,26 +121,23 @@ impl SynthEngine {
                     }
                 }
                 MomentaryFxKind::FilterSweep => {
-                    let cutoff_pct =
-                        (param_f32(&fx.params, "cutoffPct", 35.0) / 100.0).clamp(0.0, 1.0);
-                    let resonance_pct =
-                        (param_f32(&fx.params, "resonancePct", 70.0) / 100.0).clamp(0.0, 1.0);
-                    let q = 0.5 + resonance_pct * 11.5;
-                    let target_cutoff = 120.0 + cutoff_pct * 8_000.0;
+                    let MomentaryFxRuntimeParams::FilterSweep {
+                        target_cutoff,
+                        q,
+                        sweep_in_step,
+                        sweep_out_step,
+                    } = fx.runtime_params
+                    else {
+                        continue;
+                    };
 
                     if fx.releasing {
-                        let out_len =
-                            ms_to_samples(param_f32(&fx.params, "sweepOutMs", 500.0), sample_rate)
-                                .max(1) as f32;
-                        fx.sweep_pos -= 1.0 / out_len;
+                        fx.sweep_pos -= sweep_out_step;
                         if fx.sweep_pos < 0.0 {
                             fx.sweep_pos = 0.0;
                         }
                     } else {
-                        let in_len =
-                            ms_to_samples(param_f32(&fx.params, "sweepInMs", 200.0), sample_rate)
-                                .max(1) as f32;
-                        fx.sweep_pos += 1.0 / in_len;
+                        fx.sweep_pos += sweep_in_step;
                         if fx.sweep_pos > 1.0 {
                             fx.sweep_pos = 1.0;
                         }
@@ -151,11 +152,10 @@ impl SynthEngine {
                         .process(r, FilterType::Lowpass, cutoff, q, sample_rate);
                 }
                 MomentaryFxKind::PitchShift => {
-                    let semitones = param_f32(&fx.params, "semitones", 7.0).clamp(-24.0, 24.0);
-                    let cents = param_f32(&fx.params, "cents", 0.0).clamp(-100.0, 100.0);
-                    let mix = (param_f32(&fx.params, "mixPct", 100.0) / 100.0).clamp(0.0, 1.0);
-                    let total_semitones = semitones + cents / 100.0;
-                    let ratio = 2.0_f32.powf(total_semitones / 12.0);
+                    let MomentaryFxRuntimeParams::PitchShift { ratio, mix } = fx.runtime_params
+                    else {
+                        continue;
+                    };
 
                     let (wet_l, wet_r) = fx.pitch_shifter.process_frame(l, r, ratio);
                     let ramp = if fx.pitch_ramp_pos < fx.pitch_ramp_len {
@@ -178,11 +178,7 @@ impl SynthEngine {
             }
             match fx.kind {
                 MomentaryFxKind::FilterSweep => fx.sweep_pos > 0.0,
-                MomentaryFxKind::Freeze => {
-                    let total =
-                        ms_to_samples(param_f32(&fx.params, "releaseMs", 500.0), sample_rate);
-                    fx.release_pos < total
-                }
+                MomentaryFxKind::Freeze => fx.release_pos < fx.release_len,
                 _ => false,
             }
         });

@@ -6,7 +6,7 @@ mod timing;
 
 use report::{emit_system_row, emit_timed_row, print_csv_header, TimedRow};
 use scenarios::{profile_scenarios, runtime_step_scenarios, ProfileMode};
-use timing::{profile_block_frames, profile_sample_rate};
+use timing::{profile_block_frames, profile_measure_frames, profile_sample_rate};
 
 const PROFILE_BLOCKS: usize = 48;
 const SOAK_BLOCKS: usize = 3_750;
@@ -31,6 +31,7 @@ pub fn run_dsp_profile() -> Result<(), String> {
     emit_system_row("before");
 
     let block_frames = profile_block_frames();
+    let measure_frames = profile_measure_frames(block_frames);
     let sample_rate = profile_sample_rate();
     let mode = profile_mode();
     let blocks = match mode {
@@ -40,18 +41,23 @@ pub fn run_dsp_profile() -> Result<(), String> {
     };
 
     for scenario in profile_scenarios(sample_rate, mode) {
-        let timing = timing::measure_engine_source(&scenario, sample_rate, block_frames, blocks)?;
+        let timing = timing::measure_engine_source(&scenario, sample_rate, measure_frames, blocks)?;
         let telemetry =
             telemetry::collect_synth_telemetry(&scenario, sample_rate, block_frames, blocks);
+        let notes = format!(
+            "{};internal_block_frames={}",
+            report::notes_for(&telemetry),
+            block_frames
+        );
         emit_timed_row(TimedRow {
             kind: "engine_source",
             scenario: &scenario.name,
             metric: "raw_ratio",
             samples: &timing,
-            block_frames,
+            block_frames: measure_frames,
             sample_rate,
             blocks,
-            notes: &report::notes_for(&telemetry),
+            notes: &notes,
         });
     }
 

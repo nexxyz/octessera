@@ -22,6 +22,12 @@ pub fn profile_block_frames() -> usize {
         .clamp(MIN_BLOCK_FRAMES, MAX_BLOCK_FRAMES)
 }
 
+pub fn profile_measure_frames(block_frames: usize) -> usize {
+    env_usize("OCTESSERA_PI_PROFILE_MEASURE_FRAMES")
+        .unwrap_or(block_frames)
+        .clamp(MIN_BLOCK_FRAMES, MAX_BLOCK_FRAMES)
+}
+
 pub fn profile_sample_rate() -> u32 {
     env_usize("OCTESSERA_PI_PROFILE_SAMPLE_RATE")
         .map(|value| value as u32)
@@ -31,7 +37,7 @@ pub fn profile_sample_rate() -> u32 {
 pub fn measure_engine_source(
     scenario: &ScenarioSpec,
     sample_rate: u32,
-    block_frames: usize,
+    measure_frames: usize,
     blocks: usize,
 ) -> Result<Vec<f64>, String> {
     let (tx, rx) = mpsc::channel();
@@ -40,8 +46,8 @@ pub fn measure_engine_source(
             .map_err(|error| format!("engine event send failed: {error}"))?;
     }
     let mut source = EngineSource::new(rx, sample_rate);
-    let samples_per_block = block_frames * 2;
-    let block_seconds = block_frames as f64 / sample_rate as f64;
+    let samples_per_block = measure_frames * 2;
+    let block_seconds = measure_frames as f64 / sample_rate as f64;
     let mut timings = Vec::with_capacity(blocks);
     for _ in 0..blocks {
         let start = Instant::now();

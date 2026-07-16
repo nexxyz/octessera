@@ -35,9 +35,10 @@ mod voice_budget;
 use render_profile::RenderProfileState;
 use render_routing::FxBusOutputSpreadState;
 use support::{
-    midi_note_to_hz, mono_frame, pan_gains, pan_gains_float, param_f32, parse_instrument_kind,
+    midi_note_to_hz, mono_frame, pan_gains, pan_gains_float, parse_instrument_kind,
     parse_momentary_fx_kind, parse_route, sample_slot_for_note, InstrumentKind, MomentaryFxKind,
-    MomentaryFxState, PreviewSampleVoice, SampleVoice, DRY_HISTORY_FRAMES,
+    MomentaryFxRuntimeParams, MomentaryFxState, PreviewSampleVoice, SampleVoice,
+    DRY_HISTORY_FRAMES,
 };
 
 #[cfg(test)]

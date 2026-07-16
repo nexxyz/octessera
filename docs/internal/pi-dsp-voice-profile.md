@@ -51,3 +51,5 @@ At 256-frame blocks, overload profiling showed the parallel path can help if it 
 | `mixed_cross_slot_48_48_steal` | 3 | 0.713 | 0.731 | 0.798 | 48/48 |
 
 Update: platform capabilities now use the high-headroom path: 256-frame internal render blocks and 2 synth-slot workers. The runtime default output buffer remains 256 frames. `OCTESSERA_AUDIO_OUTPUT_BUFFER_FRAMES`, `OCTESSERA_AUDIO_BLOCK_FRAMES`, and `OCTESSERA_SYNTH_SLOT_WORKERS` still override those defaults for profiling.
+
+Follow-up: `docs/internal/pi-audio-buffer-experiment.md` records the 128-frame internal/output experiment. The outcome was to keep 256/256 defaults, keep the safe momentary FX cache and profiling tooling, and defer true 128-frame output until the Pi ALSA/cpal output path is investigated.

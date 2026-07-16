@@ -3,12 +3,13 @@ param(
   [string]$Key = "$env:USERPROFILE\.ssh\octessera_pi_dev",
   [string]$Binary = "/usr/local/bin/octessera-pi",
   [string]$Service = "octessera.service",
-  [ValidateSet("RuntimeOnly", "Live", "AudioDrain", "DspFxLimits")]
+  [ValidateSet("RuntimeOnly", "Live", "AudioDrain", "DspFxLimits", "DspSoak")]
   [string]$Mode = "RuntimeOnly",
   [string]$Durations = "5s",
   [string]$Scenarios = "idle,pulses-stress",
   [int]$SynthSlotWorkers = -1,
   [int]$AudioBlockFrames = 0,
+  [int]$ProfileMeasureFrames = 0,
   [int]$AudioOutputBufferFrames = 0,
   [int]$AudioDrainIntervalMs = 10,
   [switch]$Snapshots,
@@ -53,6 +54,10 @@ if ($AudioBlockFrames -gt 0) {
   $envParts += Env-Assignment "OCTESSERA_AUDIO_BLOCK_FRAMES" ([string]$AudioBlockFrames)
 }
 
+if ($ProfileMeasureFrames -gt 0) {
+  $envParts += Env-Assignment "OCTESSERA_PI_PROFILE_MEASURE_FRAMES" ([string]$ProfileMeasureFrames)
+}
+
 if ($SynthSlotWorkers -ge 0) {
   $envParts += Env-Assignment "OCTESSERA_SYNTH_SLOT_WORKERS" ([string]$SynthSlotWorkers)
 }
@@ -87,6 +92,10 @@ switch ($Mode) {
   }
   "DspFxLimits" {
     $envParts += Env-Assignment "OCTESSERA_PI_PROFILE_MODE" "fx-limits"
+    $args = @("--profile-dsp")
+  }
+  "DspSoak" {
+    $envParts += Env-Assignment "OCTESSERA_PI_PROFILE_MODE" "soak"
     $args = @("--profile-dsp")
   }
 }
