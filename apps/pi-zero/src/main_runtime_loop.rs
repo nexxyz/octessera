@@ -3,7 +3,6 @@ use crate::host_adapter::{PiPlaybackHostAdapter, PiPowerRequest};
 use crate::input::{encoder_press_message, MidiMessage};
 use crate::render_loop::RenderWorker;
 use crate::runtime_loop::{dispatch_runtime_message, handle_deferred_host_work};
-use crate::temporary_neokey_hack::TemporaryNeoKeyHack;
 use crate::ui_profile::UiProfiler;
 use octessera_hal::encoder_gpio::HardwareEvent;
 use playback_runtime::{
@@ -53,7 +52,6 @@ pub(crate) fn drain_host_messages(
 pub(crate) fn drain_encoder_events(
     event_rx: &mpsc::Receiver<HardwareEvent>,
     pending_encoder_turns: &mut PendingEncoderTurns,
-    temporary_neokey_hack: &mut TemporaryNeoKeyHack,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
     adapter: &mut PiPlaybackHostAdapter,
@@ -65,33 +63,16 @@ pub(crate) fn drain_encoder_events(
         let message = match event {
             HardwareEvent::EncoderTurn { id, delta } => {
                 crate::wake_trace::log_encoder_event(event);
-                if let Some(messages) = temporary_neokey_hack.encoder_turn_messages(id, delta) {
-                    for message in messages {
-                        dispatch_or_log(playback, runner, adapter, message);
-                    }
-                    continue;
-                }
                 pending_encoder_turns.enqueue(id, delta);
                 continue;
             }
             HardwareEvent::EncoderPress { id } => {
                 crate::wake_trace::log_encoder_event(event);
                 flush_pending_encoder_turns(pending_encoder_turns, playback, runner, adapter);
-                if let Some(messages) = temporary_neokey_hack.encoder_press_messages(id) {
-                    for message in messages {
-                        dispatch_or_log(playback, runner, adapter, message);
-                    }
-                    continue;
-                }
                 encoder_press_message(id)
             }
-            HardwareEvent::EncoderRelease { id } => {
+            HardwareEvent::EncoderRelease { .. } => {
                 crate::wake_trace::log_encoder_event(event);
-                if let Some(messages) = temporary_neokey_hack.encoder_release_messages(id) {
-                    for message in messages {
-                        dispatch_or_log(playback, runner, adapter, message);
-                    }
-                }
                 continue;
             }
         };

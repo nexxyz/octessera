@@ -35,7 +35,6 @@ struct SchedulerState {
     last_rendered_snapshot_revision: u64,
     transient_render_until: Option<Instant>,
     pending_encoder_turns: PendingEncoderTurns,
-    temporary_neokey_hack: crate::temporary_neokey_hack::TemporaryNeoKeyHack,
     ui_profiler: UiProfiler,
 }
 
@@ -48,7 +47,6 @@ impl SchedulerState {
             last_rendered_snapshot_revision: 0,
             transient_render_until: None,
             pending_encoder_turns: PendingEncoderTurns::default(),
-            temporary_neokey_hack: Default::default(),
             ui_profiler: UiProfiler::from_process(),
         }
     }
@@ -182,7 +180,6 @@ fn run_scheduler(
         drain_encoder_events(
             &encoder_rx,
             &mut state.pending_encoder_turns,
-            &mut state.temporary_neokey_hack,
             &mut playback,
             &mut runner,
             &mut adapter,

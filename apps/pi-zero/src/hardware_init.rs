@@ -10,7 +10,7 @@ pub(crate) struct HardwareDevices {
     pub(crate) _i2c_bus: I2CBus,
     pub(crate) oled: OledSsd1351,
     pub(crate) trellis: NeoTrellis,
-    pub(crate) neokey: Option<NeoKey>,
+    pub(crate) neokey: NeoKey,
     pub(crate) input_interrupt: SeesawInterrupt,
     pub(crate) _dac: I2sDac,
 }
@@ -40,33 +40,26 @@ pub(crate) fn init_hardware() -> Result<HardwareDevices, HardwareFault> {
     let dac = init_device("DAC", I2sDac::new(), &mut fault);
 
     match (i2c_bus, oled, trellis, neokey, input_interrupt, dac) {
-        (Some(_i2c_bus), Some(oled), Some(trellis), neokey, Some(input_interrupt), Some(_dac))
-            if fault.is_empty() || (neokey.is_none() && only_neokey_failed(&fault)) =>
-        {
-            if neokey.is_none() {
-                eprintln!(
-                    "TEMPORARY NEOKEY HACK: continuing without NeoKey; aux encoders emulate keys"
-                );
-            }
-            Ok(HardwareDevices {
-                _i2c_bus,
-                oled,
-                trellis,
-                neokey,
-                input_interrupt,
-                _dac,
-            })
-        }
+        (
+            Some(_i2c_bus),
+            Some(oled),
+            Some(trellis),
+            Some(neokey),
+            Some(input_interrupt),
+            Some(_dac),
+        ) if fault.is_empty() => Ok(HardwareDevices {
+            _i2c_bus,
+            oled,
+            trellis,
+            neokey,
+            input_interrupt,
+            _dac,
+        }),
         (_, oled, trellis, neokey, _, _) => {
             fault.attach_outputs(oled, trellis, neokey);
             Err(fault)
         }
     }
-}
-
-fn only_neokey_failed(fault: &HardwareFault) -> bool {
-    crate::temporary_neokey_hack::allow_missing_neokey()
-        && fault.failure_names().all(|name| name == "NEOKEY")
 }
 
 fn early_boot_splash_enabled() -> bool {
