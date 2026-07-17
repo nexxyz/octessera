@@ -140,6 +140,9 @@ fn clear_all_from_visible_ui(device: &mut DeviceDriver) {
 }
 
 fn paint_layer_one_cross(device: &mut DeviceDriver) {
+    for (x, y) in [(1, 0), (2, 1), (0, 2), (1, 2), (2, 2)] {
+        device.press_grid(x, y);
+    }
     for x in 0..8 {
         device.press_grid(x, 3);
         device.press_grid(x, 4);
@@ -149,7 +152,6 @@ fn paint_layer_one_cross(device: &mut DeviceDriver) {
         device.press_grid(4, y);
     }
 }
-
 fn paint_layer_two_pattern(device: &mut DeviceDriver) {
     for (x, y) in [(0, 0), (2, 0), (4, 0), (6, 0), (2, 1), (4, 1)] {
         device.press_grid(x, y);
