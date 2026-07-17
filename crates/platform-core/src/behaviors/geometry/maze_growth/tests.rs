@@ -90,9 +90,9 @@ fn grid_restart_collapse_and_walker_entry() {
 fn default_init_seeds_visible_maze_quietly_and_grows() {
     let mut ctx = context();
     let state = maze_growth_init(json!({})).unwrap();
-    assert!(state.cells.iter().any(|cell| *cell == WALKER));
-    assert!(state.cells.iter().any(|cell| *cell == FRONTIER));
-    assert!(state.cells.iter().any(|cell| *cell == PATH));
+    assert!(state.cells.contains(&WALKER));
+    assert!(state.cells.contains(&FRONTIER));
+    assert!(state.cells.contains(&PATH));
     assert!(state
         .trigger_types
         .iter()
