@@ -4,6 +4,7 @@ use crate::palette::{
     BEHAVIOR_DIM_GREEN, BEHAVIOR_PRIMARY_MAGENTA, BEHAVIOR_PRIMARY_YELLOW, BLACK, BLUE, GRAY,
     GREEN, RED, WHITE, YELLOW,
 };
+use serde_json::Value;
 use std::collections::HashSet;
 
 #[test]
@@ -17,12 +18,34 @@ fn lists_and_resolves_native_behaviors() {
             "keys",
             "looper",
             "brain",
+            "cyclic",
+            "forest_fire",
+            "predator_prey",
             "ant",
             "bounce",
             "bubbles",
+            "gravity",
+            "boids",
+            "lava_lamp",
+            "orbit",
+            "sand_ripples",
+            "fractal_explorer",
+            "maze_growth",
             "shapes",
+            "ink",
+            "ising",
+            "kuramoto",
+            "lightning",
             "raindrops",
+            "reaction_diffusion",
+            "rivers",
+            "wave",
+            "cracks",
+            "coral",
+            "crystal_growth",
             "dla",
+            "physarum",
+            "vines",
         ]
     );
     assert_eq!(get_native_behavior("life"), Some(NativeBehavior::Life));
@@ -38,6 +61,84 @@ fn lists_and_resolves_native_behaviors() {
         Some(NativeBehavior::Bubbles)
     );
     assert_eq!(get_native_behavior("dla"), Some(NativeBehavior::Dla));
+    assert_eq!(
+        get_native_behavior("crystal_growth"),
+        Some(NativeBehavior::CrystalGrowth)
+    );
+    assert_eq!(get_native_behavior("crystal"), None);
+    assert_eq!(get_native_behavior("crystals"), None);
+    assert_eq!(
+        get_native_behavior("lightning"),
+        Some(NativeBehavior::Lightning)
+    );
+    assert_eq!(get_native_behavior("bolt"), None);
+    assert_eq!(
+        get_native_behavior("kuramoto"),
+        Some(NativeBehavior::Kuramoto)
+    );
+    assert_eq!(get_native_behavior("kuramoto_oscillator"), None);
+    assert_eq!(get_native_behavior("cyclic"), Some(NativeBehavior::Cyclic));
+    assert_eq!(get_native_behavior("cyclic_ca"), None);
+    assert_eq!(get_native_behavior("wave"), Some(NativeBehavior::Wave));
+    assert_eq!(get_native_behavior("waves"), None);
+    assert_eq!(
+        get_native_behavior("gravity"),
+        Some(NativeBehavior::Gravity)
+    );
+    assert_eq!(
+        get_native_behavior("lava_lamp"),
+        Some(NativeBehavior::LavaLamp)
+    );
+    assert_eq!(get_native_behavior("sand"), None);
+    assert_eq!(get_native_behavior("boids"), Some(NativeBehavior::Boids));
+    assert_eq!(get_native_behavior("boid"), None);
+    assert_eq!(get_native_behavior("orbit"), Some(NativeBehavior::Orbit));
+    assert_eq!(
+        get_native_behavior("sand_ripples"),
+        Some(NativeBehavior::SandRipples)
+    );
+    assert_eq!(get_native_behavior("orbits"), None);
+    assert_eq!(
+        get_native_behavior("fractal_explorer"),
+        Some(NativeBehavior::FractalExplorer)
+    );
+    assert_eq!(
+        get_native_behavior("maze_growth"),
+        Some(NativeBehavior::MazeGrowth)
+    );
+    assert_eq!(get_native_behavior("fractal"), None);
+    assert_eq!(get_native_behavior("ink"), Some(NativeBehavior::Ink));
+    assert_eq!(get_native_behavior("inks"), None);
+    assert_eq!(get_native_behavior("ising"), Some(NativeBehavior::Ising));
+    assert_eq!(get_native_behavior("magnet"), None);
+    assert_eq!(
+        get_native_behavior("reaction_diffusion"),
+        Some(NativeBehavior::ReactionDiffusion)
+    );
+    assert_eq!(get_native_behavior("gray_scott"), None);
+    assert_eq!(get_native_behavior("rivers"), Some(NativeBehavior::Rivers));
+    assert_eq!(get_native_behavior("river"), None);
+    assert_eq!(get_native_behavior("cracks"), Some(NativeBehavior::Cracks));
+    assert_eq!(get_native_behavior("crack"), None);
+    assert_eq!(get_native_behavior("coral"), Some(NativeBehavior::Coral));
+    assert_eq!(get_native_behavior("reef"), None);
+    assert_eq!(
+        get_native_behavior("physarum"),
+        Some(NativeBehavior::Physarum)
+    );
+    assert_eq!(get_native_behavior("slime"), None);
+    assert_eq!(get_native_behavior("vines"), Some(NativeBehavior::Vines));
+    assert_eq!(get_native_behavior("vine"), None);
+    assert_eq!(
+        get_native_behavior("predator_prey"),
+        Some(NativeBehavior::PredatorPrey)
+    );
+    assert_eq!(get_native_behavior("predator"), None);
+    assert_eq!(
+        get_native_behavior("forest_fire"),
+        Some(NativeBehavior::ForestFire)
+    );
+    assert_eq!(get_native_behavior("forest"), None);
     assert_eq!(get_native_behavior("missing"), None);
 }
 
@@ -151,6 +252,30 @@ fn behavior_render_palettes_match_themes() {
             },
         ),
         (
+            NativeBehavior::Cyclic,
+            BehaviorRenderPalette {
+                active: [255, 120, 220],
+                inactive: BLACK,
+                stable: [80, 180, 255],
+            },
+        ),
+        (
+            NativeBehavior::ForestFire,
+            BehaviorRenderPalette {
+                active: YELLOW,
+                inactive: BLACK,
+                stable: GREEN,
+            },
+        ),
+        (
+            NativeBehavior::PredatorPrey,
+            BehaviorRenderPalette {
+                active: [255, 180, 80],
+                inactive: BLACK,
+                stable: GREEN,
+            },
+        ),
+        (
             NativeBehavior::Ant,
             BehaviorRenderPalette {
                 active: YELLOW,
@@ -175,6 +300,38 @@ fn behavior_render_palettes_match_themes() {
             },
         ),
         (
+            NativeBehavior::Boids,
+            BehaviorRenderPalette {
+                active: [255, 240, 160],
+                inactive: BLACK,
+                stable: [120, 200, 255],
+            },
+        ),
+        (
+            NativeBehavior::Gravity,
+            BehaviorRenderPalette {
+                active: [255, 220, 120],
+                inactive: BLACK,
+                stable: [180, 140, 60],
+            },
+        ),
+        (
+            NativeBehavior::Orbit,
+            BehaviorRenderPalette {
+                active: [255, 210, 120],
+                inactive: BLACK,
+                stable: [140, 120, 255],
+            },
+        ),
+        (
+            NativeBehavior::FractalExplorer,
+            BehaviorRenderPalette {
+                active: [255, 220, 180],
+                inactive: BLACK,
+                stable: [100, 80, 200],
+            },
+        ),
+        (
             NativeBehavior::Shapes,
             BehaviorRenderPalette {
                 active: WHITE,
@@ -183,11 +340,67 @@ fn behavior_render_palettes_match_themes() {
             },
         ),
         (
+            NativeBehavior::Ink,
+            BehaviorRenderPalette {
+                active: [120, 80, 255],
+                inactive: BLACK,
+                stable: [40, 30, 140],
+            },
+        ),
+        (
+            NativeBehavior::Kuramoto,
+            BehaviorRenderPalette {
+                active: [255, 255, 200],
+                inactive: BLACK,
+                stable: [120, 80, 255],
+            },
+        ),
+        (
+            NativeBehavior::Lightning,
+            BehaviorRenderPalette {
+                active: [255, 255, 180],
+                inactive: BLACK,
+                stable: [80, 180, 255],
+            },
+        ),
+        (
+            NativeBehavior::Wave,
+            BehaviorRenderPalette {
+                active: [180, 240, 255],
+                inactive: BLACK,
+                stable: [30, 90, 180],
+            },
+        ),
+        (
             NativeBehavior::Raindrops,
             BehaviorRenderPalette {
                 active: WHITE,
                 inactive: BLUE,
                 stable: GRAY,
+            },
+        ),
+        (
+            NativeBehavior::Cracks,
+            BehaviorRenderPalette {
+                active: [255, 245, 210],
+                inactive: BLACK,
+                stable: [120, 160, 180],
+            },
+        ),
+        (
+            NativeBehavior::CrystalGrowth,
+            BehaviorRenderPalette {
+                active: [220, 255, 255],
+                inactive: BLACK,
+                stable: [40, 180, 255],
+            },
+        ),
+        (
+            NativeBehavior::Physarum,
+            BehaviorRenderPalette {
+                active: [240, 255, 140],
+                inactive: BLACK,
+                stable: [160, 180, 70],
             },
         ),
         (

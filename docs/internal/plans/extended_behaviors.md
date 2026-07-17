@@ -347,12 +347,34 @@ Current behaviors:
 - Keys
 - Looper
 - Brain
+- Cyclic
 - Ant
 - Bounce
+- Bubbles
+- Gravity
+- Boids
+- Orbit
 - Shapes
 - Raindrops
 - DLA
-- Glider
+- Forest Fire
+- Predator–Prey
+- Kuramoto
+- Wave
+- Ink
+- Ising
+- Coral
+- Cracks
+- Crystal Growth
+- Physarum
+- Vines
+- Fractal Explorer
+- Maze Growth
+- Lightning
+- Reaction–Diffusion
+- Rivers
+- Sand Ripples
+- Lava Lamp
 
 ## 5.1 Definitely Keep
 
@@ -434,33 +456,15 @@ Its identity should be free evolution from a board state or seed.
 
 ### Glider
 
-Glider is the most obvious candidate for possible consolidation.
+Glider is intentionally merged into Life for now.
 
-It uses Conway-style Game of Life with a spawn-glider feature. That means its simulation core overlaps almost entirely with Life.
+It uses Conway-style Game of Life with glider injection, so its simulation core overlaps almost entirely with Life. Octessera exposes that idea as Life controls instead of a separate behavior ID:
 
-There are two valid choices:
+- `Glider Interval` for automatic injections
+- `Spawn Step` for timing position
+- `Spawn Glider` for immediate manual injection
 
-#### Keep Glider as a separate behavior
-
-Keep it if it feels materially different in performance because:
-
-- gliders are continuously or conditionally injected
-- the world has directional movement
-- the player's relationship to it is different
-- it has its own parameters and musical output character
-
-#### Merge Glider into Life
-
-Merge it if the only meaningful difference is one optional setting:
-
-- spawn gliders: on/off
-- glider interval
-- glider direction
-- glider source edge
-
-Recommendation:
-
-> Keep Glider only if it has a clearly different interaction loop and musical result. Otherwise, make glider injection a Life mode or Life parameter.
+Only split Glider into its own behavior later if it gains a materially different performance loop, such as directional sources, steering, glider-only musical mapping, or a distinct relationship between player input and glider flow.
 
 ### Brain
 
@@ -508,7 +512,6 @@ Behaviors
 │
 ├── Cellular Build
 │   ├── Life
-│   ├── Glider            [or merge into Life]
 │   ├── Brain
 │   ├── Ant
 │   ├── Cyclic
@@ -525,9 +528,9 @@ Behaviors
 │   └── Lightning
 │
 ├── Growth & Decay
+│   ├── Crystal Growth (implemented)
 │   ├── DLA
 │   ├── Physarum
-│   ├── Crystal
 │   ├── Vines
 │   ├── Coral
 │   └── Cracks
@@ -613,7 +616,7 @@ Recommendation:
 
 These are strongly distinct from the current set, computationally cheap enough, and well aligned with Octessera.
 
-## 7.1 Kuramoto / Pulse-Coupled Oscillators
+## 7.1 Kuramoto / Pulse-Coupled Oscillators — implemented/current
 
 **Category:** Rhythm & Synchronization
 **Priority:** Very high
@@ -656,7 +659,7 @@ Search terms:
 - Mirollo Strogatz firefly synchronization
 - cellular oscillator synchronization
 
-## 7.2 Forest Fire
+## 7.2 Forest Fire — implemented/current
 
 **Category:** Cellular Build
 **Priority:** Very high
@@ -694,7 +697,7 @@ Search terms:
 - Drossel Schwabl forest fire
 - forest fire cellular automaton
 
-## 7.3 Physarum / Slime Mold
+## 7.3 Physarum / Slime Mold — implemented/current
 
 **Category:** Growth & Decay
 **Priority:** Very high
@@ -737,7 +740,7 @@ Search terms:
 - Jeff Jones slime mold algorithm
 - trail-following agent model
 
-## 7.4 Cracks / Glass
+## 7.4 Cracks / Glass — implemented/current
 
 **Category:** Growth & Decay
 **Priority:** Very high
@@ -780,7 +783,7 @@ Search terms:
 - cellular fracture model
 - lattice fracture simulation
 
-## 7.5 Boids
+## 7.5 Boids — implemented/current
 
 **Category:** Particles & Motion
 **Priority:** High
@@ -817,7 +820,7 @@ Search terms:
 - Craig Reynolds Boids
 - flocking simulation local rules
 
-## 7.6 Wave
+## 7.6 Wave — implemented/current
 
 **Category:** Fields & Waves
 **Priority:** High
@@ -851,7 +854,7 @@ Search terms:
 - discrete 2D wave equation grid
 - ripple simulation finite difference
 
-## 7.7 Fractal Explorer
+## 7.7 Fractal Explorer — implemented/current
 
 **Category:** Geometry & Space / Dynamical Systems
 **Priority:** High
@@ -910,7 +913,7 @@ Search terms:
 
 # 8. Priority 2: Strong Additions
 
-## 8.1 Cyclic Cellular Automaton
+## 8.1 Cyclic Cellular Automaton — implemented/current
 
 **Cost:** Very low
 
@@ -934,7 +937,7 @@ Caution:
 
 - choose a rule that remains legible on 8×8
 
-## 8.2 Predator–Prey Ecosystem
+## 8.2 Predator–Prey Ecosystem — implemented/current
 
 **Cost:** Very low to low
 
@@ -959,7 +962,7 @@ World events:
 - overpopulation → famine
 - resource recovery phase
 
-## 8.3 Gravity / Sandpile
+## 8.3 Gravity / Sandpile — implemented/current
 
 **Cost:** Very low
 
@@ -978,7 +981,7 @@ Renewal:
 - trigger avalanche
 - remove settled cells by age
 
-## 8.4 Orbit / Moving Attractors
+## 8.4 Orbit / Moving Attractors — implemented/current
 
 **Cost:** Low
 
@@ -997,7 +1000,7 @@ Strengths:
 - distinct from Bounce and Boids
 - simple bounded particle system
 
-## 8.5 Crystal Growth
+## 8.5 Crystal Growth — implemented/current
 
 **Cost:** Very low
 
@@ -1016,7 +1019,7 @@ Renewal:
 - parity cancellation
 - fracture at edge contact
 
-## 8.6 Lightning
+## 8.6 Lightning — implemented/current
 
 **Cost:** Very low to low
 
@@ -1039,7 +1042,7 @@ Caution:
 - should not become merely a one-shot drawing
 - use multiple leaders, branching, and variable decay
 
-## 8.7 Ink / Diffusing Dye
+## 8.7 Ink / Diffusing Dye — implemented/current
 
 **Cost:** Low
 
@@ -1109,7 +1112,7 @@ Caution:
 
 # 9. Priority 3: Good but More Conditional
 
-## 9.1 Reaction–Diffusion / Gray–Scott
+## 9.1 Reaction–Diffusion / Gray–Scott — implemented/current
 
 **Cost:** Moderate relative to the others
 
@@ -1131,7 +1134,7 @@ Recommendation:
 
 > Implement one reaction–diffusion behavior, not separate Gray–Scott and Turing entries unless they feel meaningfully different.
 
-## 9.2 Vines
+## 9.2 Vines — implemented/current
 
 **Cost:** Very low to low
 
@@ -1153,7 +1156,7 @@ Keep only if it has a distinct rule:
 - resource transport
 - pruning
 
-## 9.3 Coral
+## 9.3 Coral — implemented/current
 
 **Cost:** Very low to low
 
@@ -1172,7 +1175,7 @@ Limitations:
 
 - can overlap with DLA and Vines
 
-## 9.4 Maze Growth
+## 9.4 Maze Growth — implemented/current
 
 **Cost:** Very low
 
@@ -1196,7 +1199,7 @@ Improve it by adding:
 - moving path activity
 - repeated collapse and regrowth
 
-## 9.5 Ising / Magnetic Domains
+## 9.5 Ising / Magnetic Domains — implemented/current
 
 **Cost:** Very low
 
@@ -1219,7 +1222,7 @@ Renewal:
 - field reversal
 - local noise injection
 
-## 9.6 Rivers
+## 9.6 Rivers — implemented/current
 
 **Cost:** Low
 
@@ -1237,7 +1240,7 @@ Limitations:
 - more implementation design is required
 - needs careful simplification for 8×8
 
-## 9.7 Sand Ripples / Dunes
+## 9.7 Sand Ripples / Dunes — implemented/current
 
 **Cost:** Low
 
@@ -1254,7 +1257,7 @@ Limitations:
 
 - may be subtle at 8×8
 
-## 9.8 Lava Lamp / Metaball Approximation
+## 9.8 Lava Lamp / Metaball Approximation — implemented/current
 
 **Cost:** Low to moderate
 
@@ -1336,13 +1339,13 @@ Each should have a specific identity:
 
 ## Tier S — Implement First
 
-1. **Kuramoto / Pulse Network**
+1. *(implemented)* **Kuramoto / Pulse Network**
 2. **Forest Fire**
-3. **Physarum / Slime Mold**
-4. **Cracks / Glass**
-5. **Boids**
-6. **Wave**
-7. **Fractal Explorer**
+3. *(implemented)* **Physarum / Slime Mold**
+4. *(implemented)* **Cracks / Glass**
+5. *(implemented)* **Boids**
+6. *(implemented)* **Wave**
+7. *(implemented)* **Fractal Explorer**
 
 These offer the best combination of:
 
@@ -1355,25 +1358,24 @@ These offer the best combination of:
 
 ## Tier A — Strong Next Additions
 
-8. **Cyclic Cellular Automaton**
-9. **Predator–Prey Ecosystem**
-10. **Gravity / Sandpile**
+8. *(implemented)* **Cyclic Cellular Automaton**
+9. *(implemented)* **Predator–Prey Ecosystem**
+10. *(implemented)* **Gravity / Sandpile**
 11. **Bubbles**
-12. **Orbit / Moving Attractors**
-13. **Crystal Growth**
-14. **Lightning**
-15. **Ink / Diffusing Dye**
+12. *(implemented)* **Orbit / Moving Attractors**
+13. *(implemented)* **Lightning**
+15. *(implemented)* **Ink / Diffusing Dye**
 
 ## Tier B — Add Selectively
 
-16. **Reaction–Diffusion**
-17. **Vines**
-18. **Coral**
-19. **Maze**
-20. **Ising / Magnetic Domains**
-21. **Rivers**
-22. **Sand Ripples**
-23. **Lava Lamp**
+16. *(implemented)* **Reaction–Diffusion**
+17. *(implemented)* **Vines**
+18. *(implemented)* **Coral**
+19. *(implemented)* **Maze**
+20. *(implemented)* **Ising / Magnetic Domains**
+21. *(implemented)* **Rivers**
+22. *(implemented)* **Sand Ripples**
+23. *(implemented)* **Lava Lamp**
 
 ---
 
@@ -1387,20 +1389,37 @@ These offer the best combination of:
 - Looper
 - Life
 - Brain
+- Cyclic
 - Ant
 - Bounce
+- Bubbles
+- Gravity
+- Boids
+- Orbit
 - Shapes
 - Raindrops
 - DLA
+- Forest Fire
+- Predator–Prey
+- Kuramoto
+- Wave
+- Ink
+- Ising — implemented/current
+- Coral — implemented/current
+- Cracks
+- Crystal Growth
+- Physarum
+- Vines — implemented/current
+- Fractal Explorer
+- Maze Growth — implemented/current
+- Lightning
+- Reaction–Diffusion — implemented/current
 
-## Review
+## Merged into Life
 
 - Glider
 
-Recommendation:
-
-- keep it if it behaves and sounds materially different from Life
-- otherwise merge it into Life as a glider-injection mode or parameter
+Glider is represented by Life's `Glider Interval`, `Spawn Step`, and `Spawn Glider` controls. Do not add a separate `glider` behavior unless a future design gives it a distinct interaction loop and musical output character.
 
 ## Avoid Adding Soon
 
@@ -1438,13 +1457,14 @@ Behaviors
 │   ├── Boids
 │   ├── Gravity
 │   ├── Bubbles
+│   ├── Lightning
 │   ├── Orbit
-│   └── Lightning
+│   └── Flow Field
 │
 ├── Growth
+│   ├── Crystal Growth
 │   ├── DLA
 │   ├── Physarum
-│   ├── Crystal
 │   └── Cracks
 │
 ├── Fields

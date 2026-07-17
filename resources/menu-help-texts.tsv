@@ -2,12 +2,13 @@ id	path	key	kind	title	line1	line2
 life_spawn_shared	*	action:behavior_action:spawnRandom	action	Spawn Now	Adds random live cells for this layer's current behavior.	Behavior-specific Spawn Now rows describe the exact shape or entity.
 life_spawn_shared_brain	*	action:behavior_action:seedRandom	action	Spawn Now	Seeds random active cells for Brian's Brain.	This shares the same Spawn Now intent across behaviors.
 life_spawn_shared_ant	*	action:behavior_action:spawnAnt	action	Spawn Now	Adds an ant to the current grid.	This shares the same Spawn Now intent across behaviors.
+life_spawn_shared_forest_fire	*	action:behavior_action:igniteRandom	action	Ignite Random	Plants and ignites one forest-fire cell.	Use it to kick a quiet forest back into motion.
 life_spawn_shared_bounce	*	action:behavior_action:addBall	action	Spawn Now	Adds a ball to the simulation.	This shares the same Spawn Now intent across behaviors.
 life_spawn_shared_bubbles	*	action:behavior_action:addBubble	action	Spawn Now	Adds a bottom-born bubble to the simulation.	Bubbles rise upward, drift sideways, and merge when they touch.
 life_spawn_shared_pulse	*	action:behavior_action:spawnPulse	action	Spawn Now	Spawns a pulse shape.	This shares the same Spawn Now intent across behaviors.
 life_spawn_shared_rain	*	action:behavior_action:dropNow	action	Spawn Now	Drops a new raindrop immediately.	This shares the same Spawn Now intent across behaviors.
 life_spawn_shared_dla	*	action:behavior_action:seedCluster	action	Spawn Now	Seeds a new DLA cluster.	This shares the same Spawn Now intent across behaviors.
-life_spawn_shared_glider	*	action:behavior_action:spawnGlider	action	Spawn Now	Spawns a glider pattern.	This shares the same Spawn Now intent across behaviors.
+life_spawn_shared_glider	*	action:behavior_action:spawnGlider	action	Spawn Glider	Spawns a glider pattern in Life.	Use Glider Interval for automatic injections.
 preset_save_current	System > Saves > Library > Save Current	action:preset_save_current	action	Save Current	Saves changes to the currently loaded preset file.	If no preset is loaded, this action is unavailable.
 preset_refresh	System > Saves > Library > Refresh List	action:refresh_presets	action	Refresh List	Refreshes preset names from storage.	Use this if files changed outside the app.
 preset_save	System > Saves > Library > Save As > Save	action:preset_save	action	Save As	Saves the current configuration to the name you entered.	If the name exists, confirmation is required.
@@ -36,6 +37,129 @@ layer_spawn_count	*	key:layers.*.worlds.behaviorConfig.randomCellsPerTick	number
 layer_spawn_interval	*	key:layers.*.worlds.behaviorConfig.randomTickInterval	number	Spawn Interval	Sets how many behavior ticks pass between automatic random spawn bursts.	Lower values create more frequent injections.
 layer_glider_interval	*	key:layers.*.worlds.behaviorConfig.gliderSpawnInterval	number	Glider Interval	Sets how many behavior ticks pass between automatic glider injections.	Use 0 to disable automatic glider spawning.
 layer_spawn_step	*	key:layers.*.worlds.behaviorConfig.spawnStep	number	Spawn Step	Sets the sequenced position or interval used by behaviors that step their own spawn source.	Increase it to spread spawned changes farther apart in time or space.
+layer_forest_fire_tree_density	*	key:layers.*.worlds.behaviorConfig.treeDensityPct	number	Tree Density	Sets the target tree density used when Forest Fire reseeds a sparse world.	Higher values refill quiet forests more thickly.
+layer_forest_fire_grow_chance	*	key:layers.*.worlds.behaviorConfig.growChancePct	number	Grow Chance	Sets the percent chance that an empty Forest Fire cell grows a tree each tick.	Use lower values for slow regrowth and airier burns.
+layer_forest_fire_spread_chance	*	key:layers.*.worlds.behaviorConfig.spreadChancePct	number	Spread Chance	Sets the percent chance that fire spreads from a burning neighbor to a tree.	At 100, adjacent trees always catch; edges do not wrap.
+layer_forest_fire_reseed_threshold	*	key:layers.*.worlds.behaviorConfig.reseedThresholdPct	number	Reseed Threshold	Sets the live-cell percent below which Forest Fire reseeds new trees.	Use 0 to let an empty forest stay quiet until you ignite or grow it.
+layer_forest_fire_lightning	*	key:layers.*.worlds.behaviorConfig.lightningChancePerThousand	number	Lightning	Sets the per-thousand chance that any tree ignites on a tick.	For example, 1 means one chance in 1000 per tree per tick.
+layer_crystal_growth_chance	*	key:layers.*.worlds.behaviorConfig.growthChancePct	number	Growth Chance	Sets the percent chance that an eligible empty cell grows into a crystal each tick.	At 100, all eligible neighbors grow for the selected symmetry.
+layer_crystal_seed_interval	*	key:layers.*.worlds.behaviorConfig.seedInterval	number	Seed Interval	Sets how often Crystal Growth drops a scheduled seed.	0 disables scheduled seeding, but an empty grid still reseeds safely.
+layer_crystal_seed_step	*	key:layers.*.worlds.behaviorConfig.seedStep	number	Seed Step	Sets the timing phase for scheduled Crystal Growth seeds.	It is compared modulo Seed Interval; it is not a grid coordinate.
+layer_crystal_cell_life	*	key:layers.*.worlds.behaviorConfig.cellLife	number	Cell Life	Sets how many ticks a crystal cell lasts before dissolving.	0 disables aging so crystals remain until changed by another rule.
+layer_crystal_symmetry	*	key:layers.*.worlds.behaviorConfig.symmetry	enum	Symmetry	Chooses cross, diagonal, or snowflake neighbor growth.	Snowflake alternates diagonal directions by grid parity.
+life_spawn_shared_crystal	*	action:behavior_action:seedCrystal	action	Seed Crystal	Seeds a random empty crystal cell, or refreshes one if the grid is full.	Use it to start a fresh icy branch wherever the world has gone quiet.
+layer_lightning_branch	*	key:layers.*.worlds.behaviorConfig.branchChancePct	number	Branch Chance	Sets the percent chance that Lightning adds a branch from each leader step.	Higher values make wider strikes before the flash.
+layer_lightning_jitter	*	key:layers.*.worlds.behaviorConfig.jitterChancePct	number	Jitter Chance	Sets the percent chance that Lightning steps sideways while moving toward the target edge.	Use less jitter for straight bolts and more for crooked ones.
+layer_lightning_decay	*	key:layers.*.worlds.behaviorConfig.decayTicks	number	Decay Ticks	Sets how long the connected flash remains visible before clearing.	After decay, Lightning starts a new strike automatically.
+layer_lightning_limit	*	key:layers.*.worlds.behaviorConfig.leaderLimit	number	Leader Limit	Caps active Lightning leaders and branches.	This keeps the bolt bounded and readable on the grid.
+layer_lightning_target	*	key:layers.*.worlds.behaviorConfig.targetEdge	enum	Target Edge	Chooses the edge the bolt tries to reach: north, east, south, or west.	Automatic strikes start from the opposite edge.
+life_spawn_shared_lightning	*	action:behavior_action:strikeNow	action	Strike Now	Clears the current bolt and starts a new Lightning strike immediately.	Use it to kick the sky when it is being too polite.
+layer_predator_prey_grass	*	key:layers.*.worlds.behaviorConfig.grassGrowChancePct	number	Grass Grow	Sets the percent chance empty cells regrow grass after animals move.	Grass is visible background and does not fire activate triggers.
+layer_predator_prey_herbivore	*	key:layers.*.worlds.behaviorConfig.herbivoreReproducePct	number	Herbivore Repro	Sets the chance a herbivore leaves a child behind after eating grass.	Higher values make the herd bloom faster.
+layer_predator_prey_predator	*	key:layers.*.worlds.behaviorConfig.predatorReproducePct	number	Predator Repro	Sets the chance a predator leaves a child behind after eating a herbivore.	Higher values make the chase sharper and riskier.
+layer_predator_prey_starve	*	key:layers.*.worlds.behaviorConfig.starveTicks	number	Starve Ticks	Sets how long animals can move without eating before disappearing.	Eating resets the countdown.
+life_spawn_shared_predator_prey	*	action:behavior_action:reseedEcosystem	action	Reseed Ecosystem	Seeds a small grass, herbivore, and predator starter world.	Use it when the food web gets too quiet.
+layer_cyclic_states	*	key:layers.*.worlds.behaviorConfig.states	number	States	Sets how many discrete states the Cyclic world chases through.	Higher values make longer wave-front cycles.
+layer_cyclic_threshold	*	key:layers.*.worlds.behaviorConfig.threshold	number	Threshold	Sets how many neighbors in the next state are needed for a cell to advance.	Higher values make fronts more selective.
+layer_cyclic_range	*	key:layers.*.worlds.behaviorConfig.range	number	Range	Sets whether Cyclic checks nearby neighbors at range 1 or 2.	Range 2 makes broader fronts without wrapping edges.
+life_spawn_shared_cyclic	*	action:behavior_action:seedCycle	action	Seed Cycle	Seeds a deterministic clipped Cyclic pattern.	Use it to start a new chasing wave without randomness.
+layer_kuramoto_coupling	*	key:layers.*.worlds.behaviorConfig.couplingPct	number	Coupling	Sets how strongly neighboring Kuramoto phases pull each other toward sync.	Higher values make wrap flashes gather into shared pulses.
+layer_kuramoto_spread	*	key:layers.*.worlds.behaviorConfig.frequencySpread	number	Frequency Spread	Sets how far oscillator speeds vary across the grid.	Lower values drift together more easily.
+layer_kuramoto_jitter	*	key:layers.*.worlds.behaviorConfig.jitterPct	number	Jitter	Sets the chance of a tiny deterministic phase wobble each tick.	Use a little to keep the field breathing.
+life_spawn_shared_kuramoto	*	action:behavior_action:desyncPulse	action	Desync Pulse	Applies a deterministic phase shove without firing notes immediately.	The next flashes come from the oscillators catching up again.
+layer_wave_damping	*	key:layers.*.worlds.behaviorConfig.dampingPct	number	Damping	Sets how strongly Wave motion fades each tick.	Higher values calm the membrane faster.
+layer_wave_tension	*	key:layers.*.worlds.behaviorConfig.tensionPct	number	Tension	Sets how strongly neighboring cells pull displacement back toward balance.	Higher values make impulses travel more sharply.
+layer_wave_impulse	*	key:layers.*.worlds.behaviorConfig.impulseStrength	number	Impulse Strength	Sets how hard a grid press or Drop Impulse strikes the wave field.	Stronger impulses cross the musical threshold more easily.
+life_spawn_shared_wave	*	action:behavior_action:dropImpulse	action	Drop Impulse	Drops a deterministic impulse into the Wave field and emits the affected impact accents.	Use it to tap the membrane without touching the grid.
+layer_gravity_spawn	*	key:layers.*.worlds.behaviorConfig.spawnRatePct	number	Spawn Rate	Sets the deterministic chance that new sand appears along the edge opposite gravity.	Higher values keep avalanches fed.
+layer_gravity_slide	*	key:layers.*.worlds.behaviorConfig.slideChancePct	number	Slide Chance	Sets how often blocked sand tries diagonal slides.	Higher values make piles slump more readily.
+layer_gravity_settle	*	key:layers.*.worlds.behaviorConfig.settleAge	number	Settle Age	Sets the age cap for unchanged settled grains.	Settled grains stay visible and stable.
+layer_gravity_dir	*	key:layers.*.worlds.behaviorConfig.gravityDir	enum	Gravity Dir	Chooses down, left, up, or right in world-space grid coordinates.	Invert Gravity rotates through these directions clockwise.
+life_spawn_shared_gravity_drop	*	action:behavior_action:dropSand	action	Drop Sand	Seeds deterministic sand along the edge opposite gravity.	Use it to pour in a fresh little avalanche.
+life_spawn_shared_gravity_clear	*	action:behavior_action:clearBottom	action	Clear Bottom	Clears the destination edge for the current gravity direction.	Cleared grains emit deactivate triggers.
+life_spawn_shared_gravity_invert	*	action:behavior_action:invertGravity	action	Invert Gravity	Rotates gravity down, left, up, right, then down again.	Existing grains remain stable until they move.
+layer_boids_size	*	key:layers.*.worlds.behaviorConfig.flockSize	number	Flock Size	Sets how many Boids agents are active.	More agents make denser flock paths and more cell entries.
+layer_boids_separation	*	key:layers.*.worlds.behaviorConfig.separationPct	number	Separation	Sets how strongly nearby boids push away from each other.	Higher values make the flock spread out.
+layer_boids_alignment	*	key:layers.*.worlds.behaviorConfig.alignmentPct	number	Alignment	Sets how strongly boids match neighboring velocity.	Higher values make smoother shared motion.
+layer_boids_cohesion	*	key:layers.*.worlds.behaviorConfig.cohesionPct	number	Cohesion	Sets how strongly boids steer toward nearby flockmates.	Higher values pull the flock together.
+life_spawn_shared_boids_scatter	*	action:behavior_action:scatterFlock	action	Scatter Flock	Perturbs flock velocities without moving agents immediately.	The next notes come from where the flock flies afterward.
+life_spawn_shared_boids_seed	*	action:behavior_action:seedFlock	action	Seed Flock	Places a deterministic center flock and activates newly occupied cells.	Use it to gather the birds back into formation.
+layer_orbit_count	*	key:layers.*.worlds.behaviorConfig.particleCount	number	Particle Count	Sets how many Orbit particles circle the attractor.	More particles make denser orbital accents.
+layer_orbit_attraction	*	key:layers.*.worlds.behaviorConfig.attractionPct	number	Attraction	Sets how strongly particles pull toward the attractor.	Higher values tighten the orbit.
+layer_orbit_orbit	*	key:layers.*.worlds.behaviorConfig.orbitPct	number	Orbit	Sets how strongly particles steer tangentially around the attractor.	Higher values make wider circling motion.
+layer_orbit_repel	*	key:layers.*.worlds.behaviorConfig.repelMode	enum	Repel Mode	Chooses whether the attractor can repel particles instead of pulling them.	Always mode turns the well inside out.
+life_spawn_shared_orbit_reset	*	action:behavior_action:resetOrbit	action	Reset Orbit	Places particles in a deterministic ring around the center attractor.	It accents the new occupied cells once.
+life_spawn_shared_orbit_nudge	*	action:behavior_action:nudgeAttractor	action	Nudge Attractor	Applies a deterministic velocity nudge to the attractor.	Particles respond on following ticks.
+layer_sand_wind	*	key:layers.*.worlds.behaviorConfig.windStrengthPct	number	Wind Strength	Sets how much sand moves downwind each tick.	Gust gives the next tick an extra shove.
+layer_sand_deposition	*	key:layers.*.worlds.behaviorConfig.depositionPct	number	Deposition	Sets how often transported grains refresh dune crests.	Crests decay slowly when not refreshed.
+layer_sand_erosion	*	key:layers.*.worlds.behaviorConfig.erosionPct	number	Erosion	Sets how often exposed sand is picked up by wind.	Only in-bounds downwind neighbors receive grains.
+life_spawn_shared_sand_gust	*	action:behavior_action:gust	action	Gust	Adds one tick of stronger wind without immediate notes.	The next tick may move more grains.
+life_spawn_shared_sand_shift	*	action:behavior_action:shiftWind	action	Shift Wind	Rotates wind east, north, west, south, then east again.	Wind changes do not fire notes immediately.
+life_spawn_shared_sand_seed	*	action:behavior_action:seedDunes	action	Seed Dunes	Plants a diagonal dune pattern across the grid.	Changed visible dunes emit activate accents.
+layer_lava_count	*	key:layers.*.worlds.behaviorConfig.blobCount	number	Blob Count	Sets how many lava blobs are active.	More blobs make denser merging fields.
+layer_lava_viscosity	*	key:layers.*.worlds.behaviorConfig.viscosityPct	number	Viscosity	Damps blob velocity each tick.	Higher values make the lamp move more slowly.
+layer_lava_heat	*	key:layers.*.worlds.behaviorConfig.heatPct	number	Heat	Controls upward push and split chance.	Heat Lamp adds a one-tick boost.
+layer_lava_merge	*	key:layers.*.worlds.behaviorConfig.mergePct	number	Merge	Sets how often close blobs merge.	Only one scan-order pair can merge per tick.
+life_spawn_shared_lava_heat	*	action:behavior_action:heatLamp	action	Heat Lamp	Adds one tick of extra heat without immediate notes.	The next tick may move or split blobs.
+life_spawn_shared_lava_reset	*	action:behavior_action:resetBlobs	action	Reset Blobs	Restores four deterministic lava blobs.	Changed visible blob centers emit activate accents.
+layer_ink_diffusion	*	key:layers.*.worlds.behaviorConfig.diffusionPct	number	Diffusion	Sets how quickly Ink spreads toward neighboring cells.	Higher values bloom outward faster.
+layer_ink_fade	*	key:layers.*.worlds.behaviorConfig.fadePct	number	Fade	Sets how much pigment fades each tick.	Higher values clear the wash sooner.
+layer_ink_strength	*	key:layers.*.worlds.behaviorConfig.dropStrength	number	Drop Strength	Sets how much pigment a press or Drop Ink adds.	Strong drops cross the musical threshold immediately.
+life_spawn_shared_ink_drop	*	action:behavior_action:dropInk	action	Drop Ink	Adds a deterministic ink splash near the center and accents the affected cells.	Good for starting a bloom without touching the grid.
+life_spawn_shared_ink_clear	*	action:behavior_action:clearInk	action	Clear Ink	Clears all pigment and deactivates cells that were visible.	Use it when the page needs a fresh blot.
+layer_cracks_stress	*	key:layers.*.worlds.behaviorConfig.stressPct	number	Stress	Sets the deterministic chance that clear pane cells gain stress each tick.	Stressed glass becomes visible before it breaks.
+layer_coral_growth	*	key:layers.*.worlds.behaviorConfig.growthPct	number	Growth	Sets the chance exposed coral expands into empty cardinal neighbors.	Colonies grow from their surfaces, not diagonals.
+layer_coral_competition	*	key:layers.*.worlds.behaviorConfig.competitionPct	number	Competition	Sets how often adjacent opposing colonies die into skeleton.	Higher values make contested borders crumble.
+layer_coral_breakaway	*	key:layers.*.worlds.behaviorConfig.breakawayAge	number	Breakaway Age	Sets how long skeleton remains before clearing.	Old skeleton chunks deactivate as they break away.
+life_spawn_shared_coral_seed	*	action:behavior_action:seedCoral	action	Seed Coral	Plants two deterministic colonies along the lower edge.	Seeded cells emit activate accents.
+life_spawn_shared_coral_break	*	action:behavior_action:breakCoral	action	Break Coral	Removes old skeletons and exposed colony cells.	Removed visible cells emit deactivate events.
+layer_cracks_branch	*	key:layers.*.worlds.behaviorConfig.branchPct	number	Branch	Sets the chance a propagating crack creates one extra tip.	Higher values make more splintered fractures.
+layer_cracks_propagation	*	key:layers.*.worlds.behaviorConfig.propagationPct	number	Propagation	Sets the chance each crack tip advances on a tick.	Higher values make cracks run faster.
+layer_cracks_shatter	*	key:layers.*.worlds.behaviorConfig.shatterThreshold	number	Shatter Threshold	Sets how many crack cells trigger a pending pane shatter.	The pane clears on the following tick.
+life_spawn_shared_cracks_impact	*	action:behavior_action:impact	action	Impact	Adds a deterministic center impact and stress burst.	Use it to start a fracture in quiet glass.
+life_spawn_shared_cracks_replace	*	action:behavior_action:replacePane	action	Replace Pane	Clears cracks and stress from the pane.	Visible cells emit deactivate as the glass is replaced.
+layer_physarum_agents	*	key:layers.*.worlds.behaviorConfig.agentCount	number	Agent Count	Sets how many slime agents are active.	More agents lay down denser trails.
+layer_physarum_sense	*	key:layers.*.worlds.behaviorConfig.senseDistance	number	Sense Distance	Sets how far agents sample trail and food.	Short sensing makes tighter wandering.
+layer_physarum_turn	*	key:layers.*.worlds.behaviorConfig.turnBiasPct	number	Turn Bias	Sets how decisively agents turn toward stronger samples.	Higher values make food and trails more persuasive.
+layer_physarum_deposit	*	key:layers.*.worlds.behaviorConfig.depositAmount	number	Deposit Amount	Sets how much trail each agent leaves behind.	Stronger deposits stay visible longer.
+layer_physarum_evap	*	key:layers.*.worlds.behaviorConfig.evaporationPct	number	Evaporation	Sets how quickly slime trails fade.	Higher values clear old paths sooner.
+life_spawn_shared_physarum_food	*	action:behavior_action:relocateFood	action	Relocate Food	Cycles through deterministic food layouts without firing notes.	Agents will follow the new scent on later ticks.
+life_spawn_shared_physarum_seed	*	action:behavior_action:seedSlime	action	Seed Slime	Resets agents into a deterministic cluster while preserving food.	New agent cells emit activate accents.
+layer_vines_growth	*	key:layers.*.worlds.behaviorConfig.growthPct	number	Growth	Sets the chance each vine tip grows on a tick.	Higher values climb faster toward open light.
+layer_vines_branch	*	key:layers.*.worlds.behaviorConfig.branchPct	number	Branch	Sets the chance a growing tip creates one extra branch.	Reservations keep branches from colliding in one tick.
+layer_vines_prune	*	key:layers.*.worlds.behaviorConfig.pruneAge	number	Prune Age	Sets how long stems age before turning into leaves and pruning back.	Lower values make the vine shed itself sooner.
+layer_vines_light	*	key:layers.*.worlds.behaviorConfig.lightBiasPct	number	Light Bias	Weights growth upward toward brighter space.	Set it low for more sideways wandering.
+life_spawn_shared_vines_seed	*	action:behavior_action:plantSeed	action	Plant Seed	Plants deterministic vine tips along the lower edge.	Seeded cells emit activate accents.
+life_spawn_shared_vines_prune	*	action:behavior_action:pruneVines	action	Prune Vines	Removes up to eight of the oldest non-tip vine cells.	Removed cells emit deactivate events.
+layer_fractal_zoom	*	key:layers.*.worlds.behaviorConfig.zoomRatePct	number	Zoom Rate	Sets how quickly Fractal Explorer zooms inward.	Higher values move through regions faster.
+layer_fractal_drift	*	key:layers.*.worlds.behaviorConfig.driftPct	number	Drift	Sets how strongly the fractal center follows its regional drift vector.	Use it for slow scanning or restless travel.
+layer_fractal_iterations	*	key:layers.*.worlds.behaviorConfig.iterationLimit	number	Iteration Limit	Sets the bounded iteration depth for each sampled grid cell.	Higher values reveal finer detail at a higher cost.
+layer_fractal_mode	*	key:layers.*.worlds.behaviorConfig.fractalMode	enum	Fractal Mode	Chooses Mandelbrot or Julia sampling.	Toggle Fractal Mode switches between the two explorers.
+life_spawn_shared_fractal_jump	*	action:behavior_action:jumpRegion	action	Jump Region	Moves to the next deterministic fractal region and recomputes the grid.	Use it when the current window gets too empty or too full.
+life_spawn_shared_fractal_toggle	*	action:behavior_action:toggleFractalMode	action	Toggle Fractal Mode	Switches between Mandelbrot and Julia mode and recomputes the grid.	Class changes create the accents.
+layer_maze_carve	*	key:layers.*.worlds.behaviorConfig.carvePct	number	Carve	Sets the chance frontier cells carve new maze corridors.	Carving uses cardinal neighbors only.
+layer_maze_collapse	*	key:layers.*.worlds.behaviorConfig.collapseAge	number	Collapse Age	Sets how long non-walker corridors age before they can crumble.	Walker cells are protected from collapse.
+layer_maze_walkers	*	key:layers.*.worlds.behaviorConfig.walkerCount	number	Walker Count	Sets how many walkers move through visible maze cells.	Walker entries emit activate accents.
+life_spawn_shared_maze_restart	*	action:behavior_action:restartMaze	action	Restart Maze	Clears the maze and seeds center frontiers and walkers.	Seeded cells emit activate accents.
+life_spawn_shared_maze_collapse	*	action:behavior_action:collapseMaze	action	Collapse Maze	Removes up to eight old non-walker corridor cells.	Removed cells emit deactivate events.
+layer_reaction_feed	*	key:layers.*.worlds.behaviorConfig.feedPct	number	Feed	Sets how quickly chemical A refills empty space.	Higher values keep fresh material moving into the reaction.
+layer_reaction_kill	*	key:layers.*.worlds.behaviorConfig.killPct	number	Kill	Sets how quickly chemical B is removed.	Higher values thin out the visible pattern sooner.
+layer_reaction_diffusion	*	key:layers.*.worlds.behaviorConfig.diffusionPct	number	Diffusion	Sets how strongly chemicals average with cardinal neighbors.	Edges stay clipped; the field does not wrap.
+layer_reaction_reaction	*	key:layers.*.worlds.behaviorConfig.reactionPct	number	Reaction	Sets how strongly A and B convert into new B detail.	Higher values make sharper chemical blooms.
+life_spawn_shared_reaction_seed	*	action:behavior_action:seedChemicals	action	Seed Chemicals	Adds deterministic chemical splashes near the center and corners.	Only cells whose B chemical increases fire accents.
+life_spawn_shared_reaction_clear	*	action:behavior_action:clearChemicals	action	Clear Chemicals	Resets A and clears all visible B chemical.	Visible cells emit deactivate as the field is rinsed clean.
+layer_rivers_rain	*	key:layers.*.worlds.behaviorConfig.rainPct	number	Rain	Sets the chance each cell receives rain on a tick.	Rain feeds visible streams when enough water gathers.
+layer_rivers_flow	*	key:layers.*.worlds.behaviorConfig.flowPct	number	Flow	Sets how much water moves downhill each tick.	Movement uses cardinal neighbors without wrapping.
+layer_rivers_erosion	*	key:layers.*.worlds.behaviorConfig.erosionPct	number	Erosion	Sets the chance flowing water erodes and deposits terrain.	The status E count shows changed height cells.
+layer_rivers_evaporation	*	key:layers.*.worlds.behaviorConfig.evaporationPct	number	Evaporation	Sets how quickly water dries after flow.	Drying below visibility emits deactivate.
+life_spawn_shared_rivers_rain	*	action:behavior_action:rainBurst	action	Rain Burst	Adds water to deterministic high cells.	Changed visible water emits activate accents.
+life_spawn_shared_rivers_reset	*	action:behavior_action:resetTerrain	action	Reset Terrain	Restores the terrain and clears water and sediment.	Previously visible water emits deactivate.
+layer_ising_temperature	*	key:layers.*.worlds.behaviorConfig.temperaturePct	number	Temperature	Sets how much domain pressure is needed before a spin flips.	Higher values resist neighbor and field pressure.
+layer_ising_field	*	key:layers.*.worlds.behaviorConfig.fieldStrengthPct	number	Field Strength	Sets how strongly the global field biases spins.	Flip Field reverses the preferred magnetic direction.
+layer_ising_noise	*	key:layers.*.worlds.behaviorConfig.noisePct	number	Noise	Sets the chance of deterministic noise flips on each tick.	Use it to keep magnetic domains unsettled.
+life_spawn_shared_ising_heat	*	action:behavior_action:heatPulse	action	Heat Pulse	Adds one tick of extra spin noise without firing immediately.	The next behavior tick may kick domains loose.
+life_spawn_shared_ising_flip	*	action:behavior_action:flipField	action	Flip Field	Reverses the global magnetic field without immediate notes.	Spin changes happen on later ticks.
+life_spawn_shared_ising_randomize	*	action:behavior_action:randomizeSpins	action	Randomize Spins	Applies a deterministic mixed spin pattern.	Changed cells emit activate or deactivate according to their new spin.
 layer_bubbles_spawn_interval	*	key:layers.*.worlds.behaviorConfig.spawnInterval	number	Spawn Interval	Sets how many behavior ticks pass between automatic bubble spawns.	Use 0 to turn automatic spawning off.
 layer_bubbles_spawn_count	*	key:layers.*.worlds.behaviorConfig.spawnCount	number	Spawn Count	Sets how many bubbles are attempted at each spawn tick.	The Max Bubbles cap still limits the active population.
 layer_bubbles_radius_min	*	key:layers.*.worlds.behaviorConfig.minRadius	number	Min Radius	Sets the smallest bubble size level spawned by Bubbles.	Radius 1 is one cell; larger sizes use compact or hollow outlines.

@@ -12,16 +12,38 @@ You can run several layers at once. One layer might be a stable pulse. Another m
 | `keys` | Human | Momentary finger-drumming. Press a cell to play; release it to stop. Immediate and human. |
 | `sequencer` | Human | A manual grid sequence for anchoring the more generative layers. Add probability if it feels too square. |
 | `looper` | Human | Records and replays grid presses/releases. Use Punch In/Out to overdub or perform. |
-| `life` | Cellular | Conway-style cells that birth, survive, and die. A classic little organism for rhythm and texture. |
+| `life` | Cellular | Conway-style cells that birth, survive, and die. It also owns glider injection through Glider Interval, Spawn Step, and Spawn Glider; there is no separate `glider` behavior ID. |
 | `brain` | Cellular | Brian's Brain style states. It tends to leave trails and pulses rather than simply living/dying. |
+| `cyclic` | Cellular | Multi-state wave fronts chase each other around the grid. Bright, discrete, and a little arcade-creature-ish. |
+| `forest_fire` | Cellular | Trees grow, catch from neighboring flames, and occasionally get zapped by lightning. Grid presses plant and ignite a cell. |
+| `predator_prey` | Cellular | Grass feeds herbivores, herbivores feed predators, and starvation keeps the little ecosystem moving. |
 | `ant` | Cellular | Langton-like motion. A tiny agent walks the grid and changes cell states as it goes. |
 | `bounce` | Motion | Moving particles that bounce through the grid. Nice for kinetic patterns and repeating collisions. |
 | `bubbles` | Motion | Bottom-born bubbles drift upward, merge when they touch, and vanish past the top. Good for light, buoyant motion. |
+| `gravity` | Motion | Sand grains fall, slide, settle, and flip direction when you invert gravity. Crunchy little avalanches. |
+| `boids` | Motion | A small flock steers by separation, alignment, and cohesion. It chirps when agents enter new cells. |
+| `orbit` | Motion | Particles circle a moving attractor, making little orbital flickers as they cross grid cells. |
+| `lava_lamp` | Motion | Soft blobs drift, merge, and split into a warm little metaball lamp. |
+| `sand_ripples` | Motion | Wind pushes grains into migrating dune crests. Gust it, shift the wind, and listen to the ridges move. |
 | `shapes` | Geometry | Geometric areas and edges as musical material. Good when you want a pattern with a visible skeleton. |
+| `ink` | Fields | Pigment blooms, diffuses, and fades. Press or drop ink for a splash, then listen as it thins out. |
+| `ising` | Fields | Magnetic domains flip between two states under temperature, noise, and field pressure. Tiny spin weather. |
+| `kuramoto` | Fields | Coupled phase bubbles drift toward synchronization. Notes appear at wrap flashes rather than from a permanently lit grid. |
+| `lightning` | Fields | Branching leaders crawl from one edge toward a target edge, flash when they connect, then decay and restart. |
 | `raindrops` | Fields | Drops/ripples across the grid. Great for sparse starts that bloom into motion. |
+| `reaction_diffusion` | Fields | Two little chemicals chase each other into spots and edges. Seed it, then let the pattern brew. |
+| `rivers` | Fields | Rain falls, water finds downhill paths, and the terrain slowly erodes and deposits sediment. |
+| `wave` | Fields | A little vibrating membrane: impulses travel, reflect at the edges, and fade as damping eats the motion. |
+| `cracks` | Growth | Crack tips crawl through stressed glass until the pane shatters and clears. Sharp, brittle, and dramatic. |
+| `coral` | Growth | Competing colonies grow along exposed edges, leave skeletons, and break away in little reef chunks. |
+| `crystal_growth` | Growth | Icy crystal clusters that spread by cross, diagonal, or snowflake symmetry. Press a cell to seed or refresh it. |
 | `dla` | Growth | Diffusion-limited aggregation. Slow-growing clusters; more sculpture than step sequencer. |
+| `physarum` | Growth | Slime agents sniff trails and food, leaving evaporating paths as they wander. |
+| `vines` | Growth | Tendrils climb toward light, branch into open space, leaf out, and prune themselves back. |
+| `fractal_explorer` | Geometry | A drifting Mandelbrot/Julia explorer that zooms through regions and turns detail changes into accents. |
+| `maze_growth` | Geometry | Tiny maze corridors carve, walkers wander them, and old passages sometimes crumble back to wall. |
 
-The canonical behavior IDs are `none`, `life`, `sequencer`, `keys`, `looper`, `brain`, `ant`, `bounce`, `bubbles`, `shapes`, `raindrops`, and `dla`.
+The canonical behavior IDs are `none`, `life`, `sequencer`, `keys`, `looper`, `brain`, `cyclic`, `forest_fire`, `predator_prey`, `ant`, `bounce`, `bubbles`, `gravity`, `boids`, `lava_lamp`, `orbit`, `sand_ripples`, `fractal_explorer`, `maze_growth`, `shapes`, `ink`, `ising`, `kuramoto`, `lightning`, `raindrops`, `reaction_diffusion`, `rivers`, `wave`, `coral`, `cracks`, `crystal_growth`, `dla`, `physarum`, and `vines`.
 
 ## Trigger types
 
