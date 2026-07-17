@@ -36,7 +36,8 @@ UNDERSIDE_Z = 9.0
 HIGH_UNDERSIDE_Z = 14.0
 EXTENDED_SLOPE_RIGHT_X = 115.0
 WEST_EXTENSION = 1.0
-NEOKEY_PANEL_Y_OFFSET = -0.5
+NEOKEY_PANEL_X_OFFSET = -0.3
+NEOKEY_PANEL_Y_OFFSET = -0.8
 NEOKEY_TOP_Z = 16.0
 NEOKEY_DECK_TOP_Z = HIGH_Z + 3.0
 NEOKEY_KEYCAP_RECESS_DEPTH = 1.0
@@ -399,7 +400,10 @@ def local_to_case(params: dict, point: list[float]) -> tuple[float, float]:
 
 def neokey_key_centers(params: dict) -> list[tuple[float, float]]:
     return [
-        (local_to_case(params, point)[0], local_to_case(params, point)[1] + NEOKEY_PANEL_Y_OFFSET)
+        (
+            local_to_case(params, point)[0] + NEOKEY_PANEL_X_OFFSET,
+            local_to_case(params, point)[1] + NEOKEY_PANEL_Y_OFFSET,
+        )
         for point in params["features_local"]["neokey_key_centers"]
     ]
 
