@@ -5,7 +5,33 @@ fn context() -> BehaviorContext {
 }
 
 fn empty() -> CyclicState {
-    cyclic_init(serde_json::json!({ "states": 4, "threshold": 2, "range": 1 })).unwrap()
+    cyclic_init(serde_json::json!({ "states": 4, "threshold": 2, "range": 1, "cells": [] }))
+        .unwrap()
+}
+
+#[test]
+fn empty_config_seeds_bounded_default_activity_and_deserialize_empty_stays_empty() {
+    let mut context = context();
+    let mut state = cyclic_init(serde_json::json!({})).unwrap();
+    assert!(state.cells.iter().any(|cell| *cell != 0));
+    assert!(!state.trigger_types.contains(&CellTriggerType::Activate));
+    let restored = cyclic_deserialize(serde_json::json!({ "cells": [] })).unwrap();
+    assert!(restored.cells.iter().all(|cell| *cell == 0));
+    let mut max_activates = 0;
+    let mut total_activates = 0;
+    for _ in 0..128 {
+        state = cyclic_on_tick(state, &mut context);
+        let activates = state
+            .trigger_types
+            .iter()
+            .filter(|trigger| **trigger == CellTriggerType::Activate)
+            .count();
+        max_activates = max_activates.max(activates);
+        total_activates += activates;
+    }
+    assert!(total_activates > 0);
+    assert!(max_activates <= 48);
+    assert!(total_activates <= 160);
 }
 
 #[test]

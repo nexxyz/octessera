@@ -21,6 +21,10 @@ pub struct InkState {
     pub fade_pct: u8,
     #[serde(rename = "dropStrength")]
     pub drop_strength: u8,
+    #[serde(rename = "autoDropInterval")]
+    pub auto_drop_interval: u8,
+    #[serde(rename = "spawnStep")]
+    pub spawn_step: u8,
     #[serde(rename = "tickCounter", skip_serializing, skip_deserializing)]
     pub tick_counter: u64,
 }
@@ -36,10 +40,21 @@ struct Config {
     fade_pct: Option<Value>,
     #[serde(rename = "dropStrength")]
     drop_strength: Option<Value>,
+    #[serde(rename = "autoDropInterval")]
+    auto_drop_interval: Option<Value>,
+    #[serde(rename = "spawnStep")]
+    spawn_step: Option<Value>,
 }
 
 pub fn ink_init(config: Value) -> Result<InkState, String> {
+    let seed_default = config
+        .as_object()
+        .map(|object| !object.contains_key("ink"))
+        .unwrap_or(true);
     let mut state = from_config(config);
+    if seed_default && state.ink.iter().all(|value| *value == 0) {
+        drop_splash_at(&mut state, GRID_WIDTH / 2, GRID_HEIGHT / 2);
+    }
     state.trigger_types = triggers(&state.ink, &state.ink, &[]);
     Ok(state)
 }
@@ -102,7 +117,16 @@ pub fn ink_on_tick(mut state: InkState, _context: &mut BehaviorContext) -> InkSt
     }
     state.ink = next;
     state.tick_counter = state.tick_counter.wrapping_add(1);
-    state.trigger_types = triggers(&previous, &state.ink, &[]);
+    let forced = if state.auto_drop_interval > 0
+        && state.tick_counter % u64::from(state.auto_drop_interval)
+            == u64::from(state.spawn_step % state.auto_drop_interval)
+    {
+        let (x, y) = scheduled_drop_point(state.tick_counter / u64::from(state.auto_drop_interval));
+        drop_splash_at(&mut state, x, y)
+    } else {
+        vec![]
+    };
+    state.trigger_types = triggers(&previous, &state.ink, &forced);
     state
 }
 
@@ -131,6 +155,8 @@ pub fn ink_config_menu() -> Vec<BehaviorConfigItem> {
         number_item("diffusionPct", "Diffusion", 0, 100, 1),
         number_item("fadePct", "Fade", 0, 100, 1),
         number_item("dropStrength", "Drop Strength", 1, 255, 1),
+        number_item("autoDropInterval", "Drop Interval", 0, 64, 1),
+        number_item("spawnStep", "Spawn Step", 0, 63, 1),
         action_item("dropInk", "Drop Ink"),
         action_item("clearInk", "Clear Ink"),
     ]
@@ -142,8 +168,10 @@ fn from_config(config: Value) -> InkState {
         ink: norm_ink(config.ink.unwrap_or_default()),
         trigger_types: norm_triggers(config.trigger_types),
         diffusion_pct: num(config.diffusion_pct, 30, 100),
-        fade_pct: num(config.fade_pct, 8, 100),
+        fade_pct: num(config.fade_pct, 5, 100),
         drop_strength: num(config.drop_strength, 180, 255).max(1),
+        auto_drop_interval: num(config.auto_drop_interval, 16, 64),
+        spawn_step: num(config.spawn_step, 5, 63),
         tick_counter: 0,
     };
     normalize(&mut state);
@@ -156,6 +184,8 @@ fn normalize(state: &mut InkState) {
     state.diffusion_pct = state.diffusion_pct.min(100);
     state.fade_pct = state.fade_pct.min(100);
     state.drop_strength = state.drop_strength.clamp(1, 255);
+    state.auto_drop_interval = state.auto_drop_interval.min(64);
+    state.spawn_step = state.spawn_step.min(63);
 }
 
 fn norm_ink(values: Vec<Value>) -> Vec<u8> {
@@ -187,14 +217,15 @@ fn add_ink(state: &mut InkState, index: usize) {
 }
 
 fn drop_splash(state: &mut InkState) -> Vec<usize> {
-    let center = grid_index(GRID_WIDTH / 2, GRID_HEIGHT / 2);
+    drop_splash_at(state, GRID_WIDTH / 2, GRID_HEIGHT / 2)
+}
+
+fn drop_splash_at(state: &mut InkState, x: usize, y: usize) -> Vec<usize> {
+    let center = grid_index(x, y);
     let mut affected = vec![center];
     add_ink(state, center);
     for (dx, dy) in [(0, 1), (1, 0), (0, -1), (-1, 0)] {
-        if let (Some(nx), Some(ny)) = (
-            (GRID_WIDTH / 2).checked_add_signed(dx),
-            (GRID_HEIGHT / 2).checked_add_signed(dy),
-        ) {
+        if let (Some(nx), Some(ny)) = (x.checked_add_signed(dx), y.checked_add_signed(dy)) {
             if nx < GRID_WIDTH && ny < GRID_HEIGHT {
                 let index = grid_index(nx, ny);
                 let amount = state.drop_strength / 2;
@@ -206,6 +237,11 @@ fn drop_splash(state: &mut InkState) -> Vec<usize> {
         }
     }
     affected
+}
+
+fn scheduled_drop_point(step: u64) -> (usize, usize) {
+    let points = [(2, 2), (5, 4), (3, 6), (6, 1)];
+    points[step as usize % points.len()]
 }
 
 fn neighbor_average(values: &[u8], x: usize, y: usize) -> i16 {

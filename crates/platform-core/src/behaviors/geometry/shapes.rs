@@ -47,19 +47,29 @@ struct ShapesConfig {
     max_radius: Option<usize>,
     #[serde(rename = "autoPulseInterval")]
     auto_pulse_interval: Option<usize>,
+    #[serde(rename = "spawnStep")]
+    spawn_step: Option<usize>,
 }
 
 pub fn shapes_init(config: Value) -> Result<ShapesState, String> {
     let config: ShapesConfig = serde_json::from_value(config).unwrap_or_default();
+    let mut lifetimes = vec![0; CELL_COUNT];
+    let center = grid_index(GRID_WIDTH / 2, GRID_HEIGHT / 2);
+    lifetimes[center] = config.lifespan.unwrap_or(3);
     Ok(ShapesState {
-        pulses: vec![],
-        lifetimes: vec![0; CELL_COUNT],
+        pulses: vec![Pulse {
+            ox: GRID_WIDTH / 2,
+            oy: GRID_HEIGHT / 2,
+            radius: 0,
+            max_radius: config.max_radius.unwrap_or(12),
+        }],
+        lifetimes,
         trigger_types: vec![CellTriggerType::None; CELL_COUNT],
         pulse_shape: config.pulse_shape.unwrap_or_else(|| "ring".into()),
         lifespan: config.lifespan.unwrap_or(3),
         max_radius: config.max_radius.unwrap_or(12),
-        auto_pulse_interval: config.auto_pulse_interval.unwrap_or(0),
-        spawn_step: 0,
+        auto_pulse_interval: config.auto_pulse_interval.unwrap_or(12),
+        spawn_step: config.spawn_step.unwrap_or(4).min(63),
         tick_counter: 0,
     })
 }

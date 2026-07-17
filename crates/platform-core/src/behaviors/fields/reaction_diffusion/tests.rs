@@ -13,14 +13,21 @@ fn menu_palette_normalize_serialize() {
     assert_eq!(menu[1].key, "killPct");
     assert_eq!(menu[2].key, "diffusionPct");
     assert_eq!(menu[3].key, "reactionPct");
-    assert_eq!(menu[4].key, "seedChemicals");
-    assert_eq!(menu[5].key, "clearChemicals");
-    let state = reaction_diffusion_init(json!({"a":[300,"bad"],"b":[40],"feedPct":200})).unwrap();
+    assert_eq!(menu[4].key, "seedInterval");
+    assert_eq!(menu[5].key, "spawnStep");
+    assert_eq!(menu[6].key, "seedChemicals");
+    assert_eq!(menu[7].key, "clearChemicals");
+    let state = reaction_diffusion_init(
+        json!({"a":[300,"bad"],"b":[40],"feedPct":200,"seedInterval":200,"spawnStep":200}),
+    )
+    .unwrap();
     assert_eq!(state.a.len(), CELL_COUNT);
     assert_eq!(state.a[0], 255);
     assert_eq!(state.a[1], 255);
     assert_eq!(state.b[0], 40);
     assert_eq!(state.feed_pct, 100);
+    assert_eq!(state.seed_interval, 64);
+    assert_eq!(state.spawn_step, 63);
     assert!(state
         .trigger_types
         .iter()
@@ -34,6 +41,27 @@ fn menu_palette_normalize_serialize() {
         reaction_diffusion_render_model(&state).name,
         "reaction diffusion"
     );
+}
+
+#[test]
+fn default_seed_interval_keeps_reaction_visible_with_bounded_pulses() {
+    let mut ctx = context();
+    let mut state = reaction_diffusion_init(json!({})).unwrap();
+    let mut pulse_counts = Vec::new();
+    for _ in 0..128 {
+        state = reaction_diffusion_on_tick(state, &mut ctx);
+        let activates = state
+            .trigger_types
+            .iter()
+            .filter(|trigger| **trigger == CellTriggerType::Activate)
+            .count();
+        if activates > 0 {
+            pulse_counts.push(activates);
+        }
+    }
+    assert!(state.b.iter().filter(|value| **value >= VISIBLE).count() > 0);
+    assert!(pulse_counts.len() >= 4);
+    assert!(pulse_counts.iter().all(|count| *count <= 5));
 }
 
 #[test]

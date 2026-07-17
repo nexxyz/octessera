@@ -235,6 +235,13 @@ impl NativeRunner {
                     value: self
                         .behavior_config_number(&item.key)
                         .or_else(|| self.behavior_state_number_default(&item.key))
+                        .or_else(|| {
+                            serialized_behavior_state_number_default(
+                                self.behavior,
+                                &self.engine_state(),
+                                &item.key,
+                            )
+                        })
                         .unwrap_or(item.min.unwrap_or(0)),
                     min: item.min.unwrap_or(0),
                     max: item.max.unwrap_or(127),
@@ -258,17 +265,30 @@ impl NativeRunner {
                         .behavior_config
                         .get(&item.key)
                         .and_then(Value::as_bool)
+                        .or_else(|| {
+                            serialized_behavior_state_bool_default(
+                                self.behavior,
+                                &self.engine_state(),
+                                &item.key,
+                            )
+                        })
                         .unwrap_or(false),
                 },
                 children: vec![],
             }),
             BehaviorConfigItemType::Enum => {
                 let options = item.options.unwrap_or_default();
+                let serialized_default = serialized_behavior_state_enum_default(
+                    self.behavior,
+                    &self.engine_state(),
+                    &item.key,
+                );
                 let selected_value = self
                     .behavior_config
                     .get(&item.key)
                     .and_then(Value::as_str)
                     .or_else(|| self.behavior_state_enum_default(&item.key))
+                    .or(serialized_default.as_deref())
                     .unwrap_or_else(|| options.first().map(String::as_str).unwrap_or(""));
                 let selected = options
                     .iter()
@@ -363,4 +383,38 @@ impl NativeRunner {
 
         Ok(Value::Object(object))
     }
+}
+
+pub(super) fn serialized_behavior_state_number_default(
+    behavior: platform_core::NativeBehavior,
+    state: &platform_core::NativeBehaviorState,
+    key: &str,
+) -> Option<i32> {
+    behavior
+        .serialize(state)
+        .ok()?
+        .get(key)?
+        .as_i64()
+        .map(|value| value as i32)
+}
+
+pub(super) fn serialized_behavior_state_bool_default(
+    behavior: platform_core::NativeBehavior,
+    state: &platform_core::NativeBehaviorState,
+    key: &str,
+) -> Option<bool> {
+    behavior.serialize(state).ok()?.get(key)?.as_bool()
+}
+
+pub(super) fn serialized_behavior_state_enum_default(
+    behavior: platform_core::NativeBehavior,
+    state: &platform_core::NativeBehaviorState,
+    key: &str,
+) -> Option<String> {
+    behavior
+        .serialize(state)
+        .ok()?
+        .get(key)?
+        .as_str()
+        .map(str::to_owned)
 }

@@ -21,7 +21,7 @@ pub(crate) fn life_palette_surfaces_in_runtime_snapshot_led_rgb() {
         led_rgb(platform_core::palette::BEHAVIOR_DIM_GREEN)
     );
     assert_eq!(
-        stable_leds[display_index(3, 3)],
+        stable_leds[display_index(1, 0)],
         led_rgb(platform_core::palette::BEHAVIOR_PRIMARY_YELLOW)
     );
 
@@ -36,7 +36,7 @@ pub(crate) fn life_palette_surfaces_in_runtime_snapshot_led_rgb() {
 
     assert_eq!(
         active_leds[display_index(1, 0)],
-        led_rgb(platform_core::palette::BEHAVIOR_PRIMARY_MAGENTA)
+        led_rgb(platform_core::palette::BEHAVIOR_PRIMARY_YELLOW)
     );
     assert_eq!(
         active_leds[display_index(7, 7)],

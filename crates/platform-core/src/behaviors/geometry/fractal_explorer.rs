@@ -110,7 +110,7 @@ pub fn fractal_explorer_on_input(
             if action_type == "jumpRegion" =>
         {
             jump_region(&mut s);
-            sample_classes(&mut s);
+            recover_region(&mut s);
             vec![]
         }
         DeviceInput::BehaviorAction(BehaviorActionInput { action_type })
@@ -121,7 +121,7 @@ pub fn fractal_explorer_on_input(
             } else {
                 "mandelbrot".into()
             };
-            sample_classes(&mut s);
+            recover_region(&mut s);
             vec![]
         }
         _ => return s,
@@ -135,20 +135,28 @@ pub fn fractal_explorer_on_tick(
     _: &mut BehaviorContext,
 ) -> FractalExplorerState {
     normalize(&mut s);
-    let prev = s.classes.clone();
-    sample_classes(&mut s);
-    let detail = s.classes.iter().filter(|c| **c == 1).count();
-    s.center_x =
-        (s.center_x + i32::from(s.drift_x) * i32::from(s.drift_pct) / 100).clamp(-4096, 4096);
-    s.center_y =
-        (s.center_y + i32::from(s.drift_y) * i32::from(s.drift_pct) / 100).clamp(-4096, 4096);
-    s.zoom = s
-        .zoom
-        .saturating_add(((u32::from(s.zoom_rate_pct) * u32::from(s.zoom) / 1000).max(1)) as u16)
-        .clamp(MIN_ZOOM, 16384);
-    if !(4..=52).contains(&detail) || s.zoom >= 16384 {
-        jump_region(&mut s);
+    let mut prev = s.classes.clone();
+    let next_zoom = next_zoom(s.zoom, s.zoom_rate_pct);
+    if next_zoom == s.zoom && s.drift_pct == 0 {
         sample_classes(&mut s);
+        if !is_interesting(&s.classes) {
+            jump_to_interesting_region(&mut s);
+            prev = s.classes.clone();
+        }
+    } else if let Some(candidate) =
+        best_candidate(&s, next_zoom, next_zoom == s.zoom).or_else(|| {
+            (next_zoom != s.zoom)
+                .then(|| best_candidate(&s, s.zoom, true))
+                .flatten()
+        })
+    {
+        s.center_x = candidate.center_x;
+        s.center_y = candidate.center_y;
+        s.zoom = candidate.zoom;
+        s.classes = candidate.classes;
+    } else {
+        jump_to_interesting_region(&mut s);
+        prev = s.classes.clone();
     }
     s.tick_counter = s.tick_counter.wrapping_add(1);
     s.trigger_types = triggers(&prev, &s.classes, &[]);
@@ -255,32 +263,173 @@ fn norm_triggers(v: Option<Vec<CellTriggerType>>) -> Vec<CellTriggerType> {
     o
 }
 fn sample_classes(s: &mut FractalExplorerState) {
+    s.classes = sample_view(
+        s.center_x,
+        s.center_y,
+        s.zoom,
+        &s.mode,
+        s.julia_cx,
+        s.julia_cy,
+        s.iteration_limit,
+    );
+}
+fn sample_view(
+    center_x: i32,
+    center_y: i32,
+    zoom: u16,
+    mode: &str,
+    julia_cx: i16,
+    julia_cy: i16,
+    iteration_limit: u8,
+) -> Vec<u8> {
+    let mut classes = vec![0; CELL_COUNT];
     for y in 0..GRID_HEIGHT {
         for x in 0..GRID_WIDTH {
             let idx = grid_index(x, y);
-            let mx = s.center_x + ((2 * x as i32 - 7) * SCALE * 3) / (2 * i32::from(s.zoom));
-            let my = s.center_y + ((2 * y as i32 - 7) * SCALE * 3) / (2 * i32::from(s.zoom));
-            let (mut zx, mut zy, cx, cy) = if s.mode == "julia" {
-                (mx, my, i32::from(s.julia_cx), i32::from(s.julia_cy))
+            let mx = center_x + ((2 * x as i32 - 7) * SCALE * 3) / (2 * i32::from(zoom));
+            let my = center_y + ((2 * y as i32 - 7) * SCALE * 3) / (2 * i32::from(zoom));
+            let (mut zx, mut zy, cx, cy) = if mode == "julia" {
+                (mx, my, i32::from(julia_cx), i32::from(julia_cy))
             } else {
                 (0, 0, mx, my)
             };
             let mut iter = 0;
-            while iter < s.iteration_limit && zx * zx + zy * zy <= 4 * SCALE * SCALE {
+            while iter < iteration_limit && zx * zx + zy * zy <= 4 * SCALE * SCALE {
                 let nx = (zx * zx - zy * zy) / SCALE + cx;
                 zy = (2 * zx * zy) / SCALE + cy;
                 zx = nx;
                 iter += 1;
             }
-            s.classes[idx] = if iter == s.iteration_limit {
+            classes[idx] = if iter == iteration_limit {
                 0
-            } else if iter >= s.iteration_limit / 4 && iter <= s.iteration_limit * 9 / 10 {
+            } else if iter >= iteration_limit / 4 && iter <= iteration_limit * 9 / 10 {
                 1
             } else {
                 2
             };
         }
     }
+    classes
+}
+fn next_zoom(zoom: u16, zoom_rate_pct: u8) -> u16 {
+    if zoom_rate_pct == 0 {
+        return zoom;
+    }
+    zoom.saturating_add(((u32::from(zoom_rate_pct) * u32::from(zoom) / 1000).max(1)) as u16)
+        .clamp(MIN_ZOOM, 16384)
+}
+#[derive(Clone)]
+struct Candidate {
+    center_x: i32,
+    center_y: i32,
+    zoom: u16,
+    classes: Vec<u8>,
+    score: i32,
+}
+fn best_candidate(s: &FractalExplorerState, zoom: u16, prefer_moving: bool) -> Option<Candidate> {
+    let spacing = (SCALE * 3 / i32::from(zoom)).max(1);
+    let directions = [
+        (0, 0),
+        (0, 1),
+        (1, 1),
+        (1, 0),
+        (1, -1),
+        (0, -1),
+        (-1, -1),
+        (-1, 0),
+        (-1, 1),
+    ];
+    directions
+        .into_iter()
+        .map(|(dx, dy)| {
+            let center_x = (s.center_x + dx * spacing).clamp(-4096, 4096);
+            let center_y = (s.center_y + dy * spacing).clamp(-4096, 4096);
+            let classes = sample_view(
+                center_x,
+                center_y,
+                zoom,
+                &s.mode,
+                s.julia_cx,
+                s.julia_cy,
+                s.iteration_limit,
+            );
+            Candidate {
+                center_x,
+                center_y,
+                zoom,
+                score: candidate_score(&classes, dx, dy, s),
+                classes,
+            }
+        })
+        .filter(|candidate| candidate.score > 0)
+        .filter(|candidate| {
+            !prefer_moving || candidate.center_x != s.center_x || candidate.center_y != s.center_y
+        })
+        .max_by_key(|candidate| candidate.score)
+}
+fn candidate_score(classes: &[u8], dx: i32, dy: i32, s: &FractalExplorerState) -> i32 {
+    let inside = classes.iter().filter(|class| **class == 0).count() as i32;
+    let non_inside = CELL_COUNT as i32 - inside;
+    let balance = inside.min(non_inside);
+    if balance < 4 || non_inside == CELL_COUNT as i32 {
+        return 0;
+    }
+    let detail = classes.iter().filter(|class| **class == 1).count() as i32;
+    let transitions = edge_transitions(classes);
+    if transitions == 0 {
+        return 0;
+    }
+    let bias = if s.drift_pct == 0 {
+        0
+    } else {
+        (dx * i32::from(s.drift_x).signum() + dy * i32::from(s.drift_y).signum())
+            * i32::from(s.drift_pct)
+            / 20
+    };
+    transitions * 8 + balance * 3 + detail * 2 + bias
+}
+fn is_interesting(classes: &[u8]) -> bool {
+    let inside = classes.iter().filter(|class| **class == 0).count() as i32;
+    let non_inside = CELL_COUNT as i32 - inside;
+    inside.min(non_inside) >= 4 && non_inside != CELL_COUNT as i32 && edge_transitions(classes) > 0
+}
+fn jump_to_interesting_region(s: &mut FractalExplorerState) -> bool {
+    for _ in 0..2 {
+        jump_region(s);
+        if recover_region(s) {
+            return true;
+        }
+    }
+    sample_classes(s);
+    false
+}
+fn recover_region(s: &mut FractalExplorerState) -> bool {
+    if let Some(candidate) =
+        best_candidate(s, s.zoom, false).or_else(|| best_candidate(s, 12, false))
+    {
+        s.center_x = candidate.center_x;
+        s.center_y = candidate.center_y;
+        s.zoom = candidate.zoom;
+        s.classes = candidate.classes;
+        return true;
+    }
+    sample_classes(s);
+    false
+}
+fn edge_transitions(classes: &[u8]) -> i32 {
+    let mut transitions = 0;
+    for y in 0..GRID_HEIGHT {
+        for x in 0..GRID_WIDTH {
+            let class = classes[grid_index(x, y)] == 0;
+            if x + 1 < GRID_WIDTH && class != (classes[grid_index(x + 1, y)] == 0) {
+                transitions += 1;
+            }
+            if y + 1 < GRID_HEIGHT && class != (classes[grid_index(x, y + 1)] == 0) {
+                transitions += 1;
+            }
+        }
+    }
+    transitions
 }
 fn jump_region(s: &mut FractalExplorerState) {
     s.region_index = (s.region_index + 1) % 8;

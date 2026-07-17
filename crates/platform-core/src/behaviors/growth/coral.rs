@@ -50,6 +50,12 @@ struct Config {
 
 pub fn coral_init(config: Value) -> Result<CoralState, String> {
     let mut s = from_config(config);
+    if s.cells.iter().all(|cell| *cell == EMPTY) {
+        for (x, y, c) in [(1, 0, A), (2, 0, A), (5, 0, B), (6, 0, B)] {
+            let i = grid_index(x, y);
+            s.cells[i] = c;
+        }
+    }
     s.trigger_types = triggers(&s.cells, &s.cells, &[]);
     Ok(s)
 }

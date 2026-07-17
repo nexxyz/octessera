@@ -11,13 +11,17 @@ fn menu_palette_normalize_serialize() {
     assert_eq!(m[0].max, Some(100));
     assert_eq!(m[2].key, "dropStrength");
     assert_eq!(m[2].max, Some(255));
-    assert_eq!(m[3].key, "dropInk");
-    assert_eq!(m[4].key, "clearInk");
-    let s = ink_deserialize(serde_json::json!({"ink":[999,7],"diffusionPct":999,"fadePct":999,"dropStrength":999,"tickCounter":9,"triggerTypes":["activate"]})).unwrap();
+    assert_eq!(m[3].key, "autoDropInterval");
+    assert_eq!(m[4].key, "spawnStep");
+    assert_eq!(m[5].key, "dropInk");
+    assert_eq!(m[6].key, "clearInk");
+    let s = ink_deserialize(serde_json::json!({"ink":[999,7],"diffusionPct":999,"fadePct":999,"dropStrength":999,"autoDropInterval":999,"spawnStep":999,"tickCounter":9,"triggerTypes":["activate"]})).unwrap();
     assert_eq!(s.ink[0], 255);
     assert_eq!(s.diffusion_pct, 100);
     assert_eq!(s.fade_pct, 100);
     assert_eq!(s.drop_strength, 255);
+    assert_eq!(s.auto_drop_interval, 64);
+    assert_eq!(s.spawn_step, 63);
     assert_eq!(s.tick_counter, 0);
     assert!(!s.trigger_types.contains(&CellTriggerType::Activate));
     let v = ink_serialize(&s).unwrap();
@@ -31,6 +35,27 @@ fn menu_palette_normalize_serialize() {
     assert_eq!(model.name, "ink");
     assert_eq!(model.palette.active, [120, 80, 255]);
     assert_eq!(model.palette.inactive, crate::palette::BLACK);
+}
+
+#[test]
+fn default_autodrops_keep_ink_alive_with_bounded_pulses() {
+    let mut c = ctx();
+    let mut s = ink_init(serde_json::json!({})).unwrap();
+    let mut pulse_counts = Vec::new();
+    for _ in 0..128 {
+        s = ink_on_tick(s, &mut c);
+        let activates = s
+            .trigger_types
+            .iter()
+            .filter(|trigger| **trigger == CellTriggerType::Activate)
+            .count();
+        if activates > 0 {
+            pulse_counts.push(activates);
+        }
+    }
+    assert!(s.ink.iter().filter(|value| **value >= VISIBLE).count() > 0);
+    assert!(pulse_counts.len() >= 4);
+    assert!(pulse_counts.iter().all(|count| *count <= 5));
 }
 
 #[test]

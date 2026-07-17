@@ -47,7 +47,7 @@ pub(crate) fn voice_menu_exposes_fx_bus_and_global_fx_groups() {
     let _ = menu.press();
     let buses = menu.snapshot();
     assert_eq!(buses.path, "/S/FX Buses");
-    assert!(buses.lines.iter().any(|line| line == "> B1: None >"));
+    assert!(buses.lines.iter().any(|line| line == "> B1: Delay+Duck >"));
     let _ = menu.press();
     let _bus = menu.snapshot();
     assert!(menu
@@ -58,6 +58,127 @@ pub(crate) fn voice_menu_exposes_fx_bus_and_global_fx_groups() {
         .current_siblings()
         .iter()
         .any(|item| item.label == "Name"));
+}
+
+#[test]
+pub(crate) fn missing_instrument_config_shows_runtime_defaults() {
+    let mut config = config();
+    config.instrument_note_behaviors.clear();
+    config.instrument_routes.clear();
+    config.instrument_synth_osc1_waveforms.clear();
+    config.instrument_synth_osc2_waveforms.clear();
+    config.instrument_synth_filter_types.clear();
+    let mut menu = NativeMenuModel::new(config);
+
+    menu.state.stack = vec![2, 0, 0];
+    assert!(menu
+        .current_siblings()
+        .iter()
+        .any(|item| item.label == "Note Mode"
+            && matches!(item.value, NativeMenuValue::Enum { ref options, selected } if options[selected] == "oneshot")));
+
+    menu.state.stack = vec![2, 0, 0, 2, 1];
+    assert!(menu
+        .current_siblings()
+        .iter()
+        .any(|item| item.label == "Wave"
+            && matches!(item.value, NativeMenuValue::Enum { ref options, selected } if options[selected] == "saw")));
+
+    menu.state.stack = vec![2, 0, 0, 2, 2];
+    assert!(menu
+        .current_siblings()
+        .iter()
+        .any(|item| item.label == "Wave"
+            && matches!(item.value, NativeMenuValue::Enum { ref options, selected } if options[selected] == "square")));
+
+    menu.state.stack = vec![2, 0, 0, 2, 3];
+    assert!(menu
+        .current_siblings()
+        .iter()
+        .any(|item| item.label == "Type"
+            && matches!(item.value, NativeMenuValue::Enum { ref options, selected } if options[selected] == "lowpass")));
+
+    menu.state.stack = vec![2, 0, 0, 3];
+    assert!(menu
+        .current_siblings()
+        .iter()
+        .any(|item| item.label == "Route"
+            && matches!(item.value, NativeMenuValue::Enum { ref options, selected } if options[selected] == "direct")));
+}
+
+#[test]
+pub(crate) fn missing_fx_bus_config_shows_default_slots_and_params() {
+    let mut config = config();
+    config.fx_buses.clear();
+    let mut menu = NativeMenuModel::new(config);
+
+    menu.state.stack = vec![2, 1, 0];
+    assert!(menu
+        .current_siblings()
+        .iter()
+        .any(|item| item.label == "Slot 1: Delay"));
+    assert!(menu
+        .current_siblings()
+        .iter()
+        .any(|item| item.label == "Slot 2: Duck"));
+    assert!(menu
+        .current_siblings()
+        .iter()
+        .any(|item| item.label == "Slot 3: None"));
+
+    menu.state.stack = vec![2, 1, 0, 0];
+    assert!(menu
+        .current_siblings()
+        .iter()
+        .any(|item| item.label == "Time Mode"
+            && matches!(item.value, NativeMenuValue::Enum { ref options, selected } if options[selected] == "ms")));
+    assert!(menu
+        .current_siblings()
+        .iter()
+        .any(|item| item.label == "Time Note"
+            && matches!(item.value, NativeMenuValue::Enum { ref options, selected } if options[selected] == "1/8")));
+    assert!(menu
+        .current_siblings()
+        .iter()
+        .any(|item| item.label == "Mix %"
+            && matches!(item.value, NativeMenuValue::Number { value: 35, .. })));
+
+    menu.state.stack = vec![2, 1, 0, 1];
+    assert!(menu
+        .current_siblings()
+        .iter()
+        .any(|item| item.label == "Source"
+            && matches!(item.value, NativeMenuValue::Enum { ref options, selected } if options[selected] == "I2")));
+
+    menu.state.stack = vec![2, 1, 1];
+    assert!(menu
+        .current_siblings()
+        .iter()
+        .any(|item| item.label == "Slot 1: None"));
+    assert!(menu
+        .current_siblings()
+        .iter()
+        .any(|item| item.label == "Slot 2: None"));
+}
+
+#[test]
+pub(crate) fn partial_fx_params_show_effect_defaults() {
+    let mut config = config();
+    config.fx_buses[0].slot1_type = "delay".into();
+    config.fx_buses[0].slot1_params = serde_json::json!({ "feedback": 0.42 });
+    let mut menu = NativeMenuModel::new(config);
+
+    menu.state.stack = vec![2, 1, 0, 0];
+    assert!(menu
+        .current_siblings()
+        .iter()
+        .any(|item| item.label == "Mix %"
+            && matches!(item.value, NativeMenuValue::Number { value: 35, .. })));
+    assert!(menu
+        .current_siblings()
+        .iter()
+        .any(|item| item.label == "Feedback"
+            && matches!(item.value, NativeMenuValue::Number { value: 42, .. })));
 }
 
 #[test]

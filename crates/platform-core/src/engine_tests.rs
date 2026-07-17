@@ -10,7 +10,7 @@ use crate::transforms::{GlobalSoundConfig, VelocityCurve};
 fn ticks_life_behavior_end_to_end() {
     let mut engine = NativeLayerEngine::new(NativeLayerEngineConfig {
         behavior: NativeBehavior::Life,
-        behavior_config: Value::Null,
+        behavior_config: serde_json::json!({ "cells": [] }),
         interpretation_profile: InterpretationProfile {
             id: "menu_profile".into(),
             event: InterpretationEventProfile { enabled: true },

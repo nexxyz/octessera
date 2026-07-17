@@ -39,17 +39,27 @@ struct AntConfig {
     max_ants: Option<usize>,
     #[serde(rename = "autoSpawnInterval")]
     auto_spawn_interval: Option<usize>,
+    #[serde(rename = "spawnStep")]
+    spawn_step: Option<usize>,
 }
 
 pub fn ant_init(config: Value) -> Result<AntState, String> {
+    let seed_default = config
+        .as_object()
+        .map(|object| !object.contains_key("ants") && !object.contains_key("cells"))
+        .unwrap_or(true);
     let config: AntConfig = serde_json::from_value(config).unwrap_or_default();
     Ok(AntState {
-        ants: vec![],
+        ants: if seed_default {
+            vec![AntAgent { x: 3, y: 3, dir: 0 }]
+        } else {
+            vec![]
+        },
         cells: vec![false; CELL_COUNT],
         trigger_types: vec![CellTriggerType::None; CELL_COUNT],
         max_ants: config.max_ants.unwrap_or(50),
-        auto_spawn_interval: config.auto_spawn_interval.unwrap_or(0),
-        spawn_step: 0,
+        auto_spawn_interval: config.auto_spawn_interval.unwrap_or(16),
+        spawn_step: config.spawn_step.unwrap_or(5).min(63),
         tick_counter: 0,
     })
 }
@@ -145,7 +155,7 @@ pub fn ant_on_tick(state: AntState, _context: &mut BehaviorContext) -> AntState 
             == state.spawn_step % state.auto_spawn_interval
         && ants.len() < state.max_ants
     {
-        ants.push(random_ant());
+        ants.push(scheduled_ant(tick_counter / state.auto_spawn_interval));
     }
     let trigger_types = trigger_types_from_cells(&previous, &cells);
     AntState {
@@ -155,6 +165,16 @@ pub fn ant_on_tick(state: AntState, _context: &mut BehaviorContext) -> AntState 
         tick_counter,
         ..state
     }
+}
+
+fn scheduled_ant(step: usize) -> AntAgent {
+    let starts = [
+        AntAgent { x: 1, y: 1, dir: 0 },
+        AntAgent { x: 6, y: 2, dir: 1 },
+        AntAgent { x: 2, y: 6, dir: 2 },
+        AntAgent { x: 5, y: 5, dir: 3 },
+    ];
+    starts[step % starts.len()].clone()
 }
 
 pub fn ant_render_model(state: &AntState) -> BehaviorRenderModel {
@@ -190,9 +210,31 @@ mod tests {
     use super::*;
 
     #[test]
+    fn empty_config_seeds_deterministic_ant_and_autospawns_are_bounded() {
+        let mut context = BehaviorContext::new(120.0);
+        let mut a = ant_init(serde_json::json!({})).unwrap();
+        let mut b = ant_init(serde_json::json!({})).unwrap();
+        assert_eq!(a.ants, b.ants);
+        assert_eq!(a.ants.len(), 1);
+        let mut max_activates = 0;
+        for _ in 0..32 {
+            a = ant_on_tick(a, &mut context);
+            b = ant_on_tick(b, &mut context);
+            assert_eq!(a.ants, b.ants);
+            max_activates = max_activates.max(
+                a.trigger_types
+                    .iter()
+                    .filter(|trigger| **trigger == CellTriggerType::Activate)
+                    .count(),
+            );
+        }
+        assert!(max_activates <= 8);
+    }
+
+    #[test]
     fn ant_moves_flips_wraps_and_respects_max_ants() {
         let mut context = BehaviorContext::new(120.0);
-        let mut state = ant_init(serde_json::json!({ "maxAnts": 1 })).unwrap();
+        let mut state = ant_init(serde_json::json!({ "maxAnts": 1, "ants": [] })).unwrap();
         state = ant_on_input(state, DeviceInput::GridPress { x: 0, y: 0 }, &mut context);
         let limited = ant_on_input(
             state.clone(),
@@ -229,7 +271,7 @@ mod tests {
 
     #[test]
     fn ant_render_and_config_menu_match_contract() {
-        let mut state = ant_init(Value::Null).unwrap();
+        let mut state = ant_init(serde_json::json!({ "ants": [] })).unwrap();
         state.ants.push(AntAgent { x: 1, y: 2, dir: 0 });
         let model = ant_render_model(&state);
         assert_eq!(model.name, "ant");

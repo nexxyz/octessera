@@ -1,8 +1,27 @@
 use super::*;
 
 #[test]
+fn empty_config_seeds_quiet_default_glider_but_deserialized_empty_stays_empty() {
+    let state = init(serde_json::json!({})).unwrap();
+    assert_eq!(state.cells.iter().filter(|cell| **cell).count(), 5);
+    assert!(!state.trigger_types.contains(&CellTriggerType::Activate));
+    let restored = deserialize(serde_json::json!({
+        "width": GRID_WIDTH,
+        "height": GRID_HEIGHT,
+        "cells": [],
+        "randomCellsPerTick": 0,
+        "randomTickInterval": 1,
+        "gliderSpawnInterval": 0,
+        "spawnStep": 0,
+        "triggerTypes": []
+    }))
+    .unwrap();
+    assert!(restored.cells.iter().all(|cell| !cell));
+}
+
+#[test]
 fn blinker_oscillates() {
-    let mut state = init(Value::Null).unwrap();
+    let mut state = init(serde_json::json!({ "cells": [] })).unwrap();
     state.cells[grid_index(2, 3)] = true;
     state.cells[grid_index(3, 3)] = true;
     state.cells[grid_index(4, 3)] = true;
@@ -17,7 +36,7 @@ fn blinker_oscillates() {
 
 #[test]
 fn twelve_live_cells_do_not_emit_direct_notes() {
-    let mut state = init(Value::Null).unwrap();
+    let mut state = init(serde_json::json!({ "cells": [] })).unwrap();
     for (x, y) in [
         (1, 1),
         (2, 1),
@@ -44,7 +63,7 @@ fn twelve_live_cells_do_not_emit_direct_notes() {
 
 #[test]
 fn block_is_stable_and_grid_press_toggles_cell() {
-    let mut state = init(Value::Null).unwrap();
+    let mut state = init(serde_json::json!({ "cells": [] })).unwrap();
     for (x, y) in [(2, 2), (3, 2), (2, 3), (3, 3)] {
         state.cells[grid_index(x, y)] = true;
     }
@@ -57,7 +76,7 @@ fn block_is_stable_and_grid_press_toggles_cell() {
 
     let mut context = BehaviorContext::new(120.0);
     let toggled = on_input(
-        init(Value::Null).unwrap(),
+        init(serde_json::json!({ "cells": [] })).unwrap(),
         DeviceInput::GridPress { x: 2, y: 3 },
         &mut context,
     );
@@ -68,7 +87,7 @@ fn block_is_stable_and_grid_press_toggles_cell() {
 
 #[test]
 fn render_config_and_serialization_match_contract() {
-    let mut state = init(Value::Null).unwrap();
+    let mut state = init(serde_json::json!({ "cells": [] })).unwrap();
     state.cells[grid_index(1, 1)] = true;
     let model = render_model(&state);
     assert_eq!(model.name, "game of life");
@@ -98,7 +117,7 @@ fn render_config_and_serialization_match_contract() {
 fn spawn_glider_action_adds_glider_pattern() {
     let mut context = BehaviorContext::new(120.0);
     let state = on_input(
-        init(Value::Null).unwrap(),
+        init(serde_json::json!({ "cells": [] })).unwrap(),
         DeviceInput::BehaviorAction(BehaviorActionInput {
             action_type: "spawnGlider".into(),
         }),
@@ -116,11 +135,12 @@ fn spawn_glider_action_adds_glider_pattern() {
 #[test]
 fn glider_interval_is_disabled_by_default_and_spawn_step_delays_it() {
     let mut context = BehaviorContext::new(120.0);
-    let default_state = init(Value::Null).unwrap();
+    let default_state = init(serde_json::json!({ "cells": [] })).unwrap();
     let default_next = on_tick(default_state, &mut context);
     assert!(default_next.cells.iter().all(|cell| !cell));
 
     let delayed = init(serde_json::json!({
+        "cells": [],
         "gliderSpawnInterval": 2,
         "spawnStep": 1
     }))
@@ -140,7 +160,7 @@ fn glider_interval_is_disabled_by_default_and_spawn_step_delays_it() {
 
 #[test]
 fn glider_moves_diagonally_after_four_generations() {
-    let mut state = init(Value::Null).unwrap();
+    let mut state = init(serde_json::json!({ "cells": [] })).unwrap();
     for (x, y) in [(2, 1), (3, 2), (1, 3), (2, 3), (3, 3)] {
         state.cells[grid_index(x, y)] = true;
     }

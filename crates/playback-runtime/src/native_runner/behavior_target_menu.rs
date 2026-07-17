@@ -65,7 +65,7 @@ impl NativeRunner {
         if let Ok(Some(config_items)) = behavior.config_menu(&state) {
             for item in config_items {
                 if let Some(menu_item) =
-                    behavior_target_menu_item(self, layer_index, config, &state, item)
+                    behavior_target_menu_item(self, layer_index, behavior, config, &state, item)
                 {
                     items.push(menu_item);
                 }
@@ -112,6 +112,7 @@ impl NativeRunner {
 fn behavior_target_menu_item(
     runner: &NativeRunner,
     layer_index: usize,
+    behavior: platform_core::NativeBehavior,
     config: &Value,
     state: &platform_core::NativeBehaviorState,
     item: BehaviorConfigItem,
@@ -127,6 +128,11 @@ fn behavior_target_menu_item(
                     .and_then(Value::as_i64)
                     .map(|value| value as i32)
                     .or_else(|| behavior_state_number_default(&item.key, state))
+                    .or_else(|| {
+                        super::behavior_menu::serialized_behavior_state_number_default(
+                            behavior, state, &item.key,
+                        )
+                    })
                     .unwrap_or(item.min.unwrap_or(0)),
                 min: item.min.unwrap_or(0),
                 max: item.max.unwrap_or(127),
@@ -149,26 +155,37 @@ fn behavior_target_menu_item(
                 value: config
                     .get(&item.key)
                     .and_then(Value::as_bool)
+                    .or_else(|| {
+                        super::behavior_menu::serialized_behavior_state_bool_default(
+                            behavior, state, &item.key,
+                        )
+                    })
                     .unwrap_or(false),
             },
             children: vec![],
         }),
-        BehaviorConfigItemType::Enum => enum_target_menu_item(runner, key, config, state, item),
+        BehaviorConfigItemType::Enum => {
+            enum_target_menu_item(runner, key, behavior, config, state, item)
+        }
     }
 }
 
 fn enum_target_menu_item(
     runner: &NativeRunner,
     key: String,
+    behavior: platform_core::NativeBehavior,
     config: &Value,
     state: &platform_core::NativeBehaviorState,
     item: BehaviorConfigItem,
 ) -> Option<crate::native_menu::NativeMenuItem> {
     let options = item.options.unwrap_or_default();
+    let serialized_default =
+        super::behavior_menu::serialized_behavior_state_enum_default(behavior, state, &item.key);
     let selected_value = config
         .get(&item.key)
         .and_then(Value::as_str)
         .or_else(|| behavior_state_enum_default(runner, &item.key, state))
+        .or(serialized_default.as_deref())
         .unwrap_or_else(|| options.first().map(String::as_str).unwrap_or(""));
     let selected = options
         .iter()

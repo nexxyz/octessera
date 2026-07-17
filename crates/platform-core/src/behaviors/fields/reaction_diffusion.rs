@@ -24,6 +24,10 @@ pub struct ReactionDiffusionState {
     pub diffusion_pct: u8,
     #[serde(rename = "reactionPct")]
     pub reaction_pct: u8,
+    #[serde(rename = "seedInterval")]
+    pub seed_interval: u8,
+    #[serde(rename = "spawnStep")]
+    pub spawn_step: u8,
     #[serde(rename = "tickCounter", skip_serializing, skip_deserializing)]
     pub tick_counter: u64,
 }
@@ -42,10 +46,21 @@ struct Config {
     diffusion_pct: Option<Value>,
     #[serde(rename = "reactionPct")]
     reaction_pct: Option<Value>,
+    #[serde(rename = "seedInterval")]
+    seed_interval: Option<Value>,
+    #[serde(rename = "spawnStep")]
+    spawn_step: Option<Value>,
 }
 
 pub fn reaction_diffusion_init(config: Value) -> Result<ReactionDiffusionState, String> {
+    let seed_default = config
+        .as_object()
+        .map(|object| !object.contains_key("a") && !object.contains_key("b"))
+        .unwrap_or(true);
     let mut s = from_config(config);
+    if seed_default && s.b.iter().all(|value| *value == 0) {
+        seed(&mut s);
+    }
     s.trigger_types = triggers(&s.b, &s.b, &[]);
     Ok(s)
 }
@@ -120,7 +135,16 @@ pub fn reaction_diffusion_on_tick(
     state.a = na;
     state.b = nb;
     state.tick_counter = state.tick_counter.wrapping_add(1);
-    state.trigger_types = triggers(&pb, &state.b, &[]);
+    let forced = if state.seed_interval > 0
+        && state.tick_counter % u64::from(state.seed_interval)
+            == u64::from(state.spawn_step % state.seed_interval)
+    {
+        let step = state.tick_counter / u64::from(state.seed_interval);
+        seed_at_step(&mut state, step)
+    } else {
+        vec![]
+    };
+    state.trigger_types = triggers(&pb, &state.b, &forced);
     state
 }
 
@@ -145,6 +169,8 @@ pub fn reaction_diffusion_config_menu() -> Vec<BehaviorConfigItem> {
         number_item("killPct", "Kill", 0, 100, 1),
         number_item("diffusionPct", "Diffusion", 0, 100, 1),
         number_item("reactionPct", "Reaction", 0, 100, 1),
+        number_item("seedInterval", "Seed Interval", 0, 64, 1),
+        number_item("spawnStep", "Spawn Step", 0, 63, 1),
         action_item("seedChemicals", "Seed Chemicals"),
         action_item("clearChemicals", "Clear Chemicals"),
     ]
@@ -160,6 +186,8 @@ fn from_config(v: Value) -> ReactionDiffusionState {
         kill_pct: num(c.kill_pct, 55, 100),
         diffusion_pct: num(c.diffusion_pct, 35, 100),
         reaction_pct: num(c.reaction_pct, 50, 100),
+        seed_interval: num(c.seed_interval, 16, 64),
+        spawn_step: num(c.spawn_step, 15, 63),
         tick_counter: 0,
     };
     normalize(&mut s);
@@ -172,7 +200,9 @@ fn normalize(s: &mut ReactionDiffusionState) {
     s.feed_pct = s.feed_pct.min(100);
     s.kill_pct = s.kill_pct.min(100);
     s.diffusion_pct = s.diffusion_pct.min(100);
-    s.reaction_pct = s.reaction_pct.min(100)
+    s.reaction_pct = s.reaction_pct.min(100);
+    s.seed_interval = s.seed_interval.min(64);
+    s.spawn_step = s.spawn_step.min(63)
 }
 fn norm(v: Option<Vec<Value>>, d: u8) -> Vec<u8> {
     let mut o = v
@@ -217,10 +247,16 @@ fn apply(s: &mut ReactionDiffusionState, i: usize, add_b: u8, sub_a: u8, f: &mut
 }
 fn seed(s: &mut ReactionDiffusionState) -> Vec<usize> {
     let mut f = Vec::new();
-    for (x, y) in [(3, 3), (4, 4), (1, 1), (6, 6)] {
+    for (x, y) in [(2, 2), (3, 3), (4, 4), (5, 5), (2, 5), (5, 2)] {
         f.extend(splash(s, x, y));
     }
     f
+}
+
+fn seed_at_step(s: &mut ReactionDiffusionState, step: u64) -> Vec<usize> {
+    let points = [(2, 2), (5, 5), (2, 5), (5, 2)];
+    let (x, y) = points[step as usize % points.len()];
+    splash(s, x, y)
 }
 fn avg(a: &[u8], b: &[u8], x: usize, y: usize) -> (i32, i32) {
     let mut sa = 0;

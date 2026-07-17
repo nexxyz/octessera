@@ -50,6 +50,12 @@ struct Config {
 
 pub fn vines_init(config: Value) -> Result<VinesState, String> {
     let mut s = from_config(config);
+    if s.cells.iter().all(|cell| *cell == EMPTY) {
+        for (x, y) in [(3, 0), (4, 0), (3, 1)] {
+            let index = grid_index(x, y);
+            plant(&mut s, index);
+        }
+    }
     s.trigger_types = triggers(&s.cells, &s.cells);
     Ok(s)
 }

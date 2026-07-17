@@ -40,6 +40,8 @@ struct BounceConfig {
     max_balls: Option<usize>,
     #[serde(rename = "spawnInterval")]
     spawn_interval: Option<usize>,
+    #[serde(rename = "spawnStep")]
+    spawn_step: Option<usize>,
 }
 
 fn random_ball_at(x: f32, y: f32) -> Ball {
@@ -61,14 +63,27 @@ fn random_ball() -> Ball {
 }
 
 pub fn bounce_init(config: Value) -> Result<BounceState, String> {
+    let seed_default = config
+        .as_object()
+        .map(|object| !object.contains_key("balls") && !object.contains_key("cells"))
+        .unwrap_or(true);
     let config: BounceConfig = serde_json::from_value(config).unwrap_or_default();
     Ok(BounceState {
-        balls: vec![],
+        balls: if seed_default {
+            vec![Ball {
+                x: 2.0,
+                y: 2.0,
+                vx: 0.75,
+                vy: 0.5,
+            }]
+        } else {
+            vec![]
+        },
         cells: vec![false; CELL_COUNT],
         trigger_types: vec![CellTriggerType::None; CELL_COUNT],
         max_balls: config.max_balls.unwrap_or(60),
-        spawn_interval: config.spawn_interval.unwrap_or(0),
-        spawn_step: 0,
+        spawn_interval: config.spawn_interval.unwrap_or(16),
+        spawn_step: config.spawn_step.unwrap_or(7).min(63),
         tick_counter: 0,
     })
 }
@@ -103,7 +118,7 @@ pub fn bounce_on_tick(state: BounceState, _context: &mut BehaviorContext) -> Bou
         && balls.len() < state.max_balls
         && (tick_counter - 1) % state.spawn_interval == state.spawn_step % state.spawn_interval
     {
-        balls.push(random_ball());
+        balls.push(scheduled_ball(tick_counter / state.spawn_interval));
     }
     for ball in &mut balls {
         ball.x += ball.vx;
@@ -141,6 +156,36 @@ pub fn bounce_on_tick(state: BounceState, _context: &mut BehaviorContext) -> Bou
     }
 }
 
+fn scheduled_ball(step: usize) -> Ball {
+    let starts = [
+        Ball {
+            x: 1.0,
+            y: 1.0,
+            vx: 0.5,
+            vy: 0.75,
+        },
+        Ball {
+            x: 6.0,
+            y: 2.0,
+            vx: -0.75,
+            vy: 0.5,
+        },
+        Ball {
+            x: 2.0,
+            y: 6.0,
+            vx: 0.6,
+            vy: -0.5,
+        },
+        Ball {
+            x: 5.0,
+            y: 5.0,
+            vx: -0.5,
+            vy: -0.7,
+        },
+    ];
+    starts[step % starts.len()].clone()
+}
+
 pub fn bounce_render_model(state: &BounceState) -> BehaviorRenderModel {
     BehaviorRenderModel {
         name: "bounce".into(),
@@ -171,6 +216,28 @@ pub fn bounce_config_menu() -> Vec<BehaviorConfigItem> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn empty_config_seeds_deterministic_ball_and_autospawns_are_bounded() {
+        let mut context = BehaviorContext::new(120.0);
+        let mut a = bounce_init(serde_json::json!({})).unwrap();
+        let mut b = bounce_init(serde_json::json!({})).unwrap();
+        assert_eq!(a.balls, b.balls);
+        assert_eq!(a.balls.len(), 1);
+        let mut max_activates = 0;
+        for _ in 0..40 {
+            a = bounce_on_tick(a, &mut context);
+            b = bounce_on_tick(b, &mut context);
+            assert_eq!(a.balls, b.balls);
+            max_activates = max_activates.max(
+                a.trigger_types
+                    .iter()
+                    .filter(|trigger| **trigger == CellTriggerType::Activate)
+                    .count(),
+            );
+        }
+        assert!(max_activates <= 8);
+    }
 
     #[test]
     fn ball_moves_bounces_and_max_balls_limits_spawns() {
@@ -222,7 +289,7 @@ mod tests {
 
     #[test]
     fn bounce_render_and_config_menu_match_contract() {
-        let state = bounce_init(Value::Null).unwrap();
+        let state = bounce_init(serde_json::json!({ "balls": [] })).unwrap();
         let model = bounce_render_model(&state);
         assert_eq!(model.name, "bounce");
         assert_eq!(model.status_line, "0 balls");

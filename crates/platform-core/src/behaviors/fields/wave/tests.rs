@@ -18,11 +18,14 @@ fn menu_palette_and_normalization_contract() {
     assert_eq!(menu[2].key, "impulseStrength");
     assert_eq!(menu[2].min, Some(1));
     assert_eq!(menu[2].max, Some(127));
-    assert_eq!(menu[3].key, "dropImpulse");
+    assert_eq!(menu[3].key, "autoImpulseInterval");
+    assert_eq!(menu[4].key, "spawnStep");
+    assert_eq!(menu[5].key, "dropImpulse");
 
     let state = wave_deserialize(serde_json::json!({
         "displacement": [999, -999], "velocity": [999],
         "dampingPct": 999, "tensionPct": 999, "impulseStrength": 999,
+        "autoImpulseInterval": 999, "spawnStep": 999,
         "triggerTypes": ["activate"]
     }))
     .unwrap();
@@ -32,6 +35,8 @@ fn menu_palette_and_normalization_contract() {
     assert_eq!(state.damping_pct, 100);
     assert_eq!(state.tension_pct, 100);
     assert_eq!(state.impulse_strength, 127);
+    assert_eq!(state.auto_impulse_interval, 64);
+    assert_eq!(state.spawn_step, 63);
     assert_eq!(state.trigger_types[0], CellTriggerType::Stable);
 
     let model = wave_render_model(&state);
@@ -39,6 +44,27 @@ fn menu_palette_and_normalization_contract() {
     assert!(model.status_line.starts_with("energy:"));
     assert_eq!(model.palette.inactive, crate::palette::BLACK);
     assert_eq!(model.palette.active, [180, 240, 255]);
+}
+
+#[test]
+fn default_auto_impulses_keep_wave_alive_with_bounded_pulses() {
+    let mut context = context();
+    let mut state = wave_init(serde_json::json!({})).unwrap();
+    let mut pulse_counts = Vec::new();
+    for _ in 0..128 {
+        state = wave_on_tick(state, &mut context);
+        let activates = state
+            .trigger_types
+            .iter()
+            .filter(|trigger| **trigger == CellTriggerType::Activate)
+            .count();
+        if activates > 0 {
+            pulse_counts.push(activates);
+        }
+    }
+    assert!(state.displacement.iter().any(|value| value.abs() >= 12));
+    assert!(pulse_counts.len() >= 4);
+    assert!(pulse_counts.iter().all(|count| *count <= 5));
 }
 
 #[test]

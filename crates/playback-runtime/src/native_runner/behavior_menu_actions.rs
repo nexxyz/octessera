@@ -50,14 +50,6 @@ impl NativeRunner {
     }
 
     pub(super) fn seed_visible_state(&mut self) -> Result<(), String> {
-        if self.behavior.id() == "life" {
-            self.engine
-                .on_input(DeviceInput::GridPress { x: 2, y: 3 }, self.bpm as f32)?;
-            self.engine
-                .on_input(DeviceInput::GridPress { x: 3, y: 3 }, self.bpm as f32)?;
-            self.engine
-                .on_input(DeviceInput::GridPress { x: 4, y: 3 }, self.bpm as f32)?;
-        }
         Ok(())
     }
 }

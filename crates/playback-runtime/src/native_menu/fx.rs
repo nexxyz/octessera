@@ -15,7 +15,7 @@ pub(super) fn fx_buses_group(config: &[NativeFxBusConfig], bpm: u16) -> NativeMe
                 let bus = config
                     .get(bus_index)
                     .cloned()
-                    .unwrap_or_else(default_fx_bus_config);
+                    .unwrap_or_else(|| default_fx_bus_config_for_index(bus_index));
                 group(
                     format!("B{}: {}", bus_index + 1, bus.name),
                     vec![
@@ -194,15 +194,47 @@ fn fx_slot_children(
 
 pub(super) fn default_fx_bus_config() -> NativeFxBusConfig {
     NativeFxBusConfig {
-        name: "None".into(),
-        slot1_type: "none".into(),
-        slot1_params: serde_json::json!({}),
-        slot2_type: "none".into(),
-        slot2_params: serde_json::json!({}),
+        name: "Delay+Duck".into(),
+        slot1_type: "delay".into(),
+        slot1_params: serde_json::json!({
+            "feedback": 0.35,
+            "mixPct": 35,
+            "spreadPct": 0,
+            "timeMode": "ms",
+            "timeMs": 250,
+            "timeNote": "1/8"
+        }),
+        slot2_type: "duck".into(),
+        slot2_params: serde_json::json!({
+            "amountPct": 60,
+            "attackMs": 8,
+            "releaseMs": 160,
+            "source": "I2",
+            "threshold": 0.08
+        }),
         slot3_type: "none".into(),
         slot3_params: serde_json::json!({}),
         pan_pos: 16,
         volume_pct: 100,
         auto_name: true,
+    }
+}
+
+fn default_fx_bus_config_for_index(index: usize) -> NativeFxBusConfig {
+    if index == 0 {
+        default_fx_bus_config()
+    } else {
+        NativeFxBusConfig {
+            name: "None".into(),
+            slot1_type: "none".into(),
+            slot1_params: serde_json::json!({}),
+            slot2_type: "none".into(),
+            slot2_params: serde_json::json!({}),
+            slot3_type: "none".into(),
+            slot3_params: serde_json::json!({}),
+            pan_pos: 16,
+            volume_pct: 100,
+            auto_name: true,
+        }
     }
 }

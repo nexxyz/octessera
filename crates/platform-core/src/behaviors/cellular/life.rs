@@ -53,11 +53,19 @@ pub struct LifeConfig {
 }
 
 pub fn init(config: Value) -> Result<LifeState, String> {
+    let seed_default = config
+        .as_object()
+        .map(|object| !object.contains_key("cells"))
+        .unwrap_or(true);
     let config: LifeConfig = serde_json::from_value(config).unwrap_or_default();
+    let mut cells = vec![false; CELL_COUNT];
+    if seed_default {
+        seed_glider(&mut cells, 0, 0);
+    }
     Ok(LifeState {
         width: GRID_WIDTH,
         height: GRID_HEIGHT,
-        cells: vec![false; CELL_COUNT],
+        cells,
         generation: 0,
         random_cells_per_tick: config.random_cells_per_tick.unwrap_or(0),
         random_tick_interval: config.random_tick_interval.unwrap_or(1),
@@ -66,6 +74,16 @@ pub fn init(config: Value) -> Result<LifeState, String> {
         tick_counter: 0,
         trigger_types: vec![CellTriggerType::None; CELL_COUNT],
     })
+}
+
+fn seed_glider(cells: &mut [bool], origin_x: usize, origin_y: usize) {
+    for (dx, dy) in [(1, 0), (2, 1), (0, 2), (1, 2), (2, 2)] {
+        let x = origin_x + dx;
+        let y = origin_y + dy;
+        if x < GRID_WIDTH && y < GRID_HEIGHT {
+            cells[grid_index(x, y)] = true;
+        }
+    }
 }
 
 pub fn on_input(state: LifeState, input: DeviceInput, _context: &mut BehaviorContext) -> LifeState {
@@ -247,15 +265,11 @@ fn spawn_glider(
     origin_x: usize,
     origin_y: usize,
 ) {
-    for (dx, dy) in [(1, 0), (2, 1), (0, 2), (1, 2), (2, 2)] {
-        let x = origin_x + dx;
-        let y = origin_y + dy;
-        if x < GRID_WIDTH && y < GRID_HEIGHT {
-            let index = grid_index(x, y);
-            if !cells[index] {
-                trigger_types[index] = CellTriggerType::Activate;
-            }
-            cells[index] = true;
+    let previous = cells.to_vec();
+    seed_glider(cells, origin_x, origin_y);
+    for index in 0..CELL_COUNT {
+        if !previous[index] && cells[index] {
+            trigger_types[index] = CellTriggerType::Activate;
         }
     }
 }

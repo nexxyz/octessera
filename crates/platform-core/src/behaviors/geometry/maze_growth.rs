@@ -202,7 +202,7 @@ fn from_config(v: Value) -> MazeGrowthState {
         ages: norm(c.ages, 0, 255),
         walkers: norm_walkers(c.walkers, walker_count),
         trigger_types: norm_triggers(c.trigger_types),
-        carve_pct: num(c.carve_pct, 55, 100),
+        carve_pct: num(c.carve_pct, 100, 100),
         collapse_age: num(c.collapse_age, 32, 64).max(1),
         walker_count,
         tick_counter: 0,

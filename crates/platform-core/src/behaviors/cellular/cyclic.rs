@@ -31,6 +31,9 @@ struct Config {
 
 pub fn cyclic_init(config: Value) -> Result<CyclicState, String> {
     let mut state = state_from_config(config);
+    if state.cells.iter().all(|cell| *cell == 0) {
+        seed_cycle(&mut state);
+    }
     state.trigger_types = triggers(&state.cells, &state.cells, &[]);
     Ok(state)
 }
@@ -129,7 +132,7 @@ fn state_from_config(config: Value) -> CyclicState {
         trigger_types: normalize_triggers(config.trigger_types),
         states,
         threshold: number(config.threshold, 2, 8).clamp(1, 8),
-        range: number(config.range, 1, 2).clamp(1, 2),
+        range: number(config.range, 2, 2).clamp(1, 2),
     };
     normalize(&mut state);
     state

@@ -43,7 +43,7 @@ layer_forest_fire_spread_chance	*	key:layers.*.worlds.behaviorConfig.spreadChanc
 layer_forest_fire_reseed_threshold	*	key:layers.*.worlds.behaviorConfig.reseedThresholdPct	number	Reseed Threshold	Sets the live-cell percent below which Forest Fire reseeds new trees.	Use 0 to let an empty forest stay quiet until you ignite or grow it.
 layer_forest_fire_lightning	*	key:layers.*.worlds.behaviorConfig.lightningChancePerThousand	number	Lightning	Sets the per-thousand chance that any tree ignites on a tick.	For example, 1 means one chance in 1000 per tree per tick.
 layer_crystal_growth_chance	*	key:layers.*.worlds.behaviorConfig.growthChancePct	number	Growth Chance	Sets the percent chance that an eligible empty cell grows into a crystal each tick.	At 100, all eligible neighbors grow for the selected symmetry.
-layer_crystal_seed_interval	*	key:layers.*.worlds.behaviorConfig.seedInterval	number	Seed Interval	Sets how often Crystal Growth drops a scheduled seed.	0 disables scheduled seeding, but an empty grid still reseeds safely.
+layer_seed_interval	*	key:layers.*.worlds.behaviorConfig.seedInterval	number	Seed Interval	Sets how often a behavior drops its scheduled seed.	0 disables scheduled seeding; Spawn Step controls the phase.
 layer_crystal_seed_step	*	key:layers.*.worlds.behaviorConfig.seedStep	number	Seed Step	Sets the timing phase for scheduled Crystal Growth seeds.	It is compared modulo Seed Interval; it is not a grid coordinate.
 layer_crystal_cell_life	*	key:layers.*.worlds.behaviorConfig.cellLife	number	Cell Life	Sets how many ticks a crystal cell lasts before dissolving.	0 disables aging so crystals remain until changed by another rule.
 layer_crystal_symmetry	*	key:layers.*.worlds.behaviorConfig.symmetry	enum	Symmetry	Chooses cross, diagonal, or snowflake neighbor growth.	Snowflake alternates diagonal directions by grid parity.
@@ -70,6 +70,7 @@ life_spawn_shared_kuramoto	*	action:behavior_action:desyncPulse	action	Desync Pu
 layer_wave_damping	*	key:layers.*.worlds.behaviorConfig.dampingPct	number	Damping	Sets how strongly Wave motion fades each tick.	Higher values calm the membrane faster.
 layer_wave_tension	*	key:layers.*.worlds.behaviorConfig.tensionPct	number	Tension	Sets how strongly neighboring cells pull displacement back toward balance.	Higher values make impulses travel more sharply.
 layer_wave_impulse	*	key:layers.*.worlds.behaviorConfig.impulseStrength	number	Impulse Strength	Sets how hard a grid press or Drop Impulse strikes the wave field.	Stronger impulses cross the musical threshold more easily.
+layer_wave_auto_impulse	*	key:layers.*.worlds.behaviorConfig.autoImpulseInterval	number	Impulse Interval	Sets how often Wave adds a scheduled deterministic impulse.	0 disables the automatic taps; Spawn Step controls the phase.
 life_spawn_shared_wave	*	action:behavior_action:dropImpulse	action	Drop Impulse	Drops a deterministic impulse into the Wave field and emits the affected impact accents.	Use it to tap the membrane without touching the grid.
 layer_gravity_spawn	*	key:layers.*.worlds.behaviorConfig.spawnRatePct	number	Spawn Rate	Sets the deterministic chance that new sand appears along the edge opposite gravity.	Higher values keep avalanches fed.
 layer_gravity_slide	*	key:layers.*.worlds.behaviorConfig.slideChancePct	number	Slide Chance	Sets how often blocked sand tries diagonal slides.	Higher values make piles slump more readily.
@@ -105,6 +106,7 @@ life_spawn_shared_lava_reset	*	action:behavior_action:resetBlobs	action	Reset Bl
 layer_ink_diffusion	*	key:layers.*.worlds.behaviorConfig.diffusionPct	number	Diffusion	Sets how quickly Ink spreads toward neighboring cells.	Higher values bloom outward faster.
 layer_ink_fade	*	key:layers.*.worlds.behaviorConfig.fadePct	number	Fade	Sets how much pigment fades each tick.	Higher values clear the wash sooner.
 layer_ink_strength	*	key:layers.*.worlds.behaviorConfig.dropStrength	number	Drop Strength	Sets how much pigment a press or Drop Ink adds.	Strong drops cross the musical threshold immediately.
+layer_ink_auto_drop	*	key:layers.*.worlds.behaviorConfig.autoDropInterval	number	Drop Interval	Sets how often Ink adds a scheduled deterministic drop.	0 disables automatic drops; Spawn Step controls the phase.
 life_spawn_shared_ink_drop	*	action:behavior_action:dropInk	action	Drop Ink	Adds a deterministic ink splash near the center and accents the affected cells.	Good for starting a bloom without touching the grid.
 life_spawn_shared_ink_clear	*	action:behavior_action:clearInk	action	Clear Ink	Clears all pigment and deactivates cells that were visible.	Use it when the page needs a fresh blot.
 layer_cracks_stress	*	key:layers.*.worlds.behaviorConfig.stressPct	number	Stress	Sets the deterministic chance that clear pane cells gain stress each tick.	Stressed glass becomes visible before it breaks.

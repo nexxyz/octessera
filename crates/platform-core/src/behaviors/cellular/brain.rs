@@ -37,6 +37,8 @@ struct BrainConfig {
     random_seed_cells: Option<usize>,
     #[serde(rename = "seedInterval")]
     seed_interval: Option<usize>,
+    #[serde(rename = "spawnStep")]
+    spawn_step: Option<usize>,
 }
 
 pub fn brain_init(config: Value) -> Result<BrainState, String> {
@@ -46,9 +48,9 @@ pub fn brain_init(config: Value) -> Result<BrainState, String> {
         generation: 0,
         trigger_types: vec![CellTriggerType::None; CELL_COUNT],
         fire_threshold: config.fire_threshold.unwrap_or(2),
-        random_seed_cells: config.random_seed_cells.unwrap_or(0),
-        seed_interval: config.seed_interval.unwrap_or(0),
-        spawn_step: 0,
+        random_seed_cells: config.random_seed_cells.unwrap_or(2),
+        seed_interval: config.seed_interval.unwrap_or(8),
+        spawn_step: config.spawn_step.unwrap_or(3).min(63),
         tick_counter: 0,
     })
 }
@@ -130,9 +132,9 @@ pub fn brain_on_tick(state: BrainState, _context: &mut BehaviorContext) -> Brain
         && state.random_seed_cells > 0
         && (tick_counter - 1) % state.seed_interval == state.spawn_step % state.seed_interval
     {
-        let mut rng = rand::thread_rng();
-        for _ in 0..state.random_seed_cells {
-            let index = grid_index(rng.gen_range(0..GRID_WIDTH), rng.gen_range(0..GRID_HEIGHT));
+        let step = tick_counter / state.seed_interval;
+        for offset in 0..state.random_seed_cells {
+            let index = scheduled_seed_index(step, offset);
             if cells[index] == 0 {
                 cells[index] = 1;
                 trigger_types[index] = CellTriggerType::Activate;
@@ -146,6 +148,12 @@ pub fn brain_on_tick(state: BrainState, _context: &mut BehaviorContext) -> Brain
         tick_counter,
         ..state
     }
+}
+
+fn scheduled_seed_index(step: usize, offset: usize) -> usize {
+    let points = [(1, 1), (6, 2), (2, 6), (5, 5), (3, 2), (4, 6)];
+    let (x, y) = points[(step + offset) % points.len()];
+    grid_index(x, y)
 }
 
 pub fn brain_render_model(state: &BrainState) -> BehaviorRenderModel {

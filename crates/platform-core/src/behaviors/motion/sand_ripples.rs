@@ -47,12 +47,18 @@ struct Config {
 
 pub fn sand_ripples_init(config: Value) -> Result<SandRipplesState, String> {
     let mut s = from_config(config);
+    if s.sand.iter().all(|value| *value == 0) && s.crest.iter().all(|value| *value == 0) {
+        seed_dunes(&mut s);
+    }
     let r = rendered(&s);
     s.trigger_types = triggers(&r, &r, &[]);
     Ok(s)
 }
 pub fn sand_ripples_deserialize(data: Value) -> Result<SandRipplesState, String> {
-    sand_ripples_init(data)
+    let mut s = from_config(data);
+    let r = rendered(&s);
+    s.trigger_types = triggers(&r, &r, &[]);
+    Ok(s)
 }
 pub fn sand_ripples_serialize(state: &SandRipplesState) -> Result<Value, String> {
     let mut s = state.clone();
@@ -100,24 +106,7 @@ pub fn sand_ripples_on_input(
         DeviceInput::BehaviorAction(BehaviorActionInput { action_type })
             if action_type == "seedDunes" =>
         {
-            for (x, y) in [
-                (0, 1),
-                (1, 2),
-                (2, 3),
-                (3, 4),
-                (4, 4),
-                (5, 5),
-                (6, 6),
-                (7, 6),
-            ] {
-                let i = grid_index(x, y);
-                let old = (s.sand[i], s.crest[i]);
-                s.sand[i] = s.sand[i].max(120);
-                s.crest[i] = s.crest[i].max(96);
-                if (s.sand[i], s.crest[i]) != old && rendered_cell(&s, i) >= VISIBLE {
-                    forced.push(i)
-                }
-            }
+            forced = seed_dunes(&mut s);
         }
         _ => return s,
     }
@@ -249,6 +238,27 @@ fn wind_label(w: &str) -> &'static str {
         "south" => "S",
         _ => "E",
     }
+}
+fn seed_dunes(s: &mut SandRipplesState) -> Vec<usize> {
+    let mut forced = Vec::new();
+    for (x, y) in [
+        (0, 1),
+        (1, 2),
+        (2, 3),
+        (3, 4),
+        (4, 4),
+        (5, 5),
+        (6, 6),
+        (7, 6),
+    ] {
+        let i = grid_index(x, y);
+        s.sand[i] = s.sand[i].max(120);
+        s.crest[i] = s.crest[i].max(96);
+        if rendered_cell(s, i) >= VISIBLE {
+            forced.push(i)
+        }
+    }
+    forced
 }
 fn downwind(i: usize, w: &str) -> Option<usize> {
     let x = i % GRID_WIDTH;

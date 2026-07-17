@@ -22,6 +22,12 @@ pub struct WaveState {
     pub tension_pct: u8,
     #[serde(rename = "impulseStrength")]
     pub impulse_strength: i16,
+    #[serde(rename = "autoImpulseInterval")]
+    pub auto_impulse_interval: u8,
+    #[serde(rename = "spawnStep")]
+    pub spawn_step: u8,
+    #[serde(rename = "tickCounter", skip_serializing, skip_deserializing)]
+    pub tick_counter: u64,
 }
 
 #[derive(Default, Deserialize)]
@@ -36,10 +42,24 @@ struct Config {
     tension_pct: Option<Value>,
     #[serde(rename = "impulseStrength")]
     impulse_strength: Option<Value>,
+    #[serde(rename = "autoImpulseInterval")]
+    auto_impulse_interval: Option<Value>,
+    #[serde(rename = "spawnStep")]
+    spawn_step: Option<Value>,
 }
 
 pub fn wave_init(config: Value) -> Result<WaveState, String> {
+    let seed_default = config
+        .as_object()
+        .map(|object| !object.contains_key("displacement") && !object.contains_key("velocity"))
+        .unwrap_or(true);
     let mut state = state_from_config(config);
+    if seed_default
+        && state.displacement.iter().all(|value| *value == 0)
+        && state.velocity.iter().all(|value| *value == 0)
+    {
+        impulse(&mut state, grid_index(GRID_WIDTH / 2, GRID_HEIGHT / 2));
+    }
     state.trigger_types = triggers(&state.displacement, &state.displacement, &[]);
     Ok(state)
 }
@@ -103,7 +123,19 @@ pub fn wave_on_tick(mut state: WaveState, _context: &mut BehaviorContext) -> Wav
     }
     state.displacement = next_displacement;
     state.velocity = next_velocity;
-    state.trigger_types = triggers(&previous, &state.displacement, &[]);
+    state.tick_counter = state.tick_counter.wrapping_add(1);
+    let forced = if state.auto_impulse_interval > 0
+        && state.tick_counter % u64::from(state.auto_impulse_interval)
+            == u64::from(state.spawn_step % state.auto_impulse_interval)
+    {
+        let index =
+            scheduled_impulse_index(state.tick_counter / u64::from(state.auto_impulse_interval));
+        impulse(&mut state, index);
+        cardinal_with_center(index)
+    } else {
+        vec![]
+    };
+    state.trigger_types = triggers(&previous, &state.displacement, &forced);
     state
 }
 
@@ -141,6 +173,8 @@ pub fn wave_config_menu() -> Vec<BehaviorConfigItem> {
         number_item("dampingPct", "Damping", 0, 100, 1),
         number_item("tensionPct", "Tension", 0, 100, 1),
         number_item("impulseStrength", "Impulse Strength", 1, 127, 1),
+        number_item("autoImpulseInterval", "Impulse Interval", 0, 64, 1),
+        number_item("spawnStep", "Spawn Step", 0, 63, 1),
         action_item("dropImpulse", "Drop Impulse"),
     ]
 }
@@ -151,9 +185,12 @@ fn state_from_config(config: Value) -> WaveState {
         displacement: normalize_values(config.displacement.unwrap_or_default()),
         velocity: normalize_values(config.velocity.unwrap_or_default()),
         trigger_types: normalize_triggers(config.trigger_types),
-        damping_pct: number(config.damping_pct, 14, 100),
+        damping_pct: number(config.damping_pct, 4, 100),
         tension_pct: number(config.tension_pct, 45, 100),
         impulse_strength: i16::from(number(config.impulse_strength, 80, 127).max(1)),
+        auto_impulse_interval: number(config.auto_impulse_interval, 20, 64),
+        spawn_step: number(config.spawn_step, 7, 63),
+        tick_counter: 0,
     };
     normalize(&mut state);
     state
@@ -178,6 +215,8 @@ fn normalize(state: &mut WaveState) {
     state.damping_pct = state.damping_pct.min(100);
     state.tension_pct = state.tension_pct.min(100);
     state.impulse_strength = state.impulse_strength.clamp(1, 127);
+    state.auto_impulse_interval = state.auto_impulse_interval.min(64);
+    state.spawn_step = state.spawn_step.min(63);
 }
 
 fn normalize_values(values: Vec<Value>) -> Vec<i16> {
@@ -213,6 +252,12 @@ fn impulse(state: &mut WaveState, index: usize) {
     state.displacement[index] =
         (state.displacement[index] + state.impulse_strength).clamp(-CLAMP, CLAMP);
     state.velocity[index] = state.impulse_strength / 2;
+}
+
+fn scheduled_impulse_index(step: u64) -> usize {
+    let points = [(2, 2), (5, 5), (2, 6), (6, 1)];
+    let (x, y) = points[step as usize % points.len()];
+    grid_index(x, y)
 }
 
 fn neighbor_average(values: &[i16], x: usize, y: usize) -> i16 {
