@@ -270,6 +270,7 @@ fn to_snapshot(model: &BehaviorRenderModel) -> GridSnapshot {
         width: GRID_WIDTH,
         height: GRID_HEIGHT,
         cells: model.cells.clone(),
+        trigger_types: model.trigger_types.clone(),
     }
 }
 

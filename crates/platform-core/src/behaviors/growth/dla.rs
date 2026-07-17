@@ -125,6 +125,7 @@ pub fn dla_on_input(
 ) -> DlaState {
     let mut next = state.clone();
     let (mut cells, mut ages) = normalized_cells_and_ages(&next);
+    let previous_cells = cells.clone();
     match input {
         DeviceInput::BehaviorAction(BehaviorActionInput { action_type })
             if action_type == "seedCluster" =>
@@ -147,6 +148,7 @@ pub fn dla_on_input(
     }
     next.cells = cells;
     next.ages = ages;
+    next.trigger_types = trigger_types_from_cells(&previous_cells, &next.cells);
     next
 }
 
@@ -252,8 +254,16 @@ mod tests {
 
         let toggled = dla_on_input(state, DeviceInput::GridPress { x: 1, y: 1 }, &mut context);
         assert!(toggled.cells[grid_index(1, 1)]);
+        assert_eq!(
+            toggled.trigger_types[grid_index(1, 1)],
+            CellTriggerType::Activate
+        );
         let toggled = dla_on_input(toggled, DeviceInput::GridPress { x: 1, y: 1 }, &mut context);
         assert!(!toggled.cells[grid_index(1, 1)]);
+        assert_eq!(
+            toggled.trigger_types[grid_index(1, 1)],
+            CellTriggerType::Deactivate
+        );
     }
 
     #[test]
@@ -289,6 +299,30 @@ mod tests {
         assert_eq!(ticked.cells.len(), CELL_COUNT);
         assert_eq!(ticked.ages.len(), CELL_COUNT);
         assert_eq!(ticked.cell_life, MAX_CELL_LIFE);
+    }
+
+    #[test]
+    fn old_short_payload_grid_input_normalizes_before_trigger_recompute() {
+        let mut context = BehaviorContext::new(120.0);
+        let state = DlaState {
+            cells: vec![true],
+            ages: Vec::new(),
+            trigger_types: Vec::new(),
+            spawn_interval: 0,
+            spawn_step: 0,
+            cell_life: 0,
+            tick_counter: 0,
+        };
+
+        let next = dla_on_input(state, DeviceInput::GridPress { x: 1, y: 0 }, &mut context);
+
+        assert_eq!(next.cells.len(), CELL_COUNT);
+        assert_eq!(next.ages.len(), CELL_COUNT);
+        assert_eq!(next.trigger_types.len(), CELL_COUNT);
+        assert_eq!(
+            next.trigger_types[grid_index(1, 0)],
+            CellTriggerType::Activate
+        );
     }
 
     #[test]

@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::behavior::CellTriggerType;
 use crate::interpretation_scan::{compute_degree, select_state_candidates};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -7,6 +8,8 @@ pub struct GridSnapshot {
     pub width: usize,
     pub height: usize,
     pub cells: Vec<bool>,
+    #[serde(default)]
+    pub trigger_types: Option<Vec<CellTriggerType>>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -141,6 +144,48 @@ fn select_event_candidates(
     previous: &GridSnapshot,
     next: &GridSnapshot,
 ) -> Vec<(usize, usize, CellTriggerKind)> {
+    if let (Some(previous_trigger_types), Some(trigger_types)) =
+        (&previous.trigger_types, &next.trigger_types)
+    {
+        if previous_trigger_types.len() >= next.cells.len()
+            && trigger_types.len() >= next.cells.len()
+            && previous.cells.len() >= next.cells.len()
+        {
+            let candidates = trigger_types
+                .iter()
+                .take(next.cells.len())
+                .enumerate()
+                .filter_map(|(index, trigger_type)| {
+                    let kind = match trigger_type {
+                        CellTriggerType::Activate => CellTriggerKind::Activate,
+                        CellTriggerType::Deactivate => CellTriggerKind::Deactivate,
+                        CellTriggerType::Stable
+                        | CellTriggerType::Scanned
+                        | CellTriggerType::None => {
+                            return None;
+                        }
+                    };
+                    let boolean_transition_matches = match kind {
+                        CellTriggerKind::Activate => !previous.cells[index] && next.cells[index],
+                        CellTriggerKind::Deactivate => previous.cells[index] && !next.cells[index],
+                        _ => false,
+                    };
+                    if previous_trigger_types[index] == *trigger_type && !boolean_transition_matches
+                    {
+                        return None;
+                    }
+                    Some((index % next.width, index / next.width, kind))
+                })
+                .collect::<Vec<_>>();
+            let has_next_explicit_trigger_markers = trigger_types
+                .iter()
+                .take(next.cells.len())
+                .any(|trigger_type| *trigger_type != CellTriggerType::None);
+            if !candidates.is_empty() || has_next_explicit_trigger_markers {
+                return candidates;
+            }
+        }
+    }
     extract_transitions(previous, next)
         .into_iter()
         .map(|transition| {

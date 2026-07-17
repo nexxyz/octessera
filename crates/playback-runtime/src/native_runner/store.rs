@@ -142,7 +142,7 @@ impl NativeRunner {
         } else if action_type == "factory.load" {
             ("Confirm Factory", "Load factory settings?".into())
         } else if action_type == "system.clearAll" {
-            ("Confirm Clear All", "Clear all patch state?".into())
+            ("Confirm Load Empty", "Load empty patch state?".into())
         } else if action_type == "midi.panic" {
             ("Confirm MIDI", "Send MIDI panic?".into())
         } else if action_type == "system.reboot" {

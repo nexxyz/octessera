@@ -63,6 +63,11 @@ pub(super) fn saves_group(config: &NativeMenuConfig) -> NativeMenuItem {
                     NativeMenuAction::PlatformEffect("factory.load".into()),
                 )],
             ),
+            action_item(
+                "Load Empty",
+                "system.clearAll",
+                NativeMenuAction::PlatformEffect("system.clearAll".into()),
+            ),
         ],
     )
 }

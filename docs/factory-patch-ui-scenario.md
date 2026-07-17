@@ -26,8 +26,9 @@ The test driver chooses rows by visible OLED labels. It fails with a trace and t
 ### 1. Clear to blank patch
 
 1. Open `System`.
-2. Select `Clear all`.
-3. Confirm `Confirm Clear All`.
+2. Open `Saves`.
+3. Select `Load Empty`.
+3. Confirm `Confirm Load Empty`.
 4. Return to root.
 
 Expected result: transport stops, MIDI panic/note safety runs, all layers and instruments are `none`, grids are clear, and device preferences stay intact.

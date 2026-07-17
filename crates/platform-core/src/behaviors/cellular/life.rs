@@ -9,6 +9,16 @@ use serde_json::Value;
 
 const CELL_COUNT: usize = GRID_WIDTH * GRID_HEIGHT;
 
+fn trigger_types_from_cells(previous: &[bool], next: &[bool]) -> Vec<CellTriggerType> {
+    (0..CELL_COUNT)
+        .map(|index| match (previous[index], next[index]) {
+            (false, true) => CellTriggerType::Activate,
+            (true, false) => CellTriggerType::Deactivate,
+            (true, true) | (false, false) => CellTriggerType::None,
+        })
+        .collect()
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LifeState {
     pub width: usize,
@@ -71,9 +81,9 @@ pub fn on_input(state: LifeState, input: DeviceInput, _context: &mut BehaviorCon
                 let index = grid_index(x, y);
                 if !next.cells[index] {
                     next.cells[index] = true;
-                    next.trigger_types[index] = CellTriggerType::Activate;
                 }
             }
+            next.trigger_types = trigger_types_from_cells(&state.cells, &next.cells);
             next
         }
         DeviceInput::BehaviorAction(BehaviorActionInput { action_type })
@@ -81,12 +91,14 @@ pub fn on_input(state: LifeState, input: DeviceInput, _context: &mut BehaviorCon
         {
             let mut next = state.clone();
             spawn_glider(&mut next.cells, &mut next.trigger_types, 0, 0);
+            next.trigger_types = trigger_types_from_cells(&state.cells, &next.cells);
             next
         }
         DeviceInput::GridPress { x, y } if x < GRID_WIDTH && y < GRID_HEIGHT => {
             let mut next = state.clone();
             let index = grid_index(x, y);
             next.cells[index] = !next.cells[index];
+            next.trigger_types = vec![CellTriggerType::None; CELL_COUNT];
             next
         }
         _ => state,

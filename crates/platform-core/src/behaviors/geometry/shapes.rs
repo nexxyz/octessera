@@ -97,6 +97,11 @@ fn random_point() -> (usize, usize) {
 }
 
 fn add_pulse(state: &ShapesState, ox: usize, oy: usize) -> ShapesState {
+    let previous = state
+        .lifetimes
+        .iter()
+        .map(|life| *life > 0)
+        .collect::<Vec<_>>();
     let mut next = state.clone();
     for index in shape_cells(&state.pulse_shape, ox, oy, 0) {
         next.lifetimes[index] = state.lifespan;
@@ -107,6 +112,12 @@ fn add_pulse(state: &ShapesState, ox: usize, oy: usize) -> ShapesState {
         radius: 0,
         max_radius: state.max_radius,
     });
+    let cells = next
+        .lifetimes
+        .iter()
+        .map(|life| *life > 0)
+        .collect::<Vec<_>>();
+    next.trigger_types = trigger_types_from_cells(&previous, &cells);
     next
 }
 

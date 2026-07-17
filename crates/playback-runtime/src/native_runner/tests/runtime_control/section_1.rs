@@ -60,7 +60,7 @@ pub(crate) fn clear_all_confirmation_cancel_is_noop() {
         .unwrap();
     assert_eq!(
         runner.confirm_dialog.as_ref().unwrap().title,
-        "Confirm Clear All"
+        "Confirm Load Empty"
     );
 
     runner

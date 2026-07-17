@@ -92,6 +92,54 @@ pub(crate) fn input_resets_dim_and_oled_off_state() {
 }
 
 #[test]
+pub(crate) fn overdue_normal_display_input_does_not_trigger_sleep_toast() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.skip_startup_splash();
+    runner.ui.screen_sleep_seconds = 1;
+    runner.oled_mode = NativeOledMode::Normal;
+    runner.last_interaction_at = Instant::now() - Duration::from_secs(2);
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: Some(true),
+        })
+        .unwrap();
+    let snapshot = snapshot_from(&messages);
+
+    assert_eq!(snapshot["display"]["splash"], "");
+    assert_eq!(snapshot["display"]["off"], false);
+    assert_ne!(snapshot["display"]["toast"], "Going to sleep ...");
+    assert_eq!(runner.menu.state.cursor, 1);
+}
+
+#[test]
+pub(crate) fn fresh_startup_timed_snapshots_reach_sleep_without_input() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.ui.screen_sleep_seconds = 1;
+    runner.oled_splash_until = Some(Instant::now() + Duration::from_secs(1));
+
+    let messages = runner.messages_with_snapshot().unwrap();
+    assert_eq!(snapshot_from(&messages)["display"]["splash"], "startup");
+
+    runner.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
+    let messages = runner.messages_with_snapshot().unwrap();
+    assert_eq!(snapshot_from(&messages)["display"]["splash"], "");
+    assert_eq!(
+        snapshot_from(&messages)["display"]["toast"],
+        "Help: Sh+Fn+Enter"
+    );
+
+    runner.last_interaction_at = Instant::now() - Duration::from_secs(2);
+    let messages = runner.messages_with_snapshot().unwrap();
+    assert_eq!(snapshot_from(&messages)["display"]["splash"], "sleep");
+    assert_eq!(
+        snapshot_from(&messages)["display"]["toast"],
+        "Going to sleep ..."
+    );
+}
+
+#[test]
 pub(crate) fn suppressed_input_wake_still_emits_display_snapshot() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.skip_startup_splash();

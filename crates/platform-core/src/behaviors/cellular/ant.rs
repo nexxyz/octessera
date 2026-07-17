@@ -63,11 +63,20 @@ fn random_ant() -> AntAgent {
     }
 }
 
+fn ant_cells_with_agents(state: &AntState) -> Vec<bool> {
+    let mut cells = state.cells.clone();
+    for ant in &state.ants {
+        cells[grid_index(ant.x, ant.y)] = true;
+    }
+    cells
+}
+
 pub fn ant_on_input(
     state: AntState,
     input: DeviceInput,
     _context: &mut BehaviorContext,
 ) -> AntState {
+    let previous = ant_cells_with_agents(&state);
     let mut next = state.clone();
     if next.ants.len() >= next.max_ants {
         return state;
@@ -83,6 +92,8 @@ pub fn ant_on_input(
         }
         _ => return state,
     }
+    let cells = ant_cells_with_agents(&next);
+    next.trigger_types = trigger_types_from_cells(&previous, &cells);
     next
 }
 
@@ -147,10 +158,7 @@ pub fn ant_on_tick(state: AntState, _context: &mut BehaviorContext) -> AntState 
 }
 
 pub fn ant_render_model(state: &AntState) -> BehaviorRenderModel {
-    let mut cells = state.cells.clone();
-    for ant in &state.ants {
-        cells[grid_index(ant.x, ant.y)] = true;
-    }
+    let cells = ant_cells_with_agents(state);
     BehaviorRenderModel {
         name: "ant".into(),
         status_line: format!(

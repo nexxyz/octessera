@@ -5,6 +5,16 @@ fn snapshot(cells: &[u8]) -> GridSnapshot {
         width: 4,
         height: 2,
         cells: cells.iter().map(|cell| *cell != 0).collect(),
+        trigger_types: None,
+    }
+}
+
+fn snapshot_with_triggers(cells: &[u8], trigger_types: Vec<CellTriggerType>) -> GridSnapshot {
+    GridSnapshot {
+        width: 4,
+        height: 2,
+        cells: cells.iter().map(|cell| *cell != 0).collect(),
+        trigger_types: Some(trigger_types),
     }
 }
 
@@ -234,4 +244,82 @@ fn whole_grid_active_emits_only_live_cells() {
     assert!(state_intents
         .iter()
         .any(|intent| intent.x == 2 && intent.y == 0));
+}
+
+#[test]
+fn event_candidates_use_render_trigger_types_when_valid() {
+    let previous = snapshot_with_triggers(
+        &[0, 1, 0, 0, 0, 0, 0, 0],
+        vec![
+            CellTriggerType::None,
+            CellTriggerType::Stable,
+            CellTriggerType::None,
+            CellTriggerType::None,
+            CellTriggerType::None,
+            CellTriggerType::None,
+            CellTriggerType::None,
+            CellTriggerType::None,
+        ],
+    );
+    let next = snapshot_with_triggers(
+        &[0, 1, 1, 0, 0, 0, 0, 0],
+        vec![
+            CellTriggerType::None,
+            CellTriggerType::Activate,
+            CellTriggerType::Deactivate,
+            CellTriggerType::Stable,
+            CellTriggerType::Scanned,
+            CellTriggerType::None,
+            CellTriggerType::None,
+            CellTriggerType::None,
+        ],
+    );
+    let intents = interpret_grid(
+        &previous,
+        &next,
+        0,
+        &profile(TickStrategy::WholeGridTransitions),
+    );
+    assert_eq!(
+        intents,
+        vec![
+            CellTriggerIntent {
+                x: 1,
+                y: 0,
+                kind: CellTriggerKind::Activate,
+                degree: 1
+            },
+            CellTriggerIntent {
+                x: 2,
+                y: 0,
+                kind: CellTriggerKind::Deactivate,
+                degree: 2
+            }
+        ]
+    );
+}
+
+#[test]
+fn event_candidates_ignore_persistent_stale_render_trigger_types() {
+    let stale_triggers = vec![
+        CellTriggerType::Activate,
+        CellTriggerType::Deactivate,
+        CellTriggerType::Stable,
+        CellTriggerType::None,
+        CellTriggerType::None,
+        CellTriggerType::None,
+        CellTriggerType::None,
+        CellTriggerType::None,
+    ];
+    let previous = snapshot_with_triggers(&[1, 1, 0, 0, 0, 0, 0, 0], stale_triggers.clone());
+    let next = snapshot_with_triggers(&[1, 1, 0, 0, 0, 0, 0, 0], stale_triggers);
+
+    let intents = interpret_grid(
+        &previous,
+        &next,
+        0,
+        &profile(TickStrategy::WholeGridTransitions),
+    );
+
+    assert!(intents.is_empty());
 }

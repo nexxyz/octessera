@@ -40,7 +40,11 @@ impl NativeRunner {
         &mut self,
         input: DeviceInput,
     ) -> Result<Vec<RunnerMessage>, String> {
-        self.advance_oled_sleep_state();
+        if self.oled_mode == super::NativeOledMode::Splash
+            && self.oled_splash_text == super::OLED_STARTUP_SPLASH_KEY
+        {
+            self.advance_oled_sleep_state();
+        }
         let trace_context = WakeTraceContext::capture(self, &input);
         if self.startup_splash_presented
             && self.oled_mode == super::NativeOledMode::Splash

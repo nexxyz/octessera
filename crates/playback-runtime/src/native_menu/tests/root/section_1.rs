@@ -170,6 +170,39 @@ pub(crate) fn system_controls_row_is_help_action() {
 }
 
 #[test]
+pub(crate) fn system_destructive_actions_are_grouped_and_ordered() {
+    let mut menu = NativeMenuModel::new(config());
+
+    assert!(menu.focus_item_key("system.clearAll"));
+    let snapshot = menu.snapshot();
+    assert_eq!(snapshot.path, "/SYS/Saves");
+    assert!(snapshot.lines.iter().any(|line| line == ">!Load Empty"));
+
+    assert!(menu.focus_item_key("system.reboot"));
+    let snapshot = menu.snapshot();
+    assert_eq!(snapshot.path, "/System");
+    assert!(snapshot.lines.iter().any(|line| line == ">!Reboot"));
+    let reboot_row = snapshot
+        .lines
+        .iter()
+        .position(|line| line.contains("Reboot"))
+        .expect("reboot row");
+    let shutdown_row = snapshot
+        .lines
+        .iter()
+        .position(|line| line.contains("Shutdown"))
+        .expect("shutdown row");
+    assert!(reboot_row < shutdown_row);
+
+    assert!(menu.focus_item_key("system.shutdown"));
+    let snapshot = menu.snapshot();
+    assert_eq!(
+        snapshot.lines.last().map(String::as_str),
+        Some(">!Shutdown")
+    );
+}
+
+#[test]
 pub(crate) fn static_navigation_memory_restores_allowed_system_groups() {
     let mut menu = NativeMenuModel::new(config());
     for _ in 0..5 {

@@ -4,7 +4,7 @@ use super::visible_menu_driver::VisibleMenuDriver;
 use crate::{NativeRunner, NativeRunnerConfig, RuntimeStoreResult, SampleEntry};
 
 const FACTORY_PATCH_SEQUENCE: &[&str] = &[
-    "System > Clear all > Confirm Clear All",
+    "System > Saves > Load Empty > Confirm Load Empty",
     "Layer 1 double-line cross grid paint",
     "Layer 2 row-pattern grid paint",
     "Build L1 Life 16th no random spawn",
@@ -133,8 +133,9 @@ fn assert_factory_patch_matches_system_default(device: &DeviceDriver) {
 fn clear_all_from_visible_ui(device: &mut DeviceDriver) {
     let mut menu = VisibleMenuDriver::new(device);
     menu.open_group("System");
-    menu.activate_action("Clear all");
-    menu.confirm("Confirm Clear All");
+    menu.open_group("Saves");
+    menu.activate_action("Load Empty");
+    menu.confirm("Confirm Load Empty");
     menu.back_to_root();
 }
 

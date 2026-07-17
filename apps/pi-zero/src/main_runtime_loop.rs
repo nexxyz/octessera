@@ -147,7 +147,7 @@ fn advance_playback_if_due(
         profile_enabled.then(|| now.duration_since(*last_tick).saturating_sub(tick_duration));
     let elapsed = now.duration_since(*last_tick);
     *last_tick = now;
-    if now.duration_since(*last_snapshot_request) >= snapshot_interval {
+    if transport_snapshot_due(now, *last_snapshot_request, snapshot_interval, playback) {
         playback.request_next_snapshot();
         *last_snapshot_request = now;
     }
@@ -161,6 +161,15 @@ fn advance_playback_if_due(
     if let (Some(lateness), Some(started)) = (lateness, advance_started) {
         ui_profiler.record_runtime(lateness, started.elapsed());
     }
+}
+
+fn transport_snapshot_due(
+    now: Instant,
+    last_snapshot_request: Instant,
+    snapshot_interval: Duration,
+    playback: &PlaybackRuntime,
+) -> bool {
+    is_internal_playing(playback) && now.duration_since(last_snapshot_request) >= snapshot_interval
 }
 
 fn request_periodic_snapshot_if_due(
@@ -404,6 +413,20 @@ mod periodic_snapshot_tests {
         assert_eq!(pulses, 0);
         assert_eq!(source, SyncSource::External);
         assert_eq!(request_snapshot, Some(true));
+    }
+
+    #[test]
+    fn stopped_idle_maintenance_does_not_claim_snapshot_deadlines() {
+        let playback = PlaybackRuntime::new(RuntimeConfig::default());
+        let now = Instant::now();
+        let stale_snapshot = now - Duration::from_secs(5);
+
+        assert!(!transport_snapshot_due(
+            now,
+            stale_snapshot,
+            Duration::from_millis(16),
+            &playback
+        ));
     }
 }
 

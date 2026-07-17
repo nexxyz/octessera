@@ -2,7 +2,9 @@ use crate::behavior::{
     BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
     DeviceInput,
 };
-use crate::behaviors::native_impl::common::{action_item, number_item, CELL_COUNT};
+use crate::behaviors::native_impl::common::{
+    action_item, number_item, trigger_types_from_cells, CELL_COUNT,
+};
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -93,6 +95,13 @@ pub fn brain_on_input(
             let mut next = state.clone();
             let index = grid_index(x, y);
             next.cells[index] = if next.cells[index] == 0 { 1 } else { 0 };
+            let previous = state
+                .cells
+                .iter()
+                .map(|cell| *cell == 1)
+                .collect::<Vec<_>>();
+            let current = next.cells.iter().map(|cell| *cell == 1).collect::<Vec<_>>();
+            next.trigger_types = trigger_types_from_cells(&previous, &current);
             next
         }
         _ => state,
@@ -199,8 +208,16 @@ mod tests {
         let mut context = BehaviorContext::new(120.0);
         let toggled = brain_on_input(state, DeviceInput::GridPress { x: 2, y: 3 }, &mut context);
         assert_eq!(toggled.cells[grid_index(2, 3)], 1);
+        assert_eq!(
+            toggled.trigger_types[grid_index(2, 3)],
+            CellTriggerType::Activate
+        );
         let toggled = brain_on_input(toggled, DeviceInput::GridPress { x: 2, y: 3 }, &mut context);
         assert_eq!(toggled.cells[grid_index(2, 3)], 0);
+        assert_eq!(
+            toggled.trigger_types[grid_index(2, 3)],
+            CellTriggerType::Deactivate
+        );
 
         let mut state =
             brain_init(serde_json::json!({ "fireThreshold": 1, "randomSeedCells": 0 })).unwrap();
