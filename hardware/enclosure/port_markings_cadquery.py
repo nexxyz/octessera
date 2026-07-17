@@ -367,6 +367,24 @@ def sd_mark(side: Side, center_u: float, bottom_z: float, dot_count: int, d0: fl
     return [("microsd_icon", icon_part(side, "microsd-card", icon_u, bottom_z, d0, d1)), *dots]
 
 
+def usb_mark(side: Side, center_u: float, bottom_z: float, dot_count: int, d0: float, d1: float) -> list[tuple[str, cq.Workplane]]:
+    dot_offset = 4.15
+    dot_direction = -1.0 if side in {"west", "north"} else 1.0
+    dot_u = center_u + dot_direction * dot_offset
+    dot_z = bottom_z + SOUTH_ICON_HEIGHT / 2.0
+    parts = [("usb_icon", icon_part(side, "usb", center_u, bottom_z, d0, d1, SOUTH_ICON_HEIGHT))]
+    if dot_count == 1:
+        parts.append(("dot", dot_part(side, dot_u, dot_z, d0, d1)))
+    elif dot_count == 2:
+        parts.extend(
+            [
+                ("dot_west", dot_part(side, dot_u - DOT_GAP / 2.0, dot_z, d0, d1)),
+                ("dot_east", dot_part(side, dot_u + DOT_GAP / 2.0, dot_z, d0, d1)),
+            ]
+        )
+    return parts
+
+
 def icon_bottom_from_indent(indent_height: float, indent_z_shift: float, icon_height: float) -> float:
     indent_bottom, _ = z_bounds(indent_height, PORT_INDENT_Z_PAD, indent_z_shift)
     return indent_bottom - ICON_GAP_BELOW_INDENT - icon_height
@@ -393,6 +411,7 @@ def port_icon_bottoms() -> dict[str, float]:
             SCREEN_ICON_HEIGHT,
         ),
         "Pi USB data": pi_usb_bottom,
+        "Orange Pi USB host": pi_usb_bottom,
         "OLED SD": icon_bottom_from_indent(OLED_SD_HEIGHT, OLED_SD_Z_SHIFT, ICON_HEIGHT),
     }
 
@@ -415,7 +434,10 @@ def port_marking_parts(params: dict, model_bottom_z: float, flush: bool = False,
         elif label == "Pi mini-HDMI":
             parts.append(("south_hdmi_monitor", icon_part("south", "monitor", center_u, bottoms[label], south_d0, south_d1, SCREEN_ICON_HEIGHT)))
         elif label == "Pi USB data":
-            parts.append(("south_usb_icon", icon_part("south", "usb", center_u, bottoms[label], south_d0, south_d1, SOUTH_ICON_HEIGHT)))
+            dot_count = 1 if params.get("host_variant") == "orange_pi_zero_2w" else 0
+            parts.extend((f"south_usb_{name}", part) for name, part in usb_mark("south", center_u, bottoms[label], dot_count, south_d0, south_d1))
+        elif label == "Orange Pi USB host":
+            parts.extend((f"south_usb_host_{name}", part) for name, part in usb_mark("south", center_u, bottoms[label], 2, south_d0, south_d1))
 
     oled_center_u = (OLED_SD_X0 + OLED_SD_X1) / 2.0
     parts.extend((f"north_oled_sd_{name}", part) for name, part in sd_mark("north", oled_center_u, bottoms["OLED SD"], 2, north_d0, north_d1))

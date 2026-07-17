@@ -11,7 +11,7 @@ fn menu_palette_normalize_serialize() {
     assert_eq!(m[4].key, "jumpRegion");
     let s=fractal_explorer_deserialize(serde_json::json!({"centerX":99999,"zoom":1,"driftX":999,"juliaCx":99999,"mode":"bad","regionIndex":99,"classes":[9],"triggerTypes":["activate"],"iterationLimit":99})).unwrap();
     assert_eq!(s.center_x, 4096);
-    assert_eq!(s.zoom, 256);
+    assert_eq!(s.zoom, 4);
     assert_eq!(s.drift_x, 64);
     assert_eq!(s.julia_cx, 2048);
     assert_eq!(s.mode, "mandelbrot");
@@ -28,6 +28,23 @@ fn menu_palette_normalize_serialize() {
     let model = fractal_explorer_render_model(&s);
     assert_eq!(model.name, "fractal explorer");
     assert_eq!(model.palette.active, [255, 220, 180]);
+    assert!(model.status_line.contains("Z:4"));
+}
+
+#[test]
+fn default_viewport_has_mixed_mandelbrot_classes() {
+    let s = fractal_explorer_init(serde_json::json!({})).unwrap();
+    assert!(s.classes.contains(&0));
+    assert!(s.classes.contains(&1));
+    assert!(s.classes.contains(&2));
+    let start_region = s.region_index;
+    let start_zoom = s.zoom;
+    let ticked = fractal_explorer_on_tick(s, &mut ctx());
+    assert_eq!(ticked.region_index, start_region);
+    assert!(ticked.zoom > start_zoom);
+    assert!(ticked.classes.contains(&0));
+    assert!(ticked.classes.contains(&1));
+    assert!(ticked.classes.contains(&2));
 }
 
 #[test]

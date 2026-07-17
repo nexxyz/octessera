@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parent
 ARTIFACT_ROOT = ROOT.parent.parent / "release-artifacts" / "enclosure"
 STL_ROOT = ARTIFACT_ROOT / "stl"
 THREEMF_ROOT = ARTIFACT_ROOT / "3mf-multicolor"
-SKIPPED_STEMS = {"case_top_two_level_cadquery"}
+SKIPPED_STEMS = {"case_top_two_level_cadquery", "case_top_two_level_cadquery_orange_pi"}
 OBSOLETE_STEMS = {"standoff_pillar_9mm"}
 
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+from copy import deepcopy
 from pathlib import Path
 from typing import cast
 
@@ -28,6 +29,8 @@ ARTIFACT_ROOT = ROOT.parent.parent / "release-artifacts" / "enclosure"
 PARAMS = ROOT / "enclosure_params.json"
 STEP_OUT = ARTIFACT_ROOT / "step" / "case_top_two_level_cadquery.step"
 STL_OUT = ARTIFACT_ROOT / "stl" / "case_top_two_level_cadquery.stl"
+ORANGE_PI_STEP_OUT = ARTIFACT_ROOT / "step" / "case_top_two_level_cadquery_orange_pi.step"
+ORANGE_PI_STL_OUT = ARTIFACT_ROOT / "stl" / "case_top_two_level_cadquery_orange_pi.stl"
 
 
 LOW_Z = 12.0
@@ -55,6 +58,26 @@ TIER1_WAVE_SEAM_OVERLAP = 2.4
 NEOKEY_WAVE_HOLLOW_SOUTH_EXTRA = 1.0
 OLED_SCREEN_CUTOUT_X_SHIFT = -0.5
 OLED_SCREEN_CUTOUT_Y_SHIFT = -0.3
+ORANGE_PI_EAST_USB_CENTER_X = 64.1
+ORANGE_PI_USB_WIDTH = 11.5
+
+
+def orange_pi_top_params(params: dict) -> dict:
+    variant_params = deepcopy(params)
+    variant_params["host_variant"] = "orange_pi_zero_2w"
+    half_width = ORANGE_PI_USB_WIDTH / 2.0
+    variant_params["ports_v21"] = [
+        *variant_params["ports_v21"],
+        {
+            "side": "bottom",
+            "a": ORANGE_PI_EAST_USB_CENTER_X - half_width,
+            "b": ORANGE_PI_EAST_USB_CENTER_X + half_width,
+            "z0": 8.5,
+            "z1": 19.5,
+            "label": "Orange Pi USB host",
+        },
+    ]
+    return variant_params
 
 def x_at_y(points: list[tuple[float, float]], y: float) -> float:
     sorted_points = sorted(points, key=lambda point: point[1])
@@ -635,12 +658,16 @@ def build_branded_export_model(params: dict) -> cq.Workplane:
 
 def main() -> None:
     params = load_params()
-    model = build_branded_export_model(params)
-    STEP_OUT.parent.mkdir(parents=True, exist_ok=True)
-    STL_OUT.parent.mkdir(parents=True, exist_ok=True)
-    cq.exporters.export(model, str(STEP_OUT))
-    cq.exporters.export(model, str(STL_OUT), tolerance=0.08, angularTolerance=0.12)
-    print(f"wrote {STEP_OUT}")
-    print(f"wrote {STL_OUT}")
+    for variant_params, step_out, stl_out in [
+        (params, STEP_OUT, STL_OUT),
+        (orange_pi_top_params(params), ORANGE_PI_STEP_OUT, ORANGE_PI_STL_OUT),
+    ]:
+        model = build_branded_export_model(variant_params)
+        step_out.parent.mkdir(parents=True, exist_ok=True)
+        stl_out.parent.mkdir(parents=True, exist_ok=True)
+        cq.exporters.export(model, str(step_out))
+        cq.exporters.export(model, str(stl_out), tolerance=0.08, angularTolerance=0.12)
+        print(f"wrote {step_out}")
+        print(f"wrote {stl_out}")
 if __name__ == "__main__":
     main()

@@ -87,6 +87,53 @@ fn grid_restart_collapse_and_walker_entry() {
 }
 
 #[test]
+fn default_init_seeds_visible_maze_quietly_and_grows() {
+    let mut ctx = context();
+    let state = maze_growth_init(json!({})).unwrap();
+    assert!(state.cells.iter().any(|cell| *cell == WALKER));
+    assert!(state.cells.iter().any(|cell| *cell == FRONTIER));
+    assert!(state.cells.iter().any(|cell| *cell == PATH));
+    assert!(state
+        .trigger_types
+        .iter()
+        .all(|trigger| *trigger != CellTriggerType::Activate));
+    let visible = state.cells.iter().filter(|cell| **cell != WALL).count();
+    let ticked = maze_growth_on_tick(state, &mut ctx);
+    assert!(ticked.cells.iter().filter(|cell| **cell != WALL).count() >= visible);
+}
+
+#[test]
+fn deserialize_all_wall_saved_state_stays_empty() {
+    let state = maze_growth_deserialize(json!({
+        "cells": vec![WALL; CELL_COUNT],
+        "visited": vec![0; CELL_COUNT],
+        "ages": vec![0; CELL_COUNT],
+        "walkers": [],
+        "walkerCount": 2
+    }))
+    .unwrap();
+    assert!(state.cells.iter().all(|cell| *cell == WALL));
+    assert!(state.walkers.is_empty());
+}
+
+#[test]
+fn default_init_resets_seeded_cell_ages() {
+    let state = maze_growth_init(json!({
+        "cells": vec![WALL; CELL_COUNT],
+        "visited": vec![0; CELL_COUNT],
+        "ages": vec![64; CELL_COUNT],
+        "walkers": [],
+        "collapseAge": 1
+    }))
+    .unwrap();
+    for (index, cell) in state.cells.iter().enumerate() {
+        if *cell != WALL {
+            assert_eq!(state.ages[index], 0);
+        }
+    }
+}
+
+#[test]
 fn carving_no_wrap_reservation_and_collapse() {
     let mut ctx = context();
     let mut cells = vec![WALL; CELL_COUNT];

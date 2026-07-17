@@ -31,8 +31,9 @@ If you are new here, start with the friendlier map in [`../README.md`](../README
 | 1 | USB-C power breakout | [Adafruit `4090`](https://www.adafruit.com/product/4090), Mouser `485-4090` | Power the device here, not through the Pi. |
 | 4 | Horizontal rotary encoder with switch | [RS `781-6811`](https://at.rs-online.com/web/p/mechanische-drehgeber/7816811), Bourns `PEC12R-4225F-S0024` | The PCB uses four encoders. |
 | 1 | Polarized capacitor | [`470uF`, 16V, radial, about 8x12mm](https://de.aliexpress.com/item/1005010415990713.html) | PCB footprint: `CP_Radial_D8.0mm_P3.50mm`. Any equivalent 470uF polarized radial capacitor with 3.5mm lead pitch and >5V rating is fine. |
-| 1 | 1x5 right-angle female socket/header, 2.54mm pitch | [2.54mm right-angle female header strip](https://de.aliexpress.com/item/32896617287.html) | Cut to 5 pins for the NeoTrellis connector on the PCB. |
-| 1 | 5-wire female-to-male Dupont cable, about 5cm | [Female-to-male Dupont jumper cable set](https://de.aliexpress.com/item/1005003683781229.html) | Use five adjacent leads, about 5cm long, to connect the NeoTrellis array to the PCB. |
+| 1 | 1x5 right-angle male header, 2.54mm pitch | Any standard breakaway right-angle male pin header | Cut to 5 pins for the NeoTrellis connector on the PCB. The PCB connector indicator still applies; no PCB/Gerber change is needed. |
+| 1 | 5-wire female-to-female Dupont cable, about 10cm | Any 2.54mm female-to-female jumper cable set | Use five adjacent leads to connect the NeoTrellis array to the PCB. |
+| 25 pins | Straight male pin header, 2.54mm pitch | Any standard breakaway male pin header strip | Use 20 pins to link the four NeoTrellis boards together, plus 5 pins for the external connection point on the upper-left NeoTrellis board. |
 | several | Low-profile female header/socket strips, 2.54mm pitch | [Round-pin 2.54mm header/socket strip](https://de.aliexpress.com/item/1005006673257121.html) or [round-pin 2.54mm header/socket strip](https://de.aliexpress.com/item/4001122376295.html) | Cut to length for Pi, OLED, DAC, power breakout, and other plug-in modules. Confirm the socket height before ordering. |
 | 4 | Cherry MX-compatible key switches | [Cherry MX Black switches](https://www.amazon.de/-/en/CHERRY-Mechanical-Keyboard-Switches-without/dp/B0CBS4HJJR?th=1), or any MX-compatible switch | Install into the NeoKey after bring-up. |
 | 1 | MicroSD card for Raspberry Pi | 16GB or larger recommended | Flash the release image. |
@@ -96,13 +97,13 @@ Reference photos:
 Solder low-profile sockets and headers first. They define module height and alignment.
 
 1. Solder the low-profile sockets for the Raspberry Pi, OLED, DAC, USB-C power breakout, and any other socketed modules.
-2. Solder the 1x5 right-angle female socket for the NeoTrellis connector.
+2. Solder the 1x5 right-angle male header for the NeoTrellis connector.
 3. Solder `C1`, the `470uF` polarized capacitor. Match polarity to the PCB markings.
 4. Solder the four rotary encoders into `SW1` through `SW4`.
 
 You can leave the capacitor legs a little longer than usual so the capacitor can bend sideways if you need to save vertical space. Keep polarity correct and make sure the legs cannot short against nearby pads or metal parts.
 
-The horizontal socket for the NeoTrellis array can be a tight fit near the case pillar that supports the NeoTrellis. Consider bending the socket legs slightly before soldering, or use a vertical connector if you prefer. If you plug the cable in before mounting the NeoTrellis array on the pillars, it will be very tight, but will fit (barely).
+The horizontal NeoTrellis connector can be a tight fit near the case pillar that supports the NeoTrellis. Keep the right-angle header aimed toward the NeoTrellis cable path, and check the connector indicator on the PCB before soldering.
 
 Do not install plug-in modules yet.
 
@@ -116,8 +117,8 @@ The four NeoTrellis boards form one 8x8 grid.
    - lower left
    - lower right
 2. Pretend they are already soldered together and turn them around like they are one plane already (meaning left and right switch places).
-3. Solder the boards together with pin links between adjacent edges.
-4. Add the external connector pins to the left side of the upper-left NeoTrellis board.
+3. Solder the boards together with 20 straight male header pins between adjacent edges.
+4. Add 5 straight male header pins as the external connection point on the left side of the upper-left NeoTrellis board.
 5. Set the NeoTrellis addresses (now that they are switched! This is looking at them from the bottom!):
 
    | Position | Jumpers | Address |
@@ -184,7 +185,7 @@ For manual Pi setup and developer deploy/update workflows, see [`../../docs/deve
 ## First electrical assembly
 
 1. Insert the Raspberry Pi, OLED, DAC, USB-C power breakout, and NeoKey into their sockets.
-2. Connect the NeoTrellis array to the PCB with the short 5-wire female-to-male Dupont cable.
+2. Connect the NeoTrellis array to the PCB with the 5-wire female-to-female Dupont cable.
 3. Install the Cherry MX switches into the NeoKey.
 4. Add the four keycaps. Use either printed keycaps from `release-artifacts/enclosure/stl/` or purchased MX-stem keycaps. Install them before running diagnostics so the key checks match the assembled control feel.
 5. Connect audio output to headphones, speakers, or a mixer.

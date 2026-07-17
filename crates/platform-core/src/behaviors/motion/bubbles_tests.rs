@@ -35,6 +35,33 @@ fn spawn_interval_count_and_cap_are_respected() {
 }
 
 #[test]
+fn defaults_float_upward_and_spawn_visibly_within_cap() {
+    let mut state = bubbles_init(serde_json::json!({})).unwrap();
+    state.spawn_interval = 0;
+    state.bubbles.push(Bubble {
+        x: 4 * SUBSTEPS,
+        y: 0,
+        radius: 1,
+    });
+    let start = state.bubbles[0].clone();
+    state = bubbles_on_tick(state, &mut context());
+    let moved = state
+        .bubbles
+        .iter()
+        .find(|bubble| bubble.x == start.x)
+        .unwrap();
+    assert!(moved.y - start.y > (moved.x - start.x).abs());
+
+    state = bubbles_init(serde_json::json!({})).unwrap();
+    let cap = state.max_bubbles;
+    for _ in 0..12 {
+        state = bubbles_on_tick(state, &mut context());
+    }
+    assert!(!state.bubbles.is_empty());
+    assert!(state.bubbles.len() <= cap);
+}
+
+#[test]
 fn render_shapes_match_size_levels() {
     assert_eq!(
         bubble_cells(&Bubble {

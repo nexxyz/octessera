@@ -34,6 +34,10 @@ It writes:
 
 - `../../release-artifacts/enclosure/step/case_top_two_level_cadquery.step`
 - `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery.stl`
+- `../../release-artifacts/enclosure/step/case_top_two_level_cadquery_orange_pi.step`
+- `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery_orange_pi.stl`
+
+The matching multicolor top 3MF files are `case_top_two_level_multicolor.3mf` for Raspberry Pi and `case_top_two_level_orange_pi_multicolor.3mf` for Orange Pi Zero 2W.
 
 The script requires the enclosure Python dependencies:
 
@@ -59,13 +63,20 @@ clearance, slicer output, and the measured component height stack.
 
 ## External Access
 
-The current case exposes these ports:
+The Raspberry Pi top exposes these ports:
 
 - Left side: audio 3.5mm
 - Left side: USB-C power
 - Left side: Pi microSD
 - Bottom side: Pi mini-HDMI
-- Bottom side: Pi USB data
+- Bottom side: Pi USB data, for connecting Octessera to a host as MIDI/audio
+
+The Raspberry Pi's second micro-USB port exists, but it is power-only and intentionally covered. Do not use it; power comes through the enclosure USB-C breakout.
+
+The Orange Pi Zero 2W top exposes the same enclosure power, audio, and storage openings, plus both south-edge USB-C ports:
+
+- West/left USB-C, marked with one dot: USB 1 for USB devices
+- East/right USB-C, marked with two dots: USB 2 for connecting Octessera to a host as MIDI/audio
 
 The OLED microSD is not exposed as a case-edge port in the current `v21` entry.
 

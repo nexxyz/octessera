@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 const SCALE: i32 = 1024;
+const MIN_ZOOM: u16 = 4;
 const MODES: &[&str] = &["mandelbrot", "julia"];
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -144,7 +145,7 @@ pub fn fractal_explorer_on_tick(
     s.zoom = s
         .zoom
         .saturating_add(((u32::from(s.zoom_rate_pct) * u32::from(s.zoom) / 1000).max(1)) as u16)
-        .clamp(256, 16384);
+        .clamp(MIN_ZOOM, 16384);
     if !(4..=52).contains(&detail) || s.zoom >= 16384 {
         jump_region(&mut s);
         sample_classes(&mut s);
@@ -158,7 +159,7 @@ pub fn fractal_explorer_render_model(s: &FractalExplorerState) -> BehaviorRender
     let d = s.classes.iter().filter(|c| **c != 0).count();
     BehaviorRenderModel {
         name: "fractal explorer".into(),
-        status_line: format!("D:{d} Z:{}", s.zoom / 1024),
+        status_line: format!("D:{d} Z:{}", s.zoom),
         cells: s.classes.iter().map(|c| *c != 0).collect(),
         palette: crate::BehaviorRenderPalette {
             active: [255, 220, 180],
@@ -186,9 +187,9 @@ fn from_config(v: Value) -> FractalExplorerState {
         .or(c.mode)
         .unwrap_or_else(|| "mandelbrot".into());
     let mut s = FractalExplorerState {
-        center_x: vali(c.center_x, 0, -4096, 4096),
+        center_x: vali(c.center_x, -512, -4096, 4096),
         center_y: vali(c.center_y, 0, -4096, 4096),
-        zoom: valu(c.zoom, 1024, 256, 16384) as u16,
+        zoom: valu(c.zoom, 12, u32::from(MIN_ZOOM), 16384) as u16,
         drift_x: vali(c.drift_x, 3, -64, 64) as i16,
         drift_y: vali(c.drift_y, 2, -64, 64) as i16,
         julia_cx: vali(c.julia_cx, -700, -2048, 2048) as i16,
@@ -212,7 +213,7 @@ fn from_config(v: Value) -> FractalExplorerState {
 fn normalize(s: &mut FractalExplorerState) {
     s.center_x = s.center_x.clamp(-4096, 4096);
     s.center_y = s.center_y.clamp(-4096, 4096);
-    s.zoom = s.zoom.clamp(256, 16384);
+    s.zoom = s.zoom.clamp(MIN_ZOOM, 16384);
     s.drift_x = s.drift_x.clamp(-64, 64);
     s.drift_y = s.drift_y.clamp(-64, 64);
     s.julia_cx = s.julia_cx.clamp(-2048, 2048);

@@ -48,6 +48,9 @@ struct Config {
 
 pub fn maze_growth_init(config: Value) -> Result<MazeGrowthState, String> {
     let mut s = from_config(config);
+    if s.cells.iter().all(|cell| *cell == WALL) && s.walkers.is_empty() {
+        seed_default(&mut s);
+    }
     s.trigger_types = triggers(&s.cells, &s.cells, &[]);
     Ok(s)
 }
@@ -173,9 +176,9 @@ pub fn maze_growth_render_model(state: &MazeGrowthState) -> BehaviorRenderModel 
         status_line: format!("P:{p} F:{f}"),
         cells: state.cells.iter().map(|c| *c != WALL).collect(),
         palette: crate::BehaviorRenderPalette {
-            active: [240, 220, 120],
+            active: crate::palette::YELLOW,
             inactive: crate::palette::BLACK,
-            stable: [80, 120, 180],
+            stable: crate::palette::GRAY,
         },
         trigger_types: Some(state.trigger_types.clone()),
     }
@@ -287,18 +290,28 @@ fn restart(s: &mut MazeGrowthState, forced: &mut Vec<usize>) {
     s.visited.fill(0);
     s.ages.fill(0);
     s.walkers.clear();
-    let c = grid_index(3, 3);
-    s.cells[c] = FRONTIER;
-    s.visited[c] = 1;
-    forced.push(c);
-    for i in [grid_index(3, 3), grid_index(4, 3)]
+    seed_default(s);
+    forced.extend(s.walkers.iter().copied());
+    forced.push(grid_index(3, 3));
+}
+fn seed_default(s: &mut MazeGrowthState) {
+    for i in [grid_index(3, 4), grid_index(4, 3)] {
+        s.cells[i] = if i == grid_index(3, 4) {
+            PATH
+        } else {
+            FRONTIER
+        };
+        s.visited[i] = 1;
+        s.ages[i] = 0;
+    }
+    for i in [grid_index(3, 3), grid_index(4, 4)]
         .into_iter()
         .take(s.walker_count.into())
     {
         s.cells[i] = WALKER;
         s.visited[i] = 1;
+        s.ages[i] = 0;
         s.walkers.push(i);
-        forced.push(i)
     }
 }
 fn collapse_action(s: &mut MazeGrowthState) {

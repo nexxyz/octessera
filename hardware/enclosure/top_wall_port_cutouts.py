@@ -24,6 +24,7 @@ PORT_RECESS_VERTICAL_LAND = 1.2
 PORT_INDENT_WALL_OVERLAP = 0.4
 WEST_PORT_INDENT_BACK_OVERLAP = 0.5
 PORT_INDENT_CORNER_R = 1.2
+PORT_HOLE_CORNER_R = 0.55
 ROUNDED_CORNER_STEPS = 4
 POWER_Z_SHIFT = -0.25
 AUDIO_Z_SHIFT = 0.3
@@ -70,20 +71,62 @@ def z_shift_centered_on(hole_height: float, hole_z_shift: float, indent_height: 
 def left_wall_rect(params: dict, y0: float, y1: float, height: float, x1: float | None = None, z_shift: float = 0.0) -> cq.Workplane:
     wall = params["wall"]
     z0, z1 = z_bounds(height, z_shift=z_shift)
-    return box_cutter(-WEST_EXTENSION - PORT_CUT_EPS, y0, (x1 or wall) + PORT_CUT_EPS, y1, z0, z1)
+    x_min = -WEST_EXTENSION - PORT_CUT_EPS
+    x_max = (x1 or wall) + PORT_CUT_EPS
+    return (
+        cq.Workplane("XY")
+        .add(
+            cq.Solid.makeLoft(
+                [
+                    west_profile_wire(x_min, y0, y1, z0, z1, PORT_HOLE_CORNER_R),
+                    west_profile_wire(x_max, y0, y1, z0, z1, PORT_HOLE_CORNER_R),
+                ],
+                ruled=True,
+            )
+        )
+        .clean()
+    )
 
 
 def south_wall_rect(params: dict, x0: float, x1: float, height: float, y1: float | None = None, z_shift: float = 0.0) -> cq.Workplane:
     wall = params["wall"]
     z0, z1 = z_bounds(height, z_shift=z_shift)
-    return box_cutter(x0, -PORT_CUT_EPS, x1, (y1 or wall) + PORT_CUT_EPS, z0, z1)
+    y_min = -PORT_CUT_EPS
+    y_max = (y1 or wall) + PORT_CUT_EPS
+    return (
+        cq.Workplane("XY")
+        .add(
+            cq.Solid.makeLoft(
+                [
+                    south_north_profile_wire(x0, x1, y_min, z0, z1, PORT_HOLE_CORNER_R),
+                    south_north_profile_wire(x0, x1, y_max, z0, z1, PORT_HOLE_CORNER_R),
+                ],
+                ruled=True,
+            )
+        )
+        .clean()
+    )
 
 
 def north_wall_rect(params: dict, x0: float, x1: float, height: float, y0: float | None = None, z_shift: float = 0.0) -> cq.Workplane:
     _, depth = params["case_size_v21"]
     wall = params["wall"]
     z0, z1 = z_bounds(height, z_shift=z_shift)
-    return box_cutter(x0, (y0 or depth - wall) - PORT_CUT_EPS, x1, depth + PORT_CUT_EPS, z0, z1)
+    y_min = (y0 or depth - wall) - PORT_CUT_EPS
+    y_max = depth + PORT_CUT_EPS
+    return (
+        cq.Workplane("XY")
+        .add(
+            cq.Solid.makeLoft(
+                [
+                    south_north_profile_wire(x0, x1, y_min, z0, z1, PORT_HOLE_CORNER_R),
+                    south_north_profile_wire(x0, x1, y_max, z0, z1, PORT_HOLE_CORNER_R),
+                ],
+                ruled=True,
+            )
+        )
+        .clean()
+    )
 
 
 def safe_span(start: float, end: float, low: float, high: float) -> tuple[float, float]:
@@ -112,12 +155,16 @@ def rounded_rect_points(u0: float, u1: float, z0: float, z1: float, radius: floa
     return points
 
 
-def west_profile_wire(x: float, y0: float, y1: float, z0: float, z1: float) -> cq.Wire:
-    return cq.Wire.makePolygon([cq.Vector(x, y, z) for y, z in rounded_rect_points(y0, y1, z0, z1)])
+def west_profile_wire(
+    x: float, y0: float, y1: float, z0: float, z1: float, radius: float = PORT_INDENT_CORNER_R
+) -> cq.Wire:
+    return cq.Wire.makePolygon([cq.Vector(x, y, z) for y, z in rounded_rect_points(y0, y1, z0, z1, radius)])
 
 
-def south_north_profile_wire(x0: float, x1: float, y: float, z0: float, z1: float) -> cq.Wire:
-    return cq.Wire.makePolygon([cq.Vector(x, y, z) for x, z in rounded_rect_points(x0, x1, z0, z1)])
+def south_north_profile_wire(
+    x0: float, x1: float, y: float, z0: float, z1: float, radius: float = PORT_INDENT_CORNER_R
+) -> cq.Wire:
+    return cq.Wire.makePolygon([cq.Vector(x, y, z) for x, z in rounded_rect_points(x0, x1, z0, z1, radius)])
 
 
 def left_wall_indent_wall(
@@ -512,7 +559,7 @@ def add_top_wall_port_cutouts(model: cq.Workplane, params: dict) -> cq.Workplane
             additions.append(south_wall_indent_wall(params, port["a"], port["b"], PI_HDMI_INDENT_HEIGHT, south_pi_y, z_shift=pi_hdmi_indent_z_shift))
             cuts.append(south_wall_face_recess(params, port["a"], port["b"], PI_HDMI_INDENT_HEIGHT, south_pi_recess_y, z_shift=pi_hdmi_indent_z_shift))
             cuts.append(south_wall_rect(params, port["a"], port["b"], PI_HDMI_HEIGHT, south_pi_y, z_shift=PI_HDMI_Z_SHIFT))
-        elif label == "Pi USB data":
+        elif label in ("Pi USB data", "Orange Pi USB host"):
             additions.append(south_wall_indent_wall(params, port["a"], port["b"], PI_USB_INDENT_HEIGHT, south_pi_y, z_shift=pi_usb_indent_z_shift))
             cuts.append(south_wall_face_recess(params, port["a"], port["b"], PI_USB_INDENT_HEIGHT, south_pi_recess_y, z_shift=pi_usb_indent_z_shift))
             cuts.append(south_wall_rect(params, port["a"], port["b"], PI_USB_HEIGHT, south_pi_y, z_shift=PI_USB_Z_SHIFT))

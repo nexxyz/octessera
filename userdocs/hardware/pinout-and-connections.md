@@ -80,6 +80,8 @@ Notes:
 
 ### NeoTrellis connector `J1`
 
+The PCB uses a 1x5 right-angle male header at `J1`. A 5-wire female-to-female Dupont cable connects it to the 5-pin male header on the upper-left NeoTrellis board.
+
 - Pin 1: INT -> `GPIO15` / physical pin 10
 - Pin 2: VIN -> `+5V`
 - Pin 3: GND -> `GND`

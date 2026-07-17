@@ -411,6 +411,14 @@ fn behavior_render_palettes_match_themes() {
                 stable: GREEN,
             },
         ),
+        (
+            NativeBehavior::MazeGrowth,
+            BehaviorRenderPalette {
+                active: YELLOW,
+                inactive: BLACK,
+                stable: GRAY,
+            },
+        ),
     ];
 
     for (behavior, palette) in expected {
