@@ -138,7 +138,6 @@ fn clear_all_from_visible_ui(device: &mut DeviceDriver) {
     menu.confirm("Confirm Load Empty");
     menu.back_to_root();
 }
-
 fn paint_layer_one_cross(device: &mut DeviceDriver) {
     for (x, y) in [(1, 0), (2, 1), (0, 2), (1, 2), (2, 2)] {
         device.press_grid(x, y);
@@ -160,7 +159,6 @@ fn paint_layer_two_pattern(device: &mut DeviceDriver) {
         device.press_grid(x, 2);
     }
 }
-
 fn configure_worlds_and_paint_from_visible_ui(device: &mut DeviceDriver) {
     {
         let mut menu = VisibleMenuDriver::new(device);
