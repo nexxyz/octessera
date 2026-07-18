@@ -84,7 +84,6 @@ pub enum NativeBehavior {
     Dla,
     Physarum,
     Vines,
-    Arp,
     Weave,
     Polyrhythm,
     Breaks,
@@ -137,7 +136,6 @@ pub fn get_native_behavior(id: &str) -> Option<NativeBehavior> {
         "dla" => Some(NativeBehavior::Dla),
         "physarum" => Some(NativeBehavior::Physarum),
         "vines" => Some(NativeBehavior::Vines),
-        "arp" => Some(NativeBehavior::Arp),
         "weave" => Some(NativeBehavior::Weave),
         "polyrhythm" => Some(NativeBehavior::Polyrhythm),
         "breaks" => Some(NativeBehavior::Breaks),
@@ -192,7 +190,6 @@ pub fn list_native_behavior_ids() -> &'static [&'static str] {
         "dla",
         "physarum",
         "vines",
-        "arp",
         "weave",
         "polyrhythm",
         "breaks",
@@ -247,7 +244,6 @@ impl NativeBehavior {
             NativeBehavior::Dla => "dla",
             NativeBehavior::Physarum => "physarum",
             NativeBehavior::Vines => "vines",
-            NativeBehavior::Arp => "arp",
             NativeBehavior::Weave => "weave",
             NativeBehavior::Polyrhythm => "polyrhythm",
             NativeBehavior::Breaks => "breaks",
@@ -268,8 +264,7 @@ impl NativeBehavior {
     pub(crate) fn is_pattern(self) -> bool {
         matches!(
             self,
-            NativeBehavior::Arp
-                | NativeBehavior::Weave
+            NativeBehavior::Weave
                 | NativeBehavior::Polyrhythm
                 | NativeBehavior::Breaks
                 | NativeBehavior::Fills

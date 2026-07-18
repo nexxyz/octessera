@@ -15,7 +15,7 @@ pub fn behavior_categories() -> &'static [BehaviorCategory] {
         BehaviorCategory {
             id: "play",
             label: "Human",
-            behavior_ids: &["arp", "keys", "looper", "none", "sequencer", "weave"],
+            behavior_ids: &["keys", "looper", "none", "sequencer", "weave"],
         },
         BehaviorCategory {
             id: "rhythm",
@@ -108,11 +108,6 @@ pub fn behavior_catalog() -> &'static [BehaviorCatalogEntry] {
         BehaviorCatalogEntry {
             id: "looper",
             label: "looper",
-            category_id: "play",
-        },
-        BehaviorCatalogEntry {
-            id: "arp",
-            label: "arp",
             category_id: "play",
         },
         BehaviorCatalogEntry {

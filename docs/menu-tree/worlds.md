@@ -10,7 +10,6 @@ Build
 │   ├── Behavior: <id> (group)                   ← browser-style selector for this layer's behavior
 │   │   ├── [Human]
 │   │   │   ├── ..
-│   │   │   ├── arp
 │   │   │   ├── keys
 │   │   │   ├── looper
 │   │   │   ├── none
@@ -93,7 +92,7 @@ Behavior categories:
 
 | Category | Behaviors | Description |
 |---|---|---|
-| Human | arp, keys, looper, none, sequencer, weave | Direct performance, recording, silence, step-style behaviors, and hand-playable pattern nudges. |
+| Human | keys, looper, none, sequencer, weave | Direct performance, recording, silence, step-style behaviors, and hand-playable pattern nudges. |
 | Rhythm | polyrhythm, breaks, fills, clave, groove, euclid | Rhythm-first pattern worlds for interlocking pulses, asymmetry, breaks, fills, and Euclidean-style grids. |
 | Musical | ostinato, motif, canon, chords, contour, cadence, phrase | Pitch-shape pattern worlds for repeated figures, delayed echoes, chord blocks, contours, cadences, and longer phrases. |
 | Cellular | ant, brain, cyclic, forest_fire, life, predator_prey | Cell-state simulations where neighboring cells or agents create evolving patterns. |
@@ -118,10 +117,10 @@ Behavior-specific config items (from `configMenu()`):
 | looper | !Punch In/Out | action |
 | looper | Length: [1..64] | number, step 1 (default 16) |
 | looper | !Clear Loop | action |
-| arp, weave, Rhythm-category behaviors, Musical-category behaviors | Density: [10..80] | number, step 5 |
-| arp, weave, Rhythm-category behaviors, Musical-category behaviors | Variation: [0..100] | number, step 5 |
-| arp, weave, Rhythm-category behaviors, Musical-category behaviors | Cycle: [4..32] | number, step 1 |
-| arp, weave, Rhythm-category behaviors, Musical-category behaviors | Seed: [1..9999] | number, step 1 |
+| weave, Rhythm-category behaviors, Musical-category behaviors | Density: [10..80] | number, step 5 |
+| weave, Rhythm-category behaviors, Musical-category behaviors | Variation: [0..100] | number, step 5 |
+| weave, Rhythm-category behaviors, Musical-category behaviors | Cycle: [4..32] | number, step 1 |
+| weave, Rhythm-category behaviors, Musical-category behaviors | Seed: [1..9999] | number, step 1 |
 | brain | Fire Threshold: [1..4] | number, step 1 (default 2) |
 | brain | Seed Interval: [0..30] | number, step 1 (default 2; 0 disables scheduled seeding) |
 | brain | Spawn Step: [0..63] | number, step 1 (default 0) |

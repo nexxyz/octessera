@@ -42,7 +42,6 @@ fn lists_and_resolves_native_behaviors() {
             "dla",
             "physarum",
             "vines",
-            "arp",
             "weave",
             "polyrhythm",
             "breaks",
@@ -59,7 +58,7 @@ fn lists_and_resolves_native_behaviors() {
             "phrase",
         ]
     );
-    assert_eq!(get_native_behavior("arp"), Some(NativeBehavior::Arp));
+    assert_eq!(get_native_behavior("arp"), None);
     assert_eq!(get_native_behavior("phrase"), Some(NativeBehavior::Phrase));
     assert_eq!(get_native_behavior("life"), Some(NativeBehavior::Life));
     assert_eq!(get_native_behavior("glider"), None);
@@ -159,7 +158,6 @@ fn lists_and_resolves_native_behaviors() {
 fn new_pattern_behaviors_toggle_grid_and_round_trip() {
     let mut default_frames = HashSet::new();
     for id in [
-        "arp",
         "weave",
         "polyrhythm",
         "breaks",
@@ -209,6 +207,19 @@ fn new_pattern_behaviors_toggle_grid_and_round_trip() {
         assert_eq!(saved["variationPct"], 100);
         assert_eq!(saved["cycleLength"], 32);
         assert_eq!(saved["seed"], 9999);
+        let clamped_low = behavior
+            .init(serde_json::json!({
+                "densityPct": -1,
+                "variationPct": -1,
+                "cycleLength": 0,
+                "seed": 0
+            }))
+            .unwrap();
+        let low_saved = behavior.serialize(&clamped_low).unwrap();
+        assert_eq!(low_saved["densityPct"], 10);
+        assert_eq!(low_saved["variationPct"], 0);
+        assert_eq!(low_saved["cycleLength"], 4);
+        assert!(low_saved["seed"].as_u64().unwrap_or(0) > 0);
         let configured_model = behavior.render_model(&configured).unwrap();
         for (visible, trigger) in configured_model
             .cells

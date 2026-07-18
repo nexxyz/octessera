@@ -12,7 +12,6 @@ You can run several layers at once. One layer might be a stable pulse. Another m
 | `keys` | Human | Momentary finger-drumming. Press a cell to play; release it to stop. Immediate and human. |
 | `sequencer` | Human | A manual grid sequence for anchoring the more generative layers. Add probability if it feels too square. |
 | `looper` | Human | Records and replays grid presses/releases. Use Punch In/Out to overdub or perform. |
-| `arp` | Human | A live arpeggio-shaped pattern world. It runs on its own, but grid nudges reshuffle the phrase immediately. |
 | `weave` | Human | Two interlaced melodic strands crossing over the grid. Useful for quick counterpoint-ish motion. |
 | `polyrhythm` | Rhythm | Lanes with different loop lengths shifting against each other. Good for patterns that refuse to line up too neatly. |
 | `breaks` | Rhythm | A rearranging breakbeat grid: kicks, cuts, gaps, and little glitchy fragments. |
@@ -58,7 +57,7 @@ You can run several layers at once. One layer might be a stable pulse. Another m
 | `fractal_explorer` | Geometry | A drifting Mandelbrot/Julia explorer that zooms through regions and turns detail changes into accents. |
 | `maze_growth` | Geometry | Tiny maze corridors carve, walkers wander them, and old passages sometimes crumble back to wall. |
 
-The canonical behavior IDs are `none`, `life`, `sequencer`, `keys`, `looper`, `brain`, `cyclic`, `forest_fire`, `predator_prey`, `ant`, `bounce`, `bubbles`, `gravity`, `boids`, `lava_lamp`, `orbit`, `sand_ripples`, `fractal_explorer`, `maze_growth`, `shapes`, `ink`, `ising`, `kuramoto`, `lightning`, `raindrops`, `reaction_diffusion`, `rivers`, `wave`, `coral`, `cracks`, `crystal_growth`, `dla`, `physarum`, `vines`, `arp`, `weave`, `polyrhythm`, `breaks`, `fills`, `clave`, `groove`, `euclid`, `ostinato`, `motif`, `canon`, `chords`, `contour`, `cadence`, and `phrase`.
+The canonical behavior IDs are `none`, `life`, `sequencer`, `keys`, `looper`, `brain`, `cyclic`, `forest_fire`, `predator_prey`, `ant`, `bounce`, `bubbles`, `gravity`, `boids`, `lava_lamp`, `orbit`, `sand_ripples`, `fractal_explorer`, `maze_growth`, `shapes`, `ink`, `ising`, `kuramoto`, `lightning`, `raindrops`, `reaction_diffusion`, `rivers`, `wave`, `coral`, `cracks`, `crystal_growth`, `dla`, `physarum`, `vines`, `weave`, `polyrhythm`, `breaks`, `fills`, `clave`, `groove`, `euclid`, `ostinato`, `motif`, `canon`, `chords`, `contour`, `cadence`, and `phrase`.
 
 ## Trigger types
 
