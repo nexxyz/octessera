@@ -1,4 +1,4 @@
-use super::{cellular, native_impl, play, NativeBehavior, NativeBehaviorState};
+use super::{cellular, native_impl, pattern_music, play, NativeBehavior, NativeBehaviorState};
 use crate::behavior::BehaviorContext;
 
 pub fn on_tick(
@@ -7,6 +7,9 @@ pub fn on_tick(
     context: &mut BehaviorContext,
 ) -> Result<NativeBehaviorState, String> {
     match (behavior, state) {
+        (behavior, NativeBehaviorState::Pattern(state)) if behavior.is_pattern() => Ok(
+            NativeBehaviorState::Pattern(pattern_music::pattern_on_tick(state, context)),
+        ),
         (NativeBehavior::None, NativeBehaviorState::None(state)) => Ok(NativeBehaviorState::None(
             play::none::on_tick(state, context),
         )),

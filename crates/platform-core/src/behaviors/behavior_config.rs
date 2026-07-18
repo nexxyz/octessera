@@ -1,4 +1,4 @@
-use super::{cellular, native_impl, NativeBehavior, NativeBehaviorState};
+use super::{cellular, native_impl, pattern_music, NativeBehavior, NativeBehaviorState};
 use crate::behavior::{BehaviorConfigItem, GridInteraction};
 
 impl NativeBehavior {
@@ -7,6 +7,9 @@ impl NativeBehavior {
         state: &NativeBehaviorState,
     ) -> Result<Option<Vec<BehaviorConfigItem>>, String> {
         match (self, state) {
+            (behavior, NativeBehaviorState::Pattern(_)) if behavior.is_pattern() => {
+                Ok(Some(pattern_music::pattern_config_menu()))
+            }
             (NativeBehavior::None, NativeBehaviorState::None(_)) => Ok(None),
             (NativeBehavior::Life, NativeBehaviorState::Life(state)) => {
                 Ok(Some(cellular::life::config_menu(state)))

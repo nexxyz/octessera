@@ -1,4 +1,4 @@
-use super::{cellular, native_impl, play, NativeBehavior, NativeBehaviorState};
+use super::{cellular, native_impl, pattern_music, play, NativeBehavior, NativeBehaviorState};
 use crate::behavior::BehaviorRenderModel;
 
 pub fn render_model(
@@ -6,6 +6,9 @@ pub fn render_model(
     state: &NativeBehaviorState,
 ) -> Result<BehaviorRenderModel, String> {
     match (behavior, state) {
+        (behavior, NativeBehaviorState::Pattern(state)) if behavior.is_pattern() => {
+            Ok(pattern_music::pattern_render_model(state))
+        }
         (NativeBehavior::None, NativeBehaviorState::None(state)) => {
             Ok(play::none::render_model(state))
         }

@@ -12,6 +12,7 @@ mod native_behavior_render;
 mod native_behavior_serialize;
 mod native_behavior_tick;
 mod native_impl;
+mod pattern_music;
 mod play;
 
 #[cfg(test)]
@@ -35,5 +36,6 @@ pub use native_impl::{
     MazeGrowthState, OrbitState, PhysarumState, PredatorPreyState, RaindropsState,
     ReactionDiffusionState, RiversState, SandRipplesState, ShapesState, VinesState, WaveState,
 };
+pub use pattern_music::PatternBehaviorState;
 #[allow(unused_imports)]
 pub use play::{NoneState, SequencerState};

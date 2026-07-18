@@ -7,6 +7,7 @@ use super::native_impl::{
     ReactionDiffusionState, RiversState, SandRipplesState, ShapesState, VinesState, WaveState,
 };
 use super::play::{NoneState, SequencerState};
+use super::PatternBehaviorState;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum NativeBehaviorState {
@@ -44,6 +45,7 @@ pub enum NativeBehaviorState {
     Dla(DlaState),
     Physarum(PhysarumState),
     Vines(VinesState),
+    Pattern(PatternBehaviorState),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -82,6 +84,21 @@ pub enum NativeBehavior {
     Dla,
     Physarum,
     Vines,
+    Arp,
+    Weave,
+    Polyrhythm,
+    Breaks,
+    Fills,
+    Clave,
+    Groove,
+    Euclid,
+    Ostinato,
+    Motif,
+    Canon,
+    Chords,
+    Contour,
+    Cadence,
+    Phrase,
 }
 
 pub fn get_native_behavior(id: &str) -> Option<NativeBehavior> {
@@ -120,6 +137,21 @@ pub fn get_native_behavior(id: &str) -> Option<NativeBehavior> {
         "dla" => Some(NativeBehavior::Dla),
         "physarum" => Some(NativeBehavior::Physarum),
         "vines" => Some(NativeBehavior::Vines),
+        "arp" => Some(NativeBehavior::Arp),
+        "weave" => Some(NativeBehavior::Weave),
+        "polyrhythm" => Some(NativeBehavior::Polyrhythm),
+        "breaks" => Some(NativeBehavior::Breaks),
+        "fills" => Some(NativeBehavior::Fills),
+        "clave" => Some(NativeBehavior::Clave),
+        "groove" => Some(NativeBehavior::Groove),
+        "euclid" => Some(NativeBehavior::Euclid),
+        "ostinato" => Some(NativeBehavior::Ostinato),
+        "motif" => Some(NativeBehavior::Motif),
+        "canon" => Some(NativeBehavior::Canon),
+        "chords" => Some(NativeBehavior::Chords),
+        "contour" => Some(NativeBehavior::Contour),
+        "cadence" => Some(NativeBehavior::Cadence),
+        "phrase" => Some(NativeBehavior::Phrase),
         _ => None,
     }
 }
@@ -160,6 +192,21 @@ pub fn list_native_behavior_ids() -> &'static [&'static str] {
         "dla",
         "physarum",
         "vines",
+        "arp",
+        "weave",
+        "polyrhythm",
+        "breaks",
+        "fills",
+        "clave",
+        "groove",
+        "euclid",
+        "ostinato",
+        "motif",
+        "canon",
+        "chords",
+        "contour",
+        "cadence",
+        "phrase",
     ]
 }
 
@@ -200,6 +247,42 @@ impl NativeBehavior {
             NativeBehavior::Dla => "dla",
             NativeBehavior::Physarum => "physarum",
             NativeBehavior::Vines => "vines",
+            NativeBehavior::Arp => "arp",
+            NativeBehavior::Weave => "weave",
+            NativeBehavior::Polyrhythm => "polyrhythm",
+            NativeBehavior::Breaks => "breaks",
+            NativeBehavior::Fills => "fills",
+            NativeBehavior::Clave => "clave",
+            NativeBehavior::Groove => "groove",
+            NativeBehavior::Euclid => "euclid",
+            NativeBehavior::Ostinato => "ostinato",
+            NativeBehavior::Motif => "motif",
+            NativeBehavior::Canon => "canon",
+            NativeBehavior::Chords => "chords",
+            NativeBehavior::Contour => "contour",
+            NativeBehavior::Cadence => "cadence",
+            NativeBehavior::Phrase => "phrase",
         }
+    }
+
+    pub(crate) fn is_pattern(self) -> bool {
+        matches!(
+            self,
+            NativeBehavior::Arp
+                | NativeBehavior::Weave
+                | NativeBehavior::Polyrhythm
+                | NativeBehavior::Breaks
+                | NativeBehavior::Fills
+                | NativeBehavior::Clave
+                | NativeBehavior::Groove
+                | NativeBehavior::Euclid
+                | NativeBehavior::Ostinato
+                | NativeBehavior::Motif
+                | NativeBehavior::Canon
+                | NativeBehavior::Chords
+                | NativeBehavior::Contour
+                | NativeBehavior::Cadence
+                | NativeBehavior::Phrase
+        )
     }
 }

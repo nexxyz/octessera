@@ -3,6 +3,9 @@ use serde_json::Value;
 
 pub fn serialize(behavior: NativeBehavior, state: &NativeBehaviorState) -> Result<Value, String> {
     match (behavior, state) {
+        (behavior, NativeBehaviorState::Pattern(state)) if behavior.is_pattern() => {
+            native_impl::serialize(state)
+        }
         (NativeBehavior::None, NativeBehaviorState::None(state)) => play::none::serialize(state),
         (NativeBehavior::Life, NativeBehaviorState::Life(state)) => {
             cellular::life::serialize(state)

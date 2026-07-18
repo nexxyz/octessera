@@ -1,8 +1,14 @@
-use super::{native_impl, NativeBehavior, NativeBehaviorState};
+use super::{native_impl, pattern_music, NativeBehavior, NativeBehaviorState};
 use serde_json::Value;
 
 impl NativeBehavior {
     pub(super) fn init_native(self, config: Value) -> Result<NativeBehaviorState, String> {
+        if self.is_pattern() {
+            return Ok(NativeBehaviorState::Pattern(pattern_music::pattern_init(
+                self.id(),
+                config,
+            )?));
+        }
         match self {
             NativeBehavior::Keys => Ok(NativeBehaviorState::Keys(native_impl::keys_init(config)?)),
             NativeBehavior::Looper => Ok(NativeBehaviorState::Looper(native_impl::looper_init(
@@ -95,6 +101,12 @@ impl NativeBehavior {
     }
 
     pub(super) fn deserialize_native(self, data: Value) -> Result<NativeBehaviorState, String> {
+        if self.is_pattern() {
+            return Ok(NativeBehaviorState::Pattern(pattern_music::pattern_init(
+                self.id(),
+                data,
+            )?));
+        }
         match self {
             NativeBehavior::Keys => Ok(NativeBehaviorState::Keys(native_impl::deserialize(data)?)),
             NativeBehavior::Looper => Ok(NativeBehaviorState::Looper(

@@ -189,6 +189,11 @@ pub fn forest_fire_on_tick(
     if next.cells != before_reseed {
         next.trigger_types = triggers_from_forest_cells(&state.cells, &next.cells);
     }
+    let before_relief = next.cells.clone();
+    relieve_full_frame(&mut next);
+    if next.cells != before_relief {
+        next.trigger_types = triggers_from_forest_cells(&state.cells, &next.cells);
+    }
     next
 }
 
@@ -211,6 +216,15 @@ fn reseed_if_needed(state: &mut ForestFireState) {
     let mut rng = rand::thread_rng();
     while state.cells.iter().filter(|cell| **cell != EMPTY).count() < target {
         state.cells[rng.gen_range(0..CELL_COUNT)] = TREE;
+    }
+}
+
+fn relieve_full_frame(state: &mut ForestFireState) {
+    if state.reseed_threshold_pct == 0 || state.cells.contains(&EMPTY) {
+        return;
+    }
+    for index in (0..CELL_COUNT).step_by(17).take(4) {
+        state.cells[index] = EMPTY;
     }
 }
 

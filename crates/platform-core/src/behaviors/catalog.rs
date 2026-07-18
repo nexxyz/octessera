@@ -15,7 +15,19 @@ pub fn behavior_categories() -> &'static [BehaviorCategory] {
         BehaviorCategory {
             id: "play",
             label: "Human",
-            behavior_ids: &["keys", "looper", "none", "sequencer"],
+            behavior_ids: &["arp", "keys", "looper", "none", "sequencer", "weave"],
+        },
+        BehaviorCategory {
+            id: "rhythm",
+            label: "Rhythm",
+            behavior_ids: &["polyrhythm", "breaks", "fills", "clave", "groove", "euclid"],
+        },
+        BehaviorCategory {
+            id: "musical",
+            label: "Musical",
+            behavior_ids: &[
+                "ostinato", "motif", "canon", "chords", "contour", "cadence", "phrase",
+            ],
         },
         BehaviorCategory {
             id: "cellular",
@@ -97,6 +109,81 @@ pub fn behavior_catalog() -> &'static [BehaviorCatalogEntry] {
             id: "looper",
             label: "looper",
             category_id: "play",
+        },
+        BehaviorCatalogEntry {
+            id: "arp",
+            label: "arp",
+            category_id: "play",
+        },
+        BehaviorCatalogEntry {
+            id: "weave",
+            label: "weave",
+            category_id: "play",
+        },
+        BehaviorCatalogEntry {
+            id: "polyrhythm",
+            label: "polyrhythm",
+            category_id: "rhythm",
+        },
+        BehaviorCatalogEntry {
+            id: "breaks",
+            label: "breaks",
+            category_id: "rhythm",
+        },
+        BehaviorCatalogEntry {
+            id: "fills",
+            label: "fills",
+            category_id: "rhythm",
+        },
+        BehaviorCatalogEntry {
+            id: "clave",
+            label: "clave",
+            category_id: "rhythm",
+        },
+        BehaviorCatalogEntry {
+            id: "groove",
+            label: "groove",
+            category_id: "rhythm",
+        },
+        BehaviorCatalogEntry {
+            id: "euclid",
+            label: "euclid",
+            category_id: "rhythm",
+        },
+        BehaviorCatalogEntry {
+            id: "ostinato",
+            label: "ostinato",
+            category_id: "musical",
+        },
+        BehaviorCatalogEntry {
+            id: "motif",
+            label: "motif",
+            category_id: "musical",
+        },
+        BehaviorCatalogEntry {
+            id: "canon",
+            label: "canon",
+            category_id: "musical",
+        },
+        BehaviorCatalogEntry {
+            id: "chords",
+            label: "chords",
+            category_id: "musical",
+        },
+        BehaviorCatalogEntry {
+            id: "contour",
+            label: "contour",
+            category_id: "musical",
+        },
+        BehaviorCatalogEntry {
+            id: "cadence",
+            label: "cadence",
+            category_id: "musical",
+        },
+        BehaviorCatalogEntry {
+            id: "phrase",
+            label: "phrase",
+            category_id: "musical",
         },
         BehaviorCatalogEntry {
             id: "life",

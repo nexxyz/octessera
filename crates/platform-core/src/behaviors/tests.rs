@@ -1,5 +1,5 @@
 use super::*;
-use crate::behavior::{BehaviorContext, DeviceInput, GridInteraction};
+use crate::behavior::{BehaviorContext, CellTriggerType, DeviceInput, GridInteraction};
 use serde_json::Value;
 use std::collections::HashSet;
 
@@ -42,8 +42,25 @@ fn lists_and_resolves_native_behaviors() {
             "dla",
             "physarum",
             "vines",
+            "arp",
+            "weave",
+            "polyrhythm",
+            "breaks",
+            "fills",
+            "clave",
+            "groove",
+            "euclid",
+            "ostinato",
+            "motif",
+            "canon",
+            "chords",
+            "contour",
+            "cadence",
+            "phrase",
         ]
     );
+    assert_eq!(get_native_behavior("arp"), Some(NativeBehavior::Arp));
+    assert_eq!(get_native_behavior("phrase"), Some(NativeBehavior::Phrase));
     assert_eq!(get_native_behavior("life"), Some(NativeBehavior::Life));
     assert_eq!(get_native_behavior("glider"), None);
     assert_eq!(
@@ -136,6 +153,75 @@ fn lists_and_resolves_native_behaviors() {
     );
     assert_eq!(get_native_behavior("forest"), None);
     assert_eq!(get_native_behavior("missing"), None);
+}
+
+#[test]
+fn new_pattern_behaviors_toggle_grid_and_round_trip() {
+    let mut default_frames = HashSet::new();
+    for id in [
+        "arp",
+        "weave",
+        "polyrhythm",
+        "breaks",
+        "fills",
+        "clave",
+        "groove",
+        "euclid",
+        "ostinato",
+        "motif",
+        "canon",
+        "chords",
+        "contour",
+        "cadence",
+        "phrase",
+    ] {
+        let behavior = get_native_behavior(id).unwrap();
+        let mut context = BehaviorContext::new(120.0);
+        let state = behavior.init(Value::Null).unwrap();
+        let before = behavior.render_model(&state).unwrap().cells;
+        default_frames.insert(before.clone());
+        let toggled = behavior
+            .on_input(state, DeviceInput::GridPress { x: 1, y: 2 }, &mut context)
+            .unwrap();
+        let after = behavior.render_model(&toggled).unwrap().cells;
+        assert_ne!(before, after, "{id} grid input should alter cells");
+        let restored = behavior
+            .deserialize(behavior.serialize(&toggled).unwrap())
+            .unwrap();
+        let restored_model = behavior.render_model(&restored).unwrap();
+        assert_eq!(restored_model.cells, after);
+        assert!(restored_model
+            .trigger_types
+            .unwrap()
+            .iter()
+            .all(|trigger| matches!(trigger, CellTriggerType::Stable | CellTriggerType::None)));
+
+        let configured = behavior
+            .init(serde_json::json!({
+                "densityPct": 999,
+                "variationPct": 999,
+                "cycleLength": 999,
+                "seed": 12345
+            }))
+            .unwrap();
+        let saved = behavior.serialize(&configured).unwrap();
+        assert_eq!(saved["densityPct"], 80);
+        assert_eq!(saved["variationPct"], 100);
+        assert_eq!(saved["cycleLength"], 32);
+        assert_eq!(saved["seed"], 9999);
+        let configured_model = behavior.render_model(&configured).unwrap();
+        for (visible, trigger) in configured_model
+            .cells
+            .iter()
+            .zip(configured_model.trigger_types.unwrap())
+        {
+            assert!(matches!(
+                (*visible, trigger),
+                (true, CellTriggerType::Activate) | (false, CellTriggerType::None)
+            ));
+        }
+    }
+    assert!(default_frames.len() >= 12);
 }
 
 #[test]

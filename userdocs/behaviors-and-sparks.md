@@ -12,6 +12,21 @@ You can run several layers at once. One layer might be a stable pulse. Another m
 | `keys` | Human | Momentary finger-drumming. Press a cell to play; release it to stop. Immediate and human. |
 | `sequencer` | Human | A manual grid sequence for anchoring the more generative layers. Add probability if it feels too square. |
 | `looper` | Human | Records and replays grid presses/releases. Use Punch In/Out to overdub or perform. |
+| `arp` | Human | A live arpeggio-shaped pattern world. It runs on its own, but grid nudges reshuffle the phrase immediately. |
+| `weave` | Human | Two interlaced melodic strands crossing over the grid. Useful for quick counterpoint-ish motion. |
+| `polyrhythm` | Rhythm | Lanes with different loop lengths shifting against each other. Good for patterns that refuse to line up too neatly. |
+| `breaks` | Rhythm | A rearranging breakbeat grid: kicks, cuts, gaps, and little glitchy fragments. |
+| `fills` | Rhythm | A base groove that opens up near phrase ends with denser fill gestures. |
+| `clave` | Rhythm | A compact clave-style rhythmic cell, rotated and shared across lanes. |
+| `groove` | Rhythm | A coherent kick/snare/hat-style grid for fast beat foundations. |
+| `euclid` | Rhythm | Evenly distributed hits across uneven lane lengths. Simple controls, surprisingly useful loops. |
+| `ostinato` | Musical | A repeating melodic figure that shifts without losing its little anchor. |
+| `motif` | Musical | A short melodic shape that mutates, folds, and returns. |
+| `canon` | Musical | Delayed copies of a line, stacked into layered motion. Tiny grid fugue, if it behaves. |
+| `chords` | Musical | Moving triad-like cells for harmonic blocks and chord strikes. |
+| `contour` | Musical | Melody-like cells following rise, fall, arch, and valley shapes. |
+| `cadence` | Musical | Harmonic movement with repeated tension and resolution points. |
+| `phrase` | Musical | A phrase-shaped pattern with opening, development, rest, and return. |
 | `life` | Cellular | Conway-style cells that birth, survive, and die. It also owns glider injection through Glider Interval, Spawn Step, and Spawn Glider; there is no separate `glider` behavior ID. |
 | `brain` | Cellular | Brian's Brain style states. It tends to leave trails and pulses rather than simply living/dying. |
 | `cyclic` | Cellular | Multi-state wave fronts chase each other around the grid. Bright, discrete, and a little arcade-creature-ish. |
@@ -43,7 +58,7 @@ You can run several layers at once. One layer might be a stable pulse. Another m
 | `fractal_explorer` | Geometry | A drifting Mandelbrot/Julia explorer that zooms through regions and turns detail changes into accents. |
 | `maze_growth` | Geometry | Tiny maze corridors carve, walkers wander them, and old passages sometimes crumble back to wall. |
 
-The canonical behavior IDs are `none`, `life`, `sequencer`, `keys`, `looper`, `brain`, `cyclic`, `forest_fire`, `predator_prey`, `ant`, `bounce`, `bubbles`, `gravity`, `boids`, `lava_lamp`, `orbit`, `sand_ripples`, `fractal_explorer`, `maze_growth`, `shapes`, `ink`, `ising`, `kuramoto`, `lightning`, `raindrops`, `reaction_diffusion`, `rivers`, `wave`, `coral`, `cracks`, `crystal_growth`, `dla`, `physarum`, and `vines`.
+The canonical behavior IDs are `none`, `life`, `sequencer`, `keys`, `looper`, `brain`, `cyclic`, `forest_fire`, `predator_prey`, `ant`, `bounce`, `bubbles`, `gravity`, `boids`, `lava_lamp`, `orbit`, `sand_ripples`, `fractal_explorer`, `maze_growth`, `shapes`, `ink`, `ising`, `kuramoto`, `lightning`, `raindrops`, `reaction_diffusion`, `rivers`, `wave`, `coral`, `cracks`, `crystal_growth`, `dla`, `physarum`, `vines`, `arp`, `weave`, `polyrhythm`, `breaks`, `fills`, `clave`, `groove`, `euclid`, `ostinato`, `motif`, `canon`, `chords`, `contour`, `cadence`, and `phrase`.
 
 ## Trigger types
 
