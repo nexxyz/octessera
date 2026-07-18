@@ -343,10 +343,7 @@ mod tests {
             &mut context,
         );
         assert!(seeded.cells.iter().filter(|cell| **cell).count() >= 1);
-        assert!(seeded
-            .trigger_types
-            .iter()
-            .any(|trigger| *trigger == CellTriggerType::Activate));
+        assert!(seeded.trigger_types.contains(&CellTriggerType::Activate));
     }
 
     #[test]

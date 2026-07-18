@@ -162,10 +162,7 @@ fn spawn_random_action_and_random_tick_spawn_activate_cells() {
         &mut context,
     );
     assert!(spawned.cells.iter().filter(|cell| **cell).count() > 0);
-    assert!(spawned
-        .trigger_types
-        .iter()
-        .any(|trigger| *trigger == CellTriggerType::Activate));
+    assert!(spawned.trigger_types.contains(&CellTriggerType::Activate));
 
     let random_tick = init(serde_json::json!({
         "cells": [],
@@ -176,10 +173,7 @@ fn spawn_random_action_and_random_tick_spawn_activate_cells() {
     .unwrap();
     let ticked = on_tick(random_tick, &mut context);
     assert!(ticked.cells.iter().filter(|cell| **cell).count() > 0);
-    assert!(ticked
-        .trigger_types
-        .iter()
-        .any(|trigger| *trigger == CellTriggerType::Activate));
+    assert!(ticked.trigger_types.contains(&CellTriggerType::Activate));
 
     let ignored = on_input(
         spawned.clone(),

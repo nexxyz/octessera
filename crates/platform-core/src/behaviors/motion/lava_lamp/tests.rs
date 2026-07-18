@@ -121,14 +121,8 @@ fn reset_normalizes_inactive_tail_and_updates_visible_triggers() {
     assert_eq!(&reset.vx[4..], &[0, 0, 0, 0]);
     assert_eq!(&reset.vy[4..], &[0, 0, 0, 0]);
     assert_eq!(&reset.radius[4..], &[18, 18, 18, 18]);
-    assert!(reset
-        .trigger_types
-        .iter()
-        .any(|trigger| *trigger == CellTriggerType::Activate));
-    assert!(reset
-        .trigger_types
-        .iter()
-        .any(|trigger| *trigger == CellTriggerType::Deactivate));
+    assert!(reset.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(reset.trigger_types.contains(&CellTriggerType::Deactivate));
 }
 
 #[test]
