@@ -7,6 +7,7 @@ Status:
 - Desk evaluation: complete.
 - On-device validation: pending Orange Pi Zero 2W hardware.
 - Current recommendation: start hands-on evaluation with Armbian Debian 13/Trixie, keep the official Orange Pi image as the hardware fallback, and use DietPi as the footprint benchmark.
+- Armbian bring-up details, including USB device/gadget mode checks: `hardware/docs/orange-pi-armbian-bringup.md`.
 
 ## Constraints
 
@@ -65,7 +66,7 @@ Score each candidate from 1 to 5.
 | Reproducible image-build path | 5 | 4 | 2 | 4 |
 | Release stability confidence | 3 | 3 | 4 | 3 |
 
-Preliminary overall score:
+Preliminary hypothesis score, to replace with hardware data:
 
 | Candidate | Score | Role |
 | --- | ---: | --- |
@@ -96,6 +97,9 @@ The desk evaluation cannot complete these checks. They require the Orange Pi Zer
 - Confirm GPIO interrupts work without polling-only fallbacks.
 - Confirm I2S DAC is available and selected as the intended audio output.
 - Run a short audio playback test and record underruns/dropouts.
+- Confirm USB device/gadget mode exposes a UDC through `/sys/class/udc`.
+- Confirm configfs gadget functions for MIDI, UAC2 audio, and mass storage exist and bind on the OTG/data port.
+- Confirm Armbian uses `/boot/armbianEnv.txt` overlays for required buses; do not use Raspberry Pi `config.txt`/`dtoverlay` assumptions.
 - Confirm shutdown/reboot behavior and any required privilege policy.
 
 ### Performance and stability
@@ -109,6 +113,7 @@ The desk evaluation cannot complete these checks. They require the Orange Pi Zer
 ## Decision rules
 
 - Prefer Armbian if it exposes I2C, SPI, GPIO interrupts, and I2S audio cleanly and remains stable under soak testing.
+- Prefer Armbian only if USB gadget/device mode is available without board-specific kernel patches we cannot carry.
 - Prefer the vendor image only if Armbian has peripheral problems that cost more than the weaker image/release workflow.
 - Prefer DietPi only if it clearly reduces setup and runtime footprint without making hardware support harder.
 - Do not add Orange Pi behavior or broad board-profile refactors until one lead distro is selected and the no-PCB-change hardware path looks viable. Raspberry-only no-behavior-change foundation refactors are allowed.
