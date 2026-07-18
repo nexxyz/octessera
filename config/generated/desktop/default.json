@@ -57,11 +57,6 @@
       "aux2": null,
       "aux3": null
     },
-    "shiftAuxBindings": {
-      "aux1": null,
-      "aux2": null,
-      "aux3": null
-    },
     "bpm": 120,
     "buttonBrightness": 100,
     "dimTimerSeconds": 60,
@@ -69,13 +64,6 @@
     "ghostCells": false,
     "gridBrightness": 100,
     "inputEventsWhilePaused": true,
-    "usb": {
-      "audioOut": "jack",
-      "midiOutEnabled": false
-    },
-    "recording": {
-      "maxMinutes": 10
-    },
     "instruments": [
       {
         "autoName": true,
@@ -1202,6 +1190,12 @@
     "layers": [
       {
         "autoName": true,
+        "linkLfo": {
+          "depthPct": 100,
+          "enabled": false,
+          "period": "1/1",
+          "target": null
+        },
         "name": "life",
         "paramMods": {
           "x": [
@@ -1226,22 +1220,32 @@
           "mapping": {
             "activate": {
               "action": "note_on",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 0
             },
             "deactivate": {
               "action": "note_off",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 0
             },
             "scanned": {
               "action": "note_on",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 0
             },
             "scanned_empty": {
               "action": "none",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 0
             },
             "stable": {
               "action": "none",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 0
             }
           },
@@ -1401,40 +1405,13 @@
           "savedState": {
             "cells": [
               false,
-              false,
+              true,
               false,
               true,
               true,
               false,
               false,
               false,
-              false,
-              false,
-              false,
-              true,
-              true,
-              false,
-              false,
-              false,
-              false,
-              false,
-              false,
-              true,
-              true,
-              false,
-              false,
-              false,
-              true,
-              true,
-              true,
-              false,
-              false,
-              true,
-              true,
-              true,
-              true,
-              true,
-              true,
               false,
               false,
               true,
@@ -1445,8 +1422,35 @@
               false,
               true,
               true,
+              true,
+              true,
+              true,
               false,
               false,
+              false,
+              true,
+              true,
+              true,
+              false,
+              false,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              false,
+              false,
+              true,
+              true,
+              true,
+              false,
+              false,
+              false,
+              true,
+              false,
+              true,
+              true,
               false,
               false,
               false,
@@ -1565,6 +1569,12 @@
       },
       {
         "autoName": true,
+        "linkLfo": {
+          "depthPct": 100,
+          "enabled": false,
+          "period": "1/1",
+          "target": null
+        },
         "name": "sequencer",
         "paramMods": {
           "x": [
@@ -1589,22 +1599,32 @@
           "mapping": {
             "activate": {
               "action": "note_on",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 1
             },
             "deactivate": {
               "action": "note_off",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 1
             },
             "scanned": {
               "action": "note_on",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 1
             },
             "scanned_empty": {
               "action": "none",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 1
             },
             "stable": {
               "action": "none",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 1
             }
           },
@@ -1853,6 +1873,12 @@
       },
       {
         "autoName": true,
+        "linkLfo": {
+          "depthPct": 100,
+          "enabled": false,
+          "period": "1/1",
+          "target": null
+        },
         "name": "looper",
         "paramMods": {
           "x": [
@@ -1877,22 +1903,32 @@
           "mapping": {
             "activate": {
               "action": "note_on",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 2
             },
             "deactivate": {
               "action": "note_off",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 2
             },
             "scanned": {
               "action": "note_on",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 2
             },
             "scanned_empty": {
               "action": "none",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 2
             },
             "stable": {
               "action": "none",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 2
             }
           },
@@ -2093,6 +2129,12 @@
       },
       {
         "autoName": true,
+        "linkLfo": {
+          "depthPct": 100,
+          "enabled": false,
+          "period": "1/1",
+          "target": null
+        },
         "name": "none",
         "paramMods": {
           "x": [
@@ -2117,22 +2159,32 @@
           "mapping": {
             "activate": {
               "action": "note_on",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 3
             },
             "deactivate": {
               "action": "note_off",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 3
             },
             "scanned": {
               "action": "note_on",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 3
             },
             "scanned_empty": {
               "action": "none",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 3
             },
             "stable": {
               "action": "none",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 3
             }
           },
@@ -2310,6 +2362,12 @@
       },
       {
         "autoName": true,
+        "linkLfo": {
+          "depthPct": 100,
+          "enabled": false,
+          "period": "1/1",
+          "target": null
+        },
         "name": "none",
         "paramMods": {
           "x": [
@@ -2334,22 +2392,32 @@
           "mapping": {
             "activate": {
               "action": "note_on",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 4
             },
             "deactivate": {
               "action": "note_off",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 4
             },
             "scanned": {
               "action": "note_on",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 4
             },
             "scanned_empty": {
               "action": "none",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 4
             },
             "stable": {
               "action": "none",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 4
             }
           },
@@ -2527,6 +2595,12 @@
       },
       {
         "autoName": true,
+        "linkLfo": {
+          "depthPct": 100,
+          "enabled": false,
+          "period": "1/1",
+          "target": null
+        },
         "name": "none",
         "paramMods": {
           "x": [
@@ -2551,22 +2625,32 @@
           "mapping": {
             "activate": {
               "action": "note_on",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 5
             },
             "deactivate": {
               "action": "note_off",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 5
             },
             "scanned": {
               "action": "note_on",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 5
             },
             "scanned_empty": {
               "action": "none",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 5
             },
             "stable": {
               "action": "none",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 5
             }
           },
@@ -2744,6 +2828,12 @@
       },
       {
         "autoName": true,
+        "linkLfo": {
+          "depthPct": 100,
+          "enabled": false,
+          "period": "1/1",
+          "target": null
+        },
         "name": "none",
         "paramMods": {
           "x": [
@@ -2768,22 +2858,32 @@
           "mapping": {
             "activate": {
               "action": "note_on",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 6
             },
             "deactivate": {
               "action": "note_off",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 6
             },
             "scanned": {
               "action": "note_on",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 6
             },
             "scanned_empty": {
               "action": "none",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 6
             },
             "stable": {
               "action": "none",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 6
             }
           },
@@ -2961,6 +3061,12 @@
       },
       {
         "autoName": true,
+        "linkLfo": {
+          "depthPct": 100,
+          "enabled": false,
+          "period": "1/1",
+          "target": null
+        },
         "name": "none",
         "paramMods": {
           "x": [
@@ -2985,22 +3091,32 @@
           "mapping": {
             "activate": {
               "action": "note_on",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 7
             },
             "deactivate": {
               "action": "note_off",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 7
             },
             "scanned": {
               "action": "note_on",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 7
             },
             "scanned_empty": {
               "action": "none",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 7
             },
             "stable": {
               "action": "none",
+              "delaySteps": 0,
+              "retriggerCount": 0,
               "slot": 7
             }
           },
@@ -3193,13 +3309,14 @@
           "autoName": true,
           "name": "Delay+Duck",
           "panPos": 16,
-          "volumePct": 100,
           "slot1": {
             "params": {
               "feedback": 0.35,
               "mixPct": 35,
               "spreadPct": 0,
-              "timeMs": 250
+              "timeMode": "ms",
+              "timeMs": 250,
+              "timeNote": "1/8"
             },
             "type": "delay"
           },
@@ -3216,13 +3333,13 @@
           "slot3": {
             "params": {},
             "type": "none"
-          }
+          },
+          "volumePct": 100
         },
         {
           "autoName": true,
           "name": "None",
           "panPos": 16,
-          "volumePct": 100,
           "slot1": {
             "params": {},
             "type": "none"
@@ -3234,13 +3351,13 @@
           "slot3": {
             "params": {},
             "type": "none"
-          }
+          },
+          "volumePct": 100
         },
         {
           "autoName": true,
           "name": "None",
           "panPos": 16,
-          "volumePct": 100,
           "slot1": {
             "params": {},
             "type": "none"
@@ -3252,13 +3369,13 @@
           "slot3": {
             "params": {},
             "type": "none"
-          }
+          },
+          "volumePct": 100
         },
         {
           "autoName": true,
           "name": "None",
           "panPos": 16,
-          "volumePct": 100,
           "slot1": {
             "params": {},
             "type": "none"
@@ -3270,7 +3387,8 @@
           "slot3": {
             "params": {},
             "type": "none"
-          }
+          },
+          "volumePct": 100
         }
       ],
       "master": {
@@ -3288,9 +3406,17 @@
     },
     "noteLengthMs": 120,
     "numericDisplayMode": "bar+numbers",
+    "recording": {
+      "maxMinutes": 10
+    },
     "rollingBackups": true,
     "sampleFavouriteDirs": [],
     "screenSleepSeconds": 60,
+    "shiftAuxBindings": {
+      "aux1": null,
+      "aux2": null,
+      "aux3": null
+    },
     "sound": {
       "audioOutputBufferFrames": 256,
       "noteLengthMs": 120,
@@ -3365,6 +3491,10 @@
     "transport": {
       "bpm": 120,
       "swingPct": 0
+    },
+    "usb": {
+      "audioOut": "jack",
+      "midiOutEnabled": false
     },
     "velocityCurve": "linear",
     "velocityScalePct": 100,
