@@ -96,13 +96,22 @@ Link
 │   │       └── Curve: [linear | curve]
 │   ├── Y Axis (group)
 │   │   └── (same sub-structure as X Axis, modulation target keys use param:N:y:slot, config keys use y.* prefix, defaults: Pitch Steps steps=3; Restart Section affects row sections)
-│   └── LFO (group)
+│   ├── LFO (group)
 │       ├── Enabled: [on | off]
 │       ├── Target (group)                         ← live audio-facing numeric controls only; excludes LFO rows and unsafe FX timing/buffer params
 │       ├── Period: [same 24 PPQN note units]
 │       └── Depth %: [0..100] step 1
+│   └── Arp (group)
+│       ├── Mode: [none | direct | up | down | bounce | outside_in | rotating | random | octave_spread | chord_strike | strum]
+│       ├── Source: [simultaneous | held]
+│       ├── Step: [1..16] step 1
+│       ├── Length ms: [10..2000] step 10
+│       ├── Gate %: [1..100] step 1
+│       └── Octaves: [0..3] step 1
 ├── L2: ... (group)
 ├── L3: ... (group)
 ```
 
 Link LFO sends transient live audio control values while transport plays. It restores the saved base value on stop/reset/config changes, and LFO movement is not saved back into the target parameter value.
+
+Link Arp transforms simultaneous routed note-on batches or playback-runtime tracked held notes. `none` preserves the existing Link path; other modes emit finite notes using Length ms and Gate %, with strum-like modes spaced by Step Link ticks.

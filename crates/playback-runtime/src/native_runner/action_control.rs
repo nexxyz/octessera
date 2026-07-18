@@ -198,14 +198,17 @@ impl NativeRunner {
             }
             NativeMenuAction::CloneInstrument { index } => {
                 self.clone_instrument(index);
+                self.clear_all_link_arp_state();
                 Ok(None)
             }
             NativeMenuAction::ResetInstrument { index } => {
                 self.reset_instrument(index);
+                self.clear_all_link_arp_state();
                 Ok(None)
             }
             NativeMenuAction::ResetBehavior => {
                 self.seed_visible_state()?;
+                self.clear_link_arp_state_for_layer(self.active_layer_index);
                 self.show_toast("Behavior reset");
                 Ok(None)
             }

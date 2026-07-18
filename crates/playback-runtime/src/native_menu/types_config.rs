@@ -160,7 +160,18 @@ pub struct NativePulsesLayerConfig {
     pub y_velocity: NativeValueLaneConfig,
     pub y_filter_cutoff: NativeValueLaneConfig,
     pub y_filter_resonance: NativeValueLaneConfig,
+    pub arp: NativeLinkArpConfig,
     pub link_lfo: NativeLinkLfoConfig,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NativeLinkArpConfig {
+    pub mode: String,
+    pub source: String,
+    pub step_interval_steps: u8,
+    pub note_length_ms: u16,
+    pub gate_pct: u8,
+    pub octave_spread: u8,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

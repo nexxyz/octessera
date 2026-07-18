@@ -42,7 +42,16 @@ impl NativeRunner {
         }
         let behavior_changed = self.apply_selected_behavior_menu_state()?;
         config_changed |= behavior_changed;
-        config_changed |= self.apply_behavior_config_menu_state()?;
+        let behavior_config_changed = self.apply_behavior_config_menu_state()?;
+        config_changed |= behavior_config_changed;
+        if layer_changed
+            || instrument_changed
+            || pulses_changed
+            || behavior_changed
+            || behavior_config_changed
+        {
+            self.clear_all_link_arp_state();
+        }
         self.refresh_active_mapping_config();
         self.refresh_active_interpretation_profile();
         self.engine

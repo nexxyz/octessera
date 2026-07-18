@@ -1214,6 +1214,14 @@
           ]
         },
         "pulses": {
+          "arp": {
+            "gatePct": 80,
+            "mode": "none",
+            "noteLengthMs": 120,
+            "octaveSpread": 0,
+            "source": "simultaneous",
+            "stepIntervalSteps": 1
+          },
           "eventEnabled": true,
           "mapping": {
             "activate": {
@@ -1569,6 +1577,14 @@
           ]
         },
         "pulses": {
+          "arp": {
+            "gatePct": 80,
+            "mode": "none",
+            "noteLengthMs": 120,
+            "octaveSpread": 0,
+            "source": "simultaneous",
+            "stepIntervalSteps": 1
+          },
           "eventEnabled": true,
           "mapping": {
             "activate": {
@@ -1849,6 +1865,14 @@
           ]
         },
         "pulses": {
+          "arp": {
+            "gatePct": 80,
+            "mode": "none",
+            "noteLengthMs": 120,
+            "octaveSpread": 0,
+            "source": "simultaneous",
+            "stepIntervalSteps": 1
+          },
           "eventEnabled": true,
           "mapping": {
             "activate": {
@@ -2081,6 +2105,14 @@
           ]
         },
         "pulses": {
+          "arp": {
+            "gatePct": 80,
+            "mode": "none",
+            "noteLengthMs": 120,
+            "octaveSpread": 0,
+            "source": "simultaneous",
+            "stepIntervalSteps": 1
+          },
           "eventEnabled": false,
           "mapping": {
             "activate": {
@@ -2290,6 +2322,14 @@
           ]
         },
         "pulses": {
+          "arp": {
+            "gatePct": 80,
+            "mode": "none",
+            "noteLengthMs": 120,
+            "octaveSpread": 0,
+            "source": "simultaneous",
+            "stepIntervalSteps": 1
+          },
           "eventEnabled": false,
           "mapping": {
             "activate": {
@@ -2499,6 +2539,14 @@
           ]
         },
         "pulses": {
+          "arp": {
+            "gatePct": 80,
+            "mode": "none",
+            "noteLengthMs": 120,
+            "octaveSpread": 0,
+            "source": "simultaneous",
+            "stepIntervalSteps": 1
+          },
           "eventEnabled": false,
           "mapping": {
             "activate": {
@@ -2708,6 +2756,14 @@
           ]
         },
         "pulses": {
+          "arp": {
+            "gatePct": 80,
+            "mode": "none",
+            "noteLengthMs": 120,
+            "octaveSpread": 0,
+            "source": "simultaneous",
+            "stepIntervalSteps": 1
+          },
           "eventEnabled": false,
           "mapping": {
             "activate": {
@@ -2917,6 +2973,14 @@
           ]
         },
         "pulses": {
+          "arp": {
+            "gatePct": 80,
+            "mode": "none",
+            "noteLengthMs": 120,
+            "octaveSpread": 0,
+            "source": "simultaneous",
+            "stepIntervalSteps": 1
+          },
           "eventEnabled": false,
           "mapping": {
             "activate": {

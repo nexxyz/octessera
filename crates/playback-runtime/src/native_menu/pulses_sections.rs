@@ -1,9 +1,88 @@
 use super::{
     action_item, axis_binding_label, bool_item, enum_item, enum_item_from_strings, group,
     number_item, parameter_picker_group_numeric, selected_index, slot_option_selected,
-    NativeLinkLfoConfig, NativeMenuAction, NativeMenuConfig, NativeMenuItem,
+    NativeLinkArpConfig, NativeLinkLfoConfig, NativeMenuAction, NativeMenuConfig, NativeMenuItem,
     NativePulsesLayerConfig,
 };
+
+pub(super) fn arp_group(prefix: &str, arp: &NativeLinkArpConfig) -> NativeMenuItem {
+    group(
+        "Arp",
+        vec![
+            enum_item(
+                "Mode",
+                format!("{prefix}.mode"),
+                vec![
+                    "none",
+                    "direct",
+                    "up",
+                    "down",
+                    "bounce",
+                    "outside_in",
+                    "rotating",
+                    "random",
+                    "octave_spread",
+                    "chord_strike",
+                    "strum",
+                ],
+                selected_index(
+                    &[
+                        "none",
+                        "direct",
+                        "up",
+                        "down",
+                        "bounce",
+                        "outside_in",
+                        "rotating",
+                        "random",
+                        "octave_spread",
+                        "chord_strike",
+                        "strum",
+                    ],
+                    &arp.mode,
+                ),
+            ),
+            enum_item(
+                "Source",
+                format!("{prefix}.source"),
+                vec!["simultaneous", "held"],
+                selected_index(&["simultaneous", "held"], &arp.source),
+            ),
+            number_item(
+                "Step",
+                format!("{prefix}.stepIntervalSteps"),
+                i32::from(arp.step_interval_steps),
+                1,
+                16,
+                1,
+            ),
+            number_item(
+                "Length ms",
+                format!("{prefix}.noteLengthMs"),
+                i32::from(arp.note_length_ms),
+                10,
+                2000,
+                10,
+            ),
+            number_item(
+                "Gate %",
+                format!("{prefix}.gatePct"),
+                i32::from(arp.gate_pct),
+                1,
+                100,
+                1,
+            ),
+            number_item(
+                "Octaves",
+                format!("{prefix}.octaveSpread"),
+                i32::from(arp.octave_spread),
+                0,
+                3,
+                1,
+            ),
+        ],
+    )
+}
 
 pub(super) fn link_lfo_group(
     prefix: &str,

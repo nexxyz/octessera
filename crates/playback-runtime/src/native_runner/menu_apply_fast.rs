@@ -16,13 +16,19 @@ impl NativeRunner {
 
     fn apply_or_schedule_menu_key_inner(&mut self, key: &str) -> Result<(), String> {
         if self.apply_menu_key_fast(key) {
+            self.clear_all_link_arp_state();
             return Ok(());
         }
         if self.apply_binding_range_key_fast(key) {
+            self.clear_all_link_arp_state();
             return Ok(());
         }
         if structural_draft_key(key) {
-            return self.commit_structural_draft_key(key);
+            let result = self.commit_structural_draft_key(key);
+            if result.is_ok() {
+                self.clear_all_link_arp_state();
+            }
+            return result;
         }
         if self.should_defer_menu_key(key) {
             self.schedule_deferred_menu_apply(key);
@@ -336,6 +342,9 @@ impl NativeRunner {
                 layer,
                 &format!("layers.{index}.linkLfo"),
             )
+        } else if suffix.starts_with("pulses.arp.") {
+            let prefix = format!("layers.{index}.pulses.arp");
+            super::menu_apply_pulses_fx::apply_link_arp_menu_state(&self.menu, layer, &prefix)
         } else if matches!(
             suffix,
             "pulses.scanMode"
@@ -374,6 +383,9 @@ impl NativeRunner {
         if changed {
             if suffix == "pulses.scanMode" {
                 self.rematerialize_menu_around_key(key);
+            }
+            if suffix.starts_with("pulses.arp.") {
+                self.clear_link_arp_state_for_layer(index);
             }
             if index == self.active_layer_index {
                 self.refresh_active_mapping_config();

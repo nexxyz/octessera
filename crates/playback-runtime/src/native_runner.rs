@@ -82,6 +82,7 @@ mod instrument_runtime;
 mod json_path;
 mod layer_state;
 mod led_color;
+mod link_arp;
 mod looper_config;
 mod menu_apply;
 mod menu_apply_fast;
@@ -157,6 +158,7 @@ use help_text::*;
 use instrument_collections::*;
 use instrument_runtime::*;
 use json_path::*;
+use link_arp::LINK_ARP_RANDOM_SEED;
 use menu_value_apply::*;
 use modulation_instrument_numeric::*;
 use modulation_sampler::{RoutedMusicalEvents, TransposedHeldNote};
@@ -232,6 +234,9 @@ pub struct NativeRunner {
     tick: u64,
     layer_ticks: Vec<u64>,
     delayed_link_events: Vec<Vec<DelayedRoutedEvents>>,
+    link_arp_held_notes: Vec<Vec<LinkArpHeldNote>>,
+    link_arp_rotating_phase: Vec<usize>,
+    link_arp_random_state: u32,
     algorithm_step_pulses: u32,
     algorithm_pulse_accumulator: u32,
     layer_algorithm_step_pulses: Vec<u32>,

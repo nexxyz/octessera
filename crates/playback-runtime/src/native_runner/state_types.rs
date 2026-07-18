@@ -74,7 +74,18 @@ pub(super) struct NativePulsesLayer {
     pub(super) y_velocity: NativeValueLane,
     pub(super) y_filter_cutoff: NativeValueLane,
     pub(super) y_filter_resonance: NativeValueLane,
+    pub(super) arp: NativeLinkArp,
     pub(super) link_lfo: NativeLinkLfo,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct NativeLinkArp {
+    pub(super) mode: String,
+    pub(super) source: String,
+    pub(super) step_interval_steps: u8,
+    pub(super) note_length_ms: u16,
+    pub(super) gate_pct: u8,
+    pub(super) octave_spread: u8,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -132,8 +143,16 @@ pub(super) struct LinkEventTiming {
 
 #[derive(Clone, Debug, Default)]
 pub(super) struct DelayedRoutedEvents {
-    pub(super) remaining_steps: u8,
+    pub(super) remaining_steps: u16,
     pub(super) events: RoutedMusicalEvents,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct LinkArpHeldNote {
+    pub(super) audio: bool,
+    pub(super) channel: u8,
+    pub(super) note: u8,
+    pub(super) velocity: u8,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -248,7 +267,21 @@ impl Default for NativePulsesLayer {
             y_velocity: NativeValueLane::velocity_default(),
             y_filter_cutoff: NativeValueLane::filter_cutoff_default(),
             y_filter_resonance: NativeValueLane::filter_resonance_default(),
+            arp: NativeLinkArp::default(),
             link_lfo: NativeLinkLfo::default(),
+        }
+    }
+}
+
+impl Default for NativeLinkArp {
+    fn default() -> Self {
+        Self {
+            mode: "none".into(),
+            source: "simultaneous".into(),
+            step_interval_steps: 1,
+            note_length_ms: 120,
+            gate_pct: 80,
+            octave_spread: 0,
         }
     }
 }

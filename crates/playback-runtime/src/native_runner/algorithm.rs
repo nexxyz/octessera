@@ -291,12 +291,25 @@ impl NativeRunner {
             return routed;
         }
         let timing = link_timing_for_intents(self.pulses_layers.get(layer_index), intents);
+        let arp = self
+            .pulses_layers
+            .get(layer_index)
+            .map(|layer| layer.arp.clone());
         self.cancel_pending_delayed_hold_note_ons_after(layer_index, &routed, timing.delay_steps);
         let retrigger_count = if routed_contains_held_note_on(&routed) {
             0
         } else {
             timing.retrigger_count
         };
+        if let Some(arp) = arp.filter(|arp| arp.mode != "none") {
+            return self.apply_link_arp_timing(
+                layer_index,
+                timing,
+                timing.retrigger_count,
+                &arp,
+                routed,
+            );
+        }
         if timing.delay_steps == 0 && retrigger_count == 0 {
             return routed;
         }
@@ -308,7 +321,7 @@ impl NativeRunner {
             let first_repeat = if timing.delay_steps == 0 { 1 } else { 0 };
             for repeat in first_repeat..=retrigger_count {
                 queue.push(DelayedRoutedEvents {
-                    remaining_steps: timing.delay_steps.saturating_add(repeat),
+                    remaining_steps: u16::from(timing.delay_steps.saturating_add(repeat)),
                     events: routed.clone(),
                 });
             }
@@ -331,7 +344,7 @@ impl NativeRunner {
             return;
         };
         queue.retain_mut(|entry| {
-            if entry.remaining_steps <= note_off_due_steps {
+            if entry.remaining_steps <= u16::from(note_off_due_steps) {
                 return true;
             }
             !has_matching_held_note_on(&entry.events.audio, &audio_note_offs)
@@ -359,7 +372,9 @@ impl NativeRunner {
             ));
         }
         let mut out = RoutedMusicalEvents::default();
-        for (event_index, event) in events.into_iter().enumerate() {
+        let mut event_index = 0;
+        while event_index < events.len() {
+            let event = events[event_index].clone();
             let Some(Some(intent)) = event_intents.get(event_index) else {
                 let routed = apply_sampler_assignments_for_instruments_routed(
                     vec![event],
@@ -372,18 +387,34 @@ impl NativeRunner {
                 );
                 self.cancel_pending_delayed_hold_note_ons_after(layer_index, &routed, 0);
                 out.extend(routed);
+                event_index += 1;
                 continue;
             };
+            let mut end = event_index + 1;
+            while end < events.len()
+                && event_intents
+                    .get(end)
+                    .and_then(Clone::clone)
+                    .is_some_and(|next| next.kind == intent.kind)
+            {
+                end += 1;
+            }
+            let grouped_events = events[event_index..end].to_vec();
+            let grouped_intents: Vec<CellTriggerIntent> = event_intents[event_index..end]
+                .iter()
+                .filter_map(Clone::clone)
+                .collect();
             let routed = apply_sampler_assignments_for_instruments_routed(
-                vec![event],
-                std::slice::from_ref(intent),
+                grouped_events,
+                &grouped_intents,
                 0,
                 instruments,
                 sense.as_ref(),
                 transpose_offset,
                 self.sparks_transpose_active_notes.get_mut(layer_index),
             );
-            out.extend(self.apply_link_timing(layer_index, std::slice::from_ref(intent), routed));
+            out.extend(self.apply_link_timing(layer_index, &grouped_intents, routed));
+            event_index = end;
         }
         Ok(out)
     }
@@ -416,9 +447,9 @@ fn has_matching_held_note_on(events: &[MusicalEvent], note_offs: &[(u8, u8)]) ->
         MusicalEvent::NoteOn {
             channel,
             note,
-            duration_ms,
+            duration_ms: None,
             ..
-        } => duration_ms.is_none() && note_offs.contains(&(*channel, *note)),
+        } => note_offs.contains(&(*channel, *note)),
         _ => false,
     })
 }

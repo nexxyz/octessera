@@ -51,6 +51,14 @@ pub(super) fn pulses_layer_payload(layer: &NativePulsesLayer, probability_map: &
             "velocity": value_lane_payload(&layer.y_velocity),
             "filterCutoff": value_lane_payload(&layer.y_filter_cutoff),
             "filterResonance": value_lane_payload(&layer.y_filter_resonance)
+        },
+        "arp": {
+            "mode": layer.arp.mode.clone(),
+            "source": layer.arp.source.clone(),
+            "stepIntervalSteps": layer.arp.step_interval_steps,
+            "noteLengthMs": layer.arp.note_length_ms,
+            "gatePct": layer.arp.gate_pct,
+            "octaveSpread": layer.arp.octave_spread
         }
     })
 }

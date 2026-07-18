@@ -1,14 +1,54 @@
 use super::payload_assign::{
     apply_value_lane_payload, assign_bool, assign_i32, assign_mapping, assign_string, assign_u8,
 };
-use super::{param_binding_from_payload, LinkEventTiming, NativeLinkLfo, NativePulsesLayer, Value};
+use super::{
+    param_binding_from_payload, LinkEventTiming, NativeLinkArp, NativeLinkLfo, NativePulsesLayer,
+    Value,
+};
 
 pub(super) fn apply_pulses_payload(layer: &mut NativePulsesLayer, payload: &Value) {
     apply_scan_and_trigger_payload(layer, payload);
     apply_mapping_payload(layer, payload);
     apply_pitch_payload(layer, payload);
+    apply_arp_payload(layer, payload);
     apply_axis_payload(layer, payload, "x");
     apply_axis_payload(layer, payload, "y");
+}
+
+fn apply_arp_payload(layer: &mut NativePulsesLayer, payload: &Value) {
+    let Some(arp) = payload.get("arp") else {
+        layer.arp = NativeLinkArp::default();
+        return;
+    };
+    let mut next = NativeLinkArp::default();
+    if let Some(mode) = arp.get("mode").and_then(Value::as_str) {
+        next.mode = match mode {
+            "direct" | "up" | "down" | "bounce" | "outside_in" | "rotating" | "random"
+            | "octave_spread" | "chord_strike" | "strum" => mode,
+            _ => "none",
+        }
+        .into();
+    }
+    if let Some(source) = arp.get("source").and_then(Value::as_str) {
+        next.source = match source {
+            "simultaneous" | "held" => source,
+            _ => "simultaneous",
+        }
+        .into();
+    }
+    if let Some(value) = arp.get("stepIntervalSteps").and_then(Value::as_i64) {
+        next.step_interval_steps = value.clamp(1, 16) as u8;
+    }
+    if let Some(value) = arp.get("noteLengthMs").and_then(Value::as_i64) {
+        next.note_length_ms = value.clamp(10, 2000) as u16;
+    }
+    if let Some(value) = arp.get("gatePct").and_then(Value::as_i64) {
+        next.gate_pct = value.clamp(1, 100) as u8;
+    }
+    if let Some(value) = arp.get("octaveSpread").and_then(Value::as_i64) {
+        next.octave_spread = value.clamp(0, 3) as u8;
+    }
+    layer.arp = next;
 }
 
 pub(super) fn apply_link_lfo_payload(layer: &mut NativePulsesLayer, payload: &Value) {

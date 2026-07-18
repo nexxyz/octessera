@@ -13,6 +13,7 @@ impl NativeRunner {
 
     pub(super) fn apply_config_payload(&mut self, payload: Value) -> Result<(), String> {
         self.restore_link_lfo_base_audio();
+        self.clear_all_link_arp_state();
         let before_payload = self.config_payload();
         let runtime = payload.get("runtimeConfig").unwrap_or(&payload);
         reject_old_layer_schema(runtime)?;

@@ -11,15 +11,24 @@ impl NativeRunner {
         self.restore_link_lfo_base_audio();
         for index in 0..self.pulses_layers.len() {
             let prefix = format!("layers.{index}.pulses");
+            let mut layer_changed = false;
             let Some(layer) = self.pulses_layers.get_mut(index) else {
                 continue;
             };
-            changed |= apply_pulses_scan_and_mapping_menu_state(&self.menu, layer, &prefix);
-            changed |= apply_pulses_probability_and_pitch_menu_state(&self.menu, layer, &prefix);
-            changed |= apply_pulses_axis_menu_state(&self.menu, layer, &prefix, "x");
-            changed |= apply_pulses_axis_menu_state(&self.menu, layer, &prefix, "y");
-            changed |=
+            layer_changed |= apply_pulses_scan_and_mapping_menu_state(&self.menu, layer, &prefix);
+            layer_changed |=
+                apply_pulses_probability_and_pitch_menu_state(&self.menu, layer, &prefix);
+            layer_changed |= apply_pulses_axis_menu_state(&self.menu, layer, &prefix, "x");
+            layer_changed |= apply_pulses_axis_menu_state(&self.menu, layer, &prefix, "y");
+            let arp_changed =
+                apply_link_arp_menu_state(&self.menu, layer, &format!("{prefix}.arp"));
+            layer_changed |= arp_changed;
+            layer_changed |=
                 apply_link_lfo_menu_state(&self.menu, layer, &format!("layers.{index}.linkLfo"));
+            if arp_changed {
+                self.clear_link_arp_state_for_layer(index);
+            }
+            changed |= layer_changed;
         }
         changed
     }
@@ -74,6 +83,80 @@ impl NativeRunner {
         self.sparks_fx_selected =
             json!({ "fxType": fx_type, "targetKey": target, "params": params });
         self.sparks_fx_selected != before
+    }
+}
+
+pub(super) fn apply_link_arp_menu_state(
+    menu: &crate::native_menu::NativeMenuModel,
+    layer: &mut NativePulsesLayer,
+    prefix: &str,
+) -> bool {
+    let before = layer.arp.clone();
+    if let Some(mode) = menu.value_for_key(&format!("{prefix}.mode")) {
+        layer.arp.mode = match mode.as_str() {
+            "none" | "direct" | "up" | "down" | "bounce" | "outside_in" | "rotating" | "random"
+            | "octave_spread" | "chord_strike" | "strum" => mode,
+            _ => "none".into(),
+        };
+    }
+    if let Some(source) = menu.value_for_key(&format!("{prefix}.source")) {
+        layer.arp.source = match source.as_str() {
+            "simultaneous" | "held" => source,
+            _ => "simultaneous".into(),
+        };
+    }
+    changed_set_u8(
+        menu,
+        &mut layer.arp.step_interval_steps,
+        &format!("{prefix}.stepIntervalSteps"),
+        1,
+        16,
+    );
+    changed_set_u16(
+        menu,
+        &mut layer.arp.note_length_ms,
+        &format!("{prefix}.noteLengthMs"),
+        10,
+        2000,
+    );
+    changed_set_u8(
+        menu,
+        &mut layer.arp.gate_pct,
+        &format!("{prefix}.gatePct"),
+        1,
+        100,
+    );
+    changed_set_u8(
+        menu,
+        &mut layer.arp.octave_spread,
+        &format!("{prefix}.octaveSpread"),
+        0,
+        3,
+    );
+    layer.arp != before
+}
+
+fn changed_set_u8(
+    menu: &crate::native_menu::NativeMenuModel,
+    target: &mut u8,
+    key: &str,
+    min: i32,
+    max: i32,
+) {
+    if let Some(value) = menu.number_for_key(key) {
+        *target = value.clamp(min, max) as u8;
+    }
+}
+
+fn changed_set_u16(
+    menu: &crate::native_menu::NativeMenuModel,
+    target: &mut u16,
+    key: &str,
+    min: i32,
+    max: i32,
+) {
+    if let Some(value) = menu.number_for_key(key) {
+        *target = value.clamp(min, max) as u16;
     }
 }
 

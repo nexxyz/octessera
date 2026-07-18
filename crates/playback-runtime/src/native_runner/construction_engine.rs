@@ -60,6 +60,7 @@ impl NativeRunner {
         for queue in &mut self.delayed_link_events {
             queue.clear();
         }
+        self.clear_all_link_arp_state();
     }
 
     pub(super) fn sync_engine_runtime_config(&mut self) {
