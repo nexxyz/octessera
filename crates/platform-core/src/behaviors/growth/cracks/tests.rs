@@ -155,3 +155,96 @@ fn default_tail_stays_bounded_and_non_terminal() {
         previous = visible;
     }
 }
+
+#[test]
+fn stress_accumulates_decays_and_static_nudge_is_deterministic() {
+    let mut c = ctx();
+    let s = cracks_deserialize(serde_json::json!({
+        "cells": [0], "stress": [0], "stressPct": 100,
+        "propagationPct": 0, "branchPct": 0, "shatterThreshold": 64
+    }))
+    .unwrap();
+    let t = cracks_on_tick(s, &mut c);
+    assert_eq!(t.stress[0], 96);
+    assert_eq!(t.cells[0], TIP);
+
+    let mut stressed = cracks_init(serde_json::json!({
+        "cells": vec![STRESS; CELL_COUNT],
+        "stress": vec![STRESS_VISIBLE; CELL_COUNT],
+        "stressPct": 0,
+        "propagationPct": 0
+    }))
+    .unwrap();
+    stressed.tick_counter = 0;
+    let decayed = cracks_on_tick(stressed, &mut c);
+    let decayed_index = decayed
+        .stress
+        .iter()
+        .position(|stress| *stress == STRESS_VISIBLE - 16)
+        .unwrap();
+    assert_eq!(decayed.cells[decayed_index], CLEAR);
+    assert_eq!(
+        decayed.trigger_types[decayed_index],
+        CellTriggerType::Deactivate
+    );
+
+    let mut static_state = cracks_deserialize(serde_json::json!({
+        "stressPct": 100, "propagationPct": 0
+    }))
+    .unwrap();
+    static_state.cells.fill(CLEAR);
+    static_state.stress.fill(0);
+    let nudged = cracks_on_tick(static_state, &mut c);
+    assert_eq!(nudged.cells[0], TIP);
+    assert_eq!(nudged.stress[0], 96);
+}
+
+#[test]
+fn pending_shatter_dissolves_to_new_impact_and_replace_clears_flag_state() {
+    let mut c = ctx();
+    let mut s = cracks_init(serde_json::json!({"pendingShatter": true, "stressPct": 0})).unwrap();
+    s.cells.fill(CLEAR);
+    s.stress.fill(0);
+    s.cells[grid_index(1, 1)] = CRACK;
+    s.stress[grid_index(2, 2)] = STRESS_VISIBLE;
+    for _ in 0..20 {
+        s = cracks_on_tick(s, &mut c);
+        if !s.pending_shatter {
+            break;
+        }
+    }
+    assert!(!s.pending_shatter);
+    assert_eq!(s.cells[grid_index(GRID_WIDTH / 2, GRID_HEIGHT / 2)], TIP);
+
+    let replaced = cracks_on_input(
+        s,
+        DeviceInput::BehaviorAction(BehaviorActionInput {
+            action_type: "replacePane".into(),
+        }),
+        &mut c,
+    );
+    assert!(replaced.cells.iter().all(|cell| *cell == CLEAR));
+    assert!(replaced.stress.iter().all(|stress| *stress == 0));
+}
+
+#[test]
+fn threshold_and_blocked_tip_semantics() {
+    let mut c = ctx();
+    let mut threshold = cracks_init(serde_json::json!({
+        "shatterThreshold": 3, "stressPct": 0, "propagationPct": 0
+    }))
+    .unwrap();
+    threshold.cells[0] = CRACK;
+    threshold.cells[1] = CRACK;
+    threshold.cells[2] = TIP;
+    assert!(cracks_on_tick(threshold, &mut c).pending_shatter);
+
+    let mut blocked = cracks_init(serde_json::json!({
+        "stressPct": 0, "propagationPct": 100, "branchPct": 100, "shatterThreshold": 64
+    }))
+    .unwrap();
+    blocked.cells.fill(CRACK);
+    blocked.cells[grid_index(3, 3)] = TIP;
+    let ticked = cracks_on_tick(blocked, &mut c);
+    assert_eq!(ticked.cells[grid_index(3, 3)], TIP);
+}

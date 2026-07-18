@@ -173,6 +173,52 @@ fn sectioned_scan_row_limits_output_to_current_section() {
 }
 
 #[test]
+fn sectioned_scan_column_limits_output_to_current_section_and_reverse() {
+    let previous = snapshot(&[0, 0, 0, 0, 0, 0, 0, 0]);
+    let next = snapshot(&[1, 0, 0, 0, 0, 1, 0, 0]);
+    let intents = interpret_grid(
+        &previous,
+        &next,
+        0,
+        &profile(TickStrategy::ScanColumnActive {
+            sections: Some(2),
+            reverse: true,
+        }),
+    );
+    let scanned = intents
+        .iter()
+        .filter(|intent| {
+            matches!(
+                intent.kind,
+                CellTriggerKind::Scanned | CellTriggerKind::ScannedEmpty
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(scanned.len(), 1);
+    assert_eq!((scanned[0].x, scanned[0].y), (3, 1));
+}
+
+#[test]
+fn zero_sized_scan_snapshot_is_safe() {
+    let empty = GridSnapshot {
+        width: 0,
+        height: 0,
+        cells: Vec::new(),
+        trigger_types: None,
+    };
+    assert!(interpret_grid(
+        &empty,
+        &empty,
+        12,
+        &profile(TickStrategy::ScanRowActive {
+            sections: None,
+            reverse: false,
+        }),
+    )
+    .is_empty());
+}
+
+#[test]
 fn scan_column_emits_scanned_and_scanned_empty_for_all_rows() {
     let previous = snapshot(&[0, 0, 0, 0, 0, 0, 0, 0]);
     let next = snapshot(&[1, 0, 0, 0, 0, 1, 0, 0]);

@@ -226,6 +226,17 @@ fn collect_behavior_liveness(behavior: NativeBehavior, ticks: usize) -> Behavior
 }
 
 #[test]
+fn native_behavior_default_liveness_probe_coverage_smoke() {
+    for id in list_native_behavior_ids() {
+        let behavior = get_native_behavior(id).unwrap();
+        let metrics = collect_behavior_liveness(behavior, PROBE_TICKS);
+        assert!(metrics.min_visible <= GRID_CELLS);
+        assert!(metrics.max_visible <= GRID_CELLS);
+        assert!(!metrics.classification.is_empty());
+    }
+}
+
+#[test]
 #[ignore]
 fn native_behavior_default_liveness_probe() {
     println!(

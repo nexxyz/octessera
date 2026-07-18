@@ -317,6 +317,39 @@ mod tests {
     }
 
     #[test]
+    fn seed_cluster_action_and_no_frontier_tick_are_stable() {
+        let mut context = BehaviorContext::new(120.0);
+        let empty = DlaState {
+            cells: vec![false; CELL_COUNT],
+            ages: vec![0; CELL_COUNT],
+            trigger_types: vec![CellTriggerType::None; CELL_COUNT],
+            spawn_interval: 1,
+            spawn_step: 0,
+            cell_life: 0,
+            tick_counter: 0,
+        };
+        let ticked = dla_on_tick(empty.clone(), &mut context);
+        assert!(ticked.cells.iter().all(|cell| !*cell));
+        assert!(ticked
+            .trigger_types
+            .iter()
+            .all(|trigger| *trigger == CellTriggerType::None));
+
+        let seeded = dla_on_input(
+            empty,
+            DeviceInput::BehaviorAction(BehaviorActionInput {
+                action_type: "seedCluster".into(),
+            }),
+            &mut context,
+        );
+        assert!(seeded.cells.iter().filter(|cell| **cell).count() >= 1);
+        assert!(seeded
+            .trigger_types
+            .iter()
+            .any(|trigger| *trigger == CellTriggerType::Activate));
+    }
+
+    #[test]
     fn cell_life_expires_old_cells_and_reseeds_when_empty() {
         let mut context = BehaviorContext::new(120.0);
         let state = DlaState {

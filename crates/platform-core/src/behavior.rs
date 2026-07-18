@@ -159,3 +159,69 @@ pub trait BehaviorEngine<State, Config> {
         None
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct DummyEngine;
+
+    impl BehaviorEngine<(), ()> for DummyEngine {
+        fn id(&self) -> &'static str {
+            "dummy"
+        }
+
+        fn init(&self, _config: ()) {}
+
+        fn on_input(&self, state: (), _input: DeviceInput, context: &mut BehaviorContext) {
+            context.emit(MusicalEvent::NoteOn {
+                channel: 0,
+                note: 60,
+                velocity: 90,
+                duration_ms: Some(10),
+            });
+            state
+        }
+
+        fn on_tick(&self, state: (), _context: &mut BehaviorContext) {
+            state
+        }
+
+        fn render_model(&self, _state: &()) -> BehaviorRenderModel {
+            BehaviorRenderModel {
+                name: "dummy".into(),
+                status_line: "ok".into(),
+                cells: vec![false; 64],
+                palette: Default::default(),
+                trigger_types: None,
+            }
+        }
+
+        fn serialize(&self, _state: &()) -> serde_json::Value {
+            serde_json::Value::Null
+        }
+
+        fn deserialize(&self, _data: serde_json::Value) -> Result<(), String> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn default_engine_metadata_and_context_emit_work() {
+        let engine = DummyEngine;
+        assert_eq!(engine.id(), "dummy");
+        assert_eq!(engine.config_menu(&()), None);
+        assert!(!engine.interpret_input_transitions());
+        assert_eq!(engine.grid_interaction(), None);
+        let mut context = BehaviorContext::new(90.0);
+        engine.init(());
+        engine.on_input((), DeviceInput::Other, &mut context);
+        engine.on_tick((), &mut context);
+        let model = engine.render_model(&());
+        assert_eq!(model.name, "dummy");
+        let serialized = engine.serialize(&());
+        assert_eq!(serialized, serde_json::Value::Null);
+        assert_eq!(engine.deserialize(serialized), Ok(()));
+        assert_eq!(context.emitted_events.len(), 1);
+    }
+}

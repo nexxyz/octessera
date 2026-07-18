@@ -182,3 +182,96 @@ fn default_tail_stays_bounded_and_non_terminal() {
         previous = next;
     }
 }
+
+#[test]
+fn legacy_config_clamps_inactive_agents_and_round_trips_food_trail() {
+    let mut x = vec![serde_json::Value::from(999); 40];
+    let mut y = vec![serde_json::Value::from(-9); 40];
+    let heading = vec![serde_json::Value::from(15); 40];
+    x[1] = serde_json::Value::from(16);
+    y[1] = serde_json::Value::from(32);
+    let s = physarum_deserialize(serde_json::json!({
+        "x": x, "y": y, "heading": heading,
+        "activeCount": 2,
+        "trail": [12, 300, "bad"],
+        "food": [0, 2, "bad", 1],
+        "senseDistance": 0,
+        "depositAmount": 0,
+        "evaporationPct": 120,
+        "turnBiasPct": 120
+    }))
+    .unwrap();
+    assert_eq!(s.agent_count, 2);
+    assert_eq!(s.x[0], WORLD_MAX_X);
+    assert_eq!(s.y[0], 0);
+    assert_eq!(s.heading[0], 7);
+    assert_eq!(s.x[2], 0);
+    assert_eq!(s.heading[2], 0);
+    assert_eq!(s.trail[1], 255);
+    assert_eq!(s.food[1], 1);
+    assert_eq!(s.sense_distance, 1);
+    assert_eq!(s.deposit_amount, 1);
+    assert_eq!(s.evaporation_pct, 100);
+    assert_eq!(s.turn_bias_pct, 100);
+    let value = physarum_serialize(&s).unwrap();
+    assert_eq!(
+        physarum_serialize(&physarum_deserialize(value.clone()).unwrap()).unwrap(),
+        value
+    );
+}
+
+#[test]
+fn relocate_food_cycles_all_patterns_and_renders_food() {
+    let mut c = ctx();
+    let mut s = physarum_init(serde_json::json!({"agentCount": 1, "foodPattern": 0})).unwrap();
+    for expected in 1..=4 {
+        s = physarum_on_input(
+            s,
+            DeviceInput::BehaviorAction(BehaviorActionInput {
+                action_type: "relocateFood".into(),
+            }),
+            &mut c,
+        );
+        assert_eq!(s.food_pattern, expected % 4);
+        let food_cells = s.food.iter().filter(|cell| **cell == 1).count();
+        assert!(food_cells > 0);
+        let model = physarum_render_model(&s);
+        for (index, food) in s.food.iter().enumerate() {
+            if *food == 1 {
+                assert!(model.cells[index]);
+            }
+        }
+    }
+}
+
+#[test]
+fn boundary_reflection_covers_left_bottom_edges_and_food_drift() {
+    let mut c = ctx();
+    let mut left =
+        physarum_init(serde_json::json!({"agentCount": 1, "evaporationPct": 0})).unwrap();
+    left.food.fill(0);
+    left.x[0] = 0;
+    left.y[0] = UNIT;
+    left.heading[0] = 4;
+    let left = physarum_on_tick(left, &mut c);
+    assert_eq!(left.x[0], 0);
+    assert_eq!(left.heading[0], 0);
+
+    let mut bottom =
+        physarum_init(serde_json::json!({"agentCount": 1, "evaporationPct": 0})).unwrap();
+    bottom.food.fill(0);
+    bottom.x[0] = UNIT;
+    bottom.y[0] = 0;
+    bottom.heading[0] = 6;
+    let bottom = physarum_on_tick(bottom, &mut c);
+    assert_eq!(bottom.y[0], 0);
+    assert_eq!(bottom.heading[0], 2);
+
+    let mut drifting =
+        physarum_init(serde_json::json!({"agentCount": 1, "foodPattern": 0})).unwrap();
+    drifting.food.fill(0);
+    drifting.tick_counter = 7;
+    let drifted = physarum_on_tick(drifting, &mut c);
+    assert_eq!(drifted.food[grid_index(0, 0)], 1);
+    assert!(drifted.food.iter().filter(|food| **food == 1).count() >= 2);
+}

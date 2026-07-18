@@ -228,3 +228,60 @@ fn default_self_sustains_with_bounded_renewal() {
     assert!(terminal_full <= 2);
     assert!(final_frames.windows(2).any(|window| window[0] != window[1]));
 }
+
+#[test]
+fn walker_normalization_preserves_paths_and_serializes_short_state() {
+    let mut cells = vec![WALL; CELL_COUNT];
+    cells[0] = PATH;
+    cells[1] = WALKER;
+    cells[2] = WALKER;
+    cells[3] = WALKER;
+    let state = maze_growth_deserialize(json!({
+        "cells": cells,
+        "visited": [1],
+        "ages": ["old", 9],
+        "walkers": [1, 1, CELL_COUNT + 9, 2],
+        "walkerCount": 2,
+        "carvePct": "fast"
+    }))
+    .unwrap();
+    assert_eq!(state.walkers, vec![1, 2]);
+    assert_eq!(state.cells[0], PATH);
+    assert_eq!(state.cells[3], PATH);
+    assert_eq!(state.visited.len(), CELL_COUNT);
+    assert_eq!(state.ages[0], 0);
+    assert_eq!(state.carve_pct, 100);
+    let value = maze_growth_serialize(&state).unwrap();
+    assert_eq!(value["walkers"], json!([1, 2]));
+    assert_eq!(value["cells"].as_array().unwrap().len(), CELL_COUNT);
+}
+
+#[test]
+fn collapse_and_exhaustion_preserve_walker_cells() {
+    let mut ctx = context();
+    let mut cells = vec![PATH; CELL_COUNT];
+    let ages = (0..CELL_COUNT).map(|i| i as u8).collect::<Vec<_>>();
+    cells[grid_index(7, 7)] = WALKER;
+    let state = maze_growth_init(json!({
+        "cells": cells,
+        "ages": ages,
+        "walkers": [grid_index(7, 7)],
+        "walkerCount": 1,
+        "collapseAge": 64,
+        "carvePct": 0
+    }))
+    .unwrap();
+    let collapsed = maze_growth_on_input(
+        state.clone(),
+        DeviceInput::BehaviorAction(BehaviorActionInput {
+            action_type: "collapseMaze".into(),
+        }),
+        &mut ctx,
+    );
+    assert_eq!(collapsed.cells[grid_index(7, 7)], WALKER);
+    assert_eq!(collapsed.cells.iter().filter(|c| **c == WALL).count(), 8);
+
+    let renewed = maze_growth_on_tick(state, &mut ctx);
+    assert_eq!(renewed.cells[renewed.walkers[0]], WALKER);
+    assert_eq!(renewed.cells.iter().filter(|c| **c == WALL).count(), 1);
+}

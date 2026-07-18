@@ -151,6 +151,45 @@ fn spawn_glider_action_adds_glider_pattern() {
 }
 
 #[test]
+fn spawn_random_action_and_random_tick_spawn_activate_cells() {
+    let mut context = BehaviorContext::new(120.0);
+    let empty = init(serde_json::json!({ "cells": [] })).unwrap();
+    let spawned = on_input(
+        empty.clone(),
+        DeviceInput::BehaviorAction(BehaviorActionInput {
+            action_type: "spawnRandom".into(),
+        }),
+        &mut context,
+    );
+    assert!(spawned.cells.iter().filter(|cell| **cell).count() > 0);
+    assert!(spawned
+        .trigger_types
+        .iter()
+        .any(|trigger| *trigger == CellTriggerType::Activate));
+
+    let random_tick = init(serde_json::json!({
+        "cells": [],
+        "randomCellsPerTick": 4,
+        "randomTickInterval": 1,
+        "spawnStep": 0
+    }))
+    .unwrap();
+    let ticked = on_tick(random_tick, &mut context);
+    assert!(ticked.cells.iter().filter(|cell| **cell).count() > 0);
+    assert!(ticked
+        .trigger_types
+        .iter()
+        .any(|trigger| *trigger == CellTriggerType::Activate));
+
+    let ignored = on_input(
+        spawned.clone(),
+        DeviceInput::GridPress { x: 99, y: 0 },
+        &mut context,
+    );
+    assert_eq!(ignored, spawned);
+}
+
+#[test]
 fn glider_interval_is_disabled_by_default_and_spawn_step_delays_it() {
     let mut context = BehaviorContext::new(120.0);
     let default_state = init(serde_json::json!({ "cells": [] })).unwrap();

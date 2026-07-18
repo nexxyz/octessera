@@ -1,5 +1,6 @@
 use super::*;
 use crate::behavior::{BehaviorContext, CellTriggerType, DeviceInput, GridInteraction};
+use crate::behaviors::native_impl::common::CELL_COUNT;
 use serde_json::Value;
 use std::collections::HashSet;
 
@@ -248,6 +249,8 @@ fn behavior_catalog_matches_registry() {
         .collect::<HashSet<_>>();
 
     for entry in behavior_catalog() {
+        assert!(!entry.id.trim().is_empty(), "empty catalog id");
+        assert!(!entry.label.trim().is_empty(), "empty catalog label");
         assert!(
             catalog_ids.insert(entry.id),
             "duplicate behavior catalog id"
@@ -265,12 +268,138 @@ fn behavior_catalog_matches_registry() {
     assert_eq!(catalog_ids, list_ids);
 
     for category in behavior_categories() {
+        assert!(!category.id.trim().is_empty(), "empty category id");
+        assert!(!category.label.trim().is_empty(), "empty category label");
+        assert!(
+            category_ids.contains(category.id),
+            "category id disappeared from category set"
+        );
+        assert!(!category.behavior_ids.is_empty(), "empty category");
         assert!(
             category
                 .behavior_ids
                 .iter()
                 .all(|behavior_id| catalog_ids.contains(behavior_id)),
             "category includes unknown behavior id"
+        );
+    }
+}
+
+#[test]
+fn registry_ids_round_trip_and_pattern_membership_is_explicit() {
+    let pattern_ids = HashSet::from([
+        "weave",
+        "polyrhythm",
+        "breaks",
+        "fills",
+        "clave",
+        "groove",
+        "euclid",
+        "ostinato",
+        "motif",
+        "canon",
+        "chords",
+        "contour",
+        "cadence",
+        "phrase",
+    ]);
+
+    for id in list_native_behavior_ids() {
+        let behavior = get_native_behavior(id).unwrap();
+        assert_eq!(behavior.id(), *id);
+        assert_eq!(behavior.is_pattern(), pattern_ids.contains(id));
+    }
+
+    for id in ["none", "life", "gravity", "lava_lamp", "physarum"] {
+        assert!(!get_native_behavior(id).unwrap().is_pattern());
+    }
+}
+
+#[test]
+fn direct_pattern_variants_and_native_lifecycle_errors_are_covered() {
+    let patterns = [
+        NativeBehavior::Weave,
+        NativeBehavior::Polyrhythm,
+        NativeBehavior::Breaks,
+        NativeBehavior::Fills,
+        NativeBehavior::Clave,
+        NativeBehavior::Groove,
+        NativeBehavior::Euclid,
+        NativeBehavior::Ostinato,
+        NativeBehavior::Motif,
+        NativeBehavior::Canon,
+        NativeBehavior::Chords,
+        NativeBehavior::Contour,
+        NativeBehavior::Cadence,
+        NativeBehavior::Phrase,
+    ];
+    for behavior in patterns {
+        assert!(behavior.is_pattern());
+        let state = behavior.init_native(Value::Null).unwrap();
+        assert!(matches!(state, NativeBehaviorState::Pattern(_)));
+        let state = behavior
+            .deserialize_native(behavior.serialize(&state).unwrap())
+            .unwrap();
+        assert!(matches!(state, NativeBehaviorState::Pattern(_)));
+    }
+
+    for behavior in [
+        NativeBehavior::None,
+        NativeBehavior::Life,
+        NativeBehavior::Sequencer,
+    ] {
+        assert!(behavior.init_native(Value::Null).is_err());
+        assert!(behavior.deserialize_native(Value::Null).is_err());
+    }
+}
+
+#[test]
+fn direct_native_lifecycle_covers_all_native_variants() {
+    let native_variants = [
+        NativeBehavior::Keys,
+        NativeBehavior::Looper,
+        NativeBehavior::Brain,
+        NativeBehavior::Cyclic,
+        NativeBehavior::ForestFire,
+        NativeBehavior::PredatorPrey,
+        NativeBehavior::Ant,
+        NativeBehavior::Boids,
+        NativeBehavior::Bounce,
+        NativeBehavior::Bubbles,
+        NativeBehavior::Gravity,
+        NativeBehavior::LavaLamp,
+        NativeBehavior::Orbit,
+        NativeBehavior::SandRipples,
+        NativeBehavior::FractalExplorer,
+        NativeBehavior::MazeGrowth,
+        NativeBehavior::Shapes,
+        NativeBehavior::Ink,
+        NativeBehavior::Ising,
+        NativeBehavior::Kuramoto,
+        NativeBehavior::Lightning,
+        NativeBehavior::Wave,
+        NativeBehavior::Raindrops,
+        NativeBehavior::ReactionDiffusion,
+        NativeBehavior::Rivers,
+        NativeBehavior::Cracks,
+        NativeBehavior::Coral,
+        NativeBehavior::CrystalGrowth,
+        NativeBehavior::Dla,
+        NativeBehavior::Physarum,
+        NativeBehavior::Vines,
+    ];
+
+    for behavior in native_variants {
+        let state = behavior.init_native(Value::Null).unwrap();
+        assert_eq!(
+            behavior.render_model(&state).unwrap().cells.len(),
+            CELL_COUNT
+        );
+        let serialized = behavior.serialize(&state).unwrap();
+        let restored = behavior.deserialize_native(serialized).unwrap();
+        assert_eq!(
+            behavior.render_model(&restored).unwrap().cells.len(),
+            CELL_COUNT
         );
     }
 }

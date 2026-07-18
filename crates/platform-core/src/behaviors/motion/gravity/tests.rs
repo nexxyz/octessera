@@ -96,6 +96,86 @@ fn grid_press_and_fall_non_wrapping_one_step() {
 }
 
 #[test]
+fn direction_edges_and_one_step_motion_do_not_wrap() {
+    let mut context = context();
+    let cases = [
+        ("down", (3, GRID_HEIGHT - 1), (3, 0), (3, 4), (3, 3)),
+        ("left", (GRID_WIDTH - 1, 3), (0, 3), (4, 3), (3, 3)),
+        ("up", (3, 0), (3, GRID_HEIGHT - 1), (3, 3), (3, 4)),
+        ("right", (0, 3), (GRID_WIDTH - 1, 3), (3, 3), (4, 3)),
+    ];
+
+    for (dir, source, dest, origin, moved) in cases {
+        let state = gravity_init(serde_json::json!({
+            "gravityDir": dir,
+            "spawnRatePct": 0,
+            "slideChancePct": 0,
+            "settleAge": 8
+        }))
+        .unwrap();
+        let dropped = gravity_on_input(
+            state,
+            DeviceInput::BehaviorAction(BehaviorActionInput {
+                action_type: "dropSand".into(),
+            }),
+            &mut context,
+        );
+        assert_eq!(dropped.cells[grid_index(source.0, source.1)], SAND, "{dir}");
+
+        let cleared = gravity_on_input(
+            dropped,
+            DeviceInput::BehaviorAction(BehaviorActionInput {
+                action_type: "clearBottom".into(),
+            }),
+            &mut context,
+        );
+        assert_eq!(cleared.cells[grid_index(dest.0, dest.1)], EMPTY, "{dir}");
+
+        let mut state = gravity_init(serde_json::json!({
+            "gravityDir": dir,
+            "spawnRatePct": 0,
+            "slideChancePct": 0
+        }))
+        .unwrap();
+        state.cells[grid_index(origin.0, origin.1)] = SAND;
+        let ticked = gravity_on_tick(state, &mut context);
+        assert_eq!(ticked.cells[grid_index(origin.0, origin.1)], EMPTY, "{dir}");
+        assert_eq!(ticked.cells[grid_index(moved.0, moved.1)], SAND, "{dir}");
+        assert_eq!(ticked.cells[grid_index(dest.0, dest.1)], EMPTY, "{dir}");
+    }
+}
+
+#[test]
+fn short_legacy_payload_normalizes_and_round_trips() {
+    let state = gravity_deserialize(serde_json::json!({
+        "cells": [1, 0, 7],
+        "age": [999],
+        "gravityDir": "right",
+        "spawnRatePct": 101,
+        "slideChancePct": 101,
+        "settleAge": 0
+    }))
+    .unwrap();
+
+    assert_eq!(state.cells.len(), CELL_COUNT);
+    assert_eq!(state.age.len(), CELL_COUNT);
+    assert_eq!(state.cells[0], SAND);
+    assert_eq!(state.cells[2], SAND);
+    assert_eq!(state.age[0], u8::MAX);
+    assert_eq!(state.age[2], 0);
+    assert_eq!(state.gravity_dir, "right");
+    assert_eq!(state.settle_age, 1);
+    assert_eq!(state.spawn_rate_pct, 100);
+    assert_eq!(state.slide_chance_pct, 100);
+
+    let serialized = gravity_serialize(&state).unwrap();
+    assert_eq!(
+        gravity_serialize(&gravity_deserialize(serialized.clone()).unwrap()).unwrap(),
+        serialized
+    );
+}
+
+#[test]
 fn slide_clear_bottom_invert_and_spawn_are_deterministic() {
     let mut context = context();
     let mut state = base();

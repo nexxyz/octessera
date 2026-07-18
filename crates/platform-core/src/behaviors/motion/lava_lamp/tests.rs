@@ -69,6 +69,90 @@ fn input_actions() {
     let p = lava_lamp_on_input(r, DeviceInput::GridPress { x: 0, y: 0 }, &mut c);
     assert!(p.trigger_types[grid_index(0, 0)] != CellTriggerType::None)
 }
+
+#[test]
+fn grid_press_at_blob_cap_replaces_nearest_blob() {
+    let mut c = ctx();
+    let s = lava_lamp_init(json!({
+        "activeCount": 8,
+        "blobCount": 8,
+        "x": [8, 24, 40, 56, 72, 88, 104, 120],
+        "y": [8, 24, 40, 56, 72, 88, 104, 120],
+        "radius": [18, 18, 18, 18, 18, 18, 18, 18]
+    }))
+    .unwrap();
+    let pressed = lava_lamp_on_input(s, DeviceInput::GridPress { x: 7, y: 7 }, &mut c);
+
+    assert_eq!(pressed.active_count, 8);
+    assert_eq!(pressed.blob_count, 8);
+    assert_eq!(pressed.x[7], 120);
+    assert_eq!(pressed.y[7], 120);
+    assert_eq!(pressed.vx[7], 0);
+    assert_eq!(pressed.vy[7], 0);
+    assert_eq!(pressed.x[0], 8);
+}
+
+#[test]
+fn reset_normalizes_inactive_tail_and_updates_visible_triggers() {
+    let mut c = ctx();
+    let s = lava_lamp_init(json!({
+        "activeCount": 8,
+        "blobCount": 8,
+        "x": [8,24,40,56,72,88,104,120],
+        "y": [120,104,88,72,56,40,24,8],
+        "vx": [12,12,12,12,12,12,12,12],
+        "vy": [-12,-12,-12,-12,-12,-12,-12,-12],
+        "radius": [40,40,40,40,40,40,40,40]
+    }))
+    .unwrap();
+
+    let reset = lava_lamp_on_input(
+        s,
+        DeviceInput::BehaviorAction(BehaviorActionInput {
+            action_type: "resetBlobs".into(),
+        }),
+        &mut c,
+    );
+
+    assert_eq!(reset.active_count, 4);
+    assert_eq!(reset.blob_count, 4);
+    assert_eq!(&reset.x[4..], &[0, 0, 0, 0]);
+    assert_eq!(&reset.y[4..], &[0, 0, 0, 0]);
+    assert_eq!(&reset.vx[4..], &[0, 0, 0, 0]);
+    assert_eq!(&reset.vy[4..], &[0, 0, 0, 0]);
+    assert_eq!(&reset.radius[4..], &[18, 18, 18, 18]);
+    assert!(reset
+        .trigger_types
+        .iter()
+        .any(|trigger| *trigger == CellTriggerType::Activate));
+    assert!(reset
+        .trigger_types
+        .iter()
+        .any(|trigger| *trigger == CellTriggerType::Deactivate));
+}
+
+#[test]
+fn boundary_velocity_reflects_on_both_axes() {
+    let mut c = ctx();
+    let s = lava_lamp_init(json!({
+        "activeCount": 1,
+        "blobCount": 1,
+        "x": [0],
+        "y": [127],
+        "vx": [-12],
+        "vy": [12],
+        "viscosityPct": 0,
+        "heatPct": 0,
+        "mergePct": 0
+    }))
+    .unwrap();
+    let ticked = lava_lamp_on_tick(s, &mut c);
+
+    assert!((0..=16).contains(&ticked.x[0]));
+    assert!((MAX_POS - 16..=MAX_POS).contains(&ticked.y[0]));
+    assert!(ticked.vx[0] > 0);
+}
+
 #[test]
 fn tick_merge_split_reflect() {
     let mut c = ctx();
