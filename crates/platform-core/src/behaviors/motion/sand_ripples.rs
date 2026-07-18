@@ -143,6 +143,10 @@ pub fn sand_ripples_on_tick(mut s: SandRipplesState, _: &mut BehaviorContext) ->
             }
         }
     }
+    if wind > 0 && visible_cells(&prev) == visible_cells(&rendered_values(&ns, &nc)) {
+        renew_one_dune(&mut ns, &mut nc, s.tick_counter, &mut forced);
+    }
+    prevent_full_saturation(&mut ns, &mut nc, s.tick_counter, &mut forced);
     s.sand = ns;
     s.crest = nc;
     s.gust_ticks = s.gust_ticks.saturating_sub(1);
@@ -260,6 +264,28 @@ fn seed_dunes(s: &mut SandRipplesState) -> Vec<usize> {
     }
     forced
 }
+fn renew_one_dune(sand: &mut [u8], crest: &mut [u8], tick: u64, forced: &mut Vec<usize>) {
+    let start = (tick as usize * 5) % CELL_COUNT;
+    let index = (0..CELL_COUNT)
+        .map(|offset| (start + offset) % CELL_COUNT)
+        .find(|index| sand[*index].max(crest[*index]) < VISIBLE)
+        .unwrap_or(start);
+    sand[index] = sand[index].max(80);
+    crest[index] = crest[index].max(72);
+    forced.push(index);
+}
+fn prevent_full_saturation(sand: &mut [u8], crest: &mut [u8], tick: u64, forced: &mut Vec<usize>) {
+    if !rendered_values(sand, crest)
+        .iter()
+        .all(|value| *value >= VISIBLE)
+    {
+        return;
+    }
+    let index = ((tick as usize) * 11) % CELL_COUNT;
+    sand[index] = 0;
+    crest[index] = 0;
+    forced.push(index);
+}
 fn downwind(i: usize, w: &str) -> Option<usize> {
     let x = i % GRID_WIDTH;
     let y = i / GRID_WIDTH;
@@ -276,7 +302,13 @@ fn downwind(i: usize, w: &str) -> Option<usize> {
     }
 }
 fn rendered(s: &SandRipplesState) -> Vec<u8> {
-    (0..CELL_COUNT).map(|i| rendered_cell(s, i)).collect()
+    rendered_values(&s.sand, &s.crest)
+}
+fn rendered_values(sand: &[u8], crest: &[u8]) -> Vec<u8> {
+    (0..CELL_COUNT).map(|i| sand[i].max(crest[i])).collect()
+}
+fn visible_cells(values: &[u8]) -> Vec<bool> {
+    values.iter().map(|value| *value >= VISIBLE).collect()
 }
 fn rendered_cell(s: &SandRipplesState, i: usize) -> u8 {
     s.sand[i].max(s.crest[i])

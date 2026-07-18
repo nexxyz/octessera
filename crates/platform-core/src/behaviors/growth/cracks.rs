@@ -52,7 +52,12 @@ struct Config {
 }
 
 pub fn cracks_init(config: Value) -> Result<CracksState, String> {
+    let seed_default =
+        matches!(&config, Value::Null) || config.as_object().is_some_and(|o| o.is_empty());
     let mut s = from_config(config);
+    if seed_default && visible_cells(&s.cells, &s.stress).iter().all(|cell| !*cell) {
+        impact(&mut s, GRID_WIDTH / 2, GRID_HEIGHT / 2);
+    }
     s.trigger_types = triggers(&s.cells, &s.stress, &s.cells, &s.stress, &[]);
     Ok(s)
 }
@@ -102,8 +107,13 @@ pub fn cracks_on_tick(mut state: CracksState, _: &mut BehaviorContext) -> Cracks
     let ps = state.stress.clone();
     let mut forced = Vec::new();
     if state.pending_shatter {
-        replace(&mut state);
-        state.pending_shatter = false;
+        dissolve_pane(&mut state);
+        state.pending_shatter = visible_cells(&state.cells, &state.stress)
+            .iter()
+            .any(|v| *v);
+        if !state.pending_shatter {
+            impact(&mut state, GRID_WIDTH / 2, GRID_HEIGHT / 2);
+        }
         state.trigger_types = triggers(&pc, &ps, &state.cells, &state.stress, &[]);
         return state;
     }
@@ -129,6 +139,11 @@ pub fn cracks_on_tick(mut state: CracksState, _: &mut BehaviorContext) -> Cracks
             }
         }
     }
+    if state.stress_pct > 0 && !state.cells.contains(&TIP) {
+        let x = (state.tick_counter as usize) % GRID_WIDTH;
+        let y = ((state.tick_counter / GRID_WIDTH as u64) as usize) % GRID_HEIGHT;
+        forced.extend(impact(&mut state, x, y));
+    }
     for i in 0..CELL_COUNT {
         if state.cells[i] <= STRESS
             && hash(state.tick_counter, i) % 100 < u64::from(state.stress_pct)
@@ -138,10 +153,20 @@ pub fn cracks_on_tick(mut state: CracksState, _: &mut BehaviorContext) -> Cracks
                 state.cells[i] = STRESS;
             }
         }
+        if state.cells[i] <= STRESS
+            && state.stress[i] > 0
+            && hash(state.tick_counter + 7, i) % 100 < 8
+        {
+            state.stress[i] = state.stress[i].saturating_sub(16);
+            if state.stress[i] < STRESS_VISIBLE && state.cells[i] == STRESS {
+                state.cells[i] = CLEAR;
+            }
+        }
     }
     if crack_count(&state) >= usize::from(state.shatter_threshold) || connects_edges(&state) {
         state.pending_shatter = true;
     }
+    nudge_if_static(&mut state, &pc, &ps);
     state.tick_counter = state.tick_counter.wrapping_add(1);
     state.trigger_types = triggers(&pc, &ps, &state.cells, &state.stress, &forced);
     state
@@ -186,7 +211,7 @@ fn from_config(v: Value) -> CracksState {
         trigger_types: norm_triggers(c.trigger_types),
         stress_pct: num(c.stress_pct, 20, 100),
         branch_pct: num(c.branch_pct, 18, 100),
-        propagation_pct: num(c.propagation_pct, 65, 100),
+        propagation_pct: num(c.propagation_pct, 100, 100),
         shatter_threshold: num(c.shatter_threshold, 24, 64).max(1),
     };
     normalize(&mut s);
@@ -248,10 +273,40 @@ fn replace(s: &mut CracksState) {
     s.cells.fill(CLEAR);
     s.stress.fill(0)
 }
+fn dissolve_pane(s: &mut CracksState) {
+    for i in 0..CELL_COUNT {
+        if hash(s.tick_counter, i).is_multiple_of(4) {
+            s.cells[i] = CLEAR;
+            s.stress[i] = 0;
+        } else if s.cells[i] <= STRESS {
+            s.stress[i] = s.stress[i].saturating_sub(64);
+            if s.stress[i] < STRESS_VISIBLE {
+                s.cells[i] = CLEAR;
+            }
+        }
+    }
+    s.tick_counter = s.tick_counter.wrapping_add(1);
+}
 fn visible_cells(c: &[u8], st: &[u8]) -> Vec<bool> {
     (0..CELL_COUNT)
         .map(|i| c[i] == CRACK || c[i] == TIP || st[i] >= STRESS_VISIBLE)
         .collect()
+}
+fn nudge_if_static(s: &mut CracksState, pc: &[u8], ps: &[u8]) {
+    if s.stress_pct == 0 {
+        return;
+    }
+    if visible_cells(pc, ps) != visible_cells(&s.cells, &s.stress) {
+        return;
+    }
+    let index = (s.tick_counter as usize * 13) % CELL_COUNT;
+    if s.cells[index] <= STRESS && s.stress[index] >= STRESS_VISIBLE {
+        s.cells[index] = CLEAR;
+        s.stress[index] = 0;
+    } else if s.cells[index] <= STRESS {
+        s.cells[index] = STRESS;
+        s.stress[index] = STRESS_VISIBLE;
+    }
 }
 fn triggers(pc: &[u8], ps: &[u8], nc: &[u8], ns: &[u8], forced: &[usize]) -> Vec<CellTriggerType> {
     let pv = visible_cells(pc, ps);

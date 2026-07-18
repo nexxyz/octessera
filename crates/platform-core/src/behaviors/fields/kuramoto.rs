@@ -137,9 +137,9 @@ fn state_from_config(config: Value) -> KuramotoState {
         phases: normalize_values(config.phases.unwrap_or_default(), 0),
         frequencies: normalize_values(config.frequencies.unwrap_or_default(), 4),
         trigger_types: normalize_triggers(config.trigger_types),
-        coupling_pct: number(config.coupling_pct, 35, 100),
+        coupling_pct: number(config.coupling_pct, 10, 100),
         frequency_spread,
-        jitter_pct: number(config.jitter_pct, 3, 100),
+        jitter_pct: number(config.jitter_pct, 20, 100),
         jitter_state: config
             .jitter_state
             .and_then(|value| value.as_u64())

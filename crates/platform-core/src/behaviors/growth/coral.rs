@@ -167,6 +167,7 @@ pub fn coral_on_tick(mut state: CoralState, _: &mut BehaviorContext) -> CoralSta
             state.ages[i] = 0
         }
     }
+    thin_full_frame(&mut state);
     state.tick_counter = state.tick_counter.wrapping_add(1);
     state.trigger_types = triggers(&prev, &state.cells, &forced);
     state
@@ -316,6 +317,23 @@ fn break_action(s: &mut CoralState) {
     for (_, _, i) in rows.into_iter().take(8) {
         s.cells[i] = EMPTY;
         s.ages[i] = 0
+    }
+}
+fn thin_full_frame(s: &mut CoralState) {
+    if s.cells.contains(&EMPTY) {
+        return;
+    }
+    let mut removed = 0;
+    for offset in 0..CELL_COUNT {
+        let i = ((s.tick_counter as usize * 11) + offset) % CELL_COUNT;
+        if removed >= 4 {
+            break;
+        }
+        if s.cells[i] == DEAD || exposed(&s.cells, i) || hash_pct(s.tick_counter, i, 71) < 25 {
+            s.cells[i] = EMPTY;
+            s.ages[i] = 0;
+            removed += 1;
+        }
     }
 }
 fn hash_pct(tick: u64, index: usize, salt: u64) -> u32 {

@@ -81,7 +81,7 @@ fn propagation_branch_no_wrap_and_stress_stable() {
     assert_eq!(t.cells[grid_index(3, 4)], TIP);
     assert_ne!(t.cells[grid_index(4, 3)], TIP);
 
-    let mut s = cracks_init(serde_json::json!({})).unwrap();
+    let mut s = cracks_init(serde_json::json!({"stressPct":0})).unwrap();
     s.cells[0] = STRESS;
     s.stress[0] = STRESS_VISIBLE;
     let t = cracks_on_tick(s, &mut c);
@@ -118,7 +118,40 @@ fn shatter_pending_then_replacement() {
     s.cells[0] = TIP;
     let t = cracks_on_tick(s, &mut c);
     assert!(t.pending_shatter);
-    let cleared = cracks_on_tick(t, &mut c);
-    assert!(cleared.cells.iter().all(|v| *v == CLEAR));
-    assert_eq!(cleared.trigger_types[0], CellTriggerType::Deactivate);
+    let dissolving = cracks_on_tick(t, &mut c);
+    assert!(dissolving.cells.iter().filter(|v| **v != CLEAR).count() < CELL_COUNT);
+    assert!(dissolving.pending_shatter);
+}
+
+#[test]
+fn default_tail_stays_bounded_and_non_terminal() {
+    let mut c = ctx();
+    let mut s = cracks_init(serde_json::json!({})).unwrap();
+    let mut same = 0;
+    let mut terminal = 0;
+    let mut previous = visible_cells(&s.cells, &s.stress);
+    for _ in 0..300 {
+        s = cracks_on_tick(s, &mut c);
+        let visible = visible_cells(&s.cells, &s.stress);
+        same = if visible == previous { same + 1 } else { 0 };
+        terminal = if visible.iter().all(|v| *v) || visible.iter().all(|v| !*v) {
+            terminal + 1
+        } else {
+            0
+        };
+        assert!(same <= 2);
+        assert!(terminal <= 2);
+        let bursts = s
+            .trigger_types
+            .iter()
+            .filter(|trigger| {
+                matches!(
+                    trigger,
+                    CellTriggerType::Activate | CellTriggerType::Deactivate
+                )
+            })
+            .count();
+        assert!(bursts <= 24);
+        previous = visible;
+    }
 }

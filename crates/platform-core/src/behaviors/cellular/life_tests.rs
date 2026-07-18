@@ -1,9 +1,10 @@
 use super::*;
 
 #[test]
-fn empty_config_seeds_quiet_default_glider_but_deserialized_empty_stays_empty() {
+fn empty_config_seeds_quiet_default_oscillator_but_deserialized_empty_stays_empty() {
     let state = init(serde_json::json!({})).unwrap();
-    assert_eq!(state.cells.iter().filter(|cell| **cell).count(), 5);
+    assert_eq!(state.cells.iter().filter(|cell| **cell).count(), 3);
+    assert!(!state.cells[grid_index(2, 3)]);
     assert!(!state.trigger_types.contains(&CellTriggerType::Activate));
     let restored = deserialize(serde_json::json!({
         "width": GRID_WIDTH,
@@ -17,6 +18,23 @@ fn empty_config_seeds_quiet_default_glider_but_deserialized_empty_stays_empty() 
     }))
     .unwrap();
     assert!(restored.cells.iter().all(|cell| !cell));
+}
+
+#[test]
+fn default_seed_does_not_become_terminal_static_over_detector_window() {
+    let mut context = BehaviorContext::new(120.0);
+    let mut state = init(serde_json::json!({})).unwrap();
+    let mut static_frames = 0;
+    for _ in 0..300 {
+        let previous = state.cells.clone();
+        state = on_tick(state, &mut context);
+        if state.cells == previous {
+            static_frames += 1;
+        } else {
+            static_frames = 0;
+        }
+        assert!(static_frames <= 2);
+    }
 }
 
 #[test]

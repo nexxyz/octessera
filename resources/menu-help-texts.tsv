@@ -47,7 +47,7 @@ layer_seed_interval	*	key:layers.*.worlds.behaviorConfig.seedInterval	number	See
 layer_crystal_seed_step	*	key:layers.*.worlds.behaviorConfig.seedStep	number	Seed Step	Sets the timing phase for scheduled Crystal Growth seeds.	It is compared modulo Seed Interval; it is not a grid coordinate.
 layer_crystal_cell_life	*	key:layers.*.worlds.behaviorConfig.cellLife	number	Cell Life	Sets how many ticks a crystal cell lasts before dissolving.	0 disables aging so crystals remain until changed by another rule.
 layer_crystal_symmetry	*	key:layers.*.worlds.behaviorConfig.symmetry	enum	Symmetry	Chooses cross, diagonal, or snowflake neighbor growth.	Snowflake alternates diagonal directions by grid parity.
-life_spawn_shared_crystal	*	action:behavior_action:seedCrystal	action	Seed Crystal	Seeds a random empty crystal cell, or refreshes one if the grid is full.	Use it to start a fresh icy branch wherever the world has gone quiet.
+life_spawn_shared_crystal	*	action:behavior_action:seedCrystal	action	Seed Crystal	Seeds a deterministic empty crystal cell, or refreshes one if the grid is full.	Use it to start a fresh icy branch wherever the world has gone quiet.
 layer_lightning_branch	*	key:layers.*.worlds.behaviorConfig.branchChancePct	number	Branch Chance	Sets the percent chance that Lightning adds a branch from each leader step.	Higher values make wider strikes before the flash.
 layer_lightning_jitter	*	key:layers.*.worlds.behaviorConfig.jitterChancePct	number	Jitter Chance	Sets the percent chance that Lightning steps sideways while moving toward the target edge.	Use less jitter for straight bolts and more for crooked ones.
 layer_lightning_decay	*	key:layers.*.worlds.behaviorConfig.decayTicks	number	Decay Ticks	Sets how long the connected flash remains visible before clearing.	After decay, Lightning starts a new strike automatically.
@@ -74,7 +74,7 @@ layer_wave_auto_impulse	*	key:layers.*.worlds.behaviorConfig.autoImpulseInterval
 life_spawn_shared_wave	*	action:behavior_action:dropImpulse	action	Drop Impulse	Drops a deterministic impulse into the Wave field and emits the affected impact accents.	Use it to tap the membrane without touching the grid.
 layer_gravity_spawn	*	key:layers.*.worlds.behaviorConfig.spawnRatePct	number	Spawn Rate	Sets the deterministic chance that new sand appears along the edge opposite gravity.	Higher values keep avalanches fed.
 layer_gravity_slide	*	key:layers.*.worlds.behaviorConfig.slideChancePct	number	Slide Chance	Sets how often blocked sand tries diagonal slides.	Higher values make piles slump more readily.
-layer_gravity_settle	*	key:layers.*.worlds.behaviorConfig.settleAge	number	Settle Age	Sets the age cap for unchanged settled grains.	Settled grains stay visible and stable.
+layer_gravity_settle	*	key:layers.*.worlds.behaviorConfig.settleAge	number	Settle Age	Sets the age cap for unchanged settled grains.	Settled grains stay stable until movement, clearing, or the bounded anti-saturation drain changes them.
 layer_gravity_dir	*	key:layers.*.worlds.behaviorConfig.gravityDir	enum	Gravity Dir	Chooses down, left, up, or right in world-space grid coordinates.	Invert Gravity rotates through these directions clockwise.
 life_spawn_shared_gravity_drop	*	action:behavior_action:dropSand	action	Drop Sand	Seeds deterministic sand along the edge opposite gravity.	Use it to pour in a fresh little avalanche.
 life_spawn_shared_gravity_clear	*	action:behavior_action:clearBottom	action	Clear Bottom	Clears the destination edge for the current gravity direction.	Cleared grains emit deactivate triggers.
@@ -112,12 +112,12 @@ life_spawn_shared_ink_clear	*	action:behavior_action:clearInk	action	Clear Ink	C
 layer_cracks_stress	*	key:layers.*.worlds.behaviorConfig.stressPct	number	Stress	Sets the deterministic chance that clear pane cells gain stress each tick.	Stressed glass becomes visible before it breaks.
 layer_coral_growth	*	key:layers.*.worlds.behaviorConfig.growthPct	number	Growth	Sets the chance exposed coral expands into empty cardinal neighbors.	Colonies grow from their surfaces, not diagonals.
 layer_coral_competition	*	key:layers.*.worlds.behaviorConfig.competitionPct	number	Competition	Sets how often adjacent opposing colonies die into skeleton.	Higher values make contested borders crumble.
-layer_coral_breakaway	*	key:layers.*.worlds.behaviorConfig.breakawayAge	number	Breakaway Age	Sets how long skeleton remains before clearing.	Old skeleton chunks deactivate as they break away.
+layer_coral_breakaway	*	key:layers.*.worlds.behaviorConfig.breakawayAge	number	Breakaway Age	Sets how long skeleton remains before clearing.	Old skeleton chunks deactivate as they break away; full colonies shed a few cells so they do not stay solid.
 life_spawn_shared_coral_seed	*	action:behavior_action:seedCoral	action	Seed Coral	Plants two deterministic colonies along the lower edge.	Seeded cells emit activate accents.
 life_spawn_shared_coral_break	*	action:behavior_action:breakCoral	action	Break Coral	Removes old skeletons and exposed colony cells.	Removed visible cells emit deactivate events.
 layer_cracks_branch	*	key:layers.*.worlds.behaviorConfig.branchPct	number	Branch	Sets the chance a propagating crack creates one extra tip.	Higher values make more splintered fractures.
 layer_cracks_propagation	*	key:layers.*.worlds.behaviorConfig.propagationPct	number	Propagation	Sets the chance each crack tip advances on a tick.	Higher values make cracks run faster.
-layer_cracks_shatter	*	key:layers.*.worlds.behaviorConfig.shatterThreshold	number	Shatter Threshold	Sets how many crack cells trigger a pending pane shatter.	The pane clears on the following tick.
+layer_cracks_shatter	*	key:layers.*.worlds.behaviorConfig.shatterThreshold	number	Shatter Threshold	Sets how many crack cells trigger a pending pane shatter.	The pane clears in bounded staged passes instead of one large wipe.
 life_spawn_shared_cracks_impact	*	action:behavior_action:impact	action	Impact	Adds a deterministic center impact and stress burst.	Use it to start a fracture in quiet glass.
 life_spawn_shared_cracks_replace	*	action:behavior_action:replacePane	action	Replace Pane	Clears cracks and stress from the pane.	Visible cells emit deactivate as the glass is replaced.
 layer_physarum_agents	*	key:layers.*.worlds.behaviorConfig.agentCount	number	Agent Count	Sets how many slime agents are active.	More agents lay down denser trails.
@@ -129,7 +129,7 @@ life_spawn_shared_physarum_food	*	action:behavior_action:relocateFood	action	Rel
 life_spawn_shared_physarum_seed	*	action:behavior_action:seedSlime	action	Seed Slime	Resets agents into a deterministic cluster while preserving food.	New agent cells emit activate accents.
 layer_vines_growth	*	key:layers.*.worlds.behaviorConfig.growthPct	number	Growth	Sets the chance each vine tip grows on a tick.	Higher values climb faster toward open light.
 layer_vines_branch	*	key:layers.*.worlds.behaviorConfig.branchPct	number	Branch	Sets the chance a growing tip creates one extra branch.	Reservations keep branches from colliding in one tick.
-layer_vines_prune	*	key:layers.*.worlds.behaviorConfig.pruneAge	number	Prune Age	Sets how long stems age before turning into leaves and pruning back.	Lower values make the vine shed itself sooner.
+layer_vines_prune	*	key:layers.*.worlds.behaviorConfig.pruneAge	number	Prune Age	Sets how long stems age before turning into leaves and pruning back.	Lower values shed sooner; full vines also drop a few old cells to keep gaps open.
 layer_vines_light	*	key:layers.*.worlds.behaviorConfig.lightBiasPct	number	Light Bias	Weights growth upward toward brighter space.	Set it low for more sideways wandering.
 life_spawn_shared_vines_seed	*	action:behavior_action:plantSeed	action	Plant Seed	Plants deterministic vine tips along the lower edge.	Seeded cells emit activate accents.
 life_spawn_shared_vines_prune	*	action:behavior_action:pruneVines	action	Prune Vines	Removes up to eight of the oldest non-tip vine cells.	Removed cells emit deactivate events.

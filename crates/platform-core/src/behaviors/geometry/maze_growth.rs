@@ -160,6 +160,7 @@ pub fn maze_growth_on_tick(mut state: MazeGrowthState, _: &mut BehaviorContext) 
             state.ages[i] = 0
         }
     }
+    renew_exhausted_maze(&mut state, &mut forced);
     state.tick_counter = state.tick_counter.wrapping_add(1);
     state.trigger_types = triggers(&prev, &state.cells, &forced);
     state
@@ -327,6 +328,34 @@ fn collapse_action(s: &mut MazeGrowthState) {
             s.ages[i] = 0
         }
     }
+}
+fn renew_exhausted_maze(s: &mut MazeGrowthState, forced: &mut Vec<usize>) {
+    if s.cells.contains(&FRONTIER) {
+        return;
+    }
+    let walls = s.cells.iter().filter(|cell| **cell == WALL).count();
+    if walls == 0 {
+        let index = oldest_path(s).unwrap_or(grid_index(0, 0));
+        if !s.walkers.contains(&index) {
+            s.cells[index] = WALL;
+            s.visited[index] = 0;
+            s.ages[index] = 0;
+            forced.push(index);
+        }
+        return;
+    }
+    let origin = s.walkers.first().copied().unwrap_or(grid_index(3, 3));
+    if let Some(index) = neigh(origin, s.tick_counter).find(|i| s.cells[*i] == WALL) {
+        s.cells[index] = FRONTIER;
+        s.visited[index] = 1;
+        s.ages[index] = 0;
+        forced.push(index);
+    }
+}
+fn oldest_path(s: &MazeGrowthState) -> Option<usize> {
+    (0..CELL_COUNT)
+        .filter(|i| s.cells[*i] == PATH || s.cells[*i] == FRONTIER)
+        .max_by_key(|i| (s.ages[*i], std::cmp::Reverse(*i)))
 }
 fn neigh(i: usize, rot: u64) -> impl Iterator<Item = usize> {
     let x = i % GRID_WIDTH;

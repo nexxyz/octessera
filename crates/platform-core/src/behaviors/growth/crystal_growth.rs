@@ -4,7 +4,6 @@ use crate::behavior::{
 };
 use crate::behaviors::native_impl::common::{action_item, enum_item, number_item, CELL_COUNT};
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
-use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -99,6 +98,7 @@ pub fn crystal_growth_on_tick(
     normalize_state(&mut state);
     let previous = visible(&state.cells);
     age_and_dissolve(&mut state);
+    thin_if_crowded(&mut state);
     let surviving = visible(&state.cells);
     grow_candidates(&mut state, &surviving);
     scheduled_seed(&mut state);
@@ -248,7 +248,6 @@ fn seed_random(state: &mut CrystalGrowthState) {
 }
 
 fn seed_random_avoiding(state: &mut CrystalGrowthState, avoid: &[bool]) {
-    let mut rng = rand::thread_rng();
     let mut empty = state
         .cells
         .iter()
@@ -266,9 +265,10 @@ fn seed_random_avoiding(state: &mut CrystalGrowthState, avoid: &[bool]) {
             .collect();
     }
     if empty.is_empty() {
-        seed_at(state, rng.gen_range(0..CELL_COUNT));
+        seed_at(state, deterministic_index(state.tick_counter, 0));
     } else {
-        seed_at(state, empty[rng.gen_range(0..empty.len())]);
+        let offset = deterministic_index(state.tick_counter, empty.len());
+        seed_at(state, empty[offset]);
     }
 }
 
@@ -304,18 +304,42 @@ fn age_and_dissolve(state: &mut CrystalGrowthState) {
 }
 
 fn grow_candidates(state: &mut CrystalGrowthState, surviving: &[bool]) {
-    let mut rng = rand::thread_rng();
     for y in 0..GRID_HEIGHT {
         for x in 0..GRID_WIDTH {
             let index = grid_index(x, y);
             if state.cells[index] != EMPTY || !has_neighbor(surviving, x, y, &state.symmetry) {
                 continue;
             }
-            if rng.gen_range(0..100) < state.growth_chance_pct {
+            if hash(state.tick_counter, index) % 100 < u64::from(state.growth_chance_pct) {
                 seed_at(state, index);
             }
         }
     }
+}
+
+fn thin_if_crowded(state: &mut CrystalGrowthState) {
+    if state.cells.iter().filter(|cell| **cell != EMPTY).count() <= CELL_COUNT - 8 {
+        return;
+    }
+    for index in 0..CELL_COUNT {
+        if state.cells[index] != EMPTY && hash(state.tick_counter + 11, index).is_multiple_of(8) {
+            state.cells[index] = EMPTY;
+            state.ages[index] = 0;
+        }
+    }
+}
+
+fn deterministic_index(tick: u64, len: usize) -> usize {
+    if len == 0 {
+        0
+    } else {
+        (hash(tick, 0) as usize) % len
+    }
+}
+
+fn hash(tick: u64, index: usize) -> u64 {
+    tick.wrapping_mul(1_103_515_245)
+        .wrapping_add(index as u64 * 97)
 }
 
 fn has_neighbor(cells: &[bool], x: usize, y: usize, symmetry: &str) -> bool {

@@ -84,9 +84,9 @@ fn behavior_render_palettes_match_themes() {
         (
             NativeBehavior::Ant,
             BehaviorRenderPalette {
-                active: YELLOW,
-                inactive: BLACK,
-                stable: YELLOW,
+                active: BLACK,
+                inactive: [80, 48, 24],
+                stable: BLACK,
             },
         ),
         (
@@ -259,11 +259,11 @@ fn themed_background_palettes_keep_live_cells_visible() {
 }
 
 #[test]
-fn ant_palette_keeps_trails_visible_on_dark_background() {
+fn ant_palette_renders_black_trails_on_brown_background() {
     let state = NativeBehavior::Ant.init(Value::Null).unwrap();
     let model = NativeBehavior::Ant.render_model(&state).unwrap();
 
-    assert_eq!(model.palette.inactive, BLACK);
-    assert_ne!(model.palette.active, model.palette.inactive);
-    assert_ne!(model.palette.stable, model.palette.inactive);
+    assert_eq!(model.palette.active, BLACK);
+    assert_eq!(model.palette.inactive, [80, 48, 24]);
+    assert_eq!(model.palette.stable, BLACK);
 }

@@ -136,3 +136,38 @@ fn growth_competition_breakaway_and_no_wrap() {
     );
     assert!(coral_render_model(&cleared).status_line.starts_with("A:"))
 }
+
+#[test]
+fn default_avoids_consecutive_extremes_and_bounded_triggers() {
+    let mut ctx = context();
+    let mut state = coral_init(json!({})).unwrap();
+    let mut full_run = 0;
+    let mut empty_run = 0;
+    for _ in 0..300 {
+        state = coral_on_tick(state, &mut ctx);
+        let visible = coral_render_model(&state).cells;
+        full_run = if visible.iter().all(|cell| *cell) {
+            full_run + 1
+        } else {
+            0
+        };
+        empty_run = if visible.iter().all(|cell| !*cell) {
+            empty_run + 1
+        } else {
+            0
+        };
+        assert!(full_run <= 1);
+        assert!(empty_run <= 1);
+        let bursts = state
+            .trigger_types
+            .iter()
+            .filter(|trigger| {
+                matches!(
+                    trigger,
+                    CellTriggerType::Activate | CellTriggerType::Deactivate
+                )
+            })
+            .count();
+        assert!(bursts <= 16);
+    }
+}

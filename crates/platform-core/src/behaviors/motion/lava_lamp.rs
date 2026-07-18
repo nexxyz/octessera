@@ -124,6 +124,10 @@ pub fn lava_lamp_on_tick(mut s: LavaLampState, _: &mut BehaviorContext) -> LavaL
     let prev = field(&s);
     let mut forced = Vec::new();
     for i in 0..usize::from(s.active_count) {
+        if s.tick_counter.is_multiple_of(2) {
+            s.vx[i] += hash_pct(s.tick_counter, i, 41) as i16 % 5 - 2;
+            s.vy[i] += hash_pct(s.tick_counter, i, 43) as i16 % 5 - 2;
+        }
         s.vy[i] -= i16::from(s.heat_pct / 20) + i16::from(s.heat_ticks) * 2;
         s.vx[i] += hash_pct(s.tick_counter, i, 5) as i16 % 3 - 1;
         let damp = 100 - i16::from(s.viscosity_pct / 2);
@@ -136,6 +140,7 @@ pub fn lava_lamp_on_tick(mut s: LavaLampState, _: &mut BehaviorContext) -> LavaL
     }
     merge(&mut s, &mut forced);
     split(&mut s, &mut forced);
+    renew_static_tail(&mut s, &prev, &mut forced);
     s.heat_ticks = s.heat_ticks.saturating_sub(1);
     s.tick_counter = s.tick_counter.wrapping_add(1);
     let next = field(&s);
@@ -177,8 +182,8 @@ fn from_config(v: Value) -> LavaLampState {
     s.blob_count = num(c.blob_count, 4, 8).max(1);
     s.active_count = num(c.active_count, s.blob_count, 8).max(1);
     s.trigger_types = norm_triggers(c.trigger_types);
-    s.viscosity_pct = num(c.viscosity_pct, 40, 100);
-    s.heat_pct = num(c.heat_pct, 35, 100);
+    s.viscosity_pct = num(c.viscosity_pct, 30, 100);
+    s.heat_pct = num(c.heat_pct, 45, 100);
     s.merge_pct = num(c.merge_pct, 25, 100);
     normalize(&mut s);
     s
@@ -194,8 +199,8 @@ fn defaults() -> LavaLampState {
         heat_ticks: 0,
         trigger_types: vec![CellTriggerType::None; CELL_COUNT],
         blob_count: 4,
-        viscosity_pct: 40,
-        heat_pct: 35,
+        viscosity_pct: 30,
+        heat_pct: 45,
         merge_pct: 25,
         tick_counter: 0,
         last_merge_count: 0,
@@ -412,6 +417,35 @@ fn split(s: &mut LavaLampState, f: &mut Vec<usize>) {
             return;
         }
     }
+}
+fn renew_static_tail(s: &mut LavaLampState, prev: &[u8], forced: &mut Vec<usize>) {
+    let next = field(s);
+    if visible_cells(prev) != visible_cells(&next) {
+        return;
+    }
+    let i = (s.tick_counter as usize) % usize::from(s.active_count);
+    let old = cell_of(s.x[i], s.y[i]);
+    let dx = if hash_pct(s.tick_counter, i, 47) < 50 {
+        16
+    } else {
+        -16
+    };
+    let dy = if hash_pct(s.tick_counter, i, 53) < 50 {
+        16
+    } else {
+        -16
+    };
+    s.x[i] = (s.x[i] + dx).clamp(0, MAX_POS);
+    s.y[i] = (s.y[i] + dy).clamp(0, MAX_POS);
+    s.vx[i] = dx / 4;
+    s.vy[i] = dy / 4;
+    let new = cell_of(s.x[i], s.y[i]);
+    if new != old {
+        forced.push(new);
+    }
+}
+fn visible_cells(values: &[u8]) -> Vec<bool> {
+    values.iter().map(|value| *value >= VISIBLE).collect()
 }
 fn cell_of(x: i16, y: i16) -> usize {
     grid_index((x / 16).clamp(0, 7) as usize, (y / 16).clamp(0, 7) as usize)

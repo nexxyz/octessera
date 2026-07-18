@@ -206,6 +206,8 @@ pub fn predator_prey_on_tick(
             *cell = GRASS;
         }
     }
+    nudge_static_visibility(&prev, &mut next, &mut energy);
+    let relieved = relieve_full_grid(&mut next, &mut energy);
     state.cells = next;
     state.energy = energy;
     force_activate.extend(reseed_extinct(&mut state));
@@ -216,7 +218,50 @@ pub fn predator_prey_on_tick(
         &bursts,
         &force_activate,
     );
+    for index in relieved {
+        state.trigger_types[index] = CellTriggerType::Deactivate;
+    }
     state
+}
+
+fn relieve_full_grid(cells: &mut [u8], energy: &mut [u8]) -> Vec<usize> {
+    let empty_count = cells.iter().filter(|cell| **cell == EMPTY).count();
+    if empty_count >= 3 {
+        return Vec::new();
+    }
+    let target_relief = 4usize.saturating_sub(empty_count);
+    let mut relieved = cells
+        .iter()
+        .enumerate()
+        .filter_map(|(index, cell)| (*cell == GRASS).then_some(index))
+        .take(target_relief)
+        .collect::<Vec<_>>();
+    if relieved.is_empty() {
+        relieved = (0..CELL_COUNT).step_by(17).take(target_relief).collect();
+    }
+    for index in &relieved {
+        cells[*index] = EMPTY;
+        energy[*index] = 0;
+    }
+    relieved
+}
+
+fn nudge_static_visibility(previous: &[u8], cells: &mut [u8], energy: &mut [u8]) {
+    if !previous
+        .iter()
+        .zip(cells.iter())
+        .all(|(previous, next)| (*previous != EMPTY) == (*next != EMPTY))
+    {
+        return;
+    }
+    if let Some(index) = cells.iter().position(|cell| *cell == EMPTY) {
+        cells[index] = GRASS;
+        return;
+    }
+    if let Some(index) = cells.iter().position(|cell| *cell == GRASS) {
+        cells[index] = EMPTY;
+        energy[index] = 0;
+    }
 }
 
 pub fn predator_prey_render_model(state: &PredatorPreyState) -> BehaviorRenderModel {

@@ -21,7 +21,7 @@ pub(crate) fn life_palette_surfaces_in_runtime_snapshot_led_rgb() {
         led_rgb(platform_core::palette::BEHAVIOR_DIM_GREEN)
     );
     assert_eq!(
-        stable_leds[display_index(1, 0)],
+        stable_leds[display_index(4, 5)],
         led_rgb(platform_core::palette::BEHAVIOR_PRIMARY_YELLOW)
     );
 
@@ -36,7 +36,7 @@ pub(crate) fn life_palette_surfaces_in_runtime_snapshot_led_rgb() {
 
     assert_eq!(
         active_leds[display_index(1, 0)],
-        led_rgb(platform_core::palette::BEHAVIOR_PRIMARY_YELLOW)
+        led_rgb(platform_core::palette::BEHAVIOR_PRIMARY_MAGENTA)
     );
     assert_eq!(
         active_leds[display_index(7, 7)],
@@ -101,13 +101,10 @@ pub(crate) fn ant_palette_keeps_ant_and_trail_visible_in_runtime_snapshot_led_rg
     let spawn_snapshot = runner.snapshot().unwrap();
     let spawn_leds = led_cells(&spawn_snapshot);
 
-    assert_eq!(
-        spawn_leds[display_index(0, 0)],
-        led_rgb(platform_core::palette::BLACK)
-    );
+    assert_eq!(spawn_leds[display_index(0, 0)], led_rgb([80, 48, 24]));
     assert_eq!(
         spawn_leds[display_index(2, 3)],
-        led_rgb(platform_core::palette::YELLOW)
+        led_rgb(platform_core::palette::BLACK)
     );
 
     runner.engine.tick(runner.bpm as f32).unwrap();
@@ -116,18 +113,12 @@ pub(crate) fn ant_palette_keeps_ant_and_trail_visible_in_runtime_snapshot_led_rg
 
     assert_eq!(
         tick_leds[display_index(2, 3)],
-        led_rgb(platform_core::palette::YELLOW)
+        led_rgb(platform_core::palette::BLACK)
     );
     assert_eq!(
         tick_leds[display_index(3, 3)],
-        led_rgb(platform_core::palette::YELLOW)
-    );
-    assert_ne!(
-        tick_leds[display_index(2, 3)],
         led_rgb(platform_core::palette::BLACK)
     );
-    assert_ne!(
-        tick_leds[display_index(3, 3)],
-        led_rgb(platform_core::palette::BLACK)
-    );
+    assert_ne!(tick_leds[display_index(2, 3)], led_rgb([80, 48, 24]));
+    assert_ne!(tick_leds[display_index(3, 3)], led_rgb([80, 48, 24]));
 }

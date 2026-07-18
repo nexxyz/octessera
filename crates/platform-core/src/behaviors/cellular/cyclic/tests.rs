@@ -5,7 +5,7 @@ fn context() -> BehaviorContext {
 }
 
 fn empty() -> CyclicState {
-    cyclic_init(serde_json::json!({ "states": 4, "threshold": 2, "range": 1, "cells": [] }))
+    cyclic_deserialize(serde_json::json!({ "states": 4, "threshold": 2, "range": 1, "cells": [] }))
         .unwrap()
 }
 
@@ -14,6 +14,7 @@ fn empty_config_seeds_bounded_default_activity_and_deserialize_empty_stays_empty
     let mut context = context();
     let mut state = cyclic_init(serde_json::json!({})).unwrap();
     assert!(state.cells.iter().any(|cell| *cell != 0));
+    assert!(state.cells.contains(&0));
     assert!(!state.trigger_types.contains(&CellTriggerType::Activate));
     let restored = cyclic_deserialize(serde_json::json!({ "cells": [] })).unwrap();
     assert!(restored.cells.iter().all(|cell| *cell == 0));
@@ -31,7 +32,25 @@ fn empty_config_seeds_bounded_default_activity_and_deserialize_empty_stays_empty
     }
     assert!(total_activates > 0);
     assert!(max_activates <= 48);
-    assert!(total_activates <= 160);
+    assert!(total_activates <= 384);
+}
+
+#[test]
+fn default_seed_stays_non_static_and_non_full_over_detector_window() {
+    let mut context = context();
+    let mut state = cyclic_init(serde_json::json!({})).unwrap();
+    let mut static_frames = 0;
+    for _ in 0..300 {
+        let previous = state.cells.clone();
+        state = cyclic_on_tick(state, &mut context);
+        if state.cells == previous {
+            static_frames += 1;
+        } else {
+            static_frames = 0;
+        }
+        assert!(static_frames <= 2);
+        assert!(state.cells.contains(&0));
+    }
 }
 
 #[test]
@@ -120,10 +139,10 @@ fn seed_cycle_is_deterministic_and_activates_nonzero_cells() {
         }),
         &mut context,
     );
-    assert_eq!(seeded.cells[grid_index(2, 2)], 1);
-    assert_eq!(seeded.cells[grid_index(3, 2)], 2);
+    assert_eq!(seeded.cells[grid_index(2, 2)], 0);
+    assert_eq!(seeded.cells[grid_index(3, 2)], 1);
     assert_eq!(
-        seeded.trigger_types[grid_index(2, 2)],
+        seeded.trigger_types[grid_index(3, 2)],
         CellTriggerType::Activate
     );
 

@@ -117,3 +117,47 @@ fn transport_decay_and_nonwrap() {
     assert_eq!(t.crest[0], 15);
     assert_eq!(t.trigger_types[0], CellTriggerType::Deactivate)
 }
+
+#[test]
+fn default_self_sustains_with_bounded_renewal() {
+    let mut ctx = context();
+    let mut state = sand_ripples_init(json!({})).unwrap();
+    let mut previous = sand_ripples_render_model(&state).cells;
+    let mut terminal_same = 1usize;
+    let mut final_frames = Vec::new();
+    let mut full_run = 0usize;
+    let mut empty_run = 0usize;
+    for _ in 0..300 {
+        state = sand_ripples_on_tick(state, &mut ctx);
+        let frame = sand_ripples_render_model(&state).cells;
+        let visible = frame.iter().filter(|cell| **cell).count();
+        full_run = if visible == CELL_COUNT {
+            full_run + 1
+        } else {
+            0
+        };
+        empty_run = if visible == 0 { empty_run + 1 } else { 0 };
+        assert!(full_run <= 1);
+        assert!(empty_run <= 1);
+        terminal_same = if frame == previous {
+            terminal_same + 1
+        } else {
+            1
+        };
+        assert!(
+            state
+                .trigger_types
+                .iter()
+                .filter(|trigger| **trigger == CellTriggerType::Activate)
+                .count()
+                <= CELL_COUNT / 2
+        );
+        final_frames.push(frame.clone());
+        if final_frames.len() > 16 {
+            final_frames.remove(0);
+        }
+        previous = frame;
+    }
+    assert!(terminal_same <= 2);
+    assert!(final_frames.windows(2).any(|window| window[0] != window[1]));
+}

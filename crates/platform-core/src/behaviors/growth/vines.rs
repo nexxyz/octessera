@@ -162,6 +162,7 @@ pub fn vines_on_tick(mut state: VinesState, _: &mut BehaviorContext) -> VinesSta
             state.ages[i] = 0
         }
     }
+    thin_full_frame(&mut state);
     state.tick_counter = state.tick_counter.wrapping_add(1);
     state.trigger_types = triggers_with_forced(&prev, &state.cells, &forced);
     state
@@ -269,6 +270,24 @@ fn prune_action(s: &mut VinesState) {
         s.cells[i] = EMPTY;
         s.energy[i] = 0;
         s.ages[i] = 0
+    }
+}
+fn thin_full_frame(s: &mut VinesState) {
+    if s.cells.contains(&EMPTY) {
+        return;
+    }
+    let mut removed = 0;
+    for offset in 0..CELL_COUNT {
+        let i = ((s.tick_counter as usize * 13) + offset) % CELL_COUNT;
+        if removed >= 4 {
+            break;
+        }
+        if s.cells[i] != TIP || hash_pct(s.tick_counter, i, 67) < 25 {
+            s.cells[i] = EMPTY;
+            s.energy[i] = 0;
+            s.ages[i] = 0;
+            removed += 1;
+        }
     }
 }
 fn candidates(cells: &[u8], x: usize, y: usize, source_energy: u32, light_bias: u32) -> Vec<usize> {

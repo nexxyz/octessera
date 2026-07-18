@@ -165,6 +165,7 @@ pub fn physarum_on_tick(mut state: PhysarumState, _: &mut BehaviorContext) -> Ph
         *v = (*v as u16 * (100 - u16::from(state.evaporation_pct)) / 100) as u8;
     }
     state.tick_counter = state.tick_counter.wrapping_add(1);
+    drift_food(&mut state);
     let entered = agent_entries(&previous_agents, &agent_occupancy(&state));
     state.trigger_types = triggers(&pv, &pt, &render(&state), &state.trail, &entered);
     state
@@ -211,9 +212,9 @@ fn from_config(v: Value) -> PhysarumState {
         trigger_types: norm_triggers(c.trigger_types),
         agent_count: ac,
         sense_distance: num(c.sense_distance, 1, 3).max(1),
-        turn_bias_pct: num(c.turn_bias_pct, 45, 100),
-        deposit_amount: num(c.deposit_amount, 24, 64).max(1),
-        evaporation_pct: num(c.evaporation_pct, 10, 100),
+        turn_bias_pct: num(c.turn_bias_pct, 55, 100),
+        deposit_amount: num(c.deposit_amount, 18, 64).max(1),
+        evaporation_pct: num(c.evaporation_pct, 18, 100),
         tick_counter: 0,
     };
     normalize(&mut s);
@@ -444,6 +445,16 @@ fn apply_food(s: &mut PhysarumState) {
                 s.food[grid_index(x, 7)] = 1
             }
         }
+    }
+}
+fn drift_food(s: &mut PhysarumState) {
+    if s.food_pattern != 0 {
+        return;
+    }
+    s.food.fill(0);
+    let offset = (s.tick_counter as usize) % GRID_WIDTH;
+    for (x, y) in [(offset, 0), (7 - offset, 7), (0, offset), (7, 7 - offset)] {
+        s.food[grid_index(x, y)] = 1;
     }
 }
 

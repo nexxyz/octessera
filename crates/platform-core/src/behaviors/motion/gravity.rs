@@ -103,6 +103,7 @@ pub fn gravity_on_tick(mut state: GravityState, _context: &mut BehaviorContext) 
     let mut next = state.cells.clone();
     let mut age = state.age.clone();
     let mut vacated = vec![false; CELL_COUNT];
+    let mut moved = false;
     for i in scan_order(&state.gravity_dir) {
         if state.cells[i] != SAND || next[i] != SAND {
             continue;
@@ -111,6 +112,7 @@ pub fn gravity_on_tick(mut state: GravityState, _context: &mut BehaviorContext) 
         let y = i / GRID_WIDTH;
         if let Some(dest) = destination(&state, &next, x, y, i) {
             next[i] = EMPTY;
+            moved = true;
             age[i] = 0;
             vacated[i] = true;
             next[dest] = SAND;
@@ -122,6 +124,11 @@ pub fn gravity_on_tick(mut state: GravityState, _context: &mut BehaviorContext) 
     state.cells = next;
     state.age = age;
     spawn_edge_skipping(&mut state, false, &vacated);
+    if moved {
+        drain_settled_edge(&mut state);
+    } else {
+        drain_settled_cell(&mut state);
+    }
     state.tick_counter = state.tick_counter.wrapping_add(1);
     state.trigger_types = triggers(&previous, &state.cells);
     state
@@ -326,6 +333,33 @@ fn clear_bottom(state: &mut GravityState) {
     for index in dest_edge(&state.gravity_dir) {
         state.cells[index] = EMPTY;
         state.age[index] = 0;
+    }
+}
+fn drain_settled_edge(state: &mut GravityState) {
+    let filled = state.cells.iter().filter(|cell| **cell == SAND).count();
+    if filled < CELL_COUNT - 2 {
+        return;
+    }
+    let edge = dest_edge(&state.gravity_dir);
+    let start = (state.tick_counter as usize) % edge.len();
+    for offset in 0..edge.len() {
+        let index = edge[(start + offset) % edge.len()];
+        if state.cells[index] == SAND && state.age[index] >= state.settle_age {
+            state.cells[index] = EMPTY;
+            state.age[index] = 0;
+            return;
+        }
+    }
+}
+fn drain_settled_cell(state: &mut GravityState) {
+    let start = (state.tick_counter as usize * 7) % CELL_COUNT;
+    for offset in 0..CELL_COUNT {
+        let index = (start + offset) % CELL_COUNT;
+        if state.cells[index] == SAND && state.age[index] >= state.settle_age {
+            state.cells[index] = EMPTY;
+            state.age[index] = 0;
+            return;
+        }
     }
 }
 fn source_edge(dir: &str) -> Vec<usize> {

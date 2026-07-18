@@ -7,7 +7,6 @@ use crate::behaviors::native_impl::common::{
     action_item, number_item, trigger_types_from_cells, CELL_COUNT,
 };
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
-use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -169,25 +168,8 @@ pub fn dla_on_tick(state: DlaState, _context: &mut BehaviorContext) -> DlaState 
     if state.spawn_interval > 0
         && (tick_counter - 1) % state.spawn_interval == state.spawn_step % state.spawn_interval
     {
-        let mut rng = rand::thread_rng();
-        let mut x = rng.gen_range(0..GRID_WIDTH);
-        let mut y = if rng.gen_bool(0.5) {
-            0
-        } else {
-            GRID_HEIGHT - 1
-        };
-        for _ in 0..200 {
-            if has_adjacent_cluster(&cells, x, y) {
-                set_cluster_cell(&mut cells, &mut ages, x, y);
-                break;
-            }
-            match rng.gen_range(0..4) {
-                0 if x > 0 => x -= 1,
-                1 if x < GRID_WIDTH - 1 => x += 1,
-                2 if y > 0 => y -= 1,
-                3 if y < GRID_HEIGHT - 1 => y += 1,
-                _ => {}
-            }
+        if let Some((x, y)) = next_frontier_cell(&cells, tick_counter) {
+            set_cluster_cell(&mut cells, &mut ages, x, y);
         }
     }
     if cell_life > 0 {
@@ -210,6 +192,15 @@ pub fn dla_on_tick(state: DlaState, _context: &mut BehaviorContext) -> DlaState 
         tick_counter,
         ..state
     }
+}
+
+fn next_frontier_cell(cells: &[bool], tick_counter: usize) -> Option<(usize, usize)> {
+    (0..CELL_COUNT).find_map(|offset| {
+        let index = (tick_counter * 17 + offset) % CELL_COUNT;
+        let x = index % GRID_WIDTH;
+        let y = index / GRID_WIDTH;
+        (!cells[index] && has_adjacent_cluster(cells, x, y)).then_some((x, y))
+    })
 }
 
 pub fn dla_render_model(state: &DlaState) -> BehaviorRenderModel {
@@ -364,5 +355,38 @@ mod tests {
             CELL_COUNT
         );
         assert!(ticked.ages.iter().all(|age| *age == 250));
+    }
+
+    #[test]
+    fn default_tail_stays_bounded_and_non_terminal() {
+        let mut context = BehaviorContext::new(120.0);
+        let mut state = dla_init(Value::Null).unwrap();
+        let mut same = 0;
+        let mut terminal = 0;
+        let mut previous = state.cells.clone();
+        for _ in 0..300 {
+            state = dla_on_tick(state, &mut context);
+            same = if state.cells == previous { same + 1 } else { 0 };
+            terminal =
+                if state.cells.iter().all(|cell| *cell) || state.cells.iter().all(|cell| !*cell) {
+                    terminal + 1
+                } else {
+                    0
+                };
+            assert!(same <= 2);
+            assert!(terminal <= 2);
+            let bursts = state
+                .trigger_types
+                .iter()
+                .filter(|trigger| {
+                    matches!(
+                        trigger,
+                        CellTriggerType::Activate | CellTriggerType::Deactivate
+                    )
+                })
+                .count();
+            assert!(bursts <= 4);
+            previous = state.cells.clone();
+        }
     }
 }

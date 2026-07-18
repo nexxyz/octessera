@@ -49,8 +49,8 @@ pub fn brain_init(config: Value) -> Result<BrainState, String> {
         trigger_types: vec![CellTriggerType::None; CELL_COUNT],
         fire_threshold: config.fire_threshold.unwrap_or(2),
         random_seed_cells: config.random_seed_cells.unwrap_or(2),
-        seed_interval: config.seed_interval.unwrap_or(8),
-        spawn_step: config.spawn_step.unwrap_or(3).min(63),
+        seed_interval: config.seed_interval.unwrap_or(2),
+        spawn_step: config.spawn_step.unwrap_or(0).min(63),
         tick_counter: 0,
     })
 }
@@ -243,5 +243,30 @@ mod tests {
         assert_eq!(menu[2].key, "spawnStep");
         assert_eq!(menu[3].key, "randomSeedCells");
         assert_eq!(menu[4].key, "seedRandom");
+    }
+
+    #[test]
+    fn default_run_avoids_consecutive_empty_or_full_frames() {
+        let mut state = brain_init(Value::Null).unwrap();
+        let mut context = BehaviorContext::new(120.0);
+        let mut empty_run = 0;
+        let mut full_run = 0;
+
+        for _ in 0..300 {
+            state = brain_on_tick(state, &mut context);
+            let model = brain_render_model(&state);
+            empty_run = if model.cells.iter().all(|cell| !*cell) {
+                empty_run + 1
+            } else {
+                0
+            };
+            full_run = if model.cells.iter().all(|cell| *cell) {
+                full_run + 1
+            } else {
+                0
+            };
+            assert!(empty_run <= 1);
+            assert!(full_run <= 1);
+        }
     }
 }

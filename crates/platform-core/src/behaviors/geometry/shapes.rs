@@ -68,8 +68,8 @@ pub fn shapes_init(config: Value) -> Result<ShapesState, String> {
         pulse_shape: config.pulse_shape.unwrap_or_else(|| "ring".into()),
         lifespan: config.lifespan.unwrap_or(3),
         max_radius: config.max_radius.unwrap_or(12),
-        auto_pulse_interval: config.auto_pulse_interval.unwrap_or(12),
-        spawn_step: config.spawn_step.unwrap_or(4).min(63),
+        auto_pulse_interval: config.auto_pulse_interval.unwrap_or(4),
+        spawn_step: config.spawn_step.unwrap_or(2).min(63),
         tick_counter: 0,
     })
 }
@@ -187,7 +187,19 @@ pub fn shapes_on_tick(state: ShapesState, _context: &mut BehaviorContext) -> Sha
         && (tick_counter - 1) % state.auto_pulse_interval
             == state.spawn_step % state.auto_pulse_interval
     {
-        let (x, y) = random_point();
+        let (x, y) = deterministic_point(tick_counter);
+        for index in shape_cells(&state.pulse_shape, x, y, 0) {
+            lifetimes[index] = state.lifespan;
+        }
+        pulses.push(Pulse {
+            ox: x,
+            oy: y,
+            radius: 0,
+            max_radius: state.max_radius,
+        });
+    }
+    if lifetimes.iter().all(|life| *life == 0) {
+        let (x, y) = deterministic_point(tick_counter + 1);
         for index in shape_cells(&state.pulse_shape, x, y, 0) {
             lifetimes[index] = state.lifespan;
         }
@@ -243,6 +255,10 @@ pub fn shapes_config_menu() -> Vec<BehaviorConfigItem> {
     ]
 }
 
+fn deterministic_point(tick: usize) -> (usize, usize) {
+    ((tick * 3 + 1) % GRID_WIDTH, (tick * 5 + 2) % GRID_HEIGHT)
+}
+
 pub(crate) fn random_point_for_dla() -> (usize, usize) {
     random_point()
 }
@@ -255,7 +271,7 @@ mod tests {
     fn pulse_expands_lifespans_and_wavefront_only_adds_leading_edge() {
         let mut context = BehaviorContext::new(120.0);
         let state = shapes_init(
-            serde_json::json!({ "pulseShape": "diamond", "lifespan": 2, "maxRadius": 2 }),
+            serde_json::json!({ "pulseShape": "diamond", "lifespan": 2, "maxRadius": 2, "autoPulseInterval": 0 }),
         )
         .unwrap();
         let state = shapes_on_input(state, DeviceInput::GridPress { x: 3, y: 3 }, &mut context);
@@ -293,5 +309,34 @@ mod tests {
                 "spawnPulse"
             ]
         );
+    }
+
+    #[test]
+    fn default_avoids_consecutive_empty_or_full_frames() {
+        let mut context = BehaviorContext::new(120.0);
+        let mut state = shapes_init(Value::Null).unwrap();
+        let mut empty_run = 0usize;
+        let mut full_run = 0usize;
+        for _ in 0..300 {
+            state = shapes_on_tick(state, &mut context);
+            let cells = shapes_render_model(&state).cells;
+            let visible = cells.iter().filter(|cell| **cell).count();
+            empty_run = if visible == 0 { empty_run + 1 } else { 0 };
+            full_run = if visible == CELL_COUNT {
+                full_run + 1
+            } else {
+                0
+            };
+            assert!(empty_run <= 1);
+            assert!(full_run <= 1);
+            assert!(
+                state
+                    .trigger_types
+                    .iter()
+                    .filter(|trigger| **trigger == CellTriggerType::Activate)
+                    .count()
+                    <= CELL_COUNT / 2
+            );
+        }
     }
 }

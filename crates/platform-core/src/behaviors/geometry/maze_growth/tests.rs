@@ -184,3 +184,47 @@ fn carving_no_wrap_reservation_and_collapse() {
         CellTriggerType::Deactivate
     );
 }
+
+#[test]
+fn default_self_sustains_with_bounded_renewal() {
+    let mut ctx = context();
+    let mut state = maze_growth_init(json!({})).unwrap();
+    let mut previous = maze_growth_render_model(&state).cells;
+    let mut terminal_same = 1usize;
+    let mut terminal_empty = 0usize;
+    let mut terminal_full = 0usize;
+    let mut final_frames = Vec::new();
+    for _ in 0..300 {
+        state = maze_growth_on_tick(state, &mut ctx);
+        let frame = maze_growth_render_model(&state).cells;
+        let visible = frame.iter().filter(|cell| **cell).count();
+        terminal_same = if frame == previous {
+            terminal_same + 1
+        } else {
+            1
+        };
+        terminal_empty = if visible == 0 { terminal_empty + 1 } else { 0 };
+        terminal_full = if visible == CELL_COUNT {
+            terminal_full + 1
+        } else {
+            0
+        };
+        assert!(
+            state
+                .trigger_types
+                .iter()
+                .filter(|trigger| **trigger == CellTriggerType::Activate)
+                .count()
+                <= usize::from(state.walker_count) + 2
+        );
+        final_frames.push(frame.clone());
+        if final_frames.len() > 16 {
+            final_frames.remove(0);
+        }
+        previous = frame;
+    }
+    assert!(terminal_same <= 2);
+    assert!(terminal_empty <= 2);
+    assert!(terminal_full <= 2);
+    assert!(final_frames.windows(2).any(|window| window[0] != window[1]));
+}

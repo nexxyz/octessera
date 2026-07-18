@@ -9,6 +9,28 @@ fn base() -> WaveState {
         .unwrap()
 }
 
+fn assert_default_extremes_are_single_frame(mut state: WaveState) {
+    let mut context = context();
+    let mut consecutive_empty = 0;
+    let mut consecutive_full = 0;
+    for tick in 1..=300 {
+        state = wave_on_tick(state, &mut context);
+        let cells = wave_render_model(&state).cells;
+        consecutive_empty = if cells.iter().all(|cell| !*cell) {
+            consecutive_empty + 1
+        } else {
+            0
+        };
+        consecutive_full = if cells.iter().all(|cell| *cell) {
+            consecutive_full + 1
+        } else {
+            0
+        };
+        assert!(consecutive_empty <= 1, "empty run at tick {tick}");
+        assert!(consecutive_full <= 1, "full run at tick {tick}");
+    }
+}
+
 #[test]
 fn menu_palette_and_normalization_contract() {
     let menu = wave_config_menu();
@@ -65,6 +87,11 @@ fn default_auto_impulses_keep_wave_alive_with_bounded_pulses() {
     assert!(state.displacement.iter().any(|value| value.abs() >= 12));
     assert!(pulse_counts.len() >= 4);
     assert!(pulse_counts.iter().all(|count| *count <= 5));
+}
+
+#[test]
+fn default_extremes_are_single_frame_through_300_ticks() {
+    assert_default_extremes_are_single_frame(wave_init(serde_json::json!({})).unwrap());
 }
 
 #[test]

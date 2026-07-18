@@ -124,3 +124,38 @@ fn growth_branch_reservation_prune_and_edges() {
     );
     assert_eq!(vines_render_model(&removed).name, "vines");
 }
+
+#[test]
+fn default_avoids_consecutive_extremes_and_bounded_triggers() {
+    let mut ctx = context();
+    let mut state = vines_init(json!({})).unwrap();
+    let mut full_run = 0;
+    let mut empty_run = 0;
+    for _ in 0..300 {
+        state = vines_on_tick(state, &mut ctx);
+        let visible = vines_render_model(&state).cells;
+        full_run = if visible.iter().all(|cell| *cell) {
+            full_run + 1
+        } else {
+            0
+        };
+        empty_run = if visible.iter().all(|cell| !*cell) {
+            empty_run + 1
+        } else {
+            0
+        };
+        assert!(full_run <= 1);
+        assert!(empty_run <= 1);
+        let bursts = state
+            .trigger_types
+            .iter()
+            .filter(|trigger| {
+                matches!(
+                    trigger,
+                    CellTriggerType::Activate | CellTriggerType::Deactivate
+                )
+            })
+            .count();
+        assert!(bursts <= 16);
+    }
+}

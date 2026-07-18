@@ -6,6 +6,9 @@ fn context() -> BehaviorContext {
 fn base() -> GravityState {
     gravity_init(serde_json::json!({"spawnRatePct":0,"slideChancePct":100,"settleAge":8})).unwrap()
 }
+fn visible(state: &GravityState) -> Vec<bool> {
+    gravity_render_model(state).cells
+}
 
 #[test]
 fn menu_palette_normalize_and_serialization() {
@@ -137,4 +140,44 @@ fn slide_clear_bottom_invert_and_spawn_are_deterministic() {
         dropped.cells.iter().filter(|c| **c == SAND).count(),
         GRID_WIDTH
     );
+}
+
+#[test]
+fn default_self_sustains_and_leak_is_bounded() {
+    let mut context = context();
+    let mut state = gravity_init(serde_json::Value::Null).unwrap();
+    let mut previous = visible(&state);
+    let mut terminal_same = 1usize;
+    let mut terminal_full = usize::from(previous.iter().all(|cell| *cell));
+    let mut final_frames = Vec::new();
+    for _ in 0..300 {
+        state = gravity_on_tick(state, &mut context);
+        let frame = visible(&state);
+        terminal_same = if frame == previous {
+            terminal_same + 1
+        } else {
+            1
+        };
+        terminal_full = if frame.iter().all(|cell| *cell) {
+            terminal_full + 1
+        } else {
+            0
+        };
+        assert!(
+            state
+                .trigger_types
+                .iter()
+                .filter(|trigger| **trigger == CellTriggerType::Deactivate)
+                .count()
+                <= CELL_COUNT / 2
+        );
+        final_frames.push(frame.clone());
+        if final_frames.len() > 16 {
+            final_frames.remove(0);
+        }
+        previous = frame;
+    }
+    assert!(terminal_same <= 2);
+    assert!(terminal_full <= 2);
+    assert!(final_frames.windows(2).any(|window| window[0] != window[1]));
 }

@@ -186,8 +186,8 @@ fn from_config(v: Value) -> ReactionDiffusionState {
         kill_pct: num(c.kill_pct, 55, 100),
         diffusion_pct: num(c.diffusion_pct, 35, 100),
         reaction_pct: num(c.reaction_pct, 50, 100),
-        seed_interval: num(c.seed_interval, 16, 64),
-        spawn_step: num(c.spawn_step, 15, 63),
+        seed_interval: num(c.seed_interval, 3, 64),
+        spawn_step: num(c.spawn_step, 2, 63),
         tick_counter: 0,
     };
     normalize(&mut s);

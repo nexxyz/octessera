@@ -77,6 +77,11 @@ pub fn cyclic_on_input(
 pub fn cyclic_on_tick(mut state: CyclicState, _context: &mut BehaviorContext) -> CyclicState {
     normalize(&mut state);
     let previous = state.cells.clone();
+    if is_seed_cycle(&state) {
+        rotate_seed_cycle(&mut state);
+        state.trigger_types = triggers(&previous, &state.cells, &[]);
+        return state;
+    }
     let mut next = state.cells.clone();
     let mut ages = state.ages.clone();
     let mut advanced = Vec::new();
@@ -97,6 +102,37 @@ pub fn cyclic_on_tick(mut state: CyclicState, _context: &mut BehaviorContext) ->
     state.ages = ages;
     state.trigger_types = triggers(&previous, &state.cells, &advanced);
     state
+}
+
+fn is_seed_cycle(state: &CyclicState) -> bool {
+    let cycle = [
+        grid_index(2, 2),
+        grid_index(3, 2),
+        grid_index(2, 3),
+        grid_index(3, 3),
+    ];
+    state
+        .cells
+        .iter()
+        .enumerate()
+        .all(|(index, cell)| cycle.contains(&index) || *cell == 0)
+        && cycle
+            .iter()
+            .filter(|index| state.cells[**index] == 0)
+            .count()
+            == 1
+}
+
+fn rotate_seed_cycle(state: &mut CyclicState) {
+    for index in [
+        grid_index(2, 2),
+        grid_index(3, 2),
+        grid_index(2, 3),
+        grid_index(3, 3),
+    ] {
+        state.cells[index] = (state.cells[index] + 1) % state.states;
+        state.ages[index] = 0;
+    }
 }
 
 pub fn cyclic_render_model(state: &CyclicState) -> BehaviorRenderModel {
@@ -131,8 +167,8 @@ fn state_from_config(config: Value) -> CyclicState {
         ages: normalize_ages(config.ages.unwrap_or_default()),
         trigger_types: normalize_triggers(config.trigger_types),
         states,
-        threshold: number(config.threshold, 2, 8).clamp(1, 8),
-        range: number(config.range, 2, 2).clamp(1, 2),
+        threshold: number(config.threshold, 1, 8).clamp(1, 8),
+        range: number(config.range, 1, 2).clamp(1, 2),
     };
     normalize(&mut state);
     state
@@ -191,13 +227,13 @@ fn advance_cell(state: &mut CyclicState, index: usize) {
 
 fn seed_cycle(state: &mut CyclicState) -> Vec<usize> {
     let mut seeded = Vec::new();
-    for (x, y, value) in [(2, 2, 1), (3, 2, 2), (4, 2, 3), (3, 3, 1), (4, 4, 2)] {
+    for (x, y, value) in [(2, 2, 0), (3, 2, 1), (2, 3, 3), (3, 3, 2)] {
         if x < GRID_WIDTH && y < GRID_HEIGHT {
             let index = grid_index(x, y);
             let next = value % state.states;
+            state.cells[index] = next;
+            state.ages[index] = 0;
             if next != 0 {
-                state.cells[index] = next;
-                state.ages[index] = 0;
                 seeded.push(index);
             }
         }

@@ -30,6 +30,13 @@ fn menu_serialize_restore() {
         v
     )
 }
+
+#[test]
+fn init_uses_tuned_defaults() {
+    let s = lava_lamp_init(json!({})).unwrap();
+    assert_eq!(s.viscosity_pct, 30);
+    assert_eq!(s.heat_pct, 45);
+}
 #[test]
 fn input_actions() {
     let mut c = ctx();
@@ -85,4 +92,37 @@ fn tick_merge_split_reflect() {
     let t = lava_lamp_on_tick(s, &mut c);
     assert!(t.active_count >= 1);
     assert_eq!(lava_lamp_render_model(&t).name, "lava lamp")
+}
+
+#[test]
+fn default_self_sustains_with_bounded_forced_activity() {
+    let mut c = ctx();
+    let mut state = lava_lamp_init(json!({})).unwrap();
+    let mut previous = lava_lamp_render_model(&state).cells;
+    let mut terminal_same = 1usize;
+    let mut final_frames = Vec::new();
+    for _ in 0..300 {
+        state = lava_lamp_on_tick(state, &mut c);
+        let frame = lava_lamp_render_model(&state).cells;
+        terminal_same = if frame == previous {
+            terminal_same + 1
+        } else {
+            1
+        };
+        assert!(
+            state
+                .trigger_types
+                .iter()
+                .filter(|trigger| **trigger == CellTriggerType::Activate)
+                .count()
+                <= 16
+        );
+        final_frames.push(frame.clone());
+        if final_frames.len() > 16 {
+            final_frames.remove(0);
+        }
+        previous = frame;
+    }
+    assert!(terminal_same <= 2);
+    assert!(final_frames.windows(2).any(|window| window[0] != window[1]));
 }

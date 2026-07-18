@@ -60,7 +60,7 @@ pub fn init(config: Value) -> Result<LifeState, String> {
     let config: LifeConfig = serde_json::from_value(config).unwrap_or_default();
     let mut cells = vec![false; CELL_COUNT];
     if seed_default {
-        seed_glider(&mut cells, 0, 0);
+        seed_blinker(&mut cells);
     }
     Ok(LifeState {
         width: GRID_WIDTH,
@@ -83,6 +83,12 @@ fn seed_glider(cells: &mut [bool], origin_x: usize, origin_y: usize) {
         if x < GRID_WIDTH && y < GRID_HEIGHT {
             cells[grid_index(x, y)] = true;
         }
+    }
+}
+
+fn seed_blinker(cells: &mut [bool]) {
+    for (x, y) in [(4, 5), (5, 5), (6, 5)] {
+        cells[grid_index(x, y)] = true;
     }
 }
 

@@ -15,6 +15,41 @@ fn base() -> KuramotoState {
     .unwrap()
 }
 
+fn assert_tail_activity(mut state: KuramotoState) {
+    let mut context = context();
+    let mut consecutive_empty = 0;
+    let mut consecutive_full = 0;
+    let mut consecutive_same = 0;
+    let mut previous = Vec::new();
+    for tick in 1..=300 {
+        state = kuramoto_on_tick(state, &mut context);
+        let cells = kuramoto_render_model(&state).cells;
+        if tick <= 240 {
+            previous = cells;
+            continue;
+        }
+        consecutive_empty = if cells.iter().all(|cell| !*cell) {
+            consecutive_empty + 1
+        } else {
+            0
+        };
+        consecutive_full = if cells.iter().all(|cell| *cell) {
+            consecutive_full + 1
+        } else {
+            0
+        };
+        consecutive_same = if cells == previous {
+            consecutive_same + 1
+        } else {
+            0
+        };
+        assert!(consecutive_empty <= 2, "empty run at tick {tick}");
+        assert!(consecutive_full <= 2, "full run at tick {tick}");
+        assert!(consecutive_same <= 2, "same-frame run at tick {tick}");
+        previous = cells;
+    }
+}
+
 #[test]
 fn menu_palette_and_normalization_contract() {
     let menu = kuramoto_config_menu();
@@ -111,4 +146,9 @@ fn serialization_is_stable_and_skips_triggers() {
     let restored = kuramoto_deserialize(serialized.clone()).unwrap();
     assert_eq!(kuramoto_serialize(&restored).unwrap(), serialized);
     assert!(!restored.trigger_types.contains(&CellTriggerType::Activate));
+}
+
+#[test]
+fn defaults_keep_tail_activity_bounded_through_300_ticks() {
+    assert_tail_activity(kuramoto_init(serde_json::json!({})).unwrap());
 }

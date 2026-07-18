@@ -97,10 +97,13 @@ Behavior-specific config items (from `configMenu()`):
 | looper | !Punch In/Out | action |
 | looper | Length: [1..64] | number, step 1 (default 16) |
 | looper | !Clear Loop | action |
-| brain | Fire Threshold: [1..6] | number, step 1 |
+| brain | Fire Threshold: [1..4] | number, step 1 (default 2) |
+| brain | Seed Interval: [0..30] | number, step 1 (default 2; 0 disables scheduled seeding) |
+| brain | Spawn Step: [0..63] | number, step 1 (default 0) |
+| brain | Spawn Count: [0..20] | number, step 1 (default 2) |
 | brain | !Seed Random | action, shared route `trigger.life.spawn_now` |
 | cyclic | States: [3..8] | number, step 1 (default 4) |
-| cyclic | Threshold: [1..8] | number, step 1 (default 2) |
+| cyclic | Threshold: [1..8] | number, step 1 (default 1) |
 | cyclic | Range: [1..2] | number, step 1 (default 1) |
 | cyclic | !Seed Cycle | action, shared route `trigger.life.spawn_now` |
 | forest_fire | Tree Density: [0..100] | number, step 1 (default 34) |
@@ -148,8 +151,8 @@ Behavior-specific config items (from `configMenu()`):
 | orbit | !Reset Orbit | action, shared route `trigger.life.spawn_now` |
 | orbit | !Nudge Attractor | action, shared route `trigger.life.spawn_now` |
 | lava_lamp | Blob Count: [1..8] | number, step 1 (default 4) |
-| lava_lamp | Viscosity: [0..100] | number, step 1 (default 40) |
-| lava_lamp | Heat: [0..100] | number, step 1 (default 35) |
+| lava_lamp | Viscosity: [0..100] | number, step 1 (default 30) |
+| lava_lamp | Heat: [0..100] | number, step 1 (default 45) |
 | lava_lamp | Merge: [0..100] | number, step 1 (default 25) |
 | lava_lamp | !Heat Lamp | action, shared route `trigger.life.spawn_now` |
 | lava_lamp | !Reset Blobs | action, shared route `trigger.life.spawn_now` |
@@ -159,9 +162,11 @@ Behavior-specific config items (from `configMenu()`):
 | sand_ripples | !Gust | action, shared route `trigger.life.spawn_now` |
 | sand_ripples | !Shift Wind | action, shared route `trigger.life.spawn_now` |
 | sand_ripples | !Seed Dunes | action, shared route `trigger.life.spawn_now` |
-| shapes | Shape: [ring, heart, star, plus, x] | enum |
-| shapes | Expansion Speed: [1..5] | number, step 1 |
-| shapes | Auto Spawn Int: [0=off, 10, 20, 50] | enum |
+| shapes | Shape: [ring, filled, diamond, cross, x] | enum |
+| shapes | Lifespan: [1..12] | number, step 1 (default 3) |
+| shapes | Max Radius: [4..32] | number, step 1 (default 12) |
+| shapes | Spawn Interval: [0..20] | number, step 1 (default 4; 0 disables scheduled pulses) |
+| shapes | Spawn Step: [0..63] | number, step 1 (default 2) |
 | shapes | !Spawn Pulse | action, shared route `trigger.life.spawn_now` |
 | fractal_explorer | Zoom Rate: [0..100] | number, step 1 (default 8) |
 | fractal_explorer | Drift: [0..100] | number, step 1 (default 20) |
@@ -189,6 +194,8 @@ Behavior-specific config items (from `configMenu()`):
 | reaction_diffusion | Kill: [0..100] | number, step 1 (default 55) |
 | reaction_diffusion | Diffusion: [0..100] | number, step 1 (default 35) |
 | reaction_diffusion | Reaction: [0..100] | number, step 1 (default 50) |
+| reaction_diffusion | Seed Interval: [0..64] | number, step 1 (default 3; 0 disables scheduled seeding) |
+| reaction_diffusion | Spawn Step: [0..63] | number, step 1 (default 2) |
 | reaction_diffusion | !Seed Chemicals | action, shared route `trigger.life.spawn_now` |
 | reaction_diffusion | !Clear Chemicals | action, shared route `trigger.life.spawn_now` |
 | rivers | Rain: [0..100] | number, step 1 (default 20) |
@@ -197,9 +204,9 @@ Behavior-specific config items (from `configMenu()`):
 | rivers | Evaporation: [0..100] | number, step 1 (default 8) |
 | rivers | !Rain Burst | action, shared route `trigger.life.spawn_now` |
 | rivers | !Reset Terrain | action, shared route `trigger.life.spawn_now` |
-| kuramoto | Coupling: [0..100] | number, step 1 (default 35) |
+| kuramoto | Coupling: [0..100] | number, step 1 (default 10) |
 | kuramoto | Frequency Spread: [0..32] | number, step 1 (default 10) |
-| kuramoto | Jitter: [0..100] | number, step 1 (default 3) |
+| kuramoto | Jitter: [0..100] | number, step 1 (default 20) |
 | kuramoto | !Desync Pulse | action, shared route `trigger.life.spawn_now` |
 | lightning | Branch Chance: [0..100] | number, step 1 (default 25) |
 | lightning | Jitter Chance: [0..100] | number, step 1 (default 20) |
@@ -207,9 +214,11 @@ Behavior-specific config items (from `configMenu()`):
 | lightning | Leader Limit: [1..8] | number, step 1 (default 3) |
 | lightning | Target Edge: [north, east, south, west] | enum (default south) |
 | lightning | !Strike Now | action, shared route `trigger.life.spawn_now` |
-| wave | Damping: [0..100] | number, step 1 (default 14) |
-| wave | Tension: [0..100] | number, step 1 (default 45) |
+| wave | Damping: [0..100] | number, step 1 (default 4) |
+| wave | Tension: [0..100] | number, step 1 (default 25) |
 | wave | Impulse Strength: [1..127] | number, step 1 (default 80) |
+| wave | Impulse Interval: [0..64] | number, step 1 (default 4; 0 disables scheduled impulses) |
+| wave | Spawn Step: [0..63] | number, step 1 (default 3) |
 | wave | !Drop Impulse | action, shared route `trigger.life.spawn_now` |
 | raindrops | !Drop Now | action, shared route `trigger.life.spawn_now` |
 | cracks | Stress: [0..100] | number, step 1 (default 20) |
@@ -219,7 +228,7 @@ Behavior-specific config items (from `configMenu()`):
 | coral | !Seed Coral | action, shared route `trigger.life.spawn_now` |
 | coral | !Break Coral | action, shared route `trigger.life.spawn_now` |
 | cracks | Branch: [0..100] | number, step 1 (default 18) |
-| cracks | Propagation: [0..100] | number, step 1 (default 65) |
+| cracks | Propagation: [0..100] | number, step 1 (default 100) |
 | cracks | Shatter Threshold: [1..64] | number, step 1 (default 24) |
 | cracks | !Impact | action, shared route `trigger.life.spawn_now` |
 | cracks | !Replace Pane | action, shared route `trigger.life.spawn_now` |
@@ -235,9 +244,9 @@ Behavior-specific config items (from `configMenu()`):
 | dla | !Seed Cluster | action, shared route `trigger.life.spawn_now` |
 | physarum | Agent Count: [1..32] | number, step 1 (default 20) |
 | physarum | Sense Distance: [1..3] | number, step 1 (default 1) |
-| physarum | Turn Bias: [0..100] | number, step 1 (default 45) |
-| physarum | Deposit Amount: [1..64] | number, step 1 (default 24) |
-| physarum | Evaporation: [0..100] | number, step 1 (default 10) |
+| physarum | Turn Bias: [0..100] | number, step 1 (default 55) |
+| physarum | Deposit Amount: [1..64] | number, step 1 (default 18) |
+| physarum | Evaporation: [0..100] | number, step 1 (default 18) |
 | physarum | !Relocate Food | action, shared route `trigger.life.spawn_now` |
 | physarum | !Seed Slime | action, shared route `trigger.life.spawn_now` |
 | vines | Growth: [0..100] | number, step 1 (default 55) |

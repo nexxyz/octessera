@@ -149,3 +149,36 @@ fn seed_and_relocate_actions() {
     assert!(!relocated.trigger_types.contains(&CellTriggerType::Activate));
     assert_eq!(relocated.food_pattern, 1);
 }
+
+#[test]
+fn default_tail_stays_bounded_and_non_terminal() {
+    let mut c = ctx();
+    let mut s = physarum_init(serde_json::json!({})).unwrap();
+    let mut same = 0;
+    let mut terminal = 0;
+    let mut previous = render(&s);
+    for _ in 0..300 {
+        s = physarum_on_tick(s, &mut c);
+        let next = render(&s);
+        same = if next == previous { same + 1 } else { 0 };
+        terminal = if next.iter().all(|cell| *cell) || next.iter().all(|cell| !*cell) {
+            terminal + 1
+        } else {
+            0
+        };
+        assert!(same <= 2);
+        assert!(terminal <= 2);
+        let bursts = s
+            .trigger_types
+            .iter()
+            .filter(|trigger| {
+                matches!(
+                    trigger,
+                    CellTriggerType::Activate | CellTriggerType::Deactivate
+                )
+            })
+            .count();
+        assert!(bursts <= 32);
+        previous = next;
+    }
+}

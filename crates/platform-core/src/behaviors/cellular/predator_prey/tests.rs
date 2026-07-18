@@ -163,3 +163,47 @@ fn starvation_conflict_nonwrap_and_reseed() {
     assert!(n.cells.contains(&HERBIVORE));
     assert!(n.cells.contains(&PREDATOR));
 }
+
+#[test]
+fn full_grass_grid_reopens_without_firehose() {
+    let mut c = ctx();
+    let mut s = empty();
+    s.cells.fill(GRASS);
+    s.grass_grow_chance_pct = 100;
+
+    let n = predator_prey_on_tick(s, &mut c);
+
+    assert!(n.cells.contains(&EMPTY));
+    assert!(
+        n.trigger_types
+            .iter()
+            .filter(|trigger| **trigger == CellTriggerType::Deactivate)
+            .count()
+            <= 4
+    );
+}
+
+#[test]
+fn default_run_avoids_consecutive_empty_or_full_frames() {
+    let mut c = ctx();
+    let mut s = predator_prey_init(Value::Null).unwrap();
+    let mut empty_run = 0;
+    let mut full_run = 0;
+
+    for _ in 0..300 {
+        s = predator_prey_on_tick(s, &mut c);
+        let model = predator_prey_render_model(&s);
+        empty_run = if model.cells.iter().all(|cell| !*cell) {
+            empty_run + 1
+        } else {
+            0
+        };
+        full_run = if model.cells.iter().all(|cell| *cell) {
+            full_run + 1
+        } else {
+            0
+        };
+        assert!(empty_run <= 1);
+        assert!(full_run <= 1);
+    }
+}

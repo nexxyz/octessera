@@ -186,10 +186,10 @@ fn state_from_config(config: Value) -> WaveState {
         velocity: normalize_values(config.velocity.unwrap_or_default()),
         trigger_types: normalize_triggers(config.trigger_types),
         damping_pct: number(config.damping_pct, 4, 100),
-        tension_pct: number(config.tension_pct, 45, 100),
+        tension_pct: number(config.tension_pct, 25, 100),
         impulse_strength: i16::from(number(config.impulse_strength, 80, 127).max(1)),
-        auto_impulse_interval: number(config.auto_impulse_interval, 20, 64),
-        spawn_step: number(config.spawn_step, 7, 63),
+        auto_impulse_interval: number(config.auto_impulse_interval, 4, 64),
+        spawn_step: number(config.spawn_step, 3, 63),
         tick_counter: 0,
     };
     normalize(&mut state);
