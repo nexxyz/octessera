@@ -7,7 +7,7 @@ inspect_payload_tar() {
   local tar_path="$1"
   tar -tf "$tar_path" | while IFS= read -r entry; do
     case "$entry" in
-      /*|*../*|../*|*'/..'|'..') echo "Unsafe payload path: $entry" >&2; exit 1 ;;
+      /*|..|../*|*/..|*/../*) echo "Unsafe payload path: $entry" >&2; exit 1 ;;
     esac
   done
   tar -tvf "$tar_path" | while IFS= read -r entry; do

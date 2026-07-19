@@ -47,7 +47,7 @@ if [[ -n "$payload_url" ]]; then
   echo "$payload_sha256  $work/payload.tar" | sha256sum -c -
   tar -tf "$work/payload.tar" | while IFS= read -r entry; do
     case "$entry" in
-      /*|*../*|../*|*'/..'|'..') echo "Unsafe payload path: $entry" >&2; exit 1 ;;
+      /*|..|../*|*/..|*/../*) echo "Unsafe payload path: $entry" >&2; exit 1 ;;
     esac
   done
   tar -tvf "$work/payload.tar" | while IFS= read -r entry; do
