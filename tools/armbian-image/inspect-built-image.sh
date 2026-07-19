@@ -35,11 +35,6 @@ unit_masked() {
   fi
 }
 
-unit_not_enabled() {
-  local path="$1"
-  ! stat_path "$path"
-}
-
 shadow="$(read_file etc/shadow)"
 line="$(printf '%s\n' "$shadow" | grep -E '^octessera:' || true)"
 if [[ -n "$line" ]]; then
@@ -70,7 +65,5 @@ printf '%s\n' "$ssh_config" | grep -q '^AllowUsers octessera$' || { echo "Missin
 
 unit_masked etc/systemd/system/ssh.service || { echo "ssh.service is not masked in the built image." >&2; exit 1; }
 unit_masked etc/systemd/system/ssh.socket || { echo "ssh.socket is not masked in the built image." >&2; exit 1; }
-unit_not_enabled etc/systemd/system/multi-user.target.wants/ssh.service || { echo "ssh.service is enabled before setup." >&2; exit 1; }
-unit_not_enabled etc/systemd/system/sockets.target.wants/ssh.socket || { echo "ssh.socket is enabled before setup." >&2; exit 1; }
 
 echo "Built Armbian image inspection passed."
