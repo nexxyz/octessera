@@ -1,0 +1,156 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>Octessera setup</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero card" aria-labelledby="title">
+        <div class="brand" aria-hidden="true">
+          <img class="brand-mark" src="./octessera-mark.svg" alt="" />
+          <img class="brand-wordmark" src="./octessera-wordmark.svg" alt="" />
+        </div>
+        <div class="eyebrow">Octessera first boot setup</div>
+        <h1 id="title">Connect the instrument to Wi-Fi</h1>
+        <p class="lede">
+          This portal runs from the setup hotspot. It is meant for quick, careful setup next to the device.
+        </p>
+        <div class="notice">
+          Until setup finishes, anyone nearby who joins this Wi-Fi can configure the device. Stay close to it. SSH keys are recommended.
+        </div>
+      </section>
+
+      <div class="card wizard" aria-live="polite">
+        <div class="progress" aria-label="Setup progress">
+          <div class="progress-track" id="progressTrack"></div>
+          <ol class="step-dots" id="stepDots"></ol>
+        </div>
+
+        <div id="status" class="status" role="status" aria-live="polite"></div>
+        <div id="errors" class="errors" role="alert" aria-live="assertive"></div>
+
+        <form id="setupForm" novalidate>
+          <section class="step" data-step="0" aria-labelledby="step0Title">
+            <h2 id="step0Title">Welcome</h2>
+            <p>
+              The setup portal can hand this device a Wi-Fi network, SSH access, and a hostname in one pass.
+            </p>
+            <ul class="bullets">
+              <li>Choose the network the device should join.</li>
+              <li>Pick SSH key or password access.</li>
+              <li>Review everything before it leaves the hotspot.</li>
+            </ul>
+            <div class="actions single">
+              <button type="button" class="primary" id="startButton">Start setup</button>
+            </div>
+          </section>
+
+          <section class="step" data-step="1" aria-labelledby="step1Title" hidden>
+            <h2 id="step1Title">Wi-Fi</h2>
+            <div class="field">
+              <div class="field-header">
+                <label>Available networks</label>
+                <button type="button" class="link" id="refreshNetworks">Refresh scan</button>
+              </div>
+              <div id="networkState" class="muted"></div>
+              <div id="networkList" class="network-list" role="radiogroup" aria-label="Wi-Fi networks"></div>
+              <label class="manual-row">
+                <span>Or enter SSID manually</span>
+                <input id="manualSsid" name="manualSsid" type="text" autocomplete="off" spellcheck="false" placeholder="Network name" />
+              </label>
+            </div>
+
+            <div class="grid-2">
+              <label class="field">
+                <span>Wi-Fi password</span>
+                <input id="wifiPassphrase" name="wifiPassphrase" type="password" autocomplete="current-password" placeholder="Leave blank for open networks" />
+              </label>
+              <label class="field">
+                <span>Country code</span>
+                <input id="wifiCountry" name="wifiCountry" type="text" maxlength="2" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="US" />
+              </label>
+            </div>
+
+            <label class="checkbox">
+              <input id="openNetwork" type="checkbox" />
+              <span>This network is open</span>
+            </label>
+
+            <div class="actions">
+              <button type="button" class="secondary" data-back>Back</button>
+              <button type="button" class="primary" data-next>Next</button>
+            </div>
+          </section>
+
+          <section class="step" data-step="2" aria-labelledby="step2Title" hidden>
+            <h2 id="step2Title">SSH access</h2>
+            <p class="muted">SSH keys are the safest option. Password access is available if you need it.</p>
+
+            <div class="choice-group" role="radiogroup" aria-label="SSH mode">
+              <label class="choice"><input type="radio" name="sshMode" value="key" checked /> <span>SSH key</span></label>
+              <label class="choice"><input type="radio" name="sshMode" value="password" /> <span>SSH password</span></label>
+              <label class="choice"><input type="radio" name="sshMode" value="none" /> <span>No SSH setup</span></label>
+            </div>
+
+            <div id="sshKeyFields" class="field">
+              <label>
+                <span>Public key</span>
+                <textarea id="sshPublicKey" rows="5" spellcheck="false" placeholder="ssh-ed25519 AAAA..."></textarea>
+              </label>
+            </div>
+
+            <div id="sshPasswordFields" class="grid-2" hidden>
+              <label class="field">
+                <span>Password</span>
+                <input id="sshPassword" type="password" autocomplete="new-password" minlength="12" placeholder="At least 12 characters" />
+              </label>
+              <label class="field">
+                <span>Confirm password</span>
+                <input id="sshPasswordConfirm" type="password" autocomplete="new-password" minlength="12" placeholder="Repeat the password" />
+              </label>
+            </div>
+
+            <div class="actions">
+              <button type="button" class="secondary" data-back>Back</button>
+              <button type="button" class="primary" data-next>Next</button>
+            </div>
+          </section>
+
+          <section class="step" data-step="3" aria-labelledby="step3Title" hidden>
+            <h2 id="step3Title">Device name</h2>
+            <label class="field">
+              <span>Hostname (optional)</span>
+              <input id="hostname" type="text" autocomplete="off" spellcheck="false" placeholder="octessera-orange" />
+            </label>
+            <p class="muted">Leave it blank to keep the device default.</p>
+            <div class="actions">
+              <button type="button" class="secondary" data-back>Back</button>
+              <button type="button" class="primary" data-next>Review</button>
+            </div>
+          </section>
+
+          <section class="step" data-step="4" aria-labelledby="step4Title" hidden>
+            <h2 id="step4Title">Review and connect</h2>
+            <div id="review" class="review"></div>
+            <div class="actions">
+              <button type="button" class="secondary" data-back>Back</button>
+              <button type="submit" class="primary" id="connectButton">Stage and connect</button>
+            </div>
+          </section>
+
+          <section class="step success" data-step="5" aria-labelledby="step5Title" hidden>
+            <h2 id="step5Title">Setup sent</h2>
+            <p>The device is leaving the setup hotspot and joining your Wi-Fi now.</p>
+            <p class="muted">If the captive portal disappears, that is the expected good news.</p>
+          </section>
+        </form>
+      </div>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

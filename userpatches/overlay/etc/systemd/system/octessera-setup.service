@@ -1,0 +1,12 @@
+[Unit]
+Description=Octessera first-run setup portal
+After=NetworkManager.service
+Wants=NetworkManager.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/octessera-wifi-connect
+Restart=no
+
+[Install]
+WantedBy=multi-user.target

@@ -7,7 +7,28 @@ overlay_dir=/tmp/overlay
 install -d -m 0755 /etc/octessera /usr/local/sbin /usr/local/lib/octessera /var/lib/octessera/samples
 
 apt-get update
-apt-get install -y --no-install-recommends ca-certificates curl tar xz-utils jq gpiod alsa-utils i2c-tools
+apt-get install -y --no-install-recommends ca-certificates curl tar xz-utils jq gpiod alsa-utils i2c-tools network-manager dnsmasq wireless-tools iw python3-minimal openssh-server sudo
+
+wifi_connect_version=4.11.84
+wifi_connect_sha256=413d70e6d1c1366cbe2b32555e8476f3e92878178ed1b9c82205985f055f1936
+wifi_connect_url="https://github.com/balena-os/wifi-connect/releases/download/v${wifi_connect_version}/wifi-connect-aarch64-unknown-linux-gnu.tar.gz"
+wifi_work="$(mktemp -d)"
+curl --fail --location --proto '=https' --tlsv1.2 --output "$wifi_work/wifi-connect.tar.gz" "$wifi_connect_url"
+echo "$wifi_connect_sha256  $wifi_work/wifi-connect.tar.gz" | sha256sum -c -
+tar -xf "$wifi_work/wifi-connect.tar.gz" -C "$wifi_work"
+install -D -m 0755 "$wifi_work/wifi-connect" /usr/local/bin/wifi-connect
+install -d -m 0755 /usr/local/share/doc/octessera
+cat >/usr/local/share/doc/octessera/wifi-connect.metadata <<EOF
+wifi-connect ${wifi_connect_version}
+Source: ${wifi_connect_url}
+SHA256: ${wifi_connect_sha256}
+License: Apache-2.0
+EOF
+cat >/usr/local/share/doc/octessera/wifi-connect.NOTICE <<'EOF'
+wifi-connect is distributed by balena under the Apache License 2.0.
+See https://github.com/balena-os/wifi-connect for upstream license text.
+EOF
+rm -rf "$wifi_work"
 
 install_overlay_file() {
   local src="$1"
@@ -29,6 +50,38 @@ fi
 [[ -f "$overlay_dir/usr/local/sbin/octessera-armbian-diagnostics" ]] || { echo "Missing Octessera Armbian diagnostics overlay." >&2; exit 1; }
 install_overlay_file etc/octessera/armbian-image.txt /etc/octessera/armbian-image.txt 0644
 install_overlay_file usr/local/sbin/octessera-armbian-diagnostics /usr/local/sbin/octessera-armbian-diagnostics 0755
+install_overlay_file usr/local/sbin/octessera-wifi-connect /usr/local/sbin/octessera-wifi-connect 0755
+install_overlay_file usr/local/sbin/octessera-setup-sidecar /usr/local/sbin/octessera-setup-sidecar 0755
+install_overlay_file etc/systemd/system/octessera-setup.service /etc/systemd/system/octessera-setup.service 0644
+install_overlay_file etc/systemd/system/octessera.service /etc/systemd/system/octessera.service 0644
+if [[ -d "$overlay_dir/usr/local/share/octessera-setup-ui" ]]; then
+  cp -a "$overlay_dir/usr/local/share/octessera-setup-ui" /usr/local/share/
+fi
+
+if ! id octessera >/dev/null 2>&1; then
+  useradd --create-home --shell /bin/bash --groups sudo octessera
+fi
+passwd -l octessera >/dev/null || true
+install -d -m 0755 /etc/ssh/sshd_config.d
+cat >/etc/ssh/sshd_config.d/10-octessera-setup.conf <<'EOF'
+PermitRootLogin no
+PasswordAuthentication no
+AllowUsers octessera
+EOF
+systemctl disable ssh.service >/dev/null 2>&1 || true
+systemctl mask ssh.service >/dev/null 2>&1 || true
+systemctl disable ssh.socket >/dev/null 2>&1 || true
+systemctl mask ssh.socket >/dev/null 2>&1 || true
+if systemctl list-unit-files sshd.service >/dev/null 2>&1; then
+  systemctl disable sshd.service >/dev/null 2>&1 || true
+  systemctl mask sshd.service >/dev/null 2>&1 || true
+fi
+if systemctl list-unit-files sshd.socket >/dev/null 2>&1; then
+  systemctl disable sshd.socket >/dev/null 2>&1 || true
+  systemctl mask sshd.socket >/dev/null 2>&1 || true
+fi
+rm -f /etc/ssh/ssh_host_*
+systemctl enable octessera-setup.service >/dev/null
 
 cat >/etc/octessera/build-metadata.env <<EOF
 OCTESSERA_IMAGE_KIND=armbian
@@ -63,6 +116,11 @@ if [[ -n "$payload_url" ]]; then
     if jq -e '.enable_runtime == true and .compatible == true' "$work/extract/octessera-payload.json" >/dev/null; then
       install -d -m 0755 /opt/octessera
       cp -a "$work/extract/." /opt/octessera/
+      if [[ -x /opt/octessera/octessera-pi && -f /etc/systemd/system/octessera.service ]]; then
+        ln -sf /opt/octessera/octessera-pi /usr/local/bin/octessera-pi
+        systemctl enable octessera.service >/dev/null
+        sed -i 's/OCTESSERA_RUNTIME_ENABLED_DEFAULT=false/OCTESSERA_RUNTIME_ENABLED_DEFAULT=true/' /etc/octessera/build-metadata.env
+      fi
     else
       install -d -m 0755 /usr/local/lib/octessera/payload-staged
       cp -a "$work/extract/." /usr/local/lib/octessera/payload-staged/

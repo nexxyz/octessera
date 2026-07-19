@@ -288,6 +288,41 @@ Low-resource on-Pi fallback:
 CARGO_BUILD_JOBS=1 cargo build --profile pi-dev -p octessera-pi --features hardware-pi
 ```
 
+## Orange Pi Armbian Image
+
+The `Armbian Image` GitHub Actions workflow builds the Orange Pi Armbian image. Run validation first:
+
+```bash
+gh workflow run armbian-image.yml \
+  -f board=orangepizero2w \
+  -f release=trixie \
+  -f kernel_branch=current \
+  -f ui=minimal \
+  -f compression=sha,img,xz \
+  -f extensions=preset-firstrun \
+  -f run_build=false \
+  -f artifact_mode=public-generic \
+  -f armbian_build_ref=main
+```
+
+Run the full public build by changing `run_build=true`. Public builds must stay secret-free. The first-boot setup portal handles Wi-Fi and SSH on the device.
+
+Local validation before pushing image changes:
+
+```bash
+bash tools/armbian-image/validate.sh
+node --check userpatches/overlay/usr/local/share/octessera-setup-ui/app.js
+git diff --check
+```
+
+After a successful image build, inspect the artifact for expected setup files and no baked SSH material: no shared user password, no `authorized_keys`, no `/etc/ssh/ssh_host_*`, and `ssh.service` disabled until setup finalizes.
+
+If you have an extracted root filesystem directory or ext4 root partition image, run:
+
+```bash
+tools/armbian-image/inspect-built-image.sh <rootfs-dir-or-ext4-image>
+```
+
 Pi UI/render responsiveness profiling is quiet by default. Enable periodic summaries with either control:
 
 ```bash

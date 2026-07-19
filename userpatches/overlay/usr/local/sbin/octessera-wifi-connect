@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+marker=/var/lib/octessera/setup-complete
+force_marker=/var/lib/octessera/setup-force
+finalize_failed_marker=/var/lib/octessera/setup-finalize-failed
+run_dir=/run/octessera-setup
+ui_dir=/usr/local/share/octessera-setup-ui
+timeout_seconds=${OCTESSERA_SETUP_TIMEOUT_SECONDS:-1800}
+
+has_active_connection() {
+  nmcli -t -f STATE g 2>/dev/null | grep -qx connected && return 0
+  nmcli -t -f TYPE,STATE device status 2>/dev/null | grep -Eq '^(ethernet|wifi):connected$'
+}
+
+has_configured_wifi() {
+  nmcli -t -f TYPE connection show 2>/dev/null | grep -qx '802-11-wireless'
+}
+
+wifi_interface() {
+  iw dev 2>/dev/null | awk '$1 == "Interface" { print $2; exit }'
+}
+
+portal_suffix() {
+  cat /sys/class/net/*/address 2>/dev/null | head -n 1 | tr -d ':\n' | tail -c 4
+}
+
+call_sidecar() {
+  local endpoint="$1"
+  curl --silent --show-error --fail --max-time 5 \
+    --header "X-Octessera-Setup-Nonce: $(cat "$run_dir/nonce")" \
+    --request POST "http://127.0.0.1:8080/$endpoint" >/dev/null
+}
+
+if [[ -f "$marker" && ! -f "$force_marker" ]]; then
+  echo "Octessera setup is complete; skipping setup portal."
+  exit 0
+fi
+
+if [[ ! -f "$force_marker" && ! -f "$finalize_failed_marker" ]] && { has_active_connection || has_configured_wifi; }; then
+  echo "Network is already active or configured; skipping setup portal."
+  exit 0
+fi
+
+iface="$(wifi_interface)"
+if [[ -z "$iface" ]]; then
+  echo "No Wi-Fi interface found for setup portal." >&2
+  exit 0
+fi
+
+install -d -m 0700 "$run_dir"
+umask 077
+python3 -c 'import secrets; print(secrets.token_urlsafe(36))' >"$run_dir/nonce"
+umask 022
+
+/usr/local/sbin/octessera-setup-sidecar &
+sidecar_pid=$!
+cleanup() {
+  kill "$sidecar_pid" >/dev/null 2>&1 || true
+  wait "$sidecar_pid" >/dev/null 2>&1 || true
+  rm -rf "$run_dir"
+}
+trap cleanup EXIT
+
+ssid="Octessera Setup"
+suffix="$(portal_suffix)"
+[[ -n "$suffix" ]] && ssid="$ssid $suffix"
+
+args=(--portal-ssid "$ssid" --portal-interface "$iface" --portal-gateway 192.168.42.1 --portal-listening-port 80)
+[[ -d "$ui_dir" ]] && args+=(--ui-directory "$ui_dir")
+if [[ -n "${OCTESSERA_SETUP_PASSPHRASE:-}" ]]; then
+  args+=(--portal-passphrase "$OCTESSERA_SETUP_PASSPHRASE")
+fi
+
+if timeout "$timeout_seconds" wifi-connect "${args[@]}"; then
+  if call_sidecar finalize; then
+    rm -f "$finalize_failed_marker" "$force_marker"
+  else
+    install -d -m 0755 "$(dirname "$finalize_failed_marker")"
+    touch "$finalize_failed_marker"
+    echo "Octessera setup finalize failed; setup portal will retry even if Wi-Fi is configured." >&2
+    exit 1
+  fi
+else
+  call_sidecar discard || true
+  echo "Octessera setup portal ended before Wi-Fi setup completed; leaving hotspot down until restart."
+  exit 0
+fi

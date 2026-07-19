@@ -17,13 +17,35 @@ inspect_payload_tar() {
   done
 }
 
+required_files=(
+  "$root/userpatches/overlay/usr/local/sbin/octessera-wifi-connect"
+  "$root/userpatches/overlay/usr/local/sbin/octessera-setup-sidecar"
+  "$root/userpatches/overlay/etc/systemd/system/octessera-setup.service"
+  "$root/userpatches/overlay/etc/systemd/system/octessera.service"
+)
+
 bash -n "$root/userpatches/customize-image.sh"
+bash -n "$root/userpatches/overlay/usr/local/sbin/octessera-wifi-connect"
+
+for file in "${required_files[@]}"; do
+  [[ -f "$file" ]] || { echo "Missing required setup file: $file" >&2; exit 1; }
+done
+
+grep -q 'wifi_connect_version=4.11.84' "$root/userpatches/customize-image.sh" || { echo "Missing pinned wifi-connect version." >&2; exit 1; }
+grep -q 'wifi_connect_sha256=413d70e6d1c1366cbe2b32555e8476f3e92878178ed1b9c82205985f055f1936' "$root/userpatches/customize-image.sh" || { echo "Missing pinned wifi-connect SHA256." >&2; exit 1; }
 
 if command -v shellcheck >/dev/null 2>&1; then
-  shellcheck "$root/userpatches/customize-image.sh" "$0"
+  shellcheck "$root/userpatches/customize-image.sh" "$root/userpatches/overlay/usr/local/sbin/octessera-wifi-connect" "$0"
 fi
 
 if command -v python3 >/dev/null 2>&1; then
+  PYTHONDONTWRITEBYTECODE=1 python3 - <<'PY' "$root/userpatches/overlay/usr/local/sbin/octessera-setup-sidecar"
+import pathlib
+import sys
+path = pathlib.Path(sys.argv[1])
+compile(path.read_text(encoding="utf-8"), str(path), "exec")
+PY
+  PYTHONDONTWRITEBYTECODE=1 python3 "$root/tools/armbian-image/test_setup_sidecar.py"
   python3 - <<'PY' "$root/.github/workflows/armbian-image.yml"
 import sys
 try:
@@ -35,16 +57,25 @@ with open(sys.argv[1], 'r', encoding='utf-8') as handle:
 PY
 fi
 
+if command -v node >/dev/null 2>&1; then
+  node --check "$root/userpatches/overlay/usr/local/share/octessera-setup-ui/app.js"
+fi
+
 if command -v actionlint >/dev/null 2>&1; then
   actionlint "$root/.github/workflows/armbian-image.yml"
 fi
 
 for path in "$root/userpatches/overlay" "$root/.github/workflows/armbian-image.yml"; do
-  if grep -RInE '(/home/pi|config\.txt|dtoverlay|dwc2|BCM[0-9]|usb[_-]?gadget|g_mass_storage|wpa_passphrase|BEGIN OPENSSH PRIVATE KEY|BEGIN RSA PRIVATE KEY)' "$path"; then
+  if grep -RInE '(/home/pi|config\.txt|dtoverlay|dwc2|BCM[0-9]|usb[_-]?gadget|g_mass_storage|wpa_passphrase|BEGIN OPENSSH PRIVATE KEY|BEGIN RSA PRIVATE KEY|BEGIN PRIVATE KEY|default_password|changeme|raspberry)' "$path"; then
     echo "Forbidden Raspberry Pi assumption or secret-like pattern found under $path" >&2
     exit 1
   fi
 done
+
+if find "$root/userpatches/overlay" -path '*/.ssh/authorized_keys' -o -name 'ssh_host_*' | grep -q .; then
+  echo "Overlay must not bake SSH keys or authorized keys." >&2
+  exit 1
+fi
 
 if grep -nE '^      (wifi|wi-fi|password|ssh_key|private_key|authorized_keys|user):' "$root/.github/workflows/armbian-image.yml"; then
   echo "Workflow must not expose raw first-run secret inputs." >&2

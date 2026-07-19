@@ -14,6 +14,7 @@ Then you nudge them. You anchor them with a bit of manual sequencing if you want
 - [Behaviors and Play pages](behaviors-and-sparks.md) — the layer behaviors and live performance pages.
 - [Pinout and connections](hardware/pinout-and-connections.md) — wiring and pin ownership.
 - [Enclosure and print notes](hardware/enclosure.md) — case files, ports, power, and print-fit notes.
+- [Orange Pi first boot setup](hardware/orange-pi-first-boot.md) — Wi-Fi and SSH setup for the Armbian image.
 
 ## Printable quick reference
 

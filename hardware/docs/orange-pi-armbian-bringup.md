@@ -75,7 +75,7 @@ Practical rule: Raspberry Pi overlay names and BCM GPIO numbers are not portable
 
 ## GitHub-built Armbian image
 
-The `Armbian Image` GitHub Actions workflow can build a generic Orange Pi/Armbian image with the Octessera marker payload and diagnostics helper installed through Armbian `userpatches/`.
+The `Armbian Image` GitHub Actions workflow can build a generic Orange Pi/Armbian image with Octessera setup helpers, diagnostics, and optional runtime payloads installed through Armbian `userpatches/`.
 
 Start with validation only:
 
@@ -95,7 +95,30 @@ Run a no-secret full build by changing `run_build=true`. Public generic artifact
 
 The only public first-run input is `public_preset_configuration_url`, and it must point to a non-secret HTTPS Armbian `PRESET_CONFIGURATION` file. Keep `preset-firstrun` in the extensions list when using that flow. Private preset URLs belong in the protected `ARMBIAN_PRESET_CONFIGURATION_URL` secret.
 
-Optional Octessera payload tarballs must use HTTPS and a matching SHA256. Payloads are staged by default. The runtime is not enabled unless the payload metadata explicitly says it is compatible and requests runtime enablement; board/HAL validation still comes first.
+Optional Octessera payload tarballs must use HTTPS and a matching SHA256. Payloads are staged by default. The runtime is enabled only when the payload metadata explicitly says it is compatible, requests runtime enablement, and includes an executable `octessera-pi` payload.
+
+### First-boot setup portal
+
+The generic image installs `wifi-connect` plus Octessera setup helpers. If the board has no configured network and setup is not complete, `octessera-setup.service` starts a local hotspot named `Octessera Setup` or `Octessera Setup xxxx`.
+
+The captive portal at `http://192.168.42.1/` configures:
+
+- Wi-Fi network and country code;
+- SSH mode: off, public key, or password;
+- optional hostname.
+
+In SSH key mode, the installed key is the admin credential and the `octessera` user receives passwordless `sudo`. In password mode, the `octessera` password is used for both SSH login and `sudo`.
+
+Security model: this is local first-boot trust. Until setup completes, anyone nearby who joins the setup hotspot can configure the device. The image does not ship with a shared SSH password, SSH host keys, baked user keys, or enabled SSH. `ssh.service` and `ssh.socket` are masked until setup finalizes. SSH host keys are generated on-device only when SSH is enabled.
+
+Useful checks after boot:
+
+```sh
+systemctl status octessera-setup.service
+journalctl -u octessera-setup.service --no-pager
+systemctl is-enabled ssh.service || true
+ls /etc/ssh/ssh_host_* 2>/dev/null || true
+```
 
 After flashing, run:
 

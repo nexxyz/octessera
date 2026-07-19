@@ -1,0 +1,14 @@
+[Unit]
+Description=Octessera runtime
+After=network-online.target sound.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/octessera-pi
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
