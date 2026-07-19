@@ -34,6 +34,7 @@ done
 grep -q 'wifi_connect_version=4.11.84' "$root/userpatches/customize-image.sh" || { echo "Missing pinned wifi-connect version." >&2; exit 1; }
 grep -q 'wifi_connect_sha256=413d70e6d1c1366cbe2b32555e8476f3e92878178ed1b9c82205985f055f1936' "$root/userpatches/customize-image.sh" || { echo "Missing pinned wifi-connect SHA256." >&2; exit 1; }
 grep -q 'passwd -l root' "$root/userpatches/customize-image.sh" || { echo "Root password must be locked in Armbian image customization." >&2; exit 1; }
+grep -q '/root/.ssh/authorized_keys' "$root/userpatches/customize-image.sh" || { echo "Root authorized_keys must be removed in Armbian image customization." >&2; exit 1; }
 
 if command -v shellcheck >/dev/null 2>&1; then
   shellcheck "$root/userpatches/customize-image.sh" "$root/userpatches/overlay/usr/local/sbin/octessera-wifi-connect" "$0"

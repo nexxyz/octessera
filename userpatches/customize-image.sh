@@ -63,6 +63,7 @@ if ! id octessera >/dev/null 2>&1; then
 fi
 passwd -l root >/dev/null || true
 passwd -l octessera >/dev/null || true
+rm -f /root/.ssh/authorized_keys /home/*/.ssh/authorized_keys
 install -d -m 0755 /etc/ssh/sshd_config.d
 cat >/etc/ssh/sshd_config.d/10-octessera-setup.conf <<'EOF'
 PermitRootLogin no
