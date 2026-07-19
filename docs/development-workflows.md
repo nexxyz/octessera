@@ -299,13 +299,13 @@ gh workflow run armbian-image.yml \
   -f kernel_branch=current \
   -f ui=minimal \
   -f compression=sha,img,xz \
-  -f extensions=preset-firstrun \
+  -f extensions= \
   -f run_build=false \
   -f artifact_mode=public-generic \
   -f armbian_build_ref=main
 ```
 
-Run the full public build by changing `run_build=true`. Public builds must stay secret-free. The first-boot setup portal handles Wi-Fi and SSH on the device.
+Run the full public build by changing `run_build=true`. Public builds must stay secret-free. The first-boot setup portal handles Wi-Fi and SSH on the device, so `preset-firstrun` should stay off unless you are deliberately testing Armbian first-run presets. The build action always adds Octessera's reserved security-scrub extension and inspects the final image before upload.
 
 Local validation before pushing image changes:
 

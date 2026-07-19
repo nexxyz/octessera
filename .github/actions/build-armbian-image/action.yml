@@ -73,9 +73,14 @@ runs:
         [[ "$OCTESSERA_ARMBIAN_KERNEL_BRANCH" =~ ^[a-z0-9][a-z0-9._-]*$ ]] || { echo 'Invalid kernel branch.' >&2; exit 1; }
         [[ "$OCTESSERA_ARMBIAN_UI" =~ ^[A-Za-z0-9._-]+$ ]] || { echo 'Invalid UI value.' >&2; exit 1; }
         [[ "$OCTESSERA_ARMBIAN_COMPRESSION" =~ ^[a-z0-9,._-]+$ ]] || { echo 'Invalid compression value.' >&2; exit 1; }
-        [[ "$OCTESSERA_ARMBIAN_EXTENSIONS" =~ ^[A-Za-z0-9,._[:space:]-]*$ ]] || { echo 'Invalid extensions value.' >&2; exit 1; }
+        [[ -z "$OCTESSERA_ARMBIAN_EXTENSIONS" || "$OCTESSERA_ARMBIAN_EXTENSIONS" =~ ^[A-Za-z0-9._-]+([[:blank:]]+[A-Za-z0-9._-]+)*$ ]] || { echo 'Invalid extensions value.' >&2; exit 1; }
         [[ "$OCTESSERA_ARMBIAN_SHARE_LOG" =~ ^(yes|no)$ ]] || { echo 'Invalid share_log value.' >&2; exit 1; }
         cd build
+        enabled_extensions="$OCTESSERA_ARMBIAN_EXTENSIONS"
+        case " $enabled_extensions " in
+          *' octessera-security-scrub '*) ;;
+          *) enabled_extensions="${enabled_extensions:+$enabled_extensions }octessera-security-scrub" ;;
+        esac
         build_desktop=no
         build_minimal=no
         desktop_environment=
@@ -96,7 +101,13 @@ runs:
           BUILD_MINIMAL="$build_minimal" \
           DESKTOP_ENVIRONMENT="$desktop_environment" \
           DESKTOP_TIER="$desktop_tier" \
-          ENABLE_EXTENSIONS="$OCTESSERA_ARMBIAN_EXTENSIONS" \
+          ENABLE_EXTENSIONS="$enabled_extensions" \
           COMPRESS_OUTPUTIMAGE="$OCTESSERA_ARMBIAN_COMPRESSION" \
           SHARE_LOG="$OCTESSERA_ARMBIAN_SHARE_LOG" \
           EXPERT=yes
+    - name: Inspect built image
+      shell: bash
+      run: |
+        set -euo pipefail
+        custom_root="$(cd "$GITHUB_ACTION_PATH/../../.." && pwd)"
+        bash "$custom_root/tools/armbian-image/inspect-output-images.sh" build/output/images

@@ -85,15 +85,15 @@ gh workflow run armbian-image.yml \
   -f release=trixie \
   -f kernel_branch=current \
   -f ui=minimal \
-  -f compression=xz \
-  -f extensions=preset-firstrun \
+  -f compression=sha,img,xz \
+  -f extensions= \
   -f run_build=false \
   -f artifact_mode=public-generic
 ```
 
-Run a no-secret full build by changing `run_build=true`. Public generic artifacts must not contain Wi-Fi credentials, user passwords, SSH keys, or private first-run URLs. If you need first-boot personalization, use the private artifact mode with the protected `armbian-image-personalized` GitHub environment and repository/environment secrets; do not pass secrets as workflow inputs.
+Run a no-secret full build by changing `run_build=true`. Public generic artifacts must not contain Wi-Fi credentials, user passwords, SSH keys, or private first-run URLs. The workflow always adds Octessera's reserved security-scrub extension and runs a final image inspection before upload. If you need first-boot personalization, use the private artifact mode with the protected `armbian-image-personalized` GitHub environment and repository/environment secrets; do not pass secrets as workflow inputs.
 
-The only public first-run input is `public_preset_configuration_url`, and it must point to a non-secret HTTPS Armbian `PRESET_CONFIGURATION` file. Keep `preset-firstrun` in the extensions list when using that flow. Private preset URLs belong in the protected `ARMBIAN_PRESET_CONFIGURATION_URL` secret.
+The setup portal is the default first-run path, so leave `preset-firstrun` out unless you are deliberately testing Armbian's preset flow. The only public first-run preset input is `public_preset_configuration_url`, and it must point to a non-secret HTTPS Armbian `PRESET_CONFIGURATION` file. Add `preset-firstrun` to the extensions list only when using that flow. Private preset URLs belong in the protected `ARMBIAN_PRESET_CONFIGURATION_URL` secret.
 
 Optional Octessera payload tarballs must use HTTPS and a matching SHA256. Payloads are staged by default. The runtime is enabled only when the payload metadata explicitly says it is compatible, requests runtime enablement, and includes an executable `octessera-pi` payload.
 
