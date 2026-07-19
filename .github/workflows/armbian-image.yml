@@ -1,0 +1,194 @@
+name: Armbian Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      board:
+        description: Armbian board slug
+        required: true
+        default: orangepizero2w
+      release:
+        description: Armbian release
+        required: true
+        default: trixie
+      kernel_branch:
+        description: Armbian kernel branch
+        required: true
+        default: current
+      ui:
+        description: "Armbian UI target: minimal, server, or desktop environment name"
+        required: true
+        default: minimal
+      compression:
+        description: Armbian COMPRESS_OUTPUTIMAGE value
+        required: true
+        default: sha,img,xz
+      extensions:
+        description: Space-separated Armbian extensions; include preset-firstrun for first-run presets
+        required: false
+        default: preset-firstrun
+      armbian_build_ref:
+        description: armbian/build git ref; prefer a reviewed tag or SHA for release images
+        required: true
+        default: main
+      run_build:
+        description: Run the full Armbian build after validation
+        required: true
+        type: boolean
+        default: false
+      artifact_mode:
+        description: Artifact policy
+        required: true
+        type: choice
+        options:
+          - public-generic
+          - private-personalized
+        default: public-generic
+      public_preset_configuration_url:
+        description: Optional public, non-secret generic PRESET_CONFIGURATION URL
+        required: false
+        default: ""
+      payload_url:
+        description: Optional public HTTPS Octessera payload tar URL
+        required: false
+        default: ""
+      payload_sha256:
+        description: Required SHA256 when payload_url is set
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate Armbian image inputs and payload
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install workflow linters
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends shellcheck
+          go install github.com/rhysd/actionlint/cmd/actionlint@latest
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Validate repository Armbian image payload
+        env:
+          ARMBIAN_EXTENSIONS: ${{ inputs.extensions }}
+          PUBLIC_PRESET_CONFIGURATION_URL: ${{ inputs.public_preset_configuration_url }}
+          PAYLOAD_URL: ${{ inputs.payload_url }}
+          PAYLOAD_SHA256: ${{ inputs.payload_sha256 }}
+        run: bash tools/armbian-image/validate.sh
+
+  build-generic:
+    name: Build generic Armbian image
+    needs: validate
+    if: ${{ inputs.run_build && inputs.artifact_mode == 'public-generic' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: custom
+      - name: Build generic image
+        uses: ./custom/.github/actions/build-armbian-image
+        with:
+          board: ${{ inputs.board }}
+          release: ${{ inputs.release }}
+          kernel_branch: ${{ inputs.kernel_branch }}
+          ui: ${{ inputs.ui }}
+          compression: ${{ inputs.compression }}
+          extensions: ${{ inputs.extensions }}
+          armbian_build_ref: ${{ inputs.armbian_build_ref }}
+          share_log: yes
+        env:
+          PRESET_CONFIGURATION: ${{ inputs.public_preset_configuration_url }}
+          PUBLIC_PRESET_CONFIGURATION_URL: ${{ inputs.public_preset_configuration_url }}
+          OCTESSERA_PAYLOAD_URL: ${{ inputs.payload_url }}
+          OCTESSERA_PAYLOAD_SHA256: ${{ inputs.payload_sha256 }}
+      - name: Upload generic image artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: octessera-armbian-${{ inputs.board }}-${{ inputs.release }}
+          path: build/output/images/*
+          if-no-files-found: error
+          retention-days: 14
+
+  build-personalized:
+    name: Build private personalized Armbian image
+    needs: validate
+    if: ${{ inputs.run_build && inputs.artifact_mode == 'private-personalized' && github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')) }}
+    runs-on: ubuntu-latest
+    environment: armbian-image-personalized
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: custom
+      - name: Reject public first-run input in private mode
+        if: ${{ inputs.public_preset_configuration_url != '' }}
+        run: |
+          echo 'Use protected environment secrets, not public workflow inputs, for private PRESET_CONFIGURATION URLs.' >&2
+          exit 1
+      - name: Validate private first-run extension
+        env:
+          PRIVATE_PRESET_CONFIGURATION_URL: ${{ secrets.ARMBIAN_PRESET_CONFIGURATION_URL }}
+          ARMBIAN_EXTENSIONS: ${{ inputs.extensions }}
+        run: |
+          if [ -z "$PRIVATE_PRESET_CONFIGURATION_URL" ]; then
+            exit 0
+          fi
+          case " $ARMBIAN_EXTENSIONS " in
+            *' preset-firstrun '*) exit 0 ;;
+          esac
+          echo 'ARMBIAN_PRESET_CONFIGURATION_URL requires the preset-firstrun extension.' >&2
+          exit 1
+      - name: Validate private build ref and payload inputs
+        env:
+          ARMBIAN_BUILD_REF: ${{ inputs.armbian_build_ref }}
+          PRIVATE_PAYLOAD_URL: ${{ secrets.OCTESSERA_PRIVATE_PAYLOAD_URL }}
+          PRIVATE_PAYLOAD_SHA256: ${{ secrets.OCTESSERA_PRIVATE_PAYLOAD_SHA256 }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$ARMBIAN_BUILD_REF" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo 'Private personalized builds require a reviewed full Armbian commit SHA.' >&2
+            exit 1
+          fi
+          if [ -n "$PRIVATE_PAYLOAD_URL" ] && [ -z "$PRIVATE_PAYLOAD_SHA256" ]; then
+            echo 'OCTESSERA_PRIVATE_PAYLOAD_SHA256 is required when OCTESSERA_PRIVATE_PAYLOAD_URL is set.' >&2
+            exit 1
+          fi
+          if [ -z "$PRIVATE_PAYLOAD_URL" ] && [ -n "$PRIVATE_PAYLOAD_SHA256" ]; then
+            echo 'OCTESSERA_PRIVATE_PAYLOAD_URL is required when OCTESSERA_PRIVATE_PAYLOAD_SHA256 is set.' >&2
+            exit 1
+          fi
+      - name: Mask private values
+        env:
+          PRIVATE_PRESET_CONFIGURATION_URL: ${{ secrets.ARMBIAN_PRESET_CONFIGURATION_URL }}
+          PRIVATE_PAYLOAD_URL: ${{ secrets.OCTESSERA_PRIVATE_PAYLOAD_URL }}
+          PRIVATE_PAYLOAD_SHA256: ${{ secrets.OCTESSERA_PRIVATE_PAYLOAD_SHA256 }}
+        run: |
+          printf '%s\n' "::add-mask::$PRIVATE_PRESET_CONFIGURATION_URL"
+          printf '%s\n' "::add-mask::$PRIVATE_PAYLOAD_URL"
+          printf '%s\n' "::add-mask::$PRIVATE_PAYLOAD_SHA256"
+      - name: Build personalized image
+        uses: ./custom/.github/actions/build-armbian-image
+        with:
+          board: ${{ inputs.board }}
+          release: ${{ inputs.release }}
+          kernel_branch: ${{ inputs.kernel_branch }}
+          ui: ${{ inputs.ui }}
+          compression: ${{ inputs.compression }}
+          extensions: ${{ inputs.extensions }}
+          armbian_build_ref: ${{ inputs.armbian_build_ref }}
+          share_log: no
+        env:
+          PRESET_CONFIGURATION: ${{ secrets.ARMBIAN_PRESET_CONFIGURATION_URL }}
+          OCTESSERA_PAYLOAD_URL: ${{ secrets.OCTESSERA_PRIVATE_PAYLOAD_URL }}
+          OCTESSERA_PAYLOAD_SHA256: ${{ secrets.OCTESSERA_PRIVATE_PAYLOAD_SHA256 }}
+      - name: Upload private image artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: PRIVATE-octessera-armbian-${{ inputs.board }}-${{ inputs.release }}
+          path: build/output/images/*
+          if-no-files-found: error
+          retention-days: 2

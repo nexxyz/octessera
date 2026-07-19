@@ -1,0 +1,102 @@
+name: Build Armbian image
+description: Build an Armbian image with Octessera userpatches
+inputs:
+  board:
+    required: true
+    description: Armbian board slug
+  release:
+    required: true
+    description: Armbian release
+  kernel_branch:
+    required: true
+    description: Armbian kernel branch
+  ui:
+    required: true
+    description: minimal, server, or desktop environment name
+  compression:
+    required: true
+    description: Armbian COMPRESS_OUTPUTIMAGE value
+  extensions:
+    required: false
+    default: ""
+    description: Space-separated Armbian extensions
+  armbian_build_ref:
+    required: true
+    description: armbian/build ref, tag, or SHA
+  share_log:
+    required: true
+    description: Armbian SHARE_LOG value
+runs:
+  using: composite
+  steps:
+    - name: Free runner disk space
+      shell: bash
+      run: |
+        set -euo pipefail
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
+        docker system prune -af || true
+        df -h
+    - name: Checkout Armbian build framework
+      uses: actions/checkout@v4
+      with:
+        repository: armbian/build
+        ref: ${{ inputs.armbian_build_ref }}
+        path: build
+        fetch-depth: 1
+    - name: Install Octessera userpatches
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p build/userpatches
+        rsync -a custom/userpatches/ build/userpatches/
+    - name: Install Armbian build requirements
+      shell: bash
+      run: |
+        set -euo pipefail
+        cd build
+        sudo ./compile.sh requirements
+        sudo chown -R "$USER:$USER" .
+    - name: Build image
+      shell: bash
+      env:
+        OCTESSERA_ARMBIAN_BOARD: ${{ inputs.board }}
+        OCTESSERA_ARMBIAN_RELEASE: ${{ inputs.release }}
+        OCTESSERA_ARMBIAN_KERNEL_BRANCH: ${{ inputs.kernel_branch }}
+        OCTESSERA_ARMBIAN_UI: ${{ inputs.ui }}
+        OCTESSERA_ARMBIAN_COMPRESSION: ${{ inputs.compression }}
+        OCTESSERA_ARMBIAN_EXTENSIONS: ${{ inputs.extensions }}
+        OCTESSERA_ARMBIAN_SHARE_LOG: ${{ inputs.share_log }}
+      run: |
+        set -euo pipefail
+        [[ "$OCTESSERA_ARMBIAN_BOARD" =~ ^[a-z0-9][a-z0-9._-]*$ ]] || { echo 'Invalid board slug.' >&2; exit 1; }
+        [[ "$OCTESSERA_ARMBIAN_RELEASE" =~ ^[a-z0-9][a-z0-9._-]*$ ]] || { echo 'Invalid release.' >&2; exit 1; }
+        [[ "$OCTESSERA_ARMBIAN_KERNEL_BRANCH" =~ ^[a-z0-9][a-z0-9._-]*$ ]] || { echo 'Invalid kernel branch.' >&2; exit 1; }
+        [[ "$OCTESSERA_ARMBIAN_UI" =~ ^[A-Za-z0-9._-]+$ ]] || { echo 'Invalid UI value.' >&2; exit 1; }
+        [[ "$OCTESSERA_ARMBIAN_COMPRESSION" =~ ^[a-z0-9,._-]+$ ]] || { echo 'Invalid compression value.' >&2; exit 1; }
+        [[ "$OCTESSERA_ARMBIAN_EXTENSIONS" =~ ^[A-Za-z0-9,._[:space:]-]*$ ]] || { echo 'Invalid extensions value.' >&2; exit 1; }
+        [[ "$OCTESSERA_ARMBIAN_SHARE_LOG" =~ ^(yes|no)$ ]] || { echo 'Invalid share_log value.' >&2; exit 1; }
+        cd build
+        build_desktop=no
+        build_minimal=no
+        desktop_environment=
+        desktop_tier=
+        if [[ "$OCTESSERA_ARMBIAN_UI" == minimal ]]; then
+          build_minimal=yes
+        elif [[ "$OCTESSERA_ARMBIAN_UI" != server ]]; then
+          build_desktop=yes
+          desktop_environment="$OCTESSERA_ARMBIAN_UI"
+          desktop_tier=mid
+        fi
+        ./compile.sh build \
+          BOARD="$OCTESSERA_ARMBIAN_BOARD" \
+          BRANCH="$OCTESSERA_ARMBIAN_KERNEL_BRANCH" \
+          RELEASE="$OCTESSERA_ARMBIAN_RELEASE" \
+          KERNEL_CONFIGURE=no \
+          BUILD_DESKTOP="$build_desktop" \
+          BUILD_MINIMAL="$build_minimal" \
+          DESKTOP_ENVIRONMENT="$desktop_environment" \
+          DESKTOP_TIER="$desktop_tier" \
+          ENABLE_EXTENSIONS="$OCTESSERA_ARMBIAN_EXTENSIONS" \
+          COMPRESS_OUTPUTIMAGE="$OCTESSERA_ARMBIAN_COMPRESSION" \
+          SHARE_LOG="$OCTESSERA_ARMBIAN_SHARE_LOG" \
+          EXPERT=yes

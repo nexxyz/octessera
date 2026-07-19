@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+set -eu
+
+echo "Octessera Armbian diagnostics"
+cat /etc/os-release 2>/dev/null || true
+uname -a
+cat /proc/device-tree/model 2>/dev/null || true
+ls /dev/i2c-* /dev/spidev* 2>/dev/null || true
+gpioinfo 2>/dev/null || true
+aplay -l 2>/dev/null || true

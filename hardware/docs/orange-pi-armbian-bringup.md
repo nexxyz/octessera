@@ -73,6 +73,39 @@ Armbian does not use the Raspberry Pi firmware overlay path.
 
 Practical rule: Raspberry Pi overlay names and BCM GPIO numbers are not portable contracts.
 
+## GitHub-built Armbian image
+
+The `Armbian Image` GitHub Actions workflow can build a generic Orange Pi/Armbian image with the Octessera marker payload and diagnostics helper installed through Armbian `userpatches/`.
+
+Start with validation only:
+
+```bash
+gh workflow run armbian-image.yml \
+  -f board=orangepizero2w \
+  -f release=trixie \
+  -f kernel_branch=current \
+  -f ui=minimal \
+  -f compression=xz \
+  -f extensions=preset-firstrun \
+  -f run_build=false \
+  -f artifact_mode=public-generic
+```
+
+Run a no-secret full build by changing `run_build=true`. Public generic artifacts must not contain Wi-Fi credentials, user passwords, SSH keys, or private first-run URLs. If you need first-boot personalization, use the private artifact mode with the protected `armbian-image-personalized` GitHub environment and repository/environment secrets; do not pass secrets as workflow inputs.
+
+The only public first-run input is `public_preset_configuration_url`, and it must point to a non-secret HTTPS Armbian `PRESET_CONFIGURATION` file. Keep `preset-firstrun` in the extensions list when using that flow. Private preset URLs belong in the protected `ARMBIAN_PRESET_CONFIGURATION_URL` secret.
+
+Optional Octessera payload tarballs must use HTTPS and a matching SHA256. Payloads are staged by default. The runtime is not enabled unless the payload metadata explicitly says it is compatible and requests runtime enablement; board/HAL validation still comes first.
+
+After flashing, run:
+
+```sh
+sudo octessera-armbian-diagnostics
+cat /etc/octessera/build-metadata.env
+```
+
+The workflow intentionally does not copy Raspberry Pi `config.txt`, `dwc2`, BCM GPIO numbering, USB gadget setup, SD export, or fixed user-home assumptions.
+
 ## Basic Armbian facts to capture
 
 Run these before changing overlays:

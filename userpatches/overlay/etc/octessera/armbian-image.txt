@@ -1,0 +1,3 @@
+Octessera generic Armbian image payload.
+
+This marker is intentionally hardware-neutral. It does not enable the Octessera runtime service by default and does not assume Raspberry Pi boot overlays, GPIO numbering, USB roles, or user home paths.

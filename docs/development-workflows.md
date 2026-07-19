@@ -103,6 +103,34 @@ The Pi image build is a necessary slow path because it generates a full Raspberr
 
 The release Pi image must be sanitized: no WiFi credentials, SSH keys, GitHub tokens, host logs, or local user secrets. SSH is disabled by default.
 
+## Armbian Image Workflow
+
+`.github/workflows/armbian-image.yml` builds Armbian images through `armbian/build`. The action currently tracks upstream `armbian/build@main`; this is accepted risk for this experimental pipeline, with minimal repository permissions and secrets kept out of validation and public generic builds.
+
+Local checks before pushing workflow or `userpatches/` changes:
+
+```bash
+bash -n userpatches/customize-image.sh tools/armbian-image/validate.sh
+tools/armbian-image/validate.sh
+```
+
+Also run these if installed:
+
+```bash
+shellcheck userpatches/customize-image.sh tools/armbian-image/validate.sh
+actionlint .github/workflows/armbian-image.yml
+```
+
+GitHub validation-only smoke test:
+
+```bash
+gh workflow run armbian-image.yml -f run_build=false -f artifact_mode=public-generic
+```
+
+Public generic builds may use board/release/kernel/UI/compression/extensions inputs, a public non-secret `PRESET_CONFIGURATION` URL, and an optional HTTPS payload URL plus SHA256. Do not add raw Wi-Fi, user, SSH, or private first-run values as workflow inputs.
+
+Personalized builds must use `artifact_mode=private-personalized`, run from trusted `main` or tags, and pass protected environment approval for `armbian-image-personalized`. First-run and private payload URLs come from repository/environment secrets such as `ARMBIAN_PRESET_CONFIGURATION_URL`, `OCTESSERA_PRIVATE_PAYLOAD_URL`, and `OCTESSERA_PRIVATE_PAYLOAD_SHA256`. Private artifacts are retained briefly and must not be uploaded to releases.
+
 ## Platform Capabilities
 
 Canonical source:
