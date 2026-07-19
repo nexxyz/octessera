@@ -119,18 +119,31 @@ fn render_menu_frame(frame: &mut [u8], snapshot: &Value, brightness: f32) {
     draw_text_clipped(frame, &title, 5, 5, 15, title_color);
     draw_status_indicators(frame, snapshot, brightness);
 
-    let selected_row = snapshot.get("selectedRow").and_then(Value::as_u64).map(|value| value as usize);
+    let selected_row = snapshot
+        .get("selectedRow")
+        .and_then(Value::as_u64)
+        .map(|value| value as usize);
     if let Some(lines) = display.get("lines").and_then(Value::as_array) {
         for (index, line) in lines.iter().take(7).enumerate() {
             let line = line.as_str().unwrap_or_default();
             let y = 18 + index * 13;
             let color = display_color(display, index, brightness).unwrap_or(text_color);
             let selected = selected_row == Some(index);
-            let bar = bar_frac(display, index);
-            if selected { fill_rect(frame, 3, y - 1, 122, 11, color); }
-            if let Some(frac) = bar { draw_bar(frame, 88, y + 2, frac, color, dim_color); }
-            let text = if selected { rgb565(scale(palette::BLACK, brightness)) } else { color };
-            draw_text_clipped(frame, line, if line.starts_with("  ") { 4 } else { 6 }, y as i32, if bar.is_some() { 13 } else { 19 }, text);
+            let bar = bar_value(display, index);
+            if selected {
+                fill_rect(frame, 3, y - 1, 122, 11, color);
+            }
+            if let Some((frac, ref style)) = bar {
+                draw_bar(frame, 87, y - 1, frac, color, selected, style.as_deref());
+            }
+            let text = if selected {
+                rgb565(scale(palette::BLACK, brightness))
+            } else {
+                color
+            };
+            let text_x = if line.starts_with("  ") { 4 } else { 6 };
+            let text_width = if bar.is_some() { 13 } else { 19 };
+            draw_text_clipped(frame, line, text_x, y as i32, text_width, text);
         }
     }
     draw_scrollbar(frame, display, dim_color, text_color);
@@ -167,27 +180,56 @@ pub(super) fn fault_frame_into(lines: &[String], frame: &mut [u8], lit: bool) {
     }
 }
 
-fn bar_frac(display: &Value, index: usize) -> Option<f32> {
-    Some(
-        display
-            .get("barValues")?
-            .as_array()?
-            .get(index)?
-            .get("frac")?
-            .as_f64()?
-            .clamp(0.0, 1.0) as f32,
-    )
+fn bar_value(display: &Value, index: usize) -> Option<(f32, Option<String>)> {
+    let value = display.get("barValues")?.as_array()?.get(index)?;
+    Some((
+        value.get("frac")?.as_f64()?.clamp(0.0, 1.0) as f32,
+        value
+            .get("style")
+            .and_then(Value::as_str)
+            .map(str::to_owned),
+    ))
 }
 
-fn draw_bar(frame: &mut [u8], x: usize, y: usize, frac: f32, fill: u16, track: u16) {
-    let width = 34;
-    fill_rect(frame, x, y, width, 5, track);
+fn draw_bar(
+    frame: &mut [u8],
+    x: usize,
+    y: usize,
+    frac: f32,
+    fill: u16,
+    selected: bool,
+    style: Option<&str>,
+) {
+    let frac = frac.clamp(0.0, 1.0);
+    let outer_width = 36;
+    let outer_height = 9;
+    let inner_x = x + 1;
+    let inner_y = y + 1;
+    let inner_width = outer_width - 2;
+    let inner_height = outer_height - 2;
+    let outline = if selected {
+        rgb565(scale(palette::BLACK, 1.0))
+    } else {
+        fill
+    };
+    let track = if selected {
+        rgb565(scale(palette::BLACK, 1.0))
+    } else {
+        rgb565(scale(dim(rgb565_to_rgb(fill), 6), 1.0))
+    };
+    fill_rect(frame, x, y, outer_width, outer_height, outline);
+    fill_rect(frame, inner_x, inner_y, inner_width, inner_height, track);
+    if style == Some("marker") {
+        let marker_x = inner_x + ((inner_width - 1) as f32 * frac).round() as usize;
+        fill_rect(frame, marker_x, inner_y + 1, 1, inner_height - 2, fill);
+        return;
+    }
     fill_rect(
         frame,
-        x,
-        y,
-        ((width as f32) * frac).round() as usize,
-        5,
+        inner_x,
+        inner_y,
+        ((inner_width as f32) * frac).round() as usize,
+        inner_height,
         fill,
     );
 }

@@ -62,15 +62,50 @@ fn snapshot_with_leds() -> Value {
     })
 }
 
+fn bar_snapshot(frac: f64, style: Option<&str>, selected_row: usize) -> Value {
+    let mut snapshot = menu_snapshot();
+    snapshot["display"]["barValues"][1] = match style {
+        Some(style) => json!({ "frac": frac, "style": style }),
+        None => json!({ "frac": frac }),
+    };
+    snapshot["selectedRow"] = json!(selected_row);
+    snapshot
+}
+
 #[test]
 fn oled_frame_renders_menu_bars_selection_status_and_scrollbar() {
     let frame = oled_frame(&menu_snapshot());
     assert_ne!(pixel(&frame, 5, 5), 0);
     assert_eq!(pixel(&frame, 4, 30), palette::GREEN_RGB565);
-    assert_eq!(pixel(&frame, 88, 33), palette::GREEN_RGB565);
+    assert_eq!(pixel(&frame, 87, 30), rgb565(palette::BLACK));
+    assert_eq!(pixel(&frame, 88, 31), palette::GREEN_RGB565);
     assert_ne!(pixel(&frame, 125, 18), 0);
     assert_ne!(pixel(&frame, 102, 118), 0);
     assert_ne!(pixel(&frame, 119, 119), 0);
+}
+
+#[test]
+fn oled_bars_render_empty_partial_full_marker_and_selected_contrast() {
+    let empty = oled_frame(&bar_snapshot(0.0, None, 0));
+    assert_eq!(pixel(&empty, 87, 30), palette::GREEN_RGB565);
+    assert_eq!(pixel(&empty, 88, 31), rgb565(dim(palette::GREEN, 6)));
+
+    let partial = oled_frame(&bar_snapshot(0.5, None, 0));
+    assert_eq!(pixel(&partial, 88, 31), palette::GREEN_RGB565);
+    assert_eq!(pixel(&partial, 105, 31), rgb565(dim(palette::GREEN, 6)));
+
+    let full = oled_frame(&bar_snapshot(1.0, None, 0));
+    assert_eq!(pixel(&full, 87, 30), palette::GREEN_RGB565);
+    assert_eq!(pixel(&full, 121, 31), palette::GREEN_RGB565);
+
+    let marker = oled_frame(&bar_snapshot(0.5, Some("marker"), 0));
+    assert_eq!(pixel(&marker, 105, 32), palette::GREEN_RGB565);
+    assert_eq!(pixel(&marker, 104, 32), rgb565(dim(palette::GREEN, 6)));
+
+    let selected = oled_frame(&bar_snapshot(1.0, None, 1));
+    assert_eq!(pixel(&selected, 87, 30), rgb565(palette::BLACK));
+    assert_eq!(pixel(&selected, 88, 31), palette::GREEN_RGB565);
+    assert_eq!(pixel(&selected, 121, 31), palette::GREEN_RGB565);
 }
 
 #[test]

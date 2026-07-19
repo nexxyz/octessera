@@ -101,3 +101,56 @@ pub(crate) fn contextual_help_does_not_change_static_navigation_memory() {
         .unwrap();
     assert_eq!(runner.menu.current_label(), Some("Velocity Scale"));
 }
+
+#[test]
+pub(crate) fn entering_keyed_behavior_category_only_enters_group() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert!(runner.menu.focus_item_key("behavior.category.play"));
+    let behavior_before = runner.behavior.id().to_string();
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert_eq!(runner.behavior.id(), behavior_before);
+    assert_eq!(runner.menu.current_label(), Some(".."));
+    assert!(messages.iter().all(|message| !matches!(
+        message,
+        RunnerMessage::PlatformEffects { .. }
+            | RunnerMessage::MusicalEvents { .. }
+            | RunnerMessage::MidiEvents { .. }
+    )));
+}
+
+#[test]
+pub(crate) fn behavior_category_and_leaf_help_targets_are_keyed() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert!(runner.menu.focus_item_key("behavior.category.play"));
+    let category_target = runner.menu.current_help_target().unwrap();
+    assert_eq!(category_target.key, "key:behavior.category.play");
+    assert_eq!(category_target.kind, "group");
+
+    runner.menu.press();
+    while runner.menu.current_label() != Some("keys") {
+        runner.menu.turn(1);
+    }
+    let leaf_target = runner.menu.current_help_target().unwrap();
+    assert_eq!(leaf_target.key, "action:behavior_select:keys");
+    assert_eq!(leaf_target.kind, "action");
+}
+
+#[test]
+pub(crate) fn non_active_layer_behavior_selector_has_help() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+
+    assert!(runner.menu.focus_item_key("layers.1.behaviorId"));
+    let target = runner.menu.current_help_target().unwrap();
+    assert_eq!(target.key, "key:layers.*.behaviorId");
+    assert_eq!(target.kind, "group");
+
+    let entry = crate::native_help::resolve_native_help_entry(&target).unwrap();
+    assert_eq!(entry.key, "key:layers.*.behaviorId");
+}

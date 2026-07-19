@@ -489,14 +489,79 @@ sparks_fx_sweep_out	Menu > Play > FX > Sweep Out	key:sparks.fx.params.sweepOutMs
 sparks_fx_semitones	Menu > Play > FX > Semitones	key:sparks.fx.params.semitones	number	Semitones	Sets pitch_shift semitone offset (-24..24) for the config being mapped. Combined with Cents for fine tuning.	Stored per grid cell when Map to Grid is used.
 sparks_fx_cents	Menu > Play > FX > Cents	key:sparks.fx.params.cents	number	Cents	Sets pitch_shift cents offset (-100..100) for fine detuning the config being mapped. Added to Semitones for the total shift.	Stored per grid cell when Map to Grid is used.
 native_behavior_id	*	key:behaviorId	group	Behavior	Opens the behavior browser for this layer.	Choose a category, then choose a behavior. Selection updates only this layer's Build rows and keeps the saved behaviorId payload field.
+native_layer_behavior_id	*	key:layers.*.behaviorId	group	Layer Behavior	Opens the behavior browser for this layer.	Choose a category, then choose a behavior. Selection updates that layer's Build rows without switching the active layer.
+native_behavior_category_play	*	key:behavior.category.play	group	Human Behaviors	Playable and manually-steered layer behaviors.	Use these for direct input, looping, sequencing, and hand-shaped world-bubbles.
+native_behavior_category_rhythm	*	key:behavior.category.rhythm	group	Rhythm Behaviors	Pattern engines for pulses, breaks, fills, and grooves.	These worlds focus on timing structure before pitch or cellular motion.
+native_behavior_category_musical	*	key:behavior.category.musical	group	Musical Behaviors	Melodic and harmonic phrase engines.	Use these for motifs, chords, canons, contours, and longer musical arcs.
+native_behavior_category_cellular	*	key:behavior.category.cellular	group	Cellular Behaviors	Classic grid automata and neighborhood systems.	Small cell rules can become surprisingly lively musical motion.
+native_behavior_category_fields	*	key:behavior.category.fields	group	Field Behaviors	Continuous fields, waves, drops, and reaction systems.	These worlds smear energy across the grid instead of stepping cell by cell.
+native_behavior_category_geometry	*	key:behavior.category.geometry	group	Geometry Behaviors	Shape, maze, and fractal pattern builders.	Good for spatial structure and crisp visual-musical forms.
+native_behavior_category_growth	*	key:behavior.category.growth	group	Growth Behaviors	Organic spreading, branching, and accretion systems.	Use these when you want the grid to feel like it is growing something.
+native_behavior_category_motion	*	key:behavior.category.motion	group	Motion Behaviors	Moving particles, orbits, gravity, and flowing systems.	These worlds put travel and momentum at the center of the pattern.
 native_behavior_id_legacy_enum	*	key:behaviorId	enum	Behavior	Selects the behavior engine for this layer.	Compatibility entry for older generated or fixture rows that still expose behavior as an enum.
 native_algorithm_step	*	key:algorithmStep	enum	Step Rate	Sets how often this layer's behavior advances relative to transport timing.	Use faster rates for denser motion and slower rates for longer phrases.
+native_layer_algorithm_step	*	key:layers.*.algorithmStep	enum	Step Rate	Sets how often the chosen layer's behavior advances relative to transport timing.	Useful when binding or editing another layer's clocked world motion.
 native_behavior_spawn_count	*	key:behavior.randomCellsPerTick	number	Spawn Count	Sets how many cells or entities are injected by this behavior's spawn action.	Higher values make spawn actions denser and more disruptive.
 native_behavior_spawn_interval	*	key:behavior.randomTickInterval	number	Spawn Interval	Sets the tick interval between automatic random spawn bursts.	Lower values spawn more frequently.
 native_reset_behavior	*	action:reset_behavior	action	Reset Behavior	Reinitializes the selected layer's active behavior state.	Configuration stays in place while the live grid/runtime state is reset.
-native_behavior_select	*	action:behavior_select	action	Select Behavior	Selects this behavior for the active layer.	The runtime switches behavior immediately through the native engine without a full menu rebuild.
+native_behavior_select	*	action:behavior_select:*	action	Select Behavior	Selects this behavior for the active layer.	The runtime switches behavior immediately through the native engine without a full menu rebuild.
+native_behavior_select_none	*	action:behavior_select:none	action	None	Leaves this layer without an automatic behavior engine.	Use it for manual playing, silence, or a layer you want to wake up later.
+native_behavior_select_keys	*	action:behavior_select:keys	action	Keys	Turns the grid into a direct playable key surface.	Good for hands-on notes and real-time input instead of autonomous rules.
+native_behavior_select_sequencer	*	action:behavior_select:sequencer	action	Sequencer	Runs a straightforward step-sequenced world.	Use it when you want anchored patterns beside the stranger systems.
+native_behavior_select_looper	*	action:behavior_select:looper	action	Looper	Captures and repeats played gestures on the layer.	Nudge it live to build loops that still belong to the grid world.
+native_behavior_select_weave	*	action:behavior_select:weave	action	Weave	Interlaces repeating strands into a woven pattern.	Useful for braided motion where simple parts keep crossing in musical ways.
+native_behavior_select_polyrhythm	*	action:behavior_select:polyrhythm	action	Polyrhythm	Layers pulse cycles with different lengths.	Use it for rhythms that phase against each other without losing the beat.
+native_behavior_select_breaks	*	action:behavior_select:breaks	action	Breaks	Generates chopped rhythmic break patterns.	Good for busier percussion worlds with gaps, kicks, and sudden turns.
+native_behavior_select_fills	*	action:behavior_select:fills	action	Fills	Adds fill-like bursts around the base rhythm.	Use it to make transitions and accents without drawing every hit by hand.
+native_behavior_select_clave	*	action:behavior_select:clave	action	Clave	Builds rhythm around clave-style anchor patterns.	A sturdy syncopated spine for other layers to orbit.
+native_behavior_select_groove	*	action:behavior_select:groove	action	Groove	Creates timing patterns with a looser pocket.	Use it when the layer should lean, answer, and leave a little air.
+native_behavior_select_euclid	*	action:behavior_select:euclid	action	Euclid	Spreads hits evenly across a cycle.	Great for compact rhythms that feel intentional at many lengths.
+native_behavior_select_ostinato	*	action:behavior_select:ostinato	action	Ostinato	Repeats a short musical figure with variation.	Use it as a persistent hook for other worlds to push against.
+native_behavior_select_motif	*	action:behavior_select:motif	action	Motif	Develops small melodic cells into phrases.	Good for recognizable ideas that can still wander.
+native_behavior_select_canon	*	action:behavior_select:canon	action	Canon	Echoes a phrase against delayed copies of itself.	Use it for chasing lines and layered imitation.
+native_behavior_select_chords	*	action:behavior_select:chords	action	Chords	Generates harmonic events and voicings.	Good for giving the grid a tonal floor or sudden block colors.
+native_behavior_select_contour	*	action:behavior_select:contour	action	Contour	Shapes pitch motion around rising and falling curves.	Use it when the melody's outline matters more than any one note.
+native_behavior_select_cadence	*	action:behavior_select:cadence	action	Cadence	Leans phrases toward arrival and release points.	Good for making algorithmic layers feel like they breathe in sections.
+native_behavior_select_phrase	*	action:behavior_select:phrase	action	Phrase	Builds longer musical gestures from smaller choices.	Use it for a layer that should speak in sentences, not ticks.
+native_behavior_select_life	*	action:behavior_select:life	action	Life	Runs Conway-style cellular life on the grid.	Tiny seeds can settle, explode, or blink into musical events.
+native_behavior_select_brain	*	action:behavior_select:brain	action	Brain	Uses three-state cellular rules with firing and recovery.	Good for waves of activity that leave afterimages behind.
+native_behavior_select_cyclic	*	action:behavior_select:cyclic	action	Cyclic	Cycles cells through states that chase neighbors.	Use it for rotating colors and chasing fronts across the grid.
+native_behavior_select_forest_fire	*	action:behavior_select:forest_fire	action	Forest Fire	Lets growth and ignition compete across the grid.	Sparse sparks can become crackling bursts and then empty space again.
+native_behavior_select_predator_prey	*	action:behavior_select:predator_prey	action	Predator Prey	Runs chasing populations that feed and fade.	Good for unstable musical ecosystems with pursuit and collapse.
+native_behavior_select_ant	*	action:behavior_select:ant	action	Ant	Walks rule-driven agents across cell trails.	Simple turns can carve surprisingly organized paths.
+native_behavior_select_boids	*	action:behavior_select:boids	action	Boids	Moves flocking agents with neighbor influence.	Use it for swarms that cohere, scatter, and regroup.
+native_behavior_select_physarum	*	action:behavior_select:physarum	action	Physarum	Simulates slime-mold-like trails and attraction.	Good for tendrils that discover paths through the grid.
+native_behavior_select_bounce	*	action:behavior_select:bounce	action	Bounce	Sends motion bouncing around boundaries.	A lively choice for ricochets, repeats, and kinetic accents.
+native_behavior_select_bubbles	*	action:behavior_select:bubbles	action	Bubbles	Lets soft moving blobs rise and overlap.	Use it for buoyant motion with rounded, drifting events.
+native_behavior_select_coral	*	action:behavior_select:coral	action	Coral	Grows branching structures from seeded edges.	Good for slow accretion that turns sparse starts into reefs.
+native_behavior_select_cracks	*	action:behavior_select:cracks	action	Cracks	Propagates fracture lines through open space.	Use it for sharp branching paths and brittle rhythmic shapes.
+native_behavior_select_crystal_growth	*	action:behavior_select:crystal_growth	action	Crystal Growth	Builds faceted growth from ordered rules.	Good for patterns that feel mineral, angular, and accumulative.
+native_behavior_select_dla	*	action:behavior_select:dla	action	DLA	Aggregates wandering particles into branching clusters.	Use it when you want chance walks to freeze into structure.
+native_behavior_select_ink	*	action:behavior_select:ink	action	Ink	Diffuses marks like liquid spreading through paper.	Good for smeared gestures and soft-edged activity.
+native_behavior_select_ising	*	action:behavior_select:ising	action	Ising	Lets neighboring states align and flip in domains.	Use it for magnetic-looking patches that argue with themselves.
+native_behavior_select_kuramoto	*	action:behavior_select:kuramoto	action	Kuramoto	Synchronizes oscillators across the grid.	Good for phase-locking motion that can drift into collective pulses.
+native_behavior_select_lightning	*	action:behavior_select:lightning	action	Lightning	Branches quick strikes through charged space.	Use it for sudden forks, flashes, and high-energy accents.
+native_behavior_select_wave	*	action:behavior_select:wave	action	Wave	Propagates wavefronts through the field.	Good for ripples, crossings, and pulses that travel visibly.
+native_behavior_select_raindrops	*	action:behavior_select:raindrops	action	Raindrops	Drops impacts that ripple outward.	Use it for scattered events that bloom into circles.
+native_behavior_select_reaction_diffusion	*	action:behavior_select:reaction_diffusion	action	Reaction Diffusion	Evolves chemical-like patterns in a field.	Good for spots, stripes, and slow transformations.
+native_behavior_select_rivers	*	action:behavior_select:rivers	action	Rivers	Moves flow through channels across the grid.	Use it for current, branching streams, and directional drift.
+native_behavior_select_gravity	*	action:behavior_select:gravity	action	Gravity	Pulls motion around attraction and falling rules.	Good for weighty movement and clustered impacts.
+native_behavior_select_orbit	*	action:behavior_select:orbit	action	Orbit	Moves bodies around centers and cycles.	Use it for repeating paths that feel celestial rather than mechanical.
+native_behavior_select_lava_lamp	*	action:behavior_select:lava_lamp	action	Lava Lamp	Moves blobs in slow merging currents.	Good for warm, drifting motion that never quite repeats.
+native_behavior_select_sand_ripples	*	action:behavior_select:sand_ripples	action	Sand Ripples	Forms granular ripples and shifting ridges.	Use it for textured motion that rolls through the field.
+native_behavior_select_fractal_explorer	*	action:behavior_select:fractal_explorer	action	Fractal Explorer	Explores recursive geometry on the grid.	Good for self-similar structures and zoomy pattern worlds.
+native_behavior_select_maze_growth	*	action:behavior_select:maze_growth	action	Maze Growth	Carves maze-like paths as it expands.	Use it for corridors, turns, and branching travel.
+native_behavior_select_shapes	*	action:behavior_select:shapes	action	Shapes	Creates geometric figures and spatial motifs.	Good for crisp forms that other layers can answer.
+native_behavior_select_vines	*	action:behavior_select:vines	action	Vines	Grows tendrils that curl and branch.	Use it for reaching lines and organic melodic creep.
 native_navigate_back	*	action:navigate_back	action	Back	Returns to the parent browser level.	Use it like the hardware Back button when browsing synthetic folders.
 native_param_bind	*	action:param_bind	action	Bind Parameter	Assigns this parameter to the selected modulation, XY, or aux target slot.	The target stores this concrete parameter key and value metadata.
+native_binding_group_behavior_params	*	key:binding.group.behavior_params	group	Behavior Params	Targets from the selected layer's behavior settings.	Choose these to let modulation steer the active world-bubble itself.
+native_binding_group_link	*	key:binding.group.link	group	Link Targets	Targets from transport and pulse-link lanes.	Use these for tempo-aware motion and grid-derived modulation lanes.
+native_binding_group_shape	*	key:binding.group.shape	group	Shape Targets	Instrument, mixer, FX, and voice-shaping targets.	This is where modulation reaches the sound-making machinery.
+native_binding_group_instruments	*	key:binding.group.instruments	group	Instruments	Targets from individual instrument slots.	Pick a slot, then bind synth, sample, MIDI, mixer, or routing parameters.
+native_binding_group_play_fx	*	key:binding.group.play_fx	group	Play FX	Targets from live performance FX pages.	Bind these when aux or grid gestures should push performance effects.
+native_binding_group_system	*	key:binding.group.system	group	System Targets	Global sound settings that are safe to modulate.	These apply outside a single behavior or instrument slot.
+native_binding_group_sound	*	key:binding.group.sound	group	Sound Targets	Global note length, velocity scale, and voice-limit targets.	Useful for performance controls that affect the runtime's note output.
 native_param_clear	*	action:param_clear	action	Clear Binding	Clears the selected modulation, XY, or aux target binding.	The target slot becomes unassigned.
 native_midi_enabled	*	key:midiEnabled	bool	MIDI Enabled	Turns MIDI integration on or off for the runtime.	When off, MIDI port selections and external event output are ignored.
 native_midi_sync	*	key:midiSyncMode	enum	Sync Mode	Chooses whether transport follows internal timing or external MIDI clock.	External mode uses incoming realtime MIDI messages when Clock In is enabled.

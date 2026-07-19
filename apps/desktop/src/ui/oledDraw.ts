@@ -44,16 +44,14 @@ export function drawSemanticOled(
     const y = 18 + index * 13;
     const color = rgb565ToCss(typeof semantic.lineColors[index] === "number" ? semantic.lineColors[index]! : 0xffff);
     const selected = index === semantic.selectedRow;
-    const bar = semantic.barValues[index] && typeof semantic.barValues[index] === "object"
-      ? semantic.barValues[index] as { frac?: number; style?: string }
-      : null;
+    const bar = barValue(semantic.barValues[index]);
     if (selected) {
       ctx.fillStyle = color;
       ctx.fillRect(3, y - 1, 122, 11);
     }
-    if (bar) drawBar(ctx, y, Number(bar.frac ?? 0), bar.style);
+    if (bar) drawBar(ctx, y, Number(bar.frac ?? 0), color, selected, bar.style);
     ctx.fillStyle = selected ? css(BLACK_COLOR) : color;
-    ctx.fillText(line || " ", line.startsWith("  ") ? 4 : 6, y, 118);
+    ctx.fillText(clipText(line || " ", bar ? 13 : 19), line.startsWith("  ") ? 4 : 6, y);
   });
   if (semantic.scroll) drawScrollbar(ctx, semantic.scroll);
 
@@ -71,15 +69,7 @@ function drawFooter(ctx: CanvasRenderingContext2D, semantic: SemanticOledState):
   ctx.fillStyle = css(BLACK_COLOR);
   ctx.fillText(" ", 5, footerY, 90);
 
-  ctx.fillStyle = semantic.transportIcon === "stop"
-    ? css(RED_COLOR)
-    : semantic.transportIcon === "pause"
-      ? css(BLUE_COLOR)
-    : semantic.transportFlash === "measure"
-      ? css(GREEN_COLOR)
-    : semantic.transportFlash === "beat"
-        ? css(YELLOW_COLOR)
-        : css(WHITE_COLOR);
+  ctx.fillStyle = transportColor(semantic);
   drawTransportIcon(ctx, semantic.transportIcon, 101, footerY + 1);
   if (semantic.eventDotOn) {
     ctx.fillStyle = semantic.eventDotSteal ? css(RED_COLOR) : css(WHITE_COLOR);
@@ -109,16 +99,49 @@ function drawBackground(ctx: CanvasRenderingContext2D): void {
   ctx.fillRect(0, 0, OLED_WIDTH, OLED_HEIGHT);
 }
 
-function drawBar(ctx: CanvasRenderingContext2D, y: number, frac: number, style?: string): void {
-  const markerPct = Math.max(0, Math.min(1, frac));
+function drawBar(
+  ctx: CanvasRenderingContext2D,
+  y: number,
+  frac: number,
+  color: string,
+  selected: boolean,
+  style?: string,
+): void {
+  const clampedFrac = Math.max(0, Math.min(1, frac));
+  const x = 87;
+  const outerY = y - 1;
+  const outerWidth = 36;
+  const outerHeight = 9;
+  const innerX = x + 1;
+  const innerY = y;
+  const innerWidth = outerWidth - 2;
+  const innerHeight = outerHeight - 2;
+  const outline = selected ? css(BLACK_COLOR) : color;
+  const track = selected ? css(BLACK_COLOR) : rgbaString(color, 0.18);
+  ctx.fillStyle = outline;
+  ctx.fillRect(x, outerY, outerWidth, outerHeight);
+  ctx.fillStyle = track;
+  ctx.fillRect(innerX, innerY, innerWidth, innerHeight);
   if (style === "marker") {
-    const x = 3 + Math.round(markerPct * 122);
-    ctx.fillStyle = rgba(WHITE_COLOR, 0.72);
-    ctx.fillRect(Math.max(3, x - 1), y - 1, 2, 11);
+    const markerX = innerX + Math.round(clampedFrac * (innerWidth - 1));
+    ctx.fillStyle = color;
+    ctx.fillRect(markerX, innerY + 1, 1, innerHeight - 2);
     return;
   }
-  ctx.fillStyle = rgba(WHITE_COLOR, 0.28);
-  ctx.fillRect(3, y - 1, Math.round(markerPct * 122), 11);
+  ctx.fillStyle = color;
+  ctx.fillRect(innerX, innerY, Math.round(clampedFrac * innerWidth), innerHeight);
+}
+
+function barValue(value: unknown): { frac?: number; style?: string } | null {
+  return value && typeof value === "object" ? value as { frac?: number; style?: string } : null;
+}
+
+function transportColor(semantic: SemanticOledState): string {
+  if (semantic.transportIcon === "stop") return css(RED_COLOR);
+  if (semantic.transportIcon === "pause") return css(BLUE_COLOR);
+  if (semantic.transportFlash === "measure") return css(GREEN_COLOR);
+  if (semantic.transportFlash === "beat") return css(YELLOW_COLOR);
+  return css(WHITE_COLOR);
 }
 
 function drawSplash(
@@ -151,6 +174,15 @@ function css(rgb: DisplayPaletteRgb): string {
 
 function rgba(rgb: DisplayPaletteRgb, alpha: number): string {
   return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
+}
+
+function rgbaString(cssColor: string, alpha: number): string {
+  const [r, g, b] = cssColor.match(/\d+/g)?.map(Number) ?? [0, 0, 0];
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function clipText(text: string, maxChars: number): string {
+  return Array.from(text).slice(0, maxChars).join("");
 }
 
 function drawTransportIcon(ctx: CanvasRenderingContext2D, icon: string, x: number, y: number): void {

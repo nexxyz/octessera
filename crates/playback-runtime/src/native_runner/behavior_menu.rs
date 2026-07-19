@@ -152,7 +152,7 @@ impl NativeRunner {
             .iter()
             .map(|category| crate::native_menu::NativeMenuItem {
                 label: format!("[{}]", category.label),
-                key: None,
+                key: Some(format!("behavior.category.{}", category.id)),
                 value: crate::native_menu::NativeMenuValue::Group,
                 children: std::iter::once(crate::native_menu::NativeMenuItem {
                     label: "..".into(),

@@ -20,43 +20,30 @@ pub(super) fn collect_help_targets(
 
 pub(super) fn menu_help_target(path: &str, item: &NativeMenuItem) -> NativeMenuHelpTarget {
     let (key, kind) = match &item.value {
-        NativeMenuValue::Group => (String::new(), "group"),
-        NativeMenuValue::Enum { .. } => (
-            item.key
-                .as_ref()
-                .map(|key| format!("key:{}", canonicalize_help_key(key)))
-                .unwrap_or_default(),
-            "enum",
-        ),
-        NativeMenuValue::Number { .. } => (
-            item.key
-                .as_ref()
-                .map(|key| format!("key:{}", canonicalize_help_key(key)))
-                .unwrap_or_default(),
-            "number",
-        ),
-        NativeMenuValue::Bool { .. } => (
-            item.key
-                .as_ref()
-                .map(|key| format!("key:{}", canonicalize_help_key(key)))
-                .unwrap_or_default(),
-            "bool",
-        ),
-        NativeMenuValue::Text { .. } => (
-            item.key
-                .as_ref()
-                .map(|key| format!("key:{}", canonicalize_help_key(key)))
-                .unwrap_or_default(),
-            "text",
-        ),
-        NativeMenuValue::Action(action) => (menu_action_help_key(action), "action"),
+        NativeMenuValue::Group => keyed_item_help_target(item, "group"),
+        NativeMenuValue::Enum { .. } => keyed_item_help_target(item, "enum"),
+        NativeMenuValue::Number { .. } => keyed_item_help_target(item, "number"),
+        NativeMenuValue::Bool { .. } => keyed_item_help_target(item, "bool"),
+        NativeMenuValue::Text { .. } => keyed_item_help_target(item, "text"),
+        NativeMenuValue::Action(action) => menu_action_help_target(action),
     };
     NativeMenuHelpTarget {
         path: path.to_string(),
         key,
-        kind: kind.into(),
+        kind,
         label: item.label.clone(),
     }
+}
+
+fn keyed_item_help_target(item: &NativeMenuItem, kind: &str) -> (String, String) {
+    (item_key_help_target(item), kind.into())
+}
+
+fn item_key_help_target(item: &NativeMenuItem) -> String {
+    item.key
+        .as_ref()
+        .map(|key| format!("key:{}", canonicalize_help_key(key)))
+        .unwrap_or_default()
 }
 
 pub(super) fn canonicalize_help_path(path: &str) -> String {
@@ -106,24 +93,41 @@ fn canonicalize_help_key(key: &str) -> String {
         .join(".")
 }
 
-fn menu_action_help_key(action: &NativeMenuAction) -> String {
+fn menu_action_help_target(action: &NativeMenuAction) -> (String, String) {
     match action {
-        NativeMenuAction::ResetBehavior => "action:reset_behavior".into(),
-        NativeMenuAction::SelectBehavior(_) | NativeMenuAction::SelectLayerBehavior { .. } => {
-            "action:behavior_select".into()
+        NativeMenuAction::ResetBehavior => ("action:reset_behavior".into(), "action".into()),
+        NativeMenuAction::SelectBehavior(behavior_id) => (
+            format!("action:behavior_select:{behavior_id}"),
+            "action".into(),
+        ),
+        NativeMenuAction::SelectLayerBehavior { behavior_id, .. } => (
+            format!("action:behavior_select:{behavior_id}"),
+            "action".into(),
+        ),
+        NativeMenuAction::NavigateBack => ("action:navigate_back".into(), "action".into()),
+        NativeMenuAction::BehaviorAction(action_type) => (
+            format!("action:behavior_action:{action_type}"),
+            "action".into(),
+        ),
+        NativeMenuAction::SetParamBinding { binding, .. } => (
+            format!("key:{}", canonicalize_help_key(&binding.key)),
+            binding.kind.clone(),
+        ),
+        NativeMenuAction::ClearParamBinding { .. } => {
+            ("action:param_clear".into(), "action".into())
         }
-        NativeMenuAction::NavigateBack => "action:navigate_back".into(),
-        NativeMenuAction::BehaviorAction(action_type) => {
-            format!("action:behavior_action:{action_type}")
-        }
-        NativeMenuAction::SetParamBinding { .. } => "action:param_bind".into(),
-        NativeMenuAction::ClearParamBinding { .. } => "action:param_clear".into(),
         NativeMenuAction::SetAuxClick { .. } | NativeMenuAction::SetShiftAuxClick { .. } => {
-            "action:aux_click_set_target".into()
+            ("action:aux_click_set_target".into(), "action".into())
         }
-        NativeMenuAction::CloneInstrument { .. } => "action:instrument_clone".into(),
-        NativeMenuAction::ResetInstrument { .. } => "action:instrument_reset".into(),
-        NativeMenuAction::PlatformEffect(effect) => platform_effect_help_key(effect),
+        NativeMenuAction::CloneInstrument { .. } => {
+            ("action:instrument_clone".into(), "action".into())
+        }
+        NativeMenuAction::ResetInstrument { .. } => {
+            ("action:instrument_reset".into(), "action".into())
+        }
+        NativeMenuAction::PlatformEffect(effect) => {
+            (platform_effect_help_key(effect), "action".into())
+        }
     }
 }
 

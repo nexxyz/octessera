@@ -7,7 +7,9 @@ use super::binding_tree::{binding_action, binding_group_from_items, binding_tree
 use super::fx::{fx_buses_group, global_fx_group};
 use super::section_labels::{BUILD_LABEL, LINK_LABEL, PLAY_LABEL, SHAPE_LABEL};
 use super::sparks::sparks_fx_page_items;
-use super::{action_item, group, number_item, NativeMenuAction, NativeMenuConfig, NativeMenuItem};
+use super::{
+    action_item, keyed_group, number_item, NativeMenuAction, NativeMenuConfig, NativeMenuItem,
+};
 use super::{NativeMenuValue, NativeParamBindingSpec};
 
 pub(super) fn sparks_fx_targets() -> Vec<String> {
@@ -142,7 +144,11 @@ pub(super) fn parameter_tree_groups(
     let mut groups = Vec::new();
 
     if let Some(behavior_group) = behavior_binding_groups(config, target) {
-        groups.push(group(BUILD_LABEL, behavior_group.children));
+        groups.push(keyed_group(
+            BUILD_LABEL,
+            "binding.group.behavior_params",
+            behavior_group.children,
+        ));
     }
 
     let pulses_groups = config
@@ -152,13 +158,17 @@ pub(super) fn parameter_tree_groups(
         .filter_map(|(index, label)| pulses_binding_group(index, label, config, target))
         .collect::<Vec<_>>();
     if !pulses_groups.is_empty() {
-        groups.push(group(LINK_LABEL, pulses_groups));
+        groups.push(keyed_group(LINK_LABEL, "binding.group.link", pulses_groups));
     }
 
     let instrument_groups = instrument_binding_groups(config, target);
     let mut voice_children = Vec::new();
     if !instrument_groups.is_empty() {
-        voice_children.push(group("Instruments", instrument_groups));
+        voice_children.push(keyed_group(
+            "Instruments",
+            "binding.group.instruments",
+            instrument_groups,
+        ));
     }
     if let Some(item) =
         binding_tree_from_menu_item(&fx_buses_group(&config.fx_buses, config.bpm), target)
@@ -176,16 +186,25 @@ pub(super) fn parameter_tree_groups(
         voice_children.push(item);
     }
     if !voice_children.is_empty() {
-        groups.push(group(SHAPE_LABEL, voice_children));
+        groups.push(keyed_group(
+            SHAPE_LABEL,
+            "binding.group.shape",
+            voice_children,
+        ));
     }
 
     if let Some(item) = binding_group_from_items("Play FX", &sparks_fx_page_items(config), target) {
-        groups.push(group(PLAY_LABEL, vec![item]));
+        groups.push(keyed_group(PLAY_LABEL, "binding.group.play_fx", vec![item]));
     }
 
-    groups.push(group(
+    groups.push(keyed_group(
         "System",
-        vec![group("Sound", sound_binding_items(target))],
+        "binding.group.system",
+        vec![keyed_group(
+            "Sound",
+            "binding.group.sound",
+            sound_binding_items(target),
+        )],
     ));
 
     groups

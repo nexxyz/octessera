@@ -76,6 +76,109 @@ fn same_help_entry(
 }
 
 #[test]
+pub(crate) fn behavior_category_groups_emit_keyed_help_targets() {
+    let missing = platform_core::behavior_categories()
+        .iter()
+        .filter_map(|category| {
+            let target = NativeMenuHelpTarget {
+                path: "Menu > Build > Behavior: none".into(),
+                key: format!("key:behavior.category.{}", category.id),
+                kind: "group".into(),
+                label: category.label.into(),
+            };
+            crate::native_help::resolve_native_help_entry(&target)
+                .is_none()
+                .then_some(category.id)
+        })
+        .collect::<Vec<_>>();
+
+    assert!(
+        missing.is_empty(),
+        "missing category help targets: {missing:#?}"
+    );
+}
+
+#[test]
+pub(crate) fn every_catalog_behavior_leaf_resolves_behavior_specific_help() {
+    let missing_specific = platform_core::behavior_catalog()
+        .iter()
+        .filter_map(|entry| {
+            let target = NativeMenuHelpTarget {
+                path: "Menu > Build > Behavior: none > [Human]".into(),
+                key: format!("action:behavior_select:{}", entry.id),
+                kind: "action".into(),
+                label: entry.label.into(),
+            };
+            match crate::native_help::resolve_native_help_entry(&target) {
+                Some(resolved) if resolved.key == target.key => None,
+                Some(resolved) => Some((entry.id, resolved.key)),
+                None => Some((entry.id, "<missing>".into())),
+            }
+        })
+        .collect::<Vec<_>>();
+
+    assert!(
+        missing_specific.is_empty(),
+        "catalog behavior help resolved through fallback or was missing: {missing_specific:#?}"
+    );
+}
+
+#[test]
+pub(crate) fn behavior_specific_help_beats_wildcard_fallback() {
+    let specific = NativeMenuHelpTarget {
+        path: "Menu > Build > Behavior: none > [Human]".into(),
+        key: "action:behavior_select:keys".into(),
+        kind: "action".into(),
+        label: "keys".into(),
+    };
+    let fallback = NativeMenuHelpTarget {
+        key: "action:behavior_select:not_real".into(),
+        label: "not real".into(),
+        ..specific.clone()
+    };
+
+    let specific_entry = crate::native_help::resolve_native_help_entry(&specific).unwrap();
+    let fallback_entry = crate::native_help::resolve_native_help_entry(&fallback).unwrap();
+
+    assert_eq!(specific_entry.key, "action:behavior_select:keys");
+    assert_eq!(fallback_entry.key, "action:behavior_select:*");
+}
+
+#[test]
+pub(crate) fn binding_picker_leaves_use_bound_parameter_help_targets() {
+    let target = NativeMenuHelpTarget {
+        path: "Menu > Play > XY > X Target > System > Sound > Note Length".into(),
+        key: "key:sound.noteLengthMs".into(),
+        kind: "number".into(),
+        label: "Note Length".into(),
+    };
+    let entry = crate::native_help::resolve_native_help_entry(&target).unwrap();
+
+    assert_eq!(entry.key, "key:sound.noteLengthMs");
+    assert_ne!(entry.key, "action:param_bind");
+}
+
+#[test]
+pub(crate) fn binding_picker_groups_resolve_explicit_group_help() {
+    for key in [
+        "key:binding.group.behavior_params",
+        "key:binding.group.instruments",
+        "key:binding.group.sound",
+    ] {
+        let target = NativeMenuHelpTarget {
+            path: "Menu > Play > XY > X Target".into(),
+            key: key.into(),
+            kind: "group".into(),
+            label: "group".into(),
+        };
+        assert!(
+            crate::native_help::resolve_native_help_entry(&target).is_some(),
+            "unresolved binding group {key}"
+        );
+    }
+}
+
+#[test]
 pub(crate) fn native_menu_group_help_rows_match_current_paths() {
     let stale = crate::native_help::native_help_entries_for_tests()
         .iter()
