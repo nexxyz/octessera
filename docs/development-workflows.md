@@ -299,13 +299,13 @@ gh workflow run armbian-image.yml \
   -f kernel_branch=current \
   -f ui=minimal \
   -f compression=sha,img,xz \
-  -f extensions= \
+  -f extensions=preset-firstrun \
   -f run_build=false \
   -f artifact_mode=public-generic \
   -f armbian_build_ref=main
 ```
 
-Run the full public build by changing `run_build=true`. Public builds must stay secret-free. The first-boot setup portal handles Wi-Fi and SSH on the device, so `preset-firstrun` should stay off unless you are deliberately testing Armbian first-run presets. The build action always adds Octessera's reserved security-scrub extension and inspects the final image before upload.
+Run the full public build by changing `run_build=true`. Public builds must stay secret-free. The first-boot setup portal handles Wi-Fi and SSH on the device.
 
 Local validation before pushing image changes:
 
@@ -315,7 +315,7 @@ node --check userpatches/overlay/usr/local/share/octessera-setup-ui/app.js
 git diff --check
 ```
 
-After a successful image build, inspect the artifact for expected setup files and no baked SSH material: no shared user password, no `authorized_keys`, no `/etc/ssh/ssh_host_*`, and `ssh.service` disabled until setup finalizes.
+The workflow inspects the artifact before upload. For manual checks, inspect the artifact for expected setup files and no Octessera-added SSH material: no `octessera` user password, no `octessera` `authorized_keys`, no `/etc/ssh/ssh_host_*`, and `ssh.service` disabled until setup finalizes. Do not treat Armbian's own first-run root/bootstrap material as an Octessera secret.
 
 If you have an extracted root filesystem directory or ext4 root partition image, run:
 

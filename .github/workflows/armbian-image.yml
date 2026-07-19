@@ -24,9 +24,9 @@ on:
         required: true
         default: sha,img,xz
       extensions:
-        description: Space-separated Armbian extensions; include preset-firstrun only for explicit first-run presets
+        description: Space-separated Armbian extensions; include preset-firstrun for first-run presets
         required: false
-        default: ""
+        default: preset-firstrun
       armbian_build_ref:
         description: armbian/build git ref; prefer a reviewed tag or SHA for release images
         required: true

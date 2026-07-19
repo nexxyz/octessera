@@ -41,36 +41,19 @@ unit_not_enabled() {
 }
 
 shadow="$(read_file etc/shadow)"
-for user in root octessera orangepi pi armbian; do
-  line="$(printf '%s\n' "$shadow" | grep -E "^${user}:" || true)"
-  if [[ -n "$line" ]]; then
-    hash="${line#*:}"
-    hash="${hash%%:*}"
-    case "$hash" in
-      ""|\!*|\**|x) ;;
-      *) echo "User $user has a usable baked password hash." >&2; exit 1 ;;
-    esac
-  fi
-done
+line="$(printf '%s\n' "$shadow" | grep -E '^octessera:' || true)"
+if [[ -n "$line" ]]; then
+  hash="${line#*:}"
+  hash="${hash%%:*}"
+  case "$hash" in
+    ""|\!*|\**|x) ;;
+    *) echo "Octessera user has a usable baked password hash." >&2; exit 1 ;;
+  esac
+fi
 
-if [[ -d "$target" ]]; then
-  if find "$target/root" "$target/home" -path '*/.ssh/authorized_keys' 2>/dev/null | grep -q .; then
-    echo "Built image must not contain baked authorized_keys." >&2
-    exit 1
-  fi
-else
-  passwd="$(read_file etc/passwd)"
-  while IFS=: read -r user _ _ _ _ home _; do
-    [[ -n "$user" && -n "$home" ]] || continue
-    case "$home" in
-      /root|/home/*)
-        if stat_path "${home#/}/.ssh/authorized_keys"; then
-          echo "Built image must not contain baked authorized_keys for $user." >&2
-          exit 1
-        fi
-        ;;
-    esac
-  done <<<"$passwd"
+if stat_path home/octessera/.ssh/authorized_keys; then
+  echo "Octessera user must not contain baked authorized_keys." >&2
+  exit 1
 fi
 
 if [[ -d "$target" ]]; then

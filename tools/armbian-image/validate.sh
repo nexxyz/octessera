@@ -19,7 +19,6 @@ inspect_payload_tar() {
 
 required_files=(
   "$root/tools/armbian-image/inspect-output-images.sh"
-  "$root/userpatches/extensions/octessera-security-scrub.sh"
   "$root/userpatches/overlay/usr/local/sbin/octessera-wifi-connect"
   "$root/userpatches/overlay/usr/local/sbin/octessera-setup-sidecar"
   "$root/userpatches/overlay/etc/systemd/system/octessera-setup.service"
@@ -27,8 +26,8 @@ required_files=(
 )
 
 bash -n "$root/userpatches/customize-image.sh"
+bash -n "$root/tools/armbian-image/inspect-built-image.sh"
 bash -n "$root/tools/armbian-image/inspect-output-images.sh"
-bash -n "$root/userpatches/extensions/octessera-security-scrub.sh"
 bash -n "$root/userpatches/overlay/usr/local/sbin/octessera-wifi-connect"
 
 for file in "${required_files[@]}"; do
@@ -37,13 +36,9 @@ done
 
 grep -q 'wifi_connect_version=4.11.84' "$root/userpatches/customize-image.sh" || { echo "Missing pinned wifi-connect version." >&2; exit 1; }
 grep -q 'wifi_connect_sha256=413d70e6d1c1366cbe2b32555e8476f3e92878178ed1b9c82205985f055f1936' "$root/userpatches/customize-image.sh" || { echo "Missing pinned wifi-connect SHA256." >&2; exit 1; }
-grep -q 'passwd -l root' "$root/userpatches/customize-image.sh" || { echo "Root password must be locked in Armbian image customization." >&2; exit 1; }
-grep -q '/root/.ssh/authorized_keys' "$root/userpatches/customize-image.sh" || { echo "Root authorized_keys must be removed in Armbian image customization." >&2; exit 1; }
-grep -q 'pre_umount_final_image__999_octessera_scrub_authorized_keys' "$root/userpatches/extensions/octessera-security-scrub.sh" || { echo "Missing late authorized_keys scrub hook." >&2; exit 1; }
-grep -q '/root/.ssh/authorized_keys' "$root/userpatches/extensions/octessera-security-scrub.sh" || { echo "Late scrub hook must remove root authorized_keys." >&2; exit 1; }
 
 if command -v shellcheck >/dev/null 2>&1; then
-  shellcheck "$root/userpatches/customize-image.sh" "$root/userpatches/extensions/octessera-security-scrub.sh" "$root/userpatches/overlay/usr/local/sbin/octessera-wifi-connect" "$0"
+  shellcheck "$root/userpatches/customize-image.sh" "$root/tools/armbian-image/inspect-built-image.sh" "$root/tools/armbian-image/inspect-output-images.sh" "$root/userpatches/overlay/usr/local/sbin/octessera-wifi-connect" "$0"
 fi
 
 if command -v python3 >/dev/null 2>&1; then

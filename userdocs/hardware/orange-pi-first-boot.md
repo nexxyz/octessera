@@ -32,7 +32,9 @@ The setup hotspot is for nearby, first-boot setup. Until setup finishes, anyone 
 
 Set it up near the device. Do not leave it powered on in setup mode in a public place. SSH keys are safer than passwords.
 
-The image does not ship with a shared SSH password. SSH stays disabled unless you enable it during setup.
+Octessera does not add its own shared SSH password or baked SSH key. The underlying Armbian image may still expose its normal first-run console/bootstrap credentials. If you use that path instead of the setup portal, change the default password immediately.
+
+The setup portal creates or updates Octessera's SSH access. It does not scrub Armbian's own root/bootstrap credentials from the image, though Octessera still keeps network SSH closed until setup enables it.
 
 ## If setup does not appear
 
