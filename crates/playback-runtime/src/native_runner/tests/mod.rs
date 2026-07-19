@@ -11,6 +11,7 @@ mod browser_and_help;
 mod controls;
 mod dim_sleep;
 mod happy_path;
+mod hdmi;
 mod input_events;
 mod instruments;
 mod life_mapping;

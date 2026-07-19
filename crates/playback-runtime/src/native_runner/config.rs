@@ -128,6 +128,9 @@ impl NativeRunner {
             usb_audio_out: self.usb_audio_out.clone(),
             usb_midi_out_enabled: self.usb_midi_out_enabled,
             recording_max_minutes: self.recording_max_minutes,
+            hdmi_mode: self.hdmi.mode.clone(),
+            hdmi_show_gridlines: self.hdmi.show_gridlines,
+            hdmi_cycle_measures: self.hdmi.cycle_measures,
             preset_names: self.preset_names.clone(),
             preset_draft_name: self.preset_draft_name.clone(),
             preset_rename_source: self.preset_rename_source.clone(),
@@ -203,6 +206,11 @@ impl NativeRunner {
                 },
                 "xyRelease": self.xy_release,
                 "sampleFavouriteDirs": self.sample_favourite_dirs,
+                "hdmi": {
+                    "mode": self.hdmi.mode,
+                    "showGridlines": self.hdmi.show_gridlines,
+                    "cycleMeasures": self.hdmi.cycle_measures
+                },
                 "instruments": self.instruments.iter().map(|instrument| {
                     let sample_slots = instrument
                         .sample_paths

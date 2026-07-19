@@ -321,6 +321,10 @@ usb_midi_out	*	key:usb.midiOutEnabled	bool	MIDI Out	Enables persisted USB MIDI g
 usb_apply_reboot	System > USB	action:usb.applyReboot	action	Save & Reboot	Saves the current default payload and asks the platform to apply USB settings with a reboot.	Confirmation offers Cancel or Save & Reboot.
 usb_sd_transfer_start	System > USB	action:usb.sdTransferStart	action	Start SD2 Xfer	Temporarily exposes the OLED SD2 sample card to the USB host as writable storage.	USB audio and MIDI disconnect during transfer; Pi rejects this while USB audio out, USB MIDI out, or recording is active.
 usb_sd_transfer_stop	System > USB	action:usb.sdTransferStop	action	Stop SD2 Xfer	Restores the normal USB audio/MIDI gadget after host file transfer.	Eject OLED SD2 on the host before stopping transfer.
+hdmi_group	Menu > System > HDMI		group	HDMI	Controls the optional Pi framebuffer grid output.	This display follows snapshots only and does not change playback.
+hdmi_mode	System > HDMI > Mode	key:hdmi.mode	enum	Mode	Chooses the grid source for HDMI output.	None keeps framebuffer output closed; Live Grid includes overlays.
+hdmi_cycle	System > HDMI > Cycle Bars	key:hdmi.cycleMeasures	number	Cycle Bars	Sets how many bars each behavior stays on HDMI before cycling.	Applies to Cycle Behaviors mode and clamps from 1 to 64.
+hdmi_gridlines	System > HDMI > Grid Lines	key:hdmi.showGridlines	bool	Grid Lines	Draws separator lines on the optional HDMI grid.	Only affects the HDMI framebuffer renderer.
 recording_group	Menu > System > Recording		group	Recording	Controls Pi main-SD audio recording.	Phase 1 records Octessera's internal stereo output to /home/pi/recordings as WAV.
 recording_max_time	*	key:recording.maxMinutes	number	Max Time	Sets the maximum audio recording length in minutes.	The recorder stops and finalizes the WAV when the limit is reached.
 recording_start_audio	System > Recording	action:recording.startAudio	action	Start Audio	Starts Pi main-SD audio recording of the final internal stereo mix.	External MIDI instrument audio is not captured.

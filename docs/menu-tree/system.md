@@ -64,6 +64,10 @@ System
 │   ├── Check: (action)               ← placeholder update status request; no updater is wired yet
 │   ├── Apply: (action)               ← confirms, then calls a placeholder host effect
 │   └── Rollback: (action)            ← confirms, then calls a placeholder host effect
+├── HDMI (group)
+│   ├── Mode: [none | live-grid | plain-grid | active-behavior | cycle-behaviors]  default none
+│   ├── Cycle Bars: [1..64] bars  default 4
+│   └── Grid Lines: [on | off]  default off
 ├── Diagnostics (group)
 │   └── Hardware Test: (action)       ← confirms, then runs pre-hardware Pi checks
 ├── !Basic Help (action)              ← opens shortcut cheat-sheet help popup

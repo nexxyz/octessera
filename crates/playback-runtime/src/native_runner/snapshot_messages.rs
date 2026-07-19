@@ -38,7 +38,7 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn messages_with_snapshot(&mut self) -> Result<Vec<RunnerMessage>, String> {
+    pub fn messages_with_snapshot(&mut self) -> Result<Vec<RunnerMessage>, String> {
         if self.suppress_snapshot_response {
             return self.messages_without_snapshot();
         }

@@ -248,6 +248,7 @@ pub struct NativeRunner {
     swing_pct: u8,
     audio_output_buffer_frames: u32,
     ui: NativeUiState,
+    hdmi: NativeHdmiConfig,
     oled_mode: NativeOledMode,
     oled_splash_text: String,
     oled_splash_until: Option<Instant>,

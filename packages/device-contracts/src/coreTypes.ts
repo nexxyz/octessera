@@ -56,6 +56,17 @@ export type LedMatrixFrame = {
   active: boolean[];
 };
 
+export type HdmiMode = "none" | "live-grid" | "plain-grid" | "active-behavior" | "cycle-behaviors";
+
+export type HdmiSnapshot = {
+  mode: HdmiMode;
+  showGridlines: boolean;
+  cycleMeasures: number;
+  sourceLayerIndex: number;
+  sourceBehaviorId: string;
+  grid: LedMatrixFrame;
+};
+
 export type GridInteraction = "paint" | "momentary";
 
 export type TransportFrame = {
@@ -99,6 +110,7 @@ export type RuntimeSnapshot = {
   display: DisplayFrame;
   oled?: OledFrame;
   leds: LedMatrixFrame;
+  hdmi?: HdmiSnapshot;
   transport: TransportFrame;
   activeBehavior: string;
   gridInteraction: GridInteraction;

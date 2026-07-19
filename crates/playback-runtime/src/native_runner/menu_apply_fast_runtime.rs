@@ -24,6 +24,21 @@ impl NativeRunner {
             "usb.audioOut" => Some(self.fast_usb_audio_out_menu_key()),
             "usb.midiOutEnabled" => Some(self.fast_usb_midi_out_menu_key()),
             "recording.maxMinutes" => Some(self.fast_recording_max_minutes_menu_key()),
+            "hdmi.mode" => Some(self.fast_string_menu_key(key, |runner, value| {
+                let value = match value.as_str() {
+                    "none" | "live-grid" | "plain-grid" | "active-behavior" | "cycle-behaviors" => {
+                        value
+                    }
+                    _ => "none".into(),
+                };
+                value_changed(&mut runner.hdmi.mode, value)
+            })),
+            "hdmi.showGridlines" => Some(self.fast_bool_menu_key(key, |runner, value| {
+                bool_changed(&mut runner.hdmi.show_gridlines, value)
+            })),
+            "hdmi.cycleMeasures" => Some(self.fast_number_menu_key(key, |runner, value| {
+                value_changed(&mut runner.hdmi.cycle_measures, value.clamp(1, 64) as u8)
+            })),
             "sparksMode" => Some(self.fast_sparks_mode_menu_key()),
             "sparks.page.mix" => Some(self.fast_sparks_page_key("mix")),
             "sparks.page.pan" => Some(self.fast_sparks_page_key("pan")),

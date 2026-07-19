@@ -23,6 +23,7 @@ impl NativeRunner {
         for led in leds {
             led.append_rgb(&mut led_rgb);
         }
+        let hdmi = self.hdmi_snapshot(&led_rgb, &active_cells, &model);
         let display = self.display_snapshot(menu);
         let toast = self.toast.as_ref().map(scrolled_toast).unwrap_or_default();
 
@@ -47,6 +48,7 @@ impl NativeRunner {
                 "rgb": led_rgb,
                 "active": active_cells
             },
+            "hdmi": hdmi,
             "transport": {
                 "playing": self.transport == RuntimeTransportState::Playing,
                 "bpm": self.bpm,
@@ -148,6 +150,93 @@ impl NativeRunner {
             self.last_snapshot_audio_config_revision = Some(self.audio_config_revision);
         }
     }
+}
+
+impl NativeRunner {
+    fn hdmi_snapshot(
+        &self,
+        live_rgb: &[u8],
+        live_active: &[bool],
+        active_model: &platform_core::BehaviorRenderModel,
+    ) -> Value {
+        let mode = self.hdmi.mode.as_str();
+        let source_layer_index = self.hdmi_source_layer_index(mode);
+        let source_behavior_id = self
+            .layer_behavior_ids
+            .get(source_layer_index)
+            .cloned()
+            .unwrap_or_else(|| "none".into());
+        let (rgb, active) = match mode {
+            "none" => black_hdmi_frame(),
+            "live-grid" => (live_rgb.to_vec(), live_active.to_vec()),
+            "plain-grid" => self.hdmi_frame_from_model(active_model),
+            "active-behavior" | "cycle-behaviors" => self
+                .hdmi_model_for_layer(source_layer_index)
+                .map(|model| self.hdmi_frame_from_model(&model))
+                .unwrap_or_else(black_hdmi_frame),
+            _ => black_hdmi_frame(),
+        };
+        json!({
+            "mode": self.hdmi.mode,
+            "showGridlines": self.hdmi.show_gridlines,
+            "cycleMeasures": self.hdmi.cycle_measures,
+            "sourceLayerIndex": source_layer_index,
+            "sourceBehaviorId": source_behavior_id,
+            "grid": { "width": GRID_WIDTH, "height": GRID_HEIGHT, "rgb": rgb, "active": active }
+        })
+    }
+
+    fn hdmi_source_layer_index(&self, mode: &str) -> usize {
+        if mode == "cycle-behaviors" {
+            let candidates: Vec<usize> = self
+                .layer_behavior_ids
+                .iter()
+                .enumerate()
+                .filter_map(|(index, behavior_id)| {
+                    (behavior_id != "none" && self.hdmi_model_for_layer(index).is_some())
+                        .then_some(index)
+                })
+                .collect();
+            if candidates.is_empty() {
+                return 0;
+            }
+            let measure = self.current_ppqn_pulse / 96;
+            let slot =
+                (measure / u64::from(self.hdmi.cycle_measures.max(1))) as usize % candidates.len();
+            return candidates[slot];
+        }
+        self.hdmi
+            .source_layer_index
+            .min(self.layer_behavior_ids.len().saturating_sub(1))
+    }
+
+    fn hdmi_model_for_layer(&self, index: usize) -> Option<platform_core::BehaviorRenderModel> {
+        if self.layer_behavior_ids.get(index)? == "none" {
+            return None;
+        }
+        if index == self.active_layer_index {
+            return self.engine.model().ok();
+        }
+        self.layer_engines.get(index)?.as_ref()?.model().ok()
+    }
+
+    fn hdmi_frame_from_model(
+        &self,
+        model: &platform_core::BehaviorRenderModel,
+    ) -> (Vec<u8>, Vec<bool>) {
+        let mut rgb = Vec::with_capacity(GRID_WIDTH * GRID_HEIGHT * 3);
+        for led in self.base_led_snapshot(model) {
+            led.append_rgb(&mut rgb);
+        }
+        (rgb, display_active_cells(&model.cells))
+    }
+}
+
+fn black_hdmi_frame() -> (Vec<u8>, Vec<bool>) {
+    (
+        vec![0; GRID_WIDTH * GRID_HEIGHT * 3],
+        vec![false; GRID_WIDTH * GRID_HEIGHT],
+    )
 }
 
 fn display_active_cells(cells: &[bool]) -> Vec<bool> {

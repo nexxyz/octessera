@@ -184,6 +184,7 @@ impl NativeRunner {
         }
 
         self.active_layer_index = next_index;
+        self.hdmi.source_layer_index = next_index;
         self.tick = self.layer_ticks.get(next_index).copied().unwrap_or(0);
         self.algorithm_step_pulses = self
             .layer_algorithm_step_pulses

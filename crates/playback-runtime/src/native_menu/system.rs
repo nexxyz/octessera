@@ -226,6 +226,7 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                 ],
             ),
             updates_group(),
+            hdmi_group(config),
             group(
                 "Diagnostics",
                 vec![action_item(
@@ -248,6 +249,48 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                 "Shutdown",
                 "system.shutdown",
                 NativeMenuAction::PlatformEffect("system.shutdown".into()),
+            ),
+        ],
+    )
+}
+
+fn hdmi_group(config: &NativeMenuConfig) -> NativeMenuItem {
+    group(
+        "HDMI",
+        vec![
+            enum_item(
+                "Mode",
+                "hdmi.mode",
+                vec![
+                    "none",
+                    "live-grid",
+                    "plain-grid",
+                    "active-behavior",
+                    "cycle-behaviors",
+                ],
+                selected_index(
+                    &[
+                        "none",
+                        "live-grid",
+                        "plain-grid",
+                        "active-behavior",
+                        "cycle-behaviors",
+                    ],
+                    &config.hdmi_mode,
+                ),
+            ),
+            number_item(
+                "Cycle Bars",
+                "hdmi.cycleMeasures",
+                i32::from(config.hdmi_cycle_measures),
+                1,
+                64,
+                1,
+            ),
+            bool_item(
+                "Grid Lines",
+                "hdmi.showGridlines",
+                config.hdmi_show_gridlines,
             ),
         ],
     )

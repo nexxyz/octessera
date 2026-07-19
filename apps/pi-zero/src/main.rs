@@ -91,6 +91,7 @@ fn main() {
     let render_worker = RenderWorker::spawn(HardwareRenderTargets {
         oled,
         seesaw_tx: seesaw_io.command_tx.clone(),
+        hdmi: render::hdmi::HdmiFramebuffer::open_from_env(),
     });
 
     let runtime = runtime_thread::spawn(runtime_thread::RuntimeThreadConfig {

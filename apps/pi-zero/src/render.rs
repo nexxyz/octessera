@@ -6,6 +6,7 @@ use serde_json::Value;
 use std::sync::mpsc::Sender;
 use std::time::{Duration, Instant};
 
+pub(crate) mod hdmi;
 mod oled;
 
 pub(crate) use oled::OLED_FRAME_BYTES;
@@ -22,6 +23,7 @@ const MIN_SLEEP_DIM_SCALE: f32 = 0.04;
 pub struct HardwareRenderTargets {
     pub oled: OledSsd1351,
     pub seesaw_tx: Sender<SeesawCommand>,
+    pub hdmi: Option<hdmi::HdmiFramebuffer>,
 }
 
 pub struct HardwareRenderCache {
@@ -29,6 +31,7 @@ pub struct HardwareRenderCache {
     neokey_colors: Option<[[u8; 3]; 4]>,
     oled_signature: u64,
     oled_frame: Vec<u8>,
+    hdmi_signature: u64,
     event_dot_until: Option<Instant>,
     transport_flash_until: Option<Instant>,
     transport_flash: Option<String>,
@@ -41,6 +44,7 @@ impl HardwareRenderCache {
             neokey_colors: None,
             oled_signature: 0,
             oled_frame: vec![0_u8; OLED_FRAME_BYTES],
+            hdmi_signature: 0,
             event_dot_until: None,
             transport_flash_until: None,
             transport_flash: None,
@@ -124,6 +128,14 @@ pub fn render_snapshot_cached(
     if cache.oled_signature != signature {
         cache.oled_signature = signature;
         render_oled(&mut targets.oled, snapshot, &mut cache.oled_frame);
+    }
+
+    if let Some(hdmi) = targets.hdmi.as_mut() {
+        let signature = hdmi::hdmi_signature(snapshot);
+        if cache.hdmi_signature != signature {
+            cache.hdmi_signature = signature;
+            hdmi.render(snapshot);
+        }
     }
 }
 

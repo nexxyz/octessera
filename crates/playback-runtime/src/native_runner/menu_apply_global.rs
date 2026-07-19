@@ -32,6 +32,7 @@ impl NativeRunner {
         }
         config_changed |= self.apply_midi_menu_flags();
         config_changed |= self.apply_usb_menu_state();
+        config_changed |= self.apply_hdmi_menu_state();
         config_changed |= self.apply_recording_menu_state();
         if let Some(sparks_mode) = self.menu.selected_sparks_mode() {
             let changed = self.sparks_mode != sparks_mode;
@@ -131,6 +132,26 @@ impl NativeRunner {
         let value = value.parse::<u16>().unwrap_or(10).clamp(1, 120);
         let changed = self.recording_max_minutes != value;
         self.recording_max_minutes = value;
+        changed
+    }
+
+    pub(super) fn apply_hdmi_menu_state(&mut self) -> bool {
+        let mut changed = false;
+        if let Some(mode) = self.menu.value_for_key("hdmi.mode") {
+            let mode = normalize_hdmi_mode(&mode).to_string();
+            changed |= self.hdmi.mode != mode;
+            self.hdmi.mode = mode;
+        }
+        if let Some(show_gridlines) = self.menu.value_for_key("hdmi.showGridlines") {
+            let show_gridlines = show_gridlines == "true";
+            changed |= self.hdmi.show_gridlines != show_gridlines;
+            self.hdmi.show_gridlines = show_gridlines;
+        }
+        if let Some(cycle_measures) = self.menu.number_for_key("hdmi.cycleMeasures") {
+            let cycle_measures = cycle_measures.clamp(1, 64) as u8;
+            changed |= self.hdmi.cycle_measures != cycle_measures;
+            self.hdmi.cycle_measures = cycle_measures;
+        }
         changed
     }
 
@@ -253,5 +274,16 @@ impl NativeRunner {
             self.aux_auto_map_enabled = aux_auto_map_enabled;
         }
         changed
+    }
+}
+
+fn normalize_hdmi_mode(value: &str) -> &'static str {
+    match value {
+        "none" => "none",
+        "live-grid" => "live-grid",
+        "plain-grid" => "plain-grid",
+        "active-behavior" => "active-behavior",
+        "cycle-behaviors" => "cycle-behaviors",
+        _ => "none",
     }
 }

@@ -39,6 +39,7 @@ impl NativeRunner {
         desired_active_layer_index: usize,
     ) -> Result<(), String> {
         self.active_layer_index = desired_active_layer_index;
+        self.hdmi.source_layer_index = desired_active_layer_index;
         self.algorithm_step_pulses = self
             .layer_algorithm_step_pulses
             .get(self.active_layer_index)

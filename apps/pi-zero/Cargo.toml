@@ -7,6 +7,10 @@ edition = "2021"
 name = "octessera-pi"
 path = "src/main.rs"
 
+[[bin]]
+name = "octessera-pi-hdmi-bench"
+path = "src/bin/hdmi_bench.rs"
+
 [dependencies]
 octessera-hal = { path = "../../crates/hal" }
 platform-core = { path = "../../crates/platform-core" }

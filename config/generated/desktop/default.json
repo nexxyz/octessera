@@ -3496,6 +3496,11 @@
       "audioOut": "jack",
       "midiOutEnabled": false
     },
+    "hdmi": {
+      "mode": "none",
+      "showGridlines": false,
+      "cycleMeasures": 4
+    },
     "velocityCurve": "linear",
     "velocityScalePct": 100,
     "voiceStealingMode": "auto-balanced",

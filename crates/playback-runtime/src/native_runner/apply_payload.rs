@@ -11,7 +11,7 @@ impl NativeRunner {
             .push_platform_effect(crate::protocol::RuntimePlatformEffect::MidiPanic);
     }
 
-    pub(super) fn apply_config_payload(&mut self, payload: Value) -> Result<(), String> {
+    pub fn apply_config_payload(&mut self, payload: Value) -> Result<(), String> {
         self.restore_link_lfo_base_audio();
         self.clear_all_link_arp_state();
         let before_payload = self.config_payload();
@@ -33,6 +33,7 @@ impl NativeRunner {
         self.swap_active_engine_from_layer(desired_active_layer_index)?;
         self.apply_instruments_payload(runtime);
         self.apply_runtime_ui_and_sound_payload(runtime, &payload);
+        self.apply_hdmi_payload(runtime);
         self.apply_sample_browser_favourites_payload(runtime);
         let active_behavior_id = self
             .layer_behavior_ids
@@ -71,6 +72,25 @@ impl NativeRunner {
             self.audio_config_revision = self.audio_config_revision.wrapping_add(1);
         }
         Ok(())
+    }
+
+    fn apply_hdmi_payload(&mut self, runtime: &Value) {
+        let Some(hdmi) = runtime.get("hdmi") else {
+            return;
+        };
+        if let Some(mode) = hdmi.get("mode").and_then(Value::as_str) {
+            self.hdmi.mode = match mode {
+                "none" | "live-grid" | "plain-grid" | "active-behavior" | "cycle-behaviors" => mode,
+                _ => "none",
+            }
+            .into();
+        }
+        if let Some(show_gridlines) = hdmi.get("showGridlines").and_then(Value::as_bool) {
+            self.hdmi.show_gridlines = show_gridlines;
+        }
+        if let Some(cycle_measures) = hdmi.get("cycleMeasures").and_then(Value::as_u64) {
+            self.hdmi.cycle_measures = cycle_measures.clamp(1, 64) as u8;
+        }
     }
 
     pub(super) fn apply_sparks_fx_payload(&mut self, sparks_fx: &Value) {
