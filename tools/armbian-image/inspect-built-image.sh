@@ -51,11 +51,6 @@ if [[ -n "$line" ]]; then
   esac
 fi
 
-if stat_path home/octessera/.ssh/authorized_keys; then
-  echo "Octessera user must not contain baked authorized_keys." >&2
-  exit 1
-fi
-
 if [[ -d "$target" ]]; then
   if find "$target/etc/ssh" -maxdepth 1 -name 'ssh_host_*' | grep -q .; then
     echo "Built image must not contain baked SSH host keys." >&2

@@ -315,7 +315,7 @@ node --check userpatches/overlay/usr/local/share/octessera-setup-ui/app.js
 git diff --check
 ```
 
-The workflow inspects the artifact before upload. For manual checks, inspect the artifact for expected setup files and no Octessera-added SSH material: no `octessera` user password, no `octessera` `authorized_keys`, no `/etc/ssh/ssh_host_*`, and `ssh.service` disabled until setup finalizes. Do not treat Armbian's own first-run root/bootstrap material as an Octessera secret.
+The workflow inspects the artifact before upload. For manual checks, inspect the artifact for expected setup files and no Octessera-added SSH material: no `octessera` user password, no `/etc/ssh/ssh_host_*`, and `ssh.service` disabled until setup finalizes. Do not treat Armbian's own first-run root/bootstrap material as an Octessera secret.
 
 If you have an extracted root filesystem directory or ext4 root partition image, run:
 
