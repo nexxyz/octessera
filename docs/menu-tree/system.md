@@ -61,9 +61,9 @@ System
 │   ├── Grid Bright: [10..100] step 5     default 75 (bar display when Number Style is bar or bar+numbers)
 │   └── Button Bright: [10..100] step 5   default 75 (bar display when Number Style is bar or bar+numbers)
 ├── Updates (group)
-│   ├── Check: (action)               ← placeholder update status request; no updater is wired yet
-│   ├── Apply: (action)               ← confirms, then calls a placeholder host effect
-│   └── Rollback: (action)            ← confirms, then calls a placeholder host effect
+│   ├── Check: (action)               ← Pi checks GitHub releases for a device update; desktop opens the releases page
+│   ├── Apply: (action)               ← confirms, then Pi installs the latest validated device release and restarts Octessera
+│   └── Rollback: (action)            ← confirms, then Pi switches back to the previously active release and restarts Octessera
 ├── HDMI (group)
 │   ├── Mode: [none | live-grid | plain-grid | active-behavior | cycle-behaviors]  default none
 │   ├── Cycle Bars: [1..64] bars  default 4
@@ -75,4 +75,4 @@ System
 └── Shutdown: (action)                ← confirm, then show shutdown splash and exit/poweroff
 ```
 
-Diagnostics is a pre-hardware Pi check, and the update actions are native placeholders for OTA flow control: `Check` is unconfirmed, while `Apply` and `Rollback` confirm before calling placeholder Pi/desktop host effects. Load Empty lives under Saves, confirms with `Confirm Load Empty`, stops playback with MIDI panic/note safety, loads an empty musical patch state, and preserves device preferences such as brightness, MIDI setup, audio buffer, favourites, and preset names. Basic Help opens native help with the shortcut cheat sheet. Reboot and Shutdown stay at the bottom of System. `Stop/Sync: Sh+Space` follows the transport mode: internal sync emergency-stops and clears held notes, while external sync arms resync. `Fn+Space` is reset-stop: stop, reset position, and MIDI panic.
+Diagnostics is a pre-hardware Pi check. Update actions are native host effects: `Check` is unconfirmed, while `Apply` and `Rollback` confirm before Pi runs the system updater. Desktop `Check` opens the GitHub releases page; desktop apply and rollback report unsupported. Load Empty lives under Saves, confirms with `Confirm Load Empty`, stops playback with MIDI panic/note safety, loads an empty musical patch state, and preserves device preferences such as brightness, MIDI setup, audio buffer, favourites, and preset names. Basic Help opens native help with the shortcut cheat sheet. Reboot and Shutdown stay at the bottom of System. `Stop/Sync: Sh+Space` follows the transport mode: internal sync emergency-stops and clears held notes, while external sync arms resync. `Fn+Space` is reset-stop: stop, reset position, and MIDI panic.

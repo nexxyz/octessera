@@ -28,6 +28,9 @@ install -D -m 0755 \
 install -D -m 0755 \
     "$STAGE_FILES/root/usr/local/sbin/octessera-sd-card" \
     "$ROOTFS_DIR/usr/local/sbin/octessera-sd-card"
+install -D -m 0755 \
+    "$STAGE_FILES/root/usr/local/sbin/octessera-update" \
+    "$ROOTFS_DIR/usr/local/sbin/octessera-update"
 install -D -m 0644 \
     "$STAGE_FILES/root/etc/systemd/system/octessera-performance-governor.service" \
     "$ROOTFS_DIR/etc/systemd/system/octessera-performance-governor.service"
@@ -64,6 +67,9 @@ install -D -m 0440 \
 install -D -m 0440 \
     "$STAGE_FILES/root/etc/sudoers.d/octessera-usb-storage" \
     "$ROOTFS_DIR/etc/sudoers.d/octessera-usb-storage"
+install -D -m 0440 \
+    "$STAGE_FILES/root/etc/sudoers.d/octessera-update" \
+    "$ROOTFS_DIR/etc/sudoers.d/octessera-update"
 install -D -m 0644 \
     "$STAGE_FILES/root/etc/profile.d/octessera-welcome.sh" \
     "$ROOTFS_DIR/etc/profile.d/octessera-welcome.sh"

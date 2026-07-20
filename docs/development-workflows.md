@@ -87,6 +87,7 @@ Release assets:
 - `octessera-<version>-ubuntu-x86_64.AppImage`: portable Linux AppImage.
 - `octessera-<version>-pi-zero-2w.img.zip`: ready-to-flash Raspberry Pi Zero 2 W image, including `os_list.rpi-imager-manifest` for Raspberry Pi Imager.
 - `octessera-<version>-pi-zero-2w.rpi-imager-manifest`: standalone Raspberry Pi Imager manifest copy.
+- `octessera-<version>-device-aarch64.zip`: Linux aarch64 device update payload for the on-device updater.
 - `SHA256SUMS-*.txt`: checksums for release assets.
 
 Release process:
@@ -97,11 +98,13 @@ Release process:
 4. Commit and push the release-prep changes.
 5. Create a draft GitHub release such as `v0.5.0`.
 6. Run `Release Artifacts` manually with that existing tag, or publish the release to trigger it.
-7. Confirm the installer, portable EXE, macOS DMG, Ubuntu DEB/AppImage, Pi image zip, Pi Imager manifest, and checksum files are attached before announcing the release.
+7. Confirm the installer, portable EXE, macOS DMG, Ubuntu DEB/AppImage, Pi image zip, Pi Imager manifest, device update ZIP, and checksum files are attached before announcing the release.
 
 The Pi image build is a necessary slow path because it generates a full Raspberry Pi OS image through pi-gen. Keep it release-only.
 
 The release Pi image must be sanitized: no WiFi credentials, SSH keys, GitHub tokens, host logs, or local user secrets. SSH is disabled by default.
+
+Device updates use `/usr/local/sbin/octessera-update` on Pi-family images. It downloads `octessera-<version>-device-aarch64.zip` and `SHA256SUMS-device.txt` from GitHub releases, verifies the checksum and manifest, installs into `/opt/octessera/releases/<version>`, then atomically switches `/opt/octessera/current` and `/usr/local/bin/octessera-pi`. `octessera-update rollback` switches back to the previous recorded release.
 
 ## Armbian Image Workflow
 

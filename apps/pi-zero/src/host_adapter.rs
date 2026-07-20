@@ -360,15 +360,27 @@ impl HostAdapter for PiPlaybackHostAdapter {
                 return Ok(Vec::new());
             }
             RuntimePlatformEffect::UpdateCheck => {
-                println!("system.updateCheck requested (placeholder)");
+                if let Err(message) = self.platform_service.enqueue(PlatformJob::UpdateCheck) {
+                    return Ok(vec![store_error(format!(
+                        "Update check queue failed: {message}"
+                    ))]);
+                }
                 return Ok(Vec::new());
             }
             RuntimePlatformEffect::UpdateApply => {
-                println!("system.updateApply requested (placeholder)");
+                if let Err(message) = self.platform_service.enqueue(PlatformJob::UpdateApply) {
+                    return Ok(vec![store_error(format!(
+                        "Update apply queue failed: {message}"
+                    ))]);
+                }
                 return Ok(Vec::new());
             }
             RuntimePlatformEffect::Rollback => {
-                println!("system.rollback requested (placeholder)");
+                if let Err(message) = self.platform_service.enqueue(PlatformJob::Rollback) {
+                    return Ok(vec![store_error(format!(
+                        "Rollback queue failed: {message}"
+                    ))]);
+                }
                 return Ok(Vec::new());
             }
             RuntimePlatformEffect::SampleListRequest {

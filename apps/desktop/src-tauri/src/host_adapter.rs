@@ -16,9 +16,12 @@ use playback_runtime::{
 use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::process::Command;
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
+
+const RELEASES_URL: &str = "https://github.com/nexxyz/octessera/releases";
 
 pub(crate) struct DesktopPlaybackHostAdapter {
     pub(crate) audio: DesktopHostAudioState,
@@ -281,10 +284,20 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                 self.shutdown_requested = true;
                 Ok(vec![])
             }
-            RuntimePlatformEffect::HardwareTest
-            | RuntimePlatformEffect::UpdateCheck
-            | RuntimePlatformEffect::UpdateApply
-            | RuntimePlatformEffect::Rollback => Ok(vec![]),
+            RuntimePlatformEffect::HardwareTest => Ok(vec![]),
+            RuntimePlatformEffect::UpdateCheck => Ok(vec![HostMessage::RuntimeResult {
+                result: open_releases_page(),
+            }]),
+            RuntimePlatformEffect::UpdateApply => Ok(vec![HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::StoreError {
+                    message: "Desktop updates open the releases page".into(),
+                },
+            }]),
+            RuntimePlatformEffect::Rollback => Ok(vec![HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::StoreError {
+                    message: "Desktop rollback is unsupported".into(),
+                },
+            }]),
             RuntimePlatformEffect::SampleListRequest {
                 instrument_slot,
                 sample_slot,
@@ -312,6 +325,30 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
             return Ok(());
         };
         conn.send(_bytes).map_err(|e| e.to_string())
+    }
+}
+
+fn open_releases_page() -> RuntimeStoreResult {
+    let result = if cfg!(target_os = "windows") {
+        Command::new("cmd")
+            .args(["/C", "start", "", RELEASES_URL])
+            .status()
+    } else if cfg!(target_os = "macos") {
+        Command::new("open").arg(RELEASES_URL).status()
+    } else {
+        Command::new("xdg-open").arg(RELEASES_URL).status()
+    };
+
+    match result {
+        Ok(status) if status.success() => RuntimeStoreResult::StoreError {
+            message: "Opened Octessera releases page".into(),
+        },
+        Ok(status) => RuntimeStoreResult::StoreError {
+            message: format!("Open releases page failed: {status}"),
+        },
+        Err(error) => RuntimeStoreResult::StoreError {
+            message: format!("Open releases page failed: {error}"),
+        },
     }
 }
 

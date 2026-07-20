@@ -381,7 +381,7 @@ system_diagnostics_group	Menu > System > Diagnostics		group	Diagnostics	Hardware
 system_hardware_test	Menu > System > Diagnostics > Hardware Test	action:system_hardware_test	action	Hardware Test	Runs the Pi pre-hardware diagnostic checks.	Requires confirmation before running the guided test.
 system_updates_group	Menu > System > Updates		group	Updates	Update status and OTA control actions.	Check is read-only; Apply and Rollback confirm first.
 system_update_check	Menu > System > Updates > Check	action:system_update_check	action	Check	Checks whether an update is available.	This is a non-destructive status request.
-system_update_apply	Menu > System > Updates > Apply	action:system_update_apply	action	Apply	Applies the staged update package.	Requires confirmation before changing the active release.
+system_update_apply	Menu > System > Updates > Apply	action:system_update_apply	action	Apply	Downloads and applies the selected device release.	Requires confirmation before changing the active release.
 system_rollback	Menu > System > Updates > Rollback	action:system_rollback	action	Rollback	Restores the previous release.	Requires confirmation before switching versions.
 presets_library_group	Menu > System > Saves > Library		group	Preset Library	Named save/load/rename/delete workflow for patch states.	Use Refresh if external files were changed.
 save_as_group	Menu > System > Saves > Library > Save As		group	Save As	Creates a preset from the current runtime state.	Enter a name then run Save to write it.

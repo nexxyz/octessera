@@ -22,7 +22,6 @@ This file tracks current actionable work only. Completed-work history does not b
 ## Hardware Follow-Ups
 
 - Hardware test harness: planned after the first successful Pi run. It should verify I2C devices, OLED, NeoKey, NeoTrellis, encoders, DAC output, and basic runtime input/output routing.
-- OTA/update flow: planned after the first successful Pi run. It should support safe update and rollback for deployed hardware.
 
 ## Product Follow-Ups
 

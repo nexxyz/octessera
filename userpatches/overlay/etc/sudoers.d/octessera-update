@@ -1,0 +1,1 @@
+octessera ALL=(root) NOPASSWD: /usr/local/sbin/octessera-update check, /usr/local/sbin/octessera-update check v*, /usr/local/sbin/octessera-update apply, /usr/local/sbin/octessera-update apply v*, /usr/local/sbin/octessera-update rollback

@@ -7,7 +7,7 @@ overlay_dir=/tmp/overlay
 install -d -m 0755 /etc/octessera /usr/local/sbin /usr/local/lib/octessera /var/lib/octessera/samples
 
 apt-get update
-apt-get install -y --no-install-recommends ca-certificates curl tar xz-utils jq gpiod alsa-utils i2c-tools network-manager dnsmasq wireless-tools iw python3-minimal openssh-server sudo
+apt-get install -y --no-install-recommends ca-certificates coreutils curl tar xz-utils jq gpiod alsa-utils i2c-tools network-manager dnsmasq wireless-tools iw python3-minimal openssh-server sudo unzip util-linux
 
 wifi_connect_version=4.11.84
 wifi_connect_sha256=413d70e6d1c1366cbe2b32555e8476f3e92878178ed1b9c82205985f055f1936
@@ -50,10 +50,12 @@ fi
 [[ -f "$overlay_dir/usr/local/sbin/octessera-armbian-diagnostics" ]] || { echo "Missing Octessera Armbian diagnostics overlay." >&2; exit 1; }
 install_overlay_file etc/octessera/armbian-image.txt /etc/octessera/armbian-image.txt 0644
 install_overlay_file usr/local/sbin/octessera-armbian-diagnostics /usr/local/sbin/octessera-armbian-diagnostics 0755
+install_overlay_file usr/local/sbin/octessera-update /usr/local/sbin/octessera-update 0755
 install_overlay_file usr/local/sbin/octessera-wifi-connect /usr/local/sbin/octessera-wifi-connect 0755
 install_overlay_file usr/local/sbin/octessera-setup-sidecar /usr/local/sbin/octessera-setup-sidecar 0755
 install_overlay_file etc/systemd/system/octessera-setup.service /etc/systemd/system/octessera-setup.service 0644
 install_overlay_file etc/systemd/system/octessera.service /etc/systemd/system/octessera.service 0644
+install_overlay_file etc/sudoers.d/octessera-update /etc/sudoers.d/octessera-update 0440
 if [[ -d "$overlay_dir/usr/local/share/octessera-setup-ui" ]]; then
   cp -a "$overlay_dir/usr/local/share/octessera-setup-ui" /usr/local/share/
 fi
@@ -117,7 +119,42 @@ if [[ -n "$payload_url" ]]; then
       install -d -m 0755 /opt/octessera
       cp -a "$work/extract/." /opt/octessera/
       if [[ -x /opt/octessera/octessera-pi && -f /etc/systemd/system/octessera.service ]]; then
-        ln -sf /opt/octessera/octessera-pi /usr/local/bin/octessera-pi
+        payload_version="$(jq -r '.version // empty' "$work/extract/octessera-payload.json")"
+        payload_tag="$(jq -r '.tag // empty' "$work/extract/octessera-payload.json")"
+        if [[ ! "$payload_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ || "$payload_tag" != "v$payload_version" ]]; then
+          payload_version=0.0.0
+          payload_tag=v0.0.0
+        fi
+        release_dir="/opt/octessera/releases/$payload_version"
+        install -D -m 0755 /opt/octessera/octessera-pi "$release_dir/octessera-pi"
+        cat >"$release_dir/update-manifest.json" <<EOF
+{
+  "schema_version": 1,
+  "tag": "$payload_tag",
+  "version": "$payload_version",
+  "arch": "aarch64-unknown-linux-gnu",
+  "binary": "octessera-pi",
+  "platforms": ["orange-pi-zero-2w", "linux-aarch64-device"]
+}
+EOF
+        ln -sfn "$release_dir" /opt/octessera/current
+        ln -sfn /opt/octessera/current/octessera-pi /usr/local/bin/octessera-pi
+        cat >/opt/octessera/update-state.json <<EOF
+{
+  "current": "$payload_version",
+  "previous": null,
+  "next": null,
+  "updated_at": "1970-01-01T00:00:00Z",
+  "release": {
+    "tag": "$payload_tag",
+    "version": "$payload_version",
+    "arch": "aarch64-unknown-linux-gnu",
+    "binary": "octessera-pi",
+    "platforms": ["orange-pi-zero-2w", "linux-aarch64-device"]
+  },
+  "asset": null
+}
+EOF
         systemctl enable octessera.service >/dev/null
         sed -i 's/OCTESSERA_RUNTIME_ENABLED_DEFAULT=false/OCTESSERA_RUNTIME_ENABLED_DEFAULT=true/' /etc/octessera/build-metadata.env
       fi

@@ -1,0 +1,331 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="${OCTESSERA_UPDATE_REPO:-nexxyz/octessera}"
+root="${OCTESSERA_UPDATE_ROOT:-/opt/octessera}"
+releases="$root/releases"
+lock_file="${OCTESSERA_UPDATE_LOCK:-/run/lock/octessera-update.lock}"
+state_file="$root/update-state.json"
+bin_link="${OCTESSERA_UPDATE_BIN_LINK:-/usr/local/bin/octessera-pi}"
+binary=octessera-pi
+cleanup_paths=()
+
+cleanup() {
+  local path
+  for path in "${cleanup_paths[@]}"; do
+    [[ -n "$path" ]] && rm -rf -- "$path"
+  done
+}
+trap cleanup EXIT
+
+usage() {
+  echo "Usage: octessera-update check [vX.Y.Z] | apply [vX.Y.Z] | rollback" >&2
+  exit 2
+}
+
+tag_arg="${2:-}"
+command="${1:-}"
+if (( $# < 1 || $# > 2 )); then usage; fi
+case "$command" in check|apply|rollback) ;; *) usage ;; esac
+if [[ "$command" == rollback && -n "$tag_arg" ]]; then usage; fi
+if [[ ! "$repo" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+  echo "Invalid OCTESSERA_UPDATE_REPO: $repo" >&2
+  exit 2
+fi
+if [[ -n "$tag_arg" && ! "$tag_arg" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "Invalid release tag: $tag_arg" >&2
+  exit 2
+fi
+
+run_json() { python3 - "$@"; }
+
+current_version() {
+  local current
+  if [[ -L "$root/current" ]]; then
+    current="$(basename "$(readlink -f "$root/current")")"
+    [[ "$current" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] && validate_installed_release "$releases/$current" && printf '%s\n' "$current"
+  fi
+}
+
+release_api() {
+  local tag="$1"
+  if [[ -n "$tag" ]]; then
+    printf 'https://api.github.com/repos/%s/releases/tags/%s' "$repo" "$tag"
+  else
+    printf 'https://api.github.com/repos/%s/releases/latest' "$repo"
+  fi
+}
+
+fetch_release() {
+  local tag="$1" out="$2"
+  curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
+    --header 'Accept: application/vnd.github+json' "$(release_api "$tag")" --output "$out"
+}
+
+release_tag_from_json() {
+  jq -r '.tag_name' "$1"
+}
+
+asset_url() {
+  local json="$1" name="$2" tag="$3" url expected
+  url="$(jq -er --arg name "$name" '.assets[] | select(.name == $name) | .browser_download_url' "$json")"
+  expected="https://github.com/$repo/releases/download/$tag/$name"
+  [[ "$url" == "$expected" ]] || { echo "Unexpected release asset URL for $name: $url" >&2; exit 1; }
+  printf '%s\n' "$url"
+}
+
+validate_installed_release() {
+  local dir="$1"
+  [[ -d "$dir" && -x "$dir/$binary" && -f "$dir/update-manifest.json" ]] || return 1
+  run_json "$dir/update-manifest.json" "$(basename "$dir")" <<'PY'
+import json, sys
+manifest_path, version = sys.argv[1:3]
+with open(manifest_path, encoding="utf-8") as f:
+    manifest = json.load(f)
+if manifest.get("schema_version") != 1:
+    raise SystemExit(1)
+if manifest.get("tag") != "v" + version:
+    raise SystemExit(1)
+if manifest.get("version") != version:
+    raise SystemExit(1)
+if manifest.get("arch") != "aarch64-unknown-linux-gnu":
+    raise SystemExit(1)
+if manifest.get("binary") != "octessera-pi":
+    raise SystemExit(1)
+platforms = manifest.get("platforms")
+if not isinstance(platforms, list) or "linux-aarch64-device" not in platforms:
+    raise SystemExit(1)
+PY
+}
+
+manifest_metadata() {
+  local version="$1" manifest
+  manifest="$releases/$version/update-manifest.json"
+  if [[ -f "$manifest" ]]; then jq -c '{tag, version, arch, binary, platforms}' "$manifest"; else printf '{}'; fi
+}
+
+asset_metadata() {
+  local version="$1" metadata
+  metadata="$releases/$version/update-asset.json"
+  if [[ -f "$metadata" ]]; then jq -c . "$metadata"; else printf 'null'; fi
+}
+
+write_state() {
+  local active="$1" previous="${2:-}" next="${3:-}"
+  install -d -m 0755 "$root"
+  run_json "$state_file" "$active" "$previous" "$next" "$(asset_metadata "$active")" "$(manifest_metadata "$active")" <<'PY'
+import datetime, json, pathlib, sys
+path, active, previous, next_version, asset, metadata = sys.argv[1:7]
+data = {
+  "current": active or None,
+  "previous": previous or None,
+  "next": next_version or None,
+  "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
+  "release": json.loads(metadata),
+  "asset": json.loads(asset),
+}
+tmp = pathlib.Path(path + ".next")
+tmp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+tmp.replace(path)
+PY
+}
+
+write_next_state() {
+  local active="$1" previous="${2:-}" next="$3"
+  install -d -m 0755 "$root"
+  run_json "$state_file.next" "$active" "$previous" "$next" "$(asset_metadata "$next")" "$(manifest_metadata "$next")" <<'PY'
+import datetime, json, pathlib, sys
+path, active, previous, next_version, asset, metadata = sys.argv[1:7]
+pathlib.Path(path).write_text(json.dumps({"current": active or None, "previous": previous or None, "next": next_version, "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"), "release": json.loads(metadata), "asset": json.loads(asset)}, indent=2) + "\n", encoding="utf-8")
+PY
+}
+
+repair_bin_link() {
+  install -d -m 0755 "$(dirname "$bin_link")"
+  ln -sfn "$root/current/$binary" "$bin_link.tmp"
+  mv -Tf "$bin_link.tmp" "$bin_link"
+}
+
+switch_to_release() {
+  local version="$1" previous="${2:-}"
+  local dir="$releases/$version"
+  validate_installed_release "$dir" || { echo "Release $version is not valid." >&2; exit 1; }
+  write_next_state "$(current_version || true)" "$previous" "$version"
+  ln -sfn "$dir" "$root/.current.tmp"
+  mv -Tf "$root/.current.tmp" "$root/current"
+  repair_bin_link
+  write_state "$version" "$previous" ""
+}
+
+restart_later() {
+  if command -v systemd-run >/dev/null 2>&1 && command -v systemctl >/dev/null 2>&1; then
+    systemd-run --quiet --on-active=2s --unit=octessera-update-restart systemctl restart octessera.service >/dev/null 2>&1 || true
+  fi
+}
+
+reconcile_state() {
+  local next previous active recorded next_file="$state_file.next"
+  next="$(jq -er '.next // empty' "$next_file" 2>/dev/null || jq -er '.next // empty' "$state_file" 2>/dev/null || true)"
+  previous="$(jq -er '.previous // empty' "$next_file" 2>/dev/null || jq -er '.previous // empty' "$state_file" 2>/dev/null || true)"
+  active="$(current_version || true)"
+  if [[ -z "$next" ]]; then
+    recorded="$(jq -er '.current // .active // empty' "$state_file" 2>/dev/null || true)"
+    if [[ -n "$active" && "$recorded" != "$active" ]]; then
+      write_state "$active" "$previous" ""
+    fi
+    return 0
+  fi
+  if [[ "$active" == "$next" ]]; then
+    repair_bin_link
+    write_state "$active" "$previous" ""
+    rm -f "$next_file"
+  elif validate_installed_release "$releases/$next"; then
+    switch_to_release "$next" "$previous"
+    rm -f "$next_file"
+  elif [[ -n "$active" ]]; then
+    repair_bin_link
+  fi
+}
+
+validate_and_extract_zip() {
+  local zip="$1" dest="$2" version="${3#v}"
+  python3 - "$zip" "$dest" "$version" <<'PY'
+import json, os, pathlib, stat, sys, zipfile
+zip_path, dest, version = sys.argv[1:4]
+dest_path = pathlib.Path(dest)
+allowed_files = {"octessera-pi", "octessera-device-release.json", "LICENSE", "NOTICE"}
+with zipfile.ZipFile(zip_path) as zf:
+    names = zf.namelist()
+    if len(names) != len(set(names)):
+        raise SystemExit("ZIP contains duplicate entries")
+    for info in zf.infolist():
+        name = info.filename
+        path = pathlib.PurePosixPath(name)
+        mode = (info.external_attr >> 16) & 0o170000
+        if name.startswith("/") or any(part in ("", ".", "..") for part in path.parts):
+            raise SystemExit(f"Unsafe ZIP path: {name}")
+        if name.endswith("/"):
+            raise SystemExit(f"Unexpected ZIP directory: {name}")
+        if mode and mode != stat.S_IFREG:
+            raise SystemExit(f"Unsafe ZIP entry type: {name}")
+        if len(path.parts) != 1 or name not in allowed_files:
+            raise SystemExit(f"Unexpected ZIP file: {name}")
+    manifest_name = "octessera-device-release.json"
+    if manifest_name not in names or "octessera-pi" not in names:
+        raise SystemExit("ZIP must include manifest and octessera-pi")
+    binary_info = zf.getinfo("octessera-pi")
+    binary_mode = (binary_info.external_attr >> 16) & 0o777
+    if not (binary_mode & 0o111):
+        raise SystemExit("ZIP binary is not executable")
+    manifest = json.loads(zf.read(manifest_name).decode("utf-8"))
+    if manifest.get("schema_version") != 1:
+        raise SystemExit("Unsupported manifest schema")
+    if manifest.get("tag") != "v" + version:
+        raise SystemExit("Manifest tag does not match release tag")
+    if manifest.get("version") != version:
+        raise SystemExit("Manifest version does not match release tag")
+    if manifest.get("arch") != "aarch64-unknown-linux-gnu":
+        raise SystemExit("Manifest arch does not match this device")
+    if manifest.get("binary") != "octessera-pi":
+        raise SystemExit("Manifest binary does not match this updater")
+    platforms = manifest.get("platforms")
+    if not isinstance(platforms, list) or "linux-aarch64-device" not in platforms:
+        raise SystemExit("Release is not compatible with this device")
+    dest_path.mkdir(parents=True, exist_ok=False)
+    for name in names:
+        target = dest_path / ("update-manifest.json" if name == manifest_name else name)
+        target.write_bytes(zf.read(name))
+    binary = dest_path / "octessera-pi"
+    binary.chmod(binary.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    if not os.access(binary, os.X_OK):
+        raise SystemExit("Extracted binary is not executable")
+PY
+}
+
+download_and_stage() {
+  local tag="$1" version="${tag#v}" dir="$releases/${tag#v}"
+  if validate_installed_release "$dir"; then
+    echo "$version already installed."
+    return 0
+  fi
+  [[ ! -e "$dir" ]] || { echo "Existing release directory is invalid: $dir" >&2; exit 1; }
+  local work tmp_dir zip sum_line expected actual json asset sums
+  work="$(mktemp -d "$releases/.tmp-$version-XXXXXX")"
+  cleanup_paths+=("$work")
+  tmp_dir="$work/extract"
+  json="$work/release.json"
+  fetch_release "$tag" "$json"
+  asset="octessera-$version-device-aarch64.zip"
+  sums=SHA256SUMS-device.txt
+  curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 --output "$work/$asset" "$(asset_url "$json" "$asset" "$tag")"
+  curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 --output "$work/$sums" "$(asset_url "$json" "$sums" "$tag")"
+  sum_line="$(awk -v asset="$asset" '$1 ~ /^[a-fA-F0-9]{64}$/ { name=$2; sub(/^\\*/, "", name); if (name == asset) print }' "$work/$sums")"
+  [[ -n "$sum_line" && "$(printf '%s\n' "$sum_line" | wc -l)" -eq 1 ]] || { echo "Checksum line for $asset is missing or not unique." >&2; exit 1; }
+  expected="${sum_line%%[[:space:]]*}"
+  actual="$(sha256sum "$work/$asset" | awk '{print $1}')"
+  [[ "${actual,,}" == "${expected,,}" ]] || { echo "Checksum mismatch for $asset." >&2; exit 1; }
+  validate_and_extract_zip "$work/$asset" "$tmp_dir" "$tag"
+  run_json "$tmp_dir/update-asset.json" "$repo" "$tag" "$asset" "$actual" <<'PY'
+import datetime, json, pathlib, sys
+path, repo, tag, asset, sha256 = sys.argv[1:6]
+metadata = {
+  "repo": repo,
+  "tag": tag,
+  "name": asset,
+  "sha256": sha256,
+  "downloaded_at": datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
+}
+pathlib.Path(path).write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
+PY
+  mv "$tmp_dir" "$dir"
+}
+
+main() {
+  install -d -m 0755 "$releases"
+  install -d -m 0755 "$(dirname "$lock_file")"
+  exec 9>"$lock_file"
+  flock -x 9
+  reconcile_state
+  case "$command" in
+    check)
+      local json tag version
+      json="$(mktemp)"
+      cleanup_paths+=("$json")
+      fetch_release "$tag_arg" "$json"
+      tag="$(release_tag_from_json "$json")"
+      [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Release tag is invalid: $tag" >&2; exit 1; }
+      version="${tag#v}"
+      asset_url "$json" "octessera-$version-device-aarch64.zip" "$tag" >/dev/null
+      asset_url "$json" SHA256SUMS-device.txt "$tag" >/dev/null
+      printf 'available=%s current=%s\n' "$tag" "$(current_version)"
+      ;;
+    apply)
+      local json tag version previous
+      json="$(mktemp)"
+      cleanup_paths+=("$json")
+      fetch_release "$tag_arg" "$json"
+      tag="$(release_tag_from_json "$json")"
+      [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Release tag is invalid: $tag" >&2; exit 1; }
+      version="${tag#v}"
+      previous="$(current_version || true)"
+      if [[ "$previous" == "$version" ]]; then
+        previous="$(jq -er '.previous // empty' "$state_file" 2>/dev/null || true)"
+      fi
+      download_and_stage "$tag"
+      switch_to_release "$version" "$previous"
+      restart_later
+      echo "Updated to $version."
+      ;;
+    rollback)
+      local previous active
+      previous="$(jq -er '.previous // empty' "$state_file" 2>/dev/null || true)"
+      [[ -n "$previous" ]] || { echo "No previous release recorded." >&2; exit 1; }
+      active="$(current_version || true)"
+      switch_to_release "$previous" "$active"
+      restart_later
+      echo "Rolled back to $previous."
+      ;;
+  esac
+}
+
+main

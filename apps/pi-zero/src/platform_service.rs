@@ -81,6 +81,9 @@ pub enum PlatformJob {
     },
     UsbSdTransferStart,
     UsbSdTransferStop,
+    UpdateCheck,
+    UpdateApply,
+    Rollback,
 }
 
 fn run_worker(
@@ -156,6 +159,37 @@ fn handle_job(store_dir: &Path, samples_dir: &Path, job: PlatformJob) -> Runtime
         },
         PlatformJob::UsbSdTransferStart => run_usb_storage_command("storage-start"),
         PlatformJob::UsbSdTransferStop => run_usb_storage_command("storage-stop"),
+        PlatformJob::UpdateCheck => run_update_command("check"),
+        PlatformJob::UpdateApply => run_update_command("apply"),
+        PlatformJob::Rollback => run_update_command("rollback"),
+    }
+}
+
+fn run_update_command(action: &str) -> RuntimeStoreResult {
+    match Command::new("sudo")
+        .args(["-n", "/usr/local/sbin/octessera-update", action])
+        .output()
+    {
+        Ok(output) if output.status.success() => store_error(format!(
+            "Update {action} complete{}",
+            command_output_suffix(&output.stdout)
+        )),
+        Ok(output) => store_error(format!(
+            "Update {action} failed{}{}",
+            command_output_suffix(&output.stderr),
+            command_output_suffix(&output.stdout)
+        )),
+        Err(error) => store_error(format!("Update {action} failed: {error}")),
+    }
+}
+
+fn command_output_suffix(output: &[u8]) -> String {
+    let text = String::from_utf8_lossy(output);
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        String::new()
+    } else {
+        format!(": {trimmed}")
     }
 }
 
