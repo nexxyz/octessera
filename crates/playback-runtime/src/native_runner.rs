@@ -92,10 +92,12 @@ mod menu_apply_fast_instruments;
 mod menu_apply_fast_runtime;
 mod menu_apply_fast_values;
 mod menu_apply_fx_state;
+#[cfg(test)]
 mod menu_apply_global;
 mod menu_apply_instrument;
 mod menu_apply_instrument_midi;
 mod menu_apply_instrument_synth;
+#[cfg(test)]
 mod menu_apply_layers;
 mod menu_apply_pulses_fx;
 mod menu_apply_structural;

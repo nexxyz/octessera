@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { RED_COLOR } from "@octessera/device-contracts";
+import { GRID_HEIGHT, GRID_WIDTH, OLED_HEIGHT, OLED_WIDTH, RED_COLOR } from "@octessera/device-contracts";
 import { createSimulatorRuntime } from "../src/runtime/simulatorRuntime";
 import type { RuntimeRunnerMessage } from "@octessera/device-contracts";
 import type { RuntimeScheduler } from "../src/runtime/runtimeScheduler";
@@ -26,8 +26,8 @@ function snapshotMessage(options: { audioConfigRevision?: number; instruments?: 
   return {
     type: "snapshot" as const,
     snapshot: {
-      oled: { width: 128, height: 128, format: "rgb565be" as const, pixels: new Uint8Array(32768) },
-      leds: { width: 8, height: 8, rgb: Array.from({ length: 64 * 3 }, () => 0), active: Array.from({ length: 64 }, () => false) },
+      oled: { width: OLED_WIDTH, height: OLED_HEIGHT, format: "rgb565be" as const, pixels: new Uint8Array(OLED_WIDTH * OLED_HEIGHT * 2) },
+      leds: { width: GRID_WIDTH, height: GRID_HEIGHT, rgb: Array.from({ length: GRID_WIDTH * GRID_HEIGHT * 3 }, () => 0), active: Array.from({ length: GRID_WIDTH * GRID_HEIGHT }, () => false) },
       transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
       display: { page: "boot", title: "Boot", lines: [], editing: false, off: options.displayOff },
       activeBehavior: "life",
@@ -65,8 +65,8 @@ function sparseAudioSnapshotMessage(options: { audioConfigRevision?: number; mas
   return {
     type: "snapshot" as const,
     snapshot: {
-      oled: { width: 128, height: 128, format: "rgb565be" as const, pixels: new Uint8Array(32768) },
-      leds: { width: 8, height: 8, rgb: Array.from({ length: 64 * 3 }, () => 0), active: Array.from({ length: 64 }, () => false) },
+      oled: { width: OLED_WIDTH, height: OLED_HEIGHT, format: "rgb565be" as const, pixels: new Uint8Array(OLED_WIDTH * OLED_HEIGHT * 2) },
+      leds: { width: GRID_WIDTH, height: GRID_HEIGHT, rgb: Array.from({ length: GRID_WIDTH * GRID_HEIGHT * 3 }, () => 0), active: Array.from({ length: GRID_WIDTH * GRID_HEIGHT }, () => false) },
       transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
       display: { page: "boot", title: "Boot", lines: [], editing: false },
       activeBehavior: "life",

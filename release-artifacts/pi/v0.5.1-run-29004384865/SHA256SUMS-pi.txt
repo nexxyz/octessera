@@ -1,2 +1,0 @@
-f54ec2a19c4ae2ab7b55907fe4970eb499666a949af3862c2a03b7031d4f96a2  CellSymphony-0.5.1-pi-zero-2w.img.zip
-8a0d48492504daaa3aa3ad529b789985b771f8f00fda21be0192be1875a0cf56  CellSymphony-0.5.1-pi-zero-2w.rpi-imager-manifest

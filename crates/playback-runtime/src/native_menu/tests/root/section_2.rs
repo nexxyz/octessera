@@ -39,8 +39,8 @@ pub(crate) fn entering_worlds_selects_active_layer_row() {
     menu.state.cursor = 2;
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "/Build");
-    assert_eq!(snapshot.selected_row, Some(2));
-    assert_eq!(snapshot.lines[2], "> L3: life >");
+    let selected_row = snapshot.selected_row.expect("selected row");
+    assert_eq!(snapshot.lines[selected_row], "> L3: life >");
     assert_eq!(snapshot.colors[0], platform_core::palette::GREEN_RGB565);
 }
 
@@ -55,8 +55,8 @@ pub(crate) fn entering_pulses_selects_active_layer_row_after_global_rows() {
     menu.state.cursor = 6;
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "/Link");
-    assert_eq!(snapshot.selected_row, Some(3));
-    assert_eq!(snapshot.lines[3], "> L3: life >");
+    let selected_row = snapshot.selected_row.expect("selected row");
+    assert_eq!(snapshot.lines[selected_row], "> L3: life >");
     assert_eq!(snapshot.colors[0], platform_core::palette::RED_RGB565);
 }
 

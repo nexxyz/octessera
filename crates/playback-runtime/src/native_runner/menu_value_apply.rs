@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use super::*;
 
 pub(super) fn set_string_from_menu(menu: &NativeMenuModel, target: &mut String, key: &str) -> bool {
@@ -96,6 +94,7 @@ pub(super) fn apply_value_lane_menu_state(
     changed
 }
 
+#[cfg(test)]
 pub(super) fn apply_fx_param_menu_state(
     menu: &NativeMenuModel,
     params: &mut Value,

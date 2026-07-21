@@ -1,8 +1,7 @@
-#![allow(dead_code)]
-
 use super::{NativeRunner, Value};
 
 impl NativeRunner {
+    #[cfg(test)]
     pub(super) fn apply_menu_state(&mut self) -> Result<(), String> {
         self.clear_deferred_menu_apply();
         let current_key = self.menu.current_key().map(str::to_string);
@@ -84,6 +83,7 @@ impl NativeRunner {
         Ok(())
     }
 
+    #[cfg(test)]
     fn apply_selected_behavior_menu_state(&mut self) -> Result<bool, String> {
         let Some(behavior_id) = self.menu.selected_behavior().map(|value| value.to_string()) else {
             return Ok(false);
@@ -223,6 +223,7 @@ impl NativeRunner {
         Ok(true)
     }
 
+    #[cfg(test)]
     fn apply_param_mod_invert_menu_state(&mut self) -> bool {
         let mut changed = false;
         for layer_index in 0..self.param_mods.len() {
@@ -262,6 +263,7 @@ impl NativeRunner {
     }
 }
 
+#[cfg(test)]
 fn current_key_requires_audio_config(current_key: &Option<String>) -> bool {
     let Some(key) = current_key.as_deref() else {
         return true;
@@ -312,6 +314,7 @@ fn current_key_requires_audio_config(current_key: &Option<String>) -> bool {
     false
 }
 
+#[cfg(test)]
 fn current_key_requires_menu_materialization(current_key: &Option<String>) -> bool {
     let Some(key) = current_key.as_deref() else {
         return false;

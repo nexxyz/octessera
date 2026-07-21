@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use super::menu_apply_instrument_midi::apply_midi_menu_fields;
 use super::menu_apply_instrument_synth::apply_synth_menu_fields;
 

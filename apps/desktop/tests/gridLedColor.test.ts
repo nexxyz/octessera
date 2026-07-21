@@ -1,12 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { BLACK_COLOR, YELLOW_COLOR, GREEN_COLOR, type RuntimeSnapshot } from "@octessera/device-contracts";
+import { BLACK_COLOR, GRID_HEIGHT, GRID_WIDTH, OLED_HEIGHT, OLED_WIDTH, YELLOW_COLOR, GREEN_COLOR, type RuntimeSnapshot } from "@octessera/device-contracts";
 import { gridLedColor } from "../src/ui/gridLedColor";
 
 function frame(rgb: readonly number[], settings: RuntimeSnapshot["settings"], active = true): RuntimeSnapshot {
   return {
-    oled: { width: 128, height: 128, format: "rgb565be", pixels: new Uint8Array(32768) },
-    leds: { width: 8, height: 8, rgb: [...rgb, ...Array.from({ length: 64 * 3 - rgb.length }, () => 0)], active: Array.from({ length: 64 }, () => active) },
+    oled: { width: OLED_WIDTH, height: OLED_HEIGHT, format: "rgb565be", pixels: new Uint8Array(OLED_WIDTH * OLED_HEIGHT * 2) },
+    leds: { width: GRID_WIDTH, height: GRID_HEIGHT, rgb: [...rgb, ...Array.from({ length: GRID_WIDTH * GRID_HEIGHT * 3 - rgb.length }, () => 0)], active: Array.from({ length: GRID_WIDTH * GRID_HEIGHT }, () => active) },
     transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
     display: { page: "boot", title: "Boot", lines: [], editing: false },
     activeBehavior: "life",

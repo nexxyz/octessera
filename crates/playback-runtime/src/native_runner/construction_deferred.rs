@@ -23,7 +23,7 @@ impl NativeRunner {
         self.pending_autosave_payload_due_at = Some(Instant::now() + Duration::from_millis(150));
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub(super) fn force_autosave_payload_due(&mut self) {
         self.pending_autosave_payload_due_at = None;
     }

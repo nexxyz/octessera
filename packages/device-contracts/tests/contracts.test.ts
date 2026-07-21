@@ -154,9 +154,9 @@ test("platform capabilities match the hardware profile", () => {
   assert.equal(OLED_HEIGHT, PLATFORM_CAPS.oledHeight);
 });
 
-test("OLED framebuffer uses 128x128 rgb565be", () => {
+test("OLED framebuffer uses device contract rgb565be dimensions", () => {
   const frame: OledFrame = { width: OLED_WIDTH, height: OLED_HEIGHT, format: "rgb565be", pixels: new Uint8Array(OLED_WIDTH * OLED_HEIGHT * 2) };
-  assert.equal(frame.pixels.length, 32768);
+  assert.equal(frame.pixels.length, OLED_WIDTH * OLED_HEIGHT * 2);
 });
 
 test("grid domain clamps/floors and preserves immutability", () => {

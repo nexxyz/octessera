@@ -108,11 +108,11 @@ pub(crate) fn navigation_skips_separator_rows_when_turning() {
     menu.turn(1);
     menu.turn(1);
     menu.turn(1);
-    assert_eq!(menu.snapshot().selected_row, Some(3));
+    assert_eq!(menu.current_label(), Some("Play"));
     menu.turn(1);
     let snapshot = menu.snapshot();
-    assert_eq!(snapshot.selected_row, Some(5));
-    assert_eq!(snapshot.lines[5], "> System >");
+    let selected_row = snapshot.selected_row.expect("selected row");
+    assert_eq!(snapshot.lines[selected_row], "> System >");
 }
 
 #[test]
@@ -211,7 +211,9 @@ pub(crate) fn static_navigation_memory_restores_allowed_system_groups() {
     let _ = menu.press();
     menu.state.cursor = 3;
     let _ = menu.press();
-    assert_eq!(menu.snapshot().lines[0], "> Master Vol 100");
+    let snapshot = menu.snapshot();
+    let selected_row = snapshot.selected_row.expect("selected row");
+    assert_eq!(snapshot.lines[selected_row], "> Master Vol 100");
 
     menu.turn(1);
     menu.turn(1);

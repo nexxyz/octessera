@@ -26,7 +26,6 @@ This file tracks current actionable work only. Completed-work history does not b
 ## Product Follow-Ups
 
 - Signal path visualization is on hold due to other priorities.
-- Later Octessera rename phases are captured in `docs/internal/plans/octessera-rename-plan.md`; do not execute later phases until explicitly approved.
 - Continue splitting oversized native runtime files when working in those areas instead of expanding them further.
 
 ## Performance And Limits

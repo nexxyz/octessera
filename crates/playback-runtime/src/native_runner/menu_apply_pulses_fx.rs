@@ -1,3 +1,4 @@
+#[cfg(test)]
 use super::menu_apply_fx_state::{apply_fx_bus_menu_state, apply_global_fx_slot_menu_state};
 use super::{
     apply_value_lane_menu_state, json, set_bool_from_menu, set_i32_from_menu, set_string_from_menu,
@@ -6,6 +7,7 @@ use super::{
     Value,
 };
 impl NativeRunner {
+    #[cfg(test)]
     pub(super) fn apply_pulses_menu_state(&mut self) -> bool {
         let mut changed = false;
         self.restore_link_lfo_base_audio();
@@ -33,6 +35,7 @@ impl NativeRunner {
         changed
     }
 
+    #[cfg(test)]
     pub(super) fn apply_fx_menu_state(&mut self) -> bool {
         let mut changed = false;
         for index in 0..self.fx_buses.len() {

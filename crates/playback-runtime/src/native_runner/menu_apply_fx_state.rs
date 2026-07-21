@@ -1,8 +1,8 @@
-#![allow(dead_code)]
-
+use super::NativeRunner;
+#[cfg(test)]
 use super::{
     apply_fx_param_menu_state, derive_bus_name, fx_default_params, set_bool_from_menu,
-    set_string_from_menu, set_u8_from_menu, NativeRunner, Value,
+    set_string_from_menu, set_u8_from_menu, Value,
 };
 use platform_core::BUS_FX_WARNING_SLOT_COUNT;
 
@@ -29,6 +29,7 @@ impl NativeRunner {
     }
 }
 
+#[cfg(test)]
 pub(super) fn apply_fx_bus_menu_state(
     menu: &crate::native_menu::NativeMenuModel,
     bus: &mut super::NativeFxBus,
@@ -92,6 +93,7 @@ pub(super) fn apply_fx_bus_menu_state(
     changed
 }
 
+#[cfg(test)]
 pub(super) fn apply_global_fx_slot_menu_state(
     menu: &crate::native_menu::NativeMenuModel,
     global_fx_slots: &mut [String],
