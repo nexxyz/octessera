@@ -94,6 +94,94 @@ pub(crate) fn load_default_result_applies_native_config_payload() {
 }
 
 #[test]
+pub(crate) fn patch_and_device_payloads_split_local_device_fields() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.ui.display_brightness = 44;
+    runner.usb_audio_out = "uac2".into();
+    runner.midi_enabled = true;
+    runner.audio_output_buffer_frames = 512;
+
+    let patch = runner.patch_payload();
+    assert_eq!(patch["kind"], "octessera.patch");
+    assert_eq!(patch["schemaVersion"], 1);
+    assert!(patch["runtimeConfig"]["usb"].is_null());
+    assert!(patch["runtimeConfig"]["midi"].is_null());
+    assert!(patch["runtimeConfig"]["displayBrightness"].is_null());
+    assert!(patch["runtimeConfig"]["sound"]["audioOutputBufferFrames"].is_null());
+    assert!(patch["runtimeConfig"]["auxBindings"].is_object());
+
+    let device = runner.device_config_payload();
+    assert_eq!(device["runtimeConfig"]["usb"]["audioOut"], "uac2");
+    assert_eq!(device["runtimeConfig"]["midi"]["enabled"], true);
+    assert_eq!(device["runtimeConfig"]["displayBrightness"], 44);
+    assert_eq!(
+        device["runtimeConfig"]["sound"]["audioOutputBufferFrames"],
+        512
+    );
+}
+
+#[test]
+pub(crate) fn legacy_full_preset_load_preserves_device_fields() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.ui.display_brightness = 22;
+    runner.usb_audio_out = "both".into();
+    runner.midi_enabled = false;
+    runner.audio_output_buffer_frames = 256;
+
+    runner
+        .send(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::LoadPresetResult {
+                name: "Legacy".into(),
+                payload: Some(json!({
+                    "runtimeConfig": {
+                        "activeBehavior": "sequencer",
+                        "layers": [{ "worlds": { "behaviorId": "sequencer" } }],
+                        "displayBrightness": 88,
+                        "usb": { "audioOut": "uac2", "midiOutEnabled": true },
+                        "midi": { "enabled": true },
+                        "sound": { "audioOutputBufferFrames": 1024 }
+                    }
+                })),
+            },
+        })
+        .unwrap();
+
+    assert_eq!(runner.behavior.id(), "sequencer");
+    assert_eq!(runner.ui.display_brightness, 22);
+    assert_eq!(runner.usb_audio_out, "both");
+    assert!(!runner.midi_enabled);
+    assert_eq!(runner.audio_output_buffer_frames, 256);
+}
+
+#[test]
+pub(crate) fn full_default_load_and_device_apply_update_device_fields() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner
+        .apply_config_payload(json!({
+            "runtimeConfig": {
+                "displayBrightness": 77,
+                "midi": { "enabled": true },
+                "sound": { "audioOutputBufferFrames": 1024 }
+            }
+        }))
+        .unwrap();
+    assert_eq!(runner.ui.display_brightness, 77);
+    assert!(runner.midi_enabled);
+    assert_eq!(runner.audio_output_buffer_frames, 1024);
+
+    runner
+        .apply_device_config_payload_preserving_patch(json!({
+            "runtimeConfig": {
+                "displayBrightness": 33,
+                "activeBehavior": "sequencer"
+            }
+        }))
+        .unwrap();
+    assert_eq!(runner.ui.display_brightness, 33);
+    assert_ne!(runner.behavior.id(), "sequencer");
+}
+
+#[test]
 pub(crate) fn midi_store_results_update_native_snapshot_state() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let _ = runner

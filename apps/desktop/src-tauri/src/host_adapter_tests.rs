@@ -97,6 +97,47 @@ fn preset_host_paths_reject_unsafe_names_and_filter_list() {
 }
 
 #[test]
+fn preset_patch_files_are_preferred_and_delete_removes_legacy_copy() {
+    let (mut adapter, _) = test_adapter();
+    adapter.store_dir = temp_store_dir("preset-patch-precedence");
+    let presets = adapter.store_dir.join("presets");
+    std::fs::create_dir_all(&presets).unwrap();
+    std::fs::write(presets.join("Jam.json"), r#"{"legacy":true}"#).unwrap();
+    std::fs::create_dir_all(presets.join("patches")).unwrap();
+    std::fs::write(
+        presets.join("patches").join("Jam.json"),
+        r#"{"patch":true}"#,
+    )
+    .unwrap();
+    std::fs::write(
+        presets.join("Jam.patch.json"),
+        r#"{"legacy_patch_name":true}"#,
+    )
+    .unwrap();
+
+    assert_eq!(
+        adapter.list_preset_names().unwrap(),
+        vec!["Jam".to_string(), "Jam.patch".to_string()]
+    );
+    assert_eq!(
+        adapter.load_preset_payload("Jam").unwrap(),
+        Some(serde_json::json!({ "patch": true }))
+    );
+
+    adapter
+        .save_preset_payload("New", &serde_json::json!({ "kind": "octessera.patch" }))
+        .unwrap();
+    assert!(presets.join("patches").join("New.json").is_file());
+    assert!(!presets.join("New.json").is_file());
+
+    assert!(adapter.delete_preset_payload("Jam").unwrap());
+    assert!(!presets.join("Jam.json").exists());
+    assert!(!presets.join("patches").join("Jam.json").exists());
+    assert!(presets.join("Jam.patch.json").exists());
+    let _ = std::fs::remove_dir_all(&adapter.store_dir);
+}
+
+#[test]
 fn atomic_json_write_overwrites_existing_file() {
     let dir = temp_store_dir("atomic-overwrite");
     let path = dir.join("default.json");

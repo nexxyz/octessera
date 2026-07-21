@@ -44,6 +44,24 @@ impl NativeRunner {
         }
     }
 
+    pub(super) fn apply_patch_runtime_payload(&mut self, runtime: &Value, payload: &Value) {
+        self.apply_sound_payload(runtime);
+        self.apply_runtime_transport_payload(runtime);
+        apply_mixer_payload(
+            runtime,
+            &mut self.fx_buses,
+            &mut self.global_fx_slots,
+            &mut self.global_fx_params,
+            crate::delay_timing::visible_bpm_u16(self.bpm),
+        );
+        self.apply_aux_mapping_payload(runtime);
+        if let Some(mapping_config) = payload.get("mappingConfig") {
+            self.base_mapping_config = serde_json::from_value(mapping_config.clone())
+                .unwrap_or_else(|_| default_mapping_config());
+            self.mapping_config = self.base_mapping_config.clone();
+        }
+    }
+
     fn apply_sound_payload(&mut self, runtime: &Value) {
         if let Some(master) = runtime.get("masterVolume").and_then(Value::as_u64) {
             self.ui.master_volume = (master as u8).min(100);

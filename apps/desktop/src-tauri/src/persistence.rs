@@ -13,6 +13,26 @@ pub(crate) fn preset_file_path(presets_dir: &Path, name: &str) -> Result<PathBuf
     Ok(presets_dir.join(format!("{name}.json")))
 }
 
+pub(crate) fn preset_patch_file_path(presets_dir: &Path, name: &str) -> Result<PathBuf, String> {
+    if !valid_preset_name(name) {
+        return Err(format!("Unsafe preset name: {name:?}"));
+    }
+    Ok(presets_dir.join("patches").join(format!("{name}.json")))
+}
+
+pub(crate) fn preset_load_file_path(presets_dir: &Path, name: &str) -> Result<PathBuf, String> {
+    let patch = preset_patch_file_path(presets_dir, name)?;
+    if patch.is_file() {
+        return Ok(patch);
+    }
+    preset_file_path(presets_dir, name)
+}
+
+pub(crate) fn preset_name_from_file_name(file_name: &str) -> Option<String> {
+    let name = file_name.strip_suffix(".json")?;
+    valid_preset_name(name).then(|| name.to_string())
+}
+
 pub(crate) fn atomic_write_json(path: &Path, payload: &serde_json::Value) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;

@@ -113,15 +113,24 @@ pub(crate) fn preset_save_as_uses_text_draft_name() {
     let messages = confirm_current_dialog(&mut runner);
 
     assert_eq!(runner.preset_draft_name, "Jam A");
-    assert!(messages.iter().any(|message| matches!(
-        message,
-        RunnerMessage::PlatformEffects { effects }
-            if matches!(
-                effects.as_slice(),
-                [RuntimePlatformEffect::StoreSavePreset { name, mode, .. }]
-                    if name == "Jam A" && mode.is_none()
-            )
-    )));
+    let payload = messages
+        .iter()
+        .find_map(|message| match message {
+            RunnerMessage::PlatformEffects { effects } => {
+                effects.iter().find_map(|effect| match effect {
+                    RuntimePlatformEffect::StoreSavePreset {
+                        name,
+                        mode,
+                        payload,
+                    } if name == "Jam A" && mode.is_none() => Some(payload),
+                    _ => None,
+                })
+            }
+            _ => None,
+        })
+        .expect("preset save payload");
+    assert_eq!(payload["kind"], "octessera.patch");
+    assert_eq!(payload["schemaVersion"], 1);
 }
 
 #[test]

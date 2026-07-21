@@ -214,6 +214,8 @@ Check generated output freshness:
 corepack pnpm run config:check
 ```
 
+Preset saves use portable patch envelopes in `presets/patches/<name>.json`. Hosts still load legacy `presets/<name>.json`; when both files exist for one logical preset name, the patch-directory file wins, and delete removes both. Default and recovery files remain full local snapshots until the device/default split protocol is introduced.
+
 ## Standard Verification
 
 ```bash

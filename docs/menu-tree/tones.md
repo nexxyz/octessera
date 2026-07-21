@@ -111,5 +111,5 @@ Layer runtime behavior:
 - Switching layer shows the selected layer's current state immediately.
 - `Save Grid State` affects preset/default save payload persistence only.
 - `looper` stores its recorded sequence in `savedState` as step-bucketed press/release events when `Save Grid State` is `on`. Live-held cells and currently sounding playback cells are not saved; loaded loops restart from step 1.
-- `Step Rate`, behavior selection/config, Link mapping, trigger probabilities, instruments, mixer, system settings, selected Play page, Play FX assignments, X/Y bindings, and aux bindings are persistent and must round-trip through preset/default/autosave payloads.
+- `Step Rate`, behavior selection/config, Link mapping, trigger probabilities, instruments, mixer, selected Play page, Play FX assignments, X/Y bindings, and musical aux bindings are patch-persistent and must round-trip through preset/default/autosave payloads. Device/system settings and device/system aux bindings stay local when loading presets.
 - Active overlays, assignment modes, held modifiers, active momentary FX instances, live X/Y touch, help popups, and toast state are transient and are not restored from preset/default/autosave payloads.

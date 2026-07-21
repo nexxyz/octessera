@@ -107,12 +107,12 @@ fn handle_job(store_dir: &Path, samples_dir: &Path, job: PlatformJob) -> Runtime
             Err(message) => store_error(format!("Preset list failed: {message}")),
         },
         PlatformJob::LoadPreset { name } => {
-            match preset_path(store_dir, &name).and_then(|path| load_json(&path)) {
+            match preset_load_path(store_dir, &name).and_then(|path| load_json(&path)) {
                 Ok(payload) => RuntimeStoreResult::LoadPresetResult { payload, name },
                 Err(message) => store_error(format!("Load {name} failed: {message}")),
             }
         }
-        PlatformJob::SavePreset { name, payload } => match preset_path(store_dir, &name) {
+        PlatformJob::SavePreset { name, payload } => match preset_patch_path(store_dir, &name) {
             Ok(path) => {
                 let existed = path.is_file();
                 match save_json(&path, &payload) {
@@ -255,29 +255,42 @@ fn store_error(message: String) -> RuntimeStoreResult {
 }
 
 pub fn list_presets(store_dir: &Path) -> Result<Vec<String>, String> {
-    let mut names = Vec::new();
+    let mut names = std::collections::BTreeSet::new();
     if !store_dir.is_dir() {
-        return Ok(names);
+        return Ok(Vec::new());
     }
     for entry in std::fs::read_dir(store_dir).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;
-        if entry
-            .path()
-            .file_name()
-            .is_some_and(|name| name == "default.json")
-        {
+        if !entry.path().is_file() {
             continue;
         }
-        if entry.path().extension().is_some_and(|ext| ext == "json") {
-            if let Some(stem) = entry.path().file_stem().and_then(|stem| stem.to_str()) {
-                if playback_runtime::is_valid_preset_name(stem) {
-                    names.push(stem.to_string());
-                }
+        if let Some(name) = entry
+            .path()
+            .file_name()
+            .and_then(|name| name.to_str())
+            .and_then(preset_name_from_file_name)
+        {
+            names.insert(name);
+        }
+    }
+    let patch_dir = store_dir.join("patches");
+    if patch_dir.is_dir() {
+        for entry in std::fs::read_dir(&patch_dir).map_err(|e| e.to_string())? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            if !entry.path().is_file() {
+                continue;
+            }
+            if let Some(name) = entry
+                .path()
+                .file_name()
+                .and_then(|name| name.to_str())
+                .and_then(preset_name_from_file_name)
+            {
+                names.insert(name);
             }
         }
     }
-    names.sort();
-    Ok(names)
+    Ok(names.into_iter().collect())
 }
 
 pub fn preset_path(store_dir: &Path, name: &str) -> Result<PathBuf, String> {
@@ -285,6 +298,33 @@ pub fn preset_path(store_dir: &Path, name: &str) -> Result<PathBuf, String> {
         return Err(format!("Unsafe preset name: {name:?}"));
     }
     Ok(store_dir.join(format!("{name}.json")))
+}
+
+pub fn preset_patch_path(store_dir: &Path, name: &str) -> Result<PathBuf, String> {
+    if !playback_runtime::is_valid_preset_name(name) {
+        return Err(format!("Unsafe preset name: {name:?}"));
+    }
+    Ok(store_dir.join("patches").join(format!("{name}.json")))
+}
+
+pub fn preset_load_path(store_dir: &Path, name: &str) -> Result<PathBuf, String> {
+    let patch = preset_patch_path(store_dir, name)?;
+    if patch.is_file() {
+        return Ok(patch);
+    }
+    preset_path(store_dir, name)
+}
+
+fn preset_name_from_file_name(file_name: &str) -> Option<String> {
+    if matches!(
+        file_name,
+        "default.json" | "default.patch.json" | "device.json" | "recovery-save.json"
+    ) || file_name.starts_with("bak-")
+    {
+        return None;
+    }
+    let name = file_name.strip_suffix(".json")?;
+    playback_runtime::is_valid_preset_name(name).then(|| name.to_string())
 }
 
 pub fn load_json(path: &Path) -> Result<Option<serde_json::Value>, String> {
@@ -302,10 +342,19 @@ pub fn save_json(path: &Path, payload: &serde_json::Value) -> Result<(), String>
 }
 
 fn delete_preset_payload(store_dir: &Path, name: &str) -> bool {
-    let Ok(path) = preset_path(store_dir, name) else {
+    let Ok(legacy) = preset_path(store_dir, name) else {
         return false;
     };
-    path.is_file() && std::fs::remove_file(path).is_ok()
+    let Ok(patch) = preset_patch_path(store_dir, name) else {
+        return false;
+    };
+    let mut removed = false;
+    for path in [legacy, patch] {
+        if path.is_file() && std::fs::remove_file(path).is_ok() {
+            removed = true;
+        }
+    }
+    removed
 }
 
 #[cfg(test)]
@@ -324,10 +373,53 @@ mod tests {
         ));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("safe.json"), "{}").unwrap();
+        std::fs::write(dir.join("default.json"), "{}").unwrap();
+        std::fs::write(dir.join("recovery-save.json"), "{}").unwrap();
+        std::fs::write(dir.join("bak-123.json"), "{}").unwrap();
         std::fs::write(dir.join("bad:name.json"), "{}").unwrap();
         std::fs::write(dir.join("CON.json"), "{}").unwrap();
 
         assert_eq!(list_presets(&dir).unwrap(), vec!["safe".to_string()]);
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn preset_patch_files_are_preferred_and_delete_removes_legacy_copy() {
+        let dir = std::env::temp_dir().join(format!(
+            "octessera-pi-preset-patch-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("Jam.json"), r#"{"legacy":true}"#).unwrap();
+        std::fs::create_dir_all(dir.join("patches")).unwrap();
+        std::fs::write(dir.join("patches").join("Jam.json"), r#"{"patch":true}"#).unwrap();
+        std::fs::write(dir.join("Jam.patch.json"), r#"{"legacy_patch_name":true}"#).unwrap();
+
+        assert_eq!(
+            list_presets(&dir).unwrap(),
+            vec!["Jam".to_string(), "Jam.patch".to_string()]
+        );
+        assert_eq!(
+            load_json(&preset_load_path(&dir, "Jam").unwrap()).unwrap(),
+            Some(serde_json::json!({ "patch": true }))
+        );
+        save_json(
+            &preset_patch_path(&dir, "New").unwrap(),
+            &serde_json::json!({ "kind": "octessera.patch" }),
+        )
+        .unwrap();
+        assert!(dir.join("patches").join("New.json").is_file());
+        assert!(!dir.join("New.json").is_file());
+        assert!(delete_preset_payload(&dir, "Jam"));
+        assert!(!dir.join("Jam.json").exists());
+        assert!(!dir.join("patches").join("Jam.json").exists());
+        assert!(dir.join("Jam.patch.json").exists());
 
         let _ = std::fs::remove_dir_all(dir);
     }

@@ -27,18 +27,18 @@ impl NativeRunner {
             }),
             "preset.saveAs" => Some(RuntimePlatformEffect::StoreSavePreset {
                 name: clean_preset_name(&self.preset_draft_name),
-                payload: self.config_payload(),
+                payload: self.patch_payload(),
                 mode: None,
             }),
             "preset.renameApply" => Some(RuntimePlatformEffect::StoreSavePreset {
                 name: clean_preset_name(&self.preset_draft_name),
-                payload: self.config_payload(),
+                payload: self.patch_payload(),
                 mode: None,
             }),
             "preset.saveCurrent" => self.current_preset_name.as_ref().map(|name| {
                 RuntimePlatformEffect::StoreSavePreset {
                     name: name.clone(),
-                    payload: self.config_payload(),
+                    payload: self.patch_payload(),
                     mode: Some("overwrite".into()),
                 }
             }),
@@ -206,7 +206,7 @@ impl NativeRunner {
             RuntimeStoreResult::LoadPresetResult { name, payload } => {
                 if let Some(payload) = payload {
                     self.stop_for_config_load();
-                    self.apply_config_payload(payload)?;
+                    self.apply_patch_payload_preserving_device(payload)?;
                 }
                 self.toast = Some(NativeToast {
                     message: format!("Loaded {name}"),

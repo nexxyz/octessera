@@ -2,19 +2,20 @@ use crate::native_menu::{NativeMenuConfig, NativeSampleBrowserConfig, NativeSamp
 use crate::protocol::SyncSource;
 
 use super::{
-    aux_binding_configs, aux_bindings_payload, fx_bus_configs, fx_slot_payload_with_params,
-    instrument_auto_names, instrument_labels, instrument_midi_channels,
-    instrument_midi_duration_ms, instrument_midi_enabled, instrument_midi_velocity,
-    instrument_names, instrument_note_behaviors, instrument_pan_positions, instrument_routes,
-    instrument_sample_amp_envs, instrument_sample_amp_velocity_sensitivity_pct,
-    instrument_sample_base_velocity, instrument_sample_filter_envs, instrument_sample_filters,
-    instrument_sample_gain_pct, instrument_sample_paths, instrument_sample_slots,
-    instrument_sample_tune_semis, instrument_sample_velocity_high,
-    instrument_sample_velocity_levels_enabled, instrument_sample_velocity_low,
-    instrument_sample_velocity_medium, instrument_synth_configs, instrument_synth_filter_cutoffs,
-    instrument_synth_filter_resonance, instrument_synth_filter_types, instrument_synth_gain_pct,
-    instrument_synth_osc1_waveforms, instrument_synth_osc2_waveforms, instrument_types,
-    instrument_volumes, param_binding_spec_from_native, param_mod_configs, param_mods_payload,
+    aux_binding_configs, aux_bindings_payload, device_runtime_config, fx_bus_configs,
+    fx_slot_payload_with_params, instrument_auto_names, instrument_labels,
+    instrument_midi_channels, instrument_midi_duration_ms, instrument_midi_enabled,
+    instrument_midi_velocity, instrument_names, instrument_note_behaviors,
+    instrument_pan_positions, instrument_routes, instrument_sample_amp_envs,
+    instrument_sample_amp_velocity_sensitivity_pct, instrument_sample_base_velocity,
+    instrument_sample_filter_envs, instrument_sample_filters, instrument_sample_gain_pct,
+    instrument_sample_paths, instrument_sample_slots, instrument_sample_tune_semis,
+    instrument_sample_velocity_high, instrument_sample_velocity_levels_enabled,
+    instrument_sample_velocity_low, instrument_sample_velocity_medium, instrument_synth_configs,
+    instrument_synth_filter_cutoffs, instrument_synth_filter_resonance,
+    instrument_synth_filter_types, instrument_synth_gain_pct, instrument_synth_osc1_waveforms,
+    instrument_synth_osc2_waveforms, instrument_types, instrument_volumes,
+    param_binding_spec_from_native, param_mod_configs, param_mods_payload, patch_runtime_config,
     pulses_layer_configs, pulses_layer_payload, sample_assignments_payload, sparks_fx_params_map,
     sparks_fx_target_key, sparks_fx_type, velocity_curve_id, NativeRunner, Value,
 };
@@ -313,6 +314,22 @@ impl NativeRunner {
             "system": {
                 "sparksMode": self.sparks_mode
             }
+        })
+    }
+
+    pub(super) fn patch_payload(&self) -> Value {
+        json!({
+            "kind": "octessera.patch",
+            "schemaVersion": 1,
+            "runtimeConfig": patch_runtime_config(self.config_payload()["runtimeConfig"].clone()),
+            "mappingConfig": self.base_mapping_config,
+        })
+    }
+
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(super) fn device_config_payload(&self) -> Value {
+        json!({
+            "runtimeConfig": device_runtime_config(self.config_payload()["runtimeConfig"].clone()),
         })
     }
 
