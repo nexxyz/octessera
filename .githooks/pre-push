@@ -42,11 +42,11 @@ run_check() {
   fi
 }
 
-run_check "pnpm lint"          "pnpm run lint 2>&1"
-run_check "pnpm typecheck"     "pnpm run typecheck 2>&1"
-run_check "pnpm format:check"  "pnpm run format:check 2>&1"
-run_check "pnpm test"          "pnpm run test 2>&1"
-run_check "pnpm test:coverage" "pnpm run test:coverage 2>&1"
+run_check "pnpm lint"          "corepack pnpm run lint 2>&1"
+run_check "pnpm typecheck"     "corepack pnpm run typecheck 2>&1"
+run_check "pnpm format:check"  "corepack pnpm run format:check 2>&1"
+run_check "pnpm test"          "corepack pnpm run test 2>&1"
+run_check "pnpm test:coverage" "corepack pnpm run test:coverage 2>&1"
 run_check "cargo fmt"          "cargo fmt --all --check 2>&1"
 run_check "file length" "
   MAX=500
@@ -72,7 +72,7 @@ run_check "cargo check desktop" \
 run_check "cargo check pi" \
   "cargo check -p octessera-pi 2>&1"
 run_check "tauri build smoke" \
-  "pnpm run tauri:build:ci 2>&1"
+  "corepack pnpm run tauri:build:ci 2>&1"
 run_check "cargo clippy" \
   "cargo clippy --workspace --exclude octessera-desktop --exclude rodio-engine-source --all-targets -- -D warnings 2>&1"
 
