@@ -1,3 +1,4 @@
+#[path = "audio_prep_config.rs"]
 mod audio_prep_config;
 
 use crate::types::QueuedAudioEvent;
