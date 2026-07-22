@@ -8,7 +8,7 @@ pub(crate) fn looper_runner() -> NativeRunner {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.transport = RuntimeTransportState::Playing;
+    runner.transport.transport = RuntimeTransportState::Playing;
     runner
 }
 

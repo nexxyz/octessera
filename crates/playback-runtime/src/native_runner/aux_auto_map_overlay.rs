@@ -48,9 +48,9 @@ impl NativeRunner {
     }
 
     fn aux_overlay_ready(&self) -> bool {
-        self.ui.fn_held
-            && !self.ui.shift_held
-            && !self.fn_hold_started_at.is_none_or(|started| {
+        self.display.ui.fn_held
+            && !self.display.ui.shift_held
+            && !self.display.fn_hold_started_at.is_none_or(|started| {
                 Instant::now().duration_since(started) < Duration::from_millis(AUX_OVERLAY_DELAY_MS)
             })
     }

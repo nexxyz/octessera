@@ -39,7 +39,10 @@ pub(crate) fn aux_auto_map_config_load_disables_automatic_bindings() {
             .number_for_key("instruments.0.synth.filter.cutoffHz"),
         Some(222)
     );
-    assert_eq!(runner.toast.as_ref().unwrap().message, "Trn-1: No binding");
+    assert_eq!(
+        runner.display.toast.as_ref().unwrap().message,
+        "Trn-1: No binding"
+    );
 }
 
 #[test]
@@ -122,7 +125,10 @@ pub(crate) fn auto_map_is_disabled_in_pulses_and_unbound_toast_uses_short_format
         })
         .unwrap();
 
-    assert_eq!(runner.toast.as_ref().unwrap().message, "Trn-1: No binding");
+    assert_eq!(
+        runner.display.toast.as_ref().unwrap().message,
+        "Trn-1: No binding"
+    );
 }
 
 #[test]
@@ -157,7 +163,7 @@ pub(crate) fn custom_aux_binding_still_works_when_auto_map_is_disabled() {
         })
         .unwrap();
 
-    assert_eq!(runner.ui.master_volume, 72);
+    assert_eq!(runner.display.ui.master_volume, 72);
 }
 
 #[test]
@@ -177,7 +183,7 @@ pub(crate) fn custom_aux_binding_overrides_auto_map_when_enabled() {
         })
         .unwrap();
 
-    assert_eq!(runner.ui.master_volume, 72);
+    assert_eq!(runner.display.ui.master_volume, 72);
     assert_eq!(
         runner
             .menu
@@ -203,7 +209,7 @@ pub(crate) fn custom_binding_is_used_on_worlds_non_mapped_rows_even_when_auto_ma
         })
         .unwrap();
 
-    assert_eq!(runner.ui.master_volume, 72);
+    assert_eq!(runner.display.ui.master_volume, 72);
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["layers"][0]["worlds"]["stepRate"],
         "1/8"
@@ -281,7 +287,7 @@ pub(crate) fn auto_map_worlds_life_turn_and_press_follow_behavior_context() {
 
     assert!(after >= before);
     assert_eq!(
-        runner.toast.as_ref().unwrap().message,
+        runner.display.toast.as_ref().unwrap().message,
         format!("Clk-{}: Spawn", spawn_aux_index + 1)
     );
 }

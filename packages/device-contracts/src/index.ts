@@ -12,7 +12,6 @@ export type {
   RuntimeSnapshotSettings,
   TransportFrame
 } from "./coreTypes";
-export { createGridDomain } from "./gridDomain";
 export type { GridCell, GridDomain } from "./gridDomain";
 export {
   BLACK_COLOR,
@@ -26,6 +25,20 @@ export {
 } from "./displayPalette.generated";
 export type { DisplayPaletteRgb } from "./displayPalette.generated";
 export { AUX_ENCODER_COUNT, GRID_HEIGHT, GRID_WIDTH, OLED_HEIGHT, OLED_WIDTH, PAN_POSITION_COUNT, PLATFORM_CAPS } from "./platformCapabilities.generated";
+export {
+  RUNTIME_ERROR_CODES,
+  RUNTIME_ERROR_DOMAINS,
+  RUNTIME_OPERATIONS,
+  RUNTIME_RECOVERIES
+} from "./runtimeErrors";
+export type {
+  RuntimeErrorCode,
+  RuntimeErrorDomain,
+  RuntimeErrorFacts,
+  RuntimeErrorMetadata,
+  RuntimeOperation,
+  RuntimeRecovery
+} from "./runtimeErrors";
 export {
   MIDI_REALTIME_MESSAGE_TYPES,
   RUNTIME_MOMENTARY_FX_TYPES,
@@ -55,17 +68,6 @@ export type {
   RuntimeStatusMessage,
   RuntimeStatusState,
   RuntimeTransportPulseStepMessage,
+  RuntimeTransportStopMessage,
   RuntimeTransportState
 } from "./runtimeProtocol";
-
-const CUTOFF_MIN_HZ = 80;
-const CUTOFF_MAX_HZ = 16000;
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
-
-export function cutoffDisplayToHz(display: number): number {
-  const t = clamp(display, 0, 255) / 255;
-  return Math.round(CUTOFF_MIN_HZ * Math.exp(t * Math.log(CUTOFF_MAX_HZ / CUTOFF_MIN_HZ)));
-}

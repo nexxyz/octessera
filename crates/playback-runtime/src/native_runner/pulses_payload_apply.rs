@@ -37,16 +37,24 @@ fn apply_arp_payload(layer: &mut NativePulsesLayer, payload: &Value) {
         .into();
     }
     if let Some(value) = arp.get("stepIntervalSteps").and_then(Value::as_i64) {
-        next.step_interval_steps = value.clamp(1, 16) as u8;
+        if let Ok(value) = u8::try_from(value.clamp(1, 16)) {
+            next.step_interval_steps = value;
+        }
     }
     if let Some(value) = arp.get("noteLengthMs").and_then(Value::as_i64) {
-        next.note_length_ms = value.clamp(10, 2000) as u16;
+        if let Ok(value) = u16::try_from(value.clamp(10, 2000)) {
+            next.note_length_ms = value;
+        }
     }
     if let Some(value) = arp.get("gatePct").and_then(Value::as_i64) {
-        next.gate_pct = value.clamp(1, 100) as u8;
+        if let Ok(value) = u8::try_from(value.clamp(1, 100)) {
+            next.gate_pct = value;
+        }
     }
     if let Some(value) = arp.get("octaveSpread").and_then(Value::as_i64) {
-        next.octave_spread = value.clamp(0, 3) as u8;
+        if let Ok(value) = u8::try_from(value.clamp(0, 3)) {
+            next.octave_spread = value;
+        }
     }
     layer.arp = next;
 }
@@ -73,7 +81,9 @@ pub(super) fn apply_link_lfo_payload(layer: &mut NativePulsesLayer, payload: &Va
         }
     }
     if let Some(depth) = lfo.get("depthPct").and_then(Value::as_u64) {
-        layer.link_lfo.depth_pct = depth.min(100) as u8;
+        if let Ok(depth) = u8::try_from(depth.min(100)) {
+            layer.link_lfo.depth_pct = depth;
+        }
     }
 }
 
@@ -160,10 +170,14 @@ fn assign_timing(mapping: &Value, key: &str, timing: &mut LinkEventTiming) {
         return;
     };
     if let Some(delay) = payload.get("delaySteps").and_then(Value::as_u64) {
-        timing.delay_steps = (delay as u8).min(16);
+        if let Ok(delay) = u8::try_from(delay) {
+            timing.delay_steps = delay.min(16);
+        }
     }
     if let Some(retrigger) = payload.get("retriggerCount").and_then(Value::as_u64) {
-        timing.retrigger_count = (retrigger as u8).min(8);
+        if let Ok(retrigger) = u8::try_from(retrigger) {
+            timing.retrigger_count = retrigger.min(8);
+        }
     }
 }
 

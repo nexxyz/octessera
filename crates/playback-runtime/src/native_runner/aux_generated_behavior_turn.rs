@@ -32,12 +32,12 @@ impl NativeRunner {
     fn apply_generated_behavior_target_value(&mut self, key: &str, value: &str) -> Option<()> {
         if let Some(index) = parse_layer_algorithm_step_key(key) {
             let pulses = super::note_unit_to_pulses(value);
-            let layer_step = self.layer_algorithm_step_pulses.get_mut(index)?;
+            let layer_step = self.transport.layer_algorithm_step_pulses.get_mut(index)?;
             *layer_step = pulses;
             if index == self.active_layer_index {
-                self.algorithm_step_pulses = pulses;
+                self.transport.algorithm_step_pulses = pulses;
             }
-            self.config_dirty = true;
+            self.mark_config_dirty();
             return Some(());
         }
         let (index, field) = parse_layer_behavior_config_key(key)?;
@@ -48,7 +48,7 @@ impl NativeRunner {
         if index == self.active_layer_index {
             self.behavior_config = Value::Object(object);
         }
-        self.config_dirty = true;
+        self.mark_config_dirty();
         Some(())
     }
 }

@@ -46,8 +46,8 @@ pub(crate) fn system_menu_save_default_emits_native_config_payload() {
 #[test]
 pub(crate) fn load_default_result_applies_native_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.transport = RuntimeTransportState::Playing;
-    runner.current_ppqn_pulse = 96;
+    runner.transport.transport = RuntimeTransportState::Playing;
+    runner.transport.current_ppqn_pulse = 96;
     let payload = json!({
         "activeBehavior": "sequencer",
         "runtimeConfig": {
@@ -81,10 +81,10 @@ pub(crate) fn load_default_result_applies_native_config_payload() {
     assert_eq!(runner.instruments[0].kind, "sampler");
     assert_eq!(runner.instruments[0].note_behavior, "hold");
     assert_eq!(runner.note_behaviors[0], NoteBehavior::Hold);
-    assert_eq!(runner.ui.master_volume, 88);
-    assert_eq!(runner.sync_source, SyncSource::External);
-    assert_eq!(runner.transport, RuntimeTransportState::Stopped);
-    assert_eq!(runner.current_ppqn_pulse, 0);
+    assert_eq!(runner.display.ui.master_volume, 88);
+    assert_eq!(runner.transport.sync_source, SyncSource::External);
+    assert_eq!(runner.transport.transport, RuntimeTransportState::Stopped);
+    assert_eq!(runner.transport.current_ppqn_pulse, 0);
     assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::PlatformEffects { effects }
@@ -96,7 +96,7 @@ pub(crate) fn load_default_result_applies_native_config_payload() {
 #[test]
 pub(crate) fn patch_and_device_payloads_split_local_device_fields() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.ui.display_brightness = 44;
+    runner.display.ui.display_brightness = 44;
     runner.usb_audio_out = "uac2".into();
     runner.midi_enabled = true;
     runner.audio_output_buffer_frames = 512;
@@ -123,7 +123,7 @@ pub(crate) fn patch_and_device_payloads_split_local_device_fields() {
 #[test]
 pub(crate) fn legacy_full_preset_load_preserves_device_fields() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.ui.display_brightness = 22;
+    runner.display.ui.display_brightness = 22;
     runner.usb_audio_out = "both".into();
     runner.midi_enabled = false;
     runner.audio_output_buffer_frames = 256;
@@ -147,7 +147,7 @@ pub(crate) fn legacy_full_preset_load_preserves_device_fields() {
         .unwrap();
 
     assert_eq!(runner.behavior.id(), "sequencer");
-    assert_eq!(runner.ui.display_brightness, 22);
+    assert_eq!(runner.display.ui.display_brightness, 22);
     assert_eq!(runner.usb_audio_out, "both");
     assert!(!runner.midi_enabled);
     assert_eq!(runner.audio_output_buffer_frames, 256);
@@ -165,7 +165,7 @@ pub(crate) fn full_default_load_and_device_apply_update_device_fields() {
             }
         }))
         .unwrap();
-    assert_eq!(runner.ui.display_brightness, 77);
+    assert_eq!(runner.display.ui.display_brightness, 77);
     assert!(runner.midi_enabled);
     assert_eq!(runner.audio_output_buffer_frames, 1024);
 
@@ -177,7 +177,7 @@ pub(crate) fn full_default_load_and_device_apply_update_device_fields() {
             }
         }))
         .unwrap();
-    assert_eq!(runner.ui.display_brightness, 33);
+    assert_eq!(runner.display.ui.display_brightness, 33);
     assert_ne!(runner.behavior.id(), "sequencer");
 }
 

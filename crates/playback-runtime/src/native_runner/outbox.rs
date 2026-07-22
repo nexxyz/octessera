@@ -214,10 +214,12 @@ mod tests {
         let mut outbox = NativeRunnerOutbox::default();
         outbox.push_audio_command(RuntimeAudioCommand::SetAudioConfig {
             revision: 1,
+            request_id: None,
             config: serde_json::json!({ "masterVolume": 80 }),
         });
         outbox.push_audio_command(RuntimeAudioCommand::SetAudioConfig {
             revision: 2,
+            request_id: None,
             config: serde_json::json!({ "masterVolume": 90 }),
         });
 
@@ -225,6 +227,7 @@ mod tests {
             outbox.drain_audio_commands(),
             vec![RuntimeAudioCommand::SetAudioConfig {
                 revision: 2,
+                request_id: None,
                 config: serde_json::json!({ "masterVolume": 90 }),
             }]
         );

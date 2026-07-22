@@ -56,7 +56,7 @@ impl NativeRunner {
                 } else {
                     "Mapped LFO"
                 });
-                self.config_dirty = true;
+                self.mark_config_dirty();
                 self.menu.rebuild(self.menu_config());
                 let _ = self.menu.focus_item_key(target);
                 return;
@@ -113,7 +113,7 @@ impl NativeRunner {
             .and_then(|binding| binding.label.as_deref())
             .unwrap_or("none");
         self.show_toast(format!("Mapped {label}"));
-        self.config_dirty = true;
+        self.mark_config_dirty();
         self.menu.rebuild(self.menu_config());
         let _ = self.menu.focus_item_key(target);
     }
@@ -153,7 +153,7 @@ impl NativeRunner {
         }
         super::sanitize_binding_user_range(binding);
         if changed {
-            self.config_dirty = true;
+            self.mark_config_dirty();
             self.mark_fast_autosave_dirty();
         }
         changed
@@ -228,7 +228,7 @@ impl NativeRunner {
                 press_action,
             });
             self.show_toast(message);
-            self.config_dirty = true;
+            self.mark_config_dirty();
             return true;
         }
         false
@@ -295,11 +295,11 @@ impl NativeRunner {
             _ => "mapped",
         };
         let label = binding.label.as_deref().unwrap_or(&binding.key);
-        self.toast = Some(NativeToast {
+        self.display.toast = Some(NativeToast {
             message: format!("{axis_label}: {label} {action}"),
             offset: 0,
         });
-        self.config_dirty = true;
+        self.mark_config_dirty();
         true
     }
 
@@ -307,7 +307,7 @@ impl NativeRunner {
         if delta == 0 {
             return Ok(());
         }
-        let prefix = if self.ui.shift_held || self.ui.combined_modifier_held {
+        let prefix = if self.display.ui.shift_held || self.display.ui.combined_modifier_held {
             "S+Trn"
         } else {
             "Trn"
@@ -349,9 +349,9 @@ impl NativeRunner {
         &mut self,
         index: usize,
     ) -> Result<Option<RuntimePlatformEffect>, String> {
-        let shifted = self.ui.shift_held || self.ui.combined_modifier_held;
+        let shifted = self.display.ui.shift_held || self.display.ui.combined_modifier_held;
         let click_prefix = if shifted { "S+Clk" } else { "Clk" };
-        if self.ui.fn_held || self.ui.combined_modifier_held {
+        if self.display.ui.fn_held || self.display.ui.combined_modifier_held {
             self.bind_aux_from_current(index, shifted);
             return Ok(None);
         }

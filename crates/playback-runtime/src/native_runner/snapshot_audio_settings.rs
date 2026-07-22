@@ -69,11 +69,12 @@ impl NativeRunner {
     pub(super) fn full_audio_config_command(&self) -> RuntimeAudioCommand {
         let mut config = self.audio_snapshot_payload();
         if let Value::Object(fields) = &mut config {
-            fields.insert("masterVolume".into(), json!(self.ui.master_volume));
+            fields.insert("masterVolume".into(), json!(self.display.ui.master_volume));
             fields.insert("voiceStealingMode".into(), json!(self.voice_stealing_mode));
         }
         RuntimeAudioCommand::SetAudioConfig {
             revision: self.audio_config_revision,
+            request_id: None,
             config,
         }
     }

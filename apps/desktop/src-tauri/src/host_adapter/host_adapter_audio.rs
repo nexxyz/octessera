@@ -1,19 +1,31 @@
 use crate::audio_config::{
-    decode_sample_file, parse_instrument_slot_config, sample_bank_for_slot_config,
+    decode_sample_file, normalize_config, parse_instrument_slot_config, sample_bank_for_slot_config,
 };
 use crate::host_adapter::DesktopPlaybackHostAdapter;
 use crate::samples::resolve_sample_file;
 use crate::types::{MomentaryFxTargetPayload, QueuedAudioEvent};
-use playback_runtime::{RuntimeAudioCommand, RuntimeMomentaryFxTarget};
+use playback_runtime::{RuntimeAdapterError, RuntimeAudioCommand, RuntimeMomentaryFxTarget};
 use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
+use realtime_engine::synth::{
+    validate_fx_type, validate_momentary_fx_type, validate_sample_bank_param_path,
+    validate_synth_param_path,
+};
 
 impl DesktopPlaybackHostAdapter {
     pub(super) fn handle_runtime_audio_command(
         &mut self,
         command: &RuntimeAudioCommand,
-    ) -> Result<(), String> {
-        if let RuntimeAudioCommand::SetAudioConfig { revision, config } = command {
-            return self.handle_full_audio_config(*revision, config.clone());
+    ) -> Result<(), RuntimeAdapterError> {
+        if let RuntimeAudioCommand::SetAudioConfig {
+            revision,
+            request_id,
+            config,
+        } = command
+        {
+            normalize_config(config).map_err(invalid_audio_command)?;
+            return self
+                .handle_full_audio_config(*revision, request_id.clone(), config.clone())
+                .map_err(RuntimeAdapterError::from);
         }
         let event = match command {
             RuntimeAudioCommand::SetAudioConfig { .. } => unreachable!(),
@@ -37,7 +49,7 @@ impl DesktopPlaybackHostAdapter {
             } => {
                 let event = QueuedAudioEvent::SetInstrumentSlot {
                     instrument_slot: *instrument_slot,
-                    config: parse_instrument_slot_config(config)?,
+                    config: parse_instrument_slot_config(config).map_err(invalid_audio_command)?,
                 };
                 self.audio.audio_control.enqueue_dynamic(event)?;
                 if let Some(bank) = self.sample_bank_event(config)? {
@@ -63,51 +75,66 @@ impl DesktopPlaybackHostAdapter {
                 instrument_slot,
                 path,
                 value,
-            } => QueuedAudioEvent::SetSynthParam {
-                instrument_slot: *instrument_slot,
-                path: path.clone(),
-                value: *value,
-            },
+            } => {
+                validate_synth_param_path(path).map_err(invalid_audio_command)?;
+                QueuedAudioEvent::SetSynthParam {
+                    instrument_slot: *instrument_slot,
+                    path: path.clone(),
+                    value: *value,
+                }
+            }
             RuntimeAudioCommand::SetSampleBankParam {
                 instrument_slot,
                 path,
                 value,
-            } => QueuedAudioEvent::SetSampleBankParam {
-                instrument_slot: *instrument_slot,
-                path: path.clone(),
-                value: *value,
-            },
+            } => {
+                validate_sample_bank_param_path(path).map_err(invalid_audio_command)?;
+                QueuedAudioEvent::SetSampleBankParam {
+                    instrument_slot: *instrument_slot,
+                    path: path.clone(),
+                    value: *value,
+                }
+            }
             RuntimeAudioCommand::SetFxBusSlot {
                 bus_index,
                 slot_index,
                 fx_type,
                 params,
-            } => QueuedAudioEvent::SetFxBusSlot {
-                bus_index: *bus_index,
-                slot_index: *slot_index,
-                fx_type: fx_type.clone(),
-                params: params.clone(),
-            },
+            } => {
+                validate_fx_type(fx_type).map_err(invalid_audio_command)?;
+                QueuedAudioEvent::SetFxBusSlot {
+                    bus_index: *bus_index,
+                    slot_index: *slot_index,
+                    fx_type: fx_type.clone(),
+                    params: params.clone(),
+                }
+            }
             RuntimeAudioCommand::SetGlobalFxSlot {
                 slot_index,
                 fx_type,
                 params,
-            } => QueuedAudioEvent::SetGlobalFxSlot {
-                slot_index: *slot_index,
-                fx_type: fx_type.clone(),
-                params: params.clone(),
-            },
+            } => {
+                validate_fx_type(fx_type).map_err(invalid_audio_command)?;
+                QueuedAudioEvent::SetGlobalFxSlot {
+                    slot_index: *slot_index,
+                    fx_type: fx_type.clone(),
+                    params: params.clone(),
+                }
+            }
             RuntimeAudioCommand::MomentaryFxStart {
                 id,
                 fx_type,
                 params,
                 target,
-            } => QueuedAudioEvent::MomentaryFxStart {
-                id: id.clone(),
-                fx_type: fx_type.clone(),
-                params: params.clone(),
-                target: momentary_fx_target_payload(target),
-            },
+            } => {
+                validate_momentary_fx_type(fx_type).map_err(invalid_audio_command)?;
+                QueuedAudioEvent::MomentaryFxStart {
+                    id: id.clone(),
+                    fx_type: fx_type.clone(),
+                    params: params.clone(),
+                    target: momentary_fx_target_payload(target),
+                }
+            }
             RuntimeAudioCommand::MomentaryFxUpdate { id, params } => {
                 QueuedAudioEvent::MomentaryFxUpdate {
                     id: id.clone(),
@@ -124,7 +151,10 @@ impl DesktopPlaybackHostAdapter {
                 ..
             } => self.sample_preview_event(*instrument_slot, path, *velocity)?,
         };
-        self.audio.audio_control.enqueue_dynamic(event)
+        self.audio
+            .audio_control
+            .enqueue_dynamic(event)
+            .map_err(Into::into)
     }
 
     fn sample_preview_event(
@@ -132,12 +162,12 @@ impl DesktopPlaybackHostAdapter {
         instrument_slot: usize,
         path: &str,
         velocity: u8,
-    ) -> Result<QueuedAudioEvent, String> {
-        let full_path =
-            resolve_sample_file(path).ok_or_else(|| "invalid sample path".to_string())?;
+    ) -> Result<QueuedAudioEvent, RuntimeAdapterError> {
+        let full_path = resolve_sample_file(path)
+            .ok_or_else(|| RuntimeAdapterError::from("invalid sample path"))?;
         let buffer = self
             .load_sample(&full_path)
-            .ok_or_else(|| "sample decode failed".to_string())?;
+            .ok_or_else(|| RuntimeAdapterError::from("sample decode failed"))?;
         Ok(QueuedAudioEvent::PreviewSample {
             instrument_slot: instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1) as u8,
             buffer,
@@ -148,8 +178,9 @@ impl DesktopPlaybackHostAdapter {
     fn sample_bank_event(
         &self,
         config: &serde_json::Value,
-    ) -> Result<Option<realtime_engine::synth::SampleBankConfig>, String> {
+    ) -> Result<Option<realtime_engine::synth::SampleBankConfig>, RuntimeAdapterError> {
         sample_bank_for_slot_config(config, resolve_sample_file, |path| self.load_sample(path))
+            .map_err(invalid_audio_command)
     }
 
     fn load_sample(&self, path: &str) -> Option<realtime_engine::synth::SampleBuffer> {
@@ -166,6 +197,15 @@ impl DesktopPlaybackHostAdapter {
         }
         Some(buffer)
     }
+}
+
+fn invalid_audio_command(message: String) -> RuntimeAdapterError {
+    RuntimeAdapterError::from_facts(playback_runtime::RuntimeErrorFacts::new(
+        playback_runtime::RuntimeErrorDomain::Audio,
+        playback_runtime::RuntimeErrorCode::InvalidPayload,
+        playback_runtime::RuntimeOperation::AudioCommand,
+        Some(message),
+    ))
 }
 
 fn momentary_fx_target_payload(target: &RuntimeMomentaryFxTarget) -> MomentaryFxTargetPayload {

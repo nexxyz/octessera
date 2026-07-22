@@ -7,10 +7,23 @@ use super::{
 };
 
 impl NativeRunner {
+    fn acknowledge_config_save(&mut self, revision: Option<u64>) {
+        let Some(revision) = revision else {
+            return;
+        };
+        if self.pending.pending_save_revision == Some(revision) {
+            self.pending.pending_save_revision = None;
+        }
+        if self.dirty_revision == Some(revision) && self.config_revision == revision {
+            self.config_dirty = false;
+            self.dirty_revision = None;
+        }
+    }
+
     pub(super) fn apply_factory_payload(&mut self) -> Result<(), String> {
-        self.stop_for_config_load();
         self.apply_config_payload(native_factory_payload())?;
-        self.toast = Some(NativeToast {
+        self.stop_for_config_load();
+        self.display.toast = Some(NativeToast {
             message: "Factory loaded".into(),
             offset: 0,
         });
@@ -193,22 +206,38 @@ impl NativeRunner {
 
     pub(super) fn apply_store_result(&mut self, result: RuntimeStoreResult) -> Result<(), String> {
         match result {
+            RuntimeStoreResult::Identified {
+                result, revision, ..
+            } => {
+                let operation = result.operation();
+                let succeeded = result.error_facts().is_none();
+                self.apply_store_result(*result)?;
+                if succeeded
+                    && matches!(
+                        operation,
+                        crate::protocol::RuntimeOperation::StoreSavePreset
+                            | crate::protocol::RuntimeOperation::StoreSaveDefault
+                    )
+                {
+                    self.acknowledge_config_save(revision);
+                }
+            }
             RuntimeStoreResult::LoadDefaultResult {
                 payload: Some(payload),
             } => {
-                self.stop_for_config_load();
                 self.apply_config_payload(payload)?;
-                self.toast = Some(NativeToast {
+                self.stop_for_config_load();
+                self.display.toast = Some(NativeToast {
                     message: "Default loaded".into(),
                     offset: 0,
                 });
             }
             RuntimeStoreResult::LoadPresetResult { name, payload } => {
                 if let Some(payload) = payload {
-                    self.stop_for_config_load();
                     self.apply_patch_payload_preserving_device(payload)?;
+                    self.stop_for_config_load();
                 }
-                self.toast = Some(NativeToast {
+                self.display.toast = Some(NativeToast {
                     message: format!("Loaded {name}"),
                     offset: 0,
                 });
@@ -222,36 +251,38 @@ impl NativeRunner {
                         );
                     }
                 }
-                self.toast = Some(NativeToast {
+                self.display.toast = Some(NativeToast {
                     message: format!("Saved {name}"),
                     offset: 0,
                 });
                 self.current_preset_name = Some(name);
+                self.acknowledge_config_save(None);
                 self.menu.rebuild(self.menu_config());
             }
             RuntimeStoreResult::DeletePresetResult { name, ok } if ok => {
                 if self.current_preset_name.as_deref() == Some(name.as_str()) {
                     self.current_preset_name = None;
                 }
-                self.toast = Some(NativeToast {
+                self.display.toast = Some(NativeToast {
                     message: format!("Deleted {name}"),
                     offset: 0,
                 });
             }
             RuntimeStoreResult::SaveDefaultResult { ok, is_auto: _ } if ok => {
                 self.show_saved_default_feedback();
+                self.acknowledge_config_save(None);
             }
             RuntimeStoreResult::SaveBackupResult { .. }
             | RuntimeStoreResult::SaveRecoveryResult { .. } => {}
             RuntimeStoreResult::StoreError { message } => {
-                self.usb_sd_transfer_modal = None;
-                self.toast = Some(NativeToast { message, offset: 0 });
+                self.display.usb_sd_transfer_modal = None;
+                self.display.toast = Some(NativeToast { message, offset: 0 });
             }
             RuntimeStoreResult::UsbSdTransferStatus { active, message } => {
                 if !active {
-                    self.usb_sd_transfer_modal = None;
+                    self.display.usb_sd_transfer_modal = None;
                 }
-                self.toast = Some(NativeToast { message, offset: 0 });
+                self.display.toast = Some(NativeToast { message, offset: 0 });
             }
             RuntimeStoreResult::ListPresetsResult { names } => {
                 self.preset_names = names;
@@ -305,7 +336,7 @@ impl NativeRunner {
                     dir,
                     entries: vec![],
                 });
-                self.toast = Some(NativeToast { message, offset: 0 });
+                self.display.toast = Some(NativeToast { message, offset: 0 });
                 self.menu.rebuild(self.menu_config());
             }
             _ => {}

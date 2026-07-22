@@ -1,10 +1,9 @@
 use super::scenarios::ScenarioSpec;
 use playback_runtime::{CoreRunner, HostMessage, NativeRunner, NativeRunnerConfig, SyncSource};
 use realtime_engine::synth::{DEFAULT_AUDIO_BLOCK_FRAMES, DEFAULT_AUDIO_SAMPLE_RATE};
-use rodio_engine_source::EngineSource;
+use rodio_engine_source::{event_queue, EngineSource};
 use serde_json::json;
 use std::process::Command;
-use std::sync::mpsc;
 use std::time::Instant;
 
 #[path = "engine_event_clone.rs"]
@@ -40,7 +39,7 @@ pub fn measure_engine_source(
     measure_frames: usize,
     blocks: usize,
 ) -> Result<Vec<f64>, String> {
-    let (tx, rx) = mpsc::channel();
+    let (tx, rx) = event_queue();
     for event in &scenario.events {
         tx.send(clone_event(event))
             .map_err(|error| format!("engine event send failed: {error}"))?;

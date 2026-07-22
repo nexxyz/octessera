@@ -1,4 +1,4 @@
-use super::super::native_factory_payload;
+use super::super::native_factory_payload_at_revision;
 use super::device_driver::DeviceDriver;
 use super::visible_menu_driver::VisibleMenuDriver;
 use crate::{NativeRunner, NativeRunnerConfig, RuntimeStoreResult, SampleEntry};
@@ -116,9 +116,10 @@ fn load_visible_preset(device: &mut DeviceDriver, name: &str) {
 
 fn assert_factory_patch_matches_system_default(device: &DeviceDriver) {
     let scenario_payload = device.config_payload();
+    let scenario_revision = scenario_payload["revision"].as_u64().unwrap();
     let mut factory_runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     factory_runner
-        .apply_config_payload(native_factory_payload())
+        .apply_config_payload(native_factory_payload_at_revision(scenario_revision))
         .unwrap();
     let factory_payload = factory_runner.config_payload();
     if scenario_payload != factory_payload {
@@ -129,7 +130,6 @@ fn assert_factory_patch_matches_system_default(device: &DeviceDriver) {
         );
     }
 }
-
 fn clear_all_from_visible_ui(device: &mut DeviceDriver) {
     let mut menu = VisibleMenuDriver::new(device);
     menu.open_group("System");

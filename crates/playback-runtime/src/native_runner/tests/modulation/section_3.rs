@@ -6,7 +6,7 @@ pub(crate) fn assignment_mode_wins_over_fn_layer_navigation_and_autosaves() {
     runner.auto_save_default = true;
     runner.instruments[0].kind = "sampler".into();
     runner.sample_assign = Some((0, 1));
-    runner.ui.fn_held = true;
+    runner.display.ui.fn_held = true;
 
     let messages = runner
         .send(HostMessage::DeviceInput {

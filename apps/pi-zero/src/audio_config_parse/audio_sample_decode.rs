@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 
-pub(super) fn decode_sample_file(path: &Path) -> Option<SampleBuffer> {
+pub(crate) fn decode_sample_file(path: &Path) -> Option<SampleBuffer> {
     let file = File::open(path).ok()?;
     let decoder = rodio::Decoder::new(BufReader::new(file)).ok()?;
     let channels = decoder.channels();

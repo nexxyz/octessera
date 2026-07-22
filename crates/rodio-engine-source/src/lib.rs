@@ -1,13 +1,15 @@
 mod event;
+mod queue;
 mod telemetry;
 
 pub use event::EngineEvent;
+pub use queue::{event_queue, EngineEventReceiver, EngineEventSender, QueueKind, QueueSendError};
 use realtime_engine::synth::{
     AudioLoadStatus, SynthEngine, DEFAULT_AUDIO_BLOCK_FRAMES, DEFAULT_SYNTH_SLOT_WORKERS,
 };
 use std::env;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc::Sender;
 use std::time::{Duration, Instant};
 use telemetry::{DrainedControlEvents, EngineTelemetry};
 
@@ -19,7 +21,7 @@ static SYNTH_WORKER_START_LOGGED: AtomicBool = AtomicBool::new(false);
 
 pub struct EngineSource {
     engine: SynthEngine,
-    control_rx: Receiver<EngineEvent>,
+    control_rx: EngineEventReceiver,
     sample_rate: u32,
     block_frames: usize,
     buf: Vec<f32>,
@@ -32,12 +34,12 @@ pub struct EngineSource {
 }
 
 impl EngineSource {
-    pub fn new(control_rx: Receiver<EngineEvent>, sample_rate: u32) -> Self {
+    pub fn new(control_rx: EngineEventReceiver, sample_rate: u32) -> Self {
         Self::with_load_status_tx(control_rx, sample_rate, None)
     }
 
     pub fn with_load_status_tx(
-        control_rx: Receiver<EngineEvent>,
+        control_rx: EngineEventReceiver,
         sample_rate: u32,
         load_tx: Option<Sender<AudioLoadStatus>>,
     ) -> Self {
@@ -112,11 +114,14 @@ impl EngineSource {
     fn drain_control_events(&mut self) -> DrainedControlEvents {
         let mut drained = DrainedControlEvents::default();
         for _ in 0..MAX_CONTROL_EVENTS_PER_BLOCK {
-            let Ok(event) = self.control_rx.try_recv() else {
-                break;
-            };
+            let event = self
+                .control_rx
+                .try_recv_ordered()
+                .or_else(|_| self.control_rx.try_recv_coalesced());
+            let Ok(event) = event else { break };
             drained.control_events += 1;
             match event {
+                EngineEvent::AllNotesOff => self.engine.all_notes_off(),
                 EngineEvent::NoteOn {
                     instrument_slot,
                     note,
@@ -133,12 +138,7 @@ impl EngineSource {
                     instrument_slot,
                     controller,
                     value,
-                } => {
-                    if controller == 120 || controller == 123 {
-                        self.engine.all_notes_off();
-                    }
-                    self.engine.cc(instrument_slot, controller, value);
-                }
+                } => self.engine.cc(instrument_slot, controller, value),
                 EngineEvent::SetInstruments(config) => {
                     drained.config_events += 1;
                     self.engine.set_instruments(config);
@@ -168,6 +168,14 @@ impl EngineSource {
                         self.engine.set_voice_stealing_mode(mode);
                     }
                 }
+                EngineEvent::SetPreparedInstruments(config) => {
+                    drained.config_events += 1;
+                    self.engine.apply_prepared_instruments_config(config);
+                }
+                EngineEvent::SetPreparedAudioConfig(config) => {
+                    drained.config_events += 1;
+                    self.engine.apply_prepared_audio_config(config);
+                }
                 EngineEvent::PreviewSample {
                     instrument_slot,
                     buffer,
@@ -195,6 +203,14 @@ impl EngineSource {
                     config,
                 } => {
                     self.engine.set_instrument_slot(instrument_slot, config);
+                }
+                EngineEvent::SetPreparedInstrumentSlot {
+                    instrument_slot,
+                    config,
+                } => {
+                    drained.config_events += 1;
+                    self.engine
+                        .apply_prepared_instrument_slot(instrument_slot, config);
                 }
                 EngineEvent::SetFxBusMixer {
                     bus_index,
@@ -227,12 +243,26 @@ impl EngineSource {
                     self.engine
                         .set_fx_bus_slot(bus_index, slot_index, fx_type, params);
                 }
+                EngineEvent::SetPreparedFxBusSlot {
+                    bus_index,
+                    slot_index,
+                    config,
+                } => {
+                    drained.config_events += 1;
+                    self.engine
+                        .apply_prepared_fx_bus_slot(bus_index, slot_index, config);
+                }
                 EngineEvent::SetGlobalFxSlot {
                     slot_index,
                     fx_type,
                     params,
                 } => {
                     self.engine.set_global_fx_slot(slot_index, fx_type, params);
+                }
+                EngineEvent::SetPreparedGlobalFxSlot { slot_index, config } => {
+                    drained.config_events += 1;
+                    self.engine
+                        .apply_prepared_global_fx_slot(slot_index, config);
                 }
                 EngineEvent::MomentaryFxStart {
                     id,
@@ -242,6 +272,10 @@ impl EngineSource {
                 } => {
                     drained.config_events += 1;
                     self.engine.momentary_fx_start(id, fx_type, params, target);
+                }
+                EngineEvent::PreparedMomentaryFxStart(config) => {
+                    drained.config_events += 1;
+                    self.engine.apply_prepared_momentary_fx_start(config);
                 }
                 EngineEvent::MomentaryFxUpdate { id, params } => {
                     drained.config_events += 1;
@@ -308,49 +342,4 @@ fn synth_slot_worker_count() -> Option<usize> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::sync::mpsc;
-
-    #[test]
-    fn idle_source_refills_with_silence() {
-        let (_tx, rx) = mpsc::channel();
-        let mut source = EngineSource::new(rx, 44_100);
-
-        for _ in 0..128 {
-            assert_eq!(source.next(), Some(0.0));
-        }
-    }
-
-    #[test]
-    fn note_on_after_idle_renders_audio() {
-        let (tx, rx) = mpsc::channel();
-        let mut source = EngineSource::new(rx, 44_100);
-        for _ in 0..64 {
-            assert_eq!(source.next(), Some(0.0));
-        }
-
-        tx.send(EngineEvent::NoteOn {
-            instrument_slot: 0,
-            note: 60,
-            velocity: 100,
-            duration_ms: 1_000,
-        })
-        .unwrap();
-
-        let mut saw_audio = false;
-        for _ in 0..4096 {
-            if source.next().unwrap_or(0.0).abs() > f32::EPSILON {
-                saw_audio = true;
-                break;
-            }
-        }
-        assert!(saw_audio);
-    }
-
-    #[test]
-    fn capability_audio_defaults_enable_high_headroom_mode() {
-        assert_eq!(audio_block_frames(), DEFAULT_AUDIO_BLOCK_FRAMES);
-        assert_eq!(synth_slot_worker_count(), Some(DEFAULT_SYNTH_SLOT_WORKERS));
-    }
-}
+mod tests;

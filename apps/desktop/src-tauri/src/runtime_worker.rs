@@ -1,17 +1,15 @@
 use crate::host_adapter::DesktopPlaybackHostAdapter;
 use crate::types::{
-    append_audio_error_values, encode_runtime_responses, RuntimeMessagesPayload,
-    RUNTIME_MESSAGES_EVENT, RUNTIME_UI_REFRESH_MS,
+    encode_runtime_responses, RuntimeMessagesPayload, RUNTIME_MESSAGES_EVENT, RUNTIME_UI_REFRESH_MS,
 };
 use playback_runtime::{
-    CoreRunner, HostAdapter, HostMessage, NativeRunner, PlaybackRuntime, RunnerMessage,
+    HostMessage, NativeRunner, PlaybackRuntime, RunnerMessage, RuntimeAdapterError,
 };
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-mod capture;
 mod commands;
 mod config;
 mod emit;
@@ -25,7 +23,6 @@ mod shutdown;
 #[cfg(test)]
 mod tests;
 
-use capture::CapturingCoreRunner;
 use config::desktop_native_runner_config;
 #[cfg(debug_assertions)]
 use perf::RuntimePerfCounters;
@@ -46,8 +43,9 @@ pub(crate) enum WorkerCommand {
 
 pub(crate) struct RuntimeWorker {
     app_handle: tauri::AppHandle,
-    audio_error: Arc<Mutex<Option<String>>>,
     runtime_outbox: Arc<Mutex<Vec<RuntimeMessagesPayload>>>,
+    audio_failure_rx: Receiver<RuntimeAdapterError>,
+    audio_prep_result_rx: Receiver<HostMessage>,
     next_runtime_seq: u64,
     playback: PlaybackRuntime,
     runner: NativeRunner,
@@ -63,15 +61,17 @@ pub(crate) struct RuntimeWorker {
 impl RuntimeWorker {
     fn new(
         app_handle: tauri::AppHandle,
-        audio_error: Arc<Mutex<Option<String>>>,
         runtime_outbox: Arc<Mutex<Vec<RuntimeMessagesPayload>>>,
+        audio_failure_rx: Receiver<RuntimeAdapterError>,
+        audio_prep_result_rx: Receiver<HostMessage>,
         adapter: DesktopPlaybackHostAdapter,
         platform_service_result_rx: Receiver<Vec<HostMessage>>,
     ) -> Self {
         Self {
             app_handle,
-            audio_error,
             runtime_outbox,
+            audio_failure_rx,
+            audio_prep_result_rx,
             next_runtime_seq: 0,
             playback: PlaybackRuntime::new(playback_runtime::RuntimeConfig {
                 bpm: 120.0,
@@ -93,8 +93,9 @@ impl RuntimeWorker {
 
     pub(crate) fn spawn(
         app_handle: tauri::AppHandle,
-        audio_error: Arc<Mutex<Option<String>>>,
         runtime_outbox: Arc<Mutex<Vec<RuntimeMessagesPayload>>>,
+        audio_failure_rx: Receiver<RuntimeAdapterError>,
+        audio_prep_result_rx: Receiver<HostMessage>,
         adapter: DesktopPlaybackHostAdapter,
         platform_service_result_rx: Receiver<Vec<HostMessage>>,
     ) -> Sender<WorkerCommand> {
@@ -102,8 +103,9 @@ impl RuntimeWorker {
         thread::spawn(move || {
             let mut worker = RuntimeWorker::new(
                 app_handle,
-                audio_error,
                 runtime_outbox,
+                audio_failure_rx,
+                audio_prep_result_rx,
                 adapter,
                 platform_service_result_rx,
             );
@@ -127,6 +129,8 @@ impl RuntimeWorker {
                 self.handle_error(err);
             }
             self.poll_platform_service_results();
+            self.poll_audio_prep_results();
+            self.poll_audio_failures();
             if let Err(err) = self.maybe_refresh_ui() {
                 self.handle_error(err);
             }
@@ -169,20 +173,16 @@ impl RuntimeWorker {
             self.playback.request_next_snapshot();
             self.last_snapshot_at = now;
         }
-        let captured = {
-            #[cfg(debug_assertions)]
-            let started_at = Instant::now();
-            let mut capturing_runner = CapturingCoreRunner {
-                inner: &mut self.runner,
-                captured: Vec::new(),
-            };
-            self.playback
-                .advance_duration(elapsed, &mut capturing_runner, &mut self.adapter)?;
-            #[cfg(debug_assertions)]
-            self.perf.record_advance(started_at.elapsed());
-            capturing_runner.captured
-        };
-        self.emit_runner_messages(captured)
+        #[cfg(debug_assertions)]
+        let started_at = Instant::now();
+        let output = self.playback.advance_duration_with_output(
+            elapsed,
+            &mut self.runner,
+            &mut self.adapter,
+        )?;
+        #[cfg(debug_assertions)]
+        self.perf.record_advance(started_at.elapsed());
+        self.emit_runtime_output(output)
     }
 
     fn maybe_refresh_ui(&mut self) -> Result<(), String> {
@@ -198,113 +198,77 @@ impl RuntimeWorker {
         }
         self.last_ui_refresh_at = now;
         let source = self.playback.config().sync_source.clone();
-        let responses = self.dispatch_host_message(HostMessage::TransportPulseStep {
-            pulses: 0,
-            source,
-            at_ppqn_pulse: None,
-            request_snapshot: Some(true),
-        })?;
-        self.emit_runner_messages(responses)
-    }
-
-    fn handle_midi_realtime(&mut self, bytes: Vec<u8>) -> Result<Vec<RunnerMessage>, String> {
-        let mut capturing_runner = CapturingCoreRunner {
-            inner: &mut self.runner,
-            captured: Vec::new(),
-        };
-        self.playback.handle_midi_realtime_bytes(
-            &bytes,
-            &mut capturing_runner,
+        let output = self.playback.dispatch(
+            playback_runtime::RuntimeDispatchInput::HostMessage(HostMessage::TransportPulseStep {
+                pulses: 0,
+                source,
+                at_ppqn_pulse: None,
+                request_snapshot: Some(true),
+            }),
+            &mut self.runner,
             &mut self.adapter,
         )?;
-        Ok(capturing_runner.captured)
+        self.emit_runtime_output(output)
+    }
+
+    fn handle_midi_realtime(
+        &mut self,
+        bytes: Vec<u8>,
+    ) -> Result<playback_runtime::RuntimeIngest, String> {
+        self.playback.handle_midi_realtime_bytes_with_output(
+            &bytes,
+            &mut self.runner,
+            &mut self.adapter,
+        )
     }
 
     fn initialize_host_state(&mut self) -> Result<(), String> {
-        let mut returned = Vec::new();
-        for effect in [
-            playback_runtime::RuntimePlatformEffect::StoreLoadDefault,
-            playback_runtime::RuntimePlatformEffect::MidiListOutputsRequest,
-            playback_runtime::RuntimePlatformEffect::MidiListInputsRequest,
-        ] {
-            let follow_ups = self.adapter.handle_platform_effect(&effect)?;
-            returned.extend(self.dispatch_follow_ups(follow_ups)?);
-        }
-        self.emit_runner_messages(returned)
+        let output = self.playback.dispatch_runner_messages(
+            vec![RunnerMessage::PlatformEffects {
+                effects: vec![
+                    playback_runtime::RuntimePlatformEffect::StoreLoadDefault,
+                    playback_runtime::RuntimePlatformEffect::MidiListOutputsRequest,
+                    playback_runtime::RuntimePlatformEffect::MidiListInputsRequest,
+                ],
+            }],
+            &mut self.runner,
+            &mut self.adapter,
+        )?;
+        self.emit_runtime_output(output)
     }
 
     fn flush_deferred_host_work(&mut self) -> Result<(), String> {
         let runner_messages = self.runner.flush_deferred_menu_apply()?;
         if !runner_messages.is_empty() {
-            let follow_ups = self
-                .playback
-                .ingest_runner_messages(runner_messages.clone(), &mut self.adapter)?;
-            let mut returned = Vec::new();
-            returned.extend(
-                runner_messages
-                    .into_iter()
-                    .filter(|message| !matches!(message, RunnerMessage::AudioCommands { .. })),
-            );
-            returned.extend(self.dispatch_follow_ups(follow_ups)?);
-            self.emit_runner_messages(returned)?;
+            let output = self.playback.dispatch_runner_messages(
+                runner_messages,
+                &mut self.runner,
+                &mut self.adapter,
+            )?;
+            self.emit_runtime_output(output)?;
         }
-        let follow_ups = self.adapter.flush_due_default_save()?;
+        let follow_ups = match self.adapter.flush_due_default_save() {
+            Ok(follow_ups) => follow_ups,
+            Err(error) => {
+                self.handle_persistence_error(error);
+                Vec::new()
+            }
+        };
         if follow_ups.is_empty() {
             return Ok(());
         }
-        let returned = self.dispatch_follow_ups(follow_ups)?;
-        self.emit_runner_messages(returned)
-    }
-
-    fn dispatch_host_message(
-        &mut self,
-        host_message: HostMessage,
-    ) -> Result<Vec<RunnerMessage>, String> {
-        let mut queue = std::collections::VecDeque::from([host_message]);
-        self.dispatch_queue(&mut queue)
-    }
-
-    fn dispatch_follow_ups(
-        &mut self,
-        follow_ups: Vec<HostMessage>,
-    ) -> Result<Vec<RunnerMessage>, String> {
-        let mut queue = std::collections::VecDeque::from(follow_ups);
-        self.dispatch_queue(&mut queue)
-    }
-
-    fn dispatch_queue(
-        &mut self,
-        queue: &mut std::collections::VecDeque<HostMessage>,
-    ) -> Result<Vec<RunnerMessage>, String> {
-        let mut returned = Vec::new();
-
-        while let Some(message) = queue.pop_front() {
-            let message = self.prepare_dispatch_message(message);
-            let responses = self.runner.send(message)?;
-            for response in responses.iter().cloned() {
-                if !matches!(response, RunnerMessage::AudioCommands { .. }) {
-                    returned.push(response);
-                }
-            }
-            let follow_ups = self
-                .playback
-                .ingest_runner_messages(responses, &mut self.adapter)?;
-            queue.extend(follow_ups);
+        for message in follow_ups {
+            let output = self.playback.dispatch(
+                playback_runtime::RuntimeDispatchInput::HostMessage(message),
+                &mut self.runner,
+                &mut self.adapter,
+            )?;
+            self.emit_runtime_output(output)?;
         }
-
-        Ok(returned)
+        Ok(())
     }
 
     fn prepare_dispatch_message(&self, message: HostMessage) -> HostMessage {
-        match message {
-            HostMessage::DeviceInput {
-                input,
-                request_snapshot: None,
-            } if self.is_internal_playing() => HostMessage::DeviceInput {
-                input,
-                request_snapshot: Some(false),
-            },
-            other => other,
-        }
+        message
     }
 }

@@ -237,7 +237,7 @@ pub(crate) fn patch_load_swaps_active_engine_state_to_loaded_behavior() {
 #[test]
 pub(crate) fn patch_envelope_device_fields_do_not_override_local_device_config() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.ui.display_brightness = 21;
+    runner.display.ui.display_brightness = 21;
     runner.usb_audio_out = "both".into();
     runner.audio_output_buffer_frames = 256;
 
@@ -256,7 +256,7 @@ pub(crate) fn patch_envelope_device_fields_do_not_override_local_device_config()
         .unwrap();
 
     assert_eq!(runner.behavior.id(), "sequencer");
-    assert_eq!(runner.ui.display_brightness, 21);
+    assert_eq!(runner.display.ui.display_brightness, 21);
     assert_eq!(runner.usb_audio_out, "both");
     assert_eq!(runner.audio_output_buffer_frames, 256);
 }
@@ -271,7 +271,8 @@ pub(crate) fn recovery_usb_reboot_and_backup_remain_full_payloads() {
             | RuntimePlatformEffect::UsbApplyReboot { payload } => payload,
             _ => panic!("unexpected effect"),
         };
-        assert!(payload["kind"].is_null());
+        assert_eq!(payload["kind"], "octessera.config");
+        assert_eq!(payload["schemaVersion"], 1);
         assert!(!payload["runtimeConfig"]["usb"].is_null());
         assert!(!payload["runtimeConfig"]["midi"].is_null());
     }
@@ -285,7 +286,8 @@ pub(crate) fn recovery_usb_reboot_and_backup_remain_full_payloads() {
             if effects.iter().any(|effect| matches!(
                 effect,
                 RuntimePlatformEffect::StoreSaveBackup { payload }
-                    if payload["kind"].is_null()
+                    if payload["kind"] == "octessera.config"
+                        && payload["schemaVersion"] == 1
                         && !payload["runtimeConfig"]["usb"].is_null()
                         && !payload["runtimeConfig"]["midi"].is_null()
             ))

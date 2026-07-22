@@ -18,8 +18,10 @@ impl NativeRunner {
         &mut self,
         input: DeviceInput,
     ) -> Result<platform_core::NativeInputResult, String> {
-        if self.transport != RuntimeTransportState::Playing && !self.input_events_while_paused {
-            let model = self.engine.on_input(input, self.bpm as f32)?;
+        if self.transport.transport != RuntimeTransportState::Playing
+            && !self.input_events_while_paused
+        {
+            let model = self.engine.on_input(input, self.transport.bpm as f32)?;
             return Ok(platform_core::NativeInputResult {
                 events: Vec::new(),
                 emitted_events: Vec::new(),
@@ -36,11 +38,11 @@ impl NativeRunner {
             .cloned()
             .unwrap_or_default();
         let mut rng = self.trigger_probability_rng;
-        let result =
-            self.engine
-                .on_input_with_events_filtered(input, self.bpm as f32, |intent| {
-                    trigger_probability_allows(sense.as_ref(), &probability_map, &mut rng, intent)
-                })?;
+        let result = self.engine.on_input_with_events_filtered(
+            input,
+            self.transport.bpm as f32,
+            |intent| trigger_probability_allows(sense.as_ref(), &probability_map, &mut rng, intent),
+        )?;
         self.trigger_probability_rng = rng;
         Ok(result)
     }
@@ -50,15 +52,17 @@ impl NativeRunner {
     ) -> Result<platform_core::NativeTickResult, String> {
         let (sense, probability_map) = self.probability_context(self.active_layer_index);
         let mut rng = self.trigger_probability_rng;
-        let result = self.engine.tick_filtered(self.bpm as f32, |intent| {
-            trigger_probability_allows(sense.as_ref(), &probability_map, &mut rng, intent)
-        })?;
+        let result = self
+            .engine
+            .tick_filtered(self.transport.bpm as f32, |intent| {
+                trigger_probability_allows(sense.as_ref(), &probability_map, &mut rng, intent)
+            })?;
         self.trigger_probability_rng = rng;
         Ok(result)
     }
 
     pub(super) fn advance_algorithm(&mut self, pulses: u32) -> Result<RoutedMusicalEvents, String> {
-        if pulses == 0 || self.transport != RuntimeTransportState::Playing {
+        if pulses == 0 || self.transport.transport != RuntimeTransportState::Playing {
             return Ok(RoutedMusicalEvents::default());
         }
 
@@ -94,15 +98,15 @@ impl NativeRunner {
             if index == self.active_layer_index {
                 continue;
             }
-            while self.layer_pulse_accumulators[index] >= *step_pulses {
-                self.layer_pulse_accumulators[index] -= *step_pulses;
+            while self.transport.layer_pulse_accumulators[index] >= *step_pulses {
+                self.transport.layer_pulse_accumulators[index] -= *step_pulses;
                 let tick = {
                     let Some(engine) = self.layer_engines[index].as_mut() else {
                         continue;
                     };
                     engine.set_interpretation_profile(profile.clone());
                     engine.set_mapping_config(mapping.clone());
-                    engine.tick_filtered(self.bpm as f32, |intent| {
+                    engine.tick_filtered(self.transport.bpm as f32, |intent| {
                         trigger_probability_allows(
                             sense.as_ref(),
                             probability_map,
@@ -111,7 +115,7 @@ impl NativeRunner {
                         )
                     })?
                 };
-                if let Some(layer_tick) = self.layer_ticks.get_mut(index) {
+                if let Some(layer_tick) = self.transport.layer_ticks.get_mut(index) {
                     *layer_tick = layer_tick.saturating_add(1);
                 }
                 events.extend(self.take_due_link_events(index));
@@ -141,12 +145,13 @@ impl NativeRunner {
 
     fn step_pulses_for_layer(&self, index: usize) -> u32 {
         let Some(sense) = self.pulses_layers.get(index) else {
-            return self.algorithm_step_pulses;
+            return self.transport.algorithm_step_pulses;
         };
         if sense.scan_mode == "scanning" {
             note_unit_to_pulses(&sense.scan_unit)
         } else {
-            self.layer_algorithm_step_pulses
+            self.transport
+                .layer_algorithm_step_pulses
                 .get(index)
                 .copied()
                 .unwrap_or(DEFAULT_ALGORITHM_STEP_RED)
@@ -167,46 +172,53 @@ impl NativeRunner {
     }
 
     fn advance_transport_indicators(&mut self, pulses: u32) {
-        if self.event_dot_pulses_remaining > 0 {
-            self.event_dot_pulses_remaining -= 1;
+        if self.display.event_dot_pulses_remaining > 0 {
+            self.display.event_dot_pulses_remaining -= 1;
         }
-        self.event_dot_on = self.event_dot_pulses_remaining > 0;
-        if self.transport_flash_pulses_remaining > 0 {
-            self.transport_flash_pulses_remaining -= 1;
+        self.display.event_dot_on = self.display.event_dot_pulses_remaining > 0;
+        if self.display.transport_flash_pulses_remaining > 0 {
+            self.display.transport_flash_pulses_remaining -= 1;
         }
-        let previous_pulse = self.current_ppqn_pulse.saturating_sub(u64::from(pulses));
-        let current_pulse = self.current_ppqn_pulse;
+        let previous_pulse = self
+            .transport
+            .current_ppqn_pulse
+            .saturating_sub(u64::from(pulses));
+        let current_pulse = self.transport.current_ppqn_pulse;
         if crossed_ppqn_boundary(previous_pulse, current_pulse, 96) {
-            self.transport_flash = "measure";
-            self.transport_flash_pulses_remaining = 6;
+            self.display.transport_flash = "measure";
+            self.display.transport_flash_pulses_remaining = 6;
         } else if crossed_ppqn_boundary(previous_pulse, current_pulse, 24) {
-            self.transport_flash = "beat";
-            self.transport_flash_pulses_remaining = 6;
-        } else if self.transport_flash_pulses_remaining == 0 {
-            self.transport_flash = "none";
+            self.display.transport_flash = "beat";
+            self.display.transport_flash_pulses_remaining = 6;
+        } else if self.display.transport_flash_pulses_remaining == 0 {
+            self.display.transport_flash = "none";
         }
     }
 
     fn accumulate_layer_pulses(&mut self, pulses: u32) {
-        if self.layer_pulse_accumulators.len() < GRID_HEIGHT {
-            self.layer_pulse_accumulators.resize(GRID_HEIGHT, 0);
+        if self.transport.layer_pulse_accumulators.len() < GRID_HEIGHT {
+            self.transport
+                .layer_pulse_accumulators
+                .resize(GRID_HEIGHT, 0);
         }
-        for value in &mut self.layer_pulse_accumulators {
+        for value in &mut self.transport.layer_pulse_accumulators {
             *value = value.saturating_add(pulses);
         }
     }
 
     fn consume_swung_pulses(&mut self, straight_pulses: u32) -> u32 {
-        if self.swing_pct == 0 || straight_pulses == 0 {
-            self.swung_ppqn_pulse = self.current_ppqn_pulse;
+        if self.transport.swing_pct == 0 || straight_pulses == 0 {
+            self.transport.swung_ppqn_pulse = self.transport.current_ppqn_pulse;
             return straight_pulses;
         }
         let previous = self
+            .transport
             .current_ppqn_pulse
             .saturating_sub(u64::from(straight_pulses));
-        let previous_swung = swung_pulse_total(previous, self.swing_pct);
-        let current_swung = swung_pulse_total(self.current_ppqn_pulse, self.swing_pct);
-        self.swung_ppqn_pulse = current_swung;
+        let previous_swung = swung_pulse_total(previous, self.transport.swing_pct);
+        let current_swung =
+            swung_pulse_total(self.transport.current_ppqn_pulse, self.transport.swing_pct);
+        self.transport.swung_ppqn_pulse = current_swung;
         current_swung
             .saturating_sub(previous_swung)
             .min(u64::from(u32::MAX)) as u32
@@ -214,12 +226,13 @@ impl NativeRunner {
 
     fn advance_active_layer(&mut self, events: &mut RoutedMusicalEvents) -> Result<(), String> {
         let active_step_pulses = self.step_pulses_for_layer(self.active_layer_index);
-        while self.layer_pulse_accumulators[self.active_layer_index] >= active_step_pulses {
-            self.layer_pulse_accumulators[self.active_layer_index] -= active_step_pulses;
+        while self.transport.layer_pulse_accumulators[self.active_layer_index] >= active_step_pulses
+        {
+            self.transport.layer_pulse_accumulators[self.active_layer_index] -= active_step_pulses;
             let tick = self.active_engine_tick_result()?;
-            self.tick = self.tick.saturating_add(1);
-            if let Some(layer_tick) = self.layer_ticks.get_mut(self.active_layer_index) {
-                *layer_tick = self.tick;
+            self.transport.tick = self.transport.tick.saturating_add(1);
+            if let Some(layer_tick) = self.transport.layer_ticks.get_mut(self.active_layer_index) {
+                *layer_tick = self.transport.tick;
             }
             events.extend(self.take_due_link_events(self.active_layer_index));
             self.apply_runtime_modulation(&tick.mapped_intents, self.active_layer_index);
@@ -248,8 +261,8 @@ impl NativeRunner {
 
     fn record_tick_events_active(&mut self, has_events: bool) {
         if has_events {
-            self.event_dot_on = true;
-            self.event_dot_pulses_remaining = 1;
+            self.display.event_dot_on = true;
+            self.display.event_dot_pulses_remaining = 1;
         }
     }
 

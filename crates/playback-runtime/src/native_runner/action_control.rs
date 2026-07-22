@@ -20,7 +20,7 @@ impl NativeRunner {
             let config = self.sparks_fx_selected.clone();
             self.sparks_fx_assign = Some(config.clone());
             self.active_sparks_mode = "fx".into();
-            self.toast = Some(NativeToast {
+            self.display.toast = Some(NativeToast {
                 message: format!("Map FX: {}", super::sparks_fx_type(&config)),
                 offset: 0,
             });
@@ -67,11 +67,11 @@ impl NativeRunner {
         }
         instrument.synth_config = synth_config;
         instrument.synth_gain_pct = gain;
-        self.toast = Some(NativeToast {
+        self.display.toast = Some(NativeToast {
             message: format!("Loaded synth {preset}"),
             offset: 0,
         });
-        self.config_dirty = true;
+        self.mark_config_dirty();
         self.menu.rebuild(self.menu_config());
     }
 
@@ -96,7 +96,7 @@ impl NativeRunner {
     ) -> Result<Option<RuntimePlatformEffect>, String> {
         if !confirmed {
             if let Some(confirm) = self.confirmation_for_action(&action) {
-                self.confirm_dialog = Some(confirm);
+                self.display.confirm_dialog = Some(confirm);
                 return Ok(None);
             }
         }
@@ -127,13 +127,13 @@ impl NativeRunner {
                     Ok(None)
                 } else if action_type == "preset.saveCurrent" && self.current_preset_name.is_none()
                 {
-                    self.toast = Some(NativeToast {
+                    self.display.toast = Some(NativeToast {
                         message: "No preset loaded".into(),
                         offset: 0,
                     });
                     Ok(None)
                 } else if action_type == "midi.panic" {
-                    self.toast = Some(NativeToast {
+                    self.display.toast = Some(NativeToast {
                         message: "MIDI panic sent".into(),
                         offset: 0,
                     });
@@ -145,9 +145,9 @@ impl NativeRunner {
                     self.clear_patch_state()?;
                     Ok(None)
                 } else if action_type == "system.reboot" || action_type == "system.shutdown" {
-                    self.oled_mode = super::NativeOledMode::Splash;
-                    self.oled_splash_text = super::OLED_SHUTDOWN_SPLASH_KEY.into();
-                    self.oled_splash_until = Some(
+                    self.display.oled_mode = super::NativeOledMode::Splash;
+                    self.display.oled_splash_text = super::OLED_SHUTDOWN_SPLASH_KEY.into();
+                    self.display.oled_splash_until = Some(
                         std::time::Instant::now()
                             + std::time::Duration::from_millis(
                                 super::OLED_SHUTDOWN_SPLASH_FAILSAFE_MS,
@@ -169,9 +169,9 @@ impl NativeRunner {
                     self.show_toast("USB: applying");
                     Ok(self.platform_effect_for_action(&action_type))
                 } else if action_type == "usb.sdTransferStart" {
-                    self.transport = RuntimeTransportState::Stopped;
+                    self.transport.transport = RuntimeTransportState::Stopped;
                     self.reset_transport_position();
-                    self.help_popup = None;
+                    self.display.help_popup = None;
                     self.open_usb_sd_transfer_modal();
                     Ok(self.platform_effect_for_action(&action_type))
                 } else if let Some(effect) = self.handle_sample_action(&action_type)? {
@@ -224,7 +224,7 @@ impl NativeRunner {
             .iter()
             .position(|instrument| instrument.kind == "none")
         else {
-            self.toast = Some(NativeToast {
+            self.display.toast = Some(NativeToast {
                 message: "All slots in use".into(),
                 offset: 0,
             });
@@ -236,7 +236,7 @@ impl NativeRunner {
         clone.midi_enabled = false;
         clone.midi_channel = (target_index + 1).min(16) as u8;
         self.instruments[target_index] = clone;
-        self.config_dirty = true;
+        self.mark_config_dirty();
         self.show_toast(format!("Cloned to I{}", target_index + 1));
     }
 
@@ -245,7 +245,7 @@ impl NativeRunner {
             return;
         }
         self.instruments[index] = NativeInstrumentSlot::reset(index);
-        self.config_dirty = true;
+        self.mark_config_dirty();
         self.show_toast(format!("Reset I{}", index + 1));
     }
 
@@ -266,11 +266,11 @@ impl NativeRunner {
         } else {
             None
         };
-        self.toast = Some(NativeToast {
+        self.display.toast = Some(NativeToast {
             message: format!("Aux {} click mapped", index + 1),
             offset: 0,
         });
-        self.config_dirty = true;
+        self.mark_config_dirty();
     }
 
     fn set_shift_aux_click_target(&mut self, index: usize, action: Option<NativeMenuAction>) {
@@ -290,10 +290,10 @@ impl NativeRunner {
         } else {
             None
         };
-        self.toast = Some(NativeToast {
+        self.display.toast = Some(NativeToast {
             message: format!("Aux {} S+Clk mapped", index + 1),
             offset: 0,
         });
-        self.config_dirty = true;
+        self.mark_config_dirty();
     }
 }

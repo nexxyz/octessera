@@ -7,7 +7,7 @@ pub(crate) fn layer_two_scanning_uses_second_instrument_slot_without_bleeding_to
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.transport = RuntimeTransportState::Playing;
+    runner.transport.transport = RuntimeTransportState::Playing;
     runner.instruments[1].kind = "sampler".into();
     runner.instruments[1].sample_assignments = vec![NativeSampleAssignment {
         x: 0,
@@ -57,7 +57,7 @@ pub(crate) fn triplet_scan_unit_advances_at_expected_pulse_count() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.transport = RuntimeTransportState::Playing;
+    runner.transport.transport = RuntimeTransportState::Playing;
     runner.pulses_layers[0].scan_mode = "scanning".into();
     runner.pulses_layers[0].scan_axis = "rows".into();
     runner.pulses_layers[0].scan_unit = "1/8T".into();
@@ -83,7 +83,7 @@ pub(crate) fn triplet_scan_unit_advances_at_expected_pulse_count() {
         })
         .unwrap();
     assert!(musical_note_ons(&before_unit).is_empty());
-    assert_eq!(runner.layer_pulse_accumulators[0], 7);
+    assert_eq!(runner.transport.layer_pulse_accumulators[0], 7);
 
     let on_unit = runner
         .send(HostMessage::TransportPulseStep {
@@ -94,7 +94,7 @@ pub(crate) fn triplet_scan_unit_advances_at_expected_pulse_count() {
         })
         .unwrap();
     assert!(!musical_note_ons(&on_unit).is_empty());
-    assert_eq!(runner.layer_pulse_accumulators[0], 0);
+    assert_eq!(runner.transport.layer_pulse_accumulators[0], 0);
 }
 
 #[test]
@@ -104,7 +104,7 @@ pub(crate) fn changing_layer_four_behavior_does_not_reset_layer_two_playback_pha
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.transport = RuntimeTransportState::Playing;
+    runner.transport.transport = RuntimeTransportState::Playing;
     runner.layer_behavior_ids[1] = "sequencer".into();
     runner.pulses_layers[1].scan_mode = "scanning".into();
     runner.pulses_layers[1].scan_axis = "rows".into();
@@ -131,8 +131,8 @@ pub(crate) fn changing_layer_four_behavior_does_not_reset_layer_two_playback_pha
             request_snapshot: Some(false),
         })
         .unwrap();
-    assert_eq!(runner.layer_pulse_accumulators[1], 3);
-    let ppqn_before = runner.current_ppqn_pulse;
+    assert_eq!(runner.transport.layer_pulse_accumulators[1], 3);
+    let ppqn_before = runner.transport.current_ppqn_pulse;
 
     runner.select_active_layer(3).unwrap();
     runner
@@ -142,8 +142,8 @@ pub(crate) fn changing_layer_four_behavior_does_not_reset_layer_two_playback_pha
         .rebuild_engine(platform_core::get_native_behavior("none").unwrap())
         .unwrap();
 
-    assert_eq!(runner.current_ppqn_pulse, ppqn_before);
-    assert_eq!(runner.layer_pulse_accumulators[1], 3);
+    assert_eq!(runner.transport.current_ppqn_pulse, ppqn_before);
+    assert_eq!(runner.transport.layer_pulse_accumulators[1], 3);
     runner
         .send(HostMessage::TransportPulseStep {
             pulses: 3,
@@ -152,7 +152,7 @@ pub(crate) fn changing_layer_four_behavior_does_not_reset_layer_two_playback_pha
             request_snapshot: Some(false),
         })
         .unwrap();
-    assert_eq!(runner.layer_pulse_accumulators[1], 0);
+    assert_eq!(runner.transport.layer_pulse_accumulators[1], 0);
 }
 
 #[test]
@@ -162,7 +162,7 @@ pub(crate) fn switching_to_scanning_layer_restores_its_visual_scan_tick() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.transport = RuntimeTransportState::Playing;
+    runner.transport.transport = RuntimeTransportState::Playing;
     runner.layer_behavior_ids[1] = "sequencer".into();
     runner.pulses_layers[1].scan_mode = "scanning".into();
     runner.pulses_layers[1].scan_axis = "columns".into();
@@ -178,11 +178,11 @@ pub(crate) fn switching_to_scanning_layer_restores_its_visual_scan_tick() {
             request_snapshot: Some(false),
         })
         .unwrap();
-    assert_eq!(runner.layer_ticks[1], 2);
+    assert_eq!(runner.transport.layer_ticks[1], 2);
 
-    runner.tick = 99;
+    runner.transport.tick = 99;
     runner.select_active_layer(1).unwrap();
-    assert_eq!(runner.tick, 2);
+    assert_eq!(runner.transport.tick, 2);
 }
 
 #[test]
@@ -268,7 +268,7 @@ pub(crate) fn inactive_scanning_layer_uses_its_sampler_slot_after_config_load() 
             },
         })
         .unwrap();
-    runner.transport = RuntimeTransportState::Playing;
+    runner.transport.transport = RuntimeTransportState::Playing;
 
     let messages = runner
         .send(HostMessage::TransportPulseStep {

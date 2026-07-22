@@ -28,12 +28,13 @@ impl NativeRunner {
             return vec![];
         }
         let step_pulses = if layer_index == self.active_layer_index {
-            self.algorithm_step_pulses
+            self.transport.algorithm_step_pulses
         } else {
-            self.layer_algorithm_step_pulses
+            self.transport
+                .layer_algorithm_step_pulses
                 .get(layer_index)
                 .copied()
-                .unwrap_or(self.algorithm_step_pulses)
+                .unwrap_or(self.transport.algorithm_step_pulses)
         };
         let mut items = vec![crate::native_menu::NativeMenuItem {
             label: "Step Rate".into(),

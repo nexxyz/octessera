@@ -18,7 +18,7 @@ pub(crate) fn system_sound_master_volume_edit_via_menu() {
         input: json!({ "type": "encoder_turn", "delta": 26, "id": "main" }),
         request_snapshot: None,
     });
-    assert_eq!(runner.ui.master_volume, 99);
+    assert_eq!(runner.display.ui.master_volume, 99);
 
     let exit = runner
         .send(HostMessage::DeviceInput {
@@ -155,7 +155,7 @@ pub(crate) fn midi_sync_mode_edits_through_menu() {
     runner.menu.state.stack = vec![5, 4];
     runner.menu.state.cursor = 4;
 
-    assert_eq!(runner.sync_source, SyncSource::Internal);
+    assert_eq!(runner.transport.sync_source, SyncSource::Internal);
 
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
@@ -172,7 +172,7 @@ pub(crate) fn midi_sync_mode_edits_through_menu() {
         })
         .unwrap();
 
-    assert_eq!(runner.sync_source, SyncSource::External);
+    assert_eq!(runner.transport.sync_source, SyncSource::External);
     assert_eq!(
         snapshot_from(&changed)["settings"]["midi"]["syncMode"],
         "external"
@@ -229,5 +229,8 @@ pub(crate) fn reset_behavior_action_shows_feedback() {
         .execute_menu_action(NativeMenuAction::ResetBehavior)
         .unwrap();
 
-    assert_eq!(runner.toast.as_ref().unwrap().message, "Behavior reset");
+    assert_eq!(
+        runner.display.toast.as_ref().unwrap().message,
+        "Behavior reset"
+    );
 }

@@ -1,107 +1,35 @@
 use super::*;
+use realtime_engine::synth::FxBusSlotConfig;
 
 #[test]
-fn build_audio_slot_configs_applies_defaults_and_limits() {
-    let mut many: Vec<AudioInstrumentSlotConfig> = Vec::new();
-    many.push(AudioInstrumentSlotConfig {
-        kind: "sampler".to_string(),
-        synth: None,
-        sample: Some(AudioSampleConfig {
-            slots: vec![
-                AudioSampleSlotEntry {
-                    path: Some("a.wav".to_string()),
-                },
-                AudioSampleSlotEntry {
-                    path: Some("b.wav".to_string()),
-                },
-            ],
-            tune_semis: Some(7.0),
-            amp: Some(AudioAmpConfig {
-                gain_pct: Some(80.0),
-                velocity_sensitivity_pct: Some(50.0),
-            }),
-            filter: None,
-        }),
-        mixer: None,
-    });
-    many.push(AudioInstrumentSlotConfig {
-        kind: "synth".to_string(),
-        synth: None,
-        sample: None,
-        mixer: None,
-    });
-    for _ in 0..20 {
-        many.push(AudioInstrumentSlotConfig {
-            kind: "sampler".to_string(),
-            synth: None,
-            sample: None,
-            mixer: None,
-        });
-    }
-
-    let (slots, cfgs) = build_audio_slot_configs(&many);
-    assert!(!slots[0]);
-    assert!(slots[1]);
-    assert_eq!(cfgs[0].tune_semis, 7.0);
-    assert_eq!(cfgs[0].gain_pct, 80.0);
-    assert_eq!(cfgs[0].vel_sens_pct, 50.0);
-    assert_eq!(cfgs[0].slots[0], Some("a.wav".to_string()));
-    assert_eq!(cfgs[0].slots[1], Some("b.wav".to_string()));
-    assert_eq!(slots.len(), INSTRUMENT_SLOT_COUNT);
-}
-
-#[test]
-fn sample_banks_preserve_sample_playback_controls_without_decoding_in_audio_thread() {
-    let config = AudioInstrumentsConfig {
-        instruments: vec![AudioInstrumentSlotConfig {
-            kind: "sampler".to_string(),
-            synth: None,
-            sample: Some(AudioSampleConfig {
-                slots: vec![AudioSampleSlotEntry {
-                    path: Some("missing.wav".to_string()),
-                }],
-                tune_semis: Some(-5.0),
-                amp: Some(AudioAmpConfig {
-                    gain_pct: Some(70.0),
-                    velocity_sensitivity_pct: Some(40.0),
-                }),
-                filter: Some(AudioSampleFilterConfig {
-                    cutoff_hz: Some(6400.0),
-                    resonance: Some(35.0),
-                }),
-            }),
-            mixer: None,
+fn desktop_uses_shared_audio_normalization_and_sample_metadata() {
+    let config = normalize_config(&serde_json::json!({
+        "masterVolume": 81,
+        "voiceStealingMode": "fixed12",
+        "instruments": [{
+            "type": "sampler",
+            "sample": {
+                "slots": [{ "path": "kick.wav" }],
+                "tuneSemis": -5,
+                "amp": { "gainPct": 70, "velocitySensitivityPct": 40 },
+                "filter": { "cutoffHz": 6400, "resonance": 35 }
+            }
         }],
-        mixer: None,
-        pan_positions: None,
-        master_volume: None,
-        voice_stealing_mode: None,
-    };
+        "mixer": { "buses": [{ "slot3": { "type": "tremolo" } }] }
+    }))
+    .unwrap();
 
-    let banks = sample_banks(&config, |_| None, |_| None);
+    assert_eq!(config.master_volume, 81.0);
+    assert_eq!(
+        config.instruments[0].active_sample().unwrap().tune_semis,
+        -5.0
+    );
+    assert!(matches!(
+        config.mixer.as_ref().unwrap().buses[0].slots[2],
+        FxBusSlotConfig::Config { ref kind, .. } if kind == "tremolo"
+    ));
 
-    assert_eq!(banks.len(), 1);
-    assert_eq!(banks[0].tune_semis, -5.0);
-    assert_eq!(banks[0].gain_pct, 70.0);
-    assert_eq!(banks[0].velocity_sensitivity_pct, 40.0);
-    assert_eq!(banks[0].filter_cutoff_hz, 6400.0);
-    assert_eq!(banks[0].filter_resonance, 35.0);
-    assert!(banks[0].slots[0].buffer.is_none());
-}
-
-#[test]
-fn sample_bank_for_slot_config_loads_sampler_slot_and_preserves_controls() {
-    let config = serde_json::json!({
-        "type": "sampler",
-        "sample": {
-            "slots": [{ "path": "kick.wav" }],
-            "tuneSemis": 3.0,
-            "amp": { "gainPct": 66.0, "velocitySensitivityPct": 25.0 },
-            "filter": { "cutoffHz": 4200.0 }
-        }
-    });
-
-    let bank = sample_bank_for_slot_config(
+    let banks = sample_banks(
         &config,
         |path| Some(format!("resolved/{path}")),
         |path| {
@@ -112,211 +40,48 @@ fn sample_bank_for_slot_config_loads_sampler_slot_and_preserves_controls() {
                 sample_rate: 48_000,
             })
         },
-    )
-    .unwrap()
-    .expect("sampler bank");
-
-    assert_eq!(bank.tune_semis, 3.0);
-    assert_eq!(bank.gain_pct, 66.0);
-    assert_eq!(bank.velocity_sensitivity_pct, 25.0);
-    assert_eq!(bank.filter_cutoff_hz, 4200.0);
-    assert_eq!(bank.filter_resonance, 20.0);
-    assert_eq!(
-        bank.slots[0].buffer.as_ref().unwrap().samples.as_ref(),
-        &[0.5, -0.5]
     );
+    assert_eq!(banks[0].tune_semis, -5.0);
+    assert!(banks[0].slots[0].buffer.is_some());
 }
 
 #[test]
-fn sample_bank_signature_ignores_synth_only_changes() {
-    let mut synth = realtime_engine::synth::default_synth_config();
-    let config = AudioInstrumentsConfig {
-        instruments: vec![
-            AudioInstrumentSlotConfig {
-                kind: "synth".to_string(),
-                synth: Some(synth),
-                sample: None,
-                mixer: None,
-            },
-            AudioInstrumentSlotConfig {
-                kind: "sampler".to_string(),
-                synth: None,
-                sample: Some(AudioSampleConfig {
-                    slots: vec![AudioSampleSlotEntry {
-                        path: Some("kick.wav".to_string()),
-                    }],
-                    tune_semis: Some(0.0),
-                    amp: Some(AudioAmpConfig {
-                        gain_pct: Some(100.0),
-                        velocity_sensitivity_pct: Some(100.0),
-                    }),
-                    filter: Some(AudioSampleFilterConfig {
-                        cutoff_hz: Some(8000.0),
-                        resonance: Some(20.0),
-                    }),
-                }),
-                mixer: None,
-            },
-        ],
-        mixer: None,
-        pan_positions: None,
-        master_volume: None,
-        voice_stealing_mode: None,
-    };
-    let before = sample_bank_signature(&config);
-    synth.filter.cutoff_hz = 120.0;
-    let changed_synth = AudioInstrumentsConfig {
-        instruments: vec![
-            AudioInstrumentSlotConfig {
-                kind: "synth".to_string(),
-                synth: Some(synth),
-                sample: None,
-                mixer: None,
-            },
-            AudioInstrumentSlotConfig {
-                kind: "sampler".to_string(),
-                synth: None,
-                sample: Some(AudioSampleConfig {
-                    slots: vec![AudioSampleSlotEntry {
-                        path: Some("kick.wav".to_string()),
-                    }],
-                    tune_semis: Some(0.0),
-                    amp: Some(AudioAmpConfig {
-                        gain_pct: Some(100.0),
-                        velocity_sensitivity_pct: Some(100.0),
-                    }),
-                    filter: Some(AudioSampleFilterConfig {
-                        cutoff_hz: Some(8000.0),
-                        resonance: Some(20.0),
-                    }),
-                }),
-                mixer: None,
-            },
-        ],
-        mixer: None,
-        pan_positions: None,
-        master_volume: None,
-        voice_stealing_mode: None,
-    };
-    assert_eq!(before, sample_bank_signature(&changed_synth));
+fn desktop_rejects_the_same_malformed_fx_payload_as_pi() {
+    let error = normalize_config(&serde_json::json!({
+        "instruments": [{ "type": "synth" }],
+        "mixer": { "buses": [{ "slot1": { "params": {} } }] }
+    }))
+    .unwrap_err();
+
+    assert!(error.contains("invalid mixer bus 1 slot 1"), "{error}");
 }
 
 #[test]
-fn sample_bank_signature_tracks_sampler_filter_changes() {
-    let config = AudioInstrumentsConfig {
-        instruments: vec![AudioInstrumentSlotConfig {
-            kind: "sampler".to_string(),
-            synth: None,
-            sample: Some(AudioSampleConfig {
-                slots: vec![AudioSampleSlotEntry {
-                    path: Some("kick.wav".to_string()),
-                }],
-                tune_semis: None,
-                amp: None,
-                filter: Some(AudioSampleFilterConfig {
-                    cutoff_hz: Some(8000.0),
-                    resonance: Some(20.0),
-                }),
-            }),
-            mixer: None,
-        }],
-        mixer: None,
-        pan_positions: None,
-        master_volume: None,
-        voice_stealing_mode: None,
-    };
-    let changed = AudioInstrumentsConfig {
-        instruments: vec![AudioInstrumentSlotConfig {
-            kind: "sampler".to_string(),
-            synth: None,
-            sample: Some(AudioSampleConfig {
-                slots: vec![AudioSampleSlotEntry {
-                    path: Some("kick.wav".to_string()),
-                }],
-                tune_semis: None,
-                amp: None,
-                filter: Some(AudioSampleFilterConfig {
-                    cutoff_hz: Some(3200.0),
-                    resonance: Some(55.0),
-                }),
-            }),
-            mixer: None,
-        }],
-        mixer: None,
-        pan_positions: None,
-        master_volume: None,
-        voice_stealing_mode: None,
-    };
+fn sample_bank_signature_tracks_only_sampler_changes() {
+    let first = normalize_config(&serde_json::json!({
+        "instruments": [{ "type": "synth" }, {
+            "type": "sampler",
+            "sample": { "slots": [{ "path": "kick.wav" }] }
+        }]
+    }))
+    .unwrap();
+    let changed = normalize_config(&serde_json::json!({
+        "instruments": [{ "type": "synth", "synth": {
+            "osc1": { "waveform": "saw", "levelPct": 80, "octave": 0, "detuneCents": 0, "pulseWidthPct": 50 },
+            "osc2": { "waveform": "square", "levelPct": 80, "octave": 0, "detuneCents": 0, "pulseWidthPct": 50 },
+            "amp": { "gainPct": 80, "velocitySensitivityPct": 100 },
+            "ampEnv": { "attackMs": 5, "decayMs": 120, "sustainPct": 70, "releaseMs": 180 },
+            "filter": { "type": "lowpass", "cutoffHz": 120, "resonance": 20, "envAmountPct": 0, "keyTrackingPct": 0 },
+            "filterEnv": { "attackMs": 5, "decayMs": 120, "sustainPct": 70, "releaseMs": 180 }
+        } }, {
+            "type": "sampler",
+            "sample": { "slots": [{ "path": "kick.wav" }], "tuneSemis": 2 }
+        }]
+    }))
+    .unwrap();
 
     assert_ne!(
-        sample_bank_signature(&config),
+        sample_bank_signature(&first),
         sample_bank_signature(&changed)
     );
-}
-
-#[test]
-fn synth_payload_includes_master_fx_slots() {
-    let config = AudioInstrumentsConfig {
-        instruments: vec![AudioInstrumentSlotConfig {
-            kind: "synth".to_string(),
-            synth: None,
-            sample: None,
-            mixer: None,
-        }],
-        mixer: Some(AudioMixerConfig {
-            buses: vec![AudioBusConfig {
-                slot1: Some(serde_json::json!({
-                    "type": "delay",
-                    "params": { "timeMs": 333.0, "feedback": 0.42, "mixPct": 44.0 }
-                })),
-                slot2: None,
-                slot3: Some(serde_json::json!({ "type": "tremolo", "params": {} })),
-                pan_pos: Some(18),
-                volume_pct: Some(72.0),
-            }],
-            master: Some(AudioMasterConfig {
-                slots: vec![serde_json::json!({
-                    "type": "eq",
-                    "params": {
-                        "lowGainDb": 3.0,
-                        "midGainDb": 0.0,
-                        "midFreqHz": 1200.0,
-                        "midQ": 1.0,
-                        "highGainDb": -2.0,
-                        "mixPct": 100.0
-                    }
-                })],
-            }),
-        }),
-        pan_positions: None,
-        master_volume: None,
-        voice_stealing_mode: None,
-    };
-
-    let payload = synth_payload(&config);
-    let mixer = payload.mixer.expect("expected mixer config");
-    assert_eq!(mixer.buses.len(), 1);
-    assert_eq!(mixer.buses[0].slots.len(), 3);
-    assert_eq!(mixer.buses[0].pan_pos, 18);
-    assert_eq!(mixer.buses[0].volume_pct, 72.0);
-    match &mixer.buses[0].slots[0] {
-        FxBusSlotConfig::Config { kind, params } => {
-            assert_eq!(kind, "delay");
-            assert_eq!(params["feedback"], serde_json::json!(0.42));
-        }
-        slot => panic!("unexpected bus slot: {slot:?}"),
-    }
-    assert!(matches!(mixer.buses[0].slots[1], FxBusSlotConfig::Kind(ref kind) if kind == "none"));
-    assert!(
-        matches!(mixer.buses[0].slots[2], FxBusSlotConfig::Config { ref kind, .. } if kind == "tremolo")
-    );
-    let master = mixer.master.expect("expected master FX config");
-    assert_eq!(master.slots.len(), 1);
-    match &master.slots[0] {
-        FxBusSlotConfig::Config { kind, params } => {
-            assert_eq!(kind, "eq");
-            assert_eq!(params["lowGainDb"], serde_json::json!(3.0));
-        }
-        slot => panic!("unexpected slot: {slot:?}"),
-    }
 }

@@ -4,7 +4,7 @@ use super::*;
 pub(crate) fn cursor_only_navigation_does_not_apply_menu_values() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![5, 3];
-    runner.ui.master_volume = 12;
+    runner.display.ui.master_volume = 12;
 
     let messages = runner
         .send(HostMessage::DeviceInput {
@@ -13,7 +13,7 @@ pub(crate) fn cursor_only_navigation_does_not_apply_menu_values() {
         })
         .unwrap();
 
-    assert_eq!(runner.ui.master_volume, 12);
+    assert_eq!(runner.display.ui.master_volume, 12);
     assert_eq!(snapshot_from(&messages)["settings"]["masterVolume"], 12);
 }
 
@@ -22,7 +22,7 @@ pub(crate) fn cursor_only_navigation_does_not_apply_group_browsing_side_effects(
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![5];
     runner.menu.state.cursor = 0;
-    runner.sync_source = SyncSource::External;
+    runner.transport.sync_source = SyncSource::External;
 
     let messages = runner
         .send(HostMessage::DeviceInput {
@@ -31,7 +31,7 @@ pub(crate) fn cursor_only_navigation_does_not_apply_group_browsing_side_effects(
         })
         .unwrap();
 
-    assert_eq!(runner.sync_source, SyncSource::External);
+    assert_eq!(runner.transport.sync_source, SyncSource::External);
     assert_eq!(
         snapshot_from(&messages)["settings"]["midi"]["syncMode"],
         "external"
@@ -43,7 +43,7 @@ pub(crate) fn entering_group_does_not_apply_group_side_effects() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![5];
     runner.menu.state.cursor = 4;
-    runner.sync_source = SyncSource::External;
+    runner.transport.sync_source = SyncSource::External;
 
     let messages = runner
         .send(HostMessage::DeviceInput {
@@ -53,7 +53,7 @@ pub(crate) fn entering_group_does_not_apply_group_side_effects() {
         .unwrap();
 
     assert_eq!(runner.menu.state.stack, vec![5, 4]);
-    assert_eq!(runner.sync_source, SyncSource::External);
+    assert_eq!(runner.transport.sync_source, SyncSource::External);
     assert_eq!(
         snapshot_from(&messages)["settings"]["midi"]["syncMode"],
         "external"
@@ -94,9 +94,9 @@ pub(crate) fn transport_pulse_snapshot_is_explicit() {
 #[test]
 pub(crate) fn transport_pulse_snapshot_clears_startup_splash_after_timeout() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.oled_mode = NativeOledMode::Splash;
-    runner.oled_splash_text = super::OLED_STARTUP_SPLASH_KEY.into();
-    runner.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
+    runner.display.oled_mode = NativeOledMode::Splash;
+    runner.display.oled_splash_text = super::OLED_STARTUP_SPLASH_KEY.into();
+    runner.display.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
 
     let messages = runner
         .send(HostMessage::TransportPulseStep {

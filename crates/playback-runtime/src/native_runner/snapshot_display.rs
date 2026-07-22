@@ -25,11 +25,11 @@ impl NativeRunner {
         &self,
         menu: crate::native_menu::NativeMenuSnapshot,
     ) -> DisplaySnapshot {
-        let mut display = if let Some(confirm) = &self.confirm_dialog {
+        let mut display = if let Some(confirm) = &self.display.confirm_dialog {
             confirm_dialog_display(confirm)
-        } else if let Some(modal) = &self.usb_sd_transfer_modal {
+        } else if let Some(modal) = &self.display.usb_sd_transfer_modal {
             usb_sd_transfer_modal_display(modal)
-        } else if let Some(help) = &self.help_popup {
+        } else if let Some(help) = &self.display.help_popup {
             help_popup_display(help)
         } else if let Some((title, lines)) = self.aux_mapping_overlay() {
             overlay_display(title, lines)
@@ -48,7 +48,7 @@ impl NativeRunner {
                         &scroll_display_line_once(
                             &line,
                             display.full_lines.get(row).and_then(|line| line.as_deref()),
-                            self.menu_scroll_offset,
+                            self.display.menu_scroll_offset,
                         ),
                         DISPLAY_LINE_WIDTH,
                     )

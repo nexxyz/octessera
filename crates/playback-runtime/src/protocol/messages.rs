@@ -27,6 +27,7 @@ pub enum HostMessage {
     MidiRealtimeStart,
     MidiRealtimeContinue,
     MidiRealtimeStop,
+    TransportStop,
     RuntimeResult {
         result: RuntimeStoreResult,
     },

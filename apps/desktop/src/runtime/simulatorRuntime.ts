@@ -1,4 +1,4 @@
-import { type DeviceInput, type RuntimeHostMessage, type RuntimeRunnerMessage, type RuntimeSnapshot } from "@octessera/device-contracts";
+import { type DeviceInput, type RuntimeHostMessage, type RuntimeRunnerMessage, type RuntimeSnapshot, type RuntimeStatus } from "@octessera/device-contracts";
 import { TauriAudioLoadService, type AudioLoadService, type AudioLoadStatus } from "../audio/audioLoadEvents";
 import { syncPlaybackConfigIfNeeded as syncPlaybackConfig, type PlaybackConfigSyncState } from "./playbackConfigSync";
 import { createIntervalRuntimeScheduler, type RuntimeScheduler } from "./runtimeScheduler";
@@ -19,12 +19,29 @@ type SimulatorRuntime = {
 
 type EncoderTurnInput = Extract<DeviceInput, { type: "encoder_turn" }>;
 type EncoderId = NonNullable<EncoderTurnInput["id"]>;
-type DesktopRunnerMessage = RuntimeRunnerMessage | { type: "audio_error"; error?: string | null };
+type DesktopRunnerMessage = RuntimeRunnerMessage;
 
 type RuntimeDeps = {
   audioLoadService?: AudioLoadService;
   runtimeDispatch?: (message: RuntimeHostMessage) => Promise<RuntimeRunnerMessage[]>;
 };
+
+export function shouldApplyRuntimeBatch(
+  lastSeq: number,
+  seq: number,
+  nowMs: number,
+  ignoreUntilMs: number,
+  messages: RuntimeRunnerMessage[],
+): boolean {
+  return seq > lastSeq && (nowMs >= ignoreUntilMs || batchContainsFault(messages));
+}
+
+function batchContainsFault(messages: RuntimeRunnerMessage[]) {
+  return messages.some((message) =>
+    (message.type === "runtime_status" && message.status.error !== undefined) ||
+    (message.type === "snapshot" && message.snapshot.runtimeError !== undefined)
+  );
+}
 
 const TAURI_DISPLAY_DRAIN_MS = 66;
 const ASYNC_RUNTIME_SUPPRESS_MS = 120;
@@ -40,7 +57,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
   let latestFrame: RuntimeSnapshot = createInitialRuntimeSnapshot();
   let shiftActive = false;
   let audioLoad: AudioLoadStatus = { ratio: 0, voiceSteal: false };
-  let audioError: string | null = null;
+  let runtimeStatus: RuntimeStatus | null = null;
   const playbackConfigSyncState: PlaybackConfigSyncState = { lastSyncedPlaybackConfig: "" };
   let runtimeUpdateEpoch = 0;
   let lastAsyncRuntimeSeq = 0;
@@ -63,8 +80,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
       applyAsyncRuntimeBatch(batch.seq, batch.messages, performance.now());
     }).catch((err) => {
       console.error("[Runtime] listenRuntimeMessages failed:", err);
-      audioError = `runtime messages failed: ${err instanceof Error ? err.message : String(err)}`;
-      publishSnapshot();
+      console.error("[Runtime] listenRuntimeMessages failed:", err);
     });
   }
 
@@ -74,7 +90,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
   });
 
   function publishSnapshot() {
-    const snapshot = snapshotFromCore(latestFrame, snapshotCache, shiftActive, indicators, { audioLoad, audioError });
+    const snapshot = snapshotFromCore(latestFrame, snapshotCache, shiftActive, indicators, { audioLoad, runtimeStatus });
     for (const listener of listeners) listener(snapshot);
   }
 
@@ -100,8 +116,9 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
       applyUiPulse(message.pulse);
       return;
     }
-    if (message.type === "audio_error") {
-      applyAudioErrorMessage(message.error ?? null);
+    if (message.type === "runtime_status") {
+      runtimeStatus = message.status;
+      return;
     }
   }
 
@@ -112,11 +129,6 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
     startupSplashTimer = scheduleStartupSplashRefresh(snapshot, startupSplashTimer, mirrorRuntimeMessage, () => {
       startupSplashTimer = null;
     });
-  }
-
-  function applyAudioErrorMessage(error: string | null) {
-    audioError = error;
-    if (audioError) console.warn("[Runtime] audio error:", audioError);
   }
 
   function applyUiPulse(pulse: Extract<RuntimeRunnerMessage, { type: "ui_pulse" }>['pulse']) {
@@ -145,10 +157,6 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
       })
       .catch((err) => {
         console.error("[Runtime] runtimeDispatch failed:", err);
-        audioError = `dispatch failed: ${err instanceof Error ? err.message : String(err)}`;
-        if (latestFrame.transport.playing) {
-          latestFrame = { ...latestFrame, transport: { ...latestFrame.transport, playing: false } };
-        }
         publishSnapshot();
       })
       .finally(() => {
@@ -163,8 +171,7 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
   }
 
   function applyAsyncRuntimeBatch(seq: number, messages: RuntimeRunnerMessage[], nowMs: number) {
-    if (seq <= lastAsyncRuntimeSeq) return;
-    if (nowMs < ignoreAsyncUntilMs) return;
+    if (!shouldApplyRuntimeBatch(lastAsyncRuntimeSeq, seq, nowMs, ignoreAsyncUntilMs, messages)) return;
     lastAsyncRuntimeSeq = seq;
     processRunnerMessages(messages);
     publishSnapshot();
@@ -243,7 +250,6 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
         })
         .catch((err) => {
           console.error("[Runtime] initial pulse_step failed:", err);
-          audioError = `initial pulse_step failed: ${err instanceof Error ? err.message : String(err)}`;
           publishSnapshot();
         });
       scheduler.start((nowMs) => {
@@ -268,11 +274,11 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
     },
     subscribe(listener) {
       listeners.add(listener);
-      listener(snapshotFromCore(latestFrame, snapshotCache, shiftActive, indicators, { audioLoad, audioError }));
+      listener(snapshotFromCore(latestFrame, snapshotCache, shiftActive, indicators, { audioLoad, runtimeStatus }));
       return () => listeners.delete(listener);
     },
     getSnapshot() {
-      return snapshotFromCore(latestFrame, snapshotCache, shiftActive, indicators, { audioLoad, audioError });
+      return snapshotFromCore(latestFrame, snapshotCache, shiftActive, indicators, { audioLoad, runtimeStatus });
     }
   };
 

@@ -5,6 +5,7 @@ import { ControlsPanel } from "./ControlsPanel";
 import { GridMatrix } from "./GridMatrix";
 import { useGridInteraction } from "./appGridInteraction";
 import { useDialDragBindings, useKeyboardBindings, useRuntimeBindings } from "./appHooks";
+import { RuntimeStatusToaster } from "./RuntimeStatusToaster";
 
 const runtime = createSimulatorRuntime();
 type EncoderId = "main" | `aux${number}`;
@@ -50,6 +51,7 @@ export function App() {
   return (
     <main className="app-shell" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
       <header className="bar">octessera hardware simulator</header>
+      <RuntimeStatusToaster status={snapshot.runtimeStatus} />
       <section className="panel-layout">
         <ControlsPanel
           dialPhase={dialPhase}

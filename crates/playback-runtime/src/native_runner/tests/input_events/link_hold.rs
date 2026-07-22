@@ -7,7 +7,7 @@ pub(crate) fn delayed_hold_note_on_is_cancelled_by_release_before_due() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.transport = RuntimeTransportState::Playing;
+    runner.transport.transport = RuntimeTransportState::Playing;
     assert!(runner.menu.focus_item_key("instruments.0.noteBehavior"));
     runner.menu.state.editing = true;
     let _ = runner
@@ -41,7 +41,7 @@ pub(crate) fn delayed_hold_note_on_is_cancelled_by_release_before_due() {
 
     let delayed = runner
         .send(HostMessage::TransportPulseStep {
-            pulses: runner.algorithm_step_pulses,
+            pulses: runner.transport.algorithm_step_pulses,
             source: SyncSource::Internal,
             at_ppqn_pulse: None,
             request_snapshot: Some(false),
@@ -58,7 +58,7 @@ pub(crate) fn hold_note_retrigger_is_cancelled_by_release_before_repeat() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.transport = RuntimeTransportState::Playing;
+    runner.transport.transport = RuntimeTransportState::Playing;
     assert!(runner.menu.focus_item_key("instruments.0.noteBehavior"));
     runner.menu.state.editing = true;
     let _ = runner
@@ -92,7 +92,7 @@ pub(crate) fn hold_note_retrigger_is_cancelled_by_release_before_repeat() {
 
     let repeat = runner
         .send(HostMessage::TransportPulseStep {
-            pulses: runner.algorithm_step_pulses,
+            pulses: runner.transport.algorithm_step_pulses,
             source: SyncSource::Internal,
             at_ppqn_pulse: None,
             request_snapshot: Some(false),
@@ -109,7 +109,7 @@ pub(crate) fn held_link_note_ons_do_not_schedule_indefinite_retriggers() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.transport = RuntimeTransportState::Playing;
+    runner.transport.transport = RuntimeTransportState::Playing;
     assert!(runner.menu.focus_item_key("instruments.0.noteBehavior"));
     runner.menu.state.editing = true;
     let _ = runner
@@ -131,7 +131,7 @@ pub(crate) fn held_link_note_ons_do_not_schedule_indefinite_retriggers() {
 
     let repeat = runner
         .send(HostMessage::TransportPulseStep {
-            pulses: runner.algorithm_step_pulses,
+            pulses: runner.transport.algorithm_step_pulses,
             source: SyncSource::Internal,
             at_ppqn_pulse: None,
             request_snapshot: Some(false),

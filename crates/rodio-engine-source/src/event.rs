@@ -1,4 +1,8 @@
-use realtime_engine::synth::{InstrumentsConfig, SampleBankConfig, VoiceStealingMode};
+use realtime_engine::synth::{
+    InstrumentsConfig, PreparedAudioConfig, PreparedFxBusSlot, PreparedGlobalFxSlot,
+    PreparedInstrumentSlot, PreparedInstrumentsConfig, PreparedMomentaryFxStart, SampleBankConfig,
+    VoiceStealingMode,
+};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::sync::mpsc::Sender;
@@ -6,6 +10,7 @@ use std::time::Instant;
 
 #[derive(Clone)]
 pub enum EngineEvent {
+    AllNotesOff,
     NoteOn {
         instrument_slot: u8,
         note: u8,
@@ -32,6 +37,8 @@ pub enum EngineEvent {
         sample_banks: Option<Vec<SampleBankConfig>>,
         voice_stealing_mode: Option<VoiceStealingMode>,
     },
+    SetPreparedInstruments(PreparedInstrumentsConfig),
+    SetPreparedAudioConfig(PreparedAudioConfig),
     PreviewSample {
         instrument_slot: u8,
         buffer: realtime_engine::synth::SampleBuffer,
@@ -49,6 +56,10 @@ pub enum EngineEvent {
     SetInstrumentSlot {
         instrument_slot: usize,
         config: realtime_engine::synth::InstrumentSlotConfig,
+    },
+    SetPreparedInstrumentSlot {
+        instrument_slot: usize,
+        config: PreparedInstrumentSlot,
     },
     SetFxBusMixer {
         bus_index: usize,
@@ -71,10 +82,19 @@ pub enum EngineEvent {
         fx_type: String,
         params: BTreeMap<String, Value>,
     },
+    SetPreparedFxBusSlot {
+        bus_index: usize,
+        slot_index: usize,
+        config: PreparedFxBusSlot,
+    },
     SetGlobalFxSlot {
         slot_index: usize,
         fx_type: String,
         params: BTreeMap<String, Value>,
+    },
+    SetPreparedGlobalFxSlot {
+        slot_index: usize,
+        config: PreparedGlobalFxSlot,
     },
     MomentaryFxStart {
         id: String,
@@ -82,6 +102,7 @@ pub enum EngineEvent {
         params: BTreeMap<String, Value>,
         target: realtime_engine::synth::MomentaryFxTarget,
     },
+    PreparedMomentaryFxStart(PreparedMomentaryFxStart),
     MomentaryFxUpdate {
         id: String,
         params: BTreeMap<String, Value>,

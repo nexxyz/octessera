@@ -7,7 +7,7 @@ pub(crate) fn fn_overlay_shows_active_layers_and_sparks_page_options() {
     runner.sparks_mode = "pan".into();
     runner.layer_behavior_ids[1] = "none".into();
     runner.layer_behavior_ids[2] = "life".into();
-    runner.ui.fn_held = true;
+    runner.display.ui.fn_held = true;
 
     let snapshot = runner.snapshot().unwrap();
     let cells = led_cells(&snapshot);
@@ -42,7 +42,7 @@ pub(crate) fn fn_overlay_highlights_active_layer_when_not_in_sparks_mode() {
             request_snapshot: None,
         })
         .unwrap();
-    runner.ui.fn_held = true;
+    runner.display.ui.fn_held = true;
 
     let snapshot = runner.snapshot().unwrap();
     let cells = led_cells(&snapshot);
@@ -72,7 +72,7 @@ pub(crate) fn combined_modifier_overlay_shows_layer_column_only() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_sparks_mode = "pan".into();
     runner.sparks_mode = "pan".into();
-    runner.ui.combined_modifier_held = true;
+    runner.display.ui.combined_modifier_held = true;
 
     let snapshot = runner.snapshot().unwrap();
     let cells = led_cells(&snapshot);
@@ -88,7 +88,7 @@ pub(crate) fn combined_modifier_overlay_shows_layer_column_only() {
 #[test]
 pub(crate) fn fn_overlay_dims_fx_grid_cells_when_sparks_mode_is_fx() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.ui.fn_held = true;
+    runner.display.ui.fn_held = true;
     runner.active_sparks_mode = "fx".into();
     runner.sparks_mode = "fx".into();
 
@@ -109,7 +109,7 @@ pub(crate) fn fn_overlay_dims_fx_grid_cells_when_sparks_mode_is_fx() {
 pub(crate) fn assignment_overlays_suppress_fn_navigation_overlay() {
     for guard in ["sample", "trigger", "sparks"] {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-        runner.ui.fn_held = true;
+        runner.display.ui.fn_held = true;
         match guard {
             "sample" => runner.sample_assign = Some((0, 0)),
             "trigger" => runner.trigger_probability_assign = Some(0),

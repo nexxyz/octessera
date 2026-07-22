@@ -146,8 +146,11 @@ impl NativeRunner {
             let sections = scan_section_count(sense.scan_sections, GRID_HEIGHT);
             if sections > 1 {
                 let section_height = (GRID_HEIGHT / sections).max(1);
-                let step =
-                    scan_index_for_overlay(self.tick as usize, GRID_WIDTH * sections, reverse);
+                let step = scan_index_for_overlay(
+                    self.transport.tick as usize,
+                    GRID_WIDTH * sections,
+                    reverse,
+                );
                 let section = step / GRID_WIDTH;
                 let x = step % GRID_WIDTH;
                 let first_y = section * section_height;
@@ -155,7 +158,7 @@ impl NativeRunner {
                     self.add_scan_overlay_led(leds, x, first_y + dy);
                 }
             } else {
-                let x = scan_index_for_overlay(self.tick as usize, GRID_WIDTH, reverse);
+                let x = scan_index_for_overlay(self.transport.tick as usize, GRID_WIDTH, reverse);
                 for y in 0..GRID_HEIGHT {
                     self.add_scan_overlay_led(leds, x, y);
                 }
@@ -164,8 +167,11 @@ impl NativeRunner {
             let sections = scan_section_count(sense.scan_sections, GRID_WIDTH);
             if sections > 1 {
                 let section_width = (GRID_WIDTH / sections).max(1);
-                let step =
-                    scan_index_for_overlay(self.tick as usize, GRID_HEIGHT * sections, reverse);
+                let step = scan_index_for_overlay(
+                    self.transport.tick as usize,
+                    GRID_HEIGHT * sections,
+                    reverse,
+                );
                 let section = step / GRID_HEIGHT;
                 let y = step % GRID_HEIGHT;
                 let first_x = section * section_width;
@@ -173,7 +179,7 @@ impl NativeRunner {
                     self.add_scan_overlay_led(leds, first_x + dx, y);
                 }
             } else {
-                let y = scan_index_for_overlay(self.tick as usize, GRID_HEIGHT, reverse);
+                let y = scan_index_for_overlay(self.transport.tick as usize, GRID_HEIGHT, reverse);
                 for x in 0..GRID_WIDTH {
                     self.add_scan_overlay_led(leds, x, y);
                 }

@@ -1,0 +1,4 @@
+# octessera required boot settings
+[all]
+dtparam=spi=on
+auto_initramfs=1

@@ -96,7 +96,7 @@ pub(crate) fn looper_length_edit_preserves_play_mode_when_config_mode_is_absent(
             platform_core::DeviceInput::BehaviorAction(platform_core::BehaviorActionInput {
                 action_type: "setMode:play".into(),
             }),
-            runner.bpm as f32,
+            runner.transport.bpm as f32,
         )
         .unwrap();
     pulse_step(&mut runner);

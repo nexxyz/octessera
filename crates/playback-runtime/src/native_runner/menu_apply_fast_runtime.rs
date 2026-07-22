@@ -31,13 +31,16 @@ impl NativeRunner {
                     }
                     _ => "none".into(),
                 };
-                value_changed(&mut runner.hdmi.mode, value)
+                value_changed(&mut runner.display.hdmi.mode, value)
             })),
             "hdmi.showGridlines" => Some(self.fast_bool_menu_key(key, |runner, value| {
-                bool_changed(&mut runner.hdmi.show_gridlines, value)
+                bool_changed(&mut runner.display.hdmi.show_gridlines, value)
             })),
             "hdmi.cycleMeasures" => Some(self.fast_number_menu_key(key, |runner, value| {
-                value_changed(&mut runner.hdmi.cycle_measures, value.clamp(1, 64) as u8)
+                value_changed(
+                    &mut runner.display.hdmi.cycle_measures,
+                    value.clamp(1, 64) as u8,
+                )
             })),
             "sparksMode" => Some(self.fast_sparks_mode_menu_key()),
             "sparks.page.mix" => Some(self.fast_sparks_page_key("mix")),
@@ -52,21 +55,21 @@ impl NativeRunner {
             "buttonBrightness" => Some(self.fast_button_brightness_menu_key()),
             "gridBrightness" => Some(self.fast_number_menu_key(key, |runner, value| {
                 let value = value.clamp(10, 100) as u8;
-                value_changed(&mut runner.ui.grid_brightness, value)
+                value_changed(&mut runner.display.ui.grid_brightness, value)
             })),
             "numericDisplayMode" => Some(self.fast_string_menu_key(key, |runner, value| {
-                value_changed(&mut runner.ui.numeric_display_mode, value)
+                value_changed(&mut runner.display.ui.numeric_display_mode, value)
             })),
             "screenSleepSeconds" => Some(self.fast_number_menu_key(key, |runner, value| {
                 let value = value.clamp(0, 600) as u16;
-                value_changed(&mut runner.ui.screen_sleep_seconds, value)
+                value_changed(&mut runner.display.ui.screen_sleep_seconds, value)
             })),
             "dimTimerSeconds" => Some(self.fast_number_menu_key(key, |runner, value| {
                 let value = value.clamp(0, 600) as u16;
-                value_changed(&mut runner.ui.dim_timer_seconds, value)
+                value_changed(&mut runner.display.ui.dim_timer_seconds, value)
             })),
             "ghostCells" => Some(self.fast_bool_menu_key(key, |runner, value| {
-                bool_changed(&mut runner.ui.ghost_cells, value)
+                bool_changed(&mut runner.display.ui.ghost_cells, value)
             })),
             "inputEventsWhilePaused" => Some(self.fast_bool_menu_key(key, |runner, value| {
                 bool_changed(&mut runner.input_events_while_paused, value)
@@ -103,8 +106,8 @@ impl NativeRunner {
             return false;
         };
         let bpm = crate::delay_timing::clamp_visible_bpm(f64::from(bpm));
-        if (self.bpm - bpm).abs() > f64::EPSILON {
-            self.bpm = bpm;
+        if (self.transport.bpm - bpm).abs() > f64::EPSILON {
+            self.transport.bpm = bpm;
             self.retime_note_mode_bus_delays();
             self.mark_fast_autosave_dirty();
         }
@@ -116,8 +119,8 @@ impl NativeRunner {
             return false;
         };
         let swing_pct = swing_pct.clamp(0, 75) as u8;
-        if self.swing_pct != swing_pct {
-            self.swing_pct = swing_pct;
+        if self.transport.swing_pct != swing_pct {
+            self.transport.swing_pct = swing_pct;
             self.mark_fast_autosave_dirty();
         }
         true
@@ -127,8 +130,8 @@ impl NativeRunner {
         let Some(sync_source) = self.menu.selected_sync_source() else {
             return false;
         };
-        if self.sync_source != sync_source {
-            self.sync_source = sync_source;
+        if self.transport.sync_source != sync_source {
+            self.transport.sync_source = sync_source;
             self.mark_fast_autosave_dirty();
         }
         true
@@ -176,7 +179,7 @@ impl NativeRunner {
         let Some(value) = self.menu.selected_display_brightness() else {
             return false;
         };
-        if value_changed(&mut self.ui.display_brightness, value) {
+        if value_changed(&mut self.display.ui.display_brightness, value) {
             self.mark_fast_autosave_dirty();
         }
         true
@@ -186,7 +189,7 @@ impl NativeRunner {
         let Some(value) = self.menu.selected_button_brightness() else {
             return false;
         };
-        if value_changed(&mut self.ui.button_brightness, value) {
+        if value_changed(&mut self.display.ui.button_brightness, value) {
             self.mark_fast_autosave_dirty();
         }
         true
@@ -270,7 +273,7 @@ impl NativeRunner {
             .map(super::normalize_audio_output_buffer_frames)
             .unwrap_or(256);
         if value_changed(&mut self.audio_output_buffer_frames, value) {
-            self.pending_audio_output_buffer_reboot_prompt = true;
+            self.pending.pending_audio_output_buffer_reboot_prompt = true;
             self.mark_fast_autosave_dirty();
             self.show_toast("Restart device to apply");
         }
@@ -308,16 +311,18 @@ impl NativeRunner {
         let Some(step_pulses) = self.menu.selected_algorithm_step_pulses() else {
             return false;
         };
-        let changed = self.algorithm_step_pulses != step_pulses
+        let changed = self.transport.algorithm_step_pulses != step_pulses
             || self
+                .transport
                 .layer_algorithm_step_pulses
                 .get(self.active_layer_index)
                 .copied()
-                .unwrap_or(self.algorithm_step_pulses)
+                .unwrap_or(self.transport.algorithm_step_pulses)
                 != step_pulses;
         if changed {
-            self.algorithm_step_pulses = step_pulses;
+            self.transport.algorithm_step_pulses = step_pulses;
             if let Some(layer_step) = self
+                .transport
                 .layer_algorithm_step_pulses
                 .get_mut(self.active_layer_index)
             {
@@ -332,8 +337,8 @@ impl NativeRunner {
         let Some(master_volume) = self.menu.selected_master_volume() else {
             return false;
         };
-        if self.ui.master_volume != master_volume {
-            self.ui.master_volume = master_volume;
+        if self.display.ui.master_volume != master_volume {
+            self.display.ui.master_volume = master_volume;
             self.mark_fast_autosave_dirty();
             self.queue_audio_command(RuntimeAudioCommand::SetMasterVolume {
                 volume_pct: f32::from(master_volume),

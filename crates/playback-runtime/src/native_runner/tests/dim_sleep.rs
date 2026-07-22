@@ -5,8 +5,8 @@ use std::time::{Duration, Instant};
 pub(crate) fn settings_leds_dimmed_after_dim_timer() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.skip_startup_splash();
-    runner.ui.dim_timer_seconds = 1;
-    runner.last_interaction_at = Instant::now() - Duration::from_secs(1);
+    runner.display.ui.dim_timer_seconds = 1;
+    runner.display.last_interaction_at = Instant::now() - Duration::from_secs(1);
 
     assert_eq!(runner.snapshot().unwrap()["settings"]["ledsDimmed"], true);
 }
@@ -15,22 +15,22 @@ pub(crate) fn settings_leds_dimmed_after_dim_timer() {
 pub(crate) fn one_second_dim_and_two_second_sleep_trigger_on_snapshots() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.skip_startup_splash();
-    runner.ui.dim_timer_seconds = 1;
-    runner.ui.screen_sleep_seconds = 2;
-    runner.last_interaction_at = Instant::now() - Duration::from_millis(1500);
+    runner.display.ui.dim_timer_seconds = 1;
+    runner.display.ui.screen_sleep_seconds = 2;
+    runner.display.last_interaction_at = Instant::now() - Duration::from_millis(1500);
 
     let snapshot = snapshot_from(&runner.messages_with_snapshot().unwrap());
     assert_eq!(snapshot["settings"]["ledsDimmed"], true);
     assert_eq!(snapshot["display"]["splash"], "");
     assert_eq!(snapshot["display"]["off"], false);
 
-    runner.last_interaction_at = Instant::now() - Duration::from_secs(2);
+    runner.display.last_interaction_at = Instant::now() - Duration::from_secs(2);
     let snapshot = snapshot_from(&runner.messages_with_snapshot().unwrap());
     assert_eq!(snapshot["settings"]["ledsDimmed"], true);
     assert_eq!(snapshot["display"]["splash"], "sleep");
     assert_eq!(snapshot["display"]["off"], false);
 
-    runner.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
+    runner.display.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
     let snapshot = snapshot_from(&runner.messages_with_snapshot().unwrap());
     assert_eq!(snapshot["display"]["off"], true);
 }
@@ -39,10 +39,10 @@ pub(crate) fn one_second_dim_and_two_second_sleep_trigger_on_snapshots() {
 pub(crate) fn timed_display_deadline_tracks_dim_sleep_and_splash() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.skip_startup_splash();
-    runner.ui.dim_timer_seconds = 1;
-    runner.ui.screen_sleep_seconds = 2;
+    runner.display.ui.dim_timer_seconds = 1;
+    runner.display.ui.screen_sleep_seconds = 2;
     let interaction = Instant::now();
-    runner.last_interaction_at = interaction;
+    runner.display.last_interaction_at = interaction;
 
     assert_eq!(
         runner.next_timed_display_snapshot_deadline(),
@@ -55,15 +55,15 @@ pub(crate) fn timed_display_deadline_tracks_dim_sleep_and_splash() {
         Some(interaction + Duration::from_secs(2))
     );
 
-    runner.ui.dim_timer_seconds = 0;
+    runner.display.ui.dim_timer_seconds = 0;
     assert_eq!(
         runner.next_timed_display_snapshot_deadline(),
         Some(interaction + Duration::from_secs(2))
     );
 
     let splash_until = Instant::now() + Duration::from_millis(25);
-    runner.oled_mode = NativeOledMode::Splash;
-    runner.oled_splash_until = Some(splash_until);
+    runner.display.oled_mode = NativeOledMode::Splash;
+    runner.display.oled_splash_until = Some(splash_until);
     assert_eq!(
         runner.next_timed_display_snapshot_deadline(),
         Some(splash_until)
@@ -74,9 +74,9 @@ pub(crate) fn timed_display_deadline_tracks_dim_sleep_and_splash() {
 pub(crate) fn input_resets_dim_and_oled_off_state() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.skip_startup_splash();
-    runner.ui.dim_timer_seconds = 1;
-    runner.oled_mode = NativeOledMode::Off;
-    runner.last_interaction_at = Instant::now() - Duration::from_secs(2);
+    runner.display.ui.dim_timer_seconds = 1;
+    runner.display.oled_mode = NativeOledMode::Off;
+    runner.display.last_interaction_at = Instant::now() - Duration::from_secs(2);
     assert_eq!(runner.snapshot().unwrap()["settings"]["ledsDimmed"], true);
 
     let messages = runner
@@ -95,9 +95,9 @@ pub(crate) fn input_resets_dim_and_oled_off_state() {
 pub(crate) fn overdue_normal_display_input_does_not_trigger_sleep_toast() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.skip_startup_splash();
-    runner.ui.screen_sleep_seconds = 1;
-    runner.oled_mode = NativeOledMode::Normal;
-    runner.last_interaction_at = Instant::now() - Duration::from_secs(2);
+    runner.display.ui.screen_sleep_seconds = 1;
+    runner.display.oled_mode = NativeOledMode::Normal;
+    runner.display.last_interaction_at = Instant::now() - Duration::from_secs(2);
 
     let messages = runner
         .send(HostMessage::DeviceInput {
@@ -116,13 +116,13 @@ pub(crate) fn overdue_normal_display_input_does_not_trigger_sleep_toast() {
 #[test]
 pub(crate) fn fresh_startup_timed_snapshots_reach_sleep_without_input() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.ui.screen_sleep_seconds = 1;
-    runner.oled_splash_until = Some(Instant::now() + Duration::from_secs(1));
+    runner.display.ui.screen_sleep_seconds = 1;
+    runner.display.oled_splash_until = Some(Instant::now() + Duration::from_secs(1));
 
     let messages = runner.messages_with_snapshot().unwrap();
     assert_eq!(snapshot_from(&messages)["display"]["splash"], "startup");
 
-    runner.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
+    runner.display.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
     let messages = runner.messages_with_snapshot().unwrap();
     assert_eq!(snapshot_from(&messages)["display"]["splash"], "");
     assert_eq!(
@@ -130,7 +130,7 @@ pub(crate) fn fresh_startup_timed_snapshots_reach_sleep_without_input() {
         "Help: Sh+Fn+Enter"
     );
 
-    runner.last_interaction_at = Instant::now() - Duration::from_secs(2);
+    runner.display.last_interaction_at = Instant::now() - Duration::from_secs(2);
     let messages = runner.messages_with_snapshot().unwrap();
     assert_eq!(snapshot_from(&messages)["display"]["splash"], "sleep");
     assert_eq!(
@@ -143,8 +143,8 @@ pub(crate) fn fresh_startup_timed_snapshots_reach_sleep_without_input() {
 pub(crate) fn suppressed_input_wake_still_emits_display_snapshot() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.skip_startup_splash();
-    runner.oled_mode = NativeOledMode::Off;
-    runner.last_interaction_at = Instant::now() - Duration::from_secs(2);
+    runner.display.oled_mode = NativeOledMode::Off;
+    runner.display.last_interaction_at = Instant::now() - Duration::from_secs(2);
 
     let messages = runner
         .send(HostMessage::DeviceInput {
@@ -162,7 +162,7 @@ pub(crate) fn suppressed_input_wake_still_emits_display_snapshot() {
 pub(crate) fn runtime_and_transport_messages_do_not_wake_oled() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.skip_startup_splash();
-    runner.oled_mode = NativeOledMode::Off;
+    runner.display.oled_mode = NativeOledMode::Off;
 
     let runtime_messages = runner
         .send(HostMessage::RuntimeResult {
@@ -191,9 +191,9 @@ pub(crate) fn runtime_and_transport_messages_do_not_wake_oled() {
 pub(crate) fn screen_sleep_zero_prevents_off_and_sleep() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.skip_startup_splash();
-    runner.ui.screen_sleep_seconds = 0;
-    runner.oled_mode = NativeOledMode::Normal;
-    runner.last_interaction_at = Instant::now()
+    runner.display.ui.screen_sleep_seconds = 0;
+    runner.display.oled_mode = NativeOledMode::Normal;
+    runner.display.last_interaction_at = Instant::now()
         .checked_sub(Duration::from_secs(3600))
         .unwrap_or_else(Instant::now);
 

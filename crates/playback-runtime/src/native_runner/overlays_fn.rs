@@ -6,7 +6,7 @@ use super::{
 
 impl NativeRunner {
     pub(super) fn apply_fn_overlay(&self, leds: &mut [LedColor]) {
-        if !self.ui.fn_held && !self.ui.combined_modifier_held {
+        if !self.display.ui.fn_held && !self.display.ui.combined_modifier_held {
             return;
         }
         if self.sample_assign.is_some()
@@ -17,7 +17,7 @@ impl NativeRunner {
         }
         self.dim_fn_overlay(leds);
         self.paint_fn_layer_column(leds);
-        if !self.ui.combined_modifier_held {
+        if !self.display.ui.combined_modifier_held {
             self.paint_fn_page_column(leds);
         }
     }
@@ -125,8 +125,8 @@ impl NativeRunner {
     }
 
     pub(super) fn param_mod_overlay_ready(&self) -> bool {
-        self.ui.shift_held
-            && !self.ui.fn_held
+        self.display.ui.shift_held
+            && !self.display.ui.fn_held
             && self.active_sparks_mode == "none"
             && self.sample_assign.is_none()
             && self.trigger_probability_assign.is_none()

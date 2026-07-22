@@ -62,10 +62,14 @@ pub(super) fn apply_fx_bus_payload(payload: &Value, bus: &mut NativeFxBus, bpm: 
         bus.slot3_params = Value::Object(Default::default());
     }
     if let Some(pan_pos) = payload.get("panPos").and_then(Value::as_u64) {
-        bus.pan_pos = (pan_pos as u8).min(32);
+        if let Ok(pan_pos) = u8::try_from(pan_pos) {
+            bus.pan_pos = pan_pos.min(32);
+        }
     }
     if let Some(volume_pct) = payload.get("volumePct").and_then(Value::as_u64) {
-        bus.volume_pct = (volume_pct as u8).min(100);
+        if let Ok(volume_pct) = u8::try_from(volume_pct) {
+            bus.volume_pct = volume_pct.min(100);
+        }
     }
     if let Some(auto_name) = payload.get("autoName").and_then(Value::as_bool) {
         bus.auto_name = auto_name;

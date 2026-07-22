@@ -21,7 +21,7 @@ impl NativeRunner {
             platform_core::DeviceInput::BehaviorAction(platform_core::BehaviorActionInput {
                 action_type: format!("setMode:{mode}"),
             }),
-            self.bpm as f32,
+            self.transport.bpm as f32,
         )?;
         self.mark_fast_autosave_dirty();
         Ok(true)

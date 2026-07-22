@@ -63,6 +63,8 @@ mod binding_payload;
 mod binding_specs;
 mod clear_patch_state;
 mod config;
+mod config_schema;
+mod config_schema_validation;
 mod construction;
 mod construction_deferred;
 mod construction_engine;
@@ -86,10 +88,15 @@ mod link_arp;
 mod looper_config;
 mod menu_apply;
 mod menu_apply_fast;
+mod menu_apply_fast_behavior;
+mod menu_apply_fast_bindings;
 mod menu_apply_fast_fx;
 mod menu_apply_fast_fx_bus;
 mod menu_apply_fast_instruments;
+mod menu_apply_fast_layers;
+mod menu_apply_fast_pulses;
 mod menu_apply_fast_runtime;
+mod menu_apply_fast_structural;
 mod menu_apply_fast_values;
 mod menu_apply_fx_state;
 #[cfg(test)]
@@ -153,6 +160,8 @@ pub use runner_config::NativeRunnerConfig;
 
 use binding_payload::*;
 use binding_specs::*;
+use config_schema::*;
+use config_schema_validation::*;
 use factory_payload::*;
 use fx_bus_config::*;
 use fx_targets::*;
@@ -233,33 +242,13 @@ pub struct NativeRunner {
     base_mapping_config: platform_core::MappingConfig,
     global_sound: GlobalSoundConfig,
     note_behaviors: Vec<NoteBehavior>,
-    current_ppqn_pulse: u64,
-    swung_ppqn_pulse: u64,
-    tick: u64,
-    layer_ticks: Vec<u64>,
+    transport: NativeTransportState,
     delayed_link_events: Vec<Vec<DelayedRoutedEvents>>,
     link_arp_held_notes: Vec<Vec<LinkArpHeldNote>>,
     link_arp_rotating_phase: Vec<usize>,
     link_arp_random_state: u32,
-    algorithm_step_pulses: u32,
-    algorithm_pulse_accumulator: u32,
-    layer_algorithm_step_pulses: Vec<u32>,
-    layer_pulse_accumulators: Vec<u32>,
-    transport: RuntimeTransportState,
-    sync_source: SyncSource,
-    pending_resync: bool,
-    bpm: f64,
-    swing_pct: u8,
     audio_output_buffer_frames: u32,
-    ui: NativeUiState,
-    hdmi: NativeHdmiConfig,
-    oled_mode: NativeOledMode,
-    oled_splash_text: String,
-    oled_splash_until: Option<Instant>,
-    startup_splash_presented: bool,
-    last_interaction_at: Instant,
-    fn_hold_started_at: Option<Instant>,
-    modifier_hint_started_at: Option<Instant>,
+    display: NativeDisplayState,
     midi_enabled: bool,
     preset_names: Vec<String>,
     current_preset_name: Option<String>,
@@ -318,32 +307,17 @@ pub struct NativeRunner {
     sample_browser: Option<NativeSampleBrowser>,
     sample_builtin_favourite_dirs: Vec<String>,
     sample_favourite_dirs: Vec<String>,
-    help_popup: Option<NativeHelpPopup>,
-    confirm_dialog: Option<NativeConfirmDialog>,
-    usb_sd_transfer_modal: Option<NativeUsbSdTransferModal>,
     menu: NativeMenuModel,
-    event_dot_on: bool,
-    event_dot_pulses_remaining: u8,
-    transport_flash: &'static str,
-    transport_flash_pulses_remaining: u8,
     auto_save_default: bool,
     rolling_backups: bool,
     config_dirty: bool,
-    pending_autosave_payload_due_at: Option<Instant>,
+    config_revision: u64,
+    dirty_revision: Option<u64>,
     last_backup_save_at: Option<Instant>,
-    auto_save_flash_serial: u64,
-    auto_save_flash_until: Option<Instant>,
     audio_config_revision: u64,
     last_snapshot_audio_config_revision: Option<u64>,
-    suppress_snapshot_response: bool,
     trigger_probability_rng: u64,
-    toast: Option<NativeToast>,
-    toast_expires_at: Option<Instant>,
-    aux_turn_toast_cooldown_until: Option<Instant>,
-    pending_aux_turn_toast: Option<PendingNativeToast>,
-    pending_menu_apply: Option<PendingMenuApply>,
-    pending_audio_output_buffer_reboot_prompt: bool,
-    menu_scroll_offset: usize,
+    pending: NativePendingState,
     last_link_lfo_values: BTreeMap<String, Value>,
 }
 

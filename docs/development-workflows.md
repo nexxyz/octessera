@@ -184,7 +184,7 @@ Run it directly when changing menu traversal, runtime modulation, sampler assign
 cargo test -p playback-runtime factory_patch_ui_scenario -- --ignored
 ```
 
-The pre-push hook runs this scenario. GitHub CI can also run it from `workflow_dispatch` with `run-heavy-ui-scenario=true`.
+The pre-push hook runs this scenario. GitHub CI runs it on every push to `main` and on pull requests that change parity-sensitive native runtime inputs: `crates/platform-core/`, `crates/playback-runtime/`, shipped config JSON, menu help text, or platform capabilities. Other pull requests, and manual dispatches without `run-heavy-ui-scenario=true`, record an explicit successful skip.
 
 The documented input recipe lives in [`factory-patch-ui-scenario.md`](factory-patch-ui-scenario.md).
 
@@ -239,7 +239,7 @@ For menu/runtime-visible Rust changes on Windows, use the focused wrapper while 
 
 Add `-IncludePlatformCore` when platform behavior changes and `-Typecheck` when shared contracts or TypeScript-visible payloads change.
 
-The pre-push hook runs CI-like checks against the committed tree, including lint, typecheck, format checks, tests, coverage, file-length checks, Tauri build smoke, and clippy. Use a long timeout when pushing from automation. Do not skip the hook; fix failures and push again.
+The pre-push hook runs CI-like checks against the committed tree, including lint, typecheck, format checks, tests, coverage, file-length checks, desktop Rust adapter tests after the desktop check, Tauri build smoke, and clippy. It also runs the ignored factory patch UI scenario. Use a long timeout when pushing from automation. Do not skip the hook; fix failures and push again.
 
 When committing and immediately pushing, run targeted confidence checks and required artifact builds before committing, then rely on the pre-push hook for the exhaustive CI-like suite. Avoid manually running a hook-equivalent full validation immediately before `git push` unless the change is high-risk, explicitly requested, or the hook cannot run.
 
@@ -274,7 +274,13 @@ cargo check --target aarch64-unknown-linux-gnu -p octessera-hal --features pi-ze
 
 ## Pi Hardware Build
 
-Preferred fast path: run `./tools/pi/build-pi-cross.ps1` to produce a Linux ARM binary, then upload it with `./tools/pi/deploy-pi-fast.ps1 -LocalBinary target/pi-cross/octessera-pi -NoTail`. On Windows, the helper uses WSL2 Docker automatically when available. Native cross-builds are still supported with an ARM Linux sysroot and cross `pkg-config` setup for ALSA.
+Provision a development Pi, or refresh its tracked OS and boot configuration, with `./tools/pi/provision-pi.ps1`. This is separate from fast deployment and is safe to repeat. Pass `-UpdateInitramfs` when the early boot splash or its boot configuration needs to be refreshed; pass `-WakeTrace` only when enabling the development wake trace in the service configuration.
+
+```powershell
+./tools/pi/provision-pi.ps1 -Target pi@192.168.0.211
+```
+
+Preferred fast path: run `./tools/pi/build-pi-cross.ps1` to produce a Linux ARM binary, then upload it with `./tools/pi/deploy-pi-fast.ps1 -LocalBinary target/pi-cross/octessera-pi -NoTail`. The deployment helper only transfers binary/source content, restarts the configured service, and optionally tails its logs. On Windows, the build helper uses WSL2 Docker automatically when available. Native cross-builds are still supported with an ARM Linux sysroot and cross `pkg-config` setup for ALSA.
 
 ```powershell
 ./tools/pi/build-pi-cross.ps1
@@ -374,9 +380,10 @@ Prefer offering a live probe when the report is subjective or audio-path-specifi
 
 Use the real hardware loop for Pi-only behavior, input latency, OLED rendering, LEDs, encoders, menu timing, sample playback, and audio stutter. Automated checks cannot prove tactile timing or display readability.
 
-1. Cross-build and deploy from the PC first:
+1. For a new Pi or OS/configuration change, provision first; then cross-build and deploy from the PC:
 
    ```powershell
+   ./tools/pi/provision-pi.ps1 -Target pi@192.168.0.211
    ./tools/pi/build-pi-cross.ps1
    ./tools/pi/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -LocalBinary target/pi-cross/octessera-pi -NoTail
    ```

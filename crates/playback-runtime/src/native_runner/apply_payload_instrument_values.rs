@@ -42,7 +42,9 @@ pub(super) fn apply_instrument_mixer_payload(
         return;
     };
     if let Some(volume) = mixer.get("volume").and_then(Value::as_u64) {
-        instrument.volume = (volume as u8).min(127);
+        if let Ok(volume) = u8::try_from(volume) {
+            instrument.volume = volume.min(127);
+        }
     }
     if let Some(pan_pos) = mixer.get("panPos").and_then(Value::as_u64) {
         instrument.pan_pos = sanitize_pan_position_payload(pan_pos, incoming_pan_positions);
@@ -65,10 +67,14 @@ pub(super) fn apply_instrument_sample_payload(slot: &Value, instrument: &mut Nat
 
 pub(super) fn apply_sample_slot_selection(sample: &Value, instrument: &mut NativeInstrumentSlot) {
     if let Some(selected_slot) = sample.get("selectedSlot").and_then(Value::as_u64) {
-        instrument.selected_sample_slot = (selected_slot as usize).min(SAMPLE_SLOT_COUNT - 1);
+        if let Ok(selected_slot) = usize::try_from(selected_slot) {
+            instrument.selected_sample_slot = selected_slot.min(SAMPLE_SLOT_COUNT - 1);
+        }
     }
     if let Some(base_velocity) = sample.get("baseVelocity").and_then(Value::as_u64) {
-        instrument.sample_base_velocity = (base_velocity as u8).clamp(1, 127);
+        if let Ok(base_velocity) = u8::try_from(base_velocity) {
+            instrument.sample_base_velocity = base_velocity.clamp(1, 127);
+        }
     }
     if let Some(slots) = sample.get("slots").and_then(Value::as_array) {
         for (sample_index, sample_slot) in slots.iter().take(SAMPLE_SLOT_COUNT).enumerate() {
@@ -91,16 +97,22 @@ pub(super) fn apply_sample_assignments_payload(
             .collect();
     }
     if let Some(tune) = sample.get("tuneSemis").and_then(Value::as_i64) {
-        instrument.sample_tune_semis = (tune as i8).clamp(-24, 24);
+        if let Ok(tune) = i8::try_from(tune) {
+            instrument.sample_tune_semis = tune.clamp(-24, 24);
+        }
     }
 }
 
 pub(super) fn apply_sample_amp_payload(sample: &Value, instrument: &mut NativeInstrumentSlot) {
     if let Some(gain) = nested_u64(sample, &["amp", "gainPct"]) {
-        instrument.sample_gain_pct = (gain as u8).min(100);
+        if let Ok(gain) = u8::try_from(gain) {
+            instrument.sample_gain_pct = gain.min(100);
+        }
     }
     if let Some(velocity_sens) = nested_u64(sample, &["amp", "velocitySensitivityPct"]) {
-        instrument.sample_amp_velocity_sensitivity_pct = (velocity_sens as u8).min(100);
+        if let Ok(velocity_sens) = u8::try_from(velocity_sens) {
+            instrument.sample_amp_velocity_sensitivity_pct = velocity_sens.min(100);
+        }
     }
     if let Some(amp_env) = sample.get("ampEnv").filter(|value| value.is_object()) {
         instrument.sample_amp_env = amp_env.clone();
@@ -127,13 +139,19 @@ pub(super) fn apply_sample_velocity_payload(sample: &Value, instrument: &mut Nat
 
 pub(super) fn apply_sample_velocity_levels(levels: &Value, instrument: &mut NativeInstrumentSlot) {
     if let Some(high) = levels.get("high").and_then(Value::as_u64) {
-        instrument.sample_velocity_high = (high as u8).clamp(1, 127);
+        if let Ok(high) = u8::try_from(high) {
+            instrument.sample_velocity_high = high.clamp(1, 127);
+        }
     }
     if let Some(medium) = levels.get("medium").and_then(Value::as_u64) {
-        instrument.sample_velocity_medium = (medium as u8).clamp(1, 127);
+        if let Ok(medium) = u8::try_from(medium) {
+            instrument.sample_velocity_medium = medium.clamp(1, 127);
+        }
     }
     if let Some(low) = levels.get("low").and_then(Value::as_u64) {
-        instrument.sample_velocity_low = (low as u8).clamp(1, 127);
+        if let Ok(low) = u8::try_from(low) {
+            instrument.sample_velocity_low = low.clamp(1, 127);
+        }
     }
 }
 
@@ -143,7 +161,9 @@ pub(super) fn apply_instrument_synth_payload(slot: &Value, instrument: &mut Nati
     };
     instrument.synth_config = synth.clone();
     if let Some(gain) = nested_u64(synth, &["amp", "gainPct"]) {
-        instrument.synth_gain_pct = (gain as u8).min(100);
+        if let Ok(gain) = u8::try_from(gain) {
+            instrument.synth_gain_pct = gain.min(100);
+        }
     }
 }
 
@@ -167,12 +187,18 @@ pub(super) fn apply_midi_value_block(
         }
     }
     if let Some(channel) = value.get("channel").and_then(Value::as_u64) {
-        instrument.midi_channel = (channel as u8).clamp(1, 16);
+        if let Ok(channel) = u8::try_from(channel) {
+            instrument.midi_channel = channel.clamp(1, 16);
+        }
     }
     if let Some(velocity) = value.get("velocity").and_then(Value::as_u64) {
-        instrument.midi_velocity = (velocity as u8).clamp(1, 127);
+        if let Ok(velocity) = u8::try_from(velocity) {
+            instrument.midi_velocity = velocity.clamp(1, 127);
+        }
     }
     if let Some(duration_ms) = value.get("durationMs").and_then(Value::as_u64) {
-        instrument.midi_duration_ms = (duration_ms as u16).clamp(10, 5000);
+        if let Ok(duration_ms) = u16::try_from(duration_ms) {
+            instrument.midi_duration_ms = duration_ms.clamp(10, 5000);
+        }
     }
 }

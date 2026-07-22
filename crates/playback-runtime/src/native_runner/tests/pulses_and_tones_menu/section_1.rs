@@ -132,7 +132,7 @@ pub(crate) fn behavior_none_hides_step_config_and_reset_but_preserves_step_rate(
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.algorithm_step_pulses = 48;
+    runner.transport.algorithm_step_pulses = 48;
     runner.menu.rebuild(runner.menu_config());
     let worlds_items = &runner.menu.root.children[0].children[0].children;
 
@@ -146,7 +146,7 @@ pub(crate) fn behavior_none_hides_step_config_and_reset_but_preserves_step_rate(
     select_behavior(&mut runner, "life");
 
     assert_ne!(runner.behavior.id(), "none");
-    assert_eq!(runner.algorithm_step_pulses, 48);
+    assert_eq!(runner.transport.algorithm_step_pulses, 48);
     assert!(contains_key_recursive(
         &runner.menu.root.children[0].children[0].children,
         "algorithmStep"

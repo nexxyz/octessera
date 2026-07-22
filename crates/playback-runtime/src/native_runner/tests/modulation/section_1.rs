@@ -71,11 +71,11 @@ pub(crate) fn link_lfo_payload_defaults_round_trips_and_rejects_non_live_target(
         round_trip["runtimeConfig"]["layers"][0]["linkLfo"]["enabled"],
         false
     );
-    runner.transport = RuntimeTransportState::Playing;
+    runner.transport.transport = RuntimeTransportState::Playing;
     let before = runner.config_payload();
     runner.advance_algorithm(6).unwrap();
     assert_eq!(runner.config_payload(), before);
-    runner.transport = RuntimeTransportState::Paused;
+    runner.transport.transport = RuntimeTransportState::Paused;
     runner.advance_algorithm(6).unwrap();
     assert_eq!(runner.pulses_layers[0].link_lfo.phase_pulses, 0);
     runner.reset_transport_position();
@@ -195,7 +195,7 @@ pub(crate) fn link_lfo_invert_and_audio_command_emit_on_transport_pulse() {
         "depthPct": 100
     });
     runner.apply_config_payload(payload).unwrap();
-    runner.transport = RuntimeTransportState::Playing;
+    runner.transport.transport = RuntimeTransportState::Playing;
 
     let messages = runner
         .send(HostMessage::TransportPulseStep {
@@ -248,7 +248,7 @@ pub(crate) fn link_lfo_fx_bus_volume_emits_fast_mixer_command() {
         "depthPct": 100
     });
     runner.apply_config_payload(payload).unwrap();
-    runner.transport = RuntimeTransportState::Playing;
+    runner.transport.transport = RuntimeTransportState::Playing;
 
     let messages = runner
         .send(HostMessage::TransportPulseStep {
@@ -295,7 +295,7 @@ pub(crate) fn link_lfo_fx_param_is_transient_and_suppresses_repeated_values() {
         "depthPct": 0
     });
     runner.apply_config_payload(payload).unwrap();
-    runner.transport = RuntimeTransportState::Playing;
+    runner.transport.transport = RuntimeTransportState::Playing;
     let before = runner.config_payload();
 
     let messages = runner
@@ -347,7 +347,7 @@ pub(crate) fn link_lfo_transport_reset_restores_base_fx_param() {
         "depthPct": 0
     });
     runner.apply_config_payload(payload).unwrap();
-    runner.transport = RuntimeTransportState::Playing;
+    runner.transport.transport = RuntimeTransportState::Playing;
     let _ = runner
         .send(HostMessage::TransportPulseStep {
             pulses: 1,
@@ -380,7 +380,7 @@ pub(crate) fn link_lfo_config_change_restores_base_and_rejects_unsafe_fx_targets
         "depthPct": 0
     });
     runner.apply_config_payload(payload).unwrap();
-    runner.transport = RuntimeTransportState::Playing;
+    runner.transport.transport = RuntimeTransportState::Playing;
     let _ = runner
         .send(HostMessage::TransportPulseStep {
             pulses: 1,
@@ -448,6 +448,7 @@ pub(crate) fn link_lfo_action_rejects_unsafe_target_without_mapped_toast() {
 
     assert!(runner.pulses_layers[0].link_lfo.target.is_none());
     assert!(runner
+        .display
         .toast
         .as_ref()
         .is_some_and(|toast| toast.message == "LFO target not live"));

@@ -1,14 +1,15 @@
 use crate::audio::{default_pi_instruments, AudioSink};
 use crate::usb_config::UsbAudioOut;
-use realtime_engine::synth::SampleBankConfig;
-use rodio_engine_source::EngineEvent;
+use realtime_engine::synth::{
+    prepare_instruments_config, SampleBankConfig, DEFAULT_AUDIO_SAMPLE_RATE,
+};
+use rodio_engine_source::{EngineEvent, EngineEventSender};
 use std::collections::BTreeMap;
-use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 
 pub(crate) struct SinkSender {
     pub(crate) sink: AudioSink,
-    tx: Sender<EngineEvent>,
+    tx: EngineEventSender,
 }
 
 pub(crate) fn broadcast_event(
@@ -16,22 +17,32 @@ pub(crate) fn broadcast_event(
     event: EngineEvent,
 ) -> Result<(), String> {
     let mut failed = Vec::new();
+    let mut first_error = None;
     let mut guard = txs
         .lock()
         .map_err(|_| "audio sink registry lock failed".to_string())?;
     for sink in guard.iter() {
-        if sink.tx.send(event.clone()).is_err() {
+        if let Err(error) = sink.tx.send(event.clone()) {
+            first_error.get_or_insert_with(|| error.to_string());
             failed.push(sink.sink);
         }
     }
     guard.retain(|sink| !failed.contains(&sink.sink));
-    Ok(())
+    if failed.is_empty() {
+        Ok(())
+    } else {
+        Err(format!(
+            "audio event queue unavailable for {:?}: {}",
+            failed,
+            first_error.unwrap_or_else(|| "unknown queue failure".into())
+        ))
+    }
 }
 
 pub(crate) fn register_sink(
     txs: &Arc<Mutex<Vec<SinkSender>>>,
     sink: AudioSink,
-    tx: Sender<EngineEvent>,
+    tx: EngineEventSender,
 ) {
     if let Ok(mut txs) = txs.lock() {
         txs.retain(|entry| entry.sink != sink);
@@ -51,12 +62,17 @@ pub(crate) fn has_sink(txs: &Arc<Mutex<Vec<SinkSender>>>, sink: AudioSink) -> bo
         .unwrap_or(false)
 }
 
-pub(crate) fn replay_to_sink(tx: &Sender<EngineEvent>, replay_events: &Arc<Mutex<ReplayCache>>) {
-    if let Ok(events) = replay_events.lock() {
-        for event in events.events() {
-            let _ = tx.send(event.clone());
-        }
+pub(crate) fn replay_to_sink(
+    tx: &EngineEventSender,
+    replay_events: &Arc<Mutex<ReplayCache>>,
+) -> Result<(), String> {
+    let events = replay_events
+        .lock()
+        .map_err(|_| "audio replay cache lock failed".to_string())?;
+    for event in events.events() {
+        tx.send(event.clone()).map_err(|error| error.to_string())?;
     }
+    Ok(())
 }
 
 pub(crate) fn default_replay_events() -> ReplayCache {
@@ -97,6 +113,23 @@ impl ReplayCache {
             self.audio_config = Some(self.materialized_audio_config(event));
             return;
         }
+        if let EngineEvent::SetPreparedAudioConfig(config) = event {
+            let sample_banks = config
+                .sample_banks()
+                .map(<[SampleBankConfig]>::to_vec)
+                .or_else(|| self.sample_banks.clone());
+            if let Some(banks) = sample_banks.as_ref() {
+                self.sample_banks = Some(banks.clone());
+            }
+            self.audio_config = Some(EngineEvent::SetPreparedAudioConfig(
+                config.with_sample_banks(sample_banks),
+            ));
+            return;
+        }
+        if let EngineEvent::SetPreparedInstruments(config) = event {
+            self.audio_config = Some(EngineEvent::SetPreparedInstruments(config.clone()));
+            return;
+        }
         if let Some(key) = replay_key(event) {
             if merge_fx_bus_mixer_event(&mut self.keyed, &key, event) {
                 return;
@@ -106,10 +139,12 @@ impl ReplayCache {
     }
 
     fn events(&self) -> Vec<EngineEvent> {
-        let mut events = vec![self
-            .audio_config
-            .clone()
-            .unwrap_or_else(|| EngineEvent::SetInstruments(default_pi_instruments()))];
+        let mut events = vec![self.audio_config.clone().unwrap_or_else(|| {
+            EngineEvent::SetPreparedInstruments(prepare_instruments_config(
+                default_pi_instruments(),
+                DEFAULT_AUDIO_SAMPLE_RATE,
+            ))
+        })];
         events.extend(self.keyed.values().cloned());
         events
     }
@@ -206,7 +241,15 @@ fn replay_key(event: &EngineEvent) -> Option<ReplayKey> {
             slot_index,
             ..
         } => Some(ReplayKey::FxBusSlot(*bus_index, *slot_index)),
+        EngineEvent::SetPreparedFxBusSlot {
+            bus_index,
+            slot_index,
+            ..
+        } => Some(ReplayKey::FxBusSlot(*bus_index, *slot_index)),
         EngineEvent::SetGlobalFxSlot { slot_index, .. } => {
+            Some(ReplayKey::GlobalFxSlot(*slot_index))
+        }
+        EngineEvent::SetPreparedGlobalFxSlot { slot_index, .. } => {
             Some(ReplayKey::GlobalFxSlot(*slot_index))
         }
         _ => None,
@@ -216,11 +259,13 @@ fn replay_key(event: &EngineEvent) -> Option<ReplayKey> {
 pub(crate) fn is_replay_event(event: &EngineEvent) -> bool {
     !matches!(
         event,
-        EngineEvent::NoteOn { .. }
+        EngineEvent::AllNotesOff
+            | EngineEvent::NoteOn { .. }
             | EngineEvent::NoteOff { .. }
             | EngineEvent::Cc { .. }
             | EngineEvent::PreviewSample { .. }
             | EngineEvent::MomentaryFxStart { .. }
+            | EngineEvent::PreparedMomentaryFxStart { .. }
             | EngineEvent::MomentaryFxUpdate { .. }
             | EngineEvent::MomentaryFxStop { .. }
             | EngineEvent::ProbeMark { .. }
@@ -233,12 +278,19 @@ pub(crate) fn usb_uses_recording_tap(audio_out: UsbAudioOut) -> bool {
 
 #[cfg(test)]
 pub(crate) fn collect_replay_events(cache: &ReplayCache) -> Vec<EngineEvent> {
-    use std::sync::mpsc;
+    use rodio_engine_source::event_queue;
 
-    let (tx, rx) = mpsc::channel();
+    let (tx, rx) = event_queue();
     let cache = Arc::new(Mutex::new(cache.clone()));
-    replay_to_sink(&tx, &cache);
-    rx.try_iter().collect()
+    replay_to_sink(&tx, &cache).unwrap();
+    let mut events = Vec::new();
+    while let Ok(event) = rx.try_recv_ordered() {
+        events.push(event);
+    }
+    while let Ok(event) = rx.try_recv_coalesced() {
+        events.push(event);
+    }
+    events
 }
 
 #[cfg(test)]

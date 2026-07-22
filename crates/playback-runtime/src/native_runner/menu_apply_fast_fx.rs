@@ -34,7 +34,7 @@ impl NativeRunner {
         }
         if key == "sparks.fx.type" {
             if self.apply_sparks_fx_menu_state() {
-                self.config_dirty = true;
+                self.mark_config_dirty();
             }
             return true;
         }
@@ -68,7 +68,7 @@ impl NativeRunner {
             };
             if self.preset_draft_name != name {
                 self.preset_draft_name = name;
-                self.config_dirty = true;
+                self.mark_config_dirty();
             }
             return true;
         }
@@ -96,7 +96,7 @@ impl NativeRunner {
                 }
             }
             if changed {
-                self.config_dirty = true;
+                self.mark_config_dirty();
             }
             return true;
         }
@@ -117,7 +117,7 @@ impl NativeRunner {
             instrument.name = name;
             instrument.auto_name = false;
             if changed {
-                self.config_dirty = true;
+                self.mark_config_dirty();
             }
             return true;
         }
@@ -138,7 +138,7 @@ impl NativeRunner {
             bus.name = name;
             bus.auto_name = false;
             if changed {
-                self.config_dirty = true;
+                self.mark_config_dirty();
             }
             return true;
         }

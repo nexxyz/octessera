@@ -1,4 +1,4 @@
-use rodio_engine_source::{EngineEvent, EngineSource};
+use rodio_engine_source::{event_queue, EngineEvent, EngineSource};
 use std::sync::mpsc;
 use std::time::Instant;
 
@@ -6,7 +6,7 @@ const SAMPLE_RATE: u32 = 44_100;
 const SECONDS: usize = 20;
 
 fn main() {
-    let (tx, rx) = mpsc::channel();
+    let (tx, rx) = event_queue();
     let (load_tx, load_rx) = mpsc::channel();
     tx.send(EngineEvent::NoteOn {
         instrument_slot: 0,

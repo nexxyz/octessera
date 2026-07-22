@@ -153,7 +153,7 @@ impl NativeRunner {
         let next_label = instrument_overview_label(index, instrument);
         self.menu.replace_label(&previous_label, &next_label);
         self.rematerialize_menu_around_key(&format!("instruments.{index}.mixer.route"));
-        self.audio_config_revision = self.audio_config_revision.wrapping_add(1);
+        self.audio_config_revision = self.audio_config_revision.saturating_add(1);
         self.mark_fast_autosave_dirty();
     }
 }

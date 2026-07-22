@@ -6,13 +6,14 @@ impl NativeRunner {
         let mut config_changed = false;
         let mut audio_config_changed = false;
         if let Some(sync_source) = self.menu.selected_sync_source() {
-            config_changed |= self.sync_source != sync_source;
-            self.sync_source = sync_source;
+            config_changed |= self.transport.sync_source != sync_source;
+            self.transport.sync_source = sync_source;
         }
         if let Some(step_pulses) = self.menu.selected_algorithm_step_pulses() {
-            config_changed |= self.algorithm_step_pulses != step_pulses;
-            self.algorithm_step_pulses = step_pulses;
+            config_changed |= self.transport.algorithm_step_pulses != step_pulses;
+            self.transport.algorithm_step_pulses = step_pulses;
             if let Some(layer_step) = self
+                .transport
                 .layer_algorithm_step_pulses
                 .get_mut(self.active_layer_index)
             {
@@ -21,8 +22,8 @@ impl NativeRunner {
             }
         }
         if let Some(master_volume) = self.menu.selected_master_volume() {
-            config_changed |= self.ui.master_volume != master_volume;
-            self.ui.master_volume = master_volume;
+            config_changed |= self.display.ui.master_volume != master_volume;
+            self.display.ui.master_volume = master_volume;
         }
         if let Some(draft_name) = self.menu.value_for_key("system.draftName") {
             config_changed |= self.preset_draft_name != draft_name;
@@ -137,18 +138,18 @@ impl NativeRunner {
         let mut changed = false;
         if let Some(mode) = self.menu.value_for_key("hdmi.mode") {
             let mode = normalize_hdmi_mode(&mode).to_string();
-            changed |= self.hdmi.mode != mode;
-            self.hdmi.mode = mode;
+            changed |= self.display.hdmi.mode != mode;
+            self.display.hdmi.mode = mode;
         }
         if let Some(show_gridlines) = self.menu.value_for_key("hdmi.showGridlines") {
             let show_gridlines = show_gridlines == "true";
-            changed |= self.hdmi.show_gridlines != show_gridlines;
-            self.hdmi.show_gridlines = show_gridlines;
+            changed |= self.display.hdmi.show_gridlines != show_gridlines;
+            self.display.hdmi.show_gridlines = show_gridlines;
         }
         if let Some(cycle_measures) = self.menu.number_for_key("hdmi.cycleMeasures") {
             let cycle_measures = cycle_measures.clamp(1, 64) as u8;
-            changed |= self.hdmi.cycle_measures != cycle_measures;
-            self.hdmi.cycle_measures = cycle_measures;
+            changed |= self.display.hdmi.cycle_measures != cycle_measures;
+            self.display.hdmi.cycle_measures = cycle_measures;
         }
         changed
     }
@@ -165,31 +166,31 @@ impl NativeRunner {
     pub(super) fn apply_display_menu_state(&mut self) -> bool {
         let mut changed = false;
         if let Some(display_brightness) = self.menu.selected_display_brightness() {
-            changed |= self.ui.display_brightness != display_brightness;
-            self.ui.display_brightness = display_brightness;
+            changed |= self.display.ui.display_brightness != display_brightness;
+            self.display.ui.display_brightness = display_brightness;
         }
         if let Some(button_brightness) = self.menu.selected_button_brightness() {
-            changed |= self.ui.button_brightness != button_brightness;
-            self.ui.button_brightness = button_brightness;
+            changed |= self.display.ui.button_brightness != button_brightness;
+            self.display.ui.button_brightness = button_brightness;
         }
         if let Some(grid_brightness) = self.menu.number_for_key("gridBrightness") {
             let grid_brightness = grid_brightness.clamp(10, 100) as u8;
-            changed |= self.ui.grid_brightness != grid_brightness;
-            self.ui.grid_brightness = grid_brightness;
+            changed |= self.display.ui.grid_brightness != grid_brightness;
+            self.display.ui.grid_brightness = grid_brightness;
         }
         if let Some(numeric_display_mode) = self.menu.value_for_key("numericDisplayMode") {
-            changed |= self.ui.numeric_display_mode != numeric_display_mode;
-            self.ui.numeric_display_mode = numeric_display_mode;
+            changed |= self.display.ui.numeric_display_mode != numeric_display_mode;
+            self.display.ui.numeric_display_mode = numeric_display_mode;
         }
         if let Some(screen_sleep_seconds) = self.menu.number_for_key("screenSleepSeconds") {
             let screen_sleep_seconds = screen_sleep_seconds.clamp(0, 600) as u16;
-            changed |= self.ui.screen_sleep_seconds != screen_sleep_seconds;
-            self.ui.screen_sleep_seconds = screen_sleep_seconds;
+            changed |= self.display.ui.screen_sleep_seconds != screen_sleep_seconds;
+            self.display.ui.screen_sleep_seconds = screen_sleep_seconds;
         }
         if let Some(dim_timer_seconds) = self.menu.number_for_key("dimTimerSeconds") {
             let dim_timer_seconds = dim_timer_seconds.clamp(0, 600) as u16;
-            changed |= self.ui.dim_timer_seconds != dim_timer_seconds;
-            self.ui.dim_timer_seconds = dim_timer_seconds;
+            changed |= self.display.ui.dim_timer_seconds != dim_timer_seconds;
+            self.display.ui.dim_timer_seconds = dim_timer_seconds;
         }
         changed
     }
@@ -198,16 +199,16 @@ impl NativeRunner {
         let mut changed = false;
         if let Some(bpm) = self.menu.number_for_key("transport.bpm") {
             let bpm = crate::delay_timing::clamp_visible_bpm(f64::from(bpm));
-            if (self.bpm - bpm).abs() > f64::EPSILON {
-                self.bpm = bpm;
+            if (self.transport.bpm - bpm).abs() > f64::EPSILON {
+                self.transport.bpm = bpm;
                 changed = true;
                 self.retime_note_mode_bus_delays();
             }
         }
         if let Some(swing_pct) = self.menu.number_for_key("transport.swingPct") {
             let swing_pct = swing_pct.clamp(0, 75) as u8;
-            changed |= self.swing_pct != swing_pct;
-            self.swing_pct = swing_pct;
+            changed |= self.transport.swing_pct != swing_pct;
+            self.transport.swing_pct = swing_pct;
         }
         changed
     }
@@ -247,7 +248,7 @@ impl NativeRunner {
             if self.audio_output_buffer_frames != value {
                 changed = true;
                 self.audio_output_buffer_frames = value;
-                self.pending_audio_output_buffer_reboot_prompt = true;
+                self.pending.pending_audio_output_buffer_reboot_prompt = true;
                 self.show_toast("Restart device to apply");
             }
         }
@@ -258,8 +259,8 @@ impl NativeRunner {
         let mut changed = false;
         if let Some(ghost_cells) = self.menu.value_for_key("ghostCells") {
             let ghost_cells = ghost_cells == "true";
-            changed |= self.ui.ghost_cells != ghost_cells;
-            self.ui.ghost_cells = ghost_cells;
+            changed |= self.display.ui.ghost_cells != ghost_cells;
+            self.display.ui.ghost_cells = ghost_cells;
         }
         if let Some(input_events_while_paused) = self.menu.value_for_key("inputEventsWhilePaused") {
             let input_events_while_paused = input_events_while_paused == "true";

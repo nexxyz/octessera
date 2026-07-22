@@ -1,9 +1,15 @@
 use crate::types::{AudioRuntime, MomentaryFxTargetPayload, QueuedAudioEvent};
-use realtime_engine::synth::{AudioLoadStatus, MomentaryFxTarget};
-use rodio_engine_source::EngineEvent;
+use playback_runtime::{
+    RuntimeAdapterError, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation,
+};
+use realtime_engine::synth::{
+    prepare_audio_config, prepare_fx_bus_slot, prepare_global_fx_slot,
+    prepare_instrument_slot_config, prepare_momentary_fx_start, AudioLoadStatus, MomentaryFxTarget,
+    DEFAULT_AUDIO_SAMPLE_RATE,
+};
+use rodio_engine_source::{event_queue, EngineEvent, EngineEventSender};
 use serde::Serialize;
 use std::sync::mpsc::Receiver;
-use std::sync::{Arc, Mutex};
 use std::thread;
 use tauri::Emitter;
 
@@ -26,7 +32,7 @@ struct AudioLoadPayload {
 pub(crate) fn spawn_audio_engine_thread(
     trigger_rx: Receiver<QueuedAudioEvent>,
     load_tx: std::sync::mpsc::Sender<AudioLoadStatus>,
-    audio_error: Arc<Mutex<Option<String>>>,
+    failure_tx: std::sync::mpsc::Sender<RuntimeAdapterError>,
     no_audio: bool,
 ) {
     if no_audio {
@@ -37,127 +43,170 @@ pub(crate) fn spawn_audio_engine_thread(
 
     thread::spawn(move || {
         use std::panic::{catch_unwind, AssertUnwindSafe};
+        let mut active_revision = None;
+        let mut active_request_id = None;
         let result = catch_unwind(AssertUnwindSafe(|| -> Result<(), String> {
-            let (engine_tx, engine_rx) = std::sync::mpsc::channel::<EngineEvent>();
+            let (engine_tx, engine_rx) = event_queue();
             let audio = AudioRuntime::new()?;
             audio.start_engine(engine_rx, load_tx)?;
 
             while let Ok(event) = trigger_rx.recv() {
                 match event {
+                    QueuedAudioEvent::AllNotesOff => {
+                        send_engine_event(&engine_tx, EngineEvent::AllNotesOff)?;
+                    }
                     QueuedAudioEvent::Note(note) => {
-                        let _ = engine_tx.send(EngineEvent::NoteOn {
-                            instrument_slot: note.instrument_slot,
-                            note: note.note,
-                            velocity: note.velocity,
-                            duration_ms: note.duration_ms,
-                        });
+                        send_engine_event(
+                            &engine_tx,
+                            EngineEvent::NoteOn {
+                                instrument_slot: note.instrument_slot,
+                                note: note.note,
+                                velocity: note.velocity,
+                                duration_ms: note.duration_ms,
+                            },
+                        )?;
                     }
                     QueuedAudioEvent::Cc {
                         instrument_slot,
                         controller,
                         value,
                     } => {
-                        let _ = engine_tx.send(EngineEvent::Cc {
-                            instrument_slot,
-                            controller,
-                            value,
-                        });
+                        send_engine_event(
+                            &engine_tx,
+                            EngineEvent::Cc {
+                                instrument_slot,
+                                controller,
+                                value,
+                            },
+                        )?;
                     }
                     QueuedAudioEvent::NoteOff {
                         instrument_slot,
                         note,
                     } => {
-                        let _ = engine_tx.send(EngineEvent::NoteOff {
-                            instrument_slot,
-                            note,
-                        });
+                        send_engine_event(
+                            &engine_tx,
+                            EngineEvent::NoteOff {
+                                instrument_slot,
+                                note,
+                            },
+                        )?;
                     }
                     QueuedAudioEvent::PreviewSample {
                         instrument_slot,
                         buffer,
                         velocity,
                     } => {
-                        let _ = engine_tx.send(EngineEvent::PreviewSample {
-                            instrument_slot,
-                            buffer,
-                            velocity,
-                        });
+                        send_engine_event(
+                            &engine_tx,
+                            EngineEvent::PreviewSample {
+                                instrument_slot,
+                                buffer,
+                                velocity,
+                            },
+                        )?;
                     }
                     QueuedAudioEvent::SetAudioConfig {
+                        revision,
+                        request_id,
                         instruments,
                         sample_banks,
                         voice_stealing_mode,
                     } => {
-                        let _ = engine_tx.send(EngineEvent::SetAudioConfig {
-                            instruments,
-                            sample_banks,
-                            voice_stealing_mode,
-                        });
+                        active_revision = Some(revision);
+                        active_request_id = request_id;
+                        send_engine_event(
+                            &engine_tx,
+                            EngineEvent::SetPreparedAudioConfig(prepare_audio_config(
+                                instruments,
+                                sample_banks,
+                                voice_stealing_mode,
+                                DEFAULT_AUDIO_SAMPLE_RATE,
+                            )),
+                        )?;
                     }
                     QueuedAudioEvent::SetSampleBank {
                         instrument_slot,
                         bank,
                     } => {
-                        let _ = engine_tx.send(EngineEvent::SetSampleBank {
-                            instrument_slot,
-                            bank,
-                        });
+                        send_engine_event(
+                            &engine_tx,
+                            EngineEvent::SetSampleBank {
+                                instrument_slot,
+                                bank,
+                            },
+                        )?;
                     }
                     QueuedAudioEvent::SetMasterVolume { volume_pct } => {
-                        let _ = engine_tx.send(EngineEvent::SetMasterVolume { volume_pct });
+                        send_engine_event(&engine_tx, EngineEvent::SetMasterVolume { volume_pct })?;
                     }
                     QueuedAudioEvent::SetInstrumentMixer {
                         instrument_slot,
                         volume_pct,
                         pan_pos,
                     } => {
-                        let _ = engine_tx.send(EngineEvent::SetInstrumentMixer {
-                            instrument_slot,
-                            volume_pct,
-                            pan_pos,
-                        });
+                        send_engine_event(
+                            &engine_tx,
+                            EngineEvent::SetInstrumentMixer {
+                                instrument_slot,
+                                volume_pct,
+                                pan_pos,
+                            },
+                        )?;
                     }
                     QueuedAudioEvent::SetInstrumentSlot {
                         instrument_slot,
                         config,
                     } => {
-                        let _ = engine_tx.send(EngineEvent::SetInstrumentSlot {
-                            instrument_slot,
-                            config,
-                        });
+                        send_engine_event(
+                            &engine_tx,
+                            EngineEvent::SetPreparedInstrumentSlot {
+                                instrument_slot,
+                                config: prepare_instrument_slot_config(config),
+                            },
+                        )?;
                     }
                     QueuedAudioEvent::SetFxBusMixer {
                         bus_index,
                         pan_pos,
                         volume_pct,
                     } => {
-                        let _ = engine_tx.send(EngineEvent::SetFxBusMixer {
-                            bus_index,
-                            pan_pos,
-                            volume_pct,
-                        });
+                        send_engine_event(
+                            &engine_tx,
+                            EngineEvent::SetFxBusMixer {
+                                bus_index,
+                                pan_pos,
+                                volume_pct,
+                            },
+                        )?;
                     }
                     QueuedAudioEvent::SetSynthParam {
                         instrument_slot,
                         path,
                         value,
                     } => {
-                        let _ = engine_tx.send(EngineEvent::SetSynthParam {
-                            instrument_slot,
-                            path,
-                            value,
-                        });
+                        send_engine_event(
+                            &engine_tx,
+                            EngineEvent::SetSynthParam {
+                                instrument_slot,
+                                path,
+                                value,
+                            },
+                        )?;
                     }
                     QueuedAudioEvent::SetSampleBankParam {
                         instrument_slot,
                         path,
                         value,
                     } => {
-                        let _ = engine_tx.send(EngineEvent::SetSampleBankParam {
-                            instrument_slot,
-                            path,
-                            value,
-                        });
+                        send_engine_event(
+                            &engine_tx,
+                            EngineEvent::SetSampleBankParam {
+                                instrument_slot,
+                                path,
+                                value,
+                            },
+                        )?;
                     }
                     QueuedAudioEvent::SetFxBusSlot {
                         bus_index,
@@ -165,23 +214,31 @@ pub(crate) fn spawn_audio_engine_thread(
                         fx_type,
                         params,
                     } => {
-                        let _ = engine_tx.send(EngineEvent::SetFxBusSlot {
-                            bus_index,
-                            slot_index,
-                            fx_type,
-                            params,
-                        });
+                        send_engine_event(
+                            &engine_tx,
+                            EngineEvent::SetPreparedFxBusSlot {
+                                bus_index,
+                                slot_index,
+                                config: prepare_fx_bus_slot(
+                                    fx_type,
+                                    params,
+                                    DEFAULT_AUDIO_SAMPLE_RATE,
+                                ),
+                            },
+                        )?;
                     }
                     QueuedAudioEvent::SetGlobalFxSlot {
                         slot_index,
                         fx_type,
                         params,
                     } => {
-                        let _ = engine_tx.send(EngineEvent::SetGlobalFxSlot {
-                            slot_index,
-                            fx_type,
-                            params,
-                        });
+                        send_engine_event(
+                            &engine_tx,
+                            EngineEvent::SetPreparedGlobalFxSlot {
+                                slot_index,
+                                config: prepare_global_fx_slot(fx_type, params),
+                            },
+                        )?;
                     }
                     QueuedAudioEvent::MomentaryFxStart {
                         id,
@@ -189,26 +246,37 @@ pub(crate) fn spawn_audio_engine_thread(
                         params,
                         target,
                     } => {
-                        let _ = engine_tx.send(EngineEvent::MomentaryFxStart {
+                        let target = match target {
+                            MomentaryFxTargetPayload::Global => MomentaryFxTarget::Global,
+                            MomentaryFxTargetPayload::FxBus { index } => {
+                                MomentaryFxTarget::FxBus { index }
+                            }
+                            MomentaryFxTargetPayload::Instrument { index } => {
+                                MomentaryFxTarget::Instrument { index }
+                            }
+                        };
+                        let Some(prepared) = prepare_momentary_fx_start(
                             id,
                             fx_type,
                             params,
-                            target: match target {
-                                MomentaryFxTargetPayload::Global => MomentaryFxTarget::Global,
-                                MomentaryFxTargetPayload::FxBus { index } => {
-                                    MomentaryFxTarget::FxBus { index }
-                                }
-                                MomentaryFxTargetPayload::Instrument { index } => {
-                                    MomentaryFxTarget::Instrument { index }
-                                }
-                            },
-                        });
+                            target,
+                            DEFAULT_AUDIO_SAMPLE_RATE,
+                        ) else {
+                            return Err("invalid momentary FX configuration".into());
+                        };
+                        send_engine_event(
+                            &engine_tx,
+                            EngineEvent::PreparedMomentaryFxStart(prepared),
+                        )?;
                     }
                     QueuedAudioEvent::MomentaryFxUpdate { id, params } => {
-                        let _ = engine_tx.send(EngineEvent::MomentaryFxUpdate { id, params });
+                        send_engine_event(
+                            &engine_tx,
+                            EngineEvent::MomentaryFxUpdate { id, params },
+                        )?;
                     }
                     QueuedAudioEvent::MomentaryFxStop { id } => {
-                        let _ = engine_tx.send(EngineEvent::MomentaryFxStop { id });
+                        send_engine_event(&engine_tx, EngineEvent::MomentaryFxStop { id })?;
                     }
                 }
             }
@@ -218,9 +286,15 @@ pub(crate) fn spawn_audio_engine_thread(
             Ok(Ok(())) => {}
             Ok(Err(error)) => {
                 eprintln!("audio error: {error}");
-                if let Ok(mut guard) = audio_error.lock() {
-                    *guard = Some(error);
-                }
+                let _ = failure_tx.send(RuntimeAdapterError::from_facts(
+                    RuntimeErrorFacts::new(
+                        RuntimeErrorDomain::Audio,
+                        RuntimeErrorCode::AudioThreadFailed,
+                        RuntimeOperation::AudioThread,
+                        Some(error),
+                    )
+                    .with_identity(active_request_id.clone(), active_revision),
+                ));
             }
             Err(panic) => {
                 let msg = panic
@@ -229,12 +303,22 @@ pub(crate) fn spawn_audio_engine_thread(
                     .or_else(|| panic.downcast_ref::<String>().map(|s| s.as_str()))
                     .unwrap_or("unknown panic");
                 eprintln!("audio thread panicked: {msg}");
-                if let Ok(mut guard) = audio_error.lock() {
-                    *guard = Some(format!("panic: {msg}"));
-                }
+                let _ = failure_tx.send(RuntimeAdapterError::from_facts(
+                    RuntimeErrorFacts::new(
+                        RuntimeErrorDomain::Audio,
+                        RuntimeErrorCode::AudioThreadFailed,
+                        RuntimeOperation::AudioThread,
+                        Some(format!("panic: {msg}")),
+                    )
+                    .with_identity(active_request_id, active_revision),
+                ));
             }
         }
     });
+}
+
+fn send_engine_event(sender: &EngineEventSender, event: EngineEvent) -> Result<(), String> {
+    sender.send(event).map_err(|error| error.to_string())
 }
 
 pub(crate) fn spawn_load_listener(

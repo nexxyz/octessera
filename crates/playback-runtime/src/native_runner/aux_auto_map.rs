@@ -30,7 +30,7 @@ pub(super) struct ResolvedAuxSlot {
 
 impl NativeRunner {
     pub(super) fn effective_aux_slot(&self, index: usize) -> ResolvedAuxSlot {
-        if self.ui.shift_held || self.ui.combined_modifier_held {
+        if self.display.ui.shift_held || self.display.ui.combined_modifier_held {
             return self.resolve_shift_aux_slot(index);
         }
         let auto = self.current_auto_aux_map();

@@ -4,8 +4,8 @@ use super::*;
 pub(crate) fn life_palette_surfaces_in_runtime_snapshot_led_rgb() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     select_behavior(&mut runner, "life");
-    runner.oled_splash_text.clear();
-    runner.oled_splash_until = None;
+    runner.display.oled_splash_text.clear();
+    runner.display.oled_splash_until = None;
 
     let stable_messages = runner
         .send(HostMessage::DeviceInput {
@@ -49,8 +49,8 @@ pub(crate) fn water_themed_backgrounds_surface_without_hiding_live_cells() {
     for behavior_id in ["bubbles", "raindrops"] {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
         select_behavior(&mut runner, behavior_id);
-        runner.oled_splash_text.clear();
-        runner.oled_splash_until = None;
+        runner.display.oled_splash_text.clear();
+        runner.display.oled_splash_until = None;
 
         let snapshot = runner.snapshot().unwrap();
         let leds = led_cells(&snapshot);
@@ -67,7 +67,7 @@ pub(crate) fn water_themed_backgrounds_surface_without_hiding_live_cells() {
         };
         runner.trigger_behavior_action(action.into()).unwrap();
         if behavior_id == "raindrops" {
-            runner.engine.tick(runner.bpm as f32).unwrap();
+            runner.engine.tick(runner.transport.bpm as f32).unwrap();
         }
         let active_snapshot = runner.snapshot().unwrap();
         let active_leds = led_cells(&active_snapshot);
@@ -92,8 +92,8 @@ pub(crate) fn water_themed_backgrounds_surface_without_hiding_live_cells() {
 pub(crate) fn ant_palette_keeps_ant_and_trail_visible_in_runtime_snapshot_led_rgb() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     select_behavior(&mut runner, "ant");
-    runner.oled_splash_text.clear();
-    runner.oled_splash_until = None;
+    runner.display.oled_splash_text.clear();
+    runner.display.oled_splash_until = None;
 
     runner
         .active_engine_input_result(platform_core::DeviceInput::GridPress { x: 2, y: 3 })
@@ -107,7 +107,7 @@ pub(crate) fn ant_palette_keeps_ant_and_trail_visible_in_runtime_snapshot_led_rg
         led_rgb(platform_core::palette::BLACK)
     );
 
-    runner.engine.tick(runner.bpm as f32).unwrap();
+    runner.engine.tick(runner.transport.bpm as f32).unwrap();
     let tick_snapshot = runner.snapshot().unwrap();
     let tick_leds = led_cells(&tick_snapshot);
 

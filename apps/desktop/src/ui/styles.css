@@ -45,6 +45,68 @@ body {
   overflow-wrap: anywhere;
 }
 
+.runtime-status-region {
+  position: fixed;
+  z-index: 10;
+  top: 58px;
+  left: 50%;
+  width: min(520px, calc(100vw - 32px));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.runtime-status-toast,
+.runtime-status-indicator {
+  pointer-events: auto;
+  box-sizing: border-box;
+  border: 1px solid var(--palette-red);
+  border-radius: 10px;
+  color: var(--palette-white);
+  background: linear-gradient(135deg, rgb(var(--palette-red-rgb) / 0.3), #190f14 72%);
+  box-shadow: 0 10px 28px rgb(var(--palette-black-rgb) / 0.48);
+}
+
+.runtime-status-toast {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 11px 12px 11px 14px;
+  border-left-width: 5px;
+}
+
+.runtime-status-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.runtime-status-copy strong { color: #ffb2b2; font-size: 13px; }
+.runtime-status-copy span { font-size: 12px; overflow-wrap: anywhere; }
+.runtime-status-copy small { color: #e8baba; font-size: 11px; }
+
+.runtime-status-dismiss {
+  flex: 0 0 auto;
+  border: 1px solid rgb(var(--palette-red-rgb) / 0.7);
+  border-radius: 6px;
+  padding: 5px 8px;
+  color: var(--palette-white);
+  background: rgb(var(--palette-red-rgb) / 0.2);
+  cursor: pointer;
+}
+
+.runtime-status-dismiss:focus-visible,
+.runtime-status-indicator:focus-visible { outline: 2px solid var(--palette-white); outline-offset: 2px; }
+
+.runtime-status-indicator {
+  display: block;
+  margin-left: auto;
+  padding: 5px 9px;
+  color: #ffb2b2;
+  font-size: 11px;
+  cursor: pointer;
+}
+
 .panel-layout {
   width: fit-content;
   max-width: 100%;
@@ -296,6 +358,7 @@ button.encoder-center,
 }
 
 @media (max-width: 960px) {
+  .runtime-status-region { top: 52px; }
   .panel-layout {
     width: 100%;
     grid-template-columns: 1fr;

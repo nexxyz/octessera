@@ -9,7 +9,7 @@ fn set_bus_delay(runner: &mut NativeRunner, time_ms: i32) {
 #[test]
 pub(crate) fn delay_time_note_converts_at_current_bpm() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.bpm = 120.0;
+    runner.transport.bpm = 120.0;
     set_bus_delay(&mut runner, 250);
 
     assert_eq!(
@@ -34,7 +34,7 @@ pub(crate) fn delay_time_note_converts_at_current_bpm() {
 #[test]
 pub(crate) fn delay_menu_orders_time_note_before_time_ms_and_derives_from_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.bpm = 120.0;
+    runner.transport.bpm = 120.0;
     set_bus_delay(&mut runner, 333);
 
     assert!(runner
@@ -56,7 +56,7 @@ pub(crate) fn delay_menu_orders_time_note_before_time_ms_and_derives_from_payloa
 #[test]
 pub(crate) fn invalid_delay_fields_normalize_and_non_delay_strips_timing_metadata() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.bpm = 120.0;
+    runner.transport.bpm = 120.0;
     runner
         .apply_config_payload(json!({
             "runtimeConfig": {
@@ -80,7 +80,7 @@ pub(crate) fn invalid_delay_fields_normalize_and_non_delay_strips_timing_metadat
 #[test]
 pub(crate) fn selecting_delay_time_note_updates_time_ms_only_and_queues_audio() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.bpm = 120.0;
+    runner.transport.bpm = 120.0;
     set_bus_delay(&mut runner, 250);
     assert!(runner
         .menu
@@ -125,7 +125,7 @@ pub(crate) fn selecting_delay_time_note_updates_time_ms_only_and_queues_audio() 
 #[test]
 pub(crate) fn delay_time_ms_edit_remains_authoritative() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.bpm = 120.0;
+    runner.transport.bpm = 120.0;
     set_bus_delay(&mut runner, 333);
     assert!(runner
         .menu
@@ -141,7 +141,7 @@ pub(crate) fn delay_time_ms_edit_remains_authoritative() {
 #[test]
 pub(crate) fn bpm_edit_retimes_note_mode_delay_but_not_ms_mode() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.bpm = 120.0;
+    runner.transport.bpm = 120.0;
     runner.fx_buses[0].slot1_type = "delay".into();
     runner.fx_buses[0].slot1_params = json!({ "timeMode": "note", "timeNote": "1/8", "timeMs": 250, "feedback": 0.35, "mixPct": 35 });
     runner.fx_buses[0].slot2_type = "delay".into();
@@ -212,7 +212,7 @@ pub(crate) fn note_mode_delay_config_load_uses_payload_bpm() {
         }))
         .unwrap();
 
-    assert_eq!(runner.bpm, 60.0);
+    assert_eq!(runner.transport.bpm, 60.0);
     assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 500);
 }
 
@@ -232,7 +232,7 @@ pub(crate) fn note_mode_delay_config_load_uses_visible_bpm_clamp() {
         }))
         .unwrap();
 
-    assert_eq!(runner.bpm, 40.0);
+    assert_eq!(runner.transport.bpm, 40.0);
     assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 750);
 }
 
@@ -394,7 +394,7 @@ pub(crate) fn active_bus_fx_warning_allows_exact_product_budget() {
     runner.warn_if_bus_fx_over_budget();
 
     assert_eq!(runner.active_bus_fx_slot_count(), 12);
-    assert!(runner.toast.is_none());
+    assert!(runner.display.toast.is_none());
 }
 
 #[test]
@@ -424,6 +424,7 @@ pub(crate) fn active_bus_fx_warning_reports_synthetic_over_budget_state() {
 
     assert_eq!(runner.active_bus_fx_slot_count(), 13);
     assert!(runner
+        .display
         .toast
         .as_ref()
         .is_some_and(|toast| toast.message.contains("13/12")));

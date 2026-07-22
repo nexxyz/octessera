@@ -3,7 +3,7 @@ use crate::protocol::RuntimePlatformEffect;
 use super::apply_payload_instrument_values::*;
 use super::apply_payload_mixer_values::*;
 use super::aux_binding_payload_apply::apply_aux_bindings_payload;
-use super::{default_mapping_config, velocity_curve_from_id, NativeRunner, SyncSource, Value};
+use super::{velocity_curve_from_id, NativeRunner, SyncSource, Value};
 
 impl NativeRunner {
     pub(super) fn apply_instruments_payload(&mut self, runtime: &Value) {
@@ -23,7 +23,11 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn apply_runtime_ui_and_sound_payload(&mut self, runtime: &Value, payload: &Value) {
+    pub(super) fn apply_runtime_ui_and_sound_payload(
+        &mut self,
+        runtime: &Value,
+        payload: &Value,
+    ) -> Result<(), String> {
         self.apply_sound_payload(runtime);
         self.apply_runtime_transport_payload(runtime);
         apply_mixer_payload(
@@ -31,7 +35,7 @@ impl NativeRunner {
             &mut self.fx_buses,
             &mut self.global_fx_slots,
             &mut self.global_fx_params,
-            crate::delay_timing::visible_bpm_u16(self.bpm),
+            crate::delay_timing::visible_bpm_u16(self.transport.bpm),
         );
         self.apply_ui_payload(runtime);
         self.apply_midi_payload(runtime);
@@ -39,12 +43,17 @@ impl NativeRunner {
         self.apply_recording_payload(runtime);
         if let Some(mapping_config) = payload.get("mappingConfig") {
             self.base_mapping_config = serde_json::from_value(mapping_config.clone())
-                .unwrap_or_else(|_| default_mapping_config());
+                .map_err(|error| format!("invalid mappingConfig: {error}"))?;
             self.mapping_config = self.base_mapping_config.clone();
         }
+        Ok(())
     }
 
-    pub(super) fn apply_patch_runtime_payload(&mut self, runtime: &Value, payload: &Value) {
+    pub(super) fn apply_patch_runtime_payload(
+        &mut self,
+        runtime: &Value,
+        payload: &Value,
+    ) -> Result<(), String> {
         self.apply_sound_payload(runtime);
         self.apply_runtime_transport_payload(runtime);
         apply_mixer_payload(
@@ -52,26 +61,33 @@ impl NativeRunner {
             &mut self.fx_buses,
             &mut self.global_fx_slots,
             &mut self.global_fx_params,
-            crate::delay_timing::visible_bpm_u16(self.bpm),
+            crate::delay_timing::visible_bpm_u16(self.transport.bpm),
         );
         self.apply_aux_mapping_payload(runtime);
         if let Some(mapping_config) = payload.get("mappingConfig") {
             self.base_mapping_config = serde_json::from_value(mapping_config.clone())
-                .unwrap_or_else(|_| default_mapping_config());
+                .map_err(|error| format!("invalid mappingConfig: {error}"))?;
             self.mapping_config = self.base_mapping_config.clone();
         }
+        Ok(())
     }
 
     fn apply_sound_payload(&mut self, runtime: &Value) {
         if let Some(master) = runtime.get("masterVolume").and_then(Value::as_u64) {
-            self.ui.master_volume = (master as u8).min(100);
+            if let Ok(master) = u8::try_from(master) {
+                self.display.ui.master_volume = master.min(100);
+            }
         }
         let sound = runtime.get("sound");
         if let Some(value) = sound_or_runtime_u64(sound, runtime, "noteLengthMs") {
-            self.global_sound.note_length_ms = (value as u32).clamp(30, 2000);
+            if let Ok(value) = u32::try_from(value) {
+                self.global_sound.note_length_ms = value.clamp(30, 2000);
+            }
         }
         if let Some(value) = sound_or_runtime_u64(sound, runtime, "velocityScalePct") {
-            self.global_sound.velocity_scale_pct = (value as u16).min(200);
+            if let Ok(value) = u16::try_from(value) {
+                self.global_sound.velocity_scale_pct = value.min(200);
+            }
         }
         if let Some(value) = sound_or_runtime_str(sound, runtime, "velocityCurve") {
             self.global_sound.velocity_curve = velocity_curve_from_id(value);
@@ -82,8 +98,10 @@ impl NativeRunner {
             }
         }
         if let Some(value) = sound_or_runtime_u64(sound, runtime, "audioOutputBufferFrames") {
-            self.audio_output_buffer_frames =
-                super::normalize_audio_output_buffer_frames(value as u32);
+            if let Ok(value) = u32::try_from(value) {
+                self.audio_output_buffer_frames =
+                    super::normalize_audio_output_buffer_frames(value);
+            }
         }
     }
 
@@ -96,29 +114,39 @@ impl NativeRunner {
 
     fn apply_display_payload(&mut self, runtime: &Value) {
         if let Some(value) = runtime.get("displayBrightness").and_then(Value::as_u64) {
-            self.ui.display_brightness = (value as u8).min(100);
+            if let Ok(value) = u8::try_from(value) {
+                self.display.ui.display_brightness = value.min(100);
+            }
         }
         if let Some(value) = runtime.get("gridBrightness").and_then(Value::as_u64) {
-            self.ui.grid_brightness = (value as u8).min(100);
+            if let Ok(value) = u8::try_from(value) {
+                self.display.ui.grid_brightness = value.min(100);
+            }
         }
         if let Some(value) = runtime.get("buttonBrightness").and_then(Value::as_u64) {
-            self.ui.button_brightness = (value as u8).min(100);
+            if let Ok(value) = u8::try_from(value) {
+                self.display.ui.button_brightness = value.min(100);
+            }
         }
         if let Some(value) = runtime.get("numericDisplayMode").and_then(Value::as_str) {
             if matches!(value, "bar" | "numbers" | "bar+numbers") {
-                self.ui.numeric_display_mode = value.into();
+                self.display.ui.numeric_display_mode = value.into();
             }
         }
         let screen_sleep_seconds = runtime.get("screenSleepSeconds").and_then(Value::as_u64);
         if let Some(value) = screen_sleep_seconds {
-            self.ui.screen_sleep_seconds = (value as u16).min(600);
+            if let Ok(value) = u16::try_from(value) {
+                self.display.ui.screen_sleep_seconds = value.min(600);
+            }
         }
         if let Some(value) = runtime
             .get("dimTimerSeconds")
             .and_then(Value::as_u64)
             .or(screen_sleep_seconds)
         {
-            self.ui.dim_timer_seconds = (value as u16).min(600);
+            if let Ok(value) = u16::try_from(value) {
+                self.display.ui.dim_timer_seconds = value.min(600);
+            }
         }
         if let Some(value) = runtime.get("autoSaveDefault").and_then(Value::as_bool) {
             self.auto_save_default = value;
@@ -159,14 +187,16 @@ impl NativeRunner {
             .or_else(|| runtime.get("bpm"))
             .and_then(Value::as_f64)
         {
-            self.bpm = crate::delay_timing::clamp_visible_bpm(value);
+            self.transport.bpm = crate::delay_timing::clamp_visible_bpm(value);
         }
         if let Some(value) = transport
             .and_then(|transport| transport.get("swingPct"))
             .or_else(|| runtime.get("swingPct"))
             .and_then(Value::as_u64)
         {
-            self.swing_pct = (value as u8).min(75);
+            if let Ok(value) = u8::try_from(value) {
+                self.transport.swing_pct = value.min(75);
+            }
         }
         if let Some(value) = runtime.get("sparksMode").and_then(Value::as_str) {
             let normalized = match value {
@@ -208,7 +238,9 @@ impl NativeRunner {
             return;
         };
         if let Some(value) = recording.get("maxMinutes").and_then(Value::as_u64) {
-            self.recording_max_minutes = (value as u16).clamp(1, 120);
+            if let Ok(value) = u16::try_from(value) {
+                self.recording_max_minutes = value.clamp(1, 120);
+            }
         }
     }
 
@@ -229,7 +261,7 @@ impl NativeRunner {
 
     fn apply_midi_sync_payload(&mut self, midi: &Value) {
         if let Some(sync_mode) = midi.get("syncMode").and_then(Value::as_str) {
-            self.sync_source = if sync_mode == "external" {
+            self.transport.sync_source = if sync_mode == "external" {
                 SyncSource::External
             } else {
                 SyncSource::Internal

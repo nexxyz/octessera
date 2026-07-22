@@ -4,7 +4,6 @@ import assert from "node:assert/strict";
 import {
   GRID_DOMAIN,
   AUX_ENCODER_COUNT,
-  cutoffDisplayToHz,
   DISPLAY_PALETTE,
   GRID_HEIGHT,
   GRID_WIDTH,
@@ -13,6 +12,10 @@ import {
   OLED_WIDTH,
   PAN_POSITION_COUNT,
   PLATFORM_CAPS,
+  RUNTIME_ERROR_CODES,
+  RUNTIME_ERROR_DOMAINS,
+  RUNTIME_OPERATIONS,
+  RUNTIME_RECOVERIES,
   RUNTIME_STATUS_STATES,
   RUNTIME_TRANSPORT_STATES,
   SHARED_RUNTIME_CONTRACT_FIXTURES,
@@ -21,6 +24,8 @@ import {
   type RuntimePlatformEffect,
   type RuntimeRunnerMessage,
   type RuntimeStoreResult,
+  type RuntimeErrorMetadata,
+  type RuntimeSnapshot,
   type OledFrame
 } from "../src/index";
 
@@ -75,6 +80,9 @@ const RUNTIME_STORE_RESULT_FIXTURES = [
   { type: "save_backup_result", ok: true },
   { type: "save_recovery_result", ok: false },
   { type: "store_error", message: "disk full" },
+  { type: "runtime_failure", error: { domain: "audio", code: "audio_thread_failed", operation: "audio_thread", message: "thread stopped" } },
+  { type: "identified", result: { type: "list_presets_result", names: ["Factory"] }, requestId: "platform-1", revision: 3 },
+  { type: "operation_succeeded", operation: "store_load_default", requestId: "load-default-1", revision: 4 },
   { type: "midi_list_outputs_result", outputs: [{ id: "out-1", name: "Octessera MIDI" }] },
   { type: "midi_list_inputs_result", inputs: [{ id: "in-1", name: "Clock In" }] },
   { type: "midi_status", ok: false, message: "not connected", selectedOutId: null, selectedInId: "in-1" },
@@ -217,7 +225,7 @@ test("runtime contract fixtures cover each host and runner message class", () =>
     }
   }
 
-  assert.deepEqual([...hostTypes].sort(), ["device_input", "midi_realtime_clock", "midi_realtime_continue", "midi_realtime_start", "midi_realtime_stop", "runtime_result", "transport_pulse_step"]);
+  assert.deepEqual([...hostTypes].sort(), ["device_input", "midi_realtime_clock", "midi_realtime_continue", "midi_realtime_start", "midi_realtime_stop", "runtime_result", "transport_pulse_step", "transport_stop"]);
   assert.deepEqual([...runnerTypes].sort(), ["audio_commands", "midi_events", "musical_events", "platform_effects", "runtime_status", "snapshot", "ui_pulse"]);
 });
 
@@ -269,6 +277,9 @@ test("runtime protocol union fixtures serialize every drift-prone discriminant",
     "save_backup_result",
     "save_recovery_result",
     "store_error",
+    "runtime_failure",
+    "identified",
+    "operation_succeeded",
     "midi_list_outputs_result",
     "midi_list_inputs_result",
     "midi_status",
@@ -278,11 +289,27 @@ test("runtime protocol union fixtures serialize every drift-prone discriminant",
   ]);
 });
 
-test("cutoff display clamps and scales into synth Hz range", () => {
-  assert.equal(cutoffDisplayToHz(-50), 80);
-  assert.equal(cutoffDisplayToHz(0), 80);
-  assert.equal(cutoffDisplayToHz(255), 16000);
-  const midpoint = cutoffDisplayToHz(128);
-  assert.ok(midpoint > 80);
-  assert.ok(midpoint < 16000);
+test("runtime error metadata serializes with stable typed identity and recovery", () => {
+  const error = {
+    domain: "storage",
+    code: "operation_failed",
+    operation: "store_load_default",
+    recovery: "retain_last_good",
+    message: "disk full"
+  } as const satisfies RuntimeErrorMetadata;
+  const snapshot = { runtimeError: error } as Pick<RuntimeSnapshot, "runtimeError">;
+
+  assert.deepEqual(JSON.parse(JSON.stringify(snapshot)), snapshot);
+  assert.deepEqual(RUNTIME_ERROR_DOMAINS, ["runtime", "storage", "midi", "sample", "audio", "serialization"]);
+  assert.deepEqual(RUNTIME_ERROR_CODES, [
+    "operation_failed",
+    "unavailable",
+    "invalid_payload",
+    "not_found",
+    "unsupported",
+    "serialization_failed",
+    "audio_thread_failed"
+  ]);
+  assert.ok(RUNTIME_OPERATIONS.includes(error.operation));
+  assert.ok(RUNTIME_RECOVERIES.includes(error.recovery));
 });

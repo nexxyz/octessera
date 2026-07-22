@@ -84,54 +84,6 @@ impl NativeRunner {
         profile
     }
 
-    pub(super) fn activate_engine(&mut self, index: usize) -> Result<(), String> {
-        let behavior_id = self
-            .layer_behavior_ids
-            .get(index)
-            .cloned()
-            .unwrap_or_else(|| self.behavior.id().into());
-        let behavior = platform_core::get_native_behavior(&behavior_id)
-            .ok_or_else(|| format!("unsupported native behavior `{behavior_id}`"))?;
-        let profile = self.interpretation_profile_for_layer(index);
-        let mapping = self.mapping_config_for_layer(index);
-        let next = if let Some(slot) = self.layer_engines.get_mut(index) {
-            slot.take()
-        } else {
-            None
-        };
-        self.engine = if let Some(mut engine) = next {
-            engine.set_interpretation_profile(profile.clone());
-            engine.set_mapping_config(mapping.clone());
-            engine
-        } else {
-            Self::build_engine(
-                behavior,
-                self.layer_behavior_configs
-                    .get(index)
-                    .filter(|config| !config.is_null())
-                    .cloned()
-                    .or_else(|| self.behavior_configs.get(&behavior_id).cloned())
-                    .unwrap_or(Value::Null),
-                profile.clone(),
-                mapping.clone(),
-                self.global_sound.clone(),
-                self.note_behaviors.clone(),
-                index,
-            )?
-        };
-        self.behavior = behavior;
-        self.behavior_config = self
-            .layer_behavior_configs
-            .get(index)
-            .filter(|config| !config.is_null())
-            .cloned()
-            .or_else(|| self.behavior_configs.get(&behavior_id).cloned())
-            .unwrap_or(Value::Null);
-        self.interpretation_profile = profile;
-        self.mapping_config = mapping;
-        Ok(())
-    }
-
     pub(super) fn switch_active_engine(&mut self, index: usize) -> Result<(), String> {
         let next_index = index.min(GRID_HEIGHT.saturating_sub(1));
         if next_index == self.active_layer_index {
@@ -184,9 +136,15 @@ impl NativeRunner {
         }
 
         self.active_layer_index = next_index;
-        self.hdmi.source_layer_index = next_index;
-        self.tick = self.layer_ticks.get(next_index).copied().unwrap_or(0);
-        self.algorithm_step_pulses = self
+        self.display.hdmi.source_layer_index = next_index;
+        self.transport.tick = self
+            .transport
+            .layer_ticks
+            .get(next_index)
+            .copied()
+            .unwrap_or(0);
+        self.transport.algorithm_step_pulses = self
+            .transport
             .layer_algorithm_step_pulses
             .get(next_index)
             .copied()
@@ -210,9 +168,10 @@ impl NativeRunner {
 
     pub(super) fn worlds_payload_for_layer(&self, index: usize, behavior_id: &str) -> Value {
         let step_pulses = if index == self.active_layer_index {
-            self.algorithm_step_pulses
+            self.transport.algorithm_step_pulses
         } else {
-            self.layer_algorithm_step_pulses
+            self.transport
+                .layer_algorithm_step_pulses
                 .get(index)
                 .copied()
                 .unwrap_or(DEFAULT_ALGORITHM_STEP_RED)

@@ -4,14 +4,15 @@ mod host_adapter_store;
 
 use crate::audio_prep_service::DesktopAudioControl;
 use crate::desktop_platform_service::{
-    shape_service_unavailable_result, DesktopPlatformServiceRequest,
+    shape_service_unavailable_result, DesktopPlatformServiceKind, DesktopPlatformServiceRequest,
 };
 use crate::midi;
 use crate::types::{QueuedAudioEvent, QueuedNote};
 use midir::MidiInputConnection;
 use playback_runtime::{
-    HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent, RuntimeAudioCommand,
-    RuntimePlatformEffect, RuntimeStoreResult,
+    HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent, RuntimeAdapterError,
+    RuntimeAudioCommand, RuntimeOperation, RuntimePlatformEffect, RuntimePlatformRequest,
+    RuntimeStoreResult,
 };
 use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
 use std::collections::HashMap;
@@ -19,7 +20,7 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 const RELEASES_URL: &str = "https://github.com/nexxyz/octessera/releases";
 
@@ -29,7 +30,7 @@ pub(crate) struct DesktopPlaybackHostAdapter {
     pub(crate) midi_in: Arc<Mutex<Option<MidiInputConnection<()>>>>,
     pub(crate) midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
     pub(crate) store_dir: PathBuf,
-    pending_default_save: Option<(serde_json::Value, Instant)>,
+    pending_default_save: Option<(serde_json::Value, Instant, RuntimePlatformRequest)>,
     platform_service_tx: Sender<DesktopPlatformServiceRequest>,
     selected_midi_output_id: Option<String>,
     selected_midi_input_id: Option<String>,
@@ -73,29 +74,39 @@ impl DesktopPlaybackHostAdapter {
     }
 
     pub(crate) fn flush_due_default_save(&mut self) -> Result<Vec<HostMessage>, String> {
-        let Some((_, due_at)) = self.pending_default_save.as_ref() else {
+        let Some((_, due_at, _)) = self.pending_default_save.as_ref() else {
             return Ok(Vec::new());
         };
         if Instant::now() < *due_at {
             return Ok(Vec::new());
         }
-        let Some((payload, _)) = self.pending_default_save.take() else {
+        let Some((payload, _, request)) = self.pending_default_save.take() else {
             return Ok(Vec::new());
         };
-        self.save_default_payload(&payload)?;
+        if let Err(error) = self.save_default_payload(&payload) {
+            self.pending_default_save =
+                Some((payload, Instant::now() + Duration::from_secs(1), request));
+            return Err(error);
+        }
         Ok(vec![HostMessage::RuntimeResult {
             result: RuntimeStoreResult::SaveDefaultResult {
                 ok: true,
                 is_auto: Some(true),
-            },
+            }
+            .with_identity(request.request_id, request.revision),
         }])
     }
 
     pub(crate) fn flush_pending_default_save_now(&mut self) -> Result<(), String> {
-        let Some((payload, _)) = self.pending_default_save.take() else {
+        let Some((payload, _, request)) = self.pending_default_save.take() else {
             return Ok(());
         };
-        self.save_default_payload(&payload)
+        if let Err(error) = self.save_default_payload(&payload) {
+            self.pending_default_save =
+                Some((payload, Instant::now() + Duration::from_secs(1), request));
+            return Err(error);
+        }
+        Ok(())
     }
 
     fn queued_note(
@@ -114,8 +125,10 @@ impl DesktopPlaybackHostAdapter {
 
     fn enqueue_platform_service_request(
         &self,
-        request: DesktopPlatformServiceRequest,
+        runtime_request: &RuntimePlatformRequest,
+        kind: DesktopPlatformServiceKind,
     ) -> Vec<HostMessage> {
+        let request = DesktopPlatformServiceRequest::new(runtime_request.clone(), kind);
         match self.platform_service_tx.send(request) {
             Ok(()) => Vec::new(),
             Err(error) => shape_service_unavailable_result(
@@ -127,7 +140,10 @@ impl DesktopPlaybackHostAdapter {
 }
 
 impl HostAdapter for DesktopPlaybackHostAdapter {
-    fn handle_musical_event(&mut self, event: &RuntimeMusicalEvent) -> Result<(), String> {
+    fn handle_musical_event(
+        &mut self,
+        event: &RuntimeMusicalEvent,
+    ) -> Result<(), RuntimeAdapterError> {
         let queued = match event {
             RuntimeMusicalEvent::NoteOn {
                 channel,
@@ -149,16 +165,18 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                 value: (*value).min(127),
             },
         };
-        self.audio
+        Ok(self
+            .audio
             .trigger_tx
             .send(queued)
-            .map_err(|e| format!("audio queue send failed: {e}"))
+            .map_err(|e| format!("audio queue send failed: {e}"))?)
     }
 
     fn handle_platform_effect(
         &mut self,
-        effect: &RuntimePlatformEffect,
-    ) -> Result<Vec<HostMessage>, String> {
+        request: &RuntimePlatformRequest,
+    ) -> Result<Vec<HostMessage>, RuntimeAdapterError> {
+        let effect = &request.effect;
         match effect {
             RuntimePlatformEffect::StoreListPresets => {
                 let names = self.list_preset_names()?;
@@ -197,9 +215,9 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                     },
                 }])
             }
-            RuntimePlatformEffect::StoreLoadDefault => self.load_default_result(),
+            RuntimePlatformEffect::StoreLoadDefault => Ok(self.load_default_result()?),
             RuntimePlatformEffect::StoreSaveDefault { payload, mode } => {
-                self.save_default_result(payload, mode.as_deref())
+                Ok(self.save_default_result(request, payload, mode.as_deref())?)
             }
             RuntimePlatformEffect::StoreSaveBackup { payload } => {
                 self.save_backup_payload(payload)?;
@@ -210,7 +228,7 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                 Ok(vec![])
             }
             RuntimePlatformEffect::UsbApplyReboot { payload } => {
-                self.save_default_result(payload, Some("overwrite"))?;
+                self.save_default_result(request, payload, Some("overwrite"))?;
                 self.shutdown_requested = true;
                 Ok(vec![])
             }
@@ -230,9 +248,15 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                 Ok(vec![])
             }
             RuntimePlatformEffect::MidiListOutputsRequest => Ok(self
-                .enqueue_platform_service_request(DesktopPlatformServiceRequest::MidiListOutputs)),
+                .enqueue_platform_service_request(
+                    request,
+                    DesktopPlatformServiceKind::MidiListOutputs,
+                )),
             RuntimePlatformEffect::MidiListInputsRequest => Ok(self
-                .enqueue_platform_service_request(DesktopPlatformServiceRequest::MidiListInputs)),
+                .enqueue_platform_service_request(
+                    request,
+                    DesktopPlatformServiceKind::MidiListInputs,
+                )),
             RuntimePlatformEffect::MidiSelectOutput { id } => {
                 let result = midi::select_output(id.clone(), &self.midi_out);
                 if result.is_ok() {
@@ -266,10 +290,10 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                 }])
             }
             RuntimePlatformEffect::MidiPanic => {
-                self.handle_midi_message(&[0xFC])?;
-                for channel in 0..16_u8 {
-                    self.handle_midi_message(&[0xB0 | channel, 120, 0])?;
-                    self.handle_midi_message(&[0xB0 | channel, 123, 0])?;
+                let audio_error = self.silence_internal_audio().err();
+                let midi_error = self.panic_external_midi().err();
+                if let Some(error) = audio_error.or(midi_error) {
+                    return Err(error);
                 }
                 Ok(vec![HostMessage::RuntimeResult {
                     result: RuntimeStoreResult::MidiStatus {
@@ -289,8 +313,10 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                 result: open_releases_page(),
             }]),
             RuntimePlatformEffect::UpdateApply => Ok(vec![HostMessage::RuntimeResult {
-                result: RuntimeStoreResult::StoreError {
-                    message: "Desktop updates open the releases page".into(),
+                result: RuntimeStoreResult::RuntimeFailure {
+                    error: request.unsupported_facts(
+                        "Desktop update apply is unsupported; use the releases page".into(),
+                    ),
                 },
             }]),
             RuntimePlatformEffect::Rollback => Ok(vec![HostMessage::RuntimeResult {
@@ -303,7 +329,8 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                 sample_slot,
                 dir,
             } => Ok(self.enqueue_platform_service_request(
-                DesktopPlatformServiceRequest::SampleList {
+                request,
+                DesktopPlatformServiceKind::SampleList {
                     instrument_slot: *instrument_slot,
                     sample_slot: *sample_slot,
                     dir: dir.clone(),
@@ -312,11 +339,14 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
         }
     }
 
-    fn handle_audio_command(&mut self, command: &RuntimeAudioCommand) -> Result<(), String> {
+    fn handle_audio_command(
+        &mut self,
+        command: &RuntimeAudioCommand,
+    ) -> Result<(), RuntimeAdapterError> {
         self.handle_runtime_audio_command(command)
     }
 
-    fn handle_midi_message(&mut self, _bytes: &[u8]) -> Result<(), String> {
+    fn handle_midi_message(&mut self, _bytes: &[u8]) -> Result<(), RuntimeAdapterError> {
         let mut guard = self
             .midi_out
             .lock()
@@ -324,7 +354,27 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
         let Some(conn) = guard.as_mut() else {
             return Ok(());
         };
-        conn.send(_bytes).map_err(|e| e.to_string())
+        Ok(conn.send(_bytes).map_err(|e| e.to_string())?)
+    }
+
+    fn silence_internal_audio(&mut self) -> Result<(), RuntimeAdapterError> {
+        self.audio
+            .trigger_tx
+            .send(crate::types::QueuedAudioEvent::AllNotesOff)
+            .map_err(|error| RuntimeAdapterError::from(error.to_string()))
+    }
+
+    fn panic_external_midi(&mut self) -> Result<(), RuntimeAdapterError> {
+        let mut first_error = None;
+        for bytes in std::iter::once(vec![0xFC]).chain(
+            (0..16_u8)
+                .flat_map(|channel| [vec![0xB0 | channel, 120, 0], vec![0xB0 | channel, 123, 0]]),
+        ) {
+            if let Err(error) = self.handle_midi_message(&bytes) {
+                first_error.get_or_insert(error);
+            }
+        }
+        first_error.map_or(Ok(()), Err)
     }
 }
 
@@ -340,8 +390,10 @@ fn open_releases_page() -> RuntimeStoreResult {
     };
 
     match result {
-        Ok(status) if status.success() => RuntimeStoreResult::StoreError {
-            message: "Opened Octessera releases page".into(),
+        Ok(status) if status.success() => RuntimeStoreResult::OperationSucceeded {
+            operation: RuntimeOperation::RuntimeDispatch,
+            request_id: None,
+            revision: None,
         },
         Ok(status) => RuntimeStoreResult::StoreError {
             message: format!("Open releases page failed: {status}"),

@@ -57,7 +57,7 @@ pub(crate) fn aux_turn_generated_per_layer_behavior_targets_updates_stored_confi
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.layer_behavior_ids[2] = "brain".into();
     runner.layer_behavior_configs[2] = json!({ "randomSeedCells": 4 });
-    runner.layer_algorithm_step_pulses[2] = 24;
+    runner.transport.layer_algorithm_step_pulses[2] = 24;
     runner.aux_bindings[0] = Some(NativeAuxBinding {
         turn_key: Some("layers.2.algorithmStep".into()),
         press_action: None,
@@ -70,7 +70,7 @@ pub(crate) fn aux_turn_generated_per_layer_behavior_targets_updates_stored_confi
     runner.handle_aux_turn(0, 1).unwrap();
     runner.handle_aux_turn(1, 1).unwrap();
 
-    assert_eq!(runner.layer_algorithm_step_pulses[2], 32);
+    assert_eq!(runner.transport.layer_algorithm_step_pulses[2], 32);
     assert_eq!(runner.layer_behavior_configs[2]["randomSeedCells"], 5);
     assert!(runner.config_dirty);
 }
@@ -98,7 +98,7 @@ pub(crate) fn per_layer_step_rate_xy_binding_round_trips_from_payload() {
 pub(crate) fn stale_bindings_to_none_behavior_layer_do_not_mutate_hidden_values() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.layer_behavior_ids[2] = "none".into();
-    runner.layer_algorithm_step_pulses[2] = 24;
+    runner.transport.layer_algorithm_step_pulses[2] = 24;
     runner.layer_behavior_configs[2] = json!({ "randomSeedCells": 4 });
     runner.xy_touch = NativeXyTouch {
         x: 1.0,
@@ -138,7 +138,7 @@ pub(crate) fn stale_bindings_to_none_behavior_layer_do_not_mutate_hidden_values(
 
     runner.apply_runtime_modulation(&[], 0);
 
-    assert_eq!(runner.layer_algorithm_step_pulses[2], 24);
+    assert_eq!(runner.transport.layer_algorithm_step_pulses[2], 24);
     assert_eq!(runner.layer_behavior_configs[2]["randomSeedCells"], 4);
     assert!(!runner.config_dirty);
 }

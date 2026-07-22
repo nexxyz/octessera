@@ -79,6 +79,36 @@ impl DeviceDriver {
         self.send(HostMessage::MidiRealtimeStart);
     }
 
+    pub(super) fn configure_external_clock(&mut self) {
+        self.runner.transport.sync_source = SyncSource::External;
+        self.runner.midi_clock_in_enabled = true;
+        self.runner.midi_respond_to_start_stop = true;
+        self.refresh_snapshot();
+    }
+
+    pub(super) fn set_external_clock_position(&mut self, pulse: u64) {
+        self.runner.transport.current_ppqn_pulse = pulse;
+        self.refresh_snapshot();
+    }
+
+    pub(super) fn arm_external_resync(&mut self) {
+        self.hold_button("shift");
+        self.press_button("play");
+        self.release_button("shift");
+    }
+
+    pub(super) fn external_clock(&mut self, pulses: u32) {
+        self.send(HostMessage::MidiRealtimeClock { pulses });
+    }
+
+    pub(super) fn pending_resync(&self) -> bool {
+        self.runner.transport.pending_resync
+    }
+
+    pub(super) fn active_grid_cell(&self, x: usize, y: usize) -> bool {
+        self.runner.engine.model().unwrap().cells[platform_core::grid_index(x, y)]
+    }
+
     pub(super) fn clock_pulses(&mut self, pulses: u32) {
         self.send(HostMessage::TransportPulseStep {
             pulses,
@@ -202,7 +232,7 @@ impl DeviceDriver {
             self.fail(&format!("send failed: {error}"));
         });
         self.output.record(&messages);
-        if let Some(snapshot) = messages.iter().find_map(|message| match message {
+        if let Some(snapshot) = messages.iter().rev().find_map(|message| match message {
             RunnerMessage::Snapshot { snapshot } => Some(snapshot.clone()),
             _ => None,
         }) {

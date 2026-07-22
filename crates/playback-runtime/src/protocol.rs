@@ -8,5 +8,11 @@ mod tests;
 
 pub use audio::{RuntimeAudioCommand, RuntimeMomentaryFxTarget};
 pub use messages::{HostMessage, RunnerMessage, RuntimeUiPulse};
-pub use platform::{MidiPort, RuntimePlatformEffect, RuntimeStoreResult, SampleEntry};
-pub use status::{RuntimeStatus, RuntimeStatusState, RuntimeTransportState, SyncSource};
+pub use platform::{
+    MidiPort, RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult, SampleEntry,
+};
+pub use status::{
+    RuntimeAdapterError, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts,
+    RuntimeErrorMetadata, RuntimeOperation, RuntimeRecovery, RuntimeStatus, RuntimeStatusState,
+    RuntimeTransportState, SyncSource,
+};

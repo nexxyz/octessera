@@ -7,11 +7,11 @@ impl NativeRunner {
             return;
         };
         let mut points = Vec::new();
-        if self.ui.combined_modifier_held {
+        if self.display.ui.combined_modifier_held {
             for row in 0..GRID_HEIGHT {
                 points.push((x, row));
             }
-        } else if self.ui.shift_held {
+        } else if self.display.ui.shift_held {
             for col in 0..GRID_WIDTH {
                 points.push((col, y));
             }
@@ -21,7 +21,7 @@ impl NativeRunner {
         for (px, py) in points {
             self.assign_sample_cell(instrument_slot, sample_slot, px, py);
         }
-        self.config_dirty = true;
+        self.mark_config_dirty();
     }
 
     pub(super) fn assign_sample_cell(
@@ -87,18 +87,18 @@ impl NativeRunner {
             return;
         }
         let next = self.next_probability_state(layer_index, x, y);
-        if self.ui.combined_modifier_held {
+        if self.display.ui.combined_modifier_held {
             for row in 0..GRID_HEIGHT {
                 self.set_probability_cell(layer_index, x, row, &next);
             }
-        } else if self.ui.shift_held {
+        } else if self.display.ui.shift_held {
             for column in 0..GRID_WIDTH {
                 self.set_probability_cell(layer_index, column, y, &next);
             }
         } else {
             self.set_probability_cell(layer_index, x, y, &next);
         }
-        self.config_dirty = true;
+        self.mark_config_dirty();
     }
 
     pub(super) fn next_probability_state(&self, layer_index: usize, x: usize, y: usize) -> String {
@@ -162,7 +162,7 @@ impl NativeRunner {
                 if let Some(mode) = sparks_mode_from_page_label(label) {
                     self.sparks_mode = mode.into();
                     self.active_sparks_mode = self.sparks_mode.clone();
-                    self.config_dirty = true;
+                    self.mark_config_dirty();
                     return Ok(());
                 }
                 if let Some(layer) = label

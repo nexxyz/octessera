@@ -11,7 +11,8 @@ import {
   GREEN_COLOR,
   type DisplayPaletteRgb,
   type OledFrame,
-  type RuntimeSnapshot
+  type RuntimeSnapshot,
+  type RuntimeStatus
 } from "@octessera/device-contracts";
 import type { SimulatorSnapshot } from "./types";
 
@@ -31,7 +32,7 @@ export type TransientIndicatorState = {
 
 export type SnapshotAudioState = {
   audioLoad: { ratio: number; voiceSteal: boolean };
-  audioError: string | null;
+  runtimeStatus: RuntimeStatus | null;
 };
 
 export function createRuntimeSnapshotCache(): RuntimeSnapshotCache {
@@ -113,13 +114,13 @@ export function snapshotFromCore(
   const neoKeyLeds = neoKeyColors(frame, space, settings?.buttonBrightness, shiftActive);
   return {
     frame: withTransientIndicators(frame, indicators),
+    runtimeStatus: audio.runtimeStatus,
     neoKeyLeds,
     displayBrightness: settings?.displayBrightness ?? 75,
     buttonBrightness: settings?.buttonBrightness ?? 75,
     masterVolume: cache.masterVolume,
     voiceStealingMode: settings?.voiceStealingMode ?? "auto-balanced",
     audioLoad: audio.audioLoad,
-    audioError: audio.audioError,
     instruments: cache.instruments,
     mixer: cache.mixer,
     panPositions: cache.panPositions,

@@ -1,6 +1,4 @@
 use octessera_hal::encoder_gpio::HardwareEvent;
-use playback_runtime::HostMessage;
-use serde_json::Value;
 use std::sync::OnceLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -32,39 +30,6 @@ pub(crate) fn log_encoder_event(event: HardwareEvent) {
             log(format_args!("source=encoder event=raw_release id={id}"));
         }
     }
-}
-
-pub(crate) fn log_host_dispatch(message: &HostMessage) {
-    if !enabled() {
-        return;
-    }
-    if let HostMessage::DeviceInput { input, .. } = message {
-        log(format_args!(
-            "source=runtime event=dispatch {}",
-            input_summary(input)
-        ));
-    }
-}
-
-fn input_summary(input: &Value) -> String {
-    let input_type = input
-        .get("type")
-        .and_then(Value::as_str)
-        .unwrap_or("unknown");
-    let mut fields = vec![format!("type={input_type}")];
-    for key in ["id", "x", "y", "pressed", "delta"] {
-        if let Some(value) = input.get(key) {
-            fields.push(format!("{key}={}", compact_json(value)));
-        }
-    }
-    fields.join(" ")
-}
-
-fn compact_json(value: &Value) -> String {
-    value
-        .as_str()
-        .map(str::to_owned)
-        .unwrap_or_else(|| value.to_string())
 }
 
 fn press_state(pressed: bool) -> &'static str {

@@ -1,5 +1,6 @@
 import { createGridDomain } from "./gridDomain";
 import { GRID_HEIGHT, GRID_WIDTH, OLED_HEIGHT, OLED_WIDTH } from "./platformCapabilities.generated";
+import type { RuntimeErrorMetadata } from "./runtimeErrors";
 
 export type MusicalEvent =
   | { type: "note_on"; channel: number; note: number; velocity: number; durationMs?: number }
@@ -121,4 +122,5 @@ export type RuntimeSnapshot = {
   transportFlash?: "none" | "beat" | "measure";
   cpuLoadRatio?: number;
   settings?: RuntimeSnapshotSettings;
+  runtimeError?: RuntimeErrorMetadata;
 };

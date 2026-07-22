@@ -1,4 +1,5 @@
 import type { DeviceInput, MusicalEvent, RuntimeSnapshot } from "./coreTypes";
+import type { RuntimeErrorFacts, RuntimeErrorMetadata, RuntimeOperation } from "./runtimeErrors";
 
 export const RUNTIME_STATUS_STATES = ["idle", "running", "paused", "error"] as const;
 export type RuntimeStatusState = (typeof RUNTIME_STATUS_STATES)[number];
@@ -18,7 +19,7 @@ export type RuntimeMomentaryFxTarget =
   | { type: "instrument"; index: number };
 
 export type RuntimeAudioCommand =
-  | { type: "set_audio_config"; revision: number; config: Record<string, unknown> }
+  | { type: "set_audio_config"; revision: number; requestId?: string; config: Record<string, unknown> }
   | { type: "set_master_volume"; volumePct: number }
   | { type: "set_instrument_mixer"; instrumentSlot: number; volumePct?: number; panPos?: number }
   | { type: "set_fx_bus_mixer"; busIndex: number; panPos?: number; volumePct?: number }
@@ -64,6 +65,9 @@ export type RuntimeStoreResult =
   | { type: "save_backup_result"; ok: boolean }
   | { type: "save_recovery_result"; ok: boolean }
   | { type: "store_error"; message: string }
+  | { type: "runtime_failure"; error: RuntimeErrorFacts }
+  | { type: "identified"; result: RuntimeStoreResult; requestId: string; revision?: number }
+  | { type: "operation_succeeded"; operation: RuntimeOperation; requestId?: string; revision?: number }
   | { type: "midi_list_outputs_result"; outputs: Array<{ id: string; name: string }> }
   | { type: "midi_list_inputs_result"; inputs: Array<{ id: string; name: string }> }
   | { type: "midi_status"; ok: boolean; message?: string; selectedOutId?: string | null; selectedInId?: string | null }
@@ -78,6 +82,7 @@ export type RuntimeStatus = {
   pendingResync: boolean;
   syncSource: "internal" | "external";
   message?: string;
+  error?: RuntimeErrorMetadata;
 };
 
 export type RuntimeDeviceInputMessage = { type: "device_input"; input: DeviceInput; requestSnapshot?: boolean };
@@ -100,9 +105,11 @@ export type RuntimeMidiRealtimeWireMessage =
   | { type: "midi_realtime_continue" }
   | { type: "midi_realtime_stop" };
 
+export type RuntimeTransportStopMessage = { type: "transport_stop" };
+
 export type RuntimeResultMessage = { type: "runtime_result"; result: RuntimeStoreResult };
 
-export type RuntimeHostMessage = RuntimeDeviceInputMessage | RuntimeTransportPulseStepMessage | RuntimeMidiRealtimeWireMessage | RuntimeResultMessage;
+export type RuntimeHostMessage = RuntimeDeviceInputMessage | RuntimeTransportPulseStepMessage | RuntimeMidiRealtimeWireMessage | RuntimeTransportStopMessage | RuntimeResultMessage;
 
 export type RuntimeSnapshotMessage = { type: "snapshot"; snapshot: RuntimeSnapshot };
 export type RuntimePlatformEffectsMessage = { type: "platform_effects"; effects: RuntimePlatformEffect[] };
@@ -187,7 +194,8 @@ export const SHARED_RUNTIME_CONTRACT_FIXTURES: RuntimeContractFixture[] = [
       { type: "midi_realtime_start" },
       { type: "midi_realtime_clock", pulses: 24 },
       { type: "midi_realtime_continue" },
-      { type: "midi_realtime_stop" }
+      { type: "midi_realtime_stop" },
+      { type: "transport_stop" }
     ],
     runnerMessages: [
       {

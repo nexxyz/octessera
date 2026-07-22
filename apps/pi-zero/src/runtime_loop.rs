@@ -4,7 +4,6 @@ use playback_runtime::{
     RuntimeConfig, RuntimePlatformEffect, SyncSource,
 };
 use serde_json::Value;
-use std::collections::VecDeque;
 
 const PLATFORM_RESULT_BUDGET: usize = 4;
 
@@ -14,7 +13,15 @@ pub fn dispatch_runtime_message(
     adapter: &mut PiPlaybackHostAdapter,
     host_message: HostMessage,
 ) -> Result<(), String> {
-    dispatch_and_ingest(playback, runner, adapter, host_message)
+    let output = playback.dispatch(
+        playback_runtime::RuntimeDispatchInput::HostMessage(host_message),
+        runner,
+        adapter,
+    )?;
+    for follow_up in output.follow_ups {
+        dispatch_runtime_message(playback, runner, adapter, follow_up)?;
+    }
+    Ok(())
 }
 
 pub fn handle_deferred_host_work(
@@ -41,15 +48,17 @@ pub fn initialize_host_state(
     runner: &mut NativeRunner,
     adapter: &mut PiPlaybackHostAdapter,
 ) -> Result<(), String> {
-    for effect in [
-        RuntimePlatformEffect::StoreLoadDefault,
-        RuntimePlatformEffect::MidiListOutputsRequest,
-        RuntimePlatformEffect::MidiListInputsRequest,
-    ] {
-        for follow_up in adapter.handle_platform_effect(&effect)? {
-            dispatch_runtime_message(playback, runner, adapter, follow_up)?;
-        }
-    }
+    playback.dispatch_runner_messages(
+        vec![playback_runtime::RunnerMessage::PlatformEffects {
+            effects: vec![
+                RuntimePlatformEffect::StoreLoadDefault,
+                RuntimePlatformEffect::MidiListOutputsRequest,
+                RuntimePlatformEffect::MidiListInputsRequest,
+            ],
+        }],
+        runner,
+        adapter,
+    )?;
     Ok(())
 }
 
@@ -102,21 +111,20 @@ fn playback_config_from_snapshot(snapshot: &Value) -> Option<RuntimeConfig> {
     })
 }
 
+#[cfg(test)]
 fn dispatch_and_ingest<R: CoreRunner, H: HostAdapter>(
     playback: &mut PlaybackRuntime,
     runner: &mut R,
     adapter: &mut H,
     host_message: HostMessage,
 ) -> Result<(), String> {
-    let mut queue = VecDeque::from([host_message]);
-    while let Some(message) = queue.pop_front() {
-        crate::wake_trace::log_host_dispatch(&message);
-        let responses = runner.send(message)?;
-        for follow_up in playback.ingest_runner_messages(responses, adapter)? {
-            queue.push_back(follow_up);
-        }
-    }
-    Ok(())
+    playback
+        .dispatch(
+            playback_runtime::RuntimeDispatchInput::HostMessage(host_message),
+            runner,
+            adapter,
+        )
+        .map(|_| ())
 }
 
 fn ingest_responses<R: CoreRunner, H: HostAdapter>(
@@ -125,11 +133,9 @@ fn ingest_responses<R: CoreRunner, H: HostAdapter>(
     adapter: &mut H,
     responses: Vec<RunnerMessage>,
 ) -> Result<(), String> {
-    let mut queue = VecDeque::from(playback.ingest_runner_messages(responses, adapter)?);
-    while let Some(message) = queue.pop_front() {
-        dispatch_and_ingest(playback, runner, adapter, message)?;
-    }
-    Ok(())
+    playback
+        .dispatch_runner_messages(responses, runner, adapter)
+        .map(|_| ())
 }
 
 #[cfg(test)]
@@ -160,26 +166,40 @@ mod tests {
     }
 
     impl HostAdapter for CountingHostAdapter {
-        fn handle_musical_event(&mut self, _event: &MusicalEvent) -> Result<(), String> {
+        fn handle_musical_event(
+            &mut self,
+            _event: &MusicalEvent,
+        ) -> Result<(), playback_runtime::RuntimeAdapterError> {
             Ok(())
         }
 
         fn handle_platform_effect(
             &mut self,
-            _effect: &RuntimePlatformEffect,
-        ) -> Result<Vec<HostMessage>, String> {
+            _request: &playback_runtime::RuntimePlatformRequest,
+        ) -> Result<Vec<HostMessage>, playback_runtime::RuntimeAdapterError> {
             Ok(Vec::new())
         }
 
         fn handle_audio_command(
             &mut self,
             _command: &playback_runtime::RuntimeAudioCommand,
-        ) -> Result<(), String> {
+        ) -> Result<(), playback_runtime::RuntimeAdapterError> {
             self.audio_commands += 1;
             Ok(())
         }
 
-        fn handle_midi_message(&mut self, _bytes: &[u8]) -> Result<(), String> {
+        fn handle_midi_message(
+            &mut self,
+            _bytes: &[u8],
+        ) -> Result<(), playback_runtime::RuntimeAdapterError> {
+            Ok(())
+        }
+
+        fn silence_internal_audio(&mut self) -> Result<(), playback_runtime::RuntimeAdapterError> {
+            Ok(())
+        }
+
+        fn panic_external_midi(&mut self) -> Result<(), playback_runtime::RuntimeAdapterError> {
             Ok(())
         }
     }
@@ -208,14 +228,17 @@ mod tests {
     struct FollowUpHostAdapter;
 
     impl HostAdapter for FollowUpHostAdapter {
-        fn handle_musical_event(&mut self, _event: &MusicalEvent) -> Result<(), String> {
+        fn handle_musical_event(
+            &mut self,
+            _event: &MusicalEvent,
+        ) -> Result<(), playback_runtime::RuntimeAdapterError> {
             Ok(())
         }
 
         fn handle_platform_effect(
             &mut self,
-            _effect: &RuntimePlatformEffect,
-        ) -> Result<Vec<HostMessage>, String> {
+            _request: &playback_runtime::RuntimePlatformRequest,
+        ) -> Result<Vec<HostMessage>, playback_runtime::RuntimeAdapterError> {
             Ok(vec![HostMessage::RuntimeResult {
                 result: playback_runtime::RuntimeStoreResult::LoadDefaultResult { payload: None },
             }])
@@ -224,11 +247,22 @@ mod tests {
         fn handle_audio_command(
             &mut self,
             _command: &playback_runtime::RuntimeAudioCommand,
-        ) -> Result<(), String> {
+        ) -> Result<(), playback_runtime::RuntimeAdapterError> {
             Ok(())
         }
 
-        fn handle_midi_message(&mut self, _bytes: &[u8]) -> Result<(), String> {
+        fn handle_midi_message(
+            &mut self,
+            _bytes: &[u8],
+        ) -> Result<(), playback_runtime::RuntimeAdapterError> {
+            Ok(())
+        }
+
+        fn silence_internal_audio(&mut self) -> Result<(), playback_runtime::RuntimeAdapterError> {
+            Ok(())
+        }
+
+        fn panic_external_midi(&mut self) -> Result<(), playback_runtime::RuntimeAdapterError> {
             Ok(())
         }
     }

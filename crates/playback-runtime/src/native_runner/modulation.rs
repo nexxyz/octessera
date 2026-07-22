@@ -94,22 +94,22 @@ impl NativeRunner {
         };
         let pulses = crate::timing_units::note_unit_to_pulses_option(value);
         if let Some(pulses) = pulses {
-            self.algorithm_step_pulses = pulses;
-            self.config_dirty = true;
+            self.transport.algorithm_step_pulses = pulses;
+            self.mark_config_dirty();
         }
     }
 
     fn apply_note_length_binding(&mut self, value: Value) {
         if let Some(value) = value.as_f64() {
             self.global_sound.note_length_ms = value.round().clamp(30.0, 2000.0) as u32;
-            self.config_dirty = true;
+            self.mark_config_dirty();
         }
     }
 
     fn apply_velocity_scale_binding(&mut self, value: Value) {
         if let Some(value) = value.as_f64() {
             self.global_sound.velocity_scale_pct = value.round().clamp(0.0, 200.0) as u16;
-            self.config_dirty = true;
+            self.mark_config_dirty();
         }
     }
 
@@ -118,8 +118,8 @@ impl NativeRunner {
             if let Some(mode) = super::normalize_voice_stealing_mode(value) {
                 if self.voice_stealing_mode != mode {
                     self.voice_stealing_mode = mode.into();
-                    self.audio_config_revision = self.audio_config_revision.wrapping_add(1);
-                    self.config_dirty = true;
+                    self.audio_config_revision = self.audio_config_revision.saturating_add(1);
+                    self.mark_config_dirty();
                 }
             }
         }
@@ -139,12 +139,9 @@ impl NativeRunner {
         } else if let Some((index, field)) = parse_global_fx_binding_key(key) {
             self.apply_global_fx_param_binding(index, field, value);
         } else if let Some(field) = key.strip_prefix("sparks.fx.") {
-            apply_sparks_fx_binding_value(
-                &mut self.sparks_fx_selected,
-                field,
-                value,
-                &mut self.config_dirty,
-            );
+            if apply_sparks_fx_binding_value(&mut self.sparks_fx_selected, field, value) {
+                self.mark_config_dirty();
+            }
         }
     }
 
@@ -157,12 +154,12 @@ impl NativeRunner {
             return;
         };
         let pulses = note_unit_to_pulses(value);
-        if let Some(layer_step) = self.layer_algorithm_step_pulses.get_mut(index) {
+        if let Some(layer_step) = self.transport.layer_algorithm_step_pulses.get_mut(index) {
             *layer_step = pulses;
             if index == self.active_layer_index {
-                self.algorithm_step_pulses = pulses;
+                self.transport.algorithm_step_pulses = pulses;
             }
-            self.config_dirty = true;
+            self.mark_config_dirty();
         }
     }
 
@@ -178,26 +175,34 @@ impl NativeRunner {
             if index == self.active_layer_index {
                 self.behavior_config = Value::Object(object);
             }
-            self.config_dirty = true;
+            self.mark_config_dirty();
         }
     }
 
     fn apply_pulses_param_binding(&mut self, index: usize, field: &str, value: Value) {
-        if let Some(layer) = self.pulses_layers.get_mut(index) {
-            apply_pulses_binding_value(layer, field, value, &mut self.config_dirty);
+        let changed = self
+            .pulses_layers
+            .get_mut(index)
+            .is_some_and(|layer| apply_pulses_binding_value(layer, field, value));
+        if changed {
+            self.mark_config_dirty();
         }
     }
 
     fn apply_instrument_param_binding(&mut self, index: usize, field: &str, value: Value) {
+        let mut changed = false;
         if let Some(instrument) = self.instruments.get_mut(index) {
             let before = instrument.clone();
             let audio_command = instrument_modulation_audio_command(index, field, &value);
-            apply_instrument_binding_value(instrument, field, value, &mut self.config_dirty);
+            changed = apply_instrument_binding_value(instrument, field, value);
             if *instrument != before {
                 if let Some(command) = audio_command {
                     self.queue_audio_command(command);
                 }
             }
+        }
+        if changed {
+            self.mark_config_dirty();
         }
     }
 

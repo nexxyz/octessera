@@ -13,7 +13,7 @@ Octessera has regular controls, and then it has places where the controls tempor
 | *Back* | **Exit current location** | Exit the current edit, leave the current overlay, or go back one menu level. |
 | *Play* / *Space* | **Transport** | Play or pause. |
 | *Play* / *Space* | **Sample browser preview** | In sample browser menus, preview the highlighted sample. |
-| *Shift* + *Play* | **Stop** | Stop playback. In external sync, this arms resync instead of stopping the external clock. |
+| *Shift* + *Play* | **Stop** | Stop playback. In external sync, this arms a one-shot resync at the next 96-PPQN (one-bar) boundary instead of stopping the external clock; playback and the grid continue, then the transport origin resets and the arm clears. |
 | *Fn* + *Play* | **Reset stop** | Stop, reset the transport position, and send MIDI panic. |
 | *Fn* + turn main encoder right | **Single step** | While paused or stopped, advance one generation/tick. Turning left is a no-op. |
 | *Shift* + *Fn* + *Play* | **Reserved** | No action for now. A tiny patch of silence in the shortcut garden. |

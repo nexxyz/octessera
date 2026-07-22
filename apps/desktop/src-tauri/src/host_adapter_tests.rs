@@ -3,8 +3,10 @@ use crate::audio_prep_service::{spawn_desktop_audio_control, DesktopAudioPrepSta
 use crate::persistence::{atomic_write_json, valid_preset_name};
 use crate::types::QueuedAudioEvent;
 use playback_runtime::{
-    HostAdapter, HostMessage, RuntimeAudioCommand, RuntimePlatformEffect, RuntimeStoreResult,
+    HostAdapter, HostMessage, RuntimeAudioCommand, RuntimePlatformEffect, RuntimePlatformRequest,
+    RuntimeStoreResult,
 };
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{mpsc, Arc, Mutex};
@@ -166,9 +168,10 @@ fn test_adapter() -> (DesktopPlaybackHostAdapter, mpsc::Receiver<QueuedAudioEven
     ));
     let sample_cache = Arc::new(Mutex::new(HashMap::new()));
     let sample_bank_signature = Arc::new(Mutex::new(String::new()));
-    let audio_control = spawn_desktop_audio_control(
+    let (audio_control, _audio_prep_result_rx) = spawn_desktop_audio_control(
         tx.clone(),
         DesktopAudioPrepState {
+            config_revision: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             synth_slots: synth_slots.clone(),
             sample_cache: sample_cache.clone(),
             sample_bank_signature: sample_bank_signature.clone(),
@@ -193,19 +196,134 @@ fn test_adapter() -> (DesktopPlaybackHostAdapter, mpsc::Receiver<QueuedAudioEven
     (adapter, rx)
 }
 
+fn platform_request(effect: RuntimePlatformEffect) -> RuntimePlatformRequest {
+    RuntimePlatformRequest::new(effect, "test-request".into(), None)
+}
+
 #[test]
 fn platform_effect_audio_command_reaches_audio_queue() {
     let (mut adapter, rx) = test_adapter();
     let follow_ups = adapter
-        .handle_platform_effect(&RuntimePlatformEffect::AudioCommand {
+        .handle_platform_effect(&platform_request(RuntimePlatformEffect::AudioCommand {
             command: RuntimeAudioCommand::MomentaryFxStop {
                 id: "preview".into(),
             },
-        })
+        }))
         .unwrap();
     assert!(follow_ups.is_empty());
     assert!(
         matches!(rx.recv_timeout(Duration::from_secs(1)).unwrap(), QueuedAudioEvent::MomentaryFxStop { id } if id == "preview")
+    );
+}
+
+#[test]
+fn desktop_accepts_each_dynamic_runtime_audio_command_and_rejects_unknown_fx() {
+    let (mut adapter, rx) = test_adapter();
+    let params = BTreeMap::new();
+    let commands = vec![
+        RuntimeAudioCommand::SetMasterVolume { volume_pct: 80.0 },
+        RuntimeAudioCommand::SetInstrumentMixer {
+            instrument_slot: 0,
+            volume_pct: Some(80.0),
+            pan_pos: Some(16),
+        },
+        RuntimeAudioCommand::SetInstrumentSlot {
+            instrument_slot: 0,
+            config: serde_json::json!({ "type": "synth" }),
+        },
+        RuntimeAudioCommand::SetFxBusMixer {
+            bus_index: 0,
+            pan_pos: Some(16),
+            volume_pct: Some(80.0),
+        },
+        RuntimeAudioCommand::SetSynthParam {
+            instrument_slot: 0,
+            path: "synth.filter.cutoffHz".into(),
+            value: 440.0,
+        },
+        RuntimeAudioCommand::SetSampleBankParam {
+            instrument_slot: 0,
+            path: "sample.tuneSemis".into(),
+            value: 0.0,
+        },
+        RuntimeAudioCommand::SetFxBusSlot {
+            bus_index: 0,
+            slot_index: 0,
+            fx_type: "delay".into(),
+            params: params.clone(),
+        },
+        RuntimeAudioCommand::SetGlobalFxSlot {
+            slot_index: 0,
+            fx_type: "eq".into(),
+            params: params.clone(),
+        },
+        RuntimeAudioCommand::MomentaryFxStart {
+            id: "fx".into(),
+            fx_type: "freeze".into(),
+            params: params.clone(),
+            target: playback_runtime::RuntimeMomentaryFxTarget::Global,
+        },
+        RuntimeAudioCommand::MomentaryFxUpdate {
+            id: "fx".into(),
+            params: params.clone(),
+        },
+        RuntimeAudioCommand::MomentaryFxStop { id: "fx".into() },
+    ];
+
+    for command in commands {
+        adapter
+            .handle_platform_effect(&platform_request(RuntimePlatformEffect::AudioCommand {
+                command,
+            }))
+            .unwrap();
+    }
+    assert!(rx.recv_timeout(Duration::from_secs(1)).is_ok());
+
+    let error = adapter
+        .handle_platform_effect(&platform_request(RuntimePlatformEffect::AudioCommand {
+            command: RuntimeAudioCommand::SetGlobalFxSlot {
+                slot_index: 0,
+                fx_type: "unknown".into(),
+                params: BTreeMap::new(),
+            },
+        }))
+        .unwrap_err();
+    assert_eq!(
+        error.facts.code,
+        playback_runtime::RuntimeErrorCode::InvalidPayload
+    );
+    assert_eq!(
+        error.facts.domain,
+        playback_runtime::RuntimeErrorDomain::Audio
+    );
+
+    let config_error = adapter
+        .handle_platform_effect(&platform_request(RuntimePlatformEffect::AudioCommand {
+            command: RuntimeAudioCommand::SetAudioConfig {
+                revision: 8,
+                request_id: Some("audio-8".into()),
+                config: serde_json::json!({ "instruments": "invalid" }),
+            },
+        }))
+        .unwrap_err();
+    assert_eq!(
+        config_error.facts.code,
+        playback_runtime::RuntimeErrorCode::InvalidPayload
+    );
+
+    let preview_error = adapter
+        .handle_platform_effect(&platform_request(RuntimePlatformEffect::AudioCommand {
+            command: RuntimeAudioCommand::SamplePreview {
+                instrument_slot: 0,
+                sample_slot: 0,
+                path: "../missing.wav".into(),
+                velocity: 96,
+            },
+        }))
+        .unwrap_err();
+    assert_eq!(
+        preview_error.facts.message.as_deref(),
+        Some("invalid sample path")
     );
 }
 
@@ -220,9 +338,9 @@ fn backup_save_rotates_to_latest_twenty_files() {
     }
 
     adapter
-        .handle_platform_effect(&RuntimePlatformEffect::StoreSaveBackup {
+        .handle_platform_effect(&platform_request(RuntimePlatformEffect::StoreSaveBackup {
             payload: serde_json::json!({ "latest": true }),
-        })
+        }))
         .unwrap();
 
     let mut names = std::fs::read_dir(&backups)
@@ -240,15 +358,17 @@ fn backup_save_rotates_to_latest_twenty_files() {
 fn sample_list_request_reports_service_unavailable_when_enqueue_fails() {
     let (mut adapter, _) = test_adapter();
     let follow_ups = adapter
-        .handle_platform_effect(&RuntimePlatformEffect::SampleListRequest {
-            instrument_slot: 1,
-            sample_slot: 2,
-            dir: "kits".into(),
-        })
+        .handle_platform_effect(&platform_request(
+            RuntimePlatformEffect::SampleListRequest {
+                instrument_slot: 1,
+                sample_slot: 2,
+                dir: "kits".into(),
+            },
+        ))
         .unwrap();
 
     assert!(
-        matches!(&follow_ups[..], [HostMessage::RuntimeResult { result: RuntimeStoreResult::SampleListError { instrument_slot: 1, sample_slot: 2, dir, message } }] if dir == "kits" && message == "Desktop platform service unavailable")
+        matches!(&follow_ups[..], [HostMessage::RuntimeResult { result: RuntimeStoreResult::Identified { result, .. } }] if matches!(result.as_ref(), RuntimeStoreResult::SampleListError { instrument_slot: 1, sample_slot: 2, dir, message } if dir == "kits" && message == "Desktop platform service unavailable"))
     );
 }
 
@@ -256,9 +376,10 @@ fn sample_list_request_reports_service_unavailable_when_enqueue_fails() {
 fn full_audio_config_command_sets_instruments_and_sample_banks() {
     let (mut adapter, rx) = test_adapter();
     let follow_ups = adapter
-        .handle_platform_effect(&RuntimePlatformEffect::AudioCommand {
+        .handle_platform_effect(&platform_request(RuntimePlatformEffect::AudioCommand {
             command: RuntimeAudioCommand::SetAudioConfig {
                 revision: 7,
+                request_id: None,
                 config: serde_json::json!({
                     "masterVolume": 82,
                     "voiceStealingMode": "auto-hard",
@@ -270,12 +391,12 @@ fn full_audio_config_command_sets_instruments_and_sample_banks() {
                     "mixer": { "buses": [], "master": { "slots": [] } }
                 }),
             },
-        })
+        }))
         .unwrap();
 
     assert!(follow_ups.is_empty());
     assert!(
-        matches!(rx.recv_timeout(Duration::from_secs(1)).unwrap(), QueuedAudioEvent::SetAudioConfig { instruments, sample_banks: Some(_), voice_stealing_mode: Some(realtime_engine::synth::VoiceStealingMode::AutoHard) } if instruments.master_volume == 82.0)
+        matches!(rx.recv_timeout(Duration::from_secs(1)).unwrap(), QueuedAudioEvent::SetAudioConfig { instruments, sample_banks: Some(_), voice_stealing_mode: Some(realtime_engine::synth::VoiceStealingMode::AutoHard), .. } if instruments.master_volume == 82.0)
     );
 }
 
@@ -285,6 +406,7 @@ fn full_audio_config_command_reuses_sample_bank_signature() {
     let command = RuntimePlatformEffect::AudioCommand {
         command: RuntimeAudioCommand::SetAudioConfig {
             revision: 7,
+            request_id: None,
             config: serde_json::json!({
                 "masterVolume": 82,
                 "panPositions": 33,
@@ -294,7 +416,9 @@ fn full_audio_config_command_reuses_sample_bank_signature() {
         },
     };
 
-    adapter.handle_platform_effect(&command).unwrap();
+    adapter
+        .handle_platform_effect(&platform_request(command.clone()))
+        .unwrap();
     assert!(matches!(
         rx.recv_timeout(Duration::from_secs(1)).unwrap(),
         QueuedAudioEvent::SetAudioConfig {
@@ -303,7 +427,9 @@ fn full_audio_config_command_reuses_sample_bank_signature() {
         }
     ));
 
-    adapter.handle_platform_effect(&command).unwrap();
+    adapter
+        .handle_platform_effect(&platform_request(command.clone()))
+        .unwrap();
     assert!(matches!(
         rx.recv_timeout(Duration::from_secs(1)).unwrap(),
         QueuedAudioEvent::SetAudioConfig {
@@ -319,7 +445,7 @@ fn sampler_slot_command_enqueues_slot_and_single_sample_bank_update() {
     let (mut adapter, rx) = test_adapter();
 
     adapter
-        .handle_platform_effect(&RuntimePlatformEffect::AudioCommand {
+        .handle_platform_effect(&platform_request(RuntimePlatformEffect::AudioCommand {
             command: RuntimeAudioCommand::SetInstrumentSlot {
                 instrument_slot: 2,
                 config: serde_json::json!({
@@ -332,7 +458,7 @@ fn sampler_slot_command_enqueues_slot_and_single_sample_bank_update() {
                     "mixer": { "route": "direct", "panPos": 16, "volume": 77 }
                 }),
             },
-        })
+        }))
         .unwrap();
 
     assert!(matches!(
@@ -363,26 +489,23 @@ fn deferred_default_save_flushes_runtime_result() {
     adapter.store_dir = temp_dir.clone();
     let payload = serde_json::json!({ "runtimeConfig": { "masterVolume": 73 } });
     let follow_ups = adapter
-        .handle_platform_effect(&RuntimePlatformEffect::StoreSaveDefault {
+        .handle_platform_effect(&platform_request(RuntimePlatformEffect::StoreSaveDefault {
             payload: payload.clone(),
             mode: Some("deferred".into()),
-        })
+        }))
         .unwrap();
     assert!(follow_ups.is_empty());
     adapter.pending_default_save = adapter
         .pending_default_save
         .take()
-        .map(|(payload, _)| (payload, Instant::now()));
+        .map(|(payload, _, request)| (payload, Instant::now(), request));
     let follow_ups = adapter.flush_due_default_save().unwrap();
-    assert_eq!(
-        follow_ups,
-        vec![HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::SaveDefaultResult {
-                ok: true,
-                is_auto: Some(true)
-            }
+    assert!(matches!(
+        &follow_ups[..],
+        [HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::Identified { .. }
         }]
-    );
+    ));
     assert!(temp_dir.join("default.json").is_file());
     let _ = std::fs::remove_dir_all(temp_dir);
 }
@@ -401,10 +524,10 @@ fn pending_default_save_flushes_immediately_on_shutdown() {
     adapter.store_dir = temp_dir.clone();
     let payload = serde_json::json!({ "runtimeConfig": { "layers": [{ "name": "life" }] } });
     adapter
-        .handle_platform_effect(&RuntimePlatformEffect::StoreSaveDefault {
+        .handle_platform_effect(&platform_request(RuntimePlatformEffect::StoreSaveDefault {
             payload: payload.clone(),
             mode: Some("deferred".into()),
-        })
+        }))
         .unwrap();
 
     adapter.flush_pending_default_save_now().unwrap();
@@ -414,6 +537,27 @@ fn pending_default_save_flushes_immediately_on_shutdown() {
         serde_json::from_str::<serde_json::Value>(&saved).unwrap(),
         payload
     );
+    let _ = std::fs::remove_dir_all(temp_dir);
+}
+
+#[test]
+fn failed_deferred_default_save_retains_pending_payload_for_retry() {
+    let (mut adapter, _) = test_adapter();
+    let temp_dir = temp_store_dir("retry-default-save");
+    let blocker = temp_dir.join("not-a-directory");
+    std::fs::write(&blocker, "blocker").unwrap();
+    adapter.store_dir = blocker;
+    adapter.pending_default_save = Some((
+        serde_json::json!({ "masterVolume": 72 }),
+        Instant::now(),
+        platform_request(RuntimePlatformEffect::StoreSaveDefault {
+            payload: serde_json::json!({ "masterVolume": 72 }),
+            mode: Some("deferred".into()),
+        }),
+    ));
+
+    assert!(adapter.flush_due_default_save().is_err());
+    assert!(adapter.pending_default_save.is_some());
     let _ = std::fs::remove_dir_all(temp_dir);
 }
 
@@ -431,7 +575,7 @@ fn malformed_default_load_returns_store_error() {
     std::fs::write(temp_dir.join("default.json"), "not json").unwrap();
     adapter.store_dir = temp_dir.clone();
     let follow_ups = adapter
-        .handle_platform_effect(&RuntimePlatformEffect::StoreLoadDefault)
+        .handle_platform_effect(&platform_request(RuntimePlatformEffect::StoreLoadDefault))
         .unwrap();
     assert!(
         matches!(&follow_ups[..], [HostMessage::RuntimeResult { result: RuntimeStoreResult::StoreError { message } }] if message.starts_with("Default load failed:"))
@@ -441,9 +585,9 @@ fn malformed_default_load_returns_store_error() {
 
 #[test]
 fn midi_panic_returns_native_status_result() {
-    let (mut adapter, _) = test_adapter();
+    let (mut adapter, rx) = test_adapter();
     let follow_ups = adapter
-        .handle_platform_effect(&RuntimePlatformEffect::MidiPanic)
+        .handle_platform_effect(&platform_request(RuntimePlatformEffect::MidiPanic))
         .unwrap();
     assert_eq!(
         follow_ups,
@@ -456,13 +600,32 @@ fn midi_panic_returns_native_status_result() {
             }
         }]
     );
+    assert!(matches!(
+        rx.recv_timeout(Duration::from_secs(1)).unwrap(),
+        QueuedAudioEvent::AllNotesOff
+    ));
+}
+
+#[test]
+fn desktop_update_apply_returns_typed_unsupported() {
+    let (mut adapter, _) = test_adapter();
+    let follow_ups = adapter
+        .handle_platform_effect(&platform_request(RuntimePlatformEffect::UpdateApply))
+        .unwrap();
+
+    assert!(matches!(
+        &follow_ups[..],
+        [HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::RuntimeFailure { error }
+        }] if error.code == playback_runtime::RuntimeErrorCode::Unsupported
+    ));
 }
 
 #[test]
 fn shutdown_effect_sets_pending_shutdown_request() {
     let (mut adapter, _) = test_adapter();
     let follow_ups = adapter
-        .handle_platform_effect(&RuntimePlatformEffect::Shutdown)
+        .handle_platform_effect(&platform_request(RuntimePlatformEffect::Shutdown))
         .unwrap();
     assert!(follow_ups.is_empty());
     assert!(adapter.take_shutdown_request());
@@ -476,9 +639,11 @@ fn recovery_save_effect_writes_recovery_save_file() {
     let payload = serde_json::json!({ "runtimeConfig": { "masterVolume": 64 } });
 
     let follow_ups = adapter
-        .handle_platform_effect(&RuntimePlatformEffect::StoreSaveRecovery {
-            payload: payload.clone(),
-        })
+        .handle_platform_effect(&platform_request(
+            RuntimePlatformEffect::StoreSaveRecovery {
+                payload: payload.clone(),
+            },
+        ))
         .unwrap();
 
     assert!(follow_ups.is_empty());

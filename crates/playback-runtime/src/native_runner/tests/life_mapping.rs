@@ -70,7 +70,7 @@ fn configured_life_runner() -> NativeRunner {
     runner
         .engine
         .set_interpretation_profile(runner.interpretation_profile.clone());
-    runner.transport = RuntimeTransportState::Playing;
+    runner.transport.transport = RuntimeTransportState::Playing;
     runner
 }
 

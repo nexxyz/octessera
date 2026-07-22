@@ -3,10 +3,10 @@ use super::*;
 #[test]
 pub(crate) fn shift_space_emergency_stops_internal_and_external_arms_resync() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.transport = RuntimeTransportState::Playing;
-    runner.current_ppqn_pulse = 48;
-    runner.tick = 5;
-    runner.ui.shift_held = true;
+    runner.transport.transport = RuntimeTransportState::Playing;
+    runner.transport.current_ppqn_pulse = 48;
+    runner.transport.tick = 5;
+    runner.display.ui.shift_held = true;
 
     let stopped = runner
         .send(HostMessage::DeviceInput {
@@ -14,28 +14,59 @@ pub(crate) fn shift_space_emergency_stops_internal_and_external_arms_resync() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.transport, RuntimeTransportState::Stopped);
-    assert_eq!(runner.current_ppqn_pulse, 0);
+    assert_eq!(runner.transport.transport, RuntimeTransportState::Stopped);
+    assert_eq!(runner.transport.current_ppqn_pulse, 0);
     assert!(stopped.iter().any(|message| matches!(
         message,
         RunnerMessage::PlatformEffects { effects }
             if effects == &vec![RuntimePlatformEffect::MidiPanic]
     )));
 
-    runner.transport = RuntimeTransportState::Playing;
-    runner.current_ppqn_pulse = 48;
-    runner.sync_source = SyncSource::External;
+    runner.transport.transport = RuntimeTransportState::Playing;
+    runner.transport.current_ppqn_pulse = 48;
+    runner.transport.sync_source = SyncSource::External;
     let resync = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_s", "pressed": true }),
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.transport, RuntimeTransportState::Playing);
+    assert_eq!(runner.transport.transport, RuntimeTransportState::Playing);
     assert_eq!(snapshot_from(&resync)["transport"]["ppqnPulse"], 48);
     assert!(matches!(
         resync.last(),
         Some(RunnerMessage::RuntimeStatus { status }) if status.pending_resync
+    ));
+}
+
+#[test]
+pub(crate) fn external_resync_splits_clock_batch_at_measure_boundary() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.transport.sync_source = SyncSource::External;
+    runner.midi_clock_in_enabled = true;
+    runner.transport.transport = RuntimeTransportState::Playing;
+    runner.transport.current_ppqn_pulse = 95;
+    runner.transport.layer_pulse_accumulators[0] = 5;
+    runner.transport.tick = 7;
+    runner.transport.pending_resync = true;
+    let grid_before = runner.engine.model().unwrap().cells;
+
+    let messages = runner
+        .send(HostMessage::MidiRealtimeClock { pulses: 2 })
+        .unwrap();
+
+    assert_eq!(runner.transport.current_ppqn_pulse, 1);
+    assert_eq!(runner.transport.transport, RuntimeTransportState::Playing);
+    assert!(!runner.transport.pending_resync);
+    assert_eq!(runner.transport.tick, 0);
+    assert_eq!(runner.transport.layer_pulse_accumulators[0], 1);
+    assert_eq!(runner.engine.model().unwrap().cells, grid_before);
+    assert!(matches!(
+        messages.last(),
+        Some(RunnerMessage::RuntimeStatus { status })
+            if status.current_ppqn_pulse == 1
+                && !status.pending_resync
+                && status.transport == RuntimeTransportState::Playing
     ));
 }
 
@@ -53,7 +84,7 @@ pub(crate) fn shift_back_clears_active_layer_state() {
         })
         .unwrap();
     assert!(runner.engine.model().unwrap().cells[platform_core::grid_index(2, 3)]);
-    runner.ui.shift_held = true;
+    runner.display.ui.shift_held = true;
 
     runner
         .send(HostMessage::DeviceInput {
@@ -82,7 +113,7 @@ pub(crate) fn trigger_probability_grid_editor_cycles_cell_row_and_column() {
         "low"
     );
 
-    runner.ui.shift_held = true;
+    runner.display.ui.shift_held = true;
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 1, "y": 4 }),
@@ -95,8 +126,8 @@ pub(crate) fn trigger_probability_grid_editor_cycles_cell_row_and_column() {
             .all(|value| value == "low")
     );
 
-    runner.ui.shift_held = false;
-    runner.ui.combined_modifier_held = true;
+    runner.display.ui.shift_held = false;
+    runner.display.ui.combined_modifier_held = true;
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 6, "y": 1 }),
@@ -174,11 +205,11 @@ pub(crate) fn legacy_nested_sound_and_ui_fields_rehydrate_from_payload() {
     assert!(runner.midi_clock_out_enabled);
     assert!(runner.midi_clock_in_enabled);
     assert!(!runner.midi_respond_to_start_stop);
-    assert_eq!(runner.ui.grid_brightness, 42);
+    assert_eq!(runner.display.ui.grid_brightness, 42);
     assert!(!runner.input_events_while_paused);
-    assert_eq!(runner.ui.numeric_display_mode, "numbers");
-    assert_eq!(runner.ui.screen_sleep_seconds, 180);
-    assert_eq!(runner.ui.dim_timer_seconds, 180);
+    assert_eq!(runner.display.ui.numeric_display_mode, "numbers");
+    assert_eq!(runner.display.ui.screen_sleep_seconds, 180);
+    assert_eq!(runner.display.ui.dim_timer_seconds, 180);
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["sound"]["noteLengthMs"],
         321
@@ -213,6 +244,6 @@ pub(crate) fn legacy_screen_sleep_zero_disables_dim_timer_when_dim_timer_is_abse
 
     runner.apply_config_payload(payload).unwrap();
 
-    assert_eq!(runner.ui.screen_sleep_seconds, 0);
-    assert_eq!(runner.ui.dim_timer_seconds, 0);
+    assert_eq!(runner.display.ui.screen_sleep_seconds, 0);
+    assert_eq!(runner.display.ui.dim_timer_seconds, 0);
 }

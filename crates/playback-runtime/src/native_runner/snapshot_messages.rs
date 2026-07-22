@@ -13,13 +13,13 @@ impl NativeRunner {
     }
 
     pub(super) fn transport_ui_pulse_message(&self) -> Option<RunnerMessage> {
-        if self.transport_flash_pulses_remaining != 6 {
+        if self.display.transport_flash_pulses_remaining != 6 {
             return None;
         }
-        match self.transport_flash {
+        match self.display.transport_flash {
             "measure" | "beat" => Some(RunnerMessage::UiPulse {
                 pulse: RuntimeUiPulse::TransportFlash {
-                    flash: self.transport_flash.into(),
+                    flash: self.display.transport_flash.into(),
                     duration_ms: 90,
                 },
             }),
@@ -30,39 +30,40 @@ impl NativeRunner {
     pub(super) fn status(&self) -> RuntimeStatus {
         RuntimeStatus {
             state: RuntimeStatusState::Running,
-            transport: self.transport.clone(),
-            current_ppqn_pulse: self.current_ppqn_pulse,
-            pending_resync: self.pending_resync,
-            sync_source: self.sync_source.clone(),
+            transport: self.transport.transport.clone(),
+            current_ppqn_pulse: self.transport.current_ppqn_pulse,
+            pending_resync: self.transport.pending_resync,
+            sync_source: self.transport.sync_source.clone(),
             message: None,
+            error: None,
         }
     }
 
     pub fn messages_with_snapshot(&mut self) -> Result<Vec<RunnerMessage>, String> {
-        if self.suppress_snapshot_response {
+        if self.pending.suppress_snapshot_response {
             return self.messages_without_snapshot();
         }
         self.messages_with_snapshot_response()
     }
 
     pub(super) fn messages_with_forced_snapshot(&mut self) -> Result<Vec<RunnerMessage>, String> {
-        let suppress_snapshot_response = self.suppress_snapshot_response;
-        self.suppress_snapshot_response = false;
+        let suppress_snapshot_response = self.pending.suppress_snapshot_response;
+        self.pending.suppress_snapshot_response = false;
         let result = self.messages_with_snapshot_response();
-        self.suppress_snapshot_response = suppress_snapshot_response;
+        self.pending.suppress_snapshot_response = suppress_snapshot_response;
         result
     }
 
     fn messages_with_snapshot_response(&mut self) -> Result<Vec<RunnerMessage>, String> {
         self.advance_oled_sleep_state();
-        if self.oled_mode == NativeOledMode::Splash
-            && self.oled_splash_text == super::OLED_STARTUP_SPLASH_KEY
+        if self.display.oled_mode == NativeOledMode::Splash
+            && self.display.oled_splash_text == super::OLED_STARTUP_SPLASH_KEY
         {
-            self.startup_splash_presented = true;
+            self.display.startup_splash_presented = true;
         }
         self.advance_toast_state();
         let snapshot = self.next_snapshot()?;
-        let autosave_pending = self.pending_autosave_payload_due_at.is_some();
+        let autosave_pending = self.pending.pending_autosave_payload_due_at.is_some();
         let backup_due = self.config_dirty
             && self.rolling_backups
             && !autosave_pending
@@ -70,15 +71,22 @@ impl NativeRunner {
                 .last_backup_save_at
                 .map(|last| last.elapsed() >= std::time::Duration::from_secs(300))
                 .unwrap_or(true);
+        let save_pending = self
+            .pending
+            .pending_save_revision
+            .zip(self.dirty_revision)
+            .is_some_and(|(pending, dirty)| pending == dirty);
         let payload =
-            if (self.auto_save_default && self.config_dirty && !autosave_pending) || backup_due {
+            if (self.auto_save_default && self.config_dirty && !autosave_pending && !save_pending)
+                || backup_due
+            {
                 Some(self.config_payload())
             } else {
                 None
             };
         let save_default_effect =
-            if self.auto_save_default && self.config_dirty && !autosave_pending {
-                self.config_dirty = false;
+            if self.auto_save_default && self.config_dirty && !autosave_pending && !save_pending {
+                self.pending.pending_save_revision = Some(self.config_revision);
                 self.show_saved_default_feedback();
                 Some(RuntimePlatformEffect::StoreSaveDefault {
                     payload: payload.clone().expect("autosave payload"),
@@ -202,8 +210,8 @@ impl NativeRunner {
         )?;
         events.dedupe_note_ons_by_highest_velocity();
         if !events.is_empty() {
-            self.event_dot_on = true;
-            self.event_dot_pulses_remaining = 1;
+            self.display.event_dot_on = true;
+            self.display.event_dot_pulses_remaining = 1;
             messages.push(self.trigger_ui_pulse_message());
             if !events.audio.is_empty() {
                 messages.push(RunnerMessage::MusicalEvents {
@@ -226,8 +234,8 @@ impl NativeRunner {
     ) -> Result<Vec<RunnerMessage>, String> {
         let mut messages = Vec::new();
         if !events.is_empty() {
-            self.event_dot_on = true;
-            self.event_dot_pulses_remaining = 1;
+            self.display.event_dot_on = true;
+            self.display.event_dot_pulses_remaining = 1;
             messages.push(self.trigger_ui_pulse_message());
             if !events.audio.is_empty() {
                 messages.push(RunnerMessage::MusicalEvents {

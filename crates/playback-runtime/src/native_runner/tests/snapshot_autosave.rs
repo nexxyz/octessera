@@ -92,7 +92,7 @@ pub(crate) fn native_menu_edit_emits_deferred_auto_save_when_enabled() {
         input: json!({ "type": "encoder_press", "id": "main" }),
         request_snapshot: None,
     });
-    runner.transport = RuntimeTransportState::Playing;
+    runner.transport.transport = RuntimeTransportState::Playing;
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": -10, "id": "main" }),
@@ -134,7 +134,7 @@ pub(crate) fn native_menu_edit_emits_deferred_auto_save_when_enabled() {
         .expect("deferred save payload");
     assert_eq!(
         saved_payload["runtimeConfig"]["masterVolume"],
-        runner.ui.master_volume
+        runner.display.ui.master_volume
     );
     assert!(messages.iter().any(|message| matches!(
         message,
@@ -150,9 +150,9 @@ pub(crate) fn native_menu_edit_emits_deferred_auto_save_when_enabled() {
 #[test]
 pub(crate) fn save_default_result_lights_auto_save_indicator_and_toast_scrolls() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.oled_mode = NativeOledMode::Normal;
-    runner.oled_splash_text.clear();
-    runner.oled_splash_until = None;
+    runner.display.oled_mode = NativeOledMode::Normal;
+    runner.display.oled_splash_text.clear();
+    runner.display.oled_splash_until = None;
     runner
         .send(HostMessage::RuntimeResult {
             result: RuntimeStoreResult::SaveDefaultResult {
@@ -180,9 +180,9 @@ pub(crate) fn save_default_result_lights_auto_save_indicator_and_toast_scrolls()
 #[test]
 pub(crate) fn save_default_flash_expires_by_time_not_snapshot_count() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.oled_mode = NativeOledMode::Normal;
-    runner.oled_splash_text.clear();
-    runner.oled_splash_until = None;
+    runner.display.oled_mode = NativeOledMode::Normal;
+    runner.display.oled_splash_text.clear();
+    runner.display.oled_splash_until = None;
 
     runner
         .send(HostMessage::RuntimeResult {

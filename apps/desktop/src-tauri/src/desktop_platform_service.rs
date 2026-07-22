@@ -1,11 +1,19 @@
 use crate::midi;
 use crate::samples;
-use playback_runtime::{HostMessage, MidiPort, RuntimeStoreResult, SampleEntry};
+use playback_runtime::{
+    HostMessage, MidiPort, RuntimePlatformRequest, RuntimeStoreResult, SampleEntry,
+};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 
 #[derive(Clone, Debug)]
-pub(crate) enum DesktopPlatformServiceRequest {
+pub(crate) struct DesktopPlatformServiceRequest {
+    pub(crate) request: RuntimePlatformRequest,
+    pub(crate) kind: DesktopPlatformServiceKind,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum DesktopPlatformServiceKind {
     SampleList {
         instrument_slot: usize,
         sample_slot: usize,
@@ -13,6 +21,12 @@ pub(crate) enum DesktopPlatformServiceRequest {
     },
     MidiListOutputs,
     MidiListInputs,
+}
+
+impl DesktopPlatformServiceRequest {
+    pub(crate) fn new(request: RuntimePlatformRequest, kind: DesktopPlatformServiceKind) -> Self {
+        Self { request, kind }
+    }
 }
 
 pub(crate) struct DesktopPlatformService {
@@ -46,27 +60,28 @@ pub(crate) fn spawn_desktop_platform_service() -> DesktopPlatformService {
 }
 
 pub(crate) fn shape_service_result(request: DesktopPlatformServiceRequest) -> Vec<HostMessage> {
-    match request {
-        DesktopPlatformServiceRequest::SampleList {
+    let runtime_request = request.request;
+    let messages = match request.kind {
+        DesktopPlatformServiceKind::SampleList {
             instrument_slot,
             sample_slot,
             dir,
         } => shape_sample_list_result(instrument_slot, sample_slot, dir, samples::sample_list),
-        DesktopPlatformServiceRequest::MidiListOutputs => {
+        DesktopPlatformServiceKind::MidiListOutputs => {
             shape_midi_outputs_result(midi::list_outputs)
         }
-        DesktopPlatformServiceRequest::MidiListInputs => {
-            shape_midi_inputs_result(midi::list_inputs)
-        }
-    }
+        DesktopPlatformServiceKind::MidiListInputs => shape_midi_inputs_result(midi::list_inputs),
+    };
+    identify_service_messages(messages, &runtime_request)
 }
 
 pub(crate) fn shape_service_unavailable_result(
     request: DesktopPlatformServiceRequest,
     message: String,
 ) -> Vec<HostMessage> {
-    match request {
-        DesktopPlatformServiceRequest::SampleList {
+    let runtime_request = request.request;
+    let messages = match request.kind {
+        DesktopPlatformServiceKind::SampleList {
             instrument_slot,
             sample_slot,
             dir,
@@ -78,11 +93,37 @@ pub(crate) fn shape_service_unavailable_result(
                 message,
             },
         }],
-        DesktopPlatformServiceRequest::MidiListOutputs
-        | DesktopPlatformServiceRequest::MidiListInputs => vec![HostMessage::RuntimeResult {
+        DesktopPlatformServiceKind::MidiListOutputs
+        | DesktopPlatformServiceKind::MidiListInputs => vec![HostMessage::RuntimeResult {
             result: RuntimeStoreResult::StoreError { message },
         }],
-    }
+    };
+    identify_service_messages(messages, &runtime_request)
+}
+
+fn identify_service_messages(
+    messages: Vec<HostMessage>,
+    request: &RuntimePlatformRequest,
+) -> Vec<HostMessage> {
+    messages
+        .into_iter()
+        .map(|message| match message {
+            HostMessage::RuntimeResult { result } => {
+                let result = match result {
+                    RuntimeStoreResult::StoreError { message } => {
+                        RuntimeStoreResult::RuntimeFailure {
+                            error: request.failure_facts(message),
+                        }
+                    }
+                    result => result,
+                };
+                HostMessage::RuntimeResult {
+                    result: result.with_identity(request.request_id.clone(), request.revision),
+                }
+            }
+            other => other,
+        })
+        .collect()
 }
 
 fn shape_sample_list_result(
@@ -169,7 +210,10 @@ mod tests {
     fn only_result(messages: Vec<HostMessage>) -> RuntimeStoreResult {
         assert_eq!(messages.len(), 1);
         match messages.into_iter().next().unwrap() {
-            HostMessage::RuntimeResult { result } => result,
+            HostMessage::RuntimeResult { result } => match result {
+                RuntimeStoreResult::Identified { result, .. } => *result,
+                result => result,
+            },
             _ => panic!("expected one runtime result"),
         }
     }
@@ -216,30 +260,55 @@ mod tests {
     #[test]
     fn service_unavailable_midi_requests_return_only_store_error() {
         let outputs = only_result(shape_service_unavailable_result(
-            DesktopPlatformServiceRequest::MidiListOutputs,
+            DesktopPlatformServiceRequest::new(
+                RuntimePlatformRequest::new(
+                    playback_runtime::RuntimePlatformEffect::MidiListOutputsRequest,
+                    "test-output".into(),
+                    None,
+                ),
+                DesktopPlatformServiceKind::MidiListOutputs,
+            ),
             "service down".into(),
         ));
         assert!(
-            matches!(outputs, RuntimeStoreResult::StoreError { message } if message == "service down")
+            matches!(outputs, RuntimeStoreResult::RuntimeFailure { error } if error.message.as_deref() == Some("service down"))
         );
 
         let inputs = only_result(shape_service_unavailable_result(
-            DesktopPlatformServiceRequest::MidiListInputs,
+            DesktopPlatformServiceRequest::new(
+                RuntimePlatformRequest::new(
+                    playback_runtime::RuntimePlatformEffect::MidiListInputsRequest,
+                    "test-input".into(),
+                    None,
+                ),
+                DesktopPlatformServiceKind::MidiListInputs,
+            ),
             "service down".into(),
         ));
         assert!(
-            matches!(inputs, RuntimeStoreResult::StoreError { message } if message == "service down")
+            matches!(inputs, RuntimeStoreResult::RuntimeFailure { error } if error.message.as_deref() == Some("service down"))
         );
     }
 
     #[test]
     fn service_unavailable_shapes_sample_list_error() {
         let result = only_result(shape_service_unavailable_result(
-            DesktopPlatformServiceRequest::SampleList {
-                instrument_slot: 2,
-                sample_slot: 3,
-                dir: "kits".into(),
-            },
+            DesktopPlatformServiceRequest::new(
+                RuntimePlatformRequest::new(
+                    playback_runtime::RuntimePlatformEffect::SampleListRequest {
+                        instrument_slot: 2,
+                        sample_slot: 3,
+                        dir: "kits".into(),
+                    },
+                    "test-sample".into(),
+                    None,
+                ),
+                DesktopPlatformServiceKind::SampleList {
+                    instrument_slot: 2,
+                    sample_slot: 3,
+                    dir: "kits".into(),
+                },
+            ),
             "service down".into(),
         ));
 

@@ -60,7 +60,7 @@ pub(crate) fn mismatched_sample_list_result_is_ignored() {
 pub(crate) fn mismatched_sample_list_error_is_ignored_without_toast() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.sample_browser = Some(open_browser("Drums"));
-    runner.toast = None;
+    runner.display.toast = None;
     let before = runner.sample_browser.clone();
     let before_menu = runner.menu.snapshot();
 
@@ -75,5 +75,5 @@ pub(crate) fn mismatched_sample_list_error_is_ignored_without_toast() {
 
     assert_eq!(runner.sample_browser, before);
     assert_eq!(runner.menu.snapshot(), before_menu);
-    assert!(runner.toast.is_none());
+    assert!(runner.display.toast.is_none());
 }

@@ -7,10 +7,11 @@ use super::{
 };
 
 const OLED_HELP_LINE_WIDTH: usize = 18;
+const EXTERNAL_RESYNC_PPQN: u64 = 96;
 
 impl NativeRunner {
     pub(super) fn open_controls_help(&mut self) {
-        self.help_popup = Some(NativeHelpPopup {
+        self.display.help_popup = Some(NativeHelpPopup {
             title: "Help: Basic Help".into(),
             lines: wrap_help_text(
                 "Help Sh+Fn+Main. Back Back. Play/Pause Space. Stop/Sync Sh+Space. Reset Stop Fn+Space. Fn nav: left layer, right Play. Sh+Fn layer mutes. Fn+Aux alt bind.",
@@ -22,21 +23,21 @@ impl NativeRunner {
 
     pub(super) fn open_contextual_help(&mut self) {
         let Some(target) = self.menu.current_help_target() else {
-            self.toast = Some(NativeToast {
+            self.display.toast = Some(NativeToast {
                 message: "Missing help target".into(),
                 offset: 0,
             });
             return;
         };
         let Some(help) = crate::native_help::resolve_native_help(&target) else {
-            self.toast = Some(NativeToast {
+            self.display.toast = Some(NativeToast {
                 message: format!("Missing help: {}", target.label),
                 offset: 0,
             });
             return;
         };
         let title = format!("Help: {}", help.title);
-        self.help_popup = Some(NativeHelpPopup {
+        self.display.help_popup = Some(NativeHelpPopup {
             title,
             lines: wrap_help_text(&help.detail, OLED_HELP_LINE_WIDTH),
             scroll: 0,
@@ -44,7 +45,7 @@ impl NativeRunner {
     }
 
     pub(super) fn turn_help_popup(&mut self, delta: i8) {
-        let Some(help) = &mut self.help_popup else {
+        let Some(help) = &mut self.display.help_popup else {
             return;
         };
         let max_scroll = help.lines.len().saturating_sub(super::OLED_BODY_ROWS - 1);
@@ -53,7 +54,7 @@ impl NativeRunner {
     }
 
     pub(super) fn turn_confirm_dialog(&mut self, delta: i8) {
-        let Some(confirm) = &mut self.confirm_dialog else {
+        let Some(confirm) = &mut self.display.confirm_dialog else {
             return;
         };
         let max = confirm.options.len().saturating_sub(1);
@@ -61,7 +62,7 @@ impl NativeRunner {
     }
 
     pub(super) fn open_usb_sd_transfer_modal(&mut self) {
-        self.usb_sd_transfer_modal = Some(NativeUsbSdTransferModal {
+        self.display.usb_sd_transfer_modal = Some(NativeUsbSdTransferModal {
             title: "SD2 Transfer".into(),
             lines: wrap_help_text(
                 "SD2 active/waiting. Eject on host, then Back/Main to stop.",
@@ -73,17 +74,17 @@ impl NativeRunner {
     pub(super) fn confirm_dialog_selection(
         &mut self,
     ) -> Result<Option<super::RuntimePlatformEffect>, String> {
-        let Some(confirm) = self.confirm_dialog.take() else {
+        let Some(confirm) = self.display.confirm_dialog.take() else {
             return Ok(None);
         };
         if confirm.cursor == 0 {
             if let Some(message) = confirm.cancel_toast {
-                self.toast = Some(NativeToast { message, offset: 0 });
+                self.display.toast = Some(NativeToast { message, offset: 0 });
             }
             return Ok(None);
         }
         if confirm.confirm_before_execute {
-            self.confirm_dialog = self.confirmation_for_action(&confirm.action);
+            self.display.confirm_dialog = self.confirmation_for_action(&confirm.action);
             return Ok(None);
         }
         self.execute_confirmed_action(confirm.action)
@@ -94,7 +95,10 @@ impl NativeRunner {
         pulses: u32,
         request_snapshot: Option<bool>,
     ) -> Result<Vec<RunnerMessage>, String> {
-        self.current_ppqn_pulse = self.current_ppqn_pulse.saturating_add(pulses as u64);
+        self.transport.current_ppqn_pulse = self
+            .transport
+            .current_ppqn_pulse
+            .saturating_add(pulses as u64);
         let mut out = Vec::new();
         let events = self.advance_algorithm(pulses)?;
         if !events.is_empty() {
@@ -145,9 +149,9 @@ impl NativeRunner {
         if request_snapshot.unwrap_or(true) {
             return self.handle_device_input(input);
         }
-        self.suppress_snapshot_response = true;
+        self.pending.suppress_snapshot_response = true;
         let messages = self.handle_device_input(input);
-        self.suppress_snapshot_response = false;
+        self.pending.suppress_snapshot_response = false;
         messages
     }
 
@@ -155,10 +159,10 @@ impl NativeRunner {
         if self.should_ignore_external_start_stop() {
             return self.messages_with_snapshot();
         }
-        self.transport = RuntimeTransportState::Playing;
+        self.transport.transport = RuntimeTransportState::Playing;
         self.reset_transport_position();
-        self.transport_flash = "measure";
-        self.transport_flash_pulses_remaining = 6;
+        self.display.transport_flash = "measure";
+        self.display.transport_flash_pulses_remaining = 6;
         let mut messages = Vec::new();
         if let Some(pulse) = self.transport_ui_pulse_message() {
             messages.push(pulse);
@@ -171,7 +175,7 @@ impl NativeRunner {
         if self.should_ignore_external_start_stop() {
             return self.messages_with_snapshot();
         }
-        self.transport = RuntimeTransportState::Playing;
+        self.transport.transport = RuntimeTransportState::Playing;
         self.messages_with_snapshot()
     }
 
@@ -179,21 +183,52 @@ impl NativeRunner {
         if self.should_ignore_external_start_stop() {
             return self.messages_with_snapshot();
         }
-        self.transport = RuntimeTransportState::Stopped;
+        self.transport.transport = RuntimeTransportState::Stopped;
+        self.reset_transport_position();
+        self.messages_with_snapshot()
+    }
+
+    fn send_transport_stop(&mut self) -> Result<Vec<RunnerMessage>, String> {
+        self.transport.transport = RuntimeTransportState::Stopped;
         self.reset_transport_position();
         self.messages_with_snapshot()
     }
 
     fn send_midi_realtime_clock(&mut self, pulses: u32) -> Result<Vec<RunnerMessage>, String> {
-        if self.sync_source == SyncSource::External && !self.midi_clock_in_enabled {
+        if self.transport.sync_source == SyncSource::External && !self.midi_clock_in_enabled {
             return self.messages_with_snapshot();
         }
-        self.current_ppqn_pulse = self.current_ppqn_pulse.saturating_add(pulses as u64);
-        if self.sync_source == SyncSource::External
-            && self.transport == RuntimeTransportState::Playing
+        if self.transport.sync_source == SyncSource::External
+            && self.transport.transport == RuntimeTransportState::Playing
         {
-            let mut out = Vec::new();
-            let events = self.advance_algorithm(pulses)?;
+            return self.send_external_clock_pulses(pulses);
+        }
+        self.transport.current_ppqn_pulse = self
+            .transport
+            .current_ppqn_pulse
+            .saturating_add(pulses as u64);
+        self.messages_with_snapshot()
+    }
+
+    fn send_external_clock_pulses(&mut self, pulses: u32) -> Result<Vec<RunnerMessage>, String> {
+        if pulses == 0 {
+            return self.messages_with_snapshot();
+        }
+        let mut remaining = pulses;
+        let mut out = Vec::new();
+        while remaining > 0 {
+            let chunk = if self.transport.pending_resync {
+                let until_boundary = EXTERNAL_RESYNC_PPQN
+                    - (self.transport.current_ppqn_pulse % EXTERNAL_RESYNC_PPQN);
+                remaining.min(until_boundary as u32)
+            } else {
+                remaining
+            };
+            self.transport.current_ppqn_pulse = self
+                .transport
+                .current_ppqn_pulse
+                .saturating_add(u64::from(chunk));
+            let events = self.advance_algorithm(chunk)?;
             if !events.is_empty() {
                 out.push(self.trigger_ui_pulse_message());
                 if !events.audio.is_empty() {
@@ -211,9 +246,18 @@ impl NativeRunner {
                 out.push(pulse);
             }
             out.extend(self.messages_with_snapshot()?);
-            return Ok(out);
+            remaining -= chunk;
+            if self.transport.pending_resync
+                && self
+                    .transport
+                    .current_ppqn_pulse
+                    .is_multiple_of(EXTERNAL_RESYNC_PPQN)
+            {
+                self.reset_transport_position();
+                out.extend(self.messages_with_snapshot()?);
+            }
         }
-        self.messages_with_snapshot()
+        Ok(out)
     }
 
     fn send_runtime_result(
@@ -225,7 +269,7 @@ impl NativeRunner {
     }
 
     fn should_ignore_external_start_stop(&self) -> bool {
-        self.sync_source == SyncSource::External
+        self.transport.sync_source == SyncSource::External
             && (!self.midi_clock_in_enabled || !self.midi_respond_to_start_stop)
     }
 }
@@ -246,6 +290,7 @@ impl super::CoreRunner for NativeRunner {
             HostMessage::MidiRealtimeStart => self.send_midi_realtime_start(),
             HostMessage::MidiRealtimeContinue => self.send_midi_realtime_continue(),
             HostMessage::MidiRealtimeStop => self.send_midi_realtime_stop(),
+            HostMessage::TransportStop => self.send_transport_stop(),
             HostMessage::MidiRealtimeClock { pulses } => self.send_midi_realtime_clock(pulses),
             HostMessage::RuntimeResult { result } => self.send_runtime_result(result),
         }?;

@@ -7,9 +7,8 @@ pub(super) fn apply_pulses_binding_value(
     layer: &mut NativePulsesLayer,
     field: &str,
     value: Value,
-    config_dirty: &mut bool,
-) {
-    let changed = match field {
+) -> bool {
+    match field {
         "scanMode" => apply_scan_mode_value(&mut layer.scan_mode, value),
         "scanAxis" => apply_string_value(&mut layer.scan_axis, value, &["rows", "columns"]),
         "scanUnit" => apply_string_value(
@@ -103,8 +102,7 @@ pub(super) fn apply_pulses_binding_value(
             apply_value_lane_binding_value(&mut layer.y_filter_resonance, &field[18..], value)
         }
         _ => false,
-    };
-    *config_dirty |= changed;
+    }
 }
 
 fn apply_scan_mode_value(target: &mut String, value: Value) -> bool {

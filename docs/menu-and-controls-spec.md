@@ -10,7 +10,7 @@ Platform capability source: `resources/platform-capabilities.json`; generated Ty
 | Combo | Function | Notes |
 |---|---|---|
 | Shift + Space | Emergency Stop | Internal sync: panic + stop/reset.
-| Shift + Space (external sync) | Resync arm | External sync: does not emergency-stop transport.
+| Shift + Space (external sync) | Resync arm | External sync: arms a one-shot resync at the next 96-PPQN (one-bar) boundary; playback and the grid continue, then transport origins reset to zero and the arm clears.
 | Shift + Back | Clear active layer | Re-initializes current active layer behavior state.
 | Shift + Fn | Combined modifier | Acts as its own logical button; Fn and Shift are inactive while both physical buttons are held.
 | Combined modifier + Main press | Context help | Opens help for highlighted menu entry.
@@ -34,7 +34,7 @@ Platform capability source: `resources/platform-capabilities.json`; generated Ty
 | Main encoder press | Enter | Enter group / enter/exit edit / trigger action |
 | Back button | Backspace / Esc | Go back / exit edit / clear grid (with Shift) |
 | Space button | Space | Play / Pause |
-| Shift + Space | Shift+Space | Emergency stop (panic + reset scan origin) |
+| Shift + Space | Shift+Space | Emergency stop (panic + reset scan origin; external sync arms the next 96-PPQN boundary instead) |
 | Fn + Space | Ctrl+Space | Reset stop (panic + reset scan origin) |
 | Shift + Fn + Space | Shift+Ctrl+Space | Reserved no-op |
 | Shift + Back | Shift+Backspace / Shift+Esc | Clear grid (re-initialize behavior) |
@@ -135,6 +135,7 @@ Value editing semantics:
 - DLA has `Cell Life` (`0..256`, default `96`) so old aggregate cells age out and the cluster keeps renewing instead of filling the grid forever. `0` disables DLA aging/removal. If aging removes the whole cluster, DLA reseeds its small starter cluster.
 - Selector-like numeric rows stay plain text, including MIDI channels, instrument/sample slots, layer selectors, and MIDI note ranges
 - Structural selector edits apply immediately while the row is in edit mode through key-specific fast paths. This covers instrument type, instrument route, FX bus slot type, and master FX slot type. Behavior selection applies immediately when a behavior action row is pressed. Dynamic parameter rows also apply immediately while editing.
+- Runtime audio commands and full audio-config payloads use the same native normalization on desktop and Pi. Malformed instrument/FX payloads retain the last good audio state and surface a typed audio failure; sample preview resolves and decodes through the host adapter before entering the selected realtime instrument path.
 - FX buses expose three ordered mono-chain slots: `Slot 1`, `Slot 2`, and `Slot 3`, with keys under `mixer.buses.N.slot1.*`, `slot2.*`, and `slot3.*`. When bus config is missing, the menu displays shipped defaults (`Slot 1: Delay`, `Slot 2: Duck`, `Slot 3: None`) rather than selecting the first option by accident. Old runtime/default configs that omit `slot3` load it as `none`; saved configs include explicit `slot3`. Global/master FX remains two stereo slots and does not expand with bus slot count.
 - The Pi active bus FX warning budget is 12 active bus slots, matching the current 4 buses × 3 slots maximum after Pi DSP profiling. The warning budget excludes the two global/master FX slots and does not reject saved patches.
 - Bus Delay FX exposes `Mix %`, `Spread %`, `Time Mode`, `Time Note`, and `Time ms`. Editing `Time Note` switches to note mode and materializes `timeMs` from the current BPM; later BPM edits retime note-mode bus Delays. Editing `Time ms` switches to ms mode and remains manual. Runtime/audio commands carry `timeMs` only, while `timeMode` and `timeNote` persist as patch metadata and are excluded from modulation, Aux, and XY binding targets. `Spread %` is 0..100 and widens only the final FX bus output; instruments, sampler voices, bus sends, and the FX slot chain remain mono. Delay Mix 0 with Spread 100 produces no widening.

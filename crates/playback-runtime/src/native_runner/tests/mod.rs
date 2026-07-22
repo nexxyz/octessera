@@ -8,8 +8,10 @@ mod basics;
 mod behavior_menu_defaults;
 mod behavior_palette;
 mod browser_and_help;
+mod config_transactions;
 mod controls;
 mod dim_sleep;
+mod fast_dispatch_parity;
 mod happy_path;
 mod hdmi;
 mod input_events;
@@ -71,7 +73,7 @@ pub(crate) fn dim_rgb(rgb: [u8; 3], divisor: u8) -> [u8; 3] {
 }
 
 pub(crate) fn confirm_current_dialog(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
-    runner.confirm_dialog.as_mut().unwrap().cursor = 1;
+    runner.display.confirm_dialog.as_mut().unwrap().cursor = 1;
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),

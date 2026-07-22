@@ -114,6 +114,7 @@ pub(super) fn message_label(message: &HostMessage) -> String {
         HostMessage::MidiRealtimeStart => "midi_start".into(),
         HostMessage::MidiRealtimeContinue => "midi_continue".into(),
         HostMessage::MidiRealtimeStop => "midi_stop".into(),
+        HostMessage::TransportStop => "transport_stop".into(),
         HostMessage::MidiRealtimeClock { pulses } => format!("midi_clock:{pulses}"),
         HostMessage::RuntimeResult { .. } => "runtime_result".into(),
     }

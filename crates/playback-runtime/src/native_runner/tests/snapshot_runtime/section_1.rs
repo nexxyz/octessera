@@ -43,7 +43,7 @@ pub(crate) fn snapshot_settings_include_complete_audio_config_shapes() {
 #[test]
 pub(crate) fn first_snapshot_emits_full_audio_config_command() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.ui.master_volume = 64;
+    runner.display.ui.master_volume = 64;
 
     let messages = runner.messages_with_snapshot().unwrap();
 
@@ -51,7 +51,10 @@ pub(crate) fn first_snapshot_emits_full_audio_config_command() {
         .iter()
         .find_map(|message| match message {
             RunnerMessage::AudioCommands { commands } => commands.iter().find_map(|command| {
-                if let RuntimeAudioCommand::SetAudioConfig { revision, config } = command {
+                if let RuntimeAudioCommand::SetAudioConfig {
+                    revision, config, ..
+                } = command
+                {
                     Some((*revision, config))
                 } else {
                     None
@@ -149,27 +152,27 @@ pub(crate) fn selected_short_menu_row_stays_stable_while_highlighted() {
     runner.menu.state.stack = vec![1];
     runner.menu.state.cursor = 3;
 
-    runner.menu_scroll_offset = 0;
+    runner.display.menu_scroll_offset = 0;
     let initial = runner.snapshot().unwrap();
     assert_eq!(initial["display"]["lines"][3], "> Paused Events On");
 
-    runner.menu_scroll_offset = 3;
+    runner.display.menu_scroll_offset = 3;
     let still_waiting = runner.snapshot().unwrap();
     assert_eq!(still_waiting["display"]["lines"][3], "> Paused Events On");
 
-    runner.menu_scroll_offset = 4;
+    runner.display.menu_scroll_offset = 4;
     let scrolled = runner.snapshot().unwrap();
     assert_eq!(scrolled["display"]["lines"][3], "> Paused Events On");
 
-    runner.menu_scroll_offset = 27;
+    runner.display.menu_scroll_offset = 27;
     let end_hold = runner.snapshot().unwrap();
     assert_eq!(end_hold["display"]["lines"][3], "> Paused Events On");
 
-    runner.menu_scroll_offset = 99;
+    runner.display.menu_scroll_offset = 99;
     let later = runner.snapshot().unwrap();
     assert_eq!(later["display"]["lines"][3], "> Paused Events On");
 
-    runner.menu_scroll_offset = 4;
+    runner.display.menu_scroll_offset = 4;
     runner.menu.state.editing = true;
     let editing = runner.snapshot().unwrap();
     assert_eq!(editing["display"]["lines"][3], "> Paused Events:");
@@ -194,13 +197,13 @@ pub(crate) fn selected_group_row_scrolls_full_link_target_label() {
     runner.menu.state.stack = vec![1, 4, 4];
     runner.menu.state.cursor = 0;
 
-    runner.menu_scroll_offset = 0;
+    runner.display.menu_scroll_offset = 0;
     let initial = runner.snapshot().unwrap();
     let selected_row = initial["selectedRow"].as_u64().unwrap() as usize;
     let initial_line = initial["display"]["lines"][selected_row].as_str().unwrap();
     assert!(!initial_line.contains("Amount"));
 
-    runner.menu_scroll_offset = 36;
+    runner.display.menu_scroll_offset = 36;
     let scrolled = runner.snapshot().unwrap();
     let scrolled_line = scrolled["display"]["lines"][selected_row].as_str().unwrap();
     assert!(
@@ -212,14 +215,14 @@ pub(crate) fn selected_group_row_scrolls_full_link_target_label() {
 #[test]
 pub(crate) fn menu_navigation_resets_selected_row_scroll() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu_scroll_offset = 12;
+    runner.display.menu_scroll_offset = 12;
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.menu_scroll_offset, 1);
+    assert_eq!(runner.display.menu_scroll_offset, 1);
 }
 
 #[test]
@@ -245,9 +248,9 @@ pub(crate) fn unbound_aux_inputs_show_toast_without_navigating_menu() {
 #[test]
 pub(crate) fn toasts_expire_after_timeout() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.oled_mode = NativeOledMode::Normal;
-    runner.oled_splash_text.clear();
-    runner.oled_splash_until = None;
+    runner.display.oled_mode = NativeOledMode::Normal;
+    runner.display.oled_splash_text.clear();
+    runner.display.oled_splash_until = None;
     runner.set_toast_for_test("Temporary toast");
 
     assert_eq!(
@@ -316,8 +319,8 @@ pub(crate) fn scanning_sequencer_pattern_emits_different_rows_over_scan_steps() 
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.transport = RuntimeTransportState::Playing;
-    runner.algorithm_step_pulses = 24;
+    runner.transport.transport = RuntimeTransportState::Playing;
+    runner.transport.algorithm_step_pulses = 24;
     runner.pulses_layers[0].scan_mode = "scanning".into();
     runner.pulses_layers[0].scan_axis = "rows".into();
     runner.pulses_layers[0].scan_unit = "1/4".into();

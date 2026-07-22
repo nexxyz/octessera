@@ -3,9 +3,9 @@ use super::*;
 #[test]
 pub(crate) fn system_menu_shutdown_emits_shutdown_effect_and_splash() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.oled_mode = NativeOledMode::Normal;
-    runner.oled_splash_text.clear();
-    runner.oled_splash_until = None;
+    runner.display.oled_mode = NativeOledMode::Normal;
+    runner.display.oled_splash_text.clear();
+    runner.display.oled_splash_until = None;
     assert!(runner.menu.focus_item_key("system.shutdown"));
 
     let opened = runner
@@ -22,7 +22,7 @@ pub(crate) fn system_menu_shutdown_emits_shutdown_effect_and_splash() {
     let messages = confirm_current_dialog(&mut runner);
     let display = &snapshot_from(&messages)["display"];
     assert_eq!(display["splash"], "shutdown");
-    assert!(runner.oled_splash_until.is_some());
+    assert!(runner.display.oled_splash_until.is_some());
     assert!(display["toast"]
         .as_str()
         .is_some_and(|toast| toast.contains("shutting down")));
@@ -32,9 +32,9 @@ pub(crate) fn system_menu_shutdown_emits_shutdown_effect_and_splash() {
 #[test]
 pub(crate) fn system_menu_reboot_emits_reboot_effect_and_shutdown_splash() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.oled_mode = NativeOledMode::Normal;
-    runner.oled_splash_text.clear();
-    runner.oled_splash_until = None;
+    runner.display.oled_mode = NativeOledMode::Normal;
+    runner.display.oled_splash_text.clear();
+    runner.display.oled_splash_until = None;
     assert!(runner.menu.focus_item_key("system.reboot"));
 
     let opened = runner
@@ -48,7 +48,7 @@ pub(crate) fn system_menu_reboot_emits_reboot_effect_and_shutdown_splash() {
     let messages = confirm_current_dialog(&mut runner);
     let display = &snapshot_from(&messages)["display"];
     assert_eq!(display["splash"], "shutdown");
-    assert!(runner.oled_splash_until.is_some());
+    assert!(runner.display.oled_splash_until.is_some());
     assert!(display["toast"]
         .as_str()
         .is_some_and(|toast| toast.contains("rebooting")));

@@ -89,7 +89,7 @@ pub(crate) fn input_events_while_paused_false_suppresses_paused_grid_events() {
             request_snapshot: None,
         })
         .unwrap();
-    runner.transport = RuntimeTransportState::Playing;
+    runner.transport.transport = RuntimeTransportState::Playing;
     let playing_press = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 3, "y": 3 }),
@@ -200,8 +200,8 @@ pub(crate) fn trigger_probability_custom_zero_cell_suppresses_transport_events()
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.transport = RuntimeTransportState::Playing;
-    runner.algorithm_step_pulses = 24;
+    runner.transport.transport = RuntimeTransportState::Playing;
+    runner.transport.algorithm_step_pulses = 24;
     runner.pulses_layers[0].scan_mode = "scanning".into();
     runner.pulses_layers[0].scan_axis = "rows".into();
     runner.pulses_layers[0].scan_unit = "1/4".into();
@@ -337,7 +337,7 @@ pub(crate) fn scan_progress_overlay_is_dim_white_and_preserves_live_cell_color()
     .unwrap();
     runner.pulses_layers[0].scan_mode = "scanning".into();
     runner.pulses_layers[0].scan_axis = "rows".into();
-    runner.tick = 0;
+    runner.transport.tick = 0;
     runner.refresh_active_interpretation_profile();
     runner
         .send(HostMessage::DeviceInput {
@@ -396,7 +396,7 @@ pub(crate) fn reverse_scan_direction_starts_from_last_lane() {
     runner.pulses_layers[0].scan_mode = "scanning".into();
     runner.pulses_layers[0].scan_axis = "rows".into();
     runner.pulses_layers[0].scan_direction = "reverse".into();
-    runner.tick = 0;
+    runner.transport.tick = 0;
     runner.refresh_active_interpretation_profile();
 
     let snapshot = runner.snapshot().unwrap();
@@ -419,7 +419,7 @@ pub(crate) fn scan_sections_limit_overlay_to_current_section_lane() {
     runner.pulses_layers[0].scan_mode = "scanning".into();
     runner.pulses_layers[0].scan_axis = "rows".into();
     runner.pulses_layers[0].scan_sections = 2;
-    runner.tick = 0;
+    runner.transport.tick = 0;
     runner.refresh_active_interpretation_profile();
 
     let snapshot = runner.snapshot().unwrap();
@@ -471,8 +471,8 @@ fn scanning_sequencer_runner() -> NativeRunner {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.transport = RuntimeTransportState::Playing;
-    runner.algorithm_step_pulses = 24;
+    runner.transport.transport = RuntimeTransportState::Playing;
+    runner.transport.algorithm_step_pulses = 24;
     runner.pulses_layers[0].scan_mode = "scanning".into();
     runner.pulses_layers[0].scan_axis = "rows".into();
     runner.pulses_layers[0].scan_unit = "1/4".into();

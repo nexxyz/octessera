@@ -4,6 +4,7 @@ pub(super) fn clone_event(
     use rodio_engine_source::EngineEvent;
 
     match event {
+        EngineEvent::AllNotesOff => EngineEvent::AllNotesOff,
         EngineEvent::NoteOn {
             instrument_slot,
             note,
@@ -49,6 +50,12 @@ pub(super) fn clone_event(
             sample_banks: sample_banks.clone(),
             voice_stealing_mode: *voice_stealing_mode,
         },
+        EngineEvent::SetPreparedInstruments(config) => {
+            EngineEvent::SetPreparedInstruments(config.clone())
+        }
+        EngineEvent::SetPreparedAudioConfig(config) => {
+            EngineEvent::SetPreparedAudioConfig(config.clone())
+        }
         EngineEvent::PreviewSample {
             instrument_slot,
             buffer,
@@ -75,6 +82,13 @@ pub(super) fn clone_event(
             instrument_slot,
             config,
         } => EngineEvent::SetInstrumentSlot {
+            instrument_slot: *instrument_slot,
+            config: config.clone(),
+        },
+        EngineEvent::SetPreparedInstrumentSlot {
+            instrument_slot,
+            config,
+        } => EngineEvent::SetPreparedInstrumentSlot {
             instrument_slot: *instrument_slot,
             config: config.clone(),
         },
@@ -116,6 +130,15 @@ pub(super) fn clone_event(
             fx_type: fx_type.clone(),
             params: params.clone(),
         },
+        EngineEvent::SetPreparedFxBusSlot {
+            bus_index,
+            slot_index,
+            config,
+        } => EngineEvent::SetPreparedFxBusSlot {
+            bus_index: *bus_index,
+            slot_index: *slot_index,
+            config: config.clone(),
+        },
         EngineEvent::SetGlobalFxSlot {
             slot_index,
             fx_type,
@@ -125,6 +148,12 @@ pub(super) fn clone_event(
             fx_type: fx_type.clone(),
             params: params.clone(),
         },
+        EngineEvent::SetPreparedGlobalFxSlot { slot_index, config } => {
+            EngineEvent::SetPreparedGlobalFxSlot {
+                slot_index: *slot_index,
+                config: config.clone(),
+            }
+        }
         EngineEvent::MomentaryFxStart {
             id,
             fx_type,
@@ -136,6 +165,9 @@ pub(super) fn clone_event(
             params: params.clone(),
             target: *target,
         },
+        EngineEvent::PreparedMomentaryFxStart(config) => {
+            EngineEvent::PreparedMomentaryFxStart(config.clone())
+        }
         EngineEvent::MomentaryFxUpdate { id, params } => EngineEvent::MomentaryFxUpdate {
             id: id.clone(),
             params: params.clone(),

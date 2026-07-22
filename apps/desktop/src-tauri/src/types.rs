@@ -1,12 +1,11 @@
 use playback_runtime::RunnerMessage;
 use realtime_engine::synth::DEFAULT_AUDIO_SAMPLE_RATE;
 use rodio::{OutputStream, OutputStreamHandle, Sink};
-use rodio_engine_source::{EngineEvent, EngineSource};
+use rodio_engine_source::{EngineEventReceiver, EngineSource};
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
-use std::sync::mpsc::{Receiver, Sender};
-use std::sync::{Arc, Mutex};
+use std::sync::mpsc::Sender;
 
 #[derive(Deserialize)]
 #[serde(tag = "type")]
@@ -69,7 +68,7 @@ impl AudioRuntime {
 
     pub(crate) fn start_engine(
         &self,
-        control_rx: Receiver<EngineEvent>,
+        control_rx: EngineEventReceiver,
         load_tx: Sender<realtime_engine::synth::AudioLoadStatus>,
     ) -> Result<(), String> {
         let source =
@@ -92,6 +91,7 @@ pub(crate) struct QueuedNote {
 
 #[derive(Clone)]
 pub(crate) enum QueuedAudioEvent {
+    AllNotesOff,
     Note(QueuedNote),
     NoteOff {
         instrument_slot: u8,
@@ -108,6 +108,8 @@ pub(crate) enum QueuedAudioEvent {
         velocity: u8,
     },
     SetAudioConfig {
+        revision: u64,
+        request_id: Option<String>,
         instruments: realtime_engine::synth::InstrumentsConfig,
         sample_banks: Option<Vec<realtime_engine::synth::SampleBankConfig>>,
         voice_stealing_mode: Option<realtime_engine::synth::VoiceStealingMode>,
@@ -169,25 +171,6 @@ pub(crate) enum QueuedAudioEvent {
     },
 }
 
-#[derive(Clone, Debug)]
-pub(crate) struct SampleSlotConfig {
-    pub(crate) slots: [Option<String>; 8],
-    pub(crate) tune_semis: f32,
-    pub(crate) gain_pct: f32,
-    pub(crate) vel_sens_pct: f32,
-}
-
-impl Default for SampleSlotConfig {
-    fn default() -> Self {
-        Self {
-            slots: [None, None, None, None, None, None, None, None],
-            tune_semis: 0.0,
-            gain_pct: 100.0,
-            vel_sens_pct: 100.0,
-        }
-    }
-}
-
 pub(crate) const RUNTIME_MESSAGES_EVENT: &str = "runtime_messages";
 pub(crate) const RUNTIME_UI_REFRESH_MS: u64 = 100;
 
@@ -206,16 +189,4 @@ pub(crate) fn encode_runtime_responses(
             serde_json::to_value(r).map_err(|e| format!("failed to encode runtime response: {e}"))
         })
         .collect()
-}
-
-pub(crate) fn append_audio_error_values(
-    mut values: Vec<Value>,
-    audio_error: &Arc<Mutex<Option<String>>>,
-) -> Vec<Value> {
-    if let Ok(guard) = audio_error.lock() {
-        if let Some(err) = guard.as_ref() {
-            values.push(serde_json::json!({ "type": "audio_error", "error": err }));
-        }
-    }
-    values
 }

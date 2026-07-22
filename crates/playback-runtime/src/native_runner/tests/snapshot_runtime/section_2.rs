@@ -7,8 +7,8 @@ pub(crate) fn transport_tick_advances_multiple_configured_layers() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.transport = RuntimeTransportState::Playing;
-    runner.algorithm_step_pulses = 24;
+    runner.transport.transport = RuntimeTransportState::Playing;
+    runner.transport.algorithm_step_pulses = 24;
     runner.layer_behavior_ids[1] = "sequencer".into();
     runner.pulses_layers[0].scan_mode = "scanning".into();
     runner.pulses_layers[0].scanned_slot = 0;
@@ -54,7 +54,7 @@ pub(crate) fn inactive_layer_transport_tick_applies_param_modulation() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.transport = RuntimeTransportState::Playing;
+    runner.transport.transport = RuntimeTransportState::Playing;
     runner.layer_behavior_ids[1] = "sequencer".into();
     runner.pulses_layers[0].scan_mode = "scanning".into();
     runner.pulses_layers[0].scan_axis = "rows".into();
@@ -132,8 +132,8 @@ pub(crate) fn scan_unit_advances_scanning_before_full_note_step_rate() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.transport = RuntimeTransportState::Playing;
-    runner.algorithm_step_pulses = 96;
+    runner.transport.transport = RuntimeTransportState::Playing;
+    runner.transport.algorithm_step_pulses = 96;
     runner.pulses_layers[0].scan_mode = "scanning".into();
     runner.pulses_layers[0].scan_axis = "rows".into();
     runner.pulses_layers[0].scan_unit = "1/4".into();

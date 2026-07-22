@@ -1,7 +1,7 @@
 use super::support::stutter_segment_len;
 use super::*;
 
-const MAX_MOMENTARY_FX: usize = 2;
+pub(super) const MAX_MOMENTARY_FX: usize = 2;
 
 struct CompiledBusMixerState {
     pan_positions: Vec<usize>,

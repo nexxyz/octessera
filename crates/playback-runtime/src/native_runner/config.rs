@@ -17,7 +17,8 @@ use super::{
     instrument_synth_osc2_waveforms, instrument_types, instrument_volumes,
     param_binding_spec_from_native, param_mod_configs, param_mods_payload, patch_runtime_config,
     pulses_layer_configs, pulses_layer_payload, sample_assignments_payload, sparks_fx_params_map,
-    sparks_fx_target_key, sparks_fx_type, velocity_curve_id, NativeRunner, Value,
+    sparks_fx_target_key, sparks_fx_type, velocity_curve_id, NativeRunner, Value, CONFIG_KIND,
+    CONFIG_SCHEMA_VERSION, PATCH_KIND,
 };
 use serde_json::json;
 
@@ -106,22 +107,23 @@ impl NativeRunner {
                 }),
             sample_favourite_dirs: self.sample_favourite_dirs.clone(),
             sample_builtin_favourite_dirs: self.sample_builtin_favourite_dirs.clone(),
-            algorithm_step_pulses: self.algorithm_step_pulses,
-            master_volume: self.ui.master_volume,
-            note_length_ms: self.global_sound.note_length_ms as u16,
+            algorithm_step_pulses: self.transport.algorithm_step_pulses,
+            master_volume: self.display.ui.master_volume,
+            note_length_ms: u16::try_from(self.global_sound.note_length_ms)
+                .expect("native note length must fit the menu value"),
             velocity_scale_pct: self.global_sound.velocity_scale_pct,
             velocity_curve: velocity_curve_id(self.global_sound.velocity_curve).into(),
             voice_stealing_mode: self.voice_stealing_mode.clone(),
             auto_save_default: self.auto_save_default,
             rolling_backups: self.rolling_backups,
-            ghost_cells: self.ui.ghost_cells,
+            ghost_cells: self.display.ui.ghost_cells,
             input_events_while_paused: self.input_events_while_paused,
-            numeric_display_mode: self.ui.numeric_display_mode.clone(),
-            screen_sleep_seconds: self.ui.screen_sleep_seconds,
-            dim_timer_seconds: self.ui.dim_timer_seconds,
-            grid_brightness: self.ui.grid_brightness,
-            display_brightness: self.ui.display_brightness,
-            button_brightness: self.ui.button_brightness,
+            numeric_display_mode: self.display.ui.numeric_display_mode.clone(),
+            screen_sleep_seconds: self.display.ui.screen_sleep_seconds,
+            dim_timer_seconds: self.display.ui.dim_timer_seconds,
+            grid_brightness: self.display.ui.grid_brightness,
+            display_brightness: self.display.ui.display_brightness,
+            button_brightness: self.display.ui.button_brightness,
             midi_enabled: self.midi_enabled,
             midi_clock_out_enabled: self.midi_clock_out_enabled,
             midi_clock_in_enabled: self.midi_clock_in_enabled,
@@ -129,9 +131,9 @@ impl NativeRunner {
             usb_audio_out: self.usb_audio_out.clone(),
             usb_midi_out_enabled: self.usb_midi_out_enabled,
             recording_max_minutes: self.recording_max_minutes,
-            hdmi_mode: self.hdmi.mode.clone(),
-            hdmi_show_gridlines: self.hdmi.show_gridlines,
-            hdmi_cycle_measures: self.hdmi.cycle_measures,
+            hdmi_mode: self.display.hdmi.mode.clone(),
+            hdmi_show_gridlines: self.display.hdmi.show_gridlines,
+            hdmi_cycle_measures: self.display.hdmi.cycle_measures,
             preset_names: self.preset_names.clone(),
             preset_draft_name: self.preset_draft_name.clone(),
             preset_rename_source: self.preset_rename_source.clone(),
@@ -152,15 +154,18 @@ impl NativeRunner {
             xy_release: self.xy_release.clone(),
             xy_invert_x: self.xy_invert_x,
             xy_invert_y: self.xy_invert_y,
-            bpm: crate::delay_timing::visible_bpm_u16(self.bpm),
-            swing_pct: self.swing_pct,
+            bpm: crate::delay_timing::visible_bpm_u16(self.transport.bpm),
+            swing_pct: self.transport.swing_pct,
             audio_output_buffer_frames: self.audio_output_buffer_frames,
-            sync_source: self.sync_source.clone(),
+            sync_source: self.transport.sync_source.clone(),
         }
     }
 
     pub(super) fn config_payload(&self) -> Value {
         json!({
+            "kind": CONFIG_KIND,
+            "schemaVersion": CONFIG_SCHEMA_VERSION,
+            "revision": self.config_revision,
             "runtimeConfig": {
                 "activeBehavior": self.behavior.id(),
                 "activeLayerIndex": self.active_layer_index,
@@ -202,15 +207,15 @@ impl NativeRunner {
                     })).collect::<Vec<_>>()
                 },
                 "transport": {
-                    "bpm": crate::delay_timing::visible_bpm_u16(self.bpm),
-                    "swingPct": self.swing_pct
+                    "bpm": crate::delay_timing::visible_bpm_u16(self.transport.bpm),
+                    "swingPct": self.transport.swing_pct
                 },
                 "xyRelease": self.xy_release,
                 "sampleFavouriteDirs": self.sample_favourite_dirs,
                 "hdmi": {
-                    "mode": self.hdmi.mode,
-                    "showGridlines": self.hdmi.show_gridlines,
-                    "cycleMeasures": self.hdmi.cycle_measures
+                    "mode": self.display.hdmi.mode,
+                    "showGridlines": self.display.hdmi.show_gridlines,
+                    "cycleMeasures": self.display.hdmi.cycle_measures
                 },
                 "instruments": self.instruments.iter().map(|instrument| {
                     let sample_slots = instrument
@@ -263,7 +268,7 @@ impl NativeRunner {
                     })
                 }).collect::<Vec<_>>(),
                 "mixer": self.mixer_payload(),
-                "masterVolume": self.ui.master_volume,
+                "masterVolume": self.display.ui.master_volume,
                 "sound": {
                     "noteLengthMs": self.global_sound.note_length_ms,
                     "velocityScalePct": self.global_sound.velocity_scale_pct,
@@ -275,18 +280,18 @@ impl NativeRunner {
                 "velocityScalePct": self.global_sound.velocity_scale_pct,
                 "velocityCurve": velocity_curve_id(self.global_sound.velocity_curve),
                 "voiceStealingMode": self.voice_stealing_mode.clone(),
-                "ghostCells": self.ui.ghost_cells,
+                "ghostCells": self.display.ui.ghost_cells,
                 "inputEventsWhilePaused": self.input_events_while_paused,
-                "numericDisplayMode": self.ui.numeric_display_mode,
-                "dimTimerSeconds": self.ui.dim_timer_seconds,
-                "screenSleepSeconds": self.ui.screen_sleep_seconds,
-                "displayBrightness": self.ui.display_brightness,
-                "gridBrightness": self.ui.grid_brightness,
-                "buttonBrightness": self.ui.button_brightness,
+                "numericDisplayMode": self.display.ui.numeric_display_mode,
+                "dimTimerSeconds": self.display.ui.dim_timer_seconds,
+                "screenSleepSeconds": self.display.ui.screen_sleep_seconds,
+                "displayBrightness": self.display.ui.display_brightness,
+                "gridBrightness": self.display.ui.grid_brightness,
+                "buttonBrightness": self.display.ui.button_brightness,
                 "autoSaveDefault": self.auto_save_default,
                 "rollingBackups": self.rolling_backups,
                 "auxAutoMapEnabled": self.aux_auto_map_enabled,
-                "bpm": self.bpm,
+                "bpm": self.transport.bpm,
                 "sparksMode": self.sparks_mode,
                 "auxBindings": aux_bindings_payload(&self.aux_bindings),
                 "shiftAuxBindings": aux_bindings_payload(&self.shift_aux_bindings),
@@ -294,7 +299,7 @@ impl NativeRunner {
                     "enabled": self.midi_enabled,
                     "outId": self.selected_midi_output_id,
                     "inId": self.selected_midi_input_id,
-                    "syncMode": match self.sync_source {
+                    "syncMode": match self.transport.sync_source {
                         SyncSource::Internal => "internal",
                         SyncSource::External => "external",
                     },
@@ -319,8 +324,9 @@ impl NativeRunner {
 
     pub(super) fn patch_payload(&self) -> Value {
         json!({
-            "kind": "octessera.patch",
-            "schemaVersion": 1,
+            "kind": PATCH_KIND,
+            "schemaVersion": CONFIG_SCHEMA_VERSION,
+            "revision": self.config_revision,
             "runtimeConfig": patch_runtime_config(self.config_payload()["runtimeConfig"].clone()),
             "mappingConfig": self.base_mapping_config,
         })
@@ -329,6 +335,9 @@ impl NativeRunner {
     #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn device_config_payload(&self) -> Value {
         json!({
+            "kind": CONFIG_KIND,
+            "schemaVersion": CONFIG_SCHEMA_VERSION,
+            "revision": self.config_revision,
             "runtimeConfig": device_runtime_config(self.config_payload()["runtimeConfig"].clone()),
         })
     }

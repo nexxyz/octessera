@@ -1,4 +1,4 @@
-use super::{NativeRunner, NativeToast};
+use super::NativeRunner;
 
 impl NativeRunner {
     pub(super) fn select_sparks_page_from_fn_grid(&mut self, y: usize) {
@@ -41,7 +41,6 @@ impl NativeRunner {
         for restore in &mut self.trigger_gate_restore_modes {
             *restore = None;
         }
-        self.activate_trigger_gate_layer_with_toast(self.active_layer_index);
     }
 
     pub(super) fn apply_trigger_gate_mode_to_layer(&mut self, layer_index: usize, mode: &str) {
@@ -53,18 +52,6 @@ impl NativeRunner {
         }
         if let Some(restore) = self.trigger_gate_restore_modes.get_mut(layer_index) {
             *restore = None;
-        }
-        if layer_index == self.active_layer_index {
-            self.activate_trigger_gate_layer_with_toast(layer_index);
-        }
-    }
-
-    pub(super) fn activate_trigger_gate_layer_with_toast(&mut self, layer_index: usize) {
-        if let Err(error) = self.activate_engine(layer_index) {
-            self.toast = Some(NativeToast {
-                message: error,
-                offset: 0,
-            });
         }
     }
 }

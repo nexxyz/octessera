@@ -1,6 +1,6 @@
 use crate::persistence::atomic_write_json;
 use crate::sample_browser::sample_entries;
-use playback_runtime::{HostMessage, RuntimeStoreResult};
+use playback_runtime::{HostMessage, RuntimeOperation, RuntimePlatformRequest, RuntimeStoreResult};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::mpsc::{self, Receiver, SyncSender, TryRecvError, TrySendError};
@@ -55,7 +55,12 @@ impl PiPlatformService {
     }
 }
 
-pub enum PlatformJob {
+pub struct PlatformJob {
+    pub request: RuntimePlatformRequest,
+    pub kind: PlatformJobKind,
+}
+
+pub enum PlatformJobKind {
     ListPresets,
     LoadPreset {
         name: String,
@@ -86,6 +91,12 @@ pub enum PlatformJob {
     Rollback,
 }
 
+impl PlatformJob {
+    pub fn new(request: RuntimePlatformRequest, kind: PlatformJobKind) -> Self {
+        Self { request, kind }
+    }
+}
+
 fn run_worker(
     store_dir: PathBuf,
     samples_dir: PathBuf,
@@ -101,45 +112,48 @@ fn run_worker(
 }
 
 fn handle_job(store_dir: &Path, samples_dir: &Path, job: PlatformJob) -> RuntimeStoreResult {
-    match job {
-        PlatformJob::ListPresets => match list_presets(store_dir) {
+    let request = job.request;
+    let result = match job.kind {
+        PlatformJobKind::ListPresets => match list_presets(store_dir) {
             Ok(names) => RuntimeStoreResult::ListPresetsResult { names },
             Err(message) => store_error(format!("Preset list failed: {message}")),
         },
-        PlatformJob::LoadPreset { name } => {
+        PlatformJobKind::LoadPreset { name } => {
             match preset_load_path(store_dir, &name).and_then(|path| load_json(&path)) {
                 Ok(payload) => RuntimeStoreResult::LoadPresetResult { payload, name },
                 Err(message) => store_error(format!("Load {name} failed: {message}")),
             }
         }
-        PlatformJob::SavePreset { name, payload } => match preset_patch_path(store_dir, &name) {
-            Ok(path) => {
-                let existed = path.is_file();
-                match save_json(&path, &payload) {
-                    Ok(()) => RuntimeStoreResult::SavePresetResult {
-                        name,
-                        outcome: if existed { "overwritten" } else { "created" }.into(),
-                    },
-                    Err(message) => store_error(format!("Save {name} failed: {message}")),
+        PlatformJobKind::SavePreset { name, payload } => {
+            match preset_patch_path(store_dir, &name) {
+                Ok(path) => {
+                    let existed = path.is_file();
+                    match save_json(&path, &payload) {
+                        Ok(()) => RuntimeStoreResult::SavePresetResult {
+                            name,
+                            outcome: if existed { "overwritten" } else { "created" }.into(),
+                        },
+                        Err(message) => store_error(format!("Save {name} failed: {message}")),
+                    }
                 }
+                Err(message) => store_error(format!("Save {name} failed: {message}")),
             }
-            Err(message) => store_error(format!("Save {name} failed: {message}")),
-        },
-        PlatformJob::DeletePreset { name } => RuntimeStoreResult::DeletePresetResult {
+        }
+        PlatformJobKind::DeletePreset { name } => RuntimeStoreResult::DeletePresetResult {
             ok: delete_preset_payload(store_dir, &name),
             name,
         },
-        PlatformJob::SaveDefault { payload, is_auto } => {
+        PlatformJobKind::SaveDefault { payload, is_auto } => {
             match save_json(&store_dir.join("default.json"), &payload) {
                 Ok(()) => RuntimeStoreResult::SaveDefaultResult { ok: true, is_auto },
                 Err(message) => store_error(format!("Save default failed: {message}")),
             }
         }
-        PlatformJob::SaveBackup { payload } => match save_backup(store_dir, &payload) {
+        PlatformJobKind::SaveBackup { payload } => match save_backup(store_dir, &payload) {
             Ok(()) => RuntimeStoreResult::SaveBackupResult { ok: true },
             Err(message) => store_error(format!("Save backup failed: {message}")),
         },
-        PlatformJob::ListSamples {
+        PlatformJobKind::ListSamples {
             instrument_slot,
             sample_slot,
             dir,
@@ -157,12 +171,19 @@ fn handle_job(store_dir: &Path, samples_dir: &Path, job: PlatformJob) -> Runtime
                 message,
             },
         },
-        PlatformJob::UsbSdTransferStart => run_usb_storage_command("storage-start"),
-        PlatformJob::UsbSdTransferStop => run_usb_storage_command("storage-stop"),
-        PlatformJob::UpdateCheck => run_update_command("check"),
-        PlatformJob::UpdateApply => run_update_command("apply"),
-        PlatformJob::Rollback => run_update_command("rollback"),
-    }
+        PlatformJobKind::UsbSdTransferStart => run_usb_storage_command("storage-start"),
+        PlatformJobKind::UsbSdTransferStop => run_usb_storage_command("storage-stop"),
+        PlatformJobKind::UpdateCheck => run_update_command("check"),
+        PlatformJobKind::UpdateApply => run_update_command("apply"),
+        PlatformJobKind::Rollback => run_update_command("rollback"),
+    };
+    let result = match result {
+        RuntimeStoreResult::StoreError { message } => RuntimeStoreResult::RuntimeFailure {
+            error: request.failure_facts(message),
+        },
+        result => result,
+    };
+    result.with_identity(request.request_id, request.revision)
 }
 
 fn run_update_command(action: &str) -> RuntimeStoreResult {
@@ -170,10 +191,11 @@ fn run_update_command(action: &str) -> RuntimeStoreResult {
         .args(["-n", "/usr/local/sbin/octessera-update", action])
         .output()
     {
-        Ok(output) if output.status.success() => store_error(format!(
-            "Update {action} complete{}",
-            command_output_suffix(&output.stdout)
-        )),
+        Ok(output) if output.status.success() => RuntimeStoreResult::OperationSucceeded {
+            operation: RuntimeOperation::RuntimeDispatch,
+            request_id: None,
+            revision: None,
+        },
         Ok(output) => store_error(format!(
             "Update {action} failed{}{}",
             command_output_suffix(&output.stderr),

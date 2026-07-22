@@ -49,7 +49,10 @@ pub(crate) fn native_store_and_action_toasts_cover_common_confirmation_results()
     assert!(!messages
         .iter()
         .any(|message| matches!(message, RunnerMessage::PlatformEffects { .. })));
-    assert_eq!(runner.toast.as_ref().unwrap().message, "No preset loaded");
+    assert_eq!(
+        runner.display.toast.as_ref().unwrap().message,
+        "No preset loaded"
+    );
 
     let _ = runner
         .send(HostMessage::RuntimeResult {
@@ -59,7 +62,10 @@ pub(crate) fn native_store_and_action_toasts_cover_common_confirmation_results()
             },
         })
         .unwrap();
-    assert_eq!(runner.toast.as_ref().unwrap().message, "Loaded Alpha");
+    assert_eq!(
+        runner.display.toast.as_ref().unwrap().message,
+        "Loaded Alpha"
+    );
 
     let _ = runner
         .send(HostMessage::RuntimeResult {
@@ -69,7 +75,10 @@ pub(crate) fn native_store_and_action_toasts_cover_common_confirmation_results()
             },
         })
         .unwrap();
-    assert_eq!(runner.toast.as_ref().unwrap().message, "Saved Alpha");
+    assert_eq!(
+        runner.display.toast.as_ref().unwrap().message,
+        "Saved Alpha"
+    );
 
     let _ = runner
         .send(HostMessage::RuntimeResult {
@@ -79,7 +88,10 @@ pub(crate) fn native_store_and_action_toasts_cover_common_confirmation_results()
             },
         })
         .unwrap();
-    assert_eq!(runner.toast.as_ref().unwrap().message, "Deleted Alpha");
+    assert_eq!(
+        runner.display.toast.as_ref().unwrap().message,
+        "Deleted Alpha"
+    );
 }
 
 #[test]
@@ -89,10 +101,16 @@ pub(crate) fn midi_panic_and_synth_preset_actions_show_toasts() {
         .execute_confirmed_action(NativeMenuAction::PlatformEffect("midi.panic".into()))
         .unwrap();
     assert_eq!(effect, Some(RuntimePlatformEffect::MidiPanic));
-    assert_eq!(runner.toast.as_ref().unwrap().message, "MIDI panic sent");
+    assert_eq!(
+        runner.display.toast.as_ref().unwrap().message,
+        "MIDI panic sent"
+    );
 
     runner.load_synth_preset(0, "lead");
-    assert_eq!(runner.toast.as_ref().unwrap().message, "Loaded synth lead");
+    assert_eq!(
+        runner.display.toast.as_ref().unwrap().message,
+        "Loaded synth lead"
+    );
 }
 
 #[test]

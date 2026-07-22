@@ -3,7 +3,7 @@ use crate::persistence::{
     atomic_write_json, preset_file_path, preset_load_file_path, preset_name_from_file_name,
     preset_patch_file_path,
 };
-use playback_runtime::{HostMessage, RuntimeStoreResult};
+use playback_runtime::{HostMessage, RuntimePlatformRequest, RuntimeStoreResult};
 use std::time::{Duration, Instant};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -100,6 +100,7 @@ impl DesktopPlaybackHostAdapter {
 
     pub(super) fn save_default_result(
         &mut self,
+        request: &RuntimePlatformRequest,
         payload: &serde_json::Value,
         mode: Option<&str>,
     ) -> Result<Vec<HostMessage>, String> {
@@ -107,6 +108,7 @@ impl DesktopPlaybackHostAdapter {
             self.pending_default_save = Some((
                 payload.clone(),
                 Instant::now() + Duration::from_millis(DEFERRED_DEFAULT_SAVE_MS),
+                request.clone(),
             ));
             return Ok(vec![]);
         }

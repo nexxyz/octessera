@@ -76,14 +76,14 @@ pub(crate) fn contextual_help_does_not_change_static_navigation_memory() {
 
     runner.menu.state.stack = vec![5, 3];
     runner.menu.state.cursor = 2;
-    runner.ui.combined_modifier_held = true;
+    runner.display.ui.combined_modifier_held = true;
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
             request_snapshot: None,
         })
         .unwrap();
-    runner.ui.combined_modifier_held = false;
+    runner.display.ui.combined_modifier_held = false;
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_a", "pressed": true }),

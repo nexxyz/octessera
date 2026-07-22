@@ -189,7 +189,7 @@ pub(crate) fn fresh_native_runner_uses_initial_pulses_defaults() {
     assert_eq!(runner.pulses_layers[0].out_of_range, "clamp");
     assert_eq!(runner.pulses_layers[0].x_pitch_steps, 0);
     assert_eq!(runner.pulses_layers[0].y_pitch_steps, 1);
-    assert_eq!(runner.ui.master_volume, 73);
+    assert_eq!(runner.display.ui.master_volume, 73);
     assert_eq!(runner.global_sound.note_length_ms, 120);
     assert!(!runner.auto_save_default);
     assert!(runner.trigger_probability_maps[0]
@@ -234,7 +234,7 @@ pub(crate) fn behavior_menu_actions_dispatch_selected_action_type() {
 #[test]
 pub(crate) fn transport_tick_returns_status_and_snapshot() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.transport = RuntimeTransportState::Playing;
+    runner.transport.transport = RuntimeTransportState::Playing;
     let messages = runner
         .send(HostMessage::TransportPulseStep {
             pulses: 24,

@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   lint_ts:
@@ -140,9 +141,26 @@ jobs:
         uses: Swatinem/rust-cache@v2.9.1
       - name: Run Rust tests (exclude platform audio apps)
         run: cargo test --workspace --exclude octessera-desktop --exclude rodio-engine-source
+      - name: Detect parity-sensitive changes
+        id: parity_changes
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            runtime:
+              - 'crates/platform-core/**'
+              - 'crates/playback-runtime/**'
+              - 'config/default.json'
+              - 'config/defaults/**'
+              - 'config/generated/**'
+              - 'resources/menu-help-texts.tsv'
+              - 'resources/platform-capabilities.json'
       - name: Run factory patch UI scenario
-        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.run-heavy-ui-scenario == 'true')
+        if: github.event_name == 'push' || (github.event_name == 'pull_request' && steps.parity_changes.outputs.runtime == 'true') || (github.event_name == 'workflow_dispatch' && inputs.run-heavy-ui-scenario == 'true')
         run: cargo test -p playback-runtime factory_patch_ui_scenario -- --ignored
+      - name: Skip factory patch UI scenario
+        if: (github.event_name == 'pull_request' && steps.parity_changes.outputs.runtime != 'true') || (github.event_name == 'workflow_dispatch' && inputs.run-heavy-ui-scenario != 'true')
+        run: echo "Factory patch UI scenario skipped; no parity-sensitive change selected it."
 
   rust_coverage:
     name: Rust coverage
@@ -222,6 +240,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build Tauri app (smoke)
         run: pnpm run tauri:build:ci
+      - name: Run desktop Rust adapter tests
+        run: cargo test -p octessera-desktop
       - name: Upload build logs
         if: failure()
         uses: actions/upload-artifact@v7

@@ -1,4 +1,7 @@
 {
+  "kind": "octessera.config",
+  "schemaVersion": 1,
+  "revision": 0,
   "mappingConfig": {
     "activate": {
       "action": "note_on",

@@ -69,6 +69,8 @@ run_check "cargo llvm-cov" \
   "bash ./tools/quality/check-rust-coverage.sh 2>&1"
 run_check "cargo check desktop" \
   "cargo check -p octessera-desktop 2>&1"
+run_check "cargo test desktop" \
+  "cargo test -p octessera-desktop 2>&1"
 run_check "cargo check pi" \
   "cargo check -p octessera-pi 2>&1"
 run_check "tauri build smoke" \

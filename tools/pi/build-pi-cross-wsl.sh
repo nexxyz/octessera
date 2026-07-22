@@ -3,14 +3,8 @@ set -euo pipefail
 
 TARGET="${TARGET:-aarch64-unknown-linux-gnu}"
 PROFILE="${PROFILE:-pi-dev}"
-BOARD_PROFILE="${BOARD_PROFILE:-rpi-zero-2w}"
 OUT_DIR="${OUT_DIR:-target/pi-cross}"
 IMAGE="${IMAGE:-octessera-pi-cross:latest}"
-
-if [ "$BOARD_PROFILE" != "rpi-zero-2w" ]; then
-  echo "unsupported BOARD_PROFILE: $BOARD_PROFILE" >&2
-  exit 2
-fi
 
 docker build -f Dockerfile.pi-zero -t "$IMAGE" .
 docker run --rm \

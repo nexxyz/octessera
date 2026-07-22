@@ -40,7 +40,7 @@ pub(crate) fn usb_apply_reboot_is_confirmed_and_emits_payload() {
     assert!(lines.iter().any(|line| line == "> Cancel"));
     assert!(lines.iter().any(|line| line == "  Save & Reboot"));
 
-    runner.confirm_dialog.as_mut().unwrap().cursor = 1;
+    runner.display.confirm_dialog.as_mut().unwrap().cursor = 1;
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
@@ -103,7 +103,7 @@ pub(crate) fn usb_sd_transfer_actions_are_confirmed_and_emit_effects() {
         .iter()
         .any(|line| line.as_str().unwrap_or_default().contains("disconnect")));
 
-    runner.confirm_dialog.as_mut().unwrap().cursor = 1;
+    runner.display.confirm_dialog.as_mut().unwrap().cursor = 1;
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
@@ -126,7 +126,7 @@ pub(crate) fn usb_sd_transfer_actions_are_confirmed_and_emit_effects() {
 #[test]
 pub(crate) fn usb_sd_transfer_start_stops_playback_and_opens_blocking_modal() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.transport = RuntimeTransportState::Playing;
+    runner.transport.transport = RuntimeTransportState::Playing;
     assert!(runner.menu.focus_item_key("usb.sdTransferStart"));
 
     let _ = runner
@@ -137,7 +137,7 @@ pub(crate) fn usb_sd_transfer_start_stops_playback_and_opens_blocking_modal() {
         .unwrap();
     let messages = confirm_current_dialog(&mut runner);
 
-    assert_eq!(runner.transport, RuntimeTransportState::Stopped);
+    assert_eq!(runner.transport.transport, RuntimeTransportState::Stopped);
     assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::PlatformEffects { effects }
@@ -166,7 +166,7 @@ pub(crate) fn usb_sd_transfer_start_stops_playback_and_opens_blocking_modal() {
 #[test]
 pub(crate) fn usb_sd_transfer_modal_closes_by_back_or_main_without_resuming() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.transport = RuntimeTransportState::Playing;
+    runner.transport.transport = RuntimeTransportState::Playing;
     assert!(runner.menu.focus_item_key("usb.sdTransferStart"));
 
     let _ = runner
@@ -183,8 +183,8 @@ pub(crate) fn usb_sd_transfer_modal_closes_by_back_or_main_without_resuming() {
         })
         .unwrap();
 
-    assert_eq!(runner.transport, RuntimeTransportState::Stopped);
-    assert!(runner.usb_sd_transfer_modal.is_none());
+    assert_eq!(runner.transport.transport, RuntimeTransportState::Stopped);
+    assert!(runner.display.usb_sd_transfer_modal.is_none());
     assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::PlatformEffects { effects }
@@ -198,7 +198,7 @@ pub(crate) fn usb_sd_transfer_modal_closes_by_back_or_main_without_resuming() {
             request_snapshot: None,
         })
         .unwrap();
-    assert!(runner.usb_sd_transfer_modal.is_none());
+    assert!(runner.display.usb_sd_transfer_modal.is_none());
     assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::PlatformEffects { effects }
@@ -310,11 +310,11 @@ pub(crate) fn output_buffer_reboot_confirmation_cancel_does_not_emit_reboot() {
 #[test]
 pub(crate) fn output_buffer_reboot_confirmation_emits_reboot_and_shutdown_splash() {
     let mut runner = changed_output_buffer_runner();
-    runner.oled_mode = NativeOledMode::Normal;
-    runner.oled_splash_text.clear();
-    runner.oled_splash_until = None;
+    runner.display.oled_mode = NativeOledMode::Normal;
+    runner.display.oled_splash_text.clear();
+    runner.display.oled_splash_until = None;
     let _ = press_back(&mut runner);
-    runner.confirm_dialog.as_mut().unwrap().cursor = 1;
+    runner.display.confirm_dialog.as_mut().unwrap().cursor = 1;
 
     let messages = runner
         .send(HostMessage::DeviceInput {

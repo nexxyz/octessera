@@ -37,24 +37,25 @@ impl NativeRunner {
 
     pub(super) fn reset_transport_position(&mut self) {
         self.drain_all_sparks_transpose_notes();
-        self.tick = 0;
-        self.current_ppqn_pulse = 0;
-        self.swung_ppqn_pulse = 0;
-        for tick in &mut self.layer_ticks {
+        self.transport.pending_resync = false;
+        self.transport.tick = 0;
+        self.transport.current_ppqn_pulse = 0;
+        self.transport.swung_ppqn_pulse = 0;
+        for tick in &mut self.transport.layer_ticks {
             *tick = 0;
         }
-        self.algorithm_pulse_accumulator = 0;
-        self.transport_flash = "none";
-        self.transport_flash_pulses_remaining = 0;
-        self.event_dot_on = false;
-        self.event_dot_pulses_remaining = 0;
+        self.transport.algorithm_pulse_accumulator = 0;
+        self.display.transport_flash = "none";
+        self.display.transport_flash_pulses_remaining = 0;
+        self.display.event_dot_on = false;
+        self.display.event_dot_pulses_remaining = 0;
         self.restore_link_lfo_base_audio();
         self.reset_link_lfo_phases();
         self.engine.reset_transport_phase();
         for engine in self.layer_engines.iter_mut().flatten() {
             engine.reset_transport_phase();
         }
-        for accumulator in &mut self.layer_pulse_accumulators {
+        for accumulator in &mut self.transport.layer_pulse_accumulators {
             *accumulator = 0;
         }
         for queue in &mut self.delayed_link_events {
@@ -74,30 +75,30 @@ impl NativeRunner {
     }
 
     pub fn skip_startup_splash(&mut self) {
-        if self.oled_splash_text == OLED_STARTUP_SPLASH_KEY {
-            self.oled_mode = NativeOledMode::Normal;
-            self.oled_splash_text.clear();
-            self.oled_splash_until = None;
-            self.startup_splash_presented = true;
+        if self.display.oled_splash_text == OLED_STARTUP_SPLASH_KEY {
+            self.display.oled_mode = NativeOledMode::Normal;
+            self.display.oled_splash_text.clear();
+            self.display.oled_splash_until = None;
+            self.display.startup_splash_presented = true;
         }
     }
 
     pub(super) fn record_display_interaction(&mut self) -> bool {
         let now = Instant::now();
-        self.last_interaction_at = now;
-        if self.oled_splash_text == OLED_STARTUP_SPLASH_KEY {
+        self.display.last_interaction_at = now;
+        if self.display.oled_splash_text == OLED_STARTUP_SPLASH_KEY {
             return false;
         }
-        if self.oled_mode == NativeOledMode::Off {
-            self.oled_mode = NativeOledMode::Normal;
-            self.oled_splash_text.clear();
-            self.oled_splash_until = None;
+        if self.display.oled_mode == NativeOledMode::Off {
+            self.display.oled_mode = NativeOledMode::Normal;
+            self.display.oled_splash_text.clear();
+            self.display.oled_splash_until = None;
             return true;
         }
-        if self.oled_mode == NativeOledMode::Splash {
-            self.oled_mode = NativeOledMode::Normal;
-            self.oled_splash_text.clear();
-            self.oled_splash_until = None;
+        if self.display.oled_mode == NativeOledMode::Splash {
+            self.display.oled_mode = NativeOledMode::Normal;
+            self.display.oled_splash_text.clear();
+            self.display.oled_splash_until = None;
             return true;
         }
         false
@@ -105,42 +106,44 @@ impl NativeRunner {
 
     pub(super) fn advance_oled_sleep_state(&mut self) {
         let now = Instant::now();
-        if self.oled_mode == NativeOledMode::Splash
+        if self.display.oled_mode == NativeOledMode::Splash
             && self
+                .display
                 .oled_splash_until
                 .is_some_and(|deadline| now >= deadline)
         {
-            if self.oled_splash_text == OLED_STARTUP_SPLASH_KEY {
-                self.oled_mode = NativeOledMode::Normal;
-                self.oled_splash_text.clear();
-                self.oled_splash_until = None;
+            if self.display.oled_splash_text == OLED_STARTUP_SPLASH_KEY {
+                self.display.oled_mode = NativeOledMode::Normal;
+                self.display.oled_splash_text.clear();
+                self.display.oled_splash_until = None;
                 self.show_toast("Help: Sh+Fn+Enter");
                 return;
             }
-            if self.ui.screen_sleep_seconds == 0 {
-                self.oled_mode = NativeOledMode::Normal;
-                self.oled_splash_text.clear();
-                self.oled_splash_until = None;
+            if self.display.ui.screen_sleep_seconds == 0 {
+                self.display.oled_mode = NativeOledMode::Normal;
+                self.display.oled_splash_text.clear();
+                self.display.oled_splash_until = None;
                 return;
             }
-            self.oled_mode = NativeOledMode::Off;
-            self.oled_splash_text.clear();
-            self.oled_splash_until = None;
+            self.display.oled_mode = NativeOledMode::Off;
+            self.display.oled_splash_text.clear();
+            self.display.oled_splash_until = None;
             return;
         }
-        if self.ui.screen_sleep_seconds == 0 {
-            if self.oled_mode == NativeOledMode::Off {
-                self.oled_mode = NativeOledMode::Normal;
+        if self.display.ui.screen_sleep_seconds == 0 {
+            if self.display.oled_mode == NativeOledMode::Off {
+                self.display.oled_mode = NativeOledMode::Normal;
             }
             return;
         }
-        if self.oled_mode == NativeOledMode::Normal
-            && now.duration_since(self.last_interaction_at)
-                >= Duration::from_secs(u64::from(self.ui.screen_sleep_seconds))
+        if self.display.oled_mode == NativeOledMode::Normal
+            && now.duration_since(self.display.last_interaction_at)
+                >= Duration::from_secs(u64::from(self.display.ui.screen_sleep_seconds))
         {
-            self.oled_mode = NativeOledMode::Splash;
-            self.oled_splash_text = OLED_SLEEP_SPLASH_KEY.into();
-            self.oled_splash_until = Some(now + Duration::from_millis(OLED_SLEEP_SPLASH_MS));
+            self.display.oled_mode = NativeOledMode::Splash;
+            self.display.oled_splash_text = OLED_SLEEP_SPLASH_KEY.into();
+            self.display.oled_splash_until =
+                Some(now + Duration::from_millis(OLED_SLEEP_SPLASH_MS));
             self.show_toast("Going to sleep ...");
         }
     }
@@ -154,40 +157,42 @@ impl NativeRunner {
         last_snapshot_at: Option<Instant>,
     ) -> Option<Instant> {
         let mut deadline = None;
-        if self.ui.dim_timer_seconds != 0 {
+        if self.display.ui.dim_timer_seconds != 0 {
             deadline = earliest_deadline(
                 deadline,
-                self.last_interaction_at
-                    + Duration::from_secs(u64::from(self.ui.dim_timer_seconds)),
+                self.display.last_interaction_at
+                    + Duration::from_secs(u64::from(self.display.ui.dim_timer_seconds)),
                 last_snapshot_at,
             );
         }
-        if self.ui.screen_sleep_seconds != 0 && self.oled_mode == NativeOledMode::Normal {
+        if self.display.ui.screen_sleep_seconds != 0
+            && self.display.oled_mode == NativeOledMode::Normal
+        {
             deadline = earliest_deadline(
                 deadline,
-                self.last_interaction_at
-                    + Duration::from_secs(u64::from(self.ui.screen_sleep_seconds)),
+                self.display.last_interaction_at
+                    + Duration::from_secs(u64::from(self.display.ui.screen_sleep_seconds)),
                 last_snapshot_at,
             );
         }
-        if self.oled_mode == NativeOledMode::Splash {
-            if let Some(splash_until) = self.oled_splash_until {
+        if self.display.oled_mode == NativeOledMode::Splash {
+            if let Some(splash_until) = self.display.oled_splash_until {
                 deadline = earliest_deadline(deadline, splash_until, last_snapshot_at);
             }
         }
-        if let Some(toast_expires_at) = self.toast_expires_at {
+        if let Some(toast_expires_at) = self.display.toast_expires_at {
             deadline = earliest_deadline(deadline, toast_expires_at, last_snapshot_at);
         }
-        if let Some(auto_save_flash_until) = self.auto_save_flash_until {
+        if let Some(auto_save_flash_until) = self.display.auto_save_flash_until {
             deadline = earliest_deadline(deadline, auto_save_flash_until, last_snapshot_at);
         }
         deadline
     }
 
     pub(super) fn leds_dimmed(&self) -> bool {
-        self.ui.dim_timer_seconds != 0
-            && Instant::now().duration_since(self.last_interaction_at)
-                >= Duration::from_secs(u64::from(self.ui.dim_timer_seconds))
+        self.display.ui.dim_timer_seconds != 0
+            && Instant::now().duration_since(self.display.last_interaction_at)
+                >= Duration::from_secs(u64::from(self.display.ui.dim_timer_seconds))
     }
 }
 

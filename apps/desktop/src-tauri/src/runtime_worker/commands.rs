@@ -1,5 +1,5 @@
 use super::{queue_by_priority, RuntimeWorker, WorkerCommand, MAX_COMMANDS_PER_WAKE};
-use playback_runtime::{HostAdapter, SyncSource};
+use playback_runtime::SyncSource;
 use std::sync::mpsc::{self, Receiver};
 use std::time::Instant;
 
@@ -57,7 +57,16 @@ impl RuntimeWorker {
         let was_internal_playing = self.is_internal_playing();
         match command {
             WorkerCommand::Dispatch(message, reply) => {
-                let result = self.dispatch_host_message(message);
+                let result = self
+                    .playback
+                    .dispatch(
+                        playback_runtime::RuntimeDispatchInput::HostMessage(
+                            self.prepare_dispatch_message(message),
+                        ),
+                        &mut self.runner,
+                        &mut self.adapter,
+                    )
+                    .map(|output| output.messages);
                 if let Err(err) = &result {
                     let _ = reply.send(Err(err.clone()));
                     return Err(err.clone());
@@ -69,15 +78,18 @@ impl RuntimeWorker {
                 self.runner.apply_runtime_config(self.playback.config());
             }
             WorkerCommand::NativeMidiRealtime(bytes) => {
-                let responses = self.handle_midi_realtime(bytes)?;
-                self.emit_runner_messages(responses)?;
+                let output = self.handle_midi_realtime(bytes)?;
+                self.emit_runtime_output(output)?;
             }
             WorkerCommand::DirectAudio(command, reply) => {
-                let result = self.adapter.handle_audio_command(&command);
-                if let Err(err) = &result {
-                    let _ = reply.send(Err(err.clone()));
-                    return Err(err.clone());
-                }
+                let output = self.playback.dispatch_runner_messages(
+                    vec![playback_runtime::RunnerMessage::AudioCommands {
+                        commands: vec![command],
+                    }],
+                    &mut self.runner,
+                    &mut self.adapter,
+                )?;
+                self.emit_runtime_output(output)?;
                 let _ = reply.send(Ok(()));
             }
         }

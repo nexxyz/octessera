@@ -56,6 +56,7 @@ pub(super) enum MomentaryFxKind {
     PitchShift,
 }
 
+#[derive(Clone)]
 pub(super) struct MomentaryFxState {
     pub(super) id: String,
     pub(super) kind: MomentaryFxKind,
@@ -196,6 +197,7 @@ impl MomentaryFxState {
     }
 }
 
+#[derive(Clone)]
 pub(super) struct LivePitchShift {
     buf: Vec<f32>,
     buf_len: usize,

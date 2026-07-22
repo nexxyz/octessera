@@ -1,6 +1,6 @@
 use crate::{
     CoreRunner, HostAdapter, HostMessage, MusicalEvent, NativeRunner, NativeRunnerConfig,
-    PlaybackRuntime, RunnerMessage, RuntimeAudioCommand, RuntimeConfig, RuntimePlatformEffect,
+    PlaybackRuntime, RunnerMessage, RuntimeAudioCommand, RuntimeConfig, RuntimePlatformRequest,
     RuntimeStoreResult, SyncSource,
 };
 use serde::Serialize;
@@ -149,7 +149,10 @@ impl CoreRunner for ProbeRunner {
 }
 
 impl HostAdapter for ProbeHost {
-    fn handle_musical_event(&mut self, event: &MusicalEvent) -> Result<(), String> {
+    fn handle_musical_event(
+        &mut self,
+        event: &MusicalEvent,
+    ) -> Result<(), crate::RuntimeAdapterError> {
         self.event_times_ms.push(self.now_ms);
         self.events.push(EventRecord {
             time_ms: self.now_ms,
@@ -160,19 +163,30 @@ impl HostAdapter for ProbeHost {
 
     fn handle_platform_effect(
         &mut self,
-        _effect: &RuntimePlatformEffect,
-    ) -> Result<Vec<HostMessage>, String> {
+        _request: &RuntimePlatformRequest,
+    ) -> Result<Vec<HostMessage>, crate::RuntimeAdapterError> {
         self.platform_effects += 1;
         Ok(Vec::new())
     }
 
-    fn handle_audio_command(&mut self, _command: &RuntimeAudioCommand) -> Result<(), String> {
+    fn handle_audio_command(
+        &mut self,
+        _command: &RuntimeAudioCommand,
+    ) -> Result<(), crate::RuntimeAdapterError> {
         self.audio_commands += 1;
         Ok(())
     }
 
-    fn handle_midi_message(&mut self, _bytes: &[u8]) -> Result<(), String> {
+    fn handle_midi_message(&mut self, _bytes: &[u8]) -> Result<(), crate::RuntimeAdapterError> {
         self.midi_messages += 1;
+        Ok(())
+    }
+
+    fn silence_internal_audio(&mut self) -> Result<(), crate::RuntimeAdapterError> {
+        Ok(())
+    }
+
+    fn panic_external_midi(&mut self) -> Result<(), crate::RuntimeAdapterError> {
         Ok(())
     }
 }
@@ -438,6 +452,7 @@ fn send_runtime_message(
             RunnerMessage::RuntimeStatus {
                 status: crate::RuntimeStatus {
                     transport: crate::RuntimeTransportState::Playing,
+                    error: None,
                     ..
                 }
             }

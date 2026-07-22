@@ -8,7 +8,9 @@ pub(super) fn assign_string(payload: &Value, key: &str, target: &mut String) {
 
 pub(super) fn assign_u8(payload: &Value, key: &str, target: &mut u8, max: u8) {
     if let Some(value) = payload.get(key).and_then(Value::as_u64) {
-        *target = (value as u8).min(max);
+        if let Ok(value) = u8::try_from(value) {
+            *target = value.min(max);
+        }
     }
 }
 
@@ -20,7 +22,9 @@ pub(super) fn assign_bool(payload: &Value, key: &str, target: &mut bool) {
 
 pub(super) fn assign_i32(payload: &Value, key: &str, target: &mut i32, min: i32, max: i32) {
     if let Some(value) = payload.get(key).and_then(Value::as_i64) {
-        *target = (value as i32).clamp(min, max);
+        if let Ok(value) = i32::try_from(value) {
+            *target = value.clamp(min, max);
+        }
     }
 }
 
@@ -34,7 +38,7 @@ pub(super) fn assign_mapping(payload: &Value, key: &str, slot: &mut usize, actio
         } else if let Some(parsed) = value
             .as_str()
             .and_then(parse_slot_index)
-            .or_else(|| value.as_u64().map(|value| value as usize))
+            .or_else(|| value.as_u64().and_then(|value| usize::try_from(value).ok()))
         {
             *slot = parsed.min(INSTRUMENT_COUNT - 1);
         }

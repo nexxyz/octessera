@@ -1,7 +1,6 @@
 use crate::runtime_worker::{request_worker_audio_command, request_worker_dispatch, WorkerCommand};
 use crate::types::{
-    append_audio_error_values, encode_runtime_responses, AudioCommandPayload,
-    MomentaryFxTargetPayload, RuntimeMessagesPayload,
+    encode_runtime_responses, AudioCommandPayload, MomentaryFxTargetPayload, RuntimeMessagesPayload,
 };
 use playback_runtime::RuntimeAudioCommand;
 use realtime_engine::synth::SAMPLE_SLOTS_PER_INSTRUMENT;
@@ -99,8 +98,5 @@ pub(crate) fn runtime_dispatch(
 ) -> Result<Vec<Value>, String> {
     let host_message = serde_json::from_value::<playback_runtime::HostMessage>(message)
         .map_err(|e| format!("invalid runtime host message: {e}"))?;
-    Ok(append_audio_error_values(
-        encode_runtime_responses(request_worker_dispatch(&state, host_message)?)?,
-        &state.audio_error,
-    ))
+    encode_runtime_responses(request_worker_dispatch(&state, host_message)?)
 }

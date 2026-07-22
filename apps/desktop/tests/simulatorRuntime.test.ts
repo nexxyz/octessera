@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { GRID_HEIGHT, GRID_WIDTH, OLED_HEIGHT, OLED_WIDTH, RED_COLOR } from "@octessera/device-contracts";
-import { createSimulatorRuntime } from "../src/runtime/simulatorRuntime";
+import { createSimulatorRuntime, shouldApplyRuntimeBatch } from "../src/runtime/simulatorRuntime";
 import type { RuntimeRunnerMessage } from "@octessera/device-contracts";
 import type { RuntimeScheduler } from "../src/runtime/runtimeScheduler";
 
@@ -59,6 +59,29 @@ test("runtime requires Tauri native runtime or injected dispatch", () => {
     () => createSimulatorRuntime(new FakeScheduler()),
     /requires Tauri native runtime or an injected native dispatch/,
   );
+});
+
+test("fault-bearing runtime batches bypass stale display suppression", () => {
+  const fault = {
+    type: "runtime_status" as const,
+    status: {
+      state: "error" as const,
+      transport: "stopped" as const,
+      currentPpqnPulse: 0,
+      pendingResync: false,
+      syncSource: "internal" as const,
+      error: {
+        domain: "audio" as const,
+        code: "operation_failed" as const,
+        operation: "audio_thread" as const,
+        recovery: "stop_and_silence" as const,
+        message: "audio stopped"
+      }
+    }
+  } satisfies RuntimeRunnerMessage;
+
+  assert.equal(shouldApplyRuntimeBatch(4, 5, 10, 100, [fault]), true);
+  assert.equal(shouldApplyRuntimeBatch(4, 5, 10, 100, [snapshotMessage()]), false);
 });
 
 function sparseAudioSnapshotMessage(options: { audioConfigRevision?: number; masterVolume?: number } = {}) {

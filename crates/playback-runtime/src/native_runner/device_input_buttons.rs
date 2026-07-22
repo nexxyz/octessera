@@ -17,11 +17,11 @@ impl NativeRunner {
             }
         } else if id.unwrap_or("main") == "main" {
             self.reset_menu_scroll();
-            if self.help_popup.is_some() {
-                self.help_popup = None;
+            if self.display.help_popup.is_some() {
+                self.display.help_popup = None;
                 return self.messages_with_snapshot();
             }
-            if self.ui.combined_modifier_held {
+            if self.display.ui.combined_modifier_held {
                 self.open_contextual_help();
                 return self.messages_with_snapshot();
             }
@@ -108,10 +108,14 @@ impl NativeRunner {
         &mut self,
         index: usize,
     ) -> Result<Option<Vec<RunnerMessage>>, String> {
-        if self.ui.fn_held || self.ui.combined_modifier_held {
+        if self.display.ui.fn_held || self.display.ui.combined_modifier_held {
             return Ok(None);
         }
-        let click_prefix = if self.ui.shift_held { "S+Clk" } else { "Clk" };
+        let click_prefix = if self.display.ui.shift_held {
+            "S+Clk"
+        } else {
+            "Clk"
+        };
         let Some(press) = self.effective_aux_slot(index).press else {
             return Ok(None);
         };
@@ -153,9 +157,9 @@ impl NativeRunner {
             self.sample_assign = None;
         } else if self.trigger_probability_assign.is_some() {
             self.trigger_probability_assign = None;
-        } else if self.help_popup.is_some() {
-            self.help_popup = None;
-        } else if self.ui.shift_held {
+        } else if self.display.help_popup.is_some() {
+            self.display.help_popup = None;
+        } else if self.display.ui.shift_held {
             let editing_key = self
                 .menu
                 .state
@@ -182,17 +186,17 @@ impl NativeRunner {
                 .flatten();
             let prompt_for_audio_buffer_reboot = editing_key.as_deref()
                 == Some("sound.audioOutputBufferFrames")
-                && self.pending_audio_output_buffer_reboot_prompt;
+                && self.pending.pending_audio_output_buffer_reboot_prompt;
             self.reset_menu_scroll();
             self.menu.back();
             if let Some(key) = editing_key {
                 self.apply_or_schedule_menu_key(&key)?;
             }
             if prompt_for_audio_buffer_reboot {
-                self.pending_audio_output_buffer_reboot_prompt = false;
-                self.toast = None;
+                self.pending.pending_audio_output_buffer_reboot_prompt = false;
+                self.display.toast = None;
                 let action = NativeMenuAction::PlatformEffect("system.reboot".into());
-                self.confirm_dialog = self.confirmation_for_action(&action);
+                self.display.confirm_dialog = self.confirmation_for_action(&action);
             }
         }
         self.messages_with_snapshot()

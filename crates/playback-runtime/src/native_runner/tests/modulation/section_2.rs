@@ -111,7 +111,7 @@ pub(crate) fn shift_grid_param_mod_overlay_marks_lanes_and_combined_cells() {
     runner.menu.turn(3);
     runner.menu.press();
     runner.menu.turn(1);
-    runner.ui.shift_held = true;
+    runner.display.ui.shift_held = true;
 
     let snapshot = runner.snapshot().unwrap();
     let cells = led_cells(&snapshot);

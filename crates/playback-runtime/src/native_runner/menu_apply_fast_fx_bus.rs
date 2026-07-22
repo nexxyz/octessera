@@ -305,7 +305,7 @@ impl NativeRunner {
     }
 
     pub(super) fn current_menu_bpm(&self) -> u16 {
-        crate::delay_timing::visible_bpm_u16(self.bpm)
+        crate::delay_timing::visible_bpm_u16(self.transport.bpm)
     }
 }
 

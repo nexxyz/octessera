@@ -74,10 +74,10 @@ impl NativeRunner {
             config_changed = true;
         }
         if audio_config_changed {
-            self.audio_config_revision = self.audio_config_revision.wrapping_add(1);
+            self.audio_config_revision = self.audio_config_revision.saturating_add(1);
         }
         if config_changed {
-            self.config_dirty = true;
+            self.mark_config_dirty();
             self.force_autosave_payload_due();
         }
         Ok(())

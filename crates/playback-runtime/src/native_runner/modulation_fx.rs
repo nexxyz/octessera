@@ -8,8 +8,7 @@ pub(super) fn apply_fx_bus_binding_value(
     slot: &str,
     field: &str,
     value: Value,
-    config_dirty: &mut bool,
-) {
+) -> bool {
     let changed = match (slot, field) {
         ("bus", "panPos") => apply_u8_value(&mut bus.pan_pos, value, PAN_POSITION_COUNT - 1),
         ("bus", "volume") => apply_u8_value(&mut bus.volume_pct, value, 100),
@@ -37,8 +36,9 @@ pub(super) fn apply_fx_bus_binding_value(
         if bus.auto_name {
             bus.name = derive_bus_name(bus);
         }
-        *config_dirty = true;
+        return true;
     }
+    false
 }
 
 pub(super) fn apply_global_fx_binding_value(
@@ -47,35 +47,32 @@ pub(super) fn apply_global_fx_binding_value(
     index: usize,
     field: &str,
     value: Value,
-    config_dirty: &mut bool,
-) {
+) -> bool {
     let Some(slot) = slots.get_mut(index) else {
-        return;
+        return false;
     };
     let Some(slot_params) = params.get_mut(index) else {
-        return;
+        return false;
     };
-    let changed = match field {
+    match field {
         "type" => apply_fx_slot_type_value(slot, slot_params, value),
         field if field.starts_with("params.") => {
             apply_fx_param_binding_value(slot_params, &field[7..], value)
         }
         _ => false,
-    };
-    *config_dirty |= changed;
+    }
 }
 
 pub(super) fn apply_sparks_fx_binding_value(
     selected: &mut Value,
     field: &str,
     value: Value,
-    config_dirty: &mut bool,
-) {
+) -> bool {
     let mut object = selected.as_object().cloned().unwrap_or_default();
     let changed = match field {
         "type" => {
             let Some(value) = value.as_str() else {
-                return;
+                return false;
             };
             let changed = object
                 .get("fxType")
@@ -90,7 +87,7 @@ pub(super) fn apply_sparks_fx_binding_value(
         }
         "target" => {
             let Some(value) = value.as_str() else {
-                return;
+                return false;
             };
             let changed = object
                 .get("targetKey")
@@ -120,6 +117,7 @@ pub(super) fn apply_sparks_fx_binding_value(
     };
     if changed {
         *selected = Value::Object(object);
-        *config_dirty = true;
+        return true;
     }
+    false
 }

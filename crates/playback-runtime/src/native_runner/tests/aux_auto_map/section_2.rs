@@ -39,8 +39,8 @@ pub(crate) fn auto_map_behavior_context_uses_worlds_label() {
     );
     runner.menu.state.stack = vec![0, 0];
     runner.menu.state.cursor = interval_cursor;
-    runner.ui.fn_held = true;
-    runner.fn_hold_started_at = Some(Instant::now() - Duration::from_millis(1600));
+    runner.display.ui.fn_held = true;
+    runner.display.fn_hold_started_at = Some(Instant::now() - Duration::from_millis(1600));
 
     let snapshot = runner.snapshot().unwrap();
     let lines = snapshot["display"]["lines"].as_array().unwrap();
@@ -170,8 +170,8 @@ pub(crate) fn fn_held_shows_auto_aux_mapping_overlay() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = synth_stack(&runner, "Filter");
     runner.menu.state.cursor = 1;
-    runner.ui.fn_held = true;
-    runner.fn_hold_started_at = Some(Instant::now() - Duration::from_millis(1600));
+    runner.display.ui.fn_held = true;
+    runner.display.fn_hold_started_at = Some(Instant::now() - Duration::from_millis(1600));
 
     let snapshot = runner.snapshot().unwrap();
     let lines = snapshot["display"]["lines"].as_array().unwrap();
@@ -194,8 +194,8 @@ pub(crate) fn fn_held_shows_custom_aux_mapping_overlay_when_no_auto_map_applies(
         turn_key: Some("masterVolume".into()),
         press_action: Some(NativeMenuAction::ResetBehavior),
     });
-    runner.ui.fn_held = true;
-    runner.fn_hold_started_at = Some(Instant::now() - Duration::from_millis(1600));
+    runner.display.ui.fn_held = true;
+    runner.display.fn_hold_started_at = Some(Instant::now() - Duration::from_millis(1600));
 
     let snapshot = runner.snapshot().unwrap();
     let lines = snapshot["display"]["lines"].as_array().unwrap();
@@ -210,8 +210,8 @@ pub(crate) fn aux_overlay_waits_for_fn_hold_delay() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = synth_stack(&runner, "Filter");
     runner.menu.state.cursor = 1;
-    runner.ui.fn_held = true;
-    runner.fn_hold_started_at = Some(Instant::now());
+    runner.display.ui.fn_held = true;
+    runner.display.fn_hold_started_at = Some(Instant::now());
 
     let snapshot = runner.snapshot().unwrap();
 
@@ -223,7 +223,7 @@ pub(crate) fn fn_aux_bind_sets_explicit_toast_and_marks_config_dirty() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![5, 3];
     runner.menu.state.cursor = 0;
-    runner.ui.fn_held = true;
+    runner.display.ui.fn_held = true;
 
     let _ = runner
         .send(HostMessage::DeviceInput {
@@ -233,7 +233,7 @@ pub(crate) fn fn_aux_bind_sets_explicit_toast_and_marks_config_dirty() {
         .unwrap();
 
     assert_eq!(
-        runner.toast.as_ref().unwrap().message,
+        runner.display.toast.as_ref().unwrap().message,
         "Clk-1: Bound turn: Master Vol"
     );
     assert!(runner.config_dirty);
@@ -254,7 +254,10 @@ pub(crate) fn aux_click_action_toast_is_shown_for_platform_effect_actions() {
         })
         .unwrap();
 
-    assert_eq!(runner.toast.as_ref().unwrap().message, "Clk-1: MIDI Panic");
+    assert_eq!(
+        runner.display.toast.as_ref().unwrap().message,
+        "Clk-1: MIDI Panic"
+    );
 }
 
 #[test]
@@ -268,7 +271,7 @@ pub(crate) fn shift_aux_press_uses_shifted_bank_not_plain_bank() {
         turn_key: None,
         press_action: Some(NativeMenuAction::PlatformEffect("preset.refresh".into())),
     });
-    runner.ui.shift_held = true;
+    runner.display.ui.shift_held = true;
 
     let messages = runner
         .send(HostMessage::DeviceInput {
@@ -282,7 +285,10 @@ pub(crate) fn shift_aux_press_uses_shifted_bank_not_plain_bank() {
         RunnerMessage::PlatformEffects { effects }
             if effects == &vec![RuntimePlatformEffect::StoreListPresets]
     )));
-    assert_eq!(runner.toast.as_ref().unwrap().message, "S+Clk-1: Refresh");
+    assert_eq!(
+        runner.display.toast.as_ref().unwrap().message,
+        "S+Clk-1: Refresh"
+    );
 }
 
 #[test]
@@ -293,7 +299,7 @@ pub(crate) fn shift_aux_turn_uses_shifted_bank_not_plain_bank() {
         press_action: None,
     });
     runner.shift_aux_bindings[0] = None;
-    runner.ui.shift_held = true;
+    runner.display.ui.shift_held = true;
 
     runner
         .send(HostMessage::DeviceInput {
@@ -303,7 +309,7 @@ pub(crate) fn shift_aux_turn_uses_shifted_bank_not_plain_bank() {
         .unwrap();
 
     assert_eq!(
-        runner.toast.as_ref().unwrap().message,
+        runner.display.toast.as_ref().unwrap().message,
         "S+Trn-1: No binding"
     );
 }
@@ -313,7 +319,7 @@ pub(crate) fn shift_fn_aux_binds_shift_bank_and_fn_aux_binds_plain_bank() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![5, 3];
     runner.menu.state.cursor = 0;
-    runner.ui.combined_modifier_held = true;
+    runner.display.ui.combined_modifier_held = true;
 
     runner
         .send(HostMessage::DeviceInput {
@@ -332,12 +338,12 @@ pub(crate) fn shift_fn_aux_binds_shift_bank_and_fn_aux_binds_plain_bank() {
         Some("masterVolume")
     );
     assert_eq!(
-        runner.toast.as_ref().unwrap().message,
+        runner.display.toast.as_ref().unwrap().message,
         "S+Clk-1: Bound turn: Master Vol"
     );
 
-    runner.ui.combined_modifier_held = false;
-    runner.ui.fn_held = true;
+    runner.display.ui.combined_modifier_held = false;
+    runner.display.ui.fn_held = true;
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "aux2" }),

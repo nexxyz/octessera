@@ -3,11 +3,11 @@ use super::*;
 #[test]
 pub(crate) fn saved_step_rate_rehydrates_from_default_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.algorithm_step_pulses = 6;
+    runner.transport.algorithm_step_pulses = 6;
     let payload = runner.config_payload();
     let mut loaded = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     loaded.apply_config_payload(payload).unwrap();
-    assert_eq!(loaded.algorithm_step_pulses, 6);
+    assert_eq!(loaded.transport.algorithm_step_pulses, 6);
     assert_eq!(
         loaded.config_payload()["runtimeConfig"]["layers"][0]["worlds"]["stepRate"],
         "1/16"
@@ -17,12 +17,12 @@ pub(crate) fn saved_step_rate_rehydrates_from_default_payload() {
 #[test]
 pub(crate) fn triplet_step_rate_round_trips_from_default_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.algorithm_step_pulses = 4;
+    runner.transport.algorithm_step_pulses = 4;
     let payload = runner.config_payload();
     let mut loaded = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     loaded.apply_config_payload(payload).unwrap();
 
-    assert_eq!(loaded.algorithm_step_pulses, 4);
+    assert_eq!(loaded.transport.algorithm_step_pulses, 4);
     assert_eq!(
         loaded.config_payload()["runtimeConfig"]["layers"][0]["worlds"]["stepRate"],
         "1/16T"
@@ -37,9 +37,9 @@ pub(crate) fn per_layer_step_rates_round_trip_and_drive_non_scanning_layers() {
     })
     .unwrap();
     runner.layer_behavior_ids[1] = "sequencer".into();
-    runner.layer_algorithm_step_pulses[0] = 6;
-    runner.layer_algorithm_step_pulses[1] = 24;
-    runner.algorithm_step_pulses = 6;
+    runner.transport.layer_algorithm_step_pulses[0] = 6;
+    runner.transport.layer_algorithm_step_pulses[1] = 24;
+    runner.transport.algorithm_step_pulses = 6;
     runner.pulses_layers[0].scan_mode = "none".into();
     runner.pulses_layers[1].scan_mode = "none".into();
     runner.pulses_layers[0].stable_action = "note_on".into();
@@ -76,10 +76,10 @@ pub(crate) fn per_layer_step_rates_round_trip_and_drive_non_scanning_layers() {
 
     let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     restored.apply_config_payload(payload).unwrap();
-    assert_eq!(restored.layer_algorithm_step_pulses[0], 6);
-    assert_eq!(restored.layer_algorithm_step_pulses[1], 24);
+    assert_eq!(restored.transport.layer_algorithm_step_pulses[0], 6);
+    assert_eq!(restored.transport.layer_algorithm_step_pulses[1], 24);
 
-    restored.transport = RuntimeTransportState::Playing;
+    restored.transport.transport = RuntimeTransportState::Playing;
     let _first = restored
         .send(HostMessage::TransportPulseStep {
             pulses: 6,
@@ -88,8 +88,8 @@ pub(crate) fn per_layer_step_rates_round_trip_and_drive_non_scanning_layers() {
             request_snapshot: Some(false),
         })
         .unwrap();
-    assert_eq!(restored.layer_pulse_accumulators[0], 0);
-    assert_eq!(restored.layer_pulse_accumulators[1], 6);
+    assert_eq!(restored.transport.layer_pulse_accumulators[0], 0);
+    assert_eq!(restored.transport.layer_pulse_accumulators[1], 6);
 
     let _second = restored
         .send(HostMessage::TransportPulseStep {
@@ -99,8 +99,8 @@ pub(crate) fn per_layer_step_rates_round_trip_and_drive_non_scanning_layers() {
             request_snapshot: Some(false),
         })
         .unwrap();
-    assert_eq!(restored.layer_pulse_accumulators[0], 0);
-    assert_eq!(restored.layer_pulse_accumulators[1], 0);
+    assert_eq!(restored.transport.layer_pulse_accumulators[0], 0);
+    assert_eq!(restored.transport.layer_pulse_accumulators[1], 0);
 }
 
 #[test]

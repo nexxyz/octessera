@@ -60,7 +60,6 @@ export const PLATFORM_CAPS = ${JSON.stringify(caps, null, 2)} as const;
 
 export const GRID_WIDTH = PLATFORM_CAPS.gridWidth;
 export const GRID_HEIGHT = PLATFORM_CAPS.gridHeight;
-export const LAYER_COUNT = PLATFORM_CAPS.layerCount;
 export const PAN_POSITION_COUNT = PLATFORM_CAPS.panPositionCount;
 export const AUX_ENCODER_COUNT = PLATFORM_CAPS.auxEncoderCount;
 export const OLED_WIDTH = PLATFORM_CAPS.oledWidth;

@@ -25,6 +25,112 @@ pub(super) struct NativeUiState {
     pub(super) combined_button_pressed: bool,
 }
 
+#[derive(Default)]
+pub(super) struct NativePendingState {
+    pub(super) pending_save_revision: Option<u64>,
+    pub(super) pending_autosave_payload_due_at: Option<Instant>,
+    pub(super) pending_aux_turn_toast: Option<PendingNativeToast>,
+    pub(super) pending_menu_apply: Option<PendingMenuApply>,
+    pub(super) pending_audio_output_buffer_reboot_prompt: bool,
+    pub(super) suppress_snapshot_response: bool,
+}
+
+pub(super) struct NativeDisplayState {
+    pub(super) ui: NativeUiState,
+    pub(super) hdmi: NativeHdmiConfig,
+    pub(super) oled_mode: NativeOledMode,
+    pub(super) oled_splash_text: String,
+    pub(super) oled_splash_until: Option<Instant>,
+    pub(super) startup_splash_presented: bool,
+    pub(super) last_interaction_at: Instant,
+    pub(super) fn_hold_started_at: Option<Instant>,
+    pub(super) modifier_hint_started_at: Option<Instant>,
+    pub(super) help_popup: Option<NativeHelpPopup>,
+    pub(super) confirm_dialog: Option<NativeConfirmDialog>,
+    pub(super) usb_sd_transfer_modal: Option<NativeUsbSdTransferModal>,
+    pub(super) event_dot_on: bool,
+    pub(super) event_dot_pulses_remaining: u8,
+    pub(super) transport_flash: &'static str,
+    pub(super) transport_flash_pulses_remaining: u8,
+    pub(super) auto_save_flash_serial: u64,
+    pub(super) auto_save_flash_until: Option<Instant>,
+    pub(super) toast: Option<NativeToast>,
+    pub(super) toast_expires_at: Option<Instant>,
+    pub(super) aux_turn_toast_cooldown_until: Option<Instant>,
+    pub(super) menu_scroll_offset: usize,
+}
+
+impl NativeDisplayState {
+    pub(super) fn new(ui: NativeUiState, now: Instant) -> Self {
+        Self {
+            ui,
+            hdmi: NativeHdmiConfig {
+                mode: "none".into(),
+                show_gridlines: false,
+                cycle_measures: 4,
+                source_layer_index: 0,
+            },
+            oled_mode: NativeOledMode::Splash,
+            oled_splash_text: OLED_STARTUP_SPLASH_KEY.into(),
+            oled_splash_until: Some(now + Duration::from_millis(OLED_STARTUP_SPLASH_MS)),
+            startup_splash_presented: false,
+            last_interaction_at: now,
+            fn_hold_started_at: None,
+            modifier_hint_started_at: None,
+            help_popup: None,
+            confirm_dialog: None,
+            usb_sd_transfer_modal: None,
+            event_dot_on: false,
+            event_dot_pulses_remaining: 0,
+            transport_flash: "none",
+            transport_flash_pulses_remaining: 0,
+            auto_save_flash_serial: 0,
+            auto_save_flash_until: None,
+            toast: None,
+            toast_expires_at: None,
+            aux_turn_toast_cooldown_until: None,
+            menu_scroll_offset: 0,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(super) struct NativeTransportState {
+    pub(super) transport: RuntimeTransportState,
+    pub(super) sync_source: SyncSource,
+    pub(super) pending_resync: bool,
+    pub(super) bpm: f64,
+    pub(super) swing_pct: u8,
+    pub(super) current_ppqn_pulse: u64,
+    pub(super) swung_ppqn_pulse: u64,
+    pub(super) tick: u64,
+    pub(super) layer_ticks: Vec<u64>,
+    pub(super) algorithm_step_pulses: u32,
+    pub(super) algorithm_pulse_accumulator: u32,
+    pub(super) layer_algorithm_step_pulses: Vec<u32>,
+    pub(super) layer_pulse_accumulators: Vec<u32>,
+}
+
+impl NativeTransportState {
+    pub(super) fn new(bpm: f64, swing_pct: u8, sync_source: SyncSource) -> Self {
+        Self {
+            transport: RuntimeTransportState::Stopped,
+            sync_source,
+            pending_resync: false,
+            bpm,
+            swing_pct,
+            current_ppqn_pulse: 0,
+            swung_ppqn_pulse: 0,
+            tick: 0,
+            layer_ticks: vec![0; LAYER_COUNT],
+            algorithm_step_pulses: DEFAULT_ALGORITHM_STEP_RED,
+            algorithm_pulse_accumulator: 0,
+            layer_algorithm_step_pulses: vec![DEFAULT_ALGORITHM_STEP_RED; LAYER_COUNT],
+            layer_pulse_accumulators: vec![0; LAYER_COUNT],
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct NativePulsesLayer {
     pub(super) scan_mode: String,

@@ -15,6 +15,10 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
   - owns lifecycle (`start`/`stop`)
   - schedules transport pulses and realtime status through Rust runtime code
   - owns native menu state, config payloads, snapshots, platform effects, and `NativeRunner`
+  - `PlaybackRuntime::dispatch` is the canonical host-message/result observation path; desktop and Pi loops schedule work and render its presented output
+  - maps typed adapter failure facts to recovery policy and owns the best-effort stop-and-silence operation
+  - requires every host adapter to implement internal-audio silence and external-MIDI panic explicitly; safety cannot fall through to a successful no-op
+  - classifies worker emission and persistence faults as retain/retry outcomes instead of safety-stop failures
   - applies native core behavior transitions through `platform-core`
   - publishes snapshots, platform effects, audio commands, MIDI events, and runtime status
   - owns MIDI input/output through host adapters only; Tauri/midir and Pi MIDI device access stay outside canonical runtime crates
@@ -31,12 +35,16 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
   - desktop audio sink maps native events/audio commands to the realtime engine and rodio source
   - MIDI input/output uses Tauri-side midir adapters
   - storage, sample-browser filesystem access, and sample decoding are host adapter responsibilities
+  - returns typed failure facts and carries runtime request/revision identity through asynchronous platform/audio-prep jobs; it does not choose recovery policy
 
 - Realtime audio engine (`crates/realtime-engine`, `crates/rodio-engine-source`)
   - owns all internal musical audio rendering, instrument route/pan, FX bus sends, FX bus processing, sidechain ducking, and final stereo mix
   - generates synth slot/sample/pan constants from `resources/platform-capabilities.json`
   - receives platform-decoded sample buffers and control events; it does not perform file I/O or sample decoding in the audio callback
+  - receives an explicit `AllNotesOff` internal command for clearing synth, sample, and preview voices; internal safety does not use MIDI CC 120/123
   - is the only path for synth/sample instrument audio before device output
+  - shared JSON audio configuration normalization and FX shape/type validation live in `realtime-engine`; desktop and Pi retain sample path resolution, file decoding, caching, and host queueing
+  - desktop and Pi return the same typed audio-command/config failures, preserve revision identity for full-config preparation, and route `SamplePreview` through the selected realtime instrument path
 
 ## Dependency Rules
 
@@ -64,6 +72,10 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
 - `transport_pulse_step` is the deterministic PPQN advancement boundary; hosts must not substitute wall-clock timer semantics above this seam.
 - External MIDI realtime (`clock`, `start`, `continue`, `stop`) remains explicit at the boundary and is not inferred from UI/runtime scheduling code. Desktop MIDI input is routed natively from the host adapter into the runtime worker; UI code must not observe raw MIDI bytes for display or transport state.
 - `runtime_result` carries host-side outcomes for storage, MIDI port enumeration/selection, and sample-browser operations back into the shared runner.
+- Background audio preparation returns identified typed success/failure results through `runtime_result`; prep failures retain the last good runtime/audio state.
+- Pi audio preparation treats superseded revisions as cancellation: no stale-prep fault is returned or latched.
+- Identified asynchronous results retain their request ID/revision through the runner round trip; `PlaybackRuntime` observes each result once and clears only the matching fault.
+- Stop-and-silence recovery independently attempts runner transport stop, internal synth/sample silence, and external MIDI panic on both hosts.
 - `snapshot` is the runtime display/input-facing state payload; `musical_events`, `midi_events`, `platform_effects`, and `audio_commands` are the resolved outputs that Rust schedules or dispatches.
 
 ## Audio Routing Contract

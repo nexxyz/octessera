@@ -3,8 +3,6 @@ param(
   [string]$Backend = "auto",
   [string]$Target = "aarch64-unknown-linux-gnu",
   [string]$Profile = "pi-dev",
-  [ValidateSet("rpi-zero-2w")]
-  [string]$BoardProfile = "rpi-zero-2w",
   [string]$OutDir = "target/pi-cross",
   [string]$Image = "octessera-pi-cross:latest",
   [string]$Sysroot = "",
@@ -85,10 +83,9 @@ function Invoke-WslDockerBuild {
   $outWsl = "/work/$outputRelative"
   $profileArg = $Profile.Replace("'", "'\''")
   $targetArg = $Target.Replace("'", "'\''")
-  $boardProfileArg = $BoardProfile.Replace("'", "'\''")
   $imageArg = $Image.Replace("'", "'\''")
 
-  $script = "cd '$repoWsl' && TARGET='$targetArg' PROFILE='$profileArg' BOARD_PROFILE='$boardProfileArg' OUT_DIR='$outWsl' IMAGE='$imageArg' bash ./tools/pi/build-pi-cross-wsl.sh"
+  $script = "cd '$repoWsl' && TARGET='$targetArg' PROFILE='$profileArg' OUT_DIR='$outWsl' IMAGE='$imageArg' bash ./tools/pi/build-pi-cross-wsl.sh"
   & wsl bash -lc "docker info >/dev/null 2>&1"
   if ($LASTEXITCODE -eq 0) {
     Invoke-CheckedCommand "WSL Docker Pi cross-build" { & wsl bash -lc $script }

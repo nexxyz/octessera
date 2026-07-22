@@ -114,8 +114,6 @@ impl SynthEngine {
             self.mods[slot].cutoff_cc = (value as f32 / 127.0).clamp(0.0, 1.0);
         } else if controller == 71 {
             self.mods[slot].resonance_cc = (value as f32 / 127.0).clamp(0.0, 1.0);
-        } else if controller == 120 || controller == 123 {
-            self.mods[slot] = InstrumentMod::new();
         }
     }
 

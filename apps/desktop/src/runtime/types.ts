@@ -1,4 +1,4 @@
-import type { RuntimeSnapshot } from "@octessera/device-contracts";
+import type { RuntimeSnapshot, RuntimeStatus } from "@octessera/device-contracts";
 
 export type InputAction =
   | { type: "device_input"; input: import("@octessera/device-contracts").DeviceInput }
@@ -8,11 +8,11 @@ export type InputAction =
 
 export type SimulatorSnapshot = {
   frame: RuntimeSnapshot;
+  runtimeStatus: RuntimeStatus | null;
   neoKeyLeds: Record<"back" | "space" | "shift" | "fn", [number, number, number]>;
   masterVolume: number;
   voiceStealingMode: "fixed12" | "fixed16" | "auto-soft" | "auto-balanced" | "auto-hard" | "none";
   audioLoad: { ratio: number; voiceSteal: boolean };
-  audioError: string | null;
   instruments: unknown[];
   mixer: unknown;
   panPositions: number;

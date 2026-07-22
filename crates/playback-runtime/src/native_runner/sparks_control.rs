@@ -105,8 +105,8 @@ impl NativeRunner {
             assignment.x != x || assignment.y != y || assignment.config != config
         });
         if same_existing {
-            self.config_dirty = true;
-            self.toast = Some(NativeToast {
+            self.mark_config_dirty();
+            self.display.toast = Some(NativeToast {
                 message: "FX cleared".into(),
                 offset: 0,
             });
@@ -118,8 +118,8 @@ impl NativeRunner {
             self.sparks_fx_assignments
                 .push(NativeSparksFxAssignment { x, y, config });
         }
-        self.config_dirty = true;
-        self.toast = Some(NativeToast {
+        self.mark_config_dirty();
+        self.display.toast = Some(NativeToast {
             message: "FX mapped".into(),
             offset: 0,
         });
@@ -133,7 +133,7 @@ impl NativeRunner {
                         let volume = ((y as f32 / (GRID_HEIGHT - 1) as f32) * 100.0).round() as u8;
                         if instrument.volume != volume {
                             instrument.volume = volume;
-                            self.config_dirty = true;
+                            self.mark_config_dirty();
                             self.queue_audio_command(RuntimeAudioCommand::SetInstrumentMixer {
                                 instrument_slot: x,
                                 volume_pct: Some(f32::from(volume)),
@@ -156,7 +156,7 @@ impl NativeRunner {
                         .and_then(|value| value.checked_sub(1));
                     if instrument.pan_pos != pan_pos {
                         instrument.pan_pos = pan_pos;
-                        self.config_dirty = true;
+                        self.mark_config_dirty();
                         self.queue_audio_command(RuntimeAudioCommand::SetInstrumentMixer {
                             instrument_slot: y,
                             volume_pct: None,
@@ -167,7 +167,7 @@ impl NativeRunner {
                         if let Some(bus) = self.fx_buses.get_mut(bus_index) {
                             if bus.pan_pos != pan_pos {
                                 bus.pan_pos = pan_pos;
-                                self.config_dirty = true;
+                                self.mark_config_dirty();
                                 self.queue_audio_command(RuntimeAudioCommand::SetFxBusMixer {
                                     bus_index,
                                     pan_pos: Some(usize::from(pan_pos)),
@@ -199,7 +199,7 @@ impl NativeRunner {
             display_y: y.min(GRID_HEIGHT - 1) as f32 / (GRID_HEIGHT - 1) as f32,
             active: true,
         };
-        self.config_dirty = true;
+        self.mark_config_dirty();
     }
 
     pub(super) fn handle_sparks_xy_release(&mut self) {
@@ -214,7 +214,7 @@ impl NativeRunner {
         } else {
             self.xy_touch.active = false;
         }
-        self.config_dirty = true;
+        self.mark_config_dirty();
     }
 
     pub(super) fn handle_trigger_gate_grid_press(&mut self, x: usize, y: usize) {
@@ -262,7 +262,7 @@ impl NativeRunner {
             if let Some(slot) = self.trigger_gate_restore_modes.get_mut(index) {
                 *slot = None;
             }
-            self.toast = Some(NativeToast {
+            self.display.toast = Some(NativeToast {
                 message: format!("L{} triggers {}", index + 1, restore),
                 offset: 0,
             });
@@ -276,11 +276,11 @@ impl NativeRunner {
             if let Some(layer) = self.pulses_layers.get_mut(index) {
                 layer.trigger_probability_mode = "zero".into();
             }
-            self.toast = Some(NativeToast {
+            self.display.toast = Some(NativeToast {
                 message: format!("L{} triggers off", index + 1),
                 offset: 0,
             });
         }
-        self.config_dirty = true;
+        self.mark_config_dirty();
     }
 }

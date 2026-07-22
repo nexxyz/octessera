@@ -22,7 +22,7 @@ pub(crate) fn contextual_help_scrolls_and_back_closes() {
             request_snapshot: None,
         })
         .unwrap();
-    if let Some(help) = &mut runner.help_popup {
+    if let Some(help) = &mut runner.display.help_popup {
         help.lines = vec!["worlds", "pulses", "l3", "l4", "l5", "l6", "l7", "l8"]
             .into_iter()
             .map(String::from)
@@ -35,7 +35,7 @@ pub(crate) fn contextual_help_scrolls_and_back_closes() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.help_popup.as_ref().unwrap().scroll, 2);
+    assert_eq!(runner.display.help_popup.as_ref().unwrap().scroll, 2);
     assert!(snapshot_from(&scrolled)["display"]["lines"]
         .as_array()
         .unwrap()[0]
@@ -49,6 +49,6 @@ pub(crate) fn contextual_help_scrolls_and_back_closes() {
             request_snapshot: None,
         })
         .unwrap();
-    assert!(runner.help_popup.is_none());
+    assert!(runner.display.help_popup.is_none());
     assert_eq!(snapshot_from(&closed)["display"]["title"], "MENU");
 }

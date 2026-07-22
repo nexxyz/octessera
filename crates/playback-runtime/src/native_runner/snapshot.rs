@@ -25,7 +25,12 @@ impl NativeRunner {
         }
         let hdmi = self.hdmi_snapshot(&led_rgb, &active_cells, &model);
         let display = self.display_snapshot(menu);
-        let toast = self.toast.as_ref().map(scrolled_toast).unwrap_or_default();
+        let toast = self
+            .display
+            .toast
+            .as_ref()
+            .map(scrolled_toast)
+            .unwrap_or_default();
 
         let mut snapshot = json!({
             "display": {
@@ -38,9 +43,9 @@ impl NativeRunner {
                 "totalRows": display.scroll.as_ref().map(|scroll| scroll.total_rows),
                 "visibleRows": display.scroll.as_ref().map(|scroll| scroll.visible_rows),
                 "toast": toast,
-                "off": self.oled_mode == NativeOledMode::Off,
-                "splash": if self.oled_mode == NativeOledMode::Splash { self.oled_splash_text.clone() } else { String::new() },
-                "editing": self.menu.state.editing && self.help_popup.is_none()
+                "off": self.display.oled_mode == NativeOledMode::Off,
+                "splash": if self.display.oled_mode == NativeOledMode::Splash { self.display.oled_splash_text.clone() } else { String::new() },
+                "editing": self.menu.state.editing && self.display.help_popup.is_none()
             },
             "leds": {
                 "width": GRID_WIDTH,
@@ -50,11 +55,11 @@ impl NativeRunner {
             },
             "hdmi": hdmi,
             "transport": {
-                "playing": self.transport == RuntimeTransportState::Playing,
-                "bpm": self.bpm,
-                "swingPct": self.swing_pct,
-                "tick": self.tick,
-                "ppqnPulse": self.current_ppqn_pulse
+                "playing": self.transport.transport == RuntimeTransportState::Playing,
+                "bpm": self.transport.bpm,
+                "swingPct": self.transport.swing_pct,
+                "tick": self.transport.tick,
+                "ppqnPulse": self.transport.current_ppqn_pulse
             },
             "activeBehavior": self.behavior.id(),
             "sparksMode": self.sparks_mode,
@@ -64,10 +69,10 @@ impl NativeRunner {
                 GridInteraction::Momentary => "momentary",
             },
             "settings": {
-                "displayBrightness": self.ui.display_brightness,
-                "gridBrightness": self.ui.grid_brightness,
-                "buttonBrightness": self.ui.button_brightness,
-                "masterVolume": self.ui.master_volume,
+                "displayBrightness": self.display.ui.display_brightness,
+                "gridBrightness": self.display.ui.grid_brightness,
+                "buttonBrightness": self.display.ui.button_brightness,
+                "masterVolume": self.display.ui.master_volume,
                 "sound": {
                     "noteLengthMs": self.global_sound.note_length_ms,
                     "velocityScalePct": self.global_sound.velocity_scale_pct,
@@ -78,24 +83,24 @@ impl NativeRunner {
                 "velocityScalePct": self.global_sound.velocity_scale_pct,
                 "velocityCurve": velocity_curve_id(self.global_sound.velocity_curve),
                 "voiceStealingMode": self.voice_stealing_mode.clone(),
-                "ghostCells": self.ui.ghost_cells,
+                "ghostCells": self.display.ui.ghost_cells,
                 "inputEventsWhilePaused": self.input_events_while_paused,
-                "numericDisplayMode": self.ui.numeric_display_mode,
-                "dimTimerSeconds": self.ui.dim_timer_seconds,
-                "screenSleepSeconds": self.ui.screen_sleep_seconds,
+                "numericDisplayMode": self.display.ui.numeric_display_mode,
+                "dimTimerSeconds": self.display.ui.dim_timer_seconds,
+                "screenSleepSeconds": self.display.ui.screen_sleep_seconds,
                 "ledsDimmed": self.leds_dimmed(),
                 "auxAutoMapEnabled": self.aux_auto_map_enabled,
                 "audioConfigRevision": self.audio_config_revision,
                 "autoSaveFlash": if self.auto_save_flash_active() { "flash" } else { "none" },
-                "autoSaveFlashSerial": self.auto_save_flash_serial,
+                "autoSaveFlashSerial": self.display.auto_save_flash_serial,
                 "transport": {
-                    "bpm": self.bpm,
-                    "swingPct": self.swing_pct
+                    "bpm": self.transport.bpm,
+                    "swingPct": self.transport.swing_pct
                 },
                 "transportFlash": "none",
                 "stopLatched": false,
-                "fnHeld": self.ui.fn_held,
-                "combinedModifierHeld": self.ui.combined_modifier_held,
+                "fnHeld": self.display.ui.fn_held,
+                "combinedModifierHeld": self.display.ui.combined_modifier_held,
                 "midi": {
                     "enabled": self.midi_enabled,
                     "outId": self.selected_midi_output_id,
@@ -103,7 +108,7 @@ impl NativeRunner {
                     "outputs": self.midi_outputs,
                     "inputs": self.midi_inputs,
                     "status": self.midi_status,
-                    "syncMode": match self.sync_source {
+                    "syncMode": match self.transport.sync_source {
                         SyncSource::Internal => "internal",
                         SyncSource::External => "external",
                     },
@@ -114,14 +119,14 @@ impl NativeRunner {
             },
             "selectedRow": display.selected_row,
             "voiceStealingMode": self.voice_stealing_mode.clone(),
-            "eventDotOn": self.event_dot_on || self.event_dot_pulses_remaining > 0,
+            "eventDotOn": self.display.event_dot_on || self.display.event_dot_pulses_remaining > 0,
             "voiceSteal": false,
-            "transportIcon": match self.transport {
+            "transportIcon": match self.transport.transport {
                 RuntimeTransportState::Playing => "play",
                 RuntimeTransportState::Paused => "pause",
                 RuntimeTransportState::Stopped => "stop",
             },
-            "transportFlash": self.transport_flash,
+            "transportFlash": self.display.transport_flash,
             "cpuLoadRatio": 0.0
         });
         if include_audio_config {
@@ -132,7 +137,7 @@ impl NativeRunner {
                 settings.extend(audio);
             }
         }
-        snapshot["settings"]["shiftHeld"] = json!(self.ui.shift_held);
+        snapshot["settings"]["shiftHeld"] = json!(self.display.ui.shift_held);
         Ok(snapshot)
     }
 
@@ -159,7 +164,7 @@ impl NativeRunner {
         live_active: &[bool],
         active_model: &platform_core::BehaviorRenderModel,
     ) -> Value {
-        let mode = self.hdmi.mode.as_str();
+        let mode = self.display.hdmi.mode.as_str();
         let source_layer_index = self.hdmi_source_layer_index(mode);
         let source_behavior_id = self
             .layer_behavior_ids
@@ -177,9 +182,9 @@ impl NativeRunner {
             _ => black_hdmi_frame(),
         };
         json!({
-            "mode": self.hdmi.mode,
-            "showGridlines": self.hdmi.show_gridlines,
-            "cycleMeasures": self.hdmi.cycle_measures,
+            "mode": self.display.hdmi.mode,
+            "showGridlines": self.display.hdmi.show_gridlines,
+            "cycleMeasures": self.display.hdmi.cycle_measures,
             "sourceLayerIndex": source_layer_index,
             "sourceBehaviorId": source_behavior_id,
             "grid": { "width": GRID_WIDTH, "height": GRID_HEIGHT, "rgb": rgb, "active": active }
@@ -200,12 +205,13 @@ impl NativeRunner {
             if candidates.is_empty() {
                 return 0;
             }
-            let measure = self.current_ppqn_pulse / 96;
-            let slot =
-                (measure / u64::from(self.hdmi.cycle_measures.max(1))) as usize % candidates.len();
+            let measure = self.transport.current_ppqn_pulse / 96;
+            let slot = (measure / u64::from(self.display.hdmi.cycle_measures.max(1))) as usize
+                % candidates.len();
             return candidates[slot];
         }
-        self.hdmi
+        self.display
+            .hdmi
             .source_layer_index
             .min(self.layer_behavior_ids.len().saturating_sub(1))
     }

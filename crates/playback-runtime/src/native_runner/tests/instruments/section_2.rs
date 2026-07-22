@@ -38,7 +38,7 @@ pub(crate) fn sample_assign_mode_supports_shift_row_and_fn_shift_column() {
     runner.instruments[0].kind = "sampler".into();
     runner.sample_assign = Some((0, 2));
 
-    runner.ui.shift_held = true;
+    runner.display.ui.shift_held = true;
     runner.handle_sample_assignment_grid_press(1, 3);
     assert_eq!(runner.instruments[0].sample_assignments.len(), GRID_WIDTH);
     assert!(runner.instruments[0]
@@ -47,8 +47,8 @@ pub(crate) fn sample_assign_mode_supports_shift_row_and_fn_shift_column() {
         .all(|assignment| assignment.y == 3 && assignment.sample_slot == 2));
 
     runner.instruments[0].sample_assignments.clear();
-    runner.ui.shift_held = false;
-    runner.ui.combined_modifier_held = true;
+    runner.display.ui.shift_held = false;
+    runner.display.ui.combined_modifier_held = true;
     runner.handle_sample_assignment_grid_press(4, 1);
     assert_eq!(runner.instruments[0].sample_assignments.len(), GRID_HEIGHT);
     assert!(runner.instruments[0]

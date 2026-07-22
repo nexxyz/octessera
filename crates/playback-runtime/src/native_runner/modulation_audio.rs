@@ -46,14 +46,14 @@ impl NativeRunner {
     ) -> Option<RuntimeAudioCommand> {
         if let Some((index, slot, field)) = parse_fx_bus_binding_key(key) {
             let mut bus = self.fx_buses.get(index)?.clone();
-            apply_fx_bus_binding_value(&mut bus, slot, field, value.clone(), &mut false);
+            apply_fx_bus_binding_value(&mut bus, slot, field, value.clone());
             return fx_bus_slot_audio_command(index, slot, &bus)
                 .or_else(|| fx_bus_modulation_audio_command(index, slot, field, &value));
         }
         if let Some((index, field)) = parse_global_fx_binding_key(key) {
             let mut slots = self.global_fx_slots.clone();
             let mut params = self.global_fx_params.clone();
-            apply_global_fx_binding_value(&mut slots, &mut params, index, field, value, &mut false);
+            apply_global_fx_binding_value(&mut slots, &mut params, index, field, value);
             return global_fx_slot_audio_command(index, &slots, &params);
         }
         if let Some((index, field)) = parse_instrument_binding_key(key) {
@@ -69,16 +69,23 @@ impl NativeRunner {
         field: &str,
         value: Value,
     ) {
-        if let Some(bus) = self.fx_buses.get_mut(index) {
+        let (changed, audio_command) = if let Some(bus) = self.fx_buses.get_mut(index) {
             let before = bus.clone();
             let audio_command = fx_bus_modulation_audio_command(index, slot, field, &value);
-            apply_fx_bus_binding_value(bus, slot, field, value, &mut self.config_dirty);
-            if *bus != before {
-                if let Some(command) = fx_bus_slot_audio_command(index, slot, bus).or(audio_command)
-                {
-                    self.queue_audio_command(command);
-                }
-            }
+            let changed = apply_fx_bus_binding_value(bus, slot, field, value);
+            let audio_command = (*bus != before)
+                .then(|| fx_bus_slot_audio_command(index, slot, bus))
+                .flatten()
+                .or(audio_command);
+            (changed, audio_command)
+        } else {
+            (false, None)
+        };
+        if changed {
+            self.mark_config_dirty();
+        }
+        if let Some(command) = audio_command {
+            self.queue_audio_command(command);
         }
     }
 
@@ -90,14 +97,16 @@ impl NativeRunner {
     ) {
         let before_slot = self.global_fx_slots.get(index).cloned();
         let before_params = self.global_fx_params.get(index).cloned();
-        apply_global_fx_binding_value(
+        let changed = apply_global_fx_binding_value(
             &mut self.global_fx_slots,
             &mut self.global_fx_params,
             index,
             field,
             value,
-            &mut self.config_dirty,
         );
+        if changed {
+            self.mark_config_dirty();
+        }
         if before_slot != self.global_fx_slots.get(index).cloned()
             || before_params != self.global_fx_params.get(index).cloned()
         {

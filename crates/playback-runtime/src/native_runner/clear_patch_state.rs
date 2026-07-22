@@ -26,8 +26,8 @@ impl NativeRunner {
         };
         self.base_mapping_config = default_mapping_config();
         self.mapping_config = self.base_mapping_config.clone();
-        self.bpm = 120.0;
-        self.swing_pct = 0;
+        self.transport.bpm = 120.0;
+        self.transport.swing_pct = 0;
         self.voice_stealing_mode = "auto-balanced".into();
         self.pulses_layers = default_pulses_layers();
         self.trigger_probability_assign = None;
@@ -68,8 +68,8 @@ impl NativeRunner {
             })
             .collect::<Result<Vec<_>, String>>()?;
 
-        self.algorithm_step_pulses = DEFAULT_ALGORITHM_STEP_RED;
-        self.layer_algorithm_step_pulses = vec![DEFAULT_ALGORITHM_STEP_RED; LAYER_COUNT];
+        self.transport.algorithm_step_pulses = DEFAULT_ALGORITHM_STEP_RED;
+        self.transport.layer_algorithm_step_pulses = vec![DEFAULT_ALGORITHM_STEP_RED; LAYER_COUNT];
         self.reset_transport_position();
         self.sync_engine_runtime_config();
         self.sample_assign = None;
@@ -104,12 +104,12 @@ impl NativeRunner {
         self.sparks_transpose_enabled = vec![true; LAYER_COUNT];
         self.sparks_transpose_offsets = vec![0; LAYER_COUNT];
         self.sparks_transpose_active_notes = vec![BTreeMap::new(); LAYER_COUNT];
-        self.help_popup = None;
-        self.confirm_dialog = None;
-        self.pending_menu_apply = None;
-        self.pending_autosave_payload_due_at = None;
-        self.config_dirty = true;
-        self.audio_config_revision = self.audio_config_revision.wrapping_add(1);
+        self.display.help_popup = None;
+        self.display.confirm_dialog = None;
+        self.pending.pending_menu_apply = None;
+        self.pending.pending_autosave_payload_due_at = None;
+        self.mark_config_dirty();
+        self.audio_config_revision = self.audio_config_revision.saturating_add(1);
         self.show_toast("Cleared all");
         self.menu.rebuild(self.menu_config());
         Ok(())

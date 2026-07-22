@@ -10,29 +10,37 @@ use super::{
 
 impl NativeRunner {
     fn refresh_modifier_state(&mut self) {
-        let was_fn_held = self.ui.fn_held;
-        let was_modifier_held =
-            self.ui.fn_held || self.ui.shift_held || self.ui.combined_modifier_held;
-        self.ui.combined_modifier_held = self.ui.combined_button_pressed
-            || (self.ui.fn_button_pressed && self.ui.shift_button_pressed);
-        self.ui.fn_held = self.ui.fn_button_pressed && !self.ui.combined_modifier_held;
-        self.ui.shift_held = self.ui.shift_button_pressed && !self.ui.combined_modifier_held;
-        let modifier_held = self.ui.fn_held || self.ui.shift_held || self.ui.combined_modifier_held;
-        if self.ui.fn_held && !was_fn_held {
-            self.fn_hold_started_at = Some(Instant::now());
-        } else if !self.ui.fn_held {
-            self.fn_hold_started_at = None;
+        let was_fn_held = self.display.ui.fn_held;
+        let was_modifier_held = self.display.ui.fn_held
+            || self.display.ui.shift_held
+            || self.display.ui.combined_modifier_held;
+        self.display.ui.combined_modifier_held = self.display.ui.combined_button_pressed
+            || (self.display.ui.fn_button_pressed && self.display.ui.shift_button_pressed);
+        self.display.ui.fn_held =
+            self.display.ui.fn_button_pressed && !self.display.ui.combined_modifier_held;
+        self.display.ui.shift_held =
+            self.display.ui.shift_button_pressed && !self.display.ui.combined_modifier_held;
+        let modifier_held = self.display.ui.fn_held
+            || self.display.ui.shift_held
+            || self.display.ui.combined_modifier_held;
+        if self.display.ui.fn_held && !was_fn_held {
+            self.display.fn_hold_started_at = Some(Instant::now());
+        } else if !self.display.ui.fn_held {
+            self.display.fn_hold_started_at = None;
         }
         if modifier_held && !was_modifier_held {
-            self.modifier_hint_started_at = Some(Instant::now());
+            self.display.modifier_hint_started_at = Some(Instant::now());
         } else if !modifier_held {
-            self.modifier_hint_started_at = None;
+            self.display.modifier_hint_started_at = None;
         }
     }
 
     fn mark_modifier_consumed(&mut self) {
-        if self.ui.fn_held || self.ui.shift_held || self.ui.combined_modifier_held {
-            self.modifier_hint_started_at = None;
+        if self.display.ui.fn_held
+            || self.display.ui.shift_held
+            || self.display.ui.combined_modifier_held
+        {
+            self.display.modifier_hint_started_at = None;
         }
     }
 
@@ -40,15 +48,15 @@ impl NativeRunner {
         &mut self,
         input: DeviceInput,
     ) -> Result<Vec<RunnerMessage>, String> {
-        if self.oled_mode == super::NativeOledMode::Splash
-            && self.oled_splash_text == super::OLED_STARTUP_SPLASH_KEY
+        if self.display.oled_mode == super::NativeOledMode::Splash
+            && self.display.oled_splash_text == super::OLED_STARTUP_SPLASH_KEY
         {
             self.advance_oled_sleep_state();
         }
         let trace_context = WakeTraceContext::capture(self, &input);
-        if self.startup_splash_presented
-            && self.oled_mode == super::NativeOledMode::Splash
-            && self.oled_splash_text == super::OLED_STARTUP_SPLASH_KEY
+        if self.display.startup_splash_presented
+            && self.display.oled_mode == super::NativeOledMode::Splash
+            && self.display.oled_splash_text == super::OLED_STARTUP_SPLASH_KEY
         {
             trace_device_input_wake(trace_context.as_ref(), false, true, "startup_splash");
             return self.messages_with_forced_snapshot();
@@ -59,10 +67,10 @@ impl NativeRunner {
             return self.messages_with_forced_snapshot();
         }
         trace_device_input_wake(trace_context.as_ref(), false, false, "active_dispatch");
-        if self.confirm_dialog.is_some() {
+        if self.display.confirm_dialog.is_some() {
             return self.handle_confirm_device_input(input);
         }
-        if self.usb_sd_transfer_modal.is_some() {
+        if self.display.usb_sd_transfer_modal.is_some() {
             return self.handle_usb_sd_transfer_modal_input(input);
         }
         let is_modifier_input = matches!(
@@ -80,17 +88,17 @@ impl NativeRunner {
             }
             DeviceInput::ButtonS { pressed } => self.handle_button_s_input(pressed),
             DeviceInput::ButtonShift { pressed } => {
-                self.ui.shift_button_pressed = pressed.unwrap_or(false);
+                self.display.ui.shift_button_pressed = pressed.unwrap_or(false);
                 self.refresh_modifier_state();
                 self.messages_with_snapshot()
             }
             DeviceInput::ButtonFn { pressed } => {
-                self.ui.fn_button_pressed = pressed.unwrap_or(false);
+                self.display.ui.fn_button_pressed = pressed.unwrap_or(false);
                 self.refresh_modifier_state();
                 self.messages_with_snapshot()
             }
             DeviceInput::ButtonCombinedModifier { pressed } => {
-                self.ui.combined_button_pressed = pressed.unwrap_or(false);
+                self.display.ui.combined_button_pressed = pressed.unwrap_or(false);
                 self.refresh_modifier_state();
                 self.messages_with_snapshot()
             }
@@ -98,11 +106,11 @@ impl NativeRunner {
                 if let Some(index) = Self::aux_index(id.as_deref()) {
                     self.handle_aux_turn(index, delta)?;
                 } else if id.as_deref().unwrap_or("main") == "main" && delta != 0 {
-                    if self.help_popup.is_some() {
+                    if self.display.help_popup.is_some() {
                         self.turn_help_popup(delta);
-                    } else if self.ui.fn_held && delta > 0 {
+                    } else if self.display.ui.fn_held && delta > 0 {
                         return self.handle_single_step_input();
-                    } else if self.ui.fn_held {
+                    } else if self.display.ui.fn_held {
                     } else {
                         let editing = self.menu.state.editing;
                         let editing_key = if editing {
@@ -143,8 +151,8 @@ impl NativeRunner {
                 }
             }
             DeviceInput::ButtonA { pressed } if pressed.unwrap_or(true) => {
-                self.confirm_dialog = None;
-                self.toast = Some(NativeToast {
+                self.display.confirm_dialog = None;
+                self.display.toast = Some(NativeToast {
                     message: "Cancelled".into(),
                     offset: 0,
                 });
@@ -165,16 +173,22 @@ impl NativeRunner {
             self.handle_sample_assignment_grid_press(x, y);
         } else if self.trigger_probability_assign.is_some() {
             self.handle_trigger_probability_grid_press(x, y);
-        } else if self.active_sparks_mode == "transpose" && x == 0 && self.ui.shift_held {
+        } else if self.active_sparks_mode == "transpose" && x == 0 && self.display.ui.shift_held {
             self.toggle_all_sparks_transpose_layers();
-        } else if self.ui.combined_modifier_held && x == 0 {
+        } else if self.display.ui.combined_modifier_held && x == 0 {
             self.toggle_layer_trigger_gate(display_layer_index_from_y(y));
-        } else if self.ui.fn_held && x == 0 && !self.ui.shift_held {
+        } else if self.display.ui.fn_held && x == 0 && !self.display.ui.shift_held {
             self.select_active_layer(display_layer_index_from_y(y))?;
             self.active_sparks_mode = "none".into();
-        } else if self.ui.fn_held && x == super::GRID_WIDTH - 1 && !self.ui.shift_held {
+        } else if self.display.ui.fn_held
+            && x == super::GRID_WIDTH - 1
+            && !self.display.ui.shift_held
+        {
             self.select_sparks_page_from_fn_grid(y);
-        } else if self.ui.shift_held && !self.ui.fn_held && self.active_sparks_mode == "none" {
+        } else if self.display.ui.shift_held
+            && !self.display.ui.fn_held
+            && self.active_sparks_mode == "none"
+        {
             if !self.handle_param_mod_grid_press(x, y) {
                 self.mark_grid_input_dirty();
                 let result = self.active_engine_input_result(DeviceInput::GridPress { x, y })?;
@@ -226,7 +240,7 @@ impl NativeRunner {
         if self.behavior.id() == "looper" {
             self.mark_fast_autosave_dirty();
         } else {
-            self.config_dirty = true;
+            self.mark_config_dirty();
         }
     }
 
@@ -235,27 +249,30 @@ impl NativeRunner {
         pressed: Option<bool>,
     ) -> Result<Vec<RunnerMessage>, String> {
         if pressed.unwrap_or(true) {
-            if self.ui.combined_modifier_held {
+            if self.display.ui.combined_modifier_held {
                 return self.messages_with_snapshot();
-            } else if self.ui.fn_held {
+            } else if self.display.ui.fn_held {
                 return self.reset_stop_with_midi_panic();
             } else if let Some(effect) = self.preview_selected_sample()? {
                 return self.messages_with_effects(vec![effect]);
-            } else if self.ui.shift_held && self.sync_source == SyncSource::External {
-                self.pending_resync = true;
-            } else if self.ui.shift_held {
+            } else if self.display.ui.shift_held
+                && self.transport.sync_source == SyncSource::External
+            {
+                self.transport.pending_resync = true;
+            } else if self.display.ui.shift_held {
                 return self.reset_stop_with_midi_panic();
             } else {
-                if self.transport == RuntimeTransportState::Stopped {
+                if self.transport.transport == RuntimeTransportState::Stopped {
                     self.reset_transport_position();
                 }
-                let was_playing = self.transport == RuntimeTransportState::Playing;
-                self.transport = if self.transport == RuntimeTransportState::Playing {
-                    RuntimeTransportState::Paused
-                } else {
-                    RuntimeTransportState::Playing
-                };
-                if was_playing && self.transport == RuntimeTransportState::Paused {
+                let was_playing = self.transport.transport == RuntimeTransportState::Playing;
+                self.transport.transport =
+                    if self.transport.transport == RuntimeTransportState::Playing {
+                        RuntimeTransportState::Paused
+                    } else {
+                        RuntimeTransportState::Playing
+                    };
+                if was_playing && self.transport.transport == RuntimeTransportState::Paused {
                     return self.messages_with_effects(vec![RuntimePlatformEffect::MidiPanic]);
                 }
             }
@@ -264,7 +281,7 @@ impl NativeRunner {
     }
 
     fn reset_stop_with_midi_panic(&mut self) -> Result<Vec<RunnerMessage>, String> {
-        self.transport = RuntimeTransportState::Stopped;
+        self.transport.transport = RuntimeTransportState::Stopped;
         self.reset_transport_position();
         self.messages_with_effects(vec![RuntimePlatformEffect::MidiPanic])
     }
@@ -278,21 +295,21 @@ impl NativeRunner {
             DeviceInput::EncoderPress { ref id } if id.as_deref().unwrap_or("main") == "main"
         ) || matches!(input, DeviceInput::ButtonA { pressed } if pressed.unwrap_or(true));
         if close_requested {
-            self.usb_sd_transfer_modal = None;
+            self.display.usb_sd_transfer_modal = None;
             return self.messages_with_effects(vec![RuntimePlatformEffect::UsbSdTransferStop]);
         }
         self.messages_with_snapshot()
     }
 
     fn handle_single_step_input(&mut self) -> Result<Vec<RunnerMessage>, String> {
-        if self.transport == RuntimeTransportState::Playing {
+        if self.transport.transport == RuntimeTransportState::Playing {
             self.show_toast("Pause first");
             return self.messages_with_snapshot();
         }
         let tick = self.active_engine_tick_result()?;
-        self.tick = self.tick.saturating_add(1);
-        if let Some(layer_tick) = self.layer_ticks.get_mut(self.active_layer_index) {
-            *layer_tick = self.tick;
+        self.transport.tick = self.transport.tick.saturating_add(1);
+        if let Some(layer_tick) = self.transport.layer_ticks.get_mut(self.active_layer_index) {
+            *layer_tick = self.transport.tick;
         }
         let mut events = self.take_due_link_events(self.active_layer_index);
         self.apply_runtime_modulation(&tick.mapped_intents, self.active_layer_index);
@@ -330,8 +347,8 @@ impl WakeTraceContext {
     fn capture(runner: &NativeRunner, input: &DeviceInput) -> Option<Self> {
         wake_trace_enabled().then(|| Self {
             input: device_input_trace_summary(input),
-            mode: oled_mode_trace_name(&runner.oled_mode),
-            splash: runner.oled_splash_text.clone(),
+            mode: oled_mode_trace_name(&runner.display.oled_mode),
+            splash: runner.display.oled_splash_text.clone(),
         })
     }
 }

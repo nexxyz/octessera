@@ -39,8 +39,9 @@ impl NativeRunner {
         desired_active_layer_index: usize,
     ) -> Result<(), String> {
         self.active_layer_index = desired_active_layer_index;
-        self.hdmi.source_layer_index = desired_active_layer_index;
-        self.algorithm_step_pulses = self
+        self.display.hdmi.source_layer_index = desired_active_layer_index;
+        self.transport.algorithm_step_pulses = self
+            .transport
             .layer_algorithm_step_pulses
             .get(self.active_layer_index)
             .copied()
@@ -137,7 +138,7 @@ fn apply_layer_worlds_payload(
         }
     }
     if let Some(step_rate) = worlds.get("stepRate").and_then(Value::as_str) {
-        if let Some(layer_step) = runner.layer_algorithm_step_pulses.get_mut(index) {
+        if let Some(layer_step) = runner.transport.layer_algorithm_step_pulses.get_mut(index) {
             *layer_step = note_unit_to_pulses(step_rate);
         }
     }

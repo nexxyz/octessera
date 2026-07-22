@@ -2,13 +2,12 @@ use crate::audio::AudioManager;
 use crate::main_paths::{default_samples_dir, default_store_dir, ensure_runtime_dirs};
 use crate::{host_adapter::PiPlaybackHostAdapter, sample_browser::SD_CARD_SAMPLE_BROWSER_DIR};
 use playback_runtime::{
-    CoreRunner, HostAdapter, HostMessage, MusicalEvent, NativeRunner, NativeRunnerConfig,
-    PlaybackRuntime, RunnerMessage, RuntimeAudioCommand, RuntimeConfig, RuntimePlatformEffect,
-    SyncSource, TimingProbeOptions, TimingProbeScenario,
+    HostAdapter, HostMessage, MusicalEvent, NativeRunner, NativeRunnerConfig, PlaybackRuntime,
+    RunnerMessage, RuntimeAudioCommand, RuntimeConfig, RuntimePlatformEffect,
+    RuntimePlatformRequest, SyncSource, TimingProbeOptions, TimingProbeScenario,
 };
 use serde::Serialize;
 use serde_json::{json, Value};
-use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -156,7 +155,10 @@ impl playback_runtime::CoreRunner for LiveProbeRunner {
 }
 
 impl HostAdapter for LiveProbeHost {
-    fn handle_musical_event(&mut self, event: &MusicalEvent) -> Result<(), String> {
+    fn handle_musical_event(
+        &mut self,
+        event: &MusicalEvent,
+    ) -> Result<(), playback_runtime::RuntimeAdapterError> {
         self.events.push(LiveEventRecord {
             at_us: self.started_at.elapsed().as_micros(),
             key: event_key(event),
@@ -170,20 +172,34 @@ impl HostAdapter for LiveProbeHost {
 
     fn handle_platform_effect(
         &mut self,
-        effect: &RuntimePlatformEffect,
-    ) -> Result<Vec<HostMessage>, String> {
+        request: &RuntimePlatformRequest,
+    ) -> Result<Vec<HostMessage>, playback_runtime::RuntimeAdapterError> {
         self.platform_effects = self.platform_effects.saturating_add(1);
-        self.inner.handle_platform_effect(effect)
+        self.inner.handle_platform_effect(request)
     }
 
-    fn handle_audio_command(&mut self, command: &RuntimeAudioCommand) -> Result<(), String> {
+    fn handle_audio_command(
+        &mut self,
+        command: &RuntimeAudioCommand,
+    ) -> Result<(), playback_runtime::RuntimeAdapterError> {
         self.audio_commands = self.audio_commands.saturating_add(1);
         self.inner.handle_audio_command(command)
     }
 
-    fn handle_midi_message(&mut self, bytes: &[u8]) -> Result<(), String> {
+    fn handle_midi_message(
+        &mut self,
+        bytes: &[u8],
+    ) -> Result<(), playback_runtime::RuntimeAdapterError> {
         self.midi_messages = self.midi_messages.saturating_add(1);
         self.inner.handle_midi_message(bytes)
+    }
+
+    fn silence_internal_audio(&mut self) -> Result<(), playback_runtime::RuntimeAdapterError> {
+        self.inner.silence_internal_audio()
+    }
+
+    fn panic_external_midi(&mut self) -> Result<(), playback_runtime::RuntimeAdapterError> {
+        self.inner.panic_external_midi()
     }
 }
 
@@ -324,15 +340,17 @@ fn initialize_live_host_state(
     runner: &mut LiveProbeRunner,
     host: &mut LiveProbeHost,
 ) -> Result<(), String> {
-    for effect in [
-        RuntimePlatformEffect::StoreLoadDefault,
-        RuntimePlatformEffect::MidiListOutputsRequest,
-        RuntimePlatformEffect::MidiListInputsRequest,
-    ] {
-        for follow_up in host.handle_platform_effect(&effect)? {
-            send_runtime_message(playback, runner, host, follow_up)?;
-        }
-    }
+    playback.dispatch_runner_messages(
+        vec![playback_runtime::RunnerMessage::PlatformEffects {
+            effects: vec![
+                RuntimePlatformEffect::StoreLoadDefault,
+                RuntimePlatformEffect::MidiListOutputsRequest,
+                RuntimePlatformEffect::MidiListInputsRequest,
+            ],
+        }],
+        runner,
+        host,
+    )?;
     Ok(())
 }
 
@@ -471,14 +489,13 @@ fn send_runtime_message(
     host: &mut LiveProbeHost,
     message: HostMessage,
 ) -> Result<(), String> {
-    let mut queue = VecDeque::from([message]);
-    while let Some(message) = queue.pop_front() {
-        let responses = runner.send(message)?;
-        for follow_up in playback.ingest_runner_messages(responses, host)? {
-            queue.push_back(follow_up);
-        }
-    }
-    Ok(())
+    playback
+        .dispatch(
+            playback_runtime::RuntimeDispatchInput::HostMessage(message),
+            runner,
+            host,
+        )
+        .map(|_| ())
 }
 
 fn flush_live_deferred(
@@ -488,10 +505,7 @@ fn flush_live_deferred(
 ) -> Result<(), String> {
     let responses = runner.inner.flush_deferred_menu_apply()?;
     if !responses.is_empty() {
-        let mut queue = VecDeque::from(playback.ingest_runner_messages(responses, host)?);
-        while let Some(message) = queue.pop_front() {
-            send_runtime_message(playback, runner, host, message)?;
-        }
+        playback.dispatch_runner_messages(responses, runner, host)?;
     }
     for follow_up in host.inner.flush_due_default_save()? {
         send_runtime_message(playback, runner, host, follow_up)?;

@@ -1,9 +1,15 @@
-use super::capture::is_async_desktop_visible;
 use super::queue::{
     queue_by_priority, retain_runtime_outbox_batch, RETAINED_RUNTIME_OUTBOX_BATCHES,
 };
 use super::{WorkerCommand, PLAYING_SNAPSHOT_INTERVAL_MS};
-use crate::types::RuntimeMessagesPayload;
+use crate::types::{encode_runtime_responses, RuntimeMessagesPayload};
+use playback_runtime::{
+    HostAdapter, HostMessage, MusicalEvent, PlaybackRuntime, RunnerMessage, RuntimeAdapterError,
+    RuntimeConfig, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorMetadata, RuntimeOperation,
+    RuntimePlatformRequest, RuntimeRecovery, RuntimeStatus, RuntimeStatusState,
+    RuntimeTransportState, SyncSource,
+};
+use serde_json::json;
 use std::collections::VecDeque;
 use std::sync::mpsc;
 
@@ -59,31 +65,139 @@ fn playing_snapshot_interval_is_coalesced_beyond_frame_rate() {
     assert!(interval_ms <= refresh_ms);
 }
 
+#[derive(Default)]
+struct WorkerTestHost {
+    midi_messages: Vec<Vec<u8>>,
+}
+
+impl HostAdapter for WorkerTestHost {
+    fn handle_musical_event(&mut self, _event: &MusicalEvent) -> Result<(), RuntimeAdapterError> {
+        Ok(())
+    }
+
+    fn handle_platform_effect(
+        &mut self,
+        _request: &RuntimePlatformRequest,
+    ) -> Result<Vec<HostMessage>, RuntimeAdapterError> {
+        Ok(Vec::new())
+    }
+
+    fn handle_audio_command(
+        &mut self,
+        _command: &playback_runtime::RuntimeAudioCommand,
+    ) -> Result<(), RuntimeAdapterError> {
+        Ok(())
+    }
+
+    fn handle_midi_message(&mut self, bytes: &[u8]) -> Result<(), RuntimeAdapterError> {
+        self.midi_messages.push(bytes.to_vec());
+        Ok(())
+    }
+
+    fn silence_internal_audio(&mut self) -> Result<(), RuntimeAdapterError> {
+        Ok(())
+    }
+
+    fn panic_external_midi(&mut self) -> Result<(), RuntimeAdapterError> {
+        self.handle_midi_message(&[0xFC])?;
+        for channel in 0..16_u8 {
+            self.handle_midi_message(&[0xB0 | channel, 120, 0])?;
+            self.handle_midi_message(&[0xB0 | channel, 123, 0])?;
+        }
+        Ok(())
+    }
+}
+
 #[test]
-fn async_advance_emits_only_desktop_visible_messages() {
-    assert!(is_async_desktop_visible(
-        &playback_runtime::RunnerMessage::Snapshot {
-            snapshot: serde_json::json!({})
-        }
-    ));
-    assert!(is_async_desktop_visible(
-        &playback_runtime::RunnerMessage::UiPulse {
-            pulse: playback_runtime::RuntimeUiPulse::TriggerPulse { duration_ms: 80 }
-        }
-    ));
-    assert!(!is_async_desktop_visible(
-        &playback_runtime::RunnerMessage::RuntimeStatus {
-            status: playback_runtime::RuntimeStatus {
-                state: playback_runtime::RuntimeStatusState::Running,
-                transport: playback_runtime::RuntimeTransportState::Playing,
-                current_ppqn_pulse: 0,
-                pending_resync: false,
-                sync_source: playback_runtime::SyncSource::Internal,
-                message: None,
-            }
-        }
-    ));
-    assert!(!is_async_desktop_visible(
-        &playback_runtime::RunnerMessage::MusicalEvents { events: Vec::new() }
-    ));
+fn worker_emits_typed_fault_over_fresh_trusted_snapshot() {
+    let mut playback = PlaybackRuntime::new(RuntimeConfig::default());
+    let mut host = WorkerTestHost::default();
+    playback
+        .ingest_runner_messages(
+            vec![
+                RunnerMessage::Snapshot {
+                    snapshot: json!({ "tick": 1 }),
+                },
+                RunnerMessage::RuntimeStatus {
+                    status: RuntimeStatus {
+                        state: RuntimeStatusState::Running,
+                        transport: RuntimeTransportState::Playing,
+                        current_ppqn_pulse: 1,
+                        pending_resync: false,
+                        sync_source: SyncSource::Internal,
+                        message: None,
+                        error: None,
+                    },
+                },
+            ],
+            &mut host,
+        )
+        .unwrap();
+
+    playback.latch_error(RuntimeErrorMetadata {
+        domain: RuntimeErrorDomain::Audio,
+        code: RuntimeErrorCode::OperationFailed,
+        operation: RuntimeOperation::AudioCommand,
+        recovery: RuntimeRecovery::RetainLastGood,
+        request_id: Some("audio-request".into()),
+        revision: Some(9),
+        message: Some("queue full".into()),
+    });
+    let output = playback
+        .ingest_runner_messages_with_output(
+            vec![
+                RunnerMessage::Snapshot {
+                    snapshot: json!({ "tick": 2 }),
+                },
+                RunnerMessage::RuntimeStatus {
+                    status: RuntimeStatus {
+                        state: RuntimeStatusState::Running,
+                        transport: RuntimeTransportState::Playing,
+                        current_ppqn_pulse: 2,
+                        pending_resync: false,
+                        sync_source: SyncSource::Internal,
+                        message: None,
+                        error: None,
+                    },
+                },
+            ],
+            &mut host,
+        )
+        .unwrap();
+    let values = encode_runtime_responses(output.messages).unwrap();
+
+    assert!(values.iter().any(|value| {
+        value["type"] == "snapshot"
+            && value["snapshot"]["tick"] == 2
+            && value["snapshot"]["runtimeError"]["revision"] == 9
+    }));
+    assert!(values.iter().any(|value| {
+        value["type"] == "runtime_status"
+            && value["status"]["error"]["operation"] == "audio_command"
+            && value["status"]["error"]["requestId"] == "audio-request"
+    }));
+    assert_eq!(playback.last_good_snapshot(), Some(&json!({ "tick": 2 })));
+}
+
+#[test]
+fn worker_rejects_non_object_snapshot_without_panic_or_raw_output() {
+    let mut playback = PlaybackRuntime::new(RuntimeConfig::default());
+    let mut host = WorkerTestHost::default();
+    let output = playback
+        .ingest_runner_messages_with_output(
+            vec![RunnerMessage::Snapshot {
+                snapshot: json!(false),
+            }],
+            &mut host,
+        )
+        .unwrap();
+    let values = encode_runtime_responses(output.messages).unwrap();
+
+    assert!(values.iter().all(|value| value["type"] != "audio_error"));
+    assert!(output
+        .follow_ups
+        .iter()
+        .any(|message| matches!(message, HostMessage::TransportStop)));
+    assert_eq!(host.midi_messages.len(), 33);
+    assert!(playback.last_good_snapshot().is_none());
 }

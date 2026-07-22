@@ -95,7 +95,7 @@ pub(crate) fn instrument_pan_menu_edit_moves_monotonically_from_current_value() 
 #[test]
 pub(crate) fn active_layer_trigger_toggle_suppresses_and_restores_with_toast() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.ui.combined_modifier_held = true;
+    runner.display.ui.combined_modifier_held = true;
     let off = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
@@ -173,7 +173,7 @@ pub(crate) fn contextual_help_includes_midi_output_guidance() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![5, 4];
     runner.menu.state.cursor = 2;
-    runner.ui.combined_modifier_held = true;
+    runner.display.ui.combined_modifier_held = true;
 
     let opened = runner
         .send(HostMessage::DeviceInput {
@@ -202,7 +202,7 @@ pub(crate) fn contextual_help_resolves_life_params_and_scrolls_to_bottom() {
     .unwrap();
     runner.menu.state.stack = vec![0, 0];
     runner.menu.state.cursor = 4;
-    runner.ui.combined_modifier_held = true;
+    runner.display.ui.combined_modifier_held = true;
 
     let opened = runner
         .send(HostMessage::DeviceInput {
@@ -219,10 +219,10 @@ pub(crate) fn contextual_help_resolves_life_params_and_scrolls_to_bottom() {
         .join(" ");
 
     assert!(lines.contains("random cells"));
-    runner.ui.combined_modifier_held = false;
+    runner.display.ui.combined_modifier_held = false;
 
     runner.turn_help_popup(99);
-    let help = runner.help_popup.as_ref().unwrap();
+    let help = runner.display.help_popup.as_ref().unwrap();
     assert_eq!(
         help.scroll,
         help.lines.len().saturating_sub(OLED_BODY_ROWS - 1)

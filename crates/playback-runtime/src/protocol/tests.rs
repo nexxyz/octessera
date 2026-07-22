@@ -103,6 +103,7 @@ fn runtime_protocol_json_uses_public_field_names_and_defaults() {
                 pending_resync: true,
                 sync_source: SyncSource::External,
                 message: None,
+                error: None,
             },
         })
         .unwrap(),
@@ -259,4 +260,132 @@ fn runtime_effect_json_uses_public_audio_store_and_sample_field_names() {
             },
         })
     );
+}
+
+#[test]
+fn every_runtime_audio_command_round_trips_through_json() {
+    let params = BTreeMap::from([(String::from("mixPct"), json!(35))]);
+    let commands = vec![
+        RuntimeAudioCommand::SetAudioConfig {
+            revision: 4,
+            request_id: Some("audio-4".into()),
+            config: json!({ "instruments": [] }),
+        },
+        RuntimeAudioCommand::SetMasterVolume { volume_pct: 82.0 },
+        RuntimeAudioCommand::SetInstrumentMixer {
+            instrument_slot: 1,
+            volume_pct: Some(74.0),
+            pan_pos: Some(16),
+        },
+        RuntimeAudioCommand::SetInstrumentSlot {
+            instrument_slot: 2,
+            config: json!({ "type": "synth" }),
+        },
+        RuntimeAudioCommand::SetFxBusMixer {
+            bus_index: 2,
+            pan_pos: Some(12),
+            volume_pct: Some(66.0),
+        },
+        RuntimeAudioCommand::SetSynthParam {
+            instrument_slot: 3,
+            path: "synth.filter.cutoffHz".into(),
+            value: 440.0,
+        },
+        RuntimeAudioCommand::SetSampleBankParam {
+            instrument_slot: 4,
+            path: "sample.tuneSemis".into(),
+            value: 2.0,
+        },
+        RuntimeAudioCommand::SetFxBusSlot {
+            bus_index: 1,
+            slot_index: 0,
+            fx_type: "delay".into(),
+            params: params.clone(),
+        },
+        RuntimeAudioCommand::SetGlobalFxSlot {
+            slot_index: 1,
+            fx_type: "compressor".into(),
+            params: params.clone(),
+        },
+        RuntimeAudioCommand::MomentaryFxStart {
+            id: "spark:0".into(),
+            fx_type: "freeze".into(),
+            params: params.clone(),
+            target: RuntimeMomentaryFxTarget::Global,
+        },
+        RuntimeAudioCommand::MomentaryFxUpdate {
+            id: "spark:0".into(),
+            params: params.clone(),
+        },
+        RuntimeAudioCommand::MomentaryFxStop {
+            id: "spark:0".into(),
+        },
+        RuntimeAudioCommand::SamplePreview {
+            instrument_slot: 5,
+            sample_slot: 2,
+            path: "kits/hat.wav".into(),
+            velocity: 96,
+        },
+    ];
+
+    for command in commands {
+        let encoded = serde_json::to_value(&command).unwrap();
+        assert_eq!(
+            serde_json::from_value::<RuntimeAudioCommand>(encoded).unwrap(),
+            command
+        );
+    }
+}
+
+#[test]
+fn runtime_error_metadata_json_uses_stable_typed_fields() {
+    let status = RuntimeStatus {
+        state: RuntimeStatusState::Error,
+        transport: RuntimeTransportState::Playing,
+        current_ppqn_pulse: 24,
+        pending_resync: false,
+        sync_source: SyncSource::Internal,
+        message: Some("disk full".into()),
+        error: Some(RuntimeErrorMetadata {
+            domain: RuntimeErrorDomain::Storage,
+            code: RuntimeErrorCode::OperationFailed,
+            operation: RuntimeOperation::StoreSaveDefault,
+            recovery: RuntimeRecovery::RetainLastGood,
+            request_id: Some("req-7".into()),
+            revision: Some(3),
+            message: Some("disk full".into()),
+        }),
+    };
+
+    assert_eq!(
+        serde_json::to_value(status).unwrap(),
+        json!({
+            "state": "error",
+            "transport": "playing",
+            "currentPpqnPulse": 24,
+            "pendingResync": false,
+            "syncSource": "internal",
+            "message": "disk full",
+            "error": {
+                "domain": "storage",
+                "code": "operation_failed",
+                "operation": "store_save_default",
+                "recovery": "retain_last_good",
+                "requestId": "req-7",
+                "revision": 3,
+                "message": "disk full"
+            }
+        })
+    );
+
+    let legacy_status = serde_json::from_value::<RuntimeStatus>(json!({
+        "state": "running",
+        "transport": "playing",
+        "currentPpqnPulse": 24,
+        "pendingResync": false,
+        "syncSource": "internal",
+        "message": null
+    }))
+    .unwrap();
+    assert_eq!(legacy_status.error, None);
 }

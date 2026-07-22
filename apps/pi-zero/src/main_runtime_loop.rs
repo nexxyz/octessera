@@ -27,8 +27,17 @@ pub(crate) fn drain_midi_messages(
         };
         match message {
             MidiMessage::Realtime { bytes } => {
-                if let Err(error) = playback.handle_midi_realtime_bytes(&bytes, runner, adapter) {
-                    eprintln!("pi realtime MIDI handling failed: {error}");
+                match playback.handle_midi_realtime_bytes_with_output(&bytes, runner, adapter) {
+                    Ok(output) => {
+                        for follow_up in output.follow_ups {
+                            if let Err(error) =
+                                dispatch_runtime_message(playback, runner, adapter, follow_up)
+                            {
+                                eprintln!("pi realtime MIDI follow-up failed: {error}");
+                            }
+                        }
+                    }
+                    Err(error) => eprintln!("pi realtime MIDI handling failed: {error}"),
                 }
             }
         }

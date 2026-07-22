@@ -17,6 +17,7 @@ mod dynamic_control;
 mod note_control;
 #[cfg(test)]
 mod output_stereo_bus_tests;
+mod prepared_control;
 mod render;
 #[cfg(test)]
 mod render_block_tests;
@@ -31,6 +32,13 @@ mod support;
 #[cfg(test)]
 mod test_support;
 mod voice_budget;
+
+pub use prepared_control::{
+    prepare_audio_config, prepare_fx_bus_slot, prepare_global_fx_slot,
+    prepare_instrument_slot_config, prepare_instruments_config, prepare_momentary_fx_start,
+    PreparedAudioConfig, PreparedFxBusSlot, PreparedGlobalFxSlot, PreparedInstrumentSlot,
+    PreparedInstrumentsConfig, PreparedMomentaryFxStart,
+};
 
 use render_profile::RenderProfileState;
 use render_routing::FxBusOutputSpreadState;
@@ -199,7 +207,7 @@ impl SynthEngine {
             smoothed_load_ratio: 0.0,
             voice_steal_since_status: false,
             cumulative_voice_steals: 0,
-            momentary_fx: Vec::new(),
+            momentary_fx: Vec::with_capacity(2),
             dry_history: vec![0.0; DRY_HISTORY_FRAMES * 2],
             dry_history_pos: 0,
             fx_activity_hold_frames: (sample_rate.saturating_mul(150) / 1000).max(1),

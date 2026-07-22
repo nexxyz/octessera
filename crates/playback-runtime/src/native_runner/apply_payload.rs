@@ -1,39 +1,80 @@
 use super::{
-    default_sparks_fx_selected, device_config_payload_from_payload, merge_preserved_aux_payloads,
-    patch_payload_from_payload, sanitize_sparks_fx_config, NativeRunner, NativeSparksFxAssignment,
-    Value, DEFAULT_ALGORITHM_STEP_RED, GRID_HEIGHT,
+    default_sparks_fx_selected, prepare_config_payload, prepare_device_payload,
+    prepare_patch_payload, sanitize_sparks_fx_config, validate_config_payload, NativeRunner,
+    NativeSparksFxAssignment, Value, DEFAULT_ALGORITHM_STEP_RED, GRID_HEIGHT,
 };
 
 impl NativeRunner {
     pub(super) fn stop_for_config_load(&mut self) {
-        self.transport = crate::protocol::RuntimeTransportState::Stopped;
+        self.transport.transport = crate::protocol::RuntimeTransportState::Stopped;
         self.reset_transport_position();
         self.outbox
             .push_platform_effect(crate::protocol::RuntimePlatformEffect::MidiPanic);
     }
 
     pub fn apply_config_payload(&mut self, payload: Value) -> Result<(), String> {
+        let current = self.config_payload();
+        let prepared = prepare_config_payload(payload, &current)?;
+        self.validate_candidate(&prepared.payload, true)?;
+        let source_revision = prepared.source_revision;
+        self.apply_config_payload_unchecked(prepared.apply_payload, true)?;
+        self.commit_loaded_revision(source_revision);
+        Ok(())
+    }
+
+    fn validate_candidate(&self, payload: &Value, apply_device: bool) -> Result<(), String> {
+        validate_config_payload(payload)?;
+        let mut validator = NativeRunner::new(crate::native_runner::NativeRunnerConfig::default())?;
+        validator.apply_config_payload_unchecked(payload.clone(), apply_device)
+    }
+
+    fn commit_loaded_revision(&mut self, source_revision: Option<u64>) {
+        if let Some(source_revision) = source_revision {
+            self.config_revision = self.config_revision.max(source_revision);
+        }
+        self.pending.pending_save_revision = None;
+        self.config_dirty = false;
+        self.dirty_revision = None;
+    }
+
+    fn apply_config_payload_unchecked(
+        &mut self,
+        payload: Value,
+        apply_device: bool,
+    ) -> Result<(), String> {
         self.restore_link_lfo_base_audio();
         self.clear_all_link_arp_state();
         let before_payload = self.config_payload();
-        let runtime = payload.get("runtimeConfig").unwrap_or(&payload);
+        let runtime = payload
+            .get("runtimeConfig")
+            .ok_or_else(|| "configuration payload is missing runtimeConfig".to_string())?;
         reject_old_layer_schema(runtime)?;
         reject_old_sparks_schema(runtime)?;
         reject_old_payload_sparks_schema(&payload)?;
         let desired_active_layer_index = runtime
             .get("activeLayerIndex")
             .and_then(Value::as_u64)
-            .map(|value| (value as usize).min(GRID_HEIGHT.saturating_sub(1)))
+            .map(|value| {
+                usize::try_from(value)
+                    .map(|value| value.min(GRID_HEIGHT.saturating_sub(1)))
+                    .map_err(|_| "activeLayerIndex is outside the supported range".to_string())
+            })
+            .transpose()?
             .unwrap_or(self.active_layer_index);
         if let Some(active_layer_index) = runtime.get("activeLayerIndex").and_then(Value::as_u64) {
-            self.active_layer_index =
-                (active_layer_index as usize).min(GRID_HEIGHT.saturating_sub(1));
+            self.active_layer_index = usize::try_from(active_layer_index)
+                .map_err(|_| "activeLayerIndex is outside the supported range".to_string())?
+                .min(GRID_HEIGHT.saturating_sub(1));
         }
         self.apply_layers_payload(runtime)?;
         self.apply_sparks_and_xy_payload(runtime, desired_active_layer_index);
         self.swap_active_engine_from_layer(desired_active_layer_index)?;
         self.apply_instruments_payload(runtime);
-        self.apply_runtime_ui_and_sound_payload(runtime, &payload);
+        if apply_device {
+            self.apply_runtime_ui_and_sound_payload(runtime, &payload)?;
+        } else {
+            self.apply_patch_runtime_payload(runtime, &payload)?;
+        }
         self.apply_hdmi_payload(runtime);
         self.apply_sample_browser_favourites_payload(runtime);
         let active_behavior_id = self
@@ -70,7 +111,7 @@ impl NativeRunner {
         self.menu.rebuild(self.menu_config());
         let after_payload = self.config_payload();
         if audio_config_changed(&before_payload, &after_payload) {
-            self.audio_config_revision = self.audio_config_revision.wrapping_add(1);
+            self.audio_config_revision = self.audio_config_revision.saturating_add(1);
         }
         Ok(())
     }
@@ -79,70 +120,12 @@ impl NativeRunner {
         &mut self,
         payload: Value,
     ) -> Result<(), String> {
-        let preserved = self.config_payload();
-        let mut patch = patch_payload_from_payload(payload);
-        merge_preserved_aux_payloads(&mut patch, &preserved, true);
-        self.apply_patch_config_payload(patch)
-    }
-
-    fn apply_patch_config_payload(&mut self, payload: Value) -> Result<(), String> {
-        self.restore_link_lfo_base_audio();
-        self.clear_all_link_arp_state();
-        let before_payload = self.config_payload();
-        let runtime = payload.get("runtimeConfig").unwrap_or(&payload);
-        reject_old_layer_schema(runtime)?;
-        reject_old_sparks_schema(runtime)?;
-        reject_old_payload_sparks_schema(&payload)?;
-        let desired_active_layer_index = runtime
-            .get("activeLayerIndex")
-            .and_then(Value::as_u64)
-            .map(|value| (value as usize).min(GRID_HEIGHT.saturating_sub(1)))
-            .unwrap_or(self.active_layer_index);
-        if let Some(active_layer_index) = runtime.get("activeLayerIndex").and_then(Value::as_u64) {
-            self.active_layer_index =
-                (active_layer_index as usize).min(GRID_HEIGHT.saturating_sub(1));
-        }
-        self.apply_layers_payload(runtime)?;
-        self.apply_sparks_and_xy_payload(runtime, desired_active_layer_index);
-        self.swap_active_engine_from_layer(desired_active_layer_index)?;
-        self.apply_instruments_payload(runtime);
-        self.apply_patch_runtime_payload(runtime, &payload);
-        let active_behavior_id = self
-            .layer_behavior_ids
-            .get(self.active_layer_index)
-            .cloned()
-            .or_else(|| {
-                payload
-                    .get("activeBehavior")
-                    .and_then(Value::as_str)
-                    .map(String::from)
-            })
-            .unwrap_or_else(|| self.behavior.id().into());
-        let behavior = platform_core::get_native_behavior(&active_behavior_id)
-            .ok_or_else(|| format!("unsupported native behavior `{active_behavior_id}`"))?;
-        self.behavior = behavior;
-        if let Some(active_worlds) = runtime
-            .get("layers")
-            .and_then(Value::as_array)
-            .and_then(|layers| layers.get(self.active_layer_index))
-            .and_then(|layer| layer.get("worlds"))
-        {
-            self.behavior_config = active_worlds
-                .get("behaviorConfig")
-                .cloned()
-                .unwrap_or(Value::Null);
-        }
-        self.refresh_active_mapping_config();
-        self.refresh_active_interpretation_profile();
-        self.engine
-            .set_interpretation_profile(self.interpretation_profile.clone());
-        self.sync_engine_runtime_config();
-        self.menu.state = Default::default();
-        self.menu.rebuild(self.menu_config());
-        let after_payload = self.config_payload();
-        if audio_config_changed(&before_payload, &after_payload) {
-            self.audio_config_revision = self.audio_config_revision.wrapping_add(1);
-        }
+        let current = self.config_payload();
+        let prepared = prepare_patch_payload(payload, &current)?;
+        self.validate_candidate(&prepared.payload, false)?;
+        let source_revision = prepared.source_revision;
+        self.apply_config_payload_unchecked(prepared.apply_payload, false)?;
+        self.commit_loaded_revision(source_revision);
         Ok(())
     }
 
@@ -151,19 +134,12 @@ impl NativeRunner {
         &mut self,
         payload: Value,
     ) -> Result<(), String> {
-        let before_payload = self.config_payload();
-        let mut device = device_config_payload_from_payload(payload);
-        merge_preserved_aux_payloads(&mut device, &before_payload, false);
-        let runtime = device.get("runtimeConfig").unwrap_or(&device);
-        self.apply_runtime_ui_and_sound_payload(runtime, &device);
-        self.apply_hdmi_payload(runtime);
-        self.apply_sample_browser_favourites_payload(runtime);
-        self.menu.state = Default::default();
-        self.menu.rebuild(self.menu_config());
-        let after_payload = self.config_payload();
-        if audio_config_changed(&before_payload, &after_payload) {
-            self.audio_config_revision = self.audio_config_revision.wrapping_add(1);
-        }
+        let current = self.config_payload();
+        let prepared = prepare_device_payload(payload, &current)?;
+        self.validate_candidate(&prepared.payload, true)?;
+        let source_revision = prepared.source_revision;
+        self.apply_config_payload_unchecked(prepared.apply_payload, true)?;
+        self.commit_loaded_revision(source_revision);
         Ok(())
     }
 
@@ -172,17 +148,19 @@ impl NativeRunner {
             return;
         };
         if let Some(mode) = hdmi.get("mode").and_then(Value::as_str) {
-            self.hdmi.mode = match mode {
+            self.display.hdmi.mode = match mode {
                 "none" | "live-grid" | "plain-grid" | "active-behavior" | "cycle-behaviors" => mode,
                 _ => "none",
             }
             .into();
         }
         if let Some(show_gridlines) = hdmi.get("showGridlines").and_then(Value::as_bool) {
-            self.hdmi.show_gridlines = show_gridlines;
+            self.display.hdmi.show_gridlines = show_gridlines;
         }
         if let Some(cycle_measures) = hdmi.get("cycleMeasures").and_then(Value::as_u64) {
-            self.hdmi.cycle_measures = cycle_measures.clamp(1, 64) as u8;
+            if let Ok(cycle_measures) = u8::try_from(cycle_measures.clamp(1, 64)) {
+                self.display.hdmi.cycle_measures = cycle_measures;
+            }
         }
     }
 
@@ -200,8 +178,8 @@ impl NativeRunner {
                 assignments
                     .iter()
                     .filter_map(|assignment| {
-                        let x = assignment.get("x")?.as_u64()? as usize;
-                        let y = assignment.get("y")?.as_u64()? as usize;
+                        let x = usize::try_from(assignment.get("x")?.as_u64()?).ok()?;
+                        let y = usize::try_from(assignment.get("y")?.as_u64()?).ok()?;
                         if x >= super::GRID_WIDTH || y >= super::GRID_HEIGHT {
                             return None;
                         }
@@ -221,7 +199,8 @@ impl NativeRunner {
             .unwrap_or_default();
         self.sparks_fx_assign = None;
         self.active_layer_index = self.active_layer_index.min(GRID_HEIGHT.saturating_sub(1));
-        self.algorithm_step_pulses = self
+        self.transport.algorithm_step_pulses = self
+            .transport
             .layer_algorithm_step_pulses
             .get(self.active_layer_index)
             .copied()

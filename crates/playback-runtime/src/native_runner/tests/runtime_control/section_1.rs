@@ -11,11 +11,14 @@ pub(crate) fn factory_load_applies_native_factory_without_loading_user_default()
     assert_eq!(runner.layer_behavior_ids[0], "life");
     assert_eq!(runner.layer_behavior_ids[1], "sequencer");
     assert_eq!(runner.layer_behavior_ids[2], "looper");
-    assert_eq!(runner.layer_algorithm_step_pulses[1], 12);
+    assert_eq!(runner.transport.layer_algorithm_step_pulses[1], 12);
     assert_eq!(runner.pulses_layers[1].scan_unit, "1/8");
     assert_eq!(runner.instruments[0].route, "fx_bus_1");
     assert_eq!(runner.instruments[1].name, "Sampler");
-    assert_eq!(runner.toast.as_ref().unwrap().message, "Factory loaded");
+    assert_eq!(
+        runner.display.toast.as_ref().unwrap().message,
+        "Factory loaded"
+    );
 
     runner.pulses_layers[1].scan_mode = "scanning".into();
     runner.select_active_layer(1).unwrap();
@@ -59,7 +62,7 @@ pub(crate) fn clear_all_confirmation_cancel_is_noop() {
         .execute_menu_action(NativeMenuAction::PlatformEffect("system.clearAll".into()))
         .unwrap();
     assert_eq!(
-        runner.confirm_dialog.as_ref().unwrap().title,
+        runner.display.confirm_dialog.as_ref().unwrap().title,
         "Confirm Load Empty"
     );
 
@@ -86,16 +89,16 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
     runner.fx_buses[0].slot1_type = "delay".into();
     runner.sparks_fx_assign = Some(json!({ "type": "delay" }));
     runner.aux_auto_map_enabled = false;
-    runner.ui.ghost_cells = false;
-    runner.ui.master_volume = 77;
+    runner.display.ui.ghost_cells = false;
+    runner.display.ui.master_volume = 77;
     runner.midi_enabled = true;
-    runner.transport = RuntimeTransportState::Playing;
+    runner.transport.transport = RuntimeTransportState::Playing;
 
     runner
         .execute_confirmed_action(NativeMenuAction::PlatformEffect("system.clearAll".into()))
         .unwrap();
 
-    assert_eq!(runner.transport, RuntimeTransportState::Stopped);
+    assert_eq!(runner.transport.transport, RuntimeTransportState::Stopped);
     assert!(runner
         .outbox
         .drain_platform_effects()
@@ -128,8 +131,8 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
     assert_ne!(runner.preset_draft_name, "custom draft");
     assert_eq!(runner.preset_names, vec!["old"]);
     assert!(!runner.aux_auto_map_enabled);
-    assert!(!runner.ui.ghost_cells);
-    assert_eq!(runner.ui.master_volume, 77);
+    assert!(!runner.display.ui.ghost_cells);
+    assert_eq!(runner.display.ui.master_volume, 77);
     assert!(runner.midi_enabled);
     assert_eq!(runner.audio_config_revision, 1);
     assert_eq!(
@@ -143,14 +146,17 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
             .as_deref(),
         Some("none")
     );
-    assert_eq!(runner.toast.as_ref().unwrap().message, "Cleared all");
+    assert_eq!(
+        runner.display.toast.as_ref().unwrap().message,
+        "Cleared all"
+    );
     let messages = runner.messages_with_snapshot().unwrap();
     assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::AudioCommands { commands }
             if commands.iter().any(|command| matches!(
                 command,
-                RuntimeAudioCommand::SetAudioConfig { revision: 1, config }
+                RuntimeAudioCommand::SetAudioConfig { revision: 1, config, .. }
                     if config["instruments"]
                         .as_array()
                         .unwrap()
@@ -168,21 +174,21 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
 #[test]
 pub(crate) fn external_midi_realtime_respects_clock_in_and_start_stop_settings() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.sync_source = SyncSource::External;
+    runner.transport.sync_source = SyncSource::External;
 
     runner.send(HostMessage::MidiRealtimeStart).unwrap();
-    assert_eq!(runner.transport, RuntimeTransportState::Stopped);
+    assert_eq!(runner.transport.transport, RuntimeTransportState::Stopped);
     runner.midi_clock_in_enabled = true;
     runner.midi_respond_to_start_stop = false;
     runner.send(HostMessage::MidiRealtimeStart).unwrap();
-    assert_eq!(runner.transport, RuntimeTransportState::Stopped);
+    assert_eq!(runner.transport.transport, RuntimeTransportState::Stopped);
 
     runner.midi_respond_to_start_stop = true;
     runner.send(HostMessage::MidiRealtimeStart).unwrap();
-    assert_eq!(runner.transport, RuntimeTransportState::Playing);
+    assert_eq!(runner.transport.transport, RuntimeTransportState::Playing);
     runner.midi_clock_in_enabled = false;
     runner.send(HostMessage::MidiRealtimeStop).unwrap();
-    assert_eq!(runner.transport, RuntimeTransportState::Playing);
+    assert_eq!(runner.transport.transport, RuntimeTransportState::Playing);
 }
 
 #[test]
@@ -237,7 +243,7 @@ pub(crate) fn sequencer_scanned_sampler_assignment_triggers_assigned_sample_slot
             request_snapshot: None,
         })
         .unwrap();
-    runner.transport = RuntimeTransportState::Playing;
+    runner.transport.transport = RuntimeTransportState::Playing;
     let messages = runner
         .send(HostMessage::TransportPulseStep {
             pulses: 6,

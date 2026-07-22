@@ -15,6 +15,8 @@ pub enum RuntimeMomentaryFxTarget {
 pub enum RuntimeAudioCommand {
     SetAudioConfig {
         revision: u64,
+        #[serde(default, rename = "requestId", skip_serializing_if = "Option::is_none")]
+        request_id: Option<String>,
         config: Value,
     },
     SetMasterVolume {

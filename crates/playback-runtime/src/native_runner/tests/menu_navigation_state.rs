@@ -88,15 +88,15 @@ pub(crate) fn button_a_release_does_not_navigate_back() {
 #[test]
 pub(crate) fn startup_splash_closes_into_help_toast() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.oled_mode = NativeOledMode::Splash;
-    runner.oled_splash_text = super::OLED_STARTUP_SPLASH_KEY.into();
-    runner.oled_splash_until = Some(Instant::now() + Duration::from_secs(1));
+    runner.display.oled_mode = NativeOledMode::Splash;
+    runner.display.oled_splash_text = super::OLED_STARTUP_SPLASH_KEY.into();
+    runner.display.oled_splash_until = Some(Instant::now() + Duration::from_secs(1));
 
     let messages = runner.messages_with_snapshot().unwrap();
     let display = &snapshot_from(&messages)["display"];
     assert_eq!(display["splash"], "startup");
 
-    runner.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
+    runner.display.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
     let messages = runner.messages_with_snapshot().unwrap();
     let display = &snapshot_from(&messages)["display"];
     assert_eq!(display["splash"], "");
@@ -107,9 +107,9 @@ pub(crate) fn startup_splash_closes_into_help_toast() {
 #[test]
 pub(crate) fn startup_splash_blocks_input_until_timeout() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.oled_mode = NativeOledMode::Splash;
-    runner.oled_splash_text = super::OLED_STARTUP_SPLASH_KEY.into();
-    runner.oled_splash_until = Some(Instant::now() + Duration::from_secs(1));
+    runner.display.oled_mode = NativeOledMode::Splash;
+    runner.display.oled_splash_text = super::OLED_STARTUP_SPLASH_KEY.into();
+    runner.display.oled_splash_until = Some(Instant::now() + Duration::from_secs(1));
     let _ = runner.messages_with_snapshot().unwrap();
 
     let blocked = runner
@@ -122,7 +122,7 @@ pub(crate) fn startup_splash_blocks_input_until_timeout() {
     assert_eq!(runner.menu.state.cursor, 0);
     assert_eq!(snapshot_from(&blocked)["display"]["splash"], "startup");
 
-    runner.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
+    runner.display.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
     let unblocked = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
@@ -137,18 +137,18 @@ pub(crate) fn startup_splash_blocks_input_until_timeout() {
 #[test]
 pub(crate) fn screen_sleep_splashes_then_turns_oled_off_and_wake_input_shows_wakeup_screen() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.oled_mode = NativeOledMode::Normal;
-    runner.oled_splash_text.clear();
-    runner.oled_splash_until = None;
-    runner.ui.screen_sleep_seconds = 1;
-    runner.last_interaction_at = Instant::now() - Duration::from_secs(2);
+    runner.display.oled_mode = NativeOledMode::Normal;
+    runner.display.oled_splash_text.clear();
+    runner.display.oled_splash_until = None;
+    runner.display.ui.screen_sleep_seconds = 1;
+    runner.display.last_interaction_at = Instant::now() - Duration::from_secs(2);
 
     let messages = runner.messages_with_snapshot().unwrap();
     let display = &snapshot_from(&messages)["display"];
     assert_eq!(display["splash"], "sleep");
     assert_eq!(display["off"], false);
 
-    runner.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
+    runner.display.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
     let messages = runner.messages_with_snapshot().unwrap();
     let display = &snapshot_from(&messages)["display"];
     assert_eq!(display["off"], true);

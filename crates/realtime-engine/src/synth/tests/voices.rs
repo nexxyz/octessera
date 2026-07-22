@@ -72,7 +72,46 @@ fn all_notes_off_releases_all_slots() {
 }
 
 #[test]
-fn cc_updates_mod_slots_and_reset_cc_clears_them() {
+fn all_notes_off_clears_synth_sample_and_preview_voices() {
+    let mut engine = SynthEngine::new(48_000);
+    engine.set_instrument_slot(
+        1,
+        InstrumentSlotConfig {
+            kind: "sampler".into(),
+            synth: default_synth_config(),
+            mixer: None,
+        },
+    );
+    engine.set_sample_banks(vec![sample_bank(vec![1.0; 16_384]); INSTRUMENT_SLOT_COUNT]);
+    engine.note_on(0, 60, 100, 50_000);
+    engine.note_on(1, 36, 100, 50_000);
+    engine.preview_sample(
+        1,
+        SampleBuffer {
+            samples: vec![0.25; 256].into_boxed_slice().into(),
+            channels: 1,
+            sample_rate: 48_000,
+        },
+        100,
+    );
+
+    assert_eq!(engine.profile_snapshot().active_synth_voices, 1);
+    assert_eq!(engine.profile_snapshot().active_sample_voices, 1);
+    assert_eq!(engine.profile_snapshot().active_preview_sample_voices, 1);
+
+    engine.all_notes_off();
+    for _ in 0..20_000 {
+        let _ = engine.next_sample();
+    }
+
+    let snapshot = engine.profile_snapshot();
+    assert_eq!(snapshot.active_synth_voices, 0);
+    assert_eq!(snapshot.active_sample_voices, 0);
+    assert_eq!(snapshot.active_preview_sample_voices, 0);
+}
+
+#[test]
+fn cc_updates_mod_slots_without_all_notes_off_semantics() {
     let mut engine = SynthEngine::new(48_000);
     engine.cc(0, 74, 127);
     engine.cc(0, 71, 64);
@@ -80,10 +119,9 @@ fn cc_updates_mod_slots_and_reset_cc_clears_them() {
     assert!(cutoff > 0.99);
     assert!(resonance > 0.49 && resonance < 0.51);
 
-    engine.cc(0, 123, 0);
-    let (cutoff_after, resonance_after) = engine.mod_values_for_slot(0);
-    assert_eq!(cutoff_after, 0.0);
-    assert_eq!(resonance_after, 0.0);
+    engine.note_on(0, 60, 100, 50_000);
+    engine.cc(0, 74, 0);
+    assert_eq!(engine.active_voice_count_for_slot(0), 1);
 }
 
 #[test]
@@ -121,7 +159,7 @@ fn long_running_event_stream_stays_finite() {
         engine.cc(slot, 74, (i % 128) as u8);
         engine.cc(slot, 71, ((i * 3) % 128) as u8);
         if i % 11 == 0 {
-            engine.cc(slot, 120, 0);
+            engine.cc(slot, 74, 0);
         }
         for _ in 0..128 {
             let s = engine.next_sample();

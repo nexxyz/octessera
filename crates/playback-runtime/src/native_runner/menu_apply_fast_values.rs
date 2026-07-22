@@ -1,24 +1,5 @@
 use super::{cutoff_display_to_hz, set_json_path_number, PAN_POSITION_COUNT};
 
-pub(super) fn structural_draft_key(key: &str) -> bool {
-    if key == "behaviorId" {
-        return true;
-    }
-    if let Some(rest) = key.strip_prefix("instruments.") {
-        return parse_indexed_key(rest)
-            .is_some_and(|(_, suffix)| matches!(suffix, "type" | "mixer.route"));
-    }
-    if let Some(rest) = key.strip_prefix("mixer.buses.") {
-        return parse_indexed_key(rest).is_some_and(|(_, suffix)| {
-            matches!(suffix, "slot1.type" | "slot2.type" | "slot3.type")
-        });
-    }
-    if let Some(rest) = key.strip_prefix("mixer.master.slots.") {
-        return parse_indexed_key(rest).is_some_and(|(_, suffix)| suffix == "type");
-    }
-    false
-}
-
 pub(super) fn parse_indexed_key(value: &str) -> Option<(usize, &str)> {
     let (index, suffix) = value.split_once('.')?;
     Some((index.parse().ok()?, suffix))

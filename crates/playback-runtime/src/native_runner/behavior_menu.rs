@@ -110,7 +110,8 @@ impl NativeRunner {
                 selected: crate::timing_units::NOTE_UNIT_OPTIONS
                     .iter()
                     .position(|unit| {
-                        crate::timing_units::note_unit_to_pulses(unit) == self.algorithm_step_pulses
+                        crate::timing_units::note_unit_to_pulses(unit)
+                            == self.transport.algorithm_step_pulses
                     })
                     .unwrap_or(5),
             },
