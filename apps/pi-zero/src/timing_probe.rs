@@ -2,21 +2,21 @@ use crate::audio::AudioManager;
 use crate::main_paths::{default_samples_dir, default_store_dir, ensure_runtime_dirs};
 use crate::{host_adapter::PiPlaybackHostAdapter, sample_browser::SD_CARD_SAMPLE_BROWSER_DIR};
 use playback_runtime::{
-    HostAdapter, HostMessage, MusicalEvent, NativeRunner, NativeRunnerConfig, PlaybackRuntime,
-    RunnerMessage, RuntimeAudioCommand, RuntimeConfig, RuntimePlatformEffect,
-    RuntimePlatformRequest, SyncSource, TimingProbeOptions, TimingProbeScenario,
+    HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig,
+    RuntimePlatformEffect, SyncSource, TimingProbeOptions, TimingProbeScenario,
 };
-use serde::Serialize;
 use serde_json::{json, Value};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+mod live_probe;
 mod live_report;
 mod probe_options;
 
+use live_probe::{LiveProbeHost, LiveProbeRunner, LiveSummary, LiveTimingProbeReport};
 use live_report::{
-    event_key, intervals_u128, message_label, primary_stream_report, print_live_summary,
-    slow_sends, summarize, summarize_usize,
+    intervals_u128, primary_stream_report, print_live_summary, slow_sends, summarize,
+    summarize_usize,
 };
 pub(crate) use probe_options::requested;
 use probe_options::{
@@ -56,153 +56,6 @@ pub(crate) fn run() -> bool {
         }
     }
 }
-#[derive(Serialize)]
-struct LiveTimingProbeReport {
-    scenario: TimingProbeScenario,
-    duration_ms: u64,
-    force_snapshots: bool,
-    events: usize,
-    event_intervals_us: LiveSummary,
-    primary_stream: Option<LiveStreamReport>,
-    wake_late_us: LiveSummary,
-    advance_us: LiveSummary,
-    loop_us: LiveSummary,
-    audio_send_us: LiveSummary,
-    runner_send_us: LiveSummary,
-    slow_sends: Vec<SlowSendReport>,
-    event_batches: LiveSummary,
-    audio_commands: u64,
-    platform_effects: u64,
-    midi_messages: u64,
-    playing_statuses: u64,
-}
-
-#[derive(Serialize)]
-struct LiveStreamReport {
-    key: String,
-    events: usize,
-    intervals_us: LiveSummary,
-    first_window_interval_us: LiveSummary,
-    last_window_interval_us: LiveSummary,
-}
-
-#[derive(Clone, Copy, Default, Serialize)]
-struct LiveSummary {
-    count: usize,
-    min: f64,
-    max: f64,
-    mean: f64,
-    p95: f64,
-    p99: f64,
-    p999: f64,
-    p9999: f64,
-    over_1ms: usize,
-    over_5ms: usize,
-    over_10ms: usize,
-    over_20ms: usize,
-}
-
-#[derive(Clone)]
-struct LiveEventRecord {
-    at_us: u128,
-    key: String,
-}
-
-struct LiveProbeRunner {
-    inner: NativeRunner,
-    send_us: Vec<f64>,
-    sends: Vec<LiveSendRecord>,
-    batches: Vec<usize>,
-}
-
-#[derive(Clone)]
-struct LiveSendRecord {
-    label: String,
-    duration_us: f64,
-}
-
-#[derive(Serialize)]
-struct SlowSendReport {
-    label: String,
-    duration_us: f64,
-}
-
-struct LiveProbeHost {
-    inner: PiPlaybackHostAdapter,
-    started_at: Instant,
-    events: Vec<LiveEventRecord>,
-    audio_send_us: Vec<f64>,
-    audio_commands: u64,
-    platform_effects: u64,
-    midi_messages: u64,
-}
-
-impl playback_runtime::CoreRunner for LiveProbeRunner {
-    fn send(&mut self, message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
-        let label = message_label(&message);
-        let started = Instant::now();
-        let responses = self.inner.send(message)?;
-        let duration_us = started.elapsed().as_micros() as f64;
-        self.send_us.push(duration_us);
-        self.sends.push(LiveSendRecord { label, duration_us });
-        for response in &responses {
-            if let RunnerMessage::MusicalEvents { events } = response {
-                self.batches.push(events.len());
-            }
-        }
-        Ok(responses)
-    }
-}
-
-impl HostAdapter for LiveProbeHost {
-    fn handle_musical_event(
-        &mut self,
-        event: &MusicalEvent,
-    ) -> Result<(), playback_runtime::RuntimeAdapterError> {
-        self.events.push(LiveEventRecord {
-            at_us: self.started_at.elapsed().as_micros(),
-            key: event_key(event),
-        });
-        let started = Instant::now();
-        let result = self.inner.handle_musical_event(event);
-        self.audio_send_us
-            .push(started.elapsed().as_micros() as f64);
-        result
-    }
-
-    fn handle_platform_effect(
-        &mut self,
-        request: &RuntimePlatformRequest,
-    ) -> Result<Vec<HostMessage>, playback_runtime::RuntimeAdapterError> {
-        self.platform_effects = self.platform_effects.saturating_add(1);
-        self.inner.handle_platform_effect(request)
-    }
-
-    fn handle_audio_command(
-        &mut self,
-        command: &RuntimeAudioCommand,
-    ) -> Result<(), playback_runtime::RuntimeAdapterError> {
-        self.audio_commands = self.audio_commands.saturating_add(1);
-        self.inner.handle_audio_command(command)
-    }
-
-    fn handle_midi_message(
-        &mut self,
-        bytes: &[u8],
-    ) -> Result<(), playback_runtime::RuntimeAdapterError> {
-        self.midi_messages = self.midi_messages.saturating_add(1);
-        self.inner.handle_midi_message(bytes)
-    }
-
-    fn silence_internal_audio(&mut self) -> Result<(), playback_runtime::RuntimeAdapterError> {
-        self.inner.silence_internal_audio()
-    }
-
-    fn panic_external_midi(&mut self) -> Result<(), playback_runtime::RuntimeAdapterError> {
-        self.inner.panic_external_midi()
-    }
-}
-
 fn run_live_audio_probe(
     options: &TimingProbeOptions,
 ) -> Result<Vec<LiveTimingProbeReport>, String> {

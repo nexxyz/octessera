@@ -85,6 +85,7 @@ mod json_path;
 mod layer_state;
 mod led_color;
 mod link_arp;
+mod link_routing;
 mod looper_config;
 mod menu_apply;
 mod menu_apply_fast;

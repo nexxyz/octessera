@@ -1,21 +1,7 @@
-use super::{
+use super::live_probe::{
     LiveEventRecord, LiveSendRecord, LiveStreamReport, LiveSummary, LiveTimingProbeReport,
     SlowSendReport,
 };
-use playback_runtime::{HostMessage, MusicalEvent};
-use serde_json::Value;
-
-pub(super) fn event_key(event: &MusicalEvent) -> String {
-    match event {
-        MusicalEvent::NoteOn { channel, note, .. } => format!("note_on:{channel}:{note}"),
-        MusicalEvent::NoteOff { channel, note } => format!("note_off:{channel}:{note}"),
-        MusicalEvent::Cc {
-            channel,
-            controller,
-            ..
-        } => format!("cc:{channel}:{controller}"),
-    }
-}
 
 pub(super) fn intervals_u128(times: &[u128]) -> Vec<f64> {
     times
@@ -94,30 +80,6 @@ pub(super) fn summarize(values: &[f64]) -> LiveSummary {
 fn percentile(sorted: &[f64], basis_points: usize) -> f64 {
     let index = ((sorted.len() - 1) * basis_points) / 10_000;
     sorted[index]
-}
-
-pub(super) fn message_label(message: &HostMessage) -> String {
-    match message {
-        HostMessage::DeviceInput { input, .. } => {
-            let kind = input
-                .get("type")
-                .and_then(Value::as_str)
-                .unwrap_or("device");
-            let id = input.get("id").and_then(Value::as_str).unwrap_or("");
-            if id.is_empty() {
-                kind.into()
-            } else {
-                format!("{kind}:{id}")
-            }
-        }
-        HostMessage::TransportPulseStep { pulses, .. } => format!("pulse:{pulses}"),
-        HostMessage::MidiRealtimeStart => "midi_start".into(),
-        HostMessage::MidiRealtimeContinue => "midi_continue".into(),
-        HostMessage::MidiRealtimeStop => "midi_stop".into(),
-        HostMessage::TransportStop => "transport_stop".into(),
-        HostMessage::MidiRealtimeClock { pulses } => format!("midi_clock:{pulses}"),
-        HostMessage::RuntimeResult { .. } => "runtime_result".into(),
-    }
 }
 
 pub(super) fn slow_sends(sends: &[LiveSendRecord]) -> Vec<SlowSendReport> {
