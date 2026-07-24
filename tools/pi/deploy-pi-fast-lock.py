@@ -12,7 +12,7 @@ def fail(message: str, status: int = 1) -> None:
     raise SystemExit(status)
 
 
-if len(sys.argv) < 4:
+if len(sys.argv) < 5:
     fail("fast deployment lock helper received too few arguments", 2)
 
 lock_path = Path(sys.argv[1])
@@ -21,7 +21,8 @@ try:
     expected_uid = int(sys.argv[2])
 except ValueError:
     fail("fast deployment lock helper received an invalid owner UID", 2)
-command = sys.argv[3:]
+transaction_path = Path(sys.argv[3])
+command = sys.argv[4:]
 if not command:
     fail("fast deployment lock helper received no command", 2)
 nofollow = cast(int | None, getattr(os, "O_NOFOLLOW", None))
@@ -62,6 +63,14 @@ try:
         cast(Callable[[int, int], None], flock)(descriptor, lock_ex | lock_nb)
     except BlockingIOError:
         fail("Updater transaction lock is busy; fast deployment was refused.", 75)
+    try:
+        transaction_path.lstat()
+    except FileNotFoundError:
+        pass
+    except OSError as exc:
+        fail(f"fast deployment transaction state cannot be inspected safely: {exc}")
+    else:
+        fail("Refusing fast deployment while an updater transaction is pending; use recovery or rollback first.", 75)
     os.set_inheritable(descriptor, True)
     os.execv("/bin/bash", ["bash", *command])
 except SystemExit:

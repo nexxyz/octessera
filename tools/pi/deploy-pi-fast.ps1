@@ -101,6 +101,7 @@ $releasesDirValue = ConvertTo-PosixShellSingleQuoted (Join-PosixPath $InstallDir
 $currentDirValue = ConvertTo-PosixShellSingleQuoted (Join-PosixPath $InstallDir "current")
 $currentBinaryValue = ConvertTo-PosixShellSingleQuoted (Join-PosixPath $InstallDir "current/octessera-pi")
 $statePathValue = ConvertTo-PosixShellSingleQuoted (Join-PosixPath $InstallDir "update-state.json")
+$transactionPathValue = ConvertTo-PosixShellSingleQuoted (Join-PosixPath $InstallDir "update-transaction.json")
 $profileMetadataPathValue = ConvertTo-PosixShellSingleQuoted (Join-PosixPath $InstallDir "board-profile.json")
 $updaterLockPath = Join-PosixPath $InstallDir ".update.lock"
 $updaterLockValue = ConvertTo-PosixShellSingleQuoted $updaterLockPath
@@ -223,7 +224,7 @@ rm -rf $syncDirValue $remoteArchiveValue
 
   Copy-ToPi $helperPath $remoteHelperPath
   Copy-ToPi $lockHelperPath $remoteLockHelperPath
-  Invoke-PiLockedSsh "set -e; chmod 755 $remoteHelperValue; sudo python3 $remoteLockHelperValue $updaterLockValue 0 $remoteHelperValue $helperArgumentString"
+  Invoke-PiLockedSsh "set -e; chmod 755 $remoteHelperValue; sudo python3 $remoteLockHelperValue $updaterLockValue 0 $transactionPathValue $remoteHelperValue $helperArgumentString"
 }
 finally {
   try {

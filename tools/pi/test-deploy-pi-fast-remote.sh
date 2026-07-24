@@ -137,7 +137,7 @@ run_helper() {
         OCTESSERA_FAST_TEST_WORK="$WORK" \
         OCTESSERA_FAST_TEST_LOG="$LOG" \
         OCTESSERA_FAST_TEST_CANDIDATE="$CANDIDATE" \
-        python3 "$LOCK_HELPER" "$ROOT/.update.lock" "$(id -u)" "$HELPER" \
+        python3 "$LOCK_HELPER" "$ROOT/.update.lock" "$(id -u)" "$ROOT/update-transaction.json" "$HELPER" \
         "$ROOT" octessera.service raspberry-pi-zero-2w 1 octessera-pi \
         aarch64-unknown-linux-gnu aarch64 hardware-raspberry-pi-zero-2w \
         "$CANDIDATE" "$CANDIDATE_METADATA" 0
@@ -209,12 +209,17 @@ printf '%s\n' pending > "$ROOT/update-transaction.json"
 prior_current="$(readlink "$ROOT/current")"
 if run_helper > "$WORK/pending.output" 2>&1; then
     fail "pending updater transaction was accepted"
+else
+    pending_status="$?"
 fi
+[ "$pending_status" -eq 75 ] || fail "pending refusal returned the wrong status"
 assert_equal "$(readlink "$ROOT/current")" "$prior_current" "pending transaction changed current"
-grep -q 'updater transaction' "$WORK/pending.output" || fail "pending refusal was not reported"
+grep -q 'Refusing fast deployment while an updater transaction is pending' "$WORK/pending.output" || fail "pending refusal was not reported"
+assert_equal "$(cat "$RESTART_FILE")" 0 "pending transaction restarted the service"
 rm -f "$ROOT/update-transaction.json"
 
 write_fixture
+printf '%s\n' pending > "$ROOT/update-transaction.json"
 flock "$ROOT/.update.lock" sleep 2 &
 holder=$!
 sleep 0.1
@@ -226,6 +231,7 @@ else
 fi
 wait "$holder" || true
 [ "$lock_status" -eq 75 ] || fail "busy lock refusal returned the wrong status"
+grep -q 'Updater transaction lock is busy' "$WORK/lock.output" || fail "busy lock refusal was not reported"
 [ "$(stat -c '%a' "$ROOT/.update.lock")" = 600 ] || fail "busy lock path was not normalized to mode 0600"
 
 echo "remote fast deployment failure-path validation passed"
