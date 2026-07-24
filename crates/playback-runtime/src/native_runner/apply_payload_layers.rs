@@ -1,8 +1,8 @@
-use super::pulses_payload_apply::{apply_link_lfo_payload, apply_pulses_payload};
+use super::pulses_payload_apply::apply_pulses_payload;
 use super::{
     apply_legacy_trigger_gates_payload, apply_trigger_probability_map_payload, note_unit_to_pulses,
-    param_binding_from_payload, param_mods_from_payload, NativeRunner, Value,
-    DEFAULT_ALGORITHM_STEP_RED, GRID_HEIGHT,
+    param_binding_from_payload, param_mods_from_payload, NativeLinkLfo, NativeRunner, Value,
+    GLOBAL_LFO_COUNT, GRID_HEIGHT,
 };
 
 impl NativeRunner {
@@ -14,51 +14,20 @@ impl NativeRunner {
             let worlds = layer.get("worlds");
             apply_layer_identity_payload(self, index, layer);
             apply_layer_pulses_payload(self, index, layer, worlds);
-            apply_layer_link_lfo_payload(self, index, layer);
             apply_layer_worlds_payload(self, index, worlds)?;
             apply_layer_param_mods_payload(self, index, layer);
         }
         Ok(())
     }
 
-    pub(super) fn apply_sparks_and_xy_payload(
-        &mut self,
-        runtime: &Value,
-        desired_active_layer_index: usize,
-    ) {
+    pub(super) fn apply_sparks_and_xy_payload(&mut self, runtime: &Value) {
         if let Some(sparks_fx) = runtime.get("sparksFx") {
             self.apply_sparks_fx_payload(sparks_fx);
         }
         apply_xy_touch_payload(self, runtime);
         apply_xy_release_payload(self, runtime);
-        apply_active_layer_xy_binding_payload(self, runtime, desired_active_layer_index);
-    }
-
-    pub(super) fn swap_active_engine_from_layer(
-        &mut self,
-        desired_active_layer_index: usize,
-    ) -> Result<(), String> {
-        self.active_layer_index = desired_active_layer_index;
-        self.display.hdmi.source_layer_index = desired_active_layer_index;
-        self.transport.algorithm_step_pulses = self
-            .transport
-            .layer_algorithm_step_pulses
-            .get(self.active_layer_index)
-            .copied()
-            .unwrap_or(DEFAULT_ALGORITHM_STEP_RED);
-        if let Some(Some(engine)) = self.layer_engines.get_mut(desired_active_layer_index) {
-            let placeholder = Self::build_engine(
-                self.behavior,
-                self.behavior_config.clone(),
-                self.interpretation_profile.clone(),
-                self.mapping_config.clone(),
-                self.global_sound.clone(),
-                self.note_behaviors.clone(),
-                desired_active_layer_index,
-            )?;
-            self.engine = std::mem::replace(engine, placeholder);
-        }
-        Ok(())
+        apply_global_link_lfos_payload(self, runtime);
+        apply_global_xy_binding_payload(self, runtime);
     }
 }
 
@@ -69,6 +38,22 @@ fn apply_layer_identity_payload(runner: &mut NativeRunner, index: usize, layer: 
         .and_then(Value::as_str)
     {
         if platform_core::get_native_behavior(behavior_id).is_some() {
+            let previous_behavior_id = runner
+                .layer_behavior_ids
+                .get(index)
+                .cloned()
+                .unwrap_or_else(|| "none".into());
+            if previous_behavior_id != behavior_id {
+                runner.remember_layer_behavior_config(
+                    index,
+                    &previous_behavior_id,
+                    runner.layer_behavior_config(index),
+                );
+                let next_config = runner.remembered_layer_behavior_config(index, behavior_id);
+                if let Some(target) = runner.layer_behavior_configs.get_mut(index) {
+                    *target = next_config;
+                }
+            }
             runner.layer_behavior_ids[index] = behavior_id.into();
         }
     }
@@ -142,23 +127,25 @@ fn apply_layer_worlds_payload(
             *layer_step = note_unit_to_pulses(step_rate);
         }
     }
+    if let Some(history) = worlds
+        .get("behaviorConfigHistory")
+        .and_then(Value::as_object)
+    {
+        if let Some(target) = runner.layer_behavior_config_history.get_mut(index) {
+            *target = history
+                .iter()
+                .filter(|(_, config)| !config.is_null())
+                .map(|(behavior_id, config)| (behavior_id.clone(), config.clone()))
+                .collect();
+        }
+    }
     if let Some(config) = worlds.get("behaviorConfig") {
         if let Some(target) = runner.layer_behavior_configs.get_mut(index) {
             *target = config.clone();
         }
     }
-    let engine = runner.rebuild_layer_engine_from_payload(index, &behavior_id, worlds)?;
-    if let Some(slot) = runner.layer_engines.get_mut(index) {
-        *slot = Some(engine);
-    }
-    runner.clear_delayed_link_events_for_layer(index);
+    runner.replace_layer_engine_from_payload(index, &behavior_id, worlds)?;
     Ok(())
-}
-
-fn apply_layer_link_lfo_payload(runner: &mut NativeRunner, index: usize, layer: &Value) {
-    if let Some(pulses_layer) = runner.pulses_layers.get_mut(index) {
-        apply_link_lfo_payload(pulses_layer, layer);
-    }
 }
 
 fn apply_layer_param_mods_payload(runner: &mut NativeRunner, index: usize, layer: &Value) {
@@ -194,25 +181,55 @@ fn apply_xy_release_payload(runner: &mut NativeRunner, runtime: &Value) {
     }
 }
 
-fn apply_active_layer_xy_binding_payload(
-    runner: &mut NativeRunner,
-    runtime: &Value,
-    desired_active_layer_index: usize,
-) {
-    let Some(active_layer) = runtime
-        .get("layers")
-        .and_then(Value::as_array)
-        .and_then(|layers| layers.get(desired_active_layer_index))
-        .and_then(|layer| layer.get("xy"))
-    else {
+fn apply_global_link_lfos_payload(runner: &mut NativeRunner, runtime: &Value) {
+    let Some(lfos) = runtime.get("linkLfos").and_then(Value::as_array) else {
         return;
     };
-    runner.xy_x_binding = active_layer.get("x").and_then(param_binding_from_payload);
-    runner.xy_y_binding = active_layer.get("y").and_then(param_binding_from_payload);
-    if let Some(invert) = active_layer.get("xInvert").and_then(Value::as_bool) {
+    for (index, value) in lfos.iter().take(GLOBAL_LFO_COUNT).enumerate() {
+        let Some(lfo) = runner.link_lfos.get_mut(index) else {
+            continue;
+        };
+        apply_link_lfo_value(lfo, value);
+    }
+}
+
+fn apply_link_lfo_value(lfo: &mut NativeLinkLfo, value: &Value) {
+    lfo.phase_pulses = 0;
+    lfo.enabled = value
+        .get("enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    lfo.target = value
+        .get("target")
+        .and_then(param_binding_from_payload)
+        .filter(|binding| {
+            binding.kind == "number" && super::modulation::is_live_link_lfo_target(&binding.key)
+        });
+    if lfo.target.is_none() {
+        lfo.enabled = false;
+    }
+    if let Some(period) = value.get("period").and_then(Value::as_str) {
+        if crate::timing_units::NOTE_UNIT_OPTIONS.contains(&period) {
+            lfo.period = period.into();
+        }
+    }
+    if let Some(depth) = value.get("depthPct").and_then(Value::as_u64) {
+        if let Ok(depth) = u8::try_from(depth.min(100)) {
+            lfo.depth_pct = depth;
+        }
+    }
+}
+
+fn apply_global_xy_binding_payload(runner: &mut NativeRunner, runtime: &Value) {
+    let Some(xy) = runtime.get("xy") else {
+        return;
+    };
+    runner.xy_x_binding = xy.get("x").and_then(param_binding_from_payload);
+    runner.xy_y_binding = xy.get("y").and_then(param_binding_from_payload);
+    if let Some(invert) = xy.get("xInvert").and_then(Value::as_bool) {
         runner.xy_invert_x = invert;
     }
-    if let Some(invert) = active_layer.get("yInvert").and_then(Value::as_bool) {
+    if let Some(invert) = xy.get("yInvert").and_then(Value::as_bool) {
         runner.xy_invert_y = invert;
     }
 }

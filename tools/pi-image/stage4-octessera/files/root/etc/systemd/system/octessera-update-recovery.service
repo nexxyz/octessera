@@ -1,0 +1,13 @@
+[Unit]
+Description=Octessera conservative update recovery
+Before=octessera.service
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/local/sbin/octessera-update-recovery
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -8,7 +8,7 @@ pub(super) fn patch_payload_from_payload(payload: Value) -> Value {
         .unwrap_or(payload.clone());
     let mut patch = json!({
         "kind": "octessera.patch",
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "runtimeConfig": patch_runtime_config(runtime),
     });
     if let Some(mapping_config) = payload.get("mappingConfig") {

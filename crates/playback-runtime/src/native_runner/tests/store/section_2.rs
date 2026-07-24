@@ -148,7 +148,7 @@ pub(crate) fn preset_save_as_uses_text_draft_name() {
         })
         .expect("preset save payload");
     assert_eq!(payload["kind"], "octessera.patch");
-    assert_eq!(payload["schemaVersion"], 1);
+    assert_eq!(payload["schemaVersion"], 2);
 }
 
 #[test]

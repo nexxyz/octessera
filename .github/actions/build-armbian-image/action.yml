@@ -49,6 +49,12 @@ runs:
         set -euo pipefail
         mkdir -p build/userpatches
         rsync -a custom/userpatches/ build/userpatches/
+        mkdir -p build/userpatches/overlay/usr/local/lib/octessera
+        install -m 0644 custom/tools/device-update/updater_protocol.py build/userpatches/overlay/usr/local/lib/octessera/updater_protocol.py
+        install -m 0644 custom/tools/device-update/updater_state.py build/userpatches/overlay/usr/local/lib/octessera/updater_state.py
+        install -m 0644 custom/tools/device-update/updater_assets.py build/userpatches/overlay/usr/local/lib/octessera/updater_assets.py
+        install -m 0644 custom/tools/device-update/updater_guard.py build/userpatches/overlay/usr/local/lib/octessera/updater_guard.py
+        install -m 0644 custom/tools/device-update/updater_cli.py build/userpatches/overlay/usr/local/lib/octessera/updater_cli.py
     - name: Install Armbian build requirements
       shell: bash
       run: |

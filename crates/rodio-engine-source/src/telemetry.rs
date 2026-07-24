@@ -1,6 +1,36 @@
+use crossbeam_channel::{bounded, Receiver, Sender};
 use realtime_engine::synth::AudioLoadStatus;
 
 pub(super) const TELEMETRY_WINDOW_BLOCKS: usize = 128;
+pub const TELEMETRY_QUEUE_CAPACITY: usize = 4;
+
+pub struct AudioLoadStatusSender(Sender<AudioLoadStatus>);
+
+pub struct AudioLoadStatusReceiver(Receiver<AudioLoadStatus>);
+
+pub fn audio_load_status_channel() -> (AudioLoadStatusSender, AudioLoadStatusReceiver) {
+    let (sender, receiver) = bounded(TELEMETRY_QUEUE_CAPACITY);
+    (
+        AudioLoadStatusSender(sender),
+        AudioLoadStatusReceiver(receiver),
+    )
+}
+
+impl AudioLoadStatusSender {
+    pub(crate) fn try_send(&self, status: AudioLoadStatus) {
+        let _ = self.0.try_send(status);
+    }
+}
+
+impl AudioLoadStatusReceiver {
+    pub fn recv(&self) -> Result<AudioLoadStatus, crossbeam_channel::RecvError> {
+        self.0.recv()
+    }
+
+    pub fn try_recv(&self) -> Result<AudioLoadStatus, crossbeam_channel::TryRecvError> {
+        self.0.try_recv()
+    }
+}
 
 #[derive(Default)]
 pub(super) struct DrainedControlEvents {

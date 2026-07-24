@@ -151,8 +151,12 @@ impl NativeRunner {
 
     pub(super) fn queue_audio_config_if_changed(&mut self) {
         if self.last_snapshot_audio_config_revision != Some(self.audio_config_revision) {
+            self.invalidate_lfo_audio_cache();
             self.queue_audio_command(self.full_audio_config_command());
             self.last_snapshot_audio_config_revision = Some(self.audio_config_revision);
+            if let Err(error) = self.process_modulation_step(true) {
+                self.show_toast(format!("LFO composition unavailable: {error}"));
+            }
         }
     }
 }

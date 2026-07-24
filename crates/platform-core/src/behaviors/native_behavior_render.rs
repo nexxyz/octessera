@@ -36,6 +36,9 @@ pub fn render_model(
         (NativeBehavior::PredatorPrey, NativeBehaviorState::PredatorPrey(state)) => {
             Ok(native_impl::predator_prey_render_model(state))
         }
+        (NativeBehavior::Twinkle, NativeBehaviorState::Twinkle(state)) => {
+            Ok(native_impl::twinkle_render_model(state))
+        }
         (NativeBehavior::Ant, NativeBehaviorState::Ant(state)) => {
             Ok(native_impl::ant_render_model(state))
         }

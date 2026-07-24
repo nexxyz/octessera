@@ -53,6 +53,8 @@ pub enum RuntimeOperation {
     MidiStatus,
     SampleList,
     SamplePreview,
+    DeviceUpdate,
+    SystemInfo,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

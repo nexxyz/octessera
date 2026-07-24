@@ -65,7 +65,9 @@ impl CapturedOutput {
                 RunnerMessage::RuntimeStatus { .. } => {
                     self.runtime_status_count += 1;
                 }
-                RunnerMessage::Snapshot { .. } | RunnerMessage::UiPulse { .. } => {}
+                RunnerMessage::Snapshot { .. }
+                | RunnerMessage::UiPulse { .. }
+                | RunnerMessage::RuntimeConfigChanged { .. } => {}
             }
         }
     }

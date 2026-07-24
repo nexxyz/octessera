@@ -1,4 +1,3 @@
-use super::modulation_audio::instrument_modulation_audio_command;
 pub(crate) use super::modulation_audio::is_live_link_lfo_target;
 use super::modulation_fx::apply_sparks_fx_binding_value;
 use super::modulation_instrument::apply_instrument_binding_value;
@@ -10,11 +9,13 @@ use super::modulation_pulses::apply_pulses_binding_value;
 pub(super) use super::modulation_sampler::{
     apply_sampler_assignments_for_instruments_routed, RoutedMusicalEvents,
 };
-use super::modulation_value::{axis_norm, quantize_binding_value};
+use super::modulation_source::{ModulationAxis, ModulationSourceId};
+use super::modulation_value::axis_norm;
 use super::{NativeParamBinding, NativeRunner, Value, GRID_HEIGHT, GRID_WIDTH};
 use platform_core::CellTriggerIntent;
 
 use super::note_unit_to_pulses;
+use std::collections::BTreeMap;
 
 impl NativeRunner {
     pub(super) fn apply_runtime_modulation(
@@ -22,8 +23,10 @@ impl NativeRunner {
         intents: &[CellTriggerIntent],
         layer_index: usize,
     ) {
+        let mut source_changed = false;
         let intent = intents
             .iter()
+            .rev()
             .find(|intent| {
                 matches!(
                     intent.kind,
@@ -33,229 +36,184 @@ impl NativeRunner {
                 )
             })
             .or_else(|| intents.last());
-        if let Some(intent) = intent {
-            if let Some(param_mods) = self.param_mods.get(layer_index).cloned() {
-                for binding in param_mods.x.iter().flatten() {
-                    let value = quantize_binding_value(
-                        axis_norm(intent.x, GRID_WIDTH, binding.invert),
-                        binding,
-                    );
-                    self.apply_param_binding_value(&binding.key, value);
-                }
-                for binding in param_mods.y.iter().flatten() {
-                    let value = quantize_binding_value(
-                        axis_norm(intent.y, GRID_HEIGHT, binding.invert),
-                        binding,
-                    );
-                    self.apply_param_binding_value(&binding.key, value);
+        if let Some(param_mods) = self.param_mods.get(layer_index).cloned() {
+            for (axis, bindings, size, coordinate) in [
+                (
+                    ModulationAxis::X,
+                    param_mods.x,
+                    GRID_WIDTH,
+                    intent.map(|value| value.x),
+                ),
+                (
+                    ModulationAxis::Y,
+                    param_mods.y,
+                    GRID_HEIGHT,
+                    intent.map(|value| value.y),
+                ),
+            ] {
+                for (slot, binding) in bindings.into_iter().enumerate() {
+                    let source = ModulationSourceId::layer_axis(layer_index, axis, slot)
+                        .expect("validated layer modulation source");
+                    let Some(binding) = binding else {
+                        source_changed |= self.clear_runtime_source_input(source);
+                        continue;
+                    };
+                    if let Some(coordinate) = coordinate {
+                        source_changed |= self.set_runtime_source_input(
+                            source,
+                            binding.clone(),
+                            f64::from(axis_norm(coordinate, size, binding.invert)),
+                        );
+                    }
                 }
             }
         }
-        self.apply_xy_modulation();
-    }
-
-    fn apply_xy_modulation(&mut self) {
-        if !self.xy_touch.active && self.xy_release != "sample-hold" {
-            return;
-        }
-        if let Some(binding) = self.xy_x_binding.clone() {
-            let norm = if self.xy_invert_x {
-                1.0 - self.xy_touch.x
-            } else {
-                self.xy_touch.x
-            };
-            let value = quantize_binding_value(norm, &binding);
-            self.apply_param_binding_value(&binding.key, value);
-        }
-        if let Some(binding) = self.xy_y_binding.clone() {
-            let norm = if self.xy_invert_y {
-                1.0 - self.xy_touch.y
-            } else {
-                self.xy_touch.y
-            };
-            let value = quantize_binding_value(norm, &binding);
-            self.apply_param_binding_value(&binding.key, value);
+        if source_changed {
+            if let Err(error) = self.process_dirty_modulation_step(true) {
+                self.show_toast(format!("modulation composition unavailable: {error}"));
+            }
         }
     }
 
-    fn apply_param_binding_value(&mut self, key: &str, value: Value) {
+    pub(super) fn apply_param_binding_value(
+        &mut self,
+        key: &str,
+        value: Value,
+        behavior_deltas: &mut BTreeMap<usize, Vec<(String, Value)>>,
+    ) -> bool {
         match key {
             "algorithmStep" => self.apply_algorithm_step_binding(value),
             "sound.noteLengthMs" => self.apply_note_length_binding(value),
             "sound.velocityScalePct" => self.apply_velocity_scale_binding(value),
             "sound.voiceStealingMode" => self.apply_voice_stealing_binding(value),
-            _ => self.apply_routed_param_binding_value(key, value),
+            _ => self.apply_routed_param_binding_value(key, value, behavior_deltas),
         }
     }
 
-    fn apply_algorithm_step_binding(&mut self, value: Value) {
+    fn apply_algorithm_step_binding(&mut self, value: Value) -> bool {
         let Some(value) = value.as_str() else {
-            return;
+            return false;
         };
         let pulses = crate::timing_units::note_unit_to_pulses_option(value);
-        if let Some(pulses) = pulses {
+        if let Some(pulses) =
+            pulses.filter(|pulses| *pulses != self.transport.algorithm_step_pulses)
+        {
             self.transport.algorithm_step_pulses = pulses;
-            self.mark_config_dirty();
+            true
+        } else {
+            false
         }
     }
 
-    fn apply_note_length_binding(&mut self, value: Value) {
+    fn apply_note_length_binding(&mut self, value: Value) -> bool {
         if let Some(value) = value.as_f64() {
-            self.global_sound.note_length_ms = value.round().clamp(30.0, 2000.0) as u32;
-            self.mark_config_dirty();
+            let value = value.round().clamp(30.0, 2000.0) as u32;
+            if self.global_sound.note_length_ms != value {
+                self.global_sound.note_length_ms = value;
+                return true;
+            }
         }
+        false
     }
 
-    fn apply_velocity_scale_binding(&mut self, value: Value) {
+    fn apply_velocity_scale_binding(&mut self, value: Value) -> bool {
         if let Some(value) = value.as_f64() {
-            self.global_sound.velocity_scale_pct = value.round().clamp(0.0, 200.0) as u16;
-            self.mark_config_dirty();
+            let value = value.round().clamp(0.0, 200.0) as u16;
+            if self.global_sound.velocity_scale_pct != value {
+                self.global_sound.velocity_scale_pct = value;
+                return true;
+            }
         }
+        false
     }
 
-    fn apply_voice_stealing_binding(&mut self, value: Value) {
+    fn apply_voice_stealing_binding(&mut self, value: Value) -> bool {
         if let Some(value) = value.as_str() {
             if let Some(mode) = super::normalize_voice_stealing_mode(value) {
                 if self.voice_stealing_mode != mode {
                     self.voice_stealing_mode = mode.into();
                     self.audio_config_revision = self.audio_config_revision.saturating_add(1);
-                    self.mark_config_dirty();
+                    return true;
                 }
             }
         }
+        false
     }
 
-    fn apply_routed_param_binding_value(&mut self, key: &str, value: Value) {
+    fn apply_routed_param_binding_value(
+        &mut self,
+        key: &str,
+        value: Value,
+        behavior_deltas: &mut BTreeMap<usize, Vec<(String, Value)>>,
+    ) -> bool {
         if let Some(index) = parse_layer_algorithm_step_binding_key(key) {
-            self.apply_layer_algorithm_step_binding(index, value);
+            return self.apply_layer_algorithm_step_binding(index, value);
         } else if let Some((index, field)) = parse_layer_behavior_config_binding_key(key) {
-            self.apply_behavior_param_binding(index, field, value);
+            behavior_deltas
+                .entry(index)
+                .or_default()
+                .push((field.into(), value));
+            return true;
         } else if let Some((index, field)) = parse_pulses_binding_key(key) {
-            self.apply_pulses_param_binding(index, &field, value);
+            return self.apply_pulses_param_binding(index, &field, value);
         } else if let Some((index, field)) = parse_instrument_binding_key(key) {
-            self.apply_instrument_param_binding(index, field, value);
+            return self.apply_instrument_param_binding(index, field, value);
         } else if let Some((index, slot, field)) = parse_fx_bus_binding_key(key) {
-            self.apply_fx_bus_param_binding(index, slot, field, value);
+            return self.apply_fx_bus_param_binding(index, slot, field, value);
         } else if let Some((index, field)) = parse_global_fx_binding_key(key) {
-            self.apply_global_fx_param_binding(index, field, value);
+            return self.apply_global_fx_param_binding(index, field, value);
         } else if let Some(field) = key.strip_prefix("sparks.fx.") {
             if apply_sparks_fx_binding_value(&mut self.sparks_fx_selected, field, value) {
-                self.mark_config_dirty();
+                return true;
             }
         }
+        false
     }
 
-    fn apply_layer_algorithm_step_binding(&mut self, index: usize, value: Value) {
-        let key = format!("layers.{index}.algorithmStep");
-        if self.generated_behavior_target_item(&key).is_none() {
-            return;
+    fn apply_layer_algorithm_step_binding(&mut self, index: usize, value: Value) -> bool {
+        if self.layer_behavior_ids.get(index).map(String::as_str) == Some("none") {
+            return false;
         }
         let Some(value) = value.as_str() else {
-            return;
+            return false;
         };
         let pulses = note_unit_to_pulses(value);
         if let Some(layer_step) = self.transport.layer_algorithm_step_pulses.get_mut(index) {
+            if *layer_step == pulses {
+                return false;
+            }
             *layer_step = pulses;
             if index == self.active_layer_index {
                 self.transport.algorithm_step_pulses = pulses;
             }
-            self.mark_config_dirty();
+            return true;
         }
+        false
     }
 
-    fn apply_behavior_param_binding(&mut self, index: usize, field: &str, value: Value) {
-        let key = format!("layers.{index}.worlds.behaviorConfig.{field}");
-        if self.generated_behavior_target_item(&key).is_none() {
-            return;
-        }
-        if let Some(config) = self.layer_behavior_configs.get_mut(index) {
-            let mut object = config.as_object().cloned().unwrap_or_default();
-            object.insert(field.into(), value);
-            *config = Value::Object(object.clone());
-            if index == self.active_layer_index {
-                self.behavior_config = Value::Object(object);
-            }
-            self.mark_config_dirty();
-        }
-    }
-
-    fn apply_pulses_param_binding(&mut self, index: usize, field: &str, value: Value) {
+    fn apply_pulses_param_binding(&mut self, index: usize, field: &str, value: Value) -> bool {
         let changed = self
             .pulses_layers
             .get_mut(index)
             .is_some_and(|layer| apply_pulses_binding_value(layer, field, value));
-        if changed {
-            self.mark_config_dirty();
-        }
+        changed
     }
 
-    fn apply_instrument_param_binding(&mut self, index: usize, field: &str, value: Value) {
-        let mut changed = false;
+    fn apply_instrument_param_binding(&mut self, index: usize, field: &str, value: Value) -> bool {
+        let changed;
         if let Some(instrument) = self.instruments.get_mut(index) {
             let before = instrument.clone();
-            let audio_command = instrument_modulation_audio_command(index, field, &value);
-            changed = apply_instrument_binding_value(instrument, field, value);
-            if *instrument != before {
-                if let Some(command) = audio_command {
-                    self.queue_audio_command(command);
-                }
-            }
+            apply_instrument_binding_value(instrument, field, value);
+            changed = *instrument != before;
+        } else {
+            changed = false;
         }
-        if changed {
-            self.mark_config_dirty();
-        }
+        changed
     }
 
-    pub(super) fn apply_link_lfos(&mut self, pulses: u32) {
-        let mut updates = Vec::new();
-        for layer in &mut self.pulses_layers {
-            let Some(binding) = layer.link_lfo.target.clone() else {
-                continue;
-            };
-            if !layer.link_lfo.enabled || binding.kind != "number" {
-                continue;
-            }
-            let period = note_unit_to_pulses(&layer.link_lfo.period).max(1);
-            layer.link_lfo.phase_pulses = (layer.link_lfo.phase_pulses + pulses) % period;
-            let phase = layer.link_lfo.phase_pulses as f64 / period as f64;
-            let sine = (phase * std::f64::consts::TAU).sin();
-            let depth = f64::from(layer.link_lfo.depth_pct) / 100.0;
-            let norm = (0.5 + sine * 0.5 * depth) as f32;
-            let norm = if binding.invert { 1.0 - norm } else { norm };
-            updates.push((binding.key.clone(), quantize_binding_value(norm, &binding)));
-        }
-        for (key, value) in updates {
-            self.apply_transient_param_binding_value(&key, value);
-        }
-    }
-
-    fn apply_transient_param_binding_value(&mut self, key: &str, value: Value) {
-        if !is_live_link_lfo_target(key) {
-            return;
-        }
-        if self.last_link_lfo_values.get(key) == Some(&value) {
-            return;
-        }
-        if let Some(command) = self.transient_audio_command_for_binding(key, value.clone()) {
-            self.last_link_lfo_values.insert(key.into(), value);
-            self.queue_audio_command(command);
-        }
-    }
-
-    pub(super) fn restore_link_lfo_base_audio(&mut self) {
-        let keys = std::mem::take(&mut self.last_link_lfo_values)
-            .into_keys()
-            .collect::<Vec<_>>();
-        for key in keys {
-            if let Some(command) = self.base_audio_command_for_binding(&key) {
-                self.queue_audio_command(command);
-            }
-        }
-    }
-
-    pub(super) fn reset_link_lfo_phases(&mut self) {
-        for layer in &mut self.pulses_layers {
-            layer.link_lfo.phase_pulses = 0;
+    pub(super) fn reset_global_lfo_phases(&mut self) {
+        for lfo in &mut self.link_lfos {
+            lfo.phase_pulses = 0;
         }
     }
 }

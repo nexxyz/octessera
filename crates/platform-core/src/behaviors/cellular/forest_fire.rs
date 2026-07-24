@@ -29,48 +29,68 @@ pub struct ForestFireState {
     pub lightning_chance_per_thousand: u8,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-struct ForestFireConfig {
-    pub cells: Option<Vec<Value>>,
-    #[serde(rename = "triggerTypes")]
-    pub trigger_types: Option<Vec<CellTriggerType>>,
-    #[serde(rename = "treeDensityPct")]
-    pub tree_density_pct: Option<Value>,
-    #[serde(rename = "growChancePct")]
-    pub grow_chance_pct: Option<Value>,
-    #[serde(rename = "spreadChancePct")]
-    pub spread_chance_pct: Option<Value>,
-    #[serde(rename = "reseedThresholdPct")]
-    pub reseed_threshold_pct: Option<Value>,
-    #[serde(rename = "lightningChancePerThousand")]
-    pub lightning_chance_per_thousand: Option<Value>,
-}
-
 pub fn forest_fire_init(config: Value) -> Result<ForestFireState, String> {
-    let config: ForestFireConfig = serde_json::from_value(config).unwrap_or_default();
-    let mut state = ForestFireState {
-        cells: normalize_cells(config.cells.unwrap_or_default()),
-        trigger_types: normalize_triggers(config.trigger_types),
-        tree_density_pct: number_field(config.tree_density_pct, 34, 100),
-        grow_chance_pct: number_field(config.grow_chance_pct, 5, 100),
-        spread_chance_pct: number_field(config.spread_chance_pct, 70, 100),
-        reseed_threshold_pct: number_field(config.reseed_threshold_pct, 5, 100),
-        lightning_chance_per_thousand: number_field(config.lightning_chance_per_thousand, 1, 20),
-    };
-    reseed_if_needed(&mut state);
+    let (mut state, has_cells) = state_from_config(&config);
+    if !has_cells {
+        reseed_if_needed(&mut state);
+    }
     normalize_current_triggers(&mut state);
     Ok(state)
 }
 
 pub fn forest_fire_deserialize(data: Value) -> Result<ForestFireState, String> {
-    forest_fire_init(data)
+    let (mut state, has_cells) = state_from_config(&data);
+    if !has_cells {
+        reseed_if_needed(&mut state);
+    }
+    normalize_current_triggers(&mut state);
+    Ok(state)
 }
 
-fn number_field(value: Option<Value>, default: u8, max: u8) -> u8 {
-    value
-        .and_then(|value| value.as_u64())
-        .map(|value| value.min(u64::from(max)) as u8)
-        .unwrap_or(default)
+fn state_from_config(config: &Value) -> (ForestFireState, bool) {
+    let has_cells = array_field(config, "cells").is_some();
+    let state = ForestFireState {
+        cells: normalize_cells(array_field(config, "cells").unwrap_or_default()),
+        trigger_types: normalize_triggers(None),
+        tree_density_pct: number_field(field(config, "treeDensityPct"), 34, 0, 100),
+        grow_chance_pct: number_field(field(config, "growChancePct"), 5, 0, 100),
+        spread_chance_pct: number_field(field(config, "spreadChancePct"), 70, 0, 100),
+        reseed_threshold_pct: number_field(field(config, "reseedThresholdPct"), 5, 0, 100),
+        lightning_chance_per_thousand: number_field(
+            field(config, "lightningChancePerThousand"),
+            1,
+            0,
+            20,
+        ),
+    };
+    (state, has_cells)
+}
+
+fn field(config: &Value, key: &str) -> Option<Value> {
+    config.as_object()?.get(key).cloned()
+}
+
+fn array_field(config: &Value, key: &str) -> Option<Vec<Value>> {
+    config.as_object().and_then(|object| {
+        object
+            .get(key)
+            .map(|value| value.as_array().cloned().unwrap_or_default())
+    })
+}
+
+fn number_field(value: Option<Value>, default: u8, min: u8, max: u8) -> u8 {
+    match value {
+        Some(value) => value
+            .as_i64()
+            .map(|value| value.clamp(i64::from(min), i64::from(max)) as u8)
+            .or_else(|| {
+                value
+                    .as_u64()
+                    .map(|value| value.clamp(u64::from(min), u64::from(max)) as u8)
+            })
+            .unwrap_or(default),
+        None => default,
+    }
 }
 
 fn normalize_cells(cells: Vec<Value>) -> Vec<u8> {
@@ -208,14 +228,23 @@ fn trigger_for(previous: u8, next: u8) -> CellTriggerType {
 }
 
 fn reseed_if_needed(state: &mut ForestFireState) {
-    let live = state.cells.iter().filter(|cell| **cell != EMPTY).count() * 100;
-    if live >= CELL_COUNT * state.reseed_threshold_pct as usize {
+    let mut live = state.cells.iter().filter(|cell| **cell != EMPTY).count();
+    if live * 100 >= CELL_COUNT * state.reseed_threshold_pct as usize {
         return;
     }
     let target = (CELL_COUNT * state.tree_density_pct as usize / 100).max(1);
+    let mut empty = state
+        .cells
+        .iter()
+        .enumerate()
+        .filter_map(|(index, cell)| (*cell == EMPTY).then_some(index))
+        .collect::<Vec<_>>();
     let mut rng = rand::thread_rng();
-    while state.cells.iter().filter(|cell| **cell != EMPTY).count() < target {
-        state.cells[rng.gen_range(0..CELL_COUNT)] = TREE;
+    while live < target && !empty.is_empty() {
+        let position = rng.gen_range(0..empty.len());
+        let index = empty.swap_remove(position);
+        state.cells[index] = TREE;
+        live += 1;
     }
 }
 
@@ -274,221 +303,5 @@ pub fn forest_fire_config_menu() -> Vec<BehaviorConfigItem> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn spread_burnout_growth_input_action_and_render_contract() {
-        let mut context = BehaviorContext::new(120.0);
-        let mut state = forest_fire_init(serde_json::json!({
-            "treeDensityPct": 0, "reseedThresholdPct": 0, "growChancePct": 0,
-            "spreadChancePct": 100, "lightningChancePerThousand": 0
-        }))
-        .unwrap();
-        state.cells[grid_index(1, 1)] = BURNING;
-        state.cells[grid_index(2, 1)] = TREE;
-        let next = forest_fire_on_tick(state, &mut context);
-        assert_eq!(next.cells[grid_index(1, 1)], EMPTY);
-        assert_eq!(next.cells[grid_index(2, 1)], BURNING);
-        assert_eq!(
-            next.trigger_types[grid_index(2, 1)],
-            CellTriggerType::Activate
-        );
-        assert_eq!(
-            next.trigger_types[grid_index(1, 1)],
-            CellTriggerType::Deactivate
-        );
-
-        let grown = forest_fire_on_tick(
-            forest_fire_init(serde_json::json!({
-                "treeDensityPct": 0, "reseedThresholdPct": 0, "growChancePct": 100,
-                "lightningChancePerThousand": 0
-            }))
-            .unwrap(),
-            &mut context,
-        );
-        assert!(grown.cells.iter().all(|cell| *cell == TREE));
-        assert!(grown
-            .trigger_types
-            .iter()
-            .all(|trigger| *trigger == CellTriggerType::Stable));
-        assert!(forest_fire_on_input(
-            grown.clone(),
-            DeviceInput::GridPress { x: 2, y: 3 },
-            &mut context
-        )
-        .cells
-        .contains(&BURNING));
-        assert!(forest_fire_on_input(
-            grown,
-            DeviceInput::BehaviorAction(BehaviorActionInput {
-                action_type: "igniteRandom".into()
-            }),
-            &mut context,
-        )
-        .cells
-        .contains(&BURNING));
-
-        let model = forest_fire_render_model(&next);
-        assert_eq!(model.name, "forest fire");
-        assert!(model.status_line.starts_with("T:"));
-        assert_eq!(model.trigger_types.unwrap().len(), CELL_COUNT);
-    }
-
-    #[test]
-    fn normalize_config_and_deserialize_state() {
-        let state = forest_fire_deserialize(serde_json::json!({
-            "cells": [9], "triggerTypes": [], "treeDensityPct": 200,
-            "growChancePct": 200, "spreadChancePct": 200, "reseedThresholdPct": 0,
-            "lightningChancePerThousand": 200, "generation": 99, "tickCounter": 99
-        }))
-        .unwrap();
-        assert_eq!(state.cells.len(), CELL_COUNT);
-        assert_eq!(state.trigger_types.len(), CELL_COUNT);
-        assert_eq!(state.cells[0], BURNING);
-        assert_eq!(state.tree_density_pct, 100);
-        assert_eq!(state.lightning_chance_per_thousand, 20);
-        let serialized = crate::behaviors::native_impl::serialize(&state).unwrap();
-        assert!(serialized.get("generation").is_none());
-        assert!(serialized.get("tickCounter").is_none());
-        assert!(serialized.get("triggerTypes").is_none());
-    }
-
-    #[test]
-    fn malformed_large_numbers_clamp_per_field() {
-        let state = forest_fire_deserialize(serde_json::json!({
-            "cells": [300, 1],
-            "treeDensityPct": 300,
-            "growChancePct": 101,
-            "spreadChancePct": 999,
-            "reseedThresholdPct": 0,
-            "lightningChancePerThousand": 1000
-        }))
-        .unwrap();
-        assert_eq!(state.cells[0], BURNING);
-        assert_eq!(state.cells[1], TREE);
-        assert_eq!(state.tree_density_pct, 100);
-        assert_eq!(state.grow_chance_pct, 100);
-        assert_eq!(state.spread_chance_pct, 100);
-        assert_eq!(state.reseed_threshold_pct, 0);
-        assert_eq!(state.lightning_chance_per_thousand, 20);
-    }
-
-    #[test]
-    fn input_replaces_stale_triggers_and_uses_exact_world_coordinate() {
-        let mut context = BehaviorContext::new(120.0);
-        let mut state = forest_fire_init(serde_json::json!({
-            "treeDensityPct": 0, "reseedThresholdPct": 0, "growChancePct": 0,
-            "cells": [1], "triggerTypes": ["deactivate", "activate"]
-        }))
-        .unwrap();
-        state.cells[grid_index(2, 3)] = TREE;
-        let state =
-            forest_fire_on_input(state, DeviceInput::GridPress { x: 2, y: 3 }, &mut context);
-        assert_eq!(state.cells[grid_index(2, 3)], BURNING);
-        assert_eq!(
-            state.trigger_types[grid_index(2, 3)],
-            CellTriggerType::Activate
-        );
-        assert_eq!(
-            state.trigger_types[grid_index(0, 0)],
-            CellTriggerType::Stable
-        );
-        assert!(state
-            .trigger_types
-            .iter()
-            .enumerate()
-            .filter(|(index, _)| *index != grid_index(0, 0) && *index != grid_index(2, 3))
-            .all(|(_, trigger)| *trigger == CellTriggerType::None));
-    }
-
-    #[test]
-    fn pressing_already_burning_cell_does_not_reactivate() {
-        let mut context = BehaviorContext::new(120.0);
-        let mut state = forest_fire_init(serde_json::json!({
-            "treeDensityPct": 0, "reseedThresholdPct": 0, "growChancePct": 0
-        }))
-        .unwrap();
-        state.cells[grid_index(2, 3)] = BURNING;
-        state.trigger_types = vec![CellTriggerType::None; CELL_COUNT];
-
-        let state =
-            forest_fire_on_input(state, DeviceInput::GridPress { x: 2, y: 3 }, &mut context);
-
-        assert_eq!(state.cells[grid_index(2, 3)], BURNING);
-        assert_eq!(state.trigger_types[grid_index(2, 3)], CellTriggerType::None);
-        assert!(state
-            .trigger_types
-            .iter()
-            .all(|trigger| *trigger == CellTriggerType::None));
-    }
-
-    #[test]
-    fn edge_spread_does_not_wrap() {
-        let mut context = BehaviorContext::new(120.0);
-        let mut state = forest_fire_init(serde_json::json!({
-            "treeDensityPct": 0, "reseedThresholdPct": 0, "growChancePct": 0,
-            "spreadChancePct": 100, "lightningChancePerThousand": 0
-        }))
-        .unwrap();
-        state.cells[grid_index(0, 0)] = BURNING;
-        state.cells[grid_index(GRID_WIDTH - 1, 0)] = TREE;
-        let next = forest_fire_on_tick(state, &mut context);
-        assert_eq!(next.cells[grid_index(GRID_WIDTH - 1, 0)], TREE);
-        assert_eq!(
-            next.trigger_types[grid_index(GRID_WIDTH - 1, 0)],
-            CellTriggerType::Stable
-        );
-    }
-
-    #[test]
-    fn reseed_normalizes_render_and_trigger_semantics() {
-        let state = forest_fire_init(serde_json::json!({
-            "treeDensityPct": 25, "reseedThresholdPct": 10, "growChancePct": 0,
-            "triggerTypes": ["activate", "deactivate"]
-        }))
-        .unwrap();
-        let model = forest_fire_render_model(&state);
-        let triggers = model.trigger_types.unwrap();
-        for (index, cell) in state.cells.iter().enumerate() {
-            assert_eq!(model.cells[index], *cell != EMPTY);
-            assert_eq!(
-                triggers[index],
-                match *cell {
-                    TREE => CellTriggerType::Stable,
-                    BURNING => CellTriggerType::Activate,
-                    _ => CellTriggerType::None,
-                }
-            );
-        }
-    }
-
-    #[test]
-    fn reseed_repopulates_near_empty_forest() {
-        let state = forest_fire_init(serde_json::json!({
-            "treeDensityPct": 25, "reseedThresholdPct": 10, "growChancePct": 0
-        }))
-        .unwrap();
-        assert!(state.cells.iter().filter(|cell| **cell == TREE).count() >= CELL_COUNT / 4);
-        assert!(state
-            .cells
-            .iter()
-            .zip(state.trigger_types.iter())
-            .all(|(cell, trigger)| if *cell == TREE {
-                *trigger == CellTriggerType::Stable
-            } else {
-                *trigger == CellTriggerType::None
-            }));
-    }
-
-    #[test]
-    fn config_menu_matches_contract() {
-        let menu = forest_fire_config_menu();
-        assert_eq!(menu[0].key, "treeDensityPct");
-        assert_eq!(menu[4].key, "lightningChancePerThousand");
-        assert_eq!(menu[4].label, "Lightning");
-        assert_eq!(menu[4].min, Some(0));
-        assert_eq!(menu[4].max, Some(20));
-        assert_eq!(menu[5].key, "igniteRandom");
-    }
-}
+#[path = "forest_fire_tests.rs"]
+mod tests;

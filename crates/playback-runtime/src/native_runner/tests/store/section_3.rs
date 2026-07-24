@@ -244,7 +244,7 @@ pub(crate) fn patch_envelope_device_fields_do_not_override_local_device_config()
     runner
         .apply_patch_payload_preserving_device(json!({
             "kind": "octessera.patch",
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "runtimeConfig": {
                 "activeBehavior": "sequencer",
                 "layers": [{ "worlds": { "behaviorId": "sequencer" } }],
@@ -272,7 +272,7 @@ pub(crate) fn recovery_usb_reboot_and_backup_remain_full_payloads() {
             _ => panic!("unexpected effect"),
         };
         assert_eq!(payload["kind"], "octessera.config");
-        assert_eq!(payload["schemaVersion"], 1);
+        assert_eq!(payload["schemaVersion"], 2);
         assert!(!payload["runtimeConfig"]["usb"].is_null());
         assert!(!payload["runtimeConfig"]["midi"].is_null());
     }
@@ -287,7 +287,7 @@ pub(crate) fn recovery_usb_reboot_and_backup_remain_full_payloads() {
                 effect,
                 RuntimePlatformEffect::StoreSaveBackup { payload }
                     if payload["kind"] == "octessera.config"
-                        && payload["schemaVersion"] == 1
+                        && payload["schemaVersion"] == 2
                         && !payload["runtimeConfig"]["usb"].is_null()
                         && !payload["runtimeConfig"]["midi"].is_null()
             ))

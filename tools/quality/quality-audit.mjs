@@ -6,8 +6,8 @@ const INCLUDE_EXT = new Set([".mjs", ".rs", ".ts", ".tsx"]);
 const IGNORE_DIRS = new Set(["node_modules", "dist", "build", "target", ".git", ".turbo", ".pnpm-store", "coverage", "signalsmith-stretch"]);
 
 const thresholds = {
-  fileLocWarn: 500,
-  fileLocHard: 800,
+  fileLocWarn: 300,
+  fileLocFail: 500,
   fnLocWarn: 60,
   fnLocHard: 90,
   complexityWarn: 10,
@@ -96,6 +96,7 @@ for (const file of files) {
 }
 
 const largeFiles = fileStats.filter((f) => f.loc > thresholds.fileLocWarn).sort((a, b) => b.loc - a.loc);
+const fileLimitViolations = fileStats.filter((f) => f.loc > thresholds.fileLocFail).sort((a, b) => b.loc - a.loc);
 const complexFns = fnStats.filter((f) => f.complexity > thresholds.complexityWarn).sort((a, b) => b.complexity - a.complexity);
 const longFns = fnStats.filter((f) => f.loc > thresholds.fnLocWarn).sort((a, b) => b.loc - a.loc);
 const wideFns = fnStats.filter((f) => f.paramCount > thresholds.paramsWarn).sort((a, b) => b.paramCount - a.paramCount);
@@ -108,22 +109,23 @@ if (missingPiImageAssets.length > 0) {
 }
 report.push("# Code Quality Baseline");
 report.push("");
-report.push("## Standards (Staged Warning Mode)");
-report.push(`- File LOC warn/hard: ${thresholds.fileLocWarn}/${thresholds.fileLocHard}`);
-report.push(`- Function LOC warn/hard: ${thresholds.fnLocWarn}/${thresholds.fnLocHard}`);
-report.push(`- Cyclomatic complexity warn/hard: ${thresholds.complexityWarn}/${thresholds.complexityHard}`);
-report.push(`- Function params warn/hard: ${thresholds.paramsWarn}/${thresholds.paramsHard}`);
+report.push("## Standards");
+report.push(`- File LOC: warning at > ${thresholds.fileLocWarn}; failure at > ${thresholds.fileLocFail} (enforced)`);
+report.push(`- Function LOC: warning at > ${thresholds.fnLocWarn} (informational; staged hard threshold > ${thresholds.fnLocHard} is not enforced)`);
+report.push(`- Cyclomatic complexity: warning at > ${thresholds.complexityWarn} (informational; staged hard threshold > ${thresholds.complexityHard} is not enforced)`);
+report.push(`- Function params: warning at > ${thresholds.paramsWarn} (informational; staged hard threshold > ${thresholds.paramsHard} is not enforced)`);
 report.push("");
 report.push("## Summary");
 report.push(`- Files scanned: ${fileStats.length}`);
 report.push(`- Functions scanned (named function declarations): ${fnStats.length}`);
-report.push(`- Large files (> ${thresholds.fileLocWarn} LOC): ${largeFiles.length}`);
+report.push(`- Files above warning threshold (> ${thresholds.fileLocWarn} LOC): ${largeFiles.length}`);
+report.push(`- Files over enforced limit (> ${thresholds.fileLocFail} LOC): ${fileLimitViolations.length}`);
 report.push(`- Complex functions (> ${thresholds.complexityWarn}): ${complexFns.length}`);
 report.push(`- Long functions (> ${thresholds.fnLocWarn} LOC): ${longFns.length}`);
 report.push(`- Wide signatures (> ${thresholds.paramsWarn} params): ${wideFns.length}`);
 report.push("");
 
-report.push("## Top Large Files");
+report.push("## Top File LOC Warnings");
 for (const f of largeFiles.slice(0, 20)) report.push(`- ${f.file}: ${f.loc} LOC`);
 report.push("");
 
@@ -144,3 +146,9 @@ if (namingHits.length === 0) {
 report.push("");
 
 console.log(report.join("\n"));
+
+if (fileLimitViolations.length > 0) {
+  console.error(`Quality audit failed: ${fileLimitViolations.length} file(s) exceed the enforced > ${thresholds.fileLocFail} LOC limit.`);
+  for (const f of fileLimitViolations) console.error(`- ${f.file}: ${f.loc} LOC`);
+  process.exitCode = 1;
+}

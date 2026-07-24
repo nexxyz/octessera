@@ -85,10 +85,11 @@ Release assets:
 - `octessera-<version>-macos-unsigned.dmg`: unsigned macOS DMG.
 - `octessera-<version>-ubuntu-amd64.deb`: Ubuntu/Debian package.
 - `octessera-<version>-ubuntu-x86_64.AppImage`: portable Linux AppImage.
-- `octessera-<version>-pi-zero-2w.img.zip`: ready-to-flash Raspberry Pi Zero 2 W image, including `os_list.rpi-imager-manifest` for Raspberry Pi Imager.
-- `octessera-<version>-pi-zero-2w.rpi-imager-manifest`: standalone Raspberry Pi Imager manifest copy.
-- `octessera-<version>-device-aarch64.zip`: Linux aarch64 device update payload for the on-device updater.
-- `SHA256SUMS-*.txt`: checksums for release assets.
+- `octessera-<version>-raspberry-pi-zero-2w.img.zip`: ready-to-flash Raspberry Pi Zero 2 W image, including `os_list.rpi-imager-manifest` for Raspberry Pi Imager.
+- `octessera-<version>-raspberry-pi-zero-2w.rpi-imager-manifest`: standalone Raspberry Pi Imager manifest copy.
+- `octessera-<version>-raspberry-pi-zero-2w-device-aarch64.zip`: Raspberry Pi profile-qualified Linux aarch64 device update payload.
+- `SHA256SUMS-raspberry-pi-zero-2w-device.txt`: checksum for the Raspberry Pi device update payload.
+- `SHA256SUMS-*.txt`: checksums for the other release assets.
 
 Release process:
 
@@ -104,7 +105,11 @@ The Pi image build is a necessary slow path because it generates a full Raspberr
 
 The release Pi image must be sanitized: no WiFi credentials, SSH keys, GitHub tokens, host logs, or local user secrets. SSH is disabled by default.
 
-Device updates use `/usr/local/sbin/octessera-update` on Pi-family images. It downloads `octessera-<version>-device-aarch64.zip` and `SHA256SUMS-device.txt` from GitHub releases, verifies the checksum and manifest, installs into `/opt/octessera/releases/<version>`, then atomically switches `/opt/octessera/current` and `/usr/local/bin/octessera-pi`. `octessera-update rollback` switches back to the previous recorded release.
+Device updates use `/usr/local/sbin/octessera-update` on Pi-family images. Assets are profile-qualified: the Raspberry Pi updater fetches `octessera-<version>-raspberry-pi-zero-2w-device-aarch64.zip` with `SHA256SUMS-raspberry-pi-zero-2w-device.txt`, verifies the checksum and embedded board-profile manifest, and stages an immutable candidate under `/opt/octessera/releases/<version>`. Orange online update check/apply is refused before network access until a matching Orange Pi release ZIP and checksum asset exists; an Orange device must not consume Raspberry assets.
+
+Apply and rollback use a guarded transaction. The guard verifies the candidate service restart, process identity, and a stability window; downloaded Apply candidates also require a matching package-version/profile readiness marker. If validation fails or times out, the updater restores the previous current link and starts a verified fallback automatically. It commits the candidate only after validation succeeds. `Apply` may return `Update health validation scheduled.` before that commit; this is a scheduling acknowledgement, not a claim that the update passed.
+
+Legacy installations without board-profile metadata are not eligible for new online releases. Provision or update the OS bundle to install the current profile metadata and updater, or reflash the device. The legacy updater must not apply new releases.
 
 ## Armbian Image Workflow
 
@@ -260,6 +265,9 @@ cargo install sccache --locked
 
 ## Pi Builds Without Hardware
 
+See [`board-profiles.md`](board-profiles.md) for the canonical IDs, retained
+Cargo aliases, and Raspberry/Orange image boundary.
+
 Host-stub Pi app build:
 
 ```bash
@@ -269,6 +277,9 @@ cargo build -p octessera-pi
 Hardware HAL target check when the Rust target is installed:
 
 ```bash
+cargo check --target aarch64-unknown-linux-gnu -p octessera-hal --features raspberry-pi-zero-2w
+
+# Compatibility alias retained during the profile transition.
 cargo check --target aarch64-unknown-linux-gnu -p octessera-hal --features pi-zero
 ```
 
@@ -277,7 +288,7 @@ cargo check --target aarch64-unknown-linux-gnu -p octessera-hal --features pi-ze
 Provision a development Pi, or refresh its tracked OS and boot configuration, with `./tools/pi/provision-pi.ps1`. This is separate from fast deployment and is safe to repeat. Pass `-UpdateInitramfs` when the early boot splash or its boot configuration needs to be refreshed; pass `-WakeTrace` only when enabling the development wake trace in the service configuration.
 
 ```powershell
-./tools/pi/provision-pi.ps1 -Target pi@192.168.0.211
+./tools/pi/provision-pi.ps1 -Target pi@192.168.0.211 -BoardProfile raspberry-pi-zero-2w
 ```
 
 Preferred fast path: run `./tools/pi/build-pi-cross.ps1` to produce a Linux ARM binary, then upload it with `./tools/pi/deploy-pi-fast.ps1 -LocalBinary target/pi-cross/octessera-pi -NoTail`. The deployment helper only transfers binary/source content, restarts the configured service, and optionally tails its logs. On Windows, the build helper uses WSL2 Docker automatically when available. Native cross-builds are still supported with an ARM Linux sysroot and cross `pkg-config` setup for ALSA.
@@ -285,21 +296,24 @@ Preferred fast path: run `./tools/pi/build-pi-cross.ps1` to produce a Linux ARM 
 ```powershell
 ./tools/pi/build-pi-cross.ps1
 ./tools/pi/deploy-pi-fast.ps1 -Target pi@192.168.0.211 -LocalBinary target/pi-cross/octessera-pi -NoTail
+# The adjacent target/pi-cross/octessera-pi.metadata.json is checked during deployment.
 ```
 
 On a Pi or properly configured cross environment:
 
 ```bash
-cargo build -p octessera-pi --features hardware-pi
+cargo build -p octessera-pi --features hardware-raspberry-pi-zero-2w
 ```
 
 Low-resource on-Pi fallback:
 
 ```bash
-CARGO_BUILD_JOBS=1 cargo build --profile pi-dev -p octessera-pi --features hardware-pi
+CARGO_BUILD_JOBS=1 cargo build --profile pi-dev -p octessera-pi --features hardware-raspberry-pi-zero-2w
 ```
 
 ## Orange Pi Armbian Image
+
+`raspberry-pi-zero-2w` and `orange-pi-zero-2w` are the canonical board profile IDs. Raspberry Pi build, deploy, provision, and pi-gen image tooling accepts only the former and rejects the latter. The Orange Pi profile has no HAL pins or runtime backend yet; its separate Armbian workflow is bring-up infrastructure only. Its online updater remains refused until a profile-specific Orange Pi release exists.
 
 The `Armbian Image` GitHub Actions workflow builds the Orange Pi Armbian image. Run validation first:
 
@@ -322,6 +336,7 @@ Local validation before pushing image changes:
 
 ```bash
 bash tools/armbian-image/validate.sh
+python3 tools/pi-image/test-board-profile.py
 node --check userpatches/overlay/usr/local/share/octessera-setup-ui/app.js
 git diff --check
 ```

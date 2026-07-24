@@ -3,13 +3,8 @@ use super::*;
 #[test]
 pub(crate) fn sparks_xy_binding_updates_native_runtime_config() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.xy_touch = NativeXyTouch {
-        x: 1.0,
-        y: 0.5,
-        display_x: 1.0,
-        display_y: 0.5,
-        active: true,
-    };
+    runner.active_sparks_mode = "xy".into();
+    runner.xy_invert_x = true;
     runner.xy_x_binding = Some(NativeParamBinding {
         key: "sound.velocityScalePct".into(),
         label: Some("Velocity Scale".into()),
@@ -23,11 +18,16 @@ pub(crate) fn sparks_xy_binding_updates_native_runtime_config() {
         invert: true,
     });
 
-    runner.apply_runtime_modulation(&[], 0);
+    let _messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 0, "y": 4 }),
+            request_snapshot: None,
+        })
+        .unwrap();
 
     assert_eq!(runner.global_sound.velocity_scale_pct, 200);
     assert_eq!(
-        runner.config_payload()["runtimeConfig"]["layers"][0]["xy"]["x"]["key"],
+        runner.config_payload()["runtimeConfig"]["xy"]["x"]["key"],
         "sound.velocityScalePct"
     );
 }
@@ -72,13 +72,7 @@ pub(crate) fn xy_mapping_execute_action_keeps_menu_on_xy_axis_picker() {
 #[test]
 pub(crate) fn xy_binding_can_drive_pulses_fx_bus_and_global_fx_params() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.xy_touch = NativeXyTouch {
-        x: 1.0,
-        y: 1.0,
-        display_x: 1.0,
-        display_y: 1.0,
-        active: true,
-    };
+    runner.active_sparks_mode = "xy".into();
     runner.fx_buses[0].slot1_type = "delay".into();
     runner.fx_buses[0].slot1_params = json!({ "feedback": 0.35, "timeMs": 250, "mixPct": 35 });
     runner.global_fx_slots[0] = "vinyl".into();
@@ -109,38 +103,50 @@ pub(crate) fn xy_binding_can_drive_pulses_fx_bus_and_global_fx_params() {
         invert: false,
     });
 
-    runner.apply_runtime_modulation(&[], 0);
+    let _messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 7, "y": 7 }),
+            request_snapshot: None,
+        })
+        .unwrap();
 
     assert_eq!(runner.pulses_layers[0].x_pitch_steps, 16);
     assert_eq!(runner.fx_buses[0].slot1_params["feedback"], json!(0.98));
 
-    runner.xy_x_binding = Some(NativeParamBinding {
-        key: "mixer.master.slots.0.params.cracklePct".into(),
-        label: Some("Crackle".into()),
-        kind: "number".into(),
-        min: Some(0.0),
-        max: Some(100.0),
-        step: Some(1.0),
-        user_min: None,
-        user_max: None,
-        options: vec![],
-        invert: false,
-    });
-    runner.xy_y_binding = Some(NativeParamBinding {
-        key: "sparks.fx.params.rateHz".into(),
-        label: Some("Rate Hz".into()),
-        kind: "number".into(),
-        min: Some(1.0),
-        max: Some(32.0),
-        step: Some(1.0),
-        user_min: None,
-        user_max: None,
-        options: vec![],
-        invert: false,
-    });
+    runner.set_param_binding_target(
+        "xy:x",
+        Some(NativeParamBinding {
+            key: "mixer.master.slots.0.params.cracklePct".into(),
+            label: Some("Crackle".into()),
+            kind: "number".into(),
+            min: Some(0.0),
+            max: Some(100.0),
+            step: Some(1.0),
+            user_min: None,
+            user_max: None,
+            options: vec![],
+            invert: false,
+        }),
+    );
+    runner.set_param_binding_target(
+        "xy:y",
+        Some(NativeParamBinding {
+            key: "sparks.fx.params.rateHz".into(),
+            label: Some("Rate Hz".into()),
+            kind: "number".into(),
+            min: Some(1.0),
+            max: Some(32.0),
+            step: Some(1.0),
+            user_min: None,
+            user_max: None,
+            options: vec![],
+            invert: false,
+        }),
+    );
     runner.sparks_fx_selected = json!({ "fxType": "stutter", "targetKey": "master", "params": { "rateHz": 8, "depthPct": 100 } });
 
-    runner.apply_runtime_modulation(&[], 0);
+    runner.refresh_xy_runtime_sources();
+    runner.process_modulation_step(false).unwrap();
 
     assert_eq!(runner.global_fx_params[0]["cracklePct"], json!(100));
     assert_eq!(runner.sparks_fx_selected["params"]["rateHz"], json!(32.0));
@@ -149,13 +155,7 @@ pub(crate) fn xy_binding_can_drive_pulses_fx_bus_and_global_fx_params() {
 #[test]
 pub(crate) fn xy_fx_param_bindings_emit_live_audio_commands_and_scale_mid_q() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.xy_touch = NativeXyTouch {
-        x: 1.0,
-        y: 1.0,
-        display_x: 1.0,
-        display_y: 1.0,
-        active: true,
-    };
+    runner.active_sparks_mode = "xy".into();
     runner.fx_buses[0].slot3_type = "eq".into();
     runner.fx_buses[0].slot3_params = json!({ "midQ": 1.0, "mixPct": 100 });
     runner.global_fx_slots[0] = "eq".into();
@@ -185,16 +185,30 @@ pub(crate) fn xy_fx_param_bindings_emit_live_audio_commands_and_scale_mid_q() {
         invert: false,
     });
 
-    runner.apply_runtime_modulation(&[], 0);
-    let commands = runner.outbox.drain_audio_commands();
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 7, "y": 7 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let commands = messages
+        .into_iter()
+        .find_map(|message| match message {
+            RunnerMessage::AudioCommands { commands } => Some(commands),
+            _ => None,
+        })
+        .unwrap_or_default();
 
     assert_eq!(runner.fx_buses[0].slot3_params["midQ"], json!(20.0));
     assert_eq!(runner.global_fx_params[0]["midQ"], json!(20.0));
-    assert!(commands.iter().any(|command| matches!(
-        command,
-        RuntimeAudioCommand::SetFxBusSlot { bus_index: 0, slot_index: 2, params, .. }
-            if params.get("midQ") == Some(&json!(20.0))
-    )));
+    assert!(
+        commands.iter().any(|command| matches!(
+            command,
+            RuntimeAudioCommand::SetFxBusSlot { bus_index: 0, slot_index: 2, params, .. }
+                if params.get("midQ") == Some(&json!(20.0))
+        )),
+        "{commands:?}"
+    );
     assert!(commands.iter().any(|command| matches!(
         command,
         RuntimeAudioCommand::SetGlobalFxSlot { slot_index: 0, params, .. }
@@ -205,11 +219,10 @@ pub(crate) fn xy_fx_param_bindings_emit_live_audio_commands_and_scale_mid_q() {
 #[test]
 pub(crate) fn invalid_aux_and_xy_bindings_are_dropped_on_load() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut payload = runner.config_payload();
+    let mut payload = legacy_payload(runner.config_payload());
     payload["runtimeConfig"]["auxBindings"] = json!({ "aux1": { "turnKey": "../../bad", "pressAction": null }, "aux2": { "turnKey": "sound.noteLengthMs", "pressAction": null } });
-    payload["runtimeConfig"]["layers"][0]["xy"]["x"] =
-        json!({ "key": "unknown.path", "kind": "number" });
-    payload["runtimeConfig"]["layers"][0]["xy"]["y"] = json!({ "key": "instruments.0.mixer.volume", "kind": "number", "min": 0, "max": 100, "step": 1 });
+    payload["runtimeConfig"]["xy"]["x"] = json!({ "key": "unknown.path", "kind": "number" });
+    payload["runtimeConfig"]["xy"]["y"] = json!({ "key": "instruments.0.mixer.volume", "kind": "number", "min": 0, "max": 100, "step": 1 });
 
     runner.apply_config_payload(payload).unwrap();
 
@@ -228,13 +241,7 @@ pub(crate) fn invalid_aux_and_xy_bindings_are_dropped_on_load() {
 #[test]
 pub(crate) fn numeric_binding_user_range_maps_values_and_round_trips() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.xy_touch = NativeXyTouch {
-        x: 0.5,
-        y: 0.0,
-        display_x: 0.5,
-        display_y: 0.0,
-        active: true,
-    };
+    runner.active_sparks_mode = "xy".into();
     runner.xy_x_binding = Some(NativeParamBinding {
         key: "instruments.0.mixer.volume".into(),
         label: Some("Volume".into()),
@@ -248,15 +255,20 @@ pub(crate) fn numeric_binding_user_range_maps_values_and_round_trips() {
         invert: false,
     });
 
-    runner.apply_runtime_modulation(&[], 0);
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 3, "y": 0 }),
+            request_snapshot: None,
+        })
+        .unwrap();
 
-    assert_eq!(runner.instruments[0].volume, 50);
+    assert_eq!(runner.instruments[0].volume, 46);
     assert_eq!(
-        runner.config_payload()["runtimeConfig"]["layers"][0]["xy"]["x"]["userMin"],
+        runner.config_payload()["runtimeConfig"]["xy"]["x"]["userMin"],
         20.0
     );
     assert_eq!(
-        runner.config_payload()["runtimeConfig"]["layers"][0]["xy"]["x"]["userMax"],
+        runner.config_payload()["runtimeConfig"]["xy"]["x"]["userMax"],
         80.0
     );
 }
@@ -264,19 +276,12 @@ pub(crate) fn numeric_binding_user_range_maps_values_and_round_trips() {
 #[test]
 pub(crate) fn custom_range_invert_equal_and_partial_ranges_are_sanitized() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.active_sparks_mode = "xy".into();
     runner.xy_invert_x = true;
-    runner.xy_touch = NativeXyTouch {
-        x: 0.25,
-        y: 0.0,
-        display_x: 0.25,
-        display_y: 0.0,
-        active: true,
-    };
     runner
         .apply_config_payload(json!({
             "runtimeConfig": {
-                "layers": [{
-                    "xy": {
+                "xy": {
                         "x": {
                             "key": "instruments.0.mixer.volume",
                             "label": "Volume",
@@ -289,27 +294,32 @@ pub(crate) fn custom_range_invert_equal_and_partial_ranges_are_sanitized() {
                             "invert": true
                         }
                     }
-                }]
-            }
+                }
         }))
         .unwrap();
 
+    runner.active_sparks_mode = "xy".into();
     let binding = runner.xy_x_binding.as_ref().unwrap();
     assert_eq!(binding.user_min, Some(10.0));
     assert_eq!(binding.user_max, Some(90.0));
-    runner.apply_runtime_modulation(&[], 0);
-    assert_eq!(runner.instruments[0].volume, 70);
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 2, "y": 0 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    assert_eq!(runner.instruments[0].volume, 67);
 
-    runner.xy_x_binding.as_mut().unwrap().user_min = Some(42.0);
-    runner.xy_x_binding.as_mut().unwrap().user_max = Some(42.0);
-    runner.apply_runtime_modulation(&[], 0);
+    runner.set_param_binding_range_value("xy:x", true, 42);
+    runner.set_param_binding_range_value("xy:x", false, 42);
     assert_eq!(runner.instruments[0].volume, 42);
 
     runner.xy_invert_x = false;
     runner.xy_x_binding.as_mut().unwrap().user_min = None;
     runner.xy_x_binding.as_mut().unwrap().user_max = Some(60.0);
-    runner.apply_runtime_modulation(&[], 0);
-    assert_eq!(runner.instruments[0].volume, 15);
+    runner.refresh_xy_runtime_sources();
+    runner.process_modulation_step(false).unwrap();
+    assert_eq!(runner.instruments[0].volume, 43);
 }
 
 #[test]
@@ -318,8 +328,7 @@ pub(crate) fn enum_and_bool_bindings_drop_user_ranges_on_load() {
     runner
         .apply_config_payload(json!({
             "runtimeConfig": {
-                "layers": [{
-                    "xy": {
+                "xy": {
                         "x": {
                             "key": "sound.voiceStealingMode",
                             "label": "Steal",
@@ -329,8 +338,7 @@ pub(crate) fn enum_and_bool_bindings_drop_user_ranges_on_load() {
                             "userMax": 20
                         }
                     }
-                }]
-            }
+                }
         }))
         .unwrap();
 
@@ -421,7 +429,7 @@ pub(crate) fn instrument_filter_aux_and_xy_bindings_survive_config_load() {
     payload["runtimeConfig"]["auxBindings"] = json!({
         "aux1": { "turnKey": "instruments.1.sample.filter.cutoffHz", "pressAction": null }
     });
-    payload["runtimeConfig"]["layers"][0]["xy"]["x"] = json!({
+    payload["runtimeConfig"]["xy"]["x"] = json!({
         "key": "instruments.0.synth.filter.cutoffHz",
         "label": "Cutoff",
         "kind": "number",
@@ -429,7 +437,7 @@ pub(crate) fn instrument_filter_aux_and_xy_bindings_survive_config_load() {
         "max": 255,
         "step": 1
     });
-    payload["runtimeConfig"]["layers"][0]["xy"]["y"] = json!({
+    payload["runtimeConfig"]["xy"]["y"] = json!({
         "key": "instruments.0.synth.filter.resonance",
         "label": "Res",
         "kind": "number",

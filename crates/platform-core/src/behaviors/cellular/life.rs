@@ -3,7 +3,7 @@ use crate::behavior::{
     BehaviorRenderModel, CellTriggerType, DeviceInput,
 };
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
-use rand::Rng;
+use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -24,7 +24,7 @@ pub struct LifeState {
     pub width: usize,
     pub height: usize,
     pub cells: Vec<bool>,
-    #[serde(default, skip_serializing)]
+    #[serde(default, skip_serializing, skip_deserializing)]
     pub generation: usize,
     #[serde(rename = "randomCellsPerTick")]
     pub random_cells_per_tick: usize,
@@ -34,46 +34,14 @@ pub struct LifeState {
     pub glider_spawn_interval: usize,
     #[serde(rename = "spawnStep")]
     pub spawn_step: usize,
-    #[serde(rename = "tickCounter", default, skip_serializing)]
+    #[serde(rename = "tickCounter", default, skip_serializing, skip_deserializing)]
     pub tick_counter: usize,
     #[serde(rename = "triggerTypes")]
     pub trigger_types: Vec<CellTriggerType>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct LifeConfig {
-    #[serde(rename = "randomCellsPerTick")]
-    pub random_cells_per_tick: Option<usize>,
-    #[serde(rename = "randomTickInterval")]
-    pub random_tick_interval: Option<usize>,
-    #[serde(rename = "gliderSpawnInterval")]
-    pub glider_spawn_interval: Option<usize>,
-    #[serde(rename = "spawnStep")]
-    pub spawn_step: Option<usize>,
-}
-
 pub fn init(config: Value) -> Result<LifeState, String> {
-    let seed_default = config
-        .as_object()
-        .map(|object| !object.contains_key("cells"))
-        .unwrap_or(true);
-    let config: LifeConfig = serde_json::from_value(config).unwrap_or_default();
-    let mut cells = vec![false; CELL_COUNT];
-    if seed_default {
-        seed_blinker(&mut cells);
-    }
-    Ok(LifeState {
-        width: GRID_WIDTH,
-        height: GRID_HEIGHT,
-        cells,
-        generation: 0,
-        random_cells_per_tick: config.random_cells_per_tick.unwrap_or(0),
-        random_tick_interval: config.random_tick_interval.unwrap_or(1),
-        glider_spawn_interval: config.glider_spawn_interval.unwrap_or(0),
-        spawn_step: config.spawn_step.unwrap_or(0).min(63),
-        tick_counter: 0,
-        trigger_types: vec![CellTriggerType::None; CELL_COUNT],
-    })
+    Ok(from_value(&config))
 }
 
 fn seed_glider(cells: &mut [bool], origin_x: usize, origin_y: usize) {
@@ -98,15 +66,7 @@ pub fn on_input(state: LifeState, input: DeviceInput, _context: &mut BehaviorCon
             if action_type == "spawnRandom" =>
         {
             let mut next = state.clone();
-            let mut rng = rand::thread_rng();
-            for _ in 0..5 {
-                let x = rng.gen_range(0..GRID_WIDTH);
-                let y = rng.gen_range(0..GRID_HEIGHT);
-                let index = grid_index(x, y);
-                if !next.cells[index] {
-                    next.cells[index] = true;
-                }
-            }
+            spawn_random_cells(&mut next.cells, next.random_cells_per_tick);
             next.trigger_types = trigger_types_from_cells(&state.cells, &next.cells);
             next
         }
@@ -153,26 +113,23 @@ pub fn on_tick(state: LifeState, _context: &mut BehaviorContext) -> LifeState {
         }
     }
 
-    let next_tick_counter = state.tick_counter + 1;
+    let next_tick_counter = state.tick_counter.saturating_add(1);
     if state.random_cells_per_tick > 0
         && state.random_tick_interval > 0
-        && (next_tick_counter - 1) % state.random_tick_interval
+        && state.tick_counter % state.random_tick_interval
             == state.spawn_step % state.random_tick_interval
     {
-        let mut rng = rand::thread_rng();
-        for _ in 0..state.random_cells_per_tick {
-            let x = rng.gen_range(0..GRID_WIDTH);
-            let y = rng.gen_range(0..GRID_HEIGHT);
-            let index = grid_index(x, y);
-            if !next_cells[index] {
-                next_cells[index] = true;
+        let previous = next_cells.clone();
+        spawn_random_cells(&mut next_cells, state.random_cells_per_tick);
+        for index in 0..CELL_COUNT {
+            if !previous[index] && next_cells[index] {
                 trigger_types[index] = CellTriggerType::Activate;
             }
         }
     }
 
     if state.glider_spawn_interval > 0
-        && (next_tick_counter - 1) % state.glider_spawn_interval
+        && state.tick_counter % state.glider_spawn_interval
             == state.spawn_step % state.glider_spawn_interval
     {
         spawn_glider(&mut next_cells, &mut trigger_types, 0, 0);
@@ -182,7 +139,7 @@ pub fn on_tick(state: LifeState, _context: &mut BehaviorContext) -> LifeState {
         width: state.width,
         height: state.height,
         cells: next_cells,
-        generation: state.generation + 1,
+        generation: state.generation.saturating_add(1),
         random_cells_per_tick: state.random_cells_per_tick,
         random_tick_interval: state.random_tick_interval,
         glider_spawn_interval: state.glider_spawn_interval,
@@ -281,11 +238,106 @@ fn spawn_glider(
 }
 
 pub fn serialize(state: &LifeState) -> Result<Value, String> {
+    let mut state = state.clone();
+    normalize(&mut state);
     serde_json::to_value(state).map_err(|error| error.to_string())
 }
 
 pub fn deserialize(data: Value) -> Result<LifeState, String> {
-    serde_json::from_value(data).map_err(|error| error.to_string())
+    Ok(from_value(&data))
+}
+
+fn from_value(data: &Value) -> LifeState {
+    let cells = array_field(data, "cells")
+        .map(normalize_cells)
+        .unwrap_or_else(|| {
+            let mut cells = vec![false; CELL_COUNT];
+            seed_blinker(&mut cells);
+            cells
+        });
+    let mut state = LifeState {
+        width: GRID_WIDTH,
+        height: GRID_HEIGHT,
+        cells,
+        generation: 0,
+        random_cells_per_tick: number_field(data, "randomCellsPerTick", 0, 0, 20),
+        random_tick_interval: number_field(data, "randomTickInterval", 1, 1, 20),
+        glider_spawn_interval: number_field(data, "gliderSpawnInterval", 0, 0, 20),
+        spawn_step: number_field(data, "spawnStep", 0, 0, 63),
+        tick_counter: 0,
+        trigger_types: normalize_triggers(array_field(data, "triggerTypes")),
+    };
+    normalize(&mut state);
+    state
+}
+
+fn normalize(state: &mut LifeState) {
+    state.width = GRID_WIDTH;
+    state.height = GRID_HEIGHT;
+    state.cells.resize(CELL_COUNT, false);
+    state.cells.truncate(CELL_COUNT);
+    state
+        .trigger_types
+        .resize(CELL_COUNT, CellTriggerType::None);
+    state.trigger_types.truncate(CELL_COUNT);
+    state.random_cells_per_tick = state.random_cells_per_tick.clamp(0, 20);
+    state.random_tick_interval = state.random_tick_interval.clamp(1, 20);
+    state.glider_spawn_interval = state.glider_spawn_interval.clamp(0, 20);
+    state.spawn_step = state.spawn_step.clamp(0, 63);
+}
+
+fn array_field(data: &Value, key: &str) -> Option<Vec<Value>> {
+    data.as_object().and_then(|object| {
+        object
+            .get(key)
+            .map(|value| value.as_array().cloned().unwrap_or_default())
+    })
+}
+
+fn number_field(data: &Value, key: &str, default: usize, min: usize, max: usize) -> usize {
+    let Some(value) = data.as_object().and_then(|object| object.get(key)) else {
+        return default;
+    };
+    if let Some(value) = value.as_i64() {
+        return value.clamp(min as i64, max as i64) as usize;
+    }
+    value
+        .as_u64()
+        .map(|value| value.clamp(min as u64, max as u64) as usize)
+        .unwrap_or(default)
+}
+
+fn normalize_cells(cells: Vec<Value>) -> Vec<bool> {
+    let mut cells = cells
+        .into_iter()
+        .map(|cell| cell.as_bool().unwrap_or(false))
+        .collect::<Vec<_>>();
+    cells.resize(CELL_COUNT, false);
+    cells.truncate(CELL_COUNT);
+    cells
+}
+
+fn normalize_triggers(triggers: Option<Vec<Value>>) -> Vec<CellTriggerType> {
+    let mut triggers = triggers
+        .unwrap_or_default()
+        .into_iter()
+        .map(|trigger| serde_json::from_value(trigger).unwrap_or(CellTriggerType::None))
+        .collect::<Vec<_>>();
+    triggers.resize(CELL_COUNT, CellTriggerType::None);
+    triggers.truncate(CELL_COUNT);
+    triggers
+}
+
+fn spawn_random_cells(cells: &mut [bool], count: usize) {
+    let mut available = cells
+        .iter()
+        .enumerate()
+        .filter_map(|(index, cell)| (!*cell).then_some(index))
+        .collect::<Vec<_>>();
+    available.shuffle(&mut rand::thread_rng());
+    for index in available.into_iter().take(count) {
+        cells[index] = true;
+    }
 }
 
 fn count_neighbors(cells: &[bool], x: usize, y: usize) -> usize {

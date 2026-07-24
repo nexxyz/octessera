@@ -1,11 +1,10 @@
 use playback_runtime::RunnerMessage;
 use realtime_engine::synth::DEFAULT_AUDIO_SAMPLE_RATE;
 use rodio::{OutputStream, OutputStreamHandle, Sink};
-use rodio_engine_source::{EngineEventReceiver, EngineSource};
+use rodio_engine_source::{AudioLoadStatusSender, EngineEventReceiver, EngineSource};
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
-use std::sync::mpsc::Sender;
 
 #[derive(Deserialize)]
 #[serde(tag = "type")]
@@ -69,7 +68,7 @@ impl AudioRuntime {
     pub(crate) fn start_engine(
         &self,
         control_rx: EngineEventReceiver,
-        load_tx: Sender<realtime_engine::synth::AudioLoadStatus>,
+        load_tx: AudioLoadStatusSender,
     ) -> Result<(), String> {
         let source =
             EngineSource::with_load_status_tx(control_rx, DEFAULT_AUDIO_SAMPLE_RATE, Some(load_tx));
@@ -114,10 +113,6 @@ pub(crate) enum QueuedAudioEvent {
         sample_banks: Option<Vec<realtime_engine::synth::SampleBankConfig>>,
         voice_stealing_mode: Option<realtime_engine::synth::VoiceStealingMode>,
     },
-    SetSampleBank {
-        instrument_slot: usize,
-        bank: realtime_engine::synth::SampleBankConfig,
-    },
     SetMasterVolume {
         volume_pct: f32,
     },
@@ -129,6 +124,7 @@ pub(crate) enum QueuedAudioEvent {
     SetInstrumentSlot {
         instrument_slot: usize,
         config: realtime_engine::synth::InstrumentSlotConfig,
+        sample_bank: Option<realtime_engine::synth::SampleBankConfig>,
     },
     SetFxBusMixer {
         bus_index: usize,

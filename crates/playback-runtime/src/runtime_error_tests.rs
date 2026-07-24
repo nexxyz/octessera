@@ -395,3 +395,51 @@ fn worker_emission_and_persistence_faults_do_not_safety_stop() {
     assert!(runner.seen.is_empty());
     assert_eq!(runtime.latched_errors()[0].recovery, RuntimeRecovery::Retry);
 }
+
+#[test]
+fn matching_emission_and_persistence_successes_clear_recovery_faults() {
+    let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
+
+    runtime.latch_error(RuntimeErrorMetadata::operation_failed(
+        RuntimeErrorDomain::Runtime,
+        RuntimeOperation::RuntimeEmission,
+        RuntimeRecovery::RetainLastGood,
+        "emit failed".into(),
+    ));
+    runtime.ingest_runtime_result(&RuntimeStoreResult::OperationSucceeded {
+        operation: RuntimeOperation::RuntimeEmission,
+        request_id: None,
+        revision: None,
+    });
+    assert!(runtime.latched_errors().is_empty());
+
+    runtime.latch_error(RuntimeErrorMetadata::operation_failed(
+        RuntimeErrorDomain::Storage,
+        RuntimeOperation::Persistence,
+        RuntimeRecovery::Retry,
+        "save failed".into(),
+    ));
+    runtime.ingest_runtime_result(&RuntimeStoreResult::Identified {
+        result: Box::new(RuntimeStoreResult::SaveRecoveryResult { ok: true }),
+        request_id: "recovery-1".into(),
+        revision: Some(7),
+    });
+    assert!(runtime.latched_errors().is_empty());
+}
+
+#[test]
+fn device_update_failure_retains_playback_without_stop_and_silence() {
+    let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
+    let result = RuntimeStoreResult::DeviceUpdateStatus {
+        ok: false,
+        message: "health validation failed".into(),
+    };
+
+    runtime.ingest_runtime_result(&result);
+
+    let error = runtime.latched_errors().last().unwrap();
+    assert_eq!(error.operation, RuntimeOperation::DeviceUpdate);
+    assert_eq!(error.recovery, RuntimeRecovery::RetainLastGood);
+    assert_ne!(error.operation, RuntimeOperation::RuntimeDispatch);
+    assert_ne!(error.recovery, RuntimeRecovery::StopAndSilence);
+}

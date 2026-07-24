@@ -369,3 +369,44 @@ fn event_candidates_ignore_persistent_stale_render_trigger_types() {
 
     assert!(intents.is_empty());
 }
+
+#[test]
+fn fresh_tick_markers_preserve_nonzero_activation_intents() {
+    let previous = snapshot_with_triggers(
+        &[1, 0, 0, 0, 0, 0, 0, 0],
+        vec![
+            CellTriggerType::Activate,
+            CellTriggerType::None,
+            CellTriggerType::None,
+            CellTriggerType::None,
+            CellTriggerType::None,
+            CellTriggerType::None,
+            CellTriggerType::None,
+            CellTriggerType::None,
+        ],
+    );
+    let next = snapshot_with_triggers(
+        &[2, 0, 0, 0, 0, 0, 0, 0],
+        vec![
+            CellTriggerType::Activate,
+            CellTriggerType::None,
+            CellTriggerType::None,
+            CellTriggerType::None,
+            CellTriggerType::None,
+            CellTriggerType::None,
+            CellTriggerType::None,
+            CellTriggerType::None,
+        ],
+    );
+
+    let intents = interpret_grid_with_marker_authority(
+        &previous,
+        &next,
+        0,
+        &profile(TickStrategy::WholeGridTransitions),
+        TriggerMarkerAuthority::FreshTick,
+    );
+
+    assert_eq!(intents.len(), 1);
+    assert_eq!(intents[0].kind, CellTriggerKind::Activate);
+}

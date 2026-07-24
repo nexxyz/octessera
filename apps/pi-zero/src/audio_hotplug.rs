@@ -103,16 +103,6 @@ impl ReplayCache {
         if !is_replay_event(event) {
             return;
         }
-        if let EngineEvent::SetSampleBanks(banks) = event {
-            self.sample_banks = Some(banks.clone());
-        }
-        if let EngineEvent::SetAudioConfig { sample_banks, .. } = event {
-            if let Some(banks) = sample_banks {
-                self.sample_banks = Some(banks.clone());
-            }
-            self.audio_config = Some(self.materialized_audio_config(event));
-            return;
-        }
         if let EngineEvent::SetPreparedAudioConfig(config) = event {
             let sample_banks = config
                 .sample_banks()
@@ -148,22 +138,6 @@ impl ReplayCache {
         events.extend(self.keyed.values().cloned());
         events
     }
-
-    fn materialized_audio_config(&self, event: &EngineEvent) -> EngineEvent {
-        let EngineEvent::SetAudioConfig {
-            instruments,
-            sample_banks,
-            voice_stealing_mode,
-        } = event
-        else {
-            return event.clone();
-        };
-        EngineEvent::SetAudioConfig {
-            instruments: instruments.clone(),
-            sample_banks: sample_banks.clone().or_else(|| self.sample_banks.clone()),
-            voice_stealing_mode: *voice_stealing_mode,
-        }
-    }
 }
 
 fn merge_fx_bus_mixer_event(
@@ -198,7 +172,6 @@ fn merge_fx_bus_mixer_event(
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum ReplayKey {
-    SampleBanks,
     SampleBank(usize),
     VoiceStealingMode,
     MasterVolume,
@@ -213,8 +186,7 @@ enum ReplayKey {
 
 fn replay_key(event: &EngineEvent) -> Option<ReplayKey> {
     match event {
-        EngineEvent::SetSampleBanks(_) => Some(ReplayKey::SampleBanks),
-        EngineEvent::SetSampleBank {
+        EngineEvent::SetPreparedSampleBank {
             instrument_slot, ..
         } => Some(ReplayKey::SampleBank(*instrument_slot)),
         EngineEvent::SetVoiceStealingMode(_) => Some(ReplayKey::VoiceStealingMode),
@@ -222,7 +194,7 @@ fn replay_key(event: &EngineEvent) -> Option<ReplayKey> {
         EngineEvent::SetInstrumentMixer {
             instrument_slot, ..
         } => Some(ReplayKey::InstrumentMixer(*instrument_slot)),
-        EngineEvent::SetInstrumentSlot {
+        EngineEvent::SetPreparedInstrumentSlot {
             instrument_slot, ..
         } => Some(ReplayKey::InstrumentSlot(*instrument_slot)),
         EngineEvent::SetFxBusMixer { bus_index, .. } => Some(ReplayKey::FxBusMixer(*bus_index)),
@@ -236,19 +208,11 @@ fn replay_key(event: &EngineEvent) -> Option<ReplayKey> {
             path,
             ..
         } => Some(ReplayKey::SampleBankParam(*instrument_slot, path.clone())),
-        EngineEvent::SetFxBusSlot {
-            bus_index,
-            slot_index,
-            ..
-        } => Some(ReplayKey::FxBusSlot(*bus_index, *slot_index)),
         EngineEvent::SetPreparedFxBusSlot {
             bus_index,
             slot_index,
             ..
         } => Some(ReplayKey::FxBusSlot(*bus_index, *slot_index)),
-        EngineEvent::SetGlobalFxSlot { slot_index, .. } => {
-            Some(ReplayKey::GlobalFxSlot(*slot_index))
-        }
         EngineEvent::SetPreparedGlobalFxSlot { slot_index, .. } => {
             Some(ReplayKey::GlobalFxSlot(*slot_index))
         }
@@ -264,7 +228,6 @@ pub(crate) fn is_replay_event(event: &EngineEvent) -> bool {
             | EngineEvent::NoteOff { .. }
             | EngineEvent::Cc { .. }
             | EngineEvent::PreviewSample { .. }
-            | EngineEvent::MomentaryFxStart { .. }
             | EngineEvent::PreparedMomentaryFxStart { .. }
             | EngineEvent::MomentaryFxUpdate { .. }
             | EngineEvent::MomentaryFxStop { .. }
@@ -280,14 +243,11 @@ pub(crate) fn usb_uses_recording_tap(audio_out: UsbAudioOut) -> bool {
 pub(crate) fn collect_replay_events(cache: &ReplayCache) -> Vec<EngineEvent> {
     use rodio_engine_source::event_queue;
 
-    let (tx, rx) = event_queue();
+    let (tx, mut rx) = event_queue();
     let cache = Arc::new(Mutex::new(cache.clone()));
     replay_to_sink(&tx, &cache).unwrap();
     let mut events = Vec::new();
-    while let Ok(event) = rx.try_recv_ordered() {
-        events.push(event);
-    }
-    while let Ok(event) = rx.try_recv_coalesced() {
+    while let Ok(event) = rx.try_recv() {
         events.push(event);
     }
     events
@@ -297,6 +257,7 @@ pub(crate) fn collect_replay_events(cache: &ReplayCache) -> Vec<EngineEvent> {
 mod tests {
     use super::*;
     use crate::audio::audio_sinks;
+    use realtime_engine::synth::prepare_audio_config;
 
     #[test]
     fn audio_sink_plan_preserves_desired_usb_modes() {
@@ -345,23 +306,25 @@ mod tests {
             gain_pct: 42.0,
             ..Default::default()
         };
-        cache.remember(&EngineEvent::SetAudioConfig {
-            instruments: default_pi_instruments(),
-            sample_banks: Some(vec![bank.clone()]),
-            voice_stealing_mode: None,
-        });
-        cache.remember(&EngineEvent::SetAudioConfig {
-            instruments: default_pi_instruments(),
-            sample_banks: None,
-            voice_stealing_mode: None,
-        });
+        cache.remember(&EngineEvent::SetPreparedAudioConfig(prepare_audio_config(
+            default_pi_instruments(),
+            Some(vec![bank.clone()]),
+            None,
+            DEFAULT_AUDIO_SAMPLE_RATE,
+        )));
+        cache.remember(&EngineEvent::SetPreparedAudioConfig(prepare_audio_config(
+            default_pi_instruments(),
+            None,
+            None,
+            DEFAULT_AUDIO_SAMPLE_RATE,
+        )));
         let replay = collect_replay_events(&cache);
         assert!(replay.iter().any(|event| matches!(
             event,
-            EngineEvent::SetAudioConfig {
-                sample_banks: Some(banks),
-                ..
-            } if banks[0].gain_pct == 42.0
+            EngineEvent::SetPreparedAudioConfig(config)
+                if config
+                    .sample_banks()
+                    .is_some_and(|banks| banks[0].gain_pct == 42.0)
         )));
     }
 

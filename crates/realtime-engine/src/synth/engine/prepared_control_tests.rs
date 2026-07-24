@@ -44,10 +44,13 @@ fn prepared_apply_does_not_allocate_or_grow_callback_storage() {
         None,
         44_100,
     );
-    let (_, allocations) = crate::synth::test_allocator::count(|| {
-        engine.apply_prepared_audio_config(prepared);
-    });
+    let (retired, allocations, deallocations) =
+        crate::synth::test_allocator::count_allocations_and_deallocations(|| {
+            engine.apply_prepared_audio_config(prepared)
+        });
+    drop(retired);
     assert_eq!(allocations, 0);
+    assert_eq!(deallocations, 0);
     assert_eq!(initial_capacities, capacities(&engine));
 }
 

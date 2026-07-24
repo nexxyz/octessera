@@ -17,7 +17,7 @@ Status:
 - Wiring constraint: same OLED, NeoTrellis/NeoKey, encoders/buttons, and audio DAC wiring as the Raspberry Pi build.
 - Current scope: PCB and software compatibility only. Ignore case compatibility until later.
 - Repo goal: complete multi-board support for app code, HAL/profile handling, deploy scripts, image builds, release artifacts, and docs.
-- Naming: use explicit board profile names, starting with `rpi-zero-2w` and `opi-zero-2w`.
+- Naming: use the canonical board profile IDs `raspberry-pi-zero-2w` and `orange-pi-zero-2w`.
 
 ## Candidate images
 
@@ -120,8 +120,8 @@ The desk evaluation cannot complete these checks. They require the Orange Pi Zer
 
 ## Expected repo work after selection
 
-1. Extract current Raspberry Pi assumptions into `rpi-zero-2w` profile without behavior changes.
-2. Add `opi-zero-2w` profile and the required GPIO backend.
+1. Extract current Raspberry Pi assumptions into `raspberry-pi-zero-2w` profile without behavior changes.
+2. Add `orange-pi-zero-2w` profile and the required GPIO backend only after hardware validation.
 3. Parameterize bus paths, GPIO mapping, audio device selection, diagnostics, service account/home paths, deploy target, image sanitation, and release artifact names.
 4. Keep `platform-core`, `playback-runtime`, and `realtime-engine` shared.
 5. Keep Raspberry Pi and Orange Pi image pipelines parallel.

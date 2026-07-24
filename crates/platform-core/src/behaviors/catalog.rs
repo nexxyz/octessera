@@ -39,6 +39,7 @@ pub fn behavior_categories() -> &'static [BehaviorCategory] {
                 "forest_fire",
                 "life",
                 "predator_prey",
+                "twinkle",
             ],
         },
         BehaviorCategory {
@@ -203,6 +204,11 @@ pub fn behavior_catalog() -> &'static [BehaviorCatalogEntry] {
         BehaviorCatalogEntry {
             id: "predator_prey",
             label: "predator prey",
+            category_id: "cellular",
+        },
+        BehaviorCatalogEntry {
+            id: "twinkle",
+            label: "twinkle",
             category_id: "cellular",
         },
         BehaviorCatalogEntry {

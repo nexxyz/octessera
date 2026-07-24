@@ -37,6 +37,9 @@ pub fn on_tick(
         (NativeBehavior::PredatorPrey, NativeBehaviorState::PredatorPrey(state)) => Ok(
             NativeBehaviorState::PredatorPrey(native_impl::predator_prey_on_tick(state, context)),
         ),
+        (NativeBehavior::Twinkle, NativeBehaviorState::Twinkle(state)) => Ok(
+            NativeBehaviorState::Twinkle(native_impl::twinkle_on_tick(state, context)),
+        ),
         (NativeBehavior::Ant, NativeBehaviorState::Ant(state)) => Ok(NativeBehaviorState::Ant(
             native_impl::ant_on_tick(state, context),
         )),

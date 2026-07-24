@@ -35,12 +35,8 @@ impl NativeRunner {
             .cloned()
             .unwrap_or_default();
         object.insert("mode".into(), Value::from(state.mode.clone()));
-        self.behavior_config = Value::Object(object);
-        if let Some(config) = self.layer_behavior_configs.get_mut(self.active_layer_index) {
-            *config = self.behavior_config.clone();
-        }
-        self.behavior_configs
-            .insert(self.behavior.id().to_string(), self.behavior_config.clone());
+        let config = Value::Object(object);
+        self.set_layer_behavior_config(self.active_layer_index, self.behavior.id(), config);
         let label = if state.mode == "play" {
             "Play"
         } else {
@@ -50,6 +46,17 @@ impl NativeRunner {
     }
 
     pub(super) fn seed_visible_state(&mut self) -> Result<(), String> {
+        let layer_index = self.active_layer_index;
+        let behavior_id = self
+            .layer_behavior_ids
+            .get(layer_index)
+            .cloned()
+            .unwrap_or_else(|| self.behavior.id().into());
+        let behavior = platform_core::get_native_behavior(&behavior_id)
+            .ok_or_else(|| format!("unsupported native behavior `{behavior_id}`"))?;
+        let config = self.layer_behavior_config(layer_index);
+        self.replace_layer_engine_with_config(layer_index, behavior, config.clone(), None)?;
+        self.set_layer_behavior_config(layer_index, &behavior_id, config);
         Ok(())
     }
 }

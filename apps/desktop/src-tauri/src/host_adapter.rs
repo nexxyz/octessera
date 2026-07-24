@@ -221,11 +221,15 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
             }
             RuntimePlatformEffect::StoreSaveBackup { payload } => {
                 self.save_backup_payload(payload)?;
-                Ok(vec![])
+                Ok(vec![HostMessage::RuntimeResult {
+                    result: RuntimeStoreResult::SaveBackupResult { ok: true },
+                }])
             }
             RuntimePlatformEffect::StoreSaveRecovery { payload } => {
                 self.save_recovery_payload(payload)?;
-                Ok(vec![])
+                Ok(vec![HostMessage::RuntimeResult {
+                    result: RuntimeStoreResult::SaveRecoveryResult { ok: true },
+                }])
             }
             RuntimePlatformEffect::UsbApplyReboot { payload } => {
                 self.save_default_result(request, payload, Some("overwrite"))?;
@@ -257,6 +261,8 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                     request,
                     DesktopPlatformServiceKind::MidiListInputs,
                 )),
+            RuntimePlatformEffect::SystemInfoRequest => Ok(self
+                .enqueue_platform_service_request(request, DesktopPlatformServiceKind::SystemInfo)),
             RuntimePlatformEffect::MidiSelectOutput { id } => {
                 let result = midi::select_output(id.clone(), &self.midi_out);
                 if result.is_ok() {

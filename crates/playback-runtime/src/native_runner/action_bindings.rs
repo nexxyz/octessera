@@ -2,6 +2,8 @@ use crate::native_menu::{NativeMenuAction, NativeMenuValue};
 use crate::protocol::RuntimePlatformEffect;
 
 use super::modulation::{param_mod_grid_targets, param_mod_next_toggle_mode};
+use super::modulation_assignment_validation::{validate_binding_changes, BindingChange};
+use super::modulation_source::{ModulationAxis, ModulationSourceId};
 use super::{
     native_binding_from_spec, parse_sample_action, NativeAuxBinding, NativeParamBinding,
     NativeRunner, NativeToast, GRID_HEIGHT,
@@ -13,6 +15,17 @@ impl NativeRunner {
         target: &str,
         binding: Option<NativeParamBinding>,
     ) {
+        if is_modulation_binding_target(target) {
+            let change = BindingChange {
+                key: target.into(),
+                binding: binding.clone(),
+            };
+            if let Err(error) = validate_binding_changes(self, &[change]) {
+                self.show_toast(error.toast_message());
+                return;
+            }
+        }
+        self.clear_runtime_source_for_binding_target(target);
         if let Some(rest) = target.strip_prefix("param:") {
             let parts = rest.split(':').collect::<Vec<_>>();
             if parts.len() == 3 {
@@ -34,32 +47,16 @@ impl NativeRunner {
         } else if target == "xy:y" {
             self.xy_y_binding = binding.clone();
         } else if let Some(rest) = target
-            .strip_prefix("layers.")
-            .and_then(|s| s.strip_suffix(".linkLfo.target"))
+            .strip_prefix("linkLfos.")
+            .and_then(|s| s.strip_suffix(".target"))
         {
             if let Ok(index) = rest.parse::<usize>() {
-                self.restore_link_lfo_base_audio();
-                let rejected = binding.as_ref().is_some_and(|binding| {
-                    !super::modulation::is_live_link_lfo_target(&binding.key)
-                });
-                if let Some(layer) = self.pulses_layers.get_mut(index) {
-                    layer.link_lfo.target = binding.clone().filter(|binding| {
-                        binding.kind == "number"
-                            && super::modulation::is_live_link_lfo_target(&binding.key)
-                    });
-                    if layer.link_lfo.target.is_none() {
-                        layer.link_lfo.enabled = false;
+                if let Some(lfo) = self.link_lfos.get_mut(index) {
+                    lfo.target = binding.clone();
+                    if lfo.target.is_none() {
+                        lfo.enabled = false;
                     }
                 }
-                self.show_toast(if rejected {
-                    "LFO target not live"
-                } else {
-                    "Mapped LFO"
-                });
-                self.mark_config_dirty();
-                self.menu.rebuild(self.menu_config());
-                let _ = self.menu.focus_item_key(target);
-                return;
             }
         } else if let Some(rest) = target.strip_prefix("aux:") {
             let parts = rest.split(':').collect::<Vec<_>>();
@@ -108,6 +105,9 @@ impl NativeRunner {
                 }
             }
         }
+        if target == "xy:x" || target == "xy:y" {
+            self.refresh_xy_runtime_sources();
+        }
         let label = binding
             .as_ref()
             .and_then(|binding| binding.label.as_deref())
@@ -116,6 +116,35 @@ impl NativeRunner {
         self.mark_config_dirty();
         self.menu.rebuild(self.menu_config());
         let _ = self.menu.focus_item_key(target);
+        if let Err(error) = self.process_dirty_modulation_step(false) {
+            self.show_toast(format!("LFO composition unavailable: {error}"));
+        }
+    }
+
+    fn clear_runtime_source_for_binding_target(&mut self, target: &str) {
+        if let Some(rest) = target.strip_prefix("param:") {
+            let parts = rest.split(':').collect::<Vec<_>>();
+            if parts.len() == 3 {
+                let Ok(layer) = parts[0].parse::<usize>() else {
+                    return;
+                };
+                let Ok(slot) = parts[2].parse::<usize>() else {
+                    return;
+                };
+                let axis = match parts[1] {
+                    "x" => ModulationAxis::X,
+                    "y" => ModulationAxis::Y,
+                    _ => return,
+                };
+                if let Ok(source) = ModulationSourceId::layer_axis(layer, axis, slot) {
+                    self.clear_runtime_source_input(source);
+                }
+            }
+        } else if target == "xy:x" {
+            self.clear_runtime_source_input(ModulationSourceId::play_x());
+        } else if target == "xy:y" {
+            self.clear_runtime_source_input(ModulationSourceId::play_y());
+        }
     }
 
     pub(super) fn set_param_binding_range_value(
@@ -124,37 +153,47 @@ impl NativeRunner {
         is_min: bool,
         value: i32,
     ) -> bool {
-        let Some(binding) = self.param_binding_target_mut(target) else {
-            return false;
+        let changed = {
+            let Some(binding) = self.param_binding_target_mut(target) else {
+                return false;
+            };
+            if binding.kind != "number" {
+                binding.user_min = None;
+                binding.user_max = None;
+                return false;
+            }
+            let Some(target_min) = binding.min else {
+                return false;
+            };
+            let Some(target_max) = binding.max else {
+                return false;
+            };
+            let low = target_min.min(target_max);
+            let high = target_min.max(target_max);
+            let value = f64::from(value).clamp(low, high);
+            let changed = if is_min {
+                binding.user_min != Some(value)
+            } else {
+                binding.user_max != Some(value)
+            };
+            if is_min {
+                binding.user_min = Some(value);
+            } else {
+                binding.user_max = Some(value);
+            }
+            super::sanitize_binding_user_range(binding);
+            changed
         };
-        if binding.kind != "number" {
-            binding.user_min = None;
-            binding.user_max = None;
-            return false;
-        }
-        let Some(target_min) = binding.min else {
-            return false;
-        };
-        let Some(target_max) = binding.max else {
-            return false;
-        };
-        let low = target_min.min(target_max);
-        let high = target_min.max(target_max);
-        let value = f64::from(value).clamp(low, high);
-        let changed = if is_min {
-            binding.user_min != Some(value)
-        } else {
-            binding.user_max != Some(value)
-        };
-        if is_min {
-            binding.user_min = Some(value);
-        } else {
-            binding.user_max = Some(value);
-        }
-        super::sanitize_binding_user_range(binding);
         if changed {
+            self.clear_runtime_source_for_binding_target(target);
+            if target == "xy:x" || target == "xy:y" {
+                self.refresh_xy_runtime_sources();
+            }
             self.mark_config_dirty();
             self.mark_fast_autosave_dirty();
+            if let Err(error) = self.process_dirty_modulation_step(false) {
+                self.show_toast(format!("LFO composition unavailable: {error}"));
+            }
         }
         changed
     }
@@ -177,11 +216,11 @@ impl NativeRunner {
         } else if target == "xy:y" {
             return self.xy_y_binding.as_mut();
         } else if let Some(rest) = target
-            .strip_prefix("layers.")
-            .and_then(|s| s.strip_suffix(".linkLfo.target"))
+            .strip_prefix("linkLfos.")
+            .and_then(|s| s.strip_suffix(".target"))
         {
             let layer = rest.parse::<usize>().ok()?;
-            return self.pulses_layers.get_mut(layer)?.link_lfo.target.as_mut();
+            return self.link_lfos.get_mut(layer)?.target.as_mut();
         }
         None
     }
@@ -261,7 +300,7 @@ impl NativeRunner {
         if targets.is_empty() {
             return false;
         }
-        let Some(param_mods) = self.param_mods.get_mut(self.active_layer_index) else {
+        let Some(param_mods) = self.param_mods.get(self.active_layer_index) else {
             return false;
         };
         let current = match targets[0].0 {
@@ -270,6 +309,25 @@ impl NativeRunner {
             _ => None,
         };
         let mode = param_mod_next_toggle_mode(current, &binding.key);
+        let changes = targets
+            .iter()
+            .map(|(axis, slot)| BindingChange {
+                key: format!("param:{}:{axis}:{slot}", self.active_layer_index),
+                binding: (mode != "clear").then(|| {
+                    let mut next = binding.clone();
+                    next.invert = mode == "invert";
+                    next
+                }),
+            })
+            .collect::<Vec<_>>();
+        if let Err(error) = validate_binding_changes(self, &changes) {
+            self.show_toast(error.toast_message());
+            return false;
+        }
+        let focus_key = self.menu.current_key().map(str::to_owned);
+        let Some(param_mods) = self.param_mods.get_mut(self.active_layer_index) else {
+            return false;
+        };
         for (axis, slot) in &targets {
             let next = if mode == "clear" {
                 None
@@ -300,6 +358,13 @@ impl NativeRunner {
             offset: 0,
         });
         self.mark_config_dirty();
+        self.menu.rebuild(self.menu_config());
+        if let Some(focus_key) = focus_key {
+            let _ = self.menu.focus_item_key(&focus_key);
+        }
+        if let Err(error) = self.process_dirty_modulation_step(false) {
+            self.show_toast(format!("LFO composition unavailable: {error}"));
+        }
         true
     }
 
@@ -317,30 +382,36 @@ impl NativeRunner {
             self.show_toast(format!("{prefix}-{}: No binding", index + 1));
             return Ok(());
         };
-        if let Some(value) = self.turn_generated_behavior_target(&turn.key, delta) {
-            self.show_or_queue_aux_turn_toast(format!(
+        match self.turn_generated_behavior_target(&turn.key, delta) {
+            Ok(Some(value)) => self.show_or_queue_aux_turn_toast(format!(
                 "{prefix}-{}: {}: {value}",
                 index + 1,
                 turn.label
-            ));
-        } else if self.menu.turn_key(&turn.key, delta) {
-            self.apply_or_schedule_menu_key(&turn.key)?;
-            let value = self
-                .menu
-                .value_for_key(&turn.key)
-                .or_else(|| {
-                    self.menu
-                        .number_for_key(&turn.key)
-                        .map(|value| value.to_string())
-                })
-                .unwrap_or_else(|| "changed".into());
-            self.show_or_queue_aux_turn_toast(format!(
-                "{prefix}-{}: {}: {value}",
-                index + 1,
-                turn.label
-            ));
-        } else {
-            self.show_toast(format!("{prefix}-{}: {} not active", index + 1, turn.label));
+            )),
+            Ok(None) if self.menu.turn_key(&turn.key, delta) => {
+                self.apply_or_schedule_menu_key(&turn.key)?;
+                let value = self
+                    .menu
+                    .value_for_key(&turn.key)
+                    .or_else(|| {
+                        self.menu
+                            .number_for_key(&turn.key)
+                            .map(|value| value.to_string())
+                    })
+                    .unwrap_or_else(|| "changed".into());
+                self.show_or_queue_aux_turn_toast(format!(
+                    "{prefix}-{}: {}: {value}",
+                    index + 1,
+                    turn.label
+                ));
+            }
+            Ok(None) => {
+                self.show_toast(format!("{prefix}-{}: {} not active", index + 1, turn.label));
+            }
+            Err(error) => {
+                self.show_toast(error.clone());
+                return Err(error);
+            }
         }
         Ok(())
     }
@@ -406,4 +477,11 @@ impl NativeRunner {
         }
         Ok(result)
     }
+}
+
+fn is_modulation_binding_target(target: &str) -> bool {
+    target.starts_with("param:")
+        || target == "xy:x"
+        || target == "xy:y"
+        || (target.starts_with("linkLfos.") && target.ends_with(".target"))
 }

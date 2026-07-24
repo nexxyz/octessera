@@ -38,7 +38,7 @@ Build checks:
 ```bash
 corepack pnpm --filter @octessera/desktop tauri:build:ci
 cargo build -p octessera-pi
-cargo check --target aarch64-unknown-linux-gnu -p octessera-hal --features pi-zero
+cargo check --target aarch64-unknown-linux-gnu -p octessera-hal --features raspberry-pi-zero-2w
 ```
 
 Release builds use:
@@ -53,7 +53,7 @@ Quality audit:
 corepack pnpm run quality:audit
 ```
 
-The audit reports file length, function length, simple complexity, wide signatures, and behavior/behaviour naming drift. It is informational, but newly touched files should not make the report worse.
+The audit enforces the 500-line source-file limit, warning above 300 LOC and failing above 500 LOC. Function length, simple complexity, wide signatures, and behavior/behaviour naming drift remain informational staged warnings.
 
 ## TypeScript Baseline
 

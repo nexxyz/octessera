@@ -27,8 +27,12 @@ simple_logger = "1.16"
 
 [features]
 default = []
-hardware-rpi-zero-2w = ["octessera-hal/rpi-zero-2w"]
+hardware-raspberry-pi-zero-2w = ["hardware-rpi-zero-2w"]
+hardware-rpi-zero-2w = ["octessera-hal/raspberry-pi-zero-2w"]
 hardware-pi = ["hardware-rpi-zero-2w"]
 
 [build-dependencies]
 image = { version = "0.25", default-features = false, features = ["png"] }
+
+[dev-dependencies]
+playback-runtime = { path = "../../crates/playback-runtime", features = ["test-support"] }

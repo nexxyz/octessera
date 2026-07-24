@@ -2,10 +2,12 @@ pub mod common;
 use super::{cellular, fields, geometry, growth, motion, play};
 
 pub use cellular::ant::{
-    ant_config_menu, ant_init, ant_on_input, ant_on_tick, ant_render_model, AntState,
+    ant_config_menu, ant_deserialize, ant_init, ant_on_input, ant_on_tick, ant_render_model,
+    AntState,
 };
 pub use cellular::brain::{
-    brain_config_menu, brain_init, brain_on_input, brain_on_tick, brain_render_model, BrainState,
+    brain_config_menu, brain_deserialize, brain_init, brain_on_input, brain_on_tick,
+    brain_render_model, BrainState,
 };
 pub use cellular::cyclic::{
     cyclic_config_menu, cyclic_deserialize, cyclic_init, cyclic_on_input, cyclic_on_tick,
@@ -19,6 +21,10 @@ pub use cellular::predator_prey::{
     predator_prey_config_menu, predator_prey_deserialize, predator_prey_init,
     predator_prey_on_input, predator_prey_on_tick, predator_prey_render_model,
     predator_prey_serialize, PredatorPreyState,
+};
+pub use cellular::twinkle::{
+    twinkle_config_menu, twinkle_deserialize, twinkle_init, twinkle_on_input, twinkle_on_tick,
+    twinkle_render_model, twinkle_serialize, TwinkleState,
 };
 pub use common::{deserialize, serialize};
 pub use fields::ink::{

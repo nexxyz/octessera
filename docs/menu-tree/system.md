@@ -55,24 +55,25 @@ System
 │   ├── Ghost Cells: [on | off]  default off  ← shows dim cells from inactive layers behind active layer
 │   ├── Auto Map: [on | off]  default on  ← enables context-sensitive aux mappings
 │   ├── Number Style: [bar | numbers | bar+numbers]  ← controls rendering of bar-style numeric params, default bar+numbers
-│   ├── Dim Timer: [0..600] step 10 s       default 60 (0=off; dims non-OLED LEDs with a small visible floor at low brightness)
-│   ├── OLED Sleep: [0..600] step 10 s      default 60 (0=off; OLED only)
+│   ├── Dim Timer: [0..600] step 10 s       default 60 (0=off; statically dims non-OLED LEDs with a small visible floor at low brightness)
+│   ├── OLED Sleep: [0..600] step 10 s      default 60 (0=off; OLED only; Pi shows sparse ambient LED twinkle after the sleep splash)
 │   ├── OLED Bright: [10..100] step 5     default 75 (bar display when Number Style is bar or bar+numbers)
 │   ├── Grid Bright: [10..100] step 5     default 75 (bar display when Number Style is bar or bar+numbers)
 │   └── Button Bright: [10..100] step 5   default 75 (bar display when Number Style is bar or bar+numbers)
 ├── Updates (group)
-│   ├── Check: (action)               ← Pi checks GitHub releases for a device update; desktop opens the releases page
-│   ├── Apply: (action)               ← confirms, then Pi installs the latest validated device release and restarts Octessera
-│   └── Rollback: (action)            ← confirms, then Pi switches back to the previously active release and restarts Octessera
+│   ├── Check: (action)               ← Pi checks matching board-profile release assets; desktop opens the releases page
+│   ├── Apply: (action)               ← confirms, then Pi stages a candidate and schedules guarded health validation
+│   └── Rollback: (action)            ← confirms, then Pi stages the previous release through the same guard
 ├── HDMI (group)
 │   ├── Mode: [none | live-grid | plain-grid | active-behavior | cycle-behaviors]  default none
 │   ├── Cycle Bars: [1..64] bars  default 4
 │   └── Grid Lines: [on | off]  default off
 ├── Diagnostics (group)
 │   └── Hardware Test: (action)       ← confirms, then runs pre-hardware Pi checks
+├── Info: (action)                    ← opens native loading/system information popup
 ├── !Basic Help (action)              ← opens shortcut cheat-sheet help popup
 ├── Reboot: (action)                  ← confirm, then show shutdown splash and reboot
 └── Shutdown: (action)                ← confirm, then show shutdown splash and exit/poweroff
 ```
 
-Diagnostics is a pre-hardware Pi check. Update actions are native host effects: `Check` is unconfirmed, while `Apply` and `Rollback` confirm before Pi runs the system updater. Desktop `Check` opens the GitHub releases page; desktop apply and rollback report unsupported. Load Empty lives under Saves, confirms with `Confirm Load Empty`, stops playback with MIDI panic/note safety, loads an empty musical patch state, and preserves device preferences such as brightness, MIDI setup, audio buffer, favourites, and preset names. Basic Help opens native help with the shortcut cheat sheet. Reboot and Shutdown stay at the bottom of System. `Stop/Sync: Sh+Space` follows the transport mode: internal sync emergency-stops and clears held notes, while external sync arms resync. `Fn+Space` is reset-stop: stop, reset position, and MIDI panic.
+Diagnostics is a pre-hardware Pi check. Update actions are native host effects: `Check` is unconfirmed, while `Apply` and `Rollback` confirm before Pi runs the system updater. `Apply` reports `Update health validation scheduled.` until the candidate passes process and stability checks; downloaded Apply candidates also require profile/version readiness. A failed validation automatically restores the previous release. Orange refuses online updates before a profile-specific release exists. Legacy installations require provisioning or an OS-bundle update, or a reflash, before online apply; the legacy updater must not apply new releases. Desktop `Check` opens the GitHub releases page; desktop apply and rollback report unsupported. Load Empty lives under Saves, confirms with `Confirm Load Empty`, stops playback with MIDI panic/note safety, loads an empty musical patch state, and preserves device preferences such as brightness, MIDI setup, audio buffer, favourites, and preset names. Basic Help opens native help with the shortcut cheat sheet. Reboot and Shutdown stay at the bottom of System. `Stop/Sync: Sh+Space` follows the transport mode: internal sync emergency-stops and clears held notes, while external sync arms resync. `Fn+Space` is reset-stop: stop, reset position, and MIDI panic.

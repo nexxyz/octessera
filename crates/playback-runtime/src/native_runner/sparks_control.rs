@@ -1,5 +1,6 @@
 use crate::protocol::{RuntimeAudioCommand, RuntimePlatformEffect};
 
+use super::modulation_source::ModulationSourceId;
 use super::{
     momentary_fx_target, sparks_fx_cell_id, sparks_fx_params, sparks_fx_target_key, sparks_fx_type,
     touch_pan_pos_from_grid_x, trigger_gate_mode_for_column, NativeRunner,
@@ -184,8 +185,10 @@ impl NativeRunner {
     }
 
     pub(super) fn handle_sparks_xy_press(&mut self, x: usize, y: usize) {
-        let mut x_value = x.min(GRID_WIDTH - 1) as f32 / (GRID_WIDTH - 1) as f32;
-        let mut y_value = y.min(GRID_HEIGHT - 1) as f32 / (GRID_HEIGHT - 1) as f32;
+        let physical_x = x.min(GRID_WIDTH - 1) as f32 / (GRID_WIDTH - 1) as f32;
+        let physical_y = y.min(GRID_HEIGHT - 1) as f32 / (GRID_HEIGHT - 1) as f32;
+        let mut x_value = physical_x;
+        let mut y_value = physical_y;
         if self.xy_invert_x {
             x_value = 1.0 - x_value;
         }
@@ -199,7 +202,21 @@ impl NativeRunner {
             display_y: y.min(GRID_HEIGHT - 1) as f32 / (GRID_HEIGHT - 1) as f32,
             active: true,
         };
-        self.mark_config_dirty();
+        let changed_x = self.set_xy_runtime_source(
+            ModulationSourceId::play_x(),
+            self.xy_x_binding.clone(),
+            x_value,
+        );
+        let changed_y = self.set_xy_runtime_source(
+            ModulationSourceId::play_y(),
+            self.xy_y_binding.clone(),
+            y_value,
+        );
+        if changed_x || changed_y {
+            if let Err(error) = self.process_dirty_modulation_step(true) {
+                self.show_toast(format!("modulation composition unavailable: {error}"));
+            }
+        }
     }
 
     pub(super) fn handle_sparks_xy_release(&mut self) {
@@ -211,10 +228,37 @@ impl NativeRunner {
                 display_y: 0.5,
                 active: false,
             };
+            let changed_x = self.set_xy_runtime_source(
+                ModulationSourceId::play_x(),
+                self.xy_x_binding.clone(),
+                0.5,
+            );
+            let changed_y = self.set_xy_runtime_source(
+                ModulationSourceId::play_y(),
+                self.xy_y_binding.clone(),
+                0.5,
+            );
+            if changed_x || changed_y {
+                if let Err(error) = self.process_dirty_modulation_step(true) {
+                    self.show_toast(format!("modulation composition unavailable: {error}"));
+                }
+            }
         } else {
             self.xy_touch.active = false;
         }
-        self.mark_config_dirty();
+    }
+
+    fn set_xy_runtime_source(
+        &mut self,
+        source: ModulationSourceId,
+        binding: Option<super::NativeParamBinding>,
+        normalized: f32,
+    ) -> bool {
+        if let Some(binding) = binding {
+            self.set_runtime_source_input(source, binding, f64::from(normalized))
+        } else {
+            self.clear_runtime_source_input(source)
+        }
     }
 
     pub(super) fn handle_trigger_gate_grid_press(&mut self, x: usize, y: usize) {

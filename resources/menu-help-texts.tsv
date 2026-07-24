@@ -59,6 +59,14 @@ layer_predator_prey_herbivore	*	key:layers.*.worlds.behaviorConfig.herbivoreRepr
 layer_predator_prey_predator	*	key:layers.*.worlds.behaviorConfig.predatorReproducePct	number	Predator Repro	Sets the chance a predator leaves a child behind after eating a herbivore.	Higher values make the chase sharper and riskier.
 layer_predator_prey_starve	*	key:layers.*.worlds.behaviorConfig.starveTicks	number	Starve Ticks	Sets how long animals can move without eating before disappearing.	Eating resets the countdown.
 life_spawn_shared_predator_prey	*	action:behavior_action:reseedEcosystem	action	Reseed Ecosystem	Seeds a small grass, herbivore, and predator starter world.	Use it when the food web gets too quiet.
+layer_twinkle_density	*	key:layers.*.worlds.behaviorConfig.density	number	Density	Sets the target number of Twinkle stars and the hard cap.	Lower values leave more dark space; a manual star at the cap replaces one existing star.
+layer_twinkle_birth	*	key:layers.*.worlds.behaviorConfig.birthChancePct	number	Birth Chance	Sets the chance of one new star when the constellation is below density.	A tick never creates more than one automatic star.
+layer_twinkle_fade	*	key:layers.*.worlds.behaviorConfig.fadeChancePct	number	Fade Chance	Sets the chance of one eligible star fading on a tick.	Only stars at least Star Life ticks old can fade.
+layer_twinkle_life	*	key:layers.*.worlds.behaviorConfig.starLife	number	Star Life	Sets the minimum age before a star can be selected to fade.	Young stars get to linger even when Fade Chance is high.
+layer_twinkle_cluster	*	key:layers.*.worlds.behaviorConfig.clusterBiasPct	number	Cluster Bias	Sets the chance that a birth chooses a clipped neighborhood near existing stars.	Edges do not wrap around to the opposite side of the grid.
+layer_twinkle_seed	*	key:layers.*.worlds.behaviorConfig.seed	number	Seed	Chooses the deterministic Twinkle constellation and random stream.	The same seed and saved counter replay the same stars.
+life_spawn_shared_twinkle	*	action:behavior_action:reseedStars	action	Reseed Stars	Rebuilds the deterministic constellation from the current seed.	Use it when the little sky needs a fresh arrangement.
+life_clear_shared_twinkle	*	action:behavior_action:clearStars	action	Clear Stars	Clears every Twinkle star without changing its configuration.	The next births still follow the saved deterministic random stream.
 layer_cyclic_states	*	key:layers.*.worlds.behaviorConfig.states	number	States	Sets how many discrete states the Cyclic world chases through.	Higher values make longer wave-front cycles.
 layer_cyclic_threshold	*	key:layers.*.worlds.behaviorConfig.threshold	number	Threshold	Sets how many neighbors in the next state are needed for a cell to advance.	Higher values make fronts more selective.
 layer_cyclic_range	*	key:layers.*.worlds.behaviorConfig.range	number	Range	Sets whether Cyclic checks nearby neighbors at range 1 or 2.	Range 2 makes broader fronts without wrapping edges.
@@ -254,11 +262,12 @@ pulses_trigger_probability_mode	Menu > Link > L*: * > Trigger Prob. > Mode	key:l
 pulses_trigger_probability_low	Menu > Link > L*: * > Trigger Prob. > Low Prob	key:layers.*.pulses.triggerProbabilityLowPct	number	Low Probability	Sets the low custom trigger probability percentage from 0 to 100.	Clamped so it never exceeds High Prob.
 pulses_trigger_probability_high	Menu > Link > L*: * > Trigger Prob. > High Prob	key:layers.*.pulses.triggerProbabilityHighPct	number	High Probability	Sets the high custom trigger probability percentage from 0 to 100.	Clamped so it is never below Low Prob.
 pulses_trigger_probability_map	Menu > Link > L*: * > Trigger Prob. > Map Probability Grid	action:trigger_probability_assign_enter	action	Map Probability Grid	Edits the saved per-cell probability map for this layer.	Cells cycle zero, low, high, full; Shift applies rows and Shift+Fn columns.
-pulses_lfo_group	Menu > Link > L*: * > LFO		group	Link LFO	One sine LFO for this layer, clocked from transport PPQN while playing.	Pause freezes it; stop or reset restores the saved audio value.
-pulses_lfo_enabled	Menu > Link > L*: * > LFO > Enabled	key:layers.*.linkLfo.enabled	bool	LFO Enabled	Turns this layer's Link LFO on or off.	It does nothing until Target is set to a live audio-facing numeric parameter.
-pulses_lfo_target	Menu > Link > L*: * > LFO > Target	key:layers.*.linkLfo.target	group	LFO Target	Chooses the live audio-facing numeric parameter this Link LFO modulates.	Transient LFO values are not saved; timing/buffer-heavy FX params are excluded.
-pulses_lfo_period	Menu > Link > L*: * > LFO > Period	key:layers.*.linkLfo.period	enum	LFO Period	Sets the note duration for one full sine cycle.	Uses the same 24 PPQN note units as Link scanning.
-pulses_lfo_depth	Menu > Link > L*: * > LFO > Depth %	key:layers.*.linkLfo.depthPct	number	LFO Depth	Sets modulation depth from 0 to 100 percent around the target range center.	Target range and invert settings are preserved.
+pulses_lfos_group	Menu > Link > LFOs		group	Link LFOs	Eight global Link LFO slots live here, independent of the active layer.	Each slot keeps its own target, period, depth, and enable state.
+pulses_lfo_group	Menu > Link > LFOs > L*		group	Link LFO	One global sine LFO slot, clocked from transport PPQN and composed by playback-runtime with other live sources.	The slot is not associated with a layer; its phase and live contribution are transient.
+pulses_lfo_enabled	Menu > Link > LFOs > L* > Enabled	key:linkLfos.*.enabled	bool	LFO Enabled	Turns this global Link LFO slot on or off.	It does nothing until Target is set to a live-safe additive numeric parameter.
+pulses_lfo_target	Menu > Link > LFOs > L* > Target	key:linkLfos.*.target	group	LFO Target	Chooses a live-safe additive numeric parameter for this global LFO slot.	Exclusive controls and all LFO configuration targets are excluded; rejected claims leave focus unchanged and show a Mapping rejected toast.
+pulses_lfo_period	Menu > Link > LFOs > L* > Period	key:linkLfos.*.period	enum	LFO Period	Sets the note duration for one full sine cycle.	Uses the same 24 PPQN note units as Link scanning.
+pulses_lfo_depth	Menu > Link > LFOs > L* > Depth %	key:linkLfos.*.depthPct	number	LFO Depth	Sets modulation depth from 0 to 100 percent around the target range center.	Target range and invert settings are preserved.
 pulses_arp_mode	Menu > Link > L*: * > Arp > Mode	key:layers.*.pulses.arp.mode	enum	Arp Mode	Orders the selected Arp source before notes are emitted.	none preserves normal Link behavior exactly.
 pulses_arp_source	Menu > Link > L*: * > Arp > Source	key:layers.*.pulses.arp.source	enum	Arp Source	Chooses which notes feed the arpeggiator.	Use simultaneous event batches or currently held notes.
 pulses_arp_step	Menu > Link > L*: * > Arp > Step	key:layers.*.pulses.arp.stepIntervalSteps	number	Arp Step	Sets the Link-step spacing between arpeggiated notes.	Direct and chord strike modes keep notes together.
@@ -337,8 +346,8 @@ ui_group	Menu > System > UI		group	UI	Display and lighting behavior for the devi
 controls_action	Menu > System > Basic Help	action:system.controlsHelp	action	Basic Help	Opens a quick reference for core hardware gestures.	Includes help, back, transport, Fn navigation, alternate aux binding, sample, and probability-map shortcuts.
 ghost_cells	*	key:ghostCells	bool	Ghost Cells	Shows dim cells from inactive layers behind the active layer.	Off by default for clarity; active layer cells always take visual priority.
 input_events_while_paused	*	key:inputEventsWhilePaused	bool	Paused Events	When On, grid presses continue to fire musical events even when transport is stopped or paused.	Disable to keep paused/stopped grid edits silent while algorithm evolution remains stopped.
-dim_timer	*	key:dimTimerSeconds	number	Dim Timer	Sets idle timeout before non-OLED LEDs dim.	Set 0 to keep LEDs at configured brightness.
-screen_sleep	*	key:screenSleepSeconds	number	OLED Sleep	Sets idle timeout before OLED sleep.	Set 0 to keep display always on.
+dim_timer	*	key:dimTimerSeconds	number	Dim Timer	Sets idle timeout before non-OLED LEDs dim.	Set 0 to keep LEDs at configured brightness; this dim is static and does not animate.
+screen_sleep	*	key:screenSleepSeconds	number	OLED Sleep	Sets idle timeout before OLED sleep.	Set 0 to keep display always on; on Pi, sparse dim ambient twinkle replaces semantic grid and button LEDs after the sleep splash.
 display_bright	*	key:displayBrightness	number	OLED Bright	Sets OLED brightness level.	Higher values improve visibility at cost of brightness.
 grid_bright	*	key:gridBrightness	number	Grid Bright	Sets grid LED brightness scaling.	Lower values are useful for dark environments.
 button_bright	*	key:buttonBrightness	number	Button Bright	Sets NeoKey/button LED brightness scaling.	Helps match hardware feel to ambient light.
@@ -379,6 +388,7 @@ tones_y_res_group	Menu > Shape > Y Axis > Filter Res		group	Shape Y Resonance La
 system_group	Menu > System		group	System	Global configuration area for presets, sound, MIDI, and UI.	Use this for environment and persistence behavior.
 system_diagnostics_group	Menu > System > Diagnostics		group	Diagnostics	Hardware checks before the Pi runtime starts.	Use Hardware Test to verify boot config, pins, and DAC detection.
 system_hardware_test	Menu > System > Diagnostics > Hardware Test	action:system_hardware_test	action	Hardware Test	Runs the Pi pre-hardware diagnostic checks.	Requires confirmation before running the guided test.
+system_info	Menu > System > Info	action:system.info	action	System Info	Shows OS, Octessera, network, hostname, and board profile details.	Info is loaded by the native host and unavailable fields are labeled explicitly.
 system_updates_group	Menu > System > Updates		group	Updates	Update status and OTA control actions.	Check is read-only; Apply and Rollback confirm first.
 system_update_check	Menu > System > Updates > Check	action:system_update_check	action	Check	Checks whether an update is available.	This is a non-destructive status request.
 system_update_apply	Menu > System > Updates > Apply	action:system_update_apply	action	Apply	Downloads and applies the selected device release.	Requires confirmation before changing the active release.
@@ -528,6 +538,7 @@ native_behavior_select_brain	*	action:behavior_select:brain	action	Brain	Uses th
 native_behavior_select_cyclic	*	action:behavior_select:cyclic	action	Cyclic	Cycles cells through states that chase neighbors.	Use it for rotating colors and chasing fronts across the grid.
 native_behavior_select_forest_fire	*	action:behavior_select:forest_fire	action	Forest Fire	Lets growth and ignition compete across the grid.	Sparse sparks can become crackling bursts and then empty space again.
 native_behavior_select_predator_prey	*	action:behavior_select:predator_prey	action	Predator Prey	Runs chasing populations that feed and fade.	Good for unstable musical ecosystems with pursuit and collapse.
+native_behavior_select_twinkle	*	action:behavior_select:twinkle	action	Twinkle	Keeps a sparse deterministic constellation of short-lived stars.	A tiny sky of blue-white cells makes a lovely restless layer.
 native_behavior_select_ant	*	action:behavior_select:ant	action	Ant	Walks rule-driven agents across cell trails.	Simple turns can carve surprisingly organized paths.
 native_behavior_select_boids	*	action:behavior_select:boids	action	Boids	Moves flocking agents with neighbor influence.	Use it for swarms that cohere, scatter, and regroup.
 native_behavior_select_physarum	*	action:behavior_select:physarum	action	Physarum	Simulates slime-mold-like trails and attraction.	Good for tendrils that discover paths through the grid.
@@ -554,7 +565,7 @@ native_behavior_select_maze_growth	*	action:behavior_select:maze_growth	action	M
 native_behavior_select_shapes	*	action:behavior_select:shapes	action	Shapes	Creates geometric figures and spatial motifs.	Good for crisp forms that other layers can answer.
 native_behavior_select_vines	*	action:behavior_select:vines	action	Vines	Grows tendrils that curl and branch.	Use it for reaching lines and organic melodic creep.
 native_navigate_back	*	action:navigate_back	action	Back	Returns to the parent browser level.	Use it like the hardware Back button when browsing synthetic folders.
-native_param_bind	*	action:param_bind	action	Bind Parameter	Assigns this parameter to the selected modulation, XY, or aux target slot.	The target stores this concrete parameter key and value metadata.
+native_param_bind	*	action:param_bind	action	Bind Parameter	Assigns this parameter to the selected modulation, XY, or aux target slot.	Exclusive claims are checked before commit; rejection leaves the slot and focus unchanged with a Mapping rejected toast.
 native_binding_group_behavior_params	*	key:binding.group.behavior_params	group	Behavior Params	Targets from the selected layer's behavior settings.	Choose these to let modulation steer the active world-bubble itself.
 native_binding_group_link	*	key:binding.group.link	group	Link Targets	Targets from transport and pulse-link lanes.	Use these for tempo-aware motion and grid-derived modulation lanes.
 native_binding_group_shape	*	key:binding.group.shape	group	Shape Targets	Instrument, mixer, FX, and voice-shaping targets.	This is where modulation reaches the sound-making machinery.
@@ -562,7 +573,7 @@ native_binding_group_instruments	*	key:binding.group.instruments	group	Instrumen
 native_binding_group_play_fx	*	key:binding.group.play_fx	group	Play FX	Targets from live performance FX pages.	Bind these when aux or grid gestures should push performance effects.
 native_binding_group_system	*	key:binding.group.system	group	System Targets	Global sound settings that are safe to modulate.	These apply outside a single behavior or instrument slot.
 native_binding_group_sound	*	key:binding.group.sound	group	Sound Targets	Global note length, velocity scale, and voice-limit targets.	Useful for performance controls that affect the runtime's note output.
-native_param_clear	*	action:param_clear	action	Clear Binding	Clears the selected modulation, XY, or aux target binding.	The target slot becomes unassigned.
+native_param_clear	*	action:param_clear	action	Clear Binding	Clears the selected modulation, XY, or aux target binding.	The target slot becomes unassigned and visible claim labels refresh.
 native_midi_enabled	*	key:midiEnabled	bool	MIDI Enabled	Turns MIDI integration on or off for the runtime.	When off, MIDI port selections and external event output are ignored.
 native_midi_sync	*	key:midiSyncMode	enum	Sync Mode	Chooses whether transport follows internal timing or external MIDI clock.	External mode uses incoming realtime MIDI messages when Clock In is enabled.
 native_state_notes	*	key:layers.*.pulses.stateNotesEnabled	bool	State Notes	Enables state-derived notes during transport ticks for this layer.	Turn it off to keep input events without continuous state playback.
@@ -598,7 +609,7 @@ native_sparks_invert_x	*	key:sparks.xy.invertX	bool	Invert X	Flips the Play XY X
 native_sparks_invert_y	*	key:sparks.xy.invertY	bool	Invert Y	Flips the Play XY Y-axis modulation direction.	Bottom becomes high and top becomes low when enabled.
 native_sparks_xy_release	*	key:sparks.xy.release	enum	XY Release	Chooses what happens when a Play XY touch is released.	sample-hold keeps the last position; reset-center returns to center.
 native_sparks_fx_target	*	key:sparks.fx.target	enum	FX Target	Chooses where the mapped Play FX cell is inserted.	Targets include master, FX buses, and instruments.
-native_xy_axis_group	Menu > Play > * Axis: *		group	XY Axis Target	Chooses a parameter target for this Play XY axis.	The picker uses the shared parameter browser.
+native_xy_axis_group	Menu > Play > * Axis: *		group	XY Axis Target	Chooses a parameter target for this Play XY axis.	Exclusive claims are checked before commit; rejection leaves the binding and focus unchanged with a Mapping rejected toast.
 native_param_browser_behavior	Menu > * > Behavior		group	Behavior Parameters	Lists behavior parameters available for binding.	Selecting a row binds that parameter to the current target slot.
 native_param_browser_instruments	Menu > * > Instruments		group	Instrument Parameters	Lists instrument parameters available for binding.	Selecting a row binds that parameter to the current target slot.
 native_param_browser_instrument	Menu > * > Instruments > Instrument *		group	Instrument Slot Parameters	Lists bindable parameters for this instrument slot.	Only active parameter families should be used at performance time.

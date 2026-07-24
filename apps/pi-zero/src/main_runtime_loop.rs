@@ -133,7 +133,6 @@ pub(crate) fn maybe_advance_runtime(
         last_rendered_snapshot_revision,
         transient_render_until,
         playback,
-        runner,
         render_worker,
     );
     shutdown_if_requested(adapter, render_worker)
@@ -275,7 +274,6 @@ fn service_render_if_due(
     last_rendered_snapshot_revision: &mut u64,
     transient_render_until: &mut Option<Instant>,
     playback: &mut PlaybackRuntime,
-    runner: &mut NativeRunner,
     render_worker: &RenderWorker,
 ) {
     if now.duration_since(*last_render) < render_interval {
@@ -298,11 +296,11 @@ fn service_render_if_due(
     let Some(snapshot) = crate::runtime_loop::latest_snapshot(playback).cloned() else {
         return;
     };
-    if !crate::runtime_loop::playback_config_matches_snapshot(playback, &snapshot) {
-        crate::runtime_loop::sync_playback_config_from_snapshot(playback, runner, &snapshot);
+    if !render_worker.publish_snapshot(snapshot, pulses) {
+        eprintln!("pi render worker rejected snapshot publication");
+        return;
     }
     *last_rendered_snapshot_revision = snapshot_revision;
-    render_worker.publish_snapshot(snapshot, pulses);
 }
 
 fn update_transient_render_deadline(

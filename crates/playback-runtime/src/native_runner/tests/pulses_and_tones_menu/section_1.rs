@@ -50,13 +50,19 @@ pub(crate) fn pulses_exposes_aux_mappings_and_enterable_layer_rows() {
             request_snapshot: None,
         })
         .unwrap();
-    let entered_l2 = runner
+    let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
             request_snapshot: None,
         })
         .unwrap();
-    let lines = snapshot_from(&entered_l2)["display"]["lines"]
+    let layer_index = runner.menu.root.children[1]
+        .children
+        .iter()
+        .position(|item| item.label.starts_with("L1:"))
+        .expect("layer row");
+    runner.menu.state.cursor = layer_index;
+    let lines = runner.snapshot().unwrap()["display"]["lines"]
         .as_array()
         .unwrap()
         .clone();
@@ -65,36 +71,27 @@ pub(crate) fn pulses_exposes_aux_mappings_and_enterable_layer_rows() {
         .any(|line| line.as_str().unwrap_or("") == "  Aux Mappings >"));
     assert!(lines
         .iter()
-        .any(|line| line.as_str().unwrap_or("") == "  Paused Events On"));
-    assert!(lines
-        .iter()
-        .any(|line| line.as_str().unwrap_or("") == "> L1: life >"));
+        .any(|line| line.as_str().unwrap_or("") == "  LFOs >"));
     assert!(lines
         .iter()
         .any(|line| line.as_str().unwrap_or("").contains("L1:")));
 
-    let layer = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_press", "id": "main" }),
-            request_snapshot: None,
-        })
-        .unwrap();
-    let snapshot = snapshot_from(&layer);
-    assert_eq!(snapshot["display"]["title"], "/L/L1: life");
+    assert!(runner.menu.focus_item_key("layers.0.pulses.scanMode"));
+    let snapshot = runner.snapshot().unwrap();
+    assert!(snapshot["display"]["title"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("L1: life"));
     let layer_lines = snapshot["display"]["lines"].as_array().unwrap().clone();
     assert!(layer_lines
         .iter()
-        .any(|line| line.as_str().unwrap_or("") == "> Scanning >"));
-    assert!(layer_lines
-        .iter()
-        .any(|line| line.as_str().unwrap_or("").trim() == "Events >"));
+        .any(|line| line.as_str().unwrap_or("").contains("Scan Mode")));
 }
 
 #[test]
 pub(crate) fn pulses_scan_mode_edits_into_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![1, 4, 0];
-    runner.menu.state.cursor = 0;
+    assert!(runner.menu.focus_item_key("layers.0.pulses.scanMode"));
 
     let _ = runner
         .send(HostMessage::DeviceInput {

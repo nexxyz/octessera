@@ -1,8 +1,5 @@
 use super::modulation::RoutedMusicalEvents;
-use super::{
-    note_unit_to_pulses, trigger_probability_allows, NativeRunner, RuntimeTransportState,
-    DEFAULT_ALGORITHM_STEP_RED, GRID_HEIGHT,
-};
+use super::{trigger_probability_allows, NativeRunner, RuntimeTransportState, GRID_HEIGHT};
 use platform_core::DeviceInput;
 
 pub(super) use super::link_routing::LinkRoutingInput;
@@ -62,7 +59,7 @@ impl NativeRunner {
 
         let mut events = RoutedMusicalEvents::default();
         self.advance_transport_indicators(pulses);
-        self.apply_link_lfos(pulses);
+        self.advance_global_lfo_audio(pulses)?;
         let swung_pulses = self.consume_swung_pulses(pulses);
         self.accumulate_layer_pulses(swung_pulses);
         self.advance_active_layer(&mut events)?;
@@ -84,6 +81,8 @@ impl NativeRunner {
             })
             .collect::<Vec<_>>();
         let mut rng = self.trigger_probability_rng;
+        let effective_sound = self.global_sound.clone();
+        let effective_bpm = self.transport.bpm as f32;
         let mut inactive_modulation_updates = Vec::new();
         let mut saw_inactive_events = false;
         for (index, (profile, mapping, step_pulses, sense, probability_map)) in
@@ -98,9 +97,10 @@ impl NativeRunner {
                     let Some(engine) = self.layer_engines[index].as_mut() else {
                         continue;
                     };
+                    engine.set_global_sound(effective_sound.clone());
                     engine.set_interpretation_profile(profile.clone());
                     engine.set_mapping_config(mapping.clone());
-                    engine.tick_filtered(self.transport.bpm as f32, |intent| {
+                    engine.tick_filtered(effective_bpm, |intent| {
                         trigger_probability_allows(
                             sense.as_ref(),
                             probability_map,
@@ -138,17 +138,19 @@ impl NativeRunner {
     }
 
     fn step_pulses_for_layer(&self, index: usize) -> u32 {
-        let Some(sense) = self.pulses_layers.get(index) else {
-            return self.transport.algorithm_step_pulses;
-        };
-        if sense.scan_mode == "scanning" {
-            note_unit_to_pulses(&sense.scan_unit)
+        if let Some(layer) = self.pulses_layers.get(index) {
+            if layer.scan_mode == "scanning" {
+                return crate::timing_units::note_unit_to_pulses(&layer.scan_unit);
+            }
+        }
+        if index == self.active_layer_index {
+            self.transport.algorithm_step_pulses
         } else {
             self.transport
                 .layer_algorithm_step_pulses
                 .get(index)
                 .copied()
-                .unwrap_or(DEFAULT_ALGORITHM_STEP_RED)
+                .unwrap_or(super::DEFAULT_ALGORITHM_STEP_RED)
         }
     }
 
@@ -201,7 +203,8 @@ impl NativeRunner {
     }
 
     fn consume_swung_pulses(&mut self, straight_pulses: u32) -> u32 {
-        if self.transport.swing_pct == 0 || straight_pulses == 0 {
+        let swing_pct = self.transport.swing_pct;
+        if swing_pct == 0 || straight_pulses == 0 {
             self.transport.swung_ppqn_pulse = self.transport.current_ppqn_pulse;
             return straight_pulses;
         }
@@ -209,9 +212,8 @@ impl NativeRunner {
             .transport
             .current_ppqn_pulse
             .saturating_sub(u64::from(straight_pulses));
-        let previous_swung = swung_pulse_total(previous, self.transport.swing_pct);
-        let current_swung =
-            swung_pulse_total(self.transport.current_ppqn_pulse, self.transport.swing_pct);
+        let previous_swung = swung_pulse_total(previous, swing_pct);
+        let current_swung = swung_pulse_total(self.transport.current_ppqn_pulse, swing_pct);
         self.transport.swung_ppqn_pulse = current_swung;
         current_swung
             .saturating_sub(previous_swung)

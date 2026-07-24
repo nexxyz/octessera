@@ -142,7 +142,7 @@ pub(crate) fn sample_slot_menu_is_one_based_but_payload_remains_zero_based_and_b
 #[test]
 pub(crate) fn legacy_bus_route_normalizes_on_config_load_and_persists_canonical_route() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut payload = runner.config_payload();
+    let mut payload = legacy_payload(runner.config_payload());
     payload["runtimeConfig"]["instruments"][0]["mixer"]["route"] = json!("bus_2");
 
     runner.apply_config_payload(payload).unwrap();
@@ -157,7 +157,7 @@ pub(crate) fn legacy_bus_route_normalizes_on_config_load_and_persists_canonical_
 #[test]
 pub(crate) fn legacy_trigger_gates_migrate_to_probability_map() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut payload = runner.config_payload();
+    let mut payload = legacy_payload(runner.config_payload());
     payload["runtimeConfig"]["layers"][0]["worlds"]["triggerGates"] = Value::Array(
         (0..GRID_WIDTH * GRID_HEIGHT)
             .map(|index| Value::Bool(index != 3))
@@ -191,7 +191,7 @@ pub(crate) fn legacy_eight_position_pan_payload_scales_to_native_pan_range() {
 #[test]
 pub(crate) fn sample_slots_and_assignments_are_sanitized_on_load() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut payload = runner.config_payload();
+    let mut payload = legacy_payload(runner.config_payload());
     payload["runtimeConfig"]["instruments"][0]["sample"]["selectedSlot"] = json!(99);
     payload["runtimeConfig"]["instruments"][0]["sample"]["slots"] = Value::Array(
         (0..12)

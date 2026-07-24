@@ -348,6 +348,7 @@ impl NativeRunner {
         }
     }
 
+    #[cfg(test)]
     pub(super) fn behavior_config_from_menu(&self) -> Result<Value, String> {
         let mut object = self
             .behavior_config

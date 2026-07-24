@@ -131,4 +131,6 @@ pub struct NativeMenuModel {
     pub state: NativeMenuState,
     pub numeric_display_mode: String,
     pub navigation_memory: HashMap<String, usize>,
+    #[cfg(test)]
+    pub(crate) rebuild_count: usize,
 }

@@ -1,12 +1,13 @@
 use crate::native_menu::{
-    NativeAuxBindingConfig, NativeFxBusConfig, NativeMenuAction, NativeMenuConfig, NativeMenuModel,
-    NativeParamBindingSpec, NativeParamModsConfig, NativePulsesLayerConfig, NativeValueLaneConfig,
+    NativeAuxBindingConfig, NativeFxBusConfig, NativeLinkLfoConfig, NativeMenuAction,
+    NativeMenuConfig, NativeMenuModel, NativeParamBindingSpec, NativeParamModsConfig,
+    NativePulsesLayerConfig, NativeValueLaneConfig,
 };
 #[cfg(test)]
 use crate::protocol::{HostMessage, RunnerMessage, RuntimeAudioCommand, RuntimeStoreResult};
 use crate::protocol::{
-    MidiPort, RuntimeMomentaryFxTarget, RuntimePlatformEffect, RuntimeTransportState, SampleEntry,
-    SyncSource,
+    MidiPort, RuntimeErrorCode, RuntimeMomentaryFxTarget, RuntimePlatformEffect, RuntimeSystemInfo,
+    RuntimeSystemInfoError, RuntimeTransportState, SampleEntry, SyncSource,
 };
 use crate::runtime::{CoreRunner, RuntimeConfig};
 use crate::timing_units::{note_unit_from_pulses, note_unit_to_pulses};
@@ -34,6 +35,8 @@ use sparks_fx_utils::{
     sparks_fx_param_default, sparks_fx_param_keys, sparks_fx_params, sparks_fx_params_map,
     sparks_fx_target_key, sparks_fx_type,
 };
+#[cfg(test)]
+use std::cell::Cell;
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 use visual_utils::{
@@ -56,6 +59,7 @@ mod aux_auto_map_layouts;
 mod aux_auto_map_overlay;
 mod aux_binding_payload_apply;
 mod aux_generated_behavior_turn;
+mod behavior_config_recomposition;
 mod behavior_menu;
 mod behavior_menu_actions;
 mod behavior_target_menu;
@@ -75,6 +79,7 @@ mod device_input;
 mod device_input_buttons;
 mod factory_payload;
 mod fx_bus_config;
+mod fx_param_codec;
 mod fx_targets;
 mod grid_assign;
 mod grid_coords;
@@ -82,6 +87,7 @@ mod help_text;
 mod instrument_collections;
 mod instrument_runtime;
 mod json_path;
+mod layer_replacement;
 mod layer_state;
 mod led_color;
 mod link_arp;
@@ -112,13 +118,23 @@ mod menu_apply_structural;
 mod menu_value_apply;
 mod modulation;
 pub(crate) use modulation_audio::is_live_link_lfo_target as is_live_link_lfo_target_for_picker;
+mod modulation_assignment_validation;
 mod modulation_audio;
 mod modulation_fx;
 mod modulation_instrument;
 mod modulation_instrument_numeric;
 mod modulation_keys;
+mod modulation_migration;
+mod modulation_process;
+mod modulation_process_application;
+mod modulation_process_audio;
+mod modulation_process_sources;
+mod modulation_process_values;
 mod modulation_pulses;
 mod modulation_sampler;
+mod modulation_source;
+mod modulation_target;
+mod modulation_target_table;
 mod modulation_value;
 mod outbox;
 mod overlays;
@@ -131,6 +147,7 @@ mod pulses_config;
 mod pulses_payload;
 mod pulses_payload_apply;
 mod runner_config;
+mod runtime_config;
 mod runtime_io;
 mod sample_assignment_payload;
 mod sample_browser;
@@ -149,6 +166,9 @@ mod state_instrument_types;
 mod state_types;
 mod store;
 mod synth_config;
+mod system_info;
+#[cfg(feature = "test-support")]
+mod test_support;
 mod toast_state;
 mod toast_text;
 mod trigger_probability;
@@ -174,6 +194,8 @@ use json_path::*;
 use link_arp::LINK_ARP_RANDOM_SEED;
 use menu_value_apply::*;
 use modulation_instrument_numeric::*;
+use modulation_migration::*;
+use modulation_process::ModulationProcessState;
 use modulation_sampler::{RoutedMusicalEvents, TransposedHeldNote};
 use outbox::NativeRunnerOutbox;
 use pan_position::*;
@@ -186,6 +208,7 @@ use sparks_trigger_gate::*;
 use state_instrument_types::*;
 use state_types::*;
 use synth_config::*;
+use system_info::*;
 use trigger_probability_payload::*;
 use velocity_curve::*;
 
@@ -226,6 +249,7 @@ pub(super) fn normalize_usb_audio_out(value: &str) -> &'static str {
     }
 }
 
+#[derive(Clone)]
 struct PendingMenuApply {
     due_at: Instant,
     key: String,
@@ -236,8 +260,8 @@ pub struct NativeRunner {
     layer_engines: Vec<Option<NativeLayerEngine>>,
     behavior: NativeBehavior,
     behavior_config: Value,
-    behavior_configs: BTreeMap<String, Value>,
     layer_behavior_configs: Vec<Value>,
+    layer_behavior_config_history: Vec<BTreeMap<String, Value>>,
     interpretation_profile: InterpretationProfile,
     mapping_config: platform_core::MappingConfig,
     base_mapping_config: platform_core::MappingConfig,
@@ -296,6 +320,8 @@ pub struct NativeRunner {
     layer_names: Vec<String>,
     layer_auto_names: Vec<bool>,
     save_grid_states: Vec<bool>,
+    link_lfos: [NativeLinkLfo; GLOBAL_LFO_COUNT],
+    modulation_process: ModulationProcessState,
     pulses_layers: Vec<NativePulsesLayer>,
     aux_bindings: Vec<Option<NativeAuxBinding>>,
     shift_aux_bindings: Vec<Option<NativeAuxBinding>>,
@@ -317,9 +343,21 @@ pub struct NativeRunner {
     last_backup_save_at: Option<Instant>,
     audio_config_revision: u64,
     last_snapshot_audio_config_revision: Option<u64>,
+    last_published_runtime_config: Option<RuntimeConfig>,
     trigger_probability_rng: u64,
     pending: NativePendingState,
-    last_link_lfo_values: BTreeMap<String, Value>,
+    #[cfg(test)]
+    behavior_state_serialization_calls: Cell<usize>,
+    #[cfg(test)]
+    layer_behavior_rebuilds: usize,
+    #[cfg(test)]
+    fast_autosave_marks: usize,
+    #[cfg(test)]
+    modulation_process_calls: usize,
+    #[cfg(test)]
+    engine_runtime_sync_calls: usize,
+    #[cfg(test)]
+    active_pulses_refresh_calls: usize,
 }
 
 fn normalize_audio_output_buffer_frames(value: u32) -> u32 {

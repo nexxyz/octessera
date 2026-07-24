@@ -63,11 +63,23 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
     let mut out = Vec::with_capacity(events.len());
     let mut midi = Vec::new();
     for event in events.iter().take(mapped_event_offset) {
-        route_event_without_intent(event.clone(), instruments, &mut out, &mut midi);
+        route_event_without_intent_with_held_transpose(
+            event.clone(),
+            instruments,
+            &mut out,
+            &mut midi,
+            active_transpose_notes.as_deref_mut(),
+        );
     }
     for (intent_index, event) in events.iter().skip(mapped_event_offset).enumerate() {
         let Some(intent) = intents.get(intent_index) else {
-            route_event_without_intent(event.clone(), instruments, &mut out, &mut midi);
+            route_event_without_intent_with_held_transpose(
+                event.clone(),
+                instruments,
+                &mut out,
+                &mut midi,
+                active_transpose_notes.as_deref_mut(),
+            );
             continue;
         };
         let channel = match event {
@@ -137,6 +149,18 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
                             *note = 36 + assignment.sample_slot.min(7) as u8;
                             *velocity =
                                 sampler_assignment_velocity(*velocity, assignment, instrument);
+                            if duration_ms.is_none() {
+                                if let Some(active_notes) = active_transpose_notes.as_deref_mut() {
+                                    active_notes
+                                        .entry((original_channel, original_note))
+                                        .or_default()
+                                        .push(TransposedHeldNote {
+                                            routed_channel: *channel,
+                                            routed_note: *note,
+                                            routed_to_midi: false,
+                                        });
+                                }
+                            }
                         } else {
                             suppress = true;
                         }
@@ -248,6 +272,45 @@ fn route_event_without_intent(
             midi.push(event);
         }
         InstrumentRoute::Muted => {}
+    }
+}
+
+fn route_event_without_intent_with_held_transpose(
+    event: MusicalEvent,
+    instruments: &[super::NativeInstrumentSlot],
+    audio: &mut Vec<MusicalEvent>,
+    midi: &mut Vec<MusicalEvent>,
+    active_transpose_notes: Option<&mut BTreeMap<(u8, u8), Vec<TransposedHeldNote>>>,
+) {
+    let MusicalEvent::NoteOff { channel, note } = event else {
+        route_event_without_intent(event, instruments, audio, midi);
+        return;
+    };
+    let held_note = active_transpose_notes.and_then(|active_notes| {
+        let notes = active_notes.get_mut(&(channel, note))?;
+        let held_note = notes.pop();
+        if notes.is_empty() {
+            active_notes.remove(&(channel, note));
+        }
+        held_note
+    });
+    let Some(held_note) = held_note else {
+        route_event_without_intent(
+            MusicalEvent::NoteOff { channel, note },
+            instruments,
+            audio,
+            midi,
+        );
+        return;
+    };
+    let event = MusicalEvent::NoteOff {
+        channel: held_note.routed_channel,
+        note: held_note.routed_note,
+    };
+    if held_note.routed_to_midi {
+        midi.push(event);
+    } else {
+        audio.push(event);
     }
 }
 

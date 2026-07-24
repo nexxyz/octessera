@@ -17,7 +17,8 @@ mod dynamic_control;
 mod note_control;
 #[cfg(test)]
 mod output_stereo_bus_tests;
-mod prepared_control;
+mod prepared_control_apply;
+mod prepared_control_prepare;
 mod render;
 #[cfg(test)]
 mod render_block_tests;
@@ -28,17 +29,19 @@ mod render_samples;
 mod render_synth;
 mod render_synth_parallel;
 mod render_voice;
+mod retired_state;
 mod support;
 #[cfg(test)]
 mod test_support;
 mod voice_budget;
 
-pub use prepared_control::{
+pub use prepared_control_prepare::{
     prepare_audio_config, prepare_fx_bus_slot, prepare_global_fx_slot,
     prepare_instrument_slot_config, prepare_instruments_config, prepare_momentary_fx_start,
     PreparedAudioConfig, PreparedFxBusSlot, PreparedGlobalFxSlot, PreparedInstrumentSlot,
     PreparedInstrumentsConfig, PreparedMomentaryFxStart,
 };
+pub use retired_state::RetiredAudioState;
 
 use render_profile::RenderProfileState;
 use render_routing::FxBusOutputSpreadState;

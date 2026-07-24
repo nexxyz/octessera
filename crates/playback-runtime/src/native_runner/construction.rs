@@ -36,6 +36,12 @@ impl NativeRunner {
             layer_auto_names: vec![true; LAYER_COUNT],
             pulses_layers: pulses_layer_configs(&pulses_layers),
             active_layer_index: 0,
+            link_lfos: std::array::from_fn(|_| NativeLinkLfoConfig {
+                enabled: false,
+                target: None,
+                period: "1/1".into(),
+                depth_pct: 100,
+            }),
             param_mods: vec![NativeParamModsConfig::default(); LAYER_COUNT],
             xy_x_binding: None,
             xy_y_binding: None,
@@ -149,11 +155,8 @@ impl NativeRunner {
             layer_engines,
             behavior,
             behavior_config: config.behavior_config.clone(),
-            behavior_configs: BTreeMap::from([(
-                behavior.id().to_string(),
-                config.behavior_config.clone(),
-            )]),
             layer_behavior_configs: vec![config.behavior_config; LAYER_COUNT],
+            layer_behavior_config_history: vec![BTreeMap::new(); LAYER_COUNT],
             interpretation_profile: config.interpretation_profile,
             mapping_config: config.mapping_config.clone(),
             base_mapping_config: config.mapping_config,
@@ -227,6 +230,8 @@ impl NativeRunner {
             layer_names: vec![behavior.id().into(); LAYER_COUNT],
             layer_auto_names: vec![true; LAYER_COUNT],
             save_grid_states: vec![true; LAYER_COUNT],
+            link_lfos: std::array::from_fn(|_| NativeLinkLfo::default()),
+            modulation_process: ModulationProcessState::default(),
             pulses_layers,
             aux_bindings: vec![None; platform_core::AUX_ENCODER_COUNT],
             shift_aux_bindings: vec![None; platform_core::AUX_ENCODER_COUNT],
@@ -248,9 +253,21 @@ impl NativeRunner {
             last_backup_save_at: None,
             audio_config_revision: 0,
             last_snapshot_audio_config_revision: None,
+            last_published_runtime_config: None,
             trigger_probability_rng: 0xC311_5A7E_2024_0001,
             pending: NativePendingState::default(),
-            last_link_lfo_values: BTreeMap::new(),
+            #[cfg(test)]
+            behavior_state_serialization_calls: Cell::new(0),
+            #[cfg(test)]
+            layer_behavior_rebuilds: 0,
+            #[cfg(test)]
+            fast_autosave_marks: 0,
+            #[cfg(test)]
+            modulation_process_calls: 0,
+            #[cfg(test)]
+            engine_runtime_sync_calls: 0,
+            #[cfg(test)]
+            active_pulses_refresh_calls: 0,
         };
         runner.seed_visible_state()?;
         runner.refresh_active_mapping_config();
@@ -260,10 +277,5 @@ impl NativeRunner {
             .set_interpretation_profile(runner.interpretation_profile.clone());
         runner.menu.rebuild(runner.menu_config());
         Ok(runner)
-    }
-
-    pub fn apply_runtime_config(&mut self, config: &RuntimeConfig) {
-        self.transport.sync_source = config.sync_source.clone();
-        self.transport.bpm = config.bpm;
     }
 }

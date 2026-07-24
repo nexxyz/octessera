@@ -1,7 +1,8 @@
 use realtime_engine::synth::{
-    default_synth_config, FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig,
-    InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig, MomentaryFxTarget,
-    VoiceStealingMode, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
+    default_synth_config, prepare_audio_config, prepare_momentary_fx_start, FxBusConfig,
+    FxBusSlotConfig, InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig,
+    MasterFxConfig, MixerConfig, MomentaryFxTarget, VoiceStealingMode, DEFAULT_PAN_POSITIONS,
+    INSTRUMENT_SLOT_COUNT,
 };
 use rodio_engine_source::EngineEvent;
 use std::collections::BTreeMap;
@@ -9,10 +10,12 @@ use std::collections::BTreeMap;
 const PROFILE_NOTE_DURATION_MS: u32 = 60_000;
 
 pub fn bus_heavy_events() -> Vec<EngineEvent> {
-    let mut events = vec![
-        EngineEvent::SetVoiceStealingMode(VoiceStealingMode::None),
-        EngineEvent::SetInstruments(bus_heavy_instruments()),
-    ];
+    let mut events = vec![prepared_config(
+        bus_heavy_instruments(),
+        None,
+        VoiceStealingMode::None,
+        44_100,
+    )];
     for slot in 0..INSTRUMENT_SLOT_COUNT {
         for note in [60, 67] {
             events.push(EngineEvent::NoteOn {
@@ -27,11 +30,12 @@ pub fn bus_heavy_events() -> Vec<EngineEvent> {
 }
 
 pub fn fx_limit_events(bus_slots: usize, momentary: usize, sample_rate: u32) -> Vec<EngineEvent> {
-    let mut events = vec![
-        EngineEvent::SetVoiceStealingMode(VoiceStealingMode::None),
-        EngineEvent::SetInstruments(fx_limit_instruments(bus_slots)),
-        EngineEvent::SetSampleBanks(crate::dsp_profile::samples::all_sample_banks(sample_rate)),
-    ];
+    let mut events = vec![prepared_config(
+        fx_limit_instruments(bus_slots),
+        Some(crate::dsp_profile::samples::all_sample_banks(sample_rate)),
+        VoiceStealingMode::None,
+        sample_rate,
+    )];
     for slot in 0..INSTRUMENT_SLOT_COUNT {
         for note in [60, 67] {
             events.push(EngineEvent::NoteOn {
@@ -199,13 +203,33 @@ fn fx_limit_momentary_events(momentary: usize) -> Vec<EngineEvent> {
     specs
         .into_iter()
         .take(momentary.clamp(0, 2))
-        .map(|(id, fx_type, target)| EngineEvent::MomentaryFxStart {
-            id: id.into(),
-            fx_type: fx_type.into(),
-            params: BTreeMap::new(),
-            target,
+        .map(|(id, fx_type, target)| {
+            EngineEvent::PreparedMomentaryFxStart(
+                prepare_momentary_fx_start(
+                    id.into(),
+                    fx_type.into(),
+                    BTreeMap::new(),
+                    target,
+                    44_100,
+                )
+                .unwrap(),
+            )
         })
         .collect()
+}
+
+fn prepared_config(
+    instruments: InstrumentsConfig,
+    sample_banks: Option<Vec<realtime_engine::synth::SampleBankConfig>>,
+    voice_stealing_mode: VoiceStealingMode,
+    sample_rate: u32,
+) -> EngineEvent {
+    EngineEvent::SetPreparedAudioConfig(prepare_audio_config(
+        instruments,
+        sample_banks,
+        Some(voice_stealing_mode),
+        sample_rate,
+    ))
 }
 
 fn bus(slots: Vec<&str>, pan_pos: usize) -> FxBusConfig {

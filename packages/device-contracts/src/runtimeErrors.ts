@@ -38,7 +38,9 @@ export const RUNTIME_OPERATIONS = [
   "midi_list_inputs",
   "midi_status",
   "sample_list",
-  "sample_preview"
+  "sample_preview",
+  "device_update",
+  "system_info"
 ] as const;
 export type RuntimeOperation = (typeof RUNTIME_OPERATIONS)[number];
 

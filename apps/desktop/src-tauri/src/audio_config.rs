@@ -1,3 +1,4 @@
+use playback_runtime::RuntimeErrorCode;
 use realtime_engine::synth::{
     normalize_audio_config, normalize_instrument_slot_config, InstrumentsConfig, SampleBankConfig,
     SampleBuffer, SampleSlotConfig as EngineSampleSlotConfig, INSTRUMENT_SLOT_COUNT,
@@ -10,6 +11,31 @@ mod sample_decode;
 pub use sample_decode::decode_sample_file;
 
 pub type AudioInstrumentsConfig = realtime_engine::synth::NormalizedAudioConfig;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SampleBankError {
+    InvalidConfig(String),
+    Unresolved(String),
+    Undecodable(String),
+}
+
+impl SampleBankError {
+    pub fn code(&self) -> RuntimeErrorCode {
+        match self {
+            Self::InvalidConfig(_) => RuntimeErrorCode::InvalidPayload,
+            Self::Unresolved(_) => RuntimeErrorCode::NotFound,
+            Self::Undecodable(_) => RuntimeErrorCode::OperationFailed,
+        }
+    }
+
+    pub fn message(&self) -> String {
+        match self {
+            Self::InvalidConfig(message) => message.clone(),
+            Self::Unresolved(path) => format!("sample not found: {path}"),
+            Self::Undecodable(path) => format!("sample decode failed: {path}"),
+        }
+    }
+}
 
 pub fn normalize_config(config: &Value) -> Result<AudioInstrumentsConfig, String> {
     normalize_audio_config(config)
@@ -40,14 +66,12 @@ pub fn sample_banks(
     config: &AudioInstrumentsConfig,
     resolve_sample: impl Fn(&str) -> Option<String>,
     mut load_sample: impl FnMut(&str) -> Option<SampleBuffer>,
-) -> Vec<SampleBankConfig> {
+) -> Result<Vec<SampleBankConfig>, SampleBankError> {
     config
         .instruments
         .iter()
         .take(INSTRUMENT_SLOT_COUNT)
-        .map(|instrument| {
-            sample_bank_for_slot(instrument, &resolve_sample, &mut load_sample).unwrap_or_default()
-        })
+        .map(|instrument| sample_bank_for_slot(instrument, &resolve_sample, &mut load_sample))
         .collect()
 }
 
@@ -55,13 +79,11 @@ pub fn sample_bank_for_slot_config(
     config: &Value,
     resolve_sample: impl Fn(&str) -> Option<String>,
     load_sample: impl FnMut(&str) -> Option<SampleBuffer>,
-) -> Result<Option<SampleBankConfig>, String> {
-    let instrument = normalize_instrument_slot_config(config)?;
-    Ok(sample_bank_for_slot(
-        &instrument,
-        resolve_sample,
-        load_sample,
-    ))
+) -> Result<Option<SampleBankConfig>, SampleBankError> {
+    let instrument =
+        normalize_instrument_slot_config(config).map_err(SampleBankError::InvalidConfig)?;
+    let bank = sample_bank_for_slot(&instrument, resolve_sample, load_sample)?;
+    Ok(instrument.active_sample().is_some().then_some(bank))
 }
 
 pub fn sample_bank_signature(config: &AudioInstrumentsConfig) -> String {
@@ -72,19 +94,22 @@ fn sample_bank_for_slot(
     instrument: &realtime_engine::synth::NormalizedInstrumentSlot,
     resolve_sample: impl Fn(&str) -> Option<String>,
     mut load_sample: impl FnMut(&str) -> Option<SampleBuffer>,
-) -> Option<SampleBankConfig> {
-    let sample = instrument.active_sample()?;
+) -> Result<SampleBankConfig, SampleBankError> {
+    let Some(sample) = instrument.active_sample() else {
+        return Ok(SampleBankConfig::default());
+    };
     let mut slots = vec![EngineSampleSlotConfig::default(); SAMPLE_SLOTS_PER_INSTRUMENT];
     for (index, path) in sample.slots.iter().enumerate() {
         let Some(path) = path else {
             continue;
         };
-        let Some(full_path) = resolve_sample(path) else {
-            continue;
-        };
-        slots[index].buffer = load_sample(&full_path);
+        let full_path =
+            resolve_sample(path).ok_or_else(|| SampleBankError::Unresolved(path.clone()))?;
+        slots[index].buffer = Some(
+            load_sample(&full_path).ok_or_else(|| SampleBankError::Undecodable(path.clone()))?,
+        );
     }
-    Some(SampleBankConfig {
+    Ok(SampleBankConfig {
         slots,
         tune_semis: sample.tune_semis,
         gain_pct: sample.gain_pct,

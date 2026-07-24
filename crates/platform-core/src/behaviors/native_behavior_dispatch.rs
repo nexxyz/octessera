@@ -57,6 +57,9 @@ impl NativeBehavior {
                     native_impl::predator_prey_on_input(state, input, context),
                 ))
             }
+            (NativeBehavior::Twinkle, NativeBehaviorState::Twinkle(state)) => Ok(
+                NativeBehaviorState::Twinkle(native_impl::twinkle_on_input(state, input, context)),
+            ),
             (NativeBehavior::Ant, NativeBehaviorState::Ant(state)) => Ok(NativeBehaviorState::Ant(
                 native_impl::ant_on_input(state, input, context),
             )),

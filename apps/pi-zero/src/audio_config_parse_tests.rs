@@ -50,6 +50,21 @@ fn pi_sample_paths_remain_host_resolved() {
     let _ = std::fs::remove_dir_all(root);
 }
 
+#[test]
+fn pi_sample_failures_use_shared_typed_facts() {
+    let error = SampleLoadError::Unresolved("missing.wav".into());
+
+    assert_eq!(error.code(), playback_runtime::RuntimeErrorCode::NotFound);
+    assert_eq!(error.message(), "sample not found: missing.wav");
+
+    let undecodable = SampleLoadError::Undecodable("kick.wav".into());
+    assert_eq!(
+        undecodable.code(),
+        playback_runtime::RuntimeErrorCode::OperationFailed
+    );
+    assert_eq!(undecodable.message(), "sample decode failed: kick.wav");
+}
+
 fn temp_dir(name: &str) -> std::path::PathBuf {
     let dir = std::env::temp_dir().join(format!(
         "octessera-pi-{name}-{}-{}",

@@ -16,6 +16,7 @@ mod happy_path;
 mod hdmi;
 mod input_events;
 mod instruments;
+mod layer_replacement;
 mod life_mapping;
 mod looper;
 mod menu_navigation;
@@ -23,6 +24,11 @@ mod menu_navigation_state;
 mod modulation;
 mod modulation_behavior_targets;
 mod modulation_bindings;
+mod modulation_layer_replacement;
+mod modulation_runtime;
+mod modulation_runtime_commands;
+mod modulation_runtime_fx;
+mod modulation_runtime_phase3;
 mod pulses_and_tones_menu;
 mod runtime_control;
 mod runtime_transport;
@@ -37,6 +43,7 @@ mod step_rates;
 mod store;
 mod structural_draft;
 mod trigger_gates;
+mod twinkle;
 mod ui_scenario;
 
 pub(crate) fn snapshot_from(messages: &[RunnerMessage]) -> Value {
@@ -70,6 +77,15 @@ pub(crate) fn led_rgb(rgb: [u8; 3]) -> Value {
 pub(crate) fn dim_rgb(rgb: [u8; 3], divisor: u8) -> [u8; 3] {
     let divisor = divisor.max(1);
     [rgb[0] / divisor, rgb[1] / divisor, rgb[2] / divisor]
+}
+
+pub(crate) fn legacy_payload(mut payload: Value) -> Value {
+    if let Some(object) = payload.as_object_mut() {
+        object.remove("kind");
+        object.remove("schemaVersion");
+        object.remove("revision");
+    }
+    payload
 }
 
 pub(crate) fn confirm_current_dialog(runner: &mut NativeRunner) -> Vec<RunnerMessage> {

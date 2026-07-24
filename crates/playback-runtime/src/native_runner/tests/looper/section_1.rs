@@ -140,7 +140,7 @@ pub(crate) fn looper_saved_state_persists_sequence_only_when_grid_state_is_saved
 }
 
 #[test]
-pub(crate) fn looper_length_edit_preserves_recorded_sequence() {
+pub(crate) fn looper_length_edit_reinitializes_sequence_from_config() {
     let mut runner = looper_runner();
     runner
         .send(HostMessage::DeviceInput {
@@ -164,7 +164,7 @@ pub(crate) fn looper_length_edit_preserves_recorded_sequence() {
     assert_eq!(runner.behavior_config["lengthSteps"], 3);
     let state = runner.engine.serialized_state().unwrap();
     assert_eq!(state["steps"].as_array().unwrap().len(), 3);
-    assert_eq!(state["steps"][0].as_array().unwrap().len(), 1);
+    assert!(state["steps"][0].as_array().unwrap().is_empty());
 }
 
 #[test]

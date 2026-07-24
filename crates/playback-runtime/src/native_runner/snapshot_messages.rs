@@ -87,7 +87,6 @@ impl NativeRunner {
         let save_default_effect =
             if self.auto_save_default && self.config_dirty && !autosave_pending && !save_pending {
                 self.pending.pending_save_revision = Some(self.config_revision);
-                self.show_saved_default_feedback();
                 Some(RuntimePlatformEffect::StoreSaveDefault {
                     payload: payload.clone().expect("autosave payload"),
                     mode: Some("deferred".into()),

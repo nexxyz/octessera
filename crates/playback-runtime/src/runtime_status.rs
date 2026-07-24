@@ -82,7 +82,7 @@ impl PlaybackRuntime {
                 self.clear_error(operation.clone());
             }
             if matches!(
-                operation,
+                operation.clone(),
                 RuntimeOperation::StoreListPresets
                     | RuntimeOperation::StoreLoadPreset
                     | RuntimeOperation::StoreSavePreset
@@ -93,6 +93,15 @@ impl PlaybackRuntime {
                     | RuntimeOperation::StoreSaveRecovery
             ) {
                 self.clear_error(RuntimeOperation::Store);
+            }
+            if matches!(
+                operation.clone(),
+                RuntimeOperation::StoreSavePreset
+                    | RuntimeOperation::StoreSaveDefault
+                    | RuntimeOperation::StoreSaveBackup
+                    | RuntimeOperation::StoreSaveRecovery
+            ) {
+                self.clear_error(RuntimeOperation::Persistence);
             }
         }
     }

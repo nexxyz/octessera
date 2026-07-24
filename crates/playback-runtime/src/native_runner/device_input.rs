@@ -73,6 +73,9 @@ impl NativeRunner {
         if self.display.usb_sd_transfer_modal.is_some() {
             return self.handle_usb_sd_transfer_modal_input(input);
         }
+        if self.display.system_info_modal.is_some() {
+            return self.handle_system_info_modal_input(input);
+        }
         let is_modifier_input = matches!(
             input,
             DeviceInput::ButtonShift { .. }
@@ -297,6 +300,27 @@ impl NativeRunner {
         if close_requested {
             self.display.usb_sd_transfer_modal = None;
             return self.messages_with_effects(vec![RuntimePlatformEffect::UsbSdTransferStop]);
+        }
+        self.messages_with_snapshot()
+    }
+
+    fn handle_system_info_modal_input(
+        &mut self,
+        input: DeviceInput,
+    ) -> Result<Vec<RunnerMessage>, String> {
+        match input {
+            DeviceInput::EncoderTurn { delta, id } if id.as_deref().unwrap_or("main") == "main" => {
+                if let Some(modal) = self.display.system_info_modal.as_mut() {
+                    modal.turn(delta);
+                }
+            }
+            DeviceInput::EncoderPress { id } if id.as_deref().unwrap_or("main") == "main" => {
+                self.display.system_info_modal = None;
+            }
+            DeviceInput::ButtonA { pressed } if pressed.unwrap_or(true) => {
+                self.display.system_info_modal = None;
+            }
+            _ => {}
         }
         self.messages_with_snapshot()
     }

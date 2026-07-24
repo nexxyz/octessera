@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-pub(crate) fn voice_stealing_param_mod_emits_full_audio_config_command() {
+pub(crate) fn voice_stealing_param_mod_is_transient_until_audio_config_replay() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let _ = runner.messages_with_snapshot().unwrap();
     runner.param_mods[0].x[0] = Some(NativeParamBinding {
@@ -25,21 +25,14 @@ pub(crate) fn voice_stealing_param_mod_emits_full_audio_config_command() {
 
     runner.apply_runtime_modulation(&intents, 0);
     let messages = runner.messages_with_snapshot().unwrap();
-
-    let config = messages
-        .iter()
-        .find_map(|message| match message {
-            RunnerMessage::AudioCommands { commands } => commands.iter().find_map(|command| {
-                if let RuntimeAudioCommand::SetAudioConfig { config, .. } = command {
-                    Some(config)
-                } else {
-                    None
-                }
-            }),
-            _ => None,
-        })
-        .expect("full audio config command");
-    assert_eq!(config["voiceStealingMode"], "auto-hard");
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::AudioCommands { commands }
+            if commands
+                .iter()
+                .any(|command| matches!(command, RuntimeAudioCommand::SetAudioConfig { .. }))
+    )));
+    assert_eq!(runner.voice_stealing_mode, "auto-hard");
 }
 
 #[test]

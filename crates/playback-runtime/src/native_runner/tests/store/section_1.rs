@@ -103,7 +103,7 @@ pub(crate) fn patch_and_device_payloads_split_local_device_fields() {
 
     let patch = runner.patch_payload();
     assert_eq!(patch["kind"], "octessera.patch");
-    assert_eq!(patch["schemaVersion"], 1);
+    assert_eq!(patch["schemaVersion"], 2);
     assert!(patch["runtimeConfig"]["usb"].is_null());
     assert!(patch["runtimeConfig"]["midi"].is_null());
     assert!(patch["runtimeConfig"]["displayBrightness"].is_null());

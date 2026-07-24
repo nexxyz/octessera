@@ -12,7 +12,80 @@ impl NativeRunner {
         key: &str,
     ) -> Option<crate::native_menu::NativeMenuItem> {
         let layer_index = parse_generated_behavior_target_layer_index(key)?;
-        find_item_by_key(&self.behavior_target_items_for_layer(layer_index), key).cloned()
+        if self.layer_behavior_ids.get(layer_index).map(String::as_str) == Some("none") {
+            return None;
+        }
+        let resident = self
+            .menu
+            .item_for_key(key)
+            .map(|item| self.synchronize_resident_behavior_target(layer_index, key, item));
+        resident
+            .filter(|_| !(self.menu.state.editing && self.menu.current_key() == Some(key)))
+            .or_else(|| {
+                self.menu
+                    .item_for_key(key)
+                    .filter(|_| self.menu.state.editing && self.menu.current_key() == Some(key))
+            })
+            .or_else(|| self.behavior_target_item_for_layer(layer_index, key))
+    }
+
+    fn synchronize_resident_behavior_target(
+        &self,
+        layer_index: usize,
+        key: &str,
+        mut item: crate::native_menu::NativeMenuItem,
+    ) -> crate::native_menu::NativeMenuItem {
+        if !key.ends_with(".algorithmStep")
+            || (self.menu.state.editing && self.menu.current_key() == Some(key))
+        {
+            return item;
+        }
+        let pulses = if layer_index == self.active_layer_index {
+            self.transport.algorithm_step_pulses
+        } else {
+            self.transport
+                .layer_algorithm_step_pulses
+                .get(layer_index)
+                .copied()
+                .unwrap_or(self.transport.algorithm_step_pulses)
+        };
+        if let crate::native_menu::NativeMenuValue::Enum { options, selected } = &mut item.value {
+            if let Some(next) = options
+                .iter()
+                .position(|unit| crate::timing_units::note_unit_to_pulses(unit) == pulses)
+            {
+                *selected = next;
+            }
+        }
+        item
+    }
+
+    pub(super) fn behavior_target_item_for_layer(
+        &self,
+        layer_index: usize,
+        key: &str,
+    ) -> Option<crate::native_menu::NativeMenuItem> {
+        let behavior_id = self.layer_behavior_ids.get(layer_index)?.as_str();
+        if behavior_id == "none" {
+            return None;
+        }
+        let behavior = platform_core::get_native_behavior(behavior_id)?;
+        let mut state = self.behavior_state_for_layer(layer_index);
+        if behavior.config_menu(&state).is_err() {
+            state = self.default_behavior_state_for_layer(layer_index, behavior);
+        }
+        let field = key.split_once(".worlds.behaviorConfig.")?.1;
+        let item = behavior
+            .config_menu(&state)
+            .ok()
+            .flatten()?
+            .into_iter()
+            .find(|item| item.key == field)?;
+        let config = self
+            .layer_behavior_configs
+            .get(layer_index)
+            .unwrap_or(&Value::Null);
+        behavior_target_menu_item(self, layer_index, behavior, config, &state, item)
     }
 
     pub(super) fn behavior_target_items_for_layer(
@@ -231,15 +304,4 @@ fn parse_generated_behavior_target_layer_index(key: &str) -> Option<usize> {
     let rest = key.strip_prefix("layers.")?;
     let (index, _) = rest.split_once('.')?;
     index.parse().ok()
-}
-
-fn find_item_by_key<'a>(
-    items: &'a [crate::native_menu::NativeMenuItem],
-    key: &str,
-) -> Option<&'a crate::native_menu::NativeMenuItem> {
-    items.iter().find_map(|item| {
-        (item.key.as_deref() == Some(key))
-            .then_some(item)
-            .or_else(|| find_item_by_key(&item.children, key))
-    })
 }

@@ -66,6 +66,7 @@ const RUNTIME_PLATFORM_EFFECT_FIXTURES = [
   { type: "update_check" },
   { type: "update_apply" },
   { type: "rollback" },
+  { type: "system_info_request" },
   { type: "sample_list_request", instrumentSlot: 0, sampleSlot: 7, dir: "samples" },
   { type: "audio_command", command: RUNTIME_AUDIO_COMMAND_FIXTURES[0] }
 ] as const satisfies readonly RuntimePlatformEffect[];
@@ -88,8 +89,31 @@ const RUNTIME_STORE_RESULT_FIXTURES = [
   { type: "midi_status", ok: false, message: "not connected", selectedOutId: null, selectedInId: "in-1" },
   { type: "sample_list_result", instrumentSlot: 2, sampleSlot: 3, dir: "samples", entries: [{ name: "Kicks", path: "samples/Kicks", isDir: true }] },
   { type: "sample_list_error", instrumentSlot: 2, sampleSlot: 3, dir: "samples", message: "permission denied" },
-  { type: "sample_preview_error", message: "unsupported format" }
+  { type: "sample_preview_error", message: "unsupported format" },
+  { type: "device_update_status", ok: false, message: "opaque helper output" },
+  {
+    type: "system_info_result",
+    info: {
+      os: "linux",
+      osVersion: "6.6",
+      octesseraVersion: "0.7.0",
+      primaryIp: "192.168.1.5",
+      primaryMac: "aa:bb:cc:dd:ee:ff",
+      hostname: "octessera",
+      boardProfile: "raspberry-pi-zero-2w"
+    }
+  },
+  { type: "system_info_error", error: { code: "unavailable", message: "not connected" } }
 ] as const satisfies readonly RuntimeStoreResult[];
+
+const CANDIDATE_HEALTH_MARKER_FIXTURE = {
+  schema_version: 1,
+  pid: 4242,
+  systemd_invocation_id: "inv-1",
+  package_version: "0.7.0",
+  board_profile: "raspberry-pi-zero-2w",
+  ready_at_unix_ms: 1_700_000_000_123
+} as const;
 
 type AudioCommandFixtureTypes = (typeof RUNTIME_AUDIO_COMMAND_FIXTURES)[number]["type"];
 type PlatformEffectFixtureTypes = (typeof RUNTIME_PLATFORM_EFFECT_FIXTURES)[number]["type"];
@@ -264,6 +288,7 @@ test("runtime protocol union fixtures serialize every drift-prone discriminant",
     "update_check",
     "update_apply",
     "rollback",
+    "system_info_request",
     "sample_list_request",
     "audio_command"
   ]);
@@ -285,8 +310,19 @@ test("runtime protocol union fixtures serialize every drift-prone discriminant",
     "midi_status",
     "sample_list_result",
     "sample_list_error",
-    "sample_preview_error"
+    "sample_preview_error",
+    "device_update_status",
+    "system_info_result",
+    "system_info_error"
   ]);
+});
+
+test("candidate health marker fixture matches the guard identity contract", () => {
+  assert.deepEqual(JSON.parse(JSON.stringify(CANDIDATE_HEALTH_MARKER_FIXTURE)), CANDIDATE_HEALTH_MARKER_FIXTURE);
+  assert.equal(CANDIDATE_HEALTH_MARKER_FIXTURE.schema_version, 1);
+  assert.ok(CANDIDATE_HEALTH_MARKER_FIXTURE.pid > 0);
+  assert.ok(CANDIDATE_HEALTH_MARKER_FIXTURE.systemd_invocation_id.length > 0);
+  assert.equal(CANDIDATE_HEALTH_MARKER_FIXTURE.board_profile, "raspberry-pi-zero-2w");
 });
 
 test("runtime error metadata serializes with stable typed identity and recovery", () => {
@@ -311,5 +347,6 @@ test("runtime error metadata serializes with stable typed identity and recovery"
     "audio_thread_failed"
   ]);
   assert.ok(RUNTIME_OPERATIONS.includes(error.operation));
+  assert.ok(RUNTIME_OPERATIONS.includes("device_update"));
   assert.ok(RUNTIME_RECOVERIES.includes(error.recovery));
 });

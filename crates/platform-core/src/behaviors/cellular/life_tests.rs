@@ -153,7 +153,11 @@ fn spawn_glider_action_adds_glider_pattern() {
 #[test]
 fn spawn_random_action_and_random_tick_spawn_activate_cells() {
     let mut context = BehaviorContext::new(120.0);
-    let empty = init(serde_json::json!({ "cells": [] })).unwrap();
+    let empty = init(serde_json::json!({
+        "cells": [],
+        "randomCellsPerTick": 4
+    }))
+    .unwrap();
     let spawned = on_input(
         empty.clone(),
         DeviceInput::BehaviorAction(BehaviorActionInput {
@@ -161,7 +165,7 @@ fn spawn_random_action_and_random_tick_spawn_activate_cells() {
         }),
         &mut context,
     );
-    assert!(spawned.cells.iter().filter(|cell| **cell).count() > 0);
+    assert_eq!(spawned.cells.iter().filter(|cell| **cell).count(), 4);
     assert!(spawned.trigger_types.contains(&CellTriggerType::Activate));
 
     let random_tick = init(serde_json::json!({
@@ -172,8 +176,22 @@ fn spawn_random_action_and_random_tick_spawn_activate_cells() {
     }))
     .unwrap();
     let ticked = on_tick(random_tick, &mut context);
-    assert!(ticked.cells.iter().filter(|cell| **cell).count() > 0);
+    assert_eq!(ticked.cells.iter().filter(|cell| **cell).count(), 4);
     assert!(ticked.trigger_types.contains(&CellTriggerType::Activate));
+
+    let zero = init(serde_json::json!({
+        "cells": [],
+        "randomCellsPerTick": 0
+    }))
+    .unwrap();
+    let zero = on_input(
+        zero,
+        DeviceInput::BehaviorAction(BehaviorActionInput {
+            action_type: "spawnRandom".into(),
+        }),
+        &mut context,
+    );
+    assert!(zero.cells.iter().all(|cell| !*cell));
 
     let ignored = on_input(
         spawned.clone(),
@@ -222,4 +240,48 @@ fn glider_moves_diagonally_after_four_generations() {
     for (x, y) in [(3, 2), (4, 3), (2, 4), (3, 4), (4, 4)] {
         assert!(state.cells[grid_index(x, y)]);
     }
+}
+
+#[test]
+fn malformed_saved_state_normalizes_without_tick_panics() {
+    let state = deserialize(serde_json::json!({
+        "width": 999,
+        "height": 1,
+        "cells": [true, "bad"],
+        "triggerTypes": ["activate", "bad"],
+        "randomCellsPerTick": 999,
+        "randomTickInterval": -4,
+        "gliderSpawnInterval": 999,
+        "spawnStep": -4,
+        "generation": u64::MAX,
+        "tickCounter": u64::MAX
+    }))
+    .unwrap();
+
+    assert_eq!(state.width, GRID_WIDTH);
+    assert_eq!(state.height, GRID_HEIGHT);
+    assert_eq!(state.cells.len(), CELL_COUNT);
+    assert!(state.cells[0]);
+    assert_eq!(state.trigger_types.len(), CELL_COUNT);
+    assert_eq!(state.trigger_types[0], CellTriggerType::Activate);
+    assert_eq!(state.trigger_types[1], CellTriggerType::None);
+    assert_eq!(state.random_cells_per_tick, 20);
+    assert_eq!(state.random_tick_interval, 1);
+    assert_eq!(state.glider_spawn_interval, 20);
+    assert_eq!(state.spawn_step, 0);
+    assert_eq!(state.generation, 0);
+    assert_eq!(state.tick_counter, 0);
+
+    let next = on_tick(state, &mut BehaviorContext::new(120.0));
+    assert_eq!(next.cells.len(), CELL_COUNT);
+    assert_eq!(next.trigger_types.len(), CELL_COUNT);
+}
+
+#[test]
+fn missing_saved_state_seeds_defaults_but_empty_state_does_not() {
+    let missing = deserialize(serde_json::json!({})).unwrap();
+    assert_eq!(missing.cells.iter().filter(|cell| **cell).count(), 3);
+
+    let empty = deserialize(serde_json::json!({ "cells": [] })).unwrap();
+    assert!(empty.cells.iter().all(|cell| !*cell));
 }

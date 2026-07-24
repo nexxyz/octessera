@@ -18,20 +18,9 @@ pub struct CyclicState {
     pub range: u8,
 }
 
-#[derive(Default, Deserialize)]
-struct Config {
-    cells: Option<Vec<Value>>,
-    ages: Option<Vec<Value>>,
-    #[serde(rename = "triggerTypes")]
-    trigger_types: Option<Vec<CellTriggerType>>,
-    states: Option<Value>,
-    threshold: Option<Value>,
-    range: Option<Value>,
-}
-
 pub fn cyclic_init(config: Value) -> Result<CyclicState, String> {
-    let mut state = state_from_config(config);
-    if state.cells.iter().all(|cell| *cell == 0) {
+    let (mut state, has_cells) = state_from_config(config);
+    if !has_cells {
         seed_cycle(&mut state);
     }
     state.trigger_types = triggers(&state.cells, &state.cells, &[]);
@@ -39,7 +28,10 @@ pub fn cyclic_init(config: Value) -> Result<CyclicState, String> {
 }
 
 pub fn cyclic_deserialize(data: Value) -> Result<CyclicState, String> {
-    let mut state = state_from_config(data);
+    let (mut state, has_cells) = state_from_config(data);
+    if !has_cells {
+        seed_cycle(&mut state);
+    }
     state.trigger_types = triggers(&state.cells, &state.cells, &[]);
     Ok(state)
 }
@@ -75,7 +67,6 @@ pub fn cyclic_on_input(
 }
 
 pub fn cyclic_on_tick(mut state: CyclicState, _context: &mut BehaviorContext) -> CyclicState {
-    normalize(&mut state);
     let previous = state.cells.clone();
     if is_seed_cycle(&state) {
         rotate_seed_cycle(&mut state);
@@ -105,22 +96,29 @@ pub fn cyclic_on_tick(mut state: CyclicState, _context: &mut BehaviorContext) ->
 }
 
 fn is_seed_cycle(state: &CyclicState) -> bool {
+    if !(3..=8).contains(&state.states) {
+        return false;
+    }
     let cycle = [
         grid_index(2, 2),
         grid_index(3, 2),
         grid_index(2, 3),
         grid_index(3, 3),
     ];
-    state
+    if state
         .cells
         .iter()
         .enumerate()
-        .all(|(index, cell)| cycle.contains(&index) || *cell == 0)
-        && cycle
-            .iter()
-            .filter(|index| state.cells[**index] == 0)
-            .count()
-            == 1
+        .any(|(index, cell)| !cycle.contains(&index) && *cell != 0)
+    {
+        return false;
+    }
+    (0..state.states).any(|rotation| {
+        cycle.iter().enumerate().all(|(position, index)| {
+            let expected = ([0, 1, 3, 2][position] + rotation) % state.states;
+            state.cells[*index] == expected
+        })
+    })
 }
 
 fn rotate_seed_cycle(state: &mut CyclicState) {
@@ -159,19 +157,31 @@ pub fn cyclic_config_menu() -> Vec<BehaviorConfigItem> {
     ]
 }
 
-fn state_from_config(config: Value) -> CyclicState {
-    let config: Config = serde_json::from_value(config).unwrap_or_default();
-    let states = number(config.states, 4, 8).clamp(3, 8);
+fn state_from_config(config: Value) -> (CyclicState, bool) {
+    let has_cells = array_field(&config, "cells").is_some();
+    let states = number(field(&config, "states"), 4, 3, 8);
     let mut state = CyclicState {
-        cells: normalize_cells(config.cells.unwrap_or_default(), states),
-        ages: normalize_ages(config.ages.unwrap_or_default()),
-        trigger_types: normalize_triggers(config.trigger_types),
+        cells: normalize_cells(array_field(&config, "cells").unwrap_or_default(), states),
+        ages: normalize_ages(array_field(&config, "ages").unwrap_or_default()),
+        trigger_types: normalize_triggers(None),
         states,
-        threshold: number(config.threshold, 1, 8).clamp(1, 8),
-        range: number(config.range, 1, 2).clamp(1, 2),
+        threshold: number(field(&config, "threshold"), 1, 1, 8),
+        range: number(field(&config, "range"), 1, 1, 2),
     };
     normalize(&mut state);
-    state
+    (state, has_cells)
+}
+
+fn field(config: &Value, key: &str) -> Option<Value> {
+    config.as_object()?.get(key).cloned()
+}
+
+fn array_field(config: &Value, key: &str) -> Option<Vec<Value>> {
+    config.as_object().and_then(|object| {
+        object
+            .get(key)
+            .map(|value| value.as_array().cloned().unwrap_or_default())
+    })
 }
 
 fn normalize(state: &mut CyclicState) {
@@ -213,11 +223,19 @@ fn normalize_triggers(triggers: Option<Vec<CellTriggerType>>) -> Vec<CellTrigger
     triggers
 }
 
-fn number(value: Option<Value>, default: u8, max: u8) -> u8 {
-    value
-        .and_then(|value| value.as_u64())
-        .map(|value| value.min(u64::from(max)) as u8)
-        .unwrap_or(default)
+fn number(value: Option<Value>, default: u8, min: u8, max: u8) -> u8 {
+    match value {
+        Some(value) => value
+            .as_i64()
+            .map(|value| value.clamp(i64::from(min), i64::from(max)) as u8)
+            .or_else(|| {
+                value
+                    .as_u64()
+                    .map(|value| value.clamp(u64::from(min), u64::from(max)) as u8)
+            })
+            .unwrap_or(default),
+        None => default,
+    }
 }
 
 fn advance_cell(state: &mut CyclicState, index: usize) {

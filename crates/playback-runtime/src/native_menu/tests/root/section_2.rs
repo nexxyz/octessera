@@ -52,11 +52,16 @@ pub(crate) fn entering_pulses_selects_active_layer_row_after_global_rows() {
     });
     menu.turn(1);
     let _ = menu.press();
-    menu.state.cursor = 6;
+    let layer_index = menu
+        .current_siblings()
+        .iter()
+        .position(|item| item.label.starts_with("L3:"))
+        .expect("active layer row");
+    menu.state.cursor = layer_index;
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "/Link");
     let selected_row = snapshot.selected_row.expect("selected row");
-    assert_eq!(snapshot.lines[selected_row], "> L3: life >");
+    assert!(snapshot.lines[selected_row].contains("L3: life"));
     assert_eq!(snapshot.colors[0], platform_core::palette::RED_RGB565);
 }
 
@@ -72,10 +77,13 @@ pub(crate) fn pulses_starts_with_global_rows_and_layer_rows_are_enterable() {
     assert!(snapshot.bar_values[1].is_some());
     assert_eq!(snapshot.lines[2], "  Swing 0%");
     assert_eq!(snapshot.lines[3], "  Aux Mappings >");
-    menu.turn(1);
-    menu.turn(1);
-    menu.turn(1);
-    menu.turn(1);
+    assert_eq!(snapshot.lines[4], "  LFOs >");
+    let layer_index = menu
+        .current_siblings()
+        .iter()
+        .position(|item| item.label.starts_with("L1:"))
+        .expect("layer row");
+    menu.state.cursor = layer_index;
     let _ = menu.press();
     let layer_snapshot = menu.snapshot();
     assert_eq!(layer_snapshot.path, "/L/L1: life");

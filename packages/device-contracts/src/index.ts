@@ -64,6 +64,8 @@ export type {
   RuntimeRunnerMessage,
   RuntimeSnapshotMessage,
   RuntimeStoreResult,
+  RuntimeSystemInfo,
+  RuntimeSystemInfoError,
   RuntimeStatus,
   RuntimeStatusMessage,
   RuntimeStatusState,

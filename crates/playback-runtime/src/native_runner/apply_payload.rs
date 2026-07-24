@@ -1,6 +1,6 @@
 use super::{
     default_sparks_fx_selected, prepare_config_payload, prepare_device_payload,
-    prepare_patch_payload, sanitize_sparks_fx_config, validate_config_payload, NativeRunner,
+    prepare_patch_payload, sanitize_sparks_fx_config, NativeRunner, NativeRunnerConfig,
     NativeSparksFxAssignment, Value, DEFAULT_ALGORITHM_STEP_RED, GRID_HEIGHT,
 };
 
@@ -15,17 +15,109 @@ impl NativeRunner {
     pub fn apply_config_payload(&mut self, payload: Value) -> Result<(), String> {
         let current = self.config_payload();
         let prepared = prepare_config_payload(payload, &current)?;
-        self.validate_candidate(&prepared.payload, true)?;
         let source_revision = prepared.source_revision;
-        self.apply_config_payload_unchecked(prepared.apply_payload, true)?;
-        self.commit_loaded_revision(source_revision);
+        let migration_report = prepared.migration_report;
+        let candidate = self.build_transaction_candidate(&prepared.apply_payload, true)?;
+        self.commit_transaction_candidate(candidate, source_revision, &current)?;
+        if let Some(report) = migration_report {
+            self.show_toast(report);
+        }
         Ok(())
     }
 
-    fn validate_candidate(&self, payload: &Value, apply_device: bool) -> Result<(), String> {
-        validate_config_payload(payload)?;
-        let mut validator = NativeRunner::new(crate::native_runner::NativeRunnerConfig::default())?;
-        validator.apply_config_payload_unchecked(payload.clone(), apply_device)
+    fn build_transaction_candidate(
+        &self,
+        payload: &Value,
+        apply_device: bool,
+    ) -> Result<NativeRunner, String> {
+        let mut candidate = NativeRunner::new(NativeRunnerConfig {
+            sample_builtin_favourite_dirs: self.sample_builtin_favourite_dirs.clone(),
+            ..NativeRunnerConfig::default()
+        })?;
+        candidate.copy_non_config_state_from(self);
+        candidate.apply_config_payload_unchecked(self.config_payload(), true)?;
+        candidate.outbox = self.outbox.clone();
+        candidate.copy_live_runtime_state_from(self);
+        candidate.copy_transport_runtime_state_from(self);
+        candidate.apply_config_payload_unchecked(payload.clone(), apply_device)?;
+        for (candidate_lfo, source_lfo) in candidate.link_lfos.iter_mut().zip(&self.link_lfos) {
+            let preserve_phase = candidate_lfo.enabled
+                && source_lfo.enabled
+                && candidate_lfo.target.as_ref().map(|target| &target.key)
+                    == source_lfo.target.as_ref().map(|target| &target.key);
+            candidate_lfo.phase_pulses = if preserve_phase {
+                source_lfo.phase_pulses
+                    % crate::timing_units::note_unit_to_pulses(&candidate_lfo.period).max(1)
+            } else {
+                0
+            };
+        }
+        Ok(candidate)
+    }
+
+    fn copy_non_config_state_from(&mut self, source: &NativeRunner) {
+        self.display = source.display.clone();
+        self.pending = source.pending.clone();
+        self.outbox = source.outbox.clone();
+        self.midi_outputs = source.midi_outputs.clone();
+        self.midi_inputs = source.midi_inputs.clone();
+        self.midi_status = source.midi_status.clone();
+        self.preset_names = source.preset_names.clone();
+        self.current_preset_name = source.current_preset_name.clone();
+        self.preset_draft_name = source.preset_draft_name.clone();
+        self.preset_rename_source = source.preset_rename_source.clone();
+        self.sample_browser = source.sample_browser.clone();
+        self.last_backup_save_at = source.last_backup_save_at;
+        self.last_snapshot_audio_config_revision = source.last_snapshot_audio_config_revision;
+        self.last_published_runtime_config = source.last_published_runtime_config.clone();
+        self.trigger_probability_rng = source.trigger_probability_rng;
+    }
+
+    fn copy_live_runtime_state_from(&mut self, source: &NativeRunner) {
+        self.xy_touch = source.xy_touch.clone();
+        self.active_sparks_fx = source.active_sparks_fx.clone();
+        self.trigger_gate_modes = source.trigger_gate_modes.clone();
+        self.trigger_gate_restore_modes = source.trigger_gate_restore_modes.clone();
+        self.sparks_transpose_selected = source.sparks_transpose_selected.clone();
+        self.sparks_transpose_enabled = source.sparks_transpose_enabled.clone();
+        self.sparks_transpose_offsets = source.sparks_transpose_offsets.clone();
+        self.sparks_transpose_active_notes = source.sparks_transpose_active_notes.clone();
+        self.pending_transpose_note_offs = source.pending_transpose_note_offs.clone();
+        self.sample_assign = source.sample_assign;
+        self.trigger_probability_assign = source.trigger_probability_assign;
+    }
+
+    fn copy_transport_runtime_state_from(&mut self, source: &NativeRunner) {
+        self.transport.transport = source.transport.transport.clone();
+        self.transport.pending_resync = source.transport.pending_resync;
+        self.transport.current_ppqn_pulse = source.transport.current_ppqn_pulse;
+        self.transport.swung_ppqn_pulse = source.transport.swung_ppqn_pulse;
+        self.transport.tick = source.transport.tick;
+        self.transport.layer_ticks = source.transport.layer_ticks.clone();
+        self.transport.algorithm_pulse_accumulator = source.transport.algorithm_pulse_accumulator;
+        self.transport.layer_pulse_accumulators = source.transport.layer_pulse_accumulators.clone();
+    }
+
+    fn commit_transaction_candidate(
+        &mut self,
+        mut candidate: NativeRunner,
+        source_revision: Option<u64>,
+        before_payload: &Value,
+    ) -> Result<(), String> {
+        self.drain_all_layer_engine_notes()?;
+        candidate.pending_transpose_note_offs = self.pending_transpose_note_offs.clone();
+        candidate.config_revision = self.config_revision;
+        let audio_changed = audio_config_changed(before_payload, &candidate.config_payload());
+        candidate.audio_config_revision = self
+            .audio_config_revision
+            .saturating_add(u64::from(audio_changed));
+        candidate.last_snapshot_audio_config_revision = self.last_snapshot_audio_config_revision;
+        *self = candidate;
+        self.commit_loaded_revision(source_revision);
+        if let Err(error) = self.process_modulation_step(false) {
+            self.show_toast(format!("LFO composition unavailable: {error}"));
+        }
+        Ok(())
     }
 
     fn commit_loaded_revision(&mut self, source_revision: Option<u64>) {
@@ -42,7 +134,6 @@ impl NativeRunner {
         payload: Value,
         apply_device: bool,
     ) -> Result<(), String> {
-        self.restore_link_lfo_base_audio();
         self.clear_all_link_arp_state();
         let before_payload = self.config_payload();
         let runtime = payload
@@ -61,20 +152,16 @@ impl NativeRunner {
             })
             .transpose()?
             .unwrap_or(self.active_layer_index);
-        if let Some(active_layer_index) = runtime.get("activeLayerIndex").and_then(Value::as_u64) {
-            self.active_layer_index = usize::try_from(active_layer_index)
-                .map_err(|_| "activeLayerIndex is outside the supported range".to_string())?
-                .min(GRID_HEIGHT.saturating_sub(1));
-        }
+        self.switch_active_engine(desired_active_layer_index)?;
         self.apply_layers_payload(runtime)?;
-        self.apply_sparks_and_xy_payload(runtime, desired_active_layer_index);
-        self.swap_active_engine_from_layer(desired_active_layer_index)?;
+        self.apply_sparks_and_xy_payload(runtime);
         self.apply_instruments_payload(runtime);
         if apply_device {
             self.apply_runtime_ui_and_sound_payload(runtime, &payload)?;
         } else {
             self.apply_patch_runtime_payload(runtime, &payload)?;
         }
+        self.resample_xy_runtime_sources();
         self.apply_hdmi_payload(runtime);
         self.apply_sample_browser_favourites_payload(runtime);
         let active_behavior_id = self
@@ -100,7 +187,7 @@ impl NativeRunner {
             self.behavior_config = active_worlds
                 .get("behaviorConfig")
                 .cloned()
-                .unwrap_or(Value::Null);
+                .unwrap_or_else(|| self.layer_behavior_config(self.active_layer_index));
         }
         self.refresh_active_mapping_config();
         self.refresh_active_interpretation_profile();
@@ -122,10 +209,13 @@ impl NativeRunner {
     ) -> Result<(), String> {
         let current = self.config_payload();
         let prepared = prepare_patch_payload(payload, &current)?;
-        self.validate_candidate(&prepared.payload, false)?;
         let source_revision = prepared.source_revision;
-        self.apply_config_payload_unchecked(prepared.apply_payload, false)?;
-        self.commit_loaded_revision(source_revision);
+        let migration_report = prepared.migration_report;
+        let candidate = self.build_transaction_candidate(&prepared.apply_payload, false)?;
+        self.commit_transaction_candidate(candidate, source_revision, &current)?;
+        if let Some(report) = migration_report {
+            self.show_toast(report);
+        }
         Ok(())
     }
 
@@ -136,10 +226,13 @@ impl NativeRunner {
     ) -> Result<(), String> {
         let current = self.config_payload();
         let prepared = prepare_device_payload(payload, &current)?;
-        self.validate_candidate(&prepared.payload, true)?;
         let source_revision = prepared.source_revision;
-        self.apply_config_payload_unchecked(prepared.apply_payload, true)?;
-        self.commit_loaded_revision(source_revision);
+        let migration_report = prepared.migration_report;
+        let candidate = self.build_transaction_candidate(&prepared.apply_payload, true)?;
+        self.commit_transaction_candidate(candidate, source_revision, &current)?;
+        if let Some(report) = migration_report {
+            self.show_toast(report);
+        }
         Ok(())
     }
 

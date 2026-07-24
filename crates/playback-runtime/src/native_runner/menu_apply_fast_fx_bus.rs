@@ -48,11 +48,13 @@ impl NativeRunner {
         }
         bus.pan_pos = pan_pos;
         self.mark_fast_autosave_dirty();
-        self.queue_audio_command(RuntimeAudioCommand::SetFxBusMixer {
-            bus_index,
-            pan_pos: Some(usize::from(pan_pos)),
-            volume_pct: None,
-        });
+        if !self.rebase_and_recompose_modulation_key(key) {
+            self.queue_audio_command(RuntimeAudioCommand::SetFxBusMixer {
+                bus_index,
+                pan_pos: Some(usize::from(pan_pos)),
+                volume_pct: None,
+            });
+        }
         true
     }
 
@@ -69,11 +71,13 @@ impl NativeRunner {
         }
         bus.volume_pct = volume_pct;
         self.mark_fast_autosave_dirty();
-        self.queue_audio_command(RuntimeAudioCommand::SetFxBusMixer {
-            bus_index,
-            pan_pos: None,
-            volume_pct: Some(f32::from(volume_pct)),
-        });
+        if !self.rebase_and_recompose_modulation_key(key) {
+            self.queue_audio_command(RuntimeAudioCommand::SetFxBusMixer {
+                bus_index,
+                pan_pos: None,
+                volume_pct: Some(f32::from(volume_pct)),
+            });
+        }
         true
     }
 
@@ -109,12 +113,14 @@ impl NativeRunner {
             self.sync_delay_time_ms_menu_value(key, &sync_time_ms);
         }
         self.mark_fast_autosave_dirty();
-        self.queue_audio_command(RuntimeAudioCommand::SetFxBusSlot {
-            bus_index,
-            slot_index,
-            fx_type,
-            params,
-        });
+        if !self.rebase_and_recompose_modulation_key(key) {
+            self.queue_audio_command(RuntimeAudioCommand::SetFxBusSlot {
+                bus_index,
+                slot_index,
+                fx_type,
+                params,
+            });
+        }
         true
     }
 
@@ -197,12 +203,14 @@ impl NativeRunner {
                 .set_text_value_for_key(&format!("mixer.buses.{bus_index}.name"), &next_bus_name);
         }
         self.mark_fast_autosave_dirty();
-        self.queue_audio_command(RuntimeAudioCommand::SetFxBusSlot {
-            bus_index,
-            slot_index,
-            fx_type,
-            params,
-        });
+        if !self.rebase_and_recompose_modulation_key(key) {
+            self.queue_audio_command(RuntimeAudioCommand::SetFxBusSlot {
+                bus_index,
+                slot_index,
+                fx_type,
+                params,
+            });
+        }
         self.warn_if_bus_fx_over_budget();
         true
     }
@@ -222,11 +230,13 @@ impl NativeRunner {
         }
         let params = value_object_to_map(params);
         self.mark_fast_autosave_dirty();
-        self.queue_audio_command(RuntimeAudioCommand::SetGlobalFxSlot {
-            slot_index,
-            fx_type,
-            params,
-        });
+        if !self.rebase_and_recompose_modulation_key(key) {
+            self.queue_audio_command(RuntimeAudioCommand::SetGlobalFxSlot {
+                slot_index,
+                fx_type,
+                params,
+            });
+        }
         true
     }
 
@@ -263,23 +273,20 @@ impl NativeRunner {
         self.menu
             .replace_group_children_containing_direct_key(&slot_key, &children);
         self.mark_fast_autosave_dirty();
-        self.queue_audio_command(RuntimeAudioCommand::SetGlobalFxSlot {
-            slot_index,
-            fx_type,
-            params,
-        });
+        if !self.rebase_and_recompose_modulation_key(key) {
+            self.queue_audio_command(RuntimeAudioCommand::SetGlobalFxSlot {
+                slot_index,
+                fx_type,
+                params,
+            });
+        }
         true
     }
 
     fn menu_value_for_audio_param(&self, key: &str) -> Value {
         if let Some(number) = self.menu.number_for_key(key) {
             let param = key.rsplit('.').next().unwrap_or(key);
-            let scale = fx_param_scale(param);
-            return if (scale - 1.0).abs() < f64::EPSILON {
-                Value::from(number)
-            } else {
-                Value::from(f64::from(number) / scale)
-            };
+            return super::fx_param_codec::display_to_storage(param, f64::from(number));
         }
         self.menu
             .value_for_key(key)
@@ -385,16 +392,6 @@ fn fx_type_label(slot_type: &str) -> String {
         "eq" => "EQ".into(),
         "vinyl" => "Vinyl".into(),
         _ => slot_type.into(),
-    }
-}
-
-fn fx_param_scale(param: &str) -> f64 {
-    match param {
-        "threshold" | "feedback" | "rateHz" | "clip" | "q" | "damp" | "midQ" => 100.0,
-        "drive" | "depthMs" | "baseMs" => 10.0,
-        "decay" => 1000.0,
-        "thresholdDb" | "ratio" | "makeupDb" | "lowGainDb" | "midGainDb" | "highGainDb" => 2.0,
-        _ => 1.0,
     }
 }
 

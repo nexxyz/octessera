@@ -192,44 +192,108 @@ pub(super) fn triggers_from_cells_forced(
     next: &[u8],
     force_activate: &[usize],
 ) -> Vec<CellTriggerType> {
-    triggers(
-        &prev.iter().map(|cell| *cell != EMPTY).collect::<Vec<_>>(),
-        prev,
-        next,
-        &[],
-        force_activate,
-    )
+    triggers(prev, next, &[], force_activate)
 }
 
 pub(super) fn triggers(
-    _previous_visible: &[bool],
     prev: &[u8],
     next: &[u8],
     bursts: &[usize],
     force_activate: &[usize],
 ) -> Vec<CellTriggerType> {
+    triggers_with_deactivations(prev, next, bursts, force_activate, &[])
+}
+
+pub(super) fn triggers_with_deactivations(
+    prev: &[u8],
+    next: &[u8],
+    bursts: &[usize],
+    force_activate: &[usize],
+    force_deactivate: &[usize],
+) -> Vec<CellTriggerType> {
     let mut triggers = (0..CELL_COUNT)
-        .map(|index| match (prev[index], next[index]) {
-            (HERBIVORE | PREDATOR, GRASS) => CellTriggerType::Deactivate,
-            (_, GRASS) => CellTriggerType::Stable,
-            (EMPTY, HERBIVORE | PREDATOR) | (GRASS, HERBIVORE | PREDATOR) => {
-                CellTriggerType::Activate
-            }
-            (HERBIVORE | PREDATOR, EMPTY) => CellTriggerType::Deactivate,
-            (HERBIVORE | PREDATOR, HERBIVORE | PREDATOR) => CellTriggerType::Stable,
-            (EMPTY, EMPTY) => CellTriggerType::None,
-            _ => CellTriggerType::Stable,
-        })
+        .map(|index| transition_trigger(prev[index], next[index]))
         .collect::<Vec<_>>();
-    for index in bursts {
-        if triggers[*index] != CellTriggerType::Deactivate {
-            triggers[*index] = CellTriggerType::Activate;
+    let mut priorities = triggers
+        .iter()
+        .map(|trigger| TriggerPriority::from_trigger(*trigger))
+        .collect::<Vec<_>>();
+    for index in force_deactivate {
+        if *index < CELL_COUNT && prev[*index] != EMPTY && next[*index] == EMPTY {
+            apply_trigger(
+                &mut triggers,
+                &mut priorities,
+                *index,
+                CellTriggerType::Deactivate,
+                TriggerPriority::Deactivate,
+            );
         }
     }
+    for index in bursts {
+        apply_trigger(
+            &mut triggers,
+            &mut priorities,
+            *index,
+            CellTriggerType::Activate,
+            TriggerPriority::BurstActivate,
+        );
+    }
     for index in force_activate {
-        triggers[*index] = CellTriggerType::Activate;
+        apply_trigger(
+            &mut triggers,
+            &mut priorities,
+            *index,
+            CellTriggerType::Activate,
+            TriggerPriority::MovementActivate,
+        );
     }
     triggers
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum TriggerPriority {
+    None,
+    Stable,
+    MovementActivate,
+    BurstActivate,
+    Deactivate,
+}
+
+impl TriggerPriority {
+    fn from_trigger(trigger: CellTriggerType) -> Self {
+        match trigger {
+            CellTriggerType::None => Self::None,
+            CellTriggerType::Stable => Self::Stable,
+            CellTriggerType::Activate => Self::MovementActivate,
+            CellTriggerType::Deactivate => Self::Deactivate,
+            CellTriggerType::Scanned => Self::None,
+        }
+    }
+}
+
+fn apply_trigger(
+    triggers: &mut [CellTriggerType],
+    priorities: &mut [TriggerPriority],
+    index: usize,
+    trigger: CellTriggerType,
+    priority: TriggerPriority,
+) {
+    if index < CELL_COUNT && priority > priorities[index] {
+        triggers[index] = trigger;
+        priorities[index] = priority;
+    }
+}
+
+fn transition_trigger(previous: u8, next: u8) -> CellTriggerType {
+    match (previous, next) {
+        (HERBIVORE | PREDATOR, EMPTY | GRASS) => CellTriggerType::Deactivate,
+        (_, GRASS) => CellTriggerType::Stable,
+        (EMPTY | GRASS, HERBIVORE | PREDATOR) => CellTriggerType::Activate,
+        (HERBIVORE, PREDATOR) | (PREDATOR, HERBIVORE) => CellTriggerType::Activate,
+        (HERBIVORE | PREDATOR, HERBIVORE | PREDATOR) => CellTriggerType::Stable,
+        (EMPTY, EMPTY) => CellTriggerType::None,
+        _ => CellTriggerType::Stable,
+    }
 }
 
 pub(super) fn reseed_extinct(state: &mut PredatorPreyState) -> Vec<usize> {

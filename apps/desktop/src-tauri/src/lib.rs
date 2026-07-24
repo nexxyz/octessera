@@ -115,7 +115,7 @@ pub fn run() {
     let no_audio = std::env::args().any(|arg| arg == "--no-audio");
 
     let (trigger_tx, trigger_rx) = mpsc::channel::<crate::types::QueuedAudioEvent>();
-    let (load_tx, load_rx) = mpsc::channel::<realtime_engine::synth::AudioLoadStatus>();
+    let (load_tx, load_rx) = rodio_engine_source::audio_load_status_channel();
     let (audio_failure_tx, audio_failure_rx) =
         mpsc::channel::<playback_runtime::RuntimeAdapterError>();
     let synth_slots = Arc::new(Mutex::new([true; INSTRUMENT_SLOT_COUNT]));
@@ -185,7 +185,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::audio_command,
             commands::runtime_dispatch,
-            commands::runtime_sync_config,
             commands::runtime_drain_messages,
             samples::sample_list
         ])

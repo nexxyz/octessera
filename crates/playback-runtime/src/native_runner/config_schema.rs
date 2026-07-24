@@ -1,40 +1,68 @@
 use super::{
-    merge_preserved_aux_payloads, patch_payload_from_payload, validate_config_payload, Value,
+    merge_preserved_aux_payloads, migrate_legacy_modulation, patch_payload_from_payload,
+    validate_canonical_lfo_bank_shape, validate_config_payload, Value,
 };
 
 pub(super) const CONFIG_KIND: &str = "octessera.config";
 pub(super) const PATCH_KIND: &str = "octessera.patch";
-pub(super) const CONFIG_SCHEMA_VERSION: u64 = 1;
+pub(super) const CONFIG_SCHEMA_VERSION: u64 = 2;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum EnvelopeVersion {
+    Unversioned,
+    V1,
+    V2,
+}
+
+impl EnvelopeVersion {
+    fn is_legacy(self) -> bool {
+        matches!(self, Self::Unversioned | Self::V1)
+    }
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct PreparedConfigPayload {
     pub(super) payload: Value,
     pub(super) apply_payload: Value,
     pub(super) source_revision: Option<u64>,
+    pub(super) migration_report: Option<String>,
 }
 
 pub(super) fn prepare_config_payload(
     input: Value,
     current: &Value,
 ) -> Result<PreparedConfigPayload, String> {
-    let (input, source_revision) = parse_envelope(input, CONFIG_KIND)?;
+    let (input, source_revision, version) = parse_envelope(input, CONFIG_KIND)?;
     let mut input = input;
-    migrate_legacy_runtime_root(&mut input);
-    let mut apply_payload = input.clone();
-    set_config_envelope(
-        &mut apply_payload,
-        source_revision.or_else(|| revision_of(current)),
-    );
+    validate_canonical_lfo_bank_shape(&input)?;
+    if version == EnvelopeVersion::V2 && !has_global_lfo_bank(&input) {
+        return Err("runtimeConfig.linkLfos must be supplied in a v2 full config".into());
+    }
+    if version.is_legacy() {
+        migrate_legacy_runtime_root(&mut input);
+    }
+    let migration_report = if version.is_legacy() {
+        migrate_legacy_modulation(&mut input, current)?
+    } else {
+        None
+    };
     let mut payload = merge_values(current, &input);
     set_config_envelope(
         &mut payload,
         source_revision.or_else(|| revision_of(current)),
     );
-    validate_config_payload(&payload)?;
+    if !version.is_legacy() {
+        validate_config_payload(&payload)?;
+    }
     Ok(PreparedConfigPayload {
+        apply_payload: if version.is_legacy() {
+            input
+        } else {
+            payload.clone()
+        },
         payload,
-        apply_payload,
         source_revision,
+        migration_report,
     })
 }
 
@@ -42,21 +70,37 @@ pub(super) fn prepare_patch_payload(
     input: Value,
     current: &Value,
 ) -> Result<PreparedConfigPayload, String> {
-    let (input, source_revision) = parse_envelope(input, PATCH_KIND)?;
+    let (input, source_revision, version) = parse_envelope(input, PATCH_KIND)?;
+    let mut input = input;
+    validate_canonical_lfo_bank_shape(&input)?;
+    if version.is_legacy() {
+        migrate_legacy_runtime_root(&mut input);
+    }
+    let migration_report = if version.is_legacy() {
+        migrate_legacy_modulation(&mut input, current)?
+    } else {
+        None
+    };
     let mut patch = patch_payload_from_payload(input);
     merge_preserved_aux_payloads(&mut patch, current, true);
-    let apply_payload = patch.clone();
     let mut payload = merge_values(current, &patch);
     discard_incompatible_layer_state(&mut payload, &patch, current);
     set_config_envelope(
         &mut payload,
         source_revision.or_else(|| revision_of(current)),
     );
-    validate_config_payload(&payload)?;
+    if !version.is_legacy() {
+        validate_config_payload(&payload)?;
+    }
     Ok(PreparedConfigPayload {
+        apply_payload: if version.is_legacy() {
+            patch
+        } else {
+            payload.clone()
+        },
         payload,
-        apply_payload,
         source_revision,
+        migration_report,
     })
 }
 
@@ -64,20 +108,36 @@ pub(super) fn prepare_device_payload(
     input: Value,
     current: &Value,
 ) -> Result<PreparedConfigPayload, String> {
-    let (input, source_revision) = parse_envelope(input, CONFIG_KIND)?;
+    let (input, source_revision, version) = parse_envelope(input, CONFIG_KIND)?;
+    let mut input = input;
+    validate_canonical_lfo_bank_shape(&input)?;
+    if version.is_legacy() {
+        migrate_legacy_runtime_root(&mut input);
+    }
+    let migration_report = if version.is_legacy() {
+        migrate_legacy_modulation(&mut input, current)?
+    } else {
+        None
+    };
     let mut device = super::device_config_payload_from_payload(input);
     merge_preserved_aux_payloads(&mut device, current, false);
-    let apply_payload = device.clone();
     let mut payload = merge_values(current, &device);
     set_config_envelope(
         &mut payload,
         source_revision.or_else(|| revision_of(current)),
     );
-    validate_config_payload(&payload)?;
+    if !version.is_legacy() {
+        validate_config_payload(&payload)?;
+    }
     Ok(PreparedConfigPayload {
+        apply_payload: if version.is_legacy() {
+            device
+        } else {
+            payload.clone()
+        },
         payload,
-        apply_payload,
         source_revision,
+        migration_report,
     })
 }
 
@@ -107,9 +167,6 @@ fn discard_incompatible_layer_state(payload: &mut Value, patch: &Value, current:
         let Some(patch_worlds) = patch_layer.get("worlds") else {
             continue;
         };
-        let Some(next_behavior) = patch_worlds.get("behaviorId").and_then(Value::as_str) else {
-            continue;
-        };
         let Some(current_behavior) = current_layers
             .get(index)
             .and_then(|layer| layer.get("worlds"))
@@ -118,24 +175,53 @@ fn discard_incompatible_layer_state(payload: &mut Value, patch: &Value, current:
         else {
             continue;
         };
-        if next_behavior == current_behavior || patch_worlds.get("savedState").is_some() {
-            continue;
-        }
+        let behavior_changed = patch_worlds
+            .get("behaviorId")
+            .and_then(Value::as_str)
+            .is_some_and(|next_behavior| next_behavior != current_behavior);
+        let config_changed = patch_worlds
+            .get("behaviorConfig")
+            .zip(
+                current_layers
+                    .get(index)
+                    .and_then(|layer| layer.get("worlds"))
+                    .and_then(|worlds| worlds.get("behaviorConfig")),
+            )
+            .is_some_and(|(patch_config, current_config)| {
+                merge_values(current_config, patch_config) != *current_config
+            })
+            || patch_worlds
+                .get("behaviorConfig")
+                .is_some_and(|patch_config| {
+                    current_layers
+                        .get(index)
+                        .and_then(|layer| layer.get("worlds"))
+                        .and_then(|worlds| worlds.get("behaviorConfig"))
+                        .is_none()
+                        && !patch_config
+                            .as_object()
+                            .is_some_and(|object| object.is_empty())
+                });
         if let Some(worlds) = candidate_layers
             .get_mut(index)
             .and_then(|layer| layer.get_mut("worlds"))
             .and_then(Value::as_object_mut)
         {
-            worlds.remove("savedState");
-            worlds.remove("behaviorState");
-            if patch_worlds.get("behaviorConfig").is_none() {
+            if behavior_changed && patch_worlds.get("behaviorConfig").is_none() {
                 worlds.remove("behaviorConfig");
+            }
+            if patch_worlds.get("savedState").is_none() && (behavior_changed || config_changed) {
+                worlds.remove("savedState");
+                worlds.remove("behaviorState");
             }
         }
     }
 }
 
-fn parse_envelope(input: Value, expected_kind: &str) -> Result<(Value, Option<u64>), String> {
+fn parse_envelope(
+    input: Value,
+    expected_kind: &str,
+) -> Result<(Value, Option<u64>, EnvelopeVersion), String> {
     let object = input
         .as_object()
         .ok_or_else(|| "configuration payload must be an object".to_string())?;
@@ -144,7 +230,7 @@ fn parse_envelope(input: Value, expected_kind: &str) -> Result<(Value, Option<u6
     if has_kind != has_schema {
         return Err("configuration envelope must include kind and schemaVersion".into());
     }
-    if has_kind {
+    let version = if has_kind {
         let kind = object
             .get("kind")
             .and_then(Value::as_str)
@@ -156,12 +242,19 @@ fn parse_envelope(input: Value, expected_kind: &str) -> Result<(Value, Option<u6
             .get("schemaVersion")
             .and_then(Value::as_u64)
             .ok_or_else(|| "configuration schemaVersion must be an integer".to_string())?;
-        if version != CONFIG_SCHEMA_VERSION {
+        if version != CONFIG_SCHEMA_VERSION && version != 1 {
             return Err(format!(
                 "unsupported configuration schema version {version}"
             ));
         }
-    }
+        if version == CONFIG_SCHEMA_VERSION {
+            EnvelopeVersion::V2
+        } else {
+            EnvelopeVersion::V1
+        }
+    } else {
+        EnvelopeVersion::Unversioned
+    };
     let revision = object
         .get("revision")
         .map(|value| {
@@ -175,7 +268,15 @@ fn parse_envelope(input: Value, expected_kind: &str) -> Result<(Value, Option<u6
             return Err("runtimeConfig must be an object".into());
         }
     }
-    Ok((input, revision))
+    Ok((input, revision, version))
+}
+
+fn has_global_lfo_bank(payload: &Value) -> bool {
+    payload
+        .get("runtimeConfig")
+        .unwrap_or(payload)
+        .get("linkLfos")
+        .is_some()
 }
 
 fn set_config_envelope(payload: &mut Value, revision: Option<u64>) {
@@ -197,13 +298,16 @@ fn revision_of(payload: &Value) -> Option<u64> {
 }
 
 fn migrate_legacy_runtime_root(payload: &mut Value) {
-    if payload.get("runtimeConfig").is_some() || payload.get("kind").is_some() {
+    if payload.get("runtimeConfig").is_some() {
         return;
     }
     let Some(object) = payload.as_object_mut() else {
         return;
     };
     let mut runtime = object.clone();
+    runtime.remove("kind");
+    runtime.remove("schemaVersion");
+    runtime.remove("revision");
     runtime.remove("mappingConfig");
     runtime.remove("system");
     object.insert("runtimeConfig".into(), Value::Object(runtime));

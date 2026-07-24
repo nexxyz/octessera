@@ -11,8 +11,8 @@ use serde_json::Value;
 mod simulation;
 
 use simulation::{
-    reseed_extinct, starter, triggers, triggers_from_cells, triggers_from_cells_forced, ActorStep,
-    StepBuffers,
+    reseed_extinct, starter, triggers, triggers_from_cells, triggers_from_cells_forced,
+    triggers_with_deactivations, ActorStep, StepBuffers,
 };
 
 pub(super) const EMPTY: u8 = 0;
@@ -38,10 +38,10 @@ pub struct PredatorPreyState {
 
 #[derive(Default, Deserialize)]
 struct Config {
-    cells: Option<Vec<Value>>,
-    energy: Option<Vec<Value>>,
+    cells: Option<Value>,
+    energy: Option<Value>,
     #[serde(rename = "triggerTypes")]
-    trigger_types: Option<Vec<CellTriggerType>>,
+    trigger_types: Option<Value>,
     #[serde(rename = "grassGrowChancePct")]
     grass_grow_chance_pct: Option<Value>,
     #[serde(rename = "herbivoreReproducePct")]
@@ -54,36 +54,40 @@ struct Config {
 
 pub fn predator_prey_init(config: Value) -> Result<PredatorPreyState, String> {
     let config: Config = serde_json::from_value(config).unwrap_or_default();
+    let has_cells = config.cells.as_ref().is_some_and(|value| value.is_array());
     let mut state = PredatorPreyState {
-        cells: norm_cells(config.cells.unwrap_or_default()),
-        energy: norm_energy(config.energy.unwrap_or_default()),
-        trigger_types: norm_triggers(config.trigger_types),
+        cells: norm_cells(config.cells.map(array_values).unwrap_or_default()),
+        energy: norm_energy(config.energy.map(array_values).unwrap_or_default()),
+        trigger_types: norm_triggers(parse_triggers(config.trigger_types)),
         grass_grow_chance_pct: num(config.grass_grow_chance_pct, 15, 100),
         herbivore_reproduce_pct: num(config.herbivore_reproduce_pct, 15, 100),
         predator_reproduce_pct: num(config.predator_reproduce_pct, 8, 100),
         starve_ticks: num(config.starve_ticks, 8, 32).max(1),
     };
     normalize(&mut state);
-    if state.cells.iter().all(|c| *c == EMPTY) {
+    if !has_cells {
         starter(&mut state);
     }
-    let empty = [false; CELL_COUNT];
-    state.trigger_types = triggers(&empty, &state.cells, &state.cells, &[], &[]);
+    state.trigger_types = triggers(&state.cells, &state.cells, &[], &[]);
     Ok(state)
 }
 
 pub fn predator_prey_deserialize(data: Value) -> Result<PredatorPreyState, String> {
     let config: Config = serde_json::from_value(data).unwrap_or_default();
+    let has_cells = config.cells.as_ref().is_some_and(|value| value.is_array());
     let mut state = PredatorPreyState {
-        cells: norm_cells(config.cells.unwrap_or_default()),
-        energy: norm_energy(config.energy.unwrap_or_default()),
-        trigger_types: norm_triggers(config.trigger_types),
+        cells: norm_cells(config.cells.map(array_values).unwrap_or_default()),
+        energy: norm_energy(config.energy.map(array_values).unwrap_or_default()),
+        trigger_types: norm_triggers(parse_triggers(config.trigger_types)),
         grass_grow_chance_pct: num(config.grass_grow_chance_pct, 15, 100),
         herbivore_reproduce_pct: num(config.herbivore_reproduce_pct, 15, 100),
         predator_reproduce_pct: num(config.predator_reproduce_pct, 8, 100),
         starve_ticks: num(config.starve_ticks, 8, 32).max(1),
     };
     normalize(&mut state);
+    if !has_cells {
+        starter(&mut state);
+    }
     state.trigger_types = state
         .cells
         .iter()
@@ -138,7 +142,6 @@ pub fn predator_prey_on_tick(
     mut state: PredatorPreyState,
     _context: &mut BehaviorContext,
 ) -> PredatorPreyState {
-    normalize(&mut state);
     let prev = state.cells.clone();
     let prev_energy = state.energy.clone();
     let mut next = vec![EMPTY; CELL_COUNT];
@@ -206,21 +209,22 @@ pub fn predator_prey_on_tick(
             *cell = GRASS;
         }
     }
-    nudge_static_visibility(&prev, &mut next, &mut energy);
+    let nudged = nudge_static_visibility(&prev, &mut next, &mut energy);
     let relieved = relieve_full_grid(&mut next, &mut energy);
+    let mut force_deactivate = relieved;
+    if let Some(index) = nudged {
+        force_deactivate.push(index);
+    }
     state.cells = next;
     state.energy = energy;
     force_activate.extend(reseed_extinct(&mut state));
-    state.trigger_types = triggers(
-        &prev.iter().map(|c| *c != EMPTY).collect::<Vec<_>>(),
+    state.trigger_types = triggers_with_deactivations(
         &prev,
         &state.cells,
         &bursts,
         &force_activate,
+        &force_deactivate,
     );
-    for index in relieved {
-        state.trigger_types[index] = CellTriggerType::Deactivate;
-    }
     state
 }
 
@@ -246,22 +250,24 @@ fn relieve_full_grid(cells: &mut [u8], energy: &mut [u8]) -> Vec<usize> {
     relieved
 }
 
-fn nudge_static_visibility(previous: &[u8], cells: &mut [u8], energy: &mut [u8]) {
+fn nudge_static_visibility(previous: &[u8], cells: &mut [u8], energy: &mut [u8]) -> Option<usize> {
     if !previous
         .iter()
         .zip(cells.iter())
         .all(|(previous, next)| (*previous != EMPTY) == (*next != EMPTY))
     {
-        return;
+        return None;
     }
     if let Some(index) = cells.iter().position(|cell| *cell == EMPTY) {
         cells[index] = GRASS;
-        return;
+        return None;
     }
     if let Some(index) = cells.iter().position(|cell| *cell == GRASS) {
         cells[index] = EMPTY;
         energy[index] = 0;
+        return Some(index);
     }
+    None
 }
 
 pub fn predator_prey_render_model(state: &PredatorPreyState) -> BehaviorRenderModel {
@@ -311,6 +317,18 @@ fn num(v: Option<Value>, d: u8, m: u8) -> u8 {
     v.and_then(|v| v.as_u64())
         .map(|v| v.min(m.into()) as u8)
         .unwrap_or(d)
+}
+fn array_values(value: Value) -> Vec<Value> {
+    value.as_array().cloned().unwrap_or_default()
+}
+fn parse_triggers(value: Option<Value>) -> Option<Vec<CellTriggerType>> {
+    value.and_then(|value| {
+        value
+            .as_array()?
+            .iter()
+            .map(|value| serde_json::from_value(value.clone()).ok())
+            .collect()
+    })
 }
 fn norm_cells(v: Vec<Value>) -> Vec<u8> {
     let mut o = v

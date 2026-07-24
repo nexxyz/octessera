@@ -1,6 +1,6 @@
 use crate::protocol::{RuntimeAudioCommand, RuntimePlatformEffect};
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct NativeRunnerOutbox {
     platform_effects: Vec<RuntimePlatformEffect>,
     audio_commands: Vec<RuntimeAudioCommand>,
@@ -12,6 +12,12 @@ impl NativeRunnerOutbox {
     }
 
     pub(super) fn push_audio_command(&mut self, command: RuntimeAudioCommand) {
+        if matches!(command, RuntimeAudioCommand::SetAudioConfig { .. }) {
+            self.audio_commands
+                .retain(|queued| !matches!(queued, RuntimeAudioCommand::SetAudioConfig { .. }));
+            self.audio_commands.insert(0, command);
+            return;
+        }
         if let Some(command) = merge_fx_bus_mixer_command(&mut self.audio_commands, command) {
             self.audio_commands.push(command);
         }

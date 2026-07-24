@@ -302,7 +302,9 @@ fn sample_view(
             }
             classes[idx] = if iter == iteration_limit {
                 0
-            } else if iter >= iteration_limit / 4 && iter <= iteration_limit * 9 / 10 {
+            } else if iter >= iteration_limit / 4
+                && iter <= (u16::from(iteration_limit) * 9 / 10) as u8
+            {
                 1
             } else {
                 2

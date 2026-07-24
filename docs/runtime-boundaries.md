@@ -15,12 +15,14 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
   - owns lifecycle (`start`/`stop`)
   - schedules transport pulses and realtime status through Rust runtime code
   - owns native menu state, config payloads, snapshots, platform effects, and `NativeRunner`
+  - owns schema-v2 global modulation state, legacy migration, keyed Link LFO menu/binding paths, canonical global Play XY serialization, and transient global-LFO endpoint composition; it emits resolved audio commands while the realtime engine owns rendering
   - `PlaybackRuntime::dispatch` is the canonical host-message/result observation path; desktop and Pi loops schedule work and render its presented output
+  - consumes typed runtime-config changes published by `NativeRunner` during canonical dispatch; hosts must not derive playback scheduling config from snapshots
   - maps typed adapter failure facts to recovery policy and owns the best-effort stop-and-silence operation
   - requires every host adapter to implement internal-audio silence and external-MIDI panic explicitly; safety cannot fall through to a successful no-op
   - classifies worker emission and persistence faults as retain/retry outcomes instead of safety-stop failures
   - applies native core behavior transitions through `platform-core`
-  - publishes snapshots, platform effects, audio commands, MIDI events, and runtime status
+  - publishes snapshots, platform effects, audio commands, MIDI events, runtime status, and native-owned modal frames
   - owns MIDI input/output through host adapters only; Tauri/midir and Pi MIDI device access stay outside canonical runtime crates
 
 - Core logic layer (`crates/platform-core`)
@@ -35,6 +37,7 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
   - desktop audio sink maps native events/audio commands to the realtime engine and rodio source
   - MIDI input/output uses Tauri-side midir adapters
   - storage, sample-browser filesystem access, and sample decoding are host adapter responsibilities
+  - Pi device-update effects are executed by the host updater, which owns profile-qualified asset selection, checksum/manifest validation, candidate health guarding, and automatic fallback; `NativeRunner` owns menu/action semantics and confirmation
   - returns typed failure facts and carries runtime request/revision identity through asynchronous platform/audio-prep jobs; it does not choose recovery policy
 
 - Realtime audio engine (`crates/realtime-engine`, `crates/rodio-engine-source`)
@@ -59,9 +62,10 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
 
 1. UI interaction -> `DeviceInput`
 2. Runtime receives input -> native `platform-core` transition through `NativeRunner`
-3. Rust runtime advances transport pulses -> native behavior/menu processing
-4. Runtime publishes snapshot -> UI render (OLED + NeoKey LEDs)
-5. Runtime publishes musical events/audio commands/platform effects -> host adapters (audio/MIDI/storage)
+3. `NativeRunner` publishes typed runtime-config changes -> `PlaybackRuntime` updates transport/MIDI scheduling state
+4. Rust runtime advances transport pulses -> native behavior/menu processing
+5. Runtime publishes snapshot -> UI render (OLED + NeoKey LEDs)
+6. Runtime publishes musical events/audio commands/platform effects -> host adapters (audio/MIDI/storage)
 
 ## Shared Runtime Contract
 
@@ -71,10 +75,15 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
 - Shared fixtures for this seam live in `SHARED_RUNTIME_CONTRACT_FIXTURES` so both hosts can validate the same contract examples.
 - `transport_pulse_step` is the deterministic PPQN advancement boundary; hosts must not substitute wall-clock timer semantics above this seam.
 - External MIDI realtime (`clock`, `start`, `continue`, `stop`) remains explicit at the boundary and is not inferred from UI/runtime scheduling code. Desktop MIDI input is routed natively from the host adapter into the runtime worker; UI code must not observe raw MIDI bytes for display or transport state.
-- `runtime_result` carries host-side outcomes for storage, MIDI port enumeration/selection, and sample-browser operations back into the shared runner.
+- `runtime_result` carries host-side outcomes for storage, MIDI port enumeration/selection, sample-browser operations, device-update status, and asynchronously identified sanitized system-info requests back into the shared runner.
+- `SystemInfoRequest` is a typed platform request; adapters return typed `SystemInfoResult` or identified `SystemInfoError` values. The native runner owns loading/error/unavailable presentation, row formatting, clipping, scrolling, and dismissal. Desktop UI renders only the resulting snapshot/OLED frame.
+- `NativeRunner` may emit an internal typed runtime-config change during dispatch; `PlaybackRuntime` consumes it before returning presented host messages. It is not a host adapter responsibility and is never reconstructed from snapshot fields.
+- Central modulation processing is the single native path for held tick/XY sources and global LFO output: behavior ticks and active XY captures update held sources, global LFOs advance only at 24 PPQN, and the process sums persistent, held, and LFO contributions, clamps once, and applies once per target endpoint. An active LFO step processes only dirty LFO endpoints plus other contributors sharing those keys; unrelated held grid/XY sources are retained without being resolved, reapplied, or cloned. Ordinary menu/Aux base edits rebase and recompose only the edited key/endpoint, preserving held sources so clearing a source restores the new base; changed persistent targets from one tick share one revision and delayed autosave request. Config/patch transactions reset candidate modulation state, install every persistent owner, then resample active XY so its captured base is the loaded owner value. Enabled targeted LFO phases advance and wrap even at depth zero; no other PPQN or wall-clock path may advance an LFO or reapply a held source.
 - Background audio preparation returns identified typed success/failure results through `runtime_result`; prep failures retain the last good runtime/audio state.
+- Sample-bank preparation is atomic on both hosts: every configured sample path must resolve and decode before a new bank is queued; unresolved or undecodable samples return typed `sample` failures and leave the previous banks and signatures in place. Sample preview resolution/decoding runs on the audio-prep worker, never on the runtime or host-adapter thread, and reports success only after the prepared preview reaches the audio queue.
 - Pi audio preparation treats superseded revisions as cancellation: no stale-prep fault is returned or latched.
 - Identified asynchronous results retain their request ID/revision through the runner round trip; `PlaybackRuntime` observes each result once and clears only the matching fault.
+- Emission and persistence faults clear only after the corresponding native emission or identified save/recovery acknowledgement succeeds. Native save confirmation/toast feedback is emitted after that acknowledgement, not when a save request is queued.
 - Stop-and-silence recovery independently attempts runner transport stop, internal synth/sample silence, and external MIDI panic on both hosts.
 - `snapshot` is the runtime display/input-facing state payload; `musical_events`, `midi_events`, `platform_effects`, and `audio_commands` are the resolved outputs that Rust schedules or dispatches.
 

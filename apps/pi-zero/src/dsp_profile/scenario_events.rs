@@ -1,8 +1,9 @@
 use super::fx_cases::{fx_mixer, fx_routes};
 use crate::dsp_profile::samples::all_sample_banks;
 use realtime_engine::synth::{
-    default_synth_config, InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig,
-    MixerConfig, VoiceStealingMode, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
+    default_synth_config, prepare_audio_config, prepare_momentary_fx_start, InstrumentMixerConfig,
+    InstrumentSlotConfig, InstrumentsConfig, MixerConfig, VoiceStealingMode,
+    DEFAULT_AUDIO_SAMPLE_RATE, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
 };
 use rodio_engine_source::EngineEvent;
 use std::collections::BTreeMap;
@@ -10,10 +11,12 @@ use std::collections::BTreeMap;
 const PROFILE_NOTE_DURATION_MS: u32 = 60_000;
 
 pub(super) fn baseline_events() -> Vec<EngineEvent> {
-    vec![
-        EngineEvent::SetVoiceStealingMode(VoiceStealingMode::None),
-        EngineEvent::SetInstruments(all_synth_instruments([0; INSTRUMENT_SLOT_COUNT], None)),
-    ]
+    vec![prepared_config(
+        all_synth_instruments([0; INSTRUMENT_SLOT_COUNT], None),
+        None,
+        VoiceStealingMode::None,
+        DEFAULT_AUDIO_SAMPLE_RATE,
+    )]
 }
 
 pub(super) fn synth_ramp_events(voices: usize) -> Vec<EngineEvent> {
@@ -28,11 +31,12 @@ pub(super) fn synth_ramp_events(voices: usize) -> Vec<EngineEvent> {
 }
 
 pub(super) fn sample_ramp_events(voices: usize, sample_rate: u32) -> Vec<EngineEvent> {
-    let mut events = vec![
-        EngineEvent::SetVoiceStealingMode(VoiceStealingMode::None),
-        EngineEvent::SetInstruments(all_sample_instruments([0; INSTRUMENT_SLOT_COUNT], None)),
-        EngineEvent::SetSampleBanks(all_sample_banks(sample_rate)),
-    ];
+    let mut events = vec![prepared_config(
+        all_sample_instruments([0; INSTRUMENT_SLOT_COUNT], None),
+        Some(all_sample_banks(sample_rate)),
+        VoiceStealingMode::None,
+        sample_rate,
+    )];
     for (slot, count) in distribute(voices, 0, INSTRUMENT_SLOT_COUNT)
         .iter()
         .enumerate()
@@ -47,10 +51,12 @@ pub(super) fn mixed_ramp_events(voices: usize, sample_rate: u32) -> Vec<EngineEv
 }
 
 pub(super) fn synth_overload_events(voices: usize, slots: usize) -> Vec<EngineEvent> {
-    let mut events = vec![
-        EngineEvent::SetVoiceStealingMode(VoiceStealingMode::AutoBalanced),
-        EngineEvent::SetInstruments(all_synth_instruments([0; INSTRUMENT_SLOT_COUNT], None)),
-    ];
+    let mut events = vec![prepared_config(
+        all_synth_instruments([0; INSTRUMENT_SLOT_COUNT], None),
+        None,
+        VoiceStealingMode::AutoBalanced,
+        DEFAULT_AUDIO_SAMPLE_RATE,
+    )];
     for (slot, count) in distribute(voices, 0, slots).iter().enumerate() {
         push_synth_voices(&mut events, slot, *count);
     }
@@ -62,11 +68,12 @@ pub(super) fn sample_overload_events(
     slots: usize,
     sample_rate: u32,
 ) -> Vec<EngineEvent> {
-    let mut events = vec![
-        EngineEvent::SetVoiceStealingMode(VoiceStealingMode::AutoBalanced),
-        EngineEvent::SetInstruments(all_sample_instruments([0; INSTRUMENT_SLOT_COUNT], None)),
-        EngineEvent::SetSampleBanks(all_sample_banks(sample_rate)),
-    ];
+    let mut events = vec![prepared_config(
+        all_sample_instruments([0; INSTRUMENT_SLOT_COUNT], None),
+        Some(all_sample_banks(sample_rate)),
+        VoiceStealingMode::AutoBalanced,
+        sample_rate,
+    )];
     for (slot, count) in distribute(voices, 0, slots).iter().enumerate() {
         push_sample_voices(&mut events, slot, *count);
     }
@@ -80,13 +87,12 @@ pub(super) fn mixed_overload_events(voices: usize, sample_rate: u32) -> Vec<Engi
 pub(super) fn fx_ramp_events(mode: usize, sample_rate: u32) -> Vec<EngineEvent> {
     let mixer = fx_mixer(mode);
     let routes = fx_routes(mode);
-    let mut events = vec![
-        EngineEvent::SetVoiceStealingMode(VoiceStealingMode::None),
-        EngineEvent::SetInstruments(all_synth_instruments(routes, mixer)),
-    ];
-    if mode > 0 {
-        events.push(EngineEvent::SetSampleBanks(all_sample_banks(sample_rate)));
-    }
+    let mut events = vec![prepared_config(
+        all_synth_instruments(routes, mixer),
+        (mode > 0).then(|| all_sample_banks(sample_rate)),
+        VoiceStealingMode::None,
+        sample_rate,
+    )];
     for (slot, count) in distribute(16, 0, INSTRUMENT_SLOT_COUNT).iter().enumerate() {
         push_synth_voices(&mut events, slot, *count);
     }
@@ -94,31 +100,30 @@ pub(super) fn fx_ramp_events(mode: usize, sample_rate: u32) -> Vec<EngineEvent> 
 }
 
 pub(super) fn momentary_events(mode: usize, sample_rate: u32) -> Vec<EngineEvent> {
-    let mut events = vec![
-        EngineEvent::SetVoiceStealingMode(VoiceStealingMode::None),
-        EngineEvent::SetInstruments(all_synth_instruments([0; INSTRUMENT_SLOT_COUNT], None)),
-        EngineEvent::SetSampleBanks(all_sample_banks(sample_rate)),
-    ];
+    let mut events = vec![prepared_config(
+        all_synth_instruments([0; INSTRUMENT_SLOT_COUNT], None),
+        Some(all_sample_banks(sample_rate)),
+        VoiceStealingMode::None,
+        sample_rate,
+    )];
     for (slot, count) in distribute(16, 0, INSTRUMENT_SLOT_COUNT).iter().enumerate() {
         push_synth_voices(&mut events, slot, *count);
     }
     for (id, fx_type, params, target) in momentary_fx_specs(mode) {
-        events.push(EngineEvent::MomentaryFxStart {
-            id,
-            fx_type,
-            params,
-            target,
-        });
+        events.push(EngineEvent::PreparedMomentaryFxStart(
+            prepare_momentary_fx_start(id, fx_type, params, target, sample_rate).unwrap(),
+        ));
     }
     events
 }
 
 fn mixed_events(mode: VoiceStealingMode, voices: usize, sample_rate: u32) -> Vec<EngineEvent> {
-    let mut events = vec![
-        EngineEvent::SetVoiceStealingMode(mode),
-        EngineEvent::SetInstruments(mixed_instruments([0; INSTRUMENT_SLOT_COUNT], None)),
-        EngineEvent::SetSampleBanks(all_sample_banks(sample_rate)),
-    ];
+    let mut events = vec![prepared_config(
+        mixed_instruments([0; INSTRUMENT_SLOT_COUNT], None),
+        Some(all_sample_banks(sample_rate)),
+        mode,
+        sample_rate,
+    )];
     for (slot, count) in distribute(voices, 0, INSTRUMENT_SLOT_COUNT / 2)
         .iter()
         .enumerate()
@@ -132,6 +137,20 @@ fn mixed_events(mode: VoiceStealingMode, voices: usize, sample_rate: u32) -> Vec
         push_sample_voices(&mut events, slot, *count);
     }
     events
+}
+
+fn prepared_config(
+    instruments: InstrumentsConfig,
+    sample_banks: Option<Vec<realtime_engine::synth::SampleBankConfig>>,
+    voice_stealing_mode: VoiceStealingMode,
+    sample_rate: u32,
+) -> EngineEvent {
+    EngineEvent::SetPreparedAudioConfig(prepare_audio_config(
+        instruments,
+        sample_banks,
+        Some(voice_stealing_mode),
+        sample_rate,
+    ))
 }
 
 fn momentary_fx_specs(

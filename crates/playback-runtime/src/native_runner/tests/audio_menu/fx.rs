@@ -433,7 +433,7 @@ pub(crate) fn active_bus_fx_warning_reports_synthetic_over_budget_state() {
 #[test]
 pub(crate) fn invalid_bus_and_global_fx_types_are_sanitized_on_load() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut payload = runner.config_payload();
+    let mut payload = legacy_payload(runner.config_payload());
     payload["runtimeConfig"]["mixer"]["buses"][0]["slot1"] =
         json!({ "type": "pitch_shift", "params": {} });
     payload["runtimeConfig"]["mixer"]["master"]["slots"][0] =

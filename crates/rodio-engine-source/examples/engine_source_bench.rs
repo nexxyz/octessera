@@ -1,5 +1,4 @@
-use rodio_engine_source::{event_queue, EngineEvent, EngineSource};
-use std::sync::mpsc;
+use rodio_engine_source::{audio_load_status_channel, event_queue, EngineEvent, EngineSource};
 use std::time::Instant;
 
 const SAMPLE_RATE: u32 = 44_100;
@@ -7,7 +6,7 @@ const SECONDS: usize = 20;
 
 fn main() {
     let (tx, rx) = event_queue();
-    let (load_tx, load_rx) = mpsc::channel();
+    let (load_tx, load_rx) = audio_load_status_channel();
     tx.send(EngineEvent::NoteOn {
         instrument_slot: 0,
         note: 60,
@@ -32,7 +31,11 @@ fn main() {
     println!("elapsed_seconds={elapsed:.4}");
     println!("realtime_ratio={realtime_ratio:.2}");
     println!("checksum={checksum:.6}");
-    if let Some(status) = load_rx.try_iter().last() {
+    let mut last_status = None;
+    while let Ok(status) = load_rx.try_recv() {
+        last_status = Some(status);
+    }
+    if let Some(status) = last_status {
         println!("load_ratio={:.6}", status.ratio);
         println!("block_ratio_p95={:.6}", status.block_ratio_p95);
         println!("block_ratio_max={:.6}", status.block_ratio_max);

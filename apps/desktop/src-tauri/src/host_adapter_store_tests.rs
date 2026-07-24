@@ -286,7 +286,12 @@ fn recovery_save_effect_writes_recovery_save_file() {
         ))
         .unwrap();
 
-    assert!(follow_ups.is_empty());
+    assert!(matches!(
+        follow_ups.as_slice(),
+        [HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::SaveRecoveryResult { ok: true }
+        }]
+    ));
     let saved = std::fs::read_to_string(adapter.store_dir.join("recovery-save.json")).unwrap();
     assert_eq!(
         serde_json::from_str::<serde_json::Value>(&saved).unwrap(),

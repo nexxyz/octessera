@@ -1,7 +1,5 @@
 use crate::audio::AudioService;
-use crate::audio_config_parse::{
-    decode_sample_file, parse_instrument_slot_config, resolve_sample_path,
-};
+use crate::audio_config_parse::parse_instrument_slot_config;
 use playback_runtime::{
     RuntimeAdapterError, RuntimeAudioCommand, RuntimeErrorCode, RuntimeErrorDomain,
     RuntimeErrorFacts, RuntimeMomentaryFxTarget, RuntimeOperation,
@@ -10,7 +8,7 @@ use realtime_engine::synth::{
     normalize_audio_config, prepare_fx_bus_slot, prepare_global_fx_slot,
     prepare_instrument_slot_config, prepare_momentary_fx_start, validate_fx_type,
     validate_momentary_fx_type, validate_sample_bank_param_path, validate_synth_param_path,
-    MomentaryFxTarget, DEFAULT_AUDIO_SAMPLE_RATE, INSTRUMENT_SLOT_COUNT,
+    MomentaryFxTarget, DEFAULT_AUDIO_SAMPLE_RATE,
 };
 use rodio_engine_source::EngineEvent;
 use std::path::Path;
@@ -172,12 +170,12 @@ pub fn send_audio_command(
             velocity,
             ..
         } => {
-            audio.send(prepare_sample_preview_event(
+            audio.enqueue_sample_preview(
                 *instrument_slot,
-                path,
+                path.clone(),
                 *velocity,
-                samples_dir,
-            )?)?;
+                samples_dir.to_path_buf(),
+            )?;
             Ok(())
         }
     }
@@ -185,7 +183,7 @@ pub fn send_audio_command(
 
 fn validate_audio_command(
     command: &RuntimeAudioCommand,
-    samples_dir: &Path,
+    _samples_dir: &Path,
 ) -> Result<(), RuntimeAdapterError> {
     match command {
         RuntimeAudioCommand::SetAudioConfig { config, .. } => {
@@ -207,30 +205,9 @@ fn validate_audio_command(
         RuntimeAudioCommand::MomentaryFxStart { fx_type, .. } => {
             validate_momentary_fx_type(fx_type).map_err(invalid_audio_command)?;
         }
-        RuntimeAudioCommand::SamplePreview { path, .. } => {
-            resolve_sample_path(samples_dir, path)
-                .ok_or_else(|| RuntimeAdapterError::from("invalid sample path"))?;
-        }
         _ => {}
     }
     Ok(())
-}
-
-fn prepare_sample_preview_event(
-    instrument_slot: usize,
-    path: &str,
-    velocity: u8,
-    samples_dir: &Path,
-) -> Result<EngineEvent, RuntimeAdapterError> {
-    let path = resolve_sample_path(samples_dir, path)
-        .ok_or_else(|| RuntimeAdapterError::from("invalid sample path"))?;
-    let buffer = decode_sample_file(&path)
-        .ok_or_else(|| RuntimeAdapterError::from("sample decode failed"))?;
-    Ok(EngineEvent::PreviewSample {
-        instrument_slot: instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1) as u8,
-        buffer,
-        velocity,
-    })
 }
 
 fn momentary_fx_target(target: &RuntimeMomentaryFxTarget) -> MomentaryFxTarget {
@@ -255,6 +232,7 @@ fn invalid_audio_command(message: String) -> RuntimeAdapterError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::audio_config_parse::{decode_sample_file, resolve_sample_path, SampleLoadError};
     use std::collections::BTreeMap;
 
     #[test]
@@ -270,21 +248,12 @@ mod tests {
         std::fs::create_dir_all(&root).unwrap();
         std::fs::write(root.join("kick.wav"), wav_bytes()).unwrap();
 
-        let event = prepare_sample_preview_event(3, "kick.wav", 96, &root).unwrap();
-        assert!(matches!(
-            event,
-            EngineEvent::PreviewSample {
-                instrument_slot: 3,
-                velocity: 96,
-                buffer
-            } if !buffer.samples.is_empty()
-        ));
-
-        let error = match prepare_sample_preview_event(0, "../kick.wav", 96, &root) {
-            Ok(_) => panic!("unsafe sample path unexpectedly resolved"),
-            Err(error) => error,
-        };
-        assert_eq!(error.facts.message.as_deref(), Some("invalid sample path"));
+        let path = resolve_sample_path(&root, "kick.wav").unwrap();
+        assert!(!decode_sample_file(&path).unwrap().samples.is_empty());
+        assert!(resolve_sample_path(&root, "../kick.wav").is_none());
+        let error = SampleLoadError::Unresolved("../kick.wav".into());
+        assert_eq!(error.code(), RuntimeErrorCode::NotFound);
+        assert_eq!(error.message(), "sample not found: ../kick.wav");
         let _ = std::fs::remove_dir_all(root);
     }
 

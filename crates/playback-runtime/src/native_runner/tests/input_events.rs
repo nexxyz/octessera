@@ -435,7 +435,16 @@ pub(crate) fn pulses_scan_menu_exposes_none_and_scanned_empty_targets() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.pulses_layers[0].scan_mode = "scanning".into();
     runner.menu.rebuild(runner.menu_config());
-    let scan_group = &runner.menu.root.children[1].children[4].children[0];
+    let layer = runner.menu.root.children[1]
+        .children
+        .iter()
+        .find(|item| item.label.starts_with("L1:"))
+        .unwrap();
+    let scan_group = layer
+        .children
+        .iter()
+        .find(|item| item.label == "Scanning")
+        .unwrap();
     let labels = scan_group
         .children
         .iter()

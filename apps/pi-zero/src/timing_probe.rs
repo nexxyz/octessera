@@ -110,7 +110,6 @@ fn run_live_one(
         sends: Vec::new(),
         batches: Vec::new(),
     };
-    runner.inner.apply_runtime_config(playback.config());
     initialize_live_host_state(&mut playback, &mut runner, &mut host)?;
     send_runtime_message(
         &mut playback,

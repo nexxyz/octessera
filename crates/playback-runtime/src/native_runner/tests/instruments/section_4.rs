@@ -195,6 +195,67 @@ pub(crate) fn sparks_transpose_tracks_only_explicit_release_notes() {
 }
 
 #[test]
+pub(crate) fn sampler_hold_release_uses_the_final_routed_note_without_intent() {
+    let intent = CellTriggerIntent {
+        x: 2,
+        y: 3,
+        degree: 0,
+        kind: platform_core::CellTriggerKind::Activate,
+    };
+    let instruments = [NativeInstrumentSlot {
+        kind: "sampler".into(),
+        sample_assignments: vec![NativeSampleAssignment {
+            x: 2,
+            y: 3,
+            sample_slot: 4,
+            level: None,
+        }],
+        ..NativeInstrumentSlot::new(0)
+    }];
+    let mut active_notes = std::collections::BTreeMap::new();
+
+    let note_on = apply_sampler_assignments_for_instruments_routed(
+        vec![MusicalEvent::NoteOn {
+            channel: 0,
+            note: 60,
+            velocity: 100,
+            duration_ms: None,
+        }],
+        std::slice::from_ref(&intent),
+        0,
+        &instruments,
+        None,
+        0,
+        Some(&mut active_notes),
+    );
+    assert!(matches!(
+        note_on.audio.as_slice(),
+        [MusicalEvent::NoteOn { note: 40, .. }]
+    ));
+
+    let note_off = apply_sampler_assignments_for_instruments_routed(
+        vec![MusicalEvent::NoteOff {
+            channel: 0,
+            note: 60,
+        }],
+        &[],
+        0,
+        &instruments,
+        None,
+        0,
+        Some(&mut active_notes),
+    );
+    assert_eq!(
+        note_off.audio,
+        vec![MusicalEvent::NoteOff {
+            channel: 0,
+            note: 40,
+        }]
+    );
+    assert!(active_notes.is_empty());
+}
+
+#[test]
 pub(crate) fn sparks_transpose_tracks_clamped_explicit_release_notes() {
     let intent = CellTriggerIntent {
         x: 0,

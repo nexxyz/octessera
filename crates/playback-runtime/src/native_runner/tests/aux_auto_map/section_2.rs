@@ -382,7 +382,7 @@ pub(crate) fn shift_aux_bindings_round_trip_and_old_payload_defaults_empty() {
         Some("sound.noteLengthMs")
     );
 
-    let mut old_payload = restored.config_payload();
+    let mut old_payload = legacy_payload(restored.config_payload());
     old_payload["runtimeConfig"]
         .as_object_mut()
         .unwrap()

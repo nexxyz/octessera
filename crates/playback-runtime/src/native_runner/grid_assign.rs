@@ -142,7 +142,8 @@ impl NativeRunner {
                 self.active_sparks_mode = "none".into();
             }
             Some(LINK_LABEL) => {
-                self.menu.state.cursor = (self.active_layer_index + 4).min(GRID_HEIGHT + 3);
+                let active_label = format!("L{}:", self.active_layer_index + 1);
+                let _ = self.menu.focus_current_group_label(&active_label);
                 self.active_sparks_mode = "none".into();
             }
             Some(SHAPE_LABEL) | Some("System") => {

@@ -85,12 +85,13 @@ pub(super) fn arp_group(prefix: &str, arp: &NativeLinkArpConfig) -> NativeMenuIt
 }
 
 pub(super) fn link_lfo_group(
+    label: String,
     prefix: &str,
     lfo: &NativeLinkLfoConfig,
     config: &NativeMenuConfig,
 ) -> NativeMenuItem {
     group(
-        "LFO",
+        label,
         vec![
             bool_item("Enabled", format!("{prefix}.enabled"), lfo.enabled),
             parameter_picker_group_numeric(
@@ -114,6 +115,25 @@ pub(super) fn link_lfo_group(
                 1,
             ),
         ],
+    )
+}
+
+pub(super) fn global_link_lfos_group(config: &NativeMenuConfig) -> NativeMenuItem {
+    group(
+        "LFOs",
+        config
+            .link_lfos
+            .iter()
+            .enumerate()
+            .map(|(index, lfo)| {
+                link_lfo_group(
+                    format!("L{}", index + 1),
+                    &format!("linkLfos.{index}"),
+                    lfo,
+                    config,
+                )
+            })
+            .collect(),
     )
 }
 

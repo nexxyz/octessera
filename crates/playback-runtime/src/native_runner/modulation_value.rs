@@ -98,17 +98,7 @@ pub(super) fn apply_fx_param_binding_value(params: &mut Value, key: &str, value:
 }
 
 pub(super) fn fx_param_storage_value(key: &str, value: f64) -> Value {
-    match key {
-        "threshold" | "feedback" | "rateHz" | "clip" | "q" | "damp" | "midQ" => {
-            json!(value / 100.0)
-        }
-        "drive" | "depthMs" | "baseMs" => json!(value / 10.0),
-        "decay" => json!(value / 1000.0),
-        "thresholdDb" | "ratio" | "makeupDb" | "lowGainDb" | "midGainDb" | "highGainDb" => {
-            json!(value / 2.0)
-        }
-        _ => json!(value.round() as i32),
-    }
+    super::fx_param_codec::display_to_storage(key, value)
 }
 
 pub(super) fn axis_norm(index: usize, size: usize, invert: bool) -> f32 {

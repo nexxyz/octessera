@@ -1,4 +1,4 @@
-use super::{NativeRunner, Value};
+use super::NativeRunner;
 
 impl NativeRunner {
     #[cfg(test)]
@@ -43,13 +43,8 @@ impl NativeRunner {
         config_changed |= behavior_changed;
         let behavior_config_changed = self.apply_behavior_config_menu_state()?;
         config_changed |= behavior_config_changed;
-        if layer_changed
-            || instrument_changed
-            || pulses_changed
-            || behavior_changed
-            || behavior_config_changed
-        {
-            self.clear_all_link_arp_state();
+        if behavior_changed || behavior_config_changed {
+            self.clear_link_arp_state_for_layer(self.active_layer_index);
         }
         self.refresh_active_mapping_config();
         self.refresh_active_interpretation_profile();
@@ -103,38 +98,32 @@ impl NativeRunner {
             return Ok(self.sync_active_layer_auto_name(behavior_id));
         }
         let previous_behavior_id = current_layer_behavior_id;
-        self.behavior_configs
-            .insert(self.behavior.id().to_string(), self.behavior_config.clone());
-        if let Some(config) = self.layer_behavior_configs.get_mut(self.active_layer_index) {
-            *config = self.behavior_config.clone();
-        }
+        let previous_config = self.behavior_config.clone();
         let behavior = platform_core::get_native_behavior(behavior_id)
             .ok_or_else(|| format!("unsupported native behavior `{behavior_id}`"))?;
-        self.behavior_config = self
-            .layer_behavior_configs
-            .get(self.active_layer_index)
-            .filter(|config| !config.is_null())
-            .cloned()
-            .or_else(|| self.behavior_configs.get(behavior_id).cloned())
-            .unwrap_or(Value::Null);
-        self.behavior_configs
-            .insert(behavior_id.to_string(), self.behavior_config.clone());
-        if let Some(config) = self.layer_behavior_configs.get_mut(self.active_layer_index) {
-            *config = self.behavior_config.clone();
-        }
+        let next_config =
+            self.remembered_layer_behavior_config(self.active_layer_index, behavior_id);
+        self.replace_layer_engine_with_config(
+            self.active_layer_index,
+            behavior,
+            next_config.clone(),
+            None,
+        )?;
+        self.remember_layer_behavior_config(
+            self.active_layer_index,
+            &previous_behavior_id,
+            previous_config,
+        );
         if let Some(layer_behavior_id) = self.layer_behavior_ids.get_mut(self.active_layer_index) {
             *layer_behavior_id = behavior_id.to_string();
         }
-        self.clear_delayed_link_events_for_layer(self.active_layer_index);
         self.sync_active_layer_auto_name(behavior_id);
         self.remap_bindings_for_behavior_change(
             &previous_behavior_id,
             behavior_id,
             self.active_layer_index,
         );
-        if behavior_changed {
-            self.rebuild_engine(behavior)?;
-        }
+        self.set_layer_behavior_config(self.active_layer_index, behavior_id, next_config);
         Ok(true)
     }
 
@@ -153,24 +142,16 @@ impl NativeRunner {
         }
         let behavior = platform_core::get_native_behavior(behavior_id)
             .ok_or_else(|| format!("unsupported native behavior `{behavior_id}`"))?;
+        let previous_config = self.layer_behavior_config(layer_index);
+        let next_config = self.remembered_layer_behavior_config(layer_index, behavior_id);
+        self.replace_layer_engine_with_config(layer_index, behavior, next_config.clone(), None)?;
+        self.remember_layer_behavior_config(layer_index, &current_behavior_id, previous_config);
         if let Some(layer_behavior_id) = self.layer_behavior_ids.get_mut(layer_index) {
             *layer_behavior_id = behavior_id.to_string();
         }
-        let next_config = self
-            .behavior_configs
-            .get(behavior_id)
-            .cloned()
-            .unwrap_or(Value::Null);
-        if let Some(config) = self.layer_behavior_configs.get_mut(layer_index) {
-            *config = next_config;
-        }
-        if let Some(engine) = self.layer_engines.get_mut(layer_index) {
-            *engine = None;
-        }
-        self.clear_delayed_link_events_for_layer(layer_index);
+        self.set_layer_behavior_config(layer_index, behavior_id, next_config);
         self.sync_layer_auto_name(layer_index, behavior_id);
         self.remap_bindings_for_behavior_change(&current_behavior_id, behavior_id, layer_index);
-        let _ = behavior;
         Ok(true)
     }
 
@@ -197,29 +178,20 @@ impl NativeRunner {
         true
     }
 
+    #[cfg(test)]
     pub(super) fn apply_behavior_config_menu_state(&mut self) -> Result<bool, String> {
         let next_behavior_config = self.behavior_config_from_menu()?;
         if next_behavior_config == self.behavior_config {
             return Ok(false);
         }
-        if self.apply_looper_mode_config_fast(&next_behavior_config)? {
-            return Ok(true);
-        }
-        let previous_state = (self.behavior.id() == "looper")
-            .then(|| self.engine.serialized_state())
-            .transpose()?;
-        self.behavior_config = next_behavior_config;
-        if let Some(config) = self.layer_behavior_configs.get_mut(self.active_layer_index) {
-            *config = self.behavior_config.clone();
-        }
-        self.clear_delayed_link_events_for_layer(self.active_layer_index);
-        self.behavior_configs
-            .insert(self.behavior.id().to_string(), self.behavior_config.clone());
-        if let Some(state) = previous_state {
-            self.rebuild_looper_engine_with_config_state(state)?;
-        } else {
-            self.rebuild_engine(self.behavior)?;
-        }
+        let behavior_id = self.behavior.id().to_string();
+        self.replace_layer_engine_with_config(
+            self.active_layer_index,
+            self.behavior,
+            next_behavior_config.clone(),
+            None,
+        )?;
+        self.set_layer_behavior_config(self.active_layer_index, &behavior_id, next_behavior_config);
         Ok(true)
     }
 

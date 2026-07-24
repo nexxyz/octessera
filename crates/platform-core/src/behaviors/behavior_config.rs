@@ -33,6 +33,9 @@ impl NativeBehavior {
             (NativeBehavior::PredatorPrey, NativeBehaviorState::PredatorPrey(_)) => {
                 Ok(Some(native_impl::predator_prey_config_menu()))
             }
+            (NativeBehavior::Twinkle, NativeBehaviorState::Twinkle(_)) => {
+                Ok(Some(native_impl::twinkle_config_menu()))
+            }
             (NativeBehavior::Ant, NativeBehaviorState::Ant(_)) => {
                 Ok(Some(native_impl::ant_config_menu()))
             }

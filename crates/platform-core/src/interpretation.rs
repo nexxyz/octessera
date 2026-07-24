@@ -91,6 +91,13 @@ pub struct CellTriggerIntent {
     pub degree: i32,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum TriggerMarkerAuthority {
+    LegacyCompatible,
+    FreshTick,
+    FreshInput { x: usize, y: usize },
+}
+
 pub fn extract_transitions(previous: &GridSnapshot, next: &GridSnapshot) -> Vec<CellTransition> {
     let mut transitions = Vec::new();
     let len = previous.cells.len().min(next.cells.len());
@@ -121,9 +128,25 @@ pub fn interpret_grid(
     tick: usize,
     profile: &InterpretationProfile,
 ) -> Vec<CellTriggerIntent> {
+    interpret_grid_with_marker_authority(
+        previous,
+        next,
+        tick,
+        profile,
+        TriggerMarkerAuthority::LegacyCompatible,
+    )
+}
+
+pub(crate) fn interpret_grid_with_marker_authority(
+    previous: &GridSnapshot,
+    next: &GridSnapshot,
+    tick: usize,
+    profile: &InterpretationProfile,
+    marker_authority: TriggerMarkerAuthority,
+) -> Vec<CellTriggerIntent> {
     let mut intents = Vec::new();
     if profile.event.enabled {
-        intents.extend(select_event_candidates(previous, next));
+        intents.extend(select_event_candidates(previous, next, marker_authority));
     }
     if profile.state.enabled {
         intents.extend(select_state_candidates(next, tick, &profile.state.tick));
@@ -143,49 +166,78 @@ pub fn interpret_grid(
 fn select_event_candidates(
     previous: &GridSnapshot,
     next: &GridSnapshot,
+    marker_authority: TriggerMarkerAuthority,
 ) -> Vec<(usize, usize, CellTriggerKind)> {
-    if let (Some(previous_trigger_types), Some(trigger_types)) =
-        (&previous.trigger_types, &next.trigger_types)
-    {
-        if previous_trigger_types.len() >= next.cells.len()
-            && trigger_types.len() >= next.cells.len()
-            && previous.cells.len() >= next.cells.len()
-        {
-            let candidates = trigger_types
-                .iter()
-                .take(next.cells.len())
-                .enumerate()
-                .filter_map(|(index, trigger_type)| {
-                    let kind = match trigger_type {
-                        CellTriggerType::Activate => CellTriggerKind::Activate,
-                        CellTriggerType::Deactivate => CellTriggerKind::Deactivate,
-                        CellTriggerType::Stable
-                        | CellTriggerType::Scanned
-                        | CellTriggerType::None => {
-                            return None;
-                        }
-                    };
-                    let boolean_transition_matches = match kind {
-                        CellTriggerKind::Activate => !previous.cells[index] && next.cells[index],
-                        CellTriggerKind::Deactivate => previous.cells[index] && !next.cells[index],
-                        _ => false,
-                    };
-                    if previous_trigger_types[index] == *trigger_type && !boolean_transition_matches
-                    {
-                        return None;
-                    }
-                    Some((index % next.width, index / next.width, kind))
-                })
-                .collect::<Vec<_>>();
-            let has_next_explicit_trigger_markers = trigger_types
-                .iter()
-                .take(next.cells.len())
-                .any(|trigger_type| *trigger_type != CellTriggerType::None);
-            if !candidates.is_empty() || has_next_explicit_trigger_markers {
-                return candidates;
-            }
-        }
+    let Some(trigger_types) = &next.trigger_types else {
+        return boolean_transition_candidates(previous, next);
+    };
+    if trigger_types.len() < next.cells.len() || previous.cells.len() < next.cells.len() {
+        return boolean_transition_candidates(previous, next);
     }
+
+    let previous_trigger_types = previous
+        .trigger_types
+        .as_ref()
+        .filter(|trigger_types| trigger_types.len() >= next.cells.len());
+    if matches!(marker_authority, TriggerMarkerAuthority::LegacyCompatible)
+        && previous_trigger_types.is_none()
+    {
+        return boolean_transition_candidates(previous, next);
+    }
+
+    let candidates = trigger_types
+        .iter()
+        .take(next.cells.len())
+        .enumerate()
+        .filter_map(|(index, trigger_type)| {
+            let kind = match trigger_type {
+                CellTriggerType::Activate => CellTriggerKind::Activate,
+                CellTriggerType::Deactivate => CellTriggerKind::Deactivate,
+                CellTriggerType::Stable | CellTriggerType::Scanned | CellTriggerType::None => {
+                    return None;
+                }
+            };
+            let boolean_transition_matches = match kind {
+                CellTriggerKind::Activate => !previous.cells[index] && next.cells[index],
+                CellTriggerKind::Deactivate => previous.cells[index] && !next.cells[index],
+                _ => false,
+            };
+            let marker_is_authoritative = match marker_authority {
+                TriggerMarkerAuthority::LegacyCompatible => false,
+                TriggerMarkerAuthority::FreshTick => true,
+                TriggerMarkerAuthority::FreshInput { x, y } => {
+                    x == index % next.width && y == index / next.width
+                }
+            };
+            let marker_changed =
+                previous_trigger_types.is_some_and(|previous| previous[index] != *trigger_type);
+            if !marker_is_authoritative && !boolean_transition_matches && !marker_changed {
+                return None;
+            }
+            Some((index % next.width, index / next.width, kind))
+        })
+        .collect::<Vec<_>>();
+    let has_next_explicit_trigger_markers = trigger_types
+        .iter()
+        .take(next.cells.len())
+        .any(|trigger_type| *trigger_type != CellTriggerType::None);
+    let explicit_markers_are_authoritative = matches!(
+        marker_authority,
+        TriggerMarkerAuthority::LegacyCompatible | TriggerMarkerAuthority::FreshTick
+    );
+    if !candidates.is_empty()
+        || has_next_explicit_trigger_markers && explicit_markers_are_authoritative
+    {
+        return candidates;
+    }
+
+    boolean_transition_candidates(previous, next)
+}
+
+fn boolean_transition_candidates(
+    previous: &GridSnapshot,
+    next: &GridSnapshot,
+) -> Vec<(usize, usize, CellTriggerKind)> {
     extract_transitions(previous, next)
         .into_iter()
         .map(|transition| {

@@ -20,6 +20,19 @@ Link
 │   │       └── action tree...               ← behavior actions, sample assign, selected FX map-to-grid
 │   ├── Aux 2 (group)
 │   └── Aux 3 (group)
+├── LFOs (group)                                  ← exactly eight global slots
+│   ├── L1 (group)
+│   │   ├── Enabled: [on | off]
+│   │   ├── Target (group)                         ← additive, live-safe numeric controls only
+│   │   ├── Period: [same 24 PPQN note units]
+│   │   └── Depth %: [0..100] step 1
+│   ├── L2 (group)
+│   ├── L3 (group)
+│   ├── L4 (group)
+│   ├── L5 (group)
+│   ├── L6 (group)
+│   ├── L7 (group)
+│   └── L8 (group)
 ├── Paused Events: [on | off]              default on; when on, grid input may still emit events while transport is stopped/paused
 ├── L1: ... (group)                              ← one group per layer
 │   ├── Scanning (group)
@@ -96,11 +109,6 @@ Link
 │   │       └── Curve: [linear | curve]
 │   ├── Y Axis (group)
 │   │   └── (same sub-structure as X Axis, modulation target keys use param:N:y:slot, config keys use y.* prefix, defaults: Pitch Steps steps=3; Restart Section affects row sections)
-│   ├── LFO (group)
-│       ├── Enabled: [on | off]
-│       ├── Target (group)                         ← live audio-facing numeric controls only; excludes LFO rows and unsafe FX timing/buffer params
-│       ├── Period: [same 24 PPQN note units]
-│       └── Depth %: [0..100] step 1
 │   └── Arp (group)
 │       ├── Mode: [none | direct | up | down | bounce | outside_in | rotating | random | octave_spread | chord_strike | strum]
 │       ├── Source: [simultaneous | held]
@@ -112,6 +120,8 @@ Link
 ├── L3: ... (group)
 ```
 
-Link LFO sends transient live audio control values while transport plays. It restores the saved base value on stop/reset/config changes, and LFO movement is not saved back into the target parameter value.
+Global LFO slots are persisted under `runtimeConfig.linkLfos` and are independent of the active layer. Phase and live contributions are transient and are never serialized. Playback-runtime sums live LFO deltas once per affected endpoint, clamps the final value to the canonical target range, and emits the transient audio command.
+
+Target claims are validated before assignment. Exclusive targets accept one layer/Play claim only, LFO targets must remain additive and live-safe, and rejected claims leave the current binding and focus untouched while showing a bounded `Mapping rejected` toast.
 
 Link Arp transforms simultaneous routed note-on batches or playback-runtime tracked held notes. `none` preserves the existing Link path; other modes emit finite notes using Length ms and Gate %, with strum-like modes spaced by Step Link ticks.

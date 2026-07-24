@@ -1,6 +1,6 @@
 use super::*;
 use realtime_engine::synth::{
-    prepare_instruments_config, InstrumentsConfig, DEFAULT_PAN_POSITIONS,
+    prepare_audio_config, InstrumentsConfig, SampleBankConfig, DEFAULT_PAN_POSITIONS,
 };
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
@@ -8,6 +8,7 @@ use std::cell::Cell;
 thread_local! {
     static COUNT_ALLOCATIONS: Cell<bool> = const { Cell::new(false) };
     static ALLOCATIONS: Cell<usize> = const { Cell::new(0) };
+    static DEALLOCATIONS: Cell<usize> = const { Cell::new(0) };
 }
 
 struct CountingAllocator;
@@ -20,6 +21,11 @@ unsafe impl GlobalAlloc for CountingAllocator {
     }
 
     unsafe fn dealloc(&self, pointer: *mut u8, layout: Layout) {
+        COUNT_ALLOCATIONS.with(|enabled| {
+            if enabled.get() {
+                DEALLOCATIONS.with(|deallocations| deallocations.set(deallocations.get() + 1));
+            }
+        });
         System.dealloc(pointer, layout);
     }
 
@@ -41,12 +47,13 @@ fn count_allocation() {
     });
 }
 
-fn allocations<F: FnOnce()>(operation: F) -> usize {
+fn allocations_and_deallocations<F: FnOnce()>(operation: F) -> (usize, usize) {
     ALLOCATIONS.with(|allocations| allocations.set(0));
+    DEALLOCATIONS.with(|deallocations| deallocations.set(0));
     COUNT_ALLOCATIONS.with(|enabled| enabled.set(true));
     operation();
     COUNT_ALLOCATIONS.with(|enabled| enabled.set(false));
-    ALLOCATIONS.with(Cell::get)
+    (ALLOCATIONS.with(Cell::get), DEALLOCATIONS.with(Cell::get))
 }
 
 #[test]
@@ -130,25 +137,31 @@ fn control_drain_has_a_fixed_per_block_budget() {
 
 #[test]
 fn prepared_control_path_does_not_allocate_while_refilling() {
-    let prepared = prepare_instruments_config(
+    let prepared = prepare_audio_config(
         InstrumentsConfig {
             instruments: Vec::new(),
             mixer: None,
             pan_positions: DEFAULT_PAN_POSITIONS,
             master_volume: 100.0,
         },
+        Some(vec![SampleBankConfig::default()]),
+        None,
         44_100,
     );
+    let prepared_again = prepared.clone();
     let (tx, rx) = event_queue();
-    tx.send(EngineEvent::SetPreparedInstruments(prepared))
+    tx.send(EngineEvent::SetPreparedAudioConfig(prepared))
+        .unwrap();
+    tx.send(EngineEvent::SetPreparedAudioConfig(prepared_again))
         .unwrap();
     let mut source = EngineSource::new(rx, 44_100);
-    let allocation_count = allocations(|| {
+    let (allocation_count, deallocation_count) = allocations_and_deallocations(|| {
         for _ in 0..512 {
             let _ = source.next();
         }
     });
     assert_eq!(allocation_count, 0);
+    assert_eq!(deallocation_count, 0);
 }
 
 #[test]

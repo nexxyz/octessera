@@ -4,10 +4,11 @@ use playback_runtime::{
 };
 use realtime_engine::synth::{
     prepare_audio_config, prepare_fx_bus_slot, prepare_global_fx_slot,
-    prepare_instrument_slot_config, prepare_momentary_fx_start, AudioLoadStatus, MomentaryFxTarget,
+    prepare_instrument_slot_config, prepare_momentary_fx_start, MomentaryFxTarget,
     DEFAULT_AUDIO_SAMPLE_RATE,
 };
 use rodio_engine_source::{event_queue, EngineEvent, EngineEventSender};
+use rodio_engine_source::{AudioLoadStatusReceiver, AudioLoadStatusSender};
 use serde::Serialize;
 use std::sync::mpsc::Receiver;
 use std::thread;
@@ -31,7 +32,7 @@ struct AudioLoadPayload {
 
 pub(crate) fn spawn_audio_engine_thread(
     trigger_rx: Receiver<QueuedAudioEvent>,
-    load_tx: std::sync::mpsc::Sender<AudioLoadStatus>,
+    load_tx: AudioLoadStatusSender,
     failure_tx: std::sync::mpsc::Sender<RuntimeAdapterError>,
     no_audio: bool,
 ) {
@@ -125,18 +126,6 @@ pub(crate) fn spawn_audio_engine_thread(
                             )),
                         )?;
                     }
-                    QueuedAudioEvent::SetSampleBank {
-                        instrument_slot,
-                        bank,
-                    } => {
-                        send_engine_event(
-                            &engine_tx,
-                            EngineEvent::SetSampleBank {
-                                instrument_slot,
-                                bank,
-                            },
-                        )?;
-                    }
                     QueuedAudioEvent::SetMasterVolume { volume_pct } => {
                         send_engine_event(&engine_tx, EngineEvent::SetMasterVolume { volume_pct })?;
                     }
@@ -157,6 +146,7 @@ pub(crate) fn spawn_audio_engine_thread(
                     QueuedAudioEvent::SetInstrumentSlot {
                         instrument_slot,
                         config,
+                        sample_bank,
                     } => {
                         send_engine_event(
                             &engine_tx,
@@ -165,6 +155,15 @@ pub(crate) fn spawn_audio_engine_thread(
                                 config: prepare_instrument_slot_config(config),
                             },
                         )?;
+                        if let Some(bank) = sample_bank {
+                            send_engine_event(
+                                &engine_tx,
+                                EngineEvent::SetPreparedSampleBank {
+                                    instrument_slot,
+                                    bank,
+                                },
+                            )?;
+                        }
                     }
                     QueuedAudioEvent::SetFxBusMixer {
                         bus_index,
@@ -321,10 +320,7 @@ fn send_engine_event(sender: &EngineEventSender, event: EngineEvent) -> Result<(
     sender.send(event).map_err(|error| error.to_string())
 }
 
-pub(crate) fn spawn_load_listener(
-    load_rx: Receiver<AudioLoadStatus>,
-    app_handle: tauri::AppHandle,
-) {
+pub(crate) fn spawn_load_listener(load_rx: AudioLoadStatusReceiver, app_handle: tauri::AppHandle) {
     thread::spawn(move || {
         while let Ok(status) = load_rx.recv() {
             let _ = app_handle.emit(

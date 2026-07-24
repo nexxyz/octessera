@@ -2,13 +2,6 @@ import type { RuntimeHostMessage, RuntimeRunnerMessage } from "@octessera/device
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
-type PlaybackRuntimeConfig = {
-  bpm: number;
-  syncSource: "internal" | "external";
-  midiClockOutEnabled: boolean;
-  midiOutEnabled: boolean;
-};
-
 type RuntimeMessagesBatch = {
   seq: number;
   messages: RuntimeRunnerMessage[];
@@ -26,10 +19,6 @@ function withTimeout<R>(promise: Promise<R>, ms: number): Promise<R> {
 class TauriCoreRunnerClient {
   async dispatchRuntime(message: RuntimeHostMessage): Promise<RuntimeRunnerMessage[]> {
     return (await withTimeout(invoke("runtime_dispatch", { message }), IPC_TIMEOUT)) as RuntimeRunnerMessage[];
-  }
-
-  async syncConfig(config: PlaybackRuntimeConfig): Promise<void> {
-    await withTimeout(invoke("runtime_sync_config", { config }), IPC_TIMEOUT);
   }
 
   async drainRuntimeMessages(): Promise<RuntimeMessagesBatch[]> {

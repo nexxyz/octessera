@@ -1,11 +1,20 @@
+use crate::device_update;
 use crate::persistence::atomic_write_json;
 use crate::sample_browser::sample_entries;
-use playback_runtime::{HostMessage, RuntimeOperation, RuntimePlatformRequest, RuntimeStoreResult};
+use playback_runtime::{
+    HostMessage, RuntimePlatformRequest, RuntimeStoreResult, RuntimeSystemInfoError,
+};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::mpsc::{self, Receiver, SyncSender, TryRecvError, TrySendError};
-use std::thread;
-
+use std::sync::Arc;
+#[cfg(test)]
+#[path = "platform_service_test_support.rs"]
+mod platform_service_test_support;
+#[path = "platform_service_worker.rs"]
+mod platform_service_worker;
+#[path = "system_info.rs"]
+mod system_info;
 const JOB_QUEUE_CAPACITY: usize = 32;
 const RESULT_QUEUE_CAPACITY: usize = 32;
 
@@ -17,10 +26,33 @@ pub struct PiPlatformService {
 
 impl PiPlatformService {
     pub fn new(store_dir: PathBuf, samples_dir: PathBuf) -> Self {
+        Self::new_with_executor(store_dir, samples_dir, device_update::production_executor())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn new_with_update_executor(
+        store_dir: PathBuf,
+        samples_dir: PathBuf,
+        executor: Arc<dyn device_update::UpdateExecutor>,
+    ) -> Self {
+        Self::new_with_executor(store_dir, samples_dir, executor)
+    }
+
+    fn new_with_executor(
+        store_dir: PathBuf,
+        samples_dir: PathBuf,
+        update_executor: Arc<dyn device_update::UpdateExecutor>,
+    ) -> Self {
         let (jobs_tx, jobs_rx) = mpsc::sync_channel(JOB_QUEUE_CAPACITY);
         let (results_tx, results_rx) = mpsc::sync_channel(RESULT_QUEUE_CAPACITY);
         let worker_store_dir = store_dir.clone();
-        thread::spawn(move || run_worker(worker_store_dir, samples_dir, jobs_rx, results_tx));
+        platform_service_worker::spawn(
+            worker_store_dir,
+            samples_dir,
+            jobs_rx,
+            results_tx,
+            update_executor,
+        );
         Self {
             store_dir,
             jobs: jobs_tx,
@@ -89,6 +121,11 @@ pub enum PlatformJobKind {
     UpdateCheck,
     UpdateApply,
     Rollback,
+    SystemInfo,
+    #[cfg(test)]
+    TestBarrier {
+        completed: SyncSender<()>,
+    },
 }
 
 impl PlatformJob {
@@ -97,21 +134,12 @@ impl PlatformJob {
     }
 }
 
-fn run_worker(
-    store_dir: PathBuf,
-    samples_dir: PathBuf,
-    jobs: Receiver<PlatformJob>,
-    results: SyncSender<HostMessage>,
-) {
-    while let Ok(job) = jobs.recv() {
-        let result = handle_job(&store_dir, &samples_dir, job);
-        if results.send(HostMessage::RuntimeResult { result }).is_err() {
-            break;
-        }
-    }
-}
-
-fn handle_job(store_dir: &Path, samples_dir: &Path, job: PlatformJob) -> RuntimeStoreResult {
+fn handle_job(
+    store_dir: &Path,
+    samples_dir: &Path,
+    job: PlatformJob,
+    update_executor: &dyn device_update::UpdateExecutor,
+) -> RuntimeStoreResult {
     let request = job.request;
     let result = match job.kind {
         PlatformJobKind::ListPresets => match list_presets(store_dir) {
@@ -173,9 +201,19 @@ fn handle_job(store_dir: &Path, samples_dir: &Path, job: PlatformJob) -> Runtime
         },
         PlatformJobKind::UsbSdTransferStart => run_usb_storage_command("storage-start"),
         PlatformJobKind::UsbSdTransferStop => run_usb_storage_command("storage-stop"),
-        PlatformJobKind::UpdateCheck => run_update_command("check"),
-        PlatformJobKind::UpdateApply => run_update_command("apply"),
-        PlatformJobKind::Rollback => run_update_command("rollback"),
+        PlatformJobKind::UpdateCheck => device_update::run("check", update_executor),
+        PlatformJobKind::UpdateApply => device_update::run("apply", update_executor),
+        PlatformJobKind::Rollback => device_update::run("rollback", update_executor),
+        PlatformJobKind::SystemInfo => match system_info::collect() {
+            Ok(info) => RuntimeStoreResult::SystemInfoResult {
+                info: info.sanitized(),
+            },
+            Err(message) => RuntimeStoreResult::SystemInfoError {
+                error: RuntimeSystemInfoError::unavailable(message),
+            },
+        },
+        #[cfg(test)]
+        PlatformJobKind::TestBarrier { .. } => unreachable!("test barrier is handled by worker"),
     };
     let result = match result {
         RuntimeStoreResult::StoreError { message } => RuntimeStoreResult::RuntimeFailure {
@@ -185,36 +223,6 @@ fn handle_job(store_dir: &Path, samples_dir: &Path, job: PlatformJob) -> Runtime
     };
     result.with_identity(request.request_id, request.revision)
 }
-
-fn run_update_command(action: &str) -> RuntimeStoreResult {
-    match Command::new("sudo")
-        .args(["-n", "/usr/local/sbin/octessera-update", action])
-        .output()
-    {
-        Ok(output) if output.status.success() => RuntimeStoreResult::OperationSucceeded {
-            operation: RuntimeOperation::RuntimeDispatch,
-            request_id: None,
-            revision: None,
-        },
-        Ok(output) => store_error(format!(
-            "Update {action} failed{}{}",
-            command_output_suffix(&output.stderr),
-            command_output_suffix(&output.stdout)
-        )),
-        Err(error) => store_error(format!("Update {action} failed: {error}")),
-    }
-}
-
-fn command_output_suffix(output: &[u8]) -> String {
-    let text = String::from_utf8_lossy(output);
-    let trimmed = text.trim();
-    if trimmed.is_empty() {
-        String::new()
-    } else {
-        format!(": {trimmed}")
-    }
-}
-
 fn run_usb_storage_command(action: &str) -> RuntimeStoreResult {
     match Command::new("sudo")
         .args(["-n", "/usr/local/sbin/octessera-usb-gadget", action])
@@ -232,7 +240,6 @@ fn run_usb_storage_command(action: &str) -> RuntimeStoreResult {
         Err(error) => store_error(format!("USB SD2 transfer {action} failed: {error}")),
     }
 }
-
 fn usb_storage_message(action: &str, stdout: &str) -> String {
     if action != "storage-start" {
         return "USB SD2 transfer stopped".into();
@@ -444,6 +451,31 @@ mod tests {
         assert!(dir.join("Jam.patch.json").exists());
 
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn system_info_job_returns_identified_typed_result() {
+        let update_executor = device_update::production_executor();
+        let result = handle_job(
+            Path::new("."),
+            Path::new("."),
+            PlatformJob::new(
+                RuntimePlatformRequest::new(
+                    playback_runtime::RuntimePlatformEffect::SystemInfoRequest,
+                    "system-info-test".into(),
+                    Some(7),
+                ),
+                PlatformJobKind::SystemInfo,
+            ),
+            update_executor.as_ref(),
+        );
+        assert!(matches!(
+            result,
+            RuntimeStoreResult::Identified { result, request_id, revision }
+                if request_id == "system-info-test"
+                    && revision == Some(7)
+                    && matches!(*result, RuntimeStoreResult::SystemInfoResult { .. })
+        ));
     }
 
     #[test]

@@ -18,6 +18,7 @@ fn lists_and_resolves_native_behaviors() {
             "cyclic",
             "forest_fire",
             "predator_prey",
+            "twinkle",
             "ant",
             "bounce",
             "bubbles",
@@ -147,6 +148,18 @@ fn lists_and_resolves_native_behaviors() {
         Some(NativeBehavior::PredatorPrey)
     );
     assert_eq!(get_native_behavior("predator"), None);
+    assert_eq!(
+        get_native_behavior("twinkle"),
+        Some(NativeBehavior::Twinkle)
+    );
+    assert_eq!(get_native_behavior("stars"), None);
+    assert_eq!(
+        behavior_catalog()
+            .iter()
+            .find(|entry| entry.id == "twinkle")
+            .map(|entry| entry.label),
+        Some("twinkle")
+    );
     assert_eq!(
         get_native_behavior("forest_fire"),
         Some(NativeBehavior::ForestFire)
@@ -310,7 +323,14 @@ fn registry_ids_round_trip_and_pattern_membership_is_explicit() {
         assert_eq!(behavior.is_pattern(), pattern_ids.contains(id));
     }
 
-    for id in ["none", "life", "gravity", "lava_lamp", "physarum"] {
+    for id in [
+        "none",
+        "life",
+        "twinkle",
+        "gravity",
+        "lava_lamp",
+        "physarum",
+    ] {
         assert!(!get_native_behavior(id).unwrap().is_pattern());
     }
 }
@@ -362,6 +382,7 @@ fn direct_native_lifecycle_covers_all_native_variants() {
         NativeBehavior::Cyclic,
         NativeBehavior::ForestFire,
         NativeBehavior::PredatorPrey,
+        NativeBehavior::Twinkle,
         NativeBehavior::Ant,
         NativeBehavior::Boids,
         NativeBehavior::Bounce,

@@ -42,8 +42,10 @@ export function RuntimeStatusToaster({ status }: { status: RuntimeStatus | null 
   useEffect(() => {
     if (!visible || paused) return;
     const timeout = window.setTimeout(() => {
+      const visibleIdentity = runtimeErrorIdentity(visible.error!);
+      if (!queued) setDismissedIdentity(visibleIdentity);
       setVisible((current) => {
-        if (!current?.error || runtimeErrorIdentity(current.error) !== runtimeErrorIdentity(visible.error!)) return current;
+        if (!current?.error || runtimeErrorIdentity(current.error) !== visibleIdentity) return current;
         return queued;
       });
       setQueued(null);

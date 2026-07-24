@@ -82,6 +82,14 @@ fn behavior_render_palettes_match_themes() {
             },
         ),
         (
+            NativeBehavior::Twinkle,
+            BehaviorRenderPalette {
+                active: [80, 170, 255],
+                inactive: BLACK,
+                stable: [18, 48, 82],
+            },
+        ),
+        (
             NativeBehavior::Ant,
             BehaviorRenderPalette {
                 active: BLACK,

@@ -1,5 +1,20 @@
 use super::*;
 
+fn numeric_binding(key: &str, min: f64, max: f64) -> NativeParamBinding {
+    NativeParamBinding {
+        key: key.into(),
+        label: Some(key.into()),
+        kind: "number".into(),
+        min: Some(min),
+        max: Some(max),
+        step: Some(1.0),
+        user_min: None,
+        user_max: None,
+        options: vec![],
+        invert: false,
+    }
+}
+
 #[test]
 pub(crate) fn config_payload_includes_complete_sample_and_fx_param_shapes() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
@@ -53,4 +68,144 @@ pub(crate) fn config_payload_includes_complete_sample_and_fx_param_shapes() {
         round_trip["runtimeConfig"]["mixer"]["master"]["slots"][0]["params"]["clip"],
         0.75
     );
+}
+
+#[test]
+pub(crate) fn interactive_exclusive_claim_conflict_is_transactional() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let exclusive = numeric_binding("mixer.buses.0.slot1.params.timeMs", 0.0, 2000.0);
+    runner.set_param_binding_target("param:0:x:0", Some(exclusive.clone()));
+    assert!(runner.param_mods[0].x[0].is_some());
+    assert!(runner.menu.focus_item_key("param:0:y:0"));
+    let before_payload = runner.config_payload();
+    let before_revision = runner.config_revision;
+    let before_dirty = runner.dirty_revision;
+    let before_autosave = runner.pending.pending_autosave_payload_due_at;
+    let before_focus = runner.menu.current_focus_path();
+
+    runner.set_param_binding_target("param:0:y:0", Some(exclusive));
+
+    assert!(runner.param_mods[0].y[0].is_none());
+    assert_eq!(runner.config_payload(), before_payload);
+    assert_eq!(runner.config_revision, before_revision);
+    assert_eq!(runner.dirty_revision, before_dirty);
+    assert_eq!(
+        runner.pending.pending_autosave_payload_due_at,
+        before_autosave
+    );
+    assert_eq!(runner.menu.current_focus_path(), before_focus);
+    assert_eq!(
+        runner
+            .display
+            .toast
+            .as_ref()
+            .map(|toast| toast.message.as_str()),
+        Some("Mapping rejected: target already claimed")
+    );
+}
+
+#[test]
+pub(crate) fn physical_global_lfo_assignment_refreshes_labels_and_survives_reload() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let action_key = "linkLfos.0.target.instruments.0.mixer.volume";
+    assert!(runner.menu.focus_item_key(action_key));
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert_eq!(
+        runner.link_lfos[0]
+            .target
+            .as_ref()
+            .map(|binding| binding.key.as_str()),
+        Some("instruments.0.mixer.volume")
+    );
+    assert!(runner
+        .menu
+        .current_label()
+        .is_some_and(|label| label.contains("Volume")));
+
+    let payload = runner.config_payload();
+    let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    restored.apply_config_payload(payload).unwrap();
+    assert_eq!(
+        restored.link_lfos[0]
+            .target
+            .as_ref()
+            .map(|binding| binding.key.as_str()),
+        Some("instruments.0.mixer.volume")
+    );
+}
+
+#[test]
+pub(crate) fn physical_layer_and_play_xy_assignments_refresh_and_round_trip() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    for action_key in [
+        "param:0:x:0.instruments.0.mixer.volume",
+        "xy:x.instruments.0.mixer.panPos",
+    ] {
+        assert!(runner.menu.focus_item_key(action_key));
+        runner
+            .send(HostMessage::DeviceInput {
+                input: json!({ "type": "encoder_press", "id": "main" }),
+                request_snapshot: None,
+            })
+            .unwrap();
+    }
+
+    assert_eq!(
+        runner.param_mods[0].x[0]
+            .as_ref()
+            .map(|binding| binding.key.as_str()),
+        Some("instruments.0.mixer.volume")
+    );
+    assert_eq!(
+        runner
+            .xy_x_binding
+            .as_ref()
+            .map(|binding| binding.key.as_str()),
+        Some("instruments.0.mixer.panPos")
+    );
+    let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    restored
+        .apply_config_payload(runner.config_payload())
+        .unwrap();
+    assert_eq!(
+        restored.param_mods[0].x[0]
+            .as_ref()
+            .map(|binding| binding.key.as_str()),
+        Some("instruments.0.mixer.volume")
+    );
+    assert_eq!(
+        restored
+            .xy_x_binding
+            .as_ref()
+            .map(|binding| binding.key.as_str()),
+        Some("instruments.0.mixer.panPos")
+    );
+}
+
+#[test]
+pub(crate) fn physical_link_entry_selects_active_layer_by_stable_label() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.active_layer_index = 1;
+    let link_index = runner
+        .menu
+        .root
+        .children
+        .iter()
+        .position(|item| item.label == "Link")
+        .unwrap();
+    runner.menu.state.cursor = link_index;
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert_eq!(runner.menu.current_label(), Some("L2: life"));
 }

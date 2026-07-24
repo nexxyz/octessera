@@ -1,4 +1,6 @@
-use super::{RuntimeAudioCommand, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation};
+use super::{
+    RuntimeAudioCommand, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -55,6 +57,7 @@ pub enum RuntimePlatformEffect {
     UpdateCheck,
     UpdateApply,
     Rollback,
+    SystemInfoRequest,
     SampleListRequest {
         #[serde(rename = "instrumentSlot")]
         instrument_slot: usize,
@@ -87,15 +90,16 @@ impl RuntimePlatformEffect {
             Self::AudioCommand { .. } | Self::RecordingStartAudio { .. } | Self::RecordingStop => {
                 RuntimeOperation::AudioCommand
             }
+            Self::UpdateCheck | Self::UpdateApply | Self::Rollback => {
+                RuntimeOperation::DeviceUpdate
+            }
             Self::UsbApplyReboot { .. }
             | Self::UsbSdTransferStart
             | Self::UsbSdTransferStop
             | Self::Reboot
             | Self::Shutdown
-            | Self::HardwareTest
-            | Self::UpdateCheck
-            | Self::UpdateApply
-            | Self::Rollback => RuntimeOperation::RuntimeDispatch,
+            | Self::HardwareTest => RuntimeOperation::RuntimeDispatch,
+            Self::SystemInfoRequest => RuntimeOperation::SystemInfo,
         }
     }
 
@@ -136,6 +140,7 @@ impl RuntimePlatformEffect {
             | Self::StoreSaveDefault { .. }
             | Self::StoreSaveBackup { .. }
             | Self::StoreSaveRecovery { .. } => RuntimeErrorDomain::Storage,
+            Self::SystemInfoRequest => RuntimeErrorDomain::Runtime,
             _ => RuntimeErrorDomain::Runtime,
         }
     }
@@ -182,6 +187,59 @@ impl RuntimePlatformRequest {
             .unsupported_facts(message)
             .with_identity(Some(self.request_id.clone()), self.revision)
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeSystemInfo {
+    pub os: String,
+    #[serde(rename = "osVersion")]
+    pub os_version: String,
+    #[serde(rename = "octesseraVersion")]
+    pub octessera_version: String,
+    #[serde(rename = "primaryIp")]
+    pub primary_ip: Option<String>,
+    #[serde(rename = "primaryMac")]
+    pub primary_mac: Option<String>,
+    pub hostname: String,
+    #[serde(rename = "boardProfile")]
+    pub board_profile: String,
+}
+
+impl RuntimeSystemInfo {
+    pub fn sanitized(self) -> Self {
+        Self {
+            os: sanitize_system_info_text(&self.os),
+            os_version: sanitize_system_info_text(&self.os_version),
+            octessera_version: sanitize_system_info_text(&self.octessera_version),
+            primary_ip: self.primary_ip.as_deref().map(sanitize_system_info_text),
+            primary_mac: self.primary_mac.as_deref().map(sanitize_system_info_text),
+            hostname: sanitize_system_info_text(&self.hostname),
+            board_profile: sanitize_system_info_text(&self.board_profile),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeSystemInfoError {
+    pub code: RuntimeErrorCode,
+    pub message: String,
+}
+
+impl RuntimeSystemInfoError {
+    pub fn unavailable(message: impl Into<String>) -> Self {
+        Self {
+            code: RuntimeErrorCode::Unavailable,
+            message: sanitize_system_info_text(&message.into()),
+        }
+    }
+}
+
+fn sanitize_system_info_text(value: &str) -> String {
+    value
+        .chars()
+        .filter(|character| !character.is_control())
+        .take(96)
+        .collect()
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -270,6 +328,18 @@ pub enum RuntimeStoreResult {
     SamplePreviewError {
         message: String,
     },
+    DeviceUpdateStatus {
+        #[serde(default)]
+        ok: bool,
+        #[serde(default)]
+        message: String,
+    },
+    SystemInfoResult {
+        info: RuntimeSystemInfo,
+    },
+    SystemInfoError {
+        error: RuntimeSystemInfoError,
+    },
     UsbSdTransferStatus {
         active: bool,
         message: String,
@@ -320,6 +390,10 @@ impl RuntimeStoreResult {
                 RuntimeOperation::SampleList
             }
             Self::SamplePreviewError { .. } => RuntimeOperation::SamplePreview,
+            Self::DeviceUpdateStatus { .. } => RuntimeOperation::DeviceUpdate,
+            Self::SystemInfoResult { .. } | Self::SystemInfoError { .. } => {
+                RuntimeOperation::SystemInfo
+            }
             Self::UsbSdTransferStatus { .. } => RuntimeOperation::RuntimeDispatch,
         }
     }
@@ -353,6 +427,17 @@ impl RuntimeStoreResult {
             ),
             Self::SampleListError { message, .. } => (RuntimeErrorDomain::Sample, message.clone()),
             Self::SamplePreviewError { message } => (RuntimeErrorDomain::Sample, message.clone()),
+            Self::DeviceUpdateStatus { ok: false, message } => {
+                (RuntimeErrorDomain::Runtime, message.clone())
+            }
+            Self::SystemInfoError { error } => {
+                return Some(RuntimeErrorFacts::new(
+                    RuntimeErrorDomain::Runtime,
+                    error.code.clone(),
+                    RuntimeOperation::SystemInfo,
+                    Some(error.message.clone()),
+                ));
+            }
             _ => return None,
         };
         Some(RuntimeErrorFacts::new(

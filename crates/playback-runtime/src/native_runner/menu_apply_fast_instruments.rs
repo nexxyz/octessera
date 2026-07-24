@@ -172,18 +172,23 @@ impl NativeRunner {
         }
         instrument.note_behavior = value;
         self.sync_engine_runtime_config();
+        self.rebase_and_recompose_modulation_key(key);
         true
     }
 
-    pub(super) fn fast_full_instrument_synth_key(&mut self, index: usize, _key: &str) -> bool {
-        let Some(instrument) = self.instruments.get_mut(index) else {
-            return false;
+    pub(super) fn fast_full_instrument_synth_key(&mut self, index: usize, key: &str) -> bool {
+        let changed = {
+            let Some(instrument) = self.instruments.get_mut(index) else {
+                return false;
+            };
+            super::menu_apply_instrument_synth::apply_synth_menu_fields(
+                &self.menu, index, instrument,
+            )
         };
-        if super::menu_apply_instrument_synth::apply_synth_menu_fields(
-            &self.menu, index, instrument,
-        ) {
+        if changed {
             self.audio_config_revision = self.audio_config_revision.saturating_add(1);
             self.mark_fast_autosave_dirty();
+            self.rebase_and_recompose_modulation_key(key);
         }
         true
     }
@@ -194,12 +199,17 @@ impl NativeRunner {
             if key.ends_with(".selectedSlot") || key.ends_with(".velocityLevelsEnabled") {
                 self.rematerialize_menu_around_key(key);
             }
-            if let Some(config) = self.instrument_audio_config(index) {
-                self.queue_audio_command(RuntimeAudioCommand::SetInstrumentSlot {
-                    instrument_slot: index,
-                    config,
-                });
-            } else {
+            let rebased = self.rebase_and_recompose_modulation_key(key);
+            if !rebased {
+                if let Some(config) = self.instrument_audio_config(index) {
+                    self.queue_audio_command(RuntimeAudioCommand::SetInstrumentSlot {
+                        instrument_slot: index,
+                        config,
+                    });
+                } else {
+                    self.audio_config_revision = self.audio_config_revision.saturating_add(1);
+                }
+            } else if self.instrument_audio_config(index).is_none() {
                 self.audio_config_revision = self.audio_config_revision.saturating_add(1);
             }
             self.mark_fast_autosave_dirty();
@@ -208,11 +218,14 @@ impl NativeRunner {
     }
 
     pub(super) fn fast_midi_instrument_key(&mut self, index: usize, _key: &str) -> bool {
-        let Some(instrument) = self.instruments.get_mut(index) else {
-            return false;
+        let changed = {
+            let Some(instrument) = self.instruments.get_mut(index) else {
+                return false;
+            };
+            super::menu_apply_instrument_midi::apply_midi_menu_fields(&self.menu, index, instrument)
         };
-        if super::menu_apply_instrument_midi::apply_midi_menu_fields(&self.menu, index, instrument)
-        {
+        if changed {
+            self.rebase_and_recompose_modulation_key(_key);
             self.mark_fast_autosave_dirty();
         }
         true
@@ -222,18 +235,17 @@ impl NativeRunner {
         let Some(value) = value else {
             return false;
         };
-        let Some(instrument) = self.instruments.get_mut(index) else {
-            return false;
+        let key = format!("instruments.{index}.mixer.volume");
+        let command_value = {
+            let Some(instrument) = self.instruments.get_mut(index) else {
+                return false;
+            };
+            fast_instrument_volume(value, instrument).then(|| f32::from(instrument.volume))
         };
-        let command_value = if fast_instrument_volume(value, instrument) {
-            Some(f32::from(instrument.volume))
-        } else {
-            None
-        };
-        if let Some(volume_pct) = command_value {
+        if command_value.is_some() && !self.rebase_and_recompose_modulation_key(&key) {
             self.queue_audio_command(RuntimeAudioCommand::SetInstrumentMixer {
                 instrument_slot: index,
-                volume_pct: Some(volume_pct),
+                volume_pct: command_value,
                 pan_pos: None,
             });
         }
@@ -244,19 +256,18 @@ impl NativeRunner {
         let Some(value) = value else {
             return false;
         };
-        let Some(instrument) = self.instruments.get_mut(index) else {
-            return false;
+        let key = format!("instruments.{index}.mixer.panPos");
+        let command_value = {
+            let Some(instrument) = self.instruments.get_mut(index) else {
+                return false;
+            };
+            fast_instrument_pan(value, instrument).then(|| usize::from(instrument.pan_pos))
         };
-        let command_value = if fast_instrument_pan(value, instrument) {
-            Some(usize::from(instrument.pan_pos))
-        } else {
-            None
-        };
-        if let Some(pan_pos) = command_value {
+        if command_value.is_some() && !self.rebase_and_recompose_modulation_key(&key) {
             self.queue_audio_command(RuntimeAudioCommand::SetInstrumentMixer {
                 instrument_slot: index,
                 volume_pct: None,
-                pan_pos: Some(pan_pos),
+                pan_pos: command_value,
             });
         }
         command_value.is_some()
@@ -272,17 +283,19 @@ impl NativeRunner {
         let Some(value) = value else {
             return false;
         };
-        let Some(instrument) = self.instruments.get_mut(index) else {
+        let Some(audio_value) = (|| {
+            let instrument = self.instruments.get_mut(index)?;
+            apply(value, instrument)
+        })() else {
             return false;
         };
-        let Some(audio_value) = apply(value, instrument) else {
-            return false;
-        };
-        self.queue_audio_command(RuntimeAudioCommand::SetSynthParam {
-            instrument_slot: index,
-            path: path.into(),
-            value: audio_value,
-        });
+        if !self.rebase_and_recompose_modulation_key(&path_key(index, path)) {
+            self.queue_audio_command(RuntimeAudioCommand::SetSynthParam {
+                instrument_slot: index,
+                path: path.into(),
+                value: audio_value,
+            });
+        }
         true
     }
 
@@ -298,19 +311,19 @@ impl NativeRunner {
         let Some(value) = value else {
             return false;
         };
-        let Some(instrument) = self.instruments.get_mut(index) else {
-            return false;
-        };
-        let Some(audio_value) =
+        let Some(audio_value) = (|| {
+            let instrument = self.instruments.get_mut(index)?;
             fast_instrument_synth_number(value, instrument, json_path, min, max)
-        else {
+        })() else {
             return false;
         };
-        self.queue_audio_command(RuntimeAudioCommand::SetSynthParam {
-            instrument_slot: index,
-            path: command_path.into(),
-            value: audio_value,
-        });
+        if !self.rebase_and_recompose_modulation_key(&path_key(index, command_path)) {
+            self.queue_audio_command(RuntimeAudioCommand::SetSynthParam {
+                instrument_slot: index,
+                path: command_path.into(),
+                value: audio_value,
+            });
+        }
         true
     }
 
@@ -324,21 +337,27 @@ impl NativeRunner {
         let Some(value) = value else {
             return false;
         };
-        let Some(instrument) = self.instruments.get_mut(index) else {
+        let Some(audio_value) = (|| {
+            let instrument = self.instruments.get_mut(index)?;
+            apply(value, instrument)
+        })() else {
             return false;
         };
-        let Some(audio_value) = apply(value, instrument) else {
-            return false;
-        };
-        self.queue_audio_command(RuntimeAudioCommand::SetSampleBankParam {
-            instrument_slot: index,
-            path: path.into(),
-            value: audio_value,
-        });
+        if !self.rebase_and_recompose_modulation_key(&path_key(index, path)) {
+            self.queue_audio_command(RuntimeAudioCommand::SetSampleBankParam {
+                instrument_slot: index,
+                path: path.into(),
+                value: audio_value,
+            });
+        }
         true
     }
 
     pub(super) fn queue_audio_command(&mut self, command: RuntimeAudioCommand) {
         self.outbox.push_audio_command(command);
     }
+}
+
+fn path_key(index: usize, path: &str) -> String {
+    format!("instruments.{index}.{path}")
 }

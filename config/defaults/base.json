@@ -1,6 +1,6 @@
 {
   "kind": "octessera.config",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "revision": 0,
   "mappingConfig": {
     "activate": {
@@ -1190,15 +1190,41 @@
         "type": "none"
       }
     ],
+    "linkLfos": [
+      { "depthPct": 100, "enabled": false, "period": "1/1", "target": null },
+      { "depthPct": 100, "enabled": false, "period": "1/1", "target": null },
+      { "depthPct": 100, "enabled": false, "period": "1/1", "target": null },
+      { "depthPct": 100, "enabled": false, "period": "1/1", "target": null },
+      { "depthPct": 100, "enabled": false, "period": "1/1", "target": null },
+      { "depthPct": 100, "enabled": false, "period": "1/1", "target": null },
+      { "depthPct": 100, "enabled": false, "period": "1/1", "target": null },
+      { "depthPct": 100, "enabled": false, "period": "1/1", "target": null }
+    ],
+    "xy": {
+      "x": {
+        "invert": false,
+        "key": "instruments.0.synth.filter.cutoffHz",
+        "kind": "number",
+        "label": "Cutoff",
+        "max": 255.0,
+        "min": 0.0,
+        "step": 1.0
+      },
+      "xInvert": false,
+      "y": {
+        "invert": false,
+        "key": "instruments.0.synth.filter.resonance",
+        "kind": "number",
+        "label": "Res",
+        "max": 255.0,
+        "min": 0.0,
+        "step": 1.0
+      },
+      "yInvert": false
+    },
     "layers": [
       {
         "autoName": true,
-        "linkLfo": {
-          "depthPct": 100,
-          "enabled": false,
-          "period": "1/1",
-          "target": null
-        },
         "name": "life",
         "paramMods": {
           "x": [
@@ -1546,38 +1572,10 @@
             "width": 8
           },
           "stepRate": "1/16"
-        },
-        "xy": {
-          "x": {
-            "invert": false,
-            "key": "instruments.0.synth.filter.cutoffHz",
-            "kind": "number",
-            "label": "Cutoff",
-            "max": 255.0,
-            "min": 0.0,
-            "step": 1.0
-          },
-          "xInvert": false,
-          "y": {
-            "invert": false,
-            "key": "instruments.0.synth.filter.resonance",
-            "kind": "number",
-            "label": "Res",
-            "max": 255.0,
-            "min": 0.0,
-            "step": 1.0
-          },
-          "yInvert": false
         }
       },
       {
         "autoName": true,
-        "linkLfo": {
-          "depthPct": 100,
-          "enabled": false,
-          "period": "1/1",
-          "target": null
-        },
         "name": "sequencer",
         "paramMods": {
           "x": [
@@ -1850,38 +1848,10 @@
             "width": 8
           },
           "stepRate": "1/8"
-        },
-        "xy": {
-          "x": {
-            "invert": false,
-            "key": "instruments.0.synth.filter.cutoffHz",
-            "kind": "number",
-            "label": "Cutoff",
-            "max": 255.0,
-            "min": 0.0,
-            "step": 1.0
-          },
-          "xInvert": false,
-          "y": {
-            "invert": false,
-            "key": "instruments.0.synth.filter.resonance",
-            "kind": "number",
-            "label": "Res",
-            "max": 255.0,
-            "min": 0.0,
-            "step": 1.0
-          },
-          "yInvert": false
         }
       },
       {
         "autoName": true,
-        "linkLfo": {
-          "depthPct": 100,
-          "enabled": false,
-          "period": "1/1",
-          "target": null
-        },
         "name": "looper",
         "paramMods": {
           "x": [
@@ -2106,38 +2076,10 @@
             ]
           },
           "stepRate": "1/8"
-        },
-        "xy": {
-          "x": {
-            "invert": false,
-            "key": "instruments.0.synth.filter.cutoffHz",
-            "kind": "number",
-            "label": "Cutoff",
-            "max": 255.0,
-            "min": 0.0,
-            "step": 1.0
-          },
-          "xInvert": false,
-          "y": {
-            "invert": false,
-            "key": "instruments.0.synth.filter.resonance",
-            "kind": "number",
-            "label": "Res",
-            "max": 255.0,
-            "min": 0.0,
-            "step": 1.0
-          },
-          "yInvert": false
         }
       },
       {
         "autoName": true,
-        "linkLfo": {
-          "depthPct": 100,
-          "enabled": false,
-          "period": "1/1",
-          "target": null
-        },
         "name": "none",
         "paramMods": {
           "x": [
@@ -2339,38 +2281,10 @@
           "behaviorConfig": null,
           "behaviorId": "none",
           "saveGridState": true
-        },
-        "xy": {
-          "x": {
-            "invert": false,
-            "key": "instruments.0.synth.filter.cutoffHz",
-            "kind": "number",
-            "label": "Cutoff",
-            "max": 255.0,
-            "min": 0.0,
-            "step": 1.0
-          },
-          "xInvert": false,
-          "y": {
-            "invert": false,
-            "key": "instruments.0.synth.filter.resonance",
-            "kind": "number",
-            "label": "Res",
-            "max": 255.0,
-            "min": 0.0,
-            "step": 1.0
-          },
-          "yInvert": false
         }
       },
       {
         "autoName": true,
-        "linkLfo": {
-          "depthPct": 100,
-          "enabled": false,
-          "period": "1/1",
-          "target": null
-        },
         "name": "none",
         "paramMods": {
           "x": [
@@ -2572,38 +2486,10 @@
           "behaviorConfig": null,
           "behaviorId": "none",
           "saveGridState": true
-        },
-        "xy": {
-          "x": {
-            "invert": false,
-            "key": "instruments.0.synth.filter.cutoffHz",
-            "kind": "number",
-            "label": "Cutoff",
-            "max": 255.0,
-            "min": 0.0,
-            "step": 1.0
-          },
-          "xInvert": false,
-          "y": {
-            "invert": false,
-            "key": "instruments.0.synth.filter.resonance",
-            "kind": "number",
-            "label": "Res",
-            "max": 255.0,
-            "min": 0.0,
-            "step": 1.0
-          },
-          "yInvert": false
         }
       },
       {
         "autoName": true,
-        "linkLfo": {
-          "depthPct": 100,
-          "enabled": false,
-          "period": "1/1",
-          "target": null
-        },
         "name": "none",
         "paramMods": {
           "x": [
@@ -2805,38 +2691,10 @@
           "behaviorConfig": null,
           "behaviorId": "none",
           "saveGridState": true
-        },
-        "xy": {
-          "x": {
-            "invert": false,
-            "key": "instruments.0.synth.filter.cutoffHz",
-            "kind": "number",
-            "label": "Cutoff",
-            "max": 255.0,
-            "min": 0.0,
-            "step": 1.0
-          },
-          "xInvert": false,
-          "y": {
-            "invert": false,
-            "key": "instruments.0.synth.filter.resonance",
-            "kind": "number",
-            "label": "Res",
-            "max": 255.0,
-            "min": 0.0,
-            "step": 1.0
-          },
-          "yInvert": false
         }
       },
       {
         "autoName": true,
-        "linkLfo": {
-          "depthPct": 100,
-          "enabled": false,
-          "period": "1/1",
-          "target": null
-        },
         "name": "none",
         "paramMods": {
           "x": [
@@ -3038,38 +2896,10 @@
           "behaviorConfig": null,
           "behaviorId": "none",
           "saveGridState": true
-        },
-        "xy": {
-          "x": {
-            "invert": false,
-            "key": "instruments.0.synth.filter.cutoffHz",
-            "kind": "number",
-            "label": "Cutoff",
-            "max": 255.0,
-            "min": 0.0,
-            "step": 1.0
-          },
-          "xInvert": false,
-          "y": {
-            "invert": false,
-            "key": "instruments.0.synth.filter.resonance",
-            "kind": "number",
-            "label": "Res",
-            "max": 255.0,
-            "min": 0.0,
-            "step": 1.0
-          },
-          "yInvert": false
         }
       },
       {
         "autoName": true,
-        "linkLfo": {
-          "depthPct": 100,
-          "enabled": false,
-          "period": "1/1",
-          "target": null
-        },
         "name": "none",
         "paramMods": {
           "x": [
@@ -3271,28 +3101,6 @@
           "behaviorConfig": null,
           "behaviorId": "none",
           "saveGridState": true
-        },
-        "xy": {
-          "x": {
-            "invert": false,
-            "key": "instruments.0.synth.filter.cutoffHz",
-            "kind": "number",
-            "label": "Cutoff",
-            "max": 255.0,
-            "min": 0.0,
-            "step": 1.0
-          },
-          "xInvert": false,
-          "y": {
-            "invert": false,
-            "key": "instruments.0.synth.filter.resonance",
-            "kind": "number",
-            "label": "Res",
-            "max": 255.0,
-            "min": 0.0,
-            "step": 1.0
-          },
-          "yInvert": false
         }
       }
     ],

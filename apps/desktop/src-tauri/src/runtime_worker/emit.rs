@@ -108,6 +108,8 @@ impl RuntimeWorker {
         self.app_handle
             .emit(RUNTIME_MESSAGES_EVENT, payload)
             .map_err(|e| format!("failed to emit runtime messages: {e}"))?;
+        self.playback
+            .clear_error(playback_runtime::RuntimeOperation::RuntimeEmission);
         self.maybe_exit_after_shutdown_request();
         #[cfg(debug_assertions)]
         self.perf.record_emit(started_at.elapsed());

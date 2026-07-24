@@ -1,6 +1,9 @@
 use super::*;
+use octessera_hal::OledSsd1351;
 use platform_core::palette;
 use serde_json::{json, Value};
+use std::sync::mpsc;
+use std::time::{Duration, Instant};
 
 fn pixel(frame: &[u8], x: usize, y: usize) -> u16 {
     let idx = (y * 128 + x) * 2;
@@ -169,6 +172,39 @@ fn toast_footer_has_priority_over_transport_and_event_dot() {
 }
 
 #[test]
+fn runtime_error_frame_has_priority_over_splash_and_footer() {
+    let mut snapshot = menu_snapshot();
+    snapshot["display"]["splash"] = json!("startup");
+    snapshot["display"]["toast"] = json!("Saved");
+    snapshot["runtimeError"] = json!({
+        "domain": "sample",
+        "code": "not_found",
+        "operation": "audio_command",
+        "recovery": "retain_last_good",
+        "message": "sample not found"
+    });
+
+    let frame = oled_frame(&snapshot);
+
+    assert_eq!(pixel(&frame, 0, 0), rgb565(dim(palette::RED, 6)));
+    assert_eq!(pixel(&frame, 10, 10), palette::RED_RGB565);
+    assert_eq!(pixel(&frame, 119, 119), rgb565(palette::BLACK));
+}
+
+#[test]
+fn runtime_error_signature_changes_when_error_identity_changes() {
+    let mut snapshot = menu_snapshot();
+    snapshot["runtimeError"] = json!({
+        "domain": "sample",
+        "code": "not_found",
+        "operation": "audio_command"
+    });
+    let first = oled_signature(&snapshot);
+    snapshot["runtimeError"]["revision"] = json!(4);
+    assert_ne!(first, oled_signature(&snapshot));
+}
+
+#[test]
 fn status_icons_are_invisible_until_warning_or_save_flash() {
     let snapshot = menu_snapshot();
     let frame = oled_frame(&snapshot);
@@ -264,4 +300,186 @@ fn oled_display_brightness_scales_menu_line_colors() {
         pixel(&frame, 4, 30),
         rgb565(scale(rgb565_to_rgb(palette::GREEN_RGB565), 0.5))
     );
+}
+
+#[test]
+fn sleeping_leds_are_deterministic_sparse_and_brightness_bounded() {
+    let start = Instant::now();
+    let mut first = SleepLedAnimation::with_seed(42);
+    let mut second = SleepLedAnimation::with_seed(42);
+    first.enter(start, 0.5, 0.5);
+    second.enter(start, 0.5, 0.5);
+
+    let first_frame = first.frames_at(start + Duration::from_secs(1));
+    let second_frame = second.frames_at(start + Duration::from_secs(1));
+    assert_eq!(first_frame.grid, second_frame.grid);
+    assert_eq!(first_frame.keys, second_frame.keys);
+    assert!(
+        first_frame
+            .grid
+            .iter()
+            .filter(|color| **color != [0; 3])
+            .count()
+            <= 4
+    );
+    assert!(
+        first_frame
+            .keys
+            .iter()
+            .filter(|color| **color != [0; 3])
+            .count()
+            <= 1
+    );
+
+    let maximum = scale([u8::MAX; 3], sleep_dim_brightness(0.5));
+    for color in first_frame.grid.into_iter().chain(first_frame.keys) {
+        assert!(color
+            .iter()
+            .zip(maximum)
+            .all(|(value, limit)| *value <= limit));
+    }
+
+    let mut blackout = SleepLedAnimation::with_seed(42);
+    blackout.enter(start, 0.0, 0.0);
+    let blackout_frame = blackout.frames_at(start + Duration::from_secs(1));
+    assert!(blackout_frame.grid.iter().all(|color| *color == [0; 3]));
+    assert!(blackout_frame.keys.iter().all(|color| *color == [0; 3]));
+}
+
+#[test]
+fn repeated_sleep_entries_do_not_restart_the_animation() {
+    let start = Instant::now();
+    let first_time = start + Duration::from_secs(1);
+    let second_time = start + Duration::from_millis(1_200);
+
+    let mut repeated = SleepLedAnimation::with_seed(7);
+    repeated.enter(start, 1.0, 1.0);
+    let _ = repeated.frames_at(first_time);
+    repeated.enter(first_time, 1.0, 1.0);
+    let repeated_frame = repeated.frames_at(second_time);
+
+    let mut uninterrupted = SleepLedAnimation::with_seed(7);
+    uninterrupted.enter(start, 1.0, 1.0);
+    let _ = uninterrupted.frames_at(first_time);
+    let uninterrupted_frame = uninterrupted.frames_at(second_time);
+
+    assert_eq!(repeated_frame.grid, uninterrupted_frame.grid);
+    assert_eq!(repeated_frame.keys, uninterrupted_frame.keys);
+}
+
+#[test]
+fn waking_clears_sleep_animation_and_output_cache() {
+    let mut cache = HardwareRenderCache {
+        led_frame: Some([[1; 3]; 64]),
+        neokey_colors: Some([[2; 3]; 4]),
+        ..Default::default()
+    };
+    cache.sleep_leds.enter(Instant::now(), 1.0, 1.0);
+
+    cache.clear_sleep_animation();
+
+    assert!(!cache.sleep_leds.active());
+    assert!(cache.led_frame.is_none());
+    assert!(cache.neokey_colors.is_none());
+}
+
+#[test]
+fn sleeping_animation_uses_display_off_instead_of_dim_timer_state() {
+    let mut sleeping = snapshot_with_leds();
+    sleeping["display"]["off"] = json!(true);
+    sleeping["settings"]["ledsDimmed"] = json!(false);
+    assert!(snapshot_display_off(&sleeping));
+
+    sleeping["display"]["off"] = json!(false);
+    sleeping["settings"]["ledsDimmed"] = json!(true);
+    assert!(!snapshot_display_off(&sleeping));
+}
+
+#[test]
+fn sleeping_animation_emits_at_entry_and_deadlines_only() {
+    let (command_tx, command_rx) = mpsc::channel();
+    let mut targets = HardwareRenderTargets {
+        oled: OledSsd1351::new().unwrap(),
+        seesaw_tx: command_tx,
+        hdmi: None,
+    };
+    let sleeping = {
+        let mut snapshot = snapshot_with_leds();
+        snapshot["display"]["off"] = json!(true);
+        snapshot
+    };
+    let mut cache = HardwareRenderCache::default();
+
+    let deadline = render_snapshot_cached(&mut targets, &sleeping, &mut cache).unwrap();
+    assert_eq!(command_rx.try_iter().count(), 2);
+
+    let repeated_deadline = render_snapshot_cached(&mut targets, &sleeping, &mut cache).unwrap();
+    assert_eq!(repeated_deadline, deadline);
+    assert_eq!(command_rx.try_iter().count(), 0);
+
+    let _ = cache.render_sleep_tick(&mut targets, deadline - Duration::from_millis(1));
+    assert_eq!(command_rx.try_iter().count(), 0);
+    let _ = cache.render_sleep_tick(&mut targets, deadline);
+    assert!(command_rx.try_iter().count() > 0);
+}
+
+#[test]
+fn sleeping_animation_restores_once_on_wake_and_stays_cached_awake() {
+    let (command_tx, command_rx) = mpsc::channel();
+    let mut targets = HardwareRenderTargets {
+        oled: OledSsd1351::new().unwrap(),
+        seesaw_tx: command_tx,
+        hdmi: None,
+    };
+    let sleeping = {
+        let mut snapshot = snapshot_with_leds();
+        snapshot["display"]["off"] = json!(true);
+        snapshot
+    };
+    let awake = snapshot_with_leds();
+    let mut cache = HardwareRenderCache::default();
+
+    render_snapshot_cached(&mut targets, &sleeping, &mut cache);
+    let _ = command_rx.try_iter().count();
+    render_snapshot_cached(&mut targets, &awake, &mut cache);
+    let wake_commands = command_rx.try_iter().collect::<Vec<_>>();
+    assert_eq!(wake_commands.len(), 2);
+    assert!(wake_commands.iter().any(|command| {
+        matches!(command, crate::seesaw_io::SeesawCommand::GridFrame(frame) if *frame == led_frame(&awake).unwrap())
+    }));
+    assert!(wake_commands.iter().any(|command| {
+        matches!(command, crate::seesaw_io::SeesawCommand::NeoKeyColors(colors) if *colors == neokey_colors(&awake))
+    }));
+
+    render_snapshot_cached(&mut targets, &awake, &mut cache);
+    assert_eq!(command_rx.try_iter().count(), 0);
+}
+
+#[test]
+fn sleeping_animation_has_nonzero_rise_fall_expiry_and_tick_deadlines() {
+    let start = Instant::now();
+    let mut animation = SleepLedAnimation::with_seed(9);
+    assert!(animation.enter(start, 1.0, 1.0));
+    let entry = animation.frames_at(start);
+    assert!(entry.grid.iter().all(|color| *color == [0; 3]));
+    let first_key = animation.key_pulse_windows()[0];
+    let next_tick = animation.next_deadline().unwrap();
+    assert_eq!(next_tick, start + Duration::from_millis(100));
+    assert!(animation
+        .frames_if_due(start + Duration::from_millis(50))
+        .is_none());
+
+    let key = first_key.0;
+    let rise = animation.frames_at(first_key.1 + first_key.2.duration_since(first_key.1) / 4);
+    let peak = animation.frames_at(first_key.1 + first_key.2.duration_since(first_key.1) / 2);
+    let fall = animation.frames_at(first_key.1 + first_key.2.duration_since(first_key.1) * 3 / 4);
+    assert!(rise.keys[key].iter().any(|value| *value != 0));
+    assert!(peak.keys[key].iter().any(|value| *value != 0));
+    assert!(fall.keys[key].iter().any(|value| *value != 0));
+    let level = |color: [u8; 3]| u16::from(color[0]) + u16::from(color[1]) + u16::from(color[2]);
+    assert!(level(peak.keys[key]) > level(rise.keys[key]));
+    assert!(level(peak.keys[key]) > level(fall.keys[key]));
+
+    let expired = animation.frames_at(first_key.2);
+    assert_eq!(expired.keys[key], [0; 3]);
 }

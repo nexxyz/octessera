@@ -5,7 +5,11 @@ pub struct EncoderPins {
     pub sw: u8,
 }
 
+pub const RASPBERRY_PI_ZERO_2W_ID: &str = "raspberry-pi-zero-2w";
+pub const ORANGE_PI_ZERO_2W_ID: &str = "orange-pi-zero-2w";
+
 pub struct BoardProfile {
+    pub id: &'static str,
     pub i2c_bus: u8,
     pub i2c_path: &'static str,
     pub spi_bus: &'static str,
@@ -23,7 +27,8 @@ pub struct BoardProfile {
     pub trellis_addrs: [u16; 4],
 }
 
-pub const RPI_ZERO_2W: BoardProfile = BoardProfile {
+pub const RASPBERRY_PI_ZERO_2W: BoardProfile = BoardProfile {
+    id: RASPBERRY_PI_ZERO_2W_ID,
     i2c_bus: 1,
     i2c_path: "/dev/i2c-1",
     spi_bus: "/dev/spidev0.0",
@@ -58,9 +63,11 @@ pub const RPI_ZERO_2W: BoardProfile = BoardProfile {
     trellis_addrs: [0x2E, 0x2F, 0x30, 0x31],
 };
 
+pub const RPI_ZERO_2W: BoardProfile = RASPBERRY_PI_ZERO_2W;
+
 #[cfg(test)]
 mod tests {
-    use super::RPI_ZERO_2W;
+    use super::{ORANGE_PI_ZERO_2W_ID, RASPBERRY_PI_ZERO_2W, RASPBERRY_PI_ZERO_2W_ID, RPI_ZERO_2W};
     use crate::pinmap;
 
     #[test]
@@ -80,5 +87,13 @@ mod tests {
         assert_eq!(pinmap::NEOKEY_ADDR, RPI_ZERO_2W.neokey_addr);
         assert_eq!(pinmap::SEESAW_INT, RPI_ZERO_2W.seesaw_int);
         assert_eq!(pinmap::TRELLIS_ADDRS, RPI_ZERO_2W.trellis_addrs);
+    }
+
+    #[test]
+    fn profile_ids_are_distinct_and_rpi_alias_is_stable() {
+        assert_eq!(RASPBERRY_PI_ZERO_2W.id, RASPBERRY_PI_ZERO_2W_ID);
+        assert_ne!(RASPBERRY_PI_ZERO_2W_ID, ORANGE_PI_ZERO_2W_ID);
+        assert_eq!(RPI_ZERO_2W.id, RASPBERRY_PI_ZERO_2W_ID);
+        assert_eq!(RPI_ZERO_2W.encoders, RASPBERRY_PI_ZERO_2W.encoders);
     }
 }

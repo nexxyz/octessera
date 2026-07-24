@@ -97,7 +97,7 @@ pub(crate) fn sparks_xy_touch_persists_and_release_behavior_matches_config() {
 
     let payload = runner.config_payload();
     assert_eq!(payload["runtimeConfig"]["xyRelease"], "reset-center");
-    assert_eq!(payload["runtimeConfig"]["layers"][0]["xy"]["xInvert"], true);
+    assert_eq!(payload["runtimeConfig"]["xy"]["xInvert"], true);
 
     let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     restored.apply_config_payload(payload).unwrap();
@@ -175,6 +175,7 @@ pub(crate) fn sparks_xy_reset_center_overlay_returns_to_center() {
 #[test]
 pub(crate) fn param_mod_binding_updates_native_runtime_config() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.instruments[0].volume = 50;
     runner.param_mods[0].x[0] = Some(NativeParamBinding {
         key: "instruments.0.mixer.volume".into(),
         label: Some("Volume".into()),
@@ -202,4 +203,83 @@ pub(crate) fn param_mod_binding_updates_native_runtime_config() {
         runner.config_payload()["runtimeConfig"]["layers"][0]["paramMods"]["x"][0]["key"],
         "instruments.0.mixer.volume"
     );
+}
+
+#[test]
+pub(crate) fn repeated_xy_input_does_not_dirty_or_reemit_the_same_result() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.active_sparks_mode = "xy".into();
+    runner.instruments[0].volume = 50;
+    runner.xy_x_binding = Some(NativeParamBinding {
+        key: "instruments.0.mixer.volume".into(),
+        label: Some("Volume".into()),
+        kind: "number".into(),
+        min: Some(0.0),
+        max: Some(100.0),
+        step: Some(1.0),
+        user_min: None,
+        user_max: None,
+        options: vec![],
+        invert: false,
+    });
+
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 6, "y": 0 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    runner.config_dirty = false;
+    runner.pending.pending_autosave_payload_due_at = None;
+    runner.fast_autosave_marks = 0;
+
+    let repeated = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 6, "y": 0 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert_eq!(runner.instruments[0].volume, 86);
+    assert!(!runner.config_dirty);
+    assert!(runner.pending.pending_autosave_payload_due_at.is_none());
+    assert_eq!(runner.fast_autosave_marks, 0);
+    assert!(!repeated.iter().any(|message| matches!(
+        message,
+        RunnerMessage::AudioCommands { commands } if !commands.is_empty()
+    )));
+}
+
+#[test]
+pub(crate) fn xy_menu_removal_recomposes_the_held_target_to_its_base() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.active_sparks_mode = "xy".into();
+    runner.instruments[0].volume = 50;
+    let binding = NativeParamBinding {
+        key: "instruments.0.mixer.volume".into(),
+        label: Some("Volume".into()),
+        kind: "number".into(),
+        min: Some(0.0),
+        max: Some(100.0),
+        step: Some(1.0),
+        user_min: None,
+        user_max: None,
+        options: vec![],
+        invert: false,
+    };
+    runner.xy_x_binding = Some(binding.clone());
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 7, "y": 0 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    assert_eq!(runner.instruments[0].volume, 100);
+
+    runner
+        .execute_menu_action(NativeMenuAction::ClearParamBinding {
+            target: "xy:x".into(),
+        })
+        .unwrap();
+    assert_eq!(runner.instruments[0].volume, 50);
 }

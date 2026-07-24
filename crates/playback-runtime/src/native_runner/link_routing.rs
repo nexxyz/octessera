@@ -39,20 +39,29 @@ impl NativeRunner {
         }
     }
 
+    #[cfg(test)]
     pub(super) fn apply_link_timing(
         &mut self,
         layer_index: usize,
         intents: &[CellTriggerIntent],
         routed: RoutedMusicalEvents,
     ) -> RoutedMusicalEvents {
+        let sense = self.pulses_layers.get(layer_index).cloned();
+        self.apply_link_timing_with_sense(layer_index, intents, routed, sense.as_ref())
+    }
+
+    fn apply_link_timing_with_sense(
+        &mut self,
+        layer_index: usize,
+        intents: &[CellTriggerIntent],
+        routed: RoutedMusicalEvents,
+        sense: Option<&super::NativePulsesLayer>,
+    ) -> RoutedMusicalEvents {
         if routed.is_empty() {
             return routed;
         }
-        let timing = link_timing_for_intents(self.pulses_layers.get(layer_index), intents);
-        let arp = self
-            .pulses_layers
-            .get(layer_index)
-            .map(|layer| layer.arp.clone());
+        let timing = link_timing_for_intents(sense, intents);
+        let arp = sense.map(|layer| layer.arp.clone());
         self.cancel_pending_delayed_hold_note_ons_after(layer_index, &routed, timing.delay_steps);
         let retrigger_count = if routed_contains_held_note_on(&routed) {
             0
@@ -171,7 +180,12 @@ impl NativeRunner {
                 transpose_offset,
                 self.sparks_transpose_active_notes.get_mut(layer_index),
             );
-            out.extend(self.apply_link_timing(layer_index, &grouped_intents, routed));
+            out.extend(self.apply_link_timing_with_sense(
+                layer_index,
+                &grouped_intents,
+                routed,
+                sense.as_ref(),
+            ));
             event_index = end;
         }
         Ok(out)

@@ -29,39 +29,12 @@ pub struct AntState {
     pub auto_spawn_interval: usize,
     #[serde(rename = "spawnStep")]
     pub spawn_step: usize,
-    #[serde(rename = "tickCounter", default, skip_serializing)]
+    #[serde(rename = "tickCounter", default, skip_serializing, skip_deserializing)]
     pub tick_counter: usize,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-struct AntConfig {
-    #[serde(rename = "maxAnts")]
-    max_ants: Option<usize>,
-    #[serde(rename = "autoSpawnInterval")]
-    auto_spawn_interval: Option<usize>,
-    #[serde(rename = "spawnStep")]
-    spawn_step: Option<usize>,
-}
-
 pub fn ant_init(config: Value) -> Result<AntState, String> {
-    let seed_default = config
-        .as_object()
-        .map(|object| !object.contains_key("ants") && !object.contains_key("cells"))
-        .unwrap_or(true);
-    let config: AntConfig = serde_json::from_value(config).unwrap_or_default();
-    Ok(AntState {
-        ants: if seed_default {
-            vec![AntAgent { x: 3, y: 3, dir: 0 }]
-        } else {
-            vec![]
-        },
-        cells: vec![false; CELL_COUNT],
-        trigger_types: vec![CellTriggerType::None; CELL_COUNT],
-        max_ants: config.max_ants.unwrap_or(50),
-        auto_spawn_interval: config.auto_spawn_interval.unwrap_or(16),
-        spawn_step: config.spawn_step.unwrap_or(5).min(63),
-        tick_counter: 0,
-    })
+    Ok(from_value(&config))
 }
 
 fn random_ant() -> AntAgent {
@@ -148,10 +121,10 @@ pub fn ant_on_tick(state: AntState, _context: &mut BehaviorContext) -> AntState 
         let index = grid_index(ant.x, ant.y);
         cells[index] = !cells[index];
     }
-    let tick_counter = state.tick_counter + 1;
+    let tick_counter = state.tick_counter.saturating_add(1);
     let mut ants = ants;
     if state.auto_spawn_interval > 0
-        && (tick_counter - 1) % state.auto_spawn_interval
+        && state.tick_counter % state.auto_spawn_interval
             == state.spawn_step % state.auto_spawn_interval
         && ants.len() < state.max_ants
     {
@@ -165,6 +138,126 @@ pub fn ant_on_tick(state: AntState, _context: &mut BehaviorContext) -> AntState 
         tick_counter,
         ..state
     }
+}
+
+pub fn ant_deserialize(data: Value) -> Result<AntState, String> {
+    Ok(from_value(&data))
+}
+
+fn from_value(data: &Value) -> AntState {
+    let max_ants = number_field(data, "maxAnts", 50, 1, 100);
+    let has_saved_world = field_present(data, "ants") || field_present(data, "cells");
+    let mut state = AntState {
+        ants: if has_saved_world {
+            normalize_ants(array_field(data, "ants"), max_ants)
+        } else {
+            vec![AntAgent { x: 3, y: 3, dir: 0 }]
+        },
+        cells: normalize_cells(array_field(data, "cells")),
+        trigger_types: normalize_triggers(array_field(data, "triggerTypes")),
+        max_ants,
+        auto_spawn_interval: number_field(data, "autoSpawnInterval", 16, 0, 20),
+        spawn_step: number_field(data, "spawnStep", 5, 0, 63),
+        tick_counter: 0,
+    };
+    normalize(&mut state);
+    state
+}
+
+fn normalize(state: &mut AntState) {
+    state.cells.resize(CELL_COUNT, false);
+    state.cells.truncate(CELL_COUNT);
+    state
+        .trigger_types
+        .resize(CELL_COUNT, CellTriggerType::None);
+    state.trigger_types.truncate(CELL_COUNT);
+    state.max_ants = state.max_ants.clamp(1, 100);
+    state.auto_spawn_interval = state.auto_spawn_interval.clamp(0, 20);
+    state.spawn_step = state.spawn_step.clamp(0, 63);
+    for ant in &mut state.ants {
+        ant.x %= GRID_WIDTH;
+        ant.y %= GRID_HEIGHT;
+        ant.dir %= 4;
+    }
+    state.ants.truncate(state.max_ants);
+}
+
+fn field_present(data: &Value, key: &str) -> bool {
+    data.as_object()
+        .map(|object| object.contains_key(key))
+        .unwrap_or(false)
+}
+
+fn array_field(data: &Value, key: &str) -> Option<Vec<Value>> {
+    data.as_object().and_then(|object| {
+        object
+            .get(key)
+            .map(|value| value.as_array().cloned().unwrap_or_default())
+    })
+}
+
+fn number_field(data: &Value, key: &str, default: usize, min: usize, max: usize) -> usize {
+    let Some(value) = data.as_object().and_then(|object| object.get(key)) else {
+        return default;
+    };
+    if let Some(value) = value.as_i64() {
+        return value.clamp(min as i64, max as i64) as usize;
+    }
+    value
+        .as_u64()
+        .map(|value| value.clamp(min as u64, max as u64) as usize)
+        .unwrap_or(default)
+}
+
+fn normalize_ants(ants: Option<Vec<Value>>, max_ants: usize) -> Vec<AntAgent> {
+    ants.unwrap_or_default()
+        .into_iter()
+        .filter_map(|ant| {
+            let object = ant.as_object()?;
+            Some(AntAgent {
+                x: coordinate(object.get("x"), GRID_WIDTH),
+                y: coordinate(object.get("y"), GRID_HEIGHT),
+                dir: direction(object.get("dir")),
+            })
+        })
+        .take(max_ants)
+        .collect()
+}
+
+fn normalize_cells(cells: Option<Vec<Value>>) -> Vec<bool> {
+    let mut cells = cells
+        .unwrap_or_default()
+        .into_iter()
+        .map(|cell| cell.as_bool().unwrap_or(false))
+        .collect::<Vec<_>>();
+    cells.resize(CELL_COUNT, false);
+    cells.truncate(CELL_COUNT);
+    cells
+}
+
+fn normalize_triggers(triggers: Option<Vec<Value>>) -> Vec<CellTriggerType> {
+    let mut triggers = triggers
+        .unwrap_or_default()
+        .into_iter()
+        .map(|trigger| serde_json::from_value(trigger).unwrap_or(CellTriggerType::None))
+        .collect::<Vec<_>>();
+    triggers.resize(CELL_COUNT, CellTriggerType::None);
+    triggers.truncate(CELL_COUNT);
+    triggers
+}
+
+fn coordinate(value: Option<&Value>, size: usize) -> usize {
+    value
+        .and_then(Value::as_u64)
+        .map(|value| (value % size as u64) as usize)
+        .unwrap_or(0)
+}
+
+fn direction(value: Option<&Value>) -> u8 {
+    value
+        .and_then(Value::as_u64)
+        .map(|value| (value % 4) as u8)
+        .unwrap_or(0)
 }
 
 fn scheduled_ant(step: usize) -> AntAgent {
@@ -284,5 +377,77 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec!["maxAnts", "autoSpawnInterval", "spawnStep", "spawnAnt"]
         );
+    }
+
+    #[test]
+    fn malformed_saved_state_normalizes_vectors_agents_parameters_and_counters() {
+        let state = ant_deserialize(serde_json::json!({
+            "ants": [
+                { "x": 999, "y": 1000, "dir": 9 },
+                { "x": 2, "y": 3, "dir": 2 },
+                { "x": 4, "y": 5, "dir": 1 }
+            ],
+            "cells": [true, "bad"],
+            "triggerTypes": ["activate", "bad"],
+            "maxAnts": 2,
+            "autoSpawnInterval": -1,
+            "spawnStep": 999,
+            "tickCounter": u64::MAX
+        }))
+        .unwrap();
+
+        assert_eq!(state.ants.len(), 2);
+        assert_eq!(state.ants[0], AntAgent { x: 7, y: 0, dir: 1 });
+        assert_eq!(state.ants[1], AntAgent { x: 2, y: 3, dir: 2 });
+        assert_eq!(state.cells.len(), CELL_COUNT);
+        assert!(state.cells[0]);
+        assert_eq!(state.trigger_types.len(), CELL_COUNT);
+        assert_eq!(state.trigger_types[0], CellTriggerType::Activate);
+        assert_eq!(state.trigger_types[1], CellTriggerType::None);
+        assert_eq!(state.max_ants, 2);
+        assert_eq!(state.auto_spawn_interval, 0);
+        assert_eq!(state.spawn_step, 63);
+        assert_eq!(state.tick_counter, 0);
+
+        let next = ant_on_tick(state, &mut BehaviorContext::new(120.0));
+        assert_eq!(next.cells.len(), CELL_COUNT);
+        assert_eq!(next.trigger_types.len(), CELL_COUNT);
+    }
+
+    #[test]
+    fn missing_saved_state_seeds_default_but_explicit_empty_stays_empty() {
+        assert_eq!(
+            ant_deserialize(serde_json::json!({})).unwrap().ants.len(),
+            1
+        );
+        assert!(ant_deserialize(serde_json::json!({ "ants": [] }))
+            .unwrap()
+            .ants
+            .is_empty());
+    }
+
+    #[test]
+    fn scheduled_spawning_stops_at_capacity_and_zero_disables_it() {
+        let mut context = BehaviorContext::new(120.0);
+        let mut state = ant_init(serde_json::json!({
+            "ants": [],
+            "maxAnts": 3,
+            "autoSpawnInterval": 1,
+            "spawnStep": 0
+        }))
+        .unwrap();
+        for _ in 0..8 {
+            state = ant_on_tick(state, &mut context);
+        }
+        assert_eq!(state.ants.len(), 3);
+
+        let state = ant_init(serde_json::json!({
+            "ants": [],
+            "maxAnts": 3,
+            "autoSpawnInterval": 0
+        }))
+        .unwrap();
+        let state = ant_on_tick(state, &mut context);
+        assert!(state.ants.is_empty());
     }
 }

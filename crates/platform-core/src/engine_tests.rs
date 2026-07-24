@@ -5,6 +5,10 @@ use crate::interpretation::{
 };
 use crate::mapping::default_mapping_config;
 use crate::transforms::{GlobalSoundConfig, VelocityCurve};
+use std::collections::BTreeSet;
+
+#[path = "engine_twinkle_tests.rs"]
+mod twinkle_tests;
 
 #[test]
 fn ticks_life_behavior_end_to_end() {
@@ -45,6 +49,100 @@ fn ticks_life_behavior_end_to_end() {
     let tick = engine.tick(120.0).unwrap();
     assert!(tick.model.cells[crate::grid_index(3, 2)]);
     assert!(!tick.events.is_empty());
+}
+
+#[test]
+fn cyclic_consecutive_presses_keep_both_activation_intents() {
+    let mut engine = NativeLayerEngine::new(NativeLayerEngineConfig {
+        behavior: NativeBehavior::Cyclic,
+        behavior_config: serde_json::json!({
+            "cells": [],
+            "states": 4,
+            "threshold": 2,
+            "range": 1
+        }),
+        interpretation_profile: InterpretationProfile {
+            id: "cyclic_input_events".into(),
+            event: InterpretationEventProfile { enabled: true },
+            state: InterpretationStateProfile {
+                enabled: false,
+                tick: TickStrategy::WholeGridTransitions,
+            },
+            x: AxisStrategy::ScaleStep { step: 1 },
+            y: AxisStrategy::ScaleStep { step: 2 },
+        },
+        mapping_config: default_mapping_config(),
+        global_sound: GlobalSoundConfig {
+            velocity_scale_pct: 100,
+            velocity_curve: VelocityCurve::Linear,
+            note_length_ms: 120,
+        },
+        note_behaviors: vec![NoteBehavior::Oneshot; 16],
+        layer_index: 0,
+    })
+    .unwrap();
+
+    let first = engine
+        .on_input_with_events(DeviceInput::GridPress { x: 2, y: 3 }, 120.0)
+        .unwrap();
+    let second = engine
+        .on_input_with_events(DeviceInput::GridPress { x: 2, y: 3 }, 120.0)
+        .unwrap();
+
+    assert_eq!(first.mapped_intents.len(), 1);
+    assert_eq!(second.mapped_intents.len(), 1);
+    assert_eq!(first.mapped_intents[0].kind, CellTriggerKind::Activate);
+    assert_eq!(second.mapped_intents[0].kind, CellTriggerKind::Activate);
+}
+
+#[test]
+fn held_note_drain_is_bounded_and_returns_note_off_events() {
+    let mut engine = NativeLayerEngine::new(NativeLayerEngineConfig {
+        behavior: NativeBehavior::Cyclic,
+        behavior_config: serde_json::json!({ "cells": [] }),
+        interpretation_profile: InterpretationProfile {
+            id: "held_note_drain".into(),
+            event: InterpretationEventProfile { enabled: true },
+            state: InterpretationStateProfile {
+                enabled: false,
+                tick: TickStrategy::WholeGridTransitions,
+            },
+            x: AxisStrategy::ScaleStep { step: 1 },
+            y: AxisStrategy::ScaleStep { step: 2 },
+        },
+        mapping_config: default_mapping_config(),
+        global_sound: GlobalSoundConfig {
+            velocity_scale_pct: 100,
+            velocity_curve: VelocityCurve::Linear,
+            note_length_ms: 120,
+        },
+        note_behaviors: vec![NoteBehavior::Hold; 16],
+        layer_index: 0,
+    })
+    .unwrap();
+
+    engine
+        .on_input_with_events(DeviceInput::GridPress { x: 0, y: 0 }, 120.0)
+        .unwrap();
+    engine
+        .on_input_with_events(DeviceInput::GridPress { x: 1, y: 0 }, 120.0)
+        .unwrap();
+
+    assert_eq!(
+        engine.drain_held_notes(1),
+        vec![MusicalEvent::NoteOff {
+            channel: 0,
+            note: 24,
+        }]
+    );
+    assert_eq!(
+        engine.drain_held_notes(1),
+        vec![MusicalEvent::NoteOff {
+            channel: 0,
+            note: 27,
+        }]
+    );
+    assert!(engine.drain_held_notes(1).is_empty());
 }
 
 #[test]
@@ -116,8 +214,10 @@ fn note_behavior_suppression_keeps_event_intents_aligned() {
         ],
         vec![Some(duplicate), Some(release.clone())],
         &[NoteBehavior::Hold],
-        0,
-        &["0:0:60".into()],
+        &mut BTreeSet::from([HeldNote {
+            channel: 0,
+            note: 60,
+        }]),
     );
 
     assert_eq!(
@@ -162,8 +262,7 @@ fn duplicate_note_ons_keep_distinct_event_intents_for_link_timing() {
         ],
         vec![Some(activate.clone()), Some(scanned.clone())],
         &[NoteBehavior::Oneshot],
-        0,
-        &[],
+        &mut BTreeSet::new(),
     );
 
     assert_eq!(result.events.len(), 2);

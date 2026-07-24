@@ -26,6 +26,9 @@ impl NativeBehavior {
             NativeBehavior::PredatorPrey => Ok(NativeBehaviorState::PredatorPrey(
                 native_impl::predator_prey_init(config)?,
             )),
+            NativeBehavior::Twinkle => Ok(NativeBehaviorState::Twinkle(native_impl::twinkle_init(
+                config,
+            )?)),
             NativeBehavior::Ant => Ok(NativeBehaviorState::Ant(native_impl::ant_init(config)?)),
             NativeBehavior::Boids => {
                 Ok(NativeBehaviorState::Boids(native_impl::boids_init(config)?))
@@ -112,9 +115,9 @@ impl NativeBehavior {
             NativeBehavior::Looper => Ok(NativeBehaviorState::Looper(
                 native_impl::looper_deserialize(data)?,
             )),
-            NativeBehavior::Brain => {
-                Ok(NativeBehaviorState::Brain(native_impl::deserialize(data)?))
-            }
+            NativeBehavior::Brain => Ok(NativeBehaviorState::Brain(
+                native_impl::brain_deserialize(data)?,
+            )),
             NativeBehavior::Cyclic => Ok(NativeBehaviorState::Cyclic(
                 native_impl::cyclic_deserialize(data)?,
             )),
@@ -124,7 +127,12 @@ impl NativeBehavior {
             NativeBehavior::PredatorPrey => Ok(NativeBehaviorState::PredatorPrey(
                 native_impl::predator_prey_deserialize(data)?,
             )),
-            NativeBehavior::Ant => Ok(NativeBehaviorState::Ant(native_impl::deserialize(data)?)),
+            NativeBehavior::Twinkle => Ok(NativeBehaviorState::Twinkle(
+                native_impl::twinkle_deserialize(data)?,
+            )),
+            NativeBehavior::Ant => Ok(NativeBehaviorState::Ant(native_impl::ant_deserialize(
+                data,
+            )?)),
             NativeBehavior::Boids => Ok(NativeBehaviorState::Boids(
                 native_impl::boids_deserialize(data)?,
             )),

@@ -8,11 +8,13 @@ use std::time::{Duration, Instant};
 
 pub(crate) mod hdmi;
 mod oled;
+mod sleep_leds;
 
 pub(crate) use oled::OLED_FRAME_BYTES;
 #[cfg(test)]
 use oled::{glyph_rows, oled_frame};
 use oled::{oled_frame_into, oled_signature};
+use sleep_leds::{SleepLedAnimation, SleepLedFrames};
 
 const SPLASH_BOOT: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/splash_boot.rgb565"));
 const SPLASH_SLEEP_SHUTDOWN: &[u8] =
@@ -29,6 +31,7 @@ pub struct HardwareRenderTargets {
 pub struct HardwareRenderCache {
     led_frame: Option<[[u8; 3]; 64]>,
     neokey_colors: Option<[[u8; 3]; 4]>,
+    sleep_leds: SleepLedAnimation,
     oled_signature: u64,
     oled_frame: Vec<u8>,
     hdmi_signature: u64,
@@ -42,6 +45,7 @@ impl HardwareRenderCache {
         Self {
             led_frame: None,
             neokey_colors: None,
+            sleep_leds: SleepLedAnimation::new(),
             oled_signature: 0,
             oled_frame: vec![0_u8; OLED_FRAME_BYTES],
             hdmi_signature: 0,
@@ -101,28 +105,29 @@ pub fn render_snapshot_cached(
     targets: &mut HardwareRenderTargets,
     snapshot: &Value,
     cache: &mut HardwareRenderCache,
-) {
-    if let Some(frame) = led_frame(snapshot) {
-        if cache.led_frame.as_ref() != Some(&frame)
-            && targets
-                .seesaw_tx
-                .send(SeesawCommand::GridFrame(frame))
-                .is_ok()
-        {
-            cache.led_frame = Some(frame);
+) -> Option<Instant> {
+    let animation_deadline = if snapshot_display_off(snapshot) {
+        let now = Instant::now();
+        let settings = snapshot.get("settings").unwrap_or(&Value::Null);
+        let entered_sleep = cache.sleep_leds.enter(
+            now,
+            brightness_scale(settings.get("gridBrightness")),
+            brightness_scale(settings.get("buttonBrightness")),
+        );
+        if entered_sleep {
+            let frames = cache.sleep_leds.frames_at(now);
+            send_sleep_led_frames(targets, cache, frames);
+        } else if let Some(frames) = cache.sleep_leds.frames_if_due(now) {
+            send_sleep_led_frames(targets, cache, frames);
         }
-    }
-
-    let neokey = neokey_colors(snapshot);
-    let previous_neokey = cache.neokey_colors.unwrap_or([[u8::MAX; 3]; 4]);
-    if previous_neokey != neokey
-        && targets
-            .seesaw_tx
-            .send(SeesawCommand::NeoKeyColors(neokey))
-            .is_ok()
-    {
-        cache.neokey_colors = Some(neokey);
-    }
+        cache.sleep_leds.next_deadline()
+    } else {
+        if cache.sleep_leds.active() {
+            cache.clear_sleep_animation();
+        }
+        render_normal_leds(targets, snapshot, cache);
+        None
+    };
 
     let signature = oled_signature(snapshot);
     if cache.oled_signature != signature {
@@ -136,6 +141,80 @@ pub fn render_snapshot_cached(
             cache.hdmi_signature = signature;
             hdmi.render(snapshot);
         }
+    }
+    animation_deadline
+}
+
+impl HardwareRenderCache {
+    fn clear_sleep_animation(&mut self) {
+        self.sleep_leds.stop();
+        self.led_frame = None;
+        self.neokey_colors = None;
+    }
+
+    pub(crate) fn render_sleep_tick(
+        &mut self,
+        targets: &mut HardwareRenderTargets,
+        now: Instant,
+    ) -> Option<Instant> {
+        if !self.sleep_leds.active() {
+            return None;
+        }
+        if let Some(frames) = self.sleep_leds.frames_if_due(now) {
+            send_sleep_led_frames(targets, self, frames);
+        }
+        self.sleep_leds.next_deadline()
+    }
+}
+
+fn render_normal_leds(
+    targets: &mut HardwareRenderTargets,
+    snapshot: &Value,
+    cache: &mut HardwareRenderCache,
+) {
+    if let Some(frame) = led_frame(snapshot) {
+        send_grid_frame(targets, cache, frame);
+    }
+    send_neokey_colors(targets, cache, neokey_colors(snapshot));
+}
+
+fn send_sleep_led_frames(
+    targets: &mut HardwareRenderTargets,
+    cache: &mut HardwareRenderCache,
+    frames: SleepLedFrames,
+) {
+    send_grid_frame(targets, cache, frames.grid);
+    send_neokey_colors(targets, cache, frames.keys);
+}
+
+fn send_grid_frame(
+    targets: &mut HardwareRenderTargets,
+    cache: &mut HardwareRenderCache,
+    frame: [[u8; 3]; 64],
+) {
+    if cache.led_frame.as_ref() != Some(&frame)
+        && targets
+            .seesaw_tx
+            .send(SeesawCommand::GridFrame(frame))
+            .is_ok()
+    {
+        cache.led_frame = Some(frame);
+    }
+}
+
+fn send_neokey_colors(
+    targets: &mut HardwareRenderTargets,
+    cache: &mut HardwareRenderCache,
+    colors: [[u8; 3]; 4],
+) {
+    let previous = cache.neokey_colors.unwrap_or([[u8::MAX; 3]; 4]);
+    if previous != colors
+        && targets
+            .seesaw_tx
+            .send(SeesawCommand::NeoKeyColors(colors))
+            .is_ok()
+    {
+        cache.neokey_colors = Some(colors);
     }
 }
 

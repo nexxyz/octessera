@@ -1,6 +1,6 @@
 use crate::audio_config::{
     decode_sample_file, normalize_config, sample_bank_signature, sample_banks, synth_payload,
-    synth_slots,
+    synth_slots, SampleBankError,
 };
 use crate::samples::resolve_sample_file;
 use crate::types::QueuedAudioEvent;
@@ -20,6 +20,7 @@ pub(super) struct PreparedAudioConfig {
 pub(super) enum AudioPrepError {
     Superseded,
     InvalidConfig(String),
+    Sample(SampleBankError),
     Failed(String),
 }
 
@@ -41,20 +42,23 @@ pub(super) fn prepare_full_audio_config(
         *current != next_sample_signature
     };
     let next_sample_banks = if should_update_sample_banks {
-        Some(sample_banks(&config, resolve_sample_file, |path| {
-            if let Ok(cache) = state.sample_cache.lock() {
-                if let Some(buffer) = cache.get(path) {
-                    return Some(buffer.clone());
+        Some(
+            sample_banks(&config, resolve_sample_file, |path| {
+                if let Ok(cache) = state.sample_cache.lock() {
+                    if let Some(buffer) = cache.get(path) {
+                        return Some(buffer.clone());
+                    }
+                } else {
+                    return None;
                 }
-            } else {
-                return None;
-            }
-            let buffer = decode_sample_file(path)?;
-            if let Ok(mut cache) = state.sample_cache.lock() {
-                cache.insert(path.to_string(), buffer.clone());
-            }
-            Some(buffer)
-        }))
+                let buffer = decode_sample_file(path)?;
+                if let Ok(mut cache) = state.sample_cache.lock() {
+                    cache.insert(path.to_string(), buffer.clone());
+                }
+                Some(buffer)
+            })
+            .map_err(AudioPrepError::Sample)?,
+        )
     } else {
         None
     };
@@ -69,6 +73,39 @@ pub(super) fn prepare_full_audio_config(
         },
         synth_slots: next_slots,
         sample_signature: should_update_sample_banks.then_some(next_sample_signature),
+    })
+}
+
+pub(super) fn prepare_sample_preview(
+    instrument_slot: usize,
+    path: &str,
+    velocity: u8,
+    state: &DesktopAudioPrepState,
+) -> Result<QueuedAudioEvent, AudioPrepError> {
+    let full_path = resolve_sample_file(path)
+        .ok_or_else(|| AudioPrepError::Sample(SampleBankError::Unresolved(path.into())))?;
+    let buffer = if let Ok(cache) = state.sample_cache.lock() {
+        cache.get(&full_path).cloned()
+    } else {
+        return Err(AudioPrepError::Failed("sample cache lock failed".into()));
+    };
+    let buffer = match buffer {
+        Some(buffer) => buffer,
+        None => {
+            let buffer = decode_sample_file(&full_path)
+                .ok_or_else(|| AudioPrepError::Sample(SampleBankError::Undecodable(path.into())))?;
+            let mut cache = state
+                .sample_cache
+                .lock()
+                .map_err(|_| AudioPrepError::Failed("sample cache lock failed".into()))?;
+            cache.insert(full_path, buffer.clone());
+            buffer
+        }
+    };
+    Ok(QueuedAudioEvent::PreviewSample {
+        instrument_slot: instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1) as u8,
+        buffer,
+        velocity,
     })
 }
 

@@ -39,7 +39,8 @@ Build
 │   │   │   ├── cyclic
 │   │   │   ├── forest_fire
 │   │   │   ├── life
-│   │   │   └── predator_prey
+│   │   │   ├── predator_prey
+│   │   │   └── twinkle
 │   │   ├── [Fields]
 │   │   │   ├── ..
 │   │   │   ├── ink
@@ -95,7 +96,7 @@ Behavior categories:
 | Human | keys, looper, none, sequencer, weave | Direct performance, recording, silence, step-style behaviors, and hand-playable pattern nudges. |
 | Rhythm | polyrhythm, breaks, fills, clave, groove, euclid | Rhythm-first pattern worlds for interlocking pulses, asymmetry, breaks, fills, and Euclidean-style grids. |
 | Musical | ostinato, motif, canon, chords, contour, cadence, phrase | Pitch-shape pattern worlds for repeated figures, delayed echoes, chord blocks, contours, cadences, and longer phrases. |
-| Cellular | ant, brain, cyclic, forest_fire, life, predator_prey | Cell-state simulations where neighboring cells or agents create evolving patterns. |
+| Cellular | ant, brain, cyclic, forest_fire, life, predator_prey, twinkle | Cell-state simulations where neighboring cells or agents create evolving patterns. |
 | Fields | ink, ising, kuramoto, lightning, raindrops, reaction_diffusion, rivers, wave | Field-style activity that spreads from localized events. |
 | Geometry | fractal_explorer, maze_growth, shapes | Dynamic fractal exploration, maze carving, and explicit geometric pulse patterns. |
 | Growth | coral, cracks, crystal_growth, dla, physarum, vines | Coral, crack, crystal, slime, vine, and diffusion-limited clusters that grow from seeded particles. |
@@ -141,6 +142,14 @@ Behavior-specific config items (from `configMenu()`):
 | predator_prey | Predator Repro: [0..100] | number, step 1 (default 8) |
 | predator_prey | Starve Ticks: [1..32] | number, step 1 (default 8) |
 | predator_prey | !Reseed Ecosystem | action, shared route `trigger.life.spawn_now` |
+| twinkle | Density: [1..5] | number, step 1 (default 3; hard star cap) |
+| twinkle | Birth Chance: [0..100] | number, step 1 (default 70) |
+| twinkle | Fade Chance: [0..100] | number, step 1 (default 35) |
+| twinkle | Star Life: [1..32] | number, step 1 (default 8; minimum fade age) |
+| twinkle | Cluster Bias: [0..100] | number, step 1 (default 40; clipped neighborhood preference) |
+| twinkle | Seed: [0..65535] | number, step 1 (default 1) |
+| twinkle | !Reseed Stars | action, deterministic reset using `seed` |
+| twinkle | !Clear Stars | action, clears the constellation without changing configuration |
 | ant | Max Ants: [1..10] | number, step 1 |
 | ant | !Spawn Ant | action, shared route `trigger.life.spawn_now` |
 | bounce | Max Balls: [1..20] | number, step 1 |

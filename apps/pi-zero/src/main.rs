@@ -3,6 +3,9 @@ mod audio_config_parse;
 mod audio_hotplug;
 mod audio_priority;
 mod audio_stream_health;
+mod board_profile;
+mod candidate_readiness;
+mod device_update;
 mod diagnostics;
 mod dsp_profile;
 mod encoder_queue;
@@ -28,6 +31,8 @@ mod sample_browser;
 mod seesaw_io;
 mod timing_probe;
 mod ui_profile;
+#[cfg(test)]
+mod update_menu_fixture_tests;
 mod usb_config;
 mod wake_trace;
 
@@ -42,9 +47,19 @@ use std::sync::Arc;
 use main_paths::{default_samples_dir, default_store_dir, ensure_runtime_dirs};
 
 fn main() {
+    if board_profile::metadata_requested() {
+        board_profile::print_build_metadata();
+        return;
+    }
+
     let _ = simple_logger::init();
 
     run_requested_utility();
+
+    if let Err(error) = board_profile::validate_runtime_profile() {
+        eprintln!("{error}");
+        std::process::exit(2);
+    }
 
     println!("octessera - Pi native runtime");
 

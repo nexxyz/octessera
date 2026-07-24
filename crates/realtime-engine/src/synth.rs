@@ -17,7 +17,7 @@ pub use engine::{
     prepare_audio_config, prepare_fx_bus_slot, prepare_global_fx_slot,
     prepare_instrument_slot_config, prepare_instruments_config, prepare_momentary_fx_start,
     PreparedAudioConfig, PreparedFxBusSlot, PreparedGlobalFxSlot, PreparedInstrumentSlot,
-    PreparedInstrumentsConfig, PreparedMomentaryFxStart, SynthEngine,
+    PreparedInstrumentsConfig, PreparedMomentaryFxStart, RetiredAudioState, SynthEngine,
 };
 pub use types::{
     default_synth_config, AudioLoadStatus, EnvConfig, FilterConfig, FilterType, FxBusConfig,
@@ -39,6 +39,7 @@ mod test_allocator {
     thread_local! {
         static ENABLED: Cell<bool> = const { Cell::new(false) };
         static ALLOCATIONS: Cell<usize> = const { Cell::new(0) };
+        static DEALLOCATIONS: Cell<usize> = const { Cell::new(0) };
     }
 
     struct CountingAllocator;
@@ -51,6 +52,11 @@ mod test_allocator {
         }
 
         unsafe fn dealloc(&self, pointer: *mut u8, layout: Layout) {
+            ENABLED.with(|enabled| {
+                if enabled.get() {
+                    DEALLOCATIONS.with(|deallocations| deallocations.set(deallocations.get() + 1));
+                }
+            });
             System.dealloc(pointer, layout);
         }
 
@@ -72,15 +78,17 @@ mod test_allocator {
         });
     }
 
-    pub(crate) fn count<F, R>(operation: F) -> (R, usize)
+    pub(crate) fn count_allocations_and_deallocations<F, R>(operation: F) -> (R, usize, usize)
     where
         F: FnOnce() -> R,
     {
         ALLOCATIONS.with(|allocations| allocations.set(0));
+        DEALLOCATIONS.with(|deallocations| deallocations.set(0));
         ENABLED.with(|enabled| enabled.set(true));
         let result = operation();
         ENABLED.with(|enabled| enabled.set(false));
         let allocations = ALLOCATIONS.with(Cell::get);
-        (result, allocations)
+        let deallocations = DEALLOCATIONS.with(Cell::get);
+        (result, allocations, deallocations)
     }
 }

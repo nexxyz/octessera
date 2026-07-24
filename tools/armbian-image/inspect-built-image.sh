@@ -26,6 +26,17 @@ stat_path() {
   fi
 }
 
+require_root_mode() {
+  local path="$1"
+  local mode="$2"
+  if [[ -d "$target" ]]; then
+    [[ "$(stat -c '%u %a' "$target/$path")" == "0 $mode" ]] || {
+      echo "Unsafe updater ownership/mode at $path." >&2
+      exit 1
+    }
+  fi
+}
+
 unit_masked() {
   local path="$1"
   if [[ -d "$target" ]]; then
@@ -62,6 +73,65 @@ ssh_config="$(read_file etc/ssh/sshd_config.d/10-octessera-setup.conf)"
 printf '%s\n' "$ssh_config" | grep -q '^PermitRootLogin no$' || { echo "Missing PermitRootLogin no." >&2; exit 1; }
 printf '%s\n' "$ssh_config" | grep -q '^PasswordAuthentication no$' || { echo "Missing default PasswordAuthentication no." >&2; exit 1; }
 printf '%s\n' "$ssh_config" | grep -q '^AllowUsers octessera$' || { echo "Missing AllowUsers octessera." >&2; exit 1; }
+
+profile_metadata="$(read_file etc/octessera/build-metadata.env)"
+printf '%s\n' "$profile_metadata" | grep -q '^OCTESSERA_BOARD_PROFILE_ID=orange-pi-zero-2w$' || {
+  echo "Armbian image must be labeled orange-pi-zero-2w." >&2
+  exit 1
+}
+
+for path in \
+  etc/systemd/system/octessera-update-guard.service \
+  etc/systemd/system/octessera-update-recovery.service \
+  etc/systemd/system/multi-user.target.wants/octessera-update-recovery.service \
+  usr/local/sbin/octessera-update \
+  usr/local/sbin/octessera-update-guard \
+  usr/local/sbin/octessera-update-recovery \
+  usr/local/lib/octessera/updater_protocol.py \
+  usr/local/lib/octessera/updater_state.py \
+  usr/local/lib/octessera/updater_assets.py \
+  usr/local/lib/octessera/updater_guard.py \
+  usr/local/lib/octessera/updater_cli.py \
+  etc/sudoers.d/octessera-update; do
+  stat_path "$path" || { echo "Missing updater protocol path: $path" >&2; exit 1; }
+done
+require_root_mode usr/local/sbin/octessera-update 755
+require_root_mode usr/local/sbin/octessera-update-guard 755
+require_root_mode usr/local/sbin/octessera-update-recovery 755
+require_root_mode usr/local/lib/octessera/updater_protocol.py 644
+require_root_mode usr/local/lib/octessera/updater_state.py 644
+require_root_mode usr/local/lib/octessera/updater_assets.py 644
+require_root_mode usr/local/lib/octessera/updater_guard.py 644
+require_root_mode usr/local/lib/octessera/updater_cli.py 644
+require_root_mode etc/sudoers.d/octessera-update 440
+
+service_unit="$(read_file etc/systemd/system/octessera.service)"
+printf '%s\n' "$service_unit" | grep -q '^ExecStart=/usr/local/bin/octessera-pi$' || {
+  echo "Armbian service must use the managed updater binary link." >&2
+  exit 1
+}
+printf '%s\n' "$service_unit" | grep -q '^Environment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json$' || {
+  echo "Armbian service is missing the candidate health path." >&2
+  exit 1
+}
+printf '%s\n' "$service_unit" | grep -q '^Requires=octessera-update-recovery.service$' || {
+  echo "Armbian service does not require updater recovery." >&2
+  exit 1
+}
+recovery_unit="$(read_file etc/systemd/system/octessera-update-recovery.service)"
+printf '%s\n' "$recovery_unit" | grep -q '^RemainAfterExit=yes$' || {
+  echo "Armbian recovery service is not retained for the boot." >&2
+  exit 1
+}
+if printf '%s\n' "$recovery_unit" | grep -q '^ConditionPathExists='; then
+  echo "Armbian recovery service must run once per boot, not only for pending transactions." >&2
+  exit 1
+fi
+sudoers="$(read_file etc/sudoers.d/octessera-update)"
+if printf '%s\n' "$sudoers" | grep -Eq 'octessera-update-(guard|recovery)'; then
+  echo "Armbian sudoers must not expose updater internals." >&2
+  exit 1
+fi
 
 unit_masked etc/systemd/system/ssh.service || { echo "ssh.service is not masked in the built image." >&2; exit 1; }
 unit_masked etc/systemd/system/ssh.socket || { echo "ssh.socket is not masked in the built image." >&2; exit 1; }

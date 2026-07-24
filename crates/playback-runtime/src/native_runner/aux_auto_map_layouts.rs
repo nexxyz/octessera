@@ -142,6 +142,17 @@ impl NativeRunner {
                 None,
                 None,
             ]),
+            "twinkle" => self.with_step_rate([
+                Some(self.turn_slot(format!("{layer_prefix}.density"), "Density")),
+                Some(self.press_slot(
+                    NativeMenuAction::BehaviorAction("reseedStars".into()),
+                    "Reseed",
+                )),
+                Some(self.press_slot(
+                    NativeMenuAction::BehaviorAction("clearStars".into()),
+                    "Clear",
+                )),
+            ]),
             "keys" => self.with_step_rate([
                 Some(self.turn_slot(format!("{layer_prefix}.quantize"), "Quantize")),
                 None,

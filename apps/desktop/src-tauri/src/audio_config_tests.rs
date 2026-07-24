@@ -40,7 +40,8 @@ fn desktop_uses_shared_audio_normalization_and_sample_metadata() {
                 sample_rate: 48_000,
             })
         },
-    );
+    )
+    .unwrap();
     assert_eq!(banks[0].tune_semis, -5.0);
     assert!(banks[0].slots[0].buffer.is_some());
 }
@@ -54,6 +55,24 @@ fn desktop_rejects_the_same_malformed_fx_payload_as_pi() {
     .unwrap_err();
 
     assert!(error.contains("invalid mixer bus 1 slot 1"), "{error}");
+}
+
+#[test]
+fn desktop_reports_undecodable_sample_as_typed_failure() {
+    let config = normalize_config(&serde_json::json!({
+        "instruments": [{
+            "type": "sampler",
+            "sample": { "slots": [{ "path": "kick.wav" }] }
+        }]
+    }))
+    .unwrap();
+
+    let error = sample_banks(&config, |_| Some("resolved/kick.wav".into()), |_| None).unwrap_err();
+    assert_eq!(
+        error.code(),
+        playback_runtime::RuntimeErrorCode::OperationFailed
+    );
+    assert_eq!(error.message(), "sample decode failed: kick.wav");
 }
 
 #[test]

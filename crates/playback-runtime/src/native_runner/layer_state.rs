@@ -5,7 +5,25 @@ impl NativeRunner {
         &self,
         layer_index: usize,
     ) -> platform_core::MappingConfig {
-        let Some(sense) = self.pulses_layers.get(layer_index) else {
+        self.mapping_config_for_sense(layer_index, self.pulses_layers.get(layer_index).cloned())
+    }
+
+    pub(super) fn interpretation_profile_for_layer(
+        &self,
+        layer_index: usize,
+    ) -> InterpretationProfile {
+        self.interpretation_profile_for_sense(
+            layer_index,
+            self.pulses_layers.get(layer_index).cloned(),
+        )
+    }
+
+    pub(super) fn mapping_config_for_sense(
+        &self,
+        _layer_index: usize,
+        sense: Option<NativePulsesLayer>,
+    ) -> platform_core::MappingConfig {
+        let Some(sense) = sense.as_ref() else {
             return self.base_mapping_config.clone();
         };
         let mut mapping = self.base_mapping_config.clone();
@@ -42,11 +60,12 @@ impl NativeRunner {
         mapping
     }
 
-    pub(super) fn interpretation_profile_for_layer(
+    pub(super) fn interpretation_profile_for_sense(
         &self,
-        layer_index: usize,
+        _layer_index: usize,
+        sense: Option<NativePulsesLayer>,
     ) -> InterpretationProfile {
-        let Some(sense) = self.pulses_layers.get(layer_index) else {
+        let Some(sense) = sense.as_ref() else {
             return self.interpretation_profile.clone();
         };
         let mut profile = self.interpretation_profile.clone();
@@ -93,6 +112,16 @@ impl NativeRunner {
         if let Some(config) = self.layer_behavior_configs.get_mut(self.active_layer_index) {
             *config = self.behavior_config.clone();
         }
+        let previous_behavior_id = self
+            .layer_behavior_ids
+            .get(self.active_layer_index)
+            .cloned()
+            .unwrap_or_else(|| self.behavior.id().into());
+        self.remember_layer_behavior_config(
+            self.active_layer_index,
+            &previous_behavior_id,
+            self.behavior_config.clone(),
+        );
 
         let behavior_id = self
             .layer_behavior_ids
@@ -101,13 +130,7 @@ impl NativeRunner {
             .unwrap_or_else(|| self.behavior.id().into());
         let behavior = platform_core::get_native_behavior(&behavior_id)
             .ok_or_else(|| format!("unsupported native behavior `{behavior_id}`"))?;
-        let behavior_config = self
-            .layer_behavior_configs
-            .get(next_index)
-            .filter(|config| !config.is_null())
-            .cloned()
-            .or_else(|| self.behavior_configs.get(&behavior_id).cloned())
-            .unwrap_or(Value::Null);
+        let behavior_config = self.remembered_layer_behavior_config(next_index, &behavior_id);
         let profile = self.interpretation_profile_for_layer(next_index);
         let mapping = self.mapping_config_for_layer(next_index);
         let mut next_engine = match self
@@ -151,12 +174,21 @@ impl NativeRunner {
             .unwrap_or(DEFAULT_ALGORITHM_STEP_RED);
         self.behavior = behavior;
         self.behavior_config = behavior_config;
+        if let Some(config) = self.layer_behavior_configs.get_mut(next_index) {
+            *config = self.behavior_config.clone();
+        }
         self.interpretation_profile = profile;
         self.mapping_config = mapping;
         Ok(())
     }
 
     pub(super) fn serialized_state_for_layer(&self, index: usize) -> Result<Value, String> {
+        #[cfg(test)]
+        self.behavior_state_serialization_calls.set(
+            self.behavior_state_serialization_calls
+                .get()
+                .saturating_add(1),
+        );
         if index == self.active_layer_index {
             return self.engine.serialized_state();
         }
@@ -182,16 +214,29 @@ impl NativeRunner {
         if behavior_id != "none" {
             worlds.insert("stepRate".into(), json!(note_unit_from_pulses(step_pulses)));
         }
+        let behavior_config = if index == self.active_layer_index {
+            self.behavior_config.clone()
+        } else {
+            self.layer_behavior_configs
+                .get(index)
+                .cloned()
+                .unwrap_or(Value::Null)
+        };
         worlds.insert(
             "behaviorConfig".into(),
-            if index == self.active_layer_index {
-                self.behavior_config.clone()
-            } else {
-                self.layer_behavior_configs
+            self.modulation_process
+                .persistent_behavior_config(index, behavior_config),
+        );
+        worlds.insert(
+            "behaviorConfigHistory".into(),
+            Value::Object(
+                self.layer_behavior_config_history
                     .get(index)
                     .cloned()
-                    .unwrap_or(Value::Null)
-            },
+                    .unwrap_or_default()
+                    .into_iter()
+                    .collect(),
+            ),
         );
         worlds.insert("saveGridState".into(), json!(save_grid_state));
         if save_grid_state && behavior_id != "none" {
@@ -202,38 +247,6 @@ impl NativeRunner {
             }
         }
         Value::Object(worlds)
-    }
-
-    pub(super) fn rebuild_layer_engine_from_payload(
-        &self,
-        index: usize,
-        behavior_id: &str,
-        worlds: &Value,
-    ) -> Result<NativeLayerEngine, String> {
-        let behavior = platform_core::get_native_behavior(behavior_id)
-            .ok_or_else(|| format!("unsupported native behavior `{behavior_id}`"))?;
-        let config = NativeLayerEngineConfig {
-            behavior,
-            behavior_config: worlds.get("behaviorConfig").cloned().unwrap_or(Value::Null),
-            interpretation_profile: self.interpretation_profile_for_layer(index),
-            mapping_config: self.mapping_config_for_layer(index),
-            global_sound: self.global_sound.clone(),
-            note_behaviors: self.note_behaviors.clone(),
-            layer_index: index,
-        };
-        let save_grid_state = worlds
-            .get("saveGridState")
-            .and_then(Value::as_bool)
-            .unwrap_or(true);
-        let state = worlds
-            .get("savedState")
-            .filter(|value| !value.is_null())
-            .or_else(|| worlds.get("behaviorState").filter(|value| !value.is_null()));
-        if let Some(state) = state.filter(|_| save_grid_state) {
-            NativeLayerEngine::from_serialized_state(config, state.clone())
-        } else {
-            NativeLayerEngine::new(config)
-        }
     }
 
     pub(super) fn remap_bindings_for_behavior_change(

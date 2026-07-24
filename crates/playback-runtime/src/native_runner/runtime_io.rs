@@ -2,7 +2,7 @@ use crate::protocol::{HostMessage, RunnerMessage};
 use std::time::Instant;
 
 use super::{
-    wrap_help_text, DeviceInput, NativeHelpPopup, NativeRunner, NativeToast,
+    wrap_help_text, DeviceInput, NativeHelpPopup, NativeRunner, NativeSystemInfoModal, NativeToast,
     NativeUsbSdTransferModal, RuntimeTransportState, SyncSource,
 };
 
@@ -19,6 +19,10 @@ impl NativeRunner {
             ),
             scroll: 0,
         });
+    }
+
+    pub(super) fn open_system_info(&mut self) {
+        self.display.system_info_modal = Some(NativeSystemInfoModal::loading());
     }
 
     pub(super) fn open_contextual_help(&mut self) {
@@ -295,6 +299,7 @@ impl super::CoreRunner for NativeRunner {
             HostMessage::RuntimeResult { result } => self.send_runtime_result(result),
         }?;
         messages.extend(self.flush_deferred_menu_apply_at(flush_time)?);
+        self.append_runtime_config_if_changed(&mut messages);
         Ok(messages)
     }
 }

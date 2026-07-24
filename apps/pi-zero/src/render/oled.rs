@@ -29,6 +29,7 @@ pub(super) fn oled_signature(snapshot: &Value) -> u64 {
     hash_value(&mut hash, display.get("totalRows"));
     hash_value(&mut hash, display.get("visibleRows"));
     hash_value(&mut hash, display.get("editing"));
+    hash_value(&mut hash, snapshot.get("runtimeError"));
     hash_value(&mut hash, settings.get("autoSaveFlash"));
     hash_value(&mut hash, settings.get("autoSaveFlashSerial"));
     hash_value(&mut hash, snapshot.get("selectedRow"));
@@ -92,6 +93,10 @@ pub(super) fn oled_frame_into(snapshot: &Value, frame: &mut [u8]) {
         .unwrap_or_default();
     frame.fill(0);
     if display.get("off").and_then(Value::as_bool).unwrap_or(false) {
+        return;
+    }
+    if let Some(error) = snapshot.get("runtimeError") {
+        render_runtime_error_frame(frame, error, brightness);
         return;
     }
     if let Some(splash) = display.get("splash").and_then(Value::as_str) {
@@ -266,6 +271,52 @@ fn render_splash_frame(frame: &mut [u8], splash: &str, brightness: f32) {
         _ => SPLASH_BOOT,
     };
     copy_rgb565_scaled(frame, source, brightness);
+}
+
+fn render_runtime_error_frame(frame: &mut [u8], error: &Value, brightness: f32) {
+    let warning = rgb565(scale(palette::RED, brightness));
+    let dim_warning = rgb565(scale(dim(palette::RED, 6), brightness));
+    let text = rgb565(scale(palette::GRAY, brightness));
+    fill_rect(frame, 0, 0, 128, 128, dim_warning);
+    fill_rect(
+        frame,
+        4,
+        4,
+        120,
+        120,
+        rgb565(scale(palette::BLACK, brightness)),
+    );
+    fill_rect(frame, 8, 8, 112, 18, warning);
+    draw_text_clipped(
+        frame,
+        "RUNTIME ERROR",
+        25,
+        14,
+        13,
+        rgb565(scale(palette::BLACK, brightness)),
+    );
+    let lines = [
+        error_label(error, "domain"),
+        error_label(error, "code"),
+        error_label(error, "operation"),
+        error
+            .get("message")
+            .and_then(Value::as_str)
+            .unwrap_or("needs attention")
+            .to_string(),
+    ];
+    for (index, line) in lines.iter().enumerate() {
+        draw_text_clipped(frame, line, 10, 34 + index as i32 * 12, 18, text);
+    }
+}
+
+fn error_label(error: &Value, key: &str) -> String {
+    error
+        .get(key)
+        .and_then(Value::as_str)
+        .unwrap_or("unknown")
+        .replace('_', " ")
+        .to_ascii_uppercase()
 }
 
 fn copy_rgb565_scaled(frame: &mut [u8], source: &[u8], brightness: f32) {

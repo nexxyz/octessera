@@ -28,6 +28,9 @@ impl NativeRunner {
         if index == self.active_layer_index {
             self.transport.algorithm_step_pulses = pulses;
         }
+        self.clear_link_arp_state_for_layer(index);
+        self.rebase_and_recompose_modulation_key(key);
+        self.mark_fast_autosave_dirty();
         true
     }
 

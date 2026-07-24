@@ -33,7 +33,6 @@ const PLAYING_SNAPSHOT_INTERVAL_MS: u64 = 50;
 
 pub(crate) enum WorkerCommand {
     Dispatch(HostMessage, Sender<Result<Vec<RunnerMessage>, String>>),
-    SyncConfig(playback_runtime::RuntimeConfig),
     NativeMidiRealtime(Vec<u8>),
     DirectAudio(
         playback_runtime::RuntimeAudioCommand,

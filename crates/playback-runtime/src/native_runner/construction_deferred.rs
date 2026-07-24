@@ -4,7 +4,9 @@ impl NativeRunner {
     pub fn flush_deferred_menu_apply(
         &mut self,
     ) -> Result<Vec<crate::protocol::RunnerMessage>, String> {
-        self.flush_deferred_menu_apply_at(Instant::now())
+        let mut messages = self.flush_deferred_menu_apply_at(Instant::now())?;
+        self.append_runtime_config_if_changed(&mut messages);
+        Ok(messages)
     }
 
     pub(super) fn schedule_deferred_menu_apply(&mut self, key: &str) {
@@ -25,6 +27,10 @@ impl NativeRunner {
     }
 
     pub(super) fn mark_fast_autosave_dirty(&mut self) {
+        #[cfg(test)]
+        {
+            self.fast_autosave_marks = self.fast_autosave_marks.saturating_add(1);
+        }
         self.mark_config_dirty();
         self.pending.pending_autosave_payload_due_at =
             Some(Instant::now() + Duration::from_millis(150));

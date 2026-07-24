@@ -1,9 +1,12 @@
 param(
   [string]$Target = "pi@192.168.0.211",
-  [string]$Key = "$env:USERPROFILE\.ssh\octessera_pi_dev"
+  [string]$Key = "$env:USERPROFILE\.ssh\octessera_pi_dev",
+  [string]$BoardProfile = "raspberry-pi-zero-2w"
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "board-profile.ps1")
+Assert-RaspberryBoardProfile $BoardProfile
 
 $sshArgs = @("-i", $Key, "-o", "IdentitiesOnly=yes", $Target)
 
@@ -24,6 +27,7 @@ check() {
 }
 
 check "identity" sh -c 'hostname && uname -a && id pi'
+check "board profile" sh -c 'grep -qx "OCTESSERA_BOARD_PROFILE_ID=raspberry-pi-zero-2w" /etc/octessera/board-profile.env && /usr/local/bin/octessera-pi --print-build-metadata | grep -q raspberry-pi-zero-2w'
 check "boot config" sh -c 'grep -nE "audio|hifiberry|i2s|spi|i2c|uart" /boot/firmware/config.txt'
 check "device nodes" sh -c 'ls -l /dev/i2c-1 /dev/spidev0.0'
 check "i2c access" sh -c 'test -r /dev/i2c-1 -a -w /dev/i2c-1'

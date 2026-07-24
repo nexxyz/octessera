@@ -86,6 +86,73 @@ fn prep_success_returns_identified_audio_result() {
 }
 
 #[test]
+fn unresolved_sample_retains_prior_bank_state_and_returns_typed_failure() {
+    let (request_tx, request_rx) = mpsc::channel();
+    drop(request_tx);
+    let (audio_tx, audio_rx) = mpsc::channel();
+    let (result_tx, result_rx) = mpsc::channel();
+    let state = DesktopAudioPrepState {
+        config_revision: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+        synth_slots: Arc::new(Mutex::new([true; INSTRUMENT_SLOT_COUNT])),
+        sample_cache: Arc::new(Mutex::new(HashMap::new())),
+        sample_bank_signature: Arc::new(Mutex::new("last-good".into())),
+    };
+
+    handle_full_config_request_with_result(
+        9,
+        Some("audio-9".into()),
+        serde_json::json!({
+            "instruments": [{
+                "type": "sampler",
+                "sample": { "slots": [{ "path": "missing.wav" }] }
+            }]
+        }),
+        &request_rx,
+        &audio_tx,
+        &result_tx,
+        &state,
+    );
+
+    assert!(audio_rx.try_recv().is_err());
+    assert_eq!(*state.sample_bank_signature.lock().unwrap(), "last-good");
+    assert!(matches!(
+        result_rx.recv().unwrap(),
+        HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::Identified {
+                result,
+                request_id,
+                revision: Some(9)
+            }
+        } if request_id == "audio-9"
+            && matches!(result.as_ref(), RuntimeStoreResult::RuntimeFailure { error }
+                if error.domain == RuntimeErrorDomain::Sample
+                    && error.code == playback_runtime::RuntimeErrorCode::NotFound
+                    && error.operation == RuntimeOperation::AudioCommand)
+    ));
+}
+
+#[test]
+fn preview_decode_failure_is_reported_by_prep_worker_without_audio_event() {
+    let (trigger_tx, trigger_rx) = mpsc::channel();
+    let (control, result_rx) = spawn_desktop_audio_control(trigger_tx, test_state());
+
+    control
+        .enqueue_sample_preview(0, "../missing.wav".into(), 96)
+        .unwrap();
+
+    assert!(trigger_rx.recv_timeout(Duration::from_millis(100)).is_err());
+    let result = result_rx.recv_timeout(Duration::from_secs(1)).unwrap();
+    assert!(matches!(
+        result,
+        HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::RuntimeFailure { error }
+        } if error.domain == RuntimeErrorDomain::Sample
+            && error.operation == RuntimeOperation::SamplePreview
+            && error.code == playback_runtime::RuntimeErrorCode::NotFound
+    ));
+}
+
+#[test]
 fn full_config_replays_queued_dynamic_after_prepared_config() {
     let (request_tx, request_rx) = mpsc::channel();
     let (audio_tx, audio_rx) = mpsc::channel();

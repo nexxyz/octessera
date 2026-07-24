@@ -180,3 +180,46 @@ fn host_effect_results_round_trip_back_into_runner() {
         }))
     );
 }
+
+#[test]
+fn dispatch_consumes_native_runtime_config_publication() {
+    struct ConfigRunner;
+
+    impl CoreRunner for ConfigRunner {
+        fn send(&mut self, _message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
+            Ok(vec![RunnerMessage::RuntimeConfigChanged {
+                config: RuntimeConfig {
+                    bpm: 93.5,
+                    sync_source: SyncSource::External,
+                    midi_clock_out_enabled: true,
+                    midi_out_enabled: true,
+                },
+            }])
+        }
+    }
+
+    let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
+    let mut runner = ConfigRunner;
+    let mut host = FakeHost::default();
+
+    runtime
+        .dispatch(
+            crate::RuntimeDispatchInput::HostMessage(HostMessage::DeviceInput {
+                input: json!({ "type": "other" }),
+                request_snapshot: None,
+            }),
+            &mut runner,
+            &mut host,
+        )
+        .unwrap();
+
+    assert_eq!(
+        runtime.config(),
+        &RuntimeConfig {
+            bpm: 93.5,
+            sync_source: SyncSource::External,
+            midi_clock_out_enabled: true,
+            midi_out_enabled: true,
+        }
+    );
+}

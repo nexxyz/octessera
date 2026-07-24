@@ -3,6 +3,7 @@ use crate::protocol::{
     RuntimeOperation, RuntimePlatformRequest, RuntimeStatus, RuntimeUiPulse, SyncSource,
 };
 use platform_core::MusicalEvent;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::VecDeque;
 
@@ -36,7 +37,8 @@ impl RuntimeIngest {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RuntimeConfig {
     pub bpm: f64,
     pub sync_source: SyncSource,

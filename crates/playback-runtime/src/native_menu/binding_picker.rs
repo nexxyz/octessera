@@ -95,8 +95,8 @@ fn keep_numeric_binding_item(mut item: NativeMenuItem, target: &str) -> Option<N
     if let NativeMenuValue::Action(NativeMenuAction::SetParamBinding { binding, .. }) = &item.value
     {
         let allowed = binding.kind == "number"
-            && !binding.key.contains(".linkLfo.")
-            && (!target.ends_with(".linkLfo.target")
+            && !is_lfo_config_key(&binding.key)
+            && (!is_lfo_target_picker(target)
                 || crate::native_runner::is_live_link_lfo_target_for_picker(&binding.key));
         return allowed.then_some(item);
     }
@@ -109,6 +109,14 @@ fn keep_numeric_binding_item(mut item: NativeMenuItem, target: &str) -> Option<N
         NativeMenuValue::Group if item.children.is_empty() => None,
         _ => Some(item),
     }
+}
+
+fn is_lfo_config_key(key: &str) -> bool {
+    key.contains(".linkLfo.") || key.starts_with("linkLfos.")
+}
+
+fn is_lfo_target_picker(target: &str) -> bool {
+    target.starts_with("linkLfos.") && target.ends_with(".target")
 }
 
 fn range_item(

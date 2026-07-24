@@ -141,6 +141,9 @@ impl NativeRunner {
                 } else if action_type == "system.controlsHelp" {
                     self.open_controls_help();
                     Ok(None)
+                } else if action_type == "system.info" {
+                    self.open_system_info();
+                    Ok(self.platform_effect_for_action(&action_type))
                 } else if action_type == "system.clearAll" {
                     self.clear_patch_state()?;
                     Ok(None)
@@ -207,7 +210,7 @@ impl NativeRunner {
                 Ok(None)
             }
             NativeMenuAction::ResetBehavior => {
-                self.seed_visible_state()?;
+                self.reset_layer_behavior(self.active_layer_index)?;
                 self.clear_link_arp_state_for_layer(self.active_layer_index);
                 self.show_toast("Behavior reset");
                 Ok(None)

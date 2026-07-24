@@ -73,10 +73,6 @@ impl RuntimeWorker {
                 }
                 let _ = reply.send(result);
             }
-            WorkerCommand::SyncConfig(config) => {
-                self.playback.set_config(config);
-                self.runner.apply_runtime_config(self.playback.config());
-            }
             WorkerCommand::NativeMidiRealtime(bytes) => {
                 let output = self.handle_midi_realtime(bytes)?;
                 self.emit_runtime_output(output)?;

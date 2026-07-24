@@ -73,13 +73,109 @@ pub(crate) fn aux_turn_generated_per_layer_behavior_targets_updates_stored_confi
     assert_eq!(runner.transport.layer_algorithm_step_pulses[2], 32);
     assert_eq!(runner.layer_behavior_configs[2]["randomSeedCells"], 5);
     assert!(runner.config_dirty);
+    assert!(runner.pending.pending_autosave_payload_due_at.is_some());
+}
+
+#[test]
+pub(crate) fn keyed_layer_algorithm_step_rebases_held_discrete_source() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        behavior_id: "life".into(),
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    let key = "algorithmStep";
+    runner.active_sparks_mode = "xy".into();
+    runner.xy_touch = NativeXyTouch {
+        x: 1.0,
+        y: 0.5,
+        display_x: 1.0,
+        display_y: 0.5,
+        active: true,
+    };
+    runner.xy_x_binding = Some(NativeParamBinding {
+        key: key.into(),
+        label: Some("Step Rate".into()),
+        kind: "enum".into(),
+        min: None,
+        max: None,
+        step: None,
+        user_min: None,
+        user_max: None,
+        options: crate::timing_units::NOTE_UNIT_OPTIONS
+            .iter()
+            .copied()
+            .map(String::from)
+            .collect(),
+        invert: false,
+    });
+    runner.refresh_xy_runtime_sources();
+    runner.process_dirty_modulation_step(false).unwrap();
+    let held_step = crate::timing_units::note_unit_to_pulses("1/1");
+    assert_eq!(runner.transport.algorithm_step_pulses, held_step);
+
+    assert!(runner.menu.focus_item_key(key));
+    runner.menu.state.editing = true;
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let rebased_base =
+        crate::timing_units::note_unit_to_pulses(&runner.menu.value_for_key(key).unwrap());
+    assert_eq!(runner.transport.algorithm_step_pulses, held_step);
+
+    runner.set_param_binding_target("xy:x", None);
+    assert_eq!(runner.transport.algorithm_step_pulses, rebased_base);
+}
+
+#[test]
+pub(crate) fn unchanged_modulation_avoids_state_serialization_rebuild_and_autosave() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.select_layer_behavior(1, "brain").unwrap();
+    runner.layer_behavior_configs[1] = json!({ "randomSeedCells": 4 });
+    runner.xy_touch = NativeXyTouch {
+        x: 0.5,
+        y: 0.2,
+        display_x: 0.5,
+        display_y: 0.2,
+        active: true,
+    };
+    runner.xy_y_binding = Some(NativeParamBinding {
+        key: "layers.1.worlds.behaviorConfig.randomSeedCells".into(),
+        label: Some("Spawn Count".into()),
+        kind: "number".into(),
+        min: Some(0.0),
+        max: Some(20.0),
+        step: Some(1.0),
+        user_min: None,
+        user_max: None,
+        options: vec![],
+        invert: false,
+    });
+    runner.config_dirty = false;
+    runner.pending.pending_autosave_payload_due_at = None;
+    runner.behavior_state_serialization_calls.set(0);
+    runner.layer_behavior_rebuilds = 0;
+    runner.fast_autosave_marks = 0;
+
+    for _ in 0..8 {
+        runner.apply_runtime_modulation(&[], 0);
+    }
+
+    assert_eq!(runner.layer_behavior_configs[1]["randomSeedCells"], 4);
+    assert!(!runner.config_dirty);
+    assert!(runner.pending.pending_autosave_payload_due_at.is_none());
+    assert_eq!(runner.behavior_state_serialization_calls.get(), 0);
+    assert_eq!(runner.layer_behavior_rebuilds, 0);
+    assert_eq!(runner.fast_autosave_marks, 0);
 }
 
 #[test]
 pub(crate) fn per_layer_step_rate_xy_binding_round_trips_from_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let mut payload = runner.config_payload();
-    payload["runtimeConfig"]["layers"][0]["xy"]["x"] = json!({
+    payload["runtimeConfig"]["xy"]["x"] = json!({
         "key": "layers.2.algorithmStep",
         "label": "Step Rate",
         "kind": "enum",

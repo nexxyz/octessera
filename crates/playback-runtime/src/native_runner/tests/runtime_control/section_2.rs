@@ -177,7 +177,7 @@ pub(crate) fn system_sound_menu_updates_global_sound_config() {
 #[test]
 pub(crate) fn legacy_nested_sound_and_ui_fields_rehydrate_from_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut payload = runner.config_payload();
+    let mut payload = legacy_payload(runner.config_payload());
     payload["runtimeConfig"]["sound"] = json!({
         "noteLengthMs": 321,
         "velocityScalePct": 77,
@@ -235,7 +235,7 @@ pub(crate) fn legacy_nested_sound_and_ui_fields_rehydrate_from_payload() {
 #[test]
 pub(crate) fn legacy_screen_sleep_zero_disables_dim_timer_when_dim_timer_is_absent() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut payload = runner.config_payload();
+    let mut payload = legacy_payload(runner.config_payload());
     payload["runtimeConfig"]["screenSleepSeconds"] = json!(0);
     payload["runtimeConfig"]
         .as_object_mut()

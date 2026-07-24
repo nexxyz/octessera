@@ -2730,6 +2730,7 @@ name = "playback-runtime"
 version = "0.7.0"
 dependencies = [
  "chrono",
+ "flate2",
  "platform-core",
  "serde",
  "serde_json",

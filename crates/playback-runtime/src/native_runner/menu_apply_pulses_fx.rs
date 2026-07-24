@@ -10,7 +10,6 @@ impl NativeRunner {
     #[cfg(test)]
     pub(super) fn apply_pulses_menu_state(&mut self) -> bool {
         let mut changed = false;
-        self.restore_link_lfo_base_audio();
         for index in 0..self.pulses_layers.len() {
             let prefix = format!("layers.{index}.pulses");
             let mut layer_changed = false;
@@ -25,13 +24,12 @@ impl NativeRunner {
             let arp_changed =
                 apply_link_arp_menu_state(&self.menu, layer, &format!("{prefix}.arp"));
             layer_changed |= arp_changed;
-            layer_changed |=
-                apply_link_lfo_menu_state(&self.menu, layer, &format!("layers.{index}.linkLfo"));
             if arp_changed {
                 self.clear_link_arp_state_for_layer(index);
             }
             changed |= layer_changed;
         }
+        changed |= apply_global_link_lfos_menu_state(&self.menu, &mut self.link_lfos);
         changed
     }
 
@@ -434,41 +432,39 @@ pub(super) fn apply_pulses_axis_menu_state(
     changed
 }
 
-pub(super) fn apply_link_lfo_menu_state(
+#[cfg(test)]
+pub(super) fn apply_global_link_lfos_menu_state(
     menu: &super::NativeMenuModel,
-    layer: &mut NativePulsesLayer,
+    lfos: &mut [super::NativeLinkLfo; super::GLOBAL_LFO_COUNT],
+) -> bool {
+    let mut changed = false;
+    for (index, lfo) in lfos.iter_mut().enumerate() {
+        changed |= apply_link_lfo_slot_menu_state(menu, lfo, &format!("linkLfos.{index}"));
+    }
+    changed
+}
+
+pub(super) fn apply_link_lfo_slot_menu_state(
+    menu: &super::NativeMenuModel,
+    lfo: &mut super::NativeLinkLfo,
     prefix: &str,
 ) -> bool {
     let mut changed = false;
-    changed |= set_bool_from_menu(
-        menu,
-        &mut layer.link_lfo.enabled,
-        &format!("{prefix}.enabled"),
-    );
-    if layer.link_lfo.target.is_none() && layer.link_lfo.enabled {
-        layer.link_lfo.enabled = false;
+    changed |= set_bool_from_menu(menu, &mut lfo.enabled, &format!("{prefix}.enabled"));
+    if lfo.target.is_none() && lfo.enabled {
+        lfo.enabled = false;
         changed = true;
     }
-    if layer
-        .link_lfo
+    if lfo
         .target
         .as_ref()
         .is_some_and(|target| !super::modulation::is_live_link_lfo_target(&target.key))
     {
-        layer.link_lfo.target = None;
-        layer.link_lfo.enabled = false;
+        lfo.target = None;
+        lfo.enabled = false;
         changed = true;
     }
-    changed |= set_string_from_menu(
-        menu,
-        &mut layer.link_lfo.period,
-        &format!("{prefix}.period"),
-    );
-    changed |= set_u8_from_menu(
-        menu,
-        &mut layer.link_lfo.depth_pct,
-        &format!("{prefix}.depthPct"),
-        100,
-    );
+    changed |= set_string_from_menu(menu, &mut lfo.period, &format!("{prefix}.period"));
+    changed |= set_u8_from_menu(menu, &mut lfo.depth_pct, &format!("{prefix}.depthPct"), 100);
     changed
 }

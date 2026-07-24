@@ -78,6 +78,7 @@ impl NativeRunner {
             }),
             "recording.stop" => Some(RuntimePlatformEffect::RecordingStop),
             "system.hardwareTest" => Some(RuntimePlatformEffect::HardwareTest),
+            "system.info" => Some(RuntimePlatformEffect::SystemInfoRequest),
             "system.updateCheck" => Some(RuntimePlatformEffect::UpdateCheck),
             "system.updateApply" => Some(RuntimePlatformEffect::UpdateApply),
             "system.rollback" => Some(RuntimePlatformEffect::Rollback),
@@ -284,6 +285,37 @@ impl NativeRunner {
                 }
                 self.display.toast = Some(NativeToast { message, offset: 0 });
             }
+            RuntimeStoreResult::DeviceUpdateStatus { message, .. } => {
+                self.display.toast = Some(NativeToast { message, offset: 0 });
+            }
+            RuntimeStoreResult::SystemInfoResult { info } => {
+                if let Some(modal) = self.display.system_info_modal.as_mut() {
+                    modal.state = super::NativeSystemInfoState::Ready(info.sanitized());
+                    modal.scroll = 0;
+                }
+            }
+            RuntimeStoreResult::SystemInfoError { error } => {
+                if let Some(modal) = self.display.system_info_modal.as_mut() {
+                    Self::set_system_info_error(modal, error);
+                    modal.scroll = 0;
+                }
+            }
+            RuntimeStoreResult::RuntimeFailure { error }
+                if error.operation == crate::RuntimeOperation::SystemInfo =>
+            {
+                if let Some(modal) = self.display.system_info_modal.as_mut() {
+                    Self::set_system_info_error(
+                        modal,
+                        super::RuntimeSystemInfoError {
+                            code: error.code,
+                            message: error
+                                .message
+                                .unwrap_or_else(|| "system info request failed".into()),
+                        },
+                    );
+                    modal.scroll = 0;
+                }
+            }
             RuntimeStoreResult::ListPresetsResult { names } => {
                 self.preset_names = names;
                 self.menu.rebuild(self.menu_config());
@@ -344,6 +376,17 @@ impl NativeRunner {
         Ok(())
     }
 
+    fn set_system_info_error(
+        modal: &mut super::NativeSystemInfoModal,
+        error: super::RuntimeSystemInfoError,
+    ) {
+        modal.state = if error.code == crate::RuntimeErrorCode::Unavailable {
+            super::NativeSystemInfoState::Unavailable(error)
+        } else {
+            super::NativeSystemInfoState::Error(error)
+        };
+    }
+
     fn sample_browser_matches(
         &self,
         instrument_slot: usize,
@@ -355,5 +398,31 @@ impl NativeRunner {
                 && browser.sample_slot == sample_slot
                 && browser.dir == dir
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::NativeRunnerConfig;
+
+    #[test]
+    fn device_update_status_is_presented_as_a_toast() {
+        let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+        runner
+            .apply_store_result(RuntimeStoreResult::DeviceUpdateStatus {
+                ok: false,
+                message: "helper failed".into(),
+            })
+            .unwrap();
+
+        assert_eq!(
+            runner
+                .display
+                .toast
+                .as_ref()
+                .map(|toast| toast.message.as_str()),
+            Some("helper failed")
+        );
     }
 }

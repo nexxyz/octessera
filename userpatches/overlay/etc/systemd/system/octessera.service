@@ -1,11 +1,16 @@
 [Unit]
 Description=Octessera runtime
-After=network-online.target sound.target
+After=network-online.target sound.target octessera-update-recovery.service
 Wants=network-online.target
+Requires=octessera-update-recovery.service
 
 [Service]
 Type=simple
 User=root
+Environment=OCTESSERA_EXPECTED_BOARD_PROFILE=orange-pi-zero-2w
+Environment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json
+RuntimeDirectory=octessera
+RuntimeDirectoryMode=0755
 ExecStart=/usr/local/bin/octessera-pi
 Restart=on-failure
 RestartSec=2

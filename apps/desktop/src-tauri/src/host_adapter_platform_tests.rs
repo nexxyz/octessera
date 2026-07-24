@@ -22,6 +22,20 @@ fn sample_list_request_reports_service_unavailable_when_enqueue_fails() {
 }
 
 #[test]
+fn system_info_request_reports_typed_service_unavailable() {
+    let (mut adapter, _) = test_adapter();
+    let follow_ups = adapter
+        .handle_platform_effect(&platform_request(RuntimePlatformEffect::SystemInfoRequest))
+        .unwrap();
+    assert!(matches!(
+        &follow_ups[..],
+        [HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::Identified { result, .. }
+        }] if matches!(result.as_ref(), RuntimeStoreResult::SystemInfoError { error } if error.code == playback_runtime::RuntimeErrorCode::Unavailable)
+    ));
+}
+
+#[test]
 fn midi_panic_returns_native_status_result() {
     let (mut adapter, rx) = test_adapter();
     let follow_ups = adapter

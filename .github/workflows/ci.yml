@@ -196,7 +196,9 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@v2.9.1
       - name: Build HAL for Pi Zero 2W
-        run: cargo build --target aarch64-unknown-linux-gnu -p octessera-hal --features pi-zero
+        run: cargo build --target aarch64-unknown-linux-gnu -p octessera-hal --features raspberry-pi-zero-2w
+      - name: Compile legacy HAL feature alias
+        run: cargo check --target aarch64-unknown-linux-gnu -p octessera-hal --features pi-zero
 
   pi_zero_app_build:
     name: Pi Zero App Build (cross)
@@ -215,7 +217,75 @@ jobs:
           curl -sSL https://github.com/cross-rs/cross/releases/download/v0.2.5/cross-x86_64-unknown-linux-gnu.tar.gz | tar xz -C /usr/local/bin
           cross --version
       - name: Build Pi app with cross
-        run: cross build --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-pi
+        run: cross build --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-raspberry-pi-zero-2w
+      - name: Compile legacy Pi app feature alias
+        run: cross check --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-pi
+
+  board_profile_scripts:
+    name: Board profile script checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Validate Raspberry profile boundaries
+        run: |
+          bash -n tools/pi/board-profile.sh tools/pi/build-pi-cross-wsl.sh tools/pi/deploy-pi.sh tools/pi/provision/provision.sh
+          python3 tools/pi-image/test-board-profile.py
+          bash tools/armbian-image/validate.sh
+
+  board_profile_powershell:
+    name: Board profile PowerShell checks
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Validate Raspberry profile boundaries
+        shell: pwsh
+        run: ./tools/pi/test-board-profile.ps1
+
+  updater_protocol:
+    name: Device updater protocol checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Install shell checks
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - name: Check updater Python transitions
+        run: |
+          python3 -m py_compile tools/device-update/updater_protocol.py tools/device-update/updater_state.py tools/device-update/updater_assets.py tools/device-update/updater_guard.py tools/device-update/updater_cli.py tools/device-update/test_updater_protocol.py tools/device-update/test_updater_layout.py
+          python3 -m unittest discover -s tools/device-update -p 'test_*.py'
+          bash tools/device-update/smoke-test.sh
+      - name: Check updater shells and canonical copies
+        run: |
+          bash -n tools/device-update/octessera-update tools/device-update/octessera-update-guard tools/device-update/octessera-update-recovery tools/device-update/smoke-test.sh
+          bash -n tools/pi-image/stage4-octessera/01-copy-binary/00-run.sh tools/pi-image/stage4-octessera/02-setup-service/00-run.sh tools/pi-image/verify-sanitized-image.sh
+          bash -n tools/pi/provision/provision.sh tools/pi/deploy-pi.sh userpatches/customize-image.sh tools/armbian-image/validate.sh tools/armbian-image/inspect-built-image.sh
+          shellcheck tools/device-update/*.sh
+          cmp tools/device-update/octessera-update tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-update
+          cmp tools/device-update/octessera-update userpatches/overlay/usr/local/sbin/octessera-update
+          cmp tools/device-update/octessera-update-guard tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-update-guard
+          cmp tools/device-update/octessera-update-guard userpatches/overlay/usr/local/sbin/octessera-update-guard
+          cmp tools/device-update/octessera-update-recovery tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-update-recovery
+          cmp tools/device-update/octessera-update-recovery userpatches/overlay/usr/local/sbin/octessera-update-recovery
+          ! grep -Eq 'octessera-update-(guard|recovery)' tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-update userpatches/overlay/etc/sudoers.d/octessera-update
+          grep -q 'update-transaction.json' tools/pi/deploy-pi-fast.ps1
+      - name: Validate Linux sudoers and systemd layout
+        run: |
+          sudo visudo -cf tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-update
+          sudo visudo -cf userpatches/overlay/etc/sudoers.d/octessera-update
+          root="$(mktemp -d)"
+          mkdir -p "$root/etc/systemd/system"
+          printf '%s\n' '[Unit]' 'Description=CI validation sysinit target' > "$root/etc/systemd/system/sysinit.target"
+          printf '%s\n' '[Unit]' 'Description=CI validation local filesystem target' > "$root/etc/systemd/system/local-fs.target"
+          install -D -m 0755 tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-update-guard "$root/usr/local/sbin/octessera-update-guard"
+          install -D -m 0755 tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-update-recovery "$root/usr/local/sbin/octessera-update-recovery"
+          install -D -m 0644 tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-update-guard.service "$root/etc/systemd/system/octessera-update-guard.service"
+          install -D -m 0644 tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-update-recovery.service "$root/etc/systemd/system/octessera-update-recovery.service"
+          ! grep -q '^ConditionPathExists=' tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-update-recovery.service
+          ! grep -q '^ConditionPathExists=' userpatches/overlay/etc/systemd/system/octessera-update-recovery.service
+          systemd-analyze --root="$root" verify octessera-update-guard.service octessera-update-recovery.service
+          rm -rf "$root"
 
   desktop_build_smoke:
     name: Desktop Build Smoke

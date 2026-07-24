@@ -2,21 +2,24 @@ mod event;
 mod queue;
 mod telemetry;
 
+use crossbeam_channel::{bounded, Sender, TrySendError};
 pub use event::EngineEvent;
 pub use queue::{event_queue, EngineEventReceiver, EngineEventSender, QueueKind, QueueSendError};
 use realtime_engine::synth::{
-    AudioLoadStatus, SynthEngine, DEFAULT_AUDIO_BLOCK_FRAMES, DEFAULT_SYNTH_SLOT_WORKERS,
+    RetiredAudioState, SynthEngine, DEFAULT_AUDIO_BLOCK_FRAMES, DEFAULT_SYNTH_SLOT_WORKERS,
 };
 use std::env;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::Sender;
 use std::time::{Duration, Instant};
+pub use telemetry::{audio_load_status_channel, AudioLoadStatusReceiver, AudioLoadStatusSender};
 use telemetry::{DrainedControlEvents, EngineTelemetry};
 
 const MIN_BLOCK_FRAMES: usize = 32;
 const MAX_BLOCK_FRAMES: usize = 2048;
 const MAX_CONTROL_EVENTS_PER_BLOCK: usize = 256;
 const LOAD_REPORT_INTERVAL: Duration = Duration::from_millis(100);
+const RETIREMENT_QUEUE_CAPACITY: usize = 64;
+const RETIREMENT_BACKLOG_CAPACITY: usize = 256;
 static SYNTH_WORKER_START_LOGGED: AtomicBool = AtomicBool::new(false);
 
 pub struct EngineSource {
@@ -28,9 +31,14 @@ pub struct EngineSource {
     left_buf: Vec<f32>,
     right_buf: Vec<f32>,
     idx: usize,
-    load_tx: Option<Sender<AudioLoadStatus>>,
+    load_tx: Option<AudioLoadStatusSender>,
     last_load_report: Instant,
     telemetry: EngineTelemetry,
+    retired_tx: Sender<RetiredAudioState>,
+    retired_backlog: Box<[Option<RetiredAudioState>]>,
+    retired_backlog_read: usize,
+    retired_backlog_write: usize,
+    retired_backlog_len: usize,
 }
 
 impl EngineSource {
@@ -41,7 +49,7 @@ impl EngineSource {
     pub fn with_load_status_tx(
         control_rx: EngineEventReceiver,
         sample_rate: u32,
-        load_tx: Option<Sender<AudioLoadStatus>>,
+        load_tx: Option<AudioLoadStatusSender>,
     ) -> Self {
         let block_frames = audio_block_frames();
         let mut engine = SynthEngine::new(sample_rate);
@@ -51,6 +59,8 @@ impl EngineSource {
                 eprintln!("synth slot parallel workers requested={worker_count} enabled={enabled}");
             }
         }
+        let (retired_tx, retired_rx) = bounded(RETIREMENT_QUEUE_CAPACITY);
+        std::thread::spawn(move || while retired_rx.recv().is_ok() {});
         Self {
             engine,
             control_rx,
@@ -63,6 +73,13 @@ impl EngineSource {
             load_tx,
             last_load_report: Instant::now(),
             telemetry: EngineTelemetry::default(),
+            retired_tx,
+            retired_backlog: std::iter::repeat_with(|| None)
+                .take(RETIREMENT_BACKLOG_CAPACITY)
+                .collect(),
+            retired_backlog_read: 0,
+            retired_backlog_write: 0,
+            retired_backlog_len: 0,
         }
     }
 
@@ -107,17 +124,59 @@ impl EngineSource {
         let mut status = self.engine.audio_load_status();
         self.telemetry.apply_to_status(&mut status);
         if let Some(load_tx) = &self.load_tx {
-            let _ = load_tx.send(status);
+            load_tx.try_send(status);
         }
+    }
+
+    fn retire_state(&mut self, state: RetiredAudioState) {
+        self.flush_retired_backlog();
+        match self.retired_tx.try_send(state) {
+            Ok(()) => {}
+            Err(TrySendError::Full(state)) => {
+                self.enqueue_retired_state(state);
+            }
+            Err(TrySendError::Disconnected(_)) => {
+                panic!("retirement queue disconnected");
+            }
+        }
+    }
+
+    fn flush_retired_backlog(&mut self) {
+        while self.retired_backlog_len > 0 {
+            let state = self.retired_backlog[self.retired_backlog_read]
+                .take()
+                .expect("retirement backlog slot must contain state");
+            match self.retired_tx.try_send(state) {
+                Ok(()) => {
+                    self.retired_backlog_read =
+                        (self.retired_backlog_read + 1) % RETIREMENT_BACKLOG_CAPACITY;
+                    self.retired_backlog_len -= 1;
+                }
+                Err(TrySendError::Full(state)) => {
+                    self.retired_backlog[self.retired_backlog_read] = Some(state);
+                    break;
+                }
+                Err(TrySendError::Disconnected(_)) => {
+                    panic!("retirement queue disconnected");
+                }
+            }
+        }
+    }
+
+    fn enqueue_retired_state(&mut self, state: RetiredAudioState) {
+        assert!(
+            self.retired_backlog_len < RETIREMENT_BACKLOG_CAPACITY,
+            "retirement backlog capacity exceeded"
+        );
+        self.retired_backlog[self.retired_backlog_write] = Some(state);
+        self.retired_backlog_write = (self.retired_backlog_write + 1) % RETIREMENT_BACKLOG_CAPACITY;
+        self.retired_backlog_len += 1;
     }
 
     fn drain_control_events(&mut self) -> DrainedControlEvents {
         let mut drained = DrainedControlEvents::default();
         for _ in 0..MAX_CONTROL_EVENTS_PER_BLOCK {
-            let event = self
-                .control_rx
-                .try_recv_ordered()
-                .or_else(|_| self.control_rx.try_recv_coalesced());
+            let event = self.control_rx.try_recv();
             let Ok(event) = event else { break };
             drained.control_events += 1;
             match event {
@@ -139,42 +198,25 @@ impl EngineSource {
                     controller,
                     value,
                 } => self.engine.cc(instrument_slot, controller, value),
-                EngineEvent::SetInstruments(config) => {
+                EngineEvent::SetPreparedInstruments(config) => {
                     drained.config_events += 1;
-                    self.engine.set_instruments(config);
+                    let retired = self.engine.apply_prepared_instruments_config(config);
+                    self.retire_state(retired);
                 }
-                EngineEvent::SetSampleBanks(banks) => {
+                EngineEvent::SetPreparedAudioConfig(config) => {
                     drained.config_events += 1;
-                    self.engine.set_sample_banks(banks);
+                    let retired = self.engine.apply_prepared_audio_config(config);
+                    self.retire_state(retired);
                 }
-                EngineEvent::SetSampleBank {
+                EngineEvent::SetPreparedSampleBank {
                     instrument_slot,
                     bank,
                 } => {
                     drained.config_events += 1;
-                    self.engine.set_sample_bank(instrument_slot, bank);
-                }
-                EngineEvent::SetAudioConfig {
-                    instruments,
-                    sample_banks,
-                    voice_stealing_mode,
-                } => {
-                    drained.config_events += 1;
-                    self.engine.set_instruments(instruments);
-                    if let Some(banks) = sample_banks {
-                        self.engine.set_sample_banks(banks);
-                    }
-                    if let Some(mode) = voice_stealing_mode {
-                        self.engine.set_voice_stealing_mode(mode);
-                    }
-                }
-                EngineEvent::SetPreparedInstruments(config) => {
-                    drained.config_events += 1;
-                    self.engine.apply_prepared_instruments_config(config);
-                }
-                EngineEvent::SetPreparedAudioConfig(config) => {
-                    drained.config_events += 1;
-                    self.engine.apply_prepared_audio_config(config);
+                    let retired = self
+                        .engine
+                        .apply_prepared_sample_bank(instrument_slot, bank);
+                    self.retire_state(retired);
                 }
                 EngineEvent::PreviewSample {
                     instrument_slot,
@@ -198,19 +240,15 @@ impl EngineSource {
                     self.engine
                         .set_instrument_mixer(instrument_slot, volume_pct, pan_pos);
                 }
-                EngineEvent::SetInstrumentSlot {
-                    instrument_slot,
-                    config,
-                } => {
-                    self.engine.set_instrument_slot(instrument_slot, config);
-                }
                 EngineEvent::SetPreparedInstrumentSlot {
                     instrument_slot,
                     config,
                 } => {
                     drained.config_events += 1;
-                    self.engine
+                    let retired = self
+                        .engine
                         .apply_prepared_instrument_slot(instrument_slot, config);
+                    self.retire_state(retired);
                 }
                 EngineEvent::SetFxBusMixer {
                     bus_index,
@@ -234,48 +272,28 @@ impl EngineSource {
                     self.engine
                         .set_sample_bank_param(instrument_slot, &path, value);
                 }
-                EngineEvent::SetFxBusSlot {
-                    bus_index,
-                    slot_index,
-                    fx_type,
-                    params,
-                } => {
-                    self.engine
-                        .set_fx_bus_slot(bus_index, slot_index, fx_type, params);
-                }
                 EngineEvent::SetPreparedFxBusSlot {
                     bus_index,
                     slot_index,
                     config,
                 } => {
                     drained.config_events += 1;
-                    self.engine
+                    let retired = self
+                        .engine
                         .apply_prepared_fx_bus_slot(bus_index, slot_index, config);
-                }
-                EngineEvent::SetGlobalFxSlot {
-                    slot_index,
-                    fx_type,
-                    params,
-                } => {
-                    self.engine.set_global_fx_slot(slot_index, fx_type, params);
+                    self.retire_state(retired);
                 }
                 EngineEvent::SetPreparedGlobalFxSlot { slot_index, config } => {
                     drained.config_events += 1;
-                    self.engine
+                    let retired = self
+                        .engine
                         .apply_prepared_global_fx_slot(slot_index, config);
-                }
-                EngineEvent::MomentaryFxStart {
-                    id,
-                    fx_type,
-                    params,
-                    target,
-                } => {
-                    drained.config_events += 1;
-                    self.engine.momentary_fx_start(id, fx_type, params, target);
+                    self.retire_state(retired);
                 }
                 EngineEvent::PreparedMomentaryFxStart(config) => {
                     drained.config_events += 1;
-                    self.engine.apply_prepared_momentary_fx_start(config);
+                    let retired = self.engine.apply_prepared_momentary_fx_start(config);
+                    self.retire_state(retired);
                 }
                 EngineEvent::MomentaryFxUpdate { id, params } => {
                     drained.config_events += 1;

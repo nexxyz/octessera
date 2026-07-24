@@ -35,30 +35,15 @@ fn apply_events(engine: &mut SynthEngine, events: &[EngineEvent]) {
         match event {
             EngineEvent::AllNotesOff => engine.all_notes_off(),
             EngineEvent::SetVoiceStealingMode(mode) => engine.set_voice_stealing_mode(*mode),
-            EngineEvent::SetInstruments(config) => engine.set_instruments(config.clone()),
-            EngineEvent::SetSampleBanks(banks) => engine.set_sample_banks(banks.clone()),
-            EngineEvent::SetSampleBank {
+            EngineEvent::SetPreparedSampleBank {
                 instrument_slot,
                 bank,
-            } => engine.set_sample_bank(*instrument_slot, bank.clone()),
-            EngineEvent::SetAudioConfig {
-                instruments,
-                sample_banks,
-                voice_stealing_mode,
-            } => {
-                engine.set_instruments(instruments.clone());
-                if let Some(banks) = sample_banks {
-                    engine.set_sample_banks(banks.clone());
-                }
-                if let Some(mode) = voice_stealing_mode {
-                    engine.set_voice_stealing_mode(*mode);
-                }
-            }
+            } => drop(engine.apply_prepared_sample_bank(*instrument_slot, bank.clone())),
             EngineEvent::SetPreparedInstruments(config) => {
-                engine.apply_prepared_instruments_config(config.clone())
+                drop(engine.apply_prepared_instruments_config(config.clone()))
             }
             EngineEvent::SetPreparedAudioConfig(config) => {
-                engine.apply_prepared_audio_config(config.clone())
+                drop(engine.apply_prepared_audio_config(config.clone()))
             }
             EngineEvent::SetMasterVolume { volume_pct } => engine.set_master_volume(*volume_pct),
             EngineEvent::SetInstrumentMixer {
@@ -66,14 +51,10 @@ fn apply_events(engine: &mut SynthEngine, events: &[EngineEvent]) {
                 volume_pct,
                 pan_pos,
             } => engine.set_instrument_mixer(*instrument_slot, *volume_pct, *pan_pos),
-            EngineEvent::SetInstrumentSlot {
-                instrument_slot,
-                config,
-            } => engine.set_instrument_slot(*instrument_slot, config.clone()),
             EngineEvent::SetPreparedInstrumentSlot {
                 instrument_slot,
                 config,
-            } => engine.apply_prepared_instrument_slot(*instrument_slot, config.clone()),
+            } => drop(engine.apply_prepared_instrument_slot(*instrument_slot, config.clone())),
             EngineEvent::SetFxBusMixer {
                 bus_index,
                 pan_pos,
@@ -89,24 +70,13 @@ fn apply_events(engine: &mut SynthEngine, events: &[EngineEvent]) {
                 path,
                 value,
             } => engine.set_sample_bank_param(*instrument_slot, path, *value),
-            EngineEvent::SetFxBusSlot {
-                bus_index,
-                slot_index,
-                fx_type,
-                params,
-            } => engine.set_fx_bus_slot(*bus_index, *slot_index, fx_type.clone(), params.clone()),
             EngineEvent::SetPreparedFxBusSlot {
                 bus_index,
                 slot_index,
                 config,
-            } => engine.apply_prepared_fx_bus_slot(*bus_index, *slot_index, config.clone()),
-            EngineEvent::SetGlobalFxSlot {
-                slot_index,
-                fx_type,
-                params,
-            } => engine.set_global_fx_slot(*slot_index, fx_type.clone(), params.clone()),
+            } => drop(engine.apply_prepared_fx_bus_slot(*bus_index, *slot_index, config.clone())),
             EngineEvent::SetPreparedGlobalFxSlot { slot_index, config } => {
-                engine.apply_prepared_global_fx_slot(*slot_index, config.clone())
+                drop(engine.apply_prepared_global_fx_slot(*slot_index, config.clone()))
             }
             EngineEvent::PreviewSample {
                 instrument_slot,
@@ -128,14 +98,8 @@ fn apply_events(engine: &mut SynthEngine, events: &[EngineEvent]) {
                 controller,
                 value,
             } => engine.cc(*instrument_slot, *controller, *value),
-            EngineEvent::MomentaryFxStart {
-                id,
-                fx_type,
-                params,
-                target,
-            } => engine.momentary_fx_start(id.clone(), fx_type.clone(), params.clone(), *target),
             EngineEvent::PreparedMomentaryFxStart(config) => {
-                engine.apply_prepared_momentary_fx_start(config.clone())
+                drop(engine.apply_prepared_momentary_fx_start(config.clone()))
             }
             EngineEvent::MomentaryFxUpdate { id, params } => {
                 engine.momentary_fx_update(id, params.clone())

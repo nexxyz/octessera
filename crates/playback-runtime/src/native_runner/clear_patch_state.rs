@@ -2,7 +2,9 @@ use super::*;
 
 impl NativeRunner {
     pub(super) fn clear_patch_state(&mut self) -> Result<(), String> {
+        self.drain_all_layer_engine_notes()?;
         self.stop_for_config_load();
+        self.clear_all_modulation_sources();
 
         self.current_preset_name = None;
         self.preset_rename_source = None;
@@ -12,8 +14,8 @@ impl NativeRunner {
             .ok_or_else(|| "unsupported native behavior `none`".to_string())?;
         self.behavior = behavior;
         self.behavior_config = Value::Null;
-        self.behavior_configs.clear();
         self.layer_behavior_configs = vec![Value::Null; LAYER_COUNT];
+        self.layer_behavior_config_history = vec![BTreeMap::new(); LAYER_COUNT];
         self.layer_behavior_ids = vec!["none".into(); LAYER_COUNT];
         self.layer_names = vec!["none".into(); LAYER_COUNT];
         self.layer_auto_names = vec![true; LAYER_COUNT];

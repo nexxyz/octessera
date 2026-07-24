@@ -48,13 +48,35 @@ if grep -RInE '(/home/pi|config\.txt|dtoverlay|dwc2|BCM[0-9]|usb[_-]?gadget|g_ma
 fi
 [[ -f "$overlay_dir/etc/octessera/armbian-image.txt" ]] || { echo "Missing Octessera Armbian marker overlay." >&2; exit 1; }
 [[ -f "$overlay_dir/usr/local/sbin/octessera-armbian-diagnostics" ]] || { echo "Missing Octessera Armbian diagnostics overlay." >&2; exit 1; }
+for updater_file in \
+  usr/local/sbin/octessera-update \
+  usr/local/sbin/octessera-update-guard \
+  usr/local/sbin/octessera-update-recovery \
+  usr/local/lib/octessera/updater_protocol.py \
+  usr/local/lib/octessera/updater_state.py \
+  usr/local/lib/octessera/updater_assets.py \
+  usr/local/lib/octessera/updater_guard.py \
+  usr/local/lib/octessera/updater_cli.py \
+  etc/systemd/system/octessera-update-guard.service \
+  etc/systemd/system/octessera-update-recovery.service; do
+  [[ -f "$overlay_dir/$updater_file" ]] || { echo "Missing updater protocol overlay: $updater_file" >&2; exit 1; }
+done
 install_overlay_file etc/octessera/armbian-image.txt /etc/octessera/armbian-image.txt 0644
 install_overlay_file usr/local/sbin/octessera-armbian-diagnostics /usr/local/sbin/octessera-armbian-diagnostics 0755
 install_overlay_file usr/local/sbin/octessera-update /usr/local/sbin/octessera-update 0755
+install_overlay_file usr/local/sbin/octessera-update-guard /usr/local/sbin/octessera-update-guard 0755
+install_overlay_file usr/local/sbin/octessera-update-recovery /usr/local/sbin/octessera-update-recovery 0755
+install_overlay_file usr/local/lib/octessera/updater_protocol.py /usr/local/lib/octessera/updater_protocol.py 0644
+install_overlay_file usr/local/lib/octessera/updater_state.py /usr/local/lib/octessera/updater_state.py 0644
+install_overlay_file usr/local/lib/octessera/updater_assets.py /usr/local/lib/octessera/updater_assets.py 0644
+install_overlay_file usr/local/lib/octessera/updater_guard.py /usr/local/lib/octessera/updater_guard.py 0644
+install_overlay_file usr/local/lib/octessera/updater_cli.py /usr/local/lib/octessera/updater_cli.py 0644
 install_overlay_file usr/local/sbin/octessera-wifi-connect /usr/local/sbin/octessera-wifi-connect 0755
 install_overlay_file usr/local/sbin/octessera-setup-sidecar /usr/local/sbin/octessera-setup-sidecar 0755
 install_overlay_file etc/systemd/system/octessera-setup.service /etc/systemd/system/octessera-setup.service 0644
 install_overlay_file etc/systemd/system/octessera.service /etc/systemd/system/octessera.service 0644
+install_overlay_file etc/systemd/system/octessera-update-guard.service /etc/systemd/system/octessera-update-guard.service 0644
+install_overlay_file etc/systemd/system/octessera-update-recovery.service /etc/systemd/system/octessera-update-recovery.service 0644
 install_overlay_file etc/sudoers.d/octessera-update /etc/sudoers.d/octessera-update 0440
 if [[ -d "$overlay_dir/usr/local/share/octessera-setup-ui" ]]; then
   cp -a "$overlay_dir/usr/local/share/octessera-setup-ui" /usr/local/share/
@@ -84,9 +106,11 @@ if systemctl list-unit-files sshd.socket >/dev/null 2>&1; then
 fi
 rm -f /etc/ssh/ssh_host_*
 systemctl enable octessera-setup.service >/dev/null
+systemctl enable --now octessera-update-recovery.service >/dev/null
 
 cat >/etc/octessera/build-metadata.env <<EOF
 OCTESSERA_IMAGE_KIND=armbian
+OCTESSERA_BOARD_PROFILE_ID=orange-pi-zero-2w
 OCTESSERA_IMAGE_BUILT_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 OCTESSERA_RUNTIME_ENABLED_DEFAULT=false
 EOF
@@ -122,16 +146,24 @@ if [[ -n "$payload_url" ]]; then
         payload_version="$(jq -r '.version // empty' "$work/extract/octessera-payload.json")"
         payload_tag="$(jq -r '.tag // empty' "$work/extract/octessera-payload.json")"
         if [[ ! "$payload_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ || "$payload_tag" != "v$payload_version" ]]; then
-          payload_version=0.0.0
-          payload_tag=v0.0.0
+          echo "Payload version and tag must be valid and match." >&2
+          exit 1
+        fi
+        payload_board_profile="$(jq -r '.board_profile // empty' "$work/extract/octessera-payload.json")"
+        if [[ "$payload_board_profile" != "orange-pi-zero-2w" ]]; then
+          echo "Payload board profile must be orange-pi-zero-2w." >&2
+          exit 1
         fi
         release_dir="/opt/octessera/releases/$payload_version"
         install -D -m 0755 /opt/octessera/octessera-pi "$release_dir/octessera-pi"
         cat >"$release_dir/update-manifest.json" <<EOF
 {
-  "schema_version": 1,
+  "schema_version": 2,
+  "updater_protocol": 2,
+  "candidate_health_protocol": 1,
   "tag": "$payload_tag",
   "version": "$payload_version",
+  "board_profile": "orange-pi-zero-2w",
   "arch": "aarch64-unknown-linux-gnu",
   "binary": "octessera-pi",
   "platforms": ["orange-pi-zero-2w", "linux-aarch64-device"]
@@ -141,13 +173,19 @@ EOF
         ln -sfn /opt/octessera/current/octessera-pi /usr/local/bin/octessera-pi
         cat >/opt/octessera/update-state.json <<EOF
 {
+  "schema_version": 2,
+  "phase": "committed",
   "current": "$payload_version",
   "previous": null,
   "next": null,
   "updated_at": "1970-01-01T00:00:00Z",
   "release": {
+    "schema_version": 2,
+    "updater_protocol": 2,
+    "candidate_health_protocol": 1,
     "tag": "$payload_tag",
     "version": "$payload_version",
+    "board_profile": "orange-pi-zero-2w",
     "arch": "aarch64-unknown-linux-gnu",
     "binary": "octessera-pi",
     "platforms": ["orange-pi-zero-2w", "linux-aarch64-device"]

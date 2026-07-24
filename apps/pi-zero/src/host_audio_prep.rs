@@ -1,5 +1,9 @@
 use crate::audio::{AudioControlRequest, AudioService};
-use crate::audio_config_parse::{parse_audio_config, sample_banks, sample_signature};
+use crate::audio_config_parse::{
+    parse_audio_config, sample_banks, sample_signature, SampleLoadError,
+};
+#[path = "host_audio_preview_prep.rs"]
+mod preview_prep;
 use playback_runtime::{
     HostMessage, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation,
     RuntimeStoreResult,
@@ -32,6 +36,19 @@ fn audio_control_loop(
                     send_audio_prep_result(&result_tx, audio_queue_failure(error));
                 }
             }
+            AudioControlRequest::SamplePreview {
+                instrument_slot,
+                path,
+                velocity,
+                samples_dir,
+            } => preview_prep::process_request(
+                &audio,
+                instrument_slot,
+                &path,
+                velocity,
+                &samples_dir,
+                &result_tx,
+            ),
             AudioControlRequest::FullConfig {
                 revision,
                 request_id,
@@ -60,6 +77,7 @@ fn handle_full_config_request(
     result_tx: &Sender<HostMessage>,
 ) {
     let mut pending_dynamic = Vec::new();
+    let mut pending_previews = Vec::<preview_prep::PreviewRequest>::new();
     drain_pending_requests(
         rx,
         &mut revision,
@@ -67,6 +85,7 @@ fn handle_full_config_request(
         &mut config,
         &mut samples_dir,
         &mut pending_dynamic,
+        &mut pending_previews,
     );
     loop {
         let prepared =
@@ -74,6 +93,7 @@ fn handle_full_config_request(
                 Ok(prepared) => prepared,
                 Err(AudioPrepError::Superseded) => {
                     send_dynamic_events(audio, pending_dynamic, result_tx);
+                    preview_prep::process_requests(audio, pending_previews, result_tx);
                     return;
                 }
                 Err(AudioPrepError::InvalidConfig(error)) => {
@@ -82,6 +102,16 @@ fn handle_full_config_request(
                         audio_config_failure(revision, request_id.clone(), error),
                     );
                     send_dynamic_events(audio, pending_dynamic, result_tx);
+                    preview_prep::process_requests(audio, pending_previews, result_tx);
+                    return;
+                }
+                Err(AudioPrepError::Sample(error)) => {
+                    send_audio_prep_result(
+                        result_tx,
+                        sample_failure(revision, request_id.clone(), error.code(), error.message()),
+                    );
+                    send_dynamic_events(audio, pending_dynamic, result_tx);
+                    preview_prep::process_requests(audio, pending_previews, result_tx);
                     return;
                 }
                 Err(AudioPrepError::Failed(error)) => {
@@ -90,6 +120,7 @@ fn handle_full_config_request(
                         audio_prep_failure(revision, request_id.clone(), error),
                     );
                     send_dynamic_events(audio, pending_dynamic, result_tx);
+                    preview_prep::process_requests(audio, pending_previews, result_tx);
                     return;
                 }
             };
@@ -104,6 +135,7 @@ fn handle_full_config_request(
             &mut next_config,
             &mut next_samples_dir,
             &mut pending_dynamic,
+            &mut pending_previews,
         ) {
             revision = next_revision;
             request_id = next_request_id;
@@ -121,6 +153,7 @@ fn handle_full_config_request(
             ),
         }
         send_dynamic_events(audio, pending_dynamic, result_tx);
+        preview_prep::process_requests(audio, pending_previews, result_tx);
         return;
     }
 }
@@ -132,6 +165,7 @@ fn drain_pending_requests(
     config: &mut serde_json::Value,
     samples_dir: &mut PathBuf,
     pending_dynamic: &mut Vec<EngineEvent>,
+    pending_previews: &mut Vec<preview_prep::PreviewRequest>,
 ) -> bool {
     let mut had_full_config = false;
     while let Ok(request) = rx.try_recv() {
@@ -150,6 +184,17 @@ fn drain_pending_requests(
                 pending_dynamic.retain(is_realtime_dynamic_event);
             }
             AudioControlRequest::Dynamic(event) => pending_dynamic.push(*event),
+            AudioControlRequest::SamplePreview {
+                instrument_slot,
+                path,
+                velocity,
+                samples_dir,
+            } => pending_previews.push(preview_prep::PreviewRequest {
+                instrument_slot,
+                path,
+                velocity,
+                samples_dir,
+            }),
         }
     }
     had_full_config
@@ -163,6 +208,7 @@ struct PreparedAudioConfig {
 enum AudioPrepError {
     Superseded,
     InvalidConfig(String),
+    Sample(SampleLoadError),
     Failed(String),
 }
 
@@ -183,7 +229,7 @@ fn prepare_audio_config(
     };
     ensure_current_audio_revision(audio.config_revision.load(Ordering::SeqCst), revision)?;
     let sample_banks = if should_update_sample_banks {
-        Some(sample_banks(&parsed, &samples_dir, audio))
+        Some(sample_banks(&parsed, &samples_dir, audio).map_err(AudioPrepError::Sample)?)
     } else {
         None
     };
@@ -277,6 +323,26 @@ fn audio_config_failure(
     )
 }
 
+fn sample_failure(
+    revision: u64,
+    request_id: Option<String>,
+    code: RuntimeErrorCode,
+    message: String,
+) -> RuntimeStoreResult {
+    identify_audio_prep_result(
+        RuntimeStoreResult::RuntimeFailure {
+            error: RuntimeErrorFacts::new(
+                RuntimeErrorDomain::Sample,
+                code,
+                RuntimeOperation::AudioCommand,
+                Some(message),
+            ),
+        },
+        request_id,
+        revision,
+    )
+}
+
 fn identify_audio_prep_result(
     result: RuntimeStoreResult,
     request_id: Option<String>,
@@ -319,7 +385,6 @@ fn is_realtime_dynamic_event(event: &EngineEvent) -> bool {
             | EngineEvent::NoteOff { .. }
             | EngineEvent::Cc { .. }
             | EngineEvent::PreviewSample { .. }
-            | EngineEvent::MomentaryFxStart { .. }
             | EngineEvent::MomentaryFxUpdate { .. }
             | EngineEvent::MomentaryFxStop { .. }
             | EngineEvent::ProbeMark { .. }
@@ -327,136 +392,5 @@ fn is_realtime_dynamic_event(event: &EngineEvent) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::sync::mpsc;
-
-    #[test]
-    fn full_config_coalescing_preserves_queued_note_on_off_order() {
-        let (tx, rx) = mpsc::channel();
-        tx.send(AudioControlRequest::Dynamic(Box::new(
-            EngineEvent::NoteOn {
-                instrument_slot: 2,
-                note: 64,
-                velocity: 90,
-                duration_ms: 150,
-            },
-        )))
-        .unwrap();
-        tx.send(AudioControlRequest::Dynamic(Box::new(
-            EngineEvent::NoteOff {
-                instrument_slot: 2,
-                note: 64,
-            },
-        )))
-        .unwrap();
-        tx.send(AudioControlRequest::FullConfig {
-            revision: 2,
-            request_id: None,
-            config: serde_json::json!({ "masterVolume": 91 }),
-            samples_dir: PathBuf::from("new"),
-        })
-        .unwrap();
-
-        let mut revision = 1;
-        let mut request_id = None;
-        let mut config = serde_json::json!({ "masterVolume": 70 });
-        let mut samples_dir = PathBuf::from("old");
-        let mut pending = Vec::new();
-
-        assert!(drain_pending_requests(
-            &rx,
-            &mut revision,
-            &mut request_id,
-            &mut config,
-            &mut samples_dir,
-            &mut pending,
-        ));
-        assert_eq!(revision, 2);
-        assert_eq!(samples_dir, PathBuf::from("new"));
-        assert_eq!(pending.len(), 2);
-        assert!(matches!(
-            pending[0],
-            EngineEvent::NoteOn {
-                instrument_slot: 2,
-                note: 64,
-                ..
-            }
-        ));
-        assert!(matches!(
-            pending[1],
-            EngineEvent::NoteOff {
-                instrument_slot: 2,
-                note: 64
-            }
-        ));
-    }
-
-    #[test]
-    fn full_config_coalescing_drops_stale_dynamic_config_delta() {
-        let (tx, rx) = mpsc::channel();
-        tx.send(AudioControlRequest::Dynamic(Box::new(
-            EngineEvent::SetMasterVolume { volume_pct: 44.0 },
-        )))
-        .unwrap();
-        tx.send(AudioControlRequest::FullConfig {
-            revision: 2,
-            request_id: None,
-            config: serde_json::json!({ "masterVolume": 91 }),
-            samples_dir: PathBuf::from("new"),
-        })
-        .unwrap();
-
-        let mut revision = 1;
-        let mut request_id = None;
-        let mut config = serde_json::json!({ "masterVolume": 70 });
-        let mut samples_dir = PathBuf::from("old");
-        let mut pending = Vec::new();
-
-        assert!(drain_pending_requests(
-            &rx,
-            &mut revision,
-            &mut request_id,
-            &mut config,
-            &mut samples_dir,
-            &mut pending,
-        ));
-        assert_eq!(revision, 2);
-        assert_eq!(samples_dir, PathBuf::from("new"));
-        assert!(pending.is_empty());
-    }
-
-    #[test]
-    fn prep_failure_is_identified_and_typed() {
-        let result = audio_prep_failure(9, Some("audio-9".into()), "bad samples".into());
-        assert!(matches!(
-            result,
-            RuntimeStoreResult::Identified {
-                request_id,
-                revision: Some(9),
-                result,
-            } if request_id == "audio-9" && matches!(result.as_ref(), RuntimeStoreResult::RuntimeFailure { error } if error.domain == RuntimeErrorDomain::Audio && error.code == RuntimeErrorCode::OperationFailed && error.operation == RuntimeOperation::AudioCommand)
-        ));
-    }
-
-    #[test]
-    fn prep_success_is_identified_as_audio_command_success() {
-        let result = audio_prep_success(10, Some("audio-10".into()));
-        assert!(matches!(
-            result,
-            RuntimeStoreResult::Identified {
-                request_id,
-                revision: Some(10),
-                result,
-            } if request_id == "audio-10" && matches!(result.as_ref(), RuntimeStoreResult::OperationSucceeded { operation: RuntimeOperation::AudioCommand, .. })
-        ));
-    }
-
-    #[test]
-    fn stale_audio_revision_is_cancellation() {
-        assert!(matches!(
-            ensure_current_audio_revision(4, 3),
-            Err(AudioPrepError::Superseded)
-        ));
-    }
-}
+#[path = "host_audio_prep_tests.rs"]
+mod tests;

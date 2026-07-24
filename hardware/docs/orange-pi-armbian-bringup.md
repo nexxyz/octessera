@@ -1,6 +1,6 @@
 # Orange Pi Zero 2W Armbian bring-up
 
-Goal: validate Orange Pi Zero 2W on Armbian before adding real `opi-zero-2w` runtime behavior.
+Goal: validate Orange Pi Zero 2W on Armbian before adding real `orange-pi-zero-2w` runtime behavior.
 
 This is a hardware gate. Do not copy Raspberry Pi constants, overlays, or `rppal` GPIO assumptions into Orange Pi support until these checks pass on the target board and image.
 
@@ -293,7 +293,7 @@ After bare peripheral tests pass, validate the actual Octessera service with boa
 
 Only after the checks above pass:
 
-1. Add real `opi-zero-2w` board profile values.
+1. Add real `orange-pi-zero-2w` board profile values.
 2. Add a non-`rppal` GPIO backend based on gpiochip lines.
 3. Split gadget setup by board/image layer so Raspberry Pi keeps `dwc2` and Orange Pi uses the detected UDC path.
 4. Parameterize service user, store paths, samples paths, deploy target, preflight checks, and image sanitation.

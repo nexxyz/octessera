@@ -149,8 +149,7 @@ pub(crate) fn runtime_snapshot_serializes_menu_scroll_metadata() {
 #[test]
 pub(crate) fn selected_short_menu_row_stays_stable_while_highlighted() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![1];
-    runner.menu.state.cursor = 3;
+    assert!(runner.menu.focus_item_key("inputEventsWhilePaused"));
 
     runner.display.menu_scroll_offset = 0;
     let initial = runner.snapshot().unwrap();
@@ -194,8 +193,7 @@ pub(crate) fn selected_group_row_scrolls_full_link_target_label() {
         invert: false,
     });
     runner.menu.rebuild(runner.menu_config());
-    runner.menu.state.stack = vec![1, 4, 4];
-    runner.menu.state.cursor = 0;
+    assert!(runner.menu.focus_item_key("param:0:x:0"));
 
     runner.display.menu_scroll_offset = 0;
     let initial = runner.snapshot().unwrap();

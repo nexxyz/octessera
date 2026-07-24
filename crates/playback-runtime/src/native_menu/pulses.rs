@@ -1,12 +1,11 @@
 use super::pulses_axis::{axis_group, AxisMenuConfig};
 use super::pulses_sections::{
-    arp_group, events_group, link_lfo_group, note_mapping_group, scanning_group,
+    arp_group, events_group, global_link_lfos_group, note_mapping_group, scanning_group,
     trigger_probability_group,
 };
 use super::{
     axis_binding_label, bool_item, group, parameter_picker_group, NativeLinkArpConfig,
-    NativeLinkLfoConfig, NativeMenuConfig, NativeMenuItem, NativePulsesLayerConfig,
-    NativeValueLaneConfig,
+    NativeMenuConfig, NativeMenuItem, NativePulsesLayerConfig, NativeValueLaneConfig,
 };
 pub(super) fn default_pulses_layer_config() -> NativePulsesLayerConfig {
     NativePulsesLayerConfig {
@@ -64,12 +63,6 @@ pub(super) fn default_pulses_layer_config() -> NativePulsesLayerConfig {
             note_length_ms: 120,
             gate_pct: 80,
             octave_spread: 0,
-        },
-        link_lfo: NativeLinkLfoConfig {
-            enabled: false,
-            target: None,
-            period: "1/1".into(),
-            depth_pct: 100,
         },
     }
 }
@@ -140,7 +133,6 @@ pub(super) fn pulses_layer_group(
                     filter_resonance: &sense.y_filter_resonance,
                 },
             ),
-            link_lfo_group(&format!("layers.{index}.linkLfo"), &sense.link_lfo, config),
             arp_group(&format!("{prefix}.arp"), &sense.arp),
         ],
     )
@@ -149,6 +141,7 @@ pub(super) fn pulses_layer_group(
 pub(super) fn pulses_root_items(config: &NativeMenuConfig) -> Vec<NativeMenuItem> {
     vec![
         super::system::aux_mappings_group(config),
+        global_link_lfos_group(config),
         bool_item(
             "Paused Events",
             "inputEventsWhilePaused",

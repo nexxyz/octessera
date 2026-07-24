@@ -1,0 +1,12 @@
+[Unit]
+Description=Octessera candidate update health guard
+After=octessera-update-recovery.service
+StartLimitIntervalSec=30s
+StartLimitBurst=2
+
+[Service]
+Type=exec
+User=root
+ExecStart=/usr/local/sbin/octessera-update-guard
+Restart=on-failure
+RestartSec=1s

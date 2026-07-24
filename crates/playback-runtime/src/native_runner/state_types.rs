@@ -25,7 +25,7 @@ pub(super) struct NativeUiState {
     pub(super) combined_button_pressed: bool,
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct NativePendingState {
     pub(super) pending_save_revision: Option<u64>,
     pub(super) pending_autosave_payload_due_at: Option<Instant>,
@@ -35,6 +35,7 @@ pub(super) struct NativePendingState {
     pub(super) suppress_snapshot_response: bool,
 }
 
+#[derive(Clone)]
 pub(super) struct NativeDisplayState {
     pub(super) ui: NativeUiState,
     pub(super) hdmi: NativeHdmiConfig,
@@ -48,6 +49,7 @@ pub(super) struct NativeDisplayState {
     pub(super) help_popup: Option<NativeHelpPopup>,
     pub(super) confirm_dialog: Option<NativeConfirmDialog>,
     pub(super) usb_sd_transfer_modal: Option<NativeUsbSdTransferModal>,
+    pub(super) system_info_modal: Option<NativeSystemInfoModal>,
     pub(super) event_dot_on: bool,
     pub(super) event_dot_pulses_remaining: u8,
     pub(super) transport_flash: &'static str,
@@ -80,6 +82,7 @@ impl NativeDisplayState {
             help_popup: None,
             confirm_dialog: None,
             usb_sd_transfer_modal: None,
+            system_info_modal: None,
             event_dot_on: false,
             event_dot_pulses_remaining: 0,
             transport_flash: "none",
@@ -181,8 +184,9 @@ pub(super) struct NativePulsesLayer {
     pub(super) y_filter_cutoff: NativeValueLane,
     pub(super) y_filter_resonance: NativeValueLane,
     pub(super) arp: NativeLinkArp,
-    pub(super) link_lfo: NativeLinkLfo,
 }
+
+pub(super) const GLOBAL_LFO_COUNT: usize = 8;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct NativeHdmiConfig {
@@ -382,7 +386,6 @@ impl Default for NativePulsesLayer {
             y_filter_cutoff: NativeValueLane::filter_cutoff_default(),
             y_filter_resonance: NativeValueLane::filter_resonance_default(),
             arp: NativeLinkArp::default(),
-            link_lfo: NativeLinkLfo::default(),
         }
     }
 }

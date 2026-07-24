@@ -4,6 +4,16 @@
 
 set -e
 
+BOARD_PROFILE="${OCTESSERA_BOARD_PROFILE:-raspberry-pi-zero-2w}"
+if [ "$BOARD_PROFILE" = orange-pi-zero-2w ]; then
+    echo "Orange Pi profile is not supported by Raspberry Pi deployment; use the separate Armbian workflow." >&2
+    exit 2
+fi
+if [ "$BOARD_PROFILE" != raspberry-pi-zero-2w ]; then
+    echo "Raspberry Pi deployment accepts only raspberry-pi-zero-2w; got $BOARD_PROFILE." >&2
+    exit 2
+fi
+
 echo "=== octessera Pi Deployment ==="
 
 # Install system dependencies
@@ -18,6 +28,9 @@ sudo apt-get install -y \
     spi-tools \
     git \
     curl \
+    python3-minimal \
+    unzip \
+    util-linux \
     build-essential
 
 # Install Rust if not present
@@ -297,21 +310,102 @@ disable_service_if_present hciuart.service
 # Build natively on Pi (simpler than cross-compilation)
 echo "Building octessera for Pi..."
 cd /home/pi/octessera
-cargo build --release -p octessera-pi --features hardware-pi
+cargo build --release -p octessera-pi --features hardware-raspberry-pi-zero-2w
+
+sudo install -d -m 0755 /etc/octessera
+printf 'OCTESSERA_BOARD_PROFILE_ID=%s\n' "$BOARD_PROFILE" | sudo tee /etc/octessera/board-profile.env >/dev/null
+
+PACKAGE_VERSION=$(cargo metadata --no-deps --format-version 1 | python3 -c 'import json, sys; print(next(package["version"] for package in json.load(sys.stdin)["packages"] if package["name"] == "octessera-pi"))')
+if ! printf '%s\n' "$PACKAGE_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+    echo "Invalid octessera-pi package version: $PACKAGE_VERSION" >&2
+    exit 1
+fi
+RELEASE_DIR="/opt/octessera/releases/$PACKAGE_VERSION"
+if [ -e "$RELEASE_DIR" ]; then
+    echo "Managed release already exists at $RELEASE_DIR; refusing to overwrite it." >&2
+    exit 1
+fi
+if [ -e /opt/octessera/current ] && [ ! -L /opt/octessera/current ]; then
+    echo "Existing /opt/octessera/current is unmanaged; refusing deployment." >&2
+    exit 1
+fi
+if [ -e /usr/local/bin/octessera-pi ] && [ ! -L /usr/local/bin/octessera-pi ]; then
+    echo "Existing /usr/local/bin/octessera-pi is unmanaged; refusing deployment." >&2
+    exit 1
+fi
+sudo install -d -m 0755 /opt/octessera/releases
+sudo install -D -m 0755 target/release/octessera-pi "$RELEASE_DIR/octessera-pi"
+sudo tee "$RELEASE_DIR/update-manifest.json" >/dev/null <<EOL
+{
+  "schema_version": 2,
+  "updater_protocol": 2,
+  "candidate_health_protocol": 1,
+  "tag": "v$PACKAGE_VERSION",
+  "version": "$PACKAGE_VERSION",
+  "board_profile": "$BOARD_PROFILE",
+  "arch": "aarch64-unknown-linux-gnu",
+  "binary": "octessera-pi",
+  "platforms": ["$BOARD_PROFILE", "linux-aarch64-device"]
+}
+EOL
+sudo chmod -R a-w "$RELEASE_DIR"
+sudo ln -sfn "$RELEASE_DIR" /opt/octessera/current
+sudo ln -sfn /opt/octessera/current/octessera-pi /usr/local/bin/octessera-pi
+sudo tee /opt/octessera/update-state.json >/dev/null <<EOL
+{
+  "schema_version": 2,
+  "phase": "committed",
+  "current": "$PACKAGE_VERSION",
+  "previous": null,
+  "updated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "release": {
+    "schema_version": 2,
+    "updater_protocol": 2,
+    "candidate_health_protocol": 1,
+    "tag": "v$PACKAGE_VERSION",
+    "version": "$PACKAGE_VERSION",
+    "board_profile": "$BOARD_PROFILE",
+    "arch": "aarch64-unknown-linux-gnu",
+    "binary": "octessera-pi",
+    "platforms": ["$BOARD_PROFILE", "linux-aarch64-device"]
+  },
+  "asset": null
+}
+EOL
+
+UPDATE_SOURCE=/home/pi/octessera/tools/device-update
+for file in updater_protocol.py updater_state.py updater_assets.py updater_guard.py updater_cli.py; do
+    sudo install -D -m 0644 "$UPDATE_SOURCE/$file" "/usr/local/lib/octessera/$file"
+done
+for file in octessera-update octessera-update-guard octessera-update-recovery; do
+    sudo install -D -m 0755 "/home/pi/octessera/tools/pi-image/stage4-octessera/files/root/usr/local/sbin/$file" "/usr/local/sbin/$file"
+done
+for file in octessera-update-guard.service octessera-update-recovery.service; do
+    sudo install -D -m 0644 "/home/pi/octessera/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/$file" "/etc/systemd/system/$file"
+done
+sudo install -D -m 0440 /home/pi/octessera/tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-update /etc/sudoers.d/octessera-update
+sudo visudo -cf /etc/sudoers.d/octessera-update >/dev/null
 
 # Create systemd service
 echo "Creating systemd service..."
 sudo tee /etc/systemd/system/octessera.service > /dev/null <<EOL
 [Unit]
-Description=octessera Pi Zero 2W
+Description=octessera Raspberry Pi Zero 2W ($BOARD_PROFILE)
 After=sound.target
+Requires=octessera-update-recovery.service
+After=octessera-update-recovery.service
 
 [Service]
 Type=simple
 User=pi
 WorkingDirectory=/home/pi/octessera
+EnvironmentFile=-/etc/octessera/board-profile.env
+Environment=OCTESSERA_EXPECTED_BOARD_PROFILE=raspberry-pi-zero-2w
+Environment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json
+RuntimeDirectory=octessera
+RuntimeDirectoryMode=0755
 ExecStartPre=/bin/sleep 2
-ExecStart=/home/pi/octessera/target/release/octessera-pi
+ExecStart=/usr/local/bin/octessera-pi
 Restart=always
 RestartSec=5
 StandardOutput=journal
@@ -347,6 +441,7 @@ EOL
 
 # Enable service
 sudo systemctl daemon-reload
+sudo systemctl enable --now octessera-update-recovery.service
 sudo systemctl enable octessera
 sudo systemctl enable octessera-performance-governor.service
 sudo systemctl start octessera-performance-governor.service

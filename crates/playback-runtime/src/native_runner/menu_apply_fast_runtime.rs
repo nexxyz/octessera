@@ -94,6 +94,10 @@ impl NativeRunner {
                 }))
             }
             "sound.velocityCurve" => Some(self.fast_sound_string_menu_key(key)),
+            "sound.voiceStealingMode" => Some(self.fast_voice_stealing_mode_menu_key()),
+            "sparks.xy.release" => Some(self.fast_xy_release_menu_key()),
+            "sparks.xy.invertX" => Some(self.fast_xy_invert_menu_key(true)),
+            "sparks.xy.invertY" => Some(self.fast_xy_invert_menu_key(false)),
             "sound.audioOutputBufferFrames" => {
                 Some(self.fast_audio_output_buffer_frames_menu_key())
             }
@@ -247,6 +251,7 @@ impl NativeRunner {
         };
         if apply(self, value) {
             self.sync_engine_runtime_config();
+            self.rebase_and_recompose_modulation_key(key);
             self.mark_fast_autosave_dirty();
         }
         true
@@ -259,6 +264,58 @@ impl NativeRunner {
         let value = super::velocity_curve_from_id(&value);
         if value_changed(&mut self.global_sound.velocity_curve, value) {
             self.sync_engine_runtime_config();
+            self.mark_fast_autosave_dirty();
+        }
+        true
+    }
+
+    fn fast_voice_stealing_mode_menu_key(&mut self) -> bool {
+        let Some(value) = self.menu.value_for_key("sound.voiceStealingMode") else {
+            return false;
+        };
+        let Some(mode) = super::normalize_voice_stealing_mode(&value) else {
+            return false;
+        };
+        if value_changed(&mut self.voice_stealing_mode, mode.into()) {
+            self.audio_config_revision = self.audio_config_revision.saturating_add(1);
+            self.rebase_and_recompose_modulation_key("sound.voiceStealingMode");
+            self.mark_fast_autosave_dirty();
+        }
+        true
+    }
+
+    fn fast_xy_release_menu_key(&mut self) -> bool {
+        let Some(value) = self.menu.value_for_key("sparks.xy.release") else {
+            return false;
+        };
+        if !matches!(value.as_str(), "sample-hold" | "reset-center") {
+            return false;
+        }
+        if value_changed(&mut self.xy_release, value) {
+            self.mark_fast_autosave_dirty();
+        }
+        true
+    }
+
+    fn fast_xy_invert_menu_key(&mut self, x_axis: bool) -> bool {
+        let key = if x_axis {
+            "sparks.xy.invertX"
+        } else {
+            "sparks.xy.invertY"
+        };
+        let Some(value) = self.menu.value_for_key(key).map(|value| value == "true") else {
+            return false;
+        };
+        let changed = if x_axis {
+            value_changed(&mut self.xy_invert_x, value)
+        } else {
+            value_changed(&mut self.xy_invert_y, value)
+        };
+        if changed {
+            self.resample_xy_runtime_sources();
+            if let Err(error) = self.process_dirty_modulation_step(false) {
+                self.show_toast(format!("modulation composition unavailable: {error}"));
+            }
             self.mark_fast_autosave_dirty();
         }
         true
@@ -328,6 +385,7 @@ impl NativeRunner {
             {
                 *layer_step = step_pulses;
             }
+            self.rebase_and_recompose_modulation_key("algorithmStep");
             self.mark_fast_autosave_dirty();
         }
         true

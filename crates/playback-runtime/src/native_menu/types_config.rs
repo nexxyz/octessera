@@ -14,6 +14,7 @@ pub struct NativeMenuConfig {
     pub layer_auto_names: Vec<bool>,
     pub pulses_layers: Vec<NativePulsesLayerConfig>,
     pub active_layer_index: usize,
+    pub link_lfos: [NativeLinkLfoConfig; 8],
     pub param_mods: Vec<NativeParamModsConfig>,
     pub xy_x_binding: Option<NativeParamBindingSpec>,
     pub xy_y_binding: Option<NativeParamBindingSpec>,
@@ -164,7 +165,6 @@ pub struct NativePulsesLayerConfig {
     pub y_filter_cutoff: NativeValueLaneConfig,
     pub y_filter_resonance: NativeValueLaneConfig,
     pub arp: NativeLinkArpConfig,
-    pub link_lfo: NativeLinkLfoConfig,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

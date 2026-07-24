@@ -128,6 +128,25 @@ pub(crate) fn repeated_autosaves_increment_flash_serial() {
     let first_serial = snapshot_from(&first)["settings"]["autoSaveFlashSerial"]
         .as_u64()
         .unwrap();
+    assert_eq!(first_serial, 0);
+
+    let revision = runner.config_revision;
+    let acknowledged = runner
+        .send(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::Identified {
+                result: Box::new(RuntimeStoreResult::SaveDefaultResult {
+                    ok: true,
+                    is_auto: Some(true),
+                }),
+                request_id: "save-1".into(),
+                revision: Some(revision),
+            },
+        })
+        .unwrap();
+    assert_eq!(
+        snapshot_from(&acknowledged)["settings"]["autoSaveFlashSerial"],
+        1
+    );
 
     let second = runner
         .send(HostMessage::DeviceInput {

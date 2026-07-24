@@ -1,6 +1,5 @@
 import { type DeviceInput, type RuntimeHostMessage, type RuntimeRunnerMessage, type RuntimeSnapshot, type RuntimeStatus } from "@octessera/device-contracts";
 import { TauriAudioLoadService, type AudioLoadService, type AudioLoadStatus } from "../audio/audioLoadEvents";
-import { syncPlaybackConfigIfNeeded as syncPlaybackConfig, type PlaybackConfigSyncState } from "./playbackConfigSync";
 import { createIntervalRuntimeScheduler, type RuntimeScheduler } from "./runtimeScheduler";
 import { tauriCoreRunner } from "./runner/tauriCoreRunner";
 import { applyTransientIndicatorPulse, createTransientIndicators, resetTransientIndicators, type IndicatorTimer } from "./simulatorRuntimeIndicators";
@@ -58,7 +57,6 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
   let shiftActive = false;
   let audioLoad: AudioLoadStatus = { ratio: 0, voiceSteal: false };
   let runtimeStatus: RuntimeStatus | null = null;
-  const playbackConfigSyncState: PlaybackConfigSyncState = { lastSyncedPlaybackConfig: "" };
   let runtimeUpdateEpoch = 0;
   let lastAsyncRuntimeSeq = 0;
   let lastTauriDrainAt = 0;
@@ -92,10 +90,6 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
   function publishSnapshot() {
     const snapshot = snapshotFromCore(latestFrame, snapshotCache, shiftActive, indicators, { audioLoad, runtimeStatus });
     for (const listener of listeners) listener(snapshot);
-  }
-
-  function syncPlaybackConfigIfNeeded() {
-    syncPlaybackConfig(latestFrame, playbackConfigSyncState, Boolean(deps.runtimeDispatch));
   }
 
   function processRunnerMessages(messages: DesktopRunnerMessage[]) {
@@ -194,7 +188,6 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
 
   function dispatchToRunner(input: DeviceInput) {
     flushPendingEncoderTurns(true);
-    syncPlaybackConfigIfNeeded();
     mirrorRuntimeMessage({ type: "device_input", input });
   }
 
@@ -210,7 +203,6 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
     const turns = pendingEncoderTurns.splice(0);
     for (const { id, delta } of turns) {
       if (delta === 0) continue;
-      syncPlaybackConfigIfNeeded();
       mirrorRuntimeMessage({ type: "device_input", input: { type: "encoder_turn", id, delta } });
     }
   }
@@ -226,8 +218,6 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
     if (pendingEncoderTimer !== null) return;
     pendingEncoderTimer = setTimeout(flushPendingEncoderTurns, 8);
   }
-
-  syncPlaybackConfigIfNeeded();
 
   return {
     dispatch(input) {
@@ -253,7 +243,6 @@ export function createSimulatorRuntime(scheduler: RuntimeScheduler = createInter
           publishSnapshot();
         });
       scheduler.start((nowMs) => {
-        syncPlaybackConfigIfNeeded();
         maybeDrainTauriRuntimeMessages(nowMs);
       });
       publishSnapshot();

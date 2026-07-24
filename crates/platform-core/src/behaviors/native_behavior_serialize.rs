@@ -27,6 +27,9 @@ pub fn serialize(behavior: NativeBehavior, state: &NativeBehaviorState) -> Resul
         (NativeBehavior::PredatorPrey, NativeBehaviorState::PredatorPrey(state)) => {
             native_impl::predator_prey_serialize(state)
         }
+        (NativeBehavior::Twinkle, NativeBehaviorState::Twinkle(state)) => {
+            native_impl::twinkle_serialize(state)
+        }
         (NativeBehavior::Ant, NativeBehaviorState::Ant(state)) => native_impl::serialize(state),
         (NativeBehavior::Boids, NativeBehaviorState::Boids(state)) => {
             native_impl::boids_serialize(state)

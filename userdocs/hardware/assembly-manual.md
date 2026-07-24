@@ -143,7 +143,7 @@ The NeoKey and NeoTrellis connector are the two parts that are easiest to plug i
 1. Download the latest release image from the project releases. It is named like:
 
    ```text
-   octessera-<version>-pi-zero-2w.img.zip
+   octessera-<version>-raspberry-pi-zero-2w.img.zip
    ```
 
 2. Flash it to the Pi microSD card with Raspberry Pi Imager.
@@ -155,7 +155,7 @@ You can flash the downloaded `.img.zip` directly with Raspberry Pi Imager by cho
 The release also includes Raspberry Pi Imager metadata in two places:
 
 - inside the image ZIP as `os_list.rpi-imager-manifest`;
-- next to the image ZIP as `octessera-<version>-pi-zero-2w.rpi-imager-manifest`.
+- next to the image ZIP as `octessera-<version>-raspberry-pi-zero-2w.rpi-imager-manifest`.
 
 If you want octessera to appear as a custom OS entry in Raspberry Pi Imager, use the standalone `.rpi-imager-manifest` release asset as Imager's custom repository manifest. Loading the manifest/custom image this way lets Raspberry Pi Imager configure locale, WiFi, SSH, hostname, and user settings before flashing.
 
@@ -175,7 +175,7 @@ Reference screenshots:
 You can also start Imager with the manifest URL from the command line, for example:
 
 ```powershell
-rpi-imager --repo "https://github.com/nexxyz/octessera/releases/download/v<version>/octessera-<version>-pi-zero-2w.rpi-imager-manifest"
+rpi-imager --repo "https://github.com/nexxyz/octessera/releases/download/v<version>/octessera-<version>-raspberry-pi-zero-2w.rpi-imager-manifest"
 ```
 
 Use the actual release tag and version from the release page. The embedded manifest inside the ZIP is for packaged metadata; do not extract the ZIP just to load the manifest.
@@ -213,6 +213,7 @@ Before you start with the enclosure, you need to remove the keyswitches from the
 Remove the Raspberry Pi microSD card and OLED microSD card first. They can catch on the enclosure and break during installation.
 
 1. Place the bottom enclosure on the bench.
+   - Before closing the case, it can also be a useful soldering fixture: set the NeoTrellis array upside-down in the bottom, secure it with its top pins so the four boards stay perfectly aligned, then solder the boards to one another.
 2. Put the PCB and NeoTrellis array onto the taller pillars.
 3. Add the 18 separate standoff pillars between the bottom supports and the plug-in modules:
    - Use 8 of the 9.5mm standoff pillars for the OLED and audio/DAC board.

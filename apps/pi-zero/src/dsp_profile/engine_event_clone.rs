@@ -32,30 +32,19 @@ pub(super) fn clone_event(
             controller: *controller,
             value: *value,
         },
-        EngineEvent::SetInstruments(config) => EngineEvent::SetInstruments(config.clone()),
-        EngineEvent::SetSampleBanks(banks) => EngineEvent::SetSampleBanks(banks.clone()),
-        EngineEvent::SetSampleBank {
-            instrument_slot,
-            bank,
-        } => EngineEvent::SetSampleBank {
-            instrument_slot: *instrument_slot,
-            bank: bank.clone(),
-        },
-        EngineEvent::SetAudioConfig {
-            instruments,
-            sample_banks,
-            voice_stealing_mode,
-        } => EngineEvent::SetAudioConfig {
-            instruments: instruments.clone(),
-            sample_banks: sample_banks.clone(),
-            voice_stealing_mode: *voice_stealing_mode,
-        },
         EngineEvent::SetPreparedInstruments(config) => {
             EngineEvent::SetPreparedInstruments(config.clone())
         }
         EngineEvent::SetPreparedAudioConfig(config) => {
             EngineEvent::SetPreparedAudioConfig(config.clone())
         }
+        EngineEvent::SetPreparedSampleBank {
+            instrument_slot,
+            bank,
+        } => EngineEvent::SetPreparedSampleBank {
+            instrument_slot: *instrument_slot,
+            bank: bank.clone(),
+        },
         EngineEvent::PreviewSample {
             instrument_slot,
             buffer,
@@ -77,13 +66,6 @@ pub(super) fn clone_event(
             instrument_slot: *instrument_slot,
             volume_pct: *volume_pct,
             pan_pos: *pan_pos,
-        },
-        EngineEvent::SetInstrumentSlot {
-            instrument_slot,
-            config,
-        } => EngineEvent::SetInstrumentSlot {
-            instrument_slot: *instrument_slot,
-            config: config.clone(),
         },
         EngineEvent::SetPreparedInstrumentSlot {
             instrument_slot,
@@ -119,17 +101,6 @@ pub(super) fn clone_event(
             path: path.clone(),
             value: *value,
         },
-        EngineEvent::SetFxBusSlot {
-            bus_index,
-            slot_index,
-            fx_type,
-            params,
-        } => EngineEvent::SetFxBusSlot {
-            bus_index: *bus_index,
-            slot_index: *slot_index,
-            fx_type: fx_type.clone(),
-            params: params.clone(),
-        },
         EngineEvent::SetPreparedFxBusSlot {
             bus_index,
             slot_index,
@@ -139,32 +110,12 @@ pub(super) fn clone_event(
             slot_index: *slot_index,
             config: config.clone(),
         },
-        EngineEvent::SetGlobalFxSlot {
-            slot_index,
-            fx_type,
-            params,
-        } => EngineEvent::SetGlobalFxSlot {
-            slot_index: *slot_index,
-            fx_type: fx_type.clone(),
-            params: params.clone(),
-        },
         EngineEvent::SetPreparedGlobalFxSlot { slot_index, config } => {
             EngineEvent::SetPreparedGlobalFxSlot {
                 slot_index: *slot_index,
                 config: config.clone(),
             }
         }
-        EngineEvent::MomentaryFxStart {
-            id,
-            fx_type,
-            params,
-            target,
-        } => EngineEvent::MomentaryFxStart {
-            id: id.clone(),
-            fx_type: fx_type.clone(),
-            params: params.clone(),
-            target: *target,
-        },
         EngineEvent::PreparedMomentaryFxStart(config) => {
             EngineEvent::PreparedMomentaryFxStart(config.clone())
         }

@@ -3,6 +3,7 @@ param(
   [string]$Backend = "auto",
   [string]$Target = "aarch64-unknown-linux-gnu",
   [string]$Profile = "pi-dev",
+  [string]$BoardProfile = "raspberry-pi-zero-2w",
   [string]$OutDir = "target/pi-cross",
   [string]$Image = "octessera-pi-cross:latest",
   [string]$Sysroot = "",
@@ -10,6 +11,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "board-profile.ps1")
+Assert-RaspberryBoardProfile $BoardProfile
 
 function Require-Command {
   param(
@@ -83,9 +86,10 @@ function Invoke-WslDockerBuild {
   $outWsl = "/work/$outputRelative"
   $profileArg = $Profile.Replace("'", "'\''")
   $targetArg = $Target.Replace("'", "'\''")
+  $boardProfileArg = $BoardProfile.Replace("'", "'\''")
   $imageArg = $Image.Replace("'", "'\''")
 
-  $script = "cd '$repoWsl' && TARGET='$targetArg' PROFILE='$profileArg' OUT_DIR='$outWsl' IMAGE='$imageArg' bash ./tools/pi/build-pi-cross-wsl.sh"
+  $script = "cd '$repoWsl' && TARGET='$targetArg' PROFILE='$profileArg' BOARD_PROFILE='$boardProfileArg' OUT_DIR='$outWsl' IMAGE='$imageArg' bash ./tools/pi/build-pi-cross-wsl.sh"
   & wsl bash -lc "docker info >/dev/null 2>&1"
   if ($LASTEXITCODE -eq 0) {
     Invoke-CheckedCommand "WSL Docker Pi cross-build" { & wsl bash -lc $script }
@@ -114,7 +118,7 @@ function Invoke-DockerBuild {
       -e PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig/ `
       -e PKG_CONFIG_ALLOW_CROSS=1 `
       $Image `
-      bash -lc "set -euo pipefail; rustup target add $Target; cargo build --target $Target --profile $Profile -p octessera-pi --features hardware-rpi-zero-2w; mkdir -p '$outMount'; cp target/$Target/$Profile/octessera-pi '$outMount'/octessera-pi"
+      bash -lc "set -euo pipefail; rustup target add $Target; cargo build --target $Target --profile $Profile -p octessera-pi --features hardware-raspberry-pi-zero-2w; mkdir -p '$outMount'; cp target/$Target/$Profile/octessera-pi '$outMount'/octessera-pi"
   }
 }
 
@@ -157,7 +161,7 @@ function Invoke-NativeCrossBuild {
   Write-Output "Building octessera-pi for $Target ($Profile) with native cross tools"
   Invoke-CheckedCommand "rustup target add" { & rustup target add $Target }
   Invoke-CheckedCommand "cargo build" {
-    & cargo build --target $Target --profile $Profile -p octessera-pi --features hardware-rpi-zero-2w
+    & cargo build --target $Target --profile $Profile -p octessera-pi --features hardware-raspberry-pi-zero-2w
   }
 }
 
@@ -198,6 +202,7 @@ try {
   if (-not (Test-Path -LiteralPath $outputBinary)) {
     throw "Build finished but binary was not found at $outputBinary"
   }
+  Write-RaspberryBoardMetadata (Join-Path $outputDir "octessera-pi.metadata.json")
   Write-Output $outputBinary
 }
 finally {

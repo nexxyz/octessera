@@ -17,8 +17,8 @@ use super::{
     instrument_synth_osc2_waveforms, instrument_types, instrument_volumes,
     param_binding_spec_from_native, param_mod_configs, param_mods_payload, patch_runtime_config,
     pulses_layer_configs, pulses_layer_payload, sample_assignments_payload, sparks_fx_params_map,
-    sparks_fx_target_key, sparks_fx_type, velocity_curve_id, NativeRunner, Value, CONFIG_KIND,
-    CONFIG_SCHEMA_VERSION, PATCH_KIND,
+    sparks_fx_target_key, sparks_fx_type, velocity_curve_id, NativeLinkLfoConfig, NativeRunner,
+    Value, CONFIG_KIND, CONFIG_SCHEMA_VERSION, PATCH_KIND,
 };
 use serde_json::json;
 
@@ -38,6 +38,12 @@ impl NativeRunner {
             layer_auto_names: self.layer_auto_names.clone(),
             pulses_layers: pulses_layer_configs(&self.pulses_layers),
             active_layer_index: self.active_layer_index,
+            link_lfos: self.link_lfos.clone().map(|lfo| NativeLinkLfoConfig {
+                enabled: lfo.enabled,
+                target: lfo.target.as_ref().map(param_binding_spec_from_native),
+                period: lfo.period,
+                depth_pct: lfo.depth_pct,
+            }),
             param_mods: param_mod_configs(&self.param_mods),
             xy_x_binding: self
                 .xy_x_binding
@@ -169,6 +175,18 @@ impl NativeRunner {
             "runtimeConfig": {
                 "activeBehavior": self.behavior.id(),
                 "activeLayerIndex": self.active_layer_index,
+                "linkLfos": self.link_lfos.iter().map(|lfo| json!({
+                    "enabled": lfo.enabled,
+                    "target": super::param_binding_payload(lfo.target.as_ref()),
+                    "period": lfo.period,
+                    "depthPct": lfo.depth_pct
+                })).collect::<Vec<_>>(),
+                "xy": {
+                    "x": super::param_binding_payload(self.xy_x_binding.as_ref()),
+                    "y": super::param_binding_payload(self.xy_y_binding.as_ref()),
+                    "xInvert": self.xy_invert_x,
+                    "yInvert": self.xy_invert_y
+                },
                 "layers": self.layer_behavior_ids.iter().enumerate().map(|(index, behavior_id)| {
                     let sense = self.pulses_layers.get(index).cloned().unwrap_or_default();
                     let probability_map = self.trigger_probability_maps.get(index).cloned().unwrap_or_default();
@@ -181,19 +199,7 @@ impl NativeRunner {
                     json!({
                         "worlds": self.worlds_payload_for_layer(index, behavior_id),
                         "pulses": pulses_layer_payload(&sense, &probability_map),
-                        "linkLfo": {
-                            "enabled": sense.link_lfo.enabled,
-                            "target": super::param_binding_payload(sense.link_lfo.target.as_ref()),
-                            "period": sense.link_lfo.period,
-                            "depthPct": sense.link_lfo.depth_pct
-                        },
                         "paramMods": param_mods_payload(self.param_mods.get(index)),
-                        "xy": {
-                            "x": super::param_binding_payload(self.xy_x_binding.as_ref()),
-                            "y": super::param_binding_payload(self.xy_y_binding.as_ref()),
-                            "xInvert": self.xy_invert_x,
-                            "yInvert": self.xy_invert_y
-                        },
                         "autoName": auto_name,
                         "name": name
                     })

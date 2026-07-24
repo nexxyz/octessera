@@ -3,11 +3,15 @@ param(
   [string]$Key = "$env:USERPROFILE\.ssh\octessera_pi_dev",
   [string]$RemoteRepo = "/home/pi/octessera-dev",
   [string]$Service = "octessera.service",
+  [string]$BoardProfile = "raspberry-pi-zero-2w",
   [switch]$UpdateInitramfs,
   [switch]$WakeTrace
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "board-profile.ps1")
+Assert-RaspberryBoardProfile $BoardProfile
+Assert-OctesseraServiceName $Service
 
 $sshArgs = @("-i", $Key, "-o", "IdentitiesOnly=yes", $Target)
 
@@ -40,6 +44,9 @@ $provisionRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "provision"
 $imageFilesRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\pi-image\stage4-octessera\files\root")).Path
 $imageFilesParent = Split-Path -Parent $imageFilesRoot
 $imageFilesName = Split-Path -Leaf $imageFilesRoot
+$deviceUpdateRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\device-update")).Path
+$deviceUpdateParent = Split-Path -Parent $deviceUpdateRoot
+$deviceUpdateName = Split-Path -Leaf $deviceUpdateRoot
 $archive = Join-Path $env:TEMP "octessera-pi-provision.tar.gz"
 
 try {
@@ -49,7 +56,8 @@ try {
 
   tar -czf $archive `
     -C $provisionRoot provision.sh files `
-    -C $imageFilesParent $imageFilesName
+    -C $imageFilesParent $imageFilesName `
+    -C $deviceUpdateParent $deviceUpdateName
   if ($LASTEXITCODE -ne 0) {
     throw "creating Pi provision archive failed with exit code $LASTEXITCODE"
   }
@@ -60,6 +68,7 @@ try {
 
   $remoteRepoValue = ConvertTo-ShellSingleQuoted $RemoteRepo
   $serviceValue = ConvertTo-ShellSingleQuoted $Service
+  $boardProfileValue = ConvertTo-ShellSingleQuoted $BoardProfile
   $updateInitramfsValue = if ($UpdateInitramfs) { "1" } else { "0" }
   $wakeTraceValue = if ($WakeTrace) { "1" } else { "0" }
   $provisionCommand = @"
@@ -67,7 +76,7 @@ set -e
 rm -rf '$remotePackage'
 mkdir -p '$remotePackage'
 tar -xzf '$remoteArchive' -C '$remotePackage'
-REMOTE_REPO=$remoteRepoValue SERVICE=$serviceValue UPDATE_INITRAMFS=$updateInitramfsValue WAKE_TRACE=$wakeTraceValue sh '$remotePackage/provision.sh'
+BOARD_PROFILE=$boardProfileValue REMOTE_REPO=$remoteRepoValue SERVICE=$serviceValue UPDATE_INITRAMFS=$updateInitramfsValue WAKE_TRACE=$wakeTraceValue sh '$remotePackage/provision.sh'
 rm -rf '$remotePackage' '$remoteArchive'
 "@
   Invoke-PiSsh $provisionCommand

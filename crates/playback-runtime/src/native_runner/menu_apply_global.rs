@@ -103,6 +103,12 @@ impl NativeRunner {
             changed |= self.xy_invert_y != invert_y;
             self.xy_invert_y = invert_y;
         }
+        if changed {
+            self.resample_xy_runtime_sources();
+            if let Err(error) = self.process_modulation_step(false) {
+                self.show_toast(format!("modulation composition unavailable: {error}"));
+            }
+        }
         changed
     }
 

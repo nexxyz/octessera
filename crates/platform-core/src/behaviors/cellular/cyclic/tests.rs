@@ -18,6 +18,10 @@ fn empty_config_seeds_bounded_default_activity_and_deserialize_empty_stays_empty
     assert!(!state.trigger_types.contains(&CellTriggerType::Activate));
     let restored = cyclic_deserialize(serde_json::json!({ "cells": [] })).unwrap();
     assert!(restored.cells.iter().all(|cell| *cell == 0));
+    let initialized_empty = cyclic_init(serde_json::json!({ "cells": [] })).unwrap();
+    assert!(initialized_empty.cells.iter().all(|cell| *cell == 0));
+    let missing_state = cyclic_deserialize(serde_json::json!({})).unwrap();
+    assert!(missing_state.cells.iter().any(|cell| *cell != 0));
     let mut max_activates = 0;
     let mut total_activates = 0;
     for _ in 0..128 {
@@ -167,4 +171,100 @@ fn persistent_nonzero_stable_and_no_stale_activate() {
         ticked.trigger_types[grid_index(4, 4)],
         CellTriggerType::Stable
     );
+}
+
+#[test]
+fn seed_cycle_rotates_exact_valid_patterns_for_every_state_count() {
+    let cycle = [
+        grid_index(2, 2),
+        grid_index(3, 2),
+        grid_index(2, 3),
+        grid_index(3, 3),
+    ];
+    let base = [0, 1, 3, 2];
+    let mut context = context();
+    for states in 3..=8 {
+        for rotation in 0..states {
+            let mut state = cyclic_deserialize(serde_json::json!({
+                "states": states, "threshold": 8, "range": 1, "cells": []
+            }))
+            .unwrap();
+            state.ages.fill(9);
+            for (position, index) in cycle.iter().enumerate() {
+                state.cells[*index] = (base[position] + rotation) % states;
+            }
+
+            let next = cyclic_on_tick(state, &mut context);
+
+            for (position, index) in cycle.iter().enumerate() {
+                assert_eq!(next.cells[*index], (base[position] + rotation + 1) % states);
+                assert_eq!(next.ages[*index], 0);
+            }
+        }
+    }
+}
+
+#[test]
+fn unrelated_four_cell_state_does_not_enter_seed_cycle_path() {
+    let mut state = cyclic_deserialize(serde_json::json!({
+        "states": 4, "threshold": 8, "range": 1, "cells": []
+    }))
+    .unwrap();
+    let cycle = [
+        grid_index(2, 2),
+        grid_index(3, 2),
+        grid_index(2, 3),
+        grid_index(3, 3),
+    ];
+    for (value, index) in [0, 1, 2, 3].into_iter().zip(cycle) {
+        state.cells[index] = value;
+    }
+
+    let next = cyclic_on_tick(state, &mut context());
+
+    assert_eq!(cycle.map(|index| next.cells[index]), [0, 1, 2, 3]);
+    assert!(cycle.iter().all(|index| next.ages[*index] == 1));
+}
+
+#[test]
+fn state_advancement_marks_each_local_nonzero_change_as_activate() {
+    let center = grid_index(4, 4);
+    let neighbor = grid_index(5, 4);
+    let mut state = cyclic_deserialize(serde_json::json!({
+        "states": 4, "threshold": 1, "range": 1, "cells": []
+    }))
+    .unwrap();
+    state.cells[center] = 1;
+    state.cells[neighbor] = 2;
+
+    let first = cyclic_on_tick(state, &mut context());
+    assert_eq!(first.cells[center], 2);
+    assert_eq!(first.trigger_types[center], CellTriggerType::Activate);
+
+    let mut second_input = first;
+    second_input.cells[neighbor] = 3;
+    let second = cyclic_on_tick(second_input, &mut context());
+    assert_eq!(second.cells[center], 3);
+    assert_eq!(second.trigger_types[center], CellTriggerType::Activate);
+}
+
+#[test]
+fn malformed_transient_data_preserves_persistent_fields_and_clamps_below_minimum() {
+    let state = cyclic_deserialize(serde_json::json!({
+        "cells": [1, 2],
+        "ages": [7],
+        "triggerTypes": ["not-a-trigger"],
+        "states": -1,
+        "threshold": -2,
+        "range": -3
+    }))
+    .unwrap();
+
+    assert_eq!(state.cells[0], 1);
+    assert_eq!(state.cells[1], 2);
+    assert_eq!(state.ages[0], 7);
+    assert_eq!(state.states, 3);
+    assert_eq!(state.threshold, 1);
+    assert_eq!(state.range, 1);
+    assert!(!state.trigger_types.contains(&CellTriggerType::Activate));
 }

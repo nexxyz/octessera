@@ -1,5 +1,5 @@
 import type { DeviceInput, MusicalEvent, RuntimeSnapshot } from "./coreTypes";
-import type { RuntimeErrorFacts, RuntimeErrorMetadata, RuntimeOperation } from "./runtimeErrors";
+import type { RuntimeErrorCode, RuntimeErrorFacts, RuntimeErrorMetadata, RuntimeOperation } from "./runtimeErrors";
 
 export const RUNTIME_STATUS_STATES = ["idle", "running", "paused", "error"] as const;
 export type RuntimeStatusState = (typeof RUNTIME_STATUS_STATES)[number];
@@ -52,6 +52,7 @@ export type RuntimePlatformEffect =
   | { type: "update_check" }
   | { type: "update_apply" }
   | { type: "rollback" }
+  | { type: "system_info_request" }
   | { type: "sample_list_request"; instrumentSlot: number; sampleSlot: number; dir: string }
   | { type: "audio_command"; command: RuntimeAudioCommand };
 
@@ -73,7 +74,25 @@ export type RuntimeStoreResult =
   | { type: "midi_status"; ok: boolean; message?: string; selectedOutId?: string | null; selectedInId?: string | null }
   | { type: "sample_list_result"; instrumentSlot: number; sampleSlot: number; dir: string; entries: Array<{ name: string; path: string; isDir: boolean }> }
   | { type: "sample_list_error"; instrumentSlot: number; sampleSlot: number; dir: string; message: string }
-  | { type: "sample_preview_error"; message: string };
+  | { type: "sample_preview_error"; message: string }
+  | { type: "device_update_status"; ok: boolean; message: string }
+  | { type: "system_info_result"; info: RuntimeSystemInfo }
+  | { type: "system_info_error"; error: RuntimeSystemInfoError };
+
+export type RuntimeSystemInfo = {
+  os: string;
+  osVersion: string;
+  octesseraVersion: string;
+  primaryIp: string | null;
+  primaryMac: string | null;
+  hostname: string;
+  boardProfile: string;
+};
+
+export type RuntimeSystemInfoError = {
+  code: RuntimeErrorCode;
+  message: string;
+};
 
 export type RuntimeStatus = {
   state: RuntimeStatusState;

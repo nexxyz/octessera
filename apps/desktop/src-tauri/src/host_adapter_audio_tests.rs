@@ -107,8 +107,13 @@ fn desktop_accepts_each_dynamic_runtime_audio_command_and_rejects_unknown_fx() {
         }))
         .unwrap_err();
     assert_eq!(config_error.facts.code, RuntimeErrorCode::InvalidPayload);
+    for _ in 0..32 {
+        if rx.try_recv().is_err() {
+            break;
+        }
+    }
 
-    let preview_error = adapter
+    let preview_follow_ups = adapter
         .handle_platform_effect(&platform_request(RuntimePlatformEffect::AudioCommand {
             command: RuntimeAudioCommand::SamplePreview {
                 instrument_slot: 0,
@@ -117,11 +122,9 @@ fn desktop_accepts_each_dynamic_runtime_audio_command_and_rejects_unknown_fx() {
                 velocity: 96,
             },
         }))
-        .unwrap_err();
-    assert_eq!(
-        preview_error.facts.message.as_deref(),
-        Some("invalid sample path")
-    );
+        .unwrap();
+    assert!(preview_follow_ups.is_empty());
+    assert!(rx.try_recv().is_err());
 }
 
 #[test]
@@ -193,7 +196,7 @@ fn full_audio_config_command_reuses_sample_bank_signature() {
 }
 
 #[test]
-fn sampler_slot_command_enqueues_slot_and_single_sample_bank_update() {
+fn sampler_slot_command_enqueues_slot_and_sample_bank_atomically() {
     let (mut adapter, rx) = test_adapter();
 
     adapter
@@ -203,7 +206,7 @@ fn sampler_slot_command_enqueues_slot_and_single_sample_bank_update() {
                 config: serde_json::json!({
                     "type": "sampler",
                     "sample": {
-                        "slots": [{ "path": "missing.wav" }],
+                        "slots": [],
                         "tuneSemis": -2.0,
                         "amp": { "gainPct": 55.0, "velocitySensitivityPct": 35.0 }
                     },
@@ -217,12 +220,29 @@ fn sampler_slot_command_enqueues_slot_and_single_sample_bank_update() {
         rx.recv_timeout(Duration::from_secs(1)).unwrap(),
         QueuedAudioEvent::SetInstrumentSlot {
             instrument_slot: 2,
+            sample_bank: Some(bank),
             ..
-        }
+        } if bank.tune_semis == -2.0 && bank.gain_pct == 55.0
     ));
-    assert!(matches!(
-        rx.recv_timeout(Duration::from_secs(1)).unwrap(),
-        QueuedAudioEvent::SetSampleBank { instrument_slot: 2, bank }
-            if bank.tune_semis == -2.0 && bank.gain_pct == 55.0
-    ));
+}
+
+#[test]
+fn sampler_slot_command_retains_audio_state_on_missing_sample() {
+    let (mut adapter, rx) = test_adapter();
+
+    let error = adapter
+        .handle_platform_effect(&platform_request(RuntimePlatformEffect::AudioCommand {
+            command: RuntimeAudioCommand::SetInstrumentSlot {
+                instrument_slot: 2,
+                config: serde_json::json!({
+                    "type": "sampler",
+                    "sample": { "slots": [{ "path": "missing.wav" }] }
+                }),
+            },
+        }))
+        .unwrap_err();
+
+    assert_eq!(error.facts.domain, RuntimeErrorDomain::Sample);
+    assert_eq!(error.facts.code, RuntimeErrorCode::NotFound);
+    assert!(rx.try_recv().is_err());
 }

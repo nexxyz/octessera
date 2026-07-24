@@ -179,6 +179,9 @@ impl PlaybackRuntime {
                         let command = self.identify_audio_command(command);
                         match host.handle_audio_command(&command) {
                             Ok(()) => {
+                                if matches!(&command, RuntimeAudioCommand::SetAudioConfig { .. }) {
+                                    continue;
+                                }
                                 let (request_id, revision) = match &command {
                                     RuntimeAudioCommand::SetAudioConfig {
                                         request_id,
@@ -242,6 +245,9 @@ impl PlaybackRuntime {
                         self.apply_recovery(recovery, &mut runner, host, &mut output);
                     }
                     self.append_status(&mut output);
+                }
+                RunnerMessage::RuntimeConfigChanged { config } => {
+                    self.set_config(config);
                 }
             }
         }

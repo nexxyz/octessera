@@ -15,17 +15,17 @@ impl NativeRunner {
 
     fn apply_or_schedule_menu_key_inner(&mut self, key: &str) -> Result<(), String> {
         if self.apply_menu_key_fast(key) {
-            self.clear_all_link_arp_state();
+            self.clear_link_arp_state_for_menu_key(key);
             return Ok(());
         }
         if self.apply_binding_range_key_fast(key) {
-            self.clear_all_link_arp_state();
+            self.clear_link_arp_state_for_menu_key(key);
             return Ok(());
         }
         if structural_draft_key(key) {
             let result = self.commit_structural_draft_key(key);
             if result.is_ok() {
-                self.clear_all_link_arp_state();
+                self.clear_link_arp_state_for_menu_key(key);
             }
             return result;
         }
@@ -78,6 +78,22 @@ impl NativeRunner {
         self.menu.rebuild(self.menu_config());
         let _ = self.menu.focus_item_key(key);
         self.menu.state.editing = was_editing;
+    }
+
+    fn clear_link_arp_state_for_menu_key(&mut self, key: &str) {
+        if key == "algorithmStep" || key == "behaviorId" {
+            self.clear_link_arp_state_for_layer(self.active_layer_index);
+            return;
+        }
+        let Some(rest) = key.strip_prefix("layers.") else {
+            return;
+        };
+        let Some((index, _)) = rest.split_once('.') else {
+            return;
+        };
+        if let Ok(index) = index.parse::<usize>() {
+            self.clear_link_arp_state_for_layer(index);
+        }
     }
 }
 

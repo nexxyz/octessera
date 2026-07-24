@@ -31,10 +31,16 @@ impl NativeMenuModel {
             state: NativeMenuState::default(),
             numeric_display_mode,
             navigation_memory: Default::default(),
+            #[cfg(test)]
+            rebuild_count: 0,
         }
     }
 
     pub fn rebuild(&mut self, config: NativeMenuConfig) {
+        #[cfg(test)]
+        {
+            self.rebuild_count = self.rebuild_count.saturating_add(1);
+        }
         self.numeric_display_mode = config.numeric_display_mode.clone();
         self.root = build_root(config);
         self.navigation_memory.clear();
@@ -101,6 +107,18 @@ impl NativeMenuModel {
         true
     }
 
+    pub fn focus_current_group_label(&mut self, prefix: &str) -> bool {
+        let Some(cursor) = self
+            .current_siblings()
+            .iter()
+            .position(|item| item.label.starts_with(prefix))
+        else {
+            return false;
+        };
+        self.state.cursor = cursor;
+        true
+    }
+
     pub fn set_number_value_for_key(&mut self, key: &str, next: i32) -> bool {
         let Some(item) = find_item_by_key_mut(&mut self.root, key) else {
             return false;
@@ -117,6 +135,41 @@ impl NativeMenuModel {
         }
         *value = next;
         true
+    }
+
+    pub fn set_bool_value_for_key(&mut self, key: &str, next: bool) -> bool {
+        let Some(item) = find_item_by_key_mut(&mut self.root, key) else {
+            return false;
+        };
+        let NativeMenuValue::Bool { value } = &mut item.value else {
+            return false;
+        };
+        if *value == next {
+            return false;
+        }
+        *value = next;
+        true
+    }
+
+    pub fn set_enum_value_for_key(&mut self, key: &str, next: &str) -> bool {
+        let Some(item) = find_item_by_key_mut(&mut self.root, key) else {
+            return false;
+        };
+        let NativeMenuValue::Enum { options, selected } = &mut item.value else {
+            return false;
+        };
+        let Some(next) = options.iter().position(|option| option == next) else {
+            return false;
+        };
+        if *selected == next {
+            return false;
+        }
+        *selected = next;
+        true
+    }
+
+    pub fn item_for_key(&self, key: &str) -> Option<super::NativeMenuItem> {
+        find_item_by_key(&self.root, key).cloned()
     }
 
     pub fn turn(&mut self, delta: i8) {

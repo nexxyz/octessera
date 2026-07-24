@@ -1,22 +1,10 @@
-use crate::runtime_worker::{request_worker_audio_command, request_worker_dispatch, WorkerCommand};
+use crate::runtime_worker::{request_worker_audio_command, request_worker_dispatch};
 use crate::types::{
     encode_runtime_responses, AudioCommandPayload, MomentaryFxTargetPayload, RuntimeMessagesPayload,
 };
 use playback_runtime::RuntimeAudioCommand;
 use realtime_engine::synth::SAMPLE_SLOTS_PER_INSTRUMENT;
-use serde::Deserialize;
 use serde_json::Value;
-
-#[derive(Deserialize)]
-pub(crate) struct PlaybackRuntimeConfigPayload {
-    bpm: f64,
-    #[serde(rename = "syncSource")]
-    sync_source: playback_runtime::SyncSource,
-    #[serde(rename = "midiClockOutEnabled")]
-    midi_clock_out_enabled: bool,
-    #[serde(rename = "midiOutEnabled")]
-    midi_out_enabled: bool,
-}
 
 #[tauri::command]
 pub(crate) fn runtime_drain_messages(
@@ -73,22 +61,6 @@ pub(crate) fn audio_command(
         },
     };
     request_worker_audio_command(&state, runtime_command)
-}
-
-#[tauri::command]
-pub(crate) fn runtime_sync_config(
-    config: PlaybackRuntimeConfigPayload,
-    state: tauri::State<crate::AppState>,
-) -> Result<(), String> {
-    state
-        .worker_tx
-        .send(WorkerCommand::SyncConfig(playback_runtime::RuntimeConfig {
-            bpm: config.bpm,
-            sync_source: config.sync_source,
-            midi_clock_out_enabled: config.midi_clock_out_enabled,
-            midi_out_enabled: config.midi_out_enabled,
-        }))
-        .map_err(|e| format!("runtime worker unavailable: {e}"))
 }
 
 #[tauri::command]

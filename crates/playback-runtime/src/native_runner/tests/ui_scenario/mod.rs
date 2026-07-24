@@ -2,6 +2,8 @@ use super::*;
 
 mod captured_output;
 mod device_driver;
+mod factory_patch_configuration;
+mod factory_patch_playback;
 mod factory_patch_scenario;
 mod resync_scenario;
 mod visible_menu_driver;

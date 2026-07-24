@@ -6,14 +6,14 @@ use crate::behaviors::native_impl::common::{
     action_item, number_item, trigger_types_from_cells, CELL_COUNT,
 };
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
-use rand::Rng;
+use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BrainState {
     pub cells: Vec<u8>,
-    #[serde(default, skip_serializing)]
+    #[serde(default, skip_serializing, skip_deserializing)]
     pub generation: usize,
     #[serde(rename = "triggerTypes")]
     pub trigger_types: Vec<CellTriggerType>,
@@ -25,34 +25,12 @@ pub struct BrainState {
     pub seed_interval: usize,
     #[serde(rename = "spawnStep")]
     pub spawn_step: usize,
-    #[serde(rename = "tickCounter", default, skip_serializing)]
+    #[serde(rename = "tickCounter", default, skip_serializing, skip_deserializing)]
     pub tick_counter: usize,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-struct BrainConfig {
-    #[serde(rename = "fireThreshold")]
-    fire_threshold: Option<usize>,
-    #[serde(rename = "randomSeedCells")]
-    random_seed_cells: Option<usize>,
-    #[serde(rename = "seedInterval")]
-    seed_interval: Option<usize>,
-    #[serde(rename = "spawnStep")]
-    spawn_step: Option<usize>,
-}
-
 pub fn brain_init(config: Value) -> Result<BrainState, String> {
-    let config: BrainConfig = serde_json::from_value(config).unwrap_or_default();
-    Ok(BrainState {
-        cells: vec![0; CELL_COUNT],
-        generation: 0,
-        trigger_types: vec![CellTriggerType::None; CELL_COUNT],
-        fire_threshold: config.fire_threshold.unwrap_or(2),
-        random_seed_cells: config.random_seed_cells.unwrap_or(2),
-        seed_interval: config.seed_interval.unwrap_or(2),
-        spawn_step: config.spawn_step.unwrap_or(0).min(63),
-        tick_counter: 0,
-    })
+    Ok(from_value(&config))
 }
 
 fn brain_neighbors(cells: &[u8], x: usize, y: usize) -> usize {
@@ -82,15 +60,14 @@ pub fn brain_on_input(
             if action_type == "seedRandom" =>
         {
             let mut next = state.clone();
-            let count = next.random_seed_cells.max(1).max(5);
-            let mut rng = rand::thread_rng();
-            for _ in 0..count {
-                let index = grid_index(rng.gen_range(0..GRID_WIDTH), rng.gen_range(0..GRID_HEIGHT));
-                if next.cells[index] == 0 {
-                    next.cells[index] = 1;
-                    next.trigger_types[index] = CellTriggerType::Activate;
-                }
+            if next.random_seed_cells == 0 {
+                return state;
             }
+            let previous = next.cells.clone();
+            seed_random_cells(&mut next.cells, next.random_seed_cells);
+            let previous = previous.iter().map(|cell| *cell == 1).collect::<Vec<_>>();
+            let current = next.cells.iter().map(|cell| *cell == 1).collect::<Vec<_>>();
+            next.trigger_types = trigger_types_from_cells(&previous, &current);
             next
         }
         DeviceInput::GridPress { x, y } if x < GRID_WIDTH && y < GRID_HEIGHT => {
@@ -127,33 +104,138 @@ pub fn brain_on_tick(state: BrainState, _context: &mut BehaviorContext) -> Brain
             }
         }
     }
-    let tick_counter = state.tick_counter + 1;
+    let tick_counter = state.tick_counter.saturating_add(1);
     if state.seed_interval > 0
         && state.random_seed_cells > 0
-        && (tick_counter - 1) % state.seed_interval == state.spawn_step % state.seed_interval
+        && state.tick_counter % state.seed_interval == state.spawn_step % state.seed_interval
     {
         let step = tick_counter / state.seed_interval;
-        for offset in 0..state.random_seed_cells {
-            let index = scheduled_seed_index(step, offset);
-            if cells[index] == 0 {
-                cells[index] = 1;
-                trigger_types[index] = CellTriggerType::Activate;
-            }
-        }
+        seed_scheduled_cells(
+            &mut cells,
+            &mut trigger_types,
+            state.random_seed_cells,
+            step,
+        );
     }
     BrainState {
         cells,
         trigger_types,
-        generation: state.generation + 1,
+        generation: state.generation.saturating_add(1),
         tick_counter,
         ..state
     }
 }
 
-fn scheduled_seed_index(step: usize, offset: usize) -> usize {
-    let points = [(1, 1), (6, 2), (2, 6), (5, 5), (3, 2), (4, 6)];
-    let (x, y) = points[(step + offset) % points.len()];
-    grid_index(x, y)
+pub fn brain_deserialize(data: Value) -> Result<BrainState, String> {
+    Ok(from_value(&data))
+}
+
+fn from_value(data: &Value) -> BrainState {
+    let mut state = BrainState {
+        cells: normalize_cells(array_field(data, "cells")),
+        generation: 0,
+        trigger_types: normalize_triggers(array_field(data, "triggerTypes")),
+        fire_threshold: number_field(data, "fireThreshold", 2, 1, 4),
+        random_seed_cells: number_field(data, "randomSeedCells", 2, 0, 20),
+        seed_interval: number_field(data, "seedInterval", 2, 0, 30),
+        spawn_step: number_field(data, "spawnStep", 0, 0, 63),
+        tick_counter: 0,
+    };
+    normalize(&mut state);
+    state
+}
+
+fn normalize(state: &mut BrainState) {
+    state.cells = normalize_cells(Some(
+        state.cells.iter().map(|cell| Value::from(*cell)).collect(),
+    ));
+    state.trigger_types = normalize_triggers(Some(
+        state
+            .trigger_types
+            .iter()
+            .map(|trigger| serde_json::to_value(trigger).unwrap_or(Value::Null))
+            .collect(),
+    ));
+    state.fire_threshold = state.fire_threshold.clamp(1, 4);
+    state.random_seed_cells = state.random_seed_cells.clamp(0, 20);
+    state.seed_interval = state.seed_interval.clamp(0, 30);
+    state.spawn_step = state.spawn_step.clamp(0, 63);
+}
+
+fn array_field(data: &Value, key: &str) -> Option<Vec<Value>> {
+    data.as_object().and_then(|object| {
+        object
+            .get(key)
+            .map(|value| value.as_array().cloned().unwrap_or_default())
+    })
+}
+
+fn number_field(data: &Value, key: &str, default: usize, min: usize, max: usize) -> usize {
+    let Some(value) = data.as_object().and_then(|object| object.get(key)) else {
+        return default;
+    };
+    if let Some(value) = value.as_i64() {
+        return value.clamp(min as i64, max as i64) as usize;
+    }
+    value
+        .as_u64()
+        .map(|value| value.clamp(min as u64, max as u64) as usize)
+        .unwrap_or(default)
+}
+
+fn normalize_cells(cells: Option<Vec<Value>>) -> Vec<u8> {
+    let mut cells = cells
+        .unwrap_or_default()
+        .into_iter()
+        .map(|cell| cell.as_u64().unwrap_or(0).min(2) as u8)
+        .collect::<Vec<_>>();
+    cells.resize(CELL_COUNT, 0);
+    cells.truncate(CELL_COUNT);
+    cells
+}
+
+fn normalize_triggers(triggers: Option<Vec<Value>>) -> Vec<CellTriggerType> {
+    let mut triggers = triggers
+        .unwrap_or_default()
+        .into_iter()
+        .map(|trigger| serde_json::from_value(trigger).unwrap_or(CellTriggerType::None))
+        .collect::<Vec<_>>();
+    triggers.resize(CELL_COUNT, CellTriggerType::None);
+    triggers.truncate(CELL_COUNT);
+    triggers
+}
+
+fn seed_random_cells(cells: &mut [u8], count: usize) {
+    let mut available = cells
+        .iter()
+        .enumerate()
+        .filter_map(|(index, cell)| (*cell == 0).then_some(index))
+        .collect::<Vec<_>>();
+    available.shuffle(&mut rand::thread_rng());
+    for index in available.into_iter().take(count) {
+        cells[index] = 1;
+    }
+}
+
+fn seed_scheduled_cells(
+    cells: &mut [u8],
+    trigger_types: &mut [CellTriggerType],
+    count: usize,
+    step: usize,
+) {
+    let start = step % CELL_COUNT;
+    let mut seeded = 0;
+    for offset in 0..CELL_COUNT {
+        let index = (start + offset) % CELL_COUNT;
+        if cells[index] == 0 {
+            cells[index] = 1;
+            trigger_types[index] = CellTriggerType::Activate;
+            seeded += 1;
+            if seeded == count {
+                break;
+            }
+        }
+    }
 }
 
 pub fn brain_render_model(state: &BrainState) -> BehaviorRenderModel {
@@ -268,5 +350,89 @@ mod tests {
             assert!(empty_run <= 1);
             assert!(full_run <= 1);
         }
+    }
+
+    #[test]
+    fn malformed_saved_state_normalizes_vectors_parameters_and_counters() {
+        let state = brain_deserialize(serde_json::json!({
+            "cells": [1, 2, 9, "bad"],
+            "triggerTypes": ["activate", "bad"],
+            "fireThreshold": -1,
+            "randomSeedCells": -1,
+            "seedInterval": 999,
+            "spawnStep": 999,
+            "generation": u64::MAX,
+            "tickCounter": u64::MAX
+        }))
+        .unwrap();
+
+        assert_eq!(state.cells.len(), CELL_COUNT);
+        assert_eq!(state.cells[..4], [1, 2, 2, 0]);
+        assert_eq!(state.trigger_types.len(), CELL_COUNT);
+        assert_eq!(state.trigger_types[0], CellTriggerType::Activate);
+        assert_eq!(state.trigger_types[1], CellTriggerType::None);
+        assert_eq!(state.fire_threshold, 1);
+        assert_eq!(state.random_seed_cells, 0);
+        assert_eq!(state.seed_interval, 30);
+        assert_eq!(state.spawn_step, 63);
+        assert_eq!(state.generation, 0);
+        assert_eq!(state.tick_counter, 0);
+
+        let next = brain_on_tick(state, &mut BehaviorContext::new(120.0));
+        assert_eq!(next.cells.len(), CELL_COUNT);
+        assert_eq!(next.trigger_types.len(), CELL_COUNT);
+    }
+
+    #[test]
+    fn manual_and_scheduled_seeding_use_exact_configured_counts() {
+        let mut context = BehaviorContext::new(120.0);
+        let state = brain_init(serde_json::json!({
+            "cells": [],
+            "randomSeedCells": 4,
+            "seedInterval": 0
+        }))
+        .unwrap();
+        let seeded = brain_on_input(
+            state,
+            DeviceInput::BehaviorAction(BehaviorActionInput {
+                action_type: "seedRandom".into(),
+            }),
+            &mut context,
+        );
+        assert_eq!(seeded.cells.iter().filter(|cell| **cell == 1).count(), 4);
+
+        let zero = brain_init(serde_json::json!({
+            "cells": [],
+            "randomSeedCells": 0
+        }))
+        .unwrap();
+        let zero = brain_on_input(
+            zero.clone(),
+            DeviceInput::BehaviorAction(BehaviorActionInput {
+                action_type: "seedRandom".into(),
+            }),
+            &mut context,
+        );
+        assert_eq!(
+            zero,
+            brain_init(serde_json::json!({
+                "cells": [],
+                "randomSeedCells": 0
+            }))
+            .unwrap()
+        );
+
+        let scheduled = brain_init(serde_json::json!({
+            "cells": [],
+            "randomSeedCells": 20,
+            "seedInterval": 1,
+            "spawnStep": 0
+        }))
+        .unwrap();
+        let scheduled = brain_on_tick(scheduled, &mut context);
+        assert_eq!(
+            scheduled.cells.iter().filter(|cell| **cell == 1).count(),
+            20
+        );
     }
 }

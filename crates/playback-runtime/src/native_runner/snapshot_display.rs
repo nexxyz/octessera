@@ -29,6 +29,8 @@ impl NativeRunner {
             confirm_dialog_display(confirm)
         } else if let Some(modal) = &self.display.usb_sd_transfer_modal {
             usb_sd_transfer_modal_display(modal)
+        } else if let Some(modal) = &self.display.system_info_modal {
+            system_info_modal_display(modal)
         } else if let Some(help) = &self.display.help_popup {
             help_popup_display(help)
         } else if let Some((title, lines)) = self.aux_mapping_overlay() {
@@ -123,6 +125,25 @@ fn usb_sd_transfer_modal_display(modal: &super::NativeUsbSdTransferModal) -> Dis
         bar_values: vec![Value::Null; line_count],
         full_lines: vec![None; line_count],
         scroll: None,
+        selected_row: Some(line_count.saturating_sub(1)),
+    }
+}
+
+fn system_info_modal_display(modal: &super::NativeSystemInfoModal) -> DisplaySnapshot {
+    let mut lines = modal.lines();
+    lines.push("> Back".into());
+    let line_count = lines.len();
+    DisplaySnapshot {
+        title: "System Info".into(),
+        lines,
+        colors: vec![platform_core::palette::WHITE_RGB565; line_count],
+        bar_values: vec![Value::Null; line_count],
+        full_lines: vec![None; line_count],
+        scroll: Some(DisplayScrollMetadata {
+            scroll_offset: modal.scroll,
+            total_rows: modal.total_lines() + 1,
+            visible_rows: line_count,
+        }),
         selected_row: Some(line_count.saturating_sub(1)),
     }
 }

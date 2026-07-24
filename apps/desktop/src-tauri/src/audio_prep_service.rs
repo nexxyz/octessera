@@ -2,7 +2,9 @@
 mod audio_prep_config;
 
 use crate::types::QueuedAudioEvent;
-use audio_prep_config::{apply_prepared_audio_config, prepare_full_audio_config, AudioPrepError};
+use audio_prep_config::{
+    apply_prepared_audio_config, prepare_full_audio_config, prepare_sample_preview, AudioPrepError,
+};
 use playback_runtime::{
     HostMessage, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation,
     RuntimeStoreResult,
@@ -33,7 +35,18 @@ enum AudioControlRequest {
         request_id: Option<String>,
         config: Value,
     },
+    SamplePreview {
+        instrument_slot: usize,
+        path: String,
+        velocity: u8,
+    },
     Dynamic(QueuedAudioEvent),
+}
+
+struct PreviewRequest {
+    instrument_slot: usize,
+    path: String,
+    velocity: u8,
 }
 
 pub(crate) fn spawn_desktop_audio_control(
@@ -75,6 +88,21 @@ impl DesktopAudioControl {
             .send(AudioControlRequest::Dynamic(event))
             .map_err(|e| format!("audio control queue send failed: {e}"))
     }
+
+    pub(crate) fn enqueue_sample_preview(
+        &self,
+        instrument_slot: usize,
+        path: String,
+        velocity: u8,
+    ) -> Result<(), String> {
+        self.tx
+            .send(AudioControlRequest::SamplePreview {
+                instrument_slot,
+                path,
+                velocity,
+            })
+            .map_err(|e| format!("sample preview queue send failed: {e}"))
+    }
 }
 
 fn audio_control_loop(
@@ -88,6 +116,36 @@ fn audio_control_loop(
             AudioControlRequest::Dynamic(event) => {
                 let _ = trigger_tx.send(event);
             }
+            AudioControlRequest::SamplePreview {
+                instrument_slot,
+                path,
+                velocity,
+            } => match prepare_sample_preview(instrument_slot, &path, velocity, &state) {
+                Ok(event) => {
+                    if trigger_tx.send(event).is_ok() {
+                        send_audio_prep_result(
+                            &result_tx,
+                            RuntimeStoreResult::OperationSucceeded {
+                                operation: RuntimeOperation::SamplePreview,
+                                request_id: None,
+                                revision: None,
+                            },
+                        );
+                    } else {
+                        send_audio_prep_result(
+                            &result_tx,
+                            sample_preview_failure(
+                                RuntimeErrorCode::OperationFailed,
+                                "audio engine queue send failed".into(),
+                            ),
+                        );
+                    }
+                }
+                Err(error) => send_audio_prep_result(
+                    &result_tx,
+                    sample_preview_failure(error_code(&error), error_message(&error)),
+                ),
+            },
             AudioControlRequest::FullConfig {
                 revision,
                 request_id,
@@ -132,6 +190,7 @@ fn handle_full_config_request_with_result(
     state: &DesktopAudioPrepState,
 ) {
     let mut pending_dynamic = Vec::new();
+    let mut pending_previews = Vec::new();
     state.config_revision.fetch_max(revision, Ordering::SeqCst);
     let had_initial_full_config = drain_pending_requests(
         rx,
@@ -139,6 +198,7 @@ fn handle_full_config_request_with_result(
         &mut request_id,
         &mut config,
         &mut pending_dynamic,
+        &mut pending_previews,
     );
     if had_initial_full_config {
         state.config_revision.fetch_max(revision, Ordering::SeqCst);
@@ -149,6 +209,7 @@ fn handle_full_config_request_with_result(
                 Ok(prepared) => prepared,
                 Err(AudioPrepError::Superseded) => {
                     send_dynamic_events(trigger_tx, pending_dynamic);
+                    send_preview_requests(state, trigger_tx, result_tx, pending_previews);
                     return;
                 }
                 Err(AudioPrepError::InvalidConfig(error)) => {
@@ -157,6 +218,16 @@ fn handle_full_config_request_with_result(
                         audio_config_failure(revision, request_id.clone(), error),
                     );
                     send_dynamic_events(trigger_tx, pending_dynamic);
+                    send_preview_requests(state, trigger_tx, result_tx, pending_previews);
+                    return;
+                }
+                Err(AudioPrepError::Sample(error)) => {
+                    send_audio_prep_result(
+                        result_tx,
+                        sample_failure(revision, request_id.clone(), error.code(), error.message()),
+                    );
+                    send_dynamic_events(trigger_tx, pending_dynamic);
+                    send_preview_requests(state, trigger_tx, result_tx, pending_previews);
                     return;
                 }
                 Err(AudioPrepError::Failed(error)) => {
@@ -165,6 +236,7 @@ fn handle_full_config_request_with_result(
                         audio_prep_failure(revision, request_id.clone(), error),
                     );
                     send_dynamic_events(trigger_tx, pending_dynamic);
+                    send_preview_requests(state, trigger_tx, result_tx, pending_previews);
                     return;
                 }
             };
@@ -177,6 +249,7 @@ fn handle_full_config_request_with_result(
             &mut newer_request_id,
             &mut newer_config,
             &mut pending_dynamic,
+            &mut pending_previews,
         );
         if had_newer {
             revision = newer_revision;
@@ -194,12 +267,17 @@ fn handle_full_config_request_with_result(
                 result_tx,
                 audio_config_failure(revision, request_id.clone(), error),
             ),
+            Err(AudioPrepError::Sample(error)) => send_audio_prep_result(
+                result_tx,
+                sample_failure(revision, request_id.clone(), error.code(), error.message()),
+            ),
             Err(AudioPrepError::Failed(error)) => send_audio_prep_result(
                 result_tx,
                 audio_prep_failure(revision, request_id.clone(), error),
             ),
         }
         send_dynamic_events(trigger_tx, pending_dynamic);
+        send_preview_requests(state, trigger_tx, result_tx, pending_previews);
         return;
     }
 }
@@ -210,6 +288,7 @@ fn drain_pending_requests(
     request_id: &mut Option<String>,
     config: &mut Value,
     pending_dynamic: &mut Vec<QueuedAudioEvent>,
+    pending_previews: &mut Vec<PreviewRequest>,
 ) -> bool {
     let mut had_full_config = false;
     while let Ok(request) = rx.try_recv() {
@@ -226,6 +305,15 @@ fn drain_pending_requests(
                 pending_dynamic.retain(is_realtime_dynamic_event);
             }
             AudioControlRequest::Dynamic(event) => pending_dynamic.push(event),
+            AudioControlRequest::SamplePreview {
+                instrument_slot,
+                path,
+                velocity,
+            } => pending_previews.push(PreviewRequest {
+                instrument_slot,
+                path,
+                velocity,
+            }),
         }
     }
     had_full_config
@@ -276,6 +364,53 @@ fn audio_config_failure(
     identify_audio_prep_result(result, request_id, revision)
 }
 
+fn sample_failure(
+    revision: u64,
+    request_id: Option<String>,
+    code: RuntimeErrorCode,
+    message: String,
+) -> RuntimeStoreResult {
+    identify_audio_prep_result(
+        RuntimeStoreResult::RuntimeFailure {
+            error: RuntimeErrorFacts::new(
+                RuntimeErrorDomain::Sample,
+                code,
+                RuntimeOperation::AudioCommand,
+                Some(message),
+            ),
+        },
+        request_id,
+        revision,
+    )
+}
+
+fn sample_preview_failure(code: RuntimeErrorCode, message: String) -> RuntimeStoreResult {
+    RuntimeStoreResult::RuntimeFailure {
+        error: RuntimeErrorFacts::new(
+            RuntimeErrorDomain::Sample,
+            code,
+            RuntimeOperation::SamplePreview,
+            Some(message),
+        ),
+    }
+}
+
+fn error_code(error: &AudioPrepError) -> RuntimeErrorCode {
+    match error {
+        AudioPrepError::Sample(error) => error.code(),
+        _ => RuntimeErrorCode::OperationFailed,
+    }
+}
+
+fn error_message(error: &AudioPrepError) -> String {
+    match error {
+        AudioPrepError::Sample(error) => error.message(),
+        AudioPrepError::InvalidConfig(message) => message.clone(),
+        AudioPrepError::Failed(message) => message.clone(),
+        AudioPrepError::Superseded => "sample preview superseded".into(),
+    }
+}
+
 fn identify_audio_prep_result(
     result: RuntimeStoreResult,
     request_id: Option<String>,
@@ -290,6 +425,41 @@ fn identify_audio_prep_result(
 fn send_dynamic_events(trigger_tx: &Sender<QueuedAudioEvent>, events: Vec<QueuedAudioEvent>) {
     for event in events {
         let _ = trigger_tx.send(event);
+    }
+}
+
+fn send_preview_requests(
+    state: &DesktopAudioPrepState,
+    trigger_tx: &Sender<QueuedAudioEvent>,
+    result_tx: &Sender<HostMessage>,
+    requests: Vec<PreviewRequest>,
+) {
+    for request in requests {
+        match prepare_sample_preview(
+            request.instrument_slot,
+            &request.path,
+            request.velocity,
+            state,
+        ) {
+            Ok(event) => match trigger_tx.send(event) {
+                Ok(()) => send_audio_prep_result(
+                    result_tx,
+                    RuntimeStoreResult::OperationSucceeded {
+                        operation: RuntimeOperation::SamplePreview,
+                        request_id: None,
+                        revision: None,
+                    },
+                ),
+                Err(error) => send_audio_prep_result(
+                    result_tx,
+                    sample_preview_failure(RuntimeErrorCode::OperationFailed, error.to_string()),
+                ),
+            },
+            Err(error) => send_audio_prep_result(
+                result_tx,
+                sample_preview_failure(error_code(&error), error_message(&error)),
+            ),
+        }
     }
 }
 

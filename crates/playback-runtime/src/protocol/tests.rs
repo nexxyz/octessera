@@ -1,4 +1,5 @@
 use super::*;
+use crate::RuntimeConfig;
 use serde_json::json;
 use std::collections::BTreeMap;
 
@@ -32,6 +33,85 @@ fn recording_protocol_json_uses_public_field_names() {
     assert_eq!(
         serde_json::to_value(RuntimePlatformEffect::RecordingStop).unwrap(),
         json!({ "type": "recording_stop" })
+    );
+}
+
+#[test]
+fn system_info_protocol_is_typed_and_identity_safe() {
+    let info = RuntimeSystemInfo {
+        os: "linux".into(),
+        os_version: "6.6".into(),
+        octessera_version: "0.7.0".into(),
+        primary_ip: Some("192.168.1.5".into()),
+        primary_mac: Some("aa:bb:cc:dd:ee:ff".into()),
+        hostname: "octessera".into(),
+        board_profile: "raspberry-pi-zero-2w".into(),
+    };
+    assert_eq!(
+        serde_json::to_value(RuntimePlatformEffect::SystemInfoRequest).unwrap(),
+        json!({ "type": "system_info_request" })
+    );
+    assert_eq!(
+        serde_json::to_value(RuntimeStoreResult::SystemInfoResult { info }).unwrap(),
+        json!({
+            "type": "system_info_result",
+            "info": {
+                "os": "linux",
+                "osVersion": "6.6",
+                "octesseraVersion": "0.7.0",
+                "primaryIp": "192.168.1.5",
+                "primaryMac": "aa:bb:cc:dd:ee:ff",
+                "hostname": "octessera",
+                "boardProfile": "raspberry-pi-zero-2w"
+            }
+        })
+    );
+    let error = RuntimeStoreResult::SystemInfoError {
+        error: RuntimeSystemInfoError::unavailable("not connected"),
+    }
+    .with_identity("platform-4".into(), Some(2));
+    assert_eq!(
+        error.error_facts().unwrap().request_id.as_deref(),
+        Some("platform-4")
+    );
+    assert_eq!(error.error_facts().unwrap().revision, Some(2));
+}
+
+#[test]
+fn device_update_protocol_is_dedicated_and_backwards_compatible() {
+    let effect = RuntimePlatformEffect::UpdateApply;
+    assert_eq!(effect.operation(), RuntimeOperation::DeviceUpdate);
+    let result = RuntimeStoreResult::DeviceUpdateStatus {
+        ok: false,
+        message: "helper output".into(),
+    };
+    assert_eq!(result.operation(), RuntimeOperation::DeviceUpdate);
+    assert_eq!(
+        serde_json::to_value(&result).unwrap(),
+        json!({
+            "type": "device_update_status",
+            "ok": false,
+            "message": "helper output"
+        })
+    );
+    assert_eq!(
+        serde_json::from_value::<RuntimeStoreResult>(json!({
+            "type": "device_update_status"
+        }))
+        .unwrap(),
+        RuntimeStoreResult::DeviceUpdateStatus {
+            ok: false,
+            message: String::new(),
+        }
+    );
+    assert_eq!(
+        serde_json::from_value::<RuntimeStoreResult>(json!({
+            "type": "operation_succeeded",
+            "operation": "runtime_dispatch"
+        }))
+        .unwrap()
+        .operation(),
+        RuntimeOperation::RuntimeDispatch
     );
 }
 
@@ -116,6 +196,27 @@ fn runtime_protocol_json_uses_public_field_names_and_defaults() {
                 "pendingResync": true,
                 "syncSource": "external",
                 "message": null,
+            },
+        })
+    );
+
+    assert_eq!(
+        serde_json::to_value(RunnerMessage::RuntimeConfigChanged {
+            config: RuntimeConfig {
+                bpm: 93.5,
+                sync_source: SyncSource::External,
+                midi_clock_out_enabled: true,
+                midi_out_enabled: true,
+            },
+        })
+        .unwrap(),
+        json!({
+            "type": "runtime_config_changed",
+            "config": {
+                "bpm": 93.5,
+                "syncSource": "external",
+                "midiClockOutEnabled": true,
+                "midiOutEnabled": true,
             },
         })
     );

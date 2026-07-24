@@ -1,7 +1,11 @@
+#[path = "host_adapter_construction.rs"]
+mod host_adapter_construction;
 #[path = "host_adapter_midi.rs"]
 mod host_adapter_midi;
 #[path = "host_adapter_store.rs"]
 mod host_adapter_store;
+#[path = "host_adapter_system_info.rs"]
+mod host_adapter_system_info;
 
 use crate::audio::AudioService;
 use crate::host_audio_command::send_audio_command;
@@ -22,7 +26,7 @@ pub struct PiPlaybackHostAdapter {
     audio: Option<AudioService>,
     store_dir: PathBuf,
     samples_dir: PathBuf,
-    platform_service: PiPlatformService,
+    pub(crate) platform_service: PiPlatformService,
     pending_default_save: Option<(serde_json::Value, Instant, RuntimePlatformRequest)>,
     midi_out: Option<MidiOutputConnection>,
     midi_in: Option<MidiInputConnection<()>>,
@@ -34,13 +38,11 @@ pub struct PiPlaybackHostAdapter {
     power_request: Option<PiPowerRequest>,
     latest_recovery_payload: Option<serde_json::Value>,
 }
-
 #[derive(Clone, Copy)]
 pub enum PiPowerRequest {
     Reboot,
     Shutdown,
 }
-
 impl PiPlaybackHostAdapter {
     pub fn new(
         audio: Option<AudioService>,
@@ -51,28 +53,20 @@ impl PiPlaybackHostAdapter {
         usb_audio_out: UsbAudioOut,
     ) -> Self {
         let platform_service = PiPlatformService::new(store_dir.clone(), samples_dir.clone());
-        Self {
+        Self::with_platform_service(
             audio,
             store_dir,
             samples_dir,
-            platform_service,
-            pending_default_save: None,
-            midi_out: None,
-            midi_in: None,
             midi_in_handler,
-            selected_midi_output_id: None,
-            selected_midi_input_id: None,
             usb_midi_out_enabled,
             usb_audio_out,
-            power_request: None,
-            latest_recovery_payload: None,
-        }
+            platform_service,
+        )
     }
 
     pub fn take_power_request(&mut self) -> Option<PiPowerRequest> {
         self.power_request.take()
     }
-
     pub fn flush_due_default_save(&mut self) -> Result<Vec<HostMessage>, String> {
         let Some((_, due_at, _)) = self.pending_default_save.as_ref() else {
             return Ok(Vec::new());
@@ -103,7 +97,6 @@ impl PiPlaybackHostAdapter {
         self.pending_default_save = None;
         Ok(Vec::new())
     }
-
     pub fn drain_platform_results(&self, max_results: usize) -> Vec<HostMessage> {
         let mut results = self.platform_service.drain_results(max_results);
         if results.len() < max_results {
@@ -319,6 +312,12 @@ impl HostAdapter for PiPlaybackHostAdapter {
                     inputs: Self::list_midi_inputs()?,
                 }
             }
+            RuntimePlatformEffect::SystemInfoRequest => {
+                return Ok(host_adapter_system_info::request(
+                    &self.platform_service,
+                    request,
+                ))
+            }
             RuntimePlatformEffect::MidiSelectOutput { id } => {
                 let result = self.select_output(id.clone());
                 RuntimeStoreResult::MidiStatus {
@@ -439,14 +438,12 @@ impl HostAdapter for PiPlaybackHostAdapter {
         };
         Ok(vec![HostMessage::RuntimeResult { result }])
     }
-
     fn handle_audio_command(
         &mut self,
         command: &RuntimeAudioCommand,
     ) -> Result<(), RuntimeAdapterError> {
         send_audio_command(self.audio.clone(), command, &self.samples_dir)
     }
-
     fn handle_midi_message(&mut self, bytes: &[u8]) -> Result<(), RuntimeAdapterError> {
         let Some(conn) = self.midi_out.as_mut() else {
             return Ok(());

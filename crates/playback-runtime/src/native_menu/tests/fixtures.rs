@@ -73,6 +73,12 @@ pub(crate) fn config() -> NativeMenuConfig {
         layer_auto_names: vec![true; LAYER_COUNT],
         pulses_layers: vec![default_pulses_layer_config(); LAYER_COUNT],
         active_layer_index: 0,
+        link_lfos: std::array::from_fn(|_| NativeLinkLfoConfig {
+            enabled: false,
+            target: None,
+            period: "1/1".into(),
+            depth_pct: 100,
+        }),
         param_mods: vec![NativeParamModsConfig::default(); LAYER_COUNT],
         xy_x_binding: None,
         xy_y_binding: None,

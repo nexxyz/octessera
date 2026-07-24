@@ -1,8 +1,10 @@
 use crate::midi;
 use crate::samples;
 use playback_runtime::{
-    HostMessage, MidiPort, RuntimePlatformRequest, RuntimeStoreResult, SampleEntry,
+    HostMessage, MidiPort, RuntimePlatformRequest, RuntimeStoreResult, RuntimeSystemInfo,
+    RuntimeSystemInfoError, SampleEntry,
 };
+use std::net::UdpSocket;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 
@@ -21,6 +23,7 @@ pub(crate) enum DesktopPlatformServiceKind {
     },
     MidiListOutputs,
     MidiListInputs,
+    SystemInfo,
 }
 
 impl DesktopPlatformServiceRequest {
@@ -71,6 +74,7 @@ pub(crate) fn shape_service_result(request: DesktopPlatformServiceRequest) -> Ve
             shape_midi_outputs_result(midi::list_outputs)
         }
         DesktopPlatformServiceKind::MidiListInputs => shape_midi_inputs_result(midi::list_inputs),
+        DesktopPlatformServiceKind::SystemInfo => shape_system_info_result(collect_system_info),
     };
     identify_service_messages(messages, &runtime_request)
 }
@@ -96,6 +100,11 @@ pub(crate) fn shape_service_unavailable_result(
         DesktopPlatformServiceKind::MidiListOutputs
         | DesktopPlatformServiceKind::MidiListInputs => vec![HostMessage::RuntimeResult {
             result: RuntimeStoreResult::StoreError { message },
+        }],
+        DesktopPlatformServiceKind::SystemInfo => vec![HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::SystemInfoError {
+                error: RuntimeSystemInfoError::unavailable(message),
+            },
         }],
     };
     identify_service_messages(messages, &runtime_request)
@@ -180,6 +189,104 @@ fn shape_midi_inputs_result(
             result: RuntimeStoreResult::StoreError { message },
         }],
     }
+}
+
+fn shape_system_info_result(
+    collect: impl FnOnce() -> Result<RuntimeSystemInfo, String>,
+) -> Vec<HostMessage> {
+    let result = match collect() {
+        Ok(info) => RuntimeStoreResult::SystemInfoResult {
+            info: info.sanitized(),
+        },
+        Err(message) => RuntimeStoreResult::SystemInfoError {
+            error: RuntimeSystemInfoError::unavailable(message),
+        },
+    };
+    vec![HostMessage::RuntimeResult { result }]
+}
+
+fn collect_system_info() -> Result<RuntimeSystemInfo, String> {
+    let hostname = std::env::var("COMPUTERNAME")
+        .or_else(|_| std::env::var("HOSTNAME"))
+        .unwrap_or_else(|_| "unavailable".into());
+    let primary_ip = primary_ip();
+    let primary_mac = primary_mac();
+    Ok(RuntimeSystemInfo {
+        os: std::env::consts::OS.into(),
+        os_version: os_version(),
+        octessera_version: env!("CARGO_PKG_VERSION").into(),
+        primary_ip,
+        primary_mac,
+        hostname,
+        board_profile: "desktop-simulator".into(),
+    })
+}
+
+fn os_version() -> String {
+    #[cfg(target_os = "windows")]
+    let command = ("cmd", vec!["/C", "ver"]);
+    #[cfg(not(target_os = "windows"))]
+    let command = ("uname", vec!["-sr"]);
+    std::process::Command::new(command.0)
+        .args(command.1)
+        .output()
+        .ok()
+        .filter(|output| output.status.success())
+        .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string())
+        .filter(|version| !version.is_empty())
+        .unwrap_or_else(|| "unavailable".into())
+}
+
+fn primary_ip() -> Option<String> {
+    let socket = UdpSocket::bind("0.0.0.0:0").ok()?;
+    socket.connect("8.8.8.8:80").ok()?;
+    let address = socket.local_addr().ok()?.ip();
+    (!address.is_loopback()).then(|| address.to_string())
+}
+
+fn primary_mac() -> Option<String> {
+    #[cfg(target_os = "windows")]
+    {
+        let output = std::process::Command::new("getmac")
+            .args(["/fo", "csv", "/nh"])
+            .output()
+            .ok()?;
+        String::from_utf8_lossy(&output.stdout)
+            .split(|character: char| {
+                !character.is_ascii_hexdigit() && character != '-' && character != ':'
+            })
+            .find(|value| is_mac(value))
+            .map(ToOwned::to_owned)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let mut interfaces = std::fs::read_dir("/sys/class/net")
+            .ok()?
+            .flatten()
+            .collect::<Vec<_>>();
+        interfaces.sort_by_key(|entry| entry.file_name());
+        for interface in interfaces {
+            if interface.file_name() == "lo" {
+                continue;
+            }
+            let Ok(address) = std::fs::read_to_string(interface.path().join("address")) else {
+                continue;
+            };
+            let address = address.trim();
+            if is_mac(address) {
+                return Some(address.to_string());
+            }
+        }
+        None
+    }
+}
+
+fn is_mac(value: &str) -> bool {
+    let octets = value.split([':', '-']).collect::<Vec<_>>();
+    octets.len() == 6
+        && octets
+            .iter()
+            .all(|octet| octet.len() == 2 && octet.chars().all(|c| c.is_ascii_hexdigit()))
 }
 
 fn midi_ports(ports: Vec<midi::MidiPortInfo>) -> Vec<MidiPort> {
@@ -315,5 +422,57 @@ mod tests {
         assert!(
             matches!(result, RuntimeStoreResult::SampleListError { instrument_slot: 2, sample_slot: 3, dir, message } if dir == "kits" && message == "service down")
         );
+    }
+
+    #[test]
+    fn system_info_service_sanitizes_successful_adapter_data() {
+        let messages = shape_system_info_result(|| {
+            Ok(RuntimeSystemInfo {
+                os: "Linux\nnoise".into(),
+                os_version: "6.6".into(),
+                octessera_version: "0.7.0".into(),
+                primary_ip: None,
+                primary_mac: None,
+                hostname: "octessera".into(),
+                board_profile: "desktop".into(),
+            })
+        });
+        let result = only_result(messages);
+        assert!(matches!(
+            result,
+            RuntimeStoreResult::SystemInfoResult { info }
+                if info.os == "Linuxnoise" && info.board_profile == "desktop"
+        ));
+    }
+
+    #[test]
+    fn system_info_service_shapes_typed_unavailable_error() {
+        let result = only_result(shape_system_info_result(|| Err("service down".into())));
+        assert!(matches!(
+            result,
+            RuntimeStoreResult::SystemInfoError { error }
+                if error.code == playback_runtime::RuntimeErrorCode::Unavailable
+                    && error.message == "service down"
+        ));
+    }
+
+    #[test]
+    fn system_info_service_result_keeps_request_identity() {
+        let messages = shape_service_result(DesktopPlatformServiceRequest::new(
+            RuntimePlatformRequest::new(
+                playback_runtime::RuntimePlatformEffect::SystemInfoRequest,
+                "system-info-test".into(),
+                Some(4),
+            ),
+            DesktopPlatformServiceKind::SystemInfo,
+        ));
+        assert!(matches!(
+            messages.as_slice(),
+            [HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::Identified { request_id, revision, result }
+            }] if request_id == "system-info-test"
+                && *revision == Some(4)
+                && matches!(result.as_ref(), RuntimeStoreResult::SystemInfoResult { .. })
+        ));
     }
 }

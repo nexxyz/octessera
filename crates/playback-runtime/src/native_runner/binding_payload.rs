@@ -213,6 +213,7 @@ pub(super) fn supported_aux_turn_key(key: &str) -> bool {
         && !key.contains("..")
         && (supported_param_binding_key(key)
             || key.starts_with("layers.")
+            || key.starts_with("linkLfos.")
             || key.starts_with("mixer.")
             || key.starts_with("transport.")
             || key.starts_with("sparks.")

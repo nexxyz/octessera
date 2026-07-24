@@ -1,7 +1,7 @@
 use crate::host_adapter::PiPlaybackHostAdapter;
 use playback_runtime::{
     CoreRunner, HostAdapter, HostMessage, NativeRunner, PlaybackRuntime, RunnerMessage,
-    RuntimeConfig, RuntimePlatformEffect, SyncSource,
+    RuntimePlatformEffect,
 };
 use serde_json::Value;
 
@@ -66,51 +66,6 @@ pub fn latest_snapshot(playback: &PlaybackRuntime) -> Option<&Value> {
     playback.last_snapshot()
 }
 
-pub fn sync_playback_config_from_snapshot(
-    playback: &mut PlaybackRuntime,
-    runner: &mut NativeRunner,
-    snapshot: &Value,
-) {
-    let Some(config) = playback_config_from_snapshot(snapshot) else {
-        return;
-    };
-    if playback.config() == &config {
-        return;
-    }
-    playback.set_config(config);
-    runner.apply_runtime_config(playback.config());
-}
-
-pub fn playback_config_matches_snapshot(playback: &PlaybackRuntime, snapshot: &Value) -> bool {
-    playback_config_from_snapshot(snapshot).is_none_or(|config| playback.config() == &config)
-}
-
-fn playback_config_from_snapshot(snapshot: &Value) -> Option<RuntimeConfig> {
-    let midi = snapshot.get("settings")?.get("midi")?;
-    let transport = snapshot.get("transport").unwrap_or(&Value::Null);
-    let sync_source = match midi.get("syncMode").and_then(Value::as_str) {
-        Some("external") => SyncSource::External,
-        _ => SyncSource::Internal,
-    };
-    let midi_enabled = midi
-        .get("enabled")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let midi_out_selected = midi.get("outId").is_some_and(|value| !value.is_null());
-    Some(RuntimeConfig {
-        bpm: transport
-            .get("bpm")
-            .and_then(Value::as_f64)
-            .unwrap_or(120.0),
-        sync_source,
-        midi_clock_out_enabled: midi
-            .get("clockOutEnabled")
-            .and_then(Value::as_bool)
-            .unwrap_or(false),
-        midi_out_enabled: midi_enabled && midi_out_selected,
-    })
-}
-
 #[cfg(test)]
 fn dispatch_and_ingest<R: CoreRunner, H: HostAdapter>(
     playback: &mut PlaybackRuntime,
@@ -142,6 +97,7 @@ fn ingest_responses<R: CoreRunner, H: HostAdapter>(
 mod tests {
     use super::*;
     use platform_core::MusicalEvent;
+    use playback_runtime::RuntimeConfig;
     use serde_json::json;
 
     #[derive(Default)]
@@ -305,27 +261,5 @@ mod tests {
         .unwrap();
 
         assert_eq!(runner.runtime_results, 1);
-    }
-
-    #[test]
-    fn playback_config_from_snapshot_tracks_midi_runtime_settings() {
-        let snapshot = json!({
-            "transport": { "bpm": 93.5 },
-            "settings": {
-                "midi": {
-                    "enabled": true,
-                    "outId": "0",
-                    "syncMode": "external",
-                    "clockOutEnabled": true
-                }
-            }
-        });
-
-        let config = playback_config_from_snapshot(&snapshot).unwrap();
-
-        assert_eq!(config.bpm, 93.5);
-        assert_eq!(config.sync_source, SyncSource::External);
-        assert!(config.midi_clock_out_enabled);
-        assert!(config.midi_out_enabled);
     }
 }

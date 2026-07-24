@@ -5,13 +5,10 @@ impl NativeRunner {
         if !key.contains(".worlds.behaviorConfig.") {
             return None;
         }
-        Some(self.fast_behavior_config_key().unwrap_or(false))
-    }
-
-    fn fast_behavior_config_key(&mut self) -> Result<bool, String> {
-        if self.apply_behavior_config_menu_state()? {
-            self.mark_fast_autosave_dirty();
+        if let Err(error) = self.apply_behavior_config_menu_key(key) {
+            self.show_toast(error);
+            self.restore_behavior_config_menu_value(key);
         }
-        Ok(true)
+        Some(true)
     }
 }

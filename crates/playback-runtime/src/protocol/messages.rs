@@ -1,6 +1,7 @@
 use super::{
     RuntimeAudioCommand, RuntimePlatformEffect, RuntimeStatus, RuntimeStoreResult, SyncSource,
 };
+use crate::runtime::RuntimeConfig;
 use platform_core::MusicalEvent;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -57,4 +58,5 @@ pub enum RunnerMessage {
     AudioCommands { commands: Vec<RuntimeAudioCommand> },
     UiPulse { pulse: RuntimeUiPulse },
     RuntimeStatus { status: RuntimeStatus },
+    RuntimeConfigChanged { config: RuntimeConfig },
 }

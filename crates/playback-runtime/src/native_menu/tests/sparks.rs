@@ -165,7 +165,7 @@ pub(crate) fn link_lfo_picker_only_exposes_live_safe_targets() {
     cfg.fx_buses[0].slot1_params =
         serde_json::json!({ "feedback": 0.35, "timeMs": 250, "mixPct": 35 });
     let menu = NativeMenuModel::new(cfg);
-    let target = "layers.0.linkLfo.target";
+    let target = "linkLfos.0.target";
 
     assert!(contains_set_binding(
         &menu.root,

@@ -32,96 +32,208 @@ pub(crate) fn pulses_value_lanes_load_into_runner_and_menu_curve_edits_apply() {
     runner.menu.turn_key("layers.0.pulses.x.velocity.curve", -1);
     runner.apply_menu_state().unwrap();
     assert_eq!(runner.pulses_layers[0].x_velocity.curve, "linear");
-    assert_eq!(
-        runner.config_payload()["runtimeConfig"]["layers"][0]["pulses"]["x"]["velocity"]["curve"],
-        "linear"
-    );
 }
 
 #[test]
-pub(crate) fn link_lfo_payload_defaults_round_trips_and_rejects_non_live_target() {
+pub(crate) fn canonical_global_modulation_has_eight_slots_and_no_layer_ownership() {
+    let runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let runtime = runner.config_payload()["runtimeConfig"].clone();
+    assert_eq!(runtime["linkLfos"].as_array().unwrap().len(), 8);
+    assert!(runtime["xy"]["x"].is_null());
+    assert!(runtime["xy"]["y"].is_null());
+    for layer in runtime["layers"].as_array().unwrap() {
+        assert!(layer.get("linkLfo").is_none());
+        assert!(layer.get("xy").is_none());
+    }
+}
+
+#[test]
+pub(crate) fn legacy_lfos_xy_and_aux_banks_migrate_transactionally() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let payload = runner.config_payload();
-    assert_eq!(
-        payload["runtimeConfig"]["layers"][0]["linkLfo"]["enabled"],
-        false
-    );
-    assert!(payload["runtimeConfig"]["layers"][0]["linkLfo"]["target"].is_null());
-    assert_eq!(
-        payload["runtimeConfig"]["layers"][0]["linkLfo"]["period"],
-        "1/1"
-    );
-    assert_eq!(
-        payload["runtimeConfig"]["layers"][0]["linkLfo"]["depthPct"],
-        100
-    );
-
-    let mut payload = payload;
-    payload["runtimeConfig"]["layers"][0]["linkLfo"] = json!({
-        "enabled": true,
-        "target": { "key": "sound.noteLengthMs", "kind": "number", "min": 30, "max": 2000, "userMin": 100, "userMax": 300 },
-        "period": "1/4",
-        "depthPct": 100
-    });
-    runner.apply_config_payload(payload).unwrap();
-    assert!(!runner.pulses_layers[0].link_lfo.enabled);
-
-    let round_trip = runner.config_payload();
-    assert_eq!(
-        round_trip["runtimeConfig"]["layers"][0]["linkLfo"]["enabled"],
-        false
-    );
-    runner.transport.transport = RuntimeTransportState::Playing;
-    let before = runner.config_payload();
-    runner.advance_algorithm(6).unwrap();
-    assert_eq!(runner.config_payload(), before);
-    runner.transport.transport = RuntimeTransportState::Paused;
-    runner.advance_algorithm(6).unwrap();
-    assert_eq!(runner.pulses_layers[0].link_lfo.phase_pulses, 0);
-    runner.reset_transport_position();
-    assert_eq!(runner.pulses_layers[0].link_lfo.phase_pulses, 0);
-
-    let mut legacy = runner.config_payload();
-    legacy["runtimeConfig"]["layers"][0]
+    let mut legacy = legacy_payload(runner.config_payload());
+    legacy["runtimeConfig"]
         .as_object_mut()
         .unwrap()
-        .remove("linkLfo");
+        .remove("linkLfos");
+    legacy["runtimeConfig"]
+        .as_object_mut()
+        .unwrap()
+        .remove("xy");
+    legacy["runtimeConfig"]["layers"][2]["linkLfo"] = json!({
+        "enabled": true,
+        "target": { "key": "instruments.0.mixer.volume", "kind": "number", "min": 0, "max": 100, "step": 1 },
+        "period": "1/4",
+        "depthPct": 40
+    });
+    legacy["runtimeConfig"]["layers"][0]["xy"] = json!({
+        "x": { "key": "instruments.0.mixer.panPos", "kind": "number", "min": 0, "max": 32, "step": 1 },
+        "y": null,
+        "xInvert": true,
+        "yInvert": false
+    });
+    legacy["runtimeConfig"]["activeLayerIndex"] = json!(0);
+    legacy["runtimeConfig"]["auxBindings"]["aux1"] = json!({
+        "turnKey": "layers.2.linkLfo.depthPct"
+    });
+    legacy["runtimeConfig"]["shiftAuxBindings"]["aux2"] = json!({
+        "turnKey": "layers.2.linkLfo.period"
+    });
+
     runner.apply_config_payload(legacy).unwrap();
-    assert!(!runner.pulses_layers[0].link_lfo.enabled);
-    assert_eq!(runner.pulses_layers[0].link_lfo.period, "1/1");
-    assert_eq!(runner.pulses_layers[0].link_lfo.depth_pct, 100);
+    let runtime = runner.config_payload()["runtimeConfig"].clone();
+    assert_eq!(runtime["linkLfos"][2]["depthPct"], 40);
+    assert_eq!(runtime["xy"]["x"]["key"], "instruments.0.mixer.panPos");
+    assert_eq!(
+        runtime["auxBindings"]["aux1"]["turnKey"],
+        "linkLfos.2.depthPct"
+    );
+    assert_eq!(
+        runtime["shiftAuxBindings"]["aux2"]["turnKey"],
+        "linkLfos.2.period"
+    );
+    assert!(runner
+        .display
+        .toast
+        .as_ref()
+        .is_some_and(|toast| toast.message.contains("Migrated legacy modulation")));
 }
 
 #[test]
-pub(crate) fn link_lfo_rejects_non_numeric_targets() {
+pub(crate) fn legacy_global_lfo_bank_wins_per_layer_conflicts() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut payload = runner.config_payload();
-    payload["runtimeConfig"]["layers"][0]["linkLfo"] = json!({
-        "enabled": true,
-        "target": { "key": "sound.voiceStealingMode", "kind": "enum", "options": ["none"] },
-        "period": "1/1",
-        "depthPct": 100
-    });
-    runner.apply_config_payload(payload).unwrap();
-    assert!(!runner.pulses_layers[0].link_lfo.enabled);
-    assert!(runner.pulses_layers[0].link_lfo.target.is_none());
+    let mut legacy = legacy_payload(runner.config_payload());
+    legacy["runtimeConfig"]["layers"][0]["linkLfo"] = json!({"depthPct": 99});
+    legacy["runtimeConfig"]["linkLfos"][0]["depthPct"] = json!(11);
 
-    let mut payload = runner.config_payload();
-    payload["runtimeConfig"]["layers"][0]["linkLfo"] = json!({
-        "enabled": true,
-        "target": { "key": "layers.0.linkLfo.depthPct", "kind": "number", "min": 0, "max": 100 },
-        "period": "1/1",
-        "depthPct": 100
-    });
-    runner.apply_config_payload(payload).unwrap();
-    assert!(!runner.pulses_layers[0].link_lfo.enabled);
-    assert!(runner.pulses_layers[0].link_lfo.target.is_none());
+    runner.apply_config_payload(legacy).unwrap();
+
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["linkLfos"][0]["depthPct"],
+        11
+    );
 }
 
 #[test]
-pub(crate) fn link_lfo_menu_rows_apply_with_keyed_fast_path() {
+pub(crate) fn canonical_v2_rejects_legacy_fields_without_mutating_state() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.pulses_layers[0].link_lfo.target = Some(NativeParamBinding {
+    let before = runner.config_payload();
+    let mut payload = before.clone();
+    payload["runtimeConfig"]["layers"][0]["linkLfo"] = json!({
+        "enabled": false,
+        "target": null,
+        "period": "1/1",
+        "depthPct": 100
+    });
+
+    assert!(runner.apply_config_payload(payload).is_err());
+    assert_eq!(runner.config_payload(), before);
+}
+
+#[test]
+pub(crate) fn canonical_v2_rejects_legacy_xy_aux_keys_and_noncanonical_lfo_shape() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let before = runner.config_payload();
+    let mutations: [fn(&mut Value); 4] = [
+        |payload: &mut Value| {
+            payload["runtimeConfig"]["layers"][0]["xy"] = json!({"x": null, "y": null});
+        },
+        |payload: &mut Value| {
+            payload["runtimeConfig"]["auxBindings"]["aux1"] =
+                json!({"turnKey": "layers.0.linkLfo.depthPct"});
+        },
+        |payload: &mut Value| {
+            payload["runtimeConfig"]["linkLfos"] = json!([]);
+        },
+        |payload: &mut Value| {
+            payload["runtimeConfig"]["linkLfos"][0]["phasePulses"] = json!(2);
+        },
+    ];
+    for (index, mutate) in mutations.into_iter().enumerate() {
+        let mut payload = before.clone();
+        mutate(&mut payload);
+        assert!(
+            runner.apply_config_payload(payload).is_err(),
+            "canonical mutation {index} was accepted"
+        );
+        assert_eq!(runner.config_payload(), before);
+    }
+}
+
+#[test]
+pub(crate) fn legacy_exclusive_claims_keep_stable_first_and_report() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut legacy = legacy_payload(runner.config_payload());
+    let binding = json!({
+        "key": "layers.0.pulses.scanSections",
+        "kind": "number",
+        "min": 1,
+        "max": 8,
+        "step": 1
+    });
+    legacy["runtimeConfig"]["layers"][0]["paramMods"]["x"][0] = binding.clone();
+    legacy["runtimeConfig"]["layers"][0]["paramMods"]["y"][0] = binding;
+
+    runner.apply_config_payload(legacy).unwrap();
+
+    let mods = &runner.config_payload()["runtimeConfig"]["layers"][0]["paramMods"];
+    assert!(mods["x"][0].is_object());
+    assert!(mods["y"][0].is_null());
+    assert!(runner
+        .display
+        .toast
+        .as_ref()
+        .is_some_and(|toast| toast.message.contains("duplicate exclusive")));
+}
+
+#[test]
+pub(crate) fn legacy_xy_uses_first_present_layer_when_active_layer_has_none() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut legacy = legacy_payload(runner.config_payload());
+    legacy["runtimeConfig"]
+        .as_object_mut()
+        .unwrap()
+        .remove("linkLfos");
+    legacy["runtimeConfig"]
+        .as_object_mut()
+        .unwrap()
+        .remove("xy");
+    legacy["runtimeConfig"]["activeLayerIndex"] = json!(0);
+    legacy["runtimeConfig"]["layers"][1]["xy"] = json!({
+        "x": { "key": "instruments.0.mixer.volume", "kind": "number", "min": 0, "max": 100, "step": 1 },
+        "y": null,
+        "xInvert": false,
+        "yInvert": true
+    });
+
+    runner.apply_config_payload(legacy).unwrap();
+
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["xy"]["x"]["key"],
+        "instruments.0.mixer.volume"
+    );
+}
+
+#[test]
+pub(crate) fn canonical_duplicate_exclusive_claim_is_rejected() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut payload = runner.config_payload();
+    let binding = json!({
+        "key": "layers.0.pulses.scanSections",
+        "kind": "number",
+        "min": 1,
+        "max": 8,
+        "step": 1
+    });
+    payload["runtimeConfig"]["layers"][0]["paramMods"]["x"][0] = binding.clone();
+    payload["runtimeConfig"]["layers"][0]["paramMods"]["y"][0] = binding;
+
+    assert!(runner.apply_config_payload(payload).is_err());
+}
+
+#[test]
+pub(crate) fn global_lfo_menu_uses_keyed_slots_and_target_only_fast_paths() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.link_lfos[0].target = Some(NativeParamBinding {
         key: "instruments.0.mixer.volume".into(),
         label: Some("Volume".into()),
         kind: "number".into(),
@@ -134,69 +246,75 @@ pub(crate) fn link_lfo_menu_rows_apply_with_keyed_fast_path() {
         invert: false,
     });
     runner.menu.rebuild(runner.menu_config());
-    assert!(runner.menu.focus_item_key("layers.0.linkLfo.depthPct"));
+    for index in 0..8 {
+        assert!(runner
+            .menu
+            .focus_item_key(&format!("linkLfos.{index}.depthPct")));
+    }
+    assert!(runner.menu.focus_item_key("linkLfos.0.depthPct"));
     runner.menu.state.editing = true;
-
-    let _ = runner
+    runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": -25, "id": "main" }),
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.pulses_layers[0].link_lfo.depth_pct, 75);
-
-    assert!(runner.menu.focus_item_key("layers.0.linkLfo.period"));
+    assert_eq!(runner.link_lfos[0].depth_pct, 75);
+    assert!(runner.menu.focus_item_key("linkLfos.0.period"));
     runner.menu.state.editing = true;
-    let _ = runner
+    runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": -1, "id": "main" }),
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.pulses_layers[0].link_lfo.period, "1/1T");
-
-    assert!(runner
-        .menu
-        .focus_item_key("layers.0.linkLfo.target.rangeMin"));
+    assert_eq!(runner.link_lfos[0].period, "1/1T");
+    assert!(runner.menu.focus_item_key("linkLfos.0.target.rangeMin"));
     runner.menu.state.editing = true;
-    let _ = runner
+    runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 7, "id": "main" }),
             request_snapshot: None,
         })
         .unwrap();
     assert_eq!(
-        runner.pulses_layers[0]
-            .link_lfo
-            .target
-            .as_ref()
-            .unwrap()
-            .user_min,
+        runner.link_lfos[0].target.as_ref().unwrap().user_min,
         Some(7.0)
     );
 }
 
 #[test]
-pub(crate) fn link_lfo_invert_and_audio_command_emit_on_transport_pulse() {
+pub(crate) fn lfo_assignment_rejects_exclusive_and_lfo_config_targets() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut payload = runner.config_payload();
-    payload["runtimeConfig"]["layers"][0]["linkLfo"] = json!({
-        "enabled": true,
-        "target": {
-            "key": "instruments.0.mixer.volume",
-            "label": "Volume",
-            "kind": "number",
-            "min": 0,
-            "max": 100,
-            "step": 1,
-            "invert": true
-        },
-        "period": "1/4",
-        "depthPct": 100
-    });
-    runner.apply_config_payload(payload).unwrap();
-    runner.transport.transport = RuntimeTransportState::Playing;
+    for key in ["sound.noteLengthMs", "linkLfos.1.depthPct"] {
+        runner.set_param_binding_target(
+            "linkLfos.0.target",
+            Some(NativeParamBinding {
+                key: key.into(),
+                label: None,
+                kind: "number".into(),
+                min: Some(0.0),
+                max: Some(100.0),
+                step: Some(1.0),
+                user_min: None,
+                user_max: None,
+                options: vec![],
+                invert: false,
+            }),
+        );
+        assert!(runner.link_lfos[0].target.is_none());
+    }
+}
 
+#[test]
+pub(crate) fn global_lfo_phase_is_transient_and_old_audio_path_is_not_run() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.link_lfos[0].phase_pulses = 17;
+    let payload = runner.config_payload();
+    assert!(payload["runtimeConfig"]["linkLfos"][0]
+        .get("phasePulses")
+        .is_none());
+    runner.transport.transport = RuntimeTransportState::Playing;
     let messages = runner
         .send(HostMessage::TransportPulseStep {
             pulses: 6,
@@ -205,251 +323,14 @@ pub(crate) fn link_lfo_invert_and_audio_command_emit_on_transport_pulse() {
             request_snapshot: Some(false),
         })
         .unwrap();
-
-    assert_eq!(runner.instruments[0].volume, 100);
-    assert!(messages.iter().any(|message| matches!(
-        message,
-        RunnerMessage::AudioCommands { commands }
-            if commands.iter().any(|command| matches!(
-                command,
-                RuntimeAudioCommand::SetInstrumentMixer {
-                    instrument_slot: 0,
-                    volume_pct: Some(volume),
-                    pan_pos: None,
-                } if (*volume - 0.0).abs() < f32::EPSILON
-            ))
-    )));
     assert!(!messages.iter().any(|message| matches!(
-        message,
-        RunnerMessage::PlatformEffects { effects }
-            if effects.iter().any(|effect| matches!(
-                effect,
-                RuntimePlatformEffect::StoreSaveDefault { .. }
-            ))
-    )));
-}
-
-#[test]
-pub(crate) fn link_lfo_fx_bus_volume_emits_fast_mixer_command() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut payload = runner.config_payload();
-    payload["runtimeConfig"]["layers"][0]["linkLfo"] = json!({
-        "enabled": true,
-        "target": {
-            "key": "mixer.buses.0.volume",
-            "label": "Volume",
-            "kind": "number",
-            "min": 0,
-            "max": 100,
-            "step": 1,
-            "invert": true
-        },
-        "period": "1/4",
-        "depthPct": 100
-    });
-    runner.apply_config_payload(payload).unwrap();
-    runner.transport.transport = RuntimeTransportState::Playing;
-
-    let messages = runner
-        .send(HostMessage::TransportPulseStep {
-            pulses: 6,
-            source: SyncSource::Internal,
-            at_ppqn_pulse: None,
-            request_snapshot: Some(false),
-        })
-        .unwrap();
-
-    assert_eq!(runner.fx_buses[0].volume_pct, 100);
-    assert!(messages.iter().any(|message| matches!(
-        message,
-        RunnerMessage::AudioCommands { commands }
-            if commands.iter().any(|command| matches!(
-                command,
-                RuntimeAudioCommand::SetFxBusMixer {
-                    bus_index: 0,
-                    pan_pos: None,
-                    volume_pct: Some(volume),
-                } if (*volume - 0.0).abs() < f32::EPSILON
-            ))
-    )));
-}
-
-#[test]
-pub(crate) fn link_lfo_fx_param_is_transient_and_suppresses_repeated_values() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.auto_save_default = true;
-    let mut payload = runner.config_payload();
-    payload["runtimeConfig"]["mixer"]["buses"][0]["slot3"] =
-        json!({ "type": "delay", "params": { "feedback": 0.25, "timeMs": 250, "mixPct": 40 } });
-    payload["runtimeConfig"]["layers"][0]["linkLfo"] = json!({
-        "enabled": true,
-        "target": {
-            "key": "mixer.buses.0.slot3.params.feedback",
-            "label": "Feedback",
-            "kind": "number",
-            "min": 0,
-            "max": 100,
-            "step": 1
-        },
-        "period": "1/4",
-        "depthPct": 0
-    });
-    runner.apply_config_payload(payload).unwrap();
-    runner.transport.transport = RuntimeTransportState::Playing;
-    let before = runner.config_payload();
-
-    let messages = runner
-        .send(HostMessage::TransportPulseStep {
-            pulses: 1,
-            source: SyncSource::Internal,
-            at_ppqn_pulse: None,
-            request_snapshot: Some(false),
-        })
-        .unwrap();
-
-    assert_eq!(runner.config_payload(), before);
-    assert!(messages.iter().any(|message| matches!(
-        message,
-        RunnerMessage::AudioCommands { commands }
-            if commands.iter().any(|command| matches!(
-                command,
-                RuntimeAudioCommand::SetFxBusSlot { bus_index: 0, slot_index: 2, params, .. }
-                    if params.get("feedback") == Some(&json!(0.5))
-            ))
-    )));
-    let repeat = runner
-        .send(HostMessage::TransportPulseStep {
-            pulses: 1,
-            source: SyncSource::Internal,
-            at_ppqn_pulse: None,
-            request_snapshot: Some(false),
-        })
-        .unwrap();
-    assert!(!repeat.iter().any(|message| matches!(
         message,
         RunnerMessage::AudioCommands { commands } if commands.iter().any(|command| matches!(
             command,
-            RuntimeAudioCommand::SetFxBusSlot { bus_index: 0, slot_index: 2, .. }
+            RuntimeAudioCommand::SetInstrumentMixer { .. }
+                | RuntimeAudioCommand::SetFxBusMixer { .. }
+                | RuntimeAudioCommand::SetFxBusSlot { .. }
+                | RuntimeAudioCommand::SetGlobalFxSlot { .. }
         ))
     )));
-}
-
-#[test]
-pub(crate) fn link_lfo_transport_reset_restores_base_fx_param() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut payload = runner.config_payload();
-    payload["runtimeConfig"]["mixer"]["buses"][0]["slot3"] =
-        json!({ "type": "delay", "params": { "feedback": 0.25, "timeMs": 250, "mixPct": 40 } });
-    payload["runtimeConfig"]["layers"][0]["linkLfo"] = json!({
-        "enabled": true,
-        "target": { "key": "mixer.buses.0.slot3.params.feedback", "kind": "number", "min": 0, "max": 100, "step": 1 },
-        "period": "1/4",
-        "depthPct": 0
-    });
-    runner.apply_config_payload(payload).unwrap();
-    runner.transport.transport = RuntimeTransportState::Playing;
-    let _ = runner
-        .send(HostMessage::TransportPulseStep {
-            pulses: 1,
-            source: SyncSource::Internal,
-            at_ppqn_pulse: None,
-            request_snapshot: Some(false),
-        })
-        .unwrap();
-
-    runner.reset_transport_position();
-    let commands = runner.outbox.drain_audio_commands();
-
-    assert!(commands.iter().any(|command| matches!(
-        command,
-        RuntimeAudioCommand::SetFxBusSlot { bus_index: 0, slot_index: 2, params, .. }
-            if params.get("feedback") == Some(&json!(0.25))
-    )));
-}
-
-#[test]
-pub(crate) fn link_lfo_config_change_restores_base_and_rejects_unsafe_fx_targets() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut payload = runner.config_payload();
-    payload["runtimeConfig"]["mixer"]["buses"][0]["slot1"] =
-        json!({ "type": "delay", "params": { "feedback": 0.25, "timeMs": 250, "mixPct": 40 } });
-    payload["runtimeConfig"]["layers"][0]["linkLfo"] = json!({
-        "enabled": true,
-        "target": { "key": "mixer.buses.0.slot1.params.feedback", "kind": "number", "min": 0, "max": 100, "step": 1 },
-        "period": "1/4",
-        "depthPct": 0
-    });
-    runner.apply_config_payload(payload).unwrap();
-    runner.transport.transport = RuntimeTransportState::Playing;
-    let _ = runner
-        .send(HostMessage::TransportPulseStep {
-            pulses: 1,
-            source: SyncSource::Internal,
-            at_ppqn_pulse: None,
-            request_snapshot: Some(false),
-        })
-        .unwrap();
-    let mut next = runner.config_payload();
-    next["runtimeConfig"]["layers"][0]["linkLfo"] = json!({
-        "enabled": true,
-        "target": { "key": "mixer.buses.0.slot1.params.timeMs", "kind": "number", "min": 1, "max": 2000, "step": 1 },
-        "period": "1/4",
-        "depthPct": 100
-    });
-
-    runner.apply_config_payload(next).unwrap();
-    let commands = runner.outbox.drain_audio_commands();
-
-    assert!(commands.iter().any(|command| matches!(
-        command,
-        RuntimeAudioCommand::SetFxBusSlot { bus_index: 0, slot_index: 0, params, .. }
-            if params.get("feedback") == Some(&json!(0.25))
-    )));
-    assert!(!runner.pulses_layers[0].link_lfo.enabled);
-    assert!(runner.pulses_layers[0].link_lfo.target.is_none());
-
-    let mut source_runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut source_payload = source_runner.config_payload();
-    source_payload["runtimeConfig"]["mixer"]["buses"][0]["slot1"] = json!({
-        "type": "duck",
-        "params": { "source": "I1", "threshold": 0.08, "amountPct": 60, "attackMs": 8, "releaseMs": 160 }
-    });
-    source_payload["runtimeConfig"]["layers"][0]["linkLfo"] = json!({
-        "enabled": true,
-        "target": { "key": "mixer.buses.0.slot1.params.source", "kind": "number", "min": 0, "max": 100, "step": 1 },
-        "period": "1/4",
-        "depthPct": 100
-    });
-
-    source_runner.apply_config_payload(source_payload).unwrap();
-
-    assert!(!source_runner.pulses_layers[0].link_lfo.enabled);
-    assert!(source_runner.pulses_layers[0].link_lfo.target.is_none());
-}
-
-#[test]
-pub(crate) fn link_lfo_action_rejects_unsafe_target_without_mapped_toast() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.set_param_binding_target(
-        "layers.0.linkLfo.target",
-        Some(NativeParamBinding {
-            key: "instruments.0.synth.filter.cutoffHz".into(),
-            label: Some("Cutoff".into()),
-            kind: "number".into(),
-            min: Some(0.0),
-            max: Some(127.0),
-            step: Some(1.0),
-            user_min: None,
-            user_max: None,
-            options: vec![],
-            invert: false,
-        }),
-    );
-
-    assert!(runner.pulses_layers[0].link_lfo.target.is_none());
-    assert!(runner
-        .display
-        .toast
-        .as_ref()
-        .is_some_and(|toast| toast.message == "LFO target not live"));
 }

@@ -1,9 +1,18 @@
 use super::*;
 
+fn layer_item(menu: &NativeMenuModel, index: usize) -> &NativeMenuItem {
+    let prefix = format!("L{}:", index + 1);
+    menu.root.children[1]
+        .children
+        .iter()
+        .find(|item| item.label.starts_with(&prefix))
+        .expect("layer group")
+}
+
 #[test]
 pub(crate) fn pulses_spec_rows_include_probability_mapping_and_axis_controls() {
     let menu = NativeMenuModel::new(config());
-    let layer = &menu.root.children[1].children[4];
+    let layer = layer_item(&menu, 0);
     let trigger_prob = layer
         .children
         .iter()
@@ -89,7 +98,7 @@ pub(crate) fn pulses_spec_rows_include_probability_mapping_and_axis_controls() {
 #[test]
 pub(crate) fn conditional_rows_follow_scan_lane_and_sampler_state() {
     let menu = NativeMenuModel::new(config());
-    let layer = &menu.root.children[1].children[4];
+    let layer = layer_item(&menu, 0);
     let scanning = layer
         .children
         .iter()
@@ -116,7 +125,7 @@ pub(crate) fn conditional_rows_follow_scan_lane_and_sampler_state() {
     cfg.instrument_types[0] = "sampler".into();
     cfg.instrument_sample_velocity_levels_enabled[0] = false;
     let menu = NativeMenuModel::new(cfg);
-    let layer = &menu.root.children[1].children[4];
+    let layer = layer_item(&menu, 0);
     let scanning = layer
         .children
         .iter()
@@ -164,9 +173,8 @@ pub(crate) fn scale_menu_uses_legacy_scale_ids_and_display_labels() {
     let mut config = config();
     config.pulses_layers[0].scale = "major_pentatonic".into();
     let mut menu = NativeMenuModel::new(config);
-    menu.state.stack = vec![1, 4, 3];
-    menu.state.cursor = 3;
-    let scale = menu.current_siblings()[3].clone();
+    assert!(menu.focus_item_key("layers.0.pulses.pitch.scale"));
+    let scale = menu.current_item().clone();
     let NativeMenuValue::Enum { options, .. } = scale.value else {
         panic!("scale should be enum");
     };
@@ -182,20 +190,19 @@ pub(crate) fn scale_menu_uses_legacy_scale_ids_and_display_labels() {
 #[test]
 pub(crate) fn pitch_note_params_use_legacy_note_name_display() {
     let mut menu = NativeMenuModel::new(config());
-    menu.state.stack = vec![1, 4, 3];
-    menu.state.cursor = 0;
+    assert!(menu.focus_item_key("layers.0.pulses.pitch.lowestNote"));
     let lowest = menu.snapshot();
     assert!(lowest
         .lines
         .iter()
         .any(|line| line.starts_with("> ") && line.contains("C1 (24)")));
-    menu.state.cursor = 1;
+    assert!(menu.focus_item_key("layers.0.pulses.pitch.highestNote"));
     let highest = menu.snapshot();
     assert!(highest
         .lines
         .iter()
         .any(|line| line.starts_with("> ") && line.contains("C6 (84)")));
-    menu.state.cursor = 2;
+    assert!(menu.focus_item_key("layers.0.pulses.pitch.startingNote"));
     let starting = menu.snapshot();
     assert!(starting
         .lines

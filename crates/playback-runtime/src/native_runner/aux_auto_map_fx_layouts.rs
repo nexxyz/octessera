@@ -237,4 +237,16 @@ impl NativeRunner {
             press_source: AuxBindingSource::Auto,
         }
     }
+
+    pub(super) fn press_slot(&self, action: NativeMenuAction, label: &str) -> ResolvedAuxSlot {
+        ResolvedAuxSlot {
+            turn: None,
+            press: Some(ResolvedAuxPress {
+                action,
+                label: label.into(),
+            }),
+            turn_source: AuxBindingSource::None,
+            press_source: AuxBindingSource::Auto,
+        }
+    }
 }

@@ -22,20 +22,27 @@ impl NativeRunner {
     }
 
     pub(super) fn rebuild_engine(&mut self, behavior: NativeBehavior) -> Result<(), String> {
-        self.engine = Self::build_engine(
-            behavior,
-            self.behavior_config.clone(),
-            self.interpretation_profile.clone(),
-            self.mapping_config.clone(),
-            self.global_sound.clone(),
-            self.note_behaviors.clone(),
+        let behavior_id = behavior.id().to_string();
+        let config = if behavior_id == self.behavior.id() {
+            self.behavior_config.clone()
+        } else {
+            self.remembered_layer_behavior_config(self.active_layer_index, &behavior_id)
+        };
+        if let Some(layer_behavior_id) = self.layer_behavior_ids.get_mut(self.active_layer_index) {
+            *layer_behavior_id = behavior_id.clone();
+        }
+        self.replace_layer_engine_with_config(
             self.active_layer_index,
+            behavior,
+            config.clone(),
+            None,
         )?;
-        self.behavior = behavior;
+        self.set_layer_behavior_config(self.active_layer_index, &behavior_id, config);
         Ok(())
     }
 
     pub(super) fn reset_transport_position(&mut self) {
+        let _ = self.clear_lfo_audio();
         self.drain_all_sparks_transpose_notes();
         self.transport.pending_resync = false;
         self.transport.tick = 0;
@@ -49,8 +56,7 @@ impl NativeRunner {
         self.display.transport_flash_pulses_remaining = 0;
         self.display.event_dot_on = false;
         self.display.event_dot_pulses_remaining = 0;
-        self.restore_link_lfo_base_audio();
-        self.reset_link_lfo_phases();
+        self.reset_global_lfo_phases();
         self.engine.reset_transport_phase();
         for engine in self.layer_engines.iter_mut().flatten() {
             engine.reset_transport_phase();
@@ -65,6 +71,10 @@ impl NativeRunner {
     }
 
     pub(super) fn sync_engine_runtime_config(&mut self) {
+        #[cfg(test)]
+        {
+            self.engine_runtime_sync_calls = self.engine_runtime_sync_calls.saturating_add(1);
+        }
         self.note_behaviors = note_behaviors_from_instruments(&self.instruments);
         self.engine.set_global_sound(self.global_sound.clone());
         self.engine.set_note_behaviors(self.note_behaviors.clone());

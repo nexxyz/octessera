@@ -1,11 +1,11 @@
 use crate::audio_config::{
-    decode_sample_file, normalize_config, parse_instrument_slot_config, sample_bank_for_slot_config,
+    decode_sample_file, normalize_config, parse_instrument_slot_config,
+    sample_bank_for_slot_config, SampleBankError,
 };
 use crate::host_adapter::DesktopPlaybackHostAdapter;
 use crate::samples::resolve_sample_file;
 use crate::types::{MomentaryFxTargetPayload, QueuedAudioEvent};
 use playback_runtime::{RuntimeAdapterError, RuntimeAudioCommand, RuntimeMomentaryFxTarget};
-use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
 use realtime_engine::synth::{
     validate_fx_type, validate_momentary_fx_type, validate_sample_bank_param_path,
     validate_synth_param_path,
@@ -47,19 +47,15 @@ impl DesktopPlaybackHostAdapter {
                 instrument_slot,
                 config,
             } => {
+                let parsed_config =
+                    parse_instrument_slot_config(config).map_err(invalid_audio_command)?;
+                let sample_bank = self.sample_bank_event(config)?;
                 let event = QueuedAudioEvent::SetInstrumentSlot {
                     instrument_slot: *instrument_slot,
-                    config: parse_instrument_slot_config(config).map_err(invalid_audio_command)?,
+                    config: parsed_config,
+                    sample_bank,
                 };
                 self.audio.audio_control.enqueue_dynamic(event)?;
-                if let Some(bank) = self.sample_bank_event(config)? {
-                    self.audio
-                        .audio_control
-                        .enqueue_dynamic(QueuedAudioEvent::SetSampleBank {
-                            instrument_slot: *instrument_slot,
-                            bank,
-                        })?;
-                }
                 return Ok(());
             }
             RuntimeAudioCommand::SetFxBusMixer {
@@ -149,7 +145,13 @@ impl DesktopPlaybackHostAdapter {
                 path,
                 velocity,
                 ..
-            } => self.sample_preview_event(*instrument_slot, path, *velocity)?,
+            } => {
+                return self
+                    .audio
+                    .audio_control
+                    .enqueue_sample_preview(*instrument_slot, path.clone(), *velocity)
+                    .map_err(Into::into);
+            }
         };
         self.audio
             .audio_control
@@ -157,30 +159,12 @@ impl DesktopPlaybackHostAdapter {
             .map_err(Into::into)
     }
 
-    fn sample_preview_event(
-        &self,
-        instrument_slot: usize,
-        path: &str,
-        velocity: u8,
-    ) -> Result<QueuedAudioEvent, RuntimeAdapterError> {
-        let full_path = resolve_sample_file(path)
-            .ok_or_else(|| RuntimeAdapterError::from("invalid sample path"))?;
-        let buffer = self
-            .load_sample(&full_path)
-            .ok_or_else(|| RuntimeAdapterError::from("sample decode failed"))?;
-        Ok(QueuedAudioEvent::PreviewSample {
-            instrument_slot: instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1) as u8,
-            buffer,
-            velocity,
-        })
-    }
-
     fn sample_bank_event(
         &self,
         config: &serde_json::Value,
     ) -> Result<Option<realtime_engine::synth::SampleBankConfig>, RuntimeAdapterError> {
         sample_bank_for_slot_config(config, resolve_sample_file, |path| self.load_sample(path))
-            .map_err(invalid_audio_command)
+            .map_err(sample_audio_command_error)
     }
 
     fn load_sample(&self, path: &str) -> Option<realtime_engine::synth::SampleBuffer> {
@@ -197,6 +181,15 @@ impl DesktopPlaybackHostAdapter {
         }
         Some(buffer)
     }
+}
+
+fn sample_audio_command_error(error: SampleBankError) -> RuntimeAdapterError {
+    RuntimeAdapterError::from_facts(playback_runtime::RuntimeErrorFacts::new(
+        playback_runtime::RuntimeErrorDomain::Sample,
+        error.code(),
+        playback_runtime::RuntimeOperation::AudioCommand,
+        Some(error.message()),
+    ))
 }
 
 fn invalid_audio_command(message: String) -> RuntimeAdapterError {

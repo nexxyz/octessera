@@ -1,4 +1,5 @@
 use crate::audio::AudioService;
+use crate::candidate_readiness::CandidateReadiness;
 use crate::encoder_queue::PendingEncoderTurns;
 use crate::host_adapter::PiPlaybackHostAdapter;
 use crate::input::MidiMessage;
@@ -103,9 +104,14 @@ fn run(config: RuntimeThreadConfig) {
         usb_midi_out_enabled,
         usb_audio_out,
     );
-    if let Err(error) = initialize_host_state(&mut playback, &mut runner, &mut adapter) {
-        eprintln!("pi host state initialization failed: {error}");
-    }
+    let initial_host_dispatch_succeeded =
+        match initialize_host_state(&mut playback, &mut runner, &mut adapter) {
+            Ok(()) => true,
+            Err(error) => {
+                eprintln!("pi host state initialization failed: {error}");
+                false
+            }
+        };
     run_scheduler(
         midi_rx,
         input_rx,
@@ -114,6 +120,8 @@ fn run(config: RuntimeThreadConfig) {
         playback,
         runner,
         adapter,
+        initial_host_dispatch_succeeded,
+        CandidateReadiness::from_env(),
     );
 }
 
@@ -124,16 +132,16 @@ fn init_runtime() -> (PlaybackRuntime, NativeRunner) {
         midi_clock_out_enabled: false,
         midi_out_enabled: false,
     });
-    let mut runner = NativeRunner::new(NativeRunnerConfig {
+    let runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         sample_builtin_favourite_dirs: vec![String::new(), SD_CARD_SAMPLE_BROWSER_DIR.into()],
         ..NativeRunnerConfig::default()
     })
     .expect("native runner should initialize");
-    runner.apply_runtime_config(playback.config());
     (playback, runner)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_scheduler(
     midi_rx: mpsc::Receiver<MidiMessage>,
     input_rx: mpsc::Receiver<HostMessage>,
@@ -142,10 +150,36 @@ fn run_scheduler(
     mut playback: PlaybackRuntime,
     mut runner: NativeRunner,
     mut adapter: PiPlaybackHostAdapter,
+    initial_host_dispatch_succeeded: bool,
+    mut candidate_readiness: CandidateReadiness,
 ) {
     let mut state = SchedulerState::new();
     let profile_enabled = state.profile_enabled();
     let mut last_loop_start = profile_enabled.then(Instant::now);
+    let initial_snapshot_requested = if initial_host_dispatch_succeeded {
+        let message = HostMessage::TransportPulseStep {
+            pulses: 0,
+            source: playback.config().sync_source.clone(),
+            at_ppqn_pulse: playback
+                .last_status()
+                .map(|status| status.current_ppqn_pulse),
+            request_snapshot: Some(true),
+        };
+        match crate::runtime_loop::dispatch_runtime_message(
+            &mut playback,
+            &mut runner,
+            &mut adapter,
+            message,
+        ) {
+            Ok(()) => true,
+            Err(error) => {
+                eprintln!("pi initial scheduler snapshot failed: {error}");
+                false
+            }
+        }
+    } else {
+        false
+    };
 
     loop {
         let loop_start = profile_enabled.then(Instant::now);
@@ -162,6 +196,11 @@ fn run_scheduler(
         ) {
             break;
         }
+        mark_candidate_ready_if_submitted(
+            initial_snapshot_requested,
+            &state,
+            &mut candidate_readiness,
+        );
         drain_midi_messages(&midi_rx, &mut playback, &mut runner, &mut adapter);
         let host_input_started = profile_enabled.then(Instant::now);
         drain_host_messages(&input_rx, &mut playback, &mut runner, &mut adapter);
@@ -177,6 +216,11 @@ fn run_scheduler(
         ) {
             break;
         }
+        mark_candidate_ready_if_submitted(
+            initial_snapshot_requested,
+            &state,
+            &mut candidate_readiness,
+        );
         drain_encoder_events(
             &encoder_rx,
             &mut state.pending_encoder_turns,
@@ -199,6 +243,11 @@ fn run_scheduler(
         ) {
             break;
         }
+        mark_candidate_ready_if_submitted(
+            initial_snapshot_requested,
+            &state,
+            &mut candidate_readiness,
+        );
         if let (Some(gap), Some(started)) = (loop_gap, loop_start) {
             state.ui_profiler.record_loop(gap, started.elapsed());
             state.ui_profiler.maybe_report();
@@ -212,7 +261,22 @@ fn run_scheduler(
         ) {
             break;
         }
+        mark_candidate_ready_if_submitted(
+            initial_snapshot_requested,
+            &state,
+            &mut candidate_readiness,
+        );
         thread::sleep(state.idle_sleep_duration(&playback, &runner));
+    }
+}
+
+fn mark_candidate_ready_if_submitted(
+    initial_snapshot_requested: bool,
+    state: &SchedulerState,
+    candidate_readiness: &mut CandidateReadiness,
+) {
+    if initial_snapshot_requested && state.last_rendered_snapshot_revision != 0 {
+        candidate_readiness.mark_ready();
     }
 }
 
@@ -288,4 +352,37 @@ fn advance(
         render_worker,
         &mut state.ui_profiler,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn candidate_readiness_waits_for_successful_snapshot_submission() {
+        let directory = std::env::temp_dir().join(format!(
+            "octessera-pi-readiness-gate-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let path = directory.join("candidate-ready.json");
+        let mut readiness = CandidateReadiness::new(Some(path.clone()), "invocation-1".into());
+        let mut state = SchedulerState::new();
+
+        mark_candidate_ready_if_submitted(true, &state, &mut readiness);
+        assert!(!path.exists());
+
+        state.last_rendered_snapshot_revision = 1;
+        mark_candidate_ready_if_submitted(false, &state, &mut readiness);
+        assert!(!path.exists());
+
+        let mut readiness = CandidateReadiness::new(Some(path.clone()), "invocation-1".into());
+        mark_candidate_ready_if_submitted(true, &state, &mut readiness);
+        assert!(path.is_file());
+
+        let _ = std::fs::remove_dir_all(directory);
+    }
 }

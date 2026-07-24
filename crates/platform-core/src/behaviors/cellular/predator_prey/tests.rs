@@ -36,6 +36,50 @@ fn menu_palette_normalize_and_serialization() {
 }
 
 #[test]
+fn malformed_saved_field_preserves_valid_persistent_fields() {
+    let state = predator_prey_deserialize(serde_json::json!({
+        "cells": [HERBIVORE, GRASS],
+        "energy": [7, 4],
+        "grassGrowChancePct": 0,
+        "herbivoreReproducePct": 23,
+        "predatorReproducePct": 9,
+        "starveTicks": 4,
+        "triggerTypes": ["activate", "not-a-trigger"]
+    }))
+    .unwrap();
+
+    assert_eq!(state.cells[0], HERBIVORE);
+    assert_eq!(state.cells[1], GRASS);
+    assert_eq!(state.energy[0], 4);
+    assert_eq!(state.energy[1], 0);
+    assert_eq!(state.grass_grow_chance_pct, 0);
+    assert_eq!(state.herbivore_reproduce_pct, 23);
+    assert_eq!(state.predator_reproduce_pct, 9);
+    assert_eq!(state.starve_ticks, 4);
+}
+
+#[test]
+fn explicit_empty_init_state_stays_empty() {
+    let state = predator_prey_init(serde_json::json!({
+        "cells": [],
+        "grassGrowChancePct": 0
+    }))
+    .unwrap();
+
+    assert!(state.cells.iter().all(|cell| *cell == EMPTY));
+}
+
+#[test]
+fn missing_saved_state_seeds_but_explicit_empty_saved_state_stays_empty() {
+    let seeded = predator_prey_deserialize(serde_json::json!({})).unwrap();
+    assert!(seeded.cells.contains(&HERBIVORE));
+    assert!(seeded.cells.contains(&PREDATOR));
+
+    let empty = predator_prey_deserialize(serde_json::json!({"cells": []})).unwrap();
+    assert!(empty.cells.iter().all(|cell| *cell == EMPTY));
+}
+
+#[test]
 fn empty_payload_serialization_stays_empty() {
     let state = predator_prey_deserialize(serde_json::json!({
         "cells": [], "energy": [], "grassGrowChancePct": 0
@@ -59,12 +103,68 @@ fn grid_press_cycle_exact_world_cell() {
     assert_eq!(s.trigger_types[grid_index(2, 3)], CellTriggerType::Activate);
     let s = predator_prey_on_input(s, DeviceInput::GridPress { x: 2, y: 3 }, &mut c);
     assert_eq!(s.cells[grid_index(2, 3)], PREDATOR);
+    assert_eq!(s.trigger_types[grid_index(2, 3)], CellTriggerType::Activate);
     let s = predator_prey_on_input(s, DeviceInput::GridPress { x: 2, y: 3 }, &mut c);
     assert_eq!(s.cells[grid_index(2, 3)], EMPTY);
     assert_eq!(
         s.trigger_types[grid_index(2, 3)],
         CellTriggerType::Deactivate
     );
+}
+
+#[test]
+fn trigger_precedence_preserves_deactivation_and_quiet_grass() {
+    let index = grid_index(3, 3);
+    let mut previous = vec![EMPTY; CELL_COUNT];
+    let mut next = vec![EMPTY; CELL_COUNT];
+
+    previous[index] = HERBIVORE;
+    let deactivated = triggers(&previous, &next, &[index], &[index]);
+    assert_eq!(deactivated[index], CellTriggerType::Deactivate);
+
+    next[index] = GRASS;
+    let animal_departure = triggers(&previous, &next, &[], &[]);
+    assert_eq!(animal_departure[index], CellTriggerType::Deactivate);
+
+    previous[index] = GRASS;
+    let burst = triggers(&previous, &next, &[index], &[]);
+    assert_eq!(burst[index], CellTriggerType::Activate);
+
+    let movement = triggers(&previous, &next, &[], &[index]);
+    assert_eq!(movement[index], CellTriggerType::Activate);
+
+    let stable = triggers(&previous, &next, &[], &[]);
+    assert_eq!(stable[index], CellTriggerType::Stable);
+    assert_eq!(stable[grid_index(4, 3)], CellTriggerType::None);
+}
+
+#[test]
+fn relief_reseed_uses_final_cell_before_assigning_trigger() {
+    let mut c = ctx();
+    let mut state = empty();
+    state.cells.fill(PREDATOR);
+    state.energy.fill(state.starve_ticks);
+
+    let next = predator_prey_on_tick(state, &mut c);
+
+    assert_eq!(next.cells[0], HERBIVORE);
+    assert_eq!(next.trigger_types[0], CellTriggerType::Activate);
+}
+
+#[test]
+fn nudge_and_reseed_do_not_leave_stale_deactivations() {
+    let mut c = ctx();
+    let state = empty();
+    let next = predator_prey_on_tick(state, &mut c);
+
+    assert!(next
+        .trigger_types
+        .iter()
+        .all(|trigger| *trigger != CellTriggerType::Deactivate));
+    assert_eq!(next.cells[0], HERBIVORE);
+    assert_eq!(next.cells[1], PREDATOR);
+    assert_eq!(next.trigger_types[0], CellTriggerType::Activate);
+    assert_eq!(next.trigger_types[1], CellTriggerType::Activate);
 }
 
 #[test]
@@ -181,6 +281,19 @@ fn full_grass_grid_reopens_without_firehose() {
             .count()
             <= 4
     );
+}
+
+#[test]
+fn static_visibility_nudge_removal_deactivates_removed_cell() {
+    let previous = vec![GRASS; CELL_COUNT];
+    let mut next = previous.clone();
+    let mut energy = vec![0; CELL_COUNT];
+
+    let removed = nudge_static_visibility(&previous, &mut next, &mut energy);
+    assert_eq!(removed, Some(0));
+    let trigger_types = triggers_with_deactivations(&previous, &next, &[], &[], &[0]);
+    assert_eq!(next[0], EMPTY);
+    assert_eq!(trigger_types[0], CellTriggerType::Deactivate);
 }
 
 #[test]

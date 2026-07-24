@@ -7,12 +7,19 @@ impl NativeRunner {
         &mut self,
         key: &str,
         delta: i8,
-    ) -> Option<String> {
-        let item = self.generated_behavior_target_item(key)?;
+    ) -> Result<Option<String>, String> {
+        let Some(item) = self.generated_behavior_target_item(key) else {
+            return Ok(None);
+        };
         let value = match item.value {
             NativeMenuValue::Enum { options, selected } => {
-                let next = turn_index(selected, options.len(), delta)?;
-                options.get(next)?.clone()
+                let Some(next) = turn_index(selected, options.len(), delta) else {
+                    return Ok(None);
+                };
+                let Some(value) = options.get(next) else {
+                    return Ok(None);
+                };
+                value.clone()
             }
             NativeMenuValue::Number {
                 value,
@@ -23,33 +30,43 @@ impl NativeRunner {
                 .clamp(min, max)
                 .to_string(),
             NativeMenuValue::Bool { value } => (!value).to_string(),
-            _ => return None,
+            _ => return Ok(None),
         };
         self.apply_generated_behavior_target_value(key, &value)?;
-        Some(value)
+        Ok(Some(value))
     }
 
-    fn apply_generated_behavior_target_value(&mut self, key: &str, value: &str) -> Option<()> {
+    fn apply_generated_behavior_target_value(
+        &mut self,
+        key: &str,
+        value: &str,
+    ) -> Result<(), String> {
         if let Some(index) = parse_layer_algorithm_step_key(key) {
             let pulses = super::note_unit_to_pulses(value);
-            let layer_step = self.transport.layer_algorithm_step_pulses.get_mut(index)?;
+            let layer_step = self
+                .transport
+                .layer_algorithm_step_pulses
+                .get_mut(index)
+                .ok_or_else(|| {
+                    format!("algorithm step layer is outside the supported range: {index}")
+                })?;
             *layer_step = pulses;
             if index == self.active_layer_index {
                 self.transport.algorithm_step_pulses = pulses;
             }
-            self.mark_config_dirty();
-            return Some(());
+            self.menu.set_enum_value_for_key(key, value);
+            self.clear_link_arp_state_for_layer(index);
+            self.rebase_and_recompose_modulation_key(key);
+            self.mark_fast_autosave_dirty();
+            return Ok(());
         }
-        let (index, field) = parse_layer_behavior_config_key(key)?;
-        let config = self.layer_behavior_configs.get_mut(index)?;
-        let mut object = config.as_object().cloned().unwrap_or_default();
-        object.insert(field.into(), parse_generated_value(value));
-        *config = Value::Object(object.clone());
-        if index == self.active_layer_index {
-            self.behavior_config = Value::Object(object);
-        }
-        self.mark_config_dirty();
-        Some(())
+        let (index, field) = parse_layer_behavior_config_key(key)
+            .ok_or_else(|| format!("invalid generated behavior target key `{key}`"))?;
+        self.apply_layer_behavior_config_deltas(
+            index,
+            &[(field.into(), parse_generated_value(value))],
+        )?;
+        Ok(())
     }
 }
 
