@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+module=/usr/local/lib/octessera/updater_cli.py
+if [[ "$EUID" -ne 0 && -n "${OCTESSERA_UPDATE_MODULE:-}" ]]; then module="$OCTESSERA_UPDATE_MODULE"; fi
+exec python3 "$module" recover --boot "$@"

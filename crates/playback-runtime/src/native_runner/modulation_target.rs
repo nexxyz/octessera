@@ -72,10 +72,9 @@ fn classify_layer_key(
         TargetValueKind::Enum
     } else if let Some(field) = field.strip_prefix("worlds.behaviorConfig.") {
         super::modulation_target_table::behavior_field_kind(field)?
-    } else if let Some(field) = field.strip_prefix("pulses.") {
-        super::modulation_target_table::pulses_field_kind(field)?
     } else {
-        return None;
+        let field = field.strip_prefix("pulses.")?;
+        super::modulation_target_table::pulses_field_kind(field)?
     };
     Some((
         value_kind,
