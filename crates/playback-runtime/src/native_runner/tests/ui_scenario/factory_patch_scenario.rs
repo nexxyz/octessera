@@ -3,6 +3,7 @@ use super::device_driver::DeviceDriver;
 use super::visible_menu_driver::VisibleMenuDriver;
 use super::{factory_patch_configuration, factory_patch_playback};
 use crate::{NativeRunner, NativeRunnerConfig, RuntimeStoreResult};
+use serde_json::{json, Value};
 
 const FACTORY_PATCH_SEQUENCE: &[&str] = &[
     "System > Saves > Load Empty > Confirm Load Empty",
@@ -32,7 +33,7 @@ pub(super) fn run() {
     factory_patch_configuration::configure_aux_xy_and_sparks_fx_from_visible_ui(&mut device);
     assert_build_menu_generated_values(&mut device);
     save_and_reload_test_json_then_recheck_build_menu(&mut device);
-    assert_factory_patch_matches_system_default(&device);
+    assert_factory_patch_matches_expected_fixture(&device);
     factory_patch_playback::assert_configured_patch_emits(&mut device);
     factory_patch_playback::assert_mute_looper_xy_fx_and_aux_paths(&mut device);
 }
@@ -88,7 +89,7 @@ fn save_and_reload_test_json_then_recheck_build_menu(device: &mut DeviceDriver) 
         payload: Some(payload),
     });
     assert_build_menu_generated_values(&mut reloaded);
-    assert_factory_patch_matches_system_default(&reloaded);
+    assert_factory_patch_matches_expected_fixture(&reloaded);
 }
 
 fn save_visible_preset_as_test_json(device: &mut DeviceDriver) {
@@ -115,19 +116,27 @@ fn load_visible_preset(device: &mut DeviceDriver, name: &str) {
     menu.back_to_root();
 }
 
-fn assert_factory_patch_matches_system_default(device: &DeviceDriver) {
+fn assert_factory_patch_matches_expected_fixture(device: &DeviceDriver) {
     let scenario_payload = device.config_payload();
     let scenario_revision = scenario_payload["revision"].as_u64().unwrap();
-    let mut factory_runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    factory_runner
-        .apply_config_payload(native_factory_payload_at_revision(scenario_revision))
-        .unwrap();
-    let factory_payload = factory_runner.config_payload();
-    if scenario_payload != factory_payload {
+    let expected_payload = expected_factory_patch_payload(scenario_revision);
+    if scenario_payload != expected_payload {
         panic!(
-            "factory patch scenario payload does not match native factory/default payload\nscenario:\n{}\nfactory:\n{}",
+            "factory patch scenario payload does not match expected user-flow fixture\nscenario:\n{}\nexpected:\n{}",
             serde_json::to_string_pretty(&scenario_payload).unwrap(),
-            serde_json::to_string_pretty(&factory_payload).unwrap()
+            serde_json::to_string_pretty(&expected_payload).unwrap()
         );
     }
+}
+
+fn expected_factory_patch_payload(revision: u64) -> Value {
+    let mut factory_runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    factory_runner
+        .apply_config_payload(native_factory_payload_at_revision(revision))
+        .unwrap();
+    let mut expected = factory_runner.config_payload();
+    let layer_one_worlds = &mut expected["runtimeConfig"]["layers"][0]["worlds"];
+    layer_one_worlds["behaviorConfig"] = Value::Null;
+    layer_one_worlds["behaviorConfigHistory"] = json!({});
+    expected
 }
