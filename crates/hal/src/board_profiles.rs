@@ -5,9 +5,31 @@ pub struct EncoderPins {
     pub sw: u8,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct DeviceDescriptor {
+    pub path: &'static str,
+    pub controller: &'static str,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct OrangeGpioDescriptor {
+    pub chip_label: &'static str,
+    pub dc_offset: u32,
+    pub reset_offset: u32,
+    pub reset_active_low: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct OrangePiDevices {
+    pub i2c: DeviceDescriptor,
+    pub spi: DeviceDescriptor,
+    pub gpio: OrangeGpioDescriptor,
+}
+
 pub const RASPBERRY_PI_ZERO_2W_ID: &str = "raspberry-pi-zero-2w";
 pub const ORANGE_PI_ZERO_2W_ID: &str = "orange-pi-zero-2w";
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct BoardProfile {
     pub id: &'static str,
     pub i2c_bus: u8,
@@ -25,6 +47,12 @@ pub struct BoardProfile {
     pub neokey_addr: u16,
     pub seesaw_int: u8,
     pub trellis_addrs: [u16; 4],
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct OrangeBoardProfile {
+    pub id: &'static str,
+    pub devices: OrangePiDevices,
 }
 
 pub const RASPBERRY_PI_ZERO_2W: BoardProfile = BoardProfile {
@@ -63,9 +91,39 @@ pub const RASPBERRY_PI_ZERO_2W: BoardProfile = BoardProfile {
     trellis_addrs: [0x2E, 0x2F, 0x30, 0x31],
 };
 
+pub const ORANGE_PI_ZERO_2W: OrangeBoardProfile = OrangeBoardProfile {
+    id: ORANGE_PI_ZERO_2W_ID,
+    devices: OrangePiDevices {
+        i2c: DeviceDescriptor {
+            path: "/dev/i2c-2",
+            controller: "5002400.i2c",
+        },
+        spi: DeviceDescriptor {
+            path: "/dev/spidev1.0",
+            controller: "5011000.spi",
+        },
+        gpio: OrangeGpioDescriptor {
+            chip_label: "300b000.pinctrl",
+            dc_offset: 270,
+            reset_offset: 76,
+            reset_active_low: true,
+        },
+    },
+};
+
+pub const ORANGE_PI_ZERO_2W_DEVICES: OrangePiDevices = ORANGE_PI_ZERO_2W.devices;
+
 pub const RPI_ZERO_2W: BoardProfile = RASPBERRY_PI_ZERO_2W;
 
-#[cfg(test)]
+#[cfg(feature = "orange-pi-zero-2w")]
+pub const ACTIVE_BOARD_PROFILE: OrangeBoardProfile = ORANGE_PI_ZERO_2W;
+
+#[cfg(not(feature = "orange-pi-zero-2w"))]
+pub const ACTIVE_BOARD_PROFILE: BoardProfile = RASPBERRY_PI_ZERO_2W;
+
+pub const ACTIVE_BOARD_PROFILE_ID: &str = ACTIVE_BOARD_PROFILE.id;
+
+#[cfg(all(test, not(feature = "orange-pi-zero-2w")))]
 mod tests {
     use super::{ORANGE_PI_ZERO_2W_ID, RASPBERRY_PI_ZERO_2W, RASPBERRY_PI_ZERO_2W_ID, RPI_ZERO_2W};
     use crate::pinmap;
@@ -94,6 +152,26 @@ mod tests {
         assert_eq!(RASPBERRY_PI_ZERO_2W.id, RASPBERRY_PI_ZERO_2W_ID);
         assert_ne!(RASPBERRY_PI_ZERO_2W_ID, ORANGE_PI_ZERO_2W_ID);
         assert_eq!(RPI_ZERO_2W.id, RASPBERRY_PI_ZERO_2W_ID);
-        assert_eq!(RPI_ZERO_2W.encoders, RASPBERRY_PI_ZERO_2W.encoders);
+    }
+}
+
+#[cfg(all(test, feature = "orange-pi-zero-2w"))]
+mod orange_tests {
+    use super::{
+        ACTIVE_BOARD_PROFILE, ORANGE_PI_ZERO_2W, ORANGE_PI_ZERO_2W_DEVICES, ORANGE_PI_ZERO_2W_ID,
+    };
+
+    #[test]
+    fn orange_profile_selects_typed_linux_devices_without_raspberry_pins() {
+        assert_eq!(ACTIVE_BOARD_PROFILE, ORANGE_PI_ZERO_2W);
+        assert_eq!(ORANGE_PI_ZERO_2W.id, ORANGE_PI_ZERO_2W_ID);
+        assert_eq!(ORANGE_PI_ZERO_2W_DEVICES, ORANGE_PI_ZERO_2W.devices);
+        assert_eq!(ORANGE_PI_ZERO_2W.devices.i2c.path, "/dev/i2c-2");
+        assert_eq!(ORANGE_PI_ZERO_2W.devices.i2c.controller, "5002400.i2c");
+        assert_eq!(ORANGE_PI_ZERO_2W.devices.spi.path, "/dev/spidev1.0");
+        assert_eq!(ORANGE_PI_ZERO_2W.devices.spi.controller, "5011000.spi");
+        assert_eq!(ORANGE_PI_ZERO_2W.devices.gpio.chip_label, "300b000.pinctrl");
+        assert_eq!(ORANGE_PI_ZERO_2W.devices.gpio.dc_offset, 270);
+        assert_eq!(ORANGE_PI_ZERO_2W.devices.gpio.reset_offset, 76);
     }
 }

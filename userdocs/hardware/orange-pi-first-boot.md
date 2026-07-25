@@ -2,6 +2,10 @@
 
 The Orange Pi image starts a small setup website if it does not already know a Wi-Fi network.
 
+This image is bring-up infrastructure, not a full Octessera runtime image. It
+does not install or enable `octessera.service`; Orange artifacts currently
+support diagnostics only.
+
 Use this before final assembly if you want. You do not need the OLED or buttons installed yet.
 
 ## First boot
@@ -66,6 +70,12 @@ sudo rm -f /var/lib/octessera/setup-force
 ```
 
 If Wi-Fi was configured by another Armbian first-run path, the setup portal stays out of the way. Use the force marker above if you still want the Octessera portal.
+
+## SPI and OLED bring-up
+
+The Orange Pi Armbian image includes the reviewed SPI1/CS0 user overlay. It enables the header SPI pins and exposes one `/dev/spidev1.0` device at a maximum of 1 MHz. The image requires `overlays=i2c1-pi` for the header I2C bus and does not use the Raspberry Pi `config.txt` or stock `spidev1_0` path.
+
+This is only the electrical bus setup. Before connecting or testing an OLED, follow the [Orange Pi Armbian bring-up notes](../../hardware/docs/orange-pi-armbian-bringup.md) to verify the live pinmux, DC/reset GPIO mapping, power, and recovery path. Do not copy this overlay to another board.
 
 ## Advanced path
 

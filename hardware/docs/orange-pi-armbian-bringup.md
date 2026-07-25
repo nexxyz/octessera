@@ -19,9 +19,9 @@ Once the board is reachable over SSH, run the repo probe from Windows:
 .\tools\orange-pi\run-opi-bringup.ps1 -Target orangepi@192.168.x.x
 ```
 
-The default probe is read-only. Add `-WithSudoChecks` only after SSH/recovery is stable. Add `-GadgetMidiSmoke -IUnderstandUsbRisk` only after the USB power/OTG gate below is understood.
+The default probe is read-only. Add `-WithSudoChecks` only after SSH/recovery is stable. The probe and wrapper never bind a gadget; use the separate composer below for an explicitly authorized USB test.
 
-`-WithSudoChecks` and gadget smoke require passwordless `sudo -n` or a root SSH session. If the board asks for a sudo password, run the default probe first, then either configure temporary passwordless sudo for bring-up or run the probe as root.
+`-WithSudoChecks` requires passwordless `sudo -n` or a root SSH session. If the board asks for a sudo password, run the default probe first, then either configure temporary passwordless sudo for bring-up or run the probe as root. The explicit-UDC composer is a separate command and is never invoked by this wrapper.
 
 ## Safety gates before connecting the Octessera PCB
 
@@ -48,7 +48,7 @@ Use this as a desk check only. Trust physical pin numbers first, then verify aga
 
 - Power rail: the third-party pinout shows matching 5 V, 3.3 V, and ground positions. Confirm with a multimeter before connecting the PCB.
 - I2C: physical pins 3 and 5 map to I2C1 SDA/SCL in the third-party pinout. Confirm Armbian exposes that bus on those pins.
-- OLED SPI: physical pins 19, 21, 23, 24, and 26 map to SPI0 signals in the third-party pinout. Confirm `/dev/spidev*` and pinmux before OLED testing.
+- OLED SPI: physical pins 19, 21, 23, and 24 map to the reviewed SPI1 data/CS0 path; physical pin 26 is SPI1 CS1 and remains unused. Confirm `/dev/spidev1.0` and pinmux before OLED testing.
 - OLED D/C and reset: physical pins 16 and 36 appear GPIO-capable, but not display-specific. Confirm gpiochip lines and polarity.
 - DAC I2S: physical pins 12, 35, and 40 are not proven as Pi-style I2S/PCM pins in the official docs found so far. This is blocked until schematic, DTS, and Armbian overlay checks prove I2S there.
 - Encoder and button GPIOs: physical pins 7, 8, 11, 13, 15, 18, 22, 29, 31, 32, 33, and 37 need libgpiod mapping. Do not use BCM numbering.
@@ -73,9 +73,27 @@ Armbian does not use the Raspberry Pi firmware overlay path.
 
 Practical rule: Raspberry Pi overlay names and BCM GPIO numbers are not portable contracts.
 
+## Custom SPI1/CS0 overlay
+
+The Octessera Armbian image carries one board-specific user overlay for the Orange Pi Zero 2W:
+
+- Source: `userpatches/overlay/usr/local/share/octessera/device-tree/octessera-h618-spi1-cs0.dts`.
+- Installed source: `/usr/local/share/octessera/device-tree/octessera-h618-spi1-cs0.dts`.
+- Installed DTBO: `/boot/overlay-user/octessera-h618-spi1-cs0.dtbo`.
+- Boot enablement: `user_overlays=octessera-h618-spi1-cs0` in `/boot/armbianEnv.txt`.
+- Required I2C enablement: `overlays=i2c1-pi` in `/boot/armbianEnv.txt`; existing overlay settings are preserved and the token is added if absent.
+
+The overlay declares one address cell and zero size cells, enables `&spi1` with `&spi1_pins` and `&spi1_cs0_pin`, then creates one CS0 `rohm,dh2228fv` device capped at 1 MHz. The reviewed H618 pin groups are PH6/PH7/PH8 with function `spi1` and PH5 with function `spi1`. It does not touch SPI0, CS1, GPIO lines, services, or authorization. It is not the stock `spidev1_0` overlay.
+
+Image customization refuses any board other than the exact Armbian board ID `orangepizero2w`. It resolves the boot-selected `fdtfile`/current DTB path from the image boot configuration and refuses missing or ambiguous H618 candidates; it does not infer the target from `uname -r`. It compiles with symbols, decompiles and merges with fatal diagnostics, and asserts unchanged SPI0/I2C nodes plus the expected SPI1 pinctrl/CS0 result. DTBO and `armbianEnv.txt` writes are atomic. Non-secret source and DTBO SHA-256 values are recorded in `/etc/octessera/build-metadata.env` as `OCTESSERA_SPI1_CS0_DTS_SHA256` and `OCTESSERA_SPI1_CS0_DTBO_SHA256`.
+
+The boot-environment parser rejects duplicate assignments, duplicate tokens, commented or inline-commented assignments, and malformed token lists. Full qualification image builds also require a reviewed immutable 40-character Armbian commit SHA; validation-only runs may use the workflow's default ref.
+
+Do not enable this overlay on another board or kernel without a new device-tree review. Before any OLED transfer, prove the live SPI1 node and pinmux mapping on the target and keep a recovery path for `/boot/armbianEnv.txt`.
+
 ## GitHub-built Armbian image
 
-The `Armbian Image` GitHub Actions workflow can build a generic Orange Pi/Armbian image with Octessera setup helpers, diagnostics, and optional runtime payloads installed through Armbian `userpatches/`.
+The `Armbian Image` GitHub Actions workflow builds an Orange Pi Zero 2W/Armbian diagnostic image with setup helpers and bus diagnostics installed through Armbian `userpatches/`. It does not install or enable the Octessera runtime service.
 
 Start with validation only:
 
@@ -91,11 +109,11 @@ gh workflow run armbian-image.yml \
   -f artifact_mode=public-generic
 ```
 
-Run a no-secret full build by changing `run_build=true`. Public generic artifacts must not contain Wi-Fi credentials, user passwords, user-specific SSH keys, or private first-run URLs added by Octessera inputs or overlays. If you need first-boot personalization, use the private artifact mode with the protected `armbian-image-personalized` GitHub environment and repository/environment secrets; do not pass secrets as workflow inputs.
+Run a no-secret full build by changing `run_build=true` and setting `armbian_build_ref` to a reviewed full 40-character Armbian commit SHA; the mutable default ref is validation-only. Public generic artifacts must not contain Wi-Fi credentials, user passwords, user-specific SSH keys, or private first-run URLs added by Octessera inputs or overlays. If you need first-boot personalization, use the private artifact mode with the protected `armbian-image-personalized` GitHub environment and repository/environment secrets; do not pass secrets as workflow inputs.
 
 The only public first-run input is `public_preset_configuration_url`, and it must point to a non-secret HTTPS Armbian `PRESET_CONFIGURATION` file. Keep `preset-firstrun` in the extensions list when using that flow. Private preset URLs belong in the protected `ARMBIAN_PRESET_CONFIGURATION_URL` secret.
 
-Optional Octessera payload tarballs must use HTTPS and a matching SHA256. Payloads are staged by default. The runtime is enabled only when the payload metadata explicitly says it is compatible, requests runtime enablement, and includes an executable `octessera-pi` payload.
+Optional diagnostic payload tarballs must use HTTPS and a matching SHA256. Payloads are staged by default. Runtime-enabled payloads and `octessera-pi` payloads are rejected; no Orange payload can enable a service or claim runtime readiness.
 
 ### First-boot setup portal
 
@@ -143,7 +161,7 @@ ls /sys/class/udc 2>/dev/null || true
 ls /dev/i2c-* /dev/spidev* 2>/dev/null || true
 gpioinfo 2>/dev/null || true
 aplay -l 2>/dev/null || true
-USB_CONFIG_RE='CONFIGFS_FS|USB_LIBCOMPOSITE|USB_CONFIGFS|USB_F_UAC2|USB_F_MIDI|USB_F_MASS_STORAGE'
+USB_CONFIG_RE='CONFIGFS_FS|USB_LIBCOMPOSITE|USB_CONFIGFS|USB_F_UAC2|USB_F_MIDI'
 zcat /proc/config.gz 2>/dev/null | grep -E "$USB_CONFIG_RE" || true
 grep -E "$USB_CONFIG_RE" /boot/config-$(uname -r) 2>/dev/null || true
 ```
@@ -180,7 +198,7 @@ Pass criteria:
 
 - `/sys/class/udc` contains at least one controller after boot and overlay setup.
 - `libcomposite` loads.
-- UAC2, MIDI, and mass-storage configfs functions exist or can be loaded.
+- UAC2 and MIDI configfs functions exist or can be loaded.
 - Binding a minimal gadget does not disconnect power or network access unexpectedly.
 - A host computer sees the expected device functions on the OTG/data port.
 
@@ -195,46 +213,38 @@ Before binding any gadget, record the USB power topology:
 - How VBUS, CC, and ID/role detection are handled on the target board.
 - Whether unplug/replug and host sleep/resume keep the board powered safely.
 
-### Minimal gadget smoke test
+### Orange Pi gadget composer
 
-Run only after confirming the OTG/data port and power arrangement are safe:
+The Orange Pi path has its own configfs composer at
+`tools/orange-pi/orange-pi-usb-gadget.sh`; do not copy the Raspberry Pi image
+script or enable a service from this bring-up path. Run only after confirming
+the OTG/data port and power arrangement are safe. Configfs and the requested
+function modules must already be available:
 
 ```sh
 sudo modprobe libcomposite
-sudo mount -t configfs none /sys/kernel/config 2>/dev/null || true
-G=/sys/kernel/config/usb_gadget/octessera-smoke
-UDC=$(ls /sys/class/udc | head -n 1)
-sudo mkdir -p "$G/strings/0x409" "$G/configs/c.1/strings/0x409" "$G/functions/midi.usb0"
-echo 0x1d6b | sudo tee "$G/idVendor"
-echo 0x0104 | sudo tee "$G/idProduct"
-echo Octessera | sudo tee "$G/strings/0x409/manufacturer"
-echo 'Octessera Smoke MIDI' | sudo tee "$G/strings/0x409/product"
-echo smoke | sudo tee "$G/strings/0x409/serialnumber"
-sudo ln -s "$G/functions/midi.usb0" "$G/configs/c.1/midi.usb0"
-echo "$UDC" | sudo tee "$G/UDC"
+sudo mount -t configfs none /sys/kernel/config
+sudo modprobe usb_f_midi
+sudo bash ./tools/orange-pi/orange-pi-usb-gadget.sh setup \
+  --udc <exact-udc-name> --mode midi
 ```
 
 Teardown:
 
 ```sh
-echo '' | sudo tee "$G/UDC"
-sudo rm -f "$G/configs/c.1/midi.usb0"
-sudo rmdir "$G/functions/midi.usb0" "$G/configs/c.1/strings/0x409" "$G/configs/c.1" "$G/strings/0x409" "$G"
+sudo bash ./tools/orange-pi/orange-pi-usb-gadget.sh teardown \
+  --udc <exact-udc-name>
 ```
 
-Prefer the guarded repo smoke test over copying manual configfs commands:
+Use `--mode uac2` for UAC2-only or `--mode combined` for both functions. The
+composer requires an exact UDC argument, refuses pre-existing/pre-bound gadget
+state, creates functions and configuration links before binding, and unbinds
+first during teardown. It has no mass-storage mode and does not enable or
+start any service. Its fake-configfs tests are offline:
 
-```powershell
-.\tools\orange-pi\run-opi-bringup.ps1 -Target orangepi@192.168.x.x -WithSudoChecks -GadgetMidiSmoke -IUnderstandUsbRisk
+```sh
+bash ./tools/orange-pi/test-orange-pi-usb-gadget.sh
 ```
-
-If multiple UDCs are present, choose the intended controller explicitly:
-
-```powershell
-.\tools\orange-pi\run-opi-bringup.ps1 -Target orangepi@192.168.x.x -WithSudoChecks -GadgetMidiSmoke -IUnderstandUsbRisk -Udc <udc-name>
-```
-
-After MIDI works, repeat with UAC2 and mass-storage before reusing Octessera's full gadget script.
 
 Host-side checks:
 
@@ -242,10 +252,10 @@ Host-side checks:
 - Confirm DAW-visible MIDI naming and basic MIDI send/receive.
 - Confirm UAC2 audio direction, sample rate, and reconnect behavior.
 - Confirm unplug/replug and host suspend/resume behavior.
-- For mass storage, test host eject/safe removal, remount, and `fsck` on the backing filesystem.
-- Confirm root, eMMC, and system SD devices cannot be exported as mass-storage backing devices.
+- Confirm no storage function is exposed by the Orange Pi gadget configuration.
 
-The Linux Foundation VID/PID values used by the smoke test and current script are only for local validation. Do not treat them as release USB IDs.
+The Linux Foundation VID/PID values used by the composer are only for local
+validation. Do not treat them as release USB IDs.
 
 ## Peripheral validation
 
@@ -258,7 +268,7 @@ The Linux Foundation VID/PID values used by the smoke test and current script ar
 
 ### SPI and OLED
 
-- Enable the required SPI overlay in `/boot/armbianEnv.txt` if `/dev/spidev*` is absent.
+- The reviewed image installs `octessera-h618-spi1-cs0.dtbo` and enables it with `user_overlays=octessera-h618-spi1-cs0`. Do not substitute the stock `spidev1_0` overlay.
 - Record the SPI bus/device path.
 - Run a minimal OLED transfer test before starting the app.
 - Confirm MOSI, SCLK, CS, DC, and reset are on the expected physical pins.
@@ -277,17 +287,104 @@ The Linux Foundation VID/PID values used by the smoke test and current script ar
 - Run a short playback test and an underrun/dropout check before Octessera service testing.
 - Confirm bit clock, word select, and data pins match the existing DAC wiring.
 
-## Runtime service validation
+## Live qualification contract
 
-After bare peripheral tests pass, validate the actual Octessera service with board-specific paths and permissions:
+Run this contract in order on one identified board. It is a bounded foreground
+qualification, not permission to install or enable a service. Record the board
+revision, PCB/harness revision, image/kernel/DT identity, artifact SHA-256, and
+timestamps for every gate.
 
-- service user and home/store/sample paths;
-- realtime/audio group access;
-- ALSA device selection for jack/I2S and USB gadget audio;
-- USB SD transfer start/stop permissions;
-- shutdown/reboot privilege policy;
-- boot-to-ready timing;
-- controls, OLED, audio, MIDI, and gadget parity with Raspberry Pi behavior.
+### Passive gate
+
+Before any transfer, GPIO request, audio playback, USB bind, or runtime launch:
+
+- Confirm the board is exactly `orangepizero2w`, the recovery path works, and no
+  Octessera service or other process owns the connected hardware.
+- Reconfirm the live DT/pinmux mappings for I2C, SPI1/CS0, OLED D/C/reset, I2S,
+  USB role, and UDC. Record device nodes, GPIO ownership, `aplay -l`, and
+  `/sys/class/udc`; do not infer a mapping from a Raspberry Pi number.
+- Confirm the candidate is an Orange Pi artifact with matching metadata. Stage
+  it only under `/tmp`; do not install it, replace a release, or start a
+  service.
+- Confirm the exact USB-C OTG/data port from the schematic and board. With the
+  board power arrangement documented, measure VBUS and CC/role state with the
+  host disconnected and connected. Pass only when the expected host/device
+  direction, peripheral role, and no-backfeed/no-brownout behavior are proven.
+
+### Reboot and staging gate
+
+`/tmp` is cleared by reboot. After every controlled reboot, do not run a probe
+or active test until SSH has returned and the artifact has been staged again:
+
+```powershell
+$Target = "orangepi@<address>"
+$Artifact = "<local-orange-qualification-artifact>"
+$RemoteArtifact = "/tmp/octessera-orange-qualification"
+$SshOptions = @("-o", "BatchMode=yes", "-o", "ConnectTimeout=5")
+$Deadline = (Get-Date).AddMinutes(5)
+$Reachable = $false
+while ((Get-Date) -lt $Deadline) {
+  & ssh @SshOptions $Target "true"
+  if ($LASTEXITCODE -eq 0) { $Reachable = $true; break }
+  Start-Sleep -Seconds 2
+}
+if (-not $Reachable) { throw "post-reboot SSH poll timed out; stop" }
+& scp @SshOptions $Artifact "${Target}:$RemoteArtifact"
+if ($LASTEXITCODE -ne 0) { throw "artifact redeploy failed; stop" }
+& ssh @SshOptions $Target "chmod 0755 '$RemoteArtifact' && '$RemoteArtifact' --print-build-metadata"
+if ($LASTEXITCODE -ne 0) { throw "staged artifact metadata check failed; stop" }
+```
+
+Compare the remote SHA-256 with the recorded local SHA-256 before launching
+anything. Repeat this poll-and-redeploy sequence after every reboot, including
+one caused by an overlay change.
+
+### Active gate and order
+
+Proceed only when the passive gate, staging gate, and USB electrical gate pass:
+
+1. **OLED:** run the diagnostic-only utility from `/tmp`. One invocation owns
+   the bounded pattern-to-black-to-display-off sequence, with timeout and
+   cleanup on errors and handled interruption. Do not split it into separate
+   commands:
+
+   ```sh
+   /tmp/orange-oled-smoke --confirm-active-test
+   ```
+
+2. **I2S/DAC:** enumerate ALSA, select the proven I2S `hw:` endpoint explicitly,
+   and run one short playback plus an underrun check. A sound from HDMI or an
+   implicit/default ALSA device is not an I2S pass.
+3. **HDMI:** after the I2S result is recorded, enumerate HDMI separately and
+   confirm it has not been selected as an audio fallback. Do not use HDMI to
+   qualify the DAC wiring.
+4. **USB gadget:** only after I2S and HDMI checks, recheck VBUS/CC/role and the
+   exact UDC, bind one composer mode, verify host enumeration, then unbind and
+   verify clean teardown. Use the Orange Pi composer; do not bind a pre-existing
+   gadget or guess a UDC.
+5. **Diagnostic artifact only:** after the preceding gates pass, run only the
+   profile-matched diagnostic utility from `/tmp`. Keep runtime, service, and
+   release paths untouched; Orange is not runtime-ready.
+
+### Stop conditions
+
+Stop the session, preserve logs and measurements, and do not retry or reorder a
+gate if any of these occurs: the SSH poll times out; the board identity, boot
+DT, pinmux, artifact metadata, or SHA-256 differs; `/tmp` staging or metadata
+validation fails; OLED black/display-off is not reached within the 2-second
+bound; any bus hangs, GPIO ownership mismatch, kernel fault, brownout, thermal
+rise, unexpected reboot, or hardware owner appears; the I2S card is absent, an
+audio test falls back to HDMI, or playback underruns; VBUS/CC/OTG direction is
+unproven, backfeed or power loss appears, UDC is absent/pre-bound, host
+enumeration fails, or gadget teardown cannot unbind cleanly. Do not continue
+to runtime qualification after a failed gate.
+
+## Runtime service status
+
+There is no Orange runtime service or release artifact to validate. Do not copy
+the Raspberry Pi service, enable `octessera.service`, or deploy `octessera-pi`
+to this image. A future runtime requires real qualified input, audio, and
+device adapters plus a separately reviewed build/deploy/service contract.
 
 ## Repo follow-up after hardware passes
 

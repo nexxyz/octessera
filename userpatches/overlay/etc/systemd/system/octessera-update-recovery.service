@@ -1,6 +1,5 @@
 [Unit]
 Description=Octessera conservative update recovery
-Before=octessera.service
 
 [Service]
 Type=oneshot

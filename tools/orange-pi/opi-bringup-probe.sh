@@ -3,10 +3,7 @@
 set -u
 
 OUTPUT_DIR="/tmp/octessera-opi-bringup"
-REQUESTED_UDC=""
 WITH_SUDO_CHECKS=0
-GADGET_MIDI_SMOKE=0
-I_UNDERSTAND_USB_RISK=0
 FAILURES=0
 WARNINGS=0
 
@@ -22,11 +19,6 @@ Options:
                               (default: /tmp/octessera-opi-bringup)
   --with-sudo-checks          Try sudo-only module/configfs checks. This may
                               load gadget modules and mount configfs.
-  --gadget-midi-smoke         Bind a temporary MIDI-only configfs gadget, then
-                              tear it down. Requires --i-understand-usb-risk.
-  --udc <name>                UDC name to use for gadget smoke. Required if
-                              more than one UDC is present.
-  --i-understand-usb-risk     Acknowledge USB role/power risk for gadget smoke.
   -h, --help                  Show this help.
 EOF
 }
@@ -40,19 +32,6 @@ while [ "$#" -gt 0 ]; do
       ;;
     --with-sudo-checks)
       WITH_SUDO_CHECKS=1
-      shift
-      ;;
-    --gadget-midi-smoke)
-      GADGET_MIDI_SMOKE=1
-      shift
-      ;;
-    --udc)
-      [ "$#" -ge 2 ] || { echo "missing value for --udc" >&2; exit 2; }
-      REQUESTED_UDC="$2"
-      shift 2
-      ;;
-    --i-understand-usb-risk)
-      I_UNDERSTAND_USB_RISK=1
       shift
       ;;
     -h|--help)
@@ -73,7 +52,7 @@ LOG_FILE="$OUTPUT_DIR/opi-bringup-$STAMP.log"
 printf '%s\n' "$LOG_FILE" > "$OUTPUT_DIR/latest-log-path"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
-USB_CONFIG_RE='CONFIGFS_FS|USB_LIBCOMPOSITE|USB_CONFIGFS|USB_F_UAC2|USB_F_MIDI|USB_F_MASS_STORAGE'
+USB_CONFIG_RE='CONFIGFS_FS|USB_LIBCOMPOSITE|USB_CONFIGFS|USB_F_UAC2|USB_F_MIDI'
 
 section() {
   printf '\n== %s ==\n' "$1"
@@ -147,78 +126,9 @@ validate_static_gates() {
   command -v i2cdetect >/dev/null 2>&1 || record_warning "i2cdetect missing; install i2c-tools for I2C adapter checks"
 }
 
-gadget_midi_smoke() {
-  section "gadget MIDI smoke"
-  if [ "$I_UNDERSTAND_USB_RISK" -ne 1 ]; then
-    echo "refusing: pass --i-understand-usb-risk with --gadget-midi-smoke"
-    return 1
-  fi
-  if ! sudo_available; then
-    echo "sudo -n is not available; skipping"
-    return 1
-  fi
-
-  sudo -n env REQUESTED_UDC="$REQUESTED_UDC" bash <<'EOF'
-set -eu
-
-G=/sys/kernel/config/usb_gadget/octessera-smoke
-cleanup() {
-  if [ -d "$G" ]; then
-    echo "" > "$G/UDC" 2>/dev/null || true
-    rm -f "$G/configs/c.1"/*.usb0 2>/dev/null || true
-    rmdir "$G/functions"/*.usb0 2>/dev/null || true
-    rmdir "$G/configs/c.1/strings/0x409" "$G/configs/c.1" 2>/dev/null || true
-    rmdir "$G/strings/0x409" "$G" 2>/dev/null || true
-  fi
-}
-trap cleanup EXIT
-
-modprobe libcomposite >/dev/null 2>&1 || true
-modprobe usb_f_midi >/dev/null 2>&1 || true
-mountpoint -q /sys/kernel/config || mount -t configfs none /sys/kernel/config
-[ -d /sys/class/udc ] || { echo "no /sys/class/udc"; exit 1; }
-if [ -n "${REQUESTED_UDC:-}" ]; then
-  [ -e "/sys/class/udc/$REQUESTED_UDC" ] || { echo "requested UDC not found: $REQUESTED_UDC"; exit 1; }
-  UDC="$REQUESTED_UDC"
-else
-  udc_count=$(ls -1 /sys/class/udc 2>/dev/null | wc -l)
-  [ "$udc_count" -gt 0 ] || { echo "no UDC available"; exit 1; }
-  if [ "$udc_count" -ne 1 ]; then
-    echo "multiple UDCs present; rerun with --udc <name>"
-    ls -1 /sys/class/udc
-    exit 1
-  fi
-  UDC=$(ls -1 /sys/class/udc)
-fi
-
-cleanup
-mkdir -p "$G/strings/0x409" "$G/configs/c.1/strings/0x409" "$G/functions/midi.usb0"
-echo 0x1d6b > "$G/idVendor"
-echo 0x0104 > "$G/idProduct"
-echo 0x0200 > "$G/bcdUSB"
-echo 0x0100 > "$G/bcdDevice"
-echo Octessera > "$G/strings/0x409/manufacturer"
-echo 'Octessera Smoke MIDI' > "$G/strings/0x409/product"
-echo smoke > "$G/strings/0x409/serialnumber"
-echo Octessera > "$G/configs/c.1/strings/0x409/configuration"
-ln -s "$G/functions/midi.usb0" "$G/configs/c.1/midi.usb0"
-echo "$UDC" > "$G/UDC"
-echo "bound MIDI smoke gadget to UDC=$UDC for 10 seconds"
-if [ -r "/sys/class/udc/$UDC/state" ]; then
-  echo "UDC state: $(cat "/sys/class/udc/$UDC/state")"
-fi
-sleep 10
-EOF
-  status="$?"
-  printf '[exit %s]\n' "$status"
-  return "$status"
-}
-
 section "octessera Orange Pi bring-up probe"
 printf 'LOG_FILE=%s\n' "$LOG_FILE"
 printf 'WITH_SUDO_CHECKS=%s\n' "$WITH_SUDO_CHECKS"
-printf 'GADGET_MIDI_SMOKE=%s\n' "$GADGET_MIDI_SMOKE"
-printf 'REQUESTED_UDC=%s\n' "${REQUESTED_UDC:-auto}"
 
 run "identity" "date -Is; hostname; whoami; id; pwd; uptime"
 run "os release" "cat /etc/os-release 2>/dev/null || true; cat /etc/armbian-release 2>/dev/null || true"
@@ -229,7 +139,7 @@ run "device nodes" "ls -l /dev/i2c-* /dev/spidev* /dev/gpiochip* /dev/snd/* 2>/d
 run "usb udc and roles" "ls -la /sys/class/udc 2>/dev/null || true; find /sys -maxdepth 6 -type f \( -name dr_mode -o -name role -o -name mode \) -print -exec cat {} \; 2>/dev/null | head -n 200"
 run "configfs state" "mount | grep configfs || true; ls -la /sys/kernel/config/usb_gadget 2>/dev/null || true"
 run "kernel USB gadget config" "zgrep -E '$USB_CONFIG_RE' /proc/config.gz 2>/dev/null || true; grep -E '$USB_CONFIG_RE' /boot/config-\$(uname -r) 2>/dev/null || true"
-run "gadget modules" "lsmod | grep -E 'libcomposite|usb_f_|uac|midi|mass_storage|dwc2|musb|sunxi' || true; for m in libcomposite usb_f_midi usb_f_uac2 usb_f_mass_storage g_serial dwc2; do modinfo \$m 2>/dev/null | sed -n '1,8p'; done"
+run "gadget modules" "lsmod | grep -E 'libcomposite|usb_f_|uac|midi|dwc2|musb|sunxi' || true; for m in libcomposite usb_f_midi usb_f_uac2 g_serial dwc2; do modinfo \$m 2>/dev/null | sed -n '1,8p'; done"
 run "module function directory" "ls -la /lib/modules/\$(uname -r)/kernel/drivers/usb/gadget/function 2>/dev/null || true"
 run_optional "i2c adapters" "i2cdetect -l"
 run_optional "gpio chips" "gpioinfo"
@@ -244,13 +154,7 @@ validate_static_gates
 
 if [ "$WITH_SUDO_CHECKS" -eq 1 ]; then
   run_sudo "sudo libcomposite/configfs check" "modprobe libcomposite >/dev/null 2>&1 || true; mountpoint -q /sys/kernel/config || mount -t configfs none /sys/kernel/config; ls -la /sys/class/udc; ls -la /sys/kernel/config/usb_gadget 2>/dev/null || true"
-  run_sudo "sudo gadget function modules" "for m in usb_f_midi usb_f_uac2 usb_f_mass_storage; do modprobe \$m >/dev/null 2>&1 || true; modinfo \$m 2>/dev/null | sed -n '1,8p'; done"
-fi
-
-if [ "$GADGET_MIDI_SMOKE" -eq 1 ]; then
-  if ! gadget_midi_smoke; then
-    record_failure "gadget MIDI smoke failed or was refused"
-  fi
+  run_sudo "sudo gadget function modules" "for m in usb_f_midi usb_f_uac2; do modprobe \$m >/dev/null 2>&1 || true; modinfo \$m 2>/dev/null | sed -n '1,8p'; done"
 fi
 
 section "operator reminders"
@@ -260,6 +164,7 @@ cat <<'EOF'
 - I2S on the Raspberry Pi physical pins is not proven by the desk docs yet.
 - Use Armbian /boot/armbianEnv.txt overlays, not Raspberry Pi config.txt dtoverlay names.
 - GPIO mapping must use gpiochip lines; do not use Raspberry Pi BCM numbering.
+- USB gadget tests belong to orange-pi-usb-gadget.sh with an explicit UDC; this probe never binds a gadget.
 EOF
 
 section "done"

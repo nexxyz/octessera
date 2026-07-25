@@ -1,22 +1,19 @@
 param(
-  [string]$Target = "orangepi@192.168.0.212",
+  [Parameter(Mandatory = $true)]
+  [ValidateNotNullOrEmpty()]
+  [string]$Target,
   [string]$Key = "",
   [string]$RemoteScript = "/tmp/octessera-opi-bringup-probe.sh",
   [string]$RemoteLogDir = "/tmp/octessera-opi-bringup",
   [string]$LocalOutputDir = "artifacts/orange-pi-bringup",
-  [string]$Udc = "",
-  [switch]$WithSudoChecks,
-  [switch]$GadgetMidiSmoke,
-  [switch]$IUnderstandUsbRisk
+  [switch]$WithSudoChecks
 )
 
 $ErrorActionPreference = "Stop"
 
 function ConvertTo-ShellLiteral {
   param([string]$Value)
-  $quote = [char]39
-  $escapedQuote = "$quote`"$quote`"$quote"
-  return $quote + $Value.Replace($quote, $escapedQuote) + $quote
+  return "'" + $Value.Replace("'", "'\''") + "'"
 }
 
 function Invoke-CheckedNative {
@@ -39,7 +36,7 @@ $sshBaseArgs = @()
 if ($Key -ne "") {
   $sshBaseArgs += @("-i", $Key, "-o", "IdentitiesOnly=yes")
 }
-$sshBaseArgs += @("-o", "StrictHostKeyChecking=accept-new")
+$sshBaseArgs += @("-o", "StrictHostKeyChecking=yes", "-o", "BatchMode=yes")
 
 $scpTarget = "${Target}:$RemoteScript"
 Invoke-CheckedNative "scp" ($sshBaseArgs + @($scriptPath, $scpTarget))
@@ -48,16 +45,6 @@ $probeArgs = @("--output-dir", $RemoteLogDir)
 if ($WithSudoChecks) {
   $probeArgs += "--with-sudo-checks"
 }
-if ($GadgetMidiSmoke) {
-  $probeArgs += "--gadget-midi-smoke"
-}
-if ($Udc -ne "") {
-  $probeArgs += @("--udc", $Udc)
-}
-if ($IUnderstandUsbRisk) {
-  $probeArgs += "--i-understand-usb-risk"
-}
-
 $remoteScriptLiteral = ConvertTo-ShellLiteral $RemoteScript
 $remoteArgs = ($probeArgs | ForEach-Object { ConvertTo-ShellLiteral $_ }) -join " "
 $remoteCommand = "tr -d '\r' < $remoteScriptLiteral > $remoteScriptLiteral.lf && chmod +x $remoteScriptLiteral.lf && bash $remoteScriptLiteral.lf $remoteArgs"
@@ -74,8 +61,13 @@ if (-not (Test-Path -LiteralPath $LocalOutputDir)) {
 }
 
 $remoteLogDirLiteral = ConvertTo-ShellLiteral $RemoteLogDir
-$latestLogPath = (& ssh @sshBaseArgs $Target "cat $remoteLogDirLiteral/latest-log-path 2>/dev/null").Trim()
-if ($LASTEXITCODE -eq 0 -and $latestLogPath -ne "") {
+$latestLogOutput = @(& ssh @sshBaseArgs $Target "cat $remoteLogDirLiteral/latest-log-path 2>/dev/null")
+$latestLogExitCode = $LASTEXITCODE
+$latestLogPath = $null
+if ($latestLogOutput.Count -eq 1) {
+  $latestLogPath = ([string]$latestLogOutput[0]).Trim()
+}
+if ($latestLogExitCode -eq 0 -and $latestLogPath -ne $null -and $latestLogPath -ne "") {
   $remoteLogPath = "${Target}:$latestLogPath"
   & scp @sshBaseArgs $remoteLogPath $LocalOutputDir
   if ($LASTEXITCODE -ne 0) {

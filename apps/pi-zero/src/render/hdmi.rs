@@ -1,81 +1,92 @@
 use serde_json::Value;
+use std::fmt;
+use std::io;
 
-#[cfg(unix)]
-mod imp {
-    use super::*;
-    use std::fs::OpenOptions;
-    use std::io::{Seek, SeekFrom, Write};
-
-    pub struct HdmiFramebuffer {
-        file: Option<std::fs::File>,
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+#[derive(Debug)]
+pub enum HdmiError {
+    Io {
+        operation: &'static str,
         path: String,
-        width: usize,
-        height: usize,
-        bytes_per_pixel: usize,
-    }
+        source: io::Error,
+    },
+    InvalidGeometry {
+        path: String,
+        width: u32,
+        height: u32,
+        stride: u32,
+        bits_per_pixel: u32,
+    },
+    UnsupportedFormat {
+        path: String,
+        bits_per_pixel: u32,
+        red: (u32, u32),
+        green: (u32, u32),
+        blue: (u32, u32),
+        transp: (u32, u32),
+    },
+}
 
-    impl HdmiFramebuffer {
-        pub fn open_from_env() -> Option<Self> {
-            if std::env::var("OCTESSERA_HDMI_DISABLE").ok().as_deref() == Some("1") {
-                return None;
-            }
-            let bytes_per_pixel = match std::env::var("OCTESSERA_HDMI_FB_BPP").ok().as_deref() {
-                Some("16") => 2,
-                _ => 4,
-            };
-            Some(Self {
-                file: None,
-                path: std::env::var("OCTESSERA_HDMI_FB").unwrap_or_else(|_| "/dev/fb0".into()),
-                width: 640,
-                height: 480,
-                bytes_per_pixel,
-            })
-        }
-
-        pub fn render(&mut self, snapshot: &Value) {
-            if hdmi_mode(snapshot) == Some("none") {
-                self.blank_and_close();
-                return;
-            }
-            let Some(frame) =
-                compose_frame(snapshot, self.width, self.height, self.bytes_per_pixel)
-            else {
-                return;
-            };
-            if self.file.is_none() {
-                self.file = OpenOptions::new()
-                    .read(true)
-                    .write(true)
-                    .open(&self.path)
-                    .ok();
-            }
-            let Some(file) = self.file.as_mut() else {
-                return;
-            };
-            let _ = file.seek(SeekFrom::Start(0));
-            let _ = file.write_all(&frame);
-        }
-
-        fn blank_and_close(&mut self) {
-            if let Some(mut file) = self.file.take() {
-                let frame = vec![0_u8; self.width * self.height * self.bytes_per_pixel];
-                let _ = file.seek(SeekFrom::Start(0));
-                let _ = file.write_all(&frame);
-            }
+impl fmt::Display for HdmiError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Io {
+                operation,
+                path,
+                source,
+            } => write!(formatter, "{operation} framebuffer {path}: {source}"),
+            Self::InvalidGeometry {
+                path,
+                width,
+                height,
+                stride,
+                bits_per_pixel,
+            } => write!(
+                formatter,
+                "invalid framebuffer geometry for {path}: {width}x{height}, stride {stride}, {bits_per_pixel} bpp"
+            ),
+            Self::UnsupportedFormat {
+                path,
+                bits_per_pixel,
+                red,
+                green,
+                blue,
+                transp,
+            } => write!(
+                formatter,
+                "unsupported framebuffer format for {path}: {bits_per_pixel} bpp, red {red:?}, green {green:?}, blue {blue:?}, transparency {transp:?}"
+            ),
         }
     }
 }
 
-#[cfg(not(unix))]
+impl std::error::Error for HdmiError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Io { source, .. } => Some(source),
+            Self::InvalidGeometry { .. } | Self::UnsupportedFormat { .. } => None,
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+#[path = "hdmi_linux.rs"]
+mod imp;
+
+#[cfg(not(target_os = "linux"))]
 mod imp {
     use super::*;
+
     pub struct HdmiFramebuffer;
+
     impl HdmiFramebuffer {
-        pub fn open_from_env() -> Option<Self> {
-            None
+        pub fn open_from_env() -> Result<Option<Self>, HdmiError> {
+            Ok(None)
         }
-        pub fn render(&mut self, snapshot: &Value) {
+
+        pub fn render(&mut self, snapshot: &Value) -> Result<(), HdmiError> {
             let _ = compose_frame(snapshot, 1, 1, 4);
+            Ok(())
         }
     }
 }
@@ -88,6 +99,17 @@ pub fn compose_frame(
     height: usize,
     bytes_per_pixel: usize,
 ) -> Option<Vec<u8>> {
+    let stride = width.checked_mul(bytes_per_pixel)?;
+    compose_frame_with_stride(snapshot, width, height, stride, bytes_per_pixel)
+}
+
+pub fn compose_frame_with_stride(
+    snapshot: &Value,
+    width: usize,
+    height: usize,
+    stride: usize,
+    bytes_per_pixel: usize,
+) -> Option<Vec<u8>> {
     if hdmi_mode(snapshot) == Some("none") {
         return None;
     }
@@ -98,6 +120,10 @@ pub fn compose_frame(
         .and_then(|hdmi| hdmi.get("showGridlines"))
         .and_then(Value::as_bool)
         .unwrap_or(false);
+    let minimum_stride = width.checked_mul(bytes_per_pixel)?;
+    if stride < minimum_stride {
+        return None;
+    }
     let side = width.min(height);
     let cell = side / 8;
     if cell == 0 || (bytes_per_pixel != 2 && bytes_per_pixel != 4) {
@@ -106,7 +132,7 @@ pub fn compose_frame(
     let square = cell * 8;
     let x0 = (width - square) / 2;
     let y0 = (height - square) / 2;
-    let mut frame = vec![0_u8; width * height * bytes_per_pixel];
+    let mut frame = vec![0_u8; stride.checked_mul(height)?];
     for gy in 0..8 {
         for gx in 0..8 {
             let index = gy * 8 + gx;
@@ -121,7 +147,7 @@ pub fn compose_frame(
                         continue;
                     }
                     let offset =
-                        ((y0 + gy * cell + py) * width + x0 + gx * cell + px) * bytes_per_pixel;
+                        (y0 + gy * cell + py) * stride + (x0 + gx * cell + px) * bytes_per_pixel;
                     write_pixel(
                         &mut frame[offset..offset + bytes_per_pixel],
                         color,
@@ -171,11 +197,10 @@ pub fn hdmi_signature(snapshot: &Value) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
 
     #[test]
     fn none_mode_has_no_signature_or_frame() {
-        let snapshot = json!({
+        let snapshot = serde_json::json!({
             "hdmi": {
                 "mode": "none",
                 "grid": {
@@ -189,5 +214,39 @@ mod tests {
 
         assert_eq!(hdmi_signature(&snapshot), 0);
         assert!(compose_frame(&snapshot, 64, 64, 4).is_none());
+    }
+
+    #[test]
+    fn stride_preserves_snapshot_row_order_and_padding() {
+        let mut rgb = vec![0; 8 * 8 * 3];
+        rgb[0..3].copy_from_slice(&[255, 0, 0]);
+        let bottom_left = 7 * 8 * 3;
+        rgb[bottom_left..bottom_left + 3].copy_from_slice(&[0, 0, 255]);
+        let snapshot = serde_json::json!({
+            "hdmi": {
+                "mode": "live-grid",
+                "grid": { "rgb": rgb },
+                "showGridlines": false
+            }
+        });
+
+        let frame = compose_frame_with_stride(&snapshot, 16, 8, 72, 4).unwrap();
+
+        assert_eq!(&frame[4 * 4..4 * 4 + 4], &[0, 0, 255, 0]);
+        assert_eq!(&frame[7 * 72 + 4 * 4..7 * 72 + 4 * 4 + 4], &[255, 0, 0, 0]);
+        assert!(frame[16 * 4..72].iter().all(|byte| *byte == 0));
+    }
+
+    #[test]
+    fn stride_and_pixel_format_are_required() {
+        let snapshot = serde_json::json!({
+            "hdmi": {
+                "mode": "live-grid",
+                "grid": { "rgb": vec![255; 8 * 8 * 3] }
+            }
+        });
+
+        assert!(compose_frame_with_stride(&snapshot, 16, 8, 63, 4).is_none());
+        assert!(compose_frame_with_stride(&snapshot, 16, 8, 64, 3).is_none());
     }
 }

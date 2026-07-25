@@ -113,7 +113,7 @@ Legacy installations without board-profile metadata are not eligible for new onl
 
 ## Armbian Image Workflow
 
-`.github/workflows/armbian-image.yml` builds Armbian images through `armbian/build`. The action currently tracks upstream `armbian/build@main`; this is accepted risk for this experimental pipeline, with minimal repository permissions and secrets kept out of validation and public generic builds.
+`.github/workflows/armbian-image.yml` builds Armbian images through `armbian/build`. Validation-only runs may inspect the default ref, but every qualification image build requires a reviewed full 40-character Armbian commit SHA. The workflow keeps minimal repository permissions and secrets out of validation and public generic builds.
 
 Local checks before pushing workflow or `userpatches/` changes:
 
@@ -128,6 +128,8 @@ Also run these if installed:
 shellcheck userpatches/customize-image.sh tools/armbian-image/validate.sh
 actionlint .github/workflows/armbian-image.yml
 ```
+
+The Armbian image validation also requires `dtc`, `fdtoverlay`, and `fdtget` (all packaged as `device-tree-compiler`).
 
 GitHub validation-only smoke test:
 
@@ -313,9 +315,32 @@ CARGO_BUILD_JOBS=1 cargo build --profile pi-dev -p octessera-pi --features hardw
 
 ## Orange Pi Armbian Image
 
-`raspberry-pi-zero-2w` and `orange-pi-zero-2w` are the canonical board profile IDs. Raspberry Pi build, deploy, provision, and pi-gen image tooling accepts only the former and rejects the latter. The Orange Pi profile has no HAL pins or runtime backend yet; its separate Armbian workflow is bring-up infrastructure only. Its online updater remains refused until a profile-specific Orange Pi release exists.
+`raspberry-pi-zero-2w` and `orange-pi-zero-2w` are the canonical board profile IDs. Raspberry Pi build, deploy, provision, and pi-gen image tooling accepts only the former and rejects the latter. Orange Pi support is diagnostic-only: the Armbian workflow provides bring-up infrastructure and the Orange HAL build produces only the bounded OLED smoke utility. No Orange runtime, release, deploy, updater, or service path exists.
 
-The `Armbian Image` GitHub Actions workflow builds the Orange Pi Armbian image. Run validation first:
+For a local Orange Pi cross-build, use the WSL Docker-only builder. It never
+contacts or deploys to a board, installs the aarch64 GNU linker/sysroot in its
+ephemeral tool container, and writes checked artifacts under
+`target/orange-pi-cross/`:
+
+```powershell
+./tools/orange-pi/build-orange-cross.ps1 -Binary orange-oled-smoke -Profile release
+./tools/orange-pi/test-build-orange-cross.ps1
+```
+
+Cargo and rustup caches use persistent named Docker volumes; `-DryRun` prints
+the command without starting Docker. The builder accepts only
+`orange-oled-smoke`; it cannot produce an Orange runtime binary or service
+payload, and the smoke binary is never run against the board by this helper.
+
+The `Armbian Image` GitHub Actions workflow builds the Orange Pi diagnostic
+image. It installs setup and bus-validation infrastructure only; it does not
+install or enable `octessera.service` or an Orange runtime. Run validation first:
+
+Connected-hardware deepwork loops require fresh, explicit operator authorization
+immediately before every stateful board action: package or boot changes,
+service changes, reboot, deployment, GPIO/I2C/SPI activity, audio playback, and
+USB gadget bind/unbind. SSH reachability, an earlier approval, and a successful
+read-only probe do not authorize the next state-changing action.
 
 ```bash
 gh workflow run armbian-image.yml \
@@ -330,7 +355,7 @@ gh workflow run armbian-image.yml \
   -f armbian_build_ref=main
 ```
 
-Run the full public build by changing `run_build=true`. Public builds must stay secret-free. The first-boot setup portal handles Wi-Fi and SSH on the device.
+Run the full public build by changing `run_build=true` and replacing `armbian_build_ref=main` with the reviewed full 40-character Armbian commit SHA. Public builds must stay secret-free. The first-boot setup portal handles Wi-Fi and SSH on the device.
 
 Local validation before pushing image changes:
 

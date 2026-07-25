@@ -199,6 +199,20 @@ jobs:
         run: cargo build --target aarch64-unknown-linux-gnu -p octessera-hal --features raspberry-pi-zero-2w
       - name: Compile legacy HAL feature alias
         run: cargo check --target aarch64-unknown-linux-gnu -p octessera-hal --features pi-zero
+      - name: Test Orange HAL profile
+        run: cargo test -p octessera-hal --features orange-pi-zero-2w
+      - name: Build Orange diagnostic artifact for production target
+        run: cargo build --target aarch64-unknown-linux-gnu -p octessera-hal --features orange-pi-zero-2w --bin orange-oled-smoke
+      - name: Reject mixed HAL profiles
+        run: |
+          set -o pipefail
+          guard_log="$(mktemp)"
+          if cargo check --target aarch64-unknown-linux-gnu -p octessera-hal --features "raspberry-pi-zero-2w orange-pi-zero-2w" >"$guard_log" 2>&1; then
+            cat "$guard_log"
+            echo "HAL accepted mutually exclusive board profiles" >&2
+            exit 1
+          fi
+          grep -F "select exactly one Octessera board profile" "$guard_log"
 
   pi_zero_app_build:
     name: Pi Zero App Build (cross)
@@ -229,6 +243,8 @@ jobs:
         uses: actions/checkout@v6
       - name: Validate Raspberry profile boundaries
         run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends device-tree-compiler
           bash -n tools/pi/board-profile.sh tools/pi/build-pi-cross-wsl.sh tools/pi/deploy-pi.sh tools/pi/provision/provision.sh
           python3 tools/pi-image/test-board-profile.py
           bash tools/armbian-image/validate.sh
