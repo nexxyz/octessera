@@ -1,0 +1,54 @@
+/dts-v1/;
+
+/ {
+    #address-cells = <1>;
+    #size-cells = <1>;
+
+    pinctrl: pinctrl@300b000 {
+        compatible = "allwinner,sun50i-h618-pinctrl";
+        reg = <0x300b000 0x400>;
+
+        spi1_pins: spi1-pins {
+            pins = "PH6", "PH7", "PH8";
+            function = "spi1";
+            phandle = <0x101>;
+        };
+
+        spi1_cs0_pin: spi1-cs0-pin {
+            pins = "PH5";
+            function = "spi1";
+            phandle = <0x102>;
+        };
+    };
+
+    spi0: spi@5010000 {
+        compatible = "allwinner,sun50i-h618-spi";
+        reg = <0x5010000 0x1000>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+        status = "okay";
+
+        flash@0 {
+            compatible = "jedec,spi-nor";
+            reg = <0>;
+            spi-max-frequency = <50000000>;
+        };
+    };
+
+    spi1: spi@5011000 {
+        compatible = "allwinner,sun50i-h618-spi";
+        reg = <0x5011000 0x1000>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+        status = "disabled";
+        phandle = <0x103>;
+    };
+
+    i2c1: i2c@5002400 {
+        compatible = "allwinner,sun50i-h618-i2c";
+        reg = <0x5002400 0x400>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+        status = "disabled";
+    };
+};

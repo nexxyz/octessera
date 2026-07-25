@@ -28,7 +28,7 @@ on:
         required: false
         default: preset-firstrun
       armbian_build_ref:
-        description: armbian/build git ref; prefer a reviewed tag or SHA for release images
+        description: Reviewed immutable armbian/build commit SHA for image builds; mutable refs are validation-only
         required: true
         default: main
       run_build:
@@ -70,11 +70,14 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends shellcheck
+          sudo apt-get install -y --no-install-recommends device-tree-compiler shellcheck
           go install github.com/rhysd/actionlint/cmd/actionlint@latest
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - name: Validate repository Armbian image payload
         env:
+          ARMBIAN_BOARD: ${{ inputs.board }}
+          ARMBIAN_BUILD_REF: ${{ inputs.armbian_build_ref }}
+          ARMBIAN_RUN_BUILD: ${{ inputs.run_build }}
           ARMBIAN_EXTENSIONS: ${{ inputs.extensions }}
           PUBLIC_PRESET_CONFIGURATION_URL: ${{ inputs.public_preset_configuration_url }}
           PAYLOAD_URL: ${{ inputs.payload_url }}

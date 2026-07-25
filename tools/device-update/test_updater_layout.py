@@ -10,7 +10,6 @@ class UpdaterLayoutTests(unittest.TestCase):
     def test_installed_units_use_managed_runtime_and_boot_recovery(self):
         for service in (
             REPOSITORY / "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera.service",
-            REPOSITORY / "userpatches/overlay/etc/systemd/system/octessera.service",
         ):
             self.assertIn("ExecStart=/usr/local/bin/octessera-pi", service.read_text(encoding="utf-8"))
         for sudoers in (
@@ -27,6 +26,13 @@ class UpdaterLayoutTests(unittest.TestCase):
             text = recovery_unit.read_text(encoding="utf-8")
             self.assertNotIn("ConditionPathExists=", text)
             self.assertIn("RemainAfterExit=yes", text)
+
+    def test_orange_image_has_no_runtime_service(self):
+        self.assertFalse(
+            (REPOSITORY / "userpatches/overlay/etc/systemd/system/octessera.service").exists()
+        )
+        customize = (REPOSITORY / "userpatches/customize-image.sh").read_text(encoding="utf-8")
+        self.assertNotIn("systemctl enable octessera.service", customize)
 
 
 if __name__ == "__main__":

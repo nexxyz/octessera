@@ -120,3 +120,58 @@ sudo visudo -c
 Remove the labelled `OCTESSERA ORANGE PI` stanza from the Windows SSH config
 manually. Do not commit private keys, public keys, fingerprints tied to a
 specific board, hostnames, IP addresses, or generated SSH config to Git.
+
+## Local WSL Docker cross-build
+
+Build Orange Pi artifacts on Windows without contacting or deploying to a
+board. The builder starts an ephemeral Debian tool container, installs the
+aarch64 GNU linker/sysroot there, and keeps Cargo and rustup data in named
+Docker volumes. Outputs and their checked diagnostic-only metadata stay under
+`target/orange-pi-cross/`. This helper cannot build, deploy, or label an Orange
+runtime-ready `octessera-pi` artifact.
+
+```powershell
+./tools/orange-pi/build-orange-cross.ps1 -Binary orange-oled-smoke -Profile release
+```
+
+Use `-DryRun` to inspect the WSL Docker command without starting a container.
+The only supported binary is the diagnostic-only `orange-oled-smoke`; building
+it does not run it against a board.
+The offline host checks are:
+
+```powershell
+./tools/orange-pi/test-build-orange-cross.ps1
+```
+
+## Orange Pi USB gadget composer
+
+`orange-pi-usb-gadget.sh` is the separate Armbian/configfs path for the Orange
+Pi. It does not reuse the Raspberry Pi gadget script, load modules, mount
+configfs, enable a service, or create mass storage. The caller must prepare
+configfs and load the kernel's MIDI/UAC2 function modules as appropriate.
+
+The UDC is always explicit; the composer never picks the first controller:
+
+```sh
+sudo bash ./tools/orange-pi/orange-pi-usb-gadget.sh setup \
+  --udc <exact-udc-name> --mode midi
+```
+
+The supported modes are `midi`, `uac2`, and `combined`. Binding is the final
+setup operation, and teardown unbinds before removing function links and
+directories:
+
+```sh
+sudo bash ./tools/orange-pi/orange-pi-usb-gadget.sh teardown \
+  --udc <exact-udc-name>
+```
+
+Setup refuses any existing configfs gadget and any UDC already in use. The
+`--configfs-root` and `--udc-root` options are for isolated fake-configfs tests
+and controlled offline validation; they are not automatic discovery paths.
+
+Run the offline tests from a Linux shell with:
+
+```sh
+bash ./tools/orange-pi/test-orange-pi-usb-gadget.sh
+```

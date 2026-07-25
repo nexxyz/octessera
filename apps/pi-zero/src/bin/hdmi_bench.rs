@@ -38,17 +38,28 @@ fn bench_snapshot(runner: &mut NativeRunner, mode: &str) {
 }
 
 fn bench_hdmi_buffer(snapshot: &Value, mode: &str) {
-    let elapsed = time_loop(200, || {
-        let signature = hdmi::hdmi_signature(snapshot);
-        if signature != 0 {
-            let _ = hdmi::compose_frame(snapshot, 640, 480, 4);
-        }
-    });
-    println!(
-        "hdmi-buffer mode={mode} iterations=200 total_ms={:.3} avg_us={:.3}",
-        elapsed.as_secs_f64() * 1000.0,
-        elapsed.as_secs_f64() * 5_000.0
-    );
+    for bytes_per_pixel in [2, 4] {
+        let width = 64;
+        let height = 64;
+        let stride = width * bytes_per_pixel;
+        let elapsed = time_loop(200, || {
+            let signature = hdmi::hdmi_signature(snapshot);
+            if signature != 0 {
+                let _ = hdmi::compose_frame_with_stride(
+                    snapshot,
+                    width,
+                    height,
+                    stride,
+                    bytes_per_pixel,
+                );
+            }
+        });
+        println!(
+            "hdmi-buffer mode={mode} bpp={bytes_per_pixel} iterations=200 total_ms={:.3} avg_us={:.3}",
+            elapsed.as_secs_f64() * 1000.0,
+            elapsed.as_secs_f64() * 5_000.0
+        );
+    }
 }
 
 fn snapshot_from(runner: &mut NativeRunner) -> Value {

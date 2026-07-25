@@ -7,6 +7,14 @@ if [[ $# -ne 1 ]]; then
 fi
 
 target="$1"
+# shellcheck source=tools/armbian-image/inspect-mode.sh
+source "$(dirname "${BASH_SOURCE[0]}")/inspect-mode.sh"
+inspect_work="$(mktemp -d)"
+
+cleanup() {
+  rm -rf "$inspect_work"
+}
+trap cleanup EXIT
 
 read_file() {
   local path="$1"
@@ -29,12 +37,110 @@ stat_path() {
 require_root_mode() {
   local path="$1"
   local mode="$2"
+  local expected_mode
+  local actual_mode
+  case "$mode" in
+    [0-7][0-7][0-7]) expected_mode="0$mode" ;;
+    [0-7][0-7][0-7][0-7]) expected_mode="$mode" ;;
+    *) echo "Invalid expected mode for $path." >&2; exit 1 ;;
+  esac
   if [[ -d "$target" ]]; then
-    [[ "$(stat -c '%u %a' "$target/$path")" == "0 $mode" ]] || {
+    actual_mode="$(stat -c '%a' "$target/$path")"
+    [[ "${#actual_mode}" == 3 ]] && actual_mode="0$actual_mode"
+    [[ "$(stat -c '%u' "$target/$path")" == 0 && "$actual_mode" == "$expected_mode" ]] || {
       echo "Unsafe updater ownership/mode at $path." >&2
       exit 1
     }
+    return
   fi
+  local metadata
+  metadata="$(debugfs -R "stat /$path" "$target" 2>/dev/null)" || {
+    echo "Missing image path: $path." >&2
+    exit 1
+  }
+  printf '%s\n' "$metadata" | grep -Eq 'User: +0 +Group: +0' || {
+    echo "Unsafe image ownership at $path." >&2
+    exit 1
+  }
+  if ! actual_mode="$(octessera_debugfs_mode "$metadata")"; then
+    echo "Missing image mode at $path." >&2
+    exit 1
+  fi
+  [[ "$actual_mode" == "$expected_mode" ]] || {
+    echo "Unsafe image mode at $path." >&2
+    exit 1
+  }
+}
+
+hash_path() {
+  local path="$1"
+  local dump_path="$inspect_work/$(basename "$path")"
+  if [[ -d "$target" ]]; then
+    sha256sum "$target/$path" | awk '{ print $1 }'
+    return
+  fi
+  debugfs -R "dump -p /$path $dump_path" "$target" >/dev/null 2>&1 || {
+    echo "Unable to read image path: $path." >&2
+    exit 1
+  }
+  sha256sum "$dump_path" | awk '{ print $1 }'
+}
+
+validate_env_tokens() {
+  local content="$1"
+  local key="$2"
+  local required_token="$3"
+  printf '%s\n' "$content" | awk -v key="$key" -v required_token="$required_token" '
+    function invalid(message) {
+      print "Invalid " key " assignment: " message > "/dev/stderr"
+      failed = 1
+    }
+    {
+      line = $0
+      if (line ~ /^[[:space:]]*#/) {
+        if (line ~ ("(^|[^_[:alnum:]])" key "[[:space:]]*=")) {
+          invalid("commented assignment")
+        }
+        next
+      }
+      if (line ~ ("^" key "=")) {
+        if (assignments++) {
+          invalid("duplicate assignment")
+        }
+        value = substr(line, length(key) + 2)
+        if (value ~ /#/) {
+          invalid("comments are not allowed")
+        }
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+        count = value == "" ? 0 : split(value, values, /[[:space:]]+/)
+        for (position = 1; position <= count; position++) {
+          token = values[position]
+          if (token !~ /^[A-Za-z0-9][A-Za-z0-9_.-]*$/) {
+            invalid("invalid token")
+          }
+          if (seen[token]++) {
+            invalid("duplicate token")
+          }
+          if (token == required_token) {
+            found++
+          }
+        }
+        next
+      }
+      if (line ~ (("(^|[^_[:alnum:]])" key "[[:space:]]*="))) {
+        invalid("malformed assignment")
+      }
+    }
+    END {
+      if (!assignments) {
+        invalid("missing assignment")
+      }
+      if (found != 1) {
+        invalid("required token must occur exactly once")
+      }
+      exit(failed ? 1 : 0)
+    }
+  '
 }
 
 unit_masked() {
@@ -43,6 +149,37 @@ unit_masked() {
     [[ "$(readlink "$target/$path" 2>/dev/null || true)" == "/dev/null" ]]
   else
     debugfs -R "stat /$path" "$target" 2>/dev/null | grep -q '/dev/null'
+  fi
+}
+
+reject_authorized_keys() {
+  local passwd_content
+  local user
+  local home
+  local key_path
+  local key_paths=(root/.ssh/authorized_keys etc/ssh/authorized_keys etc/dropbear/authorized_keys)
+  passwd_content="$(read_file etc/passwd)"
+  while IFS=: read -r user _ _ _ _ home _; do
+    [[ -n "$user" && -n "$home" ]] || continue
+    [[ "$home" =~ ^/[A-Za-z0-9._/-]+$ ]] || {
+      echo "Unsafe image home path for user $user." >&2
+      exit 1
+    }
+    key_paths+=("${home#/}/.ssh/authorized_keys")
+  done <<< "$passwd_content"
+  for key_path in "${key_paths[@]}"; do
+    if stat_path "$key_path"; then
+      echo "Built image must not contain baked authorized keys: $key_path." >&2
+      exit 1
+    fi
+  done
+}
+
+reject_path() {
+  local path="$1"
+  if stat_path "$path"; then
+    echo "Diagnostic-only Orange image must not contain runtime path: $path." >&2
+    exit 1
   fi
 }
 
@@ -68,6 +205,7 @@ else
     exit 1
   fi
 fi
+reject_authorized_keys
 
 ssh_config="$(read_file etc/ssh/sshd_config.d/10-octessera-setup.conf)"
 printf '%s\n' "$ssh_config" | grep -q '^PermitRootLogin no$' || { echo "Missing PermitRootLogin no." >&2; exit 1; }
@@ -79,6 +217,37 @@ printf '%s\n' "$profile_metadata" | grep -q '^OCTESSERA_BOARD_PROFILE_ID=orange-
   echo "Armbian image must be labeled orange-pi-zero-2w." >&2
   exit 1
 }
+printf '%s\n' "$profile_metadata" | grep -q '^OCTESSERA_RUNTIME_ENABLED_DEFAULT=false$' || {
+  echo "Orange image must keep runtime disabled." >&2
+  exit 1
+}
+reject_path etc/systemd/system/octessera.service
+reject_path etc/systemd/system/multi-user.target.wants/octessera.service
+reject_path usr/local/bin/octessera-pi
+reject_path opt/octessera/current
+
+spi_source_path=usr/local/share/octessera/device-tree/octessera-h618-spi1-cs0.dts
+spi_dtbo_path=boot/overlay-user/octessera-h618-spi1-cs0.dtbo
+armbian_env_path=boot/armbianEnv.txt
+for path in "$spi_source_path" "$spi_dtbo_path" "$armbian_env_path"; do
+  stat_path "$path" || { echo "Missing Orange Pi SPI image path: $path." >&2; exit 1; }
+done
+require_root_mode "$spi_source_path" 644
+require_root_mode "$spi_dtbo_path" 644
+require_root_mode "$armbian_env_path" 644
+source_hash="$(printf '%s\n' "$profile_metadata" | sed -n 's/^OCTESSERA_SPI1_CS0_DTS_SHA256=\([a-fA-F0-9]\{64\}\)$/\1/p')"
+dtbo_hash="$(printf '%s\n' "$profile_metadata" | sed -n 's/^OCTESSERA_SPI1_CS0_DTBO_SHA256=\([a-fA-F0-9]\{64\}\)$/\1/p')"
+[[ -n "$source_hash" && -n "$dtbo_hash" ]] || { echo "Armbian image is missing SPI overlay hashes." >&2; exit 1; }
+[[ "$(hash_path "$spi_source_path")" == "$source_hash" ]] || { echo "SPI overlay source hash mismatch." >&2; exit 1; }
+[[ "$(hash_path "$spi_dtbo_path")" == "$dtbo_hash" ]] || { echo "SPI overlay DTBO hash mismatch." >&2; exit 1; }
+armbian_env_content="$(read_file "$armbian_env_path")"
+validate_env_tokens "$armbian_env_content" overlays i2c1-pi || { echo "Armbian image must claim overlays=i2c1-pi exactly once." >&2; exit 1; }
+validate_env_tokens "$armbian_env_content" user_overlays octessera-h618-spi1-cs0 || { echo "Armbian image must claim the SPI user overlay exactly once." >&2; exit 1; }
+spi_source_content="$(read_file "$spi_source_path")"
+if printf '%s\n' "$spi_source_content" "$armbian_env_content" | grep -q 'spidev1_0'; then
+  echo "Built Armbian image must not contain the stock spidev1_0 overlay path." >&2
+  exit 1
+fi
 
 for path in \
   etc/systemd/system/octessera-update-guard.service \
@@ -105,19 +274,6 @@ require_root_mode usr/local/lib/octessera/updater_guard.py 644
 require_root_mode usr/local/lib/octessera/updater_cli.py 644
 require_root_mode etc/sudoers.d/octessera-update 440
 
-service_unit="$(read_file etc/systemd/system/octessera.service)"
-printf '%s\n' "$service_unit" | grep -q '^ExecStart=/usr/local/bin/octessera-pi$' || {
-  echo "Armbian service must use the managed updater binary link." >&2
-  exit 1
-}
-printf '%s\n' "$service_unit" | grep -q '^Environment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json$' || {
-  echo "Armbian service is missing the candidate health path." >&2
-  exit 1
-}
-printf '%s\n' "$service_unit" | grep -q '^Requires=octessera-update-recovery.service$' || {
-  echo "Armbian service does not require updater recovery." >&2
-  exit 1
-}
 recovery_unit="$(read_file etc/systemd/system/octessera-update-recovery.service)"
 printf '%s\n' "$recovery_unit" | grep -q '^RemainAfterExit=yes$' || {
   echo "Armbian recovery service is not retained for the boot." >&2

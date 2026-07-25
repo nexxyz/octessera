@@ -98,7 +98,7 @@ The desk evaluation cannot complete these checks. They require the Orange Pi Zer
 - Confirm I2S DAC is available and selected as the intended audio output.
 - Run a short audio playback test and record underruns/dropouts.
 - Confirm USB device/gadget mode exposes a UDC through `/sys/class/udc`.
-- Confirm configfs gadget functions for MIDI, UAC2 audio, and mass storage exist and bind on the OTG/data port.
+- Confirm the Orange Pi configfs composer binds MIDI, UAC2 audio, and combined modes on the OTG/data port.
 - Confirm Armbian uses `/boot/armbianEnv.txt` overlays for required buses; do not use Raspberry Pi `config.txt`/`dtoverlay` assumptions.
 - Confirm shutdown/reboot behavior and any required privilege policy.
 

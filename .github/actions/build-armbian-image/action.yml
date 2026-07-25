@@ -22,13 +22,35 @@ inputs:
     description: Space-separated Armbian extensions
   armbian_build_ref:
     required: true
-    description: armbian/build ref, tag, or SHA
+    description: Reviewed immutable armbian/build commit SHA
   share_log:
     required: true
     description: Armbian SHARE_LOG value
 runs:
   using: composite
   steps:
+    - name: Validate build target before checkout
+      shell: bash
+      env:
+        OCTESSERA_ARMBIAN_BOARD: ${{ inputs.board }}
+        OCTESSERA_ARMBIAN_RELEASE: ${{ inputs.release }}
+        OCTESSERA_ARMBIAN_KERNEL_BRANCH: ${{ inputs.kernel_branch }}
+        OCTESSERA_ARMBIAN_UI: ${{ inputs.ui }}
+        OCTESSERA_ARMBIAN_COMPRESSION: ${{ inputs.compression }}
+        OCTESSERA_ARMBIAN_EXTENSIONS: ${{ inputs.extensions }}
+        OCTESSERA_ARMBIAN_SHARE_LOG: ${{ inputs.share_log }}
+        ARMBIAN_BUILD_REF: ${{ inputs.armbian_build_ref }}
+      run: |
+        set -euo pipefail
+        [[ "$OCTESSERA_ARMBIAN_BOARD" =~ ^[a-z0-9][a-z0-9._-]*$ ]] || { echo 'Invalid board slug.' >&2; exit 1; }
+        [[ "$OCTESSERA_ARMBIAN_BOARD" == orangepizero2w ]] || { echo 'This Octessera image path accepts only orangepizero2w.' >&2; exit 1; }
+        [[ "$OCTESSERA_ARMBIAN_RELEASE" =~ ^[a-z0-9][a-z0-9._-]*$ ]] || { echo 'Invalid release.' >&2; exit 1; }
+        [[ "$OCTESSERA_ARMBIAN_KERNEL_BRANCH" =~ ^[a-z0-9][a-z0-9._-]*$ ]] || { echo 'Invalid kernel branch.' >&2; exit 1; }
+        [[ "$OCTESSERA_ARMBIAN_UI" =~ ^[A-Za-z0-9._-]+$ ]] || { echo 'Invalid UI value.' >&2; exit 1; }
+        [[ "$OCTESSERA_ARMBIAN_COMPRESSION" =~ ^[a-z0-9,._-]+$ ]] || { echo 'Invalid compression value.' >&2; exit 1; }
+        [[ "$OCTESSERA_ARMBIAN_EXTENSIONS" =~ ^[A-Za-z0-9,._[:space:]-]*$ ]] || { echo 'Invalid extensions value.' >&2; exit 1; }
+        [[ "$OCTESSERA_ARMBIAN_SHARE_LOG" =~ ^(yes|no)$ ]] || { echo 'Invalid share_log value.' >&2; exit 1; }
+        [[ "$ARMBIAN_BUILD_REF" =~ ^[0-9a-fA-F]{40}$ ]] || { echo 'Qualification image builds require a reviewed immutable Armbian commit SHA.' >&2; exit 1; }
     - name: Free runner disk space
       shell: bash
       run: |
@@ -72,15 +94,18 @@ runs:
         OCTESSERA_ARMBIAN_COMPRESSION: ${{ inputs.compression }}
         OCTESSERA_ARMBIAN_EXTENSIONS: ${{ inputs.extensions }}
         OCTESSERA_ARMBIAN_SHARE_LOG: ${{ inputs.share_log }}
+        ARMBIAN_BUILD_REF: ${{ inputs.armbian_build_ref }}
       run: |
         set -euo pipefail
         [[ "$OCTESSERA_ARMBIAN_BOARD" =~ ^[a-z0-9][a-z0-9._-]*$ ]] || { echo 'Invalid board slug.' >&2; exit 1; }
+        [[ "$OCTESSERA_ARMBIAN_BOARD" == orangepizero2w ]] || { echo 'This Octessera image path accepts only orangepizero2w.' >&2; exit 1; }
         [[ "$OCTESSERA_ARMBIAN_RELEASE" =~ ^[a-z0-9][a-z0-9._-]*$ ]] || { echo 'Invalid release.' >&2; exit 1; }
         [[ "$OCTESSERA_ARMBIAN_KERNEL_BRANCH" =~ ^[a-z0-9][a-z0-9._-]*$ ]] || { echo 'Invalid kernel branch.' >&2; exit 1; }
         [[ "$OCTESSERA_ARMBIAN_UI" =~ ^[A-Za-z0-9._-]+$ ]] || { echo 'Invalid UI value.' >&2; exit 1; }
         [[ "$OCTESSERA_ARMBIAN_COMPRESSION" =~ ^[a-z0-9,._-]+$ ]] || { echo 'Invalid compression value.' >&2; exit 1; }
         [[ "$OCTESSERA_ARMBIAN_EXTENSIONS" =~ ^[A-Za-z0-9,._[:space:]-]*$ ]] || { echo 'Invalid extensions value.' >&2; exit 1; }
         [[ "$OCTESSERA_ARMBIAN_SHARE_LOG" =~ ^(yes|no)$ ]] || { echo 'Invalid share_log value.' >&2; exit 1; }
+        [[ "$ARMBIAN_BUILD_REF" =~ ^[0-9a-fA-F]{40}$ ]] || { echo 'Qualification image builds require a reviewed immutable Armbian commit SHA.' >&2; exit 1; }
         cd build
         build_desktop=no
         build_minimal=no

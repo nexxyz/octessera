@@ -135,12 +135,19 @@ pub fn render_snapshot_cached(
         render_oled(&mut targets.oled, snapshot, &mut cache.oled_frame);
     }
 
+    let mut hdmi_failed = false;
     if let Some(hdmi) = targets.hdmi.as_mut() {
         let signature = hdmi::hdmi_signature(snapshot);
         if cache.hdmi_signature != signature {
             cache.hdmi_signature = signature;
-            hdmi.render(snapshot);
+            if let Err(error) = hdmi.render(snapshot) {
+                eprintln!("pi HDMI framebuffer render failed: {error}");
+                hdmi_failed = true;
+            }
         }
+    }
+    if hdmi_failed {
+        targets.hdmi = None;
     }
     animation_deadline
 }
