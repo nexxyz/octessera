@@ -19,7 +19,7 @@ spi_dts="$overlay_dir/usr/local/share/octessera/device-tree/octessera-h618-spi1-
 install -d -m 0755 /etc/octessera /usr/local/sbin /usr/local/lib/octessera /var/lib/octessera/samples
 
 apt-get update
-apt-get install -y --no-install-recommends ca-certificates coreutils curl device-tree-compiler tar xz-utils jq gpiod alsa-utils i2c-tools network-manager dnsmasq wireless-tools iw python3-minimal openssh-server sudo unzip util-linux
+apt-get install -y --no-install-recommends ca-certificates coreutils curl device-tree-compiler tar xz-utils jq gpiod alsa-utils i2c-tools network-manager dnsmasq wireless-tools iw python3-minimal openssh-server sudo unzip util-linux psmisc
 
 wifi_connect_version=4.11.84
 wifi_connect_sha256=413d70e6d1c1366cbe2b32555e8476f3e92878178ed1b9c82205985f055f1936
@@ -58,15 +58,15 @@ fi
 [[ -f "$overlay_dir/usr/local/sbin/octessera-armbian-diagnostics" ]] || { echo "Missing Octessera Armbian diagnostics overlay." >&2; exit 1; }
 env_token_helper="$overlay_dir/usr/local/share/octessera/device-tree/armbian-env-token.sh"
 [[ -f "$env_token_helper" ]] || { echo "Missing Armbian environment token helper." >&2; exit 1; }
-# shellcheck source=/tmp/overlay/usr/local/share/octessera/device-tree/armbian-env-token.sh
+# shellcheck source=userpatches/overlay/usr/local/share/octessera/device-tree/armbian-env-token.sh
 source "$env_token_helper"
 spi_validation_helper="$overlay_dir/usr/local/share/octessera/device-tree/spi-overlay-validation.sh"
 [[ -f "$spi_validation_helper" ]] || { echo "Missing SPI overlay validation helper." >&2; exit 1; }
-# shellcheck source=/tmp/overlay/usr/local/share/octessera/device-tree/spi-overlay-validation.sh
+# shellcheck source=userpatches/overlay/usr/local/share/octessera/device-tree/spi-overlay-validation.sh
 source "$spi_validation_helper"
 boot_dtb_helper="$overlay_dir/usr/local/share/octessera/device-tree/boot-dtb-selection.sh"
 [[ -f "$boot_dtb_helper" ]] || { echo "Missing boot DTB selection helper." >&2; exit 1; }
-# shellcheck source=/tmp/overlay/usr/local/share/octessera/device-tree/boot-dtb-selection.sh
+# shellcheck source=userpatches/overlay/usr/local/share/octessera/device-tree/boot-dtb-selection.sh
 source "$boot_dtb_helper"
 
 spi_overlay_name=octessera-h618-spi1-cs0

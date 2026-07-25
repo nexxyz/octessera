@@ -127,8 +127,10 @@ Build Orange Pi artifacts on Windows without contacting or deploying to a
 board. The builder starts an ephemeral Debian tool container, installs the
 aarch64 GNU linker/sysroot there, and keeps Cargo and rustup data in named
 Docker volumes. Outputs and their checked diagnostic-only metadata stay under
-`target/orange-pi-cross/`. This helper cannot build, deploy, or label an Orange
-runtime-ready `octessera-pi` artifact.
+`target/orange-pi-cross/`. The output is always the canonical
+`orange-oled-smoke` binary beside `orange-oled-smoke.metadata.json`; the sidecar
+is schema 2 and binds the copied ELF with its lowercase SHA-256. This helper
+cannot build, deploy, or label an Orange runtime-ready `octessera-pi` artifact.
 
 ```powershell
 ./tools/orange-pi/build-orange-cross.ps1 -Binary orange-oled-smoke -Profile release
@@ -137,11 +139,46 @@ runtime-ready `octessera-pi` artifact.
 Use `-DryRun` to inspect the WSL Docker command without starting a container.
 The only supported binary is the diagnostic-only `orange-oled-smoke`; building
 it does not run it against a board.
+The offline builder test uses a temporary binary and adjacent sidecar, checks a
+tampered sidecar, and confirms failed verification removes both artifacts.
 The offline host checks are:
 
 ```powershell
 ./tools/orange-pi/test-build-orange-cross.ps1
 ```
+
+When staging on a board, copy both files to their canonical names under `/tmp`:
+
+```powershell
+$Target = "orangepi@<address>"
+$Artifact = "target/orange-pi-cross/orange-oled-smoke"
+$Metadata = "$Artifact.metadata.json"
+$RemoteArtifact = "/tmp/orange-oled-smoke"
+$RemoteMetadata = "/tmp/orange-oled-smoke.metadata.json"
+$SshOptions = @("-o", "BatchMode=yes", "-o", "ConnectTimeout=5")
+& scp @SshOptions $Artifact "${Target}:$RemoteArtifact"
+if ($LASTEXITCODE -ne 0) { throw "artifact upload failed" }
+& scp @SshOptions $Metadata "${Target}:$RemoteMetadata"
+if ($LASTEXITCODE -ne 0) { throw "metadata sidecar upload failed" }
+& ssh @SshOptions $Target "chmod 0755 '$RemoteArtifact' && '$RemoteArtifact' --print-build-metadata"
+if ($LASTEXITCODE -ne 0) { throw "staged metadata check failed" }
+$LocalSha = (Get-FileHash -LiteralPath $Artifact -Algorithm SHA256).Hash.ToLowerInvariant()
+$RemoteShaOutput = @(& ssh @SshOptions $Target "sha256sum -- '$RemoteArtifact'")
+if ($LASTEXITCODE -ne 0) { throw "remote SHA-256 command failed" }
+if ($RemoteShaOutput.Count -ne 1) { throw "remote SHA-256 output was not exactly one record" }
+$RemoteShaRecord = ([string]$RemoteShaOutput[0]).Trim()
+$ShaPattern = "^(?<Hash>[0-9a-f]{64})\s+(?<Path>$([regex]::Escape($RemoteArtifact)))$"
+$ShaMatch = [regex]::Match($RemoteShaRecord, $ShaPattern)
+if (-not $ShaMatch.Success) { throw "remote SHA-256 output had an invalid format" }
+if ($ShaMatch.Groups["Hash"].Value -ne $LocalSha) { throw "remote SHA-256 mismatch" }
+```
+
+Run `Get-FileHash` locally and validate exactly one, well-formed remote
+`sha256sum` record before comparing it. Fail closed on an SSH failure, extra or
+missing output, malformed output, or a mismatch; metadata validation alone is
+not a transport check. The default passive qualification probe also needs
+passwordless `sudo -n` (or a root SSH session) to prove that no process owns the
+target devices.
 
 ## Orange Pi USB gadget composer
 

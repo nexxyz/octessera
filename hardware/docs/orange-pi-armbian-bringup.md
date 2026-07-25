@@ -13,13 +13,22 @@ This is a hardware gate. Do not copy Raspberry Pi constants, overlays, or `rppal
 
 Record the image URL, image date, kernel version, board name, and all command output during bring-up.
 
+The diagnostic artifact is the canonical `orange-oled-smoke` ELF. Its adjacent
+`orange-oled-smoke.metadata.json` sidecar uses schema 2, contains the exact
+identity field set, and binds the copied ELF with a canonical lowercase
+`binary_sha256`. Keep those two files together; do not rename either one.
+
 Once the board is reachable over SSH, run the repo probe from Windows:
 
 ```powershell
 .\tools\orange-pi\run-opi-bringup.ps1 -Target orangepi@192.168.x.x
 ```
 
-The default probe is read-only. Add `-WithSudoChecks` only after SSH/recovery is stable. The probe and wrapper never bind a gadget; use the separate composer below for an explicitly authorized USB test.
+The default probe is read-only, but its qualification-critical target-device
+owner proof requires passwordless `sudo -n` or a root SSH session. Add
+`-WithSudoChecks` only after SSH/recovery is stable. The probe and wrapper never
+bind a gadget; use the separate composer below for an explicitly authorized USB
+test.
 
 `-WithSudoChecks` requires passwordless `sudo -n` or a root SSH session. If the board asks for a sudo password, run the default probe first, then either configure temporary passwordless sudo for bring-up or run the probe as root. The explicit-UDC composer is a separate command and is never invoked by this wrapper.
 
@@ -318,8 +327,10 @@ or active test until SSH has returned and the artifact has been staged again:
 
 ```powershell
 $Target = "orangepi@<address>"
-$Artifact = "<local-orange-qualification-artifact>"
-$RemoteArtifact = "/tmp/octessera-orange-qualification"
+$Artifact = "<local-path-to-orange-oled-smoke>"
+$Metadata = "$Artifact.metadata.json"
+$RemoteArtifact = "/tmp/orange-oled-smoke"
+$RemoteMetadata = "/tmp/orange-oled-smoke.metadata.json"
 $SshOptions = @("-o", "BatchMode=yes", "-o", "ConnectTimeout=5")
 $Deadline = (Get-Date).AddMinutes(5)
 $Reachable = $false
@@ -331,22 +342,44 @@ while ((Get-Date) -lt $Deadline) {
 if (-not $Reachable) { throw "post-reboot SSH poll timed out; stop" }
 & scp @SshOptions $Artifact "${Target}:$RemoteArtifact"
 if ($LASTEXITCODE -ne 0) { throw "artifact redeploy failed; stop" }
+& scp @SshOptions $Metadata "${Target}:$RemoteMetadata"
+if ($LASTEXITCODE -ne 0) { throw "metadata sidecar redeploy failed; stop" }
 & ssh @SshOptions $Target "chmod 0755 '$RemoteArtifact' && '$RemoteArtifact' --print-build-metadata"
 if ($LASTEXITCODE -ne 0) { throw "staged artifact metadata check failed; stop" }
+$LocalSha = (Get-FileHash -LiteralPath $Artifact -Algorithm SHA256).Hash.ToLowerInvariant()
+$RemoteShaOutput = @(& ssh @SshOptions $Target "sha256sum -- '$RemoteArtifact'")
+if ($LASTEXITCODE -ne 0) { throw "remote SHA-256 command failed; stop" }
+if ($RemoteShaOutput.Count -ne 1) { throw "remote SHA-256 output was not exactly one record; stop" }
+$RemoteShaRecord = ([string]$RemoteShaOutput[0]).Trim()
+$ShaPattern = "^(?<Hash>[0-9a-f]{64})\s+(?<Path>$([regex]::Escape($RemoteArtifact)))$"
+$ShaMatch = [regex]::Match($RemoteShaRecord, $ShaPattern)
+if (-not $ShaMatch.Success) { throw "remote SHA-256 output had an invalid format; stop" }
+$RemoteSha = $ShaMatch.Groups["Hash"].Value
+if ($RemoteSha -ne $LocalSha) { throw "remote binary SHA-256 differs from the recorded local SHA-256; stop" }
 ```
 
-Compare the remote SHA-256 with the recorded local SHA-256 before launching
-anything. Repeat this poll-and-redeploy sequence after every reboot, including
-one caused by an overlay change.
+The metadata validation and the independent remote SHA-256 comparison are both
+required before launching anything. Repeat this poll-and-redeploy sequence
+after every reboot, including one caused by an overlay change. The utility's
+metadata mode reads only the adjacent exact-name sidecar and hashes its running
+`/proc/self/exe`; it performs no hardware initialization.
 
 ### Active gate and order
 
 Proceed only when the passive gate, staging gate, and USB electrical gate pass:
 
+The OLED operation has a cooperative 3-second budget and a cooperative
+1-second cleanup budget. Normal shutdown performs black and display-off
+together; error and interruption cleanup uses one deadline, prioritizing
+display-off before the fallback black frame. Synchronous SPI/GPIO calls may
+outlast these checks, so neither budget is a wall-clock promise.
+
 1. **OLED:** run the diagnostic-only utility from `/tmp`. One invocation owns
-   the bounded pattern-to-black-to-display-off sequence, with timeout and
-   cleanup on errors and handled interruption. Do not split it into separate
-   commands:
+   the cooperative pattern-to-black-to-display-off sequence, with operation
+   and cleanup budgets, cleanup on errors, and handled interruption. Blocking
+   SPI/GPIO syscalls are synchronous and may outlast those cooperative checks;
+   record that limitation rather than treating the budgets as a wall-clock
+   promise. Do not split it into separate commands:
 
    ```sh
    /tmp/orange-oled-smoke --confirm-active-test
@@ -371,9 +404,9 @@ Proceed only when the passive gate, staging gate, and USB electrical gate pass:
 Stop the session, preserve logs and measurements, and do not retry or reorder a
 gate if any of these occurs: the SSH poll times out; the board identity, boot
 DT, pinmux, artifact metadata, or SHA-256 differs; `/tmp` staging or metadata
-validation fails; OLED black/display-off is not reached within the 2-second
-bound; any bus hangs, GPIO ownership mismatch, kernel fault, brownout, thermal
-rise, unexpected reboot, or hardware owner appears; the I2S card is absent, an
+validation fails; the cooperative OLED operation or cleanup budget is
+exhausted, or black/display-off cannot be confirmed; any bus hangs, GPIO
+ownership mismatch, kernel fault, brownout, thermal rise, unexpected reboot, or hardware owner appears; the I2S card is absent, an
 audio test falls back to HDMI, or playback underruns; VBUS/CC/OTG direction is
 unproven, backfeed or power loss appears, UDC is absent/pre-bound, host
 enumeration fails, or gadget teardown cannot unbind cleanly. Do not continue

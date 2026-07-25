@@ -74,7 +74,8 @@ require_root_mode() {
 
 hash_path() {
   local path="$1"
-  local dump_path="$inspect_work/$(basename "$path")"
+  local dump_path
+  dump_path="$inspect_work/$(basename "$path")"
   if [[ -d "$target" ]]; then
     sha256sum "$target/$path" | awk '{ print $1 }'
     return

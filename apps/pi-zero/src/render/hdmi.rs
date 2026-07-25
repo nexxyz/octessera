@@ -93,6 +93,7 @@ mod imp {
 
 pub use imp::HdmiFramebuffer;
 
+#[cfg(any(test, not(target_os = "linux")))]
 pub fn compose_frame(
     snapshot: &Value,
     width: usize,

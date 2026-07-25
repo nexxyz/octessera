@@ -16,6 +16,10 @@ pub mod neotrellis;
 pub mod oled_ssd1351;
 #[cfg(feature = "orange-pi-zero-2w")]
 pub mod orange_hardware;
+#[cfg(feature = "orange-pi-zero-2w")]
+pub mod orange_metadata;
+#[cfg(feature = "orange-pi-zero-2w")]
+pub mod orange_timing;
 #[cfg(not(feature = "orange-pi-zero-2w"))]
 pub mod pinmap;
 #[cfg(not(feature = "orange-pi-zero-2w"))]

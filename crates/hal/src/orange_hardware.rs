@@ -14,26 +14,19 @@ use std::io::Write;
 #[cfg(target_os = "linux")]
 use std::path::{Path, PathBuf};
 #[cfg(target_os = "linux")]
-use std::thread::sleep;
-#[cfg(target_os = "linux")]
 use std::time::Duration;
 
 #[cfg(target_os = "linux")]
-const SPI_SPEED_HZ: u32 = 1_000_000;
+const SPI_SPEED_HZ: u32 = crate::orange_timing::SPI_SPEED_HZ as u32;
 #[cfg(target_os = "linux")]
-const OLED_FRAME_BYTES: usize = 128 * 128 * 2;
+const OLED_FRAME_BYTES: usize = timing::OLED_FRAME_BYTES;
 #[cfg(any(test, target_os = "linux"))]
 const FRAME_CHUNK_BYTES: usize = 1024;
-#[cfg(any(test, target_os = "linux"))]
-const PRE_RESET_DELAY_MS: u64 = 250;
-#[cfg(any(test, target_os = "linux"))]
-const RESET_HIGH_MS: u64 = 100;
-#[cfg(any(test, target_os = "linux"))]
-const RESET_LOW_MS: u64 = 100;
-#[cfg(any(test, target_os = "linux"))]
-const RESET_SETTLE_MS: u64 = 250;
-#[cfg(any(test, target_os = "linux"))]
-const POST_DISPLAY_ON_MS: u64 = 100;
+
+pub use crate::orange_timing as timing;
+pub use crate::orange_timing::{
+    POST_DISPLAY_ON_MS, PRE_RESET_DELAY_MS, RESET_HIGH_MS, RESET_LOW_MS, RESET_SETTLE_MS,
+};
 
 pub const ORANGE_INPUTS_UNSUPPORTED_ERROR: &str =
     "Orange Pi encoder and Seesaw interrupt mappings are unsupported and unqualified; no input GPIO mappings are selected in this backend";
@@ -49,7 +42,7 @@ pub struct OrangeHardware {
 #[cfg(target_os = "linux")]
 impl OrangeHardware {
     pub fn open() -> Result<Self, String> {
-        Self::open_until(std::time::Instant::now() + Duration::from_secs(2))
+        Self::open_until(timing::operation_deadline())
     }
 
     pub fn open_until(deadline: std::time::Instant) -> Result<Self, String> {
@@ -84,6 +77,19 @@ pub struct OrangeOledTransport {
     spi: spidev::Spidev,
     gpio: Request,
     gpio_plan: OrangeGpioDescriptor,
+    shutdown_complete: bool,
+}
+
+#[cfg(any(test, target_os = "linux"))]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CleanupStep {
+    DisplayOff,
+    BlackFrame,
+}
+
+#[cfg(any(test, target_os = "linux"))]
+fn fallback_cleanup_steps() -> [CleanupStep; 2] {
+    [CleanupStep::DisplayOff, CleanupStep::BlackFrame]
 }
 
 #[cfg(target_os = "linux")]
@@ -101,6 +107,7 @@ impl OrangeOledTransport {
             spi: open_spi(spi_device.path)?,
             gpio,
             gpio_plan,
+            shutdown_complete: false,
         };
         oled.perform_reset_until(deadline)?;
         oled.initialize_display_until(deadline)?;
@@ -108,11 +115,11 @@ impl OrangeOledTransport {
     }
 
     pub fn display_off(&mut self) -> Result<(), String> {
-        self.display_off_until(std::time::Instant::now() + Duration::from_secs(2))
+        self.display_off_until(timing::operation_deadline())
     }
 
     pub fn write_frame(&mut self, frame: &[u8]) -> Result<(), String> {
-        self.write_frame_until(frame, std::time::Instant::now() + Duration::from_secs(2))
+        self.write_frame_until(frame, timing::operation_deadline())
     }
 
     pub fn display_off_until(&mut self, deadline: std::time::Instant) -> Result<(), String> {
@@ -143,10 +150,42 @@ impl OrangeOledTransport {
         Ok(())
     }
 
+    pub fn shutdown_until(
+        &mut self,
+        black_frame: &[u8],
+        deadline: std::time::Instant,
+    ) -> Result<(), String> {
+        self.write_frame_until(black_frame, deadline)?;
+        self.display_off_until(deadline)?;
+        self.shutdown_complete = true;
+        Ok(())
+    }
+
     fn set_dc(&mut self, active: bool) -> Result<(), String> {
         self.gpio
             .set_value(self.gpio_plan.dc_offset, gpio_value(active))
             .map_err(|error| format!("D/C GPIO update failed: {error}"))
+    }
+
+    fn set_dc_until(&mut self, active: bool, deadline: std::time::Instant) -> Result<(), String> {
+        check_deadline(deadline)?;
+        self.set_dc(active)?;
+        check_deadline(deadline)
+    }
+
+    fn set_reset_until(
+        &mut self,
+        active: bool,
+        deadline: std::time::Instant,
+    ) -> Result<(), String> {
+        check_deadline(deadline)?;
+        self.gpio
+            .set_value(
+                self.gpio_plan.reset_offset,
+                reset_gpio_value(active, self.gpio_plan),
+            )
+            .map_err(|error| format!("reset cleanup update failed: {error}"))?;
+        check_deadline(deadline)
     }
 
     fn write_command_until(
@@ -171,7 +210,7 @@ impl OrangeOledTransport {
 
     fn perform_reset_until(&mut self, deadline: std::time::Instant) -> Result<(), String> {
         check_deadline(deadline)?;
-        sleep(Duration::from_millis(PRE_RESET_DELAY_MS));
+        timing::sleep_within_budget(deadline, Duration::from_millis(PRE_RESET_DELAY_MS))?;
         check_deadline(deadline)?;
         self.gpio
             .set_value(
@@ -179,7 +218,7 @@ impl OrangeOledTransport {
                 reset_gpio_value(false, self.gpio_plan),
             )
             .map_err(|error| format!("reset high failed: {error}"))?;
-        sleep(Duration::from_millis(RESET_HIGH_MS));
+        timing::sleep_within_budget(deadline, Duration::from_millis(RESET_HIGH_MS))?;
         check_deadline(deadline)?;
         self.gpio
             .set_value(
@@ -187,7 +226,7 @@ impl OrangeOledTransport {
                 reset_gpio_value(true, self.gpio_plan),
             )
             .map_err(|error| format!("reset low failed: {error}"))?;
-        sleep(Duration::from_millis(RESET_LOW_MS));
+        timing::sleep_within_budget(deadline, Duration::from_millis(RESET_LOW_MS))?;
         check_deadline(deadline)?;
         self.gpio
             .set_value(
@@ -195,8 +234,7 @@ impl OrangeOledTransport {
                 reset_gpio_value(false, self.gpio_plan),
             )
             .map_err(|error| format!("reset release failed: {error}"))?;
-        sleep(Duration::from_millis(RESET_SETTLE_MS));
-        check_deadline(deadline)
+        timing::sleep_within_budget(deadline, Duration::from_millis(RESET_SETTLE_MS))
     }
 
     fn initialize_display_until(&mut self, deadline: std::time::Instant) -> Result<(), String> {
@@ -225,8 +263,7 @@ impl OrangeOledTransport {
         ] {
             self.write_command_until(command, data, deadline)?;
         }
-        sleep(Duration::from_millis(POST_DISPLAY_ON_MS));
-        check_deadline(deadline)
+        timing::sleep_within_budget(deadline, Duration::from_millis(POST_DISPLAY_ON_MS))
     }
 }
 
@@ -241,27 +278,29 @@ fn frame_chunk_ranges(total_bytes: usize) -> Vec<std::ops::Range<usize>> {
 #[cfg(target_os = "linux")]
 impl Drop for OrangeOledTransport {
     fn drop(&mut self) {
-        let cleanup_deadline = std::time::Instant::now() + Duration::from_millis(500);
+        if self.shutdown_complete {
+            return;
+        }
+        let cleanup_deadline = timing::cleanup_deadline();
         let black = vec![0; OLED_FRAME_BYTES];
-        let _ = self.write_frame_until(&black, cleanup_deadline);
-        let _ = self.display_off();
-        let _ = self
-            .gpio
-            .set_value(self.gpio_plan.dc_offset, gpio_value(false));
-        let _ = self.gpio.set_value(
-            self.gpio_plan.reset_offset,
-            reset_gpio_value(false, self.gpio_plan),
-        );
+        for step in fallback_cleanup_steps() {
+            match step {
+                CleanupStep::DisplayOff => {
+                    let _ = self.display_off_until(cleanup_deadline);
+                }
+                CleanupStep::BlackFrame => {
+                    let _ = self.write_frame_until(&black, cleanup_deadline);
+                }
+            }
+        }
+        let _ = self.set_dc_until(false, cleanup_deadline);
+        let _ = self.set_reset_until(false, cleanup_deadline);
     }
 }
 
 #[cfg(target_os = "linux")]
 fn check_deadline(deadline: std::time::Instant) -> Result<(), String> {
-    if std::time::Instant::now() >= deadline {
-        Err("Orange OLED diagnostic operation exceeded its timeout".into())
-    } else {
-        Ok(())
-    }
+    timing::ensure_before_deadline(deadline)
 }
 
 #[cfg(target_os = "linux")]
@@ -372,8 +411,9 @@ fn reset_gpio_value(active: bool, plan: OrangeGpioDescriptor) -> Value {
 #[cfg(test)]
 mod tests {
     use super::{
-        frame_chunk_ranges, ORANGE_AUDIO_UNAVAILABLE_ERROR, ORANGE_INPUTS_UNSUPPORTED_ERROR,
-        POST_DISPLAY_ON_MS, PRE_RESET_DELAY_MS, RESET_HIGH_MS, RESET_LOW_MS, RESET_SETTLE_MS,
+        fallback_cleanup_steps, frame_chunk_ranges, CleanupStep, ORANGE_AUDIO_UNAVAILABLE_ERROR,
+        ORANGE_INPUTS_UNSUPPORTED_ERROR, POST_DISPLAY_ON_MS, PRE_RESET_DELAY_MS, RESET_HIGH_MS,
+        RESET_LOW_MS, RESET_SETTLE_MS,
     };
     use crate::board_profiles::ORANGE_PI_ZERO_2W_DEVICES;
 
@@ -407,5 +447,13 @@ mod tests {
         assert!(ranges.iter().all(|range| range.start < range.end));
         assert_eq!(ranges.first().map(|range| range.start), Some(0));
         assert_eq!(ranges.last().map(|range| range.end), Some(3_000));
+    }
+
+    #[test]
+    fn fallback_cleanup_turns_display_off_before_black() {
+        assert_eq!(
+            fallback_cleanup_steps(),
+            [CleanupStep::DisplayOff, CleanupStep::BlackFrame]
+        );
     }
 }

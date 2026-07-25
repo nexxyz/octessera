@@ -28,19 +28,35 @@ and device update manifests carry the same canonical ID so a mismatched
 binary or artifact fails closed where the host can check it.
 
 The only Orange AArch64 artifact is the diagnostic-only OLED smoke utility; it
-is separate from the native Pi runtime and cannot be installed as a service:
+is separate from the native Pi runtime and cannot be installed as a service.
+Stage the canonical binary name together with its adjacent exact-name sidecar:
 
-```sh
-cross build --release --target aarch64-unknown-linux-gnu -p octessera-hal --features orange-pi-zero-2w --bin orange-oled-smoke
-sudo ./target/aarch64-unknown-linux-gnu/release/orange-oled-smoke --confirm-active-test
+```powershell
+./tools/orange-pi/build-orange-cross.ps1 -Binary orange-oled-smoke -Profile release
 ```
 
-One invocation performs one bounded `pattern → black → display-off` operation.
+The builder copies `orange-oled-smoke` and writes
+`orange-oled-smoke.metadata.json` beside it. The sidecar is schema 2 with an
+exact field set and a lowercase SHA-256 of that copied ELF. The output is a
+Linux AArch64 ELF and must not be executed by the Windows host. Before a remote
+test, copy both files without renaming them, run
+`orange-oled-smoke --print-build-metadata` on the board, and independently
+compare the remote `sha256sum` of the binary with the recorded local SHA-256.
+Metadata mode is read-only, hardware-free, and verifies the running
+`/proc/self/exe`.
+
+One invocation performs one cooperative-budgeted `pattern → black →
+display-off` operation with a 3-second operation budget and a 1-second cleanup
+budget. Normal shutdown performs black and display-off together; fallback
+cleanup prioritizes display-off before the black frame. The budget checks do
+not turn synchronous SPI/GPIO syscalls into a wall-clock guarantee.
 The utility owns cleanup on errors and handled interruption; do not split the
 sequence into separate commands.
 
-The second command is an active hardware test. It must not be run against an
-unverified device or wiring harness.
+The metadata command is read-only. The active hardware test is
+`/tmp/orange-oled-smoke --confirm-active-test` after the separate passive,
+staging, and electrical gates; it must not be run against an unverified device
+or wiring harness.
 
 The Orange artifact is diagnostic-only and is not runtime-ready. Orange
 runtime/HAL integration, deployment, release packaging, and service enablement

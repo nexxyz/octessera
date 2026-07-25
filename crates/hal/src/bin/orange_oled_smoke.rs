@@ -1,12 +1,14 @@
 use std::env;
 use std::process;
+
 #[cfg(target_os = "linux")]
 use std::sync::atomic::{AtomicBool, Ordering};
 #[cfg(target_os = "linux")]
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 #[cfg(target_os = "linux")]
 use octessera_hal::orange_hardware::OrangeHardware;
+use octessera_hal::orange_metadata::print_build_metadata;
 
 #[cfg(any(test, target_os = "linux"))]
 const DISPLAY_WIDTH: usize = 128;
@@ -16,12 +18,9 @@ const DISPLAY_HEIGHT: usize = 128;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct Options {
     confirm_active_test: bool,
+    print_build_metadata: bool,
 }
 
-#[cfg(target_os = "linux")]
-const OPERATION_TIMEOUT: Duration = Duration::from_secs(2);
-#[cfg(target_os = "linux")]
-const CLEANUP_TIMEOUT: Duration = Duration::from_millis(500);
 #[cfg(target_os = "linux")]
 static INTERRUPTED: AtomicBool = AtomicBool::new(false);
 
@@ -30,10 +29,18 @@ fn main() {
         Ok(options) => options,
         Err(error) => {
             eprintln!("{error}");
-            eprintln!("usage: orange-oled-smoke --confirm-active-test");
+            eprintln!("usage: orange-oled-smoke --confirm-active-test | --print-build-metadata");
             process::exit(2);
         }
     };
+
+    if options.print_build_metadata {
+        if let Err(error) = print_build_metadata() {
+            eprintln!("Orange OLED build metadata check failed: {error}");
+            process::exit(1);
+        }
+        return;
+    }
 
     if let Err(error) = require_active_test_confirmation(options) {
         eprintln!("{error}");
@@ -58,17 +65,27 @@ where
     I: IntoIterator<Item = S>,
     S: Into<String>,
 {
-    let mut confirm_active_test = false;
+    let mut options = Options {
+        confirm_active_test: false,
+        print_build_metadata: false,
+    };
     for arg in args {
         match arg.into().as_str() {
-            "--confirm-active-test" if !confirm_active_test => confirm_active_test = true,
+            "--confirm-active-test" if !options.confirm_active_test => {
+                options.confirm_active_test = true;
+            }
             "--confirm-active-test" => return Err("duplicate --confirm-active-test".into()),
+            "--print-build-metadata" if !options.print_build_metadata => {
+                options.print_build_metadata = true;
+            }
+            "--print-build-metadata" => return Err("duplicate --print-build-metadata".into()),
             unknown => return Err(format!("unknown argument: {unknown}")),
         }
     }
-    Ok(Options {
-        confirm_active_test,
-    })
+    if options.confirm_active_test && options.print_build_metadata {
+        return Err("--print-build-metadata is exclusive with --confirm-active-test".into());
+    }
+    Ok(options)
 }
 
 fn require_active_test_confirmation(options: Options) -> Result<(), &'static str> {
@@ -82,12 +99,11 @@ fn require_active_test_confirmation(options: Options) -> Result<(), &'static str
 #[cfg(target_os = "linux")]
 fn run_smoke_test() -> Result<(), String> {
     install_interrupt_handlers()?;
-    let deadline = Instant::now() + OPERATION_TIMEOUT;
-    let hardware = OrangeHardware::open_until(deadline)?;
+    let operation_deadline = octessera_hal::orange_timing::operation_deadline();
+    let hardware = OrangeHardware::open_until(operation_deadline)?;
     let mut session = DiagnosticSession {
         hardware,
-        deadline,
-        finished: false,
+        operation_deadline,
     };
     session.run()
 }
@@ -95,8 +111,7 @@ fn run_smoke_test() -> Result<(), String> {
 #[cfg(target_os = "linux")]
 struct DiagnosticSession {
     hardware: OrangeHardware,
-    deadline: Instant,
-    finished: bool,
+    operation_deadline: Instant,
 }
 
 #[cfg(target_os = "linux")]
@@ -105,42 +120,19 @@ impl DiagnosticSession {
         self.check_safety_bound()?;
         self.hardware
             .oled_mut()
-            .write_frame_until(&static_test_pattern(), self.deadline)?;
+            .write_frame_until(&static_test_pattern(), self.operation_deadline)?;
         self.check_safety_bound()?;
         self.hardware
             .oled_mut()
-            .write_frame_until(&black_frame(), self.deadline)?;
+            .shutdown_until(&black_frame(), self.operation_deadline)?;
         self.check_safety_bound()?;
-        self.hardware.oled_mut().display_off_until(self.deadline)?;
-        self.finished = true;
         println!("Orange OLED smoke test completed");
         Ok(())
     }
 
     fn check_safety_bound(&self) -> Result<(), String> {
-        if INTERRUPTED.load(Ordering::SeqCst) {
-            Err("Orange OLED smoke interrupted; cleanup is being attempted".into())
-        } else if Instant::now() >= self.deadline {
-            Err("Orange OLED smoke exceeded its 2-second safety bound".into())
-        } else {
-            Ok(())
-        }
-    }
-}
-
-#[cfg(target_os = "linux")]
-impl Drop for DiagnosticSession {
-    fn drop(&mut self) {
-        if self.finished {
-            return;
-        }
-        let cleanup_deadline = Instant::now() + CLEANUP_TIMEOUT;
-        let black = black_frame();
-        let _ = self
-            .hardware
-            .oled_mut()
-            .write_frame_until(&black, cleanup_deadline);
-        let _ = self.hardware.oled_mut().display_off();
+        ensure_not_interrupted(INTERRUPTED.load(Ordering::SeqCst))?;
+        octessera_hal::orange_timing::ensure_before_deadline(self.operation_deadline)
     }
 }
 
@@ -162,6 +154,15 @@ fn install_interrupt_handlers() -> Result<(), String> {
 #[cfg(target_os = "linux")]
 extern "C" fn interrupt_handler(_: libc::c_int) {
     INTERRUPTED.store(true, Ordering::SeqCst);
+}
+
+#[cfg(any(test, target_os = "linux"))]
+fn ensure_not_interrupted(interrupted: bool) -> Result<(), &'static str> {
+    if interrupted {
+        Err("Orange OLED smoke interrupted; cleanup is being attempted")
+    } else {
+        Ok(())
+    }
 }
 
 #[cfg(any(test, target_os = "linux"))]
