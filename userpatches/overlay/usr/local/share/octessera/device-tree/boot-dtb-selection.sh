@@ -7,7 +7,6 @@ octessera_resolve_boot_dtb() {
   local boot_dir
   local fdtfile=
   local extlinux_fdt=
-  local boot_reference
   local candidate
   local resolved
   local fdtfile_status=0
@@ -97,7 +96,7 @@ octessera_resolve_boot_dtb() {
       fi
     fi
     if [[ "${#candidates[@]}" == "$before" ]]; then
-      for candidate in "$image_root"/boot/dtb-*/$target_relative "$image_root"/usr/lib/linux-image-*/$target_relative; do
+      for candidate in "$image_root"/boot/dtb-*/"$target_relative" "$image_root"/usr/lib/linux-image-*/"$target_relative"; do
         add_candidate "$candidate" || return 1
       done
     fi
@@ -127,7 +126,7 @@ octessera_resolve_boot_dtb() {
       add_candidate "$boot_dir/dtb/$target_relative" || return 1
     fi
     if [[ "${#candidates[@]}" == 0 ]]; then
-      for candidate in "$image_root"/boot/dtb-*/$target_relative "$image_root"/usr/lib/linux-image-*/$target_relative; do
+      for candidate in "$image_root"/boot/dtb-*/"$target_relative" "$image_root"/usr/lib/linux-image-*/"$target_relative"; do
         add_candidate "$candidate" || return 1
       done
     fi

@@ -74,6 +74,7 @@ source "$spi_env_helper"
 source "$spi_validation_helper"
 # shellcheck source=userpatches/overlay/usr/local/share/octessera/device-tree/boot-dtb-selection.sh
 source "$boot_dtb_helper"
+# shellcheck source=tools/armbian-image/inspect-mode.sh
 source "$inspect_mode_helper"
 
 env_test_work="$(mktemp -d)"
@@ -125,6 +126,7 @@ grep -q 'wifi_connect_sha256=413d70e6d1c1366cbe2b32555e8476f3e92878178ed1b9c8220
 grep -q 'OCTESSERA_BOARD_PROFILE_ID=orange-pi-zero-2w' "$root/userpatches/customize-image.sh" || { echo "Missing Orange Pi board profile metadata." >&2; exit 1; }
 grep -q 'armbian_board.*orangepizero2w' "$root/userpatches/customize-image.sh" || { echo "Image customization must fail closed for non-Orange Pi boards." >&2; exit 1; }
 grep -q 'device-tree-compiler' "$root/userpatches/customize-image.sh" || { echo "Image customization must provide dtc." >&2; exit 1; }
+grep -q 'psmisc' "$root/userpatches/customize-image.sh" || { echo "Image customization must provide fuser through psmisc." >&2; exit 1; }
 grep -q 'dtc -@ -I dts -O dtb' "$root/userpatches/customize-image.sh" || { echo "Image customization must compile the SPI overlay with symbols." >&2; exit 1; }
 grep -q 'fdtoverlay' "$root/userpatches/customize-image.sh" || { echo "Image customization must merge the SPI overlay with the exact base DTB." >&2; exit 1; }
 grep -q 'fdtfile' "$boot_dtb_helper" || { echo "Image customization must resolve the boot-selected DTB." >&2; exit 1; }
@@ -132,8 +134,8 @@ grep -q 'sun50i-h618-orangepi-zero2w.dtb' "$boot_dtb_helper" || { echo "Image cu
 ! grep -q 'uname -r' "$root/userpatches/customize-image.sh" || { echo "Image customization must not infer the base DTB from uname." >&2; exit 1; }
 grep -q '/boot/overlay-user' "$root/userpatches/customize-image.sh" || { echo "Image customization must install the user overlay." >&2; exit 1; }
 grep -q 'user_overlays=octessera-h618-spi1-cs0' "$root/userpatches/customize-image.sh" || { echo "Image customization must enable the exact user overlay." >&2; exit 1; }
-grep -q 'mv -f -- "\$spi_dtbo_tmp" "\$spi_dtbo"' "$root/userpatches/customize-image.sh" || { echo "DTBO installation must be atomic." >&2; exit 1; }
-grep -q 'mv -f -- "\$armbian_env_tmp" "\$armbian_env"' "$root/userpatches/customize-image.sh" || { echo "Armbian environment installation must be atomic." >&2; exit 1; }
+grep -qF "mv -f -- \"\$spi_dtbo_tmp\" \"\$spi_dtbo\"" "$root/userpatches/customize-image.sh" || { echo "DTBO installation must be atomic." >&2; exit 1; }
+grep -qF "mv -f -- \"\$armbian_env_tmp\" \"\$armbian_env\"" "$root/userpatches/customize-image.sh" || { echo "Armbian environment installation must be atomic." >&2; exit 1; }
 grep -q 'OCTESSERA_SPI1_CS0_DTS_SHA256' "$root/userpatches/customize-image.sh" || { echo "Image metadata must record the DTS hash." >&2; exit 1; }
 grep -q 'OCTESSERA_SPI1_CS0_DTBO_SHA256' "$root/userpatches/customize-image.sh" || { echo "Image metadata must record the DTBO hash." >&2; exit 1; }
 grep -q 'artifact_kind == "diagnostic-only"' "$root/userpatches/customize-image.sh" || { echo "Orange image payloads must be diagnostic-only." >&2; exit 1; }

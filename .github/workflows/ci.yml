@@ -201,6 +201,8 @@ jobs:
         run: cargo check --target aarch64-unknown-linux-gnu -p octessera-hal --features pi-zero
       - name: Test Orange HAL profile
         run: cargo test -p octessera-hal --features orange-pi-zero-2w
+      - name: Lint Orange HAL profile
+        run: cargo clippy -p octessera-hal --features orange-pi-zero-2w --all-targets -- -D warnings
       - name: Build Orange diagnostic artifact for production target
         run: cargo build --target aarch64-unknown-linux-gnu -p octessera-hal --features orange-pi-zero-2w --bin orange-oled-smoke
       - name: Reject mixed HAL profiles
@@ -244,10 +246,13 @@ jobs:
       - name: Validate Raspberry profile boundaries
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends device-tree-compiler
+          sudo apt-get install -y --no-install-recommends device-tree-compiler shellcheck
           bash -n tools/pi/board-profile.sh tools/pi/build-pi-cross-wsl.sh tools/pi/deploy-pi.sh tools/pi/provision/provision.sh
           python3 tools/pi-image/test-board-profile.py
           bash tools/armbian-image/validate.sh
+          shellcheck tools/orange-pi/opi-bringup-probe.sh tools/orange-pi/test-opi-bringup-probe.sh tools/orange-pi/opi-bringup-validator.sh tools/orange-pi/opi-bringup-identity-validator.sh tools/orange-pi/opi-bringup-hardware-validator.sh tools/orange-pi/orange-pi-usb-gadget.sh
+          bash tools/orange-pi/test-opi-bringup-probe.sh
+          bash tools/orange-pi/test-orange-pi-usb-gadget.sh
 
   board_profile_powershell:
     name: Board profile PowerShell checks
@@ -258,6 +263,11 @@ jobs:
       - name: Validate Raspberry profile boundaries
         shell: pwsh
         run: ./tools/pi/test-board-profile.ps1
+      - name: Validate Orange profile PowerShell scripts
+        shell: pwsh
+        run: |
+          ./tools/orange-pi/test-build-orange-cross.ps1
+          ./tools/orange-pi/test-run-opi-bringup.ps1
 
   updater_protocol:
     name: Device updater protocol checks

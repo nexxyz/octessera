@@ -70,6 +70,11 @@ if ($isLatestLogLookup -and $env:OCTESSERA_FAKE_SSH_LOG_LOOKUP -eq "multiple") {
 }
 if ($tool -eq "ssh" -and -not $isLatestLogLookup -and $env:OCTESSERA_FAKE_SSH_PROBE -eq "failed") { exit 17 }
 if ($isLatestLogLookup) { Write-Output "/tmp/fake bringup.log" }
+if ($tool -eq "scp" -and $env:OCTESSERA_FAKE_SCP_FAILURE_SOURCE -ne $null) {
+  foreach ($argument in $arguments) {
+    if ([string]$argument -like "*$($env:OCTESSERA_FAKE_SCP_FAILURE_SOURCE)") { exit 19 }
+  }
+}
 exit 0
 '@
   Write-Utf8NoBom (Join-Path $fakeBin "ssh.cmd") @'
@@ -107,16 +112,8 @@ exit /b %ERRORLEVEL%
       Key = (Join-Path $testRoot "key with spaces.pem")
       RemoteScript = "/tmp/octessera-opi-probe.sh"
       RemoteLogDir = "/tmp/octessera-opi-bringup"
-      ExpectedRemoteCommand = "tr -d '\r' < '/tmp/octessera-opi-probe.sh' > '/tmp/octessera-opi-probe.sh'.lf && chmod +x '/tmp/octessera-opi-probe.sh'.lf && bash '/tmp/octessera-opi-probe.sh'.lf '--output-dir' '/tmp/octessera-opi-bringup'"
+      ExpectedRemoteCommand = "umask 077; IFS=; set -f && octessera_lf_0=`$(mktemp -- '/tmp/octessera-opi-probe.sh.octessera-lf.XXXXXX') && tr -d '\r' < '/tmp/octessera-opi-probe.sh' > `$octessera_lf_0 && chmod +x `$octessera_lf_0 && mv -f -- `$octessera_lf_0 '/tmp/octessera-opi-probe.sh' && octessera_lf_1=`$(mktemp -- '/tmp/opi-bringup-validator.sh.octessera-lf.XXXXXX') && tr -d '\r' < '/tmp/opi-bringup-validator.sh' > `$octessera_lf_1 && mv -f -- `$octessera_lf_1 '/tmp/opi-bringup-validator.sh' && octessera_lf_2=`$(mktemp -- '/tmp/opi-bringup-identity-validator.sh.octessera-lf.XXXXXX') && tr -d '\r' < '/tmp/opi-bringup-identity-validator.sh' > `$octessera_lf_2 && mv -f -- `$octessera_lf_2 '/tmp/opi-bringup-identity-validator.sh' && octessera_lf_3=`$(mktemp -- '/tmp/opi-bringup-hardware-validator.sh.octessera-lf.XXXXXX') && tr -d '\r' < '/tmp/opi-bringup-hardware-validator.sh' > `$octessera_lf_3 && mv -f -- `$octessera_lf_3 '/tmp/opi-bringup-hardware-validator.sh' && bash '/tmp/octessera-opi-probe.sh' '--output-dir' '/tmp/octessera-opi-bringup'"
       ExpectedLatestLogCommand = "cat '/tmp/octessera-opi-bringup'/latest-log-path 2>/dev/null"
-    }
-    [pscustomobject]@{
-      Name = "quoted-shell-values"
-      Key = (Join-Path $testRoot "key's & deployment.pem")
-      RemoteScript = "/tmp/octessera probe's; echo NOPE & *.sh"
-      RemoteLogDir = "/tmp/octessera logs/it's safe; echo NOPE &"
-      ExpectedRemoteCommand = "tr -d '\r' < '/tmp/octessera probe'\''s; echo NOPE & *.sh' > '/tmp/octessera probe'\''s; echo NOPE & *.sh'.lf && chmod +x '/tmp/octessera probe'\''s; echo NOPE & *.sh'.lf && bash '/tmp/octessera probe'\''s; echo NOPE & *.sh'.lf '--output-dir' '/tmp/octessera logs/it'\''s safe; echo NOPE &'"
-      ExpectedLatestLogCommand = "cat '/tmp/octessera logs/it'\''s safe; echo NOPE &'/latest-log-path 2>/dev/null"
     }
   )
 
@@ -134,8 +131,8 @@ exit /b %ERRORLEVEL%
     }
 
     $records = @(Read-TransportRecords)
-    if ($records.Count -ne 4) {
-      throw "expected two ssh and two scp calls for $($case.Name), got $($records.Count)"
+    if ($records.Count -ne 7) {
+      throw "expected two ssh and five scp calls for $($case.Name), got $($records.Count)"
     }
     $baseArguments = @(
       "-i", $case.Key,
@@ -145,9 +142,17 @@ exit /b %ERRORLEVEL%
     )
     $probeScriptPath = Join-Path $PSScriptRoot "opi-bringup-probe.sh"
     Assert-TransportRecord $records[0] "scp" ($baseArguments + @($probeScriptPath, "${target}:$($case.RemoteScript)")) "$($case.Name) upload"
-    Assert-TransportRecord $records[1] "ssh" ($baseArguments + @($target, $case.ExpectedRemoteCommand)) "$($case.Name) probe"
-    Assert-TransportRecord $records[2] "ssh" ($baseArguments + @($target, $case.ExpectedLatestLogCommand)) "$($case.Name) latest-log-path"
-    Assert-TransportRecord $records[3] "scp" ($baseArguments + @("${target}:/tmp/fake bringup.log", $localOutputDir)) "$($case.Name) log download"
+    $supportNames = @("opi-bringup-validator.sh", "opi-bringup-identity-validator.sh", "opi-bringup-hardware-validator.sh")
+    for ($supportIndex = 0; $supportIndex -lt $supportNames.Count; $supportIndex++) {
+      $supportName = $supportNames[$supportIndex]
+      $supportPath = Join-Path $PSScriptRoot $supportName
+      $remoteDirectory = $case.RemoteScript.Substring(0, $case.RemoteScript.LastIndexOf('/'))
+      $remoteSupportPath = if ($remoteDirectory -eq "/") { "/$supportName" } else { "$remoteDirectory/$supportName" }
+      Assert-TransportRecord $records[$supportIndex + 1] "scp" ($baseArguments + @($supportPath, "${target}:$remoteSupportPath")) "$($case.Name) $supportName upload"
+    }
+    Assert-TransportRecord $records[4] "ssh" ($baseArguments + @($target, $case.ExpectedRemoteCommand)) "$($case.Name) probe"
+    Assert-TransportRecord $records[5] "ssh" ($baseArguments + @($target, $case.ExpectedLatestLogCommand)) "$($case.Name) latest-log-path"
+    Assert-TransportRecord $records[6] "scp" ($baseArguments + @("${target}:/tmp/fake bringup.log", $localOutputDir)) "$($case.Name) log download"
   }
 
   $probeSource = [IO.File]::ReadAllText((Join-Path $PSScriptRoot "opi-bringup-probe.sh"))
@@ -156,11 +161,81 @@ exit /b %ERRORLEVEL%
     throw "bring-up probe or wrapper still contains the retired inline gadget smoke"
   }
 
+  $collisionNames = @("opi-bringup-validator.sh", "opi-bringup-identity-validator.sh", "opi-bringup-hardware-validator.sh")
+  foreach ($collisionName in $collisionNames) {
+    [IO.File]::WriteAllText($recordPath, "", $utf8NoBom)
+    $collision = Invoke-BringupForTest -Parameters @{
+      Target = $target
+      RemoteScript = "/tmp/$collisionName"
+      LocalOutputDir = (Join-Path $testRoot ("collision-" + $collisionName))
+    }
+    $collisionText = ($collision.Output | ForEach-Object { [string]$_ }) -join "`n"
+    if (-not $collision.Threw -or $collisionText -notmatch "collides with derived support file" -or $collisionText -match "Orange Pi bring-up probe complete") {
+      throw "RemoteScript collision was not rejected before transfer: $collisionName"
+    }
+    if (@(Read-TransportRecords).Count -ne 0) {
+      throw "RemoteScript collision attempted transport: $collisionName"
+    }
+  }
+
+  $invalidRemotePathCases = @(
+    [pscustomobject]@{ ParameterName = "RemoteScript"; Value = "" }
+    [pscustomobject]@{ ParameterName = "RemoteScript"; Value = "relative-probe.sh" }
+    [pscustomobject]@{ ParameterName = "RemoteScript"; Value = "/" }
+    [pscustomobject]@{ ParameterName = "RemoteScript"; Value = "/tmp/" }
+    [pscustomobject]@{ ParameterName = "RemoteScript"; Value = "/tmp/../probe.sh" }
+    [pscustomobject]@{ ParameterName = "RemoteScript"; Value = "/tmp/probe name.sh" }
+    [pscustomobject]@{ ParameterName = "RemoteScript"; Value = "/tmp/probe;echo.sh" }
+    [pscustomobject]@{ ParameterName = "RemoteScript"; Value = "/tmp/probe`n.sh" }
+    [pscustomobject]@{ ParameterName = "RemoteLogDir"; Value = "" }
+    [pscustomobject]@{ ParameterName = "RemoteLogDir"; Value = "relative-logs" }
+    [pscustomobject]@{ ParameterName = "RemoteLogDir"; Value = "/" }
+    [pscustomobject]@{ ParameterName = "RemoteLogDir"; Value = "/tmp/" }
+    [pscustomobject]@{ ParameterName = "RemoteLogDir"; Value = "/tmp/logs with spaces" }
+    [pscustomobject]@{ ParameterName = "RemoteLogDir"; Value = "/tmp/logs&echo" }
+    [pscustomobject]@{ ParameterName = "RemoteLogDir"; Value = "/tmp/logs`r`n" }
+  )
+  foreach ($invalidRemotePath in $invalidRemotePathCases) {
+    [IO.File]::WriteAllText($recordPath, "", $utf8NoBom)
+    $invalidParameters = @{
+      Target = $target
+      RemoteScript = "/tmp/octessera-opi-bringup-probe.sh"
+      RemoteLogDir = "/tmp/octessera-opi-bringup"
+      LocalOutputDir = (Join-Path $testRoot ("invalid-" + $invalidRemotePath.ParameterName))
+    }
+    $invalidParameters[$invalidRemotePath.ParameterName] = $invalidRemotePath.Value
+    $invalid = Invoke-BringupForTest -Parameters @{
+      Target = $invalidParameters.Target
+      RemoteScript = $invalidParameters.RemoteScript
+      RemoteLogDir = $invalidParameters.RemoteLogDir
+      LocalOutputDir = $invalidParameters.LocalOutputDir
+    }
+    $invalidText = ($invalid.Output | ForEach-Object { [string]$_ }) -join "`n"
+    if (-not $invalid.Threw -or $invalidText -notmatch $invalidRemotePath.ParameterName -or @(Read-TransportRecords).Count -ne 0) {
+      throw "invalid $($invalidRemotePath.ParameterName) was not rejected before transfer: $($invalidRemotePath.Value)"
+    }
+  }
+
+  foreach ($failedSource in @("opi-bringup-probe.sh", "opi-bringup-validator.sh", "opi-bringup-identity-validator.sh", "opi-bringup-hardware-validator.sh")) {
+    [IO.File]::WriteAllText($recordPath, "", $utf8NoBom)
+    $env:OCTESSERA_FAKE_SCP_FAILURE_SOURCE = $failedSource
+    $uploadFailure = Invoke-BringupForTest -Parameters @{
+      Target = $target
+      RemoteScript = "/tmp/upload-failure.sh"
+      LocalOutputDir = (Join-Path $testRoot ("upload-failure-" + $failedSource))
+    }
+    $uploadFailureText = ($uploadFailure.Output | ForEach-Object { [string]$_ }) -join "`n"
+    if (-not $uploadFailure.Threw -or $uploadFailureText -match "Orange Pi bring-up probe complete" -or @((Read-TransportRecords) | Where-Object { $_.tool -eq "ssh" }).Count -ne 0) {
+      throw "upload failure did not stop before SSH/completion: $failedSource"
+    }
+    Remove-Item Env:\OCTESSERA_FAKE_SCP_FAILURE_SOURCE -ErrorAction SilentlyContinue
+  }
+
   $failureParameters = @{
     Target = $target
     Key = (Join-Path $testRoot "failure key.pem")
-    RemoteScript = "/tmp/failure probe.sh"
-    RemoteLogDir = "/tmp/failure logs"
+    RemoteScript = "/tmp/failure-probe.sh"
+    RemoteLogDir = "/tmp/failure-logs"
     LocalOutputDir = (Join-Path $testRoot "failure output")
   }
 
@@ -171,7 +246,7 @@ exit /b %ERRORLEVEL%
   if ($lookupFailure.Threw -or $lookupFailureText -notmatch "Could not read remote latest-log-path" -or $lookupFailureText -notmatch "Orange Pi bring-up probe complete") {
     throw "failed/no-output log lookup did not preserve warning and successful probe completion"
   }
-  if (@(Read-TransportRecords).Count -ne 3) { throw "failed log lookup should not attempt log download" }
+  if (@(Read-TransportRecords).Count -ne 6) { throw "failed log lookup should not attempt log download" }
   Remove-Item Env:\OCTESSERA_FAKE_SSH_LOG_LOOKUP -ErrorAction SilentlyContinue
 
   [IO.File]::WriteAllText($recordPath, "", $utf8NoBom)
@@ -181,7 +256,7 @@ exit /b %ERRORLEVEL%
   if ($multipleLookup.Threw -or $multipleLookupText -notmatch "Could not read remote latest-log-path" -or $multipleLookupText -notmatch "Orange Pi bring-up probe complete") {
     throw "multiple-line log lookup did not preserve warning and successful probe completion"
   }
-  if (@(Read-TransportRecords).Count -ne 3) { throw "multiple-line log lookup should not attempt log download" }
+  if (@(Read-TransportRecords).Count -ne 6) { throw "multiple-line log lookup should not attempt log download" }
   Remove-Item Env:\OCTESSERA_FAKE_SSH_LOG_LOOKUP -ErrorAction SilentlyContinue
 
   [IO.File]::WriteAllText($recordPath, "", $utf8NoBom)
@@ -198,6 +273,7 @@ exit /b %ERRORLEVEL%
   Remove-Item Env:\OCTESSERA_FAKE_TRANSPORT_LOG -ErrorAction SilentlyContinue
   Remove-Item Env:\OCTESSERA_FAKE_SSH_LOG_LOOKUP -ErrorAction SilentlyContinue
   Remove-Item Env:\OCTESSERA_FAKE_SSH_PROBE -ErrorAction SilentlyContinue
+  Remove-Item Env:\OCTESSERA_FAKE_SCP_FAILURE_SOURCE -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $testRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 

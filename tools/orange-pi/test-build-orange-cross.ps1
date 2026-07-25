@@ -1,7 +1,9 @@
 $ErrorActionPreference = "Stop"
 
 $buildScript = Join-Path $PSScriptRoot "build-orange-cross.ps1"
+$metadataModule = Join-Path $PSScriptRoot "orange-cross-metadata.psm1"
 $source = [IO.File]::ReadAllText($buildScript)
+$metadataSource = [IO.File]::ReadAllText($metadataModule)
 
 foreach ($required in @(
     "docker",
@@ -15,14 +17,46 @@ foreach ($required in @(
     "gcc-aarch64-linux-gnu",
     "libc6-dev-arm64-cross",
     "aarch64-linux-gnu-readelf",
-    "base64 --decode",
-    'artifact_kind = "diagnostic-only"',
-    'runtime_ready = $false',
+    "Import-Module",
+    "Invoke-VerifiedOrangeBuildMetadata",
+    "Remove-OrangeBuildArtifacts",
     "ELF64",
     "AArch64"
   )) {
   if ($source.IndexOf($required, [StringComparison]::Ordinal) -lt 0) {
     throw "Orange cross-builder is missing required operation: $required"
+  }
+}
+
+foreach ($required in @(
+    "Get-FileHash",
+    "ConvertTo-Json -Compress",
+    "binary_sha256",
+    'schema_version = $script:OrangeSchemaVersion',
+    'artifact_kind = $script:OrangeArtifactKind',
+    'runtime_ready = $false',
+    "Publish-OrangeBuildMetadata",
+    "Assert-OrangeBuildMetadata",
+    "Remove-OrangeBuildArtifacts",
+    "Invoke-VerifiedOrangeBuildMetadata",
+    "WriteAllText",
+    "ReadAllBytes"
+  )) {
+  if ($metadataSource.IndexOf($required, [StringComparison]::Ordinal) -lt 0) {
+    throw "Orange metadata module is missing required operation: $required"
+  }
+}
+
+foreach ($forbidden in @(
+    "Get-FileHash",
+    "ConvertTo-Json",
+    "ConvertFrom-Json",
+    "WriteAllText",
+    "ReadAllBytes",
+    "TestMetadata"
+  )) {
+  if ($source.IndexOf($forbidden, [StringComparison]::Ordinal) -ge 0) {
+    throw "Orange cross-builder must delegate metadata operation to its module: $forbidden"
   }
 }
 
@@ -44,6 +78,7 @@ $default = Invoke-DryRun @{}
 foreach ($expected in @(
     "no Docker container was started",
     "target/orange-pi-cross/orange-oled-smoke",
+    "orange-oled-smoke.metadata.json",
     "--profile.*pi-dev",
     "-p.*octessera-hal",
     "--features.*orange-pi-zero-2w"
@@ -87,4 +122,64 @@ foreach ($parameters in @(
   }
 }
 
-Write-Output "Orange Pi cross-builder host and dry-run tests passed"
+$testDirectory = Join-Path ([IO.Path]::GetTempPath()) "octessera-orange-metadata-test-$PID-$([guid]::NewGuid().ToString('N'))"
+$testBinary = Join-Path $testDirectory "orange-oled-smoke"
+$testMetadata = "$testBinary.metadata.json"
+$testSpec = [pscustomobject]@{ Package = "octessera-hal"; Feature = "orange-pi-zero-2w" }
+$metadataParameters = @{
+  BinaryPath = $testBinary
+  SelectedBinary = "orange-oled-smoke"
+  SelectedTarget = "aarch64-unknown-linux-gnu"
+  SelectedProfile = "pi-dev"
+  BuildSpec = $testSpec
+}
+$publicationParameters = @{ MetadataPath = $testMetadata } + $metadataParameters
+
+New-Item -ItemType Directory -Path $testDirectory | Out-Null
+try {
+  [IO.File]::WriteAllBytes($testBinary, [byte[]](0x7F, 0x45, 0x4C, 0x46, 0x02, 0xB7))
+  $json = ConvertTo-OrangeBuildMetadataJson @metadataParameters
+  $expectedHash = (Get-FileHash -LiteralPath $testBinary -Algorithm SHA256).Hash.ToLowerInvariant()
+  if ($json -notmatch ('"binary_sha256":"' + $expectedHash + '"')) {
+    throw "Orange metadata serialization did not bind the binary hash"
+  }
+  Publish-OrangeBuildMetadata @publicationParameters
+  Assert-OrangeBuildMetadata @publicationParameters
+  $utf8NoBom = New-Object System.Text.UTF8Encoding($false, $true)
+  $publishedBytes = [IO.File]::ReadAllBytes($testMetadata)
+  if ($publishedBytes.Length -ge 3 -and $publishedBytes[0] -eq 0xEF -and $publishedBytes[1] -eq 0xBB -and $publishedBytes[2] -eq 0xBF) {
+    throw "Orange metadata publication unexpectedly wrote a UTF-8 BOM"
+  }
+  if ($utf8NoBom.GetString($publishedBytes) -cne "$json`n") {
+    throw "Orange metadata publication changed the canonical serialized JSON"
+  }
+
+  $tamperedWriter = {
+    Publish-OrangeBuildMetadata @publicationParameters
+    $fakeHash = "0" * 64
+    $tampered = [regex]::Replace(
+      [IO.File]::ReadAllText($testMetadata),
+      '"binary_sha256":"[0-9a-f]{64}"',
+      ('"binary_sha256":"' + $fakeHash + '"')
+    )
+    [IO.File]::WriteAllText($testMetadata, $tampered, (New-Object System.Text.UTF8Encoding($false)))
+  }
+  $tamperedParameters = @{} + $publicationParameters
+  $tamperedParameters.MetadataWriter = $tamperedWriter
+  $failed = $false
+  try {
+    Invoke-VerifiedOrangeBuildMetadata @tamperedParameters
+  } catch {
+    $failed = $true
+  }
+  if (-not $failed) {
+    throw "Orange metadata tamper test unexpectedly passed"
+  }
+  if ((Test-Path -LiteralPath $testBinary) -or (Test-Path -LiteralPath $testMetadata)) {
+    throw "Orange metadata verification failure did not clean temporary artifacts"
+  }
+} finally {
+  Remove-Item -LiteralPath $testDirectory -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+Write-Output "Orange Pi cross-builder host, dry-run, and metadata tests passed"

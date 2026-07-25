@@ -2541,6 +2541,9 @@ dependencies = [
  "libc",
  "platform-core",
  "rppal",
+ "serde",
+ "serde_json",
+ "sha2",
  "spidev",
 ]
 

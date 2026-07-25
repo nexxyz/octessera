@@ -13,6 +13,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
+$metadataModule = Join-Path $PSScriptRoot "orange-cross-metadata.psm1"
+Import-Module $metadataModule -Force
 $Binary = $Binary.ToLowerInvariant()
 $Profile = $Profile.ToLowerInvariant()
 $Target = $Target.ToLowerInvariant()
@@ -98,19 +100,6 @@ function New-DockerShellCommand {
   $outputQuoted = Convert-ToBashSingleQuoted "/work/$OutputRelativePath"
   $artifactProfile = if ($Profile -eq "dev") { "debug" } else { $Profile }
   $sourceQuoted = Convert-ToBashSingleQuoted "target/$Target/$artifactProfile/$Binary"
-  $metadata = [ordered]@{
-    schema_version = 1
-    board_profile = "orange-pi-zero-2w"
-    artifact_kind = "diagnostic-only"
-    runtime_ready = $false
-    binary = $Binary
-    package = $BuildSpec.Package
-    arch = $Target
-    cargo_feature = $BuildSpec.Feature
-    profile = $Profile
-  } | ConvertTo-Json -Compress
-  $metadataBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($metadata))
-  $metadataBase64Quoted = Convert-ToBashSingleQuoted $metadataBase64
   $innerScript = @"
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
@@ -133,7 +122,6 @@ mkdir -p $outputQuoted
 cp -- $sourceQuoted '/work/$OutputRelativePath/$Binary'
 aarch64-linux-gnu-readelf -h '/work/$OutputRelativePath/$Binary' | grep -Eq '^[[:space:]]*Class:[[:space:]]*ELF64[[:space:]]*$'
 aarch64-linux-gnu-readelf -h '/work/$OutputRelativePath/$Binary' | grep -Eq '^[[:space:]]*Machine:[[:space:]]*AArch64[[:space:]]*$'
-printf '%s' $metadataBase64Quoted | base64 --decode > '/work/$OutputRelativePath/$Binary.metadata.json'
 "@
 
   $dockerArguments = @(
@@ -171,49 +159,6 @@ printf '%s' $metadataBase64Quoted | base64 --decode > '/work/$OutputRelativePath
   return (($dockerArguments | ForEach-Object { Convert-ToBashSingleQuoted ([string]$_) }) -join " ")
 }
 
-function Assert-OutputMetadata {
-  param(
-    [Parameter(Mandatory)][string]$MetadataPath,
-    [Parameter(Mandatory)][pscustomobject]$BuildSpec
-  )
-
-  if (-not (Test-Path -LiteralPath $MetadataPath -PathType Leaf)) {
-    throw "Build finished without metadata: $MetadataPath"
-  }
-
-  $bytes = [IO.File]::ReadAllBytes($MetadataPath)
-  if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) {
-    throw "Build metadata must be BOM-less UTF-8: $MetadataPath"
-  }
-
-  try {
-    $metadata = (New-Object System.Text.UTF8Encoding($false, $true)).GetString($bytes) | ConvertFrom-Json
-  } catch {
-    throw "Build metadata is not valid UTF-8 JSON: $MetadataPath"
-  }
-
-  $expected = [ordered]@{
-    schema_version = 1
-    board_profile = "orange-pi-zero-2w"
-    artifact_kind = "diagnostic-only"
-    runtime_ready = $false
-    binary = $Binary
-    package = $BuildSpec.Package
-    arch = $Target
-    cargo_feature = $BuildSpec.Feature
-    profile = $Profile
-  }
-  $properties = @($metadata.PSObject.Properties.Name)
-  if ($properties.Count -ne $expected.Count) {
-    throw "Build metadata has an unexpected field set: $MetadataPath"
-  }
-  foreach ($name in $expected.Keys) {
-    if ($null -eq $metadata.PSObject.Properties[$name] -or $metadata.$name -cne $expected[$name]) {
-      throw "Build metadata field '$name' is incorrect: $MetadataPath"
-    }
-  }
-}
-
 $repositoryRoot = Resolve-RepositoryRoot
 $buildSpec = Get-BuildSpec $Binary
 $outputDirectory = Join-Path $repositoryRoot $OutputRelativePath.Replace("/", "\")
@@ -226,23 +171,38 @@ if ($DryRun) {
   Write-Output "Dry run: no Docker container was started and no board connection is attempted."
   Write-Output "wsl bash -lc $dockerCommand"
   Write-Output "Output: $outputBinary"
+  Write-Output "Metadata: $outputMetadata"
   return
 }
 
 $wslArguments = Get-WslDockerArguments
 New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
-Remove-Item -LiteralPath $outputBinary, $outputMetadata -Force -ErrorAction SilentlyContinue
-Write-Output "Building $Binary for Orange Pi ($Target, $Profile) with WSL Docker."
-& wsl @wslArguments $dockerCommand
-if ($LASTEXITCODE -ne 0) {
-  throw "Orange Pi cross-build failed with exit code $LASTEXITCODE"
-}
+$artifactReady = $false
+try {
+  Remove-OrangeBuildArtifacts -BinaryPath $outputBinary -MetadataPath $outputMetadata
+  Write-Output "Building $Binary for Orange Pi ($Target, $Profile) with WSL Docker."
+  & wsl @wslArguments $dockerCommand
+  if ($LASTEXITCODE -ne 0) {
+    throw "Orange Pi cross-build failed with exit code $LASTEXITCODE"
+  }
 
-if (-not (Test-Path -LiteralPath $outputBinary -PathType Leaf)) {
-  throw "Build finished without binary: $outputBinary"
+  if (-not (Test-Path -LiteralPath $outputBinary -PathType Leaf)) {
+    throw "Build finished without binary: $outputBinary"
+  }
+  if ((Get-Item -LiteralPath $outputBinary).Length -le 0) {
+    throw "Build produced an empty binary: $outputBinary"
+  }
+  Invoke-VerifiedOrangeBuildMetadata `
+    -MetadataPath $outputMetadata `
+    -BinaryPath $outputBinary `
+    -SelectedBinary $Binary `
+    -SelectedTarget $Target `
+    -SelectedProfile $Profile `
+    -BuildSpec $buildSpec
+  $artifactReady = $true
+} finally {
+  if (-not $artifactReady) {
+    Remove-OrangeBuildArtifacts -BinaryPath $outputBinary -MetadataPath $outputMetadata
+  }
 }
-if ((Get-Item -LiteralPath $outputBinary).Length -le 0) {
-  throw "Build produced an empty binary: $outputBinary"
-}
-Assert-OutputMetadata $outputMetadata $buildSpec
-Write-Output "Verified ELF64 AArch64 binary and profile metadata: $outputBinary"
+Write-Output "Verified ELF64 AArch64 binary and hash-bound profile metadata: $outputBinary"
