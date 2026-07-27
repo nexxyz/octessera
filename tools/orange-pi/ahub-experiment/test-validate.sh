@@ -13,19 +13,18 @@ command -v "$PYTHON" >/dev/null 2>&1 || die "python3 is required"
 "$HERE/validate-fixture.sh"
 STAGING_OUTPUT=$("$HERE/build-ahub-experiment.sh" --test)
 case "$STAGING_OUTPUT" in
-	*"source_series_patch_count=458"*"user_patch_dir="*"user_overlay="*"package_input_hook_placement=before_kernel_package_callback_linux_image"*"kernel_headers_prepare_hook_placement=before_kernel_package_callback_linux_headers"*"module_symvers_artifact=Module.symvers"*"generated_linux_image_package=linux-image-current-sunxi64-test.deb"*) ;;
+	*"source_series_patch_count=458"*"user_patch_dir="*"user_overlay="*"package_input_hook_placement=before_kernel_package_callback_linux_image"*"kernel_headers_disable_hook_point=extension_finish_config"*"kernel_headers_option=KERNEL_HAS_WORKING_HEADERS=no"*"generated_linux_image_package=linux-image-current-sunxi64-test.deb"*"linux_headers_packages=none-by-design"*) ;;
 	*) die "test build did not validate the pinned full series, overlay merge, and package hook" ;;
 esac
 printf '%s\n' "$STAGING_OUTPUT" | grep -F -- 'source_series=/' >/dev/null || die "test build did not report the source series"
 printf '%s\n' "$STAGING_OUTPUT" | grep -F -- '/patch/kernel/archive/sunxi-6.12/series.conf' >/dev/null || die "test build source series path changed"
 printf '%s\n' "$STAGING_OUTPUT" | grep -F -- '/userpatches/build-hooks/normalize-kernel-package-input.patch' >/dev/null || die "test build hook staging path changed"
 printf '%s\n' "$STAGING_OUTPUT" | grep -F -- '/lib/functions/compilation/kernel-debs.sh' >/dev/null || die "test build hook target changed"
-printf '%s\n' "$STAGING_OUTPUT" | grep -F -- '/userpatches/build-hooks/prepare-kernel-headers.patch' >/dev/null || die "test build headers hook staging path changed"
-KERNEL_SOURCE_CONTEXT="cd \"\${kernel_work_dir}\" || exit 1"
-grep -F -- "$KERNEL_SOURCE_CONTEXT" "$HERE/build-hooks/prepare-kernel-headers.patch" >/dev/null || die "headers hook does not restore the kernel source context"
-grep -F -- 'run_kernel_make modules' "$HERE/build-hooks/prepare-kernel-headers.patch" >/dev/null || die "headers hook does not build kernel modules"
-if grep -F -- 'modules_prepare' "$HERE/build-hooks/prepare-kernel-headers.patch" >/dev/null; then
-	die "headers hook still assumes modules_prepare creates Module.symvers"
+printf '%s\n' "$STAGING_OUTPUT" | grep -F -- '/userpatches/extensions/ahub-disable-kernel-headers.sh' >/dev/null || die "test build headers extension staging path changed"
+printf '%s\n' "$STAGING_OUTPUT" | grep -F -- 'generated_linux_modules_packages=linux-modules-current-sunxi64-test.deb' >/dev/null || die "test build module package output changed"
+printf '%s\n' "$STAGING_OUTPUT" | grep -F -- 'linux_headers_packages=none-by-design' >/dev/null || die "test build headers package output changed"
+if grep -R -F -- 'Module.symvers' "$HERE/build-ahub-experiment.sh" "$HERE/extensions" >/dev/null; then
+	die "headers disable path must not create or validate Module.symvers"
 fi
 if printf '%s\n' "$STAGING_OUTPUT" | grep -F -- 'staged_patch_files=' >/dev/null; then
 	die "test build retained a private patch subset"
@@ -44,14 +43,15 @@ printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'user_overlay=' >/dev/null || die "dry
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'octessera-ahub0-pi123.dtso' >/dev/null || die "dry-run build plan overlay path changed"
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'userpatches/build-hooks/normalize-kernel-package-input.patch' >/dev/null || die "dry-run build plan is missing the package hook"
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'package_input_hook_placement=before_kernel_package_callback_linux_image' >/dev/null || die "dry-run package hook placement changed"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'EXT=ahub-disable-kernel-headers ./compile.sh kernel' >/dev/null || die "dry-run headers extension was not enabled"
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'kernel_package_glob=linux-image-*.deb' >/dev/null || die "dry-run package glob changed"
-printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'kernel_headers_prepare_hook=/' >/dev/null || die "dry-run build plan is missing the headers hook"
-printf '%s\n' "$PLAN_OUTPUT" | grep -F -- '/userpatches/build-hooks/prepare-kernel-headers.patch' >/dev/null || die "dry-run headers hook staging path changed"
-printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'kernel_headers_prepare_hook_placement=before_kernel_package_callback_linux_headers' >/dev/null || die "dry-run headers hook placement changed"
-printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'kernel_headers_prepare_target=modules' >/dev/null || die "dry-run headers target changed"
-printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'module_symvers_artifact=Module.symvers' >/dev/null || die "dry-run Module.symvers artifact changed"
-printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'module_symvers_source=kernel_work_dir/Module.symvers' >/dev/null || die "dry-run Module.symvers source changed"
-printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'runtime_output_validator=one-nonempty-linux-image-package-and-module-symvers' >/dev/null || die "dry-run artifact validation changed"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'kernel_headers_disable_hook_point=extension_finish_config' >/dev/null || die "dry-run headers hook point changed"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'kernel_headers_option=KERNEL_HAS_WORKING_HEADERS=no' >/dev/null || die "dry-run headers option changed"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'kernel_headers_install_option=INSTALL_HEADERS=no' >/dev/null || die "dry-run headers install option changed"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'dtb_package_glob=linux-dtb-*.deb' >/dev/null || die "dry-run DTB package glob changed"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'module_package_glob=linux-modules-*.deb' >/dev/null || die "dry-run module package glob changed"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'headers_package_glob=linux-headers-*.deb' >/dev/null || die "dry-run headers package glob changed"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'runtime_output_validator=required-image-and-dtb-optional-modules-headers-forbidden' >/dev/null || die "dry-run artifact validation changed"
 case "$PLAN_OUTPUT" in
 	*"BUILD_MINIMAL"*|*"BUILD_DESKTOP"*|*"compile.sh build"*|*"output/images"*) die "dry-run still contains a rootfs/image stage" ;;
 esac
@@ -151,8 +151,8 @@ mutate_lock '"patch_count": 458' '"patch_count": 457'
 expect_failure 'preflight rejects incomplete full source series' "$PYTHON" "$CASE_DIR/preflight.py" "$CASE_DIR"
 
 copy_case
-mutate_case build-ahub-experiment.sh "printf '%s\\n' module_build_fixture" ":"
-expect_failure 'test output rejects empty Module.symvers' "$CASE_DIR/build-ahub-experiment.sh" --test
+mutate_case build-ahub-experiment.sh 'linux-modules-current-sunxi64-test.deb' 'linux-headers-current-sunxi64-test.deb'
+expect_failure 'test output rejects linux-headers package' "$CASE_DIR/build-ahub-experiment.sh" --test
 
 expect_failure 'deploy requires target' "$HERE/deploy-rollback.sh" deploy --yes --dtb /boot/dtb/allwinner/sun50i-h618-orangepi-zero2w.dtb
 expect_failure 'SSH_BATCH_MODE accepts only yes or no' env SSH_BATCH_MODE=maybe "$HERE/deploy-rollback.sh" deploy --yes --target octessera@192.168.0.217 --dtb /boot/dtb-6.12.30-current-sunxi64/allwinner/sun50i-h618-orangepi-zero2w.dtb

@@ -24,11 +24,13 @@ EXPECTED_REQUIRED_SERIES = {
 }
 EXPECTED_SOURCE = [
     ("config/kernel/linux-sunxi64-current.config", "kernel-config", "07a1a6f808df491bfffb9dac16bb6a41d47567be991f5f6decd0d40480320a2f"),
+    ("lib/functions/artifacts/artifact-kernel.sh", "kernel-artifact-path", "b67b9a26773ebae0972d85a27f926116d46c1c4d124bda8b280ac6ad00ed0355"),
+    ("lib/functions/compilation/kernel-debs.sh", "kernel-package-path", "893015c81a2acf2e91e246c24b591a64ba6a02389bb219468e18ea0744f49984"),
 ]
 EXPECTED_ASSETS = [
     "README.md", "check-patch-stack.sh", "Kconfig.fragment", "h618-fixture-base.dts",
     "octessera-ahub0-pi123-overlay.dts", "build-hooks/normalize-kernel-package-input.patch",
-    "build-hooks/prepare-kernel-headers.patch",
+    "extensions/ahub-disable-kernel-headers.sh",
     "preflight.py", "validate-fixture.sh",
     "deploy-rollback.sh", "build-ahub-experiment.sh", "test-validate.sh", "kernel-build-plan.json",
     "runtime-fixture/running-kernel.config", "runtime-fixture/asoc-registration.txt",
@@ -161,17 +163,19 @@ def main():
         fail("Armbian source is not at the pinned commit")
 
     source_files = lock["source"]["files"]
-    if source_files != [{"path": EXPECTED_SOURCE[0][0], "role": EXPECTED_SOURCE[0][1], "sha256": EXPECTED_SOURCE[0][2]}]:
+    expected_source_files = [{"path": path, "role": role, "sha256": sha256} for path, role, sha256 in EXPECTED_SOURCE]
+    if source_files != expected_source_files:
         fail("source file lock is incomplete")
     series_path = source_dir / EXPECTED_SERIES["path"]
-    config_path = source_dir / EXPECTED_SOURCE[0][0]
-    if not series_path.is_file() or not config_path.is_file():
+    source_paths = [path for path, _, _ in EXPECTED_SOURCE]
+    if not series_path.is_file() or any(not (source_dir / path).is_file() for path in source_paths):
         fail("pinned source files are missing")
-    source_blobs = git_blobs(source_dir, [EXPECTED_SERIES["path"], EXPECTED_SOURCE[0][0]])
+    source_blobs = git_blobs(source_dir, [EXPECTED_SERIES["path"], *source_paths])
     series_content = source_blobs[EXPECTED_SERIES["path"]]
     config_content = source_blobs[EXPECTED_SOURCE[0][0]]
-    if hashlib.sha256(config_content).hexdigest() != EXPECTED_SOURCE[0][2]:
-        fail("source SHA-256 mismatch: kernel config")
+    for path, role, expected_hash in EXPECTED_SOURCE:
+        if hashlib.sha256(source_blobs[path]).hexdigest() != expected_hash:
+            fail(f"source SHA-256 mismatch: {role}")
     if hashlib.sha256(series_content).hexdigest() != EXPECTED_SERIES["sha256"]:
         fail("source SHA-256 mismatch: series.conf")
     series_paths = parse_series(series_content)
@@ -182,6 +186,21 @@ def main():
     manifest = b"".join((path + "\t" + hashlib.sha256(blobs[path]).hexdigest() + "\n").encode() for path in patch_paths)
     if hashlib.sha256(manifest).hexdigest() != EXPECTED_SERIES["manifest_sha256"]:
         fail("full series patch order or source hashes changed")
+    artifact_source = source_blobs["lib/functions/artifacts/artifact-kernel.sh"].decode("utf-8")
+    package_source = source_blobs["lib/functions/compilation/kernel-debs.sh"].decode("utf-8")
+    for fact in [
+        'if [[ "${KERNEL_HAS_WORKING_HEADERS:-"no"}" == "yes" ]]; then',
+        "artifact_map_packages+=([",
+        "linux-headers",
+    ]:
+        if fact not in artifact_source:
+            fail(f"pinned kernel artifact path is missing required fact: {fact}")
+    for fact in [
+        'if [[ "${KERNEL_HAS_WORKING_HEADERS}" == "yes" ]]; then',
+        'create_kernel_deb "linux-headers-${BRANCH}-${LINUXFAMILY}"',
+    ]:
+        if fact not in package_source:
+            fail(f"pinned kernel package path is missing required fact: {fact}")
 
     assets = lock["assets"]
     if not isinstance(assets, list) or [item.get("path") for item in assets if isinstance(item, dict)] != EXPECTED_ASSETS:
@@ -218,7 +237,7 @@ def main():
         fail("PCM5102A must be supplied by the experimental built-in config")
 
     plan = json.loads((fixture_dir / "kernel-build-plan.json").read_text(encoding="utf-8"), object_pairs_hook=pairs)
-    require_keys(plan, ["schema", "board", "branch", "source_commit", "kernel_patch_dir", "source_series", "source_series_patch_count", "kernel_config", "dtb", "overlay", "package_input_hook", "package_input_hook_target", "kernel_headers_prepare_hook", "kernel_headers_prepare_hook_target", "kernel_headers_prepare_hook_placement", "kernel_headers_prepare_target", "kernel_package_glob", "module_symvers_artifact", "module_symvers_source", "runtime_output_validator", "required_config"], "kernel build plan")
+    require_keys(plan, ["schema", "board", "branch", "source_commit", "kernel_patch_dir", "source_series", "source_series_patch_count", "kernel_config", "dtb", "overlay", "package_input_hook", "package_input_hook_target", "kernel_headers_disable_extension", "kernel_headers_disable_hook_point", "kernel_headers_option", "kernel_headers_install_option", "kernel_package_glob", "dtb_package_glob", "module_package_glob", "headers_package_glob", "required_package_globs", "optional_package_globs", "forbidden_package_globs", "runtime_output_validator", "required_config"], "kernel build plan")
     expected_plan = {
         "schema": 1, "board": "orangepizero2w", "branch": "current", "source_commit": EXPECTED_COMMIT,
         "kernel_patch_dir": EXPECTED_STAGED_PATCH_DIR, "kernel_config": "Kconfig.fragment",
@@ -226,13 +245,18 @@ def main():
         "dtb": "sun50i-h618-orangepi-zero2w.dtb", "overlay": "octessera-ahub0-pi123-overlay.dts",
         "package_input_hook": "build-hooks/normalize-kernel-package-input.patch",
         "package_input_hook_target": "lib/functions/compilation/kernel-debs.sh",
-        "kernel_headers_prepare_hook": "build-hooks/prepare-kernel-headers.patch",
-        "kernel_headers_prepare_hook_target": "lib/functions/compilation/kernel-debs.sh",
-        "kernel_headers_prepare_hook_placement": "before_kernel_package_callback_linux_headers",
-        "kernel_headers_prepare_target": "modules",
-        "kernel_package_glob": "linux-image-*.deb", "module_symvers_artifact": "Module.symvers",
-        "module_symvers_source": "kernel_work_dir/Module.symvers",
-        "runtime_output_validator": "one-nonempty-linux-image-package-and-module-symvers",
+        "kernel_headers_disable_extension": "extensions/ahub-disable-kernel-headers.sh",
+        "kernel_headers_disable_hook_point": "extension_finish_config",
+        "kernel_headers_option": "KERNEL_HAS_WORKING_HEADERS=no",
+        "kernel_headers_install_option": "INSTALL_HEADERS=no",
+        "kernel_package_glob": "linux-image-*.deb",
+        "dtb_package_glob": "linux-dtb-*.deb",
+        "module_package_glob": "linux-modules-*.deb",
+        "headers_package_glob": "linux-headers-*.deb",
+        "required_package_globs": ["linux-image-*.deb", "linux-dtb-*.deb"],
+        "optional_package_globs": ["linux-modules-*.deb"],
+        "forbidden_package_globs": ["linux-headers-*.deb"],
+        "runtime_output_validator": "required-image-and-dtb-optional-modules-headers-forbidden",
         "required_config": REQUIRED_CONFIG,
     }
     if plan != expected_plan:
@@ -243,12 +267,17 @@ def main():
     for fact in ["function ahub_normalize_kernel_package_inputs()", "ahub_normalize_kernel_package_inputs", "for stem in vmlinuz config System.map", "${expected_path}-dirty"]:
         if fact not in package_hook:
             fail(f"package input hook is missing required fact: {fact}")
-    headers_hook = (fixture_dir / "build-hooks/prepare-kernel-headers.patch").read_text(encoding="utf-8")
-    for fact in ["function ahub_prepare_kernel_headers()", "cd \"${kernel_work_dir}\" || exit 1", "run_kernel_make modules", "${kernel_work_dir}/Module.symvers", "Module.symvers is missing or empty after the kernel modules target", "ahub_prepare_kernel_headers"]:
-        if fact not in headers_hook:
-            fail(f"kernel headers hook is missing required fact: {fact}")
-    if "modules_prepare" in headers_hook or "cp " in headers_hook:
-        fail("kernel headers hook does not build Module.symvers in the kernel worktree")
+    headers_extension = (fixture_dir / "extensions/ahub-disable-kernel-headers.sh").read_text(encoding="utf-8")
+    for fact in [
+        "function extension_finish_config__ahub_disable_kernel_headers()",
+        'KERNEL_HAS_WORKING_HEADERS="no"',
+        'INSTALL_HEADERS="no"',
+        'KERNEL_MAJOR_MINOR}" == "6.12"',
+    ]:
+        if fact not in headers_extension:
+            fail(f"kernel headers extension is missing required fact: {fact}")
+    if "Module.symvers" in headers_extension or "modules_prepare" in headers_extension or "run_kernel_make" in headers_extension:
+        fail("kernel headers extension must not build or fake Module.symvers")
     asoc_log = (fixture_dir / "runtime-fixture/asoc-registration.txt").read_text(encoding="utf-8")
     for fact in ["snd_soc_register_card: octessera-dac", "sunxi-snd-mach: card=octessera-dac cpu=octessera_plat codec=pcm5102a", "pcm5102a-codec: ti,pcm5102a registered", "sunxi-snd-mach: card=HDMI cpu=ahub1_plat codec=hdmi registered"]:
         if fact not in asoc_log:

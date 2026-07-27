@@ -53,14 +53,16 @@ series, overlay merge configuration, and fake kernel packages; `--dry-run`
 prints the exact build plan. The kernel-only package build is explicit and
 requires an empty output directory outside this repo:
 
-The launcher also stages temporary build hooks under `userpatches/build-hooks/`.
-One normalizes only `vmlinuz-*`, `config-*`, and `System.map-*` inputs carrying
-the `-dirty` suffix before `kernel_package_callback_linux_image`; the other runs
-the kernel's real `modules` target in `${kernel_work_dir}` immediately before
-`kernel_package_callback_linux_headers` and requires the resulting nonempty
-`${kernel_work_dir}/Module.symvers`. No placeholder or copied substitute is
-created by the hook. The output validator requires exactly one nonempty
-`linux-image-*.deb` package and a nonempty `Module.symvers` artifact.
+The launcher stages one temporary package-input hook under
+`userpatches/build-hooks/` to normalize only `vmlinuz-*`, `config-*`, and
+`System.map-*` inputs carrying the `-dirty` suffix before
+`kernel_package_callback_linux_image`. It also enables the pinned Armbian
+`extension_finish_config` hook through `EXT=ahub-disable-kernel-headers`; that
+hook sets `KERNEL_HAS_WORKING_HEADERS=no` for the 6.12 artifact path and uses
+Armbian's `INSTALL_HEADERS=no` option. This skips the linux-headers artifact and
+packaging path entirely. The output validator requires nonempty image and DTB
+packages, validates any `linux-modules-*.deb` packages if present, and rejects
+linux-headers packages. It does not create or validate `Module.symvers`.
 
 ```sh
 ./build-ahub-experiment.sh --run-kernel --output /absolute/path/ahub-artifacts
