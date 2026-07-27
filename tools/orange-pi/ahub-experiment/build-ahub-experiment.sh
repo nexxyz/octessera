@@ -9,6 +9,7 @@ MODE=
 OUTPUT_DIR=
 KEEP_WORK=0
 COMMIT=fa7a7b2294d9e760a77630950afd460b7a0b2a26
+KERNEL_SOURCE_COMMIT=e46dc0adfe39724bcf52cea47b8f9c9aed86a394
 PACKAGE_REVISION=26.8.0-trunk.413
 KERNEL_ABI=6.18.38-current-sunxi64
 KERNEL_VERSION=6.18.38
@@ -90,6 +91,10 @@ case "$COMMIT" in
 	''|*[!0-9a-f]*) die "launcher commit contains non-hex characters" ;;
 esac
 [ "$(printf '%s' "$COMMIT" | wc -c | tr -d ' ')" -eq 40 ] || die "launcher commit is not an immutable 40-character ref"
+case "$KERNEL_SOURCE_COMMIT" in
+	''|*[!0-9a-f]*) die "kernel source commit contains non-hex characters" ;;
+esac
+[ "$(printf '%s' "$KERNEL_SOURCE_COMMIT" | wc -c | tr -d ' ')" -eq 40 ] || die "kernel source commit is not an immutable 40-character ref"
 
 if [ "$MODE" = run-kernel ]; then
 	case "$OUTPUT_DIR" in
@@ -215,7 +220,7 @@ PY
 [ "$(wc -l < "$STAGED_CONFIG" | tr -d ' ')" -gt 1000 ] || die "staged kernel config is not complete"
 printf '%s\n' "source_patch_dir=$CORE_PATCH_DIR" "source_series=$SERIES_PATH" "source_series_patch_count=$SOURCE_PATCH_COUNT" "source_config=$SOURCE_CONFIG" "kernel_config=$STAGED_CONFIG" "kernel_config_line_count=$(wc -l < "$STAGED_CONFIG" | tr -d ' ')" "package_revision=$PACKAGE_REVISION" "kernel_abi=$KERNEL_ABI"
 
-BUILD_COMMAND="./compile.sh kernel REVISION=$PACKAGE_REVISION BOARD=orangepizero2w BRANCH=current KERNELPATCHDIR=$STAGED_PATCH_DIR_NAME KERNEL_CONFIGURE=no KERNEL_KEEP_CONFIG=no NON_INTERACTIVE=yes"
+BUILD_COMMAND="./compile.sh kernel REVISION=$PACKAGE_REVISION BOARD=orangepizero2w BRANCH=current KERNELBRANCH=commit:$KERNEL_SOURCE_COMMIT KERNELPATCHDIR=$STAGED_PATCH_DIR_NAME KERNEL_CONFIGURE=no KERNEL_KEEP_CONFIG=no NON_INTERACTIVE=yes"
 
 validate_package_metadata() {
 	package=$1
@@ -398,7 +403,7 @@ elif [ "$MODE" = dry-run ]; then
 	printf '%s\n' "source_commit=$COMMIT"
 	printf '%s\n' "source_patch_dir=$CORE_PATCH_DIR"
 	printf '%s\n' "source_series=$SERIES_PATH"
-	printf '%s\n' "source_series_patch_count=$SOURCE_PATCH_COUNT" "kernel_config=$STAGED_CONFIG" "package_revision=$PACKAGE_REVISION" "kernel_abi=$KERNEL_ABI"
+	printf '%s\n' "source_series_patch_count=$SOURCE_PATCH_COUNT" "kernel_config=$STAGED_CONFIG" "kernel_source_commit=$KERNEL_SOURCE_COMMIT" "package_revision=$PACKAGE_REVISION" "kernel_abi=$KERNEL_ABI"
 	printf '%s\n' "kernel_package_glob=$KERNEL_PACKAGE_GLOB"
 	printf '%s\n' "dtb_package_glob=$DTB_PACKAGE_GLOB"
 	printf '%s\n' "module_package_glob=$MODULE_PACKAGE_GLOB"

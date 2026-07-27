@@ -18,17 +18,17 @@
     }
   },
   "assets": [
-    { "path": "README.md", "sha256": "a569c76b0ed0b60e485695b253e3e4427fd6a776d4cbf0844da1829612d212a9" },
+    { "path": "README.md", "sha256": "3aaddca1b9b6748511405b55fd2f6a4a645fcb74e301de76db2308c331536eb6" },
     { "path": "check-patch-stack.sh", "sha256": "6c5c49b9c9a05ed2c2aada63a0ebebd8b4c949c51b27fd2e57d5ea476de46d4a" },
     { "path": "Kconfig.fragment", "sha256": "555c73973a0142187e8ef0f2721f4f67d53f9499744ddab3a9d318534b371d46" },
     { "path": "h618-fixture-base.dts", "sha256": "d2e3ce52853b04e8dab48f3a0fc1674de3ce18e65cebd7ea08c9603e7e7d6d18" },
     { "path": "octessera-ahub0-pi123-overlay.dts", "sha256": "e62cbf6253b550204dea0544bfc9a68ebfe50c1d8f1301dc978243a4af3b5ec8" },
-    { "path": "preflight.py", "sha256": "0e5d7da248c92dad380cd52359115b5da96a36df4d8b2dcd5295d8a975635858" },
+    { "path": "preflight.py", "sha256": "e836c2054e3abb40c808bedfdb0299cef3ef6a61de61e7f691e2a070af5d7445" },
     { "path": "validate-fixture.sh", "sha256": "99bbc950e1daf9a87637dde56f4ccb386d70bf02ff681b2d577adc79d01de275" },
     { "path": "deploy-rollback.sh", "sha256": "ad1d50f67451bbb9dc44dedbd59d01013cd1a0bce2bd7abf3fdceadb6d4abd8d" },
-    { "path": "build-ahub-experiment.sh", "sha256": "589ff522038f442b8ce23ae6916647af2e9c9956ad3b03e6e6d47c64fe8f1555" },
-    { "path": "test-validate.sh", "sha256": "6efc106af9da119fbd2230e7b893e882e4d62ecbe0e45882ffcc8edcc7184379" },
-    { "path": "kernel-build-plan.json", "sha256": "84b23e289ddd3a445f7df0a8bfc9ee9339f9677f0190564cd945251adea941ab" },
+    { "path": "build-ahub-experiment.sh", "sha256": "dc28e3e2d7772b76a7b65de4715ebc9e707363b44f6fd614bce88b6523e5d93e" },
+    { "path": "test-validate.sh", "sha256": "759c3c16d9717e439f551bea99345b46296cb86363c5613ac38bf95b4d8f3411" },
+    { "path": "kernel-build-plan.json", "sha256": "a1cd9518ad588b33fb30e851e48f5c03869ca982ee800f5e4f04109f46037dcf" },
     { "path": "runtime-fixture/running-kernel.config", "sha256": "f8694e84262cfb39b0b1425ad7f5c2d6f587b8324a6c2b6cffc90e709d2d3779" },
     { "path": "runtime-fixture/asoc-registration.txt", "sha256": "82575fb53ee94123e7be51fd036c82b211164dcb6a8aeb253a7980188d3012b6" },
     { "path": "runtime-fixture/deferred-probes.txt", "sha256": "fee191a7647a2cbeb6babcbe319318700d5f1440be94442f3c0d6ab747b7731f" }

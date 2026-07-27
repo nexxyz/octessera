@@ -8,6 +8,7 @@ import subprocess
 import sys
 
 EXPECTED_COMMIT = "fa7a7b2294d9e760a77630950afd460b7a0b2a26"
+EXPECTED_KERNEL_SOURCE_COMMIT = "e46dc0adfe39724bcf52cea47b8f9c9aed86a394"
 EXPECTED_REPOSITORY = "../../../.slim/clonedeps/repos/armbian__build"
 EXPECTED_KERNEL_PATCH_DIR = "patch/kernel/archive/sunxi-6.18"
 EXPECTED_STAGED_PATCH_DIR = "archive/sunxi-6.18"
@@ -255,9 +256,10 @@ def main():
         fail("PCM5102A must be supplied by the experimental built-in config")
 
     plan = json.loads((fixture_dir / "kernel-build-plan.json").read_text(encoding="utf-8"), object_pairs_hook=pairs)
-    require_keys(plan, ["schema", "board", "branch", "source_commit", "package_revision", "kernel_abi", "kernel_patch_dir", "source_series", "source_series_patch_count", "source_config", "kernel_config", "dtb", "kernel_package_glob", "dtb_package_glob", "module_package_glob", "headers_package_glob", "required_package_globs", "optional_package_globs", "native_extra_package_globs", "forbidden_package_globs", "runtime_output_validator", "required_config"], "kernel build plan")
+    require_keys(plan, ["schema", "board", "branch", "source_commit", "kernel_source_commit", "package_revision", "kernel_abi", "kernel_patch_dir", "source_series", "source_series_patch_count", "source_config", "kernel_config", "dtb", "kernel_package_glob", "dtb_package_glob", "module_package_glob", "headers_package_glob", "required_package_globs", "optional_package_globs", "native_extra_package_globs", "forbidden_package_globs", "runtime_output_validator", "required_config"], "kernel build plan")
     expected_plan = {
         "schema": 1, "board": "orangepizero2w", "branch": "current", "source_commit": EXPECTED_COMMIT,
+        "kernel_source_commit": EXPECTED_KERNEL_SOURCE_COMMIT,
         "package_revision": "26.8.0-trunk.413", "kernel_abi": "6.18.38-current-sunxi64",
         "kernel_patch_dir": EXPECTED_STAGED_PATCH_DIR,
         "source_series": "patch/kernel/archive/sunxi-6.18/series.conf", "source_series_patch_count": 515,
