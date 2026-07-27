@@ -16,8 +16,10 @@ PACKAGE_INPUT_HOOK_TARGET=lib/functions/compilation/kernel-debs.sh
 KERNEL_HEADERS_PREPARE_HOOK_REL=build-hooks/prepare-kernel-headers.patch
 KERNEL_HEADERS_PREPARE_HOOK_TARGET=lib/functions/compilation/kernel-debs.sh
 KERNEL_HEADERS_PREPARE_HOOK_PLACEMENT=before_kernel_package_callback_linux_headers
+KERNEL_HEADERS_PREPARE_TARGET=modules
 KERNEL_PACKAGE_GLOB='linux-image-*.deb'
 MODULE_SYMVERS_ARTIFACT_REL=Module.symvers
+MODULE_SYMVERS_SOURCE=kernel_work_dir/Module.symvers
 RUNTIME_OUTPUT_VALIDATOR=one-nonempty-linux-image-package-and-module-symvers
 USER_PATCH_DIR=
 WORKTREE=
@@ -207,7 +209,7 @@ prepare = [index for index, line in enumerate(lines) if line == "function ahub_p
 callback = [index for index, line in enumerate(lines) if line == "function kernel_package_callback_linux_headers() {"]
 calls = [index for index, line in enumerate(lines) if line.strip() == "ahub_prepare_kernel_headers"]
 create = [index for index, line in enumerate(lines) if line.strip().startswith("create_kernel_deb ") and "kernel_package_callback_linux_headers" in line]
-make = [index for index, line in enumerate(lines) if line.strip() == "run_kernel_make modules_prepare"]
+make = [index for index, line in enumerate(lines) if line.strip() == "run_kernel_make modules"]
 context = [index for index, line in enumerate(lines) if line.strip() == 'cd "${kernel_work_dir}" || exit 1']
 if len(prepare) != 1 or len(callback) != 1 or len(calls) != 1 or len(create) != 1 or len(make) != 1 or len(context) != 1 or prepare[0] >= context[0] or context[0] >= make[0] or make[0] >= calls[0] or calls[0] >= create[0] or create[0] >= callback[0]:
     raise SystemExit("kernel headers hook placement changed")
@@ -227,7 +229,7 @@ STAGED_OVERLAY=$USER_PATCH_DIR/overlay_64/octessera-ahub0-pi123.dtso
 [ -f "$USER_PATCH_DIR/0000.patching_config.yaml" ] || die "user patch configuration is missing"
 grep -F 'overlay-directories:' "$USER_PATCH_DIR/0000.patching_config.yaml" >/dev/null || die "overlay merge configuration is missing"
 grep -F '{ source: "overlay_64", target: "arch/arm64/boot/dts/allwinner/overlay" }' "$USER_PATCH_DIR/0000.patching_config.yaml" >/dev/null || die "overlay merge target changed"
-printf '%s\n' "source_patch_dir=$CORE_PATCH_DIR" "source_series=$SERIES_PATH" "source_series_patch_count=$SOURCE_PATCH_COUNT" "user_patch_dir=$USER_PATCH_DIR" "user_overlay=$STAGED_OVERLAY" "package_input_hook=$PACKAGE_INPUT_HOOK" "package_input_hook_target=$WORKTREE/$PACKAGE_INPUT_HOOK_TARGET" "package_input_hook_placement=before_kernel_package_callback_linux_image" "kernel_headers_prepare_hook=$KERNEL_HEADERS_PREPARE_HOOK" "kernel_headers_prepare_hook_target=$WORKTREE/$KERNEL_HEADERS_PREPARE_HOOK_TARGET" "kernel_headers_prepare_hook_placement=$KERNEL_HEADERS_PREPARE_HOOK_PLACEMENT" "module_symvers_artifact=$MODULE_SYMVERS_ARTIFACT_REL"
+printf '%s\n' "source_patch_dir=$CORE_PATCH_DIR" "source_series=$SERIES_PATH" "source_series_patch_count=$SOURCE_PATCH_COUNT" "user_patch_dir=$USER_PATCH_DIR" "user_overlay=$STAGED_OVERLAY" "package_input_hook=$PACKAGE_INPUT_HOOK" "package_input_hook_target=$WORKTREE/$PACKAGE_INPUT_HOOK_TARGET" "package_input_hook_placement=before_kernel_package_callback_linux_image" "kernel_headers_prepare_hook=$KERNEL_HEADERS_PREPARE_HOOK" "kernel_headers_prepare_hook_target=$WORKTREE/$KERNEL_HEADERS_PREPARE_HOOK_TARGET" "kernel_headers_prepare_hook_placement=$KERNEL_HEADERS_PREPARE_HOOK_PLACEMENT" "kernel_headers_prepare_target=$KERNEL_HEADERS_PREPARE_TARGET" "module_symvers_artifact=$MODULE_SYMVERS_ARTIFACT_REL" "module_symvers_source=$MODULE_SYMVERS_SOURCE"
 
 BUILD_COMMAND="./compile.sh kernel BOARD=orangepizero2w BRANCH=current KERNELPATCHDIR=$STAGED_PATCH_DIR_NAME KERNEL_CONFIGURE=no KERNEL_KEEP_CONFIG=no NON_INTERACTIVE=yes"
 
@@ -256,7 +258,7 @@ if [ "$MODE" = test ]; then
 	printf '%s\n' fixture > "$TEST_OUTPUT/debs/linux-image-current-sunxi64-test.deb"
 	printf '%s\n' fixture > "$TEST_OUTPUT/debs/linux-dtb-test.deb"
 	cp "$STAGED_CONFIG" "$TEST_OUTPUT/ahub-experiment/linux-sunxi64-current.config"
-	printf '%s\n' module_prepare_fixture > "$TEST_OUTPUT/$MODULE_SYMVERS_ARTIFACT_REL"
+	printf '%s\n' module_build_fixture > "$TEST_OUTPUT/$MODULE_SYMVERS_ARTIFACT_REL"
 	validate_kernel_output "$TEST_OUTPUT"
 	ARTIFACTS_STAGED=1
 	printf '%s\n' "test mode validated pinned full series, overlay merge, config, and kernel packages"
@@ -275,7 +277,9 @@ elif [ "$MODE" = dry-run ]; then
 	printf '%s\n' "kernel_headers_prepare_hook=$KERNEL_HEADERS_PREPARE_HOOK"
 	printf '%s\n' "kernel_headers_prepare_hook_target=$WORKTREE/$KERNEL_HEADERS_PREPARE_HOOK_TARGET"
 	printf '%s\n' "kernel_headers_prepare_hook_placement=$KERNEL_HEADERS_PREPARE_HOOK_PLACEMENT"
+	printf '%s\n' "kernel_headers_prepare_target=$KERNEL_HEADERS_PREPARE_TARGET"
 	printf '%s\n' "module_symvers_artifact=$MODULE_SYMVERS_ARTIFACT_REL"
+	printf '%s\n' "module_symvers_source=$MODULE_SYMVERS_SOURCE"
 	printf '%s\n' "kernel_package_glob=$KERNEL_PACKAGE_GLOB"
 	printf '%s\n' "runtime_output_validator=$RUNTIME_OUTPUT_VALIDATOR"
 	printf '%s\n' "temporary_userpatches=$WORKTREE/userpatches"

@@ -23,6 +23,10 @@ printf '%s\n' "$STAGING_OUTPUT" | grep -F -- '/lib/functions/compilation/kernel-
 printf '%s\n' "$STAGING_OUTPUT" | grep -F -- '/userpatches/build-hooks/prepare-kernel-headers.patch' >/dev/null || die "test build headers hook staging path changed"
 KERNEL_SOURCE_CONTEXT="cd \"\${kernel_work_dir}\" || exit 1"
 grep -F -- "$KERNEL_SOURCE_CONTEXT" "$HERE/build-hooks/prepare-kernel-headers.patch" >/dev/null || die "headers hook does not restore the kernel source context"
+grep -F -- 'run_kernel_make modules' "$HERE/build-hooks/prepare-kernel-headers.patch" >/dev/null || die "headers hook does not build kernel modules"
+if grep -F -- 'modules_prepare' "$HERE/build-hooks/prepare-kernel-headers.patch" >/dev/null; then
+	die "headers hook still assumes modules_prepare creates Module.symvers"
+fi
 if printf '%s\n' "$STAGING_OUTPUT" | grep -F -- 'staged_patch_files=' >/dev/null; then
 	die "test build retained a private patch subset"
 fi
@@ -44,7 +48,9 @@ printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'kernel_package_glob=linux-image-*.deb
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'kernel_headers_prepare_hook=/' >/dev/null || die "dry-run build plan is missing the headers hook"
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- '/userpatches/build-hooks/prepare-kernel-headers.patch' >/dev/null || die "dry-run headers hook staging path changed"
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'kernel_headers_prepare_hook_placement=before_kernel_package_callback_linux_headers' >/dev/null || die "dry-run headers hook placement changed"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'kernel_headers_prepare_target=modules' >/dev/null || die "dry-run headers target changed"
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'module_symvers_artifact=Module.symvers' >/dev/null || die "dry-run Module.symvers artifact changed"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'module_symvers_source=kernel_work_dir/Module.symvers' >/dev/null || die "dry-run Module.symvers source changed"
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'runtime_output_validator=one-nonempty-linux-image-package-and-module-symvers' >/dev/null || die "dry-run artifact validation changed"
 case "$PLAN_OUTPUT" in
 	*"BUILD_MINIMAL"*|*"BUILD_DESKTOP"*|*"compile.sh build"*|*"output/images"*) die "dry-run still contains a rootfs/image stage" ;;
@@ -145,7 +151,7 @@ mutate_lock '"patch_count": 458' '"patch_count": 457'
 expect_failure 'preflight rejects incomplete full source series' "$PYTHON" "$CASE_DIR/preflight.py" "$CASE_DIR"
 
 copy_case
-mutate_case build-ahub-experiment.sh "printf '%s\\n' module_prepare_fixture" ":"
+mutate_case build-ahub-experiment.sh "printf '%s\\n' module_build_fixture" ":"
 expect_failure 'test output rejects empty Module.symvers' "$CASE_DIR/build-ahub-experiment.sh" --test
 
 expect_failure 'deploy requires target' "$HERE/deploy-rollback.sh" deploy --yes --dtb /boot/dtb/allwinner/sun50i-h618-orangepi-zero2w.dtb

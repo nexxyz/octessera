@@ -14,8 +14,10 @@
   "kernel_headers_prepare_hook": "build-hooks/prepare-kernel-headers.patch",
   "kernel_headers_prepare_hook_target": "lib/functions/compilation/kernel-debs.sh",
   "kernel_headers_prepare_hook_placement": "before_kernel_package_callback_linux_headers",
+  "kernel_headers_prepare_target": "modules",
   "kernel_package_glob": "linux-image-*.deb",
   "module_symvers_artifact": "Module.symvers",
+  "module_symvers_source": "kernel_work_dir/Module.symvers",
   "runtime_output_validator": "one-nonempty-linux-image-package-and-module-symvers",
   "required_config": {
     "CONFIG_ARCH_SUNXI": "y",
