@@ -1,6 +1,9 @@
 name: Orange AHUB Kernel
 
 on:
+  push:
+    branches:
+      - orange-ahub-kernel-experiment
   workflow_dispatch:
 
 permissions:
