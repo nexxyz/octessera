@@ -53,12 +53,14 @@ series, overlay merge configuration, and fake kernel packages; `--dry-run`
 prints the exact build plan. The kernel-only package build is explicit and
 requires an empty output directory outside this repo:
 
-The launcher also stages one temporary build hook under
-`userpatches/build-hooks/`. It renames only `vmlinuz-*`, `config-*`, and
-`System.map-*` inputs carrying the `-dirty` suffix before
-`kernel_package_callback_linux_image`; it does not change the kernel version,
-metadata, or kernel contents. The output validator requires exactly one
-nonempty `linux-image-*.deb` package.
+The launcher also stages temporary build hooks under `userpatches/build-hooks/`.
+One normalizes only `vmlinuz-*`, `config-*`, and `System.map-*` inputs carrying
+the `-dirty` suffix before `kernel_package_callback_linux_image`; the other runs
+the kernel's real `modules_prepare` target immediately before
+`kernel_package_callback_linux_headers` and requires the resulting nonempty
+`Module.symvers`. No placeholder file is created. The output validator requires
+exactly one nonempty `linux-image-*.deb` package and a nonempty `Module.symvers`
+artifact.
 
 ```sh
 ./build-ahub-experiment.sh --run-kernel --output /absolute/path/ahub-artifacts

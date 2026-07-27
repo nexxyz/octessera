@@ -13,8 +13,12 @@ PATCH_DIR=patch/kernel/archive/sunxi-6.12
 STAGED_PATCH_DIR_NAME=archive/sunxi-6.12
 PACKAGE_INPUT_HOOK_REL=build-hooks/normalize-kernel-package-input.patch
 PACKAGE_INPUT_HOOK_TARGET=lib/functions/compilation/kernel-debs.sh
+KERNEL_HEADERS_PREPARE_HOOK_REL=build-hooks/prepare-kernel-headers.patch
+KERNEL_HEADERS_PREPARE_HOOK_TARGET=lib/functions/compilation/kernel-debs.sh
+KERNEL_HEADERS_PREPARE_HOOK_PLACEMENT=before_kernel_package_callback_linux_headers
 KERNEL_PACKAGE_GLOB='linux-image-*.deb'
-RUNTIME_OUTPUT_VALIDATOR=one-nonempty-linux-image-package
+MODULE_SYMVERS_ARTIFACT_REL=Module.symvers
+RUNTIME_OUTPUT_VALIDATOR=one-nonempty-linux-image-package-and-module-symvers
 USER_PATCH_DIR=
 WORKTREE=
 TEMP_ROOT=
@@ -188,6 +192,25 @@ create = [index for index, line in enumerate(lines) if line.strip().startswith("
 if len(normalizer) != 1 or len(callback) != 1 or len(calls) != 1 or len(create) != 1 or normalizer[0] >= calls[0] or calls[0] != create[0] - 1 or calls[0] >= callback[0]:
     raise SystemExit("package input hook placement changed")
 PY
+KERNEL_HEADERS_PREPARE_HOOK_SOURCE=$HERE/$KERNEL_HEADERS_PREPARE_HOOK_REL
+KERNEL_HEADERS_PREPARE_HOOK=$USER_BUILD_HOOK_DIR/prepare-kernel-headers.patch
+cp "$KERNEL_HEADERS_PREPARE_HOOK_SOURCE" "$KERNEL_HEADERS_PREPARE_HOOK"
+[ "$(sha256sum "$KERNEL_HEADERS_PREPARE_HOOK" | cut -d ' ' -f1)" = "$(sha256sum "$KERNEL_HEADERS_PREPARE_HOOK_SOURCE" | cut -d ' ' -f1)" ] || die "staged kernel headers hook hash changed"
+patch --dry-run --batch --forward -p1 -d "$WORKTREE" < "$KERNEL_HEADERS_PREPARE_HOOK" >/dev/null || die "kernel headers hook dry-run failed"
+patch --batch --forward -p1 -d "$WORKTREE" < "$KERNEL_HEADERS_PREPARE_HOOK" >/dev/null || die "kernel headers hook application failed"
+$PYTHON - "$WORKTREE/$KERNEL_HEADERS_PREPARE_HOOK_TARGET" <<'PY'
+import pathlib
+import sys
+
+lines = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8").splitlines()
+prepare = [index for index, line in enumerate(lines) if line == "function ahub_prepare_kernel_headers() {"]
+callback = [index for index, line in enumerate(lines) if line == "function kernel_package_callback_linux_headers() {"]
+calls = [index for index, line in enumerate(lines) if line.strip() == "ahub_prepare_kernel_headers"]
+create = [index for index, line in enumerate(lines) if line.strip().startswith("create_kernel_deb ") and "kernel_package_callback_linux_headers" in line]
+make = [index for index, line in enumerate(lines) if line.strip() == "run_kernel_make modules_prepare"]
+if len(prepare) != 1 or len(callback) != 1 or len(calls) != 1 or len(create) != 1 or len(make) != 1 or prepare[0] >= make[0] or make[0] >= calls[0] or calls[0] >= create[0] or create[0] >= callback[0]:
+    raise SystemExit("kernel headers hook placement changed")
+PY
 cat > "$USER_PATCH_DIR/0000.patching_config.yaml" <<'EOF'
 config:
   overlay-directories:
@@ -203,7 +226,7 @@ STAGED_OVERLAY=$USER_PATCH_DIR/overlay_64/octessera-ahub0-pi123.dtso
 [ -f "$USER_PATCH_DIR/0000.patching_config.yaml" ] || die "user patch configuration is missing"
 grep -F 'overlay-directories:' "$USER_PATCH_DIR/0000.patching_config.yaml" >/dev/null || die "overlay merge configuration is missing"
 grep -F '{ source: "overlay_64", target: "arch/arm64/boot/dts/allwinner/overlay" }' "$USER_PATCH_DIR/0000.patching_config.yaml" >/dev/null || die "overlay merge target changed"
-printf '%s\n' "source_patch_dir=$CORE_PATCH_DIR" "source_series=$SERIES_PATH" "source_series_patch_count=$SOURCE_PATCH_COUNT" "user_patch_dir=$USER_PATCH_DIR" "user_overlay=$STAGED_OVERLAY" "package_input_hook=$PACKAGE_INPUT_HOOK" "package_input_hook_target=$WORKTREE/$PACKAGE_INPUT_HOOK_TARGET" "package_input_hook_placement=before_kernel_package_callback_linux_image"
+printf '%s\n' "source_patch_dir=$CORE_PATCH_DIR" "source_series=$SERIES_PATH" "source_series_patch_count=$SOURCE_PATCH_COUNT" "user_patch_dir=$USER_PATCH_DIR" "user_overlay=$STAGED_OVERLAY" "package_input_hook=$PACKAGE_INPUT_HOOK" "package_input_hook_target=$WORKTREE/$PACKAGE_INPUT_HOOK_TARGET" "package_input_hook_placement=before_kernel_package_callback_linux_image" "kernel_headers_prepare_hook=$KERNEL_HEADERS_PREPARE_HOOK" "kernel_headers_prepare_hook_target=$WORKTREE/$KERNEL_HEADERS_PREPARE_HOOK_TARGET" "kernel_headers_prepare_hook_placement=$KERNEL_HEADERS_PREPARE_HOOK_PLACEMENT" "module_symvers_artifact=$MODULE_SYMVERS_ARTIFACT_REL"
 
 BUILD_COMMAND="./compile.sh kernel BOARD=orangepizero2w BRANCH=current KERNELPATCHDIR=$STAGED_PATCH_DIR_NAME KERNEL_CONFIGURE=no KERNEL_KEEP_CONFIG=no NON_INTERACTIVE=yes"
 
@@ -211,6 +234,7 @@ validate_kernel_output() {
 	output_root=$1
 	debs_dir=$output_root/debs
 	config_artifact=$output_root/ahub-experiment/linux-sunxi64-current.config
+	module_symvers_artifact=$output_root/$MODULE_SYMVERS_ARTIFACT_REL
 	[ -d "$debs_dir" ] || die "Armbian kernel package output directory is missing: $debs_dir"
 	image_packages=$(find "$debs_dir" -maxdepth 1 -type f -name "$KERNEL_PACKAGE_GLOB" -printf '%f\n' | LC_ALL=C sort)
 	image_count=$(printf '%s\n' "$image_packages" | sed '/^$/d' | wc -l | tr -d ' ')
@@ -221,6 +245,7 @@ validate_kernel_output() {
 	[ "$dtb_count" -gt 0 ] || die "no linux-dtb package was produced"
 	[ -f "$config_artifact" ] || die "built kernel config artifact is missing"
 	[ "$(sha256sum "$config_artifact" | cut -d ' ' -f1)" = "$(sha256sum "$STAGED_CONFIG" | cut -d ' ' -f1)" ] || die "built kernel config artifact differs from staged config"
+	[ -s "$module_symvers_artifact" ] || die "built Module.symvers artifact is missing or empty"
 	printf '%s\n' "generated_linux_image_package=$image_package"
 }
 
@@ -230,6 +255,7 @@ if [ "$MODE" = test ]; then
 	printf '%s\n' fixture > "$TEST_OUTPUT/debs/linux-image-current-sunxi64-test.deb"
 	printf '%s\n' fixture > "$TEST_OUTPUT/debs/linux-dtb-test.deb"
 	cp "$STAGED_CONFIG" "$TEST_OUTPUT/ahub-experiment/linux-sunxi64-current.config"
+	printf '%s\n' module_prepare_fixture > "$TEST_OUTPUT/$MODULE_SYMVERS_ARTIFACT_REL"
 	validate_kernel_output "$TEST_OUTPUT"
 	ARTIFACTS_STAGED=1
 	printf '%s\n' "test mode validated pinned full series, overlay merge, config, and kernel packages"
@@ -245,6 +271,10 @@ elif [ "$MODE" = dry-run ]; then
 	printf '%s\n' "package_input_hook=$PACKAGE_INPUT_HOOK"
 	printf '%s\n' "package_input_hook_target=$WORKTREE/$PACKAGE_INPUT_HOOK_TARGET"
 	printf '%s\n' "package_input_hook_placement=before_kernel_package_callback_linux_image"
+	printf '%s\n' "kernel_headers_prepare_hook=$KERNEL_HEADERS_PREPARE_HOOK"
+	printf '%s\n' "kernel_headers_prepare_hook_target=$WORKTREE/$KERNEL_HEADERS_PREPARE_HOOK_TARGET"
+	printf '%s\n' "kernel_headers_prepare_hook_placement=$KERNEL_HEADERS_PREPARE_HOOK_PLACEMENT"
+	printf '%s\n' "module_symvers_artifact=$MODULE_SYMVERS_ARTIFACT_REL"
 	printf '%s\n' "kernel_package_glob=$KERNEL_PACKAGE_GLOB"
 	printf '%s\n' "runtime_output_validator=$RUNTIME_OUTPUT_VALIDATOR"
 	printf '%s\n' "temporary_userpatches=$WORKTREE/userpatches"
@@ -256,9 +286,14 @@ else
 	( cd "$WORKTREE" && sh -c "$BUILD_COMMAND" )
 	mkdir -p "$WORKTREE/output/ahub-experiment"
 	cp "$STAGED_CONFIG" "$WORKTREE/output/ahub-experiment/linux-sunxi64-current.config"
+	module_symvers_files=$(find "$WORKTREE/cache/sources" -type f -name Module.symvers -size +0c -print)
+	module_symvers_count=$(printf '%s\n' "$module_symvers_files" | sed '/^$/d' | wc -l | tr -d ' ')
+	[ "$module_symvers_count" -eq 1 ] || die "expected exactly one nonempty Module.symvers, got $module_symvers_count"
+	cp "$module_symvers_files" "$WORKTREE/output/$MODULE_SYMVERS_ARTIFACT_REL"
 	validate_kernel_output "$WORKTREE/output"
 	cp -a "$WORKTREE/output/debs/." "$OUTPUT_DIR/"
 	cp "$WORKTREE/output/ahub-experiment/linux-sunxi64-current.config" "$OUTPUT_DIR/"
+	cp "$WORKTREE/output/$MODULE_SYMVERS_ARTIFACT_REL" "$OUTPUT_DIR/"
 	sha256sum "$OUTPUT_DIR"/* > "$OUTPUT_DIR/SHA256SUMS"
 	ARTIFACTS_STAGED=1
 	printf '%s\n' "experimental Armbian kernel packages written to $OUTPUT_DIR"

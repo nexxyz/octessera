@@ -13,13 +13,14 @@ command -v "$PYTHON" >/dev/null 2>&1 || die "python3 is required"
 "$HERE/validate-fixture.sh"
 STAGING_OUTPUT=$("$HERE/build-ahub-experiment.sh" --test)
 case "$STAGING_OUTPUT" in
-	*"source_series_patch_count=458"*"user_patch_dir="*"user_overlay="*"package_input_hook_placement=before_kernel_package_callback_linux_image"*"generated_linux_image_package=linux-image-current-sunxi64-test.deb"*) ;;
+	*"source_series_patch_count=458"*"user_patch_dir="*"user_overlay="*"package_input_hook_placement=before_kernel_package_callback_linux_image"*"kernel_headers_prepare_hook_placement=before_kernel_package_callback_linux_headers"*"module_symvers_artifact=Module.symvers"*"generated_linux_image_package=linux-image-current-sunxi64-test.deb"*) ;;
 	*) die "test build did not validate the pinned full series, overlay merge, and package hook" ;;
 esac
 printf '%s\n' "$STAGING_OUTPUT" | grep -F -- 'source_series=/' >/dev/null || die "test build did not report the source series"
 printf '%s\n' "$STAGING_OUTPUT" | grep -F -- '/patch/kernel/archive/sunxi-6.12/series.conf' >/dev/null || die "test build source series path changed"
 printf '%s\n' "$STAGING_OUTPUT" | grep -F -- '/userpatches/build-hooks/normalize-kernel-package-input.patch' >/dev/null || die "test build hook staging path changed"
 printf '%s\n' "$STAGING_OUTPUT" | grep -F -- '/lib/functions/compilation/kernel-debs.sh' >/dev/null || die "test build hook target changed"
+printf '%s\n' "$STAGING_OUTPUT" | grep -F -- '/userpatches/build-hooks/prepare-kernel-headers.patch' >/dev/null || die "test build headers hook staging path changed"
 if printf '%s\n' "$STAGING_OUTPUT" | grep -F -- 'staged_patch_files=' >/dev/null; then
 	die "test build retained a private patch subset"
 fi
@@ -38,7 +39,11 @@ printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'octessera-ahub0-pi123.dtso' >/dev/nul
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'userpatches/build-hooks/normalize-kernel-package-input.patch' >/dev/null || die "dry-run build plan is missing the package hook"
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'package_input_hook_placement=before_kernel_package_callback_linux_image' >/dev/null || die "dry-run package hook placement changed"
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'kernel_package_glob=linux-image-*.deb' >/dev/null || die "dry-run package glob changed"
-printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'runtime_output_validator=one-nonempty-linux-image-package' >/dev/null || die "dry-run artifact validation changed"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'kernel_headers_prepare_hook=/' >/dev/null || die "dry-run build plan is missing the headers hook"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- '/userpatches/build-hooks/prepare-kernel-headers.patch' >/dev/null || die "dry-run headers hook staging path changed"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'kernel_headers_prepare_hook_placement=before_kernel_package_callback_linux_headers' >/dev/null || die "dry-run headers hook placement changed"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'module_symvers_artifact=Module.symvers' >/dev/null || die "dry-run Module.symvers artifact changed"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'runtime_output_validator=one-nonempty-linux-image-package-and-module-symvers' >/dev/null || die "dry-run artifact validation changed"
 case "$PLAN_OUTPUT" in
 	*"BUILD_MINIMAL"*|*"BUILD_DESKTOP"*|*"compile.sh build"*|*"output/images"*) die "dry-run still contains a rootfs/image stage" ;;
 esac
@@ -136,6 +141,10 @@ expect_failure 'preflight rejects deferred devices' "$PYTHON" "$CASE_DIR/preflig
 copy_case
 mutate_lock '"patch_count": 458' '"patch_count": 457'
 expect_failure 'preflight rejects incomplete full source series' "$PYTHON" "$CASE_DIR/preflight.py" "$CASE_DIR"
+
+copy_case
+mutate_case build-ahub-experiment.sh "printf '%s\\n' module_prepare_fixture" ":"
+expect_failure 'test output rejects empty Module.symvers' "$CASE_DIR/build-ahub-experiment.sh" --test
 
 expect_failure 'deploy requires target' "$HERE/deploy-rollback.sh" deploy --yes --dtb /boot/dtb/allwinner/sun50i-h618-orangepi-zero2w.dtb
 expect_failure 'SSH_BATCH_MODE accepts only yes or no' env SSH_BATCH_MODE=maybe "$HERE/deploy-rollback.sh" deploy --yes --target octessera@192.168.0.217 --dtb /boot/dtb-6.12.30-current-sunxi64/allwinner/sun50i-h618-orangepi-zero2w.dtb

@@ -11,8 +11,12 @@
   "overlay": "octessera-ahub0-pi123-overlay.dts",
   "package_input_hook": "build-hooks/normalize-kernel-package-input.patch",
   "package_input_hook_target": "lib/functions/compilation/kernel-debs.sh",
+  "kernel_headers_prepare_hook": "build-hooks/prepare-kernel-headers.patch",
+  "kernel_headers_prepare_hook_target": "lib/functions/compilation/kernel-debs.sh",
+  "kernel_headers_prepare_hook_placement": "before_kernel_package_callback_linux_headers",
   "kernel_package_glob": "linux-image-*.deb",
-  "runtime_output_validator": "one-nonempty-linux-image-package",
+  "module_symvers_artifact": "Module.symvers",
+  "runtime_output_validator": "one-nonempty-linux-image-package-and-module-symvers",
   "required_config": {
     "CONFIG_ARCH_SUNXI": "y",
     "CONFIG_SOUND": "y",
