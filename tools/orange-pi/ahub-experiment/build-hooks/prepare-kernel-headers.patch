@@ -8,10 +8,10 @@ diff --git a/lib/functions/compilation/kernel-debs.sh b/lib/functions/compilatio
 +	display_alert "Preparing linux-headers sources" "${kernel_work_dir}" "info"
 +	(
 +		cd "${kernel_work_dir}" || exit 1
-+		run_kernel_make modules_prepare
++		run_kernel_make modules
 +	)
 +	[[ -s "${kernel_work_dir}/Module.symvers" ]] || {
-+		display_alert "Preparing linux-headers sources" "Module.symvers is missing or empty after modules_prepare" "err"
++		display_alert "Preparing linux-headers sources" "Module.symvers is missing or empty after the kernel modules target" "err"
 +		return 1
 +	}
 +}

@@ -56,11 +56,11 @@ requires an empty output directory outside this repo:
 The launcher also stages temporary build hooks under `userpatches/build-hooks/`.
 One normalizes only `vmlinuz-*`, `config-*`, and `System.map-*` inputs carrying
 the `-dirty` suffix before `kernel_package_callback_linux_image`; the other runs
-the kernel's real `modules_prepare` target immediately before
+the kernel's real `modules` target in `${kernel_work_dir}` immediately before
 `kernel_package_callback_linux_headers` and requires the resulting nonempty
-`Module.symvers`. No placeholder file is created. The output validator requires
-exactly one nonempty `linux-image-*.deb` package and a nonempty `Module.symvers`
-artifact.
+`${kernel_work_dir}/Module.symvers`. No placeholder or copied substitute is
+created by the hook. The output validator requires exactly one nonempty
+`linux-image-*.deb` package and a nonempty `Module.symvers` artifact.
 
 ```sh
 ./build-ahub-experiment.sh --run-kernel --output /absolute/path/ahub-artifacts

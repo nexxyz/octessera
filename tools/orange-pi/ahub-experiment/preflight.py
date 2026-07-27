@@ -218,7 +218,7 @@ def main():
         fail("PCM5102A must be supplied by the experimental built-in config")
 
     plan = json.loads((fixture_dir / "kernel-build-plan.json").read_text(encoding="utf-8"), object_pairs_hook=pairs)
-    require_keys(plan, ["schema", "board", "branch", "source_commit", "kernel_patch_dir", "source_series", "source_series_patch_count", "kernel_config", "dtb", "overlay", "package_input_hook", "package_input_hook_target", "kernel_headers_prepare_hook", "kernel_headers_prepare_hook_target", "kernel_headers_prepare_hook_placement", "kernel_package_glob", "module_symvers_artifact", "runtime_output_validator", "required_config"], "kernel build plan")
+    require_keys(plan, ["schema", "board", "branch", "source_commit", "kernel_patch_dir", "source_series", "source_series_patch_count", "kernel_config", "dtb", "overlay", "package_input_hook", "package_input_hook_target", "kernel_headers_prepare_hook", "kernel_headers_prepare_hook_target", "kernel_headers_prepare_hook_placement", "kernel_headers_prepare_target", "kernel_package_glob", "module_symvers_artifact", "module_symvers_source", "runtime_output_validator", "required_config"], "kernel build plan")
     expected_plan = {
         "schema": 1, "board": "orangepizero2w", "branch": "current", "source_commit": EXPECTED_COMMIT,
         "kernel_patch_dir": EXPECTED_STAGED_PATCH_DIR, "kernel_config": "Kconfig.fragment",
@@ -229,7 +229,9 @@ def main():
         "kernel_headers_prepare_hook": "build-hooks/prepare-kernel-headers.patch",
         "kernel_headers_prepare_hook_target": "lib/functions/compilation/kernel-debs.sh",
         "kernel_headers_prepare_hook_placement": "before_kernel_package_callback_linux_headers",
+        "kernel_headers_prepare_target": "modules",
         "kernel_package_glob": "linux-image-*.deb", "module_symvers_artifact": "Module.symvers",
+        "module_symvers_source": "kernel_work_dir/Module.symvers",
         "runtime_output_validator": "one-nonempty-linux-image-package-and-module-symvers",
         "required_config": REQUIRED_CONFIG,
     }
@@ -242,9 +244,11 @@ def main():
         if fact not in package_hook:
             fail(f"package input hook is missing required fact: {fact}")
     headers_hook = (fixture_dir / "build-hooks/prepare-kernel-headers.patch").read_text(encoding="utf-8")
-    for fact in ["function ahub_prepare_kernel_headers()", "cd \"${kernel_work_dir}\" || exit 1", "run_kernel_make modules_prepare", "${kernel_work_dir}/Module.symvers", "Module.symvers is missing or empty after modules_prepare", "ahub_prepare_kernel_headers"]:
+    for fact in ["function ahub_prepare_kernel_headers()", "cd \"${kernel_work_dir}\" || exit 1", "run_kernel_make modules", "${kernel_work_dir}/Module.symvers", "Module.symvers is missing or empty after the kernel modules target", "ahub_prepare_kernel_headers"]:
         if fact not in headers_hook:
             fail(f"kernel headers hook is missing required fact: {fact}")
+    if "modules_prepare" in headers_hook or "cp " in headers_hook:
+        fail("kernel headers hook does not build Module.symvers in the kernel worktree")
     asoc_log = (fixture_dir / "runtime-fixture/asoc-registration.txt").read_text(encoding="utf-8")
     for fact in ["snd_soc_register_card: octessera-dac", "sunxi-snd-mach: card=octessera-dac cpu=octessera_plat codec=pcm5102a", "pcm5102a-codec: ti,pcm5102a registered", "sunxi-snd-mach: card=HDMI cpu=ahub1_plat codec=hdmi registered"]:
         if fact not in asoc_log:
