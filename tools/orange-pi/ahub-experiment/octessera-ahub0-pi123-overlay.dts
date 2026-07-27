@@ -1,0 +1,66 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "xunlong,orangepi-zero2w", "allwinner,sun50i-h616", "allwinner,sun50i-h618";
+
+	fragment@0 {
+		target = <&pio>;
+		__overlay__ {
+			octessera_i2s0_pins: ahub0-pins {
+				pins = "PI1", "PI2", "PI3";
+				function = "i2s0";
+				bias-disable;
+			};
+		};
+	};
+
+	fragment@1 {
+		target-path = "/";
+		__overlay__ {
+			octessera_plat: octessera_plat {
+				#sound-dai-cells = <0>;
+				compatible = "allwinner,sunxi-snd-plat-ahub";
+				apb_num = <0>;
+				dmas = <&dma 3>, <&dma 3>;
+				dma-names = "tx", "rx";
+				playback_cma = <128>;
+				capture_cma = <128>;
+				tx_fifo_size = <128>;
+				rx_fifo_size = <128>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&octessera_i2s0_pins>;
+				tdm_num = <0>;
+				tx_pin = <0>;
+				rx_pin = <0>;
+				status = "okay";
+			};
+
+			pcm5102a: pcm5102a {
+				compatible = "ti,pcm5102a";
+				#sound-dai-cells = <0>;
+				status = "okay";
+			};
+
+			octessera_dac: octessera-dac {
+				compatible = "allwinner,sunxi-snd-mach";
+				soundcard-mach,name = "octessera-dac";
+				status = "okay";
+				soundcard-mach,format = "i2s";
+				soundcard-mach,slot-num = <2>;
+				soundcard-mach,slot-width = <32>;
+				soundcard-mach,frame-master = <&octessera_dac_cpu>;
+				soundcard-mach,bitclock-master = <&octessera_dac_cpu>;
+
+				octessera_dac_cpu: soundcard-mach,cpu {
+					sound-dai = <&octessera_plat>;
+					soundcard-mach,pll-fs = <4>;
+				};
+
+				soundcard-mach,codec {
+					sound-dai = <&pcm5102a>;
+				};
+			};
+		};
+	};
+};

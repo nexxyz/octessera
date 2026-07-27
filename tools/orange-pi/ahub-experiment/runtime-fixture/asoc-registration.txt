@@ -1,0 +1,4 @@
+snd_soc_register_card: octessera-dac
+sunxi-snd-mach: card=octessera-dac cpu=octessera_plat codec=pcm5102a
+pcm5102a-codec: ti,pcm5102a registered
+sunxi-snd-mach: card=HDMI cpu=ahub1_plat codec=hdmi registered

@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "board": "orangepizero2w",
+  "branch": "current",
+  "source_commit": "166b786fc978d88f4ff9ee3e33c353afb39763e8",
+  "kernel_patch_dir": "archive/sunxi-6.12",
+  "kernel_config": "Kconfig.fragment",
+  "dtb": "sun50i-h618-orangepi-zero2w.dtb",
+  "overlay": "octessera-ahub0-pi123-overlay.dts",
+  "required_config": {
+    "CONFIG_ARCH_SUNXI": "y",
+    "CONFIG_SOUND": "y",
+    "CONFIG_SND": "y",
+    "CONFIG_SND_SOC": "y",
+    "CONFIG_REGMAP_MMIO": "y",
+    "CONFIG_SUNXI_SYS_INFO": "n",
+    "CONFIG_SND_SOC_GENERIC_DMAENGINE_PCM": "y",
+    "CONFIG_SND_SOC_SUNXI_AHUB": "y",
+    "CONFIG_SND_SOC_SUNXI_AHUB_DAM": "y",
+    "CONFIG_SND_SOC_SUNXI_MACH": "y",
+    "CONFIG_SND_SOC_PCM5102A": "y"
+  }
+}
