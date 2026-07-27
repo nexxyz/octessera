@@ -8,8 +8,13 @@
 		target = <&pio>;
 		__overlay__ {
 			octessera_i2s0_pins: ahub0-pins {
-				pins = "PI1", "PI2", "PI3";
+				pins = "PI1", "PI2";
 				function = "i2s0";
+				bias-disable;
+			};
+			octessera_i2s0_dout0_pins: ahub0-dout0-pins {
+				pins = "PI3";
+				function = "i2s0_dout0";
 				bias-disable;
 			};
 		};
@@ -29,16 +34,10 @@
 				tx_fifo_size = <128>;
 				rx_fifo_size = <128>;
 				pinctrl-names = "default";
-				pinctrl-0 = <&octessera_i2s0_pins>;
+				pinctrl-0 = <&octessera_i2s0_pins>, <&octessera_i2s0_dout0_pins>;
 				tdm_num = <0>;
 				tx_pin = <0>;
 				rx_pin = <0>;
-				status = "okay";
-			};
-
-			pcm5102a: pcm5102a {
-				compatible = "ti,pcm5102a";
-				#sound-dai-cells = <0>;
 				status = "okay";
 			};
 
@@ -46,6 +45,7 @@
 				compatible = "allwinner,sunxi-snd-mach";
 				soundcard-mach,name = "octessera-dac";
 				status = "okay";
+				soundcard-mach,playback-only;
 				soundcard-mach,format = "i2s";
 				soundcard-mach,slot-num = <2>;
 				soundcard-mach,slot-width = <32>;
@@ -58,7 +58,6 @@
 				};
 
 				soundcard-mach,codec {
-					sound-dai = <&pcm5102a>;
 				};
 			};
 		};

@@ -281,7 +281,7 @@ def main():
     if exact_config(fixture_dir / "runtime-fixture/running-kernel.config") != REQUIRED_CONFIG:
         fail("running-kernel.config does not prove built-in PCM5102/AHUB support")
     asoc_log = (fixture_dir / "runtime-fixture/asoc-registration.txt").read_text(encoding="utf-8")
-    for fact in ["snd_soc_register_card: octessera-dac", "sunxi-snd-mach: card=octessera-dac cpu=octessera_plat codec=pcm5102a", "pcm5102a-codec: ti,pcm5102a registered", "sunxi-snd-mach: card=HDMI cpu=ahub1_plat codec=hdmi registered"]:
+    for fact in ["snd_soc_register_card: octessera-dac", "sunxi-snd-mach: card=octessera-dac cpu=octessera_plat codec=dummy-codec playback-only", "dummy-codec: vendor fallback selected for playback-only octessera-dac", "sunxi-snd-mach: card=HDMI cpu=ahub1_plat codec=hdmi registered"]:
         if fact not in asoc_log:
             fail(f"required ASoC runtime fact is missing: {fact}")
     if (fixture_dir / "runtime-fixture/deferred-probes.txt").read_text(encoding="utf-8").strip() != "deferred_probe_count=0":
@@ -292,15 +292,17 @@ def main():
         fail("overlay is not a DTS plugin")
     if re.search(r"(?i)\bpi0\b|pin\s*29", overlay) or re.search(r"(?i)mclk", overlay):
         fail("overlay claims PI0, physical pin 29, or MCLK")
-    if re.findall(r"pins\s*=\s*([^;]+);", overlay) != ['"PI1", "PI2", "PI3"'] or re.findall(r'"PI[0-9]+"', overlay) != ['"PI1"', '"PI2"', '"PI3"']:
-        fail("overlay is not PI1/PI2/PI3-only")
+    if re.findall(r"pins\s*=\s*([^;]+);", overlay) != ['"PI1", "PI2"', '"PI3"'] or re.findall(r'"PI[0-9]+"', overlay) != ['"PI1"', '"PI2"', '"PI3"']:
+        fail("overlay is not split PI1/PI2 plus PI3-only")
+    if re.findall(r"function\s*=\s*\"([^\"]+)\";", overlay) != ["i2s0", "i2s0_dout0"]:
+        fail("overlay pin functions are not split between i2s0 and i2s0_dout0")
     if re.findall(r"fragment@(\d+)", overlay) != ["0", "1"] or re.findall(r"target\s*=\s*<\s*&([A-Za-z0-9_]+)\s*>;", overlay) != ["pio"] or overlay.count('target-path = "/";') != 1:
         fail("overlay target set changed")
     if re.search(r"&(?:spi|i2c|uart|hdmi|codec)[A-Za-z0-9_]*", overlay) or "delete-node" in overlay or "delete-property" in overlay:
         fail("overlay modifies a preserved node or contains a deletion")
-    if overlay.count('compatible = "ti,pcm5102a";') != 1 or overlay.count('soundcard-mach,name = "octessera-dac";') != 1 or overlay.count('compatible = "allwinner,sunxi-snd-mach";') != 1:
+    if "pcm5102a" in overlay or overlay.count('soundcard-mach,playback-only;') != 1 or overlay.count('soundcard-mach,name = "octessera-dac";') != 1 or overlay.count('compatible = "allwinner,sunxi-snd-mach";') != 1:
         fail("overlay card identity is not stable")
-    if overlay.count("sound-dai = <&octessera_plat>;") != 1 or overlay.count("sound-dai = <&pcm5102a>;") != 1 or overlay.count("apb_num = <0>;") != 1 or overlay.count("dmas = <&dma 3>, <&dma 3>;") != 1 or overlay.count("tdm_num = <0>;") != 1 or overlay.count("tx_pin = <0>;") != 1 or "&ahub1_plat" in overlay or "&ahub1_mach" in overlay:
+    if overlay.count("sound-dai = <&octessera_plat>;") != 1 or "sound-dai = <&pcm5102a>;" in overlay or overlay.count("soundcard-mach,codec {") != 1 or re.search(r"soundcard-mach,codec\s*\{[^}]*sound-dai", overlay, re.S) or overlay.count("pinctrl-0 = <&octessera_i2s0_pins>, <&octessera_i2s0_dout0_pins>;") != 1 or overlay.count("apb_num = <0>;") != 1 or overlay.count("dmas = <&dma 3>, <&dma 3>;") != 1 or overlay.count("tdm_num = <0>;") != 1 or overlay.count("tx_pin = <0>;") != 1 or "&ahub1_plat" in overlay or "&ahub1_mach" in overlay:
         fail("overlay does not keep AHUB0 separate from HDMI AHUB1")
     base = (fixture_dir / expected_fixture["base"]).read_text(encoding="utf-8")
     for required in ["soc {", "ahub_dam_plat:", "ahub_dam_mach:", "ahub1_plat:", "ahub1_mach:", "hdmi:", "codec:", "main_encoder:", "uart0:", "uart2:", "spi0:", "i2c0:", "pio:", "dma:"]:

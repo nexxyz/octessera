@@ -17,17 +17,19 @@ The launcher copies the complete source kernel config, then applies only
 replaced.
 
 The overlay configures AHUB0 on APB0/DMA3/TDM0 with TX pin 0 and adds exactly
-one `octessera-dac` machine card linked to built-in `ti,pcm5102a`. It only
-selects PI1, PI2, and PI3 for `i2s0`, makes no MCLK claim, and does not target
-PI0, SPI, I2C, UART, HDMI, or the existing codec. The fixture keeps the PI0
-main encoder and HDMI/AHUB1 nodes visible.
+one playback-only `octessera-dac` machine card. Its empty codec child selects
+the vendor dummy-codec fallback; it has no PCM5102A node or codec `sound-dai`
+link. PI1 and PI2 use `i2s0`, while PI3 uses `i2s0_dout0`. It makes no MCLK
+claim and does not target PI0, SPI, I2C, UART, HDMI, or the existing codec. The
+fixture keeps the PI0 main encoder and HDMI/AHUB1 nodes visible.
 
 The merged topology keeps the existing HDMI nodes at `/soc/ahub1_plat` and
 `/soc/ahub1_mach` enabled, on TDM1, named `HDMI`, and linked through the HDMI
 CPU relation. The overlay adds root `/octessera_plat` on APB0/TDM0 with DMA
-request 3 and PI1/PI2/PI3 `i2s0` pinctrl, plus PCM5102A and `octessera-dac`
-phandle/master links with no MCLK property. These Octessera nodes must be absent
-from the base DTB before merge, and no root `/ahub1_*` nodes are accepted.
+request 3 and split PI1/PI2 `i2s0` plus PI3 `i2s0_dout0` pinctrl. Its
+`octessera-dac` uses playback-only dummy-codec fallback with CPU and master
+phandle links and no MCLK property. These Octessera nodes must be absent from
+the base DTB before merge, and no root `/ahub1_*` nodes are accepted.
 
 The kernel artifact does not embed or activate the Octessera overlay. Overlay
 deployment is a separate, backed-up, preflight-gated step after kernel
