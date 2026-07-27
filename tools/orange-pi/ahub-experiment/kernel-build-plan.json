@@ -7,6 +7,9 @@
   "kernel_config": "Kconfig.fragment",
   "dtb": "sun50i-h618-orangepi-zero2w.dtb",
   "overlay": "octessera-ahub0-pi123-overlay.dts",
+  "package_input_hook": "build-hooks/normalize-kernel-package-input.patch",
+  "package_input_hook_target": "lib/functions/compilation/kernel-debs.sh",
+  "kernel_package_glob": "linux-image-*.deb",
   "required_config": {
     "CONFIG_ARCH_SUNXI": "y",
     "CONFIG_SOUND": "y",
