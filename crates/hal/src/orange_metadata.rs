@@ -8,6 +8,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 
 pub const CANONICAL_BINARY_NAME: &str = "orange-oled-smoke";
+pub const SEESAW_BINARY_NAME: &str = "orange-seesaw-smoke";
 pub const METADATA_SUFFIX: &str = ".metadata.json";
 pub const METADATA_SCHEMA_VERSION: u64 = 2;
 pub const MAX_METADATA_BYTES: usize = 4096;
@@ -118,14 +119,18 @@ impl<'de> Deserialize<'de> for BuildMetadata {
 }
 
 pub fn print_build_metadata() -> Result<(), String> {
+    print_build_metadata_for(CANONICAL_BINARY_NAME)
+}
+
+pub fn print_build_metadata_for(expected_binary: &str) -> Result<(), String> {
     let executable_location = env::current_exe()
         .map_err(|error| format!("cannot locate executable for metadata sidecar: {error}"))?;
-    validate_executable_name(&executable_location)?;
+    validate_executable_name_for(&executable_location, expected_binary)?;
     let metadata_path = metadata_path(&executable_location);
     let metadata_text = read_metadata_text(&metadata_path)?;
     let metadata = parse_metadata(&metadata_text)?;
     let executable_hash = hash_running_executable()?;
-    validate_metadata(&metadata, &executable_hash)?;
+    validate_metadata_for(&metadata, &executable_hash, expected_binary)?;
     println!("{}", metadata_text.trim_end());
     Ok(())
 }
@@ -163,6 +168,13 @@ fn read_metadata_text(path: &Path) -> Result<String, String> {
 }
 
 pub fn validate_executable_name(executable: &Path) -> Result<(), String> {
+    validate_executable_name_for(executable, CANONICAL_BINARY_NAME)
+}
+
+pub fn validate_executable_name_for(
+    executable: &Path,
+    expected_binary: &str,
+) -> Result<(), String> {
     let name = executable
         .file_name()
         .and_then(|value| value.to_str())
@@ -172,20 +184,28 @@ pub fn validate_executable_name(executable: &Path) -> Result<(), String> {
                 executable.display()
             )
         })?;
-    if name != CANONICAL_BINARY_NAME {
+    if name != expected_binary {
         return Err(format!(
-            "metadata mode requires executable filename {CANONICAL_BINARY_NAME}, got {name}"
+            "metadata mode requires executable filename {expected_binary}, got {name}"
         ));
     }
     Ok(())
 }
 
 pub fn validate_metadata(metadata: &BuildMetadata, executable_hash: &str) -> Result<(), String> {
+    validate_metadata_for(metadata, executable_hash, CANONICAL_BINARY_NAME)
+}
+
+pub fn validate_metadata_for(
+    metadata: &BuildMetadata,
+    executable_hash: &str,
+    expected_binary: &str,
+) -> Result<(), String> {
     if metadata.schema_version != METADATA_SCHEMA_VERSION
         || metadata.board_profile != "orange-pi-zero-2w"
         || metadata.artifact_kind != "diagnostic-only"
         || metadata.runtime_ready
-        || metadata.binary != CANONICAL_BINARY_NAME
+        || metadata.binary != expected_binary
         || metadata.package != "octessera-hal"
         || metadata.arch != "aarch64-unknown-linux-gnu"
         || metadata.cargo_feature != "orange-pi-zero-2w"

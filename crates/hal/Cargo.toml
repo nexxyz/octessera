@@ -43,3 +43,8 @@ orange-pi-zero-2w = [
 name = "orange-oled-smoke"
 path = "src/bin/orange_oled_smoke.rs"
 required-features = ["orange-pi-zero-2w"]
+
+[[bin]]
+name = "orange-seesaw-smoke"
+path = "src/bin/orange_seesaw_smoke.rs"
+required-features = ["orange-pi-zero-2w"]
