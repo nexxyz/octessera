@@ -232,8 +232,8 @@ def main():
 
     expected_fixture = {
         "base": "h618-fixture-base.dts", "overlay": "octessera-ahub0-pi123-overlay.dts", "kconfig": "Kconfig.fragment",
-        "preserve_nodes": ["/serial@5000000", "/serial@5002000", "/spi@5010000", "/i2c@5003000", "/hdmi@6000000", "/codec@5096000", "/main-encoder", "/ahub1_plat", "/ahub1_mach"],
-        "expected_root_children": ["ahub1_mach", "ahub1_plat", "ahub_dam_mach", "ahub_dam_plat", "aliases", "chosen", "codec@5096000", "dma-controller@3002000", "hdmi@6000000", "i2c@5003000", "main-encoder", "octessera-dac", "octessera_plat", "pcm5102a", "pinctrl@300b000", "serial@5000000", "serial@5002000", "spi@5010000"],
+        "preserve_nodes": ["/serial@5000000", "/serial@5002000", "/spi@5010000", "/i2c@5003000", "/hdmi@6000000", "/codec@5096000", "/main-encoder", "/soc/ahub1_plat", "/soc/ahub1_mach"],
+        "expected_root_children": ["ahub_dam_mach", "ahub_dam_plat", "aliases", "chosen", "codec@5096000", "dma-controller@3002000", "hdmi@6000000", "i2c@5003000", "main-encoder", "pinctrl@300b000", "serial@5000000", "serial@5002000", "soc", "spi@5010000"],
     }
     expected_deploy = {
         "board": "orangepizero2w", "dtb_path": "/boot/dtb/allwinner/sun50i-h618-orangepi-zero2w.dtb",
@@ -303,9 +303,11 @@ def main():
     if overlay.count("sound-dai = <&octessera_plat>;") != 1 or overlay.count("sound-dai = <&pcm5102a>;") != 1 or overlay.count("apb_num = <0>;") != 1 or overlay.count("dmas = <&dma 3>, <&dma 3>;") != 1 or overlay.count("tdm_num = <0>;") != 1 or overlay.count("tx_pin = <0>;") != 1 or "&ahub1_plat" in overlay or "&ahub1_mach" in overlay:
         fail("overlay does not keep AHUB0 separate from HDMI AHUB1")
     base = (fixture_dir / expected_fixture["base"]).read_text(encoding="utf-8")
-    for required in ["ahub_dam_plat:", "ahub_dam_mach:", "ahub1_plat:", "ahub1_mach:", "hdmi:", "codec:", "main_encoder:", "uart0:", "uart2:", "spi0:", "i2c0:", "pio:", "dma:"]:
+    for required in ["soc {", "ahub_dam_plat:", "ahub_dam_mach:", "ahub1_plat:", "ahub1_mach:", "hdmi:", "codec:", "main_encoder:", "uart0:", "uart2:", "spi0:", "i2c0:", "pio:", "dma:"]:
         if required not in base:
             fail(f"fixture is missing binding or preserved node: {required}")
+    if re.search(r"(?m)^\tahub1_(?:plat|mach):", base) or any(not re.search(rf"(?m)^\t\tahub1_{kind}:", base) for kind in ("plat", "mach")):
+        fail("preserved HDMI nodes are not nested under soc")
     print("AHUB full source series, lock, overlay, and preflight checks passed")
 
 

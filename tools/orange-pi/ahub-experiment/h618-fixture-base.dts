@@ -94,30 +94,32 @@
 		};
 	};
 
-	ahub1_plat: ahub1_plat {
-		#sound-dai-cells = <0>;
-		compatible = "allwinner,sunxi-snd-plat-ahub";
-		apb_num = <1>;
-		tdm_num = <1>;
-		tx_pin = <0>;
-		rx_pin = <0>;
-		status = "okay";
-	};
-
-	ahub1_mach: ahub1_mach {
-		compatible = "allwinner,sunxi-snd-mach";
-		soundcard-mach,name = "HDMI";
-		soundcard-mach,format = "i2s";
-		soundcard-mach,slot-num = <2>;
-		soundcard-mach,slot-width = <32>;
-		status = "okay";
-		ahub1_cpu: soundcard-mach,cpu {
-			sound-dai = <&ahub1_plat>;
-			soundcard-mach,pll-fs = <4>;
-			soundcard-mach,mclk-fs = <0>;
+	soc {
+		ahub1_plat: ahub1_plat {
+			#sound-dai-cells = <0>;
+			compatible = "allwinner,sunxi-snd-plat-ahub";
+			apb_num = <1>;
+			tdm_num = <1>;
+			tx_pin = <0>;
+			rx_pin = <0>;
+			status = "okay";
 		};
-		soundcard-mach,codec {
-			sound-dai = <&hdmi>;
+
+		ahub1_mach: ahub1_mach {
+			compatible = "allwinner,sunxi-snd-mach";
+			soundcard-mach,name = "HDMI";
+			soundcard-mach,format = "i2s";
+			soundcard-mach,slot-num = <2>;
+			soundcard-mach,slot-width = <32>;
+			status = "okay";
+			ahub1_cpu: soundcard-mach,cpu {
+				sound-dai = <&ahub1_plat>;
+				soundcard-mach,pll-fs = <4>;
+				soundcard-mach,mclk-fs = <0>;
+			};
+			soundcard-mach,codec {
+				sound-dai = <&hdmi>;
+			};
 		};
 	};
 };
