@@ -43,7 +43,7 @@ printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'user_overlay=' >/dev/null || die "dry
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'octessera-ahub0-pi123.dtso' >/dev/null || die "dry-run build plan overlay path changed"
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'userpatches/build-hooks/normalize-kernel-package-input.patch' >/dev/null || die "dry-run build plan is missing the package hook"
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'package_input_hook_placement=before_kernel_package_callback_linux_image' >/dev/null || die "dry-run package hook placement changed"
-printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'EXT=ahub-disable-kernel-headers ./compile.sh kernel' >/dev/null || die "dry-run headers extension was not enabled"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- './compile.sh kernel EXT=ahub-disable-kernel-headers' >/dev/null || die "dry-run headers extension was not enabled"
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'kernel_package_glob=linux-image-*.deb' >/dev/null || die "dry-run package glob changed"
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'kernel_headers_disable_hook_point=extension_finish_config' >/dev/null || die "dry-run headers hook point changed"
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'kernel_headers_option=KERNEL_HAS_WORKING_HEADERS=no' >/dev/null || die "dry-run headers option changed"
