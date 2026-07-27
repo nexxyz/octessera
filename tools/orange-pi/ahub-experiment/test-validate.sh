@@ -27,9 +27,12 @@ if printf '%s\n' "$STAGING_OUTPUT" | grep -F -- 'staged_patch_files=' >/dev/null
 fi
 PLAN_OUTPUT=$("$HERE/build-ahub-experiment.sh" --dry-run)
 case "$PLAN_OUTPUT" in
-	*"source_commit=fa7a7b2294d9e760a77630950afd460b7a0b2a26"*"package_revision=26.8.0-trunk.413"*"kernel_abi=6.18.38-current-sunxi64"*"compile.sh kernel REVISION=26.8.0-trunk.413"*"KERNELPATCHDIR=archive/sunxi-6.18"*"KERNEL_CONFIGURE=no"*"KERNEL_KEEP_CONFIG=no"*) ;;
+	*"source_commit=fa7a7b2294d9e760a77630950afd460b7a0b2a26"*"kernel_source_commit=e46dc0adfe39724bcf52cea47b8f9c9aed86a394"*"package_revision=26.8.0-trunk.413"*"kernel_abi=6.18.38-current-sunxi64"*"compile.sh kernel REVISION=26.8.0-trunk.413"*"BRANCH=current KERNELBRANCH=commit:e46dc0adfe39724bcf52cea47b8f9c9aed86a394"*"KERNELPATCHDIR=archive/sunxi-6.18"*"KERNEL_CONFIGURE=no"*"KERNEL_KEEP_CONFIG=no"*) ;;
 	*) die "dry-run build plan is incomplete" ;;
 esac
+if printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'KERNELBRANCH=current' >/dev/null; then
+	die "dry-run retained a rolling kernel source branch"
+fi
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'source_series=/' >/dev/null || die "dry-run build plan is missing the source series"
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- '/patch/kernel/archive/sunxi-6.18/series.conf' >/dev/null || die "dry-run build plan source series path changed"
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'source_series_patch_count=515' >/dev/null || die "dry-run build plan source series count changed"
@@ -137,6 +140,10 @@ expect_failure 'preflight rejects deferred devices' "$PYTHON" "$CASE_DIR/preflig
 copy_case
 mutate_lock '"patch_count": 515' '"patch_count": 514'
 expect_failure 'preflight rejects incomplete full source series' "$PYTHON" "$CASE_DIR/preflight.py" "$CASE_DIR"
+
+copy_case
+mutate_case kernel-build-plan.json '"kernel_source_commit": "e46dc0adfe39724bcf52cea47b8f9c9aed86a394"' '"kernel_source_commit": "branch:current"'
+expect_failure 'dry-run rejects rolling kernel source branch' "$CASE_DIR/build-ahub-experiment.sh" --dry-run
 
 copy_case
 HEADER_OUTPUT=$(env AHUB_TEST_EXTRA_PACKAGE=linux-headers-current-sunxi64-test.deb "$CASE_DIR/build-ahub-experiment.sh" --test)

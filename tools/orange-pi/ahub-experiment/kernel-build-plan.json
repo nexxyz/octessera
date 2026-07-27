@@ -3,6 +3,7 @@
   "board": "orangepizero2w",
   "branch": "current",
   "source_commit": "fa7a7b2294d9e760a77630950afd460b7a0b2a26",
+  "kernel_source_commit": "e46dc0adfe39724bcf52cea47b8f9c9aed86a394",
   "package_revision": "26.8.0-trunk.413",
   "kernel_abi": "6.18.38-current-sunxi64",
   "kernel_patch_dir": "archive/sunxi-6.18",
