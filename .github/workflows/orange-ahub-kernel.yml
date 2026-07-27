@@ -18,7 +18,6 @@ jobs:
       ARMBIAN_COMMIT: 166b786fc978d88f4ff9ee3e33c353afb39763e8
       ARMBIAN_SOURCE_DIR: /tmp/armbian-build
       AHUB_OUTPUT_DIR: /tmp/octessera-ahub-kernel
-      FAST_DOCKER: "yes"
       PREFER_DOCKER: "yes"
       DOCKER_BUILDKIT: "1"
     steps:
