@@ -18,7 +18,7 @@
     }
   },
   "assets": [
-    { "path": "README.md", "sha256": "3aaddca1b9b6748511405b55fd2f6a4a645fcb74e301de76db2308c331536eb6" },
+    { "path": "README.md", "sha256": "3fad71d55ebbd9c5f2fd53e57b77c75fbe36880420c59b66fdc1f1b5ab5f5043" },
     { "path": "check-patch-stack.sh", "sha256": "6c5c49b9c9a05ed2c2aada63a0ebebd8b4c949c51b27fd2e57d5ea476de46d4a" },
     { "path": "Kconfig.fragment", "sha256": "555c73973a0142187e8ef0f2721f4f67d53f9499744ddab3a9d318534b371d46" },
     { "path": "h618-fixture-base.dts", "sha256": "d2e3ce52853b04e8dab48f3a0fc1674de3ce18e65cebd7ea08c9603e7e7d6d18" },
