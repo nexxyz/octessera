@@ -8,22 +8,18 @@ PYTHON=${PYTHON:-python3}
 MODE=
 OUTPUT_DIR=
 KEEP_WORK=0
-COMMIT=166b786fc978d88f4ff9ee3e33c353afb39763e8
-PATCH_DIR=patch/kernel/archive/sunxi-6.12
-STAGED_PATCH_DIR_NAME=archive/sunxi-6.12
-PACKAGE_INPUT_HOOK_REL=build-hooks/normalize-kernel-package-input.patch
-PACKAGE_INPUT_HOOK_TARGET=lib/functions/compilation/kernel-debs.sh
-KERNEL_HEADERS_DISABLE_EXTENSION_REL=extensions/ahub-disable-kernel-headers.sh
-KERNEL_HEADERS_DISABLE_EXTENSION_NAME=ahub-disable-kernel-headers
-KERNEL_HEADERS_DISABLE_HOOK_POINT=extension_finish_config
-KERNEL_HEADERS_OPTION=KERNEL_HAS_WORKING_HEADERS=no
-KERNEL_HEADERS_INSTALL_OPTION=INSTALL_HEADERS=no
+COMMIT=fa7a7b2294d9e760a77630950afd460b7a0b2a26
+PACKAGE_REVISION=26.8.0-trunk.413
+KERNEL_ABI=6.18.38-current-sunxi64
+KERNEL_VERSION=6.18.38
+PATCH_DIR=patch/kernel/archive/sunxi-6.18
+STAGED_PATCH_DIR_NAME=archive/sunxi-6.18
+SOURCE_CONFIG_REL=config/kernel/linux-sunxi64-current.config
 KERNEL_PACKAGE_GLOB='linux-image-*.deb'
 DTB_PACKAGE_GLOB='linux-dtb-*.deb'
 MODULE_PACKAGE_GLOB='linux-modules-*.deb'
 HEADERS_PACKAGE_GLOB='linux-headers-*.deb'
-RUNTIME_OUTPUT_VALIDATOR=required-image-and-dtb-optional-modules-headers-forbidden
-USER_PATCH_DIR=
+RUNTIME_OUTPUT_VALIDATOR=required-image-and-dtb-staged-only-native-extra-packages-permitted
 WORKTREE=
 TEMP_ROOT=
 TMP_PARENT=
@@ -72,7 +68,7 @@ fi
 command -v "$PYTHON" >/dev/null 2>&1 || die "python3 is required"
 command -v git >/dev/null 2>&1 || die "git is required"
 command -v sha256sum >/dev/null 2>&1 || die "sha256sum is required"
-command -v patch >/dev/null 2>&1 || die "patch is required"
+[ "$MODE" = dry-run ] || command -v dpkg-deb >/dev/null 2>&1 || die "dpkg-deb is required"
 [ -n "$SOURCE_DIR" ] || die "Armbian source path is empty"
 case "$SOURCE_DIR" in
 	/*) ;;
@@ -157,11 +153,9 @@ git -C "$WORKTREE" checkout --detach "$COMMIT" >/dev/null
 [ "$(git -C "$WORKTREE" rev-parse HEAD)" = "$COMMIT" ] || die "temporary build source is not pinned"
 [ -z "$(git -C "$WORKTREE" symbolic-ref -q --short HEAD || true)" ] || die "temporary build source is not detached"
 
-USER_PATCH_DIR=$WORKTREE/userpatches/kernel/$STAGED_PATCH_DIR_NAME
 CORE_PATCH_DIR=$WORKTREE/$PATCH_DIR
-USER_BUILD_HOOK_DIR=$WORKTREE/userpatches/build-hooks
-USER_EXTENSION_DIR=$WORKTREE/userpatches/extensions
-mkdir -p "$USER_PATCH_DIR/overlay_64" "$WORKTREE/userpatches/config/kernel" "$USER_BUILD_HOOK_DIR" "$USER_EXTENSION_DIR"
+mkdir -p "$WORKTREE/userpatches/config/kernel"
+SOURCE_CONFIG=$WORKTREE/$SOURCE_CONFIG_REL
 
 SERIES_PATH=$CORE_PATCH_DIR/series.conf
 [ -f "$SERIES_PATH" ] || die "pinned full source series.conf is missing"
@@ -178,105 +172,233 @@ for line in pathlib.Path(sys.argv[1]).read_text(encoding="utf-8").splitlines():
 print(len(paths))
 PY
 )
-[ "$SOURCE_PATCH_COUNT" = 458 ] || die "pinned full source series patch count changed"
-PACKAGE_INPUT_HOOK_SOURCE=$HERE/$PACKAGE_INPUT_HOOK_REL
-PACKAGE_INPUT_HOOK=$USER_BUILD_HOOK_DIR/normalize-kernel-package-input.patch
-cp "$PACKAGE_INPUT_HOOK_SOURCE" "$PACKAGE_INPUT_HOOK"
-[ "$(sha256sum "$PACKAGE_INPUT_HOOK" | cut -d ' ' -f1)" = "$(sha256sum "$PACKAGE_INPUT_HOOK_SOURCE" | cut -d ' ' -f1)" ] || die "staged package hook hash changed"
-patch --dry-run --batch --forward -p1 -d "$WORKTREE" < "$PACKAGE_INPUT_HOOK" >/dev/null || die "package input hook dry-run failed"
-patch --batch --forward -p1 -d "$WORKTREE" < "$PACKAGE_INPUT_HOOK" >/dev/null || die "package input hook application failed"
-$PYTHON - "$WORKTREE/$PACKAGE_INPUT_HOOK_TARGET" <<'PY'
-import pathlib
-import sys
-
-lines = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8").splitlines()
-normalizer = [index for index, line in enumerate(lines) if line == "function ahub_normalize_kernel_package_inputs() {"]
-callback = [index for index, line in enumerate(lines) if line == "function kernel_package_callback_linux_image() {"]
-calls = [index for index, line in enumerate(lines) if line.strip() == "ahub_normalize_kernel_package_inputs"]
-create = [index for index, line in enumerate(lines) if line.strip().startswith("create_kernel_deb ") and "kernel_package_callback_linux_image" in line]
-if len(normalizer) != 1 or len(callback) != 1 or len(calls) != 1 or len(create) != 1 or normalizer[0] >= calls[0] or calls[0] != create[0] - 1 or calls[0] >= callback[0]:
-    raise SystemExit("package input hook placement changed")
-PY
-KERNEL_HEADERS_DISABLE_EXTENSION_SOURCE=$HERE/$KERNEL_HEADERS_DISABLE_EXTENSION_REL
-KERNEL_HEADERS_DISABLE_EXTENSION=$USER_EXTENSION_DIR/ahub-disable-kernel-headers.sh
-cp "$KERNEL_HEADERS_DISABLE_EXTENSION_SOURCE" "$KERNEL_HEADERS_DISABLE_EXTENSION"
-[ "$(sha256sum "$KERNEL_HEADERS_DISABLE_EXTENSION" | cut -d ' ' -f1)" = "$(sha256sum "$KERNEL_HEADERS_DISABLE_EXTENSION_SOURCE" | cut -d ' ' -f1)" ] || die "staged kernel headers extension hash changed"
-[ "$(grep -c '^function extension_finish_config__ahub_disable_kernel_headers() {' "$KERNEL_HEADERS_DISABLE_EXTENSION")" -eq 1 ] || die "kernel headers extension hook changed"
-[ "$(grep -c 'KERNEL_HAS_WORKING_HEADERS=\"no\"' "$KERNEL_HEADERS_DISABLE_EXTENSION")" -eq 1 ] || die "kernel headers option changed"
-[ "$(grep -c 'INSTALL_HEADERS=\"no\"' "$KERNEL_HEADERS_DISABLE_EXTENSION")" -eq 1 ] || die "kernel headers install option changed"
-cat > "$USER_PATCH_DIR/0000.patching_config.yaml" <<'EOF'
-config:
-  overlay-directories:
-    - { source: "overlay_64", target: "arch/arm64/boot/dts/allwinner/overlay" }
-EOF
-cp "$HERE/Kconfig.fragment" "$WORKTREE/userpatches/config/kernel/linux-sunxi64-current.config"
-cp "$HERE/octessera-ahub0-pi123-overlay.dts" "$USER_PATCH_DIR/overlay_64/octessera-ahub0-pi123.dtso"
+[ "$SOURCE_PATCH_COUNT" = 515 ] || die "pinned full source series patch count changed"
+[ -f "$SOURCE_CONFIG" ] || die "pinned complete source config is missing"
+[ "$(wc -l < "$SOURCE_CONFIG" | tr -d ' ')" -gt 1000 ] || die "pinned source config is not complete"
 
 STAGED_CONFIG=$WORKTREE/userpatches/config/kernel/linux-sunxi64-current.config
-STAGED_OVERLAY=$USER_PATCH_DIR/overlay_64/octessera-ahub0-pi123.dtso
-[ "$(sha256sum "$STAGED_CONFIG" | cut -d ' ' -f1)" = "$(sha256sum "$HERE/Kconfig.fragment" | cut -d ' ' -f1)" ] || die "staged Kconfig hash changed"
-[ "$(sha256sum "$STAGED_OVERLAY" | cut -d ' ' -f1)" = "$(sha256sum "$HERE/octessera-ahub0-pi123-overlay.dts" | cut -d ' ' -f1)" ] || die "staged overlay hash changed"
-[ -f "$USER_PATCH_DIR/0000.patching_config.yaml" ] || die "user patch configuration is missing"
-grep -F 'overlay-directories:' "$USER_PATCH_DIR/0000.patching_config.yaml" >/dev/null || die "overlay merge configuration is missing"
-grep -F '{ source: "overlay_64", target: "arch/arm64/boot/dts/allwinner/overlay" }' "$USER_PATCH_DIR/0000.patching_config.yaml" >/dev/null || die "overlay merge target changed"
-printf '%s\n' "source_patch_dir=$CORE_PATCH_DIR" "source_series=$SERIES_PATH" "source_series_patch_count=$SOURCE_PATCH_COUNT" "user_patch_dir=$USER_PATCH_DIR" "user_overlay=$STAGED_OVERLAY" "package_input_hook=$PACKAGE_INPUT_HOOK" "package_input_hook_target=$WORKTREE/$PACKAGE_INPUT_HOOK_TARGET" "package_input_hook_placement=before_kernel_package_callback_linux_image" "kernel_headers_disable_extension=$KERNEL_HEADERS_DISABLE_EXTENSION" "kernel_headers_disable_hook_point=$KERNEL_HEADERS_DISABLE_HOOK_POINT" "kernel_headers_option=$KERNEL_HEADERS_OPTION" "kernel_headers_install_option=$KERNEL_HEADERS_INSTALL_OPTION"
+cp "$SOURCE_CONFIG" "$STAGED_CONFIG"
+$PYTHON - "$STAGED_CONFIG" "$HERE/Kconfig.fragment" <<'PY'
+import pathlib
+import re
+import sys
 
-BUILD_COMMAND="./compile.sh kernel EXT=$KERNEL_HEADERS_DISABLE_EXTENSION_NAME BOARD=orangepizero2w BRANCH=current KERNELPATCHDIR=$STAGED_PATCH_DIR_NAME KERNEL_CONFIGURE=no KERNEL_KEEP_CONFIG=no NON_INTERACTIVE=yes"
+config_path = pathlib.Path(sys.argv[1])
+override_path = pathlib.Path(sys.argv[2])
+lines = config_path.read_text(encoding="utf-8").splitlines()
+overrides = {}
+for line in override_path.read_text(encoding="utf-8").splitlines():
+    match = re.fullmatch(r"(CONFIG_[A-Za-z0-9_]+)=(y|m|n)", line)
+    if match is None:
+        match = re.fullmatch(r"# (CONFIG_[A-Za-z0-9_]+) is not set", line)
+        if match is None:
+            raise SystemExit(f"invalid config override: {line}")
+        key, value = match.group(1), "n"
+    else:
+        key, value = match.groups()
+    if key in overrides:
+        raise SystemExit(f"duplicate config override: {key}")
+    overrides[key] = value
+if set(overrides) != {"CONFIG_SND_SOC_PCM5102A", "CONFIG_NVMEM_SUNXI_SID", "CONFIG_SUNXI_SYS_INFO"}:
+    raise SystemExit("config override set changed")
+for key, value in overrides.items():
+    matches = [index for index, line in enumerate(lines) if re.fullmatch(rf"(?:{re.escape(key)}=(?:y|m|n)|# {re.escape(key)} is not set)", line)]
+    replacement = f"# {key} is not set" if value == "n" else f"{key}={value}"
+    if len(matches) > 1:
+        raise SystemExit(f"duplicate source config entry: {key}")
+    if matches:
+        lines[matches[0]] = replacement
+    else:
+        lines.append(replacement)
+config_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+PY
+[ "$(wc -l < "$STAGED_CONFIG" | tr -d ' ')" -gt 1000 ] || die "staged kernel config is not complete"
+printf '%s\n' "source_patch_dir=$CORE_PATCH_DIR" "source_series=$SERIES_PATH" "source_series_patch_count=$SOURCE_PATCH_COUNT" "source_config=$SOURCE_CONFIG" "kernel_config=$STAGED_CONFIG" "kernel_config_line_count=$(wc -l < "$STAGED_CONFIG" | tr -d ' ')" "package_revision=$PACKAGE_REVISION" "kernel_abi=$KERNEL_ABI"
+
+BUILD_COMMAND="./compile.sh kernel REVISION=$PACKAGE_REVISION BOARD=orangepizero2w BRANCH=current KERNELPATCHDIR=$STAGED_PATCH_DIR_NAME KERNEL_CONFIGURE=no KERNEL_KEEP_CONFIG=no NON_INTERACTIVE=yes"
+
+validate_package_metadata() {
+	package=$1
+	kind=$2
+	package_name=$(dpkg-deb -f "$package" Package)
+	package_version=$(dpkg-deb -f "$package" Version)
+	package_architecture=$(dpkg-deb -f "$package" Architecture)
+	[ "$package_version" = "$PACKAGE_REVISION" ] || die "package version changed: $package ($package_version)"
+	[ "$package_architecture" = arm64 ] || die "package architecture changed: $package ($package_architecture)"
+	if [ "$kind" = image ]; then
+		[ "$package_name" = linux-image-current-sunxi64 ] || die "linux-image package identity changed: $package_name"
+		[ "$(dpkg-deb -f "$package" Source)" = "linux-$KERNEL_VERSION" ] || die "linux-image source metadata changed"
+		[ "$(dpkg-deb -f "$package" Armbian-Kernel-Version)" = "$KERNEL_VERSION" ] || die "linux-image kernel version metadata changed"
+		[ "$(dpkg-deb -f "$package" Armbian-Kernel-Version-Family)" = "$KERNEL_ABI" ] || die "linux-image kernel family metadata changed"
+	else
+		[ "$package_name" = linux-dtb-current-sunxi64 ] || die "linux-dtb package identity changed: $package_name"
+	fi
+}
 
 validate_kernel_output() {
 	output_root=$1
 	debs_dir=$output_root/debs
 	config_artifact=$output_root/ahub-experiment/linux-sunxi64-current.config
 	[ -d "$debs_dir" ] || die "Armbian kernel package output directory is missing: $debs_dir"
+	command -v dpkg-deb >/dev/null 2>&1 || die "dpkg-deb is required to validate the packaged kernel"
 	image_packages=$(find "$debs_dir" -maxdepth 1 -type f -name "$KERNEL_PACKAGE_GLOB" -printf '%f\n' | LC_ALL=C sort)
 	dtb_packages=$(find "$debs_dir" -maxdepth 1 -type f -name "$DTB_PACKAGE_GLOB" -printf '%f\n' | LC_ALL=C sort)
 	module_packages=$(find "$debs_dir" -maxdepth 1 -type f -name "$MODULE_PACKAGE_GLOB" -printf '%f\n' | LC_ALL=C sort)
 	header_packages=$(find "$debs_dir" -maxdepth 1 -type f -name "$HEADERS_PACKAGE_GLOB" -printf '%f\n' | LC_ALL=C sort)
 	image_count=$(printf '%s\n' "$image_packages" | sed '/^$/d' | wc -l | tr -d ' ')
 	dtb_count=$(printf '%s\n' "$dtb_packages" | sed '/^$/d' | wc -l | tr -d ' ')
-	header_count=$(printf '%s\n' "$header_packages" | sed '/^$/d' | wc -l | tr -d ' ')
 	[ "$image_count" -eq 1 ] || die "expected exactly one generated linux-image package, got $image_count"
 	image_package=$(printf '%s\n' "$image_packages" | sed '/^$/d')
 	[ -s "$debs_dir/$image_package" ] || die "generated linux-image package is empty: $image_package"
-	[ "$dtb_count" -gt 0 ] || die "no linux-dtb package was produced"
-	[ "$header_count" -eq 0 ] || die "linux-headers packages are forbidden for the deploy-only experiment: $header_packages"
-	for package in $dtb_packages $module_packages; do
-		[ -s "$debs_dir/$package" ] || die "generated kernel package is empty: $package"
+	[ "$dtb_count" -eq 1 ] || die "expected exactly one generated linux-dtb package, got $dtb_count"
+	dtb_package=$(printf '%s\n' "$dtb_packages" | sed '/^$/d')
+	[ -s "$debs_dir/$dtb_package" ] || die "generated linux-dtb package is empty: $dtb_package"
+	validate_package_metadata "$debs_dir/$image_package" image
+	validate_package_metadata "$debs_dir/$dtb_package" dtb
+	for package in "$debs_dir"/*.deb; do
+		[ -e "$package" ] || continue
+		case "$(basename "$package")" in
+			linux-image-*.deb|linux-dtb-*.deb|linux-modules-*.deb|linux-headers-*.deb|linux-libc-dev-*.deb) ;;
+			*) die "unexpected kernel package in native output: $(basename "$package")" ;;
+		esac
 	done
-	[ -f "$config_artifact" ] || die "built kernel config artifact is missing"
-	[ "$(sha256sum "$config_artifact" | cut -d ' ' -f1)" = "$(sha256sum "$STAGED_CONFIG" | cut -d ' ' -f1)" ] || die "built kernel config artifact differs from staged config"
+	image_root=$(mktemp -d "$TEMP_ROOT/ahub-image.XXXXXX")
+	dtb_root=$(mktemp -d "$TEMP_ROOT/ahub-dtb.XXXXXX")
+	dpkg-deb -x "$debs_dir/$image_package" "$image_root" >/dev/null
+	dpkg-deb -x "$debs_dir/$dtb_package" "$dtb_root" >/dev/null
+	if find "$image_root" "$dtb_root" -type f -name 'octessera-ahub0-pcm5102.dtbo' -print -quit | grep -q .; then
+		die "octessera DTBO is embedded in a deploy package"
+	fi
+	dtb_path=$dtb_root/boot/dtb-$KERNEL_ABI/allwinner/sun50i-h618-orangepi-zero2w.dtb
+	[ -s "$dtb_path" ] || die "generated H618 Zero2W DTB is missing"
+	image_dtb_path=$image_root/usr/lib/linux-image-$KERNEL_ABI/allwinner/sun50i-h618-orangepi-zero2w.dtb
+	[ -s "$image_dtb_path" ] || die "generated H618 Zero2W DTB is missing from linux-image"
+	config_path=$image_root/boot/config-$KERNEL_ABI
+	[ -f "$config_path" ] || die "packaged kernel config is missing: boot/config-$KERNEL_ABI"
+	mkdir -p "$output_root/ahub-experiment"
+	$PYTHON - "$config_path" "$config_artifact" <<'PY'
+import pathlib
+import shutil
+import sys
+
+required = {
+    "CONFIG_ARCH_SUNXI": "y", "CONFIG_SOUND": "y", "CONFIG_SND": "y", "CONFIG_SND_SOC": "y",
+    "CONFIG_REGMAP_MMIO": "y", "CONFIG_NVMEM_SUNXI_SID": "y", "CONFIG_SUNXI_SYS_INFO": "n",
+    "CONFIG_SND_SOC_GENERIC_DMAENGINE_PCM": "y", "CONFIG_SND_SOC_SUNXI_AHUB": "y",
+    "CONFIG_SND_SOC_SUNXI_AHUB_DAM": "y", "CONFIG_SND_SOC_SUNXI_MACH": "y", "CONFIG_SND_SOC_PCM5102A": "y",
+}
+values = {}
+for line in pathlib.Path(sys.argv[1]).read_text(encoding="utf-8").splitlines():
+    if line.startswith("# CONFIG_") and line.endswith(" is not set"):
+        key, value = line[2:].split(" ", 1)[0], "n"
+    elif line.startswith("CONFIG_") and "=" in line:
+        key, value = line.split("=", 1)
+    else:
+        continue
+    if key in values:
+        raise SystemExit(f"duplicate packaged kernel config entry: {key}")
+    values[key] = value
+for key, expected in required.items():
+    if values.get(key) != expected:
+        raise SystemExit(f"packaged kernel config violates {key}={expected}: {values.get(key)!r}")
+shutil.copyfile(sys.argv[1], sys.argv[2])
+PY
 	printf '%s\n' "generated_linux_image_package=$image_package"
-	printf '%s\n' "generated_linux_dtb_packages=$dtb_packages"
-	printf '%s\n' "generated_linux_modules_packages=$module_packages"
-	printf '%s\n' "linux_headers_packages=none-by-design"
+	printf '%s\n' "generated_linux_dtb_package=$dtb_package"
+	printf '%s\n' "native_linux_headers_packages=${header_packages:-none}" "native_linux_modules_packages=${module_packages:-none}"
+	printf '%s\n' "packaged_kernel_config=$config_artifact" "packaged_kernel_abi=$KERNEL_ABI"
+}
+
+validate_staged_artifact() {
+	staged_root=$1
+	staged_packages=$(find "$staged_root" -maxdepth 1 -type f -name '*.deb' -printf '%f\n' | LC_ALL=C sort)
+	staged_image_packages=$(find "$staged_root" -maxdepth 1 -type f -name "$KERNEL_PACKAGE_GLOB" -printf '%f\n' | LC_ALL=C sort)
+	staged_dtb_packages=$(find "$staged_root" -maxdepth 1 -type f -name "$DTB_PACKAGE_GLOB" -printf '%f\n' | LC_ALL=C sort)
+	staged_header_packages=$(find "$staged_root" -maxdepth 1 -type f -name "$HEADERS_PACKAGE_GLOB" -printf '%f\n' | LC_ALL=C sort)
+	[ "$(printf '%s\n' "$staged_image_packages" | sed '/^$/d' | wc -l | tr -d ' ')" -eq 1 ] || die "staged artifact must contain exactly one linux-image package"
+	[ "$(printf '%s\n' "$staged_dtb_packages" | sed '/^$/d' | wc -l | tr -d ' ')" -eq 1 ] || die "staged artifact must contain exactly one linux-dtb package"
+	[ -z "$(printf '%s\n' "$staged_header_packages" | sed '/^$/d')" ] || die "staged artifact contains forbidden linux-headers packages"
+	for package in $staged_packages; do
+		case "$package" in
+			linux-image-*.deb|linux-dtb-*.deb) ;;
+			*) die "staged artifact contains non-deploy package: $package" ;;
+		esac
+	done
+	[ -f "$staged_root/linux-sunxi64-current.config" ] || die "staged packaged kernel config is missing"
+}
+
+stage_deploy_artifacts() {
+	native_root=$1
+	staged_root=$2
+	mkdir -p "$staged_root"
+	image_package=$(find "$native_root/debs" -maxdepth 1 -type f -name "$KERNEL_PACKAGE_GLOB" -printf '%f\n')
+	dtb_package=$(find "$native_root/debs" -maxdepth 1 -type f -name "$DTB_PACKAGE_GLOB" -printf '%f\n')
+	cp "$native_root/debs/$image_package" "$staged_root/"
+	cp "$native_root/debs/$dtb_package" "$staged_root/"
+	cp "$native_root/ahub-experiment/linux-sunxi64-current.config" "$staged_root/"
+	validate_staged_artifact "$staged_root"
 }
 
 if [ "$MODE" = test ]; then
 	TEST_OUTPUT=$TEMP_ROOT/test-output
-	mkdir -p "$TEST_OUTPUT/debs" "$TEST_OUTPUT/ahub-experiment"
-	printf '%s\n' fixture > "$TEST_OUTPUT/debs/linux-image-current-sunxi64-test.deb"
-	printf '%s\n' fixture > "$TEST_OUTPUT/debs/linux-dtb-test.deb"
-	printf '%s\n' fixture > "$TEST_OUTPUT/debs/linux-modules-current-sunxi64-test.deb"
-	cp "$STAGED_CONFIG" "$TEST_OUTPUT/ahub-experiment/linux-sunxi64-current.config"
+	TEST_CONFIG=${AHUB_TEST_IMAGE_CONFIG:-$HERE/runtime-fixture/running-kernel.config}
+	[ -f "$TEST_CONFIG" ] || die "test packaged kernel config is missing: $TEST_CONFIG"
+	mkdir -p "$TEST_OUTPUT/debs"
+	make_test_deb() {
+		package_name=$1
+		control_package=$2
+		package_root=$(mktemp -d "$TEMP_ROOT/test-package.XXXXXX")
+		mkdir -p "$package_root/DEBIAN"
+		cat > "$package_root/DEBIAN/control" <<EOF
+Package: $control_package
+Version: ${AHUB_TEST_PACKAGE_VERSION:-$PACKAGE_REVISION}
+Section: kernel
+Priority: optional
+Architecture: ${AHUB_TEST_PACKAGE_ARCHITECTURE:-arm64}
+Maintainer: Octessera <octessera@example.invalid>
+Description: AHUB experiment fixture package
+EOF
+		if [ "$control_package" = linux-image-current-sunxi64 ]; then
+			printf '%s\n' "Source: linux-$KERNEL_VERSION" "Armbian-Kernel-Version: $KERNEL_VERSION" "Armbian-Kernel-Version-Family: $KERNEL_ABI" >> "$package_root/DEBIAN/control"
+			mkdir -p "$package_root/boot"
+			cp "$TEST_CONFIG" "$package_root/boot/config-$KERNEL_ABI"
+			if [ "${AHUB_TEST_MISSING_DTB:-no}" != yes ]; then
+				mkdir -p "$package_root/usr/lib/linux-image-$KERNEL_ABI/allwinner"
+				printf '%s\n' fixture > "$package_root/usr/lib/linux-image-$KERNEL_ABI/allwinner/sun50i-h618-orangepi-zero2w.dtb"
+			fi
+		else
+			if [ "${AHUB_TEST_MISSING_DTB:-no}" != yes ]; then
+				mkdir -p "$package_root/boot/dtb-$KERNEL_ABI/allwinner"
+				printf '%s\n' fixture > "$package_root/boot/dtb-$KERNEL_ABI/allwinner/sun50i-h618-orangepi-zero2w.dtb"
+			fi
+		fi
+		if [ "${AHUB_TEST_EMBED_DTBO:-no}" = yes ]; then
+			if [ "$control_package" = linux-image-current-sunxi64 ]; then
+				mkdir -p "$package_root/usr/lib/linux-image-$KERNEL_ABI/overlay"
+				printf '%s\n' fixture > "$package_root/usr/lib/linux-image-$KERNEL_ABI/overlay/octessera-ahub0-pcm5102.dtbo"
+			else
+				mkdir -p "$package_root/boot/dtb-$KERNEL_ABI/allwinner/overlay"
+				printf '%s\n' fixture > "$package_root/boot/dtb-$KERNEL_ABI/allwinner/overlay/octessera-ahub0-pcm5102.dtbo"
+			fi
+		fi
+		dpkg-deb --build "$package_root" "$TEST_OUTPUT/debs/$package_name" >/dev/null
+	}
+	make_test_deb "linux-image-current-sunxi64_${PACKAGE_REVISION}_arm64.deb" linux-image-current-sunxi64
+	make_test_deb "linux-dtb-current-sunxi64_${PACKAGE_REVISION}_arm64.deb" linux-dtb-current-sunxi64
+	if [ -n "${AHUB_TEST_EXTRA_PACKAGE:-}" ]; then
+		printf '%s\n' fixture > "$TEST_OUTPUT/debs/$AHUB_TEST_EXTRA_PACKAGE"
+	fi
 	validate_kernel_output "$TEST_OUTPUT"
+	STAGED_OUTPUT=$TEMP_ROOT/staged-output
+	stage_deploy_artifacts "$TEST_OUTPUT" "$STAGED_OUTPUT"
 	ARTIFACTS_STAGED=1
-	printf '%s\n' "test mode validated pinned full series, overlay merge, config, and kernel packages"
+	printf '%s\n' "staged_linux_image_package=$(find "$STAGED_OUTPUT" -maxdepth 1 -type f -name "$KERNEL_PACKAGE_GLOB" -printf '%f\n')" "staged_linux_dtb_package=$(find "$STAGED_OUTPUT" -maxdepth 1 -type f -name "$DTB_PACKAGE_GLOB" -printf '%f\n')" "staged_linux_headers_packages=none" "test mode validated pinned full series, native package selection, staged deploy artifacts, and packaged kernel config"
 elif [ "$MODE" = dry-run ]; then
 	printf '%s\n' "source=$SOURCE_DIR"
 	printf '%s\n' "source_commit=$COMMIT"
 	printf '%s\n' "source_patch_dir=$CORE_PATCH_DIR"
 	printf '%s\n' "source_series=$SERIES_PATH"
-	printf '%s\n' "source_series_patch_count=$SOURCE_PATCH_COUNT"
-	printf '%s\n' "kernel_config=$STAGED_CONFIG"
-	printf '%s\n' "user_patch_dir=$USER_PATCH_DIR"
-	printf '%s\n' "user_overlay=$STAGED_OVERLAY"
-	printf '%s\n' "package_input_hook=$PACKAGE_INPUT_HOOK"
-	printf '%s\n' "package_input_hook_target=$WORKTREE/$PACKAGE_INPUT_HOOK_TARGET"
-	printf '%s\n' "package_input_hook_placement=before_kernel_package_callback_linux_image"
-	printf '%s\n' "kernel_headers_disable_extension=$KERNEL_HEADERS_DISABLE_EXTENSION"
-	printf '%s\n' "kernel_headers_disable_hook_point=$KERNEL_HEADERS_DISABLE_HOOK_POINT"
-	printf '%s\n' "kernel_headers_option=$KERNEL_HEADERS_OPTION"
-	printf '%s\n' "kernel_headers_install_option=$KERNEL_HEADERS_INSTALL_OPTION"
+	printf '%s\n' "source_series_patch_count=$SOURCE_PATCH_COUNT" "kernel_config=$STAGED_CONFIG" "package_revision=$PACKAGE_REVISION" "kernel_abi=$KERNEL_ABI"
 	printf '%s\n' "kernel_package_glob=$KERNEL_PACKAGE_GLOB"
 	printf '%s\n' "dtb_package_glob=$DTB_PACKAGE_GLOB"
 	printf '%s\n' "module_package_glob=$MODULE_PACKAGE_GLOB"
@@ -289,11 +411,8 @@ else
 	mkdir -p "$OUTPUT_DIR"
 	[ -z "$(find "$OUTPUT_DIR" -mindepth 1 -maxdepth 1 -print -quit)" ] || die "--output must be empty"
 	( cd "$WORKTREE" && sh -c "$BUILD_COMMAND" )
-	mkdir -p "$WORKTREE/output/ahub-experiment"
-	cp "$STAGED_CONFIG" "$WORKTREE/output/ahub-experiment/linux-sunxi64-current.config"
 	validate_kernel_output "$WORKTREE/output"
-	cp -a "$WORKTREE/output/debs/." "$OUTPUT_DIR/"
-	cp "$WORKTREE/output/ahub-experiment/linux-sunxi64-current.config" "$OUTPUT_DIR/"
+	stage_deploy_artifacts "$WORKTREE/output" "$OUTPUT_DIR"
 	sha256sum "$OUTPUT_DIR"/* > "$OUTPUT_DIR/SHA256SUMS"
 	ARTIFACTS_STAGED=1
 	printf '%s\n' "experimental Armbian kernel packages written to $OUTPUT_DIR"

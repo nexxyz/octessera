@@ -7,30 +7,29 @@ import re
 import subprocess
 import sys
 
-EXPECTED_COMMIT = "166b786fc978d88f4ff9ee3e33c353afb39763e8"
+EXPECTED_COMMIT = "fa7a7b2294d9e760a77630950afd460b7a0b2a26"
 EXPECTED_REPOSITORY = "../../../.slim/clonedeps/repos/armbian__build"
-EXPECTED_KERNEL_PATCH_DIR = "patch/kernel/archive/sunxi-6.12"
-EXPECTED_STAGED_PATCH_DIR = "archive/sunxi-6.12"
+EXPECTED_KERNEL_PATCH_DIR = "patch/kernel/archive/sunxi-6.18"
+EXPECTED_STAGED_PATCH_DIR = "archive/sunxi-6.18"
 EXPECTED_SERIES = {
-    "path": "patch/kernel/archive/sunxi-6.12/series.conf",
-    "sha256": "256c5db677c7495281bf31258c3f2e10ee1464db31abbb27287f5e56036a843a",
-    "patch_count": 458,
-    "manifest_sha256": "52916c95aa5935d50bccbdb4d28c0a77782092d324af4211989769e6e1db5804",
+    "path": "patch/kernel/archive/sunxi-6.18/series.conf",
+    "sha256": "db0985a3842d9a41228b916872646a7c76d84c21da2195d0b06043f994981301",
+    "patch_count": 515,
+    "manifest_sha256": "be0a6a18ed02a5acf8c01cc7a661ee998248d48eb09fe2af5b87149857e87d3c",
 }
-EXPECTED_REQUIRED_SERIES = {
-    "patches.armbian/arm64-dts-h616-add-hdmi-support-for-zero2-and-zero3.patch",
-    "patches.armbian/Sound-for-H616-H618-Allwinner-SOCs.patch",
-    "patches.armbian/sun50i-h616-Add-the-missing-digital-audio-nodes.patch",
-}
+EXPECTED_REQUIRED_SERIES = (
+    "patches.armbian/0302-arm64-dts-sun50i-h618-orangepi-zero2w-add-emac-sound.patch",
+    "patches.armbian/0701-arm64-dts-sun50i-h616-orangepi-zero-enable-sound.patch",
+    "patches.armbian/0702-arm64-dts-sun50i-h616-add-digital-audio-node.patch",
+)
 EXPECTED_SOURCE = [
-    ("config/kernel/linux-sunxi64-current.config", "kernel-config", "07a1a6f808df491bfffb9dac16bb6a41d47567be991f5f6decd0d40480320a2f"),
-    ("lib/functions/artifacts/artifact-kernel.sh", "kernel-artifact-path", "b67b9a26773ebae0972d85a27f926116d46c1c4d124bda8b280ac6ad00ed0355"),
-    ("lib/functions/compilation/kernel-debs.sh", "kernel-package-path", "893015c81a2acf2e91e246c24b591a64ba6a02389bb219468e18ea0744f49984"),
+    ("config/kernel/linux-sunxi64-current.config", "kernel-config", "299e1aa0b2355fa9da03507e76a263833da7c69e73fdd8bbccbda3d7fdcc4363"),
+    ("lib/functions/artifacts/artifact-kernel.sh", "kernel-artifact-path", "65df2f4a9f8dc1e727b7b746fbe3b80f4a0f24b065250cc5081d52339be4a333"),
+    ("lib/functions/compilation/kernel-debs.sh", "kernel-package-path", "1f10314cdd8b7986bbcb7f4b2c7982d856862aaf1cfc627e85ced9d05f3ffdbb"),
 ]
 EXPECTED_ASSETS = [
     "README.md", "check-patch-stack.sh", "Kconfig.fragment", "h618-fixture-base.dts",
-    "octessera-ahub0-pi123-overlay.dts", "build-hooks/normalize-kernel-package-input.patch",
-    "extensions/ahub-disable-kernel-headers.sh",
+    "octessera-ahub0-pi123-overlay.dts",
     "preflight.py", "validate-fixture.sh",
     "deploy-rollback.sh", "build-ahub-experiment.sh", "test-validate.sh", "kernel-build-plan.json",
     "runtime-fixture/running-kernel.config", "runtime-fixture/asoc-registration.txt",
@@ -38,14 +37,21 @@ EXPECTED_ASSETS = [
 ]
 REQUIRED_CONFIG = {
     "CONFIG_ARCH_SUNXI": "y", "CONFIG_SOUND": "y", "CONFIG_SND": "y",
-    "CONFIG_SND_SOC": "y", "CONFIG_REGMAP_MMIO": "y", "CONFIG_SUNXI_SYS_INFO": "n",
+    "CONFIG_SND_SOC": "y", "CONFIG_REGMAP_MMIO": "y", "CONFIG_NVMEM_SUNXI_SID": "y",
+    "CONFIG_SUNXI_SYS_INFO": "n",
     "CONFIG_SND_SOC_GENERIC_DMAENGINE_PCM": "y",
     "CONFIG_SND_SOC_SUNXI_AHUB": "y", "CONFIG_SND_SOC_SUNXI_AHUB_DAM": "y",
     "CONFIG_SND_SOC_SUNXI_MACH": "y", "CONFIG_SND_SOC_PCM5102A": "y",
 }
+EXPECTED_FRAGMENT = [
+    "CONFIG_NVMEM_SUNXI_SID=y", "# CONFIG_SUNXI_SYS_INFO is not set", "CONFIG_SND_SOC_PCM5102A=y",
+]
+EXPECTED_CONFIG_OVERRIDES = {
+    "CONFIG_NVMEM_SUNXI_SID": "y", "CONFIG_SUNXI_SYS_INFO": "n", "CONFIG_SND_SOC_PCM5102A": "y",
+}
 EXPECTED_BASE_CONFIG = {
     "CONFIG_ARCH_SUNXI": "y", "CONFIG_SOUND": "y", "CONFIG_SND": "y",
-    "CONFIG_SND_SOC": "y",
+    "CONFIG_SND_SOC": "y", "CONFIG_SND_SOC_SUNXI_AHUB": "y", "CONFIG_NVMEM_SUNXI_SID": "y",
 }
 
 
@@ -116,6 +122,10 @@ def source_config(content):
         match = re.fullmatch(r"(CONFIG_[A-Za-z0-9_]+)=(\S.*)", line)
         if match:
             values[match.group(1)] = match.group(2)
+        else:
+            match = re.fullmatch(r"# (CONFIG_[A-Za-z0-9_]+) is not set", line)
+            if match:
+                values[match.group(1)] = "n"
     return values
 
 
@@ -123,12 +133,17 @@ def exact_config(path):
     values = {}
     for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         match = re.fullmatch(r"(CONFIG_[A-Za-z0-9_]+)=(y|m|n)", line)
-        if match is None:
+        if match is not None:
+            key, value = match.groups()
+        else:
+            match = re.fullmatch(r"# (CONFIG_[A-Za-z0-9_]+) is not set", line)
+            if match is None:
+                fail(f"invalid or duplicate build config entry at line {number}: {path}")
+                continue
+            key, value = match.group(1), "n"
+        if key in values:
             fail(f"invalid or duplicate build config entry at line {number}: {path}")
-            continue
-        if match.group(1) in values:
-            fail(f"invalid or duplicate build config entry at line {number}: {path}")
-        values[match.group(1)] = match.group(2)
+        values[key] = value
     return values
 
 
@@ -146,7 +161,7 @@ def main():
     if lock["schema"] != 1 or lock["source"]["repository"] != EXPECTED_REPOSITORY or lock["source"]["commit"] != EXPECTED_COMMIT:
         fail("source repository or commit is not pinned")
     if lock["source"]["kernel_patch_dir"] != EXPECTED_KERNEL_PATCH_DIR or lock["source"]["staged_patch_dir"] != EXPECTED_STAGED_PATCH_DIR:
-        fail("source kernel patch directory is not pinned to archive/sunxi-6.12")
+        fail("source kernel patch directory is not pinned to archive/sunxi-6.18")
     if lock["source"]["series"] != EXPECTED_SERIES:
         fail("full source series lock changed")
 
@@ -173,13 +188,16 @@ def main():
     source_blobs = git_blobs(source_dir, [EXPECTED_SERIES["path"], *source_paths])
     series_content = source_blobs[EXPECTED_SERIES["path"]]
     config_content = source_blobs[EXPECTED_SOURCE[0][0]]
+    if len(config_content.decode("utf-8").splitlines()) <= 1000:
+        fail("pinned source kernel config is not complete")
     for path, role, expected_hash in EXPECTED_SOURCE:
         if hashlib.sha256(source_blobs[path]).hexdigest() != expected_hash:
             fail(f"source SHA-256 mismatch: {role}")
     if hashlib.sha256(series_content).hexdigest() != EXPECTED_SERIES["sha256"]:
         fail("source SHA-256 mismatch: series.conf")
     series_paths = parse_series(series_content)
-    if len(series_paths) != EXPECTED_SERIES["patch_count"] or not EXPECTED_REQUIRED_SERIES.issubset(series_paths):
+    required_positions = [series_paths.index(path) for path in EXPECTED_REQUIRED_SERIES if path in series_paths]
+    if len(series_paths) != EXPECTED_SERIES["patch_count"] or len(required_positions) != len(EXPECTED_REQUIRED_SERIES) or required_positions != sorted(required_positions):
         fail("full series order or required AHUB patches changed")
     patch_paths = [f"{EXPECTED_KERNEL_PATCH_DIR}/{path}" for path in series_paths]
     blobs = git_blobs(source_dir, patch_paths)
@@ -225,10 +243,10 @@ def main():
         fail("fixture or deploy identity facts changed")
 
     build_config = exact_config(fixture_dir / "Kconfig.fragment")
-    if build_config != REQUIRED_CONFIG or (fixture_dir / "Kconfig.fragment").read_text(encoding="utf-8").splitlines() != [f"{key}={value}" for key, value in REQUIRED_CONFIG.items()]:
-        fail("kernel build config does not force the exact built-in AHUB/PCM5102 closure")
-    if build_config.get("CONFIG_SUNXI_SYS_INFO") != "n" or "CONFIG_NVMEM_SUNXI_SID" in build_config:
-        fail("experimental config carries the unrelated sysinfo/SID dependency")
+    if build_config != EXPECTED_CONFIG_OVERRIDES or (fixture_dir / "Kconfig.fragment").read_text(encoding="utf-8").splitlines() != EXPECTED_FRAGMENT:
+        fail("kernel config overrides are not the exact three-entry contract")
+    if build_config.get("CONFIG_SUNXI_SYS_INFO") != "n" or build_config.get("CONFIG_NVMEM_SUNXI_SID") != "y":
+        fail("experimental config does not carry the exact sysinfo/SID contract")
     config = source_config(config_content)
     for key, value in EXPECTED_BASE_CONFIG.items():
         if config.get(key) != value:
@@ -237,47 +255,29 @@ def main():
         fail("PCM5102A must be supplied by the experimental built-in config")
 
     plan = json.loads((fixture_dir / "kernel-build-plan.json").read_text(encoding="utf-8"), object_pairs_hook=pairs)
-    require_keys(plan, ["schema", "board", "branch", "source_commit", "kernel_patch_dir", "source_series", "source_series_patch_count", "kernel_config", "dtb", "overlay", "package_input_hook", "package_input_hook_target", "kernel_headers_disable_extension", "kernel_headers_disable_hook_point", "kernel_headers_option", "kernel_headers_install_option", "kernel_package_glob", "dtb_package_glob", "module_package_glob", "headers_package_glob", "required_package_globs", "optional_package_globs", "forbidden_package_globs", "runtime_output_validator", "required_config"], "kernel build plan")
+    require_keys(plan, ["schema", "board", "branch", "source_commit", "package_revision", "kernel_abi", "kernel_patch_dir", "source_series", "source_series_patch_count", "source_config", "kernel_config", "dtb", "kernel_package_glob", "dtb_package_glob", "module_package_glob", "headers_package_glob", "required_package_globs", "optional_package_globs", "native_extra_package_globs", "forbidden_package_globs", "runtime_output_validator", "required_config"], "kernel build plan")
     expected_plan = {
         "schema": 1, "board": "orangepizero2w", "branch": "current", "source_commit": EXPECTED_COMMIT,
-        "kernel_patch_dir": EXPECTED_STAGED_PATCH_DIR, "kernel_config": "Kconfig.fragment",
-        "source_series": "patch/kernel/archive/sunxi-6.12/series.conf", "source_series_patch_count": 458,
-        "dtb": "sun50i-h618-orangepi-zero2w.dtb", "overlay": "octessera-ahub0-pi123-overlay.dts",
-        "package_input_hook": "build-hooks/normalize-kernel-package-input.patch",
-        "package_input_hook_target": "lib/functions/compilation/kernel-debs.sh",
-        "kernel_headers_disable_extension": "extensions/ahub-disable-kernel-headers.sh",
-        "kernel_headers_disable_hook_point": "extension_finish_config",
-        "kernel_headers_option": "KERNEL_HAS_WORKING_HEADERS=no",
-        "kernel_headers_install_option": "INSTALL_HEADERS=no",
+        "package_revision": "26.8.0-trunk.413", "kernel_abi": "6.18.38-current-sunxi64",
+        "kernel_patch_dir": EXPECTED_STAGED_PATCH_DIR,
+        "source_series": "patch/kernel/archive/sunxi-6.18/series.conf", "source_series_patch_count": 515,
+        "source_config": "config/kernel/linux-sunxi64-current.config", "kernel_config": "Kconfig.fragment",
+        "dtb": "sun50i-h618-orangepi-zero2w.dtb",
         "kernel_package_glob": "linux-image-*.deb",
         "dtb_package_glob": "linux-dtb-*.deb",
         "module_package_glob": "linux-modules-*.deb",
         "headers_package_glob": "linux-headers-*.deb",
         "required_package_globs": ["linux-image-*.deb", "linux-dtb-*.deb"],
-        "optional_package_globs": ["linux-modules-*.deb"],
-        "forbidden_package_globs": ["linux-headers-*.deb"],
-        "runtime_output_validator": "required-image-and-dtb-optional-modules-headers-forbidden",
+        "optional_package_globs": [],
+        "native_extra_package_globs": ["linux-modules-*.deb", "linux-headers-*.deb", "linux-libc-dev-*.deb"],
+        "forbidden_package_globs": ["linux-modules-*.deb", "linux-headers-*.deb"],
+        "runtime_output_validator": "required-image-and-dtb-staged-only-native-extra-packages-permitted",
         "required_config": REQUIRED_CONFIG,
     }
     if plan != expected_plan:
         fail("kernel build plan is not pinned to the full built-in AHUB experiment")
     if exact_config(fixture_dir / "runtime-fixture/running-kernel.config") != REQUIRED_CONFIG:
         fail("running-kernel.config does not prove built-in PCM5102/AHUB support")
-    package_hook = (fixture_dir / "build-hooks/normalize-kernel-package-input.patch").read_text(encoding="utf-8")
-    for fact in ["function ahub_normalize_kernel_package_inputs()", "ahub_normalize_kernel_package_inputs", "for stem in vmlinuz config System.map", "${expected_path}-dirty"]:
-        if fact not in package_hook:
-            fail(f"package input hook is missing required fact: {fact}")
-    headers_extension = (fixture_dir / "extensions/ahub-disable-kernel-headers.sh").read_text(encoding="utf-8")
-    for fact in [
-        "function extension_finish_config__ahub_disable_kernel_headers()",
-        'KERNEL_HAS_WORKING_HEADERS="no"',
-        'INSTALL_HEADERS="no"',
-        'KERNEL_MAJOR_MINOR}" == "6.12"',
-    ]:
-        if fact not in headers_extension:
-            fail(f"kernel headers extension is missing required fact: {fact}")
-    if "Module.symvers" in headers_extension or "modules_prepare" in headers_extension or "run_kernel_make" in headers_extension:
-        fail("kernel headers extension must not build or fake Module.symvers")
     asoc_log = (fixture_dir / "runtime-fixture/asoc-registration.txt").read_text(encoding="utf-8")
     for fact in ["snd_soc_register_card: octessera-dac", "sunxi-snd-mach: card=octessera-dac cpu=octessera_plat codec=pcm5102a", "pcm5102a-codec: ti,pcm5102a registered", "sunxi-snd-mach: card=HDMI cpu=ahub1_plat codec=hdmi registered"]:
         if fact not in asoc_log:
