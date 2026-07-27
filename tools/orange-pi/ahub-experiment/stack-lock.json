@@ -18,16 +18,16 @@
     }
   },
   "assets": [
-    { "path": "README.md", "sha256": "3fad71d55ebbd9c5f2fd53e57b77c75fbe36880420c59b66fdc1f1b5ab5f5043" },
+    { "path": "README.md", "sha256": "0cac9ab0d071c3bef6de5f096af67401f5476fa546a957b069537c3c0daf0e8d" },
     { "path": "check-patch-stack.sh", "sha256": "6c5c49b9c9a05ed2c2aada63a0ebebd8b4c949c51b27fd2e57d5ea476de46d4a" },
     { "path": "Kconfig.fragment", "sha256": "555c73973a0142187e8ef0f2721f4f67d53f9499744ddab3a9d318534b371d46" },
-    { "path": "h618-fixture-base.dts", "sha256": "d2e3ce52853b04e8dab48f3a0fc1674de3ce18e65cebd7ea08c9603e7e7d6d18" },
+    { "path": "h618-fixture-base.dts", "sha256": "1e5dbc99a8a9ebebd78ad62bb0540e0950e5e481370d4b90bb481933688588c2" },
     { "path": "octessera-ahub0-pi123-overlay.dts", "sha256": "e62cbf6253b550204dea0544bfc9a68ebfe50c1d8f1301dc978243a4af3b5ec8" },
-    { "path": "preflight.py", "sha256": "e836c2054e3abb40c808bedfdb0299cef3ef6a61de61e7f691e2a070af5d7445" },
-    { "path": "validate-fixture.sh", "sha256": "99bbc950e1daf9a87637dde56f4ccb386d70bf02ff681b2d577adc79d01de275" },
-    { "path": "deploy-rollback.sh", "sha256": "ad1d50f67451bbb9dc44dedbd59d01013cd1a0bce2bd7abf3fdceadb6d4abd8d" },
+    { "path": "preflight.py", "sha256": "1905f1c032a61105dfd516ce36c3b4ffef6df6d112fe70031b9afad8edc3f3cb" },
+    { "path": "validate-fixture.sh", "sha256": "0b1c062b49bae7799398f0ef8e62b0a48cf2bc30dedd42813b2423bf8ff32e05" },
+    { "path": "deploy-rollback.sh", "sha256": "3262a990fd5f3bd1412bf3fdd1913bd5bf07fbd82b087f977082ca097b676cb5" },
     { "path": "build-ahub-experiment.sh", "sha256": "dc28e3e2d7772b76a7b65de4715ebc9e707363b44f6fd614bce88b6523e5d93e" },
-    { "path": "test-validate.sh", "sha256": "759c3c16d9717e439f551bea99345b46296cb86363c5613ac38bf95b4d8f3411" },
+    { "path": "test-validate.sh", "sha256": "b5f8d166f4f73525b6c16f81d03d88644c90cd7b1df06e60d96e93c014483446" },
     { "path": "kernel-build-plan.json", "sha256": "a1cd9518ad588b33fb30e851e48f5c03869ca982ee800f5e4f04109f46037dcf" },
     { "path": "runtime-fixture/running-kernel.config", "sha256": "f8694e84262cfb39b0b1425ad7f5c2d6f587b8324a6c2b6cffc90e709d2d3779" },
     { "path": "runtime-fixture/asoc-registration.txt", "sha256": "82575fb53ee94123e7be51fd036c82b211164dcb6a8aeb253a7980188d3012b6" },
@@ -37,8 +37,8 @@
     "base": "h618-fixture-base.dts",
     "overlay": "octessera-ahub0-pi123-overlay.dts",
     "kconfig": "Kconfig.fragment",
-    "preserve_nodes": ["/serial@5000000", "/serial@5002000", "/spi@5010000", "/i2c@5003000", "/hdmi@6000000", "/codec@5096000", "/main-encoder", "/ahub1_plat", "/ahub1_mach"],
-    "expected_root_children": ["ahub1_mach", "ahub1_plat", "ahub_dam_mach", "ahub_dam_plat", "aliases", "chosen", "codec@5096000", "dma-controller@3002000", "hdmi@6000000", "i2c@5003000", "main-encoder", "octessera-dac", "octessera_plat", "pcm5102a", "pinctrl@300b000", "serial@5000000", "serial@5002000", "spi@5010000"]
+    "preserve_nodes": ["/serial@5000000", "/serial@5002000", "/spi@5010000", "/i2c@5003000", "/hdmi@6000000", "/codec@5096000", "/main-encoder", "/soc/ahub1_plat", "/soc/ahub1_mach"],
+    "expected_root_children": ["ahub_dam_mach", "ahub_dam_plat", "aliases", "chosen", "codec@5096000", "dma-controller@3002000", "hdmi@6000000", "i2c@5003000", "main-encoder", "pinctrl@300b000", "serial@5000000", "serial@5002000", "soc", "spi@5010000"]
   },
   "deploy": {
     "board": "orangepizero2w",

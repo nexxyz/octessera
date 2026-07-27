@@ -147,15 +147,48 @@ case \"\$compat\" in
   *xunlong,orangepi-zero2w*allwinner,sun50i-h618*|*allwinner,sun50i-h618*xunlong,orangepi-zero2w*) ;;
   *) exit 21 ;;
 esac
+root_children=\$(fdtget -l '$DTB_PATH' /)
+for node in ahub1_plat ahub1_mach octessera_plat pcm5102a octessera-dac; do
+  if printf '%s\n' \"\$root_children\" | grep -Fxq \"\$node\"; then
+    exit 22
+  fi
+done
 fdtoverlay -i '$DTB_PATH' -o '$REMOTE_STAGE.merged' '$REMOTE_STAGE'
-test \"\$(fdtget -t s '$REMOTE_STAGE.merged' /octessera-dac soundcard-mach,name)\" = octessera-dac
-test \"\$(fdtget '$REMOTE_STAGE.merged' /octessera-dac/soundcard-mach,cpu soundcard-mach,mclk-fs)\" = 0
+merged_root_children=\$(fdtget -l '$REMOTE_STAGE.merged' /)
+for node in ahub1_plat ahub1_mach; do
+  if printf '%s\n' \"\$merged_root_children\" | grep -Fxq \"\$node\"; then
+    exit 23
+  fi
+done
+test \"\$(fdtget '$REMOTE_STAGE.merged' /octessera_plat status)\" = okay
+test \"\$(fdtget '$REMOTE_STAGE.merged' /octessera_plat apb_num)\" = 0
+test \"\$(fdtget '$REMOTE_STAGE.merged' /octessera_plat tdm_num)\" = 0
+dma_values=\$(fdtget -t x '$REMOTE_STAGE.merged' /octessera_plat dmas)
+set -- \$dma_values
+test \"\$#\" = 4
+test \"\$2\" = 3
+test \"\$4\" = 3
+test \"\$1\" = \"\$3\"
+test \"\$(fdtget '$REMOTE_STAGE.merged' /octessera_plat pinctrl-0)\" = \"\$(fdtget '$REMOTE_STAGE.merged' /pinctrl@300b000/ahub0-pins phandle)\"
+test \"\$(fdtget -t s '$REMOTE_STAGE.merged' /pinctrl@300b000/ahub0-pins function)\" = i2s0
+test \"\$(fdtget -t s '$REMOTE_STAGE.merged' /pinctrl@300b000/ahub0-pins pins)\" = \"PI1 PI2 PI3\"
 test \"\$(fdtget -t s '$REMOTE_STAGE.merged' /pcm5102a compatible)\" = ti,pcm5102a
-test \"\$(fdtget '$REMOTE_STAGE.merged' /ahub1_mach status)\" = disabled
-test \"\$(fdtget '$REMOTE_STAGE.merged' /ahub_dam_mach status)\" = disabled
+test \"\$(fdtget '$REMOTE_STAGE.merged' /pcm5102a status)\" = okay
+test \"\$(fdtget -t s '$REMOTE_STAGE.merged' /octessera-dac soundcard-mach,name)\" = octessera-dac
 test \"\$(fdtget '$REMOTE_STAGE.merged' /octessera-dac status)\" = okay
-test \"\$(fdtget '$REMOTE_STAGE.merged' /ahub1_plat tdm_num)\" = 0
-test \"\$(fdtget '$REMOTE_STAGE.merged' /ahub1_plat tx_pin)\" = 0
+cpu_phandle=\$(fdtget '$REMOTE_STAGE.merged' /octessera-dac/soundcard-mach,cpu phandle)
+test \"\$(fdtget '$REMOTE_STAGE.merged' /octessera-dac/soundcard-mach,cpu sound-dai)\" = \"\$(fdtget '$REMOTE_STAGE.merged' /octessera_plat phandle)\"
+test \"\$(fdtget '$REMOTE_STAGE.merged' /octessera-dac/soundcard-mach,codec sound-dai)\" = \"\$(fdtget '$REMOTE_STAGE.merged' /pcm5102a phandle)\"
+test \"\$(fdtget '$REMOTE_STAGE.merged' /octessera-dac soundcard-mach,frame-master)\" = \"\$cpu_phandle\"
+test \"\$(fdtget '$REMOTE_STAGE.merged' /octessera-dac soundcard-mach,bitclock-master)\" = \"\$cpu_phandle\"
+if fdtget '$REMOTE_STAGE.merged' /octessera-dac soundcard-mach,mclk-fs >/dev/null 2>&1 || fdtget '$REMOTE_STAGE.merged' /octessera-dac/soundcard-mach,cpu soundcard-mach,mclk-fs >/dev/null 2>&1; then
+  exit 24
+fi
+test \"\$(fdtget '$REMOTE_STAGE.merged' /soc/ahub1_plat status)\" = okay
+test \"\$(fdtget '$REMOTE_STAGE.merged' /soc/ahub1_plat tdm_num)\" = 1
+test \"\$(fdtget -t s '$REMOTE_STAGE.merged' /soc/ahub1_mach soundcard-mach,name)\" = HDMI
+test \"\$(fdtget '$REMOTE_STAGE.merged' /soc/ahub1_mach/soundcard-mach,cpu sound-dai)\" = \"\$(fdtget '$REMOTE_STAGE.merged' /soc/ahub1_plat phandle)\"
+test \"\$(fdtget '$REMOTE_STAGE.merged' /ahub_dam_mach status)\" = disabled
 rm -f '$REMOTE_STAGE.merged'"
 }
 

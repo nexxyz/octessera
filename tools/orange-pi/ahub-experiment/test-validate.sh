@@ -142,6 +142,10 @@ mutate_lock '"patch_count": 515' '"patch_count": 514'
 expect_failure 'preflight rejects incomplete full source series' "$PYTHON" "$CASE_DIR/preflight.py" "$CASE_DIR"
 
 copy_case
+mutate_case h618-fixture-base.dts 'soc {' 'legacy_hdmi {'
+expect_failure 'preflight rejects HDMI nodes outside soc' "$PYTHON" "$CASE_DIR/preflight.py" "$CASE_DIR"
+
+copy_case
 mutate_case kernel-build-plan.json '"kernel_source_commit": "e46dc0adfe39724bcf52cea47b8f9c9aed86a394"' '"kernel_source_commit": "branch:current"'
 expect_failure 'dry-run rejects rolling kernel source branch' "$CASE_DIR/build-ahub-experiment.sh" --dry-run
 
@@ -296,6 +300,17 @@ grep -F -- '-o BatchMode=yes -o ConnectTimeout=10 --' "$FAKE_DIR/ssh.log" >/dev/
 grep -F -- '-o BatchMode=yes -o ConnectTimeout=10 --' "$FAKE_DIR/scp.log" >/dev/null || die "default SSH_BATCH_MODE was not passed to scp"
 grep -F 'grep "^BOARD=" /etc/armbian-release | cut -d= -f2 | sed -n "1p"' "$FAKE_DIR/ssh.log" >/dev/null || die "remote BOARD extraction was not generated safely"
 grep -F 'orangepizero2w' "$FAKE_DIR/ssh.log" >/dev/null || die "strict BOARD identity check was not generated"
+grep -F 'root_children=' "$FAKE_DIR/ssh.log" >/dev/null || die "base root-node exclusion was not generated"
+grep -F '/octessera_plat apb_num' "$FAKE_DIR/ssh.log" >/dev/null || die "AHUB0 APB validation was not generated"
+grep -F '/octessera_plat dmas' "$FAKE_DIR/ssh.log" >/dev/null || die "AHUB0 DMA validation was not generated"
+grep -F '/pinctrl@300b000/ahub0-pins function' "$FAKE_DIR/ssh.log" >/dev/null || die "AHUB0 pinctrl validation was not generated"
+grep -F '/octessera-dac soundcard-mach,frame-master' "$FAKE_DIR/ssh.log" >/dev/null || die "DAC frame-master validation was not generated"
+grep -F '/soc/ahub1_plat tdm_num' "$FAKE_DIR/ssh.log" >/dev/null || die "preserved HDMI TDM validation was not generated"
+grep -F '/soc/ahub1_mach/soundcard-mach,cpu' "$FAKE_DIR/ssh.log" >/dev/null || die "preserved HDMI CPU validation was not generated"
+grep -F 'soundcard-mach,mclk-fs' "$FAKE_DIR/ssh.log" >/dev/null || die "MCLK absence validation was not generated"
+if grep -F '/ahub1_mach status)" = disabled' "$FAKE_DIR/ssh.log" >/dev/null || grep -F '/ahub1_plat tdm_num)" = 0' "$FAKE_DIR/ssh.log" >/dev/null; then
+	die "remote validation retained obsolete root HDMI expectations"
+fi
 grep -F '/boot/dtb-6.18.38-current-sunxi64/allwinner/overlay/octessera-ahub0-pcm5102.dtbo' "$FAKE_DIR/ssh.log" >/dev/null || die "versioned sibling overlay path was not derived"
 if grep -F '/boot/dtb/allwinner/overlay' "$FAKE_DIR/ssh.log" >/dev/null; then
 	die "deployment retained the old hardcoded overlay path"
