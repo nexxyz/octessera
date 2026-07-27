@@ -1,0 +1,22 @@
+diff --git a/lib/functions/compilation/kernel-debs.sh b/lib/functions/compilation/kernel-debs.sh
+--- a/lib/functions/compilation/kernel-debs.sh
++++ b/lib/functions/compilation/kernel-debs.sh
+@@ -40,3 +40,12 @@
+ }
+ 
++function ahub_prepare_kernel_headers() {
++	display_alert "Preparing linux-headers sources" "${kernel_work_dir}" "info"
++	run_kernel_make modules_prepare
++	[[ -s "${kernel_work_dir}/Module.symvers" ]] || {
++		display_alert "Preparing linux-headers sources" "Module.symvers is missing or empty after modules_prepare" "err"
++		return 1
++	}
++}
++
+ function prepare_kernel_packaging_debs() {
+@@ -81,4 +81,5 @@
+ 	if [[ "${KERNEL_DTB_ONLY}" != "yes" ]]; then
+ 		if [[ "${KERNEL_HAS_WORKING_HEADERS}" == "yes" ]]; then
++			ahub_prepare_kernel_headers
+ 			display_alert "Packaging linux-headers" "${LINUXFAMILY} ${LINUXCONFIG}" "info"
+ 			create_kernel_deb "linux-headers-${BRANCH}-${LINUXFAMILY}" "${debs_target_dir}" kernel_package_callback_linux_headers "linux-headers"
