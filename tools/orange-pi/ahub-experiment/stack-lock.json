@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "source": {
+    "repository": "../../../.slim/clonedeps/repos/armbian__build",
+    "commit": "166b786fc978d88f4ff9ee3e33c353afb39763e8",
+    "kernel_patch_dir": "patch/kernel/archive/sunxi-6.12",
+    "staged_patch_dir": "archive/sunxi-6.12",
+    "files": [
+      { "path": "config/kernel/linux-sunxi64-current.config", "role": "kernel-config", "sha256": "07a1a6f808df491bfffb9dac16bb6a41d47567be991f5f6decd0d40480320a2f" }
+    ],
+    "series": {
+      "path": "patch/kernel/archive/sunxi-6.12/series.conf",
+      "sha256": "256c5db677c7495281bf31258c3f2e10ee1464db31abbb27287f5e56036a843a",
+      "patch_count": 458,
+      "manifest_sha256": "52916c95aa5935d50bccbdb4d28c0a77782092d324af4211989769e6e1db5804"
+    }
+  },
+  "assets": [
+    { "path": "README.md", "sha256": "4fe11b9bf006937a88cd805beff4a5acd63dfc02893a369a6749861db4b3f9a8" },
+    { "path": "check-patch-stack.sh", "sha256": "ee6221719608ad5ee6fd1d4700893f08389b527ed2bf53ea36c5ff0b86296c91" },
+    { "path": "Kconfig.fragment", "sha256": "8d91df16998c433297c33ba22fdf1d54fbcf4e5377a85e48137d731e7cabb0e0" },
+    { "path": "h618-fixture-base.dts", "sha256": "d2e3ce52853b04e8dab48f3a0fc1674de3ce18e65cebd7ea08c9603e7e7d6d18" },
+    { "path": "octessera-ahub0-pi123-overlay.dts", "sha256": "e62cbf6253b550204dea0544bfc9a68ebfe50c1d8f1301dc978243a4af3b5ec8" },
+    { "path": "preflight.py", "sha256": "ad1ad2066197002b8ba324c18c5477c96992229d7819e59cfde9cd3295db1eef" },
+    { "path": "validate-fixture.sh", "sha256": "99bbc950e1daf9a87637dde56f4ccb386d70bf02ff681b2d577adc79d01de275" },
+    { "path": "deploy-rollback.sh", "sha256": "d66f0dd0ce9502c47cc29d221e56dc2fc0cbdb31d7c483a6ce249f6bc6bff459" },
+    { "path": "build-ahub-experiment.sh", "sha256": "a8e7fdf4b6f2c59ec6816dc2b17945534a6a24b6b0f362574473d70f7edbffc0" },
+    { "path": "test-validate.sh", "sha256": "cd4f6df0e77210eec520f31ad7fb2dd8784c13546ab8713450be065e39102f0a" },
+    { "path": "kernel-build-plan.json", "sha256": "a10a2cd6bd20ab4049e591154046f21c1f33632587069811d0ccf5b68cdfb78d" },
+    { "path": "runtime-fixture/running-kernel.config", "sha256": "8d91df16998c433297c33ba22fdf1d54fbcf4e5377a85e48137d731e7cabb0e0" },
+    { "path": "runtime-fixture/asoc-registration.txt", "sha256": "82575fb53ee94123e7be51fd036c82b211164dcb6a8aeb253a7980188d3012b6" },
+    { "path": "runtime-fixture/deferred-probes.txt", "sha256": "fee191a7647a2cbeb6babcbe319318700d5f1440be94442f3c0d6ab747b7731f" }
+  ],
+  "fixture": {
+    "base": "h618-fixture-base.dts",
+    "overlay": "octessera-ahub0-pi123-overlay.dts",
+    "kconfig": "Kconfig.fragment",
+    "preserve_nodes": ["/serial@5000000", "/serial@5002000", "/spi@5010000", "/i2c@5003000", "/hdmi@6000000", "/codec@5096000", "/main-encoder", "/ahub1_plat", "/ahub1_mach"],
+    "expected_root_children": ["ahub1_mach", "ahub1_plat", "ahub_dam_mach", "ahub_dam_plat", "aliases", "chosen", "codec@5096000", "dma-controller@3002000", "hdmi@6000000", "i2c@5003000", "main-encoder", "octessera-dac", "octessera_plat", "pcm5102a", "pinctrl@300b000", "serial@5000000", "serial@5002000", "spi@5010000"]
+  },
+  "deploy": {
+    "board": "orangepizero2w",
+    "dtb_path": "/boot/dtb/allwinner/sun50i-h618-orangepi-zero2w.dtb",
+    "overlay_path": "/boot/dtb/allwinner/overlay/octessera-ahub0-pcm5102.dtbo",
+    "overlay_name": "octessera-ahub0-pcm5102",
+    "env_path": "/boot/armbianEnv.txt",
+    "compatible": ["xunlong,orangepi-zero2w", "allwinner,sun50i-h618"]
+  }
+}
