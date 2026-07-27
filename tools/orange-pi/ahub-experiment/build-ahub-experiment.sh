@@ -221,7 +221,7 @@ grep -F 'overlay-directories:' "$USER_PATCH_DIR/0000.patching_config.yaml" >/dev
 grep -F '{ source: "overlay_64", target: "arch/arm64/boot/dts/allwinner/overlay" }' "$USER_PATCH_DIR/0000.patching_config.yaml" >/dev/null || die "overlay merge target changed"
 printf '%s\n' "source_patch_dir=$CORE_PATCH_DIR" "source_series=$SERIES_PATH" "source_series_patch_count=$SOURCE_PATCH_COUNT" "user_patch_dir=$USER_PATCH_DIR" "user_overlay=$STAGED_OVERLAY" "package_input_hook=$PACKAGE_INPUT_HOOK" "package_input_hook_target=$WORKTREE/$PACKAGE_INPUT_HOOK_TARGET" "package_input_hook_placement=before_kernel_package_callback_linux_image" "kernel_headers_disable_extension=$KERNEL_HEADERS_DISABLE_EXTENSION" "kernel_headers_disable_hook_point=$KERNEL_HEADERS_DISABLE_HOOK_POINT" "kernel_headers_option=$KERNEL_HEADERS_OPTION" "kernel_headers_install_option=$KERNEL_HEADERS_INSTALL_OPTION"
 
-BUILD_COMMAND="EXT=$KERNEL_HEADERS_DISABLE_EXTENSION_NAME ./compile.sh kernel BOARD=orangepizero2w BRANCH=current KERNELPATCHDIR=$STAGED_PATCH_DIR_NAME KERNEL_CONFIGURE=no KERNEL_KEEP_CONFIG=no NON_INTERACTIVE=yes"
+BUILD_COMMAND="./compile.sh kernel EXT=$KERNEL_HEADERS_DISABLE_EXTENSION_NAME BOARD=orangepizero2w BRANCH=current KERNELPATCHDIR=$STAGED_PATCH_DIR_NAME KERNEL_CONFIGURE=no KERNEL_KEEP_CONFIG=no NON_INTERACTIVE=yes"
 
 validate_kernel_output() {
 	output_root=$1
