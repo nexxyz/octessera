@@ -25,9 +25,20 @@ if printf '%s\n' "$STAGING_OUTPUT" | grep -F -- 'staged_patch_files=' >/dev/null
 fi
 PLAN_OUTPUT=$("$HERE/build-ahub-experiment.sh" --dry-run)
 case "$PLAN_OUTPUT" in
-	*"source_commit=166b786fc978d88f4ff9ee3e33c353afb39763e8"*"compile.sh kernel"*"KERNELPATCHDIR=archive/sunxi-6.12"*"KERNEL_CONFIGURE=no"*"KERNEL_KEEP_CONFIG=no"*"package_input_hook_placement=before_kernel_package_callback_linux_image"*) ;;
+	*"source_commit=166b786fc978d88f4ff9ee3e33c353afb39763e8"*"compile.sh kernel"*"KERNELPATCHDIR=archive/sunxi-6.12"*"KERNEL_CONFIGURE=no"*"KERNEL_KEEP_CONFIG=no"*) ;;
 	*) die "dry-run build plan is incomplete" ;;
 esac
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'source_series=/' >/dev/null || die "dry-run build plan is missing the source series"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- '/patch/kernel/archive/sunxi-6.12/series.conf' >/dev/null || die "dry-run build plan source series path changed"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'source_series_patch_count=458' >/dev/null || die "dry-run build plan source series count changed"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'kernel_config=' >/dev/null || die "dry-run build plan is missing the kernel config"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'linux-sunxi64-current.config' >/dev/null || die "dry-run build plan config path changed"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'user_overlay=' >/dev/null || die "dry-run build plan is missing the custom overlay"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'octessera-ahub0-pi123.dtso' >/dev/null || die "dry-run build plan overlay path changed"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'userpatches/build-hooks/normalize-kernel-package-input.patch' >/dev/null || die "dry-run build plan is missing the package hook"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'package_input_hook_placement=before_kernel_package_callback_linux_image' >/dev/null || die "dry-run package hook placement changed"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'kernel_package_glob=linux-image-*.deb' >/dev/null || die "dry-run package glob changed"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'runtime_output_validator=one-nonempty-linux-image-package' >/dev/null || die "dry-run artifact validation changed"
 case "$PLAN_OUTPUT" in
 	*"BUILD_MINIMAL"*|*"BUILD_DESKTOP"*|*"compile.sh build"*|*"output/images"*) die "dry-run still contains a rootfs/image stage" ;;
 esac

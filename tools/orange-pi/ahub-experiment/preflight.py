@@ -217,14 +217,16 @@ def main():
         fail("PCM5102A must be supplied by the experimental built-in config")
 
     plan = json.loads((fixture_dir / "kernel-build-plan.json").read_text(encoding="utf-8"), object_pairs_hook=pairs)
-    require_keys(plan, ["schema", "board", "branch", "source_commit", "kernel_patch_dir", "kernel_config", "dtb", "overlay", "package_input_hook", "package_input_hook_target", "kernel_package_glob", "required_config"], "kernel build plan")
+    require_keys(plan, ["schema", "board", "branch", "source_commit", "kernel_patch_dir", "source_series", "source_series_patch_count", "kernel_config", "dtb", "overlay", "package_input_hook", "package_input_hook_target", "kernel_package_glob", "runtime_output_validator", "required_config"], "kernel build plan")
     expected_plan = {
         "schema": 1, "board": "orangepizero2w", "branch": "current", "source_commit": EXPECTED_COMMIT,
         "kernel_patch_dir": EXPECTED_STAGED_PATCH_DIR, "kernel_config": "Kconfig.fragment",
+        "source_series": "patch/kernel/archive/sunxi-6.12/series.conf", "source_series_patch_count": 458,
         "dtb": "sun50i-h618-orangepi-zero2w.dtb", "overlay": "octessera-ahub0-pi123-overlay.dts",
         "package_input_hook": "build-hooks/normalize-kernel-package-input.patch",
         "package_input_hook_target": "lib/functions/compilation/kernel-debs.sh",
-        "kernel_package_glob": "linux-image-*.deb", "required_config": REQUIRED_CONFIG,
+        "kernel_package_glob": "linux-image-*.deb", "runtime_output_validator": "one-nonempty-linux-image-package",
+        "required_config": REQUIRED_CONFIG,
     }
     if plan != expected_plan:
         fail("kernel build plan is not pinned to the full built-in AHUB experiment")
