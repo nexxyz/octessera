@@ -5,9 +5,9 @@ HERE=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 REPO_ROOT=$(CDPATH='' cd -- "$HERE/../../.." && pwd)
 PYTHON=${PYTHON:-python3}
 KERNEL_SOURCE=
-KERNEL_COMMIT=e0e2f78243385e7188a57fcfceb6a19f723f1dff
+KERNEL_COMMIT=e46dc0adfe39724bcf52cea47b8f9c9aed86a394
 ARMBIAN_SOURCE_DIR=${ARMBIAN_SOURCE_DIR:-$REPO_ROOT/.slim/clonedeps/repos/armbian__build}
-PATCH_DIR=patch/kernel/archive/sunxi-6.12
+PATCH_DIR=patch/kernel/archive/sunxi-6.18
 TEMP_ROOT=
 WORKTREE=
 

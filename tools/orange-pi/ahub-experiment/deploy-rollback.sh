@@ -138,9 +138,10 @@ command -v fdtoverlay >/dev/null
 command -v sha256sum >/dev/null
 config=/boot/config-\$(uname -r)
 test -r \"\$config\"
-for symbol in CONFIG_ARCH_SUNXI CONFIG_SOUND CONFIG_SND CONFIG_SND_SOC CONFIG_REGMAP_MMIO CONFIG_SND_SOC_GENERIC_DMAENGINE_PCM CONFIG_SND_SOC_PCM5102A CONFIG_SND_SOC_SUNXI_AHUB CONFIG_SND_SOC_SUNXI_AHUB_DAM CONFIG_SND_SOC_SUNXI_MACH; do
+for symbol in CONFIG_ARCH_SUNXI CONFIG_SOUND CONFIG_SND CONFIG_SND_SOC CONFIG_REGMAP_MMIO CONFIG_NVMEM_SUNXI_SID CONFIG_SND_SOC_GENERIC_DMAENGINE_PCM CONFIG_SND_SOC_PCM5102A CONFIG_SND_SOC_SUNXI_AHUB CONFIG_SND_SOC_SUNXI_AHUB_DAM CONFIG_SND_SOC_SUNXI_MACH; do
   grep -q \"^\$symbol=y$\" \"\$config\"
 done
+grep -q '^# CONFIG_SUNXI_SYS_INFO is not set$' \"\$config\"
 compat=\$(fdtget -t s '$DTB_PATH' / compatible)
 case \"\$compat\" in
   *xunlong,orangepi-zero2w*allwinner,sun50i-h618*|*allwinner,sun50i-h618*xunlong,orangepi-zero2w*) ;;

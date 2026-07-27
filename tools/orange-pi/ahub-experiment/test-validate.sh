@@ -13,45 +13,33 @@ command -v "$PYTHON" >/dev/null 2>&1 || die "python3 is required"
 "$HERE/validate-fixture.sh"
 STAGING_OUTPUT=$("$HERE/build-ahub-experiment.sh" --test)
 case "$STAGING_OUTPUT" in
-	*"source_series_patch_count=458"*"user_patch_dir="*"user_overlay="*"package_input_hook_placement=before_kernel_package_callback_linux_image"*"kernel_headers_disable_hook_point=extension_finish_config"*"kernel_headers_option=KERNEL_HAS_WORKING_HEADERS=no"*"generated_linux_image_package=linux-image-current-sunxi64-test.deb"*"linux_headers_packages=none-by-design"*) ;;
-	*) die "test build did not validate the pinned full series, overlay merge, and package hook" ;;
+	*"source_series_patch_count=515"*"kernel_config_line_count="*"package_revision=26.8.0-trunk.413"*"kernel_abi=6.18.38-current-sunxi64"*"generated_linux_image_package=linux-image-current-sunxi64_26.8.0-trunk.413_arm64.deb"*"generated_linux_dtb_package=linux-dtb-current-sunxi64_26.8.0-trunk.413_arm64.deb"*"native_linux_headers_packages=none"*"staged_linux_headers_packages=none"*) ;;
+	*) die "test build did not validate the pinned source, native package selection, and packaged config" ;;
 esac
 printf '%s\n' "$STAGING_OUTPUT" | grep -F -- 'source_series=/' >/dev/null || die "test build did not report the source series"
-printf '%s\n' "$STAGING_OUTPUT" | grep -F -- '/patch/kernel/archive/sunxi-6.12/series.conf' >/dev/null || die "test build source series path changed"
-printf '%s\n' "$STAGING_OUTPUT" | grep -F -- '/userpatches/build-hooks/normalize-kernel-package-input.patch' >/dev/null || die "test build hook staging path changed"
-printf '%s\n' "$STAGING_OUTPUT" | grep -F -- '/lib/functions/compilation/kernel-debs.sh' >/dev/null || die "test build hook target changed"
-printf '%s\n' "$STAGING_OUTPUT" | grep -F -- '/userpatches/extensions/ahub-disable-kernel-headers.sh' >/dev/null || die "test build headers extension staging path changed"
-printf '%s\n' "$STAGING_OUTPUT" | grep -F -- 'generated_linux_modules_packages=linux-modules-current-sunxi64-test.deb' >/dev/null || die "test build module package output changed"
-printf '%s\n' "$STAGING_OUTPUT" | grep -F -- 'linux_headers_packages=none-by-design' >/dev/null || die "test build headers package output changed"
-if grep -R -F -- 'Module.symvers' "$HERE/build-ahub-experiment.sh" "$HERE/extensions" >/dev/null; then
-	die "headers disable path must not create or validate Module.symvers"
+printf '%s\n' "$STAGING_OUTPUT" | grep -F -- '/patch/kernel/archive/sunxi-6.18/series.conf' >/dev/null || die "test build source series path changed"
+printf '%s\n' "$STAGING_OUTPUT" | grep -F -- 'packaged_kernel_config=' >/dev/null || die "test build did not extract the packaged kernel config"
+if printf '%s\n' "$STAGING_OUTPUT" | grep -F 'octessera-ahub0' >/dev/null; then
+	die "test build staged the fixture overlay"
 fi
 if printf '%s\n' "$STAGING_OUTPUT" | grep -F -- 'staged_patch_files=' >/dev/null; then
 	die "test build retained a private patch subset"
 fi
 PLAN_OUTPUT=$("$HERE/build-ahub-experiment.sh" --dry-run)
 case "$PLAN_OUTPUT" in
-	*"source_commit=166b786fc978d88f4ff9ee3e33c353afb39763e8"*"compile.sh kernel"*"KERNELPATCHDIR=archive/sunxi-6.12"*"KERNEL_CONFIGURE=no"*"KERNEL_KEEP_CONFIG=no"*) ;;
+	*"source_commit=fa7a7b2294d9e760a77630950afd460b7a0b2a26"*"package_revision=26.8.0-trunk.413"*"kernel_abi=6.18.38-current-sunxi64"*"compile.sh kernel REVISION=26.8.0-trunk.413"*"KERNELPATCHDIR=archive/sunxi-6.18"*"KERNEL_CONFIGURE=no"*"KERNEL_KEEP_CONFIG=no"*) ;;
 	*) die "dry-run build plan is incomplete" ;;
 esac
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'source_series=/' >/dev/null || die "dry-run build plan is missing the source series"
-printf '%s\n' "$PLAN_OUTPUT" | grep -F -- '/patch/kernel/archive/sunxi-6.12/series.conf' >/dev/null || die "dry-run build plan source series path changed"
-printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'source_series_patch_count=458' >/dev/null || die "dry-run build plan source series count changed"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- '/patch/kernel/archive/sunxi-6.18/series.conf' >/dev/null || die "dry-run build plan source series path changed"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'source_series_patch_count=515' >/dev/null || die "dry-run build plan source series count changed"
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'kernel_config=' >/dev/null || die "dry-run build plan is missing the kernel config"
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'linux-sunxi64-current.config' >/dev/null || die "dry-run build plan config path changed"
-printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'user_overlay=' >/dev/null || die "dry-run build plan is missing the custom overlay"
-printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'octessera-ahub0-pi123.dtso' >/dev/null || die "dry-run build plan overlay path changed"
-printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'userpatches/build-hooks/normalize-kernel-package-input.patch' >/dev/null || die "dry-run build plan is missing the package hook"
-printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'package_input_hook_placement=before_kernel_package_callback_linux_image' >/dev/null || die "dry-run package hook placement changed"
-printf '%s\n' "$PLAN_OUTPUT" | grep -F -- './compile.sh kernel EXT=ahub-disable-kernel-headers' >/dev/null || die "dry-run headers extension was not enabled"
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'kernel_package_glob=linux-image-*.deb' >/dev/null || die "dry-run package glob changed"
-printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'kernel_headers_disable_hook_point=extension_finish_config' >/dev/null || die "dry-run headers hook point changed"
-printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'kernel_headers_option=KERNEL_HAS_WORKING_HEADERS=no' >/dev/null || die "dry-run headers option changed"
-printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'kernel_headers_install_option=INSTALL_HEADERS=no' >/dev/null || die "dry-run headers install option changed"
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'dtb_package_glob=linux-dtb-*.deb' >/dev/null || die "dry-run DTB package glob changed"
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'module_package_glob=linux-modules-*.deb' >/dev/null || die "dry-run module package glob changed"
 printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'headers_package_glob=linux-headers-*.deb' >/dev/null || die "dry-run headers package glob changed"
-printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'runtime_output_validator=required-image-and-dtb-optional-modules-headers-forbidden' >/dev/null || die "dry-run artifact validation changed"
+printf '%s\n' "$PLAN_OUTPUT" | grep -F -- 'runtime_output_validator=required-image-and-dtb-staged-only-native-extra-packages-permitted' >/dev/null || die "dry-run artifact validation changed"
 case "$PLAN_OUTPUT" in
 	*"BUILD_MINIMAL"*|*"BUILD_DESKTOP"*|*"compile.sh build"*|*"output/images"*) die "dry-run still contains a rootfs/image stage" ;;
 esac
@@ -135,7 +123,7 @@ mutate_case octessera-ahub0-pi123-overlay.dts 'pins = "PI1", "PI2", "PI3";' 'pin
 expect_failure 'preflight rejects PI0 audio claim' "$PYTHON" "$CASE_DIR/preflight.py" "$CASE_DIR"
 
 copy_case
-mutate_case Kconfig.fragment 'CONFIG_SUNXI_SYS_INFO=n' 'CONFIG_SUNXI_SYS_INFO=y'
+mutate_case Kconfig.fragment '# CONFIG_SUNXI_SYS_INFO is not set' 'CONFIG_SUNXI_SYS_INFO=y'
 expect_failure 'preflight rejects enabled sysinfo driver' "$PYTHON" "$CASE_DIR/preflight.py" "$CASE_DIR"
 
 copy_case
@@ -147,19 +135,57 @@ mutate_case runtime-fixture/deferred-probes.txt 'deferred_probe_count=0' 'deferr
 expect_failure 'preflight rejects deferred devices' "$PYTHON" "$CASE_DIR/preflight.py" "$CASE_DIR"
 
 copy_case
-mutate_lock '"patch_count": 458' '"patch_count": 457'
+mutate_lock '"patch_count": 515' '"patch_count": 514'
 expect_failure 'preflight rejects incomplete full source series' "$PYTHON" "$CASE_DIR/preflight.py" "$CASE_DIR"
 
 copy_case
-mutate_case build-ahub-experiment.sh 'linux-modules-current-sunxi64-test.deb' 'linux-headers-current-sunxi64-test.deb'
-expect_failure 'test output rejects linux-headers package' "$CASE_DIR/build-ahub-experiment.sh" --test
+HEADER_OUTPUT=$(env AHUB_TEST_EXTRA_PACKAGE=linux-headers-current-sunxi64-test.deb "$CASE_DIR/build-ahub-experiment.sh" --test)
+printf '%s\n' "$HEADER_OUTPUT" | grep -F -- 'native_linux_headers_packages=linux-headers-current-sunxi64-test.deb' >/dev/null || die "native header package was not observed"
+printf '%s\n' "$HEADER_OUTPUT" | grep -F -- 'staged_linux_headers_packages=none' >/dev/null || die "native header package leaked into staged artifacts"
+
+copy_case
+expect_failure 'packaged metadata rejects wrong version' env AHUB_TEST_PACKAGE_VERSION=wrong "$CASE_DIR/build-ahub-experiment.sh" --test
+
+copy_case
+expect_failure 'packaged metadata rejects non-arm64 package' env AHUB_TEST_PACKAGE_ARCHITECTURE=all "$CASE_DIR/build-ahub-experiment.sh" --test
+
+copy_case
+expect_failure 'package rejects missing H618 Zero2W DTB' env AHUB_TEST_MISSING_DTB=yes "$CASE_DIR/build-ahub-experiment.sh" --test
+
+copy_case
+expect_failure 'package rejects embedded Octessera DTBO' env AHUB_TEST_EMBED_DTBO=yes "$CASE_DIR/build-ahub-experiment.sh" --test
+
+test_packaged_config_rejection() {
+	name=$1
+	old=$2
+	new=$3
+	copy_case
+	bad_config=$CASE_ROOT/bad-kernel.config
+	cp "$CASE_DIR/runtime-fixture/running-kernel.config" "$bad_config"
+	"$PYTHON" - "$bad_config" "$old" "$new" <<'PY'
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+old, new = sys.argv[2:]
+text = path.read_text()
+if text.count(old) != 1:
+    raise SystemExit(f"expected one packaged config mutation point: {old}")
+path.write_text(text.replace(old, new))
+PY
+	expect_failure "$name" env AHUB_TEST_IMAGE_CONFIG="$bad_config" "$CASE_DIR/build-ahub-experiment.sh" --test
+}
+
+test_packaged_config_rejection 'packaged image rejects non-builtin PCM5102A' 'CONFIG_SND_SOC_PCM5102A=y' 'CONFIG_SND_SOC_PCM5102A=m'
+test_packaged_config_rejection 'packaged image rejects missing SID' 'CONFIG_NVMEM_SUNXI_SID=y' 'CONFIG_NVMEM_SUNXI_SID=n'
+test_packaged_config_rejection 'packaged image rejects enabled sysinfo' '# CONFIG_SUNXI_SYS_INFO is not set' 'CONFIG_SUNXI_SYS_INFO=y'
 
 expect_failure 'deploy requires target' "$HERE/deploy-rollback.sh" deploy --yes --dtb /boot/dtb/allwinner/sun50i-h618-orangepi-zero2w.dtb
-expect_failure 'SSH_BATCH_MODE accepts only yes or no' env SSH_BATCH_MODE=maybe "$HERE/deploy-rollback.sh" deploy --yes --target octessera@192.168.0.217 --dtb /boot/dtb-6.12.30-current-sunxi64/allwinner/sun50i-h618-orangepi-zero2w.dtb
-expect_failure 'deploy requires nonempty user@host target' "$HERE/deploy-rollback.sh" deploy --yes --target root@ --dtb /boot/dtb-6.12.30-current-sunxi64/allwinner/sun50i-h618-orangepi-zero2w.dtb
-expect_failure 'deploy requires exact DTB' "$HERE/deploy-rollback.sh" deploy --yes --target octessera@192.168.0.217 --dtb /boot/dtb-6.12.30-current-sunxi64/allwinner/wrong.dtb
-expect_failure 'rollback requires confirmation' "$HERE/deploy-rollback.sh" rollback --target octessera@192.168.0.217 --dtb /boot/dtb-6.12.30-current-sunxi64/allwinner/sun50i-h618-orangepi-zero2w.dtb --backup-id test
-expect_failure 'rollback requires backup ID' "$HERE/deploy-rollback.sh" rollback --yes --target octessera@192.168.0.217 --dtb /boot/dtb-6.12.30-current-sunxi64/allwinner/sun50i-h618-orangepi-zero2w.dtb
+expect_failure 'SSH_BATCH_MODE accepts only yes or no' env SSH_BATCH_MODE=maybe "$HERE/deploy-rollback.sh" deploy --yes --target octessera@192.168.0.217 --dtb /boot/dtb-6.18.38-current-sunxi64/allwinner/sun50i-h618-orangepi-zero2w.dtb
+expect_failure 'deploy requires nonempty user@host target' "$HERE/deploy-rollback.sh" deploy --yes --target root@ --dtb /boot/dtb-6.18.38-current-sunxi64/allwinner/sun50i-h618-orangepi-zero2w.dtb
+expect_failure 'deploy requires exact DTB' "$HERE/deploy-rollback.sh" deploy --yes --target octessera@192.168.0.217 --dtb /boot/dtb-6.18.38-current-sunxi64/allwinner/wrong.dtb
+expect_failure 'rollback requires confirmation' "$HERE/deploy-rollback.sh" rollback --target octessera@192.168.0.217 --dtb /boot/dtb-6.18.38-current-sunxi64/allwinner/sun50i-h618-orangepi-zero2w.dtb --backup-id test
+expect_failure 'rollback requires backup ID' "$HERE/deploy-rollback.sh" rollback --yes --target octessera@192.168.0.217 --dtb /boot/dtb-6.18.38-current-sunxi64/allwinner/sun50i-h618-orangepi-zero2w.dtb
 expect_failure 'build output must stay outside repository' "$HERE/build-ahub-experiment.sh" --run-kernel --output "$HERE/build-output"
 
 if grep -Eq '(^|[[:space:]])(reboot|shutdown|systemctl[[:space:]]+reboot)([[:space:]]|$)' "$HERE/deploy-rollback.sh"; then
@@ -246,7 +272,7 @@ case "$failed_cleanup_path" in
 	"$FAIL_CLEANUP_DIR/tmp"/octessera-ahub-build.*) ;;
 	*) die "cleanup failure path escaped its mktemp prefix" ;;
 esac
-[ -f "$failed_cleanup_path/test-output/debs/linux-image-current-sunxi64-test.deb" ] || die "successful test artifacts were lost after cleanup failure"
+[ -f "$failed_cleanup_path/test-output/debs/linux-image-current-sunxi64_26.8.0-trunk.413_arm64.deb" ] || die "successful test artifacts were lost after cleanup failure"
 /bin/rm -rf -- "$failed_cleanup_path"
 
 KEEP_DIR=$FAKE_DIR/keep-work
@@ -258,12 +284,12 @@ kept_path=$(find "$KEEP_DIR/tmp" -mindepth 1 -maxdepth 1 -type d -name 'octesser
 
 FAKE_LOG_DIR=$FAKE_DIR FAKE_VALIDATE_REMOTE=yes SSH_BIN="$FAKE_DIR/ssh" SCP_BIN="$FAKE_DIR/scp" "$HERE/deploy-rollback.sh" deploy --yes \
 	--target octessera@192.168.0.217 \
-	--dtb /boot/dtb-6.12.30-current-sunxi64/allwinner/sun50i-h618-orangepi-zero2w.dtb
+	--dtb /boot/dtb-6.18.38-current-sunxi64/allwinner/sun50i-h618-orangepi-zero2w.dtb
 grep -F -- '-o BatchMode=yes -o ConnectTimeout=10 --' "$FAKE_DIR/ssh.log" >/dev/null || die "default SSH_BATCH_MODE was not passed to ssh"
 grep -F -- '-o BatchMode=yes -o ConnectTimeout=10 --' "$FAKE_DIR/scp.log" >/dev/null || die "default SSH_BATCH_MODE was not passed to scp"
 grep -F 'grep "^BOARD=" /etc/armbian-release | cut -d= -f2 | sed -n "1p"' "$FAKE_DIR/ssh.log" >/dev/null || die "remote BOARD extraction was not generated safely"
 grep -F 'orangepizero2w' "$FAKE_DIR/ssh.log" >/dev/null || die "strict BOARD identity check was not generated"
-grep -F '/boot/dtb-6.12.30-current-sunxi64/allwinner/overlay/octessera-ahub0-pcm5102.dtbo' "$FAKE_DIR/ssh.log" >/dev/null || die "versioned sibling overlay path was not derived"
+grep -F '/boot/dtb-6.18.38-current-sunxi64/allwinner/overlay/octessera-ahub0-pcm5102.dtbo' "$FAKE_DIR/ssh.log" >/dev/null || die "versioned sibling overlay path was not derived"
 if grep -F '/boot/dtb/allwinner/overlay' "$FAKE_DIR/ssh.log" >/dev/null; then
 	die "deployment retained the old hardcoded overlay path"
 fi
@@ -272,17 +298,17 @@ fi
 : > "$FAKE_DIR/scp.log"
 FAKE_LOG_DIR=$FAKE_DIR FAKE_VALIDATE_REMOTE=yes SSH_BIN="$FAKE_DIR/ssh" SCP_BIN="$FAKE_DIR/scp" SSH_BATCH_MODE=no "$HERE/deploy-rollback.sh" deploy --yes \
 	--target octessera@192.168.0.217 \
-	--dtb /boot/dtb-6.12.30-current-sunxi64/allwinner/sun50i-h618-orangepi-zero2w.dtb
+	--dtb /boot/dtb-6.18.38-current-sunxi64/allwinner/sun50i-h618-orangepi-zero2w.dtb
 grep -F -- '-o BatchMode=no -o ConnectTimeout=10 --' "$FAKE_DIR/ssh.log" >/dev/null || die "SSH_BATCH_MODE=no was not passed to ssh"
 grep -F -- '-o BatchMode=no -o ConnectTimeout=10 --' "$FAKE_DIR/scp.log" >/dev/null || die "SSH_BATCH_MODE=no was not passed to scp"
 
 : > "$FAKE_DIR/ssh.log"
 FAKE_LOG_DIR=$FAKE_DIR FAKE_VALIDATE_REMOTE=yes SSH_BIN="$FAKE_DIR/ssh" SCP_BIN="$FAKE_DIR/scp" "$HERE/deploy-rollback.sh" rollback --yes \
 	--target octessera@192.168.0.217 \
-	--dtb /boot/dtb-6.12.30-current-sunxi64/allwinner/sun50i-h618-orangepi-zero2w.dtb \
+	--dtb /boot/dtb-6.18.38-current-sunxi64/allwinner/sun50i-h618-orangepi-zero2w.dtb \
 	--backup-id fixture
 grep -F 'backup=/boot/.octessera-ahub-experiment/fixture' "$FAKE_DIR/ssh.log" >/dev/null || die "rollback backup path was not generated"
 grep -F 'manifest' "$FAKE_DIR/ssh.log" >/dev/null || die "rollback manifest path was not generated"
-grep -F '/boot/dtb-6.12.30-current-sunxi64/allwinner/overlay/octessera-ahub0-pcm5102.dtbo' "$FAKE_DIR/ssh.log" >/dev/null || die "rollback overlay path was not derived"
+grep -F '/boot/dtb-6.18.38-current-sunxi64/allwinner/overlay/octessera-ahub0-pcm5102.dtbo' "$FAKE_DIR/ssh.log" >/dev/null || die "rollback overlay path was not derived"
 
 printf '%s\n' 'fixture and deploy safety checks passed'

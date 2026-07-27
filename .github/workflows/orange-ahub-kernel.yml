@@ -15,7 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
-      ARMBIAN_COMMIT: 166b786fc978d88f4ff9ee3e33c353afb39763e8
+      ARMBIAN_COMMIT: fa7a7b2294d9e760a77630950afd460b7a0b2a26
+      AHUB_PACKAGE_REVISION: 26.8.0-trunk.413
+      AHUB_KERNEL_ABI: 6.18.38-current-sunxi64
       ARMBIAN_SOURCE_DIR: /tmp/armbian-build
       AHUB_OUTPUT_DIR: /tmp/octessera-ahub-kernel
       PREFER_DOCKER: "yes"
