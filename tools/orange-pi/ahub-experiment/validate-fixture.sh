@@ -65,10 +65,28 @@ expect_absent() {
 	fi
 }
 
+expect_property() {
+	dtb=$1
+	node=$2
+	property=$3
+	label=$4
+	fdtget -p "$dtb" "$node" | grep -Fxq "$property" || die "$label: missing property"
+}
+
+expect_child() {
+	dtb=$1
+	node=$2
+	child=$3
+	label=$4
+	fdtget -l "$dtb" "$node" | grep -Fxq "$child" || die "$label: missing child"
+}
+
 expect "$(string_prop "$MERGED_DTB" /octessera-dac soundcard-mach,name)" "octessera-dac" "card name"
 expect "$(string_prop "$MERGED_DTB" /octessera-dac compatible)" "allwinner,sunxi-snd-mach" "card compatible"
-expect "$(string_prop "$MERGED_DTB" /pcm5102a compatible)" "ti,pcm5102a" "PCM5102A compatible"
-expect "$(value_prop "$MERGED_DTB" /pcm5102a status)" "okay" "PCM5102A status"
+expect_root_absent "$MERGED_DTB" pcm5102a "merged pcm5102a"
+expect_property "$MERGED_DTB" /octessera-dac soundcard-mach,playback-only "playback-only card"
+expect_child "$MERGED_DTB" /octessera-dac soundcard-mach,codec "dummy codec child"
+expect_absent "$MERGED_DTB" /octessera-dac/soundcard-mach,codec sound-dai "dummy codec sound-dai"
 expect "$(value_prop "$MERGED_DTB" /octessera_plat status)" "okay" "AHUB0 platform status"
 expect "$(value_prop "$MERGED_DTB" /octessera_plat apb_num)" "0" "AHUB0 APB number"
 expect "$(value_prop "$MERGED_DTB" /octessera_plat tdm_num)" "0" "AHUB0 TDM number"
@@ -79,13 +97,19 @@ EOF
 expect "$dma_req_tx" "3" "AHUB0 TX DMA request"
 expect "$dma_req_rx" "3" "AHUB0 RX DMA request"
 expect "$dma_tx" "$dma_rx" "AHUB0 DMA controller"
-expect "$(value_prop "$MERGED_DTB" /octessera_plat pinctrl-0)" "$(value_prop "$MERGED_DTB" /pinctrl@300b000/ahub0-pins phandle)" "AHUB0 pinctrl ownership"
+pinctrl_values=$(fdtget -t x "$MERGED_DTB" /octessera_plat pinctrl-0)
+IFS=' ' read -r pinctrl_i2s0 pinctrl_dout0 <<EOF
+$pinctrl_values
+EOF
+expect "$pinctrl_i2s0" "$(fdtget -t x "$MERGED_DTB" /pinctrl@300b000/ahub0-pins phandle)" "AHUB0 I2S pinctrl ownership"
+expect "$pinctrl_dout0" "$(fdtget -t x "$MERGED_DTB" /pinctrl@300b000/ahub0-dout0-pins phandle)" "AHUB0 DOUT0 pinctrl ownership"
 expect "$(string_prop "$MERGED_DTB" /pinctrl@300b000/ahub0-pins function)" "i2s0" "I2S function"
-expect "$(string_prop "$MERGED_DTB" /pinctrl@300b000/ahub0-pins pins)" "PI1 PI2 PI3" "I2S pins"
+expect "$(string_prop "$MERGED_DTB" /pinctrl@300b000/ahub0-pins pins)" "PI1 PI2" "I2S pins"
+expect "$(string_prop "$MERGED_DTB" /pinctrl@300b000/ahub0-dout0-pins function)" "i2s0_dout0" "I2S DOUT0 function"
+expect "$(string_prop "$MERGED_DTB" /pinctrl@300b000/ahub0-dout0-pins pins)" "PI3" "I2S DOUT0 pin"
 expect "$(value_prop "$MERGED_DTB" /octessera-dac status)" "okay" "octessera-dac machine status"
 cpu_phandle=$(value_prop "$MERGED_DTB" /octessera-dac/soundcard-mach,cpu phandle)
 expect "$(value_prop "$MERGED_DTB" /octessera-dac/soundcard-mach,cpu sound-dai)" "$(value_prop "$MERGED_DTB" /octessera_plat phandle)" "octessera-dac CPU ownership"
-expect "$(value_prop "$MERGED_DTB" /octessera-dac/soundcard-mach,codec sound-dai)" "$(value_prop "$MERGED_DTB" /pcm5102a phandle)" "octessera-dac codec ownership"
 expect "$(value_prop "$MERGED_DTB" /octessera-dac soundcard-mach,frame-master)" "$cpu_phandle" "octessera-dac frame master"
 expect "$(value_prop "$MERGED_DTB" /octessera-dac soundcard-mach,bitclock-master)" "$cpu_phandle" "octessera-dac bitclock master"
 expect_absent "$MERGED_DTB" /octessera-dac soundcard-mach,mclk-fs "octessera-dac mclk-fs"
@@ -109,7 +133,7 @@ expect "$(string_prop "$MERGED_DTB" /soc/ahub1_mach compatible)" "$(string_prop 
 
 base_children=$(fdtget -l "$BASE_DTB" / | LC_ALL=C sort)
 merged_children=$(fdtget -l "$MERGED_DTB" / | LC_ALL=C sort)
-expected_children=$(printf '%s\noctessera_plat\npcm5102a\noctessera-dac\n' "$base_children" | LC_ALL=C sort)
+expected_children=$(printf '%s\noctessera_plat\noctessera-dac\n' "$base_children" | LC_ALL=C sort)
 expect "$merged_children" "$expected_children" "root child set"
 
 printf '%s\n' 'compiled and merged AHUB fixture passed'

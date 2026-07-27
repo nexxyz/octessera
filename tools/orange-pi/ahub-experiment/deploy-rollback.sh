@@ -155,7 +155,7 @@ for node in ahub1_plat ahub1_mach octessera_plat pcm5102a octessera-dac; do
 done
 fdtoverlay -i '$DTB_PATH' -o '$REMOTE_STAGE.merged' '$REMOTE_STAGE'
 merged_root_children=\$(fdtget -l '$REMOTE_STAGE.merged' /)
-for node in ahub1_plat ahub1_mach; do
+for node in ahub1_plat ahub1_mach pcm5102a; do
   if printf '%s\n' \"\$merged_root_children\" | grep -Fxq \"\$node\"; then
     exit 23
   fi
@@ -169,16 +169,24 @@ test \"\$#\" = 4
 test \"\$2\" = 3
 test \"\$4\" = 3
 test \"\$1\" = \"\$3\"
-test \"\$(fdtget '$REMOTE_STAGE.merged' /octessera_plat pinctrl-0)\" = \"\$(fdtget '$REMOTE_STAGE.merged' /pinctrl@300b000/ahub0-pins phandle)\"
+pin_values=\$(fdtget -t x '$REMOTE_STAGE.merged' /octessera_plat pinctrl-0)
+set -- \$pin_values
+test \"\$#\" = 2
+test \"\$1\" = \"\$(fdtget -t x '$REMOTE_STAGE.merged' /pinctrl@300b000/ahub0-pins phandle)\"
+test \"\$2\" = \"\$(fdtget -t x '$REMOTE_STAGE.merged' /pinctrl@300b000/ahub0-dout0-pins phandle)\"
 test \"\$(fdtget -t s '$REMOTE_STAGE.merged' /pinctrl@300b000/ahub0-pins function)\" = i2s0
-test \"\$(fdtget -t s '$REMOTE_STAGE.merged' /pinctrl@300b000/ahub0-pins pins)\" = \"PI1 PI2 PI3\"
-test \"\$(fdtget -t s '$REMOTE_STAGE.merged' /pcm5102a compatible)\" = ti,pcm5102a
-test \"\$(fdtget '$REMOTE_STAGE.merged' /pcm5102a status)\" = okay
+test \"\$(fdtget -t s '$REMOTE_STAGE.merged' /pinctrl@300b000/ahub0-pins pins)\" = \"PI1 PI2\"
+test \"\$(fdtget -t s '$REMOTE_STAGE.merged' /pinctrl@300b000/ahub0-dout0-pins function)\" = i2s0_dout0
+test \"\$(fdtget -t s '$REMOTE_STAGE.merged' /pinctrl@300b000/ahub0-dout0-pins pins)\" = PI3
+fdtget -p '$REMOTE_STAGE.merged' /octessera-dac | grep -Fxq soundcard-mach,playback-only
+fdtget -l '$REMOTE_STAGE.merged' /octessera-dac | grep -Fxq soundcard-mach,codec
+if fdtget '$REMOTE_STAGE.merged' /octessera-dac/soundcard-mach,codec sound-dai >/dev/null 2>&1; then
+  exit 25
+fi
 test \"\$(fdtget -t s '$REMOTE_STAGE.merged' /octessera-dac soundcard-mach,name)\" = octessera-dac
 test \"\$(fdtget '$REMOTE_STAGE.merged' /octessera-dac status)\" = okay
 cpu_phandle=\$(fdtget '$REMOTE_STAGE.merged' /octessera-dac/soundcard-mach,cpu phandle)
 test \"\$(fdtget '$REMOTE_STAGE.merged' /octessera-dac/soundcard-mach,cpu sound-dai)\" = \"\$(fdtget '$REMOTE_STAGE.merged' /octessera_plat phandle)\"
-test \"\$(fdtget '$REMOTE_STAGE.merged' /octessera-dac/soundcard-mach,codec sound-dai)\" = \"\$(fdtget '$REMOTE_STAGE.merged' /pcm5102a phandle)\"
 test \"\$(fdtget '$REMOTE_STAGE.merged' /octessera-dac soundcard-mach,frame-master)\" = \"\$cpu_phandle\"
 test \"\$(fdtget '$REMOTE_STAGE.merged' /octessera-dac soundcard-mach,bitclock-master)\" = \"\$cpu_phandle\"
 if fdtget '$REMOTE_STAGE.merged' /octessera-dac soundcard-mach,mclk-fs >/dev/null 2>&1 || fdtget '$REMOTE_STAGE.merged' /octessera-dac/soundcard-mach,cpu soundcard-mach,mclk-fs >/dev/null 2>&1; then

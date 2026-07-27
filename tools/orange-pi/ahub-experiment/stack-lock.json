@@ -18,19 +18,19 @@
     }
   },
   "assets": [
-    { "path": "README.md", "sha256": "0cac9ab0d071c3bef6de5f096af67401f5476fa546a957b069537c3c0daf0e8d" },
+    { "path": "README.md", "sha256": "432237c0bad44798b2e8d9f0a49d0acdff1d78e3f3662af5851c6c542e3d72f9" },
     { "path": "check-patch-stack.sh", "sha256": "6c5c49b9c9a05ed2c2aada63a0ebebd8b4c949c51b27fd2e57d5ea476de46d4a" },
     { "path": "Kconfig.fragment", "sha256": "555c73973a0142187e8ef0f2721f4f67d53f9499744ddab3a9d318534b371d46" },
     { "path": "h618-fixture-base.dts", "sha256": "1e5dbc99a8a9ebebd78ad62bb0540e0950e5e481370d4b90bb481933688588c2" },
-    { "path": "octessera-ahub0-pi123-overlay.dts", "sha256": "e62cbf6253b550204dea0544bfc9a68ebfe50c1d8f1301dc978243a4af3b5ec8" },
-    { "path": "preflight.py", "sha256": "1905f1c032a61105dfd516ce36c3b4ffef6df6d112fe70031b9afad8edc3f3cb" },
-    { "path": "validate-fixture.sh", "sha256": "0b1c062b49bae7799398f0ef8e62b0a48cf2bc30dedd42813b2423bf8ff32e05" },
-    { "path": "deploy-rollback.sh", "sha256": "3262a990fd5f3bd1412bf3fdd1913bd5bf07fbd82b087f977082ca097b676cb5" },
+    { "path": "octessera-ahub0-pi123-overlay.dts", "sha256": "727b9a817de68446c3a536da5641af3292834820fa42755fc3a675788bd13e79" },
+    { "path": "preflight.py", "sha256": "249c918aa26494bd208e6140e7f8a7b0c5118a33965b004b38ec87da8aeaf1e8" },
+    { "path": "validate-fixture.sh", "sha256": "9b401b25e2cd5d93f351ca652f15cd661a6dc24269a73a3a2ae65efd91c7d0a1" },
+    { "path": "deploy-rollback.sh", "sha256": "71c6011b9a66e843c5c67b6c42f9b05fd88178bf0c860690cfeb9edb8ce8ba81" },
     { "path": "build-ahub-experiment.sh", "sha256": "dc28e3e2d7772b76a7b65de4715ebc9e707363b44f6fd614bce88b6523e5d93e" },
-    { "path": "test-validate.sh", "sha256": "b5f8d166f4f73525b6c16f81d03d88644c90cd7b1df06e60d96e93c014483446" },
+    { "path": "test-validate.sh", "sha256": "853e0772f9f8e9318fb0791c253e22cab1a7fd2cb533e640188a569a9e954518" },
     { "path": "kernel-build-plan.json", "sha256": "a1cd9518ad588b33fb30e851e48f5c03869ca982ee800f5e4f04109f46037dcf" },
     { "path": "runtime-fixture/running-kernel.config", "sha256": "f8694e84262cfb39b0b1425ad7f5c2d6f587b8324a6c2b6cffc90e709d2d3779" },
-    { "path": "runtime-fixture/asoc-registration.txt", "sha256": "82575fb53ee94123e7be51fd036c82b211164dcb6a8aeb253a7980188d3012b6" },
+    { "path": "runtime-fixture/asoc-registration.txt", "sha256": "fa45bf21919dff8620c811a25864c236da62545a370a3f8065340761f5360df9" },
     { "path": "runtime-fixture/deferred-probes.txt", "sha256": "fee191a7647a2cbeb6babcbe319318700d5f1440be94442f3c0d6ab747b7731f" }
   ],
   "fixture": {

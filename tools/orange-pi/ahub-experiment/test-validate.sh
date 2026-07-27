@@ -122,8 +122,16 @@ mutate_case octessera-ahub0-pi123-overlay.dts 'tdm_num = <0>;' 'tdm_num = <1>;'
 expect_failure 'preflight rejects nonzero TDM' "$PYTHON" "$CASE_DIR/preflight.py" "$CASE_DIR"
 
 copy_case
-mutate_case octessera-ahub0-pi123-overlay.dts 'pins = "PI1", "PI2", "PI3";' 'pins = "PI0";'
+mutate_case octessera-ahub0-pi123-overlay.dts 'pins = "PI1", "PI2";' 'pins = "PI0", "PI2";'
 expect_failure 'preflight rejects PI0 audio claim' "$PYTHON" "$CASE_DIR/preflight.py" "$CASE_DIR"
+
+copy_case
+mutate_case octessera-ahub0-pi123-overlay.dts 'function = "i2s0_dout0";' 'function = "i2s0";'
+expect_failure 'preflight rejects generic PI3 i2s0 function' "$PYTHON" "$CASE_DIR/preflight.py" "$CASE_DIR"
+
+copy_case
+mutate_case octessera-ahub0-pi123-overlay.dts 'soundcard-mach,playback-only;' 'soundcard-mach,playback-only; sound-dai = <&pcm5102a>;'
+expect_failure 'preflight rejects PCM5102 codec link' "$PYTHON" "$CASE_DIR/preflight.py" "$CASE_DIR"
 
 copy_case
 mutate_case Kconfig.fragment '# CONFIG_SUNXI_SYS_INFO is not set' 'CONFIG_SUNXI_SYS_INFO=y'
@@ -304,6 +312,9 @@ grep -F 'root_children=' "$FAKE_DIR/ssh.log" >/dev/null || die "base root-node e
 grep -F '/octessera_plat apb_num' "$FAKE_DIR/ssh.log" >/dev/null || die "AHUB0 APB validation was not generated"
 grep -F '/octessera_plat dmas' "$FAKE_DIR/ssh.log" >/dev/null || die "AHUB0 DMA validation was not generated"
 grep -F '/pinctrl@300b000/ahub0-pins function' "$FAKE_DIR/ssh.log" >/dev/null || die "AHUB0 pinctrl validation was not generated"
+grep -F '/pinctrl@300b000/ahub0-dout0-pins function' "$FAKE_DIR/ssh.log" >/dev/null || die "AHUB0 DOUT0 pinctrl validation was not generated"
+grep -F 'soundcard-mach,playback-only' "$FAKE_DIR/ssh.log" >/dev/null || die "playback-only validation was not generated"
+grep -F '/octessera-dac/soundcard-mach,codec sound-dai' "$FAKE_DIR/ssh.log" >/dev/null || die "dummy codec validation was not generated"
 grep -F '/octessera-dac soundcard-mach,frame-master' "$FAKE_DIR/ssh.log" >/dev/null || die "DAC frame-master validation was not generated"
 grep -F '/soc/ahub1_plat tdm_num' "$FAKE_DIR/ssh.log" >/dev/null || die "preserved HDMI TDM validation was not generated"
 grep -F '/soc/ahub1_mach/soundcard-mach,cpu' "$FAKE_DIR/ssh.log" >/dev/null || die "preserved HDMI CPU validation was not generated"
