@@ -242,7 +242,7 @@ def main():
         if fact not in package_hook:
             fail(f"package input hook is missing required fact: {fact}")
     headers_hook = (fixture_dir / "build-hooks/prepare-kernel-headers.patch").read_text(encoding="utf-8")
-    for fact in ["function ahub_prepare_kernel_headers()", "run_kernel_make modules_prepare", "${kernel_work_dir}/Module.symvers", "Module.symvers is missing or empty after modules_prepare", "ahub_prepare_kernel_headers"]:
+    for fact in ["function ahub_prepare_kernel_headers()", "cd \"${kernel_work_dir}\" || exit 1", "run_kernel_make modules_prepare", "${kernel_work_dir}/Module.symvers", "Module.symvers is missing or empty after modules_prepare", "ahub_prepare_kernel_headers"]:
         if fact not in headers_hook:
             fail(f"kernel headers hook is missing required fact: {fact}")
     asoc_log = (fixture_dir / "runtime-fixture/asoc-registration.txt").read_text(encoding="utf-8")

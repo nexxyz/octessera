@@ -208,7 +208,8 @@ callback = [index for index, line in enumerate(lines) if line == "function kerne
 calls = [index for index, line in enumerate(lines) if line.strip() == "ahub_prepare_kernel_headers"]
 create = [index for index, line in enumerate(lines) if line.strip().startswith("create_kernel_deb ") and "kernel_package_callback_linux_headers" in line]
 make = [index for index, line in enumerate(lines) if line.strip() == "run_kernel_make modules_prepare"]
-if len(prepare) != 1 or len(callback) != 1 or len(calls) != 1 or len(create) != 1 or len(make) != 1 or prepare[0] >= make[0] or make[0] >= calls[0] or calls[0] >= create[0] or create[0] >= callback[0]:
+context = [index for index, line in enumerate(lines) if line.strip() == 'cd "${kernel_work_dir}" || exit 1']
+if len(prepare) != 1 or len(callback) != 1 or len(calls) != 1 or len(create) != 1 or len(make) != 1 or len(context) != 1 or prepare[0] >= context[0] or context[0] >= make[0] or make[0] >= calls[0] or calls[0] >= create[0] or create[0] >= callback[0]:
     raise SystemExit("kernel headers hook placement changed")
 PY
 cat > "$USER_PATCH_DIR/0000.patching_config.yaml" <<'EOF'

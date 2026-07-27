@@ -21,6 +21,8 @@ printf '%s\n' "$STAGING_OUTPUT" | grep -F -- '/patch/kernel/archive/sunxi-6.12/s
 printf '%s\n' "$STAGING_OUTPUT" | grep -F -- '/userpatches/build-hooks/normalize-kernel-package-input.patch' >/dev/null || die "test build hook staging path changed"
 printf '%s\n' "$STAGING_OUTPUT" | grep -F -- '/lib/functions/compilation/kernel-debs.sh' >/dev/null || die "test build hook target changed"
 printf '%s\n' "$STAGING_OUTPUT" | grep -F -- '/userpatches/build-hooks/prepare-kernel-headers.patch' >/dev/null || die "test build headers hook staging path changed"
+KERNEL_SOURCE_CONTEXT="cd \"\${kernel_work_dir}\" || exit 1"
+grep -F -- "$KERNEL_SOURCE_CONTEXT" "$HERE/build-hooks/prepare-kernel-headers.patch" >/dev/null || die "headers hook does not restore the kernel source context"
 if printf '%s\n' "$STAGING_OUTPUT" | grep -F -- 'staged_patch_files=' >/dev/null; then
 	die "test build retained a private patch subset"
 fi
