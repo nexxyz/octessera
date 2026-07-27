@@ -22,6 +22,8 @@ pub struct OrangeGpioDescriptor {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct OrangePiDevices {
     pub i2c: DeviceDescriptor,
+    pub trellis_addrs: [u16; 4],
+    pub neokey_addr: u16,
     pub spi: DeviceDescriptor,
     pub gpio: OrangeGpioDescriptor,
 }
@@ -98,6 +100,8 @@ pub const ORANGE_PI_ZERO_2W: OrangeBoardProfile = OrangeBoardProfile {
             path: "/dev/i2c-2",
             controller: "5002400.i2c",
         },
+        trellis_addrs: [0x2E, 0x2F, 0x30, 0x31],
+        neokey_addr: 0x3F,
         spi: DeviceDescriptor {
             path: "/dev/spidev1.0",
             controller: "5011000.spi",
