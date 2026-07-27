@@ -13,17 +13,19 @@ command -v "$PYTHON" >/dev/null 2>&1 || die "python3 is required"
 "$HERE/validate-fixture.sh"
 STAGING_OUTPUT=$("$HERE/build-ahub-experiment.sh" --test)
 case "$STAGING_OUTPUT" in
-	*"source_series_patch_count=458"*"user_patch_dir="*"user_overlay="*) ;;
-	*) die "test build did not validate the pinned full series and overlay merge" ;;
+	*"source_series_patch_count=458"*"user_patch_dir="*"user_overlay="*"package_input_hook_placement=before_kernel_package_callback_linux_image"*"generated_linux_image_package=linux-image-current-sunxi64-test.deb"*) ;;
+	*) die "test build did not validate the pinned full series, overlay merge, and package hook" ;;
 esac
 printf '%s\n' "$STAGING_OUTPUT" | grep -F -- 'source_series=/' >/dev/null || die "test build did not report the source series"
 printf '%s\n' "$STAGING_OUTPUT" | grep -F -- '/patch/kernel/archive/sunxi-6.12/series.conf' >/dev/null || die "test build source series path changed"
+printf '%s\n' "$STAGING_OUTPUT" | grep -F -- '/userpatches/build-hooks/normalize-kernel-package-input.patch' >/dev/null || die "test build hook staging path changed"
+printf '%s\n' "$STAGING_OUTPUT" | grep -F -- '/lib/functions/compilation/kernel-debs.sh' >/dev/null || die "test build hook target changed"
 if printf '%s\n' "$STAGING_OUTPUT" | grep -F -- 'staged_patch_files=' >/dev/null; then
 	die "test build retained a private patch subset"
 fi
 PLAN_OUTPUT=$("$HERE/build-ahub-experiment.sh" --dry-run)
 case "$PLAN_OUTPUT" in
-	*"source_commit=166b786fc978d88f4ff9ee3e33c353afb39763e8"*"compile.sh kernel"*"KERNELPATCHDIR=archive/sunxi-6.12"*"KERNEL_CONFIGURE=no"*"KERNEL_KEEP_CONFIG=no"*) ;;
+	*"source_commit=166b786fc978d88f4ff9ee3e33c353afb39763e8"*"compile.sh kernel"*"KERNELPATCHDIR=archive/sunxi-6.12"*"KERNEL_CONFIGURE=no"*"KERNEL_KEEP_CONFIG=no"*"package_input_hook_placement=before_kernel_package_callback_linux_image"*) ;;
 	*) die "dry-run build plan is incomplete" ;;
 esac
 case "$PLAN_OUTPUT" in
@@ -216,7 +218,7 @@ case "$failed_cleanup_path" in
 	"$FAIL_CLEANUP_DIR/tmp"/octessera-ahub-build.*) ;;
 	*) die "cleanup failure path escaped its mktemp prefix" ;;
 esac
-[ -f "$failed_cleanup_path/test-output/debs/linux-image-test.deb" ] || die "successful test artifacts were lost after cleanup failure"
+[ -f "$failed_cleanup_path/test-output/debs/linux-image-current-sunxi64-test.deb" ] || die "successful test artifacts were lost after cleanup failure"
 /bin/rm -rf -- "$failed_cleanup_path"
 
 KEEP_DIR=$FAKE_DIR/keep-work

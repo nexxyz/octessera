@@ -27,7 +27,8 @@ EXPECTED_SOURCE = [
 ]
 EXPECTED_ASSETS = [
     "README.md", "check-patch-stack.sh", "Kconfig.fragment", "h618-fixture-base.dts",
-    "octessera-ahub0-pi123-overlay.dts", "preflight.py", "validate-fixture.sh",
+    "octessera-ahub0-pi123-overlay.dts", "build-hooks/normalize-kernel-package-input.patch",
+    "preflight.py", "validate-fixture.sh",
     "deploy-rollback.sh", "build-ahub-experiment.sh", "test-validate.sh", "kernel-build-plan.json",
     "runtime-fixture/running-kernel.config", "runtime-fixture/asoc-registration.txt",
     "runtime-fixture/deferred-probes.txt",
@@ -216,16 +217,23 @@ def main():
         fail("PCM5102A must be supplied by the experimental built-in config")
 
     plan = json.loads((fixture_dir / "kernel-build-plan.json").read_text(encoding="utf-8"), object_pairs_hook=pairs)
-    require_keys(plan, ["schema", "board", "branch", "source_commit", "kernel_patch_dir", "kernel_config", "dtb", "overlay", "required_config"], "kernel build plan")
+    require_keys(plan, ["schema", "board", "branch", "source_commit", "kernel_patch_dir", "kernel_config", "dtb", "overlay", "package_input_hook", "package_input_hook_target", "kernel_package_glob", "required_config"], "kernel build plan")
     expected_plan = {
         "schema": 1, "board": "orangepizero2w", "branch": "current", "source_commit": EXPECTED_COMMIT,
         "kernel_patch_dir": EXPECTED_STAGED_PATCH_DIR, "kernel_config": "Kconfig.fragment",
-        "dtb": "sun50i-h618-orangepi-zero2w.dtb", "overlay": "octessera-ahub0-pi123-overlay.dts", "required_config": REQUIRED_CONFIG,
+        "dtb": "sun50i-h618-orangepi-zero2w.dtb", "overlay": "octessera-ahub0-pi123-overlay.dts",
+        "package_input_hook": "build-hooks/normalize-kernel-package-input.patch",
+        "package_input_hook_target": "lib/functions/compilation/kernel-debs.sh",
+        "kernel_package_glob": "linux-image-*.deb", "required_config": REQUIRED_CONFIG,
     }
     if plan != expected_plan:
         fail("kernel build plan is not pinned to the full built-in AHUB experiment")
     if exact_config(fixture_dir / "runtime-fixture/running-kernel.config") != REQUIRED_CONFIG:
         fail("running-kernel.config does not prove built-in PCM5102/AHUB support")
+    package_hook = (fixture_dir / "build-hooks/normalize-kernel-package-input.patch").read_text(encoding="utf-8")
+    for fact in ["function ahub_normalize_kernel_package_inputs()", "ahub_normalize_kernel_package_inputs", "for stem in vmlinuz config System.map", "${expected_path}-dirty"]:
+        if fact not in package_hook:
+            fail(f"package input hook is missing required fact: {fact}")
     asoc_log = (fixture_dir / "runtime-fixture/asoc-registration.txt").read_text(encoding="utf-8")
     for fact in ["snd_soc_register_card: octessera-dac", "sunxi-snd-mach: card=octessera-dac cpu=octessera_plat codec=pcm5102a", "pcm5102a-codec: ti,pcm5102a registered", "sunxi-snd-mach: card=HDMI cpu=ahub1_plat codec=hdmi registered"]:
         if fact not in asoc_log:
