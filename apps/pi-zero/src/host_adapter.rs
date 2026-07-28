@@ -8,6 +8,7 @@ mod host_adapter_store;
 mod host_adapter_system_info;
 
 use crate::audio::AudioService;
+use crate::audio_event::musical_event_to_engine_event;
 use crate::host_audio_command::send_audio_command;
 use crate::platform_service::{PiPlatformService, PlatformJob, PlatformJobKind};
 use crate::usb_config::UsbAudioOut;
@@ -16,7 +17,6 @@ use playback_runtime::{
     HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent, RuntimeAdapterError,
     RuntimeAudioCommand, RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult,
 };
-use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
 use rodio_engine_source::EngineEvent;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -116,34 +116,7 @@ impl HostAdapter for PiPlaybackHostAdapter {
         let Some(audio) = &self.audio else {
             return Ok(());
         };
-        match event {
-            RuntimeMusicalEvent::NoteOn {
-                channel,
-                note,
-                velocity,
-                duration_ms,
-            } => Ok(audio.send_realtime(EngineEvent::NoteOn {
-                instrument_slot: (*channel).min((INSTRUMENT_SLOT_COUNT - 1) as u8),
-                note: (*note).min(127),
-                velocity: (*velocity).clamp(1, 127),
-                duration_ms: duration_ms.unwrap_or(86_400_000).clamp(10, 86_400_000),
-            })?),
-            RuntimeMusicalEvent::NoteOff { channel, note } => {
-                Ok(audio.send_realtime(EngineEvent::NoteOff {
-                    instrument_slot: (*channel).min((INSTRUMENT_SLOT_COUNT - 1) as u8),
-                    note: (*note).min(127),
-                })?)
-            }
-            RuntimeMusicalEvent::Cc {
-                channel,
-                controller,
-                value,
-            } => Ok(audio.send_realtime(EngineEvent::Cc {
-                instrument_slot: (*channel).min((INSTRUMENT_SLOT_COUNT - 1) as u8),
-                controller: (*controller).min(127),
-                value: (*value).min(127),
-            })?),
-        }
+        audio.send_realtime(musical_event_to_engine_event(event))
     }
 
     fn handle_platform_effect(

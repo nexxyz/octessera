@@ -337,8 +337,8 @@ fn shutdown_if_requested(
     let Some(request) = adapter.take_power_request() else {
         return false;
     };
-    if !render_worker.publish_shutdown() {
-        eprintln!("pi shutdown render acknowledgement timed out");
+    if let Err(error) = render_worker.publish_shutdown() {
+        eprintln!("pi shutdown render acknowledgement failed: {error}");
     }
     if let Err(error) = power_pi_system(request) {
         eprintln!("pi power request failed: {error}");

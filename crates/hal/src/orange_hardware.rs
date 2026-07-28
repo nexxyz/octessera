@@ -70,6 +70,10 @@ impl OrangeHardware {
     pub fn oled_mut(&mut self) -> &mut OrangeOledTransport {
         &mut self.oled
     }
+
+    pub fn into_oled(self) -> OrangeOledTransport {
+        self.oled
+    }
 }
 
 #[cfg(target_os = "linux")]
@@ -116,6 +120,12 @@ impl OrangeOledTransport {
 
     pub fn display_off(&mut self) -> Result<(), String> {
         self.display_off_until(timing::operation_deadline())
+    }
+
+    pub fn display_on(&mut self) -> Result<(), String> {
+        let deadline = timing::operation_deadline();
+        self.write_command_until(0xA6, &[], deadline)?;
+        self.write_command_until(0xAF, &[], deadline)
     }
 
     pub fn write_frame(&mut self, frame: &[u8]) -> Result<(), String> {

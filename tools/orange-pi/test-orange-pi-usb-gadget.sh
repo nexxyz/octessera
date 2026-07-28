@@ -90,7 +90,7 @@ run_setup() {
     root=$1
     mode=$2
     FAKE_UAC2=$root/config/usb_gadget/octessera-orange-pi/functions/uac2.usb0 \
-        PATH="$FAKE_BIN:$PATH" "$SCRIPT" setup \
+        PATH="$FAKE_BIN:$PATH" sh "$SCRIPT" setup \
         --configfs-root "$root/config" \
         --udc-root "$root/udc" \
         --udc fake-udc \
@@ -100,7 +100,7 @@ run_setup() {
 run_teardown() {
     root=$1
     FAKE_GADGET=$root/config/usb_gadget/octessera-orange-pi \
-        PATH="$FAKE_BIN:$PATH" "$SCRIPT" teardown \
+        PATH="$FAKE_BIN:$PATH" sh "$SCRIPT" teardown \
         --configfs-root "$root/config" \
         --udc-root "$root/udc" \
         --udc fake-udc
@@ -152,7 +152,7 @@ assert_failed run_setup "$root" midi
 
 root=$TEST_ROOT/missing-udc
 new_fake_configfs "$root"
-assert_failed "$SCRIPT" setup --configfs-root "$root/config" --udc-root "$root/udc" --mode midi
+assert_failed sh "$SCRIPT" setup --configfs-root "$root/config" --udc-root "$root/udc" --mode midi
 
 root=$TEST_ROOT/mass-storage
 new_fake_configfs "$root"

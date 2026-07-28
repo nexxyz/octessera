@@ -1,4 +1,7 @@
+#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+use crate::audio_hotplug::test_sink_sender;
 use crate::audio_hotplug::{broadcast_event, is_replay_event, ReplayCache, SinkSender};
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use crate::recording::{RecorderService, RecordingTap};
 #[path = "audio_defaults.rs"]
 mod audio_defaults;
@@ -8,16 +11,20 @@ mod audio_error;
 mod audio_output;
 pub(crate) use audio_defaults::default_pi_instruments;
 use audio_error::audio_queue_error;
-#[cfg(test)]
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 pub(crate) use audio_output::audio_sinks;
 pub(crate) use audio_output::{AudioManager, AudioSink};
 use playback_runtime::{HostMessage, RuntimeAdapterError};
 use rodio_engine_source::EngineEvent;
+#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+use rodio_engine_source::{event_queue, EngineEventReceiver};
 use serde_json::Value;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicU64;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
-use std::sync::{Arc, Mutex, RwLock};
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+use std::sync::RwLock;
+use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]
 pub struct AudioService {
@@ -29,7 +36,9 @@ pub struct AudioService {
         Arc<Mutex<std::collections::HashMap<String, realtime_engine::synth::SampleBuffer>>>,
     pub sample_bank_signature: Arc<Mutex<String>>,
     prep_result_rx: Arc<Mutex<Receiver<HostMessage>>>,
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     recorder: Arc<Mutex<RecorderService>>,
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     recording_tap: Arc<RwLock<Option<RecordingTap>>>,
 }
 
@@ -109,6 +118,7 @@ impl AudioService {
         output
     }
 
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub fn start_recording(&self, max_minutes: u16) -> Result<(), String> {
         let tap = self
             .recorder
@@ -122,6 +132,7 @@ impl AudioService {
         Ok(())
     }
 
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub fn stop_recording(&self) -> Result<(), String> {
         *self
             .recording_tap
@@ -134,6 +145,7 @@ impl AudioService {
         Ok(())
     }
 
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub fn is_recording(&self) -> Result<bool, String> {
         Ok(self
             .recording_tap
@@ -157,4 +169,36 @@ impl AudioService {
         self.remember_replay_event(&event);
         broadcast_event(&self.realtime_txs, event)
     }
+}
+
+#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+pub(crate) fn test_service() -> (
+    AudioService,
+    Receiver<AudioControlRequest>,
+    EngineEventReceiver,
+) {
+    let (service, control_rx, event_rx, _) = test_service_with_prep_sender();
+    (service, control_rx, event_rx)
+}
+
+#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+pub(crate) fn test_service_with_prep_sender() -> (
+    AudioService,
+    Receiver<AudioControlRequest>,
+    EngineEventReceiver,
+    Sender<HostMessage>,
+) {
+    let (event_tx, event_rx) = event_queue();
+    let (control_tx, control_rx) = std::sync::mpsc::channel();
+    let (prep_result_tx, prep_result_rx) = std::sync::mpsc::channel();
+    let service = AudioService {
+        realtime_txs: Arc::new(Mutex::new(vec![test_sink_sender(event_tx)])),
+        replay_events: Arc::new(Mutex::new(ReplayCache::default())),
+        control_tx,
+        config_revision: Arc::new(AtomicU64::new(0)),
+        sample_cache: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        sample_bank_signature: Arc::new(Mutex::new(String::new())),
+        prep_result_rx: Arc::new(Mutex::new(prep_result_rx)),
+    };
+    (service, control_rx, event_rx, prep_result_tx)
 }

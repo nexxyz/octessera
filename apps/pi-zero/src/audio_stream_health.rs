@@ -41,6 +41,7 @@ impl AudioStreamHealth {
         self.faulted.load(Ordering::Relaxed)
     }
 
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub(crate) fn clear_faulted(&self) {
         self.faulted.store(false, Ordering::Relaxed);
     }

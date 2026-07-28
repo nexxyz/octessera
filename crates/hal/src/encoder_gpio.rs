@@ -3,13 +3,14 @@
 
 #[cfg(feature = "rpi-zero-2w")]
 use rppal::gpio::{Event, Gpio, InputPin, Level, Trigger};
+#[cfg(not(feature = "orange-pi-zero-2w"))]
 use std::sync::mpsc::Sender;
 #[cfg(feature = "rpi-zero-2w")]
 use std::sync::{Arc, Mutex};
 #[cfg(feature = "rpi-zero-2w")]
 use std::time::Duration;
 
-#[cfg(not(feature = "rpi-zero-2w"))]
+#[cfg(all(not(feature = "rpi-zero-2w"), not(feature = "orange-pi-zero-2w")))]
 use std::fmt;
 
 /// Hardware event from encoders
@@ -20,8 +21,11 @@ pub enum HardwareEvent {
     EncoderRelease { id: &'static str },
 }
 
-#[cfg(feature = "rpi-zero-2w")]
-const SWITCH_DEBOUNCE_MS: u64 = 45;
+#[cfg(any(
+    feature = "rpi-zero-2w",
+    all(feature = "orange-pi-zero-2w", target_os = "linux")
+))]
+pub(crate) const SWITCH_DEBOUNCE_MS: u64 = 45;
 
 /// Rotary encoder with GPIO interrupt handling
 #[cfg(feature = "rpi-zero-2w")]
@@ -34,27 +38,35 @@ pub struct EncoderGpio {
     _tx: Sender<HardwareEvent>,
 }
 
-#[cfg(any(feature = "rpi-zero-2w", test))]
-struct QuadratureState {
+#[cfg(any(
+    feature = "rpi-zero-2w",
+    all(feature = "orange-pi-zero-2w", target_os = "linux"),
+    test
+))]
+pub(crate) struct QuadratureState {
     last: u8,
     accum: i8,
 }
 
-#[cfg(any(feature = "rpi-zero-2w", test))]
+#[cfg(any(
+    feature = "rpi-zero-2w",
+    all(feature = "orange-pi-zero-2w", target_os = "linux"),
+    test
+))]
 impl QuadratureState {
     #[cfg(feature = "rpi-zero-2w")]
     fn new(a: Level, b: Level) -> Self {
         Self::new_bits(levels_to_bits(a, b))
     }
 
-    fn new_bits(bits: u8) -> Self {
+    pub(crate) fn new_bits(bits: u8) -> Self {
         Self {
             last: bits & 0b11,
             accum: 0,
         }
     }
 
-    fn update(&mut self, next: u8) -> Option<i8> {
+    pub(crate) fn update(&mut self, next: u8) -> Option<i8> {
         let transition = (self.last << 2) | next;
         self.last = next;
         let step = match transition {
@@ -77,6 +89,11 @@ impl QuadratureState {
         } else {
             None
         }
+    }
+
+    #[cfg(all(feature = "orange-pi-zero-2w", target_os = "linux"))]
+    pub(crate) fn bits(&self) -> u8 {
+        self.last
     }
 
     fn skipped_edge_step(&self) -> i8 {
@@ -185,12 +202,12 @@ fn event_bit(event: Event) -> u8 {
 }
 
 /// Stub for non-Pi builds
-#[cfg(not(feature = "rpi-zero-2w"))]
+#[cfg(all(not(feature = "rpi-zero-2w"), not(feature = "orange-pi-zero-2w")))]
 pub struct EncoderGpio {
     _private: (),
 }
 
-#[cfg(not(feature = "rpi-zero-2w"))]
+#[cfg(all(not(feature = "rpi-zero-2w"), not(feature = "orange-pi-zero-2w")))]
 impl EncoderGpio {
     pub fn new(
         _id: &'static str,
@@ -201,7 +218,7 @@ impl EncoderGpio {
     }
 }
 
-#[cfg(not(feature = "rpi-zero-2w"))]
+#[cfg(all(not(feature = "rpi-zero-2w"), not(feature = "orange-pi-zero-2w")))]
 impl fmt::Debug for EncoderGpio {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "EncoderGpio {{ ... }}")

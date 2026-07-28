@@ -1,22 +1,38 @@
 use crate::input::{grid_message, neokey_message};
-use octessera_hal::{NeoKey, NeoTrellis, SeesawInterrupt};
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+use octessera_hal::SeesawInterrupt;
+use octessera_hal::{NeoKey, NeoTrellis};
 use playback_runtime::HostMessage;
 use std::sync::mpsc::{self, Receiver, Sender};
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 const INPUT_SERVICE_INTERVAL: Duration = Duration::from_millis(4);
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+const INPUT_SERVICE_INTERVAL: Duration = Duration::from_millis(10);
 const OUTPUT_RETRY_INTERVAL: Duration = Duration::from_millis(10);
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+const SEESAW_SHUTDOWN_TIMEOUT: Duration = Duration::from_millis(750);
 
 #[derive(Clone)]
 pub(crate) enum SeesawCommand {
     GridFrame([[u8; 3]; 64]),
     NeoKeyColors([[u8; 3]; 4]),
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    Shutdown {
+        ack: Sender<Result<(), String>>,
+        deadline: Instant,
+    },
 }
 
 pub(crate) struct SeesawIo {
     pub(crate) input_rx: Receiver<HostMessage>,
     pub(crate) command_tx: Sender<SeesawCommand>,
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    worker: Arc<Mutex<Option<thread::JoinHandle<()>>>>,
 }
 
 trait LedOutputWriter {
@@ -51,6 +67,13 @@ struct DesiredLedOutputs {
 }
 
 impl DesiredLedOutputs {
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    fn shutdown_complete(&self) -> bool {
+        self.applied_grid == Some([[0; 3]; 64])
+            && self.applied_key_valid == [true; 4]
+            && self.applied_keys == [[0; 3]; 4]
+    }
+
     fn accept(&mut self, command: SeesawCommand) {
         match command {
             SeesawCommand::GridFrame(frame) => {
@@ -65,9 +88,10 @@ impl DesiredLedOutputs {
                     self.next_key_attempt_at = None;
                 }
             }
+            #[cfg(feature = "hardware-orange-pi-zero-2w")]
+            SeesawCommand::Shutdown { .. } => {}
         }
     }
-
     fn apply_due<W: LedOutputWriter>(&mut self, writer: &mut W, now: Instant) {
         self.apply_grid_if_due(writer, now);
         self.apply_keys_if_due(writer, now);
@@ -122,17 +146,23 @@ fn attempt_due(next_attempt_at: Option<Instant>, now: Instant) -> bool {
 pub(crate) fn spawn(
     mut trellis: NeoTrellis,
     mut neokey: NeoKey,
-    interrupt: SeesawInterrupt,
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))] interrupt: SeesawInterrupt,
 ) -> SeesawIo {
     let (input_tx, input_rx) = mpsc::channel::<HostMessage>();
     let (command_tx, command_rx) = mpsc::channel::<SeesawCommand>();
-    thread::spawn(move || {
+    let worker = thread::spawn(move || {
         let mut previous_neokey = [false; 4];
         let mut outputs = DesiredLedOutputs::default();
         let mut last_input_service = Instant::now() - INPUT_SERVICE_INTERVAL;
+        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        let mut shutdown_ack = None;
         loop {
             let service_due = last_input_service.elapsed() >= INPUT_SERVICE_INTERVAL;
-            if service_due || interrupt.pending() {
+            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+            let interrupt_pending = interrupt.pending();
+            #[cfg(feature = "hardware-orange-pi-zero-2w")]
+            let interrupt_pending = false;
+            if service_due || interrupt_pending {
                 scan_inputs(&mut trellis, &mut neokey, &mut previous_neokey, &input_tx);
                 last_input_service = Instant::now();
             }
@@ -141,15 +171,79 @@ pub(crate) fn spawn(
                 trellis: &mut trellis,
                 neokey: &mut neokey,
             };
+            #[cfg(feature = "hardware-orange-pi-zero-2w")]
+            {
+                shutdown_ack =
+                    drain_commands(&command_rx, &mut outputs, &mut output, Instant::now())
+                        .or(shutdown_ack);
+                if let Some((ack, deadline)) = shutdown_ack.take() {
+                    if outputs.shutdown_complete() {
+                        let _ = ack.send(Ok(()));
+                        break;
+                    }
+                    if Instant::now() >= deadline {
+                        let _ = ack.send(Err("Seesaw black-frame cleanup timed out".into()));
+                        break;
+                    }
+                    shutdown_ack = Some((ack, deadline));
+                }
+            }
+            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
             drain_commands(&command_rx, &mut outputs, &mut output, Instant::now());
 
             thread::sleep(Duration::from_millis(2));
         }
     });
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    let _ = worker;
 
     SeesawIo {
         input_rx,
         command_tx,
+        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        worker: Arc::new(Mutex::new(Some(worker))),
+    }
+}
+
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+pub(crate) fn spawn_polling(trellis: NeoTrellis, neokey: NeoKey) -> SeesawIo {
+    spawn(trellis, neokey)
+}
+
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+pub(crate) fn spawn_interrupt(
+    trellis: NeoTrellis,
+    neokey: NeoKey,
+    interrupt: SeesawInterrupt,
+) -> SeesawIo {
+    spawn(trellis, neokey, interrupt)
+}
+
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+impl SeesawIo {
+    pub(crate) fn shutdown(self) -> Result<(), String> {
+        let (ack_tx, ack_rx) = mpsc::channel();
+        let deadline = Instant::now() + SEESAW_SHUTDOWN_TIMEOUT;
+        self.command_tx
+            .send(SeesawCommand::Shutdown {
+                ack: ack_tx,
+                deadline,
+            })
+            .map_err(|error| format!("Seesaw shutdown command failed: {error}"))?;
+        let ack_result = ack_rx
+            .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+            .map_err(|error| format!("Seesaw shutdown acknowledgement failed: {error}"))?;
+        let worker = self
+            .worker
+            .lock()
+            .map_err(|_| "Seesaw worker mutex poisoned".to_string())?
+            .take();
+        if let Some(worker) = worker {
+            worker
+                .join()
+                .map_err(|_| "Seesaw worker panicked during shutdown".to_string())?;
+        }
+        ack_result
     }
 }
 
@@ -158,14 +252,30 @@ fn drain_commands<W: LedOutputWriter>(
     outputs: &mut DesiredLedOutputs,
     writer: &mut W,
     now: Instant,
-) {
+) -> Option<(Sender<Result<(), String>>, Instant)> {
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    let mut shutdown = None;
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    let shutdown = None;
     for _ in 0..32 {
         let Ok(command) = command_rx.try_recv() else {
             break;
         };
-        outputs.accept(command);
+        match command {
+            SeesawCommand::GridFrame(frame) => outputs.accept(SeesawCommand::GridFrame(frame)),
+            SeesawCommand::NeoKeyColors(colors) => {
+                outputs.accept(SeesawCommand::NeoKeyColors(colors))
+            }
+            #[cfg(feature = "hardware-orange-pi-zero-2w")]
+            SeesawCommand::Shutdown { ack, deadline } => {
+                outputs.accept(SeesawCommand::GridFrame([[0; 3]; 64]));
+                outputs.accept(SeesawCommand::NeoKeyColors([[0; 3]; 4]));
+                shutdown = Some((ack, deadline));
+            }
+        }
     }
     outputs.apply_due(writer, now);
+    shutdown
 }
 
 fn scan_inputs(
@@ -176,18 +286,24 @@ fn scan_inputs(
 ) {
     if let Ok(presses) = trellis.scan_keys() {
         for (x, y, pressed) in presses {
+            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
             crate::wake_trace::log_trellis_event(x, y, pressed);
             let _ = input_tx.send(grid_message(x, y, pressed));
         }
     }
 
-    if let Ok(keys) = neokey.scan_interrupts() {
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    let keys = neokey.scan_interrupts();
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    let keys = neokey.scan();
+    if let Ok(keys) = keys {
         for (key, pressed) in keys {
             let index = usize::from(key.min(3));
             if previous_neokey[index] == pressed {
                 continue;
             }
             previous_neokey[index] = pressed;
+            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
             crate::wake_trace::log_neokey_transition(key, pressed);
             if let Some(message) = neokey_message(key, pressed) {
                 let _ = input_tx.send(message);
@@ -312,5 +428,27 @@ mod tests {
         );
         assert_eq!(outputs.applied_grid, Some(black_grid));
         assert_eq!(outputs.applied_key_valid, [true; 4]);
+    }
+
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[test]
+    fn shutdown_black_cleanup_carries_a_bounded_deadline() {
+        let (command_tx, command_rx) = mpsc::channel();
+        let (ack_tx, _ack_rx) = mpsc::channel::<Result<(), String>>();
+        let deadline = Instant::now() + SEESAW_SHUTDOWN_TIMEOUT;
+        command_tx
+            .send(SeesawCommand::Shutdown {
+                ack: ack_tx,
+                deadline,
+            })
+            .unwrap();
+
+        let mut outputs = DesiredLedOutputs::default();
+        let mut writer = fake_output(1, 1);
+        let shutdown = drain_commands(&command_rx, &mut outputs, &mut writer, Instant::now())
+            .expect("shutdown acknowledgement");
+        assert_eq!(shutdown.1, deadline);
+        assert_eq!(outputs.desired_grid, Some([[0; 3]; 64]));
+        assert_eq!(outputs.desired_keys, Some([[0; 3]; 4]));
     }
 }
