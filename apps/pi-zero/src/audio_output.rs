@@ -25,6 +25,15 @@ const USB_AUDIO_RECOVERY_INTERVAL: Duration = Duration::from_secs(2);
 pub struct AudioManager {
     _streams: Vec<Stream>,
     service: AudioService,
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    required_health: Option<AudioStreamHealth>,
+}
+
+#[derive(Clone, Copy)]
+enum AudioOpenPolicy {
+    Usb(UsbAudioOut),
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    InternalDac,
 }
 
 struct ManagedUsbStream {
@@ -32,14 +41,53 @@ struct ManagedUsbStream {
     health: AudioStreamHealth,
 }
 
+struct OpenedAudioSink {
+    engine_tx: EngineEventSender,
+    stream: Stream,
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    health: AudioStreamHealth,
+}
+
 impl AudioManager {
     pub fn new(output_buffer_frames: Option<u32>, audio_out: UsbAudioOut) -> Result<Self, String> {
+        Self::new_with_opener(
+            output_buffer_frames,
+            startup_sinks(audio_out),
+            audio_out == UsbAudioOut::Both,
+            AudioOpenPolicy::Usb(audio_out),
+            open_audio_sink,
+        )
+    }
+
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    pub fn new_orange(output_buffer_frames: Option<u32>) -> Result<Self, String> {
+        Self::new_with_opener(
+            output_buffer_frames,
+            vec![AudioSink::InternalDac],
+            false,
+            AudioOpenPolicy::InternalDac,
+            open_orange_audio_sink,
+        )
+    }
+
+    fn new_with_opener(
+        output_buffer_frames: Option<u32>,
+        sinks: Vec<AudioSink>,
+        allow_partial: bool,
+        policy: AudioOpenPolicy,
+        open_sink: fn(
+            Option<u32>,
+            AudioSink,
+            Option<Arc<RwLock<Option<RecordingTap>>>>,
+        ) -> Result<OpenedAudioSink, String>,
+    ) -> Result<Self, String> {
         let (control_tx, control_rx) = mpsc::channel::<AudioControlRequest>();
         let (prep_result_tx, prep_result_rx) = mpsc::channel::<HostMessage>();
         let mut streams = Vec::new();
+        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        let mut required_health = None;
         let realtime_txs = Arc::new(Mutex::new(Vec::new()));
         let replay_events = Arc::new(Mutex::new(default_replay_events()));
-        let sinks = startup_sinks(audio_out);
         let recorder = Arc::new(Mutex::new(crate::recording::RecorderService::new(
             recordings_dir(),
         )));
@@ -48,21 +96,31 @@ impl AudioManager {
         for sink in sinks {
             let uses_recording_tap = !recording_tap_claimed;
             let tap = uses_recording_tap.then(|| recording_tap.clone());
-            match open_audio_sink(output_buffer_frames, sink, tap.clone()) {
-                Ok((engine_tx, stream)) => {
+            match open_sink(output_buffer_frames, sink, tap.clone()) {
+                Ok(opened) => {
                     if uses_recording_tap {
                         recording_tap_claimed = true;
                     }
-                    streams.push(stream);
-                    register_sink(&realtime_txs, sink, engine_tx);
+                    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+                    if sink == AudioSink::InternalDac {
+                        required_health = Some(opened.health.clone());
+                    }
+                    streams.push(opened.stream);
+                    register_sink(&realtime_txs, sink, opened.engine_tx);
                 }
-                Err(error) if audio_out == UsbAudioOut::Both => {
+                Err(error) if allow_partial => {
                     eprintln!("{sink:?} audio init failed: {error} (continuing with other sinks)");
                 }
                 Err(error) => return Err(error),
             }
         }
-        if streams.is_empty() && audio_out == UsbAudioOut::Jack {
+        let requires_stream = match policy {
+            AudioOpenPolicy::Usb(UsbAudioOut::Jack) => true,
+            AudioOpenPolicy::Usb(UsbAudioOut::Usb | UsbAudioOut::Both) => false,
+            #[cfg(feature = "hardware-orange-pi-zero-2w")]
+            AudioOpenPolicy::InternalDac => true,
+        };
+        if streams.is_empty() && requires_stream {
             return Err("no requested audio outputs opened".into());
         }
         let service = AudioService {
@@ -81,23 +139,35 @@ impl AudioManager {
             service.clone(),
             prep_result_tx,
         );
-        if recovery_enabled(audio_out) {
-            spawn_usb_recovery_worker(
-                output_buffer_frames,
-                realtime_txs.clone(),
-                replay_events.clone(),
-                recording_tap.clone(),
-                audio_out,
-            );
+        match policy {
+            AudioOpenPolicy::Usb(audio_out) if recovery_enabled(audio_out) => {
+                spawn_usb_recovery_worker(
+                    output_buffer_frames,
+                    realtime_txs.clone(),
+                    replay_events.clone(),
+                    recording_tap.clone(),
+                    audio_out,
+                );
+            }
+            AudioOpenPolicy::Usb(_) => {}
+            #[cfg(feature = "hardware-orange-pi-zero-2w")]
+            AudioOpenPolicy::InternalDac => {}
         }
         Ok(Self {
             _streams: streams,
             service,
+            #[cfg(feature = "hardware-orange-pi-zero-2w")]
+            required_health,
         })
     }
 
     pub fn service(&self) -> AudioService {
         self.service.clone()
+    }
+
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    pub fn internal_dac_health(&self) -> Option<AudioStreamHealth> {
+        self.required_health.clone()
     }
 }
 
@@ -105,7 +175,7 @@ fn open_audio_sink(
     output_buffer_frames: Option<u32>,
     sink: AudioSink,
     recording_tap: Option<Arc<RwLock<Option<RecordingTap>>>>,
-) -> Result<(EngineEventSender, Stream), String> {
+) -> Result<OpenedAudioSink, String> {
     let (engine_tx, engine_rx) = event_queue();
     let health = AudioStreamHealth::new(format!("{sink:?}"));
     let stream = build_cpal_stream(
@@ -129,7 +199,42 @@ fn open_audio_sink(
             prepare_instruments_config(default_pi_instruments(), DEFAULT_AUDIO_SAMPLE_RATE),
         ))
         .map_err(|error| error.to_string())?;
-    Ok((engine_tx, stream))
+    Ok(OpenedAudioSink {
+        engine_tx,
+        stream,
+        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        health,
+    })
+}
+
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+fn open_orange_audio_sink(
+    output_buffer_frames: Option<u32>,
+    sink: AudioSink,
+    recording_tap: Option<Arc<RwLock<Option<RecordingTap>>>>,
+) -> Result<OpenedAudioSink, String> {
+    let (engine_tx, engine_rx) = event_queue();
+    let health = AudioStreamHealth::new(format!("{sink:?}"));
+    let stream = build_orange_cpal_stream(
+        engine_rx,
+        output_buffer_frames,
+        recording_tap,
+        health.clone(),
+    )?;
+    stream
+        .play()
+        .map_err(|e| format!("failed to play Orange audio stream: {e}"))?;
+    engine_tx
+        .send(EngineEvent::SetPreparedInstruments(
+            prepare_instruments_config(default_pi_instruments(), DEFAULT_AUDIO_SAMPLE_RATE),
+        ))
+        .map_err(|error| error.to_string())?;
+    Ok(OpenedAudioSink {
+        engine_tx,
+        stream,
+        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        health,
+    })
 }
 
 fn open_managed_usb_sink(
@@ -232,9 +337,39 @@ fn build_cpal_stream(
     }
 }
 
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+fn build_orange_cpal_stream(
+    engine_rx: EngineEventReceiver,
+    output_buffer_frames: Option<u32>,
+    recording_tap: Option<Arc<RwLock<Option<RecordingTap>>>>,
+    stream_health: AudioStreamHealth,
+) -> Result<Stream, String> {
+    let host = cpal::default_host();
+    let device = crate::orange_audio::select_orange_output_device(&host)?;
+    let (sample_format, mut config) = crate::orange_audio::select_orange_stream_config(&device)?;
+    config.buffer_size = output_buffer_size(output_buffer_frames);
+    let source = EngineSource::new(engine_rx, config.sample_rate.0);
+    match sample_format {
+        SampleFormat::F32 => {
+            build_stream::<f32>(&device, &config, source, recording_tap, stream_health)
+        }
+        SampleFormat::I16 => {
+            build_stream::<i16>(&device, &config, source, recording_tap, stream_health)
+        }
+        SampleFormat::U16 => {
+            build_stream::<u16>(&device, &config, source, recording_tap, stream_health)
+        }
+        format => Err(format!(
+            "unsupported Orange audio sample format: {format:?}"
+        )),
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum AudioSink {
     Jack,
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    InternalDac,
     Usb,
 }
 
@@ -250,6 +385,10 @@ pub(crate) fn audio_sinks(audio_out: UsbAudioOut) -> Vec<AudioSink> {
 fn select_output_device(host: &cpal::Host, sink: AudioSink) -> Result<cpal::Device, String> {
     let env_name = match sink {
         AudioSink::Jack => "OCTESSERA_AUDIO_JACK_DEVICE",
+        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        AudioSink::InternalDac => {
+            return Err("internal DAC sink requires the Orange audio opener".into())
+        }
         AudioSink::Usb => "OCTESSERA_AUDIO_USB_DEVICE",
     };
     let devices: Vec<_> = host
@@ -265,6 +404,8 @@ fn select_output_device(host: &cpal::Host, sink: AudioSink) -> Result<cpal::Devi
         ));
     }
     match sink {
+        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        AudioSink::InternalDac => Err("internal DAC sink requires the Orange audio opener".into()),
         AudioSink::Jack => devices
             .iter()
             .find(|d| !is_usb_gadget_name(&device_name(d)))

@@ -205,6 +205,8 @@ jobs:
         run: cargo clippy -p octessera-hal --features orange-pi-zero-2w --all-targets -- -D warnings
       - name: Build Orange diagnostic artifact for production target
         run: cargo build --target aarch64-unknown-linux-gnu -p octessera-hal --features orange-pi-zero-2w --bin orange-oled-smoke
+      - name: Build Orange Seesaw diagnostic artifact for production target
+        run: cargo build --target aarch64-unknown-linux-gnu -p octessera-hal --features orange-pi-zero-2w --bin orange-seesaw-smoke
       - name: Reject mixed HAL profiles
         run: |
           set -o pipefail
@@ -232,10 +234,32 @@ jobs:
         run: |
           curl -sSL https://github.com/cross-rs/cross/releases/download/v0.2.5/cross-x86_64-unknown-linux-gnu.tar.gz | tar xz -C /usr/local/bin
           cross --version
+      - name: Verify Orange ARM ALSA cross sysroot contract
+        run: |
+          grep -F 'dockerfile = "Dockerfile.pi-zero"' Cross.toml
+          grep -F 'libasound2-dev:arm64' Dockerfile.pi-zero
+          grep -F 'PKG_CONFIG_PATH="/usr/lib/aarch64-linux-gnu/pkgconfig/"' Dockerfile.pi-zero
+          grep -F 'PKG_CONFIG_ALLOW_CROSS=1' Dockerfile.pi-zero
       - name: Build Pi app with cross
         run: cross build --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-raspberry-pi-zero-2w
       - name: Compile legacy Pi app feature alias
         run: cross check --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-pi
+      - name: Test Orange foreground runtime
+        run: cross test --target aarch64-unknown-linux-gnu -p octessera-pi --no-default-features --features hardware-orange-pi-zero-2w
+      - name: Build Orange foreground runtime candidate
+        run: cross build --target aarch64-unknown-linux-gnu -p octessera-pi --no-default-features --features hardware-orange-pi-zero-2w
+      - name: Lint Orange foreground runtime candidate
+        run: cross clippy --target aarch64-unknown-linux-gnu -p octessera-pi --no-default-features --features hardware-orange-pi-zero-2w --all-targets -- -D warnings
+      - name: Reject mixed Orange and Raspberry app profiles
+        run: |
+          set -o pipefail
+          guard_log="$(mktemp)"
+          if cross check --target aarch64-unknown-linux-gnu -p octessera-pi --no-default-features --features "hardware-orange-pi-zero-2w hardware-raspberry-pi-zero-2w" --lib >"$guard_log" 2>&1; then
+            cat "$guard_log"
+            echo "App accepted mutually exclusive board profiles" >&2
+            exit 1
+          fi
+          grep -E "Orange and Raspberry Pi app profiles are mutually exclusive|select exactly one Octessera board profile" "$guard_log"
 
   board_profile_scripts:
     name: Board profile script checks

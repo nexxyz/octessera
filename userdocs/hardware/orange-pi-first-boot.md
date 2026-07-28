@@ -3,8 +3,11 @@
 The Orange Pi image starts a small setup website if it does not already know a Wi-Fi network.
 
 This image is bring-up infrastructure, not a full Octessera runtime image. It
-does not install or enable `octessera.service`; Orange artifacts currently
-support diagnostics only.
+does not install or enable `octessera.service`. The foreground
+`octessera-pi` candidate is a separately staged qualification build, not a
+service or release artifact. It uses the shared 44.1 kHz runtime rate and
+requires the exact CPAL output device `hw:CARD=octesseradac,DEV=0`; internal
+MIDI events are ignored and explicit MIDI platform actions are unavailable.
 
 Use this before final assembly if you want. You do not need the OLED or buttons installed yet.
 

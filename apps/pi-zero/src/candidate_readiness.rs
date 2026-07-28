@@ -201,7 +201,7 @@ mod tests {
             pid: 1234,
             systemd_invocation_id: "invocation-1".into(),
             package_version: "0.7.0".into(),
-            board_profile: "raspberry-pi-zero-2w".into(),
+            board_profile: crate::board_profile::BOARD_PROFILE_ID.into(),
             ready_at_unix_ms: 1_700_000_000_123,
         };
 
@@ -212,7 +212,7 @@ mod tests {
                 "pid": 1234,
                 "systemd_invocation_id": "invocation-1",
                 "package_version": "0.7.0",
-                "board_profile": "raspberry-pi-zero-2w",
+                "board_profile": crate::board_profile::BOARD_PROFILE_ID,
                 "ready_at_unix_ms": 1_700_000_000_123_u64,
             })
         );

@@ -1,75 +1,155 @@
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
+use crate::board_profiles::SeesawInputMode;
 #[cfg(feature = "rpi-zero-2w")]
 use crate::pinmap::NEOKEY_ADDR;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 use std::fs::{File, OpenOptions};
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 use std::io::{Read, Write};
-#[cfg(feature = "rpi-zero-2w")]
-use std::os::unix::io::AsRawFd;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 use std::thread;
-#[cfg(any(feature = "rpi-zero-2w", test))]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w", test))]
 use std::time::{Duration, Instant};
 
-#[cfg(not(feature = "rpi-zero-2w"))]
+#[cfg(not(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w")))]
 use std::fmt;
 
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 pub struct NeoKey {
     i2c_path: String,
     addr: u16,
     debouncer: NeoKeyDebouncer,
 }
 
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_STATUS_BASE: u8 = 0x00;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_HW_ID: u8 = 0x01;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_SW_RESET: u8 = 0x7F;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_GPIO_BASE: u8 = 0x01;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_GPIO_DIRCLR_BULK: u8 = 0x03;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_GPIO_BULK: u8 = 0x04;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_GPIO_BULK_SET: u8 = 0x05;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_GPIO_INTENSET: u8 = 0x08;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_GPIO_INTFLAG: u8 = 0x0A;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_GPIO_PULLENSET: u8 = 0x0B;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_NEOPIXEL_BASE: u8 = 0x0E;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_NEOPIXEL_PIN: u8 = 0x01;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_NEOPIXEL_BUF_LENGTH: u8 = 0x03;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_NEOPIXEL_BUF: u8 = 0x04;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_NEOPIXEL_SHOW: u8 = 0x05;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const NEOKEY_BUTTON_MASK: u32 = 0xF0;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const NEOKEY_NEOPIXEL_PIN: u8 = 3;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const NEOKEY_LED_BYTES: u16 = 12;
-#[cfg(any(feature = "rpi-zero-2w", test))]
-const NEOKEY_DEBOUNCE: Duration = Duration::from_millis(24);
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum NeoKeyInitCommand {
+    Write {
+        base: u8,
+        function: u8,
+    },
+    Read {
+        base: u8,
+        function: u8,
+        bytes: usize,
+    },
+    DelayMillis(u64),
+}
+
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
+fn neokey_init_plan(mode: SeesawInputMode) -> Vec<NeoKeyInitCommand> {
+    let mut plan = vec![
+        NeoKeyInitCommand::Write {
+            base: SEESAW_STATUS_BASE,
+            function: SEESAW_SW_RESET,
+        },
+        NeoKeyInitCommand::DelayMillis(500),
+        NeoKeyInitCommand::Read {
+            base: SEESAW_STATUS_BASE,
+            function: SEESAW_HW_ID,
+            bytes: 1,
+        },
+        NeoKeyInitCommand::Write {
+            base: SEESAW_GPIO_BASE,
+            function: SEESAW_GPIO_DIRCLR_BULK,
+        },
+        NeoKeyInitCommand::Write {
+            base: SEESAW_GPIO_BASE,
+            function: SEESAW_GPIO_PULLENSET,
+        },
+        NeoKeyInitCommand::Write {
+            base: SEESAW_GPIO_BASE,
+            function: SEESAW_GPIO_BULK_SET,
+        },
+    ];
+    if mode == SeesawInputMode::Interrupt {
+        plan.extend([
+            NeoKeyInitCommand::Write {
+                base: SEESAW_GPIO_BASE,
+                function: SEESAW_GPIO_INTENSET,
+            },
+            NeoKeyInitCommand::Read {
+                base: SEESAW_GPIO_BASE,
+                function: SEESAW_GPIO_INTFLAG,
+                bytes: 4,
+            },
+        ]);
+    }
+    plan.extend([
+        NeoKeyInitCommand::Write {
+            base: SEESAW_NEOPIXEL_BASE,
+            function: SEESAW_NEOPIXEL_PIN,
+        },
+        NeoKeyInitCommand::Write {
+            base: SEESAW_NEOPIXEL_BASE,
+            function: SEESAW_NEOPIXEL_BUF_LENGTH,
+        },
+    ]);
+    plan
+}
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w", test))]
+#[path = "neokey_debounce.rs"]
+mod debounce;
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w", test))]
+use debounce::NeoKeyDebouncer;
+#[cfg(test)]
+use debounce::NEOKEY_DEBOUNCE;
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const NEOKEY_INIT_ATTEMPTS: usize = 3;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const NEOKEY_INIT_RETRY_DELAY: Duration = Duration::from_millis(250);
 
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 impl NeoKey {
+    #[cfg(feature = "rpi-zero-2w")]
     pub fn new(i2c_path: &str) -> Result<Self, String> {
+        Self::new_with_mode(i2c_path, NEOKEY_ADDR, SeesawInputMode::Interrupt)
+    }
+
+    pub fn new_with_mode(
+        i2c_path: &str,
+        address: u16,
+        mode: SeesawInputMode,
+    ) -> Result<Self, String> {
         let mut last_error = None;
         for attempt in 1..=NEOKEY_INIT_ATTEMPTS {
-            match Self::try_new(i2c_path) {
+            match Self::try_new(i2c_path, address, mode) {
                 Ok(neokey) => return Ok(neokey),
                 Err(error) => {
                     last_error = Some(error);
@@ -82,84 +162,66 @@ impl NeoKey {
         Err(last_error.unwrap_or_else(|| "NeoKey init failed".to_string()))
     }
 
-    fn try_new(i2c_path: &str) -> Result<Self, String> {
-        let mut file = open_device(i2c_path, NEOKEY_ADDR)?;
-        write_register(
-            &mut file,
-            SEESAW_STATUS_BASE,
-            SEESAW_SW_RESET,
-            &[0xFF],
-            "NeoKey reset failed",
-        )?;
-        thread::sleep(Duration::from_millis(500));
-
-        let mut id = [0_u8; 1];
-        read_register(
-            &mut file,
-            SEESAW_STATUS_BASE,
-            SEESAW_HW_ID,
-            &mut id,
-            "NeoKey HW ID read failed",
-        )?;
-        if !matches!(id[0], 0x55 | 0x84..=0x89) {
-            return Err(format!("NeoKey HW ID invalid: {:#04x}", id[0]));
-        }
-
+    fn try_new(i2c_path: &str, address: u16, mode: SeesawInputMode) -> Result<Self, String> {
+        let mut file = open_device(i2c_path, address)?;
         let mask = NEOKEY_BUTTON_MASK.to_be_bytes();
-        write_register(
-            &mut file,
-            SEESAW_GPIO_BASE,
-            SEESAW_GPIO_DIRCLR_BULK,
-            &mask,
-            "NeoKey GPIO direction init failed",
-        )?;
-        write_register(
-            &mut file,
-            SEESAW_GPIO_BASE,
-            SEESAW_GPIO_PULLENSET,
-            &mask,
-            "NeoKey GPIO pullup init failed",
-        )?;
-        write_register(
-            &mut file,
-            SEESAW_GPIO_BASE,
-            SEESAW_GPIO_BULK_SET,
-            &mask,
-            "NeoKey GPIO pullup set failed",
-        )?;
-        write_register(
-            &mut file,
-            SEESAW_GPIO_BASE,
-            SEESAW_GPIO_INTENSET,
-            &mask,
-            "NeoKey GPIO interrupt init failed",
-        )?;
-        let mut int_flags = [0_u8; 4];
-        read_register(
-            &mut file,
-            SEESAW_GPIO_BASE,
-            SEESAW_GPIO_INTFLAG,
-            &mut int_flags,
-            "NeoKey GPIO interrupt clear failed",
-        )?;
-        write_register(
-            &mut file,
-            SEESAW_NEOPIXEL_BASE,
-            SEESAW_NEOPIXEL_PIN,
-            &[NEOKEY_NEOPIXEL_PIN],
-            "NeoKey LED pin init failed",
-        )?;
-        write_register(
-            &mut file,
-            SEESAW_NEOPIXEL_BASE,
-            SEESAW_NEOPIXEL_BUF_LENGTH,
-            &NEOKEY_LED_BYTES.to_be_bytes(),
-            "NeoKey LED length init failed",
-        )?;
+        let led_bytes = NEOKEY_LED_BYTES.to_be_bytes();
+        for command in neokey_init_plan(mode) {
+            match command {
+                NeoKeyInitCommand::DelayMillis(millis) => {
+                    thread::sleep(Duration::from_millis(millis));
+                }
+                NeoKeyInitCommand::Read {
+                    base,
+                    function,
+                    bytes,
+                } => {
+                    let mut buffer = [0_u8; 4];
+                    let context = if function == SEESAW_HW_ID {
+                        "NeoKey HW ID read failed"
+                    } else {
+                        "NeoKey GPIO interrupt clear failed"
+                    };
+                    read_register(&mut file, base, function, &mut buffer[..bytes], context)?;
+                    if function == SEESAW_HW_ID && !matches!(buffer[0], 0x55 | 0x84..=0x89) {
+                        return Err(format!("NeoKey HW ID invalid: {:#04x}", buffer[0]));
+                    }
+                }
+                NeoKeyInitCommand::Write { base, function } => {
+                    let (data, context): (&[u8], &str) = match (base, function) {
+                        (SEESAW_STATUS_BASE, SEESAW_SW_RESET) => (&[0xFF], "NeoKey reset failed"),
+                        (SEESAW_GPIO_BASE, SEESAW_GPIO_DIRCLR_BULK) => {
+                            (&mask, "NeoKey GPIO direction init failed")
+                        }
+                        (SEESAW_GPIO_BASE, SEESAW_GPIO_PULLENSET) => {
+                            (&mask, "NeoKey GPIO pullup init failed")
+                        }
+                        (SEESAW_GPIO_BASE, SEESAW_GPIO_BULK_SET) => {
+                            (&mask, "NeoKey GPIO pullup set failed")
+                        }
+                        (SEESAW_GPIO_BASE, SEESAW_GPIO_INTENSET) => {
+                            (&mask, "NeoKey GPIO interrupt init failed")
+                        }
+                        (SEESAW_NEOPIXEL_BASE, SEESAW_NEOPIXEL_PIN) => {
+                            (&[NEOKEY_NEOPIXEL_PIN], "NeoKey LED pin init failed")
+                        }
+                        (SEESAW_NEOPIXEL_BASE, SEESAW_NEOPIXEL_BUF_LENGTH) => {
+                            (&led_bytes, "NeoKey LED length init failed")
+                        }
+                        _ => {
+                            return Err(format!(
+                                "unknown NeoKey init command: {base:#04x}/{function:#04x}"
+                            ))
+                        }
+                    };
+                    write_register(&mut file, base, function, data, context)?;
+                }
+            }
+        }
 
         Ok(Self {
             i2c_path: i2c_path.to_string(),
-            addr: NEOKEY_ADDR,
+            addr: address,
             debouncer: NeoKeyDebouncer::default(),
         })
     }
@@ -176,6 +238,7 @@ impl NeoKey {
         Ok(result)
     }
 
+    #[cfg(feature = "rpi-zero-2w")]
     pub fn scan_interrupts(&mut self) -> Result<Vec<(u8, bool)>, String> {
         self.clear_interrupt_flags()?;
         self.scan()
@@ -194,6 +257,7 @@ impl NeoKey {
         Ok(u32::from_be_bytes(buf))
     }
 
+    #[cfg(feature = "rpi-zero-2w")]
     fn clear_interrupt_flags(&mut self) -> Result<(), String> {
         let mut file = open_device(&self.i2c_path, self.addr)?;
         let mut buf = [0_u8; 4];
@@ -234,42 +298,7 @@ impl NeoKey {
     }
 }
 
-#[derive(Clone, Default)]
-#[cfg(any(feature = "rpi-zero-2w", test))]
-struct NeoKeyDebouncer {
-    stable: [bool; 4],
-    candidate: [bool; 4],
-    candidate_since: [Option<Instant>; 4],
-}
-
-#[cfg(any(feature = "rpi-zero-2w", test))]
-impl NeoKeyDebouncer {
-    fn update(&mut self, sampled: [bool; 4], now: Instant) -> [bool; 4] {
-        for (index, pressed) in sampled.into_iter().enumerate() {
-            if pressed == self.stable[index] {
-                self.candidate[index] = pressed;
-                self.candidate_since[index] = None;
-                continue;
-            }
-            if self.candidate[index] != pressed {
-                self.candidate[index] = pressed;
-                self.candidate_since[index] = Some(now);
-                continue;
-            }
-            let Some(started) = self.candidate_since[index] else {
-                self.candidate_since[index] = Some(now);
-                continue;
-            };
-            if now.duration_since(started) >= NEOKEY_DEBOUNCE {
-                self.stable[index] = pressed;
-                self.candidate_since[index] = None;
-            }
-        }
-        self.stable
-    }
-}
-
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 fn neokey_buttons_from_raw(raw: u32) -> [bool; 4] {
     let state = raw & NEOKEY_BUTTON_MASK;
     [
@@ -280,7 +309,7 @@ fn neokey_buttons_from_raw(raw: u32) -> [bool; 4] {
     ]
 }
 
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 fn open_device(i2c_path: &str, addr: u16) -> Result<File, String> {
     let file = OpenOptions::new()
         .read(true)
@@ -291,7 +320,7 @@ fn open_device(i2c_path: &str, addr: u16) -> Result<File, String> {
     Ok(file)
 }
 
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 fn write_register(
     file: &mut File,
     base: u8,
@@ -307,7 +336,7 @@ fn write_register(
         .map_err(|e| format!("{context}: {e}"))
 }
 
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 fn read_register(
     file: &mut File,
     base: u8,
@@ -322,11 +351,18 @@ fn read_register(
         .map_err(|e| format!("{context}: {e}"))
 }
 
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(all(feature = "orange-pi-zero-2w", not(unix)))]
 fn set_slave_addr(file: &File, addr: u16) -> Result<(), String> {
-    #[cfg(target_os = "linux")]
-    unsafe {
-        let result = libc::ioctl(file.as_raw_fd(), 0x0703, addr as u64); // I2C_SLAVE = 0x0703
+    let _ = (file, addr);
+    Err("Orange Seesaw I2C requires a Unix target".into())
+}
+
+#[cfg(any(feature = "rpi-zero-2w", all(feature = "orange-pi-zero-2w", unix)))]
+fn set_slave_addr(file: &File, addr: u16) -> Result<(), String> {
+    #[cfg(all(unix, target_os = "linux"))]
+    {
+        use std::os::unix::io::AsRawFd;
+        let result = unsafe { libc::ioctl(file.as_raw_fd(), 0x0703, addr as u64) };
         if result < 0 {
             return Err(format!(
                 "I2C slave select failed for {addr:#04x}: {}",
@@ -334,15 +370,17 @@ fn set_slave_addr(file: &File, addr: u16) -> Result<(), String> {
             ));
         }
     }
+    #[cfg(all(unix, not(target_os = "linux")))]
+    let _ = (file, addr);
     Ok(())
 }
 
-#[cfg(not(feature = "rpi-zero-2w"))]
+#[cfg(not(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w")))]
 pub struct NeoKey {
     _private: (),
 }
 
-#[cfg(not(feature = "rpi-zero-2w"))]
+#[cfg(not(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w")))]
 impl NeoKey {
     pub fn new(_i2c_path: &str) -> Result<Self, String> {
         Ok(Self { _private: () })
@@ -365,7 +403,7 @@ impl NeoKey {
     }
 }
 
-#[cfg(not(feature = "rpi-zero-2w"))]
+#[cfg(not(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w")))]
 impl fmt::Debug for NeoKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "NeoKey {{ ... }}")
@@ -373,127 +411,5 @@ impl fmt::Debug for NeoKey {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn suppresses_short_press_pulse() {
-        let mut debouncer = NeoKeyDebouncer::default();
-        let start = Instant::now();
-
-        assert_eq!(debouncer.update([false; 4], start), [false; 4]);
-        assert_eq!(
-            debouncer.update(
-                [false, false, false, true],
-                start + Duration::from_millis(4)
-            ),
-            [false; 4]
-        );
-        assert_eq!(
-            debouncer.update([false; 4], start + Duration::from_millis(25)),
-            [false; 4]
-        );
-    }
-
-    #[test]
-    fn accepts_press_after_debounce_window() {
-        let mut debouncer = NeoKeyDebouncer::default();
-        let start = Instant::now();
-
-        assert_eq!(
-            debouncer.update([true, false, false, false], start),
-            [false; 4]
-        );
-        assert_eq!(
-            debouncer.update(
-                [true, false, false, false],
-                start + NEOKEY_DEBOUNCE - Duration::from_millis(1),
-            ),
-            [false; 4]
-        );
-        assert_eq!(
-            debouncer.update([true, false, false, false], start + NEOKEY_DEBOUNCE),
-            [true, false, false, false]
-        );
-    }
-
-    #[test]
-    fn debounces_release_too() {
-        let mut debouncer = NeoKeyDebouncer::default();
-        let start = Instant::now();
-
-        debouncer.update([false, true, false, false], start);
-        assert_eq!(
-            debouncer.update([false, true, false, false], start + NEOKEY_DEBOUNCE),
-            [false, true, false, false]
-        );
-        assert_eq!(
-            debouncer.update(
-                [false, false, false, false],
-                start + NEOKEY_DEBOUNCE + Duration::from_millis(10),
-            ),
-            [false, true, false, false]
-        );
-        assert_eq!(
-            debouncer.update(
-                [false, false, false, false],
-                start + NEOKEY_DEBOUNCE + Duration::from_millis(40),
-            ),
-            [false; 4]
-        );
-    }
-
-    #[test]
-    fn chatter_resets_debounce_window() {
-        let mut debouncer = NeoKeyDebouncer::default();
-        let start = Instant::now();
-
-        debouncer.update([true, false, false, false], start);
-        debouncer.update([false; 4], start + Duration::from_millis(10));
-        assert_eq!(
-            debouncer.update(
-                [true, false, false, false],
-                start + Duration::from_millis(20)
-            ),
-            [false; 4]
-        );
-        assert_eq!(
-            debouncer.update(
-                [true, false, false, false],
-                start + Duration::from_millis(43)
-            ),
-            [false; 4]
-        );
-        assert_eq!(
-            debouncer.update(
-                [true, false, false, false],
-                start + Duration::from_millis(44)
-            ),
-            [true, false, false, false]
-        );
-    }
-
-    #[test]
-    fn buttons_debounce_independently() {
-        let mut debouncer = NeoKeyDebouncer::default();
-        let start = Instant::now();
-
-        debouncer.update([true, false, false, false], start);
-        debouncer.update(
-            [true, true, false, false],
-            start + Duration::from_millis(10),
-        );
-
-        assert_eq!(
-            debouncer.update([true, true, false, false], start + NEOKEY_DEBOUNCE),
-            [true, false, false, false]
-        );
-        assert_eq!(
-            debouncer.update(
-                [true, true, false, false],
-                start + Duration::from_millis(10) + NEOKEY_DEBOUNCE,
-            ),
-            [true, true, false, false]
-        );
-    }
-}
+#[path = "neokey_tests.rs"]
+mod tests;

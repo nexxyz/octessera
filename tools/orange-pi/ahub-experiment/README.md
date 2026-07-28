@@ -33,7 +33,11 @@ the base DTB before merge, and no root `/ahub1_*` nodes are accepted.
 
 The kernel artifact does not embed or activate the Octessera overlay. Overlay
 deployment is a separate, backed-up, preflight-gated step after kernel
-validation.
+validation. Runtime qualification uses the shared 44.1 kHz runtime rate and
+the exact CPAL output device `hw:CARD=octesseradac,DEV=0` when this card is
+selected.
+Internal MIDI events are ignored by the Orange foreground candidate, while
+explicit MIDI platform actions are unavailable.
 
 ## Local checks
 

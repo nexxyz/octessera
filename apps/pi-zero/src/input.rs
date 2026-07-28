@@ -2,6 +2,7 @@ use platform_core::AUX_ENCODER_COUNT;
 use playback_runtime::HostMessage;
 use serde_json::json;
 
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub enum MidiMessage {
     Realtime { bytes: Vec<u8> },
 }
@@ -77,6 +78,7 @@ pub fn neokey_message(key: u8, pressed: bool) -> Option<HostMessage> {
     })
 }
 
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub fn midi_realtime_message(bytes: &[u8]) -> Option<MidiMessage> {
     if bytes
         .iter()
@@ -129,6 +131,7 @@ mod tests {
         }
     }
 
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     #[test]
     fn non_realtime_midi_is_ignored() {
         assert!(midi_realtime_message(&[0x90, 60, 100]).is_none());

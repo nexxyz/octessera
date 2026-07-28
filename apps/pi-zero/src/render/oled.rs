@@ -166,6 +166,7 @@ pub(super) fn title_text_for_oled(title: &str) -> String {
     }
 }
 
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(super) fn fault_frame_into(lines: &[String], frame: &mut [u8], lit: bool) {
     frame.fill(0);
     let warning = rgb565(if lit {

@@ -1,7 +1,6 @@
 Set-StrictMode -Version Latest
 
 $script:OrangeBoardProfile = "orange-pi-zero-2w"
-$script:OrangeArtifactKind = "diagnostic-only"
 $script:OrangeSchemaVersion = 2
 
 function Get-OrangeBinarySha256 {
@@ -32,7 +31,7 @@ function New-OrangeBuildMetadata {
   return [ordered]@{
     schema_version = $script:OrangeSchemaVersion
     board_profile = $script:OrangeBoardProfile
-    artifact_kind = $script:OrangeArtifactKind
+    artifact_kind = $BuildSpec.ArtifactKind
     runtime_ready = $false
     binary = $SelectedBinary
     package = $BuildSpec.Package

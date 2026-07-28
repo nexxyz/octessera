@@ -1,7 +1,9 @@
 use super::*;
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use octessera_hal::OledSsd1351;
 use platform_core::palette;
 use serde_json::{json, Value};
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
@@ -396,11 +398,13 @@ fn sleeping_animation_uses_display_off_instead_of_dim_timer_state() {
 }
 
 #[test]
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 fn sleeping_animation_emits_at_entry_and_deadlines_only() {
     let (command_tx, command_rx) = mpsc::channel();
     let mut targets = HardwareRenderTargets {
         oled: OledSsd1351::new().unwrap(),
         seesaw_tx: command_tx,
+        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         hdmi: None,
     };
     let sleeping = {
@@ -424,11 +428,13 @@ fn sleeping_animation_emits_at_entry_and_deadlines_only() {
 }
 
 #[test]
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 fn sleeping_animation_restores_once_on_wake_and_stays_cached_awake() {
     let (command_tx, command_rx) = mpsc::channel();
     let mut targets = HardwareRenderTargets {
         oled: OledSsd1351::new().unwrap(),
         seesaw_tx: command_tx,
+        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         hdmi: None,
     };
     let sleeping = {
