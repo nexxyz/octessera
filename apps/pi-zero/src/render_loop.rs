@@ -6,10 +6,11 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-const SHUTDOWN_RENDER_TIMEOUT: Duration = Duration::from_millis(750);
+const SHUTDOWN_ACK_TIMEOUT: Duration = Duration::from_millis(750);
 
 pub struct RenderWorker {
     state: Arc<(Mutex<RenderState>, Condvar)>,
+    worker: Arc<Mutex<Option<thread::JoinHandle<()>>>>,
 }
 
 enum RenderCommand {
@@ -18,7 +19,7 @@ enum RenderCommand {
         pulses: Vec<RuntimeUiPulse>,
     },
     Shutdown {
-        ack: mpsc::Sender<()>,
+        ack: mpsc::Sender<Result<(), String>>,
     },
 }
 
@@ -31,8 +32,11 @@ impl RenderWorker {
     pub fn spawn(mut targets: HardwareRenderTargets) -> Self {
         let state = Arc::new((Mutex::new(RenderState::default()), Condvar::new()));
         let worker_state = Arc::clone(&state);
-        thread::spawn(move || render_worker_loop(worker_state, &mut targets));
-        Self { state }
+        let worker = thread::spawn(move || render_worker_loop(worker_state, &mut targets));
+        Self {
+            state,
+            worker: Arc::new(Mutex::new(Some(worker))),
+        }
     }
 
     pub fn publish_snapshot(&self, snapshot: Value, pulses: Vec<RuntimeUiPulse>) -> bool {
@@ -49,16 +53,28 @@ impl RenderWorker {
         }
     }
 
-    pub fn publish_shutdown(&self) -> bool {
+    pub fn publish_shutdown(&self) -> Result<(), String> {
         let (ack_tx, ack_rx) = mpsc::channel();
         let (lock, ready) = &*self.state;
         if let Ok(mut state) = lock.lock() {
             state.command = Some(RenderCommand::Shutdown { ack: ack_tx });
             ready.notify_one();
         } else {
-            return false;
+            return Err("render worker state mutex poisoned during shutdown".into());
         }
-        ack_rx.recv_timeout(SHUTDOWN_RENDER_TIMEOUT).is_ok()
+        let ack_result = ack_rx
+            .recv_timeout(SHUTDOWN_ACK_TIMEOUT)
+            .map_err(|error| format!("render shutdown acknowledgement failed: {error}"))?;
+        let worker = self
+            .worker
+            .lock()
+            .ok()
+            .and_then(|mut worker| worker.take())
+            .ok_or_else(|| "render worker handle unavailable during shutdown".to_string())?;
+        worker
+            .join()
+            .map_err(|_| "render worker panicked during shutdown".to_string())?;
+        ack_result
     }
 }
 
@@ -107,7 +123,8 @@ fn render_worker_loop(
                 let _ = targets
                     .seesaw_tx
                     .send(crate::seesaw_io::SeesawCommand::NeoKeyColors([[0; 3]; 4]));
-                let _ = ack.send(());
+                let display_off = display_off_ack(targets.oled.display_off());
+                let _ = ack.send(display_off);
                 break;
             }
             None => {
@@ -116,6 +133,10 @@ fn render_worker_loop(
             }
         }
     }
+}
+
+fn display_off_ack(result: Result<(), String>) -> Result<(), String> {
+    result.map_err(|error| format!("OLED display-off failed: {error}"))
 }
 
 fn render_sleep_tick_if_uncommanded(
@@ -167,6 +188,23 @@ mod tests {
     use super::*;
 
     #[test]
+    fn shutdown_ack_preserves_display_off_failure() {
+        let (ack_tx, ack_rx) = mpsc::channel();
+        ack_tx
+            .send(display_off_ack(Err("SPI write failed".into())))
+            .unwrap();
+        assert_eq!(
+            ack_rx.recv().unwrap(),
+            Err("OLED display-off failed: SPI write failed".into())
+        );
+    }
+
+    #[test]
+    fn shutdown_ack_timeout_is_bounded() {
+        assert_eq!(SHUTDOWN_ACK_TIMEOUT, Duration::from_millis(750));
+    }
+
+    #[test]
     fn pending_wake_command_wins_over_expired_animation_deadline() {
         let state = Arc::new((Mutex::new(RenderState::default()), Condvar::new()));
         {
@@ -194,7 +232,10 @@ mod tests {
         })
         .join()
         .unwrap();
-        let worker = RenderWorker { state };
+        let worker = RenderWorker {
+            state,
+            worker: Arc::new(Mutex::new(None)),
+        };
 
         assert!(!worker.publish_snapshot(Value::Null, Vec::new()));
     }
@@ -204,7 +245,10 @@ mod tests {
         let state = Arc::new((Mutex::new(RenderState::default()), Condvar::new()));
         let (ack, _received) = mpsc::channel();
         state.0.lock().unwrap().command = Some(RenderCommand::Shutdown { ack });
-        let worker = RenderWorker { state };
+        let worker = RenderWorker {
+            state,
+            worker: Arc::new(Mutex::new(None)),
+        };
 
         assert!(!worker.publish_snapshot(Value::Null, Vec::new()));
     }

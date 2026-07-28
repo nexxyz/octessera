@@ -17,6 +17,21 @@ The diagnostic artifact is the canonical `orange-oled-smoke` ELF. Its adjacent
 `orange-oled-smoke.metadata.json` sidecar uses schema 2, contains the exact
 identity field set, and binds the copied ELF with a canonical lowercase
 `binary_sha256`. Keep those two files together; do not rename either one.
+The separate `orange-seesaw-smoke` artifact uses the same sidecar contract and
+is limited to the proven Seesaw reset/HW-ID check on `/dev/i2c-2`.
+
+The foreground `octessera-pi` candidate is a separate schema-2,
+SHA-256-bound `runtime-candidate` with `runtime_ready=false`. It is hardware-
+free in metadata mode and uses only the proven OLED plus real NeoTrellis/NeoKey
+I2C drivers in polling mode. Audio uses the shared 44.1 kHz runtime rate and
+requires exactly one CPAL output device named
+`hw:CARD=octesseradac,DEV=0` with verified stereo support; there is no
+default or HDMI fallback. Internal MIDI events are ignored, while explicit
+MIDI platform actions are unavailable. USB, updates, reboot, SD transfer, and
+service actions are explicitly unavailable. Qualified encoders use the direct
+gpiocdev path; SW3's UART0-TX switch line remains excluded. The candidate is
+for a foreground qualification run only; the builder rejects deployment/
+service-ready output and the Armbian image path must not install it.
 
 Once the board is reachable over SSH, run the repo probe from Windows:
 
@@ -60,12 +75,31 @@ Use this as a desk check only. Trust physical pin numbers first, then verify aga
 - OLED SPI: physical pins 19, 21, 23, and 24 map to the reviewed SPI1 data/CS0 path; physical pin 26 is SPI1 CS1 and remains unused. Confirm `/dev/spidev1.0` and pinmux before OLED testing.
 - OLED D/C and reset: physical pins 16 and 36 appear GPIO-capable, but not display-specific. Confirm gpiochip lines and polarity.
 - DAC I2S: physical pins 12, 35, and 40 are not proven as Pi-style I2S/PCM pins in the official docs found so far. This is blocked until schematic, DTS, and Armbian overlay checks prove I2S there.
-- Encoder and button GPIOs: physical pins 7, 8, 11, 13, 15, 18, 22, 29, 31, 32, 33, and 37 need libgpiod mapping. Do not use BCM numbering.
+- Encoder and button GPIOs use the existing Octessera netlist routes and the H618 40-pin mapping below. The gpiocdev offsets are relative to `300b000.pinctrl`; do not use BCM numbering.
 - NeoTrellis interrupt: physical pin 10 is UART0 RX in the third-party pinout. Disable the serial console or stop if the no-PCB-change goal fails.
-- SW3 switch: physical pin 8 is UART0 TX in the third-party pinout. Disable the serial console and verify edge events.
+- SW3 switch: physical pin 8 is UART0 TX in the third-party pinout. Its GPIO line is explicitly excluded/faulted until boot routing changes.
+
+### Direct encoder mapping
+
+The PCB netlist supplies the A/B/switch physical header pins. H618 port offsets
+use the established `port base + pin` mapping (`PC12 = 76`, `PI14 = 270`).
+
+| Encoder | A physical / H618 / offset | B physical / H618 / offset | Switch physical / H618 / offset | Candidate status |
+|---|---|---|---|---|
+| SW1 main | 29 / PI0 / 256 | 31 / PI15 / 271 | 32 / PI11 / 267 | qualified |
+| SW2 aux1 | 33 / PI12 / 268 | 22 / PI6 / 262 | 11 / PH2 / 226 | qualified |
+| SW3 aux2 | 13 / PH3 / 227 | 7 / PI13 / 269 | 8 / PH0 / 224 | excluded: active UART0 TX |
+| SW4 aux3 | 37 / PI16 / 272 | 18 / PH4 / 228 | 15 / PI5 / 261 | qualified |
+
+Qualified lines are requested with gpiocdev v2 pull-ups and both-edge
+quadrature/switch detection. The switch request retains the existing 45 ms
+debounce contract. The Raspberry path remains rppal-based.
+
 - USB gadget/data: official Orange Pi docs describe two USB-C USB2.0 ports and say both can power the board. They do not prove a Pi-style dedicated OTG/data port. This is blocked until port role, VBUS/CC/ID, and UDC behavior are proven on hardware.
 
-Current desk result: power, I2C, and SPI look plausible; GPIO needs libgpiod mapping; I2S and USB gadget mode remain the highest-risk hardware gates.
+Current desk result: power, I2C, SPI, and the static encoder mapping are
+plausible; live encoder edge qualification remains bounded to the native HAL
+path. I2S and USB gadget mode remain the highest-risk hardware gates.
 
 ## Armbian differences from Raspberry Pi OS
 
@@ -122,7 +156,7 @@ Run a no-secret full build by changing `run_build=true` and setting `armbian_bui
 
 The only public first-run input is `public_preset_configuration_url`, and it must point to a non-secret HTTPS Armbian `PRESET_CONFIGURATION` file. Keep `preset-firstrun` in the extensions list when using that flow. Private preset URLs belong in the protected `ARMBIAN_PRESET_CONFIGURATION_URL` secret.
 
-Optional diagnostic payload tarballs must use HTTPS and a matching SHA256. Payloads are staged by default. Runtime-enabled payloads and `octessera-pi` payloads are rejected; no Orange payload can enable a service or claim runtime readiness.
+Optional diagnostic payload tarballs must use HTTPS and a matching SHA256. Payloads are staged by default. Runtime-enabled or service-ready payloads are rejected; a `runtime-candidate` sidecar does not authorize installation, service enablement, or runtime readiness.
 
 ### First-boot setup portal
 
@@ -364,6 +398,28 @@ after every reboot, including one caused by an overlay change. The utility's
 metadata mode reads only the adjacent exact-name sidecar and hashes its running
 `/proc/self/exe`; it performs no hardware initialization.
 
+Stage the Seesaw diagnostic under its canonical names and repeat the same
+independent SHA-256 check. The metadata command is intentionally unprivileged:
+
+```powershell
+$SeesawArtifact = "<local-path-to-orange-seesaw-smoke>"
+$SeesawMetadata = "$SeesawArtifact.metadata.json"
+$RemoteSeesawArtifact = "/tmp/orange-seesaw-smoke"
+$RemoteSeesawMetadata = "/tmp/orange-seesaw-smoke.metadata.json"
+& scp @SshOptions $SeesawArtifact "${Target}:$RemoteSeesawArtifact"
+if ($LASTEXITCODE -ne 0) { throw "Seesaw artifact upload failed; stop" }
+& scp @SshOptions $SeesawMetadata "${Target}:$RemoteSeesawMetadata"
+if ($LASTEXITCODE -ne 0) { throw "Seesaw metadata upload failed; stop" }
+& ssh @SshOptions $Target "chmod 0755 '$RemoteSeesawArtifact' && '$RemoteSeesawArtifact' --print-build-metadata"
+if ($LASTEXITCODE -ne 0) { throw "Seesaw metadata check failed; stop" }
+$SeesawLocalSha = (Get-FileHash -LiteralPath $SeesawArtifact -Algorithm SHA256).Hash.ToLowerInvariant()
+$SeesawRemoteSha = @(& ssh @SshOptions $Target "sha256sum -- '$RemoteSeesawArtifact'")
+if ($LASTEXITCODE -ne 0 -or $SeesawRemoteSha.Count -ne 1) { throw "Seesaw remote SHA-256 check failed; stop" }
+if (([string]$SeesawRemoteSha[0]).Trim() -notmatch "^$SeesawLocalSha\s+$([regex]::Escape($RemoteSeesawArtifact))$") {
+  throw "Seesaw binary SHA-256 differs from the recorded local SHA-256; stop"
+}
+```
+
 ### Active gate and order
 
 Proceed only when the passive gate, staging gate, and USB electrical gate pass:
@@ -374,7 +430,12 @@ together; error and interruption cleanup uses one deadline, prioritizing
 display-off before the fallback black frame. Synchronous SPI/GPIO calls may
 outlast these checks, so neither budget is a wall-clock promise.
 
-1. **OLED:** run the diagnostic-only utility from `/tmp`. One invocation owns
+1. **Seesaw:** run `sudo -n /tmp/orange-seesaw-smoke --confirm-active-test` only after
+   the passive and staging gates pass. It resets the four NeoTrellis addresses
+   and NeoKey address on `/dev/i2c-2`, then reads their valid hardware IDs; it
+   does not configure keypad events, write LEDs, poll keys, request GPIO, access
+   OLED/SPI/audio, start runtime, or install a service.
+2. **OLED:** run the diagnostic-only utility from `/tmp`. One invocation owns
    the cooperative pattern-to-black-to-display-off sequence, with operation
    and cleanup budgets, cleanup on errors, and handled interruption. Blocking
    SPI/GPIO syscalls are synchronous and may outlast those cooperative checks;
@@ -382,22 +443,24 @@ outlast these checks, so neither budget is a wall-clock promise.
    promise. Do not split it into separate commands:
 
    ```sh
-   /tmp/orange-oled-smoke --confirm-active-test
+   sudo -n /tmp/orange-oled-smoke --confirm-active-test
    ```
 
-2. **I2S/DAC:** enumerate ALSA, select the proven I2S `hw:` endpoint explicitly,
-   and run one short playback plus an underrun check. A sound from HDMI or an
+3. **I2S/DAC:** enumerate ALSA, select the exact CPAL endpoint
+   `hw:CARD=octesseradac,DEV=0` at the shared 44.1 kHz runtime rate, and run
+   one short playback plus an underrun check. A sound from HDMI or an
    implicit/default ALSA device is not an I2S pass.
-3. **HDMI:** after the I2S result is recorded, enumerate HDMI separately and
+4. **HDMI:** after the I2S result is recorded, enumerate HDMI separately and
    confirm it has not been selected as an audio fallback. Do not use HDMI to
    qualify the DAC wiring.
-4. **USB gadget:** only after I2S and HDMI checks, recheck VBUS/CC/role and the
+5. **USB gadget:** only after I2S and HDMI checks, recheck VBUS/CC/role and the
    exact UDC, bind one composer mode, verify host enumeration, then unbind and
    verify clean teardown. Use the Orange Pi composer; do not bind a pre-existing
    gadget or guess a UDC.
-5. **Diagnostic artifact only:** after the preceding gates pass, run only the
-   profile-matched diagnostic utility from `/tmp`. Keep runtime, service, and
-   release paths untouched; Orange is not runtime-ready.
+6. **Foreground candidate only:** after the preceding gates pass, a separately
+   approved run may use the profile-matched diagnostic utility or foreground
+   `runtime-candidate` from `/tmp`. Keep deployment, release, and service paths
+   untouched; the candidate remains `runtime_ready=false`.
 
 ### Stop conditions
 
@@ -414,10 +477,14 @@ to runtime qualification after a failed gate.
 
 ## Runtime service status
 
-There is no Orange runtime service or release artifact to validate. Do not copy
-the Raspberry Pi service, enable `octessera.service`, or deploy `octessera-pi`
-to this image. A future runtime requires real qualified input, audio, and
-device adapters plus a separately reviewed build/deploy/service contract.
+There is no Orange runtime service or deployment-ready release artifact to
+validate. Do not copy the Raspberry Pi service, enable `octessera.service`, or
+deploy `octessera-pi` as a service to this image. The foreground candidate
+requires its exact audio endpoint for qualification but does not enumerate
+HDMI, USB, or MIDI; its normal SIGINT cleanup joins workers after the shutdown
+frame, black Trellis/NeoKey frames, and OLED-off operation. A future runtime
+requires real qualified input, audio, and device adapters plus a separately
+reviewed build/deploy/service contract.
 
 ## Repo follow-up after hardware passes
 

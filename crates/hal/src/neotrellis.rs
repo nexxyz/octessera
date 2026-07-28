@@ -1,79 +1,152 @@
 //! NeoTrellis 8x8 LED matrix driver (4x4 devices x4 chain)
 //! Uses seesaw over I2C.
 
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
+use crate::board_profiles::SeesawInputMode;
 #[cfg(feature = "rpi-zero-2w")]
 use crate::pinmap::TRELLIS_ADDRS;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 use std::fs::{File, OpenOptions};
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 use std::io::{Read, Write};
-#[cfg(feature = "rpi-zero-2w")]
-use std::os::unix::io::AsRawFd;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 use std::thread;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 use std::time::Duration;
 
-#[cfg(not(feature = "rpi-zero-2w"))]
+#[cfg(not(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w")))]
 use std::fmt;
 
 /// NeoTrellis device (4x4, daisy-chained to make 8x8)
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 pub struct NeoTrellis {
     i2c_path: String,
     devices: [(u16, [u8; 16]); 4],
 }
 
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_STATUS_BASE: u8 = 0x00;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_HW_ID: u8 = 0x01;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_SW_RESET: u8 = 0x7F;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_KEYPAD_BASE: u8 = 0x10;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_KEYPAD_EVENT: u8 = 0x01;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_KEYPAD_INTENSET: u8 = 0x02;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_KEYPAD_COUNT: u8 = 0x04;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_KEYPAD_FIFO: u8 = 0x10;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_NEOPIXEL_BASE: u8 = 0x0E;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_NEOPIXEL_PIN: u8 = 0x01;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_NEOPIXEL_BUF_LENGTH: u8 = 0x03;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_NEOPIXEL_BUF: u8 = 0x04;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const SEESAW_NEOPIXEL_SHOW: u8 = 0x05;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const TRELLIS_NEOPIXEL_PIN: u8 = 3;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w", test))]
 const TRELLIS_PIXELS_PER_DEVICE: usize = 16;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const TRELLIS_PIXEL_BYTES_PER_DEVICE: usize = TRELLIS_PIXELS_PER_DEVICE * 3;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const TRELLIS_LED_CHUNK_BYTES: usize = 24;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const TRELLIS_INIT_ATTEMPTS: usize = 3;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 const TRELLIS_INIT_RETRY_DELAY: Duration = Duration::from_millis(250);
-#[cfg(any(feature = "rpi-zero-2w", test))]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w", test))]
 const KEYPAD_EDGE_FALLING: u8 = 2;
-#[cfg(any(feature = "rpi-zero-2w", test))]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w", test))]
 const KEYPAD_EDGE_RISING: u8 = 3;
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum TrellisInitCommand {
+    Write {
+        base: u8,
+        function: u8,
+        data: Vec<u8>,
+    },
+    Read {
+        base: u8,
+        function: u8,
+        bytes: usize,
+    },
+}
 
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
+fn trellis_reset_command() -> TrellisInitCommand {
+    TrellisInitCommand::Write {
+        base: SEESAW_STATUS_BASE,
+        function: SEESAW_SW_RESET,
+        data: vec![0xFF],
+    }
+}
+
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
+fn trellis_init_plan(mode: SeesawInputMode) -> Vec<TrellisInitCommand> {
+    let mut plan = vec![TrellisInitCommand::Read {
+        base: SEESAW_STATUS_BASE,
+        function: SEESAW_HW_ID,
+        bytes: 1,
+    }];
+    if mode == SeesawInputMode::Interrupt {
+        plan.push(TrellisInitCommand::Write {
+            base: SEESAW_KEYPAD_BASE,
+            function: SEESAW_KEYPAD_INTENSET,
+            data: vec![0x01],
+        });
+    }
+    for key in 0..TRELLIS_PIXELS_PER_DEVICE as u8 {
+        let seesaw_key = trellis_key_to_seesaw_key(key);
+        for edge in [KEYPAD_EDGE_FALLING, KEYPAD_EDGE_RISING] {
+            let state = 0x01 | (1 << (edge + 1));
+            plan.push(TrellisInitCommand::Write {
+                base: SEESAW_KEYPAD_BASE,
+                function: SEESAW_KEYPAD_EVENT,
+                data: vec![seesaw_key, state],
+            });
+        }
+    }
+    plan.extend([
+        TrellisInitCommand::Write {
+            base: SEESAW_NEOPIXEL_BASE,
+            function: SEESAW_NEOPIXEL_PIN,
+            data: vec![TRELLIS_NEOPIXEL_PIN],
+        },
+        TrellisInitCommand::Write {
+            base: SEESAW_NEOPIXEL_BASE,
+            function: SEESAW_NEOPIXEL_BUF_LENGTH,
+            data: (TRELLIS_PIXEL_BYTES_PER_DEVICE as u16)
+                .to_be_bytes()
+                .to_vec(),
+        },
+    ]);
+    plan
+}
+
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 impl NeoTrellis {
-    /// Initialize 4 NeoTrellis devices at the configured addresses.
+    #[cfg(feature = "rpi-zero-2w")]
     pub fn new(i2c_path: &str) -> Result<Self, String> {
+        Self::new_with_mode(i2c_path, TRELLIS_ADDRS, SeesawInputMode::Interrupt)
+    }
+
+    pub fn new_with_mode(
+        i2c_path: &str,
+        addresses: [u16; 4],
+        mode: SeesawInputMode,
+    ) -> Result<Self, String> {
         let mut last_error = None;
         for attempt in 1..=TRELLIS_INIT_ATTEMPTS {
-            match Self::try_new(i2c_path) {
+            match Self::try_new(i2c_path, addresses, mode) {
                 Ok(trellis) => return Ok(trellis),
                 Err(error) => {
                     last_error = Some(error);
@@ -86,8 +159,8 @@ impl NeoTrellis {
         Err(last_error.unwrap_or_else(|| "Trellis init failed".to_string()))
     }
 
-    fn try_new(i2c_path: &str) -> Result<Self, String> {
-        let devices = TRELLIS_ADDRS.map(|addr| (addr, [0; 16]));
+    fn try_new(i2c_path: &str, addresses: [u16; 4], mode: SeesawInputMode) -> Result<Self, String> {
+        let devices = addresses.map(|addr| (addr, [0; 16]));
 
         let trellis = Self {
             i2c_path: i2c_path.to_string(),
@@ -95,64 +168,74 @@ impl NeoTrellis {
         };
 
         // Reset seesaw on each device before probing.
+        let reset = trellis_reset_command();
+        let TrellisInitCommand::Write {
+            base,
+            function,
+            data,
+        } = reset
+        else {
+            unreachable!();
+        };
         for (addr, _) in &trellis.devices {
             let mut file = open_device(&trellis.i2c_path, *addr)?;
-            write_register(
-                &mut file,
-                SEESAW_STATUS_BASE,
-                SEESAW_SW_RESET,
-                &[0xFF],
-                "Trellis reset failed",
-            )?;
+            write_register(&mut file, base, function, &data, "Trellis reset failed")?;
         }
         thread::sleep(Duration::from_millis(500));
 
         // Probe each device and configure its NeoPixel buffer length.
         for (addr, _) in &trellis.devices {
             let mut file = open_device(&trellis.i2c_path, *addr)?;
-            let mut id = [0_u8; 1];
-            read_register(
-                &mut file,
-                SEESAW_STATUS_BASE,
-                SEESAW_HW_ID,
-                &mut id,
-                "Trellis HW ID read failed",
-            )?;
-            if !matches!(id[0], 0x55 | 0x84..=0x89) {
-                return Err(format!(
-                    "Trellis HW ID invalid at {:#04x}: {:#04x}",
-                    addr, id[0]
-                ));
+            for command in trellis_init_plan(mode) {
+                match command {
+                    TrellisInitCommand::Read {
+                        base,
+                        function,
+                        bytes,
+                    } => {
+                        let mut id = [0_u8; 1];
+                        read_register(
+                            &mut file,
+                            base,
+                            function,
+                            &mut id[..bytes],
+                            "Trellis HW ID read failed",
+                        )?;
+                        if !matches!(id[0], 0x55 | 0x84..=0x89) {
+                            return Err(format!(
+                                "Trellis HW ID invalid at {:#04x}: {:#04x}",
+                                addr, id[0]
+                            ));
+                        }
+                    }
+                    TrellisInitCommand::Write {
+                        base,
+                        function,
+                        data,
+                    } => {
+                        let context = match (base, function) {
+                            (SEESAW_KEYPAD_BASE, SEESAW_KEYPAD_INTENSET) => {
+                                "Trellis keypad interrupt init failed"
+                            }
+                            (SEESAW_KEYPAD_BASE, SEESAW_KEYPAD_EVENT) => {
+                                "Trellis keypad event init failed"
+                            }
+                            (SEESAW_NEOPIXEL_BASE, SEESAW_NEOPIXEL_PIN) => {
+                                "Trellis LED pin init failed"
+                            }
+                            (SEESAW_NEOPIXEL_BASE, SEESAW_NEOPIXEL_BUF_LENGTH) => {
+                                "Trellis LED length init failed"
+                            }
+                            _ => {
+                                return Err(format!(
+                                    "unknown Trellis init command: {base:#04x}/{function:#04x}"
+                                ))
+                            }
+                        };
+                        write_register(&mut file, base, function, &data, context)?;
+                    }
+                }
             }
-
-            write_register(
-                &mut file,
-                SEESAW_KEYPAD_BASE,
-                SEESAW_KEYPAD_INTENSET,
-                &[0x01],
-                "Trellis keypad interrupt init failed",
-            )?;
-            for key in 0..TRELLIS_PIXELS_PER_DEVICE as u8 {
-                let seesaw_key = trellis_key_to_seesaw_key(key);
-                enable_keypad_event(&mut file, seesaw_key, KEYPAD_EDGE_FALLING)?;
-                enable_keypad_event(&mut file, seesaw_key, KEYPAD_EDGE_RISING)?;
-            }
-
-            write_register(
-                &mut file,
-                SEESAW_NEOPIXEL_BASE,
-                SEESAW_NEOPIXEL_PIN,
-                &[TRELLIS_NEOPIXEL_PIN],
-                "Trellis LED pin init failed",
-            )?;
-            let length = (TRELLIS_PIXEL_BYTES_PER_DEVICE as u16).to_be_bytes();
-            write_register(
-                &mut file,
-                SEESAW_NEOPIXEL_BASE,
-                SEESAW_NEOPIXEL_BUF_LENGTH,
-                &length,
-                "Trellis LED length init failed",
-            )?;
         }
 
         Ok(trellis)
@@ -188,21 +271,13 @@ impl NeoTrellis {
                 "Trellis scan FIFO failed",
             )?;
 
-            for i in 0..key_count {
-                let Some((key_num, pressed)) = decode_trellis_key_event(buf[i]) else {
+            for event in buf.iter().take(key_count) {
+                let Some((key_num, pressed)) = decode_trellis_key_event(*event) else {
                     continue;
                 };
-                if key_num >= TRELLIS_PIXELS_PER_DEVICE as u8 {
-                    continue;
+                if let Some((x, y)) = trellis_coordinate(dev_idx, key_num) {
+                    result.push((x, y, pressed));
                 }
-                // Map 4x4 key to 8x8 grid position
-                let local_x = (key_num % 4) as usize;
-                let local_y = (key_num / 4) as usize;
-                let base_x = (dev_idx % 2) * 4;
-                let base_y = (dev_idx / 2) * 4;
-                let x = base_x + local_x;
-                let y = 7 - (base_y + local_y);
-                result.push((x, y, pressed));
             }
         }
 
@@ -220,9 +295,9 @@ impl NeoTrellis {
 
             for y in base_y..(base_y + 4) {
                 for x in base_x..(base_x + 4) {
-                    let idx = (y * 8 + x) as usize;
+                    let idx = y * 8 + x;
                     let rgb = &frame[idx];
-                    data.extend_from_slice(&[rgb[1], rgb[0], rgb[2]]);
+                    data.extend_from_slice(&grb_color(*rgb));
                 }
             }
 
@@ -241,7 +316,24 @@ impl NeoTrellis {
     }
 }
 
-#[cfg(any(feature = "rpi-zero-2w", test))]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w", test))]
+fn trellis_coordinate(device_index: usize, key: u8) -> Option<(usize, usize)> {
+    (key < TRELLIS_PIXELS_PER_DEVICE as u8).then(|| {
+        let base_x = (device_index % 2) * 4;
+        let base_y = (device_index / 2) * 4;
+        (
+            base_x + usize::from(key % 4),
+            7 - (base_y + usize::from(key / 4)),
+        )
+    })
+}
+
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w", test))]
+fn grb_color(rgb: [u8; 3]) -> [u8; 3] {
+    [rgb[1], rgb[0], rgb[2]]
+}
+
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w", test))]
 fn decode_trellis_key_event(key_data: u8) -> Option<(u8, bool)> {
     let edge = key_data & 0x03;
     if !matches!(edge, KEYPAD_EDGE_FALLING | KEYPAD_EDGE_RISING) {
@@ -251,7 +343,7 @@ fn decode_trellis_key_event(key_data: u8) -> Option<(u8, bool)> {
     Some((seesaw_key_to_trellis_key(key_data >> 2), pressed))
 }
 
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 fn open_device(i2c_path: &str, addr: u16) -> Result<File, String> {
     let file = OpenOptions::new()
         .read(true)
@@ -262,7 +354,7 @@ fn open_device(i2c_path: &str, addr: u16) -> Result<File, String> {
     Ok(file)
 }
 
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 fn write_register(
     file: &mut File,
     base: u8,
@@ -278,7 +370,7 @@ fn write_register(
         .map_err(|e| format!("{context}: {e}"))
 }
 
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 fn write_led_buffer_chunks(file: &mut File, data: &[u8]) -> Result<(), String> {
     for offset in (0..data.len()).step_by(TRELLIS_LED_CHUNK_BYTES) {
         let end = (offset + TRELLIS_LED_CHUNK_BYTES).min(data.len());
@@ -296,29 +388,17 @@ fn write_led_buffer_chunks(file: &mut File, data: &[u8]) -> Result<(), String> {
     Ok(())
 }
 
-#[cfg(feature = "rpi-zero-2w")]
-fn enable_keypad_event(file: &mut File, key: u8, edge: u8) -> Result<(), String> {
-    let state = 0x01 | (1 << (edge + 1));
-    write_register(
-        file,
-        SEESAW_KEYPAD_BASE,
-        SEESAW_KEYPAD_EVENT,
-        &[key, state],
-        "Trellis keypad event init failed",
-    )
-}
-
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 fn trellis_key_to_seesaw_key(key: u8) -> u8 {
     ((key / 4) * 8) + (key % 4)
 }
 
-#[cfg(any(feature = "rpi-zero-2w", test))]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w", test))]
 fn seesaw_key_to_trellis_key(key: u8) -> u8 {
     ((key / 8) * 4) + (key % 8)
 }
 
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))]
 fn read_register(
     file: &mut File,
     base: u8,
@@ -333,11 +413,18 @@ fn read_register(
         .map_err(|e| format!("{context}: {e}"))
 }
 
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(all(feature = "orange-pi-zero-2w", not(unix)))]
 fn set_slave_addr(file: &File, addr: u16) -> Result<(), String> {
-    #[cfg(target_os = "linux")]
-    unsafe {
-        let result = libc::ioctl(file.as_raw_fd(), 0x0703, addr as u64); // I2C_SLAVE = 0x0703
+    let _ = (file, addr);
+    Err("Orange Seesaw I2C requires a Unix target".into())
+}
+
+#[cfg(any(feature = "rpi-zero-2w", all(feature = "orange-pi-zero-2w", unix)))]
+fn set_slave_addr(file: &File, addr: u16) -> Result<(), String> {
+    #[cfg(all(unix, target_os = "linux"))]
+    {
+        use std::os::unix::io::AsRawFd;
+        let result = unsafe { libc::ioctl(file.as_raw_fd(), 0x0703, addr as u64) };
         if result < 0 {
             return Err(format!(
                 "I2C slave select failed for {addr:#04x}: {}",
@@ -345,16 +432,17 @@ fn set_slave_addr(file: &File, addr: u16) -> Result<(), String> {
             ));
         }
     }
+    #[cfg(all(unix, not(target_os = "linux")))]
+    let _ = (file, addr);
     Ok(())
 }
 
-/// Stub for non-Pi builds
-#[cfg(not(feature = "rpi-zero-2w"))]
+#[cfg(not(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w")))]
 pub struct NeoTrellis {
     _private: (),
 }
 
-#[cfg(not(feature = "rpi-zero-2w"))]
+#[cfg(not(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w")))]
 impl NeoTrellis {
     pub fn new(_i2c_path: &str) -> Result<Self, String> {
         Ok(Self { _private: () })
@@ -369,7 +457,7 @@ impl NeoTrellis {
     }
 }
 
-#[cfg(not(feature = "rpi-zero-2w"))]
+#[cfg(not(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w")))]
 impl fmt::Debug for NeoTrellis {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "NeoTrellis {{ ... }}")
@@ -377,25 +465,5 @@ impl fmt::Debug for NeoTrellis {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn rising_edge_is_press_and_falling_edge_is_release() {
-        let seesaw_key = 10;
-        assert_eq!(
-            decode_trellis_key_event((seesaw_key << 2) | KEYPAD_EDGE_RISING),
-            Some((6, true))
-        );
-        assert_eq!(
-            decode_trellis_key_event((seesaw_key << 2) | KEYPAD_EDGE_FALLING),
-            Some((6, false))
-        );
-    }
-
-    #[test]
-    fn non_edge_events_are_ignored() {
-        assert_eq!(decode_trellis_key_event(0), None);
-        assert_eq!(decode_trellis_key_event(1), None);
-    }
-}
+#[path = "neotrellis_tests.rs"]
+mod tests;

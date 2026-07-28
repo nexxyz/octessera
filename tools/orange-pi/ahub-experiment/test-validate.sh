@@ -93,7 +93,8 @@ path.write_text(text.replace(old, new))
 lock = json.loads(lock_path.read_text())
 for asset in lock["assets"]:
     if asset["path"] == path.relative_to(lock_path.parent).as_posix():
-        asset["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+        content = path.read_bytes().replace(b"\r\n", b"\n")
+        asset["sha256"] = hashlib.sha256(content).hexdigest()
         break
 else:
     raise SystemExit(f"asset is not locked: {path}")
@@ -148,6 +149,21 @@ expect_failure 'preflight rejects deferred devices' "$PYTHON" "$CASE_DIR/preflig
 copy_case
 mutate_lock '"patch_count": 515' '"patch_count": 514'
 expect_failure 'preflight rejects incomplete full source series' "$PYTHON" "$CASE_DIR/preflight.py" "$CASE_DIR"
+
+copy_case
+"$PYTHON" - "$CASE_DIR" <<'PY'
+import json
+import pathlib
+import sys
+
+case_dir = pathlib.Path(sys.argv[1])
+lock = json.loads((case_dir / "stack-lock.json").read_text())
+for asset in lock["assets"]:
+    path = case_dir / asset["path"]
+    content = path.read_bytes().replace(b"\r\n", b"\n")
+    path.write_bytes(content.replace(b"\n", b"\r\n"))
+PY
+"$PYTHON" "$CASE_DIR/preflight.py" "$CASE_DIR" >/dev/null || die "preflight rejected CRLF asset content"
 
 copy_case
 mutate_case h618-fixture-base.dts 'soc {' 'legacy_hdmi {'

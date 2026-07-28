@@ -23,6 +23,7 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
   - classifies worker emission and persistence faults as retain/retry outcomes instead of safety-stop failures
   - applies native core behavior transitions through `platform-core`
   - publishes snapshots, platform effects, audio commands, MIDI events, runtime status, and native-owned modal frames
+  - The Orange foreground candidate keeps this native ownership but supplies an Orange-only foreground adapter: real OLED/Seesaw I/O is selected at compile time, Seesaw uses polling, qualified encoder GPIO uses the HAL's gpiocdev v2 edge backend, musical events/audio commands/silence route through the existing `AudioService` and realtime engine at the shared 44.1 kHz runtime rate, and the exact CPAL output device is `hw:CARD=octesseradac,DEV=0`. Internal MIDI events are ignored by this candidate; explicit MIDI platform actions return typed unavailable status.
   - owns MIDI input/output through host adapters only; Tauri/midir and Pi MIDI device access stay outside canonical runtime crates
 
 - Core logic layer (`crates/platform-core`)
@@ -89,6 +90,7 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
 
 ## Audio Routing Contract
 
+- The shared runtime audio rate is 44.1 kHz.
 - Internal synth and sample instruments must enter the realtime engine before audio output.
 - Instrument `Route=direct` bypasses FX bus processing and pans directly into the main mix.
 - Instrument `Route=fx_bus_n` enters the selected FX bus, runs its slot FX in order, then pans into the main mix.

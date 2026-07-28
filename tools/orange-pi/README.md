@@ -126,19 +126,24 @@ specific board, hostnames, IP addresses, or generated SSH config to Git.
 Build Orange Pi artifacts on Windows without contacting or deploying to a
 board. The builder starts an ephemeral Debian tool container, installs the
 aarch64 GNU linker/sysroot there, and keeps Cargo and rustup data in named
-Docker volumes. Outputs and their checked diagnostic-only metadata stay under
-`target/orange-pi-cross/`. The output is always the canonical
-`orange-oled-smoke` binary beside `orange-oled-smoke.metadata.json`; the sidecar
-is schema 2 and binds the copied ELF with its lowercase SHA-256. This helper
-cannot build, deploy, or label an Orange runtime-ready `octessera-pi` artifact.
+Docker volumes. Outputs and their checked metadata stay under
+`target/orange-pi-cross/`. The supported outputs are the canonical
+`orange-oled-smoke`, `orange-seesaw-smoke`, and foreground `octessera-pi`
+binaries beside matching `.metadata.json` sidecars. Each sidecar is schema 2
+and binds the copied ELF with its lowercase SHA-256. The candidate is labeled
+`runtime-candidate` with `runtime_ready=false`; this helper cannot build or
+label deployment/service-ready output and never deploys an artifact. The
+candidate uses the shared 44.1 kHz runtime rate and requires exactly one CPAL
+output device named `hw:CARD=octesseradac,DEV=0`; internal MIDI events are
+ignored and explicit MIDI platform actions are unavailable.
 
 ```powershell
 ./tools/orange-pi/build-orange-cross.ps1 -Binary orange-oled-smoke -Profile release
 ```
 
 Use `-DryRun` to inspect the WSL Docker command without starting a container.
-The only supported binary is the diagnostic-only `orange-oled-smoke`; building
-it does not run it against a board.
+The two smoke binaries are diagnostic-only. The `octessera-pi` output is a
+foreground candidate only; building any output does not run it against a board.
 The offline builder test uses a temporary binary and adjacent sidecar, checks a
 tampered sidecar, and confirms failed verification removes both artifacts.
 The offline host checks are:

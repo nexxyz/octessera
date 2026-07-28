@@ -1,4 +1,4 @@
-use octessera_hal::board_profiles::RASPBERRY_PI_ZERO_2W_ID;
+use crate::board_profile::BOARD_PROFILE_ID;
 use playback_runtime::RuntimeSystemInfo;
 use std::net::UdpSocket;
 
@@ -14,7 +14,7 @@ pub(super) fn collect() -> Result<RuntimeSystemInfo, String> {
         primary_ip: primary_ip(),
         primary_mac: primary_mac(),
         hostname,
-        board_profile: RASPBERRY_PI_ZERO_2W_ID.into(),
+        board_profile: BOARD_PROFILE_ID.into(),
     })
 }
 
