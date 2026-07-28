@@ -24,7 +24,10 @@ pub mod pinmap;
 pub mod seesaw_interrupt;
 
 // Re-exports for convenience
-#[cfg(not(feature = "orange-pi-zero-2w"))]
+#[cfg(any(
+    feature = "rpi-zero-2w",
+    all(not(feature = "rpi-zero-2w"), not(feature = "orange-pi-zero-2w"))
+))]
 pub use encoder_gpio::EncoderGpio;
 #[cfg(not(feature = "orange-pi-zero-2w"))]
 pub use i2c_bus::I2CBus;
