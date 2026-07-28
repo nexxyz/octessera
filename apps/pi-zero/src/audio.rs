@@ -1,6 +1,7 @@
 #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
 use crate::audio_hotplug::test_sink_sender;
 use crate::audio_hotplug::{broadcast_event, is_replay_event, ReplayCache, SinkSender};
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use crate::recording::{RecorderService, RecordingTap};
 #[path = "audio_defaults.rs"]
 mod audio_defaults;
@@ -10,7 +11,7 @@ mod audio_error;
 mod audio_output;
 pub(crate) use audio_defaults::default_pi_instruments;
 use audio_error::audio_queue_error;
-#[cfg(test)]
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 pub(crate) use audio_output::audio_sinks;
 pub(crate) use audio_output::{AudioManager, AudioSink};
 use playback_runtime::{HostMessage, RuntimeAdapterError};
@@ -21,7 +22,9 @@ use serde_json::Value;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicU64;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
-use std::sync::{Arc, Mutex, RwLock};
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+use std::sync::RwLock;
+use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]
 pub struct AudioService {
@@ -33,7 +36,9 @@ pub struct AudioService {
         Arc<Mutex<std::collections::HashMap<String, realtime_engine::synth::SampleBuffer>>>,
     pub sample_bank_signature: Arc<Mutex<String>>,
     prep_result_rx: Arc<Mutex<Receiver<HostMessage>>>,
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     recorder: Arc<Mutex<RecorderService>>,
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     recording_tap: Arc<RwLock<Option<RecordingTap>>>,
 }
 
@@ -113,6 +118,7 @@ impl AudioService {
         output
     }
 
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub fn start_recording(&self, max_minutes: u16) -> Result<(), String> {
         let tap = self
             .recorder
@@ -126,6 +132,7 @@ impl AudioService {
         Ok(())
     }
 
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub fn stop_recording(&self) -> Result<(), String> {
         *self
             .recording_tap
@@ -138,6 +145,7 @@ impl AudioService {
         Ok(())
     }
 
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub fn is_recording(&self) -> Result<bool, String> {
         Ok(self
             .recording_tap
@@ -191,10 +199,6 @@ pub(crate) fn test_service_with_prep_sender() -> (
         sample_cache: Arc::new(Mutex::new(std::collections::HashMap::new())),
         sample_bank_signature: Arc::new(Mutex::new(String::new())),
         prep_result_rx: Arc::new(Mutex::new(prep_result_rx)),
-        recorder: Arc::new(Mutex::new(RecorderService::new(PathBuf::from(
-            "recordings",
-        )))),
-        recording_tap: Arc::new(RwLock::new(None)),
     };
     (service, control_rx, event_rx, prep_result_tx)
 }
