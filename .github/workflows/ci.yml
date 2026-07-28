@@ -244,8 +244,12 @@ jobs:
         run: cross build --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-raspberry-pi-zero-2w
       - name: Compile legacy Pi app feature alias
         run: cross check --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-pi
-      - name: Test Orange foreground runtime
-        run: cross test --target aarch64-unknown-linux-gnu -p octessera-pi --no-default-features --features hardware-orange-pi-zero-2w
+      - name: Check Orange foreground tests for AArch64
+        run: cross check --target aarch64-unknown-linux-gnu -p octessera-pi --no-default-features --features hardware-orange-pi-zero-2w --tests
+      - name: Install host audio test dependencies
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libasound2-dev
+      - name: Test Orange foreground runtime on host
+        run: cargo test -p octessera-pi --no-default-features --features hardware-orange-pi-zero-2w
       - name: Build Orange foreground runtime candidate
         run: cross build --target aarch64-unknown-linux-gnu -p octessera-pi --no-default-features --features hardware-orange-pi-zero-2w
       - name: Lint Orange foreground runtime candidate
