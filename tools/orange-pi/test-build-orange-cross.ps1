@@ -16,10 +16,17 @@ foreach ($required in @(
     "dpkg --add-architecture arm64",
     "gcc-aarch64-linux-gnu",
     "libc6-dev-arm64-cross",
+    "libasound2-dev:arm64",
+    "PKG_CONFIG_ALLOW_CROSS=1",
+    "PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig",
+    "PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig",
     "aarch64-linux-gnu-readelf",
     "Import-Module",
     "Invoke-VerifiedOrangeBuildMetadata",
     "Remove-OrangeBuildArtifacts",
+    "orange-seesaw-smoke",
+    "octessera-pi",
+    "--no-default-features",
     "ELF64",
     "AArch64"
   )) {
@@ -33,7 +40,7 @@ foreach ($required in @(
     "ConvertTo-Json -Compress",
     "binary_sha256",
     'schema_version = $script:OrangeSchemaVersion',
-    'artifact_kind = $script:OrangeArtifactKind',
+    'artifact_kind = $BuildSpec.ArtifactKind',
     'runtime_ready = $false',
     "Publish-OrangeBuildMetadata",
     "Assert-OrangeBuildMetadata",
@@ -63,8 +70,8 @@ foreach ($forbidden in @(
 if ($source -match "(?i)\b(ssh|scp|rsync)\b") {
   throw "Orange cross-builder must not contain board transport commands"
 }
-if ($source -match 'octessera-pi.*hardware-orange-pi-zero-2w') {
-  throw "Orange cross-builder must not define an Orange runtime build"
+if ($source -match 'service_ready|runtime_ready\s*=\s*\$true') {
+  throw "Orange cross-builder must not define deployment or service-ready output"
 }
 
 function Invoke-DryRun {
@@ -100,13 +107,37 @@ foreach ($expected in @(
   }
 }
 
+$seesaw = Invoke-DryRun @{ Binary = "orange-seesaw-smoke" }
+foreach ($expected in @(
+    "target/orange-pi-cross/orange-seesaw-smoke",
+    "orange-seesaw-smoke.metadata.json",
+    "-p.*octessera-hal",
+    "--features.*orange-pi-zero-2w"
+  )) {
+  if ($seesaw -notmatch $expected) {
+    throw "Seesaw Orange cross-builder is missing: $expected"
+  }
+}
+
+$candidate = Invoke-DryRun @{ Binary = "octessera-pi"; Profile = "release" }
+foreach ($expected in @(
+    "target/orange-pi-cross/octessera-pi",
+    "octessera-pi.metadata.json",
+    "-p.*octessera-pi",
+    "--features.*hardware-orange-pi-zero-2w",
+    "--no-default-features"
+  )) {
+  if ($candidate -notmatch $expected) {
+    throw "Orange runtime-candidate dry run is missing: $expected"
+  }
+}
+
 $dev = Invoke-DryRun @{ Profile = "dev" }
 if ($dev -notmatch "target/aarch64-unknown-linux-gnu/debug/orange-oled-smoke") {
   throw "Dev profile dry run did not use Cargo's debug artifact directory"
 }
 
 foreach ($parameters in @(
-    @{ Binary = "octessera-pi" },
     @{ Profile = "release;touch" },
     @{ Image = "rust:bookworm;touch" },
     @{ Target = "x86_64-unknown-linux-gnu" }
@@ -122,64 +153,113 @@ foreach ($parameters in @(
   }
 }
 
-$testDirectory = Join-Path ([IO.Path]::GetTempPath()) "octessera-orange-metadata-test-$PID-$([guid]::NewGuid().ToString('N'))"
-$testBinary = Join-Path $testDirectory "orange-oled-smoke"
-$testMetadata = "$testBinary.metadata.json"
-$testSpec = [pscustomobject]@{ Package = "octessera-hal"; Feature = "orange-pi-zero-2w" }
-$metadataParameters = @{
-  BinaryPath = $testBinary
-  SelectedBinary = "orange-oled-smoke"
-  SelectedTarget = "aarch64-unknown-linux-gnu"
-  SelectedProfile = "pi-dev"
-  BuildSpec = $testSpec
-}
-$publicationParameters = @{ MetadataPath = $testMetadata } + $metadataParameters
+$metadataCases = @(
+  "orange-oled-smoke",
+  "orange-seesaw-smoke"
+)
+$testSpec = [pscustomobject]@{ Package = "octessera-hal"; Feature = "orange-pi-zero-2w"; ArtifactKind = "diagnostic-only" }
+foreach ($binaryName in $metadataCases) {
+  $testDirectory = Join-Path ([IO.Path]::GetTempPath()) "octessera-orange-metadata-test-$PID-$([guid]::NewGuid().ToString('N'))"
+  $testBinary = Join-Path $testDirectory $binaryName
+  $testMetadata = "$testBinary.metadata.json"
+  $metadataParameters = @{
+    BinaryPath = $testBinary
+    SelectedBinary = $binaryName
+    SelectedTarget = "aarch64-unknown-linux-gnu"
+    SelectedProfile = "pi-dev"
+    BuildSpec = $testSpec
+  }
+  $publicationParameters = @{ MetadataPath = $testMetadata } + $metadataParameters
 
-New-Item -ItemType Directory -Path $testDirectory | Out-Null
-try {
-  [IO.File]::WriteAllBytes($testBinary, [byte[]](0x7F, 0x45, 0x4C, 0x46, 0x02, 0xB7))
-  $json = ConvertTo-OrangeBuildMetadataJson @metadataParameters
-  $expectedHash = (Get-FileHash -LiteralPath $testBinary -Algorithm SHA256).Hash.ToLowerInvariant()
-  if ($json -notmatch ('"binary_sha256":"' + $expectedHash + '"')) {
-    throw "Orange metadata serialization did not bind the binary hash"
-  }
-  Publish-OrangeBuildMetadata @publicationParameters
-  Assert-OrangeBuildMetadata @publicationParameters
-  $utf8NoBom = New-Object System.Text.UTF8Encoding($false, $true)
-  $publishedBytes = [IO.File]::ReadAllBytes($testMetadata)
-  if ($publishedBytes.Length -ge 3 -and $publishedBytes[0] -eq 0xEF -and $publishedBytes[1] -eq 0xBB -and $publishedBytes[2] -eq 0xBF) {
-    throw "Orange metadata publication unexpectedly wrote a UTF-8 BOM"
-  }
-  if ($utf8NoBom.GetString($publishedBytes) -cne "$json`n") {
-    throw "Orange metadata publication changed the canonical serialized JSON"
-  }
-
-  $tamperedWriter = {
-    Publish-OrangeBuildMetadata @publicationParameters
-    $fakeHash = "0" * 64
-    $tampered = [regex]::Replace(
-      [IO.File]::ReadAllText($testMetadata),
-      '"binary_sha256":"[0-9a-f]{64}"',
-      ('"binary_sha256":"' + $fakeHash + '"')
-    )
-    [IO.File]::WriteAllText($testMetadata, $tampered, (New-Object System.Text.UTF8Encoding($false)))
-  }
-  $tamperedParameters = @{} + $publicationParameters
-  $tamperedParameters.MetadataWriter = $tamperedWriter
-  $failed = $false
+  New-Item -ItemType Directory -Path $testDirectory | Out-Null
   try {
-    Invoke-VerifiedOrangeBuildMetadata @tamperedParameters
-  } catch {
-    $failed = $true
+    [IO.File]::WriteAllBytes($testBinary, [byte[]](0x7F, 0x45, 0x4C, 0x46, 0x02, 0xB7))
+    $json = ConvertTo-OrangeBuildMetadataJson @metadataParameters
+    $expectedHash = (Get-FileHash -LiteralPath $testBinary -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($json -notmatch ('"binary_sha256":"' + $expectedHash + '"')) {
+      throw "Orange metadata serialization did not bind the binary hash: $binaryName"
+    }
+    Publish-OrangeBuildMetadata @publicationParameters
+    Assert-OrangeBuildMetadata @publicationParameters
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false, $true)
+    $publishedBytes = [IO.File]::ReadAllBytes($testMetadata)
+    if ($publishedBytes.Length -ge 3 -and $publishedBytes[0] -eq 0xEF -and $publishedBytes[1] -eq 0xBB -and $publishedBytes[2] -eq 0xBF) {
+      throw "Orange metadata publication unexpectedly wrote a UTF-8 BOM: $binaryName"
+    }
+    if ($utf8NoBom.GetString($publishedBytes) -cne "$json`n") {
+      throw "Orange metadata publication changed the canonical serialized JSON: $binaryName"
+    }
+
+    $tamperedWriter = {
+      Publish-OrangeBuildMetadata @publicationParameters
+      $fakeHash = "0" * 64
+      $tampered = [regex]::Replace(
+        [IO.File]::ReadAllText($testMetadata),
+        '"binary_sha256":"[0-9a-f]{64}"',
+        ('"binary_sha256":"' + $fakeHash + '"')
+      )
+      [IO.File]::WriteAllText($testMetadata, $tampered, (New-Object System.Text.UTF8Encoding($false)))
+    }
+    $tamperedParameters = @{} + $publicationParameters
+    $tamperedParameters.MetadataWriter = $tamperedWriter
+    $failed = $false
+    try {
+      Invoke-VerifiedOrangeBuildMetadata @tamperedParameters
+    } catch {
+      $failed = $true
+    }
+    if (-not $failed) {
+      throw "Orange metadata tamper test unexpectedly passed: $binaryName"
+    }
+    if ((Test-Path -LiteralPath $testBinary) -or (Test-Path -LiteralPath $testMetadata)) {
+      throw "Orange metadata verification failure did not clean temporary artifacts: $binaryName"
+    }
+  } finally {
+    Remove-Item -LiteralPath $testDirectory -Recurse -Force -ErrorAction SilentlyContinue
   }
-  if (-not $failed) {
-    throw "Orange metadata tamper test unexpectedly passed"
+}
+
+$candidateDirectory = Join-Path ([IO.Path]::GetTempPath()) "octessera-orange-candidate-metadata-test-$PID-$([guid]::NewGuid().ToString('N'))"
+$candidateBinary = Join-Path $candidateDirectory "octessera-pi"
+$candidateMetadata = "$candidateBinary.metadata.json"
+$candidateSpec = [pscustomobject]@{ Package = "octessera-pi"; Feature = "hardware-orange-pi-zero-2w"; ArtifactKind = "runtime-candidate" }
+$candidateParameters = @{
+  BinaryPath = $candidateBinary
+  MetadataPath = $candidateMetadata
+  SelectedBinary = "octessera-pi"
+  SelectedTarget = "aarch64-unknown-linux-gnu"
+  SelectedProfile = "release"
+  BuildSpec = $candidateSpec
+}
+New-Item -ItemType Directory -Path $candidateDirectory | Out-Null
+try {
+  [IO.File]::WriteAllBytes($candidateBinary, [byte[]](0x7F, 0x45, 0x4C, 0x46, 0x02, 0xB7, 0x00))
+  $candidateJsonParameters = @{} + $candidateParameters
+  $candidateJsonParameters.Remove("MetadataPath")
+  $candidateJson = ConvertTo-OrangeBuildMetadataJson @candidateJsonParameters
+  if ($candidateJson -notmatch '"artifact_kind":"runtime-candidate"' -or $candidateJson -notmatch '"runtime_ready":false') {
+    throw "Orange runtime-candidate metadata identity was not serialized"
   }
-  if ((Test-Path -LiteralPath $testBinary) -or (Test-Path -LiteralPath $testMetadata)) {
-    throw "Orange metadata verification failure did not clean temporary artifacts"
+  Publish-OrangeBuildMetadata @candidateParameters
+  Assert-OrangeBuildMetadata @candidateParameters
+  $candidateTamperedWriter = {
+    Publish-OrangeBuildMetadata @candidateParameters
+    $candidateTampered = [regex]::Replace(
+      [IO.File]::ReadAllText($candidateMetadata),
+      '"binary_sha256":"[0-9a-f]{64}"',
+      ('"binary_sha256":"' + ("0" * 64) + '"')
+    )
+    [IO.File]::WriteAllText($candidateMetadata, $candidateTampered, (New-Object System.Text.UTF8Encoding($false)))
+  }
+  $candidateVerifyParameters = @{} + $candidateParameters
+  $candidateVerifyParameters.MetadataWriter = $candidateTamperedWriter
+  $candidateFailed = $false
+  try { Invoke-VerifiedOrangeBuildMetadata @candidateVerifyParameters } catch { $candidateFailed = $true }
+  if (-not $candidateFailed -or (Test-Path -LiteralPath $candidateBinary) -or (Test-Path -LiteralPath $candidateMetadata)) {
+    throw "Orange runtime-candidate metadata tamper contract failed"
   }
 } finally {
-  Remove-Item -LiteralPath $testDirectory -Recurse -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath $candidateDirectory -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 Write-Output "Orange Pi cross-builder host, dry-run, and metadata tests passed"

@@ -1,3 +1,5 @@
+#![cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+
 use octessera_hal::{
     encoder_gpio::HardwareEvent, EncoderGpio, I2CBus, I2sDac, NeoKey, NeoTrellis, OledSsd1351,
     SeesawInterrupt,

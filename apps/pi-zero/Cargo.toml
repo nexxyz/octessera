@@ -15,21 +15,32 @@ path = "src/bin/hdmi_bench.rs"
 octessera-hal = { path = "../../crates/hal" }
 platform-core = { path = "../../crates/platform-core" }
 playback-runtime = { path = "../../crates/playback-runtime" }
-realtime-engine = { path = "../../crates/realtime-engine" }
-rodio-engine-source = { path = "../../crates/rodio-engine-source" }
-cpal = "0.15"
+realtime-engine = { path = "../../crates/realtime-engine", optional = true }
+rodio-engine-source = { path = "../../crates/rodio-engine-source", optional = true }
+cpal = { version = "0.15", optional = true }
 libc = "0.2"
-rodio = "0.20"
-midir = "0.10"
+rodio = { version = "0.20", optional = true }
+midir = { version = "0.10", optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 simple_logger = "1.16"
 
 [features]
-default = []
-hardware-raspberry-pi-zero-2w = ["hardware-rpi-zero-2w"]
-hardware-rpi-zero-2w = ["octessera-hal/raspberry-pi-zero-2w"]
+default = ["raspberry-runtime"]
+native-audio = [
+    "dep:realtime-engine",
+    "dep:rodio-engine-source",
+    "dep:cpal",
+    "dep:rodio",
+]
+raspberry-runtime = [
+    "native-audio",
+    "dep:midir",
+]
+hardware-raspberry-pi-zero-2w = ["hardware-rpi-zero-2w", "raspberry-runtime"]
+hardware-rpi-zero-2w = ["octessera-hal/raspberry-pi-zero-2w", "raspberry-runtime"]
 hardware-pi = ["hardware-rpi-zero-2w"]
+hardware-orange-pi-zero-2w = ["octessera-hal/orange-pi-zero-2w", "native-audio"]
 
 [build-dependencies]
 image = { version = "0.25", default-features = false, features = ["png"] }

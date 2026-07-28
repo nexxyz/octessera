@@ -8,7 +8,7 @@ use spidev::Spidev;
 #[cfg(feature = "rpi-zero-2w")]
 use std::io::Write;
 
-#[cfg(not(feature = "rpi-zero-2w"))]
+#[cfg(not(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w")))]
 use std::fmt;
 
 /// SSD1351 commands
@@ -74,6 +74,11 @@ pub struct OledSsd1351 {
     dc: OutputPin,
     _rst: OutputPin,
     rotated_frame: Vec<u8>,
+}
+
+#[cfg(all(feature = "orange-pi-zero-2w", target_os = "linux"))]
+pub struct OledSsd1351 {
+    transport: crate::orange_hardware::OrangeOledTransport,
 }
 
 #[cfg(feature = "rpi-zero-2w")]
@@ -253,12 +258,63 @@ fn spi_mode_from_env() -> spidev::SpiModeFlags {
 }
 
 /// Stub for non-Pi builds
-#[cfg(not(feature = "rpi-zero-2w"))]
+#[cfg(all(feature = "orange-pi-zero-2w", target_os = "linux"))]
+impl OledSsd1351 {
+    pub fn new() -> Result<Self, String> {
+        Ok(Self {
+            transport: crate::orange_hardware::OrangeHardware::open()?.into_oled(),
+        })
+    }
+
+    pub fn write_frame(&mut self, pixels: &[u8]) -> Result<(), String> {
+        self.transport.write_frame(pixels)
+    }
+
+    pub fn display_all_on(&mut self) -> Result<(), String> {
+        self.transport.display_on()
+    }
+
+    pub fn display_on(&mut self) -> Result<(), String> {
+        self.transport.display_on()
+    }
+
+    pub fn display_off(&mut self) -> Result<(), String> {
+        self.transport.display_off()
+    }
+}
+
+#[cfg(all(feature = "orange-pi-zero-2w", not(target_os = "linux")))]
+pub struct OledSsd1351;
+
+#[cfg(all(feature = "orange-pi-zero-2w", not(target_os = "linux")))]
+impl OledSsd1351 {
+    pub fn new() -> Result<Self, String> {
+        Err("Orange OLED requires a Linux target".into())
+    }
+
+    pub fn write_frame(&mut self, _pixels: &[u8]) -> Result<(), String> {
+        Err("Orange OLED requires a Linux target".into())
+    }
+
+    pub fn display_all_on(&mut self) -> Result<(), String> {
+        Err("Orange OLED requires a Linux target".into())
+    }
+
+    pub fn display_on(&mut self) -> Result<(), String> {
+        Err("Orange OLED requires a Linux target".into())
+    }
+
+    pub fn display_off(&mut self) -> Result<(), String> {
+        Err("Orange OLED requires a Linux target".into())
+    }
+}
+
+#[cfg(not(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w")))]
 pub struct OledSsd1351 {
     _private: (),
 }
 
-#[cfg(not(feature = "rpi-zero-2w"))]
+#[cfg(not(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w")))]
 impl OledSsd1351 {
     pub fn new() -> Result<Self, String> {
         Ok(Self { _private: () })
@@ -281,7 +337,7 @@ impl OledSsd1351 {
     }
 }
 
-#[cfg(not(feature = "rpi-zero-2w"))]
+#[cfg(not(any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w")))]
 impl fmt::Debug for OledSsd1351 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "OledSsd1351 {{ ... }}")

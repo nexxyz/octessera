@@ -315,7 +315,7 @@ CARGO_BUILD_JOBS=1 cargo build --profile pi-dev -p octessera-pi --features hardw
 
 ## Orange Pi Armbian Image
 
-`raspberry-pi-zero-2w` and `orange-pi-zero-2w` are the canonical board profile IDs. Raspberry Pi build, deploy, provision, and pi-gen image tooling accepts only the former and rejects the latter. Orange Pi support is diagnostic-only: the Armbian workflow provides bring-up infrastructure and the Orange HAL build produces only the bounded OLED smoke utility. No Orange runtime, release, deploy, updater, or service path exists.
+`raspberry-pi-zero-2w` and `orange-pi-zero-2w` are the canonical board profile IDs. Raspberry Pi build, deploy, provision, and pi-gen image tooling accepts only the former and rejects the latter. Orange also has a foreground `runtime-candidate` composition for qualifying the real OLED/NeoTrellis/NeoKey UI and exact-DAC audio path; it is not a release, deploy, updater, or service path. Its native audio adapter uses the shared 44.1 kHz runtime rate and requires exactly one CPAL output device named `hw:CARD=octesseradac,DEV=0` with verified stereo support. There is no default or HDMI fallback; internal MIDI events are ignored and explicit MIDI platform actions remain typed unavailable.
 
 For a local Orange Pi cross-build, use the WSL Docker-only builder. It never
 contacts or deploys to a board, installs the aarch64 GNU linker/sysroot in its
@@ -324,13 +324,15 @@ ephemeral tool container, and writes checked artifacts under
 
 ```powershell
 ./tools/orange-pi/build-orange-cross.ps1 -Binary orange-oled-smoke -Profile release
+./tools/orange-pi/build-orange-cross.ps1 -Binary octessera-pi -Profile release
 ./tools/orange-pi/test-build-orange-cross.ps1
 ```
 
 Cargo and rustup caches use persistent named Docker volumes; `-DryRun` prints
-the command without starting Docker. The builder accepts only
-`orange-oled-smoke`; it cannot produce an Orange runtime binary or service
-payload, and the smoke binary is never run against the board by this helper.
+the command without starting Docker. The builder accepts the two diagnostic
+smoke binaries and `octessera-pi` as a hash-bound `runtime-candidate` with
+`runtime_ready=false`; it rejects deployment/service-ready output. No artifact
+is run against the board by this helper.
 
 The `Armbian Image` GitHub Actions workflow builds the Orange Pi diagnostic
 image. It installs setup and bus-validation infrastructure only; it does not

@@ -6,6 +6,7 @@ use serde_json::Value;
 use std::sync::mpsc::Sender;
 use std::time::{Duration, Instant};
 
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) mod hdmi;
 mod oled;
 mod sleep_leds;
@@ -25,6 +26,7 @@ const MIN_SLEEP_DIM_SCALE: f32 = 0.04;
 pub struct HardwareRenderTargets {
     pub oled: OledSsd1351,
     pub seesaw_tx: Sender<SeesawCommand>,
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub hdmi: Option<hdmi::HdmiFramebuffer>,
 }
 
@@ -34,6 +36,7 @@ pub struct HardwareRenderCache {
     sleep_leds: SleepLedAnimation,
     oled_signature: u64,
     oled_frame: Vec<u8>,
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     hdmi_signature: u64,
     event_dot_until: Option<Instant>,
     transport_flash_until: Option<Instant>,
@@ -48,6 +51,7 @@ impl HardwareRenderCache {
             sleep_leds: SleepLedAnimation::new(),
             oled_signature: 0,
             oled_frame: vec![0_u8; OLED_FRAME_BYTES],
+            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
             hdmi_signature: 0,
             event_dot_until: None,
             transport_flash_until: None,
@@ -135,7 +139,9 @@ pub fn render_snapshot_cached(
         render_oled(&mut targets.oled, snapshot, &mut cache.oled_frame);
     }
 
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     let mut hdmi_failed = false;
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     if let Some(hdmi) = targets.hdmi.as_mut() {
         let signature = hdmi::hdmi_signature(snapshot);
         if cache.hdmi_signature != signature {
@@ -146,6 +152,7 @@ pub fn render_snapshot_cached(
             }
         }
     }
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     if hdmi_failed {
         targets.hdmi = None;
     }
@@ -341,6 +348,7 @@ fn render_oled(oled: &mut OledSsd1351, snapshot: &Value, frame: &mut [u8]) {
     }
 }
 
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub fn render_boot_splash(oled: &mut OledSsd1351) {
     let _ = oled.display_on();
     let snapshot = serde_json::json!({
@@ -377,6 +385,7 @@ fn snapshot_display_off(snapshot: &Value) -> bool {
         .unwrap_or(false)
 }
 
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) fn fault_oled_frame_into(lines: &[String], frame: &mut [u8], lit: bool) {
     oled::fault_frame_into(lines, frame, lit);
 }

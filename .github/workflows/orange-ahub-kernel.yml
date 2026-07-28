@@ -1,0 +1,161 @@
+name: Orange AHUB Kernel
+
+on:
+  push:
+    branches:
+      - orange-ahub-kernel-experiment
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  kernel:
+    name: Build isolated Orange AHUB kernel
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ARMBIAN_COMMIT: fa7a7b2294d9e760a77630950afd460b7a0b2a26
+      AHUB_PACKAGE_REVISION: 26.8.0-trunk.413
+      AHUB_KERNEL_ABI: 6.18.38-current-sunxi64
+      ARMBIAN_SOURCE_DIR: /tmp/armbian-build
+      AHUB_OUTPUT_DIR: /tmp/octessera-ahub-kernel
+      PREFER_DOCKER: "yes"
+      DOCKER_BUILDKIT: "1"
+    steps:
+      - name: Checkout Octessera
+        uses: actions/checkout@v6
+
+      - name: Initialize isolated paths
+        run: |
+          set -euo pipefail
+          sudo rm -rf -- "$ARMBIAN_SOURCE_DIR" "$AHUB_OUTPUT_DIR" /tmp/octessera-ahub-failure
+          for path in /tmp/octessera-ahub-build.* /tmp/octessera-ahub-*.log; do
+            [ -e "$path" ] || continue
+            sudo rm -rf -- "$path"
+          done
+          mkdir -p "$AHUB_OUTPUT_DIR"
+
+      - name: Install fixture validation tools
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends device-tree-compiler shellcheck
+
+      - name: Clone pinned Armbian source
+        run: |
+          set -euo pipefail
+          git init --quiet "$ARMBIAN_SOURCE_DIR"
+          git -C "$ARMBIAN_SOURCE_DIR" remote add origin https://github.com/armbian/build.git
+          git -C "$ARMBIAN_SOURCE_DIR" fetch --no-tags --depth=1 origin "$ARMBIAN_COMMIT"
+          git -C "$ARMBIAN_SOURCE_DIR" checkout --detach --quiet FETCH_HEAD
+          test "$(git -C "$ARMBIAN_SOURCE_DIR" rev-parse HEAD)" = "$ARMBIAN_COMMIT"
+
+      - name: Verify native Docker engine
+        run: |
+          set -euo pipefail
+          test "$(uname -s)" = Linux
+          docker info
+
+      - name: Run AHUB preflight
+        run: |
+          set -o pipefail
+          python3 tools/orange-pi/ahub-experiment/preflight.py tools/orange-pi/ahub-experiment 2>&1 \
+            | tee /tmp/octessera-ahub-preflight.log
+
+      - name: Run existing AHUB tests
+        run: |
+          set -o pipefail
+          bash tools/orange-pi/ahub-experiment/test-validate.sh 2>&1 \
+            | tee /tmp/octessera-ahub-tests.log
+
+      - name: Install Armbian build requirements
+        working-directory: /tmp/armbian-build
+        run: |
+          set -o pipefail
+          sudo ./compile.sh requirements 2>&1 \
+            | tee /tmp/octessera-ahub-requirements.log
+          sudo chown -R "$(id -u):$(id -g)" "$ARMBIAN_SOURCE_DIR"
+
+      - name: Run kernel-only AHUB build
+        run: |
+          set -o pipefail
+          bash tools/orange-pi/ahub-experiment/build-ahub-experiment.sh \
+            --run-kernel --output "$AHUB_OUTPUT_DIR" --keep-work 2>&1 \
+            | tee /tmp/octessera-ahub-kernel-build.log
+
+      - name: Prepare successful kernel artifact
+        run: |
+          set -euo pipefail
+          sudo chown -R "$(id -u):$(id -g)" "$AHUB_OUTPUT_DIR"
+          for worktree in /tmp/octessera-ahub-build.*; do
+            [ -d "$worktree" ] || continue
+            sudo rm -rf -- "$worktree"
+          done
+
+      - name: Upload kernel artifact
+        if: ${{ success() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: octessera-ahub-kernel
+          path: /tmp/octessera-ahub-kernel
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Collect failure diagnostics
+        if: ${{ failure() }}
+        run: |
+          set +e
+          diagnostics=/tmp/octessera-ahub-kernel
+          sudo mkdir -p "$diagnostics/logs" "$diagnostics/worktrees"
+
+          for log in /tmp/octessera-ahub-*.log; do
+            [ -f "$log" ] || continue
+            sudo cp -- "$log" "$diagnostics/logs/$(basename "$log")"
+          done
+
+          {
+            printf '%s\n' '=== runner ==='
+            uname -a
+            printf '%s\n' '=== docker ==='
+            docker info
+            printf '%s\n' '=== Armbian source ==='
+            git -C "$ARMBIAN_SOURCE_DIR" status --short --branch
+            git -C "$ARMBIAN_SOURCE_DIR" rev-parse HEAD
+            printf '%s\n' '=== retained build worktrees ==='
+            find /tmp -maxdepth 1 -type d -name 'octessera-ahub-build.*' -print
+          } | sudo tee "$diagnostics/worktrees/environment.txt" >/dev/null
+
+          for worktree in /tmp/octessera-ahub-build.*; do
+            [ -d "$worktree" ] || continue
+            name=$(basename -- "$worktree")
+            worktree_diagnostics="$diagnostics/worktrees/$name"
+            sudo mkdir -p "$worktree_diagnostics/logs"
+            {
+              printf 'path=%s\n' "$worktree"
+              if [ -d "$worktree/armbian-build" ]; then
+                git -C "$worktree/armbian-build" status --short --branch
+                git -C "$worktree/armbian-build" diff --stat
+                git -C "$worktree/armbian-build" rev-parse HEAD
+                find "$worktree/armbian-build" -maxdepth 3 -type f -name '*.log' -print
+              fi
+            } | sudo tee "$worktree_diagnostics/summary.txt" >/dev/null
+
+            if [ -d "$worktree/armbian-build" ]; then
+              while IFS= read -r log; do
+                relative=${log#"$worktree/armbian-build/"}
+                sudo install -D -m 0644 "$log" "$worktree_diagnostics/logs/$relative"
+              done < <(find "$worktree/armbian-build" -maxdepth 8 -type f -name '*.log' -size -20M -print)
+            fi
+          done
+
+          sudo chown -R "$(id -u):$(id -g)" "$diagnostics"
+
+      - name: Upload failure diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: orange-ahub-kernel-failure-diagnostics
+          path: /tmp/octessera-ahub-kernel
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,4 @@
+snd_soc_register_card: octessera-dac
+sunxi-snd-mach: card=octessera-dac cpu=octessera_plat codec=dummy-codec playback-only
+dummy-codec: vendor fallback selected for playback-only octessera-dac
+sunxi-snd-mach: card=HDMI cpu=ahub1_plat codec=hdmi registered

@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-  [ValidateSet("orange-oled-smoke")]
+  [ValidateSet("orange-oled-smoke", "orange-seesaw-smoke", "octessera-pi")]
   [string]$Binary = "orange-oled-smoke",
   [ValidateSet("release", "pi-dev", "dev")]
   [string]$Profile = "pi-dev",
@@ -76,10 +76,19 @@ function Get-WslDockerArguments {
 function Get-BuildSpec {
   param([Parameter(Mandatory)][string]$SelectedBinary)
 
-  if ($SelectedBinary -eq "orange-oled-smoke") {
+  if ($SelectedBinary -in @("orange-oled-smoke", "orange-seesaw-smoke")) {
     return [pscustomobject]@{
       Package = "octessera-hal"
       Feature = "orange-pi-zero-2w"
+      ArtifactKind = "diagnostic-only"
+    }
+  }
+
+  if ($SelectedBinary -eq "octessera-pi") {
+    return [pscustomobject]@{
+      Package = "octessera-pi"
+      Feature = "hardware-orange-pi-zero-2w"
+      ArtifactKind = "runtime-candidate"
     }
   }
 
@@ -112,17 +121,17 @@ apt-get install -y --no-install-recommends \
   binutils-aarch64-linux-gnu \
   libc6-dev-arm64-cross \
   libasound2-dev:arm64 \
-  libdbus-1-dev:arm64 \
   pkg-config
 rm -rf /var/lib/apt/lists/*
 rustup target add $targetQuoted
-cargo build --target $targetQuoted --profile $profileQuoted -p $packageQuoted --bin $binaryQuoted --features $featureQuoted
+cargo build --target $targetQuoted --profile $profileQuoted --no-default-features -p $packageQuoted --bin $binaryQuoted --features $featureQuoted
 test -f $sourceQuoted
 mkdir -p $outputQuoted
 cp -- $sourceQuoted '/work/$OutputRelativePath/$Binary'
 aarch64-linux-gnu-readelf -h '/work/$OutputRelativePath/$Binary' | grep -Eq '^[[:space:]]*Class:[[:space:]]*ELF64[[:space:]]*$'
 aarch64-linux-gnu-readelf -h '/work/$OutputRelativePath/$Binary' | grep -Eq '^[[:space:]]*Machine:[[:space:]]*AArch64[[:space:]]*$'
 "@
+  $innerScript = $innerScript -replace "`r`n", "`n"
 
   $dockerArguments = @(
     "docker"

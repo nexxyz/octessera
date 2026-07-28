@@ -1,0 +1,125 @@
+/dts-v1/;
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	model = "Octessera Orange Pi Zero 2W H618 AHUB experiment fixture";
+	compatible = "xunlong,orangepi-zero2w", "allwinner,sun50i-h616", "allwinner,sun50i-h618";
+
+	aliases {
+		serial0 = &uart0;
+		serial2 = &uart2;
+		i2c0 = &i2c0;
+		spi0 = &spi0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	uart0: serial@5000000 {
+		compatible = "snps,dw-apb-uart";
+		reg = <0x05000000 0x1000>;
+		status = "okay";
+	};
+
+	uart2: serial@5002000 {
+		compatible = "snps,dw-apb-uart";
+		reg = <0x05002000 0x1000>;
+		status = "okay";
+	};
+
+	spi0: spi@5010000 {
+		compatible = "allwinner,sun50i-h618-spi";
+		reg = <0x05010000 0x1000>;
+		status = "okay";
+	};
+
+	i2c0: i2c@5003000 {
+		compatible = "allwinner,sun50i-h618-i2c";
+		reg = <0x05003000 0x1000>;
+		status = "okay";
+	};
+
+	hdmi: hdmi@6000000 {
+		compatible = "allwinner,sun50i-h616-dw-hdmi", "allwinner,sun50i-h6-dw-hdmi";
+		#sound-dai-cells = <0>;
+		reg = <0x06000000 0x10000>;
+		status = "okay";
+	};
+
+	codec: codec@5096000 {
+		compatible = "allwinner,sun50i-h616-codec";
+		#sound-dai-cells = <0>;
+		reg = <0x05096000 0x1000>;
+		status = "okay";
+	};
+
+	pio: pinctrl@300b000 {
+		compatible = "allwinner,sun50i-h618-pinctrl";
+		reg = <0x0300b000 0x1000>;
+		gpio-controller;
+		#gpio-cells = <3>;
+	};
+
+	dma: dma-controller@3002000 {
+		compatible = "allwinner,sun50i-h616-dma";
+		reg = <0x03002000 0x1000>;
+		#dma-cells = <1>;
+		status = "okay";
+	};
+
+	main_encoder: main-encoder {
+		compatible = "octessera,main-encoder";
+		pins = "PI0";
+		function = "gpio_in";
+		status = "okay";
+	};
+
+	ahub_dam_plat: ahub_dam_plat@5097000 {
+		compatible = "allwinner,sunxi-snd-plat-ahub_dam";
+		#sound-dai-cells = <0>;
+		reg = <0x05097000 0x1000>;
+		status = "okay";
+	};
+
+	ahub_dam_mach: ahub_dam_mach {
+		compatible = "allwinner,sunxi-snd-mach";
+		soundcard-mach,name = "ahubdam";
+		status = "disabled";
+		soundcard-mach,cpu {
+			sound-dai = <&ahub_dam_plat>;
+		};
+		soundcard-mach,codec {
+		};
+	};
+
+	soc {
+		ahub1_plat: ahub1_plat {
+			#sound-dai-cells = <0>;
+			compatible = "allwinner,sunxi-snd-plat-ahub";
+			apb_num = <1>;
+			tdm_num = <1>;
+			tx_pin = <0>;
+			rx_pin = <0>;
+			status = "okay";
+		};
+
+		ahub1_mach: ahub1_mach {
+			compatible = "allwinner,sunxi-snd-mach";
+			soundcard-mach,name = "HDMI";
+			soundcard-mach,format = "i2s";
+			soundcard-mach,slot-num = <2>;
+			soundcard-mach,slot-width = <32>;
+			status = "okay";
+			ahub1_cpu: soundcard-mach,cpu {
+				sound-dai = <&ahub1_plat>;
+				soundcard-mach,pll-fs = <4>;
+				soundcard-mach,mclk-fs = <0>;
+			};
+			soundcard-mach,codec {
+				sound-dai = <&hdmi>;
+			};
+		};
+	};
+};
