@@ -59,7 +59,7 @@ mod orange_audio;
 mod persistence;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod platform_service;
-#[cfg(feature = "native-audio")]
+#[cfg(all(feature = "native-audio", not(feature = "hardware-orange-pi-zero-2w")))]
 mod recording;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod render;
@@ -80,7 +80,7 @@ mod ui_profile;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 #[cfg(test)]
 mod update_menu_fixture_tests;
-#[cfg(feature = "native-audio")]
+#[cfg(all(feature = "native-audio", not(feature = "hardware-orange-pi-zero-2w")))]
 mod usb_config;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod wake_trace;

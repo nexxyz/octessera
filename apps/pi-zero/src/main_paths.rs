@@ -1,5 +1,8 @@
-use std::path::{Path, PathBuf};
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+use std::path::Path;
+use std::path::PathBuf;
 
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) fn default_store_dir() -> PathBuf {
     std::env::var_os("OCTESSERA_PI_STORE_DIR")
         .map(PathBuf::from)
@@ -10,6 +13,7 @@ pub(crate) fn default_store_dir() -> PathBuf {
         })
 }
 
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) fn ensure_runtime_dirs(store_dir: &Path, samples_dir: &Path) {
     let _ = std::fs::create_dir_all(samples_dir);
     let _ = std::fs::create_dir_all(store_dir);

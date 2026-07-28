@@ -273,7 +273,6 @@ mod tests {
 
     #[test]
     fn orange_config_selection_requires_shared_default_stereo_rate() {
-        assert!(DEFAULT_AUDIO_SAMPLE_RATE > 0);
         let below_default = DEFAULT_AUDIO_SAMPLE_RATE - 1;
         assert_eq!(
             select_orange_output_config(&[

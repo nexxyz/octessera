@@ -1,8 +1,11 @@
-use crate::audio::{default_pi_instruments, AudioSink};
+#[cfg(any(not(feature = "hardware-orange-pi-zero-2w"), test))]
+use crate::audio::default_pi_instruments;
+use crate::audio::AudioSink;
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use crate::usb_config::UsbAudioOut;
-use realtime_engine::synth::{
-    prepare_instruments_config, SampleBankConfig, DEFAULT_AUDIO_SAMPLE_RATE,
-};
+use realtime_engine::synth::SampleBankConfig;
+#[cfg(any(not(feature = "hardware-orange-pi-zero-2w"), test))]
+use realtime_engine::synth::{prepare_instruments_config, DEFAULT_AUDIO_SAMPLE_RATE};
 use rodio_engine_source::{EngineEvent, EngineEventSender};
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
@@ -15,7 +18,7 @@ pub(crate) struct SinkSender {
 #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) fn test_sink_sender(tx: EngineEventSender) -> SinkSender {
     SinkSender {
-        sink: AudioSink::Jack,
+        sink: AudioSink::InternalDac,
         tx,
     }
 }
@@ -58,18 +61,21 @@ pub(crate) fn register_sink(
     }
 }
 
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) fn remove_sink(txs: &Arc<Mutex<Vec<SinkSender>>>, sink: AudioSink) {
     if let Ok(mut txs) = txs.lock() {
         txs.retain(|entry| entry.sink != sink);
     }
 }
 
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) fn has_sink(txs: &Arc<Mutex<Vec<SinkSender>>>, sink: AudioSink) -> bool {
     txs.lock()
         .map(|txs| txs.iter().any(|entry| entry.sink == sink))
         .unwrap_or(false)
 }
 
+#[cfg(any(not(feature = "hardware-orange-pi-zero-2w"), test))]
 pub(crate) fn replay_to_sink(
     tx: &EngineEventSender,
     replay_events: &Arc<Mutex<ReplayCache>>,
@@ -87,6 +93,7 @@ pub(crate) fn default_replay_events() -> ReplayCache {
     ReplayCache::default()
 }
 
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) fn startup_sinks(audio_out: UsbAudioOut) -> Vec<AudioSink> {
     match audio_out {
         UsbAudioOut::Jack => vec![AudioSink::Jack],
@@ -95,6 +102,7 @@ pub(crate) fn startup_sinks(audio_out: UsbAudioOut) -> Vec<AudioSink> {
     }
 }
 
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) fn recovery_enabled(audio_out: UsbAudioOut) -> bool {
     matches!(audio_out, UsbAudioOut::Usb | UsbAudioOut::Both)
 }
@@ -136,6 +144,7 @@ impl ReplayCache {
         }
     }
 
+    #[cfg(any(not(feature = "hardware-orange-pi-zero-2w"), test))]
     fn events(&self) -> Vec<EngineEvent> {
         let mut events = vec![self.audio_config.clone().unwrap_or_else(|| {
             EngineEvent::SetPreparedInstruments(prepare_instruments_config(
@@ -243,6 +252,7 @@ pub(crate) fn is_replay_event(event: &EngineEvent) -> bool {
     )
 }
 
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) fn usb_uses_recording_tap(audio_out: UsbAudioOut) -> bool {
     audio_out == UsbAudioOut::Usb
 }
@@ -264,9 +274,11 @@ pub(crate) fn collect_replay_events(cache: &ReplayCache) -> Vec<EngineEvent> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     use crate::audio::audio_sinks;
     use realtime_engine::synth::prepare_audio_config;
 
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     #[test]
     fn audio_sink_plan_preserves_desired_usb_modes() {
         assert_eq!(audio_sinks(UsbAudioOut::Jack), vec![AudioSink::Jack]);
@@ -277,6 +289,7 @@ mod tests {
         );
     }
 
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     #[test]
     fn usb_recording_tap_policy_keeps_single_callback_owner() {
         assert!(usb_uses_recording_tap(UsbAudioOut::Usb));
@@ -284,6 +297,7 @@ mod tests {
         assert!(!usb_uses_recording_tap(UsbAudioOut::Jack));
     }
 
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     #[test]
     fn startup_and_recovery_plan_keeps_usb_mode_usb_only() {
         assert_eq!(startup_sinks(UsbAudioOut::Jack), vec![AudioSink::Jack]);
