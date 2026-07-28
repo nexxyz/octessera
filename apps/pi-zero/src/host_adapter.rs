@@ -116,7 +116,7 @@ impl HostAdapter for PiPlaybackHostAdapter {
         let Some(audio) = &self.audio else {
             return Ok(());
         };
-        Ok(audio.send_realtime(musical_event_to_engine_event(event))?)
+        audio.send_realtime(musical_event_to_engine_event(event))
     }
 
     fn handle_platform_effect(

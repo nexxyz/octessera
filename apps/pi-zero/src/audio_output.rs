@@ -48,6 +48,12 @@ struct OpenedAudioSink {
     health: AudioStreamHealth,
 }
 
+type AudioSinkOpener = fn(
+    Option<u32>,
+    AudioSink,
+    Option<Arc<RwLock<Option<RecordingTap>>>>,
+) -> Result<OpenedAudioSink, String>;
+
 impl AudioManager {
     pub fn new(output_buffer_frames: Option<u32>, audio_out: UsbAudioOut) -> Result<Self, String> {
         Self::new_with_opener(
@@ -75,11 +81,7 @@ impl AudioManager {
         sinks: Vec<AudioSink>,
         allow_partial: bool,
         policy: AudioOpenPolicy,
-        open_sink: fn(
-            Option<u32>,
-            AudioSink,
-            Option<Arc<RwLock<Option<RecordingTap>>>>,
-        ) -> Result<OpenedAudioSink, String>,
+        open_sink: AudioSinkOpener,
     ) -> Result<Self, String> {
         let (control_tx, control_rx) = mpsc::channel::<AudioControlRequest>();
         let (prep_result_tx, prep_result_rx) = mpsc::channel::<HostMessage>();
