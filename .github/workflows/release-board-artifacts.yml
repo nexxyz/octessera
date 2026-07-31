@@ -1,5 +1,4 @@
 name: Release board artifacts
-
 on:
   workflow_call:
     inputs:
@@ -290,7 +289,7 @@ jobs:
           EXPORT_DIR=deploy
           DEPLOY_ZIP=1
           ENABLE_SSH=0
-          EOL
+          EOF
           cd pi-gen
           sudo --preserve-env=OCTESSERA_KERNEL_PACKAGE,OCTESSERA_KERNEL_CHECKSUMS,OCTESSERA_KERNEL_PROVENANCE ./build.sh
       - name: Select and verify the single Raspberry ZIP
@@ -299,6 +298,7 @@ jobs:
           mkdir -p release-assets extracted-image
           mapfile -t zip_files < <(find pi-gen/deploy -maxdepth 1 -type f -name '*.zip' -print | sort)
           [[ "${#zip_files[@]}" == 1 ]] || { echo "Expected exactly one pi-gen ZIP, found ${#zip_files[@]}." >&2; exit 1; }
+          zip_basename="$(basename "${zip_files[0]}")"; [[ "$zip_basename" == octessera-raspberry-pi-zero-2w*.zip ]] || { echo "Unexpected Raspberry pi-gen ZIP basename: $zip_basename" >&2; exit 1; }
           asset="release-assets/octessera-${{ inputs.version }}-raspberry-pi-zero-2w.img.zip"
           cp "${zip_files[0]}" "$asset"
           python3 tools/pi-image/package-rpi-imager-zip.py \

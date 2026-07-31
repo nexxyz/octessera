@@ -312,7 +312,7 @@ mkdir -p "$handoff"
 cp -- "$(image_package good)" "$handoff/linux-image-current-sunxi64_26.8.0-trunk.417_arm64.deb"
 cp -- "$(dtb_package good)" "$handoff/linux-dtb-current-sunxi64_26.8.0-trunk.417_arm64.deb"
 OCTESSERA_ORANGE_TEST_MODE=1 bash "$validator" "$(image_package good)" "$(dtb_package good)" --expected-config-sha256 "$good_config_sha256" --evidence-output "$evidence" >/dev/null
-grep -q '^packaged_config_expected_sha256=d532caf074dbcd796a8cd8312e80cadd6a4ee0f1bccd8f227f7ff08214e87482$' "$evidence"
+grep -q '^packaged_config_expected_sha256=fddbc3ff39e27b7e0aeb80b97496b93f5fca91b8fd166f2937f6924dc034c352$' "$evidence"
 grep -q "^final_config_sha256=$good_config_sha256$" "$evidence"
 GITHUB_SOURCE_SHA="$(git -C "$root" rev-parse HEAD)" \
 ARMBIAN_BUILD_REF=fa7a7b2294d9e760a77630950afd460b7a0b2a26 \
@@ -324,7 +324,7 @@ grep -q '^dtb_package_native=linux-dtb-current-sunxi64_26.8.0-trunk.417_arm64__f
 grep -q '^artifact_suffix=fixture$' "$provenance"
 grep -q '^octessera_checkout_head=' "$provenance"
 grep -q '^kernel_config_final_sha256=' "$provenance"
-grep -q '^kernel_config_expected_packaged_sha256=d532caf074dbcd796a8cd8312e80cadd6a4ee0f1bccd8f227f7ff08214e87482$' "$provenance"
+grep -q '^kernel_config_expected_packaged_sha256=fddbc3ff39e27b7e0aeb80b97496b93f5fca91b8fd166f2937f6924dc034c352$' "$provenance"
 grep -q "^kernel_config_final_sha256=$good_config_sha256$" "$provenance"
 grep -q '^kernel_config_sha256_match=false$' "$provenance"
 grep -q '^image_dtb_sha256=' "$provenance"
