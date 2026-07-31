@@ -16,17 +16,29 @@ permissions:
   contents: read
 
 jobs:
-  release_info:
-    name: Resolve draft release
+  workflow_static:
+    name: Validate workflow definition from main
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+      - run: |
+          sudo apt-get update && sudo apt-get install -y shellcheck
+          test "$(git rev-parse HEAD)" = "${{ github.workflow_sha }}" && bash tools/armbian-image/test-release-workflow.sh && bash -n tools/armbian-image/test-release-workflow.sh && shellcheck tools/armbian-image/test-release-workflow.sh
+
+  resolve_draft:
+    name: Resolve draft release through the API
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
     outputs:
       tag: ${{ steps.release.outputs.tag }}
       version: ${{ steps.release.outputs.version }}
       asset_prefix: ${{ steps.release.outputs.asset_prefix }}
       release_id: ${{ steps.release.outputs.release_id }}
-      source_sha: ${{ steps.source.outputs.source_sha }}
     steps:
-      - name: Verify existing draft release and exact semver tag
+      - name: Verify exact semver draft release
         id: release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -38,27 +50,39 @@ jobs:
             [ .[][] | select(.tag_name == $tag) ] as $matches
             | if ($matches | length) != 1 then
                 error("Expected exactly one release for tag \($tag)")
+              elif $matches[0].draft != true then
+                error("The release must remain a draft until the final publish job.")
               else
                 $matches[0]
               end
           ')"
-          [[ "$(jq -r '.tag_name' <<< "$release_json")" == "$RELEASE_TAG" ]] || { echo 'Release API returned the wrong tag.' >&2; exit 1; }
-          [[ "$(jq -r '.draft' <<< "$release_json")" == true ]] || { echo 'The release must remain a draft until the final publish job.' >&2; exit 1; }
           {
             echo "tag=$RELEASE_TAG"
             echo "version=${RELEASE_TAG#v}"
             echo "asset_prefix=octessera-${RELEASE_TAG#v}"
             echo "release_id=$(jq -r '.id' <<< "$release_json")"
           } >> "$GITHUB_OUTPUT"
+
+  release_info:
+    name: Validate immutable release source
+    runs-on: ubuntu-latest
+    needs: resolve_draft
+    outputs:
+      tag: ${{ needs.resolve_draft.outputs.tag }}
+      version: ${{ needs.resolve_draft.outputs.version }}
+      asset_prefix: ${{ needs.resolve_draft.outputs.asset_prefix }}
+      release_id: ${{ needs.resolve_draft.outputs.release_id }}
+      source_sha: ${{ steps.source.outputs.source_sha }}
+    steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ steps.release.outputs.tag }}
+          ref: ${{ needs.resolve_draft.outputs.tag }}
           fetch-depth: 0
       - name: Verify tag commit and package version
         id: source
         env:
-          RELEASE_TAG: ${{ steps.release.outputs.tag }}
-          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          RELEASE_TAG: ${{ needs.resolve_draft.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.resolve_draft.outputs.version }}
         run: |
           set -euo pipefail
           source_sha="$(git rev-parse HEAD)"
@@ -96,9 +120,9 @@ jobs:
           python3 -m unittest discover -s tools/device-update -p 'test_*.py'
           bash tools/device-update/smoke-test.sh
           bash tools/armbian-image/test-build-armbian-action.sh
-          bash tools/armbian-image/test-release-workflow.sh
           bash -n tools/device-update/*.sh tools/pi-image/verify-sanitized-image.sh tools/pi-image/verify-rpi-kernel-image.sh tools/pi-kernel/*.sh tools/armbian-image/*.sh
-          shellcheck tools/device-update/*.sh tools/pi-kernel/*.sh tools/armbian-image/*.sh
+          shellcheck tools/device-update/*.sh tools/pi-kernel/*.sh
+          find tools/armbian-image -maxdepth 1 -type f -name '*.sh' ! -name 'test-release-workflow.sh' -exec shellcheck {} +
           cmp tools/device-update/octessera-update tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-update
           cmp tools/device-update/octessera-update userpatches/overlay/usr/local/sbin/octessera-update
           cmp tools/device-update/octessera-update-guard tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-update-guard
@@ -258,7 +282,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    needs: [release_info, updater_protocol, windows, macos, ubuntu, board_artifacts]
+    needs: [release_info, updater_protocol, windows, macos, ubuntu, board_artifacts, workflow_static]
     steps:
       - uses: actions/checkout@v4
         with:
