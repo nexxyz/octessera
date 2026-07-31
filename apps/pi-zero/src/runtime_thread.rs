@@ -4,9 +4,9 @@ use crate::encoder_queue::PendingEncoderTurns;
 use crate::host_adapter::PiPlaybackHostAdapter;
 use crate::input::MidiMessage;
 use crate::main_runtime_loop::{
-    drain_encoder_events, drain_host_messages, drain_midi_messages, flush_pending_encoder_turns,
-    maybe_advance_runtime,
+    drain_encoder_events, drain_host_messages, flush_pending_encoder_turns, maybe_advance_runtime,
 };
+use crate::midi_host::drain_midi_messages;
 use crate::render_loop::RenderWorker;
 use crate::runtime_loop::initialize_host_state;
 use crate::sample_browser::SD_CARD_SAMPLE_BROWSER_DIR;
@@ -196,11 +196,14 @@ fn run_scheduler(
         ) {
             break;
         }
-        mark_candidate_ready_if_submitted(
+        if let Err(error) = mark_candidate_ready_if_submitted(
             initial_snapshot_requested,
             &state,
             &mut candidate_readiness,
-        );
+        ) {
+            eprintln!("pi candidate readiness publication failed: {error}");
+            break;
+        }
         drain_midi_messages(&midi_rx, &mut playback, &mut runner, &mut adapter);
         let host_input_started = profile_enabled.then(Instant::now);
         drain_host_messages(&input_rx, &mut playback, &mut runner, &mut adapter);
@@ -216,11 +219,14 @@ fn run_scheduler(
         ) {
             break;
         }
-        mark_candidate_ready_if_submitted(
+        if let Err(error) = mark_candidate_ready_if_submitted(
             initial_snapshot_requested,
             &state,
             &mut candidate_readiness,
-        );
+        ) {
+            eprintln!("pi candidate readiness publication failed: {error}");
+            break;
+        }
         drain_encoder_events(
             &encoder_rx,
             &mut state.pending_encoder_turns,
@@ -243,11 +249,14 @@ fn run_scheduler(
         ) {
             break;
         }
-        mark_candidate_ready_if_submitted(
+        if let Err(error) = mark_candidate_ready_if_submitted(
             initial_snapshot_requested,
             &state,
             &mut candidate_readiness,
-        );
+        ) {
+            eprintln!("pi candidate readiness publication failed: {error}");
+            break;
+        }
         if let (Some(gap), Some(started)) = (loop_gap, loop_start) {
             state.ui_profiler.record_loop(gap, started.elapsed());
             state.ui_profiler.maybe_report();
@@ -261,11 +270,14 @@ fn run_scheduler(
         ) {
             break;
         }
-        mark_candidate_ready_if_submitted(
+        if let Err(error) = mark_candidate_ready_if_submitted(
             initial_snapshot_requested,
             &state,
             &mut candidate_readiness,
-        );
+        ) {
+            eprintln!("pi candidate readiness publication failed: {error}");
+            break;
+        }
         thread::sleep(state.idle_sleep_duration(&playback, &runner));
     }
 }
@@ -274,10 +286,11 @@ fn mark_candidate_ready_if_submitted(
     initial_snapshot_requested: bool,
     state: &SchedulerState,
     candidate_readiness: &mut CandidateReadiness,
-) {
+) -> Result<(), String> {
     if initial_snapshot_requested && state.last_rendered_snapshot_revision != 0 {
-        candidate_readiness.mark_ready();
+        candidate_readiness.mark_ready()?;
     }
+    Ok(())
 }
 
 impl SchedulerState {
@@ -372,15 +385,15 @@ mod tests {
         let mut readiness = CandidateReadiness::new(Some(path.clone()), "invocation-1".into());
         let mut state = SchedulerState::new();
 
-        mark_candidate_ready_if_submitted(true, &state, &mut readiness);
+        mark_candidate_ready_if_submitted(true, &state, &mut readiness).unwrap();
         assert!(!path.exists());
 
         state.last_rendered_snapshot_revision = 1;
-        mark_candidate_ready_if_submitted(false, &state, &mut readiness);
+        mark_candidate_ready_if_submitted(false, &state, &mut readiness).unwrap();
         assert!(!path.exists());
 
         let mut readiness = CandidateReadiness::new(Some(path.clone()), "invocation-1".into());
-        mark_candidate_ready_if_submitted(true, &state, &mut readiness);
+        mark_candidate_ready_if_submitted(true, &state, &mut readiness).unwrap();
         assert!(path.is_file());
 
         let _ = std::fs::remove_dir_all(directory);

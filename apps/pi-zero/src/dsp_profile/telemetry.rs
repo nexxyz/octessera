@@ -1,5 +1,5 @@
 use super::scenarios::ScenarioSpec;
-use realtime_engine::synth::{SynthEngine, SynthProfileSnapshot};
+use realtime_engine::synth::{SynthEngine, SynthProfileSnapshot, MIN_SYNTH_PARALLEL_BLOCK_FRAMES};
 use rodio_engine_source::EngineEvent;
 
 pub struct TelemetrySummary {
@@ -14,8 +14,10 @@ pub fn collect_synth_telemetry(
     blocks: usize,
 ) -> TelemetrySummary {
     let mut engine = SynthEngine::new(sample_rate);
-    if let Some(worker_count) = synth_slot_worker_count() {
-        let _ = engine.set_synth_slot_parallelism_enabled(true, worker_count);
+    if block_frames >= MIN_SYNTH_PARALLEL_BLOCK_FRAMES {
+        if let Some(worker_count) = synth_slot_worker_count() {
+            let _ = engine.set_synth_slot_parallelism_enabled(true, worker_count);
+        }
     }
     apply_events(&mut engine, &scenario.events);
     let mut peak = engine.profile_snapshot();

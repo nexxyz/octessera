@@ -18,14 +18,26 @@ inputs:
     description: Armbian COMPRESS_OUTPUTIMAGE value
   extensions:
     required: false
-    default: ""
-    description: Space-separated Armbian extensions
+    default: octessera_midi octessera_image_sanitize
+    description: Space-separated Armbian extensions; Octessera MIDI and image sanitization are always added when absent
   armbian_build_ref:
     required: true
     description: Reviewed immutable armbian/build commit SHA
   share_log:
     required: true
     description: Armbian SHARE_LOG value
+  image_kind:
+    required: false
+    default: diagnostic
+    description: Image mode; diagnostic or production
+  runtime_bundle_path:
+    required: false
+    default: ""
+    description: Local production runtime bundle directory
+  source_sha:
+    required: false
+    default: ""
+    description: Full Octessera source commit SHA for provenance
 runs:
   using: composite
   steps:
@@ -39,6 +51,8 @@ runs:
         OCTESSERA_ARMBIAN_COMPRESSION: ${{ inputs.compression }}
         OCTESSERA_ARMBIAN_EXTENSIONS: ${{ inputs.extensions }}
         OCTESSERA_ARMBIAN_SHARE_LOG: ${{ inputs.share_log }}
+        OCTESSERA_IMAGE_KIND: ${{ inputs.image_kind }}
+        OCTESSERA_RUNTIME_BUNDLE_PATH: ${{ inputs.runtime_bundle_path }}
         ARMBIAN_BUILD_REF: ${{ inputs.armbian_build_ref }}
       run: |
         set -euo pipefail
@@ -46,11 +60,29 @@ runs:
         [[ "$OCTESSERA_ARMBIAN_BOARD" == orangepizero2w ]] || { echo 'This Octessera image path accepts only orangepizero2w.' >&2; exit 1; }
         [[ "$OCTESSERA_ARMBIAN_RELEASE" =~ ^[a-z0-9][a-z0-9._-]*$ ]] || { echo 'Invalid release.' >&2; exit 1; }
         [[ "$OCTESSERA_ARMBIAN_KERNEL_BRANCH" =~ ^[a-z0-9][a-z0-9._-]*$ ]] || { echo 'Invalid kernel branch.' >&2; exit 1; }
+        [[ "$OCTESSERA_ARMBIAN_KERNEL_BRANCH" == current ]] || { echo 'This Octessera image path accepts only the current kernel family.' >&2; exit 1; }
         [[ "$OCTESSERA_ARMBIAN_UI" =~ ^[A-Za-z0-9._-]+$ ]] || { echo 'Invalid UI value.' >&2; exit 1; }
         [[ "$OCTESSERA_ARMBIAN_COMPRESSION" =~ ^[a-z0-9,._-]+$ ]] || { echo 'Invalid compression value.' >&2; exit 1; }
         [[ "$OCTESSERA_ARMBIAN_EXTENSIONS" =~ ^[A-Za-z0-9,._[:space:]-]*$ ]] || { echo 'Invalid extensions value.' >&2; exit 1; }
+        effective_extensions="$(bash "$GITHUB_ACTION_PATH/../../../tools/armbian-image/resolve-armbian-extensions.sh" "$OCTESSERA_ARMBIAN_EXTENSIONS")"
+        [[ "$effective_extensions" =~ (^|[[:space:],])octessera_midi([[:space:],]|$) ]] || { echo 'Effective extensions must include octessera_midi.' >&2; exit 1; }
+        [[ "$effective_extensions" =~ (^|[[:space:],])octessera_image_sanitize([[:space:],]|$) ]] || { echo 'Effective extensions must include octessera_image_sanitize.' >&2; exit 1; }
         [[ "$OCTESSERA_ARMBIAN_SHARE_LOG" =~ ^(yes|no)$ ]] || { echo 'Invalid share_log value.' >&2; exit 1; }
+        [[ "$OCTESSERA_IMAGE_KIND" == diagnostic || "$OCTESSERA_IMAGE_KIND" == production ]] || { echo 'image_kind must be diagnostic or production.' >&2; exit 1; }
+        if [[ "$OCTESSERA_IMAGE_KIND" == diagnostic && -n "$OCTESSERA_RUNTIME_BUNDLE_PATH" ]]; then
+          echo 'Diagnostic images must not receive a runtime bundle.' >&2
+          exit 1
+        fi
+        if [[ "$OCTESSERA_IMAGE_KIND" == production ]]; then
+          [[ -n "$OCTESSERA_RUNTIME_BUNDLE_PATH" && -d "$OCTESSERA_RUNTIME_BUNDLE_PATH" && ! -L "$OCTESSERA_RUNTIME_BUNDLE_PATH" ]] || { echo 'Production images require a local runtime bundle directory.' >&2; exit 1; }
+          runtime_entries="$(find -P "$OCTESSERA_RUNTIME_BUNDLE_PATH" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)"
+          [[ "$runtime_entries" == $'SHA256SUMS\noctessera-pi\noctessera-runtime.json' ]] || { echo 'Production runtime bundle must contain exactly octessera-pi, octessera-runtime.json, and SHA256SUMS.' >&2; exit 1; }
+          while IFS= read -r runtime_entry; do
+            [[ -f "$OCTESSERA_RUNTIME_BUNDLE_PATH/$runtime_entry" && ! -L "$OCTESSERA_RUNTIME_BUNDLE_PATH/$runtime_entry" ]] || { echo "Production runtime bundle entry is not a regular file: $runtime_entry" >&2; exit 1; }
+          done <<< "$runtime_entries"
+        fi
         [[ "$ARMBIAN_BUILD_REF" =~ ^[0-9a-fA-F]{40}$ ]] || { echo 'Qualification image builds require a reviewed immutable Armbian commit SHA.' >&2; exit 1; }
+        [[ "$ARMBIAN_BUILD_REF" == fa7a7b2294d9e760a77630950afd460b7a0b2a26 ]] || { echo 'Qualification image builds require the approved Armbian source pin.' >&2; exit 1; }
     - name: Free runner disk space
       shell: bash
       run: |
@@ -67,6 +99,9 @@ runs:
         fetch-depth: 1
     - name: Install Octessera userpatches
       shell: bash
+      env:
+        OCTESSERA_IMAGE_KIND: ${{ inputs.image_kind }}
+        OCTESSERA_RUNTIME_BUNDLE_PATH: ${{ inputs.runtime_bundle_path }}
       run: |
         set -euo pipefail
         mkdir -p build/userpatches
@@ -77,6 +112,24 @@ runs:
         install -m 0644 custom/tools/device-update/updater_assets.py build/userpatches/overlay/usr/local/lib/octessera/updater_assets.py
         install -m 0644 custom/tools/device-update/updater_guard.py build/userpatches/overlay/usr/local/lib/octessera/updater_guard.py
         install -m 0644 custom/tools/device-update/updater_cli.py build/userpatches/overlay/usr/local/lib/octessera/updater_cli.py
+        if [[ "$OCTESSERA_IMAGE_KIND" == production ]]; then
+          runtime_bundle="$(cd "$OCTESSERA_RUNTIME_BUNDLE_PATH" && pwd)"
+          production_runtime="build/userpatches/overlay/usr/local/lib/octessera/production-runtime"
+          mkdir -p "$production_runtime" build/userpatches/overlay/etc/octessera
+          for runtime_entry in octessera-pi octessera-runtime.json SHA256SUMS; do
+            install -m 0644 "$runtime_bundle/$runtime_entry" "$production_runtime/$runtime_entry"
+          done
+          cat > build/userpatches/overlay/etc/octessera/image-contract.json <<'EOF'
+        {
+          "schema_version": 1,
+          "image_kind": "production",
+          "runtime_enabled_default": true
+        }
+        EOF
+        elif [[ -e build/userpatches/overlay/usr/local/lib/octessera/production-runtime || -L build/userpatches/overlay/usr/local/lib/octessera/production-runtime ]]; then
+          echo 'Diagnostic images must not stage a runtime bundle.' >&2
+          exit 1
+        fi
     - name: Install Armbian build requirements
       shell: bash
       run: |
@@ -94,6 +147,8 @@ runs:
         OCTESSERA_ARMBIAN_COMPRESSION: ${{ inputs.compression }}
         OCTESSERA_ARMBIAN_EXTENSIONS: ${{ inputs.extensions }}
         OCTESSERA_ARMBIAN_SHARE_LOG: ${{ inputs.share_log }}
+        OCTESSERA_IMAGE_KIND: ${{ inputs.image_kind }}
+        OCTESSERA_RUNTIME_BUNDLE_PATH: ${{ inputs.runtime_bundle_path }}
         ARMBIAN_BUILD_REF: ${{ inputs.armbian_build_ref }}
       run: |
         set -euo pipefail
@@ -101,11 +156,16 @@ runs:
         [[ "$OCTESSERA_ARMBIAN_BOARD" == orangepizero2w ]] || { echo 'This Octessera image path accepts only orangepizero2w.' >&2; exit 1; }
         [[ "$OCTESSERA_ARMBIAN_RELEASE" =~ ^[a-z0-9][a-z0-9._-]*$ ]] || { echo 'Invalid release.' >&2; exit 1; }
         [[ "$OCTESSERA_ARMBIAN_KERNEL_BRANCH" =~ ^[a-z0-9][a-z0-9._-]*$ ]] || { echo 'Invalid kernel branch.' >&2; exit 1; }
+        [[ "$OCTESSERA_ARMBIAN_KERNEL_BRANCH" == current ]] || { echo 'This Octessera image path accepts only the current kernel family.' >&2; exit 1; }
         [[ "$OCTESSERA_ARMBIAN_UI" =~ ^[A-Za-z0-9._-]+$ ]] || { echo 'Invalid UI value.' >&2; exit 1; }
         [[ "$OCTESSERA_ARMBIAN_COMPRESSION" =~ ^[a-z0-9,._-]+$ ]] || { echo 'Invalid compression value.' >&2; exit 1; }
         [[ "$OCTESSERA_ARMBIAN_EXTENSIONS" =~ ^[A-Za-z0-9,._[:space:]-]*$ ]] || { echo 'Invalid extensions value.' >&2; exit 1; }
+        effective_extensions="$(bash "$GITHUB_ACTION_PATH/../../../tools/armbian-image/resolve-armbian-extensions.sh" "$OCTESSERA_ARMBIAN_EXTENSIONS")"
+        [[ "$effective_extensions" =~ (^|[[:space:],])octessera_midi([[:space:],]|$) ]] || { echo 'Effective extensions must include octessera_midi.' >&2; exit 1; }
+        [[ "$effective_extensions" =~ (^|[[:space:],])octessera_image_sanitize([[:space:],]|$) ]] || { echo 'Effective extensions must include octessera_image_sanitize.' >&2; exit 1; }
         [[ "$OCTESSERA_ARMBIAN_SHARE_LOG" =~ ^(yes|no)$ ]] || { echo 'Invalid share_log value.' >&2; exit 1; }
         [[ "$ARMBIAN_BUILD_REF" =~ ^[0-9a-fA-F]{40}$ ]] || { echo 'Qualification image builds require a reviewed immutable Armbian commit SHA.' >&2; exit 1; }
+        [[ "$ARMBIAN_BUILD_REF" == fa7a7b2294d9e760a77630950afd460b7a0b2a26 ]] || { echo 'Qualification image builds require the approved Armbian source pin.' >&2; exit 1; }
         cd build
         build_desktop=no
         build_minimal=no
@@ -121,19 +181,114 @@ runs:
         ./compile.sh build \
           BOARD="$OCTESSERA_ARMBIAN_BOARD" \
           BRANCH="$OCTESSERA_ARMBIAN_KERNEL_BRANCH" \
+          REVISION=26.8.0-trunk.417 \
+          KERNELBRANCH=commit:e46dc0adfe39724bcf52cea47b8f9c9aed86a394 \
           RELEASE="$OCTESSERA_ARMBIAN_RELEASE" \
           KERNEL_CONFIGURE=no \
           BUILD_DESKTOP="$build_desktop" \
           BUILD_MINIMAL="$build_minimal" \
           DESKTOP_ENVIRONMENT="$desktop_environment" \
           DESKTOP_TIER="$desktop_tier" \
-          ENABLE_EXTENSIONS="$OCTESSERA_ARMBIAN_EXTENSIONS" \
+          ENABLE_EXTENSIONS="$effective_extensions" \
           COMPRESS_OUTPUTIMAGE="$OCTESSERA_ARMBIAN_COMPRESSION" \
           SHARE_LOG="$OCTESSERA_ARMBIAN_SHARE_LOG" \
           EXPERT=yes
-    - name: Inspect built image
+    - name: Validate built Orange kernel package
       shell: bash
       run: |
         set -euo pipefail
         custom_root="$(cd "$GITHUB_ACTION_PATH/../../.." && pwd)"
-        bash "$custom_root/tools/armbian-image/inspect-output-images.sh" build/output/images
+        mapfile -t linux_kernel_packages < <(bash "$custom_root/tools/armbian-image/find-orange-kernel-packages.sh" build/output/debs)
+        [[ "${#linux_kernel_packages[@]}" == 2 ]] || { echo "Expected the exact Orange linux-image/linux-dtb package pair." >&2; exit 1; }
+        package_evidence="build/output/images/octessera-orange-kernel-evidence.env"
+        bash "$custom_root/tools/armbian-image/validate-orange-kernel-package.sh" \
+          "${linux_kernel_packages[0]}" "${linux_kernel_packages[1]}" \
+          --evidence-output "$package_evidence"
+    - name: Stage canonical Orange kernel packages for release handoff
+      shell: bash
+      run: |
+        set -euo pipefail
+        custom_root="$(cd "$GITHUB_ACTION_PATH/../../.." && pwd)"
+        mapfile -t linux_kernel_packages < <(bash "$custom_root/tools/armbian-image/find-orange-kernel-packages.sh" build/output/debs)
+        [[ "${#linux_kernel_packages[@]}" == 2 ]] || { echo "Expected the exact native Orange linux-image/linux-dtb package pair." >&2; exit 1; }
+        mapfile -t canonical_packages < <(python3 - "$custom_root/tools/kernel-patches/orange-midi-interface-manifest.json" <<'PY'
+        import json
+        import sys
+
+        with open(sys.argv[1], encoding="utf-8") as handle:
+            packages = json.load(handle)["build_frameworks"]["armbian"]["packages"]
+        if len(packages) != 2:
+            raise SystemExit("Orange canonical package list must contain exactly two entries")
+        print(packages[0])
+        print(packages[1])
+        PY
+        )
+        [[ "${#canonical_packages[@]}" == 2 ]] || { echo "Unable to read Orange canonical package names." >&2; exit 1; }
+        mkdir -p build/output/images
+        for index in 0 1; do
+          destination="build/output/images/${canonical_packages[$index]}"
+          [[ ! -e "$destination" ]] || { echo "Refusing to overwrite release handoff package: $destination" >&2; exit 1; }
+          install -m 0644 "${linux_kernel_packages[$index]}" "$destination"
+        done
+    - name: Inspect built image
+      shell: bash
+      env:
+        OCTESSERA_IMAGE_KIND: ${{ inputs.image_kind }}
+      run: |
+        set -euo pipefail
+        custom_root="$(cd "$GITHUB_ACTION_PATH/../../.." && pwd)"
+        mapfile -t image_artifacts < <(find build/output/images -maxdepth 1 -type f \( -name '*.img' -o -name '*.img.xz' \) -print | sort)
+        [[ "${#image_artifacts[@]}" == 1 ]] || { echo "Expected exactly one image artifact, found ${#image_artifacts[@]}." >&2; exit 1; }
+        bash "$custom_root/tools/armbian-image/inspect-output-images.sh" --mode "$OCTESSERA_IMAGE_KIND" build/output/images
+    - name: Verify generated image checksums
+      shell: bash
+      run: |
+        set -euo pipefail
+        mapfile -t image_checksums < <(find build/output/images -maxdepth 1 -type f -name '*.img.xz.sha' -print | sort)
+        [[ "${#image_checksums[@]}" == 1 ]] || { echo "Expected exactly one generated .img.xz.sha checksum file, found ${#image_checksums[@]}." >&2; exit 1; }
+        for checksum in "${image_checksums[@]}"; do
+          echo "Verifying $(basename "$checksum")"
+          (
+            cd "$(dirname "$checksum")"
+            sha256sum -c "$(basename "$checksum")"
+          )
+        done
+    - name: Record qualification provenance
+      shell: bash
+      env:
+        GITHUB_SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
+        ARMBIAN_BUILD_REF: ${{ inputs.armbian_build_ref }}
+      run: |
+        set -euo pipefail
+        custom_root="$(cd "$GITHUB_ACTION_PATH/../../.." && pwd)"
+        [[ "$GITHUB_SOURCE_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || { echo 'GitHub source SHA is not a full commit SHA.' >&2; exit 1; }
+        octessera_checkout_head="$(git -C "$custom_root" rev-parse HEAD)"
+        [[ "$octessera_checkout_head" == "$GITHUB_SOURCE_SHA" ]] || { echo 'Octessera checkout HEAD does not match GitHub source SHA.' >&2; exit 1; }
+        mapfile -t linux_kernel_packages < <(bash "$custom_root/tools/armbian-image/find-orange-kernel-packages.sh" build/output/debs)
+        [[ "${#linux_kernel_packages[@]}" == 2 ]] || { echo "Expected the exact Orange linux-image/linux-dtb package pair." >&2; exit 1; }
+        bash "$custom_root/tools/armbian-image/write-orange-kernel-provenance.sh" \
+          "${linux_kernel_packages[0]}" "${linux_kernel_packages[1]}" \
+          build/output/images/octessera-qualification-metadata.txt \
+          build/output/images/octessera-orange-kernel-evidence.env build '' build/output/images
+    - name: Prove final Orange image against exact packages
+      shell: bash
+      env:
+        OCTESSERA_IMAGE_KIND: ${{ inputs.image_kind }}
+      run: |
+        set -euo pipefail
+        custom_root="$(cd "$GITHUB_ACTION_PATH/../../.." && pwd)"
+        mapfile -t image_artifacts < <(find build/output/images -maxdepth 1 -type f \( -name '*.img' -o -name '*.img.xz' \) -print | sort)
+        [[ "${#image_artifacts[@]}" == 1 ]] || { echo "Expected exactly one final Orange image, found ${#image_artifacts[@]}." >&2; exit 1; }
+        mapfile -t linux_kernel_packages < <(bash "$custom_root/tools/armbian-image/find-orange-kernel-packages.sh" build/output/debs)
+        [[ "${#linux_kernel_packages[@]}" == 2 ]] || { echo "Expected the exact Orange linux-image/linux-dtb package pair." >&2; exit 1; }
+        evidence=build/output/images/octessera-orange-kernel-evidence.env
+        provenance=build/output/images/octessera-qualification-metadata.txt
+        test -f "$evidence" && test -f "$provenance"
+        sudo bash "$custom_root/tools/armbian-image/verify-orange-image.sh" \
+          --image "${image_artifacts[0]}" \
+          --linux-image "${linux_kernel_packages[0]}" \
+          --linux-dtb "${linux_kernel_packages[1]}" \
+          --evidence "$evidence" \
+          --provenance "$provenance" \
+          --mode "$OCTESSERA_IMAGE_KIND" \
+          --output build/output/images/octessera-orange-image-provenance.txt

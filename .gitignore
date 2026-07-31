@@ -36,6 +36,7 @@ hardware/Mouser Cart with Components.pdf
 *.orig
 .cargo-ok
 .cargo_vcs_info.json
+!third_party/cpal-0.15.3/.cargo_vcs_info.json
 .slim/deepwork/
 .slim/clonedeps/
 tools/orange-pi/with-orange-ssh.ps1
@@ -50,4 +51,5 @@ tools/pi-image/stage4-octessera/files/root/usr/local/*
 tools/pi-image/stage4-octessera/files/root/usr/local/sbin/*
 !tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget
 !tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-sd-card
+!tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-wifi-foundation
 AGENTS.md

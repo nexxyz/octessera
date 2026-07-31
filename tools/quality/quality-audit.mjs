@@ -4,6 +4,7 @@ import { extname, join, relative, resolve } from "node:path";
 const ROOT = resolve(process.cwd());
 const INCLUDE_EXT = new Set([".mjs", ".rs", ".ts", ".tsx"]);
 const IGNORE_DIRS = new Set(["node_modules", "dist", "build", "target", ".git", ".turbo", ".pnpm-store", "coverage", "signalsmith-stretch"]);
+const EXCLUDED_AUDIT_ROOTS = new Set(["third_party/cpal-0.15.3"]);
 
 const thresholds = {
   fileLocWarn: 300,
@@ -22,10 +23,19 @@ const requiredPiImageAssets = [
   "tools/pi-image/stage4-octessera/files/root/etc/udev/rules.d/99-octessera-sd-card.rules"
 ];
 
+function isExcludedAuditPath(path) {
+  const rel = relative(ROOT, path).replace(/\\/g, "/");
+  for (const root of EXCLUDED_AUDIT_ROOTS) {
+    if (rel === root || rel.startsWith(`${root}/`)) return true;
+  }
+  return false;
+}
+
 function listFiles(dir) {
   const out = [];
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry);
+    if (isExcludedAuditPath(full)) continue;
     const st = statSync(full);
     if (st.isDirectory()) {
       if (IGNORE_DIRS.has(entry)) continue;

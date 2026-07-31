@@ -32,23 +32,28 @@ impl OrangeEncoderGpio {
         pins: &OrangeEncoderPins,
         tx: Sender<HardwareEvent>,
     ) -> Result<Self, String> {
-        if let Some(conflict) = pins.uart_conflict {
-            return Err(format!(
-                "{id} encoder switch on physical pin {} / GPIO offset {} conflicts with active {}",
-                conflict.physical_pin, conflict.offset, conflict.signal
-            ));
-        }
+        Self::new_with_uart0_active(id, pins, true, tx)
+    }
 
-        let chip_path = find_gpio_chip(ORANGE_PI_ZERO_2W_DEVICES.gpio, pins)?;
+    pub fn new_with_uart0_active(
+        id: &'static str,
+        pins: &OrangeEncoderPins,
+        uart0_active: bool,
+        tx: Sender<HardwareEvent>,
+    ) -> Result<Self, String> {
+        let chip_path = find_gpio_chip(ORANGE_PI_ZERO_2W_DEVICES.gpio, pins, uart0_active)?;
         let quadrature = request_quadrature(&chip_path, pins)?;
-        let switch = request_switch(&chip_path, pins)?;
+        let switch = pins
+            .switch_available(uart0_active)
+            .then(|| request_switch(&chip_path, pins))
+            .transpose()?;
         let initial = quadrature_state(&quadrature, pins)?;
         let stop = Arc::new(AtomicBool::new(false));
         let worker_stop = Arc::clone(&stop);
-        let a_offset = pins.a;
+        let descriptor = *pins;
         let worker = thread::Builder::new()
             .name(format!("octessera-orange-{id}"))
-            .spawn(move || run_worker(id, a_offset, quadrature, switch, initial, worker_stop, tx))
+            .spawn(move || run_worker(id, descriptor, quadrature, switch, initial, worker_stop, tx))
             .map_err(|error| format!("{id} encoder worker start failed: {error}"))?;
         Ok(Self {
             stop,
@@ -115,15 +120,15 @@ fn quadrature_state(
 #[cfg(target_os = "linux")]
 fn run_worker(
     id: &'static str,
-    a_offset: u32,
+    descriptor: OrangeEncoderPins,
     quadrature: Request,
-    switch: Request,
+    switch: Option<Request>,
     mut state: QuadratureState,
     stop: Arc<AtomicBool>,
     tx: Sender<HardwareEvent>,
 ) {
     let mut quadrature_events = quadrature.edge_events();
-    let mut switch_events = switch.edge_events();
+    let mut switch_events = switch.as_ref().map(|request| request.edge_events());
     while !stop.load(Ordering::Acquire) {
         let mut handled = false;
         match quadrature_events.has_event() {
@@ -131,9 +136,12 @@ fn run_worker(
                 Ok(event) => {
                     handled = true;
                     if let Some(delta) =
-                        update_quadrature(&mut state, a_offset, event.offset, event.kind)
+                        update_quadrature(&mut state, descriptor.a, event.offset, event.kind)
                     {
-                        let _ = tx.send(HardwareEvent::EncoderTurn { id, delta });
+                        let _ = tx.send(HardwareEvent::EncoderTurn {
+                            id,
+                            delta: descriptor.canonical_turn_delta(delta),
+                        });
                     }
                 }
                 Err(error) => {
@@ -147,23 +155,25 @@ fn run_worker(
                 break;
             }
         }
-        match switch_events.has_event() {
-            Ok(true) => match switch_events.read_event() {
-                Ok(event) => {
-                    handled = true;
-                    if let Some(message) = switch_event(id, event.kind) {
-                        let _ = tx.send(message);
+        if let Some(switch_events) = switch_events.as_mut() {
+            match switch_events.has_event() {
+                Ok(true) => match switch_events.read_event() {
+                    Ok(event) => {
+                        handled = true;
+                        if let Some(message) = switch_event(id, event.kind) {
+                            let _ = tx.send(message);
+                        }
                     }
-                }
+                    Err(error) => {
+                        eprintln!("{id} Orange encoder switch read failed: {error}");
+                        break;
+                    }
+                },
+                Ok(false) => {}
                 Err(error) => {
-                    eprintln!("{id} Orange encoder switch read failed: {error}");
+                    eprintln!("{id} Orange encoder switch wait failed: {error}");
                     break;
                 }
-            },
-            Ok(false) => {}
-            Err(error) => {
-                eprintln!("{id} Orange encoder switch wait failed: {error}");
-                break;
             }
         }
         if !handled {
@@ -213,8 +223,12 @@ fn value_bit(value: Value) -> u8 {
 }
 
 #[cfg(target_os = "linux")]
-fn find_gpio_chip(plan: OrangeGpioDescriptor, pins: &OrangeEncoderPins) -> Result<PathBuf, String> {
-    let required = [pins.a, pins.b, pins.sw];
+fn find_gpio_chip(
+    plan: OrangeGpioDescriptor,
+    pins: &OrangeEncoderPins,
+    uart0_active: bool,
+) -> Result<PathBuf, String> {
+    let required = pins.requested_gpio_offsets(uart0_active);
     let mut candidates = Vec::new();
     for entry in fs::read_dir("/dev").map_err(|error| error.to_string())? {
         let entry = entry.map_err(|error| error.to_string())?;
@@ -228,10 +242,14 @@ fn find_gpio_chip(plan: OrangeGpioDescriptor, pins: &OrangeEncoderPins) -> Resul
             .info()
             .map_err(|error| format!("cannot read GPIO chip {}: {error}", path.display()))?;
         if info.label == plan.chip_label {
-            if required.iter().any(|offset| *offset >= info.num_lines) {
+            if required
+                .iter()
+                .flatten()
+                .any(|offset| *offset >= info.num_lines)
+            {
                 return Err(format!(
-                    "GPIO chip {} has only {} lines for encoder offsets {}, {}, {}",
-                    plan.chip_label, info.num_lines, pins.a, pins.b, pins.sw
+                    "GPIO chip {} has only {} lines for encoder offsets {:?}",
+                    plan.chip_label, info.num_lines, required
                 ));
             }
             return Ok(path);
@@ -247,11 +265,10 @@ fn find_gpio_chip(plan: OrangeGpioDescriptor, pins: &OrangeEncoderPins) -> Resul
 
 #[cfg(all(test, target_os = "linux"))]
 mod tests {
-    use super::{edge_bit, switch_event, update_quadrature, OrangeEncoderGpio};
+    use super::{edge_bit, switch_event, update_quadrature};
     use crate::board_profiles::ORANGE_PI_ZERO_2W_DEVICES;
     use crate::encoder_gpio::{HardwareEvent, QuadratureState};
     use gpiocdev::line::EdgeKind;
-    use std::sync::mpsc;
 
     #[test]
     fn quadrature_edges_preserve_the_other_channel() {
@@ -293,15 +310,34 @@ mod tests {
     }
 
     #[test]
-    fn uart_conflicting_encoder_fails_before_gpio_access() {
-        let (tx, _) = mpsc::channel();
-        let result =
-            OrangeEncoderGpio::new("encoder_aux_2", &ORANGE_PI_ZERO_2W_DEVICES.encoders[2], tx);
-        let Err(error) = result else {
-            panic!("UART-conflicting encoder must not request GPIO");
-        };
-        assert!(error.contains("UART0 TX"));
-        assert!(error.contains("offset 224"));
+    fn active_uart_profile_never_requests_aux2_switch_line() {
+        let pins = ORANGE_PI_ZERO_2W_DEVICES.encoders[2];
+        assert_eq!(
+            pins.requested_gpio_offsets(true),
+            [Some(227), Some(269), None]
+        );
+    }
+
+    #[test]
+    fn disabled_uart_profile_requests_aux2_switch_line() {
+        let pins = ORANGE_PI_ZERO_2W_DEVICES.encoders[2];
+        assert_eq!(
+            pins.requested_gpio_offsets(false),
+            [Some(227), Some(269), Some(224)]
+        );
+    }
+
+    #[test]
+    fn orange_event_boundary_reverses_each_board_turn() {
+        let pins = ORANGE_PI_ZERO_2W_DEVICES.encoders;
+        assert_eq!(
+            pins.map(|value| value.canonical_turn_delta(1)),
+            [-1, -1, -1, -1]
+        );
+        assert_eq!(
+            pins.map(|value| value.canonical_turn_delta(-1)),
+            [1, 1, 1, 1]
+        );
     }
 }
 
@@ -315,6 +351,15 @@ impl OrangeEncoderGpio {
     pub fn new(
         _id: &'static str,
         _pins: &crate::board_profiles::OrangeEncoderPins,
+        _tx: std::sync::mpsc::Sender<crate::encoder_gpio::HardwareEvent>,
+    ) -> Result<Self, String> {
+        Err("Orange encoder GPIO requires a Linux target".into())
+    }
+
+    pub fn new_with_uart0_active(
+        _id: &'static str,
+        _pins: &crate::board_profiles::OrangeEncoderPins,
+        _uart0_active: bool,
         _tx: std::sync::mpsc::Sender<crate::encoder_gpio::HardwareEvent>,
     ) -> Result<Self, String> {
         Err("Orange encoder GPIO requires a Linux target".into())

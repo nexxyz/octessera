@@ -38,6 +38,15 @@ impl NativeRunner {
         } else {
             menu_display(self, menu)
         };
+        if let Some(error) = &self.display.runtime_error_presentation {
+            display.title = error.title.clone();
+            display.lines = error.lines.clone();
+            display.colors = vec![platform_core::palette::WHITE_RGB565; display.lines.len()];
+            display.bar_values = vec![Value::Null; display.lines.len()];
+            display.full_lines = vec![None; display.lines.len()];
+            display.scroll = None;
+            display.selected_row = None;
+        }
         display.title = clip_display_line(&display.title, DISPLAY_LINE_WIDTH);
         display.lines = display
             .lines

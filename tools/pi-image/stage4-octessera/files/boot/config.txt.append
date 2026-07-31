@@ -3,7 +3,6 @@
 [all]
 dtparam=i2c_arm=on
 dtparam=spi=on
-auto_initramfs=1
 dtparam=audio=off
 camera_auto_detect=0
 display_auto_detect=0

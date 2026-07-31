@@ -1,0 +1,56 @@
+#!/bin/sh
+set -eu
+
+root_prefix=${OCTESSERA_PROVISION_ROOT:-}
+source_default="${root_prefix}/usr/share/octessera/defaults/pi-default.json"
+source_samples="${root_prefix}/usr/share/octessera/samples/files"
+destination_default="${root_prefix}/var/lib/octessera/presets/default.json"
+destination_samples="${root_prefix}/var/lib/octessera/samples"
+manifest="${root_prefix}/usr/share/octessera/samples/sample-manifest.tsv"
+
+[ "$(id -u)" = 0 ] || [ -n "$root_prefix" ] || { echo "musical default provisioning requires root" >&2; exit 1; }
+[ -f "$source_default" ] || { echo "packaged Pi default is missing: $source_default" >&2; exit 1; }
+[ -f "$manifest" ] || { echo "packaged sample manifest is missing: $manifest" >&2; exit 1; }
+
+install_owned() {
+  if [ "$(id -u)" = 0 ]; then
+    install -o root -g root "$@"
+  else
+    install "$@"
+  fi
+}
+
+install_owned -d -m 0755 "$(dirname "$destination_default")" "$destination_samples"
+
+if [ ! -e "$destination_default" ]; then
+  temporary="${destination_default}.tmp.$$"
+  install_owned -m 0644 "$source_default" "$temporary"
+  mv -n -- "$temporary" "$destination_default"
+  rm -f -- "$temporary"
+fi
+
+while IFS="$(printf '\t')" read -r relative_path expected_size expected_sha256 source license_source; do
+  case "$relative_path" in
+    ''|'# path') continue ;;
+  esac
+  case "$relative_path" in
+    /*|*..*|*\\*) echo "unsafe packaged sample path: $relative_path" >&2; exit 1 ;;
+  esac
+  source_path="$source_samples/$relative_path"
+  destination_path="$destination_samples/$relative_path"
+  [ -f "$source_path" ] || { echo "packaged sample is missing: $source_path" >&2; exit 1; }
+  [ "$source" = "https://github.com/stargatedaw/stargate-sample-pack" ] || { echo "unexpected packaged sample source: $relative_path" >&2; exit 1; }
+  [ "$license_source" = "https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/main/README.md" ] || { echo "unexpected packaged sample license source: $relative_path" >&2; exit 1; }
+  [ "$(stat -c '%s' "$source_path")" = "$expected_size" ] || { echo "packaged sample size mismatch: $relative_path" >&2; exit 1; }
+  [ "$(sha256sum "$source_path" | awk '{ print $1 }')" = "$expected_sha256" ] || { echo "packaged sample hash mismatch: $relative_path" >&2; exit 1; }
+  if [ ! -e "$destination_path" ]; then
+    temporary="${destination_path}.tmp.$$"
+    install_owned -D -m 0644 "$source_path" "$temporary"
+    mv -n -- "$temporary" "$destination_path"
+    rm -f -- "$temporary"
+  fi
+done < "$manifest"
+
+if id octessera-runtime >/dev/null 2>&1; then
+  chown octessera-runtime:octessera-runtime "$destination_samples" "$(dirname "$destination_default")"
+fi

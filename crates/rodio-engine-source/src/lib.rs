@@ -7,6 +7,7 @@ pub use event::EngineEvent;
 pub use queue::{event_queue, EngineEventReceiver, EngineEventSender, QueueKind, QueueSendError};
 use realtime_engine::synth::{
     RetiredAudioState, SynthEngine, DEFAULT_AUDIO_BLOCK_FRAMES, DEFAULT_SYNTH_SLOT_WORKERS,
+    MIN_SYNTH_PARALLEL_BLOCK_FRAMES,
 };
 use std::env;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -46,17 +47,54 @@ impl EngineSource {
         Self::with_load_status_tx(control_rx, sample_rate, None)
     }
 
+    pub fn with_block_frames(
+        control_rx: EngineEventReceiver,
+        sample_rate: u32,
+        block_frames: usize,
+    ) -> Self {
+        Self::with_config(
+            control_rx,
+            sample_rate,
+            block_frames.clamp(MIN_BLOCK_FRAMES, MAX_BLOCK_FRAMES),
+            None,
+            false,
+        )
+    }
+
+    pub fn resolve_block_frames(default_frames: usize) -> usize {
+        audio_block_frames(default_frames)
+    }
+
     pub fn with_load_status_tx(
         control_rx: EngineEventReceiver,
         sample_rate: u32,
         load_tx: Option<AudioLoadStatusSender>,
     ) -> Self {
-        let block_frames = audio_block_frames();
+        Self::with_config(
+            control_rx,
+            sample_rate,
+            audio_block_frames(DEFAULT_AUDIO_BLOCK_FRAMES),
+            load_tx,
+            true,
+        )
+    }
+
+    fn with_config(
+        control_rx: EngineEventReceiver,
+        sample_rate: u32,
+        block_frames: usize,
+        load_tx: Option<AudioLoadStatusSender>,
+        enable_subthreshold_parallel_workers: bool,
+    ) -> Self {
         let mut engine = SynthEngine::new(sample_rate);
-        if let Some(worker_count) = synth_slot_worker_count() {
-            let enabled = engine.set_synth_slot_parallelism_enabled(true, worker_count);
-            if !SYNTH_WORKER_START_LOGGED.swap(true, Ordering::Relaxed) {
-                eprintln!("synth slot parallel workers requested={worker_count} enabled={enabled}");
+        if enable_subthreshold_parallel_workers || block_frames >= MIN_SYNTH_PARALLEL_BLOCK_FRAMES {
+            if let Some(worker_count) = synth_slot_worker_count() {
+                let enabled = engine.set_synth_slot_parallelism_enabled(true, worker_count);
+                if !SYNTH_WORKER_START_LOGGED.swap(true, Ordering::Relaxed) {
+                    eprintln!(
+                        "synth slot parallel workers requested={worker_count} enabled={enabled}"
+                    );
+                }
             }
         }
         let (retired_tx, retired_rx) = bounded(RETIREMENT_QUEUE_CAPACITY);
@@ -343,12 +381,20 @@ impl rodio::Source for EngineSource {
     }
 }
 
-fn audio_block_frames() -> usize {
-    std::env::var("OCTESSERA_AUDIO_BLOCK_FRAMES")
-        .ok()
+fn audio_block_frames(default_frames: usize) -> usize {
+    resolve_audio_block_frames(
+        std::env::var("OCTESSERA_AUDIO_BLOCK_FRAMES")
+            .ok()
+            .as_deref(),
+        default_frames,
+    )
+}
+
+fn resolve_audio_block_frames(env_value: Option<&str>, default_frames: usize) -> usize {
+    env_value
         .and_then(|value| value.parse::<usize>().ok())
-        .map(|frames| frames.clamp(MIN_BLOCK_FRAMES, MAX_BLOCK_FRAMES))
-        .unwrap_or(DEFAULT_AUDIO_BLOCK_FRAMES)
+        .unwrap_or(default_frames)
+        .clamp(MIN_BLOCK_FRAMES, MAX_BLOCK_FRAMES)
 }
 
 fn synth_slot_worker_count() -> Option<usize> {

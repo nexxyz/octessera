@@ -127,23 +127,27 @@ Build Orange Pi artifacts on Windows without contacting or deploying to a
 board. The builder starts an ephemeral Debian tool container, installs the
 aarch64 GNU linker/sysroot there, and keeps Cargo and rustup data in named
 Docker volumes. Outputs and their checked metadata stay under
-`target/orange-pi-cross/`. The supported outputs are the canonical
-`orange-oled-smoke`, `orange-seesaw-smoke`, and foreground `octessera-pi`
+`target/orange-pi-cross/`. The supported local outputs are the canonical
+`orange-oled-smoke`, `orange-seesaw-smoke`, and `octessera-pi` development
 binaries beside matching `.metadata.json` sidecars. Each sidecar is schema 2
-and binds the copied ELF with its lowercase SHA-256. The candidate is labeled
-`runtime-candidate` with `runtime_ready=false`; this helper cannot build or
-label deployment/service-ready output and never deploys an artifact. The
-candidate uses the shared 44.1 kHz runtime rate and requires exactly one CPAL
-output device named `hw:CARD=octesseradac,DEV=0`; internal MIDI events are
-ignored and explicit MIDI platform actions are unavailable.
+and binds the copied ELF with its lowercase SHA-256. This helper does not build
+the 0.7.5 production image or its hash-bound `production-runtime` bundle, and
+it never deploys an artifact. The production image and service support the
+shared 44.1 kHz runtime, the OLED, NeoTrellis, NeoKey, four encoders, store,
+samples, MIDI, and the required internal DAC at
+`hw:CARD=octesseradac,DEV=0`. USB-only audio is unsupported; UAC2 is an
+optional companion and `audioOut=usb` is rejected.
 
 ```powershell
 ./tools/orange-pi/build-orange-cross.ps1 -Binary orange-oled-smoke -Profile release
 ```
 
 Use `-DryRun` to inspect the WSL Docker command without starting a container.
-The two smoke binaries are diagnostic-only. The `octessera-pi` output is a
-foreground candidate only; building any output does not run it against a board.
+The two smoke binaries are diagnostic-only. The local `octessera-pi` output is
+for development and qualification; building any output does not run it against
+a board. The production release artifact is
+`octessera-0.7.5-orange-pi-zero-2w.img.xz`, built with explicit production image
+mode. Orange update check, apply, rollback, and OTA remain unsupported.
 The offline builder test uses a temporary binary and adjacent sidecar, checks a
 tampered sidecar, and confirms failed verification removes both artifacts.
 The offline host checks are:
@@ -188,15 +192,15 @@ target devices.
 ## Orange Pi USB gadget composer
 
 `orange-pi-usb-gadget.sh` is the separate Armbian/configfs path for the Orange
-Pi. It does not reuse the Raspberry Pi gadget script, load modules, mount
-configfs, enable a service, or create mass storage. The caller must prepare
-configfs and load the kernel's MIDI/UAC2 function modules as appropriate.
+Pi. It does not reuse the Raspberry Pi gadget script, `dwc2`, BCM numbering, or
+mass storage. The image service loads the board modules and owns the combined
+UAC2/MIDI lifecycle.
 
-The UDC is always explicit; the composer never picks the first controller:
+The UDC is fail-closed and fixed to the verified `musb-hdrc.4.auto`; the
+composer never picks the first controller:
 
 ```sh
-sudo bash ./tools/orange-pi/orange-pi-usb-gadget.sh setup \
-  --udc <exact-udc-name> --mode midi
+sudo bash ./tools/orange-pi/orange-pi-usb-gadget.sh setup --mode combined
 ```
 
 The supported modes are `midi`, `uac2`, and `combined`. Binding is the final
@@ -204,13 +208,30 @@ setup operation, and teardown unbinds before removing function links and
 directories:
 
 ```sh
-sudo bash ./tools/orange-pi/orange-pi-usb-gadget.sh teardown \
-  --udc <exact-udc-name>
+sudo bash ./tools/orange-pi/orange-pi-usb-gadget.sh teardown
 ```
+
+Setup and teardown take the same exclusive lifecycle lock at
+`/run/lock/octessera-orange-usb-gadget.lock`; a concurrent invocation fails
+without changing the gadget. `--lock-file` is available for isolated
+fake-ConfigFS tests.
 
 Setup refuses any existing configfs gadget and any UDC already in use. The
 `--configfs-root` and `--udc-root` options are for isolated fake-configfs tests
-and controlled offline validation; they are not automatic discovery paths.
+and controlled offline validation; they are not automatic discovery paths. The
+supported modes are `midi`, `uac2`, and `combined`; the installed image always
+uses `combined`.
+
+The USB product string is `Octessera MIDI` for `midi`, `Octessera Line In` for
+`uac2`, and `Octessera Audio + MIDI` for `combined`. The manufacturer,
+configuration, serial, VID, and PID remain the Orange Pi values used by the
+composer. MIDI and combined modes require the patched, qualified image kernel
+to expose a writable `interface_string`. The composer writes exactly 14 bytes
+of `Octessera MIDI` without a trailing LF, verifies the byte-for-byte readback,
+and only then creates the MIDI configuration link and binds the UDC. `id` is
+still set for ALSA identity, but never substitutes for `interface_string`. A
+generic Windows `MIDI function` label indicates an unpatched or unqualified
+image and is not accepted for release validation.
 
 Run the offline tests from a Linux shell with:
 

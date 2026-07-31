@@ -1,18 +1,55 @@
 #!/bin/sh
 set -eu
 
-G=/sys/kernel/config/usb_gadget/octessera
-CONFIG=/home/pi/presets/default.json
-STORAGE_CONFIG=/etc/octessera/usb-storage.conf
-SD_MOUNT=/home/pi/samples/sd-card
-STORAGE_STATE=/run/octessera-usb-storage.state
-SD_LOCK=/run/octessera-sd-card.lock
+CONFIGFS_ROOT=${OCTESSERA_USB_CONFIGFS_ROOT:-/sys/kernel/config}
+G=${OCTESSERA_USB_GADGET_ROOT:-$CONFIGFS_ROOT/usb_gadget/octessera}
+CONFIG=${OCTESSERA_USB_CONFIG:-/home/pi/presets/default.json}
+UDC_ROOT=${OCTESSERA_USB_UDC_ROOT:-/sys/class/udc}
+STORAGE_CONFIG=${OCTESSERA_USB_STORAGE_CONFIG:-/etc/octessera/usb-storage.conf}
+SD_MOUNT=${OCTESSERA_USB_SD_MOUNT:-/home/pi/samples/sd-card}
+STORAGE_STATE=${OCTESSERA_USB_STORAGE_STATE:-/run/octessera-usb-storage.state}
+LIFECYCLE_LOCK=${OCTESSERA_USB_LIFECYCLE_LOCK:-/run/octessera-usb-gadget.lock}
 LOG=octessera-usb-gadget
 LINE_CONNECTOR_TERMINAL_TYPE=1539
+MIDI_INTERFACE_STRING='Octessera MIDI'
+MIDI_INTERFACE_STRING_SIZE=14
 
 log() { logger -t "$LOG" "$*"; echo "$LOG: $*" >&2; }
-json_has() { grep -Eq "$1" "$CONFIG" 2>/dev/null; }
-audio_enabled() { json_has '"audioOut"[[:space:]]*:[[:space:]]*"(usb|both)"'; }
+json_compact() { tr -d '[:space:]' < "$CONFIG"; }
+json_has() { json_compact | grep -Eq "$1"; }
+canonical_usb_enabled() {
+  outputs=$1
+  saved_ifs=$IFS
+  IFS=,
+  valid=1
+  count=0
+  dac=
+  usb=
+  hdmi=
+  for field in $outputs; do
+    count=$((count + 1))
+    case "$field" in
+      '"dac":true' | '"dac":false') [ -z "$dac" ] || valid=0; dac=1 ;;
+      '"usb":true') [ -z "$usb" ] || valid=0; usb=true ;;
+      '"usb":false') [ -z "$usb" ] || valid=0; usb=false ;;
+      '"hdmi":true') [ -z "$hdmi" ] || valid=0; hdmi=true ;;
+      '"hdmi":false') [ -z "$hdmi" ] || valid=0; hdmi=false ;;
+      *) valid=0 ;;
+    esac
+  done
+  IFS=$saved_ifs
+  [ "$valid" = 1 ] && [ "$count" = 3 ] && [ "$usb" = true ] && [ "$hdmi" = false ]
+}
+audio_enabled() {
+  compact=$(json_compact)
+  case "$compact" in
+    *'"audioOutputs":'*)
+      outputs=$(printf '%s\n' "$compact" | sed -n 's/.*"audioOutputs":{\([^}]*\)}.*/\1/p')
+      canonical_usb_enabled "$outputs"
+      ;;
+    *) json_has '"audioOut"[[:space:]]*:[[:space:]]*"(usb|both)"' ;;
+  esac
+}
 midi_enabled() { json_has '"midiOutEnabled"[[:space:]]*:[[:space:]]*true'; }
 serial_number() {
   if [ -r /etc/machine-id ]; then
@@ -40,27 +77,134 @@ write_if_present() {
   return 1
 }
 
-teardown() {
-  [ -d "$G" ] || return 0
-  echo "" > "$G/UDC" 2>/dev/null || true
-  rm -f "$G/configs/c.1"/*.usb0 2>/dev/null || true
-  rmdir "$G/functions"/*.usb0 2>/dev/null || true
-  rmdir "$G/configs/c.1/strings/0x409" "$G/configs/c.1" 2>/dev/null || true
-  rmdir "$G/strings/0x409" "$G" 2>/dev/null || true
+write_midi_interface_string() {
+  path="$G/functions/midi.usb0/interface_string"
+  [ -e "$path" ] || { log "f_midi interface_string attribute is required"; return 1; }
+  if ! printf '%s' "$MIDI_INTERFACE_STRING" > "$path"; then
+    log "could not write f_midi interface_string attribute"
+    return 1
+  fi
+  size=$(wc -c < "$path" | tr -d '[:space:]')
+  [ "$size" = "$MIDI_INTERFACE_STRING_SIZE" ] || {
+    log "f_midi interface_string has unexpected size: $size"
+    return 1
+  }
+  if ! printf '%s' "$MIDI_INTERFACE_STRING" | cmp -s - "$path"; then
+    log "f_midi interface_string readback did not match"
+    return 1
+  fi
 }
 
-setup() {
+read_bound_udc() {
+  [ -r "$G/UDC" ] || { log "gadget UDC attribute is not readable"; return 1; }
+  cat "$G/UDC" 2>/dev/null
+}
+
+unbind_gadget_unlocked() {
+  bound_udc=$(read_bound_udc) || return 1
+  [ -n "$bound_udc" ] || return 0
+  if ! printf '\n' > "$G/UDC"; then
+    log "could not unbind USB gadget from UDC $bound_udc"
+    return 1
+  fi
+  bound_udc=$(read_bound_udc) || return 1
+  [ -z "$bound_udc" ] || {
+    log "USB gadget UDC remained bound to $bound_udc"
+    return 1
+  }
+}
+
+remove_known_link() {
+  path=$1
+  [ -e "$path" ] || [ -L "$path" ] || return 0
+  rm -f "$path" || return 1
+  if [ -e "$path" ] || [ -L "$path" ]; then
+    log "could not remove gadget link: $path"
+    return 1
+  fi
+}
+
+remove_known_directory() {
+  path=$1
+  [ -d "$path" ] || return 0
+  rmdir "$path" || {
+    log "could not remove gadget directory: $path"
+    return 1
+  }
+  if [ -e "$path" ] || [ -L "$path" ]; then
+    log "gadget directory remains after cleanup: $path"
+    return 1
+  fi
+}
+
+cleanup_gadget_tree_unlocked() {
+  remove_known_link "$G/configs/c.1/mass_storage.usb0" || return 1
+  remove_known_link "$G/configs/c.1/uac2.usb0" || return 1
+  remove_known_link "$G/configs/c.1/midi.usb0" || return 1
+  remove_known_directory "$G/functions/mass_storage.usb0" || return 1
+  remove_known_directory "$G/functions/uac2.usb0" || return 1
+  remove_known_directory "$G/functions/midi.usb0" || return 1
+  remove_known_directory "$G/configs/c.1/strings/0x409" || return 1
+  remove_known_directory "$G/strings/0x409" || return 1
+  remove_known_directory "$G/configs/c.1" || return 1
+  remove_known_directory "$G" || return 1
+}
+
+teardown_unlocked() {
+  [ -d "$G" ] || return 0
+  unbind_gadget_unlocked || return 1
+  cleanup_gadget_tree_unlocked || return 1
+}
+
+rollback_setup() {
+  status=$?
+  trap - EXIT
+  teardown_unlocked || log "setup rollback could not remove the gadget tree"
+  exit "$status"
+}
+
+links_ready_unlocked() {
+  if [ "$AUDIO" = 1 ] && [ ! -L "$G/configs/c.1/uac2.usb0" ]; then
+    log "UAC2 function link is missing before bind"
+    return 1
+  fi
+  if [ "$MIDI" = 1 ] && [ ! -L "$G/configs/c.1/midi.usb0" ]; then
+    log "MIDI function link is missing before bind"
+    return 1
+  fi
+}
+
+bind_udc_unlocked() {
+  udc=$1
+  if ! printf '%s\n' "$udc" > "$G/UDC"; then
+    log "could not bind USB gadget to UDC $udc"
+    return 1
+  fi
+  bound_udc=$(read_bound_udc) || return 1
+  [ "$bound_udc" = "$udc" ] || {
+    log "USB gadget UDC readback did not match: $bound_udc"
+    return 1
+  }
+}
+
+setup_unlocked() (
+  set -eu
   modprobe dwc2 >/dev/null 2>&1 || true
   modprobe libcomposite >/dev/null 2>&1 || true
-  mountpoint -q /sys/kernel/config || mount -t configfs none /sys/kernel/config || true
-  [ -d /sys/class/udc ] || { log "no UDC class; skipping"; return 0; }
-  UDC=$(ls /sys/class/udc 2>/dev/null | head -n 1 || true)
+  mountpoint -q "$CONFIGFS_ROOT" || mount -t configfs none "$CONFIGFS_ROOT" || true
+  [ -d "$UDC_ROOT" ] || { log "no UDC class; skipping"; return 0; }
+  UDC=$(ls "$UDC_ROOT" 2>/dev/null | head -n 1 || true)
   [ -n "$UDC" ] || { log "no UDC available; skipping"; return 0; }
   AUDIO=0; MIDI=0
   audio_enabled && AUDIO=1
   midi_enabled && MIDI=1
-  [ "$AUDIO$MIDI" != "00" ] || { teardown; log "no USB gadget functions enabled"; return 0; }
-  teardown
+  if [ "$AUDIO$MIDI" = 00 ]; then
+    teardown_unlocked || exit 1
+    log "no USB gadget functions enabled"
+    return 0
+  fi
+  teardown_unlocked || exit 1
+  trap rollback_setup EXIT
   mkdir -p "$G/strings/0x409" "$G/configs/c.1/strings/0x409"
   echo 0x1d6b > "$G/idVendor"
   echo 0x0104 > "$G/idProduct"
@@ -96,17 +240,17 @@ setup() {
     mkdir -p "$G/functions/midi.usb0"
     write_if_present "$G/functions/midi.usb0/id" "Octessera MIDI" || true
     write_if_present "$G/functions/midi.usb0/function_name" "Octessera MIDI" || true
-    if ! write_if_present "$G/functions/midi.usb0/interface_string" "Octessera MIDI"; then
-      log "f_midi has no interface_string attribute; host DAWs may show the kernel default 'MIDI Function'"
-    fi
+    write_midi_interface_string || exit 1
     ln -s "$G/functions/midi.usb0" "$G/configs/c.1/midi.usb0"
   fi
-  echo "$UDC" > "$G/UDC"
+  links_ready_unlocked || exit 1
+  bind_udc_unlocked "$UDC" || exit 1
   if [ "$AUDIO" = 1 ]; then
     i=0; while [ "$i" -lt 20 ]; do aplay -l 2>/dev/null | grep -Eiq 'octessera|uac|gadget|usb audio' && break; i=$((i+1)); sleep 0.1; done
   fi
+  trap - EXIT
   log "configured USB gadget audio=$AUDIO midi=$MIDI udc=$UDC"
-}
+)
 
 root_device() { findmnt -nro SOURCE /; }
 parent_disk() { lsblk -no PKNAME "$1" 2>/dev/null | head -n 1; }
@@ -157,13 +301,17 @@ EOF
   printf '%s\n' "$dev"
 }
 
-storage_teardown_only() {
+storage_teardown_only_unlocked() {
   [ -d "$G" ] || return 0
-  echo "" > "$G/UDC" 2>/dev/null || true
-  [ -f "$G/functions/mass_storage.usb0/lun.0/forced_eject" ] && echo 1 > "$G/functions/mass_storage.usb0/lun.0/forced_eject" 2>/dev/null || true
-  [ -f "$G/functions/mass_storage.usb0/lun.0/file" ] && echo "" > "$G/functions/mass_storage.usb0/lun.0/file" 2>/dev/null || true
-  rm -f "$G/configs/c.1"/mass_storage.usb0 2>/dev/null || true
-  rmdir "$G/functions/mass_storage.usb0" 2>/dev/null || true
+  unbind_gadget_unlocked || return 1
+  if [ -f "$G/functions/mass_storage.usb0/lun.0/forced_eject" ]; then
+    echo 1 > "$G/functions/mass_storage.usb0/lun.0/forced_eject" || return 1
+  fi
+  if [ -f "$G/functions/mass_storage.usb0/lun.0/file" ]; then
+    echo "" > "$G/functions/mass_storage.usb0/lun.0/file" || return 1
+  fi
+  remove_known_link "$G/configs/c.1/mass_storage.usb0" || return 1
+  remove_known_directory "$G/functions/mass_storage.usb0" || return 1
 }
 
 write_storage_state() {
@@ -197,7 +345,38 @@ remount_storage_if_needed() {
   mount "$DEV" "$SD_MOUNT"
 }
 
-storage_start() {
+storage_create_unlocked() (
+  set -eu
+  mountpoint -q "$CONFIGFS_ROOT" || mount -t configfs none "$CONFIGFS_ROOT" || exit 1
+  [ -d "$UDC_ROOT" ] || exit 1
+  UDC=$(ls "$UDC_ROOT" 2>/dev/null | head -n 1) || exit 1
+  [ -n "$UDC" ] || exit 1
+  mkdir -p "$G/strings/0x409" "$G/configs/c.1/strings/0x409" "$G/functions/mass_storage.usb0"
+  echo 0x1d6b > "$G/idVendor"
+  echo 0x0104 > "$G/idProduct"
+  echo 0x0200 > "$G/bcdUSB"
+  echo 0x0100 > "$G/bcdDevice"
+  echo "Octessera" > "$G/strings/0x409/manufacturer"
+  echo "Octessera SD2 Transfer" > "$G/strings/0x409/product"
+  serial_number > "$G/strings/0x409/serialnumber"
+  echo 250 > "$G/configs/c.1/MaxPower"
+  echo "Octessera SD2 Transfer" > "$G/configs/c.1/strings/0x409/configuration"
+  echo 1 > "$G/functions/mass_storage.usb0/stall"
+  echo 0 > "$G/functions/mass_storage.usb0/lun.0/ro"
+  echo 1 > "$G/functions/mass_storage.usb0/lun.0/removable"
+  [ -f "$G/functions/mass_storage.usb0/lun.0/nofua" ] && echo 0 > "$G/functions/mass_storage.usb0/lun.0/nofua"
+  echo "$dev" > "$G/functions/mass_storage.usb0/lun.0/file"
+  ln -s "$G/functions/mass_storage.usb0" "$G/configs/c.1/mass_storage.usb0"
+  [ -L "$G/configs/c.1/mass_storage.usb0" ] || exit 1
+  bind_udc_unlocked "$UDC" || exit 1
+  if [ -r "$UDC_ROOT/$UDC/state" ]; then
+    printf 'HOST_STATE=%s\n' "$(cat "$UDC_ROOT/$UDC/state")"
+  else
+    printf 'HOST_STATE=unknown\n'
+  fi
+)
+
+storage_start_unlocked() {
   modprobe dwc2 >/dev/null 2>&1 || true
   modprobe libcomposite >/dev/null 2>&1 || true
   modprobe usb_f_mass_storage >/dev/null 2>&1 || true
@@ -209,77 +388,68 @@ storage_start() {
     umount "$SD_MOUNT" || { log "failed to unmount $SD_MOUNT"; exit 1; }
   fi
   write_storage_state "$dev" "$was_mounted"
-  if ! (
-    mountpoint -q /sys/kernel/config || mount -t configfs none /sys/kernel/config
-    [ -d /sys/class/udc ]
-    UDC=$(ls /sys/class/udc 2>/dev/null | head -n 1)
-    [ -n "$UDC" ]
-    teardown
-    mkdir -p "$G/strings/0x409" "$G/configs/c.1/strings/0x409" "$G/functions/mass_storage.usb0"
-    echo 0x1d6b > "$G/idVendor"
-    echo 0x0104 > "$G/idProduct"
-    echo 0x0200 > "$G/bcdUSB"
-    echo 0x0100 > "$G/bcdDevice"
-    echo "Octessera" > "$G/strings/0x409/manufacturer"
-    echo "Octessera SD2 Transfer" > "$G/strings/0x409/product"
-    serial_number > "$G/strings/0x409/serialnumber"
-    echo 250 > "$G/configs/c.1/MaxPower"
-    echo "Octessera SD2 Transfer" > "$G/configs/c.1/strings/0x409/configuration"
-    echo 1 > "$G/functions/mass_storage.usb0/stall"
-    echo 0 > "$G/functions/mass_storage.usb0/lun.0/ro"
-    echo 1 > "$G/functions/mass_storage.usb0/lun.0/removable"
-    [ -f "$G/functions/mass_storage.usb0/lun.0/nofua" ] && echo 0 > "$G/functions/mass_storage.usb0/lun.0/nofua"
-    echo "$dev" > "$G/functions/mass_storage.usb0/lun.0/file"
-    ln -s "$G/functions/mass_storage.usb0" "$G/configs/c.1/mass_storage.usb0"
-    echo "$UDC" > "$G/UDC"
-    if [ -r "/sys/class/udc/$UDC/state" ]; then
-      printf 'HOST_STATE=%s\n' "$(cat "/sys/class/udc/$UDC/state")"
-    else
-      printf 'HOST_STATE=unknown\n'
-    fi
-  ); then
-    storage_teardown_only
-    if [ "$was_mounted" = 1 ]; then
-      DEV="$dev" WAS_MOUNTED=1 remount_storage_if_needed || true
-    fi
-    rm -f "$STORAGE_STATE" "$STORAGE_STATE.tmp"
-    setup || true
-    log "storage-start failed; restored normal gadget"
+  if ! teardown_unlocked; then
+    log "storage-start could not disconnect the normal gadget"
     exit 1
   fi
-  log "configured USB SD2 transfer backing=$dev"
+  if storage_create_unlocked; then
+    log "configured USB SD2 transfer backing=$dev"
+    return 0
+  fi
+  cleanup_status=0
+  storage_teardown_only_unlocked || cleanup_status=1
+  if [ "$cleanup_status" != 0 ]; then
+    log "storage-start failed; could not disconnect the storage gadget"
+    exit 1
+  fi
+  if [ "$was_mounted" = 1 ]; then
+    DEV="$dev" WAS_MOUNTED=1 remount_storage_if_needed || {
+      log "storage-start failed; could not restore the SD mount"
+      exit 1
+    }
+  fi
+  rm -f "$STORAGE_STATE" "$STORAGE_STATE.tmp"
+  setup_unlocked || {
+    log "storage-start failed; restored normal gadget setup failed"
+    exit 1
+  }
+  log "storage-start failed; restored normal gadget"
+  exit 1
 }
 
-storage_stop() {
+storage_stop_unlocked() {
   state_available=0
   if read_storage_state; then
     state_available=1
   fi
-  storage_teardown_only
-  remount_failed=0
-  if [ "$state_available" = 1 ]; then
-    remount_storage_if_needed || remount_failed=1
-  fi
-  setup || setup_failed=1
-  if [ "$remount_failed" = 1 ]; then
-    log "storage stopped, but remount of $DEV at $SD_MOUNT failed"
+  if ! storage_teardown_only_unlocked; then
+    log "storage stopped; storage gadget disconnect failed"
     exit 1
   fi
+  if [ "$state_available" = 1 ]; then
+    remount_storage_if_needed || {
+      log "storage stopped; remount of $SD_MOUNT failed"
+      exit 1
+    }
+  fi
   rm -f "$STORAGE_STATE" "$STORAGE_STATE.tmp"
-  [ "${setup_failed:-0}" = 0 ] || exit 1
+  setup_unlocked || {
+    log "storage stopped; restored normal gadget setup failed"
+    exit 1
+  }
 }
 
-with_sd_lock() {
+with_lifecycle_lock() {
   (
     flock 9
     "$@"
-  ) 9>"$SD_LOCK"
+  ) 9>"$LIFECYCLE_LOCK"
 }
 
 case "${1:-setup}" in
-  setup) setup ;;
-  teardown) teardown ;;
-  storage-start) with_sd_lock storage_start ;;
-  storage-stop) with_sd_lock storage_stop ;;
+  setup) with_lifecycle_lock setup_unlocked ;;
+  teardown) with_lifecycle_lock teardown_unlocked ;;
+  storage-start) with_lifecycle_lock storage_start_unlocked ;;
+  storage-stop) with_lifecycle_lock storage_stop_unlocked ;;
   *) echo "usage: $0 [setup|teardown|storage-start|storage-stop]" >&2; exit 2 ;;
 esac

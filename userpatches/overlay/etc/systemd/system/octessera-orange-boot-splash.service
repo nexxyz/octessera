@@ -1,0 +1,16 @@
+[Unit]
+Description=Octessera Orange Pi early OLED boot splash
+DefaultDependencies=no
+After=systemd-modules-load.service systemd-udevd.service local-fs.target
+Before=sysinit.target octessera.service
+Conflicts=octessera.service
+
+[Service]
+Type=oneshot
+ExecStart=-/usr/local/sbin/octessera-orange-oled-logo boot
+TimeoutStartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=sysinit.target

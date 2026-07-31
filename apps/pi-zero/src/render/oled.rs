@@ -96,6 +96,10 @@ pub(super) fn oled_frame_into(snapshot: &Value, frame: &mut [u8]) {
         return;
     }
     if let Some(error) = snapshot.get("runtimeError") {
+        if is_concise_runtime_error_presentation(error) {
+            render_menu_frame(frame, snapshot, brightness);
+            return;
+        }
         render_runtime_error_frame(frame, error, brightness);
         return;
     }
@@ -107,6 +111,11 @@ pub(super) fn oled_frame_into(snapshot: &Value, frame: &mut [u8]) {
         }
     }
     render_menu_frame(frame, snapshot, brightness);
+}
+
+fn is_concise_runtime_error_presentation(error: &Value) -> bool {
+    error.get("domain").and_then(Value::as_str) == Some("midi")
+        && error.get("operation").and_then(Value::as_str) == Some("midi_list_inputs")
 }
 
 #[rustfmt::skip]

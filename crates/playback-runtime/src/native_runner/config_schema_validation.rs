@@ -16,6 +16,10 @@ pub(super) fn validate_config_payload(payload: &Value) -> Result<(), String> {
     nested::validate_payload(object)
 }
 
+pub(super) fn validate_audio_outputs(runtime: &Map<String, Value>) -> Result<(), String> {
+    nested::validate_audio_outputs(runtime)
+}
+
 pub(super) fn object_field<'a>(
     object: &'a Map<String, Value>,
     key: &str,

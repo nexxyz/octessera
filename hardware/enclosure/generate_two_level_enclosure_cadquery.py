@@ -27,10 +27,10 @@ from wave_guidance import (
 ROOT = Path(__file__).resolve().parent
 ARTIFACT_ROOT = ROOT.parent.parent / "release-artifacts" / "enclosure"
 PARAMS = ROOT / "enclosure_params.json"
-STEP_OUT = ARTIFACT_ROOT / "step" / "case_top_two_level_cadquery.step"
-STL_OUT = ARTIFACT_ROOT / "stl" / "case_top_two_level_cadquery.stl"
-ORANGE_PI_STEP_OUT = ARTIFACT_ROOT / "step" / "case_top_two_level_cadquery_orange_pi.step"
-ORANGE_PI_STL_OUT = ARTIFACT_ROOT / "stl" / "case_top_two_level_cadquery_orange_pi.stl"
+STEP_OUT = ARTIFACT_ROOT / "step" / "case_top_two_level_cadquery_raspberry-pi-zero-2w.step"
+STL_OUT = ARTIFACT_ROOT / "stl" / "case_top_two_level_cadquery_raspberry-pi-zero-2w.stl"
+ORANGE_PI_STEP_OUT = ARTIFACT_ROOT / "step" / "case_top_two_level_cadquery_orange-pi-zero-2w.step"
+ORANGE_PI_STL_OUT = ARTIFACT_ROOT / "stl" / "case_top_two_level_cadquery_orange-pi-zero-2w.stl"
 
 
 LOW_Z = 12.0

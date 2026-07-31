@@ -524,8 +524,6 @@ dependencies = [
 [[package]]
 name = "cpal"
 version = "0.15.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "873dab07c8f743075e57f524c583985fbaf745602acbe916a01539364369a779"
 dependencies = [
  "alsa",
  "core-foundation-sys",
@@ -2519,7 +2517,7 @@ dependencies = [
 
 [[package]]
 name = "octessera-desktop"
-version = "0.7.0"
+version = "0.7.5"
 dependencies = [
  "midir",
  "playback-runtime",
@@ -2534,7 +2532,7 @@ dependencies = [
 
 [[package]]
 name = "octessera-hal"
-version = "0.7.0"
+version = "0.7.5"
 dependencies = [
  "gpiocdev",
  "i2cdev",
@@ -2549,7 +2547,7 @@ dependencies = [
 
 [[package]]
 name = "octessera-pi"
-version = "0.7.0"
+version = "0.7.5"
 dependencies = [
  "cpal",
  "image",
@@ -2750,7 +2748,7 @@ checksum = "19f132c84eca552bf34cab8ec81f1c1dcc229b811638f9d283dceabe58c5569e"
 
 [[package]]
 name = "platform-core"
-version = "0.7.0"
+version = "0.7.5"
 dependencies = [
  "rand",
  "serde",
@@ -2759,7 +2757,7 @@ dependencies = [
 
 [[package]]
 name = "playback-runtime"
-version = "0.7.0"
+version = "0.7.5"
 dependencies = [
  "chrono",
  "flate2",
@@ -2983,7 +2981,7 @@ checksum = "20675572f6f24e9e76ef639bc5552774ed45f1c30e2951e1e99c59888861c539"
 
 [[package]]
 name = "realtime-engine"
-version = "0.7.0"
+version = "0.7.5"
 dependencies = [
  "serde",
  "serde_json",
@@ -3107,7 +3105,7 @@ dependencies = [
 
 [[package]]
 name = "rodio-engine-source"
-version = "0.7.0"
+version = "0.7.5"
 dependencies = [
  "crossbeam-channel",
  "realtime-engine",

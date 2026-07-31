@@ -40,6 +40,49 @@ pub(crate) fn config_envelope_round_trips_without_reinterpreting_state() {
 }
 
 #[test]
+pub(crate) fn canonical_audio_outputs_survive_default_load_save_reload() {
+    let mut source = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut default_payload = source.config_payload();
+    default_payload["runtimeConfig"]["audioOutputs"] = json!({
+        "dac": false,
+        "usb": true,
+        "hdmi": false
+    });
+    default_payload["runtimeConfig"]["usb"]
+        .as_object_mut()
+        .unwrap()
+        .remove("audioOut");
+
+    source
+        .apply_store_result(RuntimeStoreResult::LoadDefaultResult {
+            payload: Some(default_payload),
+        })
+        .unwrap();
+    let RuntimePlatformEffect::StoreSaveDefault { payload, .. } =
+        source.platform_effect_for_action("default.save").unwrap()
+    else {
+        panic!("expected default save effect");
+    };
+
+    assert_eq!(
+        payload["runtimeConfig"]["audioOutputs"],
+        json!({ "dac": false, "usb": true, "hdmi": false })
+    );
+    assert_eq!(payload["runtimeConfig"]["usb"]["audioOut"], "usb");
+
+    let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    restored.apply_config_payload(payload).unwrap();
+    assert_eq!(
+        restored.config_payload()["runtimeConfig"]["audioOutputs"],
+        json!({ "dac": false, "usb": true, "hdmi": false })
+    );
+    assert_eq!(
+        restored.config_payload()["runtimeConfig"]["usb"]["audioOut"],
+        "usb"
+    );
+}
+
+#[test]
 pub(crate) fn legacy_config_is_migrated_to_current_envelope() {
     let mut source = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let mut legacy = source.config_payload();
@@ -47,6 +90,12 @@ pub(crate) fn legacy_config_is_migrated_to_current_envelope() {
     object.remove("kind");
     object.remove("schemaVersion");
     object.remove("revision");
+    object
+        .get_mut("runtimeConfig")
+        .unwrap()
+        .as_object_mut()
+        .unwrap()
+        .remove("audioOutputs");
 
     source.apply_config_payload(legacy).unwrap();
     let migrated = source.config_payload();
@@ -54,6 +103,10 @@ pub(crate) fn legacy_config_is_migrated_to_current_envelope() {
     assert_eq!(migrated["kind"], "octessera.config");
     assert_eq!(migrated["schemaVersion"], 2);
     assert!(migrated["runtimeConfig"].is_object());
+    assert_eq!(
+        migrated["runtimeConfig"]["audioOutputs"],
+        json!({ "dac": true, "usb": false, "hdmi": false })
+    );
 }
 
 #[test]
@@ -233,6 +286,68 @@ pub(crate) fn current_schema_rejects_malformed_nested_fields() {
     payload["runtimeConfig"]["mixer"]["buses"][0]["slot1"]["params"] = json!("broken");
 
     assert_rejected_without_byte_changes(&mut runner, payload);
+}
+
+#[test]
+pub(crate) fn current_schema_accepts_device_audio_outputs_with_exact_boolean_fields() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut payload = runner.config_payload();
+    payload["runtimeConfig"]["audioOutputs"] = json!({
+        "dac": true,
+        "usb": false,
+        "hdmi": false
+    });
+
+    runner.apply_config_payload(payload).unwrap();
+}
+
+#[test]
+pub(crate) fn current_schema_rejects_malformed_device_audio_outputs() {
+    for audio_outputs in [
+        json!({ "dac": true, "usb": false }),
+        json!({ "dac": true, "usb": false, "hdmi": false, "other": false }),
+        json!({ "dac": true, "usb": "false", "hdmi": false }),
+        json!({ "dac": false, "usb": false, "hdmi": false }),
+        json!({ "dac": true, "usb": false, "hdmi": true }),
+    ] {
+        let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+        let mut payload = runner.config_payload();
+        payload["runtimeConfig"]["audioOutputs"] = audio_outputs;
+        assert_rejected_without_byte_changes(&mut runner, payload);
+    }
+}
+
+#[test]
+pub(crate) fn current_schema_rejects_conflicting_device_audio_outputs() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut payload = runner.config_payload();
+    payload["runtimeConfig"]["audioOutputs"] = json!({
+        "dac": true,
+        "usb": false,
+        "hdmi": false
+    });
+    payload["runtimeConfig"]["usb"]["audioOut"] = json!("usb");
+
+    assert_rejected_without_byte_changes(&mut runner, payload);
+}
+
+#[test]
+pub(crate) fn device_payload_split_keeps_audio_outputs_local() {
+    let payload = json!({
+        "runtimeConfig": {
+            "audioOutputs": { "dac": true, "usb": true, "hdmi": false },
+            "masterVolume": 81
+        }
+    });
+
+    let patch = patch_payload_from_payload(payload.clone());
+    assert!(patch["runtimeConfig"]["audioOutputs"].is_null());
+
+    let device = device_config_payload_from_payload(payload);
+    assert_eq!(
+        device["runtimeConfig"]["audioOutputs"],
+        json!({ "dac": true, "usb": true, "hdmi": false })
+    );
 }
 
 fn assert_rejected_without_byte_changes(runner: &mut NativeRunner, payload: Value) {

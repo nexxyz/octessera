@@ -1,0 +1,15 @@
+[Unit]
+Description=Octessera Orange Pi combined USB audio and MIDI gadget
+Wants=sys-kernel-config.mount
+After=systemd-modules-load.service sys-kernel-config.mount local-fs.target
+Before=sound.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/octessera-orange-usb-gadget setup
+ExecStop=/usr/local/sbin/octessera-orange-usb-gadget teardown
+ExecStopPost=-/sbin/modprobe -r usb_f_midi usb_f_uac2 libcomposite
+
+[Install]
+WantedBy=multi-user.target

@@ -3,7 +3,7 @@
 Octessera uses explicit board profile IDs at build and artifact boundaries:
 
 - `raspberry-pi-zero-2w` is the supported Raspberry Pi Zero 2 W profile.
-- `orange-pi-zero-2w` identifies the Orange Pi Zero 2W bring-up target.
+- `orange-pi-zero-2w` is the supported Orange Pi Zero 2W production profile.
 
 The board-specific HALs own their physical pin and device descriptors. The Raspberry
 canonical Cargo features are `raspberry-pi-zero-2w` and
@@ -11,34 +11,67 @@ canonical Cargo features are `raspberry-pi-zero-2w` and
 `hardware-rpi-zero-2w`, and `hardware-pi` feature names remain compatibility
 aliases for now and are covered by CI compile checks. The HAL also exposes the
 `orange-pi-zero-2w` profile descriptor and its diagnostic OLED/I2C bring-up
-backend. The Orange `octessera-pi` feature is a foreground runtime candidate,
-not a service or deployment-ready artifact. Its gpiocdev v2 backend qualifies
-SW1, SW2, and SW4 for both-edge A/B input and active-low switch events with
-pull-ups. SW3's switch line is explicitly faulted/excluded because physical
-pin 8 / H618 PH0 is active UART0 TX until boot routing changes. Audio/I2S
-uses the shared 44.1 kHz runtime rate and requires exactly one CPAL output
-device named `hw:CARD=octesseradac,DEV=0` with verified stereo support. There
-is no default or HDMI fallback. Internal MIDI events are ignored; explicit MIDI
-platform actions return typed unavailable status. USB remains unavailable.
+backend. The Orange production `octessera-pi` runtime uses the shared 44.1 kHz
+rate and supports the OLED, NeoTrellis, NeoKey, all four encoders, persistent
+store, samples, MIDI, and the internal DAC. Audio requires exactly one CPAL
+output device named `hw:CARD=octesseradac,DEV=0` with verified stereo support.
+There is no default or HDMI fallback. USB UAC2 is an optional companion
+(`audioOut=both`); `audioOut=usb` is rejected because the internal DAC is
+required. MIDI uses the native host adapter, including USB MIDI when the
+configured gadget port is present.
+
+The production image applies the input-routing overlay before the service
+starts, so all four encoder switches are available. Before that overlay, SW3's
+switch line is unavailable because physical pin 8 / H618 PH0 is active UART0
+TX; its A/B lines remain available. This is a bring-up condition, not the
+production control-surface contract. Runtime readiness follows healthy required
+audio, initialized control-surface devices, and the first rendered snapshot.
+The service uses `LimitRTPRIO=70`; only CPAL callback threads may be promoted to
+verified `SCHED_FIFO` priority 70. It does not use `CAP_SYS_NICE`, ambient
+capabilities, or other realtime capability elevation. Startup reports the
+named `DAC` or `UAC2` sink and rejects an Orange stream when callback promotion
+is not verified.
 Its typed bus descriptors record `/dev/i2c-2` at `5002400.i2c` and
 `/dev/spidev1.0` at `5011000.spi`; its encoder descriptor records H618
-`300b000.pinctrl` offsets rather than Raspberry GPIO fields.
+`300b000.pinctrl` offsets rather than Raspberry GPIO fields. The Orange OLED
+default is 16 MHz; the HAL retains the validated 1/2/4/8/12/16 MHz override
+ladder. All four Orange encoder descriptors reverse literal board A/B direction
+at the Orange event boundary. AUX2 A/B (227/269) remain requestable with UART0
+active, while its switch (224) is requested only after UART0 is disabled by the
+dedicated input-routing overlay.
 
-Raspberry Pi build, deploy, provision, preflight, pi-gen, and Raspberry Pi
-Imager packaging tools accept only `raspberry-pi-zero-2w`. They reject
-`orange-pi-zero-2w` rather than guessing at pins, GPIO numbering, or an audio
-backend. Orange Pi image work stays on the separate Armbian path until
-hardware validation supports a real HAL profile.
+The narrow Pi cross-build tools accept exactly `raspberry-pi-zero-2w` and
+`orange-pi-zero-2w`. They select `hardware-raspberry-pi-zero-2w` or
+`hardware-orange-pi-zero-2w` respectively and write the same profile-qualified
+feature into `octessera-pi.metadata.json`; the default remains Raspberry. The
+Raspberry deploy, provision, preflight, pi-gen, and Raspberry Pi Imager tools
+still accept only `raspberry-pi-zero-2w`. They reject Orange rather than
+guessing at pins, GPIO numbering, or an audio backend. Orange production image
+work stays on the separate Armbian path.
 
 Pi binaries expose `--print-build-metadata`, and cross-build output includes
 `octessera-pi.metadata.json`. Release manifests, installed service metadata,
 and device update manifests carry the same canonical ID so a mismatched
 binary or artifact fails closed where the host can check it.
 
-The Orange AArch64 artifacts are the diagnostic-only OLED and Seesaw smoke
-utilities plus the hash-bound `octessera-pi` `runtime-candidate`. Every artifact
-is `runtime_ready=false`; the builder still rejects deployment/service-ready
-metadata and never installs or enables a service.
+The 0.7.5 production image artifact is
+`octessera-0.7.5-orange-pi-zero-2w.img.xz`, with its matching SHA-256 and image
+provenance files. Its explicit image metadata is
+`OCTESSERA_IMAGE_MODE=production`. The image contains the hash-bound runtime
+bundle `octessera-pi`, `octessera-runtime.json`, and `SHA256SUMS`; the metadata
+declares `artifact_kind=production-runtime` and `runtime_ready=true` for
+`orange-pi-zero-2w`.
+
+Diagnostic image mode remains separate and explicit:
+`OCTESSERA_IMAGE_MODE=diagnostic`. It contains the OLED/Seesaw smoke utilities
+and bring-up tools, but no production runtime bundle or `octessera.service`.
+The smoke utilities are diagnostic artifacts, not substitutes for the
+production image.
+
+The production service reads its persistent store and samples from
+`/var/lib/octessera/presets` and `/var/lib/octessera/samples` as
+`octessera-runtime`. The separate interactive `octessera` user is used for
+setup and administration; it is not the runtime account.
 Stage the canonical binary name together with its adjacent exact-name sidecar:
 
 ```powershell
@@ -81,18 +114,15 @@ The metadata command is read-only. The active hardware test is
 staging, and electrical gates; it must not be run against an unverified device
 or wiring harness.
 
-The smoke artifacts remain diagnostic-only. The foreground candidate is a
-hash-bound `runtime-candidate`, not a normal runtime: it requires the exact
-CPAL output device `hw:CARD=octesseradac,DEV=0` at the shared 44.1 kHz runtime
-rate with verified stereo support, routes musical events/audio commands/silence
-through the existing realtime engine, and ignores internal MIDI events.
-Explicit MIDI platform actions return typed unavailable status. There is no
-default or HDMI fallback.
-Its qualified encoder path emits the existing `HardwareEvent` contract into
-native runtime input; it has no updater, service, reboot, SD-transfer, USB, or
-MIDI enumeration. SIGINT
+The smoke artifacts remain diagnostic-only. The production runtime routes
+internal synth/sample audio through the realtime engine and emits MIDI through
+the native host adapter. It requires the exact internal DAC; USB UAC2 is only an
+optional companion and `audioOut=usb` is rejected. Orange update check, apply,
+rollback, and OTA remain unsupported and return typed unavailable status before
+an updater or network path is touched. The production service has no Orange
+device-update path; use a verified production image artifact for image updates.
+SIGINT
 performs the normal shutdown frame, bounded 750 ms black-LED cleanup/retry, and
 OLED-off acknowledgement; workers join only after an acknowledgement and are
 not joined after a cleanup timeout. Synchronous device calls can still outlast
-that cooperative bound. Do not deploy it as a service or use it as evidence
-for audio, USB, encoder, or normal background-runtime qualification.
+that cooperative bound.

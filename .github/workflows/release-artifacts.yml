@@ -1,83 +1,97 @@
 name: Release Artifacts
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing release tag, for example v0.5.0
+        description: Existing draft release tag, for example v0.5.0
         required: true
         type: string
 
+concurrency:
+  group: release-artifacts-${{ inputs.tag }}
+  cancel-in-progress: false
+
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   release_info:
-    name: Resolve release
+    name: Resolve draft release
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.release.outputs.tag }}
       version: ${{ steps.release.outputs.version }}
       asset_prefix: ${{ steps.release.outputs.asset_prefix }}
+      release_id: ${{ steps.release.outputs.release_id }}
+      source_sha: ${{ steps.source.outputs.source_sha }}
     steps:
-      - name: Resolve tag and verify release exists
+      - name: Verify existing draft release and exact semver tag
         id: release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
+          RELEASE_TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
-          if ! echo "$RELEASE_TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "Release tag must look like v0.5.0; got $RELEASE_TAG" >&2
-            exit 1
-          fi
-          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null
-          VERSION="${RELEASE_TAG#v}"
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Release tag must look like v0.5.0; got $RELEASE_TAG" >&2; exit 1; }
+          release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG")"
+          [[ "$(jq -r '.tag_name' <<< "$release_json")" == "$RELEASE_TAG" ]] || { echo 'Release API returned the wrong tag.' >&2; exit 1; }
+          [[ "$(jq -r '.draft' <<< "$release_json")" == true ]] || { echo 'The release must remain a draft until the final publish job.' >&2; exit 1; }
           {
             echo "tag=$RELEASE_TAG"
-            echo "version=$VERSION"
-            echo "asset_prefix=octessera-$VERSION"
+            echo "version=${RELEASE_TAG#v}"
+            echo "asset_prefix=octessera-${RELEASE_TAG#v}"
+            echo "release_id=$(jq -r '.id' <<< "$release_json")"
           } >> "$GITHUB_OUTPUT"
-      - name: Checkout release source
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v4
         with:
           ref: ${{ steps.release.outputs.tag }}
-      - name: Verify release tag matches Pi Cargo package
+          fetch-depth: 0
+      - name: Verify tag commit and package version
+        id: source
         env:
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
         run: |
-          test "$(git rev-parse HEAD)" = "$(git rev-parse "$RELEASE_TAG^{commit}")"
+          set -euo pipefail
+          source_sha="$(git rev-parse HEAD)"
+          [[ "${RELEASE_VERSION}" == 0.7.5 ]] || { echo 'This release workflow is pinned to the 0.7.5 kernel package contract.' >&2; exit 1; }
+          [[ "$source_sha" == "$(git rev-parse "$RELEASE_TAG^{commit}")" ]] || { echo 'Checked out source does not match the release tag commit.' >&2; exit 1; }
           git tag --points-at HEAD | grep -Fx "$RELEASE_TAG" >/dev/null
           python3 - <<'PY'
           import os
           import tomllib
+
           with open("apps/pi-zero/Cargo.toml", "rb") as handle:
-              package = tomllib.load(handle)["package"]
-          if package["version"] != os.environ["RELEASE_VERSION"]:
-              raise SystemExit(f"Cargo package version {package['version']} does not match release {os.environ['RELEASE_VERSION']}")
+              version = tomllib.load(handle)["package"]["version"]
+          if version != os.environ["RELEASE_VERSION"]:
+              raise SystemExit(f"Cargo package version {version} does not match release {os.environ['RELEASE_VERSION']}")
           PY
+          echo "source_sha=$source_sha" >> "$GITHUB_OUTPUT"
 
   updater_protocol:
-    name: Release updater protocol gate
+    name: Release updater and workflow static gates
     runs-on: ubuntu-latest
     needs: release_info
     steps:
-      - name: Checkout release source
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.release_info.outputs.tag }}
-      - name: Install Linux validation tools
+          ref: ${{ needs.release_info.outputs.source_sha }}
+          fetch-depth: 0
+      - name: Verify immutable source checkout
+        run: test "$(git rev-parse HEAD)" = "${{ needs.release_info.outputs.source_sha }}"
+      - name: Install validation tools
         run: sudo apt-get update && sudo apt-get install -y shellcheck
-      - name: Run updater transitions and shell gates
+      - name: Run targeted tests and static workflow gates
         run: |
+          set -euo pipefail
           python3 -m py_compile tools/device-update/updater_protocol.py tools/device-update/updater_state.py tools/device-update/updater_assets.py tools/device-update/updater_guard.py tools/device-update/updater_cli.py tools/device-update/test_updater_protocol.py tools/device-update/test_updater_layout.py
           python3 -m unittest discover -s tools/device-update -p 'test_*.py'
           bash tools/device-update/smoke-test.sh
-          bash -n tools/device-update/*.sh tools/pi-image/verify-sanitized-image.sh tools/pi/provision/provision.sh tools/pi/deploy-pi.sh tools/armbian-image/validate.sh tools/armbian-image/inspect-built-image.sh userpatches/customize-image.sh
-          shellcheck tools/device-update/*.sh
+          bash tools/armbian-image/test-build-armbian-action.sh
+          bash tools/armbian-image/test-release-workflow.sh
+          bash -n tools/device-update/*.sh tools/pi-image/verify-sanitized-image.sh tools/pi-image/verify-rpi-kernel-image.sh tools/pi-kernel/*.sh tools/armbian-image/*.sh
+          shellcheck tools/device-update/*.sh tools/pi-kernel/*.sh tools/armbian-image/*.sh
           cmp tools/device-update/octessera-update tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-update
           cmp tools/device-update/octessera-update userpatches/overlay/usr/local/sbin/octessera-update
           cmp tools/device-update/octessera-update-guard tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-update-guard
@@ -107,401 +121,348 @@ jobs:
     runs-on: windows-latest
     needs: release_info
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.release_info.outputs.tag }}
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+          ref: ${{ needs.release_info.outputs.source_sha }}
+      - name: Verify immutable source checkout
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD).Trim() -ne "${{ needs.release_info.outputs.source_sha }}") { throw 'Immutable source checkout does not match source_sha.' }
+      - uses: pnpm/action-setup@v4
         with:
           version: 9.12.0
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v2.9.1
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build Windows installer
-        run: pnpm run tauri:build
-
-      - name: Prepare Windows release assets
-        id: windows_assets
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run tauri:build
+      - name: Prepare Windows assets
         shell: pwsh
         run: |
           $assetDir = New-Item -ItemType Directory -Force -Path "release-assets"
-          $installer = Get-ChildItem -Path "target/release/bundle/nsis" -Filter "*.exe" | Select-Object -First 1
-          if (-not $installer) { throw "NSIS installer not found" }
+          $installers = @(Get-ChildItem -Path "target/release/bundle/nsis" -Filter "*.exe")
+          if ($installers.Count -ne 1) { throw "Expected exactly one NSIS installer, found $($installers.Count)" }
           $portable = "target/release/octessera-desktop.exe"
           if (-not (Test-Path -LiteralPath $portable)) { throw "Portable executable source not found" }
-          $installerAsset = Join-Path $assetDir "${{ needs.release_info.outputs.asset_prefix }}-windows-installer.exe"
-          $portableAsset = Join-Path $assetDir "${{ needs.release_info.outputs.asset_prefix }}-windows-portable.exe"
-          Copy-Item -LiteralPath $installer.FullName -Destination $installerAsset
-          Copy-Item -LiteralPath $portable -Destination $portableAsset
-          Get-ChildItem -LiteralPath $assetDir | ForEach-Object { Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName } | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content -LiteralPath (Join-Path $assetDir "SHA256SUMS-windows.txt")
-          "ASSET_DIR=$($assetDir.FullName)" >> $env:GITHUB_OUTPUT
-
-      - name: Upload workflow artifact
-        uses: actions/upload-artifact@v7
+          Copy-Item -LiteralPath $installers[0].FullName -Destination (Join-Path $assetDir "${{ needs.release_info.outputs.asset_prefix }}-windows-installer.exe")
+          Copy-Item -LiteralPath $portable -Destination (Join-Path $assetDir "${{ needs.release_info.outputs.asset_prefix }}-windows-portable.exe")
+          $files = @(Get-ChildItem -LiteralPath $assetDir -File)
+          if ($files.Count -ne 2) { throw "Expected exactly two Windows payload files" }
+          $lines = $files | ForEach-Object { $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLower(); "$hash  $($_.Name)" }
+          $lines | Set-Content -LiteralPath (Join-Path $assetDir "SHA256SUMS-windows.txt")
+      - uses: actions/upload-artifact@v4
         with:
           name: octessera-windows-release-assets
           path: release-assets/*
-          retention-days: 30
+          if-no-files-found: error
 
   macos:
     name: macOS DMG
     runs-on: macos-latest
     needs: release_info
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.release_info.outputs.tag }}
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+          ref: ${{ needs.release_info.outputs.source_sha }}
+      - name: Verify immutable source checkout
+        run: test "$(git rev-parse HEAD)" = "${{ needs.release_info.outputs.source_sha }}"
+      - uses: pnpm/action-setup@v4
         with:
           version: 9.12.0
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v2.9.1
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build macOS DMG
-        run: corepack pnpm --dir apps/desktop exec tauri build --bundles dmg --no-sign
-
-      - name: Prepare macOS release assets
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: pnpm install --frozen-lockfile
+      - run: corepack pnpm --dir apps/desktop exec tauri build --bundles dmg --no-sign
+      - name: Prepare macOS assets
         run: |
           set -euo pipefail
           mkdir -p release-assets
-          dmg_path="$(find target/release/bundle/dmg -maxdepth 1 -name '*.dmg' 2>/dev/null | head -n 1 || true)"
-          if [ -z "$dmg_path" ]; then
-            echo "macOS DMG not found" >&2
-            exit 1
-          fi
-          cp "$dmg_path" "release-assets/${{ needs.release_info.outputs.asset_prefix }}-macos-unsigned.dmg"
+          mapfile -t dmg_files < <(find target/release/bundle/dmg -maxdepth 1 -type f -name '*.dmg' -print | sort)
+          [[ "${#dmg_files[@]}" == 1 ]] || { echo "Expected exactly one macOS DMG, found ${#dmg_files[@]}." >&2; exit 1; }
+          cp "${dmg_files[0]}" "release-assets/${{ needs.release_info.outputs.asset_prefix }}-macos-unsigned.dmg"
           (cd release-assets && shasum -a 256 *.dmg > SHA256SUMS-macos.txt)
-
-      - name: Upload workflow artifact
-        uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v4
         with:
           name: octessera-macos-release-assets
           path: release-assets/*
-          retention-days: 30
+          if-no-files-found: error
 
   ubuntu:
     name: Ubuntu DEB and AppImage
     runs-on: ubuntu-22.04
     needs: release_info
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.release_info.outputs.tag }}
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+          ref: ${{ needs.release_info.outputs.source_sha }}
+      - name: Verify immutable source checkout
+        run: test "$(git rev-parse HEAD)" = "${{ needs.release_info.outputs.source_sha }}"
+      - uses: pnpm/action-setup@v4
         with:
           version: 9.12.0
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v2.9.1
-
-      - name: Install system dependencies
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install Ubuntu build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            curl \
-            file \
-            libayatana-appindicator3-dev \
-            libasound2-dev \
-            libfuse2 \
-            librsvg2-dev \
-            libsoup-3.0-dev \
-            libssl-dev \
-            libwebkit2gtk-4.1-dev \
-            libxdo-dev \
-            patchelf \
-            pkg-config \
-            wget \
-            xdg-utils
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build Ubuntu bundles
-        env:
-          APPIMAGE_EXTRACT_AND_RUN: 1
-        run: corepack pnpm --dir apps/desktop exec tauri build --bundles deb,appimage
-
-      - name: Prepare Ubuntu release assets
+          sudo apt-get install -y build-essential curl file libayatana-appindicator3-dev libasound2-dev libfuse2 librsvg2-dev libsoup-3.0-dev libssl-dev libwebkit2gtk-4.1-dev libxdo-dev patchelf pkg-config wget xdg-utils
+      - run: pnpm install --frozen-lockfile
+      - run: APPIMAGE_EXTRACT_AND_RUN=1 corepack pnpm --dir apps/desktop exec tauri build --bundles deb,appimage
+      - name: Prepare Ubuntu assets
         run: |
           set -euo pipefail
           mkdir -p release-assets
-          deb_path="$(find target/release/bundle/deb -maxdepth 1 -name '*.deb' 2>/dev/null | head -n 1 || true)"
-          appimage_path="$(find target/release/bundle/appimage -maxdepth 1 -name '*.AppImage' 2>/dev/null | head -n 1 || true)"
-          if [ -z "$deb_path" ]; then
-            echo "Ubuntu DEB not found" >&2
-            exit 1
-          fi
-          if [ -z "$appimage_path" ]; then
-            echo "Ubuntu AppImage not found" >&2
-            exit 1
-          fi
-          cp "$deb_path" "release-assets/${{ needs.release_info.outputs.asset_prefix }}-ubuntu-amd64.deb"
-          cp "$appimage_path" "release-assets/${{ needs.release_info.outputs.asset_prefix }}-ubuntu-x86_64.AppImage"
+          mapfile -t deb_files < <(find target/release/bundle/deb -maxdepth 1 -type f -name '*.deb' -print | sort)
+          mapfile -t appimage_files < <(find target/release/bundle/appimage -maxdepth 1 -type f -name '*.AppImage' -print | sort)
+          [[ "${#deb_files[@]}" == 1 ]] || { echo "Expected exactly one Ubuntu DEB, found ${#deb_files[@]}." >&2; exit 1; }
+          [[ "${#appimage_files[@]}" == 1 ]] || { echo "Expected exactly one Ubuntu AppImage, found ${#appimage_files[@]}." >&2; exit 1; }
+          cp "${deb_files[0]}" "release-assets/${{ needs.release_info.outputs.asset_prefix }}-ubuntu-amd64.deb"
+          cp "${appimage_files[0]}" "release-assets/${{ needs.release_info.outputs.asset_prefix }}-ubuntu-x86_64.AppImage"
           (cd release-assets && sha256sum *.deb *.AppImage > SHA256SUMS-ubuntu.txt)
-
-      - name: Upload workflow artifact
-        uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v4
         with:
           name: octessera-ubuntu-release-assets
           path: release-assets/*
-          retention-days: 30
+          if-no-files-found: error
 
-  pi_image:
-    name: Raspberry Pi ready-to-flash image
-    runs-on: ubuntu-latest
+  board_artifacts:
+    name: Board runtime, kernel, image, and device gates
     needs: release_info
-    timeout-minutes: 360
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ needs.release_info.outputs.tag }}
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          target: aarch64-unknown-linux-gnu
-
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v2.9.1
-
-      - name: Install cross
-        run: |
-          curl -sSL https://github.com/cross-rs/cross/releases/download/v0.2.5/cross-x86_64-unknown-linux-gnu.tar.gz | sudo tar xz -C /usr/local/bin
-          cross --version
-
-      - name: Generate Pi logo assets
-        run: python3 tools/assets/generate_pi_logo_pngs.py
-
-      - name: Build release Pi app
-        run: cross build --release --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-raspberry-pi-zero-2w
-
-      - name: Stage Pi app binary
-        run: |
-          install -D -m 0755 \
-            target/aarch64-unknown-linux-gnu/release/octessera-pi \
-            tools/pi-image/stage4-octessera/files/root/usr/local/bin/octessera-pi
-          install -D -m 0644 tools/device-update/updater_protocol.py tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/updater_protocol.py
-          install -D -m 0644 tools/device-update/updater_state.py tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/updater_state.py
-          install -D -m 0644 tools/device-update/updater_assets.py tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/updater_assets.py
-          install -D -m 0644 tools/device-update/updater_guard.py tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/updater_guard.py
-          install -D -m 0644 tools/device-update/updater_cli.py tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/updater_cli.py
-          file tools/pi-image/stage4-octessera/files/root/usr/local/bin/octessera-pi
-
-      - name: Install pi-gen dependencies
-        run: |
-          sudo DEBIAN_FRONTEND=noninteractive apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            quilt parted debootstrap dosfstools rsync btrfs-progs \
-            kpartx xz-utils coreutils qemu-user-static libarchive-tools \
-            arch-test device-tree-compiler unzip
-
-      - name: Clone pi-gen
-        run: |
-          git clone --depth 1 --branch bookworm-arm64 https://github.com/RPi-Distro/pi-gen.git
-          cp -r tools/pi-image/stage4-octessera pi-gen/
-
-      - name: Configure pi-gen
-        working-directory: pi-gen
-        run: |
-          cat > config <<'EOL'
-          IMG_NAME=octessera-raspberry-pi-zero-2w
-          RELEASE=bookworm
-          TARGET_ARCH=arm64
-          STAGE_LIST="stage0 stage1 stage2 stage4-octessera"
-          OCTESSERA_RELEASE_VERSION=${{ needs.release_info.outputs.version }}
-          OCTESSERA_RELEASE_TAG=${{ needs.release_info.outputs.tag }}
-          OCTESSERA_BOARD_PROFILE_ID=raspberry-pi-zero-2w
-          EXPORT_DIR=deploy
-          DEPLOY_ZIP=1
-          ENABLE_SSH=0
-          EOL
-
-      - name: Run pi-gen build
-        working-directory: pi-gen
-        run: sudo ./build.sh
-
-      - name: Find and rename Pi image
-        id: pi_asset
-        run: |
-          set -euo pipefail
-          mkdir -p release-assets
-          ZIP_PATH="$(find pi-gen/deploy -maxdepth 1 -name '*.zip' | head -n 1)"
-          if [ -z "$ZIP_PATH" ]; then
-            echo "No pi-gen image zip found" >&2
-            exit 1
-          fi
-          ASSET="release-assets/${{ needs.release_info.outputs.asset_prefix }}-raspberry-pi-zero-2w.img.zip"
-          cp "$ZIP_PATH" "$ASSET"
-          python3 tools/pi-image/package-rpi-imager-zip.py \
-            --zip "$ASSET" \
-            --version "${{ needs.release_info.outputs.version }}" \
-            --tag "${{ needs.release_info.outputs.tag }}" \
-            --repository "$GITHUB_REPOSITORY" \
-            --board-profile raspberry-pi-zero-2w \
-            --manifest-out "release-assets/${{ needs.release_info.outputs.asset_prefix }}-raspberry-pi-zero-2w.rpi-imager-manifest"
-          echo "zip=$ASSET" >> "$GITHUB_OUTPUT"
-
-      - name: Verify Pi image sanitation
-        run: sudo bash tools/pi-image/verify-sanitized-image.sh "${{ steps.pi_asset.outputs.zip }}"
-
-      - name: Write Pi checksums
-        run: |
-          cd release-assets
-          sha256sum *.zip *.rpi-imager-manifest > SHA256SUMS-pi.txt
-
-      - name: Upload workflow artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: octessera-pi-image-release-assets
-          path: release-assets/*
-          retention-days: 30
-
-  device_aarch64:
-    name: Standalone Linux aarch64 device ZIP
-    runs-on: ubuntu-latest
-    needs: release_info
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ needs.release_info.outputs.tag }}
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          target: aarch64-unknown-linux-gnu
-
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v2.9.1
-
-      - name: Install cross
-        run: |
-          curl -sSL https://github.com/cross-rs/cross/releases/download/v0.2.5/cross-x86_64-unknown-linux-gnu.tar.gz | sudo tar xz -C /usr/local/bin
-          cross --version
-
-      - name: Build release device app
-        run: cross build --release --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-raspberry-pi-zero-2w
-
-      - name: Package device release ZIP
-        run: |
-          set -euo pipefail
-          asset_prefix="${{ needs.release_info.outputs.asset_prefix }}"
-          mkdir -p release-assets device-release
-          install -m 0755 target/aarch64-unknown-linux-gnu/release/octessera-pi device-release/octessera-pi
-          python3 - <<'PY'
-          import json
-
-          manifest = {
-              "schema_version": 2,
-              "updater_protocol": 2,
-              "candidate_health_protocol": 1,
-              "tag": "${{ needs.release_info.outputs.tag }}",
-              "version": "${{ needs.release_info.outputs.version }}",
-              "board_profile": "raspberry-pi-zero-2w",
-              "arch": "aarch64-unknown-linux-gnu",
-              "binary": "octessera-pi",
-              "platforms": ["raspberry-pi-zero-2w", "linux-aarch64-device"],
-          }
-          with open("device-release/octessera-device-release.json", "w", encoding="utf-8") as f:
-              json.dump(manifest, f, indent=2)
-              f.write("\n")
-          PY
-          (cd device-release && zip -9 "../release-assets/${asset_prefix}-raspberry-pi-zero-2w-device-aarch64.zip" octessera-pi octessera-device-release.json)
-          (cd release-assets && sha256sum "${asset_prefix}-raspberry-pi-zero-2w-device-aarch64.zip" > SHA256SUMS-raspberry-pi-zero-2w-device.txt)
-
-      - name: Upload workflow artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: octessera-device-release-assets
-          path: release-assets/*
-          retention-days: 30
+    uses: ./.github/workflows/release-board-artifacts.yml
+    with:
+      tag: ${{ needs.release_info.outputs.tag }}
+      version: ${{ needs.release_info.outputs.version }}
+      source_sha: ${{ needs.release_info.outputs.source_sha }}
+    secrets: inherit
 
   publish_release_assets:
-    name: Publish release assets
+    name: Verify, upload, and publish draft release
     runs-on: ubuntu-latest
-    needs: [release_info, updater_protocol, windows, macos, ubuntu, pi_image, device_aarch64]
+    permissions:
+      contents: write
+    needs: [release_info, updater_protocol, windows, macos, ubuntu, board_artifacts]
     steps:
-      - name: Download workflow artifacts
-        uses: actions/download-artifact@v8
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release_info.outputs.source_sha }}
+          fetch-depth: 0
+      - name: Verify immutable source checkout
+        run: test "$(git rev-parse HEAD)" = "${{ needs.release_info.outputs.source_sha }}"
+      - name: Download release artifacts into board-separated directories
+        uses: actions/download-artifact@v4
         with:
           pattern: octessera-*-release-assets
           path: gathered-release-assets
-          merge-multiple: true
-
-      - name: Verify gathered assets
+          merge-multiple: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: octessera-raspberry-runtime
+          path: gathered-runtime/raspberry
+      - uses: actions/download-artifact@v4
+        with:
+          name: octessera-orange-runtime
+          path: gathered-runtime/orange
+      - name: Verify exact asset sets, checksums, runtime identity, and provenance
+        env:
+          RELEASE_VERSION: ${{ needs.release_info.outputs.version }}
+          RELEASE_TAG: ${{ needs.release_info.outputs.tag }}
+          RELEASE_SOURCE_SHA: ${{ needs.release_info.outputs.source_sha }}
         run: |
           set -euo pipefail
-          cd gathered-release-assets
-          expected=(
-            "${{ needs.release_info.outputs.asset_prefix }}-windows-installer.exe"
-            "${{ needs.release_info.outputs.asset_prefix }}-windows-portable.exe"
-            "${{ needs.release_info.outputs.asset_prefix }}-macos-unsigned.dmg"
-            "${{ needs.release_info.outputs.asset_prefix }}-ubuntu-amd64.deb"
-            "${{ needs.release_info.outputs.asset_prefix }}-ubuntu-x86_64.AppImage"
-            "${{ needs.release_info.outputs.asset_prefix }}-raspberry-pi-zero-2w.img.zip"
-            "${{ needs.release_info.outputs.asset_prefix }}-raspberry-pi-zero-2w.rpi-imager-manifest"
-            "${{ needs.release_info.outputs.asset_prefix }}-raspberry-pi-zero-2w-device-aarch64.zip"
-            SHA256SUMS-windows.txt
-            SHA256SUMS-macos.txt
-            SHA256SUMS-ubuntu.txt
-            SHA256SUMS-pi.txt
-            SHA256SUMS-raspberry-pi-zero-2w-device.txt
-          )
-          for asset in "${expected[@]}"; do
-            test -f "$asset" || { echo "Missing release asset: $asset" >&2; exit 1; }
+          root="$GITHUB_WORKSPACE/gathered-release-assets"
+          release_assets="$GITHUB_WORKSPACE/release-assets"
+          mkdir -p "$release_assets"
+          require_exact_files() {
+            local directory="$1"
+            shift
+            local -a expected=("$@") actual=()
+            mapfile -t actual < <(find "$directory" -mindepth 1 -maxdepth 1 -type f -printf '%f\n' | sort)
+            mapfile -t expected_sorted < <(printf '%s\n' "${expected[@]}" | sort)
+            [[ "${#actual[@]}" == "${#expected_sorted[@]}" && "${actual[*]}" == "${expected_sorted[*]}" ]] || {
+              echo "Unexpected files under $directory: ${actual[*]}" >&2
+              exit 1
+            }
+          }
+          copy_asset() {
+            local source="$1" destination="$2"
+            [[ ! -e "$destination" ]] || { echo "Release asset collision: $destination" >&2; exit 1; }
+            install -m 0644 "$source" "$destination"
+          }
+          prefix="octessera-$RELEASE_VERSION"
+          require_exact_files "$root/octessera-windows-release-assets" "$prefix-windows-installer.exe" "$prefix-windows-portable.exe" SHA256SUMS-windows.txt
+          require_exact_files "$root/octessera-macos-release-assets" "$prefix-macos-unsigned.dmg" SHA256SUMS-macos.txt
+          require_exact_files "$root/octessera-ubuntu-release-assets" "$prefix-ubuntu-amd64.deb" "$prefix-ubuntu-x86_64.AppImage" SHA256SUMS-ubuntu.txt
+          rpi_kernel_package="linux-image-6.12.93-octessera-rpi-v8-0.7.5_6.12.93-octessera0.7.5-1_arm64.deb"
+          rpi_kernel_dir="$root/octessera-raspberry-kernel-release-assets"
+          require_exact_files "$rpi_kernel_dir" "$rpi_kernel_package" SHA256SUMS inventory.json provenance.json
+          require_exact_files "$root/octessera-raspberry-image-release-assets" "$prefix-raspberry-pi-zero-2w.img.zip" "$prefix-raspberry-pi-zero-2w.rpi-imager-manifest" SHA256SUMS-pi.txt
+          require_exact_files "$root/octessera-raspberry-device-release-assets" "$prefix-raspberry-pi-zero-2w-device-aarch64.zip" SHA256SUMS-raspberry-pi-zero-2w-device.txt
+          orange_kernel_image="linux-image-current-sunxi64_26.8.0-trunk.417_arm64.deb"
+          orange_kernel_dtb="linux-dtb-current-sunxi64_26.8.0-trunk.417_arm64.deb"
+          orange_image_dir="$root/octessera-orange-image-release-assets"
+          require_exact_files "$orange_image_dir" "$prefix-orange-pi-zero-2w.img.xz" "$prefix-orange-pi-zero-2w.img.xz.sha256" "$orange_kernel_image" "$orange_kernel_dtb" octessera-orange-kernel-evidence.env octessera-orange-kernel-provenance.txt octessera-orange-image-provenance.txt SHA256SUMS-orange-pi-zero-2w.txt
+          require_exact_files "$root/octessera-orange-device-release-assets" "$prefix-orange-pi-zero-2w-standalone-manual-aarch64.zip" SHA256SUMS-orange-pi-zero-2w-device.txt
+          for source_dir in "$root/octessera-windows-release-assets" "$root/octessera-macos-release-assets" "$root/octessera-ubuntu-release-assets" "$root/octessera-raspberry-image-release-assets" "$root/octessera-raspberry-device-release-assets" "$orange_image_dir" "$root/octessera-orange-device-release-assets"; do
+            while IFS= read -r source; do
+              copy_asset "$source" "$release_assets/$(basename "$source")"
+            done < <(find "$source_dir" -mindepth 1 -maxdepth 1 -type f -print | sort)
           done
-          sha256sum -c SHA256SUMS-windows.txt
-          sha256sum -c SHA256SUMS-macos.txt
-          sha256sum -c SHA256SUMS-ubuntu.txt
-          sha256sum -c SHA256SUMS-pi.txt
-          sha256sum -c SHA256SUMS-raspberry-pi-zero-2w-device.txt
+          copy_asset "$rpi_kernel_dir/$rpi_kernel_package" "$release_assets/$rpi_kernel_package"
+          copy_asset "$rpi_kernel_dir/SHA256SUMS" "$release_assets/$prefix-raspberry-pi-zero-2w-kernel-SHA256SUMS"
+          copy_asset "$rpi_kernel_dir/inventory.json" "$release_assets/$prefix-raspberry-pi-zero-2w-kernel-inventory.json"
+          copy_asset "$rpi_kernel_dir/provenance.json" "$release_assets/$prefix-raspberry-pi-zero-2w-kernel-provenance.json"
+          (cd "$release_assets" && sha256sum -c SHA256SUMS-windows.txt && sha256sum -c SHA256SUMS-macos.txt && sha256sum -c SHA256SUMS-ubuntu.txt && sha256sum -c SHA256SUMS-pi.txt && sha256sum -c SHA256SUMS-raspberry-pi-zero-2w-device.txt && sha256sum -c SHA256SUMS-orange-pi-zero-2w.txt && sha256sum -c SHA256SUMS-orange-pi-zero-2w-device.txt && sha256sum -c "$prefix-raspberry-pi-zero-2w-kernel-SHA256SUMS")
+          (cd "$release_assets" && sha256sum -c "$prefix-orange-pi-zero-2w.img.xz.sha256")
+          sudo bash tools/armbian-image/verify-orange-image.sh \
+            --image "$release_assets/$prefix-orange-pi-zero-2w.img.xz" \
+            --linux-image "$release_assets/$orange_kernel_image" \
+            --linux-dtb "$release_assets/$orange_kernel_dtb" \
+            --evidence "$release_assets/octessera-orange-kernel-evidence.env" \
+            --provenance "$release_assets/octessera-orange-kernel-provenance.txt" \
+            --image-provenance "$release_assets/octessera-orange-image-provenance.txt" \
+            --mode production
+          for runtime_dir in gathered-runtime/raspberry gathered-runtime/orange; do
+            mapfile -t runtime_entries < <(find "$runtime_dir" -mindepth 1 -maxdepth 1 -type f -printf '%f\n' | sort)
+            [[ "${#runtime_entries[@]}" == 3 && "${runtime_entries[*]}" == 'SHA256SUMS octessera-pi octessera-runtime.json' ]] || { echo "Runtime bundle entries are not exact: $runtime_dir" >&2; exit 1; }
+            (cd "$runtime_dir" && sha256sum -c SHA256SUMS)
+          done
+          python3 tools/pi-kernel/validate-rpi-kernel-package.py \
+            "$release_assets/$rpi_kernel_package" \
+            --manifest tools/kernel-patches/orange-midi-interface-manifest.json \
+            --checksum-file "$release_assets/$prefix-raspberry-pi-zero-2w-kernel-SHA256SUMS" \
+            --provenance-in "$release_assets/$prefix-raspberry-pi-zero-2w-kernel-provenance.json"
+          python3 - "$release_assets" "$prefix" "$rpi_kernel_package" <<'PY'
+          import json
+          import pathlib
+          import sys
 
-      - name: Upload assets to GitHub release
+          root = pathlib.Path(sys.argv[1])
+          prefix = sys.argv[2]
+          package = sys.argv[3]
+          inventory = json.loads((root / f"{prefix}-raspberry-pi-zero-2w-kernel-inventory.json").read_text())
+          provenance = json.loads((root / f"{prefix}-raspberry-pi-zero-2w-kernel-provenance.json").read_text())
+          if {key: value for key, value in provenance.items() if key != "build"} != inventory:
+              raise SystemExit("Raspberry inventory and provenance chain differ")
+          if inventory["package"]["path"] != package:
+              raise SystemExit("Raspberry kernel inventory package path changed")
+          PY
+          python3 - "$release_assets" "$prefix" "$orange_kernel_image" "$orange_kernel_dtb" "$RELEASE_SOURCE_SHA" <<'PY'
+          import hashlib
+          import pathlib
+          import sys
+
+          root = pathlib.Path(sys.argv[1])
+          prefix, image_package, dtb_package, source_sha = sys.argv[2:]
+          evidence = (root / "octessera-orange-kernel-evidence.env").read_text().splitlines()
+          values = dict(line.split("=", 1) for line in evidence)
+          provenance = (root / "octessera-orange-kernel-provenance.txt").read_text().splitlines()
+          facts = dict(line.split("=", 1) for line in provenance if "=" in line)
+          native_pairs = (
+              (values["image_package_native_basename"], image_package),
+              (values["dtb_package_native_basename"], dtb_package),
+          )
+          for native_name, canonical_name in native_pairs:
+              native_prefix = canonical_name.removesuffix(".deb") + "__"
+              if not native_name.startswith(native_prefix) or not native_name.endswith(".deb"):
+                  raise SystemExit("Orange native package name is not derived from its canonical handoff name")
+          for key, filename in (("image_package_sha256", image_package), ("dtb_package_sha256", dtb_package)):
+              if values[key] != hashlib.sha256((root / filename).read_bytes()).hexdigest():
+                  raise SystemExit(f"Orange provenance hash mismatch: {filename}")
+          if facts.get("image_package") != image_package or facts.get("dtb_package") != dtb_package:
+              raise SystemExit("Orange provenance canonical package chain is incomplete")
+          evidence_hash = hashlib.sha256((root / "octessera-orange-kernel-evidence.env").read_bytes()).hexdigest()
+          if facts.get("evidence_sha256") != evidence_hash or facts.get("armbian_build_ref") != "fa7a7b2294d9e760a77630950afd460b7a0b2a26" or facts.get("github_source_sha") != source_sha or facts.get("kernel_source_remote_url") != "https://github.com/torvalds/linux.git":
+              raise SystemExit("Orange provenance evidence or build pin is not bound")
+          PY
+          python3 - "$RELEASE_VERSION" gathered-runtime/raspberry gathered-runtime/orange "$root/octessera-raspberry-device-release-assets/$prefix-raspberry-pi-zero-2w-device-aarch64.zip" "$root/octessera-orange-device-release-assets/$prefix-orange-pi-zero-2w-standalone-manual-aarch64.zip" <<'PY'
+          import hashlib
+          import json
+          import pathlib
+          import sys
+          import tempfile
+          import zipfile
+
+          version, raspberry_dir, orange_dir, raspberry_zip, orange_zip = sys.argv[1:]
+          for profile, bundle_dir, zip_path in (("raspberry-pi-zero-2w", raspberry_dir, raspberry_zip), ("orange-pi-zero-2w", orange_dir, orange_zip)):
+              bundle = pathlib.Path(bundle_dir)
+              metadata = json.loads((bundle / "octessera-runtime.json").read_text())
+              if set(metadata) != {"artifact_kind", "binary_sha256", "name", "profile", "runtime_ready", "version"} or metadata["artifact_kind"] != "production-runtime" or metadata["name"] != "octessera-pi" or metadata["runtime_ready"] is not True or metadata["profile"] != profile or metadata["version"] != version:
+                  raise SystemExit(f"{profile} runtime metadata is not exact")
+              with tempfile.TemporaryDirectory() as temporary:
+                  with zipfile.ZipFile(zip_path) as archive:
+                      archive.extractall(temporary)
+                  extracted = pathlib.Path(temporary)
+                  if (extracted / "octessera-pi").read_bytes() != (bundle / "octessera-pi").read_bytes():
+                      raise SystemExit(f"{profile} device ZIP does not reuse the runtime bytes")
+                  if (extracted / "octessera-runtime.json").read_bytes() != (bundle / "octessera-runtime.json").read_bytes() or (extracted / "SHA256SUMS").read_bytes() != (bundle / "SHA256SUMS").read_bytes():
+                      raise SystemExit(f"{profile} device ZIP does not reuse the runtime metadata/checksum")
+                  if hashlib.sha256((extracted / "octessera-pi").read_bytes()).hexdigest() != metadata["binary_sha256"]:
+                      raise SystemExit(f"{profile} device ZIP binary hash is not bound")
+                  manifest = json.loads((extracted / "octessera-device-release.json").read_text())
+                  if profile == "orange-pi-zero-2w":
+                      if manifest.get("updater_supported") is not False or "updater_protocol" in manifest or manifest.get("candidate_health_protocol") != 1 or manifest.get("distribution") != "standalone-manual":
+                          raise SystemExit("Orange standalone device metadata claims unsupported updater behavior")
+          PY
+          expected_count=27
+          mapfile -t final_files < <(find "$release_assets" -mindepth 1 -maxdepth 1 -type f -printf '%f\n' | sort)
+          [[ "${#final_files[@]}" == "$expected_count" ]] || { echo "Unexpected final release asset count: ${#final_files[@]} (expected $expected_count)." >&2; exit 1; }
+      - name: Revalidate exact draft immediately before upload
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ needs.release_info.outputs.tag }}" gathered-release-assets/* --clobber --repo "$GITHUB_REPOSITORY"
+          EXPECTED_RELEASE_ID: ${{ needs.release_info.outputs.release_id }}
+          EXPECTED_RELEASE_TAG: ${{ needs.release_info.outputs.tag }}
+          EXPECTED_SOURCE_SHA: ${{ needs.release_info.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$EXPECTED_RELEASE_TAG")"
+          [[ "$(jq -r '.id' <<< "$release_json")" == "$EXPECTED_RELEASE_ID" ]] || { echo 'Release ID changed before upload.' >&2; exit 1; }
+          [[ "$(jq -r '.tag_name' <<< "$release_json")" == "$EXPECTED_RELEASE_TAG" ]] || { echo 'Release tag changed before upload.' >&2; exit 1; }
+          [[ "$(jq -r '.draft' <<< "$release_json")" == true ]] || { echo 'Release is no longer a draft before upload.' >&2; exit 1; }
+          [[ "$(jq -r '.assets | length' <<< "$release_json")" == 0 ]] || { echo 'Release already has assets before upload.' >&2; exit 1; }
+          tag_ref="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$EXPECTED_RELEASE_TAG")"
+          tag_type="$(jq -r '.object.type' <<< "$tag_ref")"
+          tag_object="$(jq -r '.object.sha' <<< "$tag_ref")"
+          if [[ "$tag_type" == tag ]]; then
+            tag_object="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$tag_object" --jq '.object.sha')"
+          fi
+          [[ "$tag_object" == "$EXPECTED_SOURCE_SHA" && "$(git rev-parse HEAD)" == "$EXPECTED_SOURCE_SHA" ]] || { echo 'Release tag/source SHA changed before upload.' >&2; exit 1; }
+      - name: Upload assets without collision hiding
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ needs.release_info.outputs.tag }}" release-assets/* --repo "$GITHUB_REPOSITORY"
+      - name: Revalidate uploaded asset set immediately before publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXPECTED_RELEASE_ID: ${{ needs.release_info.outputs.release_id }}
+          EXPECTED_RELEASE_TAG: ${{ needs.release_info.outputs.tag }}
+          EXPECTED_SOURCE_SHA: ${{ needs.release_info.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$EXPECTED_RELEASE_TAG")"
+          [[ "$(jq -r '.id' <<< "$release_json")" == "$EXPECTED_RELEASE_ID" ]] || { echo 'Release ID changed before publish.' >&2; exit 1; }
+          [[ "$(jq -r '.tag_name' <<< "$release_json")" == "$EXPECTED_RELEASE_TAG" && "$(jq -r '.draft' <<< "$release_json")" == true ]] || { echo 'Release tag/draft state changed before publish.' >&2; exit 1; }
+          tag_ref="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$EXPECTED_RELEASE_TAG")"
+          tag_type="$(jq -r '.object.type' <<< "$tag_ref")"
+          tag_object="$(jq -r '.object.sha' <<< "$tag_ref")"
+          if [[ "$tag_type" == tag ]]; then
+            tag_object="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$tag_object" --jq '.object.sha')"
+          fi
+          [[ "$tag_object" == "$EXPECTED_SOURCE_SHA" && "$(git rev-parse HEAD)" == "$EXPECTED_SOURCE_SHA" ]] || { echo 'Release tag/source SHA changed before publish.' >&2; exit 1; }
+          mapfile -t expected_assets < <(find release-assets -mindepth 1 -maxdepth 1 -type f -printf '%f\n' | sort)
+          mapfile -t uploaded_assets < <(jq -r '.assets[].name' <<< "$release_json" | sort)
+          [[ "${#uploaded_assets[@]}" == "${#expected_assets[@]}" && "${uploaded_assets[*]}" == "${expected_assets[*]}" ]] || { echo 'Uploaded release asset names/count do not match the verified set.' >&2; exit 1; }
+      - name: Publish the verified draft release last
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "${{ needs.release_info.outputs.tag }}" --draft=false --repo "$GITHUB_REPOSITORY"

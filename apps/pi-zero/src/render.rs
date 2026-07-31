@@ -4,17 +4,21 @@ use platform_core::palette;
 use playback_runtime::RuntimeUiPulse;
 use serde_json::Value;
 use std::sync::mpsc::Sender;
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+use std::thread;
 use std::time::{Duration, Instant};
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) mod hdmi;
 mod oled;
+mod oled_output;
 mod sleep_leds;
 
 pub(crate) use oled::OLED_FRAME_BYTES;
 #[cfg(test)]
-use oled::{glyph_rows, oled_frame};
-use oled::{oled_frame_into, oled_signature};
+use oled::{glyph_rows, oled_frame, oled_frame_into, oled_signature};
+pub(crate) use oled_output::retry_oled_if_due;
+use oled_output::{render_oled, render_oled_if_changed};
 use sleep_leds::{SleepLedAnimation, SleepLedFrames};
 
 const SPLASH_BOOT: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/splash_boot.rgb565"));
@@ -22,6 +26,16 @@ const SPLASH_SLEEP_SHUTDOWN: &[u8] =
     include_bytes!(concat!(env!("OUT_DIR"), "/splash_sleep_shutdown.rgb565"));
 const SLEEP_DIM_SCALE: f32 = 0.08;
 const MIN_SLEEP_DIM_SCALE: f32 = 0.04;
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+const BOOT_SWEEP_FRAMES: usize = 24;
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+const BOOT_SWEEP_FRAME_TIME: Duration = Duration::from_millis(1000 / BOOT_SWEEP_FRAMES as u64);
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+const BOOT_SWEEP_BAND_WIDTH: i32 = 8;
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+const BOOT_SWEEP_LEAN: i32 = 1;
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+const BOOT_SWEEP_COLORS: [u16; 4] = [0x07FF, 0xFFE0, 0x07E0, 0xF81F];
 
 pub struct HardwareRenderTargets {
     pub oled: OledSsd1351,
@@ -35,7 +49,12 @@ pub struct HardwareRenderCache {
     neokey_colors: Option<[[u8; 3]; 4]>,
     sleep_leds: SleepLedAnimation,
     oled_signature: u64,
+    oled_rendered: bool,
     oled_frame: Vec<u8>,
+    oled_retry_at: Option<Instant>,
+    oled_retry_signature: Option<u64>,
+    oled_retry_snapshot: Option<Value>,
+    oled_error_log_at: Option<Instant>,
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     hdmi_signature: u64,
     event_dot_until: Option<Instant>,
@@ -50,7 +69,12 @@ impl HardwareRenderCache {
             neokey_colors: None,
             sleep_leds: SleepLedAnimation::new(),
             oled_signature: 0,
+            oled_rendered: false,
             oled_frame: vec![0_u8; OLED_FRAME_BYTES],
+            oled_retry_at: None,
+            oled_retry_signature: None,
+            oled_retry_snapshot: None,
+            oled_error_log_at: None,
             #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
             hdmi_signature: 0,
             event_dot_until: None,
@@ -133,11 +157,8 @@ pub fn render_snapshot_cached(
         None
     };
 
-    let signature = oled_signature(snapshot);
-    if cache.oled_signature != signature {
-        cache.oled_signature = signature;
-        render_oled(&mut targets.oled, snapshot, &mut cache.oled_frame);
-    }
+    let oled_retry_deadline =
+        render_oled_if_changed(&mut targets.oled, snapshot, cache, Instant::now());
 
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     let mut hdmi_failed = false;
@@ -156,10 +177,18 @@ pub fn render_snapshot_cached(
     if hdmi_failed {
         targets.hdmi = None;
     }
-    animation_deadline
+    next_deadline(animation_deadline, oled_retry_deadline)
 }
 
 impl HardwareRenderCache {
+    pub(crate) fn has_rendered_oled(&self) -> bool {
+        self.oled_rendered
+    }
+
+    pub(super) fn mark_oled_rendered(&mut self) {
+        self.oled_rendered = true;
+    }
+
     fn clear_sleep_animation(&mut self) {
         self.sleep_leds.stop();
         self.led_frame = None;
@@ -336,35 +365,59 @@ pub fn neokey_colors(snapshot: &Value) -> [[u8; 3]; 4] {
     [back, space, shift, func]
 }
 
-fn render_oled(oled: &mut OledSsd1351, snapshot: &Value, frame: &mut [u8]) {
-    let off = snapshot_display_off(snapshot);
-    if !off {
-        let _ = oled.display_on();
-    }
-    oled_frame_into(snapshot, frame);
-    let _ = oled.write_frame(frame);
-    if off {
-        let _ = oled.display_off();
+pub(crate) fn next_deadline(first: Option<Instant>, second: Option<Instant>) -> Option<Instant> {
+    match (first, second) {
+        (Some(first), Some(second)) => Some(first.min(second)),
+        (Some(deadline), None) | (None, Some(deadline)) => Some(deadline),
+        (None, None) => None,
     }
 }
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub fn render_boot_splash(oled: &mut OledSsd1351) {
     let _ = oled.display_on();
-    let snapshot = serde_json::json!({
-        "display": {
-            "off": false,
-            "splash": "startup",
-            "toast": ""
-        },
-        "settings": { "displayBrightness": 100 }
-    });
-    let mut frame = vec![0_u8; OLED_FRAME_BYTES];
-    render_oled(oled, &snapshot, &mut frame);
+    for frame_index in 0..BOOT_SWEEP_FRAMES {
+        let frame = boot_sweep_frame(frame_index);
+        if let Err(error) = oled.write_frame(&frame) {
+            eprintln!("pi OLED boot splash render failed: {error}");
+            return;
+        }
+        thread::sleep(BOOT_SWEEP_FRAME_TIME);
+    }
+}
+
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+fn boot_sweep_frame(frame_index: usize) -> Vec<u8> {
+    boot_sweep_frame_from(SPLASH_BOOT, frame_index)
+}
+
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+fn boot_sweep_frame_from(source: &[u8], frame_index: usize) -> Vec<u8> {
+    let mut frame = source.to_vec();
+    let travel = 128 + (BOOT_SWEEP_BAND_WIDTH * 2);
+    let phase = (frame_index as i32 * travel / BOOT_SWEEP_FRAMES as i32) - BOOT_SWEEP_BAND_WIDTH;
+    for y in 0..128_i32 {
+        for x in 0..128_i32 {
+            let distance = x - (phase + y * BOOT_SWEEP_LEAN / 32);
+            if (0..BOOT_SWEEP_BAND_WIDTH).contains(&distance)
+                && rgb565_at(&frame, x as usize, y as usize) == 0xFFFF
+            {
+                let color = BOOT_SWEEP_COLORS[((distance / 2) as usize) % BOOT_SWEEP_COLORS.len()];
+                let offset = (y as usize * 128 + x as usize) * 2;
+                frame[offset..offset + 2].copy_from_slice(&color.to_be_bytes());
+            }
+        }
+    }
+    frame
+}
+
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+fn rgb565_at(frame: &[u8], x: usize, y: usize) -> u16 {
+    let offset = (y * 128 + x) * 2;
+    u16::from_be_bytes([frame[offset], frame[offset + 1]])
 }
 
 pub fn render_shutdown_splash(oled: &mut OledSsd1351) {
-    let _ = oled.display_on();
     let snapshot = serde_json::json!({
         "display": {
             "off": false,
@@ -374,7 +427,9 @@ pub fn render_shutdown_splash(oled: &mut OledSsd1351) {
         "settings": { "displayBrightness": 100 }
     });
     let mut frame = vec![0_u8; OLED_FRAME_BYTES];
-    render_oled(oled, &snapshot, &mut frame);
+    if let Err(error) = render_oled(oled, &snapshot, &mut frame) {
+        eprintln!("pi OLED shutdown splash render failed: {error}");
+    }
 }
 
 fn snapshot_display_off(snapshot: &Value) -> bool {
@@ -425,5 +480,11 @@ pub(super) fn rgb565(rgb: [u8; 3]) -> u16 {
     ((u16::from(rgb[0]) & 0xF8) << 8) | ((u16::from(rgb[1]) & 0xFC) << 3) | (u16::from(rgb[2]) >> 3)
 }
 
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[path = "render/boot_sweep_tests.rs"]
+mod boot_sweep_tests;
+#[cfg(test)]
+#[path = "render/oled_error_tests.rs"]
+mod oled_error_tests;
 #[cfg(test)]
 mod tests;

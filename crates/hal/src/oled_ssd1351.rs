@@ -58,13 +58,29 @@ const CMD_SET_MUX_RATIO: u8 = 0xCA;
 const CMD_SET_COMMAND_LOCK: u8 = 0xFD;
 #[cfg(feature = "rpi-zero-2w")]
 const SPI_CHUNK_BYTES: usize = 4096;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(
+    feature = "rpi-zero-2w",
+    all(feature = "orange-pi-zero-2w", target_os = "linux"),
+    all(test, any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))
+))]
 const WIDTH: usize = 128;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(
+    feature = "rpi-zero-2w",
+    all(feature = "orange-pi-zero-2w", target_os = "linux"),
+    all(test, any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))
+))]
 const HEIGHT: usize = 128;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(
+    feature = "rpi-zero-2w",
+    all(feature = "orange-pi-zero-2w", target_os = "linux"),
+    all(test, any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))
+))]
 const BYTES_PER_PIXEL: usize = 2;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(
+    feature = "rpi-zero-2w",
+    all(feature = "orange-pi-zero-2w", target_os = "linux"),
+    all(test, any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))
+))]
 const FRAME_BYTES: usize = WIDTH * HEIGHT * BYTES_PER_PIXEL;
 
 /// OLED display driver
@@ -79,6 +95,7 @@ pub struct OledSsd1351 {
 #[cfg(all(feature = "orange-pi-zero-2w", target_os = "linux"))]
 pub struct OledSsd1351 {
     transport: crate::orange_hardware::OrangeOledTransport,
+    rotated_frame: Vec<u8>,
 }
 
 #[cfg(feature = "rpi-zero-2w")]
@@ -215,7 +232,11 @@ impl OledSsd1351 {
     }
 }
 
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(any(
+    feature = "rpi-zero-2w",
+    all(feature = "orange-pi-zero-2w", target_os = "linux"),
+    all(test, any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))
+))]
 fn rotate_clockwise_rgb565<'a>(pixels: &'a [u8], rotated: &'a mut [u8]) -> &'a [u8] {
     if pixels.len() != FRAME_BYTES || rotated.len() != FRAME_BYTES {
         return pixels;
@@ -229,6 +250,40 @@ fn rotate_clockwise_rgb565<'a>(pixels: &'a [u8], rotated: &'a mut [u8]) -> &'a [
         }
     }
     rotated
+}
+
+#[cfg(all(test, any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w")))]
+mod tests {
+    use super::{rotate_clockwise_rgb565, FRAME_BYTES, HEIGHT, WIDTH};
+
+    fn set_pixel(frame: &mut [u8], x: usize, y: usize, bytes: [u8; 2]) {
+        let offset = (y * WIDTH + x) * 2;
+        frame[offset..offset + 2].copy_from_slice(&bytes);
+    }
+
+    fn pixel(frame: &[u8], x: usize, y: usize) -> [u8; 2] {
+        let offset = (y * WIDTH + x) * 2;
+        [frame[offset], frame[offset + 1]]
+    }
+
+    #[test]
+    fn clockwise_rotation_preserves_asymmetric_rgb565_corner_pairs() {
+        let mut source = vec![0_u8; FRAME_BYTES];
+        set_pixel(&mut source, 0, 0, [0x12, 0x34]);
+        set_pixel(&mut source, WIDTH - 1, 0, [0x56, 0x78]);
+        set_pixel(&mut source, 0, HEIGHT - 1, [0x9A, 0xBC]);
+        set_pixel(&mut source, WIDTH - 1, HEIGHT - 1, [0xDE, 0xF0]);
+        set_pixel(&mut source, 3, 11, [0x45, 0x67]);
+        let mut rotated = vec![0_u8; FRAME_BYTES];
+
+        rotate_clockwise_rgb565(&source, &mut rotated);
+
+        assert_eq!(pixel(&rotated, WIDTH - 1, 0), [0x12, 0x34]);
+        assert_eq!(pixel(&rotated, WIDTH - 1, HEIGHT - 1), [0x56, 0x78]);
+        assert_eq!(pixel(&rotated, 0, 0), [0x9A, 0xBC]);
+        assert_eq!(pixel(&rotated, 0, HEIGHT - 1), [0xDE, 0xF0]);
+        assert_eq!(pixel(&rotated, HEIGHT - 1 - 11, 3), [0x45, 0x67]);
+    }
 }
 
 #[cfg(feature = "rpi-zero-2w")]
@@ -263,11 +318,13 @@ impl OledSsd1351 {
     pub fn new() -> Result<Self, String> {
         Ok(Self {
             transport: crate::orange_hardware::OrangeHardware::open()?.into_oled(),
+            rotated_frame: vec![0_u8; FRAME_BYTES],
         })
     }
 
     pub fn write_frame(&mut self, pixels: &[u8]) -> Result<(), String> {
-        self.transport.write_frame(pixels)
+        let frame = rotate_clockwise_rgb565(pixels, &mut self.rotated_frame);
+        self.transport.write_frame(frame)
     }
 
     pub fn display_all_on(&mut self) -> Result<(), String> {

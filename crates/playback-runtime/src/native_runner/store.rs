@@ -1,9 +1,9 @@
 use crate::native_menu::NativeMenuAction;
-use crate::protocol::{RuntimePlatformEffect, RuntimeStoreResult};
+use crate::protocol::{RuntimeErrorFacts, RuntimePlatformEffect, RuntimeStoreResult};
 
 use super::{
     clean_preset_name, native_factory_payload, wrap_help_text, NativeConfirmDialog, NativeRunner,
-    NativeSampleBrowser, NativeToast,
+    NativeRuntimeErrorPresentation, NativeSampleBrowser, NativeToast,
 };
 
 impl NativeRunner {
@@ -303,6 +303,7 @@ impl NativeRunner {
             RuntimeStoreResult::RuntimeFailure { error }
                 if error.operation == crate::RuntimeOperation::SystemInfo =>
             {
+                self.display.runtime_error_presentation = None;
                 if let Some(modal) = self.display.system_info_modal.as_mut() {
                     Self::set_system_info_error(
                         modal,
@@ -316,6 +317,17 @@ impl NativeRunner {
                     modal.scroll = 0;
                 }
             }
+            RuntimeStoreResult::RuntimeFailure { error } => {
+                self.display.runtime_error_presentation = None;
+                if midi_input_list_failure(&error) {
+                    self.display.runtime_error_presentation =
+                        Some(NativeRuntimeErrorPresentation {
+                            title: "MIDI INPUTS".into(),
+                            lines: vec!["MIDI unavailable".into()],
+                        });
+                    self.show_toast("MIDI unavailable");
+                }
+            }
             RuntimeStoreResult::ListPresetsResult { names } => {
                 self.preset_names = names;
                 self.menu.rebuild(self.menu_config());
@@ -326,6 +338,7 @@ impl NativeRunner {
             }
             RuntimeStoreResult::MidiListInputsResult { inputs } => {
                 self.midi_inputs = inputs;
+                self.display.runtime_error_presentation = None;
                 self.menu.rebuild(self.menu_config());
             }
             RuntimeStoreResult::MidiStatus {
@@ -399,6 +412,12 @@ impl NativeRunner {
                 && browser.dir == dir
         })
     }
+}
+
+fn midi_input_list_failure(error: &RuntimeErrorFacts) -> bool {
+    error.domain == crate::RuntimeErrorDomain::Midi
+        && error.code == crate::RuntimeErrorCode::OperationFailed
+        && error.operation == crate::RuntimeOperation::MidiListInputs
 }
 
 #[cfg(test)]

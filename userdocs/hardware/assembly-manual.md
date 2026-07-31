@@ -49,7 +49,7 @@ Note that there are a lot of parts that fit snugly into each other and into the 
 
 | Qty | Item | File/spec | Notes |
 |---:|---|---|---|
-| 1 | Enclosure top | `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery.stl` | Generated from CadQuery. STEP file is also checked in. |
+| 1 | Enclosure top | `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery_raspberry-pi-zero-2w.stl` | Generated from CadQuery. STEP file is also checked in. |
 | 1 | Enclosure bottom | `../../release-artifacts/enclosure/stl/case_bottom_plate_cadquery.stl` | Current bottom plate with guide walls and screw holes. |
 | 1 | Main encoder knob | Print `../../release-artifacts/enclosure/stl/encoder_cap_main_knurled_dots.stl` or use `../../release-artifacts/enclosure/3mf-multicolor/encoder_cap_main_knurled_dots_multicolor_flush.3mf` | Main encoder cap. Printed version uses the dot-ring marking. |
 | 3 | Aux encoder knobs | Print `../../release-artifacts/enclosure/stl/encoder_cap_aux*_ribbed_dot*.stl` or use matching `../../release-artifacts/enclosure/3mf-multicolor/encoder_cap_aux*_multicolor_flush.3mf` | Aux 1/2/3 caps. Printed versions use one, two, and three dots. |

@@ -166,6 +166,25 @@ fn prepared_control_path_does_not_allocate_while_refilling() {
 
 #[test]
 fn capability_audio_defaults_enable_high_headroom_mode() {
-    assert_eq!(audio_block_frames(), DEFAULT_AUDIO_BLOCK_FRAMES);
+    assert_eq!(
+        audio_block_frames(DEFAULT_AUDIO_BLOCK_FRAMES),
+        DEFAULT_AUDIO_BLOCK_FRAMES
+    );
     assert_eq!(synth_slot_worker_count(), Some(DEFAULT_SYNTH_SLOT_WORKERS));
+}
+
+#[test]
+fn explicit_subthreshold_block_size_does_not_create_synth_workers() {
+    let (_tx, rx) = event_queue();
+    let source = EngineSource::with_block_frames(rx, 44_100, 64);
+
+    assert_eq!(source.block_frames, 64);
+    assert!(!source.engine.synth_slot_parallelism_enabled());
+}
+
+#[test]
+fn explicit_block_size_respects_audio_block_override_parser() {
+    assert_eq!(resolve_audio_block_frames(Some("128"), 64), 128);
+    assert_eq!(resolve_audio_block_frames(Some("invalid"), 64), 64);
+    assert_eq!(resolve_audio_block_frames(Some("1"), 64), 32);
 }

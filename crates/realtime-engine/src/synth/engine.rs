@@ -249,6 +249,10 @@ impl SynthEngine {
         self.synth_workers.is_some()
     }
 
+    pub fn synth_slot_parallelism_enabled(&self) -> bool {
+        self.synth_workers.is_some()
+    }
+
     #[cfg(test)]
     pub(in crate::synth) fn enable_synth_slot_workers_for_tests(&mut self, worker_count: usize) {
         assert!(self.set_synth_slot_parallelism_enabled(true, worker_count));

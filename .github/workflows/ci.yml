@@ -141,6 +141,8 @@ jobs:
         uses: Swatinem/rust-cache@v2.9.1
       - name: Run Rust tests (exclude platform audio apps)
         run: cargo test --workspace --exclude octessera-desktop --exclude rodio-engine-source
+      - name: Run vendored CPAL ALSA unit tests
+        run: bash tools/quality/test-vendored-cpal-alsa.sh
       - name: Detect parity-sensitive changes
         id: parity_changes
         if: github.event_name == 'pull_request'
@@ -274,13 +276,17 @@ jobs:
       - name: Validate Raspberry profile boundaries
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends device-tree-compiler shellcheck
-          bash -n tools/pi/board-profile.sh tools/pi/build-pi-cross-wsl.sh tools/pi/deploy-pi.sh tools/pi/provision/provision.sh
+          sudo apt-get install -y --no-install-recommends cpio device-tree-compiler initramfs-tools shellcheck
+          bash -n tools/pi/board-profile.sh tools/pi/build-pi-cross-wsl.sh tools/pi/deploy-pi.sh tools/pi/provision/provision.sh tools/orange-pi/input-routing-provision.sh tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget tools/pi-image/test-usb-gadget.sh
+          bash tools/pi/test-board-profile.sh
           python3 tools/pi-image/test-board-profile.py
           bash tools/armbian-image/validate.sh
-          shellcheck tools/orange-pi/opi-bringup-probe.sh tools/orange-pi/test-opi-bringup-probe.sh tools/orange-pi/opi-bringup-validator.sh tools/orange-pi/opi-bringup-identity-validator.sh tools/orange-pi/opi-bringup-hardware-validator.sh tools/orange-pi/orange-pi-usb-gadget.sh
+          bash tools/armbian-image/test-build-armbian-action.sh
+          python3 tools/kernel-patches/test-orange-midi-interface-source-gate.py
+          shellcheck tools/orange-pi/opi-bringup-probe.sh tools/orange-pi/test-opi-bringup-probe.sh tools/orange-pi/opi-bringup-validator.sh tools/orange-pi/opi-bringup-identity-validator.sh tools/orange-pi/opi-bringup-hardware-validator.sh tools/orange-pi/orange-pi-usb-gadget.sh tools/orange-pi/input-routing-provision.sh tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget tools/pi-image/test-usb-gadget.sh
           bash tools/orange-pi/test-opi-bringup-probe.sh
           bash tools/orange-pi/test-orange-pi-usb-gadget.sh
+          bash tools/pi-image/test-usb-gadget.sh
 
   board_profile_powershell:
     name: Board profile PowerShell checks
@@ -296,6 +302,7 @@ jobs:
         run: |
           ./tools/orange-pi/test-build-orange-cross.ps1
           ./tools/orange-pi/test-run-opi-bringup.ps1
+          ./tools/orange-pi/test-provision-input-routing.ps1
 
   updater_protocol:
     name: Device updater protocol checks
@@ -313,9 +320,10 @@ jobs:
       - name: Check updater shells and canonical copies
         run: |
           bash -n tools/device-update/octessera-update tools/device-update/octessera-update-guard tools/device-update/octessera-update-recovery tools/device-update/smoke-test.sh
-          bash -n tools/pi-image/stage4-octessera/01-copy-binary/00-run.sh tools/pi-image/stage4-octessera/02-setup-service/00-run.sh tools/pi-image/verify-sanitized-image.sh
+          bash -n tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh tools/pi-image/stage4-octessera/01-copy-binary/00-run.sh tools/pi-image/stage4-octessera/02-setup-service/00-run.sh tools/pi-image/test-wifi-foundation.sh tools/pi-image/verify-sanitized-image.sh
           bash -n tools/pi/provision/provision.sh tools/pi/deploy-pi.sh userpatches/customize-image.sh tools/armbian-image/validate.sh tools/armbian-image/inspect-built-image.sh
           shellcheck tools/device-update/*.sh
+          shellcheck tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh tools/pi-image/stage4-octessera/02-setup-service/00-run.sh tools/pi-image/test-wifi-foundation.sh tools/pi-image/verify-sanitized-image.sh userpatches/overlay/usr/local/sbin/octessera-wifi-foundation
           cmp tools/device-update/octessera-update tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-update
           cmp tools/device-update/octessera-update userpatches/overlay/usr/local/sbin/octessera-update
           cmp tools/device-update/octessera-update-guard tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-update-guard
@@ -324,6 +332,7 @@ jobs:
           cmp tools/device-update/octessera-update-recovery userpatches/overlay/usr/local/sbin/octessera-update-recovery
           ! grep -Eq 'octessera-update-(guard|recovery)' tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-update userpatches/overlay/etc/sudoers.d/octessera-update
           grep -q 'update-transaction.json' tools/pi/deploy-pi-fast.ps1
+          bash tools/pi-image/test-wifi-foundation.sh
       - name: Validate Linux sudoers and systemd layout
         run: |
           sudo visudo -cf tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-update

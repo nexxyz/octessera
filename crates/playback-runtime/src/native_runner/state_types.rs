@@ -60,6 +60,7 @@ pub(super) struct NativeDisplayState {
     pub(super) toast_expires_at: Option<Instant>,
     pub(super) aux_turn_toast_cooldown_until: Option<Instant>,
     pub(super) menu_scroll_offset: usize,
+    pub(super) runtime_error_presentation: Option<NativeRuntimeErrorPresentation>,
 }
 
 impl NativeDisplayState {
@@ -93,8 +94,15 @@ impl NativeDisplayState {
             toast_expires_at: None,
             aux_turn_toast_cooldown_until: None,
             menu_scroll_offset: 0,
+            runtime_error_presentation: None,
         }
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct NativeRuntimeErrorPresentation {
+    pub(super) title: String,
+    pub(super) lines: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -333,61 +341,6 @@ pub(super) struct NativeSparksFxAssignment {
     pub(super) x: usize,
     pub(super) y: usize,
     pub(super) config: Value,
-}
-
-impl Default for NativePulsesLayer {
-    fn default() -> Self {
-        Self {
-            scan_mode: "none".into(),
-            scan_axis: "columns".into(),
-            scan_unit: "1/16".into(),
-            scan_direction: "forward".into(),
-            scan_sections: 1,
-            scanned_slot: 0,
-            scanned_action: "note_on".into(),
-            scanned_empty_slot: usize::MAX,
-            scanned_empty_action: "none".into(),
-            scanned_timing: LinkEventTiming::default(),
-            scanned_empty_timing: LinkEventTiming::default(),
-            event_enabled: true,
-            activate_slot: 0,
-            activate_action: "note_on".into(),
-            activate_timing: LinkEventTiming::default(),
-            stable_slot: 0,
-            stable_action: "none".into(),
-            stable_timing: LinkEventTiming::default(),
-            deactivate_slot: 0,
-            deactivate_action: "note_off".into(),
-            deactivate_timing: LinkEventTiming::default(),
-            trigger_probability_mode: "full".into(),
-            trigger_probability_low_pct: 25,
-            trigger_probability_high_pct: 75,
-            state_notes_enabled: true,
-            lowest_note: 36,
-            highest_note: 74,
-            starting_note: 60,
-            scale: "major_pentatonic".into(),
-            root: "D".into(),
-            out_of_range: "clamp".into(),
-            x_pitch_enabled: true,
-            x_pitch_steps: 0,
-            x_pitch_restart_each_section: false,
-            y_pitch_enabled: true,
-            y_pitch_steps: 1,
-            y_pitch_restart_each_section: false,
-            x_from: 0,
-            x_to: 7,
-            x_velocity: NativeValueLane::velocity_default(),
-            x_filter_cutoff: NativeValueLane::filter_cutoff_default(),
-            x_filter_resonance: NativeValueLane::filter_resonance_default(),
-            y_from: 0,
-            y_to: 7,
-            y_velocity: NativeValueLane::velocity_default(),
-            y_filter_cutoff: NativeValueLane::filter_cutoff_default(),
-            y_filter_resonance: NativeValueLane::filter_resonance_default(),
-            arp: NativeLinkArp::default(),
-        }
-    }
 }
 
 impl Default for NativeLinkArp {

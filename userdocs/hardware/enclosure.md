@@ -32,12 +32,14 @@ python hardware/enclosure/validate_wave_roof.py
 
 It writes:
 
-- `../../release-artifacts/enclosure/step/case_top_two_level_cadquery.step`
-- `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery.stl`
-- `../../release-artifacts/enclosure/step/case_top_two_level_cadquery_orange_pi.step`
-- `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery_orange_pi.stl`
+- `../../release-artifacts/enclosure/step/case_top_two_level_cadquery_raspberry-pi-zero-2w.step`
+- `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery_raspberry-pi-zero-2w.stl`
+- `../../release-artifacts/enclosure/step/case_top_two_level_cadquery_orange-pi-zero-2w.step`
+- `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery_orange-pi-zero-2w.stl`
 
-The matching multicolor top 3MF files are `case_top_two_level_multicolor.3mf` for Raspberry Pi and `case_top_two_level_orange_pi_multicolor.3mf` for Orange Pi Zero 2W.
+Top enclosure artifact filenames include the full board name. In artifact shorthand, `rpi` means Raspberry Pi Zero 2 W and `opi` means Orange Pi Zero 2W; prefer full board names when space permits.
+
+The matching multicolor top 3MF files are `case_top_two_level_raspberry-pi-zero-2w_multicolor.3mf` for Raspberry Pi Zero 2 W and `case_top_two_level_orange-pi-zero-2w_multicolor.3mf` for Orange Pi Zero 2W.
 
 The script requires the enclosure Python dependencies:
 
@@ -107,7 +109,7 @@ Current enclosure notes from the parameter source:
 - No OLED top-edge / top-plate hole above the display
 - Case height reduced to `140 mm`; width remains `247 mm`
 - The checked-in release artifact is the current generated faceplate mesh:
-  `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery.stl`.
+  `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery_raspberry-pi-zero-2w.stl`.
 
 ## Source of Truth
 

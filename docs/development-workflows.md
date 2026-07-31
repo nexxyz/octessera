@@ -89,6 +89,9 @@ Release assets:
 - `octessera-<version>-raspberry-pi-zero-2w.rpi-imager-manifest`: standalone Raspberry Pi Imager manifest copy.
 - `octessera-<version>-raspberry-pi-zero-2w-device-aarch64.zip`: Raspberry Pi profile-qualified Linux aarch64 device update payload.
 - `SHA256SUMS-raspberry-pi-zero-2w-device.txt`: checksum for the Raspberry Pi device update payload.
+- `octessera-<version>-orange-pi-zero-2w.img.xz`: Orange Pi production Armbian image.
+- `octessera-<version>-orange-pi-zero-2w-standalone-manual-aarch64.zip`: Orange Pi production runtime bundle for manual installation.
+- `SHA256SUMS-orange-pi-zero-2w.txt` and `SHA256SUMS-orange-pi-zero-2w-device.txt`: checksums for the Orange image and manual runtime bundle.
 - `SHA256SUMS-*.txt`: checksums for the other release assets.
 
 Release process:
@@ -99,15 +102,40 @@ Release process:
 4. Commit and push the release-prep changes.
 5. Create a draft GitHub release such as `v0.5.0`.
 6. Run `Release Artifacts` manually with that existing tag, or publish the release to trigger it.
-7. Confirm the installer, portable EXE, macOS DMG, Ubuntu DEB/AppImage, Pi image zip, Pi Imager manifest, device update ZIP, and checksum files are attached before announcing the release.
+7. Confirm the installer, portable EXE, macOS DMG, Ubuntu DEB/AppImage,
+   Raspberry image and device assets, Orange production image and standalone
+   runtime bundle, kernel evidence, and checksum files are attached before
+   announcing the release.
 
-The Pi image build is a necessary slow path because it generates a full Raspberry Pi OS image through pi-gen. Keep it release-only.
+The Pi and Orange image builds are necessary slow paths because they generate
+full OS images through pi-gen and Armbian. Keep them release-only.
+
+Both fixed Pi image paths also install the inactive Wi-Fi foundation:
+`octessera-wifi-foundation` and `octessera-wifi-foundation.service`. It is a
+root-owned, Wi-Fi-only wrapper around the pinned `wifi-connect` arm64 asset,
+fixed to `wlan0` and `192.168.42.1`, with a bounded invocation. The service is
+deliberately not enabled and has no systemd wants symlink. It does not add
+menu/runtime behavior or serialize credentials.
 
 The release Pi image must be sanitized: no WiFi credentials, SSH keys, GitHub tokens, host logs, or local user secrets. SSH is disabled by default.
 
-Device updates use `/usr/local/sbin/octessera-update` on Pi-family images. Assets are profile-qualified: the Raspberry Pi updater fetches `octessera-<version>-raspberry-pi-zero-2w-device-aarch64.zip` with `SHA256SUMS-raspberry-pi-zero-2w-device.txt`, verifies the checksum and embedded board-profile manifest, and stages an immutable candidate under `/opt/octessera/releases/<version>`. Orange online update check/apply is refused before network access until a matching Orange Pi release ZIP and checksum asset exists; an Orange device must not consume Raspberry assets.
+Device updates use `/usr/local/sbin/octessera-update` on supported Raspberry Pi
+images. Assets are profile-qualified: the Raspberry Pi updater fetches
+`octessera-<version>-raspberry-pi-zero-2w-device-aarch64.zip` with
+`SHA256SUMS-raspberry-pi-zero-2w-device.txt`, verifies the checksum and embedded
+board-profile manifest, and stages an immutable candidate under
+`/opt/octessera/releases/<version>`. Orange update check, apply, rollback, and
+OTA remain unsupported in 0.7.5; Orange must not consume Raspberry assets or
+pretend that a manual image install is an OTA update.
 
-Apply and rollback use a guarded transaction. The guard verifies the candidate service restart, process identity, and a stability window; downloaded Apply candidates also require a matching package-version/profile readiness marker. If validation fails or times out, the updater restores the previous current link and starts a verified fallback automatically. It commits the candidate only after validation succeeds. `Apply` may return `Update health validation scheduled.` before that commit; this is a scheduling acknowledgement, not a claim that the update passed.
+On supported Raspberry installations, Apply and rollback use a guarded
+transaction. The guard verifies the candidate service restart, process identity,
+and a stability window; downloaded Apply candidates also require a matching
+package-version/profile readiness marker. If validation fails or times out, the
+updater restores the previous current link and starts a verified fallback
+automatically. It commits the candidate only after validation succeeds. `Apply`
+may return `Update health validation scheduled.` before that commit; this is a
+scheduling acknowledgement, not a claim that the update passed.
 
 Legacy installations without board-profile metadata are not eligible for new online releases. Provision or update the OS bundle to install the current profile metadata and updater, or reflash the device. The legacy updater must not apply new releases.
 
@@ -293,7 +321,7 @@ Provision a development Pi, or refresh its tracked OS and boot configuration, wi
 ./tools/pi/provision-pi.ps1 -Target pi@192.168.0.211 -BoardProfile raspberry-pi-zero-2w
 ```
 
-Preferred fast path: run `./tools/pi/build-pi-cross.ps1` to produce a Linux ARM binary, then upload it with `./tools/pi/deploy-pi-fast.ps1 -LocalBinary target/pi-cross/octessera-pi -NoTail`. The deployment helper only transfers binary/source content, restarts the configured service, and optionally tails its logs. On Windows, the build helper uses WSL2 Docker automatically when available. Native cross-builds are still supported with an ARM Linux sysroot and cross `pkg-config` setup for ALSA.
+Preferred fast path: run `./tools/pi/build-pi-cross.ps1` to produce a Linux ARM binary, then upload a Raspberry build with `./tools/pi/deploy-pi-fast.ps1 -LocalBinary target/pi-cross/octessera-pi -NoTail`. The cross-builder accepts exactly `raspberry-pi-zero-2w` (the default) and `orange-pi-zero-2w`, selecting the matching Cargo feature and adjacent metadata sidecar. The deployment helper only transfers Raspberry binary/source content, restarts the configured service, and optionally tails its logs. On Windows, the build helper uses WSL2 Docker automatically when available. Native cross-builds are still supported with an ARM Linux sysroot and cross `pkg-config` setup for ALSA.
 
 ```powershell
 ./tools/pi/build-pi-cross.ps1
@@ -315,7 +343,13 @@ CARGO_BUILD_JOBS=1 cargo build --profile pi-dev -p octessera-pi --features hardw
 
 ## Orange Pi Armbian Image
 
-`raspberry-pi-zero-2w` and `orange-pi-zero-2w` are the canonical board profile IDs. Raspberry Pi build, deploy, provision, and pi-gen image tooling accepts only the former and rejects the latter. Orange also has a foreground `runtime-candidate` composition for qualifying the real OLED/NeoTrellis/NeoKey UI and exact-DAC audio path; it is not a release, deploy, updater, or service path. Its native audio adapter uses the shared 44.1 kHz runtime rate and requires exactly one CPAL output device named `hw:CARD=octesseradac,DEV=0` with verified stereo support. There is no default or HDMI fallback; internal MIDI events are ignored and explicit MIDI platform actions remain typed unavailable.
+`raspberry-pi-zero-2w` and `orange-pi-zero-2w` are the only supported cross-build board profile IDs. The Raspberry default selects `hardware-raspberry-pi-zero-2w`; an Orange runtime binary can be built without contacting a board:
+
+```powershell
+./tools/pi/build-pi-cross.ps1 -BoardProfile orange-pi-zero-2w -Backend wsl-docker
+```
+
+That output declares `hardware-orange-pi-zero-2w` in its adjacent metadata sidecar. Raspberry deploy, provision, preflight, and pi-gen image tooling accepts only the Raspberry profile. The Orange production image uses the Armbian path and ships the native runtime as `octessera.service` under the locked `octessera-runtime` account. It supports the OLED, NeoTrellis, NeoKey, four encoders, persistent store, samples, MIDI, and the exact internal DAC at the shared 44.1 kHz rate. USB-only audio is rejected; `audioOut=both` may add UAC2, but `audioOut=usb` is unsupported. Readiness follows healthy audio, initialized control-surface devices, and the first rendered snapshot. FIFO priority 70 is granted through `LimitRTPRIO=70`; no `CAP_SYS_NICE` or ambient capability is added. Orange update check/apply/rollback and OTA remain unsupported.
 
 For a local Orange Pi cross-build, use the WSL Docker-only builder. It never
 contacts or deploys to a board, installs the aarch64 GNU linker/sysroot in its
@@ -330,13 +364,34 @@ ephemeral tool container, and writes checked artifacts under
 
 Cargo and rustup caches use persistent named Docker volumes; `-DryRun` prints
 the command without starting Docker. The builder accepts the two diagnostic
-smoke binaries and `octessera-pi` as a hash-bound `runtime-candidate` with
-`runtime_ready=false`; it rejects deployment/service-ready output. No artifact
-is run against the board by this helper.
+smoke binaries and a local Orange `octessera-pi` development binary. It does not
+produce the 0.7.5 production image or its `production-runtime` bundle; that
+bundle is built and hash-checked by the release workflow. No artifact is run
+against the board by this helper.
 
-The `Armbian Image` GitHub Actions workflow builds the Orange Pi diagnostic
-image. It installs setup and bus-validation infrastructure only; it does not
-install or enable `octessera.service` or an Orange runtime. Run validation first:
+The shared `build-armbian-image` action has an explicit `image_kind` input:
+`diagnostic` builds the separate bring-up image, while `production` requires the
+hash-bound Orange runtime bundle. The generic `Armbian Image` workflow uses
+diagnostic mode; the 0.7.5 release workflow invokes the action in production
+mode and builds `octessera-0.7.5-orange-pi-zero-2w.img.xz`. Diagnostic mode does
+not contain or enable `octessera.service`. Run validation first:
+
+The image path compiles and merges the separate
+`octessera-h618-input-routing` overlay against the exact boot-selected H618
+DTB. It clears `console=ttyS0`, masks `serial-getty@ttyS0.service`, clears the
+UART0 stdout path, and releases PH0/PH1 without changing SSH. For an existing
+board, the checked no-reboot provision/deploy wrapper is:
+
+```powershell
+.\tools\orange-pi\provision-input-routing.ps1 -Preflight
+.\tools\orange-pi\provision-input-routing.ps1 -Apply
+# after an operator-approved reboot, rerun -Preflight
+.\tools\orange-pi\provision-input-routing.ps1 -RollbackId <backup-id>
+```
+
+Apply records the exact DTB/overlay hashes, prior boot files, and serial-getty
+state under `/var/lib/octessera/input-routing-backups/<id>/`. It never reboots;
+rollback is explicit and also leaves reboot to the operator.
 
 Connected-hardware deepwork loops require fresh, explicit operator authorization
 immediately before every stateful board action: package or boot changes,
@@ -351,7 +406,7 @@ gh workflow run armbian-image.yml \
   -f kernel_branch=current \
   -f ui=minimal \
   -f compression=sha,img,xz \
-  -f extensions=preset-firstrun \
+  -f 'extensions=preset-firstrun octessera_midi octessera_image_sanitize' \
   -f run_build=false \
   -f artifact_mode=public-generic \
   -f armbian_build_ref=main
@@ -413,7 +468,7 @@ The wrapper stops `octessera.service` for live/audio/DSP modes and restarts it a
 For musical timing issues, inspect p99/p99.9/p99.99 and outlier counts, not only p95. Check recent logs after live probes:
 
 ```powershell
-ssh -i "$env:USERPROFILE\.ssh\octessera_pi_dev" -o IdentitiesOnly=yes pi@192.168.0.211 "journalctl -u octessera.service --since '10 minutes ago' --no-pager | grep -E 'realtime priority unavailable|audio stream error|underrun|POLLERR' || true"
+ssh -i "$env:USERPROFILE\.ssh\octessera_pi_dev" -o IdentitiesOnly=yes pi@192.168.0.211 "journalctl -u octessera.service --since '10 minutes ago' --no-pager | grep -E 'audio callback RT promotion not qualified|audio stream error|underrun|POLLERR' || true"
 ```
 
 Prefer offering a live probe when the report is subjective or audio-path-specific. Do not run long live probes by default for unrelated code changes.

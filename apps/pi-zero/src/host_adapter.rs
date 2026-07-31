@@ -1,7 +1,5 @@
 #[path = "host_adapter_construction.rs"]
 mod host_adapter_construction;
-#[path = "host_adapter_midi.rs"]
-mod host_adapter_midi;
 #[path = "host_adapter_store.rs"]
 mod host_adapter_store;
 #[path = "host_adapter_system_info.rs"]
@@ -10,9 +8,9 @@ mod host_adapter_system_info;
 use crate::audio::AudioService;
 use crate::audio_event::musical_event_to_engine_event;
 use crate::host_audio_command::send_audio_command;
+use crate::midi_host::MidiHost;
 use crate::platform_service::{PiPlatformService, PlatformJob, PlatformJobKind};
 use crate::usb_config::UsbAudioOut;
-use midir::{MidiInputConnection, MidiOutputConnection};
 use playback_runtime::{
     HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent, RuntimeAdapterError,
     RuntimeAudioCommand, RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult,
@@ -28,11 +26,7 @@ pub struct PiPlaybackHostAdapter {
     samples_dir: PathBuf,
     pub(crate) platform_service: PiPlatformService,
     pending_default_save: Option<(serde_json::Value, Instant, RuntimePlatformRequest)>,
-    midi_out: Option<MidiOutputConnection>,
-    midi_in: Option<MidiInputConnection<()>>,
-    midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
-    selected_midi_output_id: Option<String>,
-    selected_midi_input_id: Option<String>,
+    midi: MidiHost,
     usb_midi_out_enabled: bool,
     usb_audio_out: UsbAudioOut,
     power_request: Option<PiPowerRequest>,
@@ -277,12 +271,12 @@ impl HostAdapter for PiPlaybackHostAdapter {
             }
             RuntimePlatformEffect::MidiListOutputsRequest => {
                 RuntimeStoreResult::MidiListOutputsResult {
-                    outputs: Self::list_midi_outputs()?,
+                    outputs: self.midi.list_outputs()?,
                 }
             }
             RuntimePlatformEffect::MidiListInputsRequest => {
                 RuntimeStoreResult::MidiListInputsResult {
-                    inputs: Self::list_midi_inputs()?,
+                    inputs: self.midi.list_inputs()?,
                 }
             }
             RuntimePlatformEffect::SystemInfoRequest => {
@@ -292,21 +286,21 @@ impl HostAdapter for PiPlaybackHostAdapter {
                 ))
             }
             RuntimePlatformEffect::MidiSelectOutput { id } => {
-                let result = self.select_output(id.clone());
+                let result = self.midi.select_output(id.clone());
                 RuntimeStoreResult::MidiStatus {
                     ok: result.is_ok(),
                     message: result.err(),
-                    selected_out_id: self.selected_midi_output_id.clone(),
-                    selected_in_id: self.selected_midi_input_id.clone(),
+                    selected_out_id: self.midi.selected_output_id(),
+                    selected_in_id: self.midi.selected_input_id(),
                 }
             }
             RuntimePlatformEffect::MidiSelectInput { id } => {
-                let result = self.select_input(id.clone());
+                let result = self.midi.select_input(id.clone());
                 RuntimeStoreResult::MidiStatus {
                     ok: result.is_ok(),
                     message: result.err(),
-                    selected_out_id: self.selected_midi_output_id.clone(),
-                    selected_in_id: self.selected_midi_input_id.clone(),
+                    selected_out_id: self.midi.selected_output_id(),
+                    selected_in_id: self.midi.selected_input_id(),
                 }
             }
             RuntimePlatformEffect::MidiPanic => {
@@ -318,8 +312,8 @@ impl HostAdapter for PiPlaybackHostAdapter {
                 RuntimeStoreResult::MidiStatus {
                     ok: true,
                     message: Some("Panic sent".into()),
-                    selected_out_id: self.selected_midi_output_id.clone(),
-                    selected_in_id: self.selected_midi_input_id.clone(),
+                    selected_out_id: self.midi.selected_output_id(),
+                    selected_in_id: self.midi.selected_input_id(),
                 }
             }
             RuntimePlatformEffect::Reboot => {
@@ -418,10 +412,9 @@ impl HostAdapter for PiPlaybackHostAdapter {
         send_audio_command(self.audio.clone(), command, &self.samples_dir)
     }
     fn handle_midi_message(&mut self, bytes: &[u8]) -> Result<(), RuntimeAdapterError> {
-        let Some(conn) = self.midi_out.as_mut() else {
-            return Ok(());
-        };
-        Ok(conn.send(bytes).map_err(|e| e.to_string())?)
+        self.midi
+            .send(bytes)
+            .map_err(RuntimeAdapterError::operation_failed)
     }
 
     fn silence_internal_audio(&mut self) -> Result<(), RuntimeAdapterError> {
@@ -432,16 +425,9 @@ impl HostAdapter for PiPlaybackHostAdapter {
     }
 
     fn panic_external_midi(&mut self) -> Result<(), RuntimeAdapterError> {
-        let mut first_error = None;
-        for bytes in std::iter::once(vec![0xFC]).chain(
-            (0..16_u8)
-                .flat_map(|channel| [vec![0xB0 | channel, 120, 0], vec![0xB0 | channel, 123, 0]]),
-        ) {
-            if let Err(error) = self.handle_midi_message(&bytes) {
-                first_error.get_or_insert(error);
-            }
-        }
-        first_error.map_or(Ok(()), Err)
+        self.midi
+            .panic()
+            .map_err(RuntimeAdapterError::operation_failed)
     }
 }
 

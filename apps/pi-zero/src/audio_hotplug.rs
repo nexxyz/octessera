@@ -1,10 +1,8 @@
-#[cfg(any(not(feature = "hardware-orange-pi-zero-2w"), test))]
 use crate::audio::default_pi_instruments;
 use crate::audio::AudioSink;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use crate::usb_config::UsbAudioOut;
 use realtime_engine::synth::SampleBankConfig;
-#[cfg(any(not(feature = "hardware-orange-pi-zero-2w"), test))]
 use realtime_engine::synth::{prepare_instruments_config, DEFAULT_AUDIO_SAMPLE_RATE};
 use rodio_engine_source::{EngineEvent, EngineEventSender};
 use std::collections::BTreeMap;
@@ -17,10 +15,12 @@ pub(crate) struct SinkSender {
 
 #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) fn test_sink_sender(tx: EngineEventSender) -> SinkSender {
-    SinkSender {
-        sink: AudioSink::InternalDac,
-        tx,
-    }
+    test_sink_sender_for(AudioSink::InternalDac, tx)
+}
+
+#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+pub(crate) fn test_sink_sender_for(sink: AudioSink, tx: EngineEventSender) -> SinkSender {
+    SinkSender { sink, tx }
 }
 
 pub(crate) fn broadcast_event(
@@ -39,7 +39,7 @@ pub(crate) fn broadcast_event(
         }
     }
     guard.retain(|sink| !failed.contains(&sink.sink));
-    if failed.is_empty() {
+    if failed.is_empty() || !failed.iter().any(failed_sink_is_required) {
         Ok(())
     } else {
         Err(format!(
@@ -47,6 +47,18 @@ pub(crate) fn broadcast_event(
             failed,
             first_error.unwrap_or_else(|| "unknown queue failure".into())
         ))
+    }
+}
+
+fn failed_sink_is_required(sink: &AudioSink) -> bool {
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    {
+        *sink == AudioSink::InternalDac
+    }
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    {
+        let _ = sink;
+        true
     }
 }
 
@@ -61,21 +73,18 @@ pub(crate) fn register_sink(
     }
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) fn remove_sink(txs: &Arc<Mutex<Vec<SinkSender>>>, sink: AudioSink) {
     if let Ok(mut txs) = txs.lock() {
         txs.retain(|entry| entry.sink != sink);
     }
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) fn has_sink(txs: &Arc<Mutex<Vec<SinkSender>>>, sink: AudioSink) -> bool {
     txs.lock()
         .map(|txs| txs.iter().any(|entry| entry.sink == sink))
         .unwrap_or(false)
 }
 
-#[cfg(any(not(feature = "hardware-orange-pi-zero-2w"), test))]
 pub(crate) fn replay_to_sink(
     tx: &EngineEventSender,
     replay_events: &Arc<Mutex<ReplayCache>>,
@@ -144,7 +153,6 @@ impl ReplayCache {
         }
     }
 
-    #[cfg(any(not(feature = "hardware-orange-pi-zero-2w"), test))]
     fn events(&self) -> Vec<EngineEvent> {
         let mut events = vec![self.audio_config.clone().unwrap_or_else(|| {
             EngineEvent::SetPreparedInstruments(prepare_instruments_config(
@@ -277,6 +285,8 @@ mod tests {
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     use crate::audio::audio_sinks;
     use realtime_engine::synth::prepare_audio_config;
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    use rodio_engine_source::event_queue;
 
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     #[test]
@@ -408,5 +418,51 @@ mod tests {
                 volume_pct: Some(55.0),
             }
         )));
+    }
+
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[test]
+    fn orange_audio_fanout_and_replay_cover_a_late_uac_sink() {
+        let (dac_tx, mut dac_rx) = event_queue();
+        let (usb_tx, mut usb_rx) = event_queue();
+        let sinks = Arc::new(Mutex::new(Vec::new()));
+        register_sink(&sinks, AudioSink::InternalDac, dac_tx);
+        register_sink(&sinks, AudioSink::Usb, usb_tx);
+
+        let event = EngineEvent::SetMasterVolume { volume_pct: 72.0 };
+        broadcast_event(&sinks, event.clone()).unwrap();
+        assert!(
+            matches!(dac_rx.try_recv(), Ok(EngineEvent::SetMasterVolume { volume_pct }) if volume_pct == 72.0)
+        );
+        assert!(
+            matches!(usb_rx.try_recv(), Ok(EngineEvent::SetMasterVolume { volume_pct }) if volume_pct == 72.0)
+        );
+
+        let mut cache = ReplayCache::default();
+        cache.remember(&event);
+        let (late_tx, mut late_rx) = event_queue();
+        replay_to_sink(&late_tx, &Arc::new(Mutex::new(cache))).unwrap();
+        assert!(matches!(
+            late_rx.try_recv(),
+            Ok(EngineEvent::SetPreparedInstruments(_))
+        ));
+        assert!(
+            matches!(late_rx.try_recv(), Ok(EngineEvent::SetMasterVolume { volume_pct }) if volume_pct == 72.0)
+        );
+    }
+
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[test]
+    fn orange_uac_sink_loss_does_not_fail_required_dac_fanout() {
+        let (dac_tx, mut dac_rx) = event_queue();
+        let (usb_tx, usb_rx) = event_queue();
+        let sinks = Arc::new(Mutex::new(Vec::new()));
+        register_sink(&sinks, AudioSink::InternalDac, dac_tx);
+        register_sink(&sinks, AudioSink::Usb, usb_tx);
+        drop(usb_rx);
+
+        assert!(broadcast_event(&sinks, EngineEvent::AllNotesOff).is_ok());
+        assert!(matches!(dac_rx.try_recv(), Ok(EngineEvent::AllNotesOff)));
+        assert_eq!(sinks.lock().unwrap().len(), 1);
     }
 }

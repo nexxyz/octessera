@@ -6,3 +6,8 @@
 *.exe binary
 hardware/enclosure/*.step -text -diff
 hardware/enclosure/*.stl binary
+release-artifacts/enclosure/**/*.3mf binary
+release-artifacts/enclosure/**/*.step -text -diff
+release-artifacts/enclosure/**/*.stl binary
+third_party/cpal-0.15.3/** text eol=lf whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab
+userpatches/kernel/**/*.patch text eol=lf whitespace=-blank-at-eol,-space-before-tab

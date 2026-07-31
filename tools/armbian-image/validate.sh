@@ -2,11 +2,45 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+armbian_extensions_resolver="$root/tools/armbian-image/resolve-armbian-extensions.sh"
+image_sanitization_test="$root/tools/armbian-image/test-image-sanitization.sh"
+inspector_test="$root/tools/armbian-image/test-inspector.sh"
+image_sanitization_extension="$root/userpatches/extensions/octessera_image_sanitize.sh"
+alsa_sequencer_test="$root/tools/armbian-image/test-orange-alsa-sequencer.sh"
+alsa_sequencer_extension="$root/userpatches/extensions/octessera_midi.sh"
+alsa_sequencer_modules="$root/userpatches/overlay/etc/modules-load.d/octessera-orange-midi.conf"
+orange_kernel_package_test="$root/tools/armbian-image/test-orange-kernel-package.sh"
+orange_kernel_package_validator="$root/tools/armbian-image/validate-orange-kernel-package.sh"
+orange_image_proof_test="$root/tools/armbian-image/test-orange-image-proof.sh"
+orange_image_proof_verifier="$root/tools/armbian-image/verify-orange-image.sh"
+orange_image_mount_helper="$root/tools/armbian-image/orange_image_mount.py"
+orange_boot_selection_helper="$root/tools/armbian-image/orange_boot_selection.py"
+orange_image_proof_python="$root/tools/armbian-image/verify-orange-image.py"
+orange_image_proof_fixture="$root/tools/armbian-image/test-orange-image-proof.py"
+orange_boot_splash_test="$root/tools/armbian-image/test-orange-boot-splash-hook.sh"
+orange_boot_splash_fixture_files="$root/tools/armbian-image/fixtures/python313-initramfs-closure-files.txt"
+orange_boot_splash_fixture_imports="$root/tools/armbian-image/fixtures/python313-initramfs-closure/imports.py"
+orange_boot_splash_fixture_collections="$root/tools/armbian-image/fixtures/python313-initramfs-closure/collections/__init__.py"
+orange_boot_splash_fixture_abc="$root/tools/armbian-image/fixtures/python313-initramfs-closure/_collections_abc.py"
 spi_dts="$root/userpatches/overlay/usr/local/share/octessera/device-tree/octessera-h618-spi1-cs0.dts"
+input_routing_dts="$root/userpatches/overlay/usr/local/share/octessera/device-tree/octessera-h618-input-routing.dts"
 spi_env_helper="$root/userpatches/overlay/usr/local/share/octessera/device-tree/armbian-env-token.sh"
 spi_validation_helper="$root/userpatches/overlay/usr/local/share/octessera/device-tree/spi-overlay-validation.sh"
+input_routing_validation_helper="$root/userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-overlay-validation.sh"
+input_routing_boot_helper="$root/userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-boot-config.sh"
+input_routing_provision="$root/tools/orange-pi/input-routing-provision.sh"
 boot_dtb_helper="$root/userpatches/overlay/usr/local/share/octessera/device-tree/boot-dtb-selection.sh"
 inspect_mode_helper="$root/tools/armbian-image/inspect-mode.sh"
+image_mode_helper="$root/userpatches/overlay/usr/local/lib/octessera/orange-image-mode.sh"
+diagnostic_payload_helper="$root/userpatches/overlay/usr/local/lib/octessera/diagnostic-payload.sh"
+runtime_inspector="$root/tools/armbian-image/inspect-runtime.sh"
+image_mode_test="$root/tools/armbian-image/test-image-mode.sh"
+runtime_service_test="$root/tools/armbian-image/test-orange-runtime-service.sh"
+runtime_udev_rule="$root/userpatches/overlay/etc/udev/rules.d/70-octessera-orange-runtime.rules"
+image_verifier="$root/tools/armbian-image/verify-orange-image.py"
+runtime_account_verifier="$root/tools/armbian-image/verify_runtime_account.py"
+authorized_key_paths_helper="$root/tools/armbian-image/authorized-key-paths.sh"
+inspect_path_helper="$root/tools/armbian-image/inspect-path.sh"
 spi_fixture="$root/tools/armbian-image/fixtures/h618-spi-base.dts"
 spi_overlay_name=octessera-h618-spi1-cs0
 
@@ -34,8 +68,34 @@ inspect_payload_tar() {
 }
 
 required_files=(
+  "$armbian_extensions_resolver"
+  "$image_sanitization_test"
+  "$image_sanitization_extension"
+  "$orange_boot_splash_test"
+  "$alsa_sequencer_test"
+  "$alsa_sequencer_extension"
+  "$alsa_sequencer_modules"
+  "$orange_kernel_package_test"
+  "$orange_kernel_package_validator"
+  "$orange_image_proof_test"
+  "$orange_image_proof_verifier"
+  "$orange_image_mount_helper"
+  "$orange_boot_selection_helper"
+  "$orange_image_proof_python"
+  "$orange_image_proof_fixture"
+  "$orange_boot_splash_fixture_files"
+  "$orange_boot_splash_fixture_imports"
+  "$orange_boot_splash_fixture_collections"
+  "$orange_boot_splash_fixture_abc"
   "$root/tools/armbian-image/inspect-output-images.sh"
+  "$root/tools/armbian-image/stage-musical-assets.sh"
+  "$root/tools/armbian-image/test-musical-assets.sh"
+  "$authorized_key_paths_helper"
+  "$inspect_path_helper"
+  "$inspector_test"
   "$root/userpatches/overlay/usr/local/sbin/octessera-wifi-connect"
+  "$root/userpatches/overlay/usr/local/sbin/octessera-wifi-foundation"
+  "$root/userpatches/overlay/etc/systemd/system/octessera-wifi-foundation.service"
   "$root/userpatches/overlay/usr/local/sbin/octessera-update"
   "$root/userpatches/overlay/usr/local/sbin/octessera-update-guard"
   "$root/userpatches/overlay/usr/local/sbin/octessera-update-recovery"
@@ -44,26 +104,96 @@ required_files=(
   "$root/userpatches/overlay/etc/systemd/system/octessera-update-recovery.service"
   "$root/userpatches/overlay/usr/local/sbin/octessera-setup-sidecar"
   "$root/userpatches/overlay/etc/systemd/system/octessera-setup.service"
+  "$root/userpatches/overlay/etc/octessera/image-contract.json"
+  "$root/userpatches/overlay/etc/systemd/system/octessera.service"
+  "$root/userpatches/overlay/etc/modules-load.d/octessera-orange-usb-gadget.conf"
+  "$root/userpatches/overlay/etc/systemd/system/octessera-orange-usb-gadget.service"
+  "$root/userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service"
+  "$root/userpatches/overlay/etc/systemd/system/octessera-orange-oled-shutdown.service"
+  "$root/userpatches/overlay/etc/systemd/system/octessera-provision-musical-default.service"
+  "$root/userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash"
+  "$root/userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash"
+  "$root/userpatches/overlay/lib/systemd/system-sleep/octessera-orange-oled"
+  "$root/userpatches/overlay/usr/local/sbin/octessera-orange-usb-gadget"
+  "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo"
+  "$root/userpatches/overlay/usr/local/sbin/octessera-provision-musical-default"
   "$spi_dts"
+  "$input_routing_dts"
   "$spi_env_helper"
   "$spi_validation_helper"
+  "$input_routing_validation_helper"
+  "$input_routing_boot_helper"
   "$boot_dtb_helper"
   "$inspect_mode_helper"
+  "$image_mode_helper"
+  "$diagnostic_payload_helper"
+  "$runtime_inspector"
+  "$image_mode_test"
+  "$runtime_service_test"
+  "$runtime_udev_rule"
+  "$image_verifier"
+  "$runtime_account_verifier"
   "$spi_fixture"
 )
 
 bash -n "$root/userpatches/customize-image.sh"
+bash -n "$armbian_extensions_resolver"
+bash -n "$image_sanitization_extension"
+bash -n "$image_sanitization_test"
+bash -n "$orange_boot_splash_test"
+bash -n "$alsa_sequencer_extension"
+bash -n "$alsa_sequencer_test"
+bash -n "$orange_kernel_package_test"
+bash -n "$orange_kernel_package_validator"
+bash -n "$orange_image_proof_test"
+bash -n "$orange_image_proof_verifier"
+bash -n "$input_routing_provision"
 bash -n "$root/tools/armbian-image/inspect-built-image.sh"
+bash -n "$authorized_key_paths_helper"
+bash -n "$inspect_path_helper"
+bash -n "$inspector_test"
 bash -n "$root/tools/armbian-image/inspect-output-images.sh"
+bash -n "$root/tools/armbian-image/stage-musical-assets.sh"
+bash -n "$root/tools/armbian-image/test-musical-assets.sh"
 bash -n "$root/userpatches/overlay/usr/local/sbin/octessera-wifi-connect"
+bash -n "$root/userpatches/overlay/usr/local/sbin/octessera-wifi-foundation"
 bash -n "$root/userpatches/overlay/usr/local/sbin/octessera-update"
 bash -n "$root/userpatches/overlay/usr/local/sbin/octessera-update-guard"
 bash -n "$root/userpatches/overlay/usr/local/sbin/octessera-update-recovery"
+bash -n "$root/userpatches/overlay/usr/local/sbin/octessera-orange-usb-gadget"
+bash -n "$root/userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash"
+bash -n "$root/userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash"
+bash -n "$root/userpatches/overlay/lib/systemd/system-sleep/octessera-orange-oled"
 bash -n "$spi_env_helper"
 bash -n "$spi_validation_helper"
+bash -n "$input_routing_validation_helper"
+bash -n "$input_routing_boot_helper"
 bash -n "$boot_dtb_helper"
 bash -n "$inspect_mode_helper"
+bash -n "$image_mode_helper"
+bash -n "$diagnostic_payload_helper"
+bash -n "$runtime_inspector"
+bash -n "$image_mode_test"
+bash -n "$runtime_service_test"
 python3 -m py_compile "$root/tools/device-update/updater_protocol.py" "$root/tools/device-update/updater_state.py" "$root/tools/device-update/updater_assets.py" "$root/tools/device-update/updater_guard.py" "$root/tools/device-update/updater_cli.py"
+python3 -m py_compile "$orange_image_mount_helper" "$orange_boot_selection_helper" "$orange_image_proof_python" "$orange_image_proof_fixture"
+python3 -m py_compile "$image_verifier" "$runtime_account_verifier"
+python3 -m py_compile "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo"
+bash "$orange_boot_splash_test"
+bash "$image_sanitization_test"
+bash "$inspector_test"
+bash "$image_mode_test"
+bash "$runtime_service_test"
+bash "$armbian_extensions_resolver" '' | grep -qxF 'octessera_midi octessera_image_sanitize'
+bash "$armbian_extensions_resolver" preset-firstrun | grep -qxF 'preset-firstrun octessera_midi octessera_image_sanitize'
+bash "$armbian_extensions_resolver" 'preset-firstrun octessera_midi' | grep -qxF 'preset-firstrun octessera_midi octessera_image_sanitize'
+bash "$armbian_extensions_resolver" 'preset-firstrun,octessera_midi' | grep -qxF 'preset-firstrun,octessera_midi octessera_image_sanitize'
+bash "$armbian_extensions_resolver" 'other-extension preset-firstrun' | grep -qxF 'other-extension preset-firstrun octessera_midi octessera_image_sanitize'
+bash "$alsa_sequencer_test"
+bash "$orange_kernel_package_test"
+bash "$orange_image_proof_test"
+bash "$root/tools/armbian-image/test-musical-assets.sh"
+bash "$root/tools/pi-image/test-wifi-foundation.sh"
 
 for file in "${required_files[@]}"; do
   [[ -f "$file" ]] || { echo "Missing required setup file: $file" >&2; exit 1; }
@@ -72,10 +202,17 @@ done
 source "$spi_env_helper"
 # shellcheck source=userpatches/overlay/usr/local/share/octessera/device-tree/spi-overlay-validation.sh
 source "$spi_validation_helper"
+# shellcheck source=userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-overlay-validation.sh
+source "$input_routing_validation_helper"
+# shellcheck source=userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-boot-config.sh
+source "$input_routing_boot_helper"
 # shellcheck source=userpatches/overlay/usr/local/share/octessera/device-tree/boot-dtb-selection.sh
 source "$boot_dtb_helper"
 # shellcheck source=tools/armbian-image/inspect-mode.sh
 source "$inspect_mode_helper"
+# shellcheck source=userpatches/overlay/usr/local/lib/octessera/orange-image-mode.sh
+source "$image_mode_helper"
+octessera_load_image_contract "$root/userpatches/overlay"
 
 env_test_work="$(mktemp -d)"
 run_env_case() {
@@ -83,11 +220,12 @@ run_env_case() {
   local expected_status="$2"
   local input="$3"
   local expected_output="$4"
+  local extra_user_token="${5:-}"
   local input_file="$env_test_work/$name.in"
   local output_file="$env_test_work/$name.out"
   local actual_status
   printf '%s' "$input" > "$input_file"
-  if octessera_armbian_env_update "$input_file" "$output_file" octessera-h618-spi1-cs0 i2c1-pi 2>"$input_file.stderr"; then
+  if octessera_armbian_env_update "$input_file" "$output_file" octessera-h618-spi1-cs0 i2c1-pi "$extra_user_token" 2>"$input_file.stderr"; then
     actual_status=0
   else
     actual_status=$?
@@ -109,6 +247,20 @@ run_env_case malformed_assignment 2 $'user_overlays = foo\n' ''
 run_env_case duplicate_i2c 2 $'overlays=i2c1-pi\noverlays=foo\n' ''
 run_env_case commented_i2c 2 $'# overlays=i2c1-pi\n' ''
 run_env_case malformed_i2c 2 $'overlays = foo\n' ''
+run_env_case add_input_routing 0 $'user_overlays=octessera-h618-spi1-cs0\noverlays=i2c1-pi\n' $'user_overlays=octessera-h618-spi1-cs0 octessera-h618-input-routing\noverlays=i2c1-pi\n' octessera-h618-input-routing
+run_env_case duplicate_input_routing 2 $'user_overlays=octessera-h618-input-routing octessera-h618-input-routing\n' '' octessera-h618-input-routing
+boot_args_in="$env_test_work/boot-args.in"
+boot_args_out="$env_test_work/boot-args.out"
+printf '%s\n' 'extraargs=root=UUID=abc console=ttyS0,115200n8 quiet' 'keep=one' > "$boot_args_in"
+octessera_remove_uart0_console_args "$boot_args_in" "$boot_args_out"
+printf '%s\n' 'extraargs=root=UUID=abc quiet' 'keep=one' > "$boot_args_in.expected"
+cmp "$boot_args_in.expected" "$boot_args_out"
+octessera_assert_no_uart0_console_args "$boot_args_out"
+printf '%s\n' '  APPEND console=ttyS0,115200n8 root=UUID=abc' > "$boot_args_in"
+octessera_remove_uart0_console_args "$boot_args_in" "$boot_args_out"
+printf '%s\n' '  APPEND root=UUID=abc' > "$boot_args_in.expected"
+cmp "$boot_args_in.expected" "$boot_args_out"
+octessera_assert_no_uart0_console_args "$boot_args_out"
 [[ "$(octessera_normalize_fdt_numbers '00000008 0x0000000a deadbeef')" == '8 10 3735928559' ]] || { echo "FDT numeric normalization failed." >&2; exit 1; }
 if octessera_normalize_fdt_numbers 'not-a-number' >/dev/null 2>&1; then
   echo "FDT numeric normalization accepted invalid input." >&2
@@ -123,6 +275,17 @@ fi
 
 grep -q 'wifi_connect_version=4.11.84' "$root/userpatches/customize-image.sh" || { echo "Missing pinned wifi-connect version." >&2; exit 1; }
 grep -q 'wifi_connect_sha256=413d70e6d1c1366cbe2b32555e8476f3e92878178ed1b9c82205985f055f1936' "$root/userpatches/customize-image.sh" || { echo "Missing pinned wifi-connect SHA256." >&2; exit 1; }
+grep -q 'network-manager.*dnsmasq.*wireless-tools.*iw' "$root/userpatches/customize-image.sh" || { echo "Orange image must install deliberate Wi-Fi dependencies." >&2; exit 1; }
+grep -q 'install_overlay_file usr/local/sbin/octessera-wifi-foundation' "$root/userpatches/customize-image.sh" || { echo "Orange image must install the inactive Wi-Fi helper." >&2; exit 1; }
+grep -q 'install_overlay_file etc/systemd/system/octessera-wifi-foundation.service' "$root/userpatches/customize-image.sh" || { echo "Orange image must install the inactive Wi-Fi unit." >&2; exit 1; }
+! grep -q 'enable.*octessera-wifi-foundation' "$root/userpatches/customize-image.sh" || { echo "Orange image must not enable the inactive Wi-Fi unit." >&2; exit 1; }
+grep -qF 'systemctl enable octessera-update-recovery.service >/dev/null' "$root/userpatches/customize-image.sh" || { echo "Image customization must enable update recovery for the next boot." >&2; exit 1; }
+! grep -qE 'systemctl[[:space:]]+enable[[:space:]]+--now[[:space:]]+octessera-update-recovery\.service' "$root/userpatches/customize-image.sh" || { echo "Image customization must not start update recovery in the chroot." >&2; exit 1; }
+grep -qF 'rm -f /root/.ssh/authorized_keys /home/octessera/.ssh/authorized_keys' "$root/userpatches/customize-image.sh" || { echo "Image customization must remove baked root and user authorized keys." >&2; exit 1; }
+if grep -qE '(cat|read|printf|echo|grep|sha256sum).*authorized_keys|authorized_keys.*(cat|read|printf|echo|grep|sha256sum)' "$root/userpatches/customize-image.sh"; then
+  echo "Image customization must not read or print authorized key contents." >&2
+  exit 1
+fi
 grep -q 'OCTESSERA_BOARD_PROFILE_ID=orange-pi-zero-2w' "$root/userpatches/customize-image.sh" || { echo "Missing Orange Pi board profile metadata." >&2; exit 1; }
 grep -q 'armbian_board.*orangepizero2w' "$root/userpatches/customize-image.sh" || { echo "Image customization must fail closed for non-Orange Pi boards." >&2; exit 1; }
 grep -q 'device-tree-compiler' "$root/userpatches/customize-image.sh" || { echo "Image customization must provide dtc." >&2; exit 1; }
@@ -138,9 +301,135 @@ grep -qF "mv -f -- \"\$spi_dtbo_tmp\" \"\$spi_dtbo\"" "$root/userpatches/customi
 grep -qF "mv -f -- \"\$armbian_env_tmp\" \"\$armbian_env\"" "$root/userpatches/customize-image.sh" || { echo "Armbian environment installation must be atomic." >&2; exit 1; }
 grep -q 'OCTESSERA_SPI1_CS0_DTS_SHA256' "$root/userpatches/customize-image.sh" || { echo "Image metadata must record the DTS hash." >&2; exit 1; }
 grep -q 'OCTESSERA_SPI1_CS0_DTBO_SHA256' "$root/userpatches/customize-image.sh" || { echo "Image metadata must record the DTBO hash." >&2; exit 1; }
-grep -q 'artifact_kind == "diagnostic-only"' "$root/userpatches/customize-image.sh" || { echo "Orange image payloads must be diagnostic-only." >&2; exit 1; }
-grep -q 'runtime_ready == false' "$root/userpatches/customize-image.sh" || { echo "Orange image payloads must be runtime-disabled." >&2; exit 1; }
-grep -q 'enable_runtime' "$root/userpatches/customize-image.sh" || { echo "Orange image payloads must reject runtime enablement." >&2; exit 1; }
+grep -q 'OCTESSERA_INPUT_ROUTING_DTS_SHA256' "$root/userpatches/customize-image.sh" || { echo "Image metadata must record the input-routing DTS hash." >&2; exit 1; }
+grep -q 'OCTESSERA_INPUT_ROUTING_DTBO_SHA256' "$root/userpatches/customize-image.sh" || { echo "Image metadata must record the input-routing DTBO hash." >&2; exit 1; }
+grep -q 'serial-getty@ttyS0.service' "$input_routing_provision" || { echo "Input-routing provisioning must manage the UART0 serial getty." >&2; exit 1; }
+grep -q 'input-routing-backups' "$input_routing_provision" || { echo "Input-routing provisioning must retain rollback records." >&2; exit 1; }
+grep -q 'ssh_touched=0' "$input_routing_provision" || { echo "Input-routing provisioning must record that SSH was untouched." >&2; exit 1; }
+grep -q 'musb-hdrc.4.auto' "$root/tools/orange-pi/orange-pi-usb-gadget.sh" || { echo "Orange USB gadget must use the verified UDC exactly." >&2; exit 1; }
+grep -q 'musb_hdrc' "$root/userpatches/overlay/etc/modules-load.d/octessera-orange-usb-gadget.conf" || { echo "Orange USB gadget module lifecycle is incomplete." >&2; exit 1; }
+grep -q 'octessera-orange-usb-gadget setup' "$root/userpatches/overlay/etc/systemd/system/octessera-orange-usb-gadget.service" || { echo "Orange USB gadget service is missing setup." >&2; exit 1; }
+grep -q 'octessera-orange-usb-gadget teardown' "$root/userpatches/overlay/etc/systemd/system/octessera-orange-usb-gadget.service" || { echo "Orange USB gadget service is missing teardown." >&2; exit 1; }
+grep -q 'copy_exec /usr/local/sbin/octessera-orange-oled-logo' "$root/userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash" || { echo "Orange initramfs is missing the OLED handoff utility." >&2; exit 1; }
+grep -q 'spi-sun6i' "$root/userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash" || { echo "Orange initramfs is missing the H618 SPI module." >&2; exit 1; }
+grep -q 'system-sleep/octessera-orange-oled' "$root/userpatches/customize-image.sh" || { echo "Orange sleep OLED handoff is not installed." >&2; exit 1; }
+oled_logo="$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo"
+if grep -RInF '/usr/local/bin/octessera-orange-oled-logo' \
+  "$root/userpatches/customize-image.sh" \
+  "$root/userpatches/overlay/etc/initramfs-tools" \
+  "$root/userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service" \
+  "$root/userpatches/overlay/etc/systemd/system/octessera-orange-oled-shutdown.service" \
+  "$root/userpatches/overlay/lib/systemd/system-sleep"; then
+  echo "Orange OLED lifecycle must use the installed /usr/local/sbin executable." >&2
+  exit 1
+fi
+grep -q 'Before=sysinit.target octessera.service' "$root/userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service" || { echo "Orange boot splash must hand off before the runtime." >&2; exit 1; }
+grep -q 'After=octessera.service' "$root/userpatches/overlay/etc/systemd/system/octessera-orange-oled-shutdown.service" || { echo "Orange shutdown logo must wait for runtime release." >&2; exit 1; }
+grep -q 'Conflicts=octessera.service' "$root/userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service" || { echo "Orange boot splash must not share OLED ownership with runtime." >&2; exit 1; }
+grep -q 'Conflicts=octessera.service' "$root/userpatches/overlay/etc/systemd/system/octessera-orange-oled-shutdown.service" || { echo "Orange shutdown logo must not share OLED ownership with runtime." >&2; exit 1; }
+python3 - "$oled_logo" "$root" <<'PY'
+import importlib.machinery
+import importlib.util
+from pathlib import Path
+import sys
+
+loader = importlib.machinery.SourceFileLoader("orange_oled_logo", sys.argv[1])
+spec = importlib.util.spec_from_loader(loader.name, loader)
+module = importlib.util.module_from_spec(spec)
+loader.exec_module(module)
+repository = Path(sys.argv[2])
+module.MARK_SOURCE = str(repository / "userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-mark.svg")
+module.WORDMARK_SOURCE = str(repository / "userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-wordmark.svg")
+
+assert module.rgb565(128) == 0x8410
+source = bytearray(module.WIDTH * module.HEIGHT * 2)
+
+def set_pixel(x, y, value):
+    offset = (y * module.WIDTH + x) * 2
+    source[offset:offset + 2] = value
+
+set_pixel(0, 0, b"\x12\x34")
+set_pixel(module.WIDTH - 1, 0, b"\x56\x78")
+set_pixel(0, module.HEIGHT - 1, b"\x9a\xbc")
+set_pixel(module.WIDTH - 1, module.HEIGHT - 1, b"\xde\xf0")
+rotated = module.rotate_clockwise_rgb565(source)
+
+def pixel(frame, x, y):
+    offset = (y * module.WIDTH + x) * 2
+    return bytes(frame[offset:offset + 2])
+
+assert pixel(rotated, module.WIDTH - 1, 0) == b"\x12\x34"
+assert pixel(rotated, module.WIDTH - 1, module.HEIGHT - 1) == b"\x56\x78"
+assert pixel(rotated, 0, 0) == b"\x9a\xbc"
+assert pixel(rotated, 0, module.HEIGHT - 1) == b"\xde\xf0"
+
+class FakeOled:
+    instance = None
+
+    def __init__(self):
+        self.initialized = False
+        self.frame_payload = None
+        self.display_off = None
+        FakeOled.instance = self
+
+    def initialize(self):
+        self.initialized = True
+
+    def frame(self, payload):
+        self.frame_payload = payload
+
+    def close(self, display_off=True):
+        self.display_off = display_off
+
+module.Oled = FakeOled
+module.render_canvas = lambda canvas, frame=None: b"frame"
+module.run("shutdown")
+assert FakeOled.instance.initialized
+assert FakeOled.instance.frame_payload == b"frame"
+assert FakeOled.instance.display_off is False
+PY
+grep -q 'octessera_install_diagnostic_payload' "$root/userpatches/customize-image.sh" || { echo "Diagnostic payload handling must remain explicit." >&2; exit 1; }
+grep -qF '[--mode diagnostic|production]' "$root/tools/armbian-image/inspect-built-image.sh" || { echo "Built-image inspection must accept an explicit image mode." >&2; exit 1; }
+grep -qF '[--mode diagnostic|production]' "$root/tools/armbian-image/inspect-output-images.sh" || { echo "Output-image inspection must accept an explicit image mode." >&2; exit 1; }
+grep -q 'artifact_kind == "diagnostic-only"' "$diagnostic_payload_helper" || { echo "Orange image payloads must be diagnostic-only." >&2; exit 1; }
+grep -q 'runtime_ready == false' "$diagnostic_payload_helper" || { echo "Orange image payloads must be runtime-disabled." >&2; exit 1; }
+grep -q 'enable_runtime' "$diagnostic_payload_helper" || { echo "Orange image payloads must reject runtime enablement." >&2; exit 1; }
+grep -q '"image_kind"' "$root/userpatches/overlay/etc/octessera/image-contract.json" || { echo "Orange image contract must stage an explicit image_kind." >&2; exit 1; }
+grep -q '^USER = "octessera"$' "$root/userpatches/overlay/usr/local/sbin/octessera-setup-sidecar" || { echo "Orange setup must retain the interactive octessera account." >&2; exit 1; }
+! grep -q 'octessera-runtime' "$root/userpatches/overlay/usr/local/sbin/octessera-setup-sidecar" || { echo "Orange setup sidecar must not grant runtime-account access." >&2; exit 1; }
+for service_line in \
+  'ExecStart=/usr/local/bin/octessera-pi' \
+  'User=octessera-runtime' \
+  'Group=octessera-runtime' \
+  'Environment=OCTESSERA_EXPECTED_BOARD_PROFILE=orange-pi-zero-2w' \
+  'Environment=OCTESSERA_PI_STORE_DIR=/var/lib/octessera/presets' \
+  'Environment=OCTESSERA_PI_SAMPLES_DIR=/var/lib/octessera/samples' \
+  'Environment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json' \
+  'RuntimeDirectory=octessera' \
+  'NoNewPrivileges=yes' \
+  'ProtectSystem=strict' \
+  'ReadWritePaths=/var/lib/octessera /run/octessera' \
+  'PrivateTmp=yes' \
+  'ProtectHome=yes' \
+  'LimitRTPRIO=70' \
+  'LimitMEMLOCK=infinity'; do
+  grep -qFx "$service_line" "$root/userpatches/overlay/etc/systemd/system/octessera.service" || { echo "Orange runtime service is missing: $service_line" >&2; exit 1; }
+done
+! grep -qE '^(AmbientCapabilities|CapabilityBoundingSet)=|LimitRTPRIO=80' "$root/userpatches/overlay/etc/systemd/system/octessera.service" || { echo "Orange runtime service must not grant ambient SYS_NICE or priority 80." >&2; exit 1; }
+for udev_line in \
+  'KERNEL=="i2c-2", GROUP="octessera-runtime", MODE="0660"' \
+  'KERNEL=="spidev1.0", GROUP="octessera-runtime", MODE="0660"' \
+  'KERNEL=="gpiochip1", GROUP="octessera-runtime", MODE="0660"'; do
+  grep -qFx "$udev_line" "$runtime_udev_rule" || { echo "Orange runtime udev rule is missing: $udev_line" >&2; exit 1; }
+done
+! grep -Eq 'GROUP[[:space:]]*=[[:space:]]*"?octessera"?([[:space:],]|$)|MODE[[:space:]]*=[[:space:]]*"?[0-7]{3,4}[26]"?([[:space:],]|$)|KERNEL[[:space:]]*==[[:space:]]*"[^"]*\*' "$runtime_udev_rule" || { echo "Orange runtime udev rule is broad, interactive, or world-writable." >&2; exit 1; }
+! grep -qE '^(PrivateDevices|DevicePolicy)=' "$root/userpatches/overlay/etc/systemd/system/octessera.service" || { echo "Orange runtime service must not block /dev hardware." >&2; exit 1; }
+grep -qF 'default: preset-firstrun octessera_midi octessera_image_sanitize' "$root/.github/workflows/armbian-image.yml" || { echo "Orange image workflow default must include mandatory extensions." >&2; exit 1; }
+[[ "$(grep -cF "extensions: \${{ inputs.extensions }}" "$root/.github/workflows/armbian-image.yml")" == 2 ]] || { echo "Both Orange image build invocations must preserve caller extensions." >&2; exit 1; }
+grep -qF 'resolve-armbian-extensions.sh' "$root/.github/actions/build-armbian-image/action.yml" || { echo "Armbian build action must resolve the mandatory extension." >&2; exit 1; }
+grep -qF "ENABLE_EXTENSIONS=\"\$effective_extensions\"" "$root/.github/actions/build-armbian-image/action.yml" || { echo "Effective Orange build options must include the mandatory extension." >&2; exit 1; }
+grep -qF 'default: octessera_midi octessera_image_sanitize' "$root/.github/actions/build-armbian-image/action.yml" || { echo "Armbian build action default must include mandatory extensions." >&2; exit 1; }
+grep -qF 'octessera_image_sanitize' "$root/.github/actions/build-armbian-image/action.yml" || { echo "Armbian build action must require image sanitization." >&2; exit 1; }
 grep -q 'ARMBIAN_BOARD:.*inputs.board' "$root/.github/workflows/armbian-image.yml" || { echo "Workflow validation must receive the board input." >&2; exit 1; }
 grep -q 'ARMBIAN_BUILD_REF:.*inputs.armbian_build_ref' "$root/.github/workflows/armbian-image.yml" || { echo "Workflow validation must receive the Armbian ref input." >&2; exit 1; }
 grep -q 'OCTESSERA_ARMBIAN_BOARD.*orangepizero2w' "$root/.github/actions/build-armbian-image/action.yml" || { echo "Build action must reject other boards." >&2; exit 1; }
@@ -172,7 +461,7 @@ expected_spi_references="$(printf '%s\n' '&spi1' '&spi1_pins' '&spi1_cs0_pin' | 
 }
 grep -Eq '^[[:space:]]*compatible = "rohm,dh2228fv";$' "$spi_dts" || { echo "SPI1 overlay has the wrong child compatible." >&2; exit 1; }
 grep -Eq '^[[:space:]]*reg = <0>;$' "$spi_dts" || { echo "SPI1 overlay must select CS0." >&2; exit 1; }
-grep -Eq '^[[:space:]]*spi-max-frequency = <1000000>;$' "$spi_dts" || { echo "SPI1 overlay must cap the device at 1 MHz." >&2; exit 1; }
+grep -Eq '^[[:space:]]*spi-max-frequency = <16000000>;$' "$spi_dts" || { echo "SPI1 overlay must cap the device at 16 MHz." >&2; exit 1; }
 grep -Eq '^[[:space:]]*#address-cells = <1>;$' "$spi_dts" || { echo "SPI1 overlay must declare one address cell." >&2; exit 1; }
 grep -Eq '^[[:space:]]*#size-cells = <0>;$' "$spi_dts" || { echo "SPI1 overlay must declare zero size cells." >&2; exit 1; }
 if grep -nE 'spidev@[1-9]|reg = <[1-9]|target-path|cs-gpios|gpio-' "$spi_dts" "$root/userpatches/customize-image.sh"; then
@@ -183,6 +472,15 @@ if grep -RInE 'spidev1_0|authorized_keys|ssh_host_|BEGIN OPENSSH PRIVATE KEY|BEG
   echo "SPI1 image integration must not contain stock spidev fallback or authorization material." >&2
   exit 1
 fi
+input_references="$(grep -oE '&[A-Za-z0-9_]+' "$input_routing_dts" | sort -u)"
+expected_input_references="$(printf '%s\n' '&uart0' '&pio' '&octessera_uart0_released' | sort -u)"
+[[ "$input_references" == "$expected_input_references" ]] || {
+  printf 'Unexpected input-routing overlay references:\n%s\n' "$input_references" >&2
+  exit 1
+}
+grep -Eq '^[[:space:]]*pins = "PH0", "PH1";$' "$input_routing_dts" || { echo "Input-routing overlay must release PH0/PH1." >&2; exit 1; }
+grep -Eq '^[[:space:]]*function = "gpio_in";$' "$input_routing_dts" || { echo "Input-routing overlay must select GPIO input mode." >&2; exit 1; }
+grep -q 'stdout-path = ""' "$input_routing_dts" || { echo "Input-routing overlay must clear stdout-path." >&2; exit 1; }
 
 command -v dtc >/dev/null 2>&1 || { echo "dtc is required for Armbian overlay validation." >&2; exit 1; }
 command -v fdtoverlay >/dev/null 2>&1 || { echo "fdtoverlay is required for Armbian overlay validation." >&2; exit 1; }
@@ -268,7 +566,7 @@ octessera_run_strict_diagnostic "$dt_work" compile_spi_overlay dtc -@ -I dts -O 
 octessera_run_strict_diagnostic "$dt_work" inspect_spi_overlay dtc -I dtb -O dts -o "$dt_work/$spi_overlay_name.dts" "$dt_work/$spi_overlay_name.dtbo"
 octessera_run_strict_diagnostic "$dt_work" compile_h618_fixture dtc -@ -I dts -O dtb -o "$dt_work/h618-spi-base.dtb" "$spi_fixture"
 octessera_run_strict_diagnostic "$dt_work" merge_spi_fixture fdtoverlay -i "$dt_work/h618-spi-base.dtb" -o "$dt_work/h618-spi-merged.dtb" "$dt_work/$spi_overlay_name.dtbo"
-octessera_run_strict_diagnostic "$dt_work" inspect_merged_spi_fixture dtc -I dtb -O dts -o "$dt_work/h618-spi-merged.dts" "$dt_work/h618-spi-merged.dtb"
+octessera_run_dtc_inspection "$dt_work" inspect_merged_spi_fixture dtc -q -I dtb -O dts -o "$dt_work/h618-spi-merged.dts" "$dt_work/h618-spi-merged.dtb"
 fixture_spi1_path="$(fdtget -t s "$dt_work/h618-spi-base.dtb" /__symbols__ spi1)"
 fixture_spi1_pins_path="$(fdtget -t s "$dt_work/h618-spi-base.dtb" /__symbols__ spi1_pins)"
 fixture_spi1_cs0_path="$(fdtget -t s "$dt_work/h618-spi-base.dtb" /__symbols__ spi1_cs0_pin)"
@@ -305,14 +603,23 @@ grep -Eq '^[[:space:]]*spi1_cs0_pin = "/fragment@0/__overlay__:pinctrl-0:4";$' "
 [[ "$(grep -Ec '^[[:space:]]*spidev@0[[:space:]]*\{' "$dt_work/$spi_overlay_name.dts")" == 1 ]] || { echo "Compiled SPI1 overlay must contain one CS0 child." >&2; exit 1; }
 grep -Eq 'compatible = "rohm,dh2228fv";' "$dt_work/$spi_overlay_name.dts" || { echo "Compiled SPI1 overlay has the wrong compatible." >&2; exit 1; }
 grep -Eq 'reg = <(0x)?0+>;' "$dt_work/$spi_overlay_name.dts" || { echo "Compiled SPI1 overlay must select CS0." >&2; exit 1; }
-grep -Eq 'spi-max-frequency = (<0x0*f4240>|<1000000>);' "$dt_work/$spi_overlay_name.dts" || { echo "Compiled SPI1 overlay must cap the device at 1 MHz." >&2; exit 1; }
+grep -Eq 'spi-max-frequency = (<0xf42400>|<16000000>);' "$dt_work/$spi_overlay_name.dts" || { echo "Compiled SPI1 overlay must cap the device at 16 MHz." >&2; exit 1; }
 grep -q 'pinctrl-names = "default";' "$dt_work/$spi_overlay_name.dts" || { echo "Compiled SPI1 overlay is missing its pinctrl name." >&2; exit 1; }
 grep -q 'pinctrl-0 =' "$dt_work/$spi_overlay_name.dts" || { echo "Compiled SPI1 overlay is missing its pinctrl group." >&2; exit 1; }
 grep -Eq '#address-cells = <0x0*1>;' "$dt_work/$spi_overlay_name.dts" || { echo "Compiled SPI1 overlay is missing one address cell." >&2; exit 1; }
 grep -Eq '#size-cells = <0x0+>;' "$dt_work/$spi_overlay_name.dts" || { echo "Compiled SPI1 overlay is missing zero size cells." >&2; exit 1; }
+octessera_run_strict_diagnostic "$dt_work" compile_input_routing_overlay dtc -@ -I dts -O dtb -o "$dt_work/octessera-h618-input-routing.dtbo" "$input_routing_dts"
+octessera_run_strict_diagnostic "$dt_work" inspect_input_routing_overlay dtc -I dtb -O dts -o "$dt_work/octessera-h618-input-routing.dts" "$dt_work/octessera-h618-input-routing.dtbo"
+octessera_run_strict_diagnostic "$dt_work" merge_input_routing_fixture fdtoverlay -i "$dt_work/h618-spi-base.dtb" -o "$dt_work/h618-input-routing-merged.dtb" "$dt_work/octessera-h618-input-routing.dtbo"
+octessera_run_dtc_inspection "$dt_work" inspect_merged_input_routing_fixture dtc -q -I dtb -O dts -o "$dt_work/h618-input-routing-merged.dts" "$dt_work/h618-input-routing-merged.dtb"
+fixture_uart0_path="$(fdtget -t s "$dt_work/h618-spi-base.dtb" /__symbols__ uart0)"
+fixture_pio_path="$(fdtget -t s "$dt_work/h618-spi-base.dtb" /__symbols__ pio)"
+[[ -n "$fixture_uart0_path" && -n "$fixture_pio_path" ]] || { echo "H618 fixture is missing UART0 or pinctrl symbols." >&2; exit 1; }
+octessera_assert_input_routing_merge "$dt_work/h618-spi-base.dtb" "$dt_work/h618-input-routing-merged.dtb" "$fixture_uart0_path" "$fixture_pio_path" /chosen fixture
 
 if command -v shellcheck >/dev/null 2>&1; then
-  shellcheck "$root/userpatches/customize-image.sh" "$root/tools/armbian-image/inspect-built-image.sh" "$root/tools/armbian-image/inspect-mode.sh" "$root/tools/armbian-image/inspect-output-images.sh" "$root/userpatches/overlay/usr/local/share/octessera/device-tree/armbian-env-token.sh" "$root/userpatches/overlay/usr/local/share/octessera/device-tree/spi-overlay-validation.sh" "$root/userpatches/overlay/usr/local/share/octessera/device-tree/boot-dtb-selection.sh" "$root/userpatches/overlay/usr/local/sbin/octessera-wifi-connect" "$root/userpatches/overlay/usr/local/sbin/octessera-update" "$root/userpatches/overlay/usr/local/sbin/octessera-update-guard" "$root/userpatches/overlay/usr/local/sbin/octessera-update-recovery" "$0"
+  shellcheck "$root/userpatches/customize-image.sh" "$root/userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash" "$armbian_extensions_resolver" "$image_sanitization_extension" "$image_sanitization_test" "$inspector_test" "$orange_boot_splash_test" "$alsa_sequencer_extension" "$alsa_sequencer_test" "$orange_kernel_package_test" "$orange_kernel_package_validator" "$orange_image_proof_test" "$orange_image_proof_verifier" "$root/tools/armbian-image/inspect-built-image.sh" "$runtime_inspector" "$image_mode_helper" "$diagnostic_payload_helper" "$image_mode_test" "$authorized_key_paths_helper" "$inspect_path_helper" "$root/tools/armbian-image/inspect-mode.sh" "$root/tools/armbian-image/inspect-output-images.sh" "$root/tools/armbian-image/stage-musical-assets.sh" "$root/tools/armbian-image/test-musical-assets.sh" "$root/tools/pi-image/test-wifi-foundation.sh" "$root/tools/orange-pi/input-routing-provision.sh" "$root/tools/orange-pi/orange-pi-usb-gadget.sh" "$root/userpatches/overlay/usr/local/sbin/octessera-orange-usb-gadget" "$root/userpatches/overlay/usr/local/sbin/octessera-provision-musical-default" "$root/userpatches/overlay/lib/systemd/system-sleep/octessera-orange-oled" "$root/userpatches/overlay/usr/local/share/octessera/device-tree/armbian-env-token.sh" "$root/userpatches/overlay/usr/local/share/octessera/device-tree/spi-overlay-validation.sh" "$root/userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-overlay-validation.sh" "$root/userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-boot-config.sh" "$root/userpatches/overlay/usr/local/share/octessera/device-tree/boot-dtb-selection.sh" "$root/userpatches/overlay/usr/local/sbin/octessera-wifi-connect" "$root/userpatches/overlay/usr/local/sbin/octessera-wifi-foundation" "$root/userpatches/overlay/usr/local/sbin/octessera-update" "$root/userpatches/overlay/usr/local/sbin/octessera-update-guard" "$root/userpatches/overlay/usr/local/sbin/octessera-update-recovery" "$0"
+  shellcheck "$runtime_service_test"
 fi
 
 cmp "$root/tools/device-update/octessera-update" "$root/userpatches/overlay/usr/local/sbin/octessera-update"
@@ -326,8 +633,8 @@ if grep -q '^ConditionPathExists=' "$root/userpatches/overlay/etc/systemd/system
   echo "Updater recovery must run once per boot, not only when a transaction file exists." >&2
   exit 1
 fi
-if find "$root/userpatches/overlay" -type f \( -name 'octessera.service' -o -name 'octessera-pi' \) | grep -q .; then
-  echo "Orange image overlay must not carry a runtime service or binary." >&2
+if [[ "$OCTESSERA_IMAGE_MODE" == diagnostic ]] && find "$root/userpatches/overlay" -type f -name 'octessera-pi' | grep -q .; then
+  echo "Diagnostic Orange image overlay must not carry a runtime binary." >&2
   exit 1
 fi
 
@@ -359,7 +666,7 @@ if command -v actionlint >/dev/null 2>&1; then
 fi
 
 for path in "$root/userpatches/overlay" "$root/.github/workflows/armbian-image.yml"; do
-  if grep -RInE '(/home/pi|config\.txt|dtoverlay|dwc2|BCM[0-9]|usb[_-]?gadget|g_mass_storage|wpa_passphrase|BEGIN OPENSSH PRIVATE KEY|BEGIN RSA PRIVATE KEY|BEGIN PRIVATE KEY|default_password|changeme|raspberry)' "$path"; then
+  if grep -RInE '(/home/pi|config\.txt|dtoverlay|dwc2|BCM[0-9]|g_mass_storage|wpa_passphrase|BEGIN OPENSSH PRIVATE KEY|BEGIN RSA PRIVATE KEY|BEGIN PRIVATE KEY|default_password|changeme|raspberry)' "$path"; then
     echo "Forbidden Raspberry Pi assumption or secret-like pattern found under $path" >&2
     exit 1
   fi
@@ -377,7 +684,10 @@ fi
 
 payload_url="${PAYLOAD_URL:-${OCTESSERA_PAYLOAD_URL:-}}"
 payload_sha256="${PAYLOAD_SHA256:-${OCTESSERA_PAYLOAD_SHA256:-}}"
-if [[ -n "$payload_url" ]]; then
+if [[ "$OCTESSERA_IMAGE_MODE" == production && ( -n "$payload_url" || -n "$payload_sha256" ) ]]; then
+  echo "Production Orange images do not accept payload URLs or payload hashes." >&2
+  exit 1
+elif [[ -n "$payload_url" ]]; then
   [[ "$payload_url" == https://* ]] || { echo "Payload URL must use HTTPS." >&2; exit 1; }
   [[ "$payload_sha256" =~ ^[a-fA-F0-9]{64}$ ]] || { echo "Payload SHA256 is required and must be 64 hex characters." >&2; exit 1; }
   work="$(mktemp -d)"

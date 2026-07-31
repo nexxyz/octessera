@@ -1,6 +1,6 @@
 use super::{
     merge_preserved_aux_payloads, migrate_legacy_modulation, patch_payload_from_payload,
-    validate_canonical_lfo_bank_shape, validate_config_payload, Value,
+    validate_audio_outputs, validate_canonical_lfo_bank_shape, validate_config_payload, Value,
 };
 
 pub(super) const CONFIG_KIND: &str = "octessera.config";
@@ -46,7 +46,10 @@ pub(super) fn prepare_config_payload(
     } else {
         None
     };
-    let mut payload = merge_values(current, &input);
+    validate_supplied_audio_outputs(&input)?;
+    let mut merge_base = current.clone();
+    clear_audio_output_conflict_for_input(&mut merge_base, &input);
+    let mut payload = merge_values(&merge_base, &input);
     set_config_envelope(
         &mut payload,
         source_revision.or_else(|| revision_of(current)),
@@ -119,9 +122,12 @@ pub(super) fn prepare_device_payload(
     } else {
         None
     };
+    validate_supplied_audio_outputs(&input)?;
     let mut device = super::device_config_payload_from_payload(input);
     merge_preserved_aux_payloads(&mut device, current, false);
-    let mut payload = merge_values(current, &device);
+    let mut merge_base = current.clone();
+    clear_audio_output_conflict_for_input(&mut merge_base, &device);
+    let mut payload = merge_values(&merge_base, &device);
     set_config_envelope(
         &mut payload,
         source_revision.or_else(|| revision_of(current)),
@@ -295,6 +301,43 @@ fn set_config_envelope(payload: &mut Value, revision: Option<u64>) {
 
 fn revision_of(payload: &Value) -> Option<u64> {
     payload.get("revision").and_then(Value::as_u64)
+}
+
+fn validate_supplied_audio_outputs(payload: &Value) -> Result<(), String> {
+    let runtime = payload.get("runtimeConfig").unwrap_or(payload);
+    let Some(runtime) = runtime.as_object() else {
+        return Ok(());
+    };
+    validate_audio_outputs(runtime)
+}
+
+fn clear_audio_output_conflict_for_input(current: &mut Value, input: &Value) {
+    let input_runtime = input.get("runtimeConfig").unwrap_or(input);
+    let has_canonical = input_runtime.get("audioOutputs").is_some();
+    let has_legacy = input_runtime
+        .get("usb")
+        .and_then(Value::as_object)
+        .is_some_and(|usb| usb.contains_key("audioOut"));
+    if has_canonical == has_legacy {
+        return;
+    }
+    let current_runtime = if current.get("runtimeConfig").is_some() {
+        current.get_mut("runtimeConfig").expect("runtimeConfig")
+    } else {
+        current
+    };
+    if has_canonical {
+        if let Some(usb) = current_runtime
+            .get_mut("usb")
+            .and_then(Value::as_object_mut)
+        {
+            usb.remove("audioOut");
+        }
+    } else {
+        if let Some(runtime) = current_runtime.as_object_mut() {
+            runtime.remove("audioOutputs");
+        }
+    }
 }
 
 fn migrate_legacy_runtime_root(payload: &mut Value) {

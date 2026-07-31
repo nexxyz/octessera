@@ -7,19 +7,36 @@ overlay_dir=/tmp/overlay
 
 armbian_board="$(awk -F= '$1 == "BOARD" { print $2; exit }' /etc/armbian-release 2>/dev/null || true)"
 if [[ "$armbian_board" != orangepizero2w ]]; then
-  echo "Refusing the Orange Pi SPI overlay for board: ${armbian_board:-unknown}." >&2
+  echo "Refusing Orange Pi device-tree customization for board: ${armbian_board:-unknown}." >&2
   exit 1
 fi
 if [[ ! -d "$overlay_dir" ]]; then
   echo "Expected Armbian userpatches overlay at $overlay_dir." >&2
   exit 1
 fi
+image_mode_helper="$overlay_dir/usr/local/lib/octessera/orange-image-mode.sh"
+diagnostic_payload_helper="$overlay_dir/usr/local/lib/octessera/diagnostic-payload.sh"
+[[ -f "$image_mode_helper" && ! -L "$image_mode_helper" ]] || { echo "Missing Orange image mode helper." >&2; exit 1; }
+[[ -f "$diagnostic_payload_helper" && ! -L "$diagnostic_payload_helper" ]] || { echo "Missing diagnostic payload helper." >&2; exit 1; }
+# shellcheck source=userpatches/overlay/usr/local/lib/octessera/orange-image-mode.sh
+source "$image_mode_helper"
+# shellcheck source=userpatches/overlay/usr/local/lib/octessera/diagnostic-payload.sh
+source "$diagnostic_payload_helper"
 spi_dts="$overlay_dir/usr/local/share/octessera/device-tree/octessera-h618-spi1-cs0.dts"
 [[ -f "$spi_dts" ]] || { echo "Missing Orange Pi SPI overlay source." >&2; exit 1; }
-install -d -m 0755 /etc/octessera /usr/local/sbin /usr/local/lib/octessera /var/lib/octessera/samples
+input_routing_dts="$overlay_dir/usr/local/share/octessera/device-tree/octessera-h618-input-routing.dts"
+[[ -f "$input_routing_dts" ]] || { echo "Missing Orange Pi input-routing overlay source." >&2; exit 1; }
+midi_modules_file="$overlay_dir/etc/modules-load.d/octessera-orange-midi.conf"
+[[ -f "$midi_modules_file" ]] || { echo "Missing Orange ALSA sequencer module-load file." >&2; exit 1; }
+install -d -m 0755 /etc/octessera /usr/local/sbin /usr/local/lib/octessera /var/lib/octessera/samples /var/lib/octessera/presets
 
 apt-get update
-apt-get install -y --no-install-recommends ca-certificates coreutils curl device-tree-compiler tar xz-utils jq gpiod alsa-utils i2c-tools network-manager dnsmasq wireless-tools iw python3-minimal openssh-server sudo unzip util-linux psmisc
+apt-get install -y --no-install-recommends ca-certificates coreutils curl device-tree-compiler tar xz-utils jq gpiod alsa-utils i2c-tools network-manager dnsmasq wireless-tools iw python3-minimal initramfs-tools openssh-server sudo unzip util-linux psmisc
+octessera_load_image_contract "$overlay_dir"
+if [[ "$OCTESSERA_IMAGE_MODE" == production && ( -n "${OCTESSERA_PAYLOAD_URL:-}" || -n "${OCTESSERA_PAYLOAD_SHA256:-}" ) ]]; then
+  echo "Production Orange images do not accept payload URLs or payload hashes." >&2
+  exit 1
+fi
 
 wifi_connect_version=4.11.84
 wifi_connect_sha256=413d70e6d1c1366cbe2b32555e8476f3e92878178ed1b9c82205985f055f1936
@@ -50,7 +67,118 @@ install_overlay_file() {
   install -D -m "$mode" -o root -g root "$overlay_dir/$src" "$dest"
 }
 
-if grep -RInE '(/home/pi|config\.txt|dtoverlay|dwc2|BCM[0-9]|usb[_-]?gadget|g_mass_storage)' "$overlay_dir"; then
+install_musical_assets() {
+  local overlay_root="$1"
+  local target_root="$2"
+  local overlay_samples="$overlay_root/usr/share/octessera/samples"
+  local overlay_manifest="$overlay_samples/sample-manifest.tsv"
+  local target_samples
+  local target_manifest
+  local target_files
+  local header
+  local sample_path
+  local sample_size
+  local sample_sha256
+  local sample_source
+  local sample_license_source
+  local sample_source_path
+  local sample_destination
+  local relative_path
+  local extra
+  local -a manifest_entries=()
+  local -A manifest_paths=()
+  local -A manifest_sizes=()
+  local -A manifest_hashes=()
+
+  if [[ "$target_root" == "/" ]]; then
+    target_root=
+  fi
+  target_samples="$target_root/usr/share/octessera/samples"
+  target_manifest="$target_samples/sample-manifest.tsv"
+  target_files="$target_samples/files"
+  [[ -d "$overlay_samples" && ! -L "$overlay_samples" ]] || { echo "Missing staged sample directory: $overlay_samples" >&2; return 1; }
+  [[ -d "$overlay_samples/files" && ! -L "$overlay_samples/files" ]] || { echo "Missing staged sample files. Run tools/armbian-image/stage-musical-assets.sh." >&2; return 1; }
+  [[ -f "$overlay_manifest" && ! -L "$overlay_manifest" ]] || { echo "Missing staged sample manifest: $overlay_manifest" >&2; return 1; }
+  [[ -d "$target_samples" && ! -L "$target_samples" ]] || { echo "Missing installed sample directory: $target_samples" >&2; return 1; }
+  [[ -f "$target_manifest" && ! -L "$target_manifest" ]] || { echo "Installed sample manifest is missing: $target_manifest" >&2; return 1; }
+  cmp -s "$overlay_manifest" "$target_manifest" || { echo "Installed sample manifest differs from staged manifest." >&2; return 1; }
+  awk -F $'\t' 'NF != 5 { exit 1 }' "$target_manifest" || { echo "Invalid packaged sample manifest rows." >&2; return 1; }
+
+  {
+    IFS= read -r header
+    [[ "$header" == $'# path\tsize\tsha256\tsource\tlicense_source' ]] || { echo "Invalid packaged sample manifest header." >&2; return 1; }
+    while IFS=$'\t' read -r sample_path sample_size sample_sha256 sample_source sample_license_source extra; do
+      case "$sample_path" in
+        ''|/*|*..*|*\\*|*$'\t'*|*$'\r'*) echo "Invalid packaged sample path: $sample_path" >&2; return 1 ;;
+      esac
+      [[ -z "$extra" ]] || { echo "Invalid packaged sample manifest row: $sample_path" >&2; return 1; }
+      [[ "$sample_size" =~ ^[0-9]+$ ]] || { echo "Invalid packaged sample size: $sample_path" >&2; return 1; }
+      [[ "$sample_sha256" =~ ^[a-f0-9]{64}$ ]] || { echo "Invalid packaged sample hash: $sample_path" >&2; return 1; }
+      [[ "$sample_source" == "https://github.com/stargatedaw/stargate-sample-pack" ]] || { echo "Unexpected packaged sample source: $sample_path" >&2; return 1; }
+      [[ "$sample_license_source" == "https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/main/README.md" ]] || { echo "Unexpected packaged sample license source: $sample_path" >&2; return 1; }
+      if [[ -n "${manifest_paths["$sample_path"]+set}" ]]; then
+        echo "Duplicate packaged sample path: $sample_path" >&2
+        return 1
+      fi
+      manifest_paths["$sample_path"]=1
+      manifest_sizes["$sample_path"]="$sample_size"
+      manifest_hashes["$sample_path"]="$sample_sha256"
+      manifest_entries+=("$sample_path")
+    done
+  } < "$target_manifest"
+
+  while IFS= read -r -d '' sample_source_path; do
+    if [[ -L "$sample_source_path" || ( ! -f "$sample_source_path" && ! -d "$sample_source_path" ) ]]; then
+      echo "Unsafe staged sample entry: ${sample_source_path#"$overlay_samples/files/"}" >&2
+      return 1
+    fi
+    if [[ -f "$sample_source_path" ]]; then
+      relative_path="${sample_source_path#"$overlay_samples/files/"}"
+      [[ -n "${manifest_paths["$relative_path"]+set}" ]] || { echo "Unlisted staged sample: $relative_path" >&2; return 1; }
+    fi
+  done < <(find -P "$overlay_samples/files" -mindepth 1 -print0)
+
+  for sample_path in "${manifest_entries[@]}"; do
+    sample_source_path="$overlay_samples/files/$sample_path"
+    [[ -f "$sample_source_path" && ! -L "$sample_source_path" ]] || { echo "Missing packaged sample: $sample_path" >&2; return 1; }
+  done
+
+  if [[ -e "$target_files" || -L "$target_files" ]]; then
+    [[ -d "$target_files" && ! -L "$target_files" ]] || { echo "Sample destination is not a directory: $target_files" >&2; return 1; }
+  fi
+  rm -rf -- "$target_files"
+  install -d -m 0755 -o root -g root "$target_files"
+  for sample_path in "${manifest_entries[@]}"; do
+    sample_source_path="$overlay_samples/files/$sample_path"
+    sample_destination="$target_files/$sample_path"
+    install -D -m 0644 -o root -g root -- "$sample_source_path" "$sample_destination"
+  done
+  chown -R root:root "$target_files"
+  find -P "$target_files" -type d -exec chmod 0755 {} +
+  find -P "$target_files" -type f -exec chmod 0644 {} +
+  while IFS= read -r -d '' sample_source_path; do
+    if [[ -L "$sample_source_path" || ( ! -f "$sample_source_path" && ! -d "$sample_source_path" ) ]]; then
+      echo "Unsafe installed sample entry: ${sample_source_path#"$target_files/"}" >&2
+      return 1
+    fi
+    relative_path="${sample_source_path#"$target_files/"}"
+    if [[ -d "$sample_source_path" ]]; then
+      [[ "$(stat -c '%u:%g %a' "$sample_source_path")" == '0:0 755' ]] || { echo "Unsafe installed sample directory: $relative_path" >&2; return 1; }
+    else
+      [[ -n "${manifest_paths["$relative_path"]+set}" ]] || { echo "Unlisted installed sample: $relative_path" >&2; return 1; }
+      [[ "$(stat -c '%u:%g %a' "$sample_source_path")" == '0:0 644' ]] || { echo "Unsafe installed sample file: $relative_path" >&2; return 1; }
+    fi
+  done < <(find -P "$target_files" -mindepth 1 -print0)
+
+  for sample_path in "${manifest_entries[@]}"; do
+    sample_destination="$target_files/$sample_path"
+    [[ -f "$sample_destination" && ! -L "$sample_destination" ]] || { echo "Missing packaged sample: $sample_path" >&2; return 1; }
+    [[ "$(stat -c '%s' "$sample_destination")" == "${manifest_sizes["$sample_path"]}" ]] || { echo "Packaged sample size mismatch: $sample_path" >&2; return 1; }
+    [[ "$(sha256sum "$sample_destination" | awk '{ print $1 }')" == "${manifest_hashes["$sample_path"]}" ]] || { echo "Packaged sample hash mismatch: $sample_path" >&2; return 1; }
+  done
+}
+
+if grep -RInE '(/home/pi|config\.txt|dtoverlay|dwc2|BCM[0-9]|g_mass_storage)' "$overlay_dir"; then
   echo "Refusing Raspberry Pi-specific overlay content." >&2
   exit 1
 fi
@@ -64,6 +192,14 @@ spi_validation_helper="$overlay_dir/usr/local/share/octessera/device-tree/spi-ov
 [[ -f "$spi_validation_helper" ]] || { echo "Missing SPI overlay validation helper." >&2; exit 1; }
 # shellcheck source=userpatches/overlay/usr/local/share/octessera/device-tree/spi-overlay-validation.sh
 source "$spi_validation_helper"
+input_routing_validation_helper="$overlay_dir/usr/local/share/octessera/device-tree/input-routing-overlay-validation.sh"
+[[ -f "$input_routing_validation_helper" ]] || { echo "Missing input-routing overlay validation helper." >&2; exit 1; }
+# shellcheck source=userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-overlay-validation.sh
+source "$input_routing_validation_helper"
+input_routing_boot_helper="$overlay_dir/usr/local/share/octessera/device-tree/input-routing-boot-config.sh"
+[[ -f "$input_routing_boot_helper" ]] || { echo "Missing input-routing boot configuration helper." >&2; exit 1; }
+# shellcheck source=userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-boot-config.sh
+source "$input_routing_boot_helper"
 boot_dtb_helper="$overlay_dir/usr/local/share/octessera/device-tree/boot-dtb-selection.sh"
 [[ -f "$boot_dtb_helper" ]] || { echo "Missing boot DTB selection helper." >&2; exit 1; }
 # shellcheck source=userpatches/overlay/usr/local/share/octessera/device-tree/boot-dtb-selection.sh
@@ -72,17 +208,26 @@ source "$boot_dtb_helper"
 spi_overlay_name=octessera-h618-spi1-cs0
 spi_user_overlay_assignment='user_overlays=octessera-h618-spi1-cs0'
 spi_user_overlay_token="${spi_user_overlay_assignment#*=}"
+input_routing_overlay_name=octessera-h618-input-routing
+input_routing_user_overlay_token="$input_routing_overlay_name"
 spi_overlay_dir=/boot/overlay-user
 spi_dtbo="$spi_overlay_dir/$spi_overlay_name.dtbo"
 spi_dts_image=/usr/local/share/octessera/device-tree/$spi_overlay_name.dts
+input_routing_dtbo="$spi_overlay_dir/$input_routing_overlay_name.dtbo"
+input_routing_dts_image=/usr/local/share/octessera/device-tree/$input_routing_overlay_name.dts
 spi_work="$(mktemp -d)"
+input_routing_work="$(mktemp -d)"
 spi_dtbo_tmp=
 spi_dts_tmp=
+input_routing_dtbo_tmp=
+input_routing_dts_tmp=
 armbian_env_tmp=
+boot_args_tmp=
+extlinux_tmp=
 work=
 cleanup() {
-  rm -rf "${spi_work:-}" "${work:-}"
-  rm -f "${spi_dtbo_tmp:-}" "${spi_dts_tmp:-}" "${armbian_env_tmp:-}"
+  rm -rf "${spi_work:-}" "${input_routing_work:-}" "${work:-}"
+  rm -f "${spi_dtbo_tmp:-}" "${spi_dts_tmp:-}" "${input_routing_dtbo_tmp:-}" "${input_routing_dts_tmp:-}" "${armbian_env_tmp:-}" "${boot_args_tmp:-}" "${extlinux_tmp:-}"
 }
 trap cleanup EXIT
 install -d -m 0755 "$spi_overlay_dir"
@@ -102,7 +247,7 @@ octessera_run_strict_diagnostic "$spi_work" compile_spi_overlay dtc -@ -I dts -O
 octessera_run_strict_diagnostic "$spi_work" inspect_spi_overlay dtc -I dtb -O dts -o "$spi_work/$spi_overlay_name.dts" "$spi_dtbo_tmp" || exit 1
 spi_merged_dtb="$spi_work/$spi_overlay_name-merged.dtb"
 octessera_run_strict_diagnostic "$spi_work" merge_spi_overlay fdtoverlay -i "$spi_base_dtb" -o "$spi_merged_dtb" "$spi_dtbo_tmp" || exit 1
-octessera_run_strict_diagnostic "$spi_work" inspect_merged_spi_overlay dtc -I dtb -O dts -o "$spi_work/$spi_overlay_name-merged.dts" "$spi_merged_dtb" || exit 1
+octessera_run_dtc_inspection "$spi_work" inspect_merged_spi_overlay dtc -q -I dtb -O dts -o "$spi_work/$spi_overlay_name-merged.dts" "$spi_merged_dtb" || exit 1
 
 spi1_path="$(fdtget -t s "$spi_base_dtb" /__symbols__ spi1)"
 spi1_pins_path="$(fdtget -t s "$spi_base_dtb" /__symbols__ spi1_pins)"
@@ -112,6 +257,20 @@ i2c1_path="$(fdtget -t s "$spi_base_dtb" /__symbols__ i2c1)"
 [[ -n "$spi1_path" && -n "$spi1_pins_path" && -n "$spi1_cs0_path" && -n "$spi0_path" && -n "$i2c1_path" ]] || { echo "H618 base DTB is missing required bus symbols." >&2; exit 1; }
 if ! octessera_assert_spi1_merge "$spi_base_dtb" "$spi_merged_dtb" "$spi1_path" "$spi1_pins_path" "$spi1_cs0_path" "$spi0_path" "$i2c1_path" "Orange Pi"; then
   echo "Orange Pi SPI1 merge assertions failed." >&2
+  exit 1
+fi
+
+input_routing_dtbo_tmp="$(mktemp "$spi_overlay_dir/.${input_routing_overlay_name}.dtbo.XXXXXX")"
+octessera_run_strict_diagnostic "$input_routing_work" compile_input_routing_overlay dtc -@ -I dts -O dtb -o "$input_routing_dtbo_tmp" "$input_routing_dts" || exit 1
+octessera_run_strict_diagnostic "$input_routing_work" inspect_input_routing_overlay dtc -I dtb -O dts -o "$input_routing_work/$input_routing_overlay_name.dts" "$input_routing_dtbo_tmp" || exit 1
+input_routing_merged_dtb="$input_routing_work/$input_routing_overlay_name-merged.dtb"
+octessera_run_strict_diagnostic "$input_routing_work" merge_input_routing_overlay fdtoverlay -i "$spi_base_dtb" -o "$input_routing_merged_dtb" "$input_routing_dtbo_tmp" || exit 1
+octessera_run_dtc_inspection "$input_routing_work" inspect_merged_input_routing_overlay dtc -q -I dtb -O dts -o "$input_routing_work/$input_routing_overlay_name-merged.dts" "$input_routing_merged_dtb" || exit 1
+uart0_path="$(fdtget -t s "$spi_base_dtb" /__symbols__ uart0)"
+pio_path="$(fdtget -t s "$spi_base_dtb" /__symbols__ pio)"
+[[ -n "$uart0_path" && -n "$pio_path" ]] || { echo "H618 base DTB is missing UART0 or pinctrl symbols." >&2; exit 1; }
+if ! octessera_assert_input_routing_merge "$spi_base_dtb" "$input_routing_merged_dtb" "$uart0_path" "$pio_path" /chosen "Orange Pi"; then
+  echo "Orange Pi input-routing merge assertions failed." >&2
   exit 1
 fi
 
@@ -125,8 +284,18 @@ chown root:root "$spi_dtbo_tmp"
 mv -f -- "$spi_dtbo_tmp" "$spi_dtbo"
 spi_dtbo_tmp=
 
+install -d -m 0755 "$(dirname "$input_routing_dts_image")"
+input_routing_dts_tmp="$(mktemp "${input_routing_dts_image}.XXXXXX")"
+install -m 0644 -o root -g root "$input_routing_dts" "$input_routing_dts_tmp"
+mv -f -- "$input_routing_dts_tmp" "$input_routing_dts_image"
+input_routing_dts_tmp=
+chmod 0644 "$input_routing_dtbo_tmp"
+chown root:root "$input_routing_dtbo_tmp"
+mv -f -- "$input_routing_dtbo_tmp" "$input_routing_dtbo"
+input_routing_dtbo_tmp=
+
 armbian_env_tmp="$(mktemp "${armbian_env}.XXXXXX")"
-if ! octessera_armbian_env_update "$armbian_env" "$armbian_env_tmp" "$spi_user_overlay_token" i2c1-pi; then
+if ! octessera_armbian_env_update "$armbian_env" "$armbian_env_tmp" "$spi_user_overlay_token" i2c1-pi "$input_routing_user_overlay_token"; then
   echo "Refusing malformed or ambiguous Armbian overlay configuration." >&2
   exit 1
 fi
@@ -139,38 +308,100 @@ else
 fi
 armbian_env_tmp=
 
+boot_args_tmp="$(mktemp "${armbian_env}.boot-args.XXXXXX")"
+if ! octessera_remove_uart0_console_args "$armbian_env" "$boot_args_tmp"; then
+  echo "Refusing malformed Armbian boot argument configuration." >&2
+  exit 1
+fi
+octessera_assert_no_uart0_console_args "$boot_args_tmp" || {
+  echo "Armbian boot configuration still selects console=ttyS0." >&2
+  exit 1
+}
+chmod --reference="$armbian_env" "$boot_args_tmp"
+chown --reference="$armbian_env" "$boot_args_tmp"
+if cmp -s "$armbian_env" "$boot_args_tmp"; then
+  rm -f "$boot_args_tmp"
+else
+  mv -f -- "$boot_args_tmp" "$armbian_env"
+fi
+boot_args_tmp=
+
+if [[ -f /boot/extlinux/extlinux.conf ]]; then
+  extlinux_tmp="$(mktemp /boot/extlinux/.extlinux.conf.XXXXXX)"
+  if ! octessera_remove_uart0_console_args /boot/extlinux/extlinux.conf "$extlinux_tmp"; then
+    echo "Refusing malformed Armbian extlinux boot argument configuration." >&2
+    exit 1
+  fi
+  octessera_assert_no_uart0_console_args "$extlinux_tmp" || {
+    echo "Armbian extlinux configuration still selects console=ttyS0." >&2
+    exit 1
+  }
+  chmod --reference=/boot/extlinux/extlinux.conf "$extlinux_tmp"
+  chown --reference=/boot/extlinux/extlinux.conf "$extlinux_tmp"
+  mv -f -- "$extlinux_tmp" /boot/extlinux/extlinux.conf
+  extlinux_tmp=
+fi
+
 spi_dts_sha256="$(sha256sum "$spi_dts_image" | awk '{ print $1 }')"
 spi_dtbo_sha256="$(sha256sum "$spi_dtbo" | awk '{ print $1 }')"
 
-for updater_file in \
-  usr/local/sbin/octessera-update \
-  usr/local/sbin/octessera-update-guard \
-  usr/local/sbin/octessera-update-recovery \
-  usr/local/lib/octessera/updater_protocol.py \
-  usr/local/lib/octessera/updater_state.py \
-  usr/local/lib/octessera/updater_assets.py \
-  usr/local/lib/octessera/updater_guard.py \
-  usr/local/lib/octessera/updater_cli.py \
-  etc/systemd/system/octessera-update-guard.service \
-  etc/systemd/system/octessera-update-recovery.service; do
-  [[ -f "$overlay_dir/$updater_file" ]] || { echo "Missing updater protocol overlay: $updater_file" >&2; exit 1; }
+octessera_require_diagnostic_updater_overlay "$overlay_dir"
+for wifi_foundation_file in \
+  usr/local/sbin/octessera-wifi-foundation \
+  etc/systemd/system/octessera-wifi-foundation.service; do
+  [[ -f "$overlay_dir/$wifi_foundation_file" ]] || { echo "Missing inactive Wi-Fi foundation overlay: $wifi_foundation_file" >&2; exit 1; }
 done
 install_overlay_file etc/octessera/armbian-image.txt /etc/octessera/armbian-image.txt 0644
+install_overlay_file etc/octessera/image-contract.json /etc/octessera/image-contract.json 0644
 install_overlay_file usr/local/sbin/octessera-armbian-diagnostics /usr/local/sbin/octessera-armbian-diagnostics 0755
-install_overlay_file usr/local/sbin/octessera-update /usr/local/sbin/octessera-update 0755
-install_overlay_file usr/local/sbin/octessera-update-guard /usr/local/sbin/octessera-update-guard 0755
-install_overlay_file usr/local/sbin/octessera-update-recovery /usr/local/sbin/octessera-update-recovery 0755
-install_overlay_file usr/local/lib/octessera/updater_protocol.py /usr/local/lib/octessera/updater_protocol.py 0644
-install_overlay_file usr/local/lib/octessera/updater_state.py /usr/local/lib/octessera/updater_state.py 0644
-install_overlay_file usr/local/lib/octessera/updater_assets.py /usr/local/lib/octessera/updater_assets.py 0644
-install_overlay_file usr/local/lib/octessera/updater_guard.py /usr/local/lib/octessera/updater_guard.py 0644
-install_overlay_file usr/local/lib/octessera/updater_cli.py /usr/local/lib/octessera/updater_cli.py 0644
+if [[ "$OCTESSERA_IMAGE_MODE" == diagnostic ]]; then
+  install_overlay_file usr/local/sbin/octessera-update /usr/local/sbin/octessera-update 0755
+  install_overlay_file usr/local/sbin/octessera-update-guard /usr/local/sbin/octessera-update-guard 0755
+  install_overlay_file usr/local/sbin/octessera-update-recovery /usr/local/sbin/octessera-update-recovery 0755
+  install_overlay_file usr/local/lib/octessera/updater_protocol.py /usr/local/lib/octessera/updater_protocol.py 0644
+  install_overlay_file usr/local/lib/octessera/updater_state.py /usr/local/lib/octessera/updater_state.py 0644
+  install_overlay_file usr/local/lib/octessera/updater_assets.py /usr/local/lib/octessera/updater_assets.py 0644
+  install_overlay_file usr/local/lib/octessera/updater_guard.py /usr/local/lib/octessera/updater_guard.py 0644
+  install_overlay_file usr/local/lib/octessera/updater_cli.py /usr/local/lib/octessera/updater_cli.py 0644
+fi
 install_overlay_file usr/local/sbin/octessera-wifi-connect /usr/local/sbin/octessera-wifi-connect 0755
+install_overlay_file usr/local/sbin/octessera-wifi-foundation /usr/local/sbin/octessera-wifi-foundation 0755
 install_overlay_file usr/local/sbin/octessera-setup-sidecar /usr/local/sbin/octessera-setup-sidecar 0755
+install_overlay_file usr/local/sbin/octessera-orange-usb-gadget /usr/local/sbin/octessera-orange-usb-gadget 0755
+install_overlay_file usr/local/sbin/octessera-orange-oled-logo /usr/local/sbin/octessera-orange-oled-logo 0755
+install_overlay_file usr/local/sbin/octessera-provision-musical-default /usr/local/sbin/octessera-provision-musical-default 0755
+install_overlay_file etc/modules-load.d/octessera-orange-midi.conf /etc/modules-load.d/octessera-orange-midi.conf 0644
+install_overlay_file etc/modules-load.d/octessera-orange-usb-gadget.conf /etc/modules-load.d/octessera-orange-usb-gadget.conf 0644
+install_overlay_file etc/systemd/system/octessera-orange-usb-gadget.service /etc/systemd/system/octessera-orange-usb-gadget.service 0644
+install_overlay_file etc/systemd/system/octessera-provision-musical-default.service /etc/systemd/system/octessera-provision-musical-default.service 0644
+install_overlay_file etc/initramfs-tools/hooks/octessera-orange-boot-splash /etc/initramfs-tools/hooks/octessera-orange-boot-splash 0755
+install_overlay_file etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash /etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash 0755
+install_overlay_file etc/systemd/system/octessera-orange-boot-splash.service /etc/systemd/system/octessera-orange-boot-splash.service 0644
+install_overlay_file etc/systemd/system/octessera-orange-oled-shutdown.service /etc/systemd/system/octessera-orange-oled-shutdown.service 0644
+install_overlay_file etc/systemd/system/octessera-wifi-foundation.service /etc/systemd/system/octessera-wifi-foundation.service 0644
+install_overlay_file lib/systemd/system-sleep/octessera-orange-oled /lib/systemd/system-sleep/octessera-orange-oled 0755
+install_overlay_file usr/local/share/octessera-setup-ui/octessera-mark.svg /usr/share/octessera/oled/octessera-mark.svg 0644
+install_overlay_file usr/local/share/octessera-setup-ui/octessera-wordmark.svg /usr/share/octessera/oled/octessera-wordmark.svg 0644
+for musical_asset in \
+  usr/share/octessera/defaults/pi-default.json \
+  usr/share/octessera/samples/sample-manifest.tsv; do
+  [[ -f "$overlay_dir/$musical_asset" && ! -L "$overlay_dir/$musical_asset" ]] || { echo "Missing staged regular musical asset: $musical_asset. Run tools/armbian-image/stage-musical-assets.sh." >&2; exit 1; }
+done
+install_overlay_file usr/share/octessera/defaults/pi-default.json /usr/share/octessera/defaults/pi-default.json 0644
+install_overlay_file usr/share/octessera/samples/sample-manifest.tsv /usr/share/octessera/samples/sample-manifest.tsv 0644
+install_musical_assets "$overlay_dir" /
 install_overlay_file etc/systemd/system/octessera-setup.service /etc/systemd/system/octessera-setup.service 0644
-install_overlay_file etc/systemd/system/octessera-update-guard.service /etc/systemd/system/octessera-update-guard.service 0644
-install_overlay_file etc/systemd/system/octessera-update-recovery.service /etc/systemd/system/octessera-update-recovery.service 0644
-install_overlay_file etc/sudoers.d/octessera-update /etc/sudoers.d/octessera-update 0440
+if [[ "$OCTESSERA_IMAGE_MODE" == diagnostic ]]; then
+  install_overlay_file etc/systemd/system/octessera-update-guard.service /etc/systemd/system/octessera-update-guard.service 0644
+  install_overlay_file etc/systemd/system/octessera-update-recovery.service /etc/systemd/system/octessera-update-recovery.service 0644
+  install_overlay_file etc/sudoers.d/octessera-update /etc/sudoers.d/octessera-update 0440
+fi
+if [[ "$OCTESSERA_IMAGE_MODE" == production ]]; then
+  [[ -f "$overlay_dir/etc/udev/rules.d/70-octessera-orange-runtime.rules" && ! -L "$overlay_dir/etc/udev/rules.d/70-octessera-orange-runtime.rules" ]] || { echo "Missing exact Orange runtime udev rule." >&2; exit 1; }
+  install_overlay_file etc/udev/rules.d/70-octessera-orange-runtime.rules /etc/udev/rules.d/70-octessera-orange-runtime.rules 0644
+  install_overlay_file etc/systemd/system/octessera.service /etc/systemd/system/octessera.service 0644
+  octessera_install_production_runtime "$overlay_dir"
+fi
 if [[ -d "$overlay_dir/usr/local/share/octessera-setup-ui" ]]; then
   cp -a "$overlay_dir/usr/local/share/octessera-setup-ui" /usr/local/share/
 fi
@@ -178,7 +409,11 @@ fi
 if ! id octessera >/dev/null 2>&1; then
   useradd --create-home --shell /bin/bash --groups sudo octessera
 fi
+if [[ "$OCTESSERA_IMAGE_MODE" == production ]]; then
+  octessera_configure_runtime_account
+fi
 passwd -l octessera >/dev/null || true
+rm -f /root/.ssh/authorized_keys /home/octessera/.ssh/authorized_keys
 install -d -m 0755 /etc/ssh/sshd_config.d
 cat >/etc/ssh/sshd_config.d/10-octessera-setup.conf <<'EOF'
 PermitRootLogin no
@@ -198,55 +433,47 @@ if systemctl list-unit-files sshd.socket >/dev/null 2>&1; then
   systemctl mask sshd.socket >/dev/null 2>&1 || true
 fi
 rm -f /etc/ssh/ssh_host_*
+systemctl disable --now serial-getty@ttyS0.service >/dev/null 2>&1 || true
+systemctl mask serial-getty@ttyS0.service >/dev/null 2>&1 || true
 systemctl enable octessera-setup.service >/dev/null
-systemctl enable --now octessera-update-recovery.service >/dev/null
+systemctl enable octessera-orange-usb-gadget.service >/dev/null
+systemctl enable octessera-provision-musical-default.service >/dev/null
+systemctl enable octessera-orange-boot-splash.service >/dev/null
+systemctl enable octessera-orange-oled-shutdown.service >/dev/null
+if [[ "$OCTESSERA_IMAGE_MODE" == diagnostic ]]; then
+  systemctl enable octessera-update-recovery.service >/dev/null
+fi
+if [[ "$OCTESSERA_IMAGE_MODE" == production ]]; then
+  systemctl enable octessera.service >/dev/null
+fi
+update-initramfs -u
 
 cat >/etc/octessera/build-metadata.env <<EOF
 OCTESSERA_IMAGE_KIND=armbian
+OCTESSERA_IMAGE_MODE=${OCTESSERA_IMAGE_MODE}
 OCTESSERA_BOARD_PROFILE_ID=orange-pi-zero-2w
 OCTESSERA_IMAGE_BUILT_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-OCTESSERA_RUNTIME_ENABLED_DEFAULT=false
+OCTESSERA_RUNTIME_ENABLED_DEFAULT=${OCTESSERA_RUNTIME_ENABLED_DEFAULT}
+OCTESSERA_IMAGE_CONTRACT_SHA256=${OCTESSERA_IMAGE_CONTRACT_SHA256}
+OCTESSERA_RUNTIME_VERSION=${OCTESSERA_RUNTIME_VERSION}
+OCTESSERA_RUNTIME_BINARY_SHA256=${OCTESSERA_RUNTIME_BINARY_SHA256}
+OCTESSERA_RUNTIME_MANIFEST_SHA256=${OCTESSERA_RUNTIME_MANIFEST_SHA256}
+OCTESSERA_RUNTIME_METADATA_SHA256=${OCTESSERA_RUNTIME_METADATA_SHA256}
 OCTESSERA_SPI1_CS0_DTS_SHA256=${spi_dts_sha256}
 OCTESSERA_SPI1_CS0_DTBO_SHA256=${spi_dtbo_sha256}
+OCTESSERA_INPUT_ROUTING_DTS_SHA256=$(sha256sum "$input_routing_dts_image" | awk '{ print $1 }')
+OCTESSERA_INPUT_ROUTING_DTBO_SHA256=$(sha256sum "$input_routing_dtbo" | awk '{ print $1 }')
+OCTESSERA_PI_DEFAULT_SHA256=$(sha256sum /usr/share/octessera/defaults/pi-default.json | awk '{ print $1 }')
+OCTESSERA_SAMPLES_MANIFEST_SHA256=$(sha256sum /usr/share/octessera/samples/sample-manifest.tsv | awk '{ print $1 }')
 EOF
 
 payload_url="${OCTESSERA_PAYLOAD_URL:-}"
 payload_sha256="${OCTESSERA_PAYLOAD_SHA256:-}"
-if [[ -n "$payload_url" ]]; then
-  [[ "$payload_url" == https://* ]] || { echo "OCTESSERA_PAYLOAD_URL must use HTTPS." >&2; exit 1; }
-  [[ "$payload_sha256" =~ ^[a-fA-F0-9]{64}$ ]] || { echo "OCTESSERA_PAYLOAD_SHA256 is required." >&2; exit 1; }
-  work="$(mktemp -d)"
-  curl --fail --location --proto '=https' --tlsv1.2 --output "$work/payload.tar" "$payload_url"
-  echo "$payload_sha256  $work/payload.tar" | sha256sum -c -
-  tar -tf "$work/payload.tar" | while IFS= read -r entry; do
-    case "$entry" in
-      /*|..|../*|*/..|*/../*) echo "Unsafe payload path: $entry" >&2; exit 1 ;;
-    esac
-  done
-  tar -tvf "$work/payload.tar" | while IFS= read -r entry; do
-    case "${entry:0:1}" in
-      l|h|c|b|p|s) echo "Unsafe payload entry type: $entry" >&2; exit 1 ;;
-    esac
-  done
-  mkdir "$work/extract"
-  tar -xf "$work/payload.tar" -C "$work/extract" --no-same-owner --no-same-permissions
-  if [[ -f "$work/extract/octessera-payload.json" ]]; then
-    jq -e '.name == "octessera-armbian-payload"' "$work/extract/octessera-payload.json" >/dev/null
-    install -D -m 0644 "$work/extract/octessera-payload.json" /etc/octessera/payload.json
-    jq -e '.artifact_kind == "diagnostic-only" and .runtime_ready == false and (.enable_runtime // false) == false' "$work/extract/octessera-payload.json" >/dev/null || {
-      echo "Orange Pi payloads must be explicitly diagnostic-only and runtime-disabled." >&2
-      exit 1
-    }
-    if find "$work/extract" -type f -name octessera-pi -print -quit | grep -q .; then
-      echo "Orange Pi diagnostic images reject octessera-pi runtime payloads." >&2
-      exit 1
-    fi
-    install -d -m 0755 /usr/local/lib/octessera/payload-staged
-    cp -a "$work/extract/." /usr/local/lib/octessera/payload-staged/
-  else
-    echo "Payload is missing octessera-payload.json." >&2
-    exit 1
-  fi
+if [[ "$OCTESSERA_IMAGE_MODE" == diagnostic ]]; then
+  octessera_install_diagnostic_payload "$payload_url" "$payload_sha256"
+elif [[ -n "$payload_url" || -n "$payload_sha256" ]]; then
+  echo "Production Orange images do not accept payload URLs or payload hashes." >&2
+  exit 1
 fi
 
 if [[ -n "${PUBLIC_PRESET_CONFIGURATION_URL:-}" ]]; then

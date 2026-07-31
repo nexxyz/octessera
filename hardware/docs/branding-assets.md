@@ -41,6 +41,12 @@ Generated PNGs:
 
 The Pi build embeds the PNGs through `apps/pi-zero/build.rs`, which writes RGB565 splash assets into Cargo `OUT_DIR`. Rebuild the Pi binary or Pi image/initramfs after changing these PNGs.
 
+The Orange Armbian image keeps the SVG sources as `/usr/share/octessera/oled/`
+assets and rasterizes the same mark/wordmark through its board-specific
+`octessera-orange-oled-logo` utility for initramfs boot, sleep, resume, and
+shutdown handoff. It does not use Raspberry `rppal`, BCM GPIOs, or the Pi
+binary's Cargo-generated splash assets.
+
 ## Enclosure branding
 
 The enclosure top uses `hardware/enclosure/branding_marking_cadquery.py`.
@@ -56,9 +62,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File hardware/enclosure/generate_
 
 Expected outputs:
 
-- `release-artifacts/enclosure/step/case_top_two_level_cadquery.step`
-- `release-artifacts/enclosure/stl/case_top_two_level_cadquery.stl`
-- `release-artifacts/enclosure/3mf-multicolor/case_top_two_level_multicolor.3mf`
+- `release-artifacts/enclosure/step/case_top_two_level_cadquery_raspberry-pi-zero-2w.step`
+- `release-artifacts/enclosure/stl/case_top_two_level_cadquery_raspberry-pi-zero-2w.stl`
+- `release-artifacts/enclosure/3mf-multicolor/case_top_two_level_raspberry-pi-zero-2w_multicolor.3mf`
 - ignored review images under `hardware/enclosure/review/`
 
 Do not restore the old unbranded top 3MF; the top 3MF should be multicolor only.

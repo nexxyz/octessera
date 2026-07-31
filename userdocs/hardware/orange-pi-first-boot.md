@@ -2,12 +2,26 @@
 
 The Orange Pi image starts a small setup website if it does not already know a Wi-Fi network.
 
-This image is bring-up infrastructure, not a full Octessera runtime image. It
-does not install or enable `octessera.service`. The foreground
-`octessera-pi` candidate is a separately staged qualification build, not a
-service or release artifact. It uses the shared 44.1 kHz runtime rate and
-requires the exact CPAL output device `hw:CARD=octesseradac,DEV=0`; internal
-MIDI events are ignored and explicit MIDI platform actions are unavailable.
+Octessera 0.7.5 has two explicit Orange image modes:
+
+- **Production:** `octessera-0.7.5-orange-pi-zero-2w.img.xz` installs and enables
+  `octessera.service`. The service runs the native runtime as the locked
+  `octessera-runtime` system account.
+- **Diagnostic:** a separate bring-up image for bus, OLED, and qualification
+  checks. It intentionally has no production runtime service.
+
+The production image also has a separate interactive `octessera` admin/setup
+user. The service never runs as that user. Production supports the OLED,
+NeoTrellis, NeoKey, four encoders, persistent store, samples, MIDI, and the
+internal DAC. Readiness follows three checks: required audio is healthy, the
+control surface initializes, and the first runtime frame renders. USB-only
+audio is unsupported; the internal DAC at
+`hw:CARD=octesseradac,DEV=0` is required. USB UAC2 may be added as a companion,
+but `audioOut=usb` is rejected.
+
+Orange update check, apply, rollback, and OTA remain unsupported in 0.7.5.
+Use a verified production image artifact for an image update; do not treat the
+diagnostic image or a local runtime binary as a release image.
 
 Use this before final assembly if you want. You do not need the OLED or buttons installed yet.
 
@@ -76,9 +90,67 @@ If Wi-Fi was configured by another Armbian first-run path, the setup portal stay
 
 ## SPI and OLED bring-up
 
-The Orange Pi Armbian image includes the reviewed SPI1/CS0 user overlay. It enables the header SPI pins and exposes one `/dev/spidev1.0` device at a maximum of 1 MHz. The image requires `overlays=i2c1-pi` for the header I2C bus and does not use the Raspberry Pi `config.txt` or stock `spidev1_0` path.
+The Orange Pi Armbian image includes the reviewed SPI1/CS0 user overlay. It enables the header SPI pins and exposes one `/dev/spidev1.0` device at a maximum of 16 MHz. The OLED HAL defaults to 16 MHz and accepts only the validated 1/2/4/8/12/16 MHz qualification ladder. The image requires `overlays=i2c1-pi` for the header I2C bus and does not use the Raspberry Pi `config.txt` or stock `spidev1_0` path.
+
+The separate `octessera-h618-input-routing` overlay disables UART0, clears its
+boot stdout path, and releases PH0/PH1 as GPIO inputs. Image customization and
+the checked provision tool remove active `console=ttyS0` arguments and disable
+`serial-getty@ttyS0.service`; SSH configuration and access are not changed by
+this input-routing step. AUX2's A/B lines stay available in either boot state,
+and its click line becomes available after this overlay is applied and the
+board is rebooted.
 
 This is only the electrical bus setup. Before connecting or testing an OLED, follow the [Orange Pi Armbian bring-up notes](../../hardware/docs/orange-pi-armbian-bringup.md) to verify the live pinmux, DC/reset GPIO mapping, power, and recovery path. Do not copy this overlay to another board.
+
+## Musical patch and samples
+
+The image stages the generated Raspberry/Pi-family default patch without
+replacing an existing user config. On first boot,
+`octessera-provision-musical-default.service` copies it to
+`/var/lib/octessera/presets/default.json` only when that file is absent. The
+three samples referenced by the patch are verified by SHA-256 and copied only
+when their destination files are absent, under:
+
+```text
+/var/lib/octessera/samples/
+```
+
+The staged samples come from the [Stargate sample pack](https://github.com/stargatedaw/stargate-sample-pack), whose upstream README describes them as free to use and redistribute. The image keeps that source attribution in the sample manifest.
+
+## USB audio and MIDI
+
+The production image includes an Orange service for optional UAC2 playback plus
+MIDI through the verified `musb-hdrc.4.auto` controller. It refuses to bind
+another UDC or to disturb an existing gadget. UAC2 is configured for 44.1 kHz
+stereo playback, but it is not a replacement for the required internal DAC.
+Setup and teardown use one exclusive lifecycle lock, so a concurrent lifecycle
+call fails without changing the gadget.
+The USB product is `Octessera Audio + MIDI` for the combined service,
+`Octessera MIDI` for MIDI-only, and `Octessera Line In` for audio-only. MIDI
+and combined operation require the patched, qualified image kernel. It must
+expose `interface_string`; the service writes and verifies the exact 14-byte
+`Octessera MIDI` value before binding. `id` remains an ALSA identity field, not
+a substitute. A generic Windows `MIDI function` label means the image is
+unpatched or unqualified and is not accepted for release validation.
+MIDI is part of the production runtime. Host enumeration is still worth checking
+on the assembled board; inspect the gadget service before connecting a host:
+
+```sh
+systemctl status octessera-orange-usb-gadget.service
+ls /sys/kernel/config/usb_gadget/octessera-orange-pi/functions
+```
+
+UART0 remains intentionally disabled by the reviewed input-routing overlay;
+this USB path does not restore it.
+
+## Boot, sleep, and shutdown OLED handoff
+
+The image carries the Octessera mark and wordmark into initramfs and uses the
+H618 SPI1 device `/dev/spidev1.0` plus GPIO lines on `300b000.pinctrl` (reset
+76, D/C 270). The early boot splash runs before the main system; the systemd
+sleep hook shows the sleep mark, restores the boot logo after resume, and the
+shutdown unit shows the shutdown mark before poweroff/reboot. These are Orange
+GPIO/SPI paths, not Raspberry `rppal`, BCM, or `dwc2` paths.
 
 ## Advanced path
 

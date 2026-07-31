@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "image_kind": "diagnostic",
+  "runtime_enabled_default": false
+}

@@ -16,8 +16,10 @@ use std::path::{Path, PathBuf};
 #[cfg(target_os = "linux")]
 use std::time::Duration;
 
-#[cfg(target_os = "linux")]
-const SPI_SPEED_HZ: u32 = crate::orange_timing::SPI_SPEED_HZ as u32;
+#[cfg(any(test, target_os = "linux"))]
+const ORANGE_OLED_SPI_HZ_LADDER: &[u32] = &[
+    1_000_000, 2_000_000, 4_000_000, 8_000_000, 12_000_000, 16_000_000,
+];
 #[cfg(target_os = "linux")]
 const OLED_FRAME_BYTES: usize = timing::OLED_FRAME_BYTES;
 #[cfg(any(test, target_os = "linux"))]
@@ -389,15 +391,41 @@ fn request_gpio(chip_path: &Path, plan: OrangeGpioDescriptor) -> Result<Request,
 #[cfg(target_os = "linux")]
 fn open_spi(path: &str) -> Result<spidev::Spidev, String> {
     use spidev::{SpiModeFlags, Spidev, SpidevOptions};
+    let speed_hz = orange_oled_spi_hz_from_env(
+        std::env::var("OCTESSERA_ORANGE_OLED_SPI_HZ")
+            .ok()
+            .as_deref(),
+    )?;
     let mut spi = Spidev::open(path).map_err(|error| format!("SPI open failed: {error}"))?;
     let options = SpidevOptions::new()
         .bits_per_word(8)
-        .max_speed_hz(SPI_SPEED_HZ)
+        .max_speed_hz(speed_hz)
         .mode(SpiModeFlags::SPI_MODE_0)
         .build();
     spi.configure(&options)
         .map_err(|error| format!("SPI configure failed: {error}"))?;
     Ok(spi)
+}
+
+#[cfg(any(test, target_os = "linux"))]
+fn orange_oled_spi_hz_from_env(value: Option<&str>) -> Result<u32, String> {
+    let Some(value) = value else {
+        return Ok(crate::orange_timing::SPI_SPEED_HZ as u32);
+    };
+    let speed_hz = value.parse::<u32>().map_err(|_| {
+        format!(
+            "OCTESSERA_ORANGE_OLED_SPI_HZ must be one of {:?} Hz; got {value:?}",
+            ORANGE_OLED_SPI_HZ_LADDER
+        )
+    })?;
+    if ORANGE_OLED_SPI_HZ_LADDER.contains(&speed_hz) {
+        Ok(speed_hz)
+    } else {
+        Err(format!(
+            "OCTESSERA_ORANGE_OLED_SPI_HZ must be one of {:?} Hz; got {value:?}",
+            ORANGE_OLED_SPI_HZ_LADDER
+        ))
+    }
 }
 
 #[cfg(target_os = "linux")]
@@ -419,51 +447,5 @@ fn reset_gpio_value(active: bool, plan: OrangeGpioDescriptor) -> Value {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{
-        fallback_cleanup_steps, frame_chunk_ranges, CleanupStep, ORANGE_AUDIO_UNAVAILABLE_ERROR,
-        ORANGE_INPUTS_UNSUPPORTED_ERROR, POST_DISPLAY_ON_MS, PRE_RESET_DELAY_MS, RESET_HIGH_MS,
-        RESET_LOW_MS, RESET_SETTLE_MS,
-    };
-    use crate::board_profiles::ORANGE_PI_ZERO_2W_DEVICES;
-
-    #[test]
-    fn orange_descriptors_keep_exact_bus_identity() {
-        assert_eq!(ORANGE_PI_ZERO_2W_DEVICES.i2c.path, "/dev/i2c-2");
-        assert_eq!(ORANGE_PI_ZERO_2W_DEVICES.i2c.controller, "5002400.i2c");
-        assert_eq!(ORANGE_PI_ZERO_2W_DEVICES.spi.path, "/dev/spidev1.0");
-        assert_eq!(ORANGE_PI_ZERO_2W_DEVICES.spi.controller, "5011000.spi");
-    }
-
-    #[test]
-    fn initialization_errors_remain_explicit_for_unqualified_hardware() {
-        assert!(ORANGE_INPUTS_UNSUPPORTED_ERROR.contains("encoder"));
-        assert!(ORANGE_INPUTS_UNSUPPORTED_ERROR.contains("Seesaw"));
-        assert!(ORANGE_AUDIO_UNAVAILABLE_ERROR.contains("audio/I2S"));
-    }
-
-    #[test]
-    fn oled_timing_matches_the_proven_raspberry_sequence() {
-        assert_eq!(PRE_RESET_DELAY_MS, 250);
-        assert_eq!(RESET_HIGH_MS, 100);
-        assert_eq!(RESET_LOW_MS, 100);
-        assert_eq!(RESET_SETTLE_MS, 250);
-        assert_eq!(POST_DISPLAY_ON_MS, 100);
-    }
-
-    #[test]
-    fn transport_frame_chunks_are_bounded_and_complete() {
-        let ranges = frame_chunk_ranges(3_000);
-        assert!(ranges.iter().all(|range| range.start < range.end));
-        assert_eq!(ranges.first().map(|range| range.start), Some(0));
-        assert_eq!(ranges.last().map(|range| range.end), Some(3_000));
-    }
-
-    #[test]
-    fn fallback_cleanup_turns_display_off_before_black() {
-        assert_eq!(
-            fallback_cleanup_steps(),
-            [CleanupStep::DisplayOff, CleanupStep::BlackFrame]
-        );
-    }
-}
+#[path = "orange_hardware_tests.rs"]
+mod tests;

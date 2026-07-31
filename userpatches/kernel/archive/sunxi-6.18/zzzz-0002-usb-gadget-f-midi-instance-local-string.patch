@@ -1,0 +1,105 @@
+From: Octessera kernel maintainers <kernel@octessera.invalid>
+Subject: [PATCH] usb: gadget: f_midi: keep interface strings instance-owned
+
+Keep configured interface strings in each f_midi instance and use
+instance-local USB string tables during bind.
+
+diff --git a/drivers/usb/gadget/function/f_midi.c b/drivers/usb/gadget/function/f_midi.c
+--- a/drivers/usb/gadget/function/f_midi.c
++++ b/drivers/usb/gadget/function/f_midi.c
+@@ -93,6 +93,7 @@
+ 	unsigned int out_ports;
+ 	int index;
+ 	char *id;
++	char *interface_string;
+ 	unsigned int buflen, qlen;
+ 	/* This fifo is used as a buffer ring for pre-allocated IN usb_requests */
+ 	DECLARE_KFIFO_PTR(in_req_fifo, struct usb_request *);
+@@ -210,20 +211,7 @@
+ 
+ #define STRING_FUNC_IDX			0
+ 
+-static struct usb_string midi_string_defs[] = {
+-	[STRING_FUNC_IDX].s = "MIDI function",
+-	{  } /* end of list */
+-};
+-
+-static struct usb_gadget_strings midi_stringtab = {
+-	.language	= 0x0409,	/* en-us */
+-	.strings	= midi_string_defs,
+-};
+-
+-static struct usb_gadget_strings *midi_strings[] = {
+-	&midi_stringtab,
+-	NULL,
+-};
++static const char midi_interface_string[] = "MIDI function";
+ 
+ static inline struct usb_request *midi_alloc_ep_req(struct usb_ep *ep,
+ 						    unsigned length)
+@@ -874,8 +862,19 @@
+ 	struct usb_midi_out_jack_descriptor_1 jack_out_emb_desc[MAX_PORTS];
+ 	struct usb_composite_dev *cdev = c->cdev;
+ 	struct f_midi *midi = func_to_midi(f);
++	struct usb_string midi_string_defs[] = {
++		[STRING_FUNC_IDX].s = midi->interface_string,
++		{  }
++	};
++	struct usb_gadget_strings midi_stringtab = {
++		.language	= 0x0409,	/* en-us */
++		.strings	= midi_string_defs,
++	};
++	struct usb_gadget_strings *midi_strings[] = {
++		&midi_stringtab,
++		NULL,
++	};
+ 	struct usb_string *us;
+-	struct f_midi_opts *opts;
+ 	int status, n, jack = 1, i = 0, endpoint_descriptor_index = 0;
+ 
+ 	midi->gadget = cdev->gadget;
+@@ -883,10 +882,6 @@
+ 	status = f_midi_register_card(midi);
+ 	if (status < 0)
+ 		goto fail_register;
+-
+-	opts = container_of(f->fi, struct f_midi_opts, func_inst);
+-	if (opts->interface_string)
+-		midi_string_defs[STRING_FUNC_IDX].s = opts->interface_string;
+ 
+ 	/* maybe allocate device-global string ID */
+ 	us = usb_gstrings_attach(c->cdev, midi_strings,
+@@ -1311,6 +1306,7 @@
+ 	mutex_lock(&opts->lock);
+ 	if (!--midi->free_ref) {
+ 		kfree(midi->id);
++		kfree(midi->interface_string);
+ 		kfifo_free(&midi->in_req_fifo);
+ 		kfree(midi);
+ 		free = true;
+@@ -1378,6 +1374,13 @@
+ 		status = -ENOMEM;
+ 		goto midi_free;
+ 	}
++	midi->interface_string = kstrdup(opts->interface_string ?
++					       opts->interface_string : midi_interface_string,
++					       GFP_KERNEL);
++	if (!midi->interface_string) {
++		status = -ENOMEM;
++		goto midi_free;
++	}
+ 	midi->out_ports = opts->out_ports;
+ 	midi->index = opts->index;
+ 	midi->buflen = opts->buflen;
+@@ -1404,8 +1407,10 @@
+ 	return &midi->func;
+ 
+ midi_free:
+-	if (midi)
++	if (midi) {
+ 		kfree(midi->id);
++		kfree(midi->interface_string);
++	}
+ 	kfree(midi);
+ setup_fail:
+ 	mutex_unlock(&opts->lock);

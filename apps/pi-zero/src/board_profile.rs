@@ -38,14 +38,53 @@ pub const BOARD_PROFILE_ID: &str = BOARD_COMPOSITION.profile_id();
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub const BINARY_NAME: &str = "octessera-pi";
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-pub fn validate_runtime_profile() -> Result<(), String> {
-    if let Ok(expected) = std::env::var("OCTESSERA_EXPECTED_BOARD_PROFILE") {
-        if expected != BOARD_PROFILE_ID {
-            return Err(format!(
-                "board profile mismatch: binary={BOARD_PROFILE_ID}, expected={expected}"
-            ));
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+const _: () = assert!(
+    same_profile_id(
+        BOARD_PROFILE_ID,
+        octessera_hal::board_profiles::ACTIVE_BOARD_PROFILE_ID
+    ) && same_profile_id(BOARD_PROFILE_ID, ORANGE_PI_ZERO_2W_ID)
+);
+
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+const fn same_profile_id(left: &str, right: &str) -> bool {
+    let left = left.as_bytes();
+    let right = right.as_bytes();
+    if left.len() != right.len() {
+        return false;
+    }
+    let mut index = 0;
+    while index < left.len() {
+        if left[index] != right[index] {
+            return false;
         }
+        index += 1;
+    }
+    true
+}
+
+pub fn validate_runtime_profile() -> Result<(), String> {
+    validate_runtime_profile_value(
+        std::env::var("OCTESSERA_EXPECTED_BOARD_PROFILE")
+            .ok()
+            .as_deref(),
+    )
+}
+
+fn validate_runtime_profile_value(expected: Option<&str>) -> Result<(), String> {
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    let expected = expected.ok_or_else(|| {
+        format!("OCTESSERA_EXPECTED_BOARD_PROFILE must be set to {BOARD_PROFILE_ID}")
+    })?;
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    let Some(expected) = expected
+    else {
+        return Ok(());
+    };
+    if expected != BOARD_PROFILE_ID {
+        return Err(format!(
+            "board profile mismatch: binary={BOARD_PROFILE_ID}, expected={expected}"
+        ));
     }
     Ok(())
 }
@@ -98,5 +137,27 @@ mod tests {
         assert_eq!(BOARD_COMPOSITION, BoardComposition::OrangePiZero2w);
         assert_eq!(BOARD_PROFILE_ID, "orange-pi-zero-2w");
         assert_eq!(BOARD_COMPOSITION.profile_id(), BOARD_PROFILE_ID);
+    }
+
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[test]
+    fn wrong_runtime_profile_is_rejected_before_hardware_startup() {
+        let error = super::validate_runtime_profile_value(Some("raspberry-pi-zero-2w"))
+            .expect_err("wrong board profile must fail closed");
+        assert_eq!(
+            error,
+            "board profile mismatch: binary=orange-pi-zero-2w, expected=raspberry-pi-zero-2w"
+        );
+    }
+
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[test]
+    fn orange_runtime_requires_an_explicit_profile_contract() {
+        let error = super::validate_runtime_profile_value(None)
+            .expect_err("Orange startup must require its profile contract");
+        assert_eq!(
+            error,
+            "OCTESSERA_EXPECTED_BOARD_PROFILE must be set to orange-pi-zero-2w"
+        );
     }
 }

@@ -17,11 +17,15 @@ if [ -f "$STAGE_FILES/boot/config.txt.append" ]; then
 fi
 
 if [ -f "$STAGE_FILES/boot/overlays/i2s-dac-no20.dts" ]; then
-    install -d "$BOOT_DIR/overlays"
-    dtc -@ -I dts -O dtb \
-        -o "$BOOT_DIR/overlays/i2s-dac-no20.dtbo" \
-        "$STAGE_FILES/boot/overlays/i2s-dac-no20.dts"
+    install -d "$BOOT_DIR/octessera/overlays"
+    if [ ! -e "$BOOT_DIR/octessera/overlays/i2s-dac-no20.dtbo" ]; then
+        dtc -@ -I dts -O dtb \
+            -o "$BOOT_DIR/octessera/overlays/i2s-dac-no20.dtbo" \
+            "$STAGE_FILES/boot/overlays/i2s-dac-no20.dts"
+    fi
 fi
 
 rm -f "$BOOT_DIR/ssh" "$BOOT_DIR/ssh.txt"
 rm -f "$BOOT_DIR/wpa_supplicant.conf" "$BOOT_DIR/network-config" "$BOOT_DIR/user-data"
+
+chroot "$ROOTFS_DIR" /usr/local/sbin/octessera-finalize-rpi-kernel

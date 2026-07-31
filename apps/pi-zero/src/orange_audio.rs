@@ -1,7 +1,7 @@
 use crate::audio::AudioService;
 use crate::audio_event::musical_event_to_engine_event;
 use crate::host_audio_command::send_audio_command;
-use cpal::traits::{DeviceTrait, HostTrait};
+use cpal::traits::DeviceTrait;
 use cpal::{SampleFormat, StreamConfig};
 #[cfg(test)]
 use playback_runtime::RuntimeErrorCode;
@@ -13,7 +13,8 @@ use realtime_engine::synth::DEFAULT_AUDIO_SAMPLE_RATE;
 use rodio_engine_source::EngineEvent;
 use std::path::PathBuf;
 
-pub(crate) const ORANGE_AUDIO_DEVICE_NAME: &str = "hw:CARD=octesseradac,DEV=0";
+pub(crate) const ORANGE_AUDIO_DEVICE_NAME: &str = cpal::ALSA_OCTESSERA_DAC_PCM;
+pub(crate) const ORANGE_UAC2_AUDIO_DEVICE_NAME: &str = cpal::ALSA_UAC2_GADGET_PCM;
 pub(crate) const ORANGE_AUDIO_CHANNELS: u16 = 2;
 pub(crate) const ORANGE_UNAVAILABLE_STATUS: &str =
     "unavailable in Orange foreground runtime-candidate";
@@ -24,42 +25,6 @@ pub(crate) struct OrangeOutputConfigCandidate {
     pub(crate) min_sample_rate: u32,
     pub(crate) max_sample_rate: u32,
     pub(crate) sample_format: SampleFormat,
-}
-
-pub(crate) fn select_orange_device_index(
-    names: &[&str],
-    expected_name: &str,
-) -> Result<usize, String> {
-    let available = format_output_device_names(names);
-    let matches: Vec<_> = names
-        .iter()
-        .enumerate()
-        .filter(|(_, name)| **name == expected_name)
-        .map(|(index, _)| index)
-        .collect();
-    match matches.as_slice() {
-        [index] => Ok(*index),
-        [] => Err(format!(
-            "Orange audio requires exactly one output device named {expected_name:?}; found none; available output devices: {available}"
-        )),
-        _ => Err(format!(
-            "Orange audio requires exactly one output device named {expected_name:?}; found {}; available output devices: {available}",
-            matches.len(),
-        )),
-    }
-}
-
-fn format_output_device_names(names: &[&str]) -> String {
-    if names.is_empty() {
-        return "[]".into();
-    }
-    let entries = names
-        .iter()
-        .enumerate()
-        .map(|(index, name)| format!("{index}: {name:?}"))
-        .collect::<Vec<_>>()
-        .join(", ");
-    format!("[{entries}]")
 }
 
 pub(crate) fn select_orange_output_config(
@@ -90,21 +55,26 @@ pub(crate) fn select_orange_output_config(
         })
 }
 
-pub(crate) fn select_orange_output_device(host: &cpal::Host) -> Result<cpal::Device, String> {
-    let devices: Vec<_> = host
-        .output_devices()
-        .map_err(|e| format!("failed to enumerate Orange audio output devices: {e}"))?
-        .collect();
-    let names: Vec<_> = devices
-        .iter()
-        .map(|device| device.name().unwrap_or_default())
-        .collect();
-    let names: Vec<_> = names.iter().map(String::as_str).collect();
-    let index = select_orange_device_index(&names, ORANGE_AUDIO_DEVICE_NAME)?;
-    devices
-        .into_iter()
-        .nth(index)
-        .ok_or_else(|| "Orange audio device selection became inconsistent".into())
+pub(crate) fn select_orange_output_device() -> Result<cpal::Device, String> {
+    select_orange_named_output_device(ORANGE_AUDIO_DEVICE_NAME)
+}
+
+pub(crate) fn select_orange_uac2_output_device() -> Result<cpal::Device, String> {
+    select_orange_named_output_device(ORANGE_UAC2_AUDIO_DEVICE_NAME)
+}
+
+fn select_orange_named_output_device(expected_name: &str) -> Result<cpal::Device, String> {
+    open_exact_orange_output_device(expected_name, |name| {
+        cpal::alsa_exact_output_device(name)
+            .map_err(|error| format!("failed to construct exact Orange ALSA PCM {name:?}: {error}"))
+    })
+}
+
+fn open_exact_orange_output_device<T>(
+    expected_name: &str,
+    opener: impl FnOnce(&str) -> Result<T, String>,
+) -> Result<T, String> {
+    opener(expected_name)
 }
 
 pub(crate) fn select_orange_stream_config(
@@ -196,31 +166,6 @@ impl HostAdapter for OrangeAudioHost {
     }
 }
 
-pub(crate) fn orange_samples_dir() -> Result<PathBuf, String> {
-    validate_orange_samples_dir(crate::main_paths::default_samples_dir())
-}
-
-fn validate_orange_samples_dir(configured: PathBuf) -> Result<PathBuf, String> {
-    std::fs::create_dir_all(&configured).map_err(|error| {
-        format!(
-            "Orange sample directory is not usable at {}: {error}",
-            configured.display()
-        )
-    })?;
-    let canonical = configured.canonicalize().map_err(|error| {
-        format!(
-            "Orange sample directory cannot be resolved at {}: {error}",
-            configured.display()
-        )
-    })?;
-    canonical.is_dir().then_some(canonical).ok_or_else(|| {
-        format!(
-            "Orange sample path is not a directory: {}",
-            configured.display()
-        )
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -228,47 +173,22 @@ mod tests {
     use playback_runtime::RuntimeAudioCommand;
 
     #[test]
-    fn orange_device_selection_requires_one_exact_named_match() {
-        let names = [
-            "hw:CARD=Codec,DEV=0",
-            "hw:CARD=octesseradac,DEV=0",
-            "hw:CARD=HDMI,DEV=0",
-        ];
+    fn orange_selection_requests_exact_pcm_ids_without_enumeration() {
+        let mut requested = Vec::<String>::new();
+        for expected_name in [ORANGE_AUDIO_DEVICE_NAME, ORANGE_UAC2_AUDIO_DEVICE_NAME] {
+            open_exact_orange_output_device(expected_name, |name| {
+                requested.push(name.to_owned());
+                Ok(())
+            })
+            .unwrap();
+        }
         assert_eq!(
-            select_orange_device_index(&names, ORANGE_AUDIO_DEVICE_NAME),
-            Ok(1)
+            requested,
+            vec![
+                ORANGE_AUDIO_DEVICE_NAME.to_owned(),
+                ORANGE_UAC2_AUDIO_DEVICE_NAME.to_owned()
+            ]
         );
-        let missing = select_orange_device_index(
-            &["hw:CARD=Codec,DEV=0", "hw:CARD=HDMI,DEV=0"],
-            ORANGE_AUDIO_DEVICE_NAME,
-        )
-        .unwrap_err();
-        assert!(missing.contains(
-            "available output devices: [0: \"hw:CARD=Codec,DEV=0\", 1: \"hw:CARD=HDMI,DEV=0\"]"
-        ));
-
-        let near_match = select_orange_device_index(
-            &[
-                "hw:CARD=Codec,DEV=0",
-                "hw:CARD=HDMI,DEV=0",
-                "hw:CARD=octesseradac,DEV=1",
-            ],
-            ORANGE_AUDIO_DEVICE_NAME,
-        )
-        .unwrap_err();
-        assert!(near_match.contains("2: \"hw:CARD=octesseradac,DEV=1\""));
-
-        let duplicate = select_orange_device_index(
-            &["hw:CARD=octesseradac,DEV=0", "hw:CARD=octesseradac,DEV=0"],
-            ORANGE_AUDIO_DEVICE_NAME,
-        )
-        .unwrap_err();
-        assert!(duplicate.contains("found 2"));
-        assert!(duplicate
-            .contains("0: \"hw:CARD=octesseradac,DEV=0\", 1: \"hw:CARD=octesseradac,DEV=0\""));
-
-        let empty = select_orange_device_index(&[], ORANGE_AUDIO_DEVICE_NAME).unwrap_err();
-        assert!(empty.contains("available output devices: []"));
     }
 
     #[test]
@@ -310,19 +230,6 @@ mod tests {
             sample_format: SampleFormat::F32,
         }])
         .is_err());
-    }
-
-    #[test]
-    fn orange_sample_directory_rejects_non_directory_path() {
-        let path = std::env::temp_dir().join(format!(
-            "octessera-orange-sample-file-{}",
-            std::process::id()
-        ));
-        let _ = std::fs::remove_file(&path);
-        std::fs::write(&path, b"not a directory").unwrap();
-        let error = validate_orange_samples_dir(path.clone()).unwrap_err();
-        assert!(error.contains("Orange sample directory is not usable"));
-        std::fs::remove_file(path).unwrap();
     }
 
     #[test]
