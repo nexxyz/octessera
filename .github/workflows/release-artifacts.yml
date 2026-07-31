@@ -34,7 +34,14 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Release tag must look like v0.5.0; got $RELEASE_TAG" >&2; exit 1; }
-          release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG")"
+          release_json="$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" | jq --arg tag "$RELEASE_TAG" '
+            [ .[][] | select(.tag_name == $tag) ] as $matches
+            | if ($matches | length) != 1 then
+                error("Expected exactly one release for tag \($tag)")
+              else
+                $matches[0]
+              end
+          ')"
           [[ "$(jq -r '.tag_name' <<< "$release_json")" == "$RELEASE_TAG" ]] || { echo 'Release API returned the wrong tag.' >&2; exit 1; }
           [[ "$(jq -r '.draft' <<< "$release_json")" == true ]] || { echo 'The release must remain a draft until the final publish job.' >&2; exit 1; }
           {
@@ -425,7 +432,7 @@ jobs:
           EXPECTED_SOURCE_SHA: ${{ needs.release_info.outputs.source_sha }}
         run: |
           set -euo pipefail
-          release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$EXPECTED_RELEASE_TAG")"
+          release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/$EXPECTED_RELEASE_ID")"
           [[ "$(jq -r '.id' <<< "$release_json")" == "$EXPECTED_RELEASE_ID" ]] || { echo 'Release ID changed before upload.' >&2; exit 1; }
           [[ "$(jq -r '.tag_name' <<< "$release_json")" == "$EXPECTED_RELEASE_TAG" ]] || { echo 'Release tag changed before upload.' >&2; exit 1; }
           [[ "$(jq -r '.draft' <<< "$release_json")" == true ]] || { echo 'Release is no longer a draft before upload.' >&2; exit 1; }
@@ -449,7 +456,7 @@ jobs:
           EXPECTED_SOURCE_SHA: ${{ needs.release_info.outputs.source_sha }}
         run: |
           set -euo pipefail
-          release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$EXPECTED_RELEASE_TAG")"
+          release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/$EXPECTED_RELEASE_ID")"
           [[ "$(jq -r '.id' <<< "$release_json")" == "$EXPECTED_RELEASE_ID" ]] || { echo 'Release ID changed before publish.' >&2; exit 1; }
           [[ "$(jq -r '.tag_name' <<< "$release_json")" == "$EXPECTED_RELEASE_TAG" && "$(jq -r '.draft' <<< "$release_json")" == true ]] || { echo 'Release tag/draft state changed before publish.' >&2; exit 1; }
           tag_ref="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$EXPECTED_RELEASE_TAG")"

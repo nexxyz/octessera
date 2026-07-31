@@ -31,9 +31,20 @@ assert_contains "$release" 'gh release edit'
 assert_contains "$release" '--draft=false'
 assert_contains "$release" 'Release already has assets before upload.'
 assert_contains "$release" 'release_id: ${{ steps.release.outputs.release_id }}'
+assert_contains "$release" 'gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100"'
+assert_contains "$release" '[ .[][] | select(.tag_name == $tag) ] as $matches'
+assert_contains "$release" 'if ($matches | length) != 1 then'
 assert_contains "$release" 'Revalidate exact draft immediately before upload'
 assert_contains "$release" 'Revalidate uploaded asset set immediately before publish'
 assert_contains "$release" 'EXPECTED_RELEASE_ID'
+[[ "$(grep -cF 'gh api "repos/$GITHUB_REPOSITORY/releases/$EXPECTED_RELEASE_ID"' "$release")" == 2 ]] || {
+    echo 'Both final release validations must fetch by the resolved release ID.' >&2
+    exit 1
+}
+if grep -qE 'releases/tags/\$[A-Z_]+|releases/tags/\$\{' "$release"; then
+    echo 'Draft release validation must not use the by-tag releases endpoint.' >&2
+    exit 1
+fi
 assert_contains "$release" 'git/ref/tags/$EXPECTED_RELEASE_TAG'
 assert_contains "$release" 'git/tags/$tag_object'
 assert_contains "$release" 'RELEASE_VERSION}" == 0.7.5'
