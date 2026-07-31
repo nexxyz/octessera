@@ -152,21 +152,18 @@ def _make_package(
     package = root / contract.package_filename
     subprocess.run(["dpkg-deb", "--build", str(package_root), str(package)], check=True, capture_output=True, text=True)
     return package
-
 def _expect_failure(label: str, operation: Callable[[], Any]) -> None:
     try:
         operation()
     except (ContractError, VALIDATOR.PackageValidationError, BUILDER.BuildError):
         return
     raise AssertionError(f"fixture was accepted: {label}")
-
 def _tool_fact(command: str, version: str) -> dict[str, str]:
     return {
         "command": command,
         "version": version,
         "version_sha256": VALIDATOR.sha256_bytes(version.encode("utf-8")),
     }
-
 def _assert_openssl_version_probe() -> None:
     calls: list[list[str]] = []
     original_run = BUILDER._run
@@ -182,7 +179,6 @@ def _assert_openssl_version_probe() -> None:
         BUILDER._run = original_run
     assert calls == [["openssl", "version"]]
     assert fact["command"] == "openssl version"
-
 def _build_provenance(root: Path, contract: Contract, inventory: dict[str, Any]) -> dict[str, Any]:
     checkout_sha = subprocess.run(
         ["git", "-C", str(root), "rev-parse", "HEAD"], check=True, capture_output=True, text=True
@@ -202,7 +198,7 @@ def _build_provenance(root: Path, contract: Contract, inventory: dict[str, Any])
         "dpkg_deb": _tool_fact("dpkg-deb", "Debian dpkg-deb fixture 1.0"),
         "dpkg_query": _tool_fact("dpkg-query", "Debian dpkg-query fixture 1.0"),
         "dpkg_parsechangelog": _tool_fact("dpkg-parsechangelog --version", "Debian dpkg-parsechangelog fixture 1.0"),
-        "debhelper": _tool_fact("dpkg-query -W -f=${Version} debhelper:amd64", "13.0"),
+        "debhelper": _tool_fact("dpkg-query -W -f=${Version} debhelper", "13.0"),
         "readelf": _tool_fact("readelf", "GNU readelf (fixture) 1.0"),
         "strings": _tool_fact("strings", "GNU strings (fixture) 1.0"),
         "git": _tool_fact("git", "git version 2.0.0"),
@@ -258,7 +254,6 @@ def _build_provenance(root: Path, contract: Contract, inventory: dict[str, Any])
         "preflight": preflight,
         "tool_versions": tool_versions,
     }
-
 
 def _configure_dry_run_fixture(root: Path, contract: Contract, *, wrong_config: bool = False) -> None:
     source = root / "source"
@@ -373,7 +368,6 @@ def main() -> int:
     assert package_environment["DEB_HOST_ARCH"] == "arm64"
     assert package_environment["DEB_BUILD_ARCH"] == "amd64"
     original_run = BUILDER._run
-
     def missing_compiler(command: list[str], **kwargs: Any) -> str:
         if command[0] == "missing-aarch64-linux-gnu-gcc":
             raise BUILDER.BuildError("required command is unavailable: missing-aarch64-linux-gnu-gcc")
@@ -387,10 +381,14 @@ def main() -> int:
         )
     finally:
         BUILDER._run = original_run
+    package_queries: list[list[str]] = []
     def missing_native_package(command: list[str], **kwargs: Any) -> str:
         if command[0] == "dpkg" and command[1:] == ["--print-architecture"]:
             return "amd64\n"
         if command[0] == "dpkg-query" and command[1] == "-W":
+            package_queries.append(command)
+            if command[-1] == "debhelper":
+                return "13.0\n"
             raise BUILDER.BuildError("native package is not installed")
         return f"{command[0]} fixture 1.0\n"
 
@@ -402,6 +400,8 @@ def main() -> int:
         )
     finally:
         BUILDER._run = original_run
+    assert package_queries[0] == ["dpkg-query", "-W", "-f=${Version}", "debhelper"]
+    assert package_queries[1][-1] == "libssl-dev:amd64"
     BUILDER_TESTS.run(root, contract, BUILDER)
     with tempfile.TemporaryDirectory(prefix="octessera-rpi-kernel-test-") as temporary:
         work = Path(temporary)

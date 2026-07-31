@@ -111,12 +111,32 @@ octessera_require_diagnostic_updater_overlay() {
   done
 }
 
+octessera_configure_runtime_hardware_groups() {
+  local group_record
+  local group_name
+  local group_gid
+  local runtime_group_name
+
+  for runtime_group_name in audio i2c spi gpio; do
+    group_record="$(getent group "$runtime_group_name" || true)"
+    if [[ -z "$group_record" ]]; then
+      groupadd --system "$runtime_group_name" || return 1
+      group_record="$(getent group "$runtime_group_name" || true)"
+    fi
+    IFS=: read -r group_name _ group_gid _ <<< "$group_record"
+    [[ "$group_record" != *$'\n'* && "$group_name" == "$runtime_group_name" && "$group_gid" =~ ^[0-9]+$ ]] || {
+      echo "Existing hardware group is malformed: $runtime_group_name" >&2
+      return 1
+    }
+  done
+  usermod --groups audio,i2c,spi,gpio octessera-runtime || return 1
+}
+
 octessera_configure_runtime_account() {
   local runtime_passwd
   local runtime_group
   local runtime_gid
   local runtime_group_gid
-  local runtime_group_name
   local sudoers_file
 
   reject_runtime_sudoers_file() {
@@ -144,13 +164,8 @@ octessera_configure_runtime_account() {
     useradd --system --user-group --home-dir /nonexistent --shell /usr/sbin/nologin octessera-runtime
   fi
   passwd -l octessera-runtime >/dev/null
-  for runtime_group_name in audio i2c spi gpio; do
-    getent group "$runtime_group_name" >/dev/null || {
-      echo "Production runtime requires existing group: $runtime_group_name" >&2
-      return 1
-    }
-  done
-  usermod --shell /usr/sbin/nologin --home /nonexistent --groups audio,i2c,spi,gpio octessera-runtime
+  octessera_configure_runtime_hardware_groups || return 1
+  usermod --shell /usr/sbin/nologin --home /nonexistent octessera-runtime || return 1
   if [[ -f /etc/sudoers && ! -L /etc/sudoers ]]; then
     reject_runtime_sudoers_file /etc/sudoers || return 1
   fi
