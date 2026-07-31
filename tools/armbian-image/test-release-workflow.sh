@@ -131,6 +131,16 @@ assert_contains "$boards" 'STAGE_LIST="stage0 stage1 stage2 stage3-octessera-ker
 assert_contains "$boards" 'tools/pi-kernel/test-rpi-kernel.sh'
 assert_contains "$boards" 'tools/pi-image/test-rpi-kernel-image.sh'
 assert_contains "$boards" 'verify-rpi-kernel-image.sh'
+raspberry_config_block="$(sed -n '/cat > pi-gen\/config <<EOF$/,/^[[:space:]]*cd pi-gen$/p' "$boards")"
+[[ "$(grep -cE '^[[:space:]]+EOF$' <<< "$raspberry_config_block")" == 1 ]] || {
+    echo 'Raspberry pi-gen config heredoc must close with one standalone EOF.' >&2
+    exit 1
+}
+if grep -qE '^[[:space:]]+EOL$' <<< "$raspberry_config_block"; then
+    echo 'Raspberry pi-gen config heredoc must not use EOL as its terminator.' >&2
+    exit 1
+fi
+assert_contains "$boards" 'zip_basename="$(basename "${zip_files[0]}")"'
 assert_contains "$boards" 'octessera-${{ inputs.version }}-orange-pi-zero-2w.img.xz'
 assert_contains "$boards" 'octessera-${{ inputs.version }}-orange-pi-zero-2w-standalone-manual-aarch64.zip'
 assert_contains "$boards" 'runtime_bundle_path:'

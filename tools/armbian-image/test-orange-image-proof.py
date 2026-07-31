@@ -87,7 +87,7 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
         "image_dtb_sha256": hashlib.sha256(dtb).hexdigest(),
         "dtb_package_dtb_sha256": hashlib.sha256(dtb).hexdigest(),
         "dtb_byte_equal": "true",
-        "packaged_config_expected_sha256": "d532caf074dbcd796a8cd8312e80cadd6a4ee0f1bccd8f227f7ff08214e87482",
+        "packaged_config_expected_sha256": "fddbc3ff39e27b7e0aeb80b97496b93f5fca91b8fd166f2937f6924dc034c352",
         "final_config_sha256": hashlib.sha256(config).hexdigest(),
         "module_relative_path": MODULE_RELATIVE,
         "module_compressed_sha256": hashlib.sha256(module).hexdigest(),

@@ -54,7 +54,7 @@
         "path": "config/kernel/linux-sunxi64-current.config",
         "sha256": "299e1aa0b2355fa9da03507e76a263833da7c69e73fdd8bbccbda3d7fdcc4363"
       },
-      "packaged_config_sha256": "d532caf074dbcd796a8cd8312e80cadd6a4ee0f1bccd8f227f7ff08214e87482"
+      "packaged_config_sha256": "fddbc3ff39e27b7e0aeb80b97496b93f5fca91b8fd166f2937f6924dc034c352"
     },
     "pi_gen": {
       "repository": "https://github.com/RPi-Distro/pi-gen.git",
