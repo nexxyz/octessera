@@ -185,8 +185,8 @@ def _tool_commands(args: argparse.Namespace) -> dict[str, str]:
     }
 
 
-def _debhelper_version(host_architecture: str) -> dict[str, str]:
-    command = ["dpkg-query", "-W", "-f=${Version}", f"debhelper:{host_architecture}"]
+def _debhelper_version() -> dict[str, str]:
+    command = ["dpkg-query", "-W", "-f=${Version}", "debhelper"]
     output = _run(command, capture=True).strip()
     if not output:
         raise BuildError("native tool preflight did not report the debhelper version")
@@ -206,7 +206,7 @@ def _tool_versions(args: argparse.Namespace, host_architecture: str) -> dict[str
             versions[name] = _tool_version(command, recorded_command="dpkg-parsechangelog --version")
         else:
             versions[name] = _tool_version(command)
-    versions["debhelper"] = _debhelper_version(host_architecture)
+    versions["debhelper"] = _debhelper_version()
     return versions
 
 def _host_architecture() -> str:

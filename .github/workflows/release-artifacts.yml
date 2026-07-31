@@ -24,8 +24,7 @@ jobs:
         with:
           ref: ${{ github.workflow_sha }}
       - run: |
-          sudo apt-get update && sudo apt-get install -y shellcheck
-          test "$(git rev-parse HEAD)" = "${{ github.workflow_sha }}" && bash tools/armbian-image/test-release-workflow.sh && bash -n tools/armbian-image/test-release-workflow.sh && shellcheck tools/armbian-image/test-release-workflow.sh
+          sudo apt-get update && sudo apt-get install -y shellcheck && test "$(git rev-parse HEAD)" = "${{ github.workflow_sha }}" && bash tools/armbian-image/test-release-workflow.sh && bash -n tools/armbian-image/test-release-workflow.sh && shellcheck tools/armbian-image/test-release-workflow.sh
 
   resolve_draft:
     name: Resolve draft release through the API
@@ -215,7 +214,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release-assets
-          mapfile -t dmg_files < <(find target/release/bundle/dmg -maxdepth 1 -type f -name '*.dmg' -print | sort)
+          shopt -s nullglob
+          dmg_files=(target/release/bundle/dmg/*.dmg)
           [[ "${#dmg_files[@]}" == 1 ]] || { echo "Expected exactly one macOS DMG, found ${#dmg_files[@]}." >&2; exit 1; }
           cp "${dmg_files[0]}" "release-assets/${{ needs.release_info.outputs.asset_prefix }}-macos-unsigned.dmg"
           (cd release-assets && shasum -a 256 *.dmg > SHA256SUMS-macos.txt)

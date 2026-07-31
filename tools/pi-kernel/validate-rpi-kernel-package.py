@@ -354,7 +354,7 @@ def _verify_build_provenance(contract: Contract, inventory: dict[str, Any], buil
         if name in expected_commands:
             _require(fact["command"] == expected_commands[name], f"provenance tool command mismatch: {name}")
         elif name == "debhelper":
-            expected_debhelper_command = f"dpkg-query -W -f=${{Version}} debhelper:{preflight['host_architecture']}"
+            expected_debhelper_command = "dpkg-query -W -f=${Version} debhelper"
             _require(fact["command"] == expected_debhelper_command, "provenance tool command mismatch: debhelper")
         else:
             command_name = fact["command"].replace("\\", "/").rsplit("/", 1)[-1].lower()

@@ -91,6 +91,11 @@ if grep -qE 'shellcheck .*&&' <<< "$updater_block"; then
     echo 'Independent ShellCheck groups must fail separately.' >&2
     exit 1
 fi
+macos_block="$(sed -n '/^  macos:/,/^  ubuntu:/p' "$release")"
+if grep -qF 'mapfile' <<< "$macos_block" || ! grep -qF 'shopt -s nullglob' <<< "$macos_block" || ! grep -qF 'dmg_files=(target/release/bundle/dmg/*.dmg)' <<< "$macos_block" || [[ "$(grep -cF '[[ "${#dmg_files[@]}" == 1 ]]' <<< "$macos_block")" != 1 ]]; then
+    echo 'macOS DMG selection must be Bash 3.2-compatible and fail closed on exact count.' >&2
+    exit 1
+fi
 
 jq_draft_filter='[ .[][] | select(.tag_name == $tag) ] as $matches
   | if ($matches | length) != 1 then

@@ -56,4 +56,37 @@ if ln -s octessera-pi "$bundle/unexpected-link" 2>/dev/null; then
   rm -f "$bundle/unexpected-link"
 fi
 
+(
+  declare -A fake_groups=([audio]='audio:x:29:' [i2c]='i2c:x:100:' [gpio]='gpio:x:997:')
+  groupadd_calls=()
+  runtime_groups=
+  getent() {
+    [[ "$1" == group && -n "${fake_groups[$2]+present}" ]] || return 1
+    printf '%s\n' "${fake_groups[$2]}"
+  }
+  groupadd() {
+    [[ "$1" == --system ]] || return 1
+    fake_groups[$2]="$2:x:998:"
+    groupadd_calls+=("$2")
+  }
+  usermod() { runtime_groups="$*"; }
+  octessera_configure_runtime_hardware_groups
+  [[ "${groupadd_calls[*]}" == spi && "$runtime_groups" == '--groups audio,i2c,spi,gpio octessera-runtime' ]] || {
+    echo 'Missing Orange hardware groups were not created or assigned exactly.' >&2
+    exit 1
+  }
+)
+(
+  declare -A fake_groups=([audio]='audio:x:29:' [i2c]='i2c:x:100:' [spi]='spi:x:not-a-gid:' [gpio]='gpio:x:997:')
+  getent() {
+    [[ "$1" == group && -n "${fake_groups[$2]+present}" ]] || return 1
+    printf '%s\n' "${fake_groups[$2]}"
+  }
+  usermod() { :; }
+  if octessera_configure_runtime_hardware_groups; then
+    echo 'Malformed existing Orange hardware group was accepted.' >&2
+    exit 1
+  fi
+)
+
 printf 'Orange image mode and runtime bundle tests passed\n'
