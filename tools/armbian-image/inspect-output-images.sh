@@ -1,8 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+expected_image_mode=diagnostic
+if [[ "${1:-}" == --mode ]]; then
+  expected_image_mode="${2:-}"
+  shift 2
+fi
+if [[ "$expected_image_mode" != diagnostic && "$expected_image_mode" != production ]]; then
+  echo "Usage: $0 [--mode diagnostic|production] <armbian-output-images-dir>" >&2
+  exit 2
+fi
 if [[ $# -ne 1 ]]; then
-  echo "Usage: $0 <armbian-output-images-dir>" >&2
+  echo "Usage: $0 [--mode diagnostic|production] <armbian-output-images-dir>" >&2
   exit 2
 fi
 
@@ -32,7 +41,7 @@ inspect_disk_image() {
 
   rootfs="$work/rootfs.ext4"
   dd if="$image" of="$rootfs" bs=512 skip="$start" count="$sectors" status=none
-  bash "$root/tools/armbian-image/inspect-built-image.sh" "$rootfs"
+  bash "$root/tools/armbian-image/inspect-built-image.sh" --mode "$expected_image_mode" "$rootfs"
 }
 
 found=0

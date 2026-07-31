@@ -13,6 +13,10 @@ use super::super::modulation_migration::validate_canonical_modulation;
 use audio::*;
 use layers::*;
 
+pub(super) fn validate_audio_outputs(runtime: &Map<String, Value>) -> Result<(), String> {
+    audio::validate_audio_outputs(runtime)
+}
+
 pub(super) fn validate_payload(root: &Map<String, Value>) -> Result<(), String> {
     let runtime = object_field(root, "runtimeConfig", "configuration")?
         .ok_or_else(|| "configuration runtimeConfig must be an object".to_string())?;
@@ -67,6 +71,7 @@ fn validate_runtime(runtime: &Map<String, Value>) -> Result<(), String> {
     validate_mixer(runtime)?;
     validate_bindings(runtime)?;
     validate_midi(runtime)?;
+    validate_audio_outputs(runtime)?;
     validate_usb(runtime)?;
     validate_hdmi(runtime)?;
     validate_recording(runtime)

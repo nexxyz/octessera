@@ -237,5 +237,6 @@ const DEVICE_RUNTIME_KEYS: &[&str] = &[
     "auxAutoMapEnabled",
     "midi",
     "usb",
+    "audioOutputs",
     "recording",
 ];

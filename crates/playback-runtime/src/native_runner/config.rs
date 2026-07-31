@@ -317,6 +317,11 @@ impl NativeRunner {
                     "audioOut": self.usb_audio_out,
                     "midiOutEnabled": self.usb_midi_out_enabled
                 },
+                "audioOutputs": {
+                    "dac": matches!(self.usb_audio_out.as_str(), "jack" | "both"),
+                    "usb": matches!(self.usb_audio_out.as_str(), "usb" | "both"),
+                    "hdmi": false
+                },
                 "recording": {
                     "maxMinutes": self.recording_max_minutes
                 }

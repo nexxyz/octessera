@@ -21,6 +21,7 @@ pub struct OrangeEncoderPins {
     pub b: u32,
     pub sw: u32,
     pub uart_conflict: Option<OrangeUartConflict>,
+    pub reverse_direction: bool,
 }
 
 impl OrangeEncoderPins {
@@ -40,6 +41,7 @@ impl OrangeEncoderPins {
             b,
             sw,
             uart_conflict: None,
+            reverse_direction: true,
         }
     }
 
@@ -64,11 +66,32 @@ impl OrangeEncoderPins {
                 physical_pin: physical_sw,
                 offset: sw,
             }),
+            reverse_direction: true,
         }
     }
 
-    pub const fn is_qualified(self) -> bool {
-        self.uart_conflict.is_none()
+    pub const fn switch_available(self, uart0_active: bool) -> bool {
+        !uart0_active || self.uart_conflict.is_none()
+    }
+
+    pub const fn requested_gpio_offsets(self, uart0_active: bool) -> [Option<u32>; 3] {
+        [
+            Some(self.a),
+            Some(self.b),
+            if self.switch_available(uart0_active) {
+                Some(self.sw)
+            } else {
+                None
+            },
+        ]
+    }
+
+    pub const fn canonical_turn_delta(self, delta: i8) -> i8 {
+        if self.reverse_direction {
+            -delta
+        } else {
+            delta
+        }
     }
 }
 
@@ -280,13 +303,12 @@ mod orange_tests {
                 ((37, 18, 15), (272, 228, 261)),
             ]
         );
+        assert!(encoders.iter().all(|pins| pins.reverse_direction));
     }
 
     #[test]
-    fn orange_uart_encoder_line_is_excluded_until_boot_routing_changes() {
+    fn orange_uart_switch_is_optional_but_aux2_quadrature_is_always_requested() {
         let encoders = ORANGE_PI_ZERO_2W_DEVICES.encoders;
-        assert!(encoders[0].is_qualified());
-        assert!(encoders[1].is_qualified());
         assert_eq!(
             encoders[2].uart_conflict,
             Some(OrangeUartConflict {
@@ -295,7 +317,26 @@ mod orange_tests {
                 offset: 224,
             })
         );
-        assert!(!encoders[2].is_qualified());
-        assert!(encoders[3].is_qualified());
+        assert_eq!(
+            encoders[2].requested_gpio_offsets(true),
+            [Some(227), Some(269), None]
+        );
+        assert_eq!(
+            encoders[2].requested_gpio_offsets(false),
+            [Some(227), Some(269), Some(224)]
+        );
+    }
+
+    #[test]
+    fn orange_descriptor_reverses_literal_board_turns_at_event_boundary() {
+        let pins = ORANGE_PI_ZERO_2W_DEVICES.encoders;
+        assert_eq!(
+            pins.map(|value| value.canonical_turn_delta(1)),
+            [-1, -1, -1, -1]
+        );
+        assert_eq!(
+            pins.map(|value| value.canonical_turn_delta(-1)),
+            [1, 1, 1, 1]
+        );
     }
 }

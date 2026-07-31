@@ -21,7 +21,6 @@ mod audio_hotplug;
 mod audio_priority;
 #[cfg(feature = "native-audio")]
 mod audio_stream_health;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod candidate_readiness;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod device_update;
@@ -45,19 +44,21 @@ mod host_adapter;
 mod host_audio_command;
 #[cfg(feature = "native-audio")]
 mod host_audio_prep;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(all(feature = "native-audio", not(feature = "hardware-orange-pi-zero-2w")))]
 mod input;
 #[cfg(feature = "native-audio")]
 mod main_paths;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod main_runtime_loop;
+#[cfg(feature = "external-midi")]
+mod midi_host;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod oled_test;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod orange_audio;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+mod orange_host_adapter;
 mod persistence;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod platform_service;
 #[cfg(all(feature = "native-audio", not(feature = "hardware-orange-pi-zero-2w")))]
 mod recording;
@@ -69,7 +70,6 @@ mod render_loop;
 mod runtime_loop;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod runtime_thread;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod sample_browser;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod seesaw_io;
@@ -80,7 +80,7 @@ mod ui_profile;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 #[cfg(test)]
 mod update_menu_fixture_tests;
-#[cfg(all(feature = "native-audio", not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(feature = "native-audio")]
 mod usb_config;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod wake_trace;
@@ -102,7 +102,6 @@ use std::sync::Arc;
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use main_paths::{default_samples_dir, default_store_dir, ensure_runtime_dirs};
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use octessera_pi::board_profile;
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -160,9 +159,15 @@ fn main() {
     } = hardware;
     let seesaw_io = seesaw_io::spawn_interrupt(trellis, neokey, input_interrupt);
     let store_dir = default_store_dir();
-    let usb_config = usb_config::read_usb_runtime_config(&store_dir);
+    let usb_config = match usb_config::read_usb_runtime_config(&store_dir) {
+        Ok(config) => config,
+        Err(error) => {
+            eprintln!("USB runtime configuration is unavailable: {error}");
+            std::process::exit(2);
+        }
+    };
     let audio = init_audio(
-        audio_output_buffer_frames_from_default_config(&store_dir),
+        usb_config::audio_output_buffer_frames_from_default_config(&store_dir),
         usb_config.audio_out,
     );
 
@@ -256,17 +261,4 @@ fn init_audio(
             None
         }
     }
-}
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-fn audio_output_buffer_frames_from_default_config(store_dir: &std::path::Path) -> Option<u32> {
-    let payload = std::fs::read_to_string(store_dir.join("default.json")).ok()?;
-    let payload: serde_json::Value = serde_json::from_str(&payload).ok()?;
-    payload
-        .get("runtimeConfig")
-        .unwrap_or(&payload)
-        .get("sound")
-        .and_then(|sound| sound.get("audioOutputBufferFrames"))
-        .and_then(serde_json::Value::as_u64)
-        .map(|value| value as u32)
 }

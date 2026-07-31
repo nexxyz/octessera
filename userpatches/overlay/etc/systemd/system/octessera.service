@@ -1,0 +1,35 @@
+[Unit]
+Description=Octessera Orange Pi runtime
+After=octessera-provision-musical-default.service octessera-orange-usb-gadget.service sound.target
+
+[Service]
+Type=simple
+User=octessera-runtime
+Group=octessera-runtime
+Environment=OCTESSERA_EXPECTED_BOARD_PROFILE=orange-pi-zero-2w
+Environment=OCTESSERA_PI_STORE_DIR=/var/lib/octessera/presets
+Environment=OCTESSERA_PI_SAMPLES_DIR=/var/lib/octessera/samples
+Environment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json
+RuntimeDirectory=octessera
+RuntimeDirectoryMode=0755
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/octessera /run/octessera
+PrivateTmp=yes
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+LimitRTPRIO=70
+LimitMEMLOCK=infinity
+Nice=-10
+ExecStart=/usr/local/bin/octessera-pi
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

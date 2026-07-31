@@ -7,10 +7,26 @@ const AUDIO_STREAM_ERROR_LOG_INTERVAL: Duration = Duration::from_secs(1);
 const AUDIO_STREAM_FAULT_WINDOW: Duration = Duration::from_millis(250);
 const AUDIO_STREAM_FAULT_ERROR_THRESHOLD: u64 = 2_000;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum AudioStreamRequirement {
+    Required,
+    Optional,
+}
+
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum AudioStreamStatus {
+    Healthy,
+    Recovering,
+    Terminal,
+}
+
 #[derive(Clone)]
 pub(crate) struct AudioStreamHealth {
     label: String,
+    requirement: AudioStreamRequirement,
     faulted: Arc<AtomicBool>,
+    terminal: Arc<AtomicBool>,
     state: Arc<Mutex<AudioStreamHealthState>>,
 }
 
@@ -24,9 +40,19 @@ struct AudioStreamHealthState {
 
 impl AudioStreamHealth {
     pub(crate) fn new(label: String) -> Self {
+        Self::with_requirement(label, AudioStreamRequirement::Required)
+    }
+
+    pub(crate) fn optional(label: String) -> Self {
+        Self::with_requirement(label, AudioStreamRequirement::Optional)
+    }
+
+    fn with_requirement(label: String, requirement: AudioStreamRequirement) -> Self {
         Self {
             label,
+            requirement,
             faulted: Arc::new(AtomicBool::new(false)),
+            terminal: Arc::new(AtomicBool::new(false)),
             state: Arc::new(Mutex::new(AudioStreamHealthState {
                 last_log: None,
                 suppressed: 0,
@@ -41,13 +67,53 @@ impl AudioStreamHealth {
         self.faulted.load(Ordering::Relaxed)
     }
 
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    pub(crate) fn status(&self) -> AudioStreamStatus {
+        if self.is_terminal() {
+            AudioStreamStatus::Terminal
+        } else if self.is_faulted() {
+            AudioStreamStatus::Recovering
+        } else {
+            AudioStreamStatus::Healthy
+        }
+    }
+
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    pub(crate) fn is_terminal(&self) -> bool {
+        self.terminal.load(Ordering::Relaxed)
+    }
+
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub(crate) fn clear_faulted(&self) {
         self.faulted.store(false, Ordering::Relaxed);
     }
 
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    pub(crate) fn clear_recoverable_fault(&self) {
+        if self.is_terminal() {
+            return;
+        }
+        self.faulted.store(false, Ordering::Relaxed);
+        if let Ok(mut state) = self.state.lock() {
+            state.last_log = None;
+            state.suppressed = 0;
+            state.fault_window_started = Instant::now();
+            state.fault_window_errors = 0;
+            state.fault_reported = false;
+        }
+    }
+
+    pub(crate) fn mark_terminal(&self) {
+        self.terminal.store(true, Ordering::Relaxed);
+        self.faulted.store(true, Ordering::Relaxed);
+    }
+
     pub(crate) fn log(&self, error: StreamError) {
-        if matches!(error, StreamError::DeviceNotAvailable) {
+        if matches!(error, StreamError::DeviceNotAvailable)
+            && self.requirement == AudioStreamRequirement::Required
+        {
+            self.mark_terminal();
+        } else if matches!(error, StreamError::DeviceNotAvailable) {
             self.faulted.store(true, Ordering::Relaxed);
         }
         let Ok(mut state) = self.state.lock() else {
@@ -117,5 +183,36 @@ mod tests {
         health.log(StreamError::DeviceNotAvailable);
 
         assert!(health.is_faulted());
+    }
+
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[test]
+    fn optional_device_loss_is_recoverable() {
+        let health = AudioStreamHealth::optional("UAC2Gadget".into());
+
+        health.log(StreamError::DeviceNotAvailable);
+
+        assert!(health.is_faulted());
+        assert!(!health.is_terminal());
+        assert_eq!(health.status(), AudioStreamStatus::Recovering);
+    }
+
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[test]
+    fn device_loss_is_terminal_for_orange_recovery() {
+        let health = AudioStreamHealth::new("InternalDac".into());
+
+        health.log(StreamError::DeviceNotAvailable);
+
+        assert!(health.is_terminal());
+        assert_eq!(health.status(), AudioStreamStatus::Terminal);
+    }
+
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[test]
+    fn healthy_audio_status_is_explicit() {
+        let health = AudioStreamHealth::new("InternalDac".into());
+
+        assert_eq!(health.status(), AudioStreamStatus::Healthy);
     }
 }

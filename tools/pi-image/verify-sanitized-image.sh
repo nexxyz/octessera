@@ -47,6 +47,12 @@ require_boot_config_marker() {
 }
 
 require_boot_overlay() {
+    if [ -f "$WORK_DIR/boot/firmware/octessera/overlays/i2s-dac-no20.dtbo" ]; then
+        return
+    fi
+    if [ -f "$WORK_DIR/root/boot/firmware/octessera/overlays/i2s-dac-no20.dtbo" ]; then
+        return
+    fi
     if [ -f "$WORK_DIR/boot/overlays/i2s-dac-no20.dtbo" ]; then
         return
     fi
@@ -121,6 +127,53 @@ require_updater_protocol() {
     fi
 }
 
+require_wifi_foundation() {
+    local helper="$WORK_DIR/root/usr/local/sbin/octessera-wifi-foundation"
+    local unit="$WORK_DIR/root/etc/systemd/system/octessera-wifi-foundation.service"
+    for path in "$helper" "$unit" "$WORK_DIR/root/usr/local/bin/wifi-connect"; do
+        require_path "$path" "inactive Wi-Fi foundation path"
+    done
+    require_root_mode "$helper" 755
+    require_root_mode "$unit" 644
+    require_root_mode "$WORK_DIR/root/usr/local/bin/wifi-connect" 755
+    grep -qF -- '--portal-interface wlan0' "$helper" || {
+        echo "Sanitation check failed: Wi-Fi foundation does not fix wlan0" >&2
+        exit 1
+    }
+    grep -qF -- '--portal-gateway 192.168.42.1' "$helper" || {
+        echo "Sanitation check failed: Wi-Fi foundation does not fix its gateway" >&2
+        exit 1
+    }
+    grep -qF -- '900s' "$helper" || {
+        echo "Sanitation check failed: Wi-Fi foundation is not bounded" >&2
+        exit 1
+    }
+    grep -qFx 'User=root' "$unit" || {
+        echo "Sanitation check failed: Wi-Fi foundation unit is not root-owned" >&2
+        exit 1
+    }
+    grep -qFx 'Group=root' "$unit" || {
+        echo "Sanitation check failed: Wi-Fi foundation unit is not root-owned" >&2
+        exit 1
+    }
+    grep -qFx 'ExecStart=/usr/local/sbin/octessera-wifi-foundation' "$unit" || {
+        echo "Sanitation check failed: Wi-Fi foundation unit has the wrong helper" >&2
+        exit 1
+    }
+    grep -qFx 'TimeoutStartSec=905s' "$unit" || {
+        echo "Sanitation check failed: Wi-Fi foundation unit is not bounded" >&2
+        exit 1
+    }
+    if grep -Eiq 'sidecar|hostname|ssh|password|country|setup[-_ ]?(complete|force)|credential|secret|/sys/class/net|iw[[:space:]]+dev|nmcli.*device|mac|wpa_passphrase|chpasswd|ssid=|psk=|BEGIN (RSA|OPENSSH|PRIVATE) KEY' "$helper" "$unit"; then
+        echo "Sanitation check failed: Wi-Fi foundation contains forbidden behavior or secret handling" >&2
+        exit 1
+    fi
+    if find "$WORK_DIR/root/etc/systemd/system" -type l -lname '*octessera-wifi-foundation.service' | grep -q .; then
+        echo "Sanitation check failed: inactive Wi-Fi foundation unit is enabled" >&2
+        exit 1
+    fi
+}
+
 cleanup() {
     set +e
     mountpoint -q "$WORK_DIR/root" && umount "$WORK_DIR/root"
@@ -134,11 +187,12 @@ cleanup() {
 trap cleanup EXIT
 
 unzip -q "$ZIP_PATH" -d "$WORK_DIR"
-IMG_PATH="$(find "$WORK_DIR" -name '*.img' | head -n 1)"
-if [ -z "$IMG_PATH" ]; then
-    echo "No .img found inside $ZIP_PATH" >&2
+mapfile -t IMAGE_PATHS < <(find "$WORK_DIR" -type f -name '*.img' -print | sort)
+if [ "${#IMAGE_PATHS[@]}" -ne 1 ]; then
+    echo "Expected exactly one .img inside $ZIP_PATH, found ${#IMAGE_PATHS[@]}" >&2
     exit 1
 fi
+IMG_PATH="${IMAGE_PATHS[0]}"
 
 LOOP_DEV="$(losetup --find --show "$IMG_PATH")"
 kpartx -av "$LOOP_DEV" >/dev/null
@@ -198,5 +252,6 @@ require_raspberry_board_profile
 require_boot_config_marker
 require_boot_overlay
 require_updater_protocol
+require_wifi_foundation
 
 echo "Pi image sanitation check passed"

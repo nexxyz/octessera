@@ -31,6 +31,8 @@ pub use types::{
     SAMPLE_SLOTS_PER_INSTRUMENT, VOICES_PER_SLOT,
 };
 
+pub const MIN_SYNTH_PARALLEL_BLOCK_FRAMES: usize = 256;
+
 #[cfg(test)]
 mod test_allocator {
     use std::alloc::{GlobalAlloc, Layout, System};

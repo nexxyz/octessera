@@ -126,7 +126,9 @@ impl NativeRunner {
                 self.display.oled_mode = NativeOledMode::Normal;
                 self.display.oled_splash_text.clear();
                 self.display.oled_splash_until = None;
-                self.show_toast("Help: Sh+Fn+Enter");
+                if self.display.runtime_error_presentation.is_none() {
+                    self.show_toast("Help: Sh+Fn+Enter");
+                }
                 return;
             }
             if self.display.ui.screen_sleep_seconds == 0 {

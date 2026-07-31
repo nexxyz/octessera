@@ -1,3 +1,4 @@
+use super::oled_error_tests::{menu_snapshot, pixel};
 use super::*;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use octessera_hal::OledSsd1351;
@@ -7,49 +8,12 @@ use serde_json::{json, Value};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-fn pixel(frame: &[u8], x: usize, y: usize) -> u16 {
-    let idx = (y * 128 + x) * 2;
-    u16::from_be_bytes([frame[idx], frame[idx + 1]])
-}
-
 fn rgb565_to_rgb(value: u16) -> [u8; 3] {
     [
         ((((value >> 11) & 0x1f) * 255) / 31) as u8,
         ((((value >> 5) & 0x3f) * 255) / 63) as u8,
         (((value & 0x1f) * 255) / 31) as u8,
     ]
-}
-
-fn menu_snapshot() -> Value {
-    json!({
-        "display": {
-            "off": false,
-            "splash": "",
-            "title": "Voice FX/Aux",
-            "lines": ["  Volume +3", "@@ FX/Aux 1", "*Velocity", "  sample_1", "  (empty)", "  Q/V X", "  J+K"],
-            "colors": [
-                palette::WHITE_RGB565,
-                palette::GREEN_RGB565,
-                palette::WHITE_RGB565,
-                palette::WHITE_RGB565,
-                palette::WHITE_RGB565,
-                palette::WHITE_RGB565,
-                palette::WHITE_RGB565
-            ],
-            "barValues": [null, { "frac": 0.5 }, null, null, null, null, null],
-            "scrollOffset": 2,
-            "totalRows": 12,
-            "visibleRows": 7,
-            "toast": "",
-            "editing": false
-        },
-        "settings": { "displayBrightness": 100, "autoSaveFlash": "none", "autoSaveFlashSerial": 0 },
-        "selectedRow": 1,
-        "transportIcon": "play",
-        "transportFlash": "beat",
-        "eventDotOn": true,
-        "cpuLoadRatio": 0.0
-    })
 }
 
 fn snapshot_with_leds() -> Value {
@@ -171,39 +135,6 @@ fn toast_footer_has_priority_over_transport_and_event_dot() {
     let frame = oled_frame(&snapshot);
     assert_ne!(pixel(&frame, 5, 118), 0);
     assert_eq!(pixel(&frame, 119, 119), rgb565(palette::BLACK));
-}
-
-#[test]
-fn runtime_error_frame_has_priority_over_splash_and_footer() {
-    let mut snapshot = menu_snapshot();
-    snapshot["display"]["splash"] = json!("startup");
-    snapshot["display"]["toast"] = json!("Saved");
-    snapshot["runtimeError"] = json!({
-        "domain": "sample",
-        "code": "not_found",
-        "operation": "audio_command",
-        "recovery": "retain_last_good",
-        "message": "sample not found"
-    });
-
-    let frame = oled_frame(&snapshot);
-
-    assert_eq!(pixel(&frame, 0, 0), rgb565(dim(palette::RED, 6)));
-    assert_eq!(pixel(&frame, 10, 10), palette::RED_RGB565);
-    assert_eq!(pixel(&frame, 119, 119), rgb565(palette::BLACK));
-}
-
-#[test]
-fn runtime_error_signature_changes_when_error_identity_changes() {
-    let mut snapshot = menu_snapshot();
-    snapshot["runtimeError"] = json!({
-        "domain": "sample",
-        "code": "not_found",
-        "operation": "audio_command"
-    });
-    let first = oled_signature(&snapshot);
-    snapshot["runtimeError"]["revision"] = json!(4);
-    assert_ne!(first, oled_signature(&snapshot));
 }
 
 #[test]

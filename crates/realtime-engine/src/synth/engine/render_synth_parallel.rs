@@ -2,11 +2,11 @@ use super::render_voice::{
     refresh_synth_voice_render_cache, render_synth_voice_sample_precomputed,
 };
 use super::*;
+use crate::synth::MIN_SYNTH_PARALLEL_BLOCK_FRAMES;
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{self, JoinHandle};
 
 const MAX_SYNTH_SLOT_WORKERS: usize = 3;
-const MIN_PARALLEL_SYNTH_FRAMES: usize = 256;
 const MIN_PARALLEL_SYNTH_SLOTS: usize = 3;
 const MIN_PARALLEL_SYNTH_VOICES: usize = 3;
 
@@ -172,7 +172,7 @@ impl SynthSlotSchedule {
         frames: usize,
         inputs: &[SynthSlotRenderInput; INSTRUMENT_SLOT_COUNT],
     ) -> Option<Self> {
-        if frames < MIN_PARALLEL_SYNTH_FRAMES {
+        if frames < MIN_SYNTH_PARALLEL_BLOCK_FRAMES {
             return None;
         }
         let mut schedule = Self {

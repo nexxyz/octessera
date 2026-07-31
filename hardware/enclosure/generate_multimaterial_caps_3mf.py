@@ -296,8 +296,8 @@ def enclosure_top_part_variant(params: dict) -> tuple[cq.Workplane, list[ModelPa
 def write_case_top() -> None:
     params = json.loads(enclosure.PARAMS.read_text())
     for variant_params, case_filename in [
-        (params, "case_top_two_level_multicolor.3mf"),
-        (enclosure.orange_pi_top_params(params), "case_top_two_level_orange_pi_multicolor.3mf"),
+        (params, "case_top_two_level_raspberry-pi-zero-2w_multicolor.3mf"),
+        (enclosure.orange_pi_top_params(params), "case_top_two_level_orange-pi-zero-2w_multicolor.3mf"),
     ]:
         case_body, marking_parts = enclosure_top_part_variant(variant_params)
         write_3mf_parts(THREEMF_ROOT / case_filename, [ModelPart("case_top_body", case_body, 1), *marking_parts])

@@ -23,7 +23,7 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
   - classifies worker emission and persistence faults as retain/retry outcomes instead of safety-stop failures
   - applies native core behavior transitions through `platform-core`
   - publishes snapshots, platform effects, audio commands, MIDI events, runtime status, and native-owned modal frames
-  - The Orange foreground candidate keeps this native ownership but supplies an Orange-only foreground adapter: real OLED/Seesaw I/O is selected at compile time, Seesaw uses polling, qualified encoder GPIO uses the HAL's gpiocdev v2 edge backend, musical events/audio commands/silence route through the existing `AudioService` and realtime engine at the shared 44.1 kHz runtime rate, and the exact CPAL output device is `hw:CARD=octesseradac,DEV=0`. Internal MIDI events are ignored by this candidate; explicit MIDI platform actions return typed unavailable status.
+  - The Orange production service keeps this native ownership through an Orange-only adapter: `octessera.service` runs the native runtime as the locked `octessera-runtime` account, while the separate `octessera` account is for interactive setup and administration. The adapter owns OLED, NeoTrellis, NeoKey, four encoder, store, sample, and MIDI device I/O; Seesaw uses polling and encoder GPIO uses the HAL's gpiocdev v2 edge backend. Internal synth/sample audio routes through `AudioService` and the realtime engine at 44.1 kHz; MIDI leaves through the native host adapter. The required CPAL output is `hw:CARD=octesseradac,DEV=0`; USB-only audio is rejected, while UAC2 may be an additional output. Readiness follows healthy audio, initialized control-surface devices, and the first rendered snapshot. The service grants FIFO priority 70 through `LimitRTPRIO=70`; it adds no `CAP_SYS_NICE` or ambient capability. Orange update check, apply, rollback, and OTA remain unsupported.
   - owns MIDI input/output through host adapters only; Tauri/midir and Pi MIDI device access stay outside canonical runtime crates
 
 - Core logic layer (`crates/platform-core`)
@@ -38,7 +38,7 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
   - desktop audio sink maps native events/audio commands to the realtime engine and rodio source
   - MIDI input/output uses Tauri-side midir adapters
   - storage, sample-browser filesystem access, and sample decoding are host adapter responsibilities
-  - Pi device-update effects are executed by the host updater, which owns profile-qualified asset selection, checksum/manifest validation, candidate health guarding, and automatic fallback; `NativeRunner` owns menu/action semantics and confirmation
+  - Raspberry Pi device-update effects are executed by the host updater, which owns profile-qualified asset selection, checksum/manifest validation, candidate health guarding, and automatic fallback; `NativeRunner` owns menu/action semantics and confirmation. Orange update effects remain explicitly unsupported.
   - returns typed failure facts and carries runtime request/revision identity through asynchronous platform/audio-prep jobs; it does not choose recovery policy
 
 - Realtime audio engine (`crates/realtime-engine`, `crates/rodio-engine-source`)

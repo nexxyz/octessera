@@ -163,6 +163,7 @@ mod sparks_fx_utils;
 mod sparks_transpose;
 mod sparks_trigger_gate;
 mod state_instrument_types;
+mod state_pulses;
 mod state_types;
 mod store;
 mod synth_config;

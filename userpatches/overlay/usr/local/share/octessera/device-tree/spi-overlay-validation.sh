@@ -17,6 +17,21 @@ octessera_run_strict_diagnostic() {
   fi
 }
 
+octessera_run_dtc_inspection() {
+  local work_dir="$1"
+  local label="$2"
+  shift 2
+  local diagnostic="$work_dir/$label.stderr"
+  if ! "$@" 2>"$diagnostic"; then
+    cat "$diagnostic" >&2
+    echo "${label} failed." >&2
+    return 1
+  fi
+  if [[ -s "$diagnostic" ]]; then
+    cat "$diagnostic" >&2
+  fi
+}
+
 octessera_normalize_fdt_numbers() {
   local values="$1"
   local value
@@ -177,7 +192,7 @@ octessera_assert_spi1_merge() {
   }
   octessera_require_fdt_string "$merged" "$spi1_path/spidev@0" compatible rohm,dh2228fv || return 1
   octessera_require_fdt_numbers "$merged" "$spi1_path/spidev@0" reg 0 || return 1
-  octessera_require_fdt_numbers "$merged" "$spi1_path/spidev@0" spi-max-frequency 1000000 || return 1
+  octessera_require_fdt_numbers "$merged" "$spi1_path/spidev@0" spi-max-frequency 16000000 || return 1
   [[ "$(fdtget -l "$merged" "$spi1_path")" == spidev@0 ]] || {
     echo "Merged ${context} SPI1 node has an unexpected child set." >&2
     return 1

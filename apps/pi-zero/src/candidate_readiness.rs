@@ -26,6 +26,9 @@ impl CandidateReadiness {
     }
 
     pub(crate) fn new(path: Option<PathBuf>, invocation_id: String) -> Self {
+        if let Some(path) = path.as_deref() {
+            remove_marker(path);
+        }
         Self {
             path,
             invocation_id,
@@ -33,31 +36,28 @@ impl CandidateReadiness {
         }
     }
 
-    pub(crate) fn mark_ready(&mut self) {
+    pub(crate) fn mark_ready(&mut self) -> Result<(), String> {
         if self.attempted {
-            return;
+            return Ok(());
         }
         if self.path.is_none() {
             self.attempted = true;
-            return;
+            return Ok(());
         }
         let ready_at_unix_ms = match unix_time_ms() {
             Ok(value) => value,
-            Err(error) => {
-                self.log_failure_once(format!("clock unavailable: {error}"));
-                return;
-            }
+            Err(error) => return Err(format!("clock unavailable: {error}")),
         };
-        self.mark_ready_at(std::process::id(), ready_at_unix_ms);
+        self.mark_ready_at(std::process::id(), ready_at_unix_ms)
     }
 
-    fn mark_ready_at(&mut self, pid: u32, ready_at_unix_ms: u64) {
+    fn mark_ready_at(&mut self, pid: u32, ready_at_unix_ms: u64) -> Result<(), String> {
         if self.attempted {
-            return;
+            return Ok(());
         }
         let Some(path) = self.path.as_deref() else {
             self.attempted = true;
-            return;
+            return Ok(());
         };
         let payload = CandidateHealthPayload {
             schema_version: 1,
@@ -71,17 +71,15 @@ impl CandidateReadiness {
             .map_err(|error| error.to_string())
             .and_then(|content| atomic_write(path, &content));
         self.attempted = true;
-        if let Err(error) = result {
-            eprintln!("candidate readiness marker unavailable: {path:?}: {error}");
-        }
+        result.map_err(|error| format!("candidate readiness marker unavailable: {path:?}: {error}"))
     }
+}
 
-    fn log_failure_once(&mut self, message: String) {
-        if self.attempted {
-            return;
+impl Drop for CandidateReadiness {
+    fn drop(&mut self) {
+        if let Some(path) = self.path.as_deref() {
+            remove_marker(path);
         }
-        self.attempted = true;
-        eprintln!("candidate readiness marker unavailable: {message}");
     }
 }
 
@@ -139,6 +137,14 @@ fn atomic_write(path: &Path, content: &[u8]) -> Result<(), String> {
         let _ = fs::remove_file(&temporary);
     }
     result
+}
+
+fn remove_marker(path: &Path) {
+    match fs::remove_file(path) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => eprintln!("candidate readiness marker cleanup failed: {path:?}: {error}"),
+    }
 }
 
 #[cfg(not(windows))]
@@ -200,7 +206,7 @@ mod tests {
             schema_version: 1,
             pid: 1234,
             systemd_invocation_id: "invocation-1".into(),
-            package_version: "0.7.0".into(),
+            package_version: env!("CARGO_PKG_VERSION").into(),
             board_profile: crate::board_profile::BOARD_PROFILE_ID.into(),
             ready_at_unix_ms: 1_700_000_000_123,
         };
@@ -211,7 +217,7 @@ mod tests {
                 "schema_version": 1,
                 "pid": 1234,
                 "systemd_invocation_id": "invocation-1",
-                "package_version": "0.7.0",
+                "package_version": env!("CARGO_PKG_VERSION"),
                 "board_profile": crate::board_profile::BOARD_PROFILE_ID,
                 "ready_at_unix_ms": 1_700_000_000_123_u64,
             })
@@ -223,8 +229,8 @@ mod tests {
         let directory = temporary_directory("atomic");
         let path = directory.join("candidate-ready.json");
         let mut readiness = CandidateReadiness::new(Some(path.clone()), "invocation-1".into());
-        readiness.mark_ready_at(1234, 42);
-        readiness.mark_ready_at(9999, 99);
+        readiness.mark_ready_at(1234, 42).unwrap();
+        readiness.mark_ready_at(9999, 99).unwrap();
 
         let payload: CandidateHealthPayload =
             serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
@@ -241,14 +247,56 @@ mod tests {
             0o644
         );
 
+        drop(readiness);
+        assert!(!path.exists());
+        let _ = std::fs::remove_dir_all(directory);
+    }
+
+    #[test]
+    fn startup_clears_stale_marker_and_failure_does_not_publish_one() {
+        let directory = temporary_directory("startup-failure");
+        let path = directory.join("candidate-ready.json");
+        std::fs::create_dir_all(&directory).unwrap();
+        std::fs::write(&path, b"stale").unwrap();
+
+        let readiness = CandidateReadiness::new(Some(path.clone()), "invocation-1".into());
+        assert!(!path.exists());
+        drop(readiness);
+        assert!(!path.exists());
+
+        let _ = std::fs::remove_dir_all(directory);
+    }
+
+    #[test]
+    fn shutdown_removes_published_marker() {
+        let directory = temporary_directory("shutdown");
+        let path = directory.join("candidate-ready.json");
+        let mut readiness = CandidateReadiness::new(Some(path.clone()), "invocation-1".into());
+        readiness.mark_ready_at(1234, 42).unwrap();
+        assert!(path.is_file());
+        drop(readiness);
+        assert!(!path.exists());
         let _ = std::fs::remove_dir_all(directory);
     }
 
     #[test]
     fn missing_path_is_a_nonfatal_noop() {
         let mut readiness = CandidateReadiness::new(None, String::new());
-        readiness.mark_ready();
-        readiness.mark_ready();
+        readiness.mark_ready().unwrap();
+        readiness.mark_ready().unwrap();
         assert!(readiness.attempted);
+    }
+
+    #[test]
+    fn configured_marker_publication_failure_is_returned() {
+        let directory = temporary_directory("publication-failure");
+        let path = directory.join("candidate-ready.json");
+        std::fs::create_dir_all(&path).unwrap();
+        let mut readiness = CandidateReadiness::new(Some(path.clone()), "invocation-1".into());
+
+        let error = readiness.mark_ready().unwrap_err();
+
+        assert!(error.contains("candidate readiness marker unavailable"));
+        let _ = std::fs::remove_dir_all(directory);
     }
 }

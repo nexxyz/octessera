@@ -1,8 +1,8 @@
 $ErrorActionPreference = "Stop"
 $repoRoot = Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\..")
 $top3mfs = @(
-    (Join-Path $repoRoot "release-artifacts\enclosure\3mf-multicolor\case_top_two_level_multicolor.3mf"),
-    (Join-Path $repoRoot "release-artifacts\enclosure\3mf-multicolor\case_top_two_level_orange_pi_multicolor.3mf")
+    (Join-Path $repoRoot "release-artifacts\enclosure\3mf-multicolor\case_top_two_level_raspberry-pi-zero-2w_multicolor.3mf"),
+    (Join-Path $repoRoot "release-artifacts\enclosure\3mf-multicolor\case_top_two_level_orange-pi-zero-2w_multicolor.3mf")
 )
 
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "generate_top_artifacts_checked.ps1")
@@ -24,8 +24,8 @@ import generate_two_level_enclosure_cadquery as enclosure
 multi.THREEMF_ROOT.mkdir(parents=True, exist_ok=True)
 params = json.loads(enclosure.PARAMS.read_text())
 for variant_params, filename in [
-    (params, 'case_top_two_level_multicolor.3mf'),
-    (enclosure.orange_pi_top_params(params), 'case_top_two_level_orange_pi_multicolor.3mf'),
+    (params, 'case_top_two_level_raspberry-pi-zero-2w_multicolor.3mf'),
+    (enclosure.orange_pi_top_params(params), 'case_top_two_level_orange-pi-zero-2w_multicolor.3mf'),
 ]:
     body, branding = multi.enclosure_top_variant(variant_params)
     out = multi.THREEMF_ROOT / filename

@@ -7,6 +7,9 @@ $RaspberryPiZero2WBinary = "octessera-pi"
 $RaspberryPiZero2WArchitecture = "aarch64-unknown-linux-gnu"
 $RaspberryPiZero2WRuntimeArchitecture = "aarch64"
 $RaspberryPiZero2WCargoFeature = "hardware-raspberry-pi-zero-2w"
+$OrangePiZero2WCargoFeature = "hardware-orange-pi-zero-2w"
+$PiBinary = $RaspberryPiZero2WBinary
+$PiArchitecture = $RaspberryPiZero2WArchitecture
 $RaspberryBoardMetadataFields = @(
   "schema_version",
   "board_profile",
@@ -21,6 +24,75 @@ $RaspberryRuntimeMetadataFields = @(
   "arch",
   "package_version"
 )
+
+function Get-PiBoardProfileSpec {
+  param([string]$BoardProfile)
+
+  switch -CaseSensitive ($BoardProfile) {
+    $RaspberryPiZero2WProfileId {
+      return [pscustomobject][ordered]@{
+        ProfileId = $RaspberryPiZero2WProfileId
+        CargoFeature = $RaspberryPiZero2WCargoFeature
+        Binary = $PiBinary
+        Architecture = $PiArchitecture
+      }
+    }
+    $OrangePiZero2WProfileId {
+      return [pscustomobject][ordered]@{
+        ProfileId = $OrangePiZero2WProfileId
+        CargoFeature = $OrangePiZero2WCargoFeature
+        Binary = $PiBinary
+        Architecture = $PiArchitecture
+      }
+    }
+    default {
+      throw "Pi cross-build accepts only '$RaspberryPiZero2WProfileId' or '$OrangePiZero2WProfileId'; got '$BoardProfile'."
+    }
+  }
+}
+
+function Assert-PiBoardProfile {
+  param([string]$BoardProfile)
+
+  Get-PiBoardProfileSpec $BoardProfile | Out-Null
+}
+
+function New-PiBoardMetadata {
+  param(
+    [string]$BoardProfile,
+    [string]$Binary = $PiBinary
+  )
+
+  $spec = Get-PiBoardProfileSpec $BoardProfile
+  if ($Binary -cne $spec.Binary) {
+    throw "Pi board metadata binary must be $($spec.Binary); got '$Binary'."
+  }
+  [pscustomobject][ordered]@{
+    schema_version = 1
+    board_profile = $spec.ProfileId
+    binary = $spec.Binary
+    arch = $spec.Architecture
+    cargo_feature = $spec.CargoFeature
+  }
+}
+
+function Get-PiBoardMetadataJson {
+  param([string]$BoardProfile)
+
+  $metadata = New-PiBoardMetadata $BoardProfile
+  '{"schema_version":1,"board_profile":"' + $metadata.board_profile + '","binary":"' + $metadata.binary + '","arch":"' + $metadata.arch + '","cargo_feature":"' + $metadata.cargo_feature + '"}'
+}
+
+function Write-PiBoardMetadata {
+  param(
+    [string]$Path,
+    [string]$BoardProfile
+  )
+
+  $json = Get-PiBoardMetadataJson $BoardProfile
+  $encoding = New-Object System.Text.UTF8Encoding($false)
+  [IO.File]::WriteAllText($Path, $json, $encoding)
+}
 
 function Assert-RaspberryBoardProfile {
   param([string]$BoardProfile)

@@ -13,6 +13,8 @@ pub(crate) use audio_defaults::default_pi_instruments;
 use audio_error::audio_queue_error;
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 pub(crate) use audio_output::audio_sinks;
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+pub(crate) use audio_output::OrangeDacStatus;
 pub(crate) use audio_output::{AudioManager, AudioSink};
 use playback_runtime::{HostMessage, RuntimeAdapterError};
 use rodio_engine_source::EngineEvent;

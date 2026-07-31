@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+exec timeout --foreground --signal=TERM --kill-after=5s 900s \
+  /usr/local/bin/wifi-connect \
+  --portal-ssid "Octessera Wi-Fi" \
+  --portal-interface wlan0 \
+  --portal-gateway 192.168.42.1 \
+  --portal-listening-port 80

@@ -44,7 +44,7 @@ impl NativeRunner {
                 "visibleRows": display.scroll.as_ref().map(|scroll| scroll.visible_rows),
                 "toast": toast,
                 "off": self.display.oled_mode == NativeOledMode::Off,
-                "splash": if self.display.oled_mode == NativeOledMode::Splash { self.display.oled_splash_text.clone() } else { String::new() },
+                "splash": if self.display.runtime_error_presentation.is_none() && self.display.oled_mode == NativeOledMode::Splash { self.display.oled_splash_text.clone() } else { String::new() },
                 "editing": self.menu.state.editing && self.display.help_popup.is_none()
             },
             "leds": {

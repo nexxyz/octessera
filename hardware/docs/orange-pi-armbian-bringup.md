@@ -1,6 +1,10 @@
 # Orange Pi Zero 2W Armbian bring-up
 
-Goal: validate Orange Pi Zero 2W on Armbian before adding real `orange-pi-zero-2w` runtime behavior.
+This document records Orange Pi Zero 2W Armbian bring-up and qualification
+details for the 0.7.5 production path. The production artifact is an explicit
+`production` image mode; the separate `diagnostic` image mode remains useful
+for bus, OLED, and kernel checks. The diagnostic procedure below is not the
+production service contract.
 
 This is a hardware gate. Do not copy Raspberry Pi constants, overlays, or `rppal` GPIO assumptions into Orange Pi support until these checks pass on the target board and image.
 
@@ -13,6 +17,14 @@ This is a hardware gate. Do not copy Raspberry Pi constants, overlays, or `rppal
 
 Record the image URL, image date, kernel version, board name, and all command output during bring-up.
 
+The 0.7.5 production image artifact is
+`octessera-0.7.5-orange-pi-zero-2w.img.xz`, with a matching SHA-256 and image
+provenance set. Its build metadata must contain
+`OCTESSERA_IMAGE_MODE=production`. The image stages the exact, hash-bound
+runtime bundle `octessera-pi`, `octessera-runtime.json`, and `SHA256SUMS`; its
+runtime metadata declares `artifact_kind=production-runtime` and
+`runtime_ready=true` for `orange-pi-zero-2w`.
+
 The diagnostic artifact is the canonical `orange-oled-smoke` ELF. Its adjacent
 `orange-oled-smoke.metadata.json` sidecar uses schema 2, contains the exact
 identity field set, and binds the copied ELF with a canonical lowercase
@@ -20,18 +32,30 @@ identity field set, and binds the copied ELF with a canonical lowercase
 The separate `orange-seesaw-smoke` artifact uses the same sidecar contract and
 is limited to the proven Seesaw reset/HW-ID check on `/dev/i2c-2`.
 
-The foreground `octessera-pi` candidate is a separate schema-2,
-SHA-256-bound `runtime-candidate` with `runtime_ready=false`. It is hardware-
-free in metadata mode and uses only the proven OLED plus real NeoTrellis/NeoKey
-I2C drivers in polling mode. Audio uses the shared 44.1 kHz runtime rate and
-requires exactly one CPAL output device named
-`hw:CARD=octesseradac,DEV=0` with verified stereo support; there is no
-default or HDMI fallback. Internal MIDI events are ignored, while explicit
-MIDI platform actions are unavailable. USB, updates, reboot, SD transfer, and
-service actions are explicitly unavailable. Qualified encoders use the direct
-gpiocdev path; SW3's UART0-TX switch line remains excluded. The candidate is
-for a foreground qualification run only; the builder rejects deployment/
-service-ready output and the Armbian image path must not install it.
+Diagnostic image mode is explicit as `OCTESSERA_IMAGE_MODE=diagnostic`; it has no
+production runtime bundle or `octessera.service`. The production runtime
+supports the OLED, NeoTrellis, NeoKey, four encoders, persistent store, samples,
+MIDI, and the internal DAC. It uses the shared 44.1 kHz rate and requires
+exactly one CPAL output device named `hw:CARD=octesseradac,DEV=0` with verified
+stereo support. USB-only audio is unsupported; UAC2 is an optional companion
+(`audioOut=both`), and `audioOut=usb` is rejected. MIDI uses the native host
+adapter, including USB MIDI when the configured gadget port is present.
+
+`octessera.service` runs the native runtime as the locked `octessera-runtime`
+system account. The separate interactive `octessera` account is for setup and
+administration. Readiness follows healthy required audio, initialized
+control-surface devices, and the first rendered runtime frame. The service
+gets FIFO priority 70 through `LimitRTPRIO=70`; it does not use `CAP_SYS_NICE`,
+ambient capabilities, or other realtime capability elevation.
+
+Orange update check, apply, rollback, and OTA remain unsupported in 0.7.5.
+Use a verified production image artifact for an image update. The historical
+foreground `runtime-candidate` procedure below is retained only as bring-up
+history; it is not the production artifact or service path.
+
+The production service uses `/var/lib/octessera/presets` for its persistent
+store and `/var/lib/octessera/samples` for samples. Both paths belong to
+`octessera-runtime`; the interactive `octessera` account is separate.
 
 Once the board is reachable over SSH, run the repo probe from Windows:
 
@@ -76,8 +100,8 @@ Use this as a desk check only. Trust physical pin numbers first, then verify aga
 - OLED D/C and reset: physical pins 16 and 36 appear GPIO-capable, but not display-specific. Confirm gpiochip lines and polarity.
 - DAC I2S: physical pins 12, 35, and 40 are not proven as Pi-style I2S/PCM pins in the official docs found so far. This is blocked until schematic, DTS, and Armbian overlay checks prove I2S there.
 - Encoder and button GPIOs use the existing Octessera netlist routes and the H618 40-pin mapping below. The gpiocdev offsets are relative to `300b000.pinctrl`; do not use BCM numbering.
-- NeoTrellis interrupt: physical pin 10 is UART0 RX in the third-party pinout. Disable the serial console or stop if the no-PCB-change goal fails.
-- SW3 switch: physical pin 8 is UART0 TX in the third-party pinout. Its GPIO line is explicitly excluded/faulted until boot routing changes.
+- NeoTrellis interrupt: physical pin 10 is UART0 RX in the third-party pinout. The approved input-routing overlay disables UART0 and releases both PH0/PH1; stop if the live DTB cannot prove that path.
+- SW3 switch: physical pin 8 is UART0 TX in the third-party pinout. Its GPIO line is explicitly unavailable until the checked input-routing overlay has booted.
 
 ### Direct encoder mapping
 
@@ -86,23 +110,25 @@ use the established `port base + pin` mapping (`PC12 = 76`, `PI14 = 270`).
 
 | Encoder | A physical / H618 / offset | B physical / H618 / offset | Switch physical / H618 / offset | Candidate status |
 |---|---|---|---|---|
-| SW1 main | 29 / PI0 / 256 | 31 / PI15 / 271 | 32 / PI11 / 267 | qualified |
-| SW2 aux1 | 33 / PI12 / 268 | 22 / PI6 / 262 | 11 / PH2 / 226 | qualified |
-| SW3 aux2 | 13 / PH3 / 227 | 7 / PI13 / 269 | 8 / PH0 / 224 | excluded: active UART0 TX |
-| SW4 aux3 | 37 / PI16 / 272 | 18 / PH4 / 228 | 15 / PI5 / 261 | qualified |
+| SW1 main | 29 / PI0 / 256 | 31 / PI15 / 271 | 32 / PI11 / 267 | implemented; hardware qualification pending |
+| SW2 aux1 | 33 / PI12 / 268 | 22 / PI6 / 262 | 11 / PH2 / 226 | implemented; hardware qualification pending |
+| SW3 aux2 | 13 / PH3 / 227 | 7 / PI13 / 269 | 8 / PH0 / 224 | A/B implemented; switch unavailable until UART0-disabled routing is qualified |
+| SW4 aux3 | 37 / PI16 / 272 | 18 / PH4 / 228 | 15 / PI5 / 261 | implemented; hardware qualification pending |
 
-Qualified lines are requested with gpiocdev v2 pull-ups and both-edge
-quadrature/switch detection. The switch request retains the existing 45 ms
-debounce contract. The Raspberry path remains rppal-based.
+Implemented lines are requested with gpiocdev v2 pull-ups and both-edge
+quadrature/switch detection; live qualification remains pending. AUX2 A/B are
+requested even while UART0 is active;
+its switch request is omitted in that profile and included after input-routing
+boot. The switch request retains the existing 45 ms debounce contract. The
+Orange event boundary reverses all four literal board A/B directions; the
+Raspberry path remains rppal-based.
 
 - USB gadget/data: official Orange Pi docs describe two USB-C USB2.0 ports and say both can power the board. They do not prove a Pi-style dedicated OTG/data port. This is blocked until port role, VBUS/CC/ID, and UDC behavior are proven on hardware.
-
 Current desk result: power, I2C, SPI, and the static encoder mapping are
-plausible; live encoder edge qualification remains bounded to the native HAL
-path. I2S and USB gadget mode remain the highest-risk hardware gates.
+plausible; the native encoder implementation remains unqualified on live
+hardware. I2S and USB gadget mode remain the highest-risk hardware gates.
 
 ## Armbian differences from Raspberry Pi OS
-
 Armbian does not use the Raspberry Pi firmware overlay path.
 
 | Area | Raspberry Pi path | Armbian / Orange Pi path |
@@ -113,11 +139,9 @@ Armbian does not use the Raspberry Pi firmware overlay path.
 | User overlays | Usually not needed for current Pi image | `/boot/overlay-user/`, enabled with `user_overlays=` |
 | USB device controller | Pi `dwc2` path | Board/kernel-specific UDC; must be detected on hardware |
 | GPIO userspace | `rppal` / BCM numbering | Prefer libgpiod gpiochip/line mapping |
-
 Practical rule: Raspberry Pi overlay names and BCM GPIO numbers are not portable contracts.
 
 ## Custom SPI1/CS0 overlay
-
 The Octessera Armbian image carries one board-specific user overlay for the Orange Pi Zero 2W:
 
 - Source: `userpatches/overlay/usr/local/share/octessera/device-tree/octessera-h618-spi1-cs0.dts`.
@@ -125,18 +149,27 @@ The Octessera Armbian image carries one board-specific user overlay for the Oran
 - Installed DTBO: `/boot/overlay-user/octessera-h618-spi1-cs0.dtbo`.
 - Boot enablement: `user_overlays=octessera-h618-spi1-cs0` in `/boot/armbianEnv.txt`.
 - Required I2C enablement: `overlays=i2c1-pi` in `/boot/armbianEnv.txt`; existing overlay settings are preserved and the token is added if absent.
-
-The overlay declares one address cell and zero size cells, enables `&spi1` with `&spi1_pins` and `&spi1_cs0_pin`, then creates one CS0 `rohm,dh2228fv` device capped at 1 MHz. The reviewed H618 pin groups are PH6/PH7/PH8 with function `spi1` and PH5 with function `spi1`. It does not touch SPI0, CS1, GPIO lines, services, or authorization. It is not the stock `spidev1_0` overlay.
-
-Image customization refuses any board other than the exact Armbian board ID `orangepizero2w`. It resolves the boot-selected `fdtfile`/current DTB path from the image boot configuration and refuses missing or ambiguous H618 candidates; it does not infer the target from `uname -r`. It compiles with symbols, decompiles and merges with fatal diagnostics, and asserts unchanged SPI0/I2C nodes plus the expected SPI1 pinctrl/CS0 result. DTBO and `armbianEnv.txt` writes are atomic. Non-secret source and DTBO SHA-256 values are recorded in `/etc/octessera/build-metadata.env` as `OCTESSERA_SPI1_CS0_DTS_SHA256` and `OCTESSERA_SPI1_CS0_DTBO_SHA256`.
+The overlay declares one address cell and zero size cells, enables `&spi1` with `&spi1_pins` and `&spi1_cs0_pin`, then creates one CS0 `rohm,dh2228fv` device capped at 16 MHz. The reviewed H618 pin groups are PH6/PH7/PH8 with function `spi1` and PH5 with function `spi1`. It does not touch SPI0, CS1, GPIO lines, services, or authorization. It is not the stock `spidev1_0` overlay. The OLED HAL defaults to 16 MHz and retains the validated 1/2/4/8/12/16 MHz override ladder.
+Image customization refuses any board other than the exact Armbian board ID `orangepizero2w`. It resolves the boot-selected `fdtfile`/current DTB path from the image boot configuration and refuses missing or ambiguous H618 candidates; it does not infer the target from `uname -r`. It compiles with symbols, decompiles and merges with fatal diagnostics, and asserts unchanged SPI0/I2C nodes plus the expected SPI1 pinctrl/CS0 result. DTBO and `armbianEnv.txt` writes are atomic. Non-secret source and DTBO SHA-256 values are recorded in `/etc/octessera/build-metadata.env` as `OCTESSERA_SPI1_CS0_DTS_SHA256`, `OCTESSERA_SPI1_CS0_DTBO_SHA256`, `OCTESSERA_INPUT_ROUTING_DTS_SHA256`, and `OCTESSERA_INPUT_ROUTING_DTBO_SHA256`.
 
 The boot-environment parser rejects duplicate assignments, duplicate tokens, commented or inline-commented assignments, and malformed token lists. Full qualification image builds also require a reviewed immutable 40-character Armbian commit SHA; validation-only runs may use the workflow's default ref.
 
 Do not enable this overlay on another board or kernel without a new device-tree review. Before any OLED transfer, prove the live SPI1 node and pinmux mapping on the target and keep a recovery path for `/boot/armbianEnv.txt`.
 
+The separate UART0 input-routing overlay and its no-reboot provisioning,
+backup, rollback, and preflight procedure are documented in
+`hardware/docs/orange-pi-input-routing.md`.
+
 ## GitHub-built Armbian image
 
-The `Armbian Image` GitHub Actions workflow builds an Orange Pi Zero 2W/Armbian diagnostic image with setup helpers and bus diagnostics installed through Armbian `userpatches/`. It does not install or enable the Octessera runtime service.
+The shared `build-armbian-image` action accepts an explicit `image_kind`:
+`diagnostic` builds the bring-up image with setup helpers, board-specific USB
+audio/MIDI, musical assets, OLED qualification services, and bus diagnostics;
+`production` requires the hash-bound Orange runtime bundle and installs the
+native runtime service. The generic `Armbian Image` workflow uses diagnostic
+mode; the 0.7.5 release image uses `image_kind=production`. Do not infer image
+mode from a payload or from the presence of a local binary; inspect
+`OCTESSERA_IMAGE_MODE` in `/etc/octessera/build-metadata.env`.
 
 Start with validation only:
 
@@ -147,7 +180,7 @@ gh workflow run armbian-image.yml \
   -f kernel_branch=current \
   -f ui=minimal \
   -f compression=xz \
-  -f extensions=preset-firstrun \
+  -f 'extensions=preset-firstrun octessera_midi octessera_image_sanitize' \
   -f run_build=false \
   -f artifact_mode=public-generic
 ```
@@ -156,11 +189,148 @@ Run a no-secret full build by changing `run_build=true` and setting `armbian_bui
 
 The only public first-run input is `public_preset_configuration_url`, and it must point to a non-secret HTTPS Armbian `PRESET_CONFIGURATION` file. Keep `preset-firstrun` in the extensions list when using that flow. Private preset URLs belong in the protected `ARMBIAN_PRESET_CONFIGURATION_URL` secret.
 
-Optional diagnostic payload tarballs must use HTTPS and a matching SHA256. Payloads are staged by default. Runtime-enabled or service-ready payloads are rejected; a `runtime-candidate` sidecar does not authorize installation, service enablement, or runtime readiness.
+Optional diagnostic payload tarballs must use HTTPS and a matching SHA256.
+Diagnostic payloads are staged by default and must not contain the production
+runtime. Production images instead receive the exact three-file runtime bundle
+and validate its `production-runtime` metadata and hash before installation. A
+local `runtime-candidate` sidecar is historical qualification metadata; it does
+not replace the production bundle.
+
+### ALSA sequencer kernel fix
+
+The Orange image includes the small `octessera_midi` Armbian extension. It uses
+the documented `custom_kernel_config` hook to request only
+`CONFIG_SND_SEQUENCER=m`, `CONFIG_SND_RAWMIDI=m`, and
+`CONFIG_SND_USB_AUDIO=m`, and to force
+`# CONFIG_RT_GROUP_SCHED is not set`. The last setting is the fixed Orange
+kernel remedy for the confirmed live scheduler denial: this board runs cgroup
+v2 with `CONFIG_RT_GROUP_SCHED=y`, and `pthread_setschedparam(SCHED_FIFO)`
+continued to return `EPERM` even with a sufficient `RLIMIT_RTPRIO`. The Orange
+qualification launch uses `LimitRTPRIO=70`; no `CAP_SYS_NICE`, ambient
+capability, or other realtime capability is added, and only CPAL callback
+threads may request FIFO 70. The runtime verifies the effective callback
+policy and priority before treating a sink as qualified.
+
+The extension sets `opts_val["RT_GROUP_SCHED"]="n"`, rather than relying on
+`opts_n`: Armbian's core Docker extension can append `RT_GROUP_SCHED` to
+`opts_y` later in the same configuration pass, while `opts_val` is the final
+value override.
+
+This change does not alter cgroup v2, global runtime sysctls, or the global RT
+throttle. Keep `kernel.sched_rt_period_us=1000000` and
+`kernel.sched_rt_runtime_us=950000`; the one-second period and 950 ms runtime
+budget remain the safety boundary for realtime work. The installed module-load
+file contains only `snd_seq` and `snd_seq_midi`: the sequencer device and its
+raw-MIDI bridge. It does not use the obsolete `CONFIG_SND_SEQ` name, OSS
+sequencer support, generic device discovery, or capability broadening.
+
+The build also forces the `octessera_image_sanitize` extension. Its exact
+Armbian hook, `pre_umount_final_image__9999_octessera_image_sanitize`, runs
+against `MOUNT` immediately before the final image unmount. It removes only
+`authorized_keys` under `/root/.ssh`, immediate `/home/*/.ssh` account homes,
+`/etc/ssh`, and `/etc/dropbear`, then fails closed if any of those paths remain.
+It never reads, hashes, or logs key contents. The early customizer cleanup and
+strict built-image inspector remain in place as independent checks.
+
+Include the extension in every image build, alongside any first-run extension:
+
+```sh
+gh workflow run armbian-image.yml \
+  -f board=orangepizero2w \
+  -f release=trixie \
+  -f kernel_branch=current \
+  -f ui=minimal \
+  -f compression=sha,img,xz \
+  -f 'extensions=preset-firstrun octessera_midi octessera_image_sanitize' \
+  -f armbian_build_ref=<reviewed-40-character-armbian-commit> \
+  -f run_build=true
+```
+
+The build gate is a newly generated matching
+`output/debs/linux-image-current-sunxi64_<version>_arm64.deb` and the matching
+`output/images/Armbian_*_orangepizero2w_current_*.img.xz`, not the old installed
+kernel. Deploy the resulting Armbian image to the test SD card, boot it, and
+reboot once after the new kernel is installed. Do not qualify the MIDI path
+from a runtime rebuild or from `modprobe` on the old image.
+
+After SSH returns from the reboot, verify the running kernel and both the
+sequencer device and ALSA MIDI clients:
+
+```sh
+uname -r
+modinfo snd_seq
+modinfo snd_seq_midi
+modinfo snd_usb_audio
+test -c /dev/snd/seq
+aconnect -l
+```
+
+Record the exact kernel package version, image filename, `uname -r`, and the
+command output. `/dev/snd/seq` must exist, and `aconnect -l` must run against
+the new image before any foreground MIDI qualification.
+
+The fixed-kernel gate must also reject an enabled or modular RT group
+scheduler and must preserve the global throttle and cgroup mode:
+
+```sh
+kernel_config=/boot/config-$(uname -r)
+grep -qxF '# CONFIG_RT_GROUP_SCHED is not set' "$kernel_config"
+! grep -qE '^CONFIG_RT_GROUP_SCHED=' "$kernel_config"
+test "$(stat -fc %T /sys/fs/cgroup)" = cgroup2fs
+test "$(sysctl -n kernel.sched_rt_period_us)" = 1000000
+test "$(sysctl -n kernel.sched_rt_runtime_us)" = 950000
+```
+
+Do not treat `CONFIG_RT_GROUP_SCHED=y` as a pass; the live test must fail
+closed if that exact line is present. After the new kernel is running, start
+the foreground candidate with its default audio-thread priority and verify
+the actual callback thread reaches FIFO scheduling:
+
+```sh
+unset OCTESSERA_AUDIO_THREAD_PRIORITY
+/tmp/octessera-pi 2>&1 | tee /tmp/octessera-fifo.log
+```
+
+In a second shell, while audio is active, require at least one Octessera
+thread with `FF`/`SCHED_FIFO` and the expected default realtime priority 70,
+and require no scheduler-denial log:
+
+```sh
+pid=$(pgrep -xo octessera-pi)
+ps -L -p "$pid" -o pid,tid,cls,rtprio,comm
+ps -L -p "$pid" -o cls=,rtprio= | awk '$1 == "FF" && $2 == 70 { found = 1 } END { exit found ? 0 : 1 }'
+! grep -q 'audio callback RT promotion not qualified' /tmp/octessera-fifo.log
+```
+
+This FIFO check is a live gate, not a substitute for the kernel-config
+assertion: it proves the running image, process limits, and callback path all
+agree. Stop immediately if the config is `=y`, either RT throttle value is
+changed, cgroup v2 is not mounted, the FIFO assertion fails, or the runtime
+reports an unqualified `DAC`/`UAC2` callback promotion.
 
 ### First-boot setup portal
 
 The generic image installs `wifi-connect` plus Octessera setup helpers. If the board has no configured network and setup is not complete, `octessera-setup.service` starts a local hotspot named `Octessera Setup` or `Octessera Setup xxxx`.
+
+Separately, the image contains the inactive `octessera-wifi-foundation.service`
+and its root-owned Wi-Fi-only helper. It is not enabled, does not replace the
+Orange first-boot portal or sidecar, and is fixed to `wlan0` with gateway
+`192.168.42.1` for bounded image validation only.
+
+The image stages the generated Pi-family default and only the three sample files
+referenced by that patch. Stage those assets before an Armbian build:
+
+```sh
+bash tools/armbian-image/stage-musical-assets.sh
+bash tools/armbian-image/test-musical-assets.sh
+```
+
+The first-boot provisioning service copies the default to
+`/var/lib/octessera/presets/default.json` only when that file is absent, and
+copies samples to `/var/lib/octessera/samples` only when each destination is
+absent. The manifest records source URL, byte count, and SHA-256. The source
+repository is the Stargate sample pack; its upstream README describes the pack
+as free to use and redistribute, and the image retains that attribution.
 
 The captive portal at `http://192.168.42.1/` configures:
 
@@ -188,7 +358,7 @@ sudo octessera-armbian-diagnostics
 cat /etc/octessera/build-metadata.env
 ```
 
-The workflow intentionally does not copy Raspberry Pi `config.txt`, `dwc2`, BCM GPIO numbering, USB gadget setup, SD export, or fixed user-home assumptions.
+The workflow intentionally does not copy Raspberry Pi `config.txt`, `dwc2`, BCM GPIO numbering, SD export, or fixed user-home assumptions. Its USB gadget and OLED services use the reviewed Orange UDC, H618 SPI, and H618 GPIO paths instead.
 
 ## Basic Armbian facts to capture
 
@@ -258,42 +428,58 @@ Before binding any gadget, record the USB power topology:
 
 ### Orange Pi gadget composer
 
-The Orange Pi path has its own configfs composer at
-`tools/orange-pi/orange-pi-usb-gadget.sh`; do not copy the Raspberry Pi image
-script or enable a service from this bring-up path. Run only after confirming
-the OTG/data port and power arrangement are safe. Configfs and the requested
-function modules must already be available:
+The Orange image owns a board-specific combined configfs service. It does not
+load Raspberry Pi `dwc2` or select the first controller. The only accepted UDC
+is the verified `musb-hdrc.4.auto`; absence, a different controller, a bound
+controller, or an existing configfs gadget fails closed. The service loads
+`musb_hdrc`, `libcomposite`, `usb_f_uac2`, and `usb_f_midi`, creates UAC2 and
+MIDI functions and their configuration links, and binds the UDC last:
 
 ```sh
-sudo modprobe libcomposite
-sudo mount -t configfs none /sys/kernel/config
-sudo modprobe usb_f_midi
-sudo bash ./tools/orange-pi/orange-pi-usb-gadget.sh setup \
-  --udc <exact-udc-name> --mode midi
+systemctl status octessera-orange-usb-gadget.service
+cat /sys/class/udc/musb-hdrc.4.auto/function
+ls /sys/kernel/config/usb_gadget/octessera-orange-pi/functions
 ```
 
-Teardown:
-
-```sh
-sudo bash ./tools/orange-pi/orange-pi-usb-gadget.sh teardown \
-  --udc <exact-udc-name>
-```
-
-Use `--mode uac2` for UAC2-only or `--mode combined` for both functions. The
-composer requires an exact UDC argument, refuses pre-existing/pre-bound gadget
-state, creates functions and configuration links before binding, and unbinds
-first during teardown. It has no mass-storage mode and does not enable or
-start any service. Its fake-configfs tests are offline:
+The same teardown path unbinds first, removes configuration links, removes
+function directories, and only then removes the gadget tree. The service does
+not expose mass storage. The standalone composer at
+`tools/orange-pi/orange-pi-usb-gadget.sh` uses the same exact UDC contract for
+offline/fake-configfs qualification:
 
 ```sh
 bash ./tools/orange-pi/test-orange-pi-usb-gadget.sh
 ```
 
-Host-side checks:
+Setup and teardown share one exclusive lifecycle lock. A concurrent operation
+fails before changing the gadget; teardown still unbinds before any removal.
+
+The gadget product string is `Octessera Audio + MIDI` for `combined`,
+`Octessera MIDI` for `midi`, and `Octessera Line In` for `uac2`. The composer
+keeps the existing manufacturer, configuration, serial, VID/PID, function
+composition, and UAC2 names. MIDI and combined modes require the patched,
+qualified image kernel to expose a writable `interface_string`. The composer
+writes exactly 14 bytes of `Octessera MIDI` without a trailing LF, verifies the
+byte-for-byte readback, and only then creates the MIDI configuration link and
+binds the UDC. `id` remains set for ALSA identity but never substitutes for
+`interface_string`; missing, write, readback, and bind failures roll back the
+partial gadget. A generic Windows `MIDI function` label indicates an unpatched
+or unqualified image and is not accepted for release validation.
+
+Live host validation is intentionally separate from image construction. The
+composer implements the exact UAC2/MIDI gadget composition, but its fake-configfs
+test is not host audio evidence. Run the host checks below only during an
+authorized live qualification; this document makes no host tone or capture claim.
+
+```sh
+bash ./tools/orange-pi/test-orange-pi-usb-gadget.sh
+```
+
+Host-side checks for an authorized live qualification:
 
 - Capture `lsusb -v` for each gadget configuration.
 - Confirm DAW-visible MIDI naming and basic MIDI send/receive.
-- Confirm UAC2 audio direction, sample rate, and reconnect behavior.
+- Confirm the exact UAC2 audio output, sample rate, and reconnect behavior.
 - Confirm unplug/replug and host suspend/resume behavior.
 - Confirm no storage function is exposed by the Orange Pi gadget configuration.
 
@@ -327,15 +513,17 @@ validation. Do not treat them as release USB IDs.
 
 - Treat the I2S DAC as unproven until `aplay -l` exposes the expected card.
 - Record required overlays and ALSA card names.
-- Run a short playback test and an underrun/dropout check before Octessera service testing.
+- Run a short playback test and an underrun/dropout check before foreground candidate testing.
 - Confirm bit clock, word select, and data pins match the existing DAC wiring.
 
-## Live qualification contract
+## Diagnostic qualification contract (historical bring-up)
 
-Run this contract in order on one identified board. It is a bounded foreground
-qualification, not permission to install or enable a service. Record the board
-revision, PCB/harness revision, image/kernel/DT identity, artifact SHA-256, and
-timestamps for every gate.
+This section describes the separate diagnostic image and smoke-utility path. Run
+it in order on one identified board when qualifying hardware. It intentionally
+does not install or enable the production service. The production path is
+documented above and under [Runtime service status](#runtime-service-status).
+Record the board revision, PCB/harness revision, image/kernel/DT identity,
+artifact SHA-256, and timestamps for every gate.
 
 ### Passive gate
 
@@ -457,10 +645,10 @@ outlast these checks, so neither budget is a wall-clock promise.
    exact UDC, bind one composer mode, verify host enumeration, then unbind and
    verify clean teardown. Use the Orange Pi composer; do not bind a pre-existing
    gadget or guess a UDC.
-6. **Foreground candidate only:** after the preceding gates pass, a separately
-   approved run may use the profile-matched diagnostic utility or foreground
-   `runtime-candidate` from `/tmp`. Keep deployment, release, and service paths
-   untouched; the candidate remains `runtime_ready=false`.
+6. **Historical foreground candidate:** this old qualification step is retained
+   for reproducibility only. It may use the profile-matched diagnostic utility
+   or the old `runtime-candidate` from `/tmp`; keep deployment, release, and
+   production service paths untouched. It is not the 0.7.5 production runtime.
 
 ### Stop conditions
 
@@ -477,18 +665,27 @@ to runtime qualification after a failed gate.
 
 ## Runtime service status
 
-There is no Orange runtime service or deployment-ready release artifact to
-validate. Do not copy the Raspberry Pi service, enable `octessera.service`, or
-deploy `octessera-pi` as a service to this image. The foreground candidate
-requires its exact audio endpoint for qualification but does not enumerate
-HDMI, USB, or MIDI; its normal SIGINT cleanup joins workers after the shutdown
-frame, black Trellis/NeoKey frames, and OLED-off operation. A future runtime
-requires real qualified input, audio, and device adapters plus a separately
-reviewed build/deploy/service contract.
+The 0.7.5 production image installs and enables `octessera.service`. It runs
+the native runtime as the locked `octessera-runtime` system account; the
+interactive `octessera` account remains separate for setup and administration.
+The service supports the OLED, NeoTrellis, NeoKey, four encoders, persistent
+store, samples, MIDI, and the exact internal DAC endpoint. USB-only audio is
+unsupported: UAC2 is optional with `audioOut=both`, while `audioOut=usb` is
+rejected and HDMI/default audio fallback is not used. Runtime readiness follows
+healthy required audio, initialized control-surface devices, and the first
+rendered snapshot. FIFO priority 70 comes from `LimitRTPRIO=70`; the service
+does not use `CAP_SYS_NICE` or ambient capabilities.
 
-## Repo follow-up after hardware passes
+Orange update check, apply, rollback, and OTA remain unsupported. Use the
+verified production image artifact for an image update. The diagnostic image
+mode and the historical smoke utilities remain separate from this service
+path. Normal SIGINT cleanup joins workers after the shutdown frame, black
+Trellis/NeoKey frames, and OLED-off operation.
 
-Only after the checks above pass:
+## Historical repo follow-up (pre-0.7.5)
+
+These notes record the implementation work that preceded the production image;
+they are not outstanding release tasks:
 
 1. Add real `orange-pi-zero-2w` board profile values.
 2. Add a non-`rppal` GPIO backend based on gpiochip lines.

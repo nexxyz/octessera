@@ -4,7 +4,21 @@
     #address-cells = <1>;
     #size-cells = <1>;
 
-    pinctrl: pinctrl@300b000 {
+    aliases {
+        serial0 = &uart0;
+    };
+
+    chosen {
+        stdout-path = "serial0:115200n8";
+    };
+
+    uart0: serial@5000000 {
+        compatible = "snps,dw-apb-uart";
+        reg = <0x5000000 0x1000>;
+        status = "okay";
+    };
+
+    pinctrl: pio: pinctrl@300b000 {
         compatible = "allwinner,sun50i-h618-pinctrl";
         reg = <0x300b000 0x400>;
 

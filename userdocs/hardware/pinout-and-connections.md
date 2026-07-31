@@ -23,6 +23,14 @@ Use it while assembling the device. It is deliberately plain: this is where the 
 - The USB-C breakout feeds the shared `+5V` rail for the Pi, OLED, NeoKey, NeoTrellis connector, and DAC.
 - `C1` is a `470uf` polarized capacitor across `+5V` and `GND` to add bulk supply smoothing on the main power rail.
 
+## USB Audio and MIDI
+
+The Raspberry image exposes USB audio and MIDI through the Pi data port. Audio-only, MIDI-only, and combined modes keep the existing product names: `Octessera Line In`, `Octessera MIDI`, and `Octessera Audio + MIDI`.
+
+MIDI and combined modes require the image's ConfigFS MIDI function to provide an `interface_string` attribute. The gadget setup writes exactly `Octessera MIDI` (14 bytes, with no trailing newline), checks the size and byte-for-byte readback, and binds the USB device only after those checks pass. If the attribute is missing or cannot be written, read back, or bound, setup fails closed, attempts cleanup, and reports cleanup failure instead of presenting the kernel's generic `MIDI function` label.
+
+Use a data-only cable or a power-isolating adapter when connecting the Pi data port to a host while the instrument is powered through the enclosure USB-C input.
+
 ## Bus Allocation
 
 ### I2C bus 1

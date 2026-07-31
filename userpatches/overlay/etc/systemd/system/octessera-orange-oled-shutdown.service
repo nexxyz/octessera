@@ -1,0 +1,14 @@
+[Unit]
+Description=Octessera Orange Pi OLED shutdown logo
+DefaultDependencies=no
+After=octessera.service
+Before=shutdown.target reboot.target halt.target
+Conflicts=octessera.service
+
+[Service]
+Type=oneshot
+ExecStart=-/usr/local/sbin/octessera-orange-oled-logo shutdown
+TimeoutStartSec=5
+
+[Install]
+WantedBy=shutdown.target reboot.target halt.target

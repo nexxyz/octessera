@@ -1,0 +1,27 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+    compatible = "xunlong,orangepi-zero2w", "allwinner,sun50i-h616", "allwinner,sun50i-h618";
+
+    fragment@2 {
+        target-path = "/chosen";
+        __overlay__ {
+            stdout-path = "";
+        };
+    };
+};
+
+&uart0 {
+    pinctrl-names = "default";
+    pinctrl-0 = <&octessera_uart0_released>;
+    status = "disabled";
+};
+
+&pio {
+    octessera_uart0_released: octessera-uart0-released {
+        pins = "PH0", "PH1";
+        function = "gpio_in";
+        bias-pull-up;
+    };
+};

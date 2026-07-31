@@ -15,6 +15,14 @@ for updater_file in \
         exit 2
     fi
 done
+for wifi_foundation_file in \
+    "$STAGE_FILES/root/usr/local/sbin/octessera-wifi-foundation" \
+    "$STAGE_FILES/root/etc/systemd/system/octessera-wifi-foundation.service"; do
+    if [ ! -f "$wifi_foundation_file" ]; then
+        echo "Pi image setup requires the inactive Wi-Fi foundation artifacts." >&2
+        exit 2
+    fi
+done
 
 rm -f \
     "$ROOTFS_DIR/etc/initramfs-tools/hooks/cellsymphony-boot-splash" \
@@ -40,6 +48,9 @@ install -D -m 0755 \
 install -D -m 0755 \
     "$STAGE_FILES/root/usr/local/sbin/octessera-sd-card" \
     "$ROOTFS_DIR/usr/local/sbin/octessera-sd-card"
+install -D -o root -g root -m 0755 \
+    "$STAGE_FILES/root/usr/local/sbin/octessera-wifi-foundation" \
+    "$ROOTFS_DIR/usr/local/sbin/octessera-wifi-foundation"
 install -D -m 0755 \
     "$STAGE_FILES/root/usr/local/sbin/octessera-update" \
     "$ROOTFS_DIR/usr/local/sbin/octessera-update"
@@ -73,6 +84,9 @@ install -D -m 0644 \
 install -D -m 0644 \
     "$STAGE_FILES/root/etc/systemd/system/octessera-performance-governor.service" \
     "$ROOTFS_DIR/etc/systemd/system/octessera-performance-governor.service"
+install -D -o root -g root -m 0644 \
+    "$STAGE_FILES/root/etc/systemd/system/octessera-wifi-foundation.service" \
+    "$ROOTFS_DIR/etc/systemd/system/octessera-wifi-foundation.service"
 install -D -m 0644 \
     "$STAGE_FILES/root/etc/systemd/system/octessera-sd-card.service" \
     "$ROOTFS_DIR/etc/systemd/system/octessera-sd-card.service"
@@ -146,4 +160,3 @@ install -d -m 0755 "$ROOTFS_DIR/var/log/octessera"
 install -d -m 0755 "$ROOTFS_DIR/home/pi/samples" "$ROOTFS_DIR/home/pi/presets"
 install -d -m 0755 "$ROOTFS_DIR/home/pi/samples/sd-card"
 chroot "$ROOTFS_DIR" chown -R pi:pi /home/pi/samples /home/pi/presets
-chroot "$ROOTFS_DIR" update-initramfs -u

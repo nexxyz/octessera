@@ -3,6 +3,33 @@ $ErrorActionPreference = "Stop"
 
 Assert-RaspberryBoardProfile "raspberry-pi-zero-2w"
 Assert-OctesseraServiceName "octessera.service"
+foreach ($profileCase in @(
+    [pscustomobject]@{
+      Profile = "raspberry-pi-zero-2w"
+      Feature = "hardware-raspberry-pi-zero-2w"
+    },
+    [pscustomobject]@{
+      Profile = "orange-pi-zero-2w"
+      Feature = "hardware-orange-pi-zero-2w"
+    }
+  )) {
+  Assert-PiBoardProfile $profileCase.Profile
+  $spec = Get-PiBoardProfileSpec $profileCase.Profile
+  if ($spec.ProfileId -cne $profileCase.Profile -or $spec.CargoFeature -cne $profileCase.Feature -or $spec.Binary -cne "octessera-pi" -or $spec.Architecture -cne "aarch64-unknown-linux-gnu") {
+    throw "Board profile mapping is incorrect for $($profileCase.Profile)"
+  }
+}
+foreach ($value in @("opi-zero-2w", "rpi-zero-2w", "hardware-pi", "")) {
+  $rejected = $false
+  try {
+    Assert-PiBoardProfile $value
+  } catch {
+    $rejected = $true
+  }
+  if (-not $rejected) {
+    throw "Pi cross-build accepted non-canonical profile: $value"
+  }
+}
 try {
   Assert-OctesseraServiceName "other.service"
   throw "Pi tooling accepted a non-default service name"
@@ -71,6 +98,23 @@ function Assert-Rejected {
 }
 
 try {
+  foreach ($profileCase in @(
+      [pscustomobject]@{
+        Profile = "raspberry-pi-zero-2w"
+        Json = '{"schema_version":1,"board_profile":"raspberry-pi-zero-2w","binary":"octessera-pi","arch":"aarch64-unknown-linux-gnu","cargo_feature":"hardware-raspberry-pi-zero-2w"}'
+      },
+      [pscustomobject]@{
+        Profile = "orange-pi-zero-2w"
+        Json = '{"schema_version":1,"board_profile":"orange-pi-zero-2w","binary":"octessera-pi","arch":"aarch64-unknown-linux-gnu","cargo_feature":"hardware-orange-pi-zero-2w"}'
+      }
+    )) {
+    Write-PiBoardMetadata -Path $metadataPath -BoardProfile $profileCase.Profile
+    $json = $utf8NoBom.GetString([IO.File]::ReadAllBytes($metadataPath))
+    if ($json -cne $profileCase.Json) {
+      throw "Pi metadata JSON is not canonical for $($profileCase.Profile)"
+    }
+  }
+
   Write-RaspberryBoardMetadata $metadataPath
   $bytes = [IO.File]::ReadAllBytes($metadataPath)
   if ($bytes.Length -lt 3 -or $bytes[0] -eq 0xEF -or $bytes[1] -eq 0xBB -or $bytes[2] -eq 0xBF) {

@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+
+case "${1:-}" in
+  pre)
+    /usr/local/sbin/octessera-orange-oled-logo sleep || true
+    ;;
+  post)
+    /usr/local/sbin/octessera-orange-oled-logo boot || true
+    ;;
+esac

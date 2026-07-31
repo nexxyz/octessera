@@ -7,6 +7,8 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 const SHUTDOWN_ACK_TIMEOUT: Duration = Duration::from_millis(750);
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+const INITIAL_RENDER_ACK_TIMEOUT: Duration = Duration::from_millis(750);
 
 pub struct RenderWorker {
     state: Arc<(Mutex<RenderState>, Condvar)>,
@@ -17,6 +19,7 @@ enum RenderCommand {
     Snapshot {
         snapshot: Value,
         pulses: Vec<RuntimeUiPulse>,
+        rendered_acks: Vec<mpsc::Sender<Result<(), String>>>,
     },
     Shutdown {
         ack: mpsc::Sender<Result<(), String>>,
@@ -40,12 +43,37 @@ impl RenderWorker {
     }
 
     pub fn publish_snapshot(&self, snapshot: Value, pulses: Vec<RuntimeUiPulse>) -> bool {
+        self.publish_snapshot_command(snapshot, pulses, Vec::new())
+    }
+
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    pub fn publish_initial_snapshot(
+        &self,
+        snapshot: Value,
+        pulses: Vec<RuntimeUiPulse>,
+    ) -> Result<(), String> {
+        let (ack_tx, ack_rx) = mpsc::channel();
+        if !self.publish_snapshot_command(snapshot, pulses, vec![ack_tx]) {
+            return Err("render worker rejected initial snapshot".into());
+        }
+        ack_rx
+            .recv_timeout(INITIAL_RENDER_ACK_TIMEOUT)
+            .map_err(|error| format!("initial snapshot render acknowledgement failed: {error}"))?
+    }
+
+    fn publish_snapshot_command(
+        &self,
+        snapshot: Value,
+        pulses: Vec<RuntimeUiPulse>,
+        rendered_acks: Vec<mpsc::Sender<Result<(), String>>>,
+    ) -> bool {
         let (lock, ready) = &*self.state;
         if let Ok(mut state) = lock.lock() {
             if matches!(&state.command, Some(RenderCommand::Shutdown { .. })) {
                 return false;
             }
-            state.command = merge_snapshot_command(state.command.take(), snapshot, pulses);
+            state.command =
+                merge_snapshot_command(state.command.take(), snapshot, pulses, rendered_acks);
             ready.notify_one();
             true
         } else {
@@ -82,20 +110,28 @@ fn merge_snapshot_command(
     pending: Option<RenderCommand>,
     snapshot: Value,
     mut pulses: Vec<RuntimeUiPulse>,
+    mut rendered_acks: Vec<mpsc::Sender<Result<(), String>>>,
 ) -> Option<RenderCommand> {
     match pending {
         Some(RenderCommand::Shutdown { ack }) => Some(RenderCommand::Shutdown { ack }),
         Some(RenderCommand::Snapshot {
             pulses: mut pending,
+            rendered_acks: mut pending_acks,
             ..
         }) => {
             pending.append(&mut pulses);
+            pending_acks.append(&mut rendered_acks);
             Some(RenderCommand::Snapshot {
                 snapshot,
                 pulses: pending,
+                rendered_acks: pending_acks,
             })
         }
-        None => Some(RenderCommand::Snapshot { snapshot, pulses }),
+        None => Some(RenderCommand::Snapshot {
+            snapshot,
+            pulses,
+            rendered_acks,
+        }),
     }
 }
 
@@ -108,12 +144,24 @@ fn render_worker_loop(
     loop {
         let command = take_next_command(&state, animation_deadline);
         match command {
-            Some(RenderCommand::Snapshot { snapshot, pulses }) => {
+            Some(RenderCommand::Snapshot {
+                snapshot,
+                pulses,
+                rendered_acks,
+            }) => {
                 for pulse in pulses {
                     cache.apply_ui_pulse(pulse);
                 }
                 let snapshot = cache.snapshot_with_transients(&snapshot);
                 animation_deadline = render_snapshot_cached(targets, &snapshot, &mut cache);
+                let render_result = if cache.has_rendered_oled() {
+                    Ok(())
+                } else {
+                    Err("initial snapshot OLED render failed".into())
+                };
+                for ack in rendered_acks {
+                    let _ = ack.send(render_result.clone());
+                }
             }
             Some(RenderCommand::Shutdown { ack }) => {
                 crate::render::render_shutdown_splash(&mut targets.oled);
@@ -150,7 +198,10 @@ fn render_sleep_tick_if_uncommanded(
     if guard.command.is_some() {
         return None;
     }
-    cache.render_sleep_tick(targets, now)
+    drop(guard);
+    let sleep_deadline = cache.render_sleep_tick(targets, now);
+    let oled_retry_deadline = crate::render::retry_oled_if_due(&mut targets.oled, cache, now);
+    crate::render::next_deadline(sleep_deadline, oled_retry_deadline)
 }
 
 fn take_next_command(
@@ -202,6 +253,8 @@ mod tests {
     #[test]
     fn shutdown_ack_timeout_is_bounded() {
         assert_eq!(SHUTDOWN_ACK_TIMEOUT, Duration::from_millis(750));
+        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        assert_eq!(INITIAL_RENDER_ACK_TIMEOUT, Duration::from_millis(750));
     }
 
     #[test]
@@ -213,6 +266,7 @@ mod tests {
             guard.command = Some(RenderCommand::Snapshot {
                 snapshot: Value::Null,
                 pulses: Vec::new(),
+                rendered_acks: Vec::new(),
             });
         }
 

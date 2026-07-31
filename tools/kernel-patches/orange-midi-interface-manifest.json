@@ -1,0 +1,135 @@
+{
+  "schema": 1,
+  "purpose": "Octessera USB MIDI interface_string source gate",
+  "patch_root": "userpatches/kernel/archive/sunxi-6.18",
+  "patch_order": [
+    "zzzz-0001-usb-gadget-f-midi-configfs-interface-string.patch",
+    "zzzz-0002-usb-gadget-f-midi-instance-local-string.patch"
+  ],
+  "patches": {
+    "accepted_upstream": {
+      "commit": "1c93738177d3a94d51dcb1c3ea41967f3fe946ba",
+      "subject": "usb: gadget: f_midi: allow customizing the USB MIDI interface string through configfs",
+      "url": "https://github.com/map220v/sm8550-mainline/commit/1c93738177d3a94d51dcb1c3ea41967f3fe946ba.patch",
+      "sha256": "bd0f3cbb15b29561849b3d68ae5fc4443fb056d083bf89fa6e5272d072a10df0"
+    },
+    "octessera_follow_up": {
+      "subject": "usb: gadget: f_midi: keep interface strings instance-owned",
+      "sha256": "cf5c2efc60d5e5f8a019f26632b43d96f4cf2681101c50152a78a95b1cc8ee0b"
+    }
+  },
+  "build_frameworks": {
+    "armbian": {
+      "repository": "https://github.com/armbian/build.git",
+      "commit": "fa7a7b2294d9e760a77630950afd460b7a0b2a26",
+      "board": "orangepizero2w",
+      "release": "trixie",
+      "kernel_branch": "current",
+      "kernel_commit": "e46dc0adfe39724bcf52cea47b8f9c9aed86a394",
+      "kernel_release": "6.18.38-current-sunxi64",
+      "package_revision": "26.8.0-trunk.417",
+      "revision_argument": "REVISION=26.8.0-trunk.417",
+      "packages": [
+        "linux-image-current-sunxi64_26.8.0-trunk.417_arm64.deb",
+        "linux-dtb-current-sunxi64_26.8.0-trunk.417_arm64.deb"
+      ],
+      "native_package_patterns": [
+        "linux-image-current-sunxi64_26.8.0-trunk.417_arm64__*.deb",
+        "linux-dtb-current-sunxi64_26.8.0-trunk.417_arm64__*.deb"
+      ],
+      "required_dtb": "sun50i-h618-orangepi-zero2w.dtb",
+      "required_module": "usb_f_midi.ko",
+      "core_series": {
+        "path": "patch/kernel/archive/sunxi-6.18/series.conf",
+        "sha256": "db0985a3842d9a41228b916872646a7c76d84c21da2195d0b06043f994981301",
+        "active_patch_count": 515
+      },
+      "patching_order": {
+        "source_path": "lib/tools/patching.py",
+        "source_sha256": "b53967b15f216872551b0261f9f917b865ad9fd132c1c3803a84fd07d0522a84",
+        "series_before_regular": true,
+        "regular_sort_key": "file_name"
+      },
+      "config_base": {
+        "path": "config/kernel/linux-sunxi64-current.config",
+        "sha256": "299e1aa0b2355fa9da03507e76a263833da7c69e73fdd8bbccbda3d7fdcc4363"
+      },
+      "packaged_config_sha256": "d532caf074dbcd796a8cd8312e80cadd6a4ee0f1bccd8f227f7ff08214e87482"
+    },
+    "pi_gen": {
+      "repository": "https://github.com/RPi-Distro/pi-gen.git",
+      "commit": "d7a31c6aa09f4b867902c51da2b45807c0a1709e",
+      "release": "bookworm-arm64"
+    }
+  },
+  "kernels": {
+    "orange": {
+      "repository": "https://github.com/torvalds/linux.git",
+      "commit": "e46dc0adfe39724bcf52cea47b8f9c9aed86a394",
+      "release": "6.18.38-current-sunxi64",
+      "package_revision": "26.8.0-trunk.417",
+      "packages": [
+        "linux-image-current-sunxi64_26.8.0-trunk.417_arm64.deb",
+        "linux-dtb-current-sunxi64_26.8.0-trunk.417_arm64.deb"
+      ]
+    },
+    "raspberry": {
+      "repository": "https://github.com/raspberrypi/linux.git",
+      "commit": "d8ab4e908235da7727f22dd36ad5af224671677d",
+      "release": "6.12.93",
+      "kernel_release": "6.12.93-octessera-rpi-v8-0.7.5",
+      "package_revision": "6.12.93-octessera0.7.5-1",
+      "package": {
+        "builder": {
+          "kind": "linux-generated-debian-rules",
+          "generator": "scripts/package/mkdebian",
+          "rules_source": "scripts/package/debian/rules",
+          "rules_sha256": "66166a03eac2b439b68bc0a92e7b60f60eed24685eea10dae8af97edc9629b48",
+          "target": "binary-image",
+          "fakeroot": true,
+          "binary_package_scope": [
+            "linux-image"
+          ]
+        },
+        "name": "linux-image-6.12.93-octessera-rpi-v8-0.7.5",
+        "version": "6.12.93-octessera0.7.5-1",
+        "architecture": "arm64"
+      },
+      "config_overrides": {
+        "CONFIG_LOCALVERSION": "-octessera-rpi-v8-0.7.5",
+        "CONFIG_LOCALVERSION_AUTO": "n"
+      },
+      "required_config": {
+        "CONFIG_USB_DWC2": "y",
+        "CONFIG_USB_CONFIGFS": "m",
+        "CONFIG_USB_CONFIGFS_F_MIDI": "y",
+        "CONFIG_USB_CONFIGFS_F_UAC2": "y",
+        "CONFIG_USB_CONFIGFS_MASS_STORAGE": "y",
+        "CONFIG_SND_SEQUENCER": "m",
+        "CONFIG_SND_RAWMIDI": "m",
+        "CONFIG_SND_USB_AUDIO": "m"
+      },
+      "required_payload": [
+        "boot/vmlinuz-6.12.93-octessera-rpi-v8-0.7.5",
+        "boot/config-6.12.93-octessera-rpi-v8-0.7.5",
+        "boot/System.map-6.12.93-octessera-rpi-v8-0.7.5",
+        "lib/modules/6.12.93-octessera-rpi-v8-0.7.5/",
+        "usr/lib/linux-image-6.12.93-octessera-rpi-v8-0.7.5/broadcom/bcm2710-rpi-zero-2-w.dtb",
+        "usr/lib/linux-image-6.12.93-octessera-rpi-v8-0.7.5/overlays/"
+      ],
+      "required_modules": [
+        "usb_f_midi",
+        "usb_f_uac2",
+        "usb_f_mass_storage",
+        "libcomposite",
+        "snd_seq",
+        "snd_rawmidi",
+        "snd_usb_audio"
+      ],
+      "config_base": {
+        "path": "arch/arm64/configs/bcm2711_defconfig",
+        "sha256": "f78d6805ffd78b503ec64c9107e3bc82bf734cf50b1123d349f558ce483a9406"
+      }
+    }
+  }
+}

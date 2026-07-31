@@ -1,0 +1,7 @@
+#!/bin/bash
+set -euo pipefail
+
+rootfs="${OCTESSERA_KERNEL_ROOTFS:-/}"
+script="$rootfs/usr/local/lib/octessera/install-rpi-kernel.py"
+test -f "$script"
+exec python3 "$script" --rootfs "$rootfs" --finalize

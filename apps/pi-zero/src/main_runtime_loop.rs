@@ -1,6 +1,6 @@
 use crate::encoder_queue::PendingEncoderTurns;
 use crate::host_adapter::{PiPlaybackHostAdapter, PiPowerRequest};
-use crate::input::{encoder_press_message, MidiMessage};
+use crate::input::encoder_press_message;
 use crate::render_loop::RenderWorker;
 use crate::runtime_loop::{dispatch_runtime_message, handle_deferred_host_work};
 use crate::ui_profile::UiProfiler;
@@ -12,37 +12,7 @@ use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 const HARDWARE_EVENT_BUDGET: usize = 16;
-const MIDI_REALTIME_BUDGET: usize = 32;
 const IDLE_MAINTENANCE_INTERVAL: Duration = Duration::from_millis(50);
-
-pub(crate) fn drain_midi_messages(
-    midi_rx: &mpsc::Receiver<MidiMessage>,
-    playback: &mut PlaybackRuntime,
-    runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter,
-) {
-    for _ in 0..MIDI_REALTIME_BUDGET {
-        let Ok(message) = midi_rx.try_recv() else {
-            break;
-        };
-        match message {
-            MidiMessage::Realtime { bytes } => {
-                match playback.handle_midi_realtime_bytes_with_output(&bytes, runner, adapter) {
-                    Ok(output) => {
-                        for follow_up in output.follow_ups {
-                            if let Err(error) =
-                                dispatch_runtime_message(playback, runner, adapter, follow_up)
-                            {
-                                eprintln!("pi realtime MIDI follow-up failed: {error}");
-                            }
-                        }
-                    }
-                    Err(error) => eprintln!("pi realtime MIDI handling failed: {error}"),
-                }
-            }
-        }
-    }
-}
 
 pub(crate) fn drain_host_messages(
     input_rx: &mpsc::Receiver<HostMessage>,

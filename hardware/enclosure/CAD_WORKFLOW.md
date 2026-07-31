@@ -85,7 +85,7 @@ summary.
    python hardware/enclosure/validate_wave_roof.py
    ```
 
-4. Inspect or slice `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery.stl` before using it for printing.
+4. Inspect or slice `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery_raspberry-pi-zero-2w.stl` before using it for printing.
 
 ## Geometry change checklist
 
@@ -127,9 +127,14 @@ Do not accept a roof-wall change until this script passes.
 
 ## Generated artifacts
 
-- `../../release-artifacts/enclosure/step/case_top_two_level_cadquery.step`: preferred CAD exchange artifact.
-- `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery.stl`: current printable/check-fit mesh.
-- `../../release-artifacts/enclosure/3mf-multicolor/case_top_two_level_multicolor.3mf`: multicolor top with flush markings on extruder 2.
+Top enclosure artifact filenames include the full board name. Use `rpi` for Raspberry Pi Zero 2 W and `opi` for Orange Pi Zero 2W only as shorthand in prose; prefer full board names when space permits.
+
+- `../../release-artifacts/enclosure/step/case_top_two_level_cadquery_raspberry-pi-zero-2w.step`: Raspberry Pi Zero 2 W CAD exchange artifact.
+- `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery_raspberry-pi-zero-2w.stl`: Raspberry Pi Zero 2 W printable/check-fit mesh.
+- `../../release-artifacts/enclosure/3mf-multicolor/case_top_two_level_raspberry-pi-zero-2w_multicolor.3mf`: Raspberry Pi Zero 2 W multicolor top with flush markings on extruder 2.
+- `../../release-artifacts/enclosure/step/case_top_two_level_cadquery_orange-pi-zero-2w.step`: Orange Pi Zero 2W CAD exchange artifact.
+- `../../release-artifacts/enclosure/stl/case_top_two_level_cadquery_orange-pi-zero-2w.stl`: Orange Pi Zero 2W printable/check-fit mesh.
+- `../../release-artifacts/enclosure/3mf-multicolor/case_top_two_level_orange-pi-zero-2w_multicolor.3mf`: Orange Pi Zero 2W multicolor top.
 
 STEP, STL, and 3MF files are generated artifacts. Do not review their full text
 diffs or contents in automation.
