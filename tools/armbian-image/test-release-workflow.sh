@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2016
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -19,7 +20,39 @@ assert_contains "$release" 'workflow_dispatch:'
 assert_contains "$release" 'group: release-artifacts-${{ inputs.tag }}'
 assert_contains "$release" 'cancel-in-progress: false'
 assert_contains "$release" $'permissions:\n  contents: read'
-assert_contains "$release" $'permissions:\n      contents: write'
+[[ "$(grep -cE '^    permissions:$' "$release")" == 2 ]] || {
+    echo 'Only the resolver and publisher may have job-level permissions.' >&2
+    exit 1
+}
+[[ "$(grep -cE '^      contents: write$' "$release")" == 2 ]] || {
+    echo 'Exactly two job-level contents: write grants are required.' >&2
+    exit 1
+}
+assert_contains "$release" 'resolve_draft:'
+assert_contains "$release" 'needs: resolve_draft'
+assert_contains "$release" 'workflow_static:'
+assert_contains "$release" 'ref: ${{ github.workflow_sha }}'
+assert_contains "$release" 'git rev-parse HEAD)" = "${{ github.workflow_sha }}"'
+assert_contains "$release" 'shellcheck tools/armbian-image/test-release-workflow.sh'
+workflow_static_block="$(sed -n '/^  workflow_static:/,/^  resolve_draft:/p' "$release")"
+if grep -qF 'permissions:' <<< "$workflow_static_block"; then
+    echo 'workflow_static must inherit the top-level read-only permissions.' >&2
+    exit 1
+fi
+if ! grep -qF 'bash -n tools/armbian-image/test-release-workflow.sh' <<< "$workflow_static_block" || ! grep -qF 'shellcheck tools/armbian-image/test-release-workflow.sh' <<< "$workflow_static_block"; then
+    echo 'workflow_static must run syntax and default ShellCheck validation.' >&2
+    exit 1
+fi
+resolver_block="$(sed -n '/^  resolve_draft:/,/^  release_info:/p' "$release")"
+if grep -qF 'actions/checkout' <<< "$resolver_block" || grep -qE '(^|[[:space:]])(python3|bash|sh|pnpm|cargo)[[:space:]]|tools/' <<< "$resolver_block" || grep -qF 'upload-artifact' <<< "$resolver_block"; then
+    echo 'Draft resolver must remain API-only without checkout, scripts, or artifacts.' >&2
+    exit 1
+fi
+publisher_block="$(sed -n '/^  publish_release_assets:/,$p' "$release")"
+if ! grep -qF $'    permissions:\n      contents: write' <<< "$resolver_block" || ! grep -qF $'    permissions:\n      contents: write' <<< "$publisher_block"; then
+    echo 'Contents write must belong to the resolver and publisher jobs.' >&2
+    exit 1
+fi
 if grep -qE '^  release:' "$release"; then
     echo 'Release workflow must not trigger from publication.' >&2
     exit 1
@@ -29,11 +62,15 @@ assert_contains "$release" 'git rev-parse "$RELEASE_TAG^{commit}"'
 assert_contains "$release" 'gh release upload'
 assert_contains "$release" 'gh release edit'
 assert_contains "$release" '--draft=false'
+assert_contains "$release" 'release_info:'
+assert_contains "$release" 'needs: resolve_draft'
+assert_contains "$release" 'needs: [release_info, updater_protocol, windows, macos, ubuntu, board_artifacts, workflow_static]'
 assert_contains "$release" 'Release already has assets before upload.'
-assert_contains "$release" 'release_id: ${{ steps.release.outputs.release_id }}'
+assert_contains "$release" 'release_id: ${{ needs.resolve_draft.outputs.release_id }}'
 assert_contains "$release" 'gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100"'
 assert_contains "$release" '[ .[][] | select(.tag_name == $tag) ] as $matches'
 assert_contains "$release" 'if ($matches | length) != 1 then'
+assert_contains "$release" 'elif $matches[0].draft != true then'
 assert_contains "$release" 'Revalidate exact draft immediately before upload'
 assert_contains "$release" 'Revalidate uploaded asset set immediately before publish'
 assert_contains "$release" 'EXPECTED_RELEASE_ID'
@@ -41,8 +78,40 @@ assert_contains "$release" 'EXPECTED_RELEASE_ID'
     echo 'Both final release validations must fetch by the resolved release ID.' >&2
     exit 1
 }
-if grep -qE 'releases/tags/\$[A-Z_]+|releases/tags/\$\{' "$release"; then
+if grep -qF '/releases/tags/' "$release"; then
     echo 'Draft release validation must not use the by-tag releases endpoint.' >&2
+    exit 1
+fi
+updater_block="$(sed -n '/^  updater_protocol:/,/^  windows:/p' "$release")"
+if grep -qF 'bash tools/armbian-image/test-release-workflow.sh' <<< "$updater_block"; then
+    echo 'The source-tag updater job must not run the workflow static test.' >&2
+    exit 1
+fi
+if grep -qE 'shellcheck .*&&' <<< "$updater_block"; then
+    echo 'Independent ShellCheck groups must fail separately.' >&2
+    exit 1
+fi
+
+jq_draft_filter='[ .[][] | select(.tag_name == $tag) ] as $matches
+  | if ($matches | length) != 1 then
+      error("Expected exactly one release for tag \($tag)")
+    elif $matches[0].draft != true then
+      error("The release must remain a draft until the final publish job.")
+    else
+      $matches[0]
+    end'
+fixture_dir="$(mktemp -d)"
+trap 'rm -rf "$fixture_dir"' EXIT
+printf '%s\n' '[[{"tag_name":"v0.7.4","id":41,"draft":true}],[{"tag_name":"v0.7.5","id":42,"draft":true}]]' > "$fixture_dir/one.json"
+printf '%s\n' '[[{"tag_name":"v0.7.4","id":41,"draft":true}]]' > "$fixture_dir/zero.json"
+printf '%s\n' '[[{"tag_name":"v0.7.5","id":42,"draft":true}],[{"tag_name":"v0.7.5","id":43,"draft":true}]]' > "$fixture_dir/duplicate.json"
+printf '%s\n' '[[{"tag_name":"v0.7.5","id":42,"draft":false}]]' > "$fixture_dir/non-draft.json"
+[[ "$(jq -r --arg tag v0.7.5 "$jq_draft_filter" "$fixture_dir/one.json" | jq -r '.id')" == 42 ]] || {
+    echo 'The later-page-shaped draft fixture did not resolve exactly one release.' >&2
+    exit 1
+}
+if jq -e --arg tag v0.7.5 "$jq_draft_filter" "$fixture_dir/zero.json" >/dev/null || jq -e --arg tag v0.7.5 "$jq_draft_filter" "$fixture_dir/duplicate.json" >/dev/null || jq -e --arg tag v0.7.5 "$jq_draft_filter" "$fixture_dir/non-draft.json" >/dev/null; then
+    echo 'Draft resolver fixtures must reject zero, duplicate, and non-draft matches.' >&2
     exit 1
 fi
 assert_contains "$release" 'git/ref/tags/$EXPECTED_RELEASE_TAG'
