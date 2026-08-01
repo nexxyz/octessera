@@ -332,15 +332,28 @@ grep -q '^evidence_sha256=' "$provenance"
 grep -q '^usb_f_midi_interface_string_marker=interface_string$' "$provenance"
 grep -q '^usb_f_midi_interface_options_marker=f_midi_opts_attr_interface_string$' "$provenance"
 grep -q '^usb_f_midi_interface_runtime_marker=midi_interface_string$' "$provenance"
+grep -q '^armbian_build_repository=https://github.com/armbian/build.git$' "$provenance"
+grep -q '^kernel_source_repository=https://github.com/torvalds/linux.git$' "$provenance"
+grep -q '^kernel_source_commit=e46dc0adfe39724bcf52cea47b8f9c9aed86a394$' "$provenance"
+grep -q '^kernel_config_source_sha256=' "$provenance"
+grep -q '^core_series_sha256=' "$provenance"
+grep -q '^patching_order_source_sha256=' "$provenance"
+grep -q '^accepted_upstream_patch_sha256=' "$provenance"
+grep -q '^octessera_follow_up_patch_sha256=' "$provenance"
+grep -q '^image_package_handoff_sha256=' "$provenance"
+grep -q '^dtb_package_handoff_sha256=' "$provenance"
+grep -q '^github_source_sha=' "$provenance"
 if grep -q 'unavailable' "$provenance"; then
   echo 'Orange provenance emitted unavailable evidence.' >&2
   exit 1
 fi
-grep -q '^kernel_source_commit=e46dc0adfe39724bcf52cea47b8f9c9aed86a394$' "$provenance"
-grep -q '^kernel_source_remote_url=https://github.com/torvalds/linux.git$' "$provenance"
 grep -q '^armbian_build_ref=fa7a7b2294d9e760a77630950afd460b7a0b2a26$' "$provenance"
-grep -q '^accepted_upstream_patch_sha256=' "$provenance"
-grep -q '^octessera_follow_up_patch_sha256=' "$provenance"
+for removed_field in kernel_source_remote_url kernel_source_checkout_path kernel_source_checkout_head kernel_source_base_commit kernel_source_base_is_ancestor; do
+  if grep -q "^${removed_field}=" "$provenance"; then
+    echo "Orange provenance emitted removed field: $removed_field" >&2
+    exit 1
+  fi
+done
 sed 's/^module_decompressed_sha256=.*/module_decompressed_sha256=0000000000000000000000000000000000000000000000000000000000000000/' "$evidence" > "$work/tampered-evidence.env"
 if GITHUB_SOURCE_SHA="$(git -C "$root" rev-parse HEAD)" ARMBIAN_BUILD_REF=fa7a7b2294d9e760a77630950afd460b7a0b2a26 OCTESSERA_ORANGE_TEST_MODE=1 bash "$provenance_writer" "$(image_package good)" "$(dtb_package good)" "$work/tampered-provenance.txt" "$work/tampered-evidence.env" "" "$good_config_sha256" >/dev/null 2>&1; then
   echo 'Orange provenance accepted tampered module hashes.' >&2
@@ -355,118 +368,5 @@ if GITHUB_SOURCE_SHA="$(git -C "$root" rev-parse HEAD)" ARMBIAN_BUILD_REF=fa7a7b
   echo 'Orange provenance accepted tampered package hashes.' >&2
   exit 1
 fi
-
-resolver_fixture="$work/resolve-orange-kernel-worktree.py"
-python3 - "$provenance_writer" "$resolver_fixture" <<'PY'
-from pathlib import Path
-import sys
-
-source = Path(sys.argv[1]).read_text(encoding="utf-8")
-start = source.index("def git_output")
-end = source.index("armbian_checkout_head = None")
-prefix = "import os\nimport pathlib\nimport subprocess\nimport sys\nexpected_release = '6.18.38-current-sunxi64'\nexpected_source_commit = 'e46dc0adfe39724bcf52cea47b8f9c9aed86a394'\norange = {'repository': 'https://github.com/torvalds/linux.git'}\n"
-suffix = "path, head, base, remote = resolve_kernel_worktree(pathlib.Path(sys.argv[1]))\nprint(f'{path}|{head}|{base}|{remote}')\n"
-Path(sys.argv[2]).write_text(prefix + source[start:end] + suffix, encoding="utf-8")
-PY
-fake_git_bin="$work/fake-git-bin"
-mkdir -p "$fake_git_bin"
-fake_git="$fake_git_bin/git"
-cat > "$fake_git" <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-[[ "${1:-}" == -C && $# -ge 3 ]] || exit 2
-path="$(cd "$2" && pwd)"
-shift 2
-state="${ORANGE_FAKE_GIT_STATE:?}"
-lookup() {
-  local candidate head result
-  while IFS='|' read -r candidate head result; do
-    if [[ "$candidate" == "$path" ]]; then
-      printf '%s|%s\n' "$head" "$result"
-      return 0
-    fi
-  done < "$state"
-  return 1
-}
-case "$1" in
-  remote)
-    [[ "${2:-}" == get-url && "${3:-}" == origin ]] || exit 2
-    printf '%s\n' "${ORANGE_FAKE_GIT_REMOTE:-https://github.com/torvalds/linux.git}"
-    ;;
-  rev-parse)
-    record="$(lookup)"
-    IFS='|' read -r head result <<< "$record"
-    case "$2" in
-      --show-toplevel) printf '%s\n' "$path" ;;
-      --is-inside-work-tree) printf '%s\n' true ;;
-      HEAD) printf '%s\n' "$head" ;;
-      *) exit 2 ;;
-    esac
-    ;;
-  merge-base)
-    record="$(lookup)"
-    IFS='|' read -r head result <<< "$record"
-    [[ "$result" == ok ]]
-    ;;
-  *) exit 2 ;;
-esac
-EOF
-chmod +x "$fake_git"
-bash -n "$fake_git"
-resolver_state="$work/resolver-state"
-resolver_scenarios="$work/resolver-scenarios"
-mkdir -p "$resolver_scenarios"
-resolver_head=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-resolver_base=e46dc0adfe39724bcf52cea47b8f9c9aed86a394
-run_resolver_success() {
-  local name="$1"
-  local candidate="$2"
-  local output
-  printf '%s|%s|ok\n' "$candidate" "$resolver_head" > "$resolver_state"
-  output="$(PATH="$fake_git_bin:$PATH" ORANGE_FAKE_GIT_STATE="$resolver_state" python3 "$resolver_fixture" "$resolver_scenarios/$name")" || {
-    echo "Nested Orange kernel worktree resolver rejected $name." >&2
-    exit 1
-  }
-  [[ "$output" == "$candidate|$resolver_head|$resolver_base|https://github.com/torvalds/linux.git" ]] || {
-    echo "Nested Orange kernel worktree resolver returned unexpected evidence for $name." >&2
-    exit 1
-  }
-}
-run_resolver_failure() {
-  local name="$1"
-  if PATH="$fake_git_bin:$PATH" ORANGE_FAKE_GIT_STATE="$resolver_state" python3 "$resolver_fixture" "$resolver_scenarios/$name" >"$work/$name.resolver.out" 2>&1; then
-    echo "Orange kernel worktree resolver accepted $name." >&2
-    exit 1
-  fi
-}
-run_resolver_wrong_remote() {
-  local name="$1"
-  if PATH="$fake_git_bin:$PATH" ORANGE_FAKE_GIT_STATE="$resolver_state" ORANGE_FAKE_GIT_REMOTE=https://example.invalid/linux.git python3 "$resolver_fixture" "$resolver_scenarios/$name" >"$work/$name.resolver.out" 2>&1; then
-    echo "Orange kernel worktree resolver accepted $name." >&2
-    exit 1
-  fi
-}
-nested_candidate="$resolver_scenarios/nested/cache/sources/linux-kernel-worktree/6.18.38-current-sunxi64"
-mkdir -p "$nested_candidate/.git"
-run_resolver_success nested "$nested_candidate"
-mkdir -p "$resolver_scenarios/zero/cache/sources"
-: > "$resolver_state"
-run_resolver_failure zero
-multiple_one="$resolver_scenarios/multiple/cache/sources/linux-kernel-worktree/one/6.18.38-current-sunxi64"
-multiple_two="$resolver_scenarios/multiple/cache/sources/linux-kernel-worktree/two/6.18.38-current-sunxi64"
-mkdir -p "$multiple_one/.git" "$multiple_two/.git"
-printf '%s|%s|ok\n%s|%s|ok\n' "$multiple_one" "$resolver_head" "$multiple_two" "$resolver_head" > "$resolver_state"
-run_resolver_failure multiple
-conflicting_candidate="$resolver_scenarios/conflicting/cache/sources/linux-kernel-worktree/6.18.38-current-sunxi64"
-mkdir -p "$conflicting_candidate/.git"
-printf '%s|%s|conflict\n' "$conflicting_candidate" "$resolver_head" > "$resolver_state"
-run_resolver_failure conflicting
-wrong_remote_candidate="$resolver_scenarios/wrong-remote/cache/sources/linux-kernel-worktree/6.18.38-current-sunxi64"
-mkdir -p "$wrong_remote_candidate/.git"
-printf '%s|%s|ok\n' "$wrong_remote_candidate" "$resolver_head" > "$resolver_state"
-run_resolver_wrong_remote wrong-remote
-mkdir -p "$resolver_scenarios/non-git/cache/sources/linux-kernel-worktree/6.18.38-current-sunxi64"
-: > "$resolver_state"
-run_resolver_failure non-git
 
 printf 'Orange linux-image/linux-dtb package tests passed\n'

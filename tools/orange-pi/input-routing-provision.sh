@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# The five helper paths are intentionally supplied dynamically by the provisioning adapter.
+# shellcheck disable=SC1091
 set -euo pipefail
 
 mode=preflight

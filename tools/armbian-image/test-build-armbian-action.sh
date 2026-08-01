@@ -44,12 +44,18 @@ assert_action_contains 'find-orange-kernel-packages.sh'
 assert_action_contains 'Stage canonical Orange kernel packages for release handoff'
 assert_action_contains 'native Orange linux-image/linux-dtb package pair'
 assert_action_contains 'orange-midi-interface-manifest.json'
-assert_provenance_contains 'linux-kernel-worktree'
-assert_provenance_contains 'os.walk(source_root)'
-assert_provenance_contains 'merge-base", "--is-ancestor"'
-assert_provenance_contains 'kernel_source_base_commit'
-assert_provenance_contains 'kernel_source_base_is_ancestor=true'
-assert_provenance_contains 'kernel_source_remote_url'
+assert_provenance_contains 'git", "-C", str(armbian_build_directory), "rev-parse", "HEAD"'
+assert_provenance_contains 'armbian_build_repository'
+assert_provenance_contains 'kernel_source_repository'
+assert_provenance_contains 'kernel_source_commit'
+assert_provenance_contains 'kernel_config_source_sha256'
+assert_provenance_contains 'core_series_sha256'
+assert_provenance_contains 'patching_order_source_sha256'
+assert_provenance_contains 'accepted_upstream_patch_sha256'
+assert_provenance_contains 'octessera_follow_up_patch_sha256'
+assert_provenance_contains 'image_package_handoff_sha256'
+assert_provenance_contains 'dtb_package_handoff_sha256'
+assert_provenance_contains 'github_source_sha'
 assert_provenance_contains 'module_interface_options_marker'
 assert_provenance_contains 'module_interface_runtime_marker'
 assert_provenance_contains 'kernel_config_expected_packaged_sha256'
@@ -76,9 +82,11 @@ if grep -qF -- '--expected-config-sha256' "$action"; then
     exit 1
 fi
 
-if grep -qF 'kernel_source_checkout_path=unavailable' "$provenance_writer" || grep -qF 'kernel_source_checkout_head=unavailable' "$provenance_writer"; then
-    echo 'Orange provenance must not emit unavailable kernel checkout evidence.' >&2
-    exit 1
-fi
+for removed_field in kernel_source_remote_url kernel_source_checkout_path kernel_source_checkout_head kernel_source_base_commit kernel_source_base_is_ancestor; do
+    if grep -qF "$removed_field" "$provenance_writer"; then
+        echo "Orange provenance must not contain removed kernel worktree field: $removed_field" >&2
+        exit 1
+    fi
+done
 
 printf 'Armbian build action static checks passed\n'

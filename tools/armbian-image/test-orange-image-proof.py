@@ -109,7 +109,6 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
         "dtb_package_sha256": evidence_values["dtb_package_sha256"],
         "evidence_sha256": sha256(evidence_path),
         "kernel_source_repository": "https://github.com/torvalds/linux.git",
-        "kernel_source_remote_url": "https://github.com/torvalds/linux.git",
         "kernel_source_commit": "e46dc0adfe39724bcf52cea47b8f9c9aed86a394",
         "kernel_release": RELEASE,
     }

@@ -15,6 +15,14 @@ MIDI_INTERFACE_STRING='Octessera MIDI'
 MIDI_INTERFACE_STRING_SIZE=14
 
 log() { logger -t "$LOG" "$*"; echo "$LOG: $*" >&2; }
+first_udc() {
+  for path in "$UDC_ROOT"/*; do
+    [ -e "$path" ] || [ -L "$path" ] || continue
+    printf '%s\n' "${path##*/}"
+    return 0
+  done
+  return 1
+}
 json_compact() { tr -d '[:space:]' < "$CONFIG"; }
 json_has() { json_compact | grep -Eq "$1"; }
 canonical_usb_enabled() {
@@ -193,7 +201,7 @@ setup_unlocked() (
   modprobe libcomposite >/dev/null 2>&1 || true
   mountpoint -q "$CONFIGFS_ROOT" || mount -t configfs none "$CONFIGFS_ROOT" || true
   [ -d "$UDC_ROOT" ] || { log "no UDC class; skipping"; return 0; }
-  UDC=$(ls "$UDC_ROOT" 2>/dev/null | head -n 1 || true)
+  UDC=$(first_udc || true)
   [ -n "$UDC" ] || { log "no UDC available; skipping"; return 0; }
   AUDIO=0; MIDI=0
   audio_enabled && AUDIO=1
@@ -349,7 +357,7 @@ storage_create_unlocked() (
   set -eu
   mountpoint -q "$CONFIGFS_ROOT" || mount -t configfs none "$CONFIGFS_ROOT" || exit 1
   [ -d "$UDC_ROOT" ] || exit 1
-  UDC=$(ls "$UDC_ROOT" 2>/dev/null | head -n 1) || exit 1
+  UDC=$(first_udc) || exit 1
   [ -n "$UDC" ] || exit 1
   mkdir -p "$G/strings/0x409" "$G/configs/c.1/strings/0x409" "$G/functions/mass_storage.usb0"
   echo 0x1d6b > "$G/idVendor"
