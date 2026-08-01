@@ -110,16 +110,23 @@ octessera_require_owned_mode() {
   local actual_user
   local actual_group
   local actual_mode
+  local expected_mode
+  expected_mode="$(octessera_canonical_mode "$mode")" || { echo "Invalid expected runtime mode for $path." >&2; exit 1; }
   if [[ -d "$target" ]]; then
     actual="$(stat -c '%u:%g %a' "$target/$path")"
+    actual_user="${actual%% *}"
+    actual_mode="${actual#* }"
+    actual_mode="$(octessera_canonical_mode "$actual_mode")" || { echo "Invalid runtime mode: $path." >&2; exit 1; }
+    actual="$actual_user $actual_mode"
   else
     metadata="$(octessera_debugfs_stat_metadata "$target" "$path")" || { echo "Unable to inspect runtime ownership: $path." >&2; exit 1; }
     actual_user="$(printf '%s\n' "$metadata" | awk '/^User:/ { for (position = 1; position < NF; position++) if ($position == "User:") print $(position + 1) }')"
     actual_group="$(printf '%s\n' "$metadata" | awk '/^User:/ { for (position = 1; position < NF; position++) if ($position == "Group:") print $(position + 1) }')"
     actual_mode="$(octessera_debugfs_mode "$metadata")" || { echo "Missing runtime mode: $path." >&2; exit 1; }
+    actual_mode="$(octessera_canonical_mode "$actual_mode")" || { echo "Invalid runtime mode: $path." >&2; exit 1; }
     actual="$actual_user:$actual_group $actual_mode"
   fi
-  [[ "$actual" == "$owner $mode" ]] || {
+  [[ "$actual" == "$owner $expected_mode" ]] || {
     echo "Unsafe runtime ownership or mode at $path." >&2
     exit 1
   }
