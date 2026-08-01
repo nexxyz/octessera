@@ -27,7 +27,8 @@ octessera_require_image_contract() {
 
 octessera_require_image_symlink() {
   local path="$1"
-  local expected_target="$2"
+  shift
+  local expected_target
   local metadata
   local actual_target
   stat_path "$path" || { echo "Missing required runtime symlink: $path." >&2; exit 1; }
@@ -39,10 +40,11 @@ octessera_require_image_symlink() {
     actual_target="$(octessera_debugfs_fast_link_target "$metadata")" || { echo "Unable to inspect runtime symlink: $path." >&2; exit 1; }
     [[ "$(octessera_debugfs_type "$metadata")" == symlink ]] || { echo "Runtime path is not a symlink: $path." >&2; exit 1; }
   fi
-  [[ "$actual_target" == "$expected_target" ]] || {
-    echo "Runtime symlink target mismatch at $path." >&2
-    exit 1
-  }
+  for expected_target in "$@"; do
+    [[ "$actual_target" != "$expected_target" ]] || return 0
+  done
+  echo "Runtime symlink target mismatch at $path." >&2
+  exit 1
 }
 
 octessera_require_absent_path() {
@@ -410,7 +412,7 @@ octessera_inspect_runtime_mode() {
       octessera_require_runtime_udev_rule
       require_root_mode etc/systemd/system/octessera.service 644
       require_root_mode etc/systemd/system/multi-user.target.wants/octessera.service 777
-      octessera_require_image_symlink etc/systemd/system/multi-user.target.wants/octessera.service ../octessera.service
+      octessera_require_image_symlink etc/systemd/system/multi-user.target.wants/octessera.service ../octessera.service /etc/systemd/system/octessera.service
       octessera_require_runtime_service "$(read_file etc/systemd/system/octessera.service)"
       ;;
     *) echo "Image mode/runtime default combination is invalid: $image_mode/$runtime_default." >&2; exit 1 ;;

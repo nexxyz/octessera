@@ -84,7 +84,10 @@ def require_runtime_service(root: Path, require: Require) -> None:
     require("LimitRTPRIO=80" not in service_content, "production service grants an overly broad realtime priority")
     require("PrivateDevices=yes" not in service_content and "DevicePolicy=" not in service_content, "production service blocks hardware access")
     require("octessera-update" not in service_content, "production service claims unsupported updater behavior")
-    require(enabled.is_symlink() and enabled.readlink().as_posix() == "../octessera.service", "production service is not enabled")
+    require(
+        enabled.is_symlink() and enabled.readlink().as_posix() in {"../octessera.service", "/etc/systemd/system/octessera.service"},
+        "production service is not enabled",
+    )
 
 
 def require_runtime_udev_rule(root: Path, require: Require) -> None:
