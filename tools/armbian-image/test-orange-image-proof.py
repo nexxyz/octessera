@@ -208,7 +208,7 @@ def main() -> None:
         write(production / "etc/udev/rules.d/10-wifi-disable-powermanagement.rules", 'KERNEL=="wlan*", ACTION=="add", RUN+="/sbin/iw dev %k set power_save off"\n')
         (production / "etc/udev/rules.d/09-disabled.rules").symlink_to("/dev/null")
         (production / "etc/systemd/system/multi-user.target.wants").mkdir(parents=True)
-        (production / "etc/systemd/system/multi-user.target.wants/octessera.service").symlink_to("../octessera.service")
+        (production / "etc/systemd/system/multi-user.target.wants/octessera.service").symlink_to("/etc/systemd/system/octessera.service")
         runtime_metadata_hash = sha256(release_dir / "octessera-runtime.json")
         sums_hash = sha256(release_dir / "SHA256SUMS")
         write(production / "etc/octessera/build-metadata.env", f"OCTESSERA_IMAGE_MODE=production\nOCTESSERA_RUNTIME_ENABLED_DEFAULT=true\nOCTESSERA_RUNTIME_VERSION={version}\nOCTESSERA_RUNTIME_BINARY_SHA256={binary_hash}\nOCTESSERA_RUNTIME_METADATA_SHA256={runtime_metadata_hash}\nOCTESSERA_RUNTIME_MANIFEST_SHA256={sums_hash}\n")
