@@ -5,6 +5,8 @@ ZIP_PATH="${1:?usage: verify-sanitized-image.sh <image.zip>}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/verify-managed-runtime.sh"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/verify-boot-layout.sh"
 WORK_DIR="$(mktemp -d)"
 LOOP_DEV=""
 
@@ -27,34 +29,6 @@ require_root_mode() {
         echo "Sanitation check failed: unsafe updater ownership/mode at $path" >&2
         exit 1
     fi
-}
-
-require_boot_config_marker() {
-    if grep -q 'octessera additions' "$WORK_DIR/boot/config.txt" 2>/dev/null; then
-        return
-    fi
-    if grep -q 'octessera additions' "$WORK_DIR/root/boot/firmware/config.txt" 2>/dev/null; then
-        return
-    fi
-    echo "Sanitation check failed: missing octessera boot config marker" >&2
-    exit 1
-}
-
-require_boot_overlay() {
-    if [ -f "$WORK_DIR/boot/firmware/octessera/overlays/i2s-dac-no20.dtbo" ]; then
-        return
-    fi
-    if [ -f "$WORK_DIR/root/boot/firmware/octessera/overlays/i2s-dac-no20.dtbo" ]; then
-        return
-    fi
-    if [ -f "$WORK_DIR/boot/overlays/i2s-dac-no20.dtbo" ]; then
-        return
-    fi
-    if [ -f "$WORK_DIR/root/boot/firmware/overlays/i2s-dac-no20.dtbo" ]; then
-        return
-    fi
-    echo "Sanitation check failed: missing i2s-dac-no20 boot overlay" >&2
-    exit 1
 }
 
 require_raspberry_board_profile() {
@@ -243,8 +217,8 @@ require_path "$WORK_DIR/root/etc/systemd/system/sysinit.target.wants/octessera-b
 require_path "$WORK_DIR/root/etc/sudoers.d/octessera-shutdown" "shutdown sudoers rule"
 require_path "$WORK_DIR/root/etc/octessera/board-profile.json" "board profile metadata"
 require_raspberry_board_profile
-require_boot_config_marker
-require_boot_overlay
+require_octessera_boot_config "$WORK_DIR/boot" "$WORK_DIR/root"
+require_octessera_boot_overlay "$WORK_DIR/boot" "$WORK_DIR/root"
 require_updater_protocol
 require_wifi_foundation
 
