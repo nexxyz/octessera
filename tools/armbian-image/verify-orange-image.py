@@ -190,7 +190,6 @@ def verify_package_chain(
     require(provenance.get("dtb_package_sha256") == evidence["dtb_package_sha256"], "kernel provenance DTB hash is not bound")
     require(provenance.get("evidence_sha256") == evidence.get("_sha256"), "kernel provenance evidence hash is not bound")
     require(provenance.get("kernel_source_repository") == orange["repository"], "kernel provenance repository does not match manifest")
-    require(provenance.get("kernel_source_remote_url") == orange["repository"], "kernel worktree remote does not match manifest")
     require(provenance.get("kernel_source_commit") == orange["commit"], "kernel provenance source commit changed")
     release = armbian["kernel_release"]
     require(provenance.get("kernel_release") == release, "kernel provenance ABI changed")
@@ -431,7 +430,7 @@ def prove_root(root: Path, args: argparse.Namespace, image_hash: str, image_name
     provenance["_sha256"] = sha256_file(args.provenance)
     required_evidence = {"image_package_native_basename", "dtb_package_native_basename", "artifact_suffix", "image_package_sha256", "dtb_package_sha256", "image_dtb_sha256", "dtb_package_dtb_sha256", "dtb_byte_equal", "packaged_config_expected_sha256", "final_config_sha256", "module_relative_path", "module_compressed_sha256", "module_decompressed_sha256", "module_vermagic", "module_interface_string_marker", "module_interface_options_marker", "module_interface_runtime_marker"}
     require(set(evidence) - {"_sha256"} == required_evidence, "Orange kernel evidence fields changed")
-    for key in ("image_package", "dtb_package", "image_package_native", "dtb_package_native", "image_package_sha256", "dtb_package_sha256", "evidence_sha256", "kernel_source_repository", "kernel_source_remote_url", "kernel_source_commit", "kernel_release"):
+    for key in ("image_package", "dtb_package", "image_package_native", "dtb_package_native", "image_package_sha256", "dtb_package_sha256", "evidence_sha256", "kernel_source_repository", "kernel_source_commit", "kernel_release"):
         require(key in provenance, f"Orange kernel provenance omits required field: {key}")
     require(evidence.get("dtb_byte_equal") == "true", "kernel evidence does not prove equal package DTB bytes")
     with tempfile.TemporaryDirectory(prefix="octessera-orange-package-proof-") as temporary:

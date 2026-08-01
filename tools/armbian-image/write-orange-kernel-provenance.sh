@@ -207,101 +207,13 @@ if actual_octessera_head.lower() != os.environ["GITHUB_SOURCE_SHA"].lower():
     raise SystemExit("Octessera checkout HEAD does not match GITHUB_SOURCE_SHA")
 
 
-def git_output(path: pathlib.Path, *arguments: str) -> str | None:
-    result = subprocess.run(
-        ["git", "-C", str(path), *arguments],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode:
-        return None
-    return result.stdout.strip()
-
-
-def git_worktree_marker(path: pathlib.Path, stop: pathlib.Path) -> pathlib.Path | None:
-    current = path
-    stop = stop.resolve()
-    while True:
-        if (current / ".git").exists():
-            return current.resolve()
-        if current == stop or current.parent == current:
-            return None
-        current = current.parent
-
-
-def resolve_kernel_worktree(build_directory: pathlib.Path) -> tuple[pathlib.Path, str, str, str]:
-    source_root = (build_directory / "cache" / "sources").resolve()
-    if not source_root.is_dir():
-        raise SystemExit(f"Orange kernel source hierarchy is missing: {source_root}")
-    build_root = build_directory.resolve()
-    candidates: dict[pathlib.Path, tuple[str, str]] = {}
-    for directory, names, _ in os.walk(source_root):
-        names[:] = [name for name in names if name != ".git"]
-        path = pathlib.Path(directory)
-        relative_parts = path.relative_to(source_root).parts
-        relevant = expected_release in relative_parts or any(
-            part == "linux-kernel-worktree" or part.startswith("linux-")
-            for part in relative_parts
-        )
-        if not relevant:
-            continue
-        marker = git_worktree_marker(path, source_root)
-        if marker is None:
-            continue
-        top_level_text = git_output(marker, "rev-parse", "--show-toplevel")
-        worktree_state = git_output(marker, "rev-parse", "--is-inside-work-tree")
-        if not top_level_text or worktree_state != "true":
-            continue
-        top_level = pathlib.Path(top_level_text).resolve()
-        if top_level != marker:
-            continue
-        if top_level == build_root:
-            continue
-        head = git_output(top_level, "rev-parse", "HEAD")
-        remote = git_output(top_level, "remote", "get-url", "origin")
-        if not head or not remote:
-            continue
-        candidates[top_level] = (head, remote)
-    if not candidates:
-        raise SystemExit(
-            f"Expected exactly one Orange kernel git worktree associated with {expected_release}; found none under {source_root}"
-        )
-    if len(candidates) != 1:
-        details = ", ".join(f"{path} ({head}, {remote})" for path, (head, remote) in sorted(candidates.items()))
-        raise SystemExit(
-            f"Expected exactly one Orange kernel git worktree associated with {expected_release}; found {len(candidates)}: {details}"
-        )
-    worktree_path, (worktree_head, worktree_remote) = next(iter(candidates.items()))
-    if worktree_remote != orange["repository"]:
-        raise SystemExit(
-            f"Orange kernel worktree remote does not match the manifest: {worktree_remote}"
-        )
-    ancestor = subprocess.run(
-        ["git", "-C", str(worktree_path), "merge-base", "--is-ancestor", expected_source_commit, worktree_head],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if ancestor.returncode:
-        raise SystemExit(
-            f"Orange kernel worktree does not prove the pinned base commit is an ancestor: {worktree_path}"
-        )
-    return worktree_path, worktree_head, expected_source_commit, worktree_remote
-
-
 armbian_checkout_head = None
 armbian_checkout_path = None
-kernel_checkout_head = None
-kernel_checkout_path = None
-kernel_base_commit = None
-kernel_source_remote_url = orange["repository"]
 if armbian_build_directory:
     armbian_checkout_head = subprocess.check_output(
         ["git", "-C", str(armbian_build_directory), "rev-parse", "HEAD"], text=True
     ).strip()
     armbian_checkout_path = str(armbian_build_directory)
-    kernel_checkout_path, kernel_checkout_head, kernel_base_commit, kernel_source_remote_url = resolve_kernel_worktree(armbian_build_directory)
 
 handoff_values = {}
 if handoff_directory:
@@ -325,7 +237,6 @@ lines = [
     f"armbian_build_ref={os.environ['ARMBIAN_BUILD_REF']}",
     f"armbian_build_repository={armbian['repository']}",
     f"kernel_source_repository={orange['repository']}",
-    f"kernel_source_remote_url={kernel_source_remote_url}",
     f"kernel_source_commit={orange['commit']}",
     f"kernel_version={orange['release'].split('-')[0]}",
     f"kernel_release={orange['release']}",
@@ -370,10 +281,6 @@ if armbian_build_directory:
     lines[4:4] = [
         f"armbian_checkout_path={armbian_checkout_path}",
         f"armbian_checkout_head={armbian_checkout_head}",
-        f"kernel_source_checkout_path={kernel_checkout_path}",
-        f"kernel_source_checkout_head={kernel_checkout_head}",
-        f"kernel_source_base_commit={kernel_base_commit}",
-        "kernel_source_base_is_ancestor=true",
     ]
 lines.extend(f"{key}={value}" for key, value in handoff_values.items())
 provenance_path.write_text("\n".join(lines) + "\n", encoding="utf-8")

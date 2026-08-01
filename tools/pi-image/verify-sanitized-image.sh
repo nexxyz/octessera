@@ -2,6 +2,9 @@
 set -euo pipefail
 
 ZIP_PATH="${1:?usage: verify-sanitized-image.sh <image.zip>}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/verify-managed-runtime.sh"
 WORK_DIR="$(mktemp -d)"
 LOOP_DEV=""
 
@@ -10,15 +13,6 @@ require_path() {
     local label="$2"
     if [ ! -e "$path" ]; then
         echo "Sanitation check failed: missing $label at $path" >&2
-        exit 1
-    fi
-}
-
-require_executable() {
-    local path="$1"
-    local label="$2"
-    if [ ! -x "$path" ]; then
-        echo "Sanitation check failed: missing executable $label at $path" >&2
         exit 1
     fi
 }
@@ -243,7 +237,7 @@ if grep -RIE '(BEGIN (RSA|OPENSSH) PRIVATE KEY|ghp_|github_pat_|ssid=|psk=)' \
     exit 1
 fi
 
-require_executable "$WORK_DIR/root/usr/local/bin/octessera-pi" "octessera-pi"
+require_managed_runtime_binary "$WORK_DIR/root"
 require_path "$WORK_DIR/root/etc/systemd/system/octessera.service" "octessera.service"
 require_path "$WORK_DIR/root/etc/systemd/system/sysinit.target.wants/octessera-boot-splash.service" "enabled boot splash service"
 require_path "$WORK_DIR/root/etc/sudoers.d/octessera-shutdown" "shutdown sudoers rule"

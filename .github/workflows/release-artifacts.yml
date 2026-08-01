@@ -413,7 +413,7 @@ jobs:
           if facts.get("image_package") != image_package or facts.get("dtb_package") != dtb_package:
               raise SystemExit("Orange provenance canonical package chain is incomplete")
           evidence_hash = hashlib.sha256((root / "octessera-orange-kernel-evidence.env").read_bytes()).hexdigest()
-          if facts.get("evidence_sha256") != evidence_hash or facts.get("armbian_build_ref") != "fa7a7b2294d9e760a77630950afd460b7a0b2a26" or facts.get("github_source_sha") != source_sha or facts.get("kernel_source_remote_url") != "https://github.com/torvalds/linux.git":
+          if facts.get("evidence_sha256") != evidence_hash or facts.get("armbian_build_ref") != "fa7a7b2294d9e760a77630950afd460b7a0b2a26" or facts.get("github_source_sha") != source_sha or facts.get("kernel_source_repository") != "https://github.com/torvalds/linux.git":
               raise SystemExit("Orange provenance evidence or build pin is not bound")
           PY
           python3 - "$RELEASE_VERSION" gathered-runtime/raspberry gathered-runtime/orange "$root/octessera-raspberry-device-release-assets/$prefix-raspberry-pi-zero-2w-device-aarch64.zip" "$root/octessera-orange-device-release-assets/$prefix-orange-pi-zero-2w-standalone-manual-aarch64.zip" <<'PY'

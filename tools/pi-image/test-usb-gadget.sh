@@ -257,7 +257,7 @@ assert_file_value() {
 
 new_fake_configfs() {
     root=$1
-    mkdir -p "$root/config/usb_gadget" "$root/udc/fake-udc"
+    mkdir -p "$root/config/usb_gadget" "$root/udc" "$root/udc-target"; ln -s ../udc-target "$root/udc/fake-udc"
 }
 
 run_action() {
