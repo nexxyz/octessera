@@ -27,6 +27,7 @@ def _lsblk(loop: str) -> list[str]:
         [
             "lsblk",
             "--json",
+            "--bytes",
             "--paths",
             "--output",
             "NAME,TYPE,FSTYPE,PARTLABEL,PARTTYPE,START,SIZE",

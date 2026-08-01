@@ -8,6 +8,7 @@ boards="$root/.github/workflows/release-board-artifacts.yml"
 sanitizer="$root/tools/pi-image/verify-sanitized-image.sh"
 runtime_chain_helper="$root/tools/pi-image/verify-managed-runtime.sh"
 runtime_chain_test="$root/tools/pi-image/test-sanitized-image-runtime-chain.sh"
+boot_layout_test="$root/tools/pi-image/test-sanitized-image-boot-layout.sh"
 
 assert_contains() {
     local file="$1"
@@ -189,6 +190,8 @@ assert_contains "$sanitizer" 'require_managed_runtime_binary "$WORK_DIR/root"'
 assert_contains "$sanitizer" 'source "$SCRIPT_DIR/verify-managed-runtime.sh"'
 bash -n "$runtime_chain_helper" "$runtime_chain_test"
 bash "$runtime_chain_test"
+bash -n "$boot_layout_test"
+bash "$boot_layout_test"
 
 if grep -Eq 'find[^\n]*\|[[:space:]]*head[[:space:]]+-n[[:space:]]*1' "$release" "$boards"; then
     echo 'Release workflows must not select an ambiguous artifact with find|head -n1.' >&2
