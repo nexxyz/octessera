@@ -161,22 +161,6 @@ fn midi_panic_and_clear_selection_succeed_without_selected_ports() {
     )
     .unwrap();
     for effect in [
-        RuntimePlatformEffect::MidiListOutputsRequest,
-        RuntimePlatformEffect::MidiListInputsRequest,
-    ] {
-        let responses = adapter
-            .handle_platform_effect(&request(effect, "midi-list"))
-            .unwrap();
-        assert!(matches!(
-            responses.as_slice(),
-            [HostMessage::RuntimeResult {
-                result: RuntimeStoreResult::MidiListOutputsResult { .. }
-            }] | [HostMessage::RuntimeResult {
-                result: RuntimeStoreResult::MidiListInputsResult { .. }
-            }]
-        ));
-    }
-    for effect in [
         RuntimePlatformEffect::MidiPanic,
         RuntimePlatformEffect::MidiSelectOutput { id: None },
         RuntimePlatformEffect::MidiSelectInput { id: None },

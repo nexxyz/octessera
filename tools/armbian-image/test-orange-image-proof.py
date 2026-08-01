@@ -214,16 +214,20 @@ def main() -> None:
         write(production / "etc/octessera/build-metadata.env", f"OCTESSERA_IMAGE_MODE=production\nOCTESSERA_RUNTIME_ENABLED_DEFAULT=true\nOCTESSERA_RUNTIME_VERSION={version}\nOCTESSERA_RUNTIME_BINARY_SHA256={binary_hash}\nOCTESSERA_RUNTIME_METADATA_SHA256={runtime_metadata_hash}\nOCTESSERA_RUNTIME_MANIFEST_SHA256={sums_hash}\n")
         can_privilege = shutil.which("sudo") is not None and subprocess.run(["sudo", "-n", "true"], check=False, capture_output=True).returncode == 0
         if can_privilege:
-            subprocess.run(["sudo", "-n", "chown", "-R", "root:root", str(release_dir)], check=True)
-            subprocess.run(["sudo", "-n", "chmod", "0555", str(release_dir), str(release_dir / "octessera-pi")], check=True)
-            subprocess.run(["sudo", "-n", "chmod", "0444", str(release_dir / "octessera-runtime.json"), str(release_dir / "SHA256SUMS")], check=True)
-            subprocess.run(["sudo", "-n", "chown", "-R", "990:990", str(production / "var/lib/octessera")], check=True)
-            subprocess.run(["sudo", "-n", "chown", "0:0", str(production / "etc/udev/rules.d/70-octessera-orange-runtime.rules")], check=True)
-            subprocess.run(["sudo", "-n", "chmod", "0644", str(production / "etc/udev/rules.d/70-octessera-orange-runtime.rules")], check=True)
-            run_proof(verifier_args(production, image, dtb, evidence, provenance, "production", True), True)
-            enabled = production / "etc/systemd/system/multi-user.target.wants/octessera.service"
-            enabled.unlink()
-            run_proof(verifier_args(production, image, dtb, evidence, provenance, "production", True), False)
+            try:
+                subprocess.run(["sudo", "-n", "chown", "-R", "root:root", str(release_dir)], check=True)
+                subprocess.run(["sudo", "-n", "chmod", "0555", str(release_dir), str(release_dir / "octessera-pi")], check=True)
+                subprocess.run(["sudo", "-n", "chmod", "0444", str(release_dir / "octessera-runtime.json"), str(release_dir / "SHA256SUMS")], check=True)
+                subprocess.run(["sudo", "-n", "chown", "-R", "990:990", str(production / "var/lib/octessera")], check=True)
+                subprocess.run(["sudo", "-n", "chown", "0:0", str(production / "etc/udev/rules.d/70-octessera-orange-runtime.rules")], check=True)
+                subprocess.run(["sudo", "-n", "chmod", "0644", str(production / "etc/udev/rules.d/70-octessera-orange-runtime.rules")], check=True)
+                run_proof(verifier_args(production, image, dtb, evidence, provenance, "production", True), True)
+                enabled = production / "etc/systemd/system/multi-user.target.wants/octessera.service"
+                enabled.unlink()
+                run_proof(verifier_args(production, image, dtb, evidence, provenance, "production", True), False)
+            finally:
+                owner = work.stat()
+                subprocess.run(["sudo", "-n", "chown", "-R", f"{owner.st_uid}:{owner.st_gid}", str(work)], check=False)
     print("Orange final image proof synthetic fixtures passed")
 
 
