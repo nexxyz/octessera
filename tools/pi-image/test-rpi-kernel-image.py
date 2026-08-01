@@ -29,6 +29,10 @@ def _load(path: Path, name: str) -> Any:
 
 CONTRACT = _load(KERNEL / "rpi_kernel_contract.py", "image_test_contract")
 PACKAGE_TESTS = _load(KERNEL / "test-rpi-kernel.py", "image_test_package")
+HOOK_MASK = _load(
+    HERE / "stage3-octessera-kernel/files/root/usr/local/lib/octessera/raspi_firmware_hook_mask.py",
+    "raspi_firmware_hook_mask",
+)
 INSTALLER = _load(HERE / "install-rpi-kernel.py", "image_test_installer")
 PROOF = _load(HERE / "verify-rpi-kernel-image.py", "image_test_proof")
 STAGE_INSTALLER = _load(
@@ -48,6 +52,108 @@ def _expect(label: str, operation: Callable[[], Any]) -> None:
 def _write(path: Path, value: bytes | str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(value if isinstance(value, bytes) else value.encode())
+
+
+def _hook_metadata(path: Path) -> tuple[bytes, int, int, int]:
+    metadata = path.stat()
+    return path.read_bytes(), metadata.st_uid, metadata.st_gid, metadata.st_mode & 0o7777
+
+
+def _make_hooks(root: Path) -> list[Path]:
+    paths = [root / relative for relative in HOOK_MASK.RASPI_FIRMWARE_HOOKS]
+    for index, path in enumerate(paths):
+        _write(path, f"hook-{index}".encode())
+        os.chmod(path, 0o751 - index * 0o100)
+    return paths
+
+
+def _expect_hook_rejection(work: Path, label: str, mutate: Callable[[Path], None]) -> None:
+    root = work / f"hook-mask-{label}"
+    paths = _make_hooks(root)
+    mutate(paths[1])
+    try:
+        with STAGE_INSTALLER.temporarily_mask_raspi_firmware_hooks(root):
+            raise AssertionError(f"invalid Raspberry firmware hook accepted: {label}")
+    except ValueError as error:
+        assert str(paths[1]) in str(error)
+    assert paths[0].stat().st_mode & 0o7777 == 0o751
+
+
+def _test_transactional_hook_mask(work: Path) -> None:
+    root = work / "hook-mask"
+    paths = _make_hooks(root)
+    original = [_hook_metadata(path) for path in paths]
+    with STAGE_INSTALLER.temporarily_mask_raspi_firmware_hooks(root):
+        for path, state in zip(paths, original):
+            assert _hook_metadata(path) == (state[0], state[1], state[2], state[3] & ~0o111)
+    assert [_hook_metadata(path) for path in paths] == original
+
+    original_run = STAGE_INSTALLER._run_in_root
+
+    def fail_dpkg(rootfs: Path, command: list[str]) -> None:
+        assert command[:2] == ["dpkg", "-i"]
+        for path in paths:
+            assert path.stat().st_mode & 0o111 == 0
+        paths[0].write_bytes(b"dpkg changed this hook")
+        os.chmod(paths[0], 0o600)
+        paths[1].unlink()
+        raise RuntimeError("synthetic dpkg failure")
+
+    STAGE_INSTALLER._run_in_root = fail_dpkg
+    try:
+        try:
+            STAGE_INSTALLER._install_package(root, work / "package.deb")
+        except RuntimeError as error:
+            assert str(error) == "synthetic dpkg failure"
+        else:
+            raise AssertionError("synthetic dpkg failure was not raised")
+    finally:
+        STAGE_INSTALLER._run_in_root = original_run
+    assert [_hook_metadata(path) for path in paths] == original
+
+    _expect_hook_rejection(work, "missing", lambda path: path.unlink())
+    _expect_hook_rejection(work, "non-executable", lambda path: os.chmod(path, 0o644))
+
+    def make_symlink(path: Path) -> None:
+        path.unlink()
+        path.symlink_to(path.parent / "other-hook")
+
+    _expect_hook_rejection(work, "symlink", make_symlink)
+
+    def make_directory(path: Path) -> None:
+        path.unlink()
+        path.mkdir()
+
+    _expect_hook_rejection(work, "directory", make_directory)
+
+    failure_root = work / "hook-mask-dual-failure"
+    failure_paths = _make_hooks(failure_root)
+
+    def fail_dpkg_with_broken_hooks(rootfs: Path, command: list[str]) -> None:
+        assert command[:2] == ["dpkg", "-i"]
+        failure_paths[0].unlink()
+        failure_paths[0].mkdir()
+        failure_paths[1].unlink()
+        failure_paths[1].symlink_to(failure_paths[0])
+        raise RuntimeError("synthetic dpkg failure")
+
+    original_run = STAGE_INSTALLER._run_in_root
+    STAGE_INSTALLER._run_in_root = fail_dpkg_with_broken_hooks
+    try:
+        try:
+            STAGE_INSTALLER._install_package(failure_root, work / "package.deb")
+        except ValueError as error:
+            message = str(error)
+            assert "synthetic dpkg failure" in message
+            assert str(failure_paths[0]) in message
+            assert str(failure_paths[1]) in message
+            assert isinstance(error.__cause__, RuntimeError)
+        else:
+            raise AssertionError("dual hook-mask failure was not raised")
+    finally:
+        STAGE_INSTALLER._run_in_root = original_run
+    assert failure_paths[0].is_dir()
+    assert failure_paths[1].is_symlink()
 
 
 def _main() -> int:
@@ -70,6 +176,8 @@ def _main() -> int:
         PROOF.subprocess.run = original_run
     with tempfile.TemporaryDirectory(prefix="octessera-rpi-image-test-") as temporary:
         work = Path(temporary)
+        (work / "package.deb").write_bytes(b"package")
+        _test_transactional_hook_mask(work)
         package = PACKAGE_TESTS._make_package(work, contract, "image", compressed_kernel=True)
         checksum = work / "SHA256SUMS"
         checksum.write_text(f"{STAGE_INSTALLER.sha256_file(package)}  {package.name}\n", encoding="utf-8")
@@ -82,6 +190,8 @@ def _main() -> int:
         image = work / "root"
         _write(image / "boot/firmware/config.txt", "kernel=kernel8.img\nauto_initramfs=1\n")
         _write(image / "boot/firmware/kernel8.img", b"stock-kernel")
+        image_hooks = _make_hooks(image)
+        image_hook_original = [_hook_metadata(path) for path in image_hooks]
         original_install = STAGE_INSTALLER._install_package
         STAGE_INSTALLER._install_package = lambda rootfs, value: value
         try:
@@ -102,6 +212,7 @@ def _main() -> int:
         finally:
             STAGE_INSTALLER._run_in_root = original_root_command
         assert evidence["initramfs"]["path"] == f"octessera/initrd.img-{contract.kernel_release}"
+        assert [_hook_metadata(path) for path in image_hooks] == image_hook_original
         STAGE_INSTALLER.verify_selectors(boot / "config.txt", contract)
         _write(boot / f"octessera/initrd.img-{contract.kernel_release}", b"initramfs")
         PROOF._run_lsinitramfs = lambda path: f"{contract.kernel_release} " + " ".join(contract.required_modules)
@@ -111,9 +222,15 @@ def _main() -> int:
 
         final_root = work / "actual-finalizer-root"
         final_boot = final_root / "boot/firmware"
-        _write(final_boot / "config.txt", "kernel=old.img\nkernel=conflict.img\nauto_initramfs=1\ndtoverlay=i2s-dac-no20\n")
+        hardware_block = "# --- octessera additions ---\n" + (HERE / "stage4-octessera/files/boot/config.txt.append").read_text(encoding="utf-8")
+        _write(
+            final_boot / "config.txt",
+            "kernel=old.img\nkernel=conflict.img\nauto_initramfs=1\ndtoverlay=i2s-dac-no20\n\n" + hardware_block,
+        )
         _write(final_boot / "kernel8-stock.img", b"stock")
         _write(final_boot / "octessera/overlays/i2s-dac-no20.dtbo", b"i2s")
+        final_hooks = _make_hooks(final_root)
+        final_hook_original = [_hook_metadata(path) for path in final_hooks]
         final_artifacts = final_root / "var/lib/octessera/rpi-kernel"
         final_artifacts.mkdir(parents=True)
         shutil.copy2(package, final_artifacts / package.name)
@@ -125,7 +242,7 @@ def _main() -> int:
         final_sbin = final_root / "usr/local/sbin"
         final_sbin.mkdir(parents=True)
         shutil.copy2(finalizer, final_sbin / "octessera-finalize-rpi-kernel")
-        for helper in ("install-rpi-kernel.py", "rpi_kernel_contract.py", "rpi_kernel_image.py"):
+        for helper in ("install-rpi-kernel.py", "rpi_kernel_contract.py", "rpi_kernel_image.py", "raspi_firmware_hook_mask.py"):
             shutil.copy2(finalizer.parent.parent / "lib/octessera" / helper, final_lib / helper)
         fake_bin = work / "fake-bin"
         fake_bin.mkdir()
@@ -135,7 +252,11 @@ def _main() -> int:
             "root=\"$1\"\n"
             "case \"$2\" in\n"
             f"  depmod) mkdir -p \"$root/lib/modules/{contract.kernel_release}\"; printf '%s\\n' fixture > \"$root/lib/modules/{contract.kernel_release}/modules.dep\" ;;\n"
-            f"  update-initramfs) mkdir -p \"$root/boot\"; printf '%s\\n' fixture > \"$root/boot/initrd.img-{contract.kernel_release}\" ;;\n"
+            "  update-initramfs)"
+            "    for hook in \"$root/etc/initramfs/post-update.d/z50-raspi-firmware\" \"$root/etc/kernel/postinst.d/z50-raspi-firmware\"; do"
+            "      if [ -x \"$hook\" ]; then printf '%s\\n' '# raspi-firmware regenerated config' > \"$root/boot/firmware/config.txt\"; fi"
+            "    done\n"
+            f"    mkdir -p \"$root/boot\"; printf '%s\\n' fixture > \"$root/boot/initrd.img-{contract.kernel_release}\" ;;\n"
             "  *) exit 1 ;;\n"
             "esac\n"
         )
@@ -148,6 +269,8 @@ def _main() -> int:
             subprocess.run(["bash", str(finalizer)], env=final_environment, check=True, capture_output=True, text=True)
         except subprocess.CalledProcessError as error:
             raise AssertionError(error.stderr) from error
+        assert [_hook_metadata(path) for path in final_hooks] == final_hook_original
+        assert hardware_block in (final_boot / "config.txt").read_text(encoding="utf-8")
         STAGE_INSTALLER.verify_selectors(final_boot / "config.txt", contract)
         assert (final_boot / f"octessera/initrd.img-{contract.kernel_release}").is_file()
 

@@ -24,7 +24,7 @@ install -m 0644 "$OCTESSERA_KERNEL_PACKAGE" "$ARTIFACT_DIR/$package_name"
 install -m 0644 "$OCTESSERA_KERNEL_CHECKSUMS" "$ARTIFACT_DIR/SHA256SUMS"
 install -m 0644 "$OCTESSERA_KERNEL_PROVENANCE" "$ARTIFACT_DIR/provenance.json"
 
-for helper in install-rpi-kernel.py rpi_kernel_contract.py rpi_kernel_image.py; do
+for helper in install-rpi-kernel.py rpi_kernel_contract.py rpi_kernel_image.py raspi_firmware_hook_mask.py; do
     install -m 0644 "$STAGE_FILES/root/usr/local/lib/octessera/$helper" \
         "$ROOTFS_DIR/usr/local/lib/octessera/$helper"
 done

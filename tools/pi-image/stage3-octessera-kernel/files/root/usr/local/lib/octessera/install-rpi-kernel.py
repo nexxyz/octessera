@@ -21,6 +21,7 @@ if not (KERNEL_TOOLS / "rpi_kernel_contract.py").is_file():
     KERNEL_TOOLS = Path(__file__).resolve().parent
 sys.path.insert(0, str(KERNEL_TOOLS))
 
+from raspi_firmware_hook_mask import temporarily_mask_raspi_firmware_hooks  # type: ignore[import-not-found]  # noqa: E402
 from rpi_kernel_contract import (  # type: ignore[import-not-found]  # noqa: E402
     EXPECTED_FIRMWARE_DEVICE_TREE,
     EXPECTED_FIRMWARE_INITRAMFS,
@@ -271,7 +272,8 @@ def _install_package(rootfs: Path, package: Path) -> None:
     staged.parent.mkdir(parents=True, exist_ok=True)
     if staged.resolve() != package.resolve():
         shutil.copy2(package, staged)
-    _run_in_root(rootfs, ["dpkg", "-i", f"/var/lib/octessera/rpi-kernel/{package.name}"])
+    with temporarily_mask_raspi_firmware_hooks(rootfs):
+        _run_in_root(rootfs, ["dpkg", "-i", f"/var/lib/octessera/rpi-kernel/{package.name}"])
 
 
 def _write_selectors(config: Path, contract: Contract) -> dict[str, str]:
@@ -322,7 +324,8 @@ def _finalize(rootfs: Path, package: Path, checksum_file: Path, provenance: Path
     initramfs_source = rootfs / f"boot/initrd.img-{contract.kernel_release}"
     if initramfs_source.exists():
         initramfs_source.unlink()
-    _run_in_root(rootfs, ["update-initramfs", "-c", "-k", contract.kernel_release])
+    with temporarily_mask_raspi_firmware_hooks(rootfs):
+        _run_in_root(rootfs, ["update-initramfs", "-c", "-k", contract.kernel_release])
     _require(initramfs_source.is_file(), f"update-initramfs did not create {initramfs_source}")
     initramfs_target = boot / EXPECTED_FIRMWARE_INITRAMFS
     initramfs_target.parent.mkdir(parents=True, exist_ok=True)

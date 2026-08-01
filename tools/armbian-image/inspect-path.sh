@@ -73,24 +73,40 @@ octessera_debugfs_ls_entry_name() {
   printf '%s' "$name"
 }
 
-octessera_debugfs_type_size() {
+octessera_debugfs_type() {
+  local metadata="$1"
+  local type
+  type="$(printf '%s\n' "$metadata" | awk '
+    $1 == "Inode:" {
+      for (position = 1; position < NF; position++) if ($position == "Type:") { count++; type = $(position + 1) }
+    }
+    END { if (count != 1 || type !~ /^(directory|regular|symlink)$/) exit 1; print type }
+  ')" || return 1
+  printf '%s' "$type"
+}
+
+octessera_debugfs_fast_link_target() {
   local metadata="$1"
   printf '%s\n' "$metadata" | awk '
-    /^Inode:/ {
-      for (position = 1; position < NF; position++) {
-        if ($position == "Type:") type = $(position + 1)
-      }
-    }
-    /^User:/ {
-      for (position = 1; position < NF; position++) {
-        if ($position == "Size:") size = $(position + 1)
-      }
-    }
-    END {
-      if (type !~ /^(directory|regular)$/ || size !~ /^[0-9]+$/) exit 1
-      print type "\t" size
-    }
+    $1 == "Fast" && $2 == "link" { count++; if ($3 != "dest:") bad=1; else { target = substr($0, index($0, $3) + length($3)); sub(/^[[:space:]]+/, "", target); if (target ~ /^"[^"]*"$/) target=substr(target, 2, length(target)-2); else if (target !~ /^[^"[:space:]]+$/) bad=1 } }
+    END { if (count != 1 || bad || target == "") exit 1; print target }
   '
+}
+octessera_debugfs_type_size() {
+  local metadata="$1"
+  local type
+  local size
+  size="$(printf '%s\n' "$metadata" | awk '
+    $1 == "User:" {
+      for (position = 1; position < NF; position++) {
+        if ($position == "Size:") { count++; size = $(position + 1) }
+      }
+    }
+    END { if (count != 1 || size !~ /^[0-9]+$/) exit 1; print size }
+  ')" || return 1
+  type="$(octessera_debugfs_type "$metadata")" || return 1
+  [[ "$type" == directory || "$type" == regular ]] || return 1
+  printf '%s\t%s\n' "$type" "$size"
 }
 
 octessera_sample_relative_path_is_safe() {
@@ -452,6 +468,7 @@ octessera_unit_masked_path() {
   local path="$2"
   local metadata
   local metadata_status
+  local actual_target
 
   octessera_debugfs_path_argument "$path" >/dev/null || return 2
   if [[ -d "$target" ]]; then
@@ -464,11 +481,9 @@ octessera_unit_masked_path() {
     metadata_status=$?
   fi
   [[ "$metadata_status" == 0 ]] || return "$metadata_status"
-  printf '%s\n' "$metadata" | awk '
-    /^Inode:[[:space:]]+[0-9]+[[:space:]]+Type:[[:space:]]+symlink([[:space:]]|$)/ { type = 1 }
-    /^Fast link dest:[[:space:]]+(\/dev\/null|"\/dev\/null")$/ { target = 1 }
-    END { exit !(type && target) }
-  '
+  [[ "$(octessera_debugfs_type "$metadata")" == symlink ]] || return 1
+  actual_target="$(octessera_debugfs_fast_link_target "$metadata")" || return 1
+  [[ "$actual_target" == /dev/null ]]
 }
 
 octessera_stat_path() {
