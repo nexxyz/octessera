@@ -36,8 +36,8 @@ octessera_require_image_symlink() {
     actual_target="$(readlink -- "$target/$path")"
   else
     metadata="$(octessera_debugfs_stat_metadata "$target" "$path")" || { echo "Unable to inspect runtime symlink: $path." >&2; exit 1; }
-    actual_target="$(printf '%s\n' "$metadata" | sed -n 's/^Fast link dest: //p')"
-    printf '%s\n' "$metadata" | grep -q '^Inode: [0-9][0-9]* Type: symlink ' || { echo "Runtime path is not a symlink: $path." >&2; exit 1; }
+    actual_target="$(octessera_debugfs_fast_link_target "$metadata")" || { echo "Unable to inspect runtime symlink: $path." >&2; exit 1; }
+    [[ "$(octessera_debugfs_type "$metadata")" == symlink ]] || { echo "Runtime path is not a symlink: $path." >&2; exit 1; }
   fi
   [[ "$actual_target" == "$expected_target" ]] || {
     echo "Runtime symlink target mismatch at $path." >&2
@@ -78,7 +78,7 @@ octessera_require_runtime_entry_set() {
       entry="$(octessera_debugfs_ls_entry_name "$listing_line")" || { echo "Malformed runtime release entry." >&2; exit 1; }
       [[ "$entry" == . || "$entry" == .. ]] && continue
       metadata="$(octessera_debugfs_stat_metadata "$target" "$release_path/$entry")" || { echo "Unable to inspect runtime release entry: $entry." >&2; exit 1; }
-      entry_type="$(printf '%s\n' "$metadata" | awk '/^Inode:/ { for (position = 1; position < NF; position++) if ($position == "Type:") print $(position + 1) }')"
+      entry_type="$(octessera_debugfs_type "$metadata")" || { echo "Malformed runtime release entry." >&2; exit 1; }
       entries+=("$entry_type:$entry")
     done <<< "$listing"
   fi
@@ -97,7 +97,7 @@ octessera_require_real_directory() {
     [[ -d "$target/$path" && ! -L "$target/$path" ]] || { echo "Runtime directory is unsafe: $path." >&2; exit 1; }
   else
     metadata="$(octessera_debugfs_stat_metadata "$target" "$path")" || { echo "Unable to inspect runtime directory: $path." >&2; exit 1; }
-    printf '%s\n' "$metadata" | grep -q '^Inode: [0-9][0-9]* Type: directory ' || { echo "Runtime path is not a directory: $path." >&2; exit 1; }
+    [[ "$(octessera_debugfs_type "$metadata")" == directory ]] || { echo "Runtime path is not a directory: $path." >&2; exit 1; }
   fi
 }
 
@@ -133,6 +133,7 @@ octessera_reject_runtime_sudoers() {
   local listing_line
   local name
   local metadata
+  local entry_type
 
   check_sudoers_file() {
     local candidate="$1"
@@ -164,8 +165,12 @@ octessera_reject_runtime_sudoers() {
         name="$(octessera_debugfs_ls_entry_name "$listing_line")" || { echo "Malformed sudoers.d entry." >&2; return 1; }
         [[ "$name" == . || "$name" == .. ]] && continue
         metadata="$(octessera_debugfs_stat_metadata "$target" "etc/sudoers.d/$name")" || { echo "Unable to inspect sudoers.d entry: $name." >&2; return 1; }
-        if printf '%s\n' "$metadata" | grep -q '^Inode: [0-9][0-9]* Type: regular '; then
+        if entry_type="$(octessera_debugfs_type "$metadata")"; then
+          [[ "$entry_type" == regular ]] || continue
           check_sudoers_file "etc/sudoers.d/$name" || return 1
+        else
+          echo "Unable to parse sudoers.d entry: $name." >&2
+          return 1
         fi
       done <<< "$listing"
     else
@@ -296,6 +301,7 @@ octessera_require_runtime_udev_rule() {
   local listing_line
   local name
   local metadata
+  local entry_type
 
   require_root_mode "$rule_path" 644
   expected_rule=$'KERNEL=="i2c-2", GROUP="octessera-runtime", MODE="0660"\nKERNEL=="spidev1.0", GROUP="octessera-runtime", MODE="0660"\nKERNEL=="gpiochip1", GROUP="octessera-runtime", MODE="0660"'
@@ -316,8 +322,12 @@ octessera_require_runtime_udev_rule() {
       name="$(octessera_debugfs_ls_entry_name "$listing_line")" || { echo "Malformed Orange udev rule entry." >&2; exit 1; }
       [[ "$name" == . || "$name" == .. || "$name" != *.rules || "etc/udev/rules.d/$name" == "$rule_path" ]] && continue
       metadata="$(octessera_debugfs_stat_metadata "$target" "etc/udev/rules.d/$name")" || { echo "Unable to inspect Orange udev rule: $name." >&2; exit 1; }
-      if printf '%s\n' "$metadata" | grep -q '^Inode: [0-9][0-9]* Type: regular '; then
+      if entry_type="$(octessera_debugfs_type "$metadata")"; then
+        [[ "$entry_type" == regular ]] || continue
         octessera_reject_unsafe_udev_rule_content "etc/udev/rules.d/$name" "$(read_file "etc/udev/rules.d/$name")"
+      else
+        echo "Unable to parse Orange udev rule: $name." >&2
+        exit 1
       fi
     done <<< "$listing"
   fi

@@ -28,13 +28,29 @@ case "${DEBUGFS_CASE:-unit-valid}" in
     exit 1
     ;;
   unit-valid)
-    printf '%s\n' 'Inode: 7 Type: symlink Mode: 0777 Flags: 0x0' 'Fast link dest: /dev/null'
+    printf '%s\n' 'Inode:   7   Type:   symlink   Mode:    0777   Flags: 0x0' 'Fast    link    dest:    "/dev/null"'
     ;;
   unit-wrong)
-    printf '%s\n' 'Inode: 7 Type: symlink Mode: 0777 Flags: 0x0' 'Fast link dest: /etc/passwd'
+    printf '%s\n' 'Inode:   7   Type:   symlink   Mode:    0777   Flags: 0x0' 'Fast    link    dest:    "/etc/passwd"'
     ;;
   unit-regular)
-    printf '%s\n' 'Inode: 7 Type: regular Mode: 0644 Flags: 0x0' 'Fast link dest: /dev/null'
+    printf '%s\n' 'Inode:   7   Type:   regular   Mode:    0644   Flags: 0x0' 'Fast    link    dest:    "/dev/null"'
+    ;;
+  variable-whitespace)
+    case "$2" in
+      'stat "/opt/octessera"'|'stat "/opt/octessera/releases"'|'stat "/opt/octessera/releases/1.2.3"')
+        printf '%s\n' 'Inode:   7   Type:   directory   Mode:    040755   Flags: 0x0'
+        ;;
+      'stat "/opt/octessera/current"')
+        printf '%s\n' 'Inode:   8   Type:   symlink   Mode:    0777   Flags: 0x0' 'Fast    link    dest:    "/opt/octessera/releases/1.2.3"'
+        ;;
+      'stat "/opt/octessera/releases/1.2.3/SHA256SUMS"'|'stat "/opt/octessera/releases/1.2.3/octessera-pi"'|'stat "/opt/octessera/releases/1.2.3/octessera-runtime.json"')
+        printf '%s\n' 'Inode:   9   Type:   regular   Mode:    0100555   Flags: 0x0'
+        ;;
+      'ls -p "/opt/octessera/releases/1.2.3"')
+        printf '%s\n' '/9/0100555/0/0/SHA256SUMS/' '/10/0100555/0/0/octessera-pi/' '/11/0100444/0/0/octessera-runtime.json/'
+        ;;
+    esac
     ;;
   sample-ext4)
     case "$2" in
@@ -48,16 +64,16 @@ case "${DEBUGFS_CASE:-unit-valid}" in
         printf '%s\n' '/11/040755/0/0/./' '/11/040755/0/0/../' '/12/100644/0/0/space.wav/'
         ;;
       'stat "/usr/share/octessera/samples/files"')
-        printf '%s\n' 'Inode: 2 Type: directory Mode: 040755 Flags: 0x0' 'User: 0 Group: 0 Size: 4096'
+        printf '%s\n' 'Inode:   2   Type:   directory   Mode:    040755   Flags: 0x0' 'User:   0   Group:   0   Size:   4096'
         ;;
       'stat "/usr/share/octessera/samples/files/Drum"')
-        printf '%s\n' 'Inode: 10 Type: directory Mode: 040755 Flags: 0x0' 'User: 0 Group: 0 Size: 4096'
+        printf '%s\n' 'Inode:   10   Type:   directory   Mode:    040755   Flags: 0x0' 'User:   0   Group:   0   Size:   4096'
         ;;
       'stat "/usr/share/octessera/samples/files/Drum/hihat open"')
-        printf '%s\n' 'Inode: 11 Type: directory Mode: 040755 Flags: 0x0' 'User: 0 Group: 0 Size: 4096'
+        printf '%s\n' 'Inode:   11   Type:   directory   Mode:    040755   Flags: 0x0' 'User:   0   Group:   0   Size:   4096'
         ;;
       'stat "/usr/share/octessera/samples/files/Drum/hihat open/space.wav"')
-        printf '%s\n' 'Inode: 12 Type: regular Mode: 0644 Flags: 0x0' 'User: 0 Group: 0 Size: 11'
+        printf '%s\n' 'Inode:   12   Type:   regular   Mode:    0644   Flags: 0x0' 'User:   0   Group:   0   Size:   11'
         ;;
     esac
     ;;
@@ -158,6 +174,12 @@ export DEBUGFS_CASE=unit-wrong
 assert_status 1 octessera_unit_masked_path "$fake_image" etc/systemd/system/ssh.service
 export DEBUGFS_CASE=unit-regular
 assert_status 1 octessera_unit_masked_path "$fake_image" etc/systemd/system/ssh.service
+[[ "$(octessera_debugfs_fast_link_target 'Fast link dest: /dev/null')" == /dev/null ]] || {
+  echo 'Raw fast-link target was not normalized.' >&2
+  exit 1
+}
+assert_status 1 octessera_debugfs_fast_link_target $'Fast link dest: "/dev/null"\nFast link dest: "/dev/null"'
+assert_status 1 octessera_debugfs_fast_link_target 'Fast link dest: "/dev/null" trailing'
 
 target=''
 # shellcheck disable=SC2317
@@ -295,6 +317,13 @@ if [[ -n "$real_debugfs" && -n "$real_mkfs_ext4" && -n "$real_truncate" ]]; then
   real_ext4_inventory="$work/real-ext4-inventory"
   real_path="${PATH#"$mock_bin:"}"
   PATH="$real_path" octessera_collect_sample_inventory "$real_image" usr/share/octessera/samples/files "$real_ext4_inventory"
+  real_symlink_path='usr/share/octessera/samples/files/quoted-target'
+  "$real_debugfs" -w -R "symlink \"/$real_symlink_path\" \"/opt/octessera/releases/1.2.3\"" "$real_image" >/dev/null 2>&1
+  real_symlink_metadata="$(PATH="$real_path" octessera_debugfs_stat_metadata "$real_image" "$real_symlink_path")"
+  [[ "$(octessera_debugfs_fast_link_target "$real_symlink_metadata")" == /opt/octessera/releases/1.2.3 ]] || {
+    echo 'Real ext4 fast-link target was not normalized.' >&2
+    exit 1
+  }
   grep -Fq $'d\tDrum\t' "$real_ext4_inventory"
   grep -Fq $'d\tDrum/hihat open\t' "$real_ext4_inventory"
   grep -Fqx $'f\tDrum/hihat open/space.wav\t11' "$real_ext4_inventory"
@@ -348,6 +377,13 @@ assert_inspector_failure "$malformed_account" 'unexpected octessera account'
 
 # shellcheck source=tools/armbian-image/inspect-runtime.sh
 source "$runtime_inspector"
+target="$fake_image"
+stat_path() { octessera_stat_path "$target" "$1"; }
+export DEBUGFS_CASE=variable-whitespace
+assert_status 0 octessera_require_real_directory opt/octessera
+assert_status 0 octessera_require_runtime_entry_set opt/octessera/releases/1.2.3
+# shellcheck disable=SC2218
+octessera_require_image_symlink opt/octessera/current /opt/octessera/releases/1.2.3
 runtime_contract="$root/userpatches/overlay/etc/octessera/image-contract.json"
 runtime_contract_hash="$(sha256sum "$runtime_contract" | awk '{ print $1 }')"
 runtime_rejected_paths=()
