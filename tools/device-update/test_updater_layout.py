@@ -37,6 +37,12 @@ class UpdaterLayoutTests(unittest.TestCase):
         self.assertIn("install_overlay_file etc/systemd/system/octessera.service", customize)
         self.assertIn("systemctl enable octessera.service", customize)
 
+    def test_raspberry_release_stages_canonical_updater_modules(self):
+        workflow = (REPOSITORY / ".github/workflows/release-board-artifacts.yml").read_text(encoding="utf-8")
+        for name in ("updater_protocol.py", "updater_state.py", "updater_assets.py", "updater_guard.py", "updater_cli.py"):
+            self.assertIn(name, workflow)
+        self.assertIn('"tools/device-update/$updater_file" "$stage_root/usr/local/lib/octessera/$updater_file"', workflow)
+
 
 if __name__ == "__main__":
     unittest.main()

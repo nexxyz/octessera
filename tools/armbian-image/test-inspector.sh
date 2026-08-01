@@ -439,7 +439,10 @@ runtime_binary_hash=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 runtime_manifest_hash=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 runtime_metadata_hash=cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 runtime_root="$work/runtime-root"
-mkdir -p "$runtime_root/etc"
+mkdir -p "$runtime_root/etc/udev/rules.d"
+printf '%s\n' 'KERNEL=="i2c-2", GROUP="octessera-runtime", MODE="0660"' 'KERNEL=="spidev1.0", GROUP="octessera-runtime", MODE="0660"' 'KERNEL=="gpiochip1", GROUP="octessera-runtime", MODE="0660"' > "$runtime_root/etc/udev/rules.d/70-octessera-orange-runtime.rules"
+printf '%s\n' 'KERNEL=="wlan*", ACTION=="add", RUN+="/sbin/iw dev %k set power_save off"' > "$runtime_root/etc/udev/rules.d/10-wifi-power-save.rules"
+ln -s /dev/null "$runtime_root/etc/udev/rules.d/09-disabled.rules"
 target="$runtime_root"
 read_file() {
   case "$1" in

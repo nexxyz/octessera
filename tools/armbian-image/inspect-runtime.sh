@@ -289,55 +289,26 @@ octessera_require_runtime_service() {
   fi
 }
 
-octessera_reject_unsafe_udev_rule_content() {
-  local path="$1"
-  local content="$2"
-  if printf '%s\n' "$content" | grep -Eq 'GROUP[[:space:]]*=[[:space:]]*"?octessera"?([[:space:],]|$)|MODE[[:space:]]*=[[:space:]]*"?[0-7]{3,4}[26]"?([[:space:],]|$)|KERNEL[[:space:]]*==[[:space:]]*"[^"]*\*'; then
-    echo "Unsafe Orange runtime udev rule: $path." >&2
-    exit 1
-  fi
-}
-
 octessera_require_runtime_udev_rule() {
   local rule_path=etc/udev/rules.d/70-octessera-orange-runtime.rules
   local expected_rule
   local rule_content
-  local path
-  local relative_path
-  local listing
-  local listing_line
-  local name
   local metadata
-  local entry_type
 
+  if [[ -d "$target" ]]; then
+    [[ -f "$target/$rule_path" && ! -L "$target/$rule_path" ]] || { echo "Orange runtime udev rule is not a regular file." >&2; exit 1; }
+  else
+    metadata="$(octessera_debugfs_stat_metadata "$target" "$rule_path")" || { echo "Unable to inspect Orange runtime udev rule." >&2; exit 1; }
+    [[ "$(octessera_debugfs_type "$metadata")" == regular ]] || { echo "Orange runtime udev rule is not a regular file." >&2; exit 1; }
+  fi
   require_root_mode "$rule_path" 644
   expected_rule=$'KERNEL=="i2c-2", GROUP="octessera-runtime", MODE="0660"\nKERNEL=="spidev1.0", GROUP="octessera-runtime", MODE="0660"\nKERNEL=="gpiochip1", GROUP="octessera-runtime", MODE="0660"'
-  rule_content="$(read_file "$rule_path")"
-  [[ "$rule_content" == "$expected_rule" ]] || { echo "Orange runtime udev rule content is not exact." >&2; exit 1; }
-  if [[ -d "$target" ]]; then
-    if [[ -d "$target/etc/udev/rules.d" && ! -L "$target/etc/udev/rules.d" ]]; then
-      while IFS= read -r -d '' path; do
-        relative_path="${path#"$target/"}"
-        [[ "$relative_path" == "$rule_path" ]] && continue
-        octessera_reject_unsafe_udev_rule_content "$relative_path" "$(cat -- "$path")"
-      done < <(find -P "$target/etc/udev/rules.d" -type f -name '*.rules' -print0)
-    fi
-  elif stat_path etc/udev/rules.d; then
-    listing="$(octessera_debugfs_list_path "$target" etc/udev/rules.d)" || { echo "Unable to enumerate Orange udev rules." >&2; exit 1; }
-    while IFS= read -r listing_line; do
-      [[ -n "$listing_line" ]] || continue
-      name="$(octessera_debugfs_ls_entry_name "$listing_line")" || { echo "Malformed Orange udev rule entry." >&2; exit 1; }
-      [[ "$name" == . || "$name" == .. || "$name" != *.rules || "etc/udev/rules.d/$name" == "$rule_path" ]] && continue
-      metadata="$(octessera_debugfs_stat_metadata "$target" "etc/udev/rules.d/$name")" || { echo "Unable to inspect Orange udev rule: $name." >&2; exit 1; }
-      if entry_type="$(octessera_debugfs_type "$metadata")"; then
-        [[ "$entry_type" == regular ]] || continue
-        octessera_reject_unsafe_udev_rule_content "etc/udev/rules.d/$name" "$(read_file "etc/udev/rules.d/$name")"
-      else
-        echo "Unable to parse Orange udev rule: $name." >&2
-        exit 1
-      fi
-    done <<< "$listing"
+  if ! rule_content="$(read_file "$rule_path" || exit; printf '\037')"; then
+    echo "Unable to read Orange runtime udev rule." >&2
+    exit 1
   fi
+  rule_content="${rule_content%$'\037'}"
+  [[ "$rule_content" == "$expected_rule" || "$rule_content" == "$expected_rule"$'\n' ]] || { echo "Orange runtime udev rule content is not exact." >&2; exit 1; }
 }
 
 octessera_inspect_runtime_mode() {
