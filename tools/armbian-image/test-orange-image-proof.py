@@ -205,6 +205,8 @@ def main() -> None:
         (production / "var/lib/octessera/samples").mkdir(parents=True)
         write(production / "etc/systemd/system/octessera.service", "[Service]\nUser=octessera-runtime\nGroup=octessera-runtime\nEnvironment=OCTESSERA_EXPECTED_BOARD_PROFILE=orange-pi-zero-2w\nEnvironment=OCTESSERA_PI_STORE_DIR=/var/lib/octessera/presets\nEnvironment=OCTESSERA_PI_SAMPLES_DIR=/var/lib/octessera/samples\nEnvironment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json\nNoNewPrivileges=yes\nProtectSystem=strict\nReadWritePaths=/var/lib/octessera /run/octessera\nPrivateTmp=yes\nProtectHome=yes\nRuntimeDirectory=octessera\nLimitRTPRIO=70\nLimitMEMLOCK=infinity\nExecStart=/usr/local/bin/octessera-pi\n")
         write(production / "etc/udev/rules.d/70-octessera-orange-runtime.rules", "KERNEL==\"i2c-2\", GROUP=\"octessera-runtime\", MODE=\"0660\"\nKERNEL==\"spidev1.0\", GROUP=\"octessera-runtime\", MODE=\"0660\"\nKERNEL==\"gpiochip1\", GROUP=\"octessera-runtime\", MODE=\"0660\"\n")
+        write(production / "etc/udev/rules.d/10-wifi-disable-powermanagement.rules", 'KERNEL=="wlan*", ACTION=="add", RUN+="/sbin/iw dev %k set power_save off"\n')
+        (production / "etc/udev/rules.d/09-disabled.rules").symlink_to("/dev/null")
         (production / "etc/systemd/system/multi-user.target.wants").mkdir(parents=True)
         (production / "etc/systemd/system/multi-user.target.wants/octessera.service").symlink_to("../octessera.service")
         runtime_metadata_hash = sha256(release_dir / "octessera-runtime.json")

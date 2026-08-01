@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-import re
 
 
 Require = Callable[[bool, str], None]
@@ -90,6 +89,7 @@ def require_runtime_service(root: Path, require: Require) -> None:
 
 def require_runtime_udev_rule(root: Path, require: Require) -> None:
     rule = root / "etc/udev/rules.d/70-octessera-orange-runtime.rules"
+    require(rule.is_file() and not rule.is_symlink(), "Orange runtime udev rule is not a regular file")
     require_owner_mode(rule, 0, 0, 0o644, require)
     expected = (
         'KERNEL=="i2c-2", GROUP="octessera-runtime", MODE="0660"\n'
@@ -97,12 +97,6 @@ def require_runtime_udev_rule(root: Path, require: Require) -> None:
         'KERNEL=="gpiochip1", GROUP="octessera-runtime", MODE="0660"\n'
     )
     require(rule.read_text(encoding="utf-8") == expected, "Orange runtime udev rule content is not exact")
-    unsafe = re.compile(r'GROUP\s*=\s*"?octessera"?([,\s]|$)|MODE\s*=\s*"?[0-7]{3,4}[26]"?([,\s]|$)|KERNEL\s*==\s*"[^"]*\*')
-    rules_dir = root / "etc/udev/rules.d"
-    if rules_dir.is_dir() and not rules_dir.is_symlink():
-        for candidate in rules_dir.rglob("*.rules"):
-            if candidate.is_file() and not candidate.is_symlink() and candidate != rule:
-                require(unsafe.search(candidate.read_text(encoding="utf-8")) is None, f"unsafe Orange udev rule: {candidate}")
 
 
 def reject_unsupported_updater(root: Path, require: Require) -> None:

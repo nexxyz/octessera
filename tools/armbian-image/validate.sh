@@ -417,13 +417,8 @@ for service_line in \
   grep -qFx "$service_line" "$root/userpatches/overlay/etc/systemd/system/octessera.service" || { echo "Orange runtime service is missing: $service_line" >&2; exit 1; }
 done
 ! grep -qE '^(AmbientCapabilities|CapabilityBoundingSet)=|LimitRTPRIO=80' "$root/userpatches/overlay/etc/systemd/system/octessera.service" || { echo "Orange runtime service must not grant ambient SYS_NICE or priority 80." >&2; exit 1; }
-for udev_line in \
-  'KERNEL=="i2c-2", GROUP="octessera-runtime", MODE="0660"' \
-  'KERNEL=="spidev1.0", GROUP="octessera-runtime", MODE="0660"' \
-  'KERNEL=="gpiochip1", GROUP="octessera-runtime", MODE="0660"'; do
-  grep -qFx "$udev_line" "$runtime_udev_rule" || { echo "Orange runtime udev rule is missing: $udev_line" >&2; exit 1; }
-done
-! grep -Eq 'GROUP[[:space:]]*=[[:space:]]*"?octessera"?([[:space:],]|$)|MODE[[:space:]]*=[[:space:]]*"?[0-7]{3,4}[26]"?([[:space:],]|$)|KERNEL[[:space:]]*==[[:space:]]*"[^"]*\*' "$runtime_udev_rule" || { echo "Orange runtime udev rule is broad, interactive, or world-writable." >&2; exit 1; }
+expected_udev_rule=$'KERNEL=="i2c-2", GROUP="octessera-runtime", MODE="0660"\nKERNEL=="spidev1.0", GROUP="octessera-runtime", MODE="0660"\nKERNEL=="gpiochip1", GROUP="octessera-runtime", MODE="0660"'
+[[ "$(cat -- "$runtime_udev_rule")" == "$expected_udev_rule" ]] || { echo "Orange runtime udev rule content is not exact." >&2; exit 1; }
 ! grep -qE '^(PrivateDevices|DevicePolicy)=' "$root/userpatches/overlay/etc/systemd/system/octessera.service" || { echo "Orange runtime service must not block /dev hardware." >&2; exit 1; }
 grep -qF 'default: preset-firstrun octessera_midi octessera_image_sanitize' "$root/.github/workflows/armbian-image.yml" || { echo "Orange image workflow default must include mandatory extensions." >&2; exit 1; }
 [[ "$(grep -cF "extensions: \${{ inputs.extensions }}" "$root/.github/workflows/armbian-image.yml")" == 2 ]] || { echo "Both Orange image build invocations must preserve caller extensions." >&2; exit 1; }
