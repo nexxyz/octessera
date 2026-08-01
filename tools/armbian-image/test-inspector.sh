@@ -77,6 +77,14 @@ case "${DEBUGFS_CASE:-unit-valid}" in
         ;;
     esac
     ;;
+  runtime-owner-valid|runtime-owner-wrong-owner|runtime-owner-wrong-mode)
+    case "$DEBUGFS_CASE" in
+      runtime-owner-valid) owner=990; group=990; mode=040755 ;;
+      runtime-owner-wrong-owner) owner=991; group=990; mode=040755 ;;
+      runtime-owner-wrong-mode) owner=990; group=990; mode=040700 ;;
+    esac
+    printf '%s\n' "Inode:   42   Type:   directory   Mode:    $mode   Flags: 0x0" "User:   $owner   Group:   $group   Size:   4096"
+    ;;
 esac
 EOF
 chmod 0755 "$mock_bin/debugfs"
@@ -375,8 +383,34 @@ printf '%s\n' 'UID_MIN 1000' > "$malformed_account/etc/login.defs"
 printf '%s\n' 'octessera:x:1000:1000:Octessera:/srv/octessera:/bin/bash' > "$malformed_account/etc/passwd"
 assert_inspector_failure "$malformed_account" 'unexpected octessera account'
 
+# shellcheck source=tools/armbian-image/inspect-mode.sh
+source "$root/tools/armbian-image/inspect-mode.sh"
 # shellcheck source=tools/armbian-image/inspect-runtime.sh
 source "$runtime_inspector"
+assert_runtime_owned_mode_status() {
+  local expected="$1"
+  shift
+  local actual
+  if (octessera_require_owned_mode "$@"); then actual=0; else actual=$?; fi
+  [[ "$actual" == "$expected" ]] || { echo "Expected runtime ownership status $expected, got $actual." >&2; exit 1; }
+}
+target="$fake_image"
+export DEBUGFS_CASE=runtime-owner-valid
+assert_runtime_owned_mode_status 0 var/lib/octessera/presets 990:990 755
+assert_runtime_owned_mode_status 0 var/lib/octessera/presets 990:990 0755
+export DEBUGFS_CASE=runtime-owner-wrong-owner
+assert_runtime_owned_mode_status 1 var/lib/octessera/presets 990:990 755
+export DEBUGFS_CASE=runtime-owner-wrong-mode
+assert_runtime_owned_mode_status 1 var/lib/octessera/presets 990:990 755
+runtime_directory="$work/runtime-owned"
+mkdir -p "$runtime_directory/var/lib/octessera/presets"
+chmod 0755 "$runtime_directory/var/lib/octessera/presets"
+directory_owner="$(stat -c '%u:%g' "$runtime_directory/var/lib/octessera/presets")"
+target="$runtime_directory"
+assert_runtime_owned_mode_status 0 var/lib/octessera/presets "$directory_owner" 755
+chmod 0700 "$runtime_directory/var/lib/octessera/presets"
+assert_runtime_owned_mode_status 1 var/lib/octessera/presets "$directory_owner" 755
+assert_runtime_owned_mode_status 1 var/lib/octessera/presets "$directory_owner" 07555
 target="$fake_image"
 stat_path() { octessera_stat_path "$target" "$1"; }
 export DEBUGFS_CASE=variable-whitespace

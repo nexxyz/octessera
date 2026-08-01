@@ -16,6 +16,15 @@ assert_contains() {
     }
 }
 
+assert_block_contains() {
+    local block="$1"
+    local expected="$2"
+    grep -qF -- "$expected" <<< "$block" || {
+        echo "Workflow block is missing: $expected" >&2
+        exit 1
+    }
+}
+
 assert_contains "$release" 'workflow_dispatch:'
 assert_contains "$release" 'group: release-artifacts-${{ inputs.tag }}'
 assert_contains "$release" 'cancel-in-progress: false'
@@ -131,7 +140,18 @@ assert_contains "$boards" 'STAGE_LIST="stage0 stage1 stage2 stage3-octessera-ker
 assert_contains "$boards" 'tools/pi-kernel/test-rpi-kernel.sh'
 assert_contains "$boards" 'tools/pi-image/test-rpi-kernel-image.sh'
 assert_contains "$boards" 'verify-rpi-kernel-image.sh'
+raspberry_config_setup="$(sed -n '/^      - name: Configure and run pi-gen$/,/^          cat > pi-gen\/config <<EOF$/p' "$boards")"
 raspberry_config_block="$(sed -n '/cat > pi-gen\/config <<EOF$/,/^[[:space:]]*cd pi-gen$/p' "$boards")"
+raspberry_config_step="$(sed -n '/^      - name: Configure and run pi-gen$/,/^      - name: Select and verify the single Raspberry ZIP$/p' "$boards")"
+assert_block_contains "$raspberry_config_setup" 'export OCTESSERA_RELEASE_VERSION="${{ inputs.version }}" OCTESSERA_RELEASE_TAG="${{ inputs.tag }}" OCTESSERA_BOARD_PROFILE_ID="raspberry-pi-zero-2w"'
+assert_block_contains "$raspberry_config_block" 'OCTESSERA_RELEASE_VERSION=$OCTESSERA_RELEASE_VERSION'
+assert_block_contains "$raspberry_config_block" 'OCTESSERA_RELEASE_TAG=$OCTESSERA_RELEASE_TAG'
+assert_block_contains "$raspberry_config_block" 'OCTESSERA_BOARD_PROFILE_ID=$OCTESSERA_BOARD_PROFILE_ID'
+preserve_env_command="$(grep -F -- 'sudo --preserve-env=' <<< "$raspberry_config_step" | sed 's/^[[:space:]]*//' || true)"
+[[ "$preserve_env_command" == 'sudo --preserve-env=OCTESSERA_RELEASE_VERSION,OCTESSERA_RELEASE_TAG,OCTESSERA_BOARD_PROFILE_ID,OCTESSERA_KERNEL_PACKAGE,OCTESSERA_KERNEL_CHECKSUMS,OCTESSERA_KERNEL_PROVENANCE ./build.sh' ]] || {
+    echo 'Raspberry pi-gen must preserve exactly the release and kernel environment variables in order.' >&2
+    exit 1
+}
 [[ "$(grep -cE '^[[:space:]]+EOF$' <<< "$raspberry_config_block")" == 1 ]] || {
     echo 'Raspberry pi-gen config heredoc must close with one standalone EOF.' >&2
     exit 1
