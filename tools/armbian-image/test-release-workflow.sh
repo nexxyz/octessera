@@ -160,7 +160,7 @@ if grep -qE '^[[:space:]]+EOL$' <<< "$raspberry_config_block"; then
     echo 'Raspberry pi-gen config heredoc must not use EOL as its terminator.' >&2
     exit 1
 fi
-assert_contains "$boards" 'zip_basename="$(basename "${zip_files[0]}")"'
+assert_contains "$boards" 'asset="release-assets/octessera-${{ inputs.version }}-raspberry-pi-zero-2w.img.zip"'
 assert_contains "$boards" 'octessera-${{ inputs.version }}-orange-pi-zero-2w.img.xz'
 assert_contains "$boards" 'octessera-${{ inputs.version }}-orange-pi-zero-2w-standalone-manual-aarch64.zip'
 assert_contains "$boards" 'runtime_bundle_path:'

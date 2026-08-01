@@ -42,6 +42,8 @@ class UpdaterLayoutTests(unittest.TestCase):
         for name in ("updater_protocol.py", "updater_state.py", "updater_assets.py", "updater_guard.py", "updater_cli.py"):
             self.assertIn(name, workflow)
         self.assertIn('"tools/device-update/$updater_file" "$stage_root/usr/local/lib/octessera/$updater_file"', workflow)
+        self.assertNotIn('zip_basename=', workflow)
+        self.assertIn('asset="release-assets/octessera-${{ inputs.version }}-raspberry-pi-zero-2w.img.zip"', workflow)
 
 
 if __name__ == "__main__":
