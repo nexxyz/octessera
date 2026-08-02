@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import gzip
 import importlib.util
 import json
 import os
@@ -52,6 +53,18 @@ def _expect(label: str, operation: Callable[[], Any]) -> None:
 def _write(path: Path, value: bytes | str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(value if isinstance(value, bytes) else value.encode())
+
+
+def _cpio_record(name: str, payload: bytes, mode: int) -> bytes:
+    fields = (1, mode, 0, 0, 1, 0, len(payload), 0, 0, 0, 0, len(name) + 1, 0)
+    header = b"070701" + b"".join(f"{value:08x}".encode() for value in fields)
+    named = header + name.encode() + b"\0"
+    return named + b"\0" * (-len(named) % 4) + payload + b"\0" * (-len(payload) % 4)
+
+
+def _make_initramfs(payload: bytes) -> bytes:
+    archive = _cpio_record("init", payload, 0o100755) + _cpio_record("TRAILER!!!", b"", 0)
+    return gzip.compress(archive, mtime=0)
 
 
 def _hook_metadata(path: Path) -> tuple[bytes, int, int, int]:
@@ -227,6 +240,10 @@ def _main() -> int:
         image = work / "root"
         _write(image / "boot/firmware/config.txt", "kernel=kernel8.img\nauto_initramfs=1\n")
         _write(image / "boot/firmware/kernel8.img", b"stock-kernel")
+        stock_initrd_path = image / f"boot/initrd.img-{contract.kernel_release}"
+        stock_initrd_original = _make_initramfs(b"stock-initramfs")
+        stock_initrd_regenerated = _make_initramfs(b"regenerated-stock-initramfs")
+        _write(stock_initrd_path, stock_initrd_original)
         image_hooks = _make_hooks(image)
         image_hook_original = [_hook_metadata(path) for path in image_hooks]
         original_install = STAGE_INSTALLER._install_package
@@ -242,7 +259,7 @@ def _main() -> int:
         original_root_command = STAGE_INSTALLER._run_in_root
         def fake_root_command(rootfs: Path, command: list[str]) -> None:
             if command[0] == "update-initramfs":
-                _write(rootfs / f"boot/initrd.img-{contract.kernel_release}", b"generated-initramfs")
+                _write(rootfs / f"boot/initrd.img-{contract.kernel_release}", stock_initrd_regenerated)
         STAGE_INSTALLER._run_in_root = fake_root_command
         try:
             evidence = STAGE_INSTALLER._finalize(image, package, checksum, provenance_path, contract)
@@ -254,20 +271,71 @@ def _main() -> int:
         _write(boot / f"octessera/initrd.img-{contract.kernel_release}", b"initramfs")
         initramfs_path = boot / f"octessera/initrd.img-{contract.kernel_release}"
         original_lsinitramfs = PROOF._run_lsinitramfs
-        PROOF._run_lsinitramfs = lambda path: "drwxr-xr-x root/root 0 1970-01-01 00:00 .\n"
+        lsinitramfs_paths: list[Path] = []
+
+        def fake_lsinitramfs(path: Path) -> str:
+            lsinitramfs_paths.append(path)
+            return "drwxr-xr-x root/root 0 1970-01-01 00:00 .\n"
+
+        PROOF._run_lsinitramfs = fake_lsinitramfs
         try:
             proved = PROOF.prove_root(image, package, checksum, provenance_path, contract)
         finally:
             PROOF._run_lsinitramfs = original_lsinitramfs
         assert proved["package"]["sha256"] == inventory["package"]["sha256"]
         PROOF._verify_payload(image, boot, package, inventory)
+        stock_manifest_path = boot / "octessera/recovery-stock/manifest.json"
+        stock_manifest_content = stock_manifest_path.read_text(encoding="utf-8")
+        stock_entries = json.loads(stock_manifest_content)
+        stock_initrd_entry = next(entry for entry in stock_entries if entry["path"] == f"boot/initrd.img-{contract.kernel_release}")
+        stock_recovery_path = image / stock_initrd_entry["recovery_path"]
+        non_initrd_entry = next(entry for entry in stock_entries if entry["path"] != stock_initrd_entry["path"])
+        non_initrd_path = image / non_initrd_entry["path"]
+        non_initrd_original = non_initrd_path.read_bytes()
+        assert stock_initrd_path.read_bytes() == stock_initrd_regenerated
+        assert stock_recovery_path.read_bytes() == stock_initrd_original
+        assert stock_initrd_entry["sha256"] == STAGE_INSTALLER.sha256_file(stock_recovery_path)
+        assert {path.resolve() for path in lsinitramfs_paths} == {initramfs_path.resolve(), stock_initrd_path.resolve(), stock_recovery_path.resolve()}
+        stock_initrd_path.write_bytes(b"\x1f\x8bcorrupt")
+        _expect("corrupt retained stock initramfs", lambda: PROOF._verify_stock_recovery(image, boot))
+        stock_initrd_path.write_bytes(stock_initrd_regenerated)
+        PROOF._run_lsinitramfs = lambda path: ""
+        try:
+            _expect("empty retained stock initramfs listing", lambda: PROOF._verify_stock_recovery(image, boot))
+        finally:
+            PROOF._run_lsinitramfs = original_lsinitramfs
+        stock_initrd_path.unlink()
+        _expect("missing retained stock initramfs", lambda: PROOF._verify_stock_recovery(image, boot))
+        stock_initrd_path.write_bytes(stock_initrd_regenerated)
+        stock_initrd_path.unlink()
+        stock_initrd_path.symlink_to(stock_recovery_path)
+        _expect("symlink retained stock initramfs", lambda: PROOF._verify_stock_recovery(image, boot))
+        stock_initrd_path.unlink()
+        stock_initrd_path.write_bytes(stock_initrd_regenerated)
+        stock_recovery_original = stock_recovery_path.read_bytes()
+        stock_recovery_path.write_bytes(b"tampered recovery")
+        _expect("tampered stock recovery", lambda: PROOF._verify_stock_recovery(image, boot))
+        stock_recovery_path.write_bytes(stock_recovery_original)
+        stock_recovery_path.unlink()
+        stock_recovery_path.symlink_to(stock_initrd_path)
+        _expect("symlink stock recovery", lambda: PROOF._verify_stock_recovery(image, boot))
+        stock_recovery_path.unlink()
+        stock_recovery_path.write_bytes(stock_recovery_original)
+        tampered_manifest = [dict(entry) for entry in stock_entries]
+        next(entry for entry in tampered_manifest if entry["path"] == stock_initrd_entry["path"])["recovery_path"] = "../escaped-initrd"
+        stock_manifest_path.write_text(json.dumps(tampered_manifest), encoding="utf-8")
+        _expect("escaped stock recovery", lambda: PROOF._verify_stock_recovery(image, boot))
+        stock_manifest_path.write_text(stock_manifest_content, encoding="utf-8")
+        non_initrd_path.write_bytes(non_initrd_original + b"tampered")
+        _expect("tampered retained non-initrd", lambda: PROOF._verify_stock_recovery(image, boot))
+        non_initrd_path.write_bytes(non_initrd_original)
         _write(initramfs_path, b"\x1f\x8bcorrupt")
-        _expect("corrupt compressed initramfs", lambda: PROOF._verify_initramfs(boot, initramfs_path))
+        _expect("corrupt compressed initramfs", lambda: PROOF._verify_selected_initramfs(boot, initramfs_path))
         escape = work / "initramfs-escape"
         _write(escape, b"outside boot")
         initramfs_path.unlink()
         initramfs_path.symlink_to(escape)
-        _expect("initramfs symlink escape", lambda: PROOF._verify_initramfs(boot, initramfs_path))
+        _expect("initramfs symlink escape", lambda: PROOF._verify_selected_initramfs(boot, initramfs_path))
         initramfs_path.unlink()
         _write(initramfs_path, b"initramfs")
 
@@ -348,7 +416,7 @@ def _main() -> int:
         _expect("missing package", lambda: STAGE_INSTALLER.verify_package_inputs(work / "missing.deb", checksum, provenance_path, contract))
         PROOF._run_lsinitramfs = lambda path: "drwxr-xr-x root/root 0 1970-01-01 00:00 .\n"
         try:
-            PROOF._verify_initramfs(boot, initramfs_path)
+            PROOF._verify_selected_initramfs(boot, initramfs_path)
         finally:
             PROOF._run_lsinitramfs = original_lsinitramfs
     print("Raspberry kernel image synthetic tests passed")

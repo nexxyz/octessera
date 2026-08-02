@@ -119,6 +119,21 @@ jq_draft_filter='[ .[][] | select(.tag_name == $tag) ] as $matches
     end'
 fixture_dir="$(mktemp -d)"
 trap 'rm -rf "$fixture_dir"' EXIT
+orange_handoff_fixture="$fixture_dir/orange-handoff"
+mkdir -p "$orange_handoff_fixture/release-assets"
+canonical_packages=(linux-image-fixture.deb linux-dtb-fixture.deb)
+canonical_release_paths=("release-assets/${canonical_packages[0]}" "release-assets/${canonical_packages[1]}")
+for package in "${canonical_packages[@]}"; do
+    printf '%s\n' "$package" > "$orange_handoff_fixture/release-assets/$package"
+done
+for required in "${canonical_release_paths[@]}"; do
+    [[ -f "$orange_handoff_fixture/$required" ]] || { echo "Orange handoff fixture missed: $required" >&2; exit 1; }
+done
+(
+    cd "$orange_handoff_fixture/release-assets"
+    sha256sum "${canonical_packages[0]}" "${canonical_packages[1]}" > SHA256SUMS-orange-pi-zero-2w.txt
+    sha256sum -c SHA256SUMS-orange-pi-zero-2w.txt
+)
 printf '%s\n' '[[{"tag_name":"v0.7.4","id":41,"draft":true}],[{"tag_name":"v0.7.5","id":42,"draft":true}]]' > "$fixture_dir/one.json"
 printf '%s\n' '[[{"tag_name":"v0.7.4","id":41,"draft":true}]]' > "$fixture_dir/zero.json"
 printf '%s\n' '[[{"tag_name":"v0.7.5","id":42,"draft":true}],[{"tag_name":"v0.7.5","id":43,"draft":true}]]' > "$fixture_dir/duplicate.json"
@@ -182,6 +197,13 @@ if grep -qF 'orange-pi-zero-2w-device-aarch64.zip' "$release" "$boards"; then
 fi
 assert_contains "$boards" 'verify-orange-image.sh'
 assert_contains "$boards" 'octessera-orange-image-provenance.txt'
+assert_contains "$boards" 'canonical_release_paths=('
+assert_contains "$boards" '"release-assets/${canonical_packages[0]}"'
+assert_contains "$boards" '"release-assets/${canonical_packages[1]}"'
+assert_contains "$boards" '--linux-image "${canonical_release_paths[0]}"'
+assert_contains "$boards" '--linux-dtb "${canonical_release_paths[1]}"'
+assert_contains "$boards" 'for required in "$image" "$image.sha256" "${canonical_release_paths[0]}" "${canonical_release_paths[1]}"'
+assert_contains "$boards" 'sha256sum "$(basename "$image.sha256")" "${canonical_packages[0]}" "${canonical_packages[1]}"'
 assert_contains "$release" 'octessera-orange-image-provenance.txt'
 assert_contains "$release" 'apt-get install -y --no-install-recommends cpio zstd'
 assert_contains "$release" 'kernel_source_repository'
