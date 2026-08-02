@@ -378,7 +378,7 @@ jobs:
                   print(package)
           PY
           )
-          [[ "${#canonical_packages[@]}" == 2 ]] || { echo 'Orange canonical package list is not exact.' >&2; exit 1; }
+          [[ "${#canonical_packages[@]}" == 2 ]] || { echo 'Orange canonical package list is not exact.' >&2; exit 1; }; canonical_release_paths=("release-assets/${canonical_packages[0]}" "release-assets/${canonical_packages[1]}")
           for package in "${canonical_packages[@]}"; do
             test -f "build/output/images/$package" || { echo "Missing canonical Orange package: $package" >&2; exit 1; }
             install -m 0644 "build/output/images/$package" "release-assets/$package"
@@ -393,13 +393,13 @@ jobs:
           cp "$image_provenance" release-assets/octessera-orange-image-provenance.txt
           sudo bash "$custom_root/tools/armbian-image/verify-orange-image.sh" \
             --image "$image" \
-            --linux-image "release-assets/${canonical_packages[0]}" \
-            --linux-dtb "release-assets/${canonical_packages[1]}" \
+            --linux-image "${canonical_release_paths[0]}" \
+            --linux-dtb "${canonical_release_paths[1]}" \
             --evidence release-assets/octessera-orange-kernel-evidence.env \
             --provenance release-assets/octessera-orange-kernel-provenance.txt \
             --image-provenance release-assets/octessera-orange-image-provenance.txt \
             --mode production
-          for required in "$image" "$image.sha256" "${canonical_packages[0]}" "${canonical_packages[1]}" release-assets/octessera-orange-kernel-evidence.env release-assets/octessera-orange-kernel-provenance.txt release-assets/octessera-orange-image-provenance.txt; do
+          for required in "$image" "$image.sha256" "${canonical_release_paths[0]}" "${canonical_release_paths[1]}" release-assets/octessera-orange-kernel-evidence.env release-assets/octessera-orange-kernel-provenance.txt release-assets/octessera-orange-image-provenance.txt; do
             test -f "$required" || { echo "Missing Orange release asset: $required" >&2; exit 1; }
           done
           (cd release-assets && sha256sum -c "$(basename "$image.sha256")" && sha256sum "$(basename "$image.sha256")" "${canonical_packages[0]}" "${canonical_packages[1]}" octessera-orange-kernel-evidence.env octessera-orange-kernel-provenance.txt octessera-orange-image-provenance.txt > SHA256SUMS-orange-pi-zero-2w.txt && sha256sum -c SHA256SUMS-orange-pi-zero-2w.txt)

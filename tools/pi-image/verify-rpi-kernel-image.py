@@ -6,6 +6,7 @@ import contextlib
 import hashlib
 import importlib.util
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -85,22 +86,34 @@ def _run_lsinitramfs(path: Path) -> str:
     return result.stdout
 
 
-def _verify_initramfs(boot: Path, path: Path) -> None:
+def _resolve_regular_file(root: Path, path: Path, label: str) -> Path:
     try:
-        boot_root = boot.resolve(strict=True)
+        root_resolved = root.resolve(strict=True)
         selected = path.resolve(strict=True)
-        selected.relative_to(boot_root)
+        selected.relative_to(root_resolved)
     except (OSError, ValueError) as error:
-        raise ImageProofError(f"selected initramfs escapes the boot root: {path}") from error
-    _require(path.is_file() and not path.is_symlink(), f"selected initramfs is not a regular file: {path}")
-    _require(path.stat().st_size > 0, f"selected initramfs is empty: {path}")
+        raise ImageProofError(f"{label} escapes the image root: {path}") from error
+    _require(path.is_file() and not path.is_symlink(), f"{label} is not a regular file: {path}")
+    return selected
+
+
+def _verify_initramfs(path: Path) -> None:
+    _require(path.is_file() and not path.is_symlink(), f"initramfs is not a regular file: {path}")
+    _require(path.stat().st_size > 0, f"initramfs is empty: {path}")
     listing = _run_lsinitramfs(path)
     _require(bool(listing.strip()), f"lsinitramfs returned an empty listing: {path}")
 
 
+def _verify_selected_initramfs(boot: Path, path: Path) -> None:
+    selected = _resolve_regular_file(boot, path, "selected initramfs")
+    _verify_initramfs(selected)
+
+
 def _verify_stock_recovery(root: Path, boot: Path) -> list[dict[str, str]]:
-    manifest = boot / "octessera/recovery-stock/manifest.json"
-    _require(manifest.is_file(), "stock recovery manifest is missing")
+    recovery_root = boot / "octessera/recovery-stock"
+    _require(recovery_root.is_dir() and not recovery_root.is_symlink(), "stock recovery directory is missing or unsafe")
+    recovery_root = recovery_root.resolve(strict=True)
+    manifest = _resolve_regular_file(root, recovery_root / "manifest.json", "stock recovery manifest")
     try:
         entries = json.loads(manifest.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
@@ -108,8 +121,21 @@ def _verify_stock_recovery(root: Path, boot: Path) -> list[dict[str, str]]:
     _require(isinstance(entries, list) and bool(entries), "stock recovery manifest is empty")
     for entry in entries:
         _require(isinstance(entry, dict) and set(entry) == {"path", "recovery_path", "sha256"}, "stock recovery manifest entry changed")
-        _hash_matches(root / entry["recovery_path"], entry["sha256"], "stock recovery file")
-        _hash_matches(root / entry["path"], entry["sha256"], "retained stock file")
+        _require(all(isinstance(entry[key], str) for key in ("path", "recovery_path", "sha256")), "stock recovery manifest value types changed")
+        _require(re.fullmatch(r"[0-9a-f]{64}", entry["sha256"]) is not None, "stock recovery manifest hash changed")
+        retained = _resolve_regular_file(root, root / entry["path"], "retained stock file")
+        recovery = _resolve_regular_file(root, root / entry["recovery_path"], "stock recovery file")
+        try:
+            recovery.relative_to(recovery_root)
+        except ValueError as error:
+            raise ImageProofError(f"stock recovery file is outside the recovery directory: {recovery}") from error
+        _hash_matches(recovery, entry["sha256"], "stock recovery file")
+        is_initramfs = Path(entry["path"]).parent == Path("boot") and Path(entry["path"]).name.startswith("initrd.img-")
+        if is_initramfs:
+            _verify_initramfs(retained)
+            _verify_initramfs(recovery)
+        else:
+            _hash_matches(retained, entry["sha256"], "retained stock file")
     return entries
 
 
@@ -159,7 +185,7 @@ def prove_root(root: Path, package: Path, checksum: Path, provenance: Path, cont
     boot = _boot_dir(root)
     _verify_selectors(boot / "config.txt")
     payload = _verify_payload(root, boot, package, package_inventory)
-    _verify_initramfs(boot, boot / EXPECTED_FIRMWARE_INITRAMFS)
+    _verify_selected_initramfs(boot, boot / EXPECTED_FIRMWARE_INITRAMFS)
     stock = _verify_stock_recovery(root, boot)
     return {"package": package_inventory["package"], "payload": payload, "stock_recovery": stock}
 
