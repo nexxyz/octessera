@@ -45,7 +45,7 @@ runs:
       shell: bash
       run: |
         sudo apt-get update
-        sudo apt-get install -y --no-install-recommends zstd
+        sudo apt-get install -y --no-install-recommends cpio zstd
     - name: Validate build target before checkout
       shell: bash
       env:
