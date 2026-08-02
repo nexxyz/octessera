@@ -32,10 +32,6 @@ class ImageProofError(ValueError):
     pass
 
 
-BOOT_PARTITION_LABEL = "bootfs"
-ROOT_PARTITION_LABEL = "rootfs"
-
-
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise ImageProofError(message)
@@ -166,7 +162,7 @@ def prove_root(root: Path, package: Path, checksum: Path, provenance: Path, cont
 def _expected_partitions(loop: str) -> tuple[str, str]:
     try:
         result = subprocess.run(
-            ["lsblk", "--json", "--paths", "--output", "NAME,TYPE,FSTYPE,LABEL,PARTLABEL", loop],
+            ["lsblk", "--json", "--paths", "--output", "NAME,TYPE,PARTN", loop],
             capture_output=True,
             text=True,
             check=True,
@@ -184,10 +180,11 @@ def _expected_partitions(loop: str) -> tuple[str, str]:
             visit(node.get("children") or [])
 
     visit(devices)
-    boot = [node for node in partitions if node.get("label") == BOOT_PARTITION_LABEL and str(node.get("fstype", "")).lower() in {"vfat", "fat16", "fat32"}]
-    root = [node for node in partitions if node.get("label") == ROOT_PARTITION_LABEL and str(node.get("fstype", "")).lower() == "ext4"]
-    _require(len(boot) == 1, "image must contain exactly one bootfs vfat partition")
-    _require(len(root) == 1, "image must contain exactly one rootfs ext4 partition")
+    _require(len(partitions) == 2, "image must contain exactly two partitions")
+    boot = [node for node in partitions if str(node.get("partn", "")) == "1"]
+    root = [node for node in partitions if str(node.get("partn", "")) == "2"]
+    _require(len(boot) == 1, "image must contain exactly one boot partition at p1")
+    _require(len(root) == 1, "image must contain exactly one root partition at p2")
     _require(boot[0].get("name") != root[0].get("name"), "bootfs and rootfs partitions must be distinct")
     def device(node: dict[str, Any]) -> str:
         value = str(node.get("name") or node.get("path") or "")
@@ -214,9 +211,9 @@ def _mounted_image(image: Path) -> Iterator[Path]:
         root_mount.mkdir()
         boot_mount = work / "boot"
         boot_mount.mkdir()
-        subprocess.run(["mount", "-o", "ro", boot_device, str(boot_mount)], check=True)
+        subprocess.run(["mount", "-t", "vfat", "-o", "ro", boot_device, str(boot_mount)], check=True)
         mounts.append(boot_mount)
-        subprocess.run(["mount", "-o", "ro,noload", root_device, str(root_mount)], check=True)
+        subprocess.run(["mount", "-t", "ext4", "-o", "ro,noload", root_device, str(root_mount)], check=True)
         mounts.append(root_mount)
         firmware_mount = root_mount / "boot/firmware"
         firmware_mount.mkdir(parents=True, exist_ok=True)

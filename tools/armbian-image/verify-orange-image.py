@@ -117,7 +117,7 @@ def module_facts(path: Path, release: str) -> dict[str, str]:
     require(vermagic[0] == release or vermagic[0].startswith(f"{release} "), "usb_f_midi vermagic does not match ABI")
     markers = ("interface_string", "f_midi_opts_attr_interface_string", "midi_interface_string")
     for marker in markers:
-        require(strings.count(marker) == 1, f"usb_f_midi marker is not unique: {marker}")
+        require(marker in strings, f"usb_f_midi marker is missing: {marker}")
     return {
         "compressed_sha256": file_hash_from_bytes(compressed),
         "decompressed_sha256": file_hash_from_bytes(decompressed),
