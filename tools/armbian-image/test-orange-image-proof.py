@@ -49,7 +49,7 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
     kernel = b"synthetic-orange-kernel-" + RELEASE.encode()
     config = b"# CONFIG_RT_GROUP_SCHED is not set\nCONFIG_SND_SEQUENCER=m\n"
     dtb = b"\xd0\x0d\xfe\xedsynthetic-zero2w-dtb"
-    module = b"\x7fELF" + b"\x02\x01\x01" + bytes(11) + struct.pack("<H", 183) + b"vermagic=" + RELEASE.encode() + b" SMP\ninterface_string\nf_midi_opts_attr_interface_string\nmidi_interface_string\n"
+    module = b"\x7fELF" + b"\x02\x01\x01" + bytes(11) + struct.pack("<H", 183) + b"vermagic=" + RELEASE.encode() + b" SMP\ninterface_string\ninterface_string\nf_midi_opts_attr_interface_string\nmidi_interface_string\n"
     write(image_root / f"usr/lib/linux-image-{RELEASE}/Image", kernel)
     write(image_root / f"boot/config-{RELEASE}", config)
     write(image_root / DTB_RELATIVE, dtb)
