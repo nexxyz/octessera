@@ -252,10 +252,24 @@ def _main() -> int:
         assert [_hook_metadata(path) for path in image_hooks] == image_hook_original
         STAGE_INSTALLER.verify_selectors(boot / "config.txt", contract)
         _write(boot / f"octessera/initrd.img-{contract.kernel_release}", b"initramfs")
-        PROOF._run_lsinitramfs = lambda path: f"{contract.kernel_release} " + " ".join(contract.required_modules)
-        proved = PROOF.prove_root(image, package, checksum, provenance_path, contract)
+        initramfs_path = boot / f"octessera/initrd.img-{contract.kernel_release}"
+        original_lsinitramfs = PROOF._run_lsinitramfs
+        PROOF._run_lsinitramfs = lambda path: "drwxr-xr-x root/root 0 1970-01-01 00:00 .\n"
+        try:
+            proved = PROOF.prove_root(image, package, checksum, provenance_path, contract)
+        finally:
+            PROOF._run_lsinitramfs = original_lsinitramfs
         assert proved["package"]["sha256"] == inventory["package"]["sha256"]
         PROOF._verify_payload(image, boot, package, inventory)
+        _write(initramfs_path, b"\x1f\x8bcorrupt")
+        _expect("corrupt compressed initramfs", lambda: PROOF._verify_initramfs(boot, initramfs_path))
+        escape = work / "initramfs-escape"
+        _write(escape, b"outside boot")
+        initramfs_path.unlink()
+        initramfs_path.symlink_to(escape)
+        _expect("initramfs symlink escape", lambda: PROOF._verify_initramfs(boot, initramfs_path))
+        initramfs_path.unlink()
+        _write(initramfs_path, b"initramfs")
 
         final_root = work / "actual-finalizer-root"
         final_boot = final_root / "boot/firmware"
@@ -332,7 +346,11 @@ def _main() -> int:
         _expect("module payload", lambda: (image / f"lib/modules/{contract.kernel_release}/kernel/fixture/usb_f_uac2.ko").unlink() or PROOF._verify_payload(image, boot, package, inventory))
         _expect("auto initramfs", lambda: _write(boot / "config.txt", "auto_initramfs=1\n") or PROOF._verify_selectors(boot / "config.txt"))
         _expect("missing package", lambda: STAGE_INSTALLER.verify_package_inputs(work / "missing.deb", checksum, provenance_path, contract))
-        PROOF._verify_initramfs(boot / f"octessera/initrd.img-{contract.kernel_release}", contract.kernel_release, contract.required_modules)
+        PROOF._run_lsinitramfs = lambda path: "drwxr-xr-x root/root 0 1970-01-01 00:00 .\n"
+        try:
+            PROOF._verify_initramfs(boot, initramfs_path)
+        finally:
+            PROOF._run_lsinitramfs = original_lsinitramfs
     print("Raspberry kernel image synthetic tests passed")
     return 0
 

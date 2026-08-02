@@ -35,6 +35,25 @@ def write(path: Path, content: bytes | str) -> None:
     path.write_bytes(content if isinstance(content, bytes) else content.encode())
 
 
+def make_uboot_initramfs(payload: bytes, declared_size: int | None = None) -> bytes:
+    header = bytearray(64)
+    struct.pack_into(">I", header, 0, 0x27051956)
+    struct.pack_into(">I", header, 12, len(payload) if declared_size is None else declared_size)
+    return bytes(header) + payload
+
+
+def make_cpio_initramfs(work: Path) -> bytes:
+    source = work / "initramfs-source"
+    write(source / "init", b"#!/bin/sh\n")
+    return subprocess.run(
+        ["cpio", "--quiet", "-o", "-H", "newc"],
+        cwd=source,
+        input=b"init\n",
+        capture_output=True,
+        check=True,
+    ).stdout
+
+
 def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
     image_root = work / "image-package"
     dtb_root = work / "dtb-package"
@@ -68,12 +87,9 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
     subprocess.run(["dpkg-deb", "-x", str(packages / NATIVE_DTB), str(final_root)], check=True, capture_output=True)
     (final_root / "boot").mkdir(exist_ok=True)
     (final_root / "boot/Image").symlink_to(f"../usr/lib/linux-image-{RELEASE}/Image")
-    initramfs = f"initramfs {RELEASE} usb_f_midi snd_seq snd_rawmidi snd_usb_audio".encode()
+    initramfs = make_cpio_initramfs(work)
     compressed_initramfs = subprocess.run(["zstd", "-q", "-c"], input=initramfs, capture_output=True, check=True).stdout
-    uboot_header = bytearray(64)
-    struct.pack_into(">I", uboot_header, 0, 0x27051956)
-    struct.pack_into(">I", uboot_header, 12, len(compressed_initramfs))
-    write(final_root / f"boot/initrd.img-{RELEASE}", bytes(uboot_header) + compressed_initramfs)
+    write(final_root / f"boot/initrd.img-{RELEASE}", make_uboot_initramfs(compressed_initramfs))
     (final_root / "boot/uInitrd").symlink_to(f"initrd.img-{RELEASE}")
     write(final_root / "boot/armbianEnv.txt", "verbosity=1\n")
     write(final_root / "etc/os-release", "ID=armbian\n")
@@ -152,6 +168,12 @@ def run_proof(args: list[str], expected: bool) -> None:
         raise AssertionError(result.stdout + result.stderr)
 
 
+def root_args(args: list[str], root: Path) -> list[str]:
+    result = list(args)
+    result[result.index("--root") + 1] = str(root)
+    return result
+
+
 def main() -> None:
     original_run = orange_image_mount._run
 
@@ -176,8 +198,9 @@ def main() -> None:
         assert orange_image_mount._lsblk("/dev/loop0") == ["/dev/loop0p1"]
     finally:
         orange_image_mount._run = original_run
-    if shutil.which("dpkg-deb") is None:
-        print("Orange image proof fixture skipped: dpkg-deb is unavailable")
+    missing_tools = [tool for tool in ("cpio", "dpkg-deb", "zstd") if shutil.which(tool) is None]
+    if missing_tools:
+        print(f"Orange image proof fixture skipped: missing {', '.join(missing_tools)}")
         return
     with tempfile.TemporaryDirectory(prefix="octessera-orange-proof-fixture-") as temporary:
         work = Path(temporary)
@@ -195,13 +218,25 @@ def main() -> None:
         shutil.copy2(dtb, canonical_dtb)
         run_proof(verifier_args(root, canonical_image, canonical_dtb, evidence, provenance), True)
         for name, contents in (
+            ("truncated-uboot-header", b"\x27\x05\x19\x56\x00"),
+            ("oversized-uboot-payload", make_uboot_initramfs(b"raw", declared_size=4)),
+            ("truncated-zstd", make_uboot_initramfs(b"\x28\xb5\x2f\xfd")),
+            ("damaged-zstd-magic", b"\x28\xb5\x2f\xfe"),
+            ("corrupt-gzip", b"\x1f\x8bcorrupt"),
+            ("corrupt-xz", b"\xfd7zXZ\x00corrupt"),
+        ):
+            negative = work / f"negative-{name}"
+            shutil.copytree(root, negative, symlinks=True)
+            write(negative / f"boot/initrd.img-{RELEASE}", contents)
+            run_proof(root_args(args, negative), False)
+        for name, contents in (
             ("empty-fdt", "fdtfile=\n"),
             ("duplicate-fdt", "fdtfile=sun50i-h618-orangepi-zero2w.dtb\nfdtfile=sun50i-h618-orangepi-zero2w.dtb\n"),
         ):
             negative = work / name
             shutil.copytree(root, negative, symlinks=True)
             write(negative / "boot/armbianEnv.txt", contents)
-            run_proof([*args[: args.index(str(root))], str(negative), *args[args.index(str(root)) + 1 :]], False)
+            run_proof(root_args(args, negative), False)
         for name, mutate in (
             ("config", lambda path: path.write_bytes(path.read_bytes() + b"CONFIG_BAD=y\n")),
             ("module", lambda path: path.write_bytes(path.read_bytes() + b"tampered")),
@@ -211,7 +246,7 @@ def main() -> None:
             shutil.copytree(root, negative, symlinks=True)
             target = negative / (f"boot/config-{RELEASE}" if name == "config" else MODULE_RELATIVE if name == "module" else "var/lib/dpkg/status")
             mutate(target)
-            run_proof([*args[: args.index(str(root))], str(negative), *args[args.index(str(root)) + 1 :]], False)
+            run_proof(root_args(args, negative), False)
         production = work / "production"
         shutil.copytree(root, production, symlinks=True)
         binary = b"\x7fELF\x02\x01\x01" + bytes(11) + struct.pack("<H", 183) + bytes(64)

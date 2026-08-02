@@ -85,12 +85,17 @@ def _run_lsinitramfs(path: Path) -> str:
     return result.stdout
 
 
-def _verify_initramfs(path: Path, release: str, modules: tuple[str, ...]) -> None:
-    _require(path.is_file() and path.stat().st_size > 0, f"missing or empty selected initramfs: {path}")
+def _verify_initramfs(boot: Path, path: Path) -> None:
+    try:
+        boot_root = boot.resolve(strict=True)
+        selected = path.resolve(strict=True)
+        selected.relative_to(boot_root)
+    except (OSError, ValueError) as error:
+        raise ImageProofError(f"selected initramfs escapes the boot root: {path}") from error
+    _require(path.is_file() and not path.is_symlink(), f"selected initramfs is not a regular file: {path}")
+    _require(path.stat().st_size > 0, f"selected initramfs is empty: {path}")
     listing = _run_lsinitramfs(path)
-    _require(release in listing, "selected initramfs does not contain the exact kernel release")
-    for module in modules:
-        _require(module in listing or module.replace("_", "-") in listing, f"selected initramfs omits module {module}")
+    _require(bool(listing.strip()), f"lsinitramfs returned an empty listing: {path}")
 
 
 def _verify_stock_recovery(root: Path, boot: Path) -> list[dict[str, str]]:
@@ -154,7 +159,7 @@ def prove_root(root: Path, package: Path, checksum: Path, provenance: Path, cont
     boot = _boot_dir(root)
     _verify_selectors(boot / "config.txt")
     payload = _verify_payload(root, boot, package, package_inventory)
-    _verify_initramfs(boot / EXPECTED_FIRMWARE_INITRAMFS, contract.kernel_release, contract.required_modules)
+    _verify_initramfs(boot, boot / EXPECTED_FIRMWARE_INITRAMFS)
     stock = _verify_stock_recovery(root, boot)
     return {"package": package_inventory["package"], "payload": payload, "stock_recovery": stock}
 

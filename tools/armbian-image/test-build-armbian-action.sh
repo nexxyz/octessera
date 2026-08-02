@@ -64,7 +64,7 @@ assert_action_contains "octessera_checkout_head=\"\$(git -C \"\$custom_root\" re
 assert_action_contains "\"\$octessera_checkout_head\" == \"\$GITHUB_SOURCE_SHA\""
 assert_action_contains 'build/output/images'
 assert_action_contains 'verify-orange-image.sh'
-assert_action_contains 'apt-get install -y --no-install-recommends zstd'
+assert_action_contains 'apt-get install -y --no-install-recommends cpio zstd'
 assert_action_contains 'octessera-orange-image-provenance.txt'
 assert_action_contains 'Prove final Orange image against exact packages'
 
