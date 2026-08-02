@@ -183,6 +183,7 @@ fi
 assert_contains "$boards" 'verify-orange-image.sh'
 assert_contains "$boards" 'octessera-orange-image-provenance.txt'
 assert_contains "$release" 'octessera-orange-image-provenance.txt'
+assert_contains "$release" 'apt-get install -y --no-install-recommends zstd'
 assert_contains "$release" 'kernel_source_repository'
 assert_contains "$release" 'expected_count=27'
 assert_contains "$sanitizer" 'Expected exactly one .img inside'

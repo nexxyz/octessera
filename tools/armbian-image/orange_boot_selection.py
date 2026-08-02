@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import cast
+
+
+EXPECTED_DTB_NAME = "sun50i-h618-orangepi-zero2w.dtb"
 
 
 class BootSelectionError(ValueError):
@@ -37,7 +39,7 @@ def selector_path(root: Path, boot: Path, value: str, label: str) -> Path:
 def select_dtb(root: Path, boot: Path, value: str, release: str) -> Path:
     raw = value.strip()
     require(bool(re.fullmatch(r"/?[A-Za-z0-9._/-]+", raw)) and ".." not in raw.split("/"), "invalid fdt selector")
-    require(Path(raw).name == "sun50i-h618-orangepi-zero2w.dtb", "boot selector does not select the required Orange Zero 2W DTB")
+    require(Path(raw).name == EXPECTED_DTB_NAME, "boot selector does not select the required Orange Zero 2W DTB")
     relative = raw.lstrip("/")
     candidates: list[Path] = []
     if relative.startswith("boot/") or relative.startswith("usr/lib/"):
@@ -105,12 +107,12 @@ def parse_boot_selectors(root: Path, release: str) -> dict[str, Path]:
     env = boot / "armbianEnv.txt"
     require(env.is_file(), "final image has no Armbian boot selector")
     fdtfile = read_fdtfile(env)
-    require(fdtfile is not None, "Armbian boot selector must contain one fdtfile")
+    fdt_selector = EXPECTED_DTB_NAME if fdtfile is None else fdtfile
     kernel = boot / "Image"
     initrd = boot / "uInitrd" if (boot / "uInitrd").exists() else boot / f"initrd.img-{release}"
     require(kernel.exists() and initrd.exists(), "Armbian boot selector is missing Image or uInitrd")
     return {
         "linux": safe_resolve(root, kernel, "linux"),
         "initrd": safe_resolve(root, initrd, "initrd"),
-        "fdt": select_dtb(root, boot, cast(str, fdtfile), release),
+        "fdt": select_dtb(root, boot, fdt_selector, release),
     }

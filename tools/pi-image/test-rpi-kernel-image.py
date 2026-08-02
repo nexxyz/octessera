@@ -168,14 +168,28 @@ def _main() -> int:
 
     def fake_lsblk(command: list[str], **kwargs: Any) -> Any:
         if command[0] == "lsblk":
-            assert command[command.index("--output") + 1] == "NAME,TYPE,PARTN"
-            return SimpleNamespace(stdout=json.dumps({"blockdevices": [{"name": "/dev/loop0", "type": "loop", "children": [{"name": "/dev/loop0p2", "type": "part", "partn": 2}, {"name": "/dev/loop0p1", "type": "part", "partn": 1}]}]}))
+            assert command[command.index("--output") + 1] == "NAME,TYPE"
+            return SimpleNamespace(stdout=json.dumps({"blockdevices": [{"name": "/dev/loop0", "type": "loop", "children": [{"name": "/dev/loop0p2", "type": "part"}, {"name": "/dev/loop0p1", "type": "part"}]}]}))
         return original_run(command, **kwargs)
     PROOF.subprocess.run = fake_lsblk
     try:
         assert PROOF._expected_partitions("/dev/loop0") == ("/dev/loop0p1", "/dev/loop0p2")
     finally:
         PROOF.subprocess.run = original_run
+    for children in (
+        [{"name": "/dev/loop0p3", "type": "part"}, {"name": "/dev/loop0p2", "type": "part"}],
+        [{"name": "/dev/loop0p1", "type": "part"}, {"name": "/dev/loop0p2", "type": "part"}, {"name": "/dev/loop0p3", "type": "part"}],
+    ):
+        PROOF.subprocess.run = lambda command, **_: SimpleNamespace(stdout=json.dumps({"blockdevices": [{"name": "/dev/loop0", "type": "loop", "children": children}]}))
+        try:
+            try:
+                PROOF._expected_partitions("/dev/loop0")
+            except PROOF.ImageProofError:
+                pass
+            else:
+                raise AssertionError("invalid fixed partition layout was accepted")
+        finally:
+            PROOF.subprocess.run = original_run
     with tempfile.TemporaryDirectory(prefix="octessera-rpi-mount-test-") as temporary:
         image_path = Path(temporary) / "image.img"
         image_path.write_bytes(b"image")
@@ -186,7 +200,7 @@ def _main() -> int:
             if command[0] == "losetup" and "--show" in command:
                 return SimpleNamespace(stdout="/dev/loop0\n")
             if command[0] == "lsblk":
-                partitions = [{"name": "/dev/loop0p1", "type": "part", "partn": 1}, {"name": "/dev/loop0p2", "type": "part", "partn": 2}]
+                partitions = [{"name": "/dev/loop0p1", "type": "part"}, {"name": "/dev/loop0p2", "type": "part"}]
                 return SimpleNamespace(stdout=json.dumps({"blockdevices": [{"name": "/dev/loop0", "type": "loop", "children": partitions}]}))
             return SimpleNamespace(stdout="")
         PROOF.subprocess.run = fake_mount_run

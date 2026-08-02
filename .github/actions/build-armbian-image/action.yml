@@ -41,6 +41,11 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Install final image proof dependencies
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends zstd
     - name: Validate build target before checkout
       shell: bash
       env:

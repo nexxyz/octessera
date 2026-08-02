@@ -68,9 +68,14 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
     subprocess.run(["dpkg-deb", "-x", str(packages / NATIVE_DTB), str(final_root)], check=True, capture_output=True)
     (final_root / "boot").mkdir(exist_ok=True)
     (final_root / "boot/Image").symlink_to(f"../usr/lib/linux-image-{RELEASE}/Image")
-    write(final_root / f"boot/initrd.img-{RELEASE}", f"initramfs {RELEASE} usb_f_midi snd_seq snd_rawmidi snd_usb_audio")
+    initramfs = f"initramfs {RELEASE} usb_f_midi snd_seq snd_rawmidi snd_usb_audio".encode()
+    compressed_initramfs = subprocess.run(["zstd", "-q", "-c"], input=initramfs, capture_output=True, check=True).stdout
+    uboot_header = bytearray(64)
+    struct.pack_into(">I", uboot_header, 0, 0x27051956)
+    struct.pack_into(">I", uboot_header, 12, len(compressed_initramfs))
+    write(final_root / f"boot/initrd.img-{RELEASE}", bytes(uboot_header) + compressed_initramfs)
     (final_root / "boot/uInitrd").symlink_to(f"initrd.img-{RELEASE}")
-    write(final_root / "boot/armbianEnv.txt", f"fdtfile=dtb-{RELEASE}/allwinner/sun50i-h618-orangepi-zero2w.dtb\n")
+    write(final_root / "boot/armbianEnv.txt", "verbosity=1\n")
     write(final_root / "etc/os-release", "ID=armbian\n")
     write(final_root / "etc/octessera/build-metadata.env", "OCTESSERA_IMAGE_MODE=diagnostic\nOCTESSERA_RUNTIME_ENABLED_DEFAULT=false\n")
     write(final_root / "etc/octessera/image-contract.json", '{"schema_version": 1, "image_kind": "diagnostic", "runtime_enabled_default": false}\n')
@@ -189,6 +194,14 @@ def main() -> None:
         shutil.copy2(image, canonical_image)
         shutil.copy2(dtb, canonical_dtb)
         run_proof(verifier_args(root, canonical_image, canonical_dtb, evidence, provenance), True)
+        for name, contents in (
+            ("empty-fdt", "fdtfile=\n"),
+            ("duplicate-fdt", "fdtfile=sun50i-h618-orangepi-zero2w.dtb\nfdtfile=sun50i-h618-orangepi-zero2w.dtb\n"),
+        ):
+            negative = work / name
+            shutil.copytree(root, negative, symlinks=True)
+            write(negative / "boot/armbianEnv.txt", contents)
+            run_proof([*args[: args.index(str(root))], str(negative), *args[args.index(str(root)) + 1 :]], False)
         for name, mutate in (
             ("config", lambda path: path.write_bytes(path.read_bytes() + b"CONFIG_BAD=y\n")),
             ("module", lambda path: path.write_bytes(path.read_bytes() + b"tampered")),

@@ -162,7 +162,7 @@ def prove_root(root: Path, package: Path, checksum: Path, provenance: Path, cont
 def _expected_partitions(loop: str) -> tuple[str, str]:
     try:
         result = subprocess.run(
-            ["lsblk", "--json", "--paths", "--output", "NAME,TYPE,PARTN", loop],
+            ["lsblk", "--json", "--paths", "--output", "NAME,TYPE", loop],
             capture_output=True,
             text=True,
             check=True,
@@ -181,8 +181,8 @@ def _expected_partitions(loop: str) -> tuple[str, str]:
 
     visit(devices)
     _require(len(partitions) == 2, "image must contain exactly two partitions")
-    boot = [node for node in partitions if str(node.get("partn", "")) == "1"]
-    root = [node for node in partitions if str(node.get("partn", "")) == "2"]
+    boot = [node for node in partitions if node.get("name") == f"{loop}p1"]
+    root = [node for node in partitions if node.get("name") == f"{loop}p2"]
     _require(len(boot) == 1, "image must contain exactly one boot partition at p1")
     _require(len(root) == 1, "image must contain exactly one root partition at p2")
     _require(boot[0].get("name") != root[0].get("name"), "bootfs and rootfs partitions must be distinct")
