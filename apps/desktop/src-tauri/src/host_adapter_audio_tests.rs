@@ -75,6 +75,7 @@ fn desktop_accepts_each_dynamic_runtime_audio_command_and_rejects_unknown_fx() {
         },
         RuntimeAudioCommand::MomentaryFxStop { id: "fx".into() },
     ];
+    let expected_event_count = commands.len();
 
     for command in commands {
         adapter
@@ -83,7 +84,9 @@ fn desktop_accepts_each_dynamic_runtime_audio_command_and_rejects_unknown_fx() {
             }))
             .unwrap();
     }
-    assert!(rx.recv_timeout(Duration::from_secs(1)).is_ok());
+    for _ in 0..expected_event_count {
+        rx.recv_timeout(Duration::from_secs(1)).unwrap();
+    }
 
     let error = adapter
         .handle_platform_effect(&platform_request(RuntimePlatformEffect::AudioCommand {
@@ -107,12 +110,6 @@ fn desktop_accepts_each_dynamic_runtime_audio_command_and_rejects_unknown_fx() {
         }))
         .unwrap_err();
     assert_eq!(config_error.facts.code, RuntimeErrorCode::InvalidPayload);
-    for _ in 0..32 {
-        if rx.try_recv().is_err() {
-            break;
-        }
-    }
-
     let preview_follow_ups = adapter
         .handle_platform_effect(&platform_request(RuntimePlatformEffect::AudioCommand {
             command: RuntimeAudioCommand::SamplePreview {
