@@ -17,6 +17,7 @@ from typing import Any, cast
 
 from orange_boot_selection import BootSelectionError, parse_boot_selectors, safe_resolve
 from orange_image_mount import ImageMountError, mounted_image
+from orange_initramfs import InitramfsDecodeError, read_initramfs_content
 from verify_runtime_account import (
     read_kv_records,
     reject_unsupported_updater,
@@ -126,19 +127,6 @@ def module_facts(path: Path, release: str) -> dict[str, str]:
         "interface_options": markers[1],
         "interface_runtime": markers[2],
     }
-
-
-def initramfs_content(path: Path) -> bytes:
-    raw = path.read_bytes()
-    if raw[:4] == b"\x27\x05\x19\x56" and len(raw) >= 64:
-        size = struct.unpack_from(">I", raw, 12)[0]
-        raw = raw[64 : 64 + size]
-    for decoder in (gzip.decompress, lzma.decompress):
-        try:
-            return decoder(raw)
-        except (OSError, EOFError, lzma.LZMAError):
-            continue
-    return raw
 
 
 def package_suffix(path: Path, canonical: str, label: str) -> str:
@@ -311,7 +299,7 @@ def verify_boot(root: Path, package: dict[str, Any]) -> dict[str, str]:
     facts = module_facts(module_candidates[0], release)
     require(facts == package["module"], "selected usb_f_midi module differs from exact package evidence")
     require(str(module_candidates[0].relative_to(root)) == package["module_relative_path"], "selected usb_f_midi module path differs from exact package")
-    raw_initrd = initramfs_content(initrd)
+    raw_initrd = read_initramfs_content(initrd)
     for marker in (release.encode(), b"usb_f_midi", b"snd_seq", b"snd_rawmidi", b"snd_usb_audio"):
         require(marker in raw_initrd, f"selected initramfs omits ABI/module marker: {marker.decode(errors='replace')}")
     return {"selected_kernel": str(kernel.relative_to(root)), "selected_initramfs": str(initrd.relative_to(root)), "selected_dtb": str(dtb.relative_to(root))}
@@ -489,7 +477,7 @@ def main(argv: list[str]) -> int:
         print(json.dumps(result, indent=2, sort_keys=True))
         print("Orange final image proof passed")
         return 0
-    except (BootSelectionError, ImageMountError, ImageProofError, OSError, json.JSONDecodeError, struct.error) as error:
+    except (BootSelectionError, ImageMountError, ImageProofError, InitramfsDecodeError, OSError, json.JSONDecodeError, struct.error) as error:
         print(f"Orange final image proof failed: {error}", file=sys.stderr)
         return 1
 

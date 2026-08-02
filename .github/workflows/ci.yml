@@ -276,7 +276,7 @@ jobs:
       - name: Validate Raspberry profile boundaries
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends cpio device-tree-compiler initramfs-tools shellcheck
+          sudo apt-get install -y --no-install-recommends cpio device-tree-compiler initramfs-tools shellcheck zstd
           bash -n tools/pi/board-profile.sh tools/pi/build-pi-cross-wsl.sh tools/pi/deploy-pi.sh tools/pi/provision/provision.sh tools/orange-pi/input-routing-provision.sh tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget tools/pi-image/test-usb-gadget.sh
           bash tools/pi/test-board-profile.sh
           python3 tools/pi-image/test-board-profile.py

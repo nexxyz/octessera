@@ -288,8 +288,8 @@ jobs:
         with:
           ref: ${{ needs.release_info.outputs.source_sha }}
           fetch-depth: 0
-      - name: Verify immutable source checkout
-        run: test "$(git rev-parse HEAD)" = "${{ needs.release_info.outputs.source_sha }}"
+      - name: Verify source and install final image proof dependencies
+        run: test "$(git rev-parse HEAD)" = "${{ needs.release_info.outputs.source_sha }}" && sudo apt-get update && sudo apt-get install -y --no-install-recommends zstd
       - name: Download release artifacts into board-separated directories
         uses: actions/download-artifact@v4
         with:
