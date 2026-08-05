@@ -55,7 +55,7 @@
     {"classification": "first-boot-setup-enabled", "target": "etc/systemd/system/multi-user.target.wants/octessera-setup.service", "type": "symlink", "mode": 511, "uid": 0, "gid": 0, "symlink": true, "xattrs": {}, "capability": null, "link_target": "/etc/systemd/system/octessera-setup.service", "preimage": {"kind": "exact", "type": "symlink", "mode": 511, "uid": 0, "gid": 0, "symlink": true, "xattrs": {}, "capability": null, "link_target": "/etc/systemd/system/octessera-setup.service"}, "postimage": "preserve"}
   ],
   "preserved_paths": [
-    {"classification": "ssh-setup-config", "target": "etc/ssh/sshd_config.d/10-octessera-setup.conf", "preimage": {"kind": "exact", "type": "file", "mode": 420, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "4fe030c3c19a2a63fee3323e4e24036963591ad418ecfd7704c259a0e3c77573"}, "postimage": "preserve"}
+    {"classification": "ssh-setup-config", "target": "etc/ssh/sshd_config.d/10-octessera-setup.conf", "preimage": {"kind": "exact", "type": "file", "mode": 436, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "4fe030c3c19a2a63fee3323e4e24036963591ad418ecfd7704c259a0e3c77573"}, "postimage": "preserve"}
   ],
   "stale_runtime_markers": [
     "var/lib/octessera/setup-complete", "var/lib/octessera/setup-force", "var/lib/octessera/setup-finalize-failed", "run/octessera/setup-portal.request", "run/octessera-setup/nonce", "run/octessera-setup/readiness", "run/octessera-setup-control/status.json", "run/octessera-setup-control", "run/octessera-setup-status"

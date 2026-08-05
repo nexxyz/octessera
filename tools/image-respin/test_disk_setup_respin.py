@@ -82,6 +82,7 @@ class DiskSetupRespinTests(unittest.TestCase):
                     path = root / "etc/ssh/sshd_config.d/10-octessera-setup.conf"
                     path.parent.mkdir(parents=True, exist_ok=True)
                     path.write_bytes(b"PermitRootLogin no\nPasswordAuthentication no\nAllowUsers octessera\n")
+                    os.chmod(path, 0o664)
                 image = _image(work, board, root)
                 source = work / (f"octessera-0.7.5-{board}.img.xz" if board == ORANGE else f"octessera-0.7.5-{board}.img.zip")
                 if board == ORANGE:

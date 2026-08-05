@@ -99,7 +99,7 @@ def _fixture(board: str, work: Path) -> Path:
         _setup_preimages(root, contract)
         enabled = next(item for item in contract["symlinks"] if item["classification"] == "first-boot-setup-enabled")
         (root / enabled["target"]).symlink_to(enabled["link_target"])
-        _write(root / "etc/ssh/sshd_config.d/10-octessera-setup.conf", b"PermitRootLogin no\nPasswordAuthentication no\nAllowUsers octessera\n")
+        _write(root / "etc/ssh/sshd_config.d/10-octessera-setup.conf", b"PermitRootLogin no\nPasswordAuthentication no\nAllowUsers octessera\n", 0o664)
         policy = load_policy(ROOT)
         _write(root / "boot/Image", b"kernel")
         _write(root / "boot/uInitrd", b"initramfs")
