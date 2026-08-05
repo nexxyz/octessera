@@ -97,6 +97,7 @@ jobs:
       - name: Build selected runtime exactly once
         run: |
           set -euo pipefail
+          docker pull rust:1-bookworm
           case "$BOARD" in
             raspberry-pi-zero-2w)
               feature_command='cross build --release --locked --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-raspberry-pi-zero-2w'
