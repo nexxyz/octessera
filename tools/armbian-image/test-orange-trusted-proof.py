@@ -52,16 +52,17 @@ def make_root(path: Path) -> None:
     write(path / "boot/armbianEnv.txt", "verbosity=1\n")
     write(path / "usr/lib/linux-image-6.18.38-current-sunxi64/Image", b"trusted-kernel")
     write(path / f"usr/lib/linux-image-{RELEASE}/allwinner/sun50i-h618-orangepi-zero2w.dtb", b"\xd0\x0d\xfe\xedtrusted-dtb")
-    write(path / f"lib/modules/{RELEASE}/modules.dep", b"trusted-modules\n")
+    write(path / f"usr/lib/modules/{RELEASE}/modules.dep", b"trusted-modules\n")
     write(path / "etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash", "#!/bin/sh\n")
     write(path / "etc/udev/rules.d/70-octessera-orange-runtime.rules", "KERNEL==\"i2c-2\", GROUP=\"octessera-runtime\", MODE=\"0660\"\n")
     write(path / "etc/systemd/system/octessera-orange-boot-splash.service", "[Service]\nExecStart=/usr/local/sbin/octessera-orange-oled-logo boot\n")
     write(path / "etc/systemd/system/octessera-orange-oled-shutdown.service", "[Service]\nExecStart=/usr/local/sbin/octessera-orange-oled-logo shutdown\n")
     write(path / "etc/systemd/system/octessera.service", "[Service]\nUser=octessera-runtime\n")
-    write(path / "lib/systemd/system-sleep/octessera-orange-oled", "#!/bin/sh\n")
+    write(path / "usr/lib/systemd/system-sleep/octessera-orange-oled", "#!/bin/sh\n")
     write(path / "usr/local/sbin/octessera-orange-oled-logo", "#!/bin/sh\n")
     write(path / "usr/share/octessera/oled/octessera-mark.svg", "<svg/>\n")
     write(path / "usr/share/octessera/oled/octessera-wordmark.svg", "<svg/>\n")
+    (path / "lib").symlink_to("usr/lib")
     boot_link = path / "etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service"
     boot_link.parent.mkdir(parents=True, exist_ok=True)
     boot_link.symlink_to("../octessera-orange-boot-splash.service")
@@ -156,7 +157,7 @@ def main() -> None:
         else:
             raise AssertionError("tampered expected-absent policy was accepted")
         make_provenance(runtime_proof, derived, manifest, contract, "runtime-only")
-        for relative, value in (("boot/unexpected", b"unknown"), (f"lib/modules/{RELEASE}/modules.dep", b"tampered"), ("etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash", b"tampered"), ("lib/systemd/system-sleep/octessera-orange-oled", b"tampered"), ("etc/udev/rules.d/70-octessera-orange-runtime.rules", b"tampered"), ("usr/local/sbin/octessera-orange-oled-handoff.py", b"unexpected")):
+        for relative, value in (("boot/unexpected", b"unknown"), (f"usr/lib/modules/{RELEASE}/modules.dep", b"tampered"), ("etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash", b"tampered"), ("usr/lib/systemd/system-sleep/octessera-orange-oled", b"tampered"), ("etc/udev/rules.d/70-octessera-orange-runtime.rules", b"tampered"), ("usr/local/sbin/octessera-orange-oled-handoff.py", b"unexpected")):
             tampered = work / "tampered"
             shutil.rmtree(tampered, ignore_errors=True)
             shutil.copytree(derived, tampered, symlinks=True)
@@ -167,6 +168,16 @@ def main() -> None:
                 pass
             else:
                 raise AssertionError(f"protected mutation was accepted: {relative}")
+        tampered = work / "tampered-lib-target"
+        shutil.copytree(derived, tampered, symlinks=True)
+        (tampered / "lib").unlink()
+        (tampered / "lib").symlink_to("usr")
+        try:
+            verify_roots(parent, tampered, parent_image, manifest, runtime_proof, contract, "runtime-only")
+        except Exception:
+            pass
+        else:
+            raise AssertionError("protected lib symlink target mutation was accepted")
     print("Orange trusted parent lower-level proof and CLI rejection fixtures passed")
 
 

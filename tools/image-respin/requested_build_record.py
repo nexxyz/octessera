@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -69,6 +70,15 @@ CONTAINER_TOOLCHAIN_KEYS = {"rustc_vv", "cargo_version", "image_id"}
 IMAGE_KEYS = {"name", "image_id", "repo_digests"}
 
 
+def _require_exact_setup_inputs(actual_inputs: list[dict[str, Any]], expected_inputs: set[str], label: str) -> None:
+    actual_paths = [item["path"] for item in actual_inputs]
+    counts = Counter(actual_paths)
+    missing = sorted(expected_inputs - set(counts))
+    extra = sorted(set(counts) - expected_inputs)
+    duplicates = sorted(path for path, count in counts.items() if count > 1)
+    require(not missing and not extra and not duplicates and len(actual_paths) == len(expected_inputs), f"{label} mismatch: missing={missing}; extra={extra}; duplicates={duplicates}")
+
+
 def build_record(
     *,
     root: Path,
@@ -135,7 +145,7 @@ def build_record(
         contract_identity = identity(contract_path, root)
         expected_inputs = expected_sources | {contract_identity["path"], *SETUP_TOOL_FILES}
         actual_inputs = [identity(path, root) for path in input_paths]
-        require({item["path"] for item in actual_inputs} == expected_inputs and len(actual_inputs) == len(expected_inputs), "setup layer input set is not exact")
+        _require_exact_setup_inputs(actual_inputs, expected_inputs, "setup layer input set")
         record["setup"] = {"mode": setup_layer, "contract": contract_identity, "inputs": sorted(actual_inputs, key=lambda item: item["path"]), "tool_files": list(SETUP_TOOL_FILES)}
     return record
 
@@ -188,7 +198,8 @@ def validate_record(record: dict[str, Any], root: Path) -> None:
         expected_sources = {item["path"] for item in contract["source_inputs"]}
         expected_inputs = expected_sources | {contract_identity["path"], *SETUP_TOOL_FILES}
         inputs = setup["inputs"]
-        require(isinstance(inputs, list) and {item.get("path") for item in inputs} == expected_inputs and len(inputs) == len(expected_inputs), "requested setup inputs changed")
+        require(isinstance(inputs, list), "requested setup inputs are not a list")
+        _require_exact_setup_inputs(inputs, expected_inputs, "requested setup inputs")
         for item in inputs:
             verify_identity(item, root, "requested setup input")
         require(setup["tool_files"] == list(SETUP_TOOL_FILES), "requested setup tool set changed")
