@@ -11,11 +11,12 @@ class ProvenanceError(ValueError):
     pass
 
 
-PROOF_SCHEMA = "octessera.image-mutation-provenance.v1"
+PROOF_SCHEMA = "octessera.image-mutation-provenance.v2"
 TOOL_IDENTITY = "octessera-image-respin-runtime-mutation/1"
+RUNTIME_TOOL_IDENTITY = "octessera-image-respin-runtime-mutation/2"
 TOOL_CODE_SCHEMA = "octessera-image-respin-tool-code/v1"
-TOOL_CODE_FILES = ("inventory.py", "provenance.py", "trust_manifest.py", "runtime_bundle.py", "runtime_contract.py", "runtime_contract_schema.py", "runtime_payload.py", "runtime_transaction.py", "runtime_mutation.py", "disk_layout.py", "disk_mount.py", "disk_packaging.py", "disk_provenance.py", "disk_respin.py", "boot_neutral.py")
-TOOL_CODE_EXTERNAL_FILES = ("tools/armbian-image/orange_boot_contract.py", "tools/armbian-image/orange_boot_inventory.py", "tools/armbian-image/orange_boot_selection.py", "tools/armbian-image/orange_image_mount.py", "tools/armbian-image/orange_initramfs.py", "tools/armbian-image/orange_phase5_proof.py", "tools/armbian-image/orange_trusted_parent_proof.py", "tools/armbian-image/verify-orange-image.py", "tools/armbian-image/verify-orange-image.sh", "tools/armbian-image/verify_runtime_account.py", "resources/image-construction/boot-layers/orange-pi-zero-2w.json", "resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.7.5.json")
+TOOL_CODE_FILES = ("inventory.py", "provenance.py", "trust_manifest.py", "runtime_bundle.py", "runtime_contract.py", "runtime_contract_schema.py", "runtime_payload.py", "runtime_transaction.py", "runtime_mutation.py", "notice_mutation.py", "disk_layout.py", "disk_mount.py", "disk_packaging.py", "disk_provenance.py", "disk_respin.py", "boot_neutral.py")
+TOOL_CODE_EXTERNAL_FILES = ("tools/armbian-image/orange_boot_contract.py", "tools/armbian-image/orange_boot_inventory.py", "tools/armbian-image/orange_boot_selection.py", "tools/armbian-image/orange_image_mount.py", "tools/armbian-image/orange_initramfs.py", "tools/armbian-image/orange_phase5_proof.py", "tools/armbian-image/orange_trusted_parent_proof.py", "tools/armbian-image/verify-orange-image.py", "tools/armbian-image/verify-orange-image.sh", "tools/armbian-image/verify_runtime_account.py", "tools/legal/stage_notices.py", "resources/legal/notice-bundle.json", "resources/image-construction/boot-layers/orange-pi-zero-2w.json", "resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.7.5.json")
 
 
 def canonical_json(value: object) -> str:
@@ -77,7 +78,8 @@ def build_provenance(
     pre_inventory_digest: str,
     post_inventory_digest: str,
     changed_paths: list[str],
-    tool_identity: str = TOOL_IDENTITY,
+    notice: dict[str, Any] | None = None,
+    tool_identity: str = RUNTIME_TOOL_IDENTITY,
     tool_code_directory: Path | None = None,
 ) -> dict[str, Any]:
     if not board_profile or not version:
@@ -96,9 +98,9 @@ def build_provenance(
     parent = json.loads(canonical_json(parent_identity))
     parent_digest = digest_object(parent)
     tool_code = tool_code_model(tool_code_directory)
-    return {
+    result = {
         "proof_schema": PROOF_SCHEMA,
-        "schema_version": 1,
+        "schema_version": 2,
         "board_profile": board_profile,
         "version": version,
         "source_identity": source,
@@ -111,6 +113,9 @@ def build_provenance(
         "post_inventory_digest": post_inventory_digest,
         "changed_paths": changed_paths,
     }
+    if notice is not None:
+        result["notice"] = json.loads(canonical_json(notice))
+    return result
 
 
 def provenance_bytes(provenance: dict[str, Any]) -> bytes:

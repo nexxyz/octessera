@@ -60,9 +60,11 @@ def _parent_context(board: str) -> dict[str, Any]:
 
 def _fixture(work: Path, board: str, prior: str = "1.0.0") -> tuple[Path, Path]:
     root = work / f"root-{board}"
-    for relative in ("opt/octessera/releases", "usr/local/bin", "etc"):
+    for relative in ("opt/octessera/releases", "usr/local/bin", "etc", "usr/share/doc", "usr/share/common-licenses"):
         _mkdir(root / relative)
     _write(root / "etc/keep", b"untouched", 0o644)
+    _write(root / "usr/share/doc/base-files/copyright", b"vendor copyright\n", 0o644)
+    _write(root / "usr/share/common-licenses/GPL-3", b"vendor GPL\n", 0o644)
     release = root / "opt/octessera/releases" / prior
     _mkdir(release)
     old = b"old-runtime"
@@ -142,6 +144,11 @@ class RuntimeMutationTests(unittest.TestCase):
                 self.assertFalse((root / "opt/octessera/releases/1.0.0").exists())
                 self.assertEqual((root / "opt/octessera/current").readlink().as_posix(), "/opt/octessera/releases/2.0.0")
                 self.assertEqual(result.post_inventory_digest, inventory_digest(build_inventory(root)))
+                self.assertEqual(result.notice["preimage"], {"path": "usr/share/doc/octessera", "status": "absent"})
+                self.assertEqual(set(result.notice["changed_paths"]), {path for path in result.changed_paths if path == "usr/share/doc/octessera" or path.startswith("usr/share/doc/octessera/")})
+                self.assertEqual((root / "usr/share/doc/octessera/LICENSE").read_bytes(), (Path(__file__).resolve().parents[2] / "LICENSE").read_bytes())
+                self.assertEqual((root / "usr/share/doc/base-files/copyright").read_bytes(), b"vendor copyright\n")
+                self.assertEqual((root / "usr/share/common-licenses/GPL-3").read_bytes(), b"vendor GPL\n")
                 self.assertEqual(set(result.parent_identity["prior_release_entries"]), {"octessera-pi", "update-manifest.json"} if board == RPI else {"octessera-pi", "octessera-runtime.json", "SHA256SUMS"})
                 self.assertEqual(result.parent_identity["prior_release_entries"]["octessera-pi"], hashlib.sha256(b"old-runtime").hexdigest())
                 self.assertEqual(result.parent_identity["parent_context"], _parent_context(board))
@@ -249,7 +256,7 @@ class RuntimeMutationTests(unittest.TestCase):
                 mutate_runtime(root, bundle, ORANGE, "2.0.0", "source-1", _parent_context(RPI))
 
     def test_unauthorized_mutation_is_rejected_and_interrupted_commit_rolls_back(self) -> None:
-        for board, points in ((RPI, ("staged", "prior-release-moved", "release-installed", "current-replaced", "binary-replaced", "state-replaced")), (ORANGE, ("staged", "prior-release-moved", "release-installed", "current-replaced", "binary-replaced", "build-metadata-replaced"))):
+        for board, points in ((RPI, ("staged", "notice-staged", "notice-published", "prior-release-moved", "release-installed", "current-replaced", "binary-replaced", "state-replaced")), (ORANGE, ("staged", "notice-staged", "notice-published", "prior-release-moved", "release-installed", "current-replaced", "binary-replaced", "build-metadata-replaced"))):
             for point in points:
                 with self.subTest(board=board, point=point), tempfile.TemporaryDirectory() as temporary:
                     root, bundle = _fixture(Path(temporary), board)

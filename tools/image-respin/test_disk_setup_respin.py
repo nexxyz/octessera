@@ -19,7 +19,7 @@ import disk_setup_respin
 from disk_packaging import file_digest
 from test_disk_respin import ORANGE, RPI, _context, _orange_policy, _run, _resource_sets
 from test_runtime_mutation import _bundle, _fixture
-from test_setup_mutation import _orange_preimage, _parents, _prerequisites
+from test_setup_mutation import _parents, _prerequisites, _setup_preimages
 from setup_contract import contract_for_board, load_contract
 
 
@@ -45,6 +45,12 @@ def _image(work: Path, board: str, root: Path) -> Path:
         try:
             _run(["mount", "-o", "rw,noatime", root_device, str(mounted)])
             shutil.copytree(root, mounted, symlinks=True, dirs_exist_ok=True)
+            chown = getattr(os, "chown", None)
+            if chown is not None and getattr(os, "geteuid", lambda: -1)() == 0:
+                for source_path in (root, *root.rglob("*")):
+                    destination = mounted / source_path.relative_to(root)
+                    metadata = source_path.lstat()
+                    chown(destination, metadata.st_uid, metadata.st_gid, follow_symlinks=False)
             if board == ORANGE:
                 (mounted / "boot").mkdir(exist_ok=True)
             _run(["sync"])
@@ -70,11 +76,7 @@ class DiskSetupRespinTests(unittest.TestCase):
                 _parents(root, contract)
                 _prerequisites(root, board)
                 if board == ORANGE:
-                    for item in contract["entries"]:
-                        if item["preimage"]["kind"] == "exact":
-                            path = root / item["target"]
-                            path.write_bytes(_orange_preimage(item["source"]))
-                            os.chmod(path, item["mode"])
+                    _setup_preimages(root, contract)
                     enabled = next(item for item in contract["symlinks"] if item["classification"] == "first-boot-setup-enabled")
                     (root / enabled["target"]).symlink_to(enabled["link_target"])
                     path = root / "etc/ssh/sshd_config.d/10-octessera-setup.conf"
@@ -100,6 +102,10 @@ class DiskSetupRespinTests(unittest.TestCase):
                 self.assertTrue(output.is_file())
                 self.assertTrue(proof.is_file())
                 self.assertEqual(result["setup_proof"]["proof"], "setup-layer-mounted")
+                runtime_provenance = result["runtime_mutation"]["provenance"]
+                self.assertIn("notice", runtime_provenance)
+                self.assertEqual(set(runtime_provenance["notice"]["changed_paths"]), {path for path in runtime_provenance["changed_paths"] if path == "usr/share/doc/octessera" or path.startswith("usr/share/doc/octessera/")})
+                self.assertNotIn("notice", result["setup_mutation"])
                 self.assertEqual(file_digest(source), source_before)
                 self.assertEqual(subprocess.run(["losetup", "--associated", str(image)], capture_output=True, text=True, check=True).stdout, "")
 

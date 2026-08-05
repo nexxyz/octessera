@@ -26,6 +26,11 @@ class SetupContractTests(unittest.TestCase):
                 self.assertEqual(contract["contract_kind"], "setup-layer")
                 self.assertEqual(len(digest), 64)
                 self.assertEqual(len(validate_sources(contract, ROOT)), len(contract["source_inputs"]))
+                self.assertEqual([item["target"] for item in contract["directories"]], ["usr/local/share/octessera-setup-ui"])
+                self.assertEqual(contract["directories"][0]["postimage"], "required")
+                self.assertEqual(contract["directories"][0]["preimage"]["kind"], "absent" if board == "raspberry-pi-zero-2w" else "exact")
+                if board == "orange-pi-zero-2w":
+                    self.assertEqual(set(contract["directories"][0]["preimage"]) - {"kind"}, {"type", "mode", "uid", "gid", "symlink", "xattrs", "capability"})
                 self.assertFalse(any(contract["recipe"][key] for key in ("account_mutation", "package_mutation", "network_mutation", "boot_mutation", "firmware_mutation")))
                 classifications = {item["classification"] for item in contract["entries"]}
                 self.assertTrue({"setup-profile", "wifi-wrapper", "sidecar", "static-ui", "setup-unit", "request-path-unit", "request-unit"} <= classifications)

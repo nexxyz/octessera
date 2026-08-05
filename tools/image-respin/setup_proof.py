@@ -10,16 +10,22 @@ try:
     from .runtime_contract import MutationError, check_spec
     from .runtime_contract import rooted
     from .setup_contract import load_contract, target_spec
-    from .setup_mutation import _validate_prerequisites
+    from .setup_mutation import _validate_owned_directory, _validate_prerequisites
 except ImportError:
     from inventory import Inventory, build_inventory, inventory_digest
     from runtime_contract import MutationError, check_spec
     from runtime_contract import rooted
     from setup_contract import load_contract, target_spec
-    from setup_mutation import _validate_prerequisites
+    from setup_mutation import _validate_owned_directory, _validate_prerequisites
 
 
 def _check_postimage(root: Path, inventory: Inventory, contract: dict[str, Any]) -> list[str]:
+    for item in contract["directories"]:
+        entry = inventory.get(item["target"])
+        if entry is None or entry.get("type") != "directory":
+            raise MutationError(f"setup proof directory is not exact: {item['target']}")
+        check_spec(entry, target_spec(item), item["target"])
+        _validate_owned_directory(inventory, contract, item["target"], item["target"])
     for item in contract["entries"]:
         entry = inventory.get(item["target"])
         if entry is None or entry.get("type") != "file" or entry.get("sha256") != item["sha256"]:
@@ -45,9 +51,11 @@ def _check_postimage(root: Path, inventory: Inventory, contract: dict[str, Any])
                 raise MutationError(f"setup proof changed a preserved path: {item['target']}")
     if any(path in inventory for path in contract["stale_runtime_markers"]):
         raise MutationError("setup proof found stale runtime material")
+    for item in contract["directories"]:
+        rooted(root, item["target"])
     for item in contract["entries"]:
         rooted(root, item["target"])
-    return sorted(item["target"] for item in contract["entries"])
+    return sorted([item["target"] for item in contract["directories"]] + [item["target"] for item in contract["entries"]])
 
 
 def prove_setup_root(root: Path, board_profile: str, *, contract_path: Path | None = None) -> dict[str, Any]:

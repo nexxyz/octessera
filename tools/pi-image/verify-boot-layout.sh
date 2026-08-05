@@ -472,6 +472,152 @@ require_octessera_raspberry_identity() {
     fi
 }
 
+require_octessera_trusted_parent_raspberry_identity() {
+    local boot_root="$1"
+    local image_root="$2"
+    local welcome="$image_root/etc/profile.d/octessera-welcome.sh"
+    local utility="$image_root/usr/local/lib/octessera/rpi_uart_release.py"
+    local boot_config="$boot_root/config.txt"
+    local firmware_config="$image_root/boot/firmware/config.txt"
+    local legacy_config="$image_root/boot/config.txt"
+    local config
+    local cmdline
+    local token
+    local pi_record
+    local pi_user
+    local pi_uid
+    local pi_gid
+    local pi_home
+    local pi_shell
+    local hushlogin
+    local mask
+    local enablement
+    local legacy_serial_console_count=0
+    local tokens=()
+    require_octessera_legal_notices "$image_root"
+
+    if [ ! -f "$welcome" ] || [ -L "$welcome" ] || [ "$(stat -c '%u:%g:%a' "$welcome")" != 0:0:644 ] || [ ! -s "$welcome" ]; then
+        echo "trusted-parent-v0.7.5: Raspberry legacy welcome file is not a nonempty root:root 0644 regular file" >&2
+        return 1
+    fi
+    pi_record="$(awk -F: '$1 == "pi" { print; count++ } END { if (count != 1) exit 1 }' "$image_root/etc/passwd")" || {
+        echo "trusted-parent-v0.7.5: Raspberry pi passwd entry is not exact" >&2
+        return 1
+    }
+    IFS=: read -r pi_user _ pi_uid pi_gid _ pi_home pi_shell <<< "$pi_record"
+    if [ "$pi_user" != pi ] || [ "$pi_home" != /home/pi ] || [ "$pi_shell" != /bin/bash ] || [ ! -d "$image_root$pi_home" ] || [ -L "$image_root$pi_home" ]; then
+        echo "trusted-parent-v0.7.5: Raspberry pi home or shell is not exact" >&2
+        return 1
+    fi
+    if ! awk -F: -v gid="$pi_gid" '$1 == "pi" && $3 == gid { count++ } END { exit count != 1 }' "$image_root/etc/group"; then
+        echo "trusted-parent-v0.7.5: Raspberry pi group is not exact" >&2
+        return 1
+    fi
+    hushlogin="$image_root$pi_home/.hushlogin"
+    if [ -e "$hushlogin" ] || [ -L "$hushlogin" ]; then
+        echo "trusted-parent-v0.7.5: legacy Raspberry parent must not contain .hushlogin" >&2
+        return 1
+    fi
+    if [ -e "$utility" ] || [ -L "$utility" ]; then
+        echo "trusted-parent-v0.7.5: legacy Raspberry parent must not contain the UART release utility" >&2
+        return 1
+    fi
+    for directory in "$image_root/etc/pam.d" "$image_root/etc/update-motd.d"; do
+        if [ -d "$directory" ] && find -P "$directory" -type f -iname '*octessera*' -print -quit | grep -q .; then
+            echo "trusted-parent-v0.7.5: Raspberry repository PAM or update-motd override remains" >&2
+            return 1
+        fi
+    done
+    if [ -f "$boot_config" ] || [ -L "$boot_config" ]; then
+        if [ -f "$firmware_config" ] || [ -L "$firmware_config" ] || [ -f "$legacy_config" ] || [ -L "$legacy_config" ]; then
+            echo "trusted-parent-v0.7.5: Raspberry config layout is ambiguous" >&2
+            return 1
+        fi
+        config="$boot_config"
+    elif [ -f "$firmware_config" ] || [ -L "$firmware_config" ]; then
+        if [ -f "$legacy_config" ] || [ -L "$legacy_config" ]; then
+            echo "trusted-parent-v0.7.5: Raspberry config layout is ambiguous" >&2
+            return 1
+        fi
+        config="$firmware_config"
+    else
+        config="$legacy_config"
+    fi
+    if [ ! -f "$config" ] || [ -L "$config" ]; then
+        echo "trusted-parent-v0.7.5: Raspberry config is missing or symlinked" >&2
+        return 1
+    fi
+    if grep -qP '\x00' "$config" || grep -qP '\r(?!\n)' "$config"; then
+        echo "trusted-parent-v0.7.5: Raspberry config is malformed" >&2
+        return 1
+    fi
+    if grep -qF '# --- Octessera UART release ---' "$config"; then
+        echo "trusted-parent-v0.7.5: legacy Raspberry parent contains the current UART release marker" >&2
+        return 1
+    fi
+    for required_line in 'dtoverlay=disable-bt' 'enable_uart=0'; do
+        if [ "$(grep -cFx "$required_line" "$config" || true)" -ne 1 ]; then
+            echo "trusted-parent-v0.7.5: legacy Raspberry config is missing or duplicating $required_line" >&2
+            return 1
+        fi
+    done
+    if grep -Eq '^[[:space:]]*enable_uart[[:space:]]*=[[:space:]]*1([[:space:]]|$)' "$config"; then
+        echo "trusted-parent-v0.7.5: Raspberry UART enablement remains" >&2
+        return 1
+    fi
+    cmdline="${config%config.txt}cmdline.txt"
+    if [ ! -f "$cmdline" ] || [ -L "$cmdline" ]; then
+        echo "trusted-parent-v0.7.5: Raspberry cmdline is missing or symlinked" >&2
+        return 1
+    fi
+    if grep -qP '\x00' "$cmdline" || [ "$(grep -c '' "$cmdline")" -gt 1 ]; then
+        echo "trusted-parent-v0.7.5: Raspberry cmdline is multiline or contains NUL" >&2
+        return 1
+    fi
+    read -r -a tokens < "$cmdline"
+    for token in "${tokens[@]}"; do
+        if [ "$token" = console=serial0,115200 ]; then
+            legacy_serial_console_count=$((legacy_serial_console_count + 1))
+        elif [[ "$token" =~ ^console=(serial0|ttyAMA0|ttyS0)(,[^[:space:]]+)?$ ]]; then
+            echo "trusted-parent-v0.7.5: unexpected legacy serial console token: $token" >&2
+            return 1
+        fi
+    done
+    if [ "$legacy_serial_console_count" -ne 1 ]; then
+        echo "trusted-parent-v0.7.5: legacy Raspberry cmdline must contain exactly console=serial0,115200" >&2
+        return 1
+    fi
+    for unit in serial0 ttyAMA0 ttyS0; do
+        mask="$image_root/etc/systemd/system/serial-getty@$unit.service"
+        if [ -e "$mask" ] || [ -L "$mask" ]; then
+            echo "trusted-parent-v0.7.5: legacy Raspberry parent contains a current serial-getty mask: $unit" >&2
+            return 1
+        fi
+    done
+    for unit in hciuart bluetooth; do
+        enablement="$image_root/etc/systemd/system/multi-user.target.wants/$unit.service"
+        if [ -e "$enablement" ] || [ -L "$enablement" ]; then
+            echo "trusted-parent-v0.7.5: legacy Raspberry parent contains Bluetooth service enablement: $unit" >&2
+            return 1
+        fi
+    done
+}
+
+require_octessera_raspberry_identity_for_boot_layer() {
+    case "${OCTESSERA_BOOT_LAYER_CLASSIFICATION:-unknown}" in
+        constructor-required)
+            require_octessera_raspberry_identity "$@"
+            ;;
+        trusted-parent-v0.7.5)
+            require_octessera_trusted_parent_raspberry_identity "$@"
+            ;;
+        *)
+            echo "Raspberry identity: boot layer classification is unknown" >&2
+            return 1
+            ;;
+    esac
+}
+
 require_octessera_boot_config() {
     local boot_root="$1"
     local image_root="$2"
