@@ -10,6 +10,7 @@ pub mod i2s_dac;
 pub mod neokey;
 pub mod neotrellis;
 pub mod oled_ssd1351;
+pub mod oled_startup_plan;
 #[cfg(feature = "orange-pi-zero-2w")]
 pub mod orange_encoder_gpio;
 #[cfg(feature = "orange-pi-zero-2w")]

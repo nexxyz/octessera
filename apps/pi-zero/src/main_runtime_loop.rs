@@ -67,7 +67,7 @@ pub(crate) fn maybe_advance_runtime(
     snapshot_interval: Duration,
     last_render: &mut Instant,
     render_interval: Duration,
-    last_rendered_snapshot_revision: &mut u64,
+    last_published_snapshot_revision: &mut u64,
     transient_render_until: &mut Option<Instant>,
     _pending_encoder_turns: &mut PendingEncoderTurns,
     playback: &mut PlaybackRuntime,
@@ -100,7 +100,7 @@ pub(crate) fn maybe_advance_runtime(
         now,
         last_render,
         render_interval,
-        last_rendered_snapshot_revision,
+        last_published_snapshot_revision,
         transient_render_until,
         playback,
         render_worker,
@@ -241,7 +241,7 @@ fn service_render_if_due(
     now: Instant,
     last_render: &mut Instant,
     render_interval: Duration,
-    last_rendered_snapshot_revision: &mut u64,
+    last_published_snapshot_revision: &mut u64,
     transient_render_until: &mut Option<Instant>,
     playback: &mut PlaybackRuntime,
     render_worker: &RenderWorker,
@@ -256,7 +256,7 @@ fn service_render_if_due(
     }
     let pulses = playback.drain_ui_pulses();
     update_transient_render_deadline(now, transient_render_until, &pulses);
-    let snapshot_changed = *last_rendered_snapshot_revision != snapshot_revision;
+    let snapshot_changed = *last_published_snapshot_revision != snapshot_revision;
     if !snapshot_changed
         && pulses.is_empty()
         && !transient_render_active(now, transient_render_until)
@@ -270,7 +270,7 @@ fn service_render_if_due(
         eprintln!("pi render worker rejected snapshot publication");
         return;
     }
-    *last_rendered_snapshot_revision = snapshot_revision;
+    *last_published_snapshot_revision = snapshot_revision;
 }
 
 fn update_transient_render_deadline(

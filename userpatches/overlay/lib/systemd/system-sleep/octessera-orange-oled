@@ -6,6 +6,6 @@ case "${1:-}" in
     /usr/local/sbin/octessera-orange-oled-logo sleep || true
     ;;
   post)
-    /usr/local/sbin/octessera-orange-oled-logo boot || true
+    /usr/local/sbin/octessera-orange-oled-logo resume || true
     ;;
 esac

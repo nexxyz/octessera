@@ -65,8 +65,14 @@ assert_action_contains "\"\$octessera_checkout_head\" == \"\$GITHUB_SOURCE_SHA\"
 assert_action_contains 'build/output/images'
 assert_action_contains 'verify-orange-image.sh'
 assert_action_contains 'apt-get install -y --no-install-recommends cpio zstd'
-assert_action_contains 'octessera-orange-image-provenance.txt'
+assert_action_contains 'octessera-orange-image-proof.json'
 assert_action_contains 'Prove final Orange image against exact packages'
+assert_action_contains 'tools/legal/stage_notices.py'
+if grep -qF 'legal-source' "$action"; then
+    echo 'Armbian build action must not create a generated legal source tree.' >&2
+    exit 1
+fi
+assert_action_contains 'Clean generated legal staging from disposable output'
 
 if grep -qF "printf '%s\\n' \"github_source_sha=\$GITHUB_SOURCE_SHA\"" "$action"; then
     echo 'Armbian build action must not contain a dead provenance printf shim.' >&2

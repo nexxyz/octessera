@@ -241,6 +241,11 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                 NativeMenuAction::PlatformEffect("system.info".into()),
             ),
             action_item(
+                "Configure WiFi",
+                "system.configureWifi",
+                NativeMenuAction::PlatformEffect("system.configureWifi".into()),
+            ),
+            action_item(
                 "Basic Help",
                 "system.controlsHelp",
                 NativeMenuAction::PlatformEffect("system.controlsHelp".into()),

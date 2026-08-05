@@ -6,8 +6,9 @@ use crate::native_menu::{
 #[cfg(test)]
 use crate::protocol::{HostMessage, RunnerMessage, RuntimeAudioCommand, RuntimeStoreResult};
 use crate::protocol::{
-    MidiPort, RuntimeErrorCode, RuntimeMomentaryFxTarget, RuntimePlatformEffect, RuntimeSystemInfo,
-    RuntimeSystemInfoError, RuntimeTransportState, SampleEntry, SyncSource,
+    MidiPort, RuntimeErrorCode, RuntimeMomentaryFxTarget, RuntimePlatformEffect,
+    RuntimeSetupPortalPhase, RuntimeSetupPortalStatus, RuntimeSystemInfo, RuntimeSystemInfoError,
+    RuntimeTransportState, SampleEntry, SyncSource,
 };
 use crate::runtime::{CoreRunner, RuntimeConfig};
 use crate::timing_units::{note_unit_from_pulses, note_unit_to_pulses};
@@ -65,6 +66,7 @@ mod behavior_menu_actions;
 mod behavior_target_menu;
 mod binding_payload;
 mod binding_specs;
+mod canonical_presentation;
 mod clear_patch_state;
 mod config;
 mod config_schema;
@@ -153,6 +155,7 @@ mod sample_assignment_payload;
 mod sample_browser;
 mod sample_paths;
 mod scan_overlay;
+mod setup_portal_state;
 mod snapshot;
 mod snapshot_audio_settings;
 mod snapshot_display;

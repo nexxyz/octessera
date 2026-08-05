@@ -1,0 +1,14 @@
+# Octessera notice
+
+This compact notice is for standalone release archives. It is not an exhaustive
+dependency inventory and does not claim legal compliance.
+
+- Original Octessera material: [`LICENSE`](LICENSE).
+- Reviewed known-material notices: [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+- Samples and upstream designations: [`samples/ATTRIBUTIONS.tsv`](samples/ATTRIBUTIONS.tsv) and [`samples/upstream/`](samples/upstream/).
+- Hardware references and attribution: [`hardware/ATTRIBUTIONS.md`](hardware/ATTRIBUTIONS.md).
+- Attribution and future release source/licensing review: [`docs/release-licensing.md`](docs/release-licensing.md).
+
+Keep this notice and the applicable component notices with any standalone
+artifact. Generated Cargo and pnpm dependency inventories are maintained
+separately at `licenses/cargo/inventory.json` and `licenses/pnpm/inventory.json`.

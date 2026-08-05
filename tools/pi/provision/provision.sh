@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-PACKAGE_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+PACKAGE_ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 IMAGE_ROOT="$PACKAGE_ROOT/root"
 PROVISION_ROOT="$PACKAGE_ROOT/files"
 DEVICE_UPDATE_ROOT="$PACKAGE_ROOT/device-update"
@@ -43,7 +43,7 @@ install_file() {
     mode="$1"
     source="$2"
     destination="$3"
-    test -f "$source"
+    test -f "$source" && test ! -L "$source"
     sudo install -D -m "$mode" "$source" "$destination"
 }
 
@@ -52,11 +52,6 @@ ensure_boot_config_line() {
     if ! grep -qxF "$line" "$BOOT_CONFIG"; then
         printf '%s\n' "$line" | sudo tee -a "$BOOT_CONFIG" >/dev/null
     fi
-}
-
-disable_service_if_present() {
-    service="$1"
-    sudo systemctl disable --now "$service" >/dev/null 2>&1 || true
 }
 
 escape_sed_replacement() {
@@ -72,6 +67,7 @@ test -f "$BOOT_CONFIG"
 while IFS= read -r line || [ -n "$line" ]; do
     case "$line" in
         ''|'#'*) continue ;;
+        dtoverlay=disable-bt|enable_uart=0) continue ;;
     esac
     ensure_boot_config_line "$line"
 done < "$PROVISION_ROOT/boot/config.txt.append"
@@ -80,7 +76,8 @@ sudo rm -f \
     /etc/initramfs-tools/hooks/cellsymphony-boot-splash \
     /etc/initramfs-tools/scripts/init-premount/cellsymphony-boot-splash \
     /etc/systemd/system/cellsymphony-boot-splash.service \
-    /etc/systemd/system/sysinit.target.wants/cellsymphony-boot-splash.service
+    /etc/systemd/system/sysinit.target.wants/cellsymphony-boot-splash.service \
+    /etc/systemd/system/multi-user.target.wants/cellsymphony-boot-splash.service
 
 install_file 0755 "$IMAGE_ROOT/usr/local/sbin/octessera-usb-gadget" /usr/local/sbin/octessera-usb-gadget
 install_file 0755 "$IMAGE_ROOT/usr/local/sbin/octessera-update" /usr/local/sbin/octessera-update
@@ -109,6 +106,7 @@ install_file 0755 "$IMAGE_ROOT/usr/local/bin/octessera-network-health" /usr/loca
 install_file 0440 "$IMAGE_ROOT/etc/sudoers.d/octessera-shutdown" /etc/sudoers.d/octessera-shutdown
 install_file 0440 "$IMAGE_ROOT/etc/sudoers.d/octessera-update" /etc/sudoers.d/octessera-update
 install_file 0644 "$IMAGE_ROOT/etc/profile.d/octessera-welcome.sh" /etc/profile.d/octessera-welcome.sh
+install_file 0755 "$IMAGE_ROOT/usr/local/lib/octessera/rpi_uart_release.py" /usr/local/lib/octessera/rpi_uart_release.py
 sudo install -d -m 0755 /etc/octessera
 printf 'OCTESSERA_BOARD_PROFILE_ID=%s\n' "$BOARD_PROFILE" | sudo tee /etc/octessera/board-profile.env >/dev/null
 
@@ -129,6 +127,21 @@ sudo sed -i 's/\r$//' \
     /etc/systemd/journald.conf.d/10-octessera.conf \
     /etc/NetworkManager/conf.d/10-octessera-wifi-powersave.conf \
     /etc/profile.d/octessera-welcome.sh
+
+pi_record="$(getent passwd pi)"
+IFS=: read -r pi_user _ pi_uid pi_gid _ pi_home pi_shell <<EOF
+$pi_record
+EOF
+test "$pi_user" = pi && test "$pi_home" = /home/pi && test "$pi_shell" = /bin/bash
+test -d "$pi_home" && test ! -L "$pi_home"
+hushlogin="$pi_home/.hushlogin"
+if [ -e "$hushlogin" ] || [ -L "$hushlogin" ]; then
+    test -f "$hushlogin" && test ! -L "$hushlogin" && test "$(stat -c '%u:%g:%a:%s' "$hushlogin")" = "$pi_uid:$pi_gid:644:0" && test ! -s "$hushlogin"
+else
+    sudo install -D -m 0644 /dev/null "$hushlogin"
+    sudo chown "$pi_user:$pi_user" "$hushlogin"
+fi
+sudo /usr/local/lib/octessera/rpi_uart_release.py --live
 
 REMOTE_REPO_ESCAPED=$(escape_sed_replacement "$REMOTE_REPO")
 if [ "$WAKE_TRACE" = "1" ]; then
@@ -154,6 +167,7 @@ sudo visudo -cf /etc/sudoers.d/octessera-update >/dev/null
 if [ "$UPDATE_INITRAMFS" = "1" ]; then
     if ! grep -qxF "# octessera required boot settings" "$BOOT_CONFIG" && ! grep -qxF "# Octessera required boot settings" "$BOOT_CONFIG"; then
         printf '\n' | sudo tee -a "$BOOT_CONFIG" >/dev/null
+        # shellcheck disable=SC2024
         sudo tee -a "$BOOT_CONFIG" < "$PROVISION_ROOT/boot/config.txt.initramfs.append" >/dev/null
     fi
     ensure_boot_config_line "dtparam=spi=on"
@@ -178,8 +192,6 @@ fi
 
 sudo install -d -m 0750 /etc/sudoers.d
 sudo systemctl restart systemd-journald
-disable_service_if_present bluetooth.service
-disable_service_if_present hciuart.service
 sudo iw dev wlan0 set power_save off >/dev/null 2>&1 || true
 sudo nmcli connection modify preconfigured 802-11-wireless.powersave 2 >/dev/null 2>&1 || true
 sudo nmcli device reapply wlan0 >/dev/null 2>&1 || true
@@ -196,4 +208,5 @@ sudo systemctl start octessera-oled-shutdown.service
 sudo systemctl enable octessera-performance-governor.service >/dev/null
 sudo systemctl start octessera-performance-governor.service
 sudo systemctl enable "$SERVICE" >/dev/null
-sudo systemctl disable octessera-boot-splash.service >/dev/null 2>&1 || true
+sudo rm -f /etc/systemd/system/multi-user.target.wants/octessera-boot-splash.service
+sudo systemctl enable octessera-boot-splash.service >/dev/null

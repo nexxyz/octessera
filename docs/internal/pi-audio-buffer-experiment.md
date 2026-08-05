@@ -1,6 +1,6 @@
 # Pi audio buffer experiment: 128-frame rendering and output
 
-Decision: keep the Pi at 256-frame internal render blocks and a 256-frame output buffer for product defaults.
+Product defaults remain 256-frame internal render blocks, a 256-frame output buffer, and 2 synth-slot workers.
 
 ## What we tested
 

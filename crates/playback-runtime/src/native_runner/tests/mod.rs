@@ -33,6 +33,7 @@ mod pulses_and_tones_menu;
 mod runtime_control;
 mod runtime_transport;
 mod sample_browser_store;
+mod setup_portal;
 mod shutdown;
 mod snapshot_autosave;
 mod snapshot_runtime;

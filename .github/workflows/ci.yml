@@ -280,10 +280,17 @@ jobs:
           bash -n tools/pi/board-profile.sh tools/pi/build-pi-cross-wsl.sh tools/pi/deploy-pi.sh tools/pi/provision/provision.sh tools/orange-pi/input-routing-provision.sh tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget tools/pi-image/test-usb-gadget.sh
           bash tools/pi/test-board-profile.sh
           python3 tools/pi-image/test-board-profile.py
+          sudo bash tools/pi-image/test-rpi-boot-splash.sh
+          sudo bash tools/pi-image/test-rpi-boot-services.sh
+          python3 tools/pi-image/test-boot-layer-contract.py
+          python3 tools/pi-image/test-welcome.py
+          sudo python3 tools/pi-image/test-rpi-uart-release.py
+          sudo bash tools/pi-image/test-sanitized-image-boot-layout.sh
+          sudo python3 tools/pi-image/test-rpi-kernel-image.py
           bash tools/armbian-image/validate.sh
           bash tools/armbian-image/test-build-armbian-action.sh
           python3 tools/kernel-patches/test-orange-midi-interface-source-gate.py
-          shellcheck tools/orange-pi/opi-bringup-probe.sh tools/orange-pi/test-opi-bringup-probe.sh tools/orange-pi/opi-bringup-validator.sh tools/orange-pi/opi-bringup-identity-validator.sh tools/orange-pi/opi-bringup-hardware-validator.sh tools/orange-pi/orange-pi-usb-gadget.sh tools/orange-pi/input-routing-provision.sh tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget tools/pi-image/test-usb-gadget.sh
+          shellcheck tools/orange-pi/opi-bringup-probe.sh tools/orange-pi/test-opi-bringup-probe.sh tools/orange-pi/opi-bringup-validator.sh tools/orange-pi/opi-bringup-identity-validator.sh tools/orange-pi/opi-bringup-hardware-validator.sh tools/orange-pi/orange-pi-usb-gadget.sh tools/orange-pi/input-routing-provision.sh tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget tools/pi-image/test-usb-gadget.sh tools/pi-image/stage4-octessera/02-setup-service/00-run.sh tools/pi-image/stage4-octessera/03-boot-config/00-run.sh tools/pi/provision/provision.sh tools/pi-image/verify-boot-layout.sh tools/armbian-image/stage-canonical-welcome.sh
           bash tools/orange-pi/test-opi-bringup-probe.sh
           bash tools/orange-pi/test-orange-pi-usb-gadget.sh
           bash tools/pi-image/test-usb-gadget.sh
@@ -297,12 +304,62 @@ jobs:
       - name: Validate Raspberry profile boundaries
         shell: pwsh
         run: ./tools/pi/test-board-profile.ps1
+      - name: Validate fast deployment target handling
+        shell: pwsh
+        run: ./tools/pi/test-deploy-pi-fast.ps1
       - name: Validate Orange profile PowerShell scripts
         shell: pwsh
         run: |
           ./tools/orange-pi/test-build-orange-cross.ps1
           ./tools/orange-pi/test-run-opi-bringup.ps1
           ./tools/orange-pi/test-provision-input-routing.ps1
+
+  legal_packaging:
+    name: Legal packaging tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Run lightweight legal packaging tests
+        run: python3 -m unittest discover -s tools/legal -p 'test_*.py'
+
+  image_respin:
+    name: Image respin tests
+    runs-on: ubuntu-latest
+    env:
+      CI: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Install image respin test dependencies
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends cpio dosfstools e2fsprogs kpartx shellcheck unzip util-linux xz-utils zstd
+      - name: Install pinned actionlint
+        run: |
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+      - name: Lint workflows and every embedded shell script
+        run: |
+          "$(go env GOPATH)/bin/actionlint" -shellcheck shellcheck .github/workflows/respin-board-image.yml .github/workflows/ci.yml .github/workflows/release-artifacts.yml .github/workflows/release-board-artifacts.yml .github/workflows/armbian-image.yml .github/workflows/orange-ahub-kernel.yml
+      - name: Compile all image respin Python files
+        run: python3 -m py_compile tools/image-respin/*.py
+      - name: Run disk and runtime image respin tests as root
+        run: |
+          sudo python3 tools/image-respin/test_setup_mutation.py
+          sudo python3 -m unittest discover -s tools/image-respin -p 'test_disk_*.py'
+          sudo python3 -m unittest discover -s tools/image-respin -p 'test_runtime_mutation.py'
+          sudo python3 -m unittest discover -s tools/image-respin -p 'test_runtime_metadata.py'
+          sudo python3 tools/image-respin/test_inventory.py
+          sudo python3 tools/image-respin/test_provenance.py
+      - name: Run trust, bundle, and workflow tests without root
+        run: |
+          python3 tools/image-respin/test_setup_contract.py
+          python3 tools/image-respin/test_trust_manifest.py
+          python3 tools/image-respin/test_runtime_bundle.py
+          python3 tools/image-respin/test_runtime_contract.py
+          python3 tools/image-respin/test_workflow_records.py
+          python3 tools/image-respin/test_setup_workflow_records.py
+          python3 tools/image-respin/test_workflow_static.py
 
   updater_protocol:
     name: Device updater protocol checks
@@ -330,7 +387,10 @@ jobs:
           cmp tools/device-update/octessera-update-guard userpatches/overlay/usr/local/sbin/octessera-update-guard
           cmp tools/device-update/octessera-update-recovery tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-update-recovery
           cmp tools/device-update/octessera-update-recovery userpatches/overlay/usr/local/sbin/octessera-update-recovery
-          ! grep -Eq 'octessera-update-(guard|recovery)' tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-update userpatches/overlay/etc/sudoers.d/octessera-update
+          if grep -Eq 'octessera-update-(guard|recovery)' tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-update userpatches/overlay/etc/sudoers.d/octessera-update; then
+            echo 'updater internals must not be exposed through sudoers' >&2
+            exit 1
+          fi
           grep -q 'update-transaction.json' tools/pi/deploy-pi-fast.ps1
           bash tools/pi-image/test-wifi-foundation.sh
       - name: Validate Linux sudoers and systemd layout
@@ -345,8 +405,14 @@ jobs:
           install -D -m 0755 tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-update-recovery "$root/usr/local/sbin/octessera-update-recovery"
           install -D -m 0644 tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-update-guard.service "$root/etc/systemd/system/octessera-update-guard.service"
           install -D -m 0644 tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-update-recovery.service "$root/etc/systemd/system/octessera-update-recovery.service"
-          ! grep -q '^ConditionPathExists=' tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-update-recovery.service
-          ! grep -q '^ConditionPathExists=' userpatches/overlay/etc/systemd/system/octessera-update-recovery.service
+          if grep -q '^ConditionPathExists=' tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-update-recovery.service; then
+            echo 'stage4 recovery service must not be conditional' >&2
+            exit 1
+          fi
+          if grep -q '^ConditionPathExists=' userpatches/overlay/etc/systemd/system/octessera-update-recovery.service; then
+            echo 'overlay recovery service must not be conditional' >&2
+            exit 1
+          fi
           systemd-analyze --root="$root" verify octessera-update-guard.service octessera-update-recovery.service
           rm -rf "$root"
 

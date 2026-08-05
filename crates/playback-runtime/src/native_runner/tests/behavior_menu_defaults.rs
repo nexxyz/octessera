@@ -44,6 +44,38 @@ fn assert_lightning_defaults(items: &[crate::native_menu::NativeMenuItem], layer
     );
 }
 
+#[test]
+pub(crate) fn invalid_step_rate_pulses_use_the_canonical_menu_default() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.transport.algorithm_step_pulses = 7;
+    runner.transport.layer_algorithm_step_pulses[0] = 7;
+
+    let config = runner.menu_config();
+
+    assert_eq!(
+        enum_selected_for_key(&config.worlds_items, "algorithmStep"),
+        Some(crate::timing_units::DEFAULT_NOTE_UNIT.into())
+    );
+    assert_eq!(
+        enum_selected_for_key(&config.behavior_target_items[0], "layers.0.algorithmStep"),
+        Some(crate::timing_units::DEFAULT_NOTE_UNIT.into())
+    );
+}
+
+fn enum_selected_for_key(
+    items: &[crate::native_menu::NativeMenuItem],
+    key: &str,
+) -> Option<String> {
+    items.iter().find_map(|item| {
+        if item.key.as_deref() == Some(key) {
+            if let crate::native_menu::NativeMenuValue::Enum { options, selected } = &item.value {
+                return options.get(*selected).cloned();
+            }
+        }
+        enum_selected_for_key(&item.children, key)
+    })
+}
+
 fn number_for_key(items: &[crate::native_menu::NativeMenuItem], key: &str) -> Option<i32> {
     items.iter().find_map(|item| {
         if item.key.as_deref() == Some(key) {

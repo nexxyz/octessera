@@ -1,0 +1,260 @@
+{
+  "schema": "octessera.image-parent-trust/v1",
+  "release": {
+    "repository": "nexxyz/octessera",
+    "tag": "v0.7.5",
+    "url": "https://github.com/nexxyz/octessera/releases/tag/v0.7.5",
+    "published_at": "2026-08-02T14:27:16Z",
+    "source_commit": "4eec2b7edf6619fa22c709d4a589237a5748de78",
+    "asset_count": 27,
+    "is_draft": false,
+    "is_prerelease": false
+  },
+  "image_parents": [
+    {
+      "board": "orange-pi-zero-2w",
+      "artifact_class": "trusted-production-parent",
+      "asset": "octessera-0.7.5-orange-pi-zero-2w.img.xz",
+      "proof_companion_assets": [
+        "octessera-0.7.5-orange-pi-zero-2w.img.xz.sha256",
+        "linux-image-current-sunxi64_26.8.0-trunk.417_arm64.deb",
+        "linux-dtb-current-sunxi64_26.8.0-trunk.417_arm64.deb",
+        "octessera-orange-kernel-evidence.env",
+        "octessera-orange-kernel-provenance.txt",
+        "octessera-orange-image-provenance.txt",
+        "SHA256SUMS-orange-pi-zero-2w.txt"
+      ]
+    },
+    {
+      "board": "raspberry-pi-zero-2w",
+      "artifact_class": "trusted-production-parent",
+      "asset": "octessera-0.7.5-raspberry-pi-zero-2w.img.zip",
+      "proof_companion_assets": [
+        "octessera-0.7.5-raspberry-pi-zero-2w.rpi-imager-manifest",
+        "SHA256SUMS-pi.txt",
+        "linux-image-6.12.93-octessera-rpi-v8-0.7.5_6.12.93-octessera0.7.5-1_arm64.deb",
+        "octessera-0.7.5-raspberry-pi-zero-2w-kernel-SHA256SUMS",
+        "octessera-0.7.5-raspberry-pi-zero-2w-kernel-inventory.json",
+        "octessera-0.7.5-raspberry-pi-zero-2w-kernel-provenance.json"
+      ]
+    }
+  ],
+  "assets": [
+    {
+      "name": "linux-dtb-current-sunxi64_26.8.0-trunk.417_arm64.deb",
+      "node_id": "RA_kwDOSRMMls4dvb73",
+      "size": 153572,
+      "sha256": "cacb3104f6850a2136fe13ace132e7cb90e47bdf6f136b22b3bb8899a16fb67f",
+      "content_type": "application/x-debian-package",
+      "artifact_class": "proof-companion"
+    },
+    {
+      "name": "linux-image-6.12.93-octessera-rpi-v8-0.7.5_6.12.93-octessera0.7.5-1_arm64.deb",
+      "node_id": "RA_kwDOSRMMls4dvb74",
+      "size": 32775464,
+      "sha256": "bd5632fcc3a2156c39e67d952c69109026d73d93793da5912a805965f233c6d2",
+      "content_type": "application/x-debian-package",
+      "artifact_class": "proof-companion"
+    },
+    {
+      "name": "linux-image-current-sunxi64_26.8.0-trunk.417_arm64.deb",
+      "node_id": "RA_kwDOSRMMls4dvb76",
+      "size": 31060928,
+      "sha256": "cc8469169fd05c2048b1cd3c4efb4fda66308ef7bed93cb8fcee7a6f40fcd463",
+      "content_type": "application/x-debian-package",
+      "artifact_class": "proof-companion"
+    },
+    {
+      "name": "octessera-0.7.5-macos-unsigned.dmg",
+      "node_id": "RA_kwDOSRMMls4dvb7-",
+      "size": 4533134,
+      "sha256": "b929be51068cdba251f909834ef0030b95f8759b15665eb64c622dccfa949e7f",
+      "content_type": "application/x-apple-diskimage",
+      "artifact_class": "other-release-asset"
+    },
+    {
+      "name": "octessera-0.7.5-orange-pi-zero-2w-standalone-manual-aarch64.zip",
+      "node_id": "RA_kwDOSRMMls4dvb8D",
+      "size": 2601354,
+      "sha256": "a78449e7ee15649909d048bdac002522332848d1398693dd7c36968b9c72479c",
+      "content_type": "application/zip",
+      "artifact_class": "other-release-asset"
+    },
+    {
+      "name": "octessera-0.7.5-orange-pi-zero-2w.img.xz",
+      "node_id": "RA_kwDOSRMMls4dvb8H",
+      "size": 353061152,
+      "sha256": "ecf1cb7e4174ef6a149be306854ebcb1667ed55f6ab5de583af62a1c147d9517",
+      "content_type": "application/x-xz",
+      "artifact_class": "trusted-production-parent"
+    },
+    {
+      "name": "octessera-0.7.5-orange-pi-zero-2w.img.xz.sha256",
+      "node_id": "RA_kwDOSRMMls4dvb8U",
+      "size": 107,
+      "sha256": "718f87738f6b8b8f4f3818317f879d1691e953f6b96ce193ed9634d7d26efa18",
+      "content_type": "application/octet-stream",
+      "artifact_class": "proof-companion"
+    },
+    {
+      "name": "octessera-0.7.5-raspberry-pi-zero-2w-device-aarch64.zip",
+      "node_id": "RA_kwDOSRMMls4dvb8V",
+      "size": 2803899,
+      "sha256": "9d95f781e7166be26780cd9924dc6e626c3ec67bf0109187610c77a668c43bbe",
+      "content_type": "application/zip",
+      "artifact_class": "other-release-asset"
+    },
+    {
+      "name": "octessera-0.7.5-raspberry-pi-zero-2w-kernel-inventory.json",
+      "node_id": "RA_kwDOSRMMls4dvb8d",
+      "size": 513283,
+      "sha256": "2afde3a64b28acef5ab7993abf50e1922d50018d626cd2ca2f5190d5f450d68b",
+      "content_type": "application/json",
+      "artifact_class": "proof-companion"
+    },
+    {
+      "name": "octessera-0.7.5-raspberry-pi-zero-2w-kernel-provenance.json",
+      "node_id": "RA_kwDOSRMMls4dvb8e",
+      "size": 524956,
+      "sha256": "ced28f9de394043913c11a62dce5faef17dc7f0f0cbcf625af54013d95fb4a1c",
+      "content_type": "application/json",
+      "artifact_class": "proof-companion"
+    },
+    {
+      "name": "octessera-0.7.5-raspberry-pi-zero-2w-kernel-SHA256SUMS",
+      "node_id": "RA_kwDOSRMMls4dvb8Z",
+      "size": 144,
+      "sha256": "b85e9741a34d12bad0c544e93bdfd030181e52385933eedae887bd99982aaa55",
+      "content_type": "application/octet-stream",
+      "artifact_class": "proof-companion"
+    },
+    {
+      "name": "octessera-0.7.5-raspberry-pi-zero-2w.img.zip",
+      "node_id": "RA_kwDOSRMMls4dvb8g",
+      "size": 848264193,
+      "sha256": "f193622518827fa35f25da784f26c39fd75ebd5f419973a6e1b2784dde792e27",
+      "content_type": "application/zip",
+      "artifact_class": "trusted-production-parent"
+    },
+    {
+      "name": "octessera-0.7.5-raspberry-pi-zero-2w.rpi-imager-manifest",
+      "node_id": "RA_kwDOSRMMls4dvb8f",
+      "size": 1655,
+      "sha256": "daf02c6238e06d7fa7163ce8b328d7f8b47352a2635c1e0ea39a172152fff152",
+      "content_type": "application/octet-stream",
+      "artifact_class": "proof-companion"
+    },
+    {
+      "name": "octessera-0.7.5-ubuntu-amd64.deb",
+      "node_id": "RA_kwDOSRMMls4dvb8j",
+      "size": 4904656,
+      "sha256": "6a35a01fe61d1a155d9712ce5eb9de583f0f4e82f2b482600cec9c92e93e7606",
+      "content_type": "application/x-debian-package",
+      "artifact_class": "other-release-asset"
+    },
+    {
+      "name": "octessera-0.7.5-ubuntu-x86_64.AppImage",
+      "node_id": "RA_kwDOSRMMls4dvb8i",
+      "size": 82311672,
+      "sha256": "7fc4c469a29150eff956ea998513755e97cb1849b4b0bc8269602c2668bc940c",
+      "content_type": "application/vnd.appimage",
+      "artifact_class": "other-release-asset"
+    },
+    {
+      "name": "octessera-0.7.5-windows-installer.exe",
+      "node_id": "RA_kwDOSRMMls4dvb8k",
+      "size": 3826124,
+      "sha256": "33e50a42cff368fca01a30c1ae3f7430663c29897a17a592f43df13926d94713",
+      "content_type": "application/octet-stream",
+      "artifact_class": "other-release-asset"
+    },
+    {
+      "name": "octessera-0.7.5-windows-portable.exe",
+      "node_id": "RA_kwDOSRMMls4dvb8q",
+      "size": 15196160,
+      "sha256": "9810ee69363edd0a80c056855065cd30d814de76aeb7054d675a7c4df8e2d122",
+      "content_type": "application/octet-stream",
+      "artifact_class": "other-release-asset"
+    },
+    {
+      "name": "octessera-orange-image-provenance.txt",
+      "node_id": "RA_kwDOSRMMls4dvb8s",
+      "size": 1155,
+      "sha256": "847f389b68cdfa253d5e7a9801c20b9da7cd1f37a6dc8fda11981e3100d2a768",
+      "content_type": "text/plain; charset=utf-8",
+      "artifact_class": "proof-companion"
+    },
+    {
+      "name": "octessera-orange-kernel-evidence.env",
+      "node_id": "RA_kwDOSRMMls4dvb8v",
+      "size": 1442,
+      "sha256": "f01917b156daf108294d6dda11f9b05047a4d51856aaa631155da4b6cfd432e3",
+      "content_type": "application/octet-stream",
+      "artifact_class": "proof-companion"
+    },
+    {
+      "name": "octessera-orange-kernel-provenance.txt",
+      "node_id": "RA_kwDOSRMMls4dvb81",
+      "size": 3622,
+      "sha256": "6f3894c60057f6d16e30f726ca7f9b14ee3ae4e616a339af501ac0ff22b528a9",
+      "content_type": "text/plain; charset=utf-8",
+      "artifact_class": "proof-companion"
+    },
+    {
+      "name": "SHA256SUMS-macos.txt",
+      "node_id": "RA_kwDOSRMMls4dvb7p",
+      "size": 101,
+      "sha256": "f969b87ec0acf0a57d07a82beae3994cd1bc02b1433660b61e3d97a0cf99bfca",
+      "content_type": "text/plain; charset=utf-8",
+      "artifact_class": "other-release-asset"
+    },
+    {
+      "name": "SHA256SUMS-orange-pi-zero-2w-device.txt",
+      "node_id": "RA_kwDOSRMMls4dvb7s",
+      "size": 130,
+      "sha256": "16a08e0e0693ec6b9e198ceeddb1596c280a6317e5824cfbb6a311a81b161ce4",
+      "content_type": "text/plain; charset=utf-8",
+      "artifact_class": "other-release-asset"
+    },
+    {
+      "name": "SHA256SUMS-orange-pi-zero-2w.txt",
+      "node_id": "RA_kwDOSRMMls4dvb7o",
+      "size": 666,
+      "sha256": "ed0dce89ef4e0b615d1ae6268b66450acec3426c69eb7463d08d4d2d5a6b881f",
+      "content_type": "text/plain; charset=utf-8",
+      "artifact_class": "proof-companion"
+    },
+    {
+      "name": "SHA256SUMS-pi.txt",
+      "node_id": "RA_kwDOSRMMls4dvb7q",
+      "size": 234,
+      "sha256": "c0d42e78a5523d7a73773c11b3d5d6cfa7d9d35547aacd6900bcd4d553532685",
+      "content_type": "text/plain; charset=utf-8",
+      "artifact_class": "proof-companion"
+    },
+    {
+      "name": "SHA256SUMS-raspberry-pi-zero-2w-device.txt",
+      "node_id": "RA_kwDOSRMMls4dvb7r",
+      "size": 122,
+      "sha256": "878b3cfa55b001f30954bddf46a439b1eae3eb36ef1b28025ad98d70af806518",
+      "content_type": "text/plain; charset=utf-8",
+      "artifact_class": "other-release-asset"
+    },
+    {
+      "name": "SHA256SUMS-ubuntu.txt",
+      "node_id": "RA_kwDOSRMMls4dvb72",
+      "size": 204,
+      "sha256": "037055a8d3de92a39fc172807d3933f89109078348deafed195841ec483d7821",
+      "content_type": "text/plain; charset=utf-8",
+      "artifact_class": "other-release-asset"
+    },
+    {
+      "name": "SHA256SUMS-windows.txt",
+      "node_id": "RA_kwDOSRMMls4dvb71",
+      "size": 209,
+      "sha256": "826790c0910f1249ed8fb1983838214a7b9c43b20973b5bbb7cadc5db429eef3",
+      "content_type": "text/plain; charset=utf-8",
+      "artifact_class": "other-release-asset"
+    }
+  ]
+}

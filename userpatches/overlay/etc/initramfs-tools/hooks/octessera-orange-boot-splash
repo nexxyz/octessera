@@ -18,8 +18,9 @@ esac
 . /usr/share/initramfs-tools/hook-functions
 
 copy_exec /usr/local/sbin/octessera-orange-oled-logo /usr/local/sbin/octessera-orange-oled-logo
+copy_file binary /usr/local/sbin/octessera-orange-oled-handoff.py /usr/local/sbin/octessera-orange-oled-handoff.py
 copy_exec /usr/bin/python3 /usr/bin/python3
-copy_exec /usr/bin/gpiodetect /usr/bin/gpiodetect
+copy_exec /usr/bin/setsid /usr/bin/setsid
 copy_exec /usr/bin/gpioset /usr/bin/gpioset
 
 copy_python_file() {
@@ -90,6 +91,13 @@ for python_dir in /usr/lib/python3.*; do
       "$python_dir/selectors.py"; do
       copy_python_file "$python_file"
     done
+    for python_file in \
+      "$python_dir/json/__init__.py" \
+      "$python_dir/json/decoder.py" \
+      "$python_dir/json/encoder.py" \
+      "$python_dir/json/scanner.py"; do
+      copy_python_file "$python_file"
+    done
     for python_package in \
       "$python_dir/importlib/__init__.py" \
       "$python_dir/importlib/_abc.py" \
@@ -97,7 +105,7 @@ for python_dir in /usr/lib/python3.*; do
       "$python_dir/importlib/util.py"; do
       copy_python_file "$python_package"
     done
-    for python_module in fcntl math _posixsubprocess select _struct zlib; do
+    for python_module in fcntl math _json _posixsubprocess select _struct zlib; do
       copy_python_extension "$python_module"
     done
   fi

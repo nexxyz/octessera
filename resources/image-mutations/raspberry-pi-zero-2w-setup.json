@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "contract_kind": "setup-layer",
+  "board_profile": "raspberry-pi-zero-2w",
+  "source_root": "tools/pi-image/stage4-octessera/files/root",
+  "preimage_source": {"kind": "release-absence-proof", "commit": "4eec2b7edf6619fa22c709d4a589237a5748de78", "proof": "v0.7.5 staging does not install the full setup portal"},
+  "source_inputs": [
+    {"path": "tools/pi-image/stage4-octessera/files/root/etc/octessera/setup-profile", "sha256": "2a2ad4f4fe8804a7680eaa15b24925e34ffb0f93b0193355eff428350d411f28", "size": 21},
+    {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-wifi-connect", "sha256": "ee85c596a91c47f0a02fe053d8c7242ae500d415b689f68b571ad4eb9367d6de", "size": 4963},
+    {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-setup-sidecar", "sha256": "95ba448373a70f3ee245a5b5cd17124db26f0c648378c425e40a7a7aa8d92a88", "size": 13470},
+    {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-setup-request", "sha256": "a59098cb1b1d69ccc3d5f119c7a528786829a935573c4657cca640da6678614b", "size": 6531},
+    {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-setup-request-cleanup", "sha256": "565f33356ae430aa7ee7e4ca6602cd7c0992851c3da2b323979bf62888d914ba", "size": 106},
+    {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-setup-start", "sha256": "4e4f41a7b9f33e8666ad4ef5135c795d5fbf863a97d83ab3f3020232f0f9f1bb", "size": 110},
+    {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-setup-cleanup", "sha256": "4ea7e22aabb0e6cfe65d6a31dab57aa5a802933d8aed3cad3ff7274d4adf0df3", "size": 184},
+    {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup-status.py", "sha256": "d4c44d563fe31955d68616ee401bb410d7f584a722010dce1cdb67242f363226", "size": 19554},
+    {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup-status-cli.py", "sha256": "59de1b78c4927e12415611065e6c201a890077ffc4f10483f66f95d5da400320", "size": 2522},
+    {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup-call.py", "sha256": "daf443aa5c901e3cf34fe59c8e06a45e5f2b0cf64e5007c75829fa80679ed237", "size": 1008},
+    {"path": "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-setup.service", "sha256": "0486bb627f13b670d61f59a46467e2351c0de11a1c1107fa3515ec6cfe5d7a93", "size": 1035},
+    {"path": "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-setup-request.path", "sha256": "fc00cf638f529a2b8690bd4f3d70424e0ae62b14b90310af1f0b9bdf6d3409ea", "size": 193},
+    {"path": "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-setup-request.service", "sha256": "e88c36753fcb650b6c27b347aee19e4a46bccc08cc88fc774ba6bcadb21023a6", "size": 536},
+    {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/share/octessera-setup-ui/app.js", "sha256": "fdf6c0014afb8244ec21ca3f2610563b702128838d2a2154b38ca29261ee83dd", "size": 7303},
+    {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/share/octessera-setup-ui/index.html", "sha256": "767e1e91d28c02ceef8eb4fb989dc87f1d050e2b92a083c0c877d071619d9465", "size": 7411},
+    {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/share/octessera-setup-ui/styles.css", "sha256": "e5fbd694e77634c38368eca74fd94cf341a5fb700ca679d5f4ea839cf322c248", "size": 5356},
+    {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/share/octessera-setup-ui/README.md", "sha256": "6deecb7f76852b977107175c0ab10e28d73182d5602af4e7b9cad14f249c59dd", "size": 720},
+    {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/share/octessera-setup-ui/octessera-mark.svg", "sha256": "e4a8488ce125e61054c895cb4db49db80a5fe9ca710e33ca23d4e33407a78117", "size": 638},
+    {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/share/octessera-setup-ui/octessera-wordmark.svg", "sha256": "36de4cd2cecc87676a1e0053f44ea9e4fcd5a8c54465f67225f7a7ad301a81d0", "size": 1488},
+    {"path": "userpatches/customize-image.sh", "sha256": "b097bee4798fc07ca6b53ac697e23ebe1b060fb9af6d4e01d11ce2a202ed6dda", "size": 31546},
+    {"path": "tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh", "sha256": "995d149e029a38413a5cd2074536d73d8aa1ca0b3558a14b7eb287dca41f9412", "size": 1380},
+    {"path": "tools/pi-image/stage4-octessera/02-setup-service/00-run.sh", "sha256": "a7d7168a60695b482815225e04653b79ae8c6a9d7da586bd0b50717b429be89c", "size": 13970},
+    {"path": "tools/pi-image/stage4-octessera/04-sanitize-release-image/00-run.sh", "sha256": "1cb185902a7cbd32d47ce47b93bc36059d96aaded43a6363817d8efaa96c7c87", "size": 1152}
+  ],
+  "entries": [
+    {"classification": "setup-profile", "source": "etc/octessera/setup-profile", "target": "etc/octessera/setup-profile", "type": "file", "mode": 420, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "2a2ad4f4fe8804a7680eaa15b24925e34ffb0f93b0193355eff428350d411f28", "preimage": {"kind": "absent"}},
+    {"classification": "wifi-wrapper", "source": "usr/local/sbin/octessera-wifi-connect", "target": "usr/local/sbin/octessera-wifi-connect", "type": "file", "mode": 493, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "ee85c596a91c47f0a02fe053d8c7242ae500d415b689f68b571ad4eb9367d6de", "preimage": {"kind": "absent"}},
+    {"classification": "sidecar", "source": "usr/local/sbin/octessera-setup-sidecar", "target": "usr/local/sbin/octessera-setup-sidecar", "type": "file", "mode": 493, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "95ba448373a70f3ee245a5b5cd17124db26f0c648378c425e40a7a7aa8d92a88", "preimage": {"kind": "absent"}},
+    {"classification": "request-helper", "source": "usr/local/sbin/octessera-setup-request", "target": "usr/local/sbin/octessera-setup-request", "type": "file", "mode": 493, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "a59098cb1b1d69ccc3d5f119c7a528786829a935573c4657cca640da6678614b", "preimage": {"kind": "absent"}},
+    {"classification": "cleanup-helper", "source": "usr/local/sbin/octessera-setup-request-cleanup", "target": "usr/local/sbin/octessera-setup-request-cleanup", "type": "file", "mode": 493, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "565f33356ae430aa7ee7e4ca6602cd7c0992851c3da2b323979bf62888d914ba", "preimage": {"kind": "absent"}},
+    {"classification": "request-helper", "source": "usr/local/sbin/octessera-setup-start", "target": "usr/local/sbin/octessera-setup-start", "type": "file", "mode": 493, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "4e4f41a7b9f33e8666ad4ef5135c795d5fbf863a97d83ab3f3020232f0f9f1bb", "preimage": {"kind": "absent"}},
+    {"classification": "cleanup-helper", "source": "usr/local/sbin/octessera-setup-cleanup", "target": "usr/local/sbin/octessera-setup-cleanup", "type": "file", "mode": 493, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "4ea7e22aabb0e6cfe65d6a31dab57aa5a802933d8aed3cad3ff7274d4adf0df3", "preimage": {"kind": "absent"}},
+    {"classification": "status-helper", "source": "usr/local/lib/octessera/setup-status.py", "target": "usr/local/lib/octessera/setup-status.py", "type": "file", "mode": 493, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "d4c44d563fe31955d68616ee401bb410d7f584a722010dce1cdb67242f363226", "preimage": {"kind": "absent"}},
+    {"classification": "status-helper", "source": "usr/local/lib/octessera/setup-status-cli.py", "target": "usr/local/lib/octessera/setup-status-cli.py", "type": "file", "mode": 420, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "59de1b78c4927e12415611065e6c201a890077ffc4f10483f66f95d5da400320", "preimage": {"kind": "absent"}},
+    {"classification": "call-helper", "source": "usr/local/lib/octessera/setup-call.py", "target": "usr/local/lib/octessera/setup-call.py", "type": "file", "mode": 493, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "daf443aa5c901e3cf34fe59c8e06a45e5f2b0cf64e5007c75829fa80679ed237", "preimage": {"kind": "absent"}},
+    {"classification": "setup-unit", "source": "etc/systemd/system/octessera-setup.service", "target": "etc/systemd/system/octessera-setup.service", "type": "file", "mode": 420, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "0486bb627f13b670d61f59a46467e2351c0de11a1c1107fa3515ec6cfe5d7a93", "preimage": {"kind": "absent"}},
+    {"classification": "request-path-unit", "source": "etc/systemd/system/octessera-setup-request.path", "target": "etc/systemd/system/octessera-setup-request.path", "type": "file", "mode": 420, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "fc00cf638f529a2b8690bd4f3d70424e0ae62b14b90310af1f0b9bdf6d3409ea", "preimage": {"kind": "absent"}},
+    {"classification": "request-unit", "source": "etc/systemd/system/octessera-setup-request.service", "target": "etc/systemd/system/octessera-setup-request.service", "type": "file", "mode": 420, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "e88c36753fcb650b6c27b347aee19e4a46bccc08cc88fc774ba6bcadb21023a6", "preimage": {"kind": "absent"}},
+    {"classification": "static-ui", "source": "usr/local/share/octessera-setup-ui/app.js", "target": "usr/local/share/octessera-setup-ui/app.js", "type": "file", "mode": 420, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "fdf6c0014afb8244ec21ca3f2610563b702128838d2a2154b38ca29261ee83dd", "preimage": {"kind": "absent"}},
+    {"classification": "static-ui", "source": "usr/local/share/octessera-setup-ui/index.html", "target": "usr/local/share/octessera-setup-ui/index.html", "type": "file", "mode": 420, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "767e1e91d28c02ceef8eb4fb989dc87f1d050e2b92a083c0c877d071619d9465", "preimage": {"kind": "absent"}},
+    {"classification": "static-ui", "source": "usr/local/share/octessera-setup-ui/styles.css", "target": "usr/local/share/octessera-setup-ui/styles.css", "type": "file", "mode": 420, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "e5fbd694e77634c38368eca74fd94cf341a5fb700ca679d5f4ea839cf322c248", "preimage": {"kind": "absent"}},
+    {"classification": "static-ui", "source": "usr/local/share/octessera-setup-ui/README.md", "target": "usr/local/share/octessera-setup-ui/README.md", "type": "file", "mode": 420, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "6deecb7f76852b977107175c0ab10e28d73182d5602af4e7b9cad14f249c59dd", "preimage": {"kind": "absent"}},
+    {"classification": "static-ui", "source": "usr/local/share/octessera-setup-ui/octessera-mark.svg", "target": "usr/local/share/octessera-setup-ui/octessera-mark.svg", "type": "file", "mode": 420, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "e4a8488ce125e61054c895cb4db49db80a5fe9ca710e33ca23d4e33407a78117", "preimage": {"kind": "absent"}},
+    {"classification": "static-ui", "source": "usr/local/share/octessera-setup-ui/octessera-wordmark.svg", "target": "usr/local/share/octessera-setup-ui/octessera-wordmark.svg", "type": "file", "mode": 420, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "36de4cd2cecc87676a1e0053f44ea9e4fcd5a8c54465f67225f7a7ad301a81d0", "preimage": {"kind": "absent"}}
+  ],
+  "symlinks": [
+    {"classification": "enabled-request-path", "target": "etc/systemd/system/multi-user.target.wants/octessera-setup-request.path", "type": "symlink", "mode": 511, "uid": 0, "gid": 0, "symlink": true, "xattrs": {}, "capability": null, "link_target": "../octessera-setup-request.path", "preimage": {"kind": "absent"}, "postimage": "required"},
+    {"classification": "setup-service-disabled", "target": "etc/systemd/system/multi-user.target.wants/octessera-setup.service", "type": "absent", "preimage": {"kind": "absent"}, "postimage": "absent"}
+  ],
+  "preserved_paths": [
+    {"classification": "ssh-setup-config", "target": "etc/ssh/sshd_config.d/10-octessera-setup.conf", "preimage": {"kind": "absent"}, "postimage": "absent"}
+  ],
+  "stale_runtime_markers": [
+    "var/lib/octessera/setup-complete", "var/lib/octessera/setup-force", "var/lib/octessera/setup-finalize-failed", "run/octessera/setup-portal.request", "run/octessera-setup/nonce", "run/octessera-setup/readiness", "run/octessera-setup-control/status.json", "run/octessera-setup-control", "run/octessera-setup-status"
+  ],
+  "prerequisites": {
+    "packages": ["openssh-server", "network-manager", "dnsmasq", "python3-minimal"],
+    "executables": ["usr/local/bin/wifi-connect", "usr/bin/python3"],
+    "accounts": [{"user": "pi", "group": "pi", "home": "/home/pi", "shell": "/bin/bash"}],
+    "services": ["ssh.service", "NetworkManager.service", "dnsmasq.service"]
+  },
+  "recipe": {"account_mutation": false, "package_mutation": false, "network_mutation": false, "boot_mutation": false, "firmware_mutation": false, "enabled_units": ["octessera-setup-request.path"], "disabled_units": ["octessera-setup.service"], "proof": "tools/pi-image/verify-sanitized-image.sh --setup-layer"}
+}

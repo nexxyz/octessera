@@ -1,0 +1,10 @@
+# Octessera Cargo dependency license inventory
+# This template is intentionally plain text and contains no machine paths.
+{{#each licenses}}
+## {{name}}
+{{#each used_by}}
+- {{name}} {{version}}
+{{/each}}
+
+{{{text}}}
+{{/each}}

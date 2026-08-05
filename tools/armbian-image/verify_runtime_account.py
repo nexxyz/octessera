@@ -69,9 +69,10 @@ def require_runtime_service(root: Path, require: Require) -> None:
         "Environment=OCTESSERA_PI_STORE_DIR=/var/lib/octessera/presets",
         "Environment=OCTESSERA_PI_SAMPLES_DIR=/var/lib/octessera/samples",
         "Environment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json",
+        "Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1",
         "NoNewPrivileges=yes",
         "ProtectSystem=strict",
-        "ReadWritePaths=/var/lib/octessera /run/octessera",
+        "ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot",
         "PrivateTmp=yes",
         "ProtectHome=yes",
         "RuntimeDirectory=octessera",
@@ -88,6 +89,48 @@ def require_runtime_service(root: Path, require: Require) -> None:
         enabled.is_symlink() and enabled.readlink().as_posix() in {"../octessera.service", "/etc/systemd/system/octessera.service"},
         "production service is not enabled",
     )
+
+
+def require_orange_boot_service(root: Path, require: Require) -> None:
+    service = root / "etc/systemd/system/octessera-orange-boot-splash.service"
+    enabled = root / "etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service"
+    content = service.read_text(encoding="utf-8")
+    for line in (
+        "User=octessera-runtime",
+        "Group=octessera-runtime",
+        "ExecStart=/usr/local/sbin/octessera-orange-oled-logo boot-loop",
+        "RuntimeDirectory=octessera-boot",
+        "RuntimeDirectoryMode=0750",
+        "RuntimeDirectoryPreserve=yes",
+        "ProtectSystem=strict",
+        "DevicePolicy=closed",
+        "DeviceAllow=/dev/spidev1.0 rw",
+        "DeviceAllow=/dev/gpiochip1 rw",
+        "After=systemd-udev-trigger.service systemd-modules-load.service systemd-udevd.service local-fs.target",
+    ):
+        require(line in content, f"Orange boot service is missing: {line}")
+    require("Conflicts=" not in content, "Orange boot service conflicts with runtime")
+    require(enabled.is_symlink() and enabled.readlink().as_posix() in {"../octessera-orange-boot-splash.service", "/etc/systemd/system/octessera-orange-boot-splash.service"}, "Orange boot service is not enabled at sysinit")
+
+
+def require_orange_shutdown_service(root: Path, require: Require) -> None:
+    service = root / "etc/systemd/system/octessera-orange-oled-shutdown.service"
+    content = service.read_text(encoding="utf-8")
+    for line in (
+        "After=octessera.service",
+        "Before=shutdown.target reboot.target halt.target",
+        "User=octessera-runtime",
+        "Group=octessera-runtime",
+        "SupplementaryGroups=audio i2c spi gpio",
+        "ProtectSystem=strict",
+        "ReadWritePaths=/run/octessera-boot",
+        "DevicePolicy=closed",
+        "DeviceAllow=/dev/spidev1.0 rw",
+        "DeviceAllow=/dev/gpiochip1 rw",
+        "ExecStart=-/usr/local/sbin/octessera-orange-oled-logo shutdown",
+        "TimeoutStartSec=5",
+    ):
+        require(line in content, f"Orange shutdown service is missing: {line}")
 
 
 def require_runtime_udev_rule(root: Path, require: Require) -> None:

@@ -52,6 +52,14 @@ impl PlaybackRuntime {
         result: &RuntimeStoreResult,
         operation: Option<RuntimeOperation>,
     ) {
+        if let Some(facts) = setup_portal_lifecycle_error_facts(result) {
+            self.clear_error_with_identity(
+                RuntimeOperation::SetupPortal,
+                facts.request_id.as_deref(),
+                facts.revision,
+            );
+            return;
+        }
         if let Some(mut facts) = result.error_facts() {
             if !self.remember_result(&facts, false) {
                 return;
@@ -269,6 +277,27 @@ impl PlaybackRuntime {
             RuntimeRecovery::StopAndSilence,
             Some("runtime snapshot must be a JSON object".into()),
         )
+    }
+}
+
+fn setup_portal_lifecycle_error_facts(result: &RuntimeStoreResult) -> Option<RuntimeErrorFacts> {
+    let phase = match result {
+        RuntimeStoreResult::SetupPortalStatus { status } => &status.phase,
+        RuntimeStoreResult::Identified { result, .. } => match result.as_ref() {
+            RuntimeStoreResult::SetupPortalStatus { status } => &status.phase,
+            _ => return None,
+        },
+        _ => return None,
+    };
+    if matches!(
+        phase,
+        crate::RuntimeSetupPortalPhase::Failed
+            | crate::RuntimeSetupPortalPhase::TimedOut
+            | crate::RuntimeSetupPortalPhase::Unsupported
+    ) {
+        result.error_facts()
+    } else {
+        None
     }
 }
 

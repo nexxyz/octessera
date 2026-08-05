@@ -1,0 +1,95 @@
+{
+  "schema": "octessera.image-construction/boot-layer/v1",
+  "schema_version": 1,
+  "contract_kind": "boot-layer",
+  "board_profile": "raspberry-pi-zero-2w",
+  "classification": "constructor-required",
+  "trusted_parent_finalization": "forbidden",
+  "mutation_authority": "none",
+  "selected_initramfs_regeneration": "required",
+  "source_inputs": [
+    {"path": "tools/pi-image/stage3-octessera-kernel/files/root/usr/local/lib/octessera/install-rpi-kernel.py", "sha256": "d11d0bb4cccab96c10124ca65868cc509ef81979c1f95218808bef7301df038f", "size": 20317},
+    {"path": "tools/pi-image/stage3-octessera-kernel/files/root/usr/local/sbin/octessera-finalize-rpi-kernel", "sha256": "363cee7553a75c5a72654b55922afb21a09d591a15c336bc63017548a0208607", "size": 204},
+    {"path": "tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh", "sha256": "995d149e029a38413a5cd2074536d73d8aa1ca0b3558a14b7eb287dca41f9412", "size": 1380},
+    {"path": "resources/legal/notice-bundle.json", "sha256": "6687792cd15453309a495c42ba1715693713036327fa7a0901a6cc6f1085053f", "size": 6447},
+    {"path": "tools/legal/stage_notices.py", "sha256": "3e710e1f30228e46c05cbe6d896d42968880c83f1e9f4b719e4cb215624b3627", "size": 9001},
+    {"path": "tools/pi-image/stage4-octessera/02-setup-service/00-run.sh", "sha256": "a7d7168a60695b482815225e04653b79ae8c6a9d7da586bd0b50717b429be89c", "size": 13970},
+    {"path": "tools/pi-image/stage4-octessera/03-boot-config/00-run.sh", "sha256": "91a75ae8447def762e862a780d7f4daba039eef0c806b1556e7c88486a73b757", "size": 1032},
+    {"path": "tools/pi-image/stage4-octessera/files/boot/config.txt.append", "sha256": "ad8d55ec9cbf812c3f735d21b7bb1312fb0f3d26d121797f112974d511e234ae", "size": 365},
+    {"path": "tools/pi-image/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh", "sha256": "342bfa48eafc350f5125e3757df902d51df74d1889b0e6062844eb691aa767ba", "size": 911},
+    {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/rpi_uart_release.py", "sha256": "874601a01c565b4ff7c0b0e32ca88c27d23b14a5109bd9102f895dd551492b87", "size": 10322},
+    {"path": "tools/pi-image/stage4-octessera/files/root/etc/initramfs-tools/hooks/octessera-boot-splash", "sha256": "7be56ccebf9d8b5e5571931750e56502451fdf86dd43905f23e60ecf55d68f45", "size": 597},
+    {"path": "tools/pi-image/stage4-octessera/files/root/etc/initramfs-tools/scripts/init-premount/octessera-boot-splash", "sha256": "7a65e85043fb2570ea7699f1ac01c50519d7e2fa2dee43f985dba0cb5a513191", "size": 2436},
+    {"path": "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-boot-splash.service", "sha256": "abc0fa4bcc7700e77c21dde88edbad62768ba6a59b5538bcfcbe5de5c29c457d", "size": 928},
+    {"path": "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera.service", "sha256": "040142643913a027fe0cad80cb0cb0b116cba8f847f4a5c0ced4f910f0b73ee9", "size": 946},
+    {"path": "tools/pi-image/verify-rpi-kernel-image.py", "sha256": "157bb801130a7a8eaf0d3df7567aeec551c17dec1d4f5a7b7c19470560e1aa40", "size": 26819},
+    {"path": "tools/pi-image/rpi_initramfs_proof.py", "sha256": "0d65d16b276c0972aa00ff248fe4945d9a2059b0e37fed24e16a3f989cf6e36e", "size": 6750},
+    {"path": "tools/pi/provision/files/boot/config.txt.initramfs.append", "sha256": "c14d03356c1edcbf170d91c4eda896705fda0930ac8b61b9c631a5ebec89fe92", "size": 73},
+    {"path": "tools/pi/provision/files/boot/config.txt.append", "sha256": "418ebfce6cd6acbacb410614be576524263a00f4cd56fe10503d67b004837960", "size": 355},
+    {"path": "tools/pi/provision/files/etc/systemd/system/octessera.service.template", "sha256": "6730864a3037dd9800c44150d5fb37630c9caf75aeee6cb5d56f74026851346f", "size": 964},
+    {"path": "tools/pi/provision/provision.sh", "sha256": "f7619799f5ad2ab8f8b82243bff344199b47c1252bc568fef8b10ad8bb095e06", "size": 10993}
+  ],
+  "live_parity_inputs": [
+    {"path": "tools/pi/deploy-pi.sh", "sha256": "5ba7792299b16e74f42362a346b116bcc1f10f320cb0faae4dd4e5e3be291b80", "size": 15497},
+    {"path": "tools/pi/provision/provision.sh", "sha256": "f7619799f5ad2ab8f8b82243bff344199b47c1252bc568fef8b10ad8bb095e06", "size": 10993}
+  ],
+  "notice_bundle": {
+    "manifest": "resources/legal/notice-bundle.json",
+    "stager": "tools/legal/stage_notices.py",
+    "installed_root": "usr/share/doc/octessera",
+    "installed_outputs": "manifest-files",
+    "proof": "tools/pi-image/verify-boot-layout.sh",
+    "parent_sentinels": ["usr/share/common-licenses/GPL-3", "usr/share/doc/base-files/copyright"],
+    "firmware_license_path": null,
+    "firmware_license_gate": "full-constructor"
+  },
+  "managed_outputs": [
+    {"classification": "initramfs-hook", "path": "etc/initramfs-tools/hooks/octessera-boot-splash", "type": "file", "mode": 493, "uid": 0, "gid": 0},
+    {"classification": "initramfs-script", "path": "etc/initramfs-tools/scripts/init-premount/octessera-boot-splash", "type": "file", "mode": 493, "uid": 0, "gid": 0},
+    {"classification": "early-splash-unit", "path": "etc/systemd/system/octessera-boot-splash.service", "type": "file", "mode": 420, "uid": 0, "gid": 0},
+    {"classification": "runtime-unit", "path": "etc/systemd/system/octessera.service", "type": "file", "mode": 420, "uid": 0, "gid": 0},
+    {"classification": "welcome", "path": "etc/profile.d/octessera-welcome.sh", "type": "file", "mode": 420, "uid": 0, "gid": 0},
+    {"classification": "pi-hushlogin", "path": "home/pi/.hushlogin", "type": "file", "mode": 420, "uid": 1000, "gid": 1000},
+    {"classification": "uart-release-utility", "path": "usr/local/lib/octessera/rpi_uart_release.py", "type": "file", "mode": 493, "uid": 0, "gid": 0},
+    {"classification": "enabled-early-splash", "path": "etc/systemd/system/sysinit.target.wants/octessera-boot-splash.service", "type": "symlink", "target": "../octessera-boot-splash.service"},
+    {"classification": "enabled-runtime", "path": "etc/systemd/system/multi-user.target.wants/octessera.service", "type": "symlink", "target": "../octessera.service"}
+  ],
+  "selected_initramfs": {
+    "path": "octessera/initrd.img-6.12.93-octessera-rpi-v8-0.7.5",
+    "required_entries": [
+      "scripts/init-premount/octessera-boot-splash",
+      "usr/local/bin/octessera-pi",
+      "usr/bin/setsid",
+      "bin/sh",
+      "bin/sleep",
+      "bin/cat",
+      "bin/mv",
+      "bin/chmod",
+      "bin/chown",
+      "bin/rm"
+    ],
+    "required_module_names": ["spi-bcm2835", "spidev"]
+  },
+  "uart_invariants": {
+    "required_config": ["dtoverlay=disable-bt", "enable_uart=0"],
+    "forbidden_config": ["enable_uart=1"],
+    "forbidden_cmdline_prefixes": ["console=serial0", "console=ttyAMA0", "console=ttyS0"],
+    "masks": ["serial-getty@serial0.service", "serial-getty@ttyAMA0.service", "serial-getty@ttyS0.service"],
+    "disabled_services": ["bluetooth.service", "hciuart.service"]
+  },
+  "proofs": [
+    {"name": "initramfs-watchdog", "path": "tools/pi-image/test-rpi-boot-splash.sh"},
+    {"name": "systemd-graph", "path": "tools/pi-image/test-rpi-boot-services.sh"},
+    {"name": "sanitized-image", "path": "tools/pi-image/verify-sanitized-image.sh"},
+    {"name": "boot-layout-fixture", "path": "tools/pi-image/test-sanitized-image-boot-layout.sh"},
+    {"name": "kernel-image", "path": "tools/pi-image/verify-rpi-kernel-image.py"},
+    {"name": "welcome-uart", "path": "tools/pi-image/test-welcome.py"},
+    {"name": "uart-release", "path": "tools/pi-image/test-rpi-uart-release.py"}
+  ],
+  "expected_changes": {
+    "packages": [],
+    "accounts": [],
+    "kernel": [],
+    "firmware": []
+  }
+}

@@ -1,7 +1,12 @@
 #!/bin/bash
 set -euo pipefail
 
-ZIP_PATH="${1:?usage: verify-sanitized-image.sh <image.zip>}"
+SETUP_LAYER_REQUIRED=false
+if [ "${1:-}" = "--setup-layer" ]; then
+    SETUP_LAYER_REQUIRED=true
+    shift
+fi
+ZIP_PATH="${1:?usage: verify-sanitized-image.sh [--setup-layer] <image.zip>}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/verify-managed-runtime.sh"
@@ -141,6 +146,66 @@ require_wifi_foundation() {
         exit 1
     fi
 }
+require_setup_layer() {
+    local root="$WORK_DIR/root"
+    local profile="$root/etc/octessera/setup-profile"
+    local sidecar="$root/usr/local/sbin/octessera-setup-sidecar"
+    local wrapper="$root/usr/local/sbin/octessera-wifi-connect"
+    local request_helper="$root/usr/local/sbin/octessera-setup-request"
+    local request_cleanup="$root/usr/local/sbin/octessera-setup-request-cleanup"
+    local start_helper="$root/usr/local/sbin/octessera-setup-start"
+    local cleanup_helper="$root/usr/local/sbin/octessera-setup-cleanup"
+    local status_tool="$root/usr/local/lib/octessera/setup-status.py"
+    local status_cli="$root/usr/local/lib/octessera/setup-status-cli.py"
+    local call_tool="$root/usr/local/lib/octessera/setup-call.py"
+    local setup_unit="$root/etc/systemd/system/octessera-setup.service"
+    local request_path="$root/etc/systemd/system/octessera-setup-request.path"
+    local request_unit="$root/etc/systemd/system/octessera-setup-request.service"
+    for path in "$profile" "$sidecar" "$wrapper" "$request_helper" "$request_cleanup" "$start_helper" "$cleanup_helper" "$status_tool" "$status_cli" "$call_tool" "$setup_unit" "$request_path" "$request_unit"; do
+        require_path "$path" "setup layer path"
+    done
+    for entry in \
+        "$profile:644" "$sidecar:755" "$wrapper:755" "$request_helper:755" \
+        "$request_cleanup:755" "$start_helper:755" "$cleanup_helper:755" "$status_tool:755" "$status_cli:644" "$call_tool:755" "$setup_unit:644" "$request_path:644" "$request_unit:644"; do
+        IFS=: read -r path mode <<< "$entry"
+        require_root_mode "$path" "$mode"
+    done
+    grep -qx 'raspberry-pi-zero-2w' "$profile" || { echo "Raspberry setup profile is not fixed" >&2; exit 1; }
+    grep -qF 'ALLOWED_ORIGINS = frozenset(("http://192.168.42.1", "http://192.168.42.1:80"))' "$sidecar" || { echo "Setup origins are not exact" >&2; exit 1; }
+    grep -qF 'ipaddress.ip_network("192.168.42.0/24")' "$sidecar" || { echo "Setup client network is not exact" >&2; exit 1; }
+    grep -qF 'PUBLIC_DIR = "/run/octessera-setup-status"' "$status_tool" || { echo "Setup public status path is not fixed" >&2; exit 1; }
+    grep -qF 'RECEIPT_DIR' "$status_tool" || { echo "Setup receipts are not staged" >&2; exit 1; }
+    grep -qF 'MAX_BODY = 16384' "$sidecar" || { echo "Setup body limit is not fixed" >&2; exit 1; }
+    grep -qF 'Transfer-Encoding' "$sidecar" || { echo "Setup transfer encoding is not rejected" >&2; exit 1; }
+    grep -qF 'content_type != "application/json"' "$sidecar" || { echo "Setup content type is not fixed" >&2; exit 1; }
+    grep -qF 'interface=wlan0' "$wrapper" || { echo "Setup wrapper interface is not fixed" >&2; exit 1; }
+    grep -qF "/sys/class/net/\$interface/address" "$wrapper" || { echo "Setup wrapper MAC path is not fixed" >&2; exit 1; }
+    grep -qF 'PathExists=/run/octessera/setup-portal.request' "$request_path" || { echo "Setup request path watches the wrong path" >&2; exit 1; }
+    grep -qF 'RuntimeDirectoryMode=0700' "$setup_unit" || { echo "Setup nonce runtime directory is not private" >&2; exit 1; }
+    grep -qF 'RuntimeMaxSec=1800s' "$setup_unit" || { echo "Setup runtime timeout is not fixed" >&2; exit 1; }
+    if grep -q '^TimeoutStartSec=' "$setup_unit"; then echo "Setup must not rely on TimeoutStartSec" >&2; exit 1; fi
+    if grep -RIE 'OCTESSERA_SETUP|setup-force|BEGIN (RSA|OPENSSH|PRIVATE) KEY|wpa_passphrase|ssid=|psk=' "$sidecar" "$wrapper" "$request_helper"; then
+        echo "Setup layer contains secret, connection, or persistent-force material" >&2
+        exit 1
+    fi
+    for path in \
+        "$root/var/lib/octessera/setup-complete" \
+        "$root/var/lib/octessera/setup-force" \
+        "$root/var/lib/octessera/setup-finalize-failed" \
+        "$root/run/octessera/setup-portal.request" \
+        "$root/run/octessera-setup/nonce" \
+        "$root/run/octessera-setup-control"; do
+        if [ -e "$path" ] || [ -L "$path" ]; then
+            echo "Sanitation check failed: setup runtime material remains at $path" >&2
+            exit 1
+        fi
+    done
+    require_path "$root/etc/systemd/system/multi-user.target.wants/octessera-setup-request.path" "enabled setup request path"
+    if [ -e "$root/etc/systemd/system/multi-user.target.wants/octessera-setup.service" ] || [ -L "$root/etc/systemd/system/multi-user.target.wants/octessera-setup.service" ]; then
+        echo "Sanitation check failed: Raspberry first-run setup service is enabled" >&2
+        exit 1
+    fi
+}
 
 cleanup() {
     set +e
@@ -219,7 +284,12 @@ require_path "$WORK_DIR/root/etc/octessera/board-profile.json" "board profile me
 require_raspberry_board_profile
 require_octessera_boot_config "$WORK_DIR/boot" "$WORK_DIR/root"
 require_octessera_boot_overlay "$WORK_DIR/boot" "$WORK_DIR/root"
+require_octessera_boot_layer "$WORK_DIR/boot" "$WORK_DIR/root"
+require_octessera_raspberry_identity "$WORK_DIR/boot" "$WORK_DIR/root"
 require_updater_protocol
 require_wifi_foundation
+if [ "$SETUP_LAYER_REQUIRED" = true ]; then
+    require_setup_layer
+fi
 
-echo "Pi image sanitation check passed"
+echo "Pi image sanitation check passed (boot layer: $OCTESSERA_BOOT_LAYER_CLASSIFICATION)"

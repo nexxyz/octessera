@@ -2,6 +2,7 @@
 name = "octessera-hal"
 version = "0.7.5"
 edition = "2021"
+license-file.workspace = true
 
 [dependencies]
 platform-core = { path = "../platform-core" }

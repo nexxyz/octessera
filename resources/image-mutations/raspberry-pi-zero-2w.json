@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "board_profile": "raspberry-pi-zero-2w",
+  "binary": "octessera-pi",
+  "managed": {
+    "runtime_root": "opt/octessera",
+    "releases": "opt/octessera/releases",
+    "current": "opt/octessera/current",
+    "binary_link": "usr/local/bin/octessera-pi",
+    "state": "opt/octessera/update-state.json"
+  },
+  "real_parents": [
+    {"path": "opt", "type": "directory", "mode": 493, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null},
+    {"path": "opt/octessera", "type": "directory", "mode": 493, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null},
+    {"path": "opt/octessera/releases", "type": "directory", "mode": 493, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null},
+    {"path": "usr", "type": "directory", "mode": 493, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null},
+    {"path": "usr/local", "type": "directory", "mode": 493, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null},
+    {"path": "usr/local/bin", "type": "directory", "mode": 493, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null}
+  ],
+  "current_link": {"type": "symlink", "symlink": true, "target": "/opt/octessera/releases/{version}", "uid": 0, "gid": 0, "xattrs": {}, "capability": null},
+  "binary_link": {"type": "symlink", "symlink": true, "target": "/opt/octessera/current/octessera-pi", "uid": 0, "gid": 0, "xattrs": {}, "capability": null},
+  "prior_release": {
+    "directory": {"type": "directory", "mode": 493, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null},
+    "entries": [
+      {"name": "octessera-pi", "type": "file", "mode": 493, "uid": 0, "gid": 0, "symlink": false, "sha256": "preimage", "xattrs": {}, "capability": null},
+      {"name": "update-manifest.json", "type": "file", "mode": 420, "uid": 0, "gid": 0, "symlink": false, "sha256": "preimage", "xattrs": {}, "capability": null}
+    ]
+  },
+  "new_release": {
+    "directory": {"type": "directory", "mode": 493, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null},
+    "entries": [
+      {"name": "octessera-pi", "type": "file", "mode": 493, "uid": 0, "gid": 0, "symlink": false, "sha256": "payload", "xattrs": {}, "capability": null},
+      {"name": "update-manifest.json", "type": "file", "mode": 420, "uid": 0, "gid": 0, "symlink": false, "sha256": "derived", "xattrs": {}, "capability": null}
+    ]
+  },
+  "state_contract": {
+    "owned": true,
+    "path": "opt/octessera/update-state.json",
+    "type": "file",
+    "symlink": false,
+    "mode": 420,
+    "uid": 0,
+    "gid": 0,
+    "xattrs": {},
+    "capability": null,
+    "preimage": "exact-committed-state",
+    "transform": "committed-current-release"
+  },
+  "bundle_contract": {
+    "entries": ["SHA256SUMS", "octessera-pi", "octessera-runtime.json"],
+    "input_modes": {"octessera-pi": 493, "octessera-runtime.json": 420, "SHA256SUMS": 420},
+    "metadata": "production-runtime"
+  },
+  "mutation_contract": {
+    "replace": [
+      "opt/octessera/releases/{version}",
+      "opt/octessera/current",
+      "usr/local/bin/octessera-pi"
+    ],
+    "remove": ["opt/octessera/releases/{prior_version}"],
+    "generated": [
+      "opt/octessera/releases/{version}",
+      "opt/octessera/releases/{version}/octessera-pi",
+      "opt/octessera/releases/{version}/update-manifest.json"
+    ],
+    "structured_transform": ["opt/octessera/update-state.json"],
+    "preserve": ["**"],
+    "forbidden": [
+      "opt/octessera/releases/.image-respin-*",
+      "opt/octessera/.image-respin-*",
+      "usr/local/bin/.image-respin-*"
+    ],
+    "parent_metadata": "preserve-exactly"
+  }
+}

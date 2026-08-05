@@ -14,6 +14,7 @@ apt-get install -y --no-install-recommends \
     i2c-tools \
     jq \
     python3-minimal \
+    openssh-server \
     spi-tools \
     network-manager \
     dnsmasq \

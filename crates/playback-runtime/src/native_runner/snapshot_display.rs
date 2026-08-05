@@ -27,6 +27,13 @@ impl NativeRunner {
     ) -> DisplaySnapshot {
         let mut display = if let Some(confirm) = &self.display.confirm_dialog {
             confirm_dialog_display(confirm)
+        } else if let Some(setup) = self
+            .display
+            .setup_portal
+            .as_ref()
+            .filter(|setup| setup.visible)
+        {
+            setup_portal_display(setup)
         } else if let Some(modal) = &self.display.usb_sd_transfer_modal {
             usb_sd_transfer_modal_display(modal)
         } else if let Some(modal) = &self.display.system_info_modal {
@@ -38,14 +45,21 @@ impl NativeRunner {
         } else {
             menu_display(self, menu)
         };
-        if let Some(error) = &self.display.runtime_error_presentation {
-            display.title = error.title.clone();
-            display.lines = error.lines.clone();
-            display.colors = vec![platform_core::palette::WHITE_RGB565; display.lines.len()];
-            display.bar_values = vec![Value::Null; display.lines.len()];
-            display.full_lines = vec![None; display.lines.len()];
-            display.scroll = None;
-            display.selected_row = None;
+        let setup_visible = self
+            .display
+            .setup_portal
+            .as_ref()
+            .is_some_and(|setup| setup.visible);
+        if !setup_visible {
+            if let Some(error) = &self.display.runtime_error_presentation {
+                display.title = error.title.clone();
+                display.lines = error.lines.clone();
+                display.colors = vec![platform_core::palette::WHITE_RGB565; display.lines.len()];
+                display.bar_values = vec![Value::Null; display.lines.len()];
+                display.full_lines = vec![None; display.lines.len()];
+                display.scroll = None;
+                display.selected_row = None;
+            }
         }
         display.title = clip_display_line(&display.title, DISPLAY_LINE_WIDTH);
         display.lines = display
@@ -119,6 +133,65 @@ fn confirm_dialog_display(confirm: &super::NativeConfirmDialog) -> DisplaySnapsh
                 .saturating_add(confirm.cursor)
                 .min(OLED_BODY_ROWS.saturating_sub(1)),
         ),
+    }
+}
+
+fn setup_portal_display(state: &super::NativeSetupPortalState) -> DisplaySnapshot {
+    let (title, mut lines, action) = match state.status.phase {
+        super::RuntimeSetupPortalPhase::Starting => (
+            "Wi-Fi Setup".to_string(),
+            vec!["Starting hotspot...".into()],
+            "Hide",
+        ),
+        super::RuntimeSetupPortalPhase::PortalReady => (
+            "Wi-Fi Setup".to_string(),
+            vec![
+                "Hotspot:".into(),
+                format!(
+                    "Octessera Setup {}",
+                    state.status.portal_suffix.as_deref().unwrap_or("----")
+                ),
+                "Open 192.168.42.1".into(),
+                "Timeout: 30 minutes".into(),
+            ],
+            "Hide",
+        ),
+        super::RuntimeSetupPortalPhase::Finalizing => (
+            "Wi-Fi Setup".to_string(),
+            vec!["Applying settings...".into()],
+            "Hide",
+        ),
+        super::RuntimeSetupPortalPhase::Succeeded => (
+            "Wi-Fi Setup".to_string(),
+            vec!["Setup complete".into(), "No reboot needed".into()],
+            "Close",
+        ),
+        super::RuntimeSetupPortalPhase::Failed => (
+            "Wi-Fi Setup".to_string(),
+            vec!["Setup failed".into(), "Settings may be partial".into()],
+            "Close",
+        ),
+        super::RuntimeSetupPortalPhase::TimedOut => (
+            "Wi-Fi Setup".to_string(),
+            vec!["Setup timed out".into(), "Portal closed".into()],
+            "Close",
+        ),
+        super::RuntimeSetupPortalPhase::Unsupported => (
+            "Wi-Fi Setup".to_string(),
+            vec!["Not available on desktop".into()],
+            "Close",
+        ),
+    };
+    lines.push(format!("> {action}"));
+    let line_count = lines.len();
+    DisplaySnapshot {
+        title,
+        lines,
+        colors: vec![platform_core::palette::WHITE_RGB565; line_count],
+        bar_values: vec![Value::Null; line_count],
+        full_lines: vec![None; line_count],
+        scroll: None,
+        selected_row: Some(line_count - 1),
     }
 }
 

@@ -33,6 +33,10 @@ _weakrefset.py
 warnings.py
 contextlib.py
 selectors.py
+json/__init__.py
+json/decoder.py
+json/encoder.py
+json/scanner.py
 importlib/__init__.py
 importlib/_abc.py
 importlib/machinery.py

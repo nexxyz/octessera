@@ -6,8 +6,10 @@ fn main() {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("manifest dir set"));
     let boot = manifest_dir.join("../../assets/octessera-pi-booting.png");
     let sleep_shutdown = manifest_dir.join("../../assets/octessera-pi-shutdown.png");
+    let boot_sweep = manifest_dir.join("../../resources/oled/boot-sweep-v1.json");
     println!("cargo:rerun-if-changed={}", boot.display());
     println!("cargo:rerun-if-changed={}", sleep_shutdown.display());
+    println!("cargo:rerun-if-changed={}", boot_sweep.display());
     println!(
         "cargo:rerun-if-changed={}",
         manifest_dir

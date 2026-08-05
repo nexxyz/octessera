@@ -5,8 +5,7 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 staging="${1:-$root/userpatches/overlay/usr/share/octessera}"
 default_config="$root/config/generated/pi/default.json"
 sample_root="$root/samples"
-source_url="https://github.com/stargatedaw/stargate-sample-pack"
-license_source="https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/main/README.md"
+license_source="https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/LICENSE"
 
 [[ -f "$default_config" && ! -L "$default_config" ]] || { echo "Missing generated Pi default: $default_config" >&2; exit 1; }
 [[ -d "$sample_root" && ! -L "$sample_root" ]] || { echo "Missing sample library: $sample_root" >&2; exit 1; }
@@ -53,6 +52,12 @@ install -m 0644 "$default_config" "$default_output"
   for relative_path in "${sample_paths[@]}"; do
     source_path="$sample_root/$relative_path"
     destination_path="$sample_output_root/$relative_path"
+    case "$relative_path" in
+      "Drum/claps/distkit-clap.wav") source_url="https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/fugue-state-audio/drums/claps/distkit-clap.wav" ;;
+      "Drum/hihat open/165028__rodrigo-the-mad__mini-909ish-open-hat.wav") source_url="https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/freesound/drums/cymbal/open/165028__rodrigo-the-mad__mini-909ish-open-hat.wav" ;;
+      "Drum/kick/Kick2.wav") source_url="https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/microlag/One-Shots/Drums/Kick2.wav" ;;
+      *) echo "Missing pinned sample provenance: $relative_path" >&2; exit 1 ;;
+    esac
     mkdir -p "$(dirname "$destination_path")"
     install -m 0644 "$source_path" "$destination_path"
     size="$(stat -c '%s' "$source_path")"

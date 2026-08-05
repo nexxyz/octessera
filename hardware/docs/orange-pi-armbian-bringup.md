@@ -57,6 +57,41 @@ The production service uses `/var/lib/octessera/presets` for its persistent
 store and `/var/lib/octessera/samples` for samples. Both paths belong to
 `octessera-runtime`; the interactive `octessera` account is separate.
 
+## Full setup portal proof status
+
+The software/static setup layer is present for both fixed board paths. The
+Raspberry source is `tools/pi-image/stage4-octessera/files/root`; the Orange
+source is `userpatches/overlay`. Their exact setup assets and preconditions are
+bound by `resources/image-mutations/raspberry-pi-zero-2w-setup.json` and
+`resources/image-mutations/orange-pi-zero-2w-setup.json`. Static coverage
+includes shell syntax, Python compilation, systemd unit checks, strict request
+and receipt handling, HTTP framing and nonce checks, status concurrency, no
+secret material, and source-bound mutation contracts. The main local gate is:
+
+```bash
+bash tools/armbian-image/validate.sh
+```
+
+Targeted setup checks are listed in
+[`docs/development-workflows.md`](../../docs/development-workflows.md). These
+checks do not prove a board-created AP, network join, captive page, SSH, or
+credential application. The exact v0.7.5 trusted-parent exercise and physical
+qualification remain deferred; no production parent image is claimed as
+exercised here.
+
+## Setup portal checks still required on hardware
+
+Run the complete flow on both the Raspberry Pi Zero 2 W and Orange Pi Zero 2W:
+
+- create and join the setup AP, then load the captive page;
+- apply Wi-Fi credentials, hostname, SSH mode, and login settings successfully;
+- reconnect over the newly configured network;
+- attach to setup when the setup service is already running;
+- observe the 30-minute timeout and portal closure;
+- verify failure and partial-state messages without powering off during apply;
+- inspect AP traffic, HTTP responses, status/receipt files, logs, and artifacts
+  for secret leakage.
+
 Once the board is reachable over SSH, run the repo probe from Windows:
 
 ```powershell

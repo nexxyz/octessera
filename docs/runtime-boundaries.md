@@ -23,6 +23,7 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
   - classifies worker emission and persistence faults as retain/retry outcomes instead of safety-stop failures
   - applies native core behavior transitions through `platform-core`
   - publishes snapshots, platform effects, audio commands, MIDI events, runtime status, and native-owned modal frames
+  - owns setup-portal menu confirmation, playback stop/reset and note cleanup, the typed `RuntimePlatformEffect::SetupPortalOpen` effect, and all typed setup status/modal presentation
   - The Orange production service keeps this native ownership through an Orange-only adapter: `octessera.service` runs the native runtime as the locked `octessera-runtime` account, while the separate `octessera` account is for interactive setup and administration. The adapter owns OLED, NeoTrellis, NeoKey, four encoder, store, sample, and MIDI device I/O; Seesaw uses polling and encoder GPIO uses the HAL's gpiocdev v2 edge backend. Internal synth/sample audio routes through `AudioService` and the realtime engine at 44.1 kHz; MIDI leaves through the native host adapter. The required CPAL output is `hw:CARD=octesseradac,DEV=0`; USB-only audio is rejected, while UAC2 may be an additional output. Readiness follows healthy audio, initialized control-surface devices, and the first rendered snapshot. The service grants FIFO priority 70 through `LimitRTPRIO=70`; it adds no `CAP_SYS_NICE` or ambient capability. Orange update check, apply, rollback, and OTA remain unsupported.
   - owns MIDI input/output through host adapters only; Tauri/midir and Pi MIDI device access stay outside canonical runtime crates
 
@@ -49,6 +50,22 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
   - is the only path for synth/sample instrument audio before device output
   - shared JSON audio configuration normalization and FX shape/type validation live in `realtime-engine`; desktop and Pi retain sample path resolution, file decoding, caching, and host queueing
   - desktop and Pi return the same typed audio-command/config failures, preserve revision identity for full-config preparation, and route `SamplePreview` through the selected realtime instrument path
+
+## Setup Portal Boundary
+
+- `crates/playback-runtime` owns the menu/effect/status presentation. It does not execute setup, authorize a request, or resume playback after setup.
+- For this seam, the fixed Pi adapters create only the non-authorizing 32-hex-character request-token marker at `/run/octessera/setup-portal.request`, then read strict, sanitized status and receipt envelopes from `/run/octessera-setup-status`. They do not read root-private control state, nonce material, credentials, or setup secrets.
+- Root-owned `octessera-setup-request.service`, `octessera-setup.service`, `octessera-setup-sidecar`, `octessera-wifi-connect`, and the setup status helpers own request claiming, portal serving, Wi-Fi/hostname/SSH/login mutation, timeout, cleanup, and receipts.
+- Desktop returns typed `unsupported` setup status. No TypeScript behavior, `sudo`, `systemctl`, secret handling, root-private state access, network discovery, or fallback path belongs in the runtime or desktop UI.
+
+## OLED Boot Handoff Boundary
+
+- The fixed Raspberry Pi Zero 2 W and Orange Pi Zero 2W paths use the same source-defined OLED boot sweep from `resources/oled/boot-sweep-v1.json`: cyan, yellow, green, and magenta bands, 8 px each, a +8 px top-right lean, white-source pixels only, and 24 frames over a one-second cycle with no extra pause.
+- Initramfs owns one bounded foreground cycle and fully reaps its process group. Early userspace then owns the continuous loop. Native startup requests release, waits for the shared OLED lock, adopts the already-initialized display without reset, and stops the animation immediately before publishing the acknowledged first normal menu frame. Sleep and shutdown are separate OLED lifecycle paths, not boot-handoff states.
+- The board runtime owns `/run/octessera-boot`, including `oled.lock`, `status.json`, and `stop.request`. The lock is exclusive: the animator, native runtime, and lifecycle utilities may not write the OLED concurrently. `status.json` uses the strict phases `animating`, `release_requested`, `released`, `native_owned`, `first_menu_rendered`, and `failed`; the normal path reaches `first_menu_rendered`, while matching failure state remains attachable for recovery.
+- First-menu readiness requires an actual OLED write acknowledgement. Orange readiness additionally requires a healthy internal DAC. A snapshot being queued, or a runtime service merely starting, is not readiness.
+- Raspberry initramfs uses the native `octessera-pi --boot-splash-once` path and its early service runs the native loop. Orange initramfs carries the fixed OLED utility and its Python closure, while the Orange early service runs the corresponding loop against H618 SPI/GPIO. These are adapter differences around one shared handoff contract.
+- Boot source, service, hook, and selected-initramfs changes are constructor-required for both boards. Trusted `v0.7.5` runtime/setup parent respins are boot-neutral and cannot claim this layer; no full constructor or production image has been built for this handoff yet.
 
 ## Dependency Rules
 

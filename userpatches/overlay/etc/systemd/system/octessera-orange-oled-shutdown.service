@@ -3,10 +3,20 @@ Description=Octessera Orange Pi OLED shutdown logo
 DefaultDependencies=no
 After=octessera.service
 Before=shutdown.target reboot.target halt.target
-Conflicts=octessera.service
 
 [Service]
 Type=oneshot
+User=octessera-runtime
+Group=octessera-runtime
+SupplementaryGroups=audio i2c spi gpio
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/run/octessera-boot
+PrivateTmp=yes
+ProtectHome=yes
+DevicePolicy=closed
+DeviceAllow=/dev/spidev1.0 rw
+DeviceAllow=/dev/gpiochip1 rw
 ExecStart=-/usr/local/sbin/octessera-orange-oled-logo shutdown
 TimeoutStartSec=5
 

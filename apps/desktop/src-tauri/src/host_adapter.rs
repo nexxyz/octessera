@@ -12,6 +12,7 @@ use midir::MidiInputConnection;
 use playback_runtime::{
     HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent, RuntimeAdapterError,
     RuntimeAudioCommand, RuntimeOperation, RuntimePlatformEffect, RuntimePlatformRequest,
+    RuntimeSetupPortalErrorCode, RuntimeSetupPortalPhase, RuntimeSetupPortalStatus,
     RuntimeStoreResult,
 };
 use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
@@ -263,6 +264,18 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                 )),
             RuntimePlatformEffect::SystemInfoRequest => Ok(self
                 .enqueue_platform_service_request(request, DesktopPlatformServiceKind::SystemInfo)),
+            RuntimePlatformEffect::SetupPortalOpen => Ok(vec![HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::SetupPortalStatus {
+                    status: RuntimeSetupPortalStatus {
+                        phase: RuntimeSetupPortalPhase::Unsupported,
+                        disposition: None,
+                        portal_suffix: None,
+                        reboot_required: false,
+                        error_code: Some(RuntimeSetupPortalErrorCode::Unsupported),
+                    },
+                }
+                .with_identity(request.request_id.clone(), request.revision),
+            }]),
             RuntimePlatformEffect::MidiSelectOutput { id } => {
                 let result = midi::select_output(id.clone(), &self.midi_out);
                 if result.is_ok() {

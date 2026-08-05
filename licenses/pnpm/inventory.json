@@ -1,0 +1,119 @@
+{
+  "generated": true,
+  "generator": "tools/legal/dependency_license_generate.py",
+  "pnpm_version": "9.12.0",
+  "command": "corepack pnpm licenses list --prod --json",
+  "pnpm_lock_sha256": "c7f161db7567f21bcf0599b5dae8052df82c4ca61e3fb7ab1847fefca7b93a8f",
+  "package_count": 6,
+  "packages": [
+    {
+      "name": "@tauri-apps/api",
+      "version": "2.11.0",
+      "license": "Apache-2.0 OR MIT",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "files": [
+        {
+          "source_file": "LICENSE_APACHE-2.0",
+          "output_file": "licenses/pnpm/@tauri-apps__api/2.11.0/LICENSE_APACHE-2.0",
+          "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+          "bytes": 10174
+        },
+        {
+          "source_file": "LICENSE_MIT",
+          "output_file": "licenses/pnpm/@tauri-apps__api/2.11.0/LICENSE_MIT",
+          "sha256": "9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d",
+          "bytes": 1090
+        }
+      ]
+    },
+    {
+      "name": "js-tokens",
+      "version": "4.0.0",
+      "license": "MIT",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "MIT"
+      ],
+      "files": [
+        {
+          "source_file": "LICENSE",
+          "output_file": "licenses/pnpm/js-tokens/4.0.0/LICENSE",
+          "sha256": "2213d91c606205c71eb051a199478cdc2adde945893404d7f1421436dd6d5cc1",
+          "bytes": 1103
+        }
+      ]
+    },
+    {
+      "name": "loose-envify",
+      "version": "1.4.0",
+      "license": "MIT",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "MIT"
+      ],
+      "files": [
+        {
+          "source_file": "LICENSE",
+          "output_file": "licenses/pnpm/loose-envify/1.4.0/LICENSE",
+          "sha256": "4eb7543b08d955a6d23fcc224601d43ff566e775be918805e26210d7f6eb4893",
+          "bytes": 1100
+        }
+      ]
+    },
+    {
+      "name": "react",
+      "version": "18.3.1",
+      "license": "MIT",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "MIT"
+      ],
+      "files": [
+        {
+          "source_file": "LICENSE",
+          "output_file": "licenses/pnpm/react/18.3.1/LICENSE",
+          "sha256": "52412d7bc7ce4157ea628bbaacb8829e0a9cb3c58f57f99176126bc8cf2bfc85",
+          "bytes": 1086
+        }
+      ]
+    },
+    {
+      "name": "react-dom",
+      "version": "18.3.1",
+      "license": "MIT",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "MIT"
+      ],
+      "files": [
+        {
+          "source_file": "LICENSE",
+          "output_file": "licenses/pnpm/react-dom/18.3.1/LICENSE",
+          "sha256": "52412d7bc7ce4157ea628bbaacb8829e0a9cb3c58f57f99176126bc8cf2bfc85",
+          "bytes": 1086
+        }
+      ]
+    },
+    {
+      "name": "scheduler",
+      "version": "0.23.2",
+      "license": "MIT",
+      "license_class": "permissive",
+      "license_identifiers": [
+        "MIT"
+      ],
+      "files": [
+        {
+          "source_file": "LICENSE",
+          "output_file": "licenses/pnpm/scheduler/0.23.2/LICENSE",
+          "sha256": "52412d7bc7ce4157ea628bbaacb8829e0a9cb3c58f57f99176126bc8cf2bfc85",
+          "bytes": 1086
+        }
+      ]
+    }
+  ]
+}

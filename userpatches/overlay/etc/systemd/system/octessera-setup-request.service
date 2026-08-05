@@ -1,0 +1,21 @@
+[Unit]
+Description=Claim an Octessera setup portal request
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectKernelLogs=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX
+ReadWritePaths=/run/octessera /run/octessera-setup-control /run/octessera-setup-status
+ExecStart=/usr/local/sbin/octessera-setup-request
+ExecStopPost=/usr/local/sbin/octessera-setup-request-cleanup

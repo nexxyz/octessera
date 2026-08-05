@@ -10,23 +10,34 @@ use crate::hardware_fault::HardwareFault;
 
 pub(crate) struct HardwareDevices {
     pub(crate) _i2c_bus: I2CBus,
-    pub(crate) oled: OledSsd1351,
+    pub(crate) oled: Option<OledSsd1351>,
     pub(crate) trellis: NeoTrellis,
     pub(crate) neokey: NeoKey,
     pub(crate) input_interrupt: SeesawInterrupt,
     pub(crate) _dac: I2sDac,
 }
 
-pub(crate) fn init_hardware() -> Result<HardwareDevices, HardwareFault> {
+pub(crate) fn init_hardware(open_oled: bool) -> Result<HardwareDevices, HardwareFault> {
     let mut fault = HardwareFault::new();
     let i2c_bus = init_device(
         "I2C",
         I2CBus::new(octessera_hal::pinmap::I2C_BUS),
         &mut fault,
     );
-    let mut oled = init_device("OLED", OledSsd1351::new(), &mut fault);
+    let mut oled = if open_oled {
+        let result = if early_boot_splash_enabled() {
+            OledSsd1351::adopt_existing()
+        } else {
+            OledSsd1351::new()
+        };
+        init_device("OLED", result, &mut fault)
+    } else {
+        None
+    };
     if let Some(oled) = oled.as_mut().filter(|_| !early_boot_splash_enabled()) {
-        crate::render::render_boot_splash(oled);
+        if let Err(error) = crate::render::render_boot_splash(oled) {
+            eprintln!("pi OLED boot splash render failed: {error}");
+        }
     }
     let trellis = init_device(
         "TRELLIS",
@@ -42,21 +53,18 @@ pub(crate) fn init_hardware() -> Result<HardwareDevices, HardwareFault> {
     let dac = init_device("DAC", I2sDac::new(), &mut fault);
 
     match (i2c_bus, oled, trellis, neokey, input_interrupt, dac) {
-        (
-            Some(_i2c_bus),
-            Some(oled),
-            Some(trellis),
-            Some(neokey),
-            Some(input_interrupt),
-            Some(_dac),
-        ) if fault.is_empty() => Ok(HardwareDevices {
-            _i2c_bus,
-            oled,
-            trellis,
-            neokey,
-            input_interrupt,
-            _dac,
-        }),
+        (Some(_i2c_bus), oled, Some(trellis), Some(neokey), Some(input_interrupt), Some(_dac))
+            if fault.is_empty() =>
+        {
+            Ok(HardwareDevices {
+                _i2c_bus,
+                oled,
+                trellis,
+                neokey,
+                input_interrupt,
+                _dac,
+            })
+        }
         (_, oled, trellis, neokey, _, _) => {
             fault.attach_outputs(oled, trellis, neokey);
             Err(fault)

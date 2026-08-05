@@ -3,6 +3,7 @@ use crate::main_paths::{default_samples_dir, default_store_dir};
 use crate::midi_host::MidiHost;
 use crate::orange_audio::OrangeAudioHost;
 use crate::platform_service::{load_json, PiPlatformService, PlatformJob, PlatformJobKind};
+use crate::setup_portal::start_failure_message;
 use playback_runtime::{
     HostAdapter, HostMessage, MusicalEvent, RuntimeAdapterError, RuntimeAudioCommand,
     RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult,
@@ -51,6 +52,31 @@ impl OrangeHostAdapter {
             audio: audio.clone(),
             audio_host: OrangeAudioHost::new(audio, samples_dir.clone()),
             platform_service: PiPlatformService::new(store_dir.clone(), samples_dir),
+            store_dir,
+            pending_default_save: None,
+            midi: MidiHost::new(midi_in_handler, usb_midi_out_enabled),
+        })
+    }
+
+    #[cfg(all(test, any(unix, windows)))]
+    pub(crate) fn with_setup_environment(
+        audio: AudioService,
+        store_dir: PathBuf,
+        samples_dir: PathBuf,
+        midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
+        usb_midi_out_enabled: bool,
+        environment: crate::setup_portal::SetupPortalEnvironment,
+    ) -> Result<Self, String> {
+        let store_dir = prepare_directory(&store_dir, "Orange store")?;
+        let samples_dir = prepare_directory(&samples_dir, "Orange samples")?;
+        Ok(Self {
+            audio: audio.clone(),
+            audio_host: OrangeAudioHost::new(audio, samples_dir.clone()),
+            platform_service: PiPlatformService::new_with_setup_environment(
+                store_dir.clone(),
+                samples_dir,
+                environment,
+            ),
             store_dir,
             pending_default_save: None,
             midi: MidiHost::new(midi_in_handler, usb_midi_out_enabled),
@@ -272,6 +298,12 @@ impl HostAdapter for OrangeHostAdapter {
                     request,
                     "Orange foreground runtime candidate does not support rollback; no release manager or deployment path is available",
                 ));
+            }
+            RuntimePlatformEffect::SetupPortalOpen => {
+                if let Err(failure) = self.platform_service.start_setup_portal(request) {
+                    return Ok(vec![start_failure_message(request, failure)]);
+                }
+                return Ok(Vec::new());
             }
             RuntimePlatformEffect::AudioCommand { command } => {
                 self.handle_audio_command(command)?;

@@ -1,13 +1,37 @@
 [Unit]
 Description=octessera Early OLED Boot Splash
 DefaultDependencies=no
-After=systemd-modules-load.service systemd-udevd.service
+After=systemd-modules-load.service systemd-udevd.service systemd-udev-trigger.service
 Before=sysinit.target octessera.service
 
 [Service]
-Type=oneshot
-ExecStart=-/usr/local/bin/octessera-pi --boot-splash-once
-TimeoutStartSec=2
+Type=simple
+User=pi
+Group=pi
+Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1
+RuntimeDirectory=octessera-boot
+RuntimeDirectoryMode=0750
+RuntimeDirectoryPreserve=yes
+UMask=0027
+KillMode=control-group
+TimeoutStopSec=2
+Restart=no
+ExecStart=/usr/local/bin/octessera-pi --boot-splash-loop
+DevicePolicy=closed
+DeviceAllow=/dev/spidev0.0 rw
+DeviceAllow=/dev/gpiomem rw
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/run/octessera-boot
+PrivateTmp=yes
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectKernelLogs=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX
 StandardOutput=journal
 StandardError=journal
 

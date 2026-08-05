@@ -267,11 +267,12 @@ octessera_require_runtime_service() {
     'Environment=OCTESSERA_PI_STORE_DIR=/var/lib/octessera/presets' \
     'Environment=OCTESSERA_PI_SAMPLES_DIR=/var/lib/octessera/samples' \
     'Environment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json' \
+    'Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1' \
     'RuntimeDirectory=octessera' \
     'RuntimeDirectoryMode=0755' \
     'NoNewPrivileges=yes' \
     'ProtectSystem=strict' \
-    'ReadWritePaths=/var/lib/octessera /run/octessera' \
+    'ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot' \
     'PrivateTmp=yes' \
     'ProtectHome=yes' \
     'ProtectKernelTunables=yes' \
@@ -313,6 +314,48 @@ octessera_require_runtime_udev_rule() {
   [[ "$rule_content" == "$expected_rule" || "$rule_content" == "$expected_rule"$'\n' ]] || { echo "Orange runtime udev rule content is not exact." >&2; exit 1; }
 }
 
+octessera_require_orange_boot_service() {
+  local service_content
+  service_content="$(read_file etc/systemd/system/octessera-orange-boot-splash.service)"
+  for required_line in \
+    'User=octessera-runtime' \
+    'Group=octessera-runtime' \
+    'ExecStart=/usr/local/sbin/octessera-orange-oled-logo boot-loop' \
+    'RuntimeDirectory=octessera-boot' \
+    'RuntimeDirectoryMode=0750' \
+    'RuntimeDirectoryPreserve=yes' \
+    'ProtectSystem=strict' \
+    'DevicePolicy=closed' \
+    'DeviceAllow=/dev/spidev1.0 rw' \
+    'DeviceAllow=/dev/gpiochip1 rw' \
+    'After=systemd-udev-trigger.service systemd-modules-load.service systemd-udevd.service local-fs.target'; do
+    printf '%s\n' "$service_content" | grep -qFx "$required_line" || { echo "Orange boot service is missing: $required_line" >&2; exit 1; }
+  done
+  ! printf '%s\n' "$service_content" | grep -q '^Conflicts=' || { echo 'Orange boot service conflicts with runtime.' >&2; exit 1; }
+  require_root_mode etc/systemd/system/octessera-orange-boot-splash.service 644
+  octessera_require_image_symlink etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service ../octessera-orange-boot-splash.service /etc/systemd/system/octessera-orange-boot-splash.service
+}
+
+octessera_require_orange_shutdown_service() {
+  local service_content
+  service_content="$(read_file etc/systemd/system/octessera-orange-oled-shutdown.service)"
+  for required_line in \
+    'After=octessera.service' \
+    'Before=shutdown.target reboot.target halt.target' \
+    'User=octessera-runtime' \
+    'Group=octessera-runtime' \
+    'SupplementaryGroups=audio i2c spi gpio' \
+    'ProtectSystem=strict' \
+    'ReadWritePaths=/run/octessera-boot' \
+    'DevicePolicy=closed' \
+    'DeviceAllow=/dev/spidev1.0 rw' \
+    'DeviceAllow=/dev/gpiochip1 rw' \
+    'ExecStart=-/usr/local/sbin/octessera-orange-oled-logo shutdown' \
+    'TimeoutStartSec=5'; do
+    printf '%s\n' "$service_content" | grep -qFx "$required_line" || { echo "Orange shutdown service is missing: $required_line" >&2; exit 1; }
+  done
+}
+
 octessera_inspect_runtime_mode() {
   local metadata_content="$1"
   local requested_mode="${2:-diagnostic}"
@@ -334,6 +377,8 @@ octessera_inspect_runtime_mode() {
   image_mode="$(octessera_image_metadata_value "$metadata_content" OCTESSERA_IMAGE_MODE)" || { echo "Build metadata is missing the explicit Orange image mode." >&2; exit 1; }
   runtime_default="$(octessera_image_metadata_value "$metadata_content" OCTESSERA_RUNTIME_ENABLED_DEFAULT)" || { echo "Build metadata is missing the runtime default." >&2; exit 1; }
   [[ "$image_mode" == "$requested_mode" ]] || { echo "Inspector mode $requested_mode does not match image metadata mode $image_mode." >&2; exit 1; }
+  octessera_require_orange_boot_service
+  octessera_require_orange_shutdown_service
   case "$image_mode:$runtime_default" in
     diagnostic:false)
       octessera_require_image_contract diagnostic

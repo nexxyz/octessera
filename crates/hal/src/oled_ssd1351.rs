@@ -61,25 +61,25 @@ const SPI_CHUNK_BYTES: usize = 4096;
 #[cfg(any(
     feature = "rpi-zero-2w",
     all(feature = "orange-pi-zero-2w", target_os = "linux"),
-    all(test, any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))
+    test
 ))]
 const WIDTH: usize = 128;
 #[cfg(any(
     feature = "rpi-zero-2w",
     all(feature = "orange-pi-zero-2w", target_os = "linux"),
-    all(test, any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))
+    test
 ))]
 const HEIGHT: usize = 128;
 #[cfg(any(
     feature = "rpi-zero-2w",
     all(feature = "orange-pi-zero-2w", target_os = "linux"),
-    all(test, any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))
+    test
 ))]
 const BYTES_PER_PIXEL: usize = 2;
 #[cfg(any(
     feature = "rpi-zero-2w",
     all(feature = "orange-pi-zero-2w", target_os = "linux"),
-    all(test, any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))
+    test
 ))]
 const FRAME_BYTES: usize = WIDTH * HEIGHT * BYTES_PER_PIXEL;
 
@@ -102,7 +102,15 @@ pub struct OledSsd1351 {
 impl OledSsd1351 {
     /// Initialize OLED on SPI bus 0
     pub fn new() -> Result<Self, String> {
-        let preserve_existing = std::env::var("OCTESSERA_EARLY_BOOT_SPLASH").as_deref() == Ok("1");
+        Self::open(false)
+    }
+
+    pub fn adopt_existing() -> Result<Self, String> {
+        Self::open(true)
+    }
+
+    fn open(preserve_existing: bool) -> Result<Self, String> {
+        let startup_plan = crate::oled_startup_plan::OledStartupPlan::new(preserve_existing);
         // Open SPI device
         let spi_device =
             std::env::var("OCTESSERA_OLED_SPI_DEVICE").unwrap_or_else(|_| "/dev/spidev0.0".into());
@@ -127,7 +135,7 @@ impl OledSsd1351 {
             .map_err(|e| e.to_string())?
             .into_output_high();
 
-        if !preserve_existing {
+        if !startup_plan.operations().is_empty() {
             std::thread::sleep(std::time::Duration::from_millis(250));
 
             // Hardware reset pulse
@@ -235,7 +243,7 @@ impl OledSsd1351 {
 #[cfg(any(
     feature = "rpi-zero-2w",
     all(feature = "orange-pi-zero-2w", target_os = "linux"),
-    all(test, any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w"))
+    test
 ))]
 fn rotate_clockwise_rgb565<'a>(pixels: &'a [u8], rotated: &'a mut [u8]) -> &'a [u8] {
     if pixels.len() != FRAME_BYTES || rotated.len() != FRAME_BYTES {
@@ -250,40 +258,6 @@ fn rotate_clockwise_rgb565<'a>(pixels: &'a [u8], rotated: &'a mut [u8]) -> &'a [
         }
     }
     rotated
-}
-
-#[cfg(all(test, any(feature = "rpi-zero-2w", feature = "orange-pi-zero-2w")))]
-mod tests {
-    use super::{rotate_clockwise_rgb565, FRAME_BYTES, HEIGHT, WIDTH};
-
-    fn set_pixel(frame: &mut [u8], x: usize, y: usize, bytes: [u8; 2]) {
-        let offset = (y * WIDTH + x) * 2;
-        frame[offset..offset + 2].copy_from_slice(&bytes);
-    }
-
-    fn pixel(frame: &[u8], x: usize, y: usize) -> [u8; 2] {
-        let offset = (y * WIDTH + x) * 2;
-        [frame[offset], frame[offset + 1]]
-    }
-
-    #[test]
-    fn clockwise_rotation_preserves_asymmetric_rgb565_corner_pairs() {
-        let mut source = vec![0_u8; FRAME_BYTES];
-        set_pixel(&mut source, 0, 0, [0x12, 0x34]);
-        set_pixel(&mut source, WIDTH - 1, 0, [0x56, 0x78]);
-        set_pixel(&mut source, 0, HEIGHT - 1, [0x9A, 0xBC]);
-        set_pixel(&mut source, WIDTH - 1, HEIGHT - 1, [0xDE, 0xF0]);
-        set_pixel(&mut source, 3, 11, [0x45, 0x67]);
-        let mut rotated = vec![0_u8; FRAME_BYTES];
-
-        rotate_clockwise_rgb565(&source, &mut rotated);
-
-        assert_eq!(pixel(&rotated, WIDTH - 1, 0), [0x12, 0x34]);
-        assert_eq!(pixel(&rotated, WIDTH - 1, HEIGHT - 1), [0x56, 0x78]);
-        assert_eq!(pixel(&rotated, 0, 0), [0x9A, 0xBC]);
-        assert_eq!(pixel(&rotated, 0, HEIGHT - 1), [0xDE, 0xF0]);
-        assert_eq!(pixel(&rotated, HEIGHT - 1 - 11, 3), [0x45, 0x67]);
-    }
 }
 
 #[cfg(feature = "rpi-zero-2w")]
@@ -316,8 +290,22 @@ fn spi_mode_from_env() -> spidev::SpiModeFlags {
 #[cfg(all(feature = "orange-pi-zero-2w", target_os = "linux"))]
 impl OledSsd1351 {
     pub fn new() -> Result<Self, String> {
+        Self::open(false)
+    }
+
+    pub fn adopt_existing() -> Result<Self, String> {
+        Self::open(true)
+    }
+
+    fn open(preserve_existing: bool) -> Result<Self, String> {
+        let startup_plan = crate::oled_startup_plan::OledStartupPlan::new(preserve_existing);
+        let hardware = if startup_plan.operations().is_empty() {
+            crate::orange_hardware::OrangeHardware::open_preserve_existing()?
+        } else {
+            crate::orange_hardware::OrangeHardware::open()?
+        };
         Ok(Self {
-            transport: crate::orange_hardware::OrangeHardware::open()?.into_oled(),
+            transport: hardware.into_oled(),
             rotated_frame: vec![0_u8; FRAME_BYTES],
         })
     }
@@ -349,6 +337,10 @@ impl OledSsd1351 {
         Err("Orange OLED requires a Linux target".into())
     }
 
+    pub fn adopt_existing() -> Result<Self, String> {
+        Err("Orange OLED requires a Linux target".into())
+    }
+
     pub fn write_frame(&mut self, _pixels: &[u8]) -> Result<(), String> {
         Err("Orange OLED requires a Linux target".into())
     }
@@ -377,6 +369,10 @@ impl OledSsd1351 {
         Ok(Self { _private: () })
     }
 
+    pub fn adopt_existing() -> Result<Self, String> {
+        Self::new()
+    }
+
     pub fn write_frame(&mut self, _pixels: &[u8]) -> Result<(), String> {
         Ok(())
     }
@@ -398,5 +394,39 @@ impl OledSsd1351 {
 impl fmt::Debug for OledSsd1351 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "OledSsd1351 {{ ... }}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{rotate_clockwise_rgb565, FRAME_BYTES, HEIGHT, WIDTH};
+
+    fn set_pixel(frame: &mut [u8], x: usize, y: usize, bytes: [u8; 2]) {
+        let offset = (y * WIDTH + x) * 2;
+        frame[offset..offset + 2].copy_from_slice(&bytes);
+    }
+
+    fn pixel(frame: &[u8], x: usize, y: usize) -> [u8; 2] {
+        let offset = (y * WIDTH + x) * 2;
+        [frame[offset], frame[offset + 1]]
+    }
+
+    #[test]
+    fn clockwise_rotation_preserves_asymmetric_rgb565_corner_pairs() {
+        let mut source = vec![0_u8; FRAME_BYTES];
+        set_pixel(&mut source, 0, 0, [0x12, 0x34]);
+        set_pixel(&mut source, WIDTH - 1, 0, [0x56, 0x78]);
+        set_pixel(&mut source, 0, HEIGHT - 1, [0x9A, 0xBC]);
+        set_pixel(&mut source, WIDTH - 1, HEIGHT - 1, [0xDE, 0xF0]);
+        set_pixel(&mut source, 3, 11, [0x45, 0x67]);
+        let mut rotated = vec![0_u8; FRAME_BYTES];
+
+        rotate_clockwise_rgb565(&source, &mut rotated);
+
+        assert_eq!(pixel(&rotated, WIDTH - 1, 0), [0x12, 0x34]);
+        assert_eq!(pixel(&rotated, WIDTH - 1, HEIGHT - 1), [0x56, 0x78]);
+        assert_eq!(pixel(&rotated, 0, 0), [0x9A, 0xBC]);
+        assert_eq!(pixel(&rotated, 0, HEIGHT - 1), [0xDE, 0xF0]);
+        assert_eq!(pixel(&rotated, HEIGHT - 1 - 11, 3), [0x45, 0x67]);
     }
 }

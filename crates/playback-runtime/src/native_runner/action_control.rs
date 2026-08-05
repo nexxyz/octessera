@@ -144,6 +144,13 @@ impl NativeRunner {
                 } else if action_type == "system.info" {
                     self.open_system_info();
                     Ok(self.platform_effect_for_action(&action_type))
+                } else if action_type == "system.configureWifi" {
+                    self.stop_for_setup_portal();
+                    self.outbox
+                        .push_platform_effect(RuntimePlatformEffect::MidiPanic);
+                    self.outbox
+                        .push_platform_effect(RuntimePlatformEffect::SetupPortalOpen);
+                    Ok(None)
                 } else if action_type == "system.clearAll" {
                     self.clear_patch_state()?;
                     Ok(None)

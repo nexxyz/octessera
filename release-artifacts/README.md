@@ -12,6 +12,34 @@ Keep only publishable artifacts in versioned folders; temporary CI run imports o
 
 Regenerate these files from the source tree before publishing a release.
 
+## Legal and source companions
+
+Release artifacts should link or ship the applicable [`NOTICE`](../NOTICE),
+[`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md),
+[`samples/ATTRIBUTIONS.tsv`](../samples/ATTRIBUTIONS.tsv), and
+[`hardware/ATTRIBUTIONS.md`](../hardware/ATTRIBUTIONS.md). The release policy
+is [`docs/release-licensing.md`](../docs/release-licensing.md).
+
+Attribution notices and pinned upstream source references are maintained with
+the project. Octessera source, configuration, and image patches are in the
+repository. Applicable source duties need review before any future public image
+release; these records make no legal-compliance claim. The release workflow
+publishes `octessera-<version>-notices.zip` and checks the Windows portable
+notice bundle. Board device ZIPs carry exact root-level `LICENSE` and `NOTICE`
+files.
+
+## Artifact-surface naming
+
+The artifact surface is organized by deliverable rather than by source package:
+`desktop/` contains Desktop Simulator builds, `pi/` contains shared hardware-host
+runtime packages and board images, `pcb/` contains fabrication exports, and
+`enclosure/` contains printable and STEP exports. Board-specific artifacts use the
+canonical `raspberry-pi-zero-2w` or `orange-pi-zero-2w` profile name.
+
+`octessera-pi` is the compatibility runtime filename used by both board variants;
+it is not a board identity. Use the profile-qualified artifact name and metadata to
+identify the target board.
+
 ## Enclosure board naming
 
 Top enclosure artifact filenames include the full board name. The shorthand `rpi` means Raspberry Pi Zero 2 W and `opi` means Orange Pi Zero 2W; use those only in prose or table labels.

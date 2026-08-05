@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
+import os
 import shutil
 import struct
 import subprocess
@@ -10,8 +12,16 @@ import tempfile
 from pathlib import Path
 
 import orange_image_mount
+from orange_boot_contract import verify_runtime
+from stage_notices import stage_notices  # type: ignore[import-not-found]
 
 TOOLS = Path(__file__).resolve().parent
+REPOSITORY = TOOLS.parents[1]
+CONSTRUCTION = json.loads((REPOSITORY / "resources/image-construction/boot-layers/orange-pi-zero-2w.json").read_text())
+VERIFY_SPEC = importlib.util.spec_from_file_location("orange_image_verifier", TOOLS / "verify-orange-image.py")
+assert VERIFY_SPEC is not None and VERIFY_SPEC.loader is not None
+VERIFY = importlib.util.module_from_spec(VERIFY_SPEC)
+VERIFY_SPEC.loader.exec_module(VERIFY)
 
 
 RELEASE = "6.18.38-current-sunxi64"
@@ -42,13 +52,28 @@ def make_uboot_initramfs(payload: bytes, declared_size: int | None = None) -> by
     return bytes(header) + payload
 
 
-def make_cpio_initramfs(work: Path) -> bytes:
-    source = work / "initramfs-source"
+def make_cpio_initramfs(work: Path, source_root: Path, stale: bool = False) -> bytes:
+    source = work / ("stale-initramfs-source" if stale else "initramfs-source")
     write(source / "init", b"#!/bin/sh\n")
+    if not stale:
+        installed_matches = CONSTRUCTION["selected_initramfs"]["installed_output_matches"]
+        for item in installed_matches:
+            target = source / item["initramfs_path"]
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source_root / item["installed_path"], target)
+        for tool in CONSTRUCTION["selected_initramfs"]["required_tools"]:
+            write(source / tool, b"synthetic-tool\n")
+        for module in CONSTRUCTION["selected_initramfs"]["required_kernel_modules"]:
+            write(source / f"lib/modules/{RELEASE}/kernel/drivers/octessera/{module}.ko", b"synthetic-kernel-module")
+        write(source / "usr/bin/python3", b"synthetic-python\n")
+        for relative in CONSTRUCTION["selected_initramfs"]["python_files"]:
+            write(source / f"usr/lib/python3.13/{relative}", b"synthetic-python-closure\n")
+        for module in CONSTRUCTION["selected_initramfs"]["python_extensions"]:
+            write(source / f"usr/lib/python3.13/lib-dynload/{module}.cpython-313-aarch64-linux-gnu.so", b"synthetic-python-extension")
     return subprocess.run(
         ["cpio", "--quiet", "-o", "-H", "newc"],
         cwd=source,
-        input=b"init\n",
+        input=subprocess.run(["find", ".", "-print"], cwd=source, capture_output=True, check=True).stdout,
         capture_output=True,
         check=True,
     ).stdout
@@ -85,16 +110,47 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
     final_root.mkdir()
     subprocess.run(["dpkg-deb", "-x", str(packages / NATIVE_IMAGE), str(final_root)], check=True, capture_output=True)
     subprocess.run(["dpkg-deb", "-x", str(packages / NATIVE_DTB), str(final_root)], check=True, capture_output=True)
+    stage_notices(REPOSITORY, final_root)
+    write(final_root / "usr/share/common-licenses/GPL-3", b"fixture GPL license\n")
+    write(final_root / "usr/share/doc/base-files/copyright", b"fixture base-files copyright\n")
     (final_root / "boot").mkdir(exist_ok=True)
     (final_root / "boot/Image").symlink_to(f"../usr/lib/linux-image-{RELEASE}/Image")
-    initramfs = make_cpio_initramfs(work)
+    phase5_outputs = {
+        "etc/profile.d/octessera-welcome.sh": "tools/pi-image/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh",
+        "etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash": "userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash",
+        "usr/local/sbin/octessera-orange-oled-logo": "userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo",
+        "usr/local/sbin/octessera-orange-oled-handoff.py": "userpatches/overlay/usr/local/sbin/octessera-orange-oled-handoff.py",
+        "usr/share/octessera/oled/octessera-mark.svg": "userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-mark.svg",
+        "usr/share/octessera/oled/octessera-wordmark.svg": "userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-wordmark.svg",
+    }
+    for installed_path, source_path in phase5_outputs.items():
+        write(final_root / installed_path, (REPOSITORY / source_path).read_bytes())
+    for phase_module in CONSTRUCTION["selected_initramfs"]["required_kernel_modules"]:
+        write(final_root / f"lib/modules/{RELEASE}/kernel/drivers/octessera/{phase_module}.ko", b"synthetic-kernel-module")
+    write(final_root / "etc/systemd/system/octessera-orange-boot-splash.service", (REPOSITORY / "userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service").read_bytes())
+    write(final_root / "etc/systemd/system/octessera-orange-oled-shutdown.service", (REPOSITORY / "userpatches/overlay/etc/systemd/system/octessera-orange-oled-shutdown.service").read_bytes())
+    (final_root / "etc/systemd/system/sysinit.target.wants").mkdir(parents=True, exist_ok=True)
+    (final_root / "etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service").symlink_to("../octessera-orange-boot-splash.service")
+    initramfs = make_cpio_initramfs(work, final_root)
     compressed_initramfs = subprocess.run(["zstd", "-q", "-c"], input=initramfs, capture_output=True, check=True).stdout
     write(final_root / f"boot/initrd.img-{RELEASE}", make_uboot_initramfs(compressed_initramfs))
     (final_root / "boot/uInitrd").symlink_to(f"initrd.img-{RELEASE}")
     write(final_root / "boot/armbianEnv.txt", "verbosity=1\n")
+    write(final_root / "boot/overlay-user/octessera-h618-input-routing.dtbo", b"synthetic-input-routing-dtbo")
+    write(final_root / "usr/local/share/octessera/device-tree/octessera-h618-input-routing.dts", b"synthetic-input-routing-dts")
+    (final_root / "etc/systemd/system").mkdir(parents=True, exist_ok=True)
+    (final_root / "etc/systemd/system/serial-getty@ttyS0.service").symlink_to("/dev/null")
     write(final_root / "etc/os-release", "ID=armbian\n")
     write(final_root / "etc/octessera/build-metadata.env", "OCTESSERA_IMAGE_MODE=diagnostic\nOCTESSERA_RUNTIME_ENABLED_DEFAULT=false\n")
     write(final_root / "etc/octessera/image-contract.json", '{"schema_version": 1, "image_kind": "diagnostic", "runtime_enabled_default": false}\n')
+    write(final_root / "etc/passwd", "octessera:x:1000:1000:Octessera:/home/octessera:/bin/bash\noctessera-runtime:x:990:990:Octessera runtime:/nonexistent:/usr/sbin/nologin\n")
+    (final_root / "home/octessera").mkdir(parents=True, exist_ok=True)
+    write(final_root / "home/octessera/.hushlogin", b"")
+    os.chown(final_root / "home/octessera/.hushlogin", 1000, 1000)  # type: ignore[attr-defined]
+    write(final_root / "etc/pam.d/20-vendor-login", b"vendor\n")
+    write(final_root / "etc/update-motd.d/20-vendor-status", b"vendor\n")
+    write(final_root / "etc/shadow", "octessera:!:1:0:99999:7:::\noctessera-runtime:!:1:0:99999:7:::\n")
+    write(final_root / "etc/group", "octessera:x:1000:\noctessera-runtime:x:990:\naudio:x:29:octessera-runtime\ni2c:x:998:octessera-runtime\nspi:x:997:octessera-runtime\ngpio:x:996:octessera-runtime\n")
     write(
         final_root / "var/lib/dpkg/status",
         f"Package: {IMAGE_NAME}\nStatus: install ok installed\nVersion: {REVISION}\nArchitecture: arm64\n\n"
@@ -157,6 +213,12 @@ def verifier_args(root: Path, image: Path, dtb: Path, evidence: Path, provenance
         str(evidence),
         "--provenance",
         str(provenance),
+        "--manifest",
+        str(REPOSITORY / "tools/kernel-patches/orange-midi-interface-manifest.json"),
+        "--construction-contract",
+        str(REPOSITORY / "resources/image-construction/boot-layers/orange-pi-zero-2w.json"),
+        "--boot-proof-mode",
+        "phase5-constructor",
         "--mode",
         mode,
     ]
@@ -172,6 +234,11 @@ def root_args(args: list[str], root: Path) -> list[str]:
     result = list(args)
     result[result.index("--root") + 1] = str(root)
     return result
+
+
+def without_option(args: list[str], option: str) -> list[str]:
+    index = args.index(option)
+    return [*args[:index], *args[index + 2 :]]
 
 
 def main() -> None:
@@ -207,10 +274,79 @@ def main() -> None:
         root, image, dtb, evidence, provenance = make_fixture(work)
         args = verifier_args(root, image, dtb, evidence, provenance)
         run_proof(args, True)
+
+        def reject_terminal_fixture(name: str, mutate: object) -> None:
+            negative = work / f"negative-terminal-{name}"
+            shutil.copytree(root, negative, symlinks=True)
+            mutate(negative)  # type: ignore[operator]
+            run_proof(root_args(args, negative), False)
+
+        reject_terminal_fixture("stale-welcome", lambda path: write(path / "etc/profile.d/octessera-welcome.sh", b"stale\n"))
+        reject_terminal_fixture("missing-hushlogin", lambda path: (path / "home/octessera/.hushlogin").unlink())
+        reject_terminal_fixture("nonempty-hushlogin", lambda path: write(path / "home/octessera/.hushlogin", b"x"))
+
+        def wrong_hush_owner(path: Path) -> None:
+            os.chown(path / "home/octessera/.hushlogin", 0, 0)  # type: ignore[attr-defined]
+
+        reject_terminal_fixture("wrong-hush-owner", wrong_hush_owner)
+        reject_terminal_fixture("wrong-hush-mode", lambda path: path.joinpath("home/octessera/.hushlogin").chmod(0o600))
+
+        def symlink_hush(path: Path) -> None:
+            (path / "home/octessera/.hushlogin").unlink()
+            (path / "home/octessera/.hushlogin").symlink_to("/dev/null")
+
+        reject_terminal_fixture("symlink-hushlogin", symlink_hush)
+        reject_terminal_fixture("duplicate-account", lambda path: path.joinpath("etc/passwd").write_text(path.joinpath("etc/passwd").read_text() + "octessera:x:1001:1001:Duplicate:/home/octessera:/bin/bash\n"))
+        reject_terminal_fixture("wrong-home", lambda path: path.joinpath("etc/passwd").write_text(path.joinpath("etc/passwd").read_text().replace("/home/octessera:/bin/bash", "/srv/octessera:/bin/bash")))
+        reject_terminal_fixture("wrong-shell", lambda path: path.joinpath("etc/passwd").write_text(path.joinpath("etc/passwd").read_text().replace("/home/octessera:/bin/bash", "/home/octessera:/bin/sh")))
+        reject_terminal_fixture("missing-group", lambda path: path.joinpath("etc/group").write_text(path.joinpath("etc/group").read_text().replace("octessera:x:1000:\n", "")))
+        reject_terminal_fixture("duplicate-group", lambda path: path.joinpath("etc/group").write_text(path.joinpath("etc/group").read_text() + "octessera:x:1000:\n"))
+        reject_terminal_fixture("wrong-group-gid", lambda path: path.joinpath("etc/group").write_text(path.joinpath("etc/group").read_text().replace("octessera:x:1000:", "octessera:x:1001:")))
+        reject_terminal_fixture("pam-override", lambda path: write(path / "etc/pam.d/10-octessera", b"override\n"))
+        reject_terminal_fixture("motd-override", lambda path: write(path / "etc/update-motd.d/10-octessera", b"override\n"))
+
+        def reject_notice_fixture(name: str, mutate: object) -> None:
+            negative = work / f"negative-notice-{name}"
+            shutil.copytree(root, negative, symlinks=True)
+            mutate(negative)  # type: ignore[operator]
+            run_proof(root_args(args, negative), False)
+
+        reject_notice_fixture("stale", lambda path: write(path / "usr/share/doc/octessera/LICENSE", b"stale\n"))
+        reject_notice_fixture("missing", lambda path: (path / "usr/share/doc/octessera/LICENSE").unlink())
+        reject_notice_fixture("extra", lambda path: write(path / "usr/share/doc/octessera/extra.txt", b"extra\n"))
+        reject_notice_fixture("mode", lambda path: path.joinpath("usr/share/doc/octessera/LICENSE").chmod(0o600))
+
+        def symlink_notice(path: Path) -> None:
+            (path / "usr/share/doc/octessera/LICENSE").unlink()
+            (path / "usr/share/doc/octessera/LICENSE").symlink_to("/dev/null")
+
+        reject_notice_fixture("symlink", symlink_notice)
+        run_proof(without_option(args, "--manifest"), False)
+        for opposite_option, opposite_value in (
+            ("--trust-manifest", str(REPOSITORY / "resources/image-parents/v0.7.5-trust-manifest.json")),
+            ("--boot-neutral-contract", str(REPOSITORY / "resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.7.5.json")),
+            ("--parent-image", str(work / "parent.img.xz")),
+            ("--respin-provenance", str(work / "respin.json")),
+            ("--derivation-kind", "runtime-only"),
+            ("--setup-proof", str(work / "setup-proof.json")),
+        ):
+            run_proof([*args, opposite_option, opposite_value], False)
+        run_proof(without_option(args, "--construction-contract"), False)
+        wrong_contract = work / "wrong-construction.json"
+        shutil.copyfile(REPOSITORY / "resources/image-construction/boot-layers/orange-pi-zero-2w.json", wrong_contract)
+        wrong_contract_args = list(args)
+        wrong_contract_args[wrong_contract_args.index("--construction-contract") + 1] = str(wrong_contract)
+        run_proof(wrong_contract_args, False)
         artifact = work / "image-provenance.txt"
         run_proof([*args, "--output", str(artifact)], True)
+        proof_document = json.loads(artifact.read_text())
+        assert proof_document["schema"] == "octessera.image-proof/v2"
+        assert proof_document["schema_version"] == 2
+        assert proof_document["proof_mode"] == "phase5-constructor"
         tampered_artifact = work / "tampered-image-provenance.txt"
-        tampered_artifact.write_text(artifact.read_text().replace("image_sha256=" + "a" * 64, "image_sha256=" + "b" * 64))
+        tampered = json.loads(artifact.read_text())
+        tampered["artifact"]["sha256"] = "b" * 64
+        tampered_artifact.write_text(json.dumps(tampered) + "\n")
         run_proof([*args, "--image-provenance", str(tampered_artifact)], False)
         canonical_image = work / CANONICAL_IMAGE
         canonical_dtb = work / CANONICAL_DTB
@@ -229,6 +365,13 @@ def main() -> None:
             shutil.copytree(root, negative, symlinks=True)
             write(negative / f"boot/initrd.img-{RELEASE}", contents)
             run_proof(root_args(args, negative), False)
+        stale = work / "stale-v0.7.5-parent"
+        shutil.copytree(root, stale, symlinks=True)
+        stale_payload = make_cpio_initramfs(work, stale, True)
+        stale_compressed = subprocess.run(["zstd", "-q", "-c"], input=stale_payload, capture_output=True, check=True).stdout
+        write(stale / f"boot/initrd.img-{RELEASE}", make_uboot_initramfs(stale_compressed))
+        run_proof(root_args(args, stale), False)
+        verify_runtime(stale, "diagnostic")
         for name, contents in (
             ("empty-fdt", "fdtfile=\n"),
             ("duplicate-fdt", "fdtfile=sun50i-h618-orangepi-zero2w.dtb\nfdtfile=sun50i-h618-orangepi-zero2w.dtb\n"),
@@ -249,6 +392,7 @@ def main() -> None:
             run_proof(root_args(args, negative), False)
         production = work / "production"
         shutil.copytree(root, production, symlinks=True)
+        os.chown(production / "home/octessera/.hushlogin", 1000, 1000)  # type: ignore[attr-defined]
         binary = b"\x7fELF\x02\x01\x01" + bytes(11) + struct.pack("<H", 183) + bytes(64)
         version = "0.5.0"
         release_dir = production / f"opt/octessera/releases/{version}"
@@ -270,12 +414,12 @@ def main() -> None:
         write(production / "etc/shadow", "octessera:*:1:0:99999:7:::\noctessera-runtime:!:1:0:99999:7:::\n")
         write(
             production / "etc/group",
-            "octessera-runtime:x:990:\naudio:x:29:octessera-runtime\ni2c:x:998:octessera-runtime\n"
+            "octessera:x:1000:\noctessera-runtime:x:990:\naudio:x:29:octessera-runtime\ni2c:x:998:octessera-runtime\n"
             "spi:x:997:octessera-runtime\ngpio:x:996:octessera-runtime\n",
         )
         (production / "var/lib/octessera/presets").mkdir(parents=True)
         (production / "var/lib/octessera/samples").mkdir(parents=True)
-        write(production / "etc/systemd/system/octessera.service", "[Service]\nUser=octessera-runtime\nGroup=octessera-runtime\nEnvironment=OCTESSERA_EXPECTED_BOARD_PROFILE=orange-pi-zero-2w\nEnvironment=OCTESSERA_PI_STORE_DIR=/var/lib/octessera/presets\nEnvironment=OCTESSERA_PI_SAMPLES_DIR=/var/lib/octessera/samples\nEnvironment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json\nNoNewPrivileges=yes\nProtectSystem=strict\nReadWritePaths=/var/lib/octessera /run/octessera\nPrivateTmp=yes\nProtectHome=yes\nRuntimeDirectory=octessera\nLimitRTPRIO=70\nLimitMEMLOCK=infinity\nExecStart=/usr/local/bin/octessera-pi\n")
+        write(production / "etc/systemd/system/octessera.service", "[Service]\nUser=octessera-runtime\nGroup=octessera-runtime\nEnvironment=OCTESSERA_EXPECTED_BOARD_PROFILE=orange-pi-zero-2w\nEnvironment=OCTESSERA_PI_STORE_DIR=/var/lib/octessera/presets\nEnvironment=OCTESSERA_PI_SAMPLES_DIR=/var/lib/octessera/samples\nEnvironment=OCTESSERA_CANDIDATE_HEALTH_PATH=/run/octessera/candidate-ready.json\nEnvironment=OCTESSERA_OLED_BOOT_HANDOFF=v1\nNoNewPrivileges=yes\nProtectSystem=strict\nReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot\nPrivateTmp=yes\nProtectHome=yes\nRuntimeDirectory=octessera\nLimitRTPRIO=70\nLimitMEMLOCK=infinity\nExecStart=/usr/local/bin/octessera-pi\n")
         write(production / "etc/udev/rules.d/70-octessera-orange-runtime.rules", "KERNEL==\"i2c-2\", GROUP=\"octessera-runtime\", MODE=\"0660\"\nKERNEL==\"spidev1.0\", GROUP=\"octessera-runtime\", MODE=\"0660\"\nKERNEL==\"gpiochip1\", GROUP=\"octessera-runtime\", MODE=\"0660\"\n")
         write(production / "etc/udev/rules.d/10-wifi-disable-powermanagement.rules", 'KERNEL=="wlan*", ACTION=="add", RUN+="/sbin/iw dev %k set power_save off"\n')
         (production / "etc/udev/rules.d/09-disabled.rules").symlink_to("/dev/null")

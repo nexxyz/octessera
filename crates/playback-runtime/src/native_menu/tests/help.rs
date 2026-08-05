@@ -29,6 +29,24 @@ pub(crate) fn native_menu_help_targets_resolve_to_specific_tsv_rows() {
 }
 
 #[test]
+pub(crate) fn configure_wifi_uses_a_stable_resolvable_action_help_key() {
+    let target = representative_help_configs()
+        .into_iter()
+        .flat_map(|config| NativeMenuModel::new(config).help_targets())
+        .find(|target| target.key == "action:system_configure_wifi")
+        .expect("configure WiFi help target");
+    let entry =
+        crate::native_help::resolve_native_help_entry(&target).expect("configure WiFi help entry");
+    assert_eq!(entry.key, "action:system_configure_wifi");
+    let copy = format!("{} {}", entry.line1, entry.line2);
+    assert!(copy.contains("full setup portal"));
+    assert!(copy.contains("Wi-Fi"));
+    assert!(copy.contains("hostname"));
+    assert!(copy.contains("SSH"));
+    assert!(copy.contains("login"));
+}
+
+#[test]
 pub(crate) fn specific_native_help_tsv_rows_are_self_resolvable() {
     let unresolved = crate::native_help::native_help_entries_for_tests()
         .iter()

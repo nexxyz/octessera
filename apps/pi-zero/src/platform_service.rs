@@ -2,15 +2,21 @@
 use crate::device_update;
 use crate::persistence::atomic_write_json;
 use crate::sample_browser::sample_entries;
+#[cfg(all(test, any(unix, windows)))]
+use crate::setup_portal::SetupPortalEnvironment;
+use crate::setup_portal::SetupPortalService;
+use crate::setup_portal_worker;
 use playback_runtime::{
     HostMessage, RuntimePlatformRequest, RuntimeStoreResult, RuntimeSystemInfoError,
 };
 use std::path::{Path, PathBuf};
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use std::process::Command;
-use std::sync::mpsc::{self, Receiver, SyncSender, TryRecvError, TrySendError};
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{self, Receiver, SyncSender, TrySendError};
 use std::sync::Arc;
+#[path = "platform_service_setup_portal.rs"]
+mod platform_service_setup_portal;
 #[cfg(test)]
 #[path = "platform_service_test_support.rs"]
 mod platform_service_test_support;
@@ -25,6 +31,8 @@ pub struct PiPlatformService {
     store_dir: PathBuf,
     jobs: SyncSender<PlatformJob>,
     results: Receiver<HostMessage>,
+    setup_portal: SetupPortalService,
+    setup_portal_stop: Arc<AtomicBool>,
 }
 
 impl PiPlatformService {
@@ -53,9 +61,33 @@ impl PiPlatformService {
             dyn device_update::UpdateExecutor,
         >,
     ) -> Self {
+        let setup_portal = SetupPortalService::production();
+        Self::new_with_setup_portal(
+            store_dir,
+            samples_dir,
+            setup_portal,
+            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+            update_executor,
+        )
+    }
+
+    fn new_with_setup_portal(
+        store_dir: PathBuf,
+        samples_dir: PathBuf,
+        setup_portal: SetupPortalService,
+        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))] update_executor: Arc<
+            dyn device_update::UpdateExecutor,
+        >,
+    ) -> Self {
         let (jobs_tx, jobs_rx) = mpsc::sync_channel(JOB_QUEUE_CAPACITY);
         let (results_tx, results_rx) = mpsc::sync_channel(RESULT_QUEUE_CAPACITY);
         let worker_store_dir = store_dir.clone();
+        let setup_portal_stop = Arc::new(AtomicBool::new(false));
+        setup_portal_worker::spawn(
+            results_tx.clone(),
+            setup_portal.clone(),
+            setup_portal_stop.clone(),
+        );
         #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         platform_service_worker::spawn(
             worker_store_dir,
@@ -70,7 +102,24 @@ impl PiPlatformService {
             store_dir,
             jobs: jobs_tx,
             results: results_rx,
+            setup_portal,
+            setup_portal_stop,
         }
+    }
+
+    #[cfg(all(test, any(unix, windows)))]
+    pub(crate) fn new_with_setup_environment(
+        store_dir: PathBuf,
+        samples_dir: PathBuf,
+        environment: SetupPortalEnvironment,
+    ) -> Self {
+        Self::new_with_setup_portal(
+            store_dir,
+            samples_dir,
+            SetupPortalService::test(environment),
+            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+            device_update::production_executor(),
+        )
     }
 
     pub fn save_recovery_now(&self, payload: &serde_json::Value) -> Result<(), String> {
@@ -88,16 +137,11 @@ impl PiPlatformService {
             TrySendError::Disconnected(_) => "pi platform service stopped".to_string(),
         })
     }
+}
 
-    pub fn drain_results(&self, max_results: usize) -> Vec<HostMessage> {
-        let mut results = Vec::new();
-        for _ in 0..max_results {
-            match self.results.try_recv() {
-                Ok(result) => results.push(result),
-                Err(TryRecvError::Empty | TryRecvError::Disconnected) => break,
-            }
-        }
-        results
+impl Drop for PiPlatformService {
+    fn drop(&mut self) {
+        self.setup_portal_stop.store(true, Ordering::Release);
     }
 }
 
