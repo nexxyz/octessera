@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import contextlib
+import importlib
 import json
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import Iterator
@@ -85,6 +87,43 @@ def _looks_like_boot(path: Path) -> bool:
     return (path / "armbianEnv.txt").is_file() or (path / "extlinux/extlinux.conf").is_file() or (
         (path / "Image").exists() and (path / "dtb").exists()
     )
+
+
+def capture_image_layout(image: Path, board_profile: str, repository_root: Path) -> dict[str, object]:
+    image = Path(image).resolve()
+    if not image.is_file() or image.suffix not in {".img", ".xz"}:
+        raise ImageMountError(f"disk layout requires a regular .img or .img.xz artifact: {image}")
+    work = Path(tempfile.mkdtemp(prefix="octessera-orange-image-layout-"))
+    image_path = image
+    loop = ""
+    inserted = False
+    directory = str(repository_root / "tools/image-respin")
+    try:
+        if image.suffixes[-2:] == [".img", ".xz"]:
+            image_path = work / "image.img"
+            try:
+                with image_path.open("wb") as output:
+                    subprocess.run(["xz", "-dc", str(image)], check=True, stdout=output)
+            except (FileNotFoundError, subprocess.CalledProcessError, OSError) as error:
+                raise ImageMountError(f"cannot decompress image for raw layout: {image}") from error
+        loop = _run(["losetup", "--find", "--show", "--read-only", "--partscan", str(image_path)], capture=True).stdout.strip()
+        if not loop:
+            raise ImageMountError("losetup did not return a read-only loop device for raw layout")
+        if directory not in sys.path:
+            sys.path.insert(0, directory)
+            inserted = True
+        disk_layout = importlib.import_module("disk_layout")
+        return disk_layout.capture_layout(image_path, board_profile, loop).as_dict()
+    except ImageMountError:
+        raise
+    except (OSError, ValueError) as error:
+        raise ImageMountError(f"cannot capture raw disk layout: {image}") from error
+    finally:
+        if inserted:
+            sys.path.remove(directory)
+        if loop:
+            subprocess.run(["losetup", "-d", loop], check=False, capture_output=True, text=True)
+        shutil.rmtree(work, ignore_errors=True)
 
 
 @contextlib.contextmanager

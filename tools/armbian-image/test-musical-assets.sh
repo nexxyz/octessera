@@ -33,11 +33,17 @@ expected = sorted(
     }
 )
 rows = []
+expected_sources = {
+    "Drum/claps/distkit-clap.wav": "https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/fugue-state-audio/drums/claps/distkit-clap.wav",
+    "Drum/hihat open/165028__rodrigo-the-mad__mini-909ish-open-hat.wav": "https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/freesound/drums/cymbal/open/165028__rodrigo-the-mad__mini-909ish-open-hat.wav",
+    "Drum/kick/Kick2.wav": "https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/microlag/One-Shots/Drums/Kick2.wav",
+}
+expected_license_source = "https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/LICENSE"
 for line in manifest_path.read_text(encoding="utf-8").splitlines()[1:]:
     path, size, digest, source, license_source = line.split("\t")
-    if source != "https://github.com/stargatedaw/stargate-sample-pack":
+    if source != expected_sources.get(path):
         raise SystemExit(f"unexpected sample source: {source}")
-    if license_source != "https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/main/README.md":
+    if license_source != expected_license_source:
         raise SystemExit(f"unexpected sample license source: {license_source}")
     sample = sample_root / path
     if sample.is_symlink() or not sample.is_file():

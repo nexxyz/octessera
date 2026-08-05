@@ -389,6 +389,7 @@ system_group	Menu > System		group	System	Global configuration area for presets, 
 system_diagnostics_group	Menu > System > Diagnostics		group	Diagnostics	Hardware checks before the Pi runtime starts.	Use Hardware Test to verify boot config, pins, and DAC detection.
 system_hardware_test	Menu > System > Diagnostics > Hardware Test	action:system_hardware_test	action	Hardware Test	Runs the Pi pre-hardware diagnostic checks.	Requires confirmation before running the guided test.
 system_info	Menu > System > Info	action:system.info	action	System Info	Shows OS, Octessera, network, hostname, and board profile details.	Info is loaded by the native host and unavailable fields are labeled explicitly.
+system_configure_wifi	Menu > System > Configure WiFi	action:system_configure_wifi	action	Configure WiFi	Stops playback and opens the full setup portal for Wi-Fi, hostname, SSH, and login settings.	Use the portal to apply device setup changes.
 system_updates_group	Menu > System > Updates		group	Updates	Update status and OTA control actions.	Check is read-only; Apply and Rollback confirm first.
 system_update_check	Menu > System > Updates > Check	action:system_update_check	action	Check	Checks whether an update is available.	This is a non-destructive status request.
 system_update_apply	Menu > System > Updates > Apply	action:system_update_apply	action	Apply	Downloads and applies the selected device release.	Requires confirmation before changing the active release.

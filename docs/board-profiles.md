@@ -5,6 +5,42 @@ Octessera uses explicit board profile IDs at build and artifact boundaries:
 - `raspberry-pi-zero-2w` is the supported Raspberry Pi Zero 2 W profile.
 - `orange-pi-zero-2w` is the supported Orange Pi Zero 2W production profile.
 
+## Five-layer naming taxonomy
+
+Octessera names are organized into five layers:
+
+- General/native shared crates — `crates/platform-core`, `crates/playback-runtime`, and other board-agnostic native crates.
+- Desktop Simulator — `apps/desktop`, `@octessera/desktop`, and `octessera-desktop`.
+- Shared hardware host — `apps/pi-zero` and `octessera-pi`, retained compatibility names serving both boards.
+- Raspberry Pi Zero 2 W — `raspberry-pi-zero-2w`, `tools/pi`.
+- Orange Pi Zero 2W — `orange-pi-zero-2w`, `tools/orange-pi`.
+
+Old Cargo feature names are compatibility aliases, not preferred names. Use the
+canonical profile and feature names described below.
+
+Both board profiles expose the same native `System > Configure WiFi` menu
+contract and typed setup-portal status flow. Their fixed accounts, image
+provisioning paths, and parent-image preconditions differ: Raspberry uses the
+Pi image path and `pi` account, while Orange uses the Armbian path with separate
+`octessera` setup and `octessera-runtime` service accounts. Physical setup-portal
+qualification on both boards remains pending.
+
+The OLED boot handoff is also one parity contract. Both boards use the same
+cyan/yellow/green/magenta four-band sweep defined by
+`resources/oled/boot-sweep-v1.json`, the same exclusive `/run/octessera-boot`
+lock/status protocol, and the same acknowledged first-menu handoff. Raspberry
+embeds the native boot utility in initramfs and uses the Pi SPI/GPIO adapter;
+Orange carries its fixed Python OLED utility and closure for H618 SPI/GPIO.
+Orange readiness additionally waits for healthy internal DAC status. These
+source paths are implemented, but their boot services, hooks, and selected
+initramfs outputs still require a new constructor image and physical
+qualification on both boards.
+
+Both constructors also stage the same interactive terminal welcome without
+changing PAM or update-motd. Raspberry releases the serial console and masks
+its getty units in the selected boot layout; Orange keeps its UART0 release in
+the reviewed input-routing path.
+
 The board-specific HALs own their physical pin and device descriptors. The Raspberry
 canonical Cargo features are `raspberry-pi-zero-2w` and
 `hardware-raspberry-pi-zero-2w`; the older `rpi-zero-2w`, `pi-zero`,

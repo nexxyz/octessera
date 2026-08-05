@@ -1,8 +1,9 @@
 use super::{
-    drain_host_results, encoder_id, encoder_message, qualified_encoder_ids, POLLING_INTERVAL,
-    RENDER_INTERVAL, RUNTIME_TICK,
+    drain_host_results, encoder_id, encoder_message, prepare_runtime, qualified_encoder_ids,
+    OrangeStartupReadinessGate, POLLING_INTERVAL, RENDER_INTERVAL, RUNTIME_TICK,
 };
 use crate::audio::test_service_with_prep_sender;
+use crate::candidate_readiness::CandidateReadiness;
 use crate::orange_host_adapter::OrangeHostAdapter;
 use octessera_hal::encoder_gpio::HardwareEvent;
 use playback_runtime::{
@@ -37,6 +38,58 @@ fn orange_candidate_uses_ten_millisecond_polling() {
     assert_eq!(POLLING_INTERVAL.as_millis(), 10);
     assert!(RUNTIME_TICK <= POLLING_INTERVAL);
     assert!(RENDER_INTERVAL > POLLING_INTERVAL);
+}
+
+#[test]
+fn legacy_orange_preparation_starts_with_a_canonical_normal_snapshot() {
+    let (audio, _, _) = crate::audio::test_service();
+    let prepared = prepare_runtime(audio, Arc::new(|_| {}), false, true).unwrap();
+    let snapshot = prepared.playback.last_snapshot().unwrap();
+
+    assert!(prepared.runner.is_canonical_menu_presentation());
+    assert_eq!(snapshot["display"]["off"], false);
+    assert_eq!(snapshot["display"]["splash"], "");
+    assert!(snapshot["display"]["title"]
+        .as_str()
+        .is_some_and(|title| !title.is_empty()));
+    assert!(snapshot["display"]["lines"]
+        .as_array()
+        .is_some_and(|lines| !lines.is_empty()));
+    assert!(prepared.playback.last_snapshot_revision() > 0);
+}
+
+#[test]
+fn legacy_orange_readiness_gate_requires_ack_and_healthy_dac() {
+    let path = std::env::temp_dir().join(format!(
+        "octessera-orange-readiness-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let mut readiness = CandidateReadiness::new(Some(path.clone()), "orange-test".into());
+    let mut gate = OrangeStartupReadinessGate::new(false);
+    assert!(gate
+        .acknowledge_initial_write(Err("OLED write failed".into()))
+        .is_err());
+    assert!(!path.exists());
+
+    gate.acknowledge_initial_write(Ok(())).unwrap();
+    gate.try_mark_ready(
+        crate::audio_stream_health::AudioStreamStatus::Recovering,
+        &mut readiness,
+    )
+    .unwrap();
+    assert!(!path.exists());
+    gate.try_mark_ready(
+        crate::audio_stream_health::AudioStreamStatus::Healthy,
+        &mut readiness,
+    )
+    .unwrap();
+    assert!(path.is_file());
+    drop(readiness);
+    let _ = std::fs::remove_dir_all(path);
 }
 
 #[test]

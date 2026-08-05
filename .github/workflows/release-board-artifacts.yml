@@ -266,6 +266,22 @@ jobs:
           git -C pi-gen checkout --detach "$PIGEN_COMMIT"
           [[ "$(git -C pi-gen rev-parse HEAD)" == "$PIGEN_COMMIT" ]]
           cp -a tools/pi-image/stage3-octessera-kernel pi-gen/
+      - name: Stage Raspberry legal notices and copy disposable stage4
+        run: |
+          set -euo pipefail
+          export OCTESSERA_REPOSITORY_ROOT="$GITHUB_WORKSPACE"
+          echo "OCTESSERA_REPOSITORY_ROOT=$OCTESSERA_REPOSITORY_ROOT" >> "$GITHUB_ENV"
+          stage_root=tools/pi-image/stage4-octessera/files/root
+          cleanup() { sudo rm -rf "$stage_root/usr/share/doc/octessera"; }
+          trap cleanup EXIT
+          sudo rm -rf "$stage_root/usr/share/doc/octessera"
+          sudo python3 tools/legal/stage_notices.py \
+            --repository-root "$OCTESSERA_REPOSITORY_ROOT" \
+            --destination-root "$GITHUB_WORKSPACE/tools/pi-image/stage4-octessera/files/root"
+          sudo python3 tools/legal/stage_notices.py \
+            --repository-root "$OCTESSERA_REPOSITORY_ROOT" \
+            --destination-root "$GITHUB_WORKSPACE/tools/pi-image/stage4-octessera/files/root" \
+            --check
           cp -a tools/pi-image/stage4-octessera pi-gen/
       - name: Configure and run pi-gen
         run: |
@@ -287,12 +303,13 @@ jobs:
           OCTESSERA_KERNEL_PACKAGE=$OCTESSERA_KERNEL_PACKAGE
           OCTESSERA_KERNEL_CHECKSUMS=$OCTESSERA_KERNEL_CHECKSUMS
           OCTESSERA_KERNEL_PROVENANCE=$OCTESSERA_KERNEL_PROVENANCE
+          OCTESSERA_REPOSITORY_ROOT=$OCTESSERA_REPOSITORY_ROOT
           EXPORT_DIR=deploy
           DEPLOY_ZIP=1
           ENABLE_SSH=0
           EOF
           cd pi-gen
-          sudo --preserve-env=OCTESSERA_RELEASE_VERSION,OCTESSERA_RELEASE_TAG,OCTESSERA_BOARD_PROFILE_ID,OCTESSERA_KERNEL_PACKAGE,OCTESSERA_KERNEL_CHECKSUMS,OCTESSERA_KERNEL_PROVENANCE ./build.sh
+          sudo --preserve-env=OCTESSERA_RELEASE_VERSION,OCTESSERA_RELEASE_TAG,OCTESSERA_BOARD_PROFILE_ID,OCTESSERA_KERNEL_PACKAGE,OCTESSERA_KERNEL_CHECKSUMS,OCTESSERA_KERNEL_PROVENANCE,OCTESSERA_REPOSITORY_ROOT ./build.sh
       - name: Select and verify the single Raspberry ZIP
         run: |
           set -euo pipefail
@@ -355,6 +372,8 @@ jobs:
           image_kind: production
           runtime_bundle_path: ${{ github.workspace }}/orange-runtime
           source_sha: ${{ inputs.source_sha }}
+          boot_proof_mode: phase5-constructor
+          construction_contract: resources/image-construction/boot-layers/orange-pi-zero-2w.json
       - name: Normalize and verify Orange release handoff
         env:
           ARMBIAN_BUILD_REF: fa7a7b2294d9e760a77630950afd460b7a0b2a26
@@ -387,22 +406,25 @@ jobs:
           test -f "$evidence"
           cp "$evidence" release-assets/octessera-orange-kernel-evidence.env
           kernel_provenance=build/output/images/octessera-qualification-metadata.txt
-          image_provenance=build/output/images/octessera-orange-image-provenance.txt
+          image_provenance=build/output/images/octessera-orange-image-proof.json
           test -f "$kernel_provenance" && test -f "$image_provenance"
           cp "$kernel_provenance" release-assets/octessera-orange-kernel-provenance.txt
-          cp "$image_provenance" release-assets/octessera-orange-image-provenance.txt
+          cp "$image_provenance" release-assets/octessera-orange-image-proof.json
           sudo bash "$custom_root/tools/armbian-image/verify-orange-image.sh" \
             --image "$image" \
             --linux-image "${canonical_release_paths[0]}" \
             --linux-dtb "${canonical_release_paths[1]}" \
             --evidence release-assets/octessera-orange-kernel-evidence.env \
             --provenance release-assets/octessera-orange-kernel-provenance.txt \
-            --image-provenance release-assets/octessera-orange-image-provenance.txt \
+            --manifest tools/kernel-patches/orange-midi-interface-manifest.json \
+            --boot-proof-mode phase5-constructor \
+            --construction-contract resources/image-construction/boot-layers/orange-pi-zero-2w.json \
+            --image-provenance release-assets/octessera-orange-image-proof.json \
             --mode production
-          for required in "$image" "$image.sha256" "${canonical_release_paths[0]}" "${canonical_release_paths[1]}" release-assets/octessera-orange-kernel-evidence.env release-assets/octessera-orange-kernel-provenance.txt release-assets/octessera-orange-image-provenance.txt; do
+          for required in "$image" "$image.sha256" "${canonical_release_paths[0]}" "${canonical_release_paths[1]}" release-assets/octessera-orange-kernel-evidence.env release-assets/octessera-orange-kernel-provenance.txt release-assets/octessera-orange-image-proof.json; do
             test -f "$required" || { echo "Missing Orange release asset: $required" >&2; exit 1; }
           done
-          (cd release-assets && sha256sum -c "$(basename "$image.sha256")" && sha256sum "$(basename "$image.sha256")" "${canonical_packages[0]}" "${canonical_packages[1]}" octessera-orange-kernel-evidence.env octessera-orange-kernel-provenance.txt octessera-orange-image-provenance.txt > SHA256SUMS-orange-pi-zero-2w.txt && sha256sum -c SHA256SUMS-orange-pi-zero-2w.txt)
+          (cd release-assets && sha256sum -c "$(basename "$image.sha256")" && sha256sum "$(basename "$image.sha256")" "${canonical_packages[0]}" "${canonical_packages[1]}" octessera-orange-kernel-evidence.env octessera-orange-kernel-provenance.txt octessera-orange-image-proof.json > SHA256SUMS-orange-pi-zero-2w.txt && sha256sum -c SHA256SUMS-orange-pi-zero-2w.txt)
       - uses: actions/upload-artifact@v4
         with:
           name: octessera-orange-image-release-assets
@@ -444,8 +466,9 @@ jobs:
               }, handle, indent=2)
               handle.write("\n")
           PY
+          install -m 0644 LICENSE NOTICE device-release/
           zip_name="octessera-${{ inputs.version }}-raspberry-pi-zero-2w-device-aarch64.zip"
-          (cd device-release && zip -9 "../release-assets/$zip_name" octessera-pi octessera-runtime.json SHA256SUMS octessera-device-release.json)
+          (cd device-release && zip -9 "../release-assets/$zip_name" octessera-pi octessera-runtime.json SHA256SUMS octessera-device-release.json LICENSE NOTICE)
           (cd release-assets && sha256sum "$zip_name" > SHA256SUMS-raspberry-pi-zero-2w-device.txt && sha256sum -c SHA256SUMS-raspberry-pi-zero-2w-device.txt)
       - uses: actions/upload-artifact@v4
         with:
@@ -489,8 +512,9 @@ jobs:
               }, handle, indent=2)
               handle.write("\n")
           PY
+          install -m 0644 LICENSE NOTICE device-release/
           zip_name="octessera-${{ inputs.version }}-orange-pi-zero-2w-standalone-manual-aarch64.zip"
-          (cd device-release && zip -9 "../release-assets/$zip_name" octessera-pi octessera-runtime.json SHA256SUMS octessera-device-release.json)
+          (cd device-release && zip -9 "../release-assets/$zip_name" octessera-pi octessera-runtime.json SHA256SUMS octessera-device-release.json LICENSE NOTICE)
           (cd release-assets && sha256sum "$zip_name" > SHA256SUMS-orange-pi-zero-2w-device.txt && sha256sum -c SHA256SUMS-orange-pi-zero-2w-device.txt)
       - uses: actions/upload-artifact@v4
         with:

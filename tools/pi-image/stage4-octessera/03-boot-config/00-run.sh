@@ -29,3 +29,4 @@ rm -f "$BOOT_DIR/ssh" "$BOOT_DIR/ssh.txt"
 rm -f "$BOOT_DIR/wpa_supplicant.conf" "$BOOT_DIR/network-config" "$BOOT_DIR/user-data"
 
 chroot "$ROOTFS_DIR" /usr/local/sbin/octessera-finalize-rpi-kernel
+chroot "$ROOTFS_DIR" /usr/local/lib/octessera/rpi_uart_release.py

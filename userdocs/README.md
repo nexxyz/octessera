@@ -15,6 +15,8 @@ Then you nudge them. You anchor them with a bit of manual sequencing if you want
 - [Pinout and connections](hardware/pinout-and-connections.md) — wiring and pin ownership.
 - [Enclosure and print notes](hardware/enclosure.md) — case files, ports, power, and print-fit notes.
 - [Orange Pi first boot setup](hardware/orange-pi-first-boot.md) — Wi-Fi and SSH setup for the Armbian image.
+- [Raspberry Pi first boot and OLED handoff](hardware/raspberry-pi-first-boot.md) — constructor boot behavior, terminal welcome, and serial ownership.
+- [Open or reopen the full setup portal](hardware/setup-portal.md) — the menu-driven setup flow for either board.
 
 ## Printable quick reference
 
@@ -34,3 +36,10 @@ The friendly pages above are meant for humans at the workbench. The exact runtim
 - [Behavior source](../crates/platform-core/src/behaviors/)
 
 If the friendly docs and the specs disagree, the specs win and the friendly docs need updating.
+
+## Attribution and release notes
+
+- [Project license](../LICENSE) — original Octessera material and scope.
+- [Samples attribution inventory](../samples/ATTRIBUTIONS.tsv) — pinned media paths, hashes, and upstream terms.
+- [Hardware attributions](../hardware/ATTRIBUTIONS.md) — enclosure and PCB source notes.
+- [Release licensing and source policy](../docs/release-licensing.md) — what a public board-image release must carry.

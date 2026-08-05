@@ -5,7 +5,7 @@
   "identifier": "xyz.nex.octessera",
   "build": {
     "beforeDevCommand": "corepack pnpm dev",
-    "beforeBuildCommand": "corepack pnpm build",
+    "beforeBuildCommand": "corepack pnpm --dir ../.. run assets:generate && corepack pnpm --dir ../.. run legal:stage-desktop && vite build",
     "devUrl": "http://localhost:1420",
     "frontendDist": "../dist"
   },
@@ -23,12 +23,9 @@
     "active": true,
     "targets": ["nsis"],
     "icon": ["icons/icon.png"],
-    "resources": [
-      "../../../README.md",
-      "../../../LICENSE",
-      "../../../docs/**/*",
-      "../../../hardware/**/*.md"
-    ],
+    "resources": {
+      "../../../release-legal/usr/share/doc/octessera": "legal"
+    },
     "windows": {
       "nsis": {
         "installMode": "both"

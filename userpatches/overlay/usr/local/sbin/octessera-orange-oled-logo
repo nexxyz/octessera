@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 import fcntl
-import math
+import importlib.util
+from importlib.machinery import SourceFileLoader
 import os
+import math
 import re
+import stat
 import signal
 import struct
 import subprocess
@@ -10,7 +13,16 @@ import sys
 import time
 import zlib
 
+_handoff_loader = SourceFileLoader("octessera_orange_oled_handoff", os.path.join(os.path.dirname(__file__), "octessera-orange-oled-handoff.py"))
+_handoff_spec = importlib.util.spec_from_loader("octessera_orange_oled_handoff", _handoff_loader)
+_handoff_module = importlib.util.module_from_spec(_handoff_spec)
+_handoff_spec.loader.exec_module(_handoff_module)
+Handoff = _handoff_module.Handoff
+validate_marker = _handoff_module.validate_marker
+RUNTIME_USER = _handoff_module.RUNTIME_USER
+
 GPIO_LABEL = "300b000.pinctrl"
+GPIO_CHIP = "/dev/gpiochip1"
 GPIO_RESET = 76
 GPIO_DC = 270
 SPI_DEVICE = "/dev/spidev1.0"
@@ -20,16 +32,13 @@ HEIGHT = 128
 MARK_SOURCE = "/usr/share/octessera/oled/octessera-mark.svg"
 WORDMARK_SOURCE = "/usr/share/octessera/oled/octessera-wordmark.svg"
 BOOT_SWEEP_FRAME_COUNT = 24
-BOOT_SWEEP_DURATION_SECONDS = 1.0
-BOOT_SWEEP_FRAME_DELAY_SECONDS = BOOT_SWEEP_DURATION_SECONDS / BOOT_SWEEP_FRAME_COUNT
+BOOT_SWEEP_DURATION_NS = 1_000_000_000
+BOOT_SWEEP_FRAME_DELAY_SECONDS = BOOT_SWEEP_DURATION_NS / 1_000_000_000 / BOOT_SWEEP_FRAME_COUNT
 BOOT_SWEEP_BAND_WIDTH = 8
 BOOT_SWEEP_LEAN_PIXELS = 8
-BOOT_SWEEP_COLORS = (
-    (0, 255, 255),
-    (255, 255, 0),
-    (0, 255, 0),
-    (255, 0, 255),
-)
+BOOT_SWEEP_COLORS_RGB565 = (0x07FF, 0xFFE0, 0x07E0, 0xF81F)
+BOOT_SWEEP_COLORS = ((0, 255, 255), (255, 255, 0), (0, 255, 0), (255, 0, 255))
+BOOT_SWEEP_CONTRACT_SHA256 = "698a1f3d2527c1d3c49028f33c7905db931985e3e30c3759ff9bdbebc9e7e754"
 SPI_IOC_WR_MODE = 0x40016B01
 SPI_IOC_WR_BITS_PER_WORD = 0x40016B03
 SPI_IOC_WR_MAX_SPEED_HZ = 0x40046B04
@@ -37,18 +46,19 @@ SPI_IOC_WR_MAX_SPEED_HZ = 0x40046B04
 
 class GpioLines:
     def __init__(self):
-        output = subprocess.check_output(["gpiodetect"], text=True)
-        labels = [line.split()[0] for line in output.splitlines() if f"[{GPIO_LABEL}]" in line]
-        if len(labels) != 1:
-            raise RuntimeError("H618 GPIO controller label is missing or not unique")
-        self.chip = labels[0]
+        try:
+            metadata = os.stat(GPIO_CHIP)
+        except OSError as error:
+            raise RuntimeError(f"H618 GPIO controller {GPIO_LABEL} is missing: {GPIO_CHIP}") from error
+        if not stat.S_ISCHR(metadata.st_mode):
+            raise RuntimeError(f"H618 GPIO controller {GPIO_LABEL} is not a character device: {GPIO_CHIP}")
+        self.chip = GPIO_CHIP
         self.processes = {}
 
     def set(self, name, offset, value):
         previous = self.processes.pop(name, None)
         if previous is not None:
-            previous.terminate()
-            previous.wait(timeout=1)
+            self._stop(previous)
         process = subprocess.Popen(
             ["gpioset", "--mode=wait", self.chip, f"{offset}={value}"],
             stdout=subprocess.DEVNULL,
@@ -61,11 +71,19 @@ class GpioLines:
             raise RuntimeError(f"could not set H618 GPIO {offset}: {error}")
         self.processes[name] = process
 
+    @staticmethod
+    def _stop(process):
+        if process.poll() is None:
+            process.terminate()
+        try:
+            process.wait(timeout=1)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=1)
+
     def close(self):
         for process in self.processes.values():
-            process.terminate()
-        for process in self.processes.values():
-            process.wait(timeout=1)
+            self._stop(process)
         self.processes.clear()
 
 
@@ -229,20 +247,35 @@ def logo_canvas(kind):
 def sweep_band_left(frame, y):
     if not 0 <= frame < BOOT_SWEEP_FRAME_COUNT:
         raise ValueError(f"boot sweep frame must be in [0, {BOOT_SWEEP_FRAME_COUNT})")
-    travel = WIDTH + BOOT_SWEEP_BAND_WIDTH + BOOT_SWEEP_LEAN_PIXELS
-    start = -BOOT_SWEEP_BAND_WIDTH - BOOT_SWEEP_LEAN_PIXELS
-    start += travel * frame / (BOOT_SWEEP_FRAME_COUNT - 1)
-    return start + (HEIGHT - 1 - y) * BOOT_SWEEP_LEAN_PIXELS / (HEIGHT - 1)
+    origin = -40 + (frame * 168) // (BOOT_SWEEP_FRAME_COUNT - 1)
+    return origin + (y * BOOT_SWEEP_LEAN_PIXELS) // (HEIGHT - 1)
 
 
-def in_sweep_band(x, y, frame):
-    left = sweep_band_left(frame, y)
-    return left <= x < left + BOOT_SWEEP_BAND_WIDTH
+def sweep_deadline_offset_ns(frame):
+    if not 0 <= frame < BOOT_SWEEP_FRAME_COUNT:
+        raise ValueError(f"boot sweep frame must be in [0, {BOOT_SWEEP_FRAME_COUNT})")
+    return (frame * BOOT_SWEEP_DURATION_NS) // BOOT_SWEEP_FRAME_COUNT
 
 
 def rgb565_color(color):
     red, green, blue = color
     return ((red & 0xF8) << 8) | ((green & 0xFC) << 3) | (blue >> 3)
+
+
+def apply_sweep(rotated, frame):
+    if not 0 <= frame < BOOT_SWEEP_FRAME_COUNT:
+        raise ValueError(f"boot sweep frame must be in [0, {BOOT_SWEEP_FRAME_COUNT})")
+    for controller_row in range(HEIGHT):
+        contract_y = HEIGHT - 1 - controller_row
+        for x in range(WIDTH):
+            offset = (controller_row * WIDTH + x) * 2
+            if rotated[offset:offset + 2] != b"\xff\xff":
+                continue
+            left = sweep_band_left(frame, contract_y)
+            local_x = x - left
+            if 0 <= local_x < 32:
+                rotated[offset:offset + 2] = BOOT_SWEEP_COLORS_RGB565[int(local_x // 8)].to_bytes(2, "big")
+    return rotated
 
 
 def render_canvas(canvas, frame=None):
@@ -253,13 +286,7 @@ def render_canvas(canvas, frame=None):
     rotated = rotate_clockwise_rgb565(pixels)
     if frame is None:
         return rotated
-    color = rgb565_color(BOOT_SWEEP_COLORS[frame % len(BOOT_SWEEP_COLORS)]).to_bytes(2, "big")
-    for y in range(HEIGHT):
-        for x in range(WIDTH):
-            offset = (y * WIDTH + x) * 2
-            if rotated[offset:offset + 2] == b"\xff\xff" and in_sweep_band(x, y, frame):
-                rotated[offset:offset + 2] = color
-    return rotated
+    return apply_sweep(rotated, frame)
 
 
 def render_logo(kind, frame=None):
@@ -283,26 +310,139 @@ def rotate_clockwise_rgb565(pixels):
     return rotated
 
 
-def run(kind):
+def _sleep_until(deadline):
+    remaining = deadline - time.monotonic_ns()
+    if remaining > 0:
+        time.sleep(remaining / 1_000_000_000)
+
+
+def render_sweep(oled, canvas):
+    cycle_start = time.monotonic_ns()
+    for frame in range(BOOT_SWEEP_FRAME_COUNT):
+        _sleep_until(cycle_start + sweep_deadline_offset_ns(frame))
+        oled.frame(render_canvas(canvas, frame))
+
+
+def _run_once():
     oled = Oled()
     try:
         oled.initialize()
-        canvas = logo_canvas(kind)
-        if kind == "boot":
-            for frame in range(BOOT_SWEEP_FRAME_COUNT):
-                oled.frame(render_canvas(canvas, frame))
-                if frame + 1 < BOOT_SWEEP_FRAME_COUNT:
-                    time.sleep(BOOT_SWEEP_FRAME_DELAY_SECONDS)
-        else:
-            oled.frame(render_canvas(canvas))
+        render_sweep(oled, logo_canvas("boot"))
     finally:
         oled.close(False)
 
 
+def _run_static(kind, adopt=False):
+    oled = Oled()
+    try:
+        if not adopt:
+            oled.initialize()
+        oled.frame(render_canvas(logo_canvas(kind)))
+    finally:
+        oled.close(False)
+
+
+def _run_loop():
+    handoff = Handoff.open(True)
+    oled = None
+    try:
+        handoff.start()
+        adopt_existing = validate_marker()
+        oled = Oled()
+        if not adopt_existing:
+            oled.initialize()
+        canvas = logo_canvas("boot")
+        if adopt_existing:
+            oled.command(0xAF)
+        cycle_start = time.monotonic_ns()
+        frame = 0
+        while True:
+            _sleep_until(cycle_start + sweep_deadline_offset_ns(frame))
+            oled.frame(render_canvas(canvas, frame))
+            if handoff.stop_requested():
+                oled.close(False)
+                oled = None
+                handoff.release()
+                return
+            if frame == BOOT_SWEEP_FRAME_COUNT - 1:
+                cycle_start += BOOT_SWEEP_DURATION_NS
+                handoff.publish_cycle()
+                frame = 0
+            else:
+                frame += 1
+    except Exception:
+        handoff.mark_failed()
+        raise
+    finally:
+        if oled is not None:
+            oled.close(False)
+        handoff.close()
+
+
+def _run_resume():
+    handoff = Handoff.utility_lock(_handoff_module.UTILITY_LOCK_TIMEOUT_SECONDS)
+    try:
+        status = handoff._read_status()
+        if status is None or status["bootId"] != handoff.boot_id or status["phase"] not in {"released", "native_owned", "first_menu_rendered"}:
+            raise RuntimeError("OLED resume requires an initialized native handoff")
+        _run_static("boot", adopt=True)
+    finally:
+        handoff.close()
+
+
+def drop_to_runtime():
+    runtime_uid, runtime_gid = _handoff_module.runtime_identity()
+    if os.geteuid() == runtime_uid and os.getegid() == runtime_gid:
+        return
+    if os.geteuid() != 0:
+        raise RuntimeError("OLED utility requires the fixed runtime identity")
+    os.initgroups(RUNTIME_USER, runtime_gid)
+    os.setgid(runtime_gid)
+    os.setuid(runtime_uid)
+    if os.geteuid() != runtime_uid or os.getegid() != runtime_gid:
+        raise RuntimeError("OLED utility failed to drop to the fixed runtime identity")
+
+
+def _run_utility(kind, timeout_seconds):
+    try:
+        handoff = Handoff.utility_lock(timeout_seconds)
+    except TimeoutError:
+        return
+    try:
+        _run_static(kind)
+    finally:
+        handoff.close()
+
+
+def run(kind):
+    if kind == "boot-once":
+        _run_once()
+    elif kind == "boot-loop":
+        _run_loop()
+    elif kind == "resume":
+        drop_to_runtime()
+        try:
+            _run_resume()
+        except TimeoutError:
+            return
+    elif kind == "sleep":
+        drop_to_runtime()
+        _run_utility(kind, _handoff_module.UTILITY_LOCK_TIMEOUT_SECONDS)
+    elif kind == "shutdown":
+        drop_to_runtime()
+        _run_utility(kind, _handoff_module.SHUTDOWN_LOCK_TIMEOUT_SECONDS)
+    else:
+        raise ValueError("unsupported OLED boot mode")
+
+
+def parse_mode(args):
+    if len(args) != 1 or args[0] not in {"boot-once", "boot-loop", "resume", "sleep", "shutdown"}:
+        raise ValueError("usage: octessera-orange-oled-logo boot-once|boot-loop|resume|sleep|shutdown")
+    return args[0]
+
+
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in {"boot", "sleep", "shutdown"}:
-        raise SystemExit("usage: octessera-orange-oled-logo boot|sleep|shutdown")
-    run(sys.argv[1])
+    run(parse_mode(sys.argv[1:]))
 
 
 if __name__ == "__main__":

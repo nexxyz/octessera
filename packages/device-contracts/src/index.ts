@@ -42,6 +42,10 @@ export type {
 export {
   MIDI_REALTIME_MESSAGE_TYPES,
   RUNTIME_MOMENTARY_FX_TYPES,
+  RUNTIME_SETUP_PORTAL_DISPOSITIONS,
+  RUNTIME_SETUP_PORTAL_ERROR_CODES,
+  RUNTIME_SETUP_PORTAL_PHASES,
+  SETUP_PORTAL_SUFFIX_MAX_CHARS,
   RUNTIME_STATUS_STATES,
   RUNTIME_TRANSPORT_STATES,
   SHARED_RUNTIME_CONTRACT_FIXTURES
@@ -66,6 +70,12 @@ export type {
   RuntimeStoreResult,
   RuntimeSystemInfo,
   RuntimeSystemInfoError,
+  RuntimeSetupPortalDisposition,
+  RuntimeSetupPortalErrorCode,
+  RuntimeSetupPortalFailureErrorCode,
+  RuntimeSetupPortalPhase,
+  RuntimeSetupPortalSuffix,
+  RuntimeSetupPortalStatus,
   RuntimeStatus,
   RuntimeStatusMessage,
   RuntimeStatusState,
@@ -73,3 +83,4 @@ export type {
   RuntimeTransportStopMessage,
   RuntimeTransportState
 } from "./runtimeProtocol";
+export { isRuntimeSetupPortalStatus, isRuntimeSetupPortalSuffix } from "./runtimeProtocol";

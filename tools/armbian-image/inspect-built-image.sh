@@ -2,16 +2,21 @@
 set -euo pipefail
 
 expected_image_mode=diagnostic
+setup_layer_required=false
+if [[ "${1:-}" == --setup-layer ]]; then
+  setup_layer_required=true
+  shift
+fi
 if [[ "${1:-}" == --mode ]]; then
   expected_image_mode="${2:-}"
   shift 2
 fi
 if [[ "$expected_image_mode" != diagnostic && "$expected_image_mode" != production ]]; then
-  echo "Usage: $0 [--mode diagnostic|production] <rootfs-dir-or-ext4-image>" >&2
+  echo "Usage: $0 [--setup-layer] [--mode diagnostic|production] <rootfs-dir-or-ext4-image>" >&2
   exit 2
 fi
 if [[ $# -ne 1 ]]; then
-  echo "Usage: $0 [--mode diagnostic|production] <rootfs-dir-or-ext4-image>" >&2
+  echo "Usage: $0 [--setup-layer] [--mode diagnostic|production] <rootfs-dir-or-ext4-image>" >&2
   exit 2
 fi
 target="$1"
@@ -21,6 +26,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/inspect-mode.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/authorized-key-paths.sh"
 # shellcheck source=tools/armbian-image/inspect-path.sh
 source "$(dirname "${BASH_SOURCE[0]}")/inspect-path.sh"
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/setup-layer-proof.sh"
 inspect_work="$(mktemp -d)"
 
 cleanup() {
@@ -355,16 +362,21 @@ samples_manifest_hash="$(printf '%s\n' "$profile_metadata" | sed -n 's/^OCTESSER
 [[ -n "$default_hash" && -n "$samples_manifest_hash" ]] || { echo "Armbian image is missing musical asset hashes." >&2; exit 1; }
 reject_path etc/systemd/system/multi-user.target.wants/octessera-wifi-foundation.service
 require_wifi_foundation
+if [[ "$setup_layer_required" == true ]]; then
+  require_setup_layer
+fi
 octessera_inspect_runtime_mode "$profile_metadata" "$expected_image_mode"
 
 for path in \
   usr/local/sbin/octessera-orange-usb-gadget \
   usr/local/sbin/octessera-orange-oled-logo \
+  usr/local/sbin/octessera-orange-oled-handoff.py \
   usr/local/sbin/octessera-provision-musical-default \
   etc/modules-load.d/octessera-orange-midi.conf \
   etc/modules-load.d/octessera-orange-usb-gadget.conf \
   etc/systemd/system/octessera-orange-usb-gadget.service \
   etc/systemd/system/octessera-orange-boot-splash.service \
+  etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service \
   etc/systemd/system/octessera-orange-oled-shutdown.service \
   etc/systemd/system/octessera-provision-musical-default.service \
   etc/initramfs-tools/hooks/octessera-orange-boot-splash \
@@ -378,11 +390,13 @@ for path in \
 done
 require_root_mode usr/local/sbin/octessera-orange-usb-gadget 755
 require_root_mode usr/local/sbin/octessera-orange-oled-logo 755
+require_root_mode usr/local/sbin/octessera-orange-oled-handoff.py 644
 require_root_mode usr/local/sbin/octessera-provision-musical-default 755
 require_root_mode etc/modules-load.d/octessera-orange-midi.conf 644
 require_root_mode etc/modules-load.d/octessera-orange-usb-gadget.conf 644
 require_root_mode etc/systemd/system/octessera-orange-usb-gadget.service 644
 require_root_mode etc/systemd/system/octessera-orange-boot-splash.service 644
+octessera_require_image_symlink etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service ../octessera-orange-boot-splash.service /etc/systemd/system/octessera-orange-boot-splash.service
 require_root_mode etc/systemd/system/octessera-orange-oled-shutdown.service 644
 require_root_mode etc/systemd/system/octessera-provision-musical-default.service 644
 require_root_mode etc/initramfs-tools/hooks/octessera-orange-boot-splash 755

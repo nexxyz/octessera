@@ -38,6 +38,12 @@ inputs:
     required: false
     default: ""
     description: Full Octessera source commit SHA for provenance
+  boot_proof_mode:
+    required: true
+    description: Exact Orange boot proof mode
+  construction_contract:
+    required: true
+    description: Exact Orange Phase 5 construction contract path
 runs:
   using: composite
   steps:
@@ -58,6 +64,8 @@ runs:
         OCTESSERA_ARMBIAN_SHARE_LOG: ${{ inputs.share_log }}
         OCTESSERA_IMAGE_KIND: ${{ inputs.image_kind }}
         OCTESSERA_RUNTIME_BUNDLE_PATH: ${{ inputs.runtime_bundle_path }}
+        OCTESSERA_BOOT_PROOF_MODE: ${{ inputs.boot_proof_mode }}
+        OCTESSERA_CONSTRUCTION_CONTRACT: ${{ inputs.construction_contract }}
         ARMBIAN_BUILD_REF: ${{ inputs.armbian_build_ref }}
       run: |
         set -euo pipefail
@@ -86,6 +94,8 @@ runs:
             [[ -f "$OCTESSERA_RUNTIME_BUNDLE_PATH/$runtime_entry" && ! -L "$OCTESSERA_RUNTIME_BUNDLE_PATH/$runtime_entry" ]] || { echo "Production runtime bundle entry is not a regular file: $runtime_entry" >&2; exit 1; }
           done <<< "$runtime_entries"
         fi
+        [[ "$OCTESSERA_BOOT_PROOF_MODE" == phase5-constructor ]] || { echo 'Orange image proof mode must be phase5-constructor.' >&2; exit 1; }
+        [[ "$OCTESSERA_CONSTRUCTION_CONTRACT" == resources/image-construction/boot-layers/orange-pi-zero-2w.json ]] || { echo 'Orange construction contract path is not exact.' >&2; exit 1; }
         [[ "$ARMBIAN_BUILD_REF" =~ ^[0-9a-fA-F]{40}$ ]] || { echo 'Qualification image builds require a reviewed immutable Armbian commit SHA.' >&2; exit 1; }
         [[ "$ARMBIAN_BUILD_REF" == fa7a7b2294d9e760a77630950afd460b7a0b2a26 ]] || { echo 'Qualification image builds require the approved Armbian source pin.' >&2; exit 1; }
     - name: Free runner disk space
@@ -106,11 +116,18 @@ runs:
       shell: bash
       env:
         OCTESSERA_IMAGE_KIND: ${{ inputs.image_kind }}
+        OCTESSERA_BOOT_PROOF_MODE: ${{ inputs.boot_proof_mode }}
+        OCTESSERA_CONSTRUCTION_CONTRACT: ${{ inputs.construction_contract }}
         OCTESSERA_RUNTIME_BUNDLE_PATH: ${{ inputs.runtime_bundle_path }}
       run: |
         set -euo pipefail
         mkdir -p build/userpatches
         rsync -a custom/userpatches/ build/userpatches/
+        custom_root="$(cd "$GITHUB_ACTION_PATH/../../.." && pwd)"
+        bash "$custom_root/tools/armbian-image/stage-canonical-welcome.sh" "$GITHUB_WORKSPACE/build/userpatches/overlay"
+        sudo python3 "$custom_root/tools/legal/stage_notices.py" \
+          --repository-root "$custom_root" \
+          --destination-root "$GITHUB_WORKSPACE/build/userpatches/overlay"
         mkdir -p build/userpatches/overlay/usr/local/lib/octessera
         install -m 0644 custom/tools/device-update/updater_protocol.py build/userpatches/overlay/usr/local/lib/octessera/updater_protocol.py
         install -m 0644 custom/tools/device-update/updater_state.py build/userpatches/overlay/usr/local/lib/octessera/updater_state.py
@@ -295,5 +312,13 @@ runs:
           --linux-dtb "${linux_kernel_packages[1]}" \
           --evidence "$evidence" \
           --provenance "$provenance" \
+          --manifest "$custom_root/tools/kernel-patches/orange-midi-interface-manifest.json" \
+          --boot-proof-mode "$OCTESSERA_BOOT_PROOF_MODE" \
+          --construction-contract "$custom_root/$OCTESSERA_CONSTRUCTION_CONTRACT" \
           --mode "$OCTESSERA_IMAGE_KIND" \
-          --output build/output/images/octessera-orange-image-provenance.txt
+          --output build/output/images/octessera-orange-image-proof.json
+    - name: Clean generated legal staging from disposable output
+      if: always()
+      shell: bash
+      run: |
+        sudo rm -rf build/userpatches/overlay/usr/share/doc/octessera

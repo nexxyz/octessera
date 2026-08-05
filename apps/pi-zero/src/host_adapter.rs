@@ -10,6 +10,7 @@ use crate::audio_event::musical_event_to_engine_event;
 use crate::host_audio_command::send_audio_command;
 use crate::midi_host::MidiHost;
 use crate::platform_service::{PiPlatformService, PlatformJob, PlatformJobKind};
+use crate::setup_portal::start_failure_message;
 use crate::usb_config::UsbAudioOut;
 use playback_runtime::{
     HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent, RuntimeAdapterError,
@@ -284,6 +285,12 @@ impl HostAdapter for PiPlaybackHostAdapter {
                     &self.platform_service,
                     request,
                 ))
+            }
+            RuntimePlatformEffect::SetupPortalOpen => {
+                if let Err(failure) = self.platform_service.start_setup_portal(request) {
+                    return Ok(vec![start_failure_message(request, failure)]);
+                }
+                return Ok(Vec::new());
             }
             RuntimePlatformEffect::MidiSelectOutput { id } => {
                 let result = self.midi.select_output(id.clone());

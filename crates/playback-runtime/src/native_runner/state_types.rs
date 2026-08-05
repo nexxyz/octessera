@@ -50,6 +50,7 @@ pub(super) struct NativeDisplayState {
     pub(super) confirm_dialog: Option<NativeConfirmDialog>,
     pub(super) usb_sd_transfer_modal: Option<NativeUsbSdTransferModal>,
     pub(super) system_info_modal: Option<NativeSystemInfoModal>,
+    pub(super) setup_portal: Option<NativeSetupPortalState>,
     pub(super) event_dot_on: bool,
     pub(super) event_dot_pulses_remaining: u8,
     pub(super) transport_flash: &'static str,
@@ -84,6 +85,7 @@ impl NativeDisplayState {
             confirm_dialog: None,
             usb_sd_transfer_modal: None,
             system_info_modal: None,
+            setup_portal: None,
             event_dot_on: false,
             event_dot_pulses_remaining: 0,
             transport_flash: "none",
@@ -97,6 +99,14 @@ impl NativeDisplayState {
             runtime_error_presentation: None,
         }
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct NativeSetupPortalState {
+    pub(super) status: RuntimeSetupPortalStatus,
+    pub(super) request_id: Option<String>,
+    pub(super) revision: Option<u64>,
+    pub(super) visible: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

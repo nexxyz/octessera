@@ -58,6 +58,11 @@ corepack pnpm --filter @octessera/desktop tauri:build:exe
 
 The portable executable is copied to `apps/desktop/dist-desktop/octessera.exe`.
 
+The Tauri bundle uses its configured `bundle.resources` entry for the legal
+resource tree. The release checks the configured resource contract and the
+portable notice ZIP; it does not rely on extracting an installer to prove the
+resource configuration.
+
 On Windows, use the cached wrapper for the same portable build when iterating:
 
 ```powershell
@@ -81,7 +86,7 @@ GitHub release assets are built only by `.github/workflows/release-artifacts.yml
 Release assets:
 
 - `octessera-<version>-windows-installer.exe`: primary Windows installer.
-- `octessera-<version>-windows-portable.exe`: portable Windows alternative.
+- `octessera-<version>-windows-portable.zip`: portable Windows alternative with the legal notice bundle.
 - `octessera-<version>-macos-unsigned.dmg`: unsigned macOS DMG.
 - `octessera-<version>-ubuntu-amd64.deb`: Ubuntu/Debian package.
 - `octessera-<version>-ubuntu-x86_64.AppImage`: portable Linux AppImage.
@@ -92,7 +97,12 @@ Release assets:
 - `octessera-<version>-orange-pi-zero-2w.img.xz`: Orange Pi production Armbian image.
 - `octessera-<version>-orange-pi-zero-2w-standalone-manual-aarch64.zip`: Orange Pi production runtime bundle for manual installation.
 - `SHA256SUMS-orange-pi-zero-2w.txt` and `SHA256SUMS-orange-pi-zero-2w-device.txt`: checksums for the Orange image and manual runtime bundle.
+- `octessera-<version>-notices.zip`: release-level legal notice bundle.
 - `SHA256SUMS-*.txt`: checksums for the other release assets.
+
+The final publish gate expects exactly 28 release files. It checks the notice
+bundle, portable notice proof, device ZIP legal files, image proofs, runtime
+identity, and exact asset names/checksums.
 
 Release process:
 
@@ -100,15 +110,39 @@ Release process:
 2. Run `corepack pnpm install` after package version edits.
 3. Run local validation and rebuild the portable desktop exe if desktop-visible behavior changed.
 4. Commit and push the release-prep changes.
-5. Create a draft GitHub release such as `v0.5.0`.
-6. Run `Release Artifacts` manually with that existing tag, or publish the release to trigger it.
-7. Confirm the installer, portable EXE, macOS DMG, Ubuntu DEB/AppImage,
+5. Create a unique empty draft GitHub release such as `v0.5.0`.
+6. Run `Release Artifacts` manually with that existing tag. The workflow derives
+   the future semver from the tag and confirms it against the package metadata.
+7. Confirm the installer, portable ZIP, macOS DMG, Ubuntu DEB/AppImage,
    Raspberry image and device assets, Orange production image and standalone
-   runtime bundle, kernel evidence, and checksum files are attached before
-   announcing the release.
+   runtime bundle, notices, kernel evidence, and checksum files are attached
+   before announcing the release. Board device ZIPs carry exact root-level
+   `LICENSE` and `NOTICE` files; the release-level `notices.zip` remains the
+   full bundle.
 
 The Pi and Orange image builds are necessary slow paths because they generate
 full OS images through pi-gen and Armbian. Keep them release-only.
+
+Before any future public board-image release, review the applicable source
+duties for the pinned upstream inputs and the Octessera source, patches,
+configuration, and build scripts; see [`release-licensing.md`](release-licensing.md).
+
+Before a local Raspberry constructor run, use the canonical source checkout and
+stage the notices into the disposable stage4 tree:
+
+```bash
+export OCTESSERA_REPOSITORY_ROOT="$PWD"
+sudo python3 tools/legal/stage_notices.py \
+  --repository-root "$OCTESSERA_REPOSITORY_ROOT" \
+  --destination-root tools/pi-image/stage4-octessera/files/root
+```
+
+The Raspberry stage script requires that environment variable and verifies the
+staged tree with `--check`. Remove the generated
+`tools/pi-image/stage4-octessera/files/root/usr/share/doc/octessera/` tree after
+the local constructor run; release workflows stage it only in a disposable
+checkout and clean it before the job ends. Orange image staging follows the
+same manifest-driven pattern with `OCTESSERA_REPOSITORY_ROOT`.
 
 Both fixed Pi image paths also install the inactive Wi-Fi foundation:
 `octessera-wifi-foundation` and `octessera-wifi-foundation.service`. It is a
@@ -341,6 +375,71 @@ Low-resource on-Pi fallback:
 CARGO_BUILD_JOBS=1 cargo build --profile pi-dev -p octessera-pi --features hardware-raspberry-pi-zero-2w
 ```
 
+## Phase 5 OLED Boot Layer
+
+The current source implements one boot-sweep and handoff contract for both
+fixed boards. Run the fast source and contract checks before spending time on
+an image build:
+
+```bash
+cargo test -p octessera-pi sweep_
+cargo test -p octessera-pi handoff
+python3 tools/pi-image/test-boot-layer-contract.py
+bash tools/pi-image/test-rpi-boot-splash.sh
+bash tools/pi-image/test-rpi-boot-services.sh
+bash tools/armbian-image/test-orange-boot-splash-hook.sh
+python3 tools/armbian-image/test_orange_oled_logo.py
+python3 tools/armbian-image/test_orange_oled_handoff.py
+python3 tools/armbian-image/test-orange-construction.py
+```
+
+The handoff tests exercise the exclusive `/run/octessera-boot` lock, strict
+status/stop files, initramfs marker, release/adoption sequence, failure
+recovery, and no-clobber behavior. Run the Unix-only lock coverage in Linux or
+WSL when the host is Windows. The visual contract is
+`resources/oled/boot-sweep-v1.json`; source tests must continue to prove its
+24-frame, one-second, four-band, white-only, +8 px lean behavior.
+
+Build both native binaries without deploying them as a constructor substitute:
+
+```powershell
+./tools/pi/build-pi-cross.ps1 -BoardProfile raspberry-pi-zero-2w -OutDir target/pi-cross-phase5
+./tools/pi/build-pi-cross.ps1 -BoardProfile orange-pi-zero-2w -Backend wsl-docker -OutDir target/orange-pi-cross-phase5
+```
+
+Each output must retain its adjacent `octessera-pi.metadata.json` sidecar with
+the matching board profile. This is a source/build check only; it does not
+prove initramfs contents, service ownership, mounted-image layout, OLED
+handoff, DAC health, or physical display behavior.
+
+No full constructor or production image has been built for this boot layer yet.
+
+### Later constructor procedure
+
+When the Phase 5 image work is authorized, construct each board from its
+source-bound boot-layer contract, not from a trusted parent respin:
+
+1. Freeze the current source inputs and hashes in
+   `resources/image-construction/boot-layers/raspberry-pi-zero-2w.json` and
+   `orange-pi-zero-2w.json`; cross-build the matching native binary first.
+2. Run the reviewed Raspberry pi-gen constructor and the reviewed Orange
+   Armbian constructor. Stage the canonical interactive welcome, preserve the
+   declared hushlogin behavior, and install the board-specific UART ownership
+   release before boot finalization. Install the boot service, hook, and runtime
+   inputs; regenerate the selected initramfs on Raspberry and both the
+   initramfs and Python closure on Orange. Do not use the runtime-only or
+   setup-only `v0.7.5` parent respin as a boot-layer build.
+3. Run mounted-image proof before any board deployment. Raspberry must show one
+   exact selected initramfs, one enabled early writer, the canonical welcome,
+   exact pi hushlogin, and released serial ownership. Orange must show the
+   canonical welcome, exact selected initramfs, fixed SPI/GPIO dependencies,
+   the complete Python closure, and no broad GPIO probe. Verify the installed
+   `/run/octessera-boot` ownership/status/lock paths and no second writer.
+4. Preserve the resulting image, source hashes, selected boot outputs, and
+   proof logs as constructor evidence. Only then perform the physical loop in
+   `docs/open-work.md`; source tests, a cross-build, or a parent respin do not
+   count as an image or hardware qualification.
+
 ## Orange Pi Armbian Image
 
 `raspberry-pi-zero-2w` and `orange-pi-zero-2w` are the only supported cross-build board profile IDs. The Raspberry default selects `hardware-raspberry-pi-zero-2w`; an Orange runtime binary can be built without contacting a board:
@@ -430,6 +529,73 @@ If you have an extracted root filesystem directory or ext4 root partition image,
 ```bash
 tools/armbian-image/inspect-built-image.sh <rootfs-dir-or-ext4-image>
 ```
+
+### Full setup portal image layer
+
+The setup portal is a separate, source-bound image layer. The Raspberry Pi source
+tree is `tools/pi-image/stage4-octessera/files/root`, with profile
+`raspberry-pi-zero-2w`. The Orange Pi source tree is `userpatches/overlay`, with
+profile `orange-pi-zero-2w`. Each tree carries the same functional assets:
+`etc/octessera/setup-profile`, `octessera-wifi-connect`,
+`octessera-setup-sidecar`, the request/start/cleanup helpers, the setup status
+helpers, the three setup systemd units, and the static files under
+`usr/local/share/octessera-setup-ui/`. Exact source paths, digests, modes,
+preimages, stale markers, and enabled-unit differences are recorded in
+`resources/image-mutations/raspberry-pi-zero-2w-setup.json` and
+`resources/image-mutations/orange-pi-zero-2w-setup.json`.
+
+Setup mutation contracts and runtime-only contracts are separate. The ordinary
+`raspberry-pi-zero-2w.json` and `orange-pi-zero-2w.json` contracts describe
+runtime respins. `setup-portal` is opt-in and uses `disk_setup_respin.py` with
+the matching `*-setup.json` contract; `runtime-only` remains the default and
+uses `disk_respin.py`. The setup layer permits only its declared files, symlinks,
+and stale-marker removal. It does not mutate packages, accounts, network, boot,
+or firmware.
+
+The setup constructor requires the parent to already contain `openssh-server`,
+`network-manager`, `dnsmasq`, `python3-minimal`, `/usr/local/bin/wifi-connect`,
+`/usr/bin/python3`, and the `ssh.service`, `NetworkManager.service`, and
+`dnsmasq.service` units. Raspberry also requires the `pi:pi` account at
+`/home/pi` with `/bin/bash`; Orange requires `octessera:octessera` at
+`/home/octessera` with `/bin/bash` and `octessera-runtime:octessera-runtime` at
+`/nonexistent` with `/usr/sbin/nologin`. Missing or mismatched package,
+account, executable, service, preimage, ownership, mode, or xattr data is
+constructor-required and fails closed; the setup layer does not create it.
+
+Targeted setup and security/static checks are:
+
+```bash
+bash tools/armbian-image/test-setup-layer.sh
+PYTHONDONTWRITEBYTECODE=1 python3 tools/armbian-image/test_setup_sidecar.py
+PYTHONDONTWRITEBYTECODE=1 python3 tools/armbian-image/test-setup-request.py
+PYTHONDONTWRITEBYTECODE=1 python3 tools/armbian-image/test-setup-http.py
+PYTHONDONTWRITEBYTECODE=1 python3 tools/armbian-image/test-setup-flow.py
+PYTHONDONTWRITEBYTECODE=1 python3 tools/armbian-image/test-setup-state.py
+bash tools/armbian-image/validate.sh
+python3 tools/image-respin/test_setup_contract.py
+python3 tools/image-respin/test_trust_manifest.py
+python3 tools/image-respin/verify-parent-release.py --manifest resources/image-parents/v0.7.5-trust-manifest.json --validate-manifest
+python3 tools/image-respin/test_runtime_contract.py
+python3 tools/image-respin/test_workflow_records.py
+python3 tools/image-respin/test_workflow_static.py
+node --check userpatches/overlay/usr/local/share/octessera-setup-ui/app.js
+```
+
+The root-required mutation and disk fixtures run in CI as
+`sudo python3 tools/image-respin/test_setup_mutation.py` and
+`sudo python3 -m unittest discover -s tools/image-respin -p 'test_disk_*.py'`.
+
+The exact v0.7.5 parent exercise is still deferred. When authorized, run the
+manual `Respin board image` workflow once for each board:
+
+```bash
+gh workflow run respin-board-image.yml -f board=raspberry-pi-zero-2w -f setup_layer=setup-portal
+gh workflow run respin-board-image.yml -f board=orange-pi-zero-2w -f setup_layer=setup-portal
+```
+
+That lane validates `resources/image-parents/v0.7.5-trust-manifest.json`, fetches
+the exact `v0.7.5` parent assets, and records setup-layer proof. No production
+parent image has been exercised here.
 
 Pi UI/render responsiveness profiling is quiet by default. Enable periodic summaries with either control:
 

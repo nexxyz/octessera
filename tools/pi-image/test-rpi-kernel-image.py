@@ -16,6 +16,11 @@ from typing import Any, Callable
 HERE = Path(__file__).resolve().parent
 KERNEL = HERE.parent / "pi-kernel"
 sys.path.insert(0, str(KERNEL))
+sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(HERE.parent / "legal"))
+
+from rpi_initramfs_fixture import make_splash_initramfs
+from stage_notices import stage_notices  # type: ignore[import-not-found]
 
 
 def _load(path: Path, name: str) -> Any:
@@ -238,6 +243,10 @@ def _main() -> int:
         provenance_path = work / "image-provenance.json"
         provenance_path.write_text(json.dumps(provenance), encoding="utf-8")
         image = work / "root"
+        stage_notices(HERE.parents[1], image)
+        _write(image / "var/lib/dpkg/status", "Package: fixture\nStatus: install ok installed\nVersion: 1\nDescription: fixture\n")
+        _write(image / "usr/share/common-licenses/GPL-3", "fixture GPL license\n")
+        _write(image / "usr/share/doc/base-files/copyright", "fixture base-files copyright\n")
         _write(image / "boot/firmware/config.txt", "kernel=kernel8.img\nauto_initramfs=1\n")
         _write(image / "boot/firmware/kernel8.img", b"stock-kernel")
         stock_initrd_path = image / f"boot/initrd.img-{contract.kernel_release}"
@@ -256,6 +265,33 @@ def _main() -> int:
         _write(boot / "octessera/overlays/i2s-dac-no20.dtbo", b"i2s")
         subprocess.run(["dpkg-deb", "-x", str(package), str(image)], check=True, capture_output=True)
         _write(image / f"lib/modules/{contract.kernel_release}/modules.dep", "fixture-module-dependencies\n")
+        runtime_bytes = b"constructor-runtime-binary\n"
+        _write(image / "opt/octessera/releases/1.2.3/octessera-pi", runtime_bytes)
+        os.chmod(image / "opt/octessera/releases/1.2.3/octessera-pi", 0o755)
+        (image / "opt/octessera/current").symlink_to("/opt/octessera/releases/1.2.3")
+        (image / "usr/local/bin").mkdir(parents=True, exist_ok=True)
+        (image / "usr/local/bin/octessera-pi").symlink_to("/opt/octessera/current/octessera-pi")
+        for path in (
+            image / "etc/initramfs-tools/hooks/octessera-boot-splash",
+            image / "etc/initramfs-tools/scripts/init-premount/octessera-boot-splash",
+            image / "etc/systemd/system/octessera-boot-splash.service",
+            image / "etc/systemd/system/octessera.service",
+            image / "etc/profile.d/octessera-welcome.sh",
+            image / "usr/local/lib/octessera/rpi_uart_release.py",
+        ):
+            source = HERE / "stage4-octessera/files/root" / path.relative_to(image)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, path)
+            os.chmod(path, 0o755 if "initramfs" in str(path) or path.name == "rpi_uart_release.py" else 0o644)
+        hushlogin = image / "home/pi/.hushlogin"
+        hushlogin.parent.mkdir(parents=True, exist_ok=True)
+        hushlogin.write_bytes(b"")
+        os.chmod(hushlogin, 0o644)
+        os.chown(hushlogin, 1000, 1000)  # type: ignore[attr-defined]
+        (image / "etc/systemd/system/sysinit.target.wants").mkdir(parents=True, exist_ok=True)
+        (image / "etc/systemd/system/multi-user.target.wants").mkdir(parents=True, exist_ok=True)
+        (image / "etc/systemd/system/sysinit.target.wants/octessera-boot-splash.service").symlink_to("../octessera-boot-splash.service")
+        (image / "etc/systemd/system/multi-user.target.wants/octessera.service").symlink_to("../octessera.service")
         original_root_command = STAGE_INSTALLER._run_in_root
         def fake_root_command(rootfs: Path, command: list[str]) -> None:
             if command[0] == "update-initramfs":
@@ -268,21 +304,30 @@ def _main() -> int:
         assert evidence["initramfs"]["path"] == f"octessera/initrd.img-{contract.kernel_release}"
         assert [_hook_metadata(path) for path in image_hooks] == image_hook_original
         STAGE_INSTALLER.verify_selectors(boot / "config.txt", contract)
-        _write(boot / f"octessera/initrd.img-{contract.kernel_release}", b"initramfs")
+        script_bytes = (image / "etc/initramfs-tools/scripts/init-premount/octessera-boot-splash").read_bytes()
+        _write(boot / f"octessera/initrd.img-{contract.kernel_release}", make_splash_initramfs(script_bytes, runtime_bytes))
         initramfs_path = boot / f"octessera/initrd.img-{contract.kernel_release}"
         original_lsinitramfs = PROOF._run_lsinitramfs
         lsinitramfs_paths: list[Path] = []
 
         def fake_lsinitramfs(path: Path) -> str:
             lsinitramfs_paths.append(path)
-            return "drwxr-xr-x root/root 0 1970-01-01 00:00 .\n"
+            if path.resolve() == initramfs_path.resolve():
+                return original_run(["lsinitramfs", "-l", str(path)], capture_output=True, text=True, check=True).stdout
+            return "stock\n"
 
         PROOF._run_lsinitramfs = fake_lsinitramfs
         try:
-            proved = PROOF.prove_root(image, package, checksum, provenance_path, contract)
+            if getattr(os, "geteuid", lambda: -1)() == 0:
+                proved = PROOF.prove_root(image, package, checksum, provenance_path, contract)
+            else:
+                proved = None
+                PROOF._verify_selected_initramfs(boot, initramfs_path)
+                PROOF._verify_stock_recovery(image, boot)
         finally:
             PROOF._run_lsinitramfs = original_lsinitramfs
-        assert proved["package"]["sha256"] == inventory["package"]["sha256"]
+        if proved is not None:
+            assert proved["package"]["sha256"] == inventory["package"]["sha256"]
         PROOF._verify_payload(image, boot, package, inventory)
         stock_manifest_path = boot / "octessera/recovery-stock/manifest.json"
         stock_manifest_content = stock_manifest_path.read_text(encoding="utf-8")

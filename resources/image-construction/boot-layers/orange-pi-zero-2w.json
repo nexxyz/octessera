@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "proof_mode": "phase5-constructor",
+  "contract_kind": "constructor-required",
+  "construction_kind": "orange-boot-layer",
+  "board_profile": "orange-pi-zero-2w",
+  "constructor_required": true,
+  "trusted_parent_finalization": "forbidden",
+  "mutation_authority": "none",
+  "regeneration_required": ["initramfs", "python_closure"],
+  "expected_changes": {
+    "packages": [],
+    "accounts": [],
+    "kernel": false,
+    "firmware": false
+  },
+  "exact_inputs": [
+    {"path": "resources/legal/notice-bundle.json", "sha256": "6687792cd15453309a495c42ba1715693713036327fa7a0901a6cc6f1085053f", "size": 6447, "mode": 420},
+    {"path": "tools/legal/stage_notices.py", "sha256": "3e710e1f30228e46c05cbe6d896d42968880c83f1e9f4b719e4cb215624b3627", "size": 9001, "mode": 493},
+    {"path": "tools/pi-image/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh", "sha256": "342bfa48eafc350f5125e3757df902d51df74d1889b0e6062844eb691aa767ba", "size": 911, "mode": 420},
+    {"path": "tools/armbian-image/stage-canonical-welcome.sh", "sha256": "1048803ddfe6132d4906444d29fe16065445eafc5080bcf6d8fff999762f321b", "size": 593, "mode": 493},
+    {"path": "userpatches/customize-image.sh", "sha256": "b097bee4798fc07ca6b53ac697e23ebe1b060fb9af6d4e01d11ce2a202ed6dda", "size": 31546, "mode": 493},
+    {"path": "userpatches/overlay/usr/local/share/octessera/device-tree/octessera-h618-input-routing.dts", "sha256": "63b40446ce72af1a9af1ea977c841a8aa29787e2a324d18911c5ea81d6b483d2", "size": 513, "mode": 420},
+    {"path": "userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-boot-config.sh", "sha256": "24d811b69b15aacd0ab9ae21905c2883ff496491eb1aef19301e4cfc717e37a2", "size": 2011, "mode": 493},
+    {"path": "userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-overlay-validation.sh", "sha256": "667823491f46945e25c98404198dc3f62e8a4a16cc255b2df3d4f62b4ea0ad8d", "size": 1837, "mode": 493},
+    {"path": "userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo", "sha256": "5cee62b61839b422bbae754d8e3380148cf0daac2c91a9b6c3564b2345dfe2d6", "size": 15688, "mode": 493},
+    {"path": "userpatches/overlay/usr/local/sbin/octessera-orange-oled-handoff.py", "sha256": "55e02e6378a2f5d63b2be57a78e7b9f884a2661538e4d3cef6bc7582cf1072e6", "size": 12764, "mode": 420},
+    {"path": "userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash", "sha256": "3c9511b759a0d3bc006360a9c094cb15e27c536cde14d000750e746690b8d1bf", "size": 3693, "mode": 493},
+    {"path": "userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash", "sha256": "bd089b1c1b5caa5de2e3c2efe5d6b6961e75a8fb7e2ea203d4931eeb131843cd", "size": 2870, "mode": 493},
+    {"path": "userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service", "sha256": "57f0307b4504dc28192e99a1e0310b09ddade92c93b81cc65cb2ec45acc66fd9", "size": 1035, "mode": 420},
+    {"path": "userpatches/overlay/etc/systemd/system/octessera-orange-oled-shutdown.service", "sha256": "67ddd0d52d158c7c906d7ae26a4bb47f847ab2c90eaa5313496ad60ab801a331", "size": 594, "mode": 420},
+    {"path": "userpatches/overlay/etc/systemd/system/octessera.service", "sha256": "1b8b6e725a11abefb21e0da8f8393a54f74c4c7370b1ef15a5a03e8ba1d7c0df", "size": 1122, "mode": 420},
+    {"path": "userpatches/overlay/lib/systemd/system-sleep/octessera-orange-oled", "sha256": "0e5f6991d4c119726900dc1ad09c7fe51116c0b92cc9b41bb322854c0b474ac6", "size": 193, "mode": 493},
+    {"path": "tools/armbian-image/verify-orange-image.py", "sha256": "06461d98542f4aba239870ffef3acf06938aa979468bee92a31fdc562b5fc7bb", "size": 9340, "mode": 420},
+    {"path": "tools/armbian-image/orange_boot_contract.py", "sha256": "e39d5df717ca2bbde5a9e9b868be7022440757764051b9baabf151300bb63461", "size": 29984, "mode": 420},
+    {"path": "tools/armbian-image/orange_boot_inventory.py", "sha256": "3ff06d63793b44e6c08fb4462a954ca29034431b8bcff902853a817b73ecdae4", "size": 2801, "mode": 420},
+    {"path": "userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-mark.svg", "sha256": "da56da20cacb62d413c13f98fb0c890b19d47cd6f8324eb95123016240056748", "size": 653, "mode": 420},
+    {"path": "userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-wordmark.svg", "sha256": "ff136b332cf364f997b8ff103c8fa8b8bef3189aa4fcd7c62d7ccea88f9deec9", "size": 1622, "mode": 420}
+  ],
+  "notice_bundle": {
+    "manifest": "resources/legal/notice-bundle.json",
+    "stager": "tools/legal/stage_notices.py",
+    "installed_root": "usr/share/doc/octessera",
+    "installed_outputs": "manifest-files",
+    "proof": "tools/armbian-image/orange_boot_contract.py",
+    "parent_sentinels": ["usr/share/common-licenses/GPL-3", "usr/share/doc/base-files/copyright"]
+  },
+  "managed_outputs": [
+    {"path": "etc/profile.d/octessera-welcome.sh", "mode": 420, "uid": 0, "gid": 0},
+    {"path": "home/octessera/.hushlogin", "mode": 420, "owner": "octessera", "group": "octessera", "content": "empty"},
+    {"path": "usr/local/share/octessera/device-tree/octessera-h618-input-routing.dts", "mode": 420, "uid": 0, "gid": 0},
+    {"path": "boot/overlay-user/octessera-h618-input-routing.dtbo", "mode": 420, "uid": 0, "gid": 0},
+    {"path": "etc/systemd/system/serial-getty@ttyS0.service", "kind": "symlink", "target": "/dev/null", "uid": 0, "gid": 0},
+    {"path": "usr/local/sbin/octessera-orange-oled-logo", "mode": 493, "uid": 0, "gid": 0},
+    {"path": "usr/local/sbin/octessera-orange-oled-handoff.py", "mode": 420, "uid": 0, "gid": 0},
+    {"path": "usr/share/octessera/oled/octessera-mark.svg", "mode": 420, "uid": 0, "gid": 0},
+    {"path": "usr/share/octessera/oled/octessera-wordmark.svg", "mode": 420, "uid": 0, "gid": 0},
+    {"path": "etc/initramfs-tools/hooks/octessera-orange-boot-splash", "mode": 493, "uid": 0, "gid": 0},
+    {"path": "etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash", "mode": 493, "uid": 0, "gid": 0},
+    {"path": "etc/systemd/system/octessera-orange-boot-splash.service", "mode": 420, "uid": 0, "gid": 0},
+    {"path": "etc/systemd/system/octessera-orange-oled-shutdown.service", "mode": 420, "uid": 0, "gid": 0},
+    {"path": "etc/systemd/system/octessera.service", "mode": 420, "uid": 0, "gid": 0},
+    {"path": "lib/systemd/system-sleep/octessera-orange-oled", "mode": 493, "uid": 0, "gid": 0},
+    {"path": "etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service", "kind": "symlink", "target": "../octessera-orange-boot-splash.service", "uid": 0, "gid": 0}
+  ],
+  "terminal_invariants": {
+    "welcome_path": "etc/profile.d/octessera-welcome.sh",
+    "hushlogin_path": "home/octessera/.hushlogin",
+    "hushlogin_mode": 420,
+    "hushlogin_empty": true,
+    "forbidden_pam_update_motd_overrides": true
+  },
+  "uart_invariants": {
+    "overlay_name": "octessera-h618-input-routing",
+    "forbidden_console_token": "console=ttyS0",
+    "serial_getty_mask": "etc/systemd/system/serial-getty@ttyS0.service",
+    "uart0_status": "disabled",
+    "stdout_path": ""
+  },
+  "enabled_sysinit_wants": {"path": "etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service", "target": "../octessera-orange-boot-splash.service"},
+  "device_dependencies": {
+    "spi_device": "/dev/spidev1.0",
+    "gpio_device": "/dev/gpiochip1",
+    "gpio_label": "300b000.pinctrl",
+    "gpio_offsets": {"reset": 76, "dc": 270},
+    "udev_rule": "etc/udev/rules.d/70-octessera-orange-runtime.rules"
+  },
+  "selected_initramfs": {
+    "required_paths": [
+      "scripts/init-premount/octessera-orange-boot-splash",
+      "usr/local/sbin/octessera-orange-oled-logo",
+      "usr/local/sbin/octessera-orange-oled-handoff.py",
+      "usr/share/octessera/oled/octessera-mark.svg",
+      "usr/share/octessera/oled/octessera-wordmark.svg",
+      "usr/bin/python3",
+      "usr/bin/setsid",
+      "usr/bin/gpioset"
+    ],
+    "forbidden_paths": ["usr/bin/gpiodetect"],
+    "required_kernel_modules": ["spi-sun6i", "spidev", "pinctrl-sunxi"],
+    "required_tools": ["usr/bin/python3", "usr/bin/setsid", "usr/bin/gpioset"],
+    "python_files": [
+      "site.py", "_sitebuiltins.py", "abc.py", "codecs.py", "encodings/__init__.py", "encodings/aliases.py", "encodings/utf_8.py", "io.py", "os.py", "re/__init__.py", "re/_casefix.py", "re/_compiler.py", "re/_constants.py", "re/_parser.py", "_collections_abc.py", "genericpath.py", "posixpath.py", "enum.py", "types.py", "functools.py", "collections/__init__.py", "keyword.py", "operator.py", "reprlib.py", "copyreg.py", "stat.py", "signal.py", "struct.py", "subprocess.py", "locale.py", "threading.py", "_weakrefset.py", "warnings.py", "contextlib.py", "selectors.py", "json/__init__.py", "json/decoder.py", "json/encoder.py", "json/scanner.py", "importlib/__init__.py", "importlib/_abc.py", "importlib/machinery.py", "importlib/util.py"
+    ],
+    "python_extensions": ["fcntl", "math", "_json", "_posixsubprocess", "select", "_struct", "zlib"],
+    "installed_output_matches": [
+      {"initramfs_path": "scripts/init-premount/octessera-orange-boot-splash", "installed_path": "etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash"},
+      {"initramfs_path": "usr/local/sbin/octessera-orange-oled-logo", "installed_path": "usr/local/sbin/octessera-orange-oled-logo"},
+      {"initramfs_path": "usr/local/sbin/octessera-orange-oled-handoff.py", "installed_path": "usr/local/sbin/octessera-orange-oled-handoff.py"},
+      {"initramfs_path": "usr/share/octessera/oled/octessera-mark.svg", "installed_path": "usr/share/octessera/oled/octessera-mark.svg"},
+      {"initramfs_path": "usr/share/octessera/oled/octessera-wordmark.svg", "installed_path": "usr/share/octessera/oled/octessera-wordmark.svg"}
+    ]
+  },
+  "mounted_proof": "tools/armbian-image/verify-orange-image.py",
+  "proofs": [
+    "tools/armbian-image/test_orange_oled_logo.py",
+    "tools/armbian-image/test_orange_oled_handoff.py",
+    "tools/armbian-image/test-orange-runtime-identity.py",
+    "tools/armbian-image/test-orange-boot-splash-hook.sh",
+    "tools/armbian-image/test-orange-runtime-service.sh",
+    "tools/armbian-image/inspect-built-image.sh --setup-layer --mode production",
+    "tools/armbian-image/validate.sh"
+  ]
+}

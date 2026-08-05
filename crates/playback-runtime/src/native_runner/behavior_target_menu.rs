@@ -118,10 +118,9 @@ impl NativeRunner {
                     .copied()
                     .map(String::from)
                     .collect(),
-                selected: crate::timing_units::NOTE_UNIT_OPTIONS
-                    .iter()
-                    .position(|unit| crate::timing_units::note_unit_to_pulses(unit) == step_pulses)
-                    .unwrap_or(5),
+                selected: crate::timing_units::note_unit_selection_index(
+                    crate::timing_units::note_unit_from_pulses(step_pulses),
+                ),
             },
             children: vec![],
         }];

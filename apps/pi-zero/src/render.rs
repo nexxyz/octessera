@@ -1,11 +1,11 @@
+#![cfg_attr(feature = "hardware-orange-pi-zero-2w", allow(dead_code))]
+
 use crate::seesaw_io::SeesawCommand;
 use octessera_hal::OledSsd1351;
 use platform_core::palette;
 use playback_runtime::RuntimeUiPulse;
 use serde_json::Value;
 use std::sync::mpsc::Sender;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use std::thread;
 use std::time::{Duration, Instant};
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
@@ -26,20 +26,22 @@ const SPLASH_SLEEP_SHUTDOWN: &[u8] =
     include_bytes!(concat!(env!("OUT_DIR"), "/splash_sleep_shutdown.rgb565"));
 const SLEEP_DIM_SCALE: f32 = 0.08;
 const MIN_SLEEP_DIM_SCALE: f32 = 0.04;
+#[path = "render/boot_sweep.rs"]
+mod boot_sweep;
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+pub(crate) use boot_sweep::{
+    boot_sweep_bottom_row_origin, boot_sweep_deadline_offset_ns, boot_sweep_frame,
+    boot_sweep_frame_from, logical_to_physical_bottom, physical_to_logical_input, rgb565_at,
+    BOOT_SWEEP_BAND_WIDTH, BOOT_SWEEP_COLORS, BOOT_SWEEP_CYCLE_NS, BOOT_SWEEP_FRAMES,
+    BOOT_SWEEP_LEAN_DENOMINATOR, BOOT_SWEEP_LEAN_NUMERATOR, BOOT_SWEEP_TRAIN_WIDTH,
+};
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-const BOOT_SWEEP_FRAMES: usize = 24;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-const BOOT_SWEEP_FRAME_TIME: Duration = Duration::from_millis(1000 / BOOT_SWEEP_FRAMES as u64);
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-const BOOT_SWEEP_BAND_WIDTH: i32 = 8;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-const BOOT_SWEEP_LEAN: i32 = 1;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-const BOOT_SWEEP_COLORS: [u16; 4] = [0x07FF, 0xFFE0, 0x07E0, 0xF81F];
+pub(crate) use boot_sweep::{boot_sweep_deadline, render_boot_splash, render_boot_splash_frame};
 
 pub struct HardwareRenderTargets {
     pub oled: OledSsd1351,
     pub seesaw_tx: Sender<SeesawCommand>,
+    pub oled_handoff: Option<crate::boot_oled_handoff::NativeOledGuard>,
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub hdmi: Option<hdmi::HdmiFramebuffer>,
 }
@@ -50,6 +52,7 @@ pub struct HardwareRenderCache {
     sleep_leds: SleepLedAnimation,
     oled_signature: u64,
     oled_rendered: bool,
+    oled_render_count: u64,
     oled_frame: Vec<u8>,
     oled_retry_at: Option<Instant>,
     oled_retry_signature: Option<u64>,
@@ -70,6 +73,7 @@ impl HardwareRenderCache {
             sleep_leds: SleepLedAnimation::new(),
             oled_signature: 0,
             oled_rendered: false,
+            oled_render_count: 0,
             oled_frame: vec![0_u8; OLED_FRAME_BYTES],
             oled_retry_at: None,
             oled_retry_signature: None,
@@ -185,8 +189,13 @@ impl HardwareRenderCache {
         self.oled_rendered
     }
 
+    pub(crate) fn oled_render_count(&self) -> u64 {
+        self.oled_render_count
+    }
+
     pub(super) fn mark_oled_rendered(&mut self) {
         self.oled_rendered = true;
+        self.oled_render_count = self.oled_render_count.saturating_add(1);
     }
 
     fn clear_sleep_animation(&mut self) {
@@ -371,50 +380,6 @@ pub(crate) fn next_deadline(first: Option<Instant>, second: Option<Instant>) -> 
         (Some(deadline), None) | (None, Some(deadline)) => Some(deadline),
         (None, None) => None,
     }
-}
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-pub fn render_boot_splash(oled: &mut OledSsd1351) {
-    let _ = oled.display_on();
-    for frame_index in 0..BOOT_SWEEP_FRAMES {
-        let frame = boot_sweep_frame(frame_index);
-        if let Err(error) = oled.write_frame(&frame) {
-            eprintln!("pi OLED boot splash render failed: {error}");
-            return;
-        }
-        thread::sleep(BOOT_SWEEP_FRAME_TIME);
-    }
-}
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-fn boot_sweep_frame(frame_index: usize) -> Vec<u8> {
-    boot_sweep_frame_from(SPLASH_BOOT, frame_index)
-}
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-fn boot_sweep_frame_from(source: &[u8], frame_index: usize) -> Vec<u8> {
-    let mut frame = source.to_vec();
-    let travel = 128 + (BOOT_SWEEP_BAND_WIDTH * 2);
-    let phase = (frame_index as i32 * travel / BOOT_SWEEP_FRAMES as i32) - BOOT_SWEEP_BAND_WIDTH;
-    for y in 0..128_i32 {
-        for x in 0..128_i32 {
-            let distance = x - (phase + y * BOOT_SWEEP_LEAN / 32);
-            if (0..BOOT_SWEEP_BAND_WIDTH).contains(&distance)
-                && rgb565_at(&frame, x as usize, y as usize) == 0xFFFF
-            {
-                let color = BOOT_SWEEP_COLORS[((distance / 2) as usize) % BOOT_SWEEP_COLORS.len()];
-                let offset = (y as usize * 128 + x as usize) * 2;
-                frame[offset..offset + 2].copy_from_slice(&color.to_be_bytes());
-            }
-        }
-    }
-    frame
-}
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-fn rgb565_at(frame: &[u8], x: usize, y: usize) -> u16 {
-    let offset = (y * 128 + x) * 2;
-    u16::from_be_bytes([frame[offset], frame[offset + 1]])
 }
 
 pub fn render_shutdown_splash(oled: &mut OledSsd1351) {

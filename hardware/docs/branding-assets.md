@@ -47,6 +47,32 @@ assets and rasterizes the same mark/wordmark through its board-specific
 shutdown handoff. It does not use Raspberry `rppal`, BCM GPIOs, or the Pi
 binary's Cargo-generated splash assets.
 
+## Canonical OLED boot sweep
+
+`resources/oled/boot-sweep-v1.json` is the visual contract for the Phase 5 boot
+sweep on both fixed boards. It is strict: unknown and missing keys are rejected.
+The contract describes a 128×128 physical post-rotation frame with rightward X
+travel and bottom-to-top Y coordinates. Only source-white RGB565 pixels
+(`FFFF`) may be recolored; every other source pixel is preserved.
+
+The moving train is four 8 px bands, in order:
+
+1. cyan (`07FF`)
+2. yellow (`FFE0`)
+3. green (`07E0`)
+4. magenta (`F81F`)
+
+The 32 px train leans +8 px toward the top-right using
+`floor(row_y * 8 / 127)`. It travels from a bottom-row origin of `-40` to
+`128` across 24 frames. Frames 0 and 23 are intentionally blank endpoint
+frames. The cycle uses absolute one-second deadlines, wraps directly from
+frame 23 to frame 0, and inserts no extra pause or cumulative-sleep drift.
+
+This is implemented in the current source for Raspberry and Orange, but the
+boot-layer inputs are constructor-required. Do not describe the sweep as
+shipped or physically qualified until new constructor images have been built
+and the mounted-image and hardware checks are complete.
+
 ## Enclosure branding
 
 The enclosure top uses `hardware/enclosure/branding_marking_cadquery.py`.

@@ -201,7 +201,7 @@ require_root_mode() {
 hash_path() {
   sha256sum "$target/$1" | awk '{ print $1 }'
 }
-sample_path='Drum/hihat open/space.wav'
+sample_path='Drum/hihat open/165028__rodrigo-the-mad__mini-909ish-open-hat.wav'
 sample_content='spaced sample'
 sample_size="${#sample_content}"
 sample_hash="$(printf '%s' "$sample_content" | sha256sum | awk '{ print $1 }')"
@@ -212,11 +212,11 @@ kick_hash="$(printf '%s' "$kick_content" | sha256sum | awk '{ print $1 }')"
 sample_manifest="$(printf '%s\n%s\t%s\t%s\t%s\t%s\n%s\t%s\t%s\t%s\t%s\n' \
   '# path	size	sha256	source	license_source' \
   "$sample_path" "$sample_size" "$sample_hash" \
-  'https://github.com/stargatedaw/stargate-sample-pack' \
-  'https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/main/README.md' \
+  'https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/freesound/drums/cymbal/open/165028__rodrigo-the-mad__mini-909ish-open-hat.wav' \
+  'https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/LICENSE' \
   "$kick_path" "$kick_size" "$kick_hash" \
-  'https://github.com/stargatedaw/stargate-sample-pack' \
-  'https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/main/README.md')"
+  'https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/microlag/One-Shots/Drums/Kick2.wav' \
+  'https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/LICENSE')"
 
 make_sample_fixture() {
   local fixture="$1"
@@ -242,7 +242,7 @@ valid_samples="$work/valid-samples"
 make_sample_fixture "$valid_samples"
 validate_sample_fixture "$valid_samples" "$sample_manifest" valid
 
-duplicate_manifest="$sample_manifest"$'\n'"$sample_path"$'\t'"$sample_size"$'\t'"$sample_hash"$'\t'"https://github.com/stargatedaw/stargate-sample-pack"$'\t'"https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/main/README.md"
+duplicate_manifest="$sample_manifest"$'\n'"$sample_path"$'\t'"$sample_size"$'\t'"$sample_hash"$'\t'"https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/freesound/drums/cymbal/open/165028__rodrigo-the-mad__mini-909ish-open-hat.wav"$'\t'"https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/LICENSE"
 if validate_sample_fixture "$valid_samples" "$duplicate_manifest" duplicate; then
   echo 'Duplicate packaged sample path was accepted.' >&2
   exit 1
@@ -258,7 +258,7 @@ fi
 
 symlink_samples="$work/symlink-samples"
 cp -a "$valid_samples" "$symlink_samples"
-ln -s space.wav "$symlink_samples/usr/share/octessera/samples/files/Drum/hihat open/extra-link.wav"
+ln -s 165028__rodrigo-the-mad__mini-909ish-open-hat.wav "$symlink_samples/usr/share/octessera/samples/files/Drum/hihat open/extra-link.wav"
 if validate_sample_fixture "$symlink_samples" "$sample_manifest" symlink; then
   echo 'Packaged sample symlink was accepted.' >&2
   exit 1
@@ -277,11 +277,11 @@ cp -a "$valid_samples" "$size_mismatch_samples"
 size_mismatch_manifest="$(printf '%s\n%s\t%s\t%s\t%s\t%s\n%s\t%s\t%s\t%s\t%s\n' \
   '# path	size	sha256	source	license_source' \
   "$sample_path" "$((sample_size + 1))" "$sample_hash" \
-  'https://github.com/stargatedaw/stargate-sample-pack' \
-  'https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/main/README.md' \
+  'https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/freesound/drums/cymbal/open/165028__rodrigo-the-mad__mini-909ish-open-hat.wav' \
+  'https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/LICENSE' \
   "$kick_path" "$kick_size" "$kick_hash" \
-  'https://github.com/stargatedaw/stargate-sample-pack' \
-  'https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/main/README.md')"
+  'https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/microlag/One-Shots/Drums/Kick2.wav' \
+  'https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/LICENSE')"
 if validate_sample_fixture "$size_mismatch_samples" "$size_mismatch_manifest" size; then
   echo 'Packaged sample size mismatch was accepted.' >&2
   exit 1
@@ -428,6 +428,8 @@ read_file() {
 require_root_mode() { :; }
 hash_path() { [[ "$1" == etc/octessera/image-contract.json ]] && printf '%s\n' "$runtime_contract_hash"; }
 reject_path() { runtime_rejected_paths+=("$1"); }
+octessera_require_orange_boot_service() { :; }
+octessera_require_orange_shutdown_service() { :; }
 profile_metadata=$'OCTESSERA_IMAGE_MODE=diagnostic\nOCTESSERA_RUNTIME_ENABLED_DEFAULT=false\nOCTESSERA_IMAGE_CONTRACT_SHA256='"$runtime_contract_hash"$'\nOCTESSERA_RUNTIME_VERSION=none\nOCTESSERA_RUNTIME_BINARY_SHA256=none\nOCTESSERA_RUNTIME_MANIFEST_SHA256=none\nOCTESSERA_RUNTIME_METADATA_SHA256=none'
 octessera_inspect_runtime_mode "$profile_metadata" diagnostic
 [[ "${runtime_rejected_paths[*]}" == 'etc/systemd/system/octessera.service etc/systemd/system/multi-user.target.wants/octessera.service usr/local/bin/octessera-pi opt/octessera/current opt/octessera/releases' ]] || {

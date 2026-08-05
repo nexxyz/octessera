@@ -1,7 +1,7 @@
 use super::options::duck_source_options;
 use super::{enum_item_from_strings, number_item, NativeMenuItem};
 use crate::delay_timing::normalized_delay_params;
-use crate::timing_units::NOTE_UNIT_OPTIONS;
+use crate::timing_units::{note_unit_selection_index, DEFAULT_NOTE_UNIT, NOTE_UNIT_OPTIONS};
 
 pub(super) fn fx_param_items(
     slot_type: &str,
@@ -90,7 +90,7 @@ fn delay_time_note_item(prefix: &str, params: &serde_json::Value, bpm: u16) -> N
     let selected_note = params
         .get("timeNote")
         .and_then(serde_json::Value::as_str)
-        .unwrap_or("1/8");
+        .unwrap_or(DEFAULT_NOTE_UNIT);
     enum_item_from_strings(
         "Time Note",
         format!("{prefix}.timeNote"),
@@ -98,10 +98,7 @@ fn delay_time_note_item(prefix: &str, params: &serde_json::Value, bpm: u16) -> N
             .iter()
             .map(|option| (*option).to_string())
             .collect(),
-        NOTE_UNIT_OPTIONS
-            .iter()
-            .position(|option| option == &selected_note)
-            .unwrap_or(0),
+        note_unit_selection_index(selected_note),
     )
 }
 

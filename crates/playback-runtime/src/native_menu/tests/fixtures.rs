@@ -23,7 +23,9 @@ pub(crate) fn config() -> NativeMenuConfig {
                         .copied()
                         .map(String::from)
                         .collect(),
-                    selected: 5,
+                    selected: crate::timing_units::note_unit_selection_index(
+                        crate::timing_units::DEFAULT_NOTE_UNIT,
+                    ),
                 },
                 children: vec![],
             },
@@ -181,7 +183,9 @@ pub(crate) fn behavior_target_items() -> Vec<Vec<NativeMenuItem>> {
                             .copied()
                             .map(String::from)
                             .collect(),
-                        selected: 5,
+                        selected: crate::timing_units::note_unit_selection_index(
+                            crate::timing_units::DEFAULT_NOTE_UNIT,
+                        ),
                     },
                     children: vec![],
                 },

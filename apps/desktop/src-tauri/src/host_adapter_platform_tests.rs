@@ -1,6 +1,10 @@
 use super::{platform_request, test_adapter};
 use crate::types::QueuedAudioEvent;
-use playback_runtime::{HostAdapter, HostMessage, RuntimePlatformEffect, RuntimeStoreResult};
+use playback_runtime::{
+    HostAdapter, HostMessage, RuntimeErrorCode, RuntimeErrorDomain, RuntimeOperation,
+    RuntimePlatformEffect, RuntimePlatformRequest, RuntimeSetupPortalErrorCode,
+    RuntimeSetupPortalPhase, RuntimeStoreResult,
+};
 use std::time::Duration;
 
 #[test]
@@ -32,6 +36,48 @@ fn system_info_request_reports_typed_service_unavailable() {
         [HostMessage::RuntimeResult {
             result: RuntimeStoreResult::Identified { result, .. }
         }] if matches!(result.as_ref(), RuntimeStoreResult::SystemInfoError { error } if error.code == playback_runtime::RuntimeErrorCode::Unavailable)
+    ));
+}
+
+#[test]
+fn setup_portal_open_reports_identified_unsupported_status() {
+    let (mut adapter, _) = test_adapter();
+    let request = RuntimePlatformRequest::new(
+        RuntimePlatformEffect::SetupPortalOpen,
+        "setup-portal-test".into(),
+        Some(37),
+    );
+    let follow_ups = adapter.handle_platform_effect(&request).unwrap();
+
+    let (request_id, revision, result) = match &follow_ups[..] {
+        [HostMessage::RuntimeResult {
+            result:
+                RuntimeStoreResult::Identified {
+                    request_id,
+                    revision,
+                    result,
+                },
+        }] => (request_id, revision, result.as_ref()),
+        _ => panic!("expected one identified setup portal result"),
+    };
+    assert_eq!(request_id, "setup-portal-test");
+    assert_eq!(*revision, Some(37));
+    assert_eq!(result.operation(), RuntimeOperation::SetupPortal);
+
+    let error = result
+        .error_facts()
+        .expect("unsupported status has error facts");
+    assert_eq!(error.domain, RuntimeErrorDomain::Runtime);
+    assert_eq!(error.code, RuntimeErrorCode::Unsupported);
+    assert_eq!(error.operation, RuntimeOperation::SetupPortal);
+    assert!(matches!(
+        result,
+        RuntimeStoreResult::SetupPortalStatus { status }
+            if status.phase == RuntimeSetupPortalPhase::Unsupported
+                && status.error_code == Some(RuntimeSetupPortalErrorCode::Unsupported)
+                && !status.reboot_required
+                && status.disposition.is_none()
+                && status.portal_suffix.is_none()
     ));
 }
 

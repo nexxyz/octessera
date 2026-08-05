@@ -335,6 +335,7 @@ fn sleeping_animation_emits_at_entry_and_deadlines_only() {
     let mut targets = HardwareRenderTargets {
         oled: OledSsd1351::new().unwrap(),
         seesaw_tx: command_tx,
+        oled_handoff: None,
         #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         hdmi: None,
     };
@@ -365,6 +366,7 @@ fn sleeping_animation_restores_once_on_wake_and_stays_cached_awake() {
     let mut targets = HardwareRenderTargets {
         oled: OledSsd1351::new().unwrap(),
         seesaw_tx: command_tx,
+        oled_handoff: None,
         #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         hdmi: None,
     };

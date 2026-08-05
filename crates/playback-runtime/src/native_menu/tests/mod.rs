@@ -8,6 +8,7 @@ mod help;
 mod pulses;
 mod root;
 mod sparks;
+mod timing;
 mod voice;
 
 pub(super) use fixture_tests::*;

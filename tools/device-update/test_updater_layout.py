@@ -43,6 +43,9 @@ class UpdaterLayoutTests(unittest.TestCase):
             self.assertIn(name, workflow)
         self.assertIn('"tools/device-update/$updater_file" "$stage_root/usr/local/lib/octessera/$updater_file"', workflow)
         self.assertNotIn('zip_basename=', workflow)
+        self.assertIn('install -m 0644 LICENSE NOTICE device-release/', workflow)
+        self.assertIn('octessera-device-release.json LICENSE NOTICE)', workflow)
+        self.assertNotIn('legal/notices.zip', workflow)
         self.assertIn('asset="release-assets/octessera-${{ inputs.version }}-raspberry-pi-zero-2w.img.zip"', workflow)
 
 

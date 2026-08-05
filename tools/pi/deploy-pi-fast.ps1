@@ -18,6 +18,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "board-profile.ps1")
+. (Join-Path $PSScriptRoot "deploy-target.ps1")
+Assert-PiDeploymentTarget $Target | Out-Null
 Assert-RaspberryBoardProfile $BoardProfile
 Assert-OctesseraServiceName $Service
 

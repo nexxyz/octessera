@@ -1,5 +1,4 @@
 use crate::audio::AudioService;
-use crate::candidate_readiness::CandidateReadiness;
 use crate::encoder_queue::PendingEncoderTurns;
 use crate::host_adapter::PiPlaybackHostAdapter;
 use crate::input::MidiMessage;
@@ -8,14 +7,11 @@ use crate::main_runtime_loop::{
 };
 use crate::midi_host::drain_midi_messages;
 use crate::render_loop::RenderWorker;
-use crate::runtime_loop::initialize_host_state;
-use crate::sample_browser::SD_CARD_SAMPLE_BROWSER_DIR;
 use crate::ui_profile::UiProfiler;
 use crate::usb_config::UsbAudioOut;
 use octessera_hal::encoder_gpio::HardwareEvent;
 use playback_runtime::{
-    HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig,
-    RuntimeTransportState, SyncSource,
+    HostMessage, NativeRunner, PlaybackRuntime, RuntimeTransportState, SyncSource,
 };
 use std::path::PathBuf;
 use std::sync::mpsc;
@@ -29,11 +25,15 @@ const RENDER_INTERVAL_MS: u64 = 33;
 const SCHEDULER_IDLE_SLEEP_MAX_MS: u64 = 4;
 const SCHEDULER_STOPPED_SLEEP_MAX_MS: u64 = 20;
 
+#[path = "runtime_startup.rs"]
+mod startup;
+pub(crate) use startup::{prepare, PreparedRuntime};
+
 struct SchedulerState {
     last_tick: Instant,
     last_snapshot_request: Instant,
     last_render: Instant,
-    last_rendered_snapshot_revision: u64,
+    last_published_snapshot_revision: u64,
     transient_render_until: Option<Instant>,
     pending_encoder_turns: PendingEncoderTurns,
     ui_profiler: UiProfiler,
@@ -45,7 +45,7 @@ impl SchedulerState {
             last_tick: Instant::now(),
             last_snapshot_request: Instant::now(),
             last_render: Instant::now() - Duration::from_millis(RENDER_INTERVAL_MS),
-            last_rendered_snapshot_revision: 0,
+            last_published_snapshot_revision: 0,
             transient_render_until: None,
             pending_encoder_turns: PendingEncoderTurns::default(),
             ui_profiler: UiProfiler::from_process(),
@@ -67,119 +67,41 @@ pub(crate) struct RuntimeThreadConfig {
     pub(crate) midi_rx: mpsc::Receiver<MidiMessage>,
     pub(crate) input_rx: mpsc::Receiver<HostMessage>,
     pub(crate) encoder_rx: mpsc::Receiver<HardwareEvent>,
-    pub(crate) render_worker: RenderWorker,
     pub(crate) early_boot_splash: bool,
 }
 
-pub(crate) fn spawn(config: RuntimeThreadConfig) -> JoinHandle<()> {
+pub(crate) fn spawn(config: RuntimeThreadConfig, render_worker: RenderWorker) -> JoinHandle<()> {
     thread::Builder::new()
         .name("octessera-runtime".into())
-        .spawn(move || run(config))
-        .expect("pi runtime thread should start")
-}
-
-fn run(config: RuntimeThreadConfig) {
-    let RuntimeThreadConfig {
-        audio,
-        store_dir,
-        samples_dir,
-        midi_handler,
-        usb_midi_out_enabled,
-        usb_audio_out,
-        midi_rx,
-        input_rx,
-        encoder_rx,
-        render_worker,
-        early_boot_splash,
-    } = config;
-    let (mut playback, mut runner) = init_runtime();
-    if early_boot_splash {
-        runner.skip_startup_splash();
-    }
-    let mut adapter = PiPlaybackHostAdapter::new(
-        audio,
-        store_dir,
-        samples_dir,
-        midi_handler,
-        usb_midi_out_enabled,
-        usb_audio_out,
-    );
-    let initial_host_dispatch_succeeded =
-        match initialize_host_state(&mut playback, &mut runner, &mut adapter) {
-            Ok(()) => true,
+        .spawn(move || match prepare(config) {
+            Ok(prepared) => prepared.run(render_worker),
             Err(error) => {
-                eprintln!("pi host state initialization failed: {error}");
-                false
+                eprintln!("pi runtime preparation failed: {error}");
+                let _ = render_worker.publish_shutdown();
             }
-        };
-    run_scheduler(
-        midi_rx,
-        input_rx,
-        encoder_rx,
-        render_worker,
-        playback,
-        runner,
-        adapter,
-        initial_host_dispatch_succeeded,
-        CandidateReadiness::from_env(),
-    );
-}
-
-fn init_runtime() -> (PlaybackRuntime, NativeRunner) {
-    let playback = PlaybackRuntime::new(RuntimeConfig {
-        bpm: 120.0,
-        sync_source: SyncSource::Internal,
-        midi_clock_out_enabled: false,
-        midi_out_enabled: false,
-    });
-    let runner = NativeRunner::new(NativeRunnerConfig {
-        behavior_id: "sequencer".into(),
-        sample_builtin_favourite_dirs: vec![String::new(), SD_CARD_SAMPLE_BROWSER_DIR.into()],
-        ..NativeRunnerConfig::default()
-    })
-    .expect("native runner should initialize");
-    (playback, runner)
+        })
+        .expect("pi runtime thread should start")
 }
 
 #[allow(clippy::too_many_arguments)]
 fn run_scheduler(
-    midi_rx: mpsc::Receiver<MidiMessage>,
-    input_rx: mpsc::Receiver<HostMessage>,
-    encoder_rx: mpsc::Receiver<HardwareEvent>,
+    prepared: PreparedRuntime,
     render_worker: RenderWorker,
-    mut playback: PlaybackRuntime,
-    mut runner: NativeRunner,
-    mut adapter: PiPlaybackHostAdapter,
-    initial_host_dispatch_succeeded: bool,
-    mut candidate_readiness: CandidateReadiness,
+    initial_rendered_revision: u64,
 ) {
+    let PreparedRuntime {
+        midi_rx,
+        input_rx,
+        encoder_rx,
+        mut playback,
+        mut runner,
+        mut adapter,
+        candidate_readiness: _,
+    } = prepared;
     let mut state = SchedulerState::new();
+    state.last_published_snapshot_revision = initial_rendered_revision;
     let profile_enabled = state.profile_enabled();
     let mut last_loop_start = profile_enabled.then(Instant::now);
-    let initial_snapshot_requested = if initial_host_dispatch_succeeded {
-        let message = HostMessage::TransportPulseStep {
-            pulses: 0,
-            source: playback.config().sync_source.clone(),
-            at_ppqn_pulse: playback
-                .last_status()
-                .map(|status| status.current_ppqn_pulse),
-            request_snapshot: Some(true),
-        };
-        match crate::runtime_loop::dispatch_runtime_message(
-            &mut playback,
-            &mut runner,
-            &mut adapter,
-            message,
-        ) {
-            Ok(()) => true,
-            Err(error) => {
-                eprintln!("pi initial scheduler snapshot failed: {error}");
-                false
-            }
-        }
-    } else {
-        false
-    };
 
     loop {
         let loop_start = profile_enabled.then(Instant::now);
@@ -196,14 +118,6 @@ fn run_scheduler(
         ) {
             break;
         }
-        if let Err(error) = mark_candidate_ready_if_submitted(
-            initial_snapshot_requested,
-            &state,
-            &mut candidate_readiness,
-        ) {
-            eprintln!("pi candidate readiness publication failed: {error}");
-            break;
-        }
         drain_midi_messages(&midi_rx, &mut playback, &mut runner, &mut adapter);
         let host_input_started = profile_enabled.then(Instant::now);
         drain_host_messages(&input_rx, &mut playback, &mut runner, &mut adapter);
@@ -217,14 +131,6 @@ fn run_scheduler(
             &mut adapter,
             &render_worker,
         ) {
-            break;
-        }
-        if let Err(error) = mark_candidate_ready_if_submitted(
-            initial_snapshot_requested,
-            &state,
-            &mut candidate_readiness,
-        ) {
-            eprintln!("pi candidate readiness publication failed: {error}");
             break;
         }
         drain_encoder_events(
@@ -249,14 +155,6 @@ fn run_scheduler(
         ) {
             break;
         }
-        if let Err(error) = mark_candidate_ready_if_submitted(
-            initial_snapshot_requested,
-            &state,
-            &mut candidate_readiness,
-        ) {
-            eprintln!("pi candidate readiness publication failed: {error}");
-            break;
-        }
         if let (Some(gap), Some(started)) = (loop_gap, loop_start) {
             state.ui_profiler.record_loop(gap, started.elapsed());
             state.ui_profiler.maybe_report();
@@ -270,27 +168,8 @@ fn run_scheduler(
         ) {
             break;
         }
-        if let Err(error) = mark_candidate_ready_if_submitted(
-            initial_snapshot_requested,
-            &state,
-            &mut candidate_readiness,
-        ) {
-            eprintln!("pi candidate readiness publication failed: {error}");
-            break;
-        }
         thread::sleep(state.idle_sleep_duration(&playback, &runner));
     }
-}
-
-fn mark_candidate_ready_if_submitted(
-    initial_snapshot_requested: bool,
-    state: &SchedulerState,
-    candidate_readiness: &mut CandidateReadiness,
-) -> Result<(), String> {
-    if initial_snapshot_requested && state.last_rendered_snapshot_revision != 0 {
-        candidate_readiness.mark_ready()?;
-    }
-    Ok(())
 }
 
 impl SchedulerState {
@@ -335,7 +214,7 @@ fn render_tick_needed(state: &SchedulerState, playback: &PlaybackRuntime) -> boo
     state
         .transient_render_until
         .is_some_and(|deadline| Instant::now() <= deadline)
-        || playback.last_snapshot_revision() != state.last_rendered_snapshot_revision
+        || playback.last_snapshot_revision() != state.last_published_snapshot_revision
 }
 
 fn earliest_due(current: Option<Instant>, candidate: Instant) -> Instant {
@@ -356,7 +235,7 @@ fn advance(
         Duration::from_millis(SNAPSHOT_INTERVAL_MS),
         &mut state.last_render,
         Duration::from_millis(RENDER_INTERVAL_MS),
-        &mut state.last_rendered_snapshot_revision,
+        &mut state.last_published_snapshot_revision,
         &mut state.transient_render_until,
         &mut state.pending_encoder_turns,
         playback,
@@ -365,37 +244,4 @@ fn advance(
         render_worker,
         &mut state.ui_profiler,
     )
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn candidate_readiness_waits_for_successful_snapshot_submission() {
-        let directory = std::env::temp_dir().join(format!(
-            "octessera-pi-readiness-gate-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        let path = directory.join("candidate-ready.json");
-        let mut readiness = CandidateReadiness::new(Some(path.clone()), "invocation-1".into());
-        let mut state = SchedulerState::new();
-
-        mark_candidate_ready_if_submitted(true, &state, &mut readiness).unwrap();
-        assert!(!path.exists());
-
-        state.last_rendered_snapshot_revision = 1;
-        mark_candidate_ready_if_submitted(false, &state, &mut readiness).unwrap();
-        assert!(!path.exists());
-
-        let mut readiness = CandidateReadiness::new(Some(path.clone()), "invocation-1".into());
-        mark_candidate_ready_if_submitted(true, &state, &mut readiness).unwrap();
-        assert!(path.is_file());
-
-        let _ = std::fs::remove_dir_all(directory);
-    }
 }

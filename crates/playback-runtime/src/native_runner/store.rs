@@ -79,6 +79,7 @@ impl NativeRunner {
             "recording.stop" => Some(RuntimePlatformEffect::RecordingStop),
             "system.hardwareTest" => Some(RuntimePlatformEffect::HardwareTest),
             "system.info" => Some(RuntimePlatformEffect::SystemInfoRequest),
+            "system.configureWifi" => Some(RuntimePlatformEffect::SetupPortalOpen),
             "system.updateCheck" => Some(RuntimePlatformEffect::UpdateCheck),
             "system.updateApply" => Some(RuntimePlatformEffect::UpdateApply),
             "system.rollback" => Some(RuntimePlatformEffect::Rollback),
@@ -177,6 +178,22 @@ impl NativeRunner {
             )
         } else if action_type == "system.hardwareTest" {
             ("Confirm Hardware Test", "Run the hardware test?".into())
+        } else if action_type == "system.configureWifi" {
+            return Some(NativeConfirmDialog {
+                title: "Open Wi-Fi Setup".into(),
+                lines: vec![
+                    "Playback stops.".into(),
+                    "Wi-Fi disconnects.".into(),
+                    "Setup may change:".into(),
+                    "SSH, hostname,".into(),
+                    "and login.".into(),
+                ],
+                options: vec!["Cancel".into(), "Open Portal".into()],
+                cursor: 0,
+                action: action.clone(),
+                cancel_toast: Some("Cancelled".into()),
+                confirm_before_execute: false,
+            });
         } else if action_type == "system.updateApply" {
             ("Confirm Update", "Apply the update now?".into())
         } else if action_type == "system.rollback" {
@@ -208,8 +225,14 @@ impl NativeRunner {
     pub(super) fn apply_store_result(&mut self, result: RuntimeStoreResult) -> Result<(), String> {
         match result {
             RuntimeStoreResult::Identified {
-                result, revision, ..
+                result,
+                request_id,
+                revision,
             } => {
+                if let RuntimeStoreResult::SetupPortalStatus { status } = result.as_ref() {
+                    self.apply_setup_portal_status(status.clone(), Some(request_id), revision);
+                    return Ok(());
+                }
                 let operation = result.operation();
                 let succeeded = result.error_facts().is_none();
                 self.apply_store_result(*result)?;
@@ -299,6 +322,9 @@ impl NativeRunner {
                     Self::set_system_info_error(modal, error);
                     modal.scroll = 0;
                 }
+            }
+            RuntimeStoreResult::SetupPortalStatus { status } => {
+                self.apply_setup_portal_status(status, None, None);
             }
             RuntimeStoreResult::RuntimeFailure { error }
                 if error.operation == crate::RuntimeOperation::SystemInfo =>

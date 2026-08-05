@@ -70,6 +70,14 @@ impl NativeRunner {
         if self.display.confirm_dialog.is_some() {
             return self.handle_confirm_device_input(input);
         }
+        if self
+            .display
+            .setup_portal
+            .as_ref()
+            .is_some_and(|setup| setup.visible)
+        {
+            return self.handle_setup_portal_modal_input(input);
+        }
         if self.display.usb_sd_transfer_modal.is_some() {
             return self.handle_usb_sd_transfer_modal_input(input);
         }

@@ -1,0 +1,34 @@
+# GENERATED FILE: Cargo dependency license status
+
+This report records reviewed policy and packages requiring source-availability review before public binary release; it is not legal advice.
+
+Permissive packages: 497
+Reviewed MPL packages: 10
+Reviewed license alternatives: 2
+Custom or unknown packages: 0
+Workspace license metadata missing: 0
+manifest-license-no-file informational packages: 68
+Packages requiring source-availability review before public binary release: 73
+
+## Reviewed MPL packages
+
+- colored 1.9.4: file-level-copyleft; reviewed-with-source-obligation
+- cssparser 0.36.0: file-level-copyleft; reviewed-with-source-obligation
+- cssparser-macros 0.6.1: file-level-copyleft; reviewed-with-source-obligation
+- dtoa-short 0.3.5: file-level-copyleft; reviewed-with-source-obligation
+- option-ext 0.2.0: file-level-copyleft; reviewed-with-source-obligation
+- selectors 0.36.1: file-level-copyleft; reviewed-with-source-obligation
+- symphonia 0.5.5: file-level-copyleft; reviewed-with-source-obligation
+- symphonia-bundle-mp3 0.5.5: file-level-copyleft; reviewed-with-source-obligation
+- symphonia-core 0.5.5: file-level-copyleft; reviewed-with-source-obligation
+- symphonia-metadata 0.5.5: file-level-copyleft; reviewed-with-source-obligation
+
+## Reviewed license alternatives
+
+- r-efi 5.3.0: MIT OR Apache-2.0 OR LGPL-2.1-or-later -> Apache-2.0
+- r-efi 6.0.0: MIT OR Apache-2.0 OR LGPL-2.1-or-later -> Apache-2.0
+
+## Vendored source note
+
+- cpal 0.15.3 is modified-local-vendoring.
+- Its LICENSE and PROVENANCE.md remain authoritative local references.

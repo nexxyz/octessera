@@ -5,6 +5,7 @@ use crate::input::{
 };
 use crate::main_paths::default_store_dir;
 use crate::midi_host::drain_midi_messages;
+use crate::normal_menu::is_normal_menu_snapshot;
 use crate::orange_host_adapter::OrangeHostAdapter;
 use crate::render::HardwareRenderTargets;
 use crate::render_loop::RenderWorker;
@@ -23,6 +24,15 @@ use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
+#[path = "orange_candidate_handoff.rs"]
+mod handoff;
+#[path = "orange_runtime_startup.rs"]
+mod startup;
+pub(crate) use startup::{
+    prepare_runtime, publish_prepared_acknowledged_snapshot, OrangeStartupReadinessGate,
+    PreparedRuntime,
+};
+
 const POLLING_INTERVAL: Duration = Duration::from_millis(10);
 const RENDER_INTERVAL: Duration = Duration::from_millis(33);
 const RUNTIME_TICK: Duration = Duration::from_millis(8);
@@ -40,6 +50,7 @@ struct OrangeRuntimeServices {
 pub fn run() -> Result<(), String> {
     let mut candidate_readiness = CandidateReadiness::from_env();
     crate::board_profile::validate_runtime_profile()?;
+    let handoff_mode = crate::boot_oled_handoff::mode_from_env()?;
     install_signal_handlers()?;
     let store_dir = default_store_dir();
     let usb_config = read_usb_runtime_config(&store_dir)
@@ -58,6 +69,15 @@ pub fn run() -> Result<(), String> {
     let _required_audio_health = audio
         .internal_dac_health()
         .ok_or_else(|| "Orange internal DAC health monitor was not installed".to_string())?;
+    if handoff_mode == crate::boot_oled_handoff::HandoffMode::V1 {
+        return handoff::run(
+            audio,
+            usb_config,
+            midi_rx,
+            midi_handler,
+            candidate_readiness,
+        );
+    }
     let devices = ORANGE_PI_ZERO_2W_DEVICES;
     let oled = OledSsd1351::new()?;
     let trellis = NeoTrellis::new_with_mode(
@@ -75,6 +95,7 @@ pub fn run() -> Result<(), String> {
     let render = RenderWorker::spawn(HardwareRenderTargets {
         oled,
         seesaw_tx: seesaw.command_tx.clone(),
+        oled_handoff: None,
     });
 
     let audio_service = audio.service();
@@ -111,43 +132,62 @@ fn run_runtime(
         midi_handler,
         usb_midi_out_enabled,
     } = services;
-    let mut playback = PlaybackRuntime::new(RuntimeConfig {
-        bpm: 120.0,
-        sync_source: SyncSource::Internal,
-        midi_clock_out_enabled: false,
-        midi_out_enabled: usb_midi_out_enabled,
-    });
-    let mut runner = NativeRunner::new(NativeRunnerConfig {
-        behavior_id: "sequencer".into(),
-        ..NativeRunnerConfig::default()
-    })?;
-    let mut host = OrangeHostAdapter::new(audio.clone(), midi_handler, usb_midi_out_enabled)?;
+    let prepared = prepare_runtime(audio.clone(), midi_handler, usb_midi_out_enabled, true)?;
+    run_prepared_runtime(
+        prepared,
+        seesaw,
+        encoder_rx,
+        render,
+        audio_manager,
+        candidate_readiness,
+        midi_rx,
+        false,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn run_prepared_runtime(
+    prepared: PreparedRuntime,
+    seesaw: &SeesawIo,
+    encoder_rx: &Receiver<HardwareEvent>,
+    render: &RenderWorker,
+    audio_manager: &mut AudioManager,
+    candidate_readiness: &mut CandidateReadiness,
+    midi_rx: Receiver<MidiMessage>,
+    initial_rendered: bool,
+) -> Result<(), String> {
+    let PreparedRuntime {
+        mut playback,
+        mut runner,
+        mut host,
+    } = prepared;
     let mut last_published_revision = 0;
-    initialize_host_state(&mut playback, &mut runner, &mut host)?;
+    let mut readiness_gate = OrangeStartupReadinessGate::new(initial_rendered);
     ensure_required_audio_health(audio_manager.required_dac_status())?;
     let result = (|| {
         drain_host_work(&mut playback, &mut runner, &mut host)?;
-        dispatch(
-            &mut playback,
-            &mut runner,
-            &mut host,
-            HostMessage::TransportPulseStep {
-                pulses: 0,
-                source: SyncSource::Internal,
-                at_ppqn_pulse: None,
-                request_snapshot: Some(true),
-            },
-        )?;
-        let first_snapshot_rendered =
-            publish_snapshot(&mut playback, render, &mut last_published_revision, true)?;
+        let first_snapshot_rendered = if initial_rendered {
+            last_published_revision = playback.last_snapshot_revision();
+            true
+        } else {
+            let rendered = publish_snapshot(
+                &mut playback,
+                &runner,
+                render,
+                &mut last_published_revision,
+                true,
+            )?;
+            readiness_gate.acknowledge_initial_write(if rendered {
+                Ok(())
+            } else {
+                Err("Orange initial snapshot was not acknowledged".into())
+            })?;
+            rendered
+        };
         if !first_snapshot_rendered {
             return Err("Orange runtime did not produce a valid initial snapshot".into());
         }
-        let mut readiness_pending = true;
-        if audio_manager.required_dac_status() == OrangeDacStatus::Healthy {
-            candidate_readiness.mark_ready()?;
-            readiness_pending = false;
-        }
+        readiness_gate.try_mark_ready(audio_manager.required_dac_status(), candidate_readiness)?;
 
         let mut previous_tick = Instant::now();
         let mut next_render = previous_tick + RENDER_INTERVAL;
@@ -157,11 +197,8 @@ fn run_runtime(
             previous_tick = now;
             audio_manager.recover_audio_if_due();
             ensure_required_audio_health(audio_manager.required_dac_status())?;
-            if readiness_pending && audio_manager.required_dac_status() == OrangeDacStatus::Healthy
-            {
-                candidate_readiness.mark_ready()?;
-                readiness_pending = false;
-            }
+            readiness_gate
+                .try_mark_ready(audio_manager.required_dac_status(), candidate_readiness)?;
             drain_midi_messages(&midi_rx, &mut playback, &mut runner, &mut host);
             drain_host_work(&mut playback, &mut runner, &mut host)?;
             drain_inputs(seesaw, encoder_rx, &mut playback, &mut runner, &mut host)?;
@@ -186,7 +223,13 @@ fn run_runtime(
                 )?;
                 next_render = now + RENDER_INTERVAL;
             }
-            publish_snapshot(&mut playback, render, &mut last_published_revision, false)?;
+            publish_snapshot(
+                &mut playback,
+                &runner,
+                render,
+                &mut last_published_revision,
+                false,
+            )?;
             thread::sleep(RUNTIME_TICK.min(POLLING_INTERVAL));
         }
         Ok::<(), String>(())
@@ -344,6 +387,7 @@ fn dispatch(
 
 fn publish_snapshot(
     playback: &mut PlaybackRuntime,
+    runner: &NativeRunner,
     render: &RenderWorker,
     last_revision: &mut u64,
     wait_for_render: bool,
@@ -354,9 +398,14 @@ fn publish_snapshot(
     let Some(snapshot) = playback.last_snapshot().cloned() else {
         return Ok(false);
     };
+    if wait_for_render
+        && (!is_normal_menu_snapshot(&snapshot) || !runner.is_canonical_menu_presentation())
+    {
+        return Err("Orange initial snapshot is not a canonical normal menu".into());
+    }
     let pulses = playback.drain_ui_pulses();
     if wait_for_render {
-        render.publish_initial_snapshot(snapshot, pulses)?;
+        render.publish_acknowledged_snapshot(snapshot, pulses)?;
     } else if !render.publish_snapshot(snapshot, pulses) {
         return Err("Orange render worker rejected a snapshot".into());
     }
@@ -387,7 +436,6 @@ fn install_signal_handlers() -> Result<(), String> {
 fn install_signal_handlers() -> Result<(), String> {
     Err("Orange foreground candidate requires Unix signal handling".into())
 }
-
 #[cfg(unix)]
 extern "C" fn interrupt_handler(_: libc::c_int) {
     INTERRUPTED.store(true, Ordering::SeqCst);

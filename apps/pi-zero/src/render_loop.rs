@@ -7,7 +7,6 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 const SHUTDOWN_ACK_TIMEOUT: Duration = Duration::from_millis(750);
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
 const INITIAL_RENDER_ACK_TIMEOUT: Duration = Duration::from_millis(750);
 
 pub struct RenderWorker {
@@ -21,7 +20,16 @@ enum RenderCommand {
         pulses: Vec<RuntimeUiPulse>,
         rendered_acks: Vec<mpsc::Sender<Result<(), String>>>,
     },
+    MarkFirstMenuRendered {
+        ack: mpsc::Sender<Result<(), String>>,
+    },
+    MarkFailed {
+        ack: mpsc::Sender<Result<(), String>>,
+    },
     Shutdown {
+        ack: mpsc::Sender<Result<(), String>>,
+    },
+    Abort {
         ack: mpsc::Sender<Result<(), String>>,
     },
 }
@@ -29,6 +37,7 @@ enum RenderCommand {
 #[derive(Default)]
 struct RenderState {
     command: Option<RenderCommand>,
+    acknowledged_snapshot_published: bool,
 }
 
 impl RenderWorker {
@@ -46,19 +55,60 @@ impl RenderWorker {
         self.publish_snapshot_command(snapshot, pulses, Vec::new())
     }
 
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    pub fn publish_initial_snapshot(
+    pub fn publish_acknowledged_snapshot(
         &self,
         snapshot: Value,
         pulses: Vec<RuntimeUiPulse>,
     ) -> Result<(), String> {
         let (ack_tx, ack_rx) = mpsc::channel();
+        let (lock, _) = &*self.state;
+        let mut state = lock.lock().map_err(|_| {
+            "render worker state mutex poisoned during acknowledged snapshot".to_string()
+        })?;
+        if state.acknowledged_snapshot_published {
+            return Err("render worker rejected a second acknowledged snapshot".into());
+        }
+        state.acknowledged_snapshot_published = true;
+        drop(state);
         if !self.publish_snapshot_command(snapshot, pulses, vec![ack_tx]) {
-            return Err("render worker rejected initial snapshot".into());
+            return Err("render worker rejected acknowledged snapshot".into());
         }
         ack_rx
             .recv_timeout(INITIAL_RENDER_ACK_TIMEOUT)
             .map_err(|error| format!("initial snapshot render acknowledgement failed: {error}"))?
+    }
+
+    pub fn mark_first_menu_rendered(&self) -> Result<(), String> {
+        let (ack_tx, ack_rx) = mpsc::channel();
+        let (lock, ready) = &*self.state;
+        let mut state = lock.lock().map_err(|_| {
+            "render worker state mutex poisoned during OLED handoff acknowledgement".to_string()
+        })?;
+        if state.command.is_some() {
+            return Err(
+                "render worker has a pending command during OLED handoff acknowledgement".into(),
+            );
+        }
+        state.command = Some(RenderCommand::MarkFirstMenuRendered { ack: ack_tx });
+        ready.notify_one();
+        drop(state);
+        ack_rx
+            .recv_timeout(INITIAL_RENDER_ACK_TIMEOUT)
+            .map_err(|error| format!("initial OLED handoff acknowledgement failed: {error}"))?
+    }
+
+    pub fn mark_oled_failed(&self) -> Result<(), String> {
+        let (ack_tx, ack_rx) = mpsc::channel();
+        let (lock, ready) = &*self.state;
+        let mut state = lock.lock().map_err(|_| {
+            "render worker state mutex poisoned during OLED failure publication".to_string()
+        })?;
+        state.command = Some(RenderCommand::MarkFailed { ack: ack_tx });
+        ready.notify_one();
+        drop(state);
+        ack_rx
+            .recv_timeout(INITIAL_RENDER_ACK_TIMEOUT)
+            .map_err(|error| format!("OLED failure acknowledgement failed: {error}"))?
     }
 
     fn publish_snapshot_command(
@@ -69,7 +119,10 @@ impl RenderWorker {
     ) -> bool {
         let (lock, ready) = &*self.state;
         if let Ok(mut state) = lock.lock() {
-            if matches!(&state.command, Some(RenderCommand::Shutdown { .. })) {
+            if matches!(
+                &state.command,
+                Some(RenderCommand::Shutdown { .. } | RenderCommand::Abort { .. })
+            ) {
                 return false;
             }
             state.command =
@@ -104,6 +157,30 @@ impl RenderWorker {
             .map_err(|_| "render worker panicked during shutdown".to_string())?;
         ack_result
     }
+
+    pub fn abort(&self) -> Result<(), String> {
+        let (ack_tx, ack_rx) = mpsc::channel();
+        let (lock, ready) = &*self.state;
+        if let Ok(mut state) = lock.lock() {
+            state.command = Some(RenderCommand::Abort { ack: ack_tx });
+            ready.notify_one();
+        } else {
+            return Err("render worker state mutex poisoned during abort".into());
+        }
+        let result = ack_rx
+            .recv_timeout(SHUTDOWN_ACK_TIMEOUT)
+            .map_err(|error| format!("render abort acknowledgement failed: {error}"))?;
+        let worker = self
+            .worker
+            .lock()
+            .ok()
+            .and_then(|mut worker| worker.take())
+            .ok_or_else(|| "render worker handle unavailable during abort".to_string())?;
+        worker
+            .join()
+            .map_err(|_| "render worker panicked during abort".to_string())?;
+        result
+    }
 }
 
 fn merge_snapshot_command(
@@ -114,6 +191,7 @@ fn merge_snapshot_command(
 ) -> Option<RenderCommand> {
     match pending {
         Some(RenderCommand::Shutdown { ack }) => Some(RenderCommand::Shutdown { ack }),
+        Some(RenderCommand::Abort { ack }) => Some(RenderCommand::Abort { ack }),
         Some(RenderCommand::Snapshot {
             pulses: mut pending,
             rendered_acks: mut pending_acks,
@@ -127,6 +205,10 @@ fn merge_snapshot_command(
                 rendered_acks: pending_acks,
             })
         }
+        Some(RenderCommand::MarkFirstMenuRendered { ack }) => {
+            Some(RenderCommand::MarkFirstMenuRendered { ack })
+        }
+        Some(RenderCommand::MarkFailed { ack }) => Some(RenderCommand::MarkFailed { ack }),
         None => Some(RenderCommand::Snapshot {
             snapshot,
             pulses,
@@ -153,15 +235,34 @@ fn render_worker_loop(
                     cache.apply_ui_pulse(pulse);
                 }
                 let snapshot = cache.snapshot_with_transients(&snapshot);
+                let rendered_before = cache.oled_render_count();
                 animation_deadline = render_snapshot_cached(targets, &snapshot, &mut cache);
-                let render_result = if cache.has_rendered_oled() {
+                let render_result = if cache.oled_render_count() > rendered_before {
                     Ok(())
                 } else {
                     Err("initial snapshot OLED render failed".into())
                 };
+                if render_result.is_err() {
+                    if let Some(handoff) = targets.oled_handoff.as_ref() {
+                        handoff.mark_failed();
+                    }
+                }
                 for ack in rendered_acks {
                     let _ = ack.send(render_result.clone());
                 }
+            }
+            Some(RenderCommand::MarkFirstMenuRendered { ack }) => {
+                let result = targets
+                    .oled_handoff
+                    .as_mut()
+                    .map_or(Ok(()), |handoff| handoff.mark_first_menu_rendered());
+                let _ = ack.send(result);
+            }
+            Some(RenderCommand::MarkFailed { ack }) => {
+                if let Some(handoff) = targets.oled_handoff.as_ref() {
+                    handoff.mark_failed();
+                }
+                let _ = ack.send(Ok(()));
             }
             Some(RenderCommand::Shutdown { ack }) => {
                 crate::render::render_shutdown_splash(&mut targets.oled);
@@ -173,6 +274,10 @@ fn render_worker_loop(
                     .send(crate::seesaw_io::SeesawCommand::NeoKeyColors([[0; 3]; 4]));
                 let display_off = display_off_ack(targets.oled.display_off());
                 let _ = ack.send(display_off);
+                break;
+            }
+            Some(RenderCommand::Abort { ack }) => {
+                let _ = ack.send(Ok(()));
                 break;
             }
             None => {
@@ -237,6 +342,8 @@ fn take_next_command(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    use octessera_hal::OledSsd1351;
 
     #[test]
     fn shutdown_ack_preserves_display_off_failure() {
@@ -253,7 +360,6 @@ mod tests {
     #[test]
     fn shutdown_ack_timeout_is_bounded() {
         assert_eq!(SHUTDOWN_ACK_TIMEOUT, Duration::from_millis(750));
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
         assert_eq!(INITIAL_RENDER_ACK_TIMEOUT, Duration::from_millis(750));
     }
 
@@ -305,5 +411,43 @@ mod tests {
         };
 
         assert!(!worker.publish_snapshot(Value::Null, Vec::new()));
+    }
+
+    #[test]
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    fn initial_snapshot_ack_is_current_and_cannot_be_reused() {
+        let readiness_path = std::env::temp_dir().join(format!(
+            "octessera-render-readiness-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let mut readiness = crate::candidate_readiness::CandidateReadiness::new(
+            Some(readiness_path.clone()),
+            "render-test".into(),
+        );
+        let (seesaw_tx, _seesaw_rx) = mpsc::channel();
+        let worker = RenderWorker::spawn(HardwareRenderTargets {
+            oled: OledSsd1351::new().unwrap(),
+            seesaw_tx,
+            oled_handoff: None,
+            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+            hdmi: None,
+        });
+        assert!(worker
+            .publish_acknowledged_snapshot(Value::Null, Vec::new())
+            .is_ok());
+        assert!(!readiness_path.exists());
+        readiness.mark_ready().unwrap();
+        assert!(readiness_path.is_file());
+        assert_eq!(
+            worker.publish_acknowledged_snapshot(Value::Null, Vec::new()),
+            Err("render worker rejected a second acknowledged snapshot".into())
+        );
+        worker.abort().unwrap();
+        drop(readiness);
+        let _ = std::fs::remove_dir_all(readiness_path);
     }
 }

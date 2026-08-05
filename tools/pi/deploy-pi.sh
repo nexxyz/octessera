@@ -4,6 +4,13 @@
 
 set -e
 
+SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)"
+REPOSITORY_ROOT="$(CDPATH='' cd -- "$SCRIPT_DIR/../.." && pwd)"
+WELCOME_SOURCE="$REPOSITORY_ROOT/tools/pi-image/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh"
+UART_SOURCE="$REPOSITORY_ROOT/tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/rpi_uart_release.py"
+test -f "$WELCOME_SOURCE" && test ! -L "$WELCOME_SOURCE"
+test -f "$UART_SOURCE" && test ! -L "$UART_SOURCE"
+
 BOARD_PROFILE="${OCTESSERA_BOARD_PROFILE:-raspberry-pi-zero-2w}"
 if [ "$BOARD_PROFILE" = orange-pi-zero-2w ]; then
     echo "Orange Pi profile is not supported by Raspberry Pi deployment; use the separate Armbian workflow." >&2
@@ -37,7 +44,8 @@ sudo apt-get install -y \
 if ! command -v cargo &> /dev/null; then
     echo "Installing Rust..."
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-    source $HOME/.cargo/env
+    # shellcheck disable=SC1091
+    source "$HOME/.cargo/env"
 fi
 
 # Configure Pi buses and pin muxes
@@ -54,15 +62,9 @@ ensure_boot_config_line() {
     fi
 }
 
-disable_service_if_present() {
-    local service="$1"
-    sudo systemctl disable --now "$service" >/dev/null 2>&1 || true
-}
-
 ensure_boot_config_line "dtparam=audio=off"
 ensure_boot_config_line "camera_auto_detect=0"
 ensure_boot_config_line "display_auto_detect=0"
-ensure_boot_config_line "dtoverlay=disable-bt"
 sudo tee /boot/firmware/overlays/i2s-dac-no20.dts > /dev/null <<'EOL'
 /dts-v1/;
 /plugin/;
@@ -117,7 +119,22 @@ sudo sed -i -E 's/^dtoverlay=hifiberry-dac/#dtoverlay=hifiberry-dac/; s/^dtoverl
 ensure_boot_config_line "dtoverlay=i2s-dac-no20"
 ensure_boot_config_line "dtparam=spi=on"
 ensure_boot_config_line "dtparam=i2c_arm=on"
-ensure_boot_config_line "enable_uart=0"
+sudo install -D -o root -g root -m 0644 "$WELCOME_SOURCE" /etc/profile.d/octessera-welcome.sh
+sudo install -D -o root -g root -m 0755 "$UART_SOURCE" /usr/local/lib/octessera/rpi_uart_release.py
+pi_record="$(getent passwd pi)"
+IFS=: read -r pi_user _ pi_uid pi_gid _ pi_home pi_shell <<EOF
+$pi_record
+EOF
+test "$pi_user" = pi && test "$pi_home" = /home/pi && test "$pi_shell" = /bin/bash
+test -d "$pi_home" && test ! -L "$pi_home"
+hushlogin="$pi_home/.hushlogin"
+if [ -e "$hushlogin" ] || [ -L "$hushlogin" ]; then
+    test -f "$hushlogin" && test ! -L "$hushlogin" && test "$(stat -c '%u:%g:%a:%s' "$hushlogin")" = "$pi_uid:$pi_gid:644:0" && test ! -s "$hushlogin"
+else
+    sudo install -D -m 0644 /dev/null "$hushlogin"
+    sudo chown "$pi_user:$pi_user" "$hushlogin"
+fi
+sudo /usr/local/lib/octessera/rpi_uart_release.py --live
 grep -qxF "i2c-dev" /etc/modules || echo "i2c-dev" | sudo tee -a /etc/modules > /dev/null
 if [ -f tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget ]; then
     sudo install -D -m 0755 \
@@ -262,50 +279,7 @@ sudo iw dev wlan0 set power_save off >/dev/null 2>&1 || true
 sudo nmcli connection modify preconfigured 802-11-wireless.powersave 2 >/dev/null 2>&1 || true
 sudo nmcli device reapply wlan0 >/dev/null 2>&1 || true
 
-sudo install -d -m 0755 /etc/profile.d
-sudo tee /etc/profile.d/octessera-welcome.sh > /dev/null <<'EOL'
-case $- in
-    *i*) ;;
-    *) return 0 ;;
-esac
-
-if [ -n "${OCTESSERA_WELCOME_SHOWN:-}" ]; then
-    return 0
-fi
-export OCTESSERA_WELCOME_SHOWN=1
-
-if [ ! -t 1 ]; then
-    return 0
-fi
-
-printf '\n'
-cat <<'EOF'
-                OOOO    OOOO
-               OOOOO   OOOOOO
-             OOO     OOO    OOO
-           OOOO    OOOO       OOOO
-         OOOO    OOOO   OOOO    OOOO
-         OOOO    OOOO   OOOO    OOOO
-            OOO       OOOO    OOO
-              OOOO   OOO    OOOO
-                OOOOOO   OOOOO
-                 OOOO    OOOO
-
-OOOO OOOO OOOOO OOOO OOOO OOOO OOOO OOOO OOOO
-O  O O      O   O    O    O    O    O  O O  O
-O  O O      O   OOOO OOOO OOOO OOOO OOOO OOOO
-O  O O      O   O       O    O O    O OO O  O
-OOOO OOOO   O   OOOO OOOO OOOO OOOO O  O O  O
-EOF
-printf '\n  cellular automata -> music\n'
-printf '  service: systemctl status octessera\n'
-printf '  logs:    journalctl -u octessera -f\n\n'
-EOL
 sudo systemctl restart systemd-journald
-
-# Disable Bluetooth services when present
-disable_service_if_present bluetooth.service
-disable_service_if_present hciuart.service
 
 # Build natively on Pi (simpler than cross-compilation)
 echo "Building octessera for Pi..."

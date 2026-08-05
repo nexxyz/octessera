@@ -11,6 +11,32 @@ class InitramfsDecodeError(ValueError):
     pass
 
 
+def read_cpio_entries(content: bytes) -> dict[str, tuple[int, bytes]]:
+    entries: dict[str, tuple[int, bytes]] = {}
+    offset = 0
+    while offset + 110 <= len(content):
+        magic = content[offset : offset + 6]
+        if magic not in {b"070701", b"070702"}:
+            raise InitramfsDecodeError("initramfs CPIO is not newc format")
+        file_size = int(content[offset + 54 : offset + 62], 16)
+        name_size = int(content[offset + 94 : offset + 102], 16)
+        header_end = offset + 110
+        name_end = header_end + name_size
+        if name_size == 0 or name_end > len(content):
+            raise InitramfsDecodeError("truncated initramfs CPIO name")
+        name = content[header_end : name_end - 1].decode("utf-8")
+        data_start = (name_end + 3) & ~3
+        data_end = data_start + file_size
+        if data_end > len(content):
+            raise InitramfsDecodeError("truncated initramfs CPIO file")
+        if name == "TRAILER!!!":
+            return entries
+        mode = int(content[offset + 14 : offset + 22], 16)
+        entries[name.removeprefix("./")] = (mode, content[data_start:data_end])
+        offset = (data_end + 3) & ~3
+    raise InitramfsDecodeError("initramfs CPIO has no trailer")
+
+
 def read_initramfs_content(path: Path) -> bytes:
     raw = path.read_bytes()
     if raw[:4] == b"\x27\x05\x19\x56":
@@ -45,3 +71,7 @@ def read_initramfs_content(path: Path) -> bytes:
     except (FileNotFoundError, OSError, subprocess.CalledProcessError) as error:
         raise InitramfsDecodeError(f"cannot validate CPIO initramfs: {path}") from error
     return decoded
+
+
+def read_initramfs_entries(path: Path) -> dict[str, tuple[int, bytes]]:
+    return read_cpio_entries(read_initramfs_content(path))

@@ -2,6 +2,12 @@
 
 The Orange Pi image starts a small setup website if it does not already know a Wi-Fi network.
 
+The constructor stages the same canonical interactive terminal welcome as the
+Raspberry image at `/etc/profile.d/octessera-welcome.sh`. It is silent for
+noninteractive commands and redirected output. The empty admin
+`/home/octessera/.hushlogin` keeps Armbian's login text from stepping on it;
+this does not change SSH credentials or the setup portal.
+
 Octessera 0.7.5 has two explicit Orange image modes:
 
 - **Production:** `octessera-0.7.5-orange-pi-zero-2w.img.xz` installs and enables
@@ -24,6 +30,10 @@ Use a verified production image artifact for an image update; do not treat the
 diagnostic image or a local runtime binary as a release image.
 
 Use this before final assembly if you want. You do not need the OLED or buttons installed yet.
+
+For the same setup portal from the instrument menu, on first boot or later, see
+[Open or reopen the full setup portal](setup-portal.md). The first-boot steps
+below remain the quickest path when the board is fresh from the image.
 
 ## First boot
 
@@ -72,21 +82,10 @@ The setup portal creates or updates Octessera's SSH access. It does not scrub Ar
 
 ## Reopen setup later
 
-From local console or an existing admin session:
-
-```sh
-sudo rm -f /var/lib/octessera/setup-complete
-sudo touch /var/lib/octessera/setup-force
-sudo systemctl restart octessera-setup.service
-```
-
-Remove the force marker after setup if you used it:
-
-```sh
-sudo rm -f /var/lib/octessera/setup-force
-```
-
-If Wi-Fi was configured by another Armbian first-run path, the setup portal stays out of the way. Use the force marker above if you still want the Octessera portal.
+Use `System > Configure WiFi` on the instrument. This starts the same full
+portal even when Wi-Fi is already configured. It is safer than manually
+changing setup markers: the runtime stops playback, the native adapter submits
+a request, and the root-owned setup service handles the portal lifecycle.
 
 ## SPI and OLED bring-up
 
@@ -143,14 +142,27 @@ ls /sys/kernel/config/usb_gadget/octessera-orange-pi/functions
 UART0 remains intentionally disabled by the reviewed input-routing overlay;
 this USB path does not restore it.
 
-## Boot, sleep, and shutdown OLED handoff
+## Future boot, sleep, and shutdown OLED behavior
 
-The image carries the Octessera mark and wordmark into initramfs and uses the
-H618 SPI1 device `/dev/spidev1.0` plus GPIO lines on `300b000.pinctrl` (reset
-76, D/C 270). The early boot splash runs before the main system; the systemd
-sleep hook shows the sleep mark, restores the boot logo after resume, and the
-shutdown unit shows the shutdown mark before poweroff/reboot. These are Orange
-GPIO/SPI paths, not Raspberry `rppal`, BCM, or `dwc2` paths.
+The current source implements the Phase 5 boot handoff, but no new constructor
+image has been built and this behavior has not yet been physically qualified.
+When that image is available, Orange should show the same four-band cyan,
+yellow, green, and magenta sweep as Raspberry: 8 px bands, a +8 px top-right
+lean, white-source pixels only, and 24 frames over one second.
+
+Initramfs runs one bounded foreground sweep and fully reaps it. Early userspace
+then loops the sweep until the native runtime requests release. Native startup
+waits for the exclusive `/run/octessera-boot` OLED lock, adopts the display
+without resetting it, and stops the animation just before an acknowledged
+first normal menu frame. Orange first-menu readiness also waits for healthy
+internal DAC status; a queued frame is not enough.
+
+Sleep, resume, and shutdown/reboot remain separate lifecycle paths. The Orange
+H618 path uses `/dev/spidev1.0` and GPIO lines on `300b000.pinctrl` (reset 76,
+D/C 270), rather than Raspberry `rppal`, BCM, or `dwc2` paths. Until the new
+constructor image and physical checks are complete, a blank or unstable OLED
+is a qualification result to record, not evidence that the source contract is
+working on the board.
 
 ## Advanced path
 

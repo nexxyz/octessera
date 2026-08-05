@@ -11,6 +11,9 @@ members = [
 exclude = ["third_party/cpal-0.15.3"]
 resolver = "2"
 
+[workspace.package]
+license-file = "LICENSE"
+
 [patch.crates-io]
 cpal = { path = "third_party/cpal-0.15.3" }
 

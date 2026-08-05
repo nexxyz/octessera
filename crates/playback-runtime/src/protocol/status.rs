@@ -55,6 +55,7 @@ pub enum RuntimeOperation {
     SamplePreview,
     DeviceUpdate,
     SystemInfo,
+    SetupPortal,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

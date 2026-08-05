@@ -104,7 +104,7 @@ pub(super) fn link_lfo_group(
                 "Period",
                 format!("{prefix}.period"),
                 crate::timing_units::NOTE_UNIT_OPTIONS.to_vec(),
-                selected_index(crate::timing_units::NOTE_UNIT_OPTIONS, &lfo.period),
+                crate::timing_units::note_unit_selection_index(&lfo.period),
             ),
             number_item(
                 "Depth %",
@@ -160,7 +160,7 @@ pub(super) fn scanning_group(
                 "Scan Unit",
                 format!("{prefix}.scanUnit"),
                 crate::timing_units::NOTE_UNIT_OPTIONS.to_vec(),
-                selected_index(crate::timing_units::NOTE_UNIT_OPTIONS, &sense.scan_unit),
+                crate::timing_units::note_unit_selection_index(&sense.scan_unit),
             ),
             enum_item(
                 "Scan Direction",

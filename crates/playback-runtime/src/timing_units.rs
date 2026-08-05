@@ -2,8 +2,20 @@ pub(crate) const NOTE_UNIT_OPTIONS: &[&str] = &[
     "1/32T", "1/32", "1/16T", "1/16", "1/8T", "1/8", "1/4T", "1/4", "1/2T", "1/2", "1/1T", "1/1",
 ];
 
-const DEFAULT_NOTE_UNIT: &str = "1/8";
-const DEFAULT_NOTE_UNIT_PULSES: u32 = 12;
+pub(crate) const DEFAULT_NOTE_UNIT: &str = "1/8";
+pub(crate) const DEFAULT_NOTE_UNIT_PULSES: u32 = 12;
+
+pub(crate) fn note_unit_selection_index(unit: &str) -> usize {
+    NOTE_UNIT_OPTIONS
+        .iter()
+        .position(|option| *option == unit)
+        .or_else(|| {
+            NOTE_UNIT_OPTIONS
+                .iter()
+                .position(|option| *option == DEFAULT_NOTE_UNIT)
+        })
+        .expect("default note unit must be present in NOTE_UNIT_OPTIONS")
+}
 
 pub(crate) fn note_unit_to_pulses(unit: &str) -> u32 {
     note_unit_to_pulses_option(unit).unwrap_or(DEFAULT_NOTE_UNIT_PULSES)
@@ -16,7 +28,7 @@ pub(crate) fn note_unit_to_pulses_option(unit: &str) -> Option<u32> {
         "1/16T" => Some(4),
         "1/16" => Some(6),
         "1/8T" => Some(8),
-        "1/8" => Some(12),
+        "1/8" => Some(DEFAULT_NOTE_UNIT_PULSES),
         "1/4T" => Some(16),
         "1/4" => Some(24),
         "1/2T" => Some(32),
@@ -34,7 +46,7 @@ pub(crate) fn note_unit_from_pulses(pulses: u32) -> &'static str {
         4 => "1/16T",
         6 => "1/16",
         8 => "1/8T",
-        12 => "1/8",
+        DEFAULT_NOTE_UNIT_PULSES => DEFAULT_NOTE_UNIT,
         16 => "1/4T",
         24 => "1/4",
         32 => "1/2T",
@@ -65,5 +77,34 @@ mod tests {
         assert_eq!(note_unit_to_pulses("1/1T"), 64);
         assert_eq!(note_unit_from_pulses(3), "1/32");
         assert_eq!(note_unit_from_pulses(4), "1/16T");
+    }
+
+    #[test]
+    fn note_unit_selection_index_preserves_option_order_and_defaults_invalid_labels() {
+        for (index, option) in NOTE_UNIT_OPTIONS.iter().enumerate() {
+            assert_eq!(note_unit_selection_index(option), index);
+        }
+        assert_eq!(
+            note_unit_selection_index("invalid"),
+            note_unit_selection_index(DEFAULT_NOTE_UNIT)
+        );
+        assert_eq!(
+            NOTE_UNIT_OPTIONS[note_unit_selection_index("invalid")],
+            DEFAULT_NOTE_UNIT
+        );
+    }
+
+    #[test]
+    fn invalid_note_units_use_the_canonical_runtime_default() {
+        assert_eq!(
+            note_unit_to_pulses(DEFAULT_NOTE_UNIT),
+            DEFAULT_NOTE_UNIT_PULSES
+        );
+        assert_eq!(note_unit_to_pulses("invalid"), DEFAULT_NOTE_UNIT_PULSES);
+        assert_eq!(
+            note_unit_from_pulses(DEFAULT_NOTE_UNIT_PULSES),
+            DEFAULT_NOTE_UNIT
+        );
+        assert_eq!(note_unit_from_pulses(7), DEFAULT_NOTE_UNIT);
     }
 }

@@ -243,6 +243,7 @@ octessera_validate_sample_tree() {
   local sample_size
   local sample_hash
   local sample_source
+  local expected_sample_source
   local sample_license_source
   local component
   local current_directory
@@ -267,7 +268,13 @@ octessera_validate_sample_tree() {
       }
       continue
     fi
-    [[ -n "$sample_path" && "$sample_source" == https://github.com/stargatedaw/stargate-sample-pack && "$sample_license_source" == https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/main/README.md ]] || {
+    case "$sample_path" in
+      "Drum/claps/distkit-clap.wav") expected_sample_source=https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/fugue-state-audio/drums/claps/distkit-clap.wav ;;
+      "Drum/hihat open/165028__rodrigo-the-mad__mini-909ish-open-hat.wav") expected_sample_source=https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/freesound/drums/cymbal/open/165028__rodrigo-the-mad__mini-909ish-open-hat.wav ;;
+      "Drum/kick/Kick2.wav") expected_sample_source=https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/microlag/One-Shots/Drums/Kick2.wav ;;
+      *) echo "Invalid packaged sample path: $sample_path." >&2; return 1 ;;
+    esac
+    [[ -n "$sample_path" && "$sample_source" == "$expected_sample_source" && "$sample_license_source" == https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/LICENSE ]] || {
       echo 'Invalid packaged sample manifest row.' >&2
       return 1
     }

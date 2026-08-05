@@ -103,6 +103,8 @@ jobs:
           compression: ${{ inputs.compression }}
           extensions: ${{ inputs.extensions }}
           armbian_build_ref: ${{ inputs.armbian_build_ref }}
+          boot_proof_mode: phase5-constructor
+          construction_contract: resources/image-construction/boot-layers/orange-pi-zero-2w.json
           share_log: yes
         env:
           PRESET_CONFIGURATION: ${{ inputs.public_preset_configuration_url }}
@@ -183,6 +185,8 @@ jobs:
           compression: ${{ inputs.compression }}
           extensions: ${{ inputs.extensions }}
           armbian_build_ref: ${{ inputs.armbian_build_ref }}
+          boot_proof_mode: phase5-constructor
+          construction_contract: resources/image-construction/boot-layers/orange-pi-zero-2w.json
           share_log: no
         env:
           PRESET_CONFIGURATION: ${{ secrets.ARMBIAN_PRESET_CONFIGURATION_URL }}

@@ -192,6 +192,8 @@ if args and args[0] == 'show':
             binary_info.external_attr = (stat.S_IFREG | 0o755) << 16
             output.writestr(binary_info, binary)
             output.writestr("octessera-device-release.json", manifest)
+            output.writestr("LICENSE", b"Octessera license fixture\n")
+            output.writestr("NOTICE", b"Octessera notice fixture\n")
         digest = hashlib.sha256(archive.read_bytes()).hexdigest()
         (self.fixtures / sums_name).write_text(f"{digest}  {archive_name}\n", encoding="utf-8")
         (self.fixtures / "release.json").write_text(json.dumps({
@@ -278,6 +280,18 @@ if args and args[0] == 'show':
         self.assertEqual((self.root / "current").resolve().name, "1.0.1")
         state = json.loads((self.root / "update-state.json").read_text())
         self.assertEqual((state["current"], state["previous"], state["schema_version"]), ("1.0.1", "1.0.0", 2))
+
+    def test_device_archive_root_inventory_and_extraction(self):
+        archive = self.fixtures / "octessera-1.0.1-raspberry-pi-zero-2w-device-aarch64.zip"
+        with zipfile.ZipFile(archive) as source:
+            self.assertEqual(set(source.namelist()), {"octessera-pi", "octessera-device-release.json", "LICENSE", "NOTICE"})
+            self.assertEqual(source.read("LICENSE"), b"Octessera license fixture\n")
+            self.assertEqual(source.read("NOTICE"), b"Octessera notice fixture\n")
+        self.invoke("apply", "v1.0.1")
+        extracted = self.root / "releases" / "1.0.1"
+        self.assertEqual({path.name for path in extracted.iterdir()}, {"octessera-pi", "update-manifest.json", "update-asset.json", "LICENSE", "NOTICE"})
+        self.assertEqual((extracted / "LICENSE").read_bytes(), b"Octessera license fixture\n")
+        self.assertEqual((extracted / "NOTICE").read_bytes(), b"Octessera notice fixture\n")
 
     def test_rollback_uses_the_same_guarded_transition(self):
         self.invoke("apply", "v1.0.1")

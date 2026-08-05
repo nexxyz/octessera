@@ -40,7 +40,8 @@ export const RUNTIME_OPERATIONS = [
   "sample_list",
   "sample_preview",
   "device_update",
-  "system_info"
+  "system_info",
+  "setup_portal"
 ] as const;
 export type RuntimeOperation = (typeof RUNTIME_OPERATIONS)[number];
 

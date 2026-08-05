@@ -111,17 +111,19 @@ Secondary contributor docs:
 
 ## Samples
 
-Repository sample content is sourced from the [Stargate sample pack](https://github.com/stargatedaw/stargate-sample-pack).
+The repository includes 320 media files from the [Stargate sample pack](https://github.com/stargatedaw/stargate-sample-pack). Every file is recorded in [`samples/ATTRIBUTIONS.tsv`](samples/ATTRIBUTIONS.tsv) with its size, SHA-256 digest, exact upstream path, and a source URL pinned to commit [`dbfd6ec52d4ed53b60bdbea5fc6adf295127c027`](https://github.com/stargatedaw/stargate-sample-pack/tree/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027).
+
+The upstream project publishes the pack under CC0 1.0 and describes it as attribution-free. Octessera records that upstream designation; it does not independently warrant third-party rights. The exact upstream [license](samples/upstream/LICENSE) and [README designation](samples/upstream/README.txt) snapshots are retained beside the inventory.
 
 ## Hardware model attributions
 
-The standoff STL models in `release-artifacts/enclosure/` are based on [Stackable PCB Standoff by theduckom](https://www.printables.com/model/163087-stackable-pcb-standoff), licensed under [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/).
+See [`hardware/ATTRIBUTIONS.md`](hardware/ATTRIBUTIONS.md) for the standoff, module-footprint, Raspberry Pi CAD, KiCad, and hardware-reference notices.
 
 AI assistance was used during the creation of Octessera.
 
 ## License
 
-Copyright (c) 2026 nexxyz.
+Copyright (c) 2026 Thomas Steirer (nexxyz).
 
 Free for personal/non-commercial use: you may use, copy, modify, and build this software for personal purposes.
 
@@ -130,3 +132,9 @@ Commercial use or selling hardware devices requires prior written permission.
 To request permission, contact: https://github.com/nexxyz
 
 See [LICENSE](LICENSE) for full terms.
+
+## Licensing and release review
+
+- [`NOTICE`](NOTICE) — compact notice for standalone release archives.
+- [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) — reviewed known-material notices; not an exhaustive dependency inventory.
+- [`docs/release-licensing.md`](docs/release-licensing.md) — attribution and future public-image source/licensing review.

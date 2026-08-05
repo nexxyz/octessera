@@ -29,6 +29,9 @@ input_routing_dts="$overlay_dir/usr/local/share/octessera/device-tree/octessera-
 midi_modules_file="$overlay_dir/etc/modules-load.d/octessera-orange-midi.conf"
 [[ -f "$midi_modules_file" ]] || { echo "Missing Orange ALSA sequencer module-load file." >&2; exit 1; }
 install -d -m 0755 /etc/octessera /usr/local/sbin /usr/local/lib/octessera /var/lib/octessera/samples /var/lib/octessera/presets
+rm -f /var/lib/octessera/setup-complete /var/lib/octessera/setup-force /var/lib/octessera/setup-finalize-failed
+rm -f /run/octessera/setup-portal.request /run/octessera-setup-control/status.json
+rm -rf /run/octessera-setup /run/octessera-setup-control /run/octessera-setup-status
 
 apt-get update
 apt-get install -y --no-install-recommends ca-certificates coreutils curl device-tree-compiler tar xz-utils jq gpiod alsa-utils i2c-tools network-manager dnsmasq wireless-tools iw python3-minimal initramfs-tools openssh-server sudo unzip util-linux psmisc
@@ -67,6 +70,13 @@ install_overlay_file() {
   install -D -m "$mode" -o root -g root "$overlay_dir/$src" "$dest"
 }
 
+notice_tree="$overlay_dir/usr/share/doc/octessera"
+[[ -d "$notice_tree" && ! -L "$notice_tree" ]] || { echo "Missing exactly pre-staged canonical Orange legal notice tree; run tools/legal/stage_notices.py first." >&2; exit 1; }
+while IFS= read -r -d '' legal_file; do
+  legal_relative="${legal_file#"$overlay_dir/usr/share/doc/octessera/"}"
+  install -D -m 0644 -o root -g root "$legal_file" "/usr/share/doc/octessera/$legal_relative"
+done < <(find -P "$overlay_dir/usr/share/doc/octessera" -type f -print0)
+
 install_musical_assets() {
   local overlay_root="$1"
   local target_root="$2"
@@ -80,6 +90,7 @@ install_musical_assets() {
   local sample_size
   local sample_sha256
   local sample_source
+  local expected_sample_source
   local sample_license_source
   local sample_source_path
   local sample_destination
@@ -114,8 +125,14 @@ install_musical_assets() {
       [[ -z "$extra" ]] || { echo "Invalid packaged sample manifest row: $sample_path" >&2; return 1; }
       [[ "$sample_size" =~ ^[0-9]+$ ]] || { echo "Invalid packaged sample size: $sample_path" >&2; return 1; }
       [[ "$sample_sha256" =~ ^[a-f0-9]{64}$ ]] || { echo "Invalid packaged sample hash: $sample_path" >&2; return 1; }
-      [[ "$sample_source" == "https://github.com/stargatedaw/stargate-sample-pack" ]] || { echo "Unexpected packaged sample source: $sample_path" >&2; return 1; }
-      [[ "$sample_license_source" == "https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/main/README.md" ]] || { echo "Unexpected packaged sample license source: $sample_path" >&2; return 1; }
+      case "$sample_path" in
+        "Drum/claps/distkit-clap.wav") expected_sample_source="https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/fugue-state-audio/drums/claps/distkit-clap.wav" ;;
+        "Drum/hihat open/165028__rodrigo-the-mad__mini-909ish-open-hat.wav") expected_sample_source="https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/freesound/drums/cymbal/open/165028__rodrigo-the-mad__mini-909ish-open-hat.wav" ;;
+        "Drum/kick/Kick2.wav") expected_sample_source="https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/stargate-sample-pack/microlag/One-Shots/Drums/Kick2.wav" ;;
+        *) echo "Unexpected packaged sample path: $sample_path" >&2; return 1 ;;
+      esac
+      [[ "$sample_source" == "$expected_sample_source" ]] || { echo "Unexpected packaged sample source: $sample_path" >&2; return 1; }
+      [[ "$sample_license_source" == "https://raw.githubusercontent.com/stargatedaw/stargate-sample-pack/dbfd6ec52d4ed53b60bdbea5fc6adf295127c027/LICENSE" ]] || { echo "Unexpected packaged sample license source: $sample_path" >&2; return 1; }
       if [[ -n "${manifest_paths["$sample_path"]+set}" ]]; then
         echo "Duplicate packaged sample path: $sample_path" >&2
         return 1
@@ -351,6 +368,11 @@ for wifi_foundation_file in \
   etc/systemd/system/octessera-wifi-foundation.service; do
   [[ -f "$overlay_dir/$wifi_foundation_file" ]] || { echo "Missing inactive Wi-Fi foundation overlay: $wifi_foundation_file" >&2; exit 1; }
 done
+setup_layer_installer="$overlay_dir/usr/local/lib/octessera/setup-image-layer.sh"
+[[ -f "$setup_layer_installer" && ! -L "$setup_layer_installer" ]] || { echo "Missing setup image layer installer." >&2; exit 1; }
+welcome_overlay="$overlay_dir/etc/profile.d/octessera-welcome.sh"
+[[ -f "$welcome_overlay" && ! -L "$welcome_overlay" ]] || { echo "Missing staged canonical welcome file. Run tools/armbian-image/stage-canonical-welcome.sh." >&2; exit 1; }
+install -D -m 0644 -o root -g root "$welcome_overlay" /etc/profile.d/octessera-welcome.sh
 install_overlay_file etc/octessera/armbian-image.txt /etc/octessera/armbian-image.txt 0644
 install_overlay_file etc/octessera/image-contract.json /etc/octessera/image-contract.json 0644
 install_overlay_file usr/local/sbin/octessera-armbian-diagnostics /usr/local/sbin/octessera-armbian-diagnostics 0755
@@ -364,11 +386,10 @@ if [[ "$OCTESSERA_IMAGE_MODE" == diagnostic ]]; then
   install_overlay_file usr/local/lib/octessera/updater_guard.py /usr/local/lib/octessera/updater_guard.py 0644
   install_overlay_file usr/local/lib/octessera/updater_cli.py /usr/local/lib/octessera/updater_cli.py 0644
 fi
-install_overlay_file usr/local/sbin/octessera-wifi-connect /usr/local/sbin/octessera-wifi-connect 0755
 install_overlay_file usr/local/sbin/octessera-wifi-foundation /usr/local/sbin/octessera-wifi-foundation 0755
-install_overlay_file usr/local/sbin/octessera-setup-sidecar /usr/local/sbin/octessera-setup-sidecar 0755
 install_overlay_file usr/local/sbin/octessera-orange-usb-gadget /usr/local/sbin/octessera-orange-usb-gadget 0755
 install_overlay_file usr/local/sbin/octessera-orange-oled-logo /usr/local/sbin/octessera-orange-oled-logo 0755
+install_overlay_file usr/local/sbin/octessera-orange-oled-handoff.py /usr/local/sbin/octessera-orange-oled-handoff.py 0644
 install_overlay_file usr/local/sbin/octessera-provision-musical-default /usr/local/sbin/octessera-provision-musical-default 0755
 install_overlay_file etc/modules-load.d/octessera-orange-midi.conf /etc/modules-load.d/octessera-orange-midi.conf 0644
 install_overlay_file etc/modules-load.d/octessera-orange-usb-gadget.conf /etc/modules-load.d/octessera-orange-usb-gadget.conf 0644
@@ -402,17 +423,23 @@ if [[ "$OCTESSERA_IMAGE_MODE" == production ]]; then
   install_overlay_file etc/systemd/system/octessera.service /etc/systemd/system/octessera.service 0644
   octessera_install_production_runtime "$overlay_dir"
 fi
-if [[ -d "$overlay_dir/usr/local/share/octessera-setup-ui" ]]; then
-  cp -a "$overlay_dir/usr/local/share/octessera-setup-ui" /usr/local/share/
-fi
+bash "$setup_layer_installer" "$overlay_dir"
 
 if ! id octessera >/dev/null 2>&1; then
   useradd --create-home --shell /bin/bash --groups sudo octessera
 fi
-if [[ "$OCTESSERA_IMAGE_MODE" == production ]]; then
-  octessera_configure_runtime_account
-fi
+octessera_configure_runtime_account
 passwd -l octessera >/dev/null || true
+octessera_record="$(getent passwd octessera)"
+IFS=: read -r octessera_user _ octessera_uid octessera_gid _ octessera_home octessera_shell <<< "$octessera_record"
+[[ "$octessera_user" == octessera && "$octessera_home" == /home/octessera && "$octessera_shell" == /bin/bash ]] || { echo "Orange runtime account home or shell is not exact." >&2; exit 1; }
+[[ -d "$octessera_home" && ! -L "$octessera_home" ]] || { echo "Orange runtime account home is missing or symlinked." >&2; exit 1; }
+hushlogin="$octessera_home/.hushlogin"
+if [[ -e "$hushlogin" || -L "$hushlogin" ]]; then
+  [[ -f "$hushlogin" && ! -L "$hushlogin" && "$(stat -c '%u:%g:%a:%s' "$hushlogin")" == "$octessera_uid:$octessera_gid:644:0" && ! -s "$hushlogin" ]] || { echo "Orange .hushlogin exists with unexpected type, owner, mode, or content." >&2; exit 1; }
+else
+  install -D -m 0644 -o "$octessera_user" -g "$octessera_user" /dev/null "$hushlogin"
+fi
 rm -f /root/.ssh/authorized_keys /home/octessera/.ssh/authorized_keys
 install -d -m 0755 /etc/ssh/sshd_config.d
 cat >/etc/ssh/sshd_config.d/10-octessera-setup.conf <<'EOF'
@@ -436,6 +463,7 @@ rm -f /etc/ssh/ssh_host_*
 systemctl disable --now serial-getty@ttyS0.service >/dev/null 2>&1 || true
 systemctl mask serial-getty@ttyS0.service >/dev/null 2>&1 || true
 systemctl enable octessera-setup.service >/dev/null
+systemctl enable octessera-setup-request.path >/dev/null
 systemctl enable octessera-orange-usb-gadget.service >/dev/null
 systemctl enable octessera-provision-musical-default.service >/dev/null
 systemctl enable octessera-orange-boot-splash.service >/dev/null

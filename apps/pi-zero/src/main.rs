@@ -21,6 +21,7 @@ mod audio_hotplug;
 mod audio_priority;
 #[cfg(feature = "native-audio")]
 mod audio_stream_health;
+mod boot_oled_handoff;
 mod candidate_readiness;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod device_update;
@@ -52,6 +53,7 @@ mod main_paths;
 mod main_runtime_loop;
 #[cfg(feature = "external-midi")]
 mod midi_host;
+mod normal_menu;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod oled_test;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -67,12 +69,17 @@ mod render;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod render_loop;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+mod rpi_oled_handoff_runtime;
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod runtime_loop;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod runtime_thread;
 mod sample_browser;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod seesaw_io;
+mod setup_portal;
+mod setup_portal_files;
+mod setup_portal_worker;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod timing_probe;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
@@ -125,6 +132,14 @@ fn main() {
 
     let _ = simple_logger::init();
 
+    let handoff_mode = match boot_oled_handoff::mode_from_env() {
+        Ok(mode) => mode,
+        Err(error) => {
+            eprintln!("{error}");
+            std::process::exit(2);
+        }
+    };
+
     run_requested_utility();
 
     if let Err(error) = board_profile::validate_runtime_profile() {
@@ -134,18 +149,14 @@ fn main() {
 
     println!("octessera - Pi native runtime");
 
-    let hardware = match init_hardware() {
+    let hardware = match init_hardware(handoff_mode == boot_oled_handoff::HandoffMode::Legacy) {
         Ok(devices) => devices,
         Err(fault) => hardware_fault::run_hardware_fault_mode(fault),
     };
     let (event_rx, _encoders) = match init_encoders() {
         Ok(encoders) => encoders,
         Err(mut fault) => {
-            fault.attach_outputs(
-                Some(hardware.oled),
-                Some(hardware.trellis),
-                Some(hardware.neokey),
-            );
+            fault.attach_outputs(hardware.oled, Some(hardware.trellis), Some(hardware.neokey));
             hardware_fault::run_hardware_fault_mode(fault);
         }
     };
@@ -180,19 +191,7 @@ fn main() {
 
     let samples_dir = default_samples_dir();
     ensure_runtime_dirs(&store_dir, &samples_dir);
-    let render_worker = RenderWorker::spawn(HardwareRenderTargets {
-        oled,
-        seesaw_tx: seesaw_io.command_tx.clone(),
-        hdmi: match render::hdmi::HdmiFramebuffer::open_from_env() {
-            Ok(hdmi) => hdmi,
-            Err(error) => {
-                eprintln!("pi HDMI framebuffer disabled: {error}");
-                None
-            }
-        },
-    });
-
-    let runtime = runtime_thread::spawn(runtime_thread::RuntimeThreadConfig {
+    let runtime_config = runtime_thread::RuntimeThreadConfig {
         audio: audio.as_ref().map(AudioManager::service),
         store_dir,
         samples_dir,
@@ -202,11 +201,30 @@ fn main() {
         midi_rx,
         input_rx: seesaw_io.input_rx,
         encoder_rx: event_rx,
-        render_worker,
-        early_boot_splash: early_boot_splash_enabled(),
-    });
-    if runtime.join().is_err() {
-        eprintln!("pi runtime thread panicked");
+        early_boot_splash: handoff_mode == boot_oled_handoff::HandoffMode::V1
+            || early_boot_splash_enabled(),
+    };
+    let hdmi = match render::hdmi::HdmiFramebuffer::open_from_env() {
+        Ok(hdmi) => hdmi,
+        Err(error) => {
+            eprintln!("pi HDMI framebuffer disabled: {error}");
+            None
+        }
+    };
+    if handoff_mode == boot_oled_handoff::HandoffMode::V1 {
+        rpi_oled_handoff_runtime::run(runtime_config, seesaw_io.command_tx.clone(), hdmi);
+    } else {
+        let oled = oled.expect("legacy startup must initialize OLED");
+        let render_worker = RenderWorker::spawn(HardwareRenderTargets {
+            oled,
+            seesaw_tx: seesaw_io.command_tx.clone(),
+            oled_handoff: None,
+            hdmi,
+        });
+        let runtime = runtime_thread::spawn(runtime_config, render_worker);
+        if runtime.join().is_err() {
+            eprintln!("pi runtime thread panicked");
+        }
     }
 }
 

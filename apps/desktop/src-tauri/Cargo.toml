@@ -4,6 +4,7 @@ version = "0.7.5"
 description = "octessera desktop shell"
 authors = ["octessera"]
 edition = "2021"
+license-file.workspace = true
 
 [lib]
 name = "octessera_desktop_lib"

@@ -1,6 +1,6 @@
 use serde_json::{json, Map, Value};
 
-use crate::timing_units::{note_unit_to_pulses, NOTE_UNIT_OPTIONS};
+use crate::timing_units::{note_unit_to_pulses, DEFAULT_NOTE_UNIT, NOTE_UNIT_OPTIONS};
 
 pub(crate) const DELAY_TIME_MIN_MS: i32 = 1;
 pub(crate) const DELAY_TIME_MAX_MS: i32 = 2000;
@@ -27,7 +27,7 @@ pub(crate) fn nearest_note_for_ms(time_ms: i32, bpm: u16) -> &'static str {
         .iter()
         .min_by_key(|note| (note_ms(note, bpm) - time_ms).abs())
         .copied()
-        .unwrap_or("1/8")
+        .unwrap_or(DEFAULT_NOTE_UNIT)
 }
 
 pub(crate) fn valid_note(note: &str) -> bool {

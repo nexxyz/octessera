@@ -17,8 +17,10 @@ pub use protocol::{
     HostMessage, MidiPort, RunnerMessage, RuntimeAdapterError, RuntimeAudioCommand,
     RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeErrorMetadata,
     RuntimeMomentaryFxTarget, RuntimeOperation, RuntimePlatformEffect, RuntimePlatformRequest,
-    RuntimeRecovery, RuntimeStatus, RuntimeStatusState, RuntimeStoreResult, RuntimeSystemInfo,
-    RuntimeSystemInfoError, RuntimeTransportState, RuntimeUiPulse, SampleEntry, SyncSource,
+    RuntimeRecovery, RuntimeSetupPortalDisposition, RuntimeSetupPortalErrorCode,
+    RuntimeSetupPortalPhase, RuntimeSetupPortalStatus, RuntimeStatus, RuntimeStatusState,
+    RuntimeStoreResult, RuntimeSystemInfo, RuntimeSystemInfoError, RuntimeTransportState,
+    RuntimeUiPulse, SampleEntry, SyncSource, SETUP_PORTAL_SUFFIX_MAX_CHARS,
 };
 pub use runtime::{
     CoreRunner, HostAdapter, PlaybackRuntime, RuntimeConfig, RuntimeDispatchInput, RuntimeIngest,

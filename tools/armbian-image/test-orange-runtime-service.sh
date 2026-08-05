@@ -9,10 +9,13 @@ udev_rule="$root/userpatches/overlay/etc/udev/rules.d/70-octessera-orange-runtim
 for required_line in \
   'User=octessera-runtime' \
   'Group=octessera-runtime' \
+  'Wants=octessera-orange-boot-splash.service' \
+  'After=octessera-orange-boot-splash.service' \
+  'Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1' \
   'LimitRTPRIO=70' \
   'NoNewPrivileges=yes' \
   'ProtectSystem=strict' \
-  'ReadWritePaths=/var/lib/octessera /run/octessera' \
+  'ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot' \
   'PrivateTmp=yes' \
   'ProtectHome=yes'; do
   grep -qFx "$required_line" "$service" || { echo "Runtime service is missing: $required_line" >&2; exit 1; }
@@ -26,6 +29,7 @@ expected_udev_rule=$'KERNEL=="i2c-2", GROUP="octessera-runtime", MODE="0660"\nKE
 profile_gpio_label="$(sed -n 's/^GPIO_LABEL = "\(.*\)"/\1/p' "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo")"
 profile_gpiochip=gpiochip1
 [[ "$profile_gpio_label" == 300b000.pinctrl && "$profile_gpiochip" == gpiochip1 ]] || { echo 'Pinned Orange GPIO profile mapping changed.' >&2; exit 1; }
+grep -qFx 'GPIO_CHIP = "/dev/gpiochip1"' "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo" || { echo 'Orange GPIO controller device is not pinned.' >&2; exit 1; }
 grep -qFx "KERNEL==\"$profile_gpiochip\", GROUP=\"octessera-runtime\", MODE=\"0660\"" "$udev_rule" || { echo 'Orange udev rule does not match the pinned GPIO profile mapping.' >&2; exit 1; }
 if command -v udevadm >/dev/null 2>&1 && getent group octessera-runtime >/dev/null 2>&1 && udevadm help 2>&1 | grep -qE '(^|[[:space:]])verify([[:space:]]|$)'; then
   udevadm verify "$udev_rule"
@@ -41,7 +45,9 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 mkdir -p "$work/etc/systemd/system" "$work/usr/local/bin" "$work/etc"
 cp "$service" "$work/etc/systemd/system/octessera.service"
+cp "$root/userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service" "$work/etc/systemd/system/octessera-orange-boot-splash.service"
 chmod 0644 "$work/etc/systemd/system/octessera.service"
+chmod 0644 "$work/etc/systemd/system/octessera-orange-boot-splash.service"
 printf '%s\n' '#!/bin/sh' 'exit 0' > "$work/usr/local/bin/octessera-pi"
 chmod 0755 "$work/usr/local/bin/octessera-pi"
 printf '%s\n' \
@@ -51,6 +57,7 @@ printf '%s\n' 'root:x:0:' 'octessera-runtime:x:990:' > "$work/etc/group"
 for unit in octessera-provision-musical-default.service octessera-orange-usb-gadget.service; do
   printf '%s\n' '[Unit]' "Description=$unit" '[Service]' 'Type=oneshot' 'ExecStart=/bin/true' > "$work/etc/systemd/system/$unit"
 done
+printf '%s\n' '[Unit]' 'Description=Orange boot splash' '[Service]' 'Type=oneshot' 'ExecStart=/bin/true' > "$work/etc/systemd/system/octessera-orange-boot-splash.service"
 for unit in sysinit.target basic.target sound.target multi-user.target local-fs.target; do
   printf '%s\n' '[Unit]' "Description=$unit" > "$work/etc/systemd/system/$unit"
 done

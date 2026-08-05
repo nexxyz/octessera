@@ -44,10 +44,22 @@ pub struct OrangeHardware {
 #[cfg(target_os = "linux")]
 impl OrangeHardware {
     pub fn open() -> Result<Self, String> {
-        Self::open_until(timing::operation_deadline())
+        Self::open_until_mode(timing::operation_deadline(), false)
+    }
+
+    pub fn open_preserve_existing() -> Result<Self, String> {
+        Self::open_until_mode(timing::operation_deadline(), true)
     }
 
     pub fn open_until(deadline: std::time::Instant) -> Result<Self, String> {
+        Self::open_until_mode(deadline, false)
+    }
+
+    fn open_until_mode(
+        deadline: std::time::Instant,
+        preserve_existing: bool,
+    ) -> Result<Self, String> {
+        let startup_plan = crate::oled_startup_plan::OledStartupPlan::new(preserve_existing);
         let devices = ORANGE_PI_ZERO_2W_DEVICES;
         check_deadline(deadline)?;
         verify_device_identity(devices.i2c, "/sys/class/i2c-dev")?;
@@ -57,7 +69,12 @@ impl OrangeHardware {
             .open(devices.i2c.path)
             .map_err(|error| format!("I2C open failed for {}: {error}", devices.i2c.path))?;
         check_deadline(deadline)?;
-        let oled = OrangeOledTransport::open_until(devices.spi, devices.gpio, deadline)?;
+        let oled = OrangeOledTransport::open_until(
+            devices.spi,
+            devices.gpio,
+            deadline,
+            startup_plan.operations().is_empty(),
+        )?;
         Ok(Self { _i2c: i2c, oled })
     }
 
@@ -104,6 +121,7 @@ impl OrangeOledTransport {
         spi_device: DeviceDescriptor,
         gpio_plan: OrangeGpioDescriptor,
         deadline: std::time::Instant,
+        preserve_existing: bool,
     ) -> Result<Self, String> {
         check_deadline(deadline)?;
         verify_device_identity(spi_device, "/sys/class/spidev")?;
@@ -115,8 +133,10 @@ impl OrangeOledTransport {
             gpio_plan,
             shutdown_complete: false,
         };
-        oled.perform_reset_until(deadline)?;
-        oled.initialize_display_until(deadline)?;
+        if !preserve_existing {
+            oled.perform_reset_until(deadline)?;
+            oled.initialize_display_until(deadline)?;
+        }
         Ok(oled)
     }
 
