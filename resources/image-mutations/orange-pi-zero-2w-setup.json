@@ -24,7 +24,7 @@
     {"path": "userpatches/overlay/usr/local/share/octessera-setup-ui/README.md", "sha256": "647ff4c7965581189be234c50b03dd45ca80b2ddd8a9f80802fdaeb2b69b31dd", "size": 724},
     {"path": "userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-mark.svg", "sha256": "da56da20cacb62d413c13f98fb0c890b19d47cd6f8324eb95123016240056748", "size": 653},
     {"path": "userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-wordmark.svg", "sha256": "ff136b332cf364f997b8ff103c8fa8b8bef3189aa4fcd7c62d7ccea88f9deec9", "size": 1622},
-    {"path": "userpatches/customize-image.sh", "sha256": "b097bee4798fc07ca6b53ac697e23ebe1b060fb9af6d4e01d11ce2a202ed6dda", "size": 31546}
+    {"path": "userpatches/customize-image.sh", "sha256": "95f7832330ba49866ceadaca4d80df40b49b9d7c0ac1f20c8e39bb886326dea1", "size": 31641}
   ],
   "directories": [
     {"target": "usr/local/share/octessera-setup-ui", "type": "directory", "mode": 493, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "preimage": {"kind": "exact", "type": "directory", "mode": 493, "uid": 1001, "gid": 1001, "symlink": false, "xattrs": {}, "capability": null}, "postimage": "required"}

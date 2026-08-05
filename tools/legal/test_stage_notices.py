@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -28,6 +29,25 @@ def _manifest(root: Path, entries: list[dict[str, object]]) -> Path:
 
 
 class NoticeStagerTests(unittest.TestCase):
+    def test_repository_manifest_hashes_match_raw_working_sources_and_lf_attributes(self) -> None:
+        manifest = load_manifest(ROOT / "resources/legal/notice-bundle.json")
+        for item in manifest["files"]:
+            raw = (ROOT / item["source"]).read_bytes()
+            self.assertEqual(hashlib.sha256(raw).hexdigest(), item["sha256"], item["source"])
+            self.assertEqual(len(raw), item["size"], item["source"])
+        canonical_lf_paths = (
+            "samples/upstream/README.txt",
+            "licenses/cargo/THIRD_PARTY_LICENSES.txt",
+            "licenses/cargo/SHA256SUMS",
+            "resources/legal/notice-bundle.json",
+        )
+        attributes = (ROOT / ".gitattributes").read_text(encoding="utf-8")
+        for path in canonical_lf_paths:
+            self.assertIn(f"/{path} text eol=lf\n", attributes)
+        result = subprocess.run(["git", "check-attr", "eol", "--", *canonical_lf_paths], cwd=ROOT, check=True, capture_output=True, text=True)
+        effective = {line.split(": ", 2)[0]: line.split(": ", 2)[2] for line in result.stdout.splitlines()}
+        self.assertEqual(effective, {path: "lf" for path in canonical_lf_paths})
+
     def test_repository_manifest_stages_and_checks_exact_tree(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             stage = Path(temporary)

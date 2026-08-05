@@ -104,7 +104,9 @@ def parse_build_metadata(raw: bytes) -> BuildMetadata:
 def validate_build_metadata(root: Path, inventory: Inventory, contract: dict[str, Any], prior_version: str, release_hashes: dict[str, str]) -> BuildMetadata:
     relative = contract["build_metadata_contract"]["path"]
     path = managed_lstat(root, relative)
-    check_spec(metadata(inventory, relative), contract["build_metadata_contract"], "Orange build metadata")
+    preimage_spec = dict(contract["build_metadata_contract"])
+    preimage_spec["mode"] = preimage_spec.pop("preimage_mode")
+    check_spec(metadata(inventory, relative), preimage_spec, "Orange build metadata preimage")
     try:
         raw = path.read_bytes()
     except OSError as exc:
@@ -207,7 +209,7 @@ def metadata(inventory: Inventory, relative: str) -> dict[str, Any]:
 def mode_matches(expected: int, actual: int, entry_type: str) -> bool:
     if os.name != "nt" or expected == actual:
         return expected == actual
-    windows_modes = {(493, "directory"): {511}, (493, "file"): {438}, (420, "file"): {438}, (365, "directory"): {365}, (365, "file"): {292}, (292, "file"): {292}}
+    windows_modes = {(493, "directory"): {511}, (493, "file"): {438}, (436, "file"): {438}, (420, "file"): {438}, (365, "directory"): {365}, (365, "file"): {292}, (292, "file"): {292}}
     return actual in windows_modes.get((expected, entry_type), set())
 
 

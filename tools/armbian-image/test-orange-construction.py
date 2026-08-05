@@ -53,6 +53,8 @@ for line in (ROOT / "userpatches/customize-image.sh").read_text(encoding="utf-8"
         raise AssertionError("Orange constructor mutates a parent legal path")
 customize = (ROOT / "userpatches/customize-image.sh").read_text(encoding="utf-8")
 assert "notice_tree=\"$overlay_dir/usr/share/doc/octessera\"" in customize and "tools/legal/stage_notices.py" in customize and "/usr/share/doc/octessera" in customize
+assert "chown root:root /etc/octessera/build-metadata.env" in customize
+assert "chmod 0644 /etc/octessera/build-metadata.env" in customize
 assert any(item["path"] == "tools/pi-image/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh" for item in contract["exact_inputs"])
 assert contract["managed_outputs"][0] == {"path": "etc/profile.d/octessera-welcome.sh", "mode": 420, "uid": 0, "gid": 0}
 assert contract["notice_bundle"] == {"manifest": "resources/legal/notice-bundle.json", "stager": "tools/legal/stage_notices.py", "installed_root": "usr/share/doc/octessera", "installed_outputs": "manifest-files", "proof": "tools/armbian-image/orange_boot_contract.py", "parent_sentinels": ["usr/share/common-licenses/GPL-3", "usr/share/doc/base-files/copyright"]}
