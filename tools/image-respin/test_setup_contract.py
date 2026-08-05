@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 BOARDS = ("raspberry-pi-zero-2w", "orange-pi-zero-2w")
 ORANGE_UI_ROOT = "userpatches/overlay/usr/local/share/octessera-setup-ui/"
 ORANGE_UI_FILES = ("app.js", "index.html", "styles.css", "README.md", "octessera-mark.svg", "octessera-wordmark.svg")
+ORANGE_SETUP_SERVICE_TARGET = "/etc/systemd/system/octessera-setup.service"
 TRUSTED_FIXTURE_IDENTITIES = {
     "tools/pi-image/fixtures/trusted-parent-v0.7.5/boot/config.txt": (1847, "1018cf257f0b22c1dde87770d0433d0e3e2f442461db33f847307d427642fd9e"),
     "tools/pi-image/fixtures/trusted-parent-v0.7.5/boot/cmdline.txt": (154, "284c0fe29f0f60cff7e0b9c370756f083148a6274e8cb445dcc5294e0a88bcd4"),
@@ -39,6 +40,8 @@ class SetupContractTests(unittest.TestCase):
                 self.assertEqual(contract["directories"][0]["preimage"]["kind"], "absent" if board == "raspberry-pi-zero-2w" else "exact")
                 if board == "orange-pi-zero-2w":
                     self.assertEqual(set(contract["directories"][0]["preimage"]) - {"kind"}, {"type", "mode", "uid", "gid", "symlink", "xattrs", "capability"})
+                    enabled = next(item for item in contract["symlinks"] if item["classification"] == "first-boot-setup-enabled")
+                    self.assertEqual((enabled["link_target"], enabled["preimage"]["link_target"], enabled["postimage"]), (ORANGE_SETUP_SERVICE_TARGET, ORANGE_SETUP_SERVICE_TARGET, "preserve"))
                 self.assertFalse(any(contract["recipe"][key] for key in ("account_mutation", "package_mutation", "network_mutation", "boot_mutation", "firmware_mutation")))
                 classifications = {item["classification"] for item in contract["entries"]}
                 self.assertTrue({"setup-profile", "wifi-wrapper", "sidecar", "static-ui", "setup-unit", "request-path-unit", "request-unit"} <= classifications)
