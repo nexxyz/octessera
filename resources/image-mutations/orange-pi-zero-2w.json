@@ -48,6 +48,7 @@
   "build_metadata_contract": {
     "path": "etc/octessera/build-metadata.env",
     "type": "file",
+    "preimage_mode": 436,
     "mode": 420,
     "uid": 0,
     "gid": 0,

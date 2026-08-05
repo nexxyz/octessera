@@ -299,6 +299,11 @@ def main() -> None:
         reject_terminal_fixture("duplicate-account", lambda path: path.joinpath("etc/passwd").write_text(path.joinpath("etc/passwd").read_text() + "octessera:x:1001:1001:Duplicate:/home/octessera:/bin/bash\n"))
         reject_terminal_fixture("wrong-home", lambda path: path.joinpath("etc/passwd").write_text(path.joinpath("etc/passwd").read_text().replace("/home/octessera:/bin/bash", "/srv/octessera:/bin/bash")))
         reject_terminal_fixture("wrong-shell", lambda path: path.joinpath("etc/passwd").write_text(path.joinpath("etc/passwd").read_text().replace("/home/octessera:/bin/bash", "/home/octessera:/bin/sh")))
+        reject_terminal_fixture("wrong-build-metadata-mode", lambda path: path.joinpath("etc/octessera/build-metadata.env").chmod(0o600))
+        def wrong_build_metadata_owner(path: Path) -> None:
+            os.chown(path / "etc/octessera/build-metadata.env", 1000, 1000)  # type: ignore[attr-defined]
+
+        reject_terminal_fixture("wrong-build-metadata-owner", wrong_build_metadata_owner)
         reject_terminal_fixture("missing-group", lambda path: path.joinpath("etc/group").write_text(path.joinpath("etc/group").read_text().replace("octessera:x:1000:\n", "")))
         reject_terminal_fixture("duplicate-group", lambda path: path.joinpath("etc/group").write_text(path.joinpath("etc/group").read_text() + "octessera:x:1000:\n"))
         reject_terminal_fixture("wrong-group-gid", lambda path: path.joinpath("etc/group").write_text(path.joinpath("etc/group").read_text().replace("octessera:x:1000:", "octessera:x:1001:")))

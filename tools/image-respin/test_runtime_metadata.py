@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 import tempfile
 import unittest
@@ -7,7 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from runtime_contract import BUILD_METADATA_KEY_ORDER
+from runtime_contract import BUILD_METADATA_KEY_ORDER, BUILD_METADATA_TRANSFORMS
 from runtime_mutation import MutationError, mutate_runtime
 from test_runtime_mutation import ORANGE, RPI, _fixture, _parent_context
 
@@ -17,11 +18,23 @@ class RuntimeMetadataTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root, bundle = _fixture(Path(temporary), ORANGE)
             metadata_path = root / "etc/octessera/build-metadata.env"
+            self.assertEqual(metadata_path.stat().st_size, 1199)
+            if os.name != "nt":
+                self.assertEqual(metadata_path.stat().st_mode & 0o777, 0o664)
+            preimage_fields = {line.split(b"=", 1)[0]: line.rstrip(b"\n").split(b"=", 1)[1] for line in metadata_path.read_bytes().splitlines(keepends=True)}
             mutate_runtime(root, bundle, ORANGE, "2.0.0", "source-1", _parent_context(ORANGE))
             output_lines = metadata_path.read_bytes().splitlines(keepends=True)
+            output_fields = {line.split(b"=", 1)[0]: line.rstrip(b"\n").split(b"=", 1)[1] for line in output_lines}
             self.assertEqual(tuple(line.decode().split("=", 1)[0] for line in output_lines), BUILD_METADATA_KEY_ORDER)
             self.assertEqual(output_lines[0], b"OCTESSERA_IMAGE_KIND=armbian\n")
             self.assertEqual(output_lines[1], b"OCTESSERA_IMAGE_MODE=production\n")
+            changed = {key.decode() for key in preimage_fields if preimage_fields[key] != output_fields[key]}
+            self.assertEqual(changed, BUILD_METADATA_TRANSFORMS)
+            for key in preimage_fields.keys() - {item.encode() for item in BUILD_METADATA_TRANSFORMS}:
+                self.assertEqual(output_fields[key], preimage_fields[key])
+            self.assertEqual((metadata_path.stat().st_uid, metadata_path.stat().st_gid), (0, 0))
+            if os.name != "nt":
+                self.assertEqual(metadata_path.stat().st_mode & 0o777, 0o644)
         for mutation in ("crlf", "duplicate", "missing", "extra-runtime", "inconsistent", "prior-version"):
             with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as temporary:
                 root, bundle = _fixture(Path(temporary), ORANGE)
@@ -42,6 +55,28 @@ class RuntimeMetadataTests(unittest.TestCase):
                 path.write_bytes(raw)
                 with self.assertRaises(MutationError):
                     mutate_runtime(root, bundle, ORANGE, "2.0.0", "source-1", _parent_context(ORANGE))
+
+    def test_orange_requires_legacy_metadata_mode_and_no_xattrs(self) -> None:
+        if os.name == "nt":
+            self.skipTest("Windows cannot represent the legacy 0664 mode distinctly")
+        for mode in (0o644, 0o600, 0o666):
+            with self.subTest(mode=oct(mode)), tempfile.TemporaryDirectory() as temporary:
+                root, bundle = _fixture(Path(temporary), ORANGE)
+                (root / "etc/octessera/build-metadata.env").chmod(mode)
+                with self.assertRaises(MutationError):
+                    mutate_runtime(root, bundle, ORANGE, "2.0.0", "source-1", _parent_context(ORANGE))
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root, bundle = _fixture(Path(temporary), ORANGE)
+            setter = getattr(os, "setxattr", None)
+            if setter is None:
+                self.skipTest("xattrs are unavailable")
+            try:
+                setter(root / "etc/octessera/build-metadata.env", "user.octessera-test", b"legacy")
+            except OSError:
+                self.skipTest("filesystem does not support test xattrs")
+            with self.assertRaises(MutationError):
+                mutate_runtime(root, bundle, ORANGE, "2.0.0", "source-1", _parent_context(ORANGE))
 
     def test_raspberry_does_not_own_or_transform_orange_build_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

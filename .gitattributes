@@ -11,3 +11,7 @@ release-artifacts/enclosure/**/*.step -text -diff
 release-artifacts/enclosure/**/*.stl binary
 third_party/cpal-0.15.3/** text eol=lf whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab
 userpatches/kernel/**/*.patch text eol=lf whitespace=-blank-at-eol,-space-before-tab
+/samples/upstream/README.txt text eol=lf
+/licenses/cargo/THIRD_PARTY_LICENSES.txt text eol=lf
+/licenses/cargo/SHA256SUMS text eol=lf
+/resources/legal/notice-bundle.json text eol=lf

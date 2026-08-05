@@ -283,7 +283,9 @@ def verify_dpkg_status(root: Path, package: dict[str, Any]) -> None:
 
 
 def verify_runtime(root: Path, mode: str) -> dict[str, str]:
-    metadata = read_kv(root / "etc/octessera/build-metadata.env")
+    metadata_path = root / "etc/octessera/build-metadata.env"
+    require_owner_mode(metadata_path, 0, 0, 0o644, require)
+    metadata = read_kv(metadata_path)
     require(metadata.get("OCTESSERA_IMAGE_MODE") == mode and metadata.get("OCTESSERA_RUNTIME_ENABLED_DEFAULT") == ("true" if mode == "production" else "false"), "final image runtime mode is not explicit")
     contract = json.loads((root / "etc/octessera/image-contract.json").read_text(encoding="utf-8"))
     require(contract == {"schema_version": 1, "image_kind": mode, "runtime_enabled_default": mode == "production"}, "final image contract is not exact")

@@ -83,7 +83,7 @@ def _fixture(work: Path, board: str, prior: str = "1.0.0") -> tuple[Path, Path]:
         metadata_hash = hashlib.sha256(runtime_metadata.encode()).hexdigest()
         sums_hash = hashlib.sha256(runtime_sums.encode()).hexdigest()
         build_metadata = f"OCTESSERA_IMAGE_KIND=armbian\nOCTESSERA_IMAGE_MODE=production\nOCTESSERA_BOARD_PROFILE_ID=orange-pi-zero-2w\nOCTESSERA_IMAGE_BUILT_AT=2025-01-01T00:00:00Z\nOCTESSERA_RUNTIME_ENABLED_DEFAULT=true\nOCTESSERA_IMAGE_CONTRACT_SHA256={'a' * 64}\nOCTESSERA_RUNTIME_VERSION={prior}\nOCTESSERA_RUNTIME_BINARY_SHA256={digest}\nOCTESSERA_RUNTIME_MANIFEST_SHA256={sums_hash}\nOCTESSERA_RUNTIME_METADATA_SHA256={metadata_hash}\nOCTESSERA_SPI1_CS0_DTS_SHA256={'b' * 64}\nOCTESSERA_SPI1_CS0_DTBO_SHA256={'c' * 64}\nOCTESSERA_INPUT_ROUTING_DTS_SHA256={'d' * 64}\nOCTESSERA_INPUT_ROUTING_DTBO_SHA256={'e' * 64}\nOCTESSERA_PI_DEFAULT_SHA256={'f' * 64}\nOCTESSERA_SAMPLES_MANIFEST_SHA256={'0' * 64}\n"
-        _write(root / "etc/octessera/build-metadata.env", build_metadata, 0o644)
+        _write(root / "etc/octessera/build-metadata.env", build_metadata, 0o664)
         policy = load_policy(Path(__file__).resolve().parents[2])
         _write(root / "boot/Image", b"kernel")
         _write(root / "boot/uInitrd", b"initramfs")
@@ -162,6 +162,10 @@ class RuntimeMutationTests(unittest.TestCase):
                     metadata_lines = (root / "etc/octessera/build-metadata.env").read_text(encoding="utf-8").splitlines()
                     self.assertIn("OCTESSERA_RUNTIME_VERSION=2.0.0", metadata_lines)
                     self.assertIn("OCTESSERA_IMAGE_MODE=production", metadata_lines)
+                    metadata = build_inventory(root)["etc/octessera/build-metadata.env"]
+                    self.assertEqual((metadata["uid"], metadata["gid"], metadata["xattrs"], metadata["capability"]), (0, 0, {}, None))
+                    if os.name != "nt":
+                        self.assertEqual(metadata["mode"], 0o644)
 
     def test_same_version_replacement_removes_stale_prior_content(self) -> None:
         for board in (RPI, ORANGE):
@@ -267,6 +271,8 @@ class RuntimeMutationTests(unittest.TestCase):
                     with self.assertRaises(MutationError):
                         mutate_runtime(root, bundle, board, "2.0.0", "source-1", _parent_context(board), mutation_hook=fail)
                     self.assertEqual(inventory_digest(build_inventory(root)), before)
+                    if board == ORANGE and os.name != "nt":
+                        self.assertEqual(build_inventory(root)["etc/octessera/build-metadata.env"]["mode"], 0o664)
         with tempfile.TemporaryDirectory() as temporary:
             root, bundle = _fixture(Path(temporary), ORANGE)
             before = inventory_digest(build_inventory(root))

@@ -494,6 +494,8 @@ OCTESSERA_INPUT_ROUTING_DTBO_SHA256=$(sha256sum "$input_routing_dtbo" | awk '{ p
 OCTESSERA_PI_DEFAULT_SHA256=$(sha256sum /usr/share/octessera/defaults/pi-default.json | awk '{ print $1 }')
 OCTESSERA_SAMPLES_MANIFEST_SHA256=$(sha256sum /usr/share/octessera/samples/sample-manifest.tsv | awk '{ print $1 }')
 EOF
+chown root:root /etc/octessera/build-metadata.env
+chmod 0644 /etc/octessera/build-metadata.env
 
 payload_url="${OCTESSERA_PAYLOAD_URL:-}"
 payload_sha256="${OCTESSERA_PAYLOAD_SHA256:-}"
