@@ -29,6 +29,9 @@
     {"path": "tools/pi-image/stage4-octessera/02-setup-service/00-run.sh", "sha256": "a7d7168a60695b482815225e04653b79ae8c6a9d7da586bd0b50717b429be89c", "size": 13970},
     {"path": "tools/pi-image/stage4-octessera/04-sanitize-release-image/00-run.sh", "sha256": "1cb185902a7cbd32d47ce47b93bc36059d96aaded43a6363817d8efaa96c7c87", "size": 1152}
   ],
+  "directories": [
+    {"target": "usr/local/share/octessera-setup-ui", "type": "directory", "mode": 493, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "preimage": {"kind": "absent"}, "postimage": "required"}
+  ],
   "entries": [
     {"classification": "setup-profile", "source": "etc/octessera/setup-profile", "target": "etc/octessera/setup-profile", "type": "file", "mode": 420, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "2a2ad4f4fe8804a7680eaa15b24925e34ffb0f93b0193355eff428350d411f28", "preimage": {"kind": "absent"}},
     {"classification": "wifi-wrapper", "source": "usr/local/sbin/octessera-wifi-connect", "target": "usr/local/sbin/octessera-wifi-connect", "type": "file", "mode": 493, "uid": 0, "gid": 0, "symlink": false, "xattrs": {}, "capability": null, "sha256": "ee85c596a91c47f0a02fe053d8c7242ae500d415b689f68b571ad4eb9367d6de", "preimage": {"kind": "absent"}},

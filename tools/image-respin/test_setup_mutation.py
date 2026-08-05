@@ -31,12 +31,39 @@ def _write(path: Path, value: bytes | str, mode: int = 0o644) -> None:
     os.chmod(path, mode)
 
 
+def _owner(path: Path, uid: int, gid: int) -> None:
+    if os.name != "nt" and hasattr(os, "chown") and os.geteuid() == 0:
+        os.chown(path, uid, gid, follow_symlinks=False)
+
+
 def _parents(root: Path, contract: dict) -> None:
+    directories = {item["target"] for item in contract["directories"]}
     for relative in [item["target"] for item in contract["entries"]] + [item["target"] for item in contract["symlinks"]] + [item["target"] for item in contract["preserved_paths"]]:
         current = root
+        cumulative: list[str] = []
         for part in relative.split("/")[:-1]:
+            cumulative.append(part)
+            if "/".join(cumulative) in directories:
+                continue
             current /= part
             current.mkdir(exist_ok=True)
+
+
+def _setup_preimages(root: Path, contract: dict) -> None:
+    for item in contract["directories"]:
+        preimage = item["preimage"]
+        if preimage["kind"] != "exact":
+            continue
+        path = root / item["target"]
+        path.mkdir()
+        os.chmod(path, preimage["mode"])
+        _owner(path, preimage["uid"], preimage["gid"])
+    for item in contract["entries"]:
+        if item["preimage"]["kind"] != "exact":
+            continue
+        preimage = item["preimage"]
+        _write(root / item["target"], _orange_preimage(item["source"]), preimage["mode"])
+        _owner(root / item["target"], preimage["uid"], preimage["gid"])
 
 
 def _prerequisites(root: Path, board: str) -> None:
@@ -66,10 +93,10 @@ def _fixture(board: str, work: Path) -> Path:
     contract, _ = load_contract(contract_for_board(board))
     _parents(root, contract)
     _prerequisites(root, board)
+    _write(root / "usr/share/doc/base-files/copyright", b"vendor copyright\n")
+    _write(root / "usr/share/common-licenses/GPL-3", b"vendor GPL\n")
     if board == ORANGE:
-        for item in contract["entries"]:
-            if item["preimage"]["kind"] == "exact":
-                _write(root / item["target"], _orange_preimage(item["source"]), item["mode"])
+        _setup_preimages(root, contract)
         enabled = next(item for item in contract["symlinks"] if item["classification"] == "first-boot-setup-enabled")
         (root / enabled["target"]).symlink_to(enabled["link_target"])
         _write(root / "etc/ssh/sshd_config.d/10-octessera-setup.conf", b"PermitRootLogin no\nPasswordAuthentication no\nAllowUsers octessera\n")
@@ -111,6 +138,11 @@ class SetupMutationTests(unittest.TestCase):
                 proof = prove_setup_root(root, board)
                 self.assertEqual(proof["contract_sha256"], result.contract_digest)
                 contract, _ = load_contract(contract_for_board(board))
+                directory = root / "usr/local/share/octessera-setup-ui"
+                self.assertTrue(directory.is_dir())
+                self.assertEqual((directory.stat().st_mode & 0o777, directory.stat().st_uid, directory.stat().st_gid), (0o755, 0, 0))
+                self.assertIn("usr/local/share/octessera-setup-ui", result.changed_paths)
+                self.assertIn("usr/local/share/octessera-setup-ui", proof["verified_paths"])
                 self.assertEqual(result.provenance["setup_layer"]["contract_digest"], result.contract_digest)
                 self.assertEqual(len(result.provenance["setup_layer"]["source_inputs"]), len(contract["source_inputs"]))
                 self.assertRegex(result.provenance["finalizer"]["tool_code_digest"], r"^[0-9a-f]{64}$")
@@ -119,6 +151,11 @@ class SetupMutationTests(unittest.TestCase):
                 self.assertEqual(enabled.readlink().as_posix(), "../octessera-setup-request.path")
                 service = root / "etc/systemd/system/multi-user.target.wants/octessera-setup.service"
                 self.assertEqual(service.is_symlink(), board == ORANGE)
+                if board == ORANGE:
+                    for item in contract["entries"]:
+                        if item["target"].startswith("usr/local/share/octessera-setup-ui/"):
+                            metadata = (root / item["target"]).stat()
+                            self.assertEqual((metadata.st_mode & 0o777, metadata.st_uid, metadata.st_gid), (0o644, 0, 0))
 
     def test_orange_requires_exact_pinned_preimages_and_raspberry_requires_absence(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -133,6 +170,34 @@ class SetupMutationTests(unittest.TestCase):
             _write(root / "usr/local/sbin/octessera-setup-sidecar", b"unexpected", 0o755)
             with self.assertRaises(ConstructorRequired):
                 mutate_setup(root, RPI, "a" * 40)
+
+    def test_setup_ui_directory_preimages_and_closed_tree_are_exact(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = _fixture(RPI, Path(temporary))
+            directory = root / "usr/local/share/octessera-setup-ui"
+            directory.mkdir()
+            with self.assertRaises(ConstructorRequired):
+                mutate_setup(root, RPI, "a" * 40)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = _fixture(ORANGE, Path(temporary))
+            directory = root / "usr/local/share/octessera-setup-ui"
+            _owner(directory, 0, 0)
+            with self.assertRaises(ConstructorRequired):
+                mutate_setup(root, ORANGE, "a" * 40)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = _fixture(ORANGE, Path(temporary))
+            _write(root / "usr/local/share/octessera-setup-ui/undeclared", b"unexpected")
+            _owner(root / "usr/local/share/octessera-setup-ui/undeclared", 1001, 1001)
+            before = inventory_digest(build_inventory(root))
+            with self.assertRaises(ConstructorRequired):
+                mutate_setup(root, ORANGE, "a" * 40)
+            self.assertEqual(before, inventory_digest(build_inventory(root)))
+        with tempfile.TemporaryDirectory() as temporary:
+            root = _fixture(RPI, Path(temporary))
+            mutate_setup(root, RPI, "a" * 40)
+            _write(root / "usr/local/share/octessera-setup-ui/undeclared", b"unexpected")
+            with self.assertRaises(ValueError):
+                prove_setup_root(root, RPI)
 
     def test_symlink_escape_owner_mode_and_unauthorized_diff_fail_closed_with_rollback(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -178,6 +243,24 @@ class SetupMutationTests(unittest.TestCase):
             with self.assertRaises(Exception):
                 mutate_setup(root, RPI, "a" * 40, mutation_hook=interrupted)
             self.assertEqual(before, inventory_digest(build_inventory(root)))
+            self.assertFalse((root / "usr/local/share/octessera-setup-ui").exists())
+        with tempfile.TemporaryDirectory() as temporary:
+            root = _fixture(ORANGE, Path(temporary))
+            before = inventory_digest(build_inventory(root))
+
+            def interrupted_orange(stage: str) -> None:
+                if stage.startswith("installed:"):
+                    raise RuntimeError("interrupted")
+
+            with self.assertRaises(Exception):
+                mutate_setup(root, ORANGE, "a" * 40, mutation_hook=interrupted_orange)
+            self.assertEqual(before, inventory_digest(build_inventory(root)))
+            directory = root / "usr/local/share/octessera-setup-ui"
+            self.assertEqual((directory.stat().st_uid, directory.stat().st_gid), (1001, 1001))
+            for item in load_contract(contract_for_board(ORANGE))[0]["entries"]:
+                if item["target"].startswith("usr/local/share/octessera-setup-ui/"):
+                    metadata = (root / item["target"]).stat()
+                    self.assertEqual((metadata.st_mode & 0o777, metadata.st_uid, metadata.st_gid), (0o644, 1001, 1001))
 
     def test_prerequisite_account_and_package_removal_is_constructor_required(self) -> None:
         for board in (RPI, ORANGE):

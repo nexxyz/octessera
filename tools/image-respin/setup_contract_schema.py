@@ -11,6 +11,8 @@ class SetupContractSchemaError(ValueError):
 BOARDS = {"raspberry-pi-zero-2w", "orange-pi-zero-2w"}
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 FILE_SPEC_KEYS = {"type", "mode", "uid", "gid", "symlink", "xattrs", "capability"}
+SETUP_UI_DIRECTORY = "usr/local/share/octessera-setup-ui"
+SETUP_UI_FILES = {"app.js", "index.html", "styles.css", "README.md", "octessera-mark.svg", "octessera-wordmark.svg"}
 
 
 def _keys(value: Any, expected: set[str], label: str) -> dict[str, Any]:
@@ -69,13 +71,11 @@ def _preimage(value: Any, label: str) -> dict[str, Any]:
             _metadata({"type": "symlink", "mode": value["mode"], "uid": value["uid"], "gid": value["gid"], "symlink": value["symlink"], "xattrs": value["xattrs"], "capability": value["capability"]}, label, allow_type={"symlink"})
             return value
         _metadata({key: value[key] for key in FILE_SPEC_KEYS}, label, allow_type={"file", "directory"})
-        expected = FILE_SPEC_KEYS | {"kind", "sha256"}
+        expected = FILE_SPEC_KEYS | {"kind"} | ({"sha256"} if value["type"] == "file" else set())
         if set(value) != expected:
             raise SetupContractSchemaError(f"{label} exact rule is not exact")
-        if value["type"] == "symlink":
-            if not isinstance(value.get("link_target"), str) or value["link_target"].startswith("/") or "\\" in value["link_target"]:
-                raise SetupContractSchemaError(f"{label} symlink target is unsafe")
-        _digest(value["sha256"], f"{label}.sha256")
+        if value["type"] == "file":
+            _digest(value["sha256"], f"{label}.sha256")
     else:
         raise SetupContractSchemaError(f"{label}.kind is unsupported")
     return value
@@ -117,6 +117,43 @@ def _entries(value: Any, label: str) -> None:
         targets.add(entry["target"])
 
 
+def _validate_ui_preimages(value: list[dict[str, Any]], board: str) -> None:
+    prefix = SETUP_UI_DIRECTORY + "/"
+    ui_entries = [entry for entry in value if entry["target"].startswith(prefix)]
+    if {entry["target"][len(prefix):] for entry in ui_entries} != SETUP_UI_FILES:
+        raise SetupContractSchemaError("setup UI entries are not the exact six-file set")
+    for entry in ui_entries:
+        if entry["type"] != "file" or entry["mode"] != 420 or entry["uid"] != 0 or entry["gid"] != 0 or entry["symlink"] or entry["xattrs"] or entry["capability"] is not None:
+            raise SetupContractSchemaError(f"setup UI output metadata is not exact: {entry['target']}")
+        preimage = entry["preimage"]
+        if board == "raspberry-pi-zero-2w":
+            if preimage != {"kind": "absent"}:
+                raise SetupContractSchemaError(f"Raspberry setup UI preimage is not absent: {entry['target']}")
+        elif preimage != {"kind": "exact", "type": "file", "mode": 420, "uid": 1001, "gid": 1001, "symlink": False, "xattrs": {}, "capability": None, "sha256": preimage.get("sha256")}:
+            raise SetupContractSchemaError(f"Orange setup UI preimage ownership is not exact: {entry['target']}")
+
+
+def _directories(value: Any, board: str) -> None:
+    if not isinstance(value, list) or len(value) != 1:
+        raise SetupContractSchemaError("directories is not the exact singleton section")
+    directory = _keys(value[0], {"target", "type", "mode", "uid", "gid", "symlink", "xattrs", "capability", "preimage", "postimage"}, "directories[0]")
+    _path(directory["target"], "directories[0].target")
+    if directory["target"] != SETUP_UI_DIRECTORY:
+        raise SetupContractSchemaError("directories contains an unexpected path")
+    _metadata({key: directory[key] for key in FILE_SPEC_KEYS}, "directories[0]", allow_type={"directory"})
+    if directory["type"] != "directory" or directory["mode"] != 493 or directory["uid"] != 0 or directory["gid"] != 0 or directory["symlink"] or directory["xattrs"] or directory["capability"] is not None:
+        raise SetupContractSchemaError("directories[0] output metadata is not exact")
+    preimage = directory["preimage"]
+    _preimage(preimage, "directories[0].preimage")
+    if board == "raspberry-pi-zero-2w":
+        if preimage != {"kind": "absent"}:
+            raise SetupContractSchemaError("Raspberry setup directory preimage is not exact")
+    elif preimage != {"kind": "exact", "type": "directory", "mode": 493, "uid": 1001, "gid": 1001, "symlink": False, "xattrs": {}, "capability": None}:
+        raise SetupContractSchemaError("Orange setup directory preimage is not exact")
+    if directory["postimage"] != "required":
+        raise SetupContractSchemaError("directories[0].postimage is invalid")
+
+
 def _symlinks(value: Any) -> None:
     if not isinstance(value, list) or not value:
         raise SetupContractSchemaError("symlinks is invalid")
@@ -143,7 +180,7 @@ def _symlinks(value: Any) -> None:
 
 
 def validate_setup_contract(contract: Any) -> None:
-    top = _keys(contract, {"schema_version", "contract_kind", "board_profile", "source_root", "preimage_source", "source_inputs", "entries", "symlinks", "preserved_paths", "stale_runtime_markers", "prerequisites", "recipe"}, "setup contract")
+    top = _keys(contract, {"schema_version", "contract_kind", "board_profile", "source_root", "preimage_source", "source_inputs", "directories", "entries", "symlinks", "preserved_paths", "stale_runtime_markers", "prerequisites", "recipe"}, "setup contract")
     if top["schema_version"] != 1 or top["contract_kind"] != "setup-layer" or top["board_profile"] not in BOARDS:
         raise SetupContractSchemaError("setup contract identity is invalid")
     _path(top["source_root"], "source_root")
@@ -156,7 +193,9 @@ def validate_setup_contract(contract: Any) -> None:
     if preimage_source["kind"] != expected_kind:
         raise SetupContractSchemaError("preimage_source kind is not exact for the board")
     _source_inputs(top["source_inputs"])
+    _directories(top["directories"], top["board_profile"])
     _entries(top["entries"], "entries")
+    _validate_ui_preimages(top["entries"], top["board_profile"])
     _symlinks(top["symlinks"])
     if not isinstance(top["preserved_paths"], list) or not top["preserved_paths"]:
         raise SetupContractSchemaError("preserved_paths is invalid")

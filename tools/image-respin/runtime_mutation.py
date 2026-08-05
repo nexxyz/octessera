@@ -12,13 +12,15 @@ from typing import Any, Callable, cast
 
 try:
     from .inventory import Inventory, InventoryError, build_inventory, inventory_digest, remove_path
-    from .provenance import TOOL_IDENTITY, build_provenance, canonical_source_identity
+    from .notice_mutation import NOTICE_STAGE_PATTERNS, NOTICE_TARGET, NoticeMutationResult, install_notices
+    from .provenance import RUNTIME_TOOL_IDENTITY, build_provenance, canonical_source_identity
     from .runtime_contract import MutationError, contract_for_board, load_contract, read_json_bytes, rooted, transform_build_metadata, validate_changed_paths, validate_parent
     from .runtime_payload import PayloadValidation, stage_release, validate_bundle, validate_output
     from .runtime_transaction import MutableSnapshot, atomic_bytes, atomic_link
 except ImportError:
     from inventory import Inventory, InventoryError, build_inventory, inventory_digest, remove_path
-    from provenance import TOOL_IDENTITY, build_provenance, canonical_source_identity
+    from notice_mutation import NOTICE_STAGE_PATTERNS, NOTICE_TARGET, NoticeMutationResult, install_notices
+    from provenance import RUNTIME_TOOL_IDENTITY, build_provenance, canonical_source_identity
     from runtime_contract import MutationError, contract_for_board, load_contract, read_json_bytes, rooted, transform_build_metadata, validate_changed_paths, validate_parent
     from runtime_payload import PayloadValidation, stage_release, validate_bundle, validate_output
     from runtime_transaction import MutableSnapshot, atomic_bytes, atomic_link
@@ -38,6 +40,7 @@ class MutationResult:
     parent_identity: dict[str, Any]
     pre_inventory_digest: str
     post_inventory_digest: str
+    notice: dict[str, Any]
     changed_paths: list[str]
     provenance: dict[str, Any]
 
@@ -82,7 +85,7 @@ def mutate_runtime(
     *,
     contract_path: Path | None = None,
     mutation_hook: Callable[[str], None] | None = None,
-    tool_identity: str = TOOL_IDENTITY,
+    tool_identity: str = RUNTIME_TOOL_IDENTITY,
 ) -> MutationResult:
     if not VERSION_RE.fullmatch(version):
         raise MutationError("runtime version must be strict semver")
@@ -122,14 +125,17 @@ def mutate_runtime(
     if parent.build_metadata is not None:
         mutable_roots.append(contract["managed"]["build_metadata"])
     mutable_roots = list(dict.fromkeys(mutable_roots))
-    snapshot = MutableSnapshot.capture(root, before, tuple(mutable_roots), (f"{contract['managed']['releases']}/.image-respin-stage-*", f"{contract['managed']['releases']}/.image-respin-backup-*"))
+    mutable_roots.append(NOTICE_TARGET)
+    snapshot = MutableSnapshot.capture(root, before, tuple(mutable_roots), (f"{contract['managed']['releases']}/.image-respin-stage-*", f"{contract['managed']['releases']}/.image-respin-backup-*", *NOTICE_STAGE_PATTERNS))
     stage: Path | None = None
     backup: Path | None = None
+    notice_result: NoticeMutationResult | None = None
     try:
         stage = stage_release(releases, bundle, contract, version)
         if mutation_hook:
             mutation_hook("staged")
         _assert_staged_preimage(root, before, stage)
+        notice_result = install_notices(root, before, Path(__file__).resolve().parents[2], mutation_hook, (stage.relative_to(root).as_posix(),))
         backup = Path(tempfile.mkdtemp(prefix=".image-respin-backup-", dir=releases))
         backup.rmdir()
         os.replace(prior_path, backup)
@@ -157,13 +163,15 @@ def mutate_runtime(
         backup_relative = backup.relative_to(root).as_posix() if backup is not None else ""
         after = {path: entry for path, entry in after_with_backup.items() if not backup_relative or (path != backup_relative and not path.startswith(backup_relative + "/"))}
         validate_output(root, after_with_backup, payload.inventory, contract, version, state, parent.build_metadata)
-        changed = validate_changed_paths(before, after, contract, parent.prior_version, version)
+        if notice_result is None or not set(notice_result.changed_paths) <= set(after) - set(before):
+            raise MutationError("notice changed paths are not present in the runtime mutation")
+        changed = validate_changed_paths(before, after, contract, parent.prior_version, version, set(notice_result.changed_paths))
         post_digest = inventory_digest(after)
-        provenance = build_provenance(board_profile=board_profile, version=version, source_identity=source, parent_identity=parent.parent_identity, payload_digest=payload.digest, mutation_contract_digest=contract_digest, pre_inventory_digest=inventory_digest(before), post_inventory_digest=post_digest, changed_paths=changed, tool_identity=tool_identity)
+        provenance = build_provenance(board_profile=board_profile, version=version, source_identity=source, parent_identity=parent.parent_identity, payload_digest=payload.digest, mutation_contract_digest=contract_digest, pre_inventory_digest=inventory_digest(before), post_inventory_digest=post_digest, changed_paths=changed, notice=notice_result.record, tool_identity=tool_identity)
         if backup is not None:
             remove_path(backup)
             backup = None
-        return MutationResult(board_profile, parent.prior_version, version, source, contract_digest, payload.digest, parent.parent_identity, inventory_digest(before), post_digest, changed, provenance)
+        return MutationResult(board_profile, parent.prior_version, version, source, contract_digest, payload.digest, parent.parent_identity, inventory_digest(before), post_digest, notice_result.record, changed, provenance)
     except Exception as exc:
         try:
             snapshot.restore()

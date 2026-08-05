@@ -178,6 +178,9 @@ jobs:
             --input-file .github/workflows/respin-board-image.yml \
             --input-file tools/image-respin/runtime_bundle.py \
             --input-file tools/image-respin/boot_neutral.py \
+            --input-file resources/legal/notice-bundle.json \
+            --input-file tools/legal/stage_notices.py \
+            --input-file tools/image-respin/notice_mutation.py \
             --trust-manifest "$TRUST_MANIFEST" \
             --rustc-version-file "$RUNNER_TEMP/rustc-vV.txt" \
             --cargo-version-file "$RUNNER_TEMP/cargo-version.txt" \

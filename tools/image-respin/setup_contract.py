@@ -130,7 +130,7 @@ def target_spec(item: dict[str, Any]) -> dict[str, Any]:
 
 
 def setup_targets(contract: dict[str, Any]) -> set[str]:
-    return {item["target"] for item in contract["entries"]} | {item["target"] for item in contract["symlinks"]} | {item["target"] for item in contract["preserved_paths"]}
+    return {item["target"] for item in contract["directories"]} | {item["target"] for item in contract["entries"]} | {item["target"] for item in contract["symlinks"]} | {item["target"] for item in contract["preserved_paths"]}
 
 
 __all__ = ["BOARDS", "SetupContractError", "contract_for_board", "load_contract", "setup_source_paths", "setup_targets", "source_path", "target_spec", "validate_sources", "validate_tracked_sources"]

@@ -10,7 +10,9 @@ try:
     from .disk_packaging import compression_identity
     from .trust_manifest import load_manifest, parent_context_for_board
     from .inventory import build_inventory, ensure_inventory_symlinks_contained, inventory_digest
-    from .provenance import TOOL_CODE_SCHEMA, TOOL_IDENTITY, digest_object as provenance_digest, tool_code_model
+    from .notice_mutation import NOTICE_TARGET, validate_notice_record
+    from .runtime_contract import MutationError
+    from .provenance import RUNTIME_TOOL_IDENTITY, TOOL_CODE_SCHEMA, TOOL_IDENTITY, digest_object as provenance_digest, tool_code_model
     from .boot_neutral import load_policy
     from .setup_contract import load_contract as load_setup_contract
     from .setup_provenance import setup_tool_code_model
@@ -20,7 +22,9 @@ except ImportError:
     from disk_packaging import compression_identity
     from trust_manifest import load_manifest, parent_context_for_board
     from inventory import build_inventory, ensure_inventory_symlinks_contained, inventory_digest
-    from provenance import TOOL_CODE_SCHEMA, TOOL_IDENTITY, digest_object as provenance_digest, tool_code_model
+    from notice_mutation import NOTICE_TARGET, validate_notice_record
+    from runtime_contract import MutationError
+    from provenance import RUNTIME_TOOL_IDENTITY, TOOL_CODE_SCHEMA, TOOL_IDENTITY, digest_object as provenance_digest, tool_code_model
     from boot_neutral import load_policy
     from setup_contract import load_contract as load_setup_contract
     from setup_provenance import setup_tool_code_model
@@ -37,13 +41,23 @@ PARENT_KEYS = {"trust_manifest", "context"}
 BUNDLE_KEYS = {"path", "entries", "sha256", "inventory_sha256"}
 PROOF_KEYS = {"label", "schema", "command_template_id", "command_template", "result", "output"}
 PROOF_RESULT_KEYS = {"result"}
+RUNTIME_KEYS = {"proof_schema", "schema_version", "board_profile", "version", "source_identity", "parent", "payload", "mutation_contract", "finalizer", "inventories", "parent_inventory_digest", "post_inventory_digest", "notice", "changed_paths"}
+
+
+def _validate_notice(record: Any, root: Path) -> None:
+    try:
+        validate_notice_record(record, root)
+    except MutationError as exc:
+        raise RecordError(str(exc)) from exc
+
+
 PROOF_TEMPLATE = {
     "orange-image": ("orange-production", "sudo bash tools/armbian-image/verify-orange-image.sh --image {artifact} --boot-proof-mode trusted-v0.7.5-boot-neutral --boot-neutral-contract resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.7.5.json --parent-image parent-assets/octessera-0.7.5-orange-pi-zero-2w.img.xz --trust-manifest resources/image-parents/v0.7.5-trust-manifest.json --respin-provenance {artifact}.provenance.json --derivation-kind runtime-only --output {proof_output}", ORANGE + "/production-image-proof/v2"),
     "raspberry-sanitized": ("raspberry-sanitized", "sudo bash tools/pi-image/verify-sanitized-image.sh {artifact} 2>&1 | tee {proof_output}", RPI + "/sanitized-image-proof/v1"),
     "raspberry-kernel": ("raspberry-kernel", "sudo bash tools/pi-image/verify-rpi-kernel-image.sh --image {extracted_image} --package parent-assets/linux-image-6.12.93-octessera-rpi-v8-0.7.5_6.12.93-octessera0.7.5-1_arm64.deb --checksum parent-assets/octessera-0.7.5-raspberry-pi-zero-2w-kernel-SHA256SUMS --provenance parent-assets/octessera-0.7.5-raspberry-pi-zero-2w-kernel-provenance.json --manifest tools/kernel-patches/orange-midi-interface-manifest.json 2>&1 | tee {proof_output}", RPI + "/kernel-image-proof/v1"),
 }
-ORANGE_TOOLS = ("tools/armbian-image/verify-orange-image.sh", "tools/armbian-image/verify-orange-image.py", "tools/armbian-image/orange_boot_contract.py", "tools/armbian-image/orange_boot_inventory.py", "tools/armbian-image/orange_boot_selection.py", "tools/armbian-image/orange_image_mount.py", "tools/armbian-image/orange_initramfs.py", "tools/armbian-image/orange_phase5_proof.py", "tools/armbian-image/orange_trusted_parent_proof.py", "tools/armbian-image/verify_runtime_account.py", "tools/legal/stage_notices.py", "resources/legal/notice-bundle.json", "tools/image-respin/boot_neutral.py", "resources/image-construction/boot-layers/orange-pi-zero-2w.json", "resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.7.5.json", "tools/kernel-patches/orange-midi-interface-manifest.json")
-RPI_TOOLS = ("tools/pi-image/verify-sanitized-image.sh", "tools/pi-image/verify-managed-runtime.sh", "tools/pi-image/verify-boot-layout.sh", "tools/pi-image/verify-rpi-kernel-image.sh", "tools/pi-image/verify-rpi-kernel-image.py", "tools/pi-image/rpi_initramfs_proof.py", "tools/pi-image/install-rpi-kernel.py", "tools/pi-kernel/rpi_kernel_contract.py", "tools/pi-kernel/rpi_kernel_image.py", "tools/pi-kernel/validate-rpi-kernel-package.py", "tools/pi-image/stage3-octessera-kernel/files/root/usr/local/lib/octessera/install-rpi-kernel.py", "tools/pi-image/stage3-octessera-kernel/files/root/usr/local/lib/octessera/rpi_kernel_contract.py", "tools/pi-image/stage3-octessera-kernel/files/root/usr/local/lib/octessera/rpi_kernel_image.py", "tools/pi-image/stage3-octessera-kernel/files/root/usr/local/lib/octessera/raspi_firmware_hook_mask.py", "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/rpi_uart_release.py", "tools/legal/stage_notices.py", "resources/legal/notice-bundle.json", "tools/kernel-patches/orange-midi-interface-manifest.json", "resources/image-construction/boot-layers/raspberry-pi-zero-2w.json")
+ORANGE_TOOLS = ("tools/armbian-image/verify-orange-image.sh", "tools/armbian-image/verify-orange-image.py", "tools/armbian-image/orange_boot_contract.py", "tools/armbian-image/orange_boot_inventory.py", "tools/armbian-image/orange_boot_selection.py", "tools/armbian-image/orange_image_mount.py", "tools/armbian-image/orange_initramfs.py", "tools/armbian-image/orange_phase5_proof.py", "tools/armbian-image/orange_trusted_parent_proof.py", "tools/armbian-image/verify_runtime_account.py", "tools/legal/stage_notices.py", "resources/legal/notice-bundle.json", "tools/image-respin/notice_mutation.py", "tools/image-respin/boot_neutral.py", "resources/image-construction/boot-layers/orange-pi-zero-2w.json", "resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.7.5.json", "tools/kernel-patches/orange-midi-interface-manifest.json")
+RPI_TOOLS = ("tools/pi-image/verify-sanitized-image.sh", "tools/pi-image/verify-managed-runtime.sh", "tools/pi-image/verify-boot-layout.sh", "tools/pi-image/verify-rpi-kernel-image.sh", "tools/pi-image/verify-rpi-kernel-image.py", "tools/pi-image/rpi_initramfs_proof.py", "tools/pi-image/install-rpi-kernel.py", "tools/pi-kernel/rpi_kernel_contract.py", "tools/pi-kernel/rpi_kernel_image.py", "tools/pi-kernel/validate-rpi-kernel-package.py", "tools/pi-image/stage3-octessera-kernel/files/root/usr/local/lib/octessera/install-rpi-kernel.py", "tools/pi-image/stage3-octessera-kernel/files/root/usr/local/lib/octessera/rpi_kernel_contract.py", "tools/pi-image/stage3-octessera-kernel/files/root/usr/local/lib/octessera/rpi_kernel_image.py", "tools/pi-image/stage3-octessera-kernel/files/root/usr/local/lib/octessera/raspi_firmware_hook_mask.py", "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/rpi_uart_release.py", "tools/legal/stage_notices.py", "resources/legal/notice-bundle.json", "tools/image-respin/notice_mutation.py", "tools/kernel-patches/orange-midi-interface-manifest.json", "resources/image-construction/boot-layers/raspberry-pi-zero-2w.json")
 
 
 def _read_proof(path: Path, board: str) -> dict[str, Any] | None:
@@ -122,8 +136,9 @@ def _validate_orange_provenance(document: dict[str, Any], root: Path, source: di
     require(parent_document["context"] == parent["context"] and parent_document["asset"] == parent["context"]["asset"] and parent_document["trust_manifest_sha256"] == manifest_digest and parent_document["digest"] == provenance_digest({"context": parent["context"], "trust_manifest_sha256": manifest_digest}), "Orange provenance parent changed")
     require(parent["context"]["asset"]["name"] == policy.contract["parent_asset"]["name"] and parent["context"]["asset"]["sha256"] == policy.contract["parent_asset"]["sha256"] and parent["context"]["asset"]["size"] == policy.contract["parent_asset"]["size"], "Orange provenance parent policy agreement changed")
     runtime = require_keys(document["runtime_mutation"], {"digest", "provenance"}, "Orange runtime mutation")
-    runtime_value = require_keys(runtime["provenance"], {"proof_schema", "schema_version", "board_profile", "version", "source_identity", "parent", "payload", "mutation_contract", "finalizer", "inventories", "parent_inventory_digest", "post_inventory_digest", "changed_paths"}, "Orange runtime provenance")
-    require(runtime["digest"] == provenance_digest(runtime_value) and runtime_value["proof_schema"] == "octessera.image-mutation-provenance.v1" and runtime_value["schema_version"] == 1 and runtime_value["board_profile"] == ORANGE and runtime_value["version"] == source["version"] and runtime_value["source_identity"] == source["sha"], "Orange runtime provenance changed")
+    runtime_value = require_keys(runtime["provenance"], RUNTIME_KEYS, "Orange runtime provenance")
+    require(runtime["digest"] == provenance_digest(runtime_value) and runtime_value["proof_schema"] == "octessera.image-mutation-provenance.v2" and runtime_value["schema_version"] == 2 and runtime_value["board_profile"] == ORANGE and runtime_value["version"] == source["version"] and runtime_value["source_identity"] == source["sha"], "Orange runtime provenance changed")
+    _validate_notice(runtime_value["notice"], root)
     runtime_parent = require_keys(runtime_value["parent"], {"identity", "digest"}, "Orange runtime parent")
     parent_identity = require_keys(runtime_parent["identity"], {"board_profile", "prior_version", "prior_release_entries", "prior_release_digest", "prior_state_preimage_sha256", "prior_build_metadata_preimage_sha256", "current_target", "parent_context", "parent_context_sha256"}, "Orange runtime parent identity")
     require(runtime_parent["digest"] == provenance_digest(parent_identity) and parent_identity["board_profile"] == ORANGE and parent_identity["prior_version"] == "0.7.5" and parent_identity["parent_context"] == parent["context"], "Orange runtime parent identity changed")
@@ -137,9 +152,11 @@ def _validate_orange_provenance(document: dict[str, Any], root: Path, source: di
     require(runtime_value["parent_inventory_digest"] == inventories["pre"] and runtime_value["post_inventory_digest"] == inventories["post"], "Orange runtime inventory aliases changed")
     current_tool = tool_code_model(root / "tools/image-respin")
     runtime_finalizer = require_keys(runtime_value["finalizer"], {"source_identity", "tool_identity", "tool_code_schema", "tool_code_version", "tool_code_digest", "tool_code_files"}, "Orange runtime finalizer")
-    require(runtime_finalizer["source_identity"] == source["sha"] and runtime_finalizer["tool_identity"] == TOOL_IDENTITY and runtime_finalizer["tool_code_schema"] == current_tool["schema"] and runtime_finalizer["tool_code_version"] == current_tool["version"] and runtime_finalizer["tool_code_digest"] == current_tool["digest"] and runtime_finalizer["tool_code_files"] == current_tool["files"], "Orange runtime tool identity changed")
+    require(runtime_finalizer["source_identity"] == source["sha"] and runtime_finalizer["tool_identity"] == RUNTIME_TOOL_IDENTITY and runtime_finalizer["tool_code_schema"] == current_tool["schema"] and runtime_finalizer["tool_code_version"] == current_tool["version"] and runtime_finalizer["tool_code_digest"] == current_tool["digest"] and runtime_finalizer["tool_code_files"] == current_tool["files"], "Orange runtime tool identity changed")
     changed = runtime_value["changed_paths"]
     require(isinstance(changed, list) and changed == sorted(set(changed)), "Orange runtime changed paths are not exact")
+    global_notice = {path for path in changed if path == NOTICE_TARGET or path.startswith(NOTICE_TARGET + "/")}
+    require(global_notice == set(runtime_value["notice"]["changed_paths"]), "Orange notice paths are not the exact runtime subset")
     protected = policy.contract["protected_paths"]
     require(not any(path == item or path.startswith(f"{item}/") or item.startswith(f"{path}/") for path in changed for item in protected), "Orange runtime changed a protected boot path")
     boot = require_keys(document["boot_integrity"], set(policy.contract["respin_provenance"]["boot_integrity_keys"]), "Orange boot integrity")
@@ -196,9 +213,10 @@ def _validate_respin_provenance(path: Path, root: Path, source: dict[str, Any], 
     require(provenance_parent["digest"] == provenance_digest({"context": parent["context"], "trust_manifest_sha256": manifest_digest}), "respin provenance parent digest changed")
     _sha(provenance_parent["trust_manifest_sha256"], "respin trust manifest")
     runtime = require_keys(top["runtime_mutation"], {"digest", "provenance"}, "respin runtime mutation")
-    runtime_provenance = require_keys(runtime["provenance"], {"proof_schema", "schema_version", "board_profile", "version", "source_identity", "parent", "payload", "mutation_contract", "finalizer", "inventories", "parent_inventory_digest", "post_inventory_digest", "changed_paths"}, "runtime provenance")
+    runtime_provenance = require_keys(runtime["provenance"], RUNTIME_KEYS, "runtime provenance")
     require(runtime["digest"] == provenance_digest(runtime_provenance), "runtime provenance digest changed")
-    require(runtime_provenance["proof_schema"] == "octessera.image-mutation-provenance.v1" and runtime_provenance["schema_version"] == 1 and runtime_provenance["board_profile"] == source["board"] and runtime_provenance["version"] == source["version"] and runtime_provenance["source_identity"] == source["sha"], "runtime provenance source changed")
+    require(runtime_provenance["proof_schema"] == "octessera.image-mutation-provenance.v2" and runtime_provenance["schema_version"] == 2 and runtime_provenance["board_profile"] == source["board"] and runtime_provenance["version"] == source["version"] and runtime_provenance["source_identity"] == source["sha"], "runtime provenance source changed")
+    _validate_notice(runtime_provenance["notice"], root)
     runtime_parent = require_keys(runtime_provenance["parent"], {"identity", "digest"}, "runtime provenance parent")
     parent_identity = require_keys(runtime_parent["identity"], {"board_profile", "prior_version", "prior_release_entries", "prior_release_digest", "prior_state_preimage_sha256", "prior_build_metadata_preimage_sha256", "current_target", "parent_context", "parent_context_sha256"}, "runtime parent identity")
     expected_entries = {"octessera-pi", "update-manifest.json"} if source["board"] == RPI else {"octessera-pi", "octessera-runtime.json", "SHA256SUMS"}
@@ -228,10 +246,12 @@ def _validate_respin_provenance(path: Path, root: Path, source: dict[str, Any], 
     _sha(inventories["post"], "runtime post-inventory")
     require(runtime_provenance["parent_inventory_digest"] == inventories["pre"] and runtime_provenance["post_inventory_digest"] == inventories["post"], "runtime inventory aliases changed")
     finalizer = require_keys(runtime_provenance["finalizer"], {"source_identity", "tool_identity", "tool_code_schema", "tool_code_version", "tool_code_digest", "tool_code_files"}, "runtime finalizer")
-    require(finalizer["source_identity"] == source["sha"] and finalizer["tool_identity"] == TOOL_IDENTITY and finalizer["tool_code_schema"] == TOOL_CODE_SCHEMA and finalizer["tool_code_version"] == 1, "runtime finalizer identity changed")
+    require(finalizer["source_identity"] == source["sha"] and finalizer["tool_identity"] == RUNTIME_TOOL_IDENTITY and finalizer["tool_code_schema"] == TOOL_CODE_SCHEMA and finalizer["tool_code_version"] == 1, "runtime finalizer identity changed")
     current_tool_code = tool_code_model(root / "tools/image-respin")
     require(finalizer["tool_code_schema"] == current_tool_code["schema"] and finalizer["tool_code_version"] == current_tool_code["version"] and finalizer["tool_code_digest"] == current_tool_code["digest"] and finalizer["tool_code_files"] == current_tool_code["files"], "runtime tool code changed")
     require(isinstance(runtime_provenance["changed_paths"], list) and runtime_provenance["changed_paths"] == sorted(set(runtime_provenance["changed_paths"])), "runtime changed paths are not exact")
+    global_notice = {path for path in runtime_provenance["changed_paths"] if path == NOTICE_TARGET or path.startswith(NOTICE_TARGET + "/")}
+    require(global_notice == set(runtime_provenance["notice"]["changed_paths"]), "notice paths are not the exact runtime subset")
     disk = require_keys(top["disk_invariants"], {"pre", "post", "digest"}, "disk invariants")
     require(disk["pre"] == disk["post"] and disk["digest"] == provenance_digest({"pre": disk["pre"], "post": disk["post"]}), "disk invariants changed")
     derived = require_keys(top["derived_image"], {"sha256", "size"}, "derived image")

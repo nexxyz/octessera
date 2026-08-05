@@ -26,6 +26,7 @@ from requested_build_record import (
     validate_record as validate_requested_record,
 )
 from setup_contract import contract_for_board, load_contract
+from notice_mutation import _canonical_output_inventory, _expected_paths, _manifest_sources, _tool_model
 from workflow_record_common import RecordError as WorkflowRecordError, identity
 from disk_layout import DiskLayout
 from disk_packaging import compression_identity
@@ -48,6 +49,9 @@ INPUTS = [
     Path(".github/workflows/respin-board-image.yml"),
     Path("tools/image-respin/runtime_bundle.py"),
     Path("tools/image-respin/boot_neutral.py"),
+    Path("resources/legal/notice-bundle.json"),
+    Path("tools/legal/stage_notices.py"),
+    Path("tools/image-respin/notice_mutation.py"),
 ]
 
 
@@ -111,6 +115,12 @@ def write_json(path: Path, value: dict) -> None:
     path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def notice_record() -> dict:
+    _, identities, sources = _manifest_sources(ROOT)
+    _, changed_paths = _expected_paths(sources)
+    return {"contract": identities["contract"], "manifest": identities["manifest"], "stager": identity(ROOT / "tools/legal/stage_notices.py", ROOT), "notice_tool": _tool_model(ROOT), "preimage": {"path": "usr/share/doc/octessera", "status": "absent"}, "output": {"inventory_sha256": inventory_digest(_canonical_output_inventory(sources)), "inventory_count": len(changed_paths)}, "changed_paths": changed_paths}
+
+
 def synthetic_manifest(board: str, companions: list[Path]) -> dict:
     assets = []
     parent = next(item for item in json.loads(MANIFEST.read_text())["image_parents"] if item["board"] == board)
@@ -141,7 +151,8 @@ def write_respin_provenance(path: Path, board: str, version: str, context: dict,
     contract_digest = hashlib.sha256((ROOT / "resources/image-mutations" / f"{board}.json").read_bytes()).hexdigest()
     parent_entries = {"octessera-pi": "0" * 64, "update-manifest.json": "1" * 64} if board == "raspberry-pi-zero-2w" else {"octessera-pi": "0" * 64, "octessera-runtime.json": "1" * 64, "SHA256SUMS": "2" * 64}
     parent_identity = {"board_profile": board, "prior_version": "0.7.5", "prior_release_entries": parent_entries, "prior_release_digest": "3" * 64, "prior_state_preimage_sha256": "4" * 64 if board == "raspberry-pi-zero-2w" else None, "prior_build_metadata_preimage_sha256": "5" * 64 if board == "orange-pi-zero-2w" else None, "current_target": "releases/0.7.5", "parent_context": context, "parent_context_sha256": digest_object(context)}
-    runtime = build_provenance(board_profile=board, version=version, source_identity="a" * 40, parent_identity=parent_identity, payload_digest=payload_digest, mutation_contract_digest=contract_digest, pre_inventory_digest="d" * 64, post_inventory_digest="e" * 64, changed_paths=[])
+    notice = notice_record()
+    runtime = build_provenance(board_profile=board, version=version, source_identity="a" * 40, parent_identity=parent_identity, payload_digest=payload_digest, mutation_contract_digest=contract_digest, pre_inventory_digest="d" * 64, post_inventory_digest="e" * 64, changed_paths=notice["changed_paths"], notice=notice)
     image = artifact.with_name("prepared.img")
     image.write_bytes(b"prepared")
     from disk_layout import PartitionIdentity
@@ -320,7 +331,19 @@ class WorkflowRecordTests(unittest.TestCase):
                     write_respin_provenance(provenance, "orange-pi-zero-2w", "0.7.6", context, bundle, artifact)
                     record["respin_provenance"] = identity(provenance, ROOT)
 
+                def tamper_notice(value: dict[str, Any]) -> None:
+                    runtime = value["runtime_mutation"]["provenance"]
+                    runtime["notice"]["contract"]["sha256"] = "0" * 64
+                    value["runtime_mutation"]["digest"] = digest_object(runtime)
+
+                def tamper_notice_output(value: dict[str, Any]) -> None:
+                    runtime = value["runtime_mutation"]["provenance"]
+                    runtime["notice"]["output"]["inventory_sha256"] = "0" * 64
+                    value["runtime_mutation"]["digest"] = digest_object(runtime)
+
                 reject_provenance(lambda value: value["runtime_mutation"]["provenance"]["parent"]["identity"].update({"unexpected": True}))
+                reject_provenance(tamper_notice)
+                reject_provenance(tamper_notice_output)
                 reject_provenance(lambda value: value["runtime_mutation"]["provenance"]["parent"].update({"digest": "0" * 64}))
                 reject_provenance(lambda value: value["runtime_mutation"]["provenance"]["mutation_contract"].update({"digest": "0" * 64}))
                 reject_provenance(lambda value: value["disk_invariants"].update({"pre": {"drift": True}}))

@@ -23,7 +23,6 @@
     "boot/initrd.img-6.18.38-current-sunxi64",
     "boot/config-6.18.38-current-sunxi64",
     "lib",
-    "usr/lib/linux-image-6.18.38-current-sunxi64/Image",
     "usr/lib/linux-image-6.18.38-current-sunxi64/allwinner/sun50i-h618-orangepi-zero2w.dtb",
     "usr/lib/modules/6.18.38-current-sunxi64/modules.dep",
     "etc/systemd/system/octessera-orange-boot-splash.service",

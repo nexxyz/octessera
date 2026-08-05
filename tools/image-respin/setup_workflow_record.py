@@ -14,8 +14,8 @@ from typing import Any
 
 try:
     from .disk_packaging import compression_identity, file_digest
-    from .post_proof_record import ORANGE_TOOLS, RPI_TOOLS, _bundle_identity, _companion_records, _read_proof, _validate_orange_provenance
-    from .provenance import digest_object, tool_code_model
+    from .post_proof_record import ORANGE_TOOLS, RPI_TOOLS, RUNTIME_KEYS, _bundle_identity, _companion_records, _read_proof, _validate_notice, _validate_orange_provenance
+    from .provenance import RUNTIME_TOOL_IDENTITY, digest_object, tool_code_model
     from .requested_build_record import validate_record as validate_requested
     from .runtime_contract import _classify, load_contract as load_runtime_contract
     from .setup_contract import load_contract, source_path
@@ -25,8 +25,8 @@ try:
     from .workflow_record_common import RecordError, SHA_RE, identity, load_json, require, require_keys, resolve, tool_identity, verify_identity, verify_tool
 except ImportError:
     from disk_packaging import compression_identity, file_digest
-    from post_proof_record import ORANGE_TOOLS, RPI_TOOLS, _bundle_identity, _companion_records, _read_proof, _validate_orange_provenance
-    from provenance import digest_object, tool_code_model
+    from post_proof_record import ORANGE_TOOLS, RPI_TOOLS, RUNTIME_KEYS, _bundle_identity, _companion_records, _read_proof, _validate_notice, _validate_orange_provenance
+    from provenance import RUNTIME_TOOL_IDENTITY, digest_object, tool_code_model
     from requested_build_record import validate_record as validate_requested
     from runtime_contract import _classify, load_contract as load_runtime_contract
     from setup_contract import load_contract, source_path
@@ -43,7 +43,7 @@ ORANGE = "orange-pi-zero-2w"
 SETUP_PROOF_TOOLS = {ORANGE: ORANGE_TOOLS, RPI: RPI_TOOLS}
 PRODUCTION_PROOF_LABELS = {ORANGE: ("orange-image",), RPI: ("raspberry-sanitized", "raspberry-kernel")}
 PROVENANCE_KEYS = {"proof_schema", "schema_version", "board_profile", "version", "source_identity", "parent", "runtime_mutation", "setup_mutation", "setup_proof", "disk_invariants", "derived_image", "packaged_artifact", "finalizer"}
-RUNTIME_KEYS = {"proof_schema", "schema_version", "board_profile", "version", "source_identity", "parent", "payload", "mutation_contract", "finalizer", "inventories", "parent_inventory_digest", "post_inventory_digest", "changed_paths"}
+RUNTIME_KEYS = {"proof_schema", "schema_version", "board_profile", "version", "source_identity", "parent", "payload", "mutation_contract", "finalizer", "inventories", "parent_inventory_digest", "post_inventory_digest", "notice", "changed_paths"}
 RUNTIME_PARENT_KEYS = {"board_profile", "prior_version", "prior_release_entries", "prior_release_digest", "prior_state_preimage_sha256", "prior_build_metadata_preimage_sha256", "current_target", "parent_context", "parent_context_sha256"}
 LAYOUT_KEYS = {"board_profile", "image_size", "table_label", "disk_id", "first_lba", "last_lba", "sector_size", "partitions", "raw_prepartition_sha256", "raw_boot_partition_sha256"}
 PARTITION_KEYS = {"index", "start", "size", "partition_type", "partition_uuid", "filesystem_type", "filesystem_uuid", "filesystem_label"}
@@ -172,7 +172,8 @@ def _validate_runtime_provenance(value: Any, root: Path, source: dict[str, Any],
     runtime = require_keys(value, {"digest", "provenance"}, "runtime mutation")
     runtime_value = require_keys(runtime["provenance"], RUNTIME_KEYS, "runtime provenance")
     require(runtime["digest"] == digest_object(runtime_value), "runtime provenance digest changed")
-    require(runtime_value["proof_schema"] == "octessera.image-mutation-provenance.v1" and runtime_value["schema_version"] == 1 and runtime_value["board_profile"] == source["board"] and runtime_value["version"] == source["version"] and runtime_value["source_identity"] == source["sha"], "runtime provenance source changed")
+    require(runtime_value["proof_schema"] == "octessera.image-mutation-provenance.v2" and runtime_value["schema_version"] == 2 and runtime_value["board_profile"] == source["board"] and runtime_value["version"] == source["version"] and runtime_value["source_identity"] == source["sha"], "runtime provenance source changed")
+    _validate_notice(runtime_value["notice"], root)
     runtime_parent = require_keys(runtime_value["parent"], {"identity", "digest"}, "runtime provenance parent")
     parent_identity = require_keys(runtime_parent["identity"], RUNTIME_PARENT_KEYS, "runtime parent identity")
     expected_entries = {"octessera-pi", "update-manifest.json"} if source["board"] == RPI else {"octessera-pi", "octessera-runtime.json", "SHA256SUMS"}
@@ -203,11 +204,16 @@ def _validate_runtime_provenance(value: Any, root: Path, source: dict[str, Any],
     require(runtime_value["parent_inventory_digest"] == inventories["pre"] and runtime_value["post_inventory_digest"] == inventories["post"], "runtime inventory aliases changed")
     finalizer = require_keys(runtime_value["finalizer"], {"source_identity", "tool_identity", "tool_code_schema", "tool_code_version", "tool_code_digest", "tool_code_files"}, "runtime finalizer")
     current_tool = tool_code_model(root / "tools/image-respin")
-    require(finalizer["source_identity"] == source["sha"] and finalizer["tool_identity"] == "octessera-image-respin-runtime-mutation/1" and finalizer["tool_code_schema"] == current_tool["schema"] and finalizer["tool_code_version"] == current_tool["version"] and finalizer["tool_code_digest"] == current_tool["digest"] and finalizer["tool_code_files"] == current_tool["files"], "runtime tool code changed")
+    require(finalizer["source_identity"] == source["sha"] and finalizer["tool_identity"] == RUNTIME_TOOL_IDENTITY and finalizer["tool_code_schema"] == current_tool["schema"] and finalizer["tool_code_version"] == current_tool["version"] and finalizer["tool_code_digest"] == current_tool["digest"] and finalizer["tool_code_files"] == current_tool["files"], "runtime tool code changed")
     changed = runtime_value["changed_paths"]
     require(isinstance(changed, list) and changed == sorted(set(changed)) and all(isinstance(path, str) and path and not path.startswith("/") and "\\" not in path for path in changed), "runtime changed paths are not exact")
+    notice_paths = set(runtime_value["notice"]["changed_paths"])
+    global_notice = {path for path in changed if path == "usr/share/doc/octessera" or path.startswith("usr/share/doc/octessera/")}
+    require(global_notice == notice_paths, "notice paths are not the exact runtime subset")
     prior = parent_identity["prior_version"]
     for path in changed:
+        if path in notice_paths:
+            continue
         require(not any(fnmatch.fnmatchcase(path, pattern) for pattern in runtime_contract["mutation_contract"]["forbidden"]), f"runtime forbidden path changed: {path}")
         require(_classify(path, f'{runtime_contract["managed"]["releases"]}/{prior}', f'{runtime_contract["managed"]["releases"]}/{source["version"]}', runtime_contract, prior == source["version"]) is not None, f"runtime unauthorized path changed: {path}")
 
@@ -235,8 +241,9 @@ def _validate_setup_mutation(value: Any, root: Path, source: dict[str, Any], con
     _sha(inventories["post"], "setup post-inventory")
     require(inventories["post"] == proof["inventory_sha256"], "setup proof inventory is not linked")
     changed = setup_value["changed_paths"]
-    allowed = {item["target"] for item in contract["entries"]} | {item["target"] for item in contract["symlinks"]} | set(contract["stale_runtime_markers"])
-    require(isinstance(changed, list) and changed == sorted(set(changed)) and all(path in allowed for path in changed), "setup changed paths are not exact")
+    allowed = {item["target"] for item in contract["directories"]} | {item["target"] for item in contract["entries"]} | {item["target"] for item in contract["symlinks"]} | set(contract["stale_runtime_markers"])
+    required_directories = {item["target"] for item in contract["directories"]}
+    require(isinstance(changed, list) and changed == sorted(set(changed)) and required_directories <= set(changed) and all(path in allowed for path in changed), "setup changed paths are not exact")
     finalizer = require_keys(setup_value["finalizer"], {"source_identity", "tool_identity", "tool_code_digest"}, "setup mutation finalizer")
     setup_tool = setup_tool_code_model(root / "tools/image-respin")
     require(finalizer["source_identity"] == source["sha"] and finalizer["tool_identity"] == SETUP_TOOL_IDENTITY and finalizer["tool_code_digest"] == setup_tool["digest"], "setup finalizer identity changed")
@@ -261,7 +268,7 @@ def _validate_proof(proof: dict[str, Any], board: str, contract_identity: dict[s
     require(proof["proof"] == "setup-layer-mounted" and proof["schema_version"] == 1 and proof["board_profile"] == board and proof["contract_sha256"] == contract_identity["sha256"], "setup proof identity is not exact")
     _sha(proof["inventory_sha256"], "setup proof inventory")
     _validate_prerequisites(proof["prerequisites"], contract, "setup proof prerequisites")
-    expected_paths = sorted(item["target"] for item in contract["entries"])
+    expected_paths = sorted([item["target"] for item in contract["directories"]] + [item["target"] for item in contract["entries"]])
     require(proof["verified_paths"] == expected_paths, "setup proof paths are not exact")
 
 

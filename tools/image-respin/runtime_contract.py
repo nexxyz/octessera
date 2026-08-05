@@ -376,11 +376,14 @@ def _classify(path: str, old_base: str, new_base: str, contract: dict[str, Any],
     return None
 
 
-def validate_changed_paths(before: Inventory, after: Inventory, contract: dict[str, Any], prior: str, version: str) -> list[str]:
+def validate_changed_paths(before: Inventory, after: Inventory, contract: dict[str, Any], prior: str, version: str, extra_allowed_paths: set[str] | None = None) -> list[str]:
     old_base = f"{contract['managed']['releases']}/{prior}"
     new_base = f"{contract['managed']['releases']}/{version}"
     changed = sorted(path for path in set(before) | set(after) if before.get(path) != after.get(path))
+    extra_allowed_paths = extra_allowed_paths or set()
     for path in changed:
+        if path in extra_allowed_paths:
+            continue
         if any(fnmatch.fnmatchcase(path, pattern) for pattern in contract["mutation_contract"]["forbidden"]):
             fail(f"forbidden path changed: {path}")
         if _classify(path, old_base, new_base, contract, prior == version) is None:

@@ -21,7 +21,7 @@ from setup_mutation import SETUP_TOOL_IDENTITY
 from setup_provenance import setup_tool_code_model
 from setup_workflow_record import SETUP_PROOF_TOOLS, _production_proof_identities, _validate_production_proofs, _validate_provenance, _validate_setup_proof_tools
 from workflow_record_common import RecordError, identity
-from test_workflow_records import write_orange_proof, write_respin_provenance
+from test_workflow_records import notice_record, write_orange_proof, write_respin_provenance
 from trust_manifest import load_manifest, parent_context_for_board
 
 
@@ -49,12 +49,14 @@ def _fixture(work: Path) -> tuple[Path, dict[str, Any], dict[str, Any], dict[str
     context = {"board": BOARD, "asset": {"name": "parent.zip", "sha256": "a" * 64, "size": 1}}
     parent_identity = {"board_profile": BOARD, "prior_version": "0.7.5", "prior_release_entries": {"octessera-pi": "b" * 64, "update-manifest.json": "c" * 64}, "prior_release_digest": "d" * 64, "prior_state_preimage_sha256": "e" * 64, "prior_build_metadata_preimage_sha256": None, "current_target": "releases/0.7.5", "parent_context": context, "parent_context_sha256": digest_object(context)}
     runtime_contract_digest = identity(ROOT / "resources/image-mutations" / f"{BOARD}.json", ROOT)["sha256"]
-    runtime = build_provenance(board_profile=BOARD, version="0.7.6", source_identity="a" * 40, parent_identity=parent_identity, payload_digest=bundle["inventory_sha256"], mutation_contract_digest=runtime_contract_digest, pre_inventory_digest="f" * 64, post_inventory_digest="0" * 64, changed_paths=[])
+    notice = notice_record()
+    runtime = build_provenance(board_profile=BOARD, version="0.7.6", source_identity="a" * 40, parent_identity=parent_identity, payload_digest=bundle["inventory_sha256"], mutation_contract_digest=runtime_contract_digest, pre_inventory_digest="f" * 64, post_inventory_digest="0" * 64, changed_paths=notice["changed_paths"], notice=notice)
     prerequisites = {"packages_sha256": "1" * 64, "accounts": {f"user:{item['user']}": "user" for item in contract["prerequisites"]["accounts"]} | {f"group:{item['group']}": "group" for item in contract["prerequisites"]["accounts"]}, "passwd_sha256": "2" * 64, "group_sha256": "3" * 64, "executables": {item: {"path": item, "type": "file", "uid": 0, "gid": 0, "mode": 493, "symlink": False, "target": None, "sha256": "0" * 64, "xattrs": {}, "capability": None} for item in contract["prerequisites"]["executables"]}, "services": {item: "service" for item in contract["prerequisites"]["services"]}}
     setup_parent = {"board_profile": BOARD, "preimage_source": contract["preimage_source"], "prerequisites": prerequisites, "preimage_digest": "4" * 64}
     source_inputs = [identity(ROOT / item["path"], ROOT) for item in contract["source_inputs"]]
-    setup_mutation = {"proof_schema": "octessera.image-setup-mutation-provenance.v1", "schema_version": 1, "board_profile": BOARD, "source_identity": "a" * 40, "parent": {"identity": setup_parent, "digest": digest_object(setup_parent)}, "setup_layer": {"contract_digest": contract_digest, "source_inputs": source_inputs}, "inventories": {"pre": "5" * 64, "post": "6" * 64}, "changed_paths": sorted(item["target"] for item in contract["entries"]), "finalizer": {"source_identity": "a" * 40, "tool_identity": SETUP_TOOL_IDENTITY, "tool_code_digest": setup_tool_code_model(ROOT / "tools/image-respin")["digest"]}}
-    proof = {"proof": "setup-layer-mounted", "schema_version": 1, "board_profile": BOARD, "contract_sha256": contract_digest, "inventory_sha256": "6" * 64, "prerequisites": prerequisites, "verified_paths": sorted(item["target"] for item in contract["entries"])}
+    setup_paths = sorted([item["target"] for item in contract["directories"]] + [item["target"] for item in contract["entries"]])
+    setup_mutation = {"proof_schema": "octessera.image-setup-mutation-provenance.v1", "schema_version": 1, "board_profile": BOARD, "source_identity": "a" * 40, "parent": {"identity": setup_parent, "digest": digest_object(setup_parent)}, "setup_layer": {"contract_digest": contract_digest, "source_inputs": source_inputs}, "inventories": {"pre": "5" * 64, "post": "6" * 64}, "changed_paths": setup_paths, "finalizer": {"source_identity": "a" * 40, "tool_identity": SETUP_TOOL_IDENTITY, "tool_code_digest": setup_tool_code_model(ROOT / "tools/image-respin")["digest"]}}
+    proof = {"proof": "setup-layer-mounted", "schema_version": 1, "board_profile": BOARD, "contract_sha256": contract_digest, "inventory_sha256": "6" * 64, "prerequisites": prerequisites, "verified_paths": setup_paths}
     layout = DiskLayout(BOARD, 8, "dos", "disk", 0, 7, 1, (PartitionIdentity(1, "", 1, 2, "type", "p1", "vfat", "f1", "boot"), PartitionIdentity(2, "", 3, 2, "type", "p2", "ext4", "f2", "root")), _sha(b"a"), _sha(b"bc"))
     disk = {"pre": layout.as_dict(), "post": layout.as_dict()}
     image_digest, image_size = file_digest(image)

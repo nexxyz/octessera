@@ -285,7 +285,7 @@ require_raspberry_board_profile
 require_octessera_boot_config "$WORK_DIR/boot" "$WORK_DIR/root"
 require_octessera_boot_overlay "$WORK_DIR/boot" "$WORK_DIR/root"
 require_octessera_boot_layer "$WORK_DIR/boot" "$WORK_DIR/root"
-require_octessera_raspberry_identity "$WORK_DIR/boot" "$WORK_DIR/root"
+require_octessera_raspberry_identity_for_boot_layer "$WORK_DIR/boot" "$WORK_DIR/root"
 require_updater_protocol
 require_wifi_foundation
 if [ "$SETUP_LAYER_REQUIRED" = true ]; then

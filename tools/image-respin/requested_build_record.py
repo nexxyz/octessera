@@ -49,6 +49,9 @@ REQUIRED_FILES = {
     ".github/workflows/respin-board-image.yml",
     "tools/image-respin/runtime_bundle.py",
     "tools/image-respin/boot_neutral.py",
+    "resources/legal/notice-bundle.json",
+    "tools/legal/stage_notices.py",
+    "tools/image-respin/notice_mutation.py",
 }
 SETUP_TOOL_FILES = tuple(f"tools/image-respin/{name}" for name in ("inventory.py", "provenance.py", "runtime_contract_schema.py", "runtime_contract.py", "runtime_payload.py", "runtime_transaction.py", "runtime_mutation.py", "disk_layout.py", "disk_mount.py", "disk_packaging.py", "disk_provenance.py", "setup_contract_schema.py", "setup_contract.py", "setup_provenance.py", "setup_mutation.py", "setup_proof.py", "disk_setup_respin.py", "boot_neutral.py", "setup_workflow_record.py", "workflow_records.py", "requested_build_record.py", "post_proof_record.py", "trust_manifest.py", "workflow_record_common.py"))
 PROOF_PACKAGES = {
