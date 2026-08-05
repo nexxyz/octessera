@@ -1,15 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-export PATH="$HOME/.cargo/bin:$PATH"
-
-if command -v cargo >/dev/null 2>&1; then
-  cargo_bin=(cargo)
-elif command -v cargo.exe >/dev/null 2>&1; then
-  cargo_bin=(cargo.exe)
+if command -v rustup >/dev/null 2>&1 && cargo_path="$(rustup which cargo 2>/dev/null)" && [ -x "$cargo_path" ]; then
+  cargo_dir="$(dirname "$cargo_path")"
+  if command -v cygpath >/dev/null 2>&1; then
+    cargo_dir="$(cygpath -u "$cargo_dir")"
+  fi
+  export PATH="$cargo_dir:$HOME/.cargo/bin:$PATH"
+  cargo_bin=("$cargo_path")
 else
-  printf 'cargo is required on PATH.\n' >&2
-  exit 1
+  export PATH="$HOME/.cargo/bin:$PATH"
+  if command -v cargo >/dev/null 2>&1; then
+    cargo_bin=(cargo)
+  elif command -v cargo.exe >/dev/null 2>&1; then
+    cargo_bin=(cargo.exe)
+  else
+    printf 'cargo is required on PATH.\n' >&2
+    exit 1
+  fi
 fi
 
 if ! "${cargo_bin[@]}" llvm-cov --version >/dev/null 2>&1; then
