@@ -72,7 +72,6 @@ class SetupWorkflowRecordTests(unittest.TestCase):
     def test_setup_proof_tools_are_board_explicit(self) -> None:
         self.assertEqual(SETUP_PROOF_TOOLS["orange-pi-zero-2w"], ORANGE_TOOLS)
         self.assertEqual(SETUP_PROOF_TOOLS["raspberry-pi-zero-2w"], RPI_TOOLS)
-        self.assertIn("tools/pi-image/rpi_initramfs_proof.py", RPI_TOOLS)
         self.assertIn("tools/pi-image/verify-trusted-parent-v0.7.5.sh", RPI_TOOLS)
         self.assertIn("resources/image-construction/boot-layers/raspberry-pi-zero-2w.json", RPI_TOOLS)
         tools = [identity(ROOT / path, ROOT) for path in SETUP_PROOF_TOOLS[BOARD]]
@@ -87,7 +86,7 @@ class SetupWorkflowRecordTests(unittest.TestCase):
     def test_raspberry_setup_production_proofs_are_exact_and_tamper_evident(self) -> None:
         with tempfile.TemporaryDirectory(dir=ROOT) as temporary:
             work = Path(temporary)
-            outputs = {label: work / f"{label}.txt" for label in ("raspberry-sanitized", "raspberry-kernel")}
+            outputs = {"raspberry-sanitized": work / "raspberry-sanitized.txt"}
             for path in outputs.values():
                 path.write_text("proof passed\n", encoding="utf-8")
             identities, structured = _production_proof_identities(ROOT, BOARD, outputs)
@@ -95,12 +94,12 @@ class SetupWorkflowRecordTests(unittest.TestCase):
             self.assertEqual(set(identities), set(outputs))
             _validate_production_proofs(identities, ROOT, BOARD)
             with self.assertRaises(RecordError):
-                _validate_production_proofs({"raspberry-sanitized": identities["raspberry-sanitized"]}, ROOT, BOARD)
+                _validate_production_proofs({}, ROOT, BOARD)
             extra = dict(identities)
             extra["unexpected"] = identities["raspberry-sanitized"]
             with self.assertRaises(RecordError):
                 _validate_production_proofs(extra, ROOT, BOARD)
-            outputs["raspberry-kernel"].write_text("tampered\n", encoding="utf-8")
+            outputs["raspberry-sanitized"].write_text("tampered\n", encoding="utf-8")
             with self.assertRaises(RecordError):
                 _validate_production_proofs(identities, ROOT, BOARD)
 

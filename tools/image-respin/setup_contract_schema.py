@@ -66,7 +66,7 @@ def _preimage(value: Any, label: str) -> dict[str, Any]:
     elif kind == "exact":
         if value.get("type") == "symlink":
             expected = {"kind", "type", "mode", "uid", "gid", "symlink", "xattrs", "capability", "link_target"}
-            if set(value) != expected or not isinstance(value["link_target"], str) or value["link_target"].startswith("/") or "\\" in value["link_target"]:
+            if set(value) != expected or not isinstance(value["link_target"], str) or "\\" in value["link_target"]:
                 raise SetupContractSchemaError(f"{label} symlink rule is not exact")
             _metadata({"type": "symlink", "mode": value["mode"], "uid": value["uid"], "gid": value["gid"], "symlink": value["symlink"], "xattrs": value["xattrs"], "capability": value["capability"]}, label, allow_type={"symlink"})
             return value

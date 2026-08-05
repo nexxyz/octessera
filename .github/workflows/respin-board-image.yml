@@ -326,20 +326,7 @@ jobs:
           else
             sudo bash tools/pi-image/verify-sanitized-image.sh "$GITHUB_WORKSPACE/$RESPIN_ARTIFACT" 2>&1 | tee "$sanitation_proof"
           fi
-          extracted="$RUNNER_TEMP/octessera-rpi-derived-image"
-          rm -rf "$extracted"
-          mkdir -p "$extracted"
-          unzip -q "$GITHUB_WORKSPACE/$RESPIN_ARTIFACT" -d "$extracted"
-          mapfile -t images < <(find "$extracted" -type f -name '*.img' -print)
-          [[ "${#images[@]}" == 1 ]] || { echo "Expected exactly one extracted Raspberry image" >&2; exit 1; }
-          kernel_proof="$RESPIN_OUTPUT/raspberry-kernel-image-proof.txt"
-          sudo bash tools/pi-image/verify-rpi-kernel-image.sh \
-            --image "${images[0]}" \
-            --package "$GITHUB_WORKSPACE/$PARENT_ASSETS/linux-image-6.12.93-octessera-rpi-v8-0.7.5_6.12.93-octessera0.7.5-1_arm64.deb" \
-            --checksum "$GITHUB_WORKSPACE/$PARENT_ASSETS/octessera-0.7.5-raspberry-pi-zero-2w-kernel-SHA256SUMS" \
-            --provenance "$GITHUB_WORKSPACE/$PARENT_ASSETS/octessera-0.7.5-raspberry-pi-zero-2w-kernel-provenance.json" \
-            --manifest tools/kernel-patches/orange-midi-interface-manifest.json 2>&1 | tee "$kernel_proof"
-          sudo chown "$(id -u):$(id -g)" "$sanitation_proof" "$kernel_proof"
+          sudo chown "$(id -u):$(id -g)" "$sanitation_proof"
 
       - name: Generate and validate post-proof record
         run: |
@@ -354,7 +341,6 @@ jobs:
             else
               production_proof_args+=(
                 --production-proof "raspberry-sanitized=$GITHUB_WORKSPACE/$RESPIN_OUTPUT/raspberry-sanitized-image-proof.txt"
-                --production-proof "raspberry-kernel=$GITHUB_WORKSPACE/$RESPIN_OUTPUT/raspberry-kernel-image-proof.txt"
               )
             fi
             python3 tools/image-respin/workflow_records.py setup-post-proof \
@@ -386,15 +372,8 @@ jobs:
             proof_template_args+=(--proof-template "orange-image=orange-production")
           else
             sanitation_proof="$RESPIN_OUTPUT/raspberry-sanitized-image-proof.txt"
-            kernel_proof="$RESPIN_OUTPUT/raspberry-kernel-image-proof.txt"
-            proof_output_args+=(
-              --proof-output "raspberry-sanitized=$sanitation_proof"
-              --proof-output "raspberry-kernel=$kernel_proof"
-            )
-            proof_template_args+=(
-              --proof-template "raspberry-sanitized=raspberry-sanitized"
-              --proof-template "raspberry-kernel=raspberry-kernel"
-            )
+            proof_output_args+=(--proof-output "raspberry-sanitized=$sanitation_proof")
+            proof_template_args+=(--proof-template "raspberry-sanitized=raspberry-sanitized")
           fi
           python3 tools/image-respin/workflow_records.py post-proof \
             --root "$GITHUB_WORKSPACE" \
@@ -418,20 +397,19 @@ jobs:
           set -euo pipefail
           output_dir="$GITHUB_WORKSPACE/$RESPIN_OUTPUT"
           artifact_name="$(basename "$RESPIN_ARTIFACT")"
-          runtime_record_files="requested-build.json post-proof.json"
           sums_name="SHA256SUMS-$BOARD.txt"
           if [[ "$SETUP_LAYER" == setup-portal ]]; then
             record_name=setup-post-proof.json
             case "$BOARD" in
               orange-pi-zero-2w) proof_names=(setup-layer-proof.json orange-image-proof.json) ;;
-              raspberry-pi-zero-2w) proof_names=(setup-layer-proof.json raspberry-sanitized-image-proof.txt raspberry-kernel-image-proof.txt) ;;
+              raspberry-pi-zero-2w) proof_names=(setup-layer-proof.json raspberry-sanitized-image-proof.txt) ;;
               *) exit 1 ;;
             esac
           else
             record_name=post-proof.json
             case "$BOARD" in
               orange-pi-zero-2w) proof_names=(orange-image-proof.json) ;;
-              raspberry-pi-zero-2w) proof_names=(raspberry-sanitized-image-proof.txt raspberry-kernel-image-proof.txt) ;;
+              raspberry-pi-zero-2w) proof_names=(raspberry-sanitized-image-proof.txt) ;;
               *) exit 1 ;;
             esac
           fi

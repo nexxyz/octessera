@@ -228,10 +228,7 @@ class WorkflowRecordTests(unittest.TestCase):
                 if board == "orange-pi-zero-2w":
                     proof_outputs = {"orange-image": work / "orange-proof.txt"}
                 else:
-                    proof_outputs = {
-                        "raspberry-sanitized": work / "sanitized-proof.txt",
-                        "raspberry-kernel": work / "kernel-proof.txt",
-                    }
+                    proof_outputs = {"raspberry-sanitized": work / "sanitized-proof.txt"}
                 for path in proof_outputs.values():
                     path.write_text("proof passed\n", encoding="utf-8")
                 checked = synthetic_manifest(board, companions)
@@ -256,12 +253,26 @@ class WorkflowRecordTests(unittest.TestCase):
                     validate_post_record(record, ROOT)
                     if board == "raspberry-pi-zero-2w":
                         self.assertEqual({item["path"] for item in record["proof_tools"]}, set(RPI_TOOLS))
-                        self.assertIn("tools/pi-image/rpi_initramfs_proof.py", {item["path"] for item in record["proof_tools"]})
+                        self.assertEqual({item["label"] for item in record["proofs"]}, {"raspberry-sanitized"})
                         self.assertIn("resources/image-construction/boot-layers/raspberry-pi-zero-2w.json", {item["path"] for item in record["proof_tools"]})
                         missing_output = copy.deepcopy(record)
                         missing_output["proofs"].pop()
                         with self.assertRaises(WorkflowRecordError):
                             validate_post_record(missing_output, ROOT)
+                        with self.assertRaises(WorkflowRecordError):
+                            build_post_record(
+                                root=ROOT,
+                                requested_build=requested_path,
+                                manifest=MANIFEST,
+                                board=board,
+                                runtime_bundle=bundle,
+                                artifact=artifact,
+                                respin_provenance=provenance,
+                                proof_outputs={**proof_outputs, "unexpected": work / "unexpected-proof.txt"},
+                                template_ids={**{key: PROOF_TEMPLATE[key][0] for key in proof_outputs}, "unexpected": "unexpected"},
+                                companions=companions,
+                                workflow=ROOT / ".github/workflows/respin-board-image.yml",
+                            )
                         tampered_output = copy.deepcopy(record)
                         tampered_output["proofs"][0]["output"]["sha256"] = "0" * 64
                         with self.assertRaises(WorkflowRecordError):

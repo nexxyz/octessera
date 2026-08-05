@@ -65,7 +65,6 @@ class RespinWorkflowStaticTests(unittest.TestCase):
         self.assertIn("docker run --rm octessera-pi-cross cargo --version", self.text)
         self.assertNotRegex(self.text, r"tee[^\n]*>/dev/null")
         self.assertNotIn("tee {proof_output} >/dev/null", PROOF_TEMPLATE["raspberry-sanitized"][1])
-        self.assertNotIn("tee {proof_output} >/dev/null", PROOF_TEMPLATE["raspberry-kernel"][1])
         self.assertIn("--container-rustc-version-file", self.text)
         self.assertIn("--container-cargo-version-file", self.text)
         self.assertIn("--input-file resources/legal/notice-bundle.json", self.text)
@@ -142,8 +141,6 @@ class RespinWorkflowStaticTests(unittest.TestCase):
         self.assertIn("--respin-provenance", self.text)
         self.assertIn("ORANGE_PARENT_IMAGE: parent-assets/octessera-0.7.5-orange-pi-zero-2w.img.xz", self.text)
         self.assertIn("verify-sanitized-image.sh", self.text)
-        self.assertIn("verify-rpi-kernel-image.sh", self.text)
-        self.assertIn("--manifest tools/kernel-patches/orange-midi-interface-manifest.json", self.text)
         self.assertIn('sums_name="SHA256SUMS-$BOARD.txt"', self.text)
         steps = (
             "Record requested build identity",
@@ -157,25 +154,36 @@ class RespinWorkflowStaticTests(unittest.TestCase):
         self.assertEqual(positions, sorted(positions))
         self.assertIn("workflow_records.py requested", self.text)
         self.assertIn("workflow_records.py post-proof", self.text)
-        self.assertIn("requested-build.json post-proof.json", self.text)
+        self.assertIn('sha256sum requested-build.json "$record_name"', self.text)
         self.assertIn('--root "$GITHUB_WORKSPACE"', self.text)
         self.assertIn('--artifact "$RESPIN_ARTIFACT"', self.text)
         self.assertIn('output="$RESPIN_OUTPUT/octessera-$OCTESSERA_VERSION-$BOARD-derived-runtime-respin$suffix"', self.text)
         self.assertNotIn('output="$GITHUB_WORKSPACE/$RESPIN_OUTPUT', self.text)
         self.assertIn("--proof-template", self.text)
         self.assertIn('orange-image=orange-production', self.text)
-        self.assertIn('raspberry-kernel=raspberry-kernel', self.text)
         self.assertNotIn("RPI_PROOF_IMAGE", self.text)
         self.assertNotIn("proof_command_args", self.text)
+        self.assertEqual(set(PROOF_TEMPLATE), {"orange-image", "raspberry-sanitized"})
         for label, (_, command, _) in PROOF_TEMPLATE.items():
-            self.assertIn("{artifact}" if label != "raspberry-kernel" else "{extracted_image}", command)
+            self.assertIn("{artifact}", command)
             self.assertNotIn("GITHUB_WORKSPACE", command)
-        self.assertIn("{extracted_image}", PROOF_TEMPLATE["raspberry-kernel"][1])
-        for name in ("install-rpi-kernel.py", "rpi_kernel_contract.py", "rpi_kernel_image.py", "raspi_firmware_hook_mask.py"):
-            self.assertIn(f"stage3-octessera-kernel/files/root/usr/local/lib/octessera/{name}", "\n".join(__import__("post_proof_record").RPI_TOOLS))
-        self.assertIn("tools/pi-image/rpi_initramfs_proof.py", "\n".join(__import__("post_proof_record").RPI_TOOLS))
-        self.assertIn("tools/pi-image/verify-trusted-parent-v0.7.5.sh", "\n".join(__import__("post_proof_record").RPI_TOOLS))
-        self.assertIn("resources/image-construction/boot-layers/raspberry-pi-zero-2w.json", "\n".join(__import__("post_proof_record").RPI_TOOLS))
+        rpi_tools = "\n".join(__import__("post_proof_record").RPI_TOOLS)
+        for path in (
+            "tools/pi-image/verify-sanitized-image.sh",
+            "tools/pi-image/verify-managed-runtime.sh",
+            "tools/pi-image/verify-boot-layout.sh",
+            "tools/pi-image/verify-trusted-parent-v0.7.5.sh",
+            "tools/legal/stage_notices.py",
+            "resources/legal/notice-bundle.json",
+            "tools/image-respin/notice_mutation.py",
+            "resources/image-construction/boot-layers/raspberry-pi-zero-2w.json",
+        ):
+            self.assertIn(path, rpi_tools)
+
+    def test_raspberry_respin_has_no_historical_kernel_proof(self) -> None:
+        for forbidden in ("raspberry-kernel", "kernel-image-proof", "verify-rpi-kernel-image.sh"):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, self.text)
 
     def test_setup_layer_is_opt_in_and_separate_from_runtime_only(self) -> None:
         self.assertIn("setup_layer:", self.text)
@@ -188,8 +196,7 @@ class RespinWorkflowStaticTests(unittest.TestCase):
         self.assertIn("verify-sanitized-image.sh --setup-layer", self.text)
         self.assertIn("--strict-setup-source-tracking", self.text)
         self.assertIn('--production-proof "raspberry-sanitized=', self.text)
-        self.assertIn('--production-proof "raspberry-kernel=', self.text)
-        self.assertIn("raspberry-pi-zero-2w) proof_names=(setup-layer-proof.json raspberry-sanitized-image-proof.txt raspberry-kernel-image-proof.txt)", self.text)
+        self.assertIn("raspberry-pi-zero-2w) proof_names=(setup-layer-proof.json raspberry-sanitized-image-proof.txt)", self.text)
 
     def test_ci_keeps_privileged_disk_tests_separate_from_nonroot_checks(self) -> None:
         self.assertIn("apt-get install -y --no-install-recommends cpio", self.ci_text)

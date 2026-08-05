@@ -4,6 +4,10 @@ This contributor document describes the current quality baseline. It should matc
 
 Primary docs are still the user and hardware docs under `userdocs/`, plus `docs/menu-and-controls-spec.md` for the canonical controls contract.
 
+## Project Scale
+
+Octessera is a hobbyist instrument project. Quality work should protect musical behavior, fixed-hardware correctness, user data, and practical build confidence without turning the repository into an enterprise release system. Prefer direct fixes and physical board tests over new provenance frameworks, policy layers, redundant artifact proofs, compliance machinery, or distribution hardening.
+
 ## Goals
 
 - Deterministic native behavior, interpretation, mapping, and runtime state transitions.
