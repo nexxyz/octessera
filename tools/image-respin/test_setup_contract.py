@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
@@ -16,6 +17,13 @@ from setup_contract import contract_for_board, load_contract, setup_source_paths
 
 ROOT = Path(__file__).resolve().parents[2]
 BOARDS = ("raspberry-pi-zero-2w", "orange-pi-zero-2w")
+ORANGE_UI_ROOT = "userpatches/overlay/usr/local/share/octessera-setup-ui/"
+ORANGE_UI_FILES = ("app.js", "index.html", "styles.css", "README.md", "octessera-mark.svg", "octessera-wordmark.svg")
+TRUSTED_FIXTURE_IDENTITIES = {
+    "tools/pi-image/fixtures/trusted-parent-v0.7.5/boot/config.txt": (1847, "1018cf257f0b22c1dde87770d0433d0e3e2f442461db33f847307d427642fd9e"),
+    "tools/pi-image/fixtures/trusted-parent-v0.7.5/boot/cmdline.txt": (154, "284c0fe29f0f60cff7e0b9c370756f083148a6274e8cb445dcc5294e0a88bcd4"),
+    "tools/pi-image/fixtures/trusted-parent-v0.7.5/root/boot/config.txt": (91, "c39b0866eec314a741f6cba65f10937b914408d6660d5a81f6b3a9ce81471010"),
+}
 
 
 class SetupContractTests(unittest.TestCase):
@@ -108,6 +116,47 @@ class SetupContractTests(unittest.TestCase):
             with self.subTest(board=board):
                 contract, _ = load_contract(contract_for_board(board))
                 validate_tracked_sources(contract, ROOT, strict=False)
+
+    def test_setup_source_rows_match_raw_bytes_and_clean_git_blobs(self) -> None:
+        for board in BOARDS:
+            with self.subTest(board=board):
+                contract, _ = load_contract(contract_for_board(board))
+                validate_sources(contract, ROOT)
+                for item in contract["source_inputs"]:
+                    path = ROOT / item["path"]
+                    raw = path.read_bytes()
+                    self.assertEqual(len(raw), item["size"], item["path"])
+                    self.assertEqual(hashlib.sha256(raw).hexdigest(), item["sha256"], item["path"])
+                    raw_blob = subprocess.check_output(["git", "hash-object", "--no-filters", item["path"]], cwd=ROOT, text=True).strip()
+                    clean_blob = subprocess.check_output(["git", "hash-object", f"--path={item['path']}", item["path"]], cwd=ROOT, text=True).strip()
+                    self.assertEqual(raw_blob, clean_blob, item["path"])
+                for entry in contract["entries"]:
+                    source = ROOT / contract["source_root"] / entry["source"]
+                    self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(), entry["sha256"], entry["source"])
+
+    def test_orange_setup_ui_has_the_exact_effective_lf_rule(self) -> None:
+        attributes = (ROOT / ".gitattributes").read_text(encoding="utf-8").splitlines()
+        contract, _ = load_contract(contract_for_board("orange-pi-zero-2w"))
+        paths = sorted(item["path"] for item in contract["source_inputs"] if item["path"].startswith(ORANGE_UI_ROOT))
+        expected_paths = sorted(f"{ORANGE_UI_ROOT}{name}" for name in ORANGE_UI_FILES)
+        expected_rules = {f"/{path} text eol=lf" for path in expected_paths}
+        self.assertEqual(paths, expected_paths)
+        self.assertTrue(expected_rules <= set(attributes))
+        self.assertNotIn(f"/{ORANGE_UI_ROOT}** text eol=lf", attributes)
+        output = subprocess.check_output(["git", "check-attr", "eol", "--", *paths], cwd=ROOT, text=True)
+        self.assertEqual(output.splitlines(), [f"{path}: eol: lf" for path in paths])
+
+    def test_trusted_parent_fixtures_have_exact_lf_attributes_and_hashes(self) -> None:
+        attributes = (ROOT / ".gitattributes").read_text(encoding="utf-8").splitlines()
+        paths = sorted(TRUSTED_FIXTURE_IDENTITIES)
+        expected_rules = {f"/{path} text eol=lf" for path in paths}
+        self.assertTrue(expected_rules <= set(attributes))
+        output = subprocess.check_output(["git", "check-attr", "eol", "--", *paths], cwd=ROOT, text=True)
+        self.assertEqual(output.splitlines(), [f"{path}: eol: lf" for path in paths])
+        for path, (size, expected_hash) in TRUSTED_FIXTURE_IDENTITIES.items():
+            raw = (ROOT / path).read_bytes()
+            self.assertEqual(len(raw), size, path)
+            self.assertEqual(hashlib.sha256(raw).hexdigest(), expected_hash, path)
 
 
 if __name__ == "__main__":

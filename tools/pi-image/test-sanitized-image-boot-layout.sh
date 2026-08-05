@@ -79,6 +79,12 @@ if [ "$(id -u)" -eq 0 ]; then
     printf '%s\n' 'console=tty1 root=/dev/mmcblk0p2' > "$fixture/root/boot/firmware/cmdline.txt"
     OCTESSERA_BOOT_LAYER_CLASSIFICATION=constructor-required
     require_octessera_raspberry_identity_for_boot_layer "$fixture/boot" "$fixture/root"
+    printf '%s\n' 'ambiguous constructor config' > "$fixture/root/boot/config.txt"
+    if require_octessera_raspberry_identity "$fixture/boot" "$fixture/root"; then
+        echo 'Constructor identity accepted an ambiguous config layout.' >&2
+        exit 1
+    fi
+    rm "$fixture/root/boot/config.txt"
 
     create_trusted_parent_fixture() {
         reset_fixture
@@ -89,10 +95,14 @@ if [ "$(id -u)" -eq 0 ]; then
             "$fixture/root/etc/systemd/system/getty.target.wants" \
             "$fixture/root/etc/systemd/system/multi-user.target.wants" \
             "$fixture/root/home/pi" \
+            "$fixture/root/boot/firmware" \
             "$fixture/root/usr/local/lib/octessera"
-        printf '%s\n' '# --- octessera additions ---' 'dtoverlay=disable-bt' 'enable_uart=0' > "$fixture/boot/config.txt"
+        cp "$script_dir/fixtures/trusted-parent-v0.7.5/boot/config.txt" "$fixture/boot/config.txt"
+        cp "$script_dir/fixtures/trusted-parent-v0.7.5/boot/cmdline.txt" "$fixture/boot/cmdline.txt"
+        cp "$script_dir/fixtures/trusted-parent-v0.7.5/root/boot/config.txt" "$fixture/root/boot/config.txt"
+        chmod 0755 "$fixture/boot/config.txt" "$fixture/boot/cmdline.txt"
+        chmod 0644 "$fixture/root/boot/config.txt"
         printf '%s\n' 'dtbo' > "$fixture/boot/octessera/overlays/i2s-dac-no20.dtbo"
-        printf '%s\n' 'console=tty1 console=serial0,115200 root=/dev/mmcblk0p2' > "$fixture/boot/cmdline.txt"
         cat > "$fixture/root/etc/systemd/system/octessera-boot-splash.service" <<'EOF'
 [Unit]
 Description=legacy boot splash
@@ -178,6 +188,49 @@ EOF
     create_trusted_parent_fixture
     ln -s ../hciuart.service "$fixture/root/etc/systemd/system/multi-user.target.wants/hciuart.service"
     expect_trusted_parent_rejected mixed-current-bluetooth-enablement
+
+    create_trusted_parent_fixture
+    rm "$fixture/root/boot/config.txt"
+    expect_trusted_parent_rejected missing-rootfs-legacy-config
+
+    create_trusted_parent_fixture
+    printf '%s\n' 'tampered' > "$fixture/root/boot/config.txt"
+    expect_trusted_parent_rejected tampered-rootfs-legacy-config
+
+    create_trusted_parent_fixture
+    rm "$fixture/root/boot/config.txt"
+    ln -s /etc/hostname "$fixture/root/boot/config.txt"
+    expect_trusted_parent_rejected symlinked-rootfs-legacy-config
+
+    create_trusted_parent_fixture
+    chmod 0600 "$fixture/root/boot/config.txt"
+    expect_trusted_parent_rejected wrong-rootfs-legacy-config-metadata
+
+    create_trusted_parent_fixture
+    printf '%s\n' 'firmware config' > "$fixture/root/boot/firmware/config.txt"
+    expect_trusted_parent_rejected present-firmware-config
+
+    create_trusted_parent_fixture
+    printf '%s\n' 'tampered' >> "$fixture/boot/config.txt"
+    expect_trusted_parent_rejected tampered-selected-boot-config
+
+    create_trusted_parent_fixture
+    rm "$fixture/boot/config.txt"
+    ln -s "$script_dir/fixtures/trusted-parent-v0.7.5/boot/config.txt" "$fixture/boot/config.txt"
+    expect_trusted_parent_rejected symlinked-selected-boot-config
+
+    create_trusted_parent_fixture
+    printf '%s\n' 'console=serial0,115200 console=tty1 root=PARTUUID=wrong' > "$fixture/boot/cmdline.txt"
+    expect_trusted_parent_rejected tampered-selected-cmdline
+
+    create_trusted_parent_fixture
+    chmod 0644 "$fixture/boot/cmdline.txt"
+    expect_trusted_parent_rejected wrong-selected-cmdline-metadata
+
+    create_trusted_parent_fixture
+    rm "$fixture/boot/cmdline.txt"
+    ln -s "$script_dir/fixtures/trusted-parent-v0.7.5/boot/cmdline.txt" "$fixture/boot/cmdline.txt"
+    expect_trusted_parent_rejected symlinked-selected-cmdline
 fi
 
 reset_fixture
