@@ -12,7 +12,7 @@
   "protected_scopes": [
     {"name": "boot-tree", "prefix": "boot", "kind": "recursive"},
     {"name": "initramfs-tools-tree", "prefix": "etc/initramfs-tools", "kind": "recursive"},
-    {"name": "kernel-modules-tree", "prefix": "lib/modules/6.18.38-current-sunxi64", "kind": "recursive"},
+    {"name": "kernel-modules-tree", "prefix": "usr/lib/modules/6.18.38-current-sunxi64", "kind": "recursive"},
     {"name": "linux-image-tree", "prefix": "usr/lib/linux-image-6.18.38-current-sunxi64", "kind": "recursive"},
     {"name": "udev-rules-tree", "prefix": "etc/udev/rules.d", "kind": "recursive"}
   ],
@@ -22,15 +22,16 @@
     "boot/uInitrd",
     "boot/initrd.img-6.18.38-current-sunxi64",
     "boot/config-6.18.38-current-sunxi64",
+    "lib",
     "usr/lib/linux-image-6.18.38-current-sunxi64/Image",
     "usr/lib/linux-image-6.18.38-current-sunxi64/allwinner/sun50i-h618-orangepi-zero2w.dtb",
-    "lib/modules/6.18.38-current-sunxi64/modules.dep",
+    "usr/lib/modules/6.18.38-current-sunxi64/modules.dep",
     "etc/systemd/system/octessera-orange-boot-splash.service",
     "etc/systemd/system/octessera-orange-oled-shutdown.service",
     "etc/systemd/system/octessera.service",
     "etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service",
     "etc/systemd/system/multi-user.target.wants/octessera.service",
-    "lib/systemd/system-sleep/octessera-orange-oled",
+    "usr/lib/systemd/system-sleep/octessera-orange-oled",
     "usr/local/sbin/octessera-orange-oled-logo",
     "usr/share/octessera/oled/octessera-mark.svg",
     "usr/share/octessera/oled/octessera-wordmark.svg"

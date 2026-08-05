@@ -95,8 +95,11 @@ def load_policy(repository_root: Path, path: Path | None = None) -> BootNeutralP
     scopes = top["protected_scopes"]
     _require(bool(isinstance(scopes, list) and scopes and all(isinstance(item, dict) and set(item) == {"name", "prefix", "kind"} for item in scopes)), "Orange protected scopes are not exact")
     _require(bool(len({item["name"] for item in scopes}) == len(scopes) and all(item["kind"] == "recursive" and isinstance(item["prefix"], str) and item["prefix"] and not item["prefix"].startswith("/") and "\\" not in item["prefix"] and ".." not in PurePosixPath(item["prefix"]).parts for item in scopes)), "Orange protected scope prefixes are not exact")
+    module_scopes = [item for item in scopes if item["name"] == "kernel-modules-tree"]
+    _require(module_scopes == [{"name": "kernel-modules-tree", "prefix": "usr/lib/modules/6.18.38-current-sunxi64", "kind": "recursive"}], "Orange merged-/usr module scope is not canonical")
     paths = top["protected_paths"]
     _require(isinstance(paths, list) and len(paths) == len(set(paths)) and all(isinstance(item, str) and item and not item.startswith("/") and "\\" not in item and ".." not in PurePosixPath(item).parts for item in paths), "Orange protected paths are not exact")
+    _require({"lib", "usr/lib/modules/6.18.38-current-sunxi64/modules.dep", "usr/lib/systemd/system-sleep/octessera-orange-oled"} <= set(paths) and "lib/modules/6.18.38-current-sunxi64/modules.dep" not in paths and "lib/systemd/system-sleep/octessera-orange-oled" not in paths, "Orange merged-/usr protected paths are not canonical")
     absent = top["expected_absent_paths"]
     _require(bool(isinstance(absent, list) and len(absent) == len(set(absent)) and all(isinstance(item, str) and item and not item.startswith("/") and "\\" not in item and ".." not in PurePosixPath(item).parts for item in absent)), "Orange expected-absent paths are not exact")
     release = _exact(top["parent_release"], {"repository", "tag", "url", "published_at", "source_commit", "asset_count", "is_draft", "is_prerelease"}, "Orange parent release")

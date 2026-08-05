@@ -81,7 +81,9 @@ def _fixture(board: str, work: Path) -> Path:
         _write(root / f"boot/config-{policy.contract['selected_boot']['kernel_release']}", b"config")
         _write(root / f"usr/lib/linux-image-{policy.contract['selected_boot']['kernel_release']}/Image", b"kernel")
         _write(root / f"usr/lib/linux-image-{policy.contract['selected_boot']['kernel_release']}/allwinner/{policy.contract['selected_boot']['dtb_name']}", b"dtb")
-        _write(root / f"lib/modules/{policy.contract['selected_boot']['kernel_release']}/modules.dep", b"modules")
+        _write(root / f"usr/lib/modules/{policy.contract['selected_boot']['kernel_release']}/modules.dep", b"modules")
+        _write(root / "usr/lib/systemd/system-sleep/octessera-orange-oled", b"sleep-hook")
+        (root / "lib").symlink_to("usr/lib")
         for relative in policy.contract["protected_paths"]:
             path = root / relative
             if path.exists() or path.is_symlink():

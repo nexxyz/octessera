@@ -21,9 +21,11 @@ from post_proof_record import (
 )
 from requested_build_record import (
     PROOF_PACKAGES,
+    SETUP_TOOL_FILES,
     build_record as build_requested_record,
     validate_record as validate_requested_record,
 )
+from setup_contract import contract_for_board, load_contract
 from workflow_record_common import RecordError as WorkflowRecordError, identity
 from disk_layout import DiskLayout
 from disk_packaging import compression_identity
@@ -68,6 +70,40 @@ def requested(board: str) -> dict:
         base_image_id="sha256:" + "c" * 64,
         base_repo_digests=["rust@sha256:" + "b" * 64],
         proof_packages={name: "1.0.0" for name in PROOF_PACKAGES},
+    )
+
+
+def setup_inputs(board: str) -> tuple[Path, list[Path]]:
+    contract_path = contract_for_board(board)
+    contract, _ = load_contract(contract_path)
+    inputs = [ROOT / item["path"] for item in contract["source_inputs"]]
+    inputs.extend([contract_path, *(ROOT / path for path in SETUP_TOOL_FILES)])
+    return contract_path, inputs
+
+
+def requested_setup(board: str, input_files: list[Path] | None = None) -> dict:
+    contract_path, expected_inputs = setup_inputs(board)
+    return build_requested_record(
+        root=ROOT,
+        source_sha="a" * 40,
+        version="0.7.6",
+        board=board,
+        feature_command=f"cross build --release --features hardware-{board}",
+        input_files=INPUTS,
+        trust_manifest=MANIFEST,
+        rustc_vv="rustc 1.90.0\nhost: x86_64-unknown-linux-gnu\n",
+        cargo_version="cargo 1.90.0",
+        cross_version="cross 0.2.5",
+        container_rustc_vv="rustc 1.90.0 container",
+        container_cargo_version="cargo 1.90.0 container",
+        cross_image_id="sha256:" + "a" * 64,
+        cross_repo_digests=[],
+        base_image_id="sha256:" + "c" * 64,
+        base_repo_digests=["rust@sha256:" + "b" * 64],
+        proof_packages={name: "1.0.0" for name in PROOF_PACKAGES},
+        setup_layer="setup-portal",
+        setup_contract=contract_path,
+        setup_input_files=expected_inputs if input_files is None else input_files,
     )
 
 
@@ -122,6 +158,27 @@ def write_respin_provenance(path: Path, board: str, version: str, context: dict,
 
 
 class WorkflowRecordTests(unittest.TestCase):
+    def test_setup_requested_records_cover_both_boards_and_exact_inputs(self) -> None:
+        for board in ("orange-pi-zero-2w", "raspberry-pi-zero-2w"):
+            with self.subTest(board=board):
+                contract_path, input_files = setup_inputs(board)
+                record = requested_setup(board)
+                validate_requested_record(record, ROOT)
+                self.assertEqual(record["setup"]["contract"]["path"], contract_path.relative_to(ROOT).as_posix())
+                missing_contract = [path for path in input_files if path != contract_path]
+                with self.assertRaisesRegex(WorkflowRecordError, "missing=.*resources/image-mutations"):
+                    requested_setup(board, missing_contract)
+                with self.assertRaisesRegex(WorkflowRecordError, "duplicates=.*resources/image-mutations"):
+                    requested_setup(board, [*input_files, contract_path])
+                missing_record = copy.deepcopy(record)
+                missing_record["setup"]["inputs"].pop()
+                with self.assertRaisesRegex(WorkflowRecordError, "requested setup inputs mismatch: missing="):
+                    validate_requested_record(missing_record, ROOT)
+                duplicate_record = copy.deepcopy(record)
+                duplicate_record["setup"]["inputs"].append(copy.deepcopy(duplicate_record["setup"]["inputs"][0]))
+                with self.assertRaisesRegex(WorkflowRecordError, r"requested setup inputs mismatch: missing=\[\]; extra=\[\]; duplicates="):
+                    validate_requested_record(duplicate_record, ROOT)
+
     def test_requested_record_is_deterministic_and_validates_required_identities(self) -> None:
         first = requested("orange-pi-zero-2w")
         second = requested("orange-pi-zero-2w")
