@@ -73,6 +73,7 @@ class SetupWorkflowRecordTests(unittest.TestCase):
         self.assertEqual(SETUP_PROOF_TOOLS["orange-pi-zero-2w"], ORANGE_TOOLS)
         self.assertEqual(SETUP_PROOF_TOOLS["raspberry-pi-zero-2w"], RPI_TOOLS)
         self.assertIn("tools/pi-image/rpi_initramfs_proof.py", RPI_TOOLS)
+        self.assertIn("tools/pi-image/verify-trusted-parent-v0.7.5.sh", RPI_TOOLS)
         self.assertIn("resources/image-construction/boot-layers/raspberry-pi-zero-2w.json", RPI_TOOLS)
         tools = [identity(ROOT / path, ROOT) for path in SETUP_PROOF_TOOLS[BOARD]]
         _validate_setup_proof_tools(tools, ROOT, BOARD)

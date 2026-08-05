@@ -290,7 +290,7 @@ jobs:
           bash tools/armbian-image/validate.sh
           bash tools/armbian-image/test-build-armbian-action.sh
           python3 tools/kernel-patches/test-orange-midi-interface-source-gate.py
-          shellcheck tools/orange-pi/opi-bringup-probe.sh tools/orange-pi/test-opi-bringup-probe.sh tools/orange-pi/opi-bringup-validator.sh tools/orange-pi/opi-bringup-identity-validator.sh tools/orange-pi/opi-bringup-hardware-validator.sh tools/orange-pi/orange-pi-usb-gadget.sh tools/orange-pi/input-routing-provision.sh tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget tools/pi-image/test-usb-gadget.sh tools/pi-image/stage4-octessera/02-setup-service/00-run.sh tools/pi-image/stage4-octessera/03-boot-config/00-run.sh tools/pi/provision/provision.sh tools/pi-image/verify-boot-layout.sh tools/armbian-image/stage-canonical-welcome.sh
+          shellcheck tools/orange-pi/opi-bringup-probe.sh tools/orange-pi/test-opi-bringup-probe.sh tools/orange-pi/opi-bringup-validator.sh tools/orange-pi/opi-bringup-identity-validator.sh tools/orange-pi/opi-bringup-hardware-validator.sh tools/orange-pi/orange-pi-usb-gadget.sh tools/orange-pi/input-routing-provision.sh tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget tools/pi-image/test-usb-gadget.sh tools/pi-image/stage4-octessera/02-setup-service/00-run.sh tools/pi-image/stage4-octessera/03-boot-config/00-run.sh tools/pi/provision/provision.sh tools/pi-image/verify-boot-layout.sh tools/pi-image/verify-trusted-parent-v0.7.5.sh tools/armbian-image/stage-canonical-welcome.sh
           bash tools/orange-pi/test-opi-bringup-probe.sh
           bash tools/orange-pi/test-orange-pi-usb-gadget.sh
           bash tools/pi-image/test-usb-gadget.sh

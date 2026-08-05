@@ -18,6 +18,16 @@ class RespinWorkflowStaticTests(unittest.TestCase):
         cls.text = WORKFLOW.read_text(encoding="utf-8")
         cls.ci_text = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
 
+    def test_raspberry_trusted_parent_policy_is_sourced_and_hash_bound(self) -> None:
+        verifier = (ROOT / "tools/pi-image/verify-boot-layout.sh").read_text(encoding="utf-8")
+        policy = (ROOT / "tools/pi-image/verify-trusted-parent-v0.7.5.sh").read_text(encoding="utf-8")
+        self.assertIn('source "$REPOSITORY_ROOT/tools/pi-image/verify-trusted-parent-v0.7.5.sh"', verifier)
+        self.assertNotIn("require_octessera_trusted_parent_boot_layout() {", verifier)
+        self.assertNotIn("require_octessera_trusted_parent_raspberry_identity() {", verifier)
+        self.assertNotIn("fixtures/", verifier + policy)
+        for function in ("require_octessera_trusted_parent_boot_layout", "require_octessera_trusted_parent_file_identity", "require_octessera_trusted_parent_raspberry_identity"):
+            self.assertIn(f"{function}() {{", policy)
+
     def test_manual_only_board_choice_and_read_permission(self) -> None:
         self.assertIn("on:\n  workflow_dispatch:", self.text)
         self.assertNotRegex(self.text, r"^\s+(push|pull_request|schedule):", re.MULTILINE)
@@ -164,6 +174,7 @@ class RespinWorkflowStaticTests(unittest.TestCase):
         for name in ("install-rpi-kernel.py", "rpi_kernel_contract.py", "rpi_kernel_image.py", "raspi_firmware_hook_mask.py"):
             self.assertIn(f"stage3-octessera-kernel/files/root/usr/local/lib/octessera/{name}", "\n".join(__import__("post_proof_record").RPI_TOOLS))
         self.assertIn("tools/pi-image/rpi_initramfs_proof.py", "\n".join(__import__("post_proof_record").RPI_TOOLS))
+        self.assertIn("tools/pi-image/verify-trusted-parent-v0.7.5.sh", "\n".join(__import__("post_proof_record").RPI_TOOLS))
         self.assertIn("resources/image-construction/boot-layers/raspberry-pi-zero-2w.json", "\n".join(__import__("post_proof_record").RPI_TOOLS))
 
     def test_setup_layer_is_opt_in_and_separate_from_runtime_only(self) -> None:
@@ -183,6 +194,7 @@ class RespinWorkflowStaticTests(unittest.TestCase):
     def test_ci_keeps_privileged_disk_tests_separate_from_nonroot_checks(self) -> None:
         self.assertIn("apt-get install -y --no-install-recommends cpio", self.ci_text)
         self.assertIn("shellcheck", self.ci_text)
+        self.assertIn("tools/pi-image/verify-trusted-parent-v0.7.5.sh", self.ci_text)
         self.assertIn("zstd", self.ci_text)
         self.assertIn("go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7", self.ci_text)
         self.assertIn('actionlint" -shellcheck shellcheck .github/workflows/respin-board-image.yml .github/workflows/ci.yml', self.ci_text)

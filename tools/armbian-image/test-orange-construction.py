@@ -7,7 +7,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 CONTRACT_PATH = ROOT / "resources/image-construction/boot-layers/orange-pi-zero-2w.json"
+SETUP_CONTRACT_PATH = ROOT / "resources/image-mutations/orange-pi-zero-2w-setup.json"
 contract = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
+setup_contract = json.loads(SETUP_CONTRACT_PATH.read_text(encoding="utf-8"))
 
 
 def exact(value, keys):
@@ -32,6 +34,14 @@ for item in contract["exact_inputs"]:
     assert hashlib.sha256(source.read_bytes()).hexdigest() == item["sha256"], source
     assert source.stat().st_size == item["size"], source
     assert item["mode"] in {420, 493}
+
+construction_inputs = {item["path"]: item for item in contract["exact_inputs"]}
+setup_inputs = {item["path"]: item for item in setup_contract["source_inputs"]}
+overlap = sorted(set(construction_inputs) & set(setup_inputs))
+assert overlap
+for path in overlap:
+    assert construction_inputs[path]["sha256"] == setup_inputs[path]["sha256"], path
+    assert construction_inputs[path]["size"] == setup_inputs[path]["size"], path
 
 for item in contract["managed_outputs"]:
     if item["path"] == "home/octessera/.hushlogin":
