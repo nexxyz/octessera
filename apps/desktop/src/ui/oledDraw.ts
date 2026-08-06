@@ -8,10 +8,10 @@ import {
   BLUE_COLOR,
   WHITE_COLOR,
   GREEN_COLOR,
-  type DisplayPaletteRgb
-} from "@octessera/device-contracts";
-import { rgb565ToCss } from "./oledImage";
-import type { SemanticOledState } from "./OledDisplay";
+  type DisplayPaletteRgb,
+} from '@octessera/device-contracts';
+import { rgb565ToCss } from './oledImage';
+import type { SemanticOledState } from './OledDisplay';
 
 export function drawSemanticOled(
   ctx: CanvasRenderingContext2D,
@@ -26,23 +26,38 @@ export function drawSemanticOled(
   if (semantic.displayOff) return;
 
   if (semantic.splashText) {
-    drawSplash(ctx, semantic.splashText, semantic.visibleFooterToast, regularSplashImage, sepiaSplashImage);
+    drawSplash(
+      ctx,
+      semantic.splashText,
+      semantic.visibleFooterToast,
+      regularSplashImage,
+      sepiaSplashImage,
+    );
     return;
   }
 
   drawBackground(ctx);
-  ctx.font = "8px monospace";
-  ctx.textBaseline = "top";
+  ctx.font = '8px monospace';
+  ctx.textBaseline = 'top';
 
   ctx.fillStyle = css(WHITE_COLOR);
   ctx.fillText(semantic.title, 5, 5, 94);
 
-  ctx.fillStyle = semantic.cpuLoad >= 0.85 ? css(RED_COLOR) : semantic.cpuLoad >= 0.6 ? css(YELLOW_COLOR) : css(GRAY_COLOR);
-  ctx.fillText("C", 117, 5);
+  ctx.fillStyle =
+    semantic.cpuLoad >= 0.85
+      ? css(RED_COLOR)
+      : semantic.cpuLoad >= 0.6
+        ? css(YELLOW_COLOR)
+        : css(GRAY_COLOR);
+  ctx.fillText('C', 117, 5);
 
   semantic.lines.forEach((line, index) => {
     const y = 18 + index * 13;
-    const color = rgb565ToCss(typeof semantic.lineColors[index] === "number" ? semantic.lineColors[index]! : 0xffff);
+    const color = rgb565ToCss(
+      typeof semantic.lineColors[index] === 'number'
+        ? semantic.lineColors[index]!
+        : 0xffff,
+    );
     const selected = index === semantic.selectedRow;
     const bar = barValue(semantic.barValues[index]);
     if (selected) {
@@ -51,14 +66,21 @@ export function drawSemanticOled(
     }
     if (bar) drawBar(ctx, y, Number(bar.frac ?? 0), color, selected, bar.style);
     ctx.fillStyle = selected ? css(BLACK_COLOR) : color;
-    ctx.fillText(clipText(line || " ", bar ? 13 : 19), line.startsWith("  ") ? 4 : 6, y);
+    ctx.fillText(
+      clipText(line || ' ', bar ? 13 : 19),
+      line.startsWith('  ') ? 4 : 6,
+      y,
+    );
   });
   if (semantic.scroll) drawScrollbar(ctx, semantic.scroll);
 
   drawFooter(ctx, semantic);
 }
 
-function drawFooter(ctx: CanvasRenderingContext2D, semantic: SemanticOledState): void {
+function drawFooter(
+  ctx: CanvasRenderingContext2D,
+  semantic: SemanticOledState,
+): void {
   const footerY = 117;
   if (semantic.visibleFooterToast) {
     ctx.fillStyle = css(WHITE_COLOR);
@@ -67,7 +89,7 @@ function drawFooter(ctx: CanvasRenderingContext2D, semantic: SemanticOledState):
   }
 
   ctx.fillStyle = css(BLACK_COLOR);
-  ctx.fillText(" ", 5, footerY, 90);
+  ctx.fillText(' ', 5, footerY, 90);
 
   ctx.fillStyle = transportColor(semantic);
   drawTransportIcon(ctx, semantic.transportIcon, 101, footerY + 1);
@@ -79,15 +101,25 @@ function drawFooter(ctx: CanvasRenderingContext2D, semantic: SemanticOledState):
   }
 }
 
-function drawScrollbar(ctx: CanvasRenderingContext2D, scroll: { offset: number; totalRows: number; visibleRows: number }): void {
+function drawScrollbar(
+  ctx: CanvasRenderingContext2D,
+  scroll: { offset: number; totalRows: number; visibleRows: number },
+): void {
   const bodyTop = 18;
   const bodyHeight = 7 * 13 - 3;
   const width = 2;
   const x = OLED_WIDTH - width - 1;
-  const thumbHeight = Math.max(6, Math.round((scroll.visibleRows / scroll.totalRows) * bodyHeight));
+  const thumbHeight = Math.max(
+    6,
+    Math.round((scroll.visibleRows / scroll.totalRows) * bodyHeight),
+  );
   const maxOffset = Math.max(1, scroll.totalRows - scroll.visibleRows);
   const maxThumbY = bodyTop + bodyHeight - thumbHeight;
-  const y = bodyTop + Math.round((Math.min(scroll.offset, maxOffset) / maxOffset) * (maxThumbY - bodyTop));
+  const y =
+    bodyTop +
+    Math.round(
+      (Math.min(scroll.offset, maxOffset) / maxOffset) * (maxThumbY - bodyTop),
+    );
   ctx.fillStyle = rgba(GRAY_COLOR, 0.28);
   ctx.fillRect(x, bodyTop, width, bodyHeight);
   ctx.fillStyle = css(GRAY_COLOR);
@@ -122,25 +154,32 @@ function drawBar(
   ctx.fillRect(x, outerY, outerWidth, outerHeight);
   ctx.fillStyle = track;
   ctx.fillRect(innerX, innerY, innerWidth, innerHeight);
-  if (style === "marker") {
+  if (style === 'marker') {
     const markerX = innerX + Math.round(clampedFrac * (innerWidth - 1));
     ctx.fillStyle = color;
     ctx.fillRect(markerX, innerY + 1, 1, innerHeight - 2);
     return;
   }
   ctx.fillStyle = color;
-  ctx.fillRect(innerX, innerY, Math.round(clampedFrac * innerWidth), innerHeight);
+  ctx.fillRect(
+    innerX,
+    innerY,
+    Math.round(clampedFrac * innerWidth),
+    innerHeight,
+  );
 }
 
 function barValue(value: unknown): { frac?: number; style?: string } | null {
-  return value && typeof value === "object" ? value as { frac?: number; style?: string } : null;
+  return value && typeof value === 'object'
+    ? (value as { frac?: number; style?: string })
+    : null;
 }
 
 function transportColor(semantic: SemanticOledState): string {
-  if (semantic.transportIcon === "stop") return css(RED_COLOR);
-  if (semantic.transportIcon === "pause") return css(BLUE_COLOR);
-  if (semantic.transportFlash === "measure") return css(GREEN_COLOR);
-  if (semantic.transportFlash === "beat") return css(YELLOW_COLOR);
+  if (semantic.transportIcon === 'stop') return css(RED_COLOR);
+  if (semantic.transportIcon === 'pause') return css(BLUE_COLOR);
+  if (semantic.transportFlash === 'measure') return css(GREEN_COLOR);
+  if (semantic.transportFlash === 'beat') return css(YELLOW_COLOR);
   return css(WHITE_COLOR);
 }
 
@@ -151,15 +190,15 @@ function drawSplash(
   regularSplashImage: HTMLImageElement | null,
   sepiaSplashImage: HTMLImageElement | null,
 ): void {
-  const sepia = splashText === "sleep" || splashText === "shutdown";
+  const sepia = splashText === 'sleep' || splashText === 'shutdown';
   ctx.fillStyle = css(BLACK_COLOR);
   ctx.fillRect(0, 0, OLED_WIDTH, OLED_HEIGHT);
   const logo = sepia ? sepiaSplashImage : regularSplashImage;
   if (logo) {
     ctx.drawImage(logo, 0, 0, OLED_WIDTH, OLED_HEIGHT);
   }
-  ctx.font = "8px monospace";
-  ctx.textBaseline = "top";
+  ctx.font = '8px monospace';
+  ctx.textBaseline = 'top';
   if (toast) {
     ctx.fillStyle = rgba(BLACK_COLOR, 0.72);
     ctx.fillRect(10, 104, 108, 14);
@@ -182,11 +221,16 @@ function rgbaString(cssColor: string, alpha: number): string {
 }
 
 function clipText(text: string, maxChars: number): string {
-  return Array.from(text).slice(0, maxChars).join("");
+  return Array.from(text).slice(0, maxChars).join('');
 }
 
-function drawTransportIcon(ctx: CanvasRenderingContext2D, icon: string, x: number, y: number): void {
-  if (icon === "play") {
+function drawTransportIcon(
+  ctx: CanvasRenderingContext2D,
+  icon: string,
+  x: number,
+  y: number,
+): void {
+  if (icon === 'play') {
     ctx.beginPath();
     ctx.moveTo(x, y - 1);
     ctx.lineTo(x, y + 9);
@@ -195,7 +239,7 @@ function drawTransportIcon(ctx: CanvasRenderingContext2D, icon: string, x: numbe
     ctx.fill();
     return;
   }
-  if (icon === "stop") {
+  if (icon === 'stop') {
     ctx.fillRect(x, y, 8, 8);
     return;
   }

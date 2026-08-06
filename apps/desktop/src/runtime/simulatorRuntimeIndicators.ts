@@ -1,34 +1,43 @@
-import type { RuntimeRunnerMessage } from "@octessera/device-contracts";
-import type { TransientIndicatorState } from "./simulatorSnapshot";
+import type { RuntimeRunnerMessage } from '@octessera/device-contracts';
+import type { TransientIndicatorState } from './simulatorSnapshot';
 
 export type IndicatorTimer = ReturnType<typeof setTimeout> | null;
 
 export function createTransientIndicators(): TransientIndicatorState {
-  return { eventDotUntilMs: 0, transportFlashUntilMs: 0, transportFlash: "none" };
+  return {
+    eventDotUntilMs: 0,
+    transportFlashUntilMs: 0,
+    transportFlash: 'none',
+  };
 }
 
-export function resetTransientIndicators(indicators: TransientIndicatorState): void {
+export function resetTransientIndicators(
+  indicators: TransientIndicatorState,
+): void {
   indicators.eventDotUntilMs = 0;
   indicators.transportFlashUntilMs = 0;
-  indicators.transportFlash = "none";
+  indicators.transportFlash = 'none';
 }
 
 export function applyTransientIndicatorPulse(
-  pulse: Extract<RuntimeRunnerMessage, { type: "ui_pulse" }>["pulse"],
+  pulse: Extract<RuntimeRunnerMessage, { type: 'ui_pulse' }>['pulse'],
   indicators: TransientIndicatorState,
   previousTimer: IndicatorTimer,
   publishSnapshot: () => void,
   expireSnapshot: () => void,
 ): IndicatorTimer {
   const now = performance.now();
-  if (pulse.type === "trigger_pulse") {
+  if (pulse.type === 'trigger_pulse') {
     indicators.eventDotUntilMs = now + pulse.durationMs;
-  } else if (pulse.type === "transport_flash") {
+  } else if (pulse.type === 'transport_flash') {
     indicators.transportFlash = pulse.flash;
     indicators.transportFlashUntilMs = now + pulse.durationMs;
   }
   if (previousTimer !== null) clearTimeout(previousTimer);
   publishSnapshot();
-  const nextUntil = Math.max(indicators.eventDotUntilMs, indicators.transportFlashUntilMs);
+  const nextUntil = Math.max(
+    indicators.eventDotUntilMs,
+    indicators.transportFlashUntilMs,
+  );
   return setTimeout(expireSnapshot, Math.max(0, nextUntil - now) + 5);
 }

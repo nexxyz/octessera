@@ -1,4 +1,4 @@
-import type { OledFrame } from "@octessera/device-contracts";
+import type { OledFrame } from '@octessera/device-contracts';
 
 export function rgb565ToCss(value: number): string {
   const r5 = (value >> 11) & 0x1f;
@@ -10,8 +10,10 @@ export function rgb565ToCss(value: number): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-export function toOledImage(oledFrame: OledFrame | undefined): ImageData | null {
-  if (!oledFrame || oledFrame.format !== "rgb565be") return null;
+export function toOledImage(
+  oledFrame: OledFrame | undefined,
+): ImageData | null {
+  if (!oledFrame || oledFrame.format !== 'rgb565be') return null;
   const w = oledFrame.width;
   const h = oledFrame.height;
   const data = new Uint8ClampedArray(w * h * 4);

@@ -277,12 +277,11 @@ def _main() -> int:
             image / "etc/systemd/system/octessera-boot-splash.service",
             image / "etc/systemd/system/octessera.service",
             image / "etc/profile.d/octessera-welcome.sh",
-            image / "usr/local/lib/octessera/rpi_uart_release.py",
         ):
             source = HERE / "stage4-octessera/files/root" / path.relative_to(image)
             path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, path)
-            os.chmod(path, 0o755 if "initramfs" in str(path) or path.name == "rpi_uart_release.py" else 0o644)
+            os.chmod(path, 0o755 if "initramfs" in str(path) else 0o644)
         hushlogin = image / "home/pi/.hushlogin"
         hushlogin.parent.mkdir(parents=True, exist_ok=True)
         hushlogin.write_bytes(b"")

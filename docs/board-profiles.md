@@ -37,8 +37,10 @@ initramfs outputs still require a new constructor image and physical
 qualification on both boards.
 
 Both constructors also stage the same interactive terminal welcome without
-changing PAM or update-motd. Raspberry releases the serial console and masks
-its getty units in the selected boot layout; Orange keeps its UART0 release in
+changing PAM or update-motd. Raspberry declares its UART inactive in the
+selected boot layout (`enable_uart=0`, no serial-console kernel token, and
+masked serial-getty units). This is an image safety state, not a post-boot
+UART release utility or ownership handoff. Orange keeps its UART0 release in
 the reviewed input-routing path.
 
 The board-specific HALs own their physical pin and device descriptors. The Raspberry

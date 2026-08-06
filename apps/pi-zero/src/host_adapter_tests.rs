@@ -111,7 +111,7 @@ fn permissions(mode: u32) -> std::fs::Permissions {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        return std::fs::Permissions::from_mode(mode);
+        std::fs::Permissions::from_mode(mode)
     }
     #[cfg(windows)]
     {

@@ -20,7 +20,7 @@ def package_notice_zip(repository_root: Path, output: Path) -> None:
     manifest = load_manifest(manifest_path)
     with tempfile.TemporaryDirectory(prefix="octessera-notice-zip-") as temporary:
         staged = Path(temporary) / "staged"
-        stage_notices(repository_root, staged)
+        stage_notices(repository_root, staged, ownership="filesystem")
         legal_root = staged / "usr/share/doc/octessera"
         package_root = Path(temporary) / "package"
         (package_root / "legal").mkdir(parents=True)

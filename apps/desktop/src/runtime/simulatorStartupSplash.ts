@@ -1,4 +1,7 @@
-import type { RuntimeHostMessage, RuntimeSnapshot } from "@octessera/device-contracts";
+import type {
+  RuntimeHostMessage,
+  RuntimeSnapshot,
+} from '@octessera/device-contracts';
 
 export type StartupSplashTimer = ReturnType<typeof setTimeout> | null;
 
@@ -8,8 +11,8 @@ export function scheduleStartupSplashRefresh(
   mirrorRuntimeMessage: (message: RuntimeHostMessage) => void,
   clearTimer: () => void,
 ): StartupSplashTimer {
-  const splash = String(snapshot.display.splash ?? "");
-  if (splash !== "startup") {
+  const splash = String(snapshot.display.splash ?? '');
+  if (splash !== 'startup') {
     if (timer !== null) clearTimeout(timer);
     return null;
   }
@@ -17,9 +20,9 @@ export function scheduleStartupSplashRefresh(
   return setTimeout(() => {
     clearTimer();
     mirrorRuntimeMessage({
-      type: "transport_pulse_step",
+      type: 'transport_pulse_step',
       pulses: 0,
-      source: "internal",
+      source: 'internal',
       requestSnapshot: true,
     });
   }, 1600);

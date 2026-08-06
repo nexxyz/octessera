@@ -7,9 +7,7 @@ set -e
 SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)"
 REPOSITORY_ROOT="$(CDPATH='' cd -- "$SCRIPT_DIR/../.." && pwd)"
 WELCOME_SOURCE="$REPOSITORY_ROOT/tools/pi-image/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh"
-UART_SOURCE="$REPOSITORY_ROOT/tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/rpi_uart_release.py"
 test -f "$WELCOME_SOURCE" && test ! -L "$WELCOME_SOURCE"
-test -f "$UART_SOURCE" && test ! -L "$UART_SOURCE"
 
 BOARD_PROFILE="${OCTESSERA_BOARD_PROFILE:-raspberry-pi-zero-2w}"
 if [ "$BOARD_PROFILE" = orange-pi-zero-2w ]; then
@@ -54,6 +52,13 @@ BOOT_CONFIG="/boot/firmware/config.txt"
 if [ ! -f "$BOOT_CONFIG" ]; then
     BOOT_CONFIG="/boot/config.txt"
 fi
+CMDLINE="/boot/firmware/cmdline.txt"
+if [ ! -f "$CMDLINE" ]; then
+    CMDLINE="/boot/cmdline.txt"
+fi
+test -f "$BOOT_CONFIG" && test -f "$CMDLINE"
+BOOT_STATE_BEFORE=$(sha256sum "$BOOT_CONFIG" "$CMDLINE")
+sudo systemctl stop octessera.service >/dev/null 2>&1 || true
 
 ensure_boot_config_line() {
     local line="$1"
@@ -62,7 +67,27 @@ ensure_boot_config_line() {
     fi
 }
 
+ensure_raspberry_uart_inactive() {
+    sudo sed -i -E '/^[[:space:]]*(dtoverlay=disable-bt|enable_uart=)/d' "$BOOT_CONFIG"
+    ensure_boot_config_line "dtoverlay=disable-bt"
+    ensure_boot_config_line "enable_uart=0"
+    while grep -Eq '(^|[[:space:]])console=(serial0|ttyAMA0|ttyS0)(,[^[:space:]]+)?([[:space:]]|$)' "$CMDLINE"; do
+        sudo sed -i -E 's/(^|[[:space:]])console=(serial0|ttyAMA0|ttyS0)(,[^[:space:]]+)?([[:space:]]|$)/\1\4/' "$CMDLINE"
+    done
+    if grep -Eq '(^|[[:space:]])console=(serial0|ttyAMA0|ttyS0)(,[^[:space:]]+)?([[:space:]]|$)' "$CMDLINE"; then
+        echo "Serial console token remains in the Raspberry Pi kernel command line." >&2
+        exit 1
+    fi
+    for unit in serial-getty@ttyAMA0.service serial-getty@ttyS0.service serial-getty@serial0.service bluetooth.service hciuart.service; do
+        sudo systemctl mask --now "$unit" >/dev/null
+        test "$(sudo systemctl is-enabled "$unit")" = masked
+    done
+    sudo rm -f /usr/local/lib/octessera/rpi_uart_release.py
+    test ! -e /usr/local/lib/octessera/rpi_uart_release.py
+}
+
 ensure_boot_config_line "dtparam=audio=off"
+ensure_raspberry_uart_inactive
 ensure_boot_config_line "camera_auto_detect=0"
 ensure_boot_config_line "display_auto_detect=0"
 sudo tee /boot/firmware/overlays/i2s-dac-no20.dts > /dev/null <<'EOL'
@@ -119,8 +144,19 @@ sudo sed -i -E 's/^dtoverlay=hifiberry-dac/#dtoverlay=hifiberry-dac/; s/^dtoverl
 ensure_boot_config_line "dtoverlay=i2s-dac-no20"
 ensure_boot_config_line "dtparam=spi=on"
 ensure_boot_config_line "dtparam=i2c_arm=on"
+if [ "$BOOT_STATE_BEFORE" != "$(sha256sum "$BOOT_CONFIG" "$CMDLINE")" ]; then
+    sudo systemctl stop octessera.service >/dev/null 2>&1 || true
+    echo "Boot configuration changed. Reboot, then re-run deployment before starting octessera." >&2
+    exit 75
+fi
+if ! command -v pinctrl >/dev/null 2>&1 || \
+   ! pinctrl get 14 | grep -Eq 'GPIO14[[:space:]]*=[[:space:]]*input([[:space:]]|$)' || \
+   ! pinctrl get 15 | grep -Eq 'GPIO15[[:space:]]*=[[:space:]]*input([[:space:]]|$)'; then
+    sudo systemctl stop octessera.service >/dev/null 2>&1 || true
+    echo "GPIO14/15 are not confirmed as safe inputs. Reboot, then re-run deployment before starting octessera." >&2
+    exit 75
+fi
 sudo install -D -o root -g root -m 0644 "$WELCOME_SOURCE" /etc/profile.d/octessera-welcome.sh
-sudo install -D -o root -g root -m 0755 "$UART_SOURCE" /usr/local/lib/octessera/rpi_uart_release.py
 pi_record="$(getent passwd pi)"
 IFS=: read -r pi_user _ pi_uid pi_gid _ pi_home pi_shell <<EOF
 $pi_record
@@ -134,7 +170,6 @@ else
     sudo install -D -m 0644 /dev/null "$hushlogin"
     sudo chown "$pi_user:$pi_user" "$hushlogin"
 fi
-sudo /usr/local/lib/octessera/rpi_uart_release.py --live
 grep -qxF "i2c-dev" /etc/modules || echo "i2c-dev" | sudo tee -a /etc/modules > /dev/null
 if [ -f tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget ]; then
     sudo install -D -m 0755 \

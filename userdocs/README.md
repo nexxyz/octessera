@@ -8,6 +8,7 @@ Then you nudge them. You anchor them with a bit of manual sequencing if you want
 
 ## Start here
 
+- [Hardware-free desktop simulator](desktop-simulator.md) — download a release build or run from a checkout, make a first patch, and see what the simulator cannot qualify.
 - The full hardware device can be built for well under €200 through suppliers such as Mouser, even after accounting for the small stuff: sockets, pin headers, wire, solder, screws, and a sensible amount of 3D-printing filament.
 - [Build and assembly manual](hardware/assembly-manual.md) — parts, soldering, enclosure, and the bits where I try to keep you from breaking the same things I broke.
 - [Controls cheat sheet](controls-cheat-sheet.md) — what the encoders, buttons, grid, modifiers, Play pages, and auto-maps do.

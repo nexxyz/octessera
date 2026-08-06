@@ -1,6 +1,9 @@
-import type { RuntimeHostMessage, RuntimeRunnerMessage } from "@octessera/device-contracts";
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import type {
+  RuntimeHostMessage,
+  RuntimeRunnerMessage,
+} from '@octessera/device-contracts';
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 
 type RuntimeMessagesBatch = {
   seq: number;
@@ -12,27 +15,48 @@ const IPC_TIMEOUT = 4_000;
 function withTimeout<R>(promise: Promise<R>, ms: number): Promise<R> {
   return Promise.race([
     promise,
-    new Promise<R>((_, reject) => setTimeout(() => reject(new Error(`Tauri IPC timed out after ${ms}ms`)), ms))
+    new Promise<R>((_, reject) =>
+      setTimeout(
+        () => reject(new Error(`Tauri IPC timed out after ${ms}ms`)),
+        ms,
+      ),
+    ),
   ]);
 }
 
 class TauriCoreRunnerClient {
-  async dispatchRuntime(message: RuntimeHostMessage): Promise<RuntimeRunnerMessage[]> {
-    return (await withTimeout(invoke("runtime_dispatch", { message }), IPC_TIMEOUT)) as RuntimeRunnerMessage[];
+  async dispatchRuntime(
+    message: RuntimeHostMessage,
+  ): Promise<RuntimeRunnerMessage[]> {
+    return (await withTimeout(
+      invoke('runtime_dispatch', { message }),
+      IPC_TIMEOUT,
+    )) as RuntimeRunnerMessage[];
   }
 
   async drainRuntimeMessages(): Promise<RuntimeMessagesBatch[]> {
-    return (await withTimeout(invoke("runtime_drain_messages"), IPC_TIMEOUT)) as RuntimeMessagesBatch[];
+    return (await withTimeout(
+      invoke('runtime_drain_messages'),
+      IPC_TIMEOUT,
+    )) as RuntimeMessagesBatch[];
   }
 
-  async listenRuntimeMessages(handler: (batch: RuntimeMessagesBatch) => void): Promise<() => void> {
-    if (typeof window === "undefined" || !("__TAURI_INTERNALS__" in window)) return () => {};
-    const unlisten = await listen<RuntimeMessagesBatch>("runtime_messages", (evt) => {
-      handler({
-        seq: Number(evt.payload?.seq ?? 0),
-        messages: Array.isArray(evt.payload?.messages) ? evt.payload.messages : []
-      });
-    });
+  async listenRuntimeMessages(
+    handler: (batch: RuntimeMessagesBatch) => void,
+  ): Promise<() => void> {
+    if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window))
+      return () => {};
+    const unlisten = await listen<RuntimeMessagesBatch>(
+      'runtime_messages',
+      (evt) => {
+        handler({
+          seq: Number(evt.payload?.seq ?? 0),
+          messages: Array.isArray(evt.payload?.messages)
+            ? evt.payload.messages
+            : [],
+        });
+      },
+    );
     return unlisten;
   }
 }

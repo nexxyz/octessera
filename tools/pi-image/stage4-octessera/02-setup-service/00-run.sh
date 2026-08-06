@@ -50,10 +50,7 @@ test -f "$STAGE_FILES/root/etc/profile.d/octessera-welcome.sh" && [ ! -L "$STAGE
 install -D -o root -g root -m 0644 \
     "$STAGE_FILES/root/etc/profile.d/octessera-welcome.sh" \
     "$ROOTFS_DIR/etc/profile.d/octessera-welcome.sh"
-test -f "$STAGE_FILES/root/usr/local/lib/octessera/rpi_uart_release.py" && [ ! -L "$STAGE_FILES/root/usr/local/lib/octessera/rpi_uart_release.py" ]
-install -D -o root -g root -m 0755 \
-    "$STAGE_FILES/root/usr/local/lib/octessera/rpi_uart_release.py" \
-    "$ROOTFS_DIR/usr/local/lib/octessera/rpi_uart_release.py"
+rm -f "$ROOTFS_DIR/usr/local/lib/octessera/rpi_uart_release.py"
 while IFS= read -r -d '' legal_file; do
     legal_relative="${legal_file#"$STAGE_FILES/root/usr/share/doc/octessera/"}"
     install -D -o root -g root -m 0644 \
@@ -238,6 +235,12 @@ ln -sf ../octessera-setup-request.path \
 
 rm -f "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/bluetooth.service"
 rm -f "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/hciuart.service"
+rm -f "$ROOTFS_DIR/etc/systemd/system/getty.target.wants"/serial-getty@*.service
+for unit in serial-getty@ttyAMA0.service serial-getty@ttyS0.service serial-getty@serial0.service bluetooth.service hciuart.service; do
+    rm -f "$ROOTFS_DIR/etc/systemd/system/$unit"
+    ln -s /dev/null "$ROOTFS_DIR/etc/systemd/system/$unit"
+    test "$(readlink "$ROOTFS_DIR/etc/systemd/system/$unit")" = /dev/null
+done
 
 install -d -m 0755 "$ROOTFS_DIR/var/log/octessera"
 install -d -m 0755 "$ROOTFS_DIR/home/pi/samples" "$ROOTFS_DIR/home/pi/presets"

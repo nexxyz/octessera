@@ -4,7 +4,8 @@ Octessera turns cellular automata into music you can play.
 
 It is a collection of little algorithmic musical world-bubbles: small systems you set up, nudge, combine, and occasionally interrupt. You are not programming fixed notes on a piano roll. You are giving tiny rule-based worlds something to do, adding a bit of manual sequencing when you want an anchor, and then playing the result in real time.
 
-Start with the user docs: [`userdocs/README.md`](userdocs/README.md).
+Start with the user docs: [`userdocs/README.md`](userdocs/README.md). If you
+have no hardware yet, use the [hardware-free desktop simulator path](userdocs/desktop-simulator.md).
 
 Create a dynamic, evolving beat in minutes. Let Conway's Life generate a shifting synth backdrop. Add a drumbeat with a classic grid-style sequencer. Make the drums duck the synth out of the way. Play a lead line live. Then jump into Sparks mode and perform with live effects, change trigger probability, and use the XY pad and mixer controls to build something that you and octessera found together.
 
@@ -79,17 +80,21 @@ Related references:
 
 ## Desktop Simulator
 
-The easiest way to play with this system is to download and launch the portable Windows EXE attached to the official releases.
+The easiest way to play with this system is the [hardware-free desktop simulator path](userdocs/desktop-simulator.md),
+which starts with the portable Windows build on the [official releases](https://github.com/nexxyz/octessera/releases).
 
 Releases may also include macOS and Linux desktop simulator builds. Those are currently untested; treat them as experimental until someone has done the boring part and actually run them on those systems.
 
-It allows you try out Octessera without any special hardware.
+It lets you try out Octessera without any special hardware. The simulator is
+excellent for musical and desktop-runtime exploration, but it does not qualify
+the physical board, controls, display, DAC, power, or USB paths.
 
 ## Documentation Map
 
 Primary user docs:
 
 - [`userdocs/README.md`](userdocs/README.md): start here for build, bring-up, controls, printable sheets, and references.
+- [`userdocs/desktop-simulator.md`](userdocs/desktop-simulator.md): start a hardware-free desktop session and understand its limits.
 - [`userdocs/hardware/assembly-manual.md`](userdocs/hardware/assembly-manual.md): hardware BOM, soldering, first power-on, and enclosure assembly.
 - [`userdocs/hardware/pinout-and-connections.md`](userdocs/hardware/pinout-and-connections.md): Pi wiring, bus allocation, logical input mapping, and hardware source of truth.
 - [`userdocs/hardware/enclosure.md`](userdocs/hardware/enclosure.md): enclosure ports, power rule, printing notes, and mechanical strategy.

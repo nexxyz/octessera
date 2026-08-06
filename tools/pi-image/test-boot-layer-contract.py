@@ -63,8 +63,8 @@ def validate(document: dict[str, Any], root: Path) -> None:
 
     live_inputs = document["live_parity_inputs"]
     if live_inputs != [
-        {"path": "tools/pi/deploy-pi.sh", "sha256": "5ba7792299b16e74f42362a346b116bcc1f10f320cb0faae4dd4e5e3be291b80", "size": 15497},
-        {"path": "tools/pi/provision/provision.sh", "sha256": "f7619799f5ad2ab8f8b82243bff344199b47c1252bc568fef8b10ad8bb095e06", "size": 10993},
+        {"path": "tools/pi/deploy-pi.sh", "sha256": "f6b0adeb72e2e0d23a979b092aab1ffa45f5fb4e44ae0bf9084cb666ebcf127d", "size": 17225},
+        {"path": "tools/pi/provision/provision.sh", "sha256": "dce246cbc6bc0d3ddeb86674fa396da36e7e9d3a7c7b7989f039fbb5ca66cc9a", "size": 12807},
     ]:
         raise ValueError("Raspberry live parity input identities are not exact")
     for source in live_inputs:
@@ -73,23 +73,28 @@ def validate(document: dict[str, Any], root: Path) -> None:
             raise ValueError(f"live parity input digest is stale: {source['path']}")
     deploy = (root / "tools/pi/deploy-pi.sh").read_text(encoding="utf-8")
     provision = (root / "tools/pi/provision/provision.sh").read_text(encoding="utf-8")
+    setup = (root / "tools/pi-image/stage4-octessera/02-setup-service/00-run.sh").read_text(encoding="utf-8")
+    boot_config = (root / "tools/pi-image/stage4-octessera/03-boot-config/00-run.sh").read_text(encoding="utf-8")
+    console_pattern = r"(^|[[:space:]])console=(serial0|ttyAMA0|ttyS0)(,[^[:space:]]+)?([[:space:]]|$)"
     for text in (deploy, provision):
         if re.search(r"(?:cat|tee)[^\n]*octessera-welcome\.sh[^\n]*<<", text):
             raise ValueError("Raspberry live parity contains a welcome heredoc")
-        if re.search(r'ensure_boot_config_line\s+"(?:dtoverlay=disable-bt|enable_uart=0)"', text):
-            raise ValueError("Raspberry live parity owns UART config outside the utility")
-        if "rpi_uart_release.py --live" not in text:
-            raise ValueError("Raspberry live parity does not invoke the UART utility")
+        for required in ("dtoverlay=disable-bt", "enable_uart=0", "serial-getty@serial0.service", "serial-getty@ttyAMA0.service", "serial-getty@ttyS0.service", "bluetooth.service", "hciuart.service"):
+            if required not in text:
+                raise ValueError(f"Raspberry live parity does not establish {required}")
+        if console_pattern not in text or "while grep -Eq" not in text or "sed -i -E" not in text:
+            raise ValueError("Raspberry live parity does not use exact serial-console token handling")
+        if text.count("/usr/local/lib/octessera/rpi_uart_release.py") != 2 or "sudo rm -f /usr/local/lib/octessera/rpi_uart_release.py" not in text or "test ! -e /usr/local/lib/octessera/rpi_uart_release.py" not in text:
+            raise ValueError("Raspberry live parity does not remove and prove absence of the stale UART utility")
+    if console_pattern not in boot_config or "grep -qxF 'dtoverlay=disable-bt'" not in boot_config or "grep -qxF 'enable_uart=0'" not in boot_config:
+        raise ValueError("Raspberry constructor does not enforce exact inactive-UART boot state")
+    if 'getty.target.wants"/serial-getty@*.service' not in setup:
+        raise ValueError("Raspberry constructor does not remove serial-getty enablement links")
+    for required in ("bluetooth.service", "hciuart.service", "ln -s /dev/null", "rpi_uart_release.py"):
+        if required not in setup:
+            raise ValueError(f"Raspberry constructor does not establish {required}")
     if "tools/pi-image/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh" not in deploy or "IMAGE_ROOT/etc/profile.d/octessera-welcome.sh" not in provision:
         raise ValueError("Raspberry live parity does not use the canonical welcome source")
-    if "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/rpi_uart_release.py" not in deploy or "IMAGE_ROOT/usr/local/lib/octessera/rpi_uart_release.py" not in provision:
-        raise ValueError("Raspberry live parity does not use the canonical UART utility")
-    for text in (deploy, provision):
-        if re.search(r"bluetooth|hciuart|disable_service_if_present", text, re.IGNORECASE):
-            raise ValueError("Raspberry live parity owns Bluetooth services outside the UART utility")
-        if re.search(r"systemctl\s+(?:stop|disable|mask).*serial-getty|ensure_boot_config_line[^\n]*(?:console=(?:serial0|ttyAMA0|ttyS0)|enable_uart=)", text):
-            raise ValueError("Raspberry live parity owns UART state outside the utility")
-
     if document["notice_bundle"] != {
         "manifest": "resources/legal/notice-bundle.json",
         "stager": "tools/legal/stage_notices.py",
@@ -156,7 +161,7 @@ def validate(document: dict[str, Any], root: Path) -> None:
         raise ValueError("Raspberry UART invariants are not exact")
 
     proofs = document["proofs"]
-    if [proof["name"] for proof in proofs] != ["initramfs-watchdog", "systemd-graph", "sanitized-image", "boot-layout-fixture", "kernel-image", "welcome-uart", "uart-release"]:
+    if [proof["name"] for proof in proofs] != ["initramfs-watchdog", "systemd-graph", "sanitized-image", "boot-layout-fixture", "kernel-image"]:
         raise ValueError("boot-layer proof set is not exact")
     for proof in proofs:
         if set(proof) != {"name", "path"} or not (root / proof["path"]).is_file():

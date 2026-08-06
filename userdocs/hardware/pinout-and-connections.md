@@ -81,7 +81,10 @@ The runtime and HAL agree on four physical encoders total.
 
 Notes:
 
-- `SW3` switch uses `GPIO14`, so disable the serial console on UART TX for reliable encoder input.
+- `SW3` switch uses `GPIO14` / physical pin 8, which is also Raspberry UART TX.
+  The image therefore declares the UART inactive (`enable_uart=0`, with no
+  serial-console kernel token) so GPIO14 remains an input for reliable encoder
+  input. There is no post-boot UART release step.
 - `GPIO20` is reserved for OLED microSD card detect; keep it free from I2S overlays and encoder inputs.
 
 ## Other Connections

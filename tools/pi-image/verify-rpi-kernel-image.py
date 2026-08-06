@@ -217,8 +217,8 @@ def _load_boot_layer_contract() -> dict[str, Any]:
     live_parity = contract.get("live_parity_inputs")
     _require(
         live_parity == [
-            {"path": "tools/pi/deploy-pi.sh", "sha256": "5ba7792299b16e74f42362a346b116bcc1f10f320cb0faae4dd4e5e3be291b80", "size": 15497},
-            {"path": "tools/pi/provision/provision.sh", "sha256": "f7619799f5ad2ab8f8b82243bff344199b47c1252bc568fef8b10ad8bb095e06", "size": 10993},
+            {"path": "tools/pi/deploy-pi.sh", "sha256": "f6b0adeb72e2e0d23a979b092aab1ffa45f5fb4e44ae0bf9084cb666ebcf127d", "size": 17225},
+            {"path": "tools/pi/provision/provision.sh", "sha256": "dce246cbc6bc0d3ddeb86674fa396da36e7e9d3a7c7b7989f039fbb5ca66cc9a", "size": 12807},
         ],
         "Raspberry live parity inputs changed",
     )

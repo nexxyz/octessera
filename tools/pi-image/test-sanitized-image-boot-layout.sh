@@ -46,20 +46,21 @@ if [ "$(id -u)" -eq 0 ]; then
         "$fixture/root/etc/systemd/system/multi-user.target.wants" \
         "$fixture/root/boot/firmware" \
         "$fixture/root/home/pi" \
-        "$fixture/root/usr/local/lib/octessera"
+        "$fixture/root/usr/local/lib/octessera" \
+        "$fixture/root/etc/systemd/system/multi-user.target.wants"
     printf '%s\n' 'root:x:0:0:root:/root:/bin/bash' 'pi:x:1000:1000:Pi:/home/pi:/bin/bash' > "$fixture/root/etc/passwd"
     printf '%s\n' 'root:x:0:' 'pi:x:1000:' > "$fixture/root/etc/group"
     cp "$script_dir/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh" "$fixture/root/etc/profile.d/octessera-welcome.sh"
-    cp "$script_dir/stage4-octessera/files/root/usr/local/lib/octessera/rpi_uart_release.py" "$fixture/root/usr/local/lib/octessera/rpi_uart_release.py"
     chmod 0644 "$fixture/root/etc/profile.d/octessera-welcome.sh"
-    chmod 0755 "$fixture/root/usr/local/lib/octessera/rpi_uart_release.py"
     : > "$fixture/root/home/pi/.hushlogin"
     chown 1000:1000 "$fixture/root/home/pi/.hushlogin"
-    printf '%s\n' '# --- Octessera UART release ---' '[all]' 'dtoverlay=disable-bt' 'enable_uart=0' > "$fixture/root/boot/firmware/config.txt"
+    printf '%s\n' '# octessera hardware configuration' '[all]' 'dtoverlay=disable-bt' 'enable_uart=0' > "$fixture/root/boot/firmware/config.txt"
     printf '%s\n' 'console=tty1 root=/dev/mmcblk0p2' > "$fixture/root/boot/firmware/cmdline.txt"
     for unit in serial0 ttyAMA0 ttyS0; do
         ln -s /dev/null "$fixture/root/etc/systemd/system/serial-getty@$unit.service"
     done
+    test ! -e "$fixture/root/etc/systemd/system/multi-user.target.wants/bluetooth.service"
+    test ! -e "$fixture/root/etc/systemd/system/multi-user.target.wants/hciuart.service"
     python3 "$script_dir/../legal/stage_notices.py" \
         --repository-root "$script_dir/../.." \
         --destination-root "$fixture/root" >/dev/null
@@ -141,96 +142,14 @@ EOF
         printf '%s\n' 'fixture base-files copyright' > "$fixture/root/usr/share/doc/base-files/copyright"
     }
 
-    require_trusted_parent_fixture() {
-        require_octessera_boot_config "$fixture/boot" "$fixture/root"
-        require_octessera_boot_overlay "$fixture/boot" "$fixture/root"
-        require_octessera_boot_layer "$fixture/boot" "$fixture/root"
-        [ "$OCTESSERA_BOOT_LAYER_CLASSIFICATION" = trusted-parent-v0.7.5 ]
-        require_octessera_raspberry_identity_for_boot_layer "$fixture/boot" "$fixture/root"
-    }
-
-    expect_trusted_parent_rejected() {
-        local name="$1"
-        require_octessera_boot_layer "$fixture/boot" "$fixture/root"
-        if require_octessera_raspberry_identity_for_boot_layer "$fixture/boot" "$fixture/root"; then
-            echo "Trusted parent fixture accepted tamper: $name" >&2
-            exit 1
-        fi
-    }
-
     create_trusted_parent_fixture
-    require_trusted_parent_fixture
-
-    create_trusted_parent_fixture
-    : > "$fixture/root/etc/profile.d/octessera-welcome.sh"
-    expect_trusted_parent_rejected empty-legacy-welcome
-
-    create_trusted_parent_fixture
-    : > "$fixture/root/home/pi/.hushlogin"
-    expect_trusted_parent_rejected mixed-current-hushlogin
-
-    create_trusted_parent_fixture
-    printf '%s\n' 'current UART release utility' > "$fixture/root/usr/local/lib/octessera/rpi_uart_release.py"
-    expect_trusted_parent_rejected mixed-current-uart-utility
-
-    create_trusted_parent_fixture
-    printf '%s\n' '# --- Octessera UART release ---' >> "$fixture/boot/config.txt"
-    expect_trusted_parent_rejected mixed-current-uart-marker
-
-    create_trusted_parent_fixture
-    printf '%s\n' 'console=tty1 root=/dev/mmcblk0p2' > "$fixture/boot/cmdline.txt"
-    expect_trusted_parent_rejected missing-legacy-serial-console
-
-    create_trusted_parent_fixture
-    ln -s /dev/null "$fixture/root/etc/systemd/system/serial-getty@serial0.service"
-    expect_trusted_parent_rejected mixed-current-serial-mask
-
-    create_trusted_parent_fixture
-    ln -s ../hciuart.service "$fixture/root/etc/systemd/system/multi-user.target.wants/hciuart.service"
-    expect_trusted_parent_rejected mixed-current-bluetooth-enablement
-
-    create_trusted_parent_fixture
-    rm "$fixture/root/boot/config.txt"
-    expect_trusted_parent_rejected missing-rootfs-legacy-config
-
-    create_trusted_parent_fixture
-    printf '%s\n' 'tampered' > "$fixture/root/boot/config.txt"
-    expect_trusted_parent_rejected tampered-rootfs-legacy-config
-
-    create_trusted_parent_fixture
-    rm "$fixture/root/boot/config.txt"
-    ln -s /etc/hostname "$fixture/root/boot/config.txt"
-    expect_trusted_parent_rejected symlinked-rootfs-legacy-config
-
-    create_trusted_parent_fixture
-    chmod 0600 "$fixture/root/boot/config.txt"
-    expect_trusted_parent_rejected wrong-rootfs-legacy-config-metadata
-
-    create_trusted_parent_fixture
-    printf '%s\n' 'firmware config' > "$fixture/root/boot/firmware/config.txt"
-    expect_trusted_parent_rejected present-firmware-config
-
-    create_trusted_parent_fixture
-    printf '%s\n' 'tampered' >> "$fixture/boot/config.txt"
-    expect_trusted_parent_rejected tampered-selected-boot-config
-
-    create_trusted_parent_fixture
-    rm "$fixture/boot/config.txt"
-    ln -s "$script_dir/fixtures/trusted-parent-v0.7.5/boot/config.txt" "$fixture/boot/config.txt"
-    expect_trusted_parent_rejected symlinked-selected-boot-config
-
-    create_trusted_parent_fixture
-    printf '%s\n' 'console=serial0,115200 console=tty1 root=PARTUUID=wrong' > "$fixture/boot/cmdline.txt"
-    expect_trusted_parent_rejected tampered-selected-cmdline
-
-    create_trusted_parent_fixture
-    chmod 0644 "$fixture/boot/cmdline.txt"
-    expect_trusted_parent_rejected wrong-selected-cmdline-metadata
-
-    create_trusted_parent_fixture
-    rm "$fixture/boot/cmdline.txt"
-    ln -s "$script_dir/fixtures/trusted-parent-v0.7.5/boot/cmdline.txt" "$fixture/boot/cmdline.txt"
-    expect_trusted_parent_rejected symlinked-selected-cmdline
+    require_octessera_boot_config "$fixture/boot" "$fixture/root"
+    require_octessera_boot_overlay "$fixture/boot" "$fixture/root"
+    require_octessera_boot_layer "$fixture/boot" "$fixture/root"
+    if require_octessera_raspberry_identity_for_boot_layer "$fixture/boot" "$fixture/root"; then
+        echo 'Historical trusted-parent fixture with a serial console was accepted.' >&2
+        exit 1
+    fi
 fi
 
 reset_fixture

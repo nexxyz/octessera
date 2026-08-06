@@ -16,6 +16,7 @@ pub(crate) type BootIdSource = Arc<dyn Fn() -> Result<String, String> + Send + S
 pub(crate) struct SetupPortalEnvironment {
     pub(crate) paths: SetupPortalPaths,
     pub(crate) status_group: Result<u32, String>,
+    pub(crate) expected_owner_uid: u32,
     pub(crate) clock: ClockSource,
     pub(crate) random: RandomSource,
     pub(crate) boot_id: BootIdSource,
@@ -28,6 +29,7 @@ impl SetupPortalEnvironment {
         Self {
             paths,
             status_group: public_group_gid(),
+            expected_owner_uid: 0,
             clock: Arc::new(system_monotonic_millis),
             random: Arc::new(fill_cryptographic_random),
             boot_id: Arc::new(move || read_boot_id_path(&boot_id_path)),
@@ -45,11 +47,22 @@ impl SetupPortalEnvironment {
         Self {
             paths,
             status_group: Ok(status_group),
+            expected_owner_uid: test_owner_uid(),
             clock,
             random,
             boot_id,
         }
     }
+}
+
+#[cfg(all(test, unix))]
+fn test_owner_uid() -> u32 {
+    unsafe { libc::geteuid() }
+}
+
+#[cfg(all(test, not(unix)))]
+fn test_owner_uid() -> u32 {
+    0
 }
 
 #[derive(Deserialize)]
@@ -146,7 +159,7 @@ fn public_group_gid() -> Result<u32, String> {
         if group.is_null() {
             return Err("setup portal group is unavailable".into());
         }
-        return Ok(unsafe { (*group).gr_gid });
+        Ok(unsafe { (*group).gr_gid })
     }
     #[cfg(not(unix))]
     {
@@ -180,7 +193,7 @@ fn fill_cryptographic_random(bytes: &mut [u8]) -> Result<(), String> {
             offset += read as usize;
         }
         unsafe { libc::close(descriptor) };
-        return Ok(());
+        Ok(())
     }
     #[cfg(windows)]
     {

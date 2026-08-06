@@ -64,7 +64,7 @@ fn permissions(mode: u32) -> fs::Permissions {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        return fs::Permissions::from_mode(mode);
+        fs::Permissions::from_mode(mode)
     }
     #[cfg(windows)]
     {
@@ -155,7 +155,7 @@ fn result(message: HostMessage) -> RuntimeStoreResult {
 #[test]
 fn metadata_seam_rejects_wrong_owner_group_mode_and_types() {
     let valid = SetupMetadata::regular(0, 7, 0o640, 10);
-    assert!(validate_public_metadata(valid, 7, 0o640, false).is_ok());
+    assert!(validate_public_metadata(valid, 0, 7, 0o640, false).is_ok());
     for metadata in [
         SetupMetadata {
             uid: Some(1),
@@ -175,10 +175,10 @@ fn metadata_seam_rejects_wrong_owner_group_mode_and_types() {
             ..valid
         },
     ] {
-        assert!(validate_public_metadata(metadata, 7, 0o640, false).is_err());
+        assert!(validate_public_metadata(metadata, 0, 7, 0o640, false).is_err());
     }
     assert!(
-        validate_public_metadata(SetupMetadata::directory(0, 7, 0o750), 7, 0o750, true).is_ok()
+        validate_public_metadata(SetupMetadata::directory(0, 7, 0o750), 0, 7, 0o750, true).is_ok()
     );
 }
 
