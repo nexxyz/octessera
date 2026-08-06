@@ -1,12 +1,19 @@
-import { useEffect } from "react";
-import { mapKeyboardEventToInputAction, mapKeyboardKeyupToInputAction, shouldPreventKeyboardDefault } from "../runtime/inputAdapters/keyboardAdapter";
-import type { createSimulatorRuntime } from "../runtime/simulatorRuntime";
+import { useEffect } from 'react';
+import {
+  mapKeyboardEventToInputAction,
+  mapKeyboardKeyupToInputAction,
+  shouldPreventKeyboardDefault,
+} from '../runtime/inputAdapters/keyboardAdapter';
+import type { createSimulatorRuntime } from '../runtime/simulatorRuntime';
 
 type AppRuntime = ReturnType<typeof createSimulatorRuntime>;
-type EncoderId = "main" | `aux${number}`;
-type AppSnapshot = ReturnType<AppRuntime["getSnapshot"]>;
+type EncoderId = 'main' | `aux${number}`;
+type AppSnapshot = ReturnType<AppRuntime['getSnapshot']>;
 
-export function useRuntimeBindings(runtime: AppRuntime, setSnapshot: (snapshot: AppSnapshot) => void): void {
+export function useRuntimeBindings(
+  runtime: AppRuntime,
+  setSnapshot: (snapshot: AppSnapshot) => void,
+): void {
   useEffect(() => {
     const unsubscribeState = runtime.subscribe((snapshot) => {
       setSnapshot(snapshot);
@@ -19,7 +26,10 @@ export function useRuntimeBindings(runtime: AppRuntime, setSnapshot: (snapshot: 
   }, [runtime, setSnapshot]);
 }
 
-export function useKeyboardBindings(runtime: AppRuntime, bumpDialPhase: (id: EncoderId | undefined, delta: number) => void): void {
+export function useKeyboardBindings(
+  runtime: AppRuntime,
+  bumpDialPhase: (id: EncoderId | undefined, delta: number) => void,
+): void {
   useEffect(() => {
     const pressedKeys = new Set<string>();
 
@@ -28,13 +38,23 @@ export function useKeyboardBindings(runtime: AppRuntime, bumpDialPhase: (id: Enc
       const action = mapKeyboardEventToInputAction(event);
       if (!action) return;
 
-      const edgeOnlyKeys = new Set(["Shift", "Control", " ", "Enter", "Backspace", "Escape"]);
+      const edgeOnlyKeys = new Set([
+        'Shift',
+        'Control',
+        ' ',
+        'Enter',
+        'Backspace',
+        'Escape',
+      ]);
       if (edgeOnlyKeys.has(event.key)) {
         if (pressedKeys.has(event.key) || event.repeat) return;
         pressedKeys.add(event.key);
       }
 
-      if (action.type === "device_input" && action.input.type === "encoder_turn") {
+      if (
+        action.type === 'device_input' &&
+        action.input.type === 'encoder_turn'
+      ) {
         bumpDialPhase(action.input.id, action.input.delta);
       }
       runtime.dispatchAction(action);
@@ -48,17 +68,17 @@ export function useKeyboardBindings(runtime: AppRuntime, bumpDialPhase: (id: Enc
 
     const onBlur = () => {
       pressedKeys.clear();
-      runtime.dispatchAction({ type: "shift", active: false });
-      runtime.dispatchAction({ type: "fn", active: false });
+      runtime.dispatchAction({ type: 'shift', active: false });
+      runtime.dispatchAction({ type: 'fn', active: false });
     };
 
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("keyup", onKeyUp);
-    window.addEventListener("blur", onBlur);
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', onBlur);
     return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("keyup", onKeyUp);
-      window.removeEventListener("blur", onBlur);
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', onBlur);
     };
   }, [bumpDialPhase, runtime]);
 }
@@ -66,7 +86,11 @@ export function useKeyboardBindings(runtime: AppRuntime, bumpDialPhase: (id: Enc
 export function useDialDragBindings(
   dialDrag: { id: EncoderId; y: number; acc: number } | null,
   setDialDrag: (next: { id: EncoderId; y: number; acc: number } | null) => void,
-  turnWithAcceleration: (id: EncoderId, delta: -1 | 1, magnitude: number) => void
+  turnWithAcceleration: (
+    id: EncoderId,
+    delta: -1 | 1,
+    magnitude: number,
+  ) => void,
 ): void {
   useEffect(() => {
     if (!dialDrag) return;
@@ -77,16 +101,19 @@ export function useDialDragBindings(
         setDialDrag({ ...dialDrag, y: event.clientY, acc: nextAcc });
         return;
       }
-      turnWithAcceleration(dialDrag.id, nextAcc > 0 ? 1 : -1, Math.abs(nextAcc));
+      turnWithAcceleration(
+        dialDrag.id,
+        nextAcc > 0 ? 1 : -1,
+        Math.abs(nextAcc),
+      );
       setDialDrag({ ...dialDrag, y: event.clientY, acc: 0 });
     };
     const onUp = () => setDialDrag(null);
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
     return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
     };
   }, [dialDrag, setDialDrag, turnWithAcceleration]);
 }
-

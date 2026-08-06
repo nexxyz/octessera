@@ -16,6 +16,7 @@ SCHEMA = "octessera.legal-notice-bundle/v1"
 DESTINATION_ROOT = "/usr/share/doc/octessera"
 FILE_KEYS = {"source", "destination", "sha256", "size"}
 TOP_KEYS = {"schema", "schema_version", "destination_root", "files"}
+OWNERSHIP_POLICIES = {"root", "filesystem"}
 
 
 class NoticeStageError(ValueError):
@@ -93,13 +94,14 @@ def _ensure_tree(root: Path, relative: Path, create: bool) -> Path:
     return current
 
 
-def _verify_output(path: Path, data: bytes, label: str) -> None:
+def _verify_output(path: Path, data: bytes, label: str, ownership: str) -> None:
     _require(path.exists() and not path.is_symlink(), f"{label} is missing or symlinked: {path}")
     metadata = path.lstat()
     _require(stat.S_ISREG(metadata.st_mode) and metadata.st_nlink == 1, f"{label} is not a regular single-link file: {path}")
     if os.name != "nt":
         _require(metadata.st_mode & 0o777 == 0o644, f"{label} mode is not 0644: {path}")
-    _require(_root_owned(path), f"{label} is not root-owned: {path}")
+    if ownership == "root":
+        _require(_root_owned(path), f"{label} is not root-owned: {path}")
     _require(path.read_bytes() == data, f"{label} content is stale: {path}")
 
 
@@ -121,7 +123,8 @@ def _reject_unknown_outputs(root: Path, expected: set[str]) -> None:
             raise NoticeStageError(f"legal notice tree contains an unknown output: {path}")
 
 
-def stage_notices(repository_root: Path, destination_root: Path, manifest_path: Path | None = None, check: bool = False) -> None:
+def stage_notices(repository_root: Path, destination_root: Path, manifest_path: Path | None = None, check: bool = False, ownership: str = "root") -> None:
+    _require(ownership in OWNERSHIP_POLICIES, f"invalid ownership policy: {ownership}")
     repository_root = repository_root.resolve()
     destination_root = destination_root.resolve()
     if not destination_root.exists() and not check:
@@ -150,7 +153,7 @@ def stage_notices(repository_root: Path, destination_root: Path, manifest_path: 
         else:
             _ensure_tree(legal_root, destination.parent, True)
         if target.exists() or target.is_symlink():
-            _verify_output(target, data, "staged legal file")
+            _verify_output(target, data, "staged legal file", ownership)
         elif check:
             raise NoticeStageError(f"staged legal file is missing: {target}")
         else:
@@ -162,13 +165,13 @@ def stage_notices(repository_root: Path, destination_root: Path, manifest_path: 
                     stream.flush()
                     os.fsync(stream.fileno())
                 os.chmod(temporary, 0o644)
-                if hasattr(os, "chown"):
+                if ownership == "root" and hasattr(os, "chown"):
                     os.chown(temporary, 0, 0)  # type: ignore[attr-defined]
                 os.replace(temporary, target)
             finally:
                 if temporary.exists() or temporary.is_symlink():
                     temporary.unlink()
-            _verify_output(target, data, "staged legal file")
+            _verify_output(target, data, "staged legal file", ownership)
 
 
 def main() -> int:
@@ -177,9 +180,10 @@ def main() -> int:
     parser.add_argument("--destination-root", type=Path, required=True)
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--check", action="store_true")
+    parser.add_argument("--ownership", choices=sorted(OWNERSHIP_POLICIES), default="root")
     arguments = parser.parse_args()
     try:
-        stage_notices(arguments.repository_root, arguments.destination_root, arguments.manifest, arguments.check)
+        stage_notices(arguments.repository_root, arguments.destination_root, arguments.manifest, arguments.check, arguments.ownership)
     except (OSError, NoticeStageError) as error:
         print(f"Legal notice staging failed: {error}")
         return 1

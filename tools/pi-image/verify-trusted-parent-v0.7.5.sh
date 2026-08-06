@@ -91,7 +91,6 @@ require_octessera_trusted_parent_raspberry_identity() {
     local boot_root="$1"
     local image_root="$2"
     local welcome="$image_root/etc/profile.d/octessera-welcome.sh"
-    local utility="$image_root/usr/local/lib/octessera/rpi_uart_release.py"
     local boot_config="$boot_root/config.txt"
     local boot_cmdline="$boot_root/cmdline.txt"
     local firmware_config="$image_root/boot/firmware/config.txt"
@@ -107,7 +106,6 @@ require_octessera_trusted_parent_raspberry_identity() {
     local hushlogin
     local mask
     local enablement
-    local legacy_serial_console_count=0
     local tokens=()
     require_octessera_legal_notices "$image_root" || return 1
 
@@ -131,10 +129,6 @@ require_octessera_trusted_parent_raspberry_identity() {
     hushlogin="$image_root$pi_home/.hushlogin"
     if [ -e "$hushlogin" ] || [ -L "$hushlogin" ]; then
         echo "trusted-parent-v0.7.5: legacy Raspberry parent must not contain .hushlogin" >&2
-        return 1
-    fi
-    if [ -e "$utility" ] || [ -L "$utility" ]; then
-        echo "trusted-parent-v0.7.5: legacy Raspberry parent must not contain the UART release utility" >&2
         return 1
     fi
     for directory in "$image_root/etc/pam.d" "$image_root/etc/update-motd.d"; do
@@ -168,10 +162,6 @@ require_octessera_trusted_parent_raspberry_identity() {
         echo "trusted-parent-v0.7.5: Raspberry config is malformed" >&2
         return 1
     fi
-    if grep -qF '# --- Octessera UART release ---' "$config"; then
-        echo "trusted-parent-v0.7.5: legacy Raspberry parent contains the current UART release marker" >&2
-        return 1
-    fi
     for required_line in 'dtoverlay=disable-bt' 'enable_uart=0'; do
         if [ "$(grep -cFx "$required_line" "$config" || true)" -ne 1 ]; then
             echo "trusted-parent-v0.7.5: legacy Raspberry config is missing or duplicating $required_line" >&2
@@ -192,17 +182,11 @@ require_octessera_trusted_parent_raspberry_identity() {
     fi
     read -r -a tokens < "$cmdline"
     for token in "${tokens[@]}"; do
-        if [ "$token" = console=serial0,115200 ]; then
-            legacy_serial_console_count=$((legacy_serial_console_count + 1))
-        elif [[ "$token" =~ ^console=(serial0|ttyAMA0|ttyS0)(,[^[:space:]]+)?$ ]]; then
-            echo "trusted-parent-v0.7.5: unexpected legacy serial console token: $token" >&2
+        if [[ "$token" =~ ^console=(serial0|ttyAMA0|ttyS0)(,[^[:space:]]+)?$ ]]; then
+            echo "trusted-parent-v0.7.5: forbidden serial console remains: $token" >&2
             return 1
         fi
     done
-    if [ "$legacy_serial_console_count" -ne 1 ]; then
-        echo "trusted-parent-v0.7.5: legacy Raspberry cmdline must contain exactly console=serial0,115200" >&2
-        return 1
-    fi
     for unit in serial0 ttyAMA0 ttyS0; do
         mask="$image_root/etc/systemd/system/serial-getty@$unit.service"
         if [ -e "$mask" ] || [ -L "$mask" ]; then

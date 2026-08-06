@@ -12,9 +12,9 @@ import {
   type DisplayPaletteRgb,
   type OledFrame,
   type RuntimeSnapshot,
-  type RuntimeStatus
-} from "@octessera/device-contracts";
-import type { SimulatorSnapshot } from "./types";
+  type RuntimeStatus,
+} from '@octessera/device-contracts';
+import type { SimulatorSnapshot } from './types';
 
 export type RuntimeSnapshotCache = {
   audioRevision?: number;
@@ -27,7 +27,7 @@ export type RuntimeSnapshotCache = {
 export type TransientIndicatorState = {
   eventDotUntilMs: number;
   transportFlashUntilMs: number;
-  transportFlash: "measure" | "beat" | "none";
+  transportFlash: 'measure' | 'beat' | 'none';
 };
 
 export type SnapshotAudioState = {
@@ -48,7 +48,7 @@ export function createInitialRuntimeSnapshot(): RuntimeSnapshot {
   const blankOled: OledFrame = {
     width: OLED_WIDTH,
     height: OLED_HEIGHT,
-    format: "rgb565be",
+    format: 'rgb565be',
     pixels: new Uint8Array(OLED_WIDTH * OLED_HEIGHT * 2),
   };
   const ledCount = GRID_WIDTH * GRID_HEIGHT;
@@ -61,25 +61,35 @@ export function createInitialRuntimeSnapshot(): RuntimeSnapshot {
       active: Array.from({ length: ledCount }, () => false),
     },
     transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
-    display: { page: "boot", title: "Boot", lines: [], editing: false },
-    activeBehavior: "life",
-    gridInteraction: "paint",
+    display: { page: 'boot', title: 'Boot', lines: [], editing: false },
+    activeBehavior: 'life',
+    gridInteraction: 'paint',
   };
 }
 
 export function normalizeSnapshotPixels(snapshot: RuntimeSnapshot): void {
   if (snapshot.oled && !(snapshot.oled.pixels instanceof Uint8Array)) {
-    snapshot.oled = { ...snapshot.oled, pixels: new Uint8Array(Object.values(snapshot.oled.pixels as Record<string, number>)) };
+    snapshot.oled = {
+      ...snapshot.oled,
+      pixels: new Uint8Array(
+        Object.values(snapshot.oled.pixels as Record<string, number>),
+      ),
+    };
   }
 }
 
-export function mergeSnapshotSettings(snapshot: RuntimeSnapshot, previous: RuntimeSnapshot): void {
+export function mergeSnapshotSettings(
+  snapshot: RuntimeSnapshot,
+  previous: RuntimeSnapshot,
+): void {
   const previousSettings = previous.settings;
   const nextSettings = snapshot.settings;
   if (!previousSettings || !nextSettings) return;
-  if (!("instruments" in nextSettings)) nextSettings.instruments = previousSettings.instruments;
-  if (!("mixer" in nextSettings)) nextSettings.mixer = previousSettings.mixer;
-  if (!("panPositions" in nextSettings)) nextSettings.panPositions = previousSettings.panPositions;
+  if (!('instruments' in nextSettings))
+    nextSettings.instruments = previousSettings.instruments;
+  if (!('mixer' in nextSettings)) nextSettings.mixer = previousSettings.mixer;
+  if (!('panPositions' in nextSettings))
+    nextSettings.panPositions = previousSettings.panPositions;
 }
 
 export function snapshotFromCore(
@@ -91,27 +101,41 @@ export function snapshotFromCore(
 ): SimulatorSnapshot {
   const settings = frame.settings;
   const audioRevision = settings?.audioConfigRevision;
-  if (settings && (cache.audioRevision === undefined || audioRevision === undefined || audioRevision !== cache.audioRevision)) {
+  if (
+    settings &&
+    (cache.audioRevision === undefined ||
+      audioRevision === undefined ||
+      audioRevision !== cache.audioRevision)
+  ) {
     cache.audioRevision = audioRevision;
     cache.instruments = settings.instruments ?? [];
     cache.mixer = settings.mixer ?? { buses: [] };
     cache.panPositions = settings.panPositions ?? PAN_POSITION_COUNT;
     cache.masterVolume = settings.masterVolume ?? 100;
   }
-  const flash = performance.now() < indicators.transportFlashUntilMs
-    ? indicators.transportFlash
-    : String(frame.transportFlash ?? "none");
-  const transportIcon = String(frame.transportIcon ?? (frame.transport.playing ? "play" : "stop"));
-  const space = transportIcon === "stop"
-    ? "stopped"
-    : transportIcon === "pause"
-      ? "paused"
-      : flash === "measure"
-        ? "measure"
-        : flash === "beat"
-          ? "beat"
-          : "playing";
-  const neoKeyLeds = neoKeyColors(frame, space, settings?.buttonBrightness, shiftActive);
+  const flash =
+    performance.now() < indicators.transportFlashUntilMs
+      ? indicators.transportFlash
+      : String(frame.transportFlash ?? 'none');
+  const transportIcon = String(
+    frame.transportIcon ?? (frame.transport.playing ? 'play' : 'stop'),
+  );
+  const space =
+    transportIcon === 'stop'
+      ? 'stopped'
+      : transportIcon === 'pause'
+        ? 'paused'
+        : flash === 'measure'
+          ? 'measure'
+          : flash === 'beat'
+            ? 'beat'
+            : 'playing';
+  const neoKeyLeds = neoKeyColors(
+    frame,
+    space,
+    settings?.buttonBrightness,
+    shiftActive,
+  );
   return {
     frame: withTransientIndicators(frame, indicators),
     runtimeStatus: audio.runtimeStatus,
@@ -119,39 +143,56 @@ export function snapshotFromCore(
     displayBrightness: settings?.displayBrightness ?? 75,
     buttonBrightness: settings?.buttonBrightness ?? 75,
     masterVolume: cache.masterVolume,
-    voiceStealingMode: settings?.voiceStealingMode ?? "auto-balanced",
+    voiceStealingMode: settings?.voiceStealingMode ?? 'auto-balanced',
     audioLoad: audio.audioLoad,
     instruments: cache.instruments,
     mixer: cache.mixer,
     panPositions: cache.panPositions,
     audioConfigRevision: cache.audioRevision,
-    autoSaveFlash: settings?.autoSaveFlash ?? "none",
+    autoSaveFlash: settings?.autoSaveFlash ?? 'none',
     autoSaveFlashSerial: settings?.autoSaveFlashSerial,
   };
 }
 
 function neoKeyColors(
   frame: RuntimeSnapshot,
-  space: "stopped" | "paused" | "playing" | "beat" | "measure",
+  space: 'stopped' | 'paused' | 'playing' | 'beat' | 'measure',
   buttonBrightness: number | undefined,
   shiftActive: boolean,
-): SimulatorSnapshot["neoKeyLeds"] {
+): SimulatorSnapshot['neoKeyLeds'] {
   const settings = frame.settings;
-  const scaleFactor = (settings?.ledsDimmed ? 0.22 : 1) * brightnessScale(buttonBrightness);
+  const scaleFactor =
+    (settings?.ledsDimmed ? 0.22 : 1) * brightnessScale(buttonBrightness);
   const combined = settings?.combinedModifierHeld ?? false;
   return {
     back: scale(RED_COLOR, scaleFactor),
     space: scale(spaceColor(space), scaleFactor),
-    shift: scale(combined ? BLUE_COLOR : (settings?.shiftHeld ?? shiftActive) ? YELLOW_COLOR : dim(GRAY_COLOR, 3), scaleFactor),
-    fn: scale(combined ? BLUE_COLOR : (settings?.fnHeld ?? false) ? YELLOW_COLOR : dim(GRAY_COLOR, 3), scaleFactor),
+    shift: scale(
+      combined
+        ? BLUE_COLOR
+        : (settings?.shiftHeld ?? shiftActive)
+          ? YELLOW_COLOR
+          : dim(GRAY_COLOR, 3),
+      scaleFactor,
+    ),
+    fn: scale(
+      combined
+        ? BLUE_COLOR
+        : (settings?.fnHeld ?? false)
+          ? YELLOW_COLOR
+          : dim(GRAY_COLOR, 3),
+      scaleFactor,
+    ),
   };
 }
 
-function spaceColor(space: "stopped" | "paused" | "playing" | "beat" | "measure"): DisplayPaletteRgb {
-  if (space === "stopped") return RED_COLOR;
-  if (space === "paused") return BLUE_COLOR;
-  if (space === "measure") return GREEN_COLOR;
-  if (space === "beat") return YELLOW_COLOR;
+function spaceColor(
+  space: 'stopped' | 'paused' | 'playing' | 'beat' | 'measure',
+): DisplayPaletteRgb {
+  if (space === 'stopped') return RED_COLOR;
+  if (space === 'paused') return BLUE_COLOR;
+  if (space === 'measure') return GREEN_COLOR;
+  if (space === 'beat') return YELLOW_COLOR;
   return dim(GREEN_COLOR, 3);
 }
 
@@ -159,17 +200,37 @@ function brightnessScale(value: number | undefined): number {
   return value === undefined ? 1 : Math.min(100, Math.max(0, value)) / 100;
 }
 
-function scale(rgb: DisplayPaletteRgb, factor: number): [number, number, number] {
-  return rgb.map((channel) => Math.round(channel * factor)) as [number, number, number];
+function scale(
+  rgb: DisplayPaletteRgb,
+  factor: number,
+): [number, number, number] {
+  return rgb.map((channel) => Math.round(channel * factor)) as [
+    number,
+    number,
+    number,
+  ];
 }
 
-function dim(rgb: DisplayPaletteRgb, divisor: number): [number, number, number] {
-  return rgb.map((channel) => Math.round(channel / divisor)) as [number, number, number];
+function dim(
+  rgb: DisplayPaletteRgb,
+  divisor: number,
+): [number, number, number] {
+  return rgb.map((channel) => Math.round(channel / divisor)) as [
+    number,
+    number,
+    number,
+  ];
 }
 
-function withTransientIndicators(frame: RuntimeSnapshot, indicators: TransientIndicatorState): RuntimeSnapshot {
+function withTransientIndicators(
+  frame: RuntimeSnapshot,
+  indicators: TransientIndicatorState,
+): RuntimeSnapshot {
   const transientEventDotOn = performance.now() < indicators.eventDotUntilMs;
-  const transientTransport = performance.now() < indicators.transportFlashUntilMs ? indicators.transportFlash : null;
+  const transientTransport =
+    performance.now() < indicators.transportFlashUntilMs
+      ? indicators.transportFlash
+      : null;
   if (!transientEventDotOn && transientTransport === null) return frame;
   return {
     ...frame,

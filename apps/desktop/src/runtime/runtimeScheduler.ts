@@ -3,7 +3,9 @@ export type RuntimeScheduler = {
   stop(): void;
 };
 
-export function createIntervalRuntimeScheduler(intervalMs: number): RuntimeScheduler {
+export function createIntervalRuntimeScheduler(
+  intervalMs: number,
+): RuntimeScheduler {
   let timer: number | null = null;
   let lastMs = 0;
 
@@ -22,6 +24,6 @@ export function createIntervalRuntimeScheduler(intervalMs: number): RuntimeSched
       if (timer === null) return;
       window.clearInterval(timer);
       timer = null;
-    }
+    },
   };
 }

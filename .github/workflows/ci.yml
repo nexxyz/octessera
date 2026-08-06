@@ -284,7 +284,6 @@ jobs:
           sudo bash tools/pi-image/test-rpi-boot-services.sh
           python3 tools/pi-image/test-boot-layer-contract.py
           python3 tools/pi-image/test-welcome.py
-          sudo python3 tools/pi-image/test-rpi-uart-release.py
           sudo bash tools/pi-image/test-sanitized-image-boot-layout.sh
           sudo python3 tools/pi-image/test-rpi-kernel-image.py
           bash tools/armbian-image/validate.sh

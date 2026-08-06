@@ -8,13 +8,35 @@ noninteractive commands and redirected output. The empty admin
 `/home/octessera/.hushlogin` keeps Armbian's login text from stepping on it;
 this does not change SSH credentials or the setup portal.
 
-Octessera 0.7.5 has two explicit Orange image modes:
+Keep the two image workflows separate:
 
-- **Production:** `octessera-0.7.5-orange-pi-zero-2w.img.xz` installs and enables
+- **Production release image:** on the release page, choose the asset whose name
+  ends in `-orange-pi-zero-2w.img.xz`. It installs and enables
   `octessera.service`. The service runs the native runtime as the locked
   `octessera-runtime` system account.
-- **Diagnostic:** a separate bring-up image for bus, OLED, and qualification
-  checks. It intentionally has no production runtime service.
+- **Diagnostic workflow image:** a separately produced workflow artifact for bus,
+  OLED, and qualification checks. It intentionally has no production runtime
+  service and is not the image to use for normal first boot.
+
+Before flashing a production image, download the matching checksum file whose
+name ends in `.img.xz.sha256` and verify that exact pair. For example, on Linux
+or macOS:
+
+```sh
+sha256sum -c octessera-<version>-orange-pi-zero-2w.img.xz.sha256
+```
+
+On Windows PowerShell, compare the hash named in that matching file with the
+image directly:
+
+```powershell
+$expected = (Get-Content .\octessera-<version>-orange-pi-zero-2w.img.xz.sha256).Trim().Split()[0].ToLowerInvariant()
+$actual = (Get-FileHash .\octessera-<version>-orange-pi-zero-2w.img.xz -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($actual -ne $expected) { throw "image SHA-256 mismatch" }
+```
+
+Do not substitute a diagnostic workflow image, a checksum for another asset, or
+a local runtime binary for the verified production image.
 
 The production image also has a separate interactive `octessera` admin/setup
 user. The service never runs as that user. Production supports the OLED,
@@ -25,9 +47,9 @@ audio is unsupported; the internal DAC at
 `hw:CARD=octesseradac,DEV=0` is required. USB UAC2 may be added as a companion,
 but `audioOut=usb` is rejected.
 
-Orange update check, apply, rollback, and OTA remain unsupported in 0.7.5.
-Use a verified production image artifact for an image update; do not treat the
-diagnostic image or a local runtime binary as a release image.
+Orange update check, apply, rollback, and OTA remain unsupported. Use a
+verified production image artifact from the release page for an image update;
+do not treat the diagnostic image or a local runtime binary as a release image.
 
 Use this before final assembly if you want. You do not need the OLED or buttons installed yet.
 

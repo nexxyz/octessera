@@ -42,6 +42,25 @@ Regenerate the printable user PDF after editing `userdocs/print/*.html`, `userdo
 corepack pnpm --filter @octessera/desktop tauri:dev
 ```
 
+### Hardware-free verification matrix
+
+These checks are useful before a board is available. They validate source,
+desktop, and host-build behavior only; none is board qualification.
+
+| Check                     | Command                                                                                          | Confirms                                                                                                                      | Does not confirm                                                               |
+| ------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Documentation links       | `python tools/docs/check_links.py`                                                               | Local Markdown targets resolve                                                                                                | Release downloads or hardware paths                                            |
+| Desktop contract          | `corepack pnpm --filter @octessera/desktop typecheck`                                            | Desktop TypeScript contracts compile                                                                                          | Physical input, display, or audio output                                       |
+| Desktop lint              | `corepack pnpm --filter @octessera/desktop lint`                                                 | Desktop ESLint checks pass                                                                                                    | Runtime behavior or hardware integration                                       |
+| Desktop format            | `corepack pnpm --filter @octessera/desktop format:check`                                         | Desktop Prettier checks pass                                                                                                  | Runtime behavior or hardware integration                                       |
+| Desktop tests             | `corepack pnpm --filter @octessera/desktop test`                                                 | Simulator/runtime-facing test cases pass                                                                                      | Board timing, GPIO, DAC, or USB behavior                                       |
+| Native host tests         | `cargo test -p platform-core -p playback-runtime -p realtime-engine`                             | Native behavior and rendering logic pass on the host                                                                          | A particular board, enclosure, power supply, or assembled control surface      |
+| Orange-feature host tests | `cargo test -p octessera-pi --no-default-features --features hardware-orange-pi-zero-2w orange_` | Orange-specific host tests, including setup-portal lifecycle and DAC/audio-loss handling, pass without opening board hardware | Orange boot, GPIO, OLED, DAC, audio-device, or physical qualification behavior |
+| Pi host-stub build        | `cargo build -p octessera-pi`                                                                    | The Pi application builds without hardware                                                                                    | Boot images, peripheral wiring, or physical qualification                      |
+
+Keep the limits visible in reports: a clean hardware-free matrix is evidence
+for software and documentation paths, not evidence that a board is ready.
+
 ## Desktop Builds
 
 CI smoke build without bundling:
@@ -424,14 +443,15 @@ source-bound boot-layer contract, not from a trusted parent respin:
    `orange-pi-zero-2w.json`; cross-build the matching native binary first.
 2. Run the reviewed Raspberry pi-gen constructor and the reviewed Orange
    Armbian constructor. Stage the canonical interactive welcome, preserve the
-   declared hushlogin behavior, and install the board-specific UART ownership
-   release before boot finalization. Install the boot service, hook, and runtime
+   declared hushlogin behavior, and encode Raspberry's inactive-UART safety
+   state before boot finalization. Install the boot service, hook, and runtime
    inputs; regenerate the selected initramfs on Raspberry and both the
    initramfs and Python closure on Orange. Do not use the runtime-only or
    setup-only `v0.7.5` parent respin as a boot-layer build.
 3. Run mounted-image proof before any board deployment. Raspberry must show one
    exact selected initramfs, one enabled early writer, the canonical welcome,
-   exact pi hushlogin, and released serial ownership. Orange must show the
+   exact pi hushlogin, inactive Raspberry UART configuration, serial-console
+   absence, and the expected serial-getty/Bluetooth service masks. Orange must show the
    canonical welcome, exact selected initramfs, fixed SPI/GPIO dependencies,
    the complete Python closure, and no broad GPIO probe. Verify the installed
    `/run/octessera-boot` ownership/status/lock paths and no second writer.

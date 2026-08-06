@@ -2,31 +2,11 @@
 use std::fs::OpenOptions;
 use std::fs::{self, File};
 use std::io::{Read, Seek, SeekFrom, Write};
-use std::path::{Path, PathBuf};
+use std::path::Path;
+
+pub(crate) use crate::setup_portal_paths::SetupPortalPaths;
 
 pub(crate) const MAX_STATUS_BYTES: u64 = 16 * 1024;
-
-#[derive(Clone, Debug)]
-pub(crate) struct SetupPortalPaths {
-    pub(crate) request: PathBuf,
-    pub(crate) public: PathBuf,
-    pub(crate) receipts: PathBuf,
-    pub(crate) current: PathBuf,
-    pub(crate) boot_id: PathBuf,
-}
-
-impl SetupPortalPaths {
-    pub(crate) fn production() -> Self {
-        let public = PathBuf::from("/run/octessera-setup-status");
-        Self {
-            request: PathBuf::from("/run/octessera/setup-portal.request"),
-            receipts: public.join("receipts"),
-            current: public.join("current.json"),
-            public,
-            boot_id: PathBuf::from("/proc/sys/kernel/random/boot_id"),
-        }
-    }
-}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum SetupFileKind {
@@ -153,19 +133,28 @@ fn create_request_marker_with_publisher(
 pub(crate) fn read_status_file(
     paths: &SetupPortalPaths,
     receipt_token: Option<&str>,
+    expected_uid: u32,
     expected_gid: u32,
 ) -> Result<Option<Vec<u8>>, SetupFileError> {
-    validate_directory_path(&paths.public, Some(0), Some((expected_gid, 0o750)))?;
+    validate_directory_path(
+        &paths.public,
+        Some(expected_uid),
+        Some((expected_gid, 0o750)),
+    )?;
     let path = if let Some(token) = receipt_token {
         if !valid_hex_32(token) {
             return Err(SetupFileError::Unsafe);
         }
-        validate_directory_path(&paths.receipts, Some(0), Some((expected_gid, 0o750)))?;
+        validate_directory_path(
+            &paths.receipts,
+            Some(expected_uid),
+            Some((expected_gid, 0o750)),
+        )?;
         paths.receipts.join(format!("{token}.json"))
     } else {
         paths.current.clone()
     };
-    match read_bounded_file(&path, expected_gid, 0o640) {
+    match read_bounded_file(&path, expected_uid, expected_gid, 0o640) {
         Ok(bytes) => Ok(Some(bytes)),
         Err(SetupFileError::Missing) => Ok(None),
         Err(error) => Err(error),
@@ -200,6 +189,7 @@ pub(crate) fn validate_directory_path(
 
 pub(crate) fn validate_public_metadata(
     metadata: SetupMetadata,
+    expected_uid: u32,
     expected_gid: u32,
     mode: u32,
     directory: bool,
@@ -210,7 +200,7 @@ pub(crate) fn validate_public_metadata(
         SetupFileKind::Regular
     };
     if metadata.kind != expected_kind
-        || metadata.uid != Some(0)
+        || metadata.uid != Some(expected_uid)
         || metadata.gid != Some(expected_gid)
         || metadata.mode != mode
         || metadata.nlink != 1
@@ -222,6 +212,7 @@ pub(crate) fn validate_public_metadata(
 
 fn read_bounded_file(
     path: &Path,
+    expected_uid: u32,
     expected_gid: u32,
     expected_mode: u32,
 ) -> Result<Vec<u8>, SetupFileError> {
@@ -230,13 +221,19 @@ fn read_bounded_file(
         Err(error) => return Err(classify_io(error)),
     };
     let metadata = metadata_from_std(&metadata);
-    validate_public_metadata(metadata, expected_gid, expected_mode, false)?;
+    validate_public_metadata(metadata, expected_uid, expected_gid, expected_mode, false)?;
     if metadata.size > MAX_STATUS_BYTES {
         return Err(SetupFileError::Oversized);
     }
     let mut file = open_existing_file(path)?;
     let opened_metadata = file_metadata(&file).map_err(classify_io)?;
-    validate_public_metadata(opened_metadata, expected_gid, expected_mode, false)?;
+    validate_public_metadata(
+        opened_metadata,
+        expected_uid,
+        expected_gid,
+        expected_mode,
+        false,
+    )?;
     if opened_metadata.size > MAX_STATUS_BYTES {
         return Err(SetupFileError::Oversized);
     }
@@ -269,7 +266,7 @@ fn open_new_file(path: &Path, mode: u32) -> Result<File, SetupFileError> {
         if descriptor < 0 {
             return Err(classify_errno());
         }
-        return Ok(unsafe { File::from_raw_fd(descriptor) });
+        Ok(unsafe { File::from_raw_fd(descriptor) })
     }
     #[cfg(not(unix))]
     {
@@ -295,7 +292,7 @@ fn open_existing_file(path: &Path) -> Result<File, SetupFileError> {
         if descriptor < 0 {
             return Err(classify_errno());
         }
-        return Ok(unsafe { File::from_raw_fd(descriptor) });
+        Ok(unsafe { File::from_raw_fd(descriptor) })
     }
     #[cfg(not(unix))]
     {
@@ -368,7 +365,7 @@ fn publish_marker_noreplace(source: &Path, destination: &Path) -> Result<(), Set
         if result != 0 {
             return Err(classify_errno());
         }
-        return Ok(());
+        Ok(())
     }
     #[cfg(windows)]
     {
@@ -398,7 +395,7 @@ fn sync_directory(path: &Path) -> Result<(), SetupFileError> {
             return Err(classify_errno());
         }
         let directory = unsafe { File::from_raw_fd(descriptor) };
-        return directory.sync_all().map_err(classify_io);
+        directory.sync_all().map_err(classify_io)
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -420,14 +417,14 @@ fn metadata_from_std(metadata: &fs::Metadata) -> SetupMetadata {
     #[cfg(unix)]
     {
         use std::os::unix::fs::MetadataExt;
-        return SetupMetadata {
+        SetupMetadata {
             kind,
             uid: Some(metadata.uid()),
             gid: Some(metadata.gid()),
             mode: metadata.mode() & 0o7777,
             nlink: metadata.nlink(),
             size: metadata.size(),
-        };
+        }
     }
     #[cfg(not(unix))]
     {

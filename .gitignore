@@ -25,8 +25,6 @@ diagnostics/
 !.opencode/agent/
 .opencode/agent/*
 hardware/pcb/PCB.stl
-release-artifacts/enclosure/top_artifacts_async.log
-release-artifacts/enclosure/top_artifacts_async_status.json
 release-artifacts/enclosure/status/
 hardware/enclosure/review/
 hardware/enclosure/*.stl

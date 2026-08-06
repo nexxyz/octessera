@@ -79,6 +79,7 @@ mod sample_browser;
 mod seesaw_io;
 mod setup_portal;
 mod setup_portal_files;
+mod setup_portal_paths;
 mod setup_portal_worker;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod timing_probe;

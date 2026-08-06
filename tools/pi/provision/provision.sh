@@ -54,6 +54,25 @@ ensure_boot_config_line() {
     fi
 }
 
+ensure_raspberry_uart_inactive() {
+    sudo sed -i -E '/^[[:space:]]*(dtoverlay=disable-bt|enable_uart=)/d' "$BOOT_CONFIG"
+    ensure_boot_config_line "dtoverlay=disable-bt"
+    ensure_boot_config_line "enable_uart=0"
+    while grep -Eq '(^|[[:space:]])console=(serial0|ttyAMA0|ttyS0)(,[^[:space:]]+)?([[:space:]]|$)' "$CMDLINE"; do
+        sudo sed -i -E 's/(^|[[:space:]])console=(serial0|ttyAMA0|ttyS0)(,[^[:space:]]+)?([[:space:]]|$)/\1\4/' "$CMDLINE"
+    done
+    if grep -Eq '(^|[[:space:]])console=(serial0|ttyAMA0|ttyS0)(,[^[:space:]]+)?([[:space:]]|$)' "$CMDLINE"; then
+        echo "Serial console token remains in the Raspberry Pi kernel command line." >&2
+        exit 1
+    fi
+    for unit in serial-getty@ttyAMA0.service serial-getty@ttyS0.service serial-getty@serial0.service bluetooth.service hciuart.service; do
+        sudo systemctl mask --now "$unit" >/dev/null
+        test "$(sudo systemctl is-enabled "$unit")" = masked
+    done
+    sudo rm -f /usr/local/lib/octessera/rpi_uart_release.py
+    test ! -e /usr/local/lib/octessera/rpi_uart_release.py
+}
+
 escape_sed_replacement() {
     printf '%s' "$1" | sed 's/[\\&|]/\\&/g'
 }
@@ -63,6 +82,11 @@ if [ ! -f "$BOOT_CONFIG" ]; then
     BOOT_CONFIG=/boot/config.txt
 fi
 test -f "$BOOT_CONFIG"
+CMDLINE=/boot/firmware/cmdline.txt
+[ -f "$CMDLINE" ] || CMDLINE=/boot/cmdline.txt
+test -f "$CMDLINE"
+BOOT_STATE_BEFORE=$(sha256sum "$BOOT_CONFIG" "$CMDLINE")
+sudo systemctl stop "$SERVICE" >/dev/null 2>&1 || true
 
 while IFS= read -r line || [ -n "$line" ]; do
     case "$line" in
@@ -71,6 +95,7 @@ while IFS= read -r line || [ -n "$line" ]; do
     esac
     ensure_boot_config_line "$line"
 done < "$PROVISION_ROOT/boot/config.txt.append"
+ensure_raspberry_uart_inactive
 
 sudo rm -f \
     /etc/initramfs-tools/hooks/cellsymphony-boot-splash \
@@ -106,7 +131,6 @@ install_file 0755 "$IMAGE_ROOT/usr/local/bin/octessera-network-health" /usr/loca
 install_file 0440 "$IMAGE_ROOT/etc/sudoers.d/octessera-shutdown" /etc/sudoers.d/octessera-shutdown
 install_file 0440 "$IMAGE_ROOT/etc/sudoers.d/octessera-update" /etc/sudoers.d/octessera-update
 install_file 0644 "$IMAGE_ROOT/etc/profile.d/octessera-welcome.sh" /etc/profile.d/octessera-welcome.sh
-install_file 0755 "$IMAGE_ROOT/usr/local/lib/octessera/rpi_uart_release.py" /usr/local/lib/octessera/rpi_uart_release.py
 sudo install -d -m 0755 /etc/octessera
 printf 'OCTESSERA_BOARD_PROFILE_ID=%s\n' "$BOARD_PROFILE" | sudo tee /etc/octessera/board-profile.env >/dev/null
 
@@ -141,7 +165,6 @@ else
     sudo install -D -m 0644 /dev/null "$hushlogin"
     sudo chown "$pi_user:$pi_user" "$hushlogin"
 fi
-sudo /usr/local/lib/octessera/rpi_uart_release.py --live
 
 REMOTE_REPO_ESCAPED=$(escape_sed_replacement "$REMOTE_REPO")
 if [ "$WAKE_TRACE" = "1" ]; then
@@ -197,6 +220,18 @@ sudo nmcli connection modify preconfigured 802-11-wireless.powersave 2 >/dev/nul
 sudo nmcli device reapply wlan0 >/dev/null 2>&1 || true
 
 sudo systemctl daemon-reload
+if [ "$BOOT_STATE_BEFORE" != "$(sha256sum "$BOOT_CONFIG" "$CMDLINE")" ]; then
+    sudo systemctl stop "$SERVICE" >/dev/null 2>&1 || true
+    echo "Boot configuration changed. Reboot, then re-run provisioning before starting octessera." >&2
+    exit 75
+fi
+if ! command -v pinctrl >/dev/null 2>&1 || \
+   ! pinctrl get 14 | grep -Eq 'GPIO14[[:space:]]*=[[:space:]]*input([[:space:]]|$)' || \
+   ! pinctrl get 15 | grep -Eq 'GPIO15[[:space:]]*=[[:space:]]*input([[:space:]]|$)'; then
+    sudo systemctl stop "$SERVICE" >/dev/null 2>&1 || true
+    echo "GPIO14/15 are not confirmed as safe inputs. Reboot, then re-run provisioning before starting octessera." >&2
+    exit 75
+fi
 sudo systemctl enable octessera-usb-gadget.service >/dev/null
 sudo systemctl enable --now octessera-update-recovery.service >/dev/null
 if [ -e /opt/octessera/current ] || [ -L /opt/octessera/current ]; then

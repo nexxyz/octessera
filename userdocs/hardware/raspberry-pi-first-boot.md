@@ -6,7 +6,7 @@ been physically qualified, so treat the flashed-card notes below as a promise
 of the constructor inputs rather than a claim that every existing card has
 them.
 
-## Console welcome and serial ownership
+## Console welcome and inactive UART safety
 
 The constructor installs one canonical `/etc/profile.d/octessera-welcome.sh`.
 It prints the Octessera welcome only for an interactive terminal, only once per
@@ -14,13 +14,17 @@ shell environment, and stays quiet for noninteractive commands or redirected
 output. An empty `/home/pi/.hushlogin` keeps the distro login text from crowding
 the little greeting; it does not remove Octessera's own profile script.
 
-The Raspberry constructor also releases the serial console after the selected
-kernel is finalized. It removes `console=serial0`, `console=ttyAMA0`, and
-`console=ttyS0` tokens, sets `enable_uart=0`, disables Bluetooth, and masks the
-serial-getty units with `/dev/null`. The same checked operation is available to
-live provisioning, and supports either `/boot/firmware` or `/boot` without
-guessing when both layouts are present. It does not edit PAM, update-motd, or
-the runtime/setup mutation entries.
+The Raspberry image declares the UART inactive before boot finalization: it
+removes `console=serial0`, `console=ttyAMA0`, and `console=ttyS0` tokens, sets
+`enable_uart=0`, disables Bluetooth, and masks the serial-getty units with
+`/dev/null`. This is a declarative image safety state. There is no post-boot
+Raspberry UART release utility or ownership operation. It does not edit PAM,
+update-motd, or the runtime/setup mutation entries.
+
+This matters because encoder switch `SW3` is wired to GPIO14 (physical pin 8),
+the Raspberry UART TX pin. With the UART inactive, GPIO14 can remain an input
+for reliable SW3 operation; do not re-enable the serial console on a built
+instrument.
 
 ## Expected boot animation
 

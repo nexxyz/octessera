@@ -1,10 +1,20 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { OLED_HEIGHT, OLED_WIDTH, type RuntimeSnapshot } from "@octessera/device-contracts";
-import { drawSemanticOled } from "./oledDraw";
-import { toOledImage } from "./oledImage";
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  OLED_HEIGHT,
+  OLED_WIDTH,
+  type RuntimeSnapshot,
+} from '@octessera/device-contracts';
+import { drawSemanticOled } from './oledDraw';
+import { toOledImage } from './oledImage';
 
-const BOOT_SPLASH_LOGO = new URL("../../../../assets/octessera-pi-booting.png", import.meta.url).href;
-const SLEEP_SHUTDOWN_SPLASH_LOGO = new URL("../../../../assets/octessera-pi-shutdown.png", import.meta.url).href;
+const BOOT_SPLASH_LOGO = new URL(
+  '../../../../assets/octessera-pi-booting.png',
+  import.meta.url,
+).href;
+const SLEEP_SHUTDOWN_SPLASH_LOGO = new URL(
+  '../../../../assets/octessera-pi-shutdown.png',
+  import.meta.url,
+).href;
 const OLED_DISPLAY_SCALE = 2;
 const OLED_DISPLAY_WIDTH = OLED_WIDTH * OLED_DISPLAY_SCALE;
 const OLED_DISPLAY_HEIGHT = OLED_HEIGHT * OLED_DISPLAY_SCALE;
@@ -29,7 +39,7 @@ export type SemanticOledState = {
 export function OledDisplay({
   audioLoad,
   displayBrightness,
-  frame
+  frame,
 }: {
   audioLoad?: { ratio: number; voiceSteal: boolean };
   displayBrightness: number;
@@ -41,7 +51,13 @@ export function OledDisplay({
   const sepiaSplashImage = useImageAsset(SLEEP_SHUTDOWN_SPLASH_LOGO);
   const semantic = useSemanticOledState(frame, audioLoad);
 
-  useOledCanvas(canvasRef, oledImage, semantic, regularSplashImage, sepiaSplashImage);
+  useOledCanvas(
+    canvasRef,
+    oledImage,
+    semantic,
+    regularSplashImage,
+    sepiaSplashImage,
+  );
 
   return (
     <section className="oled-wrap">
@@ -63,24 +79,31 @@ export function OledDisplay({
 
 function useSemanticOledState(
   frame: RuntimeSnapshot,
-  audioLoad?: { ratio: number; voiceSteal: boolean }
+  audioLoad?: { ratio: number; voiceSteal: boolean },
 ): SemanticOledState {
   const displayOff = Boolean(frame.display.off ?? false);
-  const splashText = String(frame.display.splash ?? "");
+  const splashText = String(frame.display.splash ?? '');
   const selectedRow = Number(frame.selectedRow ?? -1);
-  const lineColors = Array.isArray(frame.display.colors) ? frame.display.colors : [];
-  const barValues = Array.isArray(frame.display.barValues) ? frame.display.barValues : [];
+  const lineColors = Array.isArray(frame.display.colors)
+    ? frame.display.colors
+    : [];
+  const barValues = Array.isArray(frame.display.barValues)
+    ? frame.display.barValues
+    : [];
   const scrollOffset = Number(frame.display.scrollOffset ?? 0);
   const totalRows = Number(frame.display.totalRows ?? 0);
   const visibleRows = Number(frame.display.visibleRows ?? 0);
-  const scroll = totalRows > visibleRows && visibleRows > 0
-    ? { offset: Math.max(0, scrollOffset), totalRows, visibleRows }
-    : null;
-  const transportIcon = String(frame.transportIcon ?? (frame.transport.playing ? "play" : "stop"));
+  const scroll =
+    totalRows > visibleRows && visibleRows > 0
+      ? { offset: Math.max(0, scrollOffset), totalRows, visibleRows }
+      : null;
+  const transportIcon = String(
+    frame.transportIcon ?? (frame.transport.playing ? 'play' : 'stop'),
+  );
   const eventDotOn = Boolean(frame.eventDotOn ?? false);
   const eventDotSteal = audioLoad?.voiceSteal === true;
-  const transportFlash = String(frame.transportFlash ?? "none");
-  const footerToast = String(frame.display.toast ?? "");
+  const transportFlash = String(frame.transportFlash ?? 'none');
+  const footerToast = String(frame.display.toast ?? '');
   const [visibleFooterToast, setVisibleFooterToast] = useState(footerToast);
   const frameCpuLoad = Number(frame.cpuLoadRatio ?? 0);
   const audioCpuLoad = audioLoad?.voiceSteal
@@ -90,12 +113,14 @@ function useSemanticOledState(
 
   useEffect(() => {
     if (!footerToast) {
-      setVisibleFooterToast("");
+      setVisibleFooterToast('');
       return;
     }
     setVisibleFooterToast(footerToast);
     const timeout = window.setTimeout(() => {
-      setVisibleFooterToast((current) => (current === footerToast ? "" : current));
+      setVisibleFooterToast((current) =>
+        current === footerToast ? '' : current,
+      );
     }, 1800);
     return () => window.clearTimeout(timeout);
   }, [footerToast]);
@@ -114,7 +139,10 @@ function useSemanticOledState(
       eventDotOn,
       eventDotSteal,
       transportFlash,
-      visibleFooterToast: splashText === "startup" ? "Starting up, loading defaults" : visibleFooterToast,
+      visibleFooterToast:
+        splashText === 'startup'
+          ? 'Starting up, loading defaults'
+          : visibleFooterToast,
       cpuLoad,
     }),
     [
@@ -148,22 +176,27 @@ function useOledCanvas(
     if (!canvas) return;
     canvas.width = OLED_DISPLAY_WIDTH;
     canvas.height = OLED_DISPLAY_HEIGHT;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, OLED_DISPLAY_WIDTH, OLED_DISPLAY_HEIGHT);
 
-    const sourceCanvas = document.createElement("canvas");
+    const sourceCanvas = document.createElement('canvas');
     sourceCanvas.width = OLED_WIDTH;
     sourceCanvas.height = OLED_HEIGHT;
-    const sourceCtx = sourceCanvas.getContext("2d");
+    const sourceCtx = sourceCanvas.getContext('2d');
     if (!sourceCtx) return;
     sourceCtx.imageSmoothingEnabled = false;
 
     if (image) {
       sourceCtx.putImageData(image, 0, 0);
     } else {
-      drawSemanticOled(sourceCtx, semantic, regularSplashImage, sepiaSplashImage);
+      drawSemanticOled(
+        sourceCtx,
+        semantic,
+        regularSplashImage,
+        sepiaSplashImage,
+      );
     }
     const sourceImage = sourceCtx.getImageData(0, 0, OLED_WIDTH, OLED_HEIGHT);
     ctx.putImageData(doubleImageData(sourceImage), 0, 0);
@@ -181,10 +214,38 @@ function doubleImageData(source: ImageData): ImageData {
       const sourceIndex = (y * source.width + x) * 4;
       const targetX = x * 2;
       const targetY = y * 2;
-      writePixel(targetData, targetWidth, targetX, targetY, sourceData, sourceIndex);
-      writePixel(targetData, targetWidth, targetX + 1, targetY, sourceData, sourceIndex);
-      writePixel(targetData, targetWidth, targetX, targetY + 1, sourceData, sourceIndex);
-      writePixel(targetData, targetWidth, targetX + 1, targetY + 1, sourceData, sourceIndex);
+      writePixel(
+        targetData,
+        targetWidth,
+        targetX,
+        targetY,
+        sourceData,
+        sourceIndex,
+      );
+      writePixel(
+        targetData,
+        targetWidth,
+        targetX + 1,
+        targetY,
+        sourceData,
+        sourceIndex,
+      );
+      writePixel(
+        targetData,
+        targetWidth,
+        targetX,
+        targetY + 1,
+        sourceData,
+        sourceIndex,
+      );
+      writePixel(
+        targetData,
+        targetWidth,
+        targetX + 1,
+        targetY + 1,
+        sourceData,
+        sourceIndex,
+      );
     }
   }
 
@@ -213,10 +274,10 @@ function useImageAsset(src: string): HTMLImageElement | null {
     const next = new Image();
     next.src = src;
     const handleLoad = () => setImage(next);
-    next.addEventListener("load", handleLoad);
+    next.addEventListener('load', handleLoad);
     if (next.complete) setImage(next);
     return () => {
-      next.removeEventListener("load", handleLoad);
+      next.removeEventListener('load', handleLoad);
     };
   }, [src]);
 

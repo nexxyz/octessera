@@ -319,7 +319,12 @@ impl SetupPortalService {
             .status_group
             .clone()
             .map_err(|_| SetupPortalFailure::unavailable())?;
-        let bytes = match read_status_file(&self.environment.paths, receipt_token, group) {
+        let bytes = match read_status_file(
+            &self.environment.paths,
+            receipt_token,
+            self.environment.expected_owner_uid,
+            group,
+        ) {
             Ok(Some(bytes)) => bytes,
             Ok(None) => return Ok(None),
             Err(SetupFileError::Missing) => return Ok(None),

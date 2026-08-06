@@ -1,7 +1,7 @@
 use super::support::{set_runtime_playing, FakeHost, FakeRunner};
 use crate::{
-    CoreRunner, HostMessage, MusicalEvent, PlaybackRuntime, RunnerMessage, RuntimeConfig,
-    RuntimePlatformEffect, SyncSource,
+    CoreRunner, HostMessage, MusicalEvent, PlaybackRuntime, RunnerMessage, RuntimeAudioCommand,
+    RuntimeConfig, RuntimePlatformEffect, SyncSource,
 };
 use serde_json::json;
 
@@ -62,6 +62,62 @@ fn internal_clock_preserves_sub_millisecond_transport_time() {
         })
         .sum::<u32>();
     assert_eq!(pulses, 42);
+}
+
+#[test]
+fn internal_musical_events_use_host_audio_path_and_forward_audio_commands() {
+    struct InternalRunner;
+
+    impl CoreRunner for InternalRunner {
+        fn send(&mut self, _message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
+            Ok(vec![
+                RunnerMessage::MusicalEvents {
+                    events: vec![MusicalEvent::NoteOn {
+                        channel: 0,
+                        note: 60,
+                        velocity: 100,
+                        duration_ms: None,
+                    }],
+                },
+                RunnerMessage::AudioCommands {
+                    commands: vec![RuntimeAudioCommand::SetSynthParam {
+                        instrument_slot: 0,
+                        path: "oscillator.pitch".into(),
+                        value: 440.0,
+                    }],
+                },
+            ])
+        }
+    }
+
+    let mut runtime = PlaybackRuntime::new(RuntimeConfig {
+        midi_out_enabled: false,
+        ..RuntimeConfig::default()
+    });
+    let mut runner = InternalRunner;
+    let mut host = FakeHost::default();
+
+    set_runtime_playing(&mut runtime, &mut host);
+    runtime.advance(500, &mut runner, &mut host).unwrap();
+
+    assert_eq!(
+        host.musical_events,
+        vec![MusicalEvent::NoteOn {
+            channel: 0,
+            note: 60,
+            velocity: 100,
+            duration_ms: None,
+        }]
+    );
+    assert!(host.midi_messages.is_empty());
+    assert_eq!(
+        host.audio_commands,
+        vec![RuntimeAudioCommand::SetSynthParam {
+            instrument_slot: 0,
+            path: "oscillator.pitch".into(),
+            value: 440.0,
+        }]
+    );
 }
 
 #[test]

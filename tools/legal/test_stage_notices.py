@@ -29,6 +29,40 @@ def _manifest(root: Path, entries: list[dict[str, object]]) -> Path:
 
 
 class NoticeStagerTests(unittest.TestCase):
+    def test_filesystem_policy_succeeds_and_checks_as_unprivileged_user(self) -> None:
+        if os.name == "nt" or (hasattr(os, "geteuid") and os.geteuid() == 0):
+            self.skipTest("requires an ordinary POSIX user")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "source.txt").write_text("canonical\n", encoding="utf-8")
+            manifest = _manifest(root, [_entry(root, "source.txt", "NOTICE")])
+            stage = root / "stage"
+            stage_notices(root, stage, manifest, ownership="filesystem")
+            stage_notices(root, stage, manifest, check=True, ownership="filesystem")
+
+    @unittest.skipUnless(os.name != "nt", "root ownership is POSIX-only")
+    def test_root_policy_rejects_user_owned_output(self) -> None:
+        if hasattr(os, "geteuid") and os.geteuid() == 0:
+            self.skipTest("requires an ordinary POSIX user")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "source.txt").write_text("canonical\n", encoding="utf-8")
+            manifest = _manifest(root, [_entry(root, "source.txt", "NOTICE")])
+            stage = root / "stage"
+            stage_notices(root, stage, manifest, ownership="filesystem")
+            with self.assertRaises(NoticeStageError):
+                stage_notices(root, stage, manifest, check=True)
+            with self.assertRaises(NoticeStageError):
+                stage_notices(root, stage, manifest, check=True, ownership="root")
+
+    def test_invalid_ownership_policy_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "source.txt").write_text("canonical\n", encoding="utf-8")
+            manifest = _manifest(root, [_entry(root, "source.txt", "NOTICE")])
+            with self.assertRaises(NoticeStageError):
+                stage_notices(root, root / "stage", manifest, ownership="invalid")
+
     def test_repository_manifest_hashes_match_raw_working_sources_and_lf_attributes(self) -> None:
         manifest = load_manifest(ROOT / "resources/legal/notice-bundle.json")
         for item in manifest["files"]:
@@ -65,8 +99,8 @@ class NoticeStagerTests(unittest.TestCase):
             }
             expected.update(path.relative_to(ROOT).as_posix() for base in (ROOT / "licenses/cargo", ROOT / "licenses/pnpm") for path in base.rglob("*") if path.is_file())
             self.assertEqual({item["source"] for item in manifest["files"]}, expected)
-            stage_notices(ROOT, stage)
-            stage_notices(ROOT, stage, check=True)
+            stage_notices(ROOT, stage, ownership="filesystem")
+            stage_notices(ROOT, stage, check=True, ownership="filesystem")
             self.assertEqual((stage / "usr/share/doc/octessera/LICENSE").read_bytes(), (ROOT / "LICENSE").read_bytes())
 
     def test_stale_missing_extra_mode_and_content_are_rejected(self) -> None:
@@ -76,24 +110,24 @@ class NoticeStagerTests(unittest.TestCase):
             source.write_text("canonical\n", encoding="utf-8")
             manifest = _manifest(root, [_entry(root, "source.txt", "NOTICE")])
             stage = root / "stage"
-            stage_notices(root, stage, manifest)
+            stage_notices(root, stage, manifest, ownership="filesystem")
             target = stage / "usr/share/doc/octessera/NOTICE"
             target.write_text("stale\n", encoding="utf-8")
             with self.assertRaises(NoticeStageError):
-                stage_notices(root, stage, manifest, check=True)
+                stage_notices(root, stage, manifest, check=True, ownership="filesystem")
             target.write_text("canonical\n", encoding="utf-8")
             target.chmod(0o600)
             if os.name != "nt":
                 with self.assertRaises(NoticeStageError):
-                    stage_notices(root, stage, manifest, check=True)
+                    stage_notices(root, stage, manifest, check=True, ownership="filesystem")
             target.chmod(0o644)
             (stage / "usr/share/doc/octessera/extra.txt").write_text("extra\n", encoding="utf-8")
             with self.assertRaises(NoticeStageError):
-                stage_notices(root, stage, manifest, check=True)
+                stage_notices(root, stage, manifest, check=True, ownership="filesystem")
             (stage / "usr/share/doc/octessera/extra.txt").unlink()
             source.unlink()
             with self.assertRaises(NoticeStageError):
-                stage_notices(root, stage, manifest, check=True)
+                stage_notices(root, stage, manifest, check=True, ownership="filesystem")
 
     def test_symlink_collision_and_escape_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -113,14 +147,14 @@ class NoticeStagerTests(unittest.TestCase):
                 self.skipTest("symlink creation is unavailable")
             linked = _manifest(root, [{**_entry(root, "one.txt", "NOTICE"), "source": "source-link.txt"}])
             with self.assertRaises(NoticeStageError):
-                stage_notices(root, root / "stage", linked)
+                stage_notices(root, root / "stage", linked, ownership="filesystem")
             stage = root / "stage"
-            stage_notices(root, stage, _manifest(root, [_entry(root, "one.txt", "NOTICE")]))
+            stage_notices(root, stage, _manifest(root, [_entry(root, "one.txt", "NOTICE")]), ownership="filesystem")
             target = stage / "usr/share/doc/octessera/NOTICE"
             target.unlink()
             target.symlink_to(root / "one.txt")
             with self.assertRaises(NoticeStageError):
-                stage_notices(root, stage, _manifest(root, [_entry(root, "one.txt", "NOTICE")]), check=True)
+                stage_notices(root, stage, _manifest(root, [_entry(root, "one.txt", "NOTICE")]), check=True, ownership="filesystem")
 
 
 if __name__ == "__main__":

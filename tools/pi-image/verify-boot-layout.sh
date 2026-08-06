@@ -351,16 +351,16 @@ require_octessera_raspberry_identity() {
         echo "constructor-required: Raspberry config is malformed" >&2
         return 1
     fi
-    if ! tail -n 4 "$config" | cmp -s - <(printf '%s\n' '# --- Octessera UART release ---' '[all]' 'dtoverlay=disable-bt' 'enable_uart=0'); then
-        echo "constructor-required: Raspberry UART config block is not the exact final block" >&2
+    if grep -qF '# --- Octessera UART release ---' "$config"; then
+        echo "constructor-required: obsolete Raspberry UART release marker remains" >&2
         return 1
     fi
     if grep -Eq '^[[:space:]]*enable_uart[[:space:]]*=[[:space:]]*1([[:space:]]|$)' "$config"; then
         echo "constructor-required: Raspberry UART enablement remains" >&2
         return 1
     fi
-    grep -Eq '^[[:space:]]*dtoverlay=disable-bt([[:space:]]|$)' "$config" || { echo "constructor-required: Raspberry Bluetooth disable overlay is missing" >&2; return 1; }
-    grep -Eq '^[[:space:]]*enable_uart=0([[:space:]]|$)' "$config" || { echo "constructor-required: Raspberry UART disable setting is missing" >&2; return 1; }
+    [ "$(grep -Ec '^[[:space:]]*dtoverlay=disable-bt([[:space:]]|$)' "$config")" -eq 1 ] || { echo "constructor-required: Raspberry Bluetooth disable overlay is missing or duplicated" >&2; return 1; }
+    [ "$(grep -Ec '^[[:space:]]*enable_uart=0([[:space:]]|$)' "$config")" -eq 1 ] || { echo "constructor-required: Raspberry UART disable setting is missing or duplicated" >&2; return 1; }
     if grep -Eq '^[[:space:]]*enable_uart=1([[:space:]]|$)' "$config"; then
         echo "constructor-required: Raspberry UART is enabled" >&2
         return 1
@@ -400,8 +400,8 @@ require_octessera_raspberry_identity() {
             return 1
         fi
     done
-    if [ ! -f "$image_root/usr/local/lib/octessera/rpi_uart_release.py" ] || [ -L "$image_root/usr/local/lib/octessera/rpi_uart_release.py" ] || [ "$(stat -c '%u:%g:%a' "$image_root/usr/local/lib/octessera/rpi_uart_release.py")" != 0:0:755 ]; then
-        echo "constructor-required: Raspberry UART release utility is not exact" >&2
+    if [ -e "$image_root/usr/local/lib/octessera/rpi_uart_release.py" ] || [ -L "$image_root/usr/local/lib/octessera/rpi_uart_release.py" ]; then
+        echo "constructor-required: removed Raspberry UART release utility remains" >&2
         return 1
     fi
 }

@@ -1,7 +1,7 @@
 use super::cpal_audio_output::resolve_output_buffer_frames;
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
-use crate::audio_hotplug::{register_sink, ReplayCache};
+use crate::audio_hotplug::{has_sink, register_sink, ReplayCache};
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 use rodio_engine_source::{event_queue, EngineEvent, EngineEventReceiver};
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -278,4 +278,31 @@ fn orange_device_loss_is_terminal_without_recovery_retry() {
     );
     assert_eq!(attempts, 1);
     assert!(health.is_terminal());
+}
+
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[test]
+fn orange_required_controller_detaches_after_device_loss_without_opening_hardware() {
+    let (tx, _rx) = event_queue();
+    let sinks = Arc::new(Mutex::new(Vec::new()));
+    register_sink(&sinks, super::AudioSink::InternalDac, tx.clone());
+    let health = super::AudioStreamHealth::new("InternalDac".into());
+    let initial = super::OpenedAudioSink {
+        engine_tx: tx,
+        _stream: None,
+        health: health.clone(),
+    };
+    let replay_events = Arc::new(Mutex::new(ReplayCache::default()));
+    let mut controller = super::orange_audio_recovery::OrangeRecoveryController::new_required(
+        initial,
+        None,
+        sinks.clone(),
+        replay_events,
+    );
+
+    health.mark_terminal();
+    controller.recover_if_due();
+
+    assert_eq!(controller.status(), super::OrangeDacStatus::Terminal);
+    assert!(!has_sink(&sinks, super::AudioSink::InternalDac));
 }
