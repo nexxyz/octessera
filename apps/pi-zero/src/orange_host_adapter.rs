@@ -5,8 +5,8 @@ use crate::orange_audio::OrangeAudioHost;
 use crate::platform_service::{load_json, PiPlatformService, PlatformJob, PlatformJobKind};
 use crate::setup_portal::start_failure_message;
 use playback_runtime::{
-    HostAdapter, HostMessage, MusicalEvent, RuntimeAdapterError, RuntimeAudioCommand,
-    RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult,
+    DeferredDefaultSave, HostAdapter, HostMessage, MusicalEvent, RuntimeAdapterError,
+    RuntimeAudioCommand, RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult,
 };
 use serde_json::Value;
 use std::path::{Path, PathBuf};
@@ -20,7 +20,7 @@ pub(crate) struct OrangeHostAdapter {
     audio_host: OrangeAudioHost,
     platform_service: PiPlatformService,
     store_dir: PathBuf,
-    pending_default_save: Option<(Value, Instant, RuntimePlatformRequest)>,
+    pending_default_save: DeferredDefaultSave,
     midi: MidiHost,
 }
 
@@ -53,7 +53,7 @@ impl OrangeHostAdapter {
             audio_host: OrangeAudioHost::new(audio, samples_dir.clone()),
             platform_service: PiPlatformService::new(store_dir.clone(), samples_dir),
             store_dir,
-            pending_default_save: None,
+            pending_default_save: DeferredDefaultSave::default(),
             midi: MidiHost::new(midi_in_handler, usb_midi_out_enabled),
         })
     }
@@ -78,7 +78,7 @@ impl OrangeHostAdapter {
                 environment,
             ),
             store_dir,
-            pending_default_save: None,
+            pending_default_save: DeferredDefaultSave::default(),
             midi: MidiHost::new(midi_in_handler, usb_midi_out_enabled),
         })
     }
@@ -95,19 +95,11 @@ impl OrangeHostAdapter {
     }
 
     pub(crate) fn flush_due_default_save(&mut self) -> Result<Vec<HostMessage>, String> {
-        let Some((_, due_at, _)) = self.pending_default_save.as_ref() else {
+        let Some(entry) = self.pending_default_save.take_due(Instant::now()) else {
             return Ok(Vec::new());
         };
-        if Instant::now() < *due_at {
-            return Ok(Vec::new());
-        }
-        let Some((payload, request)) = self
-            .pending_default_save
-            .as_ref()
-            .map(|(payload, _, request)| (payload.clone(), request.clone()))
-        else {
-            return Ok(Vec::new());
-        };
+        let payload = entry.payload;
+        let request = entry.request;
         if let Err(message) = self.platform_service.enqueue(PlatformJob::new(
             request.clone(),
             PlatformJobKind::SaveDefault {
@@ -115,13 +107,19 @@ impl OrangeHostAdapter {
                 is_auto: Some(true),
             },
         )) {
-            self.pending_default_save = Some((payload, retry_default_save_at(), request.clone()));
+            self.pending_default_save.retry(
+                playback_runtime::DeferredDefaultSaveEntry {
+                    payload,
+                    due_at: Instant::now(),
+                    request: request.clone(),
+                },
+                retry_default_save_at(),
+            );
             return Ok(vec![failure_message(
                 &request,
                 format!("Auto-save queue failed: {message}"),
             )]);
         }
-        self.pending_default_save = None;
         Ok(Vec::new())
     }
     fn enqueue(
@@ -197,21 +195,21 @@ impl HostAdapter for OrangeHostAdapter {
                 ))
             }
             RuntimePlatformEffect::StoreLoadDefault => {
-                self.pending_default_save = None;
+                self.pending_default_save.cancel();
                 let payload = load_json(&self.store_dir.join("default.json"))
                     .map_err(RuntimeAdapterError::operation_failed)?;
                 RuntimeStoreResult::LoadDefaultResult { payload }
             }
             RuntimePlatformEffect::StoreSaveDefault { payload, mode } => {
                 if mode.as_deref() == Some("deferred") {
-                    self.pending_default_save = Some((
+                    self.pending_default_save.schedule(
                         payload.clone(),
                         deferred_default_save_due_at(),
                         request.clone(),
-                    ));
+                    );
                     return Ok(Vec::new());
                 }
-                self.pending_default_save = None;
+                self.pending_default_save.cancel();
                 return Ok(self.enqueue(
                     request,
                     PlatformJobKind::SaveDefault {

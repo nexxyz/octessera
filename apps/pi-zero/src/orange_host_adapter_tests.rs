@@ -191,9 +191,33 @@ fn deferred_default_save_can_be_flushed() {
         "deferred-save",
     );
     assert!(adapter.handle_platform_effect(&request).unwrap().is_empty());
-    adapter.pending_default_save.as_mut().unwrap().1 = Instant::now();
+    let entry = adapter.pending_default_save.take_now().unwrap();
+    adapter
+        .pending_default_save
+        .schedule(entry.payload, Instant::now(), entry.request);
     assert!(adapter.flush_due_default_save().unwrap().is_empty());
-    let _ = wait_for_result(&adapter);
+    assert!(!adapter.pending_default_save.is_pending());
+    let results = wait_for_result(&adapter);
+    let [HostMessage::RuntimeResult {
+        result:
+            RuntimeStoreResult::Identified {
+                result,
+                request_id,
+                revision,
+            },
+    }] = results.as_slice()
+    else {
+        panic!("expected identified deferred save result");
+    };
+    assert_eq!(request_id, "deferred-save");
+    assert_eq!(*revision, Some(1));
+    assert!(matches!(
+        result.as_ref(),
+        RuntimeStoreResult::SaveDefaultResult {
+            ok: true,
+            is_auto: Some(true),
+        }
+    ));
     assert!(store.join("default.json").is_file());
     let _ = std::fs::remove_dir_all(store.parent().unwrap());
     let _ = std::fs::remove_dir_all(samples);

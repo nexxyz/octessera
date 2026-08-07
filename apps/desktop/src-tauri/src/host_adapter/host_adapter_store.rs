@@ -85,7 +85,7 @@ impl DesktopPlaybackHostAdapter {
     }
 
     pub(super) fn load_default_result(&mut self) -> Result<Vec<HostMessage>, String> {
-        self.pending_default_save = None;
+        self.pending_default_save.cancel();
         match self.load_default_payload()? {
             Ok(payload) => Ok(vec![HostMessage::RuntimeResult {
                 result: RuntimeStoreResult::LoadDefaultResult { payload },
@@ -105,14 +105,14 @@ impl DesktopPlaybackHostAdapter {
         mode: Option<&str>,
     ) -> Result<Vec<HostMessage>, String> {
         if mode == Some("deferred") {
-            self.pending_default_save = Some((
+            self.pending_default_save.schedule(
                 payload.clone(),
                 Instant::now() + Duration::from_millis(DEFERRED_DEFAULT_SAVE_MS),
                 request.clone(),
-            ));
+            );
             return Ok(vec![]);
         }
-        self.pending_default_save = None;
+        self.pending_default_save.cancel();
         self.save_default_payload(payload)?;
         Ok(vec![HostMessage::RuntimeResult {
             result: RuntimeStoreResult::SaveDefaultResult {

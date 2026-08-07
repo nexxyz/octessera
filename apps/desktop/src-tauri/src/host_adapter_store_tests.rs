@@ -184,18 +184,55 @@ fn deferred_default_save_flushes_runtime_result() {
         }))
         .unwrap();
     assert!(follow_ups.is_empty());
-    adapter.pending_default_save = adapter
+    let entry = adapter.pending_default_save.take_now().unwrap();
+    adapter
         .pending_default_save
-        .take()
-        .map(|(payload, _, request)| (payload, Instant::now(), request));
+        .schedule(entry.payload, Instant::now(), entry.request);
     let follow_ups = adapter.flush_due_default_save().unwrap();
+    let [HostMessage::RuntimeResult {
+        result:
+            RuntimeStoreResult::Identified {
+                result,
+                request_id,
+                revision,
+            },
+    }] = follow_ups.as_slice()
+    else {
+        panic!("expected identified deferred save result");
+    };
+    assert_eq!(request_id, "test-request");
+    assert_eq!(*revision, None);
     assert!(matches!(
-        &follow_ups[..],
-        [HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::Identified { .. }
-        }]
+        result.as_ref(),
+        RuntimeStoreResult::SaveDefaultResult {
+            ok: true,
+            is_auto: Some(true),
+        }
     ));
     assert!(temp_dir.join("default.json").is_file());
+    let _ = std::fs::remove_dir_all(temp_dir);
+}
+
+#[test]
+fn immediate_default_save_returns_raw_result_for_runtime_identity() {
+    let (mut adapter, _) = test_adapter();
+    let temp_dir = temp_store_dir("immediate-default-save");
+    adapter.store_dir = temp_dir.clone();
+    let results = adapter
+        .handle_platform_effect(&platform_request(RuntimePlatformEffect::StoreSaveDefault {
+            payload: serde_json::json!({"runtimeConfig": {"masterVolume": 61}}),
+            mode: None,
+        }))
+        .unwrap();
+    assert!(matches!(
+        results.as_slice(),
+        [HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::SaveDefaultResult {
+                ok: true,
+                is_auto: None,
+            }
+        }]
+    ));
     let _ = std::fs::remove_dir_all(temp_dir);
 }
 
@@ -236,17 +273,17 @@ fn failed_deferred_default_save_retains_pending_payload_for_retry() {
     let blocker = temp_dir.join("not-a-directory");
     std::fs::write(&blocker, "blocker").unwrap();
     adapter.store_dir = blocker;
-    adapter.pending_default_save = Some((
+    adapter.pending_default_save.schedule(
         serde_json::json!({ "masterVolume": 72 }),
         Instant::now(),
         platform_request(RuntimePlatformEffect::StoreSaveDefault {
             payload: serde_json::json!({ "masterVolume": 72 }),
             mode: Some("deferred".into()),
         }),
-    ));
+    );
 
     assert!(adapter.flush_due_default_save().is_err());
-    assert!(adapter.pending_default_save.is_some());
+    assert!(adapter.pending_default_save.is_pending());
     let _ = std::fs::remove_dir_all(temp_dir);
 }
 

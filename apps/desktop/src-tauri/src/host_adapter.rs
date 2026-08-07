@@ -10,10 +10,10 @@ use crate::midi;
 use crate::types::{QueuedAudioEvent, QueuedNote};
 use midir::MidiInputConnection;
 use playback_runtime::{
-    HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent, RuntimeAdapterError,
-    RuntimeAudioCommand, RuntimeOperation, RuntimePlatformEffect, RuntimePlatformRequest,
-    RuntimeSetupPortalErrorCode, RuntimeSetupPortalPhase, RuntimeSetupPortalStatus,
-    RuntimeStoreResult,
+    DeferredDefaultSave, HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent,
+    RuntimeAdapterError, RuntimeAudioCommand, RuntimeOperation, RuntimePlatformEffect,
+    RuntimePlatformRequest, RuntimeSetupPortalErrorCode, RuntimeSetupPortalPhase,
+    RuntimeSetupPortalStatus, RuntimeStoreResult,
 };
 use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
 use std::collections::HashMap;
@@ -31,7 +31,7 @@ pub(crate) struct DesktopPlaybackHostAdapter {
     pub(crate) midi_in: Arc<Mutex<Option<MidiInputConnection<()>>>>,
     pub(crate) midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
     pub(crate) store_dir: PathBuf,
-    pending_default_save: Option<(serde_json::Value, Instant, RuntimePlatformRequest)>,
+    pending_default_save: DeferredDefaultSave,
     platform_service_tx: Sender<DesktopPlatformServiceRequest>,
     selected_midi_output_id: Option<String>,
     selected_midi_input_id: Option<String>,
@@ -60,7 +60,7 @@ impl DesktopPlaybackHostAdapter {
             midi_in,
             midi_in_handler,
             store_dir,
-            pending_default_save: None,
+            pending_default_save: DeferredDefaultSave::default(),
             platform_service_tx,
             selected_midi_output_id: None,
             selected_midi_input_id: None,
@@ -75,18 +75,20 @@ impl DesktopPlaybackHostAdapter {
     }
 
     pub(crate) fn flush_due_default_save(&mut self) -> Result<Vec<HostMessage>, String> {
-        let Some((_, due_at, _)) = self.pending_default_save.as_ref() else {
+        let Some(entry) = self.pending_default_save.take_due(Instant::now()) else {
             return Ok(Vec::new());
         };
-        if Instant::now() < *due_at {
-            return Ok(Vec::new());
-        }
-        let Some((payload, _, request)) = self.pending_default_save.take() else {
-            return Ok(Vec::new());
-        };
+        let payload = entry.payload;
+        let request = entry.request;
         if let Err(error) = self.save_default_payload(&payload) {
-            self.pending_default_save =
-                Some((payload, Instant::now() + Duration::from_secs(1), request));
+            self.pending_default_save.retry(
+                playback_runtime::DeferredDefaultSaveEntry {
+                    payload,
+                    due_at: Instant::now(),
+                    request,
+                },
+                Instant::now() + Duration::from_secs(1),
+            );
             return Err(error);
         }
         Ok(vec![HostMessage::RuntimeResult {
@@ -99,12 +101,20 @@ impl DesktopPlaybackHostAdapter {
     }
 
     pub(crate) fn flush_pending_default_save_now(&mut self) -> Result<(), String> {
-        let Some((payload, _, request)) = self.pending_default_save.take() else {
+        let Some(entry) = self.pending_default_save.take_now() else {
             return Ok(());
         };
+        let payload = entry.payload;
+        let request = entry.request;
         if let Err(error) = self.save_default_payload(&payload) {
-            self.pending_default_save =
-                Some((payload, Instant::now() + Duration::from_secs(1), request));
+            self.pending_default_save.retry(
+                playback_runtime::DeferredDefaultSaveEntry {
+                    payload,
+                    due_at: Instant::now(),
+                    request,
+                },
+                Instant::now() + Duration::from_secs(1),
+            );
             return Err(error);
         }
         Ok(())

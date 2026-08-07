@@ -13,8 +13,9 @@ use crate::platform_service::{PiPlatformService, PlatformJob, PlatformJobKind};
 use crate::setup_portal::start_failure_message;
 use crate::usb_config::UsbAudioOut;
 use playback_runtime::{
-    HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent, RuntimeAdapterError,
-    RuntimeAudioCommand, RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult,
+    DeferredDefaultSave, HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent,
+    RuntimeAdapterError, RuntimeAudioCommand, RuntimePlatformEffect, RuntimePlatformRequest,
+    RuntimeStoreResult,
 };
 use rodio_engine_source::EngineEvent;
 use std::path::PathBuf;
@@ -26,7 +27,7 @@ pub struct PiPlaybackHostAdapter {
     store_dir: PathBuf,
     samples_dir: PathBuf,
     pub(crate) platform_service: PiPlatformService,
-    pending_default_save: Option<(serde_json::Value, Instant, RuntimePlatformRequest)>,
+    pending_default_save: DeferredDefaultSave,
     midi: MidiHost,
     usb_midi_out_enabled: bool,
     usb_audio_out: UsbAudioOut,
@@ -63,19 +64,11 @@ impl PiPlaybackHostAdapter {
         self.power_request.take()
     }
     pub fn flush_due_default_save(&mut self) -> Result<Vec<HostMessage>, String> {
-        let Some((_, due_at, _)) = self.pending_default_save.as_ref() else {
+        let Some(entry) = self.pending_default_save.take_due(Instant::now()) else {
             return Ok(Vec::new());
         };
-        if Instant::now() < *due_at {
-            return Ok(Vec::new());
-        }
-        let Some((payload, request)) = self
-            .pending_default_save
-            .as_ref()
-            .map(|(payload, _, request)| (payload.clone(), request.clone()))
-        else {
-            return Ok(Vec::new());
-        };
+        let payload = entry.payload;
+        let request = entry.request;
         if let Err(message) = self.platform_service.enqueue(PlatformJob::new(
             request.clone(),
             PlatformJobKind::SaveDefault {
@@ -83,13 +76,19 @@ impl PiPlaybackHostAdapter {
                 is_auto: Some(true),
             },
         )) {
-            self.pending_default_save = Some((payload, retry_default_save_at(), request.clone()));
+            self.pending_default_save.retry(
+                playback_runtime::DeferredDefaultSaveEntry {
+                    payload,
+                    due_at: Instant::now(),
+                    request: request.clone(),
+                },
+                retry_default_save_at(),
+            );
             return Ok(vec![identified_failure(
                 &request,
                 format!("Auto-save queue failed: {message}"),
             )]);
         }
-        self.pending_default_save = None;
         Ok(Vec::new())
     }
     pub fn drain_platform_results(&self, max_results: usize) -> Vec<HostMessage> {
@@ -179,7 +178,7 @@ impl HostAdapter for PiPlaybackHostAdapter {
                 }
             }
             RuntimePlatformEffect::UsbApplyReboot { payload } => {
-                self.pending_default_save = None;
+                self.pending_default_save.cancel();
                 if let Err(message) = self.platform_service.save_default_now(payload) {
                     return Ok(vec![store_error(format!(
                         "USB apply save failed: {message}"
@@ -456,6 +455,9 @@ fn identified_failure(request: &RuntimePlatformRequest, message: String) -> Host
     }
 }
 
+#[cfg(test)]
+#[path = "host_adapter_deferred_default_save_tests.rs"]
+mod deferred_default_save_tests;
 #[cfg(test)]
 #[path = "host_adapter_tests.rs"]
 mod tests;

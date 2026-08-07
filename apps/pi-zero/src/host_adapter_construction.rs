@@ -15,7 +15,7 @@ impl PiPlaybackHostAdapter {
             store_dir,
             samples_dir,
             platform_service,
-            pending_default_save: None,
+            pending_default_save: DeferredDefaultSave::default(),
             midi: MidiHost::new(midi_in_handler, usb_midi_out_enabled),
             usb_midi_out_enabled,
             usb_audio_out,
