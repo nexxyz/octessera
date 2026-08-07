@@ -314,7 +314,6 @@ jobs:
             "${proof_args[@]}" \
             --output "$GITHUB_WORKSPACE/$proof"
           sudo chown "$(id -u):$(id -g)" "$GITHUB_WORKSPACE/$proof"
-          echo "ORANGE_PROOF=$proof" >> "$GITHUB_ENV"
 
       - name: Re-run exact Raspberry production proofs
         if: inputs.board == 'raspberry-pi-zero-2w'
@@ -337,7 +336,8 @@ jobs:
             for asset_name in "${companion_names[@]}"; do companion_args+=(--companion "$PARENT_ASSETS/$asset_name"); done
             production_proof_args=()
             if [[ "$BOARD" == orange-pi-zero-2w ]]; then
-              production_proof_args+=(--production-proof "orange-image=$GITHUB_WORKSPACE/$ORANGE_PROOF")
+              orange_proof="$RESPIN_OUTPUT/orange-image-proof.json"
+              production_proof_args+=(--production-proof "orange-image=$GITHUB_WORKSPACE/$orange_proof")
             else
               production_proof_args+=(
                 --production-proof "raspberry-sanitized=$GITHUB_WORKSPACE/$RESPIN_OUTPUT/raspberry-sanitized-image-proof.txt"
@@ -426,7 +426,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: octessera-${{ inputs.board }}-derived-runtime-respin
-          path: respin-output/*
+          path: ./respin-output/*
           if-no-files-found: error
           retention-days: 7
       - name: Upload derived setup artifact only
@@ -434,6 +434,6 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: octessera-${{ inputs.board }}-derived-setup-respin
-          path: respin-output/*
+          path: ./respin-output/*
           if-no-files-found: error
           retention-days: 7

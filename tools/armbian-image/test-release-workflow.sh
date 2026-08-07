@@ -52,6 +52,13 @@ assert_order() {
 }
 
 assert_contains "$release" 'workflow_dispatch:'
+armbian_inputs="$root/.github/workflows/armbian-image.yml"
+[[ "$(sed -n '/^    inputs:/,/^permissions:/p' "$armbian_inputs" | grep -cE '^      [A-Za-z0-9_-]+:$')" == 10 ]] || {
+    echo 'Armbian workflow_dispatch must retain exactly ten inputs.' >&2
+    exit 1
+}
+assert_contains "$armbian_inputs" 'def safe_string($max):'
+assert_contains "$armbian_inputs" 'test("[\\r\\n]") | not'
 assert_contains "$release" 'group: release-artifacts-${{ inputs.tag }}'
 assert_contains "$release" 'cancel-in-progress: false'
 assert_contains "$release" $'permissions:\n  contents: read'
@@ -243,8 +250,8 @@ windows_block="$(sed -n '/^  windows:/,/^  macos:/p' "$release")"
 macos_block="$(sed -n '/^  macos:/,/^  ubuntu:/p' "$release")"
 ubuntu_block="$(sed -n '/^  ubuntu:/,/^  board_artifacts:/p' "$release")"
 assert_block_contains "$windows_block" 'verify_notice_archive.py'
-assert_block_contains "$macos_block" 'shasum -a 256 *.dmg > SHA256SUMS-macos.txt'
-assert_block_contains "$ubuntu_block" 'sha256sum *.deb *.AppImage > SHA256SUMS-ubuntu.txt'
+assert_block_contains "$macos_block" 'shasum -a 256 ./*.dmg > SHA256SUMS-macos.txt'
+assert_block_contains "$ubuntu_block" 'sha256sum ./*.deb ./*.AppImage > SHA256SUMS-ubuntu.txt'
 
 assert_contains "$boards" 'hardware-raspberry-pi-zero-2w'
 assert_contains "$boards" 'hardware-orange-pi-zero-2w'

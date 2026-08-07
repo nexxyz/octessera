@@ -86,7 +86,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: octessera-raspberry-runtime
-          path: runtime-bundle/*
+          path: ./runtime-bundle/*
           if-no-files-found: error
   orange_runtime:
     name: Build Orange runtime once
@@ -168,7 +168,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: octessera-orange-runtime
-          path: runtime-bundle/*
+          path: ./runtime-bundle/*
           if-no-files-found: error
   raspberry_kernel:
     name: Build Raspberry kernel package
@@ -216,7 +216,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: octessera-raspberry-kernel-release-assets
-          path: raspberry-kernel/*
+          path: ./raspberry-kernel/*
           if-no-files-found: error
   raspberry_image:
     name: Build Raspberry image
@@ -336,11 +336,11 @@ jobs:
             --checksum kernel-bundle/SHA256SUMS \
             --provenance kernel-bundle/provenance.json \
             --manifest tools/kernel-patches/orange-midi-interface-manifest.json
-          (cd release-assets && sha256sum *.zip *.rpi-imager-manifest > SHA256SUMS-pi.txt && sha256sum -c SHA256SUMS-pi.txt)
+          (cd release-assets && sha256sum ./*.zip ./*.rpi-imager-manifest > SHA256SUMS-pi.txt && sha256sum -c SHA256SUMS-pi.txt)
       - uses: actions/upload-artifact@v4
         with:
           name: octessera-raspberry-image-release-assets
-          path: release-assets/*
+          path: ./release-assets/*
           if-no-files-found: error
   orange_image:
     name: Build Orange production image
@@ -428,7 +428,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: octessera-orange-image-release-assets
-          path: release-assets/*
+          path: ./release-assets/*
           if-no-files-found: error
 
   raspberry_device:
@@ -473,7 +473,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: octessera-raspberry-device-release-assets
-          path: release-assets/*
+          path: ./release-assets/*
           if-no-files-found: error
 
   orange_device:
@@ -519,5 +519,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: octessera-orange-device-release-assets
-          path: release-assets/*
+          path: ./release-assets/*
           if-no-files-found: error

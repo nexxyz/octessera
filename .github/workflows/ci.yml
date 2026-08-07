@@ -319,6 +319,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+      - name: Fetch locked Cargo metadata inputs
+        run: cargo fetch --locked
       - name: Run lightweight legal packaging tests
         run: python3 -m unittest discover -s tools/legal -p 'test_*.py'
 

@@ -217,12 +217,17 @@ gh workflow run armbian-image.yml \
   -f compression=xz \
   -f 'extensions=preset-firstrun octessera_midi octessera_image_sanitize' \
   -f run_build=false \
-  -f artifact_mode=public-generic
+  -f artifact_mode=public-generic \
+  -f 'public_inputs={"public_preset_configuration_url":"https://example.invalid/preset.conf"}'
 ```
 
 Run a no-secret full build by changing `run_build=true` and setting `armbian_build_ref` to a reviewed full 40-character Armbian commit SHA; the mutable default ref is validation-only. Public generic artifacts must not contain Wi-Fi credentials, user passwords, user-specific SSH keys, or private first-run URLs added by Octessera inputs or overlays. If you need first-boot personalization, use the private artifact mode with the protected `armbian-image-personalized` GitHub environment and repository/environment secrets; do not pass secrets as workflow inputs.
 
-The only public first-run input is `public_preset_configuration_url`, and it must point to a non-secret HTTPS Armbian `PRESET_CONFIGURATION` file. Keep `preset-firstrun` in the extensions list when using that flow. Private preset URLs belong in the protected `ARMBIAN_PRESET_CONFIGURATION_URL` secret.
+The public first-run and diagnostic payload values use one bounded JSON object,
+for example `{"public_preset_configuration_url":"https://example.invalid/preset.conf","payload_url":"https://example.invalid/payload.tar","payload_sha256":"<64-hex-sha256>"}`.
+The preset URL must be non-secret HTTPS Armbian `PRESET_CONFIGURATION` data;
+keep `preset-firstrun` in the extensions list when using it. Private preset URLs
+belong in the protected `ARMBIAN_PRESET_CONFIGURATION_URL` secret.
 
 Optional diagnostic payload tarballs must use HTTPS and a matching SHA256.
 Diagnostic payloads are staged by default and must not contain the production

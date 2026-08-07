@@ -142,8 +142,14 @@ jobs:
           install -D -m 0755 tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-update-recovery "$root/usr/local/sbin/octessera-update-recovery"
           install -D -m 0644 tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-update-guard.service "$root/etc/systemd/system/octessera-update-guard.service"
           install -D -m 0644 tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-update-recovery.service "$root/etc/systemd/system/octessera-update-recovery.service"
-          ! grep -q '^ConditionPathExists=' tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-update-recovery.service
-          ! grep -q '^ConditionPathExists=' userpatches/overlay/etc/systemd/system/octessera-update-recovery.service
+          if grep -q '^ConditionPathExists=' tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-update-recovery.service; then
+            echo 'Recovery units must not use ConditionPathExists.' >&2
+            exit 1
+          fi
+          if grep -q '^ConditionPathExists=' userpatches/overlay/etc/systemd/system/octessera-update-recovery.service; then
+            echo 'Recovery units must not use ConditionPathExists.' >&2
+            exit 1
+          fi
           systemd-analyze --root="$root" verify octessera-update-guard.service octessera-update-recovery.service
           rm -rf "$root"
 
@@ -190,7 +196,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: octessera-windows-release-assets
-          path: release-assets/*
+          path: ./release-assets/*
           if-no-files-found: error
 
   macos:
@@ -223,11 +229,11 @@ jobs:
           [[ "${#dmg_files[@]}" == 1 ]] || { echo "Expected exactly one macOS DMG, found ${#dmg_files[@]}." >&2; exit 1; }
           dmg_asset="release-assets/${{ needs.release_info.outputs.asset_prefix }}-macos-unsigned.dmg"
           cp "${dmg_files[0]}" "$dmg_asset"
-          (cd release-assets && shasum -a 256 *.dmg > SHA256SUMS-macos.txt)
+          (cd release-assets && shasum -a 256 ./*.dmg > SHA256SUMS-macos.txt)
       - uses: actions/upload-artifact@v4
         with:
           name: octessera-macos-release-assets
-          path: release-assets/*
+          path: ./release-assets/*
           if-no-files-found: error
 
   ubuntu:
@@ -267,11 +273,11 @@ jobs:
           appimage_asset="$GITHUB_WORKSPACE/release-assets/${{ needs.release_info.outputs.asset_prefix }}-ubuntu-x86_64.AppImage"
           cp "${deb_files[0]}" "$deb_asset"
           cp "${appimage_files[0]}" "$appimage_asset"
-          (cd release-assets && sha256sum *.deb *.AppImage > SHA256SUMS-ubuntu.txt)
+          (cd release-assets && sha256sum ./*.deb ./*.AppImage > SHA256SUMS-ubuntu.txt)
       - uses: actions/upload-artifact@v4
         with:
           name: octessera-ubuntu-release-assets
-          path: release-assets/*
+          path: ./release-assets/*
           if-no-files-found: error
 
   board_artifacts:
@@ -488,7 +494,7 @@ jobs:
       - name: Upload assets without collision hiding
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ needs.release_info.outputs.tag }}" release-assets/* --repo "$GITHUB_REPOSITORY"
+        run: gh release upload "${{ needs.release_info.outputs.tag }}" ./release-assets/* --repo "$GITHUB_REPOSITORY"
       - name: Revalidate uploaded asset set immediately before publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
