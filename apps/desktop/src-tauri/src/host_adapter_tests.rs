@@ -47,7 +47,7 @@ fn test_adapter() -> (DesktopPlaybackHostAdapter, mpsc::Receiver<QueuedAudioEven
         midi_in: Arc::new(Mutex::new(None)),
         midi_in_handler: Arc::new(|_| {}),
         store_dir: PathBuf::new(),
-        pending_default_save: None,
+        pending_default_save: playback_runtime::DeferredDefaultSave::default(),
         platform_service_tx,
         selected_midi_output_id: None,
         selected_midi_input_id: None,

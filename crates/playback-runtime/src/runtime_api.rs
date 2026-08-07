@@ -396,6 +396,51 @@ impl PlaybackRuntime {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn identity_layers(result: &RuntimeStoreResult) -> usize {
+        match result {
+            RuntimeStoreResult::Identified { result, .. } => 1 + identity_layers(result),
+            _ => 0,
+        }
+    }
+
+    #[test]
+    fn save_results_have_exactly_one_identity_layer() {
+        let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
+        let request = runtime.next_platform_request(RuntimePlatformEffect::StoreSaveDefault {
+            payload: serde_json::json!({"revision": 7}),
+            mode: None,
+        });
+        let immediate = runtime.identify_result(
+            HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::SaveDefaultResult {
+                    ok: true,
+                    is_auto: None,
+                },
+            },
+            &request,
+        );
+        let deferred = HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::SaveDefaultResult {
+                ok: true,
+                is_auto: Some(true),
+            }
+            .with_identity(request.request_id.clone(), request.revision),
+        };
+
+        let results = [immediate, deferred];
+        for message in results {
+            let HostMessage::RuntimeResult { result } = message else {
+                panic!("expected runtime result");
+            };
+            assert_eq!(identity_layers(&result), 1);
+        }
+    }
+}
+
 fn same_error_identity(left: &RuntimeErrorMetadata, right: &RuntimeErrorMetadata) -> bool {
     left.operation == right.operation
         && left.request_id == right.request_id

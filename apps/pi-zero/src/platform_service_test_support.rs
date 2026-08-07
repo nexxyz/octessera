@@ -17,4 +17,10 @@ impl PiPlatformService {
         ))?;
         Ok(completed_rx)
     }
+
+    pub(crate) fn disconnect_results_for_test(&mut self) {
+        let (_, replacement) = mpsc::sync_channel(1);
+        let results = std::mem::replace(&mut self.results, replacement);
+        drop(results);
+    }
 }

@@ -1,5 +1,6 @@
 #![recursion_limit = "256"]
 
+mod deferred_default_save;
 mod delay_timing;
 mod native_help;
 mod native_menu;
@@ -10,6 +11,7 @@ mod runtime;
 mod timing_probe;
 mod timing_units;
 
+pub use deferred_default_save::{DeferredDefaultSave, DeferredDefaultSaveEntry};
 pub use native_runner::{NativeRunner, NativeRunnerConfig};
 pub use platform_core::MusicalEvent;
 pub use preset_name_policy::{clean_preset_name, fresh_preset_name, is_valid_preset_name};

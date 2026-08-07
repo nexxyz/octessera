@@ -407,3 +407,7 @@ fn synth_slot_worker_count() -> Option<usize> {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[path = "e2e_tests.rs"]
+mod e2e_tests;
