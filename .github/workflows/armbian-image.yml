@@ -44,18 +44,10 @@ on:
           - public-generic
           - private-personalized
         default: public-generic
-      public_preset_configuration_url:
-        description: Optional public, non-secret generic PRESET_CONFIGURATION URL
+      public_inputs:
+        description: Optional JSON object with public preset/payload inputs
         required: false
-        default: ""
-      payload_url:
-        description: Optional public HTTPS Octessera payload tar URL
-        required: false
-        default: ""
-      payload_sha256:
-        description: Required SHA256 when payload_url is set
-        required: false
-        default: ""
+        default: '{}'
 
 permissions:
   contents: read
@@ -64,8 +56,35 @@ jobs:
   validate:
     name: Validate Armbian image inputs and payload
     runs-on: ubuntu-latest
+    outputs:
+      public_preset_configuration_url: ${{ steps.public-inputs.outputs.public_preset_configuration_url }}
+      payload_url: ${{ steps.public-inputs.outputs.payload_url }}
+      payload_sha256: ${{ steps.public-inputs.outputs.payload_sha256 }}
     steps:
       - uses: actions/checkout@v4
+      - name: Validate public JSON inputs
+        id: public-inputs
+        env:
+          PUBLIC_INPUTS: ${{ inputs.public_inputs }}
+        run: |
+          set -euo pipefail
+          if ! jq -e '
+            def safe_string($max):
+              type == "string" and length <= $max and (test("[\\r\\n]") | not);
+            type == "object"
+              and ((keys - ["public_preset_configuration_url", "payload_url", "payload_sha256"]) | length == 0)
+              and ((.public_preset_configuration_url // "") | safe_string(2048))
+              and ((.payload_url // "") | safe_string(2048))
+              and ((.payload_sha256 // "") | safe_string(128))
+          ' <<< "$PUBLIC_INPUTS" >/dev/null; then
+            echo 'public_inputs must contain only bounded, single-line string values for the documented public keys.' >&2
+            exit 1
+          fi
+          {
+            jq -r '"public_preset_configuration_url=" + (.public_preset_configuration_url // "")' <<< "$PUBLIC_INPUTS"
+            jq -r '"payload_url=" + (.payload_url // "")' <<< "$PUBLIC_INPUTS"
+            jq -r '"payload_sha256=" + (.payload_sha256 // "")' <<< "$PUBLIC_INPUTS"
+          } >> "$GITHUB_OUTPUT"
       - name: Install workflow linters
         run: |
           set -euo pipefail
@@ -79,9 +98,9 @@ jobs:
           ARMBIAN_BUILD_REF: ${{ inputs.armbian_build_ref }}
           ARMBIAN_RUN_BUILD: ${{ inputs.run_build }}
           ARMBIAN_EXTENSIONS: ${{ inputs.extensions }}
-          PUBLIC_PRESET_CONFIGURATION_URL: ${{ inputs.public_preset_configuration_url }}
-          PAYLOAD_URL: ${{ inputs.payload_url }}
-          PAYLOAD_SHA256: ${{ inputs.payload_sha256 }}
+          PUBLIC_PRESET_CONFIGURATION_URL: ${{ steps.public-inputs.outputs.public_preset_configuration_url }}
+          PAYLOAD_URL: ${{ steps.public-inputs.outputs.payload_url }}
+          PAYLOAD_SHA256: ${{ steps.public-inputs.outputs.payload_sha256 }}
         run: bash tools/armbian-image/validate.sh
 
   build-generic:
@@ -107,15 +126,15 @@ jobs:
           construction_contract: resources/image-construction/boot-layers/orange-pi-zero-2w.json
           share_log: yes
         env:
-          PRESET_CONFIGURATION: ${{ inputs.public_preset_configuration_url }}
-          PUBLIC_PRESET_CONFIGURATION_URL: ${{ inputs.public_preset_configuration_url }}
-          OCTESSERA_PAYLOAD_URL: ${{ inputs.payload_url }}
-          OCTESSERA_PAYLOAD_SHA256: ${{ inputs.payload_sha256 }}
+          PRESET_CONFIGURATION: ${{ needs.validate.outputs.public_preset_configuration_url }}
+          PUBLIC_PRESET_CONFIGURATION_URL: ${{ needs.validate.outputs.public_preset_configuration_url }}
+          OCTESSERA_PAYLOAD_URL: ${{ needs.validate.outputs.payload_url }}
+          OCTESSERA_PAYLOAD_SHA256: ${{ needs.validate.outputs.payload_sha256 }}
       - name: Upload generic image artifacts
         uses: actions/upload-artifact@v4
         with:
           name: octessera-armbian-${{ inputs.board }}-${{ inputs.release }}
-          path: build/output/images/*
+          path: ./build/output/images/*
           if-no-files-found: error
           retention-days: 14
 
@@ -130,7 +149,7 @@ jobs:
         with:
           path: custom
       - name: Reject public first-run input in private mode
-        if: ${{ inputs.public_preset_configuration_url != '' }}
+        if: ${{ needs.validate.outputs.public_preset_configuration_url != '' }}
         run: |
           echo 'Use protected environment secrets, not public workflow inputs, for private PRESET_CONFIGURATION URLs.' >&2
           exit 1
@@ -196,6 +215,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: PRIVATE-octessera-armbian-${{ inputs.board }}-${{ inputs.release }}
-          path: build/output/images/*
+          path: ./build/output/images/*
           if-no-files-found: error
           retention-days: 2

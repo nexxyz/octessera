@@ -216,9 +216,11 @@ GitHub validation-only smoke test:
 
 ```bash
 gh workflow run armbian-image.yml -f run_build=false -f artifact_mode=public-generic
+# Optional public values are one compact JSON object:
+gh workflow run armbian-image.yml -f 'public_inputs={"public_preset_configuration_url":"https://example.invalid/preset.conf"}'
 ```
 
-Public generic builds may use board/release/kernel/UI/compression/extensions inputs, a public non-secret `PRESET_CONFIGURATION` URL, and an optional HTTPS payload URL plus SHA256. Do not add raw Wi-Fi, user, SSH, or private first-run values as workflow inputs.
+Public generic builds may use board/release/kernel/UI/compression/extensions inputs and one compact public JSON input, for example `{"public_preset_configuration_url":"https://example.invalid/preset.conf","payload_url":"https://example.invalid/payload.tar","payload_sha256":"<64-hex-sha256>"}`. Do not add raw Wi-Fi, user, SSH, or private first-run values as workflow inputs.
 
 Personalized builds must use `artifact_mode=private-personalized`, run from trusted `main` or tags, and pass protected environment approval for `armbian-image-personalized`. First-run and private payload URLs come from repository/environment secrets such as `ARMBIAN_PRESET_CONFIGURATION_URL`, `OCTESSERA_PRIVATE_PAYLOAD_URL`, and `OCTESSERA_PRIVATE_PAYLOAD_SHA256`. Private artifacts are retained briefly and must not be uploaded to releases.
 
