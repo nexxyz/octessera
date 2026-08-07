@@ -396,6 +396,12 @@ impl PlaybackRuntime {
     }
 }
 
+fn same_error_identity(left: &RuntimeErrorMetadata, right: &RuntimeErrorMetadata) -> bool {
+    left.operation == right.operation
+        && left.request_id == right.request_id
+        && left.revision == right.revision
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -439,10 +445,4 @@ mod tests {
             assert_eq!(identity_layers(&result), 1);
         }
     }
-}
-
-fn same_error_identity(left: &RuntimeErrorMetadata, right: &RuntimeErrorMetadata) -> bool {
-    left.operation == right.operation
-        && left.request_id == right.request_id
-        && left.revision == right.revision
 }
