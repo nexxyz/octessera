@@ -3,16 +3,13 @@ from __future__ import annotations
 
 import re
 import struct
+import sys
 import zlib
 from dataclasses import dataclass
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[2]
-ASSETS = ROOT / "assets"
-DESKTOP_ICONS = ROOT / "apps" / "desktop" / "src-tauri" / "icons"
-MARK_SVG = ASSETS / "octessera-mark.svg"
-WORDMARK_SVG = ASSETS / "octessera-wordmark.svg"
+DEFAULT_ROOT = Path(__file__).resolve().parents[2]
 SIZE = 128
 SCALE = 4
 WHITE = 255
@@ -35,8 +32,8 @@ def parse_svg_number(value: str) -> float:
     return float(value.strip())
 
 
-def parse_mark() -> tuple[list[list[Point]], list[Circle]]:
-    svg = MARK_SVG.read_text(encoding="utf-8")
+def parse_mark(root: Path) -> tuple[list[list[Point]], list[Circle]]:
+    svg = (root / "assets" / "octessera-mark.svg").read_text(encoding="utf-8")
     paths = []
     for path_data in re.findall(r'<path\s+d="([^"]+)"', svg):
         nums = [parse_svg_number(value) for value in re.findall(r"-?\d+(?:\.\d+)?", path_data)]
@@ -48,25 +45,25 @@ def parse_mark() -> tuple[list[list[Point]], list[Circle]]:
         )
     ]
     if not paths and not circles:
-        raise SystemExit(f"No supported mark primitives found in {MARK_SVG}")
+        raise SystemExit(f"No supported mark primitives found in {root}/assets/octessera-mark.svg")
     return paths, circles
 
 
-def parse_wordmark_text() -> str:
-    svg = WORDMARK_SVG.read_text(encoding="utf-8")
+def parse_wordmark_text(root: Path) -> str:
+    svg = (root / "assets" / "octessera-wordmark.svg").read_text(encoding="utf-8")
     match = re.search(r">\s*([A-Z0-9 ]+)\s*</text>", svg)
     return match.group(1) if match else "OCTESSERA"
 
 
-def parse_wordmark_polygons() -> list[list[Point]]:
-    svg = WORDMARK_SVG.read_text(encoding="utf-8")
+def parse_wordmark_polygons(root: Path) -> list[list[Point]]:
+    svg = (root / "assets" / "octessera-wordmark.svg").read_text(encoding="utf-8")
     polygons: list[list[Point]] = []
     for path_data in re.findall(r'<path\s+d="([^"]+)"', svg):
         nums = [parse_svg_number(value) for value in re.findall(r"-?\d+(?:\.\d+)?", path_data)]
         if len(nums) >= 6:
             polygons.append([Point(nums[index], nums[index + 1]) for index in range(0, len(nums), 2)])
     if not polygons:
-        raise SystemExit(f"No vectorized wordmark paths found in {WORDMARK_SVG}")
+        raise SystemExit(f"No vectorized wordmark paths found in {root}/assets/octessera-wordmark.svg")
     return polygons
 
 
@@ -187,8 +184,8 @@ def transform(point: Point, bounds: tuple[float, float, float, float], target: f
     )
 
 
-def draw_mark(canvas: list[list[int]], target_size: float, center_x: float, center_y: float) -> None:
-    paths, circles = parse_mark()
+def draw_mark(canvas: list[list[int]], root: Path, target_size: float, center_x: float, center_y: float) -> None:
+    paths, circles = parse_mark(root)
     bounds = primitive_bounds(paths, circles)
     high_target = target_size * SCALE
     high_center = Point(center_x * SCALE, center_y * SCALE)
@@ -202,8 +199,8 @@ def draw_mark(canvas: list[list[int]], target_size: float, center_x: float, cent
         draw_disk(canvas, transform(circle.center, bounds, high_target, high_center), circle.radius * mark_scale)
 
 
-def draw_wordmark(canvas: list[list[int]], target_width: int, target_height: int, center_x: float, center_y: float) -> None:
-    polygons = parse_wordmark_polygons()
+def draw_wordmark(canvas: list[list[int]], root: Path, target_width: int, target_height: int, center_x: float, center_y: float) -> None:
+    polygons = parse_wordmark_polygons(root)
     min_x, min_y, max_x, max_y = polygon_bounds(polygons)
     source_width = max_x - min_x
     source_height = max_y - min_y
@@ -221,8 +218,8 @@ def draw_wordmark(canvas: list[list[int]], target_width: int, target_height: int
                         set_pixel(canvas, (x0 + x) * SCALE + sx, (y0 + y) * SCALE + sy)
 
 
-def draw_wordmark_antialiased(canvas: list[list[int]], target_width: int, target_height: int, center_x: float, center_y: float) -> None:
-    polygons = parse_wordmark_polygons()
+def draw_wordmark_antialiased(canvas: list[list[int]], root: Path, target_width: int, target_height: int, center_x: float, center_y: float) -> None:
+    polygons = parse_wordmark_polygons(root)
     min_x, min_y, max_x, max_y = polygon_bounds(polygons)
     source_width = max_x - min_x
     source_height = max_y - min_y
@@ -289,36 +286,88 @@ def write_ico_from_png(path: Path, png_path: Path) -> None:
     path.write_bytes(struct.pack("<HHH", 0, 1, 1) + entry + png)
 
 
-def save_mark(path: Path) -> None:
+def save_mark(path: Path, root: Path) -> None:
     canvas = make_canvas()
-    draw_mark(canvas, target_size=80, center_x=64, center_y=64)
+    draw_mark(canvas, root, target_size=80, center_x=64, center_y=64)
     write_png(path, downsample_grayscale(canvas))
 
 
-def save_manifest_icon(path: Path) -> None:
+def save_manifest_icon(path: Path, root: Path) -> None:
     canvas = make_canvas()
-    draw_mark(canvas, target_size=118, center_x=64, center_y=64)
+    draw_mark(canvas, root, target_size=118, center_x=64, center_y=64)
     write_png(path, downsample_grayscale(canvas))
 
 
-def save_stacked_logo(path: Path) -> None:
+def save_stacked_logo(path: Path, root: Path) -> None:
     canvas = make_canvas()
-    draw_mark(canvas, target_size=58, center_x=64, center_y=52)
-    draw_wordmark_antialiased(canvas, target_width=106, target_height=16, center_x=64, center_y=93)
+    draw_mark(canvas, root, target_size=58, center_x=64, center_y=52)
+    draw_wordmark_antialiased(canvas, root, target_width=106, target_height=16, center_x=64, center_y=93)
     center_content(canvas)
     write_png(path, downsample_grayscale(canvas))
 
 
+def generate_assets(root: Path, output_root: Path) -> list[Path]:
+    assets = output_root / "assets"
+    icons_dir = output_root / "apps" / "desktop" / "src-tauri" / "icons"
+    outputs = [
+        assets / "octessera-pi-manifest.png",
+        assets / "octessera-app-large.png",
+        assets / "octessera-pi-sleeping.png",
+        assets / "octessera-pi-shutdown.png",
+        assets / "octessera-pi-booting.png",
+        icons_dir / "icon.png",
+        icons_dir / "icon.ico",
+    ]
+    assets.mkdir(parents=True, exist_ok=True)
+    icons_dir.mkdir(parents=True, exist_ok=True)
+    _ = parse_wordmark_text(root)
+    save_manifest_icon(outputs[0], root)
+    save_manifest_icon(outputs[1], root)
+    save_mark(outputs[2], root)
+    save_mark(outputs[3], root)
+    save_stacked_logo(outputs[4], root)
+    save_manifest_icon(outputs[5], root)
+    write_ico_from_png(outputs[6], outputs[5])
+    return outputs
+
+
+def check_assets(root: Path) -> int:
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as temporary:
+        expected = generate_assets(root, Path(temporary))
+        failed = 0
+        for path in expected:
+            relative = path.relative_to(temporary)
+            committed = root / relative
+            if not committed.exists():
+                print(f"generated asset is missing: {relative}", file=sys.stderr)
+                failed = 1
+            elif path.read_bytes() != committed.read_bytes():
+                print(f"generated asset is stale: {relative}. Run: corepack pnpm run assets:generate", file=sys.stderr)
+                failed = 1
+        return failed
+
+
 def main() -> None:
-    _ = parse_wordmark_text()
-    save_manifest_icon(ASSETS / "octessera-pi-manifest.png")
-    save_manifest_icon(ASSETS / "octessera-app-large.png")
-    save_mark(ASSETS / "octessera-pi-sleeping.png")
-    save_mark(ASSETS / "octessera-pi-shutdown.png")
-    save_stacked_logo(ASSETS / "octessera-pi-booting.png")
-    DESKTOP_ICONS.mkdir(parents=True, exist_ok=True)
-    save_manifest_icon(DESKTOP_ICONS / "icon.png")
-    write_ico_from_png(DESKTOP_ICONS / "icon.ico", DESKTOP_ICONS / "icon.png")
+    root = DEFAULT_ROOT
+    check = False
+    args = sys.argv[1:]
+    index = 0
+    while index < len(args):
+        argument = args[index]
+        if argument == "--root":
+            root = Path(args[index + 1]).resolve()
+            index += 2
+        elif argument == "--check":
+            check = True
+            index += 1
+        else:
+            print(f"Unknown argument: {argument}", file=sys.stderr)
+            raise SystemExit(2)
+    if check:
+        raise SystemExit(check_assets(root))
+    generate_assets(root, root)
 
 
 if __name__ == "__main__":
