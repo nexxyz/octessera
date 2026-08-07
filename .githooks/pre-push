@@ -1,88 +1,12 @@
 #!/usr/bin/env bash
-# Pre-push hook — runs all CI-like checks locally, reporting each result.
-# Validates the committed tree only (not dirty worktree) so CI and local match.
+# Pre-push hook — delegates to tools/quality/pre-push.sh, which never mutates the worktree.
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
-cd "$ROOT"
 
 LOCAL_HOOK="$ROOT/.git/local-hooks/pre-push"
-
 if [ -f "$LOCAL_HOOK" ]; then
   "$LOCAL_HOOK"
 fi
 
-# Stash dirty worktree so tests run against committed tree like CI does
-STASHED=0
-if ! git diff --quiet HEAD; then
-  printf "\n⚠  Dirty worktree detected — stashing so tests validate the committed tree (CI parity).\n" >&2
-  git stash push --include-untracked -m "pre-push-auto-stash-$(date +%s)"
-  STASHED=1
-fi
-
-PASS=0
-FAIL=0
-
-cleanup() {
-  if [ "$STASHED" -eq 1 ]; then
-    git stash pop || true
-  fi
-}
-trap cleanup EXIT
-
-run_check() {
-  local name="$1" cmd="$2"
-  printf "\n--- %s ---\n" "$name"
-  if eval "$cmd"; then
-    printf "✓ %s passed\n" "$name"
-    PASS=$((PASS + 1))
-  else
-    printf "✗ %s FAILED\n" "$name" >&2
-    FAIL=$((FAIL + 1))
-  fi
-}
-
-run_check "pnpm lint"          "corepack pnpm run lint 2>&1"
-run_check "pnpm typecheck"     "corepack pnpm run typecheck 2>&1"
-run_check "pnpm format:check"  "corepack pnpm run format:check 2>&1"
-run_check "pnpm test"          "corepack pnpm run test 2>&1"
-run_check "pnpm test:coverage" "corepack pnpm run test:coverage 2>&1"
-run_check "cargo fmt"          "cargo fmt --all --check 2>&1"
-run_check "file length" "
-  MAX=500
-  FAILED=0
-  while IFS= read -r -d '' file; do
-    rel=\"\${file#\$ROOT/}\"
-    lines=\$(wc -l < \"\$file\")
-    if [ \"\$lines\" -gt \"\$MAX\" ]; then
-      printf '  ✗ %s (%d lines, max %d)\n' \"\$rel\" \"\$lines\" \"\$MAX\" >&2
-      FAILED=1
-    fi
-  done < <(find \"\$ROOT\" \( -name '*.rs' -o -name '*.ts' -o -name '*.tsx' -o -name '*.mjs' \) -not -path '*/target/*' -not -path '*/node_modules/*' -not -path '*/dist/*' -not -path '*/.git/*' -not -path '*/third_party/cpal-0.15.3/*' -print0)
-  [ \"\$FAILED\" -eq 0 ]
-"
-run_check "cargo test" \
-  "cargo test --workspace --exclude octessera-desktop --exclude rodio-engine-source 2>&1"
-run_check "factory patch UI scenario" \
-  "cargo test -p playback-runtime factory_patch_ui_scenario -- --ignored 2>&1"
-run_check "cargo llvm-cov" \
-  "bash ./tools/quality/check-rust-coverage.sh 2>&1"
-run_check "cargo check desktop" \
-  "cargo check -p octessera-desktop 2>&1"
-run_check "cargo test desktop" \
-  "cargo test -p octessera-desktop 2>&1"
-run_check "cargo check pi" \
-  "cargo check -p octessera-pi 2>&1"
-run_check "tauri build smoke" \
-  "corepack pnpm run tauri:build:ci 2>&1"
-run_check "cargo clippy" \
-  "cargo clippy --workspace --exclude octessera-desktop --exclude rodio-engine-source --all-targets -- -D warnings 2>&1"
-
-printf "\n====================\n"
-printf "  %d passed, %d failed\n" "$PASS" "$FAIL"
-printf "====================\n"
-
-if [ "$FAIL" -gt 0 ]; then
-  printf "\n⚠  Some checks failed. Fix before pushing.\n" >&2
-  exit 1
-fi
+exec "$ROOT/tools/quality/pre-push.sh"

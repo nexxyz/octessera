@@ -10,6 +10,7 @@ SERVICE=${SERVICE:-octessera.service}
 BOARD_PROFILE=${BOARD_PROFILE:-raspberry-pi-zero-2w}
 UPDATE_INITRAMFS=${UPDATE_INITRAMFS:-0}
 WAKE_TRACE=${WAKE_TRACE:-0}
+SYSROOT=${SYSROOT:-}
 
 if [ "$SERVICE" != octessera.service ]; then
     echo "Pi provisioning supports only the managed service name octessera.service; got $SERVICE." >&2
@@ -23,6 +24,12 @@ if [ "$BOARD_PROFILE" != raspberry-pi-zero-2w ]; then
     echo "Raspberry Pi provisioning accepts only raspberry-pi-zero-2w; got $BOARD_PROFILE." >&2
     exit 2
 fi
+
+target_path() {
+    printf '%s%s' "$SYSROOT" "$1"
+}
+
+SERVICE_TARGET=$(target_path "/etc/systemd/system/$SERVICE")
 
 missing_tools=0
 for command in python3 curl flock sha256sum unzip visudo systemctl; do
@@ -44,7 +51,7 @@ install_file() {
     source="$2"
     destination="$3"
     test -f "$source" && test ! -L "$source"
-    sudo install -D -m "$mode" "$source" "$destination"
+    sudo install -D -m "$mode" "$source" "$(target_path "$destination")"
 }
 
 ensure_boot_config_line() {
@@ -69,21 +76,21 @@ ensure_raspberry_uart_inactive() {
         sudo systemctl mask --now "$unit" >/dev/null
         test "$(sudo systemctl is-enabled "$unit")" = masked
     done
-    sudo rm -f /usr/local/lib/octessera/rpi_uart_release.py
-    test ! -e /usr/local/lib/octessera/rpi_uart_release.py
+    sudo rm -f "$(target_path /usr/local/lib/octessera/rpi_uart_release.py)"
+    test ! -e "$(target_path /usr/local/lib/octessera/rpi_uart_release.py)"
 }
 
 escape_sed_replacement() {
     printf '%s' "$1" | sed 's/[\\&|]/\\&/g'
 }
 
-BOOT_CONFIG=/boot/firmware/config.txt
+BOOT_CONFIG=$(target_path /boot/firmware/config.txt)
 if [ ! -f "$BOOT_CONFIG" ]; then
-    BOOT_CONFIG=/boot/config.txt
+    BOOT_CONFIG=$(target_path /boot/config.txt)
 fi
 test -f "$BOOT_CONFIG"
-CMDLINE=/boot/firmware/cmdline.txt
-[ -f "$CMDLINE" ] || CMDLINE=/boot/cmdline.txt
+CMDLINE=$(target_path /boot/firmware/cmdline.txt)
+[ -f "$CMDLINE" ] || CMDLINE=$(target_path /boot/cmdline.txt)
 test -f "$CMDLINE"
 BOOT_STATE_BEFORE=$(sha256sum "$BOOT_CONFIG" "$CMDLINE")
 sudo systemctl stop "$SERVICE" >/dev/null 2>&1 || true
@@ -98,11 +105,11 @@ done < "$PROVISION_ROOT/boot/config.txt.append"
 ensure_raspberry_uart_inactive
 
 sudo rm -f \
-    /etc/initramfs-tools/hooks/cellsymphony-boot-splash \
-    /etc/initramfs-tools/scripts/init-premount/cellsymphony-boot-splash \
-    /etc/systemd/system/cellsymphony-boot-splash.service \
-    /etc/systemd/system/sysinit.target.wants/cellsymphony-boot-splash.service \
-    /etc/systemd/system/multi-user.target.wants/cellsymphony-boot-splash.service
+    "$(target_path /etc/initramfs-tools/hooks/cellsymphony-boot-splash)" \
+    "$(target_path /etc/initramfs-tools/scripts/init-premount/cellsymphony-boot-splash)" \
+    "$(target_path /etc/systemd/system/cellsymphony-boot-splash.service)" \
+    "$(target_path /etc/systemd/system/sysinit.target.wants/cellsymphony-boot-splash.service)" \
+    "$(target_path /etc/systemd/system/multi-user.target.wants/cellsymphony-boot-splash.service)"
 
 install_file 0755 "$IMAGE_ROOT/usr/local/sbin/octessera-usb-gadget" /usr/local/sbin/octessera-usb-gadget
 install_file 0755 "$IMAGE_ROOT/usr/local/sbin/octessera-update" /usr/local/sbin/octessera-update
@@ -118,7 +125,7 @@ install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-update-recovery.serv
 install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-usb-gadget.service" /etc/systemd/system/octessera-usb-gadget.service
 install_file 0644 "$IMAGE_ROOT/etc/modules-load.d/octessera-usb-gadget.conf" /etc/modules-load.d/octessera-usb-gadget.conf
 install_file 0440 "$IMAGE_ROOT/etc/sudoers.d/octessera-usb-storage" /etc/sudoers.d/octessera-usb-storage
-sudo install -d -m 0755 "/etc/systemd/system/$SERVICE.d"
+sudo install -d -m 0755 "$SERVICE_TARGET.d"
 install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera.service.d/audio-realtime.conf" "/etc/systemd/system/$SERVICE.d/audio-realtime.conf"
 install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-boot-splash.service" /etc/systemd/system/octessera-boot-splash.service
 install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-oled-shutdown.service" /etc/systemd/system/octessera-oled-shutdown.service
@@ -131,34 +138,35 @@ install_file 0755 "$IMAGE_ROOT/usr/local/bin/octessera-network-health" /usr/loca
 install_file 0440 "$IMAGE_ROOT/etc/sudoers.d/octessera-shutdown" /etc/sudoers.d/octessera-shutdown
 install_file 0440 "$IMAGE_ROOT/etc/sudoers.d/octessera-update" /etc/sudoers.d/octessera-update
 install_file 0644 "$IMAGE_ROOT/etc/profile.d/octessera-welcome.sh" /etc/profile.d/octessera-welcome.sh
-sudo install -d -m 0755 /etc/octessera
-printf 'OCTESSERA_BOARD_PROFILE_ID=%s\n' "$BOARD_PROFILE" | sudo tee /etc/octessera/board-profile.env >/dev/null
+sudo install -d -m 0755 "$(target_path /etc/octessera)"
+printf 'OCTESSERA_BOARD_PROFILE_ID=%s\n' "$BOARD_PROFILE" | sudo tee "$(target_path /etc/octessera/board-profile.env)" >/dev/null
 
 sudo sed -i 's/\r$//' \
-    /usr/local/sbin/octessera-usb-gadget \
-    /usr/local/sbin/octessera-update \
-    /usr/local/sbin/octessera-update-guard \
-    /usr/local/sbin/octessera-update-recovery \
-    /usr/local/bin/octessera-network-health \
-    /etc/systemd/system/octessera-usb-gadget.service \
-    /etc/systemd/system/octessera-update-guard.service \
-    /etc/systemd/system/octessera-update-recovery.service \
-    /etc/systemd/system/octessera-boot-splash.service \
-    /etc/systemd/system/octessera-oled-shutdown.service \
-    /etc/systemd/system/octessera-performance-governor.service \
-    /etc/systemd/system/octessera-network-health.service \
-    /etc/systemd/system/octessera-network-health.timer \
-    /etc/systemd/journald.conf.d/10-octessera.conf \
-    /etc/NetworkManager/conf.d/10-octessera-wifi-powersave.conf \
-    /etc/profile.d/octessera-welcome.sh
+    "$(target_path /usr/local/sbin/octessera-usb-gadget)" \
+    "$(target_path /usr/local/sbin/octessera-update)" \
+    "$(target_path /usr/local/sbin/octessera-update-guard)" \
+    "$(target_path /usr/local/sbin/octessera-update-recovery)" \
+    "$(target_path /usr/local/bin/octessera-network-health)" \
+    "$(target_path /etc/systemd/system/octessera-usb-gadget.service)" \
+    "$(target_path /etc/systemd/system/octessera-update-guard.service)" \
+    "$(target_path /etc/systemd/system/octessera-update-recovery.service)" \
+    "$(target_path /etc/systemd/system/octessera-boot-splash.service)" \
+    "$(target_path /etc/systemd/system/octessera-oled-shutdown.service)" \
+    "$(target_path /etc/systemd/system/octessera-performance-governor.service)" \
+    "$(target_path /etc/systemd/system/octessera-network-health.service)" \
+    "$(target_path /etc/systemd/system/octessera-network-health.timer)" \
+    "$(target_path /etc/systemd/journald.conf.d/10-octessera.conf)" \
+    "$(target_path /etc/NetworkManager/conf.d/10-octessera-wifi-powersave.conf)" \
+    "$(target_path /etc/profile.d/octessera-welcome.sh)"
 
 pi_record="$(getent passwd pi)"
 IFS=: read -r pi_user _ pi_uid pi_gid _ pi_home pi_shell <<EOF
 $pi_record
 EOF
 test "$pi_user" = pi && test "$pi_home" = /home/pi && test "$pi_shell" = /bin/bash
-test -d "$pi_home" && test ! -L "$pi_home"
-hushlogin="$pi_home/.hushlogin"
+pi_home_target=$(target_path "$pi_home")
+test -d "$pi_home_target" && test ! -L "$pi_home_target"
+hushlogin="$pi_home_target/.hushlogin"
 if [ -e "$hushlogin" ] || [ -L "$hushlogin" ]; then
     test -f "$hushlogin" && test ! -L "$hushlogin" && test "$(stat -c '%u:%g:%a:%s' "$hushlogin")" = "$pi_uid:$pi_gid:644:0" && test ! -s "$hushlogin"
 else
@@ -177,15 +185,15 @@ sed \
     -e "s|@REMOTE_REPO@|$REMOTE_REPO_ESCAPED|g" \
     -e "s|@WAKE_TRACE@|$WAKE_TRACE_ESCAPED|g" \
     "$PROVISION_ROOT/etc/systemd/system/octessera.service.template" |
-    sudo tee "/etc/systemd/system/$SERVICE" >/dev/null
-sudo chmod 0644 "/etc/systemd/system/$SERVICE"
+    sudo tee "$SERVICE_TARGET" >/dev/null
+sudo chmod 0644 "$SERVICE_TARGET"
 sudo sed -i 's/\r$//' \
-    "/etc/systemd/system/$SERVICE" \
-    "/etc/systemd/system/$SERVICE.d/audio-realtime.conf"
+    "$SERVICE_TARGET" \
+    "$SERVICE_TARGET.d/audio-realtime.conf"
 
-sudo visudo -cf /etc/sudoers.d/octessera-shutdown >/dev/null
-sudo visudo -cf /etc/sudoers.d/octessera-usb-storage >/dev/null
-sudo visudo -cf /etc/sudoers.d/octessera-update >/dev/null
+sudo visudo -cf "$(target_path /etc/sudoers.d/octessera-shutdown)" >/dev/null
+sudo visudo -cf "$(target_path /etc/sudoers.d/octessera-usb-storage)" >/dev/null
+sudo visudo -cf "$(target_path /etc/sudoers.d/octessera-update)" >/dev/null
 
 if [ "$UPDATE_INITRAMFS" = "1" ]; then
     if ! grep -qxF "# octessera required boot settings" "$BOOT_CONFIG" && ! grep -qxF "# Octessera required boot settings" "$BOOT_CONFIG"; then
@@ -203,17 +211,17 @@ if [ "$UPDATE_INITRAMFS" = "1" ]; then
     install_file 0755 "$IMAGE_ROOT/etc/initramfs-tools/hooks/octessera-boot-splash" /etc/initramfs-tools/hooks/octessera-boot-splash
     install_file 0755 "$IMAGE_ROOT/etc/initramfs-tools/scripts/init-premount/octessera-boot-splash" /etc/initramfs-tools/scripts/init-premount/octessera-boot-splash
     sudo sed -i 's/\r$//' \
-        /etc/initramfs-tools/hooks/octessera-boot-splash \
-        /etc/initramfs-tools/scripts/init-premount/octessera-boot-splash
-    sudo install -d -m 0755 /etc/initramfs-tools
-    grep -qxF "spi-bcm2835" /etc/initramfs-tools/modules || printf '%s\n' "spi-bcm2835" | sudo tee -a /etc/initramfs-tools/modules >/dev/null
-    grep -qxF "spidev" /etc/initramfs-tools/modules || printf '%s\n' "spidev" | sudo tee -a /etc/initramfs-tools/modules >/dev/null
+        "$(target_path /etc/initramfs-tools/hooks/octessera-boot-splash)" \
+        "$(target_path /etc/initramfs-tools/scripts/init-premount/octessera-boot-splash)"
+    sudo install -d -m 0755 "$(target_path /etc/initramfs-tools)"
+    grep -qxF "spi-bcm2835" "$(target_path /etc/initramfs-tools/modules)" || printf '%s\n' "spi-bcm2835" | sudo tee -a "$(target_path /etc/initramfs-tools/modules)" >/dev/null
+    grep -qxF "spidev" "$(target_path /etc/initramfs-tools/modules)" || printf '%s\n' "spidev" | sudo tee -a "$(target_path /etc/initramfs-tools/modules)" >/dev/null
     sudo update-initramfs -u
 else
     echo "Skipping initramfs update. Pass -UpdateInitramfs to refresh the early boot splash initramfs."
 fi
 
-sudo install -d -m 0750 /etc/sudoers.d
+sudo install -d -m 0750 "$(target_path /etc/sudoers.d)"
 sudo systemctl restart systemd-journald
 sudo iw dev wlan0 set power_save off >/dev/null 2>&1 || true
 sudo nmcli connection modify preconfigured 802-11-wireless.powersave 2 >/dev/null 2>&1 || true
@@ -234,8 +242,8 @@ if ! command -v pinctrl >/dev/null 2>&1 || \
 fi
 sudo systemctl enable octessera-usb-gadget.service >/dev/null
 sudo systemctl enable --now octessera-update-recovery.service >/dev/null
-if [ -e /opt/octessera/current ] || [ -L /opt/octessera/current ]; then
-    sudo /usr/local/sbin/octessera-update bootstrap >/dev/null
+if [ -e "$(target_path /opt/octessera/current)" ] || [ -L "$(target_path /opt/octessera/current)" ]; then
+    sudo "$(target_path /usr/local/sbin/octessera-update)" bootstrap >/dev/null
 fi
 sudo systemctl enable --now octessera-network-health.timer >/dev/null
 sudo systemctl enable octessera-oled-shutdown.service >/dev/null
@@ -243,5 +251,5 @@ sudo systemctl start octessera-oled-shutdown.service
 sudo systemctl enable octessera-performance-governor.service >/dev/null
 sudo systemctl start octessera-performance-governor.service
 sudo systemctl enable "$SERVICE" >/dev/null
-sudo rm -f /etc/systemd/system/multi-user.target.wants/octessera-boot-splash.service
+sudo rm -f "$(target_path /etc/systemd/system/multi-user.target.wants/octessera-boot-splash.service)"
 sudo systemctl enable octessera-boot-splash.service >/dev/null
