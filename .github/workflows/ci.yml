@@ -324,6 +324,21 @@ jobs:
       - name: Run lightweight legal packaging tests
         run: python3 -m unittest discover -s tools/legal -p 'test_*.py'
 
+  repository_integrity:
+    name: Repository integrity gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends shellcheck
+      - name: Lint integrity gate scripts
+        run: shellcheck tools/quality/repository-integrity.sh tools/quality/test-repository-integrity.sh
+      - name: Run repository integrity fixtures
+        run: bash tools/quality/test-repository-integrity.sh
+      - name: Run repository integrity gate
+        run: bash tools/quality/repository-integrity.sh
+
   image_respin:
     name: Image respin tests
     runs-on: ubuntu-latest
