@@ -2,6 +2,66 @@
 
 This file tracks current actionable work only. Completed-work history does not belong here.
 
+## Prioritized Technical Debt
+
+This is a ranked backlog, not approval to begin the work. Reassess scope before
+starting an item and keep each change independently shippable. Estimates are
+rough engineer-days; the preferred evidence paths are hardware-free unless the
+item explicitly calls for a final device smoke test.
+
+1. **Extract a shared deferred-save state component (3–4 days).** Consolidate
+   pending-save scheduling, cancellation, retry, and shutdown flush semantics
+   across the desktop, Raspberry, and Orange host adapters. Keep host I/O and
+   asynchronous job execution outside the shared state machine. Verify with
+   table-driven component tests and adapter persistence tests.
+2. **Bound and overload-harden desktop worker queues (3–4 days).** Replace the
+   unbounded producer boundaries in `runtime_worker.rs`,
+   `desktop_platform_service.rs`, and `audio_prep_service.rs` with nonblocking,
+   typed admission policies. Preserve panic/stop operations and explicitly
+   coalesce only safe realtime traffic. Verify saturation, recovery, ordering,
+   and desktop build behavior.
+3. **Make NativeRunner configuration transactions explicit (5–6 days).**
+   Extract the transaction-owned configuration aggregate and have config/menu
+   changes produce one audio update plan: none, dynamic commands, or a full
+   revisioned configuration. Avoid a broad runner rewrite. Verify live-state
+   preservation and exactly one audio revision per committed transaction.
+4. **Introduce typed persisted NativeRunner configuration DTOs (5–6 days).**
+   Type the stable outer payload, runtime, layer, instrument, mixer, and device
+   structures while retaining validated extension JSON for behavior-specific
+   and FX parameters. Preserve strict schema validation and migrations before
+   decoding. Verify defaults, factory payloads, malformed fields, migrations,
+   and round trips.
+5. **Add a fakeable Seesaw/I2C transport (4–5 days).** Inject one narrow
+   address/write/write-read/timing transport into NeoTrellis and NeoKey instead
+   of opening device files inside each driver. Verify exact initialization and
+   FIFO transactions, retries, short reads/writes, and ioctl failures on the
+   host, followed by one hardware smoke pass when hardware is available.
+6. **Consolidate platform-core tick and input post-processing (2–3 days).**
+   Extract their shared interpretation, filtering, mapping, global-sound, and
+   note-processing finalization while preserving their distinct marker and
+   interpretation policies. Verify paired tick/input metadata, held notes, and
+   existing engine parity tests.
+7. **Add end-to-end EngineSource block/control tests (2–3 days).** Cover ordered
+   config, notes, dynamic controls, routing, momentary FX, sample preview,
+   emergency all-notes-off, and control-budget spillover at real block
+   boundaries. Prefer invariants and serial/block equivalence over brittle
+   floating-point snapshots.
+8. **Add fixture-root Raspberry provisioning tests (4–6 days).** Separate the
+   plan/render decisions in `tools/pi/provision/provision.sh` from execution so
+   production functions can target a fixture root and fake commands. Verify
+   first run, idempotency, modes, UART cleanup, initramfs handling, invalid
+   profiles, and reboot-required exit `75`.
+9. **Centralize verification profiles and make pre-push non-mutating (3–4
+   days).** Replace duplicated and `eval`-based command lists with named fast
+   and full profiles. Refuse a dirty tree by default; if committed-tree testing
+   is needed, use a temporary worktree rather than automatic stash/pop. Verify
+   clean, staged, dirty, untracked, and failing-check fixture repositories.
+10. **Add one deterministic repository-integrity CI gate (4–5 days).** Combine
+    generated-asset freshness, legal inventory verification, internal Markdown
+    links, and regression-based quality thresholds. Keep external URL checks
+    scheduled or nonblocking, and prove each deterministic drift case fails
+    independently.
+
 ## Legal and attribution follow-up
 
 - Before any future public board-image release, review the applicable source
