@@ -254,7 +254,14 @@ python3 "$orange_oled_logo_test"
 python3 "$orange_oled_handoff_test"
 python3 "$orange_runtime_identity_test"
 python3 "$orange_constructor_test"
-python3 "$orange_trusted_proof_test"
+if (( EUID == 0 )); then
+  python3 "$orange_trusted_proof_test"
+elif command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+  sudo -n python3 "$orange_trusted_proof_test"
+else
+  echo "Trusted image proof test requires root execution; run as root or configure passwordless sudo -n." >&2
+  exit 1
+fi
 bash "$image_sanitization_test"
 bash "$inspector_test"
 bash "$image_mode_test"
