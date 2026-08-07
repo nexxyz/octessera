@@ -2,7 +2,9 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { exit } from "node:process";
 
-const root = resolve(import.meta.dirname, "..", "..");
+const defaultRoot = resolve(import.meta.dirname, "..", "..");
+const rootArgIndex = process.argv.indexOf("--root");
+const root = rootArgIndex >= 0 ? resolve(process.argv[rootArgIndex + 1]) : defaultRoot;
 const sourcePath = resolve(root, "resources", "platform-capabilities.json");
 const outputPath = resolve(root, "packages", "device-contracts", "src", "platformCapabilities.generated.ts");
 const check = process.argv.includes("--check");

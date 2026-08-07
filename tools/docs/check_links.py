@@ -9,10 +9,12 @@ import urllib.request
 from pathlib import Path
 
 
-EXCLUDED_PARTS = {".git", ".slim", "node_modules", "target", "dist", "dist-desktop"}
+EXCLUDED_PARTS = {".git", ".slim", "node_modules", "target", "dist", "dist-desktop", "release-legal"}
 LOCAL_LINK_RE = re.compile(r"(?<!\!)\[[^\]]+\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)|<((?:\.\.?/|/)[^>]+)>")
 HTTP_LINK_RE = re.compile(r"(?<!\!)\[[^\]]+\]\((https?://[^)\s]+)(?:\s+\"[^\"]*\")?\)|<(https?://[^>]+)>")
 FENCE_RE = re.compile(r"```.*?```", re.DOTALL)
+HEADING_RE = re.compile(r"^(#{1,6})\s+(.+)$", re.MULTILINE)
+HTML_ANCHOR_RE = re.compile(r'<(?:a|span)\s+id="([^"]+)"')
 
 EXPECTED_HTTP_SNIPPETS = {
     "https://www.adafruit.com/product/1431": ["1431", "ssd1351"],
@@ -76,23 +78,42 @@ def markdown_without_fences(path: Path) -> str:
     return FENCE_RE.sub("", path.read_text(encoding="utf-8", errors="ignore"))
 
 
+def github_anchor(heading: str) -> str:
+    lower = heading.strip().lower()
+    lower = re.sub(r"[^\w\s-]", "", lower)
+    return re.sub(r"[\s-]+", "-", lower).strip("-")
+
+
+def heading_anchors(text: str) -> set[str]:
+    anchors = {github_anchor(match.group(2)) for match in HEADING_RE.finditer(text)}
+    anchors.update(HTML_ANCHOR_RE.findall(text))
+    return anchors
+
+
 def check_local_links(root: Path, md_files: list[Path]) -> list[str]:
     broken: list[str] = []
     for md_file in md_files:
         text = markdown_without_fences(md_file)
         for match in LOCAL_LINK_RE.finditer(text):
             raw = (match.group(1) or match.group(2) or "").strip()
-            if not raw or raw.startswith(("http://", "https://", "mailto:", "#", "file:")):
+            if not raw or raw.startswith(("http://", "https://", "mailto:", "file:")):
                 continue
-            target = raw.split("#", 1)[0]
-            if not target:
+            target, separator, fragment = raw.partition("#")
+            if not target and not separator:
                 continue
-            target_path = (md_file.parent / target.replace("%20", " ")).resolve()
-            if target.startswith("/"):
-                target_path = (root / target.lstrip("/")).resolve()
+            target_path = md_file
+            if target:
+                target_path = (md_file.parent / target.replace("%20", " ")).resolve()
+                if target.startswith("/"):
+                    target_path = (root / target.lstrip("/")).resolve()
+            line = text.count("\n", 0, match.start()) + 1
             if not target_path.exists():
-                line = text.count("\n", 0, match.start()) + 1
                 broken.append(f"{md_file.relative_to(root).as_posix()}:{line}: {raw}")
+                continue
+            if separator and fragment:
+                anchors = heading_anchors(target_path.read_text(encoding="utf-8", errors="ignore"))
+                if github_anchor(fragment) not in anchors and fragment not in anchors:
+                    broken.append(f"{md_file.relative_to(root).as_posix()}:{line}: anchor {raw!r}")
     return broken
 
 

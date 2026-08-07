@@ -2,7 +2,9 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+const defaultRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+const rootArgIndex = process.argv.indexOf("--root");
+const root = rootArgIndex >= 0 ? resolve(process.argv[rootArgIndex + 1]) : defaultRoot;
 const check = process.argv.includes("--check");
 
 const targets = [
