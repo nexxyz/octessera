@@ -29,6 +29,8 @@ make_fixture() {
     "$fixture/resources" \
     "$fixture/packages/device-contracts/src" \
     "$fixture/apps/desktop/src/ui" \
+    "$fixture/apps/desktop/src-tauri/icons" \
+    "$fixture/assets" \
     "$fixture/userdocs/print" \
     "$fixture/licenses/cargo" \
     "$fixture/licenses/pnpm" \
@@ -38,6 +40,10 @@ make_fixture() {
     "$fixture/tools/pi-image/stage4-octessera/files/root/usr/local/sbin" \
     "$fixture/tools/pi-image/stage4-octessera/files/root/etc/systemd/system" \
     "$fixture/tools/pi-image/stage4-octessera/files/root/etc/udev/rules.d"
+
+  printf '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">\n  <path d="M60 36 L36 60 L60 84 L84 60"/>\n</svg>\n' >"$fixture/assets/octessera-mark.svg"
+  printf '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 7">\n  <path d="M0 0 L5 0 L5 1 L0 1 Z"/>\n</svg>\n' >"$fixture/assets/octessera-wordmark.svg"
+  python3 "$HERE/../assets/generate_pi_logo_pngs.py" --root "$fixture"
 
   printf '{\n  "name": "octessera-fixture"\n}\n' >"$fixture/config/defaults/base.json"
   printf '{\n}\n' >"$fixture/config/defaults/desktop.json"
@@ -133,6 +139,10 @@ run_case() {
 run_case stale-assets
 sed -i 's/"name": "octessera-fixture"/"name": "drifted"/' "$TMP/fixture-stale-assets/config/generated/pi/default.json"
 
+# Class 1b: stale-assets drift (stale generated logo asset).
+run_case assets
+printf 'drifted logo bytes\n' >"$TMP/fixture-assets/assets/octessera-pi-booting.png"
+
 # Class 2: legal drift (stale pnpm lock hash).
 run_case legal
 sed -i 's/"pnpm_lock_sha256": "\([a-f0-9]\{64\}\)"/"pnpm_lock_sha256": "1111111111111111111111111111111111111111111111111111111111111111"/' "$TMP/fixture-legal/licenses/pnpm/inventory.json"
@@ -150,6 +160,7 @@ done
 
 # Apply each drift and assert the gate fails with exactly the expected class.
 assert_gate "$TMP/fixture-stale-assets" 1 "stale-assets drift detected" stale-assets
+assert_gate "$TMP/fixture-assets" 1 "assets drift detected" stale-assets
 assert_gate "$TMP/fixture-legal" 1 "legal drift detected" legal
 assert_gate "$TMP/fixture-links" 1 "links drift detected" links
 assert_gate "$TMP/fixture-quality" 1 "quality drift detected" quality

@@ -18,7 +18,7 @@ usage() {
 Usage: repository-integrity.sh [--root DIR] [--skip-stale-assets] [--skip-legal] [--skip-links] [--skip-quality]
 
 Deterministic repository integrity gate with four independently addressable check classes:
-  stale-assets  Generated config/capabilities/palette outputs match their sources.
+  stale-assets  Generated config/capabilities/palette/logo outputs match their sources.
   legal         Lockfile-hash and checksum inventories are fresh.
   links         Internal Markdown links and anchors resolve.
   quality       Code quality regression thresholds hold.
@@ -65,6 +65,7 @@ check_stale_assets() {
   node "$REPO_ROOT/tools/config/generate-default-configs.mjs" --check --root "$root" || return 1
   node "$REPO_ROOT/tools/resources/generate-platform-capabilities.mjs" --check --root "$root" || return 1
   node "$REPO_ROOT/tools/resources/generate-display-palette.mjs" --check --root "$root" || return 1
+  python3 "$REPO_ROOT/tools/assets/generate_pi_logo_pngs.py" --check --root "$root" || return 1
 }
 
 check_legal() {
