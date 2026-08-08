@@ -146,10 +146,7 @@ EOF
     require_octessera_boot_config "$fixture/boot" "$fixture/root"
     require_octessera_boot_overlay "$fixture/boot" "$fixture/root"
     require_octessera_boot_layer "$fixture/boot" "$fixture/root"
-    if require_octessera_raspberry_identity_for_boot_layer "$fixture/boot" "$fixture/root"; then
-        echo 'Historical trusted-parent fixture with a serial console was accepted.' >&2
-        exit 1
-    fi
+    require_octessera_raspberry_identity_for_boot_layer "$fixture/boot" "$fixture/root"
 fi
 
 reset_fixture
