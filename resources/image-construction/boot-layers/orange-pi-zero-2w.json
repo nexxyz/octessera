@@ -20,6 +20,7 @@
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh", "sha256": "342bfa48eafc350f5125e3757df902d51df74d1889b0e6062844eb691aa767ba", "size": 911, "mode": 420},
     {"path": "tools/armbian-image/stage-canonical-welcome.sh", "sha256": "1048803ddfe6132d4906444d29fe16065445eafc5080bcf6d8fff999762f321b", "size": 593, "mode": 493},
     {"path": "userpatches/customize-image.sh", "sha256": "cdf899046b61053a8884ab77309e1c5a07b59f905f5f7477f8c8340e98c45242", "size": 31844, "mode": 493},
+    {"path": "userpatches/extensions/octessera_image_sanitize.sh", "sha256": "7fc8b55ff364317eb14ef920d9c537bd83769932bc03e3901be6060cf4fc4568", "size": 10844, "mode": 420},
     {"path": "userpatches/overlay/usr/local/share/octessera/device-tree/octessera-h618-input-routing.dts", "sha256": "63b40446ce72af1a9af1ea977c841a8aa29787e2a324d18911c5ea81d6b483d2", "size": 513, "mode": 420},
     {"path": "userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-boot-config.sh", "sha256": "24d811b69b15aacd0ab9ae21905c2883ff496491eb1aef19301e4cfc717e37a2", "size": 2011, "mode": 493},
     {"path": "userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-overlay-validation.sh", "sha256": "667823491f46945e25c98404198dc3f62e8a4a16cc255b2df3d4f62b4ea0ad8d", "size": 1837, "mode": 493},
