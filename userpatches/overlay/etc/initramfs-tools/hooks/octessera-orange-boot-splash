@@ -116,6 +116,3 @@ if [ "$python_stdlib_found" -eq 0 ]; then
 fi
 copy_file asset /usr/share/octessera/oled/octessera-mark.svg
 copy_file asset /usr/share/octessera/oled/octessera-wordmark.svg
-manual_add_modules spi-sun6i || true
-manual_add_modules spidev || true
-manual_add_modules pinctrl-sunxi || true

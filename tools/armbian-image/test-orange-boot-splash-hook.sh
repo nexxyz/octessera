@@ -157,11 +157,20 @@ for required_line in \
     'copy_exec /usr/bin/setsid /usr/bin/setsid' \
     'copy_exec /usr/bin/gpioset /usr/bin/gpioset' \
     'copy_file asset /usr/share/octessera/oled/octessera-mark.svg' \
-    'copy_file asset /usr/share/octessera/oled/octessera-wordmark.svg' \
-    'manual_add_modules spi-sun6i || true' \
-    'manual_add_modules spidev || true' \
-    'manual_add_modules pinctrl-sunxi || true'; do
+    'copy_file asset /usr/share/octessera/oled/octessera-wordmark.svg'; do
     grep -qF "$required_line" "$hook" || { echo "Orange initramfs dependency was removed: $required_line" >&2; exit 1; }
+done
+for removed_line in \
+    'manual_add_modules spi-sun6i' \
+    'manual_add_modules spidev' \
+    'manual_add_modules pinctrl-sunxi'; do
+    ! grep -qF "$removed_line" "$hook" || { echo "Obsolete Orange initramfs module addition returned: $removed_line" >&2; exit 1; }
+done
+for removed_line in \
+    'modprobe spi-sun6i' \
+    'modprobe spidev' \
+    'modprobe pinctrl-sunxi'; do
+    ! grep -qF "$removed_line" "$root/userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash" || { echo "Obsolete Orange initramfs module load returned: $removed_line" >&2; exit 1; }
 done
 for json_file in json/__init__.py json/decoder.py json/encoder.py json/scanner.py; do
     grep -qF "\$python_dir/$json_file" "$hook" || { echo "Orange initramfs JSON closure is missing: $json_file" >&2; exit 1; }
@@ -193,7 +202,6 @@ run_python313_closure_hook_test() {
     cat > "$hook_functions" <<'EOF'
 copy_exec() { printf 'copy_exec %s %s\n' "$1" "$2" >> "$OCTESSERA_COPY_LOG"; }
 copy_file() { printf 'copy_file %s %s %s\n' "$1" "$2" "$3" >> "$OCTESSERA_COPY_LOG"; }
-manual_add_modules() { printf 'manual_add_modules %s\n' "$1" >> "$OCTESSERA_COPY_LOG"; }
 EOF
     while IFS= read -r python_file; do
         [[ -n "$python_file" ]] || continue
@@ -412,9 +420,6 @@ run_initramfs_lifecycle_test() {
                 ;;
         esac
         chmod 0755 "$helper"
-        mkdir -p "$work/bin"
-        printf '%s\n' '#!/bin/sh' 'exit 0' > "$work/bin/modprobe"
-        chmod 0755 "$work/bin/modprobe"
         sed \
             -e "s|MARKER=/run/octessera-initramfs-splash.ready|MARKER=$marker|" \
             -e "s|TEMPORARY_MARKER=|TEMPORARY_MARKER=|" \

@@ -234,6 +234,9 @@ def verify_boot(root: Path, package: dict[str, Any], construction: dict[str, Any
     require(initrd.is_file() and initrd.stat().st_size > 0, "selected boot initramfs is missing or empty")
     config = root / f"boot/config-{release}"
     require(config.is_file() and sha256_file(config) == package["config_hash"], "selected boot kernel config differs from exact package")
+    config_lines = config.read_text(encoding="utf-8").splitlines()
+    for line in construction["required_builtin_kernel_config_lines"]:
+        require(config_lines.count(line) == 1, f"selected boot kernel config must contain exactly one: {line}")
     module_root = root / f"lib/modules/{release}"
     require((module_root / "modules.dep").is_file(), "selected kernel modules.dep is missing")
     for module_name in ("snd-seq.ko", "snd-seq-midi.ko", "snd-rawmidi.ko", "snd-usb-audio.ko"):
@@ -327,6 +330,7 @@ def validate_construction_contract(root: Path, contract: dict[str, Any]) -> str:
     require(contract.get("proof_mode") == "phase5-constructor", "Orange construction proof mode is not phase5-constructor")
     require(contract.get("constructor_required") is True and contract.get("trusted_parent_finalization") == "forbidden" and contract.get("mutation_authority") == "none", "Orange construction authority is invalid")
     require(contract.get("board_profile") == "orange-pi-zero-2w", "Orange construction board is invalid")
+    require(contract.get("required_builtin_kernel_config_lines") == ["CONFIG_SPI_SUN6I=y", "CONFIG_SPI_SPIDEV=y", "CONFIG_PINCTRL_SUNXI=y"], "Orange built-in kernel config contract changed")
     require(contract.get("notice_bundle") == {"manifest": "resources/legal/notice-bundle.json", "stager": "tools/legal/stage_notices.py", "installed_root": "usr/share/doc/octessera", "installed_outputs": "manifest-files", "proof": "tools/armbian-image/orange_boot_contract.py", "parent_sentinels": ["usr/share/common-licenses/GPL-3", "usr/share/doc/base-files/copyright"]}, "Orange legal notice contract is not exact")
     require(contract.get("terminal_invariants") == {"welcome_path": "etc/profile.d/octessera-welcome.sh", "hushlogin_path": "home/octessera/.hushlogin", "hushlogin_mode": 420, "hushlogin_empty": True, "forbidden_pam_update_motd_overrides": True}, "Orange terminal invariants changed")
     require(contract.get("uart_invariants") == {"overlay_name": "octessera-h618-input-routing", "forbidden_console_token": "console=ttyS0", "serial_getty_mask": "etc/systemd/system/serial-getty@ttyS0.service", "uart0_status": "disabled", "stdout_path": ""}, "Orange UART invariants changed")

@@ -409,7 +409,8 @@ grep -q 'copy_exec /usr/local/sbin/octessera-orange-oled-logo' "$root/userpatche
 grep -q 'octessera-orange-oled-handoff.py' "$root/userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash" || { echo "Orange initramfs is missing the OLED handoff module." >&2; exit 1; }
 ! grep -q 'gpiodetect' "$root/userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash" || { echo "Orange initramfs must not use broad GPIO probing." >&2; exit 1; }
 grep -q 'copy_exec /usr/bin/gpioset' "$root/userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash" || { echo "Orange initramfs is missing the fixed GPIO setter." >&2; exit 1; }
-grep -q 'spi-sun6i' "$root/userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash" || { echo "Orange initramfs is missing the H618 SPI module." >&2; exit 1; }
+! grep -qE '(^|[[:space:]])manual_add_modules([[:space:]]|$)' "$root/userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash" || { echo "Orange initramfs must not manually add built-in kernel modules." >&2; exit 1; }
+! grep -qE '(^|[[:space:]])modprobe([[:space:]]|$)' "$root/userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash" || { echo "Orange initramfs must not load built-in kernel modules." >&2; exit 1; }
 grep -q 'octessera-orange-oled-suspend.service' "$root/userpatches/customize-image.sh" || { echo "Orange suspend OLED handoff is not installed." >&2; exit 1; }
 oled_logo="$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo"
 oled_handoff="$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-handoff.py"

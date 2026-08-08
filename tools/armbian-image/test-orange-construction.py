@@ -16,7 +16,7 @@ def exact(value, keys):
     assert set(value) == set(keys)
 
 
-exact(contract, ["schema_version", "proof_mode", "contract_kind", "construction_kind", "board_profile", "constructor_required", "trusted_parent_finalization", "mutation_authority", "regeneration_required", "expected_changes", "exact_inputs", "managed_outputs", "notice_bundle", "terminal_invariants", "uart_invariants", "enabled_sysinit_wants", "device_dependencies", "selected_initramfs", "mounted_proof", "proofs"])
+exact(contract, ["schema_version", "proof_mode", "contract_kind", "construction_kind", "board_profile", "constructor_required", "trusted_parent_finalization", "mutation_authority", "regeneration_required", "expected_changes", "exact_inputs", "managed_outputs", "notice_bundle", "terminal_invariants", "uart_invariants", "enabled_sysinit_wants", "device_dependencies", "required_builtin_kernel_config_lines", "selected_initramfs", "mounted_proof", "proofs"])
 assert contract["schema_version"] == 1
 assert contract["proof_mode"] == "phase5-constructor"
 assert contract["contract_kind"] == "constructor-required"
@@ -79,6 +79,8 @@ assert all("sleep.target.wants/octessera-orange-oled-suspend.service" not in ite
 service = (ROOT / "userpatches/overlay/etc/systemd/system/octessera-orange-oled-suspend.service").read_text(encoding="utf-8")
 assert "RequiredBy=sleep.target" in service and "WantedBy=sleep.target" not in service
 assert contract["device_dependencies"] == {"spi_device": "/dev/spidev1.0", "gpio_device": "/dev/gpiochip1", "gpio_label": "300b000.pinctrl", "gpio_offsets": {"reset": 76, "dc": 270}, "udev_rule": "etc/udev/rules.d/70-octessera-orange-runtime.rules"}
+assert contract["required_builtin_kernel_config_lines"] == ["CONFIG_SPI_SUN6I=y", "CONFIG_SPI_SPIDEV=y", "CONFIG_PINCTRL_SUNXI=y"]
+exact(contract["selected_initramfs"], ["required_paths", "forbidden_paths", "required_tools", "python_files", "python_extensions", "installed_output_matches"])
 assert contract["selected_initramfs"]["forbidden_paths"] == ["usr/bin/gpiodetect"]
 assert all("system-sleep/octessera-orange-oled" not in item["path"] for item in contract["managed_outputs"])
 print("Orange constructor classification and source digest tests passed")

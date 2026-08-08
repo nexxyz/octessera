@@ -19,10 +19,6 @@ case "${1:-}" in
     ;;
 esac
 
-modprobe spi-sun6i >/dev/null 2>&1 || true
-modprobe spidev >/dev/null 2>&1 || true
-modprobe pinctrl-sunxi >/dev/null 2>&1 || true
-
 process_group_alive() {
   kill -0 -- "-$1" 2>/dev/null
 }
