@@ -30,6 +30,8 @@ orange_trusted_proof_test="$root/tools/armbian-image/test-orange-trusted-proof.p
 orange_initramfs="$root/tools/armbian-image/orange_initramfs.py"
 orange_phase5_proof="$root/tools/armbian-image/orange_phase5_proof.py"
 orange_boot_splash_test="$root/tools/armbian-image/test-orange-boot-splash-hook.sh"
+orange_oled_suspend_test="$root/tools/armbian-image/test-orange-oled-suspend.sh"
+orange_oled_suspend_python_test="$root/tools/armbian-image/test-orange-oled-suspend.py"
 orange_oled_logo_test="$root/tools/armbian-image/test_orange_oled_logo.py"
 orange_oled_handoff_test="$root/tools/armbian-image/test_orange_oled_handoff.py"
 orange_runtime_identity_test="$root/tools/armbian-image/test-orange-runtime-identity.py"
@@ -108,6 +110,8 @@ required_files=(
   "$image_sanitization_test"
   "$image_sanitization_extension"
   "$orange_boot_splash_test"
+  "$orange_oled_suspend_test"
+  "$orange_oled_suspend_python_test"
   "$alsa_sequencer_test"
   "$alsa_sequencer_extension"
   "$alsa_sequencer_modules"
@@ -156,13 +160,14 @@ required_files=(
   "$root/userpatches/overlay/etc/systemd/system/octessera-orange-usb-gadget.service"
   "$root/userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service"
   "$root/userpatches/overlay/etc/systemd/system/octessera-orange-oled-shutdown.service"
+  "$root/userpatches/overlay/etc/systemd/system/octessera-orange-oled-suspend.service"
   "$root/userpatches/overlay/etc/systemd/system/octessera-provision-musical-default.service"
   "$root/userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash"
   "$root/userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash"
-  "$root/userpatches/overlay/lib/systemd/system-sleep/octessera-orange-oled"
   "$root/userpatches/overlay/usr/local/sbin/octessera-orange-usb-gadget"
   "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo"
   "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-handoff.py"
+  "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-suspend"
   "$root/userpatches/overlay/usr/local/sbin/octessera-provision-musical-default"
   "$spi_dts"
   "$input_routing_dts"
@@ -233,7 +238,6 @@ bash -n "$root/userpatches/overlay/usr/local/sbin/octessera-update-recovery"
 bash -n "$root/userpatches/overlay/usr/local/sbin/octessera-orange-usb-gadget"
 bash -n "$root/userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash"
 bash -n "$root/userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash"
-bash -n "$root/userpatches/overlay/lib/systemd/system-sleep/octessera-orange-oled"
 bash -n "$spi_env_helper"
 bash -n "$spi_validation_helper"
 bash -n "$input_routing_validation_helper"
@@ -248,8 +252,11 @@ bash -n "$runtime_service_test"
 python3 -m py_compile "$root/tools/device-update/updater_protocol.py" "$root/tools/device-update/updater_state.py" "$root/tools/device-update/updater_assets.py" "$root/tools/device-update/updater_guard.py" "$root/tools/device-update/updater_cli.py"
 python3 -m py_compile "$orange_image_mount_helper" "$orange_boot_selection_helper" "$orange_image_proof_python" "$orange_image_proof_fixture" "$orange_trusted_proof" "$orange_trusted_proof_test" "$orange_initramfs" "$orange_phase5_proof"
 python3 -m py_compile "$image_verifier" "$runtime_account_verifier"
-python3 -m py_compile "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo" "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-handoff.py" "$root/tools/armbian-image/test_orange_oled_logo.py" "$root/tools/armbian-image/test_orange_oled_handoff.py" "$orange_runtime_identity_test"
+python3 -m py_compile "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo" "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-handoff.py" "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-suspend" "$root/tools/armbian-image/test_orange_oled_logo.py" "$root/tools/armbian-image/test_orange_oled_handoff.py" "$orange_runtime_identity_test"
+python3 -m py_compile "$orange_oled_suspend_python_test"
 bash "$orange_boot_splash_test"
+bash "$orange_oled_suspend_test"
+python3 "$orange_oled_suspend_python_test"
 python3 "$orange_oled_logo_test"
 python3 "$orange_oled_handoff_test"
 python3 "$orange_runtime_identity_test"
@@ -403,15 +410,14 @@ grep -q 'octessera-orange-oled-handoff.py' "$root/userpatches/overlay/etc/initra
 ! grep -q 'gpiodetect' "$root/userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash" || { echo "Orange initramfs must not use broad GPIO probing." >&2; exit 1; }
 grep -q 'copy_exec /usr/bin/gpioset' "$root/userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash" || { echo "Orange initramfs is missing the fixed GPIO setter." >&2; exit 1; }
 grep -q 'spi-sun6i' "$root/userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash" || { echo "Orange initramfs is missing the H618 SPI module." >&2; exit 1; }
-grep -q 'system-sleep/octessera-orange-oled' "$root/userpatches/customize-image.sh" || { echo "Orange sleep OLED handoff is not installed." >&2; exit 1; }
+grep -q 'octessera-orange-oled-suspend.service' "$root/userpatches/customize-image.sh" || { echo "Orange suspend OLED handoff is not installed." >&2; exit 1; }
 oled_logo="$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo"
 oled_handoff="$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-handoff.py"
 if grep -RInF '/usr/local/bin/octessera-orange-oled-logo' \
   "$root/userpatches/customize-image.sh" \
   "$root/userpatches/overlay/etc/initramfs-tools" \
   "$root/userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service" \
-  "$root/userpatches/overlay/etc/systemd/system/octessera-orange-oled-shutdown.service" \
-  "$root/userpatches/overlay/lib/systemd/system-sleep"; then
+  "$root/userpatches/overlay/etc/systemd/system/octessera-orange-oled-shutdown.service"; then
   echo "Orange OLED lifecycle must use the installed /usr/local/sbin executable." >&2
   exit 1
 fi
@@ -729,8 +735,9 @@ fixture_pio_path="$(fdtget -t s "$dt_work/h618-spi-base.dtb" /__symbols__ pio)"
 octessera_assert_input_routing_merge "$dt_work/h618-spi-base.dtb" "$dt_work/h618-input-routing-merged.dtb" "$fixture_uart0_path" "$fixture_pio_path" /chosen fixture
 
 if command -v shellcheck >/dev/null 2>&1; then
-  shellcheck "$root/userpatches/customize-image.sh" "$root/userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash" "$armbian_extensions_resolver" "$image_sanitization_extension" "$image_sanitization_test" "$inspector_test" "$orange_boot_splash_test" "$alsa_sequencer_extension" "$alsa_sequencer_test" "$orange_kernel_package_test" "$orange_kernel_package_validator" "$orange_image_proof_test" "$orange_image_proof_verifier" "$root/tools/armbian-image/inspect-built-image.sh" "$runtime_inspector" "$image_mode_helper" "$diagnostic_payload_helper" "$image_mode_test" "$authorized_key_paths_helper" "$inspect_path_helper" "$root/tools/armbian-image/inspect-mode.sh" "$root/tools/armbian-image/inspect-output-images.sh" "$root/tools/armbian-image/stage-musical-assets.sh" "$root/tools/armbian-image/test-musical-assets.sh" "$root/tools/pi-image/test-wifi-foundation.sh" "$root/tools/orange-pi/input-routing-provision.sh" "$root/tools/orange-pi/orange-pi-usb-gadget.sh" "$root/userpatches/overlay/usr/local/sbin/octessera-orange-usb-gadget" "$root/userpatches/overlay/usr/local/sbin/octessera-provision-musical-default" "$root/userpatches/overlay/lib/systemd/system-sleep/octessera-orange-oled" "$root/userpatches/overlay/usr/local/share/octessera/device-tree/armbian-env-token.sh" "$root/userpatches/overlay/usr/local/share/octessera/device-tree/spi-overlay-validation.sh" "$root/userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-overlay-validation.sh" "$root/userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-boot-config.sh" "$root/userpatches/overlay/usr/local/share/octessera/device-tree/boot-dtb-selection.sh" "$root/userpatches/overlay/usr/local/sbin/octessera-wifi-connect" "$root/userpatches/overlay/usr/local/sbin/octessera-wifi-foundation" "$root/userpatches/overlay/usr/local/sbin/octessera-update" "$root/userpatches/overlay/usr/local/sbin/octessera-update-guard" "$root/userpatches/overlay/usr/local/sbin/octessera-update-recovery" "$0"
+  shellcheck "$root/userpatches/customize-image.sh" "$root/userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash" "$armbian_extensions_resolver" "$image_sanitization_extension" "$image_sanitization_test" "$inspector_test" "$orange_boot_splash_test" "$alsa_sequencer_extension" "$alsa_sequencer_test" "$orange_kernel_package_test" "$orange_kernel_package_validator" "$orange_image_proof_test" "$orange_image_proof_verifier" "$root/tools/armbian-image/inspect-built-image.sh" "$runtime_inspector" "$image_mode_helper" "$diagnostic_payload_helper" "$image_mode_test" "$authorized_key_paths_helper" "$inspect_path_helper" "$root/tools/armbian-image/inspect-mode.sh" "$root/tools/armbian-image/inspect-output-images.sh" "$root/tools/armbian-image/stage-musical-assets.sh" "$root/tools/armbian-image/test-musical-assets.sh" "$root/tools/pi-image/test-wifi-foundation.sh" "$root/tools/orange-pi/input-routing-provision.sh" "$root/tools/orange-pi/orange-pi-usb-gadget.sh" "$root/userpatches/overlay/usr/local/sbin/octessera-orange-usb-gadget" "$root/userpatches/overlay/usr/local/sbin/octessera-provision-musical-default" "$root/userpatches/overlay/usr/local/share/octessera/device-tree/armbian-env-token.sh" "$root/userpatches/overlay/usr/local/share/octessera/device-tree/spi-overlay-validation.sh" "$root/userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-overlay-validation.sh" "$root/userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-boot-config.sh" "$root/userpatches/overlay/usr/local/share/octessera/device-tree/boot-dtb-selection.sh" "$root/userpatches/overlay/usr/local/sbin/octessera-wifi-connect" "$root/userpatches/overlay/usr/local/sbin/octessera-wifi-foundation" "$root/userpatches/overlay/usr/local/sbin/octessera-update" "$root/userpatches/overlay/usr/local/sbin/octessera-update-guard" "$root/userpatches/overlay/usr/local/sbin/octessera-update-recovery" "$0"
   shellcheck "$runtime_service_test"
+  shellcheck "$orange_oled_suspend_test"
   shellcheck "$root/userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash"
   shellcheck "$setup_layer_proof" "$setup_layer_test" "$setup_start" "$setup_cleanup" "$setup_request_cleanup"
   shellcheck "$setup_layer_installer"

@@ -344,7 +344,6 @@ octessera_require_orange_shutdown_service() {
     'Before=shutdown.target reboot.target halt.target' \
     'User=octessera-runtime' \
     'Group=octessera-runtime' \
-    'SupplementaryGroups=audio i2c spi gpio' \
     'ProtectSystem=strict' \
     'ReadWritePaths=/run/octessera-boot' \
     'DevicePolicy=closed' \
@@ -354,6 +353,37 @@ octessera_require_orange_shutdown_service() {
     'TimeoutStartSec=5'; do
     printf '%s\n' "$service_content" | grep -qFx "$required_line" || { echo "Orange shutdown service is missing: $required_line" >&2; exit 1; }
   done
+  ! printf '%s\n' "$service_content" | grep -qFx 'SupplementaryGroups=audio i2c spi gpio' || { echo 'Orange shutdown service requires unavailable supplementary groups.' >&2; exit 1; }
+}
+
+octessera_require_orange_suspend_service() {
+  local service_content
+  service_content="$(read_file etc/systemd/system/octessera-orange-oled-suspend.service)"
+  for required_line in \
+    'After=octessera.service' \
+    'Requisite=octessera.service' \
+    'Before=sleep.target' \
+    'RequiredBy=sleep.target' \
+    'StopWhenUnneeded=yes' \
+    'Type=oneshot' \
+    'RemainAfterExit=yes' \
+    'User=octessera-runtime' \
+    'Group=octessera-runtime' \
+    'RuntimeDirectory=octessera-oled-suspend' \
+    'RuntimeDirectoryMode=0700' \
+    'RestrictAddressFamilies=AF_UNIX' \
+    'ExecStart=/usr/local/sbin/octessera-orange-oled-suspend prepare' \
+    'ExecStop=/usr/local/sbin/octessera-orange-oled-suspend resume' \
+    'TimeoutStartSec=8' \
+    'TimeoutStopSec=8'; do
+    printf '%s\n' "$service_content" | grep -qFx "$required_line" || { echo "Orange suspend service is missing: $required_line" >&2; exit 1; }
+  done
+  ! printf '%s\n' "$service_content" | grep -qFx 'SupplementaryGroups=audio i2c spi gpio' || { echo 'Orange suspend service requires unavailable supplementary groups.' >&2; exit 1; }
+  ! printf '%s\n' "$service_content" | grep -qE '^(Conflicts=|BusName=)|systemctl' || { echo 'Orange suspend service has an unsafe lifecycle dependency.' >&2; exit 1; }
+  octessera_require_image_symlink etc/systemd/system/sleep.target.requires/octessera-orange-oled-suspend.service ../octessera-orange-oled-suspend.service /etc/systemd/system/octessera-orange-oled-suspend.service
+  reject_path etc/systemd/system/sleep.target.wants/octessera-orange-oled-suspend.service
+  reject_path lib/systemd/system-sleep/octessera-orange-oled
+  reject_path usr/lib/systemd/system-sleep/octessera-orange-oled
 }
 
 octessera_inspect_runtime_mode() {
@@ -379,6 +409,7 @@ octessera_inspect_runtime_mode() {
   [[ "$image_mode" == "$requested_mode" ]] || { echo "Inspector mode $requested_mode does not match image metadata mode $image_mode." >&2; exit 1; }
   octessera_require_orange_boot_service
   octessera_require_orange_shutdown_service
+  octessera_require_orange_suspend_service
   case "$image_mode:$runtime_default" in
     diagnostic:false)
       octessera_require_image_contract diagnostic

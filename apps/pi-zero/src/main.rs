@@ -6,6 +6,7 @@ mod orange_candidate;
 mod render;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod render_loop;
+mod render_loop_queue;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod seesaw_io;
 
@@ -60,6 +61,10 @@ mod oled_test;
 mod orange_audio;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod orange_host_adapter;
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+mod orange_oled_suspend;
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+mod orange_oled_suspend_policy;
 mod persistence;
 mod platform_service;
 #[cfg(all(feature = "native-audio", not(feature = "hardware-orange-pi-zero-2w")))]

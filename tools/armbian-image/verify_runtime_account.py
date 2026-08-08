@@ -121,7 +121,6 @@ def require_orange_shutdown_service(root: Path, require: Require) -> None:
         "Before=shutdown.target reboot.target halt.target",
         "User=octessera-runtime",
         "Group=octessera-runtime",
-        "SupplementaryGroups=audio i2c spi gpio",
         "ProtectSystem=strict",
         "ReadWritePaths=/run/octessera-boot",
         "DevicePolicy=closed",
@@ -131,6 +130,47 @@ def require_orange_shutdown_service(root: Path, require: Require) -> None:
         "TimeoutStartSec=5",
     ):
         require(line in content, f"Orange shutdown service is missing: {line}")
+    require("SupplementaryGroups=audio i2c spi gpio" not in content, "Orange shutdown service requires unavailable supplementary groups")
+
+
+def require_orange_suspend_service(root: Path, require: Require) -> None:
+    service = root / "etc/systemd/system/octessera-orange-oled-suspend.service"
+    enabled = root / "etc/systemd/system/sleep.target.requires/octessera-orange-oled-suspend.service"
+    content = service.read_text(encoding="utf-8")
+    for line in (
+        "After=octessera.service",
+        "Requisite=octessera.service",
+        "Before=sleep.target",
+        "RequiredBy=sleep.target",
+        "StopWhenUnneeded=yes",
+        "Type=oneshot",
+        "RemainAfterExit=yes",
+        "User=octessera-runtime",
+        "Group=octessera-runtime",
+        "RuntimeDirectory=octessera-oled-suspend",
+        "RuntimeDirectoryMode=0700",
+        "RestrictAddressFamilies=AF_UNIX",
+        "ExecStart=/usr/local/sbin/octessera-orange-oled-suspend prepare",
+        "ExecStop=/usr/local/sbin/octessera-orange-oled-suspend resume",
+        "TimeoutStartSec=8",
+        "TimeoutStopSec=8",
+    ):
+        require(line in content, f"Orange suspend service is missing: {line}")
+    require("SupplementaryGroups=audio i2c spi gpio" not in content, "Orange suspend service requires unavailable supplementary groups")
+    require("Conflicts=" not in content and "systemctl" not in content and "BusName=" not in content, "Orange suspend service has an unsafe lifecycle dependency")
+    require(enabled.is_symlink() and enabled.readlink().as_posix() in {"../octessera-orange-oled-suspend.service", "/etc/systemd/system/octessera-orange-oled-suspend.service"}, "Orange suspend service is not enabled at sleep.target")
+    stale_wants = root / "etc/systemd/system/sleep.target.wants/octessera-orange-oled-suspend.service"
+    require(not stale_wants.exists() and not stale_wants.is_symlink(), "Orange suspend service retains a non-required sleep target enablement")
+    require(
+        all(
+            not path.exists() and not path.is_symlink()
+            for path in (
+                root / "usr/lib/systemd/system-sleep/octessera-orange-oled",
+                root / "lib/systemd/system-sleep/octessera-orange-oled",
+            )
+        ),
+        "obsolete Orange system-sleep hook remains",
+    )
 
 
 def require_runtime_udev_rule(root: Path, require: Require) -> None:

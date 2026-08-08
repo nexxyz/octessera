@@ -113,6 +113,43 @@ fn animator_and_native_restart_share_one_stable_lock() {
 }
 
 #[test]
+fn native_reacquire_preserves_first_menu_rendered_status() {
+    let path = test_directory("preserving-reacquire");
+    let mut animator = animator_start_at(&path).unwrap();
+    let status = read_status(&animator.directory).unwrap().unwrap();
+    create_or_attach_stop(&animator.directory, &status).unwrap();
+    animator.stop_requested().unwrap();
+    animator.release().unwrap();
+    drop(animator);
+    let mut native = native_attach_at(&path).unwrap();
+    native.mark_first_menu_rendered().unwrap();
+    let expected = read_status(&native.directory).unwrap().unwrap();
+    native.detach_preserving().unwrap();
+    native.reacquire_existing().unwrap();
+    assert_eq!(read_status(&native.directory).unwrap().unwrap(), expected);
+    let _ = fs::remove_dir_all(path);
+}
+
+#[test]
+fn detached_native_guard_cannot_mark_failed_before_reacquire() {
+    let path = test_directory("detached-failure");
+    let mut animator = animator_start_at(&path).unwrap();
+    let status = read_status(&animator.directory).unwrap().unwrap();
+    create_or_attach_stop(&animator.directory, &status).unwrap();
+    animator.stop_requested().unwrap();
+    animator.release().unwrap();
+    drop(animator);
+
+    let mut native = native_attach_at(&path).unwrap();
+    let expected = read_status(&native.directory).unwrap().unwrap();
+    native.detach_preserving().unwrap();
+    native.mark_failed();
+    assert_eq!(read_status(&native.directory).unwrap().unwrap(), expected);
+    native.reacquire_existing().unwrap();
+    let _ = fs::remove_dir_all(path);
+}
+
+#[test]
 fn symlink_and_hardlink_entries_are_not_accepted() {
     let path = test_directory("unsafe");
     let request = serde_json::json!({

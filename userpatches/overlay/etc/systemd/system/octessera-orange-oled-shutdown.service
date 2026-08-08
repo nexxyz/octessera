@@ -8,7 +8,6 @@ Before=shutdown.target reboot.target halt.target
 Type=oneshot
 User=octessera-runtime
 Group=octessera-runtime
-SupplementaryGroups=audio i2c spi gpio
 NoNewPrivileges=yes
 ProtectSystem=strict
 ReadWritePaths=/run/octessera-boot

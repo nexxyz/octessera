@@ -371,6 +371,7 @@ for path in \
   usr/local/sbin/octessera-orange-usb-gadget \
   usr/local/sbin/octessera-orange-oled-logo \
   usr/local/sbin/octessera-orange-oled-handoff.py \
+  usr/local/sbin/octessera-orange-oled-suspend \
   usr/local/sbin/octessera-provision-musical-default \
   etc/modules-load.d/octessera-orange-midi.conf \
   etc/modules-load.d/octessera-orange-usb-gadget.conf \
@@ -378,10 +379,11 @@ for path in \
   etc/systemd/system/octessera-orange-boot-splash.service \
   etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service \
   etc/systemd/system/octessera-orange-oled-shutdown.service \
+  etc/systemd/system/octessera-orange-oled-suspend.service \
+  etc/systemd/system/sleep.target.requires/octessera-orange-oled-suspend.service \
   etc/systemd/system/octessera-provision-musical-default.service \
   etc/initramfs-tools/hooks/octessera-orange-boot-splash \
   etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash \
-  lib/systemd/system-sleep/octessera-orange-oled \
   usr/share/octessera/oled/octessera-mark.svg \
   usr/share/octessera/oled/octessera-wordmark.svg \
   usr/share/octessera/defaults/pi-default.json \
@@ -391,6 +393,7 @@ done
 require_root_mode usr/local/sbin/octessera-orange-usb-gadget 755
 require_root_mode usr/local/sbin/octessera-orange-oled-logo 755
 require_root_mode usr/local/sbin/octessera-orange-oled-handoff.py 644
+require_root_mode usr/local/sbin/octessera-orange-oled-suspend 755
 require_root_mode usr/local/sbin/octessera-provision-musical-default 755
 require_root_mode etc/modules-load.d/octessera-orange-midi.conf 644
 require_root_mode etc/modules-load.d/octessera-orange-usb-gadget.conf 644
@@ -398,10 +401,14 @@ require_root_mode etc/systemd/system/octessera-orange-usb-gadget.service 644
 require_root_mode etc/systemd/system/octessera-orange-boot-splash.service 644
 octessera_require_image_symlink etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service ../octessera-orange-boot-splash.service /etc/systemd/system/octessera-orange-boot-splash.service
 require_root_mode etc/systemd/system/octessera-orange-oled-shutdown.service 644
+require_root_mode etc/systemd/system/octessera-orange-oled-suspend.service 644
+octessera_require_image_symlink etc/systemd/system/sleep.target.requires/octessera-orange-oled-suspend.service ../octessera-orange-oled-suspend.service /etc/systemd/system/octessera-orange-oled-suspend.service
+reject_path etc/systemd/system/sleep.target.wants/octessera-orange-oled-suspend.service
 require_root_mode etc/systemd/system/octessera-provision-musical-default.service 644
 require_root_mode etc/initramfs-tools/hooks/octessera-orange-boot-splash 755
 require_root_mode etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash 755
-require_root_mode lib/systemd/system-sleep/octessera-orange-oled 755
+reject_path lib/systemd/system-sleep/octessera-orange-oled
+reject_path usr/lib/systemd/system-sleep/octessera-orange-oled
 require_root_mode usr/share/octessera/defaults/pi-default.json 644
 require_root_mode usr/share/octessera/samples/sample-manifest.tsv 644
 [[ "$(hash_path usr/share/octessera/defaults/pi-default.json)" == "$default_hash" ]] || { echo "Pi default hash mismatch." >&2; exit 1; }

@@ -390,6 +390,7 @@ install_overlay_file usr/local/sbin/octessera-wifi-foundation /usr/local/sbin/oc
 install_overlay_file usr/local/sbin/octessera-orange-usb-gadget /usr/local/sbin/octessera-orange-usb-gadget 0755
 install_overlay_file usr/local/sbin/octessera-orange-oled-logo /usr/local/sbin/octessera-orange-oled-logo 0755
 install_overlay_file usr/local/sbin/octessera-orange-oled-handoff.py /usr/local/sbin/octessera-orange-oled-handoff.py 0644
+install_overlay_file usr/local/sbin/octessera-orange-oled-suspend /usr/local/sbin/octessera-orange-oled-suspend 0755
 install_overlay_file usr/local/sbin/octessera-provision-musical-default /usr/local/sbin/octessera-provision-musical-default 0755
 install_overlay_file etc/modules-load.d/octessera-orange-midi.conf /etc/modules-load.d/octessera-orange-midi.conf 0644
 install_overlay_file etc/modules-load.d/octessera-orange-usb-gadget.conf /etc/modules-load.d/octessera-orange-usb-gadget.conf 0644
@@ -399,8 +400,8 @@ install_overlay_file etc/initramfs-tools/hooks/octessera-orange-boot-splash /etc
 install_overlay_file etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash /etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash 0755
 install_overlay_file etc/systemd/system/octessera-orange-boot-splash.service /etc/systemd/system/octessera-orange-boot-splash.service 0644
 install_overlay_file etc/systemd/system/octessera-orange-oled-shutdown.service /etc/systemd/system/octessera-orange-oled-shutdown.service 0644
+install_overlay_file etc/systemd/system/octessera-orange-oled-suspend.service /etc/systemd/system/octessera-orange-oled-suspend.service 0644
 install_overlay_file etc/systemd/system/octessera-wifi-foundation.service /etc/systemd/system/octessera-wifi-foundation.service 0644
-install_overlay_file lib/systemd/system-sleep/octessera-orange-oled /lib/systemd/system-sleep/octessera-orange-oled 0755
 install_overlay_file usr/local/share/octessera-setup-ui/octessera-mark.svg /usr/share/octessera/oled/octessera-mark.svg 0644
 install_overlay_file usr/local/share/octessera-setup-ui/octessera-wordmark.svg /usr/share/octessera/oled/octessera-wordmark.svg 0644
 for musical_asset in \
@@ -468,6 +469,7 @@ systemctl enable octessera-orange-usb-gadget.service >/dev/null
 systemctl enable octessera-provision-musical-default.service >/dev/null
 systemctl enable octessera-orange-boot-splash.service >/dev/null
 systemctl enable octessera-orange-oled-shutdown.service >/dev/null
+systemctl enable octessera-orange-oled-suspend.service >/dev/null
 if [[ "$OCTESSERA_IMAGE_MODE" == diagnostic ]]; then
   systemctl enable octessera-update-recovery.service >/dev/null
 fi

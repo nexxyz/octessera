@@ -81,6 +81,20 @@ pub(crate) fn retry_oled_if_due(
     render_oled_if_changed(oled, &snapshot, cache, now)
 }
 
+pub(crate) fn force_oled_render(
+    oled: &mut OledSsd1351,
+    snapshot: &Value,
+    cache: &mut HardwareRenderCache,
+) -> Result<(), String> {
+    let signature = oled_signature(snapshot);
+    let result = render_oled(oled, snapshot, &mut cache.oled_frame);
+    cache.clear_oled_retry();
+    result.map(|()| {
+        cache.oled_signature = signature;
+        cache.mark_oled_rendered();
+    })
+}
+
 fn attempt_oled_render<O: OledRenderDevice>(
     oled: &mut O,
     snapshot: &Value,
@@ -112,7 +126,7 @@ fn attempt_oled_render<O: OledRenderDevice>(
 }
 
 impl HardwareRenderCache {
-    fn clear_oled_retry(&mut self) {
+    pub(crate) fn clear_oled_retry(&mut self) {
         self.oled_retry_at = None;
         self.oled_retry_signature = None;
         self.oled_retry_snapshot = None;

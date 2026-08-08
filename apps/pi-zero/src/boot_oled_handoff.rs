@@ -206,6 +206,12 @@ impl AnimatorHandoff {
 
 #[cfg(not(unix))]
 impl NativeOledGuard {
+    pub(crate) fn detach_preserving(&mut self) -> Result<(), String> {
+        Err("OLED boot handoff requires Unix file locking".into())
+    }
+    pub(crate) fn reacquire_existing(&mut self) -> Result<(), String> {
+        Err("OLED boot handoff requires Unix file locking".into())
+    }
     pub(crate) fn mark_first_menu_rendered(&mut self) -> Result<(), String> {
         Err("OLED boot handoff requires Unix file locking".into())
     }

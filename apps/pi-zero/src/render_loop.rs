@@ -1,6 +1,17 @@
-use crate::render::{render_snapshot_cached, HardwareRenderCache, HardwareRenderTargets};
+use crate::render::{
+    initial_snapshot_render_result, mark_handoff_failed_decision, ownership_stage_for_render,
+    render_leds_only, render_snapshot_cached, restore_after_dropped_ack_for_render,
+    restore_for_render, retry_oled_decision, select_snapshot_render, snapshot_requires_oled_ack,
+    HardwareRenderCache, HardwareRenderTargets, OledOwnershipStage, OledOwnershipState,
+    SnapshotRenderDecision,
+};
+use crate::render_loop_queue::{
+    merge_snapshot_command, pending_work_wins_over_expired_animation_deadline,
+    reject_pending_command, RenderCommand, RenderState, SnapshotCommand,
+};
 use playback_runtime::RuntimeUiPulse;
 use serde_json::Value;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
@@ -8,36 +19,12 @@ use std::time::{Duration, Instant};
 
 const SHUTDOWN_ACK_TIMEOUT: Duration = Duration::from_millis(750);
 const INITIAL_RENDER_ACK_TIMEOUT: Duration = Duration::from_millis(750);
-
+#[cfg_attr(not(unix), allow(dead_code))]
+const OWNERSHIP_ACK_TIMEOUT: Duration = Duration::from_secs(2);
+#[derive(Clone)]
 pub struct RenderWorker {
     state: Arc<(Mutex<RenderState>, Condvar)>,
     worker: Arc<Mutex<Option<thread::JoinHandle<()>>>>,
-}
-
-enum RenderCommand {
-    Snapshot {
-        snapshot: Value,
-        pulses: Vec<RuntimeUiPulse>,
-        rendered_acks: Vec<mpsc::Sender<Result<(), String>>>,
-    },
-    MarkFirstMenuRendered {
-        ack: mpsc::Sender<Result<(), String>>,
-    },
-    MarkFailed {
-        ack: mpsc::Sender<Result<(), String>>,
-    },
-    Shutdown {
-        ack: mpsc::Sender<Result<(), String>>,
-    },
-    Abort {
-        ack: mpsc::Sender<Result<(), String>>,
-    },
-}
-
-#[derive(Default)]
-struct RenderState {
-    command: Option<RenderCommand>,
-    acknowledged_snapshot_published: bool,
 }
 
 impl RenderWorker {
@@ -103,12 +90,50 @@ impl RenderWorker {
         let mut state = lock.lock().map_err(|_| {
             "render worker state mutex poisoned during OLED failure publication".to_string()
         })?;
+        if state.command.is_some() {
+            return Err(
+                "render worker has a pending command during OLED failure publication".into(),
+            );
+        }
         state.command = Some(RenderCommand::MarkFailed { ack: ack_tx });
         ready.notify_one();
         drop(state);
         ack_rx
             .recv_timeout(INITIAL_RENDER_ACK_TIMEOUT)
             .map_err(|error| format!("OLED failure acknowledgement failed: {error}"))?
+    }
+
+    #[cfg_attr(not(unix), allow(dead_code))]
+    pub(crate) fn ownership_stage(&self, stage: OledOwnershipStage) -> Result<(), String> {
+        let (ack_tx, ack_rx) = mpsc::channel();
+        let cancellation = Arc::new(AtomicBool::new(false));
+        let (lock, ready) = &*self.state;
+        let mut state = lock
+            .lock()
+            .map_err(|_| "render worker state mutex poisoned during OLED ownership".to_string())?;
+        if matches!(
+            &state.command,
+            Some(RenderCommand::Shutdown { .. } | RenderCommand::Abort { .. })
+        ) {
+            return Err("render worker is terminating".into());
+        }
+        if state.command.is_some() {
+            return Err("render worker has a pending ownership command".into());
+        }
+        state.command = Some(RenderCommand::Ownership {
+            stage,
+            cancellation: Arc::clone(&cancellation),
+            ack: ack_tx,
+        });
+        ready.notify_one();
+        drop(state);
+        match ack_rx.recv_timeout(OWNERSHIP_ACK_TIMEOUT) {
+            Ok(result) => result,
+            Err(error) => {
+                cancel_ownership(&cancellation);
+                Err(format!("OLED ownership acknowledgement failed: {error}"))
+            }
+        }
     }
 
     fn publish_snapshot_command(
@@ -125,8 +150,8 @@ impl RenderWorker {
             ) {
                 return false;
             }
-            state.command =
-                merge_snapshot_command(state.command.take(), snapshot, pulses, rendered_acks);
+            state.snapshot =
+                merge_snapshot_command(state.snapshot.take(), snapshot, pulses, rendered_acks);
             ready.notify_one();
             true
         } else {
@@ -138,6 +163,7 @@ impl RenderWorker {
         let (ack_tx, ack_rx) = mpsc::channel();
         let (lock, ready) = &*self.state;
         if let Ok(mut state) = lock.lock() {
+            reject_pending_command(&mut state, "render worker was preempted by shutdown");
             state.command = Some(RenderCommand::Shutdown { ack: ack_tx });
             ready.notify_one();
         } else {
@@ -162,6 +188,7 @@ impl RenderWorker {
         let (ack_tx, ack_rx) = mpsc::channel();
         let (lock, ready) = &*self.state;
         if let Ok(mut state) = lock.lock() {
+            reject_pending_command(&mut state, "render worker was preempted by abort");
             state.command = Some(RenderCommand::Abort { ack: ack_tx });
             ready.notify_one();
         } else {
@@ -183,37 +210,10 @@ impl RenderWorker {
     }
 }
 
-fn merge_snapshot_command(
-    pending: Option<RenderCommand>,
-    snapshot: Value,
-    mut pulses: Vec<RuntimeUiPulse>,
-    mut rendered_acks: Vec<mpsc::Sender<Result<(), String>>>,
-) -> Option<RenderCommand> {
-    match pending {
-        Some(RenderCommand::Shutdown { ack }) => Some(RenderCommand::Shutdown { ack }),
-        Some(RenderCommand::Abort { ack }) => Some(RenderCommand::Abort { ack }),
-        Some(RenderCommand::Snapshot {
-            pulses: mut pending,
-            rendered_acks: mut pending_acks,
-            ..
-        }) => {
-            pending.append(&mut pulses);
-            pending_acks.append(&mut rendered_acks);
-            Some(RenderCommand::Snapshot {
-                snapshot,
-                pulses: pending,
-                rendered_acks: pending_acks,
-            })
-        }
-        Some(RenderCommand::MarkFirstMenuRendered { ack }) => {
-            Some(RenderCommand::MarkFirstMenuRendered { ack })
-        }
-        Some(RenderCommand::MarkFailed { ack }) => Some(RenderCommand::MarkFailed { ack }),
-        None => Some(RenderCommand::Snapshot {
-            snapshot,
-            pulses,
-            rendered_acks,
-        }),
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+impl crate::orange_oled_suspend_policy::RenderOwnershipControl for RenderWorker {
+    fn ownership_stage(&self, stage: OledOwnershipStage) -> Result<(), String> {
+        RenderWorker::ownership_stage(self, stage)
     }
 }
 
@@ -223,6 +223,8 @@ fn render_worker_loop(
 ) {
     let mut cache = HardwareRenderCache::default();
     let mut animation_deadline = None;
+    let mut latest_snapshot = None;
+    let mut ownership = OledOwnershipState::default();
     loop {
         let command = take_next_command(&state, animation_deadline);
         match command {
@@ -235,20 +237,46 @@ fn render_worker_loop(
                     cache.apply_ui_pulse(pulse);
                 }
                 let snapshot = cache.snapshot_with_transients(&snapshot);
-                let rendered_before = cache.oled_render_count();
-                animation_deadline = render_snapshot_cached(targets, &snapshot, &mut cache);
-                let render_result = if cache.oled_render_count() > rendered_before {
-                    Ok(())
-                } else {
-                    Err("initial snapshot OLED render failed".into())
-                };
-                if render_result.is_err() {
+                latest_snapshot = Some(snapshot.clone());
+                let require_oled_ack = snapshot_requires_oled_ack(rendered_acks.len());
+                let mut full_render_result = None;
+                animation_deadline = select_snapshot_render(ownership, |decision| match decision {
+                    SnapshotRenderDecision::OledAndLeds => {
+                        let rendered_before = require_oled_ack.then(|| cache.oled_render_count());
+                        let deadline = render_snapshot_cached(targets, &snapshot, &mut cache);
+                        let render_result = initial_snapshot_render_result(
+                            require_oled_ack,
+                            rendered_before
+                                .is_some_and(|before| cache.oled_render_count() > before),
+                        );
+                        full_render_result = render_result;
+                        deadline
+                    }
+                    SnapshotRenderDecision::LedsOnly => {
+                        let deadline =
+                            render_leds_only(targets, &snapshot, &mut cache, Instant::now());
+                        full_render_result =
+                            initial_snapshot_render_result(require_oled_ack, false);
+                        deadline
+                    }
+                });
+                if full_render_result
+                    .as_ref()
+                    .is_some_and(|result| result.is_err())
+                    && mark_handoff_failed_decision(ownership)
+                {
                     if let Some(handoff) = targets.oled_handoff.as_ref() {
                         handoff.mark_failed();
                     }
                 }
-                for ack in rendered_acks {
-                    let _ = ack.send(render_result.clone());
+                if let Some(render_result) = full_render_result {
+                    for ack in rendered_acks {
+                        let _ = ack.send(render_result.clone());
+                    }
+                } else {
+                    for ack in rendered_acks {
+                        let _ = ack.send(Ok(()));
+                    }
                 }
             }
             Some(RenderCommand::MarkFirstMenuRendered { ack }) => {
@@ -259,30 +287,105 @@ fn render_worker_loop(
                 let _ = ack.send(result);
             }
             Some(RenderCommand::MarkFailed { ack }) => {
-                if let Some(handoff) = targets.oled_handoff.as_ref() {
-                    handoff.mark_failed();
+                if mark_handoff_failed_decision(ownership) {
+                    if let Some(handoff) = targets.oled_handoff.as_ref() {
+                        handoff.mark_failed();
+                    }
                 }
                 let _ = ack.send(Ok(()));
             }
+            Some(RenderCommand::Ownership {
+                stage,
+                cancellation,
+                ack,
+            }) => {
+                let cancelled = ownership_command_cancelled(&cancellation);
+                if !cancelled && stage == OledOwnershipStage::ResumeComplete {
+                    if let Some(SnapshotCommand {
+                        snapshot,
+                        pulses,
+                        rendered_acks,
+                    }) = state
+                        .0
+                        .lock()
+                        .ok()
+                        .and_then(|mut state| state.snapshot.take())
+                    {
+                        for pulse in pulses {
+                            cache.apply_ui_pulse(pulse);
+                        }
+                        let snapshot = cache.snapshot_with_transients(&snapshot);
+                        latest_snapshot = Some(snapshot.clone());
+                        animation_deadline =
+                            render_leds_only(targets, &snapshot, &mut cache, Instant::now());
+                        for ack in rendered_acks {
+                            let _ = ack.send(Ok(()));
+                        }
+                    }
+                }
+                let result = if cancelled {
+                    Err("OLED ownership command was cancelled".into())
+                } else {
+                    ownership_stage_for_render(
+                        stage,
+                        targets,
+                        &mut cache,
+                        &latest_snapshot,
+                        &mut ownership,
+                    )
+                };
+                if let Err(error) = restore_after_dropped_ack_for_render(
+                    ack.send(result).is_err(),
+                    targets,
+                    &mut cache,
+                    &latest_snapshot,
+                    &mut ownership,
+                ) {
+                    eprintln!(
+                        "OLED ownership rollback after dropped acknowledgement failed: {error}"
+                    );
+                }
+            }
             Some(RenderCommand::Shutdown { ack }) => {
-                crate::render::render_shutdown_splash(&mut targets.oled);
+                let restore_result =
+                    restore_for_render(targets, &mut cache, &latest_snapshot, &mut ownership);
+                if restore_result.is_ok() {
+                    crate::render::render_shutdown_splash(&mut targets.oled);
+                }
                 let _ = targets
                     .seesaw_tx
                     .send(crate::seesaw_io::SeesawCommand::GridFrame([[0; 3]; 64]));
                 let _ = targets
                     .seesaw_tx
                     .send(crate::seesaw_io::SeesawCommand::NeoKeyColors([[0; 3]; 4]));
-                let display_off = display_off_ack(targets.oled.display_off());
+                let display_off = display_off_ack(restore_result.and(targets.oled.display_off()));
                 let _ = ack.send(display_off);
                 break;
             }
             Some(RenderCommand::Abort { ack }) => {
-                let _ = ack.send(Ok(()));
+                let result =
+                    restore_for_render(targets, &mut cache, &latest_snapshot, &mut ownership);
+                let _ = ack.send(result);
                 break;
             }
             None => {
-                animation_deadline =
-                    render_sleep_tick_if_uncommanded(&state, targets, &mut cache, Instant::now());
+                let pending_work = {
+                    let state = state.0.lock().expect("render worker state mutex poisoned");
+                    pending_work_wins_over_expired_animation_deadline(&state)
+                };
+                if pending_work {
+                    animation_deadline = None;
+                } else {
+                    let now = Instant::now();
+                    let sleep_deadline = cache.render_sleep_tick(targets, now);
+                    let retry_deadline = if retry_oled_decision(ownership) {
+                        crate::render::retry_oled_if_due(&mut targets.oled, &mut cache, now)
+                    } else {
+                        None
+                    };
+                    animation_deadline =
+                        crate::render::next_deadline(sleep_deadline, retry_deadline);
+                }
             }
         }
     }
@@ -292,21 +395,12 @@ fn display_off_ack(result: Result<(), String>) -> Result<(), String> {
     result.map_err(|error| format!("OLED display-off failed: {error}"))
 }
 
-fn render_sleep_tick_if_uncommanded(
-    state: &Arc<(Mutex<RenderState>, Condvar)>,
-    targets: &mut HardwareRenderTargets,
-    cache: &mut HardwareRenderCache,
-    now: Instant,
-) -> Option<Instant> {
-    let (lock, _) = &**state;
-    let guard = lock.lock().expect("render worker state mutex poisoned");
-    if guard.command.is_some() {
-        return None;
-    }
-    drop(guard);
-    let sleep_deadline = cache.render_sleep_tick(targets, now);
-    let oled_retry_deadline = crate::render::retry_oled_if_due(&mut targets.oled, cache, now);
-    crate::render::next_deadline(sleep_deadline, oled_retry_deadline)
+fn cancel_ownership(cancellation: &AtomicBool) {
+    cancellation.store(true, Ordering::Release);
+}
+
+fn ownership_command_cancelled(cancellation: &AtomicBool) -> bool {
+    cancellation.load(Ordering::Acquire)
 }
 
 fn take_next_command(
@@ -318,6 +412,13 @@ fn take_next_command(
     loop {
         if let Some(command) = guard.command.take() {
             return Some(command);
+        }
+        if let Some(snapshot) = guard.snapshot.take() {
+            return Some(RenderCommand::Snapshot {
+                snapshot: snapshot.snapshot,
+                pulses: snapshot.pulses,
+                rendered_acks: snapshot.rendered_acks,
+            });
         }
         let Some(deadline) = animation_deadline else {
             guard = ready
@@ -333,121 +434,11 @@ fn take_next_command(
             .wait_timeout(guard, timeout)
             .expect("render worker state mutex poisoned while waiting");
         guard = next_guard;
-        if result.timed_out() && guard.command.is_none() {
+        if result.timed_out() && !pending_work_wins_over_expired_animation_deadline(&guard) {
             return None;
         }
     }
 }
-
 #[cfg(test)]
-mod tests {
-    use super::*;
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    use octessera_hal::OledSsd1351;
-
-    #[test]
-    fn shutdown_ack_preserves_display_off_failure() {
-        let (ack_tx, ack_rx) = mpsc::channel();
-        ack_tx
-            .send(display_off_ack(Err("SPI write failed".into())))
-            .unwrap();
-        assert_eq!(
-            ack_rx.recv().unwrap(),
-            Err("OLED display-off failed: SPI write failed".into())
-        );
-    }
-
-    #[test]
-    fn shutdown_ack_timeout_is_bounded() {
-        assert_eq!(SHUTDOWN_ACK_TIMEOUT, Duration::from_millis(750));
-        assert_eq!(INITIAL_RENDER_ACK_TIMEOUT, Duration::from_millis(750));
-    }
-
-    #[test]
-    fn pending_wake_command_wins_over_expired_animation_deadline() {
-        let state = Arc::new((Mutex::new(RenderState::default()), Condvar::new()));
-        {
-            let (lock, _) = &*state;
-            let mut guard = lock.lock().unwrap();
-            guard.command = Some(RenderCommand::Snapshot {
-                snapshot: Value::Null,
-                pulses: Vec::new(),
-                rendered_acks: Vec::new(),
-            });
-        }
-
-        let command = take_next_command(&state, Some(Instant::now() - Duration::from_millis(1)));
-        assert!(matches!(command, Some(RenderCommand::Snapshot { .. })));
-    }
-
-    #[test]
-    fn snapshot_publication_reports_a_poisoned_worker() {
-        let state = Arc::new((Mutex::new(RenderState::default()), Condvar::new()));
-        let poison_state = Arc::clone(&state);
-        thread::spawn(move || {
-            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                let _guard = poison_state.0.lock().unwrap();
-                panic!("poison render state");
-            }));
-        })
-        .join()
-        .unwrap();
-        let worker = RenderWorker {
-            state,
-            worker: Arc::new(Mutex::new(None)),
-        };
-
-        assert!(!worker.publish_snapshot(Value::Null, Vec::new()));
-    }
-
-    #[test]
-    fn snapshot_publication_reports_a_pending_shutdown() {
-        let state = Arc::new((Mutex::new(RenderState::default()), Condvar::new()));
-        let (ack, _received) = mpsc::channel();
-        state.0.lock().unwrap().command = Some(RenderCommand::Shutdown { ack });
-        let worker = RenderWorker {
-            state,
-            worker: Arc::new(Mutex::new(None)),
-        };
-
-        assert!(!worker.publish_snapshot(Value::Null, Vec::new()));
-    }
-
-    #[test]
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    fn initial_snapshot_ack_is_current_and_cannot_be_reused() {
-        let readiness_path = std::env::temp_dir().join(format!(
-            "octessera-render-readiness-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        let mut readiness = crate::candidate_readiness::CandidateReadiness::new(
-            Some(readiness_path.clone()),
-            "render-test".into(),
-        );
-        let (seesaw_tx, _seesaw_rx) = mpsc::channel();
-        let worker = RenderWorker::spawn(HardwareRenderTargets {
-            oled: OledSsd1351::new().unwrap(),
-            seesaw_tx,
-            oled_handoff: None,
-            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-            hdmi: None,
-        });
-        assert!(worker
-            .publish_acknowledged_snapshot(Value::Null, Vec::new())
-            .is_ok());
-        assert!(!readiness_path.exists());
-        readiness.mark_ready().unwrap();
-        assert!(readiness_path.is_file());
-        assert_eq!(
-            worker.publish_acknowledged_snapshot(Value::Null, Vec::new()),
-            Err("render worker rejected a second acknowledged snapshot".into())
-        );
-        worker.abort().unwrap();
-        drop(readiness);
-        let _ = std::fs::remove_dir_all(readiness_path);
-    }
-}
+#[path = "render_loop_tests.rs"]
+mod tests;

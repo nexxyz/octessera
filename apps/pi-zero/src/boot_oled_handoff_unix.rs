@@ -29,7 +29,7 @@ impl NativeOledLease {
 
 pub(crate) struct NativeOledGuard {
     directory: HandoffDirectory,
-    lease: NativeOledLease,
+    lease: Option<NativeOledLease>,
     boot_id: String,
     cycle_count: u64,
     request_id: String,
@@ -257,7 +257,7 @@ fn native_attach_at(path: &Path) -> Result<NativeOledGuard, String> {
     )?;
     Ok(NativeOledGuard {
         directory,
-        lease: NativeOledLease(lock),
+        lease: Some(NativeOledLease(lock)),
         boot_id,
         cycle_count,
         request_id: request,
@@ -265,8 +265,46 @@ fn native_attach_at(path: &Path) -> Result<NativeOledGuard, String> {
 }
 
 impl NativeOledGuard {
+    pub(crate) fn detach_preserving(&mut self) -> Result<(), String> {
+        if self.lease.take().is_some() {
+            Ok(())
+        } else {
+            Err("OLED native handoff lease is already released".into())
+        }
+    }
+
+    pub(crate) fn reacquire_existing(&mut self) -> Result<(), String> {
+        if self.lease.is_some() {
+            return Err("OLED native handoff lease is already held".into());
+        }
+        let lock = open_lock(&self.directory, false)?;
+        acquire_native_lock(&lock)?;
+        let status =
+            read_status(&self.directory)?.ok_or_else(|| "OLED status disappeared".to_string())?;
+        if status.boot_id != self.boot_id
+            || status.request_id.as_deref() != Some(self.request_id.as_str())
+            || !matches!(
+                status.phase,
+                HandoffPhase::NativeOwned | HandoffPhase::FirstMenuRendered
+            )
+        {
+            return Err("OLED native handoff status changed during reacquire".into());
+        }
+        let stop = read_stop(&self.directory)?
+            .ok_or_else(|| "OLED stop request disappeared".to_string())?;
+        if stop.boot_id != self.boot_id || stop.request_id != self.request_id {
+            return Err("OLED stop request changed during reacquire".into());
+        }
+        self.lease = Some(NativeOledLease(lock));
+        Ok(())
+    }
+
     pub(crate) fn mark_first_menu_rendered(&mut self) -> Result<(), String> {
-        let _ = self.lease.fd();
+        let _ = self
+            .lease
+            .as_ref()
+            .ok_or_else(|| "OLED native handoff lease is not held".to_string())?
+            .fd();
         write_status(
             &self.directory,
             &HandoffStatus::new(
@@ -279,7 +317,10 @@ impl NativeOledGuard {
     }
 
     pub(crate) fn mark_failed(&self) {
-        let _ = self.lease.fd();
+        let Some(lease) = self.lease.as_ref() else {
+            return;
+        };
+        let _ = lease.fd();
         let _ = write_status(
             &self.directory,
             &HandoffStatus::new(

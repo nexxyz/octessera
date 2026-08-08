@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import hashlib
+import io
 import importlib.util
 import json
 import sys
@@ -144,6 +145,128 @@ class FakeOled:
 
     def close(self, display_off=True):
         self.close_args.append(display_off)
+
+
+class FakeLoopHandoff:
+    def __init__(self, phase):
+        self.boot_id = "01234567-89ab-cdef-0123-456789abcdef"
+        self.status = {"phase": phase, "bootId": self.boot_id}
+        self.start_calls = 0
+        self.mark_failed_calls = 0
+        self.close_calls = 0
+
+    def _read_status(self):
+        return self.status
+
+    def start(self):
+        self.start_calls += 1
+        raise RuntimeError("OLED handoff already exists for this boot")
+
+    def mark_failed(self):
+        self.mark_failed_calls += 1
+
+    def close(self):
+        self.close_calls += 1
+
+
+def unexpected_oled():
+    raise AssertionError("native-owned OLED handoff created an OLED")
+
+
+real_loop_handoff = logo.Handoff
+real_loop_oled = logo.Oled
+try:
+    for phase in ("released", "native_owned", "first_menu_rendered"):
+        loop_handoff = FakeLoopHandoff(phase)
+        logo.Handoff = types.SimpleNamespace(open=lambda create_lock, handoff=loop_handoff: handoff)
+        logo.Oled = unexpected_oled
+        logo._run_loop()
+        assert loop_handoff.start_calls == 0
+        assert loop_handoff.mark_failed_calls == 0
+        assert loop_handoff.close_calls == 1
+
+    loop_handoff = FakeLoopHandoff("animating")
+    logo.Handoff = types.SimpleNamespace(open=lambda create_lock, handoff=loop_handoff: handoff)
+    logo.Oled = unexpected_oled
+    try:
+        logo._run_loop()
+    except RuntimeError as error:
+        assert str(error) == "OLED handoff already exists for this boot"
+    else:
+        raise AssertionError("non-native same-boot OLED handoff was accepted")
+    assert loop_handoff.start_calls == 1
+    assert loop_handoff.mark_failed_calls == 1
+    assert loop_handoff.close_calls == 1
+finally:
+    logo.Handoff = real_loop_handoff
+    logo.Oled = real_loop_oled
+
+
+class FakeGpioProcess:
+    def __init__(self, command, **kwargs):
+        self.command = command
+        self.kwargs = kwargs
+        self.stderr = io.StringIO()
+        self.terminated = False
+        self.killed = False
+        self.exit_code = None
+
+    def poll(self):
+        return self.exit_code
+
+    def terminate(self):
+        self.terminated = True
+        self.exit_code = 0
+
+    def kill(self):
+        self.killed = True
+        self.exit_code = -9
+
+    def wait(self, timeout=None):
+        return self.exit_code
+
+
+gpio_processes = []
+real_stat = logo.os.stat
+real_is_char = logo.stat.S_ISCHR
+real_popen = logo.subprocess.Popen
+real_gpio_sleep = logo.time.sleep
+try:
+    logo.os.stat = lambda path: types.SimpleNamespace(st_mode=0)
+    logo.stat.S_ISCHR = lambda mode: True
+    logo.subprocess.Popen = lambda command, **kwargs: gpio_processes.append(FakeGpioProcess(command, **kwargs)) or gpio_processes[-1]
+    logo.time.sleep = lambda seconds: None
+    gpio = logo.GpioLines()
+    gpio.set("dc", logo.GPIO_DC, 0)
+    first = gpio_processes[-1]
+    assert first.command == ["gpioset", "--chip", logo.GPIO_CHIP, f"{logo.GPIO_DC}=0"]
+    assert first.kwargs == {"stdout": logo.subprocess.DEVNULL, "stderr": logo.subprocess.PIPE, "text": True}
+    assert gpio.processes["dc"] is first
+    gpio.set("dc", logo.GPIO_DC, 1)
+    second = gpio_processes[-1]
+    assert first.terminated and not first.killed
+    assert second.command == ["gpioset", "--chip", logo.GPIO_CHIP, f"{logo.GPIO_DC}=1"]
+    gpio.close()
+    assert second.terminated and not second.killed
+
+    def failed_popen(command, **kwargs):
+        process = FakeGpioProcess(command, **kwargs)
+        process.stderr = io.StringIO("gpioset: invalid line\n")
+        process.exit_code = 1
+        return process
+
+    logo.subprocess.Popen = failed_popen
+    try:
+        logo.GpioLines().set("reset", logo.GPIO_RESET, 1)
+    except RuntimeError as error:
+        assert str(error) == f"could not set H618 GPIO {logo.GPIO_RESET}: gpioset: invalid line"
+    else:
+        raise AssertionError("failed gpioset startup was accepted")
+finally:
+    logo.os.stat = real_stat
+    logo.stat.S_ISCHR = real_is_char
+    logo.subprocess.Popen = real_popen
+    logo.time.sleep = real_gpio_sleep
 
 
 class FakeUtilityLock:

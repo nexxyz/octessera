@@ -94,7 +94,7 @@ pub struct OledSsd1351 {
 
 #[cfg(all(feature = "orange-pi-zero-2w", target_os = "linux"))]
 pub struct OledSsd1351 {
-    transport: crate::orange_hardware::OrangeOledTransport,
+    transport: Option<crate::orange_hardware::OrangeOledTransport>,
     rotated_frame: Vec<u8>,
 }
 
@@ -107,6 +107,14 @@ impl OledSsd1351 {
 
     pub fn adopt_existing() -> Result<Self, String> {
         Self::open(true)
+    }
+
+    pub fn detach_preserving(&mut self) -> Result<(), String> {
+        Ok(())
+    }
+
+    pub fn reacquire_existing(&mut self) -> Result<(), String> {
+        Ok(())
     }
 
     fn open(preserve_existing: bool) -> Result<Self, String> {
@@ -305,26 +313,56 @@ impl OledSsd1351 {
             crate::orange_hardware::OrangeHardware::open()?
         };
         Ok(Self {
-            transport: hardware.into_oled(),
+            transport: Some(hardware.into_oled()),
             rotated_frame: vec![0_u8; FRAME_BYTES],
         })
     }
 
     pub fn write_frame(&mut self, pixels: &[u8]) -> Result<(), String> {
         let frame = rotate_clockwise_rgb565(pixels, &mut self.rotated_frame);
-        self.transport.write_frame(frame)
+        self.transport
+            .as_mut()
+            .ok_or_else(|| "Orange OLED hardware is detached".to_string())?
+            .write_frame(frame)
     }
 
     pub fn display_all_on(&mut self) -> Result<(), String> {
-        self.transport.display_on()
+        self.transport
+            .as_mut()
+            .ok_or_else(|| "Orange OLED hardware is detached".to_string())?
+            .display_on()
     }
 
     pub fn display_on(&mut self) -> Result<(), String> {
-        self.transport.display_on()
+        self.transport
+            .as_mut()
+            .ok_or_else(|| "Orange OLED hardware is detached".to_string())?
+            .display_on()
     }
 
     pub fn display_off(&mut self) -> Result<(), String> {
-        self.transport.display_off()
+        self.transport
+            .as_mut()
+            .ok_or_else(|| "Orange OLED hardware is detached".to_string())?
+            .display_off()
+    }
+
+    pub fn detach_preserving(&mut self) -> Result<(), String> {
+        let transport = self
+            .transport
+            .take()
+            .ok_or_else(|| "Orange OLED hardware is already detached".to_string())?;
+        transport.detach_preserving();
+        Ok(())
+    }
+
+    pub fn reacquire_existing(&mut self) -> Result<(), String> {
+        if self.transport.is_some() {
+            return Err("Orange OLED hardware is already attached".into());
+        }
+        let hardware = crate::orange_hardware::OrangeHardware::open_preserve_existing()?;
+        self.transport = Some(hardware.into_oled());
+        Ok(())
     }
 }
 
@@ -338,6 +376,14 @@ impl OledSsd1351 {
     }
 
     pub fn adopt_existing() -> Result<Self, String> {
+        Err("Orange OLED requires a Linux target".into())
+    }
+
+    pub fn detach_preserving(&mut self) -> Result<(), String> {
+        Err("Orange OLED requires a Linux target".into())
+    }
+
+    pub fn reacquire_existing(&mut self) -> Result<(), String> {
         Err("Orange OLED requires a Linux target".into())
     }
 
@@ -371,6 +417,14 @@ impl OledSsd1351 {
 
     pub fn adopt_existing() -> Result<Self, String> {
         Self::new()
+    }
+
+    pub fn detach_preserving(&mut self) -> Result<(), String> {
+        Ok(())
+    }
+
+    pub fn reacquire_existing(&mut self) -> Result<(), String> {
+        Ok(())
     }
 
     pub fn write_frame(&mut self, _pixels: &[u8]) -> Result<(), String> {
