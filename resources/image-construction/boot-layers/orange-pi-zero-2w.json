@@ -15,7 +15,7 @@
     "firmware": false
   },
   "exact_inputs": [
-    {"path": "resources/legal/notice-bundle.json", "sha256": "e8f60d877c13e58f83286a3089ece3dd37ad7d97168f4af33460f5f955bd786d", "size": 6447, "mode": 420},
+    {"path": "resources/legal/notice-bundle.json", "sha256": "8401c9c8f7928e2d1f7ec0bcc1bc473c0d58ba15b546e27d754692422d635d07", "size": 6447, "mode": 420},
     {"path": "tools/legal/stage_notices.py", "sha256": "1f18fdc70cf85385c21b3ef57279d3a0a89fadf89942f18ed23e767c3ad77d1f", "size": 9364, "mode": 493},
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh", "sha256": "342bfa48eafc350f5125e3757df902d51df74d1889b0e6062844eb691aa767ba", "size": 911, "mode": 420},
     {"path": "tools/armbian-image/stage-canonical-welcome.sh", "sha256": "1048803ddfe6132d4906444d29fe16065445eafc5080bcf6d8fff999762f321b", "size": 593, "mode": 493},

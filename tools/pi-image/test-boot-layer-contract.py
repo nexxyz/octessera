@@ -64,7 +64,7 @@ def validate(document: dict[str, Any], root: Path) -> None:
     live_inputs = document["live_parity_inputs"]
     if live_inputs != [
         {"path": "tools/pi/deploy-pi.sh", "sha256": "f6b0adeb72e2e0d23a979b092aab1ffa45f5fb4e44ae0bf9084cb666ebcf127d", "size": 17225},
-        {"path": "tools/pi/provision/provision.sh", "sha256": "dce246cbc6bc0d3ddeb86674fa396da36e7e9d3a7c7b7989f039fbb5ca66cc9a", "size": 12807},
+        {"path": "tools/pi/provision/provision.sh", "sha256": "d9fa9729603cae621e9fde76ee2df32fed4d3036871637273ee3a7cfddb47ac3", "size": 13697},
     ]:
         raise ValueError("Raspberry live parity input identities are not exact")
     for source in live_inputs:
@@ -84,8 +84,12 @@ def validate(document: dict[str, Any], root: Path) -> None:
                 raise ValueError(f"Raspberry live parity does not establish {required}")
         if console_pattern not in text or "while grep -Eq" not in text or "sed -i -E" not in text:
             raise ValueError("Raspberry live parity does not use exact serial-console token handling")
-        if text.count("/usr/local/lib/octessera/rpi_uart_release.py") != 2 or "sudo rm -f /usr/local/lib/octessera/rpi_uart_release.py" not in text or "test ! -e /usr/local/lib/octessera/rpi_uart_release.py" not in text:
+        if text.count("/usr/local/lib/octessera/rpi_uart_release.py") != 2:
             raise ValueError("Raspberry live parity does not remove and prove absence of the stale UART utility")
+    if "sudo rm -f /usr/local/lib/octessera/rpi_uart_release.py" not in deploy or "test ! -e /usr/local/lib/octessera/rpi_uart_release.py" not in deploy:
+        raise ValueError("Raspberry deploy parity does not remove and prove absence of the stale UART utility")
+    if 'sudo rm -f "$(target_path /usr/local/lib/octessera/rpi_uart_release.py)"' not in provision or 'test ! -e "$(target_path /usr/local/lib/octessera/rpi_uart_release.py)"' not in provision:
+        raise ValueError("Raspberry provision parity does not use SYSROOT-aware stale UART cleanup")
     if console_pattern not in boot_config or "grep -qxF 'dtoverlay=disable-bt'" not in boot_config or "grep -qxF 'enable_uart=0'" not in boot_config:
         raise ValueError("Raspberry constructor does not enforce exact inactive-UART boot state")
     if 'getty.target.wants"/serial-getty@*.service' not in setup:
