@@ -3,18 +3,21 @@ use playback_runtime::{
     HostAdapter, RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult,
 };
 use serde_json::json;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use std::thread;
 use std::time::{Duration, Instant};
+
+static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
 
 fn adapter() -> (PiPlaybackHostAdapter, PathBuf) {
     let root = std::env::temp_dir().join(format!(
-        "octessera-pi-deferred-save-{}-{}",
+        "octessera-pi-deferred-save-{}-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_nanos()
+            .as_nanos(),
+        NEXT_ROOT.fetch_add(1, Ordering::Relaxed)
     ));
     let adapter = PiPlaybackHostAdapter::new(
         None,
@@ -108,6 +111,8 @@ fn load_immediate_save_and_usb_apply_cancel_deferred_work() {
         .unwrap()
         .is_empty());
     assert!(!adapter.pending_default_save.is_pending());
+    let barrier = adapter.platform_service.enqueue_test_barrier().unwrap();
+    barrier.recv_timeout(Duration::from_secs(1)).unwrap();
 
     assert!(adapter
         .handle_platform_effect(&deferred("usb", 5, deferred_payload))
@@ -130,7 +135,8 @@ fn load_immediate_save_and_usb_apply_cancel_deferred_work() {
 #[test]
 fn full_platform_queue_retains_deferred_entry_and_delays_retry() {
     let (mut adapter, root) = adapter();
-    let barrier = adapter.platform_service.enqueue_test_barrier().unwrap();
+    let (entered, release) = adapter.platform_service.enqueue_test_gate().unwrap();
+    entered.recv_timeout(Duration::from_secs(1)).unwrap();
     let payload = json!({"version": 11});
     let deferred_request = deferred("full", 9, payload.clone());
     assert!(adapter
@@ -172,7 +178,7 @@ fn full_platform_queue_retains_deferred_entry_and_delays_retry() {
     assert!(retry.due_at > before);
     assert_eq!(retry.payload, json!({"version": 11}));
     assert_eq!(retry.request.request_id, "full");
-    drop(barrier);
+    drop(release);
     cleanup(root);
 }
 
@@ -186,19 +192,15 @@ fn disconnected_platform_queue_retains_deferred_entry_and_delays_retry() {
         .handle_platform_effect(&deferred_request)
         .unwrap()
         .is_empty());
-    let _ = adapter.platform_service.enqueue_test_barrier();
-    for _ in 0..100 {
-        if adapter
-            .platform_service
-            .enqueue(crate::platform_service::PlatformJob::new(
-                request(RuntimePlatformEffect::SystemInfoRequest, "wake", 1),
-                crate::platform_service::PlatformJobKind::SystemInfo,
-            ))
-            .is_err()
-        {
-            break;
-        }
-        thread::yield_now();
+    adapter
+        .platform_service
+        .enqueue(crate::platform_service::PlatformJob::new(
+            request(RuntimePlatformEffect::SystemInfoRequest, "wake", 1),
+            crate::platform_service::PlatformJobKind::SystemInfo,
+        ))
+        .unwrap();
+    if let Ok(barrier) = adapter.platform_service.enqueue_test_barrier() {
+        assert!(barrier.recv_timeout(Duration::from_secs(1)).is_err());
     }
     let before = Instant::now();
     let entry = adapter.pending_default_save.take_now().unwrap();
