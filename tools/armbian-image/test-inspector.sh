@@ -430,6 +430,7 @@ hash_path() { [[ "$1" == etc/octessera/image-contract.json ]] && printf '%s\n' "
 reject_path() { runtime_rejected_paths+=("$1"); }
 octessera_require_orange_boot_service() { :; }
 octessera_require_orange_shutdown_service() { :; }
+octessera_require_orange_suspend_service() { :; }
 profile_metadata=$'OCTESSERA_IMAGE_MODE=diagnostic\nOCTESSERA_RUNTIME_ENABLED_DEFAULT=false\nOCTESSERA_IMAGE_CONTRACT_SHA256='"$runtime_contract_hash"$'\nOCTESSERA_RUNTIME_VERSION=none\nOCTESSERA_RUNTIME_BINARY_SHA256=none\nOCTESSERA_RUNTIME_MANIFEST_SHA256=none\nOCTESSERA_RUNTIME_METADATA_SHA256=none'
 octessera_inspect_runtime_mode "$profile_metadata" diagnostic
 [[ "${runtime_rejected_paths[*]}" == 'etc/systemd/system/octessera.service etc/systemd/system/multi-user.target.wants/octessera.service usr/local/bin/octessera-pi opt/octessera/current opt/octessera/releases' ]] || {

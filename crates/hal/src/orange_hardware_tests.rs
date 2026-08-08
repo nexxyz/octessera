@@ -46,6 +46,16 @@ fn fallback_cleanup_turns_display_off_before_black() {
 }
 
 #[test]
+fn preserving_detach_has_no_cleanup_writes() {
+    assert_eq!(
+        super::fallback_cleanup_steps(),
+        [CleanupStep::DisplayOff, CleanupStep::BlackFrame]
+    );
+    assert!(!super::should_run_cleanup(true));
+    assert!(super::should_run_cleanup(false));
+}
+
+#[test]
 fn orange_oled_spi_speed_defaults_to_sixteen_megahertz() {
     assert_eq!(orange_oled_spi_hz_from_env(None), Ok(16_000_000));
 }

@@ -12,13 +12,27 @@ use std::time::{Duration, Instant};
 pub(crate) mod hdmi;
 mod oled;
 mod oled_output;
+mod oled_ownership;
+mod ownership_control;
+mod ownership_decision;
 mod sleep_leds;
 
 pub(crate) use oled::OLED_FRAME_BYTES;
 #[cfg(test)]
 use oled::{glyph_rows, oled_frame, oled_frame_into, oled_signature};
 pub(crate) use oled_output::retry_oled_if_due;
-use oled_output::{render_oled, render_oled_if_changed};
+use oled_output::{force_oled_render, render_oled, render_oled_if_changed};
+pub(crate) use oled_ownership::{
+    handle_stage, restore, restore_after_dropped_ack, OledOwnershipStage, OledOwnershipState,
+    OledRenderControl,
+};
+pub(crate) use ownership_control::{
+    ownership_stage_for_render, restore_after_dropped_ack_for_render, restore_for_render,
+};
+pub(crate) use ownership_decision::{
+    initial_snapshot_render_result, mark_handoff_failed_decision, retry_oled_decision,
+    select_snapshot_render, snapshot_requires_oled_ack, SnapshotRenderDecision,
+};
 use sleep_leds::{SleepLedAnimation, SleepLedFrames};
 
 const SPLASH_BOOT: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/splash_boot.rgb565"));
@@ -138,29 +152,7 @@ pub fn render_snapshot_cached(
     snapshot: &Value,
     cache: &mut HardwareRenderCache,
 ) -> Option<Instant> {
-    let animation_deadline = if snapshot_display_off(snapshot) {
-        let now = Instant::now();
-        let settings = snapshot.get("settings").unwrap_or(&Value::Null);
-        let entered_sleep = cache.sleep_leds.enter(
-            now,
-            brightness_scale(settings.get("gridBrightness")),
-            brightness_scale(settings.get("buttonBrightness")),
-        );
-        if entered_sleep {
-            let frames = cache.sleep_leds.frames_at(now);
-            send_sleep_led_frames(targets, cache, frames);
-        } else if let Some(frames) = cache.sleep_leds.frames_if_due(now) {
-            send_sleep_led_frames(targets, cache, frames);
-        }
-        cache.sleep_leds.next_deadline()
-    } else {
-        if cache.sleep_leds.active() {
-            cache.clear_sleep_animation();
-        }
-        render_normal_leds(targets, snapshot, cache);
-        None
-    };
-
+    let animation_deadline = render_leds_at(targets, snapshot, cache, Instant::now());
     let oled_retry_deadline =
         render_oled_if_changed(&mut targets.oled, snapshot, cache, Instant::now());
 
@@ -182,6 +174,52 @@ pub fn render_snapshot_cached(
         targets.hdmi = None;
     }
     next_deadline(animation_deadline, oled_retry_deadline)
+}
+
+pub(crate) fn render_leds_only(
+    targets: &mut HardwareRenderTargets,
+    snapshot: &Value,
+    cache: &mut HardwareRenderCache,
+    now: Instant,
+) -> Option<Instant> {
+    render_leds_at(targets, snapshot, cache, now)
+}
+
+fn render_leds_at(
+    targets: &mut HardwareRenderTargets,
+    snapshot: &Value,
+    cache: &mut HardwareRenderCache,
+    now: Instant,
+) -> Option<Instant> {
+    if snapshot_display_off(snapshot) {
+        let settings = snapshot.get("settings").unwrap_or(&Value::Null);
+        let entered_sleep = cache.sleep_leds.enter(
+            now,
+            brightness_scale(settings.get("gridBrightness")),
+            brightness_scale(settings.get("buttonBrightness")),
+        );
+        if entered_sleep {
+            let frames = cache.sleep_leds.frames_at(now);
+            send_sleep_led_frames(targets, cache, frames);
+        } else if let Some(frames) = cache.sleep_leds.frames_if_due(now) {
+            send_sleep_led_frames(targets, cache, frames);
+        }
+        cache.sleep_leds.next_deadline()
+    } else {
+        if cache.sleep_leds.active() {
+            cache.clear_sleep_animation();
+        }
+        render_normal_leds(targets, snapshot, cache);
+        None
+    }
+}
+
+pub(crate) fn force_latest_oled(
+    targets: &mut HardwareRenderTargets,
+    snapshot: &Value,
+    cache: &mut HardwareRenderCache,
+) -> Result<(), String> {
+    force_oled_render(&mut targets.oled, snapshot, cache)
 }
 
 impl HardwareRenderCache {

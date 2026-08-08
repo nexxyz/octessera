@@ -1,0 +1,260 @@
+#!/usr/bin/env python3
+import importlib.util
+import errno
+import json
+import os
+import secrets
+import socket
+import stat
+import sys
+import time
+from importlib.machinery import SourceFileLoader
+
+
+SOCKET_PATH = "/run/octessera/oled-suspend.sock"
+STATE_PATH = os.environ.get("OCTESSERA_OLED_SUSPEND_STATE", "/run/octessera-oled-suspend/token.json")
+SCHEMA = 1
+MAX_MESSAGE_BYTES = 1024
+SOCKET_TIMEOUT_SECONDS = 2.0
+SOCKET_RETRY_DELAYS = (0.05, 0.1, 0.2)
+RUNTIME_USER = "octessera-runtime"
+
+
+def _load(name, filename):
+    loader = SourceFileLoader(name, os.path.join(os.path.dirname(__file__), filename))
+    spec = importlib.util.spec_from_loader(name, loader)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"cannot load OLED module {filename}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_handoff = _load("octessera_orange_oled_handoff_suspend", "octessera-orange-oled-handoff.py")
+_logo = _load("octessera_orange_oled_logo_suspend", "octessera-orange-oled-logo")
+
+
+def _boot_id():
+    value = open("/proc/sys/kernel/random/boot_id", encoding="ascii").read().strip()
+    if not _handoff.BOOT_ID_RE.fullmatch(value):
+        raise RuntimeError("current boot ID is invalid")
+    return value
+
+
+def _runtime_identity():
+    uid, gid = _handoff.runtime_identity()
+    if os.geteuid() != uid or os.getegid() != gid:
+        raise RuntimeError("OLED suspend helper is not running as the fixed runtime user")
+    return uid, gid
+
+
+def _token(value):
+    if not isinstance(value, str) or not _handoff.REQUEST_ID_RE.fullmatch(value):
+        raise RuntimeError("OLED suspend token is invalid")
+    return value
+
+
+def _request(action, token, boot_id):
+    request = {"schema": SCHEMA, "action": action, "token": _token(token), "bootId": boot_id}
+    payload = (json.dumps(request, separators=(",", ":"), sort_keys=True) + "\n").encode("utf-8")
+    if len(payload) > MAX_MESSAGE_BYTES:
+        raise RuntimeError("OLED suspend request exceeds the message limit")
+    for attempt in range(len(SOCKET_RETRY_DELAYS) + 1):
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as stream:
+            stream.settimeout(SOCKET_TIMEOUT_SECONDS)
+            try:
+                stream.connect(SOCKET_PATH)
+            except OSError as error:
+                if error.errno not in {errno.ENOENT, errno.ECONNREFUSED} or attempt == len(SOCKET_RETRY_DELAYS):
+                    raise
+                time.sleep(SOCKET_RETRY_DELAYS[attempt])
+                continue
+            stream.sendall(payload)
+            stream.shutdown(socket.SHUT_WR)
+            response = bytearray()
+            while True:
+                chunk = stream.recv(MAX_MESSAGE_BYTES + 1)
+                if not chunk:
+                    break
+                response.extend(chunk)
+                if len(response) > MAX_MESSAGE_BYTES:
+                    raise RuntimeError("OLED suspend response exceeds the message limit")
+            break
+    if response.count(b"\n") != 1 or not response.endswith(b"\n"):
+        raise RuntimeError("OLED suspend response has trailing data")
+    value = json.loads(response[:-1].decode("utf-8"))
+    if not isinstance(value, dict) or set(value) != {"schema", "action", "token", "bootId", "ok", "error"}:
+        raise RuntimeError("OLED suspend response schema is not exact")
+    if value["schema"] != SCHEMA or value["action"] != action or value["token"] != token or value["bootId"] != boot_id or not isinstance(value["ok"], bool):
+        raise RuntimeError("OLED suspend response correlation is invalid")
+    if value["ok"] and value["error"] is not None:
+        raise RuntimeError("OLED suspend response has an unexpected success error")
+    if not value["ok"]:
+        raise RuntimeError(value["error"] if isinstance(value["error"], str) else "OLED suspend request failed")
+
+
+def _status_for_render(handoff, boot_id):
+    status = handoff._read_status()
+    if status is None or status["bootId"] != boot_id or status["phase"] != "first_menu_rendered":
+        raise RuntimeError("OLED suspend helper requires first_menu_rendered native ownership")
+
+
+def _render(kind, boot_id):
+    _runtime_identity()
+    handoff = _handoff.Handoff.utility_lock(_handoff.UTILITY_LOCK_TIMEOUT_SECONDS)
+    oled = None
+    try:
+        _status_for_render(handoff, boot_id)
+        oled = _logo.Oled()
+        oled.command(0xA6)
+        oled.command(0xAF)
+        oled.frame(_logo.render_canvas(_logo.logo_canvas(kind)))
+    finally:
+        try:
+            if oled is not None:
+                oled.close(False)
+        finally:
+            handoff.close()
+
+
+def _state_metadata(path):
+    metadata = os.lstat(path)
+    uid, gid = _runtime_identity()
+    if not stat.S_ISREG(metadata.st_mode) or metadata.st_uid != uid or metadata.st_gid != gid or stat.S_IMODE(metadata.st_mode) != 0o600 or metadata.st_nlink != 1:
+        raise RuntimeError("OLED suspend token state metadata is invalid")
+    return metadata
+
+
+def _read_state():
+    try:
+        _state_metadata(STATE_PATH)
+    except FileNotFoundError:
+        return None
+    descriptor = os.open(STATE_PATH, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW)
+    try:
+        data = os.read(descriptor, MAX_MESSAGE_BYTES + 1)
+    finally:
+        os.close(descriptor)
+    if len(data) > MAX_MESSAGE_BYTES:
+        raise RuntimeError("OLED suspend token state is oversized")
+    value = json.loads(data.decode("utf-8"))
+    if not isinstance(value, dict) or set(value) != {"schema", "token", "bootId", "stage"} or value["schema"] != SCHEMA:
+        raise RuntimeError("OLED suspend token state schema is invalid")
+    token = _token(value["token"])
+    boot_id = value["bootId"]
+    if not isinstance(boot_id, str) or not _handoff.BOOT_ID_RE.fullmatch(boot_id):
+        raise RuntimeError("OLED suspend token state boot ID is invalid")
+    stage = value["stage"]
+    if stage not in {"staged", "committed"}:
+        raise RuntimeError("OLED suspend token state stage is invalid")
+    return token, boot_id, stage
+
+
+def _write_state(token, boot_id, stage, replace=False):
+    if stage not in {"staged", "committed"}:
+        raise RuntimeError("OLED suspend token state stage is invalid")
+    if not replace and os.path.lexists(STATE_PATH):
+        raise RuntimeError("OLED suspend token state already exists")
+    parent = os.path.dirname(STATE_PATH)
+    parent_metadata = os.lstat(parent) if parent else None
+    if not parent or not stat.S_ISDIR(parent_metadata.st_mode) or stat.S_IMODE(parent_metadata.st_mode) != 0o700:
+        raise RuntimeError("OLED suspend token state directory is not private")
+    temporary = f"{STATE_PATH}.tmp-{secrets.token_hex(16)}"
+    data = json.dumps({"schema": SCHEMA, "token": _token(token), "bootId": boot_id, "stage": stage}, separators=(",", ":"), sort_keys=True).encode("utf-8") + b"\n"
+    descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC | os.O_NOFOLLOW, 0o600)
+    try:
+        view = memoryview(data)
+        while view:
+            view = view[os.write(descriptor, view):]
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+    try:
+        os.replace(temporary, STATE_PATH)
+        directory = os.open(parent, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC | os.O_NOFOLLOW)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
+    finally:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+
+
+def _remove_state():
+    _state_metadata(STATE_PATH)
+    os.unlink(STATE_PATH)
+    parent = os.path.dirname(STATE_PATH)
+    directory = os.open(parent, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC | os.O_NOFOLLOW)
+    try:
+        os.fsync(directory)
+    finally:
+        os.close(directory)
+
+
+def _prepare():
+    boot_id = _boot_id()
+    if _read_state() is not None:
+        raise RuntimeError("OLED suspend token state is already committed")
+    token = secrets.token_hex(16)
+    _write_state(token, boot_id, "staged")
+    try:
+        _request("prepare/release", token, boot_id)
+        _render("sleep", boot_id)
+        _request("prepare/commit", token, boot_id)
+        _write_state(token, boot_id, "committed", replace=True)
+    except Exception:
+        rollback_succeeded = _try_rollback(token, boot_id)
+        if rollback_succeeded:
+            _remove_state()
+        raise
+
+
+def _resume():
+    state = _read_state()
+    if state is None:
+        return
+    token, state_boot_id, stage = state
+    boot_id = _boot_id()
+    if state_boot_id != boot_id:
+        raise RuntimeError("OLED suspend token state belongs to another boot")
+    if stage == "staged":
+        if _try_rollback(token, boot_id):
+            _remove_state()
+        return
+    try:
+        _request("resume/release", token, boot_id)
+        _render("boot", boot_id)
+        _request("resume/complete", token, boot_id)
+    except Exception:
+        if _try_rollback(token, boot_id):
+            _remove_state()
+        raise
+    _remove_state()
+
+
+def _try_rollback(token, boot_id):
+    try:
+        _request("rollback", token, boot_id)
+        return True
+    except Exception:
+        return False
+
+
+def main(args):
+    if len(args) != 1 or args[0] not in {"prepare", "resume"}:
+        raise ValueError("usage: octessera-orange-oled-suspend prepare|resume")
+    if args[0] == "prepare":
+        _prepare()
+    else:
+        _resume()
+
+
+if __name__ == "__main__":
+    try:
+        main(sys.argv[1:])
+    except Exception as error:
+        print(f"octessera-orange-oled-suspend: {error}", file=sys.stderr)
+        raise SystemExit(1)

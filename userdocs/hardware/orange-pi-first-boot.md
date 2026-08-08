@@ -151,8 +151,9 @@ The USB product is `Octessera Audio + MIDI` for the combined service,
 and combined operation require the patched, qualified image kernel. It must
 expose `interface_string`; the service writes and verifies the exact 14-byte
 `Octessera MIDI` value before binding. `id` remains an ALSA identity field, not
-a substitute. A generic Windows `MIDI function` label means the image is
-unpatched or unqualified and is not accepted for release validation.
+a substitute. Windows may retain an older cached `MIDI function` friendly name,
+so release validation checks the current raw bus descriptor and requires its
+exact `Octessera MIDI` value.
 MIDI is part of the production runtime. Host enumeration is still worth checking
 on the assembled board; inspect the gadget service before connecting a host:
 
@@ -164,10 +165,12 @@ ls /sys/kernel/config/usb_gadget/octessera-orange-pi/functions
 UART0 remains intentionally disabled by the reviewed input-routing overlay;
 this USB path does not restore it.
 
-## Future boot, sleep, and shutdown OLED behavior
+## Boot, UI sleep, and Linux suspend OLED behavior
 
-The current source implements the Phase 5 boot handoff, but no new constructor
-image has been built and this behavior has not yet been physically qualified.
+The current source implements the Phase 5 boot handoff. A development board has
+passed bounded non-suspend handoff plus connected audio and MIDI checks, but no
+new constructor image has been built and true suspend still needs physical
+qualification.
 When that image is available, Orange should show the same four-band cyan,
 yellow, green, and magenta sweep as Raspberry: 8 px bands, a +8 px top-right
 lean, white-source pixels only, and 24 frames over one second.
@@ -179,12 +182,22 @@ without resetting it, and stops the animation just before an acknowledged
 first normal menu frame. Orange first-menu readiness also waits for healthy
 internal DAC status; a queued frame is not enough.
 
-Sleep, resume, and shutdown/reboot remain separate lifecycle paths. The Orange
-H618 path uses `/dev/spidev1.0` and GPIO lines on `300b000.pinctrl` (reset 76,
-D/C 270), rather than Raspberry `rppal`, BCM, or `dwc2` paths. Until the new
-constructor image and physical checks are complete, a blank or unstable OLED
-is a qualification result to record, not evidence that the source contract is
-working on the board.
+The menu's `OLED Sleep` setting is a UI display-sleep feature; it does not
+sleep Linux or hand the OLED to another process. Linux suspend uses a separate
+Orange-only `sleep.target` transaction. Production enables
+`octessera-orange-oled-suspend.service` with `RequiredBy=sleep.target`, so the
+`sleep.target.requires` relationship is hard and a failed OLED handoff blocks
+suspend. The runtime quiesces and detaches the OLED handles without cleanup
+writes, the strict helper draws the suspend and resume frames, and the runtime
+reacquires the hardware before and after the suspend. Audio, MIDI, transport,
+and the LED surface are not part of that ownership transaction.
+
+The Orange H618 path uses `/dev/spidev1.0` and GPIO lines on
+`300b000.pinctrl` (reset 76, D/C 270), rather than Raspberry `rppal`, BCM, or
+`dwc2` paths. The ownership contract is source- and fixture-tested, but a real
+suspend/resume check still needs an operator physically present. A blank or
+unstable OLED is a qualification result to record, not evidence that the
+source contract is working on the board.
 
 ## Advanced path
 

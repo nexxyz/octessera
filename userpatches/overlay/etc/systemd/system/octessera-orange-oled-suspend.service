@@ -1,0 +1,31 @@
+[Unit]
+Description=Octessera Orange Pi OLED suspend ownership transfer
+After=octessera.service
+Requisite=octessera.service
+Before=sleep.target
+StopWhenUnneeded=yes
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=octessera-runtime
+Group=octessera-runtime
+RuntimeDirectory=octessera-oled-suspend
+RuntimeDirectoryMode=0700
+Environment=OCTESSERA_OLED_SUSPEND_STATE=/run/octessera-oled-suspend/token.json
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/run/octessera /run/octessera-boot /run/octessera-oled-suspend
+PrivateTmp=yes
+ProtectHome=yes
+DevicePolicy=closed
+DeviceAllow=/dev/spidev1.0 rw
+DeviceAllow=/dev/gpiochip1 rw
+RestrictAddressFamilies=AF_UNIX
+ExecStart=/usr/local/sbin/octessera-orange-oled-suspend prepare
+ExecStop=/usr/local/sbin/octessera-orange-oled-suspend resume
+TimeoutStartSec=8
+TimeoutStopSec=8
+
+[Install]
+RequiredBy=sleep.target

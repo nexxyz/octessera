@@ -115,6 +115,11 @@ fn fallback_cleanup_steps() -> [CleanupStep; 2] {
     [CleanupStep::DisplayOff, CleanupStep::BlackFrame]
 }
 
+#[cfg(any(test, target_os = "linux"))]
+fn should_run_cleanup(shutdown_complete: bool) -> bool {
+    !shutdown_complete
+}
+
 #[cfg(target_os = "linux")]
 impl OrangeOledTransport {
     fn open_until(
@@ -191,6 +196,10 @@ impl OrangeOledTransport {
         self.display_off_until(deadline)?;
         self.shutdown_complete = true;
         Ok(())
+    }
+
+    pub fn detach_preserving(mut self) {
+        self.shutdown_complete = true;
     }
 
     fn set_dc(&mut self, active: bool) -> Result<(), String> {
@@ -310,7 +319,7 @@ fn frame_chunk_ranges(total_bytes: usize) -> Vec<std::ops::Range<usize>> {
 #[cfg(target_os = "linux")]
 impl Drop for OrangeOledTransport {
     fn drop(&mut self) {
-        if self.shutdown_complete {
+        if !should_run_cleanup(self.shutdown_complete) {
             return;
         }
         let cleanup_deadline = timing::cleanup_deadline();

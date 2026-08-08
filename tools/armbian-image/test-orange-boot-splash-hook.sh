@@ -5,9 +5,10 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 hook="$root/userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash"
 boot_service="$root/userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service"
 shutdown_service="$root/userpatches/overlay/etc/systemd/system/octessera-orange-oled-shutdown.service"
-system_sleep_hook="$root/userpatches/overlay/lib/systemd/system-sleep/octessera-orange-oled"
+suspend_service="$root/userpatches/overlay/etc/systemd/system/octessera-orange-oled-suspend.service"
 python313_files="$root/tools/armbian-image/fixtures/python313-initramfs-closure-files.txt"
 python313_fixture="$root/tools/armbian-image/fixtures/python313-initramfs-closure"
+oled_logo="$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo"
 
 [[ -f "$hook" ]] || { echo "Missing Orange initramfs boot-splash hook." >&2; exit 1; }
 for required_line in \
@@ -39,7 +40,6 @@ for required_line in \
     'Before=shutdown.target reboot.target halt.target' \
     'User=octessera-runtime' \
     'Group=octessera-runtime' \
-    'SupplementaryGroups=audio i2c spi gpio' \
     'ProtectSystem=strict' \
     'ReadWritePaths=/run/octessera-boot' \
     'DevicePolicy=closed' \
@@ -49,9 +49,31 @@ for required_line in \
     'TimeoutStartSec=5'; do
     grep -qFx "$required_line" "$shutdown_service" || { echo "Orange shutdown service is missing: $required_line" >&2; exit 1; }
 done
-grep -qFx '    /usr/local/sbin/octessera-orange-oled-logo sleep || true' "$system_sleep_hook"
-grep -qFx '    /usr/local/sbin/octessera-orange-oled-logo resume || true' "$system_sleep_hook"
-! grep -qE '(^|[[:space:]])(sudo|su|runuser)([[:space:]]|$)' "$system_sleep_hook" || { echo 'Orange system-sleep hook must use the helper-owned privilege drop.' >&2; exit 1; }
+! grep -qFx 'SupplementaryGroups=audio i2c spi gpio' "$shutdown_service" || { echo 'Orange shutdown service must use the runtime account without named supplementary groups.' >&2; exit 1; }
+[[ ! -e "$root/userpatches/overlay/lib/systemd/system-sleep/octessera-orange-oled" ]] || { echo 'Orange system-sleep hook must be removed.' >&2; exit 1; }
+grep -qF '["gpioset", "--chip", self.chip, f"{offset}={value}"]' "$oled_logo" || { echo 'Orange OLED GPIO control must use the fixed libgpiod v2 syntax.' >&2; exit 1; }
+! grep -qF -- '--mode=wait' "$oled_logo" || { echo 'Orange OLED GPIO control must not use the removed libgpiod v1 mode option.' >&2; exit 1; }
+! grep -qE -- '--(daemonize|toggle|hold-period)' "$oled_logo" || { echo 'Orange OLED GPIO control must retain process-held ownership.' >&2; exit 1; }
+for required_line in \
+    'After=octessera.service' \
+    'Requisite=octessera.service' \
+    'Before=sleep.target' \
+    'RequiredBy=sleep.target' \
+    'StopWhenUnneeded=yes' \
+    'Type=oneshot' \
+    'RemainAfterExit=yes' \
+    'User=octessera-runtime' \
+    'RuntimeDirectory=octessera-oled-suspend' \
+    'RuntimeDirectoryMode=0700' \
+    'RestrictAddressFamilies=AF_UNIX' \
+    'ExecStart=/usr/local/sbin/octessera-orange-oled-suspend prepare' \
+    'ExecStop=/usr/local/sbin/octessera-orange-oled-suspend resume' \
+    'TimeoutStartSec=8' \
+    'TimeoutStopSec=8'; do
+    grep -qFx "$required_line" "$suspend_service" || { echo "Orange suspend service is missing: $required_line" >&2; exit 1; }
+done
+! grep -qFx 'SupplementaryGroups=audio i2c spi gpio' "$suspend_service" || { echo 'Orange suspend service must use the runtime account without named supplementary groups.' >&2; exit 1; }
+! grep -qE '(^|[[:space:]])(systemctl|dbus|Conflicts=)' "$suspend_service" || { echo 'Orange suspend service contains a forbidden lifecycle dependency.' >&2; exit 1; }
 
 require_boot_service_contract() {
     local candidate="$1"
@@ -79,11 +101,15 @@ if command -v systemd-analyze >/dev/null 2>&1; then
     mkdir -p "$systemd_work/etc/systemd/system" "$systemd_work/usr/local/sbin"
     cp "$boot_service" "$systemd_work/etc/systemd/system/octessera-orange-boot-splash.service"
     cp "$shutdown_service" "$systemd_work/etc/systemd/system/octessera-orange-oled-shutdown.service"
+    cp "$suspend_service" "$systemd_work/etc/systemd/system/octessera-orange-oled-suspend.service"
     chmod 0644 "$systemd_work/etc/systemd/system/octessera-orange-boot-splash.service"
     chmod 0644 "$systemd_work/etc/systemd/system/octessera-orange-oled-shutdown.service"
+    chmod 0644 "$systemd_work/etc/systemd/system/octessera-orange-oled-suspend.service"
     printf '%s\n' '#!/bin/sh' 'exit 0' > "$systemd_work/usr/local/sbin/octessera-orange-oled-logo"
     chmod 0755 "$systemd_work/usr/local/sbin/octessera-orange-oled-logo"
-    for unit in local-fs.target sysinit.target shutdown.target reboot.target halt.target; do
+    printf '%s\n' '#!/bin/sh' 'exit 0' > "$systemd_work/usr/local/sbin/octessera-orange-oled-suspend"
+    chmod 0755 "$systemd_work/usr/local/sbin/octessera-orange-oled-suspend"
+    for unit in local-fs.target sysinit.target shutdown.target reboot.target halt.target sleep.target; do
         printf '%s\n' '[Unit]' "Description=$unit" > "$systemd_work/etc/systemd/system/$unit"
     done
     for unit in systemd-udev-trigger.service systemd-modules-load.service systemd-udevd.service octessera.service; do
@@ -96,7 +122,7 @@ if command -v systemd-analyze >/dev/null 2>&1; then
     mkdir -p "$systemd_work/bin"
     printf '%s\n' '#!/bin/sh' 'exit 0' > "$systemd_work/bin/true"
     chmod 0755 "$systemd_work/bin/true"
-    systemd-analyze --root="$systemd_work" verify octessera-orange-boot-splash.service octessera-orange-oled-shutdown.service
+    systemd-analyze --root="$systemd_work" verify octessera-orange-boot-splash.service octessera-orange-oled-shutdown.service octessera-orange-oled-suspend.service
     rm -rf "$systemd_work"
 fi
 bash -n "$hook"

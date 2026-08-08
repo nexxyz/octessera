@@ -39,6 +39,7 @@ BOOT_SWEEP_LEAN_PIXELS = 8
 BOOT_SWEEP_COLORS_RGB565 = (0x07FF, 0xFFE0, 0x07E0, 0xF81F)
 BOOT_SWEEP_COLORS = ((0, 255, 255), (255, 255, 0), (0, 255, 0), (255, 0, 255))
 BOOT_SWEEP_CONTRACT_SHA256 = "698a1f3d2527c1d3c49028f33c7905db931985e3e30c3759ff9bdbebc9e7e754"
+NATIVE_HANDOFF_PHASES = {"released", "native_owned", "first_menu_rendered"}
 SPI_IOC_WR_MODE = 0x40016B01
 SPI_IOC_WR_BITS_PER_WORD = 0x40016B03
 SPI_IOC_WR_MAX_SPEED_HZ = 0x40046B04
@@ -60,7 +61,7 @@ class GpioLines:
         if previous is not None:
             self._stop(previous)
         process = subprocess.Popen(
-            ["gpioset", "--mode=wait", self.chip, f"{offset}={value}"],
+            ["gpioset", "--chip", self.chip, f"{offset}={value}"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
             text=True,
@@ -346,6 +347,9 @@ def _run_loop():
     handoff = Handoff.open(True)
     oled = None
     try:
+        status = handoff._read_status()
+        if status is not None and status["bootId"] == handoff.boot_id and status["phase"] in NATIVE_HANDOFF_PHASES:
+            return
         handoff.start()
         adopt_existing = validate_marker()
         oled = Oled()

@@ -120,6 +120,7 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
         "etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash": "userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash",
         "usr/local/sbin/octessera-orange-oled-logo": "userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo",
         "usr/local/sbin/octessera-orange-oled-handoff.py": "userpatches/overlay/usr/local/sbin/octessera-orange-oled-handoff.py",
+        "usr/local/sbin/octessera-orange-oled-suspend": "userpatches/overlay/usr/local/sbin/octessera-orange-oled-suspend",
         "usr/share/octessera/oled/octessera-mark.svg": "userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-mark.svg",
         "usr/share/octessera/oled/octessera-wordmark.svg": "userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-wordmark.svg",
     }
@@ -129,8 +130,11 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
         write(final_root / f"lib/modules/{RELEASE}/kernel/drivers/octessera/{phase_module}.ko", b"synthetic-kernel-module")
     write(final_root / "etc/systemd/system/octessera-orange-boot-splash.service", (REPOSITORY / "userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service").read_bytes())
     write(final_root / "etc/systemd/system/octessera-orange-oled-shutdown.service", (REPOSITORY / "userpatches/overlay/etc/systemd/system/octessera-orange-oled-shutdown.service").read_bytes())
+    write(final_root / "etc/systemd/system/octessera-orange-oled-suspend.service", (REPOSITORY / "userpatches/overlay/etc/systemd/system/octessera-orange-oled-suspend.service").read_bytes())
     (final_root / "etc/systemd/system/sysinit.target.wants").mkdir(parents=True, exist_ok=True)
     (final_root / "etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service").symlink_to("../octessera-orange-boot-splash.service")
+    (final_root / "etc/systemd/system/sleep.target.requires").mkdir(parents=True, exist_ok=True)
+    (final_root / "etc/systemd/system/sleep.target.requires/octessera-orange-oled-suspend.service").symlink_to("../octessera-orange-oled-suspend.service")
     initramfs = make_cpio_initramfs(work, final_root)
     compressed_initramfs = subprocess.run(["zstd", "-q", "-c"], input=initramfs, capture_output=True, check=True).stdout
     write(final_root / f"boot/initrd.img-{RELEASE}", make_uboot_initramfs(compressed_initramfs))

@@ -65,6 +65,15 @@ pub(crate) fn run(
         let _ = seesaw.shutdown();
         return Err(format!("Orange OLED handoff status failed: {error}"));
     }
+    let suspend =
+        match crate::orange_oled_suspend::OrangeOledSuspendCoordinator::spawn(render.clone()) {
+            Ok(suspend) => suspend,
+            Err(error) => {
+                let _ = render.abort();
+                let _ = seesaw.shutdown();
+                return Err(format!("Orange OLED suspend coordinator failed: {error}"));
+            }
+        };
     let result = run_prepared_runtime(
         prepared,
         &seesaw,
@@ -75,7 +84,11 @@ pub(crate) fn run(
         midi_rx,
         true,
     );
+    let suspend_result = suspend.shutdown();
     let render_result = render_shutdown(&render);
     let seesaw_result = seesaw.shutdown();
-    result.and(render_result).and(seesaw_result)
+    result
+        .and(suspend_result)
+        .and(render_result)
+        .and(seesaw_result)
 }

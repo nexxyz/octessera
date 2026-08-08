@@ -20,6 +20,7 @@ from verify_runtime_account import (
     reject_unsupported_updater,
     require_orange_boot_service,
     require_orange_shutdown_service,
+    require_orange_suspend_service,
     require_owner_mode,
     require_runtime_service,
     require_runtime_udev_rule,
@@ -241,6 +242,7 @@ def verify_boot(root: Path, package: dict[str, Any], construction: dict[str, Any
     require(len(module_candidates) == 1 and _module_facts(module_candidates[0], release) == package["module"], "selected usb_f_midi module differs from exact package evidence")
     require_orange_boot_service(root, require)
     require_orange_shutdown_service(root, require)
+    require_orange_suspend_service(root, require)
     welcome = root / construction["terminal_invariants"]["welcome_path"]
     require(welcome.is_file() and not welcome.is_symlink(), "canonical Orange welcome file is missing or symlinked")
     require_owner_mode(welcome, 0, 0, 0o644, require)

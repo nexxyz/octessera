@@ -36,6 +36,9 @@ for item in contract["exact_inputs"]:
     assert item["mode"] in {420, 493}
 
 construction_inputs = {item["path"]: item for item in contract["exact_inputs"]}
+assert "userpatches/overlay/lib/systemd/system-sleep/octessera-orange-oled" not in construction_inputs
+assert "userpatches/overlay/etc/systemd/system/octessera-orange-oled-suspend.service" in construction_inputs
+assert "userpatches/overlay/usr/local/sbin/octessera-orange-oled-suspend" in construction_inputs
 setup_inputs = {item["path"]: item for item in setup_contract["source_inputs"]}
 overlap = sorted(set(construction_inputs) & set(setup_inputs))
 assert overlap
@@ -49,7 +52,7 @@ for item in contract["managed_outputs"]:
         assert item == {"path": "home/octessera/.hushlogin", "mode": 420, "owner": "octessera", "group": "octessera", "content": "empty"}
     elif item.get("kind") == "symlink":
         exact(item, ["path", "kind", "target", "uid", "gid"])
-        assert item["target"] in {"../octessera-orange-boot-splash.service", "/dev/null"} and item["uid"] == 0 and item["gid"] == 0
+        assert item["target"] in {"../octessera-orange-boot-splash.service", "../octessera-orange-oled-suspend.service", "/dev/null"} and item["uid"] == 0 and item["gid"] == 0
     else:
         exact(item, ["path", "mode", "uid", "gid"])
         assert item["mode"] in {420, 493} and item["uid"] == 0 and item["gid"] == 0
@@ -71,6 +74,11 @@ assert contract["notice_bundle"] == {"manifest": "resources/legal/notice-bundle.
 assert contract["terminal_invariants"] == {"welcome_path": "etc/profile.d/octessera-welcome.sh", "hushlogin_path": "home/octessera/.hushlogin", "hushlogin_mode": 420, "hushlogin_empty": True, "forbidden_pam_update_motd_overrides": True}
 assert contract["uart_invariants"] == {"overlay_name": "octessera-h618-input-routing", "forbidden_console_token": "console=ttyS0", "serial_getty_mask": "etc/systemd/system/serial-getty@ttyS0.service", "uart0_status": "disabled", "stdout_path": ""}
 assert contract["enabled_sysinit_wants"] == {"path": "etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service", "target": "../octessera-orange-boot-splash.service"}
+assert {"path": "etc/systemd/system/sleep.target.requires/octessera-orange-oled-suspend.service", "kind": "symlink", "target": "../octessera-orange-oled-suspend.service", "uid": 0, "gid": 0} in contract["managed_outputs"]
+assert all("sleep.target.wants/octessera-orange-oled-suspend.service" not in item["path"] for item in contract["managed_outputs"])
+service = (ROOT / "userpatches/overlay/etc/systemd/system/octessera-orange-oled-suspend.service").read_text(encoding="utf-8")
+assert "RequiredBy=sleep.target" in service and "WantedBy=sleep.target" not in service
 assert contract["device_dependencies"] == {"spi_device": "/dev/spidev1.0", "gpio_device": "/dev/gpiochip1", "gpio_label": "300b000.pinctrl", "gpio_offsets": {"reset": 76, "dc": 270}, "udev_rule": "etc/udev/rules.d/70-octessera-orange-runtime.rules"}
 assert contract["selected_initramfs"]["forbidden_paths"] == ["usr/bin/gpiodetect"]
+assert all("system-sleep/octessera-orange-oled" not in item["path"] for item in contract["managed_outputs"])
 print("Orange constructor classification and source digest tests passed")

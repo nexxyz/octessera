@@ -20,7 +20,6 @@ ROOT = Path(__file__).resolve().parents[2]
 LOGO = ROOT / "userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo"
 HANDOFF = ROOT / "userpatches/overlay/usr/local/sbin/octessera-orange-oled-handoff.py"
 RUNTIME_USER = "octessera-runtime"
-HARDWARE_GROUPS = ("audio", "i2c", "spi", "gpio")
 
 
 def load_module(name, source):
@@ -51,23 +50,11 @@ def ensure_runtime_account():
         run(["useradd", "--system", "--uid", str(runtime_uid), "--gid", RUNTIME_USER, "--no-create-home", "--shell", "/usr/sbin/nologin", RUNTIME_USER])
         created_user = True
         account = pwd.getpwnam(RUNTIME_USER)
-    original_groups = [group.gr_name for group in grp.getgrall() if RUNTIME_USER in group.gr_mem]
-    for group_name in HARDWARE_GROUPS:
-        try:
-            grp.getgrnam(group_name)
-        except KeyError:
-            run(["groupadd", "--system", group_name])
-            created_groups.append(group_name)
-        if group_name not in original_groups:
-            run(["usermod", "-a", "-G", group_name, RUNTIME_USER])
     account = pwd.getpwnam(RUNTIME_USER)
 
     def cleanup():
         if created_user:
             subprocess.run(["userdel", RUNTIME_USER], check=False, capture_output=True)
-        elif original_groups != [group.gr_name for group in grp.getgrall() if RUNTIME_USER in group.gr_mem]:
-            supplementary = ",".join(original_groups)
-            subprocess.run(["usermod", "-G", supplementary, RUNTIME_USER], check=False, capture_output=True)
         for group_name in reversed(created_groups):
             subprocess.run(["groupdel", group_name], check=False, capture_output=True)
 
@@ -112,6 +99,7 @@ if not hasattr(os, "geteuid") or os.geteuid() != 0:
     raise SystemExit(0)
 
 account, cleanup_account = ensure_runtime_account()
+original_group_ids = {account.pw_gid} | {group.gr_gid for group in grp.getgrall() if RUNTIME_USER in group.gr_mem}
 try:
     handoff = load_module("orange_handoff_identity", HANDOFF)
     real_getpwnam = handoff.pwd.getpwnam
@@ -136,8 +124,7 @@ try:
         assert result.returncode == 0, result.stderr
         identity = json.loads(result.stdout)
         assert identity["uid"] == account.pw_uid and identity["gid"] == account.pw_gid
-        expected_groups = {grp.getgrnam(name).gr_gid for name in HARDWARE_GROUPS}
-        assert expected_groups.issubset(set(identity["groups"]))
+        assert set(identity["groups"]) == original_group_ids
         assert (owned / "oled.lock").stat().st_uid == account.pw_uid
         assert (owned / "status.json").stat().st_gid == account.pw_gid
         assert not (owned / "stop.request").exists()
@@ -156,4 +143,4 @@ try:
 finally:
     cleanup_account()
 
-print("Orange runtime identity, ownership, supplementary-group, wrong-identity, and missing-account tests passed")
+print("Orange runtime identity, ownership, wrong-identity, and missing-account tests passed")
