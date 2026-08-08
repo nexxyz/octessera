@@ -10,11 +10,9 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-
 import orange_image_mount
 from orange_boot_contract import verify_runtime
 from stage_notices import stage_notices  # type: ignore[import-not-found]
-
 TOOLS = Path(__file__).resolve().parent
 REPOSITORY = TOOLS.parents[1]
 CONSTRUCTION = json.loads((REPOSITORY / "resources/image-construction/boot-layers/orange-pi-zero-2w.json").read_text())
@@ -22,7 +20,6 @@ VERIFY_SPEC = importlib.util.spec_from_file_location("orange_image_verifier", TO
 assert VERIFY_SPEC is not None and VERIFY_SPEC.loader is not None
 VERIFY = importlib.util.module_from_spec(VERIFY_SPEC)
 VERIFY_SPEC.loader.exec_module(VERIFY)
-
 
 RELEASE = "6.18.38-current-sunxi64"
 REVISION = "26.8.0-trunk.417"
@@ -35,7 +32,6 @@ NATIVE_DTB = f"{DTB_NAME}_{REVISION}_arm64__fixture.deb"
 DTB_RELATIVE = f"usr/lib/linux-image-{RELEASE}/allwinner/sun50i-h618-orangepi-zero2w.dtb"
 MODULE_RELATIVE = f"lib/modules/{RELEASE}/kernel/drivers/usb/gadget/function/usb_f_midi.ko"
 BUILTIN_CONFIG_LINES = ("CONFIG_SPI_SUN6I=y", "CONFIG_SPI_SPIDEV=y", "CONFIG_PINCTRL_SUNXI=y")
-
 
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -51,9 +47,7 @@ def make_uboot_initramfs(payload: bytes, declared_size: int | None = None) -> by
     struct.pack_into(">I", header, 0, 0x27051956)
     struct.pack_into(">I", header, 12, len(payload) if declared_size is None else declared_size)
     return bytes(header) + payload
-
-
-def make_cpio_initramfs(work: Path, source_root: Path, stale: bool = False) -> bytes:
+def make_cpio_initramfs(work: Path, source_root: Path, stale: bool = False, extension: str | None = None) -> bytes:
     source = work / ("stale-initramfs-source" if stale else "initramfs-source")
     write(source / "init", b"#!/bin/sh\n")
     if not stale:
@@ -67,8 +61,8 @@ def make_cpio_initramfs(work: Path, source_root: Path, stale: bool = False) -> b
         write(source / "usr/bin/python3", b"synthetic-python\n")
         for relative in CONSTRUCTION["selected_initramfs"]["python_files"]:
             write(source / f"usr/lib/python3.13/{relative}", b"synthetic-python-closure\n")
-        for module in CONSTRUCTION["selected_initramfs"]["python_extensions"]:
-            write(source / f"usr/lib/python3.13/lib-dynload/{module}.cpython-313-aarch64-linux-gnu.so", b"synthetic-python-extension")
+        if extension is not None:
+            write(source / extension, (source_root / extension).read_bytes())
     return subprocess.run(
         ["cpio", "--quiet", "-o", "-H", "newc"],
         cwd=source,
@@ -310,6 +304,11 @@ def main() -> None:
         root, image, dtb, evidence, provenance = make_fixture(work)
         args = verifier_args(root, image, dtb, evidence, provenance)
         run_proof(args, True)
+        extension = "usr/lib/python3.13/lib-dynload/_json.cpython-313-aarch64-linux-gnu.so"; write(root / extension, b"synthetic-python-extension")
+        write(root / f"boot/initrd.img-{RELEASE}", make_uboot_initramfs(subprocess.run(["zstd", "-q", "-c"], input=make_cpio_initramfs(work, root, extension=extension), capture_output=True, check=True).stdout))
+        run_proof(args, True)
+        negative_extension = work / "negative-extension-mismatch"; shutil.copytree(root, negative_extension, symlinks=True); write(negative_extension / extension, b"mismatched-python-extension")
+        run_proof(root_args(args, negative_extension), False)
         negative_root, negative_image, negative_evidence, negative_provenance = make_missing_builtin_fixture(work, root, image, evidence, provenance)
         negative_args = args
         for option, value in (("--root", negative_root), ("--linux-image", negative_image), ("--evidence", negative_evidence), ("--provenance", negative_provenance)):
@@ -342,6 +341,7 @@ def main() -> None:
         reject_terminal_fixture("duplicate-account", lambda path: path.joinpath("etc/passwd").write_text(path.joinpath("etc/passwd").read_text() + "octessera:x:1001:1001:Duplicate:/home/octessera:/bin/bash\n"))
         reject_terminal_fixture("wrong-home", lambda path: path.joinpath("etc/passwd").write_text(path.joinpath("etc/passwd").read_text().replace("/home/octessera:/bin/bash", "/srv/octessera:/bin/bash")))
         reject_terminal_fixture("wrong-shell", lambda path: path.joinpath("etc/passwd").write_text(path.joinpath("etc/passwd").read_text().replace("/home/octessera:/bin/bash", "/home/octessera:/bin/sh")))
+        reject_terminal_fixture("python-parent-symlink", lambda path: ((path / "usr/lib/python3.13").rename(path / "usr/lib/python-runtime-target"), (path / "usr/lib/python3.13").symlink_to("python-runtime-target", target_is_directory=True)))
         reject_terminal_fixture("wrong-build-metadata-mode", lambda path: path.joinpath("etc/octessera/build-metadata.env").chmod(0o600))
         def wrong_build_metadata_owner(path: Path) -> None:
             os.chown(path / "etc/octessera/build-metadata.env", 1000, 1000)  # type: ignore[attr-defined]

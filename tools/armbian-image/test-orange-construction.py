@@ -80,7 +80,8 @@ service = (ROOT / "userpatches/overlay/etc/systemd/system/octessera-orange-oled-
 assert "RequiredBy=sleep.target" in service and "WantedBy=sleep.target" not in service
 assert contract["device_dependencies"] == {"spi_device": "/dev/spidev1.0", "gpio_device": "/dev/gpiochip1", "gpio_label": "300b000.pinctrl", "gpio_offsets": {"reset": 76, "dc": 270}, "udev_rule": "etc/udev/rules.d/70-octessera-orange-runtime.rules"}
 assert contract["required_builtin_kernel_config_lines"] == ["CONFIG_SPI_SUN6I=y", "CONFIG_SPI_SPIDEV=y", "CONFIG_PINCTRL_SUNXI=y"]
-exact(contract["selected_initramfs"], ["required_paths", "forbidden_paths", "required_tools", "python_files", "python_extensions", "installed_output_matches"])
+exact(contract["selected_initramfs"], ["required_paths", "forbidden_paths", "required_tools", "python_files", "required_python_modules", "installed_output_matches"])
+assert contract["selected_initramfs"]["required_python_modules"] == ["fcntl", "math", "_json", "_posixsubprocess", "select", "_struct", "zlib"]
 assert contract["selected_initramfs"]["forbidden_paths"] == ["usr/bin/gpiodetect"]
 assert all("system-sleep/octessera-orange-oled" not in item["path"] for item in contract["managed_outputs"])
 print("Orange constructor classification and source digest tests passed")

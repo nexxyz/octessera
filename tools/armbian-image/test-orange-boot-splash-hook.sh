@@ -142,11 +142,19 @@ grep -qF "\"\$python_dir/re/_parser.py\"" "$hook" || { echo "Python regular-expr
 grep -qF "copy_file binary \"\$python_file\" \"\$python_file\"" "$hook" || { echo "Python files are not copied as initramfs binaries." >&2; exit 1; }
 grep -qF 'Orange initramfs hook missing Python target directory:' "$hook" || { echo "Missing fail-closed Python standard-library check." >&2; exit 1; }
 grep -qF 'for python_module in fcntl math _json _posixsubprocess select _struct zlib; do' "$hook" || { echo "Python extension-module closure is missing." >&2; exit 1; }
-grep -qF "copy_exec \"\$python_file\" \"\$python_file\"" "$hook" || { echo "Python extension modules are not copied with dependencies." >&2; exit 1; }
+grep -qF "/usr/bin/python3 -I -S - \"\$python_module\" \"\$python_dir\"" "$hook" || { echo "Python extension discovery must use isolated target Python." >&2; exit 1; }
+grep -qF 'importlib.util.find_spec' "$hook" || { echo "Python extension discovery must require find_spec." >&2; exit 1; }
+grep -qF 'importlib.machinery.ExtensionFileLoader' "$hook" || { echo "Python extension discovery must require an extension loader." >&2; exit 1; }
+grep -qF 'importlib.machinery.EXTENSION_SUFFIXES' "$hook" || { echo "Python extension discovery must require an exact extension suffix." >&2; exit 1; }
+grep -qF 'or origin.is_symlink()' "$hook" || { echo "Python extension discovery must reject symlinked origins." >&2; exit 1; }
+grep -qF 'or origin.parent != dynload' "$hook" || { echo "Python extension discovery must keep origins in lib-dynload." >&2; exit 1; }
+grep -qF 'or origin.name not in {module_name + suffix for suffix in importlib.machinery.EXTENSION_SUFFIXES}' "$hook" || { echo "Python extension discovery must reject wrong suffixes." >&2; exit 1; }
+grep -qF "copy_exec \"\$python_origin\" \"\$python_origin\"" "$hook" || { echo "Validated Python extensions are not copied with dependencies." >&2; exit 1; }
+! grep -qF "for python_file in \"\$python_dir/lib-dynload" "$hook" || { echo "Python extension discovery must not use a glob fallback." >&2; exit 1; }
 grep -qF "\"\$python_dir/_collections_abc.py\"" "$hook" || { echo "Python 3.13 _collections_abc.py closure path is missing." >&2; exit 1; }
 ! grep -qF "\"\$python_dir/collections/abc.py\"" "$hook" || { echo "Removed Python 3.13 collections/abc.py path is still required." >&2; exit 1; }
 grep -qF 'missing Python target file:' "$hook" || { echo "Missing Python target-file diagnostic is absent." >&2; exit 1; }
-grep -qF 'missing Python target module:' "$hook" || { echo "Missing Python target-module diagnostic is absent." >&2; exit 1; }
+grep -qF 'rejected Python target module:' "$hook" || { echo "Rejected Python target-module diagnostic is absent." >&2; exit 1; }
 
 [[ -f "$python313_files" ]] || { echo "Missing Python 3.13 initramfs closure fixture." >&2; exit 1; }
 [[ -f "$python313_fixture/imports.py" ]] || { echo "Missing Python 3.13 closure import fixture." >&2; exit 1; }
@@ -181,23 +189,21 @@ run_python313_closure_import_test() {
     PYTHONPATH="$python313_fixture" PYTHONDONTWRITEBYTECODE=1 python3 -S "$python313_fixture/imports.py"
     printf 'Orange Python 3.13 closure import fixture passed\n'
 }
-
 run_python313_closure_hook_test() {
     local work
     local python_dir
     local hook_functions
     local copy_log
     local fixture_hook
-    local missing_module_python
+    local python_runner
     local python_file
-    local python_module
+    local extension
 
     work="$(mktemp -d)"
     python_dir="$work/usr/lib/python3.13"
     hook_functions="$work/hook-functions"
     copy_log="$work/copy.log"
     fixture_hook="$work/hook"
-    missing_module_python="$work/python3-failing"
     mkdir -p "$python_dir/lib-dynload"
     cat > "$hook_functions" <<'EOF'
 copy_exec() { printf 'copy_exec %s %s\n' "$1" "$2" >> "$OCTESSERA_COPY_LOG"; }
@@ -209,22 +215,30 @@ EOF
         mkdir -p "$python_dir/$(dirname "$python_file")"
         : > "$python_dir/$python_file"
     done < "$python313_files"
-    for python_module in fcntl math _json _posixsubprocess select _struct zlib; do
-        : > "$python_dir/lib-dynload/${python_module}.so"
-    done
+    extension="$python_dir/lib-dynload/_json$(python3 -c 'import importlib.machinery; print(importlib.machinery.EXTENSION_SUFFIXES[0])')"
+    : > "$extension"
+    make_python_runner() {
+        python_runner="$1"
+        cat > "$python_runner" <<'EOF'
+#!/bin/sh
+exec python3 -c 'import importlib,importlib.machinery as m,importlib.util as u,os,sys;from pathlib import Path;mode=os.environ["OCTESSERA_PYTHON_FIXTURE_MODE"];module,python_dir=sys.argv[-2:];dynload=Path(python_dir)/"lib-dynload";suffix=m.EXTENSION_SUFFIXES[0];outside=Path(python_dir).parent.parent/"outside"/(module+suffix);origin=outside if mode=="outside" else dynload/(module+(".cpython-999-fixture.so" if mode=="wrong-suffix" else suffix));outside.parent.mkdir(parents=True,exist_ok=True);outside.touch();Path(origin).parent.mkdir(parents=True,exist_ok=True);Path(origin).unlink(missing_ok=True) if mode=="symlink" else Path(origin).touch();Path(origin).symlink_to(outside) if mode=="symlink" else None;spec=None if mode=="missing" else m.ModuleSpec(module,None,origin="built-in") if mode=="built-in" else m.ModuleSpec(module,m.ExtensionFileLoader(module,str(origin)),origin=str(origin));importlib.import_module=lambda _:None;u.find_spec=lambda _:spec;sys.argv=[sys.argv[0],module,python_dir];exec(compile(sys.stdin.read(),"<fixture-resolver>","exec"),{"__name__":"__main__"})' "$@"
+EOF
+        chmod 0755 "$python_runner"
+    }
     make_fixture_hook() {
         local output="$1"
         local python_source="$2"
         sed \
             -e "s|^\. /usr/share/initramfs-tools/hook-functions$|. \"$hook_functions\"|" \
             -e "s|copy_exec /usr/bin/python3 /usr/bin/python3|copy_exec \"$python_source\" /usr/bin/python3|" \
-            -e "s|/usr/bin/python3 -c|\"$python_source\" -c|" \
+            -e "s|/usr/bin/python3 -I -S|\"$python_source\" -I -S|" \
             -e "s|^for python_dir in /usr/lib/python3\.\*; do$|for python_dir in \"$python_dir\"; do|" \
             "$hook" > "$output"
         chmod 0755 "$output"
     }
-    make_fixture_hook "$fixture_hook" "$(command -v python3)"
-    if ! OCTESSERA_COPY_LOG="$copy_log" sh "$fixture_hook" >"$work/hook.out" 2>&1; then
+    make_python_runner "$work/python3-built-in"
+    make_fixture_hook "$fixture_hook" "$work/python3-built-in"
+    if ! OCTESSERA_PYTHON_FIXTURE_MODE=built-in OCTESSERA_COPY_LOG="$copy_log" sh "$fixture_hook" >"$work/hook.out" 2>&1; then
         cat "$work/hook.out" >&2
         rm -rf "$work"
         exit 1
@@ -234,6 +248,7 @@ EOF
         rm -rf "$work"
         exit 1
     }
+    ! grep -qF 'lib-dynload' "$copy_log" || { echo "Built-in Python fixture copied an extension." >&2; rm -rf "$work"; exit 1; }
     if grep -qF 'collections/abc.py' "$copy_log"; then
         echo "Python 3.13 fixture hook copied the removed collections/abc.py path." >&2
         rm -rf "$work"
@@ -254,21 +269,25 @@ EOF
     }
     : > "$python_dir/_collections_abc.py"
 
-    printf '%s\n' '#!/bin/sh' 'exit 1' > "$missing_module_python"
-    chmod 0755 "$missing_module_python"
-    rm "$python_dir/lib-dynload/zlib.so"
-    make_fixture_hook "$work/missing-module-hook" "$missing_module_python"
-    if OCTESSERA_COPY_LOG="$copy_log" sh "$work/missing-module-hook" >"$work/missing-module.out" 2>&1; then
-        echo "Python 3.13 fixture hook accepted a missing target module." >&2
+    make_python_runner "$work/python3-extension"
+    make_fixture_hook "$work/extension-hook" "$work/python3-extension"
+    : > "$copy_log"
+    if ! OCTESSERA_PYTHON_FIXTURE_MODE=extension OCTESSERA_COPY_LOG="$copy_log" sh "$work/extension-hook" >"$work/extension.out" 2>&1; then
+        cat "$work/extension.out" >&2
         rm -rf "$work"
         exit 1
     fi
-    grep -qF 'missing Python target module: zlib' "$work/missing-module.out" || {
-        echo "Missing target-module diagnostic did not name the Python module." >&2
-        cat "$work/missing-module.out" >&2
-        rm -rf "$work"
-        exit 1
-    }
+    grep -qF "copy_exec $extension $extension" "$copy_log" || { echo "In-tree Python extension fixture was not copied." >&2; rm -rf "$work"; exit 1; }
+    for rejection in missing outside symlink wrong-suffix; do
+        make_python_runner "$work/python3-$rejection"
+        make_fixture_hook "$work/$rejection-hook" "$work/python3-$rejection"
+        if OCTESSERA_PYTHON_FIXTURE_MODE="$rejection" OCTESSERA_COPY_LOG="$copy_log" sh "$work/$rejection-hook" >"$work/$rejection.out" 2>&1; then
+            echo "Python $rejection-origin fixture was accepted." >&2
+            rm -rf "$work"
+            exit 1
+        fi
+        grep -qF 'rejected Python target module: fcntl' "$work/$rejection.out" || { echo "Python $rejection-origin rejection was not reported." >&2; rm -rf "$work"; exit 1; }
+    done
     rm -rf "$work"
     printf 'Orange Python 3.13 closure hook fixture passed\n'
 }
@@ -290,7 +309,6 @@ run_extracted_runtime_test() {
     local fake_gpioset
     local python_stdlib
     local python_file
-    local python_module
     local runtime_output
     local runtime_status
     local kernel_version
@@ -360,13 +378,6 @@ run_extracted_runtime_test() {
     cmp "$wordmark_source" "$extracted/usr/share/octessera/oled/octessera-wordmark.svg"
 
     python_stdlib="$(python3 -c 'import sysconfig; print(sysconfig.get_path("stdlib"))')"
-    for python_module in fcntl math _json _posixsubprocess select _struct zlib; do
-        for python_file in "$python_stdlib/lib-dynload/${python_module}"*.so; do
-            if [[ -f "$python_file" ]]; then
-                [[ -f "$extracted$python_file" ]] || { echo "Extracted initramfs is missing Python extension $python_file." >&2; rm -rf "$work"; exit 1; }
-            fi
-        done
-    done
     for python_file in "$python_stdlib/json/__init__.py" "$python_stdlib/json/decoder.py" "$python_stdlib/json/encoder.py" "$python_stdlib/json/scanner.py"; do
         [[ -f "$extracted$python_file" ]] || { echo "Extracted initramfs is missing Python JSON closure $python_file." >&2; rm -rf "$work"; exit 1; }
     done

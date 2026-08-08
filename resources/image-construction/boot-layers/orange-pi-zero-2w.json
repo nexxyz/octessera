@@ -26,7 +26,7 @@
     {"path": "userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-overlay-validation.sh", "sha256": "667823491f46945e25c98404198dc3f62e8a4a16cc255b2df3d4f62b4ea0ad8d", "size": 1837, "mode": 493},
     {"path": "userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo", "sha256": "77478d2b1a9bc04a0b719a3f5faebd0cfdd18df061c1b54073433d927030462f", "size": 15934, "mode": 493},
     {"path": "userpatches/overlay/usr/local/sbin/octessera-orange-oled-handoff.py", "sha256": "55e02e6378a2f5d63b2be57a78e7b9f884a2661538e4d3cef6bc7582cf1072e6", "size": 12764, "mode": 420},
-    {"path": "userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash", "sha256": "a2b9175bc86f072397321677efe57cb5fccbf65f3a7a265682f0a398006ed9eb", "size": 3581, "mode": 493},
+    {"path": "userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash", "sha256": "b23188fcc114b2a5d2acd5dc20781b98675498c8349d476cfd1caee1eb40de51", "size": 4512, "mode": 493},
     {"path": "userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash", "sha256": "58629a3eebfb169a2e1db2c4c2d1bcba57ca4974fce4aae7ccf75dc569441975", "size": 2739, "mode": 493},
     {"path": "userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service", "sha256": "57f0307b4504dc28192e99a1e0310b09ddade92c93b81cc65cb2ec45acc66fd9", "size": 1035, "mode": 420},
     {"path": "userpatches/overlay/etc/systemd/system/octessera-orange-oled-shutdown.service", "sha256": "eed2a528507a4477ffd44dff5598eb18342b3191c8730d45e906b2587144ab6b", "size": 555, "mode": 420},
@@ -34,7 +34,7 @@
     {"path": "userpatches/overlay/etc/systemd/system/octessera.service", "sha256": "1b8b6e725a11abefb21e0da8f8393a54f74c4c7370b1ef15a5a03e8ba1d7c0df", "size": 1122, "mode": 420},
     {"path": "userpatches/overlay/usr/local/sbin/octessera-orange-oled-suspend", "sha256": "67f63783271fb80f7c3f2c8664090fc3304e0c53747b5fed357a6a8bb79630eb", "size": 9620, "mode": 420},
     {"path": "tools/armbian-image/verify-orange-image.py", "sha256": "06461d98542f4aba239870ffef3acf06938aa979468bee92a31fdc562b5fc7bb", "size": 9340, "mode": 420},
-    {"path": "tools/armbian-image/orange_boot_contract.py", "sha256": "7ce8ce76c105f05151c6c383a0ad5685f17ac170b2a0ee8b7d1482b68a50b2e8", "size": 30604, "mode": 420},
+    {"path": "tools/armbian-image/orange_boot_contract.py", "sha256": "57c0d8e05dd785576f2202a62c3c8fbd8da6e85e4081470b2786357a99c0e6b5", "size": 30888, "mode": 420},
     {"path": "tools/armbian-image/orange_boot_inventory.py", "sha256": "3ff06d63793b44e6c08fb4462a954ca29034431b8bcff902853a817b73ecdae4", "size": 2801, "mode": 420},
     {"path": "userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-mark.svg", "sha256": "e4a8488ce125e61054c895cb4db49db80a5fe9ca710e33ca23d4e33407a78117", "size": 638, "mode": 420},
     {"path": "userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-wordmark.svg", "sha256": "ff136b332cf364f997b8ff103c8fa8b8bef3189aa4fcd7c62d7ccea88f9deec9", "size": 1622, "mode": 420}
@@ -106,7 +106,7 @@
     "python_files": [
       "site.py", "_sitebuiltins.py", "abc.py", "codecs.py", "encodings/__init__.py", "encodings/aliases.py", "encodings/utf_8.py", "io.py", "os.py", "re/__init__.py", "re/_casefix.py", "re/_compiler.py", "re/_constants.py", "re/_parser.py", "_collections_abc.py", "genericpath.py", "posixpath.py", "enum.py", "types.py", "functools.py", "collections/__init__.py", "keyword.py", "operator.py", "reprlib.py", "copyreg.py", "stat.py", "signal.py", "struct.py", "subprocess.py", "locale.py", "threading.py", "_weakrefset.py", "warnings.py", "contextlib.py", "selectors.py", "json/__init__.py", "json/decoder.py", "json/encoder.py", "json/scanner.py", "importlib/__init__.py", "importlib/_abc.py", "importlib/machinery.py", "importlib/util.py"
     ],
-    "python_extensions": ["fcntl", "math", "_json", "_posixsubprocess", "select", "_struct", "zlib"],
+    "required_python_modules": ["fcntl", "math", "_json", "_posixsubprocess", "select", "_struct", "zlib"],
     "installed_output_matches": [
       {"initramfs_path": "scripts/init-premount/octessera-orange-boot-splash", "installed_path": "etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash"},
       {"initramfs_path": "usr/local/sbin/octessera-orange-oled-logo", "installed_path": "usr/local/sbin/octessera-orange-oled-logo"},
