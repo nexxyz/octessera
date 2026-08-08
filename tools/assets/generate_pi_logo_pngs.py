@@ -8,6 +8,8 @@ import zlib
 from dataclasses import dataclass
 from pathlib import Path
 
+from generated_image_equivalence import images_equivalent
+
 
 DEFAULT_ROOT = Path(__file__).resolve().parents[2]
 SIZE = 128
@@ -343,10 +345,24 @@ def check_assets(root: Path) -> int:
             if not committed.exists():
                 print(f"generated asset is missing: {relative}", file=sys.stderr)
                 failed = 1
-            elif path.read_bytes() != committed.read_bytes():
+            elif not images_equivalent(path, committed, path.suffix[1:]):
                 print(f"generated asset is stale: {relative}. Run: corepack pnpm run assets:generate", file=sys.stderr)
                 failed = 1
         return failed
+
+
+def write_changed_assets(root: Path) -> None:
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as temporary:
+        generated = generate_assets(root, Path(temporary))
+        for path in generated:
+            relative = path.relative_to(temporary)
+            destination = root / relative
+            kind = path.suffix[1:]
+            if not destination.exists() or not images_equivalent(path, destination, kind):
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(path.read_bytes())
 
 
 def main() -> None:
@@ -367,7 +383,7 @@ def main() -> None:
             raise SystemExit(2)
     if check:
         raise SystemExit(check_assets(root))
-    generate_assets(root, root)
+    write_changed_assets(root)
 
 
 if __name__ == "__main__":

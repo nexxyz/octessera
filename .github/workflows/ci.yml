@@ -336,6 +336,8 @@ jobs:
         run: shellcheck tools/quality/repository-integrity.sh tools/quality/test-repository-integrity.sh
       - name: Run repository integrity fixtures
         run: bash tools/quality/test-repository-integrity.sh
+      - name: Test generated image equivalence
+        run: python3 -m unittest tools/assets/test_generated_image_equivalence.py
       - name: Run repository integrity gate
         run: bash tools/quality/repository-integrity.sh
 
