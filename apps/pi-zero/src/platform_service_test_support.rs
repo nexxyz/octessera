@@ -18,6 +18,7 @@ impl PiPlatformService {
         Ok(completed_rx)
     }
 
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub(crate) fn enqueue_test_gate(&self) -> Result<(Receiver<()>, SyncSender<()>), String> {
         let (entered_tx, entered_rx) = mpsc::sync_channel(0);
         let (release_tx, release_rx) = mpsc::sync_channel(0);

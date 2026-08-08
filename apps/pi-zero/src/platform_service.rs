@@ -190,6 +190,7 @@ pub enum PlatformJobKind {
         completed: SyncSender<()>,
     },
     #[cfg(test)]
+    #[cfg_attr(all(test, feature = "hardware-orange-pi-zero-2w"), allow(dead_code))]
     TestGate {
         entered: SyncSender<()>,
         release: Receiver<()>,

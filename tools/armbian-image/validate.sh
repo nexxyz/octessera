@@ -540,6 +540,14 @@ expected_udev_rule=$'KERNEL=="i2c-2", GROUP="octessera-runtime", MODE="0660"\nKE
 ! grep -qE '^(PrivateDevices|DevicePolicy)=' "$root/userpatches/overlay/etc/systemd/system/octessera.service" || { echo "Orange runtime service must not block /dev hardware." >&2; exit 1; }
 grep -qF 'default: preset-firstrun octessera_midi octessera_image_sanitize' "$root/.github/workflows/armbian-image.yml" || { echo "Orange image workflow default must include mandatory extensions." >&2; exit 1; }
 [[ "$(grep -cF "extensions: \${{ inputs.extensions }}" "$root/.github/workflows/armbian-image.yml")" == 2 ]] || { echo "Both Orange image build invocations must preserve caller extensions." >&2; exit 1; }
+action="$root/.github/actions/build-armbian-image/action.yml"
+proof_step="$(awk '
+  $0 == "    - name: Prove final Orange image against exact packages" { in_step = 1 }
+  in_step && $0 == "    - name: Clean generated legal staging from disposable output" { exit }
+  in_step { print }
+' "$action")"
+[[ "$(grep -cF "OCTESSERA_BOOT_PROOF_MODE: \${{ inputs.boot_proof_mode }}" <<< "$proof_step")" == 1 ]] || { echo "Orange proof step must bind boot proof mode directly from its action input." >&2; exit 1; }
+[[ "$(grep -cF "OCTESSERA_CONSTRUCTION_CONTRACT: \${{ inputs.construction_contract }}" <<< "$proof_step")" == 1 ]] || { echo "Orange proof step must bind construction contract directly from its action input." >&2; exit 1; }
 grep -qF 'resolve-armbian-extensions.sh' "$root/.github/actions/build-armbian-image/action.yml" || { echo "Armbian build action must resolve the mandatory extension." >&2; exit 1; }
 grep -qF "ENABLE_EXTENSIONS=\"\$effective_extensions\"" "$root/.github/actions/build-armbian-image/action.yml" || { echo "Effective Orange build options must include the mandatory extension." >&2; exit 1; }
 grep -qF 'default: octessera_midi octessera_image_sanitize' "$root/.github/actions/build-armbian-image/action.yml" || { echo "Armbian build action default must include mandatory extensions." >&2; exit 1; }
