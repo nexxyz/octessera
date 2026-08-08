@@ -296,6 +296,8 @@ runs:
       shell: bash
       env:
         OCTESSERA_IMAGE_KIND: ${{ inputs.image_kind }}
+        OCTESSERA_BOOT_PROOF_MODE: ${{ inputs.boot_proof_mode }}
+        OCTESSERA_CONSTRUCTION_CONTRACT: ${{ inputs.construction_contract }}
       run: |
         set -euo pipefail
         custom_root="$(cd "$GITHUB_ACTION_PATH/../../.." && pwd)"
