@@ -18,6 +18,7 @@ impl PiPlatformService {
         Ok(completed_rx)
     }
 
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub(crate) fn disconnect_results_for_test(&mut self) {
         let (_, replacement) = mpsc::sync_channel(1);
         let results = std::mem::replace(&mut self.results, replacement);

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2329
+# shellcheck disable=SC2317,SC2329
 # Deterministic repository integrity gate with four independently addressable
 # check classes. Runs offline and exits non-zero if any enabled class fails.
 set -euo pipefail
