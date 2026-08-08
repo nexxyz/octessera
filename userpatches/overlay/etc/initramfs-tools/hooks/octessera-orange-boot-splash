@@ -34,18 +34,52 @@ copy_python_file() {
 
 copy_python_extension() {
   python_module="$1"
-  python_extension_found=0
-  for python_file in "$python_dir/lib-dynload/${python_module}"*.so; do
-    if [ -f "$python_file" ]; then
-      python_extension_found=1
-      copy_exec "$python_file" "$python_file"
-    fi
-  done
-  if [ "$python_extension_found" -eq 0 ]; then
-    if ! /usr/bin/python3 -c "import $python_module" >/dev/null 2>&1; then
-      echo "Orange initramfs hook missing Python target module: $python_module" >&2
-      exit 1
-    fi
+  if ! python_origin="$(/usr/bin/python3 -I -S - "$python_module" "$python_dir" <<'PY'
+import importlib
+import importlib.machinery
+import importlib.util
+from pathlib import Path
+import sys
+
+module_name = sys.argv[1]
+python_dir = Path(sys.argv[2])
+try:
+    importlib.import_module(module_name)
+    spec = importlib.util.find_spec(module_name)
+except (ImportError, OSError):
+    raise SystemExit(1)
+if spec is None or spec.origin is None:
+    raise SystemExit(1)
+if spec.origin == "built-in":
+    print("built-in")
+    raise SystemExit(0)
+if not isinstance(spec.loader, importlib.machinery.ExtensionFileLoader):
+    raise SystemExit(1)
+origin = Path(spec.origin)
+dynload = python_dir / "lib-dynload"
+try:
+    resolved_origin = origin.resolve(strict=True)
+    resolved_dynload = dynload.resolve(strict=True)
+except OSError:
+    raise SystemExit(1)
+if (
+    not origin.is_absolute()
+    or origin.is_symlink()
+    or not origin.is_file()
+    or resolved_origin != origin
+    or resolved_dynload != dynload
+    or origin.parent != dynload
+    or origin.name not in {module_name + suffix for suffix in importlib.machinery.EXTENSION_SUFFIXES}
+):
+    raise SystemExit(1)
+print(origin)
+PY
+)"; then
+    echo "Orange initramfs hook rejected Python target module: $python_module" >&2
+    exit 1
+  fi
+  if [ "$python_origin" != "built-in" ]; then
+    copy_exec "$python_origin" "$python_origin"
   fi
 }
 
