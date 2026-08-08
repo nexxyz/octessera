@@ -189,6 +189,9 @@ if grep -qE '^CONFIG_RT_GROUP_SCHED=' "$config"; then
   echo "Packaged kernel config must not enable or modularize RT_GROUP_SCHED." >&2
   exit 1
 fi
+assert_config_line_once 'CONFIG_SPI_SUN6I=y'
+assert_config_line_once 'CONFIG_SPI_SPIDEV=y'
+assert_config_line_once 'CONFIG_PINCTRL_SUNXI=y'
 assert_config_line_once 'CONFIG_SND_SEQUENCER=m'
 assert_config_line_once 'CONFIG_SND_RAWMIDI=m'
 assert_config_line_once 'CONFIG_SND_USB_AUDIO=m'

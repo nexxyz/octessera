@@ -34,6 +34,7 @@ NATIVE_IMAGE = f"{IMAGE_NAME}_{REVISION}_arm64__fixture.deb"
 NATIVE_DTB = f"{DTB_NAME}_{REVISION}_arm64__fixture.deb"
 DTB_RELATIVE = f"usr/lib/linux-image-{RELEASE}/allwinner/sun50i-h618-orangepi-zero2w.dtb"
 MODULE_RELATIVE = f"lib/modules/{RELEASE}/kernel/drivers/usb/gadget/function/usb_f_midi.ko"
+BUILTIN_CONFIG_LINES = ("CONFIG_SPI_SUN6I=y", "CONFIG_SPI_SPIDEV=y", "CONFIG_PINCTRL_SUNXI=y")
 
 
 def sha256(path: Path) -> str:
@@ -63,8 +64,6 @@ def make_cpio_initramfs(work: Path, source_root: Path, stale: bool = False) -> b
             shutil.copyfile(source_root / item["installed_path"], target)
         for tool in CONSTRUCTION["selected_initramfs"]["required_tools"]:
             write(source / tool, b"synthetic-tool\n")
-        for module in CONSTRUCTION["selected_initramfs"]["required_kernel_modules"]:
-            write(source / f"lib/modules/{RELEASE}/kernel/drivers/octessera/{module}.ko", b"synthetic-kernel-module")
         write(source / "usr/bin/python3", b"synthetic-python\n")
         for relative in CONSTRUCTION["selected_initramfs"]["python_files"]:
             write(source / f"usr/lib/python3.13/{relative}", b"synthetic-python-closure\n")
@@ -91,7 +90,7 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
     )
     write(dtb_root / "DEBIAN/control", f"Package: {DTB_NAME}\nVersion: {REVISION}\nArchitecture: arm64\n")
     kernel = b"synthetic-orange-kernel-" + RELEASE.encode()
-    config = b"# CONFIG_RT_GROUP_SCHED is not set\nCONFIG_SND_SEQUENCER=m\n"
+    config = b"# CONFIG_RT_GROUP_SCHED is not set\n" + b"\n".join(line.encode() for line in BUILTIN_CONFIG_LINES) + b"\nCONFIG_SND_SEQUENCER=m\n"
     dtb = b"\xd0\x0d\xfe\xedsynthetic-zero2w-dtb"
     module = b"\x7fELF" + b"\x02\x01\x01" + bytes(11) + struct.pack("<H", 183) + b"vermagic=" + RELEASE.encode() + b" SMP\ninterface_string\ninterface_string\nf_midi_opts_attr_interface_string\nmidi_interface_string\n"
     write(image_root / f"usr/lib/linux-image-{RELEASE}/Image", kernel)
@@ -126,8 +125,6 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
     }
     for installed_path, source_path in phase5_outputs.items():
         write(final_root / installed_path, (REPOSITORY / source_path).read_bytes())
-    for phase_module in CONSTRUCTION["selected_initramfs"]["required_kernel_modules"]:
-        write(final_root / f"lib/modules/{RELEASE}/kernel/drivers/octessera/{phase_module}.ko", b"synthetic-kernel-module")
     write(final_root / "etc/systemd/system/octessera-orange-boot-splash.service", (REPOSITORY / "userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service").read_bytes())
     write(final_root / "etc/systemd/system/octessera-orange-oled-shutdown.service", (REPOSITORY / "userpatches/overlay/etc/systemd/system/octessera-orange-oled-shutdown.service").read_bytes())
     write(final_root / "etc/systemd/system/octessera-orange-oled-suspend.service", (REPOSITORY / "userpatches/overlay/etc/systemd/system/octessera-orange-oled-suspend.service").read_bytes())
@@ -245,6 +242,41 @@ def without_option(args: list[str], option: str) -> list[str]:
     return [*args[:index], *args[index + 2 :]]
 
 
+def replace_option(args: list[str], option: str, value: Path) -> list[str]:
+    result = list(args)
+    result[result.index(option) + 1] = str(value)
+    return result
+
+
+def make_missing_builtin_fixture(work: Path, root: Path, image: Path, evidence: Path, provenance: Path) -> tuple[Path, Path, Path, Path]:
+    negative_root = work / "negative-missing-builtin"
+    shutil.copytree(root, negative_root, symlinks=True)
+    config_path = negative_root / f"boot/config-{RELEASE}"
+    config = config_path.read_bytes().replace(b"CONFIG_SPI_SPIDEV=y\n", b"", 1)
+    write(config_path, config)
+    image_root = work / "negative-image-root"
+    subprocess.run(["dpkg-deb", "-R", str(image), str(image_root)], check=True, capture_output=True)
+    write(image_root / f"boot/config-{RELEASE}", config)
+    negative_image = work / "negative-packages" / NATIVE_IMAGE
+    negative_image.parent.mkdir()
+    subprocess.run(["dpkg-deb", "--build", str(image_root), str(negative_image)], check=True, capture_output=True)
+    negative_evidence = work / "negative-evidence.env"
+    evidence_lines = []
+    for line in evidence.read_text().splitlines():
+        key, _, value = line.partition("=")
+        value = {"image_package_sha256": sha256(negative_image), "final_config_sha256": hashlib.sha256(config).hexdigest()}.get(key, value)
+        evidence_lines.append(f"{key}={value}")
+    negative_evidence.write_text("\n".join(evidence_lines) + "\n")
+    negative_provenance = work / "negative-provenance.txt"
+    provenance_lines = []
+    for line in provenance.read_text().splitlines():
+        key, _, value = line.partition("=")
+        value = {"image_package_sha256": sha256(negative_image), "evidence_sha256": sha256(negative_evidence)}.get(key, value)
+        provenance_lines.append(f"{key}={value}")
+    negative_provenance.write_text("\n".join(provenance_lines) + "\n")
+    return negative_root, negative_image, negative_evidence, negative_provenance
+
+
 def main() -> None:
     original_run = orange_image_mount._run
 
@@ -278,6 +310,13 @@ def main() -> None:
         root, image, dtb, evidence, provenance = make_fixture(work)
         args = verifier_args(root, image, dtb, evidence, provenance)
         run_proof(args, True)
+        negative_root, negative_image, negative_evidence, negative_provenance = make_missing_builtin_fixture(work, root, image, evidence, provenance)
+        negative_args = args
+        for option, value in (("--root", negative_root), ("--linux-image", negative_image), ("--evidence", negative_evidence), ("--provenance", negative_provenance)):
+            negative_args = replace_option(negative_args, option, value)
+        negative_result = subprocess.run(negative_args, capture_output=True, text=True)
+        if negative_result.returncode == 0 or "CONFIG_SPI_SPIDEV=y" not in negative_result.stderr:
+            raise AssertionError(negative_result.stdout + negative_result.stderr)
 
         def reject_terminal_fixture(name: str, mutate: object) -> None:
             negative = work / f"negative-terminal-{name}"

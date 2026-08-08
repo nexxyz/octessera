@@ -25,12 +25,6 @@ def verify_selected_initramfs(root: Path, initramfs: Path, contract: dict[str, A
         source = root / item["installed_path"]
         require(source.is_file() and not source.is_symlink(), f"installed Phase 5 output is missing: {source}")
         require(entries[item["initramfs_path"]][1] == source.read_bytes(), f"selected initramfs bytes differ: {item['initramfs_path']}")
-    for module in requirements["required_kernel_modules"]:
-        matches = _matching(entries, rf"lib/modules/[^/]+/.*/{re.escape(module)}\.ko(?:\..+)?")
-        require(len(matches) == 1, f"selected initramfs does not contain exactly one {module} module")
-        installed = sorted(root.rglob(f"{module}.ko*"))
-        require(len(installed) == 1, f"installed constructor output does not contain exactly one {module} module")
-        require(entries[matches[0]][1] == installed[0].read_bytes(), f"selected initramfs module differs: {module}")
     for tool in requirements["required_tools"]:
         require(tool in entries, f"selected initramfs is missing required tool: {tool}")
     for relative in requirements["python_files"]:

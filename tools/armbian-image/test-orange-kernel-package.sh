@@ -23,7 +23,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-good_config=$'# CONFIG_RT_GROUP_SCHED is not set\nCONFIG_SND_SEQUENCER=m\nCONFIG_SND_RAWMIDI=m\nCONFIG_SND_USB_AUDIO=m\nCONFIG_SYNTHETIC_FIXTURE=y'
+good_config=$'# CONFIG_RT_GROUP_SCHED is not set\nCONFIG_SPI_SUN6I=y\nCONFIG_SPI_SPIDEV=y\nCONFIG_PINCTRL_SUNXI=y\nCONFIG_SND_SEQUENCER=m\nCONFIG_SND_RAWMIDI=m\nCONFIG_SND_USB_AUDIO=m\nCONFIG_SYNTHETIC_FIXTURE=y'
 good_config_sha256="$(printf '%s\n' "$good_config" | sha256sum | awk '{print $1}')"
 source_config_sha256="$(python3 -c 'import json; print(json.load(open("tools/kernel-patches/orange-midi-interface-manifest.json"))["build_frameworks"]["armbian"]["config_base"]["sha256"])')"
 
@@ -177,6 +177,18 @@ run_validator() {
 
 reject_validator() {
   local name="$1"
+  local config_path
+  local expected_hash
+  config_path="$(find "$work/$name-image/boot" -maxdepth 1 -type f -name 'config-*' -print -quit)"
+  expected_hash="$(sha256sum -- "$config_path" | awk '{print $1}')"
+  if run_validator "$name" "$expected_hash" >"$work/$name.out" 2>&1; then
+    echo "Orange kernel package validator accepted $name." >&2
+    exit 1
+  fi
+}
+
+reject_hash_validator() {
+  local name="$1"
   if run_validator "$name" "$good_config_sha256" >"$work/$name.out" 2>&1; then
     echo "Orange kernel package validator accepted $name." >&2
     exit 1
@@ -273,9 +285,15 @@ reject_validator bad-config-name
 make_pair bad-config-hash "$good_config"
 printf '%s\n' "$good_config" CONFIG_EXTRA=y > "$work/bad-config-hash-image/boot/config-6.18.38-current-sunxi64"
 dpkg-deb --build "$work/bad-config-hash-image" "$(image_package bad-config-hash)" >/dev/null
-reject_validator bad-config-hash
-make_pair bad-config-line $'# CONFIG_RT_GROUP_SCHED is not set\nCONFIG_SND_SEQUENCER=y\nCONFIG_SND_RAWMIDI=m\nCONFIG_SND_USB_AUDIO=m'
+reject_hash_validator bad-config-hash
+make_pair bad-config-line $'# CONFIG_RT_GROUP_SCHED is not set\nCONFIG_SPI_SUN6I=y\nCONFIG_SPI_SPIDEV=y\nCONFIG_PINCTRL_SUNXI=y\nCONFIG_SND_SEQUENCER=y\nCONFIG_SND_RAWMIDI=m\nCONFIG_SND_USB_AUDIO=m'
 reject_validator bad-config-line
+make_pair missing-spi-sun6i "$(printf '%s\n' "$good_config" | grep -vFx 'CONFIG_SPI_SUN6I=y')"
+reject_validator missing-spi-sun6i
+make_pair missing-spidev "$(printf '%s\n' "$good_config" | grep -vFx 'CONFIG_SPI_SPIDEV=y')"
+reject_validator missing-spidev
+make_pair missing-pinctrl-sunxi "$(printf '%s\n' "$good_config" | grep -vFx 'CONFIG_PINCTRL_SUNXI=y')"
+reject_validator missing-pinctrl-sunxi
 make_pair bad-module "$good_config" 26.8.0-trunk.417 26.8.0-trunk.417 arm64 linux-6.18.38 6.18.38-current-sunxi64 6.18.38-current-sunxi64 good missing
 reject_validator bad-module
 make_pair bad-module-elf "$good_config" 26.8.0-trunk.417 26.8.0-trunk.417 arm64 linux-6.18.38 6.18.38-current-sunxi64 6.18.38-current-sunxi64 good plain "6.18.38-current-sunxi64 SMP" interface_string linux-image-current-sunxi64 linux-dtb-current-sunxi64 fixture invalid
