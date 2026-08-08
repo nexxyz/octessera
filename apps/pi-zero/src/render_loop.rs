@@ -19,7 +19,7 @@ use std::time::{Duration, Instant};
 
 const SHUTDOWN_ACK_TIMEOUT: Duration = Duration::from_millis(750);
 const INITIAL_RENDER_ACK_TIMEOUT: Duration = Duration::from_millis(750);
-#[cfg_attr(not(unix), allow(dead_code))]
+#[cfg_attr(not(feature = "hardware-orange-pi-zero-2w"), allow(dead_code))]
 const OWNERSHIP_ACK_TIMEOUT: Duration = Duration::from_secs(2);
 #[derive(Clone)]
 pub struct RenderWorker {
@@ -103,7 +103,7 @@ impl RenderWorker {
             .map_err(|error| format!("OLED failure acknowledgement failed: {error}"))?
     }
 
-    #[cfg_attr(not(unix), allow(dead_code))]
+    #[cfg_attr(not(feature = "hardware-orange-pi-zero-2w"), allow(dead_code))]
     pub(crate) fn ownership_stage(&self, stage: OledOwnershipStage) -> Result<(), String> {
         let (ack_tx, ack_rx) = mpsc::channel();
         let cancellation = Arc::new(AtomicBool::new(false));
@@ -395,6 +395,7 @@ fn display_off_ack(result: Result<(), String>) -> Result<(), String> {
     result.map_err(|error| format!("OLED display-off failed: {error}"))
 }
 
+#[cfg_attr(not(feature = "hardware-orange-pi-zero-2w"), allow(dead_code))]
 fn cancel_ownership(cancellation: &AtomicBool) {
     cancellation.store(true, Ordering::Release);
 }

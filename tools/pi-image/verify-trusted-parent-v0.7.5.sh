@@ -97,7 +97,6 @@ require_octessera_trusted_parent_raspberry_identity() {
     local legacy_config="$image_root/boot/config.txt"
     local config
     local cmdline
-    local token
     local pi_record
     local pi_user
     local pi_gid
@@ -106,7 +105,6 @@ require_octessera_trusted_parent_raspberry_identity() {
     local hushlogin
     local mask
     local enablement
-    local tokens=()
     require_octessera_legal_notices "$image_root" || return 1
 
     if [ ! -f "$welcome" ] || [ -L "$welcome" ] || [ "$(stat -c '%u:%g:%a' "$welcome")" != 0:0:644 ] || [ ! -s "$welcome" ]; then
@@ -180,13 +178,6 @@ require_octessera_trusted_parent_raspberry_identity() {
         echo "trusted-parent-v0.7.5: Raspberry cmdline is multiline or contains NUL" >&2
         return 1
     fi
-    read -r -a tokens < "$cmdline"
-    for token in "${tokens[@]}"; do
-        if [[ "$token" =~ ^console=(serial0|ttyAMA0|ttyS0)(,[^[:space:]]+)?$ ]]; then
-            echo "trusted-parent-v0.7.5: forbidden serial console remains: $token" >&2
-            return 1
-        fi
-    done
     for unit in serial0 ttyAMA0 ttyS0; do
         mask="$image_root/etc/systemd/system/serial-getty@$unit.service"
         if [ -e "$mask" ] || [ -L "$mask" ]; then

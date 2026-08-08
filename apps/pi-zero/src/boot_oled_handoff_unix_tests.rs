@@ -120,7 +120,6 @@ fn native_reacquire_preserves_first_menu_rendered_status() {
     create_or_attach_stop(&animator.directory, &status).unwrap();
     animator.stop_requested().unwrap();
     animator.release().unwrap();
-    drop(animator);
     let mut native = native_attach_at(&path).unwrap();
     native.mark_first_menu_rendered().unwrap();
     let expected = read_status(&native.directory).unwrap().unwrap();
@@ -138,7 +137,6 @@ fn detached_native_guard_cannot_mark_failed_before_reacquire() {
     create_or_attach_stop(&animator.directory, &status).unwrap();
     animator.stop_requested().unwrap();
     animator.release().unwrap();
-    drop(animator);
 
     let mut native = native_attach_at(&path).unwrap();
     let expected = read_status(&native.directory).unwrap().unwrap();
