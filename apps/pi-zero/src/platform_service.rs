@@ -189,6 +189,11 @@ pub enum PlatformJobKind {
     TestBarrier {
         completed: SyncSender<()>,
     },
+    #[cfg(test)]
+    TestGate {
+        entered: SyncSender<()>,
+        release: Receiver<()>,
+    },
 }
 
 impl PlatformJob {
@@ -282,7 +287,9 @@ fn handle_job(
             },
         },
         #[cfg(test)]
-        PlatformJobKind::TestBarrier { .. } => unreachable!("test barrier is handled by worker"),
+        PlatformJobKind::TestBarrier { .. } | PlatformJobKind::TestGate { .. } => {
+            unreachable!("test synchronization job is handled by worker")
+        }
     };
     let result = match result {
         RuntimeStoreResult::StoreError { message } => RuntimeStoreResult::RuntimeFailure {

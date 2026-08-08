@@ -31,6 +31,12 @@ fn run(
             let _ = completed.send(());
             continue;
         }
+        #[cfg(test)]
+        if let PlatformJobKind::TestGate { entered, release } = &job.kind {
+            let _ = entered.send(());
+            let _ = release.recv();
+            continue;
+        }
         #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         let result = handle_job(&store_dir, &samples_dir, job, update_executor.as_ref());
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
