@@ -259,6 +259,13 @@ assert_contains "$boards" 'd7a31c6aa09f4b867902c51da2b45807c0a1709e'
 assert_contains "$boards" 'STAGE_LIST="stage0 stage1 stage2 stage3-octessera-kernel stage4-octessera"'
 assert_contains "$boards" 'tools/pi-kernel/test-rpi-kernel.sh'
 assert_contains "$boards" 'tools/pi-image/test-rpi-kernel-image.sh'
+raspberry_synthetic_tests_block="$(sed -n '/^      - name: Run synthetic kernel tests first$/,/^      - name: Install Raspberry kernel constructor dependencies$/p' "$boards")"
+assert_block_contains "$raspberry_synthetic_tests_block" 'bash tools/pi-kernel/test-rpi-kernel.sh'
+assert_block_contains "$raspberry_synthetic_tests_block" 'sudo bash tools/pi-image/test-rpi-kernel-image.sh'
+if grep -qF 'sudo bash tools/pi-kernel/test-rpi-kernel.sh' <<< "$raspberry_synthetic_tests_block"; then
+    echo 'The Raspberry kernel synthetic test must remain unprivileged.' >&2
+    exit 1
+fi
 assert_contains "$boards" 'runtime_bundle_path:'
 assert_contains "$boards" 'CROSS_SHA256: 642375d1bcf3bd88272c32ba90e999f3d983050adf45e66bd2d3887e8e838bad'
 assert_contains "$boards" 'https://github.com/cross-rs/cross/releases/download/v0.2.5/cross-x86_64-unknown-linux-gnu.tar.gz'
@@ -293,6 +300,12 @@ assert_contains "$release" 'kernel_source_repository'
 raspberry_config_setup="$(sed -n '/^      - name: Configure and run pi-gen$/,/^          cat > pi-gen\/config <<EOF$/p' "$boards")"
 raspberry_config_block="$(sed -n '/cat > pi-gen\/config <<EOF$/,/^[[:space:]]*cd pi-gen$/p' "$boards")"
 raspberry_config_step="$(sed -n '/^      - name: Configure and run pi-gen$/,/^      - name: Select and verify the single Raspberry ZIP$/p' "$boards")"
+raspberry_stage_copy_step="$(sed -n '/^      - name: Stage Raspberry legal notices and copy disposable stage4$/,/^      - name: Configure and run pi-gen$/p' "$boards")"
+raspberry_stage_copy_command="$(grep -F 'cp -a tools/pi-image/stage4-octessera pi-gen/' <<< "$raspberry_stage_copy_step" | sed 's/^[[:space:]]*//' || true)"
+[[ "$raspberry_stage_copy_command" == 'sudo cp -a tools/pi-image/stage4-octessera pi-gen/' ]] || {
+    echo 'The disposable Raspberry stage4 copy must preserve root ownership with sudo cp -a.' >&2
+    exit 1
+}
 assert_block_contains "$raspberry_config_setup" 'export OCTESSERA_RELEASE_VERSION="${{ inputs.version }}" OCTESSERA_RELEASE_TAG="${{ inputs.tag }}" OCTESSERA_BOARD_PROFILE_ID="raspberry-pi-zero-2w"'
 assert_block_contains "$raspberry_config_block" 'OCTESSERA_RELEASE_VERSION=$OCTESSERA_RELEASE_VERSION'
 assert_block_contains "$raspberry_config_block" 'OCTESSERA_RELEASE_TAG=$OCTESSERA_RELEASE_TAG'
