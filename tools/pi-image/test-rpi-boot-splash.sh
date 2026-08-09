@@ -26,6 +26,32 @@ for required_line in \
     'manual_add_modules spidev || true'; do
     grep -qFx "$required_line" "$hook"
 done
+python3 - "$hook" <<'PY'
+import sys
+from pathlib import Path
+
+lines = Path(sys.argv[1]).read_text(encoding="utf-8").splitlines()
+commands = ("setsid", "dash", "sleep", "cat", "mv", "chmod", "chown", "rm")
+copy_lines = [line.strip() for line in lines if line.strip().startswith("copy_exec /usr/bin/")]
+expected = {f"copy_exec /usr/bin/{command} /usr/bin/{command}" for command in commands}
+assert len(copy_lines) == len(expected)
+assert set(copy_lines) == expected
+copies = {
+    line.strip(): index
+    for index, line in enumerate(lines)
+    if line.strip().startswith("copy_exec /usr/bin/")
+}
+assert set(copies) == expected
+assert len(copies) == len(expected)
+for command in commands:
+    copy = f"copy_exec /usr/bin/{command} /usr/bin/{command}"
+    index = copies[copy]
+    assert index > 0
+    assert lines[index - 1].strip() == f'rm -f "$DESTDIR/usr/bin/{command}"'
+dash_index = copies["copy_exec /usr/bin/dash /usr/bin/dash"]
+assert lines[dash_index + 1].strip() == 'rm -f "$DESTDIR/usr/bin/sh"'
+assert lines[dash_index + 2].strip() == 'ln -s dash "$DESTDIR/usr/bin/sh"'
+PY
 grep -qFx '    OCTESSERA_INITRAMFS_BOOT_SPLASH=1 setsid /usr/local/bin/octessera-pi --boot-splash-once >/dev/kmsg 2>&1 &' "$script"
 grep -qF 'setsid /bin/sh -c' "$script"
 grep -qF 'sleep 3' "$script"

@@ -23,15 +23,23 @@ if [ -z "$runtime_source" ] || [ ! -f "$runtime_source" ] || [ -L "$runtime_sour
     exit 1
 fi
 copy_exec "$runtime_source" /usr/local/bin/octessera-pi
+rm -f "$DESTDIR/usr/bin/setsid"
 copy_exec /usr/bin/setsid /usr/bin/setsid
+rm -f "$DESTDIR/usr/bin/dash"
 copy_exec /usr/bin/dash /usr/bin/dash
 rm -f "$DESTDIR/usr/bin/sh"
 ln -s dash "$DESTDIR/usr/bin/sh"
+rm -f "$DESTDIR/usr/bin/sleep"
 copy_exec /usr/bin/sleep /usr/bin/sleep
+rm -f "$DESTDIR/usr/bin/cat"
 copy_exec /usr/bin/cat /usr/bin/cat
+rm -f "$DESTDIR/usr/bin/mv"
 copy_exec /usr/bin/mv /usr/bin/mv
+rm -f "$DESTDIR/usr/bin/chmod"
 copy_exec /usr/bin/chmod /usr/bin/chmod
+rm -f "$DESTDIR/usr/bin/chown"
 copy_exec /usr/bin/chown /usr/bin/chown
+rm -f "$DESTDIR/usr/bin/rm"
 copy_exec /usr/bin/rm /usr/bin/rm
 manual_add_modules spi-bcm2835 || true
 manual_add_modules spidev || true
