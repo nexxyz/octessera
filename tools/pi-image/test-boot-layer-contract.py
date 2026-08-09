@@ -139,20 +139,37 @@ def validate(document: dict[str, Any], root: Path) -> None:
             raise ValueError("managed output metadata is invalid")
 
     selected = document["selected_initramfs"]
-    if set(selected) != {"path", "required_entries", "required_module_names"} or selected["path"] != "octessera/initrd.img-6.12.93-octessera-rpi-v8-0.7.5":
+    if set(selected) != {
+        "path",
+        "byte_bindings",
+        "required_symlinks",
+        "required_regular_executables",
+        "forbidden_entry_prefixes",
+        "size_limits",
+        "required_module_names",
+    } or selected["path"] != "octessera/initrd.img-6.12.93-octessera-rpi-v8-0.7.5":
         raise ValueError("selected initramfs contract is not exact")
-    if selected["required_entries"] != [
-        "scripts/init-premount/octessera-boot-splash",
-        "usr/local/bin/octessera-pi",
+    if selected["byte_bindings"] != [
+        {"role": "splash-script", "archive_path": "scripts/init-premount/octessera-boot-splash", "rootfs_path": "etc/initramfs-tools/scripts/init-premount/octessera-boot-splash", "rootfs_type": "regular-executable"},
+        {"role": "runtime", "archive_path": "usr/local/bin/octessera-pi", "rootfs_path": "usr/local/bin/octessera-pi", "rootfs_type": "symlink", "rootfs_target": "/opt/octessera/current/octessera-pi", "rootfs_resolution": {"current_path": "opt/octessera/current", "current_target_pattern": r"^/opt/octessera/releases/[0-9]+\.[0-9]+\.[0-9]+$", "resolved_path": "opt/octessera/current/octessera-pi", "resolved_type": "regular-executable"}},
+    ] or selected["required_symlinks"] != [
+        {"path": "bin", "target": "usr/bin"},
+        {"path": "usr/bin/sh", "target": "dash"},
+    ] or selected["required_regular_executables"] != [
+        "usr/bin/dash",
         "usr/bin/setsid",
-        "bin/sh",
-        "bin/sleep",
-        "bin/cat",
-        "bin/mv",
-        "bin/chmod",
-        "bin/chown",
-        "bin/rm",
-    ] or selected["required_module_names"] != ["spi-bcm2835", "spidev"]:
+        "usr/bin/sleep",
+        "usr/bin/cat",
+        "usr/bin/mv",
+        "usr/bin/chmod",
+        "usr/bin/chown",
+        "usr/bin/rm",
+    ] or selected["forbidden_entry_prefixes"] != ["bin/"] or selected["size_limits"] != {
+        "min_regular_bytes": 1,
+        "max_entry_bytes": 67108864,
+        "max_total_regular_bytes": 268435456,
+        "symlink_size": "target-bytes",
+    } or selected["required_module_names"] != ["spi-bcm2835", "spidev"]:
         raise ValueError("selected initramfs inventory is not exact")
 
     if document["uart_invariants"] != {
@@ -189,7 +206,7 @@ class BootLayerContractTests(unittest.TestCase):
 
     def test_missing_required_initramfs_entry_is_rejected(self) -> None:
         altered = copy.deepcopy(self.document)
-        altered["selected_initramfs"]["required_entries"].pop()
+        altered["selected_initramfs"]["required_regular_executables"].pop()
         with self.assertRaises(ValueError):
             validate(altered, ROOT)
 
@@ -202,6 +219,20 @@ class BootLayerContractTests(unittest.TestCase):
         altered["classification"] = "trusted-parent-finalization"
         with self.assertRaises(ValueError):
             validate(altered, ROOT)
+
+    def test_selected_initramfs_semantic_fields_are_fail_closed(self) -> None:
+        for field, mutate in (
+            ("required_symlinks", lambda value: value.pop()),
+            ("required_regular_executables", lambda value: value.pop()),
+            ("forbidden_entry_prefixes", lambda value: value.__setitem__(0, "../bin/")),
+            ("byte_bindings", lambda value: value[0].pop("rootfs_type")),
+            ("runtime_resolution", lambda value: value[1]["rootfs_resolution"].update(current_target_pattern="releases/latest")),
+            ("size_limits", lambda value: value.update(min_regular_bytes=0)),
+        ):
+            altered = copy.deepcopy(self.document)
+            mutate(altered["selected_initramfs"]["byte_bindings"] if field == "runtime_resolution" else altered["selected_initramfs"][field])
+            with self.assertRaises(ValueError):
+                validate(altered, ROOT)
 
 
 if __name__ == "__main__":

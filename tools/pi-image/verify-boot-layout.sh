@@ -110,6 +110,7 @@ require_octessera_initramfs_boot_layer() {
     local selected=()
     local initramfs
     local listing
+    local contract_path="$REPOSITORY_ROOT/resources/image-construction/boot-layers/raspberry-pi-zero-2w.json"
     if [ ! -d "$boot_root/octessera" ]; then
         echo "constructor-required: Raspberry v1 boot output directory is missing" >&2
         return 1
@@ -126,114 +127,21 @@ require_octessera_initramfs_boot_layer() {
         return 1
     fi
     listing="$(lsinitramfs "${selected[0]}")"
-    for required_entry in \
-        'scripts/init-premount/octessera-boot-splash' \
-        'usr/local/bin/octessera-pi' \
-        'usr/bin/setsid' \
-        'bin/sh' \
-        'bin/sleep' \
-        'bin/cat' \
-        'bin/mv' \
-        'bin/chmod' \
-        'bin/chown' \
-        'bin/rm'; do
-        if ! grep -qxF "$required_entry" <<< "$listing"; then
-            echo "constructor-required: selected initramfs is missing $required_entry" >&2
-            return 1
-        fi
-    done
-    for required_entry in \
-        scripts/init-premount/octessera-boot-splash \
-        usr/local/bin/octessera-pi; do
-        if [ "$(grep -cFx "$required_entry" <<< "$listing" || true)" -ne 1 ]; then
-            echo "constructor-required: selected initramfs has a missing or duplicate $required_entry" >&2
-            return 1
-        fi
-    done
-    for required_module in spi-bcm2835 spidev; do
-        if ! grep -qF "$required_module" <<< "$listing"; then
-            echo "constructor-required: selected initramfs is missing module $required_module" >&2
-            return 1
-        fi
-    done
-    require_octessera_initramfs_rootfs_bindings "${selected[0]}" "$image_root"
+    if [ -z "$listing" ]; then
+        echo "constructor-required: selected initramfs listing is empty" >&2
+        return 1
+    fi
+    require_octessera_initramfs_rootfs_bindings "${selected[0]}" "$image_root" "$contract_path"
 }
 
 require_octessera_initramfs_rootfs_bindings() {
     local initramfs="$1"
     local image_root="$2"
-    local script_source="$image_root/etc/initramfs-tools/scripts/init-premount/octessera-boot-splash"
-    local binary_link="$image_root/usr/local/bin/octessera-pi"
-    local current_link="$image_root/opt/octessera/current"
-    local current_target
-    local release_binary
-    local extraction
-    local archive_path
-    local source_path
-    local extracted_path
-    local expected_hash
-    local actual_hash
-
-    if [ ! -f "$script_source" ] || [ -L "$script_source" ]; then
-        echo "constructor-required: initramfs splash script source is not a regular rootfs file" >&2
-        return 1
-    fi
-    if [ ! -L "$binary_link" ] || [ "$(readlink "$binary_link")" != /opt/octessera/current/octessera-pi ]; then
-        echo "constructor-required: rootfs runtime binary link is not the managed current link" >&2
-        return 1
-    fi
-    if [ ! -L "$current_link" ]; then
-        echo "constructor-required: rootfs current runtime link is missing" >&2
-        return 1
-    fi
-    current_target="$(readlink "$current_link")"
-    if ! printf '%s\n' "$current_target" | grep -Eq '^/opt/octessera/releases/[0-9]+\.[0-9]+\.[0-9]+$'; then
-        echo "constructor-required: rootfs current runtime link is not a shipped semver" >&2
-        return 1
-    fi
-    release_binary="$image_root$current_target/octessera-pi"
-    if [ ! -f "$release_binary" ] || [ -L "$release_binary" ]; then
-        echo "constructor-required: current rootfs runtime binary is not a regular file" >&2
-        return 1
-    fi
-    if ! command -v unmkinitramfs >/dev/null 2>&1; then
-        echo "constructor-required: unmkinitramfs is required for initramfs rootfs binding proof" >&2
-        return 1
-    fi
-    extraction="$(mktemp -d)"
-    if ! unmkinitramfs "$initramfs" "$extraction" >/dev/null 2>&1; then
-        rm -rf "$extraction"
-        echo "constructor-required: selected initramfs extraction failed" >&2
-        return 1
-    fi
-    for archive_path in \
-        scripts/init-premount/octessera-boot-splash \
-        usr/local/bin/octessera-pi; do
-        if [ "$archive_path" = usr/local/bin/octessera-pi ]; then
-            source_path="$release_binary"
-        else
-            source_path="$script_source"
-        fi
-        extracted_path="$extraction/$archive_path"
-        if [ ! -f "$extracted_path" ] || [ -L "$extracted_path" ] || [ "$(stat -c '%h' "$extracted_path")" != 1 ]; then
-            rm -rf "$extraction"
-            echo "constructor-required: selected initramfs binding is not a unique regular file: $archive_path" >&2
-            return 1
-        fi
-        if [ "$(stat -c '%s' "$extracted_path")" -gt 67108864 ]; then
-            rm -rf "$extraction"
-            echo "constructor-required: selected initramfs binding is oversized: $archive_path" >&2
-            return 1
-        fi
-        expected_hash="$(sha256sum "$source_path" | cut -d' ' -f1)"
-        actual_hash="$(sha256sum "$extracted_path" | cut -d' ' -f1)"
-        if [ "$expected_hash" != "$actual_hash" ] || ! cmp -s "$source_path" "$extracted_path"; then
-            rm -rf "$extraction"
-            echo "constructor-required: selected initramfs binding differs from rootfs: $archive_path" >&2
-            return 1
-        fi
-    done
-    rm -rf "$extraction"
+    local contract_path="$3"
+    python3 "$REPOSITORY_ROOT/tools/pi-image/rpi_initramfs_proof.py" \
+        --validate-command-layout "$initramfs" \
+        --contract "$contract_path" \
+        --root "$image_root"
 }
 
 require_octessera_boot_layer() {

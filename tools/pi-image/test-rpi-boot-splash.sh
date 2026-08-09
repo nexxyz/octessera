@@ -10,15 +10,18 @@ sh -n "$hook" "$script"
 [[ "$(sh "$hook" prereqs)" == "" ]]
 [[ "$(sh "$script" prereqs)" == "" ]]
 for required_line in \
-    'copy_exec /usr/local/bin/octessera-pi /usr/local/bin/octessera-pi' \
+    'runtime_source="$(readlink -f /usr/local/bin/octessera-pi)"' \
+    'if [ -z "$runtime_source" ] || [ ! -f "$runtime_source" ] || [ -L "$runtime_source" ] || [ ! -x "$runtime_source" ]; then' \
+    'copy_exec "$runtime_source" /usr/local/bin/octessera-pi' \
     'copy_exec /usr/bin/setsid /usr/bin/setsid' \
-    'copy_exec /bin/sh /bin/sh' \
-    'copy_exec /bin/sleep /bin/sleep' \
-    'copy_exec /bin/cat /bin/cat' \
-    'copy_exec /bin/mv /bin/mv' \
-    'copy_exec /bin/chmod /bin/chmod' \
-    'copy_exec /bin/chown /bin/chown' \
-    'copy_exec /bin/rm /bin/rm' \
+    'copy_exec /usr/bin/dash /usr/bin/dash' \
+    'ln -s dash "$DESTDIR/usr/bin/sh"' \
+    'copy_exec /usr/bin/sleep /usr/bin/sleep' \
+    'copy_exec /usr/bin/cat /usr/bin/cat' \
+    'copy_exec /usr/bin/mv /usr/bin/mv' \
+    'copy_exec /usr/bin/chmod /usr/bin/chmod' \
+    'copy_exec /usr/bin/chown /usr/bin/chown' \
+    'copy_exec /usr/bin/rm /usr/bin/rm' \
     'manual_add_modules spi-bcm2835 || true' \
     'manual_add_modules spidev || true'; do
     grep -qFx "$required_line" "$hook"
