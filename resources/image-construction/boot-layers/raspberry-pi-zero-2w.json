@@ -17,7 +17,7 @@
     {"path": "tools/pi-image/stage4-octessera/03-boot-config/00-run.sh", "sha256": "531947cf58f4e60d523ecdf65f337b7ccf66c4cbc98a8e280f9835087deca552", "size": 1653},
     {"path": "tools/pi-image/stage4-octessera/files/boot/config.txt.append", "sha256": "418ebfce6cd6acbacb410614be576524263a00f4cd56fe10503d67b004837960", "size": 355},
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh", "sha256": "342bfa48eafc350f5125e3757df902d51df74d1889b0e6062844eb691aa767ba", "size": 911},
-    {"path": "tools/pi-image/stage4-octessera/files/root/etc/initramfs-tools/hooks/octessera-boot-splash", "sha256": "2215599267bb19f2b64882d08247de24a26ecf71d298da2a7d24d17d37b74611", "size": 989},
+    {"path": "tools/pi-image/stage4-octessera/files/root/etc/initramfs-tools/hooks/octessera-boot-splash", "sha256": "088dabf06daff71e192aca28860dd3bcee910135ad13f356406609fd4272833d", "size": 1229},
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/initramfs-tools/scripts/init-premount/octessera-boot-splash", "sha256": "7a65e85043fb2570ea7699f1ac01c50519d7e2fa2dee43f985dba0cb5a513191", "size": 2436},
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-boot-splash.service", "sha256": "abc0fa4bcc7700e77c21dde88edbad62768ba6a59b5538bcfcbe5de5c29c457d", "size": 928},
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera.service", "sha256": "040142643913a027fe0cad80cb0cb0b116cba8f847f4a5c0ced4f910f0b73ee9", "size": 946},
