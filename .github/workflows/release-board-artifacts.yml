@@ -183,7 +183,7 @@ jobs:
       - name: Run synthetic kernel tests first
         run: |
           bash tools/pi-kernel/test-rpi-kernel.sh
-          bash tools/pi-image/test-rpi-kernel-image.sh
+          sudo bash tools/pi-image/test-rpi-kernel-image.sh
       - name: Install Raspberry kernel constructor dependencies
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get update
@@ -282,7 +282,7 @@ jobs:
             --repository-root "$OCTESSERA_REPOSITORY_ROOT" \
             --destination-root "$GITHUB_WORKSPACE/tools/pi-image/stage4-octessera/files/root" \
             --check
-          cp -a tools/pi-image/stage4-octessera pi-gen/
+          sudo cp -a tools/pi-image/stage4-octessera pi-gen/
       - name: Configure and run pi-gen
         run: |
           set -euo pipefail
