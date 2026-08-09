@@ -31,16 +31,19 @@ from rpi_kernel_contract import (  # type: ignore[import-not-found]  # noqa: E40
     sha256_file,
 )
 from rpi_kernel_image import KernelImageError, firmware_kernel_bytes  # type: ignore[import-not-found]  # noqa: E402
-from rpi_initramfs_proof import compare_rootfs_files, extract_regular_files  # type: ignore[import-not-found]  # noqa: E402
-
+from rpi_initramfs_proof import (  # type: ignore[import-not-found]  # noqa: E402
+    compare_rootfs_files,
+    extract_regular_files,
+    parse_initramfs_listing,
+    validate_rootfs_bindings,
+    validate_selected_initramfs_contract,
+    verify_command_layout,
+)
 
 class ImageProofError(ValueError):
     pass
 
-
 CURRENT_BOOT_SERVICE = "etc/systemd/system/octessera-boot-splash.service"
-INITRAMFS_SPLASH_SCRIPT = "scripts/init-premount/octessera-boot-splash"
-ROOTFS_SPLASH_SCRIPT = "etc/initramfs-tools/scripts/init-premount/octessera-boot-splash"
 INITRAMFS_SPLASH_INVOCATION = "OCTESSERA_INITRAMFS_BOOT_SPLASH=1 setsid /usr/local/bin/octessera-pi --boot-splash-once >/dev/kmsg 2>&1 &"
 
 
@@ -59,7 +62,6 @@ def _load_validator() -> Any:
     spec.loader.exec_module(module)
     return module
 
-
 def _load_installer() -> Any:
     path = Path(__file__).with_name("install-rpi-kernel.py")
     spec = importlib.util.spec_from_file_location("octessera_rpi_kernel_installer", path)
@@ -70,16 +72,13 @@ def _load_installer() -> Any:
     spec.loader.exec_module(module)
     return module
 
-
 def _boot_dir(root: Path) -> Path:
     firmware = root / "boot/firmware"
     return firmware if firmware.is_dir() else root / "boot"
 
-
 def _hash_matches(path: Path, expected: str, label: str) -> None:
     _require(path.is_file(), f"missing {label}: {path}")
     _require(sha256_file(path) == expected, f"{label} hash does not match package provenance: {path}")
-
 
 def _verify_selectors(config: Path) -> None:
     installer = _load_installer()
@@ -88,14 +87,12 @@ def _verify_selectors(config: Path) -> None:
     except (installer.ImageInstallError, OSError) as error:
         raise ImageProofError(f"duplicate or conflicting firmware selectors: {error}") from error
 
-
 def _run_lsinitramfs(path: Path) -> str:
     try:
         result = subprocess.run(["lsinitramfs", "-l", str(path)], capture_output=True, text=True, check=True)
     except (FileNotFoundError, subprocess.CalledProcessError) as error:
         raise ImageProofError(f"cannot inspect initramfs {path} with lsinitramfs") from error
     return result.stdout
-
 
 def _resolve_regular_file(root: Path, path: Path, label: str) -> Path:
     try:
@@ -107,29 +104,17 @@ def _resolve_regular_file(root: Path, path: Path, label: str) -> Path:
     _require(path.is_file() and not path.is_symlink(), f"{label} is not a regular file: {path}")
     return selected
 
-
 def _verify_initramfs(path: Path) -> None:
     _require(path.is_file() and not path.is_symlink(), f"initramfs is not a regular file: {path}")
     _require(path.stat().st_size > 0, f"initramfs is empty: {path}")
     listing = _run_lsinitramfs(path)
     _require(bool(listing.strip()), f"lsinitramfs returned an empty listing: {path}")
 
-
 def _verify_selected_initramfs(boot: Path, path: Path) -> None:
     selected = _resolve_regular_file(boot, path, "selected initramfs")
     _verify_initramfs(selected)
 
-
-def _initramfs_entries(listing: str) -> set[str]:
-    entries = set()
-    for line in listing.splitlines():
-        fields = line.split()
-        if fields:
-            entries.add(fields[-1].removeprefix("./"))
-    return entries
-
-
-def _classify_boot_layer(root: Path) -> tuple[str, dict[str, Any] | None]:
+def _classify_boot_layer(root: Path, boot_layer_contract_path: Path = BOOT_LAYER_CONTRACT_PATH) -> tuple[str, dict[str, Any] | None]:
     service = root / CURRENT_BOOT_SERVICE
     runtime = root / "etc/systemd/system/octessera.service"
     _require(service.is_file() and not service.is_symlink(), f"Raspberry boot service is missing: {service}")
@@ -165,7 +150,7 @@ def _classify_boot_layer(root: Path) -> tuple[str, dict[str, Any] | None]:
             sum(line.startswith("Environment=OCTESSERA_OLED_BOOT_HANDOFF=") for line in runtime_lines) == 1,
             "Raspberry constructor runtime service has an extra OLED handoff environment",
         )
-        return "constructor-required", _load_boot_layer_contract()
+        return "constructor-required", _load_boot_layer_contract(boot_layer_contract_path)
     if "Type=oneshot" in lines:
         for required in (
             "After=systemd-modules-load.service systemd-udevd.service",
@@ -192,9 +177,9 @@ def _classify_boot_layer(root: Path) -> tuple[str, dict[str, Any] | None]:
     raise ImageProofError("Raspberry boot service is neither current constructor output nor the v0.7.5 trusted parent")
 
 
-def _load_boot_layer_contract() -> dict[str, Any]:
+def _load_boot_layer_contract(path: Path = BOOT_LAYER_CONTRACT_PATH) -> dict[str, Any]:
     try:
-        contract = json.loads(BOOT_LAYER_CONTRACT_PATH.read_text(encoding="utf-8"))
+        contract = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
         raise ImageProofError("Raspberry v1 boot-layer contract is unreadable") from error
     _require(isinstance(contract, dict), "Raspberry v1 boot-layer contract is not an object")
@@ -242,10 +227,10 @@ def _load_boot_layer_contract() -> dict[str, Any]:
     selected = contract.get("selected_initramfs")
     _require(isinstance(selected, dict), "Raspberry selected initramfs contract is missing")
     _require(selected.get("path") == EXPECTED_FIRMWARE_INITRAMFS, "Raspberry selected initramfs path changed")
-    required_entries = selected.get("required_entries")
-    required_modules = selected.get("required_module_names")
-    _require(bool(isinstance(required_entries, list) and required_entries), "Raspberry initramfs entry contract is empty")
-    _require(bool(isinstance(required_modules, list) and required_modules == ["spi-bcm2835", "spidev"]), "Raspberry initramfs module contract changed")
+    try:
+        validate_selected_initramfs_contract(selected)
+    except ValueError as error:
+        raise ImageProofError(str(error)) from error
     _require(
         contract.get("uart_invariants") == {
             "required_config": ["dtoverlay=disable-bt", "enable_uart=0"],
@@ -257,7 +242,6 @@ def _load_boot_layer_contract() -> dict[str, Any]:
         "Raspberry UART invariants changed",
     )
     return contract
-
 
 def _verify_managed_boot_outputs(root: Path, contract: dict[str, Any]) -> None:
     outputs = contract.get("managed_outputs")
@@ -274,32 +258,44 @@ def _verify_managed_boot_outputs(root: Path, contract: dict[str, Any]) -> None:
         _require(metadata.st_uid == output["uid"] and metadata.st_gid == output["gid"], f"managed boot ownership changed: {path}")
         _require(metadata.st_mode & 0o7777 == output["mode"], f"managed boot mode changed: {path}")
 
-
 def _verify_selected_initramfs_entries(path: Path, contract: dict[str, Any], root: Path) -> None:
     listing = _run_lsinitramfs(path)
-    entries = _initramfs_entries(listing)
+    try:
+        records = parse_initramfs_listing(listing)
+        verify_command_layout(path, listing, contract["selected_initramfs"])
+    except ValueError as error:
+        raise ImageProofError(str(error)) from error
+    entries = {record["name"] for record in records}
     selected = contract["selected_initramfs"]
-    for required in selected["required_entries"]:
+    bindings = selected["byte_bindings"]
+    required_files = [binding["archive_path"] for binding in bindings] + selected["required_regular_executables"]
+    for required in required_files + [entry["path"] for entry in selected["required_symlinks"]]:
         _require(required in entries, f"selected initramfs is missing constructor output: {required}")
     entry_names = "\n".join(entries)
     for module in selected["required_module_names"]:
         _require(module in entry_names, f"selected initramfs is missing constructor module: {module}")
-    required_files = (INITRAMFS_SPLASH_SCRIPT, "usr/local/bin/octessera-pi")
-    for required in required_files:
-        _require(required in selected["required_entries"], f"selected initramfs contract is missing {required}")
-    pairs = (
-        (INITRAMFS_SPLASH_SCRIPT, ROOTFS_SPLASH_SCRIPT),
-        ("usr/local/bin/octessera-pi", "usr/local/bin/octessera-pi"),
-    )
     try:
-        extracted = extract_regular_files(path, [pair[0] for pair in pairs], lambda _: listing)
+        validate_rootfs_bindings(root, selected)
+    except (OSError, ValueError) as error:
+        raise ImageProofError(str(error)) from error
+    pairs = tuple((binding["archive_path"], binding["rootfs_path"]) for binding in bindings)
+    executable_entries = tuple(required_files)
+    try:
+        extracted = extract_regular_files(
+            path,
+            list(required_files),
+            lambda _: listing,
+            executable_entries,
+            selected,
+        )
     except ValueError as error:
         raise ImageProofError(str(error)) from error
     try:
         compare_rootfs_files(root, extracted, pairs)
     except (OSError, ValueError) as error:
         raise ImageProofError(str(error)) from error
-    script = extracted[INITRAMFS_SPLASH_SCRIPT]
+    script_binding = next(binding for binding in bindings if binding["role"] == "splash-script")
+    script = extracted[script_binding["archive_path"]]
     try:
         lines = script.decode("utf-8").splitlines()
     except UnicodeDecodeError as error:
@@ -308,7 +304,6 @@ def _verify_selected_initramfs_entries(path: Path, contract: dict[str, Any], roo
         any(line.strip() == INITRAMFS_SPLASH_INVOCATION for line in lines),
         "selected initramfs does not contain the exact one-cycle splash invocation",
     )
-
 
 def _verify_stock_recovery(root: Path, boot: Path) -> list[dict[str, str]]:
     recovery_root = boot / "octessera/recovery-stock"
@@ -338,7 +333,6 @@ def _verify_stock_recovery(root: Path, boot: Path) -> list[dict[str, str]]:
         else:
             _hash_matches(retained, entry["sha256"], "retained stock file")
     return entries
-
 
 def _verify_payload(root: Path, boot: Path, package: Path, package_inventory: dict[str, Any]) -> dict[str, Any]:
     module_root = root / f"lib/modules/{package_inventory['kernel_release']}"
@@ -374,12 +368,18 @@ def _verify_payload(root: Path, boot: Path, package: Path, package_inventory: di
     _require((boot / EXPECTED_FIRMWARE_OVERLAY_PREFIX / "i2s-dac-no20.dtbo").is_file(), "i2s-dac overlay was not resolved under the custom prefix")
     return {"kernel": str(selected_kernel), "device_tree": str(selected_dtb)}
 
-
-def prove_root(root: Path, package: Path, checksum: Path, provenance: Path, contract: Any) -> dict[str, Any]:
+def prove_root(
+    root: Path,
+    package: Path,
+    checksum: Path,
+    provenance: Path,
+    contract: Any,
+    boot_layer_contract_path: Path = BOOT_LAYER_CONTRACT_PATH,
+) -> dict[str, Any]:
     root = root.resolve()
     _require(root.is_dir(), f"mounted image root does not exist: {root}")
     boot = _boot_dir(root)
-    boot_layer_classification, boot_layer = _classify_boot_layer(root)
+    boot_layer_classification, boot_layer = _classify_boot_layer(root, boot_layer_contract_path)
     if boot_layer is not None:
         _verify_managed_boot_outputs(root, boot_layer)
     validator = _load_validator()
@@ -402,7 +402,6 @@ def prove_root(root: Path, package: Path, checksum: Path, provenance: Path, cont
         "stock_recovery": stock,
         "boot_layer": boot_layer_result,
     }
-
 
 def _expected_partitions(loop: str) -> tuple[str, str]:
     try:
@@ -436,7 +435,6 @@ def _expected_partitions(loop: str) -> tuple[str, str]:
         return value if value.startswith("/") else f"/dev/{value}"
 
     return device(boot[0]), device(root[0])
-
 
 @contextlib.contextmanager
 def _mounted_image(image: Path) -> Iterator[Path]:
@@ -475,7 +473,6 @@ def _mounted_image(image: Path) -> Iterator[Path]:
             subprocess.run(["losetup", "-d", loop], capture_output=True, check=False)
         shutil.rmtree(work, ignore_errors=True)
 
-
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Prove the selected Raspberry custom kernel in a mounted root or image.")
     source = parser.add_mutually_exclusive_group(required=True)
@@ -485,19 +482,18 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--checksum", type=Path, required=True)
     parser.add_argument("--provenance", type=Path, required=True)
     parser.add_argument("--manifest", type=Path)
+    parser.add_argument("--boot-layer-contract", type=Path, default=BOOT_LAYER_CONTRACT_PATH)
     args = parser.parse_args(argv)
     repository = Path(__file__).resolve().parents[2]
     try:
         contract = load_contract(repository, args.manifest)
         with _mounted_image(args.root or args.image) as root:
-            result = prove_root(root, args.package, args.checksum, args.provenance, contract)
+            result = prove_root(root, args.package, args.checksum, args.provenance, contract, args.boot_layer_contract)
         print(json.dumps(result, indent=2, sort_keys=True))
     except (ContractError, ImageProofError, OSError) as error:
         print(f"Raspberry kernel image proof failed: {error}", file=sys.stderr)
         return 1
     print("Raspberry custom kernel image proof passed")
     return 0
-
-
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))

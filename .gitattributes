@@ -32,3 +32,12 @@ userpatches/kernel/**/*.patch text eol=lf whitespace=-blank-at-eol,-space-before
 /licenses/cargo/THIRD_PARTY_LICENSES.txt text eol=lf
 /licenses/cargo/SHA256SUMS text eol=lf
 /resources/legal/notice-bundle.json text eol=lf
+/resources/image-construction/boot-layers/raspberry-pi-zero-2w.json text eol=lf
+/tools/legal/stage_notices.py text eol=lf
+/tools/pi-image/rpi_initramfs_fixture.py text eol=lf
+/tools/pi-image/rpi_initramfs_proof.py text eol=lf
+/tools/pi-image/stage4-octessera/files/boot/config.txt.append text eol=lf
+/tools/pi-image/stage4-octessera/files/root/etc/initramfs-tools/hooks/octessera-boot-splash text eol=lf
+/tools/pi-image/test-boot-layer-contract.py text eol=lf
+/tools/pi-image/test-rpi-initramfs-proof.py text eol=lf
+/tools/pi-image/verify-rpi-kernel-image.py text eol=lf
