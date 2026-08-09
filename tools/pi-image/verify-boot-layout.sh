@@ -137,7 +137,7 @@ require_octessera_initramfs_boot_layer() {
         'bin/chmod' \
         'bin/chown' \
         'bin/rm'; do
-        if ! printf '%s\n' "$listing" | grep -qxF "$required_entry"; then
+        if ! grep -qxF "$required_entry" <<< "$listing"; then
             echo "constructor-required: selected initramfs is missing $required_entry" >&2
             return 1
         fi
@@ -145,13 +145,13 @@ require_octessera_initramfs_boot_layer() {
     for required_entry in \
         scripts/init-premount/octessera-boot-splash \
         usr/local/bin/octessera-pi; do
-        if [ "$(printf '%s\n' "$listing" | grep -cFx "$required_entry" || true)" -ne 1 ]; then
+        if [ "$(grep -cFx "$required_entry" <<< "$listing" || true)" -ne 1 ]; then
             echo "constructor-required: selected initramfs has a missing or duplicate $required_entry" >&2
             return 1
         fi
     done
     for required_module in spi-bcm2835 spidev; do
-        if ! printf '%s\n' "$listing" | grep -qF "$required_module"; then
+        if ! grep -qF "$required_module" <<< "$listing"; then
             echo "constructor-required: selected initramfs is missing module $required_module" >&2
             return 1
         fi

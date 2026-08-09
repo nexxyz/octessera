@@ -164,6 +164,22 @@ printf '%s\n' 'constructor-runtime-binary' > "$fixture/root/opt/octessera/releas
 cp "$fixture/root/opt/octessera/releases/1.2.3/octessera-pi" "$fixture/archive/usr/local/bin/octessera-pi"
 ln -s /opt/octessera/releases/1.2.3 "$fixture/root/opt/octessera/current"
 ln -s /opt/octessera/current/octessera-pi "$fixture/root/usr/local/bin/octessera-pi"
+for archive_entry in \
+    usr/bin/setsid \
+    bin/sh \
+    bin/sleep \
+    bin/cat \
+    bin/mv \
+    bin/chmod \
+    bin/chown \
+    bin/rm; do
+    mkdir -p "$fixture/archive/${archive_entry%/*}"
+    printf '%s\n' "fixture-$archive_entry" > "$fixture/archive/$archive_entry"
+done
+mkdir -p "$fixture/archive/lib/modules/fixture/kernel/drivers/spi"
+for required_module in spi-bcm2835 spidev; do
+    printf '%s\n' "fixture-$required_module" > "$fixture/archive/lib/modules/fixture/kernel/drivers/spi/$required_module.ko"
+done
 make_initramfs() {
     local output="$fixture/boot/octessera-bound.img"
     mkdir -p "$fixture/boot"
@@ -182,6 +198,52 @@ printf '%s\n' 'stale-binary' > "$fixture/archive/usr/local/bin/octessera-pi"
 make_initramfs
 if require_octessera_initramfs_rootfs_bindings "$fixture/boot/octessera-bound.img" "$fixture/root"; then
     echo 'Boot layout accepted a stale initramfs binary.' >&2
+    exit 1
+fi
+cp "$fixture/root/opt/octessera/releases/1.2.3/octessera-pi" "$fixture/archive/usr/local/bin/octessera-pi"
+make_initramfs
+mkdir -p "$fixture/boot/octessera" "$fixture/lsinitramfs-bin"
+cp "$fixture/boot/octessera-bound.img" "$fixture/boot/octessera/initrd.img-1.2.3"
+cat > "$fixture/lsinitramfs-bin/lsinitramfs" <<'EOF'
+#!/usr/bin/env bash
+cat "$OCTESSERA_TEST_INITRAMFS_LISTING"
+EOF
+chmod 0755 "$fixture/lsinitramfs-bin/lsinitramfs"
+listing="$fixture/initramfs-listing"
+cat > "$listing" <<'EOF'
+scripts/init-premount/octessera-boot-splash
+usr/local/bin/octessera-pi
+usr/bin/setsid
+bin/sh
+bin/sleep
+bin/cat
+bin/mv
+bin/chmod
+bin/chown
+bin/rm
+lib/modules/fixture/kernel/drivers/spi/spi-bcm2835.ko
+lib/modules/fixture/kernel/drivers/spi/spidev.ko
+EOF
+for ((index = 1; index <= 8192; index++)); do
+    printf 'usr/lib/fixture-trailing/%04d\n' "$index" >> "$listing"
+done
+export OCTESSERA_TEST_INITRAMFS_LISTING="$listing"
+export PATH="$fixture/lsinitramfs-bin:$PATH"
+require_octessera_initramfs_boot_layer "$fixture/boot" "$fixture/root"
+
+missing_entry_listing="$fixture/missing-entry-listing"
+sed '/^usr\/bin\/setsid$/d' "$listing" > "$missing_entry_listing"
+export OCTESSERA_TEST_INITRAMFS_LISTING="$missing_entry_listing"
+if require_octessera_initramfs_boot_layer "$fixture/boot" "$fixture/root"; then
+    echo 'Boot layout accepted an initramfs missing a required entry.' >&2
+    exit 1
+fi
+
+missing_module_listing="$fixture/missing-module-listing"
+sed '/spi-bcm2835/d' "$listing" > "$missing_module_listing"
+export OCTESSERA_TEST_INITRAMFS_LISTING="$missing_module_listing"
+if require_octessera_initramfs_boot_layer "$fixture/boot" "$fixture/root"; then
+    echo 'Boot layout accepted an initramfs missing a required module.' >&2
     exit 1
 fi
 
