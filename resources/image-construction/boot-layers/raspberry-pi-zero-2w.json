@@ -23,7 +23,7 @@
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera.service", "sha256": "040142643913a027fe0cad80cb0cb0b116cba8f847f4a5c0ced4f910f0b73ee9", "size": 946},
     {"path": "tools/pi-image/verify-rpi-kernel-image.py", "sha256": "e58acc1c51f37209ceec6eab4c58cc2a1a70362eed4b3090becd16f6602cbc3f", "size": 27188},
     {"path": "tools/pi-image/rpi_initramfs_proof.py", "sha256": "22d8ba31cf016c665f562d3fa7b9004e00c280984eef08d646f86862b1093d32", "size": 23278},
-    {"path": "tools/pi-image/verify-boot-layout.sh", "sha256": "123f6c9655518dcf4e94881f7f052fd4853abceafd90b65e64b4705eeecfd70e", "size": 15327},
+    {"path": "tools/pi-image/verify-boot-layout.sh", "sha256": "116a07da44240584901583234ec4ab7429135eaca2d15b5cc5271d1eb31dfe1f", "size": 16915},
     {"path": "tools/pi/provision/files/boot/config.txt.initramfs.append", "sha256": "c14d03356c1edcbf170d91c4eda896705fda0930ac8b61b9c631a5ebec89fe92", "size": 73},
     {"path": "tools/pi/provision/files/boot/config.txt.append", "sha256": "418ebfce6cd6acbacb410614be576524263a00f4cd56fe10503d67b004837960", "size": 355},
     {"path": "tools/pi/provision/files/etc/systemd/system/octessera.service.template", "sha256": "6730864a3037dd9800c44150d5fb37630c9caf75aeee6cb5d56f74026851346f", "size": 964},
