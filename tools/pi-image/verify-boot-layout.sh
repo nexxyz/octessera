@@ -191,10 +191,7 @@ require_octessera_raspberry_identity() {
     local welcome_source="$REPOSITORY_ROOT/tools/pi-image/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh"
     local welcome="$image_root/etc/profile.d/octessera-welcome.sh"
     local boot_config="$boot_root/config.txt"
-    local firmware_config="$image_root/boot/firmware/config.txt"
-    local legacy_config="$image_root/boot/config.txt"
-    local config
-    local cmdline
+    local boot_cmdline="$boot_root/cmdline.txt"
     local token
     local pi_record
     local pi_user
@@ -236,53 +233,32 @@ require_octessera_raspberry_identity() {
             return 1
         fi
     done
-    if [ -f "$boot_config" ] || [ -L "$boot_config" ]; then
-        if [ -f "$firmware_config" ] || [ -L "$firmware_config" ] || [ -f "$legacy_config" ] || [ -L "$legacy_config" ]; then
-            echo "constructor-required: Raspberry config layout is ambiguous" >&2
-            return 1
-        fi
-        config="$boot_config"
-    elif [ -f "$firmware_config" ] || [ -L "$firmware_config" ]; then
-        if [ -f "$legacy_config" ] || [ -L "$legacy_config" ]; then
-            echo "constructor-required: Raspberry config layout is ambiguous" >&2
-            return 1
-        fi
-        config="$firmware_config"
-    else
-        config="$legacy_config"
-    fi
-    if [ ! -f "$config" ] || [ -L "$config" ]; then
-        echo "constructor-required: Raspberry config is missing or symlinked" >&2
-        return 1
-    fi
-    if grep -qP '\x00' "$config" || grep -qP '\r(?!\n)' "$config"; then
+    require_octessera_raspberry_fat_pair "$boot_config" "$boot_cmdline" || return 1
+    require_octessera_bookworm_redirect_pair "$image_root" || return 1
+    require_octessera_raspberry_firmware_pair "$boot_config" "$boot_cmdline" "$image_root" || return 1
+    if grep -qP '\x00' "$boot_config" || grep -qP '\r(?!\n)' "$boot_config"; then
         echo "constructor-required: Raspberry config is malformed" >&2
         return 1
     fi
-    if grep -qF '# --- Octessera UART release ---' "$config"; then
+    if grep -qF '# --- Octessera UART release ---' "$boot_config"; then
         echo "constructor-required: obsolete Raspberry UART release marker remains" >&2
         return 1
     fi
-    if grep -Eq '^[[:space:]]*enable_uart[[:space:]]*=[[:space:]]*1([[:space:]]|$)' "$config"; then
+    if grep -Eq '^[[:space:]]*enable_uart[[:space:]]*=[[:space:]]*1([[:space:]]|$)' "$boot_config"; then
         echo "constructor-required: Raspberry UART enablement remains" >&2
         return 1
     fi
-    [ "$(grep -Ec '^[[:space:]]*dtoverlay=disable-bt([[:space:]]|$)' "$config")" -eq 1 ] || { echo "constructor-required: Raspberry Bluetooth disable overlay is missing or duplicated" >&2; return 1; }
-    [ "$(grep -Ec '^[[:space:]]*enable_uart=0([[:space:]]|$)' "$config")" -eq 1 ] || { echo "constructor-required: Raspberry UART disable setting is missing or duplicated" >&2; return 1; }
-    if grep -Eq '^[[:space:]]*enable_uart=1([[:space:]]|$)' "$config"; then
+    [ "$(grep -Ec '^[[:space:]]*dtoverlay=disable-bt([[:space:]]|$)' "$boot_config")" -eq 1 ] || { echo "constructor-required: Raspberry Bluetooth disable overlay is missing or duplicated" >&2; return 1; }
+    [ "$(grep -Ec '^[[:space:]]*enable_uart=0([[:space:]]|$)' "$boot_config")" -eq 1 ] || { echo "constructor-required: Raspberry UART disable setting is missing or duplicated" >&2; return 1; }
+    if grep -Eq '^[[:space:]]*enable_uart=1([[:space:]]|$)' "$boot_config"; then
         echo "constructor-required: Raspberry UART is enabled" >&2
         return 1
     fi
-    cmdline="${config%config.txt}cmdline.txt"
-    if [ ! -f "$cmdline" ] || [ -L "$cmdline" ]; then
-        echo "constructor-required: Raspberry cmdline is missing or symlinked" >&2
-        return 1
-    fi
-    if grep -qP '\x00' "$cmdline" || [ "$(grep -c '' "$cmdline")" -gt 1 ]; then
+    if grep -qP '\x00' "$boot_cmdline" || [ "$(grep -c '' "$boot_cmdline")" -gt 1 ]; then
         echo "constructor-required: Raspberry cmdline is multiline or contains NUL" >&2
         return 1
     fi
-    read -r -a tokens < "$cmdline"
+    read -r -a tokens < "$boot_cmdline"
     for token in "${tokens[@]}"; do
         if [[ "$token" =~ ^console=(serial0|ttyAMA0|ttyS0)(,[^[:space:]]+)?$ ]]; then
             echo "constructor-required: forbidden serial console remains: $token" >&2
@@ -329,15 +305,78 @@ require_octessera_raspberry_identity_for_boot_layer() {
     esac
 }
 
-require_octessera_boot_config() {
-    local boot_root="$1"
-    local image_root="$2"
-    if grep -q 'octessera additions' "$boot_root/config.txt" 2>/dev/null ||
-        grep -q 'octessera additions' "$image_root/boot/firmware/config.txt" 2>/dev/null ||
-        grep -q 'octessera additions' "$image_root/boot/config.txt" 2>/dev/null; then
+require_octessera_raspberry_fat_pair() {
+    local boot_config="$1"
+    local boot_cmdline="$2"
+    for path in "$boot_config" "$boot_cmdline"; do
+        if [ ! -f "$path" ] || [ -L "$path" ]; then
+            echo "constructor-required: Raspberry FAT config pair is missing or symlinked" >&2
+            return 1
+        fi
+    done
+}
+
+require_octessera_bookworm_redirect_notice() {
+    local path="$1"
+    local expected="$2"
+    local label="$3"
+    if [ ! -f "$path" ] || [ -L "$path" ] || [ "$(stat -c '%u:%g:%a' "$path")" != 0:0:644 ]; then
+        echo "constructor-required: $label is not an exact root:root 0644 regular file" >&2
+        return 1
+    fi
+    if ! printf '%s' "$expected" | cmp -s "$path" -; then
+        echo "constructor-required: $label bytes are not exact" >&2
+        return 1
+    fi
+}
+
+require_octessera_bookworm_redirect_pair() {
+    local image_root="$1"
+    local config_notice="$image_root/boot/config.txt"
+    local cmdline_notice="$image_root/boot/cmdline.txt"
+    require_octessera_bookworm_redirect_notice \
+        "$config_notice" \
+        $'DO NOT EDIT THIS FILE\n\nThe file you are looking for has moved to /boot/firmware/config.txt\n' \
+        "rootfs Raspberry config redirect notice" || return 1
+    require_octessera_bookworm_redirect_notice \
+        "$cmdline_notice" \
+        $'DO NOT EDIT THIS FILE\n\nThe file you are looking for has moved to /boot/firmware/cmdline.txt\n' \
+        "rootfs Raspberry cmdline redirect notice" || return 1
+}
+
+require_octessera_raspberry_firmware_pair() {
+    local boot_config="$1"
+    local boot_cmdline="$2"
+    local image_root="$3"
+    local firmware_config="$image_root/boot/firmware/config.txt"
+    local firmware_cmdline="$image_root/boot/firmware/cmdline.txt"
+    local config_present=false
+    local cmdline_present=false
+    if [ -e "$firmware_config" ] || [ -L "$firmware_config" ]; then
+        config_present=true
+    fi
+    if [ -e "$firmware_cmdline" ] || [ -L "$firmware_cmdline" ]; then
+        cmdline_present=true
+    fi
+    if [ "$config_present" = false ] && [ "$cmdline_present" = false ]; then
         return
     fi
-    echo "Sanitation check failed: missing octessera boot config marker" >&2
+    if [ "$config_present" = false ] || [ "$cmdline_present" = false ] ||
+        [ ! "$firmware_config" -ef "$boot_config" ] || [ ! "$firmware_cmdline" -ef "$boot_cmdline" ]; then
+        echo "constructor-required: Raspberry raw firmware pair is not absent or the same FAT objects" >&2
+        return 1
+    fi
+}
+
+require_octessera_boot_config() {
+    local boot_root="$1"
+    local config="$boot_root/config.txt"
+    local marker_count
+    marker_count="$(grep -cFx '# --- octessera additions ---' "$config" 2>/dev/null || true)"
+    if [ -f "$config" ] && [ ! -L "$config" ] && [ "${marker_count:-0}" -eq 1 ]; then
+        return
+    fi
+    echo "Sanitation check failed: missing exact octessera FAT boot config marker" >&2
     return 1
 }
 
