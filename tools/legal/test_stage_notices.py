@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from stage_notices import NoticeStageError, load_manifest, stage_notices
+from stage_notices import NoticeStageError, check_finalized_notices, load_manifest, stage_notices
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -22,8 +22,8 @@ def _entry(root: Path, source: str, destination: str) -> dict[str, object]:
     return {"source": source, "destination": destination, "sha256": hashlib.sha256(path.read_bytes()).hexdigest(), "size": path.stat().st_size}
 
 
-def _manifest(root: Path, entries: list[dict[str, object]]) -> Path:
-    path = root / "notice-bundle.json"
+def _manifest(root: Path, entries: list[dict[str, object]], name: str = "notice-bundle.json") -> Path:
+    path = root / name
     path.write_text(json.dumps({"schema": "octessera.legal-notice-bundle/v1", "schema_version": 1, "destination_root": "/usr/share/doc/octessera", "files": entries}), encoding="utf-8")
     return path
 
@@ -54,6 +54,8 @@ class NoticeStagerTests(unittest.TestCase):
                 stage_notices(root, stage, manifest, check=True)
             with self.assertRaises(NoticeStageError):
                 stage_notices(root, stage, manifest, check=True, ownership="root")
+            with self.assertRaises(NoticeStageError):
+                check_finalized_notices(root, stage, manifest)
 
     def test_invalid_ownership_policy_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -103,6 +105,83 @@ class NoticeStagerTests(unittest.TestCase):
             stage_notices(ROOT, stage, check=True, ownership="filesystem")
             self.assertEqual((stage / "usr/share/doc/octessera/LICENSE").read_bytes(), (ROOT / "LICENSE").read_bytes())
 
+    def test_finalized_mode_accepts_expected_hardlinks_but_rejects_ordinary_check_and_external_alias(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "one.txt").write_text("canonical\n", encoding="utf-8")
+            (root / "two.txt").write_text("canonical\n", encoding="utf-8")
+            manifest = _manifest(root, [_entry(root, "one.txt", "NOTICE-one"), _entry(root, "two.txt", "NOTICE-two")])
+            stage = root / "stage"
+            stage_notices(root, stage, manifest, ownership="filesystem")
+            first = stage / "usr/share/doc/octessera/NOTICE-one"
+            second = stage / "usr/share/doc/octessera/NOTICE-two"
+            second.unlink()
+            os.link(first, second)
+            with self.assertRaises(NoticeStageError):
+                stage_notices(root, stage, manifest, check=True, ownership="filesystem")
+            check_finalized_notices(root, stage, manifest, ownership="filesystem")
+            external = stage / "usr/share/doc/external-legal-alias"
+            os.link(first, external)
+            with self.assertRaises(NoticeStageError):
+                check_finalized_notices(root, stage, manifest, ownership="filesystem")
+
+    def test_finalized_mode_rejects_differing_destination_content_and_hardlinked_source(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "one.txt").write_text("first-data\n", encoding="utf-8")
+            (root / "two.txt").write_text("other-data\n", encoding="utf-8")
+            entries = [_entry(root, "one.txt", "NOTICE-one"), _entry(root, "two.txt", "NOTICE-two")]
+            manifest = _manifest(root, entries)
+            stage = root / "stage"
+            stage_notices(root, stage, manifest, ownership="filesystem")
+            first = stage / "usr/share/doc/octessera/NOTICE-one"
+            second = stage / "usr/share/doc/octessera/NOTICE-two"
+            second.unlink()
+            os.link(first, second)
+            with self.assertRaises(NoticeStageError):
+                check_finalized_notices(root, stage, manifest, ownership="filesystem")
+            os.link(root / "one.txt", root / "source-alias.txt")
+            with self.assertRaises(NoticeStageError):
+                check_finalized_notices(root, stage, manifest, ownership="filesystem")
+
+    def test_finalized_mode_never_creates_or_stages(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "source.txt").write_text("canonical\n", encoding="utf-8")
+            manifest = _manifest(root, [_entry(root, "source.txt", "NOTICE")])
+            destination = root / "not-created"
+            with self.assertRaises(NoticeStageError):
+                check_finalized_notices(root, destination, manifest, ownership="filesystem")
+            self.assertFalse(destination.exists())
+            with self.assertRaises(NoticeStageError):
+                stage_notices(root, destination, manifest, check=True, check_finalized=True, ownership="filesystem")
+            self.assertFalse(destination.exists())
+
+    def test_cli_failures_use_stderr_and_operations_are_exclusive(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "source.txt").write_text("canonical\n", encoding="utf-8")
+            manifest = _manifest(root, [_entry(root, "source.txt", "NOTICE")])
+            command = [
+                sys.executable,
+                str(ROOT / "tools/legal/stage_notices.py"),
+                "--repository-root",
+                str(root),
+                "--destination-root",
+                str(root / "not-created"),
+                "--manifest",
+                str(manifest),
+                "--ownership",
+                "filesystem",
+            ]
+            failed = subprocess.run([*command, "--check-finalized"], capture_output=True, text=True)
+            self.assertEqual(failed.returncode, 1)
+            self.assertEqual(failed.stdout, "")
+            self.assertIn("Legal notice staging failed", failed.stderr)
+            conflict = subprocess.run([*command, "--check", "--check-finalized"], capture_output=True, text=True)
+            self.assertEqual(conflict.returncode, 2)
+            self.assertIn("not allowed with argument", conflict.stderr)
+
     def test_stale_missing_extra_mode_and_content_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -115,19 +194,27 @@ class NoticeStagerTests(unittest.TestCase):
             target.write_text("stale\n", encoding="utf-8")
             with self.assertRaises(NoticeStageError):
                 stage_notices(root, stage, manifest, check=True, ownership="filesystem")
+            with self.assertRaises(NoticeStageError):
+                check_finalized_notices(root, stage, manifest, ownership="filesystem")
             target.write_text("canonical\n", encoding="utf-8")
             target.chmod(0o600)
             if os.name != "nt":
                 with self.assertRaises(NoticeStageError):
                     stage_notices(root, stage, manifest, check=True, ownership="filesystem")
+                with self.assertRaises(NoticeStageError):
+                    check_finalized_notices(root, stage, manifest, ownership="filesystem")
             target.chmod(0o644)
             (stage / "usr/share/doc/octessera/extra.txt").write_text("extra\n", encoding="utf-8")
             with self.assertRaises(NoticeStageError):
                 stage_notices(root, stage, manifest, check=True, ownership="filesystem")
+            with self.assertRaises(NoticeStageError):
+                check_finalized_notices(root, stage, manifest, ownership="filesystem")
             (stage / "usr/share/doc/octessera/extra.txt").unlink()
             source.unlink()
             with self.assertRaises(NoticeStageError):
                 stage_notices(root, stage, manifest, check=True, ownership="filesystem")
+            with self.assertRaises(NoticeStageError):
+                check_finalized_notices(root, stage, manifest, ownership="filesystem")
 
     def test_symlink_collision_and_escape_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -155,6 +242,8 @@ class NoticeStagerTests(unittest.TestCase):
             target.symlink_to(root / "one.txt")
             with self.assertRaises(NoticeStageError):
                 stage_notices(root, stage, _manifest(root, [_entry(root, "one.txt", "NOTICE")]), check=True, ownership="filesystem")
+            with self.assertRaises(NoticeStageError):
+                check_finalized_notices(root, stage, _manifest(root, [_entry(root, "one.txt", "NOTICE")]), ownership="filesystem")
 
 
 if __name__ == "__main__":

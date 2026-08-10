@@ -6,6 +6,7 @@ import json
 import os
 import re
 import stat
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -123,29 +124,86 @@ def _reject_unknown_outputs(root: Path, expected: set[str]) -> None:
             raise NoticeStageError(f"legal notice tree contains an unknown output: {path}")
 
 
-def stage_notices(repository_root: Path, destination_root: Path, manifest_path: Path | None = None, check: bool = False, ownership: str = "root") -> None:
+def _verify_finalized_tree(destination_root: Path, source_data: list[tuple[Path, Path, dict[str, Any], bytes]], ownership: str) -> None:
+    legal_root = destination_root / "usr/share/doc/octessera"
+    _require(destination_root.is_dir() and not destination_root.is_symlink(), f"destination root is not a real directory: {destination_root}")
+    _ensure_tree(destination_root, Path("usr/share/doc/octessera"), False)
+    expected = {destination.as_posix() for _, destination, _, _ in source_data}
+    allowed_directories: set[str] = set()
+    for relative in expected:
+        parts = relative.split("/")[:-1]
+        for index in range(1, len(parts) + 1):
+            allowed_directories.add("/".join(parts[:index]))
+    for path in legal_root.rglob("*"):
+        relative = path.relative_to(legal_root).as_posix()
+        if path.is_symlink():
+            raise NoticeStageError(f"finalized legal tree contains a symlink: {path}")
+        if path.is_dir():
+            _require(relative in allowed_directories, f"finalized legal tree contains an unknown directory: {path}")
+        elif relative not in expected:
+            raise NoticeStageError(f"finalized legal tree contains an unknown output: {path}")
+
+    groups: dict[tuple[int, int], list[tuple[Path, dict[str, Any], bytes, os.stat_result]]] = {}
+    for _, destination, item, data in source_data:
+        target = legal_root / destination
+        _ensure_tree(legal_root, destination.parent, False)
+        _require(target.exists() and not target.is_symlink(), f"finalized legal file is missing or symlinked: {target}")
+        metadata = target.lstat()
+        _require(stat.S_ISREG(metadata.st_mode), f"finalized legal file is not regular: {target}")
+        if os.name != "nt":
+            _require(metadata.st_mode & 0o777 == 0o644, f"finalized legal file mode is not 0644: {target}")
+        if ownership == "root":
+            _require(_root_owned(target), f"finalized legal file is not root-owned: {target}")
+        _require(metadata.st_size == item["size"], f"finalized legal file size is stale: {target}")
+        _require(target.read_bytes() == data, f"finalized legal file content is stale: {target}")
+        groups.setdefault((metadata.st_dev, metadata.st_ino), []).append((target, item, data, metadata))
+
+    for members in groups.values():
+        manifest_identities = {(item["sha256"], item["size"]) for _, item, _, _ in members}
+        payloads = {data for _, _, data, _ in members}
+        link_counts = {metadata.st_nlink for _, _, _, metadata in members}
+        _require(len(manifest_identities) == 1, "finalized legal hardlink group has differing manifest identities")
+        _require(len(payloads) == 1, "finalized legal hardlink group has differing source bytes")
+        _require(len(link_counts) == 1, "finalized legal hardlink group has differing link counts")
+        _require(next(iter(link_counts)) == len(members), "finalized legal hardlink group has an external alias")
+
+
+def stage_notices(
+    repository_root: Path,
+    destination_root: Path,
+    manifest_path: Path | None = None,
+    check: bool = False,
+    ownership: str = "root",
+    check_finalized: bool = False,
+) -> None:
+    _require(not (check and check_finalized), "ordinary and finalized checks are mutually exclusive")
     _require(ownership in OWNERSHIP_POLICIES, f"invalid ownership policy: {ownership}")
     repository_root = repository_root.resolve()
+    if check_finalized:
+        _require(not destination_root.is_symlink(), f"destination root is not a real directory: {destination_root}")
     destination_root = destination_root.resolve()
-    if not destination_root.exists() and not check:
+    if not destination_root.exists() and not check and not check_finalized:
         destination_root.mkdir(parents=True)
     _require(destination_root.is_dir() and not destination_root.is_symlink(), f"destination root is not a real directory: {destination_root}")
     manifest = load_manifest(manifest_path or repository_root / MANIFEST_RELATIVE)
     entries = manifest["files"]
-    source_data: list[tuple[Path, Path, bytes]] = []
+    source_data: list[tuple[Path, Path, dict[str, Any], bytes]] = []
     for item in entries:
         source = repository_root / _safe_relative(item["source"], "source")
         digest, size = _source_identity(source, "legal notice source")
         _require(digest == item["sha256"] and size == item["size"], f"legal notice source identity changed: {source}")
-        source_data.append((source, _safe_relative(item["destination"], "destination"), source.read_bytes()))
+        source_data.append((source, _safe_relative(item["destination"], "destination"), item, source.read_bytes()))
+    if check_finalized:
+        _verify_finalized_tree(destination_root, source_data, ownership)
+        return
     legal_root = destination_root / "usr/share/doc/octessera"
-    expected = {destination.as_posix() for _, destination, _ in source_data}
+    expected = {destination.as_posix() for _, destination, _, _ in source_data}
     if check:
         _require(legal_root.is_dir() and not legal_root.is_symlink(), f"staged legal tree is missing: {legal_root}")
     else:
         _ensure_tree(destination_root, Path("usr/share/doc/octessera"), True)
     _reject_unknown_outputs(legal_root, expected)
-    for source, destination, data in source_data:
+    for source, destination, _, data in source_data:
         target = legal_root / destination
         parent = target.parent
         if check:
@@ -174,18 +232,31 @@ def stage_notices(repository_root: Path, destination_root: Path, manifest_path: 
             _verify_output(target, data, "staged legal file", ownership)
 
 
+def check_finalized_notices(repository_root: Path, destination_root: Path, manifest_path: Path | None = None, ownership: str = "root") -> None:
+    stage_notices(repository_root, destination_root, manifest_path, ownership=ownership, check_finalized=True)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Stage the canonical Octessera legal notice bundle.")
     parser.add_argument("--repository-root", type=Path, required=True)
     parser.add_argument("--destination-root", type=Path, required=True)
     parser.add_argument("--manifest", type=Path)
-    parser.add_argument("--check", action="store_true")
+    operation = parser.add_mutually_exclusive_group()
+    operation.add_argument("--check", action="store_true")
+    operation.add_argument("--check-finalized", action="store_true")
     parser.add_argument("--ownership", choices=sorted(OWNERSHIP_POLICIES), default="root")
     arguments = parser.parse_args()
     try:
-        stage_notices(arguments.repository_root, arguments.destination_root, arguments.manifest, arguments.check, arguments.ownership)
+        stage_notices(
+            arguments.repository_root,
+            arguments.destination_root,
+            arguments.manifest,
+            arguments.check,
+            arguments.ownership,
+            arguments.check_finalized,
+        )
     except (OSError, NoticeStageError) as error:
-        print(f"Legal notice staging failed: {error}")
+        print(f"Legal notice staging failed: {error}", file=sys.stderr)
         return 1
     print("Legal notice staging passed")
     return 0
