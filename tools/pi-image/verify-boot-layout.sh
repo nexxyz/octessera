@@ -171,7 +171,7 @@ require_octessera_legal_notices() {
         echo "constructor-required: legal notice stager is missing" >&2
         return 1
     fi
-    python3 "$stager" --repository-root "$REPOSITORY_ROOT" --destination-root "$image_root" --check >/dev/null || {
+    python3 "$stager" --repository-root "$REPOSITORY_ROOT" --destination-root "$image_root" --check-finalized >/dev/null || {
         echo "constructor-required: installed legal notice tree is not canonical" >&2
         return 1
     }

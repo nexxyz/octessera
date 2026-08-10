@@ -65,9 +65,26 @@ if [ "$(id -u)" -eq 0 ]; then
     python3 "$script_dir/../legal/stage_notices.py" \
         --repository-root "$script_dir/../.." \
         --destination-root "$fixture/root" >/dev/null
+    rm "$fixture/root/usr/share/doc/octessera/licenses/cargo/vendored-cpal-0.15.3/LICENSE"
+    ln "$fixture/root/usr/share/doc/octessera/licenses/cargo/reference/Apache-2.0.txt" \
+        "$fixture/root/usr/share/doc/octessera/licenses/cargo/vendored-cpal-0.15.3/LICENSE"
+    rm "$fixture/root/usr/share/doc/octessera/licenses/pnpm/react/18.3.1/LICENSE" \
+        "$fixture/root/usr/share/doc/octessera/licenses/pnpm/scheduler/0.23.2/LICENSE"
+    ln "$fixture/root/usr/share/doc/octessera/licenses/pnpm/react-dom/18.3.1/LICENSE" \
+        "$fixture/root/usr/share/doc/octessera/licenses/pnpm/react/18.3.1/LICENSE"
+    ln "$fixture/root/usr/share/doc/octessera/licenses/pnpm/react-dom/18.3.1/LICENSE" \
+        "$fixture/root/usr/share/doc/octessera/licenses/pnpm/scheduler/0.23.2/LICENSE"
     mkdir -p "$fixture/root/usr/share/common-licenses" "$fixture/root/usr/share/doc/base-files"
     printf '%s\n' 'fixture GPL license' > "$fixture/root/usr/share/common-licenses/GPL-3"
     printf '%s\n' 'fixture base-files copyright' > "$fixture/root/usr/share/doc/base-files/copyright"
+    require_octessera_legal_notices "$fixture/root"
+    ln "$fixture/root/usr/share/doc/octessera/licenses/cargo/reference/Apache-2.0.txt" \
+        "$fixture/root/usr/share/doc/external-octessera-legal-alias"
+    if require_octessera_legal_notices "$fixture/root"; then
+        echo 'Finalized legal verification accepted an external hardlink alias.' >&2
+        exit 1
+    fi
+    rm "$fixture/root/usr/share/doc/external-octessera-legal-alias"
     require_octessera_raspberry_identity "$fixture/boot" "$fixture/root"
     printf '%s\n' '# octessera hardware configuration' '[all]' 'dtoverlay=disable-bt' 'enable_uart=0' > "$fixture/root/boot/firmware/config.txt"
     printf '\r' >> "$fixture/root/boot/firmware/config.txt"
