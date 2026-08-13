@@ -432,6 +432,9 @@ pub(super) fn rgb565(rgb: [u8; 3]) -> u16 {
 #[path = "render/boot_sweep_tests.rs"]
 mod boot_sweep_tests;
 #[cfg(test)]
+#[path = "render/native_frame_sleep_wake_tests.rs"]
+mod native_frame_sleep_wake_tests;
+#[cfg(test)]
 #[path = "render/oled_error_tests.rs"]
 mod oled_error_tests;
 #[cfg(test)]
