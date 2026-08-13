@@ -58,29 +58,13 @@ const CMD_SET_MUX_RATIO: u8 = 0xCA;
 const CMD_SET_COMMAND_LOCK: u8 = 0xFD;
 #[cfg(feature = "raspberry-pi-zero-2w")]
 const SPI_CHUNK_BYTES: usize = 4096;
-#[cfg(any(
-    feature = "raspberry-pi-zero-2w",
-    all(feature = "orange-pi-zero-2w", target_os = "linux"),
-    test
-))]
+#[cfg(any(feature = "raspberry-pi-zero-2w", test))]
 const WIDTH: usize = 128;
-#[cfg(any(
-    feature = "raspberry-pi-zero-2w",
-    all(feature = "orange-pi-zero-2w", target_os = "linux"),
-    test
-))]
+#[cfg(any(feature = "raspberry-pi-zero-2w", test))]
 const HEIGHT: usize = 128;
-#[cfg(any(
-    feature = "raspberry-pi-zero-2w",
-    all(feature = "orange-pi-zero-2w", target_os = "linux"),
-    test
-))]
+#[cfg(any(feature = "raspberry-pi-zero-2w", test))]
 const BYTES_PER_PIXEL: usize = 2;
-#[cfg(any(
-    feature = "raspberry-pi-zero-2w",
-    all(feature = "orange-pi-zero-2w", target_os = "linux"),
-    test
-))]
+#[cfg(any(feature = "raspberry-pi-zero-2w", test))]
 const FRAME_BYTES: usize = WIDTH * HEIGHT * BYTES_PER_PIXEL;
 
 /// OLED display driver
@@ -95,7 +79,6 @@ pub struct OledSsd1351 {
 #[cfg(all(feature = "orange-pi-zero-2w", target_os = "linux"))]
 pub struct OledSsd1351 {
     transport: Option<crate::orange_hardware::OrangeOledTransport>,
-    rotated_frame: Vec<u8>,
 }
 
 #[cfg(feature = "raspberry-pi-zero-2w")]
@@ -248,11 +231,7 @@ impl OledSsd1351 {
     }
 }
 
-#[cfg(any(
-    feature = "raspberry-pi-zero-2w",
-    all(feature = "orange-pi-zero-2w", target_os = "linux"),
-    test
-))]
+#[cfg(any(feature = "raspberry-pi-zero-2w", test))]
 fn rotate_clockwise_rgb565<'a>(pixels: &'a [u8], rotated: &'a mut [u8]) -> &'a [u8] {
     if pixels.len() != FRAME_BYTES || rotated.len() != FRAME_BYTES {
         return pixels;
@@ -314,16 +293,14 @@ impl OledSsd1351 {
         };
         Ok(Self {
             transport: Some(hardware.into_oled()),
-            rotated_frame: vec![0_u8; FRAME_BYTES],
         })
     }
 
     pub fn write_frame(&mut self, pixels: &[u8]) -> Result<(), String> {
-        let frame = rotate_clockwise_rgb565(pixels, &mut self.rotated_frame);
         self.transport
             .as_mut()
             .ok_or_else(|| "Orange OLED hardware is detached".to_string())?
-            .write_frame(frame)
+            .write_frame(orange_frame_for_transport(pixels))
     }
 
     pub fn display_all_on(&mut self) -> Result<(), String> {
@@ -364,6 +341,11 @@ impl OledSsd1351 {
         self.transport = Some(hardware.into_oled());
         Ok(())
     }
+}
+
+#[cfg(all(feature = "orange-pi-zero-2w", any(test, target_os = "linux")))]
+fn orange_frame_for_transport(pixels: &[u8]) -> &[u8] {
+    pixels
 }
 
 #[cfg(all(feature = "orange-pi-zero-2w", not(target_os = "linux")))]
@@ -454,6 +436,19 @@ impl fmt::Debug for OledSsd1351 {
 #[cfg(test)]
 mod tests {
     use super::{rotate_clockwise_rgb565, FRAME_BYTES, HEIGHT, WIDTH};
+
+    #[cfg(feature = "orange-pi-zero-2w")]
+    #[test]
+    fn orange_native_frame_is_forwarded_without_an_extra_transform() {
+        let pixels = (0..FRAME_BYTES)
+            .map(|index| index as u8)
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            super::orange_frame_for_transport(&pixels),
+            pixels.as_slice()
+        );
+    }
 
     fn set_pixel(frame: &mut [u8], x: usize, y: usize, bytes: [u8; 2]) {
         let offset = (y * WIDTH + x) * 2;
