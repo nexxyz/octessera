@@ -7,7 +7,7 @@ samples. It is an engineering record, not legal advice.
 ## Pins and inputs
 
 - Cargo workspace lockfile: `Cargo.lock`, SHA-256
-  `9bd7b8c2f1a1f0587ade8dfbb2d26468a2a1c24c64bd5c357b495307f299a3ab`.
+  `0225ccdf24258b816cc152df5571601f91e2c380afc06a44d9bf2157e87d6bae`.
 - `cargo-about` **0.9.1**. Install with:
   `cargo install cargo-about --version 0.9.1 --locked --features cli`.
 - Cargo configuration: `about.toml`; reviewed template:
@@ -21,7 +21,7 @@ samples. It is an engineering record, not legal advice.
   same directory and verified by the generator.
 - pnpm: **9.12.0**, pinned by the root `package.json` `packageManager` field.
 - pnpm lockfile: `pnpm-lock.yaml`, SHA-256
-  `c7f161db7567f21bcf0599b5dae8052df82c4ca61e3fb7ab1847fefca7b93a8f`.
+  `f3f796dfca32246fa747360c417018104adb04dbf4ad2a6c873de532c7b7cd47`.
 - Production package discovery command:
   `corepack pnpm licenses list --prod --json`.
 

@@ -14,6 +14,7 @@ from typing import Any
 
 REGISTRY_SOURCE = "registry+https://github.com/rust-lang/crates.io-index"
 WORKSPACE_PACKAGE_NAMES = {
+    "platform-capabilities-build",
     "platform-core",
     "playback-runtime",
     "realtime-engine",

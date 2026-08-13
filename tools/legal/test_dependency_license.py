@@ -20,6 +20,7 @@ from cargo_dependency_license_support import (
     verify_cargo_checksum,
     workspace_license_records,
 )
+from cargo_dependency_license_render import lf_text
 from dependency_license_generate import cargo_metadata
 
 
@@ -27,9 +28,12 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class DependencyLicenseTests(unittest.TestCase):
+    def test_rendered_license_text_normalizes_line_endings(self) -> None:
+        self.assertEqual(lf_text("one\r\ntwo\rthree\n"), "one\ntwo\nthree\n")
+
     def test_workspace_license_inheritance_and_digest(self) -> None:
         records = workspace_license_records(ROOT, cargo_metadata(ROOT))
-        self.assertEqual(len(records), 7)
+        self.assertEqual(len(records), 8)
         self.assertEqual({record["resolved_license_file"] for record in records}, {"LICENSE"})
         self.assertEqual(len({record["license_sha256"] for record in records}), 1)
 

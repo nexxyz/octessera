@@ -17,6 +17,10 @@ def json_bytes(value: Any) -> bytes:
     return (json.dumps(value, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
 
 
+def lf_text(value: str) -> str:
+    return value.replace("\r\n", "\n").replace("\r", "\n")
+
+
 def checksum_manifest(output: dict[str, bytes], prefix: str) -> bytes:
     lines = [
         f"{sha256(output[path])}  {path}"
@@ -87,10 +91,10 @@ def render_cargo_outputs(
         document = documents[document_id]
         text.extend([f"### SHA-256 {document_id}", "Sources:"])
         text.extend(f"- {source}" for source in sorted(document["sources"]))
-        text.extend(["", "----- BEGIN LICENSE TEXT -----", document["content"].rstrip("\r\n"), "----- END LICENSE TEXT -----", ""])
+        text.extend(["", "----- BEGIN LICENSE TEXT -----", lf_text(document["content"]).rstrip("\n"), "----- END LICENSE TEXT -----", ""])
     for reference in sorted(REFERENCE_PATHS):
         source = reference_text_bytes(root, reference)
-        text.extend([f"## Reviewed SPDX reference: {reference}", "", source.decode("utf-8").rstrip("\r\n"), ""])
+        text.extend([f"## Reviewed SPDX reference: {reference}", "", lf_text(source.decode("utf-8")).rstrip("\n"), ""])
         output[REFERENCE_PATHS[reference]] = source
     output["licenses/cargo/THIRD_PARTY_LICENSES.txt"] = "\n".join(text).encode("utf-8")
 
