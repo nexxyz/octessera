@@ -10,7 +10,7 @@
     "machine_output_checked": false,
     "limitation": "cargo-about 0.9.1 is advisory here: custom first-party license-file metadata and policy review are not represented by its accepted identifiers, so the checked inventory is rendered from Cargo.lock, manifests, and the exact reviewed policy instead."
   },
-  "cargo_lock_sha256": "9bd7b8c2f1a1f0587ade8dfbb2d26468a2a1c24c64bd5c357b495307f299a3ab",
+  "cargo_lock_sha256": "0225ccdf24258b816cc152df5571601f91e2c380afc06a44d9bf2157e87d6bae",
   "package_count": 509,
   "license_classes": {
     "permissive": 497,
@@ -17677,6 +17677,13 @@
     },
     {
       "name": "octessera-pi",
+      "version": "0.7.5",
+      "manifest_license_file": "../../LICENSE",
+      "resolved_license_file": "LICENSE",
+      "license_sha256": "b44ee1e339ececd8e700e8c4baa01e7079288074bfb5fc5a743bd7a5391390c0"
+    },
+    {
+      "name": "platform-capabilities-build",
       "version": "0.7.5",
       "manifest_license_file": "../../LICENSE",
       "resolved_license_file": "LICENSE",
