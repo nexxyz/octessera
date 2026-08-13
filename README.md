@@ -2,7 +2,7 @@
 
 Octessera turns cellular automata into music you can play.
 
-It is a collection of little algorithmic musical world-bubbles: small systems you set up, nudge, combine, and occasionally interrupt. You are not programming fixed notes on a piano roll. You are giving tiny rule-based worlds something to do, adding a bit of manual sequencing when you want an anchor, and then playing the result in real time.
+It is a collection of little algorithmic musical world-bubbles: small systems you set up, nudge, combine, and occasionally interrupt. Instead of programming fixed notes on a piano roll or tracker-track, you are giving tiny rule-based worlds something to do, adding a bit of manual sequencing when you want an anchor, and then playing the result in real time.
 
 Start with the user docs: [`userdocs/README.md`](userdocs/README.md). If you
 have no hardware yet, use the [hardware-free desktop simulator path](userdocs/desktop-simulator.md).
