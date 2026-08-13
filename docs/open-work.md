@@ -8,10 +8,10 @@ See [`internal/quality-improvement-plan.md`](internal/quality-improvement-plan.m
 
 This is a ranked backlog, not approval to begin the work. Reassess scope before
 starting an item and keep each change independently shippable. Estimates are
-rough engineer-days. Orange automated on-device validation is currently
-available; Raspberry on-device and all physical-observation evidence are
-deferred. Prefer PC evidence plus safe Orange diagnostics where they establish a
-real additional fact.
+rough engineer-days. Orange automated on-device validation and attended physical
+observation are currently available. Raspberry on-device evidence and the
+remaining Orange qualification gates are deferred. Prefer PC evidence plus safe
+Orange diagnostics where they establish a real additional fact.
 
 1. **T1 remaining: qualify Seesaw in available evidence layers.** Now, use a
    hash-bound Orange diagnostic and fail-closed service restoration to verify
@@ -51,13 +51,13 @@ real additional fact.
 - On each new image, prove continuous initramfs-to-userspace cycles: one bounded initramfs cycle is fully reaped, the early userspace loop continues, native startup releases and adopts without resetting the OLED, and animation stops before the acknowledged first normal menu frame. Prove there is no blank, static, flickering, or dual-writer interval.
 - Exercise restart and failure paths on both boards: animator restart, native startup failure, OLED write failure, stale/mismatched status, lock contention/timeout, and recovery without orphaned processes, writers, lock state, or temporary handoff files. Orange also proves DAC-health gating before readiness.
 - Orange runtime recovery is fail-closed: systemd permits the initial start plus two retries in 30 seconds, then requires `sudo systemctl reset-failed octessera.service` followed by `sudo systemctl start octessera.service`. The OLED animator deadline is 30 seconds monotonic; timeout and cleanup failures attempt black then display-off independently and leave a native-recoverable failed handoff. Exact Trellis wiring and addresses remain required; no alternate fallback is supported.
-- Physically qualify the mounted constructor images on both assembled boards: first-menu handoff and OLED readability, then separate sleep, resume, and shutdown/reboot behavior. Confirm those lifecycle paths do not race the boot writer and do not borrow the boot animation contract.
+- Orange's regenerated selected initramfs now reaches an acknowledged, readable first menu; UI OLED sleep and first-input-consumed wake are physically qualified, and reboot returns through a clean single-writer handoff. Repeat those checks on a constructor-built Orange image and on Raspberry. Linux system suspend/resume and shutdown remain separate physical qualification gates; confirm they do not race the boot writer or borrow the boot animation contract.
 
 ## Hardware Validation
 
 - Setup portal qualification remains open on both boards: verify AP creation and joining, the captive page, successful Wi-Fi credential/hostname/SSH/login application, reconnect on the new network, attachment to an already-running setup service, the 30-minute timeout, failure and partial-state messaging, and absence of secrets in the AP, HTTP responses, status/receipt files, logs, and artifacts.
-- Replace or independently verify the SSD1351 OLED module; the tested module stayed blank with Pi and Arduino Adafruit test code despite valid power and command wiring.
-- OLED checklist after replacement: validate orientation, clipping, brightness, text layout, startup/help toast wording, help dialogs, confirm dialogs, and long sample-browser rows on the physical display.
+- Replace or independently verify the Raspberry SSD1351 OLED module; the tested Raspberry module stayed blank with Pi and Arduino Adafruit test code despite valid power and command wiring. The Orange OLED is operational.
+- Orange OLED orientation, edge alignment, boot handoff, default idle sleep, and first-input-consumed wake are qualified. Raspberry still needs the full checklist. Both boards still need physical brightness, startup/help toast wording, help dialogs, confirm dialogs, and long sample-browser row checks.
 - NeoTrellis checklist: validate coordinate orientation, lower-left grid semantics, Play Fn columns, overlay priority, XY marker position, sample/probability assignment colors, and full-frame stability on hardware after the corrected connector path is installed.
 - NeoKey checklist: validate Back, Space, Shift, Fn, combined Shift+Fn, modifier-held hints, button LED colors, and help chord entry on the PCB.
 - Encoders checklist: validate main encoder turn/press, all aux encoder directions, aux push switches, Fn+Aux binding, turn/press overlay indicators, and no-binding/not-active toasts.

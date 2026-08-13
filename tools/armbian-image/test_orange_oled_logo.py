@@ -128,6 +128,76 @@ frames = [logo.render_canvas(canvas, frame) for frame in range(logo.BOOT_SWEEP_F
 assert all(len(frame) == logo.WIDTH * logo.HEIGHT * 2 for frame in frames)
 
 
+class RecordingGpio:
+    def __init__(self, events):
+        self.events = events
+
+    def set(self, name, offset, value):
+        assert name == "dc"
+        assert offset == logo.GPIO_DC
+        self.events.append(("dc", value))
+
+
+def recording_oled(events):
+    oled = logo.Oled.__new__(logo.Oled)
+    oled.gpio = RecordingGpio(events)
+    oled.write = lambda payload: events.append(("write", bytes(payload)))
+    return oled
+
+
+command_oled_events: list[tuple[str, object]] = []
+command_oled = recording_oled(command_oled_events)
+command_oled.command(0xAE)
+assert command_oled_events == [("dc", 0), ("write", b"\xae")]
+command_oled_events.clear()
+command_oled.command(0xA0, 0x74)
+assert command_oled_events == [("dc", 0), ("write", b"\xa0"), ("dc", 1), ("write", b"\x74")]
+
+frame_oled_events: list[tuple[str, object]] = []
+frame_oled = recording_oled(frame_oled_events)
+frame_oled.frame(b"\x12\x34")
+assert frame_oled_events == [
+    ("dc", 0), ("write", b"\x15"), ("dc", 1), ("write", b"\x00\x7f"),
+    ("dc", 0), ("write", b"\x75"), ("dc", 1), ("write", b"\x00\x7f"),
+    ("dc", 0), ("write", b"\x5c"), ("dc", 1), ("write", b"\x12\x34"),
+]
+
+
+initialization_events: list[tuple[str, object]] = []
+initialization_oled = recording_oled(initialization_events)
+initialization_oled.reset = lambda: initialization_events.append(("reset", None))
+initialization_oled.initialize()
+initialization_commands = (
+    (0xFD, 0x12),
+    (0xFD, 0xB1),
+    (0xAE,),
+    (0xB3, 0xF1),
+    (0xCA, 0x7F),
+    (0xA0, 0x74),
+    (0x15, 0x00, 0x7F),
+    (0x75, 0x00, 0x7F),
+    (0xA1, 0x00),
+    (0xA2, 0x00),
+    (0xB5, 0x00),
+    (0xAB, 0x01),
+    (0xB1, 0x32),
+    (0xBB, 0x17),
+    (0xBE, 0x05),
+    (0xA6,),
+    (0xC1, 0xC8, 0x80, 0xC8),
+    (0xC7, 0x0F),
+    (0xB4, 0xA0, 0xB5, 0x55),
+    (0xB6, 0x01),
+    (0xAF,),
+)
+expected_initialization_events: list[tuple[str, object]] = [("reset", None)]
+for values in initialization_commands:
+    expected_initialization_events.extend((("dc", 0), ("write", bytes((values[0],)))))
+    if len(values) > 1:
+        expected_initialization_events.extend((("dc", 1), ("write", bytes(values[1:]))))
+assert initialization_events == expected_initialization_events
+
+
 class FakeOled:
     instances = []
 
