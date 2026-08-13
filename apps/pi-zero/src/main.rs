@@ -28,8 +28,8 @@ mod candidate_readiness;
 mod device_update;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod diagnostics;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod dsp_profile;
+mod dsp_scenarios;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod encoder_queue;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
@@ -55,10 +55,13 @@ mod main_runtime_loop;
 #[cfg(feature = "external-midi")]
 mod midi_host;
 mod normal_menu;
+mod oled_frame_cache;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod oled_test;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod orange_audio;
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+mod orange_audio_benchmark;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod orange_host_adapter;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -86,6 +89,8 @@ mod setup_portal;
 mod setup_portal_files;
 mod setup_portal_paths;
 mod setup_portal_worker;
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+mod snapshot_cadence;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod timing_probe;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
@@ -122,6 +127,20 @@ fn main() {
     if octessera_pi::board_profile::metadata_requested() {
         octessera_pi::board_profile::print_build_metadata();
         return;
+    }
+    if dsp_profile::profile_requested() && orange_audio_benchmark::requested() {
+        eprintln!("--profile-dsp and --benchmark-orange-audio cannot be combined");
+        std::process::exit(2);
+    }
+    if dsp_profile::profile_requested() {
+        std::process::exit(exit_code(dsp_profile::run_dsp_profile().is_ok()));
+    }
+    if orange_audio_benchmark::requested() {
+        let result = orange_audio_benchmark::run();
+        if let Err(error) = &result {
+            eprintln!("Orange audio benchmark failed: {error}");
+        }
+        std::process::exit(exit_code(result.is_ok()));
     }
     if let Err(error) = orange_candidate::run() {
         eprintln!("Orange foreground candidate failed: {error}");
@@ -256,7 +275,6 @@ fn run_requested_utility() {
     }
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 fn exit_code(success: bool) -> i32 {
     if success {
         0

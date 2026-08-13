@@ -220,26 +220,6 @@ fn runtime_protocol_json_uses_public_field_names_and_defaults() {
             },
         })
     );
-
-    assert_eq!(
-        serde_json::to_value(RuntimeUiPulse::TransportFlash {
-            flash: "start".into(),
-            duration_ms: 120,
-        })
-        .unwrap(),
-        json!({ "type": "transport_flash", "flash": "start", "durationMs": 120 })
-    );
-
-    assert_eq!(
-        serde_json::to_value(RunnerMessage::UiPulse {
-            pulse: RuntimeUiPulse::TriggerPulse { duration_ms: 80 },
-        })
-        .unwrap(),
-        json!({
-            "type": "ui_pulse",
-            "pulse": { "type": "trigger_pulse", "durationMs": 80 },
-        })
-    );
 }
 
 #[test]

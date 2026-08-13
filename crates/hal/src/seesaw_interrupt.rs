@@ -1,17 +1,17 @@
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(feature = "raspberry-pi-zero-2w")]
 use crate::pinmap::SEESAW_INT;
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(feature = "raspberry-pi-zero-2w")]
 use rppal::gpio::{Gpio, InputPin, Level, Trigger};
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(feature = "raspberry-pi-zero-2w")]
 use std::sync::mpsc::{self, Receiver};
 
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(feature = "raspberry-pi-zero-2w")]
 pub struct SeesawInterrupt {
     pin: InputPin,
     rx: Receiver<()>,
 }
 
-#[cfg(feature = "rpi-zero-2w")]
+#[cfg(feature = "raspberry-pi-zero-2w")]
 impl SeesawInterrupt {
     pub fn new() -> Result<Self, String> {
         let gpio = Gpio::new().map_err(|e| format!("Seesaw INT GPIO init failed: {e}"))?;
@@ -40,11 +40,11 @@ impl SeesawInterrupt {
     }
 }
 
-#[cfg(not(feature = "rpi-zero-2w"))]
+#[cfg(not(feature = "raspberry-pi-zero-2w"))]
 #[derive(Default)]
 pub struct SeesawInterrupt;
 
-#[cfg(not(feature = "rpi-zero-2w"))]
+#[cfg(not(feature = "raspberry-pi-zero-2w"))]
 impl SeesawInterrupt {
     pub fn new() -> Result<Self, String> {
         Ok(Self)

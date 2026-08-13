@@ -1,4 +1,4 @@
-use super::support::{set_runtime_playing, FakeHost, FakeRunner};
+use super::support::{canonical_oled_snapshot, set_runtime_playing, FakeHost, FakeRunner};
 use crate::{
     CoreRunner, HostMessage, MusicalEvent, PlaybackRuntime, RunnerMessage, RuntimeAudioCommand,
     RuntimeConfig, RuntimePlatformEffect, SyncSource,
@@ -205,9 +205,11 @@ fn host_effect_results_round_trip_back_into_runner() {
                         effects: vec![RuntimePlatformEffect::StoreListPresets],
                     }])
                 }
-                HostMessage::RuntimeResult { result } => Ok(vec![RunnerMessage::Snapshot {
-                    snapshot: json!({ "roundTrip": result }),
-                }]),
+                HostMessage::RuntimeResult { result } => {
+                    let mut snapshot = canonical_oled_snapshot("round trip");
+                    snapshot["roundTrip"] = serde_json::to_value(result).unwrap();
+                    Ok(vec![RunnerMessage::Snapshot { snapshot }])
+                }
                 _ => Ok(vec![]),
             }
         }
@@ -221,10 +223,9 @@ fn host_effect_results_round_trip_back_into_runner() {
     runtime.advance(500, &mut runner, &mut host).unwrap();
 
     assert_eq!(host.effects, vec![RuntimePlatformEffect::StoreListPresets]);
-    assert_eq!(
-        runtime.last_snapshot(),
-        Some(&json!({
-            "roundTrip": {
+    assert!(runtime.last_snapshot().is_some_and(|snapshot| {
+        snapshot["roundTrip"]
+            == json!({
                 "type": "identified",
                 "requestId": "platform-1",
                 "revision": null,
@@ -232,9 +233,11 @@ fn host_effect_results_round_trip_back_into_runner() {
                     "type": "list_presets_result",
                     "names": ["Factory", "Live Set"]
                 }
-            }
-        }))
-    );
+            })
+            && snapshot["oledFrameRevision"]
+                .as_u64()
+                .is_some_and(|revision| revision > 0)
+    }));
 }
 
 #[test]

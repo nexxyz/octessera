@@ -1,6 +1,8 @@
 use super::oled_error_tests::{menu_snapshot, pixel};
 use super::*;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+use crate::oled_frame_cache::OledFramePublication;
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use octessera_hal::OledSsd1351;
 use platform_core::palette;
 use serde_json::{json, Value};
@@ -27,7 +29,14 @@ fn snapshot_with_leds() -> Value {
         "leds": { "rgb": rgb },
         "transport": { "playing": false },
         "transportIcon": "stop",
-        "transportFlash": "none"
+        "transportFlash": "none",
+        "eventDotOn": false,
+        "neoKeyLeds": {
+            "back": palette::RED,
+            "space": palette::RED,
+            "shift": dim(palette::GRAY, 3),
+            "fn": dim(palette::GRAY, 3)
+        }
     })
 }
 
@@ -157,21 +166,6 @@ fn status_icons_are_invisible_until_warning_or_save_flash() {
 }
 
 #[test]
-fn oled_signature_tracks_scroll_bar_status_and_float_changes() {
-    let snapshot = menu_snapshot();
-    let base = oled_signature(&snapshot);
-    let mut changed = snapshot.clone();
-    changed["display"]["barValues"][1]["frac"] = json!(0.75);
-    assert_ne!(base, oled_signature(&changed));
-    changed = snapshot.clone();
-    changed["display"]["scrollOffset"] = json!(3);
-    assert_ne!(base, oled_signature(&changed));
-    changed = snapshot.clone();
-    changed["cpuLoadRatio"] = json!(0.9);
-    assert_ne!(base, oled_signature(&changed));
-}
-
-#[test]
 fn led_frame_applies_grid_brightness_and_sleep_dim() {
     let mut snapshot = snapshot_with_leds();
     let frame = led_frame(&snapshot).unwrap();
@@ -196,18 +190,20 @@ fn neokey_play_button_uses_transport_state_and_flash_colors() {
     assert_eq!(neokey_colors(&snapshot)[1], palette::RED);
 
     snapshot["transportIcon"] = json!("pause");
+    snapshot["neoKeyLeds"]["space"] = json!(palette::BLUE);
     assert_eq!(neokey_colors(&snapshot)[1], palette::BLUE);
 
     snapshot["transportIcon"] = json!("play");
+    snapshot["neoKeyLeds"]["space"] = json!(dim(palette::GREEN, 3));
     assert_eq!(neokey_colors(&snapshot)[1], dim(palette::GREEN, 3));
 
-    snapshot["transportFlash"] = json!("beat");
+    snapshot["neoKeyLeds"]["space"] = json!(palette::YELLOW);
     assert_eq!(neokey_colors(&snapshot)[1], palette::YELLOW);
 
-    snapshot["transportFlash"] = json!("measure");
+    snapshot["neoKeyLeds"]["space"] = json!(palette::GREEN);
     assert_eq!(neokey_colors(&snapshot)[1], palette::GREEN);
 
-    snapshot["transportFlash"] = json!("none");
+    snapshot["neoKeyLeds"]["space"] = json!(dim(palette::GREEN, 3));
     snapshot["display"]["off"] = json!(true);
     assert_eq!(neokey_colors(&snapshot)[1], dim(palette::GREEN, 3));
 
@@ -220,8 +216,32 @@ fn neokey_play_button_uses_transport_state_and_flash_colors() {
     snapshot["settings"]["buttonBrightness"] = json!(10);
     assert_eq!(
         neokey_colors(&snapshot)[1],
-        scale(dim(palette::GREEN, 3), 0.04)
+        [33, 70, 21].map(|channel| ((channel * 400 + 5_000) / 10_000) as u8)
     );
+}
+
+#[test]
+fn neokey_basis_point_scaling_matches_normal_and_dimmed_brightness() {
+    let mut snapshot = snapshot_with_leds();
+    snapshot["neoKeyLeds"]["back"] = json!([255, 128, 1]);
+    for brightness in [0, 10, 75, 100] {
+        for dimmed in [false, true] {
+            snapshot["settings"]["buttonBrightness"] = json!(brightness);
+            snapshot["settings"]["ledsDimmed"] = json!(dimmed);
+            let basis_points = if dimmed {
+                if brightness == 0 {
+                    0
+                } else {
+                    (brightness * 8).max(400)
+                }
+            } else {
+                brightness * 100
+            };
+            let expected =
+                [255, 128, 1].map(|channel| ((channel * basis_points + 5_000) / 10_000) as u8);
+            assert_eq!(neokey_colors(&snapshot)[0], expected);
+        }
+    }
 }
 
 #[test]
@@ -346,10 +366,22 @@ fn sleeping_animation_emits_at_entry_and_deadlines_only() {
     };
     let mut cache = HardwareRenderCache::default();
 
-    let deadline = render_snapshot_cached(&mut targets, &sleeping, &mut cache).unwrap();
+    let deadline = render_snapshot_cached(
+        &mut targets,
+        &sleeping,
+        &OledFramePublication::ExplicitBlack,
+        &mut cache,
+    )
+    .unwrap();
     assert_eq!(command_rx.try_iter().count(), 2);
 
-    let repeated_deadline = render_snapshot_cached(&mut targets, &sleeping, &mut cache).unwrap();
+    let repeated_deadline = render_snapshot_cached(
+        &mut targets,
+        &sleeping,
+        &OledFramePublication::ExplicitBlack,
+        &mut cache,
+    )
+    .unwrap();
     assert_eq!(repeated_deadline, deadline);
     assert_eq!(command_rx.try_iter().count(), 0);
 
@@ -378,9 +410,19 @@ fn sleeping_animation_restores_once_on_wake_and_stays_cached_awake() {
     let awake = snapshot_with_leds();
     let mut cache = HardwareRenderCache::default();
 
-    render_snapshot_cached(&mut targets, &sleeping, &mut cache);
+    render_snapshot_cached(
+        &mut targets,
+        &sleeping,
+        &OledFramePublication::ExplicitBlack,
+        &mut cache,
+    );
     let _ = command_rx.try_iter().count();
-    render_snapshot_cached(&mut targets, &awake, &mut cache);
+    render_snapshot_cached(
+        &mut targets,
+        &awake,
+        &OledFramePublication::ExplicitBlack,
+        &mut cache,
+    );
     let wake_commands = command_rx.try_iter().collect::<Vec<_>>();
     assert_eq!(wake_commands.len(), 2);
     assert!(wake_commands.iter().any(|command| {
@@ -390,7 +432,12 @@ fn sleeping_animation_restores_once_on_wake_and_stays_cached_awake() {
         matches!(command, crate::seesaw_io::SeesawCommand::NeoKeyColors(colors) if *colors == neokey_colors(&awake))
     }));
 
-    render_snapshot_cached(&mut targets, &awake, &mut cache);
+    render_snapshot_cached(
+        &mut targets,
+        &awake,
+        &OledFramePublication::ExplicitBlack,
+        &mut cache,
+    );
     assert_eq!(command_rx.try_iter().count(), 0);
 }
 

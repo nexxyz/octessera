@@ -2557,7 +2557,6 @@ dependencies = [
  "platform-core",
  "playback-runtime",
  "realtime-engine",
- "rodio",
  "rodio-engine-source",
  "serde",
  "serde_json",
@@ -2747,9 +2746,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "19f132c84eca552bf34cab8ec81f1c1dcc229b811638f9d283dceabe58c5569e"
 
 [[package]]
+name = "platform-capabilities-build"
+version = "0.7.5"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "platform-core"
 version = "0.7.5"
 dependencies = [
+ "platform-capabilities-build",
  "rand",
  "serde",
  "serde_json",
@@ -2759,8 +2766,10 @@ dependencies = [
 name = "playback-runtime"
 version = "0.7.5"
 dependencies = [
+ "base64 0.22.1",
  "chrono",
  "flate2",
+ "image",
  "platform-core",
  "serde",
  "serde_json",
@@ -2983,6 +2992,7 @@ checksum = "20675572f6f24e9e76ef639bc5552774ed45f1c30e2951e1e99c59888861c539"
 name = "realtime-engine"
 version = "0.7.5"
 dependencies = [
+ "platform-capabilities-build",
  "serde",
  "serde_json",
 ]

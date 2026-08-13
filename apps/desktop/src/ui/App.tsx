@@ -79,7 +79,11 @@ export function App() {
       onMouseLeave={handleMouseUp}
     >
       <header className="bar">octessera hardware simulator</header>
-      <RuntimeStatusToaster status={snapshot.runtimeStatus} />
+      <RuntimeStatusToaster
+        status={snapshot.runtimeStatus}
+        oledFrameFault={snapshot.oledFrameFault}
+        oledFrameAvailable={snapshot.oledFrameAvailable}
+      />
       <section className="panel-layout">
         <ControlsPanel
           dialPhase={dialPhase}

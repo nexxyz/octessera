@@ -1,7 +1,8 @@
+use super::oled::same_semantic_snapshot;
 use super::{CoreRunner, HostAdapter, PlaybackRuntime, RuntimeIngest};
 use crate::protocol::{
     HostMessage, RunnerMessage, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeErrorMetadata,
-    RuntimeOperation, RuntimeRecovery, RuntimeStatusState, RuntimeStoreResult,
+    RuntimeOperation, RuntimeRecovery, RuntimeStatus, RuntimeStatusState, RuntimeStoreResult,
 };
 use serde_json::Value;
 
@@ -135,17 +136,14 @@ impl PlaybackRuntime {
     }
 
     pub(super) fn refresh_presentations(&mut self) {
-        self.refresh_presented_status();
         self.refresh_presented_snapshot();
-    }
-
-    pub(super) fn append_snapshot(&self, output: &mut RuntimeIngest) {
-        if let Some(snapshot) = self.presented_snapshot.clone() {
-            output.messages.push(RunnerMessage::Snapshot { snapshot });
-        }
+        self.refresh_presented_status();
     }
 
     pub(super) fn append_status(&self, output: &mut RuntimeIngest) {
+        output
+            .messages
+            .retain(|message| !matches!(message, RunnerMessage::RuntimeStatus { .. }));
         if let Some(status) = self.presented_status.clone() {
             output
                 .messages
@@ -153,8 +151,9 @@ impl PlaybackRuntime {
         }
     }
 
-    pub(super) fn append_presentations(&self, output: &mut RuntimeIngest) {
-        self.append_snapshot(output);
+    pub(super) fn append_presentations(&mut self, output: &mut RuntimeIngest) {
+        self.refresh_presented_status();
+        super::oled::append_snapshot(&mut self.oled, output, self.presented_snapshot.as_ref());
         self.append_status(output);
     }
 
@@ -231,13 +230,32 @@ impl PlaybackRuntime {
         self.append_presentations(output);
     }
 
-    fn refresh_presented_status(&mut self) {
+    pub(super) fn refresh_presented_status(&mut self) {
         let Some(raw_status) = self.last_good_status.as_ref() else {
-            self.presented_status = None;
+            let error = self
+                .latched_errors
+                .last()
+                .cloned()
+                .or_else(|| self.oled.fault().cloned())
+                .or_else(|| self.oled.adapter_fault().cloned());
+            self.presented_status = error.map(|error| RuntimeStatus {
+                state: RuntimeStatusState::Error,
+                transport: crate::RuntimeTransportState::Stopped,
+                current_ppqn_pulse: 0,
+                pending_resync: false,
+                sync_source: self.config.sync_source.clone(),
+                message: None,
+                error: Some(error),
+            });
             return;
         };
         let mut status = raw_status.clone();
-        status.error = self.latched_errors.last().cloned();
+        status.error = self
+            .latched_errors
+            .last()
+            .cloned()
+            .or_else(|| self.oled.fault().cloned())
+            .or_else(|| self.oled.adapter_fault().cloned());
         if status.error.is_some() {
             status.state = RuntimeStatusState::Error;
         }
@@ -263,10 +281,24 @@ impl PlaybackRuntime {
         } else {
             raw_snapshot.clone()
         };
-        if self.presented_snapshot.as_ref() != Some(&presented) {
+        let semantic_unchanged = self
+            .presented_snapshot
+            .as_ref()
+            .is_some_and(|previous| same_semantic_snapshot(previous, &presented));
+        let had_positive_frame = self.oled.has_positive_revision();
+        let previous_snapshot_revision = self.last_snapshot_revision;
+        if !semantic_unchanged {
             self.last_snapshot_revision = self.last_snapshot_revision.wrapping_add(1);
         }
         self.presented_snapshot = Some(presented);
+        self.oled
+            .prepare_oled_frame(self.presented_snapshot.as_mut());
+        if !self.oled.has_positive_revision() {
+            self.presented_snapshot = None;
+            self.last_snapshot_revision = previous_snapshot_revision;
+        } else if !had_positive_frame {
+            self.last_snapshot_revision = self.last_snapshot_revision.max(1);
+        }
     }
 
     pub(super) fn snapshot_failure() -> RuntimeErrorMetadata {

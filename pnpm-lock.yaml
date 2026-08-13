@@ -6,7 +6,11 @@ settings:
 
 importers:
 
-  .: {}
+  .:
+    devDependencies:
+      '@babel/parser':
+        specifier: 7.29.3
+        version: 7.29.3
 
   apps/desktop:
     dependencies:

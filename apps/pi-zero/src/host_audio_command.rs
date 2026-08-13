@@ -232,7 +232,8 @@ fn invalid_audio_command(message: String) -> RuntimeAdapterError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::audio_config_parse::{decode_sample_file, resolve_sample_path, SampleLoadError};
+    use crate::audio_config_parse::{resolve_sample_path, SampleLoadError};
+    use rodio_engine_source::decode_sample_file;
     use std::collections::BTreeMap;
 
     #[test]

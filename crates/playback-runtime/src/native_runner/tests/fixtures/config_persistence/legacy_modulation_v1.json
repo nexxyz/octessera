@@ -1,0 +1,46 @@
+{
+  "kind": "octessera.config",
+  "schemaVersion": 1,
+  "runtimeConfig": {
+    "activeLayerIndex": 0,
+    "layers": [
+      {
+        "linkLfo": {
+          "enabled": true,
+          "target": {
+            "key": "instruments.0.mixer.volume",
+            "kind": "number",
+            "min": 0,
+            "max": 100,
+            "step": 1
+          },
+          "period": "1/4",
+          "depthPct": 37,
+          "phasePulses": 321
+        },
+        "xy": {
+          "x": {
+            "key": "instruments.0.mixer.panPos",
+            "kind": "number",
+            "min": 0,
+            "max": 32,
+            "step": 1
+          },
+          "y": null,
+          "xInvert": true,
+          "yInvert": false
+        }
+      }
+    ],
+    "auxBindings": {
+      "aux1": {
+        "turnKey": "layers.0.linkLfo.depthPct"
+      }
+    },
+    "shiftAuxBindings": {
+      "aux2": {
+        "turnKey": "layers.1.linkLfo.period"
+      }
+    }
+  }
+}

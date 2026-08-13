@@ -9,6 +9,7 @@ const sourcePath = resolve(root, "resources", "display-palette.json");
 const tsOutputPath = resolve(root, "packages", "device-contracts", "src", "displayPalette.generated.ts");
 const cssOutputPath = resolve(root, "apps", "desktop", "src", "ui", "displayPalette.generated.css");
 const printCssOutputPath = resolve(root, "userdocs", "print", "displayPalette.generated.css");
+const rustOutputPath = resolve(root, "crates", "platform-core", "src", "display_palette.generated.rs");
 const check = process.argv.includes("--check");
 
 const entries = [
@@ -30,6 +31,10 @@ function rgbFromHex(key, value) {
 
 function rgb565([r, g, b]) {
   return ((r & 0xf8) << 8) | ((g & 0xfc) << 3) | (b >> 3);
+}
+
+function rgb565Source(value) {
+  return `0x${value.toString(16).toUpperCase().padStart(4, "0")}`;
 }
 
 const source = JSON.parse(readFileSync(sourcePath, "utf8"));
@@ -69,24 +74,39 @@ ${entries.map(([key]) => `  --palette-${key}: rgb(var(--palette-${key}-rgb));`).
 }
 `;
 
+const rustContent = `pub const GREEN: [u8; 3] = [${palette.green.rgb.join(", ")}];
+pub const RED: [u8; 3] = [${palette.red.rgb.join(", ")}];
+pub const BLUE: [u8; 3] = [${palette.blue.rgb.join(", ")}];
+pub const YELLOW: [u8; 3] = [${palette.yellow.rgb.join(", ")}];
+pub const GRAY: [u8; 3] = [${palette.gray.rgb.join(", ")}];
+pub const WHITE: [u8; 3] = [${palette.white.rgb.join(", ")}];
+pub const BLACK: [u8; 3] = [${palette.black.rgb.join(", ")}];
+
+pub const GREEN_RGB565: u16 = ${rgb565Source(palette.green.rgb565)};
+pub const RED_RGB565: u16 = ${rgb565Source(palette.red.rgb565)};
+pub const BLUE_RGB565: u16 = ${rgb565Source(palette.blue.rgb565)};
+pub const YELLOW_RGB565: u16 = ${rgb565Source(palette.yellow.rgb565)};
+pub const GRAY_RGB565: u16 = ${rgb565Source(palette.gray.rgb565)};
+pub const WHITE_RGB565: u16 = ${rgb565Source(palette.white.rgb565)};
+pub const BLACK_RGB565: u16 = ${rgb565Source(palette.black.rgb565)};
+`;
+
+function checkOutput(outputPath, content) {
+  const existing = readFileSync(outputPath);
+  if (!existing.equals(Buffer.from(content, "utf8"))) {
+    console.error(`${outputPath} is stale. Run: corepack pnpm run palette:generate`);
+    exit(1);
+  }
+}
+
 if (check) {
-  const existing = readFileSync(tsOutputPath, "utf8");
-  if (existing !== tsContent) {
-    console.error(`${tsOutputPath} is stale. Run: corepack pnpm run palette:generate`);
-    exit(1);
-  }
-  const existingCss = readFileSync(cssOutputPath, "utf8");
-  if (existingCss !== cssContent) {
-    console.error(`${cssOutputPath} is stale. Run: corepack pnpm run palette:generate`);
-    exit(1);
-  }
-  const existingPrintCss = readFileSync(printCssOutputPath, "utf8");
-  if (existingPrintCss !== cssContent) {
-    console.error(`${printCssOutputPath} is stale. Run: corepack pnpm run palette:generate`);
-    exit(1);
-  }
+  checkOutput(tsOutputPath, tsContent);
+  checkOutput(cssOutputPath, cssContent);
+  checkOutput(printCssOutputPath, cssContent);
+  checkOutput(rustOutputPath, rustContent);
 } else {
   writeFileSync(tsOutputPath, tsContent, "utf8");
   writeFileSync(cssOutputPath, cssContent, "utf8");
   writeFileSync(printCssOutputPath, cssContent, "utf8");
+  writeFileSync(rustOutputPath, rustContent, "utf8");
 }

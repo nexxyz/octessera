@@ -1,19 +1,25 @@
 use super::*;
+use std::time::{Duration, Instant};
 
 #[test]
 pub(crate) fn transport_and_event_indicators_appear_in_snapshot() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let display_start = Instant::now();
+    runner.display.transients.set_test_now(display_start);
 
     let start = runner.send(HostMessage::MidiRealtimeStart).unwrap();
-    assert!(start.iter().any(|message| matches!(
-        message,
-        RunnerMessage::UiPulse {
-            pulse: RuntimeUiPulse::TransportFlash { flash, .. }
-        } if flash == "measure"
-    )));
     let start_snapshot = snapshot_from(&start);
     assert_eq!(start_snapshot["transportIcon"], "play");
     assert_eq!(start_snapshot["transportFlash"], "measure");
+    assert_eq!(
+        start_snapshot["neoKeyLeds"],
+        json!({
+            "back": [221, 130, 205],
+            "space": [99, 210, 63],
+            "shift": [67, 68, 71],
+            "fn": [67, 68, 71]
+        })
+    );
     assert_eq!(start_snapshot["cpuLoadRatio"], 0.0);
 
     let tick = runner
@@ -24,29 +30,103 @@ pub(crate) fn transport_and_event_indicators_appear_in_snapshot() {
             request_snapshot: Some(true),
         })
         .unwrap();
-    assert!(tick.iter().any(|message| matches!(
-        message,
-        RunnerMessage::UiPulse {
-            pulse: RuntimeUiPulse::TriggerPulse { .. }
-        }
-    )));
-    assert!(tick.iter().any(|message| matches!(
-        message,
-        RunnerMessage::UiPulse {
-            pulse: RuntimeUiPulse::TransportFlash { flash, .. }
-        } if flash == "beat"
-    )));
     let tick_snapshot = snapshot_from(&tick);
-    assert_eq!(tick_snapshot["transportFlash"], "beat");
+    assert_eq!(tick_snapshot["transportFlash"], "measure");
     assert_eq!(tick_snapshot["eventDotOn"], true);
+    assert_eq!(tick_snapshot["neoKeyLeds"]["space"], json!([99, 210, 63]));
+
+    runner
+        .display
+        .transients
+        .set_test_now(display_start + Duration::from_millis(91));
+    let beat = runner
+        .send(HostMessage::TransportPulseStep {
+            pulses: 24,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: Some(true),
+        })
+        .unwrap();
+    assert_eq!(
+        snapshot_from(&beat)["neoKeyLeds"]["space"],
+        json!([255, 212, 71])
+    );
 
     runner.transport.transport = RuntimeTransportState::Paused;
     let paused_snapshot = runner.snapshot().unwrap();
     assert_eq!(paused_snapshot["transportIcon"], "pause");
+    assert_eq!(
+        paused_snapshot["neoKeyLeds"]["space"],
+        json!([53, 207, 242])
+    );
 
     runner.transport.transport = RuntimeTransportState::Stopped;
     let stopped_snapshot = runner.snapshot().unwrap();
     assert_eq!(stopped_snapshot["transportIcon"], "stop");
+    assert_eq!(
+        stopped_snapshot["neoKeyLeds"]["space"],
+        json!([221, 130, 205])
+    );
+}
+
+#[test]
+pub(crate) fn modifier_led_snapshot_priority_is_native() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert_eq!(
+        runner.snapshot().unwrap()["neoKeyLeds"]["shift"],
+        json!([67, 68, 71])
+    );
+
+    runner.display.ui.shift_held = true;
+    assert_eq!(
+        runner.snapshot().unwrap()["neoKeyLeds"]["shift"],
+        json!([255, 212, 71])
+    );
+    runner.display.ui.fn_held = true;
+    assert_eq!(
+        runner.snapshot().unwrap()["neoKeyLeds"]["fn"],
+        json!([255, 212, 71])
+    );
+
+    runner.display.ui.combined_modifier_held = true;
+    assert_eq!(
+        runner.snapshot().unwrap()["neoKeyLeds"]["shift"],
+        json!([53, 207, 242])
+    );
+}
+
+#[test]
+pub(crate) fn midi_device_event_precedes_snapshot_and_status() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        behavior_id: "keys".into(),
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    runner.instruments[0].kind = "midi".into();
+    runner.instruments[0].midi_enabled = true;
+    runner.transport.transport = RuntimeTransportState::Playing;
+    runner.refresh_active_mapping_config();
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+    let midi_index = messages
+        .iter()
+        .position(|message| matches!(message, RunnerMessage::MidiEvents { .. }))
+        .expect("midi device event should emit MIDI events");
+    let snapshot_index = messages
+        .iter()
+        .position(|message| matches!(message, RunnerMessage::Snapshot { .. }))
+        .expect("midi device event should emit a snapshot");
+    let status_index = messages
+        .iter()
+        .position(|message| matches!(message, RunnerMessage::RuntimeStatus { .. }))
+        .expect("midi device event should emit status");
+    assert!(midi_index < snapshot_index);
+    assert!(snapshot_index < status_index);
 }
 
 pub(crate) fn configured_scanning_sequencer_runner() -> NativeRunner {

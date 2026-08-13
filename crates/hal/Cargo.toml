@@ -28,8 +28,8 @@ i2cdev = { version = "0.6", optional = true }
 
 [features]
 default = []
-raspberry-pi-zero-2w = ["rpi-zero-2w"]
-rpi-zero-2w = ["dep:rppal", "dep:spidev", "dep:i2cdev", "dep:libc"]
+raspberry-pi-zero-2w = ["dep:rppal", "dep:spidev", "dep:i2cdev", "dep:libc"]
+rpi-zero-2w = ["raspberry-pi-zero-2w"]
 pi-zero = ["raspberry-pi-zero-2w"]
 orange-pi-zero-2w = [
     "dep:gpiocdev",
@@ -49,3 +49,6 @@ required-features = ["orange-pi-zero-2w"]
 name = "orange-seesaw-smoke"
 path = "src/bin/orange_seesaw_smoke.rs"
 required-features = ["orange-pi-zero-2w"]
+
+[dev-dependencies]
+serde_json = "1"

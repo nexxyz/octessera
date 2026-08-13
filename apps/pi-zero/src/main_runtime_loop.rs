@@ -2,11 +2,14 @@ use crate::encoder_queue::PendingEncoderTurns;
 use crate::host_adapter::{PiPlaybackHostAdapter, PiPowerRequest};
 use crate::input::encoder_press_message;
 use crate::render_loop::RenderWorker;
-use crate::runtime_loop::{dispatch_runtime_message, handle_deferred_host_work};
+use crate::runtime_loop::{
+    dispatch_runtime_message, handle_deferred_host_work, process_runtime_output,
+};
+use crate::snapshot_cadence::SnapshotCadence;
 use crate::ui_profile::UiProfiler;
 use octessera_hal::encoder_gpio::HardwareEvent;
 use playback_runtime::{
-    HostMessage, NativeRunner, PlaybackRuntime, RuntimeTransportState, RuntimeUiPulse, SyncSource,
+    HostMessage, NativeRunner, PlaybackRuntime, RuntimeTransportState, SyncSource,
 };
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
@@ -63,12 +66,11 @@ pub(crate) fn drain_encoder_events(
 pub(crate) fn maybe_advance_runtime(
     last_tick: &mut Instant,
     tick_duration: Duration,
-    last_snapshot_request: &mut Instant,
     snapshot_interval: Duration,
     last_render: &mut Instant,
     render_interval: Duration,
+    snapshot_cadence: &mut SnapshotCadence,
     last_published_snapshot_revision: &mut u64,
-    transient_render_until: &mut Option<Instant>,
     _pending_encoder_turns: &mut PendingEncoderTurns,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
@@ -77,6 +79,7 @@ pub(crate) fn maybe_advance_runtime(
     ui_profiler: &mut UiProfiler,
 ) -> bool {
     let now = Instant::now();
+    snapshot_cadence.observe_accepted_snapshot(now, playback.last_snapshot_revision());
     let effective_tick_duration = if runtime_tick_needed(playback) {
         tick_duration
     } else {
@@ -87,22 +90,25 @@ pub(crate) fn maybe_advance_runtime(
             now,
             last_tick,
             effective_tick_duration,
-            last_snapshot_request,
+            snapshot_cadence,
             snapshot_interval,
             playback,
             runner,
             adapter,
             ui_profiler,
         );
+        snapshot_cadence
+            .observe_accepted_snapshot(Instant::now(), playback.last_snapshot_revision());
     }
-    request_periodic_snapshot_if_due(now, last_snapshot_request, playback, runner, adapter);
+    request_periodic_snapshot_if_due(now, snapshot_cadence, playback, runner, adapter);
+    snapshot_cadence.observe_accepted_snapshot(Instant::now(), playback.last_snapshot_revision());
     service_render_if_due(
         now,
         last_render,
         render_interval,
         last_published_snapshot_revision,
-        transient_render_until,
         playback,
+        adapter,
         render_worker,
     );
     shutdown_if_requested(adapter, render_worker)
@@ -113,7 +119,7 @@ fn advance_playback_if_due(
     now: Instant,
     last_tick: &mut Instant,
     tick_duration: Duration,
-    last_snapshot_request: &mut Instant,
+    snapshot_cadence: &SnapshotCadence,
     snapshot_interval: Duration,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
@@ -125,13 +131,17 @@ fn advance_playback_if_due(
         profile_enabled.then(|| now.duration_since(*last_tick).saturating_sub(tick_duration));
     let elapsed = now.duration_since(*last_tick);
     *last_tick = now;
-    if transport_snapshot_due(now, *last_snapshot_request, snapshot_interval, playback) {
+    if transport_snapshot_due(now, snapshot_cadence, snapshot_interval, playback) {
         playback.request_next_snapshot();
-        *last_snapshot_request = now;
     }
     let advance_started = profile_enabled.then(Instant::now);
-    if let Err(error) = playback.advance_duration(elapsed, runner, adapter) {
-        eprintln!("pi playback advance failed: {error}");
+    match playback.advance_duration_with_output(elapsed, runner, adapter) {
+        Ok(output) => {
+            if let Err(error) = process_runtime_output(playback, runner, adapter, output) {
+                eprintln!("pi playback output processing failed: {error}");
+            }
+        }
+        Err(error) => eprintln!("pi playback advance failed: {error}"),
     }
     if let Err(error) = handle_deferred_host_work(playback, runner, adapter) {
         eprintln!("pi deferred host work failed: {error}");
@@ -143,39 +153,25 @@ fn advance_playback_if_due(
 
 fn transport_snapshot_due(
     now: Instant,
-    last_snapshot_request: Instant,
+    snapshot_cadence: &SnapshotCadence,
     snapshot_interval: Duration,
     playback: &PlaybackRuntime,
 ) -> bool {
-    is_internal_playing(playback) && now.duration_since(last_snapshot_request) >= snapshot_interval
+    is_internal_playing(playback) && snapshot_cadence.periodic_due(now, snapshot_interval)
 }
 
 fn request_periodic_snapshot_if_due(
     now: Instant,
-    last_snapshot_request: &mut Instant,
+    snapshot_cadence: &SnapshotCadence,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
     adapter: &mut PiPlaybackHostAdapter,
 ) {
-    if is_internal_playing(playback) {
+    if !snapshot_cadence.timed_display_due(now, runner) {
         return;
     }
-    if !timed_display_snapshot_due(now, *last_snapshot_request, runner) {
-        return;
-    }
-    *last_snapshot_request = now;
     let message = periodic_snapshot_message(playback);
     dispatch_or_log(playback, runner, adapter, message);
-}
-
-fn timed_display_snapshot_due(
-    now: Instant,
-    last_snapshot_request: Instant,
-    runner: &NativeRunner,
-) -> bool {
-    runner
-        .next_timed_display_snapshot_deadline_after(Some(last_snapshot_request))
-        .is_some_and(|deadline| now >= deadline)
 }
 
 fn periodic_snapshot_message(playback: &PlaybackRuntime) -> HostMessage {
@@ -242,8 +238,8 @@ fn service_render_if_due(
     last_render: &mut Instant,
     render_interval: Duration,
     last_published_snapshot_revision: &mut u64,
-    transient_render_until: &mut Option<Instant>,
     playback: &mut PlaybackRuntime,
+    adapter: &mut PiPlaybackHostAdapter,
     render_worker: &RenderWorker,
 ) {
     if now.duration_since(*last_render) < render_interval {
@@ -254,50 +250,25 @@ fn service_render_if_due(
     if snapshot_revision == 0 {
         return;
     }
-    let pulses = playback.drain_ui_pulses();
-    update_transient_render_deadline(now, transient_render_until, &pulses);
     let snapshot_changed = *last_published_snapshot_revision != snapshot_revision;
-    if !snapshot_changed
-        && pulses.is_empty()
-        && !transient_render_active(now, transient_render_until)
-    {
+    if !snapshot_changed {
         return;
     }
     let Some(snapshot) = crate::runtime_loop::latest_snapshot(playback).cloned() else {
         return;
     };
-    if !render_worker.publish_snapshot(snapshot, pulses) {
+    let oled = match adapter.oled_publication_for_snapshot(&snapshot, false) {
+        Ok(oled) => oled,
+        Err(error) => {
+            eprintln!("pi OLED publication unavailable: {error}");
+            return;
+        }
+    };
+    if !render_worker.publish_snapshot(snapshot, oled) {
         eprintln!("pi render worker rejected snapshot publication");
         return;
     }
     *last_published_snapshot_revision = snapshot_revision;
-}
-
-fn update_transient_render_deadline(
-    now: Instant,
-    transient_render_until: &mut Option<Instant>,
-    pulses: &[RuntimeUiPulse],
-) {
-    for pulse in pulses {
-        let duration_ms = match pulse {
-            RuntimeUiPulse::TriggerPulse { duration_ms } => *duration_ms,
-            RuntimeUiPulse::TransportFlash { duration_ms, .. } => *duration_ms,
-        };
-        let deadline = now + Duration::from_millis(duration_ms);
-        *transient_render_until =
-            Some(transient_render_until.map_or(deadline, |until| until.max(deadline)));
-    }
-}
-
-fn transient_render_active(now: Instant, transient_render_until: &mut Option<Instant>) -> bool {
-    let Some(deadline) = *transient_render_until else {
-        return false;
-    };
-    if now < deadline {
-        return true;
-    }
-    *transient_render_until = None;
-    true
 }
 
 fn shutdown_if_requested(
@@ -318,7 +289,7 @@ fn shutdown_if_requested(
 }
 
 fn power_pi_system(_request: PiPowerRequest) -> Result<(), String> {
-    #[cfg(feature = "hardware-rpi-zero-2w")]
+    #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
     {
         let attempts = power_command_attempts(_request);
         let mut errors = Vec::new();
@@ -331,13 +302,13 @@ fn power_pi_system(_request: PiPowerRequest) -> Result<(), String> {
         }
         Err(errors.join("; "))
     }
-    #[cfg(not(feature = "hardware-rpi-zero-2w"))]
+    #[cfg(not(feature = "hardware-raspberry-pi-zero-2w"))]
     {
         Ok(())
     }
 }
 
-#[cfg(feature = "hardware-rpi-zero-2w")]
+#[cfg(feature = "hardware-raspberry-pi-zero-2w")]
 fn power_command_attempts(
     request: PiPowerRequest,
 ) -> &'static [(&'static str, &'static [&'static str])] {
@@ -397,17 +368,18 @@ mod periodic_snapshot_tests {
         let playback = PlaybackRuntime::new(RuntimeConfig::default());
         let now = Instant::now();
         let stale_snapshot = now - Duration::from_secs(5);
+        let snapshot_cadence = SnapshotCadence::new(stale_snapshot, 0);
 
         assert!(!transport_snapshot_due(
             now,
-            stale_snapshot,
+            &snapshot_cadence,
             Duration::from_millis(16),
             &playback
         ));
     }
 }
 
-#[cfg(all(test, feature = "hardware-rpi-zero-2w"))]
+#[cfg(all(test, feature = "hardware-raspberry-pi-zero-2w"))]
 mod tests {
     use super::*;
 

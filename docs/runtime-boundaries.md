@@ -22,15 +22,21 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
   - requires every host adapter to implement internal-audio silence and external-MIDI panic explicitly; safety cannot fall through to a successful no-op
   - classifies worker emission and persistence faults as retain/retry outcomes instead of safety-stop failures
   - applies native core behavior transitions through `platform-core`
-  - publishes snapshots, platform effects, audio commands, MIDI events, runtime status, and native-owned modal frames
+  - publishes snapshots, including authoritative transient indicator fields and unscaled semantic NeoKey colors, plus platform effects, audio commands, MIDI events, runtime status, and native-owned modal frames
+  - PlaybackRuntime owns revisioned OLED production after runtime-error enrichment: typed presentation conversion, two-buffer render/compare cache, monotonic positive frame revision, pending publication, and normalized host metrics. Every emitted snapshot has a positive `oledFrameRevision`; a changed `oled_frame` precedes the referencing snapshot, and unchanged frames publish no pixel payload. Absent or malformed presentation input suppresses the snapshot before the first valid frame, and thereafter applies non-OLED state while retaining the last-good OLED revision and emitting a typed retain-last-good fault/status. Raspberry and Orange normal runtime consumers publish only an accepted frame paired to the snapshot revision: no accepted pair is explicit black, while a missing/future/stale/malformed/conflicting reference publishes immutable accepted bytes as `RetainedLastGood` with a sticky typed fault. The initial acknowledged handoff still requires an exact accepted matching pair. Physical OLED revision advances only after a successful write. Desktop remains a separately gated native consumer; boot, fault, shutdown, suspend, and ownership lifecycle frames remain adapter-owned.
+  - owns monotonic wall-clock deadlines for the 45 ms event dot and 90 ms beat/measure flash; hosts request timed expiry snapshots and only scale native NeoKey RGB values
   - owns setup-portal menu confirmation, playback stop/reset and note cleanup, the typed `RuntimePlatformEffect::SetupPortalOpen` effect, and all typed setup status/modal presentation
+  - delegates its display-ordered grid index API to the pure fixed-grid projection helpers in `platform-core`; it does not own a second projection table or geometry rule
   - The Orange production service keeps this native ownership through an Orange-only adapter: `octessera.service` runs the native runtime as the locked `octessera-runtime` account, while the separate `octessera` account is for interactive setup and administration. The adapter owns OLED, NeoTrellis, NeoKey, four encoder, store, sample, and MIDI device I/O; Seesaw uses polling and encoder GPIO uses the HAL's gpiocdev v2 edge backend. Internal synth/sample audio routes through `AudioService` and the realtime engine at 44.1 kHz; MIDI leaves through the native host adapter. The required CPAL output is `hw:CARD=octesseradac,DEV=0`; USB-only audio is rejected, while UAC2 may be an additional output. Readiness follows healthy audio, initialized control-surface devices, and the first rendered snapshot. The service grants FIFO priority 70 through `LimitRTPRIO=70`; it adds no `CAP_SYS_NICE` or ambient capability. Orange update check, apply, rollback, and OTA remain unsupported.
+  - Orange offline DSP profiling is a native `apps/pi-zero` diagnostic branch before hardware startup. It exercises the existing realtime-engine scenarios and reports snapshots; it does not implement playback, control, device, or TypeScript fallback behavior. Orange profiling requires the explicit `--profile-dsp` argument.
+  - Orange runtime failure policy is three attempts in a 30-second systemd start-limit window: the initial start plus two `Restart=on-failure` retries at five-second intervals. After that, the unit stays `start-limit-hit` until an operator runs `sudo systemctl reset-failed octessera.service` and then `sudo systemctl start octessera.service`.
   - owns MIDI input/output through host adapters only; Tauri/midir and Pi MIDI device access stay outside canonical runtime crates
 
 - Core logic layer (`crates/platform-core`)
   - deterministic behavior execution, grid state, interpretation, mapping, transforms, and native layer engine logic
   - generated platform capability constants from `resources/platform-capabilities.json`
-  - generated display palette constants from `resources/display-palette.json` so runtime, Pi, and desktop adapters share color values without moving UI policy into the core
+  - checked-in generated display palette constants from `resources/display-palette.json`, copied into `OUT_DIR` by the `platform-core` build script, so runtime, Pi, and desktop adapters share color values without moving UI policy into the core
+  - owns the fixed 8×8 logical row-major index and logical/display cell and index projection helpers; the lower-left world-space rule is pure native logic, not a runtime projection table
   - no UI framework code
   - no platform-specific I/O
   - no desktop, Pi, Tauri, Node runner, storage, MIDI-device, filesystem, or hardware adapter code
@@ -38,17 +44,19 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
 - Output adapters (`apps/desktop/src-tauri/src/`)
   - desktop audio sink maps native events/audio commands to the realtime engine and rodio source
   - MIDI input/output uses Tauri-side midir adapters
-  - storage, sample-browser filesystem access, and sample decoding are host adapter responsibilities
+  - storage and sample-browser filesystem access remain host adapter responsibilities
+  - desktop and Pi retain sample path resolution/containment, caching, preparation, preview/bank orchestration, and typed error adaptation
   - Raspberry Pi device-update effects are executed by the host updater, which owns profile-qualified asset selection, checksum/manifest validation, candidate health guarding, and automatic fallback; `NativeRunner` owns menu/action semantics and confirmation. Orange update effects remain explicitly unsupported.
   - returns typed failure facts and carries runtime request/revision identity through asynchronous platform/audio-prep jobs; it does not choose recovery policy
 
 - Realtime audio engine (`crates/realtime-engine`, `crates/rodio-engine-source`)
   - owns all internal musical audio rendering, instrument route/pan, FX bus sends, FX bus processing, sidechain ducking, and final stereo mix
   - generates synth slot/sample/pan constants from `resources/platform-capabilities.json`
-  - receives platform-decoded sample buffers and control events; it does not perform file I/O or sample decoding in the audio callback
+  - `crates/rodio-engine-source` owns only shared non-realtime file opening and WAV decoding into `SampleBuffer`
+  - `EngineSource` receives prepared sample buffers and control events; shared file opening/decoding remains strictly outside the audio callback
   - receives an explicit `AllNotesOff` internal command for clearing synth, sample, and preview voices; internal safety does not use MIDI CC 120/123
   - is the only path for synth/sample instrument audio before device output
-  - shared JSON audio configuration normalization and FX shape/type validation live in `realtime-engine`; desktop and Pi retain sample path resolution, file decoding, caching, and host queueing
+  - shared JSON audio configuration normalization and FX shape/type validation live in `realtime-engine`; desktop and Pi retain sample preparation, preview/bank orchestration, and typed error adaptation
   - desktop and Pi return the same typed audio-command/config failures, preserve revision identity for full-config preparation, and route `SamplePreview` through the selected realtime instrument path
 
 ## Setup Portal Boundary
@@ -62,6 +70,8 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
 
 - The fixed Raspberry Pi Zero 2 W and Orange Pi Zero 2W paths use the same source-defined OLED boot sweep from `resources/oled/boot-sweep-v1.json`: cyan, yellow, green, and magenta bands, 8 px each, a +8 px top-right lean, white-source pixels only, and 24 frames over a one-second cycle with no extra pause.
 - Initramfs owns one bounded foreground cycle and fully reaps its process group. Early userspace then owns the continuous loop. Native startup requests release, waits for the shared OLED lock, adopts the already-initialized display without reset, and stops the animation immediately before publishing the acknowledged first normal menu frame. Sleep and shutdown are separate OLED lifecycle paths, not boot-handoff states.
+- Orange's boot-loop handoff has a monotonic 30-second deadline that begins immediately after `handoff.start()`, before OLED initialization or adoption. Matching stop requests win at the deadline and release without black/off; timeout, signal, and post-ownership failures attempt an exact 32768-byte black RGB565 frame, then display-off `0xAE` independently, close once, and publish one attachable `failed` state. A failed handoff keeps the current boot ID and matching valid request ID so native recovery can attach it. Signal handlers only set a flag and do no I/O.
+- Orange NeoTrellis operation requires the exact validated bus, wiring, and addresses; adapters do not provide an alternate bus, address, or hardware fallback.
 - The menu `OLED Sleep` setting is display-only UI behavior. Linux suspend is a separate Orange `sleep.target` ownership transaction. Production installs `octessera-orange-oled-suspend.service` through `RequiredBy=sleep.target`, creating the hard `sleep.target.requires` relationship rather than a `.wants` relationship; a failed preparation therefore blocks suspend. The runtime quiesces and preserving-detaches its OLED handles, a strict AF_UNIX helper renders the suspend/resume frames, and the runtime reacquires the lock and hardware without changing the established `first_menu_rendered` handoff phase. Audio, MIDI, transport, and LED contracts remain unchanged.
 - The board runtime owns `/run/octessera-boot`, including `oled.lock`, `status.json`, and `stop.request`. The lock is exclusive: the animator, native runtime, and lifecycle utilities may not write the OLED concurrently. `status.json` uses the strict phases `animating`, `release_requested`, `released`, `native_owned`, `first_menu_rendered`, and `failed`; the normal path reaches `first_menu_rendered`, while matching failure state remains attachable for recovery.
 - First-menu readiness requires an actual OLED write acknowledgement. Orange readiness additionally requires a healthy internal DAC. A snapshot being queued, or a runtime service merely starting, is not readiness.
@@ -90,7 +100,7 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
 
 - The shared Pi/desktop playback seam is defined by `crates/playback-runtime/src/protocol.rs` and mirrored by the UI/device contract types where needed.
 - Host -> runner messages are limited to `device_input`, `transport_pulse_step`, split MIDI realtime wire messages (`midi_realtime_clock`, `midi_realtime_start`, `midi_realtime_continue`, `midi_realtime_stop`), and `runtime_result`.
-- Runner -> host messages are limited to `snapshot`, `platform_effects`, `musical_events`, `midi_events`, `audio_commands`, `ui_pulse`, and `runtime_status`.
+- Runner -> host messages include `snapshot`, optional `oled_frame`, `platform_effects`, `musical_events`, `midi_events`, `audio_commands`, and `runtime_status`. Every `snapshot` leaving `PlaybackRuntime` carries a positive OLED revision. `oled_frame` is changed-frame-only and precedes its matching snapshot; Raspberry and Orange pair accepted native frame bytes to normal snapshot publication or retained-last-good bytes during a typed cache fault; desktop remains a separate native consumer.
 - Shared fixtures for this seam live in `SHARED_RUNTIME_CONTRACT_FIXTURES` so both hosts can validate the same contract examples.
 - `transport_pulse_step` is the deterministic PPQN advancement boundary; hosts must not substitute wall-clock timer semantics above this seam.
 - External MIDI realtime (`clock`, `start`, `continue`, `stop`) remains explicit at the boundary and is not inferred from UI/runtime scheduling code. Desktop MIDI input is routed natively from the host adapter into the runtime worker; UI code must not observe raw MIDI bytes for display or transport state.
@@ -105,6 +115,7 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
 - Emission and persistence faults clear only after the corresponding native emission or identified save/recovery acknowledgement succeeds. Native save confirmation/toast feedback is emitted after that acknowledgement, not when a save request is queued.
 - Stop-and-silence recovery independently attempts runner transport stop, internal synth/sample silence, and external MIDI panic on both hosts.
 - `snapshot` is the runtime display/input-facing state payload; `musical_events`, `midi_events`, `platform_effects`, and `audio_commands` are the resolved outputs that Rust schedules or dispatches.
+- `oled_frame` carries a positive revisioned 128×128 `rgb565be` Base64 payload on the JSON bridge; typed native pixels remain immutable bytes before serialization. Desktop, Raspberry, and Orange adapter caches stage candidates and promote only on matching snapshot references, validate dimensions, format, Base64, exact byte length, revision idempotency/conflicts, and expose sticky typed cache faults. Same-revision byte conflicts remove candidates or poison accepted revisions until a strictly newer valid candidate matches a snapshot. Raspberry and Orange normal OLED publication consumes accepted native bytes with no semantic renderer fallback; before acceptance they publish explicit black, and after acceptance they retain last-good bytes rather than black on a bad reference.
 
 ## Audio Routing Contract
 
@@ -116,10 +127,13 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
 - MIDI-only instrument notes and CCs use the `midi_events` path and must not call host internal-audio musical event handling.
 - Sample browser preview is musical audio and must route through the selected instrument slot, pan, volume, FX bus, and master output path.
 - Runtime audio config commands carry `sound.voiceStealingMode`; host adapters forward it to the realtime audio policy.
-- `gridBrightness` is applied by core LED frame rendering; `displayBrightness` and `buttonBrightness` are applied by the host display/button LED adapters.
+- `gridBrightness` is applied by core LED frame rendering; `displayBrightness` is owned by `PlaybackRuntime`'s OLED presentation conversion and carried into native frame bytes; `buttonBrightness` is applied by desktop and Pi only to the native unscaled `neoKeyLeds` values with the shared basis-point dim rule.
 
 ## Grid Coordinate Contract
 
 - Core logic uses a world-space grid origin at lower-left: `(0,0)` is bottom-left, `y` increases upward.
 - UI/hardware-facing layers may use screen-space coordinates (top-left origin), but conversion is only allowed at boundaries.
-- In code, grid coordinate conversion must go through the centralized grid domain helpers (`gridDomain.ts`) rather than ad-hoc math.
+- `platform-core` owns the fixed 8×8 pure logical row-major and logical/display projection helpers. `playback-runtime` delegates its existing display-index API to those helpers.
+- `packages/device-contracts/src/gridDomain.ts` is the deliberate TypeScript boundary mirror for desktop input/rendering; it is checked against the exhaustive `resources/grid-projection-v1.json` fixture.
+- The HAL keeps fixed NeoTrellis quadrant/key wiring separate from the native projection owner. Its four-device addresses, physical key ordering, and GRB output are adapter facts, not generic geometry.
+- In code, grid coordinate conversion must go through these centralized boundary helpers rather than ad-hoc math; the checked fixture is verification data, not a runtime table.

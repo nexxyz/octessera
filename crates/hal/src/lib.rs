@@ -23,11 +23,16 @@ pub mod orange_timing;
 pub mod pinmap;
 #[cfg(not(feature = "orange-pi-zero-2w"))]
 pub mod seesaw_interrupt;
+#[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
+pub(crate) mod seesaw_transport;
 
 // Re-exports for convenience
 #[cfg(any(
-    feature = "rpi-zero-2w",
-    all(not(feature = "rpi-zero-2w"), not(feature = "orange-pi-zero-2w"))
+    feature = "raspberry-pi-zero-2w",
+    all(
+        not(feature = "raspberry-pi-zero-2w"),
+        not(feature = "orange-pi-zero-2w")
+    )
 ))]
 pub use encoder_gpio::EncoderGpio;
 #[cfg(not(feature = "orange-pi-zero-2w"))]
@@ -42,9 +47,5 @@ pub use orange_encoder_gpio::OrangeEncoderGpio;
 #[cfg(not(feature = "orange-pi-zero-2w"))]
 pub use seesaw_interrupt::SeesawInterrupt;
 
-#[cfg(any(
-    all(feature = "orange-pi-zero-2w", feature = "raspberry-pi-zero-2w"),
-    all(feature = "orange-pi-zero-2w", feature = "rpi-zero-2w"),
-    all(feature = "orange-pi-zero-2w", feature = "pi-zero"),
-))]
+#[cfg(all(feature = "orange-pi-zero-2w", feature = "raspberry-pi-zero-2w"))]
 compile_error!("select exactly one Octessera board profile");

@@ -8,8 +8,11 @@ use serde_json::{json, Value};
 use std::fs;
 use std::time::{Duration, Instant};
 
+#[path = "timing_probe_output.rs"]
+mod timing_probe_output;
 mod timing_probe_report;
 
+use timing_probe_output::process_probe_output;
 use timing_probe_report::{
     event_key, intervals, primary_stream_report, summarize, summarize_usize,
 };
@@ -259,7 +262,12 @@ fn run_one(
             &mut host,
         )?;
         let started = Instant::now();
-        runtime.advance_duration(Duration::from_millis(1), &mut runner, &mut host)?;
+        let output = runtime.advance_duration_with_output(
+            Duration::from_millis(1),
+            &mut runner,
+            &mut host,
+        )?;
+        process_probe_output(&mut runtime, &mut runner, &mut host, output)?;
         advance_us.push(started.elapsed().as_micros() as f64);
         loop_us.push(loop_started_at.elapsed().as_micros() as f64);
     }
@@ -460,7 +468,12 @@ fn send_runtime_message(
             host.playing_statuses += 1;
         }
     }
-    runtime.ingest_runner_messages(messages, host).map(|_| ())
+    let output = runtime.dispatch(
+        crate::RuntimeDispatchInput::RunnerMessages(messages),
+        runner,
+        host,
+    )?;
+    process_probe_output(runtime, runner, host, output)
 }
 
 fn load_config(
@@ -476,5 +489,10 @@ fn load_config(
             payload: Some(payload),
         },
     })?;
-    runtime.ingest_runner_messages(messages, host).map(|_| ())
+    let output = runtime.dispatch(
+        crate::RuntimeDispatchInput::RunnerMessages(messages),
+        runner,
+        host,
+    )?;
+    process_probe_output(runtime, runner, host, output)
 }

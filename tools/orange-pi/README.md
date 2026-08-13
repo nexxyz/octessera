@@ -189,6 +189,133 @@ not a transport check. The default passive qualification probe also needs
 passwordless `sudo -n` (or a root SSH session) to prove that no process owns the
 target devices.
 
+## Orange capability study runner
+
+Phase 1 uses the existing offline DSP scenarios as the low-risk Orange
+measurement affordance. The Raspberry timing launcher is deliberately not an
+Orange entry point. The fixed-board runner uses only the local
+`with-orange-ssh.ps1` wrapper, stages a release `octessera-pi` and its exact
+schema-2 sidecar under a unique `/tmp` path bound to the binary SHA-256, and
+retrieves one bounded evidence bundle before removing the remote staging path.
+
+Preview every generated command without connecting:
+
+```powershell
+./tools/orange-pi/run-orange-capability-study.ps1 -Mode PassiveBaseline -PrintOnly
+./tools/orange-pi/run-orange-capability-study.ps1 -Mode Dsp64 -ProfileMode soak -PrintOnly
+./tools/orange-pi/run-orange-capability-study.ps1 -Mode Dsp256 -ProfileMode soak -PrintOnly
+```
+
+After reviewing the plan, non-print DSP runs are active measurements and must
+acknowledge service interruption:
+
+```powershell
+./tools/orange-pi/run-orange-capability-study.ps1 -Mode Dsp64 -ProfileMode soak -AllowServiceInterruption
+./tools/orange-pi/run-orange-capability-study.ps1 -Mode Dsp256 -ProfileMode soak -AllowServiceInterruption
+```
+
+The DSP modes pass `--profile-dsp` explicitly and set the internal block size
+to 64 or 256 frames. They do not set the environment-only trigger. They collect
+low-rate CPU/load, memory, thermal, frequency, and service-state evidence in a
+single remote shell; they do not stream SSH or journal logs continuously.
+
+The existing `opi-bringup-validator.sh` is a pristine qualification probe. It
+checks that no production service or target-device owner is running, so it will
+correctly flag a deliberately running `octessera.service`. The passive study
+does not make that claim: it reports the initial service state and leaves it
+alone.
+
+The bounded live-candidate plan is reserved for Phase 2 and requires an
+explicit interruption acknowledgement:
+
+```powershell
+./tools/orange-pi/run-orange-capability-study.ps1 -Mode LiveCandidate -AllowServiceInterruption -PrintOnly
+```
+
+Its transient unit keeps the production runtime account, `Nice=-10`,
+`LimitRTPRIO=70`, `/var/lib/octessera/presets`, `/var/lib/octessera/samples`,
+and the compiled DAC route `hw:CARD=octesseradac,DEV=0`. Active runs require
+that initial service state to be active and enabled. A remote trap captures,
+restores, waits for active, and records the final state without changing
+enablement. It makes no power, flash, cable, suspend, GPIO, OLED, or USB
+changes. The production sandbox properties also include
+`ProtectKernelTunables=yes`, `ProtectKernelModules=yes`,
+`ProtectControlGroups=yes`, `RestrictNamespaces=yes`, and
+`LockPersonality=yes`. Its existing deliberate sandbox difference is
+`PrivateTmp=no`; the candidate health marker itself lives at a unique
+`/run/octessera/candidate-health-...json` path under the transient
+`RuntimeDirectory`, not in `/tmp`. The production unit itself is not changed.
+
+### Phase 2 live audio benchmark
+
+`LiveAudioBenchmark` runs one approved scenario through the reviewed native
+benchmark CLI. It requires the exact scenario, output buffer, engine block,
+worker count, measure duration, artifact, metadata sidecar, and
+service-interruption consent.
+The runner waits for readiness and fixed DAC ALSA geometry before publishing the
+identity-bound release file that lets the native process continue.
+
+Readiness, progress, and release evidence use schema 2. Terminal results use
+schema 3, retain optional exact worker delta and policy-error evidence, and are
+independently recomputed by the host. Requested output buffer, negotiated ALSA
+period, and internal engine block are separate fields. CPAL callback batches are
+variable positive counts no larger than the requested buffer; render/audio-
+duration ratios use each callback's actual frame count, and callback-spacing
+lateness uses the fixed ALSA period. Schema-1 readiness/progress/release and
+schema-2 terminal results are rejected. Callback batch size changes are
+recorded as evidence, not treated as a period mismatch; zero or oversized
+batches and invalid-frame counts remain terminal failures. Each retained result
+also exposes the aggregate render-duration ratio from total render nanoseconds,
+rendered frames, and sample rate; missing or zero aggregate evidence fails
+closed.
+
+Preview one cell without transport:
+
+```powershell
+./tools/orange-pi/run-orange-capability-study.ps1 `
+  -Mode LiveAudioBenchmark `
+  -Scenario synth_cross_slot_96_steal `
+  -OutputFrames 256 `
+  -EngineBlockFrames 256 `
+  -Workers 2 `
+  -MeasureSeconds 30 `
+  -Artifact target/orange-pi-cross/octessera-pi `
+  -Metadata target/orange-pi-cross/octessera-pi.metadata.json `
+  -AllowServiceInterruption -PrintOnly
+```
+
+The individual runner approves output/engine/workers tuples 256/64/2,
+256/256/0, 256/256/2, 512/128/2, and 1024/256/0|2|3. ALSA periods remain
+fixed by output at 64/128/256 for 256/512/1024 output frames. The fixed matrix
+is A (256/64, workers 2, all 11 scenarios), B (512/128, workers 2, all 11),
+and C0/C2/C3 (1024/256, workers 0/2/3, synth and mixed steal scenarios). A
+120-second run is accepted only with the explicit
+`-AllowLongRepeat` switch; the matrix runner selects the worst passing A cell
+before requesting that repeat.
+
+Preview the complete deterministic matrix order:
+
+```powershell
+./tools/orange-pi/run-orange-live-audio-matrix.ps1 -PrintOnly
+```
+
+Active matrix execution requires both `-AllowMatrixServiceInterruption` on the
+matrix runner and the per-cell interruption consent it supplies. The host keeps
+the fixed DAC identity, samples thermal and memory safety outside the callback,
+retrieves evidence on failure, and verifies production restoration after every
+cell. Phase 2 is host-only tooling; it does not change hardware configuration,
+capabilities, defaults, or user documentation claims.
+
+Offline DSP rows locate computational knees; they are not live-xrun proof. The
+current CPAL/ALSA path also cannot count internally recovered `EPIPE` events.
+Therefore these tools must not claim zero xruns or change platform capabilities.
+
+Run the host-only command-generation test without a board:
+
+```powershell
+./tools/orange-pi/test-run-orange-capability-study.ps1
+```
+
 ## Orange Pi USB gadget composer
 
 `orange-pi-usb-gadget.sh` is the separate Armbian/configfs path for the Orange

@@ -2,6 +2,7 @@ import type {
   RuntimeSnapshot,
   RuntimeStatus,
 } from '@octessera/device-contracts';
+import type { OledFrameCacheFault } from './oledFrameCache';
 
 export type InputAction =
   | {
@@ -15,6 +16,8 @@ export type InputAction =
 export type SimulatorSnapshot = {
   frame: RuntimeSnapshot;
   runtimeStatus: RuntimeStatus | null;
+  oledFrameFault: OledFrameCacheFault | null;
+  oledFrameAvailable: boolean;
   neoKeyLeds: Record<
     'back' | 'space' | 'shift' | 'fn',
     [number, number, number]

@@ -17,10 +17,14 @@
     "lint": "corepack pnpm -r lint",
     "format:check": "corepack pnpm -r format:check",
     "typecheck": "corepack pnpm run config:check && corepack pnpm run capabilities:check && corepack pnpm run palette:check && corepack pnpm -r typecheck",
-    "test": "corepack pnpm -r test",
+    "test": "corepack pnpm run quality:test && corepack pnpm -r test",
     "test:coverage": "corepack pnpm -r test:coverage",
     "quality:audit": "node tools/quality/quality-audit.mjs",
+    "quality:test": "node --test tools/quality/quality-audit-parser.test.mjs",
     "tauri:build": "corepack pnpm --filter @octessera/desktop tauri:build",
     "tauri:build:ci": "corepack pnpm --filter @octessera/desktop tauri:build:ci"
+  },
+  "devDependencies": {
+    "@babel/parser": "7.29.3"
   }
 }

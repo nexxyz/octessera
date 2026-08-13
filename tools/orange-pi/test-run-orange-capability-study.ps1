@@ -1,0 +1,267 @@
+$ErrorActionPreference = "Stop"
+
+$scriptPath = Join-Path $PSScriptRoot "run-orange-capability-study.ps1"
+
+function Invoke-StudyPrintOnly {
+  param([hashtable]$Parameters)
+  try {
+    $output = @(& $scriptPath @Parameters 2>&1)
+    if ($null -ne $LASTEXITCODE -and $LASTEXITCODE -ne 0) {
+      throw "study runner exited with code $LASTEXITCODE"
+    }
+    return ($output | ForEach-Object { [string]$_ }) -join "`n"
+  } catch {
+    throw "Study runner PrintOnly failed: $($_.Exception.Message)"
+  }
+}
+
+function Assert-Contains {
+  param(
+    [Parameter(Mandatory)][string]$Text,
+    [Parameter(Mandatory)][string]$Value
+  )
+  if ($Text.IndexOf($Value, [StringComparison]::Ordinal) -lt 0) {
+    throw "Study runner output is missing: $Value"
+  }
+}
+
+function Assert-NotContains {
+  param(
+    [Parameter(Mandatory)][string]$Text,
+    [Parameter(Mandatory)][string]$Value
+  )
+  if ($Text.IndexOf($Value, [StringComparison]::Ordinal) -ge 0) {
+    throw "Study runner output unexpectedly contains: $Value"
+  }
+}
+
+function Assert-NoPayloadPlaceholders {
+  param([Parameter(Mandatory)][string]$Text)
+  if ($Text -match '__[A-Z_]+__') {
+    throw "Study runner output contains an unresolved payload placeholder."
+  }
+}
+
+function Assert-Ordered {
+  param(
+    [Parameter(Mandatory)][string]$Text,
+    [Parameter(Mandatory)][string[]]$Values
+  )
+  $previous = -1
+  foreach ($value in $Values) {
+    $current = $Text.IndexOf($value, [StringComparison]::Ordinal)
+    if ($current -lt 0 -or $current -le $previous) {
+      throw "Study runner ordering is missing or incorrect: $value"
+    }
+    $previous = $current
+  }
+}
+
+$passive = Invoke-StudyPrintOnly -Parameters @{ Mode = "PassiveBaseline"; PrintOnly = $true }
+Assert-NoPayloadPlaceholders $passive
+Assert-Contains $passive "PrintOnly: no Orange transport is invoked."
+Assert-Contains $passive "octessera@192.168.0.217"
+Assert-Contains $passive "with-orange-ssh.ps1"
+Assert-Contains $passive "systemctl is-active"
+Assert-Contains $passive "thermal_zone"
+Assert-Contains $passive "scp"
+Assert-NotContains $passive 'systemctl stop "$service"'
+Assert-NotContains $passive "--wait --pipe"
+$passiveCleanup = $passive.Substring($passive.LastIndexOf("Cleanup payload:", [StringComparison]::Ordinal))
+Assert-NotContains $passiveCleanup "systemctl"
+Assert-NotContains $passiveCleanup "sudo"
+if ($passive -match "run-pi-timing-probes|192\.168\.0\.211|ssh -i") {
+  throw "Passive PrintOnly output routed through Raspberry or direct SSH tooling."
+}
+
+$missingArtifact = Join-Path ([IO.Path]::GetTempPath()) "octessera-orange-study-test-release-missing"
+foreach ($dspMode in @("Dsp64", "Dsp256")) {
+  $dspRefused = $false
+  try {
+    Invoke-StudyPrintOnly -Parameters @{ Mode = $dspMode; Artifact = $missingArtifact; PrintOnly = $true } | Out-Null
+  } catch {
+    $dspRefused = $true
+  }
+  if (-not $dspRefused) {
+    throw "$dspMode PrintOnly did not require -AllowServiceInterruption."
+  }
+}
+
+$dsp64 = Invoke-StudyPrintOnly -Parameters @{ Mode = "Dsp64"; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true }
+Assert-NoPayloadPlaceholders $dsp64
+Assert-Contains $dsp64 "OCTESSERA_AUDIO_BLOCK_FRAMES=64"
+Assert-Contains $dsp64 "OCTESSERA_SYNTH_SLOT_WORKERS=2"
+Assert-Contains $dsp64 "--profile-dsp"
+Assert-Contains $dsp64 "internal_block_frames=64"
+Assert-Contains $dsp64 "--wait --pipe --collect"
+Assert-Contains $dsp64 "systemd-run --quiet --unit"
+Assert-Contains $dsp64 "--property=User=octessera-runtime"
+Assert-Contains $dsp64 "--property=Nice=-10"
+Assert-Contains $dsp64 "--property=LimitRTPRIO=70"
+Assert-Contains $dsp64 "--property=ProtectKernelTunables=yes"
+Assert-Contains $dsp64 "--property=ProtectKernelModules=yes"
+Assert-Contains $dsp64 "--property=ProtectControlGroups=yes"
+Assert-Contains $dsp64 "--property=RestrictNamespaces=yes"
+Assert-Contains $dsp64 "--property=LockPersonality=yes"
+Assert-Contains $dsp64 "--property=RuntimeDirectory=octessera"
+Assert-Contains $dsp64 "--property=RuntimeDirectoryMode=0755"
+Assert-Contains $dsp64 'systemctl stop "$service"'
+Assert-Contains $dsp64 "mkdir -m 0700"
+Assert-Contains $dsp64 "chmod 0710"
+Assert-Contains $dsp64 "chgrp octessera-runtime"
+Assert-NotContains $dsp64 "chmod 0777"
+Assert-NotContains $dsp64 'chmod 0755 "$root"'
+Assert-Contains $dsp64 "mode=dsp"
+Assert-Contains $dsp64 "stop_sampler"
+Assert-Contains $dsp64 'kill -TERM "$sampler_pid"'
+Assert-Contains $dsp64 "timeout --signal=TERM --kill-after=2 10s sudo -n rm -f --"
+Assert-NotContains $dsp64 'systemctl enable "'
+Assert-NotContains $dsp64 'systemctl disable "'
+if ($dsp64 -match "OCTESSERA_PI_PROFILE_DSP=") {
+  throw "Orange DSP plan used an environment-only profile trigger."
+}
+
+$hashArtifact = Join-Path ([IO.Path]::GetTempPath()) ("octessera-orange-study-test-" + [guid]::NewGuid().ToString("N"))
+try {
+  [IO.File]::WriteAllBytes($hashArtifact, [byte[]](1, 2, 3, 4))
+  $expectedHash = (Get-FileHash -LiteralPath $hashArtifact -Algorithm SHA256).Hash.ToLowerInvariant()
+  $hashedPlan = Invoke-StudyPrintOnly -Parameters @{ Mode = "Dsp64"; Artifact = $hashArtifact; AllowServiceInterruption = $true; PrintOnly = $true }
+  Assert-Contains $hashedPlan "/tmp/octessera-orange-study-$expectedHash-"
+} finally {
+  Remove-Item -LiteralPath $hashArtifact -Force -ErrorAction SilentlyContinue
+}
+
+$dsp256 = Invoke-StudyPrintOnly -Parameters @{ Mode = "Dsp256"; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true }
+Assert-NoPayloadPlaceholders $dsp256
+Assert-Contains $dsp256 "OCTESSERA_AUDIO_BLOCK_FRAMES=256"
+Assert-Contains $dsp256 "internal_block_frames=256"
+
+$refused = $false
+try {
+  Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; PrintOnly = $true } | Out-Null
+} catch {
+  $refused = $true
+}
+if (-not $refused) {
+  throw "LiveCandidate PrintOnly did not require -AllowServiceInterruption."
+}
+
+$live = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true; LiveSeconds = 30 }
+Assert-NoPayloadPlaceholders $live
+foreach ($required in @(
+    "restore_service()",
+    "trap on_exit EXIT",
+    "trap - EXIT HUP INT TERM",
+    "trap 'exit 129' HUP",
+    "service-initial-state.txt",
+    "service-restored-state.txt",
+    "production_health=/run/octessera/candidate-ready.json",
+    "schema_version",
+    "board_profile",
+    "systemd_invocation_id",
+    "MainPID",
+    "InvocationID",
+    "capture_readiness",
+    "readiness_matches_unit",
+    'local unit="$1"',
+    'local key="$1"',
+    'local marker="$2"',
+    'local expected_pid="$2"',
+    'local expected_invocation="$3"',
+    'local marker_pid',
+    'local marker_invocation',
+    'local marker_evidence="$3"',
+    'local properties_evidence="$4"',
+    'local check_evidence="$5"',
+    'local current_pid="$(unit_main_pid "$unit")"',
+    'local current_invocation="$(unit_invocation_id "$unit")"',
+    'local candidate_pid',
+    'local candidate_invocation',
+    'local stable_pid',
+    'local stable_invocation',
+    'local stable_deadline',
+    'local stable',
+    'cp -- "$marker" "$marker_evidence"',
+    'wait_for_stable_readiness "$service" "$production_health"',
+    'current_pid" = "$expected_pid"',
+    'current_invocation" = "$expected_invocation"',
+    'pinned_main_pid="$(sed -n ''s/^main_pid=//p'' "$root/candidate-readiness-properties.txt")"',
+    'pinned_invocation_id="$(sed -n ''s/^invocation_id=//p'' "$root/candidate-readiness-properties.txt")"',
+    "service-initial-candidate-ready.json",
+    "service-initial-readiness-properties.txt",
+    "service-restored-candidate-ready.json",
+    "service-restored-readiness-properties.txt",
+    "stable_seconds=5",
+    'initial_active="$(systemctl is-active',
+    'initial_enabled="$(systemctl is-enabled',
+    'initial_active" != active',
+    'initial_enabled" != enabled',
+    "RuntimeMaxSec=60s",
+    "User=octessera-runtime",
+    "Nice=-10",
+    "LimitRTPRIO=70",
+    "ProtectKernelTunables=yes",
+    "ProtectKernelModules=yes",
+    "ProtectControlGroups=yes",
+    "RestrictNamespaces=yes",
+    "LockPersonality=yes",
+    "RuntimeDirectory=octessera",
+    "RuntimeDirectoryMode=0755",
+    "stop_sampler()",
+    'kill -TERM "$sampler_pid"',
+    'wait "$sampler_pid" 2>/dev/null || true',
+    "timeout --signal=TERM --kill-after=2 10s sudo -n rm -f --",
+    "timeout --signal=TERM --kill-after=2 15s",
+    "wait_for_stable_readiness",
+    "exit_status=70",
+    "measured_seconds",
+    'systemctl show "$unit"',
+    "candidate-unit-before-stop.txt",
+    "candidate-unit-final.txt",
+    "candidate-journal.txt",
+    "ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot",
+    "OCTESSERA_PI_STORE_DIR=/var/lib/octessera/presets",
+    "OCTESSERA_PI_SAMPLES_DIR=/var/lib/octessera/samples",
+    "OCTESSERA_OLED_BOOT_HANDOFF=v1",
+    "expected_dac=hw:CARD=octesseradac,DEV=0",
+    "candidate-health.json",
+    'state_file="$root/service-initial-state.txt"',
+    "initial_state_valid=0",
+    "grep -Fxq 'active=active'",
+    "grep -Fxq 'enabled=enabled'",
+    'if [ "$initial_state_valid" -eq 1 ]; then',
+    "/run/octessera/candidate-health-",
+    "rm -f --",
+    "rm -rf --"
+  )) {
+  Assert-Contains $live $required
+}
+Assert-NotContains $live 'if ! capture_readiness "$service" "$production_health"'
+Assert-NotContains $live "sudo -n cp"
+Assert-NotContains $live "/tmp/octessera-orange-candidate-health-"
+Assert-Contains $live 'if [ ! -r "$marker" ]; then'
+if ([regex]::Matches($live, 'readiness_matches_unit "\$unit" .*\$pinned_main_pid.*\$pinned_invocation_id').Count -lt 2) {
+  throw "LiveCandidate did not pin both transient identities for liveness and final checks."
+}
+Assert-NotContains $live 'systemctl enable "'
+Assert-NotContains $live 'systemctl disable "'
+Assert-Contains $live "mode=live-candidate"
+$liveCleanup = $live.Substring($live.LastIndexOf("Cleanup payload:", [StringComparison]::Ordinal))
+Assert-Ordered $liveCleanup @(
+  'systemctl stop "$unit"',
+  'if [ "$initial_state_valid" -eq 1 ]; then',
+  'systemctl start "$service"',
+  'wait_for_stable_readiness "$service"',
+  'systemctl is-enabled "$service"',
+  'sudo -n rm -f -- "$health"',
+  'sudo -n rm -rf -- "$root"'
+)
+Assert-Contains $liveCleanup "initial_state_valid=0"
+Assert-Contains $liveCleanup 'if [ "$initial_state_valid" -eq 1 ]; then'
+Assert-NotContains $liveCleanup 'systemctl enable "'
+Assert-NotContains $liveCleanup 'systemctl disable "'
+if ($live -match "flash|reboot|gpio|suspend|poweroff") {
+  throw "LiveCandidate plan contains an unapproved hardware reconfiguration path."
+}
+
+Write-Output "Orange capability study PrintOnly, safety, DSP-mode, and transient-unit tests passed"

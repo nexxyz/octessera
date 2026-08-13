@@ -8,6 +8,10 @@
 /userpatches/overlay/usr/local/share/octessera-setup-ui/README.md text eol=lf
 /userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-mark.svg text eol=lf
 /userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-wordmark.svg text eol=lf
+/packages/device-contracts/src/displayPalette.generated.ts text eol=lf
+/apps/desktop/src/ui/displayPalette.generated.css text eol=lf
+/userdocs/print/displayPalette.generated.css text eol=lf
+/crates/platform-core/src/display_palette.generated.rs text eol=lf
 /tools/pi-image/fixtures/trusted-parent-v0.7.5/boot/config.txt text eol=lf
 /tools/pi-image/fixtures/trusted-parent-v0.7.5/boot/cmdline.txt text eol=lf
 /tools/pi-image/fixtures/trusted-parent-v0.7.5/root/boot/config.txt text eol=lf

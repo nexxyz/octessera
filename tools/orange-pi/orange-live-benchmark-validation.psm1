@@ -1,0 +1,489 @@
+Set-StrictMode -Version Latest
+Import-Module (Join-Path $PSScriptRoot "orange-live-worker-validation.psm1") -Force
+$script:OrangeLiveScenarioIds = @("synth_ramp_16", "synth_ramp_32", "synth_ramp_64", "sample_ramp_64", "mixed_ramp_16_16", "mixed_ramp_32_32", "bus_heavy_6_bus_fx_2_global", "momentary_combined", "synth_cross_slot_96_steal", "sample_cross_slot_96_steal", "mixed_cross_slot_48_48_steal")
+$script:OrangeLiveWorkerScenarios = @("synth_cross_slot_96_steal", "mixed_cross_slot_48_48_steal")
+function Get-OrangeLiveScenarioIds {
+  return @($script:OrangeLiveScenarioIds)
+}
+function Assert-OrangeLiveBenchmarkSelection {
+  param(
+    [Parameter(Mandatory)][string]$Scenario,
+    [Parameter(Mandatory)][int]$OutputFrames,
+    [Parameter(Mandatory)][ValidateSet(64, 128, 256)][int]$EngineBlockFrames,
+    [Parameter(Mandatory)][int]$Workers,
+    [Parameter(Mandatory)][int]$MeasureSeconds,
+    [bool]$AllowLongRepeat = $false
+  )
+  if ($script:OrangeLiveScenarioIds -notcontains $Scenario) {
+    throw "LiveAudioBenchmark scenario is not in the approved historical order: $Scenario"
+  }
+  $alsaPeriodFrames = @{ 256 = 64; 512 = 128; 1024 = 256 }[$OutputFrames]
+  if ($null -eq $alsaPeriodFrames) { throw "LiveAudioBenchmark output frames must be 256, 512, or 1024." }
+  if (@(0, 2, 3) -notcontains $Workers) {
+    throw "LiveAudioBenchmark workers must be 0, 2, or 3."
+  }
+  if (@(30, 120) -notcontains $MeasureSeconds) {
+    throw "LiveAudioBenchmark measure seconds must be 30 or 120."
+  }
+  $approvedTuples = @("256/64/2", "256/256/0", "256/256/2", "512/128/2", "1024/256/0", "1024/256/2", "1024/256/3")
+  $approvedTuple = $approvedTuples -contains "$OutputFrames/$EngineBlockFrames/$Workers"
+  if (-not $approvedTuple) {
+    throw "LiveAudioBenchmark geometry tuple is not approved: output=$OutputFrames engine=$EngineBlockFrames workers=$Workers."
+  }
+  if ($OutputFrames -eq 1024 -and $script:OrangeLiveWorkerScenarios -notcontains $Scenario) {
+    throw "LiveAudioBenchmark output 1024 is limited to the synth and mixed steal scenarios."
+  }
+  if ($MeasureSeconds -eq 120) {
+    if (-not $AllowLongRepeat) {
+      throw "A 120-second run requires the explicit -AllowLongRepeat consent."
+    }
+    if ($OutputFrames -ne 256 -or $EngineBlockFrames -ne 64 -or $Workers -ne 2) {
+      throw "A 120-second repeat must use the selected A scenario at output=256, engine=64, and workers=2."
+    }
+  }
+  if ($AllowLongRepeat -and $MeasureSeconds -ne 120) {
+    throw "-AllowLongRepeat is only valid for a 120-second A repeat."
+  }
+  $matrixClass = if ($OutputFrames -eq 1024) { "C$Workers" } elseif ($OutputFrames -eq 256 -and $EngineBlockFrames -eq 64) { "A" } elseif ($OutputFrames -eq 512) { "B" } else { "individual" }
+  return [pscustomobject]@{
+    Scenario = $Scenario
+    OutputFrames = $OutputFrames
+    AlsaPeriodFrames = $alsaPeriodFrames
+    EngineBlockFrames = $EngineBlockFrames
+    InternalFrames = $EngineBlockFrames
+    Workers = $Workers
+    MeasureSeconds = $MeasureSeconds
+    WarmupSeconds = 5
+    MatrixClass = $matrixClass
+    LongRepeat = $MeasureSeconds -eq 120
+  }
+}
+function Get-OrangeLiveMatrixPlan {
+  $plan = @()
+  foreach ($scenario in $script:OrangeLiveScenarioIds) {
+    $plan += Assert-OrangeLiveBenchmarkSelection -Scenario $scenario -OutputFrames 256 -EngineBlockFrames 64 -Workers 2 -MeasureSeconds 30
+  }
+  foreach ($scenario in $script:OrangeLiveScenarioIds) {
+    $plan += Assert-OrangeLiveBenchmarkSelection -Scenario $scenario -OutputFrames 512 -EngineBlockFrames 128 -Workers 2 -MeasureSeconds 30
+  }
+  foreach ($workers in @(0, 2, 3)) {
+    foreach ($scenario in $script:OrangeLiveWorkerScenarios) {
+      $plan += Assert-OrangeLiveBenchmarkSelection -Scenario $scenario -OutputFrames 1024 -EngineBlockFrames 256 -Workers $workers -MeasureSeconds 30
+    }
+  }
+  return $plan
+}
+function Resolve-OrangeLiveEvidenceDirectory {
+  param(
+    [Parameter(Mandatory)][string]$LocalRunDirectory,
+    [Parameter(Mandatory)][string]$RemoteRoot
+  )
+  $direct = Test-Path -LiteralPath (Join-Path $LocalRunDirectory "study-result.txt") -PathType Leaf
+  $remoteLeaf = Split-Path -Leaf $RemoteRoot
+  $nested = @(Get-ChildItem -LiteralPath $LocalRunDirectory -Directory -ErrorAction SilentlyContinue | Where-Object {
+      $_.Name -ceq $remoteLeaf -and (Test-Path -LiteralPath (Join-Path $_.FullName "study-result.txt") -PathType Leaf)
+    })
+  if ($direct -and $nested.Count -eq 0) { return (Get-Item -LiteralPath $LocalRunDirectory).FullName }
+  if (-not $direct -and $nested.Count -eq 1) { return $nested[0].FullName }
+  throw "Live benchmark evidence retrieval was missing or ambiguous: $LocalRunDirectory"
+}
+function Resolve-OrangeLiveRunnerOutcome {
+  param(
+    [Parameter(Mandatory)][string]$EvidenceStatusClass,
+    [Parameter(Mandatory)][bool]$RunnerThrew
+  )
+  if ($RunnerThrew -and $EvidenceStatusClass -eq "pass") { return "infrastructure_failure" }
+  return $EvidenceStatusClass
+}
+function Get-OrangeLiveRunId {
+  param([Parameter(Mandatory)][string]$EvidenceDirectory)
+  $evidence = Get-Item -LiteralPath $EvidenceDirectory -ErrorAction Stop
+  $runDirectory = if ($evidence.Name -like "orange-study-*") { $evidence } else { Get-Item -LiteralPath $evidence.Parent.FullName -ErrorAction Stop }
+  if ($runDirectory.Name -notmatch '^orange-study-(?<runid>[0-9a-f]+)$') {
+    throw "Live benchmark evidence directory does not carry an exact local run ID."
+  }
+  return $Matches.runid
+}
+function ConvertTo-OrangeLiveManifestJson {
+  param([Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Results)
+  return (ConvertTo-Json -InputObject @($Results) -Depth 8)
+}
+function Get-OrangeLiveAggregateRenderAudioDurationRatio {
+  param([Parameter(Mandatory)][pscustomobject]$Result)
+  $callback = $Result.PSObject.Properties["callback"]
+  $duration = if ($null -ne $callback) { $callback.Value.PSObject.Properties["render_audio_duration_ns"] } else { $null }
+  $frames = if ($null -ne $callback) { $callback.Value.PSObject.Properties["rendered_frames"] } else { $null }
+  $count = if ($null -ne $callback) { $callback.Value.PSObject.Properties["callback_count"] } else { $null }; $minimum = if ($null -ne $callback) { $callback.Value.PSObject.Properties["callback_frames_min"] } else { $null }; $maximum = if ($null -ne $callback) { $callback.Value.PSObject.Properties["callback_frames_max"] } else { $null }
+  $rate = $Result.PSObject.Properties["sample_rate"]
+  if ($null -eq $duration -or $null -eq $frames -or $null -eq $count -or $null -eq $minimum -or $null -eq $maximum -or $null -eq $rate -or $null -eq $duration.Value -or $null -eq $frames.Value -or $null -eq $count.Value -or $null -eq $minimum.Value -or $null -eq $maximum.Value -or $null -eq $rate.Value) { throw "Live benchmark aggregate render-duration evidence is missing." }
+  try { $durationValue = [double]$duration.Value; $frameValue = [double]$frames.Value; $countValue = [double]$count.Value; $minimumValue = [double]$minimum.Value; $maximumValue = [double]$maximum.Value; $rateValue = [double]$rate.Value } catch { throw "Live benchmark aggregate render-duration evidence is invalid." }
+  if ([double]::IsNaN($durationValue) -or [double]::IsInfinity($durationValue) -or [double]::IsNaN($frameValue) -or [double]::IsInfinity($frameValue) -or [double]::IsNaN($countValue) -or [double]::IsInfinity($countValue) -or [double]::IsNaN($minimumValue) -or [double]::IsInfinity($minimumValue) -or [double]::IsNaN($maximumValue) -or [double]::IsInfinity($maximumValue) -or [double]::IsNaN($rateValue) -or [double]::IsInfinity($rateValue) -or $durationValue -ne [math]::Truncate($durationValue) -or $frameValue -ne [math]::Truncate($frameValue) -or $countValue -ne [math]::Truncate($countValue) -or $minimumValue -ne [math]::Truncate($minimumValue) -or $maximumValue -ne [math]::Truncate($maximumValue) -or $rateValue -ne [math]::Truncate($rateValue) -or $durationValue -le 0 -or $frameValue -le 0 -or $countValue -le 0 -or $minimumValue -le 0 -or $maximumValue -le 0 -or $rateValue -le 0 -or $minimumValue -gt $maximumValue) {
+    throw "Live benchmark aggregate render-duration evidence is zero or invalid."
+  }
+  $lowerFrameBound = $countValue * $minimumValue; $upperFrameBound = $countValue * $maximumValue
+  if ([double]::IsInfinity($lowerFrameBound) -or [double]::IsInfinity($upperFrameBound) -or $frameValue -lt $lowerFrameBound -or $frameValue -gt $upperFrameBound) { throw "Live benchmark callback frame aggregate is outside its measured bounds." }
+  $ratio = $durationValue / ($frameValue * 1e9 / $rateValue)
+  if ([double]::IsNaN($ratio) -or [double]::IsInfinity($ratio) -or $ratio -le 0) { throw "Live benchmark aggregate render-duration ratio is invalid." }
+  return $ratio
+}
+function Get-OrangeLiveWorstPassingScenario {
+  param([Parameter(Mandatory)][object[]]$Results)
+  $passing = @($Results | Where-Object {
+      $_.StatusClass -eq "pass" -and
+      $_.OutputFrames -eq 256 -and
+      $_.EngineBlockFrames -eq 64 -and
+      $_.Workers -eq 2 -and
+      $_.MeasureSeconds -eq 30
+    })
+  if ($passing.Count -eq 0) {
+    throw "No passing A scenario is available for the required 120-second repeat."
+  }
+  return $passing |
+    Sort-Object -Property @(
+      @{ Expression = { [double]$_.RatioP999 }; Descending = $true },
+      @{ Expression = { [double]$_.RatioMax }; Descending = $true },
+      @{ Expression = { [array]::IndexOf($script:OrangeLiveScenarioIds, $_.Scenario) }; Descending = $false }
+    ) |
+    Select-Object -First 1
+}
+function Get-OrangeLiveResultSummary {
+  param(
+    [Parameter(Mandatory)][pscustomobject]$Result,
+    [Parameter(Mandatory)][pscustomobject]$Selection,
+    [pscustomobject]$WorkerValidation = $null
+  )
+  if ($null -eq $WorkerValidation) { $WorkerValidation = Get-OrangeLiveWorkerValidation -Result $Result -Selection $Selection }
+  $callback = $Result.callback
+  $terminal = $null -ne $Result.terminal_error -and -not [string]::IsNullOrWhiteSpace([string]$Result.terminal_error)
+  $callbackErrors = [uint64]$callback.cpal_device_error_count + [uint64]$callback.cpal_stream_error_count
+  $measured = [uint64]$callback.callback_count -gt 0 -and -not $terminal -and -not [bool]$callback.terminal_error
+  $muteProof = [uint64]$callback.pre_mute_nonzero_samples -gt 0 -and [uint64]$callback.post_mute_nonzero_samples -eq 0
+  $complete = $measured -and $callbackErrors -eq 0
+  $statusClass = if (-not $measured) {
+    "infrastructure_failure"
+  } elseif ($callbackErrors -gt 0) {
+    "infrastructure_failure"
+  } elseif ([string]$Result.status -eq "pass") {
+    if ([uint64]$callback.over_audio_duration_budget_count -gt 0 -or -not $muteProof -or $WorkerValidation.PolicyViolation) { "infrastructure_failure" } else { "pass" }
+  } elseif ([uint64]$callback.over_audio_duration_budget_count -gt 0) {
+    if ($complete -and $muteProof) { "over_budget" } else { "infrastructure_failure" }
+  } elseif ($WorkerValidation.PolicyViolation -and $WorkerValidation.HasPolicyError -and $muteProof) {
+    "measured_failure"
+  } else {
+    "infrastructure_failure"
+  }
+  return [pscustomobject]@{
+    StatusClass = $statusClass
+    Scenario = $Selection.Scenario
+    OutputFrames = $Selection.OutputFrames
+    AlsaPeriodFrames = $Selection.AlsaPeriodFrames
+    EngineBlockFrames = $Selection.EngineBlockFrames
+    InternalFrames = $Selection.InternalFrames
+    Workers = $Selection.Workers
+    MeasureSeconds = $Selection.MeasureSeconds
+    RatioP50 = [double]$callback.render_audio_duration_ratio_p50
+    RatioP95 = [double]$callback.render_audio_duration_ratio_p95
+    RatioP99 = [double]$callback.render_audio_duration_ratio_p99
+    RatioP999 = [double]$callback.render_audio_duration_ratio_p99_9
+    RatioMax = [double]$callback.render_audio_duration_ratio_max
+    AggregateRenderAudioDurationRatio = Get-OrangeLiveAggregateRenderAudioDurationRatio $Result
+    OverBudget = [uint64]$callback.over_audio_duration_budget_count
+    CallbackErrors = $callbackErrors
+  }
+}
+function Assert-OrangeLiveReadiness {
+  param(
+    [Parameter(Mandatory)][pscustomobject]$Readiness,
+    [Parameter(Mandatory)][pscustomobject]$Selection,
+    [Parameter(Mandatory)][int]$ExpectedPid,
+    [Parameter(Mandatory)][string]$ExpectedInvocation,
+    [Parameter(Mandatory)][string]$ArtifactHash
+  )
+  if ([int]$Readiness.schema_version -ne 2 -or [string]$Readiness.kind -cne "orange_audio_benchmark_readiness" -or [string]$Readiness.status -cne "ready") {
+    throw "Live benchmark readiness schema or status is invalid."
+  }
+  $checks = @(
+    @([string]$Readiness.board_profile, "orange-pi-zero-2w"),
+    @([int]$Readiness.pid, $ExpectedPid),
+    @([string]$Readiness.systemd_invocation_id, $ExpectedInvocation),
+    @([string]$Readiness.artifact_sha256, $ArtifactHash),
+    @([string]$Readiness.scenario, $Selection.Scenario),
+    @([int]$Readiness.requested_output_buffer_frames, $Selection.OutputFrames),
+    @([int]$Readiness.expected_alsa_buffer_frames, $Selection.OutputFrames),
+    @([int]$Readiness.expected_alsa_period_frames, $Selection.AlsaPeriodFrames),
+    @([int]$Readiness.sample_rate, 44100),
+    @([int]$Readiness.channels, 2),
+    @([int]$Readiness.internal_block_frames, $Selection.InternalFrames),
+    @([int]$Readiness.workers_requested, $Selection.Workers)
+  )
+  foreach ($check in $checks) {
+    if ($check[0] -cne $check[1]) { throw "Live benchmark readiness identity or geometry mismatch." }
+  }
+  if (@("F32", "I16", "U16") -notcontains [string]$Readiness.sample_format) {
+    throw "Live benchmark readiness sample format is unsupported."
+  }
+  if (-not [bool]$Readiness.scheduler_qualified -or -not [bool]$Readiness.post_dsp_zero) {
+    throw "Live benchmark readiness did not prove scheduler qualification and post-DSP mute."
+  }
+  $expectedWorkersEffective = $Selection.InternalFrames -ge 256 -and $Selection.Workers -gt 0
+  if ([bool]$Readiness.workers_effective -ne $expectedWorkersEffective) {
+    throw "Live benchmark readiness worker effectiveness does not match the approved matrix."
+  }
+  if ([int]$Readiness.callback_frames_min -le 0 -or [int]$Readiness.callback_frames_max -lt [int]$Readiness.callback_frames_min -or [int]$Readiness.callback_frames_max -gt $Selection.OutputFrames -or [uint64]$Readiness.callback_frame_sample_count -lt 3 -or [uint64]$Readiness.invalid_callback_frame_count -ne 0) {
+    throw "Live benchmark readiness callback batch evidence is invalid."
+  }
+}
+function Assert-OrangeLiveRelease {
+  param(
+    [Parameter(Mandatory)][pscustomobject]$Release,
+    [Parameter(Mandatory)][pscustomobject]$Selection,
+    [Parameter(Mandatory)][int]$ExpectedPid,
+    [Parameter(Mandatory)][string]$ExpectedInvocation,
+    [Parameter(Mandatory)][string]$ArtifactHash
+  )
+  $checks = @(
+    @([int]$Release.schema_version, 2),
+    @([string]$Release.kind, "orange_audio_benchmark_release"),
+    @([string]$Release.status, "released"),
+    @([string]$Release.board_profile, "orange-pi-zero-2w"),
+    @([int]$Release.pid, $ExpectedPid),
+    @([string]$Release.systemd_invocation_id, $ExpectedInvocation),
+    @([string]$Release.artifact_sha256, $ArtifactHash),
+    @([string]$Release.scenario, $Selection.Scenario),
+    @([int]$Release.expected_alsa_buffer_frames, $Selection.OutputFrames),
+    @([int]$Release.observed_alsa_buffer_frames, $Selection.OutputFrames),
+    @([int]$Release.expected_alsa_period_frames, $Selection.AlsaPeriodFrames),
+    @([int]$Release.observed_alsa_period_frames, $Selection.AlsaPeriodFrames)
+  )
+  foreach ($check in $checks) {
+    if ($check[0] -cne $check[1]) { throw "Live benchmark release identity or ALSA geometry mismatch." }
+  }
+}
+function Read-OrangeLiveKeyValueFile {
+  param([Parameter(Mandatory)][string]$Path)
+  $values = @{}
+  if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $values }
+  foreach ($line in Get-Content -LiteralPath $Path) {
+    $parts = $line -split "=", 2
+    if ($parts.Count -eq 2) { $values[$parts[0]] = $parts[1] }
+  }
+  return $values
+}
+function Get-OrangeLiveSensorExtrema {
+  param([Parameter(Mandatory)][string]$Path)
+  $thermal = @()
+  $memory = @()
+  $startupThermal = @()
+  $runtimeThermal = @()
+  $startupMemory = @()
+  $runtimeMemory = @()
+  if (Test-Path -LiteralPath $Path -PathType Leaf) {
+    foreach ($line in Get-Content -LiteralPath $Path) {
+      if ($line -match "sample=thermal phase=(?<phase>[^ ]+).*millicelsius=(?<value>[0-9]+)") {
+        $value = [int]$Matches.value
+        $thermal += $value
+        if ($Matches.phase -eq "startup") { $startupThermal += $value } else { $runtimeThermal += $value }
+      }
+      if ($line -match "sample=memory phase=(?<phase>[^ ]+).*mem_available_kb=(?<value>[0-9]+)") {
+        $value = [int64]$Matches.value
+        $memory += $value
+        if ($Matches.phase -eq "startup") { $startupMemory += $value } else { $runtimeMemory += $value }
+      }
+    }
+  }
+  return [pscustomobject]@{
+    MaxThermalMillicelsius = if ($thermal.Count -gt 0) { ($thermal | Measure-Object -Maximum).Maximum } else { $null }
+    MinMemAvailableKb = if ($memory.Count -gt 0) { ($memory | Measure-Object -Minimum).Minimum } else { $null }
+    StartupMaxThermalMillicelsius = if ($startupThermal.Count -gt 0) { ($startupThermal | Measure-Object -Maximum).Maximum } else { $null }
+    StartupMinMemAvailableKb = if ($startupMemory.Count -gt 0) { ($startupMemory | Measure-Object -Minimum).Minimum } else { $null }
+    RuntimeMaxThermalMillicelsius = if ($runtimeThermal.Count -gt 0) { ($runtimeThermal | Measure-Object -Maximum).Maximum } else { $null }
+    RuntimeMinMemAvailableKb = if ($runtimeMemory.Count -gt 0) { ($runtimeMemory | Measure-Object -Minimum).Minimum } else { $null }
+    StartupSampleCount = $startupMemory.Count
+    RuntimeSampleCount = $runtimeMemory.Count
+  }
+}
+function Assert-OrangeLiveResult {
+  param(
+    [Parameter(Mandatory)][pscustomobject]$Result,
+    [Parameter(Mandatory)][pscustomobject]$Selection
+  )
+  $checks = @(
+    @([int]$Result.schema_version, 3),
+    @([string]$Result.kind, "orange_audio_benchmark_result"),
+    @([string]$Result.board_profile, "orange-pi-zero-2w"),
+    @([string]$Result.scenario, $Selection.Scenario),
+    @([int]$Result.requested_output_buffer_frames, $Selection.OutputFrames),
+    @([int]$Result.expected_alsa_buffer_frames, $Selection.OutputFrames),
+    @([int]$Result.expected_alsa_period_frames, $Selection.AlsaPeriodFrames),
+    @([int]$Result.sample_rate, 44100),
+    @([int]$Result.channels, 2),
+    @([int]$Result.internal_block_frames, $Selection.InternalFrames),
+    @([int]$Result.workers_requested, $Selection.Workers),
+    @([int]$Result.warmup_seconds, 5),
+    @([int]$Result.measure_seconds, $Selection.MeasureSeconds)
+  )
+  if (@("pass", "fail") -notcontains [string]$Result.status) { throw "Live benchmark result status is invalid." }
+  foreach ($check in $checks) {
+    if ($check[0] -cne $check[1]) { throw "Live benchmark result contract mismatch." }
+  }
+  if (@("F32", "I16", "U16") -notcontains [string]$Result.sample_format) { throw "Live benchmark result sample format is unsupported." }
+  if (-not [bool]$Result.scheduler_qualified -or -not [bool]$Result.measurement_stop_acknowledged -or -not [bool]$Result.stream_stopped -or -not [bool]$Result.final_progress_write_succeeded) {
+    throw "Live benchmark result did not complete the required finalization contract."
+  }
+  if ($null -ne $Result.recovered_alsa_epipe_count -or [bool]$Result.recovered_alsa_epipe_observable) {
+    throw "Live benchmark result made an invalid recovered ALSA EPIPE claim."
+  }
+  Get-OrangeLiveAggregateRenderAudioDurationRatio $Result | Out-Null
+  $callback = $Result.callback
+  if ([uint64]$callback.callback_count -eq 0 -or [uint64]$callback.first_measured_callback_ns -eq 0 -or [uint64]$callback.last_measured_callback_ns -lt [uint64]$callback.first_measured_callback_ns -or [uint64]$callback.measured_elapsed_ns -ne ([uint64]$callback.last_measured_callback_ns - [uint64]$callback.first_measured_callback_ns) -or -not [bool]$callback.callback_timestamp_observed -or [uint32]$callback.callback_frames_min -le 0 -or [uint32]$callback.callback_frames_max -lt [uint32]$callback.callback_frames_min -or [uint32]$callback.callback_frames_max -gt $Selection.OutputFrames -or [uint64]$callback.callback_frame_sample_count -ne [uint64]$callback.callback_count -or [uint64]$callback.invalid_callback_frame_count -ne 0) {
+    throw "Live benchmark callback timing or geometry evidence is incomplete."
+  }
+  return Get-OrangeLiveWorkerValidation -Result $Result -Selection $Selection
+}
+function Get-OrangeLiveHostEvidence {
+  param(
+    [Parameter(Mandatory)][string]$EvidenceDirectory,
+    [Parameter(Mandatory)][pscustomobject]$Selection,
+    [Parameter(Mandatory)][string]$ArtifactHash
+  )
+  $identity = Read-OrangeLiveKeyValueFile (Join-Path $EvidenceDirectory "benchmark-identity.txt")
+  $restored = Read-OrangeLiveKeyValueFile (Join-Path $EvidenceDirectory "service-restored-state.txt")
+  $study = Read-OrangeLiveKeyValueFile (Join-Path $EvidenceDirectory "study-result.txt")
+  $remoteStatusClass = if ($study.ContainsKey("status_class")) { [string]$study.status_class } else { "" }
+  $unit = Read-OrangeLiveKeyValueFile (Join-Path $EvidenceDirectory "unit-final.txt")
+  $unitStop = Read-OrangeLiveKeyValueFile (Join-Path $EvidenceDirectory "unit-stop-evidence.txt")
+  $unitStopBefore = Read-OrangeLiveKeyValueFile (Join-Path $EvidenceDirectory "unit-stop-before.txt")
+  $sensorAbortPath = Join-Path $EvidenceDirectory "sensor-abort.txt"
+  $resultPath = Join-Path $EvidenceDirectory "benchmark-result.json"
+  $readinessPath = Join-Path $EvidenceDirectory "benchmark-readiness.json"
+  $releasePath = Join-Path $EvidenceDirectory "benchmark-release.json"
+  $result = $null
+  $readiness = $null
+  $workerValidation = $null
+  $aggregateRatio = $null
+  $sensor = Get-OrangeLiveSensorExtrema (Join-Path $EvidenceDirectory "sensor-series.txt")
+  $statusClass = "infrastructure_failure"
+  $reason = "missing benchmark result or readiness evidence"
+  if ((Test-Path -LiteralPath $resultPath -PathType Leaf) -and (Test-Path -LiteralPath $readinessPath -PathType Leaf)) {
+    try {
+      $result = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
+      $readiness = Get-Content -LiteralPath $readinessPath -Raw | ConvertFrom-Json
+      $aggregateRatio = Get-OrangeLiveAggregateRenderAudioDurationRatio $result
+      Assert-OrangeLiveReadiness `
+        -Readiness $readiness `
+        -Selection $Selection `
+        -ExpectedPid ([int]$identity.main_pid) `
+        -ExpectedInvocation ([string]$identity.invocation_id) `
+        -ArtifactHash $ArtifactHash
+      if (-not (Test-Path -LiteralPath $releasePath -PathType Leaf)) { throw "benchmark release evidence is missing" }
+      $release = Get-Content -LiteralPath $releasePath -Raw | ConvertFrom-Json
+      Assert-OrangeLiveRelease `
+        -Release $release `
+        -Selection $Selection `
+        -ExpectedPid ([int]$identity.main_pid) `
+        -ExpectedInvocation ([string]$identity.invocation_id) `
+        -ArtifactHash $ArtifactHash
+      $workerValidation = Assert-OrangeLiveResult -Result $result -Selection $Selection
+      if ([int]$result.pid -ne [int]$identity.main_pid -or [string]$result.systemd_invocation_id -cne [string]$identity.invocation_id -or [string]$result.artifact_sha256 -cne $ArtifactHash) {
+        throw "benchmark result identity mismatch"
+      }
+      if (-not [bool]$result.post_dsp_zero -or [uint64]$result.callback.post_mute_nonzero_samples -ne 0) {
+        throw "benchmark result did not prove post-DSP mute"
+      }
+      $validSuccessExecMainCode = @("0", "1", "exited") -contains [string]$unit.ExecMainCode
+      $validFailureExecMainCode = @("1", "exited") -contains [string]$unit.ExecMainCode
+      if ([string]$result.status -eq "pass") {
+        $cleanSuccess = [string]$unit.ActiveState -eq "inactive" -and [string]$unit.SubState -eq "dead" -and [string]$unit.Result -eq "success" -and [int]$unit.MainPID -eq 0 -and $validSuccessExecMainCode -and [int]$unit.ExecMainStatus -eq 0
+        if (-not $cleanSuccess) {
+          throw "successful benchmark result did not match transient process status"
+        }
+      } else {
+        $cleanFailure = [string]$unit.ActiveState -eq "failed" -and [string]$unit.Result -eq "exit-code" -and $validFailureExecMainCode -and [int]$unit.ExecMainStatus -eq 1
+        $explicitFailureStop = [string]$unit.ActiveState -eq "inactive" -and [string]$unit.Result -eq "exit-code" -and $validFailureExecMainCode -and [int]$unit.ExecMainStatus -eq 1 -and $unitStop.explicit_stop_after_result -eq "true" -and $unitStop.result_present -eq "true" -and $unitStop.unit -eq $identity.unit -and $unitStopBefore.Result -eq "exit-code" -and $unitStopBefore.ExecMainStatus -eq "1" -and @("1", "exited") -contains $unitStopBefore.ExecMainCode
+        if (-not $cleanFailure -and -not $explicitFailureStop) {
+          throw "clean measured failure did not match transient process status"
+        }
+      }
+      $summary = Get-OrangeLiveResultSummary -Result $result -Selection $Selection -WorkerValidation $workerValidation
+      $statusClass = $summary.StatusClass
+      $reason = "result identity and process status validated"
+    } catch {
+      $reason = $_.Exception.Message
+    }
+  }
+  if ($study.interruption_started -eq "true" -and ($restored.restore_status -ne "0" -or $restored.final_active -ne "active" -or $restored.final_enabled -ne "enabled")) {
+    $statusClass = "restoration_failure"
+    $reason = "production service restoration did not pass the stable active/enabled gate"
+  } elseif ($remoteStatusClass -eq "restoration_failure") {
+    $statusClass = "restoration_failure"
+    $reason = "remote study reported restoration failure"
+  } elseif ((Test-Path -LiteralPath $sensorAbortPath -PathType Leaf) -or $remoteStatusClass -eq "safety_failure") {
+    $statusClass = "safety_failure"
+    $reason = "remote safety evidence contains a sensor abort"
+  } elseif ($remoteStatusClass -eq "infrastructure_failure") {
+    $statusClass = "infrastructure_failure"
+    $reason = "remote study reported infrastructure failure"
+  } elseif (@("pass", "measured_failure") -notcontains $remoteStatusClass -and $null -ne $result) {
+    $statusClass = "infrastructure_failure"
+    $reason = "remote study status class was missing or contradictory"
+  }
+  if ($null -ne $result -and (($remoteStatusClass -eq "pass" -and [string]$result.status -ne "pass") -or ($remoteStatusClass -eq "measured_failure" -and [string]$result.status -eq "pass"))) {
+    $statusClass = "infrastructure_failure"
+    $reason = "remote study status and retained benchmark result disagree"
+  }
+  if (@("pass", "measured_failure", "over_budget") -contains $statusClass) {
+    if ((Test-Path -LiteralPath $sensorAbortPath -PathType Leaf) -or $sensor.StartupSampleCount -lt 1 -or $sensor.RuntimeSampleCount -lt 1 -or $null -eq $sensor.StartupMaxThermalMillicelsius -or $null -eq $sensor.StartupMinMemAvailableKb -or $null -eq $sensor.RuntimeMaxThermalMillicelsius -or $null -eq $sensor.RuntimeMinMemAvailableKb) {
+      $statusClass = "infrastructure_failure"
+      $reason = "passing evidence did not retain startup/runtime sensor samples and extrema"
+    }
+  }
+  return [pscustomobject]@{
+    StatusClass = $statusClass
+    Reason = $reason
+    Scenario = $Selection.Scenario
+    OutputFrames = $Selection.OutputFrames
+    AlsaPeriodFrames = $Selection.AlsaPeriodFrames
+    EngineBlockFrames = $Selection.EngineBlockFrames
+    InternalFrames = $Selection.InternalFrames
+    Workers = $Selection.Workers
+    MeasureSeconds = $Selection.MeasureSeconds
+    AggregateRenderAudioDurationRatio = $aggregateRatio
+    RatioP50 = if ($null -ne $result) { [double]$result.callback.render_audio_duration_ratio_p50 } else { 0.0 }
+    RatioP95 = if ($null -ne $result) { [double]$result.callback.render_audio_duration_ratio_p95 } else { 0.0 }
+    RatioP99 = if ($null -ne $result) { [double]$result.callback.render_audio_duration_ratio_p99 } else { 0.0 }
+    RatioP999 = if ($null -ne $result) { [double]$result.callback.render_audio_duration_ratio_p99_9 } else { 0.0 }
+    RatioMax = if ($null -ne $result) { [double]$result.callback.render_audio_duration_ratio_max } else { 0.0 }
+    OverBudget = if ($null -ne $result) { [uint64]$result.callback.over_audio_duration_budget_count } else { 0 }
+    CallbackErrors = if ($null -ne $result) { [uint64]$result.callback.cpal_device_error_count + [uint64]$result.callback.cpal_stream_error_count } else { 0 }
+    WorkerDispatches = if ($null -ne $workerValidation) { [uint64]$workerValidation.Delta.synth_parallel_dispatches } else { $null }
+    WorkerLightSkips = if ($null -ne $workerValidation) { [uint64]$workerValidation.Delta.synth_parallel_light_skips } else { $null }
+    WorkerBackoffSkips = if ($null -ne $workerValidation) { [uint64]$workerValidation.Delta.synth_parallel_backoff_skips } else { $null }
+    WorkerTimingBackoffs = if ($null -ne $workerValidation) { [uint64]$workerValidation.Delta.synth_parallel_timing_backoffs } else { $null }
+    WorkerFailures = if ($null -ne $workerValidation) { [uint64]$workerValidation.Delta.synth_parallel_failures } else { $null }
+    WorkerUnhealthy = if ($null -ne $workerValidation) { [bool]$workerValidation.Delta.synth_parallel_unhealthy } else { $null }
+    WorkerPolicyError = if ($null -ne $workerValidation) { $workerValidation.PolicyError } else { $null }
+    WorkerPolicyViolation = if ($null -ne $workerValidation) { [bool]$workerValidation.PolicyViolation } else { $null }
+    WorkerPolicyViolationReason = if ($null -ne $workerValidation) { [string]$workerValidation.PolicyViolationReason } else { $null }
+    ArtifactSha256 = $ArtifactHash
+    BenchmarkOutcome = if ($null -ne $result) { [string]$result.status } else { "" }
+    StudyStatusClass = if ($study.ContainsKey("status_class")) { [string]$study.status_class } else { "" }
+    SensorMaxThermalMillicelsius = $sensor.MaxThermalMillicelsius
+    SensorMinMemAvailableKb = $sensor.MinMemAvailableKb
+    SensorStartupSampleCount = $sensor.StartupSampleCount
+    SensorRuntimeSampleCount = $sensor.RuntimeSampleCount
+    SensorStartupMaxThermalMillicelsius = $sensor.StartupMaxThermalMillicelsius
+    SensorStartupMinMemAvailableKb = $sensor.StartupMinMemAvailableKb
+    SensorRuntimeMaxThermalMillicelsius = $sensor.RuntimeMaxThermalMillicelsius
+    SensorRuntimeMinMemAvailableKb = $sensor.RuntimeMinMemAvailableKb
+    SensorAbortPath = $sensorAbortPath
+    ResultPath = if ($null -ne $result) { $resultPath } else { "" }
+    ReadinessPath = if ($null -ne $readiness) { $readinessPath } else { "" }
+    ReleasePath = if (Test-Path -LiteralPath $releasePath -PathType Leaf) { $releasePath } else { "" }
+    InitialReadinessPath = Join-Path $EvidenceDirectory "service-initial-candidate-ready.json"
+    RestoredReadinessPath = Join-Path $EvidenceDirectory "service-restored-ready.json"
+    StudyStatusPath = Join-Path $EvidenceDirectory "study-result.txt"
+    SensorSeriesPath = Join-Path $EvidenceDirectory "sensor-series.txt"
+    UnitStatusPath = Join-Path $EvidenceDirectory "unit-final.txt"
+  }
+}
+Export-ModuleMember -Function @("Assert-OrangeLiveBenchmarkSelection", "Assert-OrangeLiveRelease", "Assert-OrangeLiveReadiness", "Assert-OrangeLiveResult", "ConvertTo-OrangeLiveManifestJson", "Get-OrangeLiveAggregateRenderAudioDurationRatio", "Get-OrangeLiveMatrixPlan", "Get-OrangeLiveHostEvidence", "Get-OrangeLiveResultSummary", "Get-OrangeLiveScenarioIds", "Get-OrangeLiveWorstPassingScenario", "Get-OrangeLiveRunId", "Resolve-OrangeLiveEvidenceDirectory", "Resolve-OrangeLiveRunnerOutcome")

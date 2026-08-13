@@ -1,6 +1,5 @@
 use crate::audio_config::{
-    decode_sample_file, normalize_config, parse_instrument_slot_config,
-    sample_bank_for_slot_config, SampleBankError,
+    normalize_config, parse_instrument_slot_config, sample_bank_for_slot_config, SampleBankError,
 };
 use crate::host_adapter::DesktopPlaybackHostAdapter;
 use crate::samples::resolve_sample_file;
@@ -10,6 +9,7 @@ use realtime_engine::synth::{
     validate_fx_type, validate_momentary_fx_type, validate_sample_bank_param_path,
     validate_synth_param_path,
 };
+use rodio_engine_source::decode_sample_file;
 
 impl DesktopPlaybackHostAdapter {
     pub(super) fn handle_runtime_audio_command(

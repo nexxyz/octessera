@@ -177,10 +177,9 @@ impl UpdateMenuFixture {
         loop {
             handle_deferred_host_work(&mut self.playback, &mut self.runner, &mut self.adapter)
                 .unwrap();
-            if self
-                .toast()
-                .is_some_and(|toast| toast == message || message.contains(toast))
-            {
+            if self.toast().is_some_and(|toast| {
+                !toast.is_empty() && (toast == message || message.contains(toast))
+            }) {
                 return;
             }
             if Instant::now() >= deadline {

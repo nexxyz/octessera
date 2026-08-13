@@ -1,7 +1,8 @@
 use crate::host_adapter::PiPlaybackHostAdapter;
+#[cfg(test)]
+use playback_runtime::{CoreRunner, HostAdapter};
 use playback_runtime::{
-    CoreRunner, HostAdapter, HostMessage, NativeRunner, PlaybackRuntime, RunnerMessage,
-    RuntimePlatformEffect,
+    HostMessage, NativeRunner, PlaybackRuntime, RunnerMessage, RuntimePlatformEffect,
 };
 use serde_json::Value;
 
@@ -18,10 +19,38 @@ pub fn dispatch_runtime_message(
         runner,
         adapter,
     )?;
+    process_runtime_output(playback, runner, adapter, output)?;
+    Ok(())
+}
+
+pub fn process_runtime_output(
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    adapter: &mut PiPlaybackHostAdapter,
+    output: playback_runtime::RuntimeIngest,
+) -> Result<(), String> {
+    ingest_oled_messages(adapter, &output.messages);
+    let fault = adapter
+        .oled_frame_fault()
+        .map(crate::oled_frame_cache::OledFrameCacheFault::into_runtime_fault);
+    let fault_output = playback.report_oled_cache_fault(fault);
+    ingest_oled_messages(adapter, &fault_output.messages);
+    for follow_up in fault_output.follow_ups {
+        dispatch_runtime_message(playback, runner, adapter, follow_up)?;
+    }
     for follow_up in output.follow_ups {
         dispatch_runtime_message(playback, runner, adapter, follow_up)?;
     }
     Ok(())
+}
+
+fn ingest_oled_messages(adapter: &mut PiPlaybackHostAdapter, messages: &[RunnerMessage]) {
+    for message in messages {
+        adapter.ingest_oled_frame(message);
+        if let RunnerMessage::Snapshot { snapshot } = message {
+            adapter.accept_oled_frame_reference(snapshot);
+        }
+    }
 }
 
 pub fn handle_deferred_host_work(
@@ -31,7 +60,8 @@ pub fn handle_deferred_host_work(
 ) -> Result<(), String> {
     let responses = runner.flush_deferred_menu_apply()?;
     if !responses.is_empty() {
-        ingest_responses(playback, runner, adapter, responses)?;
+        let output = playback.dispatch_runner_messages(responses, runner, adapter)?;
+        process_runtime_output(playback, runner, adapter, output)?;
     }
     let follow_ups = adapter.flush_due_default_save()?;
     for follow_up in follow_ups {
@@ -48,7 +78,7 @@ pub fn initialize_host_state(
     runner: &mut NativeRunner,
     adapter: &mut PiPlaybackHostAdapter,
 ) -> Result<(), String> {
-    playback.dispatch_runner_messages(
+    let output = playback.dispatch_runner_messages(
         vec![playback_runtime::RunnerMessage::PlatformEffects {
             effects: vec![
                 RuntimePlatformEffect::StoreLoadDefault,
@@ -59,7 +89,7 @@ pub fn initialize_host_state(
         runner,
         adapter,
     )?;
-    Ok(())
+    process_runtime_output(playback, runner, adapter, output)
 }
 
 pub fn latest_snapshot(playback: &PlaybackRuntime) -> Option<&Value> {
@@ -79,17 +109,6 @@ fn dispatch_and_ingest<R: CoreRunner, H: HostAdapter>(
             runner,
             adapter,
         )
-        .map(|_| ())
-}
-
-fn ingest_responses<R: CoreRunner, H: HostAdapter>(
-    playback: &mut PlaybackRuntime,
-    runner: &mut R,
-    adapter: &mut H,
-    responses: Vec<RunnerMessage>,
-) -> Result<(), String> {
-    playback
-        .dispatch_runner_messages(responses, runner, adapter)
         .map(|_| ())
 }
 

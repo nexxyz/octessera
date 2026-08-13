@@ -45,6 +45,12 @@ cargo build -p octessera-pi
 cargo check --target aarch64-unknown-linux-gnu -p octessera-hal --features raspberry-pi-zero-2w
 ```
 
+`raspberry-pi-zero-2w` and `hardware-raspberry-pi-zero-2w` are the canonical
+internal feature owners. The deprecated `rpi-zero-2w`, `pi-zero`,
+`hardware-rpi-zero-2w`, and `hardware-pi` aliases remain accepted for existing
+Cargo commands and CI coverage; use canonical names for new commands. No alias
+removal date is promised.
+
 Release builds use:
 
 ```bash
@@ -54,10 +60,11 @@ corepack pnpm --filter @octessera/desktop tauri:build
 Quality audit:
 
 ```bash
+corepack pnpm run quality:test
 corepack pnpm run quality:audit
 ```
 
-The audit enforces the 500-line source-file limit, warning above 300 LOC and failing above 500 LOC. Function length, simple complexity, wide signatures, and behavior/behaviour naming drift remain informational staged warnings.
+The audit enforces the 500-line source-file limit, warning above 300 LOC and failing above 500 LOC. JavaScript and TypeScript function metrics are syntax-aware Babel AST measurements; Rust function metrics remain approximate regex measurements. Function length, simple complexity, wide signatures, and behavior/behaviour naming drift remain informational staged warnings.
 
 ## TypeScript Baseline
 
@@ -80,7 +87,7 @@ The audit enforces the 500-line source-file limit, warning above 300 LOC and fai
 - Run `corepack pnpm run capabilities:generate` after editing platform capabilities.
 - Run `corepack pnpm run capabilities:check` to verify generated TypeScript exports are current.
 - Rust capability constants are generated at build time for `platform-core` and `realtime-engine`.
-- `resources/display-palette.json` is the source of truth for the shared display/UI palette. Run `corepack pnpm run palette:generate` after editing it, and `corepack pnpm run palette:check` to verify generated TypeScript and CSS exports are current. Rust palette constants are generated at build time for `platform-core`.
+- `resources/display-palette.json` is the source of truth for the shared display/UI palette. Run `corepack pnpm run palette:generate` after editing it, and `corepack pnpm run palette:check` to verify generated TypeScript, CSS, and Rust exports are current. `platform-core` copies the tracked Rust output into `OUT_DIR` at build time.
 - `config/defaults/base.json` and platform overrides in `config/defaults/` are the source of truth for shipped default configs.
 - Run `corepack pnpm run config:generate` after editing default config sources, and `corepack pnpm run config:check` to verify generated platform defaults are current.
 - `resources/menu-help-texts.tsv` must cover every native menu/help target with specific rows; generic fallback help is not allowed.

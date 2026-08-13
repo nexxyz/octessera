@@ -2,6 +2,11 @@
 
 The Orange Pi image starts a small setup website if it does not already know a Wi-Fi network.
 
+Before treating an image or a successful login as a ready instrument, read the
+[board qualification and status page](board-qualification.md). It separates
+source/build proof from the physical checks that still need a person, a named
+board, and the assembled hardware.
+
 The constructor stages the same canonical interactive terminal welcome as the
 Raspberry image at `/etc/profile.d/octessera-welcome.sh`. It is silent for
 noninteractive commands and redirected output. The empty admin
@@ -46,6 +51,22 @@ control surface initializes, and the first runtime frame renders. USB-only
 audio is unsupported; the internal DAC at
 `hw:CARD=octesseradac,DEV=0` is required. USB UAC2 may be added as a companion,
 but `audioOut=usb` is rejected.
+
+The Orange runtime gets three attempts in a 30-second systemd start-limit
+window: the initial start plus two retries. If it reaches `start-limit-hit`,
+recover it explicitly from the console:
+
+```sh
+sudo systemctl reset-failed octessera.service
+sudo systemctl start octessera.service
+```
+
+The boot OLED handoff has a 30-second monotonic deadline starting immediately
+after handoff start, before OLED initialization or adoption. On timeout, a
+signal, or an unexpected failure after ownership, it attempts an exact 32768-byte
+black RGB565 frame and display-off `0xAE` independently. A cleanup failure does
+not skip the other attempt. The failed handoff remains available to native
+recovery with its current boot ID and matching request ID.
 
 Orange update check, apply, rollback, and OTA remain unsupported. Use a
 verified production image artifact from the release page for an image update;
@@ -167,10 +188,10 @@ this USB path does not restore it.
 
 ## Boot, UI sleep, and Linux suspend OLED behavior
 
-The current source implements the Phase 5 boot handoff. A development board has
-passed bounded non-suspend handoff plus connected audio and MIDI checks, but no
-new constructor image has been built and true suspend still needs physical
-qualification.
+The source implements the boot handoff contract described in the [board
+qualification and status page](board-qualification.md). A real board check is
+still the authority for a particular image, OLED, power arrangement, and
+enclosure.
 When that image is available, Orange should show the same four-band cyan,
 yellow, green, and magenta sweep as Raspberry: 8 px bands, a +8 px top-right
 lean, white-source pixels only, and 24 frames over one second.
@@ -198,6 +219,62 @@ The Orange H618 path uses `/dev/spidev1.0` and GPIO lines on
 suspend/resume check still needs an operator physically present. A blank or
 unstable OLED is a qualification result to record, not evidence that the
 source contract is working on the board.
+
+The NeoTrellis must use the exact validated bus, wiring, and addresses. Do not
+substitute another bus or address; Orange has no alternate Trellis fallback.
+
+## Final bench bring-up checklist
+
+Run this with the boards accessible and a person at the device. It is a short
+bench checklist, not a replacement for the detailed [Armbian bring-up
+notes](../../hardware/docs/orange-pi-armbian-bringup.md). This checklist assumes
+the production image; a diagnostic image intentionally has no production
+runtime service.
+
+### Passive checks: read-only
+
+- Confirm the board model, selected Orange profile, image mode, running kernel,
+  and recovery path. Keep the image identity and board revision in your notes.
+- Confirm the expected I2C and `/dev/spidev1.0` devices, the Orange gpiochip
+  ownership, and at least one UDC in `/sys/class/udc`.
+- Confirm `aplay -l` exposes the internal DAC as
+  `hw:CARD=octesseradac,DEV=0`; do not count HDMI or an implicit default device.
+- Confirm the production runtime and Orange USB gadget service report their
+  expected status before connecting a host computer.
+
+### Active checks: controlled hardware actions
+
+- Run a short playback through the exact internal DAC, listen for dropouts, and
+  inspect the available audio and service logs. This can reveal audible or
+  logged trouble, but it does not prove zero internally recovered ALSA
+  `EPIPE`/xrun events. USB audio may be a companion, not a replacement for this
+  check.
+- With the runtime running, exercise the OLED, the four NeoTrellis boards, the
+  NeoKey, and all four encoders. Use the native System diagnostics where
+  available; do not substitute Raspberry GPIO numbers or overlays.
+- After the DAC check, connect the verified host-data USB-C path and check MIDI
+  and the advertised audio/MIDI device. Confirm the board stays powered and
+  does not back-feed before binding or reconnecting the gadget.
+- Perform one normal reboot from the instrument or an attended console. Wait
+  for SSH and the runtime to return, then repeat the display, control, and DAC
+  checks.
+
+### Manually observed pass criteria
+
+- The OLED is readable, stable, and has one writer; boot does not leave it
+  blank or flickering.
+- All 64 grid cells respond, all four NeoKey switches respond, and each encoder
+  turns and clicks reliably.
+- Sound comes from the internal DAC without an audible dropout, and available
+  audio/service logs are inspected. This does not prove zero internally
+  recovered ALSA `EPIPE`/xrun events. The host sees the expected MIDI/USB
+  functions without a storage function appearing.
+- After reboot, the setup/runtime status is healthy and the same observations
+  still hold.
+
+Do not run Linux suspend, power-loss, repeated unplug, or other recovery tests
+unattended. Those are separate qualification exercises that require an
+operator, a proven recovery path, and a log of what happened.
 
 ## Advanced path
 

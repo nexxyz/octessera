@@ -8,7 +8,16 @@ use crate::input::MidiMessage;
 
 const MIDI_REALTIME_BUDGET: usize = 32;
 
-pub(crate) fn drain_midi_messages<A: HostAdapter>(
+pub(crate) trait RuntimeOutputSink: HostAdapter {
+    fn dispatch_output(
+        &mut self,
+        playback: &mut PlaybackRuntime,
+        runner: &mut NativeRunner,
+        output: playback_runtime::RuntimeIngest,
+    ) -> Result<(), String>;
+}
+
+pub(crate) fn drain_midi_messages<A: HostAdapter + RuntimeOutputSink>(
     midi_rx: &Receiver<MidiMessage>,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
@@ -20,34 +29,13 @@ pub(crate) fn drain_midi_messages<A: HostAdapter>(
         };
         match playback.handle_midi_realtime_bytes_with_output(&bytes, runner, adapter) {
             Ok(output) => {
-                for follow_up in output.follow_ups {
-                    if let Err(error) =
-                        dispatch_midi_follow_up(playback, runner, adapter, follow_up)
-                    {
-                        eprintln!("realtime MIDI follow-up failed: {error}");
-                    }
+                if let Err(error) = adapter.dispatch_output(playback, runner, output) {
+                    eprintln!("realtime MIDI output processing failed: {error}");
                 }
             }
             Err(error) => eprintln!("realtime MIDI handling failed: {error}"),
         }
     }
-}
-
-fn dispatch_midi_follow_up<A: HostAdapter>(
-    playback: &mut PlaybackRuntime,
-    runner: &mut NativeRunner,
-    adapter: &mut A,
-    message: playback_runtime::HostMessage,
-) -> Result<(), String> {
-    let output = playback.dispatch(
-        playback_runtime::RuntimeDispatchInput::HostMessage(message),
-        runner,
-        adapter,
-    )?;
-    for follow_up in output.follow_ups {
-        dispatch_midi_follow_up(playback, runner, adapter, follow_up)?;
-    }
-    Ok(())
 }
 
 pub(crate) struct MidiHost {

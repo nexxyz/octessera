@@ -3,7 +3,34 @@ use crate::{
     RuntimeAudioCommand, RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStatus,
     RuntimeStatusState, RuntimeStoreResult, RuntimeTransportState, SyncSource,
 };
-use serde_json::json;
+use serde_json::{json, Value};
+
+pub(crate) fn canonical_oled_snapshot(title: &str) -> Value {
+    json!({
+        "display": {
+            "off": false,
+            "splash": "",
+            "title": title,
+            "lines": ["line"],
+            "colors": [65535],
+            "barValues": [null],
+            "scrollOffset": null,
+            "totalRows": null,
+            "visibleRows": null,
+            "editing": false,
+            "toast": ""
+        },
+        "settings": {
+            "displayBrightness": 100,
+            "autoSaveFlash": "none",
+            "autoSaveFlashSerial": 0
+        },
+        "selectedRow": null,
+        "eventDotOn": false,
+        "transportIcon": "stop",
+        "transportFlash": "none"
+    })
+}
 
 #[derive(Default)]
 pub(super) struct FakeRunner {

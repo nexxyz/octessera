@@ -61,6 +61,30 @@ desktop, and host-build behavior only; none is board qualification.
 Keep the limits visible in reports: a clean hardware-free matrix is evidence
 for software and documentation paths, not evidence that a board is ready.
 
+## Orange live audio benchmark tooling
+
+Phase 2 host tooling extends the fixed-target Orange capability runner; it does
+not add another SSH transport. The single-cell mode requires a reviewed
+artifact and metadata sidecar, explicit interruption consent, and one approved
+scenario/configuration. It validates the production readiness identity, exact
+DAC ALSA `buffer_size`/`period_size`, release identity, schema-2 callback
+geometry, thermal/memory safety, and restoration before classifying the result.
+
+Preview the deterministic 29-cell order without transport or board access:
+
+```powershell
+./tools/orange-pi/run-orange-live-audio-matrix.ps1 -PrintOnly
+```
+
+The order is A (11 cells), the selected A 120-second repeat, B (11 cells), then
+C0, C2, and C3 (two cells each). CPAL callback batches are variable positive
+counts no larger than the requested ALSA buffer; render ratios use each actual
+callback size, while spacing lateness uses the fixed ALSA period. Active
+execution requires the separate `-AllowMatrixServiceInterruption` switch and
+the per-cell consent supplied by the matrix runner. Phase 2 validation is
+host-only; do not cross-build,
+deploy, or run this matrix as part of contributor checks.
+
 ## Desktop Builds
 
 CI smoke build without bundling:
@@ -256,7 +280,7 @@ Generate palette exports after editing that source:
 corepack pnpm run palette:generate
 ```
 
-Generated outputs are checked in for TypeScript and CSS consumers; Rust constants are generated at build time through `platform-core`.
+Generated outputs are checked in for TypeScript, CSS, and Rust consumers. The `platform-core` build script copies the tracked Rust output into `OUT_DIR` for the existing `palette.rs` include.
 
 Check generated output freshness:
 
@@ -350,8 +374,9 @@ cargo install sccache --locked
 
 ## Pi Builds Without Hardware
 
-See [`board-profiles.md`](board-profiles.md) for the canonical IDs, retained
-Cargo aliases, and Raspberry/Orange image boundary.
+See [`board-profiles.md`](board-profiles.md) for the canonical IDs, canonical
+Cargo feature owners, deprecated compatibility aliases, and Raspberry/Orange
+image boundary.
 
 Host-stub Pi app build:
 
@@ -364,7 +389,7 @@ Hardware HAL target check when the Rust target is installed:
 ```bash
 cargo check --target aarch64-unknown-linux-gnu -p octessera-hal --features raspberry-pi-zero-2w
 
-# Compatibility alias retained during the profile transition.
+# Deprecated compatibility alias; accepted for existing Cargo commands.
 cargo check --target aarch64-unknown-linux-gnu -p octessera-hal --features pi-zero
 ```
 
@@ -632,6 +657,10 @@ Summaries include loop cadence, runtime tick lateness/advance, render overruns, 
 
 Use Pi-side probes for rhythmic timing, trigger latency, audio-drain latency, and DSP budget questions. PC/runtime-only probes are useful for quick plausibility checks, but they cannot prove hardware audio timing.
 
+`tools/pi/run-pi-timing-probes.ps1` is Raspberry-only. Never point it at the
+Orange board: Orange uses the fixed-target capability runner below, and its
+offline DSP entry point is explicit rather than environment-triggered.
+
 Wrapper examples:
 
 ```powershell
@@ -652,6 +681,28 @@ Wrapper examples:
 ```
 
 The wrapper stops `octessera.service` for live/audio/DSP modes and restarts it after the probe. Runtime-only mode leaves the service running. Use `-PrintOnly` to inspect the remote command first.
+
+Orange Phase 1 command generation and offline comparisons use:
+
+```powershell
+./tools/orange-pi/run-orange-capability-study.ps1 -Mode PassiveBaseline -PrintOnly
+./tools/orange-pi/run-orange-capability-study.ps1 -Mode Dsp64 -PrintOnly
+./tools/orange-pi/run-orange-capability-study.ps1 -Mode Dsp256 -PrintOnly
+```
+
+Non-print DSP runs stop the production service and therefore require an
+explicit acknowledgement:
+
+```powershell
+./tools/orange-pi/run-orange-capability-study.ps1 -Mode Dsp64 -AllowServiceInterruption
+./tools/orange-pi/run-orange-capability-study.ps1 -Mode Dsp256 -AllowServiceInterruption
+```
+
+The Orange offline DSP profile locates computational knees but is not live-xrun
+proof. The current CPAL/ALSA path cannot count internally recovered `EPIPE`
+events, so a clean offline report must not be described as zero xruns or used
+to change capabilities. The bounded live-candidate mode is Phase 2 only and
+requires `-AllowServiceInterruption`.
 
 For musical timing issues, inspect p99/p99.9/p99.99 and outlier counts, not only p95. Check recent logs after live probes:
 

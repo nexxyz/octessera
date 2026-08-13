@@ -1,9 +1,13 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, relative, resolve } from "node:path";
+import {
+  scanApproximateRustFunctions,
+  scanJavaScriptFunctionsWithFallback
+} from "./quality-audit-parser.mjs";
 
 const ROOT = resolve(process.cwd());
-const INCLUDE_EXT = new Set([".mjs", ".rs", ".ts", ".tsx"]);
-const IGNORE_DIRS = new Set(["node_modules", "dist", "build", "target", ".git", ".turbo", ".pnpm-store", "coverage", "signalsmith-stretch"]);
+const INCLUDE_EXT = new Set([".js", ".mjs", ".rs", ".ts", ".tsx"]);
+const IGNORE_DIRS = new Set(["node_modules", "dist", "build", "target", ".git", ".turbo", ".pnpm-store", ".pytest_cache", "coverage", "signalsmith-stretch", "clonedeps"]);
 const EXCLUDED_AUDIT_ROOTS = new Set(["third_party/cpal-0.15.3"]);
 
 const thresholds = {
@@ -52,40 +56,6 @@ function lineCount(text) {
   return text.split(/\r?\n/).length;
 }
 
-function scanFunctions(text, ext) {
-  const lines = text.split(/\r?\n/);
-  const fns = [];
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i];
-    const m = ext === ".rs"
-      ? line.match(/^\s*(pub(\([^)]*\))?\s+)?fn\s+([A-Za-z0-9_]+)\s*\(([^)]*)\)/)
-      : line.match(/^\s*(export\s+)?function\s+([A-Za-z0-9_]+)\s*\(([^)]*)\)\s*\{/);
-    if (!m) continue;
-    const name = ext === ".rs" ? m[3] : m[2];
-    const params = (ext === ".rs" ? m[4] : m[3]).trim();
-    const paramCount = params.length === 0 ? 0 : params.split(",").length;
-    let depth = 0;
-    let end = i;
-    let body = "";
-    for (let j = i; j < lines.length; j += 1) {
-      const l = lines[j];
-      for (const ch of l) {
-        if (ch === "{") depth += 1;
-        if (ch === "}") depth -= 1;
-      }
-      body += `${l}\n`;
-      if (depth === 0 && j > i) {
-        end = j;
-        break;
-      }
-    }
-    const loc = end - i + 1;
-    const complexity = 1 + (body.match(/\bif\b|\bfor\b|\bwhile\b|\bcase\b|\bcatch\b|\?\s*[^:]/g) || []).length;
-    fns.push({ name, start: i + 1, end: end + 1, loc, complexity, paramCount });
-  }
-  return fns;
-}
-
 const files = listFiles(ROOT);
 const britishSpellingToken = "behavio" + "ur";
 const fileStats = [];
@@ -98,8 +68,11 @@ for (const file of files) {
   const ext = extname(file);
   const loc = lineCount(text);
   fileStats.push({ file: rel, loc });
-  const fns = scanFunctions(text, ext).map((f) => ({ ...f, file: rel }));
-  fnStats.push(...fns);
+  const fns = ext === ".rs"
+    ? scanApproximateRustFunctions(text)
+    : scanJavaScriptFunctionsWithFallback(text, ext, (warning) => console.warn(`${warning} File: ${rel}`));
+  const functions = fns.map((f) => ({ ...f, file: rel }));
+  fnStats.push(...functions);
 
   const spellingHits = (text.match(new RegExp(`\\b${britishSpellingToken}\\b`, "gi")) || []).length;
   if (spellingHits > 0) namingHits.push({ file: rel, token: britishSpellingToken, count: spellingHits });
@@ -127,7 +100,7 @@ report.push(`- Function params: warning at > ${thresholds.paramsWarn} (informati
 report.push("");
 report.push("## Summary");
 report.push(`- Files scanned: ${fileStats.length}`);
-report.push(`- Functions scanned (named function declarations): ${fnStats.length}`);
+report.push(`- Functions scanned (executable function nodes): ${fnStats.length}`);
 report.push(`- Files above warning threshold (> ${thresholds.fileLocWarn} LOC): ${largeFiles.length}`);
 report.push(`- Files over enforced limit (> ${thresholds.fileLocFail} LOC): ${fileLimitViolations.length}`);
 report.push(`- Complex functions (> ${thresholds.complexityWarn}): ${complexFns.length}`);

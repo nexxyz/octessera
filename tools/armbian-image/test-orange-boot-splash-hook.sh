@@ -25,6 +25,8 @@ for required_line in \
     'Restart=no'; do
     grep -qFx "$required_line" "$boot_service" || { echo "Orange boot service is missing: $required_line" >&2; exit 1; }
 done
+! grep -q '^Restart=always$' "$root/userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service" || { echo 'Orange boot splash must not restart always.' >&2; exit 1; }
+grep -qFx 'Restart=no' "$root/userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service" || { echo 'Orange boot splash restart policy changed.' >&2; exit 1; }
 for required_line in \
     'DevicePolicy=closed' \
     'DeviceAllow=/dev/spidev1.0 rw' \
@@ -162,6 +164,7 @@ grep -qF 'rejected Python target module:' "$hook" || { echo "Rejected Python tar
 for required_line in \
     'copy_exec /usr/local/sbin/octessera-orange-oled-logo /usr/local/sbin/octessera-orange-oled-logo' \
     'copy_file binary /usr/local/sbin/octessera-orange-oled-handoff.py /usr/local/sbin/octessera-orange-oled-handoff.py' \
+    'copy_file binary /usr/local/sbin/octessera-orange-oled-lifecycle.py /usr/local/sbin/octessera-orange-oled-lifecycle.py' \
     'copy_exec /usr/bin/setsid /usr/bin/setsid' \
     'copy_exec /usr/bin/gpioset /usr/bin/gpioset' \
     'copy_file asset /usr/share/octessera/oled/octessera-mark.svg' \
@@ -331,6 +334,7 @@ run_extracted_runtime_test() {
     mark_source="$root/userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-mark.svg"
     wordmark_source="$root/userpatches/overlay/usr/local/share/octessera-setup-ui/octessera-wordmark.svg"
     handoff_source="$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-handoff.py"
+    lifecycle_source="$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-lifecycle.py"
     fake_gpioset="$work/gpioset"
     mkdir -p "$destination" "$extracted" "$work/boot"
     printf '%s\n' '#!/bin/sh' 'exit 0' > "$fake_gpioset"
@@ -338,6 +342,7 @@ run_extracted_runtime_test() {
     sed \
         -e "s|copy_exec /usr/local/sbin/octessera-orange-oled-logo /usr/local/sbin/octessera-orange-oled-logo|copy_exec \"$oled_source\" /usr/local/sbin/octessera-orange-oled-logo|" \
         -e "s|copy_file binary /usr/local/sbin/octessera-orange-oled-handoff.py /usr/local/sbin/octessera-orange-oled-handoff.py|copy_file binary \"$handoff_source\" /usr/local/sbin/octessera-orange-oled-handoff.py|" \
+        -e "s|copy_file binary /usr/local/sbin/octessera-orange-oled-lifecycle.py /usr/local/sbin/octessera-orange-oled-lifecycle.py|copy_file binary \"$lifecycle_source\" /usr/local/sbin/octessera-orange-oled-lifecycle.py|" \
         -e "s|copy_exec /usr/bin/gpioset /usr/bin/gpioset|copy_exec \"$fake_gpioset\" /usr/bin/gpioset|" \
         -e "s|copy_file asset /usr/share/octessera/oled/octessera-mark.svg|copy_file asset \"$mark_source\" /usr/share/octessera/oled/octessera-mark.svg|" \
         -e "s|copy_file asset /usr/share/octessera/oled/octessera-wordmark.svg|copy_file asset \"$wordmark_source\" /usr/share/octessera/oled/octessera-wordmark.svg|" \
@@ -369,11 +374,13 @@ run_extracted_runtime_test() {
     lsinitramfs "$archive" > "$work/contents"
     grep -qF 'usr/local/sbin/octessera-orange-oled-logo' "$work/contents" || { echo "Extracted initramfs is missing the OLED executable." >&2; rm -rf "$work"; exit 1; }
     grep -qF 'usr/local/sbin/octessera-orange-oled-handoff.py' "$work/contents" || { echo "Extracted initramfs is missing the OLED handoff module." >&2; rm -rf "$work"; exit 1; }
+    grep -qF 'usr/local/sbin/octessera-orange-oled-lifecycle.py' "$work/contents" || { echo "Extracted initramfs is missing the OLED lifecycle module." >&2; rm -rf "$work"; exit 1; }
     grep -qF 'usr/share/octessera/oled/octessera-mark.svg' "$work/contents" || { echo "Extracted initramfs is missing the mark asset." >&2; rm -rf "$work"; exit 1; }
     grep -qF 'usr/share/octessera/oled/octessera-wordmark.svg' "$work/contents" || { echo "Extracted initramfs is missing the wordmark asset." >&2; rm -rf "$work"; exit 1; }
     unmkinitramfs "$archive" "$extracted"
     cmp "$oled_source" "$extracted/usr/local/sbin/octessera-orange-oled-logo"
     cmp "$handoff_source" "$extracted/usr/local/sbin/octessera-orange-oled-handoff.py"
+    cmp "$lifecycle_source" "$extracted/usr/local/sbin/octessera-orange-oled-lifecycle.py"
     cmp "$mark_source" "$extracted/usr/share/octessera/oled/octessera-mark.svg"
     cmp "$wordmark_source" "$extracted/usr/share/octessera/oled/octessera-wordmark.svg"
 

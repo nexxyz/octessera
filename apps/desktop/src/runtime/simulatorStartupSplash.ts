@@ -6,7 +6,7 @@ import type {
 export type StartupSplashTimer = ReturnType<typeof setTimeout> | null;
 
 export function scheduleStartupSplashRefresh(
-  snapshot: RuntimeSnapshot,
+  snapshot: Pick<RuntimeSnapshot, 'display'>,
   timer: StartupSplashTimer,
   mirrorRuntimeMessage: (message: RuntimeHostMessage) => void,
   clearTimer: () => void,

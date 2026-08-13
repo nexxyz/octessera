@@ -174,7 +174,7 @@ pub fn run() {
                     }
                 }
             });
-            spawn_load_listener(load_rx, app_handle);
+            spawn_load_listener(load_rx, app_handle, worker_tx.clone());
 
             app.manage(AppState {
                 worker_tx,

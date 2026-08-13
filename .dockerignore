@@ -10,6 +10,8 @@ dist
 **/dist
 coverage
 **/coverage
+.pytest_cache
+**/.pytest_cache
 apps/desktop/dist-desktop
 hardware
 *.log

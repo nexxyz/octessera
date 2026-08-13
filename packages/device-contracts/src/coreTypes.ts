@@ -1,9 +1,20 @@
 import { createGridDomain } from "./gridDomain";
-import { GRID_HEIGHT, GRID_WIDTH, OLED_HEIGHT, OLED_WIDTH } from "./platformCapabilities.generated";
+import {
+  GRID_HEIGHT,
+  GRID_WIDTH,
+  OLED_HEIGHT,
+  OLED_WIDTH,
+} from "./platformCapabilities.generated";
 import type { RuntimeErrorMetadata } from "./runtimeErrors";
 
 export type MusicalEvent =
-  | { type: "note_on"; channel: number; note: number; velocity: number; durationMs?: number }
+  | {
+      type: "note_on";
+      channel: number;
+      note: number;
+      velocity: number;
+      durationMs?: number;
+    }
   | { type: "note_off"; channel: number; note: number }
   | { type: "cc"; channel: number; controller: number; value: number };
 
@@ -34,7 +45,11 @@ export type DisplayFrame = {
   splash?: "startup" | "sleep" | "wakeup" | "shutdown" | string;
   toast?: string;
   colors?: number[];
-  barValues?: Array<{ frac: number; numChars: number; style?: "marker" | string } | null>;
+  barValues?: Array<{
+    frac: number;
+    numChars: number;
+    style?: "marker" | string;
+  } | null>;
   scrollOffset?: number | null;
   totalRows?: number | null;
   visibleRows?: number | null;
@@ -47,6 +62,28 @@ export type OledFrame = {
   pixels: Uint8Array;
 };
 
+export type OledFrameRevision = number & {
+  readonly __oledFrameRevision: unique symbol;
+};
+
+export type RuntimeSnapshotFields = {
+  display: DisplayFrame;
+  leds: LedMatrixFrame;
+  hdmi?: HdmiSnapshot;
+  transport: TransportFrame;
+  activeBehavior: string;
+  gridInteraction: GridInteraction;
+  neoKeyLeds: NeoKeyLeds;
+  selectedRow?: number | null;
+  eventDotOn: boolean;
+  voiceSteal?: boolean;
+  transportIcon: "play" | "pause" | "stop";
+  transportFlash: "none" | "beat" | "measure";
+  cpuLoadRatio?: number;
+  settings?: RuntimeSnapshotSettings;
+  runtimeError?: RuntimeErrorMetadata;
+};
+
 export type LedCell = { r: number; g: number; b: number };
 export const GRID_DOMAIN = createGridDomain(GRID_WIDTH, GRID_HEIGHT);
 
@@ -57,7 +94,15 @@ export type LedMatrixFrame = {
   active: boolean[];
 };
 
-export type HdmiMode = "none" | "live-grid" | "plain-grid" | "active-behavior" | "cycle-behaviors";
+export type NeoKeyLeds = {
+  back: [number, number, number];
+  space: [number, number, number];
+  shift: [number, number, number];
+  fn: [number, number, number];
+};
+
+export type HdmiMode =
+  "none" | "live-grid" | "plain-grid" | "active-behavior" | "cycle-behaviors";
 
 export type HdmiSnapshot = {
   mode: HdmiMode;
@@ -82,7 +127,13 @@ export type RuntimeSnapshotSettings = {
   gridBrightness?: number;
   buttonBrightness: number;
   masterVolume: number;
-  voiceStealingMode: "fixed12" | "fixed16" | "auto-soft" | "auto-balanced" | "auto-hard" | "none";
+  voiceStealingMode:
+    | "fixed12"
+    | "fixed16"
+    | "auto-soft"
+    | "auto-balanced"
+    | "auto-hard"
+    | "none";
   instruments?: unknown[];
   mixer?: unknown;
   panPositions?: number;
@@ -92,7 +143,6 @@ export type RuntimeSnapshotSettings = {
   dimTimerSeconds?: number;
   screenSleepSeconds?: number;
   ledsDimmed?: boolean;
-  transportFlash: "none" | "beat" | "measure";
   stopLatched: boolean;
   shiftHeld: boolean;
   fnHeld: boolean;
@@ -107,20 +157,15 @@ export type RuntimeSnapshotSettings = {
   };
 };
 
-export type RuntimeSnapshot = {
-  display: DisplayFrame;
-  oled?: OledFrame;
-  leds: LedMatrixFrame;
-  hdmi?: HdmiSnapshot;
-  transport: TransportFrame;
-  activeBehavior: string;
-  gridInteraction: GridInteraction;
-  selectedRow?: number | null;
-  eventDotOn?: boolean;
-  voiceSteal?: boolean;
-  transportIcon?: "play" | "pause" | "stop";
-  transportFlash?: "none" | "beat" | "measure";
-  cpuLoadRatio?: number;
-  settings?: RuntimeSnapshotSettings;
-  runtimeError?: RuntimeErrorMetadata;
+export type NativeRuntimeSnapshot = RuntimeSnapshotFields & {
+  oledFrameRevision: OledFrameRevision;
+};
+
+export type RuntimeSnapshot = RuntimeSnapshotFields & {
+  oled: OledFrame;
+};
+
+export type LocalBootstrapSnapshot = RuntimeSnapshotFields & {
+  oled: OledFrame;
+  oledFrameRevision: 0;
 };

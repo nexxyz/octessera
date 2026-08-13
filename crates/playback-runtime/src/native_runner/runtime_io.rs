@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use super::{
     wrap_help_text, DeviceInput, NativeHelpPopup, NativeRunner, NativeSystemInfoModal, NativeToast,
-    NativeUsbSdTransferModal, RuntimeTransportState, SyncSource,
+    NativeUsbSdTransferModal, RuntimeTransportState, SyncSource, TransportFlash,
 };
 
 const OLED_HELP_LINE_WIDTH: usize = 18;
@@ -106,7 +106,6 @@ impl NativeRunner {
         let mut out = Vec::new();
         let events = self.advance_algorithm(pulses)?;
         if !events.is_empty() {
-            out.push(self.trigger_ui_pulse_message());
             if !events.audio.is_empty() {
                 out.push(RunnerMessage::MusicalEvents {
                     events: events.audio,
@@ -118,9 +117,6 @@ impl NativeRunner {
                 });
             }
         }
-        if let Some(pulse) = self.transport_ui_pulse_message() {
-            out.push(pulse);
-        }
         if self.outbox.has_platform_effects() {
             out.push(RunnerMessage::PlatformEffects {
                 effects: self.outbox.drain_platform_effects(),
@@ -131,16 +127,7 @@ impl NativeRunner {
                 commands: self.outbox.drain_audio_commands(),
             });
         }
-        if request_snapshot.unwrap_or(false) {
-            self.advance_oled_sleep_state();
-            self.advance_toast_state();
-            out.push(RunnerMessage::Snapshot {
-                snapshot: self.snapshot()?,
-            });
-        }
-        out.push(RunnerMessage::RuntimeStatus {
-            status: self.status(),
-        });
+        self.append_snapshot_and_status(&mut out, request_snapshot.unwrap_or(false))?;
         Ok(out)
     }
 
@@ -165,14 +152,11 @@ impl NativeRunner {
         }
         self.transport.transport = RuntimeTransportState::Playing;
         self.reset_transport_position();
-        self.display.transport_flash = "measure";
-        self.display.transport_flash_pulses_remaining = 6;
-        let mut messages = Vec::new();
-        if let Some(pulse) = self.transport_ui_pulse_message() {
-            messages.push(pulse);
-        }
-        messages.extend(self.messages_with_snapshot()?);
-        Ok(messages)
+        let now = self.display.transients.now();
+        self.display
+            .transients
+            .trigger_transport_flash(TransportFlash::Measure, now);
+        self.messages_with_snapshot()
     }
 
     fn send_midi_realtime_continue(&mut self) -> Result<Vec<RunnerMessage>, String> {
@@ -234,7 +218,6 @@ impl NativeRunner {
                 .saturating_add(u64::from(chunk));
             let events = self.advance_algorithm(chunk)?;
             if !events.is_empty() {
-                out.push(self.trigger_ui_pulse_message());
                 if !events.audio.is_empty() {
                     out.push(RunnerMessage::MusicalEvents {
                         events: events.audio,
@@ -245,9 +228,6 @@ impl NativeRunner {
                         events: events.midi,
                     });
                 }
-            }
-            if let Some(pulse) = self.transport_ui_pulse_message() {
-                out.push(pulse);
             }
             out.extend(self.messages_with_snapshot()?);
             remaining -= chunk;

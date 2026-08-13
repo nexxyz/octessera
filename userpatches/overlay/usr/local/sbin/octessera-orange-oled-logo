@@ -20,6 +20,10 @@ _handoff_spec.loader.exec_module(_handoff_module)
 Handoff = _handoff_module.Handoff
 validate_marker = _handoff_module.validate_marker
 RUNTIME_USER = _handoff_module.RUNTIME_USER
+_lifecycle_loader = SourceFileLoader("octessera_orange_oled_lifecycle", os.path.join(os.path.dirname(__file__), "octessera-orange-oled-lifecycle.py"))
+_lifecycle_spec = importlib.util.spec_from_loader("octessera_orange_oled_lifecycle", _lifecycle_loader)
+_lifecycle_module = importlib.util.module_from_spec(_lifecycle_spec)
+_lifecycle_spec.loader.exec_module(_lifecycle_module)
 
 GPIO_LABEL = "300b000.pinctrl"
 GPIO_CHIP = "/dev/gpiochip1"
@@ -40,6 +44,7 @@ BOOT_SWEEP_COLORS_RGB565 = (0x07FF, 0xFFE0, 0x07E0, 0xF81F)
 BOOT_SWEEP_COLORS = ((0, 255, 255), (255, 255, 0), (0, 255, 0), (255, 0, 255))
 BOOT_SWEEP_CONTRACT_SHA256 = "698a1f3d2527c1d3c49028f33c7905db931985e3e30c3759ff9bdbebc9e7e754"
 NATIVE_HANDOFF_PHASES = {"released", "native_owned", "first_menu_rendered"}
+NATIVE_HANDOFF_TIMEOUT_SECONDS = 30
 SPI_IOC_WR_MODE = 0x40016B01
 SPI_IOC_WR_BITS_PER_WORD = 0x40016B03
 SPI_IOC_WR_MAX_SPEED_HZ = 0x40046B04
@@ -157,6 +162,10 @@ class Oled:
         self.command(0x75, 0, HEIGHT - 1)
         self.command(0x5C)
         self.data(pixels)
+
+
+def open_cleanup_oled():
+    return Oled()
 
 
 def path_points(path):
@@ -344,43 +353,7 @@ def _run_static(kind, adopt=False):
 
 
 def _run_loop():
-    handoff = Handoff.open(True)
-    oled = None
-    try:
-        status = handoff._read_status()
-        if status is not None and status["bootId"] == handoff.boot_id and status["phase"] in NATIVE_HANDOFF_PHASES:
-            return
-        handoff.start()
-        adopt_existing = validate_marker()
-        oled = Oled()
-        if not adopt_existing:
-            oled.initialize()
-        canvas = logo_canvas("boot")
-        if adopt_existing:
-            oled.command(0xAF)
-        cycle_start = time.monotonic_ns()
-        frame = 0
-        while True:
-            _sleep_until(cycle_start + sweep_deadline_offset_ns(frame))
-            oled.frame(render_canvas(canvas, frame))
-            if handoff.stop_requested():
-                oled.close(False)
-                oled = None
-                handoff.release()
-                return
-            if frame == BOOT_SWEEP_FRAME_COUNT - 1:
-                cycle_start += BOOT_SWEEP_DURATION_NS
-                handoff.publish_cycle()
-                frame = 0
-            else:
-                frame += 1
-    except Exception:
-        handoff.mark_failed()
-        raise
-    finally:
-        if oled is not None:
-            oled.close(False)
-        handoff.close()
+    return _lifecycle_module.run_loop(globals())
 
 
 def _run_resume():

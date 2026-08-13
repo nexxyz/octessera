@@ -1,12 +1,11 @@
 #![cfg_attr(feature = "hardware-orange-pi-zero-2w", allow(dead_code))]
 
+use crate::oled_frame_cache::{OledFrameKey, OledFramePublication};
 use crate::seesaw_io::SeesawCommand;
 use octessera_hal::OledSsd1351;
-use platform_core::palette;
-use playback_runtime::RuntimeUiPulse;
 use serde_json::Value;
 use std::sync::mpsc::Sender;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) mod hdmi;
@@ -19,9 +18,9 @@ mod sleep_leds;
 
 pub(crate) use oled::OLED_FRAME_BYTES;
 #[cfg(test)]
-use oled::{glyph_rows, oled_frame, oled_frame_into, oled_signature};
+use oled::{glyph_rows, oled_frame, oled_frame_into};
 pub(crate) use oled_output::retry_oled_if_due;
-use oled_output::{force_oled_render, render_oled, render_oled_if_changed};
+use oled_output::{force_oled_render, render_oled_if_changed};
 pub(crate) use oled_ownership::{
     handle_stage, restore, restore_after_dropped_ack, OledOwnershipStage, OledOwnershipState,
     OledRenderControl,
@@ -34,6 +33,24 @@ pub(crate) use ownership_decision::{
     select_snapshot_render, snapshot_requires_oled_ack, SnapshotRenderDecision,
 };
 use sleep_leds::{SleepLedAnimation, SleepLedFrames};
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct OledOutputKey {
+    pub(super) frame: OledFrameKey,
+    pub(super) display_off: bool,
+}
+
+impl OledOutputKey {
+    pub(super) fn new(frame: OledFrameKey, display_off: bool) -> Self {
+        Self { frame, display_off }
+    }
+}
+
+#[derive(Default)]
+pub(super) struct OledOutputState {
+    pub(super) frame: Option<OledFrameKey>,
+    pub(super) display_off: Option<bool>,
+}
 
 const SPLASH_BOOT: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/splash_boot.rgb565"));
 const SPLASH_SLEEP_SHUTDOWN: &[u8] =
@@ -64,19 +81,15 @@ pub struct HardwareRenderCache {
     led_frame: Option<[[u8; 3]; 64]>,
     neokey_colors: Option<[[u8; 3]; 4]>,
     sleep_leds: SleepLedAnimation,
-    oled_signature: u64,
-    oled_rendered: bool,
+    oled_rendered_key: Option<OledOutputKey>,
+    oled_output_state: OledOutputState,
     oled_render_count: u64,
-    oled_frame: Vec<u8>,
     oled_retry_at: Option<Instant>,
-    oled_retry_signature: Option<u64>,
-    oled_retry_snapshot: Option<Value>,
+    oled_retry_publication: Option<OledFramePublication>,
+    oled_retry_display_off: bool,
     oled_error_log_at: Option<Instant>,
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     hdmi_signature: u64,
-    event_dot_until: Option<Instant>,
-    transport_flash_until: Option<Instant>,
-    transport_flash: Option<String>,
 }
 
 impl HardwareRenderCache {
@@ -85,59 +98,16 @@ impl HardwareRenderCache {
             led_frame: None,
             neokey_colors: None,
             sleep_leds: SleepLedAnimation::new(),
-            oled_signature: 0,
-            oled_rendered: false,
+            oled_rendered_key: None,
+            oled_output_state: OledOutputState::default(),
             oled_render_count: 0,
-            oled_frame: vec![0_u8; OLED_FRAME_BYTES],
             oled_retry_at: None,
-            oled_retry_signature: None,
-            oled_retry_snapshot: None,
+            oled_retry_publication: None,
+            oled_retry_display_off: false,
             oled_error_log_at: None,
             #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
             hdmi_signature: 0,
-            event_dot_until: None,
-            transport_flash_until: None,
-            transport_flash: None,
         }
-    }
-
-    pub fn apply_ui_pulse(&mut self, pulse: RuntimeUiPulse) {
-        let now = Instant::now();
-        match pulse {
-            RuntimeUiPulse::TriggerPulse { duration_ms } => {
-                self.event_dot_until = Some(now + Duration::from_millis(duration_ms));
-            }
-            RuntimeUiPulse::TransportFlash { flash, duration_ms } => {
-                self.transport_flash = Some(flash);
-                self.transport_flash_until = Some(now + Duration::from_millis(duration_ms));
-            }
-        }
-    }
-
-    pub fn snapshot_with_transients(&mut self, snapshot: &Value) -> Value {
-        let now = Instant::now();
-        let event_active = self.event_dot_until.is_some_and(|until| now < until);
-        let transport_active = self.transport_flash_until.is_some_and(|until| now < until);
-        if !event_active {
-            self.event_dot_until = None;
-        }
-        if !transport_active {
-            self.transport_flash_until = None;
-            self.transport_flash = None;
-        }
-        if !event_active && !transport_active {
-            return snapshot.clone();
-        }
-        let mut snapshot = snapshot.clone();
-        if event_active {
-            snapshot["eventDotOn"] = serde_json::json!(true);
-        }
-        if transport_active {
-            if let Some(flash) = &self.transport_flash {
-                snapshot["transportFlash"] = serde_json::json!(flash);
-            }
-        }
-        snapshot
     }
 }
 
@@ -150,11 +120,12 @@ impl Default for HardwareRenderCache {
 pub fn render_snapshot_cached(
     targets: &mut HardwareRenderTargets,
     snapshot: &Value,
+    oled: &OledFramePublication,
     cache: &mut HardwareRenderCache,
 ) -> Option<Instant> {
     let animation_deadline = render_leds_at(targets, snapshot, cache, Instant::now());
     let oled_retry_deadline =
-        render_oled_if_changed(&mut targets.oled, snapshot, cache, Instant::now());
+        render_oled_if_changed(&mut targets.oled, snapshot, oled, cache, Instant::now());
 
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     let mut hdmi_failed = false;
@@ -217,22 +188,19 @@ fn render_leds_at(
 pub(crate) fn force_latest_oled(
     targets: &mut HardwareRenderTargets,
     snapshot: &Value,
+    oled: &OledFramePublication,
     cache: &mut HardwareRenderCache,
 ) -> Result<(), String> {
-    force_oled_render(&mut targets.oled, snapshot, cache)
+    force_oled_render(&mut targets.oled, snapshot, oled, cache)
 }
 
 impl HardwareRenderCache {
-    pub(crate) fn has_rendered_oled(&self) -> bool {
-        self.oled_rendered
-    }
-
     pub(crate) fn oled_render_count(&self) -> u64 {
         self.oled_render_count
     }
 
-    pub(super) fn mark_oled_rendered(&mut self) {
-        self.oled_rendered = true;
+    pub(super) fn mark_oled_rendered(&mut self, key: OledOutputKey) {
+        self.oled_rendered_key = Some(key);
         self.oled_render_count = self.oled_render_count.saturating_add(1);
     }
 
@@ -354,62 +322,35 @@ fn legacy_led_frame(snapshot: &Value, brightness: f32) -> Option<[[u8; 3]; 64]> 
 
 pub fn neokey_colors(snapshot: &Value) -> [[u8; 3]; 4] {
     let settings = snapshot.get("settings").unwrap_or(&Value::Null);
-    let mut button_scale = brightness_scale(settings.get("buttonBrightness"));
-    if settings
+    let brightness = settings
+        .get("buttonBrightness")
+        .and_then(Value::as_u64)
+        .unwrap_or(100)
+        .min(100) as u32;
+    let dimmed = settings
         .get("ledsDimmed")
         .and_then(Value::as_bool)
-        .unwrap_or(false)
-    {
-        button_scale = sleep_dim_brightness(button_scale);
-    }
-    let combined = settings
-        .get("combinedModifierHeld")
-        .and_then(Value::as_bool)
         .unwrap_or(false);
-    let shift_held = settings
-        .get("shiftHeld")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let fn_held = settings
-        .get("fnHeld")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let flash = snapshot
-        .get("transportFlash")
-        .or_else(|| settings.get("transportFlash"))
-        .and_then(Value::as_str)
-        .unwrap_or("none");
-    let icon = snapshot
-        .get("transportIcon")
-        .and_then(Value::as_str)
-        .unwrap_or("stop");
-    let back = scale(palette::RED, button_scale);
-    let space = if icon == "stop" {
-        scale(palette::RED, button_scale)
-    } else if icon == "pause" {
-        scale(palette::BLUE, button_scale)
-    } else if flash == "measure" {
-        scale(palette::GREEN, button_scale)
-    } else if flash == "beat" {
-        scale(palette::YELLOW, button_scale)
+    let basis_points = if dimmed {
+        if brightness == 0 {
+            0
+        } else {
+            (brightness * 8).max(400)
+        }
     } else {
-        scale(dim(palette::GREEN, 3), button_scale)
+        brightness * 100
     };
-    let shift = if combined {
-        scale(palette::BLUE, button_scale)
-    } else if shift_held {
-        scale(palette::YELLOW, button_scale)
-    } else {
-        scale(dim(palette::GRAY, 3), button_scale)
-    };
-    let func = if combined {
-        scale(palette::BLUE, button_scale)
-    } else if fn_held {
-        scale(palette::YELLOW, button_scale)
-    } else {
-        scale(dim(palette::GRAY, 3), button_scale)
-    };
-    [back, space, shift, func]
+    let leds = snapshot.get("neoKeyLeds").expect("native NeoKey LEDs");
+    ["back", "space", "shift", "fn"].map(|key| {
+        let rgb = leds
+            .get(key)
+            .and_then(Value::as_array)
+            .expect("native NeoKey LED color");
+        [0, 1, 2].map(|index| {
+            let channel = rgb[index].as_u64().expect("native NeoKey channel") as u32;
+            ((channel * basis_points + 5_000) / 10_000).min(255) as u8
+        })
+    })
 }
 
 pub(crate) fn next_deadline(first: Option<Instant>, second: Option<Instant>) -> Option<Instant> {
@@ -430,7 +371,11 @@ pub fn render_shutdown_splash(oled: &mut OledSsd1351) {
         "settings": { "displayBrightness": 100 }
     });
     let mut frame = vec![0_u8; OLED_FRAME_BYTES];
-    if let Err(error) = render_oled(oled, &snapshot, &mut frame) {
+    let result = oled.display_on().and_then(|()| {
+        oled::oled_frame_into(&snapshot, &mut frame);
+        oled.write_frame(&frame)
+    });
+    if let Err(error) = result {
         eprintln!("pi OLED shutdown splash render failed: {error}");
     }
 }
@@ -489,5 +434,14 @@ mod boot_sweep_tests;
 #[cfg(test)]
 #[path = "render/oled_error_tests.rs"]
 mod oled_error_tests;
+#[cfg(test)]
+#[path = "render/oled_glyph_tests.rs"]
+mod oled_glyph_tests;
+#[cfg(test)]
+#[path = "render/oled_parity_tests.rs"]
+mod oled_parity_tests;
+#[cfg(test)]
+#[path = "render/oled_test_adapter.rs"]
+mod oled_test_adapter;
 #[cfg(test)]
 mod tests;

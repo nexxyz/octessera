@@ -20,7 +20,6 @@ realtime-engine = { path = "../../crates/realtime-engine", optional = true }
 rodio-engine-source = { path = "../../crates/rodio-engine-source", optional = true }
 cpal = { version = "0.15", optional = true }
 libc = "0.2"
-rodio = { version = "0.20", optional = true }
 midir = { version = "0.10", optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -32,15 +31,14 @@ native-audio = [
     "dep:realtime-engine",
     "dep:rodio-engine-source",
     "dep:cpal",
-    "dep:rodio",
 ]
 raspberry-runtime = [
     "external-midi",
 ]
 external-midi = ["native-audio", "dep:midir"]
-hardware-raspberry-pi-zero-2w = ["hardware-rpi-zero-2w", "raspberry-runtime"]
-hardware-rpi-zero-2w = ["octessera-hal/raspberry-pi-zero-2w", "raspberry-runtime"]
-hardware-pi = ["hardware-rpi-zero-2w"]
+hardware-raspberry-pi-zero-2w = ["octessera-hal/raspberry-pi-zero-2w", "raspberry-runtime"]
+hardware-rpi-zero-2w = ["hardware-raspberry-pi-zero-2w"]
+hardware-pi = ["hardware-raspberry-pi-zero-2w"]
 hardware-orange-pi-zero-2w = ["octessera-hal/orange-pi-zero-2w", "external-midi"]
 
 [build-dependencies]

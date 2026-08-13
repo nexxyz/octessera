@@ -371,6 +371,7 @@ for path in \
   usr/local/sbin/octessera-orange-usb-gadget \
   usr/local/sbin/octessera-orange-oled-logo \
   usr/local/sbin/octessera-orange-oled-handoff.py \
+  usr/local/sbin/octessera-orange-oled-lifecycle.py \
   usr/local/sbin/octessera-orange-oled-suspend \
   usr/local/sbin/octessera-provision-musical-default \
   etc/modules-load.d/octessera-orange-midi.conf \
@@ -393,6 +394,7 @@ done
 require_root_mode usr/local/sbin/octessera-orange-usb-gadget 755
 require_root_mode usr/local/sbin/octessera-orange-oled-logo 755
 require_root_mode usr/local/sbin/octessera-orange-oled-handoff.py 644
+require_root_mode usr/local/sbin/octessera-orange-oled-lifecycle.py 644
 require_root_mode usr/local/sbin/octessera-orange-oled-suspend 755
 require_root_mode usr/local/sbin/octessera-provision-musical-default 755
 require_root_mode etc/modules-load.d/octessera-orange-midi.conf 644

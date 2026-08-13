@@ -21,6 +21,7 @@ impl PiPlaybackHostAdapter {
             usb_audio_out,
             power_request: None,
             latest_recovery_payload: None,
+            oled_frame_cache: OledFrameCache::default(),
         }
     }
 

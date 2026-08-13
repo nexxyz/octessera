@@ -1,5 +1,7 @@
 #[path = "host_adapter_construction.rs"]
 mod host_adapter_construction;
+#[path = "host_adapter_oled.rs"]
+mod host_adapter_oled;
 #[path = "host_adapter_store.rs"]
 mod host_adapter_store;
 #[path = "host_adapter_system_info.rs"]
@@ -8,7 +10,8 @@ mod host_adapter_system_info;
 use crate::audio::AudioService;
 use crate::audio_event::musical_event_to_engine_event;
 use crate::host_audio_command::send_audio_command;
-use crate::midi_host::MidiHost;
+use crate::midi_host::{MidiHost, RuntimeOutputSink};
+use crate::oled_frame_cache::OledFrameCache;
 use crate::platform_service::{PiPlatformService, PlatformJob, PlatformJobKind};
 use crate::setup_portal::start_failure_message;
 use crate::usb_config::UsbAudioOut;
@@ -33,6 +36,7 @@ pub struct PiPlaybackHostAdapter {
     usb_audio_out: UsbAudioOut,
     power_request: Option<PiPowerRequest>,
     latest_recovery_payload: Option<serde_json::Value>,
+    pub(crate) oled_frame_cache: OledFrameCache,
 }
 #[derive(Clone, Copy)]
 pub enum PiPowerRequest {
@@ -63,6 +67,7 @@ impl PiPlaybackHostAdapter {
     pub fn take_power_request(&mut self) -> Option<PiPowerRequest> {
         self.power_request.take()
     }
+
     pub fn flush_due_default_save(&mut self) -> Result<Vec<HostMessage>, String> {
         let Some(entry) = self.pending_default_save.take_due(Instant::now()) else {
             return Ok(Vec::new());
@@ -434,6 +439,17 @@ impl HostAdapter for PiPlaybackHostAdapter {
         self.midi
             .panic()
             .map_err(RuntimeAdapterError::operation_failed)
+    }
+}
+
+impl RuntimeOutputSink for PiPlaybackHostAdapter {
+    fn dispatch_output(
+        &mut self,
+        playback: &mut playback_runtime::PlaybackRuntime,
+        runner: &mut playback_runtime::NativeRunner,
+        output: playback_runtime::RuntimeIngest,
+    ) -> Result<(), String> {
+        crate::runtime_loop::process_runtime_output(playback, runner, self, output)
     }
 }
 

@@ -66,7 +66,7 @@ impl CapturedOutput {
                     self.runtime_status_count += 1;
                 }
                 RunnerMessage::Snapshot { .. }
-                | RunnerMessage::UiPulse { .. }
+                | RunnerMessage::OledFrame { .. }
                 | RunnerMessage::RuntimeConfigChanged { .. } => {}
             }
         }

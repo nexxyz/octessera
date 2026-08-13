@@ -1,6 +1,6 @@
 use crate::protocol::{
     HostMessage, RunnerMessage, RuntimeAdapterError, RuntimeAudioCommand, RuntimeErrorMetadata,
-    RuntimeOperation, RuntimePlatformRequest, RuntimeStatus, RuntimeUiPulse, SyncSource,
+    RuntimeOperation, RuntimePlatformRequest, RuntimeStatus, SyncSource,
 };
 use platform_core::MusicalEvent;
 use serde::{Deserialize, Serialize};
@@ -13,16 +13,44 @@ mod api;
 mod dispatch;
 #[path = "runtime_midi.rs"]
 mod midi;
+#[path = "runtime_oled.rs"]
+mod oled;
 #[path = "runtime_status.rs"]
 mod status;
 
-pub(super) const MAX_BUFFERED_UI_RED: usize = 16;
 pub(super) const PPQN: f64 = 24.0;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct RuntimeIngest {
     pub messages: Vec<RunnerMessage>,
     pub follow_ups: Vec<HostMessage>,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct RuntimePresentationMetrics {
+    pub audio_load_ratio: f32,
+    pub voice_steal: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RuntimeOledCacheFault {
+    Malformed,
+    Conflict,
+    Missing,
+    Future,
+    Stale,
+}
+
+impl RuntimeOledCacheFault {
+    pub(crate) fn message(self) -> &'static str {
+        match self {
+            Self::Malformed => "malformed frame",
+            Self::Conflict => "conflicting frame",
+            Self::Missing => "missing frame reference",
+            Self::Future => "future frame reference",
+            Self::Stale => "stale frame or reference",
+        }
+    }
 }
 
 pub enum RuntimeDispatchInput {
@@ -96,8 +124,8 @@ pub struct PlaybackRuntime {
     scheduled_note_offs: VecDeque<ScheduledMidiMessage>,
     scheduled_note_offs_dirty: bool,
     request_next_snapshot: bool,
-    ui_pulses: VecDeque<RuntimeUiPulse>,
     next_request_id: u64,
+    oled: oled::RuntimeOled,
 }
 
 #[derive(Clone, Debug, PartialEq)]

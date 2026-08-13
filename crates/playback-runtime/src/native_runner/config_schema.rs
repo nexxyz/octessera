@@ -1,6 +1,7 @@
 use super::{
     merge_preserved_aux_payloads, migrate_legacy_modulation, patch_payload_from_payload,
-    validate_audio_outputs, validate_canonical_lfo_bank_shape, validate_config_payload, Value,
+    validate_audio_outputs, validate_canonical_lfo_bank_shape, validate_config_payload, ConfigDto,
+    Value,
 };
 
 pub(super) const CONFIG_KIND: &str = "octessera.config";
@@ -24,6 +25,7 @@ impl EnvelopeVersion {
 pub(super) struct PreparedConfigPayload {
     pub(super) payload: Value,
     pub(super) apply_payload: Value,
+    pub(super) envelope: ConfigDto,
     pub(super) source_revision: Option<u64>,
     pub(super) migration_report: Option<String>,
 }
@@ -57,6 +59,7 @@ pub(super) fn prepare_config_payload(
     if !version.is_legacy() {
         validate_config_payload(&payload)?;
     }
+    let envelope = ConfigDto::decode(&payload)?;
     Ok(PreparedConfigPayload {
         apply_payload: if version.is_legacy() {
             input
@@ -64,6 +67,7 @@ pub(super) fn prepare_config_payload(
             payload.clone()
         },
         payload,
+        envelope,
         source_revision,
         migration_report,
     })
@@ -95,6 +99,7 @@ pub(super) fn prepare_patch_payload(
     if !version.is_legacy() {
         validate_config_payload(&payload)?;
     }
+    let envelope = ConfigDto::decode(&payload)?;
     Ok(PreparedConfigPayload {
         apply_payload: if version.is_legacy() {
             patch
@@ -102,6 +107,7 @@ pub(super) fn prepare_patch_payload(
             payload.clone()
         },
         payload,
+        envelope,
         source_revision,
         migration_report,
     })
@@ -135,6 +141,7 @@ pub(super) fn prepare_device_payload(
     if !version.is_legacy() {
         validate_config_payload(&payload)?;
     }
+    let envelope = ConfigDto::decode(&payload)?;
     Ok(PreparedConfigPayload {
         apply_payload: if version.is_legacy() {
             device
@@ -142,6 +149,7 @@ pub(super) fn prepare_device_payload(
             payload.clone()
         },
         payload,
+        envelope,
         source_revision,
         migration_report,
     })

@@ -1,29 +1,67 @@
-import type { DeviceInput, MusicalEvent, RuntimeSnapshot } from "./coreTypes";
-import type { RuntimeErrorCode, RuntimeErrorFacts, RuntimeErrorMetadata, RuntimeOperation } from "./runtimeErrors";
+import type {
+  DeviceInput,
+  MusicalEvent,
+  NativeRuntimeSnapshot,
+  OledFrameRevision,
+} from "./coreTypes";
+import type {
+  RuntimeErrorCode,
+  RuntimeErrorFacts,
+  RuntimeErrorMetadata,
+  RuntimeOperation,
+} from "./runtimeErrors";
+import type { RuntimeSetupPortalStatus } from "./runtimeSetupPortal";
 
-export const RUNTIME_STATUS_STATES = ["idle", "running", "paused", "error"] as const;
+export {
+  RUNTIME_SETUP_PORTAL_DISPOSITIONS,
+  RUNTIME_SETUP_PORTAL_ERROR_CODES,
+  RUNTIME_SETUP_PORTAL_PHASES,
+  SETUP_PORTAL_SUFFIX_MAX_CHARS,
+  isRuntimeSetupPortalStatus,
+  isRuntimeSetupPortalSuffix,
+} from "./runtimeSetupPortal";
+export type {
+  RuntimeSetupPortalDisposition,
+  RuntimeSetupPortalErrorCode,
+  RuntimeSetupPortalFailureErrorCode,
+  RuntimeSetupPortalPhase,
+  RuntimeSetupPortalStatus,
+  RuntimeSetupPortalSuffix,
+} from "./runtimeSetupPortal";
+
+export const RUNTIME_STATUS_STATES = [
+  "idle",
+  "running",
+  "paused",
+  "error",
+] as const;
 export type RuntimeStatusState = (typeof RUNTIME_STATUS_STATES)[number];
 
-export const RUNTIME_TRANSPORT_STATES = ["stopped", "playing", "paused"] as const;
+export const RUNTIME_TRANSPORT_STATES = [
+  "stopped",
+  "playing",
+  "paused",
+] as const;
 export type RuntimeTransportState = (typeof RUNTIME_TRANSPORT_STATES)[number];
 
-export const RUNTIME_SETUP_PORTAL_PHASES = ["starting", "portal_ready", "finalizing", "succeeded", "failed", "timed_out", "unsupported"] as const;
-export type RuntimeSetupPortalPhase = (typeof RUNTIME_SETUP_PORTAL_PHASES)[number];
+export const MIDI_REALTIME_MESSAGE_TYPES = [
+  "clock",
+  "start",
+  "continue",
+  "stop",
+] as const;
+export type MidiRealtimeMessageType =
+  (typeof MIDI_REALTIME_MESSAGE_TYPES)[number];
 
-export const RUNTIME_SETUP_PORTAL_DISPOSITIONS = ["accepted", "already_running"] as const;
-export type RuntimeSetupPortalDisposition = (typeof RUNTIME_SETUP_PORTAL_DISPOSITIONS)[number];
-
-export const RUNTIME_SETUP_PORTAL_ERROR_CODES = ["operation_failed", "unavailable", "invalid_payload", "unsupported"] as const;
-export type RuntimeSetupPortalErrorCode = (typeof RUNTIME_SETUP_PORTAL_ERROR_CODES)[number];
-export type RuntimeSetupPortalFailureErrorCode = Exclude<RuntimeSetupPortalErrorCode, "unsupported">;
-
-export const SETUP_PORTAL_SUFFIX_MAX_CHARS = 4;
-
-export const MIDI_REALTIME_MESSAGE_TYPES = ["clock", "start", "continue", "stop"] as const;
-export type MidiRealtimeMessageType = (typeof MIDI_REALTIME_MESSAGE_TYPES)[number];
-
-export const RUNTIME_MOMENTARY_FX_TYPES = ["none", "stutter", "freeze", "filter_sweep", "pitch_shift"] as const;
-export type RuntimeMomentaryFxType = (typeof RUNTIME_MOMENTARY_FX_TYPES)[number];
+export const RUNTIME_MOMENTARY_FX_TYPES = [
+  "none",
+  "stutter",
+  "freeze",
+  "filter_sweep",
+  "pitch_shift",
+] as const;
+export type RuntimeMomentaryFxType =
+  (typeof RUNTIME_MOMENTARY_FX_TYPES)[number];
 
 export type RuntimeMomentaryFxTarget =
   | { type: "global" }
@@ -31,26 +69,83 @@ export type RuntimeMomentaryFxTarget =
   | { type: "instrument"; index: number };
 
 export type RuntimeAudioCommand =
-  | { type: "set_audio_config"; revision: number; requestId?: string; config: Record<string, unknown> }
+  | {
+      type: "set_audio_config";
+      revision: number;
+      requestId?: string;
+      config: Record<string, unknown>;
+    }
   | { type: "set_master_volume"; volumePct: number }
-  | { type: "set_instrument_mixer"; instrumentSlot: number; volumePct?: number; panPos?: number }
-  | { type: "set_fx_bus_mixer"; busIndex: number; panPos?: number; volumePct?: number }
-  | { type: "set_synth_param"; instrumentSlot: number; path: string; value: number }
-  | { type: "set_sample_bank_param"; instrumentSlot: number; path: string; value: number }
-  | { type: "set_fx_bus_slot"; busIndex: number; slotIndex: number; fxType: string; params: Record<string, unknown> }
-  | { type: "set_global_fx_slot"; slotIndex: number; fxType: string; params: Record<string, unknown> }
-  | { type: "momentary_fx_start"; id: string; fxType: RuntimeMomentaryFxType; params: Record<string, unknown>; target: RuntimeMomentaryFxTarget }
+  | {
+      type: "set_instrument_mixer";
+      instrumentSlot: number;
+      volumePct?: number;
+      panPos?: number;
+    }
+  | {
+      type: "set_fx_bus_mixer";
+      busIndex: number;
+      panPos?: number;
+      volumePct?: number;
+    }
+  | {
+      type: "set_synth_param";
+      instrumentSlot: number;
+      path: string;
+      value: number;
+    }
+  | {
+      type: "set_sample_bank_param";
+      instrumentSlot: number;
+      path: string;
+      value: number;
+    }
+  | {
+      type: "set_fx_bus_slot";
+      busIndex: number;
+      slotIndex: number;
+      fxType: string;
+      params: Record<string, unknown>;
+    }
+  | {
+      type: "set_global_fx_slot";
+      slotIndex: number;
+      fxType: string;
+      params: Record<string, unknown>;
+    }
+  | {
+      type: "momentary_fx_start";
+      id: string;
+      fxType: RuntimeMomentaryFxType;
+      params: Record<string, unknown>;
+      target: RuntimeMomentaryFxTarget;
+    }
   | { type: "momentary_fx_update"; id: string; params: Record<string, unknown> }
   | { type: "momentary_fx_stop"; id: string }
-  | { type: "sample_preview"; instrumentSlot: number; sampleSlot: number; path: string; velocity: number };
+  | {
+      type: "sample_preview";
+      instrumentSlot: number;
+      sampleSlot: number;
+      path: string;
+      velocity: number;
+    };
 
 export type RuntimePlatformEffect =
   | { type: "store_list_presets" }
   | { type: "store_load_preset"; name: string }
-  | { type: "store_save_preset"; name: string; payload: Record<string, unknown>; mode?: "immediate" | "deferred" }
+  | {
+      type: "store_save_preset";
+      name: string;
+      payload: Record<string, unknown>;
+      mode?: "immediate" | "deferred";
+    }
   | { type: "store_delete_preset"; name: string }
   | { type: "store_load_default" }
-  | { type: "store_save_default"; payload: Record<string, unknown>; mode?: "immediate" | "deferred" }
+  | {
+      type: "store_save_default";
+      payload: Record<string, unknown>;
+      mode?: "immediate" | "deferred";
+    }
   | { type: "store_save_backup"; payload: Record<string, unknown> }
   | { type: "store_save_recovery"; payload: Record<string, unknown> }
   | { type: "midi_list_outputs_request" }
@@ -66,85 +161,30 @@ export type RuntimePlatformEffect =
   | { type: "rollback" }
   | { type: "system_info_request" }
   | { type: "setup_portal_open" }
-  | { type: "sample_list_request"; instrumentSlot: number; sampleSlot: number; dir: string }
+  | {
+      type: "sample_list_request";
+      instrumentSlot: number;
+      sampleSlot: number;
+      dir: string;
+    }
   | { type: "audio_command"; command: RuntimeAudioCommand };
-
-type RuntimeSetupPortalStatusTag = {
-  type: "setup_portal_status";
-  rebootRequired: false;
-};
-
-type RuntimeSetupPortalHexDigit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "a" | "b" | "c" | "d" | "e" | "f";
-export type RuntimeSetupPortalSuffix = `${RuntimeSetupPortalHexDigit}${RuntimeSetupPortalHexDigit}${RuntimeSetupPortalHexDigit}${RuntimeSetupPortalHexDigit}`;
-
-export type RuntimeSetupPortalStatus =
-  | (RuntimeSetupPortalStatusTag & { phase: "starting"; disposition: RuntimeSetupPortalDisposition })
-  | (RuntimeSetupPortalStatusTag & { phase: "portal_ready"; portalSuffix: RuntimeSetupPortalSuffix })
-  | (RuntimeSetupPortalStatusTag & { phase: "finalizing" })
-  | (RuntimeSetupPortalStatusTag & { phase: "succeeded" })
-  | (RuntimeSetupPortalStatusTag & { phase: "failed"; errorCode: RuntimeSetupPortalFailureErrorCode })
-  | (RuntimeSetupPortalStatusTag & { phase: "timed_out"; errorCode: "unavailable" })
-  | (RuntimeSetupPortalStatusTag & { phase: "unsupported"; errorCode: "unsupported" });
-
-const RUNTIME_SETUP_PORTAL_STATUS_KEYS = new Set(["type", "phase", "disposition", "portalSuffix", "rebootRequired", "errorCode"]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function hasOwn(value: Record<string, unknown>, key: string): boolean {
-  return Object.prototype.hasOwnProperty.call(value, key);
-}
-
-function isRuntimeSetupPortalPhase(value: unknown): value is RuntimeSetupPortalPhase {
-  return typeof value === "string" && RUNTIME_SETUP_PORTAL_PHASES.includes(value as RuntimeSetupPortalPhase);
-}
-
-function isRuntimeSetupPortalDisposition(value: unknown): value is RuntimeSetupPortalDisposition {
-  return typeof value === "string" && RUNTIME_SETUP_PORTAL_DISPOSITIONS.includes(value as RuntimeSetupPortalDisposition);
-}
-
-function isRuntimeSetupPortalErrorCode(value: unknown): value is RuntimeSetupPortalErrorCode {
-  return typeof value === "string" && RUNTIME_SETUP_PORTAL_ERROR_CODES.includes(value as RuntimeSetupPortalErrorCode);
-}
-
-export function isRuntimeSetupPortalSuffix(value: unknown): value is RuntimeSetupPortalSuffix {
-  return typeof value === "string" && /^[0-9a-f]{4}$/.test(value);
-}
-
-export function isRuntimeSetupPortalStatus(value: unknown): value is RuntimeSetupPortalStatus {
-  if (!isRecord(value) || value.type !== "setup_portal_status" || value.rebootRequired !== false) return false;
-  if (!Object.keys(value).every((key) => RUNTIME_SETUP_PORTAL_STATUS_KEYS.has(key))) return false;
-  if (["disposition", "portalSuffix", "errorCode"].some((key) => hasOwn(value, key) && value[key] === undefined)) return false;
-  if (!isRuntimeSetupPortalPhase(value.phase)) return false;
-  if (value.disposition !== undefined && !isRuntimeSetupPortalDisposition(value.disposition)) return false;
-  if (value.portalSuffix !== undefined && !isRuntimeSetupPortalSuffix(value.portalSuffix)) return false;
-  if (value.errorCode !== undefined && !isRuntimeSetupPortalErrorCode(value.errorCode)) return false;
-
-  const hasDisposition = value.disposition !== undefined;
-  const hasSuffix = value.portalSuffix !== undefined;
-  const hasError = value.errorCode !== undefined;
-  switch (value.phase) {
-    case "starting":
-      return hasDisposition && !hasSuffix && !hasError;
-    case "portal_ready":
-      return !hasDisposition && hasSuffix && !hasError;
-    case "finalizing":
-    case "succeeded":
-      return !hasDisposition && !hasSuffix && !hasError;
-    case "failed":
-      return !hasDisposition && !hasSuffix && (value.errorCode === "operation_failed" || value.errorCode === "unavailable" || value.errorCode === "invalid_payload");
-    case "timed_out":
-      return !hasDisposition && !hasSuffix && value.errorCode === "unavailable";
-    case "unsupported":
-      return !hasDisposition && !hasSuffix && value.errorCode === "unsupported";
-  }
-}
-
 export type RuntimeStoreResult =
   | { type: "list_presets_result"; names: string[] }
-  | { type: "load_preset_result"; name: string; payload: Record<string, unknown> | null }
-  | { type: "save_preset_result"; name: string; outcome: "created" | "overwritten" }
+  | {
+      type: "load_preset_result";
+      name: string;
+      payload: Record<string, unknown> | null;
+    }
+  | {
+      type: "save_preset_result";
+      name: string;
+      outcome: "created" | "overwritten";
+    }
   | { type: "delete_preset_result"; name: string; ok: boolean }
   | { type: "load_default_result"; payload: Record<string, unknown> | null }
   | { type: "save_default_result"; ok: boolean; isAuto?: boolean }
@@ -152,13 +192,47 @@ export type RuntimeStoreResult =
   | { type: "save_recovery_result"; ok: boolean }
   | { type: "store_error"; message: string }
   | { type: "runtime_failure"; error: RuntimeErrorFacts }
-  | { type: "identified"; result: RuntimeStoreResult; requestId: string; revision?: number }
-  | { type: "operation_succeeded"; operation: RuntimeOperation; requestId?: string; revision?: number }
-  | { type: "midi_list_outputs_result"; outputs: Array<{ id: string; name: string }> }
-  | { type: "midi_list_inputs_result"; inputs: Array<{ id: string; name: string }> }
-  | { type: "midi_status"; ok: boolean; message?: string; selectedOutId?: string | null; selectedInId?: string | null }
-  | { type: "sample_list_result"; instrumentSlot: number; sampleSlot: number; dir: string; entries: Array<{ name: string; path: string; isDir: boolean }> }
-  | { type: "sample_list_error"; instrumentSlot: number; sampleSlot: number; dir: string; message: string }
+  | {
+      type: "identified";
+      result: RuntimeStoreResult;
+      requestId: string;
+      revision?: number;
+    }
+  | {
+      type: "operation_succeeded";
+      operation: RuntimeOperation;
+      requestId?: string;
+      revision?: number;
+    }
+  | {
+      type: "midi_list_outputs_result";
+      outputs: Array<{ id: string; name: string }>;
+    }
+  | {
+      type: "midi_list_inputs_result";
+      inputs: Array<{ id: string; name: string }>;
+    }
+  | {
+      type: "midi_status";
+      ok: boolean;
+      message?: string;
+      selectedOutId?: string | null;
+      selectedInId?: string | null;
+    }
+  | {
+      type: "sample_list_result";
+      instrumentSlot: number;
+      sampleSlot: number;
+      dir: string;
+      entries: Array<{ name: string; path: string; isDir: boolean }>;
+    }
+  | {
+      type: "sample_list_error";
+      instrumentSlot: number;
+      sampleSlot: number;
+      dir: string;
+      message: string;
+    }
   | { type: "sample_preview_error"; message: string }
   | { type: "device_update_status"; ok: boolean; message: string }
   | { type: "system_info_result"; info: RuntimeSystemInfo }
@@ -190,7 +264,11 @@ export type RuntimeStatus = {
   error?: RuntimeErrorMetadata;
 };
 
-export type RuntimeDeviceInputMessage = { type: "device_input"; input: DeviceInput; requestSnapshot?: boolean };
+export type RuntimeDeviceInputMessage = {
+  type: "device_input";
+  input: DeviceInput;
+  requestSnapshot?: boolean;
+};
 
 export type RuntimeTransportPulseStepMessage = {
   type: "transport_pulse_step";
@@ -202,7 +280,10 @@ export type RuntimeTransportPulseStepMessage = {
 
 export type RuntimeMidiRealtimeLogicalMessage =
   | { type: "midi_realtime"; message: "clock"; pulses: number }
-  | { type: "midi_realtime"; message: Exclude<MidiRealtimeMessageType, "clock"> };
+  | {
+      type: "midi_realtime";
+      message: Exclude<MidiRealtimeMessageType, "clock">;
+    };
 
 export type RuntimeMidiRealtimeWireMessage =
   | { type: "midi_realtime_clock"; pulses: number }
@@ -212,29 +293,83 @@ export type RuntimeMidiRealtimeWireMessage =
 
 export type RuntimeTransportStopMessage = { type: "transport_stop" };
 
-export type RuntimeResultMessage = { type: "runtime_result"; result: RuntimeStoreResult };
+export type RuntimeResultMessage = {
+  type: "runtime_result";
+  result: RuntimeStoreResult;
+};
 
-export type RuntimeHostMessage = RuntimeDeviceInputMessage | RuntimeTransportPulseStepMessage | RuntimeMidiRealtimeWireMessage | RuntimeTransportStopMessage | RuntimeResultMessage;
+export type RuntimeHostMessage =
+  | RuntimeDeviceInputMessage
+  | RuntimeTransportPulseStepMessage
+  | RuntimeMidiRealtimeWireMessage
+  | RuntimeTransportStopMessage
+  | RuntimeResultMessage;
 
-export type RuntimeSnapshotMessage = { type: "snapshot"; snapshot: RuntimeSnapshot };
-export type RuntimePlatformEffectsMessage = { type: "platform_effects"; effects: RuntimePlatformEffect[] };
-export type RuntimeMusicalEventsMessage = { type: "musical_events"; events: MusicalEvent[] };
-export type RuntimeMidiEventsMessage = { type: "midi_events"; events: MusicalEvent[] };
-export type RuntimeAudioCommandsMessage = { type: "audio_commands"; commands: RuntimeAudioCommand[] };
-export type RuntimeUiPulse =
-  | { type: "transport_flash"; flash: "measure" | "beat"; durationMs: number }
-  | { type: "trigger_pulse"; durationMs: number };
-export type RuntimeUiPulseMessage = { type: "ui_pulse"; pulse: RuntimeUiPulse };
-export type RuntimeStatusMessage = { type: "runtime_status"; status: RuntimeStatus };
+export type RuntimeSnapshotMessage = {
+  type: "snapshot";
+  snapshot: NativeRuntimeSnapshot;
+};
+export type RuntimeOledFrameMessage = {
+  type: "oled_frame";
+  revision: OledFrameRevision;
+  width: 128;
+  height: 128;
+  format: "rgb565be";
+  pixelsBase64: string;
+};
+export type RuntimePlatformEffectsMessage = {
+  type: "platform_effects";
+  effects: RuntimePlatformEffect[];
+};
+export type RuntimeMusicalEventsMessage = {
+  type: "musical_events";
+  events: MusicalEvent[];
+};
+export type RuntimeMidiEventsMessage = {
+  type: "midi_events";
+  events: MusicalEvent[];
+};
+export type RuntimeAudioCommandsMessage = {
+  type: "audio_commands";
+  commands: RuntimeAudioCommand[];
+};
+export type RuntimeStatusMessage = {
+  type: "runtime_status";
+  status: RuntimeStatus;
+};
 
 export type RuntimeRunnerMessage =
   | RuntimeSnapshotMessage
+  | RuntimeOledFrameMessage
   | RuntimePlatformEffectsMessage
   | RuntimeMusicalEventsMessage
   | RuntimeMidiEventsMessage
   | RuntimeAudioCommandsMessage
-  | RuntimeUiPulseMessage
   | RuntimeStatusMessage;
+
+export function isPositiveOledFrameRevision(
+  value: unknown,
+): value is OledFrameRevision {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
+}
+
+export function createOledFrameRevision(value: number): OledFrameRevision {
+  if (!isPositiveOledFrameRevision(value))
+    throw new RangeError("OLED frame revision must be a positive safe integer");
+  return value;
+}
+
+export function isRuntimeSnapshotMessage(
+  value: unknown,
+): value is RuntimeSnapshotMessage {
+  if (
+    !isRecord(value) ||
+    value.type !== "snapshot" ||
+    !isRecord(value.snapshot)
+  )
+    return false;
+  return isPositiveOledFrameRevision(value.snapshot.oledFrameRevision);
+}
 
 export type RuntimeContractFixture = {
   id: string;
@@ -242,122 +377,3 @@ export type RuntimeContractFixture = {
   hostMessages: RuntimeHostMessage[];
   runnerMessages: RuntimeRunnerMessage[];
 };
-
-export const SHARED_RUNTIME_CONTRACT_FIXTURES: RuntimeContractFixture[] = [
-  {
-    id: "device-grid-press-refreshes-snapshot",
-    description: "A host forwards hardware-like grid input and receives an updated snapshot without any host-owned scheduling semantics.",
-    hostMessages: [{ type: "device_input", input: { type: "grid_press", x: 2, y: 5 } }],
-    runnerMessages: [
-      {
-        type: "snapshot",
-        snapshot: {
-          display: { page: "life", title: "Build", lines: ["grid press"], editing: false },
-          leds: { width: 8, height: 8, rgb: Array.from({ length: 64 * 3 }, () => 0), active: Array.from({ length: 64 }, () => false) },
-          transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
-          activeBehavior: "life",
-          gridInteraction: "paint"
-        }
-      },
-      {
-        type: "runtime_status",
-        status: { state: "idle", transport: "stopped", currentPpqnPulse: 0, pendingResync: false, syncSource: "internal" }
-      }
-    ]
-  },
-  {
-    id: "internal-pulse-step-emits-events",
-    description: "The Rust runtime advances the core by explicit PPQN pulses and receives resolved musical events plus status.",
-    hostMessages: [{ type: "transport_pulse_step", pulses: 6, source: "internal", atPpqnPulse: 96 }],
-    runnerMessages: [
-      {
-        type: "musical_events",
-        events: [{ type: "note_on", channel: 0, note: 60, velocity: 96, durationMs: 120 }]
-      },
-      {
-        type: "midi_events",
-        events: [{ type: "note_on", channel: 1, note: 64, velocity: 90, durationMs: 120 }]
-      },
-      {
-        type: "platform_effects",
-        effects: [{ type: "audio_command", command: { type: "sample_preview", instrumentSlot: 0, sampleSlot: 1, path: "samples/kick.wav", velocity: 110 } }]
-      },
-      {
-        type: "audio_commands",
-        commands: [{ type: "momentary_fx_start", id: "fx:2:5", fxType: "stutter", params: { depth: 0.6 }, target: { type: "global" } }]
-      },
-      {
-        type: "runtime_status",
-        status: { state: "running", transport: "playing", currentPpqnPulse: 102, pendingResync: false, syncSource: "internal" }
-      }
-    ]
-  },
-  {
-    id: "external-midi-realtime-controls-transport",
-    description: "External MIDI realtime messages stay explicit at the contract boundary instead of being inferred from desktop timers.",
-    hostMessages: [
-      { type: "midi_realtime_start" },
-      { type: "midi_realtime_clock", pulses: 24 },
-      { type: "midi_realtime_continue" },
-      { type: "midi_realtime_stop" },
-      { type: "transport_stop" }
-    ],
-    runnerMessages: [
-      {
-        type: "runtime_status",
-        status: { state: "running", transport: "playing", currentPpqnPulse: 24, pendingResync: false, syncSource: "external" }
-      },
-      {
-        type: "platform_effects",
-        effects: [{ type: "midi_panic" }]
-      },
-      {
-        type: "runtime_status",
-        status: { state: "paused", transport: "stopped", currentPpqnPulse: 24, pendingResync: false, syncSource: "external" }
-      }
-    ]
-  },
-  {
-    id: "host-results-round-trip-platform-effects",
-    description: "The host returns effect outcomes back into the runner so platform-core can update snapshots without owning storage or device I/O.",
-    hostMessages: [
-      { type: "runtime_result", result: { type: "list_presets_result", names: ["Factory", "Live Set"] } }
-    ],
-    runnerMessages: [
-      {
-        type: "snapshot",
-        snapshot: {
-          display: { page: "system", title: "System", lines: ["presets updated"], editing: false },
-          leds: { width: 8, height: 8, rgb: Array.from({ length: 64 * 3 }, () => 0), active: Array.from({ length: 64 }, () => false) },
-          transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
-          activeBehavior: "life",
-          gridInteraction: "paint"
-        }
-      },
-      {
-        type: "runtime_status",
-        status: { state: "idle", transport: "stopped", currentPpqnPulse: 0, pendingResync: false, syncSource: "internal" }
-      }
-    ]
-  },
-  {
-    id: "runtime-ui-pulse-and-host-actions",
-    description: "Runner pulses transient UI indicators while platform effects stay explicit host-owned actions.",
-    hostMessages: [{ type: "device_input", input: { type: "button_s", pressed: true } }],
-    runnerMessages: [
-      {
-        type: "ui_pulse",
-        pulse: { type: "transport_flash", flash: "beat", durationMs: 160 }
-      },
-      {
-        type: "platform_effects",
-        effects: [
-          { type: "hardware_test" },
-          { type: "update_check" },
-          { type: "update_apply" },
-          { type: "rollback" }
-        ]
-      }
-    ]
-  }
-];

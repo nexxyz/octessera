@@ -1,11 +1,13 @@
 use super::{force_latest_oled, HardwareRenderCache, HardwareRenderTargets};
 use super::{OledOwnershipStage, OledRenderControl};
+use crate::oled_frame_cache::OledFramePublication;
 use serde_json::Value;
 
 pub(crate) struct HardwareOwnershipControl<'a> {
     pub(crate) targets: &'a mut HardwareRenderTargets,
     pub(crate) cache: &'a mut HardwareRenderCache,
     pub(crate) latest_snapshot: &'a Option<Value>,
+    pub(crate) latest_oled: &'a Option<OledFramePublication>,
 }
 
 impl OledRenderControl for HardwareOwnershipControl<'_> {
@@ -42,7 +44,11 @@ impl OledRenderControl for HardwareOwnershipControl<'_> {
             .latest_snapshot
             .as_ref()
             .ok_or_else(|| "OLED restore has no latest snapshot".to_string())?;
-        force_latest_oled(self.targets, snapshot, self.cache)
+        let oled = self
+            .latest_oled
+            .as_ref()
+            .ok_or_else(|| "OLED restore has no latest native frame".to_string())?;
+        force_latest_oled(self.targets, snapshot, oled, self.cache)
     }
 }
 
@@ -51,12 +57,14 @@ pub(crate) fn ownership_stage_for_render(
     targets: &mut HardwareRenderTargets,
     cache: &mut HardwareRenderCache,
     latest_snapshot: &Option<Value>,
+    latest_oled: &Option<OledFramePublication>,
     ownership: &mut super::OledOwnershipState,
 ) -> Result<(), String> {
     let mut control = HardwareOwnershipControl {
         targets,
         cache,
         latest_snapshot,
+        latest_oled,
     };
     super::handle_stage(stage, &mut control, ownership)
 }
@@ -65,12 +73,14 @@ pub(crate) fn restore_for_render(
     targets: &mut HardwareRenderTargets,
     cache: &mut HardwareRenderCache,
     latest_snapshot: &Option<Value>,
+    latest_oled: &Option<OledFramePublication>,
     ownership: &mut super::OledOwnershipState,
 ) -> Result<(), String> {
     let mut control = HardwareOwnershipControl {
         targets,
         cache,
         latest_snapshot,
+        latest_oled,
     };
     super::restore(&mut control, ownership)
 }
@@ -80,12 +90,14 @@ pub(crate) fn restore_after_dropped_ack_for_render(
     targets: &mut HardwareRenderTargets,
     cache: &mut HardwareRenderCache,
     latest_snapshot: &Option<Value>,
+    latest_oled: &Option<OledFramePublication>,
     ownership: &mut super::OledOwnershipState,
 ) -> Result<(), String> {
     let mut control = HardwareOwnershipControl {
         targets,
         cache,
         latest_snapshot,
+        latest_oled,
     };
     super::restore_after_dropped_ack(ack_dropped, &mut control, ownership)
 }

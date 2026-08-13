@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import {
   GRID_HEIGHT,
   GRID_WIDTH,
-  OLED_HEIGHT,
-  OLED_WIDTH,
   RED_COLOR,
+  createOledFrameRevision,
 } from '@octessera/device-contracts';
 import {
   createSimulatorRuntime,
   shouldApplyRuntimeBatch,
 } from '../src/runtime/simulatorRuntime';
+import { scaleNeoKeyLeds } from '../src/runtime/simulatorSnapshot';
 import type { RuntimeRunnerMessage } from '@octessera/device-contracts';
 import type { RuntimeScheduler } from '../src/runtime/runtimeScheduler';
 
@@ -39,17 +39,13 @@ function snapshotMessage(
     masterVolume?: number;
     ledsDimmed?: boolean;
     displayOff?: boolean;
+    eventDotOn?: boolean;
+    transportFlash?: 'none' | 'beat' | 'measure';
   } = {},
 ) {
   return {
     type: 'snapshot' as const,
     snapshot: {
-      oled: {
-        width: OLED_WIDTH,
-        height: OLED_HEIGHT,
-        format: 'rgb565be' as const,
-        pixels: new Uint8Array(OLED_WIDTH * OLED_HEIGHT * 2),
-      },
       leds: {
         width: GRID_WIDTH,
         height: GRID_HEIGHT,
@@ -66,6 +62,15 @@ function snapshotMessage(
       },
       activeBehavior: 'life',
       gridInteraction: 'paint' as const,
+      neoKeyLeds: {
+        back: [221, 130, 205],
+        space: [221, 130, 205],
+        shift: [67, 68, 71],
+        fn: [67, 68, 71],
+      },
+      eventDotOn: options.eventDotOn ?? false,
+      transportIcon: 'stop' as const,
+      transportFlash: options.transportFlash ?? 'none',
       settings: {
         displayBrightness: 75,
         buttonBrightness: 75,
@@ -77,7 +82,6 @@ function snapshotMessage(
         audioConfigRevision: options.audioConfigRevision,
         ledsDimmed: options.ledsDimmed,
         autoSaveFlash: 'none' as const,
-        transportFlash: 'none' as const,
         stopLatched: false,
         shiftHeld: false,
         fnHeld: false,
@@ -91,6 +95,7 @@ function snapshotMessage(
           clockInEnabled: false,
         },
       },
+      oledFrameRevision: createOledFrameRevision(1),
     },
   };
 }
@@ -134,12 +139,6 @@ function sparseAudioSnapshotMessage(
   return {
     type: 'snapshot' as const,
     snapshot: {
-      oled: {
-        width: OLED_WIDTH,
-        height: OLED_HEIGHT,
-        format: 'rgb565be' as const,
-        pixels: new Uint8Array(OLED_WIDTH * OLED_HEIGHT * 2),
-      },
       leds: {
         width: GRID_WIDTH,
         height: GRID_HEIGHT,
@@ -150,6 +149,15 @@ function sparseAudioSnapshotMessage(
       display: { page: 'boot', title: 'Boot', lines: [], editing: false },
       activeBehavior: 'life',
       gridInteraction: 'paint' as const,
+      neoKeyLeds: {
+        back: [221, 130, 205],
+        space: [221, 130, 205],
+        shift: [67, 68, 71],
+        fn: [67, 68, 71],
+      },
+      eventDotOn: false,
+      transportIcon: 'stop' as const,
+      transportFlash: 'none' as const,
       settings: {
         displayBrightness: 75,
         buttonBrightness: 75,
@@ -157,7 +165,6 @@ function sparseAudioSnapshotMessage(
         voiceStealingMode: 'auto-balanced' as const,
         audioConfigRevision: options.audioConfigRevision,
         autoSaveFlash: 'none' as const,
-        transportFlash: 'none' as const,
         stopLatched: false,
         shiftHeld: false,
         fnHeld: false,
@@ -171,6 +178,7 @@ function sparseAudioSnapshotMessage(
           clockInEnabled: false,
         },
       },
+      oledFrameRevision: createOledFrameRevision(1),
     },
   };
 }
@@ -382,15 +390,14 @@ test('runtime preserves cached audio config when snapshots omit unchanged audio 
   assert.equal(second.panPositions, first.panPositions);
 });
 
-test('runtime applies native ui pulses for indicators', async () => {
+test('runtime applies native transient presentation fields', async () => {
+  let transient = true;
   const runtime = createSimulatorRuntime(new FakeScheduler(), {
     runtimeDispatch: async (): Promise<RuntimeRunnerMessage[]> => [
-      snapshotMessage(),
-      { type: 'ui_pulse', pulse: { type: 'trigger_pulse', durationMs: 40 } },
-      {
-        type: 'ui_pulse',
-        pulse: { type: 'transport_flash', flash: 'measure', durationMs: 40 },
-      },
+      snapshotMessage({
+        eventDotOn: transient,
+        transportFlash: transient ? 'measure' : 'none',
+      }),
     ],
   });
 
@@ -398,12 +405,13 @@ test('runtime applies native ui pulses for indicators', async () => {
   await waitMicrotask();
 
   const snapshot = runtime.getSnapshot();
-  assert.equal((snapshot.frame as any).eventDotOn, true);
-  assert.equal((snapshot.frame as any).transportFlash, 'measure');
+  assert.equal(snapshot.frame.eventDotOn, true);
+  assert.equal(snapshot.frame.transportFlash, 'measure');
 
-  await new Promise((resolve) => setTimeout(resolve, 50));
-  const after = runtime.getSnapshot();
-  assert.notEqual((after.frame as any).eventDotOn, true);
+  transient = false;
+  runtime.dispatch({ type: 'grid_press', x: 1, y: 2 });
+  await waitMicrotask();
+  assert.equal(runtime.getSnapshot().frame.eventDotOn, false);
 });
 
 test('runtime applies native ledsDimmed to desktop NeoKey LEDs', async () => {
@@ -416,7 +424,7 @@ test('runtime applies native ledsDimmed to desktop NeoKey LEDs', async () => {
 
   assert.deepEqual(
     runtime.getSnapshot().neoKeyLeds.space,
-    RED_COLOR.map((channel) => Math.round(channel * 0.22 * 0.75)),
+    RED_COLOR.map((channel) => Math.floor((channel * 600 + 5000) / 10000)),
   );
 });
 
@@ -432,6 +440,31 @@ test('display off does not dim desktop NeoKey LEDs', async () => {
 
   assert.deepEqual(
     runtime.getSnapshot().neoKeyLeds.space,
-    RED_COLOR.map((channel) => Math.round(channel * 0.75)),
+    RED_COLOR.map((channel) => Math.floor((channel * 7500 + 5000) / 10000)),
   );
+});
+
+test('desktop NeoKey basis-point scaling matches normal and dimmed brightness', () => {
+  const leds = {
+    back: [255, 128, 1] as [number, number, number],
+    space: [255, 128, 1] as [number, number, number],
+    shift: [255, 128, 1] as [number, number, number],
+    fn: [255, 128, 1] as [number, number, number],
+  };
+  for (const brightness of [0, 10, 75, 100]) {
+    for (const dimmed of [false, true]) {
+      const basisPoints = dimmed
+        ? brightness === 0
+          ? 0
+          : Math.max(brightness * 8, 400)
+        : brightness * 100;
+      const expected = [255, 128, 1].map((channel) =>
+        Math.floor((channel * basisPoints + 5000) / 10000),
+      );
+      assert.deepEqual(
+        scaleNeoKeyLeds(leds, brightness, dimmed).back,
+        expected,
+      );
+    }
+  }
 });

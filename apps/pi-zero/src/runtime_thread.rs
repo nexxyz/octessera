@@ -7,6 +7,7 @@ use crate::main_runtime_loop::{
 };
 use crate::midi_host::drain_midi_messages;
 use crate::render_loop::RenderWorker;
+use crate::snapshot_cadence::SnapshotCadence;
 use crate::ui_profile::UiProfiler;
 use crate::usb_config::UsbAudioOut;
 use octessera_hal::encoder_gpio::HardwareEvent;
@@ -31,10 +32,9 @@ pub(crate) use startup::{prepare, PreparedRuntime};
 
 struct SchedulerState {
     last_tick: Instant,
-    last_snapshot_request: Instant,
     last_render: Instant,
+    snapshot_cadence: SnapshotCadence,
     last_published_snapshot_revision: u64,
-    transient_render_until: Option<Instant>,
     pending_encoder_turns: PendingEncoderTurns,
     ui_profiler: UiProfiler,
 }
@@ -43,10 +43,9 @@ impl SchedulerState {
     fn new() -> Self {
         Self {
             last_tick: Instant::now(),
-            last_snapshot_request: Instant::now(),
             last_render: Instant::now() - Duration::from_millis(RENDER_INTERVAL_MS),
+            snapshot_cadence: SnapshotCadence::new(Instant::now(), 0),
             last_published_snapshot_revision: 0,
-            transient_render_until: None,
             pending_encoder_turns: PendingEncoderTurns::default(),
             ui_profiler: UiProfiler::from_process(),
         }
@@ -99,6 +98,9 @@ fn run_scheduler(
         candidate_readiness: _,
     } = prepared;
     let mut state = SchedulerState::new();
+    state
+        .snapshot_cadence
+        .observe_accepted_snapshot(Instant::now(), initial_rendered_revision);
     state.last_published_snapshot_revision = initial_rendered_revision;
     let profile_enabled = state.profile_enabled();
     let mut last_loop_start = profile_enabled.then(Instant::now);
@@ -119,8 +121,14 @@ fn run_scheduler(
             break;
         }
         drain_midi_messages(&midi_rx, &mut playback, &mut runner, &mut adapter);
+        state
+            .snapshot_cadence
+            .observe_accepted_snapshot(Instant::now(), playback.last_snapshot_revision());
         let host_input_started = profile_enabled.then(Instant::now);
         drain_host_messages(&input_rx, &mut playback, &mut runner, &mut adapter);
+        state
+            .snapshot_cadence
+            .observe_accepted_snapshot(Instant::now(), playback.last_snapshot_revision());
         if let Some(started) = host_input_started {
             state.ui_profiler.record_host_input(started.elapsed());
         }
@@ -146,6 +154,9 @@ fn run_scheduler(
             &mut runner,
             &mut adapter,
         );
+        state
+            .snapshot_cadence
+            .observe_accepted_snapshot(Instant::now(), playback.last_snapshot_revision());
         if advance(
             &mut state,
             &mut playback,
@@ -185,9 +196,7 @@ impl SchedulerState {
                 self.last_render + Duration::from_millis(RENDER_INTERVAL_MS),
             ));
         }
-        if let Some(display_deadline) =
-            runner.next_timed_display_snapshot_deadline_after(Some(self.last_snapshot_request))
-        {
+        if let Some(display_deadline) = self.snapshot_cadence.next_timed_display_deadline(runner) {
             next_due = Some(earliest_due(next_due, display_deadline));
         }
         let max_sleep = if runtime_tick_needed(playback) || render_tick_needed(self, playback) {
@@ -211,10 +220,7 @@ fn runtime_tick_needed(playback: &PlaybackRuntime) -> bool {
 }
 
 fn render_tick_needed(state: &SchedulerState, playback: &PlaybackRuntime) -> bool {
-    state
-        .transient_render_until
-        .is_some_and(|deadline| Instant::now() <= deadline)
-        || playback.last_snapshot_revision() != state.last_published_snapshot_revision
+    playback.last_snapshot_revision() != state.last_published_snapshot_revision
 }
 
 fn earliest_due(current: Option<Instant>, candidate: Instant) -> Instant {
@@ -231,12 +237,11 @@ fn advance(
     maybe_advance_runtime(
         &mut state.last_tick,
         Duration::from_millis(PLAYBACK_TICK_MS),
-        &mut state.last_snapshot_request,
         Duration::from_millis(SNAPSHOT_INTERVAL_MS),
         &mut state.last_render,
         Duration::from_millis(RENDER_INTERVAL_MS),
+        &mut state.snapshot_cadence,
         &mut state.last_published_snapshot_revision,
-        &mut state.transient_render_until,
         &mut state.pending_encoder_turns,
         playback,
         runner,

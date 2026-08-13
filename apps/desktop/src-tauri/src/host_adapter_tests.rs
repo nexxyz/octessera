@@ -22,7 +22,7 @@ fn temp_store_dir(name: &str) -> PathBuf {
 
 fn test_adapter() -> (DesktopPlaybackHostAdapter, mpsc::Receiver<QueuedAudioEvent>) {
     let (tx, rx) = mpsc::channel();
-    let (platform_service_tx, _) = mpsc::channel();
+    let (platform_service_tx, _) = mpsc::sync_channel(32);
     let synth_slots = Arc::new(Mutex::new(
         [true; realtime_engine::synth::INSTRUMENT_SLOT_COUNT],
     ));

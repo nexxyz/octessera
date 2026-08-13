@@ -26,7 +26,7 @@ impl NativeRunner {
     pub(super) fn apply_runtime_ui_and_sound_payload(
         &mut self,
         runtime: &Value,
-        payload: &Value,
+        mapping_config: Option<&Value>,
     ) -> Result<(), String> {
         self.apply_sound_payload(runtime);
         self.apply_runtime_transport_payload(runtime);
@@ -41,7 +41,7 @@ impl NativeRunner {
         self.apply_midi_payload(runtime);
         self.apply_usb_payload(runtime);
         self.apply_recording_payload(runtime);
-        if let Some(mapping_config) = payload.get("mappingConfig") {
+        if let Some(mapping_config) = mapping_config {
             self.base_mapping_config = serde_json::from_value(mapping_config.clone())
                 .map_err(|error| format!("invalid mappingConfig: {error}"))?;
             self.mapping_config = self.base_mapping_config.clone();
@@ -52,7 +52,7 @@ impl NativeRunner {
     pub(super) fn apply_patch_runtime_payload(
         &mut self,
         runtime: &Value,
-        payload: &Value,
+        mapping_config: Option<&Value>,
     ) -> Result<(), String> {
         self.apply_sound_payload(runtime);
         self.apply_runtime_transport_payload(runtime);
@@ -64,7 +64,7 @@ impl NativeRunner {
             crate::delay_timing::visible_bpm_u16(self.transport.bpm),
         );
         self.apply_aux_mapping_payload(runtime);
-        if let Some(mapping_config) = payload.get("mappingConfig") {
+        if let Some(mapping_config) = mapping_config {
             self.base_mapping_config = serde_json::from_value(mapping_config.clone())
                 .map_err(|error| format!("invalid mappingConfig: {error}"))?;
             self.mapping_config = self.base_mapping_config.clone();

@@ -36,27 +36,34 @@ pub enum HostMessage {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
-pub enum RuntimeUiPulse {
-    TransportFlash {
-        flash: String,
-        #[serde(rename = "durationMs")]
-        duration_ms: u64,
-    },
-    TriggerPulse {
-        #[serde(rename = "durationMs")]
-        duration_ms: u64,
-    },
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
 pub enum RunnerMessage {
-    Snapshot { snapshot: Value },
-    PlatformEffects { effects: Vec<RuntimePlatformEffect> },
-    MusicalEvents { events: Vec<MusicalEvent> },
-    MidiEvents { events: Vec<MusicalEvent> },
-    AudioCommands { commands: Vec<RuntimeAudioCommand> },
-    UiPulse { pulse: RuntimeUiPulse },
-    RuntimeStatus { status: RuntimeStatus },
-    RuntimeConfigChanged { config: RuntimeConfig },
+    Snapshot {
+        snapshot: Value,
+    },
+    OledFrame {
+        revision: u64,
+        width: usize,
+        height: usize,
+        format: String,
+        #[serde(rename = "pixelsBase64", with = "super::oled::base64_bytes")]
+        pixels: Vec<u8>,
+    },
+    PlatformEffects {
+        effects: Vec<RuntimePlatformEffect>,
+    },
+    MusicalEvents {
+        events: Vec<MusicalEvent>,
+    },
+    MidiEvents {
+        events: Vec<MusicalEvent>,
+    },
+    AudioCommands {
+        commands: Vec<RuntimeAudioCommand>,
+    },
+    RuntimeStatus {
+        status: RuntimeStatus,
+    },
+    RuntimeConfigChanged {
+        config: RuntimeConfig,
+    },
 }

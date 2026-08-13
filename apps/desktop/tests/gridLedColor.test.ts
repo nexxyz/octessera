@@ -53,7 +53,6 @@ const settings = (
   masterVolume: 73,
   voiceStealingMode: 'auto-balanced',
   autoSaveFlash: 'none',
-  transportFlash: 'none',
   stopLatched: false,
   shiftHeld: false,
   fnHeld: false,

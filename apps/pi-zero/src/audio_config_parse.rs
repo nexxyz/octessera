@@ -1,14 +1,11 @@
-mod audio_sample_decode;
-
 use crate::audio::AudioService;
-pub(crate) use audio_sample_decode::decode_sample_file;
 use playback_runtime::RuntimeErrorCode;
 use realtime_engine::synth::{
     normalize_audio_config, normalize_instrument_slot_config, InstrumentSlotConfig,
     NormalizedAudioConfig, SampleBankConfig, SampleBuffer, SampleSlotConfig, INSTRUMENT_SLOT_COUNT,
     SAMPLE_SLOTS_PER_INSTRUMENT,
 };
-use rodio_engine_source::EngineEvent;
+use rodio_engine_source::{decode_sample_file, EngineEvent};
 use std::path::{Component, Path, PathBuf};
 
 #[derive(Clone, Debug, PartialEq, Eq)]

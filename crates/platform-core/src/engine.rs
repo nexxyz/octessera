@@ -5,7 +5,7 @@ use crate::interpretation::{
     interpret_grid_with_marker_authority, CellTriggerIntent, GridSnapshot, InterpretationProfile,
     TriggerMarkerAuthority,
 };
-use crate::mapping::{map_intents_to_musical_events, MappingConfig};
+use crate::mapping::{map_intents_to_musical_events, MappingConfig, MappingResult};
 use crate::transforms::{apply_global_sound, GlobalSoundConfig, NoteBehavior};
 use crate::MusicalEvent;
 use serde_json::Value;
@@ -146,38 +146,16 @@ impl NativeLayerEngine {
         } else {
             None
         };
-        let mapped_event_len = mapped
-            .as_ref()
-            .map(|mapped| mapped.events.len())
-            .unwrap_or(0);
-        let mut events = Vec::with_capacity(context.emitted_events.len() + mapped_event_len);
-        events.extend(context.emitted_events.iter().cloned());
-        let mut event_intents = vec![None; context.emitted_events.len()];
-        if let Some(mapped) = &mapped {
-            events.extend(mapped.events.iter().cloned());
-            event_intents.extend(mapped.event_intents.iter().cloned().map(Some));
-        }
-        let events = apply_global_sound(&events, &self.global_sound);
-        if events.len() != event_intents.len() {
-            return Err("event intent metadata length mismatch before note behavior".into());
-        }
-        let note_behavior = apply_note_behavior_with_event_intents(
-            &events,
-            event_intents,
-            self.note_behaviors.as_slice(),
-            &mut self.held_notes,
-        );
+        let emitted_events = context.emitted_events;
+        let finalized = self.finalize_events(&emitted_events, mapped.as_ref())?;
         let NoteBehaviorWithIntentsResult {
             events,
             event_intents,
-        } = note_behavior;
-        if events.len() != event_intents.len() {
-            return Err("event intent metadata length mismatch after note behavior".into());
-        }
+        } = finalized;
         let mapped_intents = mapped.map(|mapped| mapped.intents).unwrap_or_default();
         Ok(NativeInputResult {
             events,
-            emitted_events: context.emitted_events,
+            emitted_events,
             mapped_intents,
             event_intents,
             model: after,
@@ -211,31 +189,15 @@ impl NativeLayerEngine {
             .collect::<Vec<_>>();
         self.tick = self.tick.saturating_add(1);
         let mapped = map_intents_to_musical_events(&intents, &self.mapping_config);
-        let mut events = Vec::with_capacity(context.emitted_events.len() + mapped.events.len());
-        events.extend(context.emitted_events.iter().cloned());
-        let mut event_intents = vec![None; context.emitted_events.len()];
-        event_intents.extend(mapped.event_intents.iter().cloned().map(Some));
-        events.extend(mapped.events);
-        let events = apply_global_sound(&events, &self.global_sound);
-        if events.len() != event_intents.len() {
-            return Err("event intent metadata length mismatch before note behavior".into());
-        }
-        let note_behavior = apply_note_behavior_with_event_intents(
-            &events,
-            event_intents,
-            &self.note_behaviors,
-            &mut self.held_notes,
-        );
+        let emitted_events = context.emitted_events;
+        let finalized = self.finalize_events(&emitted_events, Some(&mapped))?;
         let NoteBehaviorWithIntentsResult {
             events,
             event_intents,
-        } = note_behavior;
-        if events.len() != event_intents.len() {
-            return Err("event intent metadata length mismatch after note behavior".into());
-        }
+        } = finalized;
 
         Ok(NativeTickResult {
-            emitted_events: context.emitted_events,
+            emitted_events,
             events,
             mapped_intents: mapped.intents,
             event_intents,
@@ -289,6 +251,41 @@ impl NativeLayerEngine {
 
     pub fn state(&self) -> &NativeBehaviorState {
         &self.state
+    }
+
+    fn finalize_events(
+        &mut self,
+        emitted_events: &[MusicalEvent],
+        mapped: Option<&MappingResult>,
+    ) -> Result<NoteBehaviorWithIntentsResult, String> {
+        let mapped_event_len = mapped.map(|mapped| mapped.events.len()).unwrap_or(0);
+        let mut events = Vec::with_capacity(emitted_events.len() + mapped_event_len);
+        events.extend(emitted_events.iter().cloned());
+        let mut event_intents = vec![None; emitted_events.len()];
+        if let Some(mapped) = mapped {
+            events.extend(mapped.events.iter().cloned());
+            event_intents.extend(mapped.event_intents.iter().cloned().map(Some));
+        }
+        let events = apply_global_sound(&events, &self.global_sound);
+        if events.len() != event_intents.len() {
+            return Err("event intent metadata length mismatch before note behavior".into());
+        }
+        let NoteBehaviorWithIntentsResult {
+            events,
+            event_intents,
+        } = apply_note_behavior_with_event_intents(
+            &events,
+            event_intents,
+            &self.note_behaviors,
+            &mut self.held_notes,
+        );
+        if events.len() != event_intents.len() {
+            return Err("event intent metadata length mismatch after note behavior".into());
+        }
+        Ok(NoteBehaviorWithIntentsResult {
+            events,
+            event_intents,
+        })
     }
 }
 

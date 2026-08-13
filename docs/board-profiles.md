@@ -15,8 +15,13 @@ Octessera names are organized into five layers:
 - Raspberry Pi Zero 2 W — `raspberry-pi-zero-2w`, `tools/pi`.
 - Orange Pi Zero 2W — `orange-pi-zero-2w`, `tools/orange-pi`.
 
-Old Cargo feature names are compatibility aliases, not preferred names. Use the
-canonical profile and feature names described below.
+Canonical feature ownership is internal: `raspberry-pi-zero-2w` owns the
+Raspberry HAL implementation and dependencies, and
+`hardware-raspberry-pi-zero-2w` owns the Raspberry app's canonical HAL feature
+and runtime selection. The deprecated compatibility aliases `rpi-zero-2w`,
+`pi-zero`, `hardware-rpi-zero-2w`, and `hardware-pi` expand to those canonical
+owners. They remain accepted for existing Cargo commands and are covered by CI;
+use canonical names for new commands. No alias removal date is promised.
 
 Both board profiles expose the same native `System > Configure WiFi` menu
 contract and typed setup-portal status flow. Their fixed accounts, image
@@ -36,6 +41,15 @@ source paths are implemented, but their boot services, hooks, and selected
 initramfs outputs still require a new constructor image and physical
 qualification on both boards.
 
+Orange runtime startup allows three attempts in a 30-second systemd start-limit
+window: the initial start and two five-second failure retries. After
+`start-limit-hit`, run `sudo systemctl reset-failed octessera.service` and then
+`sudo systemctl start octessera.service`. The OLED boot-loop handoff uses a
+monotonic 30-second deadline starting immediately after handoff start. Timeout,
+signal, and unexpected post-ownership failures attempt a 32768-byte black RGB565
+frame and display-off; either cleanup operation may fail, but both are attempted
+and the handoff is marked failed for native recovery.
+
 Both constructors also stage the same interactive terminal welcome without
 changing PAM or update-motd. Raspberry declares its UART inactive in the
 selected boot layout (`enable_uart=0`, no serial-console kernel token, and
@@ -43,11 +57,11 @@ masked serial-getty units). This is an image safety state, not a post-boot
 UART release utility or ownership handoff. Orange keeps its UART0 release in
 the reviewed input-routing path.
 
-The board-specific HALs own their physical pin and device descriptors. The Raspberry
-canonical Cargo features are `raspberry-pi-zero-2w` and
-`hardware-raspberry-pi-zero-2w`; the older `rpi-zero-2w`, `pi-zero`,
+The board-specific HALs own their physical pin and device descriptors. The
+canonical Raspberry Cargo feature owners are `raspberry-pi-zero-2w` and
+`hardware-raspberry-pi-zero-2w`; the deprecated `rpi-zero-2w`, `pi-zero`,
 `hardware-rpi-zero-2w`, and `hardware-pi` feature names remain compatibility
-aliases for now and are covered by CI compile checks. The HAL also exposes the
+aliases and are covered by CI compile checks. The HAL also exposes the
 `orange-pi-zero-2w` profile descriptor and its diagnostic OLED/I2C bring-up
 backend. The Orange production `octessera-pi` runtime uses the shared 44.1 kHz
 rate and supports the OLED, NeoTrellis, NeoKey, all four encoders, persistent
@@ -57,6 +71,9 @@ There is no default or HDMI fallback. USB UAC2 is an optional companion
 (`audioOut=both`); `audioOut=usb` is rejected because the internal DAC is
 required. MIDI uses the native host adapter, including USB MIDI when the
 configured gadget port is present.
+
+The Orange control surface requires the exact validated NeoTrellis wiring and
+addresses. There is no alternate Trellis bus, address, or hardware fallback.
 
 The production image applies the input-routing overlay before the service
 starts, so all four encoder switches are available. Before that overlay, SW3's

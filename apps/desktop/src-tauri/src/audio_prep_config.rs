@@ -1,10 +1,11 @@
 use crate::audio_config::{
-    decode_sample_file, normalize_config, sample_bank_signature, sample_banks, synth_payload,
-    synth_slots, SampleBankError,
+    normalize_config, sample_bank_signature, sample_banks, synth_payload, synth_slots,
+    SampleBankError,
 };
 use crate::samples::resolve_sample_file;
 use crate::types::QueuedAudioEvent;
 use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
+use rodio_engine_source::decode_sample_file;
 use serde_json::Value;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::Sender;
