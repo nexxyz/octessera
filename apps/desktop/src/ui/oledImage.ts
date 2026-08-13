@@ -13,9 +13,16 @@ export function rgb565ToCss(value: number): string {
 export function toOledImage(
   oledFrame: OledFrame | undefined,
 ): ImageData | null {
-  if (!oledFrame || oledFrame.format !== 'rgb565be') return null;
-  const w = oledFrame.width;
-  const h = oledFrame.height;
+  if (
+    !oledFrame ||
+    oledFrame.width !== 128 ||
+    oledFrame.height !== 128 ||
+    oledFrame.format !== 'rgb565be' ||
+    oledFrame.pixels.length !== 128 * 128 * 2
+  )
+    return null;
+  const w = 128;
+  const h = 128;
   const data = new Uint8ClampedArray(w * h * 4);
   const px = oledFrame.pixels;
   for (let i = 0, j = 0; i < px.length; i += 2, j += 4) {

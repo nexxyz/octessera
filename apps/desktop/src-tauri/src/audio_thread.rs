@@ -1,6 +1,7 @@
 use crate::types::{AudioRuntime, MomentaryFxTargetPayload, QueuedAudioEvent};
 use playback_runtime::{
     RuntimeAdapterError, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation,
+    RuntimePresentationMetrics,
 };
 use realtime_engine::synth::{
     prepare_audio_config, prepare_fx_bus_slot, prepare_global_fx_slot,
@@ -320,9 +321,19 @@ fn send_engine_event(sender: &EngineEventSender, event: EngineEvent) -> Result<(
     sender.send(event).map_err(|error| error.to_string())
 }
 
-pub(crate) fn spawn_load_listener(load_rx: AudioLoadStatusReceiver, app_handle: tauri::AppHandle) {
+pub(crate) fn spawn_load_listener(
+    load_rx: AudioLoadStatusReceiver,
+    app_handle: tauri::AppHandle,
+    worker_tx: std::sync::mpsc::Sender<crate::runtime_worker::WorkerCommand>,
+) {
     thread::spawn(move || {
         while let Ok(status) = load_rx.recv() {
+            let _ = worker_tx.send(crate::runtime_worker::WorkerCommand::PresentationMetrics(
+                RuntimePresentationMetrics {
+                    audio_load_ratio: status.ratio,
+                    voice_steal: status.voice_steal,
+                },
+            ));
             let _ = app_handle.emit(
                 "audio_load",
                 AudioLoadPayload {

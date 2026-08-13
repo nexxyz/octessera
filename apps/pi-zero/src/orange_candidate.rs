@@ -173,6 +173,7 @@ pub(crate) fn run_prepared_runtime(
             let rendered = publish_snapshot(
                 &mut playback,
                 &runner,
+                &mut host,
                 render,
                 &mut last_published_revision,
                 true,
@@ -202,7 +203,8 @@ pub(crate) fn run_prepared_runtime(
             drain_midi_messages(&midi_rx, &mut playback, &mut runner, &mut host);
             drain_host_work(&mut playback, &mut runner, &mut host)?;
             drain_inputs(seesaw, encoder_rx, &mut playback, &mut runner, &mut host)?;
-            playback.advance_duration(elapsed, &mut runner, &mut host)?;
+            let output = playback.advance_duration_with_output(elapsed, &mut runner, &mut host)?;
+            process_runtime_output(&mut playback, &mut runner, &mut host, output)?;
             ensure_required_audio_health(audio_manager.required_dac_status())?;
             drain_host_work(&mut playback, &mut runner, &mut host)?;
             if now >= next_render {
@@ -226,6 +228,7 @@ pub(crate) fn run_prepared_runtime(
             publish_snapshot(
                 &mut playback,
                 &runner,
+                &mut host,
                 render,
                 &mut last_published_revision,
                 false,
@@ -264,9 +267,7 @@ fn initialize_host_state(
         runner,
         host,
     )?;
-    for follow_up in output.follow_ups {
-        dispatch(playback, runner, host, follow_up)?;
-    }
+    process_runtime_output(playback, runner, host, output)?;
     Ok(())
 }
 
@@ -278,9 +279,7 @@ fn drain_host_work(
     let responses = runner.flush_deferred_menu_apply()?;
     if !responses.is_empty() {
         let output = playback.dispatch_runner_messages(responses, runner, host)?;
-        for follow_up in output.follow_ups {
-            dispatch(playback, runner, host, follow_up)?;
-        }
+        process_runtime_output(playback, runner, host, output)?;
     }
     for follow_up in host.flush_due_default_save()? {
         dispatch(playback, runner, host, follow_up)?;
@@ -379,15 +378,47 @@ fn dispatch(
         runner,
         host,
     )?;
+    process_runtime_output(playback, runner, host, output)?;
+    Ok(())
+}
+
+pub(crate) fn process_runtime_output(
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    host: &mut OrangeHostAdapter,
+    output: playback_runtime::RuntimeIngest,
+) -> Result<(), String> {
+    ingest_oled_messages(host, &output.messages);
+    let fault = host
+        .oled_frame_fault()
+        .map(crate::oled_frame_cache::OledFrameCacheFault::into_runtime_fault);
+    let fault_output = playback.report_oled_cache_fault(fault);
+    ingest_oled_messages(host, &fault_output.messages);
+    for follow_up in fault_output.follow_ups {
+        dispatch(playback, runner, host, follow_up)?;
+    }
     for follow_up in output.follow_ups {
         dispatch(playback, runner, host, follow_up)?;
     }
     Ok(())
 }
 
+fn ingest_oled_messages(
+    host: &mut OrangeHostAdapter,
+    messages: &[playback_runtime::RunnerMessage],
+) {
+    for message in messages {
+        host.ingest_oled_frame(message);
+        if let playback_runtime::RunnerMessage::Snapshot { snapshot } = message {
+            host.accept_oled_frame_reference(snapshot);
+        }
+    }
+}
+
 fn publish_snapshot(
     playback: &mut PlaybackRuntime,
     runner: &NativeRunner,
+    host: &mut OrangeHostAdapter,
     render: &RenderWorker,
     last_revision: &mut u64,
     wait_for_render: bool,
@@ -403,10 +434,10 @@ fn publish_snapshot(
     {
         return Err("Orange initial snapshot is not a canonical normal menu".into());
     }
-    let pulses = playback.drain_ui_pulses();
+    let oled = host.oled_publication_for_snapshot(&snapshot, wait_for_render)?;
     if wait_for_render {
-        render.publish_acknowledged_snapshot(snapshot, pulses)?;
-    } else if !render.publish_snapshot(snapshot, pulses) {
+        render.publish_acknowledged_snapshot(snapshot, oled)?;
+    } else if !render.publish_snapshot(snapshot, oled) {
         return Err("Orange render worker rejected a snapshot".into());
     }
     *last_revision = playback.last_snapshot_revision();

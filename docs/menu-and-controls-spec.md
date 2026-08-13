@@ -71,6 +71,9 @@ The full native menu tree lives in [`menu-tree-spec.md`](menu-tree-spec.md). Kee
 
 ## OLED Display
 
+- Native presentation publishes a positive-revision `oled_frame` (`128x128`, `rgb565be`) only when the frame bytes change, immediately before the semantic snapshot that references `oledFrameRevision`. PlaybackRuntime owns OLED brightness conversion and must not emit a snapshot with revision `0`, including when presentation input is absent or malformed. Before the first valid frame, an invalid snapshot is suppressed and typed fault/status is emitted; after a valid frame, non-OLED snapshot state continues with the prior positive revision and a typed retain-last-good fault/status. Desktop, Raspberry, and Orange consume native frames only; no TypeScript or semantic Pi renderer fallback is permitted.
+- Pi/Orange cache candidates promote only on an exact matching snapshot reference. With no accepted frame, publication is explicit black. With an accepted frame and a missing, future, stale, malformed, or conflicting reference, publication is `RetainedLastGood` carrying the accepted immutable bytes and revision, while the typed cache fault remains sticky. Same-revision byte conflicts remove candidates or poison accepted revisions; only a strictly newer valid candidate plus matching snapshot can recover. The first acknowledged menu still requires an exact accepted matching pair; retained-last-good is not sufficient. Boot, direct fault, shutdown, suspend, and ownership lifecycle frames remain native adapter paths.
+
 - 128×128 pixel, simulated in desktop app
 - 20 characters × 8 lines of text (5×7 font, 16px line height)
 - Top line: title bar (colored by section)
@@ -83,10 +86,23 @@ The full native menu tree lives in [`menu-tree-spec.md`](menu-tree-spec.md). Kee
 - On Pi, `display.off` keeps the OLED dark. Otherwise a top-level `runtimeError` takes full-frame priority over splash, menu, and footer toast content; it shows the typed domain/code/operation/message fault and leaves transport/event indicators hidden. The native MIDI input-list failure presentation is the exception: it keeps the concise `MIDI INPUTS` / `MIDI unavailable` menu frame and toast. With no runtime error, splash precedes the normal menu/footer priority described below.
 - A visible setup portal modal has priority after confirmation dialogs and ahead of the USB transfer, system-info, and help modals.
 - Bottom-right corner: transport icon (`▶` / `⏸` / `■`), hidden while a footer toast is active
-- Transport color: stop is magenta, pause is cyan, play is white at rest and flashes green on full-note/measure boundaries or yellow on other beat boundaries. The NeoKey Play button uses the same stopped/paused/playing flash semantics, but its playing rest state stays dim green rather than white.
+- Transport color: the native snapshot owns the NeoKey presentation. Back is red; Space is red stopped, blue paused, dim green while playing at rest, yellow on beat flashes, and green on measure flashes. Combined modifiers are blue, held modifiers are yellow, and inactive modifiers are dim gray.
+- Event-dot and transport-flash presentation uses native monotonic deadlines: 45 ms for the event dot and 90 ms for beat/measure flashes. A visible start, flash-kind change, or expiry transition forces one snapshot; same-state retriggers extend only.
 - Event dot: briefly shown when notes fire, hidden while a footer toast is active; turns magenta when recent voice stealing occurred
 - Top-right audio load indicator: hidden when idle, yellow when DSP load is moderate or recent voice stealing occurred, magenta when DSP load is heavy
 - Toast text: displayed at bottom for feedback messages
+
+NeoKey snapshot contract:
+
+- `neoKeyLeds.back`, `.space`, `.shift`, and `.fn` are required native RGB values before brightness scaling. Desktop and Pi apply the same basis-point rule: normal scale is `buttonBrightness * 100`; dimmed scale is zero for zero brightness, otherwise `max(buttonBrightness * 8, 400)`; each channel is `(channel * scale + 5000) / 10000`.
+- `eventDotOn`, `transportIcon`, and `transportFlash` are required top-level snapshot fields. `transportFlash` is not duplicated under `settings`.
+
+## Grid Coordinate Boundary
+
+- The fixed grid is 8×8. Native behavior/world coordinates use a lower-left origin: `(0,0)` is bottom-left and `y` increases upward.
+- Display and hardware frames use top-left row-major order at the boundary. `platform-core` owns the pure logical row-major and logical/display projection helpers; `playback-runtime` delegates its existing display-index API to them.
+- Desktop `GRID_DOMAIN` remains a deliberate boundary mirror for input/rendering and is checked against every cell in `resources/grid-projection-v1.json`. The fixture is verification data, not a runtime projection table.
+- HAL NeoTrellis wiring remains fixed adapter data: four device quadrants, physical keys, device addresses, and GRB output are kept separate from the shared world/display projection.
 
 Value editing semantics:
 
@@ -270,7 +286,7 @@ Overrides:
 
 ## Brightness Behavior
 
-- OLED Bright scales OLED display intensity in host display adapters. Grid Bright and Button Bright scale their LEDs; the Dim Timer applies an additional dim with its existing visible floor while the OLED remains on. Once `OLED Sleep`/Screen Sleep turns `display.off` on, Pi replaces semantic grid and NeoKey output with sparse, independently pulsing dim stars; this sleep animation ignores `ledsDimmed`, remains bounded by the existing sleep dim scale, and preserves a zero-brightness blackout.
+- OLED Bright is applied by PlaybackRuntime while producing native OLED frame bytes. Grid Bright and Button Bright scale their LEDs; the Dim Timer applies an additional dim with its existing visible floor while the OLED remains on. Once `OLED Sleep`/Screen Sleep turns `display.off` on, Pi replaces semantic grid and NeoKey output with sparse, independently pulsing dim stars; this sleep animation ignores `ledsDimmed`, remains bounded by the existing sleep dim scale, and preserves a zero-brightness blackout.
 - Grid Bright scales matrix LED RGB intensity.
 - Button Bright scales NeoKey button LED intensity.
 

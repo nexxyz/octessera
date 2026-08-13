@@ -9,6 +9,14 @@ impl NativeRunner {
     }
 
     fn snapshot_with_audio_config(&self, include_audio_config: bool) -> Result<Value, String> {
+        #[cfg(any(test, feature = "test-support"))]
+        if self.test_snapshot_failure.replace(false) {
+            return Err("test snapshot construction failure".into());
+        }
+        let presentation = self
+            .display
+            .transients
+            .presentation(self.display.transients.now());
         let model = self.engine.model()?;
         let active_cells = display_active_cells(&model.cells);
         let menu = self.menu.snapshot();
@@ -97,7 +105,6 @@ impl NativeRunner {
                     "bpm": self.transport.bpm,
                     "swingPct": self.transport.swing_pct
                 },
-                "transportFlash": "none",
                 "stopLatched": false,
                 "fnHeld": self.display.ui.fn_held,
                 "combinedModifierHeld": self.display.ui.combined_modifier_held,
@@ -119,14 +126,15 @@ impl NativeRunner {
             },
             "selectedRow": display.selected_row,
             "voiceStealingMode": self.voice_stealing_mode.clone(),
-            "eventDotOn": self.display.event_dot_on || self.display.event_dot_pulses_remaining > 0,
+            "neoKeyLeds": self.neo_key_leds(presentation),
+            "eventDotOn": presentation.event_dot_on,
             "voiceSteal": false,
             "transportIcon": match self.transport.transport {
                 RuntimeTransportState::Playing => "play",
                 RuntimeTransportState::Paused => "pause",
                 RuntimeTransportState::Stopped => "stop",
             },
-            "transportFlash": self.display.transport_flash,
+            "transportFlash": presentation.transport_flash.as_str(),
             "cpuLoadRatio": 0.0
         });
         if include_audio_config {

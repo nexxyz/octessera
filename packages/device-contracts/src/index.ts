@@ -6,11 +6,16 @@ export type {
   LedCell,
   LedMatrixFrame,
   MusicalEvent,
+  NativeRuntimeSnapshot,
+  NeoKeyLeds,
   OledFrame,
+  OledFrameRevision,
   PageId,
   RuntimeSnapshot,
+  RuntimeSnapshotFields,
   RuntimeSnapshotSettings,
-  TransportFrame
+  TransportFrame,
+  LocalBootstrapSnapshot,
 } from "./coreTypes";
 export type { GridCell, GridDomain } from "./gridDomain";
 export {
@@ -21,15 +26,23 @@ export {
   GRAY_COLOR,
   BLUE_COLOR,
   WHITE_COLOR,
-  GREEN_COLOR
+  GREEN_COLOR,
 } from "./displayPalette.generated";
 export type { DisplayPaletteRgb } from "./displayPalette.generated";
-export { AUX_ENCODER_COUNT, GRID_HEIGHT, GRID_WIDTH, OLED_HEIGHT, OLED_WIDTH, PAN_POSITION_COUNT, PLATFORM_CAPS } from "./platformCapabilities.generated";
+export {
+  AUX_ENCODER_COUNT,
+  GRID_HEIGHT,
+  GRID_WIDTH,
+  OLED_HEIGHT,
+  OLED_WIDTH,
+  PAN_POSITION_COUNT,
+  PLATFORM_CAPS,
+} from "./platformCapabilities.generated";
 export {
   RUNTIME_ERROR_CODES,
   RUNTIME_ERROR_DOMAINS,
   RUNTIME_OPERATIONS,
-  RUNTIME_RECOVERIES
+  RUNTIME_RECOVERIES,
 } from "./runtimeErrors";
 export type {
   RuntimeErrorCode,
@@ -37,7 +50,7 @@ export type {
   RuntimeErrorFacts,
   RuntimeErrorMetadata,
   RuntimeOperation,
-  RuntimeRecovery
+  RuntimeRecovery,
 } from "./runtimeErrors";
 export {
   MIDI_REALTIME_MESSAGE_TYPES,
@@ -48,8 +61,8 @@ export {
   SETUP_PORTAL_SUFFIX_MAX_CHARS,
   RUNTIME_STATUS_STATES,
   RUNTIME_TRANSPORT_STATES,
-  SHARED_RUNTIME_CONTRACT_FIXTURES
 } from "./runtimeProtocol";
+export { SHARED_RUNTIME_CONTRACT_FIXTURES } from "./runtimeProtocolFixtures";
 export type {
   MidiRealtimeMessageType,
   RuntimeAudioCommand,
@@ -65,6 +78,7 @@ export type {
   RuntimePlatformEffect,
   RuntimePlatformEffectsMessage,
   RuntimeResultMessage,
+  RuntimeOledFrameMessage,
   RuntimeRunnerMessage,
   RuntimeSnapshotMessage,
   RuntimeStoreResult,
@@ -81,6 +95,12 @@ export type {
   RuntimeStatusState,
   RuntimeTransportPulseStepMessage,
   RuntimeTransportStopMessage,
-  RuntimeTransportState
+  RuntimeTransportState,
 } from "./runtimeProtocol";
-export { isRuntimeSetupPortalStatus, isRuntimeSetupPortalSuffix } from "./runtimeProtocol";
+export {
+  createOledFrameRevision,
+  isPositiveOledFrameRevision,
+  isRuntimeSetupPortalStatus,
+  isRuntimeSetupPortalSuffix,
+  isRuntimeSnapshotMessage,
+} from "./runtimeProtocol";

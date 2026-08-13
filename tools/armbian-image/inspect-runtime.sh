@@ -260,6 +260,8 @@ PY
 octessera_require_runtime_service() {
   local service_content="$1"
   for required_line in \
+    'StartLimitIntervalSec=30s' \
+    'StartLimitBurst=3' \
     'After=octessera-provision-musical-default.service octessera-orange-usb-gadget.service sound.target' \
     'User=octessera-runtime' \
     'Group=octessera-runtime' \
@@ -283,10 +285,12 @@ octessera_require_runtime_service() {
     'LimitRTPRIO=70' \
     'LimitMEMLOCK=infinity' \
     'Nice=-10' \
-    'ExecStart=/usr/local/bin/octessera-pi'; do
+    'ExecStart=/usr/local/bin/octessera-pi' \
+    'Restart=on-failure' \
+    'RestartSec=5s'; do
     printf '%s\n' "$service_content" | grep -qFx "$required_line" || { echo "Orange runtime service is missing: $required_line" >&2; exit 1; }
   done
-  if printf '%s\n' "$service_content" | grep -Eq '^(AmbientCapabilities|CapabilityBoundingSet)=|LimitRTPRIO=80|^(PrivateDevices|DevicePolicy)=|octessera-update'; then
+  if printf '%s\n' "$service_content" | grep -Eq '^(AmbientCapabilities|CapabilityBoundingSet)=|LimitRTPRIO=80|^(PrivateDevices|DevicePolicy)=|^(Restart=always|StartLimitAction=|OnFailure=|Requires=|Requisite=|BindsTo=|PartOf=)|octessera-update'; then
     echo "Orange runtime service has an unsafe device or unsupported updater policy." >&2
     exit 1
   fi

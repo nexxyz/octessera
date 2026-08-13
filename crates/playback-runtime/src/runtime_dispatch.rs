@@ -1,7 +1,4 @@
-use super::{
-    CoreRunner, HostAdapter, PlaybackRuntime, RuntimeDispatchInput, RuntimeIngest,
-    MAX_BUFFERED_UI_RED,
-};
+use super::{CoreRunner, HostAdapter, PlaybackRuntime, RuntimeDispatchInput, RuntimeIngest};
 use crate::protocol::{
     HostMessage, RunnerMessage, RuntimeAudioCommand, RuntimeErrorDomain, RuntimeErrorMetadata,
     RuntimeOperation, RuntimeRecovery,
@@ -109,7 +106,6 @@ impl PlaybackRuntime {
                     if snapshot.is_object() {
                         self.last_good_snapshot = Some(snapshot);
                         self.refresh_presented_snapshot();
-                        self.append_snapshot(&mut output);
                     } else {
                         let error = Self::snapshot_failure();
                         self.latch_error(error.clone());
@@ -117,6 +113,7 @@ impl PlaybackRuntime {
                         self.append_presentations(&mut output);
                     }
                 }
+                RunnerMessage::OledFrame { .. } => {}
                 RunnerMessage::PlatformEffects { effects } => {
                     for effect in effects {
                         let request = self.next_platform_request(effect);
@@ -221,15 +218,6 @@ impl PlaybackRuntime {
                         }
                     }
                 }
-                RunnerMessage::UiPulse { pulse } => {
-                    if self.ui_pulses.len() >= MAX_BUFFERED_UI_RED {
-                        self.ui_pulses.pop_front();
-                    }
-                    self.ui_pulses.push_back(pulse);
-                    if let Some(pulse) = self.ui_pulses.back().cloned() {
-                        output.messages.push(RunnerMessage::UiPulse { pulse });
-                    }
-                }
                 RunnerMessage::RuntimeStatus { status } => {
                     if let Err(error) = self.apply_runtime_status(status, host) {
                         let error = self.adapter_error_metadata(
@@ -244,13 +232,13 @@ impl PlaybackRuntime {
                         self.latch_error(error);
                         self.apply_recovery(recovery, &mut runner, host, &mut output);
                     }
-                    self.append_status(&mut output);
                 }
                 RunnerMessage::RuntimeConfigChanged { config } => {
                     self.set_config(config);
                 }
             }
         }
+        self.append_presentations(&mut output);
         Ok(output)
     }
 }

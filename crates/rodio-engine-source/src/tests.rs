@@ -174,12 +174,38 @@ fn capability_audio_defaults_enable_high_headroom_mode() {
 }
 
 #[test]
-fn explicit_subthreshold_block_size_does_not_create_synth_workers() {
-    let (_tx, rx) = event_queue();
-    let source = EngineSource::with_block_frames(rx, 44_100, 64);
+fn explicit_profile_block_sizes_reach_source_configuration() {
+    for block_frames in [64, 128, 256] {
+        let (_tx, rx) = event_queue();
+        let source = EngineSource::with_block_frames(rx, 44_100, block_frames);
 
-    assert_eq!(source.block_frames, 64);
-    assert!(!source.engine.synth_slot_parallelism_enabled());
+        assert_eq!(source.block_frames(), block_frames);
+        if block_frames < 256 {
+            assert!(!source.engine.synth_slot_parallelism_enabled());
+        } else {
+            assert!(source.engine.synth_slot_parallelism_enabled());
+        }
+    }
+    let (_tx, rx) = event_queue();
+    let source = EngineSource::with_block_frames(rx, 44_100, 1);
+    assert_eq!(source.block_frames(), 32);
+}
+
+#[test]
+fn benchmark_worker_requests_follow_internal_block_gate() {
+    for block_frames in [64, 128] {
+        for workers in [2, 3] {
+            let (_tx, rx) = event_queue();
+            let source =
+                EngineSource::with_block_frames_and_workers(rx, 44_100, block_frames, workers);
+            assert!(!source.engine.synth_slot_parallelism_enabled());
+        }
+    }
+    for workers in [2, 3] {
+        let (_tx, rx) = event_queue();
+        let source = EngineSource::with_block_frames_and_workers(rx, 44_100, 256, workers);
+        assert!(source.engine.synth_slot_parallelism_enabled());
+    }
 }
 
 #[test]

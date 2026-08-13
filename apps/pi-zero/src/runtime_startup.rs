@@ -94,7 +94,10 @@ impl PreparedRuntime {
         if revision == 0 {
             return Err("pi initial snapshot revision is missing".into());
         }
-        render_worker.publish_acknowledged_snapshot(snapshot, self.playback.drain_ui_pulses())?;
+        let oled = self
+            .adapter
+            .oled_publication_for_snapshot(&snapshot, true)?;
+        render_worker.publish_acknowledged_snapshot(snapshot, oled)?;
         Ok(revision)
     }
 
@@ -124,6 +127,7 @@ impl PreparedRuntime {
                 super::run_scheduler(self, render_worker, revision);
             }
             Err(error) => {
+                let _ = render_worker.mark_oled_failed();
                 eprintln!("pi initial OLED render failed: {error}");
                 let _ = render_worker.abort();
             }

@@ -1,7 +1,8 @@
 use super::{
     default_sparks_fx_selected, prepare_config_payload, prepare_device_payload,
-    prepare_patch_payload, sanitize_sparks_fx_config, NativeRunner, NativeRunnerConfig,
-    NativeSparksFxAssignment, Value, DEFAULT_ALGORITHM_STEP_RED, GRID_HEIGHT,
+    prepare_patch_payload, sanitize_sparks_fx_config, ConfigDto, NativeRunner, NativeRunnerConfig,
+    NativeSparksFxAssignment, PreparedConfigPayload, Value, DEFAULT_ALGORITHM_STEP_RED,
+    GRID_HEIGHT,
 };
 
 impl NativeRunner {
@@ -15,9 +16,9 @@ impl NativeRunner {
     pub fn apply_config_payload(&mut self, payload: Value) -> Result<(), String> {
         let current = self.config_payload();
         let prepared = prepare_config_payload(payload, &current)?;
+        let candidate = self.build_transaction_candidate(&prepared, true)?;
         let source_revision = prepared.source_revision;
         let migration_report = prepared.migration_report;
-        let candidate = self.build_transaction_candidate(&prepared.apply_payload, true)?;
         self.commit_transaction_candidate(candidate, source_revision, &current)?;
         if let Some(report) = migration_report {
             self.show_toast(report);
@@ -27,7 +28,7 @@ impl NativeRunner {
 
     fn build_transaction_candidate(
         &self,
-        payload: &Value,
+        prepared: &PreparedConfigPayload,
         apply_device: bool,
     ) -> Result<NativeRunner, String> {
         let mut candidate = NativeRunner::new(NativeRunnerConfig {
@@ -35,11 +36,16 @@ impl NativeRunner {
             ..NativeRunnerConfig::default()
         })?;
         candidate.copy_non_config_state_from(self);
-        candidate.apply_config_payload_unchecked(self.config_payload(), true)?;
+        let current_payload = self.config_payload();
+        let current_envelope = ConfigDto::decode(&current_payload)?;
+        candidate.apply_config_payload_unchecked(true, &current_envelope)?;
         candidate.outbox = self.outbox.clone();
         candidate.copy_live_runtime_state_from(self);
         candidate.copy_transport_runtime_state_from(self);
-        candidate.apply_config_payload_unchecked(payload.clone(), apply_device)?;
+        let application_envelope = prepared
+            .envelope
+            .application_view(&prepared.apply_payload)?;
+        candidate.apply_config_payload_unchecked(apply_device, &application_envelope)?;
         for (candidate_lfo, source_lfo) in candidate.link_lfos.iter_mut().zip(&self.link_lfos) {
             let preserve_phase = candidate_lfo.enabled
                 && source_lfo.enabled
@@ -131,17 +137,15 @@ impl NativeRunner {
 
     fn apply_config_payload_unchecked(
         &mut self,
-        payload: Value,
         apply_device: bool,
+        envelope: &ConfigDto,
     ) -> Result<(), String> {
         self.clear_all_link_arp_state();
         let before_payload = self.config_payload();
-        let runtime = payload
-            .get("runtimeConfig")
-            .ok_or_else(|| "configuration payload is missing runtimeConfig".to_string())?;
+        let runtime = envelope.runtime_config();
         reject_old_layer_schema(runtime)?;
         reject_old_sparks_schema(runtime)?;
-        reject_old_payload_sparks_schema(&payload)?;
+        reject_old_payload_sparks_schema(envelope.system())?;
         let desired_active_layer_index = runtime
             .get("activeLayerIndex")
             .and_then(Value::as_u64)
@@ -157,9 +161,9 @@ impl NativeRunner {
         self.apply_sparks_and_xy_payload(runtime);
         self.apply_instruments_payload(runtime);
         if apply_device {
-            self.apply_runtime_ui_and_sound_payload(runtime, &payload)?;
+            self.apply_runtime_ui_and_sound_payload(runtime, envelope.mapping_config())?;
         } else {
-            self.apply_patch_runtime_payload(runtime, &payload)?;
+            self.apply_patch_runtime_payload(runtime, envelope.mapping_config())?;
         }
         self.resample_xy_runtime_sources();
         self.apply_hdmi_payload(runtime);
@@ -169,7 +173,7 @@ impl NativeRunner {
             .get(self.active_layer_index)
             .cloned()
             .or_else(|| {
-                payload
+                runtime
                     .get("activeBehavior")
                     .and_then(Value::as_str)
                     .map(String::from)
@@ -209,9 +213,9 @@ impl NativeRunner {
     ) -> Result<(), String> {
         let current = self.config_payload();
         let prepared = prepare_patch_payload(payload, &current)?;
+        let candidate = self.build_transaction_candidate(&prepared, false)?;
         let source_revision = prepared.source_revision;
         let migration_report = prepared.migration_report;
-        let candidate = self.build_transaction_candidate(&prepared.apply_payload, false)?;
         self.commit_transaction_candidate(candidate, source_revision, &current)?;
         if let Some(report) = migration_report {
             self.show_toast(report);
@@ -226,9 +230,9 @@ impl NativeRunner {
     ) -> Result<(), String> {
         let current = self.config_payload();
         let prepared = prepare_device_payload(payload, &current)?;
+        let candidate = self.build_transaction_candidate(&prepared, true)?;
         let source_revision = prepared.source_revision;
         let migration_report = prepared.migration_report;
-        let candidate = self.build_transaction_candidate(&prepared.apply_payload, true)?;
         self.commit_transaction_candidate(candidate, source_revision, &current)?;
         if let Some(report) = migration_report {
             self.show_toast(report);
@@ -343,12 +347,8 @@ fn reject_old_sparks_schema(runtime: &Value) -> Result<(), String> {
     Ok(())
 }
 
-fn reject_old_payload_sparks_schema(payload: &Value) -> Result<(), String> {
-    if payload
-        .get("system")
-        .and_then(|system| system.get("danceMode"))
-        .is_some()
-    {
+fn reject_old_payload_sparks_schema(system: Option<&Value>) -> Result<(), String> {
+    if system.and_then(|system| system.get("danceMode")).is_some() {
         return Err("unsupported old Play schema".into());
     }
     Ok(())

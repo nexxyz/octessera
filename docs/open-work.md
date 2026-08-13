@@ -2,37 +2,38 @@
 
 This file tracks current actionable work only. Completed-work history does not belong here.
 
+See [`internal/quality-improvement-plan.md`](internal/quality-improvement-plan.md) for the ranked quality backlog and its current implementation status.
+
 ## Prioritized Technical Debt
 
 This is a ranked backlog, not approval to begin the work. Reassess scope before
 starting an item and keep each change independently shippable. Estimates are
-rough engineer-days; the preferred evidence paths are hardware-free unless the
-item explicitly calls for a final device smoke test.
+rough engineer-days. Orange automated on-device validation is currently
+available; Raspberry on-device and all physical-observation evidence are
+deferred. Prefer PC evidence plus safe Orange diagnostics where they establish a
+real additional fact.
 
-1. **Add a fakeable Seesaw/I2C transport (4–5 days).** Inject one narrow
-   address/write/write-read/timing transport into NeoTrellis and NeoKey instead
-   of opening device files inside each driver. Verify exact initialization and
-   FIFO transactions, retries, short reads/writes, and ioctl failures on the
-   host, followed by one hardware smoke pass when hardware is available.
-2. **Consolidate platform-core tick and input post-processing (2–3 days).**
-   Extract their shared interpretation, filtering, mapping, global-sound, and
-   note-processing finalization while preserving their distinct marker and
-   interpretation policies. Verify paired tick/input metadata, held notes, and
-   existing engine parity tests.
-3. **Bound and overload-harden desktop worker queues (3–4 days).** Replace the
-   unbounded producer boundaries in `runtime_worker.rs`,
-   `desktop_platform_service.rs`, and `audio_prep_service.rs` with nonblocking,
-   typed admission policies. Preserve panic/stop operations and explicitly
-   coalesce only safe realtime traffic. Verify saturation, recovery, ordering,
-   and desktop build behavior.
-4. **Introduce typed persisted NativeRunner configuration DTOs (5–6 days).**
-   Type the stable outer payload, runtime, layer, instrument, mixer, and device
+1. **T1 remaining: qualify Seesaw in available evidence layers.** Now, use a
+   hash-bound Orange diagnostic and fail-closed service restoration to verify
+   `/dev/i2c-2`, fixed addresses, hardware IDs, bounded reads/writes, timeout
+   behavior, shutdown, and sustained retained-descriptor health. Later, verify
+   Orange inputs, coordinates, and LED appearance physically. When Raspberry is
+   available, verify interrupt initialization/clear, all inputs and coordinates,
+   GRB output, and sustained writes on `/dev/i2c-1`. Do not treat the Orange
+   automated transaction result as visual/input qualification.
+2. **Finish F2 desktop queue admission policy.** Platform requests are already
+   bounded. Define explicit loss, retry, coalescing, emergency, and shutdown
+   semantics before bounding runtime-worker commands, audio-prep control
+   requests, audio trigger events, native MIDI events, audio failures, or result
+   channels. Do not infer those policies from the downstream rodio queues.
+3. **Complete nested persisted NativeRunner configuration DTOs (remaining
+   scope).** Type the remaining runtime, layer, instrument, mixer, and device
    structures while retaining validated extension JSON for behavior-specific
-   and FX parameters. Preserve strict schema validation and migrations before
-   decoding. Verify defaults, factory payloads, malformed fields, migrations,
-   and round trips. Land before the transaction item so transactions build on
-   typed aggregates.
-5. **Make NativeRunner configuration transactions explicit (5–6 days).**
+   and FX parameters. The outer/application DTO slice is complete. Preserve
+   strict schema validation and migrations before decoding; verify defaults,
+   factory payloads, malformed fields, migrations, and round trips before the
+   transaction item builds on typed aggregates.
+4. **Make NativeRunner configuration transactions explicit (5–6 days).**
    Extract the transaction-owned configuration aggregate and have config/menu
    changes produce one audio update plan: none, dynamic commands, or a full
    revisioned configuration. Avoid a broad runner rewrite. Verify live-state
@@ -49,6 +50,7 @@ item explicitly calls for a final device smoke test.
 - Run the full Raspberry and Orange constructors from the source-bound boot-layer contracts: `resources/image-construction/boot-layers/raspberry-pi-zero-2w.json` and `resources/image-construction/boot-layers/orange-pi-zero-2w.json`. Regenerate the selected initramfs outputs and Orange Python closure; record source hashes and mounted-image proof. A trusted `v0.7.5` runtime/setup parent respin is not proof of this layer.
 - On each new image, prove continuous initramfs-to-userspace cycles: one bounded initramfs cycle is fully reaped, the early userspace loop continues, native startup releases and adopts without resetting the OLED, and animation stops before the acknowledged first normal menu frame. Prove there is no blank, static, flickering, or dual-writer interval.
 - Exercise restart and failure paths on both boards: animator restart, native startup failure, OLED write failure, stale/mismatched status, lock contention/timeout, and recovery without orphaned processes, writers, lock state, or temporary handoff files. Orange also proves DAC-health gating before readiness.
+- Orange runtime recovery is fail-closed: systemd permits the initial start plus two retries in 30 seconds, then requires `sudo systemctl reset-failed octessera.service` followed by `sudo systemctl start octessera.service`. The OLED animator deadline is 30 seconds monotonic; timeout and cleanup failures attempt black then display-off independently and leave a native-recoverable failed handoff. Exact Trellis wiring and addresses remain required; no alternate fallback is supported.
 - Physically qualify the mounted constructor images on both assembled boards: first-menu handoff and OLED readability, then separate sleep, resume, and shutdown/reboot behavior. Confirm those lifecycle paths do not race the boot writer and do not borrow the boot animation contract.
 
 ## Hardware Validation

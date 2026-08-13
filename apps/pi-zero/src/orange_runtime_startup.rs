@@ -102,6 +102,9 @@ pub(crate) fn publish_prepared_acknowledged_snapshot(
     if revision == 0 {
         return Err("Orange initial snapshot revision is missing".into());
     }
-    render.publish_acknowledged_snapshot(snapshot, prepared.playback.drain_ui_pulses())?;
+    let oled = prepared
+        .host
+        .oled_publication_for_snapshot(&snapshot, true)?;
+    render.publish_acknowledged_snapshot(snapshot, oled)?;
     Ok(revision)
 }

@@ -1,5 +1,6 @@
 mod event;
 mod queue;
+mod sample_decode;
 mod telemetry;
 
 use crossbeam_channel::{bounded, Sender, TrySendError};
@@ -9,6 +10,7 @@ use realtime_engine::synth::{
     RetiredAudioState, SynthEngine, DEFAULT_AUDIO_BLOCK_FRAMES, DEFAULT_SYNTH_SLOT_WORKERS,
     MIN_SYNTH_PARALLEL_BLOCK_FRAMES,
 };
+pub use sample_decode::decode_sample_file;
 use std::env;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
@@ -58,11 +60,40 @@ impl EngineSource {
             block_frames.clamp(MIN_BLOCK_FRAMES, MAX_BLOCK_FRAMES),
             None,
             false,
+            synth_slot_worker_count(),
+        )
+    }
+
+    pub fn with_block_frames_and_workers(
+        control_rx: EngineEventReceiver,
+        sample_rate: u32,
+        block_frames: usize,
+        worker_count: usize,
+    ) -> Self {
+        Self::with_config(
+            control_rx,
+            sample_rate,
+            block_frames.clamp(MIN_BLOCK_FRAMES, MAX_BLOCK_FRAMES),
+            None,
+            false,
+            (worker_count > 0).then_some(worker_count.min(3)),
         )
     }
 
     pub fn resolve_block_frames(default_frames: usize) -> usize {
         audio_block_frames(default_frames)
+    }
+
+    pub fn block_frames(&self) -> usize {
+        self.block_frames
+    }
+
+    pub fn synth_slot_parallelism_enabled(&self) -> bool {
+        self.engine.synth_slot_parallelism_enabled()
+    }
+
+    pub fn profile_snapshot(&self) -> realtime_engine::synth::SynthProfileSnapshot {
+        self.engine.profile_snapshot()
     }
 
     pub fn with_load_status_tx(
@@ -76,6 +107,7 @@ impl EngineSource {
             audio_block_frames(DEFAULT_AUDIO_BLOCK_FRAMES),
             load_tx,
             true,
+            synth_slot_worker_count(),
         )
     }
 
@@ -85,10 +117,11 @@ impl EngineSource {
         block_frames: usize,
         load_tx: Option<AudioLoadStatusSender>,
         enable_subthreshold_parallel_workers: bool,
+        worker_count: Option<usize>,
     ) -> Self {
         let mut engine = SynthEngine::new(sample_rate);
         if enable_subthreshold_parallel_workers || block_frames >= MIN_SYNTH_PARALLEL_BLOCK_FRAMES {
-            if let Some(worker_count) = synth_slot_worker_count() {
+            if let Some(worker_count) = worker_count {
                 let enabled = engine.set_synth_slot_parallelism_enabled(true, worker_count);
                 if !SYNTH_WORKER_START_LOGGED.swap(true, Ordering::Relaxed) {
                     eprintln!(

@@ -1,5 +1,6 @@
 use super::NativeRunner;
 use crate::native_menu::NativeMenuItem;
+use std::time::{Duration, Instant};
 
 impl NativeRunner {
     pub fn test_confirmation_is_open(&self) -> bool {
@@ -14,6 +15,19 @@ impl NativeRunner {
             return Err(format!("native menu item key could not be focused: {key}"));
         }
         Ok(label)
+    }
+
+    pub fn test_set_display_time(&mut self, now: Instant) {
+        self.display.transients.set_test_now(now);
+    }
+
+    pub fn test_advance_display_time(&mut self, elapsed: Duration) {
+        let now = self.display.transients.now() + elapsed;
+        self.display.transients.set_test_now(now);
+    }
+
+    pub fn test_fail_next_snapshot(&self) {
+        self.test_snapshot_failure.set(true);
     }
 }
 

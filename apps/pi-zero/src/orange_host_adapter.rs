@@ -1,6 +1,7 @@
 use crate::audio::AudioService;
 use crate::main_paths::{default_samples_dir, default_store_dir};
-use crate::midi_host::MidiHost;
+use crate::midi_host::{MidiHost, RuntimeOutputSink};
+use crate::oled_frame_cache::{OledFrameCache, OledFramePublication};
 use crate::orange_audio::OrangeAudioHost;
 use crate::platform_service::{load_json, PiPlatformService, PlatformJob, PlatformJobKind};
 use crate::setup_portal::start_failure_message;
@@ -8,6 +9,7 @@ use playback_runtime::{
     DeferredDefaultSave, HostAdapter, HostMessage, MusicalEvent, RuntimeAdapterError,
     RuntimeAudioCommand, RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult,
 };
+use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -21,6 +23,7 @@ pub(crate) struct OrangeHostAdapter {
     store_dir: PathBuf,
     pending_default_save: DeferredDefaultSave,
     midi: MidiHost,
+    oled_frame_cache: OledFrameCache,
 }
 
 impl OrangeHostAdapter {
@@ -54,7 +57,29 @@ impl OrangeHostAdapter {
             store_dir,
             pending_default_save: DeferredDefaultSave::default(),
             midi: MidiHost::new(midi_in_handler, usb_midi_out_enabled),
+            oled_frame_cache: OledFrameCache::default(),
         })
+    }
+
+    pub(crate) fn ingest_oled_frame(&mut self, message: &playback_runtime::RunnerMessage) {
+        self.oled_frame_cache.ingest(message);
+    }
+
+    pub(crate) fn accept_oled_frame_reference(&mut self, snapshot: &Value) {
+        let _ = self.oled_frame_cache.accept_reference_value(snapshot);
+    }
+
+    pub(crate) fn oled_publication_for_snapshot(
+        &mut self,
+        snapshot: &Value,
+        initial: bool,
+    ) -> Result<OledFramePublication, String> {
+        self.oled_frame_cache
+            .publication_for_snapshot(snapshot, initial)
+    }
+
+    pub(crate) fn oled_frame_fault(&self) -> Option<crate::oled_frame_cache::OledFrameCacheFault> {
+        self.oled_frame_cache.fault()
     }
 
     #[cfg(all(test, any(unix, windows)))]
@@ -79,6 +104,7 @@ impl OrangeHostAdapter {
             store_dir,
             pending_default_save: DeferredDefaultSave::default(),
             midi: MidiHost::new(midi_in_handler, usb_midi_out_enabled),
+            oled_frame_cache: OledFrameCache::default(),
         })
     }
 
@@ -332,6 +358,17 @@ impl HostAdapter for OrangeHostAdapter {
         self.midi
             .panic()
             .map_err(RuntimeAdapterError::operation_failed)
+    }
+}
+
+impl RuntimeOutputSink for OrangeHostAdapter {
+    fn dispatch_output(
+        &mut self,
+        playback: &mut playback_runtime::PlaybackRuntime,
+        runner: &mut playback_runtime::NativeRunner,
+        output: playback_runtime::RuntimeIngest,
+    ) -> Result<(), String> {
+        crate::orange_candidate::process_runtime_output(playback, runner, self, output)
     }
 }
 

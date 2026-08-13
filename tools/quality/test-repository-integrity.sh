@@ -28,6 +28,7 @@ make_fixture() {
     "$fixture/config/generated/pi" \
     "$fixture/resources" \
     "$fixture/packages/device-contracts/src" \
+    "$fixture/crates/platform-core/src" \
     "$fixture/apps/desktop/src/ui" \
     "$fixture/apps/desktop/src-tauri/icons" \
     "$fixture/assets" \
@@ -143,6 +144,24 @@ sed -i 's/"name": "octessera-fixture"/"name": "drifted"/' "$TMP/fixture-stale-as
 run_case assets
 printf 'drifted logo bytes\n' >"$TMP/fixture-assets/assets/octessera-pi-booting.png"
 
+# Class 1c: stale-assets drift (stale generated Rust palette output).
+run_case rust-palette
+printf 'stale Rust palette output\n' >"$TMP/fixture-rust-palette/crates/platform-core/src/display_palette.generated.rs"
+
+# Class 1d: stale-assets validation (malformed palette value).
+run_case malformed-palette
+sed -i 's/"green": "#00ff00"/"green": "not-a-color"/' "$TMP/fixture-malformed-palette/resources/display-palette.json"
+
+# Class 1e: stale-assets validation (missing palette key).
+run_case missing-palette
+sed -i '/"green":/d' "$TMP/fixture-missing-palette/resources/display-palette.json"
+
+# Class 1f: stale-assets validation (extra palette key).
+run_case extra-palette
+sed -i '$d' "$TMP/fixture-extra-palette/resources/display-palette.json"
+sed -i 's/"black": "#000000"/"black": "#000000",/' "$TMP/fixture-extra-palette/resources/display-palette.json"
+printf '  "pink": "#123456"\n}\n' >>"$TMP/fixture-extra-palette/resources/display-palette.json"
+
 # Class 2: legal drift (stale pnpm lock hash).
 run_case legal
 sed -i 's/"pnpm_lock_sha256": "\([a-f0-9]\{64\}\)"/"pnpm_lock_sha256": "1111111111111111111111111111111111111111111111111111111111111111"/' "$TMP/fixture-legal/licenses/pnpm/inventory.json"
@@ -161,6 +180,10 @@ done
 # Apply each drift and assert the gate fails with exactly the expected class.
 assert_gate "$TMP/fixture-stale-assets" 1 "stale-assets drift detected" stale-assets
 assert_gate "$TMP/fixture-assets" 1 "assets drift detected" stale-assets
+assert_gate "$TMP/fixture-rust-palette" 1 "stale Rust palette output detected" stale-assets
+assert_gate "$TMP/fixture-malformed-palette" 1 "malformed palette value detected" stale-assets
+assert_gate "$TMP/fixture-missing-palette" 1 "missing palette key detected" stale-assets
+assert_gate "$TMP/fixture-extra-palette" 1 "extra palette key detected" stale-assets
 assert_gate "$TMP/fixture-legal" 1 "legal drift detected" legal
 assert_gate "$TMP/fixture-links" 1 "links drift detected" links
 assert_gate "$TMP/fixture-quality" 1 "quality drift detected" quality

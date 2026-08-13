@@ -1,3 +1,4 @@
+use crate::oled_frame_cache::OledFramePublication;
 use crate::render::{
     initial_snapshot_render_result, mark_handoff_failed_decision, ownership_stage_for_render,
     render_leds_only, render_snapshot_cached, restore_after_dropped_ack_for_render,
@@ -9,7 +10,6 @@ use crate::render_loop_queue::{
     merge_snapshot_command, pending_work_wins_over_expired_animation_deadline,
     reject_pending_command, RenderCommand, RenderState, SnapshotCommand,
 };
-use playback_runtime::RuntimeUiPulse;
 use serde_json::Value;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
@@ -38,15 +38,19 @@ impl RenderWorker {
         }
     }
 
-    pub fn publish_snapshot(&self, snapshot: Value, pulses: Vec<RuntimeUiPulse>) -> bool {
-        self.publish_snapshot_command(snapshot, pulses, Vec::new())
+    pub fn publish_snapshot(&self, snapshot: Value, oled: OledFramePublication) -> bool {
+        if validate_oled_publication(&snapshot, &oled, false).is_err() {
+            return false;
+        }
+        self.publish_snapshot_command(snapshot, oled, Vec::new())
     }
 
     pub fn publish_acknowledged_snapshot(
         &self,
         snapshot: Value,
-        pulses: Vec<RuntimeUiPulse>,
+        oled: OledFramePublication,
     ) -> Result<(), String> {
+        validate_oled_publication(&snapshot, &oled, true)?;
         let (ack_tx, ack_rx) = mpsc::channel();
         let (lock, _) = &*self.state;
         let mut state = lock.lock().map_err(|_| {
@@ -57,7 +61,7 @@ impl RenderWorker {
         }
         state.acknowledged_snapshot_published = true;
         drop(state);
-        if !self.publish_snapshot_command(snapshot, pulses, vec![ack_tx]) {
+        if !self.publish_snapshot_command(snapshot, oled, vec![ack_tx]) {
             return Err("render worker rejected acknowledged snapshot".into());
         }
         ack_rx
@@ -75,6 +79,9 @@ impl RenderWorker {
             return Err(
                 "render worker has a pending command during OLED handoff acknowledgement".into(),
             );
+        }
+        if !state.acknowledged_snapshot_rendered {
+            return Err("OLED handoff is not acknowledged by a successful native write".into());
         }
         state.command = Some(RenderCommand::MarkFirstMenuRendered { ack: ack_tx });
         ready.notify_one();
@@ -139,7 +146,7 @@ impl RenderWorker {
     fn publish_snapshot_command(
         &self,
         snapshot: Value,
-        pulses: Vec<RuntimeUiPulse>,
+        oled: OledFramePublication,
         rendered_acks: Vec<mpsc::Sender<Result<(), String>>>,
     ) -> bool {
         let (lock, ready) = &*self.state;
@@ -151,7 +158,7 @@ impl RenderWorker {
                 return false;
             }
             state.snapshot =
-                merge_snapshot_command(state.snapshot.take(), snapshot, pulses, rendered_acks);
+                merge_snapshot_command(state.snapshot.take(), snapshot, oled, rendered_acks);
             ready.notify_one();
             true
         } else {
@@ -224,26 +231,25 @@ fn render_worker_loop(
     let mut cache = HardwareRenderCache::default();
     let mut animation_deadline = None;
     let mut latest_snapshot = None;
+    let mut latest_oled = None;
     let mut ownership = OledOwnershipState::default();
     loop {
         let command = take_next_command(&state, animation_deadline);
         match command {
             Some(RenderCommand::Snapshot {
                 snapshot,
-                pulses,
+                oled,
                 rendered_acks,
             }) => {
-                for pulse in pulses {
-                    cache.apply_ui_pulse(pulse);
-                }
-                let snapshot = cache.snapshot_with_transients(&snapshot);
                 latest_snapshot = Some(snapshot.clone());
+                latest_oled = Some(oled.clone());
                 let require_oled_ack = snapshot_requires_oled_ack(rendered_acks.len());
                 let mut full_render_result = None;
                 animation_deadline = select_snapshot_render(ownership, |decision| match decision {
                     SnapshotRenderDecision::OledAndLeds => {
                         let rendered_before = require_oled_ack.then(|| cache.oled_render_count());
-                        let deadline = render_snapshot_cached(targets, &snapshot, &mut cache);
+                        let deadline =
+                            render_snapshot_cached(targets, &snapshot, &oled, &mut cache);
                         let render_result = initial_snapshot_render_result(
                             require_oled_ack,
                             rendered_before
@@ -270,6 +276,11 @@ fn render_worker_loop(
                     }
                 }
                 if let Some(render_result) = full_render_result {
+                    if render_result.is_ok() && require_oled_ack {
+                        if let Ok(mut state) = state.0.lock() {
+                            state.acknowledged_snapshot_rendered = true;
+                        }
+                    }
                     for ack in rendered_acks {
                         let _ = ack.send(render_result.clone());
                     }
@@ -303,7 +314,7 @@ fn render_worker_loop(
                 if !cancelled && stage == OledOwnershipStage::ResumeComplete {
                     if let Some(SnapshotCommand {
                         snapshot,
-                        pulses,
+                        oled,
                         rendered_acks,
                     }) = state
                         .0
@@ -311,11 +322,8 @@ fn render_worker_loop(
                         .ok()
                         .and_then(|mut state| state.snapshot.take())
                     {
-                        for pulse in pulses {
-                            cache.apply_ui_pulse(pulse);
-                        }
-                        let snapshot = cache.snapshot_with_transients(&snapshot);
                         latest_snapshot = Some(snapshot.clone());
+                        latest_oled = Some(oled);
                         animation_deadline =
                             render_leds_only(targets, &snapshot, &mut cache, Instant::now());
                         for ack in rendered_acks {
@@ -331,6 +339,7 @@ fn render_worker_loop(
                         targets,
                         &mut cache,
                         &latest_snapshot,
+                        &latest_oled,
                         &mut ownership,
                     )
                 };
@@ -339,6 +348,7 @@ fn render_worker_loop(
                     targets,
                     &mut cache,
                     &latest_snapshot,
+                    &latest_oled,
                     &mut ownership,
                 ) {
                     eprintln!(
@@ -347,8 +357,13 @@ fn render_worker_loop(
                 }
             }
             Some(RenderCommand::Shutdown { ack }) => {
-                let restore_result =
-                    restore_for_render(targets, &mut cache, &latest_snapshot, &mut ownership);
+                let restore_result = restore_for_render(
+                    targets,
+                    &mut cache,
+                    &latest_snapshot,
+                    &latest_oled,
+                    &mut ownership,
+                );
                 if restore_result.is_ok() {
                     crate::render::render_shutdown_splash(&mut targets.oled);
                 }
@@ -363,8 +378,13 @@ fn render_worker_loop(
                 break;
             }
             Some(RenderCommand::Abort { ack }) => {
-                let result =
-                    restore_for_render(targets, &mut cache, &latest_snapshot, &mut ownership);
+                let result = restore_for_render(
+                    targets,
+                    &mut cache,
+                    &latest_snapshot,
+                    &latest_oled,
+                    &mut ownership,
+                );
                 let _ = ack.send(result);
                 break;
             }
@@ -389,6 +409,24 @@ fn render_worker_loop(
             }
         }
     }
+}
+
+fn validate_oled_publication(
+    snapshot: &Value,
+    oled: &OledFramePublication,
+    initial: bool,
+) -> Result<(), String> {
+    let required_revision = snapshot
+        .get("oledFrameRevision")
+        .and_then(Value::as_u64)
+        .filter(|revision| *revision > 0);
+    if initial && !oled.is_native() {
+        return Err("initial OLED snapshot requires an accepted native frame".into());
+    }
+    if oled.is_native() && oled.revision() != required_revision {
+        return Err("OLED publication does not match snapshot frame revision".into());
+    }
+    Ok(())
 }
 
 fn display_off_ack(result: Result<(), String>) -> Result<(), String> {
@@ -417,7 +455,7 @@ fn take_next_command(
         if let Some(snapshot) = guard.snapshot.take() {
             return Some(RenderCommand::Snapshot {
                 snapshot: snapshot.snapshot,
-                pulses: snapshot.pulses,
+                oled: snapshot.oled,
                 rendered_acks: snapshot.rendered_acks,
             });
         }

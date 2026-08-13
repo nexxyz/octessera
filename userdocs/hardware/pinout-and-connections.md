@@ -1,8 +1,23 @@
 # Pinout and Connections
 
-This is the primary wiring reference for the Raspberry Pi Zero 2 W hardware target.
+This page is profile-aware. The detailed assignments below are the Raspberry Pi
+Zero 2 W profile; the Orange Pi Zero 2W path has its own physical pin and device
+checks and must not borrow Raspberry numbers.
 
-Use it while assembling the device. It is deliberately plain: this is where the electricity gets fewer jokes and more exact pins. For the user-facing docs home, see [`../README.md`](../README.md). For build order and Pi setup, see [`assembly-manual.md`](assembly-manual.md). For the case and port layout, see [`enclosure.md`](enclosure.md).
+Use it while assembling the device. It is deliberately plain: this is where the electricity gets fewer jokes and more exact pins. For the user-facing docs home, see [`../README.md`](../README.md). For build order and board setup, see [`assembly-manual.md`](assembly-manual.md). For the case and port layout, see [`enclosure.md`](enclosure.md).
+
+## Board profile first
+
+Before wiring, choose the exact profile in [`../../docs/board-profiles.md`](../../docs/board-profiles.md).
+For Orange, use the [Orange Armbian bring-up notes](../../hardware/docs/orange-pi-armbian-bringup.md)
+and the board's [official product page](http://www.orangepi.org/html/hardWare/computerAndMicrocontrollers/details/Orange-Pi-Zero-2W.html)
+or [H618 user manual](https://orangepi.net/wp-content/uploads/2023/10/OrangePi_Zero2w_H618_User-Manual_v1.1.pdf).
+Do not translate this Raspberry table by physical position.
+
+## Raspberry Pi Zero 2 W
+
+The following power, bus, encoder, and connector assignments are for the
+Raspberry build only.
 
 ## Hardware Summary
 
@@ -115,3 +130,23 @@ The PCB uses a 1x5 right-angle male header at `J1`. A 5-wire female-to-female Du
 - Schematic: [`../../hardware/pcb/octessera.kicad_sch`](../../hardware/pcb/octessera.kicad_sch)
 - Netlist: [`../../hardware/pcb/octessera.net`](../../hardware/pcb/octessera.net)
 - HAL pin mapping: [`../../crates/hal/src/pinmap.rs`](../../crates/hal/src/pinmap.rs)
+
+## Orange Pi Zero 2W
+
+There is no second, guessed wiring table here. Use the exact Orange [board
+profile](../../docs/board-profiles.md), [Armbian bring-up notes](../../hardware/docs/orange-pi-armbian-bringup.md),
+and the [Orange encoder mapping](../../hardware/docs/orange-pi-armbian-bringup.md#direct-encoder-mapping).
+That source records the H618 gpiochip offsets, reviewed SPI/I2C paths, and
+candidate physical connections.
+
+The following physical checks remain unresolved and must be done on the named
+board and image before the shared PCB/harness is treated as qualified:
+
+- I2S DAC pins and the live ALSA card path.
+- USB-C port role, VBUS/CC behavior, UDC presence, and no-backfeed behavior.
+- Live GPIO/pinmux and interrupt ownership for the control surface.
+- The complete OLED, NeoTrellis, NeoKey, encoder, audio, MIDI/USB, and enclosure
+  fit checks.
+
+If any of those checks is unclear, stop. The Raspberry values above are not an
+Orange fallback.

@@ -240,11 +240,14 @@ class Handoff:
 
     def _create_stop(self):
         existing = self._read_stop()
-        if existing is not None:
+        if self.request_id is not None:
+            request_id = self.request_id
+        elif existing is not None:
             if existing["bootId"] != self.boot_id:
                 raise RuntimeError("OLED stop request belongs to another boot")
-            return existing["requestId"]
-        request_id = os.urandom(16).hex()
+            request_id = existing["requestId"]
+        else:
+            request_id = os.urandom(16).hex()
         value = {"schema": SCHEMA, "bootId": self.boot_id, "pid": os.getpid(), "requestId": request_id}
         if self._write("stop.request", value, STOP_MODE, no_clobber=True):
             return request_id

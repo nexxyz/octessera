@@ -63,6 +63,8 @@ def require_runtime_service(root: Path, require: Require) -> None:
     enabled = root / "etc/systemd/system/multi-user.target.wants/octessera.service"
     service_content = service.read_text(encoding="utf-8")
     for line in (
+        "StartLimitIntervalSec=30s",
+        "StartLimitBurst=3",
         "User=octessera-runtime",
         "Group=octessera-runtime",
         "Environment=OCTESSERA_EXPECTED_BOARD_PROFILE=orange-pi-zero-2w",
@@ -79,9 +81,13 @@ def require_runtime_service(root: Path, require: Require) -> None:
         "LimitRTPRIO=70",
         "LimitMEMLOCK=infinity",
         "ExecStart=/usr/local/bin/octessera-pi",
+        "Restart=on-failure",
+        "RestartSec=5s",
     ):
         require(line in service_content, f"production service is missing: {line}")
     require("AmbientCapabilities=" not in service_content and "CapabilityBoundingSet=" not in service_content, "production service grants ambient priority capability")
+    require("Restart=always" not in service_content, "production service restarts always")
+    require(not any(line.startswith(prefix) for line in service_content.splitlines() for prefix in ("StartLimitAction=", "OnFailure=", "Requires=", "Requisite=", "BindsTo=", "PartOf=")), "production service has an unapproved failure dependency")
     require("LimitRTPRIO=80" not in service_content, "production service grants an overly broad realtime priority")
     require("PrivateDevices=yes" not in service_content and "DevicePolicy=" not in service_content, "production service blocks hardware access")
     require("octessera-update" not in service_content, "production service claims unsupported updater behavior")

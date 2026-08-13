@@ -5,6 +5,7 @@ mod delay_timing;
 mod native_help;
 mod native_menu;
 mod native_runner;
+pub mod oled_frame;
 mod preset_name_policy;
 mod protocol;
 mod runtime;
@@ -22,10 +23,11 @@ pub use protocol::{
     RuntimeRecovery, RuntimeSetupPortalDisposition, RuntimeSetupPortalErrorCode,
     RuntimeSetupPortalPhase, RuntimeSetupPortalStatus, RuntimeStatus, RuntimeStatusState,
     RuntimeStoreResult, RuntimeSystemInfo, RuntimeSystemInfoError, RuntimeTransportState,
-    RuntimeUiPulse, SampleEntry, SyncSource, SETUP_PORTAL_SUFFIX_MAX_CHARS,
+    SampleEntry, SyncSource, SETUP_PORTAL_SUFFIX_MAX_CHARS,
 };
 pub use runtime::{
     CoreRunner, HostAdapter, PlaybackRuntime, RuntimeConfig, RuntimeDispatchInput, RuntimeIngest,
+    RuntimeOledCacheFault, RuntimePresentationMetrics,
 };
 pub use timing_probe::{
     parse_timing_probe_durations, parse_timing_probe_scenarios, print_timing_probe_summary,

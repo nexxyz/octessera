@@ -57,16 +57,17 @@ impl RuntimeWorker {
         let was_internal_playing = self.is_internal_playing();
         match command {
             WorkerCommand::Dispatch(message, reply) => {
-                let result = self
-                    .playback
-                    .dispatch(
-                        playback_runtime::RuntimeDispatchInput::HostMessage(
-                            self.prepare_dispatch_message(message),
-                        ),
-                        &mut self.runner,
-                        &mut self.adapter,
-                    )
-                    .map(|output| output.messages);
+                let output = self.playback.dispatch(
+                    playback_runtime::RuntimeDispatchInput::HostMessage(
+                        self.prepare_dispatch_message(message),
+                    ),
+                    &mut self.runner,
+                    &mut self.adapter,
+                );
+                if output.is_ok() {
+                    self.observe_accepted_snapshot_revision();
+                }
+                let result = output.map(|output| output.messages);
                 if let Err(err) = &result {
                     let _ = reply.send(Err(err.clone()));
                     return Err(err.clone());
@@ -87,6 +88,10 @@ impl RuntimeWorker {
                 )?;
                 self.emit_runtime_output(output)?;
                 let _ = reply.send(Ok(()));
+            }
+            WorkerCommand::PresentationMetrics(metrics) => {
+                let output = self.playback.update_presentation_metrics(metrics);
+                self.emit_runtime_output(output)?;
             }
         }
         let is_internal_playing = self.is_internal_playing();

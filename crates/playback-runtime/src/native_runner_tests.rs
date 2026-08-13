@@ -4,7 +4,25 @@ use crate::{
     RuntimeConfig, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation,
     RuntimeStoreResult, SyncSource,
 };
-use serde_json::json;
+use serde_json::{json, Value};
+use std::time::{Duration, Instant};
+
+fn snapshot_count(messages: &[RunnerMessage]) -> usize {
+    messages
+        .iter()
+        .filter(|message| matches!(message, RunnerMessage::Snapshot { .. }))
+        .count()
+}
+
+fn snapshot_value(messages: &[RunnerMessage]) -> &Value {
+    messages
+        .iter()
+        .find_map(|message| match message {
+            RunnerMessage::Snapshot { snapshot } => Some(snapshot),
+            _ => None,
+        })
+        .expect("runner output should contain a snapshot")
+}
 
 #[test]
 fn native_runner_rejects_unsupported_behavior() {
@@ -39,6 +57,67 @@ fn native_runner_transport_tick_returns_status_and_snapshot() {
     assert!(messages
         .iter()
         .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
+}
+
+#[test]
+fn request_snapshot_false_device_event_has_ordered_snapshot_and_expiry() {
+    let start = Instant::now();
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        behavior_id: "keys".into(),
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    runner.test_set_display_time(start);
+    runner.send(HostMessage::MidiRealtimeStart).unwrap();
+    runner.test_set_display_time(start + Duration::from_millis(91));
+
+    let event = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+    let event_index = event
+        .iter()
+        .position(|message| matches!(message, RunnerMessage::MusicalEvents { .. }))
+        .expect("device input should produce a musical event");
+    let snapshot_index = event
+        .iter()
+        .position(|message| matches!(message, RunnerMessage::Snapshot { .. }))
+        .expect("device input event should produce a snapshot");
+    let status_index = event
+        .iter()
+        .position(|message| matches!(message, RunnerMessage::RuntimeStatus { .. }))
+        .expect("device input event should produce status");
+    assert_eq!(snapshot_count(&event), 1);
+    assert!(event_index < snapshot_index);
+    assert!(snapshot_index < status_index);
+    assert_eq!(snapshot_value(&event)["eventDotOn"], true);
+
+    runner.test_set_display_time(start + Duration::from_millis(100));
+    let combined = runner
+        .send(HostMessage::TransportPulseStep {
+            pulses: 24,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+    assert_eq!(snapshot_count(&combined), 1);
+    assert_eq!(snapshot_value(&combined)["eventDotOn"], true);
+    assert_eq!(snapshot_value(&combined)["transportFlash"], "beat");
+
+    runner.test_set_display_time(start + Duration::from_millis(136));
+    let expiry = runner
+        .send(HostMessage::TransportPulseStep {
+            pulses: 0,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+    assert_eq!(snapshot_count(&expiry), 1);
+    assert_eq!(snapshot_value(&expiry)["eventDotOn"], false);
 }
 
 #[test]

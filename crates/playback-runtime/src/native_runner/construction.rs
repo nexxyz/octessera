@@ -268,6 +268,8 @@ impl NativeRunner {
             engine_runtime_sync_calls: 0,
             #[cfg(test)]
             active_pulses_refresh_calls: 0,
+            #[cfg(any(test, feature = "test-support"))]
+            test_snapshot_failure: Cell::new(false),
         };
         runner.seed_visible_state()?;
         runner.refresh_active_mapping_config();

@@ -36,7 +36,7 @@ use sparks_fx_utils::{
     sparks_fx_param_default, sparks_fx_param_keys, sparks_fx_params, sparks_fx_params_map,
     sparks_fx_target_key, sparks_fx_type,
 };
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 use std::cell::Cell;
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
@@ -69,6 +69,7 @@ mod binding_specs;
 mod canonical_presentation;
 mod clear_patch_state;
 mod config;
+mod config_dto;
 mod config_schema;
 mod config_schema_validation;
 mod construction;
@@ -79,6 +80,7 @@ mod deferred_flush;
 mod delay_fx_timing;
 mod device_input;
 mod device_input_buttons;
+mod display_transients;
 mod factory_payload;
 mod fx_bus_config;
 mod fx_param_codec;
@@ -171,7 +173,7 @@ mod state_types;
 mod store;
 mod synth_config;
 mod system_info;
-#[cfg(feature = "test-support")]
+#[cfg(any(test, feature = "test-support"))]
 mod test_support;
 mod toast_state;
 mod toast_text;
@@ -185,8 +187,10 @@ pub use runner_config::NativeRunnerConfig;
 
 use binding_payload::*;
 use binding_specs::*;
+use config_dto::*;
 use config_schema::*;
 use config_schema_validation::*;
+use display_transients::{DisplayTransientPresentation, TransportFlash};
 use factory_payload::*;
 use fx_bus_config::*;
 use fx_targets::*;
@@ -362,6 +366,8 @@ pub struct NativeRunner {
     engine_runtime_sync_calls: usize,
     #[cfg(test)]
     active_pulses_refresh_calls: usize,
+    #[cfg(any(test, feature = "test-support"))]
+    test_snapshot_failure: Cell<bool>,
 }
 
 fn normalize_audio_output_buffer_frames(value: u32) -> u32 {

@@ -1,5 +1,8 @@
 import {
   type DeviceInput,
+  isPositiveOledFrameRevision,
+  type LocalBootstrapSnapshot,
+  type NativeRuntimeSnapshot,
   type RuntimeHostMessage,
   type RuntimeRunnerMessage,
   type RuntimeSnapshot,
@@ -16,24 +19,27 @@ import {
 } from './runtimeScheduler';
 import { tauriCoreRunner } from './runner/tauriCoreRunner';
 import {
-  applyTransientIndicatorPulse,
-  createTransientIndicators,
-  resetTransientIndicators,
-  type IndicatorTimer,
-} from './simulatorRuntimeIndicators';
-import {
   createInitialRuntimeSnapshot,
   createRuntimeSnapshotCache,
   mergeSnapshotSettings,
-  normalizeSnapshotPixels,
   snapshotFromCore,
-  type TransientIndicatorState,
 } from './simulatorSnapshot';
 import {
   scheduleStartupSplashRefresh,
   type StartupSplashTimer,
 } from './simulatorStartupSplash';
 import type { InputAction, RuntimeListener, SimulatorSnapshot } from './types';
+import {
+  batchContainsFault,
+  createAsyncRuntimeBatchSuppression,
+} from './asyncRuntimeBatchSuppression';
+import {
+  acceptOledFrameReference,
+  acceptedOledFrame,
+  createOledFrameCache,
+  ingestOledFrame,
+  markOledFrameFault,
+} from './oledFrameCache';
 
 type SimulatorRuntime = {
   dispatch(input: DeviceInput): void;
@@ -53,6 +59,9 @@ type RuntimeDeps = {
   runtimeDispatch?: (
     message: RuntimeHostMessage,
   ) => Promise<RuntimeRunnerMessage[]>;
+  asyncRuntimeBatchListener?: (
+    handler: (seq: number, messages: RuntimeRunnerMessage[]) => void,
+  ) => void;
 };
 
 export function shouldApplyRuntimeBatch(
@@ -67,18 +76,7 @@ export function shouldApplyRuntimeBatch(
   );
 }
 
-function batchContainsFault(messages: RuntimeRunnerMessage[]) {
-  return messages.some(
-    (message) =>
-      (message.type === 'runtime_status' &&
-        message.status.error !== undefined) ||
-      (message.type === 'snapshot' &&
-        message.snapshot.runtimeError !== undefined),
-  );
-}
-
 const TAURI_DISPLAY_DRAIN_MS = 66;
-const ASYNC_RUNTIME_SUPPRESS_MS = 120;
 
 export function createSimulatorRuntime(
   scheduler: RuntimeScheduler = createIntervalRuntimeScheduler(8),
@@ -99,51 +97,71 @@ export function createSimulatorRuntime(
   }
   const dispatchRuntime = runtimeDispatch;
 
-  let latestFrame: RuntimeSnapshot = createInitialRuntimeSnapshot();
-  let shiftActive = false;
+  let latestFrame: RuntimeSnapshot | LocalBootstrapSnapshot =
+    createInitialRuntimeSnapshot();
   let audioLoad: AudioLoadStatus = { ratio: 0, voiceSteal: false };
   let runtimeStatus: RuntimeStatus | null = null;
   let lastAsyncRuntimeSeq = 0;
   let lastTauriDrainAt = 0;
   let tauriDrainInFlight = false;
-  let ignoreAsyncUntilMs = 0;
+  const asyncBatchSuppression = createAsyncRuntimeBatchSuppression(
+    (batch) =>
+      applyAsyncRuntimeBatch(batch.seq, batch.messages, performance.now()),
+    (seq) => {
+      lastAsyncRuntimeSeq = seq;
+    },
+  );
   const snapshotCache = createRuntimeSnapshotCache();
+  const oledFrameCache = createOledFrameCache();
   const pendingEncoderTurns: Array<{ id: EncoderId; delta: number }> = [];
   let pendingEncoderTimer: ReturnType<typeof setTimeout> | null = null;
   let startupSplashTimer: StartupSplashTimer = null;
-  let indicatorTimer: IndicatorTimer = null;
-  const indicators: TransientIndicatorState = createTransientIndicators();
   const queuedRuntimeMessages: RuntimeHostMessage[] = [];
   let runtimeDispatchInFlight = false;
   const listeners = new Set<RuntimeListener>();
   const audioLoadService = deps.audioLoadService ?? new TauriAudioLoadService();
 
-  if (isTauri && !deps.runtimeDispatch) {
+  if (deps.asyncRuntimeBatchListener) {
+    deps.asyncRuntimeBatchListener((seq, messages) => {
+      applyAsyncRuntimeBatch(seq, messages, performance.now());
+    });
+  } else if (isTauri && !deps.runtimeDispatch) {
     void tauriCoreRunner
       .listenRuntimeMessages((batch) => {
         applyAsyncRuntimeBatch(batch.seq, batch.messages, performance.now());
       })
       .catch((err) => {
         console.error('[Runtime] listenRuntimeMessages failed:', err);
-        console.error('[Runtime] listenRuntimeMessages failed:', err);
       });
   }
 
   void audioLoadService.listenAudioLoad((status) => {
+    const previousVisible = audioLoad.ratio >= 0.85 || audioLoad.voiceSteal;
+    const previousVoiceSteal = audioLoad.voiceSteal;
+    const nextVisible = status.ratio >= 0.85 || status.voiceSteal;
     audioLoad = {
       ratio: Math.max(0, Math.min(2, status.ratio)),
       voiceSteal: status.voiceSteal,
     };
-    publishSnapshot();
+    if (
+      previousVisible !== nextVisible ||
+      previousVoiceSteal !== status.voiceSteal
+    ) {
+      publishSnapshot();
+    }
   });
 
   function publishSnapshot() {
     const snapshot = snapshotFromCore(
       latestFrame,
       snapshotCache,
-      shiftActive,
-      indicators,
-      { audioLoad, runtimeStatus },
+      {
+        audioLoad,
+        runtimeStatus,
+        oledFrameFault: oledFrameCache.fault,
+        oledFrameAvailable: oledFrameCache.acceptedPixels !== null,
+      },
+      acceptedOledFrame(oledFrameCache),
     );
     for (const listener of listeners) listener(snapshot);
   }
@@ -158,12 +176,21 @@ export function createSimulatorRuntime(
   }
 
   function processRunnerMessage(message: DesktopRunnerMessage) {
-    if (message.type === 'snapshot') {
-      applySnapshotMessage(message.snapshot);
+    if (message.type === 'oled_frame') {
+      ingestOledFrame(oledFrameCache, message);
       return;
     }
-    if (message.type === 'ui_pulse') {
-      applyUiPulse(message.pulse);
+    if (message.type === 'snapshot') {
+      const revision = message.snapshot.oledFrameRevision as unknown;
+      if (isPositiveOledFrameRevision(revision)) {
+        acceptOledFrameReference(oledFrameCache, revision);
+      } else {
+        markOledFrameFault(
+          oledFrameCache,
+          revision === undefined ? 'missing' : 'malformed',
+        );
+      }
+      applySnapshotMessage(message.snapshot);
       return;
     }
     if (message.type === 'runtime_status') {
@@ -172,31 +199,18 @@ export function createSimulatorRuntime(
     }
   }
 
-  function applySnapshotMessage(snapshot: RuntimeSnapshot) {
-    normalizeSnapshotPixels(snapshot);
+  function applySnapshotMessage(snapshot: NativeRuntimeSnapshot) {
     mergeSnapshotSettings(snapshot, latestFrame);
-    latestFrame = snapshot;
+    latestFrame = {
+      ...snapshot,
+      oled: acceptedOledFrame(oledFrameCache),
+    };
     startupSplashTimer = scheduleStartupSplashRefresh(
-      snapshot,
+      latestFrame,
       startupSplashTimer,
       mirrorRuntimeMessage,
       () => {
         startupSplashTimer = null;
-      },
-    );
-  }
-
-  function applyUiPulse(
-    pulse: Extract<RuntimeRunnerMessage, { type: 'ui_pulse' }>['pulse'],
-  ) {
-    indicatorTimer = applyTransientIndicatorPulse(
-      pulse,
-      indicators,
-      indicatorTimer,
-      publishSnapshot,
-      () => {
-        indicatorTimer = null;
-        publishSnapshot();
       },
     );
   }
@@ -210,11 +224,14 @@ export function createSimulatorRuntime(
       }
       return;
     }
-    ignoreAsyncUntilMs = performance.now() + ASYNC_RUNTIME_SUPPRESS_MS;
+    asyncBatchSuppression.beginDirectDispatch(performance.now());
     runtimeDispatchInFlight = true;
     void dispatchRuntime(message)
       .then((messages) => {
-        if (!processRunnerMessages(messages)) ignoreAsyncUntilMs = 0;
+        asyncBatchSuppression.rememberDirectResponse(messages);
+        asyncBatchSuppression.completeDirectDispatch(
+          processRunnerMessages(messages),
+        );
         publishSnapshot();
       })
       .catch((err) => {
@@ -237,15 +254,14 @@ export function createSimulatorRuntime(
     messages: RuntimeRunnerMessage[],
     nowMs: number,
   ) {
+    if (seq <= lastAsyncRuntimeSeq) return;
     if (
-      !shouldApplyRuntimeBatch(
-        lastAsyncRuntimeSeq,
-        seq,
-        nowMs,
-        ignoreAsyncUntilMs,
-        messages,
-      )
-    )
+      asyncBatchSuppression.handleAsyncBatch({ seq, messages }, nowMs) !==
+      'apply'
+    ) {
+      return;
+    }
+    if (!shouldApplyRuntimeBatch(lastAsyncRuntimeSeq, seq, nowMs, 0, messages))
       return;
     lastAsyncRuntimeSeq = seq;
     processRunnerMessages(messages);
@@ -329,7 +345,7 @@ export function createSimulatorRuntime(
       dispatchInputAction(action);
     },
     start() {
-      ignoreAsyncUntilMs = performance.now() + ASYNC_RUNTIME_SUPPRESS_MS;
+      asyncBatchSuppression.beginDirectDispatch(performance.now());
       void dispatchRuntime({
         type: 'transport_pulse_step',
         pulses: 0,
@@ -337,7 +353,9 @@ export function createSimulatorRuntime(
         requestSnapshot: true,
       })
         .then((messages) => {
+          asyncBatchSuppression.rememberDirectResponse(messages);
           processRunnerMessages(messages);
+          asyncBatchSuppression.completeDirectDispatch(true);
           publishSnapshot();
         })
         .catch((err) => {
@@ -351,25 +369,28 @@ export function createSimulatorRuntime(
     },
     stop() {
       flushPendingEncoderTurns(true);
+      asyncBatchSuppression.clear();
       if (startupSplashTimer !== null) {
         clearTimeout(startupSplashTimer);
         startupSplashTimer = null;
       }
-      if (indicatorTimer !== null) {
-        clearTimeout(indicatorTimer);
-        indicatorTimer = null;
-      }
-      resetTransientIndicators(indicators);
       publishSnapshot();
       scheduler.stop();
     },
     subscribe(listener) {
       listeners.add(listener);
       listener(
-        snapshotFromCore(latestFrame, snapshotCache, shiftActive, indicators, {
-          audioLoad,
-          runtimeStatus,
-        }),
+        snapshotFromCore(
+          latestFrame,
+          snapshotCache,
+          {
+            audioLoad,
+            runtimeStatus,
+            oledFrameFault: oledFrameCache.fault,
+            oledFrameAvailable: oledFrameCache.acceptedPixels !== null,
+          },
+          acceptedOledFrame(oledFrameCache),
+        ),
       );
       return () => listeners.delete(listener);
     },
@@ -377,9 +398,13 @@ export function createSimulatorRuntime(
       return snapshotFromCore(
         latestFrame,
         snapshotCache,
-        shiftActive,
-        indicators,
-        { audioLoad, runtimeStatus },
+        {
+          audioLoad,
+          runtimeStatus,
+          oledFrameFault: oledFrameCache.fault,
+          oledFrameAvailable: oledFrameCache.acceptedPixels !== null,
+        },
+        acceptedOledFrame(oledFrameCache),
       );
     },
   };
@@ -390,7 +415,6 @@ export function createSimulatorRuntime(
       return;
     }
     if (action.type === 'shift') {
-      shiftActive = action.active;
       dispatchToRunner({ type: 'button_shift', pressed: action.active });
       return;
     }

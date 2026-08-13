@@ -21,20 +21,9 @@ pub fn sample_entries(samples_dir: &Path, dir: &str) -> Result<Vec<SampleEntry>,
     if !requested.is_dir() {
         return Ok(Vec::new());
     }
-    let mut entries = parent_entry(&root, &requested)
-        .into_iter()
-        .collect::<Vec<_>>();
-    entries.extend(sample_dir_entries(&root, &requested)?);
+    let mut entries = sample_dir_entries(&root, &requested)?;
     entries.sort_by(|a, b| b.is_dir.cmp(&a.is_dir).then_with(|| a.name.cmp(&b.name)));
     Ok(entries)
-}
-
-fn parent_entry(root: &Path, requested: &Path) -> Option<SampleEntry> {
-    (requested != root).then(|| SampleEntry {
-        name: "..".into(),
-        path: parent_relative(root, requested),
-        is_dir: true,
-    })
 }
 
 fn sample_dir_entries(root: &Path, requested: &Path) -> Result<Vec<SampleEntry>, String> {
@@ -65,17 +54,6 @@ fn relative_path(root: &Path, path: &Path, fallback: &str) -> String {
         .replace('\\', "/")
 }
 
-fn parent_relative(root: &Path, requested: &Path) -> String {
-    requested
-        .parent()
-        .unwrap_or(root)
-        .strip_prefix(root)
-        .ok()
-        .and_then(|path| path.to_str())
-        .unwrap_or("")
-        .replace('\\', "/")
-}
-
 fn sd_card_samples_available(samples_dir: &Path) -> bool {
     let path = samples_dir.join(SD_CARD_SAMPLE_DIR);
     path.is_dir() && is_mount_point(&path) && samples_dir.join(SD_CARD_SAMPLE_BROWSER_DIR).is_dir()
@@ -103,4 +81,76 @@ fn is_mount_point(path: &Path) -> bool {
 
 fn unescape_mount_path(path: &str) -> String {
     path.replace("\\040", " ")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct TestDirectory {
+        root: std::path::PathBuf,
+    }
+
+    impl TestDirectory {
+        fn new() -> Self {
+            let root = std::env::temp_dir().join(format!(
+                "octessera-pi-sample-browser-{}-{}",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos()
+            ));
+            std::fs::create_dir(&root).unwrap();
+            Self { root }
+        }
+    }
+
+    impl Drop for TestDirectory {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.root);
+        }
+    }
+
+    #[test]
+    fn sample_entries_leave_parent_navigation_to_native_menu() {
+        let directory = TestDirectory::new();
+        let root = &directory.root;
+        std::fs::create_dir_all(root.join("Drums").join("Loops")).unwrap();
+        std::fs::write(root.join("Drums").join("hat.wav"), b"wav").unwrap();
+        std::fs::write(root.join("Drums").join("ignore.txt"), b"text").unwrap();
+        std::fs::write(root.join("kick.wav"), b"wav").unwrap();
+
+        assert_eq!(
+            sample_entries(root, "").unwrap(),
+            vec![
+                SampleEntry {
+                    name: "Drums".into(),
+                    path: "Drums".into(),
+                    is_dir: true,
+                },
+                SampleEntry {
+                    name: "kick.wav".into(),
+                    path: "kick.wav".into(),
+                    is_dir: false,
+                },
+            ]
+        );
+        assert_eq!(
+            sample_entries(root, "Drums").unwrap(),
+            vec![
+                SampleEntry {
+                    name: "Loops".into(),
+                    path: "Drums/Loops".into(),
+                    is_dir: true,
+                },
+                SampleEntry {
+                    name: "hat.wav".into(),
+                    path: "Drums/hat.wav".into(),
+                    is_dir: false,
+                },
+            ]
+        );
+        assert!(sample_entries(root, "Drums/Loops").unwrap().is_empty());
+    }
 }

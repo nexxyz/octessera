@@ -1,4 +1,4 @@
-use super::scenarios::ScenarioSpec;
+use crate::dsp_scenarios::ScenarioSpec;
 use realtime_engine::synth::{SynthEngine, SynthProfileSnapshot, MIN_SYNTH_PARALLEL_BLOCK_FRAMES};
 use rodio_engine_source::EngineEvent;
 
@@ -32,7 +32,7 @@ pub fn collect_synth_telemetry(
     }
 }
 
-fn apply_events(engine: &mut SynthEngine, events: &[EngineEvent]) {
+pub(crate) fn apply_events(engine: &mut SynthEngine, events: &[EngineEvent]) {
     for event in events {
         match event {
             EngineEvent::AllNotesOff => engine.all_notes_off(),

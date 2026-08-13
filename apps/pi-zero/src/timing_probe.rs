@@ -2,8 +2,8 @@ use crate::audio::AudioManager;
 use crate::main_paths::{default_samples_dir, default_store_dir, ensure_runtime_dirs};
 use crate::{host_adapter::PiPlaybackHostAdapter, sample_browser::SD_CARD_SAMPLE_BROWSER_DIR};
 use playback_runtime::{
-    HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig,
-    RuntimePlatformEffect, SyncSource, TimingProbeOptions, TimingProbeScenario,
+    HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RunnerMessage, RuntimeConfig,
+    RuntimeIngest, RuntimePlatformEffect, SyncSource, TimingProbeOptions, TimingProbeScenario,
 };
 use serde_json::{json, Value};
 use std::sync::Arc;
@@ -154,7 +154,8 @@ fn run_live_one(
         let elapsed = now.duration_since(last_tick);
         last_tick = now;
         let advance_started = Instant::now();
-        playback.advance_duration(elapsed, &mut runner, &mut host)?;
+        let output = playback.advance_duration_with_output(elapsed, &mut runner, &mut host)?;
+        process_live_output(&mut playback, &mut runner, &mut host, output)?;
         advance_us.push(advance_started.elapsed().as_micros() as f64);
         playing_statuses = playing_statuses.saturating_add(0);
         flush_live_deferred(&mut playback, &mut runner, &mut host)?;
@@ -192,7 +193,7 @@ fn initialize_live_host_state(
     runner: &mut LiveProbeRunner,
     host: &mut LiveProbeHost,
 ) -> Result<(), String> {
-    playback.dispatch_runner_messages(
+    let output = playback.dispatch_runner_messages(
         vec![playback_runtime::RunnerMessage::PlatformEffects {
             effects: vec![
                 RuntimePlatformEffect::StoreLoadDefault,
@@ -203,7 +204,7 @@ fn initialize_live_host_state(
         runner,
         host,
     )?;
-    Ok(())
+    process_live_output(playback, runner, host, output)
 }
 
 fn apply_live_scenario(
@@ -341,13 +342,44 @@ fn send_runtime_message(
     host: &mut LiveProbeHost,
     message: HostMessage,
 ) -> Result<(), String> {
-    playback
-        .dispatch(
-            playback_runtime::RuntimeDispatchInput::HostMessage(message),
-            runner,
-            host,
-        )
-        .map(|_| ())
+    let output = playback.dispatch(
+        playback_runtime::RuntimeDispatchInput::HostMessage(message),
+        runner,
+        host,
+    )?;
+    process_live_output(playback, runner, host, output)
+}
+
+fn process_live_output(
+    playback: &mut PlaybackRuntime,
+    runner: &mut LiveProbeRunner,
+    host: &mut LiveProbeHost,
+    output: RuntimeIngest,
+) -> Result<(), String> {
+    for message in &output.messages {
+        host.inner.ingest_oled_frame(message);
+        if let RunnerMessage::Snapshot { snapshot } = message {
+            host.inner.accept_oled_frame_reference(snapshot);
+        }
+    }
+    let fault = host
+        .inner
+        .oled_frame_fault()
+        .map(crate::oled_frame_cache::OledFrameCacheFault::into_runtime_fault);
+    let fault_output = playback.report_oled_cache_fault(fault);
+    for message in &fault_output.messages {
+        host.inner.ingest_oled_frame(message);
+        if let RunnerMessage::Snapshot { snapshot } = message {
+            host.inner.accept_oled_frame_reference(snapshot);
+        }
+    }
+    for follow_up in fault_output.follow_ups {
+        send_runtime_message(playback, runner, host, follow_up)?;
+    }
+    for follow_up in output.follow_ups {
+        send_runtime_message(playback, runner, host, follow_up)?;
+    }
+    Ok(())
 }
 
 fn flush_live_deferred(
@@ -357,7 +389,8 @@ fn flush_live_deferred(
 ) -> Result<(), String> {
     let responses = runner.inner.flush_deferred_menu_apply()?;
     if !responses.is_empty() {
-        playback.dispatch_runner_messages(responses, runner, host)?;
+        let output = playback.dispatch_runner_messages(responses, runner, host)?;
+        process_live_output(playback, runner, host, output)?;
     }
     for follow_up in host.inner.flush_due_default_save()? {
         send_runtime_message(playback, runner, host, follow_up)?;

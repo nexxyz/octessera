@@ -20,6 +20,11 @@ for required_line in \
   'ProtectHome=yes'; do
   grep -qFx "$required_line" "$service" || { echo "Runtime service is missing: $required_line" >&2; exit 1; }
 done
+for required_line in 'StartLimitIntervalSec=30s' 'StartLimitBurst=3' 'Restart=on-failure' 'RestartSec=5s'; do
+  grep -qFx "$required_line" "$service" || { echo "Orange runtime service is missing: $required_line" >&2; exit 1; }
+done
+! grep -qFx 'Restart=always' "$service" || { echo 'Orange runtime service still restarts always.' >&2; exit 1; }
+! grep -qE '^(StartLimitAction|OnFailure|Requires|Requisite|BindsTo|PartOf)=' "$service" || { echo 'Orange runtime service has an unapproved failure dependency.' >&2; exit 1; }
 if grep -Eq '^(AmbientCapabilities|CapabilityBoundingSet)=|LimitRTPRIO=80' "$service"; then
   echo 'Runtime service grants ambient SYS_NICE or priority 80.' >&2
   exit 1

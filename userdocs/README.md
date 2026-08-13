@@ -10,6 +10,7 @@ Then you nudge them. You anchor them with a bit of manual sequencing if you want
 
 - [Hardware-free desktop simulator](desktop-simulator.md) — download a release build or run from a checkout, make a first patch, and see what the simulator cannot qualify.
 - The full hardware device can be built for well under €200 through suppliers such as Mouser, even after accounting for the small stuff: sockets, pin headers, wire, solder, screws, and a sensible amount of 3D-printing filament.
+- [Board qualification and status](hardware/board-qualification.md) — see what source and build checks prove, and what still needs a real board on the bench.
 - [Build and assembly manual](hardware/assembly-manual.md) — parts, soldering, enclosure, and the bits where I try to keep you from breaking the same things I broke.
 - [Controls cheat sheet](controls-cheat-sheet.md) — what the encoders, buttons, grid, modifiers, Play pages, and auto-maps do.
 - [Behaviors and Play pages](behaviors-and-sparks.md) — the layer behaviors and live performance pages.
@@ -18,6 +19,50 @@ Then you nudge them. You anchor them with a bit of manual sequencing if you want
 - [Orange Pi first boot setup](hardware/orange-pi-first-boot.md) — Wi-Fi and SSH setup for the Armbian image.
 - [Raspberry Pi first boot and OLED handoff](hardware/raspberry-pi-first-boot.md) — constructor boot behavior, terminal welcome, and serial ownership.
 - [Open or reopen the full setup portal](hardware/setup-portal.md) — the menu-driven setup flow for either board.
+
+## Build journey
+
+Choose one of the two fixed board paths, then follow the shared build order. The
+PCB and control surface are one handmade instrument; the board profile, image,
+pinout, and physical checks are not interchangeable.
+
+### 1. Choose a board
+
+- **Raspberry Pi Zero 2 W** — follow the [Raspberry first-boot path](hardware/raspberry-pi-first-boot.md).
+- **Orange Pi Zero 2W** — follow the [Orange first-boot path](hardware/orange-pi-first-boot.md) and its Armbian checks.
+- Read the [board qualification and status page](hardware/board-qualification.md) before treating a clean build as a qualified instrument.
+
+### 2. Parts and assembly
+
+Use the [assembly manual](hardware/assembly-manual.md#bom) and [board-specific
+pinout references](hardware/pinout-and-connections.md#board-profile-first) while
+ordering parts, soldering, and checking the open assembly.
+
+### 3. Flash the selected board
+
+Flash the matching image for the board you chose. The [assembly manual's flash
+step](hardware/assembly-manual.md#flash-the-selected-board-image) links to both
+first-boot workflows and their image/checksum instructions.
+
+### 4. Bench bring-up
+
+Bring the device up while the boards are still accessible. Use the [Raspberry
+first-boot page](hardware/raspberry-pi-first-boot.md), or the [Orange final
+bring-up checklist](hardware/orange-pi-first-boot.md#final-bench-bring-up-checklist).
+Stop at an unresolved physical gate; do not let a successful source check bully
+you into closing the case.
+
+### 5. Enclosure
+
+After the open electrical checks pass, use the [enclosure and print
+notes](hardware/enclosure.md) and the fit sequence in the [assembly
+manual](hardware/assembly-manual.md#enclosure-assembly). Remove both microSD
+cards before the boards go into the case.
+
+### 6. Final checks
+
+Run the [final checks](hardware/assembly-manual.md#final-checks): power, display,
+audio, every control, and access to the ports.
 
 ## Printable quick reference
 

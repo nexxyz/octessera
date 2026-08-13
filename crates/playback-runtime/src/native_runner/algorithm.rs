@@ -1,5 +1,7 @@
 use super::modulation::RoutedMusicalEvents;
-use super::{trigger_probability_allows, NativeRunner, RuntimeTransportState, GRID_HEIGHT};
+use super::{
+    trigger_probability_allows, NativeRunner, RuntimeTransportState, TransportFlash, GRID_HEIGHT,
+};
 use platform_core::DeviceInput;
 
 pub(super) use super::link_routing::LinkRoutingInput;
@@ -84,7 +86,6 @@ impl NativeRunner {
         let effective_sound = self.global_sound.clone();
         let effective_bpm = self.transport.bpm as f32;
         let mut inactive_modulation_updates = Vec::new();
-        let mut saw_inactive_events = false;
         for (index, (profile, mapping, step_pulses, sense, probability_map)) in
             inactive_configs.iter().enumerate()
         {
@@ -124,16 +125,18 @@ impl NativeRunner {
                         transpose_offset: transpose_offsets.get(index).copied().unwrap_or(0),
                     },
                 )?;
-                saw_inactive_events |= !tick_events.is_empty();
                 events.extend(tick_events);
             }
         }
-        self.record_tick_events_active(saw_inactive_events);
         self.trigger_probability_rng = rng;
         for (index, mapped_intents) in inactive_modulation_updates {
             self.apply_runtime_modulation(&mapped_intents, index);
         }
         events.dedupe_note_ons_by_highest_velocity();
+        if !events.is_empty() {
+            let now = self.display.transients.now();
+            self.display.transients.trigger_event_dot(now);
+        }
         Ok(events)
     }
 
@@ -168,26 +171,21 @@ impl NativeRunner {
     }
 
     fn advance_transport_indicators(&mut self, pulses: u32) {
-        if self.display.event_dot_pulses_remaining > 0 {
-            self.display.event_dot_pulses_remaining -= 1;
-        }
-        self.display.event_dot_on = self.display.event_dot_pulses_remaining > 0;
-        if self.display.transport_flash_pulses_remaining > 0 {
-            self.display.transport_flash_pulses_remaining -= 1;
-        }
+        let now = self.display.transients.now();
+        self.display.transients.advance(now);
         let previous_pulse = self
             .transport
             .current_ppqn_pulse
             .saturating_sub(u64::from(pulses));
         let current_pulse = self.transport.current_ppqn_pulse;
         if crossed_ppqn_boundary(previous_pulse, current_pulse, 96) {
-            self.display.transport_flash = "measure";
-            self.display.transport_flash_pulses_remaining = 6;
+            self.display
+                .transients
+                .trigger_transport_flash(TransportFlash::Measure, now);
         } else if crossed_ppqn_boundary(previous_pulse, current_pulse, 24) {
-            self.display.transport_flash = "beat";
-            self.display.transport_flash_pulses_remaining = 6;
-        } else if self.display.transport_flash_pulses_remaining == 0 {
-            self.display.transport_flash = "none";
+            self.display
+                .transients
+                .trigger_transport_flash(TransportFlash::Beat, now);
         }
     }
 
@@ -249,17 +247,9 @@ impl NativeRunner {
                     transpose_offset,
                 },
             )?;
-            self.record_tick_events_active(!tick_events.is_empty());
             events.extend(tick_events);
         }
         Ok(())
-    }
-
-    fn record_tick_events_active(&mut self, has_events: bool) {
-        if has_events {
-            self.display.event_dot_on = true;
-            self.display.event_dot_pulses_remaining = 1;
-        }
     }
 }
 

@@ -13,69 +13,6 @@ use super::{brightness_scale, dim, rgb565, scale, SPLASH_BOOT, SPLASH_SLEEP_SHUT
 
 pub(crate) const OLED_FRAME_BYTES: usize = 128 * 128 * 2;
 
-pub(super) fn oled_signature(snapshot: &Value) -> u64 {
-    let settings = snapshot.get("settings").unwrap_or(&Value::Null);
-    let display = snapshot.get("display").unwrap_or(&Value::Null);
-    let mut hash = 0xcbf2_9ce4_8422_2325_u64;
-    hash_value(&mut hash, settings.get("displayBrightness"));
-    hash_value(&mut hash, display.get("off"));
-    hash_value(&mut hash, display.get("splash"));
-    hash_value(&mut hash, display.get("toast"));
-    hash_value(&mut hash, display.get("title"));
-    hash_value(&mut hash, display.get("lines"));
-    hash_value(&mut hash, display.get("colors"));
-    hash_value(&mut hash, display.get("barValues"));
-    hash_value(&mut hash, display.get("scrollOffset"));
-    hash_value(&mut hash, display.get("totalRows"));
-    hash_value(&mut hash, display.get("visibleRows"));
-    hash_value(&mut hash, display.get("editing"));
-    hash_value(&mut hash, snapshot.get("runtimeError"));
-    hash_value(&mut hash, settings.get("autoSaveFlash"));
-    hash_value(&mut hash, settings.get("autoSaveFlashSerial"));
-    hash_value(&mut hash, snapshot.get("selectedRow"));
-    hash_value(&mut hash, snapshot.get("transportIcon"));
-    hash_value(&mut hash, snapshot.get("transportFlash"));
-    hash_value(&mut hash, snapshot.get("eventDotOn"));
-    hash_value(&mut hash, snapshot.get("voiceSteal"));
-    hash_value(&mut hash, snapshot.get("cpuLoadRatio"));
-    hash
-}
-
-fn hash_value(hash: &mut u64, value: Option<&Value>) {
-    match value.unwrap_or(&Value::Null) {
-        Value::Null => mix_hash(hash, 0),
-        Value::Bool(value) => mix_hash(hash, u64::from(*value)),
-        Value::Number(value) => {
-            for byte in value.to_string().as_bytes() {
-                mix_hash(hash, u64::from(*byte));
-            }
-        }
-        Value::String(value) => {
-            for byte in value.as_bytes() {
-                mix_hash(hash, u64::from(*byte));
-            }
-        }
-        Value::Array(values) => {
-            for value in values {
-                hash_value(hash, Some(value));
-            }
-        }
-        Value::Object(values) => {
-            for (key, value) in values {
-                for byte in key.as_bytes() {
-                    mix_hash(hash, u64::from(*byte));
-                }
-                hash_value(hash, Some(value));
-            }
-        }
-    }
-}
-
-fn mix_hash(hash: &mut u64, value: u64) {
-    *hash ^= value;
-    *hash = hash.wrapping_mul(0x100_0000_01b3);
-}
-
 #[cfg(test)]
 pub(super) fn oled_frame(snapshot: &Value) -> Vec<u8> {
     let mut frame = vec![0_u8; OLED_FRAME_BYTES];

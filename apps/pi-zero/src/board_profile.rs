@@ -1,15 +1,8 @@
 use octessera_hal::board_profiles::{ORANGE_PI_ZERO_2W_ID, RASPBERRY_PI_ZERO_2W_ID};
 
-#[cfg(any(
-    all(
-        feature = "hardware-orange-pi-zero-2w",
-        feature = "hardware-raspberry-pi-zero-2w"
-    ),
-    all(
-        feature = "hardware-orange-pi-zero-2w",
-        feature = "hardware-rpi-zero-2w"
-    ),
-    all(feature = "hardware-orange-pi-zero-2w", feature = "hardware-pi")
+#[cfg(all(
+    feature = "hardware-orange-pi-zero-2w",
+    feature = "hardware-raspberry-pi-zero-2w"
 ))]
 compile_error!("Orange and Raspberry Pi app profiles are mutually exclusive");
 

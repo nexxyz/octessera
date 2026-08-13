@@ -1,5 +1,7 @@
 [Unit]
 Description=Octessera Orange Pi runtime
+StartLimitIntervalSec=30s
+StartLimitBurst=3
 After=octessera-provision-musical-default.service octessera-orange-usb-gadget.service sound.target
 Wants=octessera-orange-boot-splash.service
 After=octessera-orange-boot-splash.service
@@ -29,8 +31,8 @@ LimitRTPRIO=70
 LimitMEMLOCK=infinity
 Nice=-10
 ExecStart=/usr/local/bin/octessera-pi
-Restart=always
-RestartSec=5
+Restart=on-failure
+RestartSec=5s
 StandardOutput=journal
 StandardError=journal
 

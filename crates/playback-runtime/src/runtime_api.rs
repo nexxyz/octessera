@@ -26,13 +26,9 @@ impl PlaybackRuntime {
             scheduled_note_offs: std::collections::VecDeque::new(),
             scheduled_note_offs_dirty: false,
             request_next_snapshot: false,
-            ui_pulses: std::collections::VecDeque::new(),
             next_request_id: 0,
+            oled: super::oled::RuntimeOled::default(),
         }
-    }
-
-    pub fn drain_ui_pulses(&mut self) -> Vec<crate::RuntimeUiPulse> {
-        self.ui_pulses.drain(..).collect()
     }
 
     pub fn config(&self) -> &RuntimeConfig {
@@ -200,8 +196,9 @@ impl PlaybackRuntime {
         runner: &mut R,
         host: &mut H,
     ) -> Result<(), String> {
-        self.advance_duration_with_output(elapsed, runner, host)
-            .map(|_| ())
+        let output = self.advance_duration_with_output(elapsed, runner, host)?;
+        self.requeue_discarded_output(&output);
+        Ok(())
     }
 
     pub fn advance_duration_with_output<R: CoreRunner, H: HostAdapter>(
@@ -243,6 +240,22 @@ impl PlaybackRuntime {
         let pulses = self.pulse_remainder.floor() as u32;
         self.pulse_remainder -= pulses as f64;
         if pulses == 0 {
+            if self.request_next_snapshot {
+                self.request_next_snapshot = false;
+                return self.dispatch(
+                    RuntimeDispatchInput::HostMessage(HostMessage::TransportPulseStep {
+                        pulses: 0,
+                        source: SyncSource::Internal,
+                        at_ppqn_pulse: self
+                            .last_good_status
+                            .as_ref()
+                            .map(|status| status.current_ppqn_pulse),
+                        request_snapshot: Some(true),
+                    }),
+                    runner,
+                    host,
+                );
+            }
             return Ok(RuntimeIngest::default());
         }
 
@@ -273,8 +286,9 @@ impl PlaybackRuntime {
         runner: &mut R,
         host: &mut H,
     ) -> Result<(), String> {
-        self.handle_midi_realtime_bytes_with_output(bytes, runner, host)
-            .map(|_| ())
+        let output = self.handle_midi_realtime_bytes_with_output(bytes, runner, host)?;
+        self.requeue_discarded_output(&output);
+        Ok(())
     }
 
     pub fn handle_midi_realtime_bytes_with_output<R: CoreRunner, H: HostAdapter>(
@@ -367,9 +381,9 @@ impl PlaybackRuntime {
         messages: Vec<RunnerMessage>,
         host: &mut H,
     ) -> Result<Vec<HostMessage>, String> {
-        Ok(self
-            .ingest_runner_messages_with_output(messages, host)?
-            .follow_ups)
+        let output = self.ingest_runner_messages_with_output(messages, host)?;
+        self.requeue_discarded_output(&output);
+        Ok(output.follow_ups)
     }
 
     pub fn ingest_runner_messages_with_output<H: HostAdapter>(
@@ -393,6 +407,10 @@ impl PlaybackRuntime {
             self.append_presentations(&mut output);
         }
         Ok(output)
+    }
+
+    fn requeue_discarded_output(&mut self, output: &RuntimeIngest) {
+        self.oled.requeue_if_current_frame_was_published(output);
     }
 }
 

@@ -1,10 +1,9 @@
 # Raspberry Pi first boot and OLED handoff
 
 This page describes the current source contract and constructor image behavior.
-The boot-layer source is bound and tested, but a newly respun image has not yet
-been physically qualified, so treat the flashed-card notes below as a promise
-of the constructor inputs rather than a claim that every existing card has
-them.
+Read the [board qualification and status page](board-qualification.md) for the
+boundary between source/build proof and physical-board qualification. The boot
+contract is not a claim that every existing flashed card has been qualified.
 
 ## Console welcome and inactive UART safety
 

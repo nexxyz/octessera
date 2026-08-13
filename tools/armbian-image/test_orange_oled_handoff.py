@@ -101,6 +101,13 @@ if getattr(handoff, "fcntl", None) is not None and hasattr(handoff.fcntl, "flock
         h = handoff.Handoff.open(True)
         h.start()
         assert h._read_status()["phase"] == "animating"
+        h.mark_failed()
+        failed_status = h._read_status()
+        failed_stop = h._read_stop()
+        assert failed_status["phase"] == "failed"
+        assert failed_status["bootId"] == h.boot_id
+        assert failed_status["requestId"] == failed_stop["requestId"]
+        assert failed_stop["bootId"] == h.boot_id
         real_flock = handoff.fcntl.flock
 
         def blocked_flock(descriptor, flags):

@@ -4,7 +4,7 @@ mod host_adapter_store;
 
 use crate::audio_prep_service::DesktopAudioControl;
 use crate::desktop_platform_service::{
-    shape_service_unavailable_result, DesktopPlatformServiceKind, DesktopPlatformServiceRequest,
+    admit_platform_service_request, DesktopPlatformServiceKind, DesktopPlatformServiceRequest,
 };
 use crate::midi;
 use crate::types::{QueuedAudioEvent, QueuedNote};
@@ -19,7 +19,7 @@ use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Command;
-use std::sync::mpsc::Sender;
+use std::sync::mpsc::{Sender, SyncSender};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -32,7 +32,7 @@ pub(crate) struct DesktopPlaybackHostAdapter {
     pub(crate) midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
     pub(crate) store_dir: PathBuf,
     pending_default_save: DeferredDefaultSave,
-    platform_service_tx: Sender<DesktopPlatformServiceRequest>,
+    platform_service_tx: SyncSender<DesktopPlatformServiceRequest>,
     selected_midi_output_id: Option<String>,
     selected_midi_input_id: Option<String>,
     shutdown_requested: bool,
@@ -52,7 +52,7 @@ impl DesktopPlaybackHostAdapter {
         midi_in: Arc<Mutex<Option<MidiInputConnection<()>>>>,
         midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
         store_dir: PathBuf,
-        platform_service_tx: Sender<DesktopPlatformServiceRequest>,
+        platform_service_tx: SyncSender<DesktopPlatformServiceRequest>,
     ) -> Self {
         Self {
             audio,
@@ -140,12 +140,9 @@ impl DesktopPlaybackHostAdapter {
         kind: DesktopPlatformServiceKind,
     ) -> Vec<HostMessage> {
         let request = DesktopPlatformServiceRequest::new(runtime_request.clone(), kind);
-        match self.platform_service_tx.send(request) {
+        match admit_platform_service_request(&self.platform_service_tx, request) {
             Ok(()) => Vec::new(),
-            Err(error) => shape_service_unavailable_result(
-                error.0,
-                "Desktop platform service unavailable".into(),
-            ),
+            Err(messages) => messages,
         }
     }
 }

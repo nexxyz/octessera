@@ -1,6 +1,35 @@
-use super::{display_index, LedColor, NativeRunner, GRID_HEIGHT, GRID_WIDTH};
+use super::{
+    display_index, DisplayTransientPresentation, LedColor, NativeRunner, RuntimeTransportState,
+    TransportFlash, Value, GRID_HEIGHT, GRID_WIDTH,
+};
 
 impl NativeRunner {
+    pub(super) fn neo_key_leds(&self, presentation: DisplayTransientPresentation) -> Value {
+        let space = match self.transport.transport {
+            RuntimeTransportState::Stopped => LedColor::RED,
+            RuntimeTransportState::Paused => LedColor::BLUE,
+            RuntimeTransportState::Playing => match presentation.transport_flash {
+                TransportFlash::Measure => LedColor::GREEN,
+                TransportFlash::Beat => LedColor::YELLOW,
+                TransportFlash::None => LedColor::GREEN.dim(3),
+            },
+        };
+        let shift = modifier_led(
+            self.display.ui.combined_modifier_held,
+            self.display.ui.shift_held,
+        );
+        let function = modifier_led(
+            self.display.ui.combined_modifier_held,
+            self.display.ui.fn_held,
+        );
+        serde_json::json!({
+            "back": [LedColor::RED.r, LedColor::RED.g, LedColor::RED.b],
+            "space": [space.r, space.g, space.b],
+            "shift": [shift.r, shift.g, shift.b],
+            "fn": [function.r, function.g, function.b],
+        })
+    }
+
     pub(super) fn base_led_snapshot(
         &self,
         model: &platform_core::BehaviorRenderModel,
@@ -18,6 +47,16 @@ impl NativeRunner {
             leds[display_index] = base_led_color(*alive, trigger, &model.palette);
         }
         leds
+    }
+}
+
+fn modifier_led(combined: bool, held: bool) -> LedColor {
+    if combined {
+        LedColor::BLUE
+    } else if held {
+        LedColor::YELLOW
+    } else {
+        LedColor::SYSTEM.dim(3)
     }
 }
 

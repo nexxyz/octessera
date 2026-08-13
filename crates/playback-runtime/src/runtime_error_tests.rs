@@ -1,4 +1,4 @@
-use super::support::{set_runtime_playing, FakeHost, FakeRunner};
+use super::support::{canonical_oled_snapshot, set_runtime_playing, FakeHost, FakeRunner};
 use crate::{
     HostMessage, PlaybackRuntime, RunnerMessage, RuntimeConfig, RuntimeErrorCode,
     RuntimeErrorDomain, RuntimeErrorFacts, RuntimeErrorMetadata, RuntimeOperation, RuntimeRecovery,
@@ -31,8 +31,10 @@ fn panic_clears_pending_notes_and_sends_all_notes_off() {
 fn runtime_errors_decorate_presentations_and_preserve_last_good_state() {
     let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
     let mut host = FakeHost::default();
-    let good_snapshot = json!({ "transport": { "tick": 1 } });
-    let later_snapshot = json!({ "transport": { "tick": 2 } });
+    let mut good_snapshot = canonical_oled_snapshot("good");
+    good_snapshot["transport"] = json!({ "tick": 1 });
+    let mut later_snapshot = canonical_oled_snapshot("later");
+    later_snapshot["transport"] = json!({ "tick": 2 });
     let good_status = RuntimeStatus {
         state: RuntimeStatusState::Running,
         transport: RuntimeTransportState::Playing,
@@ -90,21 +92,13 @@ fn runtime_errors_decorate_presentations_and_preserve_last_good_state() {
         RuntimeStatusState::Error
     );
     assert_eq!(runtime.last_status().unwrap().error, Some(error.clone()));
-    assert_eq!(
-        runtime.last_snapshot(),
-        Some(&json!({
-            "transport": { "tick": 1 },
-            "runtimeError": {
-                "domain": "storage",
-                "code": "operation_failed",
-                "operation": "store_load_default",
-                "recovery": "retain_last_good",
-                "requestId": "load-default-1",
-                "revision": 4,
-                "message": "disk full"
-            }
-        }))
-    );
+    assert!(runtime.last_snapshot().is_some_and(|snapshot| {
+        snapshot["transport"]["tick"] == 1
+            && snapshot["runtimeError"] == serde_json::to_value(&error).unwrap()
+            && snapshot["oledFrameRevision"]
+                .as_u64()
+                .is_some_and(|revision| revision > 0)
+    }));
 
     runtime
         .ingest_runner_messages(
@@ -120,21 +114,13 @@ fn runtime_errors_decorate_presentations_and_preserve_last_good_state() {
         )
         .unwrap();
     assert_eq!(runtime.last_good_snapshot(), Some(&later_snapshot));
-    assert_eq!(
-        runtime.last_snapshot(),
-        Some(&json!({
-            "transport": { "tick": 2 },
-            "runtimeError": {
-                "domain": "storage",
-                "code": "operation_failed",
-                "operation": "store_load_default",
-                "recovery": "retain_last_good",
-                "requestId": "load-default-1",
-                "revision": 4,
-                "message": "disk full"
-            }
-        }))
-    );
+    assert!(runtime.last_snapshot().is_some_and(|snapshot| {
+        snapshot["transport"]["tick"] == 2
+            && snapshot["runtimeError"] == serde_json::to_value(&error).unwrap()
+            && snapshot["oledFrameRevision"]
+                .as_u64()
+                .is_some_and(|revision| revision > 0)
+    }));
 
     runtime.ingest_runtime_result(&RuntimeStoreResult::OperationSucceeded {
         operation: RuntimeOperation::StoreLoadDefault,
@@ -146,7 +132,13 @@ fn runtime_errors_decorate_presentations_and_preserve_last_good_state() {
         runtime.last_status().unwrap().state,
         RuntimeStatusState::Running
     );
-    assert_eq!(runtime.last_snapshot(), Some(&later_snapshot));
+    assert!(runtime.last_snapshot().is_some_and(|snapshot| {
+        snapshot["transport"]["tick"] == 2
+            && snapshot.get("runtimeError").is_none()
+            && snapshot["oledFrameRevision"]
+                .as_u64()
+                .is_some_and(|revision| revision > 0)
+    }));
 
     runtime.ingest_runtime_result(&RuntimeStoreResult::SampleListError {
         instrument_slot: 0,

@@ -1,10 +1,9 @@
-use super::support::{FakeHost, FakeRunner};
+use super::support::{canonical_oled_snapshot, FakeHost, FakeRunner};
 use crate::{
     HostMessage, PlaybackRuntime, RunnerMessage, RuntimeConfig, RuntimeSetupPortalErrorCode,
     RuntimeSetupPortalPhase, RuntimeSetupPortalStatus, RuntimeStatus, RuntimeStatusState,
     RuntimeStoreResult, RuntimeTransportState, SyncSource,
 };
-use serde_json::json;
 
 #[test]
 fn typed_setup_portal_failure_keeps_the_native_lifecycle_presentation() {
@@ -15,7 +14,7 @@ fn typed_setup_portal_failure_keeps_the_native_lifecycle_presentation() {
         .ingest_runner_messages(
             vec![
                 RunnerMessage::Snapshot {
-                    snapshot: json!({"display": {"title": "Wi-Fi Setup"}}),
+                    snapshot: canonical_oled_snapshot("Wi-Fi Setup"),
                 },
                 RunnerMessage::RuntimeStatus {
                     status: RuntimeStatus {
@@ -57,6 +56,9 @@ fn typed_setup_portal_failure_keeps_the_native_lifecycle_presentation() {
     assert!(snapshot.is_some_and(|snapshot| snapshot.get("runtimeError").is_none()));
     assert!(output.messages.iter().any(|message| matches!(
         message,
-        RunnerMessage::RuntimeStatus { status } if status.error.is_none()
+        RunnerMessage::RuntimeStatus { status } if status.error.as_ref().is_some_and(|error| {
+            error.operation == crate::RuntimeOperation::Snapshot
+                && error.recovery == crate::RuntimeRecovery::RetainLastGood
+        })
     )));
 }

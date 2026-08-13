@@ -4,6 +4,7 @@ use crate::types::{
 };
 use playback_runtime::{
     HostMessage, NativeRunner, PlaybackRuntime, RunnerMessage, RuntimeAdapterError,
+    RuntimePresentationMetrics,
 };
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
@@ -38,6 +39,7 @@ pub(crate) enum WorkerCommand {
         playback_runtime::RuntimeAudioCommand,
         Sender<Result<(), String>>,
     ),
+    PresentationMetrics(RuntimePresentationMetrics),
 }
 
 pub(crate) struct RuntimeWorker {
@@ -52,7 +54,8 @@ pub(crate) struct RuntimeWorker {
     platform_service_result_rx: Receiver<Vec<HostMessage>>,
     last_advance_at: Instant,
     last_ui_refresh_at: Instant,
-    last_snapshot_at: Instant,
+    last_snapshot_cadence_at: Instant,
+    last_observed_snapshot_revision: u64,
     #[cfg(debug_assertions)]
     perf: RuntimePerfCounters,
 }
@@ -84,7 +87,8 @@ impl RuntimeWorker {
             platform_service_result_rx,
             last_advance_at: Instant::now(),
             last_ui_refresh_at: Instant::now(),
-            last_snapshot_at: Instant::now(),
+            last_snapshot_cadence_at: Instant::now(),
+            last_observed_snapshot_revision: 0,
             #[cfg(debug_assertions)]
             perf: RuntimePerfCounters::new(),
         }
@@ -166,11 +170,16 @@ impl RuntimeWorker {
             return Ok(());
         }
         self.last_advance_at = now;
-        if now.duration_since(self.last_snapshot_at).as_millis() as u64
-            >= PLAYING_SNAPSHOT_INTERVAL_MS
+        let timed_snapshot_due =
+            timed_display_snapshot_due(now, self.last_snapshot_cadence_at, &self.runner);
+        if timed_snapshot_due
+            || periodic_snapshot_due(
+                now,
+                self.last_snapshot_cadence_at,
+                Duration::from_millis(PLAYING_SNAPSHOT_INTERVAL_MS),
+            )
         {
             self.playback.request_next_snapshot();
-            self.last_snapshot_at = now;
         }
         #[cfg(debug_assertions)]
         let started_at = Instant::now();
@@ -190,8 +199,11 @@ impl RuntimeWorker {
             return Ok(());
         }
         let now = Instant::now();
-        if now.duration_since(self.last_ui_refresh_at).as_millis()
-            < u128::from(RUNTIME_UI_REFRESH_MS)
+        let timed_snapshot_due =
+            timed_display_snapshot_due(now, self.last_snapshot_cadence_at, &self.runner);
+        if !timed_snapshot_due
+            && now.duration_since(self.last_ui_refresh_at).as_millis()
+                < u128::from(RUNTIME_UI_REFRESH_MS)
         {
             return Ok(());
         }
@@ -267,7 +279,48 @@ impl RuntimeWorker {
         Ok(())
     }
 
+    fn observe_accepted_snapshot_revision(&mut self) {
+        observe_accepted_snapshot_revision(
+            Instant::now(),
+            &mut self.last_snapshot_cadence_at,
+            &mut self.last_observed_snapshot_revision,
+            self.playback.last_snapshot_revision(),
+        );
+    }
+
     fn prepare_dispatch_message(&self, message: HostMessage) -> HostMessage {
         message
     }
+}
+
+fn observe_accepted_snapshot_revision(
+    now: Instant,
+    last_snapshot_cadence_at: &mut Instant,
+    last_observed_snapshot_revision: &mut u64,
+    snapshot_revision: u64,
+) -> bool {
+    if snapshot_revision == *last_observed_snapshot_revision {
+        return false;
+    }
+    *last_observed_snapshot_revision = snapshot_revision;
+    *last_snapshot_cadence_at = now;
+    true
+}
+
+fn periodic_snapshot_due(
+    now: Instant,
+    last_snapshot_cadence_at: Instant,
+    interval: Duration,
+) -> bool {
+    now.duration_since(last_snapshot_cadence_at) >= interval
+}
+
+fn timed_display_snapshot_due(
+    now: Instant,
+    last_snapshot_cadence_at: Instant,
+    runner: &NativeRunner,
+) -> bool {
+    runner
+        .next_timed_display_snapshot_deadline_after(Some(last_snapshot_cadence_at))
+        .is_some_and(|deadline| now >= deadline)
 }

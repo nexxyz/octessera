@@ -21,7 +21,10 @@ pub use behaviors::{
 };
 pub use engine::{NativeInputResult, NativeLayerEngine, NativeLayerEngineConfig, NativeTickResult};
 pub use events::MusicalEvent;
-pub use grid::{grid_index, GridDimensions, GRID_HEIGHT, GRID_WIDTH};
+pub use grid::{
+    display_to_logical_cell, display_to_logical_index, grid_index, logical_grid_index,
+    logical_to_display_cell, logical_to_display_index, GridDimensions, GRID_HEIGHT, GRID_WIDTH,
+};
 pub use interpretation::{
     extract_transitions, interpret_grid, AxisStrategy, CellTransition, CellTransitionKind,
     CellTriggerIntent, CellTriggerKind, GridSnapshot, InterpretationEventProfile,

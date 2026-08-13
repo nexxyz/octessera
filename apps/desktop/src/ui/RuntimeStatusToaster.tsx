@@ -3,6 +3,7 @@ import type {
   RuntimeErrorMetadata,
   RuntimeStatus,
 } from '@octessera/device-contracts';
+import type { OledFrameCacheFault } from '../runtime/oledFrameCache';
 
 const TOAST_TIMEOUT_MS = 7000;
 
@@ -47,8 +48,12 @@ export function runtimeErrorCopy(error: RuntimeErrorMetadata): {
 
 export function RuntimeStatusToaster({
   status,
+  oledFrameFault,
+  oledFrameAvailable,
 }: {
   status: RuntimeStatus | null;
+  oledFrameFault: OledFrameCacheFault | null;
+  oledFrameAvailable: boolean;
 }) {
   const error = status?.state === 'error' ? status.error : undefined;
   const identity = error ? runtimeErrorIdentity(error) : null;
@@ -113,7 +118,16 @@ export function RuntimeStatusToaster({
     setVisible(status);
   }
 
-  if (!error || !identity) return null;
+  if (!error || !identity) {
+    if (!oledFrameFault) return null;
+    return (
+      <aside className="runtime-status-region" aria-label="Runtime status">
+        <div className="runtime-status-indicator" role="status">
+          {oledFaultCopy(oledFrameFault, oledFrameAvailable)}
+        </div>
+      </aside>
+    );
+  }
   const showing = Boolean(visible?.error);
 
   return (
@@ -154,4 +168,20 @@ export function RuntimeStatusToaster({
       )}
     </aside>
   );
+}
+
+export function oledFaultCopy(
+  fault: OledFrameCacheFault,
+  frameAvailable: boolean,
+): string {
+  if (!frameAvailable) return 'OLED frame unavailable; showing blank display.';
+  return fault === 'missing'
+    ? 'OLED frame missing; showing last good frame.'
+    : fault === 'future'
+      ? 'OLED frame is ahead of the snapshot; showing last good frame.'
+      : fault === 'stale'
+        ? 'OLED frame is stale; showing last good frame.'
+        : fault === 'conflict'
+          ? 'OLED frame conflict; showing last good frame.'
+          : 'OLED frame invalid; showing last good frame.';
 }

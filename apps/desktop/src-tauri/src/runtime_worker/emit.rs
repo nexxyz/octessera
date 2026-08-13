@@ -54,6 +54,7 @@ impl RuntimeWorker {
     }
 
     pub(super) fn emit_runtime_output(&mut self, output: RuntimeIngest) -> Result<(), String> {
+        self.observe_accepted_snapshot_revision();
         if let Err(error) = self.emit_runner_messages(output.messages) {
             self.handle_emission_error(error);
             return Ok(());

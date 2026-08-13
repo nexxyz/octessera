@@ -6,10 +6,6 @@ use realtime_engine::synth::{
 };
 use serde_json::Value;
 
-mod sample_decode;
-
-pub use sample_decode::decode_sample_file;
-
 pub type AudioInstrumentsConfig = realtime_engine::synth::NormalizedAudioConfig;
 
 #[derive(Clone, Debug, PartialEq, Eq)]

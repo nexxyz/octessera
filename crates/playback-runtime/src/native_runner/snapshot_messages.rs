@@ -1,32 +1,9 @@
-use crate::protocol::{
-    RunnerMessage, RuntimePlatformEffect, RuntimeStatus, RuntimeStatusState, RuntimeUiPulse,
-};
+use crate::protocol::{RunnerMessage, RuntimePlatformEffect, RuntimeStatus, RuntimeStatusState};
 
 use super::algorithm::LinkRoutingInput;
 use super::{NativeOledMode, NativeRunner};
 
 impl NativeRunner {
-    pub(super) fn trigger_ui_pulse_message(&self) -> RunnerMessage {
-        RunnerMessage::UiPulse {
-            pulse: RuntimeUiPulse::TriggerPulse { duration_ms: 45 },
-        }
-    }
-
-    pub(super) fn transport_ui_pulse_message(&self) -> Option<RunnerMessage> {
-        if self.display.transport_flash_pulses_remaining != 6 {
-            return None;
-        }
-        match self.display.transport_flash {
-            "measure" | "beat" => Some(RunnerMessage::UiPulse {
-                pulse: RuntimeUiPulse::TransportFlash {
-                    flash: self.display.transport_flash.into(),
-                    duration_ms: 90,
-                },
-            }),
-            _ => None,
-        }
-    }
-
     pub(super) fn status(&self) -> RuntimeStatus {
         RuntimeStatus {
             state: RuntimeStatusState::Running,
@@ -40,6 +17,8 @@ impl NativeRunner {
     }
 
     pub fn messages_with_snapshot(&mut self) -> Result<Vec<RunnerMessage>, String> {
+        let now = self.display.transients.now();
+        self.display.transients.advance(now);
         if self.pending.suppress_snapshot_response {
             return self.messages_without_snapshot();
         }
@@ -55,6 +34,8 @@ impl NativeRunner {
     }
 
     fn messages_with_snapshot_response(&mut self) -> Result<Vec<RunnerMessage>, String> {
+        let now = self.display.transients.now();
+        self.display.transients.advance(now);
         self.advance_oled_sleep_state();
         if self.display.oled_mode == NativeOledMode::Splash
             && self.display.oled_splash_text == super::OLED_STARTUP_SPLASH_KEY
@@ -63,6 +44,7 @@ impl NativeRunner {
         }
         self.advance_toast_state();
         let snapshot = self.next_snapshot()?;
+        self.display.transients.acknowledge_snapshot_pending();
         let autosave_pending = self.pending.pending_autosave_payload_due_at.is_some();
         let backup_due = self.config_dirty
             && self.rolling_backups
@@ -147,10 +129,29 @@ impl NativeRunner {
                 commands: self.outbox.drain_audio_commands(),
             });
         }
+        self.append_snapshot_and_status(&mut messages, false)?;
+        Ok(messages)
+    }
+
+    pub(super) fn append_snapshot_and_status(
+        &mut self,
+        messages: &mut Vec<RunnerMessage>,
+        requested: bool,
+    ) -> Result<(), String> {
+        let now = self.display.transients.now();
+        self.display.transients.advance(now);
+        let pending = self.display.transients.snapshot_pending();
+        if requested || pending {
+            self.advance_oled_sleep_state();
+            self.advance_toast_state();
+            let snapshot = self.snapshot()?;
+            self.display.transients.acknowledge_snapshot_pending();
+            messages.push(RunnerMessage::Snapshot { snapshot });
+        }
         messages.push(RunnerMessage::RuntimeStatus {
             status: self.status(),
         });
-        Ok(messages)
+        Ok(())
     }
 
     fn append_pending_transpose_note_offs(&mut self, messages: &mut Vec<RunnerMessage>) {
@@ -209,9 +210,8 @@ impl NativeRunner {
         )?;
         events.dedupe_note_ons_by_highest_velocity();
         if !events.is_empty() {
-            self.display.event_dot_on = true;
-            self.display.event_dot_pulses_remaining = 1;
-            messages.push(self.trigger_ui_pulse_message());
+            let now = self.display.transients.now();
+            self.display.transients.trigger_event_dot(now);
             if !events.audio.is_empty() {
                 messages.push(RunnerMessage::MusicalEvents {
                     events: events.audio,
@@ -233,9 +233,8 @@ impl NativeRunner {
     ) -> Result<Vec<RunnerMessage>, String> {
         let mut messages = Vec::new();
         if !events.is_empty() {
-            self.display.event_dot_on = true;
-            self.display.event_dot_pulses_remaining = 1;
-            messages.push(self.trigger_ui_pulse_message());
+            let now = self.display.transients.now();
+            self.display.transients.trigger_event_dot(now);
             if !events.audio.is_empty() {
                 messages.push(RunnerMessage::MusicalEvents {
                     events: events.audio,

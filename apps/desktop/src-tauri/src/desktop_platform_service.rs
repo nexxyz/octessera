@@ -5,8 +5,10 @@ use playback_runtime::{
     RuntimeSystemInfoError, SampleEntry,
 };
 use std::net::UdpSocket;
-use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::mpsc::{self, Receiver, SyncSender, TrySendError};
 use std::thread;
+
+const DESKTOP_PLATFORM_REQUEST_QUEUE_CAPACITY: usize = 32;
 
 #[derive(Clone, Debug)]
 pub(crate) struct DesktopPlatformServiceRequest {
@@ -33,12 +35,14 @@ impl DesktopPlatformServiceRequest {
 }
 
 pub(crate) struct DesktopPlatformService {
-    pub(crate) request_tx: Sender<DesktopPlatformServiceRequest>,
+    pub(crate) request_tx: SyncSender<DesktopPlatformServiceRequest>,
     pub(crate) result_rx: Receiver<Vec<HostMessage>>,
 }
 
 pub(crate) fn spawn_desktop_platform_service() -> DesktopPlatformService {
-    let (request_tx, request_rx) = mpsc::channel::<DesktopPlatformServiceRequest>();
+    let (request_tx, request_rx) = mpsc::sync_channel::<DesktopPlatformServiceRequest>(
+        DESKTOP_PLATFORM_REQUEST_QUEUE_CAPACITY,
+    );
     let (result_tx, result_rx) = mpsc::channel::<Vec<HostMessage>>();
 
     thread::spawn(move || {
@@ -59,6 +63,23 @@ pub(crate) fn spawn_desktop_platform_service() -> DesktopPlatformService {
     DesktopPlatformService {
         request_tx,
         result_rx,
+    }
+}
+
+pub(crate) fn admit_platform_service_request(
+    request_tx: &SyncSender<DesktopPlatformServiceRequest>,
+    request: DesktopPlatformServiceRequest,
+) -> Result<(), Vec<HostMessage>> {
+    match request_tx.try_send(request) {
+        Ok(()) => Ok(()),
+        Err(TrySendError::Full(request)) => Err(shape_service_unavailable_result(
+            request,
+            "Desktop platform service queue is full.".into(),
+        )),
+        Err(TrySendError::Disconnected(request)) => Err(shape_service_unavailable_result(
+            request,
+            "Desktop platform service unavailable".into(),
+        )),
     }
 }
 
@@ -311,6 +332,9 @@ fn sample_entries(entries: Vec<samples::SampleEntry>) -> Vec<SampleEntry> {
 }
 
 #[cfg(test)]
+#[path = "desktop_platform_service_admission_tests.rs"]
+mod admission_tests;
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -334,7 +358,6 @@ mod tests {
             matches!(result, RuntimeStoreResult::SampleListError { instrument_slot: 1, sample_slot: 2, dir, message } if dir == "bad" && message == "nope")
         );
     }
-
     #[test]
     fn midi_output_error_returns_only_store_error() {
         let result = only_result(shape_midi_outputs_result(|| Err("midi unavailable".into())));
@@ -342,7 +365,6 @@ mod tests {
             matches!(result, RuntimeStoreResult::StoreError { message } if message == "midi unavailable")
         );
     }
-
     #[test]
     fn midi_input_error_returns_only_store_error() {
         let result = only_result(shape_midi_inputs_result(|| Err("midi unavailable".into())));
@@ -350,7 +372,6 @@ mod tests {
             matches!(result, RuntimeStoreResult::StoreError { message } if message == "midi unavailable")
         );
     }
-
     #[test]
     fn midi_empty_lists_remain_successful_results() {
         let outputs = only_result(shape_midi_outputs_result(|| Ok(Vec::new())));
@@ -363,7 +384,6 @@ mod tests {
             matches!(inputs, RuntimeStoreResult::MidiListInputsResult { inputs } if inputs.is_empty())
         );
     }
-
     #[test]
     fn service_unavailable_midi_requests_return_only_store_error() {
         let outputs = only_result(shape_service_unavailable_result(

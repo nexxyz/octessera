@@ -1,5 +1,5 @@
+use crate::oled_frame_cache::OledFramePublication;
 use crate::render::OledOwnershipStage;
-use playback_runtime::RuntimeUiPulse;
 use serde_json::Value;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
@@ -8,7 +8,7 @@ use std::sync::Arc;
 pub(crate) enum RenderCommand {
     Snapshot {
         snapshot: Value,
-        pulses: Vec<RuntimeUiPulse>,
+        oled: OledFramePublication,
         rendered_acks: Vec<mpsc::Sender<Result<(), String>>>,
     },
     MarkFirstMenuRendered {
@@ -33,7 +33,7 @@ pub(crate) enum RenderCommand {
 
 pub(crate) struct SnapshotCommand {
     pub(crate) snapshot: Value,
-    pub(crate) pulses: Vec<RuntimeUiPulse>,
+    pub(crate) oled: OledFramePublication,
     pub(crate) rendered_acks: Vec<mpsc::Sender<Result<(), String>>>,
 }
 
@@ -42,6 +42,7 @@ pub(crate) struct RenderState {
     pub(crate) command: Option<RenderCommand>,
     pub(crate) snapshot: Option<SnapshotCommand>,
     pub(crate) acknowledged_snapshot_published: bool,
+    pub(crate) acknowledged_snapshot_rendered: bool,
 }
 
 pub(crate) fn pending_work_wins_over_expired_animation_deadline(state: &RenderState) -> bool {
@@ -51,26 +52,24 @@ pub(crate) fn pending_work_wins_over_expired_animation_deadline(state: &RenderSt
 pub(crate) fn merge_snapshot_command(
     pending: Option<SnapshotCommand>,
     snapshot: Value,
-    mut pulses: Vec<RuntimeUiPulse>,
+    oled: OledFramePublication,
     mut rendered_acks: Vec<mpsc::Sender<Result<(), String>>>,
 ) -> Option<SnapshotCommand> {
     match pending {
         Some(SnapshotCommand {
-            pulses: mut pending,
             rendered_acks: mut pending_acks,
             ..
         }) => {
-            pending.append(&mut pulses);
             pending_acks.append(&mut rendered_acks);
             Some(SnapshotCommand {
                 snapshot,
-                pulses: pending,
+                oled,
                 rendered_acks: pending_acks,
             })
         }
         None => Some(SnapshotCommand {
             snapshot,
-            pulses,
+            oled,
             rendered_acks,
         }),
     }

@@ -52,10 +52,8 @@ impl NativeRunner {
             *tick = 0;
         }
         self.transport.algorithm_pulse_accumulator = 0;
-        self.display.transport_flash = "none";
-        self.display.transport_flash_pulses_remaining = 0;
-        self.display.event_dot_on = false;
-        self.display.event_dot_pulses_remaining = 0;
+        let now = self.display.transients.now();
+        self.display.transients.reset(now);
         self.reset_global_lfo_phases();
         self.engine.reset_transport_phase();
         for engine in self.layer_engines.iter_mut().flatten() {
@@ -168,6 +166,9 @@ impl NativeRunner {
         &self,
         last_snapshot_at: Option<Instant>,
     ) -> Option<Instant> {
+        if self.display.transients.snapshot_pending() {
+            return Some(last_snapshot_at.unwrap_or_else(Instant::now));
+        }
         let mut deadline = None;
         if self.display.ui.dim_timer_seconds != 0 {
             deadline = earliest_deadline(
@@ -197,6 +198,9 @@ impl NativeRunner {
         }
         if let Some(auto_save_flash_until) = self.display.auto_save_flash_until {
             deadline = earliest_deadline(deadline, auto_save_flash_until, last_snapshot_at);
+        }
+        if let Some(transient_deadline) = self.display.transients.next_deadline(last_snapshot_at) {
+            deadline = earliest_deadline(deadline, transient_deadline, last_snapshot_at);
         }
         deadline
     }
