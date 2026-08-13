@@ -58,13 +58,29 @@ const CMD_SET_MUX_RATIO: u8 = 0xCA;
 const CMD_SET_COMMAND_LOCK: u8 = 0xFD;
 #[cfg(feature = "raspberry-pi-zero-2w")]
 const SPI_CHUNK_BYTES: usize = 4096;
-#[cfg(any(feature = "raspberry-pi-zero-2w", test))]
+#[cfg(any(
+    feature = "raspberry-pi-zero-2w",
+    all(feature = "orange-pi-zero-2w", target_os = "linux"),
+    test
+))]
 const WIDTH: usize = 128;
-#[cfg(any(feature = "raspberry-pi-zero-2w", test))]
+#[cfg(any(
+    feature = "raspberry-pi-zero-2w",
+    all(feature = "orange-pi-zero-2w", target_os = "linux"),
+    test
+))]
 const HEIGHT: usize = 128;
-#[cfg(any(feature = "raspberry-pi-zero-2w", test))]
+#[cfg(any(
+    feature = "raspberry-pi-zero-2w",
+    all(feature = "orange-pi-zero-2w", target_os = "linux"),
+    test
+))]
 const BYTES_PER_PIXEL: usize = 2;
-#[cfg(any(feature = "raspberry-pi-zero-2w", test))]
+#[cfg(any(
+    feature = "raspberry-pi-zero-2w",
+    all(feature = "orange-pi-zero-2w", target_os = "linux"),
+    test
+))]
 const FRAME_BYTES: usize = WIDTH * HEIGHT * BYTES_PER_PIXEL;
 
 /// OLED display driver
@@ -79,6 +95,7 @@ pub struct OledSsd1351 {
 #[cfg(all(feature = "orange-pi-zero-2w", target_os = "linux"))]
 pub struct OledSsd1351 {
     transport: Option<crate::orange_hardware::OrangeOledTransport>,
+    rotated_frame: Vec<u8>,
 }
 
 #[cfg(feature = "raspberry-pi-zero-2w")]
@@ -231,7 +248,11 @@ impl OledSsd1351 {
     }
 }
 
-#[cfg(any(feature = "raspberry-pi-zero-2w", test))]
+#[cfg(any(
+    feature = "raspberry-pi-zero-2w",
+    all(feature = "orange-pi-zero-2w", target_os = "linux"),
+    test
+))]
 fn rotate_clockwise_rgb565<'a>(pixels: &'a [u8], rotated: &'a mut [u8]) -> &'a [u8] {
     if pixels.len() != FRAME_BYTES || rotated.len() != FRAME_BYTES {
         return pixels;
@@ -293,14 +314,16 @@ impl OledSsd1351 {
         };
         Ok(Self {
             transport: Some(hardware.into_oled()),
+            rotated_frame: vec![0_u8; FRAME_BYTES],
         })
     }
 
     pub fn write_frame(&mut self, pixels: &[u8]) -> Result<(), String> {
+        let frame = rotate_clockwise_rgb565(pixels, &mut self.rotated_frame);
         self.transport
             .as_mut()
             .ok_or_else(|| "Orange OLED hardware is detached".to_string())?
-            .write_frame(orange_frame_for_transport(pixels))
+            .write_frame(frame)
     }
 
     pub fn display_all_on(&mut self) -> Result<(), String> {
@@ -341,11 +364,6 @@ impl OledSsd1351 {
         self.transport = Some(hardware.into_oled());
         Ok(())
     }
-}
-
-#[cfg(all(feature = "orange-pi-zero-2w", any(test, target_os = "linux")))]
-fn orange_frame_for_transport(pixels: &[u8]) -> &[u8] {
-    pixels
 }
 
 #[cfg(all(feature = "orange-pi-zero-2w", not(target_os = "linux")))]
@@ -434,48 +452,5 @@ impl fmt::Debug for OledSsd1351 {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{rotate_clockwise_rgb565, FRAME_BYTES, HEIGHT, WIDTH};
-
-    #[cfg(feature = "orange-pi-zero-2w")]
-    #[test]
-    fn orange_native_frame_is_forwarded_without_an_extra_transform() {
-        let pixels = (0..FRAME_BYTES)
-            .map(|index| index as u8)
-            .collect::<Vec<_>>();
-
-        assert_eq!(
-            super::orange_frame_for_transport(&pixels),
-            pixels.as_slice()
-        );
-    }
-
-    fn set_pixel(frame: &mut [u8], x: usize, y: usize, bytes: [u8; 2]) {
-        let offset = (y * WIDTH + x) * 2;
-        frame[offset..offset + 2].copy_from_slice(&bytes);
-    }
-
-    fn pixel(frame: &[u8], x: usize, y: usize) -> [u8; 2] {
-        let offset = (y * WIDTH + x) * 2;
-        [frame[offset], frame[offset + 1]]
-    }
-
-    #[test]
-    fn clockwise_rotation_preserves_asymmetric_rgb565_corner_pairs() {
-        let mut source = vec![0_u8; FRAME_BYTES];
-        set_pixel(&mut source, 0, 0, [0x12, 0x34]);
-        set_pixel(&mut source, WIDTH - 1, 0, [0x56, 0x78]);
-        set_pixel(&mut source, 0, HEIGHT - 1, [0x9A, 0xBC]);
-        set_pixel(&mut source, WIDTH - 1, HEIGHT - 1, [0xDE, 0xF0]);
-        set_pixel(&mut source, 3, 11, [0x45, 0x67]);
-        let mut rotated = vec![0_u8; FRAME_BYTES];
-
-        rotate_clockwise_rgb565(&source, &mut rotated);
-
-        assert_eq!(pixel(&rotated, WIDTH - 1, 0), [0x12, 0x34]);
-        assert_eq!(pixel(&rotated, WIDTH - 1, HEIGHT - 1), [0x56, 0x78]);
-        assert_eq!(pixel(&rotated, 0, 0), [0x9A, 0xBC]);
-        assert_eq!(pixel(&rotated, 0, HEIGHT - 1), [0xDE, 0xF0]);
-        assert_eq!(pixel(&rotated, HEIGHT - 1 - 11, 3), [0x45, 0x67]);
-    }
-}
+#[path = "oled_frame_transform_tests.rs"]
+mod oled_frame_transform_tests;

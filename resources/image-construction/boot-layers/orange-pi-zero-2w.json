@@ -24,7 +24,7 @@
     {"path": "userpatches/overlay/usr/local/share/octessera/device-tree/octessera-h618-input-routing.dts", "sha256": "63b40446ce72af1a9af1ea977c841a8aa29787e2a324d18911c5ea81d6b483d2", "size": 513, "mode": 420},
     {"path": "userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-boot-config.sh", "sha256": "24d811b69b15aacd0ab9ae21905c2883ff496491eb1aef19301e4cfc717e37a2", "size": 2011, "mode": 493},
     {"path": "userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-overlay-validation.sh", "sha256": "667823491f46945e25c98404198dc3f62e8a4a16cc255b2df3d4f62b4ea0ad8d", "size": 1837, "mode": 493},
-    {"path": "userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo", "sha256": "c641ce1d63c31dcfdc7ffb6192a6ab5519f13b793368204f52250f6172768fc0", "size": 15220, "mode": 493},
+    {"path": "userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo", "sha256": "4e396a720982425f8b437ce05bb856f58e93650fbdc18a07eb92574ae2793a17", "size": 15293, "mode": 493},
     {"path": "userpatches/overlay/usr/local/sbin/octessera-orange-oled-handoff.py", "sha256": "c9195714a67de31f8adad84fddc4e2c335efd7af6914a6a21119a50eaed55720", "size": 12871, "mode": 420},
     {"path": "userpatches/overlay/usr/local/sbin/octessera-orange-oled-lifecycle.py", "sha256": "6c8b1434380eed329b971aede123ffbb31ca7fda7bfa8c239271e302ed9b6555", "size": 5240, "mode": 420},
     {"path": "userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash", "sha256": "bdb8d96d1124e4085a32e4a7b1b428c601751be30652df61f3e4af20354458d0", "size": 4631, "mode": 493},
